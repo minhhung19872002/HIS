@@ -6,6 +6,12 @@ import {
   Tooltip as RTooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
 import { getQCLots, getQCResults, createQCLot, updateQCLot, deleteQCLot, getQCReport } from '../api/labQC';
+// NangCap26 LIS #29 — ngoại kiểm (EQA)
+import {
+  getEqaTests, saveEqaTest, deleteEqaTest, getEqaBatches, getEqaBatch, saveEqaBatch,
+  setEqaBatchStatus, saveEqaResult, deleteEqaResult,
+} from '../api/labQC';
+import type { LabEqaTestDto, LabEqaBatchDto, LabEqaResultDto } from '../api/labQC';
 import { fmtDateTime } from '../../../utils/format';
 import type { QCLot, QCResult, QCReport } from '../api/labQC';
 import { exportToExcel, formatDate } from '../../../utils/excelExport';
@@ -35,11 +41,13 @@ const LOT_FIELDS: CrudFieldCfg[] = [
 
 const LEVEL_LABEL: Record<number, string> = { 1: 'Low', 2: 'Normal', 3: 'High' };
 
-type Tab = 'lots' | 'results' | 'reports';
+type Tab = 'lots' | 'results' | 'reports' | 'eqa';
 const TABS = [
   { v: 'lots' as Tab, l: 'Lô QC', ic: 'package' },
   { v: 'results' as Tab, l: 'Kết quả QC', ic: 'activity' },
   { v: 'reports' as Tab, l: 'Báo cáo QC', ic: 'file-text' },
+  // NangCap26 LIS #29 — ngoại kiểm (EQA), khác nội kiểm (IQC) ở 3 tab trên
+  { v: 'eqa' as Tab, l: 'Ngoại kiểm (EQA)', ic: 'shield' },
 ];
 
 const REPORT_STATUS_LABEL: Record<string, string> = { good: 'Tốt', warning: 'Cảnh báo', error: 'Lỗi' };
@@ -498,7 +506,7 @@ const LabQCV2: React.FC = () => {
 
   return (
     <div className="ab">
-      <KpiStrip items={tab === 'lots' ? lotKpis : tab === 'results' ? resKpis : reportKpis} />
+      {tab !== 'eqa' && <KpiStrip items={tab === 'lots' ? lotKpis : tab === 'results' ? resKpis : reportKpis} />}
 
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
@@ -514,7 +522,9 @@ const LabQCV2: React.FC = () => {
         </>
       } />
 
-      <div className="ab-toolbar" style={{ borderTop: 'none' }}>
+      {tab === 'eqa' && <EqaPanel />}
+
+      {tab !== 'eqa' && <div className="ab-toolbar" style={{ borderTop: 'none' }}>
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder={tab === 'lots' ? 'Tìm mã/tên XN, số lô…' : 'Tìm mã/tên XN…'} />
         <Btn variant="ghost" onClick={() => setSearch('')}>
@@ -583,9 +593,9 @@ const LabQCV2: React.FC = () => {
         }}>
           <Ico name="download" size={12} /> Xuất Excel
         </Btn>
-      </div>
+      </div>}
 
-      {tab === 'lots' ? (
+      {tab === 'eqa' ? null : tab === 'lots' ? (
         <>
           <DataTable<QCLot>
             columns={lotCols} data={pagedLots} rowKey={(r) => r.id}
@@ -727,4 +737,297 @@ const LabQCV2: React.FC = () => {
   );
 };
 
+
+/* ──────────────────────────────────────────────────────────────────────────
+   NangCap26 — LIS #29: NGOẠI KIỂM (EQA)
+   Khác nội kiểm (IQC): mẫu do đơn vị tổ chức ngoại kiểm gửi tới, phòng XN chạy
+   như mẫu thường rồi báo kết quả về. Luồng: nhận bàn giao mẫu → chạy mẫu/nhập
+   kết quả → báo cáo → đóng đợt khi có đánh giá.
+   ────────────────────────────────────────────────────────────────────────── */
+
+const EQA_STATUS_TONE: Record<string, 'info' | 'ok' | 'warn' | 'crit'> = {
+  Received: 'warn', Running: 'info', Reported: 'info', Closed: 'ok',
+};
+
+const EVAL_TONE: Record<string, 'ok' | 'warn' | 'crit'> = {
+  Satisfactory: 'ok', Questionable: 'warn', Unsatisfactory: 'crit',
+};
+const EVAL_LABEL: Record<string, string> = {
+  Satisfactory: 'Đạt', Questionable: 'Nghi ngờ', Unsatisfactory: 'Không đạt',
+};
+
+const EqaLabeledInput: React.FC<{ label: string; value: string; onChange: (v: string) => void; type?: string }> = ({ label, value, onChange, type }) => (
+  <label style={{ display: 'grid', gap: 'var(--space-4)', fontSize: 'var(--fs-sm)' }}>
+    {label}
+    <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} />
+  </label>
+);
+
+const EqaPanel: React.FC = () => {
+  const [sub, setSub] = useState<'batches' | 'tests'>('batches');
+  const [batches, setBatches] = useState<LabEqaBatchDto[]>([]);
+  const [tests, setTests] = useState<LabEqaTestDto[]>([]);
+  const [eqaLoading, setEqaLoading] = useState(false);
+  const [sel, setSel] = useState<LabEqaBatchDto | null>(null);
+
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [batchForm, setBatchForm] = useState<Record<string, unknown>>({});
+  const [testOpen, setTestOpen] = useState(false);
+  const [testEdit, setTestEdit] = useState<LabEqaTestDto | null>(null);
+
+  const [resOpen, setResOpen] = useState(false);
+  const [resForm, setResForm] = useState<Record<string, unknown>>({});
+
+  const loadEqa = async () => {
+    setEqaLoading(true);
+    try {
+      if (sub === 'batches') setBatches((await getEqaBatches()).data || []);
+      else setTests((await getEqaTests(false)).data || []);
+    } catch { ti('Không tải được dữ liệu ngoại kiểm'); }
+    finally { setEqaLoading(false); }
+  };
+  useEffect(() => { loadEqa(); /* eslint-disable-next-line */ }, [sub]);
+  useEffect(() => { getEqaTests(true).then((r) => setTests(r.data || [])).catch(() => { /* danh mục rỗng là hợp lệ */ }); }, []);
+
+  const openBatch = (b?: LabEqaBatchDto) => {
+    setBatchForm(b
+      ? { id: b.id, batchCode: b.batchCode, providerName: b.providerName, period: b.period,
+          receivedDate: b.receivedDate?.slice(0, 10), dueDate: b.dueDate?.slice(0, 10),
+          handoverBy: b.handoverBy, notes: b.notes }
+      : { receivedDate: dayjs().format('YYYY-MM-DD') });
+    setBatchOpen(true);
+  };
+
+  const submitBatch = async () => {
+    if (!String(batchForm.batchCode || '').trim()) { ti('Nhập mã đợt ngoại kiểm'); return; }
+    try {
+      await saveEqaBatch(batchForm);
+      tk('Đã lưu đợt ngoại kiểm');
+      setBatchOpen(false); await loadEqa();
+    } catch (e) { ti((e as ApiErr).response?.data?.message || 'Lưu thất bại'); }
+  };
+
+  const changeStatus = async (b: LabEqaBatchDto, status: string) => {
+    try {
+      await setEqaBatchStatus(b.id, status);
+      tk('Đã cập nhật trạng thái đợt');
+      await loadEqa();
+      if (sel?.id === b.id) setSel((await getEqaBatch(b.id)).data);
+    } catch (e) { ti((e as ApiErr).response?.data?.message || 'Cập nhật thất bại'); }
+  };
+
+  const openResult = (batchId: string, r?: LabEqaResultDto) => {
+    setResForm(r
+      ? { id: r.id, batchId, eqaTestId: r.eqaTestId, sampleCode: r.sampleCode, resultValue: r.resultValue,
+          resultText: r.resultText, targetValue: r.targetValue, zScore: r.zScore,
+          evaluation: r.evaluation, correctiveAction: r.correctiveAction, notes: r.notes }
+      : { batchId });
+    setResOpen(true);
+  };
+
+  const submitResult = async () => {
+    if (!resForm.eqaTestId) { ti('Chọn xét nghiệm ngoại kiểm'); return; }
+    try {
+      await saveEqaResult(resForm);
+      tk('Đã lưu kết quả ngoại kiểm');
+      setResOpen(false);
+      if (sel) setSel((await getEqaBatch(sel.id)).data);
+      await loadEqa();
+    } catch (e) { ti((e as ApiErr).response?.data?.message || 'Lưu kết quả thất bại'); }
+  };
+
+  const submitTest = async () => {
+    if (!testEdit?.code?.trim() || !testEdit?.name?.trim()) { ti('Nhập mã và tên xét nghiệm'); return; }
+    try {
+      await saveEqaTest(testEdit);
+      tk('Đã lưu xét nghiệm ngoại kiểm');
+      setTestOpen(false); setTestEdit(null); await loadEqa();
+    } catch (e) { ti((e as ApiErr).response?.data?.message || 'Lưu thất bại'); }
+  };
+
+  const batchCols: ColumnDef<LabEqaBatchDto>[] = [
+    { key: 'code', label: 'Mã đợt', code: true, render: (r) => r.batchCode },
+    { key: 'prov', label: 'Đơn vị tổ chức', render: (r) => r.providerName || '—' },
+    { key: 'period', label: 'Kỳ', render: (r) => r.period || '—' },
+    { key: 'recv', label: 'Ngày nhận mẫu', mono: true, render: (r) => dayjs(r.receivedDate).format('DD/MM/YYYY') },
+    { key: 'due', label: 'Hạn báo cáo', mono: true, render: (r) => r.dueDate ? dayjs(r.dueDate).format('DD/MM/YYYY') : '—' },
+    { key: 'n', label: 'Chỉ tiêu', mono: true, render: (r) => r.resultCount },
+    { key: 'st', label: 'Trạng thái', render: (r) => (
+      <StatusBadge tone={EQA_STATUS_TONE[r.status] || 'info'} dot>{r.statusName}</StatusBadge>
+    ) },
+    { key: 'act', label: '', render: (r) => (
+      <span style={{ display: 'inline-flex', gap: 'var(--space-6)' }}>
+        <Btn variant="ghost" onClick={async (e?: React.MouseEvent) => { e?.stopPropagation(); setSel((await getEqaBatch(r.id)).data); }}>Chi tiết</Btn>
+        {r.status === 'Running' && <Btn variant="primary" onClick={(e?: React.MouseEvent) => { e?.stopPropagation(); changeStatus(r, 'Reported'); }}>Báo cáo</Btn>}
+        {r.status === 'Reported' && <Btn variant="ok" onClick={(e?: React.MouseEvent) => { e?.stopPropagation(); changeStatus(r, 'Closed'); }}>Đóng đợt</Btn>}
+      </span>
+    ) },
+  ];
+
+  const testCols: ColumnDef<LabEqaTestDto>[] = [
+    { key: 'code', label: 'Mã', code: true, render: (r) => r.code },
+    { key: 'name', label: 'Tên xét nghiệm', render: (r) => r.name },
+    { key: 'prov', label: 'Đơn vị tổ chức', render: (r) => r.providerName || '—' },
+    { key: 'cycle', label: 'Chu kỳ', render: (r) => r.cycle || '—' },
+    { key: 'unit', label: 'Đơn vị', render: (r) => r.unit || '—' },
+    { key: 'st', label: 'Trạng thái', render: (r) => r.isActive
+      ? <StatusBadge tone="ok">Đang dùng</StatusBadge>
+      : <StatusBadge tone="warn">Ngưng</StatusBadge> },
+    { key: 'act', label: '', render: (r) => (
+      <span style={{ display: 'inline-flex', gap: 'var(--space-6)' }}>
+        <Btn variant="ghost" onClick={(e?: React.MouseEvent) => { e?.stopPropagation(); setTestEdit({ ...r }); setTestOpen(true); }}>Sửa</Btn>
+        <Btn variant="crit" onClick={async (e?: React.MouseEvent) => {
+          e?.stopPropagation();
+          try { await deleteEqaTest(r.id); tk('Đã xóa'); await loadEqa(); }
+          catch (err) { ti((err as ApiErr).response?.data?.message || 'Xóa thất bại'); }
+        }}>Xóa</Btn>
+      </span>
+    ) },
+  ];
+
+  return (
+    <>
+      <KpiStrip items={[
+        { lbl: 'Đợt đang chạy', val: batches.filter((b) => b.status === 'Running').length, sub: 'ngoại kiểm', tone: 'info' },
+        { lbl: 'Chờ chạy mẫu', val: batches.filter((b) => b.status === 'Received').length, sub: 'đã nhận mẫu', tone: 'warn' },
+        { lbl: 'Đã báo cáo', val: batches.filter((b) => b.status === 'Reported').length, sub: 'chờ đánh giá' },
+        { lbl: 'Chỉ tiêu ngoại kiểm', val: tests.filter((t) => t.isActive).length, sub: 'đang dùng', tone: 'ok' },
+      ]} />
+
+      <div className="ab-toolbar" style={{ borderTop: 'none' }}>
+        <Btn variant={sub === 'batches' ? 'primary' : 'ghost'} onClick={() => setSub('batches')}>Đợt ngoại kiểm</Btn>
+        <Btn variant={sub === 'tests' ? 'primary' : 'ghost'} onClick={() => setSub('tests')}>Danh mục XN ngoại kiểm</Btn>
+        <span className="spacer" />
+        <Btn variant="ghost" onClick={loadEqa}><Ico name="refresh" size={12} /> Làm mới</Btn>
+        {sub === 'batches'
+          ? <Btn variant="primary" onClick={() => openBatch()}><Ico name="plus" size={12} /> Nhận bàn giao mẫu</Btn>
+          : <Btn variant="primary" onClick={() => { setTestEdit({ id: '', code: '', name: '', isActive: true } as LabEqaTestDto); setTestOpen(true); }}><Ico name="plus" size={12} /> Thêm chỉ tiêu</Btn>}
+      </div>
+
+      {sub === 'batches' ? (
+        <DataTable<LabEqaBatchDto> columns={batchCols} data={batches} rowKey={(r) => r.id}
+          empty={eqaLoading ? 'Đang tải…' : 'Chưa có đợt ngoại kiểm'} />
+      ) : (
+        <DataTable<LabEqaTestDto> columns={testCols} data={tests} rowKey={(r) => r.id}
+          empty={eqaLoading ? 'Đang tải…' : 'Chưa khai báo chỉ tiêu ngoại kiểm'} />
+      )}
+
+      <DrawerShell
+        open={!!sel}
+        onClose={() => setSel(null)}
+        size="lg"
+        title={sel ? `Đợt ngoại kiểm ${sel.batchCode}` : ''}
+        sub={sel ? `${sel.providerName || '—'} · ${sel.statusName}` : ''}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          {sel && sel.status !== 'Closed' && (
+            <Btn variant="primary" onClick={() => openResult(sel.id)}><Ico name="plus" size={12} /> Nhập kết quả</Btn>
+          )}
+        </>}
+      >
+        {sel && <>
+          <DrSec title="Thông tin đợt">
+            <DrField lbl="Kỳ">{sel.period || '—'}</DrField>
+            <DrField lbl="Ngày nhận mẫu">{dayjs(sel.receivedDate).format('DD/MM/YYYY')}</DrField>
+            <DrField lbl="Hạn báo cáo">{sel.dueDate ? dayjs(sel.dueDate).format('DD/MM/YYYY') : '—'}</DrField>
+            <DrField lbl="Người bàn giao">{sel.handoverBy || '—'}</DrField>
+            <DrField lbl="Người nhận">{sel.receivedByName || '—'}</DrField>
+            {sel.notes && <DrField lbl="Ghi chú">{sel.notes}</DrField>}
+          </DrSec>
+          <DrSec title={`Kết quả (${sel.results.length})`}>
+            {sel.results.length === 0 && <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Chưa nhập kết quả nào</div>}
+            {sel.results.map((r) => (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', padding: '6px 0', borderBottom: '1px solid var(--line-soft)' }}>
+                <span style={{ flex: 1 }}>
+                  <b>{r.eqaTestName || '—'}</b>
+                  <span style={{ color: 'var(--t-2)' }}> · mẫu {r.sampleCode || '—'}</span>
+                </span>
+                <span className="mono">{r.resultValue ?? r.resultText ?? '—'}</span>
+                {r.zScore != null && <span className="mono" style={{ color: 'var(--t-2)' }}>z={Number(r.zScore).toFixed(2)}</span>}
+                {r.evaluation && <StatusBadge tone={EVAL_TONE[r.evaluation] || 'info'} dot>{EVAL_LABEL[r.evaluation] || r.evaluation}</StatusBadge>}
+                {sel.status !== 'Closed' && <>
+                  <Btn variant="ghost" onClick={() => openResult(sel.id, r)}>Sửa</Btn>
+                  <Btn variant="crit" onClick={async () => {
+                    try { await deleteEqaResult(r.id); tk('Đã xóa kết quả'); setSel((await getEqaBatch(sel.id)).data); await loadEqa(); }
+                    catch (e) { ti((e as ApiErr).response?.data?.message || 'Xóa thất bại'); }
+                  }}>Xóa</Btn>
+                </>}
+              </div>
+            ))}
+          </DrSec>
+        </>}
+      </DrawerShell>
+
+      <ModalShell open={batchOpen} onClose={() => setBatchOpen(false)} size="md"
+        title={batchForm.id ? 'Sửa đợt ngoại kiểm' : 'Tiếp nhận bàn giao mẫu ngoại kiểm'}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setBatchOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitBatch}>Lưu</Btn>
+        </>}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
+          <EqaLabeledInput label="Mã đợt *" value={String(batchForm.batchCode || '')} onChange={(v) => setBatchForm((f) => ({ ...f, batchCode: v }))} />
+          <EqaLabeledInput label="Kỳ (VD 2026-Q3)" value={String(batchForm.period || '')} onChange={(v) => setBatchForm((f) => ({ ...f, period: v }))} />
+          <EqaLabeledInput label="Đơn vị tổ chức" value={String(batchForm.providerName || '')} onChange={(v) => setBatchForm((f) => ({ ...f, providerName: v }))} />
+          <EqaLabeledInput label="Người bàn giao" value={String(batchForm.handoverBy || '')} onChange={(v) => setBatchForm((f) => ({ ...f, handoverBy: v }))} />
+          <EqaLabeledInput label="Ngày nhận mẫu" type="date" value={String(batchForm.receivedDate || '')} onChange={(v) => setBatchForm((f) => ({ ...f, receivedDate: v }))} />
+          <EqaLabeledInput label="Hạn báo cáo" type="date" value={String(batchForm.dueDate || '')} onChange={(v) => setBatchForm((f) => ({ ...f, dueDate: v }))} />
+        </div>
+        <div style={{ marginTop: 'var(--space-12)' }}>
+          <EqaLabeledInput label="Ghi chú" value={String(batchForm.notes || '')} onChange={(v) => setBatchForm((f) => ({ ...f, notes: v }))} />
+        </div>
+      </ModalShell>
+
+      <ModalShell open={resOpen} onClose={() => setResOpen(false)} size="md"
+        title={resForm.id ? 'Sửa kết quả ngoại kiểm' : 'Nhập kết quả ngoại kiểm'}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setResOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitResult}>Lưu</Btn>
+        </>}>
+        <div style={{ display: 'grid', gap: 'var(--space-12)' }}>
+          <label style={{ display: 'grid', gap: 'var(--space-4)', fontSize: 'var(--fs-sm)' }}>
+            Xét nghiệm ngoại kiểm *
+            <AbSelect value={String(resForm.eqaTestId || '')} onChange={(v) => setResForm((f) => ({ ...f, eqaTestId: v }))}
+              options={tests.map((t) => ({ v: t.id, l: `${t.code} — ${t.name}` }))} placeholder="Chọn chỉ tiêu" />
+          </label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-12)' }}>
+            <EqaLabeledInput label="Mã mẫu" value={String(resForm.sampleCode || '')} onChange={(v) => setResForm((f) => ({ ...f, sampleCode: v }))} />
+            <EqaLabeledInput label="Kết quả (số)" value={String(resForm.resultValue ?? '')} onChange={(v) => setResForm((f) => ({ ...f, resultValue: v === '' ? undefined : Number(v) }))} />
+            <EqaLabeledInput label="Kết quả (chữ)" value={String(resForm.resultText || '')} onChange={(v) => setResForm((f) => ({ ...f, resultText: v }))} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-12)' }}>
+            <EqaLabeledInput label="Giá trị đích" value={String(resForm.targetValue ?? '')} onChange={(v) => setResForm((f) => ({ ...f, targetValue: v === '' ? undefined : Number(v) }))} />
+            <EqaLabeledInput label="Z-score" value={String(resForm.zScore ?? '')} onChange={(v) => setResForm((f) => ({ ...f, zScore: v === '' ? undefined : Number(v) }))} />
+            <label style={{ display: 'grid', gap: 'var(--space-4)', fontSize: 'var(--fs-sm)' }}>
+              Đánh giá
+              <AbSelect value={String(resForm.evaluation || '')} onChange={(v) => setResForm((f) => ({ ...f, evaluation: v }))}
+                options={[{ v: 'Satisfactory', l: 'Đạt' }, { v: 'Questionable', l: 'Nghi ngờ' }, { v: 'Unsatisfactory', l: 'Không đạt' }]}
+                placeholder="Chưa đánh giá" />
+            </label>
+          </div>
+          <EqaLabeledInput label="Hành động khắc phục (khi không đạt)" value={String(resForm.correctiveAction || '')} onChange={(v) => setResForm((f) => ({ ...f, correctiveAction: v }))} />
+        </div>
+      </ModalShell>
+
+      <ModalShell open={testOpen} onClose={() => { setTestOpen(false); setTestEdit(null); }} size="md"
+        title={testEdit?.id ? 'Sửa chỉ tiêu ngoại kiểm' : 'Thêm chỉ tiêu ngoại kiểm'}
+        footer={<>
+          <Btn variant="ghost" onClick={() => { setTestOpen(false); setTestEdit(null); }}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitTest}>Lưu</Btn>
+        </>}>
+        {testEdit && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
+            <EqaLabeledInput label="Mã *" value={testEdit.code} onChange={(v) => setTestEdit({ ...testEdit, code: v })} />
+            <EqaLabeledInput label="Tên *" value={testEdit.name} onChange={(v) => setTestEdit({ ...testEdit, name: v })} />
+            <EqaLabeledInput label="Đơn vị tổ chức" value={testEdit.providerName || ''} onChange={(v) => setTestEdit({ ...testEdit, providerName: v })} />
+            <EqaLabeledInput label="Chu kỳ" value={testEdit.cycle || ''} onChange={(v) => setTestEdit({ ...testEdit, cycle: v })} />
+            <EqaLabeledInput label="Đơn vị đo" value={testEdit.unit || ''} onChange={(v) => setTestEdit({ ...testEdit, unit: v })} />
+            <EqaLabeledInput label="Ghi chú" value={testEdit.notes || ''} onChange={(v) => setTestEdit({ ...testEdit, notes: v })} />
+          </div>
+        )}
+      </ModalShell>
+    </>
+  );
+};
+
 export default LabQCV2;
+

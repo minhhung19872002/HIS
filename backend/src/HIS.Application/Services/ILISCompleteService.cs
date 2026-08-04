@@ -510,6 +510,29 @@ namespace HIS.Application.Services
         Task<LabQueueDisplayDto> GetLabQueueDisplayAsync();
 
         #endregion
+
+        #region NangCap26 — LIS #29 Ngoại kiểm (EQA) + LIS #15 Đơn vị gửi mẫu
+
+        // Danh mục xét nghiệm ngoại kiểm
+        Task<HIS.Application.DTOs.Laboratory.LabEqaTestDto> SaveEqaTestAsync(HIS.Application.DTOs.Laboratory.LabEqaTestDto dto, Guid userId);
+        Task<List<HIS.Application.DTOs.Laboratory.LabEqaTestDto>> GetEqaTestsAsync(bool activeOnly = true);
+        Task DeleteEqaTestAsync(Guid id, Guid userId);
+
+        // Đợt ngoại kiểm: nhận bàn giao mẫu → chạy mẫu → báo cáo
+        Task<List<HIS.Application.DTOs.Laboratory.LabEqaBatchDto>> GetEqaBatchesAsync(string? status, DateTime? fromDate, DateTime? toDate);
+        Task<HIS.Application.DTOs.Laboratory.LabEqaBatchDto> GetEqaBatchAsync(Guid id);
+        Task<HIS.Application.DTOs.Laboratory.LabEqaBatchDto> SaveEqaBatchAsync(HIS.Application.DTOs.Laboratory.SaveLabEqaBatchDto dto, Guid userId);
+        Task<HIS.Application.DTOs.Laboratory.LabEqaBatchDto> SetEqaBatchStatusAsync(Guid id, string status, Guid userId);
+        Task<HIS.Application.DTOs.Laboratory.LabEqaResultDto> SaveEqaResultAsync(HIS.Application.DTOs.Laboratory.SaveLabEqaResultDto dto, Guid userId);
+        Task DeleteEqaResultAsync(Guid id, Guid userId);
+
+        // Đơn vị gửi mẫu
+        Task<List<HIS.Application.DTOs.Laboratory.LabSendingUnitDto>> GetSendingUnitsAsync(bool activeOnly = true);
+        Task<HIS.Application.DTOs.Laboratory.LabSendingUnitDto> SaveSendingUnitAsync(HIS.Application.DTOs.Laboratory.LabSendingUnitDto dto, Guid userId);
+        Task DeleteSendingUnitAsync(Guid id, Guid userId);
+        Task<int> ImportSendingUnitsAsync(List<HIS.Application.DTOs.Laboratory.LabSendingUnitDto> rows, Guid userId);
+
+        #endregion
     }
 
     #region Additional DTOs for LIS Service

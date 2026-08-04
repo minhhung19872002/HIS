@@ -270,6 +270,11 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<LabSampleType> LabSampleTypes => Set<LabSampleType>();
     public DbSet<LabTubeType> LabTubeTypes => Set<LabTubeType>();
     public DbSet<LabQCResult> LabQCResults => Set<LabQCResult>();
+    // NangCap26 LIS #29 (ngoại kiểm EQA) + #15 (đơn vị gửi mẫu)
+    public DbSet<LabEqaTest> LabEqaTests => Set<LabEqaTest>();
+    public DbSet<LabEqaBatch> LabEqaBatches => Set<LabEqaBatch>();
+    public DbSet<LabEqaResult> LabEqaResults => Set<LabEqaResult>();
+    public DbSet<LabSendingUnit> LabSendingUnits => Set<LabSendingUnit>();
     public DbSet<LabConclusionTemplate> LabConclusionTemplates => Set<LabConclusionTemplate>();
     public DbSet<LabTestNorm> LabTestNorms => Set<LabTestNorm>();
 

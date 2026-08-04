@@ -419,5 +419,79 @@ namespace HIS.API.Controllers
         }
         return Ok(result);
     }
+
+    #region NangCap26 — LIS #29 Ngoại kiểm (EQA) + LIS #15 Đơn vị gửi mẫu
+
+    /// <summary>Danh mục xét nghiệm ngoại kiểm.</summary>
+    [HttpGet("eqa/tests")]
+    public async Task<ActionResult<List<LabEqaTestDto>>> GetEqaTests([FromQuery] bool activeOnly = true)
+        => Ok(await _lisService.GetEqaTestsAsync(activeOnly));
+
+    [HttpPost("eqa/tests")]
+    public async Task<ActionResult<LabEqaTestDto>> SaveEqaTest([FromBody] LabEqaTestDto dto)
+        => Ok(await _lisService.SaveEqaTestAsync(dto, GetUserId() ?? Guid.Empty));
+
+    [HttpDelete("eqa/tests/{id}")]
+    public async Task<IActionResult> DeleteEqaTest(Guid id)
+    {
+        await _lisService.DeleteEqaTestAsync(id, GetUserId() ?? Guid.Empty);
+        return NoContent();
+    }
+
+    /// <summary>Danh sách đợt ngoại kiểm (tiếp nhận bàn giao mẫu).</summary>
+    [HttpGet("eqa/batches")]
+    public async Task<ActionResult<List<LabEqaBatchDto>>> GetEqaBatches(
+        [FromQuery] string? status, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
+        => Ok(await _lisService.GetEqaBatchesAsync(status, fromDate, toDate));
+
+    [HttpGet("eqa/batches/{id}")]
+    public async Task<ActionResult<LabEqaBatchDto>> GetEqaBatch(Guid id)
+        => Ok(await _lisService.GetEqaBatchAsync(id));
+
+    [HttpPost("eqa/batches")]
+    public async Task<ActionResult<LabEqaBatchDto>> SaveEqaBatch([FromBody] SaveLabEqaBatchDto dto)
+        => Ok(await _lisService.SaveEqaBatchAsync(dto, GetUserId() ?? Guid.Empty));
+
+    /// <summary>Chuyển trạng thái đợt: Received → Running → Reported → Closed.</summary>
+    [HttpPost("eqa/batches/{id}/status")]
+    public async Task<ActionResult<LabEqaBatchDto>> SetEqaBatchStatus(Guid id, [FromBody] EqaStatusRequest req)
+        => Ok(await _lisService.SetEqaBatchStatusAsync(id, req?.Status ?? string.Empty, GetUserId() ?? Guid.Empty));
+
+    /// <summary>Đăng ký chạy mẫu / nhập kết quả ngoại kiểm.</summary>
+    [HttpPost("eqa/results")]
+    public async Task<ActionResult<LabEqaResultDto>> SaveEqaResult([FromBody] SaveLabEqaResultDto dto)
+        => Ok(await _lisService.SaveEqaResultAsync(dto, GetUserId() ?? Guid.Empty));
+
+    [HttpDelete("eqa/results/{id}")]
+    public async Task<IActionResult> DeleteEqaResult(Guid id)
+    {
+        await _lisService.DeleteEqaResultAsync(id, GetUserId() ?? Guid.Empty);
+        return NoContent();
+    }
+
+    /// <summary>Danh mục đơn vị gửi mẫu.</summary>
+    [HttpGet("sending-units")]
+    public async Task<ActionResult<List<LabSendingUnitDto>>> GetSendingUnits([FromQuery] bool activeOnly = true)
+        => Ok(await _lisService.GetSendingUnitsAsync(activeOnly));
+
+    [HttpPost("sending-units")]
+    public async Task<ActionResult<LabSendingUnitDto>> SaveSendingUnit([FromBody] LabSendingUnitDto dto)
+        => Ok(await _lisService.SaveSendingUnitAsync(dto, GetUserId() ?? Guid.Empty));
+
+    [HttpDelete("sending-units/{id}")]
+    public async Task<IActionResult> DeleteSendingUnit(Guid id)
+    {
+        await _lisService.DeleteSendingUnitAsync(id, GetUserId() ?? Guid.Empty);
+        return NoContent();
+    }
+
+    /// <summary>Import đơn vị gửi mẫu từ Excel (client parse file → gửi mảng dòng).</summary>
+    [HttpPost("sending-units/import")]
+    public async Task<ActionResult<object>> ImportSendingUnits([FromBody] List<LabSendingUnitDto> rows)
+        => Ok(new { imported = await _lisService.ImportSendingUnitsAsync(rows, GetUserId() ?? Guid.Empty) });
+
+    public class EqaStatusRequest { public string Status { get; set; } = string.Empty; }
+
+    #endregion
     }
 }

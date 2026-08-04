@@ -94,3 +94,111 @@ export const getQCReport = async (params?: { fromDate?: string; toDate?: string 
   const resp = await apiClient.get('/LISComplete/reports/qc', { params });
   return resp.data;
 };
+
+// ─── NangCap26 LIS #29: Ngoại kiểm (EQA) — khác nội kiểm (IQC) ở trên ───────
+
+export interface LabEqaTestDto {
+  id: string;
+  code: string;
+  name: string;
+  serviceId?: string;
+  serviceName?: string;
+  providerName?: string;
+  cycle?: string;
+  unit?: string;
+  notes?: string;
+  isActive: boolean;
+}
+
+export interface LabEqaResultDto {
+  id: string;
+  batchId: string;
+  eqaTestId: string;
+  eqaTestName?: string;
+  sampleCode?: string;
+  resultValue?: number;
+  resultText?: string;
+  runAt?: string;
+  runBy?: string;
+  targetValue?: number;
+  zScore?: number;
+  evaluation?: string;
+  correctiveAction?: string;
+  notes?: string;
+}
+
+export interface LabEqaBatchDto {
+  id: string;
+  batchCode: string;
+  providerName?: string;
+  period?: string;
+  receivedDate: string;
+  dueDate?: string;
+  handoverBy?: string;
+  receivedBy?: string;
+  receivedByName?: string;
+  /** Received | Running | Reported | Closed */
+  status: string;
+  statusName: string;
+  notes?: string;
+  resultCount: number;
+  results: LabEqaResultDto[];
+}
+
+export const getEqaTests = (activeOnly = true) =>
+  apiClient.get<LabEqaTestDto[]>('/LISComplete/eqa/tests', { params: { activeOnly } });
+
+export const saveEqaTest = (dto: Partial<LabEqaTestDto>) =>
+  apiClient.post<LabEqaTestDto>('/LISComplete/eqa/tests', dto);
+
+export const deleteEqaTest = (id: string) =>
+  apiClient.delete(`/LISComplete/eqa/tests/${id}`);
+
+export const getEqaBatches = (params?: { status?: string; fromDate?: string; toDate?: string }) =>
+  apiClient.get<LabEqaBatchDto[]>('/LISComplete/eqa/batches', { params });
+
+export const getEqaBatch = (id: string) =>
+  apiClient.get<LabEqaBatchDto>(`/LISComplete/eqa/batches/${id}`);
+
+/** Tiếp nhận bàn giao mẫu ngoại kiểm (tạo mới) hoặc sửa thông tin đợt. */
+export const saveEqaBatch = (dto: Record<string, unknown>) =>
+  apiClient.post<LabEqaBatchDto>('/LISComplete/eqa/batches', dto);
+
+/** Chuyển trạng thái đợt: Received → Running → Reported → Closed. */
+export const setEqaBatchStatus = (id: string, status: string) =>
+  apiClient.post<LabEqaBatchDto>(`/LISComplete/eqa/batches/${id}/status`, { status });
+
+/** Đăng ký chạy mẫu / nhập kết quả ngoại kiểm. */
+export const saveEqaResult = (dto: Record<string, unknown>) =>
+  apiClient.post<LabEqaResultDto>('/LISComplete/eqa/results', dto);
+
+export const deleteEqaResult = (id: string) =>
+  apiClient.delete(`/LISComplete/eqa/results/${id}`);
+
+// ─── NangCap26 LIS #15: Đơn vị gửi mẫu ─────────────────────────────────────
+
+export interface LabSendingUnitDto {
+  id: string;
+  code: string;
+  name: string;
+  address?: string;
+  phoneNumber?: string;
+  contactPerson?: string;
+  email?: string;
+  facilityCode?: string;
+  notes?: string;
+  isActive: boolean;
+}
+
+export const getSendingUnits = (activeOnly = true) =>
+  apiClient.get<LabSendingUnitDto[]>('/LISComplete/sending-units', { params: { activeOnly } });
+
+export const saveSendingUnit = (dto: Partial<LabSendingUnitDto>) =>
+  apiClient.post<LabSendingUnitDto>('/LISComplete/sending-units', dto);
+
+export const deleteSendingUnit = (id: string) =>
+  apiClient.delete(`/LISComplete/sending-units/${id}`);
+
+/** Import từ Excel: client parse file → gửi mảng dòng. */
+export const importSendingUnits = (rows: Partial<LabSendingUnitDto>[]) =>
+  apiClient.post<{ imported: number }>('/LISComplete/sending-units/import', rows);
