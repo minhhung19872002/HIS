@@ -75,7 +75,7 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
             if (dueDate.HasValue) query = query.Where(x => x.ScheduledDate <= dueDate);
             if (overdue == true) query = query.Where(x => x.ScheduledDate < DateTime.Today);
             var list = await query.ToBoundedListAsync("MedicalEquipment.GetMaintenanceSchedules");
-            return list.Select(e => new MaintenanceScheduleDto { Id = e.Id, EquipmentId = e.EquipmentId, EquipmentName = e.Equipment?.EquipmentName ?? "", MaintenanceType = e.MaintenanceType, NextDueDate = e.ScheduledDate, Status = e.Status, ApprovalStatus = e.ApprovalStatus, ApprovedBy = e.ApprovedBy, ApprovedAt = e.ApprovedAt, ApprovalNote = e.ApprovalNote }).ToList();
+            return list.Select(e => new MaintenanceScheduleDto { Id = e.Id, ScheduleCode = e.ScheduleCode ?? "", EquipmentId = e.EquipmentId, EquipmentCode = e.Equipment?.EquipmentCode ?? "", EquipmentName = e.Equipment?.EquipmentName ?? "", MaintenanceType = e.MaintenanceType, Frequency = e.Frequency ?? "", NextDueDate = e.ScheduledDate, Status = e.Status, ApprovalStatus = e.ApprovalStatus, ApprovedBy = e.ApprovedBy, ApprovedAt = e.ApprovedAt, ApprovalNote = e.ApprovalNote }).ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
@@ -114,19 +114,57 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
 
         return new MaintenanceScheduleDto
         {
-            Id = e.Id, EquipmentId = e.EquipmentId, EquipmentName = e.Equipment?.EquipmentName ?? "",
+            Id = e.Id, ScheduleCode = e.ScheduleCode ?? "",
+            EquipmentId = e.EquipmentId, EquipmentName = e.Equipment?.EquipmentName ?? "",
             MaintenanceType = e.MaintenanceType, NextDueDate = e.ScheduledDate, Status = e.Status,
             ApprovalStatus = e.ApprovalStatus, ApprovedBy = e.ApprovedBy, ApprovedAt = e.ApprovedAt,
             ApprovalNote = e.ApprovalNote,
         };
     }
 
+    /// <summary>
+    /// Sinh mã phiếu kế hoạch bảo dưỡng theo ngày: BDyyyyMMdd-NNNN (NNNN = số thứ tự trong ngày).
+    /// Đúng cách bệnh viện đánh số hồ sơ TTBYT — tra cứu được theo ngày, không phải chuỗi ngẫu nhiên.
+    /// </summary>
+    private async Task<string> NextMaintenanceCodeAsync(DateTime scheduledDate)
+    {
+        var prefix = $"BD{scheduledDate:yyyyMMdd}-";
+        var used = await _context.MaintenanceRecords.AsNoTracking()
+            .Where(x => x.ScheduleCode != null && x.ScheduleCode.StartsWith(prefix))
+            .Select(x => x.ScheduleCode!)
+            .ToListAsync();
+        var next = used
+            .Select(c => int.TryParse(c[prefix.Length..], out var n) ? n : 0)
+            .DefaultIfEmpty(0).Max() + 1;
+        return $"{prefix}{next:D4}";
+    }
+
     public async Task<MaintenanceScheduleDto> CreateMaintenanceScheduleAsync(Guid equipmentId, string maintenanceType, string frequency, DateTime nextDueDate)
     {
-        var entity = new MaintenanceRecord { Id = Guid.NewGuid(), EquipmentId = equipmentId, MaintenanceType = maintenanceType, ScheduledDate = nextDueDate, Status = "Scheduled", CreatedAt = DateTime.Now };
+        // Kế hoạch mới luôn ở trạng thái CHỜ DUYỆT (ApprovalStatus mặc định 0) — lãnh đạo
+        // duyệt xong mới đưa vào lịch thực hiện (XVII.7).
+        var entity = new MaintenanceRecord
+        {
+            Id = Guid.NewGuid(),
+            ScheduleCode = await NextMaintenanceCodeAsync(nextDueDate),
+            EquipmentId = equipmentId,
+            MaintenanceType = maintenanceType,
+            Frequency = string.IsNullOrWhiteSpace(frequency) ? null : frequency,
+            ScheduledDate = nextDueDate,
+            Status = "Scheduled",
+            CreatedAt = DateTime.Now,
+        };
         _context.MaintenanceRecords.Add(entity);
         await _context.SaveChangesAsync();
-        return new MaintenanceScheduleDto { Id = entity.Id, EquipmentId = equipmentId, MaintenanceType = maintenanceType, NextDueDate = nextDueDate, Status = "Scheduled" };
+        var eqName = await _context.MedicalEquipments.AsNoTracking()
+            .Where(x => x.Id == equipmentId).Select(x => x.EquipmentName).FirstOrDefaultAsync();
+        return new MaintenanceScheduleDto
+        {
+            Id = entity.Id, ScheduleCode = entity.ScheduleCode ?? "",
+            EquipmentId = equipmentId, EquipmentName = eqName ?? "",
+            MaintenanceType = maintenanceType, Frequency = frequency,
+            NextDueDate = nextDueDate, Status = "Scheduled", ApprovalStatus = 0,
+        };
     }
 
     public async Task<List<MaintenanceRecordDto>> GetMaintenanceHistoryAsync(Guid equipmentId)
@@ -137,7 +175,7 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
 
     public async Task<MaintenanceRecordDto> RecordMaintenanceAsync(CreateMaintenanceRecordDto dto)
     {
-        var entity = new MaintenanceRecord { Id = Guid.NewGuid(), EquipmentId = dto.EquipmentId, MaintenanceType = dto.MaintenanceType ?? "Corrective", ScheduledDate = dto.MaintenanceDate, PerformedDate = DateTime.Now, Status = "Completed", WorkDescription = dto.Description, PartsReplaced = dto.PartsReplaced, PartsCost = dto.PartsCost, LaborCost = dto.LaborCost, TotalCost = (dto.PartsCost ?? 0) + (dto.LaborCost ?? 0), CreatedAt = DateTime.Now };
+        var entity = new MaintenanceRecord { Id = Guid.NewGuid(), ScheduleCode = await NextMaintenanceCodeAsync(dto.MaintenanceDate), EquipmentId = dto.EquipmentId, MaintenanceType = dto.MaintenanceType ?? "Corrective", ScheduledDate = dto.MaintenanceDate, PerformedDate = DateTime.Now, Status = "Completed", WorkDescription = dto.Description, PartsReplaced = dto.PartsReplaced, PartsCost = dto.PartsCost, LaborCost = dto.LaborCost, TotalCost = (dto.PartsCost ?? 0) + (dto.LaborCost ?? 0), CreatedAt = DateTime.Now };
         _context.MaintenanceRecords.Add(entity);
         var eq = await _context.MedicalEquipments.FindAsync(dto.EquipmentId);
         if (eq != null) eq.LastMaintenanceDate = DateTime.Now;

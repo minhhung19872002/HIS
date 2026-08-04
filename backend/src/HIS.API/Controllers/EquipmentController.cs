@@ -53,6 +53,19 @@ namespace HIS.API.Controllers
             [FromQuery] bool? overdue)
             => Ok(await _service.GetMaintenanceSchedulesAsync(dueDate, overdue));
 
+        /// <summary>
+        /// Lập KẾ HOẠCH bảo dưỡng (trạng thái Scheduled · chờ duyệt XVII.7).
+        /// Khác POST "maintenance" — cái đó GHI NHẬN việc đã bảo dưỡng xong (Completed).
+        /// FE đã gọi route này từ trước nhưng BE chưa có handler nên trả 404.
+        /// </summary>
+        [HttpPost("maintenance/schedules")]
+        public async Task<ActionResult<MaintenanceScheduleDto>> CreateMaintenanceSchedule([FromBody] CreateMaintenanceScheduleRequest dto)
+            => Ok(await _service.CreateMaintenanceScheduleAsync(
+                dto.EquipmentId,
+                string.IsNullOrWhiteSpace(dto.MaintenanceType) ? "Preventive" : dto.MaintenanceType,
+                dto.Frequency ?? string.Empty,
+                dto.NextDueDate));
+
         [HttpPost("maintenance")]
         public async Task<ActionResult<MaintenanceRecordDto>> RecordMaintenance([FromBody] CreateMaintenanceRecordDto dto)
             => Ok(await _service.RecordMaintenanceAsync(dto));

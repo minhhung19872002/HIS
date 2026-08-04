@@ -585,7 +585,17 @@ export const getMaintenanceSchedules = (equipmentId?: string, dueWithinDays?: nu
 export const getMaintenanceSchedule = (id: string) =>
   apiClient.get<MaintenanceScheduleDto>(`${BASE_URL}/maintenance/schedules/${id}`);
 
-export const createMaintenanceSchedule = (dto: MaintenanceScheduleDto) =>
+/** Body LẬP kế hoạch bảo dưỡng — khớp CreateMaintenanceScheduleRequest ở BE (KHÁC DTO trả về). */
+export interface CreateMaintenanceScheduleDto {
+  equipmentId: string;
+  maintenanceType?: string;
+  frequency?: string;
+  /** ISO datetime */
+  nextDueDate?: string;
+  notes?: string;
+}
+
+export const createMaintenanceSchedule = (dto: CreateMaintenanceScheduleDto) =>
   apiClient.post<MaintenanceScheduleDto>(`${BASE_URL}/maintenance/schedules`, dto);
 
 export const updateMaintenanceSchedule = (id: string, dto: MaintenanceScheduleDto) =>

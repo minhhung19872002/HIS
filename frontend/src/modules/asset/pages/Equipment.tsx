@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { App as AntdApp, Form, Input, DatePicker, Select, Row, Col } from 'antd';
 import {
   getEquipment, getMaintenanceSchedules, getRepairRequests,
-  createEquipment, createMaintenanceRecord, createRepairRequest, getEquipmentCategories,
+  createEquipment, createMaintenanceSchedule, createRepairRequest, getEquipmentCategories,
   approveMaintenanceRecord, rejectMaintenanceSchedule,
   type EquipmentDto, type CreateEquipmentDto, type MaintenanceScheduleDto,
   type RepairRequestDto, type EquipmentCategoryDto,
@@ -55,11 +55,20 @@ const PER_PAGE = 16;
 type MaintFormValues = {
   equipmentId?: string;      // chỉ dùng khi mở từ tab Lịch bảo trì (chưa chọn sẵn thiết bị)
   maintenanceType: string;
+  frequency?: string;        // Chu kỳ bảo dưỡng (Monthly/Quarterly/SemiAnnual/Annual)
   scheduledDate?: dayjs.Dayjs | null;
-  performedBy?: string;      // Đơn vị thực hiện (KTV/công ty) → performedByCompany
+  performedBy?: string;      // Đơn vị thực hiện (KTV/công ty)
   description?: string;
   notes?: string;
 };
+
+/** Chu kỳ bảo dưỡng định kỳ theo hồ sơ TTBYT. */
+const MAINT_FREQUENCIES = [
+  { value: 'Monthly',    label: 'Hàng tháng' },
+  { value: 'Quarterly',  label: 'Hàng quý' },
+  { value: 'SemiAnnual', label: '6 tháng/lần' },
+  { value: 'Annual',     label: 'Hàng năm' },
+];
 
 type RepairFormValues = {
   priority: number;
@@ -268,19 +277,19 @@ const EquipmentV2: React.FC = () => {
       const target = maintTarget ?? equipment.find((e) => e.id === v.equipmentId);
       if (!target) { message.warning('Chưa chọn thiết bị'); return; }
       const scheduledIso = v.scheduledDate ? v.scheduledDate.toISOString() : undefined;
-      await createMaintenanceRecord({
+      // Đây là LẬP KẾ HOẠCH (trạng thái Scheduled · chờ lãnh đạo duyệt — XVII.7), KHÔNG phải
+      // ghi nhận đã bảo dưỡng xong. Trước đây gọi createMaintenanceRecord nên phiếu sinh ra
+      // luôn ở trạng thái Completed ⇒ không bao giờ có kế hoạch nào vào hàng chờ duyệt.
+      const res = await createMaintenanceSchedule({
         equipmentId: target.id,
         maintenanceType: v.maintenanceType || 'Preventive',
-        scheduledDate: scheduledIso,
-        performedDate: new Date().toISOString(),
-        performedByCompany: v.performedBy || undefined,
-        description: v.description || '',
-        workPerformed: v.description || '',
-        afterStatus: target.operationalStatus,
-        nextMaintenanceDate: scheduledIso,
-        notes: v.notes,
+        frequency: v.frequency || '',
+        nextDueDate: scheduledIso,
+        notes: [v.description, v.performedBy ? `Đơn vị thực hiện: ${v.performedBy}` : '', v.notes]
+          .filter(Boolean).join(' · ') || undefined,
       });
-      message.success(`Đã lên lịch bảo trì cho ${target.name}`);
+      const code = res.data?.scheduleCode;
+      message.success(`Đã lập kế hoạch bảo dưỡng ${code ? code + ' ' : ''}cho ${target.name} — chờ duyệt`);
       setMaintTarget(null);
       setMaintOpen(false);
       void reload();
@@ -295,7 +304,6 @@ const EquipmentV2: React.FC = () => {
     setMaintBusy(r.id);
     try {
       await approveMaintenanceRecord(r.id);
-      // MaintenanceRecords chưa có cột mã phiếu → scheduleCode có thể undefined, fallback tên thiết bị
       message.success(`Đã duyệt kế hoạch bảo dưỡng ${r.scheduleCode || r.equipmentName}`);
       void reload();
     } catch (e) {
@@ -453,6 +461,8 @@ const EquipmentV2: React.FC = () => {
 
   // Maintenance schedule columns (ported from v1)
   const maintColumns: ColumnDef<MaintenanceScheduleDto>[] = [
+    // Mã phiếu kế hoạch — hồ sơ TTBYT phải tra cứu được theo số (migration 159)
+    { key: 'code', label: 'Mã KH', code: true, width: 140, render: (r) => r.scheduleCode || '—' },
     {
       key: 'eq', label: 'Thiết bị',
       render: (r) => (
@@ -760,6 +770,9 @@ const EquipmentV2: React.FC = () => {
                 { value: 'Corrective',  label: 'Bảo trì khắc phục (Corrective)' },
                 { value: 'Calibration', label: 'Hiệu chuẩn (Calibration)' },
               ]} />
+            </Form.Item>
+            <Form.Item name="frequency" label="Chu kỳ" initialValue="Quarterly">
+              <Select options={MAINT_FREQUENCIES} />
             </Form.Item>
             <Form.Item name="scheduledDate" label="Ngày bảo trì dự kiến" rules={[{ required: true }]}>
               <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} disabledDate={(d) => d.isBefore(dayjs(), 'day')} />

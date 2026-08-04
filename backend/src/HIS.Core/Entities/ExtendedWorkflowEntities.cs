@@ -789,8 +789,16 @@ public class MedicalEquipment : BaseEntity
 /// </summary>
 public class MaintenanceRecord : BaseEntity
 {
+    /// <summary>
+    /// Mã phiếu kế hoạch bảo dưỡng (BDyyyyMMdd-NNNN) — hồ sơ TTBYT phải có số để
+    /// tra cứu / ký duyệt / lưu trữ. Nullable cho dữ liệu cũ trước migration 159.
+    /// </summary>
+    public string? ScheduleCode { get; set; }
+
     public Guid EquipmentId { get; set; }
     public string MaintenanceType { get; set; } = string.Empty; // Preventive, Corrective
+    /// <summary>Chu kỳ lặp: Monthly · Quarterly · SemiAnnual · Annual (migration 159).</summary>
+    public string? Frequency { get; set; }
     public DateTime ScheduledDate { get; set; }
     public DateTime? PerformedDate { get; set; }
     public Guid? PerformedById { get; set; }

@@ -103,9 +103,24 @@ namespace HIS.Application.DTOs.Equipment
     /// <summary>
     /// Lịch bảo trì
     /// </summary>
+    /// <summary>
+    /// Request LẬP kế hoạch bảo dưỡng — tách khỏi <see cref="MaintenanceScheduleDto"/> (DTO trả về,
+    /// có nhiều field string non-nullable nên dùng làm body sẽ bị model-validation đòi đủ field).
+    /// </summary>
+    public class CreateMaintenanceScheduleRequest
+    {
+        public Guid EquipmentId { get; set; }
+        public string? MaintenanceType { get; set; }
+        public string? Frequency { get; set; }
+        public DateTime NextDueDate { get; set; }
+        public string? Notes { get; set; }
+    }
+
     public class MaintenanceScheduleDto
     {
         public Guid Id { get; set; }
+        /// <summary>Mã phiếu kế hoạch bảo dưỡng (BDyyyyMMdd-NNNN) — migration 159.</summary>
+        public string ScheduleCode { get; set; } = string.Empty;
         public Guid EquipmentId { get; set; }
         public string EquipmentCode { get; set; }
         public string EquipmentName { get; set; }
@@ -113,7 +128,24 @@ namespace HIS.Application.DTOs.Equipment
 
         // Schedule
         public string MaintenanceType { get; set; } // Preventive, Calibration, Safety
-        public string Frequency { get; set; } // Monthly, Quarterly, Biannually, Annually
+        public string Frequency { get; set; } // Monthly, Quarterly, SemiAnnual, Annual
+        /// <summary>Nhãn tiếng Việt để giao diện/phiếu in không phải tự map lại.</summary>
+        public string MaintenanceTypeName => MaintenanceType switch
+        {
+            "Preventive" => "Bảo trì định kỳ",
+            "Corrective" => "Bảo trì khắc phục",
+            "Calibration" => "Hiệu chuẩn",
+            "Safety" => "Kiểm tra an toàn",
+            _ => MaintenanceType ?? string.Empty,
+        };
+        public string FrequencyName => Frequency switch
+        {
+            "Monthly" => "Hàng tháng",
+            "Quarterly" => "Hàng quý",
+            "SemiAnnual" => "6 tháng/lần",
+            "Annual" => "Hàng năm",
+            _ => Frequency ?? string.Empty,
+        };
         public DateTime NextDueDate { get; set; }
         public int ReminderDaysBefore { get; set; }
         public bool IsOverdue { get; set; }
