@@ -797,6 +797,13 @@ public class MaintenanceRecord : BaseEntity
 
     public string Status { get; set; } = "Scheduled"; // Scheduled, InProgress, Completed, Overdue
 
+    // NangCap26 XVII.7 — lãnh đạo duyệt kế hoạch bảo dưỡng.
+    // 0=Chờ duyệt · 1=Đã duyệt · 2=Từ chối
+    public int ApprovalStatus { get; set; }
+    public Guid? ApprovedBy { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public string? ApprovalNote { get; set; }
+
     // Work done
     public string? WorkDescription { get; set; }
     public string? PartsReplaced { get; set; }

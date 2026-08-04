@@ -3,7 +3,7 @@ namespace HIS.Core.Entities;
 /// <summary>
 /// Phieu de xuat / du tru / to trinh mua sam tai san + vat tu hanh chinh (#108)
 /// Khac voi ProcurementRequest (warehouse module) — day la workflow duyet cap quan ly.
-/// RequestType: 1=DeXuat (đề xuất), 2=DuTru (dự trù), 3=MuaSam (tờ trình mua sắm)
+/// RequestType: 1=DeXuat (đề xuất), 2=DuTru (dự trù), 3=MuaSam (tờ trình mua sắm), 4=TrangCap (trang cấp tài sản — NangCap26 XVII.3)
 /// Status: 0=DuThao, 1=ChoXetDuyet, 2=DaDuyet, 3=TuChoi, 4=HoanTat
 /// </summary>
 public class AssetProcurementRequest : BaseEntity
@@ -22,6 +22,11 @@ public class AssetProcurementRequest : BaseEntity
     public string? ApproverName { get; set; }
     public DateTime? ApprovedAt { get; set; }
     public string? Note { get; set; }
+
+    // NangCap26 XVII.3/XVII.4: RequestType = 4 (TrangCap) — khoa/phòng xin cấp tài sản
+    // từ kho TTB. Sau khi duyệt, bước "cấp phát" sinh AssetHandover về khoa yêu cầu.
+    public DateTime? IssuedAt { get; set; }
+    public Guid? IssuedBy { get; set; }
 
     // Navigation
     public ICollection<AssetProcurementRequestItem> Items { get; set; } = new List<AssetProcurementRequestItem>();

@@ -27,4 +27,10 @@ public interface IAssetProcurementService
 
     /// <summary>Hoàn tất: Status 2 → 4 (HoanTat).</summary>
     Task<AssetProcurementRequestDto> CompleteAsync(Guid id, string? userId);
+
+    /// <summary>
+    /// NangCap26 XVII.4 — cấp phát tài sản cho phiếu TRANG CẤP (RequestType=4) đã duyệt:
+    /// sinh AssetHandover về khoa yêu cầu + chốt phiếu sang Hoàn tất.
+    /// </summary>
+    Task<AssetProcurementRequestDto> IssueAssetsAsync(Guid id, List<Guid> fixedAssetIds, string? userId);
 }

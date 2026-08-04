@@ -75,12 +75,50 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
             if (dueDate.HasValue) query = query.Where(x => x.ScheduledDate <= dueDate);
             if (overdue == true) query = query.Where(x => x.ScheduledDate < DateTime.Today);
             var list = await query.ToBoundedListAsync("MedicalEquipment.GetMaintenanceSchedules");
-            return list.Select(e => new MaintenanceScheduleDto { Id = e.Id, EquipmentId = e.EquipmentId, EquipmentName = e.Equipment?.EquipmentName ?? "", MaintenanceType = e.MaintenanceType, NextDueDate = e.ScheduledDate, Status = e.Status }).ToList();
+            return list.Select(e => new MaintenanceScheduleDto { Id = e.Id, EquipmentId = e.EquipmentId, EquipmentName = e.Equipment?.EquipmentName ?? "", MaintenanceType = e.MaintenanceType, NextDueDate = e.ScheduledDate, Status = e.Status, ApprovalStatus = e.ApprovalStatus, ApprovedBy = e.ApprovedBy, ApprovedAt = e.ApprovedAt, ApprovalNote = e.ApprovalNote }).ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
             return new List<MaintenanceScheduleDto>();
         }
+    }
+
+    /// <summary>NangCap26 XVII.7 — lãnh đạo duyệt kế hoạch bảo dưỡng đã lập.</summary>
+    public async Task<MaintenanceScheduleDto> ApproveMaintenanceScheduleAsync(Guid id, string? note, Guid userId)
+        => await SetMaintenanceApprovalAsync(id, 1, note, userId);
+
+    /// <summary>NangCap26 XVII.7 — từ chối kế hoạch bảo dưỡng (bắt buộc lý do).</summary>
+    public async Task<MaintenanceScheduleDto> RejectMaintenanceScheduleAsync(Guid id, string reason, Guid userId)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new InvalidOperationException("Phải nhập lý do từ chối kế hoạch bảo dưỡng.");
+        return await SetMaintenanceApprovalAsync(id, 2, reason, userId);
+    }
+
+    private async Task<MaintenanceScheduleDto> SetMaintenanceApprovalAsync(Guid id, int status, string? note, Guid userId)
+    {
+        var e = await _context.MaintenanceRecords.Include(x => x.Equipment)
+            .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted)
+            ?? throw new InvalidOperationException("Không tìm thấy kế hoạch bảo dưỡng.");
+
+        if (e.Status is "Completed")
+            throw new InvalidOperationException("Kế hoạch đã hoàn tất, không duyệt/từ chối được nữa.");
+
+        e.ApprovalStatus = status;
+        e.ApprovedBy = userId;
+        e.ApprovedAt = DateTime.Now;
+        e.ApprovalNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+        e.UpdatedAt = DateTime.Now;
+        e.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
+
+        return new MaintenanceScheduleDto
+        {
+            Id = e.Id, EquipmentId = e.EquipmentId, EquipmentName = e.Equipment?.EquipmentName ?? "",
+            MaintenanceType = e.MaintenanceType, NextDueDate = e.ScheduledDate, Status = e.Status,
+            ApprovalStatus = e.ApprovalStatus, ApprovedBy = e.ApprovedBy, ApprovedAt = e.ApprovedAt,
+            ApprovalNote = e.ApprovalNote,
+        };
     }
 
     public async Task<MaintenanceScheduleDto> CreateMaintenanceScheduleAsync(Guid equipmentId, string maintenanceType, string frequency, DateTime nextDueDate)

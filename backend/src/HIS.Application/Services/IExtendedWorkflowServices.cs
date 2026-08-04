@@ -224,6 +224,10 @@ namespace HIS.Application.Services
 
         // Maintenance
         Task<List<MaintenanceScheduleDto>> GetMaintenanceSchedulesAsync(DateTime? dueDate = null, bool? overdue = null);
+
+        // NangCap26 XVII.7 — lãnh đạo duyệt / từ chối kế hoạch bảo dưỡng đã lập
+        Task<MaintenanceScheduleDto> ApproveMaintenanceScheduleAsync(Guid id, string? note, Guid userId);
+        Task<MaintenanceScheduleDto> RejectMaintenanceScheduleAsync(Guid id, string reason, Guid userId);
         Task<MaintenanceScheduleDto> CreateMaintenanceScheduleAsync(Guid equipmentId, string maintenanceType, string frequency, DateTime nextDueDate);
         Task<List<MaintenanceRecordDto>> GetMaintenanceHistoryAsync(Guid equipmentId);
         Task<MaintenanceRecordDto> RecordMaintenanceAsync(CreateMaintenanceRecordDto dto);

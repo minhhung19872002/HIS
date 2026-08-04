@@ -110,3 +110,10 @@ export const rejectAssetProcurementRequest = (dto: ApproveRejectAssetProcurement
 
 export const completeAssetProcurementRequest = (id: string) =>
   apiClient.post<AssetProcurementRequestDto>(`${BASE}/requests/${id}/complete`);
+
+/**
+ * NangCap26 XVII.4 — cấp phát tài sản cho phiếu TRANG CẤP (RequestType=4) đã duyệt:
+ * sinh phiếu bàn giao về khoa yêu cầu + chốt phiếu sang Hoàn tất.
+ */
+export const issueAssetProcurementRequest = (id: string, fixedAssetIds: string[]) =>
+  apiClient.post<AssetProcurementRequestDto>(`${BASE}/requests/${id}/issue`, { fixedAssetIds });

@@ -110,6 +110,23 @@ public class AssetProcurementController : ControllerBase
         }
     }
 
+    // ── ISSUE (cấp phát tài sản cho phiếu Trang cấp) — NangCap26 XVII.4 ───────
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Director + "," + RoleNames.WarehouseManager)]
+    [HttpPost("requests/{id}/issue")]
+    public async Task<ActionResult<AssetProcurementRequestDto>> Issue(Guid id, [FromBody] IssueAssetsRequest req)
+    {
+        try
+        {
+            return Ok(await _service.IssueAssetsAsync(id, req?.FixedAssetIds ?? new List<Guid>(), GetUserId()));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    public class IssueAssetsRequest { public List<Guid> FixedAssetIds { get; set; } = new(); }
+
     // ── APPROVE ───────────────────────────────────────────────────────────────
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Director + "," + RoleNames.WarehouseManager)] // #156: duyệt mua sắm = tiền/quyền → siết role
     [HttpPost("requests/approve")]

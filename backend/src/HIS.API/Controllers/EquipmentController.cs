@@ -57,6 +57,25 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<MaintenanceRecordDto>> RecordMaintenance([FromBody] CreateMaintenanceRecordDto dto)
             => Ok(await _service.RecordMaintenanceAsync(dto));
 
+        // ── NangCap26 XVII.7 — duyệt kế hoạch bảo dưỡng ──
+        /// <summary>Lãnh đạo duyệt kế hoạch bảo dưỡng đã lập.</summary>
+        [HttpPost("maintenance/{id}/approve")]
+        public async Task<ActionResult<MaintenanceScheduleDto>> ApproveMaintenance(Guid id, [FromBody] MaintenanceApprovalRequest? req)
+            => Ok(await _service.ApproveMaintenanceScheduleAsync(id, req?.Note, CurrentUserId()));
+
+        /// <summary>Từ chối kế hoạch bảo dưỡng (bắt buộc lý do).</summary>
+        [HttpPost("maintenance/{id}/reject")]
+        public async Task<ActionResult<MaintenanceScheduleDto>> RejectMaintenance(Guid id, [FromBody] MaintenanceApprovalRequest req)
+            => Ok(await _service.RejectMaintenanceScheduleAsync(id, req?.Note ?? string.Empty, CurrentUserId()));
+
+        public class MaintenanceApprovalRequest { public string? Note { get; set; } }
+
+        private Guid CurrentUserId()
+        {
+            var raw = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            return Guid.TryParse(raw, out var id) ? id : Guid.Empty;
+        }
+
         [HttpGet("calibrations/due")]
         public async Task<ActionResult<List<CalibrationRecordDto>>> GetCalibrationsDue([FromQuery] int daysAhead = 30)
             => Ok(await _service.GetCalibrationsDueAsync(daysAhead));

@@ -81,6 +81,14 @@ namespace HIS.Application.Services
             return new List<MaintenanceScheduleDto>();
         }
 
+        // NangCap26 XVII.7 — lớp stub này không có DbContext (DI dùng MedicalEquipmentServiceImpl).
+        // Ném rõ ràng thay vì no-op: duyệt kế hoạch bảo dưỡng là quyết định của lãnh đạo.
+        public Task<MaintenanceScheduleDto> ApproveMaintenanceScheduleAsync(Guid id, string? note, Guid userId)
+            => throw new NotSupportedException("Duyệt kế hoạch bảo dưỡng chỉ khả dụng ở MedicalEquipmentServiceImpl.");
+
+        public Task<MaintenanceScheduleDto> RejectMaintenanceScheduleAsync(Guid id, string reason, Guid userId)
+            => throw new NotSupportedException("Từ chối kế hoạch bảo dưỡng chỉ khả dụng ở MedicalEquipmentServiceImpl.");
+
         public async Task<MaintenanceScheduleDto> CreateMaintenanceScheduleAsync(Guid equipmentId, string maintenanceType, string frequency, DateTime nextDueDate)
         {
             _logger.LogInformation("Creating maintenance schedule for equipment {EquipmentId}", equipmentId);

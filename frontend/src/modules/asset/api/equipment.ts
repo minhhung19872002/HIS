@@ -138,6 +138,13 @@ export interface MaintenanceScheduleDto {
   isActive: boolean;
   status: number;
   statusName: string;
+
+  // NangCap26 XVII.7 — duyệt kế hoạch bảo dưỡng (0=Chờ duyệt,1=Đã duyệt,2=Từ chối)
+  approvalStatus?: number;
+  approvalStatusName?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  approvalNote?: string;
 }
 
 export interface MaintenanceChecklistItemDto {
@@ -593,8 +600,13 @@ export const getMaintenanceRecord = (id: string) =>
 export const createMaintenanceRecord = (dto: CreateMaintenanceRecordDto) =>
   apiClient.post<MaintenanceRecordDto>(`${BASE_URL}/maintenance`, dto);
 
-export const approveMaintenanceRecord = (id: string) =>
-  apiClient.post<MaintenanceRecordDto>(`${BASE_URL}/maintenance/${id}/approve`);
+// NangCap26 XVII.7 — duyệt / từ chối KẾ HOẠCH bảo dưỡng (trước đây FE gọi endpoint này
+// nhưng backend chưa có → 404; nay đã có ApproveMaintenanceScheduleAsync).
+export const approveMaintenanceRecord = (id: string, note?: string) =>
+  apiClient.post<MaintenanceScheduleDto>(`${BASE_URL}/maintenance/${id}/approve`, { note });
+
+export const rejectMaintenanceSchedule = (id: string, note: string) =>
+  apiClient.post<MaintenanceScheduleDto>(`${BASE_URL}/maintenance/${id}/reject`, { note });
 
 export const getDueMaintenanceList = (dueWithinDays?: number) =>
   apiClient.get<EquipmentDto[]>(`${BASE_URL}/maintenance/due`, { params: { dueWithinDays } });

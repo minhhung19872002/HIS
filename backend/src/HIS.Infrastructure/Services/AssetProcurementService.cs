@@ -24,6 +24,7 @@ public class AssetProcurementService : IAssetProcurementService
         1 => "Đề xuất",
         2 => "Dự trù",
         3 => "Mua sắm",
+        4 => "Trang cấp", // NangCap26 XVII.3
         _ => $"Type {type}",
     };
 
@@ -260,6 +261,62 @@ public class AssetProcurementService : IAssetProcurementService
             throw new InvalidOperationException("Chỉ hoàn tất phiếu ở trạng thái Đã duyệt.");
         e.Status    = 4; // HoanTat
         e.UpdatedAt = DateTime.UtcNow;
+        e.UpdatedBy = userId;
+        await _db.SaveChangesAsync();
+        return MapToDto(e);
+    }
+
+    /// <summary>
+    /// NangCap26 XVII.4 — cấp phát tài sản cho phiếu TRANG CẤP đã duyệt: sinh
+    /// AssetHandover (điều chuyển về khoa yêu cầu) cho từng tài sản được chọn,
+    /// đồng thời chốt phiếu sang Hoàn tất.
+    /// </summary>
+    public async Task<AssetProcurementRequestDto> IssueAssetsAsync(Guid id, List<Guid> fixedAssetIds, string? userId)
+    {
+        var e = await _db.AssetProcurementRequests.Include(r => r.Items)
+            .FirstAsync(r => r.Id == id && !r.IsDeleted);
+
+        if (e.RequestType != 4)
+            throw new InvalidOperationException("Chỉ cấp phát được phiếu loại Trang cấp.");
+        if (e.Status != 2)
+            throw new InvalidOperationException("Chỉ cấp phát khi phiếu đã được duyệt.");
+        if (fixedAssetIds == null || fixedAssetIds.Count == 0)
+            throw new InvalidOperationException("Phải chọn ít nhất 1 tài sản để cấp phát.");
+        if (e.DepartmentId == null)
+            throw new InvalidOperationException("Phiếu chưa có khoa/phòng nhận — không xác định được nơi bàn giao.");
+
+        var assets = await _db.FixedAssets
+            .Where(a => fixedAssetIds.Contains(a.Id) && !a.IsDeleted)
+            .ToListAsync();
+        var missing = fixedAssetIds.Except(assets.Select(a => a.Id)).ToList();
+        if (missing.Count > 0)
+            throw new InvalidOperationException($"Không tìm thấy {missing.Count} tài sản được chọn.");
+
+        var now = DateTime.Now;
+        Guid.TryParse(userId, out var uid);
+
+        foreach (var a in assets)
+        {
+            _db.AssetHandovers.Add(new AssetHandover
+            {
+                Id = Guid.NewGuid(),
+                FixedAssetId = a.Id,
+                HandoverType = 2, // Transfer — điều chuyển sang khoa nhận
+                FromDepartmentId = a.DepartmentId,
+                ToDepartmentId = e.DepartmentId,
+                HandoverDate = now,
+                HandoverById = userId,
+                Notes = $"Trang cấp theo phiếu {e.RequestNo}",
+                Status = 1, // Pending — chờ khoa nhận xác nhận
+                CreatedAt = now,
+                CreatedBy = userId
+            });
+        }
+
+        e.Status = 4; // HoanTat
+        e.IssuedAt = now;
+        e.IssuedBy = uid == Guid.Empty ? null : uid;
+        e.UpdatedAt = now;
         e.UpdatedBy = userId;
         await _db.SaveChangesAsync();
         return MapToDto(e);

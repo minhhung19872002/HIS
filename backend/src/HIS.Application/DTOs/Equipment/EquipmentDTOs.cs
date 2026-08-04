@@ -119,6 +119,13 @@ namespace HIS.Application.DTOs.Equipment
         public bool IsOverdue { get; set; }
         public int? DaysOverdue { get; set; }
 
+        // NangCap26 XVII.7 — duyệt kế hoạch bảo dưỡng (0=Chờ duyệt,1=Đã duyệt,2=Từ chối)
+        public int ApprovalStatus { get; set; }
+        public string ApprovalStatusName => ApprovalStatus switch { 1 => "Đã duyệt", 2 => "Từ chối", _ => "Chờ duyệt" };
+        public Guid? ApprovedBy { get; set; }
+        public DateTime? ApprovedAt { get; set; }
+        public string? ApprovalNote { get; set; }
+
         // Assignment
         public string AssignedTo { get; set; } // Internal, ExternalVendor
         public string VendorName { get; set; }
