@@ -16,18 +16,27 @@ export const BhytVerifyModal: React.FC<{ open: boolean; onClose: () => void }> =
   const [history, setHistory] = useState<InsuranceHistoryDto | null>(null);
   const [histBusy, setHistBusy] = useState(false);
   const [histOpen, setHistOpen] = useState(false);
+  // NangCap26 (Liên thông XIX.1 #1) — cảnh báo lạm dụng thẻ (KCB nhiều lần)
+  const [abuse, setAbuse] = useState<receptionApi.CardAbuseCheckResultDto | null>(null);
+  const [abuseDetail, setAbuseDetail] = useState(false);
 
   useEffect(() => {
-    if (open) { setNum(''); setName(''); setResult(null); setHistory(null); setHistOpen(false); }
+    if (open) { setNum(''); setName(''); setResult(null); setHistory(null); setHistOpen(false); setAbuse(null); setAbuseDetail(false); }
   }, [open]);
 
   const verify = async () => {
     if (!num.trim() || num.trim().length < 10) { message.warning('Nhập số thẻ BHYT hợp lệ'); return; }
     setBusy(true);
-    setHistory(null); setHistOpen(false);
+    setHistory(null); setHistOpen(false); setAbuse(null); setAbuseDetail(false);
     try {
       const res = await receptionApi.verifyInsurance({ insuranceNumber: num.trim(), patientName: name.trim() || undefined });
       setResult(res.data);
+      // Kiểm tra lạm dụng chạy kèm — lỗi ở đây KHÔNG được chặn luồng tra cứu thẻ.
+      try {
+        const card = res.data?.newInsuranceNumber || res.data?.insuranceNumber || num.trim();
+        const ab = await receptionApi.checkCardAbuse(card);
+        setAbuse(ab.data);
+      } catch (e) { console.warn('[async] kiểm tra lạm dụng thẻ thất bại:', e); }
     } catch {
       message.error('Tra cứu BHYT thất bại');
     } finally {
@@ -111,6 +120,62 @@ export const BhytVerifyModal: React.FC<{ open: boolean; onClose: () => void }> =
                 <TermIcon name="clock" size={11} /> {histBusy ? 'Đang tải…' : 'Xem lịch sử KCB'}
               </button>
             </div>
+          </div>
+        )}
+
+        {/* NangCap26 — cảnh báo lạm dụng thẻ BHYT (chỉ cảnh báo, KHÔNG chặn tiếp nhận) */}
+        {abuse && abuse.alertLevel > 0 && (
+          <div className="rec-section" style={{ marginTop: 'var(--space-12)' }}>
+            <h5>
+              <TermIcon name="alert" size={11} /> CẢNH BÁO LẠM DỤNG THẺ
+              <span style={{ marginLeft: 'var(--space-8)' }}>
+                <StatusBadge tone={abuse.alertLevel === 2 ? 'crit' : 'warn'} dot>{abuse.alertLevelName}</StatusBadge>
+              </span>
+            </h5>
+            <div style={{ fontSize: 'var(--fs-sm)', color: abuse.alertLevel === 2 ? 'var(--s-crit)' : 'var(--s-warn)' }}>
+              {abuse.message}
+            </div>
+            <div className="rec-kv" style={{ marginTop: 'var(--space-8)' }}>
+              <span>Lượt hôm nay</span><b className="mono">{abuse.visitsToday} / {abuse.thresholdPerDay}</b>
+              <span>Lượt {abuse.periodDays} ngày</span><b className="mono">{abuse.visitsInPeriod} / {abuse.thresholdPerPeriod}</b>
+              <span>Số cơ sở</span><b className="mono">{abuse.distinctFacilities} / {abuse.thresholdFacilities}</b>
+            </div>
+            <div style={{ marginTop: 'var(--space-8)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
+              Đây là cảnh báo tham khảo — quyết định tiếp nhận vẫn thuộc về nhân viên y tế.
+            </div>
+            {abuse.visits.length > 0 && (
+              <div style={{ marginTop: 'var(--space-8)' }}>
+                <button type="button" className="ab-btn ghost sm" onClick={() => setAbuseDetail((v) => !v)}>
+                  <TermIcon name="list" size={11} /> {abuseDetail ? 'Ẩn chi tiết' : `Chi tiết ${abuse.visits.length} lượt`}
+                </button>
+              </div>
+            )}
+            {abuseDetail && (
+              <div style={{ overflowX: 'auto', marginTop: 'var(--space-8)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
+                  <thead>
+                    <tr style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)', textAlign: 'left' }}>
+                      <th style={{ padding: '4px 8px', borderBottom: '1px solid var(--line-soft)' }}>Ngày</th>
+                      <th style={{ padding: '4px 8px', borderBottom: '1px solid var(--line-soft)' }}>Số hồ sơ</th>
+                      <th style={{ padding: '4px 8px', borderBottom: '1px solid var(--line-soft)' }}>Nơi KCB</th>
+                      <th style={{ padding: '4px 8px', borderBottom: '1px solid var(--line-soft)' }}>Chẩn đoán</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {abuse.visits.map((v, i) => (
+                      <tr key={i}>
+                        <td className="mono" style={{ padding: '4px 8px', borderBottom: '1px solid var(--line-soft)', whiteSpace: 'nowrap' }}>
+                          {dayjs(v.visitDate).format('DD/MM/YYYY')}
+                        </td>
+                        <td className="mono" style={{ padding: '4px 8px', borderBottom: '1px solid var(--line-soft)' }}>{v.recordCode || '—'}</td>
+                        <td style={{ padding: '4px 8px', borderBottom: '1px solid var(--line-soft)' }}>{v.facilityName || v.facilityCode || '—'}</td>
+                        <td style={{ padding: '4px 8px', borderBottom: '1px solid var(--line-soft)' }}>{v.diagnosisName || v.diagnosisCode || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 

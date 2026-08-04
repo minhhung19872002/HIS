@@ -478,6 +478,40 @@ export const verifyInsurance = (dto: InsuranceVerificationRequest) =>
 export const verifyInsuranceByQR = (qrData: string) =>
   api.post<InsuranceVerificationResultDto>('/reception/insurance/verify-qr', { qrData });
 
+// #region NangCap26 — Kiểm tra lạm dụng thẻ BHYT (Liên thông XIX.1 #1)
+
+export interface CardAbuseVisitDto {
+  visitDate: string;
+  facilityCode?: string;
+  facilityName?: string;
+  recordCode?: string;
+  diagnosisCode?: string;
+  diagnosisName?: string;
+  source: string;
+}
+
+export interface CardAbuseCheckResultDto {
+  insuranceNumber: string;
+  /** 0-Bình thường · 1-Cảnh báo · 2-Nghi ngờ lạm dụng */
+  alertLevel: number;
+  alertLevelName: string;
+  message: string;
+  visitsToday: number;
+  visitsInPeriod: number;
+  distinctFacilities: number;
+  thresholdPerDay: number;
+  thresholdPerPeriod: number;
+  thresholdFacilities: number;
+  periodDays: number;
+  visits: CardAbuseVisitDto[];
+}
+
+/** Cảnh báo thẻ BHYT KCB nhiều lần — chỉ cảnh báo, không chặn tiếp nhận. */
+export const checkCardAbuse = (cardNo: string, fromDate?: string) =>
+  api.get<CardAbuseCheckResultDto>('/reception/insurance/card-abuse-check', { params: { cardNo, fromDate } });
+
+// #endregion
+
 export interface BlockedInsuranceDto {
   id: string;
   insuranceNumber: string;

@@ -395,6 +395,12 @@ public interface IReceptionCompleteService
     Task<List<PatientVisitHistoryDto>> GetPatientVisitHistoryAsync(Guid patientId, int maxRecords = 5);
 
     /// <summary>
+    /// NangCap26 (Liên thông XIX.1 #1): kiểm tra lạm dụng thẻ BHYT — KCB nhiều lần
+    /// trong thời gian ngắn / nhiều cơ sở. Chỉ cảnh báo, không chặn tiếp nhận.
+    /// </summary>
+    Task<HIS.Application.DTOs.Reception.CardAbuseCheckResultDto> CheckCardAbuseAsync(string insuranceNumber, DateTime? fromDate);
+
+    /// <summary>
     /// Lấy chi tiết lịch sử khám
     /// </summary>
     Task<PatientVisitHistoryDto?> GetVisitDetailAsync(Guid medicalRecordId);

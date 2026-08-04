@@ -344,6 +344,15 @@ public partial class ReceptionCompleteController : ControllerBase
     }
 
     /// <summary>
+    /// NangCap26 (Liên thông XIX.1 #1): kiểm tra lạm dụng thẻ BHYT — KCB nhiều lần
+    /// trong thời gian ngắn / nhiều cơ sở khác nhau. Chỉ trả cảnh báo, KHÔNG chặn tiếp nhận.
+    /// </summary>
+    [HttpGet("insurance/card-abuse-check")]
+    public async Task<ActionResult<HIS.Application.DTOs.Reception.CardAbuseCheckResultDto>> CheckCardAbuse(
+        [FromQuery] string cardNo, [FromQuery] DateTime? fromDate)
+        => Ok(await _receptionService.CheckCardAbuseAsync(cardNo, fromDate));
+
+    /// <summary>
     /// 1.4.1-3: Tạo thẻ BHYT tạm cho trẻ sơ sinh (CV 3434/BYT-BH)
     /// </summary>
     [HttpPost("insurance/temporary")]
