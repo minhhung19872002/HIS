@@ -533,3 +533,34 @@ export const deleteFilterPreset = (presetId: string) =>
   apiClient.delete(`/RISComplete/filter-presets/${presetId}`);
 
 // #endregion
+
+// ─── NangCap26 RIS #59 / CAPTURE #118: ghi đĩa CD/DVD ảnh + kết quả ────────
+
+export interface DiscPackageCheckDto {
+  canBurn: boolean;
+  message: string;
+  studyId: string;
+  studyInstanceUid?: string;
+  patientName?: string;
+  patientCode?: string;
+  studyDate?: string;
+  studyDescription?: string;
+  modality?: string;
+  seriesCount: number;
+  imageCount: number;
+  estimatedSizeBytes?: number;
+}
+
+/** Kiểm tra điều kiện ghi đĩa trước khi tải gói (study có ảnh, PACS bật…). */
+export const checkDiscPackage = (studyId: string) =>
+  apiClient.get<DiscPackageCheckDto>(`/RISComplete/studies/${studyId}/disc-package/check`);
+
+/**
+ * Tải gói ghi đĩa (ZIP: ảnh DICOM + phiếu kết quả + README).
+ * Trình duyệt không ghi đĩa trực tiếp — người dùng ghi bằng công cụ hệ điều hành.
+ */
+export const downloadDiscPackage = (studyId: string) =>
+  apiClient.post(`/RISComplete/studies/${studyId}/disc-package`, {}, {
+    responseType: 'blob',
+    timeout: 300000,
+  });

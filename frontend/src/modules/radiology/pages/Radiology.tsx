@@ -54,6 +54,7 @@ const RadiologyV2: React.FC = () => {
   const [ptttRowTarget, setPtttRowTarget] = useState<RadiologyOrderDto | null>(null);
   // Bulk selection (Issue #144)
   const [bulkSelected, setBulkSelected] = useState<string[]>([]);
+  const [burningId, setBurningId] = useState<string | null>(null); // NangCap26: ghi đĩa
   const [bulkDownloading, setBulkDownloading] = useState(false);
   const [bulkApproving, setBulkApproving] = useState(false);
   const [bulkPrinting, setBulkPrinting] = useState(false);
@@ -216,6 +217,31 @@ const RadiologyV2: React.FC = () => {
       bulkResultIdMapRef.current = {};
     } catch { message.error('Tải xuống thất bại'); }
     finally { setBulkDownloading(false); }
+  };
+
+  // NangCap26 RIS #59 / CAPTURE #118 — ghi đĩa CD/DVD cho 1 ca chụp:
+  // BE đóng gói ZIP (ảnh DICOM + phiếu kết quả + README), FE tải về,
+  // người dùng ghi đĩa bằng công cụ hệ điều hành.
+  const onBurnDisc = async (r: RadiologyOrderDto) => {
+    const studyId = r.id;
+    setBurningId(studyId);
+    try {
+      const chk = await risApi.checkDiscPackage(studyId);
+      if (!chk.data?.canBurn) { message.warning(chk.data?.message || 'Không đủ điều kiện ghi đĩa'); return; }
+
+      const resp = await risApi.downloadDiscPackage(studyId);
+      const blob = new Blob([resp.data as BlobPart], { type: 'application/zip' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `CD_${chk.data.patientCode || 'BN'}_${(chk.data.studyDate || '').slice(0, 10)}.zip`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      message.success('Đã tải gói ghi đĩa — giải nén rồi ghi ra CD/DVD');
+    } catch (e) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      message.error(msg || 'Tạo gói ghi đĩa thất bại');
+    } finally { setBurningId(null); }
   };
 
   const toggleBulkSelect = (r: RadiologyOrderDto) => {
@@ -384,6 +410,14 @@ const RadiologyV2: React.FC = () => {
                 <ActBtn ic="image" title="Xem ảnh DICOM" onClick={() => onViewer(r)} />
               )}
               <ActBtn ic="share" title="Chia sẻ ca chụp (ẩn danh tùy chọn)" onClick={() => onShare(r)} />
+              {/* NangCap26 RIS #59 — ghi đĩa CD/DVD ảnh + kết quả */}
+              {r.items?.[0]?.hasImages && (
+                <ActBtn
+                  ic="archive"
+                  title={burningId === r.id ? 'Đang đóng gói…' : 'Ghi đĩa CD/DVD (tải gói ảnh + kết quả)'}
+                  onClick={() => void onBurnDisc(r)}
+                />
+              )}
               <ActBtn
                 ic={bulkSelected.includes(r.id) ? 'check' : 'download'}
                 title={bulkSelected.includes(r.id) ? 'Đã chọn (bỏ chọn)' : 'Chọn cho thao tác hàng loạt'}

@@ -939,6 +939,16 @@ namespace HIS.Application.Services
     Task<MergeResultDto> MergeCoReaderOpinionsAsync(MergeCoReaderOpinionsDto dto, Guid currentUserId);
 
     #endregion
+
+    #region NangCap26 — RIS #59 / CAPTURE #118: ghi đĩa CD/DVD
+
+    /// <summary>Kiểm tra điều kiện ghi đĩa (study tồn tại, có ảnh, PACS bật).</summary>
+    Task<DiscPackageCheckDto> CheckDiscPackageAsync(Guid studyId);
+
+    /// <summary>Đóng gói ZIP (ảnh DICOM + phiếu kết quả + README) để tải về ghi đĩa.</summary>
+    Task<(byte[] Content, string FileName)> BuildDiscPackageAsync(Guid studyId, Guid userId);
+
+    #endregion
     }
 
     #region DICOM Export/Send DTOs (NangCap15 PACS 3/4)

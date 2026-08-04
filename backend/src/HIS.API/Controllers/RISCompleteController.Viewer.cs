@@ -534,5 +534,27 @@ namespace HIS.API.Controllers
             await _risService.RetryIntegrationAsync(logId);
             return Ok();
         }
+
+        #region NangCap26 — RIS #59 / CAPTURE #118: ghi đĩa CD/DVD
+
+        /// <summary>
+        /// Kiểm tra điều kiện ghi đĩa cho 1 ca chụp (trước khi tải gói).
+        /// </summary>
+        [HttpGet("studies/{studyId}/disc-package/check")]
+        public async Task<ActionResult<HIS.Application.DTOs.Radiology.DiscPackageCheckDto>> CheckDiscPackage(Guid studyId)
+            => Ok(await _risService.CheckDiscPackageAsync(studyId));
+
+        /// <summary>
+        /// Tải gói ghi đĩa (ZIP: ảnh DICOM + phiếu kết quả + README).
+        /// Trình duyệt không ghi đĩa trực tiếp — người dùng ghi bằng công cụ hệ điều hành.
+        /// </summary>
+        [HttpPost("studies/{studyId}/disc-package")]
+        public async Task<IActionResult> BuildDiscPackage(Guid studyId)
+        {
+            var (content, fileName) = await _risService.BuildDiscPackageAsync(studyId, GetUserId());
+            return File(content, "application/zip", fileName);
+        }
+
+        #endregion
     }
 }

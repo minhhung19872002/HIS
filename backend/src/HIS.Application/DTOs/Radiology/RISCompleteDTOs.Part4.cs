@@ -519,4 +519,22 @@ namespace HIS.Application.DTOs.Radiology
         public int CoReaderCount { get; set; }
     }
 
+    /// <summary>
+    /// NangCap26 — RIS #59 / CAPTURE #118: kết quả kiểm tra điều kiện ghi đĩa CD/DVD.
+    /// </summary>
+    public class DiscPackageCheckDto
+    {
+        public bool CanBurn { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public Guid StudyId { get; set; }
+        public string? StudyInstanceUid { get; set; }
+        public string? PatientName { get; set; }
+        public string? PatientCode { get; set; }
+        public DateTime? StudyDate { get; set; }
+        public string? StudyDescription { get; set; }
+        public string? Modality { get; set; }
+        public int SeriesCount { get; set; }
+        public int ImageCount { get; set; }
+        public long? EstimatedSizeBytes { get; set; }
+    }
 }
