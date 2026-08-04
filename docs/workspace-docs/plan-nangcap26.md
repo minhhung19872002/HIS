@@ -32,14 +32,14 @@ Quy tắc chạy chung cho mọi hạng mục:
 | # | Hạng mục | Mục HSMT | Ưu tiên | Trạng thái |
 |---|---|---|---|---|
 | 1 | Khóa lô thuốc + khóa kho | V.31, V.33 | P1 | ✅ **DONE** — `c02fad38` |
-| 2 | Phân quyền dữ liệu row-level + khoa/phòng làm việc | I.15, I.16, I.4 | P1 | ⬜ chưa |
-| 3 | LIS: Ngoại kiểm (EQA) + đơn vị gửi mẫu | LIS #29, #15 | P2 | ⬜ chưa |
-| 4 | RIS: ghi đĩa CD/DVD ảnh + kết quả | RIS I.4.3, #59, CAPTURE #118 | P2 | ⬜ chưa |
-| 5 | Duyệt phiếu suất ăn + màn hình Nhà ăn | XII.5, XII.6 | P2 | 🔄 **đang làm** (BE ~80%) |
-| 6 | TTB: yêu cầu trang cấp + duyệt; duyệt KH bảo dưỡng | XVII.3/4/7 | P2 | ⬜ chưa |
+| 2 | Phân quyền dữ liệu row-level + khoa/phòng làm việc | I.15, I.16, I.4 | P1 | ✅ **DONE** — `f8d2e8cd` |
+| 3 | LIS: Ngoại kiểm (EQA) + đơn vị gửi mẫu | LIS #29, #15 | P2 | ✅ **DONE** — `da27f24c` |
+| 4 | RIS: ghi đĩa CD/DVD ảnh + kết quả | RIS I.4.3, #59, CAPTURE #118 | P2 | ✅ **DONE** — `006ff39d` |
+| 5 | Duyệt phiếu suất ăn + màn hình Nhà ăn | XII.5, XII.6 | P2 | ✅ **DONE** — `b01786c1` |
+| 6 | TTB: yêu cầu trang cấp + duyệt; duyệt KH bảo dưỡng | XVII.3/4/7 | P2 | ✅ **DONE** — `b4daa60f` |
 | 7 | Kiểm tra lạm dụng thẻ BHYT | Liên thông XIX.1.1 | P2 | ✅ **DONE** — `ac9cd465` |
-| 8 | Phiếu đếm gạc-dụng cụ + phiếu lĩnh hóa chất | X.2#16, phiếu in #98 | P3 | ⬜ chưa |
-| 9 | Tách điều trị nội trú tại khoa cấp cứu | XIX.2#20 | P3 | ⬜ chưa |
+| 8 | Phiếu đếm gạc-dụng cụ + phiếu lĩnh hóa chất | X.2#16, phiếu in #98 | P3 | ✅ **DONE** — `159c701a` |
+| 9 | Tách điều trị nội trú tại khoa cấp cứu | XIX.2#20 | P3 | ✅ **DONE** — `e7330535` |
 
 ### Hạng mục 1 — Khóa lô thuốc + khóa kho ✅
 - **DB** `154_nangcap26_lock_lot_warehouse.sql`: `Warehouses` + IsLocked/LockReason/LockedBy/LockedAt;
@@ -71,14 +71,14 @@ Quy tắc chạy chung cho mọi hạng mục:
 - **FE**: nút "Ghi đĩa / Xuất gói ảnh" ở `Radiology` + `radiology/viewer`.
 - **Audit**: log ai xuất, study nào, lúc nào (dữ liệu BN rời hệ thống).
 
-### Hạng mục 5 — Duyệt suất ăn + Nhà ăn 🔄
+### Hạng mục 5 — Duyệt suất ăn + Nhà ăn ✅
 - **DB** `155_nangcap26_meal_approval_canteen.sql`: `MealPlans` + ApprovedBy/ApprovedAt/RejectReason/
   PreparedAt/DistributedAt; `MealPlanItems` + BilledAt; `DietTypes` + ServiceId; index Date+Status.
 - **BE** `ClinicalNutritionServiceImpl.Canteen.cs`: vòng đời `Planned → Approved/Rejected → Prepared → Distributed`;
   duyệt → sinh khoản thu qua **ServiceRequest + Detail** (đường tính tiền sẵn có), `BilledAt` chống tính trùng.
   Chế độ ăn không map `ServiceId` = không thu tiền.
 - **FE**: trang Nutrition thêm tab "Duyệt suất ăn" + trang "Nhà ăn" (hàng chờ theo khoa/bữa).
-- **Còn lại**: interface + endpoint + FE.
+- API: meal-plans/{id}/approve|reject · canteen/queue · canteen/{id}/prepared|distributed.
 
 ### Hạng mục 6 — TTB trang cấp + duyệt bảo dưỡng
 - **DB**: `AssetAllocationRequests` (+items, Draft/Submitted/Approved/Rejected/Issued);
@@ -127,3 +127,17 @@ Quy tắc chạy chung cho mọi hạng mục:
 - [ ] Smoke thủ công đường đi chính (không có test tự động — test đi sau)
 - [ ] Commit local, message nêu rõ mục HSMT tương ứng
 - [ ] Cập nhật trạng thái trong file plan này
+
+---
+
+## D. Trạng thái chốt (2026-08-04)
+
+**9/9 hạng mục DONE**, 8 commit local chưa push:
+`c02fad38` · `ac9cd465` · `79cc0259` (docs) · `b01786c1` · `b4daa60f` · `da27f24c` ·
+`006ff39d` · `159c701a` · `e7330535` · `f8d2e8cd`
+
+Migration mới: 154 (khóa lô/kho) · 155 (duyệt suất ăn) · 156 (trang cấp + duyệt bảo dưỡng) ·
+157 (ngoại kiểm EQA + đơn vị gửi mẫu) · 158 (quyền dữ liệu).
+
+Build-gate: `dotnet build` 0 error · `npm run build` thành công.
+Chưa push — chờ người dùng quyết định.
