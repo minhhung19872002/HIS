@@ -57,6 +57,10 @@ async function loadTemplate(printType: string): Promise<AnyPrintComponent | null
     case 'neonatal': return (await import('./EMRPrintTemplates')).NeonatalMedicalRecordPrint;
     case 'pediatric': return (await import('./EMRPrintTemplates')).PediatricMedicalRecordPrint;
 
+    // NangCap26 — X.2 #16 phiếu đếm gạc/dụng cụ · phiếu in #98 phiếu lĩnh hóa chất
+    case 'gauze-count': return (await import('./EMRPrintTemplates')).GauzeCountSheetPrint;
+    case 'chemical-issue': return (await import('./EMRPrintTemplates')).ChemicalIssueSlipPrint;
+
     // ClinicalFormPrintTemplates
     case 'cdha-xray': return (await import('./ClinicalFormPrintTemplates')).XRayReportPrint;
     case 'cdha-ct': return (await import('./ClinicalFormPrintTemplates')).CTScanReportPrint;
