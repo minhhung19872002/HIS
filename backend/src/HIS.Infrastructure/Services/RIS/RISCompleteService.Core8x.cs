@@ -116,7 +116,7 @@ public partial class RISCompleteService
                 OrderDoctorName = r.RequestingDoctor?.FullName ?? "",
                 DepartmentName = "",
                 ServiceName = r.Service?.ServiceName ?? "",
-                ServiceTypeName = GetServiceTypeName(r.Service?.ServiceType ?? 0),
+                ServiceTypeName = GetRadiologyServiceTypeName(r.Service),
                 RoomName = r.Exams.FirstOrDefault()?.Room?.RoomName ?? "",
                 QueueNumber = index + 1,
                 StatusCode = r.Status,

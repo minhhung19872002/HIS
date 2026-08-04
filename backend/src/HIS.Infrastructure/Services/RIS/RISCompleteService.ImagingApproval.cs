@@ -492,7 +492,7 @@ public partial class RISCompleteService
                 PatientName = r.Patient.FullName,
                 ServiceCode = r.Service?.ServiceCode ?? "",
                 ServiceName = r.Service?.ServiceName ?? "",
-                ServiceType = GetServiceTypeName(r.Service?.ServiceType ?? 0),
+                ServiceType = GetRadiologyServiceTypeName(r.Service),
                 ResultDate = report?.ReportDate ?? r.RequestDate,
                 Description = report?.Findings ?? "",
                 Conclusion = report?.Impression ?? "",

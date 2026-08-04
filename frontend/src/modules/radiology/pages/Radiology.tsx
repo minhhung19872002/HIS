@@ -74,7 +74,6 @@ const RadiologyV2: React.FC = () => {
       .catch(() => setRows([]))
       .finally(() => setLoading(false));
   };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(reload, [date, search]);
 
   // F2=Chỉ định CĐHA · F5=Làm mới (khớp kbd hint trên nút)
@@ -100,7 +99,6 @@ const RadiologyV2: React.FC = () => {
     risApi.getRooms()
       .then((r) => setRooms((Array.isArray(r.data) ? r.data : []).map((rm) => ({ id: rm.id, name: rm.name }))))
       .catch(() => setRooms([]));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load full result when drawer opens
@@ -143,6 +141,10 @@ const RadiologyV2: React.FC = () => {
       return true;
     });
   }, [rows, stab, fMod]);
+
+  // Bộ lọc mới luôn bắt đầu từ trang đầu; nếu giữ page cũ, slice có thể rỗng
+  // dù filtered vẫn còn dữ liệu (ví dụ đang ở trang 2 rồi lọc Siêu âm).
+  useEffect(() => setPage(0), [stab, fMod, search, date]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);

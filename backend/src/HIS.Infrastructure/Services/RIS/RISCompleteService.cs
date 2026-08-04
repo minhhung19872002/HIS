@@ -153,6 +153,36 @@ public partial class RISCompleteService : IRISCompleteService
         };
     }
 
+    private string GetRadiologyServiceTypeName(Service? service)
+    {
+        if (service == null) return "CDHA";
+
+        var code = (service.ServiceCode ?? "").Trim().ToUpperInvariant();
+        var name = (service.ServiceName ?? "").Trim().ToUpperInvariant();
+
+        if (code.StartsWith("XQ") || code.StartsWith("XR") ||
+            name.Contains("X-QUANG") || name.Contains("X QUANG")) return "X-Ray";
+        if (code.StartsWith("SA") || code.StartsWith("US") ||
+            name.Contains("SIÊU ÂM") || name.Contains("SIEU AM")) return "Sieu am";
+        if (code.StartsWith("MRI") || code.StartsWith("CHT") ||
+            name.Contains("CỘNG HƯỞNG") || name.Contains("CONG HUONG")) return "MRI";
+        if (code.StartsWith("CT") || name.StartsWith("CT ") || name.Contains(" CT ") ||
+            name.EndsWith(" CT")) return "CT Scan";
+        if (code.StartsWith("MAM") || code.StartsWith("MG") ||
+            name.Contains("NHŨ ẢNH") || name.Contains("NHU ANH")) return "Mammography";
+        if (code.StartsWith("NS") || name.Contains("NỘI SOI") || name.Contains("NOI SOI")) return "Noi soi";
+        if (code.StartsWith("ECG") || name.Contains("ĐIỆN TIM") || name.Contains("DIEN TIM")) return "Dien tim";
+        if (code.StartsWith("EEG") || name.Contains("ĐIỆN NÃO") || name.Contains("DIEN NAO")) return "Dien nao";
+
+        // Service.ServiceType là nhóm nghiệp vụ (3=CĐHA, 4=TDCN), không phải modality.
+        return service.ServiceType switch
+        {
+            3 => "CDHA",
+            4 => "TDCN",
+            _ => GetServiceTypeName(service.ServiceType)
+        };
+    }
+
     private string GetModalityTypeName(int modalityType)
     {
         return modalityType switch
