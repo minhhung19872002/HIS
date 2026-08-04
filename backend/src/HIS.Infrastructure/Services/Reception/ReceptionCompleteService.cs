@@ -5,6 +5,7 @@ using HIS.Application.DTOs.Reception;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
+using HIS.Infrastructure.Common;
 using HIS.Infrastructure.Configuration;
 using HIS.Infrastructure.Data;
 using Microsoft.Extensions.Logging;
@@ -96,8 +97,10 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
         using var pdf = new PdfDocument(writer);
         using var document = new Document(pdf);
 
-        var regularFont = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
-        var boldFont = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_BOLD);
+        // Helvetica (Type1/Latin-1) nuốt sạch ký tự tiếng Việt 2 dấu và đ/Đ:
+        // "PHIẾU SỐ THỨ TỰ" in ra thành "PHIU S TH T". Dùng font Unicode nhúng.
+        var regularFont = VietnamesePdfFonts.Regular();
+        var boldFont = VietnamesePdfFonts.Bold();
 
         document.Add(new iText.Layout.Element.Paragraph(title)
             .SetFont(boldFont)
@@ -301,11 +304,19 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
 
     private async Task<string> GeneratePaymentReceiptNumberAsync()
     {
-        // ReceiptDate ghi bằng DateTime.Now — DayRangeUtc tránh lệch UTC 00h-07h VN.
-        var todayVn = HIS.Core.Common.VnTime.TodayVn;
-        var (payFromUtc, payToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(todayVn);
-        var count = await _context.Payments.CountAsync(p => p.ReceiptDate >= payFromUtc && p.ReceiptDate < payToUtc);
-        return $"PT{todayVn:yyyyMMdd}{(count + 1):D4}";
+        // Đếm trên Receipts — sổ phiếu thu chung. Bản cũ đếm trên bảng Payments riêng của tiếp đón
+        // nên số biên lai chạy song song, trùng số với phiếu do quầy viện phí phát hành.
+        var today = DateTime.Now.Date;
+        var count = await _context.Receipts.CountAsync(r => r.ReceiptDate >= today && r.ReceiptDate < today.AddDays(1));
+        var code = $"PT{today:yyyyMMdd}{(count + 1):D4}";
+
+        // Hai quầy thu cùng lúc có thể ra cùng số thứ tự -> rơi về mã theo mốc thời gian
+        // (đúng định dạng quầy viện phí đang dùng) để không tạo hai biên lai trùng số.
+        if (await _context.Receipts.AnyAsync(r => r.ReceiptCode == code))
+        {
+            code = $"PT{DateTime.Now:yyyyMMddHHmmssfff}";
+        }
+        return code;
     }
 
     private QueueTicketDto MapToQueueTicketDto(QueueTicket ticket)

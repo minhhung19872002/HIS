@@ -431,41 +431,75 @@ public partial class ReceptionCompleteService {
         var medicalRecord = await _context.MedicalRecords.FindAsync(dto.MedicalRecordId)
             ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ bệnh án (medicalRecordId không tồn tại)");
 
+        if (dto.TotalAmount <= 0)
+            throw new InvalidOperationException("Số tiền thu phải lớn hơn 0");
+
+        var finalAmount = dto.TotalAmount - dto.DiscountAmount;
+
+        // IDEMPOTENCY chống thu trùng do double-click ở quầy đông — cùng HSBA + số tiền + thu ngân
+        // trong 30s thì trả lại CHÍNH phiếu đã tạo (đồng bộ cách làm của quầy viện phí).
+        var dupWindow = DateTime.Now.AddSeconds(-30);
+        var duplicate = await _context.Receipts
+            .Where(r => r.MedicalRecordId == dto.MedicalRecordId
+                && r.CashierId == userId
+                && r.FinalAmount == finalAmount
+                && r.ReceiptType == 2
+                && r.Status == 1
+                && r.ReceiptDate >= dupWindow)
+            .OrderByDescending(r => r.ReceiptDate)
+            .FirstOrDefaultAsync();
+        if (duplicate != null) return BuildReceiptDto(duplicate, dto.PaidAmount);
+
         var receiptNumber = await GeneratePaymentReceiptNumberAsync();
 
-        var payment = new Payment
+        // Ghi vào Receipts — SỔ PHIẾU THU DUY NHẤT của bệnh viện, đúng nghiệp vụ: mọi khoản thu dù
+        // ở tiếp đón, quầy viện phí hay khoa đều phải vào cùng một sổ thì mới chốt được ca thu ngân
+        // và lên báo cáo doanh thu. Trước đây tiếp đón ghi vào bảng Payments riêng mà KHÔNG màn hình
+        // nào đọc, nên tiền thu ở tiếp đón biến mất khỏi sổ quỹ và doanh thu.
+        var receipt = new Receipt
         {
             Id = Guid.NewGuid(),
-            ReceiptNumber = receiptNumber,
-            ReceiptDate = DateTime.UtcNow, // dot16: chuẩn UTC
+            ReceiptCode = receiptNumber,
+            ReceiptDate = DateTime.Now, // theo đúng quy ước của bảng Receipts (mọi writer khác dùng Now)
+            PatientId = medicalRecord.PatientId,
             MedicalRecordId = dto.MedicalRecordId,
-            TotalAmount = dto.TotalAmount,
-            InsuranceAmount = dto.InsuranceAmount,
-            PatientAmount = dto.PatientAmount,
-            DiscountAmount = dto.DiscountAmount,
-            PaidAmount = dto.PaidAmount,
-            ChangeAmount = dto.PaidAmount - dto.PatientAmount,
+            ReceiptType = 2, // Thanh toán
             PaymentMethod = dto.PaymentMethod,
-            TransactionReference = dto.TransactionReference,
-            ReceivedByUserId = userId,
-            Status = 1, // Paid
-            PatientId = medicalRecord.PatientId
+            Amount = dto.TotalAmount,
+            Discount = dto.DiscountAmount,
+            FinalAmount = finalAmount,
+            Status = 1, // Đã thu
+            CashierId = userId,
+            Note = string.IsNullOrWhiteSpace(dto.TransactionReference)
+                ? "Thu phí khám tại tiếp đón"
+                : $"Thu phí khám tại tiếp đón · GD {dto.TransactionReference}",
+            CreatedAt = DateTime.Now,
+            CreatedBy = userId.ToString()
         };
 
-        await _context.Payments.AddAsync(payment);
-        // 2026-06-12 (sweep prod): bỏ set shadow "ReceivedById" — như CreateDepositAsync ở trên,
-        // shadow không còn sau Fluent FK ReceivedByUserId → từng làm endpoint này hỏng 100% request.
+        await _context.Receipts.AddAsync(receipt);
         await _unitOfWork.SaveChangesAsync();
 
+        return BuildReceiptDto(receipt, dto.PaidAmount);
+    }
+
+    /// <summary>
+    /// Receipt -> PaymentReceiptDto. Tiền thối = khách đưa - số thực thu; bản cũ lấy
+    /// PaidAmount - PatientAmount mà giao diện không gửi PatientAmount, nên phiếu ghi tiền thối
+    /// bằng đúng toàn bộ số tiền đã thu.
+    /// </summary>
+    private static PaymentReceiptDto BuildReceiptDto(Receipt receipt, decimal paidAmount)
+    {
+        var received = paidAmount > 0 ? paidAmount : receipt.FinalAmount;
         return new PaymentReceiptDto
         {
-            Id = payment.Id,
-            ReceiptNumber = payment.ReceiptNumber,
-            ReceiptDate = payment.ReceiptDate,
-            TotalAmount = payment.TotalAmount,
-            PaidAmount = payment.PaidAmount,
-            ChangeAmount = payment.ChangeAmount,
-            PaymentMethod = payment.PaymentMethod
+            Id = receipt.Id,
+            ReceiptNumber = receipt.ReceiptCode,
+            ReceiptDate = receipt.ReceiptDate,
+            TotalAmount = receipt.FinalAmount,
+            PaidAmount = received,
+            ChangeAmount = Math.Max(0, received - receipt.FinalAmount),
+            PaymentMethod = receipt.PaymentMethod
         };
     }
 
@@ -503,10 +537,11 @@ public partial class ReceptionCompleteService {
             .Where(d => d.MedicalRecordId == medicalRecordId && d.Status == 1)
             .SumAsync(d => d.RemainingAmount);
 
-        // Get payments
-        var paidAmount = await _context.Payments
-            .Where(p => p.MedicalRecordId == medicalRecordId && p.Status == 1)
-            .SumAsync(p => p.PaidAmount);
+        // Đã thu — đọc từ sổ phiếu thu chung (Receipts), cùng nguồn với quầy viện phí và sổ quỹ.
+        // Loại 3-Hoàn trả để tiền hoàn không bị cộng thành đã thu.
+        var paidAmount = await _context.Receipts
+            .Where(r => r.MedicalRecordId == medicalRecordId && r.Status == 1 && r.ReceiptType != 3)
+            .SumAsync(r => r.FinalAmount);
 
         var patientAmount = totalAmount - insuranceAmount;
         var remainingAmount = patientAmount - paidAmount - depositAmount;

@@ -5,6 +5,7 @@ using HIS.Application.DTOs.Reception;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
+using HIS.Infrastructure.Common;
 using HIS.Infrastructure.Configuration;
 using HIS.Infrastructure.Data;
 using Microsoft.Extensions.Logging;
@@ -311,37 +312,77 @@ public partial class ReceptionCompleteService {
         using var document = new Document(pdf);
         document.SetMargins(4, 6, 4, 6);
 
-        var bold = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_BOLD);
-        var regular = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
+        var bold = VietnamesePdfFonts.Bold();
+        var regular = VietnamesePdfFonts.Regular();
 
-        // Line 1: MR code (large bold)
-        document.Add(new iText.Layout.Element.Paragraph(mr.MedicalRecordCode ?? "-")
-            .SetFont(bold)
-            .SetFontSize(11)
-            .SetTextAlignment(TextAlignment.CENTER)
-            .SetMarginBottom(1));
+        var code = mr.MedicalRecordCode ?? "-";
+        // Nhãn 60x30mm = 170x85pt, trừ lề còn 158x77pt. Chỗ đứng rất chật: mọi Paragraph phải
+        // ghim margin 0 + leading 1.0, nếu không margin/leading mặc định của iText đẩy dòng cuối
+        // sang TRANG 2 (bản cũ đã bị vậy — mỗi bệnh nhân in ra 2 nhãn).
+        const float usableWidth = 158f;
+        const float qrSize = 32f;          // 11,3mm -> 0,39mm/module, điện thoại quét thoải mái
+        const float qrColWidth = qrSize + 2f;
+        const float textColWidth = usableWidth - qrColWidth;
 
-        // Line 2: patient name + DOB (truncate to 28 chars so it fits)
+        // Hàng trên: mã HSBA + tên BN bên trái, QR bên phải.
+        // Thêm QR vì camera điện thoại quét mã 1D rất kém (nhất là chụp từ màn hình),
+        // còn súng quét của quầy vẫn dùng Code128 bên dưới như cũ.
         var dobStr = mr.Patient?.DateOfBirth?.ToString("dd/MM/yyyy") ?? "";
         var name = mr.Patient?.FullName ?? "-";
-        if (name.Length > 24) name = name.Substring(0, 24) + "…";
         var infoLine = string.IsNullOrEmpty(dobStr) ? name : $"{name} {dobStr}";
-        document.Add(new iText.Layout.Element.Paragraph(infoLine)
+        // Cắt theo BỀ RỘNG THẬT của font, không theo số ký tự: tên dài sẽ xuống dòng làm cao
+        // thêm ô và lại tràn trang.
+        while (infoLine.Length > 1 && regular.GetWidth(infoLine, 7f) > textColWidth - 2f)
+        {
+            infoLine = infoLine.Substring(0, infoLine.Length - 2) + "…";
+        }
+
+        var headerTable = new iText.Layout.Element.Table(new float[] { textColWidth, qrColWidth });
+        var textCell = new iText.Layout.Element.Cell()
+            .SetBorder(iText.Layout.Borders.Border.NO_BORDER)
+            .SetPadding(0)
+            .SetVerticalAlignment(VerticalAlignment.MIDDLE);
+        textCell.Add(new iText.Layout.Element.Paragraph(code)
+            .SetFont(bold)
+            .SetFontSize(11)
+            .SetMargin(0)
+            .SetMultipliedLeading(1f));
+        textCell.Add(new iText.Layout.Element.Paragraph(infoLine)
             .SetFont(regular)
             .SetFontSize(7)
-            .SetTextAlignment(TextAlignment.CENTER)
-            .SetMarginBottom(1));
+            .SetMargin(0)
+            .SetMultipliedLeading(1f));
+        headerTable.AddCell(textCell);
 
-        // Barcode: Code128 encoding the MR code
+        var qr = new BarcodeQRCode(code);
+        var qrCell = new iText.Layout.Element.Cell()
+            .SetBorder(iText.Layout.Borders.Border.NO_BORDER)
+            .SetPadding(0);
+        qrCell.Add(new iText.Layout.Element.Image(qr.CreateFormXObject(pdf))
+            .SetWidth(qrSize).SetHeight(qrSize));
+        headerTable.AddCell(qrCell);
+        document.Add(headerTable);
+
+        // Barcode: Code128 encoding the MR code.
+        // X mặc định của iText là 0.8pt (0,28mm) — đạt chuẩn tối thiểu nhưng quá mảnh cho camera
+        // điện thoại. Nâng lên 1.0pt (0,35mm) và co lại nếu mã dài, để luôn giữ quiet zone hai bên.
+        const float quietZone = 12f; // ≈4,2mm mỗi bên; Code128 yêu cầu ≥10 lần bề rộng module
+        var maxBarcodeWidth = usableWidth - 2 * quietZone;
         var barcode = new Barcode128(pdf);
-        barcode.SetCode(mr.MedicalRecordCode ?? "-");
+        barcode.SetCode(code);
         barcode.SetFont(regular);
         barcode.SetSize(6f);
-        barcode.SetBarHeight(22f);
+        barcode.SetBarHeight(24f);
         barcode.SetCodeType(Barcode128.CODE128);
+        barcode.SetX(1.0f);
+        var measuredWidth = barcode.GetBarcodeSize().GetWidth();
+        if (measuredWidth > maxBarcodeWidth)
+        {
+            barcode.SetX(1.0f * maxBarcodeWidth / measuredWidth);
+        }
         var barcodeImage = new iText.Layout.Element.Image(barcode.CreateFormXObject(pdf))
             .SetHorizontalAlignment(HorizontalAlignment.CENTER)
-            .SetMarginTop(1);
+            .SetMargins(1, 0, 0, 0);
         document.Add(barcodeImage);
 
         // Line 3: department + print date (small)
@@ -351,7 +392,8 @@ public partial class ReceptionCompleteService {
             .SetFont(regular)
             .SetFontSize(6)
             .SetTextAlignment(TextAlignment.CENTER)
-            .SetMarginTop(1));
+            .SetMargin(0)
+            .SetMultipliedLeading(1f));
 
         document.Close();
         return memoryStream.ToArray();

@@ -24,4 +24,10 @@
   <!-- wwwroot\ai-models\*.onnx is auto-included via default Content items; see
        HIS.API\wwwroot\ai-models\chestxray_densenet121_nih14.onnx. -->
 
+  <!-- Vietnamese PDF fonts (VietnamesePdfFonts). wwwroot is copied on publish but NOT on plain
+       build, so a dev run would not find them next to the assembly. Copy them explicitly. -->
+  <ItemGroup>
+    <Content Update="wwwroot\fonts\*.ttf" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

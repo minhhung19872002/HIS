@@ -1,4 +1,5 @@
 using System.Security.Cryptography.X509Certificates;
+using HIS.Infrastructure.Common;
 using HIS.Infrastructure.Configuration;
 using iText.Kernel.Pdf;
 using iText.Layout;
@@ -122,6 +123,7 @@ internal class UnclosableMemoryStream : MemoryStream
 public partial class PdfSignatureService : IPdfSignatureService
 {
     private readonly string _fontPath;
+    private readonly string _fontBoldPath;
     private readonly string _outputFolder;
     private readonly ILogger<PdfSignatureService>? _logger;
     private readonly byte[]? _checkmarkImageBytes;
@@ -143,6 +145,18 @@ public partial class PdfSignatureService : IPdfSignatureService
             "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
         };
         _fontPath = candidates.FirstOrDefault(File.Exists) ?? candidates[0];
+
+        // Bản cũ hard-code C:\Windows\Fonts\timesbd.ttf cho chữ đậm: trên container Linux file này
+        // không tồn tại -> CreateFont ném lỗi -> CẢ HAI font rơi về Helvetica (Latin-1) và báo cáo
+        // mất hết dấu tiếng Việt. Phải dò theo OS giống font thường.
+        var boldCandidates = new[]
+        {
+            @"C:\Windows\Fonts\timesbd.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf",
+        };
+        _fontBoldPath = boldCandidates.FirstOrDefault(File.Exists) ?? boldCandidates[0];
 
         // Thư mục lưu file PDF
         _outputFolder = Path.Combine(Directory.GetCurrentDirectory(), "Reports", "Radiology");
@@ -184,13 +198,14 @@ public partial class PdfSignatureService : IPdfSignatureService
             try
             {
                 font = PdfFontFactory.CreateFont(_fontPath, PdfEncodings.IDENTITY_H);
-                fontBold = PdfFontFactory.CreateFont(@"C:\Windows\Fonts\timesbd.ttf", PdfEncodings.IDENTITY_H);
+                fontBold = PdfFontFactory.CreateFont(_fontBoldPath, PdfEncodings.IDENTITY_H);
             }
             catch
             {
-                // Fallback to default font if Times New Roman not available
-                font = PdfFontFactory.CreateFont(iText.IO.Font.Constants.StandardFonts.HELVETICA, PdfEncodings.IDENTITY_H);
-                fontBold = PdfFontFactory.CreateFont(iText.IO.Font.Constants.StandardFonts.HELVETICA_BOLD, PdfEncodings.IDENTITY_H);
+                // Font hệ thống không dùng được -> font Unicode đóng gói kèm ứng dụng.
+                // KHÔNG rơi về Helvetica: font đó là Latin-1, nuốt sạch ký tự tiếng Việt 2 dấu.
+                font = VietnamesePdfFonts.Regular();
+                fontBold = VietnamesePdfFonts.Bold();
             }
 
             // === HEADER - Thông tin bệnh viện ===
