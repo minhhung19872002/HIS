@@ -50,7 +50,6 @@ public class AuditFieldDiffInterceptor : SaveChangesInterceptor
         nameof(ReceiptDetail),
         nameof(InvoiceSummary),
         nameof(ElectronicInvoice),
-        nameof(Payment),
     };
 
     // Field names whose value must never be written to the audit trail as plaintext.

@@ -6,6 +6,7 @@ using HIS.Application.DTOs.BhxhConfig;
 using HIS.Application.Interfaces;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 
 namespace HIS.Infrastructure.Services;
@@ -20,10 +21,12 @@ public class BhxhConfigService : IBhxhConfigService
 {
     private readonly HISDbContext _db;
     private readonly IHttpClientFactory _httpFactory;
-    public BhxhConfigService(HISDbContext db, IHttpClientFactory httpFactory)
+    private readonly SystemConfigSecret _secret;
+    public BhxhConfigService(HISDbContext db, IHttpClientFactory httpFactory, SystemConfigSecret secret)
     {
         _db = db;
         _httpFactory = httpFactory;
+        _secret = secret;
     }
 
     private static readonly string[] Keys = new[]
@@ -45,7 +48,9 @@ public class BhxhConfigService : IBhxhConfigService
             .Where(c => Keys.Contains(c.ConfigKey))
             .ToListAsync();
         var dict = entries.ToDictionary(e => e.ConfigKey, e => e.ConfigValue);
-        var pwd = dict.GetValueOrDefault("BHXH.Password") ?? string.Empty;
+        // Giải mã trước khi mask — nếu mask thẳng giá trị đã mã hoá thì "***" + 3 ký tự cuối
+        // là đuôi ciphertext, người dùng không nhận ra mật khẩu của mình.
+        var pwd = _secret.Reveal(dict.GetValueOrDefault("BHXH.Password"));
         return ServiceOutcome.Ok(new
         {
             gatewayUrl = dict.GetValueOrDefault("BHXH.GatewayUrl"),
@@ -94,8 +99,9 @@ public class BhxhConfigService : IBhxhConfigService
         await Upsert("BHXH.GatewayUrl", dto.GatewayUrl);
         await Upsert("BHXH.TokenUrl", dto.TokenUrl);
         await Upsert("BHXH.Username", dto.Username);
-        // Only update password if provided + non-empty
-        if (!string.IsNullOrEmpty(dto.Password)) await Upsert("BHXH.Password", dto.Password);
+        // Only update password if provided + non-empty. Mật khẩu cổng BHXH lưu dạng mã hoá:
+        // dump DB hoặc người có quyền đọc bảng SystemConfig không lấy được credential dùng được.
+        if (!string.IsNullOrEmpty(dto.Password)) await Upsert("BHXH.Password", _secret.Protect(dto.Password));
         await Upsert("BHXH.MaCSKCB", dto.MaCSKCB);
         await Upsert("BHXH.MaDVI", dto.MaDVI);
         await Upsert("BHXH.Timeout", dto.Timeout.ToString());
@@ -141,7 +147,7 @@ public class BhxhConfigService : IBhxhConfigService
         var cfg = await LoadDictAsync();
         var tokenUrl = cfg.GetValueOrDefault("BHXH.TokenUrl");
         var username = cfg.GetValueOrDefault("BHXH.Username");
-        var password = cfg.GetValueOrDefault("BHXH.Password");
+        var password = _secret.Reveal(cfg.GetValueOrDefault("BHXH.Password"));
         if (string.IsNullOrWhiteSpace(tokenUrl) || string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
             return ServiceOutcome.Bad("Chưa cấu hình đầy đủ TokenUrl / Username / Password");
 

@@ -237,37 +237,11 @@ public class Deposit : BaseEntity
     public byte[]? RowVersion { get; set; }
 }
 
-/// <summary>
-/// Thanh toan - Payment
-/// </summary>
-public class Payment : BaseEntity
-{
-    public string ReceiptNumber { get; set; } = string.Empty;
-    public DateTime ReceiptDate { get; set; }
-
-    public Guid? PatientId { get; set; }
-    public virtual Patient? Patient { get; set; }
-    public Guid? MedicalRecordId { get; set; }
-    public virtual MedicalRecord? MedicalRecord { get; set; }
-
-    public decimal TotalAmount { get; set; }
-    public decimal InsuranceAmount { get; set; }
-    public decimal PatientAmount { get; set; }
-    public decimal DiscountAmount { get; set; }
-    public decimal PaidAmount { get; set; }
-    public decimal ChangeAmount { get; set; }
-
-    public int PaymentMethod { get; set; } // 1-Tien mat, 2-Chuyen khoan, 3-The, 4-QR
-    public string? TransactionReference { get; set; }
-    public Guid? DepositId { get; set; } // Neu su dung tam ung
-    public virtual Deposit? Deposit { get; set; }
-
-    public string? Notes { get; set; }
-    public Guid ReceivedByUserId { get; set; }
-    public virtual User ReceivedBy { get; set; } = null!;
-
-    public int Status { get; set; } // 1-Paid, 2-Cancelled, 3-Refunded
-}
+// Entity `Payment` (bang dbo.Payments) da bo: day la so phieu thu RIENG cua Tiep don, khong
+// writer nao khac dung va khong man hinh nao doc -> tien thu o tiep don khong len so quy va
+// doanh thu. Tiep don nay ghi thang vao `Receipt` — so phieu thu duy nhat cua benh vien.
+// Du lieu cu da chuyen bang script Data/Scripts/159_merge_reception_payments_into_receipts.sql;
+// BANG dbo.Payments VAN GIU trong DB de doi chieu, chi bo mapping phia code.
 
 /// <summary>
 /// Mau gom dich vu - Service Group Template

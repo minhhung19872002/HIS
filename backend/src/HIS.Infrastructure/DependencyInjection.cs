@@ -11,6 +11,7 @@ using HIS.Application.Interfaces;
 using HIS.Application.Services;
 using HIS.Infrastructure.Configuration;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Security;
 using HIS.Infrastructure.Services;
 using HIS.Infrastructure.Services.HL7;
 
@@ -125,6 +126,9 @@ public static class DependencyInjection
         var bhxhOptions = configuration.GetSection(BhxhGatewayOptions.SectionName).Get<BhxhGatewayOptions>()
             ?? new BhxhGatewayOptions();
 
+        // Mã hoá secret lưu trong SystemConfig (mật khẩu cổng BHXH). Stateless + IDataProtector
+        // thread-safe -> singleton.
+        services.AddSingleton<SystemConfigSecret>();
         services.AddScoped<IBhxhGatewaySettingsProvider, BhxhGatewaySettingsProvider>();
         services.AddScoped<BhxhGatewayMockClient>();
 

@@ -2,6 +2,7 @@ using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Configuration;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -33,12 +34,17 @@ public class BhxhGatewaySettingsProvider : IBhxhGatewaySettingsProvider
 
     private readonly HISDbContext _db;
     private readonly BhxhGatewayOptions _options;
+    private readonly SystemConfigSecret _secret;
     private BhxhGatewaySettings? _cached;
 
-    public BhxhGatewaySettingsProvider(HISDbContext db, IOptions<BhxhGatewayOptions> options)
+    public BhxhGatewaySettingsProvider(
+        HISDbContext db,
+        IOptions<BhxhGatewayOptions> options,
+        SystemConfigSecret secret)
     {
         _db = db;
         _options = options.Value;
+        _secret = secret;
     }
 
     public async Task<BhxhGatewaySettings> GetAsync(CancellationToken ct = default)
@@ -48,7 +54,10 @@ public class BhxhGatewaySettingsProvider : IBhxhGatewaySettingsProvider
         var stored = await LoadStoredConfigAsync(ct);
 
         var username = Pick(stored, "BHXH.Username", _options.Username);
-        var password = Pick(stored, "BHXH.Password", _options.Password);
+        // Mật khẩu trong SystemConfig lưu mã hoá (SystemConfigSecret); giá trị từ env/appsettings
+        // vốn đã là plaintext nên Reveal trả nguyên. Không giải mã được -> rỗng -> thiếu
+        // credential -> ép về mock, an toàn hơn là gọi cổng BHXH bằng chuỗi rác.
+        var password = _secret.Reveal(Pick(stored, "BHXH.Password", _options.Password));
         var facilityCode = Pick(stored, "BHXH.MaCSKCB", _options.FacilityCode);
 
         var credentialsComplete = !string.IsNullOrWhiteSpace(username)

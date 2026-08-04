@@ -162,7 +162,6 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
 
     // Tam ung / Thanh toan
     public DbSet<Deposit> Deposits => Set<Deposit>();
-    public DbSet<Payment> Payments => Set<Payment>();
 
     // Mau don thuoc / dich vu
     public DbSet<ServiceGroupTemplate> ServiceGroupTemplates => Set<ServiceGroupTemplate>();
@@ -1085,7 +1084,6 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.Entity<PathologyRequest>().HasOne(p => p.RequestingDoctor).WithMany().HasForeignKey(p => p.RequestingDoctorId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<PatientFlag>().HasOne(p => p.CreatedByUser).WithMany().HasForeignKey(p => p.CreatedByUserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<PatientPhoto>().HasOne(p => p.CapturedBy).WithMany().HasForeignKey(p => p.CapturedByUserId).OnDelete(DeleteBehavior.NoAction);
-        modelBuilder.Entity<Payment>().HasOne(p => p.ReceivedBy).WithMany().HasForeignKey(p => p.ReceivedByUserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<PharmacyCommission>().HasOne(p => p.Doctor).WithMany().HasForeignKey(p => p.DoctorId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<PharmacyGppRecord>().HasOne(p => p.RecordedBy).WithMany().HasForeignKey(p => p.RecordedById).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<PharmacyShift>().HasOne(p => p.Cashier).WithMany().HasForeignKey(p => p.CashierId).OnDelete(DeleteBehavior.NoAction);
