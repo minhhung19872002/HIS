@@ -22,6 +22,7 @@ import DataManagementPanel from './DataManagementPanel';
 import HealthPanel from './HealthPanel';
 import EmrAdminPanel from './EmrAdminPanel';
 import DelegationPanel from './DelegationPanel';
+import DataPermissionPanel from './DataPermissionPanel'; // NangCap26 I.15/I.16
 
 // Department có 2 shape (id|departmentId, name|departmentName) khi đến từ catalog API khác nhau
 interface RawDepartmentLite { id?: string; departmentId?: string; name?: string; departmentName?: string }
@@ -33,10 +34,12 @@ interface BranchRecord { id: string; code?: string; name: string; address?: stri
 interface ServiceSearchItem { id: string; code: string; name: string; stype: number }
 
 type AdminTab = 'users' | 'roles' | 'audit' | 'config' | 'sessions' | 'notifications' | 'locked-services' | 'branches'
-  | 'it-tickets' | 'access-matrix' | 'compliance' | 'data-management' | 'health' | 'emr-admin' | 'delegation';
+  | 'it-tickets' | 'access-matrix' | 'compliance' | 'data-management' | 'health' | 'emr-admin' | 'delegation'
+  | 'data-permission'; // NangCap26 I.15/I.16 — quyền dữ liệu row-level
 const TABS: TopTab<AdminTab>[] = [
   { v: 'users',           l: 'Người dùng',         ic: 'users' },
   { v: 'roles',           l: 'Vai trò & quyền',     ic: 'shield' },
+  { v: 'data-permission', l: 'Quyền dữ liệu',        ic: 'lock' },
   { v: 'sessions',        l: 'Phiên đăng nhập',     ic: 'list' },
   { v: 'notifications',   l: 'Thông báo',            ic: 'bell' },
   { v: 'locked-services', l: 'Khóa dịch vụ',        ic: 'lock' },
@@ -598,6 +601,8 @@ const SystemAdminV2: React.FC = () => {
       {tab === 'health' && <HealthPanel />}
       {tab === 'emr-admin' && <EmrAdminPanel />}
       {tab === 'delegation' && <DelegationPanel />}
+      {/* NangCap26 I.15/I.16 — quyền DỮ LIỆU (row-level), khác quyền chức năng ở tab Vai trò */}
+      {tab === 'data-permission' && <DataPermissionPanel departments={depts} />}
 
       {/* ─── Audit log detail drawer (request/IP/UA + old→new diff, parity v1 AuditTab) ─── */}
       <DrawerShell open={!!selAudit} onClose={() => setSelAudit(null)} size="md"

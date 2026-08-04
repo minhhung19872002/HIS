@@ -271,6 +271,10 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<LabTubeType> LabTubeTypes => Set<LabTubeType>();
     public DbSet<LabQCResult> LabQCResults => Set<LabQCResult>();
     // NangCap26 LIS #29 (ngoại kiểm EQA) + #15 (đơn vị gửi mẫu)
+    // NangCap26 I.15/I.16 — phân quyền dữ liệu row-level
+    public DbSet<DataPermissionGroup> DataPermissionGroups => Set<DataPermissionGroup>();
+    public DbSet<DataPermissionGroupItem> DataPermissionGroupItems => Set<DataPermissionGroupItem>();
+    public DbSet<UserDataPermissionGroup> UserDataPermissionGroups => Set<UserDataPermissionGroup>();
     public DbSet<LabEqaTest> LabEqaTests => Set<LabEqaTest>();
     public DbSet<LabEqaBatch> LabEqaBatches => Set<LabEqaBatch>();
     public DbSet<LabEqaResult> LabEqaResults => Set<LabEqaResult>();

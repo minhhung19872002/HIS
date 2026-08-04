@@ -159,6 +159,7 @@ public static class DependencyInjection
 
         // Luồng 12: Clinical Nutrition (Dinh dưỡng lâm sàng)
         services.AddScoped<IClinicalNutritionService, ClinicalNutritionServiceImpl>();
+        services.AddScoped<IDataPermissionService, DataPermissionService>(); // NangCap26 I.15/I.16
 
         // Luồng 13: Infection Control (Kiểm soát nhiễm khuẩn)
         services.AddScoped<IInfectionControlService, InfectionControlServiceImpl>();
