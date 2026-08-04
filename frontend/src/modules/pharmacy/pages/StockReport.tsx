@@ -1,13 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import * as file from '../../../services/file.service';
 import { fmtNum as fmt } from '../../../utils/format';
-import { InputNumber } from 'antd';
+import { Input, InputNumber } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../../../services/apiClient';
-import { getWarehouses } from '../api/warehouse';
+import {
+  getWarehouses, lockBatch, unlockBatch, lockWarehouse, unlockWarehouse,
+  getWarehouseLockStatus, type WarehouseLockStatusDto,
+} from '../api/warehouse';
 import { unwrapList, type MaybePaged } from '../../../utils/apiNormalize';
 import {
-  KpiStrip, TopTabs, SearchBox, Filter, DataTable, StatusBadge, Btn, Pager, tk, ti, tw,
+  KpiStrip, TopTabs, SearchBox, Filter, DataTable, StatusBadge, Btn, Pager, ModalShell, tk, ti, tw,
   type ColumnDef,
 } from '@/_v2kit';
 
@@ -20,13 +23,20 @@ interface LowStockRow { itemCode: string; itemName: string; unit?: string; avail
 interface ReportResp<T> { items?: T[]; count?: number; totalValue?: number }
 
 const PER = 50;
-type Tab = 'detail' | 'summary' | 'expiring' | 'low-stock';
+type Tab = 'detail' | 'summary' | 'expiring' | 'low-stock' | 'locks';
 const TABS = [
   { v: 'detail' as Tab,    l: 'Chi tiết theo lô', ic: 'archive' },
   { v: 'summary' as Tab,   l: 'Tổng hợp',         ic: 'list' },
   { v: 'expiring' as Tab,  l: 'Sắp hết hạn',      ic: 'alert' },
   { v: 'low-stock' as Tab, l: 'Tồn thấp',         ic: 'activity' },
+  // NangCap26 V.33 — khóa/mở khóa kho (chặn xuất & luân chuyển khi kiểm kê/chốt sổ)
+  { v: 'locks' as Tab,     l: 'Khóa kho',         ic: 'lock' },
 ];
+
+/** Đích của modal khóa: 1 lô trong kho, hoặc cả kho. */
+type LockTarget =
+  | { kind: 'batch'; id: string; name: string; locked: boolean }
+  | { kind: 'warehouse'; id: string; name: string; locked: boolean };
 
 
 const StockReportV2: React.FC = () => {
@@ -42,6 +52,11 @@ const StockReportV2: React.FC = () => {
   const [lowStock, setLowStock] = useState<ReportResp<LowStockRow>>({});
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
+  // NangCap26 V.31/V.33 — khóa lô thuốc & khóa kho
+  const [locks, setLocks] = useState<WarehouseLockStatusDto[]>([]);
+  const [lockTarget, setLockTarget] = useState<LockTarget | null>(null);
+  const [lockReason, setLockReason] = useState('');
+  const [lockBusy, setLockBusy] = useState(false);
 
   useEffect(() => {
     getWarehouses(1)
@@ -64,6 +79,9 @@ const StockReportV2: React.FC = () => {
       } else if (tab === 'expiring') {
         const { data } = await apiClient.get<ReportResp<ExpiringRow>>('/stock-report/expiring', { params: { warehouseId: warehouseId || undefined, days } });
         setExpiring(data);
+      } else if (tab === 'locks') {
+        const { data } = await getWarehouseLockStatus(false);
+        setLocks(unwrapList<WarehouseLockStatusDto>(data as MaybePaged<WarehouseLockStatusDto>));
       } else {
         const { data } = await apiClient.get<ReportResp<LowStockRow>>('/stock-report/low-stock', { params: { warehouseId: warehouseId || undefined, threshold } });
         setLowStock(data);
@@ -95,6 +113,31 @@ const StockReportV2: React.FC = () => {
 
   const whOpts = warehouses.map((w) => ({ v: w.id, l: w.warehouseName }));
 
+  // NangCap26 — mở modal nhập lý do trước khi khóa/mở khóa
+  const openLockModal = (t: LockTarget) => { setLockTarget(t); setLockReason(''); };
+
+  const submitLock = async () => {
+    if (!lockTarget) return;
+    // Khóa bắt buộc có lý do (để lại vết cho hội đồng/lãnh đạo); mở khóa thì lý do tùy chọn.
+    if (!lockTarget.locked && !lockReason.trim()) { tw('Phải nhập lý do khóa'); return; }
+    setLockBusy(true);
+    try {
+      if (lockTarget.kind === 'batch') {
+        if (lockTarget.locked) await unlockBatch(lockTarget.id, lockReason.trim());
+        else await lockBatch(lockTarget.id, lockReason.trim());
+      } else {
+        if (lockTarget.locked) await unlockWarehouse(lockTarget.id);
+        else await lockWarehouse(lockTarget.id, lockReason.trim());
+      }
+      tk(lockTarget.locked ? 'Đã mở khóa' : 'Đã khóa');
+      setLockTarget(null);
+      await load();
+    } catch (e) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      ti(msg || 'Thao tác khóa thất bại');
+    } finally { setLockBusy(false); }
+  };
+
   const detailCols: ColumnDef<DetailRow>[] = [
     { key: 'wh', label: 'Kho', render: (r) => r.warehouseName },
     { key: 'code', label: 'Mã', code: true, render: (r) => r.itemCode },
@@ -112,7 +155,35 @@ const StockReportV2: React.FC = () => {
     { key: 'avail', label: 'Khả dụng', mono: true, render: (r) => fmt(r.available) },
     { key: 'price', label: 'Giá nhập', mono: true, render: (r) => fmt(r.importPrice) },
     { key: 'val', label: 'Giá trị', mono: true, render: (r) => fmt(r.value) },
-    { key: 'lock', label: 'Khóa', render: (r) => r.isLocked ? <StatusBadge tone="crit" dot>Khóa</StatusBadge> : '—' },
+    // NangCap26 V.31 — khóa/mở khóa lô ngay tại dòng tồn kho
+    { key: 'lock', label: 'Khóa lô', render: (r) => (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-6)' }}>
+        {r.isLocked ? <StatusBadge tone="crit" dot>Khóa</StatusBadge> : '—'}
+        <Btn variant="ghost" icon={r.isLocked ? 'unlock' : 'lock'}
+          onClick={(e?: React.MouseEvent) => { e?.stopPropagation();
+            openLockModal({ kind: 'batch', id: r.id, name: `${r.itemName} — lô ${r.batchNumber || '(không số)'}`, locked: !!r.isLocked }); }}>
+          {r.isLocked ? 'Mở' : 'Khóa'}
+        </Btn>
+      </span>
+    ) },
+  ];
+
+  const lockCols: ColumnDef<WarehouseLockStatusDto>[] = [
+    { key: 'code', label: 'Mã kho', code: true, render: (r) => r.warehouseCode },
+    { key: 'name', label: 'Tên kho', render: (r) => r.warehouseName },
+    { key: 'st', label: 'Trạng thái', render: (r) => r.isLocked
+      ? <StatusBadge tone="crit" dot>Đang khóa</StatusBadge>
+      : <StatusBadge tone="ok">Hoạt động</StatusBadge> },
+    { key: 'reason', label: 'Lý do', render: (r) => r.lockReason || '—' },
+    { key: 'by', label: 'Người khóa', render: (r) => r.lockedByName || '—' },
+    { key: 'at', label: 'Thời điểm', mono: true, render: (r) => r.lockedAt ? dayjs(r.lockedAt).format('DD/MM/YYYY HH:mm') : '—' },
+    { key: 'act', label: '', render: (r) => (
+      <Btn variant={r.isLocked ? 'ghost' : 'crit'} icon={r.isLocked ? 'unlock' : 'lock'}
+        onClick={(e?: React.MouseEvent) => { e?.stopPropagation();
+          openLockModal({ kind: 'warehouse', id: r.warehouseId, name: r.warehouseName, locked: r.isLocked }); }}>
+        {r.isLocked ? 'Mở khóa' : 'Khóa kho'}
+      </Btn>
+    ) },
   ];
 
   const summaryCols: ColumnDef<SummaryRow>[] = [
@@ -154,6 +225,7 @@ const StockReportV2: React.FC = () => {
   const currentRows = tab === 'detail' ? (detail.items || [])
     : tab === 'summary' ? (summary.items || [])
     : tab === 'expiring' ? (expiring.items || [])
+    : tab === 'locks' ? locks
     : (lowStock.items || []);
   const currentCount = tab === 'detail' ? detail.count
     : tab === 'summary' ? summary.count
@@ -213,9 +285,48 @@ const StockReportV2: React.FC = () => {
         <DataTable<LowStockRow> columns={lowStockCols} data={(lowStock.items || []).slice(page * PER, (page + 1) * PER)} rowKey={(r) => r.itemCode}
           empty={loading ? 'Đang tải…' : 'Không có thuốc tồn thấp'} />
       )}
+      {tab === 'locks' && (
+        <DataTable<WarehouseLockStatusDto> columns={lockCols} data={locks.slice(page * PER, (page + 1) * PER)} rowKey={(r) => r.warehouseId}
+          empty={loading ? 'Đang tải…' : 'Không có kho'} />
+      )}
 
       <Pager page={page} setPage={setPage} totalPages={Math.max(1, Math.ceil(currentRows.length / PER))}
         total={currentRows.length} perPage={PER} />
+
+      {/* NangCap26 V.31/V.33 — modal nhập lý do khóa/mở khóa */}
+      <ModalShell
+        open={!!lockTarget}
+        onClose={() => setLockTarget(null)}
+        size="sm"
+        tone={lockTarget && !lockTarget.locked ? 'danger' : undefined}
+        title={lockTarget?.locked
+          ? (lockTarget.kind === 'batch' ? 'Mở khóa lô' : 'Mở khóa kho')
+          : (lockTarget?.kind === 'batch' ? 'Khóa lô thuốc' : 'Khóa kho')}
+        sub={lockTarget?.name}
+        footer={
+          <>
+            <Btn variant="ghost" onClick={() => setLockTarget(null)}>Hủy</Btn>
+            <Btn variant={lockTarget?.locked ? 'primary' : 'crit'} disabled={lockBusy} onClick={submitLock}>
+              {lockBusy ? 'Đang xử lý…' : lockTarget?.locked ? 'Mở khóa' : 'Khóa'}
+            </Btn>
+          </>
+        }
+      >
+        <div style={{ display: 'grid', gap: 'var(--space-8)' }}>
+          {!lockTarget?.locked && (
+            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--a-or-text)' }}>
+              {lockTarget?.kind === 'batch'
+                ? 'Sau khi khóa, khoa/phòng KHÔNG lĩnh được lô này cho bệnh nhân. Số lượng tồn giữ nguyên.'
+                : 'Sau khi khóa, kho này KHÔNG xuất và KHÔNG luân chuyển được.'}
+            </div>
+          )}
+          <label style={{ display: 'grid', gap: 'var(--space-4)', fontSize: 'var(--fs-sm)' }}>
+            Lý do {lockTarget?.locked ? '(tùy chọn)' : <span style={{ color: 'var(--a-cr-text)' }}>*</span>}
+            <Input.TextArea rows={3} value={lockReason} onChange={(e) => setLockReason(e.target.value)}
+              placeholder={lockTarget?.locked ? 'Căn cứ quyết định mở khóa…' : 'VD: Thu hồi theo công văn số… / nghi ngờ chất lượng'} />
+          </label>
+        </div>
+      </ModalShell>
     </div>
   );
 };

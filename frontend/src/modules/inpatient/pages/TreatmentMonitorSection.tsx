@@ -1847,7 +1847,7 @@ const TreatmentSheetsModal: React.FC<{
         footer={
           <>
             <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
-            <Btn variant="secondary" onClick={openCreate}>
+            <Btn variant="primary" onClick={openCreate}>
               <TermIcon name="plus" size={12} />
               Thêm diễn biến
             </Btn>

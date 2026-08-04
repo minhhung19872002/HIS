@@ -826,6 +826,61 @@ export const getWarehouses = (warehouseType?: number) =>
 export const getWarehouseById = (id: string) =>
   apiClient.get<WarehouseDto>(`${BASE_URL}/warehouses/${id}`);
 
+// #region NangCap26 V.31/V.33 — Khóa lô thuốc & khóa kho
+
+export interface LockedBatchDto {
+  inventoryItemId: string;
+  warehouseId: string;
+  warehouseName: string;
+  medicineId?: string;
+  supplyId?: string;
+  itemName: string;
+  batchNumber?: string;
+  expiryDate?: string;
+  quantity: number;
+  lockReason?: string;
+  lockedBy?: string;
+  lockedByName?: string;
+  lockedAt?: string;
+}
+
+export interface WarehouseLockStatusDto {
+  warehouseId: string;
+  warehouseCode: string;
+  warehouseName: string;
+  isLocked: boolean;
+  lockReason?: string;
+  lockedBy?: string;
+  lockedByName?: string;
+  lockedAt?: string;
+}
+
+/** Khóa 1 lô đang lưu hành — khoa/phòng không lĩnh được lô này (V.31). */
+export const lockBatch = (inventoryItemId: string, reason: string) =>
+  apiClient.post<LockedBatchDto>(`${BASE_URL}/batches/${inventoryItemId}/lock`, { reason });
+
+/** Mở khóa lô sau khi có quyết định lãnh đạo (V.31). */
+export const unlockBatch = (inventoryItemId: string, reason: string) =>
+  apiClient.post<LockedBatchDto>(`${BASE_URL}/batches/${inventoryItemId}/unlock`, { reason });
+
+/** Danh sách lô đang bị khóa. */
+export const getLockedBatches = (warehouseId?: string) =>
+  apiClient.get<LockedBatchDto[]>(`${BASE_URL}/batches/locked`, { params: { warehouseId } });
+
+/** Khóa kho — chặn xuất & luân chuyển (V.33). */
+export const lockWarehouse = (id: string, reason: string) =>
+  apiClient.post<WarehouseLockStatusDto>(`${BASE_URL}/warehouses/${id}/lock`, { reason });
+
+/** Mở khóa kho (V.33). */
+export const unlockWarehouse = (id: string) =>
+  apiClient.post<WarehouseLockStatusDto>(`${BASE_URL}/warehouses/${id}/unlock`, {});
+
+/** Trạng thái khóa của các kho. */
+export const getWarehouseLockStatus = (lockedOnly = false) =>
+  apiClient.get<WarehouseLockStatusDto[]>(`${BASE_URL}/warehouses/lock-status`, { params: { lockedOnly } });
+
+// #endregion
+
 export const getReusableSupplies = (warehouseId?: string, status?: number) =>
   apiClient.get<ReusableSupplyDto[]>(`${BASE_URL}/reusable-supplies`, { params: { warehouseId, status } });
 
@@ -918,6 +973,14 @@ export default {
   // Management
   getWarehouses,
   getWarehouseById,
+
+  // NangCap26 — khóa lô / khóa kho
+  lockBatch,
+  unlockBatch,
+  getLockedBatches,
+  lockWarehouse,
+  unlockWarehouse,
+  getWarehouseLockStatus,
   getReusableSupplies,
   recordSterilization,
   getConsignmentStock,

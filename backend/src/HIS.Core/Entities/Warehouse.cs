@@ -20,6 +20,12 @@ public class Warehouse : BaseEntity
     public bool IsCabinet { get; set; } // Là tủ trực
     public bool IsActive { get; set; } = true;
 
+    // NangCap26 V.33 - Khóa kho: chặn xuất & luân chuyển (dùng khi kiểm kê / chốt sổ)
+    public bool IsLocked { get; set; }
+    public string? LockReason { get; set; }
+    public Guid? LockedBy { get; set; }
+    public DateTime? LockedAt { get; set; }
+
     // Navigation
     public virtual ICollection<Warehouse> ChildWarehouses { get; set; } = new List<Warehouse>();
     public virtual ICollection<InventoryItem> InventoryItems { get; set; } = new List<InventoryItem>();
@@ -57,9 +63,11 @@ public class InventoryItem : BaseEntity
     public decimal ImportPrice { get; set; } // Giá nhập
     public decimal UnitPrice { get; set; } // Giá xuất
 
-    // Trạng thái
+    // Trạng thái - NangCap26 V.31: khóa lô thuốc (thu hồi / nghi ngờ chất lượng)
     public bool IsLocked { get; set; } // Khóa xuất
     public string? LockReason { get; set; }
+    public Guid? LockedBy { get; set; }
+    public DateTime? LockedAt { get; set; }
 
     // Nguồn nhập
     public string? SourceType { get; set; } // NCC, Chuyển kho, Viện trợ...

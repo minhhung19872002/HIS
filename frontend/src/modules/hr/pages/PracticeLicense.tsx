@@ -147,7 +147,7 @@ const PracticeLicenseV2: React.FC = () => {
       tk(`Đã gia hạn CCHN ${renewTarget.staffName}`);
       setRenewOpen(false);
       load();
-    } catch { te('Gia hạn thất bại'); }
+    } catch { ti('Gia hạn thất bại'); }
     finally { setRenewSaving(false); }
   };
 

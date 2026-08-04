@@ -109,6 +109,28 @@ public interface IWarehouseCompleteService
     /// </summary>
     Task<StockIssueDto> IssueToDepartmentAsync(CreateStockIssueDto dto, Guid userId);
 
+    #region NangCap26 V.31/V.33 — Khóa lô thuốc & khóa kho
+
+    /// <summary>Khóa 1 lô đang lưu hành (thu hồi/nghi ngờ chất lượng) — khoa/phòng không lĩnh được lô này.</summary>
+    Task<LockedBatchDto> LockBatchAsync(Guid inventoryItemId, string reason, Guid userId);
+
+    /// <summary>Mở khóa lô sau khi có quyết định của lãnh đạo.</summary>
+    Task<LockedBatchDto> UnlockBatchAsync(Guid inventoryItemId, string reason, Guid userId);
+
+    /// <summary>Danh sách lô đang bị khóa (tùy chọn lọc theo kho).</summary>
+    Task<List<LockedBatchDto>> GetLockedBatchesAsync(Guid? warehouseId);
+
+    /// <summary>Khóa kho — chặn xuất và luân chuyển (kiểm kê/chốt sổ).</summary>
+    Task<WarehouseLockStatusDto> LockWarehouseAsync(Guid warehouseId, string reason, Guid userId);
+
+    /// <summary>Mở khóa kho.</summary>
+    Task<WarehouseLockStatusDto> UnlockWarehouseAsync(Guid warehouseId, Guid userId);
+
+    /// <summary>Trạng thái khóa của các kho (lockedOnly = true chỉ lấy kho đang khóa).</summary>
+    Task<List<WarehouseLockStatusDto>> GetWarehouseLockStatusAsync(bool lockedOnly);
+
+    #endregion
+
     /// <summary>
     /// Xuất chuyển kho
     /// </summary>

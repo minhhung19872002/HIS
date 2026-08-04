@@ -581,6 +581,52 @@ public class WarehouseCompleteController : ControllerBase
         return Ok(result);
     }
 
+    #region NangCap26 V.31/V.33 — Khóa lô thuốc & khóa kho
+
+    /// <summary>
+    /// Khóa 1 lô đang lưu hành (V.31) — khoa/phòng không lĩnh được lô này cho tới khi mở khóa.
+    /// </summary>
+    [HttpPost("batches/{inventoryItemId}/lock")]
+    public async Task<ActionResult<LockedBatchDto>> LockBatch(Guid inventoryItemId, [FromBody] LockRequestDto dto)
+        => Ok(await _warehouseService.LockBatchAsync(inventoryItemId, dto.Reason, GetCurrentUserId()));
+
+    /// <summary>
+    /// Mở khóa lô (V.31) — sau khi có quyết định của lãnh đạo.
+    /// </summary>
+    [HttpPost("batches/{inventoryItemId}/unlock")]
+    public async Task<ActionResult<LockedBatchDto>> UnlockBatch(Guid inventoryItemId, [FromBody] LockRequestDto dto)
+        => Ok(await _warehouseService.UnlockBatchAsync(inventoryItemId, dto?.Reason ?? string.Empty, GetCurrentUserId()));
+
+    /// <summary>
+    /// Danh sách lô đang bị khóa.
+    /// </summary>
+    [HttpGet("batches/locked")]
+    public async Task<ActionResult<List<LockedBatchDto>>> GetLockedBatches([FromQuery] Guid? warehouseId)
+        => Ok(await _warehouseService.GetLockedBatchesAsync(warehouseId));
+
+    /// <summary>
+    /// Khóa kho (V.33) — chặn xuất và luân chuyển, dùng khi kiểm kê/chốt sổ.
+    /// </summary>
+    [HttpPost("warehouses/{id}/lock")]
+    public async Task<ActionResult<WarehouseLockStatusDto>> LockWarehouse(Guid id, [FromBody] LockRequestDto dto)
+        => Ok(await _warehouseService.LockWarehouseAsync(id, dto.Reason, GetCurrentUserId()));
+
+    /// <summary>
+    /// Mở khóa kho (V.33).
+    /// </summary>
+    [HttpPost("warehouses/{id}/unlock")]
+    public async Task<ActionResult<WarehouseLockStatusDto>> UnlockWarehouse(Guid id)
+        => Ok(await _warehouseService.UnlockWarehouseAsync(id, GetCurrentUserId()));
+
+    /// <summary>
+    /// Trạng thái khóa của các kho.
+    /// </summary>
+    [HttpGet("warehouses/lock-status")]
+    public async Task<ActionResult<List<WarehouseLockStatusDto>>> GetWarehouseLockStatus([FromQuery] bool lockedOnly = false)
+        => Ok(await _warehouseService.GetWarehouseLockStatusAsync(lockedOnly));
+
+    #endregion
+
     /// <summary>
     /// Lấy chi tiết kho
     /// </summary>

@@ -78,6 +78,9 @@ public partial class WarehouseCompleteService {
             ?? throw new InvalidOperationException("Don thuoc chua duoc gan kho xuat (WarehouseId trong)");
         var warehouse = await _context.Warehouses.FindAsync(warehouseId);
 
+        // NangCap26 V.33: kho đang khóa → không phát thuốc ngoại trú.
+        await EnsureWarehouseNotLockedAsync(warehouseId);
+
         await using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
@@ -239,6 +242,9 @@ public partial class WarehouseCompleteService {
         var warehouseId = prescription.WarehouseId ?? throw new Exception("No warehouse assigned");
         var warehouse = await _context.Warehouses.FindAsync(warehouseId);
 
+        // NangCap26 V.33: kho đang khóa → không phát thuốc nội trú.
+        await EnsureWarehouseNotLockedAsync(warehouseId);
+
         var exportReceipt = new ExportReceipt
         {
             Id = Guid.NewGuid(),
@@ -260,10 +266,13 @@ public partial class WarehouseCompleteService {
 
         foreach (var detail in prescription.Details.Where(d => d.Status == 0))
         {
+            // NangCap26 V.31: loại lô đang khóa khỏi FEFO (trước đây nội trú không lọc IsLocked
+            // trong khi ngoại trú đã lọc → lô thu hồi vẫn phát được cho BN nội trú).
             var stock = await _context.InventoryItems
                 .Where(i => i.WarehouseId == warehouseId
                     && i.MedicineId == detail.MedicineId
-                    && (i.Quantity - i.ReservedQuantity) >= detail.Quantity)
+                    && (i.Quantity - i.ReservedQuantity) >= detail.Quantity
+                    && !i.IsLocked && !i.IsDeleted)
                 .OrderBy(i => i.ExpiryDate)
                 .FirstOrDefaultAsync();
 
@@ -348,6 +357,9 @@ public partial class WarehouseCompleteService {
         if (warehouse == null)
             throw new Exception("Warehouse not found");
 
+        // NangCap26 V.33: kho đang khóa → không xuất cho khoa/phòng.
+        await EnsureWarehouseNotLockedAsync(dto.WarehouseId);
+
         var department = dto.DepartmentId.HasValue
             ? await _context.Departments.FindAsync(dto.DepartmentId.Value)
             : null;
@@ -375,12 +387,16 @@ public partial class WarehouseCompleteService {
             var stock = item.StockId.HasValue
                 ? await _context.InventoryItems.FindAsync(item.StockId.Value)
                 : await _context.InventoryItems
-                    .Where(i => i.WarehouseId == dto.WarehouseId && i.MedicineId == item.ItemId && (i.Quantity - i.ReservedQuantity) >= item.Quantity)
+                    .Where(i => i.WarehouseId == dto.WarehouseId && i.MedicineId == item.ItemId && (i.Quantity - i.ReservedQuantity) >= item.Quantity
+                        && !i.IsLocked && !i.IsDeleted)
                     .OrderBy(i => i.ExpiryDate)
                     .FirstOrDefaultAsync();
 
             if (stock == null)
                 throw new Exception($"Insufficient stock for item {item.ItemId}");
+
+            // NangCap26 V.31: chọn đích danh lô cũng không được nếu lô đang khóa.
+            EnsureBatchNotLocked(stock);
 
             stock.Quantity -= item.Quantity;
 
@@ -578,6 +594,9 @@ public partial class WarehouseCompleteService {
         if (warehouse == null)
             throw new Exception("Warehouse not found");
 
+        // NangCap26 V.33: kho đang khóa → chặn mọi phiếu xuất/luân chuyển từ kho này.
+        await EnsureWarehouseNotLockedAsync(dto.WarehouseId);
+
         var department = dto.DepartmentId.HasValue
             ? await _context.Departments.FindAsync(dto.DepartmentId.Value)
             : null;
@@ -610,12 +629,16 @@ public partial class WarehouseCompleteService {
             var stock = item.StockId.HasValue
                 ? await _context.InventoryItems.FindAsync(item.StockId.Value)
                 : await _context.InventoryItems
-                    .Where(i => i.WarehouseId == dto.WarehouseId && i.MedicineId == item.ItemId && (i.Quantity - i.ReservedQuantity) >= item.Quantity)
+                    .Where(i => i.WarehouseId == dto.WarehouseId && i.MedicineId == item.ItemId && (i.Quantity - i.ReservedQuantity) >= item.Quantity
+                        && !i.IsLocked && !i.IsDeleted)
                     .OrderBy(i => i.ExpiryDate)
                     .FirstOrDefaultAsync();
 
             if (stock == null)
                 throw new Exception($"Insufficient stock for item {item.ItemId}");
+
+            // NangCap26 V.31: chọn đích danh lô cũng không được nếu lô đang khóa.
+            EnsureBatchNotLocked(stock);
 
             stock.Quantity -= item.Quantity;
 
