@@ -103,18 +103,21 @@ All services must be registered in `backend/src/HIS.Infrastructure/DependencyInj
 - The `InvalidCastException Guid↔String` bug: a table with `CreatedBy/UpdatedBy` of type uniqueidentifier needs a whitelist
   ValueConverter in `HISDbContext.cs`.
 
-### Plan/task management — GitHub Issues (since 2026-06-13)
-- **The main task board = GitHub Issues** in the repo `minhhung19872002/HIS` (`gh issue list`). Creating a new plan/task →
-  **create an Issue** (`gh issue create`); done + pushed → **`gh issue close <n>`** with the commit sha. Do NOT manage the
-  backlog in `docs/workspace-docs/` anymore.
-- **★ IN-PROGRESS = CLAIM-FIRST (MANDATORY, every session/machine):** **the moment you SETTLE on a task** (having ruled out the other candidates),
-  **the FIRST action — BEFORE any scope-measuring/file-reading/impact-analysis pre-flight and BEFORE writing/editing code** → `gh issue edit <n> --add-label in-progress --add-assignee @me`. You may only claim AFTER the **light sync+existence-check**
-  step of the SYNC-GATE (`workflow/project-rules.md` §2); while **comparing several candidates to CHOOSE**, you have NOT claimed yet (not settled). Keep the label the whole time it's in progress; **done → `gh issue close`** (auto-removes in-progress); **stop/blocked/switch-task → `--remove-label in-progress` IMMEDIATELY** (a stale label = another machine thinks it's in progress → duplication). Avoid 2 machines hitting the same task.
+### Plan/task management (updated 2026-08-04 — NO issue creation)
+- **★ DO NOT create NEW GitHub Issues** (user decision 2026-08-04). No `gh issue create` for plans/tasks/bugs; no
+  `in-progress` label claiming. **Existing open Issues are still real work** — finish them; close one only after its
+  code is pushed. Never bulk-close issues to "clean up".
+- **Where a plan lives**: for a multi-part job, keep the plan **inline in the reply** + (if it belongs to an upgrade
+  package) the analysis file `docs/requirements/20-yeu-cau-nang-cap/nangcap-phan-tich.md`. Session state →
+  `docs/workspace-docs/STATUS.md`.
+- **Same-machine multi-window** still coordinates via `bash .claude/window-lock.sh claim <slug>` (local mkdir mutex,
+  no GitHub round-trip).
 - **★ LONG / MULTI-PART TASK — finish EVERYTHING then push + done (MANDATORY, every session/machine):** for a large multi-part task,
-  commit **LOCALLY** per stage to checkpoint, BUT **only `git push` when ALL parts are done per the process** (build-gate + verify each stage) → push once with **`Closes #N`**. **Do NOT push partial.** (Pull `--rebase` before the final push to sync with other machines; a short/atomic task still pushes-as-soon-as-done as usual.)
-- **★ SCOPE OVERLAP between tasks (make each task produce its own clear result):** while doing task A, if you find a piece of work belonging to/overlapping
-  task B → **transfer ENOUGH info + context to task B (comment/body) FIRST**, verify B is missing nothing, THEN close that part in A / close A. Do NOT duplicate 2 tasks, do NOT close A while B is missing info, do NOT lose context on handoff.
-- **Before picking a task**: `git fetch origin` + read `git log origin/main` + `gh issue list` (many machines work in parallel — the source of truth is the git log + Issues, NOT local docs).
+  commit **LOCALLY** per stage to checkpoint, BUT **only `git push` when ALL parts are done per the process** (build-gate + verify each stage) → push once. **Do NOT push partial.** (Pull `--rebase` before the final push to sync with other machines; a short/atomic task still pushes-as-soon-as-done as usual.)
+- **★ SCOPE OVERLAP between parts of a job:** while doing part A, if you find work belonging to part B → record it in the
+  plan/STATUS **first**, then finish A. Do NOT do the same work twice, do NOT drop context on handoff.
+- **Before picking work**: `git fetch origin` + read `git log origin/main` (many machines work in parallel — the source of
+  truth is the git log, NOT local docs).
 - **★★ HARD RULE (every request/session/machine) — TEST IS MANDATORY BUT ALWAYS GOES LAST:** for ANY request,
   finish ALL fix / feature / tech-debt / security / patient-safety (e.g. #180-215 EXCEPT test) FIRST; **every TEST task (label `test`, INCLUDING harness/CI-gate #191/#212/#213) goes LAST — only start when 100% of fix tasks are DONE. ABSOLUTELY no "early harness" exception.** Enforced via the `session-start.sh` + `remind-pipeline.sh` hooks. To compensate for the missing test-net: every fix sticks tightly to the SAFETY-PROTOCOL (pre-flight · build-gate · manual smoke · minimal-change). The full test program → `docs/workspace-docs/10-assessment/test-plan-2026-06-17.md` + `test`-labeled Issues.
   **★ EVIDENCE + VIEWER (every session/every machine):** every test task with UI MUST capture evidence of all states + view it through the evidence viewer. The naming convention · viewer layout · capture/regen method · DEDUP vs GitHub (#216-289) = the single source of truth in `docs/architecture/evidence/README.md` (do NOT copy the content here). Coverage follows the roadmap `docs/architecture/his-roadmap/` + `his-data-structure.js` (38 modules/485 tables/12 flows).

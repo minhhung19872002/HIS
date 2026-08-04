@@ -2583,3 +2583,78 @@
 | **Tong** | **156** | **156** | **0** | **100%** |
 
 > **Ket luan NangCap21**: Tat ca 156 chuc nang deu da co trong HIS hien tai. **3 chuc nang bo sung trong Session 40 (2026-04-03): Dashboard 3 cap, Bao cao tong hop, Lich truc da chi nhanh.** He thong 3 cap (Tram YT - Huyen - Tinh) da duoc ho tro voi multi-branch architecture, lien thong HL7 FHIR, va HealthExchange module.
+
+---
+
+## PHAN 22: NANGCAP26 - TTYT TINH BIEN (An Giang) - HIS + EMR + RIS/PACS + LIS
+
+**Nguon**: `NangCap26.pdf` (113 trang) - Chuong V Yeu cau ky thuat, goi thau
+"Phan mem quan ly tong the benh vien nam 2026". Chu dau tu: Trung tam Y te Tinh Bien,
+phuong Thoi Son, tinh An Giang. Thoi han 12 thang, mo hinh thue dich vu CNTT.
+
+### A. Pham vi yeu cau
+
+| Phan he | Muc chuc nang | Vi tri trong PDF |
+|---|---|---|
+| HIS | ~745 dong (I..XXIV) | 3.2.1, trang 7-61 |
+| EMR | 99 dong (I..VIII) | muc 2, trang 61-70 |
+| LIS | 35 nhom (~150 thao tac) | muc 3, trang 70-75 |
+| RIS/PACS | 254 muc (I..X) | muc 4, trang 75-100 |
+| Phi chuc nang | 3.3 - 3.9 | trang 100-113 |
+
+Van ban phap ly duoc vien dan: ND 102/2025/ND-CP, TT 48/2017, TT 54/2017, TT 32/2023,
+TT 13/2025 (benh an dien tu), TT 12/2026/TT-BTC (giam dinh BHYT), TT 39/2017/TT-BTTTT.
+
+### B. Ket qua doi chieu voi codebase (2026-08-04)
+
+Da doi chieu tung cum chuc nang bang grep tren `backend/src` + `frontend/src`
+(loai tru bin/obj). **Da co ~98% yeu cau**. Danh sach GAP thuc su:
+
+| # | Chuc nang thieu | Muc PDF | Phan he | Muc do |
+|---|---|---|---|---|
+| G1 | Khoa lo thuoc (chan 1 lo dang luu hanh, khoa phong khong linh duoc) | V.31 | Duoc/Kho | Cao (an toan NB) |
+| G2 | Khoa kho / khoa danh sach kho (chan luan chuyen + xuat) | V.33 | Duoc/Kho | Cao |
+| G3 | Quyen du lieu phong/kho + Phan quyen du lieu nguoi dung (row-level data scope theo khoa/phong/kho/loai dieu tri/doi tuong BN) | I.15, I.16 | He thong | Cao (bao mat) |
+| G4 | Thiet lap khoa/phong lam viec sau dang nhap (context khoa/phong xuyen man hinh) | I.4 | He thong | Trung binh |
+| G5 | Ngoai kiem (EQA): danh muc XN ngoai kiem, tiep nhan ban giao mau, dang ky chay mau/lay ket qua | LIS #29 | LIS | Trung binh (noi kiem IQC da co) |
+| G6 | Quan ly don vi gui mau (CRUD + import/export Excel) | LIS #15 | LIS | Thap |
+| G7 | Ghi dia CD/DVD hinh anh + ket qua ca chup | RIS I.4.3, #59, CAPTURE #118 | RIS/PACS | Trung binh |
+| G8 | Duyet phieu suat an (khoa dinh duong) + man hinh Nha an | XII.5, XII.6 | Dinh duong | Trung binh |
+| G9 | Yeu cau trang cap tai san tu khoa phong + duyet yeu cau; Duyet ke hoach bao duong | XVII.3, XVII.4, XVII.7 | TTB | Trung binh |
+| G10 | Kiem tra lam dung the BHYT (KCB nhieu lan) | Lien thong XIX.1.1 | BHYT | Trung binh |
+| G11 | Phieu dem gac, dung cu (phong mo); Phieu linh hoa chat (bieu mau in) | X.2 #16, BC in #98 | PTTT / Duoc | Thap |
+| G12 | Tach dieu tri noi tru tai khoa cap cuu | XIX.2 #20 | Cap cuu | Thap |
+
+### C. Cac cum DA CO (xac minh bang grep, khong can lam moi)
+
+- **He thong/danh muc**: 40 danh muc dung chung (ke ca gia xang -> tu tinh lai gia van
+  chuyen, ma may XML BHXH, hoi dong kiem nhap, che do cham soc), phan quyen chuc nang menu.
+- **Tiep nhan**: hang doi + LCD + goi so am thanh, kiosk, the dien tu BN, chup anh/scan
+  giay to, kiem tra the BHYT tu cong giam dinh, lich su KCB trong tinh (InterHospital),
+  so thu tu uu tien (Priority 0/1/2 + PriorityReason).
+- **Ngoai tru/Noi tru/Cap cuu**: day du y lenh, to dieu tri, hoi chan, di ung thuoc,
+  suat an, ngay giuong, kham chuyen khoa noi vien, nghi BHXH, nghi duong thai, giay
+  chung sinh, tai nan thuong tich, xu tri chuyen vien/tu vong.
+- **Duoc/Kho**: nhap xuat NCC/kho khac, xuat huy, xuat khac, kiem ke + `stock-takes/{id}/adjust`
+  (nhap bu/xuat thua), the kho, tra cuu XNT, du tru goi thau, nha thuoc + dong bo cong duoc QG.
+- **BHYT**: duyet BHYT, xuat XML, bao cao 19/20/21/79/80, khoa so lieu, chuyen doi tuong.
+- **PTTT/Phong mo**: lich mo, duyet mo, kham me (PreAnesthesia), phu cap ekip, bang kiem
+  an toan PT, giay cam doan/chung nhan PT, gay me hoi suc.
+- **Ngan hang mau**: nhap NCC, barcode tui mau, phan ung cheo (crossmatch), phieu linh/phat mau.
+- **KSK doan**: campaign + group + import Excel + cost report + phan loai suc khoe.
+- **Bao cao/bieu mau in**: 109 phieu in + 19 bao cao (32+ bieu mau benh an TT32/2023 da expose
+  trong EMR print drawer - commit 3f4dbbf9).
+- **EMR**: 26 loai benh an, ky so XML, luu tru/dong benh an, muon tra HSBA, log truy cap HSBA.
+- **LIS**: danh muc XN/thong so/nhom, mau benh pham, phieu, nhap ket qua, ket noi may
+  (analyzer inbox), noi kiem QC (lots + Levey-Jennings), vi sinh + khang sinh do (SIR),
+  XN dich/dom/te bao hoc, ky so ket qua.
+- **RIS/PACS**: worklist + MWL, capture, viewer (MPR/MIP/3D), mau mo ta/mau ket qua,
+  tu viet tat, tag chan doan (`requests/tags`), in nhan (`print-label`), man hinh cho,
+  lich phan cong truc, QR chia se ket qua (StudyShare), log tich hop HIS-RIS,
+  huong dan su dung online (`help/articles`).
+
+### D. Ket luan
+
+**Tong ket**: ~1.250 dong chuc nang trong HSMT -> **12 gap** (uoc ~2% khoi luong).
+Khong co gap nao thuoc nhom "phan he moi hoan toan"; tat ca deu la bo sung tren
+module da ton tai. Ke hoach thuc hien: xem cac GitHub Issue gan nhan `nangcap26`.
