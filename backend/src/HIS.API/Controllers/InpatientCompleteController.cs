@@ -161,6 +161,20 @@ public partial class InpatientCompleteController : ControllerBase
     }
 
     /// <summary>
+    /// NangCap26 XIX.2 #20 — tách điều trị nội trú tại khoa cấp cứu: chốt đợt cấp cứu
+    /// tại mốc tách, chuyển chỉ định/đơn thuốc phát sinh sau mốc sang hồ sơ nội trú mới.
+    /// </summary>
+    [HttpPost("split-emergency-to-inpatient")]
+    public async Task<ActionResult<SplitEmergencyResultDto>> SplitEmergencyToInpatient([FromBody] SplitEmergencyToInpatientDto dto)
+    {
+        if (dto == null || dto.SourceMedicalRecordId == Guid.Empty)
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu sourceMedicalRecordId" });
+        if (dto.DepartmentId == Guid.Empty || dto.RoomId == Guid.Empty)
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu departmentId/roomId" });
+        return Ok(await _inpatientService.SplitEmergencyToInpatientAsync(dto, GetCurrentUserId()));
+    }
+
+    /// <summary>
     /// Worklist "chờ nhập viện": phiên khám OPD kết luận nhập viện nhưng chưa tạo hồ sơ nội trú.
     /// </summary>
     [HttpGet("pending-admissions")]

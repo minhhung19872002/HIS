@@ -72,6 +72,13 @@ public interface IInpatientCompleteService
     Task<AdmissionDto> AdmitFromDepartmentAsync(AdmitFromDepartmentDto dto, Guid userId);
 
     /// <summary>
+    /// NangCap26 XIX.2 #20 — tách điều trị nội trú tại khoa cấp cứu: chốt đợt cấp cứu
+    /// tại mốc tách, chuyển chỉ định/đơn thuốc phát sinh sau mốc sang hồ sơ nội trú mới.
+    /// Chặn khi đợt đã thanh toán / đã duyệt-gửi BHYT.
+    /// </summary>
+    Task<SplitEmergencyResultDto> SplitEmergencyToInpatientAsync(SplitEmergencyToInpatientDto dto, Guid userId);
+
+    /// <summary>
     /// Tiếp nhận điều trị kết hợp
     /// </summary>
     Task<CombinedTreatmentDto> CreateCombinedTreatmentAsync(CreateCombinedTreatmentDto dto, Guid userId);

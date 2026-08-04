@@ -346,6 +346,40 @@ export const getInpatientList = (search: InpatientSearchDto) =>
 export const admitFromOpd = (dto: AdmitFromOpdDto) =>
   apiClient.post<AdmissionDto>(`${BASE_URL}/admit-from-opd`, dto);
 
+// ─── NangCap26 XIX.2 #20: tách điều trị nội trú tại khoa cấp cứu ───────────
+
+export interface SplitEmergencyToInpatientDto {
+  /** Hồ sơ cấp cứu nguồn. */
+  sourceMedicalRecordId: string;
+  /** Mốc tách (bỏ trống = thời điểm hiện tại). */
+  splitAt?: string;
+  departmentId: string;
+  roomId: string;
+  bedId?: string;
+  attendingDoctorId: string;
+  diagnosisOnAdmission?: string;
+  icdCode?: string;
+}
+
+export interface SplitEmergencyResultDto {
+  sourceMedicalRecordId: string;
+  sourceMedicalRecordCode: string;
+  targetMedicalRecordId: string;
+  targetMedicalRecordCode: string;
+  admissionId: string;
+  splitAt: string;
+  movedServiceRequests: number;
+  movedPrescriptions: number;
+}
+
+/**
+ * Tách đợt cấp cứu thành đợt nội trú riêng: chốt đợt cấp cứu tại mốc tách,
+ * chuyển chỉ định/đơn thuốc phát sinh sau mốc sang hồ sơ nội trú mới.
+ * BE chặn khi đợt đã thanh toán hoặc đã duyệt/gửi BHYT.
+ */
+export const splitEmergencyToInpatient = (dto: SplitEmergencyToInpatientDto) =>
+  apiClient.post<SplitEmergencyResultDto>(`${BASE_URL}/split-emergency-to-inpatient`, dto);
+
 export const getPendingAdmissions = (departmentId?: string) =>
   apiClient.get<PendingAdmissionDto[]>(`${BASE_URL}/pending-admissions`, {
     params: departmentId ? { departmentId } : undefined,

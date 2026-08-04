@@ -649,3 +649,35 @@ public class TransferWarningDto
 }
 
 
+
+/// <summary>
+/// NangCap26 XIX.2 #20 — tách điều trị nội trú tại khoa cấp cứu.
+/// </summary>
+public class SplitEmergencyToInpatientDto
+{
+    /// <summary>Hồ sơ cấp cứu nguồn.</summary>
+    public Guid SourceMedicalRecordId { get; set; }
+    /// <summary>Mốc tách (mặc định: thời điểm hiện tại).</summary>
+    public DateTime? SplitAt { get; set; }
+
+    public Guid DepartmentId { get; set; }
+    public Guid RoomId { get; set; }
+    public Guid? BedId { get; set; }
+    public Guid AttendingDoctorId { get; set; }
+
+    public string? DiagnosisOnAdmission { get; set; }
+    public string? IcdCode { get; set; }
+}
+
+/// <summary>Kết quả tách đợt điều trị (NangCap26 XIX.2 #20).</summary>
+public class SplitEmergencyResultDto
+{
+    public Guid SourceMedicalRecordId { get; set; }
+    public string SourceMedicalRecordCode { get; set; } = string.Empty;
+    public Guid TargetMedicalRecordId { get; set; }
+    public string TargetMedicalRecordCode { get; set; } = string.Empty;
+    public Guid AdmissionId { get; set; }
+    public DateTime SplitAt { get; set; }
+    public int MovedServiceRequests { get; set; }
+    public int MovedPrescriptions { get; set; }
+}

@@ -29,6 +29,7 @@ import {
 import {
   getInpatientList,
   admitFromOpd,
+  splitEmergencyToInpatient,
   admitFromDepartment,
   createCombinedTreatment,
   getCombinedTreatments,
@@ -160,6 +161,7 @@ export default {
   // Patient Management
   getInpatientList,
   admitFromOpd,
+  splitEmergencyToInpatient,
   admitFromDepartment,
   createCombinedTreatment,
   getCombinedTreatments,
