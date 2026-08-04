@@ -239,6 +239,32 @@ namespace HIS.Application.DTOs.Nutrition
         public string Status { get; set; } // Planned, InPreparation, Ready, Distributed
     }
 
+    /// <summary>NangCap26 XII.5 — kết quả duyệt/từ chối phiếu suất ăn.</summary>
+    public class MealPlanApprovalResultDto
+    {
+        public Guid MealPlanId { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public DateTime? ApprovedAt { get; set; }
+        /// <summary>Số suất đã sinh khoản thu trong lần duyệt này.</summary>
+        public int BilledItems { get; set; }
+        public int TotalItems { get; set; }
+    }
+
+    /// <summary>NangCap26 XII.6 — 1 dòng hàng đợi màn hình Nhà ăn.</summary>
+    public class CanteenQueueItemDto
+    {
+        public Guid MealPlanId { get; set; }
+        public DateTime Date { get; set; }
+        public string MealType { get; set; } = string.Empty;
+        public Guid? DepartmentId { get; set; }
+        public string DepartmentName { get; set; } = string.Empty;
+        public int TotalPatients { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public DateTime? ApprovedAt { get; set; }
+        public DateTime? PreparedAt { get; set; }
+        public DateTime? DistributedAt { get; set; }
+    }
+
     public class MealPlanItemDto
     {
         public Guid DietOrderId { get; set; }

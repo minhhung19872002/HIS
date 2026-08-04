@@ -592,6 +592,53 @@ export const printMealTicket = (plannedMealId: string) =>
 export const printDepartmentMealList = (date: string, departmentId: string, mealType: string) =>
   apiClient.get(`${BASE_URL}/meal-plans/print`, { params: { date, departmentId, mealType }, responseType: 'blob' });
 
+// #region NangCap26 XII.5/XII.6 — Duyệt phiếu suất ăn & màn hình Nhà ăn
+
+export interface MealPlanApprovalResultDto {
+  mealPlanId: string;
+  status: string;
+  approvedAt?: string;
+  /** Số suất đã sinh khoản thu trong lần duyệt này. */
+  billedItems: number;
+  totalItems: number;
+}
+
+export interface CanteenQueueItemDto {
+  mealPlanId: string;
+  date: string;
+  mealType: string;
+  departmentId?: string;
+  departmentName: string;
+  totalPatients: number;
+  /** Planned | Approved | Rejected | Prepared | Distributed */
+  status: string;
+  approvedAt?: string;
+  preparedAt?: string;
+  distributedAt?: string;
+}
+
+/** XII.5 — khoa dinh dưỡng duyệt phiếu suất ăn (duyệt → sinh khoản thu cho BN). */
+export const approveMealPlan = (id: string) =>
+  apiClient.post<MealPlanApprovalResultDto>(`${BASE_URL}/meal-plans/${id}/approve`, {});
+
+/** XII.5 — từ chối phiếu suất ăn (bắt buộc lý do). */
+export const rejectMealPlan = (id: string, reason: string) =>
+  apiClient.post<MealPlanApprovalResultDto>(`${BASE_URL}/meal-plans/${id}/reject`, { reason });
+
+/** XII.6 — hàng đợi màn hình Nhà ăn. */
+export const getCanteenQueue = (date?: string, mealType?: string) =>
+  apiClient.get<CanteenQueueItemDto[]>(`${BASE_URL}/canteen/queue`, { params: { date, mealType } });
+
+/** XII.6 — nhà ăn đánh dấu đã chuẩn bị xong. */
+export const markCanteenPrepared = (id: string) =>
+  apiClient.post<CanteenQueueItemDto>(`${BASE_URL}/canteen/${id}/prepared`, {});
+
+/** XII.6 — nhà ăn đánh dấu đã phát về khoa phòng. */
+export const markCanteenDistributed = (id: string) =>
+  apiClient.post<CanteenQueueItemDto>(`${BASE_URL}/canteen/${id}/distributed`, {});
+
+// #endregion
+
 // #endregion
 
 // #region Monitoring

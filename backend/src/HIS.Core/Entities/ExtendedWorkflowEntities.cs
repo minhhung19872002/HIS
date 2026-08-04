@@ -256,6 +256,10 @@ public class DietType : BaseEntity
     public decimal? BaseCalories { get; set; }
     public string? MacroDistribution { get; set; } // e.g., "Carb:50%, Protein:20%, Fat:30%"
     public string? Restrictions { get; set; }
+
+    // NangCap26 XII.5: map sang dịch vụ trong danh mục để tính tiền khi duyệt suất ăn.
+    // NULL = chế độ ăn không thu tiền.
+    public Guid? ServiceId { get; set; }
 }
 
 /// <summary>
@@ -266,9 +270,20 @@ public class MealPlan : BaseEntity
     public DateTime Date { get; set; }
     public string MealType { get; set; } = string.Empty; // Breakfast, Lunch, Dinner, Snack
     public Guid? DepartmentId { get; set; }
-    public string Status { get; set; } = "Planned"; // Planned, Prepared, Distributed, Completed
+    // NangCap26 XII.5/XII.6: Planned → Approved/Rejected (khoa dinh dưỡng duyệt)
+    //                        → Prepared → Distributed (nhà ăn chuẩn bị & phát)
+    public string Status { get; set; } = "Planned";
     public int TotalPatients { get; set; }
     public string? Notes { get; set; }
+
+    // Vết duyệt của khoa dinh dưỡng (XII.5)
+    public Guid? ApprovedBy { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public string? RejectReason { get; set; }
+
+    // Mốc thời gian nhà ăn (XII.6)
+    public DateTime? PreparedAt { get; set; }
+    public DateTime? DistributedAt { get; set; }
 
     // Navigation
     public virtual Department? Department { get; set; }
@@ -283,6 +298,10 @@ public class MealPlanItem : BaseEntity
     public string? RoomBed { get; set; }
     public bool IsDelivered { get; set; }
     public DateTime? DeliveredAt { get; set; }
+
+    // NangCap26 XII.5: đã sinh khoản thu suất ăn cho BN chưa — guard idempotent
+    // để duyệt lại không tính tiền 2 lần.
+    public DateTime? BilledAt { get; set; }
     public decimal? IntakePercent { get; set; }
     public string? Notes { get; set; }
 

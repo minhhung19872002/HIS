@@ -175,6 +175,24 @@ namespace HIS.Application.Services
             return true;
         }
 
+        // NangCap26 XII.5/XII.6 — lớp stub này KHÔNG có DbContext (DI dùng
+        // ClinicalNutritionServiceImpl). Ném rõ ràng thay vì no-op âm thầm:
+        // duyệt suất ăn có sinh khoản thu cho BN, im lặng bỏ qua là sai nghiệp vụ.
+        public Task<MealPlanApprovalResultDto> ApproveMealPlanAsync(Guid mealPlanId, Guid userId)
+            => throw new NotSupportedException("Duyệt phiếu suất ăn chỉ khả dụng ở ClinicalNutritionServiceImpl.");
+
+        public Task<MealPlanApprovalResultDto> RejectMealPlanAsync(Guid mealPlanId, string reason, Guid userId)
+            => throw new NotSupportedException("Từ chối phiếu suất ăn chỉ khả dụng ở ClinicalNutritionServiceImpl.");
+
+        public Task<List<CanteenQueueItemDto>> GetCanteenQueueAsync(DateTime date, string? mealType)
+            => throw new NotSupportedException("Hàng đợi nhà ăn chỉ khả dụng ở ClinicalNutritionServiceImpl.");
+
+        public Task<CanteenQueueItemDto> MarkMealPlanPreparedAsync(Guid mealPlanId, Guid userId)
+            => throw new NotSupportedException("Nhà ăn chỉ khả dụng ở ClinicalNutritionServiceImpl.");
+
+        public Task<CanteenQueueItemDto> MarkMealPlanDistributedAsync(Guid mealPlanId, Guid userId)
+            => throw new NotSupportedException("Nhà ăn chỉ khả dụng ở ClinicalNutritionServiceImpl.");
+
         // Monitoring
         public async Task<NutritionMonitoringDto> GetMonitoringAsync(Guid admissionId, DateTime date)
         {

@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HIS.Infrastructure.Services;
 
-public class ClinicalNutritionServiceImpl : IClinicalNutritionService
+public partial class ClinicalNutritionServiceImpl : IClinicalNutritionService
 {
     private readonly HISDbContext _context;
     public ClinicalNutritionServiceImpl(HISDbContext context) => _context = context;

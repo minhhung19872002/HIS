@@ -4,9 +4,11 @@ import { Input } from 'antd';
 import {
   getDietOrders, getDietOrderById, createDietOrder, updateDietOrder, cancelDietOrder, getDietTypes,
   getPendingScreenings, getScreenings, createScreening, getActiveDietOrder, getDashboard, getMealPlan,
+  getCanteenQueue, approveMealPlan, rejectMealPlan, markCanteenPrepared, markCanteenDistributed,
 } from '../api/nutrition';
 import type {
   CreateDietOrderDto, NutritionScreeningDto, NutritionDashboardDto, MealPlanDto, PlannedMealDto,
+  CanteenQueueItemDto,
 } from '../api/nutrition';
 import { getInpatientList } from '../../inpatient/api/inpatient';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
@@ -94,12 +96,23 @@ const DATE_INP: React.CSSProperties = {
   border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)',
 };
 
-type MainTab = 'screening' | 'orders' | 'meals';
+type MainTab = 'screening' | 'orders' | 'meals' | 'canteen';
 const TOP_TABS: { v: MainTab; l: string; ic?: string }[] = [
   { v: 'screening', l: 'Sàng lọc dinh dưỡng', ic: 'stethoscope' },
   { v: 'orders',    l: 'Chế độ ăn',            ic: 'file-text' },
   { v: 'meals',     l: 'Quản lý bữa ăn',       ic: 'calendar' },
+  // NangCap26 XII.5/XII.6 — khoa dinh dưỡng duyệt phiếu + nhà ăn chuẩn bị/phát
+  { v: 'canteen',   l: 'Duyệt suất ăn · Nhà ăn', ic: 'check-circle' },
 ];
+
+/** Nhãn + tông màu cho vòng đời phiếu suất ăn (XII.5/XII.6). */
+const CANTEEN_STATUS: Record<string, { l: string; tone: 'info' | 'ok' | 'warn' | 'crit' }> = {
+  Planned:     { l: 'Chờ duyệt',    tone: 'warn' },
+  Approved:    { l: 'Đã duyệt',     tone: 'info' },
+  Rejected:    { l: 'Từ chối',      tone: 'crit' },
+  Prepared:    { l: 'Đã chuẩn bị',  tone: 'info' },
+  Distributed: { l: 'Đã phát',      tone: 'ok' },
+};
 
 // ─────────────────────────── Sàng lọc NRS-2002 ───────────────────────────
 
@@ -214,6 +227,15 @@ const PER = 18;
 const NutritionV2: React.FC = () => {
   const [tab, setTab] = useState<MainTab>('screening');
   const [dashboard, setDashboard] = useState<NutritionDashboardDto | null>(null);
+
+  // ── NangCap26 XII.5/XII.6: duyệt phiếu suất ăn + hàng đợi nhà ăn ──
+  const [canteen, setCanteen] = useState<CanteenQueueItemDto[]>([]);
+  const [canteenDate, setCanteenDate] = useState(dayjs().format('YYYY-MM-DD'));
+  const [canteenMeal, setCanteenMeal] = useState('');
+  const [canteenLoading, setCanteenLoading] = useState(false);
+  const [canteenBusy, setCanteenBusy] = useState<string | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<CanteenQueueItemDto | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   // ── Diet orders (Chế độ ăn) state ──
   const [items, setItems] = useState<Row[]>([]);
@@ -337,7 +359,92 @@ const NutritionV2: React.FC = () => {
     finally { setMealLoading(false); }
   };
 
+  // ── NangCap26 XII.5/XII.6 ──
+  const loadCanteen = async () => {
+    setCanteenLoading(true);
+    try { setCanteen((await getCanteenQueue(canteenDate, canteenMeal || undefined)).data || []); }
+    catch { setCanteen([]); ti('Không tải được hàng đợi nhà ăn'); }
+    finally { setCanteenLoading(false); }
+  };
+
+  const doApprove = async (r: CanteenQueueItemDto) => {
+    setCanteenBusy(r.mealPlanId);
+    try {
+      const res = await approveMealPlan(r.mealPlanId);
+      tk(res.data?.billedItems
+        ? `Đã duyệt · sinh khoản thu ${res.data.billedItems}/${res.data.totalItems} suất`
+        : 'Đã duyệt (chế độ ăn không thu tiền)');
+      await loadCanteen();
+    } catch (e) {
+      ti((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Duyệt thất bại');
+    } finally { setCanteenBusy(null); }
+  };
+
+  const doReject = async () => {
+    if (!rejectTarget) return;
+    if (!rejectReason.trim()) { tw('Phải nhập lý do từ chối'); return; }
+    setCanteenBusy(rejectTarget.mealPlanId);
+    try {
+      await rejectMealPlan(rejectTarget.mealPlanId, rejectReason.trim());
+      tk('Đã từ chối phiếu suất ăn');
+      setRejectTarget(null); setRejectReason('');
+      await loadCanteen();
+    } catch (e) {
+      ti((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Từ chối thất bại');
+    } finally { setCanteenBusy(null); }
+  };
+
+  const doCanteenStep = async (r: CanteenQueueItemDto, step: 'prepared' | 'distributed') => {
+    setCanteenBusy(r.mealPlanId);
+    try {
+      if (step === 'prepared') await markCanteenPrepared(r.mealPlanId);
+      else await markCanteenDistributed(r.mealPlanId);
+      tk(step === 'prepared' ? 'Đã đánh dấu chuẩn bị xong' : 'Đã phát về khoa phòng');
+      await loadCanteen();
+    } catch (e) {
+      ti((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Thao tác thất bại');
+    } finally { setCanteenBusy(null); }
+  };
+
+  const canteenCols: ColumnDef<CanteenQueueItemDto>[] = [
+    { key: 'meal', label: 'Bữa', width: 110, render: (r) => MEAL_TYPE_LABEL[r.mealType] || r.mealType },
+    { key: 'dept', label: 'Khoa', render: (r) => r.departmentName },
+    { key: 'n', label: 'Số suất', width: 90, mono: true, render: (r) => r.totalPatients },
+    { key: 'st', label: 'Trạng thái', width: 130, render: (r) => {
+      const c = CANTEEN_STATUS[r.status] || { l: r.status, tone: 'info' as const };
+      return <StatusBadge tone={c.tone} dot>{c.l}</StatusBadge>;
+    } },
+    { key: 'at', label: 'Mốc thời gian', render: (r) => (
+      <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
+        {r.approvedAt ? `Duyệt ${dayjs(r.approvedAt).format('HH:mm')}` : ''}
+        {r.preparedAt ? ` · CB ${dayjs(r.preparedAt).format('HH:mm')}` : ''}
+        {r.distributedAt ? ` · Phát ${dayjs(r.distributedAt).format('HH:mm')}` : ''}
+        {!r.approvedAt && !r.preparedAt && !r.distributedAt ? '—' : ''}
+      </span>
+    ) },
+    { key: 'act', label: '', render: (r) => {
+      const busy = canteenBusy === r.mealPlanId;
+      return (
+        <span style={{ display: 'inline-flex', gap: 'var(--space-6)' }}>
+          {r.status === 'Planned' && <>
+            <Btn variant="primary" icon="check" disabled={busy} onClick={(e?: React.MouseEvent) => { e?.stopPropagation(); doApprove(r); }}>Duyệt</Btn>
+            <Btn variant="ghost" icon="x" disabled={busy} onClick={(e?: React.MouseEvent) => { e?.stopPropagation(); setRejectTarget(r); setRejectReason(''); }}>Từ chối</Btn>
+          </>}
+          {r.status === 'Approved' && (
+            <Btn variant="primary" icon="package" disabled={busy} onClick={(e?: React.MouseEvent) => { e?.stopPropagation(); doCanteenStep(r, 'prepared'); }}>Chuẩn bị xong</Btn>
+          )}
+          {(r.status === 'Approved' || r.status === 'Prepared') && (
+            <Btn variant="ok" icon="truck" disabled={busy} onClick={(e?: React.MouseEvent) => { e?.stopPropagation(); doCanteenStep(r, 'distributed'); }}>Phát về khoa</Btn>
+          )}
+          {r.status === 'Distributed' && <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>Hoàn tất</span>}
+          {r.status === 'Rejected' && <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>Đã từ chối</span>}
+        </span>
+      );
+    } },
+  ];
+
   useEffect(() => { loadScreening(); loadDashboard(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { if (tab === 'canteen') loadCanteen(); /* eslint-disable-next-line */ }, [tab, canteenDate, canteenMeal]);
   useEffect(() => { if (tab === 'orders') load(); /* eslint-disable-next-line */ }, [tab]);
   useEffect(() => { if (tab === 'meals') loadMeals(); /* eslint-disable-next-line */ }, [tab, mealDate]);
   useEffect(() => {
@@ -848,6 +955,50 @@ const NutritionV2: React.FC = () => {
               </DrSec>
             </>}
           </DrawerShell>
+        </>
+      )}
+
+      {/* NangCap26 XII.5/XII.6 — Duyệt phiếu suất ăn (khoa dinh dưỡng) + màn hình Nhà ăn */}
+      {tab === 'canteen' && (
+        <>
+          <KpiStrip items={[
+            { lbl: 'Chờ duyệt', val: canteen.filter((c) => c.status === 'Planned').length, sub: 'phiếu', tone: 'warn' },
+            { lbl: 'Đã duyệt', val: canteen.filter((c) => c.status === 'Approved').length, sub: 'chờ chuẩn bị', tone: 'info' },
+            { lbl: 'Đã chuẩn bị', val: canteen.filter((c) => c.status === 'Prepared').length, sub: 'chờ phát', tone: 'info' },
+            { lbl: 'Đã phát', val: canteen.filter((c) => c.status === 'Distributed').length, sub: 'hoàn tất', tone: 'ok' },
+          ]} />
+
+          <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
+            <input type="date" value={canteenDate} onChange={(e) => setCanteenDate(e.target.value)} style={DATE_INP} title="Ngày suất ăn" />
+            <Filter value={canteenMeal} onChange={setCanteenMeal} options={MEAL_TYPE_OPTIONS} placeholder="▾ Bữa ăn" />
+            <Btn variant="ghost" icon="x" onClick={() => { setCanteenMeal(''); setCanteenDate(dayjs().format('YYYY-MM-DD')); }}>Bỏ lọc</Btn>
+            <span className="spacer" />
+            <Btn variant="ghost" icon="refresh" onClick={loadCanteen}>Làm mới</Btn>
+          </div>
+
+          <DataTable<CanteenQueueItemDto>
+            columns={canteenCols} data={canteen} rowKey={(r) => r.mealPlanId}
+            empty={canteenLoading ? 'Đang tải…' : 'Chưa có phiếu suất ăn cho ngày này'}
+          />
+
+          <ModalShell
+            open={!!rejectTarget}
+            onClose={() => setRejectTarget(null)}
+            size="sm"
+            tone="danger"
+            title="Từ chối phiếu suất ăn"
+            sub={rejectTarget ? `${MEAL_TYPE_LABEL[rejectTarget.mealType] || rejectTarget.mealType} · ${rejectTarget.departmentName}` : ''}
+            footer={<>
+              <Btn variant="ghost" onClick={() => setRejectTarget(null)}>Hủy</Btn>
+              <Btn variant="crit" disabled={!!canteenBusy} onClick={doReject}>Từ chối</Btn>
+            </>}
+          >
+            <label style={{ display: 'grid', gap: 'var(--space-4)', fontSize: 'var(--fs-sm)' }}>
+              Lý do từ chối <span style={{ color: 'var(--a-cr-text)' }}>*</span>
+              <Input.TextArea rows={3} value={rejectReason} onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="VD: khoa gửi sai số suất / trùng phiếu…" />
+            </label>
+          </ModalShell>
         </>
       )}
     </div>

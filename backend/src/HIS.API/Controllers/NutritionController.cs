@@ -88,6 +88,43 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<bool>> MarkMealDelivered([FromBody] MarkMealDeliveredRequest req)
             => Ok(await _service.MarkMealDeliveredAsync(req.DietOrderId, req.Date, string.IsNullOrWhiteSpace(req.MealType) ? "Lunch" : req.MealType));
 
+        #region NangCap26 XII.5/XII.6 — Duyệt phiếu suất ăn & màn hình Nhà ăn
+
+        /// <summary>XII.5 — khoa dinh dưỡng duyệt phiếu suất ăn (duyệt → sinh khoản thu cho BN).</summary>
+        [HttpPost("meal-plans/{id}/approve")]
+        public async Task<ActionResult<MealPlanApprovalResultDto>> ApproveMealPlan(Guid id)
+            => Ok(await _service.ApproveMealPlanAsync(id, CurrentUserId()));
+
+        /// <summary>XII.5 — từ chối phiếu suất ăn (bắt buộc có lý do).</summary>
+        [HttpPost("meal-plans/{id}/reject")]
+        public async Task<ActionResult<MealPlanApprovalResultDto>> RejectMealPlan(Guid id, [FromBody] RejectMealPlanRequest req)
+            => Ok(await _service.RejectMealPlanAsync(id, req?.Reason ?? string.Empty, CurrentUserId()));
+
+        /// <summary>XII.6 — hàng đợi màn hình Nhà ăn theo ngày (tùy chọn lọc bữa).</summary>
+        [HttpGet("canteen/queue")]
+        public async Task<ActionResult<List<CanteenQueueItemDto>>> GetCanteenQueue([FromQuery] DateTime? date, [FromQuery] string? mealType)
+            => Ok(await _service.GetCanteenQueueAsync(date ?? DateTime.Today, mealType));
+
+        /// <summary>XII.6 — nhà ăn đánh dấu đã chuẩn bị xong.</summary>
+        [HttpPost("canteen/{id}/prepared")]
+        public async Task<ActionResult<CanteenQueueItemDto>> MarkPrepared(Guid id)
+            => Ok(await _service.MarkMealPlanPreparedAsync(id, CurrentUserId()));
+
+        /// <summary>XII.6 — nhà ăn đánh dấu đã phát về khoa phòng.</summary>
+        [HttpPost("canteen/{id}/distributed")]
+        public async Task<ActionResult<CanteenQueueItemDto>> MarkDistributed(Guid id)
+            => Ok(await _service.MarkMealPlanDistributedAsync(id, CurrentUserId()));
+
+        public class RejectMealPlanRequest { public string Reason { get; set; } = string.Empty; }
+
+        private Guid CurrentUserId()
+        {
+            var raw = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            return Guid.TryParse(raw, out var id) ? id : Guid.Empty;
+        }
+
+        #endregion
+
         [HttpGet("dashboard")]
         public async Task<ActionResult<NutritionDashboardDto>> GetDashboard([FromQuery] DateTime? date)
             => Ok(await _service.GetDashboardAsync(date));

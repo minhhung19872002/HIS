@@ -83,6 +83,15 @@ namespace HIS.Application.Services
         // Meal Planning
         Task<List<MealPlanDto>> GetMealPlansAsync(DateTime date, Guid? departmentId = null);
         Task<MealPlanDto> GenerateMealPlanAsync(DateTime date, string mealType, Guid? departmentId = null);
+
+        // NangCap26 XII.5 — khoa dinh dưỡng duyệt phiếu suất ăn (duyệt → sinh khoản thu cho BN)
+        Task<MealPlanApprovalResultDto> ApproveMealPlanAsync(Guid mealPlanId, Guid userId);
+        Task<MealPlanApprovalResultDto> RejectMealPlanAsync(Guid mealPlanId, string reason, Guid userId);
+
+        // NangCap26 XII.6 — màn hình Nhà ăn: nhận → chuẩn bị → phát lại cho khoa phòng
+        Task<List<CanteenQueueItemDto>> GetCanteenQueueAsync(DateTime date, string? mealType);
+        Task<CanteenQueueItemDto> MarkMealPlanPreparedAsync(Guid mealPlanId, Guid userId);
+        Task<CanteenQueueItemDto> MarkMealPlanDistributedAsync(Guid mealPlanId, Guid userId);
         Task<bool> MarkMealDeliveredAsync(Guid dietOrderId, DateTime date, string mealType);
 
         // Monitoring
