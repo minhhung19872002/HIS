@@ -11,6 +11,7 @@ import {
 } from '@/_v2kit';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 import { getEmrRecords, getPatientMedicalHistory, type EmrRecordDto } from '../../opd/api/examination';
+import { unwrapList, type MaybePaged } from '../../../utils/apiNormalize';
 import {
   getEmrExtracts, createEmrExtract, revokeEmrExtract, type EmrExtractDto,
 } from '../api/emrManagement';
@@ -42,7 +43,9 @@ const EmrExtractV2 = () => {
     setSearching(true);
     try {
       const r = await getEmrRecords(kw || undefined, 1, 50);
-      setRecords(Array.isArray(r.data) ? r.data : []);
+      // `/examination/emr-records` trả PAGED `{items,totalCount}` → Array.isArray luôn
+      // false, danh sách rỗng dù API có dữ liệu. Dùng helper tolerant 2 shape.
+      setRecords(unwrapList<EmrRecordDto>(r.data as MaybePaged<EmrRecordDto>));
     } catch { setRecords([]); te('Không tải được danh sách HSBA'); }
     finally { setSearching(false); setSearched(true); }
   }, [kw]);

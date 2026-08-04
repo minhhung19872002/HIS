@@ -10,6 +10,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { unwrapList, type MaybePaged } from '../../../utils/apiNormalize';
 import {
   KpiStrip, StatusBadge, Btn, ActBtn, DataTable, TopTabs, DrawerShell, ModalShell,
   fmtDMYg, fmtDTg, tk, ti, te, tw, type ColumnDef, type TopTab,
@@ -274,7 +275,10 @@ const EmrEditorV2: React.FC = () => {
   const loadList = useCallback(async (kw?: string) => {
     try {
       const r = await getEmrRecords(kw || undefined, 1, 300);
-      setRecords(Array.isArray(r.data) ? r.data : []);
+      // `/examination/emr-records` trả PAGED `{items,totalCount}`; interceptor đã bóc
+      // envelope nên `r.data` là object đó, KHÔNG phải mảng → check Array.isArray
+      // luôn false và danh sách rỗng dù API có dữ liệu. Dùng helper tolerant 2 shape.
+      setRecords(unwrapList<EmrRecordDto>(r.data as MaybePaged<EmrRecordDto>));
     } catch { setRecords([]); }
   }, []);
   useEffect(() => { loadList(); }, [loadList]);
