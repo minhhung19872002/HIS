@@ -132,7 +132,7 @@ Quy tắc chạy chung cho mọi hạng mục:
 
 ## D. Trạng thái chốt (2026-08-04)
 
-**9/9 hạng mục DONE**, 8 commit local chưa push:
+**9/9 hạng mục DONE**, đã push:
 `c02fad38` · `ac9cd465` · `79cc0259` (docs) · `b01786c1` · `b4daa60f` · `da27f24c` ·
 `006ff39d` · `159c701a` · `e7330535` · `f8d2e8cd`
 
@@ -140,4 +140,56 @@ Migration mới: 154 (khóa lô/kho) · 155 (duyệt suất ăn) · 156 (trang c
 157 (ngoại kiểm EQA + đơn vị gửi mẫu) · 158 (quyền dữ liệu).
 
 Build-gate: `dotnet build` 0 error · `npm run build` thành công.
-Chưa push — chờ người dùng quyết định.
+
+---
+
+## E. Kết quả TEST 9 hạng mục (2026-08-04, chrome-devtools + local Docker SQL)
+
+Test chạy trên FE `localhost:3001` + BE `localhost:5106`, `/health/schema-drift` = 0.
+**Backend 9/9 đúng khi gọi thẳng API; 7/9 hạng mục KHÔNG dùng được từ giao diện** —
+đã sửa hết trong 2 commit dưới. Evidence: `docs/architecture/evidence/nc26-nangcap26/`.
+
+### E.1 — 4 blocker UI (commit `58a4d4ae`)
+
+| # | Lỗi | Nguyên nhân | Sửa |
+|---|---|---|---|
+| 2 | Dropdown "Phạm vi dữ liệu" trắng hoàn toàn ⇒ không khai báo được nhóm quyền nào | `DataPermissionPanel` truyền `options={{v,l}}` trong khi `AbSelect`/`normalizeOptions` đọc field `label`/`value` | đổi sang `{value,label}` |
+| 4 | Ghi đĩa CD/DVD không bao giờ chạy | FE gửi `r.id` (id phiếu chỉ định) vào endpoint cần `DicomStudies.Id` ⇒ luôn "Không tìm thấy ca chụp" | thêm `RadiologyOrderDto.DicomStudyId` (2 projection) + FE dùng đúng id |
+| 5 | Khâu duyệt phiếu suất ăn không có đường vào | nút Duyệt chỉ render khi `status==='Planned'` nhưng `GetCanteenQueueAsync` lọc bỏ đúng trạng thái đó | cho `Planned` vào queue (nhà ăn vẫn bị `AdvanceCanteenStatusAsync` chặn) |
+| 8 | 2 mẫu in không chọn được | `gauze-count`/`chemical-issue` đăng ký ở `PrintTemplateRenderer` nhưng thiếu trong `PRINT_FORMS` của `EmrEditor`; 2 component nhận props phẳng nên nhánh mặc định `record` in ra phiếu trắng | thêm vào picker + nhánh dispatch riêng |
+
+### E.2 — 4 màn thiếu UI (commit `e503a4c2`)
+
+Backend đã có, API client đã viết nhưng **0 consumer**:
+
+| Hạng mục | Bổ sung |
+|---|---|
+| LIS #15 đơn vị gửi mẫu | tab "Đơn vị gửi mẫu" trong `LisCatalogAdmin` |
+| XVII.3/4 trang cấp TTB | loại phiếu 4 + tab lọc + Select khoa + nút **Cấp phát** (modal chọn tài sản → sinh `AssetHandover`) |
+| XVII.7 duyệt bảo dưỡng | cột "Duyệt KH" + nút Duyệt/Từ chối (bắt buộc lý do) trong `Equipment` |
+| XIX.2#20 tách nội trú CC | `SplitEmergencyModal` trong trang Nội trú (Phòng = Select phụ thuộc Khoa) |
+| I.4 khoa/phòng làm việc | `WorkingPlacePicker` trên topbar tiêu thụ hook `useWorkingDepartment` |
+
+**2 phát hiện ngoài dự kiến, đã xử lý:**
+- `ProcurementRequests.tsx` **hoàn toàn chết** — #375 bỏ route vì trùng path `procurement` với
+  trang kho ⇒ cấp path riêng `/v2/asset-procurement` + lazy + menu.
+- Trang sống lại thì lộ bug `BASE = '/api/asset-procurement'` trong khi `apiClient.baseURL` đã có
+  `/api` ⇒ mọi request ra `/api/api/...` = **404**. Đã sửa.
+
+### E.3 — Dọn nốt (commit sau `e503a4c2`)
+
+- KPI "Số dòng" ở tab **Khóa kho** luôn 0 (rơi vào nhánh `lowStock.count`) → tính theo `locks.length`;
+  cột "Tổng giá trị" ở tab này để trống thay vì mượn số của tab khác.
+- **Phiếu lĩnh hóa chất** trước chỉ in được phiếu trắng từ EMR → thêm nút "In phiếu lĩnh hóa chất"
+  ở trang **Xuất kho Dược** (`/v2/pharmacy-stock-issue`), bơm dữ liệu thật từ `StockIssueDto`
+  (số phiếu · ngày · khoa lĩnh · kho xuất · dòng hóa chất kèm lô/HSD). Tái sử dụng nguyên component
+  mẫu in, không dựng lại layout.
+- `BhytVerifyModal` còn hiện "Hợp lệ" cho dữ liệu mock → đồng bộ với `NewVisitModal` (commit
+  `76c3a581` của cửa khác): chip **"Mô phỏng"** + banner cảnh báo chưa đối chiếu cổng BHXH.
+
+### E.4 — Còn tồn
+
+- `MaintenanceRecords` chưa có cột mã phiếu ⇒ `scheduleCode` luôn `undefined` (đang fallback tên
+  thiết bị). Muốn có mã phiếu chuẩn phải thêm cột + migration.
+- Tra cứu BHYT vẫn chạy **mock** cho tới khi nhập credential cổng giám định ở màn Cấu hình BHXH
+  (`BhxhGatewaySettingsProvider` đã sẵn sàng nhận, không cần deploy lại).

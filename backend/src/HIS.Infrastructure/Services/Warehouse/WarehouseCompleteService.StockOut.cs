@@ -707,20 +707,141 @@ public partial class WarehouseCompleteService {
         };
     }
 
+    /// <summary>
+    /// Danh sách phiếu xuất kho. Trước đây trả rỗng cứng nên màn "Xuất kho Dược" luôn trống
+    /// dù tạo phiếu thành công; nay đọc thật từ ExportReceipts (nơi các hàm Issue* ghi vào).
+    /// Read-only, không đổi đường ghi.
+    /// </summary>
     public async Task<PagedResultDto<StockIssueDto>> GetStockIssuesAsync(StockIssueSearchDto searchDto)
     {
+        var page = searchDto.Page <= 0 ? 1 : searchDto.Page;
+        var pageSize = searchDto.PageSize <= 0 ? 50 : searchDto.PageSize;
+
+        var query = _context.ExportReceipts.AsNoTracking().Where(e => !e.IsDeleted);
+
+        if (searchDto.FromDate.HasValue)
+            query = query.Where(e => e.ReceiptDate >= searchDto.FromDate.Value.Date);
+        if (searchDto.ToDate.HasValue)
+        {
+            // ToDate là ngày (không giờ) → so tới hết ngày, tránh rớt phiếu tạo trong ngày.
+            var toExclusive = searchDto.ToDate.Value.Date.AddDays(1);
+            query = query.Where(e => e.ReceiptDate < toExclusive);
+        }
+        if (searchDto.WarehouseId.HasValue)
+            query = query.Where(e => e.WarehouseId == searchDto.WarehouseId.Value);
+        if (searchDto.IssueType.HasValue)
+            query = query.Where(e => e.ExportType == searchDto.IssueType.Value);
+        if (searchDto.DepartmentId.HasValue)
+            query = query.Where(e => e.ToDepartmentId == searchDto.DepartmentId.Value);
+        if (searchDto.Status.HasValue)
+            query = query.Where(e => e.Status == searchDto.Status.Value);
+        if (!string.IsNullOrWhiteSpace(searchDto.Keyword))
+        {
+            var kw = searchDto.Keyword.Trim();
+            query = query.Where(e => e.ReceiptCode.Contains(kw) || (e.Note != null && e.Note.Contains(kw)));
+        }
+
+        var total = await query.CountAsync();
+        var receipts = await query
+            .OrderByDescending(e => e.ReceiptDate).ThenByDescending(e => e.CreatedAt)
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .ToListAsync();
+
+        var items = new List<StockIssueDto>();
+        foreach (var e in receipts)
+            items.Add(await MapExportReceiptAsync(e, includeItems: false));
+
         return new PagedResultDto<StockIssueDto>
         {
-            Items = new List<StockIssueDto>(),
-            TotalCount = 0,
-            Page = 1,
-            PageSize = 50
+            Items = items,
+            TotalCount = total,
+            Page = page,
+            PageSize = pageSize
         };
     }
 
+    /// <summary>Chi tiết 1 phiếu xuất kèm danh sách dòng (trước đây trả null cứng).</summary>
     public async Task<StockIssueDto?> GetStockIssueByIdAsync(Guid id)
     {
-        return null;
+        var receipt = await _context.ExportReceipts.AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Id == id && !e.IsDeleted);
+        return receipt == null ? null : await MapExportReceiptAsync(receipt, includeItems: true);
+    }
+
+    /// <summary>ExportReceipt → StockIssueDto. Tên kho/khoa/người tạo resolve rời để né correlated-subquery.</summary>
+    private async Task<StockIssueDto> MapExportReceiptAsync(ExportReceipt e, bool includeItems)
+    {
+        var warehouseName = await _context.Warehouses.AsNoTracking()
+            .Where(w => w.Id == e.WarehouseId).Select(w => w.WarehouseName).FirstOrDefaultAsync();
+        string? departmentName = null;
+        if (e.ToDepartmentId.HasValue)
+            departmentName = await _context.Departments.AsNoTracking()
+                .Where(d => d.Id == e.ToDepartmentId.Value).Select(d => d.DepartmentName).FirstOrDefaultAsync();
+        string? targetWarehouseName = null;
+        if (e.ToWarehouseId.HasValue)
+            targetWarehouseName = await _context.Warehouses.AsNoTracking()
+                .Where(w => w.Id == e.ToWarehouseId.Value).Select(w => w.WarehouseName).FirstOrDefaultAsync();
+
+        var dto = new StockIssueDto
+        {
+            Id = e.Id,
+            IssueCode = e.ReceiptCode,
+            IssueDate = e.ReceiptDate,
+            WarehouseId = e.WarehouseId,
+            WarehouseName = warehouseName ?? string.Empty,
+            IssueType = e.ExportType,
+            DepartmentId = e.ToDepartmentId,
+            DepartmentName = departmentName ?? string.Empty,
+            TargetWarehouseId = e.ToWarehouseId,
+            TargetWarehouseName = targetWarehouseName ?? string.Empty,
+            PatientId = e.PatientId,
+            PrescriptionId = e.PrescriptionId,
+            TotalAmount = e.TotalAmount,
+            Status = e.Status,
+            CreatedAt = e.CreatedAt,
+            Notes = e.Note,
+            Items = new List<StockIssueItemDto>()
+        };
+
+        if (Guid.TryParse(e.CreatedBy, out var creatorId))
+        {
+            dto.CreatedBy = creatorId;
+            dto.CreatedByName = await _context.Users.AsNoTracking()
+                .Where(u => u.Id == creatorId).Select(u => u.FullName).FirstOrDefaultAsync() ?? string.Empty;
+        }
+
+        if (!includeItems) return dto;
+
+        var details = await _context.ExportReceiptDetails.AsNoTracking()
+            .Where(d => d.ExportReceiptId == e.Id).ToListAsync();
+        var medicineIds = details.Select(d => d.MedicineId).Distinct().ToList();
+        var medicines = await _context.Medicines.AsNoTracking()
+            .Where(m => medicineIds.Contains(m.Id))
+            .Select(m => new { m.Id, m.MedicineCode, m.MedicineName, m.Unit })
+            .ToListAsync();
+
+        dto.Items = details.Select(d =>
+        {
+            var med = medicines.FirstOrDefault(m => m.Id == d.MedicineId);
+            return new StockIssueItemDto
+            {
+                Id = d.Id,
+                StockIssueId = e.Id,
+                ItemId = d.MedicineId ?? Guid.Empty,
+                ItemCode = med?.MedicineCode ?? string.Empty,
+                ItemName = med?.MedicineName ?? string.Empty,
+                ItemType = 1,
+                Unit = d.Unit ?? med?.Unit ?? string.Empty,
+                StockId = d.InventoryItemId ?? Guid.Empty,
+                BatchNumber = d.BatchNumber,
+                ExpiryDate = d.ExpiryDate,
+                Quantity = d.Quantity,
+                UnitPrice = d.UnitPrice,
+                Amount = d.Amount
+            };
+        }).ToList();
+
+        return dto;
     }
 
     public async Task<List<DispenseOutpatientDto>> GetPendingOutpatientPrescriptionsAsync(Guid warehouseId, DateTime date)

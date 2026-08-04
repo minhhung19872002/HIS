@@ -44,6 +44,9 @@ export const BhytVerifyModal: React.FC<{ open: boolean; onClose: () => void }> =
     }
   };
 
+  // Kết quả KHÔNG đến từ cổng BHXH thật (chưa cấu hình credential) → giao diện phải nói rõ.
+  const isMock = result?.isMockData ?? result?.dataSource === 'MOCK';
+
   const viewHistory = async () => {
     // Ưu tiên số thẻ đã CHUẨN HÓA từ kết quả xác minh (gateway có thể trả
     // newInsuranceNumber cho thẻ cũ/thẻ 20 số) — parity v1 handleViewBhxhHistory.
@@ -94,11 +97,17 @@ export const BhytVerifyModal: React.FC<{ open: boolean; onClose: () => void }> =
             <h5>
               <TermIcon name={result.isValid ? 'check' : 'x'} size={11} /> KẾT QUẢ
               <span style={{ marginLeft: 'var(--space-8)' }}>
-                <StatusBadge tone={result.isValid && !result.isExpired ? 'ok' : 'crit'} dot>
-                  {result.isBlacklisted ? 'Thẻ bị khóa' : result.isExpired ? 'Hết hạn' : result.isValid ? 'Hợp lệ' : 'Không hợp lệ'}
+                {/* Mock = chưa kết nối cổng BHXH → KHÔNG được hiển thị "Hợp lệ" (parity NewVisitModal). */}
+                <StatusBadge tone={!(result.isValid && !result.isExpired) ? 'crit' : isMock ? 'warn' : 'ok'} dot>
+                  {result.isBlacklisted ? 'Thẻ bị khóa'
+                    : result.isExpired ? 'Hết hạn'
+                    : !result.isValid ? 'Không hợp lệ'
+                    : isMock ? 'Mô phỏng' : 'Hợp lệ'}
                 </StatusBadge>
               </span>
             </h5>
+            {/* Không thêm banner cảnh báo mock ở đây: BE (BhxhGatewayRouter) đã đẩy sẵn dòng
+                "Chưa kết nối cổng BHXH…" vào result.warnings, khối warnings bên dưới render rồi. */}
             <div className="rec-kv">
               <span>Số thẻ</span><span className="mono">{result.newInsuranceNumber || result.insuranceNumber}</span>
               <span>Họ tên</span><b>{result.patientName || '—'}</b>

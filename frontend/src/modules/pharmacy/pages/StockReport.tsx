@@ -230,10 +230,13 @@ const StockReportV2: React.FC = () => {
   const currentCount = tab === 'detail' ? detail.count
     : tab === 'summary' ? summary.count
     : tab === 'expiring' ? expiring.count
+    : tab === 'locks' ? locks.length
     : lowStock.count;
+  // Tab "Khóa kho" liệt kê trạng thái kho, không có giá trị tồn → để trống thay vì mượn số của tab khác.
   const currentValue = tab === 'detail' ? detail.totalValue
     : tab === 'summary' ? summary.totalValue
-    : expiring.totalValue;
+    : tab === 'expiring' ? expiring.totalValue
+    : undefined;
 
   return (
     <div className="ab">

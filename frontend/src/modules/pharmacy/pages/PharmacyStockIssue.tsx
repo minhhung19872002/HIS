@@ -34,6 +34,9 @@ import { searchMedicines } from '../../opd/api/examination';
 import type { MedicineDto } from '../../opd/api/examination';
 import systemApi from '../../system/api/system';
 import type { SupplierCatalogDto, DepartmentCatalogDto } from '../../system/api/system';
+// NangCap26 phiếu in #98 — tái sử dụng NGUYÊN mẫu in đã có, không dựng lại layout phiếu.
+import { ChemicalIssueSlipPrint } from '../../patient/components/EMRPrintTemplates';
+import { openPrintWindow } from '../../../utils/printWindow';
 import {
   KpiStrip,
   StatusTabs,
@@ -312,6 +315,10 @@ const PharmacyStockIssue: React.FC = () => {
   const [detail, setDetail] = useState<StockIssueDto | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
+  // NangCap26 phiếu in #98 — phiếu đang dựng để in (render ẩn rồi bơm HTML sang popup)
+  const [chemSlip, setChemSlip] = useState<StockIssueDto | null>(null);
+  const chemSlipRef = useRef<HTMLDivElement>(null);
+
   // ── Create modal ─────────────────────────────────────────────────────────
   const [createOpen, setCreateOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -393,6 +400,34 @@ const PharmacyStockIssue: React.FC = () => {
       message.error('In phiếu thất bại');
     }
   };
+
+  /**
+   * NangCap26 phiếu in #98 — Phiếu lĩnh hóa chất.
+   * Phiếu do BE render (`printStockIssue`) là phiếu xuất kho chung; mẫu lĩnh hóa chất
+   * là biểu mẫu riêng nên dựng từ component in đã có rồi bơm sang popup — dùng lại
+   * đúng layout/chữ ký, không viết lại HTML phiếu.
+   */
+  const onPrintChemicalSlip = async (r: StockIssueDto) => {
+    // Danh sách dòng chỉ có ở bản chi tiết; bản trong bảng có thể chưa kèm items.
+    let full = r;
+    if (!r.items || r.items.length === 0) {
+      try { full = (await wh.getStockIssueById(r.id)).data as StockIssueDto; }
+      catch { message.error('Không tải được chi tiết phiếu'); return; }
+    }
+    setChemSlip(full);
+  };
+
+  // Chờ React render xong khối ẩn rồi mới bơm HTML sang popup.
+  useEffect(() => {
+    if (!chemSlip) return;
+    const html = chemSlipRef.current?.innerHTML;
+    if (!html) return;
+    openPrintWindow(
+      `<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"><title>Phieu linh hoa chat</title></head><body>${html}</body></html>`,
+      { features: 'width=900,height=700', focus: true, print: 'onload', onBlocked: () => message.warning('Trình duyệt chặn popup — cho phép popup để in phiếu') },
+    );
+    setChemSlip(null);
+  }, [chemSlip, message]);
 
   // ── Create modal open / close ─────────────────────────────────────────────
   const openCreate = () => {
@@ -578,7 +613,11 @@ const PharmacyStockIssue: React.FC = () => {
         onRowClick={openDetail}
         empty={loading ? 'Đang tải…' : 'Không có phiếu xuất nào'}
         actions={(r) => (
-          <ActBtn ic="printer" title="In phiếu" onClick={() => void onPrint(r)} />
+          <div className="ab-actions" style={{ display: 'flex', gap: 'var(--space-6)' }}>
+            <ActBtn ic="printer" title="In phiếu" onClick={() => void onPrint(r)} />
+            {/* NangCap26 phiếu in #98 — biểu mẫu lĩnh hóa chất (khác phiếu xuất kho chung) */}
+            <ActBtn ic="flask" title="In phiếu lĩnh hóa chất" onClick={() => void onPrintChemicalSlip(r)} />
+          </div>
         )}
       />
 
@@ -595,6 +634,7 @@ const PharmacyStockIssue: React.FC = () => {
         footer={detail && (
           <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
             <Btn variant="ghost" icon="printer" onClick={() => void onPrint(detail)}>In phiếu</Btn>
+            <Btn variant="ghost" icon="flask" onClick={() => void onPrintChemicalSlip(detail)}>In phiếu lĩnh hóa chất</Btn>
           </div>
         )}
       >
@@ -827,6 +867,31 @@ const PharmacyStockIssue: React.FC = () => {
           </Form.Item>
         </Form>
       </ModalShell>
+
+      {/* NangCap26 phiếu in #98 — render ẩn mẫu phiếu lĩnh hóa chất để lấy HTML đưa sang popup in.
+          Dùng lại component mẫu in đã có (kèm style nội tuyến) thay vì dựng lại layout phiếu. */}
+      {chemSlip && (
+        <div ref={chemSlipRef} style={{ display: 'none' }} aria-hidden>
+          <ChemicalIssueSlipPrint
+            slipCode={chemSlip.issueCode}
+            slipDate={chemSlip.issueDate}
+            departmentName={chemSlip.departmentName || chemSlip.targetWarehouseName}
+            warehouseName={chemSlip.warehouseName}
+            requesterName={chemSlip.createdByName}
+            note={chemSlip.notes}
+            items={(chemSlip.items || []).map((it) => ({
+              code: it.itemCode,
+              name: it.itemName,
+              unit: it.unit,
+              quantityRequested: it.quantity,
+              quantityIssued: it.quantity,
+              batchNumber: it.batchNumber,
+              expiryDate: it.expiryDate,
+              note: it.notes,
+            }))}
+          />
+        </div>
+      )}
     </div>
   );
 };
