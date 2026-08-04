@@ -3,6 +3,7 @@ using HIS.Application.DTOs;
 using HIS.Application.DTOs.Insurance;
 using HIS.Application.DTOs.Reception;
 using HIS.Application.Services;
+using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Configuration;
@@ -30,30 +31,41 @@ public partial class ReceptionCompleteService {
 
     public async Task<InsuranceVerificationResultDto> VerifyInsuranceAsync(InsuranceVerificationRequestDto dto)
     {
-        if (string.IsNullOrWhiteSpace(dto.InsuranceNumber))
+        // Chặn số thẻ sai định dạng NGAY tại backend. Trước đây nhánh mock trả "hợp lệ" cho mọi
+        // chuỗi ký tự, nên tiếp đón có thể đăng ký lượt khám BHYT trên một số thẻ mà cổng BHXH
+        // không bao giờ chấp nhận — sai quyền lợi và sai thanh toán.
+        if (!BhytCardNumber.TryValidate(dto.InsuranceNumber, out var cardNumber, out var formatError))
         {
             return new InsuranceVerificationResultDto
             {
                 IsValid = false,
-                InsuranceNumber = dto.InsuranceNumber ?? string.Empty,
-                ErrorMessage = "Số BHYT không được để trống"
+                InsuranceNumber = cardNumber,
+                DataSource = "VALIDATION",
+                ErrorMessage = formatError
             };
         }
 
-        // Blacklist check (nội bộ — BN đã bị chặn vì lạm dụng quyền lợi)
-        var blocked = await _context.BlockedInsurances
-            .FirstOrDefaultAsync(b => b.InsuranceNumber == dto.InsuranceNumber && b.IsBlocked);
-
         // Nhập 15 số thuần → infer nơi KKCB ban đầu từ mã thẻ
         // Nhập 20 số → có 5 số cuối là mã KKCB, realtime check thông tuyến
-        var rawCard = dto.InsuranceNumber.Trim();
-        var coreCardNumber = rawCard.Length >= 15 ? rawCard.Substring(0, 15) : rawCard;
-        var facilityCodeFromCard = rawCard.Length >= 20 ? rawCard.Substring(15, 5) : null;
+        var coreCardNumber = BhytCardNumber.CoreOf(cardNumber);
+        var facilityCodeFromCard = BhytCardNumber.FacilityCodeOf(cardNumber);
 
-        // Dùng mock khi gateway chưa cấu hình (sandbox)
-        if (_bhxhOptions.UseMock || string.IsNullOrWhiteSpace(_bhxhOptions.Username))
+        // Blacklist check (nội bộ — BN đã bị chặn vì lạm dụng quyền lợi).
+        // Đối chiếu cả chuỗi đã chuẩn hóa lẫn phần thẻ 15 ký tự: danh sách chặn lưu thẻ 15 ký tự,
+        // nhưng đầu đọc có thể đưa vào chuỗi 20 ký tự.
+        var blocked = await _context.BlockedInsurances
+            .FirstOrDefaultAsync(b => b.IsBlocked
+                && (b.InsuranceNumber == cardNumber || b.InsuranceNumber == coreCardNumber));
+
+        var settings = _bhxhSettings != null ? await _bhxhSettings.GetAsync() : null;
+        var facilityCode = settings?.FacilityCode ?? _bhxhOptions.FacilityCode;
+
+        // Dùng mock khi cổng BHXH chưa được cấu hình đủ tài khoản (sandbox)
+        var useMock = settings?.UseMock
+            ?? (_bhxhOptions.UseMock || string.IsNullOrWhiteSpace(_bhxhOptions.Username));
+        if (useMock)
         {
-            return BuildMockInsuranceResult(dto, coreCardNumber, facilityCodeFromCard, blocked);
+            return BuildMockInsuranceResult(dto, coreCardNumber, facilityCodeFromCard, facilityCode, blocked);
         }
 
         try
@@ -63,12 +75,12 @@ public partial class ReceptionCompleteService {
                 MaThe = coreCardNumber,
                 HoTen = dto.PatientName ?? string.Empty,
                 NgaySinh = dto.DateOfBirth ?? default,
-                MaCsKcb = _bhxhOptions.FacilityCode
+                MaCsKcb = facilityCode
             };
             var response = await _bhxhClient.VerifyCardAsync(request);
 
             var isOwnFacility = !string.IsNullOrEmpty(response.MaDkbd)
-                && response.MaDkbd.Equals(_bhxhOptions.FacilityCode, StringComparison.OrdinalIgnoreCase);
+                && response.MaDkbd.Equals(facilityCode, StringComparison.OrdinalIgnoreCase);
             var rightRoute = isOwnFacility ? 1 : (facilityCodeFromCard == null ? 3 : 2);
 
             return new InsuranceVerificationResultDto
@@ -90,6 +102,7 @@ public partial class ReceptionCompleteService {
                 IsBlacklisted = blocked != null,
                 BlacklistReason = blocked?.ReasonDetail,
                 Warnings = BuildInsuranceWarnings(response, blocked),
+                DataSource = "BHXH",
                 ErrorMessage = response.DuDkKcb ? null : (response.LyDoKhongDuDk ?? "Thẻ BHYT không đủ điều kiện KCB")
             };
         }
@@ -100,6 +113,7 @@ public partial class ReceptionCompleteService {
             {
                 IsValid = false,
                 InsuranceNumber = coreCardNumber,
+                DataSource = "BHXH",
                 ErrorMessage = "Không kết nối được cổng BHXH: " + ex.Message
             };
         }
@@ -107,23 +121,35 @@ public partial class ReceptionCompleteService {
 
     public async Task<InsuranceVerificationResultDto> VerifyInsuranceByQRAsync(string qrData)
     {
-        // QR BHYT chuẩn: chuỗi có tối đa 20 ký tự số. QR CCCD tích hợp BHYT có thêm
-        // phần CCCD nối sau. Parser rút 15-20 số BHYT đầu tiên.
-        var digits = new string((qrData ?? string.Empty).Where(char.IsDigit).ToArray());
-        var insuranceNumber = digits.Length >= 20 ? digits.Substring(0, 20)
-            : digits.Length >= 15 ? digits.Substring(0, 15) : digits;
+        // QR thẻ BHYT / QR CCCD gắn chip có thể nối thêm nhiều trường sau số thẻ. Rút đúng khối mã
+        // thẻ (2 chữ + 13 số, kèm 5 số mã CSKCB nếu có) — cách cũ lọc lấy chữ số sẽ cắt mất 2 ký tự
+        // chữ đầu và cho ra số thẻ luôn sai định dạng.
+        var insuranceNumber = BhytCardNumber.ExtractFrom(qrData);
         return await VerifyInsuranceAsync(new InsuranceVerificationRequestDto { InsuranceNumber = insuranceNumber });
     }
 
+    /// <summary>
+    /// Kết quả mô phỏng khi cơ sở chưa có tài khoản cổng giám định BHYT. Hạn thẻ và mức hưởng ở đây
+    /// là giá trị giả định — luôn kèm cảnh báo + DataSource="MOCK" để tiếp đón không hiểu nhầm là
+    /// đã tra cứu thật.
+    /// </summary>
     private InsuranceVerificationResultDto BuildMockInsuranceResult(
         InsuranceVerificationRequestDto dto,
         string coreCardNumber,
         string? facilityCodeFromCard,
+        string facilityCode,
         BlockedInsurance? blocked)
     {
         var rightRoute = facilityCodeFromCard == null ? 3
-            : facilityCodeFromCard.Equals(_bhxhOptions.FacilityCode, StringComparison.OrdinalIgnoreCase) ? 1
+            : facilityCodeFromCard.Equals(facilityCode, StringComparison.OrdinalIgnoreCase) ? 1
             : 2;
+        var warnings = new List<string>
+        {
+            "Chưa kết nối cổng BHXH — dữ liệu thẻ là mô phỏng, chưa đối chiếu quyền lợi thật"
+        };
+        if (blocked != null)
+            warnings.Add("Bệnh nhân nằm trong danh sách chặn BHYT");
+
         return new InsuranceVerificationResultDto
         {
             IsValid = blocked == null,
@@ -132,13 +158,14 @@ public partial class ReceptionCompleteService {
             DateOfBirth = dto.DateOfBirth,
             StartDate = DateTime.Today.AddYears(-1),
             EndDate = DateTime.Today.AddYears(1),
-            FacilityCode = facilityCodeFromCard ?? _bhxhOptions.FacilityCode,
+            FacilityCode = facilityCodeFromCard ?? facilityCode,
             FacilityName = facilityCodeFromCard != null ? "Nơi KKCB (mock)" : "Nơi KKCB cùng cơ sở",
             RightRoute = rightRoute,
             PaymentRate = 80,
             IsBlacklisted = blocked != null,
             BlacklistReason = blocked?.ReasonDetail,
-            Warnings = blocked == null ? new List<string>() : new List<string> { "Bệnh nhân nằm trong danh sách chặn BHYT" }
+            DataSource = "MOCK",
+            Warnings = warnings
         };
     }
 

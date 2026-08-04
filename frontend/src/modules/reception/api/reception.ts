@@ -106,6 +106,10 @@ export interface InsuranceVerificationResultDto {
   errorMessage?: string;
   isBlacklisted: boolean;
   blacklistReason?: string;
+  /** 'BHXH' = tra cứu thật từ cổng giám định · 'MOCK' = dữ liệu mô phỏng · 'VALIDATION' = sai định dạng số thẻ */
+  dataSource?: 'BHXH' | 'MOCK' | 'VALIDATION';
+  /** true khi kết quả KHÔNG đến từ cổng BHXH thật — giao diện phải cảnh báo rõ */
+  isMockData?: boolean;
 }
 
 export interface AdmissionDto {

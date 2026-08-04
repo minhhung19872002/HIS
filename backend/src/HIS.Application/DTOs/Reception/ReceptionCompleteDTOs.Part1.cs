@@ -213,6 +213,16 @@ public class InsuranceVerificationResultDto
     // Trạng thái lạm dụng
     public bool IsBlacklisted { get; set; }
     public string? BlacklistReason { get; set; }
+
+    /// <summary>
+    /// Nguồn của kết quả: "BHXH" = tra cứu thật từ cổng giám định · "MOCK" = dữ liệu mô phỏng
+    /// (chưa cấu hình tài khoản cổng BHXH) · "VALIDATION" = chặn tại chỗ do sai định dạng số thẻ.
+    /// Giao diện PHẢI hiển thị rõ khi giá trị là "MOCK" — quyền lợi/hạn thẻ khi đó không có thật.
+    /// </summary>
+    public string DataSource { get; set; } = "MOCK";
+
+    /// <summary>Tiện ích cho giao diện — kết quả không đến từ cổng BHXH thật.</summary>
+    public bool IsMockData => DataSource == "MOCK";
 }
 
 

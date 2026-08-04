@@ -42,6 +42,7 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IBhxhGatewayClient _bhxhClient;
     private readonly BhxhGatewayOptions _bhxhOptions;
+    private readonly IBhxhGatewaySettingsProvider? _bhxhSettings;
     private readonly ILogger<ReceptionCompleteService>? _receptionLogger;
 
     public ReceptionCompleteService(
@@ -57,9 +58,11 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
         IUnitOfWork unitOfWork,
         IBhxhGatewayClient bhxhClient,
         IOptions<BhxhGatewayOptions>? bhxhOptions = null,
-        ILogger<ReceptionCompleteService>? logger = null)
+        ILogger<ReceptionCompleteService>? logger = null,
+        IBhxhGatewaySettingsProvider? bhxhSettings = null)
     {
         _bhxhOptions = bhxhOptions?.Value ?? new BhxhGatewayOptions();
+        _bhxhSettings = bhxhSettings;
         _receptionLogger = logger;
         _context = context;
         _patientRepo = patientRepo;

@@ -117,37 +117,39 @@ public static class DependencyInjection
         });
         services.AddScoped<IInsuranceXmlService, InsuranceXmlService>();
 
-        // BHXH Gateway Client (conditional: mock for dev, real HTTP for production)
+        // BHXH Gateway Client. Mock vs live is NOT frozen at startup: BhxhGatewayRouter decides per
+        // call from BhxhGatewaySettingsProvider, so credentials saved in the "Cấu hình BHXH" admin
+        // screen (SystemConfig "BHXH.*") take effect without a redeploy. Missing credentials keep
+        // the mock, so reception is never shown simulated card data as a real BHXH lookup.
         services.Configure<BhxhGatewayOptions>(configuration.GetSection(BhxhGatewayOptions.SectionName));
         var bhxhOptions = configuration.GetSection(BhxhGatewayOptions.SectionName).Get<BhxhGatewayOptions>()
             ?? new BhxhGatewayOptions();
 
-        if (bhxhOptions.UseMock)
+        services.AddScoped<IBhxhGatewaySettingsProvider, BhxhGatewaySettingsProvider>();
+        services.AddScoped<BhxhGatewayMockClient>();
+
+        // Requests use absolute URLs built from the resolved BaseUrl; this timeout is only the outer
+        // ceiling, the per-call budget comes from the resolved settings.
+        services.AddHttpClient<BhxhGatewayClient>(client =>
         {
-            services.AddScoped<IBhxhGatewayClient, BhxhGatewayMockClient>();
-        }
-        else
-        {
-            services.AddHttpClient<IBhxhGatewayClient, BhxhGatewayClient>(client =>
-            {
-                client.BaseAddress = new Uri(bhxhOptions.BaseUrl);
-                client.Timeout = TimeSpan.FromSeconds(bhxhOptions.TimeoutSeconds);
-            })
-            .AddPolicyHandler(HttpPolicyExtensions
-                .HandleTransientHttpError()
-                .WaitAndRetryAsync(
-                    bhxhOptions.RetryCount,
-                    retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
-                    onRetry: (outcome, delay, retryCount, _) =>
-                    {
-                        // Logged via ILogger in production
-                    }))
-            .AddPolicyHandler(HttpPolicyExtensions
-                .HandleTransientHttpError()
-                .CircuitBreakerAsync(
-                    bhxhOptions.CircuitBreakerThreshold,
-                    TimeSpan.FromSeconds(bhxhOptions.CircuitBreakerDurationSeconds)));
-        }
+            client.Timeout = TimeSpan.FromSeconds(Math.Max(bhxhOptions.TimeoutSeconds, 60));
+        })
+        .AddPolicyHandler(HttpPolicyExtensions
+            .HandleTransientHttpError()
+            .WaitAndRetryAsync(
+                bhxhOptions.RetryCount,
+                retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                onRetry: (outcome, delay, retryCount, _) =>
+                {
+                    // Logged via ILogger in production
+                }))
+        .AddPolicyHandler(HttpPolicyExtensions
+            .HandleTransientHttpError()
+            .CircuitBreakerAsync(
+                bhxhOptions.CircuitBreakerThreshold,
+                TimeSpan.FromSeconds(bhxhOptions.CircuitBreakerDurationSeconds)));
+
+        services.AddScoped<IBhxhGatewayClient, BhxhGatewayRouter>();
 
         // Phân hệ: Hệ thống (System - Catalog/Finance/Statistics/Admin)
         services.AddScoped<ISystemCompleteService, SystemCompleteService>();

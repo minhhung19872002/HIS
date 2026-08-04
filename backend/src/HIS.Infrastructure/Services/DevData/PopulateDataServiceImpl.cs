@@ -299,7 +299,11 @@ public partial class PopulateDataServiceImpl : HIS.Application.Services.IPopulat
                         Gender = i % 2 == 0 ? "Nam" : "Nữ",
                         IdNumber = $"0{rng.Next(10, 99)}{rng.Next(100000000, 999999999)}",
                         Phone = $"09{rng.Next(10000000, 99999999)}",
-                        InsuranceNumber = i % 2 == 0 ? $"HS4{rng.Next(1000000000, int.MaxValue)}" : null,
+                        // Thẻ BHYT chuẩn 15 ký tự: 2 chữ đối tượng + 1 số mức hưởng + 2 số mã tỉnh
+                        // + 10 số định danh (BhytCardNumber). Bản cũ sinh 13 ký tự nên bị chặn khi tiếp đón.
+                        InsuranceNumber = i % 2 == 0
+                            ? $"HS4{rng.Next(1, 100):D2}{rng.NextInt64(0, 10_000_000_000L):D10}"
+                            : null,
                         IsActive = true,
                         CreatedAt = ctx.Now.AddDays(-rng.Next(10, 120)),
                         UpdatedAt = ctx.Now

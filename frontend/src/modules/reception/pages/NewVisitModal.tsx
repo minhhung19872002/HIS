@@ -90,7 +90,9 @@ export const NewVisitModal: React.FC<{
   const [errs, setErrs] = useState<Record<string, string>>({});
   const [bhytChecked, setBhytChecked] = useState(false);
   const [bhytValid, setBhytValid] = useState(false);
-  const [bhytInfo, setBhytInfo] = useState<{ exp?: string; rate?: number } | null>(null);
+  const [bhytInfo, setBhytInfo] = useState<{ exp?: string; rate?: number; mock?: boolean } | null>(null);
+  // Lý do thẻ không hợp lệ do backend trả về (sai định dạng, hết hạn, bị khóa…)
+  const [bhytErr, setBhytErr] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [data, setData] = useState<WizardData>({
     patientName: '', phone: '', cccd: '', age: null, gender: 'M', address: '',
@@ -100,7 +102,7 @@ export const NewVisitModal: React.FC<{
 
   useEffect(() => {
     if (open) {
-      setStep(1); setErrs({}); setBhytChecked(false); setBhytValid(false); setBhytInfo(null);
+      setStep(1); setErrs({}); setBhytChecked(false); setBhytValid(false); setBhytInfo(null); setBhytErr(null);
       setData({ patientName: '', phone: '', cccd: '', age: null, gender: 'M', address: '', visitType: 'kham-bhyt', bhytNo: '', dept: '', extraRooms: [], priority: 'norm', reason: '' });
     }
   }, [open]);
@@ -146,11 +148,17 @@ export const NewVisitModal: React.FC<{
       const res = await receptionApi.verifyInsurance({ insuranceNumber: data.bhytNo.trim(), patientName: data.patientName || undefined });
       const r = res.data;
       const ok = r.isValid && !r.isExpired && !r.isBlacklisted;
+      const mock = r.isMockData ?? r.dataSource === 'MOCK';
       setBhytChecked(true); setBhytValid(ok);
-      setBhytInfo(ok ? { exp: r.endDate, rate: r.paymentRate } : null);
-      message[ok ? 'success' : 'error'](ok ? 'Thẻ BHYT hợp lệ · còn hạn' : (r.errorMessage || 'Thẻ BHYT không hợp lệ'));
+      setBhytInfo(ok ? { exp: r.endDate, rate: r.paymentRate, mock } : null);
+      setBhytErr(ok ? null : (r.errorMessage || null));
+      if (!ok) message.error(r.errorMessage || 'Thẻ BHYT không hợp lệ');
+      // Mock = chưa kết nối cổng BHXH: báo cảnh báo chứ KHÔNG báo "hợp lệ", tránh nhân viên
+      // tiếp đón hiểu nhầm là đã đối chiếu quyền lợi thật.
+      else if (mock) message.warning('Chưa kết nối cổng BHXH — thông tin thẻ chỉ là mô phỏng');
+      else message.success('Thẻ BHYT hợp lệ · còn hạn');
     } catch {
-      setBhytChecked(true); setBhytValid(false);
+      setBhytChecked(true); setBhytValid(false); setBhytErr(null);
       message.error('Tra cứu BHYT thất bại');
     }
   };
@@ -316,7 +324,7 @@ export const NewVisitModal: React.FC<{
                 <div style={{ display: 'flex', gap: 'var(--space-8)', alignItems: 'flex-end' }}>
                   <div style={{ flex: 1 }}>
                     <Lbl label="Số thẻ BHYT" required error={errs.bhytNo}>
-                      <Input value={data.bhytNo} onChange={(e) => { set('bhytNo', e.target.value); setBhytChecked(false); setBhytValid(false); }} placeholder="HN4 5 08 1234567" />
+                      <Input value={data.bhytNo} onChange={(e) => { set('bhytNo', e.target.value); setBhytChecked(false); setBhytValid(false); setBhytErr(null); }} placeholder="HC4010112345678 (15 ký tự)" />
                     </Lbl>
                   </div>
                   <button type="button" className="ab-btn primary" onClick={verifyBhyt}>
@@ -324,23 +332,33 @@ export const NewVisitModal: React.FC<{
                   </button>
                 </div>
                 {bhytChecked && bhytValid && (
-                  <div className="rec-bhyt-card" style={{ marginTop: 'var(--space-10)' }}>
-                    <div className="rec-bhyt-icon"><TermIcon name="check" size={18} /></div>
-                    <div>
-                      <div className="rec-bhyt-num">{data.bhytNo}</div>
-                      <div className="rec-bhyt-meta">
-                        {bhytInfo?.exp && <span>Hạn: <b>{dayjs(bhytInfo.exp).format('DD/MM/YYYY')}</b></span>}
-                        <span>Mức hưởng: <b>{bhytInfo?.rate || 80}%</b></span>
+                  <>
+                    <div className="rec-bhyt-card" style={{ marginTop: 'var(--space-10)' }}>
+                      <div className="rec-bhyt-icon"><TermIcon name="check" size={18} /></div>
+                      <div>
+                        <div className="rec-bhyt-num">{data.bhytNo}</div>
+                        <div className="rec-bhyt-meta">
+                          {bhytInfo?.exp && <span>Hạn: <b>{dayjs(bhytInfo.exp).format('DD/MM/YYYY')}</b></span>}
+                          <span>Mức hưởng: <b>{bhytInfo?.rate || 80}%</b></span>
+                        </div>
                       </div>
+                      <span className={bhytInfo?.mock ? 'chip warn' : 'chip ok'}>{bhytInfo?.mock ? 'Mô phỏng' : 'Hợp lệ'}</span>
                     </div>
-                    <span className="chip ok">Hợp lệ</span>
-                  </div>
+                    {/* Chưa cấu hình tài khoản cổng giám định BHYT → số liệu trên là giả định.
+                        Phải nói rõ, nếu không tiếp đón sẽ tính sai quyền lợi cho bệnh nhân. */}
+                    {bhytInfo?.mock && (
+                      <div style={{ marginTop: 'var(--space-8)', padding: '8px 12px', display: 'flex', gap: 'var(--space-8)', alignItems: 'flex-start', background: 'var(--d-1)', border: '1px solid var(--s-warn)', borderRadius: 'var(--r-3)', fontSize: 'var(--fs-xs)', color: 'var(--s-warn)' }}>
+                        <TermIcon name="alert" size={12} />
+                        <span>Chưa kết nối cổng BHXH — hạn thẻ và mức hưởng ở trên là dữ liệu mô phỏng, <b>chưa đối chiếu</b> với cơ quan BHXH.</span>
+                      </div>
+                    )}
+                  </>
                 )}
                 {bhytChecked && !bhytValid && (
                   <div className="rec-bhyt-card invalid" style={{ marginTop: 'var(--space-10)' }}>
                     <div className="rec-bhyt-icon"><TermIcon name="x" size={18} /></div>
                     <div>
-                      <div style={{ fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--s-crit)' }}>Thẻ không hợp lệ hoặc đã hết hạn</div>
+                      <div style={{ fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--s-crit)' }}>{bhytErr || 'Thẻ không hợp lệ hoặc đã hết hạn'}</div>
                       <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-2)' }}>Đổi sang hình thức khám khác hoặc kiểm tra lại số thẻ</div>
                     </div>
                     <span className="chip crit">Lỗi</span>
