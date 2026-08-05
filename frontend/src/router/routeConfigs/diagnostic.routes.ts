@@ -4,7 +4,7 @@ import {
   SampleTrackingV2, ReagentManagementV2, LISConfigV2, FunctionalDiagnosticsV2, SpecialTestRuleAdminV2,
   RadiologyV2, DicomViewerV2, DicomAutoSendV2, DicomStudyAuditLogV2, PathologyV2, IvfLabV2,
   BloodBankV2, ParaclinicalCatalogsV2, AnalyzerInboxV2, LisCatalogAdminV2, RisCatalogAdminV2,
-  SampleReceiveV2, RadiologyOpsV2, RisDispatcherV2, RisAdminV2, NonDicomCaptureV2,
+  SampleReceiveV2, RadiologyOpsV2, RisDispatcherV2, RisAdminV2, NonDicomCaptureV2, RadiologyReportsV2,
 } from '../lazy/diagnostic.lazy';
 
 // Domain: diagnostic — menu group paraclinical.
@@ -34,6 +34,7 @@ export const diagnosticV2Routes: RouteEntry[] = [
   { path: 'sample-receive', Component: SampleReceiveV2, meta: { title: 'Nhận mẫu XN', group: 'paraclinical', permission: 'LabResult.Create', workspace: 'clinical', module: 'LIS' } },
   { path: 'radiology-ops', Component: RadiologyOpsV2, meta: { permission: 'Radiology.Read', title: 'Vận hành CĐHA', group: 'paraclinical', workspace: 'clinical', module: 'CDHA' } },
   { path: 'ris-dispatcher', Component: RisDispatcherV2, meta: { permission: 'Radiology.Read', title: 'Điều phối CĐHA', group: 'paraclinical', workspace: 'clinical', module: 'CDHA' } },
+  { path: 'radiology-reports', Component: RadiologyReportsV2, meta: { permission: 'Radiology.Read', title: 'Báo cáo CĐHA', group: 'paraclinical', workspace: 'clinical', module: 'CDHA' } },
   { path: 'ris-admin', Component: RisAdminV2, meta: { title: 'Quản trị RIS', group: 'paraclinical', permission: 'System.Configure', workspace: 'clinical', module: 'CDHA' } },
   { path: 'non-dicom-capture', Component: NonDicomCaptureV2, meta: { permission: 'Radiology.Create', title: 'Chụp ảnh non-DICOM', group: 'paraclinical', workspace: 'clinical', module: 'CDHA' } },
   { path: 'lite/lab', Component: LaboratoryV2, meta: { title: 'Xét nghiệm (lite)', group: 'paraclinical', permission: 'LabResult.Read', workspace: 'clinical', module: 'LIS' } },

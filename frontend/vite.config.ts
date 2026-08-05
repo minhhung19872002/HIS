@@ -1,10 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { viteCommonjs } from '@originjs/vite-plugin-commonjs'
 import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), viteCommonjs()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -15,13 +16,11 @@ export default defineConfig({
   // ES module workers are supported in all modern browsers we target.
   worker: { format: 'es' },
   optimizeDeps: {
-    exclude: [
-      '@cornerstonejs/dicom-image-loader',
-      '@cornerstonejs/codec-charls',
-      '@cornerstonejs/codec-libjpeg-turbo-8bit',
-      '@cornerstonejs/codec-openjpeg',
-      '@cornerstonejs/codec-openjph',
-    ],
+    // Cornerstone's worker loader must stay as source ESM, while dicom-parser
+    // needs Vite's CommonJS pre-bundling in development. Codec UMD modules are
+    // intentionally not excluded so Vite can expose their default factories.
+    exclude: ['@cornerstonejs/dicom-image-loader'],
+    include: ['dicom-parser'],
   },
   build: {
     rollupOptions: {

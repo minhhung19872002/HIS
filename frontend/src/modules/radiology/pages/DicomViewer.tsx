@@ -57,22 +57,55 @@ import CornerstoneViewer from '@/modules/radiology/components/CornerstoneViewer'
 // Backend returns relative paths like "/api/RISComplete/pacs/instances/.../preview".
 // Resolve them against the API origin (Cloud Run) so the browser fetches them
 // from the backend instead of the frontend host (Vercel) which has no such route.
-// #402: proxy PACS yêu cầu JWT; <img>/wadouri không gắn được header nên đính ?access_token=
-// (Program.cs OnMessageReceived đọc query cho path /api/RISComplete/pacs).
 function resolveApiUrl(path: string | undefined | null): string {
   if (!path) return '';
   let url = path;
   if (!/^https?:\/\//i.test(url) && API_ORIGIN) {
     url = `${API_ORIGIN}${url.startsWith('/') ? '' : '/'}${url}`;
   }
-  if (url.includes('/pacs/instances/')) {
-    const jwt = storage.getRaw(STORAGE_KEYS.token);
-    if (jwt && !url.includes('access_token=')) {
-      url += `${url.includes('?') ? '&' : '?'}access_token=${encodeURIComponent(jwt)}`;
-    }
-  }
   return url;
 }
+
+/**
+ * HTML <img> cannot attach an Authorization header. Fetch PHI with the normal bearer header and
+ * render a short-lived in-memory blob URL instead; the JWT never appears in browser history,
+ * proxy logs, Referer headers, or image URLs.
+ */
+const AuthenticatedImage: React.FC<React.ImgHTMLAttributes<HTMLImageElement>> = ({ src, ...props }) => {
+  const [blobUrl, setBlobUrl] = useState<string>('');
+
+  useEffect(() => {
+    if (!src || typeof src !== 'string') { setBlobUrl(''); return; }
+    const controller = new AbortController();
+    let objectUrl = '';
+    const token = storage.getRaw(STORAGE_KEYS.token);
+    fetch(src, {
+      signal: controller.signal,
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      credentials: 'include',
+    })
+      .then(async response => {
+        if (!response.ok) throw new Error(`PACS image HTTP ${response.status}`);
+        return response.blob();
+      })
+      .then(blob => {
+        if (controller.signal.aborted) return;
+        objectUrl = URL.createObjectURL(blob);
+        setBlobUrl(objectUrl);
+      })
+      .catch(error => {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        setBlobUrl('');
+      });
+
+    return () => {
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [src]);
+
+  return blobUrl ? <img src={blobUrl} {...props} /> : null;
+};
 
 const { Title, Text } = Typography;
 
@@ -1148,7 +1181,7 @@ const DicomViewer: React.FC = () => {
                     </>
                   ) : (
                   <div style={{ textAlign: 'center', background: '#000', padding: 8, borderRadius: 4, position: 'relative' }}>
-                    <img
+                    <AuthenticatedImage
                       src={selectedImageUrl}
                       alt="DICOM"
                       style={{
@@ -1253,7 +1286,7 @@ const DicomViewer: React.FC = () => {
                           }}
                         >
                           {img.thumbnailUrl ? (
-                            <img
+                            <AuthenticatedImage
                               src={resolveApiUrl(img.thumbnailUrl)}
                               alt={`Frame ${img.instanceNumber || index + 1}`}
                               style={{ maxWidth: '100%', maxHeight: 80, objectFit: 'contain' }}

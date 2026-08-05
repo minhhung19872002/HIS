@@ -21,6 +21,7 @@ import {
   SaveOutlined,
 } from '@ant-design/icons';
 import { saveAnnotation, getAnnotations } from '../api/ris/pacs';
+import { storage, STORAGE_KEYS } from '../../../services/storage.service';
 
 // Cornerstone3D singleton init flag — bootstrap engine only once per page load
 let csInitialized = false;
@@ -40,6 +41,16 @@ async function ensureCornerstoneInit() {
     await csTools.init();
     // Bootstrap DICOM image loader (registers wadouri / wadors loaders)
     await csImageLoader.init({ maxWebWorkers: 2 });
+    csImageLoader.internal.setOptions({
+      ...csImageLoader.internal.getOptions(),
+      beforeSend: (_xhr, imageId, defaultHeaders) => {
+        if (!imageId.includes('/api/RISComplete/pacs/')) return defaultHeaders;
+        const token = storage.getRaw(STORAGE_KEYS.token);
+        return token
+          ? { ...defaultHeaders, Authorization: `Bearer ${token}` }
+          : defaultHeaders;
+      },
+    });
 
     csInitialized = true;
   })();

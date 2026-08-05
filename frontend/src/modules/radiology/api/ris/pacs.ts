@@ -321,6 +321,66 @@ export interface SendToPacsResultDto {
   errors?: string[];
 }
 
+export interface RemotePacsServerDto {
+  id: string;
+  name: string;
+  aeTitle: string;
+  host: string;
+  port: number;
+  callingAeTitle: string;
+  useTls: boolean;
+  useStorageCommitment: boolean;
+  timeoutSeconds: number;
+  description?: string;
+  isActive: boolean;
+}
+
+export interface DicomSendResultDto {
+  success: boolean;
+  message?: string;
+  studyId?: string;
+  remoteServerName?: string;
+  sentAt: string;
+}
+
+export interface RemoteDicomQueryRequestDto {
+  patientId?: string;
+  patientName?: string;
+  accessionNumber?: string;
+  studyInstanceUid?: string;
+  modality?: string;
+  fromDate?: string;
+  toDate?: string;
+  maxResults?: number;
+}
+
+export interface RemoteDicomStudyDto {
+  patientId: string;
+  patientName: string;
+  accessionNumber: string;
+  studyInstanceUid: string;
+  studyDate: string;
+  studyDescription: string;
+  modalitiesInStudy: string;
+  numberOfStudyRelatedInstances: string;
+}
+
+export interface RemoteDicomQueryResultDto {
+  success: boolean;
+  wasTruncated: boolean;
+  errorMessage?: string;
+  studies: RemoteDicomStudyDto[];
+}
+
+export interface RemoteDicomRetrieveResultDto {
+  success: boolean;
+  studyInstanceUid: string;
+  instanceCount: number;
+  totalBytes: number;
+  retrieveMethod: 'C-MOVE' | 'C-GET';
+  errorMessage?: string;
+}
+
 // DICOM Export interfaces
 export interface DicomExportRequestDto {
   studyInstanceUID: string;
@@ -489,11 +549,13 @@ export const sendMediaToPacs = (data: SendToPacsRequestDto) =>
 
 // #region DICOM Export & Remote PACS
 
-export const exportDicomStudy = (data: DicomExportRequestDto) =>
-  apiClient.post('/RISComplete/dicom/export', data, {
+export const exportDicomStudy = (data: DicomExportRequestDto | string) => {
+  const studyReference = typeof data === 'string' ? data : data.studyInstanceUID;
+  return apiClient.get(`/RISComplete/dicom/export/${encodeURIComponent(studyReference)}`, {
     responseType: 'blob',
     timeout: 120000,
   });
+};
 
 export const getDicomExportStatus = (studyInstanceUID: string) =>
   apiClient.get<DicomExportResultDto>(`/RISComplete/dicom/export-status/${studyInstanceUID}`);
@@ -507,17 +569,29 @@ export const bulkExportDicom = (data: { studyIds: string[]; anonymize: boolean }
 
 // DICOM Send to remote PACS
 export const sendDicomToRemote = (data: { studyId: string; remoteServerId: string }) =>
-  apiClient.post('/riscomplete/dicom/send', data);
+  apiClient.post<DicomSendResultDto>('/riscomplete/dicom/send', data);
 
 // Remote PACS Server management
 export const getRemoteServers = () =>
-  apiClient.get('/riscomplete/dicom/remote-servers');
+  apiClient.get<RemotePacsServerDto[]>('/riscomplete/dicom/remote-servers');
 
-export const saveRemoteServer = (data: { id?: string; name: string; aeTitle: string; host: string; port: number; description?: string; isActive?: boolean }) =>
+export const saveRemoteServer = (data: Omit<RemotePacsServerDto, 'id'> & { id?: string }) =>
   apiClient.post('/riscomplete/dicom/remote-servers', data);
 
 export const deleteRemoteServer = (id: string) =>
   apiClient.delete(`/riscomplete/dicom/remote-servers/${id}`);
+
+export const queryRemotePacs = (id: string, data: RemoteDicomQueryRequestDto) =>
+  apiClient.post<RemoteDicomQueryResultDto>(`/riscomplete/dicom/remote-servers/${id}/query`, data);
+
+export const retrieveRemoteStudy = (
+  id: string,
+  studyInstanceUid: string,
+  retrieveMethod: 'C-MOVE' | 'C-GET' = 'C-MOVE',
+) => apiClient.post<RemoteDicomRetrieveResultDto>(
+  `/riscomplete/dicom/remote-servers/${id}/retrieve`,
+  { studyInstanceUid, retrieveMethod },
+);
 
 // #endregion
 

@@ -12,6 +12,9 @@ import {
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { SurgeryReportModal } from '../../surgery/pages/SurgeryReportModal';
 import ShareStudyModal from '../components/ShareStudyModal';
+import DicomViewerConfig from '../components/DicomViewerConfig';
+import PacsWorkspaceModal from '../components/PacsWorkspaceModal';
+import RadiologyConsumablesModal from '../components/RadiologyConsumablesModal';
 import { radiologyColumns } from './columns';
 import { CallPatientModal } from './CallPatientModal';
 import { ResultEntryModal } from './ResultEntryModal';
@@ -39,6 +42,10 @@ const RadiologyV2: React.FC = () => {
   const [callTarget, setCallTarget] = useState<RadiologyOrderDto | null>(null);
   const [rooms, setRooms] = useState<{ id: string; name: string }[]>([]);
   const [date, setDate] = useState(() => dayjs());
+  const [pacsOpen, setPacsOpen] = useState(false);
+  const [pacsTarget, setPacsTarget] = useState<RadiologyOrderDto | null>(null);
+  const [consumablesTarget, setConsumablesTarget] = useState<RadiologyOrderDto | null>(null);
+  const [viewerConfigOpen, setViewerConfigOpen] = useState(false);
   // Chia sẻ ca chụp (Prompt 8 Đợt 2)
   const [shareCtx, setShareCtx] = useState<{
     studyInstanceUID: string;
@@ -179,17 +186,23 @@ const RadiologyV2: React.FC = () => {
     try { await printResultBlob(result.id); }
     catch { message.error('Không in được phiếu'); }
   };
-  const onViewer = (r: RadiologyOrderDto) => {
-    const uid = r.studyInstanceUID;
+  const openStudyViewer = (uid?: string) => {
     if (!uid) { message.warning('Ca chụp chưa có Study UID — DICOM chưa được gửi về PACS'); return; }
     navigate(`/v2/radiology/viewer?study=${encodeURIComponent(uid)}`);
   };
+  const onViewer = (r: RadiologyOrderDto) => openStudyViewer(r.studyInstanceUID);
   const onStartExam = async (r: RadiologyOrderDto) => {
     try { await risApi.startExam(r.id); message.success('Đã bắt đầu ca chụp'); reload(); }
     catch (e) { message.error((e as ApiErr)?.response?.data?.message || 'Không bắt đầu được ca'); }
   };
   const onCompleteExam = async (r: RadiologyOrderDto) => {
-    try { await risApi.completeExam(r.id); message.success('Đã hoàn thành ca chụp'); reload(); }
+    try {
+      await risApi.completeExam(r.id);
+      message.success('Đã hoàn thành ca chụp — chọn Study từ PACS để liên kết ảnh');
+      reload();
+      setPacsTarget(r);
+      setPacsOpen(true);
+    }
     catch (e) { message.error((e as ApiErr)?.response?.data?.message || 'Không hoàn thành được ca'); }
   };
 
@@ -204,9 +217,17 @@ const RadiologyV2: React.FC = () => {
 
   const onBulkDownload = async (anonymize: boolean) => {
     if (bulkSelected.length === 0) { message.warning('Chọn ít nhất 1 ca để tải'); return; }
+    const studyIds = rows
+      .filter((row) => bulkSelected.includes(row.id))
+      .map((row) => row.studyInstanceUID)
+      .filter((uid): uid is string => !!uid);
+    if (studyIds.length === 0) {
+      message.warning('Các ca đã chọn chưa có Study DICOM liên kết');
+      return;
+    }
     setBulkDownloading(true);
     try {
-      const resp = await risApi.bulkExportDicom({ studyIds: bulkSelected, anonymize });
+      const resp = await risApi.bulkExportDicom({ studyIds, anonymize });
       const blob = new Blob([resp.data as BlobPart], { type: 'application/zip' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -214,7 +235,7 @@ const RadiologyV2: React.FC = () => {
       a.download = anonymize ? 'bulk_anon_export.zip' : 'bulk_export.zip';
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      message.success(`Đã tải ${bulkSelected.length} study`);
+      message.success(`Đã tải ${studyIds.length} study`);
       setBulkSelected([]);
       bulkResultIdMapRef.current = {};
     } catch { message.error('Tải xuống thất bại'); }
@@ -377,7 +398,10 @@ const RadiologyV2: React.FC = () => {
           <TermIcon name="refresh" size={12} /> Làm mới
         </Btn>
         <Btn variant="ghost" onClick={() => navigate('/v2/ris-dispatcher')}>
-          <TermIcon name="image" size={12} /> DICOM
+          <TermIcon name="send" size={12} /> Điều phối
+        </Btn>
+        <Btn variant="ghost" onClick={() => { setPacsTarget(null); setPacsOpen(true); }}>
+          <TermIcon name="cloud" size={12} /> RIS/PACS
         </Btn>
         <Btn variant="primary" onClick={() => navigate('/v2/radiology-ops')}>
           <TermIcon name="plus" size={12} /> Chỉ định <kbd>F2</kbd>
@@ -413,6 +437,11 @@ const RadiologyV2: React.FC = () => {
               {r.items?.[0]?.hasImages && (
                 <ActBtn ic="image" title="Xem ảnh DICOM" onClick={() => onViewer(r)} />
               )}
+              <ActBtn
+                ic={r.items?.[0]?.hasImages ? 'cloud' : 'link'}
+                title={r.items?.[0]?.hasImages ? 'Quản lý Study PACS' : 'Liên kết ảnh từ PACS'}
+                onClick={() => { setPacsTarget(r); setPacsOpen(true); }}
+              />
               <ActBtn ic="share" title="Chia sẻ ca chụp (ẩn danh tùy chọn)" onClick={() => onShare(r)} />
               {/* NangCap26 RIS #59 — ghi đĩa CD/DVD ảnh + kết quả */}
               {r.items?.[0]?.hasImages && (
@@ -426,6 +455,11 @@ const RadiologyV2: React.FC = () => {
                 ic={bulkSelected.includes(r.id) ? 'check' : 'download'}
                 title={bulkSelected.includes(r.id) ? 'Đã chọn (bỏ chọn)' : 'Chọn cho thao tác hàng loạt'}
                 onClick={() => toggleBulkSelect(r)}
+              />
+              <ActBtn
+                ic="medicine"
+                title="Vật tư / thuốc cản quang dùng cho ca chụp"
+                onClick={() => setConsumablesTarget(r)}
               />
               <ActBtn ic="print" title="In phiếu" onClick={() => onPrintRow(r)} />
               {/* Nút PTTT: chỉ hiện khi serviceId có mapping (từ batch-check) */}
@@ -516,6 +550,30 @@ const RadiologyV2: React.FC = () => {
         studyInstanceUID={shareCtx?.studyInstanceUID || ''}
         orthancStudyId={shareCtx?.orthancStudyId}
         patientId={shareCtx?.patientId}
+      />
+
+      <PacsWorkspaceModal
+        open={pacsOpen}
+        order={pacsTarget}
+        onClose={() => setPacsOpen(false)}
+        onLinked={reload}
+        onOpenViewer={openStudyViewer}
+        onOpenViewerConfig={() => setViewerConfigOpen(true)}
+        onOpenAdmin={() => navigate('/v2/ris-admin')}
+      />
+
+      <RadiologyConsumablesModal
+        open={!!consumablesTarget}
+        onClose={() => setConsumablesTarget(null)}
+        orderId={consumablesTarget?.id ?? ''}
+        orderCode={consumablesTarget?.orderCode}
+        patientName={consumablesTarget?.patientName}
+        serviceName={consumablesTarget?.items?.[0]?.serviceName}
+      />
+
+      <DicomViewerConfig
+        open={viewerConfigOpen}
+        onClose={() => setViewerConfigOpen(false)}
       />
 
       {/* Tường trình PTTT từ drawer chi tiết — chỉ hiện khi dịch vụ có mapping */}

@@ -29,4 +29,5 @@ export const SampleReceiveV2 = lazy(() => import('../../modules/laboratory/pages
 export const RadiologyOpsV2 = lazy(() => import('../../modules/radiology/pages/RadiologyOps'));
 export const RisDispatcherV2 = lazy(() => import('../../modules/radiology/pages/RisDispatcher'));
 export const RisAdminV2 = lazy(() => import('../../modules/radiology/pages/RisAdmin'));
+export const RadiologyReportsV2 = lazy(() => import('../../modules/radiology/pages/RadiologyReports'));
 export const NonDicomCaptureV2 = lazy(() => import('../../modules/radiology/pages/NonDicomCapture'));

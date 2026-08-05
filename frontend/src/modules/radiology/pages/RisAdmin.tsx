@@ -5,11 +5,22 @@ import apiClient from '../../../services/apiClient';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import {
   KpiStrip, TopTabs, Filter, SearchBox, DataTable, StatusBadge, ActBtn, Btn,
-  ModalShell, DrawerShell, DrSec, DrField, Ico, tk, tw, cf,
+  ModalShell, DrawerShell, DrSec, DrField, Ico, tk, tw, cf, fmtDTg,
   type ColumnDef,
 } from '@/_v2kit';
-import { getRemoteServers, saveRemoteServer, deleteRemoteServer } from '../api/ris/pacs';
+import { checkPACSConnection, getRemoteServers, saveRemoteServer, deleteRemoteServer } from '../api/ris/pacs';
 import { getTags, saveTag, type RadiologyTagDto } from '../api/ris/label-tag-qr';
+import {
+  getHL7CDAConfigs, saveHL7CDAConfig, deleteHL7CDAConfig, testHL7Connection,
+  searchHL7Messages, retryHL7Message,
+  type HL7CDAConfigDto, type SaveHL7CDAConfigDto, type HL7MessageDto,
+} from '../api/ris/integration';
+import {
+  getServiceNorm, updateServiceNorm, searchItems,
+  type RadiologyNormItemDto, type ItemSearchResultDto,
+} from '../api/ris/prescription';
+import { getServices, type ServiceDto } from '../../opd/api/examination';
+import { getWarehouses, type WarehouseDto } from '../../pharmacy/api/warehouse';
 
 const { RangePicker } = DatePicker;
 
@@ -35,7 +46,7 @@ interface FolderRow { id: string; folderName: string; folderType: number; areaNa
 interface Room { id: string; roomName: string; modalityType?: string; departmentName?: string }
 interface Stat { label: string; value: number }
 
-type Tab = 'permissions' | 'areas' | 'folders' | 'icdMap' | 'machines' | 'supplies' | 'hospital' | 'stats' | 'modalityPerm' | 'remotePacs' | 'tags';
+type Tab = 'permissions' | 'areas' | 'folders' | 'icdMap' | 'machines' | 'supplies' | 'hospital' | 'stats' | 'modalityPerm' | 'remotePacs' | 'tags' | 'hl7';
 const TABS = [
   { v: 'permissions' as Tab,  l: 'Phân quyền',        ic: 'user' },
   { v: 'modalityPerm' as Tab, l: 'Quyền theo máy',    ic: 'user' },
@@ -43,9 +54,10 @@ const TABS = [
   { v: 'folders' as Tab,      l: 'Thư mục',           ic: 'archive' },
   { v: 'icdMap' as Tab,       l: 'ICD ↔ Mẫu',         ic: 'file-text' },
   { v: 'machines' as Tab,     l: 'Máy chụp',          ic: 'qr' },
-  { v: 'supplies' as Tab,     l: 'Vật tư',            ic: 'medicine' },
+  { v: 'supplies' as Tab,     l: 'Định mức vật tư',   ic: 'medicine' },
   { v: 'hospital' as Tab,     l: 'Cấu hình BV',       ic: 'edit' },
   { v: 'remotePacs' as Tab,   l: 'Remote PACS',       ic: 'cloud' },
+  { v: 'hl7' as Tab,          l: 'HL7 / CDA',         ic: 'share' },
   { v: 'tags' as Tab,         l: 'Quản lý Tag',       ic: 'star' },
   { v: 'stats' as Tab,        l: 'Thống kê',          ic: 'activity' },
 ];
@@ -70,6 +82,7 @@ const RisAdminV2: React.FC = () => {
       {tab === 'supplies' && <SuppliesTab />}
       {tab === 'hospital' && <HospitalConfigTab />}
       {tab === 'remotePacs' && <RemotePacsTab />}
+      {tab === 'hl7' && <Hl7CdaTab />}
       {tab === 'tags' && <TagsTab />}
       {tab === 'stats' && <StatsTab />}
     </div>
@@ -490,23 +503,414 @@ const MachinesTab: React.FC = () => {
   );
 };
 
-const SuppliesTab: React.FC = () => (
-  <div style={{ padding: 'var(--space-24)' }}>
-    <div className="panel" style={{ padding: 0 }}>
-      <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
-        <span>Vật tư y tế cho CĐHA</span>
+/** Định mức tiêu hao thuốc/vật tư cho từng dịch vụ CĐHA — nguồn để sinh phiếu kê mỗi ca chụp. */
+const SERVICE_TYPE_RADIOLOGY = 3;
+
+const SuppliesTab: React.FC = () => {
+  const [services, setServices] = useState<ServiceDto[]>([]);
+  const [warehouses, setWarehouses] = useState<WarehouseDto[]>([]);
+  const [serviceId, setServiceId] = useState<string>('');
+  const [warehouseId, setWarehouseId] = useState<string>('');
+  const [rows, setRows] = useState<RadiologyNormItemDto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [picker, setPicker] = useState(false);
+  const [keyword, setKeyword] = useState('');
+  const [found, setFound] = useState<ItemSearchResultDto[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    getServices(SERVICE_TYPE_RADIOLOGY)
+      .then(({ data }) => setServices(normalizeArrayResponse<ServiceDto>(data)))
+      .catch(() => setServices([]));
+    getWarehouses()
+      .then(({ data }) => setWarehouses(normalizeArrayResponse<WarehouseDto>(data)))
+      .catch(() => setWarehouses([]));
+  }, []);
+
+  const loadNorm = useCallback(async (id: string) => {
+    if (!id) { setRows([]); return; }
+    setLoading(true);
+    try {
+      const { data } = await getServiceNorm(id);
+      setRows(data?.items || []);
+    } catch { setRows([]); tw('Không tải được định mức'); }
+    finally { setLoading(false); }
+  }, []);
+
+  const pickService = (id: string) => { setServiceId(id); loadNorm(id); };
+
+  const runSearch = useCallback(async () => {
+    if (!warehouseId) { tw('Chọn kho trước để biết tồn thực tế'); return; }
+    setSearching(true);
+    try {
+      const { data } = await searchItems(keyword, warehouseId);
+      setFound(normalizeArrayResponse<ItemSearchResultDto>(data));
+    } catch { setFound([]); tw('Tìm thuốc/vật tư thất bại'); }
+    finally { setSearching(false); }
+  }, [keyword, warehouseId]);
+
+  const addItem = (it: ItemSearchResultDto) => {
+    if (rows.some((r) => r.itemId === it.id)) { tw('Thuốc/vật tư này đã có trong định mức'); return; }
+    setRows((prev) => [...prev, {
+      id: '', itemId: it.id, itemCode: it.code, itemName: it.name,
+      itemType: it.itemType, quantity: 1, unit: it.unit, isRequired: false,
+    }]);
+    setPicker(false);
+  };
+
+  const patchRow = (itemId: string, patch: Partial<RadiologyNormItemDto>) =>
+    setRows((prev) => prev.map((r) => (r.itemId === itemId ? { ...r, ...patch } : r)));
+
+  const save = async () => {
+    if (!serviceId) { tw('Chọn dịch vụ trước'); return; }
+    const invalid = rows.find((r) => !(r.quantity > 0));
+    if (invalid) { tw(`Số lượng của "${invalid.itemName}" phải lớn hơn 0`); return; }
+    setSaving(true);
+    try {
+      await updateServiceNorm(serviceId, rows.map((r) => ({
+        itemId: r.itemId, quantity: r.quantity, unit: r.unit, isRequired: r.isRequired,
+      })));
+      tk('Đã lưu định mức');
+      loadNorm(serviceId);
+    } catch { tw('Lưu định mức thất bại'); }
+    finally { setSaving(false); }
+  };
+
+  const cols: ColumnDef<RadiologyNormItemDto>[] = [
+    { key: 'code', label: 'Mã', code: true, width: 120, render: (r) => r.itemCode || '—' },
+    { key: 'name', label: 'Tên thuốc / vật tư', render: (r) => <b>{r.itemName || '—'}</b> },
+    { key: 'type', label: 'Loại', width: 110, render: (r) => (r.itemType === 'Supply' ? 'Vật tư' : 'Thuốc') },
+    {
+      key: 'qty', label: 'Định mức / ca', width: 150,
+      render: (r) => (
+        <InputNumber size="small" min={0} step={0.5} value={r.quantity} style={{ width: 110 }}
+          onChange={(v) => patchRow(r.itemId, { quantity: Number(v) || 0 })} />
+      ),
+    },
+    {
+      key: 'unit', label: 'ĐVT', width: 110,
+      render: (r) => (
+        <Input size="small" value={r.unit} style={{ width: 90 }}
+          onChange={(e) => patchRow(r.itemId, { unit: e.target.value })} />
+      ),
+    },
+    {
+      key: 'req', label: 'Bắt buộc', width: 110,
+      render: (r) => (
+        <Checkbox checked={r.isRequired}
+          onChange={(e) => patchRow(r.itemId, { isRequired: e.target.checked })} />
+      ),
+    },
+  ];
+
+  const foundCols: ColumnDef<ItemSearchResultDto>[] = [
+    { key: 'code', label: 'Mã', code: true, width: 120, render: (r) => r.code },
+    { key: 'name', label: 'Tên', render: (r) => r.name },
+    { key: 'unit', label: 'ĐVT', width: 90, render: (r) => r.unit || '—' },
+    { key: 'stock', label: 'Tồn khả dụng', width: 130, render: (r) => r.stockQuantity },
+    { key: 'lot', label: 'Lô gần hết hạn', width: 150, mono: true, render: (r) => r.lotNumber || '—' },
+  ];
+
+  return (
+    <>
+      <div style={{ padding: 'var(--space-12)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, margin: 'var(--space-12)', fontSize: 'var(--fs-sm)' }}>
+        <Ico name="info" size={12} /> Khai định mức tiêu hao thuốc cản quang / vật tư cho từng dịch vụ CĐHA.
+        Kỹ thuật viên sinh phiếu kê từ định mức này; báo cáo tiêu hao đối chiếu định mức với lượng thực dùng.
       </div>
-      <div style={{ padding: 'var(--space-16)' }}>
-        <div style={{ fontSize: 'var(--fs-md)', color: 'var(--t-1)', marginBottom: 'var(--space-12)' }}>
-          Vật tư chuyên dụng cho CĐHA: thuốc cản quang, gel siêu âm, phim X-quang…
-        </div>
-        <Btn variant="primary" onClick={() => window.open('/v2/medical-supply?type=radiology', '_blank')}>
-          <Ico name="medicine" size={12} /> Mở Medical Supply (filter CĐHA)
+      <div className="ab-toolbar" style={{ borderTop: 'none' }}>
+        <Select showSearch style={{ minWidth: 320 }} placeholder="— Chọn dịch vụ CĐHA —"
+          value={serviceId || undefined} onChange={pickService} optionFilterProp="label"
+          options={services.map((s) => ({ value: s.id, label: `${s.code} · ${s.name}` }))} />
+        <Select showSearch style={{ minWidth: 240 }} placeholder="— Kho tra tồn —"
+          value={warehouseId || undefined} onChange={setWarehouseId} optionFilterProp="label"
+          options={warehouses.map((w) => ({ value: w.id, label: w.warehouseName }))} />
+        <span className="spacer" />
+        <Btn onClick={() => { setFound([]); setKeyword(''); setPicker(true); }} disabled={!serviceId}>
+          <Ico name="plus" size={12} /> Thêm thuốc / vật tư
+        </Btn>
+        <Btn variant="primary" onClick={save} disabled={!serviceId || saving}>
+          <Ico name="check" size={12} /> {saving ? 'Đang lưu…' : 'Lưu định mức'}
         </Btn>
       </div>
-    </div>
-  </div>
-);
+      <DataTable<RadiologyNormItemDto> columns={cols} data={rows} rowKey={(r) => r.itemId}
+        actions={(r) => (
+          <div className="ab-actions">
+            <ActBtn ic="trash" title="Bỏ khỏi định mức" tone="crit"
+              onClick={() => setRows((prev) => prev.filter((x) => x.itemId !== r.itemId))} />
+          </div>
+        )}
+        empty={loading ? 'Đang tải…' : serviceId ? 'Dịch vụ này chưa khai định mức' : 'Chọn dịch vụ để xem định mức'} />
+
+      <ModalShell open={picker} onClose={() => setPicker(false)} size="lg"
+        title="Chọn thuốc / vật tư"
+        sub={warehouses.find((w) => w.id === warehouseId)?.warehouseName || 'Chưa chọn kho'}
+        footer={<Btn variant="ghost" onClick={() => setPicker(false)}>Đóng</Btn>}>
+        <div className="ab-toolbar" style={{ borderTop: 'none' }}>
+          <SearchBox value={keyword} onChange={setKeyword} placeholder="Tìm theo mã hoặc tên…" minWidth={280} />
+          <Btn onClick={runSearch} disabled={searching}>
+            <Ico name="search" size={12} /> {searching ? 'Đang tìm…' : 'Tìm'}
+          </Btn>
+        </div>
+        <DataTable<ItemSearchResultDto> columns={foundCols} data={found} rowKey={(r) => r.id}
+          onRowClick={addItem}
+          empty={searching ? 'Đang tìm…' : 'Nhập từ khoá rồi bấm Tìm'} />
+      </ModalShell>
+    </>
+  );
+};
+
+/** Status của RadiologyHL7Message — số hoá theo entity, không đoán. */
+const HL7_STATUS: Record<number, { l: string; tone: 'ok' | 'info' | 'warn' | 'crit' }> = {
+  0: { l: 'Nhận về', tone: 'info' },
+  1: { l: 'Đang gửi', tone: 'warn' },
+  2: { l: 'Đã xử lý', tone: 'ok' },
+  3: { l: 'Lỗi', tone: 'crit' },
+  4: { l: 'Hệ nhận đã ACK', tone: 'ok' },
+};
+const HL7_CONNECTION_TYPES = [
+  { value: 'MLLP', label: 'MLLP (HL7 v2 qua socket)' },
+  { value: 'TCP', label: 'TCP (đồng nghĩa MLLP)' },
+  { value: 'HTTP', label: 'HTTP POST' },
+  { value: 'File', label: 'Ghi ra thư mục' },
+];
+
+const Hl7CdaTab: React.FC = () => {
+  const [configs, setConfigs] = useState<HL7CDAConfigDto[]>([]);
+  const [messages, setMessages] = useState<HL7MessageDto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [modal, setModal] = useState(false);
+  const [editing, setEditing] = useState<HL7CDAConfigDto | null>(null);
+  const [sel, setSel] = useState<HL7MessageDto | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [form] = Form.useForm<SaveHL7CDAConfigDto>();
+  const connectionType = Form.useWatch('connectionType', form);
+  const isFileChannel = connectionType === 'File';
+  const isHttpChannel = connectionType === 'HTTP';
+
+  const loadConfigs = useCallback(async () => {
+    try { const { data } = await getHL7CDAConfigs(); setConfigs(normalizeArrayResponse<HL7CDAConfigDto>(data)); }
+    catch { setConfigs([]); }
+  }, []);
+
+  const loadMessages = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await searchHL7Messages({
+        status: statusFilter === '' ? undefined : Number(statusFilter),
+        page: 1,
+        pageSize: 50,
+      });
+      setMessages(data?.items || []);
+    } catch { setMessages([]); }
+    finally { setLoading(false); }
+  }, [statusFilter]);
+
+  useEffect(() => { loadConfigs(); }, [loadConfigs]);
+  useEffect(() => { loadMessages(); }, [loadMessages]);
+
+  const openAdd = () => {
+    setEditing(null); form.resetFields();
+    form.setFieldsValue({ hL7Version: '2.5', cdaVersion: 'R2', connectionType: 'MLLP', serverPort: 2575, isActive: true });
+    setModal(true);
+  };
+  const openEdit = (c: HL7CDAConfigDto) => {
+    setEditing(c);
+    form.setFieldsValue({ ...c, connectionType: c.connectionType || 'MLLP' });
+    setModal(true);
+  };
+
+  const submit = async () => {
+    try {
+      const v = await form.validateFields();
+      await saveHL7CDAConfig({ ...v, id: editing?.id, isActive: v.isActive !== false });
+      tk(editing ? 'Đã cập nhật kênh HL7' : 'Đã thêm kênh HL7');
+      setModal(false); loadConfigs();
+    } catch (e) { if ((e as { errorFields?: unknown }).errorFields) return; tw('Lưu kênh HL7 thất bại'); }
+  };
+
+  const remove = (c: HL7CDAConfigDto) => cf(`Tắt kênh HL7 "${c.configName}"?`, async () => {
+    await deleteHL7CDAConfig(c.id); tk('Đã tắt kênh'); loadConfigs();
+  }, { tone: 'crit', confirm: 'Tắt kênh' });
+
+  const test = async (c: HL7CDAConfigDto) => {
+    try {
+      const { data } = await testHL7Connection(c.id);
+      if (data?.connected) tk(`Kết nối được tới ${c.serverAddress || c.filePath || 'hệ nhận'}`);
+      else tw('Không kết nối được — kiểm tra địa chỉ/cổng và tường lửa');
+    } catch { tw('Không thực hiện được kiểm tra kết nối'); }
+  };
+
+  const retry = (m: HL7MessageDto) => cf(`Gửi lại message ${m.messageControlId}?`, async () => {
+    try {
+      await retryHL7Message(m.id);
+      tk('Đã gửi lại — xem cột ACK để biết hệ nhận trả lời gì');
+    } catch { tw('Gửi lại thất bại'); }
+    loadMessages();
+  }, { confirm: 'Gửi lại' });
+
+  const cfgCols: ColumnDef<HL7CDAConfigDto>[] = [
+    { key: 'name', label: 'Tên kênh', render: (c) => <b>{c.configName}</b> },
+    { key: 'type', label: 'Kết nối', width: 110, render: (c) => c.connectionType || 'MLLP' },
+    {
+      key: 'target', label: 'Đích', mono: true,
+      render: (c) => (c.connectionType === 'File'
+        ? c.filePath || '—'
+        : `${c.serverAddress || '—'}${c.serverPort ? `:${c.serverPort}` : ''}`),
+    },
+    { key: 'ver', label: 'HL7', width: 80, render: (c) => c.hL7Version || '—' },
+    { key: 'app', label: 'Gửi → Nhận', render: (c) => `${c.sendingApplication || '—'} → ${c.receivingApplication || '—'}` },
+    {
+      key: 'active', label: 'Trạng thái', width: 120,
+      render: (c) => (c.isActive
+        ? <StatusBadge tone="ok" dot>Hoạt động</StatusBadge>
+        : <StatusBadge tone="warn" dot>Tắt</StatusBadge>),
+    },
+  ];
+
+  const msgCols: ColumnDef<HL7MessageDto>[] = [
+    { key: 'ctl', label: 'Control ID', mono: true, width: 200, render: (m) => m.messageControlId },
+    { key: 'type', label: 'Loại', width: 110, render: (m) => `${m.messageType}^${m.triggerEvent}` },
+    { key: 'dir', label: 'Chiều', width: 100, render: (m) => (m.direction === 'Outbound' ? 'Gửi đi' : 'Nhận về') },
+    { key: 'time', label: 'Thời điểm', width: 150, render: (m) => fmtDTg(m.messageDateTime) },
+    { key: 'acc', label: 'Accession', mono: true, width: 140, render: (m) => m.accessionNumber || '—' },
+    { key: 'ack', label: 'ACK', width: 80, code: true, render: (m) => m.ackCode || '—' },
+    {
+      key: 'st', label: 'Trạng thái', width: 150,
+      render: (m) => {
+        const s = HL7_STATUS[m.status] || { l: `#${m.status}`, tone: 'info' as const };
+        return <StatusBadge tone={s.tone} dot>{s.l}</StatusBadge>;
+      },
+    },
+  ];
+
+  const activeCount = configs.filter((c) => c.isActive).length;
+
+  return (
+    <>
+      <div style={{ padding: 'var(--space-12)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, margin: 'var(--space-12)', fontSize: 'var(--fs-sm)' }}>
+        <Ico name="info" size={12} /> Kênh gửi kết quả CĐHA sang hệ khác (HIS/LIS/Sở Y tế) bằng HL7 v2.
+        Trạng thái “Hệ nhận đã ACK” nghĩa là hệ nhận thực sự trả mã chấp nhận (AA), không phải suy đoán.
+        {activeCount > 1 && (
+          <div style={{ marginTop: 6, color: 'var(--s-warn)' }}>
+            Đang bật {activeCount} kênh — máy chủ cần khai <span className="mono">RIS:Hl7:DefaultConfigName</span> để
+            biết gửi kết quả CĐHA qua kênh nào, nếu không sẽ từ chối gửi để tránh gửi nhầm.
+          </div>
+        )}
+      </div>
+
+      <div className="ab-toolbar" style={{ borderTop: 'none' }}>
+        <span style={{ fontWeight: 600 }}>Kênh tích hợp</span>
+        <span className="spacer" />
+        <Btn variant="primary" onClick={openAdd}><Ico name="plus" size={12} /> Thêm kênh</Btn>
+      </div>
+      <DataTable<HL7CDAConfigDto> columns={cfgCols} data={configs} rowKey={(c) => c.id}
+        actions={(c) => (
+          <div className="ab-actions">
+            <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(c)} />
+            <ActBtn ic="activity" title="Kiểm tra kết nối" onClick={() => test(c)} />
+            <ActBtn ic="trash" title="Tắt kênh" tone="crit" onClick={() => remove(c)} />
+          </div>
+        )}
+        empty="Chưa khai kênh HL7 nào" />
+
+      <div className="ab-toolbar">
+        <span style={{ fontWeight: 600 }}>Nhật ký message</span>
+        <Filter value={statusFilter} onChange={setStatusFilter} placeholder="▾ Trạng thái"
+          options={[{ v: '', l: 'Tất cả' }, ...Object.entries(HL7_STATUS).map(([k, s]) => ({ v: k, l: s.l }))]} />
+        <span className="spacer" />
+        <Btn onClick={loadMessages}><Ico name="refresh" size={12} /> Làm mới</Btn>
+      </div>
+      <DataTable<HL7MessageDto> columns={msgCols} data={messages} rowKey={(m) => m.id}
+        onRowClick={setSel}
+        actions={(m) => (
+          <div className="ab-actions">
+            {m.direction === 'Outbound' && m.status === 3 && (
+              <ActBtn ic="refresh" title="Gửi lại" onClick={() => retry(m)} />
+            )}
+          </div>
+        )}
+        empty={loading ? 'Đang tải…' : 'Chưa có message HL7'} />
+
+      <DrawerShell open={!!sel} onClose={() => setSel(null)} size="lg"
+        title={sel ? `HL7 ${sel.messageType}^${sel.triggerEvent}` : ''}
+        sub={sel?.messageControlId || ''}>
+        {sel && <>
+          <DrSec title="Thông tin">
+            <DrField lbl="Chiều">{sel.direction === 'Outbound' ? 'Gửi đi' : 'Nhận về'}</DrField>
+            <DrField lbl="Thời điểm">{fmtDTg(sel.messageDateTime)}</DrField>
+            <DrField lbl="Mã BN">{sel.patientId || '—'}</DrField>
+            <DrField lbl="Accession">{sel.accessionNumber || '—'}</DrField>
+            <DrField lbl="Mã ACK">{sel.ackCode || '—'}</DrField>
+            <DrField lbl="Số lần gửi lại">{sel.retryCount}</DrField>
+            <DrField lbl="Trạng thái">
+              {(() => {
+                const s = HL7_STATUS[sel.status] || { l: `#${sel.status}`, tone: 'info' as const };
+                return <StatusBadge tone={s.tone} dot>{s.l}</StatusBadge>;
+              })()}
+            </DrField>
+          </DrSec>
+          {sel.errorMessage && (
+            <DrSec title="Lỗi từ hệ nhận">
+              <div style={{ color: 'var(--s-crit)', whiteSpace: 'pre-wrap' }}>{sel.errorMessage}</div>
+            </DrSec>
+          )}
+          <DrSec title="Nội dung message">
+            <pre style={{
+              margin: 0, padding: 'var(--space-12)', background: 'var(--d-1)',
+              border: '1px solid var(--line)', borderRadius: 4,
+              fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)',
+              whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 360, overflow: 'auto',
+            }}>{sel.rawMessage?.split('\r').join('\n')}</pre>
+          </DrSec>
+        </>}
+      </DrawerShell>
+
+      <ModalShell open={modal} onClose={() => setModal(false)} size="md"
+        title={editing ? 'Sửa kênh HL7 / CDA' : 'Thêm kênh HL7 / CDA'}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setModal(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submit}><Ico name="check" size={12} /> Lưu</Btn>
+        </>}>
+        <Form form={form} layout="vertical">
+          <Form.Item name="configName" label="Tên kênh" rules={[{ required: true, message: 'Nhập tên kênh' }]}>
+            <Input placeholder="VD: Gửi kết quả sang HIS" />
+          </Form.Item>
+          <Form.Item name="connectionType" label="Kiểu kết nối" rules={[{ required: true }]}>
+            <Select options={HL7_CONNECTION_TYPES} />
+          </Form.Item>
+          {isFileChannel ? (
+            <Form.Item name="filePath" label="Thư mục ghi file" rules={[{ required: true, message: 'Nhập đường dẫn thư mục' }]}>
+              <Input placeholder="VD: D:\\hl7-outbound" />
+            </Form.Item>
+          ) : (
+            <>
+              <Form.Item name="serverAddress"
+                label={isHttpChannel ? 'URL hệ nhận' : 'Địa chỉ hệ nhận'}
+                rules={[{ required: true, message: 'Nhập địa chỉ hệ nhận' }]}>
+                <Input placeholder={isHttpChannel ? 'https://hisserver/hl7' : 'VD: 192.168.1.50'} />
+              </Form.Item>
+              {!isHttpChannel && (
+                <Form.Item name="serverPort" label="Cổng"
+                  rules={[{ required: true, message: 'Nhập cổng' }]}>
+                  <InputNumber min={1} max={65535} style={{ width: '100%' }} placeholder="2575" />
+                </Form.Item>
+              )}
+            </>
+          )}
+          <Form.Item name="hL7Version" label="Phiên bản HL7" rules={[{ required: true }]}>
+            <Select options={['2.3', '2.3.1', '2.5', '2.5.1'].map((v) => ({ value: v, label: v }))} />
+          </Form.Item>
+          <Form.Item name="sendingApplication" label="Sending Application"><Input placeholder="HIS_RIS" /></Form.Item>
+          <Form.Item name="sendingFacility" label="Sending Facility"><Input placeholder="Mã cơ sở gửi" /></Form.Item>
+          <Form.Item name="receivingApplication" label="Receiving Application"><Input placeholder="Tên hệ nhận" /></Form.Item>
+          <Form.Item name="receivingFacility" label="Receiving Facility"><Input placeholder="Mã cơ sở nhận" /></Form.Item>
+          <Form.Item name="isActive" label="Kích hoạt" valuePropName="checked"><Switch /></Form.Item>
+        </Form>
+      </ModalShell>
+    </>
+  );
+};
 
 const HospitalConfigTab: React.FC = () => {
   const [form] = Form.useForm();
@@ -560,6 +964,10 @@ interface RemoteServerRow {
   aeTitle: string;
   host: string;
   port: number;
+  callingAeTitle: string;
+  useTls: boolean;
+  useStorageCommitment: boolean;
+  timeoutSeconds: number;
   description?: string;
   isActive?: boolean;
 }
@@ -582,7 +990,14 @@ const RemotePacsTab: React.FC = () => {
 
   const openAdd = () => {
     setEditing(null); form.resetFields();
-    form.setFieldsValue({ port: 4242, isActive: true } as RemoteServerRow);
+    form.setFieldsValue({
+      port: 4242,
+      callingAeTitle: 'HIS_RIS',
+      useTls: false,
+      useStorageCommitment: false,
+      timeoutSeconds: 30,
+      isActive: true,
+    } as RemoteServerRow);
     setModal(true);
   };
   const openEdit = (r: RemoteServerRow) => { setEditing(r); form.setFieldsValue(r); setModal(true); };
@@ -590,7 +1005,7 @@ const RemotePacsTab: React.FC = () => {
   const submit = async () => {
     try {
       const v = await form.validateFields();
-      await saveRemoteServer({ ...v, id: editing?.id });
+      await saveRemoteServer({ ...v, id: editing?.id, isActive: v.isActive !== false });
       tk(editing ? 'Đã cập nhật server' : 'Đã thêm server'); setModal(false); load();
     } catch { tw('Lưu thất bại'); }
   };
@@ -599,11 +1014,20 @@ const RemotePacsTab: React.FC = () => {
     await deleteRemoteServer(r.id); tk('Đã xóa'); load();
   }, { tone: 'crit', confirm: 'Xóa' });
 
+  const check = async (r: RemoteServerRow) => {
+    try {
+      const response = await checkPACSConnection(r.id);
+      if (response.data.isConnected) tk(`C-ECHO thành công · ${response.data.pingTimeMs} ms`);
+      else tw(response.data.errorMessage || 'DICOM C-ECHO thất bại');
+    } catch { tw('Không thực hiện được DICOM C-ECHO'); }
+  };
+
   const cols: ColumnDef<RemoteServerRow>[] = [
     { key: 'name', label: 'Tên server', render: (r) => <b>{r.name}</b> },
     { key: 'ae', label: 'AE Title', code: true, render: (r) => r.aeTitle },
     { key: 'host', label: 'Host / IP', mono: true, render: (r) => r.host },
     { key: 'port', label: 'Port', mono: true, render: (r) => r.port },
+    { key: 'tls', label: 'Bảo mật', render: (r) => r.useTls ? <StatusBadge tone="ok">DICOM TLS</StatusBadge> : <StatusBadge tone="warn">VLAN/VPN</StatusBadge> },
     { key: 'active', label: 'Trạng thái', render: (r) => r.isActive !== false ? <StatusBadge tone="ok" dot>Hoạt động</StatusBadge> : <StatusBadge tone="warn" dot>Tắt</StatusBadge> },
   ];
 
@@ -623,6 +1047,7 @@ const RemotePacsTab: React.FC = () => {
         actions={(r) => (
           <div className="ab-actions">
             <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
+            <ActBtn ic="activity" title="DICOM C-ECHO" onClick={() => check(r)} />
             <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => remove(r)} />
           </div>
         )}
@@ -641,6 +1066,10 @@ const RemotePacsTab: React.FC = () => {
             <DrField lbl="AE Title"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.aeTitle}</span></DrField>
             <DrField lbl="Host / IP">{sel.host}</DrField>
             <DrField lbl="Port">{sel.port}</DrField>
+            <DrField lbl="Calling AE">{sel.callingAeTitle}</DrField>
+            <DrField lbl="DICOM TLS">{sel.useTls ? 'Bật' : 'Tắt'}</DrField>
+            <DrField lbl="Storage Commitment">{sel.useStorageCommitment ? 'Bật' : 'Tắt'}</DrField>
+            <DrField lbl="Timeout">{sel.timeoutSeconds} giây</DrField>
             <DrField lbl="Mô tả">{sel.description || '—'}</DrField>
             <DrField lbl="Trạng thái">
               {sel.isActive !== false ? <StatusBadge tone="ok" dot>Hoạt động</StatusBadge> : <StatusBadge tone="warn" dot>Tắt</StatusBadge>}
@@ -662,12 +1091,26 @@ const RemotePacsTab: React.FC = () => {
           <Form.Item name="aeTitle" label="AE Title" rules={[{ required: true, message: 'Vui lòng nhập AE Title' }]}>
             <Input placeholder="VD: REMOTE_PACS" />
           </Form.Item>
+          <Form.Item name="callingAeTitle" label="Calling AE Title" rules={[{ required: true, message: 'Vui lòng nhập Calling AE' }]}>
+            <Input maxLength={16} placeholder="HIS_RIS" />
+          </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-12)' }}>
             <Form.Item name="host" label="Host / IP" rules={[{ required: true, message: 'Vui lòng nhập host' }]}>
               <Input placeholder="VD: 192.168.1.100" />
             </Form.Item>
             <Form.Item name="port" label="Port" rules={[{ required: true, message: 'Vui lòng nhập port' }]}>
               <InputNumber min={1} max={65535} style={{ width: '100%' }} />
+            </Form.Item>
+          </div>
+          <Form.Item name="timeoutSeconds" label="DICOM timeout (giây)" rules={[{ required: true }]}>
+            <InputNumber min={1} max={3600} style={{ width: '100%' }} />
+          </Form.Item>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
+            <Form.Item name="useTls" valuePropName="checked">
+              <Checkbox>DICOM TLS</Checkbox>
+            </Form.Item>
+            <Form.Item name="useStorageCommitment" valuePropName="checked">
+              <Checkbox>Storage Commitment</Checkbox>
             </Form.Item>
           </div>
           <Form.Item name="description" label="Mô tả">

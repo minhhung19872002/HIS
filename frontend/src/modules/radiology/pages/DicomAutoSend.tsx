@@ -65,8 +65,8 @@ const DicomAutoSend: React.FC = () => {
     { lbl: 'Thành công',        val: (stats?.successCount ?? 0).toLocaleString(),
       sub: stats && stats.totalTransmissions > 0 ? `${(stats.successCount / stats.totalTransmissions * 100).toFixed(1)}%` : '—',
       tone: 'ok' as const },
-    { lbl: 'Mã hoá AES-256',    val: (stats?.encryptedCount ?? 0).toLocaleString(), sub: 'AES-256-GCM', tone: 'info' as const },
-    { lbl: 'Trigger 24h',       val: triggerCount24h, sub: 'tự động + cron', tone: 'warn' as const },
+    { lbl: 'DICOM TLS',         val: (stats?.encryptedCount ?? 0).toLocaleString(), sub: 'transport TLS', tone: 'info' as const },
+    { lbl: 'Trigger 24h',       val: triggerCount24h, sub: 'on-arrival', tone: 'warn' as const },
   ];
 
   const openCreate = () => {
@@ -111,18 +111,14 @@ const DicomAutoSend: React.FC = () => {
     { key: 'modality', label: 'Modality', width: 110, render: r => r.modality
         ? <StatusBadge tone="info">{r.modality}</StatusBadge>
         : <span style={{ color: 'var(--t-3)' }}>Tất cả</span> },
-    { key: 'sourceAeTitle', label: 'Source AE', mono: true,
-      render: r => r.sourceAeTitle || <span style={{ color: 'var(--t-3)' }}>—</span> },
     { key: 'dest', label: 'Server đích', render: r => r.destinationName },
     { key: 'encrypt', label: 'Mã hoá', width: 110,
       render: r => r.encryptBeforeSend
-        ? <StatusBadge tone="ok" dot>AES-256</StatusBadge>
+        ? <StatusBadge tone="ok" dot>DICOM TLS</StatusBadge>
         : <StatusBadge tone="info">Không</StatusBadge> },
     { key: 'trigger', label: 'Trigger', render: r => r.triggerType === 'on_arrival'
         ? 'Khi nhận DICOM'
-        : r.triggerType === 'scheduled'
-          ? <span className="mono">Cron · {r.scheduleCron}</span>
-          : 'Thủ công' },
+        : 'Không hỗ trợ' },
     { key: 'priority', label: 'Ưu tiên', mono: true, width: 80 },
     { key: 'isActive', label: 'TT', width: 110, render: r => r.isActive
         ? <StatusBadge tone="ok" dot>Hoạt động</StatusBadge>
@@ -145,7 +141,7 @@ const DicomAutoSend: React.FC = () => {
       render: r => `${(r.totalBytes / 1024 / 1024).toFixed(1)} MB` },
     { key: 'enc', label: 'Mã hoá', width: 130,
       render: r => r.wasEncrypted
-        ? <StatusBadge tone="ok" dot>{r.encryptionAlgorithm ?? 'AES-256'}</StatusBadge>
+        ? <StatusBadge tone="ok" dot>{r.encryptionAlgorithm ?? 'DICOM-TLS'}</StatusBadge>
         : <StatusBadge tone="info">Không</StatusBadge> },
     { key: 'duration', label: 'Thời gian', mono: true, width: 100,
       render: r => `${(r.durationMs / 1000).toFixed(1)}s` },
@@ -169,7 +165,7 @@ const DicomAutoSend: React.FC = () => {
         <>
           <div className="ab-toolbar">
             <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
-              🔁 Quy tắc auto-send · {rules.filter(r => r.isActive).length} active · {rules.filter(r => r.triggerType === 'scheduled').length} cron
+              🔁 Quy tắc auto-send · {rules.filter(r => r.isActive).length} active · chỉ on-arrival
             </span>
             <span className="spacer" style={{ flex: 1 }} />
             <Button size="small" onClick={triggerNow} loading={loading}>
@@ -319,33 +315,21 @@ const DicomAutoSend: React.FC = () => {
               <Form.Item name="modality" label="Modality">
                 <Select allowClear options={['CT', 'MR', 'CR', 'DX', 'US', 'XA', 'MG', 'NM', 'PT'].map(m => ({ value: m, label: m }))} />
               </Form.Item>
-              <Form.Item name="sourceAeTitle" label="Source AE Title">
-                <Input placeholder="VD: TOSHIBA_CT01" />
-              </Form.Item>
               <Form.Item name="destinationServerId" label="Server đích" rules={[{ required: true }]}>
                 <Select options={servers.map(s => ({ value: s.id, label: `${s.name} (${s.aeTitle})` }))} />
               </Form.Item>
               <Form.Item name="triggerType" label="Trigger">
                 <Select options={[
                   { value: 'on_arrival', label: 'Tự động khi nhận DICOM' },
-                  { value: 'scheduled',  label: 'Định kỳ (cron)' },
-                  { value: 'manual',     label: 'Thủ công' },
                 ]} />
               </Form.Item>
               <Form.Item name="priority" label="Ưu tiên (1=cao)">
                 <InputNumber min={1} max={10} style={{ width: '100%' }} />
               </Form.Item>
-              <Form.Item name="encryptBeforeSend" valuePropName="checked" label="Mã hoá AES-256">
-                <Checkbox>Mã hoá trước khi gửi (khuyến nghị)</Checkbox>
+              <Form.Item name="encryptBeforeSend" valuePropName="checked" label="DICOM TLS">
+                <Checkbox>Yêu cầu PACS đích dùng DICOM TLS</Checkbox>
               </Form.Item>
             </div>
-            <Form.Item shouldUpdate={(prev, cur) => prev.triggerType !== cur.triggerType} noStyle>
-              {() => form.getFieldValue('triggerType') === 'scheduled' && (
-                <Form.Item name="scheduleCron" label="Cron expression" extra="VD: 0 0 2 * * * (đêm 2h hằng ngày)">
-                  <Input placeholder="0 0 2 * * *" />
-                </Form.Item>
-              )}
-            </Form.Item>
             <Form.Item name="isActive" valuePropName="checked" label="Hoạt động">
               <Checkbox>Quy tắc đang chạy</Checkbox>
             </Form.Item>

@@ -26,6 +26,8 @@ export interface RadiologyOrderDto {
   items: RadiologyOrderItemDto[];
   status: string;
   patientType: string;
+  /** Mã accession gửi qua DICOM MWL, dùng để đối chiếu study từ PACS. */
+  accessionNumber?: string;
   /** DICOM Study Instance UID — null nếu chưa có DICOM linked */
   studyInstanceUID?: string;
   /**

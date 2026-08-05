@@ -83,6 +83,7 @@ export const HIS_GROUPS: NavGroup[] = [
       { id: 'pathology',          path: '/v2/pathology',          label: 'Giải phẫu bệnh' },
       { id: 'ivf-lab',            path: '/v2/ivf-lab',            label: 'Phòng Lab IVF' },
       { id: 'blood-bank',         path: '/v2/blood-bank',         label: 'Ngân hàng máu' },
+      { id: 'radiology-reports',  path: '/v2/radiology-reports',  label: 'Báo cáo CĐHA' },
       { id: 'ris-admin',          path: '/v2/ris-admin',          label: 'Quản trị RIS' },
       { id: 'ris-catalog-admin',  path: '/v2/ris-catalog-admin',  label: 'DM RIS (admin)' },
       { id: 'lis-catalog-admin',  path: '/v2/lis-catalog-admin',  label: 'DM LIS (admin)' },
