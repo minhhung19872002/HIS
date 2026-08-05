@@ -211,8 +211,54 @@ public class DicomAutoSendService : IDicomAutoSendService
         };
     }
 
+    /// <summary>
+    /// Trả lại các claim auto-send bị kẹt ở "sending".
+    ///
+    /// Claim được giữ bằng chỉ mục duy nhất trên DeduplicationKey. Nếu replica giành được claim
+    /// rồi chết trước khi gửi xong (restart pod, kill process, mất điện), hàng đó nằm lại vĩnh viễn:
+    /// kiểm tra alreadySent thấy Status="sending" nên bỏ qua, và chỉ mục duy nhất chặn insert lại.
+    /// Hậu quả là study KHÔNG BAO GIỜ tới PACS đích, mà cũng không hiện thành failed nên không ai
+    /// biết để xử lý. Đánh dấu failed (thay vì xoá) để lần thử này vẫn bị tính vào MaxRetries,
+    /// tránh việc một study làm sập worker sẽ được thử lại vô hạn.
+    /// </summary>
+    private async Task<int> ReleaseStaleClaimsAsync()
+    {
+        var timeoutMinutes = Math.Clamp(
+            _config.GetValue<int>("PACS:AutoSend:ClaimTimeoutMinutes", 30), 5, 720);
+        var cutoff = DateTime.UtcNow.AddMinutes(-timeoutMinutes);
+
+        // Chỉ đụng claim của auto-send: bản ghi gửi tay không có DeduplicationKey.
+        var stale = await _db.DicomTransmissionLogs
+            .Where(t => t.Status == "sending" &&
+                        t.AutoSendRuleId != null &&
+                        t.DeduplicationKey != null &&
+                        t.StartedAt < cutoff)
+            .ToListAsync();
+        if (stale.Count == 0) return 0;
+
+        var now = DateTime.UtcNow;
+        foreach (var t in stale)
+        {
+            t.Status = "failed";
+            t.ErrorMessage =
+                $"Auto-send claim quá {timeoutMinutes} phút chưa hoàn tất — tiến trình giữ claim đã " +
+                "dừng giữa chừng (restart/crash). Đã trả claim để thử lại.";
+            t.DeduplicationKey = null; // trả claim: chỉ mục duy nhất cho phép insert lại
+            t.CompletedAt = now;
+            t.DurationMs = (int)(now - t.StartedAt).TotalMilliseconds;
+            t.NextRetryAt = now;       // đủ điều kiện thử lại ngay ở vòng quét này
+        }
+        await _db.SaveChangesAsync();
+        _logger.LogWarning(
+            "Đã trả {Count} claim auto-send kẹt quá {Minutes} phút ở trạng thái sending",
+            stale.Count, timeoutMinutes);
+        return stale.Count;
+    }
+
     public async Task<int> TriggerAutoSendCheckAsync()
     {
+        await ReleaseStaleClaimsAsync();
+
         var rules = await _db.DicomAutoSendRules
             .Where(r => r.IsActive && r.TriggerType == "on_arrival" && !r.IsDeleted)
             .OrderBy(r => r.Priority).ToListAsync();

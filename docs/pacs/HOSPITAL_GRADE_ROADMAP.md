@@ -28,10 +28,32 @@ acknowledgement from the actual DICOM peer/Orthanc job and persisted with the re
 | MPPS SCP N-CREATE/N-SET + AE whitelist | Implemented | Real fo-dicom association/lifecycle test passed | Vendor acceptance pending |
 | Synchronous outbound C-STORE | Implemented | Local real-peer store/count test passed | Remote-vendor landing pending |
 | Capture DICOM import | Implemented; PatientID/UID/root checks are fail-closed | Pending real capture-device test | Not complete |
-| Auto-send worker, SQL claim, exponential retry | Implemented | Real store + same-worker dedupe passed | Multi-replica/crash test pending |
-| Study Root Query/Retrieve | C-FIND + C-MOVE/C-GET adapter/API implemented | Remote peer test pending | Not complete |
-- [ ] Integration tests: C-ECHO success/failure, MWL C-FIND, MPPS lifecycle, C-STORE land/verify.
-- [ ] Query/Retrieve acceptance tests: Study Root C-FIND and C-MOVE/C-GET for each target PACS.
+| Auto-send worker, SQL claim, exponential retry | Implemented + stale-claim release | Real store + same-worker dedupe passed; crash-recovery test `scripts/test-autosend-claim-recovery.ps1` 12/12 (7/5 fail before the fix) | Concurrent two-replica race still untested |
+| Study Root Query/Retrieve | C-FIND + C-MOVE/C-GET adapter/API implemented | Second-node test passed (`scripts/test-dicom-qr.ps1`, 21/21) | Vendor acceptance pending |
+- [x] Integration tests: C-ECHO success/failure, MWL C-FIND, MPPS lifecycle, C-STORE land/verify —
+  automated and repeatable through `tools/ModalitySimulator`, which opens real associations rather
+  than mocking them:
+  - `scripts/test-modality-sim.ps1` (18/18): C-ECHO aborted before the AE is declared and accepted
+    after, MWL C-FIND, C-STORE verified on the archive with `Origin=DicomProtocol` and the calling
+    AE recorded, and MPPS refused for an AE that is not a registered RIS modality.
+  - `scripts/test-mpps-order.ps1` (27/27): the full clinical loop against a **real HIS order** —
+    create the request, declare the modality, send the worklist, let the simulator read that
+    worklist and acquire, then assert in SQL that MPPS moved the exam 0 → performed with both
+    StartTime (only written on the IN PROGRESS branch, so N-CREATE demonstrably applied and was not
+    merely overwritten by N-SET) and EndTime set, the request advanced, and the MPPS SOP Instance
+    UID was retained as evidence.
+- [ ] Same tests against real modality vendors; the simulator proves protocol and RIS wiring, not
+  vendor-specific behaviour.
+- [x] Query/Retrieve acceptance test against an independent archive node is automated and repeatable:
+  `scripts/test-dicom-qr.ps1` seeds a 5-instance study on `orthanc-peer`, drives Study Root C-FIND
+  (by PatientID and by StudyInstanceUID), C-MOVE and C-GET through the HIS API, and verifies the
+  instance count **directly on the receiving archive** rather than trusting the API response. A
+  non-existent StudyInstanceUID must fail with the peer's real error. Found and fixed by this test:
+  `QueryStudiesAsync` read the C-FIND answer without `?simplify`, so Orthanc returned tags keyed by
+  hex ("0020,000d") and every field — including StudyInstanceUID — was silently empty; studies were
+  listed but could never be retrieved from the result.
+- [ ] Repeat the same test against each real target PACS (the peer proves protocol handling, not
+  vendor-specific behaviour).
 - [x] Storage Commitment is implemented as a real N-ACTION plus N-EVENT-REPORT poll; a destination
   with the flag on is only reported delivered when the peer's event report says `Success`, and the
   transaction UID is stored as evidence.
@@ -58,9 +80,18 @@ acknowledgement from the actual DICOM peer/Orthanc job and persisted with the re
   refused with a named error instead of an empty download.
 - [x] All of the above is reachable from the v2 UI: HL7/CDA channel admin, consumable norms,
   the CĐHA report screen and a per-exam consumables modal. Verified by driving a real browser.
+- [x] `[DevelopmentOnly]` seed endpoints are proven unreachable outside Development.
+  `scripts/test-dev-endpoints-blocked.ps1` (35/35) boots a second API in Staging and fires real
+  requests at every dev/seed route. It does not trust a hand-written list: routes are scanned out of
+  the controller sources by naming convention, so a **new** dev endpoint that forgets the attribute
+  is picked up automatically and fails the run — 27 routes are currently covered. Each route is
+  checked twice: `GET` must return 405 (the route genuinely exists, so a renamed route cannot pass by
+  returning 404 for the wrong reason) and `POST` must return 404. The run also proves the app is
+  alive in that environment, because a dead app would 404 everything.
+  These endpoints are all `[AllowAnonymous]` and all write real data, so the attribute is the only
+  thing between them and patient records.
 - [ ] Remaining RIS stubs outside the DICOM core: capture adapters for Serial/USB and
-  vendor-specific device protocols; `[DevelopmentOnly]` seed endpoints that assign one real
-  StudyInstanceUID round-robin across several patients must never be reachable in production.
+  vendor-specific device protocols.
 
 ## Phase 2 — security and privacy
 

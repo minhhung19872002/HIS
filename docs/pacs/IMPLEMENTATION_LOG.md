@@ -1,5 +1,176 @@
 # RIS/PACS implementation log
 
+## 2026-08-05 (part 8) — a crashed replica silently stopped a study from ever being sent
+
+Testing the multi-replica claim path found a real defect, not just a missing test.
+
+Auto-send claims a study with a row whose `DeduplicationKey` is protected by a filtered unique
+index — sound for the concurrent case: two replicas race, one insert wins, the loser catches the
+unique violation and skips. What had no owner was the **crash** case. If the replica that won the
+claim stops before finishing (pod restart, kill, power loss), the row stays `Status='sending'`
+forever, and:
+
+- the `alreadySent` check sees `sending` and skips that study on every later pass;
+- the unique index blocks any re-insert;
+- the row never becomes `failed`, so it appears in no error report.
+
+The study is therefore never delivered to the destination PACS and nothing indicates it. A silent
+stall is worse than a reported failure — the failure path already retries and surfaces the peer's
+error, while this one looks like work still in progress indefinitely.
+
+Fix: `ReleaseStaleClaimsAsync` runs at the top of every auto-send pass and releases claims held in
+`sending` past `PACS:AutoSend:ClaimTimeoutMinutes` (default 30, clamped 5–720). Released rows are
+marked `failed` — not deleted — with a stated reason, `DeduplicationKey` set to null and
+`NextRetryAt` set, so the ordinary retry path takes over **and the attempt still counts toward
+MaxRetries**; a study that reliably kills the worker cannot loop forever. Only auto-send claims are
+touched (`AutoSendRuleId` and `DeduplicationKey` both non-null), so manual sends are out of scope.
+
+The timeout must stay larger than the slowest legitimate store plus Storage Commitment, or the
+reaper would steal an in-flight claim and cause a duplicate send. That risk is asserted, not assumed.
+
+`scripts/test-autosend-claim-recovery.ps1` covers three rows in one pass:
+
+| Row | Meaning | Expected |
+|---|---|---|
+| A | auto claim, started long ago | released: `failed`, key null, reason + NextRetryAt set |
+| B | auto claim, started a minute ago | untouched — proves an in-flight send is not stolen |
+| C | manual send, started long ago | untouched — no claim to release |
+
+Evidence both ways: against the pre-fix build the run was **7 pass / 5 fail**, with row A stuck at
+`sending` and its key still held. Against the fixed build, **12/12**. `scripts/test-mpps-order.ps1`
+re-run afterwards: still 27/27.
+
+## 2026-08-05 (part 7) — dev/seed endpoints proven blocked outside Development
+
+The `[DevelopmentOnly]` attribute was already applied to every dev/seed endpoint; what did not exist
+was evidence that it works, or anything that would notice a future endpoint added without it. Both
+matter more here than usual: these endpoints are `[AllowAnonymous]` and they write real data — one
+assigns real Orthanc StudyInstanceUIDs round-robin across today's requests, another fabricates
+DicomStudy rows, others rewrite dates across whole tables.
+
+`scripts/test-dev-endpoints-blocked.ps1` (35/35) starts a second API on port 5107 in **Staging** —
+not Development, so the guard applies, and not Production, so the mandatory-secret guards do not
+refuse to boot. Two design points:
+
+- **Routes are scanned out of the controller sources, not listed by hand.** Class-level `[Route]`
+  (resolving `[controller]`, and carrying across partial-class files that omit it) is joined to each
+  write-method attribute, and anything matching the dev/seed naming convention is tested. The
+  hand-written list this replaced had 10 routes; the scan finds 27. A new dev endpoint is therefore
+  covered the day it is written, which is the only way this stays true over time.
+- **Each route is checked twice.** `GET` must return 405 and `POST` must return 404. Without the 405
+  check, renaming a route would make the test pass for the wrong reason — 404 because nothing is
+  there. The run separately proves the instance is alive (login succeeds, a normal endpoint returns
+  200) and that a fabricated route returns 404, so the signal is real.
+
+Found while building it: running `dotnet HIS.API.dll` sets ContentRoot to the current directory, so
+the app cannot read `appsettings.json` and dies with "JWT Key not configured". The script sets the
+working directory to the build output.
+
+No product defect was found — the guard holds on all 27 routes. What changed is that it is now
+verified and self-maintaining rather than assumed.
+
+## 2026-08-05 (part 6) — MPPS proven against a real order
+
+Part 5 left MPPS with protocol-level evidence only. `scripts/test-mpps-order.ps1` (27/27) closes
+that: `MppsProcessor` finds the exam by `AccessionNumber`, so nothing short of a real order proves
+the messages change anything clinically.
+
+The script creates a radiology request through `POST /api/radiology-ops/add-on`, declares the
+simulator as a RIS modality with `SupportsWorklist`/`SupportsMPPS`, sends the worklist with
+`POST /api/RISComplete/modalities/worklist/send`, then hands over to the device: the simulator reads
+that worklist by C-FIND, sends MPPS `IN PROGRESS`, stores 3 instances, and sends MPPS `COMPLETED`.
+
+Assertions are on state, not on responses:
+
+- Before acquisition the exam is `Status=0` with no MPPS status — so the later transition is real.
+- After: `MppsStatus=COMPLETED`, exam `Status=2`, request `Status>=3`, `MppsInstanceUid` retained.
+- **`StartTime` is asserted separately from `EndTime`.** `StartTime` is only written on the
+  `IN PROGRESS` branch, so its presence proves N-CREATE was applied rather than N-SET alone landing
+  and back-filling a completed exam — a modality that crashes mid-exam would otherwise be
+  indistinguishable from one that never started.
+- The images on the archive carry the exam's AccessionNumber and `RemoteAET=SIM_CR01`.
+
+Everything is removed afterwards: study, worklist entry, Orthanc modality, RIS modality, exam and
+request. Verified after the run — the archive is back to its 24 pre-existing studies, no worklist
+entries, no test rows.
+
+Two problems in the harness itself were found and fixed:
+
+- `sqlcmd -Q` runs with `QUOTED_IDENTIFIER OFF`, so any `DELETE` against a table carrying a filtered
+  index fails with Msg 1934. The cleanup silently left rows behind until the assertion caught it.
+  All statements now run with `SET QUOTED_IDENTIFIER ON`.
+- `DELETE /api/RISComplete/modalities/{id}` soft-deletes. Soft-deleted rows are inert for MPPS
+  (`IsKnownMppsAeAsync` filters on `IsDeleted`/`IsActive`) but accumulate one per run, so the
+  cleanup now removes them and asserts none remain.
+
+## 2026-08-05 (part 5) — modality simulator
+
+`tools/ModalitySimulator` is a fo-dicom 5.2.0 console that stands in for a CR/DX console. It is not a
+mock: every command opens a real association and speaks the SOP classes a vendor device speaks, so
+what it proves is what a modality would experience.
+
+- `echo` — C-ECHO.
+- `worklist` — Modality Worklist C-FIND, the query a console fires at shift start.
+- `acquire` — MWL C-FIND, MPPS N-CREATE `IN PROGRESS`, C-STORE, MPPS N-SET `COMPLETED`, carrying the
+  scheduled StudyInstanceUID and AccessionNumber through so the images land against the HIS order.
+  `--no-mpps` isolates the storage path when the MPPS half is not the subject under test.
+
+Verified against the running stack:
+
+- C-ECHO from an **unregistered** AE is aborted by `his-orthanc` (`DicomAlwaysAllowEcho=false` plus
+  `DicomCheckCalledAet`). After the AE is declared as a modality it succeeds. The hardening is real,
+  and declaring every modality AE explicitly is a commissioning step, not a formality.
+- MWL C-FIND returned the scheduled step with its Vietnamese procedure description intact.
+- `acquire --images 4` stored 4 instances. Read back **from the archive**: the study carries the
+  scheduled StudyInstanceUID, the accession and the patient ID, and its provenance is
+  `Origin=DicomProtocol`, `RemoteAET=SIM_CR01` — the same provenance capture the auto-send AE filters
+  depend on, now produced by something behaving like a device rather than by a REST upload.
+- MPPS against an AE that is not a registered RIS modality is rejected with
+  `CallingAENotRecognized`, and the simulator surfaces the rejection instead of continuing.
+
+One defect in the simulator was found by DICOM validation itself and fixed: `PerformedProcedureStepID`
+is VR SH (16 characters) and a `yyyyMMddHHmmss` suffix overflowed it.
+
+Still open for a full order-driven loop: the MPPS half needs a real radiology exam to match on
+accession (`MppsProcessor` looks the exam up by `AccessionNumber`), so an end-to-end script has to
+create the order in HIS and send the worklist through
+`POST /api/RISComplete/modalities/worklist/send` first. Until that exists, MPPS has protocol-level
+evidence but not order-linkage evidence from the simulator.
+
+Gate: `dotnet build tools/ModalitySimulator` — 0 errors, 0 warnings. All artifacts (study, worklist
+entry, Orthanc modality entry) were removed; `his-orthanc` is back to its pre-test 24 studies.
+
+## 2026-08-05 (part 4) — Query/Retrieve acceptance, and the C-FIND bug it exposed
+
+`scripts/test-dicom-qr.ps1` is the first repeatable acceptance test for the last open Phase 1
+capability. It uses the `dicom-test` peer as a remote PACS: seeds a 5-instance study there, registers
+the return route (`HIS_PACS` on the peer, without which C-MOVE has nowhere to send and C-FIND from an
+unknown AE is refused outright — confirmed by observing the abort), then drives the real HIS
+endpoints `POST /api/RISComplete/dicom/remote-servers/{id}/query|retrieve`.
+
+What it asserts, and why each one is not redundant:
+
+- C-FIND by PatientID **and** by StudyInstanceUID — the second is the path `RetrieveStudyAsync` takes
+  internally, so a passing PatientID query alone would not prove retrieve works.
+- The instance count is read back from `his-orthanc` itself after each retrieve, not taken from the
+  API response, so an API that reports success without images fails the test.
+- C-GET runs after the C-MOVE copy is deleted, so it proves a second, independent transport rather
+  than re-observing the first one's result.
+- A random StudyInstanceUID must come back 502 with the peer's real error.
+
+Result: 21/21 pass. C-MOVE and C-GET both landed all 5 instances and were verified on the archive.
+
+Defect found and fixed: `DicomPacsGateway.QueryStudiesAsync` read
+`queries/{id}/answers/{i}/content` **without `?simplify`**. Orthanc then keys the answer by hex tag
+(`"0020,000d"`), while `ReadTag` looks tags up by keyword — so every field came back empty. C-FIND
+appeared to succeed and returned the right number of studies, each with a blank PatientID,
+AccessionNumber and StudyInstanceUID, which made the found studies impossible to retrieve. The
+retrieve path was unaffected because it builds its own query and never parses the answer content,
+which is why the bug survived until query and retrieve were tested together.
+
+Gate: `dotnet build` HIS.Infrastructure — 0 errors. All test artifacts (studies on both nodes, the
+peer modality entry, the remote-server row) are removed by the script's cleanup step.
+
 ## 2026-08-05 (part 3) — second archive node closes the two open verifications
 
 `docker-compose.yml` gains `orthanc-peer` (AET `TEST_PACS`, host ports 4244/8044) behind the

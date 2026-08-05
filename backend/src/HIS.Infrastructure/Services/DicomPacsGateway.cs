@@ -402,8 +402,11 @@ public sealed class DicomPacsGateway : IDicomPacsGateway
             var studies = new List<DicomRemoteStudy>();
             foreach (var answerId in answerIds.Take(criteria.MaxResults))
             {
+                // ?simplify: without it Orthanc keys the answer by hex tag ("0020,000d"), so every
+                // ReadTag(name) lookup below silently returns "" and the caller gets a study with no
+                // StudyInstanceUID — found but impossible to retrieve.
                 using var contentResponse = await client.GetAsync(
-                    $"queries/{queryId}/answers/{Uri.EscapeDataString(answerId)}/content", cancellationToken);
+                    $"queries/{queryId}/answers/{Uri.EscapeDataString(answerId)}/content?simplify", cancellationToken);
                 if (!contentResponse.IsSuccessStatusCode) continue;
                 using var content = JsonDocument.Parse(await contentResponse.Content.ReadAsStringAsync(cancellationToken));
                 var root = content.RootElement;
