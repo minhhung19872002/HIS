@@ -1,5 +1,8 @@
 # NangCap24 — HSMT gói thầu BV Đa khoa (10 gap mới)
 
+> This is a feature-delivery document, not a hospital-production certificate. For current DICOM
+> implementation/evidence status, see [`../../pacs/HOSPITAL_GRADE_ROADMAP.md`](../../pacs/HOSPITAL_GRADE_ROADMAP.md).
+
 ## Tổng quan
 
 NangCap24 là gói nâng cấp tiếp theo của HSMT BV Đa khoa, đóng **10 gap** còn
@@ -37,7 +40,7 @@ tra BHXH.
 | VietQR EMVCo TLV generator (static + dynamic QR, CRC-16) | ✅ `PaymentGatewayService.VietQR.cs` |
 | Bank confirm thủ công (đối soát kế toán) | ✅ `ConfirmBankTransferAsync` (FK_Receipts_Cashier đã fix — commit `b523579`) |
 | HL7 queue + retry + ack tracking | ✅ string-status state (`pending/sending/sent/failed/acked/retrying`) |
-| DICOM auto-send rule + transmission log + stats | ✅ tích hợp Orthanc remote-server (C-STORE) |
+| DICOM auto-send rule + transmission log + stats | ⚠️ real C-STORE/retry code implemented; peer landing/concurrency evidence pending |
 | Exception filter mapping (400/404/409) | ⚠️ **KHÔNG có** filter riêng — service throw `Exception` → generic 500 (khác NangCap23) |
 | Role-based authorization | ✅ Per-action (xem [test-guide §6](./test-guide.md)) |
 | Test coverage | ✅ 13 Cypress page-load + 15 Playwright + 8 prod-functional |

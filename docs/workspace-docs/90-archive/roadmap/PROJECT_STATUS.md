@@ -1,5 +1,9 @@
 # HIS – Project Status
 
+> **Archived snapshot.** Current RIS/PACS readiness is governed by
+> [`../../../pacs/HOSPITAL_GRADE_ROADMAP.md`](../../../pacs/HOSPITAL_GRADE_ROADMAP.md). No “done”
+> label in this historical file is evidence of DICOM interoperability or clinical go-live.
+
 > **Mục đích:** Trạng thái triển khai từng phân hệ tại thời điểm hiện tại — feature đã hoàn thành, đang dở, còn thiếu, có integration ngoài hay mock.
 > **Phạm vi:** Toàn bộ 30+ phân hệ + module mở rộng (Medinet, NangCap1–23, EMR Level 6, AI Diagnostic Imaging Phase 1–4).
 > **Module liên quan:** Tất cả.

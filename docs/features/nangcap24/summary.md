@@ -275,8 +275,8 @@ Không có blocker cứng cho deploy demo (đã live prod `his-api-00029-khb`).
 |---|---|---|
 | Exception filter NangCap24 (map 400/404/409) | Med | Lỗi hiện trả 500 — chưa map; thêm `Nangcap24ExceptionFilter` |
 | HL7 queue background auto-process | Med | `ProcessPendingAsync` chưa wire hosted service |
-| DICOM auto-send scheduled (cron) trigger | Med | TriggerType=scheduled có field, chưa có worker |
-| Distributed lock DICOM auto-send (chống 2 instance) | Low | Idempotency hoặc lock |
+| DICOM auto-send scheduled (cron) trigger | Med | Bị từ chối fail-closed; chỉ `on_arrival` có worker thật |
+| DICOM auto-send concurrency/restart test | High | Đã có unique SQL claim; vẫn cần bằng chứng nhiều replica + crash recovery |
 | UNIQUE index BiometricCredentials.CredentialId | Low | Chống race duplicate |
 | SignatureCounter verify (anti-replay) | Med | Chống clone authenticator |
 
@@ -287,14 +287,14 @@ Không có blocker cứng cho deploy demo (đã live prod `his-api-00029-khb`).
 | Số TK ngân hàng thật (5 NH) | BV | Set `PaymentGateway:Bank:*:AccountNumber` |
 | Thiết bị authenticator | BN/máy trạm | Test biometric end-to-end |
 | Cloudflare R2 access key | DevOps | EMR cloud sync thật (Secret Manager) |
-| Orthanc VM remote PACS | DevOps | Đã có `168.110.52.7` |
+| Orthanc/remote PACS peer | DevOps | Phải xác minh lại endpoint, AE/IP/port và C-ECHO; tài liệu không coi IP lịch sử là bằng chứng |
 
 ### 7.4 Nguy cơ tiềm ẩn (đã document — analysis §17)
 
 - Biometric IsVerified MVP (R1) + SignatureCounter không check (R4)
 - Không exception filter → 500 thay 400/404 (R2)
 - Inspector signed-XML placeholder (R3)
-- DICOM auto-send 2 instance duplicate (R6)
+- DICOM auto-send đã có SQL dedupe; multi-instance/restart acceptance test vẫn pending (R6)
 - R2 credential trong env (R7)
 
 ---
