@@ -1,6 +1,6 @@
 # HIS - Hospital Information System
 
-> **★ RESPONSE LANGUAGE (all sessions):** reply to the user in the language of their message — a Vietnamese prompt gets a Vietnamese reply, an English prompt gets an English reply. These governance files being written in English is for token efficiency only; it does NOT change the response language. (The `UserPromptSubmit` hook in `.claude/settings.json` still requires the one-line skill note in Vietnamese.)
+> **★ RESPONSE LANGUAGE (all sessions):** reply to the user in the language of their message — a Vietnamese prompt gets a Vietnamese reply, an English prompt gets an English reply. These governance files being written in English is for token efficiency only; it does NOT change the response language. (The `UserPromptSubmit` hook in `.claude/settings.json` requires the one-line skill note in Vietnamese **only when a code task actually starts** — a Q&A/explanation turn prints none.)
 
 ## ⚠️ SKILL ROUTING — MUST BE INCLUDED BEFORE EVERY TASK CODE
 

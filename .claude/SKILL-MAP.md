@@ -2,7 +2,7 @@
 
 ROUTER map: choose which skill to use for a request. **The full description of every skill is auto-loaded by Claude via `description`** (the available-skills list) → this map does NOT repeat those descriptions, it keeps only **routing + governance**.
 
-> **★ RESPONSE LANGUAGE (always):** reply to the user in the language of their message — a Vietnamese prompt gets a Vietnamese reply, an English prompt gets an English reply. Governance/skill files being written in English is for token efficiency only; it does **NOT** change the response language. (Enforced by the `UserPromptSubmit` hook in `settings.json`, which still requires the one-line skill note in Vietnamese.)
+> **★ RESPONSE LANGUAGE (always):** reply to the user in the language of their message — a Vietnamese prompt gets a Vietnamese reply, an English prompt gets an English reply. Governance/skill files being written in English is for token efficiency only; it does **NOT** change the response language. (Enforced by the `UserPromptSubmit` hook in `settings.json`, which requires the one-line skill note in Vietnamese **only when a code task actually starts** — a Q&A/explanation turn prints none.)
 
 **★ THE ONLY ENTRY POINT (every input starts here → runs one full process):**
 ```

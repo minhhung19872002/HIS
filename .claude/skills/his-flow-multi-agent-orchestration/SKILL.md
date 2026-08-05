@@ -44,7 +44,7 @@ output must pass before being accepted — distilling multi-agent production pri
 ## Mechanism — 7 quality-gate layers (output must pass EACH layer)
 
 **0 · RIGHT-SIZE (the first gate — restraint).** Many agents = more hallucination + more tokens + merge-risk. Only fan-out when the work is
-**independent / parallel / heavy** enough to justify it; default inline. Warn about cost BEFORE a large fan-out (`feedback_cost-budget-warning`).
+**independent / parallel / heavy** enough to justify it; default inline. Warn about cost BEFORE a large fan-out.
 
 **1 · DECOMPOSE-for-isolation (one-writer).** Split into a DAG of **independent** subtasks, each agent owning a **separate** slice → no 2 agents
 write the same file/section. Forced-parallel-write → `isolation:'worktree'`. Minimal dependencies, prefer parallel.
