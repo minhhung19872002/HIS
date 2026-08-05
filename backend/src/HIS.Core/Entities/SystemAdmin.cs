@@ -232,6 +232,10 @@ public class RemotePacsServer : BaseEntity
     public string AeTitle { get; set; } = string.Empty; // AE Title (DICOM Application Entity)
     public string Host { get; set; } = string.Empty; // Hostname hoặc IP
     public int Port { get; set; } = 4242; // DICOM port (default 4242)
+    public string CallingAeTitle { get; set; } = "HIS_RIS";
+    public bool UseTls { get; set; }
+    public bool UseStorageCommitment { get; set; }
+    public int TimeoutSeconds { get; set; } = 30;
     public string? Description { get; set; }
     public bool IsActive { get; set; } = true;
 }

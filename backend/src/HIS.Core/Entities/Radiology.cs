@@ -93,6 +93,9 @@ public class RadiologyExam : BaseEntity
 
     public DateTime? StartTime { get; set; }
     public DateTime? EndTime { get; set; }
+    public string? MppsInstanceUid { get; set; }
+    public string? MppsStatus { get; set; }
+    public DateTime? MppsLastUpdatedAt { get; set; }
 
     // Navigation
     public virtual ICollection<DicomStudy> DicomStudies { get; set; } = new List<DicomStudy>();
@@ -149,6 +152,8 @@ public class RadiologyModality : BaseEntity
     public string? Manufacturer { get; set; } // Hãng sản xuất
     public string? ModelName { get; set; }
     public string? SerialNumber { get; set; }
+    public bool SupportsWorklist { get; set; }
+    public bool SupportsMPPS { get; set; }
     public DateTime? InstallationDate { get; set; }
     public DateTime? LastMaintenanceDate { get; set; }
 
@@ -205,6 +210,15 @@ public class DicomStudy : BaseEntity
     public DateTime? ArchivedAt { get; set; }
 
     public string? DicomData { get; set; } // JSON metadata DICOM khác
+
+    // Canonical provenance, read back from the archive (never inferred).  Auto-send rules filter
+    // on these; a study whose provenance was never resolved must not match a filtered rule.
+    public string? SourceAeTitle { get; set; } // Calling AE of the modality, only for DICOM associations
+    public string? SourceOrigin { get; set; } // DicomProtocol | RestApi | Plugin | Lua | ...
+    public string? SourceIpAddress { get; set; }
+    public string? StationName { get; set; } // DICOM (0008,1010)
+    public string? DepartmentCode { get; set; } // Khoa thực hiện (HIS) hoặc (0008,1040)
+    public DateTime? SourceResolvedAt { get; set; }
 }
 
 /// <summary>
@@ -987,6 +1001,79 @@ public class PacsImageAnnotation : BaseEntity
     public string? AnnotationData { get; set; } // JSON payload from Cornerstone3D tools
     public string? AnnotatedBy { get; set; }
     public DateTime AnnotatedTime { get; set; }
+}
+
+#endregion
+
+#region Vật tư / thuốc cản quang dùng cho ca chụp
+
+/// <summary>
+/// Định mức tiêu hao vật tư - thuốc cho một dịch vụ CĐHA (khai báo 1 lần, dùng lại mỗi ca chụp).
+/// </summary>
+public class RadiologyServiceNorm : BaseEntity
+{
+    public Guid ServiceId { get; set; }
+    public virtual Service Service { get; set; } = null!;
+
+    public string? Note { get; set; }
+    public bool IsActive { get; set; } = true;
+
+    public virtual ICollection<RadiologyServiceNormItem> Items { get; set; } = new List<RadiologyServiceNormItem>();
+}
+
+/// <summary>Một dòng định mức: thuốc/vật tư và số lượng chuẩn cho mỗi lượt chụp.</summary>
+public class RadiologyServiceNormItem : BaseEntity
+{
+    public Guid RadiologyServiceNormId { get; set; }
+    public virtual RadiologyServiceNorm RadiologyServiceNorm { get; set; } = null!;
+
+    public Guid ItemId { get; set; } // Medicine.Id hoặc MedicalSupply.Id
+    public string ItemType { get; set; } = "Medicine"; // Medicine | Supply
+    public decimal Quantity { get; set; }
+    public string? Unit { get; set; }
+    public bool IsRequired { get; set; }
+}
+
+/// <summary>
+/// Phiếu kê thuốc/vật tư thực dùng cho một phiếu chỉ định CĐHA.
+/// </summary>
+public class RadiologyPrescription : BaseEntity
+{
+    public Guid RadiologyRequestId { get; set; }
+    public virtual RadiologyRequest RadiologyRequest { get; set; } = null!;
+
+    public Guid WarehouseId { get; set; }
+    public virtual Warehouse Warehouse { get; set; } = null!;
+
+    public string PrescriptionCode { get; set; } = string.Empty;
+    public DateTime PrescriptionDate { get; set; }
+
+    public Guid? PrescribedByUserId { get; set; }
+    public virtual User? PrescribedByUser { get; set; }
+
+    public int Status { get; set; } // 0=Nháp, 1=Đã chốt, 2=Đã hủy
+    public decimal TotalAmount { get; set; }
+    public string? Note { get; set; }
+
+    public virtual ICollection<RadiologyPrescriptionItem> Items { get; set; } = new List<RadiologyPrescriptionItem>();
+}
+
+/// <summary>Một dòng thuốc/vật tư trên phiếu kê CĐHA.</summary>
+public class RadiologyPrescriptionItem : BaseEntity
+{
+    public Guid RadiologyPrescriptionId { get; set; }
+    public virtual RadiologyPrescription RadiologyPrescription { get; set; } = null!;
+
+    public Guid ItemId { get; set; } // Medicine.Id hoặc MedicalSupply.Id
+    public string ItemType { get; set; } = "Medicine"; // Medicine | Supply
+    public decimal Quantity { get; set; }
+    public decimal UnitPrice { get; set; }
+    public decimal InsurancePrice { get; set; }
+    public decimal Amount { get; set; }
+
+    public string? LotNumber { get; set; }
+    public DateTime? ExpiryDate { get; set; }
+    public string? Note { get; set; }
 }
 
 #endregion

@@ -85,34 +85,230 @@ public partial class RISCompleteService
         };
     }
 
+    // RadiologyHL7Message.Status: 0=Received, 1=Processing, 2=Processed, 3=Error, 4=Acknowledged.
+    private const int Hl7StatusProcessing = 1;
+    private const int Hl7StatusError = 3;
+    private const int Hl7StatusAcknowledged = 4;
+
+    private const char Hl7FieldSeparator = '|';
+    private const string Hl7EncodingCharacters = "^~\\&";
+
+    /// <summary>Kênh HL7 v2 chạy trên socket: "MLLP" và "TCP" là cùng một thứ trong triển khai thực tế.</summary>
+    private static bool IsMllpChannel(string? connectionType) =>
+        string.IsNullOrWhiteSpace(connectionType) ||
+        connectionType.Trim().Equals("MLLP", StringComparison.OrdinalIgnoreCase) ||
+        connectionType.Trim().Equals("TCP", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Kết quả gửi đi kèm lý do khi không chọn được kênh — để caller báo lỗi thật thay vì im lặng.
+    /// </summary>
+    private sealed record Hl7ChannelSelection(RadiologyHL7CDAConfig? Config, string? Error);
+
+    /// <summary>
+    /// Chọn kênh HL7 để gửi kết quả CĐHA đi. Nhiều kênh đang bật mà không chỉ định kênh mặc định
+    /// thì DỪNG — tránh gửi nhầm kết quả CĐHA sang giao diện của hệ khác (LIS, PACS...).
+    /// Kênh mặc định khai ở config `RIS:Hl7:DefaultConfigName`.
+    /// </summary>
+    private async Task<Hl7ChannelSelection> SelectHl7ChannelAsync(Guid? configId = null)
+    {
+        var active = await _context.Set<RadiologyHL7CDAConfig>()
+            .Where(c => c.IsActive && !c.IsDeleted)
+            .OrderBy(c => c.ConfigName)
+            .ToListAsync();
+
+        if (configId.HasValue)
+        {
+            var explicitConfig = active.FirstOrDefault(c => c.Id == configId.Value);
+            return explicitConfig != null
+                ? new Hl7ChannelSelection(explicitConfig, null)
+                : new Hl7ChannelSelection(null, "Kênh HL7 được chỉ định không tồn tại hoặc đã tắt");
+        }
+
+        if (active.Count == 0)
+            return new Hl7ChannelSelection(null,
+                "Chưa cấu hình kênh HL7 đang hoạt động — vào Quản trị RIS > HL7/CDA để khai báo");
+
+        var defaultName = _configuration["RIS:Hl7:DefaultConfigName"];
+        if (!string.IsNullOrWhiteSpace(defaultName))
+        {
+            var named = active.FirstOrDefault(c =>
+                string.Equals(c.ConfigName, defaultName.Trim(), StringComparison.OrdinalIgnoreCase));
+            return named != null
+                ? new Hl7ChannelSelection(named, null)
+                : new Hl7ChannelSelection(null,
+                    $"Không tìm thấy kênh HL7 mặc định '{defaultName}' trong danh sách đang hoạt động");
+        }
+
+        if (active.Count == 1) return new Hl7ChannelSelection(active[0], null);
+
+        return new Hl7ChannelSelection(null,
+            $"Có {active.Count} kênh HL7 đang hoạt động ({string.Join(", ", active.Select(c => c.ConfigName))}) — " +
+            "khai báo `RIS:Hl7:DefaultConfigName` để chọn kênh gửi kết quả CĐHA");
+    }
+
+    private static string Hl7Timestamp(DateTime value) => value.ToString("yyyyMMddHHmmss");
+
+    private static string Hl7Escape(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return string.Empty;
+        return value
+            .Replace("\\", "\\E\\")
+            .Replace("|", "\\F\\")
+            .Replace("^", "\\S\\")
+            .Replace("&", "\\T\\")
+            .Replace("~", "\\R\\")
+            .Replace("\r", " ")
+            .Replace("\n", " ");
+    }
+
+    private static string BuildMshSegment(
+        RadiologyHL7CDAConfig config,
+        string messageType,
+        string triggerEvent,
+        string messageControlId,
+        DateTime sentAt) =>
+        string.Join(Hl7FieldSeparator,
+            "MSH",
+            Hl7EncodingCharacters,
+            Hl7Escape(config.SendingApplication),
+            Hl7Escape(config.SendingFacility),
+            Hl7Escape(config.ReceivingApplication),
+            Hl7Escape(config.ReceivingFacility),
+            Hl7Timestamp(sentAt),
+            string.Empty,
+            $"{messageType}^{triggerEvent}",
+            messageControlId,
+            "P",
+            string.IsNullOrWhiteSpace(config.HL7Version) ? "2.5" : config.HL7Version);
+
+    /// <summary>
+    /// Gửi message qua đúng kênh đã cấu hình và ghi lại kết quả thật (ACK của hệ nhận).
+    /// </summary>
+    private async Task<Hl7SendOutcome> DispatchHl7Async(RadiologyHL7CDAConfig config, string message)
+    {
+        var connectionType = (config.ConnectionType ?? "MLLP").Trim();
+        if (IsMllpChannel(connectionType))
+        {
+            var timeout = _configuration.GetValue<int>("RIS:Hl7:TimeoutSeconds", 30);
+            return await Hl7MllpClient.SendAsync(
+                config.ServerAddress ?? string.Empty, config.ServerPort ?? 0, message, timeout);
+        }
+
+        if (string.Equals(connectionType, "File", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(config.FilePath))
+                return new Hl7SendOutcome(false, null, null, null, "HL7 File drop path is not configured");
+            try
+            {
+                Directory.CreateDirectory(config.FilePath);
+                var path = Path.Combine(config.FilePath, $"{Guid.NewGuid():N}.hl7");
+                await File.WriteAllTextAsync(path, message.Replace("\r", Environment.NewLine), Encoding.UTF8);
+                return new Hl7SendOutcome(true, null, null, null, null);
+            }
+            catch (Exception ex)
+            {
+                return new Hl7SendOutcome(false, null, null, null, ex.GetBaseException().Message);
+            }
+        }
+
+        if (string.Equals(connectionType, "HTTP", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(config.ServerAddress))
+                return new Hl7SendOutcome(false, null, null, null, "HL7 HTTP endpoint is not configured");
+            try
+            {
+                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+                using var content = new StringContent(message, Encoding.UTF8, "application/hl7-v2");
+                using var response = await http.PostAsync(config.ServerAddress, content);
+                var body = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                    return new Hl7SendOutcome(false, null, null, body,
+                        $"HL7 HTTP endpoint returned {(int)response.StatusCode}");
+                return new Hl7SendOutcome(true, null, null, body, null);
+            }
+            catch (Exception ex)
+            {
+                return new Hl7SendOutcome(false, null, null, null, ex.GetBaseException().Message);
+            }
+        }
+
+        return new Hl7SendOutcome(false, null, null, null,
+            $"Kiểu kết nối HL7 '{connectionType}' chưa được hỗ trợ");
+    }
+
+    /// <summary>Ghi log message vừa gửi kèm trạng thái/ACK thật rồi trả kết quả cho caller.</summary>
+    private async Task<SendHL7ResultDto> PersistOutboundHl7Async(
+        RadiologyHL7Message message,
+        Hl7SendOutcome outcome)
+    {
+        message.Status = outcome.Success ? Hl7StatusAcknowledged : Hl7StatusError;
+        message.AckCode = outcome.AckCode;
+        message.ErrorMessage = outcome.ErrorMessage;
+        await _unitOfWork.SaveChangesAsync();
+
+        if (!outcome.Success)
+        {
+            _logger.LogWarning(
+                "HL7 {MessageType}^{TriggerEvent} {ControlId} không gửi được: {Error}",
+                message.MessageType, message.TriggerEvent, message.MessageControlId, outcome.ErrorMessage);
+        }
+
+        return new SendHL7ResultDto
+        {
+            Success = outcome.Success,
+            MessageControlId = message.MessageControlId,
+            SentAt = message.MessageDateTime,
+            AckCode = outcome.AckCode,
+            ErrorMessage = outcome.ErrorMessage
+        };
+    }
+
+    private static SendHL7ResultDto NoChannelResult(string messageControlId, string? error) => new()
+    {
+        Success = false,
+        MessageControlId = messageControlId,
+        SentAt = DateTime.Now,
+        ErrorMessage = error ?? "Chưa cấu hình kênh HL7 đang hoạt động"
+    };
+
     public async Task<SendHL7ResultDto> SendHL7MessageAsync(SendHL7MessageDto dto)
     {
+        var controlId = Guid.NewGuid().ToString("N");
+        var channel = await SelectHl7ChannelAsync();
+        if (channel.Config == null) return NoChannelResult(controlId, channel.Error);
+        var config = channel.Config;
+
+        var sentAt = DateTime.Now;
+        var segments = new List<string>
+        {
+            BuildMshSegment(config, dto.MessageType, dto.TriggerEvent, controlId, sentAt)
+        };
+        foreach (var segment in dto.Segments ?? new Dictionary<string, object>())
+        {
+            var body = segment.Value?.ToString() ?? string.Empty;
+            segments.Add($"{segment.Key}{Hl7FieldSeparator}{body.Replace("\r", " ").Replace("\n", " ")}");
+        }
+        var raw = string.Join("\r", segments);
+
         var message = new RadiologyHL7Message
         {
             Id = Guid.NewGuid(),
-            MessageControlId = Guid.NewGuid().ToString(),
+            MessageControlId = controlId,
             MessageType = dto.MessageType,
             TriggerEvent = dto.TriggerEvent,
-            RawMessage = System.Text.Json.JsonSerializer.Serialize(dto.Segments ?? new Dictionary<string, object>()),
+            RawMessage = raw,
             Direction = "Outbound",
             RadiologyRequestId = dto.RadiologyRequestId,
             PatientId = dto.PatientId,
             AccessionNumber = dto.AccessionNumber,
-            Status = 1, // Sent
-            MessageDateTime = DateTime.Now,
-            CreatedAt = DateTime.Now
+            Status = Hl7StatusProcessing,
+            MessageDateTime = sentAt,
+            CreatedAt = sentAt
         };
-
         await _context.Set<RadiologyHL7Message>().AddAsync(message);
         await _unitOfWork.SaveChangesAsync();
 
-        return new SendHL7ResultDto
-        {
-            Success = true,
-            MessageControlId = message.MessageControlId,
-            SentAt = message.MessageDateTime,
-            AckCode = "AA"
-        };
+        return await PersistOutboundHl7Async(message, await DispatchHl7Async(config, raw));
     }
 
     public async Task<List<HL7MessageDto>> GetHL7MessagesAsync(
@@ -254,8 +450,45 @@ public partial class RISCompleteService
     {
         var config = await _context.Set<RadiologyHL7CDAConfig>().FindAsync(configId);
         if (config == null) return false;
-        // In production, test actual HL7 connection
-        return true;
+
+        var connectionType = (config.ConnectionType ?? "MLLP").Trim();
+        if (string.Equals(connectionType, "File", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(config.FilePath)) return false;
+            try
+            {
+                Directory.CreateDirectory(config.FilePath);
+                return Directory.Exists(config.FilePath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "HL7 file drop {Path} không truy cập được", config.FilePath);
+                return false;
+            }
+        }
+
+        if (string.Equals(connectionType, "HTTP", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(config.ServerAddress)) return false;
+            try
+            {
+                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+                using var response = await http.GetAsync(config.ServerAddress);
+                return (int)response.StatusCode < 500;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "HL7 HTTP endpoint {Endpoint} không kết nối được", config.ServerAddress);
+                return false;
+            }
+        }
+
+        var outcome = await Hl7MllpClient.TestConnectionAsync(
+            config.ServerAddress ?? string.Empty, config.ServerPort ?? 0);
+        if (!outcome.Success)
+            _logger.LogWarning("HL7 MLLP {Host}:{Port} không kết nối được: {Error}",
+                config.ServerAddress, config.ServerPort, outcome.ErrorMessage);
+        return outcome.Success;
     }
 
     public async Task<HL7MessageSearchResultDto> SearchHL7MessagesAsync(SearchHL7MessageDto searchDto)
@@ -310,73 +543,246 @@ public partial class RISCompleteService
     public async Task<bool> RetryHL7MessageAsync(Guid messageId)
     {
         var message = await _context.Set<RadiologyHL7Message>().FindAsync(messageId);
-        if (message == null || message.Status != 2) return false;
+        if (message == null || message.Direction != "Outbound" || message.Status != Hl7StatusError)
+            return false;
 
-        message.Status = 0; // Pending for retry
+        var channel = await SelectHl7ChannelAsync();
+        if (channel.Config == null)
+        {
+            message.ErrorMessage = channel.Error;
+            await _unitOfWork.SaveChangesAsync();
+            return false;
+        }
+        var config = channel.Config;
+
+        message.RetryCount++;
+        message.LastRetryAt = DateTime.Now;
+        message.Status = Hl7StatusProcessing;
         await _unitOfWork.SaveChangesAsync();
-        return true;
+
+        var outcome = await DispatchHl7Async(config, message.RawMessage);
+        await PersistOutboundHl7Async(message, outcome);
+        return outcome.Success;
     }
 
     public async Task<bool> SendCDADocumentAsync(SendCDADocumentDto dto)
     {
         var cdaDoc = await _context.Set<RadiologyCDADocument>().FindAsync(dto.DocumentId);
         if (cdaDoc == null) return false;
-
-        // In production, send CDA document to destination
-        return true;
-    }
-
-    public async Task<SendHL7ResultDto> SendHL7ResultAsync(Guid reportId, bool withSignature)
-    {
-        var report = await _context.RadiologyReports.FindAsync(reportId);
-        if (report == null)
+        if (string.IsNullOrWhiteSpace(cdaDoc.CDAContent))
         {
-            return new SendHL7ResultDto { Success = false, ErrorMessage = "Report not found" };
+            _logger.LogWarning("Tài liệu CDA {DocumentId} rỗng, không gửi", dto.DocumentId);
+            return false;
         }
 
+        var channel = await SelectHl7ChannelAsync(dto.ConfigId);
+        if (channel.Config == null)
+        {
+            _logger.LogWarning("Không chọn được kênh gửi CDA: {Error}", channel.Error);
+            return false;
+        }
+        var config = channel.Config;
+
+        var connectionType = (config.ConnectionType ?? "HTTP").Trim();
+        if (string.Equals(connectionType, "File", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(config.FilePath)) return false;
+            try
+            {
+                Directory.CreateDirectory(config.FilePath);
+                var path = Path.Combine(config.FilePath, $"CDA_{cdaDoc.DocumentId}.xml");
+                await File.WriteAllTextAsync(path, cdaDoc.CDAContent, Encoding.UTF8);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ghi tài liệu CDA {DocumentId} ra {Path} thất bại",
+                    dto.DocumentId, config.FilePath);
+                return false;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(config.ServerAddress))
+        {
+            _logger.LogWarning("Kênh CDA {ConfigName} chưa có địa chỉ đích", config.ConfigName);
+            return false;
+        }
+
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+            using var content = new StringContent(cdaDoc.CDAContent, Encoding.UTF8, "application/xml");
+            using var response = await http.PostAsync(config.ServerAddress, content);
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("Gửi CDA {DocumentId} bị từ chối: HTTP {Status} {Body}",
+                    dto.DocumentId, (int)response.StatusCode, body);
+                return false;
+            }
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Gửi tài liệu CDA {DocumentId} thất bại", dto.DocumentId);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Dựng ORU^R01 thật từ kết quả đọc (MSH/PID/OBR/OBX) rồi gửi qua kênh đã cấu hình.
+    /// </summary>
+    public async Task<SendHL7ResultDto> SendHL7ResultAsync(Guid reportId, bool withSignature)
+    {
+        var report = await _context.RadiologyReports
+            .Include(r => r.Radiologist)
+            .Include(r => r.RadiologyExam).ThenInclude(e => e.RadiologyRequest).ThenInclude(q => q.Patient)
+            .Include(r => r.RadiologyExam).ThenInclude(e => e.RadiologyRequest).ThenInclude(q => q.Service)
+            .FirstOrDefaultAsync(r => r.Id == reportId);
+        if (report == null)
+            return new SendHL7ResultDto { Success = false, ErrorMessage = "Không tìm thấy kết quả đọc" };
+
+        var controlId = Guid.NewGuid().ToString("N");
+        var channel = await SelectHl7ChannelAsync();
+        if (channel.Config == null) return NoChannelResult(controlId, channel.Error);
+        var config = channel.Config;
+
+        var sentAt = DateTime.Now;
+        // Kết quả đã duyệt gửi 'F' (final), chưa duyệt gửi 'P' (preliminary) — đúng nghĩa lâm sàng.
+        var resultStatus = report.Status >= 2 ? "F" : "P";
+        var raw = BuildOruMessage(config, report, controlId, sentAt, resultStatus, withSignature);
+
+        var request = report.RadiologyExam?.RadiologyRequest;
         var message = new RadiologyHL7Message
         {
             Id = Guid.NewGuid(),
-            MessageControlId = Guid.NewGuid().ToString(),
+            MessageControlId = controlId,
             MessageType = "ORU",
             TriggerEvent = "R01",
-            RawMessage = $"Report {reportId}",
+            RawMessage = raw,
             Direction = "Outbound",
-            Status = 1,
-            MessageDateTime = DateTime.Now,
-            CreatedAt = DateTime.Now
+            RadiologyRequestId = request?.Id,
+            PatientId = request?.Patient?.PatientCode,
+            AccessionNumber = report.RadiologyExam?.AccessionNumber,
+            Status = Hl7StatusProcessing,
+            MessageDateTime = sentAt,
+            CreatedAt = sentAt
         };
-
         await _context.Set<RadiologyHL7Message>().AddAsync(message);
         await _unitOfWork.SaveChangesAsync();
 
-        return new SendHL7ResultDto
+        return await PersistOutboundHl7Async(message, await DispatchHl7Async(config, raw));
+    }
+
+    private static string BuildOruMessage(
+        RadiologyHL7CDAConfig config,
+        RadiologyReport report,
+        string controlId,
+        DateTime sentAt,
+        string resultStatus,
+        bool withSignature)
+    {
+        var exam = report.RadiologyExam;
+        var request = exam?.RadiologyRequest;
+        var patient = request?.Patient;
+
+        var segments = new List<string>
         {
-            Success = true,
-            MessageControlId = message.MessageControlId,
-            SentAt = message.MessageDateTime,
-            AckCode = "AA"
+            BuildMshSegment(config, "ORU", "R01", controlId, sentAt),
+            string.Join(Hl7FieldSeparator,
+                "PID", "1", string.Empty,
+                Hl7Escape(patient?.PatientCode), string.Empty,
+                Hl7Escape(patient?.FullName?.Replace(' ', '^')),
+                string.Empty,
+                patient?.DateOfBirth?.ToString("yyyyMMdd") ?? string.Empty,
+                patient?.Gender == 1 ? "M" : patient?.Gender == 2 ? "F" : "U"),
+            string.Join(Hl7FieldSeparator,
+                "OBR", "1",
+                Hl7Escape(request?.RequestCode),
+                Hl7Escape(exam?.AccessionNumber),
+                $"{Hl7Escape(request?.Service?.ServiceCode)}^{Hl7Escape(request?.Service?.ServiceName)}",
+                string.Empty, string.Empty,
+                exam?.ExamDate != null ? Hl7Timestamp(exam.ExamDate) : string.Empty,
+                string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty,
+                string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty,
+                string.Empty, string.Empty, string.Empty,
+                report.ReportDate != null ? Hl7Timestamp(report.ReportDate.Value) : Hl7Timestamp(sentAt),
+                string.Empty, string.Empty, resultStatus)
         };
+
+        var observations = new List<(string Code, string Name, string? Value)>
+        {
+            ("FINDINGS", "Mô tả hình ảnh", report.Findings),
+            ("IMPRESSION", "Kết luận", report.Impression),
+            ("RECOMMENDATION", "Đề nghị", report.Recommendations)
+        };
+        if (withSignature)
+        {
+            observations.Add(("SIGNEDBY", "Bác sĩ ký",
+                report.Radiologist?.FullName));
+            observations.Add(("SIGNEDAT", "Thời điểm duyệt",
+                report.ApprovedAt?.ToString("yyyy-MM-dd HH:mm")));
+        }
+
+        var setId = 1;
+        foreach (var (code, name, value) in observations)
+        {
+            if (string.IsNullOrWhiteSpace(value)) continue;
+            segments.Add(string.Join(Hl7FieldSeparator,
+                "OBX", setId.ToString(), "TX",
+                $"{code}^{Hl7Escape(name)}",
+                "1", Hl7Escape(value),
+                string.Empty, string.Empty, string.Empty, string.Empty,
+                resultStatus));
+            setId++;
+        }
+
+        return string.Join("\r", segments);
     }
 
     public async Task<bool> CancelHL7ResultAsync(Guid reportId, string reason)
     {
+        var report = await _context.RadiologyReports
+            .Include(r => r.RadiologyExam).ThenInclude(e => e.RadiologyRequest).ThenInclude(q => q.Patient)
+            .Include(r => r.RadiologyExam).ThenInclude(e => e.RadiologyRequest).ThenInclude(q => q.Service)
+            .FirstOrDefaultAsync(r => r.Id == reportId);
+        if (report == null) return false;
+
+        var controlId = Guid.NewGuid().ToString("N");
+        var channel = await SelectHl7ChannelAsync();
+        if (channel.Config == null)
+        {
+            _logger.LogWarning("Không huỷ được kết quả {ReportId} phía hệ nhận: {Error}", reportId, channel.Error);
+            return false;
+        }
+        var config = channel.Config;
+
+        var sentAt = DateTime.Now;
+        // 'X' = results cannot be obtained / huỷ kết quả đã gửi (HL7 Table 0123).
+        var raw = BuildOruMessage(config, report, controlId, sentAt, "X", withSignature: false);
+        raw += $"\rNTE{Hl7FieldSeparator}1{Hl7FieldSeparator}{Hl7FieldSeparator}{Hl7Escape(reason)}";
+
+        var request = report.RadiologyExam?.RadiologyRequest;
         var message = new RadiologyHL7Message
         {
             Id = Guid.NewGuid(),
-            MessageControlId = Guid.NewGuid().ToString(),
+            MessageControlId = controlId,
             MessageType = "ORU",
             TriggerEvent = "R01",
-            RawMessage = $"Cancel report {reportId}: {reason}",
+            RawMessage = raw,
             Direction = "Outbound",
-            Status = 1,
-            MessageDateTime = DateTime.Now,
-            CreatedAt = DateTime.Now
+            RadiologyRequestId = request?.Id,
+            PatientId = request?.Patient?.PatientCode,
+            AccessionNumber = report.RadiologyExam?.AccessionNumber,
+            Status = Hl7StatusProcessing,
+            MessageDateTime = sentAt,
+            CreatedAt = sentAt
         };
-
         await _context.Set<RadiologyHL7Message>().AddAsync(message);
         await _unitOfWork.SaveChangesAsync();
-        return true;
+
+        var result = await PersistOutboundHl7Async(message, await DispatchHl7Async(config, raw));
+        return result.Success;
     }
 
     #endregion

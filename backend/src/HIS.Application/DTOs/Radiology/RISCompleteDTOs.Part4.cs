@@ -32,17 +32,19 @@ namespace HIS.Application.DTOs.Radiology
         public Guid? Id { get; set; }
         public string ConfigName { get; set; }
         public string HL7Version { get; set; }
-        public string CDAVersion { get; set; }
-        public string SendingApplication { get; set; }
-        public string SendingFacility { get; set; }
-        public string ReceivingApplication { get; set; }
-        public string ReceivingFacility { get; set; }
-        public string ConnectionType { get; set; }
-        public string ServerAddress { get; set; }
+        // Các field dưới đây phụ thuộc kiểu kết nối (MLLP/TCP cần địa chỉ+cổng, File cần đường dẫn)
+        // nên phải nullable — để non-nullable khiến model binder bắt buộc cả field không dùng tới.
+        public string? CDAVersion { get; set; }
+        public string? SendingApplication { get; set; }
+        public string? SendingFacility { get; set; }
+        public string? ReceivingApplication { get; set; }
+        public string? ReceivingFacility { get; set; }
+        public string? ConnectionType { get; set; }
+        public string? ServerAddress { get; set; }
         public int? ServerPort { get; set; }
-        public string FilePath { get; set; }
+        public string? FilePath { get; set; }
         public bool IsActive { get; set; }
-        public string ConfigJson { get; set; }
+        public string? ConfigJson { get; set; }
     }
 
     /// <summary>

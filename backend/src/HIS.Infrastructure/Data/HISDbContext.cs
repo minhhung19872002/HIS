@@ -341,6 +341,12 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<PacsKeyImage> PacsKeyImages => Set<PacsKeyImage>();
     public DbSet<PacsImageAnnotation> PacsImageAnnotations => Set<PacsImageAnnotation>();
 
+    // Vật tư / thuốc cản quang dùng cho ca chụp CĐHA
+    public DbSet<RadiologyServiceNorm> RadiologyServiceNorms => Set<RadiologyServiceNorm>();
+    public DbSet<RadiologyServiceNormItem> RadiologyServiceNormItems => Set<RadiologyServiceNormItem>();
+    public DbSet<RadiologyPrescription> RadiologyPrescriptions => Set<RadiologyPrescription>();
+    public DbSet<RadiologyPrescriptionItem> RadiologyPrescriptionItems => Set<RadiologyPrescriptionItem>();
+
     // Dược/Cấp phát
     public DbSet<DispenseRequest> DispenseRequests => Set<DispenseRequest>();
     public DbSet<DispenseRequestItem> DispenseRequestItems => Set<DispenseRequestItem>();
@@ -778,6 +784,11 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
         // Apply configurations
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(HISDbContext).Assembly);
 
+        // Vật tư CĐHA: số lượng dùng decimal(18,3) trong SQL — khai rõ để EF không mặc định
+        // (18,2) rồi cắt mất phần lẻ (vd 0,125 ml thuốc cản quang).
+        modelBuilder.Entity<RadiologyServiceNormItem>().Property(i => i.Quantity).HasPrecision(18, 3);
+        modelBuilder.Entity<RadiologyPrescriptionItem>().Property(i => i.Quantity).HasPrecision(18, 3);
+
         // Fix Discharge FK: DischargedBy is the FK for DischargedBy_User navigation
         // NangCap23: fix non-conventional navigation FK mappings
         modelBuilder.Entity<BirthCertificateRecord>()
@@ -1169,6 +1180,14 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
         // AUTHZ-1 #367: PermissionCode unique (non-deleted) — ngăn concurrent-startup duplicate + đảm bảo lookup.
         modelBuilder.Entity<Permission>().Property(p => p.PermissionCode).HasMaxLength(100);
         modelBuilder.Entity<Permission>().HasIndex(p => p.PermissionCode).IsUnique().HasFilter("[IsDeleted] = 0");
+
+        // PACS auto-routing is processed by background workers on potentially multiple API
+        // replicas. Keep one active/successful delivery per rule+study at the database boundary.
+        modelBuilder.Entity<DicomTransmissionLog>().Property(t => t.DeduplicationKey).HasMaxLength(160);
+        modelBuilder.Entity<DicomTransmissionLog>()
+            .HasIndex(t => t.DeduplicationKey)
+            .IsUnique()
+            .HasFilter("[DeduplicationKey] IS NOT NULL AND [IsDeleted] = 0");
 
         // #50-54: NewbornRecord.MotherAdmission — NoAction de tranh multiple cascade paths
         modelBuilder.Entity<NewbornRecord>().HasOne(n => n.MotherAdmission).WithMany().HasForeignKey(n => n.MotherAdmissionId).OnDelete(DeleteBehavior.NoAction);

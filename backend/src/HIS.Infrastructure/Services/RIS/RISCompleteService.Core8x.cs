@@ -434,63 +434,48 @@ public partial class RISCompleteService
 
     public async Task<List<PACSConnectionDto>> GetPACSConnectionsAsync()
     {
-        // Return configured PACS connections from database
         var connections = new List<PACSConnectionDto>();
 
-        // Add default internal PACS (no external dependency)
-        connections.Add(new PACSConnectionDto
-        {
-            Id = Guid.Parse("00000001-0000-0000-0000-000000000001"),
-            Name = "HIS Internal Storage",
-            ServerType = "Internal",
-            AETitle = "HIS_PACS",
-            IpAddress = "localhost",
-            Port = 0,
-            QueryRetrievePort = 0,
-            Protocol = "Internal",
-            IsConnected = true, // Always connected (internal storage)
-            LastSync = DateTime.Now,
-            IsActive = true
-        });
-
-        // If external PACS is configured and enabled
-        if (_pacsEnabled && !string.IsNullOrEmpty(_pacsBaseUrl))
+        if (_pacsEnabled)
         {
             connections.Add(new PACSConnectionDto
             {
                 Id = Guid.Parse("00000002-0000-0000-0000-000000000001"),
-                Name = "External PACS",
-                ServerType = "External",
-                AETitle = _configuration["PACS:AETitle"] ?? "PACS",
-                IpAddress = _configuration["PACS:IpAddress"] ?? "",
+                Name = _configuration["PACS:Name"] ?? "Primary Orthanc PACS",
+                ServerType = "Orthanc",
+                AETitle = _configuration["PACS:AETitle"] ?? "HIS_PACS",
+                IpAddress = _configuration["PACS:IpAddress"] ?? "localhost",
                 Port = _configuration.GetValue<int>("PACS:Port", 4242),
                 QueryRetrievePort = _configuration.GetValue<int>("PACS:QueryRetrievePort", 8042),
                 Protocol = "DICOM",
-                IsConnected = false, // Will be checked separately
-                LastSync = DateTime.Now,
+                IsConnected = false,
                 IsActive = _pacsEnabled
             });
         }
 
-        return await Task.FromResult(connections);
+        var remoteServers = await _context.RemotePacsServers.AsNoTracking()
+            .Where(s => !s.IsDeleted)
+            .OrderBy(s => s.Name)
+            .ToListAsync();
+        connections.AddRange(remoteServers.Select(server => new PACSConnectionDto
+        {
+            Id = server.Id,
+            Name = server.Name,
+            ServerType = "Remote",
+            AETitle = server.AeTitle,
+            IpAddress = server.Host,
+            Port = server.Port,
+            QueryRetrievePort = server.Port,
+            Protocol = server.UseTls ? "DICOM-TLS" : "DICOM",
+            IsConnected = false,
+            IsActive = server.IsActive,
+        }));
+
+        return connections;
     }
 
     public async Task<PACSConnectionStatusDto> CheckPACSConnectionAsync(Guid connectionId)
     {
-        // For internal storage, always return connected
-        if (connectionId == Guid.Parse("00000001-0000-0000-0000-000000000001"))
-        {
-            return new PACSConnectionStatusDto
-            {
-                ConnectionId = connectionId,
-                IsConnected = true,
-                PingTimeMs = 0,
-                ErrorMessage = null,
-                CheckTime = DateTime.Now
-            };
-        }
-
-        // For external PACS (if configured)
         if (!_pacsEnabled)
         {
             return new PACSConnectionStatusDto
@@ -503,12 +488,35 @@ public partial class RISCompleteService
             };
         }
 
+        DicomEndpoint endpoint;
+        if (connectionId == Guid.Parse("00000002-0000-0000-0000-000000000001"))
+        {
+            endpoint = GetConfiguredPacsEndpoint();
+        }
+        else
+        {
+            var remote = await _context.RemotePacsServers.AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == connectionId && s.IsActive && !s.IsDeleted);
+            if (remote == null)
+            {
+                return new PACSConnectionStatusDto
+                {
+                    ConnectionId = connectionId,
+                    IsConnected = false,
+                    PingTimeMs = -1,
+                    ErrorMessage = "Không tìm thấy PACS đang hoạt động",
+                    CheckTime = DateTime.Now,
+                };
+            }
+            endpoint = ToEndpoint(remote);
+        }
+        var echo = await _dicomPacsGateway.EchoAsync(endpoint);
         return new PACSConnectionStatusDto
         {
             ConnectionId = connectionId,
-            IsConnected = false,
-            PingTimeMs = -1,
-            ErrorMessage = "External PACS connection not configured",
+            IsConnected = echo.Success,
+            PingTimeMs = echo.Success ? echo.ElapsedMilliseconds : -1,
+            ErrorMessage = echo.ErrorMessage,
             CheckTime = DateTime.Now
         };
     }
@@ -529,16 +537,12 @@ public partial class RISCompleteService
             {
                 typeInt = modalityType.ToUpper() switch
                 {
-                    "XRAY" or "XR" => 0,
-                    "CT" => 1,
-                    "MRI" => 2,
-                    "US" or "ULTRASOUND" => 3,
-                    "NM" or "NUCLEARMEDICINE" => 4,
-                    "PET" => 5,
-                    "FLUORO" => 6,
-                    "MAMMO" => 7,
-                    "DR" => 8,
-                    "CR" => 9,
+                    "XRAY" or "XR" or "DX" or "DR" or "CR" => 1,
+                    "CT" => 2,
+                    "MRI" or "MR" => 3,
+                    "US" or "ULTRASOUND" => 4,
+                    "MAMMO" or "MG" => 5,
+                    "PET" or "PT" => 6,
                     _ => -1
                 };
             }
@@ -550,53 +554,90 @@ public partial class RISCompleteService
 
         var modalities = await query.ToListAsync();
 
-        // If no modalities in database, return default ones
-        if (!modalities.Any())
+        var probes = await Task.WhenAll(modalities.Select(async modality =>
         {
-            return GetDefaultModalities();
-        }
+            if (string.IsNullOrWhiteSpace(modality.IPAddress) ||
+                string.IsNullOrWhiteSpace(modality.AETitle) || !modality.Port.HasValue)
+                return (modality.Id, Echo: (DicomEchoResult?)null);
 
-        return modalities.Select(m => new ModalityDto
+            var endpoint = new DicomEndpoint(
+                modality.IPAddress,
+                modality.Port.Value,
+                modality.AETitle,
+                _configuration["PACS:CallingAETitle"] ?? "HIS_RIS",
+                false,
+                false,
+                3);
+            return (modality.Id, Echo: await _dicomPacsGateway.EchoAsync(endpoint));
+        }));
+        var probeById = probes.ToDictionary(x => x.Id, x => x.Echo);
+
+        return modalities.Select(m =>
         {
-            Id = m.Id,
-            Code = m.ModalityCode,
-            Name = m.ModalityName,
-            ModalityType = GetModalityTypeName(m.ModalityType),
-            Manufacturer = m.Manufacturer,
-            Model = m.ModelName,
-            AETitle = m.AETitle,
-            IpAddress = m.IPAddress,
-            Port = m.Port,
-            RoomId = m.RoomId ?? Guid.Empty,
-            RoomName = m.Room?.RoomName ?? "",
-            ConnectionStatus = m.Status == 1 ? "Online" : "Offline",
-            LastCommunication = DateTime.Now,
-            SupportsWorklist = true,
-            SupportsMPPS = true,
-            IsActive = m.IsActive
+            var echo = probeById.GetValueOrDefault(m.Id);
+            return new ModalityDto
+            {
+                Id = m.Id,
+                Code = m.ModalityCode,
+                Name = m.ModalityName,
+                ModalityType = GetModalityTypeName(m.ModalityType),
+                Manufacturer = m.Manufacturer,
+                Model = m.ModelName,
+                AETitle = m.AETitle,
+                IpAddress = m.IPAddress,
+                Port = m.Port,
+                RoomId = m.RoomId ?? Guid.Empty,
+                RoomName = m.Room?.RoomName ?? "",
+                ConnectionStatus = echo == null ? "NotConfigured" : echo.Success ? "Online" : "Offline",
+                LastCommunication = echo?.Success == true ? DateTime.Now : null,
+                SupportsWorklist = m.SupportsWorklist,
+                SupportsMPPS = m.SupportsMPPS,
+                IsActive = m.IsActive
+            };
         }).ToList();
     }
 
     public async Task<PACSConnectionDto> CreatePACSConnectionAsync(CreatePACSConnectionDto dto)
     {
-        // Store PACS connection configuration
-        return new PACSConnectionDto
+        var entity = new RemotePacsServer
         {
             Id = Guid.NewGuid(),
-            Name = dto.Name,
-            ServerType = dto.ServerType,
-            AETitle = dto.AETitle,
-            IpAddress = dto.IpAddress,
+            Name = dto.Name.Trim(),
+            AeTitle = dto.AETitle.Trim(),
+            Host = dto.IpAddress.Trim(),
             Port = dto.Port,
+            IsActive = dto.IsActive,
+            CreatedAt = DateTime.UtcNow,
+        };
+        _context.RemotePacsServers.Add(entity);
+        await _context.SaveChangesAsync();
+        return new PACSConnectionDto
+        {
+            Id = entity.Id,
+            Name = entity.Name,
+            ServerType = "Remote",
+            AETitle = entity.AeTitle,
+            IpAddress = entity.Host,
+            Port = entity.Port,
             QueryRetrievePort = dto.QueryRetrievePort,
-            Protocol = dto.Protocol,
+            Protocol = "DICOM",
             IsConnected = false,
-            IsActive = dto.IsActive
+            IsActive = entity.IsActive
         };
     }
 
     public async Task<PACSConnectionDto> UpdatePACSConnectionAsync(Guid id, UpdatePACSConnectionDto dto)
     {
+        var entity = await _context.RemotePacsServers
+            .FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy PACS connection");
+        entity.Name = dto.Name.Trim();
+        entity.AeTitle = dto.AETitle.Trim();
+        entity.Host = dto.IpAddress.Trim();
+        entity.Port = dto.Port;
+        entity.IsActive = dto.IsActive;
+        entity.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
         return new PACSConnectionDto
         {
             Id = id,
@@ -613,7 +654,13 @@ public partial class RISCompleteService
 
     public async Task<bool> DeletePACSConnectionAsync(Guid id)
     {
-        return await Task.FromResult(true);
+        var entity = await _context.RemotePacsServers.FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted);
+        if (entity == null) return false;
+        entity.IsDeleted = true;
+        entity.IsActive = false;
+        entity.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     public async Task<ModalityDto> CreateModalityAsync(CreateModalityDto dto)
@@ -630,6 +677,8 @@ public partial class RISCompleteService
             IPAddress = dto.IpAddress,
             Port = dto.Port,
             RoomId = dto.RoomId,
+            SupportsWorklist = dto.SupportsWorklist,
+            SupportsMPPS = dto.SupportsMPPS,
             Status = 1,
             IsActive = dto.IsActive,
             CreatedAt = DateTime.Now
@@ -650,6 +699,8 @@ public partial class RISCompleteService
             IpAddress = modality.IPAddress,
             Port = modality.Port,
             RoomId = modality.RoomId ?? Guid.Empty,
+            SupportsWorklist = modality.SupportsWorklist,
+            SupportsMPPS = modality.SupportsMPPS,
             IsActive = modality.IsActive
         };
     }
@@ -667,6 +718,8 @@ public partial class RISCompleteService
         modality.AETitle = dto.AETitle;
         modality.IPAddress = dto.IpAddress;
         modality.Port = dto.Port;
+        modality.SupportsWorklist = dto.SupportsWorklist;
+        modality.SupportsMPPS = dto.SupportsMPPS;
         modality.RoomId = dto.RoomId;
         modality.IsActive = dto.IsActive;
         modality.UpdatedAt = DateTime.Now;
@@ -696,7 +749,6 @@ public partial class RISCompleteService
 
     public async Task<RISSendWorklistResultDto> SendWorklistToModalityAsync(SendModalityWorklistDto dto)
     {
-        // Send worklist to modality via DICOM MWL
         var result = new RISSendWorklistResultDto
         {
             Success = true,
@@ -705,26 +757,78 @@ public partial class RISCompleteService
             Errors = new List<string>()
         };
 
-        foreach (var orderId in dto.OrderIds)
+        var modality = await _context.RadiologyModalities
+            .FirstOrDefaultAsync(m => m.Id == dto.ModalityId && m.IsActive && !m.IsDeleted);
+        if (modality == null)
+        {
+            result.Success = false;
+            result.SentCount = 0;
+            result.FailedCount = dto.OrderIds.Count;
+            result.Errors.Add("Không tìm thấy modality đang hoạt động");
+            return result;
+        }
+        if (!modality.SupportsWorklist || string.IsNullOrWhiteSpace(modality.AETitle))
+        {
+            result.Success = false;
+            result.SentCount = 0;
+            result.FailedCount = dto.OrderIds.Count;
+            result.Errors.Add("Modality chưa được cấu hình hỗ trợ DICOM MWL/AET");
+            return result;
+        }
+
+        foreach (var orderId in dto.OrderIds.Distinct())
         {
             var request = await _context.RadiologyRequests
                 .Include(r => r.Patient)
                 .Include(r => r.Service)
+                .Include(r => r.RequestingDoctor)
+                .Include(r => r.Exams)
                 .FirstOrDefaultAsync(r => r.Id == orderId);
 
-            if (request != null)
+            if (request == null)
             {
-                // Create worklist item in Orthanc
-                try
+                result.FailedCount++;
+                result.Errors.Add($"Order {orderId}: không tồn tại");
+                continue;
+            }
+
+            var exam = request.Exams.FirstOrDefault(e => e.ModalityId == modality.Id && !e.IsDeleted);
+            if (exam == null)
+            {
+                exam = new RadiologyExam
                 {
-                    // Orthanc worklist entry would be created here
-                    // This requires Orthanc worklist plugin
-                }
-                catch (Exception ex)
-                {
-                    result.FailedCount++;
-                    result.Errors.Add($"Order {orderId}: {ex.Message}");
-                }
+                    Id = Guid.NewGuid(),
+                    RadiologyRequestId = request.Id,
+                    ExamCode = $"IMG-{request.Id:N}"[..20],
+                    ExamName = request.Service.ServiceName,
+                    ExamDate = request.ScheduledDate ?? request.RequestDate,
+                    ModalityId = modality.Id,
+                    RoomId = modality.RoomId,
+                    AccessionNumber = request.Id.ToString("N")[..16].ToUpperInvariant(),
+                    Status = 0,
+                    CreatedAt = DateTime.UtcNow,
+                };
+                _context.RadiologyExams.Add(exam);
+                await _context.SaveChangesAsync();
+            }
+
+            var worklist = new DicomWorklistItem(
+                request.Patient.PatientCode,
+                request.Patient.FullName,
+                request.Patient.DateOfBirth,
+                request.Patient.Gender switch { 1 => "M", 2 => "F", _ => "O" },
+                exam.AccessionNumber,
+                request.Service.ServiceCode,
+                request.Service.ServiceName,
+                modality.AETitle,
+                GetDicomModalityCode(modality.ModalityType),
+                request.ScheduledDate ?? request.RequestDate,
+                request.RequestingDoctor.FullName);
+            var create = await _dicomPacsGateway.CreateWorklistAsync(worklist);
+            if (!create.Success)
+            {
+                result.FailedCount++;
+                result.Errors.Add($"Order {orderId}: {create.ErrorMessage}");
             }
         }
 
@@ -734,16 +838,82 @@ public partial class RISCompleteService
         return result;
     }
 
+    private DicomEndpoint GetConfiguredPacsEndpoint() => new(
+        _configuration["PACS:IpAddress"] ?? "localhost",
+        _configuration.GetValue<int>("PACS:Port", 4242),
+        _configuration["PACS:AETitle"] ?? "HIS_PACS",
+        _configuration["PACS:CallingAETitle"] ?? "HIS_RIS",
+        _configuration.GetValue<bool>("PACS:UseDicomTls", false),
+        false,
+        _configuration.GetValue<int>("PACS:DicomTimeoutSeconds", 10));
+
+    private DicomEndpoint ToEndpoint(RemotePacsServer server) => new(
+        server.Host,
+        server.Port,
+        server.AeTitle,
+        string.IsNullOrWhiteSpace(server.CallingAeTitle)
+            ? _configuration["PACS:CallingAETitle"] ?? "HIS_RIS"
+            : server.CallingAeTitle,
+        server.UseTls,
+        server.UseStorageCommitment,
+        server.TimeoutSeconds);
+
+    private static string GetDicomModalityCode(int modalityType) => modalityType switch
+    {
+        1 => "DX",
+        2 => "CT",
+        3 => "MR",
+        4 => "US",
+        5 => "MG",
+        6 => "PT",
+        _ => "OT",
+    };
+
     public async Task<bool> ReceiveMPPSAsync(Guid modalityId, string mppsData)
     {
-        // Process MPPS (Modality Performed Procedure Step) from modality
-        return await Task.FromResult(true);
+        await Task.CompletedTask;
+        throw new NotSupportedException(
+            "MPPS must be sent by the modality over DICOM N-CREATE/N-SET to the configured HIS_MPPS SCP");
     }
 
     public async Task<bool> ConfigureDeviceConnectionAsync(Guid deviceId, DeviceConnectionConfigDto config)
     {
-        // Configure device connection settings
-        return await Task.FromResult(true);
+        var device = await _context.Set<RadiologyCaptureDevice>()
+            .FirstOrDefaultAsync(d => d.Id == deviceId && !d.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy thiết bị capture");
+
+        var connectionType = (config.ConnectionType ?? string.Empty).Trim().ToUpperInvariant();
+        if (connectionType is not ("DICOM" or "TCP" or "FILE" or "SERIAL" or "USB"))
+            throw new ArgumentException("ConnectionType phải là DICOM, TCP, File, Serial hoặc USB");
+        if (connectionType is "DICOM" or "TCP")
+        {
+            if (string.IsNullOrWhiteSpace(config.IpAddress) || config.Port is < 1 or > 65535)
+                throw new ArgumentException("Kết nối DICOM/TCP cần IP và port hợp lệ");
+        }
+        if (connectionType == "DICOM" && string.IsNullOrWhiteSpace(device.AETitle))
+            throw new ArgumentException("Thiết bị DICOM chưa có AE Title");
+        if (connectionType == "FILE" && string.IsNullOrWhiteSpace(config.FolderPath))
+            throw new ArgumentException("Kết nối File cần thư mục trao đổi");
+        if (connectionType == "SERIAL" &&
+            (string.IsNullOrWhiteSpace(config.ComPort) || config.BaudRate is null or <= 0))
+            throw new ArgumentException("Kết nối Serial cần COM port và baud rate");
+
+        device.ConnectionType = connectionType;
+        device.IpAddress = config.IpAddress?.Trim();
+        device.Port = config.Port;
+        device.ComPort = config.ComPort?.Trim();
+        device.BaudRate = config.BaudRate;
+        device.FolderPath = config.FolderPath?.Trim();
+        device.ConfigJson = JsonSerializer.Serialize(new
+        {
+            config.Protocol,
+            config.ConnectionString,
+        });
+        device.Status = 0;
+        device.LastCommunication = null;
+        device.UpdatedAt = DateTime.UtcNow;
+        await _unitOfWork.SaveChangesAsync();
+        return true;
     }
 
     #endregion

@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Net.Sockets;
+using FellowOakDicom;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -54,8 +56,18 @@ public partial class RISCompleteService
             ConnectionType = d.ConnectionType,
             IpAddress = d.IpAddress,
             Port = d.Port,
-            
-            
+            ComPort = d.ComPort,
+            BaudRate = d.BaudRate,
+            FolderPath = d.FolderPath,
+            AETitle = d.AETitle,
+            SupportsDicom = d.SupportsDicom,
+            SupportsWorklist = d.SupportsWorklist,
+            SupportsMPPS = d.SupportsMPPS,
+            MaxExamsPerDay = d.MaxExamsPerDay,
+            AutoSelectThumbnail = d.AutoSelectThumbnail,
+            SendOnlyThumbnail = d.SendOnlyThumbnail,
+            DefaultFrameFormat = d.DefaultFrameFormat,
+            VideoFormat = d.VideoFormat,
             RoomId = d.RoomId,
             RoomName = d.Room?.RoomName ?? "",
             Status = d.Status,
@@ -87,7 +99,19 @@ public partial class RISCompleteService
         device.ConnectionType = dto.ConnectionType;
         device.IpAddress = dto.IpAddress;
         device.Port = dto.Port;
-        
+        device.ComPort = dto.ComPort;
+        device.BaudRate = dto.BaudRate;
+        device.FolderPath = dto.FolderPath;
+        device.AETitle = dto.AETitle;
+        device.SupportsDicom = dto.SupportsDicom;
+        device.SupportsWorklist = dto.SupportsWorklist;
+        device.SupportsMPPS = dto.SupportsMPPS;
+        device.MaxExamsPerDay = dto.MaxExamsPerDay;
+        device.AutoSelectThumbnail = dto.AutoSelectThumbnail;
+        device.SendOnlyThumbnail = dto.SendOnlyThumbnail;
+        device.DefaultFrameFormat = dto.DefaultFrameFormat;
+        device.VideoFormat = dto.VideoFormat;
+        device.ConfigJson = dto.ConfigJson;
         device.RoomId = dto.RoomId;
         device.IsActive = dto.IsActive;
         device.UpdatedAt = DateTime.Now;
@@ -122,15 +146,69 @@ public partial class RISCompleteService
             return new CaptureDeviceStatusDto { IsConnected = false, Message = "Device not found" };
         }
 
-        // Simulate connection test
-        return new CaptureDeviceStatusDto
+        var status = new CaptureDeviceStatusDto
         {
             DeviceId = deviceId,
-            IsConnected = true,
-            LastCommunication = DateTime.Now,
-            Status = "Online",
-            Message = "Connection successful"
+            IsConnected = false,
+            Status = "Offline",
         };
+
+        try
+        {
+            var type = (device.ConnectionType ?? string.Empty).Trim().ToUpperInvariant();
+            if (device.SupportsDicom || type == "DICOM")
+            {
+                if (string.IsNullOrWhiteSpace(device.IpAddress) ||
+                    string.IsNullOrWhiteSpace(device.AETitle) || device.Port is null)
+                    throw new InvalidOperationException("Thiết bị DICOM thiếu IP, port hoặc AE Title");
+                var echo = await _dicomPacsGateway.EchoAsync(new DicomEndpoint(
+                    device.IpAddress,
+                    device.Port.Value,
+                    device.AETitle,
+                    _configuration["PACS:CallingAETitle"] ?? "HIS_RIS",
+                    false,
+                    false,
+                    5));
+                status.IsConnected = echo.Success;
+                status.Message = echo.Success ? $"DICOM C-ECHO: {echo.Status}" : echo.ErrorMessage;
+            }
+            else if (type == "TCP")
+            {
+                if (string.IsNullOrWhiteSpace(device.IpAddress) || device.Port is null)
+                    throw new InvalidOperationException("Thiết bị TCP thiếu IP hoặc port");
+                using var tcp = new TcpClient();
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await tcp.ConnectAsync(device.IpAddress, device.Port.Value, timeout.Token);
+                status.IsConnected = tcp.Connected;
+                status.Message = tcp.Connected ? "TCP connection established" : "TCP connection failed";
+            }
+            else if (type == "FILE")
+            {
+                if (string.IsNullOrWhiteSpace(device.FolderPath))
+                    throw new InvalidOperationException("Thiết bị File chưa cấu hình thư mục");
+                status.IsConnected = Directory.Exists(device.FolderPath);
+                status.Message = status.IsConnected
+                    ? "Exchange folder is accessible"
+                    : "Exchange folder does not exist or is not accessible";
+            }
+            else
+            {
+                status.Message = $"Chưa có adapter kiểm tra thật cho kết nối {type}";
+            }
+        }
+        catch (Exception ex)
+        {
+            status.IsConnected = false;
+            status.Message = ex.GetBaseException().Message;
+        }
+
+        device.Status = status.IsConnected ? 1 : 3;
+        device.LastCommunication = status.IsConnected ? DateTime.UtcNow : device.LastCommunication;
+        device.UpdatedAt = DateTime.UtcNow;
+        await _unitOfWork.SaveChangesAsync();
+        status.LastCommunication = device.LastCommunication;
+        status.Status = status.IsConnected ? "Online" : "Error";
+        return status;
     }
 
     public async Task<List<WorkstationDto>> GetWorkstationsAsync(Guid? roomId = null)
@@ -288,27 +366,116 @@ public partial class RISCompleteService
 
     public async Task<SendToPacsResultDto> SendMediaToPacsAsync(SendToPacsRequestDto request)
     {
-        // Send captured media to PACS server
         var result = new SendToPacsResultDto
         {
-            Success = true,
-            SentCount = request.MediaIds.Count,
-            FailedCount = 0,
-            StudyInstanceUID = $"1.2.840.{DateTime.Now.Ticks}",
-            SentAt = DateTime.Now
+            Success = false,
+            SentCount = 0,
+            FailedCount = request.MediaIds?.Count ?? 0,
+            Errors = new List<string>(),
+            SentAt = DateTime.UtcNow
         };
 
-        foreach (var mediaId in request.MediaIds)
+        if (!_pacsEnabled)
         {
-            var media = await _context.Set<RadiologyCapturedMedia>().FindAsync(mediaId);
-            if (media != null)
+            result.Errors.Add("PACS chưa được bật");
+            return result;
+        }
+        if (request.MediaIds == null || request.MediaIds.Count == 0)
+        {
+            result.Errors.Add("Chưa chọn media DICOM");
+            return result;
+        }
+
+        var session = await _context.Set<RadiologyCaptureSession>()
+            .Include(s => s.RadiologyRequest).ThenInclude(r => r.Patient)
+            .FirstOrDefaultAsync(s => s.Id == request.SessionId && !s.IsDeleted);
+        if (session == null)
+        {
+            result.Errors.Add("Không tìm thấy phiên capture");
+            return result;
+        }
+
+        var selectedIds = request.MediaIds.Distinct().ToList();
+        var mediaItems = await _context.Set<RadiologyCapturedMedia>()
+            .Where(m => selectedIds.Contains(m.Id) && m.SessionId == request.SessionId && !m.IsDeleted &&
+                        (!request.OnlyThumbnails || m.IsThumbnail))
+            .ToListAsync();
+        if (mediaItems.Count != selectedIds.Count && !request.OnlyThumbnails)
+            result.Errors.Add("Một số media không tồn tại hoặc không thuộc phiên capture");
+
+        var maxBytes = _configuration.GetValue<long>("PACS:CaptureMaxInstanceBytes", 512L * 1024 * 1024);
+        var allowedRoots = _configuration.GetSection("PACS:CaptureAllowedRoots").Get<string[]>() ?? Array.Empty<string>();
+        var normalizedRoots = allowedRoots
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(Path.GetFullPath)
+            .Select(x => x.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar)
+            .ToArray();
+        if (normalizedRoots.Length == 0)
+        {
+            result.Errors.Add("PACS:CaptureAllowedRoots chưa được cấu hình; từ chối đọc đường dẫn media tùy ý");
+            return result;
+        }
+
+        var validated = new List<(RadiologyCapturedMedia Media, string Path, string PatientId, string StudyUid)>();
+        foreach (var media in mediaItems)
+        {
+            try
             {
-                media.IsSentToPacs = true;
-                media.SentToPacsAt = DateTime.Now;
+                var fullPath = Path.GetFullPath(media.FilePath);
+                if (!normalizedRoots.Any(root => fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException("đường dẫn nằm ngoài thư mục capture được cho phép");
+                var fileInfo = new FileInfo(fullPath);
+                if (!fileInfo.Exists) throw new FileNotFoundException("không tìm thấy file", fullPath);
+                if (fileInfo.Length <= 0 || fileInfo.Length > maxBytes)
+                    throw new InvalidOperationException($"kích thước file không hợp lệ ({fileInfo.Length} bytes)");
+
+                var dicom = await DicomFile.OpenAsync(fullPath);
+                var patientId = dicom.Dataset.GetSingleValueOrDefault(DicomTag.PatientID, string.Empty).Trim();
+                var studyUid = dicom.Dataset.GetSingleValueOrDefault(DicomTag.StudyInstanceUID, string.Empty).Trim();
+                var seriesUid = dicom.Dataset.GetSingleValueOrDefault(DicomTag.SeriesInstanceUID, string.Empty).Trim();
+                var sopUid = dicom.Dataset.GetSingleValueOrDefault(DicomTag.SOPInstanceUID, string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(patientId) || string.IsNullOrWhiteSpace(studyUid) ||
+                    string.IsNullOrWhiteSpace(seriesUid) || string.IsNullOrWhiteSpace(sopUid))
+                    throw new InvalidDataException("thiếu PatientID hoặc Study/Series/SOP Instance UID");
+                if (!string.Equals(patientId, session.RadiologyRequest.Patient.PatientCode,
+                        StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException(
+                        $"PatientID DICOM '{patientId}' không khớp bệnh nhân '{session.RadiologyRequest.Patient.PatientCode}'");
+                validated.Add((media, fullPath, patientId, studyUid));
+            }
+            catch (Exception ex)
+            {
+                result.Errors.Add($"{media.FileName}: {ex.GetBaseException().Message}");
             }
         }
 
+        var distinctStudies = validated.Select(x => x.StudyUid).Distinct(StringComparer.Ordinal).ToList();
+        if (distinctStudies.Count > 1)
+        {
+            result.Errors.Add("Các media được chọn thuộc nhiều StudyInstanceUID; phải gửi từng study riêng");
+            return result;
+        }
+
+        foreach (var item in validated)
+        {
+            var imported = await _dicomPacsGateway.ImportInstanceAsync(await File.ReadAllBytesAsync(item.Path));
+            if (!imported.Success)
+            {
+                result.Errors.Add($"{item.Media.FileName}: {imported.ErrorMessage}");
+                continue;
+            }
+            item.Media.IsSentToPacs = true;
+            item.Media.SentToPacsAt = DateTime.UtcNow;
+            item.Media.DicomStudyUID = imported.StudyInstanceUid;
+            item.Media.DicomSeriesUID = imported.SeriesInstanceUid;
+            item.Media.DicomInstanceUID = imported.SopInstanceUid;
+            result.SentCount++;
+            result.StudyInstanceUID = imported.StudyInstanceUid;
+        }
+
         await _unitOfWork.SaveChangesAsync();
+        result.FailedCount = selectedIds.Count - result.SentCount;
+        result.Success = result.SentCount == selectedIds.Count && result.Errors.Count == 0;
         return result;
     }
 

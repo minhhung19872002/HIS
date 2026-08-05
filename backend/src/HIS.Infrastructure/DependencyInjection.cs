@@ -14,6 +14,7 @@ using HIS.Infrastructure.Data;
 using HIS.Infrastructure.Security;
 using HIS.Infrastructure.Services;
 using HIS.Infrastructure.Services.HL7;
+using FellowOakDicom;
 
 namespace HIS.Infrastructure;
 
@@ -21,6 +22,13 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        // DICOM protocol stack (SCU/SCP). This must be registered in the application service
+        // provider; Program.cs completes fo-dicom initialization after builder.Build().
+        services.AddFellowOakDicom();
+        services.AddScoped<IDicomPacsGateway, DicomPacsGateway>();
+        services.AddScoped<IMppsProcessor, MppsProcessor>();
+        services.AddHostedService<MppsDicomServerHostedService>();
+
         // Cross-cutting: field-level audit diff interceptor (Issue #198 AUDIT-1). Scoped so it can
         // resolve ICurrentUserAccessor from the SAME request scope as the HISDbContext it attaches to.
         services.AddScoped<AuditFieldDiffInterceptor>();
@@ -456,6 +464,7 @@ public static class DependencyInjection
         services.AddScoped<IEmrHl7ArchiveService, EmrHl7ArchiveService>();
         services.AddScoped<IEmrCloudSyncService, EmrCloudSyncService>();
         services.AddScoped<IDicomAutoSendService, DicomAutoSendService>();
+        services.AddHostedService<HIS.Infrastructure.Services.Workers.DicomAutoSendWorker>();
         services.AddScoped<IHl7QueueService, Hl7QueueService>();
         services.AddScoped<IDicomStudyActivityService, DicomStudyActivityService>();
         services.AddScoped<IEInvoiceService, EInvoiceService>(); // #24: HĐĐT đa NCC (MockMode mặc định)

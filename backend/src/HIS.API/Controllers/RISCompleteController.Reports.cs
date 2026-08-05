@@ -19,6 +19,17 @@ namespace HIS.API.Controllers
 {
     public partial class RISCompleteController
     {
+        /// <summary>
+        /// Thiếu cấu hình PACS thì dừng, KHÔNG đoán một địa chỉ localhost nào đó — stream ảnh
+        /// bệnh nhân từ archive không ai quản là rủi ro lộ dữ liệu, không phải lỗi nhỏ.
+        /// </summary>
+        private ActionResult PacsNotConfigured() =>
+            StatusCode(StatusCodes.Status500InternalServerError, new
+            {
+                error = "PACS_NOT_CONFIGURED",
+                message = "Chưa cấu hình PACS:BaseUrl — không truy xuất được ảnh DICOM"
+            });
+
         #region 8.3 Thực hiện CĐHA, TDCN
 
         /// <summary>
@@ -223,11 +234,13 @@ namespace HIS.API.Controllers
         /// <summary>
         /// Proxy Orthanc instance preview (avoid CORS)
         /// </summary>
-        // #402: proxy stream PHI — yêu cầu JWT (viewer gửi qua ?access_token=, xem Program.cs OnMessageReceived)
+        // Proxy stream PHI — JWT is required in the Authorization header. The viewer fetches
+        // previews as blob URLs and configures Cornerstone's XHR loader with this header.
         [HttpGet("pacs/instances/{instanceId}/preview")]
         public async Task<ActionResult> GetInstancePreview(string instanceId)
         {
-            var pacsBaseUrl = _configuration["PACS:BaseUrl"]?.TrimEnd('/') ?? "http://localhost:8042";
+            var pacsBaseUrl = _configuration["PACS:BaseUrl"]?.TrimEnd('/');
+            if (string.IsNullOrWhiteSpace(pacsBaseUrl)) return PacsNotConfigured();
             var pacsUser = _configuration["PACS:Username"] ?? "";
             var pacsPass = _configuration["PACS:Password"] ?? "";
 
@@ -260,7 +273,8 @@ namespace HIS.API.Controllers
         [HttpGet("pacs/instances/{instanceId}/rendered")]
         public async Task<ActionResult> GetInstanceRendered(string instanceId, [FromQuery] int width = 1024)
         {
-            var pacsBaseUrl = _configuration["PACS:BaseUrl"]?.TrimEnd('/') ?? "http://localhost:8042";
+            var pacsBaseUrl = _configuration["PACS:BaseUrl"]?.TrimEnd('/');
+            if (string.IsNullOrWhiteSpace(pacsBaseUrl)) return PacsNotConfigured();
             var pacsUser = _configuration["PACS:Username"] ?? "";
             var pacsPass = _configuration["PACS:Password"] ?? "";
             if (width <= 0 || width > 4096) width = 1024;
@@ -301,7 +315,8 @@ namespace HIS.API.Controllers
         [HttpGet("pacs/instances/{instanceId}/file")]
         public async Task<ActionResult> GetInstanceFile(string instanceId)
         {
-            var pacsBaseUrl = _configuration["PACS:BaseUrl"]?.TrimEnd('/') ?? "http://localhost:8042";
+            var pacsBaseUrl = _configuration["PACS:BaseUrl"]?.TrimEnd('/');
+            if (string.IsNullOrWhiteSpace(pacsBaseUrl)) return PacsNotConfigured();
             var pacsUser = _configuration["PACS:Username"] ?? "";
             var pacsPass = _configuration["PACS:Password"] ?? "";
 
@@ -333,8 +348,12 @@ namespace HIS.API.Controllers
         [Authorize(Roles = RoleNames.Admin + "," + RoleNames.QuanTriHeThong + "," + RoleNames.RadiologistManager + "," + RoleNames.Radiologist + "," + RoleNames.Technician)]
         public async Task<ActionResult> LinkStudyToOrder(Guid orderItemId, [FromBody] LinkStudyRequest request)
         {
-            await _risService.LinkStudyToOrderAsync(orderItemId, request.StudyInstanceUID);
-            return Ok();
+            var linked = await _risService.LinkStudyToOrderAsync(orderItemId, request.StudyInstanceUID);
+            if (!linked)
+                return NotFound(ApiResponse<object>.Fail(
+                    "Không tìm thấy Study UID trên PACS hoặc study đã được liên kết với phiếu khác."));
+
+            return Ok(ApiResponse<bool>.Ok(true, "Đã liên kết ảnh DICOM với phiếu chụp."));
         }
 
         /// <summary>

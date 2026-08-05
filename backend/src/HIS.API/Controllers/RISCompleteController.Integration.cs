@@ -370,6 +370,28 @@ namespace HIS.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>Study Root C-FIND against a configured remote PACS.</summary>
+        [HttpPost("dicom/remote-servers/{serverId}/query")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologistManager + "," + RoleNames.Radiologist)]
+        public async Task<ActionResult<RemoteDicomQueryResultDto>> QueryRemotePacs(
+            Guid serverId,
+            [FromBody] RemoteDicomQueryRequestDto request)
+        {
+            var result = await _risService.QueryRemotePacsAsync(serverId, request);
+            return result.Success ? Ok(result) : StatusCode(StatusCodes.Status502BadGateway, result);
+        }
+
+        /// <summary>Retrieve one remote study into the local PACS using C-MOVE or C-GET.</summary>
+        [HttpPost("dicom/remote-servers/{serverId}/retrieve")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologistManager + "," + RoleNames.Radiologist)]
+        public async Task<ActionResult<RemoteDicomRetrieveResultDto>> RetrieveRemoteStudy(
+            Guid serverId,
+            [FromBody] RemoteDicomRetrieveRequestDto request)
+        {
+            var result = await _risService.RetrieveRemoteStudyAsync(serverId, request);
+            return result.Success ? Ok(result) : StatusCode(StatusCodes.Status502BadGateway, result);
+        }
+
         /// <summary>
         /// Get list of configured remote PACS servers
         /// </summary>

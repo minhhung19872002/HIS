@@ -869,6 +869,12 @@ namespace HIS.Application.Services
     /// </summary>
     Task<DicomSendResultDto> SendDicomToRemoteAsync(DicomSendRequest request);
 
+    Task<RemoteDicomQueryResultDto> QueryRemotePacsAsync(Guid remoteServerId, RemoteDicomQueryRequestDto request);
+
+    Task<RemoteDicomRetrieveResultDto> RetrieveRemoteStudyAsync(
+        Guid remoteServerId,
+        RemoteDicomRetrieveRequestDto request);
+
     /// <summary>
     /// Get list of remote PACS servers
     /// </summary>
@@ -975,8 +981,60 @@ namespace HIS.Application.Services
         public string AeTitle { get; set; } = string.Empty;
         public string Host { get; set; } = string.Empty;
         public int Port { get; set; } = 4242;
+        public string CallingAeTitle { get; set; } = "HIS_RIS";
+        public bool UseTls { get; set; }
+        public bool UseStorageCommitment { get; set; }
+        public int TimeoutSeconds { get; set; } = 30;
         public string? Description { get; set; }
         public bool IsActive { get; set; } = true;
+    }
+
+    public class RemoteDicomQueryRequestDto
+    {
+        public string? PatientId { get; set; }
+        public string? PatientName { get; set; }
+        public string? AccessionNumber { get; set; }
+        public string? StudyInstanceUid { get; set; }
+        public string? Modality { get; set; }
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public int MaxResults { get; set; } = 100;
+    }
+
+    public class RemoteDicomStudyDto
+    {
+        public string PatientId { get; set; } = string.Empty;
+        public string PatientName { get; set; } = string.Empty;
+        public string AccessionNumber { get; set; } = string.Empty;
+        public string StudyInstanceUid { get; set; } = string.Empty;
+        public string StudyDate { get; set; } = string.Empty;
+        public string StudyDescription { get; set; } = string.Empty;
+        public string ModalitiesInStudy { get; set; } = string.Empty;
+        public string NumberOfStudyRelatedInstances { get; set; } = string.Empty;
+    }
+
+    public class RemoteDicomQueryResultDto
+    {
+        public bool Success { get; set; }
+        public bool WasTruncated { get; set; }
+        public string? ErrorMessage { get; set; }
+        public List<RemoteDicomStudyDto> Studies { get; set; } = new();
+    }
+
+    public class RemoteDicomRetrieveRequestDto
+    {
+        public string StudyInstanceUid { get; set; } = string.Empty;
+        public string RetrieveMethod { get; set; } = "C-MOVE";
+    }
+
+    public class RemoteDicomRetrieveResultDto
+    {
+        public bool Success { get; set; }
+        public string StudyInstanceUid { get; set; } = string.Empty;
+        public int InstanceCount { get; set; }
+        public long TotalBytes { get; set; }
+        public string RetrieveMethod { get; set; } = string.Empty;
+        public string? ErrorMessage { get; set; }
     }
 
     #endregion
@@ -1095,7 +1153,8 @@ namespace HIS.Application.Services
         public Guid? Id { get; set; }
         public Guid ItemId { get; set; }
         public decimal Quantity { get; set; }
-        public string Unit { get; set; }
+        /// <summary>ĐVT tuỳ chọn — bỏ trống thì lấy theo danh mục thuốc/vật tư.</summary>
+        public string? Unit { get; set; }
         public bool IsRequired { get; set; }
     }
 

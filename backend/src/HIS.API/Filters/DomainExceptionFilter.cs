@@ -11,6 +11,7 @@ namespace HIS.API.Filters;
 ///
 ///   ArgumentException            → 400 Bad Request   (DTO validation fail)
 ///   InvalidOperationException    → 400 Bad Request   (state machine guard fail / xung đột nghiệp vụ)
+///   NotSupportedException        → 400 Bad Request   (tuỳ chọn chưa hỗ trợ — trả lý do thật)
 ///   KeyNotFoundException         → 404 Not Found     (entity không tồn tại)
 ///   JsonException                → 400 Bad Request   (malformed JSON từ DB hoặc payload)
 ///   DbUpdateException + UNIQUE   → 409 Conflict      (race-condition duplicate)
@@ -64,6 +65,17 @@ public sealed class DomainExceptionFilter : IExceptionFilter
                 context.ExceptionHandled = true;
                 _logger.LogWarning("Forbidden on {Path}: {Msg}",
                     context.HttpContext.Request.Path, forbidEx.Message);
+                break;
+            case NotSupportedException nsEx:
+                // Client chọn một tuỳ chọn hệ thống chưa hỗ trợ (loại báo cáo, kiểu kết nối,
+                // trigger type...). Trả thông điệp thật thay vì 500 che mất lý do.
+                context.Result = new BadRequestObjectResult(new
+                {
+                    error = "NOT_SUPPORTED",
+                    message = nsEx.Message
+                });
+                context.ExceptionHandled = true;
+                _logger.LogInformation("Domain unsupported option: {Msg}", nsEx.Message);
                 break;
             case KeyNotFoundException kEx:
                 context.Result = new NotFoundObjectResult(new

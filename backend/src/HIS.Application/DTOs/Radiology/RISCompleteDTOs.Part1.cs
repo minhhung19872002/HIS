@@ -249,6 +249,8 @@ namespace HIS.Application.DTOs.Radiology
         public List<RadiologyOrderItemDto> Items { get; set; }
         public string Status { get; set; }
         public string PatientType { get; set; }
+        /// <summary>Mã accession gửi qua DICOM MWL, dùng để đối chiếu study trả về từ PACS.</summary>
+        public string? AccessionNumber { get; set; }
         /// <summary>DICOM Study Instance UID — từ DicomStudy đầu tiên liên kết với exam. Null nếu chưa có DICOM.</summary>
         public string? StudyInstanceUID { get; set; }
         /// <summary>
@@ -444,7 +446,8 @@ namespace HIS.Application.DTOs.Radiology
     {
         public Guid ItemId { get; set; }
         public decimal Quantity { get; set; }
-        public string Note { get; set; }
+        /// <summary>Ghi chú tuỳ chọn — phải nullable, nếu không model binder sẽ bắt buộc nhập.</summary>
+        public string? Note { get; set; }
     }
 
     /// <summary>

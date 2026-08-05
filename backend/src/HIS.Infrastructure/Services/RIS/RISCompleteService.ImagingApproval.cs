@@ -23,9 +23,150 @@ public partial class RISCompleteService
 {
     #region 8.3b PACS Imaging, Approval & History
 
+    private sealed record OrthancStudySnapshot(
+        string OrthancId,
+        string StudyInstanceUID,
+        string AccessionNumber,
+        string PatientId,
+        string PatientName,
+        DateTime? StudyDate,
+        DateTime? StudyTime,
+        string Modality,
+        string StudyDescription,
+        string InstitutionName,
+        string ReferringPhysician,
+        int NumberOfSeries,
+        int NumberOfImages,
+        long? StorageSize);
+
+    private async Task<List<OrthancStudySnapshot>> QueryOrthancStudiesAsync(
+        string? patientId = null,
+        string? studyInstanceUID = null)
+    {
+        if (!_pacsEnabled || string.IsNullOrWhiteSpace(_pacsBaseUrl))
+            return new List<OrthancStudySnapshot>();
+
+        using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        var pacsUser = _configuration["PACS:Username"] ?? "admin";
+        var pacsPass = _configuration["PACS:Password"] ?? "orthanc";
+        var authBytes = Encoding.ASCII.GetBytes($"{pacsUser}:{pacsPass}");
+        httpClient.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(authBytes));
+
+        var query = new Dictionary<string, string>();
+        if (!string.IsNullOrWhiteSpace(patientId)) query["PatientID"] = patientId.Trim();
+        if (!string.IsNullOrWhiteSpace(studyInstanceUID)) query["StudyInstanceUID"] = studyInstanceUID.Trim();
+
+        var findBody = JsonSerializer.Serialize(new { Level = "Study", Query = query });
+        var findResponse = await httpClient.PostAsync(
+            $"{_pacsBaseUrl.TrimEnd('/')}/tools/find",
+            new StringContent(findBody, Encoding.UTF8, "application/json"));
+        if (!findResponse.IsSuccessStatusCode)
+        {
+            _logger.LogWarning("Orthanc study query failed: HTTP {StatusCode}", findResponse.StatusCode);
+            return new List<OrthancStudySnapshot>();
+        }
+
+        var orthancIds = JsonSerializer.Deserialize<List<string>>(
+            await findResponse.Content.ReadAsStringAsync()) ?? new List<string>();
+        var snapshots = new List<OrthancStudySnapshot>();
+
+        foreach (var orthancId in orthancIds.Take(50))
+        {
+            var studyResponse = await httpClient.GetAsync($"{_pacsBaseUrl.TrimEnd('/')}/studies/{orthancId}");
+            if (!studyResponse.IsSuccessStatusCode) continue;
+
+            using var studyDocument = JsonDocument.Parse(await studyResponse.Content.ReadAsStringAsync());
+            var study = studyDocument.RootElement;
+            var studyTags = study.TryGetProperty("MainDicomTags", out var mainTags)
+                ? mainTags
+                : default;
+            var patientTags = study.TryGetProperty("PatientMainDicomTags", out var mainPatientTags)
+                ? mainPatientTags
+                : default;
+            var uid = GetDicomTag(studyTags, "StudyInstanceUID");
+            if (string.IsNullOrWhiteSpace(uid)) continue;
+
+            var numberOfSeries = study.TryGetProperty("Series", out var series) && series.ValueKind == JsonValueKind.Array
+                ? series.GetArrayLength()
+                : 0;
+            var numberOfImages = 0;
+            long? storageSize = null;
+            var statsResponse = await httpClient.GetAsync($"{_pacsBaseUrl.TrimEnd('/')}/studies/{orthancId}/statistics");
+            if (statsResponse.IsSuccessStatusCode)
+            {
+                using var statsDocument = JsonDocument.Parse(await statsResponse.Content.ReadAsStringAsync());
+                var stats = statsDocument.RootElement;
+                if (stats.TryGetProperty("CountSeries", out var countSeries) && countSeries.TryGetInt32(out var parsedSeries))
+                    numberOfSeries = parsedSeries;
+                if (stats.TryGetProperty("CountInstances", out var countInstances) && countInstances.TryGetInt32(out var parsedImages))
+                    numberOfImages = parsedImages;
+                if (stats.TryGetProperty("DiskSize", out var diskSize) && TryReadInt64(diskSize, out var parsedSize))
+                    storageSize = parsedSize;
+            }
+
+            var modality = "";
+            if (study.TryGetProperty("Series", out series) && series.ValueKind == JsonValueKind.Array && series.GetArrayLength() > 0)
+            {
+                var firstSeriesId = series[0].GetString();
+                if (!string.IsNullOrWhiteSpace(firstSeriesId))
+                {
+                    var seriesResponse = await httpClient.GetAsync($"{_pacsBaseUrl.TrimEnd('/')}/series/{firstSeriesId}");
+                    if (seriesResponse.IsSuccessStatusCode)
+                    {
+                        using var seriesDocument = JsonDocument.Parse(await seriesResponse.Content.ReadAsStringAsync());
+                        if (seriesDocument.RootElement.TryGetProperty("MainDicomTags", out var seriesTags))
+                            modality = GetDicomTag(seriesTags, "Modality");
+                    }
+                }
+            }
+
+            var dicomDate = GetDicomTag(studyTags, "StudyDate");
+            var dicomTime = GetDicomTag(studyTags, "StudyTime");
+            snapshots.Add(new OrthancStudySnapshot(
+                orthancId,
+                uid,
+                GetDicomTag(studyTags, "AccessionNumber"),
+                GetDicomTag(patientTags, "PatientID"),
+                GetDicomTag(patientTags, "PatientName").Replace('^', ' ').Trim(),
+                ParseDicomDateOrNull(dicomDate),
+                ParseDicomDateTimeOrNull(dicomDate, dicomTime),
+                modality,
+                GetDicomTag(studyTags, "StudyDescription"),
+                GetDicomTag(studyTags, "InstitutionName"),
+                GetDicomTag(studyTags, "ReferringPhysicianName").Replace('^', ' ').Trim(),
+                numberOfSeries,
+                numberOfImages,
+                storageSize));
+        }
+
+        return snapshots;
+    }
+
+    private static string GetDicomTag(JsonElement tags, string name) =>
+        tags.ValueKind == JsonValueKind.Object && tags.TryGetProperty(name, out var value)
+            ? value.GetString() ?? ""
+            : "";
+
+    private static bool TryReadInt64(JsonElement value, out long parsed) =>
+        value.ValueKind == JsonValueKind.Number
+            ? value.TryGetInt64(out parsed)
+            : long.TryParse(value.GetString(), out parsed);
+
+    private static DateTime? ParseDicomDateOrNull(string value) =>
+        DateTime.TryParseExact(value, "yyyyMMdd", null,
+            System.Globalization.DateTimeStyles.None, out var parsed) ? parsed : null;
+
+    private static DateTime? ParseDicomDateTimeOrNull(string date, string time)
+    {
+        if (string.IsNullOrWhiteSpace(date) || string.IsNullOrWhiteSpace(time)) return null;
+        var normalizedTime = new string(time.TakeWhile(char.IsDigit).Take(6).ToArray()).PadRight(6, '0');
+        return DateTime.TryParseExact($"{date}{normalizedTime}", "yyyyMMddHHmmss", null,
+            System.Globalization.DateTimeStyles.None, out var parsed) ? parsed : null;
+    }
+
     public async Task<List<DicomStudyDto>> GetStudiesFromPACSAsync(string patientId, DateTime? fromDate = null, DateTime? toDate = null)
     {
-        // Get studies from internal database (HIS DicomStudy table)
         var query = _context.DicomStudies
             .Include(d => d.RadiologyExam)
                 .ThenInclude(e => e.RadiologyRequest)
@@ -49,20 +190,57 @@ public partial class RISCompleteService
         }
 
         var studies = await query.OrderByDescending(d => d.StudyDate).Take(50).ToListAsync();
-
-        return studies.Select(d => new DicomStudyDto
+        var merged = new Dictionary<string, DicomStudyDto>(StringComparer.Ordinal);
+        foreach (var study in studies.Where(study => !string.IsNullOrWhiteSpace(study.StudyInstanceUID)))
         {
-            StudyInstanceUID = d.StudyInstanceUID ?? "",
-            AccessionNumber = d.AccessionNumber ?? "",
-            PatientId = d.PatientID ?? "",
-            PatientName = d.PatientName ?? "",
-            StudyDate = d.StudyDate ?? DateTime.Now,
-            StudyDescription = d.StudyDescription ?? "",
-            Modality = d.Modality ?? "",
-            NumberOfSeries = d.NumberOfSeries,
-            NumberOfImages = d.NumberOfImages,
-            StudyStatus = d.Status == 1 ? "Available" : "Pending"
-        }).ToList();
+            merged[study.StudyInstanceUID] = new DicomStudyDto
+            {
+                StudyInstanceUID = study.StudyInstanceUID,
+                AccessionNumber = study.AccessionNumber ?? "",
+                PatientId = study.PatientID ?? "",
+                PatientName = study.PatientName ?? "",
+                StudyDate = study.StudyDate ?? DateTime.Now,
+                StudyTime = study.StudyTime,
+                StudyDescription = study.StudyDescription ?? "",
+                Modality = study.Modality ?? "",
+                NumberOfSeries = study.NumberOfSeries,
+                NumberOfImages = study.NumberOfImages,
+                StudyStatus = study.Status == 1 ? "Available" : "Pending"
+            };
+        }
+
+        try
+        {
+            var pacsStudies = await QueryOrthancStudiesAsync(patientId);
+            foreach (var study in pacsStudies)
+            {
+                if (fromDate.HasValue && study.StudyDate < fromDate.Value) continue;
+                if (toDate.HasValue && study.StudyDate > toDate.Value) continue;
+
+                merged[study.StudyInstanceUID] = new DicomStudyDto
+                {
+                    StudyInstanceUID = study.StudyInstanceUID,
+                    AccessionNumber = study.AccessionNumber,
+                    PatientId = study.PatientId,
+                    PatientName = study.PatientName,
+                    StudyDate = study.StudyDate ?? DateTime.Now,
+                    StudyTime = study.StudyTime,
+                    Modality = study.Modality,
+                    StudyDescription = study.StudyDescription,
+                    InstitutionName = study.InstitutionName,
+                    ReferringPhysician = study.ReferringPhysician,
+                    NumberOfSeries = study.NumberOfSeries,
+                    NumberOfImages = study.NumberOfImages,
+                    StudyStatus = "Available"
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Cannot query Orthanc studies for patient {PatientId}", patientId);
+        }
+
+        return merged.Values.OrderByDescending(d => d.StudyDate).Take(50).ToList();
     }
 
     public async Task<List<DicomSeriesDto>> GetSeriesAsync(string studyInstanceUID)
@@ -326,12 +504,45 @@ public partial class RISCompleteService
     public async Task<bool> LinkStudyToOrderAsync(Guid orderItemId, string studyInstanceUID)
     {
         var request = await _context.RadiologyRequests
+            .Include(r => r.Patient)
+            .Include(r => r.Service)
             .Include(r => r.Exams)
+                .ThenInclude(e => e.DicomStudies)
             .FirstOrDefaultAsync(r => r.Id == orderItemId);
 
-        if (request == null) return false;
+        if (request == null || string.IsNullOrWhiteSpace(studyInstanceUID)) return false;
+
+        OrthancStudySnapshot? pacsStudy;
+        try
+        {
+            pacsStudy = (await QueryOrthancStudiesAsync(studyInstanceUID: studyInstanceUID)).FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Cannot verify PACS study {StudyInstanceUID}", studyInstanceUID);
+            return false;
+        }
+        if (pacsStudy == null) return false;
 
         var exam = request.Exams.FirstOrDefault();
+        var patientMatches = !string.IsNullOrWhiteSpace(pacsStudy.PatientId) &&
+            string.Equals(pacsStudy.PatientId.Trim(), request.Patient.PatientCode?.Trim(), StringComparison.OrdinalIgnoreCase);
+        var accessionMatches = !string.IsNullOrWhiteSpace(pacsStudy.AccessionNumber) &&
+            (string.Equals(pacsStudy.AccessionNumber.Trim(), request.RequestCode?.Trim(), StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(pacsStudy.AccessionNumber.Trim(), exam?.AccessionNumber?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (!patientMatches && !accessionMatches)
+        {
+            _logger.LogWarning(
+                "Rejected PACS link because patient/accession mismatch. Order {OrderId}, Study {StudyInstanceUID}",
+                request.Id, studyInstanceUID);
+            return false;
+        }
+
+        var linkedToAnotherOrder = await _context.DicomStudies.AnyAsync(d =>
+            d.StudyInstanceUID == studyInstanceUID &&
+            d.RadiologyExam.RadiologyRequestId != request.Id);
+        if (linkedToAnotherOrder) return false;
+
         if (exam == null)
         {
             exam = new RadiologyExam
@@ -342,25 +553,83 @@ public partial class RISCompleteService
                 ExamName = "CDHA",
                 ExamDate = DateTime.Now,
                 Status = 2,
-                AccessionNumber = GenerateAccessionNumber()
+                AccessionNumber = string.IsNullOrWhiteSpace(pacsStudy.AccessionNumber)
+                    ? request.RequestCode
+                    : pacsStudy.AccessionNumber
             };
             await _context.RadiologyExams.AddAsync(exam);
         }
 
-        // Create DICOM study record
-        var dicomStudy = new DicomStudy
+        var dicomStudy = exam.DicomStudies.FirstOrDefault();
+        if (dicomStudy == null)
         {
-            Id = Guid.NewGuid(),
-            RadiologyExamId = exam.Id,
-            StudyInstanceUID = studyInstanceUID,
-            StudyDate = DateTime.Now,
-            Status = 1,
-            CreatedAt = DateTime.Now
-        };
-        await _context.DicomStudies.AddAsync(dicomStudy);
+            dicomStudy = new DicomStudy
+            {
+                Id = Guid.NewGuid(),
+                RadiologyExamId = exam.Id,
+                CreatedAt = DateTime.Now
+            };
+            await _context.DicomStudies.AddAsync(dicomStudy);
+        }
+
+        dicomStudy.StudyInstanceUID = pacsStudy.StudyInstanceUID;
+        dicomStudy.StudyDate = pacsStudy.StudyDate ?? DateTime.Now;
+        dicomStudy.StudyTime = pacsStudy.StudyTime;
+        dicomStudy.StudyDescription = pacsStudy.StudyDescription;
+        dicomStudy.AccessionNumber = pacsStudy.AccessionNumber;
+        dicomStudy.PatientID = string.IsNullOrWhiteSpace(pacsStudy.PatientId)
+            ? request.Patient.PatientCode
+            : pacsStudy.PatientId;
+        dicomStudy.PatientName = string.IsNullOrWhiteSpace(pacsStudy.PatientName)
+            ? request.Patient.FullName
+            : pacsStudy.PatientName;
+        dicomStudy.Modality = pacsStudy.Modality;
+        dicomStudy.NumberOfSeries = pacsStudy.NumberOfSeries;
+        dicomStudy.NumberOfImages = pacsStudy.NumberOfImages;
+        dicomStudy.StorageLocation = pacsStudy.OrthancId;
+        dicomStudy.StorageSize = pacsStudy.StorageSize;
+        dicomStudy.Status = 1;
+        dicomStudy.UpdatedAt = DateTime.Now;
+        await ResolveStudyProvenanceAsync(dicomStudy, exam);
         await _unitOfWork.SaveChangesAsync();
 
         return true;
+    }
+
+    /// <summary>
+    /// Records how the study actually reached the archive, plus the HIS department that performed
+    /// it.  Failure leaves <c>SourceResolvedAt</c> null so filtered auto-send rules keep skipping
+    /// the study instead of matching it on absent metadata.
+    /// </summary>
+    private async Task ResolveStudyProvenanceAsync(DicomStudy dicomStudy, RadiologyExam exam)
+    {
+        var source = await _dicomPacsGateway.GetStudySourceAsync(dicomStudy.StudyInstanceUID);
+        if (!source.Success)
+        {
+            _logger.LogWarning(
+                "Cannot resolve DICOM provenance for study {StudyInstanceUID}: {Error}",
+                dicomStudy.StudyInstanceUID, source.ErrorMessage);
+            return;
+        }
+
+        dicomStudy.SourceAeTitle = source.SourceAeTitle;
+        dicomStudy.SourceOrigin = source.Origin;
+        dicomStudy.SourceIpAddress = source.SourceIpAddress;
+        dicomStudy.StationName = source.StationName;
+        dicomStudy.DepartmentCode =
+            await ResolveExamDepartmentCodeAsync(exam) ?? source.InstitutionalDepartmentName;
+        dicomStudy.SourceResolvedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Department code of the room the exam was performed in, when HIS knows it.</summary>
+    private async Task<string?> ResolveExamDepartmentCodeAsync(RadiologyExam exam)
+    {
+        if (exam.RoomId == null) return null;
+        var code = await _context.Rooms
+            .Where(r => r.Id == exam.RoomId.Value)
+            .Select(r => r.Department.DepartmentCode)
+            .FirstOrDefaultAsync();
+        return string.IsNullOrWhiteSpace(code) ? null : code;
     }
 
     public async Task<bool> PreliminaryApproveResultAsync(Guid resultId, string note)

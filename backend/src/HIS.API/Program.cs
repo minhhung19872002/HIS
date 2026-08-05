@@ -18,6 +18,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Caching.Memory;      // AUTHZ-2 #368: cache SecurityStamp
 using Microsoft.EntityFrameworkCore;            // AUTHZ-2 #368: DB lookup trong OnTokenValidated
 using System.Security.Claims;                   // AUTHZ-2 #368: ClaimTypes.NameIdentifier
+using FellowOakDicom;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -113,6 +114,10 @@ if (jwtKey.Length < 32)
 // #182: key mặc định trong appsettings.json đã lộ trong git history — Production BẮT BUỘC set env Jwt__Key riêng
 if (builder.Environment.IsProduction() && jwtKey == "HIS_SuperSecretKey_2024_ChangeThisInProduction_MinLength32Chars")
     throw new InvalidOperationException("Jwt:Key is still the default (leaked) value in Production. Set env Jwt__Key.");
+if (builder.Environment.IsProduction() &&
+    builder.Configuration.GetValue<bool>("PACS:Enabled") &&
+    builder.Configuration["PACS:Password"] == "HisPacsLocal-2026!Change")
+    throw new InvalidOperationException("PACS password is still the local-development default. Set PACS__Password in Production.");
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
 // AUTHZ-2 #368: TTL cache SecurityStamp (giây) — staleness tối đa của thu hồi tức thời khi không có Redis.
@@ -144,10 +149,7 @@ builder.Services.AddAuthentication(options =>
             var path = context.HttpContext.Request.Path;
             var isHubRequest = path.StartsWithSegments("/hubs");
             var isPrintRequest = path.StartsWithSegments("/api/pdf") || path.StartsWithSegments("/api/reception/print");
-            // #402: DICOM viewer nạp ảnh qua <img>/wadouri không gắn được header → nhận JWT qua query
-            var isPacsProxy = path.StartsWithSegments("/api/RISComplete/pacs");
-
-            if (!string.IsNullOrEmpty(accessToken) && (isHubRequest || isPrintRequest || isPacsProxy))
+            if (!string.IsNullOrEmpty(accessToken) && (isHubRequest || isPrintRequest))
             {
                 context.Token = accessToken;
             }
@@ -326,6 +328,9 @@ builder.Services.AddDataProtection()
     .SetApplicationName("HIS");
 
 var app = builder.Build();
+
+// fo-dicom v5 resolves networking services from the final ASP.NET Core provider.
+DicomSetupBuilder.UseServiceProvider(app.Services);
 
 // #196: cau hinh static logger cho ToBoundedListAsync (log "cham tran" = no silent cap)
 QueryBoundExtensions.Configure(app.Services.GetRequiredService<ILoggerFactory>());

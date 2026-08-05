@@ -99,6 +99,7 @@ public partial class RISCompleteService
             ClinicalInfo = r.ClinicalInfo,
             Status = GetStatusName(r.Status),
             PatientType = r.PatientType == 1 ? "BHYT" : "Vien phi",
+            AccessionNumber = r.Exams.FirstOrDefault()?.AccessionNumber,
             StudyInstanceUID = r.Exams.SelectMany(e => e.DicomStudies).FirstOrDefault()?.StudyInstanceUID,
             DicomStudyId = r.Exams.SelectMany(e => e.DicomStudies).FirstOrDefault()?.Id,
             Items = new List<RadiologyOrderItemDto>
@@ -154,6 +155,7 @@ public partial class RISCompleteService
             ClinicalInfo = request.ClinicalInfo,
             Status = GetStatusName(request.Status),
             PatientType = request.PatientType == 1 ? "BHYT" : "Vien phi",
+            AccessionNumber = request.Exams.FirstOrDefault()?.AccessionNumber,
             StudyInstanceUID = request.Exams.SelectMany(e => e.DicomStudies).FirstOrDefault()?.StudyInstanceUID,
             DicomStudyId = request.Exams.SelectMany(e => e.DicomStudies).FirstOrDefault()?.Id,
             Items = new List<RadiologyOrderItemDto>

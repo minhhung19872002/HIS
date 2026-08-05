@@ -38,6 +38,7 @@ public partial class RISCompleteService : IRISCompleteService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IConfiguration _configuration;
     private readonly IResultNotificationService _notificationService;
+    private readonly IDicomPacsGateway _dicomPacsGateway;
     private readonly ILogger<RISCompleteService> _logger;
     private readonly Microsoft.AspNetCore.Http.IHttpContextAccessor? _httpContextAccessor;
     private Guid? _adminUserIdCache;
@@ -60,6 +61,7 @@ public partial class RISCompleteService : IRISCompleteService
         IUnitOfWork unitOfWork,
         IConfiguration configuration,
         IResultNotificationService notificationService,
+        IDicomPacsGateway dicomPacsGateway,
         ILogger<RISCompleteService> logger,
         Microsoft.AspNetCore.Http.IHttpContextAccessor? httpContextAccessor = null)
     {
@@ -77,6 +79,7 @@ public partial class RISCompleteService : IRISCompleteService
         _unitOfWork = unitOfWork;
         _configuration = configuration;
         _notificationService = notificationService;
+        _dicomPacsGateway = dicomPacsGateway;
         _logger = logger;
 
         // Optional PACS configuration (disabled by default)

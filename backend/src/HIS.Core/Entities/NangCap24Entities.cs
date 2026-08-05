@@ -132,6 +132,11 @@ public class DicomAutoSendRule : BaseEntity
 /// </summary>
 public class DicomTransmissionLog : BaseEntity
 {
+    /// <summary>
+    /// Non-null while an auto-send is in-flight or completed. A filtered unique index makes
+    /// rule+study delivery idempotent across concurrent workers/instances. Cleared on failure.
+    /// </summary>
+    public string? DeduplicationKey { get; set; }
     public string StudyInstanceUid { get; set; } = string.Empty;
     public Guid? DicomStudyId { get; set; }                   // FK nội bộ
     public Guid? AutoSendRuleId { get; set; }                 // null = manual
@@ -144,6 +149,8 @@ public class DicomTransmissionLog : BaseEntity
     public string? EncryptionAlgorithm { get; set; }          // AES-256-GCM
     public string Status { get; set; } = "pending";           // pending | sending | done | failed
     public string? ErrorMessage { get; set; }
+    public int RetryCount { get; set; }
+    public DateTime? NextRetryAt { get; set; }
     public DateTime StartedAt { get; set; } = DateTime.UtcNow;
     public DateTime? CompletedAt { get; set; }
     public int DurationMs { get; set; }

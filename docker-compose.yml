@@ -24,27 +24,85 @@ services:
     networks:
       - his-network
 
-  # Orthanc PACS Server (optional - for RIS/PACS integration)
+  # Orthanc PACS Server — real DICOM SCP/SCU + DICOMweb + MWL.
+  # Production must bind 4242 to the hospital VLAN address and keep 8042 loopback-only.
   orthanc:
-    image: orthancteam/orthanc:24.1.2
+    image: orthancteam/orthanc:26.7.0
     container_name: his-orthanc
     hostname: his-orthanc
     environment:
       ORTHANC__DICOM_AET: "HIS_PACS"
-      ORTHANC__DICOM_CHECK_CALLED_AET: "false"
+      ORTHANC__DICOM_CHECK_CALLED_AET: "true"
+      ORTHANC__DICOM_ALWAYS_ALLOW_ECHO: "false"
       ORTHANC__DICOM_PORT: "4242"
-      ORTHANC__REGISTERED_USERS: '{"admin": "orthanc"}'
+      ORTHANC__REGISTERED_USERS: '{"${PACS_USERNAME:-his-api}": "${PACS_PASSWORD:-HisPacsLocal-2026!Change}"}'
+      ORTHANC__DICOM_MODALITIES_IN_DATABASE: "true"
+      ORTHANC__LOG_EXPORTED_RESOURCES: "true"
+      ORTHANC__OVERWRITE_INSTANCES: "false"
+      ORTHANC__LIMIT_FIND_RESULTS: "1000"
+      ORTHANC__LIMIT_FIND_INSTANCES: "1000"
       # Enable DICOMweb plugin (required for OHIF Viewer)
       DICOM_WEB_PLUGIN_ENABLED: "true"
       # Enable OHIF Viewer plugin with DICOMweb data source
       OHIF_PLUGIN_ENABLED: "true"
       ORTHANC__OHIF__DATA_SOURCE: "dicom-web"
+      # Real Modality Worklist SCP. Worklists are created by HIS through /worklists/create.
+      WORKLISTS_PLUGIN_ENABLED: "true"
+      ORTHANC__WORKLISTS__SAVE_IN_ORTHANC_DATABASE: "true"
+      ORTHANC__WORKLISTS__SET_STUDY_INSTANCE_UID_IF_MISSING: "true"
+      ORTHANC__WORKLISTS__DELETE_WORKLISTS_ON_STABLE_STUDY: "true"
+      ORTHANC__WORKLISTS__FILTER_ISSUER_AET: "true"
+      ORTHANC__WORKLISTS__LIMIT_ANSWERS: "200"
     ports:
-      - "4242:4242"  # DICOM port
-      - "8042:8042"  # Web interface
+      - "${ORTHANC_DICOM_BIND_IP:-127.0.0.1}:${ORTHANC_DICOM_HOST_PORT:-4243}:4242"  # set bind IP to hospital VLAN for modalities
+      - "127.0.0.1:${ORTHANC_REST_HOST_PORT:-8043}:8042"  # REST is private; HIS backend is the access-control boundary
     volumes:
       - orthanc_data:/var/lib/orthanc/db
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "/probes/test-aliveness.py", "--user", "${PACS_USERNAME:-his-api}", "--pwd", "${PACS_PASSWORD:-HisPacsLocal-2026!Change}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - his-network
+
+  # Second Orthanc node — DEV/TEST ONLY, does not start with a plain `docker compose up`.
+  #   docker compose --profile dicom-test up -d orthanc-peer
+  # Exists because a single archive cannot prove two things about itself:
+  #   1. that HIS records the modality's calling AE Title (a store to itself is deduplicated,
+  #      so the original RestApi provenance survives and no DICOM association is ever recorded);
+  #   2. that Storage Commitment is acknowledged (the request has to leave and come back through
+  #      an independent peer, not loop through the host NAT into the same process).
+  # It plays both roles in tests: a modality pushing images in, and a remote PACS receiving them.
+  # Permissive AE checks on purpose — it is a stand-in peer on a dev machine, never deployed.
+  orthanc-peer:
+    image: orthancteam/orthanc:26.7.0
+    container_name: his-orthanc-peer
+    hostname: his-orthanc-peer
+    profiles: ["dicom-test"]
+    environment:
+      ORTHANC__DICOM_AET: "TEST_PACS"
+      ORTHANC__DICOM_PORT: "4242"
+      ORTHANC__DICOM_CHECK_CALLED_AET: "false"
+      ORTHANC__DICOM_ALWAYS_ALLOW_ECHO: "true"
+      ORTHANC__DICOM_ALWAYS_ALLOW_STORE: "true"
+      ORTHANC__REGISTERED_USERS: '{"${PACS_USERNAME:-his-api}": "${PACS_PASSWORD:-HisPacsLocal-2026!Change}"}'
+      ORTHANC__DICOM_MODALITIES_IN_DATABASE: "true"
+      ORTHANC__OVERWRITE_INSTANCES: "true"
+    ports:
+      - "127.0.0.1:${ORTHANC_PEER_DICOM_HOST_PORT:-4244}:4242"
+      - "127.0.0.1:${ORTHANC_PEER_REST_HOST_PORT:-8044}:8042"
+    volumes:
+      - orthanc_peer_data:/var/lib/orthanc/db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "/probes/test-aliveness.py", "--user", "${PACS_USERNAME:-his-api}", "--pwd", "${PACS_PASSWORD:-HisPacsLocal-2026!Change}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - his-network
 
@@ -72,6 +130,8 @@ volumes:
     name: his_sqlserver_data
   orthanc_data:
     name: his_orthanc_data
+  orthanc_peer_data:
+    name: his_orthanc_peer_data
   redis_data:
     name: his_redis_data
 
