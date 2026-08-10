@@ -5,9 +5,10 @@ import { useNavigate } from 'react-router-dom';
 import apiClient from '../../../services/apiClient';
 import { getEmrRecords } from '../api/examination';
 import type { EmrRecordDto } from '../api/examination';
-import { SimpleV2Page, ActBtn, Btn, type ColumnDef } from '@/_v2kit';
+import { SimpleV2Page, ActBtn, Btn, tk, te, tw, type ColumnDef } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import * as pdf from '../../../api/pdf';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ── Mẫu HSBA (ClinicalTemplate) ─────────────────────────────────────────────
 interface ClinicalTemplateDto {
@@ -41,6 +42,7 @@ const ClinicalTemplateManager: React.FC<{ open: boolean; onClose: () => void }> 
   const [editing, setEditing] = useState<ClinicalTemplateDto | null>(null);
   const [form] = Form.useForm();
   const [fType, setFType] = useState<number | undefined>(undefined);
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -49,7 +51,7 @@ const ClinicalTemplateManager: React.FC<{ open: boolean; onClose: () => void }> 
       if (fType != null) params.templateType = fType;
       const r = await apiClient.get<ClinicalTemplateDto[]>('/clinical-template', { params });
       setTemplates(Array.isArray(r.data) ? r.data : []);
-    } catch { setTemplates([]); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh sách mẫu HSBA.')); setTemplates([]); }
     finally { setLoading(false); }
   }, [fType]);
 
@@ -63,17 +65,32 @@ const ClinicalTemplateManager: React.FC<{ open: boolean; onClose: () => void }> 
   };
 
   const handleSave = async () => {
+    if (saving) return; // chặn double-click
+    let v: Record<string, unknown>;
     try {
-      const v = await form.validateFields();
+      v = await form.validateFields();
+    } catch { return; /* lỗi validate đã hiển thị ngay trên field */ }
+    setSaving(true);
+    try {
       const payload = { ...v, isPublic: v.isPublic === 'true', id: editing?.id };
       await apiClient.post('/clinical-template', payload);
+      tk(editing ? 'Đã cập nhật mẫu HSBA' : 'Đã thêm mẫu HSBA mới');
       setEditOpen(false); load();
-    } catch { /* form errors */ }
+    } catch (e) {
+      te(friendlyErrorMessage(e, 'Lưu mẫu HSBA thất bại. Vui lòng thử lại.'));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
-    await apiClient.delete(`/clinical-template/${id}`);
-    load();
+    try {
+      await apiClient.delete(`/clinical-template/${id}`);
+      tk('Đã xóa mẫu HSBA');
+      load();
+    } catch (e) {
+      te(friendlyErrorMessage(e, 'Xóa mẫu HSBA thất bại. Vui lòng thử lại.'));
+    }
   };
 
   const cols = [
@@ -130,6 +147,7 @@ const ClinicalTemplateManager: React.FC<{ open: boolean; onClose: () => void }> 
         title={editing ? 'Sửa mẫu HSBA' : 'Thêm mẫu HSBA mới'}
         onCancel={() => setEditOpen(false)}
         onOk={handleSave}
+        confirmLoading={saving}
         okText="Lưu"
         cancelText="Hủy"
         destroyOnHidden
@@ -213,7 +231,8 @@ const EMRV2: React.FC = () => {
         try {
           const r = await getEmrRecords(undefined, 1, 300);
           return r.data?.items || [];
-        } catch {
+        } catch (e) {
+          tw(friendlyErrorMessage(e, 'Không tải được danh sách hồ sơ bệnh án.'));
           return [];
         }
       }}

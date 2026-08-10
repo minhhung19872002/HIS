@@ -338,7 +338,7 @@ const LisCatalogAdminV2: React.FC = () => {
 
       <TopTabs<TabKey> tab={tab} setTab={(v) => { setTab(v); setKeyword(''); }} tabs={TABS} actions={
         <>
-          <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+          <Btn variant="ghost" icon="refresh" loading={loading} onClick={load}>Làm mới</Btn>
           <Btn variant="primary" icon="plus" onClick={openAdd}>Thêm mới</Btn>
         </>
       } />
@@ -357,7 +357,8 @@ const LisCatalogAdminV2: React.FC = () => {
             <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => remove(r)} />
           </div>
         )}
-        empty={loading ? 'Đang tải…' : 'Không có dữ liệu'}
+        loading={loading}
+        empty={'Không có dữ liệu'}
       />
 
       <Modal

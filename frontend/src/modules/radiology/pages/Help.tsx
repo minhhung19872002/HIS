@@ -164,9 +164,7 @@ const HelpV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={(v) => { setTab(v); setPage(0); }} tabs={TABS} actions={
         <>
-          <Btn variant="ghost" onClick={load}>
-            <Ico name="refresh" size={12} /> Làm mới
-          </Btn>
+          <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
         </>
       } />
 
@@ -195,7 +193,8 @@ const HelpV2: React.FC = () => {
               {r.videoUrl && <ActBtn ic="play" title="Xem video" onClick={() => window.open(r.videoUrl, '_blank')} />}
             </div>
           )}
-          empty={loading ? 'Đang tải…' : 'Chưa có bài viết'}
+          loading={loading}
+          empty="Chưa có bài viết"
         />
       </>}
 
@@ -209,7 +208,8 @@ const HelpV2: React.FC = () => {
               {/* Sửa danh mục — ẩn, không có BE endpoint quản lý nội dung */}
             </div>
           )}
-          empty={loading ? 'Đang tải…' : 'Chưa có danh mục'}
+          loading={loading}
+          empty="Chưa có danh mục"
         />
       </>}
 
@@ -222,7 +222,8 @@ const HelpV2: React.FC = () => {
               <ActBtn ic="eye" title="Xem" onClick={() => setSelTrouble(r)} />
             </div>
           )}
-          empty={loading ? 'Đang tải…' : 'Chưa có hướng dẫn sửa lỗi'}
+          loading={loading}
+          empty="Chưa có hướng dẫn sửa lỗi"
         />
       </>}
 

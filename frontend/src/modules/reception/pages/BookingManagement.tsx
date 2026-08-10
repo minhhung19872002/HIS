@@ -13,9 +13,10 @@ import {
 } from '../api/appointmentBooking';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal,
-  DrawerShell, DrSec, DrField, ModalShell, useTabCounts, tk, ti, te, cf, Ico,
+  DrawerShell, DrSec, DrField, ModalShell, useTabCounts, tk, ti, tw, te, cf, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
 
 const STATUS_LABEL: Record<number, string> = {
   0: 'Chờ xác nhận', 1: 'Đã xác nhận', 2: 'Đã đến', 3: 'Vắng mặt', 4: 'Hủy',
@@ -154,8 +155,10 @@ const BookingManagementV2: React.FC = () => {
   const openSchedules = () => {
     setScheduleOpen(true);
     loadSchedules();
-    getBookingDepartments().then((d) => setSchDepts(Array.isArray(d) ? d : [])).catch(() => setSchDepts([]));
-    getBookingDoctors().then((d) => setSchDoctors(Array.isArray(d) ? d : [])).catch(() => setSchDoctors([]));
+    getBookingDepartments().then((d) => setSchDepts(Array.isArray(d) ? d : []))
+      .catch(() => { tw('Không tải được danh sách khoa cho lịch bác sĩ.'); setSchDepts([]); });
+    getBookingDoctors().then((d) => setSchDoctors(Array.isArray(d) ? d : []))
+      .catch(() => { tw('Không tải được danh sách bác sĩ cho lịch bác sĩ.'); setSchDoctors([]); });
   };
   const openScheduleCreate = () => { setScheduleCrudInit({}); setScheduleCrudOpen(true); };
   const openScheduleEdit = (s: DoctorScheduleListDto) => {
@@ -247,24 +250,17 @@ const BookingManagementV2: React.FC = () => {
   ];
 
   const actions = (r: Booking) => (
-    <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      {canEdit(r) && (
-        <ActBtn ic="edit" title="Sửa lịch" onClick={() => onEdit(r)} />
-      )}
-      {r.status === 0 && (
-        <ActBtn ic="check" title="Xác nhận" onClick={() => onConfirm(r)} />
-      )}
-      {(r.status === 0 || r.status === 1) && (
-        <ActBtn ic="arrow-right" title="BN đã đến" onClick={() => onCheckIn(r)} />
-      )}
-      {(r.status === 0 || r.status === 1) && (
-        <ActBtn ic="alert" title="Vắng mặt" onClick={() => onNoShow(r)} tone="warn" />
-      )}
-      {canCancel(r) && (
-        <ActBtn ic="x" title="Hủy lịch" onClick={() => onCancel(r)} tone="crit" />
-      )}
-    </div>
+    <RowActions actions={[
+      { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setSel(r) },
+      { key: 'edit', icon: 'edit', label: 'Sửa lịch', primary: true, hidden: !canEdit(r), onClick: () => onEdit(r) },
+      { key: 'confirm', icon: 'check', label: 'Xác nhận', hidden: r.status !== 0, disabled: acting, onClick: () => onConfirm(r) },
+      { key: 'checkin', icon: 'arrow-right', label: 'BN đã đến', hidden: !(r.status === 0 || r.status === 1), disabled: acting, onClick: () => onCheckIn(r) },
+      // onNoShow/onCancel tự mở confirm/modal riêng — confirm:false để tránh RowActions hỏi lại lần 2.
+      { key: 'noshow', icon: 'alert', label: 'Vắng mặt', tone: 'danger', confirm: false,
+        hidden: !(r.status === 0 || r.status === 1), disabled: acting, onClick: () => onNoShow(r) },
+      { key: 'cancel', icon: 'x', label: 'Hủy lịch', tone: 'danger', confirm: false,
+        hidden: !canCancel(r), onClick: () => onCancel(r) },
+    ]} />
   );
 
   return (
@@ -294,9 +290,7 @@ const BookingManagementV2: React.FC = () => {
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
         <Btn variant="ghost" onClick={openSchedules}>
           <Ico name="calendar" size={12} /> Lịch bác sĩ
         </Btn>
@@ -311,9 +305,9 @@ const BookingManagementV2: React.FC = () => {
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
 
       <DataTable<Booking>
-        columns={cols} data={paged} rowKey={(r) => r.id}
+        columns={cols} data={paged} rowKey={(r) => r.id} loading={loading}
         onRowClick={setSel} actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có lịch hẹn'}
+        empty="Chưa có lịch hẹn"
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 
@@ -423,7 +417,7 @@ const BookingManagementV2: React.FC = () => {
         footer={<Btn variant="ghost" onClick={() => setScheduleOpen(false)}>Đóng</Btn>}
       >
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-8)', marginBottom: 'var(--space-8)' }}>
-          <Btn variant="ghost" onClick={loadSchedules}><Ico name="refresh" size={12} /> Làm mới</Btn>
+          <Btn variant="ghost" onClick={loadSchedules} loading={scheduleLoading} icon="refresh">Làm mới</Btn>
           <Btn variant="primary" onClick={openScheduleCreate}><Ico name="plus" size={12} /> Thêm lịch làm việc</Btn>
         </div>
         {scheduleLoading && <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải lịch bác sĩ…</div>}
@@ -509,7 +503,7 @@ const BookingManagementV2: React.FC = () => {
             format="DD/MM/YYYY"
             onChange={(d) => { if (d) { setStatsDate(d); loadFullStats(d); } }}
           />
-          <Btn variant="ghost" onClick={() => loadFullStats(statsDate)}><Ico name="refresh" size={12} /> Làm mới</Btn>
+          <Btn variant="ghost" onClick={() => loadFullStats(statsDate)} loading={statsLoading} icon="refresh">Làm mới</Btn>
         </div>
         {statsLoading && <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải thống kê…</div>}
         {!statsLoading && fullStats && (

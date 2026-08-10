@@ -198,8 +198,8 @@ const ScreeningV2: React.FC = () => {
         tabs={TOP_TABS}
         actions={
           <>
-            <Btn variant="ghost" onClick={load}>
-              <Ico name="refresh" size={12} /> Làm mới
+            <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">
+              Làm mới
             </Btn>
             <Btn variant="primary" onClick={() => setCreateOpen(true)}>
               <Ico name="plus" size={12} /> {tab === 'newborn' ? 'SL sơ sinh' : 'SL trước sinh'}
@@ -229,7 +229,8 @@ const ScreeningV2: React.FC = () => {
         rowKey={(r) => r.id}
         onRowClick={setSel}
         actions={rowActions}
-        empty={loading ? 'Đang tải…' : `Không có yêu cầu sàng lọc ${tab === 'newborn' ? 'sơ sinh' : 'trước sinh'}`}
+        loading={loading}
+        empty={`Không có yêu cầu sàng lọc ${tab === 'newborn' ? 'sơ sinh' : 'trước sinh'}`}
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 

@@ -13,6 +13,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   KpiStrip, StatusBadge, ActBtn, Btn, ModalShell, DrawerShell, fmtVNDg, tk, tw, te,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { examinationApi, printExternalPrescription, type MedicineDto, type DrugInteractionDto, type CreatePrescriptionDto, type PrescriptionTemplateDto, type WarehouseDto } from '../api/examination';
 import { patientApi, type Patient } from '../../patient/api/patient';
@@ -134,8 +135,9 @@ const PrescriptionEditorV2: React.FC = () => {
         if (selectReqRef.current !== reqId) return;
         if (ctxRes.data) setCtx(ctxRes.data);
       }
-    } catch {
+    } catch (e) {
       // No examination found → editor still usable but cannot complete.
+      tw(friendlyErrorMessage(e, 'Không tra được phiếu khám của bệnh nhân — vui lòng kiểm tra lại.'));
     }
   }, []);
 

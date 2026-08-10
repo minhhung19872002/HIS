@@ -10,6 +10,7 @@ import {
   KpiStrip, SearchBox, DataTable, DrawerShell, DrSec, DrField, StatusBadge,
   ModalShell, ActBtn, Btn, tk, te, cf, type ColumnDef,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '@/utils/friendlyError';
 import { toStringValue, toNumberValue, type RawApiItem } from './helpers';
 
 type TicketRow = RawApiItem;
@@ -67,7 +68,7 @@ const ItTicketsPanel: React.FC = () => {
         const d = statsRes.value.data as unknown as ItTicketStats | { data?: ItTicketStats };
         setStats((d as { data?: ItTicketStats })?.data || (d as ItTicketStats) || EMPTY_STATS);
       }
-    } catch { /* keep current */ }
+    } catch (e) { te(friendlyErrorMessage(e)); }
     finally { setLoading(false); }
   }, [filterStatus, filterPriority, debouncedKeyword]);
   useEffect(() => { load(); }, [load]);

@@ -4,9 +4,10 @@ import { App as AntdApp } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import * as receptionApi from '../api/reception';
 import type { AdmissionDto } from '../api/reception';
-import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from '@/_v2kit';
+import { SimpleV2Page, StatusBadge, Btn, type ColumnDef, type StatusTab } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import * as pdf from '../../../api/pdf';
+import { RowActions } from '../../../components/actions';
 
 /* Khám bệnh OPD v2 — list shell.
    Form khám đầy đủ (vital signs, history, exam, CĐ, CLS) là native v2 tại
@@ -116,17 +117,20 @@ const OPDV2: React.FC = () => {
         ];
       }}
       rowActions={(r) => (
-        <div className="ab-actions">
-          <ActBtn ic="stethoscope" title="Khám" onClick={() => navigate('/v2/opd/edit')} />
-          <ActBtn ic="eye" title="Xem hồ sơ" onClick={() => navigate('/v2/emr/edit')} />
-          <ActBtn ic="print" title="In phiếu khám" onClick={() => {
-            if (r.examinationId) {
-              pdf.printEmrForm(r.examinationId, 'kham');
-            } else {
-              message.warning('Chưa có phiếu khám — bấm "Khám" để tạo phiếu trước');
-            }
-          }} />
-        </div>
+        <RowActions actions={[
+          { key: 'exam', icon: 'stethoscope', label: 'Khám', primary: true, onClick: () => navigate('/v2/opd/edit') },
+          { key: 'view', icon: 'eye', label: 'Xem hồ sơ', primary: true, onClick: () => navigate('/v2/emr/edit') },
+          {
+            key: 'print', icon: 'printer', label: 'In phiếu khám',
+            onClick: () => {
+              if (r.examinationId) {
+                pdf.printEmrForm(r.examinationId, 'kham');
+              } else {
+                message.warning('Chưa có phiếu khám — bấm "Khám" để tạo phiếu trước');
+              }
+            },
+          },
+        ]} />
       )}
       drawer={(r) => (
         <>

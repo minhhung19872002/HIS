@@ -240,9 +240,7 @@ const OccupationalHealthV2: React.FC = () => {
             <Btn variant="primary" size="sm" onClick={openCreate}>
               <Ico name="plus" size={12} /> Tạo phiếu khám
             </Btn>
-            <Btn variant="ghost" size="sm" onClick={load}>
-              <Ico name="refresh" size={12} /> Làm mới
-            </Btn>
+            <Btn variant="ghost" size="sm" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
           </>
         )}
       />
@@ -295,7 +293,8 @@ const OccupationalHealthV2: React.FC = () => {
             rowKey={(r) => r.id}
             onRowClick={(r) => setSel(r)}
             actions={rowActions}
-            empty={loading ? 'Đang tải…' : 'Không có phiếu khám sức khỏe nghề nghiệp'}
+            loading={loading}
+            empty="Không có phiếu khám sức khỏe nghề nghiệp"
           />
           <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
         </>

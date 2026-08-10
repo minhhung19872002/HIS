@@ -191,9 +191,7 @@ const ReagentManagementV2: React.FC = () => {
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
         <Btn variant="ghost" onClick={openAlerts}>
           <Ico name="alert" size={12} /> Cảnh báo
         </Btn>
@@ -207,7 +205,8 @@ const ReagentManagementV2: React.FC = () => {
       <DataTable<Reagent>
         columns={cols} data={paged} rowKey={(r) => r.id}
         onRowClick={setSel} actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có hóa chất'}
+        loading={loading}
+        empty={'Chưa có hóa chất'}
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 

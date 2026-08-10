@@ -17,6 +17,7 @@ import TermIcon from '../../../components/layout/terminal/Icon';
 import { biometricApi } from '../../../api/nangcap24';
 import type { BiometricCredentialDto } from '../../../api/nangcap24';
 import apiClient from '../../../services/apiClient';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 interface PatientDto {
   id: string;
@@ -52,6 +53,7 @@ const bufToB64u = (buf: ArrayBuffer): string => {
 
 const BiometricEnrollment: React.FC = () => {
   const [patients, setPatients] = useState<PatientDto[]>([]);
+  const [loadingPatients, setLoadingPatients] = useState(true);
   const [creds, setCreds] = useState<BiometricCredentialDto[]>([]);
   const [search, setSearch] = useState('');
   const [selPid, setSelPid] = useState<string | null>(null);
@@ -65,12 +67,16 @@ const BiometricEnrollment: React.FC = () => {
   const webAuthnOk = typeof window !== 'undefined' && !!window.PublicKeyCredential;
 
   const loadPatients = async () => {
+    setLoadingPatients(true);
     try {
       const r = await apiClient.get('/reception/patients/search', { params: { keyword: search || 'a', limit: 50 } });
       const items = Array.isArray(r.data) ? r.data : (r.data?.items || []);
       setPatients(items as PatientDto[]);
-    } catch {
+    } catch (e) {
+      te(friendlyErrorMessage(e, 'Không tải được danh sách bệnh nhân.'));
       setPatients([]);
+    } finally {
+      setLoadingPatients(false);
     }
   };
 
@@ -79,7 +85,8 @@ const BiometricEnrollment: React.FC = () => {
       const list = await biometricApi.listCredentials(patientId);
       setCreds(list);
       setCredCounts(prev => ({ ...prev, [patientId]: list.length }));
-    } catch {
+    } catch (e) {
+      te(friendlyErrorMessage(e, 'Không tải được danh sách credential.'));
       setCreds([]);
     }
   };
@@ -147,7 +154,7 @@ const BiometricEnrollment: React.FC = () => {
       loadCredentials(sel.id);
     } catch (e: unknown) {
       const err = e as { errorFields?: unknown; message?: string };
-      if (!err?.errorFields) te(`Đăng ký thất bại: ${err?.message ?? e}`);
+      if (!err?.errorFields) te(friendlyErrorMessage(e, 'Đăng ký thất bại. Vui lòng thử lại.'));
     } finally { setScanning(false); }
   };
 
@@ -178,7 +185,7 @@ const BiometricEnrollment: React.FC = () => {
       loadCredentials(sel.id);
     } catch (e: unknown) {
       const err = e as { errorFields?: unknown; message?: string };
-      if (!err?.errorFields) te(`Ký thất bại: ${err?.message ?? e}`);
+      if (!err?.errorFields) te(friendlyErrorMessage(e, 'Ký thất bại. Vui lòng thử lại.'));
     } finally { setScanning(false); }
   };
 
@@ -276,7 +283,12 @@ const BiometricEnrollment: React.FC = () => {
                 </div>
               );
             })}
-            {filteredPts.length === 0 && (
+            {loadingPatients && (
+              <div style={{ padding: 'var(--space-40)', textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>
+                Đang tải danh sách bệnh nhân…
+              </div>
+            )}
+            {!loadingPatients && filteredPts.length === 0 && (
               <div style={{ padding: 'var(--space-40)', textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>
                 Không có bệnh nhân
               </div>

@@ -16,10 +16,11 @@ import { searchMedicines } from '../../opd/api/examination';
 import type { MedicineDto } from '../../opd/api/examination';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
-  StatusBadge, ActBtn, Btn, DrawerShell, ModalShell,
+  StatusBadge, Btn, DrawerShell, ModalShell, cf,
   type ColumnDef, type StatusTab,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { RowActions } from '../../../components/actions';
 
 /* Khám từ xa v2 — port of design-system-v2/his/project/Telemedicine v2.html */
 
@@ -62,6 +63,8 @@ const TelemedicineV2: React.FC = () => {
   const [bookingOpen, setBookingOpen] = useState(false);
   /* ── NEW: session action busy flags ── */
   const [startSessionBusy, setStartSessionBusy] = useState(false);
+  /* #467: chặn double-click 'Xác nhận' bắn confirmAppointment 2 lần */
+  const [confirmBusy, setConfirmBusy] = useState<string | null>(null);
   /* #352: form ghi hồ sơ khi kết thúc buổi khám từ xa */
   const [endTarget, setEndTarget] = useState<TelemedicineAppointmentDto | null>(null);
   const [endBusy, setEndBusy] = useState(false);
@@ -84,6 +87,7 @@ const TelemedicineV2: React.FC = () => {
       getDashboard(dayjs().format('YYYY-MM-DD')),
     ]).then(([apptRes, dashRes]) => {
       setRows(apptRes.status === 'fulfilled' ? (apptRes.value.data?.items || []) : []);
+      if (apptRes.status === 'rejected') message.error('Không tải được danh sách lịch khám từ xa');
       setDashboard(dashRes.status === 'fulfilled' ? (dashRes.value.data || null) : null);
     }).finally(() => setLoading(false));
   };
@@ -124,8 +128,11 @@ const TelemedicineV2: React.FC = () => {
   }), [rows, counts, today]);
 
   const onConfirm = async (r: TelemedicineAppointmentDto) => {
+    if (confirmBusy) return;
+    setConfirmBusy(r.id);
     try { await confirmAppointment(r.id); message.success(`Đã xác nhận · ${r.patientName}`); reload(); }
     catch { message.error('Xác nhận thất bại'); }
+    finally { setConfirmBusy(null); }
   };
 
   const onCancel = async (r: TelemedicineAppointmentDto) => {
@@ -332,13 +339,13 @@ const TelemedicineV2: React.FC = () => {
             rowKey={(r) => r.id}
             onRowClick={(r) => setDetail(r)}
             actions={(r) => (
-              <div className="ab-actions">
-                {[0, 1].includes(r.status) && r.videoRoomUrl && (
-                  <ActBtn ic="play" title="Vào phòng" onClick={() => onJoin(r)} />
-                )}
-                {r.status === 0 && <ActBtn ic="check" title="Xác nhận" onClick={() => onConfirm(r)} />}
-                <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
-              </div>
+              <RowActions actions={[
+                { key: 'join', icon: 'play', label: 'Vào phòng', primary: true,
+                  hidden: !([0, 1].includes(r.status) && !!r.videoRoomUrl), onClick: () => onJoin(r) },
+                { key: 'confirm', icon: 'check', label: 'Xác nhận', primary: true,
+                  hidden: r.status !== 0, disabled: confirmBusy === r.id, onClick: () => onConfirm(r) },
+                { key: 'detail', icon: 'eye', label: 'Chi tiết', onClick: () => setDetail(r) },
+              ]} />
             )}
             empty={loading ? 'Đang tải…' : (
               <div className="ab-empty">
@@ -373,7 +380,14 @@ const TelemedicineV2: React.FC = () => {
               </Btn>
             )}
             {![3, 4, 5].includes(detail.status) && (
-              <Btn onClick={() => { onCancel(detail); setDetail(null); }} style={{ color: 'var(--s-crit)' }}>
+              <Btn
+                onClick={() => cf(
+                  `Huỷ lịch hẹn khám từ xa của ${detail.patientName}? Thao tác không thể hoàn tác.`,
+                  () => { onCancel(detail); setDetail(null); },
+                  { tone: 'crit', confirm: 'Huỷ lịch hẹn' },
+                )}
+                style={{ color: 'var(--s-crit)' }}
+              >
                 <TermIcon name="x" size={12} /> Huỷ
               </Btn>
             )}

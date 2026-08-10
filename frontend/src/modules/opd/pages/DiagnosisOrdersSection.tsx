@@ -6,7 +6,7 @@
  * ===================================================================== */
 
 import React from 'react';
-import { ActBtn, Btn, fmtVNDg } from '@/_v2kit';
+import { ActBtn, Btn, fmtVNDg, cf } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import type { IcdCodeFullDto, ServiceDto } from '../api/examination';
 import type { DxRow, OrderRow } from './_shared';
@@ -132,7 +132,7 @@ export const DiagnosisOrdersSection: React.FC<DiagnosisOrdersSectionProps> = ({
             <TermIcon name="plus" size={12} /> Lưu mẫu
           </Btn>
           {orderTpls.map((t) => (
-            <ActBtn key={t.name} ic="trash" tone="crit" title={`Xoá mẫu "${t.name}"`} onClick={() => onRemoveOrderTpl(t.name)} />
+            <ActBtn key={t.name} ic="trash" tone="crit" title={`Xoá mẫu "${t.name}"`} onClick={() => cf(`Xoá mẫu "${t.name}"? Thao tác không thể hoàn tác.`, () => onRemoveOrderTpl(t.name), { tone: 'crit', confirm: 'Xoá' })} />
           ))}
         </div>
 

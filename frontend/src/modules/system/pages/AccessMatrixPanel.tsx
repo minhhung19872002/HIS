@@ -4,8 +4,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { getAccessControlMatrix, type AccessControlMatrixDto } from '../api/security';
 import {
-  DataTable, DrawerShell, DrSec, DrField, StatusBadge, Btn, type ColumnDef,
+  DataTable, DrawerShell, DrSec, DrField, StatusBadge, Btn, type ColumnDef, te,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '@/utils/friendlyError';
 import { getNestedData } from './helpers';
 
 const CLINICAL_ROLES = ['DOCTOR', 'NURSE', 'PHARMACIST', 'LAB_TECH'];
@@ -20,7 +21,7 @@ const AccessMatrixPanel: React.FC = () => {
     try {
       const res = await getAccessControlMatrix();
       setMatrix(getNestedData<AccessControlMatrixDto[]>(res.data, []));
-    } catch { /* keep current */ }
+    } catch (e) { te(friendlyErrorMessage(e)); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);

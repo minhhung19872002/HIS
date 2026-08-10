@@ -106,7 +106,7 @@ const EmrDataTagsV2 = () => {
       <div className="ab-tools">
         <SearchBox value={kw} onChange={setKw} placeholder="Tìm thẻ theo tên / mã / mẫu…" />
         <span className="spacer" />
-        <Btn icon="refresh" onClick={reload}>Làm mới</Btn>
+        <Btn icon="refresh" onClick={reload} loading={loading}>Làm mới</Btn>
         <Btn variant="primary" icon="plus" onClick={openCreate}>Thêm thẻ</Btn>
       </div>
 
@@ -121,7 +121,8 @@ const EmrDataTagsV2 = () => {
             <ActBtn ic="trash" title={t.isSystem ? 'Thẻ hệ thống — không xóa' : 'Xóa'} tone="crit" onClick={() => doDelete(t)} />
           </>
         )}
-        empty={loading ? 'Đang tải…' : (
+        loading={loading}
+        empty={(
           <div className="ab-empty">Chưa có thẻ dữ liệu nào — bấm “Thêm thẻ”.</div>
         )}
       />

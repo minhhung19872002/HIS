@@ -614,8 +614,8 @@ const EquipmentV2: React.FC = () => {
                 <TermIcon name="refresh" size={12} /> Bỏ lọc
               </button>
               <span className="spacer" />
-              <button type="button" className="ab-btn ghost" onClick={() => { void reload(); }}>
-                <TermIcon name="refresh" size={12} /> Làm mới
+              <button type="button" className="ab-btn ghost" disabled={loading} onClick={() => { void reload(); }}>
+                <span className={loading ? 'ab-btn-spin' : undefined} style={{ display: 'inline-flex' }}><TermIcon name="refresh" size={12} /></span> Làm mới
               </button>
             </div>
 
@@ -629,6 +629,7 @@ const EquipmentV2: React.FC = () => {
             <DataTable<EquipmentDto>
               columns={equipColumns}
               data={pagedEq}
+              loading={loading}
               rowKey={(r) => r.id}
               onRowClick={(r) => setDetailEq(r)}
               actions={(r) => (
@@ -671,8 +672,8 @@ const EquipmentV2: React.FC = () => {
             <DataTable<MaintenanceScheduleDto>
               columns={maintColumns}
               data={maintenanceSchedules}
+              loading={loading}
               rowKey={(r) => r.id}
-              empty={loading ? 'Đang tải…' : 'Không có lịch bảo trì nào trong 90 ngày tới'}
               actions={(r) => (
                 /* NangCap26 XVII.7 — chỉ kế hoạch đang Chờ duyệt mới có thao tác duyệt/từ chối */
                 (r.approvalStatus ?? 0) === 0 ? (
@@ -684,6 +685,7 @@ const EquipmentV2: React.FC = () => {
                   </div>
                 ) : <span style={{ color: 'var(--t-2)' }}>—</span>
               )}
+              empty={'Không có lịch bảo trì nào trong 90 ngày tới'}
             />
           </>
         )}
@@ -693,8 +695,9 @@ const EquipmentV2: React.FC = () => {
           <DataTable<RepairRequestDto>
             columns={repairColumns}
             data={repairRequests}
+            loading={loading}
             rowKey={(r) => r.id}
-            empty={loading ? 'Đang tải…' : 'Không có yêu cầu sửa chữa nào'}
+            empty={'Không có yêu cầu sửa chữa nào'}
           />
         )}
 
@@ -732,9 +735,10 @@ const EquipmentV2: React.FC = () => {
             <DataTable<EquipmentDto>
               columns={calibColumns}
               data={calibEq}
+              loading={loading}
               rowKey={(r) => r.id}
               onRowClick={(r) => setDetailEq(r)}
-              empty={loading ? 'Đang tải…' : 'Không có thiết bị cần kiểm định'}
+              empty={'Không có thiết bị cần kiểm định'}
             />
           </>
         )}

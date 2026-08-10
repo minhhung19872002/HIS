@@ -207,9 +207,7 @@ const SchoolHealthV2: React.FC = () => {
         <Btn variant="primary" onClick={openCreate}>
           <Ico name="plus" size={12} /> Tạo phiếu khám
         </Btn>
-        <Btn variant="ghost" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
       </div>
 
       <StatusTabs<StatusKey>
@@ -225,7 +223,8 @@ const SchoolHealthV2: React.FC = () => {
         rowKey={(r) => r.id}
         onRowClick={setSel}
         actions={rowActions}
-        empty={loading ? 'Đang tải…' : 'Không có phiếu khám sức khỏe'}
+        loading={loading}
+        empty="Không có phiếu khám sức khỏe"
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 

@@ -79,14 +79,13 @@ function AppointmentsSection() {
         { lbl: 'BN mới', val: rows.filter((r) => r.isFirstVisit).length },
         { lbl: 'BHYT', val: rows.filter((r) => r.insuranceUsed).length, sub: 'sử dụng' },
       ]} />
-      {loading ? <Loading /> : (
-        <DataTable
-          columns={cols}
-          data={rows}
-          rowKey={(r) => r.id}
-          onRowClick={setDetail}
-        />
-      )}
+      <DataTable
+        columns={cols}
+        data={rows}
+        rowKey={(r) => r.id}
+        onRowClick={setDetail}
+        loading={loading}
+      />
       <DrawerShell
         open={!!detail}
         onClose={() => setDetail(null)}
@@ -162,14 +161,13 @@ function LabSection() {
         { lbl: 'Xác định', val: rows.filter((r) => r.status === 'Final').length, tone: 'ok' },
         { lbl: 'Bất thường', val: rows.filter((r) => r.isAbnormal).length, tone: 'crit' },
       ]} />
-      {loading ? <Loading /> : (
-        <DataTable
-          columns={cols}
-          data={rows}
-          rowKey={(r) => r.id}
-          onRowClick={setDetail}
-        />
-      )}
+      <DataTable
+        columns={cols}
+        data={rows}
+        rowKey={(r) => r.id}
+        onRowClick={setDetail}
+        loading={loading}
+      />
       <DrawerShell
         open={!!detail}
         onClose={() => setDetail(null)}
@@ -231,14 +229,13 @@ function VisitsSection() {
       <KpiStrip items={[
         { lbl: 'Tổng lần khám', val: rows.length },
       ]} />
-      {loading ? <Loading /> : (
-        <DataTable
-          columns={cols}
-          data={rows}
-          rowKey={(r) => r.visitId}
-          onRowClick={setDetail}
-        />
-      )}
+      <DataTable
+        columns={cols}
+        data={rows}
+        rowKey={(r) => r.visitId}
+        onRowClick={setDetail}
+        loading={loading}
+      />
       <DrawerShell
         open={!!detail}
         onClose={() => setDetail(null)}
@@ -292,14 +289,13 @@ function PrescriptionsSection() {
         { lbl: 'Đã cấp', val: rows.filter((r) => r.status === 'Dispensed').length, tone: 'info' },
         { lbl: 'Hết hạn', val: rows.filter((r) => r.status === 'Expired').length },
       ]} />
-      {loading ? <Loading /> : (
-        <DataTable
-          columns={cols}
-          data={rows}
-          rowKey={(r) => r.id}
-          onRowClick={setDetail}
-        />
-      )}
+      <DataTable
+        columns={cols}
+        data={rows}
+        rowKey={(r) => r.id}
+        onRowClick={setDetail}
+        loading={loading}
+      />
       <DrawerShell
         open={!!detail}
         onClose={() => setDetail(null)}
@@ -369,14 +365,13 @@ function BillsSection() {
         { lbl: 'Chưa TT', val: rows.filter((r) => r.status !== 'Paid').length, tone: 'warn' },
         { lbl: 'Còn nợ', val: fmtVNDg(totalDue), tone: totalDue > 0 ? 'crit' : 'ok' },
       ]} />
-      {loading ? <Loading /> : (
-        <DataTable
-          columns={cols}
-          data={rows}
-          rowKey={(r) => r.id}
-          onRowClick={setDetail}
-        />
-      )}
+      <DataTable
+        columns={cols}
+        data={rows}
+        rowKey={(r) => r.id}
+        onRowClick={setDetail}
+        loading={loading}
+      />
       <DrawerShell
         open={!!detail}
         onClose={() => setDetail(null)}

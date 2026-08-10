@@ -39,6 +39,7 @@ const RisCatalogAdminV2: React.FC = () => {
   const [modalities, setModalities] = useState<Row[]>([]);
   const [bodyParts, setBodyParts] = useState<Row[]>([]);
   const [reportTemplates, setReportTemplates] = useState<Row[]>([]);
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -61,10 +62,13 @@ const RisCatalogAdminV2: React.FC = () => {
   }, [tab]);
 
   const submit = async () => {
+    if (saving) return;
     const v = await form.validateFields();
     const payload = { ...(editing ?? {}), ...v };
+    setSaving(true);
     try { await apiClient.post(`/ris-catalog/${tab}`, payload); tk(editing ? 'Đã cập nhật' : 'Đã thêm'); setModalOpen(false); load(); }
     catch { tw('Lưu thất bại'); }
+    finally { setSaving(false); }
   };
 
   const remove = (row: Row) => cf('Xóa mục này?', async () => {
@@ -304,6 +308,7 @@ const RisCatalogAdminV2: React.FC = () => {
         onCancel={() => setModalOpen(false)}
         title={editing ? 'Sửa' : 'Thêm mới'}
         onOk={submit}
+        confirmLoading={saving}
         okText="Lưu"
         cancelText="Hủy"
         width={640}

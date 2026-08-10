@@ -38,6 +38,8 @@ const DicomAutoSend: React.FC = () => {
   const [ruleModal, setRuleModal] = useState<DicomAutoSendRuleDto | 'new' | null>(null);
   const [form] = Form.useForm();
   const [txnDetail, setTxnDetail] = useState<DicomTransmissionLogDto | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [triggering, setTriggering] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -82,6 +84,8 @@ const DicomAutoSend: React.FC = () => {
     setRuleModal(r);
   };
   const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
       const v = await form.validateFields();
       if (ruleModal === 'new') { await dicomAutoSendApi.createRule(v); tk('Đã tạo quy tắc'); }
@@ -90,6 +94,8 @@ const DicomAutoSend: React.FC = () => {
     } catch (e: unknown) {
       const err = e as { errorFields?: unknown };
       if (!err?.errorFields) te('Lưu thất bại');
+    } finally {
+      setSaving(false);
     }
   };
   const handleDelete = (r: DicomAutoSendRuleDto) =>
@@ -98,11 +104,14 @@ const DicomAutoSend: React.FC = () => {
       catch { te('Xoá thất bại'); }
     }, { tone: 'crit', confirm: 'Xoá' });
   const triggerNow = async () => {
+    if (triggering) return;
+    setTriggering(true);
     try {
       const r = await dicomAutoSendApi.triggerCheck();
       tk(`Đã trigger ${r.triggered} ca mới`);
       load();
     } catch { te('Trigger thất bại'); }
+    finally { setTriggering(false); }
   };
 
   // ─── Rules columns ───
@@ -168,7 +177,7 @@ const DicomAutoSend: React.FC = () => {
               🔁 Quy tắc auto-send · {rules.filter(r => r.isActive).length} active · chỉ on-arrival
             </span>
             <span className="spacer" style={{ flex: 1 }} />
-            <Button size="small" onClick={triggerNow} loading={loading}>
+            <Button size="small" onClick={triggerNow} loading={triggering}>
               <TermIcon name="zap" size={12} /> Trigger ngay
             </Button>
             <Button type="primary" size="small" onClick={openCreate} data-testid="das-create-rule">
@@ -302,7 +311,7 @@ const DicomAutoSend: React.FC = () => {
         footer={(
           <>
             <Button onClick={() => setRuleModal(null)}>Hủy</Button>
-            <Button type="primary" onClick={handleSave}><TermIcon name="check" size={12} /> Lưu</Button>
+            <Button type="primary" onClick={handleSave} loading={saving}><TermIcon name="check" size={12} /> Lưu</Button>
           </>
         )}
       >

@@ -216,7 +216,7 @@ const Dashboard3CapV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
-          <Btn variant="ghost" icon="refresh" onClick={() => {
+          <Btn variant="ghost" icon="refresh" loading={loading} onClick={() => {
             if (tab === 'dashboard') loadDashboard();
             else if (tab === 'tree') loadTreeData();
             else if (tab === 'consolidated') loadReport();
@@ -375,6 +375,7 @@ const Dashboard3CapV2: React.FC = () => {
             </div>
             <DataTable
               columns={subCols} data={dashboard.subBranches} rowKey={(r) => r.branchId}
+              loading={loading}
               onRowClick={setSelSub}
               actions={(r) => (
                 <div className="ab-actions">
@@ -457,7 +458,7 @@ const Dashboard3CapV2: React.FC = () => {
                 { key: 'rev', label: 'Doanh thu', mono: true, render: (r) => fmtCurr(r.revenue) },
                 { key: 'pct', label: 'Tỷ lệ', mono: true, render: (r) => `${r.revenuePercentage.toFixed(1)}%` },
               ]}
-              data={report.branchItems} rowKey={(r) => r.branchId}
+              data={report.branchItems} rowKey={(r) => r.branchId} loading={loading}
             />
             {/* #352 parity v1: hàng TỔNG CỘNG (Table.Summary v1 pages/Dashboard3Cap.tsx:707-730) */}
             <div style={{
@@ -494,7 +495,7 @@ const Dashboard3CapV2: React.FC = () => {
                 { key: 'night', label: 'Đêm', mono: true, render: (r) => r.nightShifts },
                 { key: 'total', label: 'Tổng', mono: true, render: (r) => <b>{r.totalShifts}</b> },
               ]}
-              data={duty.staffSummary} rowKey={(r) => r.staffId}
+              data={duty.staffSummary} rowKey={(r) => r.staffId} loading={loading}
             />
           </div>
 
@@ -527,6 +528,7 @@ const Dashboard3CapV2: React.FC = () => {
                 };
               })}
               rowKey={(r) => String(r.day)}
+              loading={loading}
             />
           </div>
         </div>

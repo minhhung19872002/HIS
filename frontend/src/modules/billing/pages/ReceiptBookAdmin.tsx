@@ -185,7 +185,7 @@ const ReceiptBookAdminV2: React.FC = () => {
         <InputNumber placeholder="Năm TC" value={fYear} onChange={(v) => setFYear(Number(v) || undefined)} size="small" style={{ width: 100 }} />
         <Btn variant="ghost" icon="x" onClick={() => { setKeyword(''); setFType(''); setFYear(undefined); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
         <Btn variant="primary" icon="plus" onClick={openAdd}>Khai báo sổ mới</Btn>
       </div>
 
@@ -202,7 +202,8 @@ const ReceiptBookAdminV2: React.FC = () => {
             <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => remove(r)} />
           </div>
         )}
-        empty={loading ? 'Đang tải…' : 'Chưa có sổ'}
+        loading={loading}
+        empty="Chưa có sổ"
       />
 
       <Modal

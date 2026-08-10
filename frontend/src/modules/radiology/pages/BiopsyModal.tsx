@@ -6,6 +6,7 @@ import type { RadiologyOrderDto } from '../api/ris';
 import { ModalShell, Btn } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { FormRow, type ApiErr } from './_shared';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ─────────────── Modal nhập sinh thiết / GPB từ màn KQ CĐHA ───────────────
 
@@ -28,9 +29,14 @@ export const BiopsyModal: React.FC<{
   const [savedId, setSavedId] = useState<string | null>(null);
 
   const loadTypes = useCallback(async () => {
-    const types = await pathologyApi.getSpecimenTypes();
-    setSpecimenTypes(types);
-  }, []);
+    try {
+      const types = await pathologyApi.getSpecimenTypes();
+      setSpecimenTypes(types);
+    } catch (e) {
+      message.warning(friendlyErrorMessage(e, 'Không tải được danh sách loại mẫu'));
+      setSpecimenTypes([]);
+    }
+  }, [message]);
 
   useEffect(() => {
     if (!open) return;

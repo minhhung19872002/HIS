@@ -120,22 +120,24 @@ const ConsultationRegisterV2: React.FC = () => {
         <SearchBox value={keyword} onChange={setKeyword} placeholder="Tên BN / mã BN / lý do…" />
         <Btn variant="ghost" icon="x" onClick={() => { setKeyword(''); setFilterType(''); setRange([dayjs().subtract(30, 'day'), dayjs()]); }}>Reset</Btn>
         <span className="spacer" />
-        <Btn variant="primary" icon="search" onClick={load}>Tra cứu</Btn>
+        <Btn variant="primary" icon="search" onClick={load} loading={loading}>Tra cứu</Btn>
       </div>
 
       <DataTable<RegisterEntry>
-        columns={cols} data={data} rowKey={(r) => r.id}
+        columns={cols} data={data} rowKey={(r) => r.id} loading={loading}
         onRowClick={openDetail}
         actions={(r) => (
           <div className="ab-actions">
             <ActBtn ic="eye" title="Xem" onClick={() => openDetail(r)} />
             <ActBtn ic="print" title="In BBHC" onClick={async () => {
-              const { data: d } = await apiClient.get<Detail>(`/consultation-register/${r.id}`);
-              if (d) printMinutes(d);
+              try {
+                const { data: d } = await apiClient.get<Detail>(`/consultation-register/${r.id}`);
+                if (d) printMinutes(d);
+              } catch { tw('In biên bản hội chẩn thất bại'); }
             }} />
           </div>
         )}
-        empty={loading ? 'Đang tải…' : 'Không có hội chẩn'}
+        empty="Không có hội chẩn"
       />
 
       <DrawerShell

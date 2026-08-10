@@ -46,16 +46,19 @@ const FinanceCatalogsV2: React.FC = () => {
   const [page, setPage] = useState(0);
   const [edit, setEdit] = useState<EditState | null>(null);
   const [editIsNew, setEditIsNew] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => { setSearch(''); setPage(0); }, [tab]);
 
   const reload = async (which?: TabKey) => {
+    setLoading(true);
     try {
       if (!which || which === 'surcharge') setSurcharge(await api.getAdditionalCharges());
       if (!which || which === 'other')     setOther(await api.getOtherIncomes());
       if (!which || which === 'transport') setTransport(await api.getTransportServices());
       if (!which || which === 'fuel')      setFuel(await api.getGasolinePrices());
     } catch { te('Không tải được danh mục'); }
+    finally { setLoading(false); }
   };
   useEffect(() => { reload(); }, []);
 
@@ -329,6 +332,7 @@ const FinanceCatalogsV2: React.FC = () => {
         rowKey={(r) => r.id}
         onRowClick={(r) => openDrawer(r)}
         actions={rowAct}
+        loading={loading}
         empty={search ? 'Không khớp từ khoá.' : 'Chưa có dữ liệu. Thêm bản ghi đầu tiên ở góc phải.'}
       />
       <Pager page={page} totalPages={totalPages} setPage={setPage} total={filtered.length} perPage={PER} />

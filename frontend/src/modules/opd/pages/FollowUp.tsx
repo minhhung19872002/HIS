@@ -328,8 +328,8 @@ const FollowUpV2: React.FC = () => {
           {PAGE_SIZE_OPTS.map((n) => <option key={n} value={n}>{n}/trang</option>)}
         </select>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={fetchAppointments}>
-          <TermIcon name="refresh" size={12} /> Làm mới
+        <Btn variant="ghost" onClick={fetchAppointments} loading={loading} icon="refresh">
+          Làm mới
         </Btn>
         <Btn variant="ghost" onClick={() => navigate('/v2/sms-management')}>
           <TermIcon name="message-square" size={12} /> Nhắc hàng loạt
@@ -365,6 +365,7 @@ const FollowUpV2: React.FC = () => {
       <DataTable<AppointmentListDto>
         columns={columns}
         data={paged}
+        loading={loading}
         rowKey={(r) => r.id}
         onRowClick={(r) => setDetail(r)}
         actions={(r) => (
@@ -386,7 +387,7 @@ const FollowUpV2: React.FC = () => {
             <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
           </div>
         )}
-        empty={loading ? 'Đang tải…' : (
+        empty={(
           <div className="ab-empty">
             <TermIcon name="search" size={20} />
             <div>Không có lịch tái khám nào</div>

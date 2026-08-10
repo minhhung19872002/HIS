@@ -480,8 +480,8 @@ const RehabilitationV2: React.FC = () => {
               <Ico name="x" size={12} /> Bỏ lọc
             </Btn>
             <span className="spacer" />
-            <Btn variant="ghost" onClick={load}>
-              <Ico name="refresh" size={12} /> Làm mới
+            <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">
+              Làm mới
             </Btn>
             <Btn variant="primary" onClick={() => navigate('/rehabilitation')}>
               <Ico name="plus" size={12} /> Giấy GT
@@ -493,7 +493,8 @@ const RehabilitationV2: React.FC = () => {
           <DataTable<Row>
             columns={cols} data={paged} rowKey={(r) => r.id}
             onRowClick={setSel} actions={actions}
-            empty={loading ? 'Đang tải…' : 'Chưa có giấy giới thiệu PHCN'}
+            loading={loading}
+            empty="Chưa có giấy giới thiệu PHCN"
           />
           <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 
@@ -669,8 +670,8 @@ const RehabilitationV2: React.FC = () => {
             <Btn variant="ghost" icon="chevron-right" onClick={() => { setScheduleDate((d) => d.add(1, 'day')); setSessPage(0); }} />
             <Btn variant="ghost" onClick={() => { setScheduleDate(dayjs()); setSessPage(0); }}>Hôm nay</Btn>
             <span className="spacer" />
-            <Btn variant="ghost" onClick={loadSessions}>
-              <Ico name="refresh" size={12} /> Làm mới
+            <Btn variant="ghost" onClick={loadSessions} loading={sessLoading} icon="refresh">
+              Làm mới
             </Btn>
             <Btn variant="primary" onClick={openCreateSession}>
               <Ico name="plus" size={12} /> Thêm buổi tập
@@ -682,7 +683,8 @@ const RehabilitationV2: React.FC = () => {
           <DataTable<TreatmentSessionDto>
             columns={sessCols} data={sessPaged} rowKey={(r) => r.id}
             onRowClick={setSelSession} actions={sessActions}
-            empty={sessLoading ? 'Đang tải…' : 'Chưa có buổi tập trong ngày'}
+            loading={sessLoading}
+            empty="Chưa có buổi tập trong ngày"
           />
           <Pager page={sessPage} setPage={setSessPage} totalPages={sessTotalPages} total={sessFiltered.length} perPage={PER} />
 

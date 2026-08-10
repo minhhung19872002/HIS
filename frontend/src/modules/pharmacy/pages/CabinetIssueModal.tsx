@@ -37,6 +37,8 @@ import {
   fmtDTg, tk, tw, te,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { RowActions } from '../../../components/actions';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -153,7 +155,8 @@ export const CabinetIssueModal: React.FC<CabinetIssueModalProps> = ({
       const list = (res.data as WarehouseDto[]) || [];
       setCabinets(list);
       if (list.length === 1) setCabinetId(list[0].id);
-    } catch {
+    } catch (e) {
+      tw(friendlyErrorMessage(e, 'Không tải được danh sách tủ trực'));
       setCabinets([]);
     }
   }, []);
@@ -330,9 +333,9 @@ export const CabinetIssueModal: React.FC<CabinetIssueModalProps> = ({
                   </td>
                   <td style={{ padding: '4px 4px', width: 32 }}>
                     {lines.length > 1 && (
-                      <Btn variant="ghost" size="sm" onClick={() => removeLine(l._key)} style={{ color: 'var(--s-crit)' }}>
-                        <TermIcon name="x" size={11} />
-                      </Btn>
+                      <RowActions actions={[
+                        { key: 'del', icon: 'trash', label: 'Xóa dòng thuốc', tone: 'danger', confirm: false, onClick: () => removeLine(l._key) },
+                      ]} />
                     )}
                   </td>
                 </tr>

@@ -451,15 +451,15 @@ const TrainingResearchV2: React.FC = () => {
           <Filter value={fType} onChange={setFType} options={types} placeholder="▾ Loại đào tạo" />
           <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>Bỏ lọc</Btn>
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+          <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
         </div>
 
         <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
 
         <DataTable<TrainingClassDto>
           columns={cols} data={paged} rowKey={(r) => r.id}
-          onRowClick={setSel} actions={classActions}
-          empty={loading ? 'Đang tải…' : 'Chưa có lớp đào tạo'}
+          onRowClick={setSel} actions={classActions} loading={loading}
+          empty={'Chưa có lớp đào tạo'}
         />
         <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
       </>}
@@ -471,13 +471,13 @@ const TrainingResearchV2: React.FC = () => {
             placeholder="Tìm bệnh viện / BS phụ trách…" />
           <Btn variant="ghost" icon="x" onClick={() => { setDirSearch(''); setDirPage(0); }}>Bỏ lọc</Btn>
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={loadDirs}>Làm mới</Btn>
+          <Btn variant="ghost" icon="refresh" onClick={loadDirs} loading={dirsLoading}>Làm mới</Btn>
         </div>
 
         <DataTable<ClinicalDirectionDto>
           columns={dirCols} data={dirPaged} rowKey={(r) => r.id}
-          onRowClick={setDirSel} actions={dirActions}
-          empty={dirsLoading ? 'Đang tải…' : 'Chưa có dữ liệu chỉ đạo tuyến'}
+          onRowClick={setDirSel} actions={dirActions} loading={dirsLoading}
+          empty={'Chưa có dữ liệu chỉ đạo tuyến'}
         />
         <Pager page={dirPage} setPage={setDirPage} totalPages={dirTotalPages} total={filteredDirs.length} perPage={PER} />
       </>}
@@ -489,13 +489,13 @@ const TrainingResearchV2: React.FC = () => {
             placeholder="Tìm mã / tên / chủ nhiệm đề tài…" />
           <Btn variant="ghost" icon="x" onClick={() => { setProjSearch(''); setProjPage(0); }}>Bỏ lọc</Btn>
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={loadProjs}>Làm mới</Btn>
+          <Btn variant="ghost" icon="refresh" onClick={loadProjs} loading={projsLoading}>Làm mới</Btn>
         </div>
 
         <DataTable<ResearchProjectDto>
           columns={projCols} data={projPaged} rowKey={(r) => r.id}
-          onRowClick={setProjSel} actions={projActions}
-          empty={projsLoading ? 'Đang tải…' : 'Chưa có đề tài nghiên cứu'}
+          onRowClick={setProjSel} actions={projActions} loading={projsLoading}
+          empty={'Chưa có đề tài nghiên cứu'}
         />
         <Pager page={projPage} setPage={setProjPage} totalPages={projTotalPages} total={filteredProjs.length} perPage={PER} />
       </>}
@@ -504,11 +504,11 @@ const TrainingResearchV2: React.FC = () => {
       {mainTab === 'certificates' && <>
         <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={loadCredits}>Làm mới</Btn>
+          <Btn variant="ghost" icon="refresh" onClick={loadCredits} loading={credLoading}>Làm mới</Btn>
         </div>
         <DataTable<CreditSummaryDto>
-          columns={creditCols} data={credits} rowKey={(r) => r.staffId}
-          empty={credLoading ? 'Đang tải…' : 'Chưa có dữ liệu tín chỉ'}
+          columns={creditCols} data={credits} rowKey={(r) => r.staffId} loading={credLoading}
+          empty={'Chưa có dữ liệu tín chỉ'}
         />
       </>}
 

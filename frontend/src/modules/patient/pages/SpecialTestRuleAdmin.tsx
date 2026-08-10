@@ -26,6 +26,7 @@ type EditState = Partial<api.SpecialTestRuleSaveDto> & { _testName?: string };
 
 const SpecialTestRuleAdmin: React.FC = () => {
   const [rows, setRows] = useState<api.SpecialTestRuleDto[]>([]);
+  const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [filterActive, setFilterActive] = useState<boolean | undefined>(undefined);
@@ -36,6 +37,7 @@ const SpecialTestRuleAdmin: React.FC = () => {
   const [serviceSearchValue, setServiceSearchValue] = useState('');
 
   const load = useCallback(async () => {
+    setLoading(true);
     try {
       const result = await api.getSpecialTestRules({
         keyword: search || undefined,
@@ -47,6 +49,8 @@ const SpecialTestRuleAdmin: React.FC = () => {
       setTotal(result.data.totalCount);
     } catch {
       te('Không tải được danh mục XN đặc biệt');
+    } finally {
+      setLoading(false);
     }
   }, [search, filterActive, page]);
 
@@ -212,6 +216,7 @@ const SpecialTestRuleAdmin: React.FC = () => {
         rowKey={(r) => r.id}
         onRowClick={(r) => openDrawer(r)}
         actions={rowAct}
+        loading={loading}
         empty={search ? 'Không khớp từ khoá.' : 'Chưa có quy tắc XN nào. Thêm để bắt đầu.'}
       />
       <Pager page={page} totalPages={totalPages} setPage={setPage} total={total} perPage={PER} />

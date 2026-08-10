@@ -134,7 +134,7 @@ const BhxhAuditV2: React.FC = () => {
       setImportedRows(d.items ?? []);
       setImportTotal(d.totalCount ?? 0);
       setImportCounts({ all: d.totalCount ?? 0, chuaDuyet: d.countChuaDuyet ?? 0, daDuyet: d.countDaDuyet ?? 0, tuChoi: d.countTuChoi ?? 0 });
-    } catch { /* silent */ }
+    } catch { ti('Không tải được danh sách hồ sơ import'); }
     finally { setImportRowsLoading(false); }
   }, []);
 

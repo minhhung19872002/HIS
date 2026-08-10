@@ -148,9 +148,7 @@ const PaymentTransactionsV2: React.FC = () => {
           <Ico name="search" size={12} /> Tìm
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={fetchData}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <Btn variant="ghost" onClick={fetchData} loading={loading} icon="refresh">Làm mới</Btn>
         <Btn variant="ghost" onClick={doExportExcel} disabled={items.length === 0}>
           <Ico name="download" size={12} /> Xuất Excel
         </Btn>
@@ -171,7 +169,8 @@ const PaymentTransactionsV2: React.FC = () => {
             )}
           </div>
         )}
-        empty={loading ? 'Đang tải…' : 'Không có giao dịch'}
+        loading={loading}
+        empty="Không có giao dịch"
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={total} perPage={20} />
 

@@ -46,6 +46,8 @@ const Hl7MessageQueue: React.FC = () => {
   const [page, setPage] = useState(0);
   const [detail, setDetail] = useState<Hl7MessageQueueDto | null>(null);
   const [enqueueModal, setEnqueueModal] = useState(false);
+  const [retryBusy, setRetryBusy] = useState(false);
+  const [enqueueBusy, setEnqueueBusy] = useState(false);
   const [form] = Form.useForm();
 
   const load = async () => {
@@ -93,21 +95,29 @@ const Hl7MessageQueue: React.FC = () => {
   ];
 
   const retry = async (r: Hl7MessageQueueDto) => {
+    if (retryBusy) return;
+    setRetryBusy(true);
     try {
       await hl7QueueApi.retry(r.id);
       tk(`Đang retry · ${r.messageControlId}`);
       load();
     } catch { te('Retry thất bại'); }
+    finally { setRetryBusy(false); }
   };
   const retryAll = async () => {
+    if (retryBusy) return;
     if ((counts.failed || 0) === 0) { ti('Không có message lỗi'); return; }
+    setRetryBusy(true);
     try {
       const r = await hl7QueueApi.retryAllFailed();
       tk(`Retry ${r.retried} · OK ${r.succeededImmediately} · Còn lỗi ${r.stillFailed}`);
       load();
     } catch { te('Retry batch thất bại'); }
+    finally { setRetryBusy(false); }
   };
   const enqueue = async () => {
+    if (enqueueBusy) return;
+    setEnqueueBusy(true);
     try {
       const v = await form.validateFields();
       await hl7QueueApi.demoEnqueue(v);
@@ -117,6 +127,8 @@ const Hl7MessageQueue: React.FC = () => {
     } catch (e: unknown) {
       const err = e as { errorFields?: unknown };
       if (!err?.errorFields) te('Thêm thất bại');
+    } finally {
+      setEnqueueBusy(false);
     }
   };
   const openDetail = async (r: Hl7MessageQueueDto) => {
@@ -164,7 +176,7 @@ const Hl7MessageQueue: React.FC = () => {
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => openDetail(r)} />
       {(r.status === 'failed' || r.status === 'pending') && (
-        <ActBtn ic="refresh" title="Retry" onClick={() => retry(r)} />
+        <ActBtn ic="refresh" title="Retry" loading={retryBusy} onClick={() => retry(r)} />
       )}
     </div>
   );
@@ -188,7 +200,8 @@ const Hl7MessageQueue: React.FC = () => {
           size="small"
           danger
           onClick={retryAll}
-          disabled={counts.failed === 0}
+          disabled={counts.failed === 0 || retryBusy}
+          loading={retryBusy}
           data-testid="hl7-retry-all"
         >
           <TermIcon name="alert" size={12} /> Retry tất cả lỗi
@@ -218,7 +231,7 @@ const Hl7MessageQueue: React.FC = () => {
           <>
             <Button onClick={() => setDetail(null)}>Đóng</Button>
             {(detail.status === 'failed' || detail.status === 'pending') && (
-              <Button type="primary" onClick={() => { retry(detail); setDetail(null); }}>
+              <Button type="primary" disabled={retryBusy} onClick={() => { retry(detail); setDetail(null); }}>
                 <TermIcon name="refresh" size={12} /> Gửi lại ngay
               </Button>
             )}
@@ -274,8 +287,8 @@ const Hl7MessageQueue: React.FC = () => {
         size="md"
         footer={(
           <>
-            <Button onClick={() => { setEnqueueModal(false); form.resetFields(); }}>Hủy</Button>
-            <Button type="primary" onClick={enqueue}>Thêm</Button>
+            <Button onClick={() => { setEnqueueModal(false); form.resetFields(); }} disabled={enqueueBusy}>Hủy</Button>
+            <Button type="primary" disabled={enqueueBusy} loading={enqueueBusy} onClick={enqueue}>Thêm</Button>
           </>
         )}
       >

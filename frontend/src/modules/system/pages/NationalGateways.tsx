@@ -47,7 +47,7 @@ const NationalGatewaysV2: React.FC = () => {
 // ────────────────────────── Đơn thuốc QG ──────────────────────────
 
 const NgRxPanel: React.FC = () => {
-  const { rows, reload } = useListData<NationalPrescriptionSubmissionDto>(
+  const { rows, loading, reload } = useListData<NationalPrescriptionSubmissionDto>(
     useCallback(() => npGateway.search({ pageSize: 200 }), []),
     useCallback(() => te('Không tải được danh sách'), []),
   );
@@ -120,7 +120,7 @@ const NgRxPanel: React.FC = () => {
           placeholder="▾ Trạng thái" />
       </div>
       <DataTable<NationalPrescriptionSubmissionDto>
-        rowKey={(r) => r.id} data={filtered} columns={columns}
+        rowKey={(r) => r.id} data={filtered} columns={columns} loading={loading}
         onRowClick={openDetail}
         actions={(r) => (
           <>
@@ -183,7 +183,7 @@ const NPH_REPORT_TYPES = [
 ];
 
 const NgPharmPanel: React.FC = () => {
-  const { rows, reload } = useListData<NationalPharmacyOutboundReportDto>(
+  const { rows, loading, reload } = useListData<NationalPharmacyOutboundReportDto>(
     useCallback(() => nphGateway.search({ pageSize: 200 }), []),
     useCallback(() => te('Không tải được'), []),
   );
@@ -248,7 +248,7 @@ const NgPharmPanel: React.FC = () => {
         </Btn>
       </div>
       <DataTable<NationalPharmacyOutboundReportDto>
-        rowKey={(r) => r.id} data={rows} columns={columns}
+        rowKey={(r) => r.id} data={rows} columns={columns} loading={loading}
         actions={(r) => r.status !== 2
           ? <ActBtn ic="refresh" title="Gửi lại" onClick={() => retry(r)} />
           : null}

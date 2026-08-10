@@ -678,7 +678,7 @@ const NutritionV2: React.FC = () => {
             <Filter value={screenRisk} onChange={setScreenRisk} options={RISK_OPTIONS} placeholder="▾ Nguy cơ" />
             <Btn variant="ghost" icon="x" onClick={() => { setScreenSearch(''); setScreenDept(''); setScreenRisk(''); setScreenStab('all'); }}>Bỏ lọc</Btn>
             <span className="spacer" />
-            <Btn variant="ghost" icon="refresh" onClick={loadScreening}>Làm mới</Btn>
+            <Btn variant="ghost" icon="refresh" onClick={loadScreening} loading={screenLoading}>Làm mới</Btn>
           </div>
 
           <StatusTabs<ScreenSKey> value={screenStab} onChange={(v) => { setScreenStab(v); setScreenPage(0); }} tabs={SCREEN_TABS} counts={screenCounts} />
@@ -686,7 +686,8 @@ const NutritionV2: React.FC = () => {
           <DataTable<NutritionScreeningDto>
             columns={screenCols} data={screenPaged} rowKey={(r) => r.id}
             onRowClick={setScreenSel} actions={screenActions}
-            empty={screenLoading ? 'Đang tải…' : 'Chưa có bệnh nhân cần sàng lọc'}
+            loading={screenLoading}
+            empty={'Chưa có bệnh nhân cần sàng lọc'}
           />
           <Pager page={screenPage} setPage={setScreenPage} totalPages={screenTotalPages} total={screenFiltered.length} perPage={PER} />
 
@@ -788,7 +789,7 @@ const NutritionV2: React.FC = () => {
             <Filter value={fRoute} onChange={setFRoute} options={routes} placeholder="▾ Đường nuôi" />
             <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFDept(''); setFRoute(''); setStab('all'); }}>Bỏ lọc</Btn>
             <span className="spacer" />
-            <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+            <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
             <Btn variant="primary" icon="plus" onClick={openCreate}>Đơn mới</Btn>
           </div>
 
@@ -797,7 +798,8 @@ const NutritionV2: React.FC = () => {
           <DataTable<Row>
             columns={cols} data={paged} rowKey={(r) => r.id}
             onRowClick={setSel} actions={actions}
-            empty={loading ? 'Đang tải…' : 'Chưa có đơn dinh dưỡng'}
+            loading={loading}
+            empty={'Chưa có đơn dinh dưỡng'}
           />
           <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 

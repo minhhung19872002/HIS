@@ -443,9 +443,7 @@ const LaboratoryV2: React.FC = () => {
           <TermIcon name="chevronR" size={12} />
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={reload}>
-          <TermIcon name="refresh" size={12} /> Làm mới
-        </Btn>
+        <Btn variant="ghost" onClick={reload} loading={loading} icon="refresh">Làm mới</Btn>
         <Btn variant="ghost" onClick={() => navigate('/v2/lab-qc')}>
           <TermIcon name="chart" size={12} /> QC hôm nay
         </Btn>
@@ -508,7 +506,8 @@ const LaboratoryV2: React.FC = () => {
             </div>
           );
         }}
-        empty={loading ? 'Đang tải…' : (
+        loading={loading}
+        empty={(
           <div className="ab-empty">
             <TermIcon name="search" size={20} />
             <div>Không có xét nghiệm nào</div>

@@ -17,10 +17,11 @@ import {
   SPECIALTY_TYPES, SPECIALTY_FIELDS, SPECIALTY_LABEL, type FieldDef,
 } from '../../../constants/specialtyEmr';
 import {
-  KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  StatusTabs, DrawerShell, DrSec, DrField, tk, ti, te, cf, Ico,
+  KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, Btn,
+  StatusTabs, DrawerShell, DrSec, DrField, tk, ti, te, Ico,
   type ColumnDef,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
 
 // Backend SpecialtyEmrDto (api/specialty-emr) — fieldData is a JSON string.
 interface SpecialtyRecord {
@@ -256,15 +257,14 @@ const SpecialtyEMRV2: React.FC = () => {
     finally { setSaving(false); }
   };
 
-  const handleDelete = (r: SpecialtyRecord) => {
-    cf(`Xoá HSBA của "${r.patientName}" (${r.patientCode})?`, async () => {
-      try {
-        await deleteSpecialtyRecord(r.id);
-        tk('Đã xoá HSBA');
-        setSel(null);
-        load();
-      } catch { te('Xoá thất bại'); }
-    }, { tone: 'crit', confirm: 'Xoá' });
+  // RowActions (tone: 'danger') tự bật confirm khi xoá — không bọc cf() thêm ở đây.
+  const handleDelete = async (r: SpecialtyRecord) => {
+    try {
+      await deleteSpecialtyRecord(r.id);
+      tk('Đã xoá HSBA');
+      setSel(null);
+      load();
+    } catch { te('Xoá thất bại'); }
   };
 
   const openReport = async (r: SpecialtyRecord) => {
@@ -323,12 +323,16 @@ const SpecialtyEMRV2: React.FC = () => {
   ];
 
   const actions = (r: SpecialtyRecord) => (
-    <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="edit" title="Sửa HSBA" onClick={() => openEdit(r)} />
-      <ActBtn ic="print" title="In HSBA" onClick={() => openReport(r)} />
-      <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => handleDelete(r)} />
-    </div>
+    <RowActions actions={[
+      { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setSel(r) },
+      { key: 'edit', icon: 'edit', label: 'Sửa HSBA', primary: true, onClick: () => openEdit(r) },
+      { key: 'print', icon: 'printer', label: 'In HSBA', onClick: () => openReport(r) },
+      {
+        key: 'del', icon: 'trash', label: 'Xoá', tone: 'danger',
+        confirm: `Xoá HSBA của "${r.patientName}" (${r.patientCode})? Thao tác không thể hoàn tác.`,
+        onClick: () => handleDelete(r),
+      },
+    ]} />
   );
 
   const specOptions = SPECIALTY_TYPES.map((s) => ({ v: s.key, l: s.label }));
@@ -362,9 +366,7 @@ const SpecialtyEMRV2: React.FC = () => {
           <Ico name="refresh" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
         <Btn variant="primary" onClick={openCreate}>
           <Ico name="plus" size={12} /> HSBA mới
         </Btn>
@@ -389,7 +391,8 @@ const SpecialtyEMRV2: React.FC = () => {
       <DataTable<SpecialtyRecord>
         columns={cols} data={paged} rowKey={(r) => r.id}
         onRowClick={setSel} actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có hồ sơ chuyên khoa'}
+        loading={loading}
+        empty="Chưa có hồ sơ chuyên khoa"
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 

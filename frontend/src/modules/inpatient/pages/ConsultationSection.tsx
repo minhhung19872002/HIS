@@ -184,29 +184,26 @@ const ConsultationSection: React.FC<{ inpatients: InpatientListDto[]; active: bo
       </div>
 
       <div style={{ flex: 1, overflow: 'auto' }}>
-        {loading
-          ? <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)', padding: 'var(--space-24)' }}>Đang tải hội chẩn…</div>
-          : (
-            <DataTable<ConsultationDto>
-              columns={columns}
-              data={filtered}
-              rowKey={(c) => c.id}
-              onRowClick={(c) => setSel(c)}
-              actions={(c) => (
-                <>
-                  {c.status < 2 && (
-                    <ActBtn ic="check" title="Hoàn thành hội chẩn"
-                      onClick={() => setCompleting(c)} />
-                  )}
-                  {c.consultationType === 3 && c.approvalStatus !== 2 && (
-                    <ActBtn ic="shield" title="Duyệt / Từ chối (Lãnh đạo)"
-                      onClick={() => setApproving(c)} />
-                  )}
-                  <ActBtn ic="printer" title="In biên bản" onClick={() => void onPrint(c)} />
-                </>
+        <DataTable<ConsultationDto>
+          loading={loading}
+          columns={columns}
+          data={filtered}
+          rowKey={(c) => c.id}
+          onRowClick={(c) => setSel(c)}
+          actions={(c) => (
+            <>
+              {c.status < 2 && (
+                <ActBtn ic="check" title="Hoàn thành hội chẩn"
+                  onClick={() => setCompleting(c)} />
               )}
-            />
+              {c.consultationType === 3 && c.approvalStatus !== 2 && (
+                <ActBtn ic="shield" title="Duyệt / Từ chối (Lãnh đạo)"
+                  onClick={() => setApproving(c)} />
+              )}
+              <ActBtn ic="printer" title="In biên bản" onClick={() => void onPrint(c)} />
+            </>
           )}
+        />
       </div>
 
       {/* ── Drawer chi tiết ── */}

@@ -207,13 +207,22 @@ const MasterDataV2: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [mF] = Form.useForm();
 
-  const loadOne = async (cat: CatalogKey) => { try { const r = await loadCatalog(cat); setDataMap((m) => ({ ...m, [cat]: r })); } catch { /* keep */ } };
+  const loadOne = async (cat: CatalogKey) => {
+    try { const r = await loadCatalog(cat); setDataMap((m) => ({ ...m, [cat]: r })); }
+    catch { tw('Không tải lại được danh mục — dữ liệu hiển thị có thể chưa cập nhật'); }
+  };
   const loadAll = async () => {
     setLoading(true);
     const results = await Promise.allSettled(CATALOGS.map((c) => loadCatalog(c.v)));
     const map: Record<string, CatalogRow[]> = {};
-    CATALOGS.forEach((c, i) => { const r = results[i]; map[c.v] = r.status === 'fulfilled' ? r.value : []; });
+    let hasFailure = false;
+    CATALOGS.forEach((c, i) => {
+      const r = results[i];
+      map[c.v] = r.status === 'fulfilled' ? r.value : [];
+      if (r.status === 'rejected') hasFailure = true;
+    });
     setDataMap(map); setLoading(false);
+    if (hasFailure) tw('Một số danh mục tải không thành công — vui lòng thử làm mới lại');
   };
   useEffect(() => { loadAll(); }, []);
 

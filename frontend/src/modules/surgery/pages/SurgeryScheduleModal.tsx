@@ -17,6 +17,7 @@ import dayjs from 'dayjs';
 import { DatePicker, InputNumber, TimePicker } from 'antd';
 import { ModalShell, Btn, AbSelect, tk, tw } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { Section, Row2 } from './surgery-modals/_shared';
 import {
   getOperatingRooms,
@@ -52,7 +53,7 @@ export const SurgeryScheduleModal: React.FC<SurgeryScheduleModalProps> = ({ open
     setOperatingRoomId(undefined);
     getOperatingRooms()
       .then((response) => setRooms(response.data || []))
-      .catch((error) => { console.warn('Error fetching operating rooms:', error); setRooms([]); });
+      .catch((error) => { tw(friendlyErrorMessage(error, 'Không tải được danh sách phòng mổ')); setRooms([]); });
   }, [open, surgery]);
 
   const handleSubmit = async () => {

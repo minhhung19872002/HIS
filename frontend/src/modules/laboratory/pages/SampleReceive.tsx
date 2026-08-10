@@ -227,9 +227,7 @@ const SampleReceiveV2: React.FC = () => {
         <Btn variant="ghost" onClick={() => { setKeyword(''); load(); }}>
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
-        <Btn variant="ghost" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
         <Btn variant="ghost" onClick={() => { setUtilOpen(true); loadUtilData(); }}>
           <TermIcon name="flask" size={12} /> Tiện ích XN
         </Btn>
@@ -253,7 +251,8 @@ const SampleReceiveV2: React.FC = () => {
               <ActBtn ic="check" title="Reviewer duyệt" onClick={() => setReviewRow(r)} />
             </div>
           )}
-          empty={loading ? 'Đang tải…' : 'Không có mẫu chờ nhận'}
+          loading={loading}
+          empty={'Không có mẫu chờ nhận'}
         />
       )}
 
@@ -267,7 +266,8 @@ const SampleReceiveV2: React.FC = () => {
               <ActBtn ic="x" title="Hủy nhận" tone="crit" onClick={() => cancelReceive(r.id, r.sampleBarcode)} />
             </div>
           )}
-          empty={loading ? 'Đang tải…' : 'Chưa nhận mẫu nào hôm nay'}
+          loading={loading}
+          empty={'Chưa nhận mẫu nào hôm nay'}
         />
       )}
 

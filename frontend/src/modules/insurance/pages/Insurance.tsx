@@ -206,6 +206,7 @@ const InsuranceV2: React.FC = () => {
       toDate:   dayjs().format('YYYY-MM-DD'),
       pageNumber: 1, pageSize: 200,
     }).then((r) => Array.isArray(r.data?.items) ? r.data.items : []), []),
+    useCallback(() => { message.warning('Không tải được danh sách hồ sơ BHYT'); }, [message]),
   );
 
   const [topTab, setTopTab]             = useState<PageTab>('claims');
@@ -245,9 +246,9 @@ const InsuranceV2: React.FC = () => {
     try {
       const r = await getXmlBatchHistory();
       setXmlHistory(Array.isArray(r.data) ? r.data : []);
-    } catch { setXmlHistory([]); }
+    } catch { setXmlHistory([]); message.warning('Không tải được lịch sử xuất XML'); }
     finally { setXmlHistLoading(false); }
-  }, []);
+  }, [message]);
 
   // ── Batch state ───────────────────────────────────────────────────────────
   const [batchYear, setBatchYear]           = useState(dayjs().year());
@@ -313,9 +314,9 @@ const InsuranceV2: React.FC = () => {
     try {
       const r = await getSettlementBatches(year);
       setBatches(Array.isArray(r.data) ? r.data : []);
-    } catch { setBatches([]); }
+    } catch { setBatches([]); message.warning('Không tải được danh sách đợt quyết toán'); }
     finally { setBatchLoading(false); }
-  }, []);
+  }, [message]);
 
   useEffect(() => {
     if (topTab === 'batch' || topTab === 'xml') loadBatches(batchYear);
@@ -390,10 +391,14 @@ const InsuranceV2: React.FC = () => {
       cancelText: 'Hủy',
       onOk: async () => {
         const maLkList = rows.filter((r) => selectedIds.has(r.id)).map((r) => r.maLk);
-        await validateClaimsBatch(maLkList);
-        message.success(`Đã duyệt ${selectedIds.size} hồ sơ`);
-        setSelectedIds(new Set());
-        reload();
+        try {
+          await validateClaimsBatch(maLkList);
+          message.success(`Đã duyệt ${selectedIds.size} hồ sơ`);
+          setSelectedIds(new Set());
+          reload();
+        } catch {
+          message.error('Duyệt hồ sơ thất bại — vui lòng thử lại');
+        }
       },
     });
   };
@@ -408,10 +413,14 @@ const InsuranceV2: React.FC = () => {
       cancelText: 'Hủy',
       onOk: async () => {
         const maLkList = rows.filter((r) => selectedIds.has(r.id)).map((r) => r.maLk);
-        await Promise.all(maLkList.map((maLk) => lockInsuranceClaim(maLk)));
-        message.success(`Đã khóa ${selectedIds.size} hồ sơ`);
-        setSelectedIds(new Set());
-        reload();
+        try {
+          await Promise.all(maLkList.map((maLk) => lockInsuranceClaim(maLk)));
+          message.success(`Đã khóa ${selectedIds.size} hồ sơ`);
+          setSelectedIds(new Set());
+          reload();
+        } catch {
+          message.error('Khóa hồ sơ thất bại — vui lòng thử lại');
+        }
       },
     });
   };
@@ -1129,7 +1138,7 @@ const InsuranceV2: React.FC = () => {
             empty={batchLoading ? 'Đang tải…' : 'Chưa có đợt quyết toán nào'}
             actions={(r) => (
               <div className="ab-actions">
-                <ActBtn ic="check" title="Ký XML" onClick={() => handleSignXml(r.id)} />
+                <ActBtn ic="check" title="Ký XML" loading={xmlSigning} onClick={() => handleSignXml(r.id)} />
                 <ActBtn ic="download" title="Tải về XML" onClick={() => handleDownloadXml(r.id)} />
                 <ActBtn ic="upload" title="Nộp cổng BHXH" onClick={() => handleSubmitToBhxh(r.id, r.batchCode)} />
               </div>

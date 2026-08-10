@@ -171,7 +171,7 @@ const InterHospitalSharingV2: React.FC = () => {
           value={toDate} onChange={(e) => { setToDate(e.target.value); setPage(0); }} title="Đến ngày" />
         <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFType(''); setFDir(''); setFromDate(''); setToDate(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
         <Btn variant="primary" icon="plus" onClick={() => setCreateOpen(true)}>Yêu cầu mới</Btn>
       </div>
 
@@ -179,8 +179,8 @@ const InterHospitalSharingV2: React.FC = () => {
 
       <DataTable<InterHospitalRequest>
         columns={cols} data={paged} rowKey={(r) => r.id}
-        onRowClick={setSel} actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có yêu cầu liên viện'}
+        onRowClick={setSel} actions={actions} loading={loading}
+        empty={'Chưa có yêu cầu liên viện'}
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 

@@ -7,6 +7,7 @@ import {
   type ColumnDef,
   type KpiItem,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '@/utils/friendlyError';
 import {
   searchBhytFullCoverage,
   createBhytFullCoverage,
@@ -77,7 +78,7 @@ const FormModal: React.FC<FormModalProps> = ({ open, initial, onClose, onSaved }
       onClose();
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'errorFields' in err) return; // validation error
-      message.warning('Luu that bai: ' + String((err as { message?: string }).message ?? err));
+      message.warning(friendlyErrorMessage(err, 'Luu that bai. Vui long thu lai.'));
     } finally {
       setSaving(false);
     }

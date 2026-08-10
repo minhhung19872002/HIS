@@ -294,8 +294,8 @@ const SampleStorageV2: React.FC = () => {
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
+        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">
+          Làm mới
         </Btn>
         <Btn variant="ghost" onClick={() => setScanOpen(true)}>
           <Ico name="qr" size={12} /> Quét QR
@@ -310,7 +310,8 @@ const SampleStorageV2: React.FC = () => {
       <DataTable<SampleStorageRecord>
         columns={cols} data={paged} rowKey={(r) => r.id}
         onRowClick={setSel} actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có mẫu lưu'}
+        loading={loading}
+        empty={'Chưa có mẫu lưu'}
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 

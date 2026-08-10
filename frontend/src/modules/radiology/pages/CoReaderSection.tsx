@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { App as AntdApp, Input, Select } from 'antd';
 import * as risApi from '../api/ris';
 import type { CoReaderDto } from '../api/ris';
-import { Btn, ActBtn } from '@/_v2kit';
+import { Btn, ActBtn, cf } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 
 // ─────────────── Co-Reader Section (#139) ───────────────
@@ -22,6 +22,8 @@ export const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) =>
   const [editId, setEditId] = useState<string | null>(null);
   const [editOpinion, setEditOpinion] = useState('');
   const [merging, setMerging] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [savingOpinion, setSavingOpinion] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -38,7 +40,9 @@ export const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) =>
   useEffect(() => { load(); }, [load]);
 
   const handleAdd = async () => {
+    if (adding) return;
     if (!newReaderId.trim()) { message.warning('Nhap Id BS dong doc'); return; }
+    setAdding(true);
     try {
       await risApi.addCoReader({
         radiologyReportId: reportId,
@@ -53,10 +57,14 @@ export const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) =>
     } catch (e: unknown) {
       const err = e as { response?: { data?: { message?: string } } };
       message.error(err?.response?.data?.message || 'Loi them dong doc');
+    } finally {
+      setAdding(false);
     }
   };
 
   const handleSaveOpinion = async (cr: CoReaderDto) => {
+    if (savingOpinion) return;
+    setSavingOpinion(true);
     try {
       await risApi.updateCoReaderOpinion({ coReaderId: cr.id, opinion: editOpinion });
       message.success('Da cap nhat y kien');
@@ -64,10 +72,12 @@ export const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) =>
       load();
     } catch {
       message.error('Loi cap nhat y kien');
+    } finally {
+      setSavingOpinion(false);
     }
   };
 
-  const handleRemove = async (coReaderId: string) => {
+  const handleRemove = (coReaderId: string) => cf('Xóa bác sĩ đồng đọc này? Thao tác không thể hoàn tác.', async () => {
     try {
       await risApi.removeCoReader(coReaderId);
       message.success('Da xoa dong doc');
@@ -75,7 +85,7 @@ export const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) =>
     } catch {
       message.error('Loi xoa dong doc');
     }
-  };
+  }, { tone: 'crit', confirm: 'Xóa' });
 
   const handleMerge = async () => {
     setMerging(true);
@@ -143,7 +153,7 @@ export const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) =>
             ]}
           />
           <div style={{ display: 'flex', gap: 'var(--space-6)', justifyContent: 'flex-end' }}>
-            <Btn size="sm" variant="ok" icon="check" onClick={handleAdd}>Luu</Btn>
+            <Btn size="sm" variant="ok" icon="check" onClick={handleAdd} loading={adding}>Luu</Btn>
             <Btn size="sm" variant="ghost" onClick={() => setAddOpen(false)}>Huy</Btn>
           </div>
         </div>
@@ -187,7 +197,7 @@ export const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) =>
                 placeholder="Y kien / nhan xet..."
               />
               <div style={{ display: 'flex', gap: 'var(--space-4)', justifyContent: 'flex-end' }}>
-                <Btn size="sm" variant="ok" icon="check" onClick={() => handleSaveOpinion(cr)}>Luu</Btn>
+                <Btn size="sm" variant="ok" icon="check" onClick={() => handleSaveOpinion(cr)} loading={savingOpinion}>Luu</Btn>
                 <Btn size="sm" variant="ghost" onClick={() => setEditId(null)}>Huy</Btn>
               </div>
             </div>

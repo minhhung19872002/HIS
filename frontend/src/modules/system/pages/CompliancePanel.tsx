@@ -19,8 +19,9 @@ import {
   type RecertificationReportDto, type UserRoleRecordDto,
 } from '../api/audit';
 import {
-  KpiStrip, DataTable, DrawerShell, DrSec, StatusBadge, Btn, TopTabs, Filter, Pager, type ColumnDef,
+  KpiStrip, DataTable, DrawerShell, DrSec, StatusBadge, Btn, TopTabs, Filter, Pager, type ColumnDef, te,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '@/utils/friendlyError';
 import { getNestedData } from './helpers';
 
 const { RangePicker } = DatePicker;
@@ -44,7 +45,7 @@ const SensitiveAccessReport: React.FC = () => {
       ]);
       if (summaryRes.status === 'fulfilled') setSummary(getNestedData<ComplianceSummaryDto | null>(summaryRes.value.data, null));
       if (reportRes.status === 'fulfilled') setReport(getNestedData<SensitiveDataAccessReportDto[]>(reportRes.value.data, []));
-    } catch { /* keep current */ }
+    } catch (e) { te(friendlyErrorMessage(e)); }
     finally { setLoading(false); }
   }, [dateRange]);
   useEffect(() => { load(); }, [load]);
@@ -170,7 +171,7 @@ const PermissionChangesReport: React.FC = () => {
       setRows(Array.isArray(paged.items) ? paged.items : []);
       setTotalCount(paged.totalCount ?? 0);
       setTotalPages(paged.totalPages ?? 1);
-    } catch { /* fail mềm: giữ state cũ */ }
+    } catch (e) { te(friendlyErrorMessage(e)); }
     finally { setLoading(false); }
   }, [dateRange, action, changeType, pageIndex]);
   useEffect(() => { load(); }, [load]);
@@ -264,7 +265,7 @@ const AuditSummaryReport: React.FC = () => {
     try {
       const res = await getAuditSummary(dateRange[0].format('YYYY-MM-DD'), dateRange[1].format('YYYY-MM-DD'));
       setSummary(getNestedData<AuditSummaryDto | null>(res.data, null));
-    } catch { /* keep current */ }
+    } catch (e) { te(friendlyErrorMessage(e)); }
     finally { setLoading(false); }
   }, [dateRange]);
   useEffect(() => { load(); }, [load]);
@@ -326,7 +327,7 @@ const RecertificationReport: React.FC = () => {
     try {
       const res = await getRecertification();
       setReport(Array.isArray(res.data) ? null : (res.data as RecertificationReportDto));
-    } catch { /* keep current */ }
+    } catch (e) { te(friendlyErrorMessage(e)); }
     finally { setLoading(false); }
   }, []);
 

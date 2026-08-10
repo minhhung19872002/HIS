@@ -6,12 +6,14 @@ import risApi from '../../radiology/api/ris';
 import type { ConsultationSessionDto, ConsultationDiscussionDto, ConsultationMinutesDto } from '../../radiology/api/ris';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
-  StatusBadge, ActBtn, Btn, DrawerShell, DrSec, ModalShell, CrudModal,
+  StatusBadge, Btn, DrawerShell, DrSec, ModalShell, CrudModal,
   type CrudFieldCfg, useListData, useTabCounts,
   type ColumnDef, type StatusTab,
-  cf, tk,
+  tk, te,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { RowActions } from '../../../components/actions';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 /** Tải CSV với BOM UTF-8 để Excel mở đúng tiếng Việt */
 function downloadCsv(filename: string, lines: string[]): void {
@@ -184,22 +186,40 @@ const ConsultationV2: React.FC = () => {
         rowKey={(r) => r.id}
         onRowClick={(r) => setDetail(r)}
         actions={(r) => (
-          <div className="ab-actions">
-            <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
-            {r.meetingUrl && (
-              <ActBtn ic="play" title="Vào phòng họp" onClick={() => window.open(r.meetingUrl!, '_blank')} />
-            )}
-            <ActBtn ic="print" title="In biên bản" onClick={() => { setDetail(r); setTimeout(() => window.print(), 300); }} />
-            {r.status === 0 && (
-              <ActBtn ic="play" title="Bắt đầu" onClick={() => risApi.startConsultation(r.id).then(() => reload())} />
-            )}
-            {r.status === 1 && (
-              <ActBtn ic="video" title="Vào phòng" onClick={() => risApi.joinConsultation(r.id).then(() => { if (r.meetingUrl) window.open(r.meetingUrl, '_blank'); })} />
-            )}
-            {r.status === 1 && (
-              <ActBtn ic="x" title="Kết thúc" onClick={() => cf('Xác nhận kết thúc phiên hội chẩn?', () => { risApi.endConsultation(r.id).then(() => { tk('Đã kết thúc'); reload(); }); })} />
-            )}
-          </div>
+          <RowActions actions={[
+            { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setDetail(r) },
+            {
+              key: 'joinUrl', icon: 'external', label: 'Vào phòng họp', primary: true, hidden: !r.meetingUrl,
+              onClick: () => window.open(r.meetingUrl!, '_blank'),
+            },
+            {
+              key: 'print', icon: 'printer', label: 'In biên bản',
+              onClick: () => { setDetail(r); setTimeout(() => window.print(), 300); },
+            },
+            {
+              key: 'start', icon: 'play', label: 'Bắt đầu', primary: true, hidden: r.status !== 0,
+              onClick: () => {
+                risApi.startConsultation(r.id).then(() => reload())
+                  .catch((e) => te(friendlyErrorMessage(e, 'Không thể bắt đầu phiên hội chẩn.')));
+              },
+            },
+            {
+              key: 'join', icon: 'phone', label: 'Vào phòng', primary: true, hidden: r.status !== 1,
+              onClick: () => {
+                risApi.joinConsultation(r.id)
+                  .then(() => { if (r.meetingUrl) window.open(r.meetingUrl, '_blank'); })
+                  .catch((e) => te(friendlyErrorMessage(e, 'Không thể vào phòng hội chẩn.')));
+              },
+            },
+            {
+              key: 'end', icon: 'x', label: 'Kết thúc', tone: 'danger', hidden: r.status !== 1,
+              confirm: 'Xác nhận kết thúc phiên hội chẩn?',
+              onClick: () => {
+                risApi.endConsultation(r.id).then(() => { tk('Đã kết thúc'); reload(); })
+                  .catch((e) => te(friendlyErrorMessage(e, 'Không thể kết thúc phiên hội chẩn.')));
+              },
+            },
+          ]} />
         )}
         empty={loading ? 'Đang tải…' : (
           <div className="ab-empty">
@@ -271,6 +291,8 @@ const ConsultationDrawerBody: React.FC<{ r: ConsultationSessionDto }> = ({ r }) 
   const [mContent, setMContent] = useState('');
   const [mConclusion, setMConclusion] = useState('');
   const [mRec, setMRec] = useState('');
+  const [sending, setSending] = useState(false);
+  const [savingMins, setSavingMins] = useState(false);
 
   useEffect(() => {
     risApi.getConsultationDiscussions?.(r.id).then((res) => setDisc(res.data || [])).catch(() => {});
@@ -330,15 +352,17 @@ const ConsultationDrawerBody: React.FC<{ r: ConsultationSessionDto }> = ({ r }) 
               placeholder="Nhập bình luận…"
               style={{ flex: 1 }}
             />
-            <Btn onClick={() => {
-              if (!dtext.trim()) return;
+            <Btn disabled={sending} onClick={() => {
+              if (!dtext.trim() || sending) return;
+              setSending(true);
               risApi.addConsultationDiscussion({ consultationCaseId: r.id, content: dtext })
                 .then(() => {
                   setDtext('');
                   risApi.getConsultationDiscussions?.(r.id).then((res) => setDisc(res.data || [])).catch(() => {});
                 })
-                .catch(() => {});
-            }}>Gửi</Btn>
+                .catch((e) => te(friendlyErrorMessage(e, 'Gửi bình luận thất bại. Vui lòng thử lại.')))
+                .finally(() => setSending(false));
+            }}>{sending ? 'Đang gửi…' : 'Gửi'}</Btn>
           </div>
         </div>
       </DrSec>
@@ -368,12 +392,15 @@ const ConsultationDrawerBody: React.FC<{ r: ConsultationSessionDto }> = ({ r }) 
         size="md"
         footer={
           <>
-            <button type="button" className="ab-btn" onClick={() => setMinsOpen(false)}>Huỷ</button>
-            <button type="button" className="ab-btn primary" onClick={() => {
+            <button type="button" className="ab-btn" onClick={() => setMinsOpen(false)} disabled={savingMins}>Huỷ</button>
+            <button type="button" className="ab-btn primary" disabled={savingMins} onClick={() => {
+              if (savingMins) return;
+              setSavingMins(true);
               risApi.saveConsultationMinutes({ consultationSessionId: r.id, content: mContent, conclusion: mConclusion, recommendations: mRec })
-                .then((res) => { setMins(res.data || null); setMinsOpen(false); })
-                .catch(() => {});
-            }}>Lưu</button>
+                .then((res) => { setMins(res.data || null); setMinsOpen(false); tk('Đã lưu biên bản'); })
+                .catch((e) => te(friendlyErrorMessage(e, 'Lưu biên bản thất bại. Vui lòng thử lại.')))
+                .finally(() => setSavingMins(false));
+            }}>{savingMins ? 'Đang lưu…' : 'Lưu'}</button>
           </>
         }
       >

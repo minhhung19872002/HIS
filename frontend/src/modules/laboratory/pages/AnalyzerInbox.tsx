@@ -206,7 +206,7 @@ const AnalyzerInboxPage: React.FC = () => {
         />
         <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFAnalyzer(''); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
       </div>
 
       <StatusTabs<SKey>
@@ -222,7 +222,8 @@ const AnalyzerInboxPage: React.FC = () => {
         rowKey={(r) => r.id}
         onRowClick={setSel}
         actions={actions}
-        empty={loading ? 'Đang tải…' : 'Inbox trống'}
+        loading={loading}
+        empty={'Inbox trống'}
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 

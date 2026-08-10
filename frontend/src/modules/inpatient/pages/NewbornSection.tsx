@@ -235,7 +235,8 @@ const NewbornSection: React.FC<NewbornSectionProps> = ({ admissionId }) => {
         data={records}
         rowKey={(r) => r.id}
         onRowClick={openEdit}
-        empty={loading ? 'Dang tai...' : 'Chua co ho so tre so sinh'}
+        loading={loading}
+        empty={'Chua co ho so tre so sinh'}
         actions={(r) => (
           <div className="ab-actions">
             <ActBtn ic="edit" title="Sua" onClick={() => openEdit(r)} />

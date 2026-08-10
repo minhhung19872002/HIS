@@ -296,7 +296,7 @@ const CampaignTab: React.FC = () => {
         />
         <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setCamStab('all'); setPage(0); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
         <Btn variant="primary" icon="plus" onClick={openCreate}>Chiến dịch mới</Btn>
       </div>
 
@@ -313,7 +313,8 @@ const CampaignTab: React.FC = () => {
         rowKey={(r) => r.id}
         onRowClick={setSel}
         actions={camActions}
-        empty={loading ? 'Đang tải...' : 'Chưa có chiến dịch KSK'}
+        loading={loading}
+        empty={'Chưa có chiến dịch KSK'}
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 
@@ -651,7 +652,7 @@ const HealthCheckupV2: React.FC = () => {
             <Filter value={fType} onChange={setFType} options={typeOptions} placeholder="Loai KSK" />
             <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>Bo loc</Btn>
             <span className="spacer" />
-            <Btn variant="ghost" icon="refresh" onClick={load}>Lam moi</Btn>
+            <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Lam moi</Btn>
             <Btn variant="primary" icon="plus" onClick={openCreate}>KSK moi</Btn>
           </div>
 
@@ -660,7 +661,8 @@ const HealthCheckupV2: React.FC = () => {
           <DataTable<HealthCheckup>
             columns={cols} data={paged} rowKey={(r) => r.id}
             onRowClick={setSel} actions={actions}
-            empty={loading ? 'Dang tai...' : 'Chua co kham SK'}
+            loading={loading}
+            empty={'Chua co kham SK'}
           />
           <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 
@@ -792,6 +794,7 @@ const HealthCheckupV2: React.FC = () => {
                 { key: 'rate', label: 'Tỷ lệ hoàn thành', mono: true, width: 130, render: (r) => pct(r.completed, r.total) },
               ]}
               data={rows} rowKey={(r) => r.company}
+              loading={loading}
               empty="Chưa có dữ liệu KSK"
             />
             <div style={{

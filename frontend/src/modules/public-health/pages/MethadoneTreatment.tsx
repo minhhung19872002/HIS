@@ -250,9 +250,7 @@ const MethadoneTreatmentV2: React.FC = () => {
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
         <Btn variant="ghost" onClick={() => {
           const active = items.find((p) => p.status === 0);
           if (active) openUrine(active);
@@ -276,7 +274,8 @@ const MethadoneTreatmentV2: React.FC = () => {
       <DataTable<MethadonePatient>
         columns={cols} data={paged} rowKey={(r) => r.id}
         onRowClick={setSel} actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có BN methadone'}
+        loading={loading}
+        empty="Chưa có BN methadone"
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 

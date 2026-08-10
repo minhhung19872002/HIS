@@ -35,14 +35,15 @@ const PER = 18;
 const EmrCloudSync: React.FC = () => {
   const [rows, setRows] = useState<EmrCloudSyncLogDto[]>([]);
   const [status, setStatus] = useState<EmrCloudSyncStatusDto | null>(null);
-  // loading state value chưa render trực tiếp (giữ setLoading cho deps callbacks)
-  const [, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [stab, setStab] = useState<CSStatusKey | 'all'>('all');
   const [fDest, setFDest] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [detail, setDetail] = useState<EmrCloudSyncLogDto | null>(null);
   const [syncModal, setSyncModal] = useState(false);
+  const [retryBusy, setRetryBusy] = useState(false);
+  const [syncBusy, setSyncBusy] = useState(false);
   const [form] = Form.useForm();
 
   const load = async () => {
@@ -89,21 +90,29 @@ const EmrCloudSync: React.FC = () => {
   ];
 
   const retry = async (r: EmrCloudSyncLogDto) => {
+    if (retryBusy) return;
+    setRetryBusy(true);
     try {
       await emrCloudSyncApi.retryFailed();
       tk(`Đang retry · ${r.fileName}`);
       load();
     } catch { te('Retry thất bại'); }
+    finally { setRetryBusy(false); }
   };
   const retryAll = async () => {
+    if (retryBusy) return;
+    setRetryBusy(true);
     try {
       const r = await emrCloudSyncApi.retryFailed();
       tk(`Đã retry ${r.retried} file lỗi`);
       load();
     } catch { te('Retry thất bại'); }
+    finally { setRetryBusy(false); }
   };
 
   const handleSync = async () => {
+    if (syncBusy) return;
+    setSyncBusy(true);
     try {
       const v = await form.validateFields();
       await emrCloudSyncApi.sync({
@@ -117,6 +126,8 @@ const EmrCloudSync: React.FC = () => {
     } catch (e: unknown) {
       const err = e as { errorFields?: unknown };
       if (!err?.errorFields) te('Đồng bộ thất bại');
+    } finally {
+      setSyncBusy(false);
     }
   };
 
@@ -174,7 +185,7 @@ const EmrCloudSync: React.FC = () => {
   const actions = (r: EmrCloudSyncLogDto) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
-      {r.status === 'failed' && <ActBtn ic="refresh" title="Retry" tone="warn" onClick={() => retry(r)} />}
+      {r.status === 'failed' && <ActBtn ic="refresh" title="Retry" tone="warn" loading={retryBusy} onClick={() => retry(r)} />}
     </div>
   );
 
@@ -191,7 +202,7 @@ const EmrCloudSync: React.FC = () => {
           placeholder="▾ Đích"
         />
         <span className="spacer" style={{ flex: 1 }} />
-        <Button size="small" onClick={retryAll} disabled={(counts.failed || 0) === 0} data-testid="cs-retry-all">
+        <Button size="small" onClick={retryAll} disabled={(counts.failed || 0) === 0 || retryBusy} loading={retryBusy} data-testid="cs-retry-all">
           <TermIcon name="refresh" size={12} /> Retry lỗi ({counts.failed || 0})
         </Button>
         <Button type="primary" size="small" onClick={() => setSyncModal(true)} data-testid="cs-sync-btn">
@@ -200,7 +211,7 @@ const EmrCloudSync: React.FC = () => {
       </div>
 
       <StatusTabs value={stab} onChange={(v) => { setStab(v as CSStatusKey | 'all'); setPage(0); }} tabs={CS_STATUS} counts={counts} />
-      <DataTable columns={cols} data={paged} rowKey={r => r.id} onRowClick={setDetail} actions={actions} />
+      <DataTable columns={cols} data={paged} rowKey={r => r.id} onRowClick={setDetail} actions={actions} loading={loading} />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 
       {/* Detail drawer */}
@@ -214,7 +225,7 @@ const EmrCloudSync: React.FC = () => {
           <>
             <Button onClick={() => setDetail(null)}>Đóng</Button>
             {detail.status === 'failed' && (
-              <Button type="primary" onClick={() => retry(detail)}><TermIcon name="refresh" size={12} /> Retry</Button>
+              <Button type="primary" onClick={() => retry(detail)} disabled={retryBusy} loading={retryBusy}><TermIcon name="refresh" size={12} /> Retry</Button>
             )}
           </>
         )}
@@ -261,8 +272,8 @@ const EmrCloudSync: React.FC = () => {
         size="md"
         footer={(
           <>
-            <Button onClick={() => { setSyncModal(false); form.resetFields(); }}>Hủy</Button>
-            <Button type="primary" onClick={handleSync}><TermIcon name="upload" size={12} /> Bắt đầu đồng bộ</Button>
+            <Button onClick={() => { setSyncModal(false); form.resetFields(); }} disabled={syncBusy}>Hủy</Button>
+            <Button type="primary" onClick={handleSync} disabled={syncBusy} loading={syncBusy}><TermIcon name="upload" size={12} /> {syncBusy ? 'Đang gửi…' : 'Bắt đầu đồng bộ'}</Button>
           </>
         )}
       >

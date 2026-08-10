@@ -231,7 +231,8 @@ const HemodialysisSection: React.FC<HemodialysisSectionProps> = ({ admissionId, 
         data={records}
         rowKey={(r) => r.id}
         onRowClick={openEdit}
-        empty={loading ? 'Dang tai...' : 'Chua co buoi loc mau'}
+        loading={loading}
+        empty={'Chua co buoi loc mau'}
         actions={(r) => (
           <div className="ab-actions">
             <ActBtn ic="edit" title="Sua" onClick={() => openEdit(r)} />

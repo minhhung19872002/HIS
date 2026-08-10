@@ -385,9 +385,7 @@ const EpidemiologyV2: React.FC = () => {
               <Ico name="x" size={12} /> Bỏ lọc
             </Btn>
             <span className="spacer" />
-            <Btn variant="ghost" onClick={load}>
-              <Ico name="refresh" size={12} /> Làm mới
-            </Btn>
+            <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
             <Btn variant="primary" onClick={() => { setNewReportOpen(true); }}>
               <Ico name="plus" size={12} /> Báo cáo mới
             </Btn>
@@ -397,8 +395,9 @@ const EpidemiologyV2: React.FC = () => {
 
           <DataTable<DiseaseReport>
             columns={cols} data={paged} rowKey={(r) => r.id}
+            loading={loading}
             onRowClick={setSel} actions={actions}
-            empty={loading ? 'Đang tải…' : 'Chưa có báo cáo dịch tễ'}
+            empty="Chưa có báo cáo dịch tễ"
           />
           <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 
@@ -506,9 +505,7 @@ const EpidemiologyV2: React.FC = () => {
               <Ico name="x" size={12} /> Bỏ lọc
             </Btn>
             <span className="spacer" />
-            <Btn variant="ghost" onClick={loadOutbreaks}>
-              <Ico name="refresh" size={12} /> Làm mới
-            </Btn>
+            <Btn variant="ghost" onClick={loadOutbreaks} loading={outbreakLoading} icon="refresh">Làm mới</Btn>
             <Btn variant="primary" onClick={obOpenCreate}>
               <Ico name="plus" size={12} /> Khai báo ổ dịch
             </Btn>
@@ -516,8 +513,9 @@ const EpidemiologyV2: React.FC = () => {
 
           <DataTable<Outbreak>
             columns={obCols} data={obPaged} rowKey={(r) => r.id}
+            loading={outbreakLoading}
             onRowClick={setObSel} actions={obActions}
-            empty={outbreakLoading ? 'Đang tải…' : 'Chưa có ổ dịch'}
+            empty="Chưa có ổ dịch"
           />
           <Pager page={obPage} setPage={setObPage} totalPages={obTotalPages} total={obFiltered.length} perPage={PER} />
 
@@ -591,14 +589,13 @@ const EpidemiologyV2: React.FC = () => {
           <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
             <SearchBox value={notifSearch} onChange={setNotifSearch} placeholder="Tìm tên bệnh / mã ICD…" />
             <span className="spacer" />
-            <Btn variant="ghost" onClick={loadNotifiable}>
-              <Ico name="refresh" size={12} /> Làm mới
-            </Btn>
+            <Btn variant="ghost" onClick={loadNotifiable} loading={notifLoading} icon="refresh">Làm mới</Btn>
           </div>
 
           <DataTable<NotifiableDisease>
             columns={notifCols} data={notifFiltered} rowKey={(d) => d.code}
-            empty={notifLoading ? 'Đang tải…' : 'Chưa có dữ liệu'}
+            loading={notifLoading}
+            empty="Chưa có dữ liệu"
           />
         </>
       )}

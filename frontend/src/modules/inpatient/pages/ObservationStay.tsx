@@ -165,9 +165,7 @@ const ObservationStayV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Phòng lưu / Observation ngắn hạn (≤24h)</span>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
         <Btn variant="primary" onClick={() => setCreateOpen(true)}>
           <Ico name="plus" size={12} /> Tiếp nhận
         </Btn>
@@ -183,7 +181,8 @@ const ObservationStayV2: React.FC = () => {
             <ActBtn ic="eye" title="Chi tiết" onClick={() => openDetail(r)} />
           </div>
         )}
-        empty={loading ? 'Đang tải…' : 'Không có phiên lưu'}
+        loading={loading}
+        empty={'Không có phiên lưu'}
       />
 
       <DrawerShell

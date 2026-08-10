@@ -192,9 +192,7 @@ const HealthEducationV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={(v) => { setTab(v); setPage(0); }} tabs={TOP_TABS} actions={
         <>
-          <Btn variant="ghost" onClick={load}>
-            <Ico name="refresh" size={12} /> Làm mới
-          </Btn>
+          <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
           {tab === 'campaigns' ? (
             <Btn variant="primary" onClick={openCreate}>
               <Ico name="plus" size={12} /> Chiến dịch mới
@@ -230,8 +228,9 @@ const HealthEducationV2: React.FC = () => {
 
         <DataTable<HealthCampaign>
           columns={cols} data={paged} rowKey={(r) => r.id}
+          loading={loading}
           onRowClick={setSel} actions={actions}
-          empty={loading ? 'Đang tải…' : 'Chưa có chiến dịch GDSK'}
+          empty="Chưa có chiến dịch GDSK"
         />
         <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
       </>}
@@ -239,7 +238,8 @@ const HealthEducationV2: React.FC = () => {
       {tab === 'materials' && <>
         <DataTable<HealthMaterial>
           columns={matCols} data={pagedMaterials} rowKey={(r) => r.id}
-          empty={loading ? 'Đang tải…' : 'Chưa có tài liệu GDSK'}
+          loading={loading}
+          empty="Chưa có tài liệu GDSK"
         />
         <Pager page={page} setPage={setPage} totalPages={totalPages} total={filteredMaterials.length} perPage={PER} />
       </>}

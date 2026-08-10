@@ -4,6 +4,8 @@ import { Modal, Table, Tag, Button } from 'antd';
 import * as pharmacyApi from '../api/pharmacy';
 import type { LoginExpiryAlert } from '../api/pharmacy';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { tk, tw, te } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ── Expiry Alert Modal (GAP-DoiThu Đ3.15 / issue #28) ────────────────────────
 // Hiện khi vào module Dược (Nhà thuốc / Kho dược BV), 1 lần / phiên
@@ -14,6 +16,7 @@ const ExpiryAlertModal: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [alerts, setAlerts] = useState<LoginExpiryAlert[]>([]);
   const [acknowledging, setAcknowledging] = useState<string | null>(null);
+  const [ackAllBusy, setAckAllBusy] = useState(false);
 
   useEffect(() => {
     // Chỉ gọi 1 lần / session
@@ -33,15 +36,29 @@ const ExpiryAlertModal: React.FC = () => {
     try {
       await pharmacyApi.acknowledgeExpiryAlert(id);
       setAlerts((prev) => prev.filter((a) => a.id !== id));
+    } catch (e) {
+      te(friendlyErrorMessage(e, 'Xác nhận cảnh báo thất bại'));
     } finally {
       setAcknowledging(null);
     }
   };
 
   const handleAcknowledgeAll = async () => {
-    await Promise.all(alerts.map((a) => pharmacyApi.acknowledgeExpiryAlert(a.id).catch(() => null)));
-    setAlerts([]);
-    setOpen(false);
+    if (ackAllBusy) return;
+    setAckAllBusy(true);
+    try {
+      const results = await Promise.all(alerts.map((a) => pharmacyApi.acknowledgeExpiryAlert(a.id).catch((e) => { console.warn('[his] acknowledge failed', e); return null; })));
+      const failCount = results.filter((r) => r === null).length;
+      if (failCount > 0) {
+        tw(`Xác nhận thất bại ${failCount}/${alerts.length} mặt hàng`);
+      } else {
+        tk('Đã xác nhận tất cả cảnh báo');
+      }
+      setAlerts([]);
+      setOpen(false);
+    } finally {
+      setAckAllBusy(false);
+    }
   };
 
   const columns = [
@@ -90,7 +107,7 @@ const ExpiryAlertModal: React.FC = () => {
       destroyOnHidden
       footer={[
         <Button key="close" onClick={() => setOpen(false)}>Đóng</Button>,
-        <Button key="all" type="primary" danger onClick={handleAcknowledgeAll}>
+        <Button key="all" type="primary" danger loading={ackAllBusy} onClick={handleAcknowledgeAll}>
           Xác nhận tất cả
         </Button>,
       ]}

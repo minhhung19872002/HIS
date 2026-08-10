@@ -495,11 +495,11 @@ const SystemAdminV2: React.FC = () => {
         {tab === 'notifications' && <Btn variant="primary" onClick={() => setNotifModal(true)}>+ Gửi thông báo</Btn>}
         {tab === 'locked-services' && <Btn variant="primary" onClick={() => { setLockModal(true); setLockResults([]); setLockKw(''); }}>+ Khóa dịch vụ</Btn>}
         {tab === 'branches' && <Btn variant="primary" onClick={openNewBranch}>+ Thêm chi nhánh</Btn>}
-        <Btn variant="ghost" onClick={load}>Làm mới</Btn>
+        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
       </div>
 
       {tab === 'users' && (
-        <DataTable<SystemUserDto> columns={userColumns} data={filteredUsers} rowKey={(u) => u.id || u.username}
+        <DataTable<SystemUserDto> columns={userColumns} data={filteredUsers} rowKey={(u) => u.id || u.username} loading={loading}
           onRowClick={(u) => setSelUser(u)}
           actions={(u) => (<>
             <ActBtn ic="edit" title="Sửa" onClick={() => openEditUser(u)} />
@@ -507,32 +507,32 @@ const SystemAdminV2: React.FC = () => {
             <ActBtn ic="refresh" title="Reset mật khẩu" onClick={() => resetPw(u)} />
             {!isAdminUser(u) && <ActBtn ic="trash" title="Xoá tài khoản" tone="crit" onClick={() => deleteUser(u)} />}
           </>)}
-          empty={loading ? 'Đang tải…' : 'Không có người dùng'} />
+          empty={'Không có người dùng'} />
       )}
       {tab === 'roles' && (
-        <DataTable<RoleDto> columns={roleColumns} data={filteredRoles} rowKey={(r) => r.id || r.code}
+        <DataTable<RoleDto> columns={roleColumns} data={filteredRoles} rowKey={(r) => r.id || r.code} loading={loading}
           actions={(r) => (<><ActBtn ic="edit" title="Sửa" onClick={() => openEditRole(r)} /><ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => delRole(r)} /></>)}
-          empty={loading ? 'Đang tải…' : 'Không có vai trò'} />
+          empty={'Không có vai trò'} />
       )}
       {tab === 'sessions' && (
-        <DataTable<SessionRow> columns={sessionColumns} data={sessions as SessionRow[]} rowKey={(s) => s.id || s.username || ''}
+        <DataTable<SessionRow> columns={sessionColumns} data={sessions as SessionRow[]} rowKey={(s) => s.id || s.username || ''} loading={loading}
           actions={(s) => s.isActive ? <ActBtn ic="trash" title="Kick" tone="crit" onClick={() => kickSession(s)} /> : null}
-          empty={loading ? 'Đang tải…' : 'Không có phiên đăng nhập'} />
+          empty={'Không có phiên đăng nhập'} />
       )}
       {tab === 'notifications' && (
-        <DataTable<NotifRow> columns={notifColumns} data={notifications as NotifRow[]} rowKey={(n) => String((n as unknown as Record<string, unknown>).id ?? n.title ?? '')}
-          empty={loading ? 'Đang tải…' : 'Chưa có thông báo'} />
+        <DataTable<NotifRow> columns={notifColumns} data={notifications as NotifRow[]} rowKey={(n) => String((n as unknown as Record<string, unknown>).id ?? n.title ?? '')} loading={loading}
+          empty={'Chưa có thông báo'} />
       )}
       {tab === 'locked-services' && (
-        <DataTable<LockRow> columns={lockColumns} data={lockedServices as LockRow[]} rowKey={(s) => String((s as unknown as Record<string, unknown>).id ?? '')}
+        <DataTable<LockRow> columns={lockColumns} data={lockedServices as LockRow[]} rowKey={(s) => String((s as unknown as Record<string, unknown>).id ?? '')} loading={loading}
           actions={(s) => (s as unknown as Record<string, boolean>).isLocked ? <ActBtn ic="check" title="Mở khóa" tone="warn" onClick={() => unlockSvc(s)} /> : null}
-          empty={loading ? 'Đang tải…' : 'Chưa có dịch vụ nào bị khóa'} />
+          empty={'Chưa có dịch vụ nào bị khóa'} />
       )}
       {tab === 'branches' && (
-        <DataTable<BranchRecord> columns={branchColumns} data={filteredBranches} rowKey={(b) => b.id}
+        <DataTable<BranchRecord> columns={branchColumns} data={filteredBranches} rowKey={(b) => b.id} loading={loading}
           onRowClick={(b) => setSelBranch(b)}
           actions={(b) => (<><ActBtn ic="edit" title="Sửa" onClick={() => openEditBranch(b)} /><ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => delBranch(b)} /></>)}
-          empty={loading ? 'Đang tải…' : 'Chưa có chi nhánh'} />
+          empty={'Chưa có chi nhánh'} />
       )}
       {tab === 'audit' && (
         <>
@@ -584,15 +584,15 @@ const SystemAdminV2: React.FC = () => {
               Xuất Excel
             </Btn>
           </div>
-          <DataTable<AuditLogDto> columns={auditColumns} data={audit} rowKey={(a) => String(a.id ?? '')}
-            onRowClick={(a) => setSelAudit(a)} empty={loading ? 'Đang tải…' : 'Chưa có nhật ký'} />
+          <DataTable<AuditLogDto> columns={auditColumns} data={audit} rowKey={(a) => String(a.id ?? '')} loading={loading}
+            onRowClick={(a) => setSelAudit(a)} empty={'Chưa có nhật ký'} />
           <Pager page={auditPage} totalPages={Math.max(1, Math.ceil(auditTotal / 50))} setPage={setAuditPage} total={auditTotal} perPage={50} />
         </>
       )}
       {tab === 'config' && (
-        <DataTable<SystemConfigDto> columns={configColumns} data={filteredConfigs} rowKey={(c) => c.configKey}
+        <DataTable<SystemConfigDto> columns={configColumns} data={filteredConfigs} rowKey={(c) => c.configKey} loading={loading}
           actions={(c) => <ActBtn ic="edit" title="Sửa giá trị" onClick={() => openCfg(c)} />}
-          empty={loading ? 'Đang tải…' : 'Chưa có cấu hình'} />
+          empty={'Chưa có cấu hình'} />
       )}
       {tab === 'it-tickets' && <ItTicketsPanel />}
       {tab === 'access-matrix' && <AccessMatrixPanel />}

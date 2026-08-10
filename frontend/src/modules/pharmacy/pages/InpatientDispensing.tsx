@@ -9,8 +9,9 @@ import { getWarehouses } from '../api/warehouse';
 import { PharmacyExpiryBanner } from '../components/PharmacyExpiryBanner';
 import { unwrapList, type MaybePaged } from '../../../utils/apiNormalize';
 import {
-  KpiStrip, Filter, StatusBadge, Btn, Ico, tk, ti, tw,
+  KpiStrip, Filter, StatusBadge, Btn, Ico, tk, ti, tw, cf, LoadingState,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 interface BatchDispenseResponse {
   receiptCode?: string;
@@ -74,7 +75,7 @@ const InpatientDispensingV2: React.FC = () => {
         const [d, w] = await Promise.all([systemApi.catalog.getDepartments(), getWarehouses(1)]);
         setDepartments(unwrapList<Department>((d as { data?: MaybePaged<Department> }).data));
         setWarehouses(unwrapList<Warehouse>((w as { data?: MaybePaged<Warehouse> }).data));
-      } catch { /* empty */ }
+      } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh mục khoa/kho')); }
     })();
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -160,6 +161,10 @@ ${(printData.items || []).map((it, i) => `<tr><td>${i + 1}</td><td>${it.medicine
         <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
       </div>
 
+      {loading && groups.length === 0 && (
+        <div style={{ padding: 'var(--space-16)' }}><LoadingState /></div>
+      )}
+
       {groups.length === 0 && !loading && (
         <div style={{ padding: 80, textAlign: 'center', color: 'var(--t-2)' }}>
           <div style={{ fontSize: 14 }}>Không có đơn thuốc nội trú chờ phát</div>
@@ -190,7 +195,7 @@ ${(printData.items || []).map((it, i) => `<tr><td>${i + 1}</td><td>${it.medicine
                   variant="primary"
                   icon="check"
                   disabled={!warehouseId || sel.size === 0 || submitting}
-                  onClick={() => submitBatch(g)}
+                  onClick={() => cf(`Xuất thuốc cho ${sel.size} đơn của khoa ${g.departmentName}?`, () => submitBatch(g), { confirm: 'Xuất kho' })}
                   style={{ marginLeft: 'var(--space-8)' }}
                 >Xuất ({sel.size})</Btn>
               </div>

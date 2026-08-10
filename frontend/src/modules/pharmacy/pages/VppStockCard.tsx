@@ -143,7 +143,7 @@ const VppStockCardV2: React.FC = () => {
             format="DD/MM/YYYY"
             style={{ width: 240 }}
           />
-          <Btn variant="ghost" icon="refresh" onClick={loadStock}>Làm mới</Btn>
+          <Btn variant="ghost" icon="refresh" onClick={loadStock} loading={stockLoading}>Làm mới</Btn>
         </div>
       </div>
 
@@ -155,7 +155,8 @@ const VppStockCardV2: React.FC = () => {
         actions={(r) => (
           <ActBtn ic="book" title="Xem thẻ kho" onClick={(e) => { e.stopPropagation(); openCard(r.itemId); }} />
         )}
-        empty={stockLoading ? 'Đang tải…' : selectedWarehouse ? 'Không có hàng trong kho' : 'Chọn kho để xem tồn kho'}
+        loading={stockLoading}
+        empty={selectedWarehouse ? 'Không có hàng trong kho' : 'Chọn kho để xem tồn kho'}
       />
 
       {/* Stock card panel */}

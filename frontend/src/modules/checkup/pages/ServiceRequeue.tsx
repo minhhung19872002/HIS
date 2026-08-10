@@ -100,7 +100,7 @@ const ServiceRequeueV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <SearchBox value={keyword} onChange={setKeyword}
           placeholder="Mã HSBA / mã BN / tên BN / SĐT…" minWidth={400} />
-        <Btn variant="primary" icon="search" onClick={search} disabled={loading}>Tìm HSBA</Btn>
+        <Btn variant="primary" icon="search" onClick={search} loading={loading}>Tìm HSBA</Btn>
         {mr && (
           <Btn variant="ghost" icon="x" onClick={() => { setMr(null); setServices([]); setKeyword(''); setSelected(new Set()); }}>Tìm HSBA khác</Btn>
         )}
@@ -128,6 +128,7 @@ const ServiceRequeueV2: React.FC = () => {
         <DataTable<CancelledService>
           columns={cols} data={services} rowKey={(r) => r.id}
           selected={selected} onToggle={togglePending} onToggleAll={toggleAll}
+          loading={loading}
           empty={'Không có CLS đã hủy'}
         />
       )}

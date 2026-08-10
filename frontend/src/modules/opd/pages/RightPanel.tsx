@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Btn, te, tk, tw } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { printSickLeave, type RoomPatientListDto } from '../api/examination';
@@ -74,7 +74,15 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   setFollowUpRoomId, setFollowUpReason, setFollowUpOpen,
   setChangeRoomNewId, setChangeRoomReason, setChangeRoomOpen,
   setDeleteReason, setDeleteOpen,
-}) => (
+}) => {
+  // #467: busy guard cho các nút mutation không do hook cha quản lý — chặn double-click,
+  // KHÔNG đổi thứ tự/điều kiện gọi API bên dưới.
+  const [savingSick, setSavingSick] = useState(false);
+  const [printingBill, setPrintingBill] = useState(false);
+  const [cancellingPrint, setCancellingPrint] = useState(false);
+  const [cancellingCompletion, setCancellingCompletion] = useState(false);
+
+  return (
   <aside className={'ed-right-panel ' + (rightOpen ? 'is-open' : '')} style={{ borderLeft: '1px solid var(--line)', padding: 'var(--space-12)', background: 'var(--d-1)', display: 'flex', flexDirection: 'column', gap: 'var(--space-10)', overflow: 'auto' }}>
     <section style={{ padding: 'var(--space-12)', background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
       <h4 style={{ margin: '0 0 8px', fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Kết luận</h4>
@@ -88,8 +96,12 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         <div><label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>Đến ngày</label><input type="date" className="hui-inp" style={{ width: '100%', height: 26 }} value={sickTo} onChange={(e) => setSickTo(e.target.value)} /></div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-6)', marginTop: 'var(--space-8)' }}>
-        <Btn variant="ghost" size="sm" style={{ justifyContent: 'center' }} disabled={!sickFrom || !sickTo} onClick={saveSickLeave}>
-          <TermIcon name="file-text" size={11} /> Lưu giấy nghỉ
+        <Btn variant="ghost" size="sm" style={{ justifyContent: 'center' }} disabled={!sickFrom || !sickTo || savingSick} onClick={async () => {
+          if (savingSick) return;
+          setSavingSick(true);
+          try { await saveSickLeave(); } finally { setSavingSick(false); }
+        }}>
+          <TermIcon name="file-text" size={11} /> {savingSick ? 'Đang lưu…' : 'Lưu giấy nghỉ'}
         </Btn>
         <Btn variant="ghost" size="sm" style={{ justifyContent: 'center' }} disabled={!examId} onClick={async () => {
           if (!examId) return;
@@ -229,8 +241,10 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                 <Btn
                   variant="ok"
                   size="sm"
+                  disabled={printingBill}
                   onClick={async () => {
-                    if (!examId) return;
+                    if (!examId || printingBill) return;
+                    setPrintingBill(true);
                     try {
                       const result = await printBill(examId);
                       tk('Đã in chi phí (bảng kê)');
@@ -238,10 +252,12 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                     } catch (err: unknown) {
                       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
                       te(msg || 'Không thể in bảng kê chi phí');
+                    } finally {
+                      setPrintingBill(false);
                     }
                   }}
                 >
-                  <TermIcon name="print" size={11} /> In bảng kê chi phí
+                  <TermIcon name="print" size={11} /> {printingBill ? 'Đang in…' : 'In bảng kê chi phí'}
                 </Btn>
               )}
               {/* Hủy in chi phí */}
@@ -249,8 +265,10 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                 <Btn
                   variant="ghost"
                   size="sm"
+                  disabled={cancellingPrint}
                   onClick={async () => {
-                    if (!examId) return;
+                    if (!examId || cancellingPrint) return;
+                    setCancellingPrint(true);
                     try {
                       const result = await cancelPrintBill(examId);
                       tk('Đã hủy in chi phí');
@@ -258,10 +276,12 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                     } catch (err: unknown) {
                       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
                       te(msg || 'Không thể hủy in chi phí');
+                    } finally {
+                      setCancellingPrint(false);
                     }
                   }}
                 >
-                  <TermIcon name="x" size={11} /> Hủy in chi phí
+                  <TermIcon name="x" size={11} /> {cancellingPrint ? 'Đang hủy…' : 'Hủy in chi phí'}
                 </Btn>
               )}
               {/* Hủy hoàn tất */}
@@ -269,14 +289,16 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                 <Btn
                   variant="crit"
                   size="sm"
+                  disabled={cancellingCompletion}
                   onClick={async () => {
-                    if (!examId) return;
+                    if (!examId || cancellingCompletion) return;
                     // Cảnh báo nếu đã in bảng kê
                     const confirmed = window.confirm(
                       'Hủy hoàn tất? Phiên khám trở về Đang khám.' +
                       (completion.isBillPrinted ? ' Cần hủy in chi phí trước nếu có.' : ''),
                     );
                     if (!confirmed) return;
+                    setCancellingCompletion(true);
                     try {
                       const result = await cancelCompletion(examId);
                       tk('Đã hủy hoàn tất');
@@ -285,10 +307,12 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                     } catch (err: unknown) {
                       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
                       te(msg || 'Không thể hủy hoàn tất');
+                    } finally {
+                      setCancellingCompletion(false);
                     }
                   }}
                 >
-                  <TermIcon name="refresh" size={11} /> Hủy hoàn tất (về Đang khám)
+                  <TermIcon name="refresh" size={11} /> {cancellingCompletion ? 'Đang hủy…' : 'Hủy hoàn tất (về Đang khám)'}
                 </Btn>
               )}
             </div>
@@ -315,4 +339,5 @@ export const RightPanel: React.FC<RightPanelProps> = ({
       </div>
     </section>
   </aside>
-);
+  );
+};

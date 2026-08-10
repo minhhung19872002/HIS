@@ -7,9 +7,11 @@ import systemApi from '../../system/api/system';
 import { getWarehouses } from '../api/warehouse';
 import { unwrapList, type MaybePaged } from '../../../utils/apiNormalize';
 import {
-  KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn, DrawerShell, ModalShell, DrSec, DrField,
-  Ico, tk, ti, tw, type ColumnDef,
+  KpiStrip, StatusTabs, DataTable, StatusBadge, Btn, DrawerShell, ModalShell, DrSec, DrField,
+  Ico, tk, ti, tw, cf, type ColumnDef,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 interface Supply {
   id: string; supplyCode: string; supplyName: string; supplyType: number;
@@ -67,6 +69,11 @@ const OfficeSupplyApprovalV2: React.FC = () => {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [form] = Form.useForm();
   const [returnForm] = Form.useForm();
+  const [creating, setCreating] = useState(false);
+  const [creatingReturn, setCreatingReturn] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [approvingReturn, setApprovingReturn] = useState(false);
+  const [recalling, setRecalling] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -88,23 +95,25 @@ const OfficeSupplyApprovalV2: React.FC = () => {
       try {
         const { data: s } = await apiClient.get<Supply[]>('/office-supply/catalog');
         setSupplies(s || []);
-      } catch { /* empty */ }
+      } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh mục vật tư')); }
       try {
         const d = await systemApi.catalog.getDepartments();
         const dBody = (d as { data?: MaybePaged<Department> }).data;
         setDepartments(unwrapList<Department>(dBody));
-      } catch { /* empty */ }
+      } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh mục khoa')); }
       try {
         const w = await getWarehouses(1);
         const wBody = (w as { data?: MaybePaged<Warehouse> }).data;
         setWarehouses(unwrapList<Warehouse>(wBody));
-      } catch { /* empty */ }
+      } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh mục kho')); }
     })();
   }, []);
 
   const submitCreate = async () => {
+    if (creating) return;
     const v = await form.validateFields();
     if (!v.items || v.items.length === 0) { tw('Chưa có vật tư'); return; }
+    setCreating(true);
     try {
       const { data }: { data: CreateRequestResponse } = await apiClient.post('/office-supply/requests', {
         departmentId: v.departmentId, warehouseId: v.warehouseId, note: v.note,
@@ -119,10 +128,12 @@ const OfficeSupplyApprovalV2: React.FC = () => {
       tk(`Đã tạo phiếu ${data.approvalCode}`);
       setCreateOpen(false); form.resetFields(); load();
     } catch { tw('Tạo phiếu thất bại'); }
+    finally { setCreating(false); }
   };
 
   const submitApprove = async () => {
-    if (!approveReq) return;
+    if (!approveReq || approving) return;
+    setApproving(true);
     try {
       const { data }: { data: ApproveResponse } = await apiClient.post('/office-supply/requests/approve', {
         id: approveReq.id, approvedQuantities: approveQty,
@@ -130,19 +141,25 @@ const OfficeSupplyApprovalV2: React.FC = () => {
       tk(`Đã duyệt — phiếu xuất ${data.exportReceiptId}`);
       setApproveReq(null); setApproveQty({}); load();
     } catch { tw('Duyệt thất bại'); }
+    finally { setApproving(false); }
   };
 
   const submitRecall = async (req: ApprovalRequest) => {
+    if (recalling) return;
+    setRecalling(true);
     try {
       await apiClient.post(`/office-supply/requests/${req.id}/recall`);
       tk(`Đã thu hồi phiếu ${req.approvalCode} — phiếu về Nháp để chỉnh sửa lại`);
       load();
     } catch { tw('Thu hồi thất bại'); }
+    finally { setRecalling(false); }
   };
 
   const submitCreateReturn = async () => {
+    if (creatingReturn) return;
     const v = await returnForm.validateFields();
     if (!v.items || v.items.length === 0) { tw('Chưa có vật tư hoàn trả'); return; }
+    setCreatingReturn(true);
     try {
       const { data }: { data: ReturnResponse } = await apiClient.post('/office-supply/returns', {
         departmentId: v.departmentId, warehouseId: v.warehouseId, note: v.note,
@@ -157,10 +174,12 @@ const OfficeSupplyApprovalV2: React.FC = () => {
       tk(`Đã tạo phiếu hoàn trả ${data.approvalCode}`);
       setReturnOpen(false); returnForm.resetFields(); load();
     } catch { tw('Tạo phiếu hoàn trả thất bại'); }
+    finally { setCreatingReturn(false); }
   };
 
   const submitApproveReturn = async () => {
-    if (!approveReturn) return;
+    if (!approveReturn || approvingReturn) return;
+    setApprovingReturn(true);
     try {
       await apiClient.post('/office-supply/returns/approve', {
         id: approveReturn.id, approvedQuantities: approveReturnQty,
@@ -168,6 +187,7 @@ const OfficeSupplyApprovalV2: React.FC = () => {
       tk('Đã duyệt hoàn trả — tồn kho đã được cộng lại');
       setApproveReturn(null); setApproveReturnQty({}); load();
     } catch { tw('Duyệt hoàn trả thất bại'); }
+    finally { setApprovingReturn(false); }
   };
 
   const activeList = moduleTab === 'requests' ? requests : returns;
@@ -229,18 +249,26 @@ const OfficeSupplyApprovalV2: React.FC = () => {
         columns={cols} data={activeList} rowKey={(r) => r.id}
         onRowClick={setDetail}
         actions={(r) => (
-          <div className="ab-actions">
-            <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
-            {r.status === 2 && moduleTab === 'requests' && (
-              <ActBtn ic="check" title="Duyệt" onClick={() => { setApproveReq(r); setApproveQty({}); }} />
-            )}
-            {r.status === 2 && moduleTab === 'requests' && (
-              <ActBtn ic="x" title="Thu hồi" onClick={() => submitRecall(r)} />
-            )}
-            {r.status === 2 && moduleTab === 'returns' && (
-              <ActBtn ic="check" title="Duyệt hoàn trả" onClick={() => { setApproveReturn(r); setApproveReturnQty({}); }} />
-            )}
-          </div>
+          <RowActions actions={[
+            { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setDetail(r) },
+            {
+              key: 'approve', icon: 'check', label: 'Duyệt', primary: true,
+              hidden: !(r.status === 2 && moduleTab === 'requests'),
+              onClick: () => { setApproveReq(r); setApproveQty({}); },
+            },
+            {
+              key: 'recall', icon: 'x', label: 'Thu hồi', tone: 'danger',
+              hidden: !(r.status === 2 && moduleTab === 'requests'),
+              confirm: `Thu hồi phiếu ${r.approvalCode}? Phiếu sẽ về trạng thái Nháp để chỉnh sửa lại.`,
+              disabled: recalling,
+              onClick: () => submitRecall(r),
+            },
+            {
+              key: 'approveReturn', icon: 'check', label: 'Duyệt hoàn trả',
+              hidden: !(r.status === 2 && moduleTab === 'returns'),
+              onClick: () => { setApproveReturn(r); setApproveReturnQty({}); },
+            },
+          ]} />
         )}
         empty={loading ? 'Đang tải…' : moduleTab === 'requests' ? 'Không có phiếu yêu cầu' : 'Không có phiếu hoàn trả'}
       />
@@ -254,7 +282,15 @@ const OfficeSupplyApprovalV2: React.FC = () => {
         footer={<>
           <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
           {detail && detail.status === 2 && moduleTab === 'requests' && (
-            <Btn variant="ghost" onClick={() => { submitRecall(detail); setDetail(null); }}>
+            <Btn
+              variant="ghost"
+              disabled={recalling}
+              onClick={() => cf(
+                `Thu hồi phiếu ${detail.approvalCode}? Phiếu sẽ về trạng thái Nháp để chỉnh sửa lại.`,
+                () => { submitRecall(detail); setDetail(null); },
+                { tone: 'crit', confirm: 'Thu hồi' },
+              )}
+            >
               <Ico name="x" size={12} /> Thu hồi
             </Btn>
           )}
@@ -314,9 +350,9 @@ const OfficeSupplyApprovalV2: React.FC = () => {
         size="lg"
         title={`Duyệt phiếu ${approveReq?.approvalCode || ''}`}
         footer={<>
-          <Btn variant="ghost" onClick={() => setApproveReq(null)}>Hủy</Btn>
-          <Btn variant="primary" onClick={submitApprove}>
-            <Ico name="check" size={12} /> Duyệt
+          <Btn variant="ghost" disabled={approving} onClick={() => setApproveReq(null)}>Hủy</Btn>
+          <Btn variant="primary" loading={approving} disabled={approving} onClick={submitApprove}>
+            <Ico name="check" size={12} /> {approving ? 'Đang duyệt…' : 'Duyệt'}
           </Btn>
         </>}
       >
@@ -349,6 +385,7 @@ const OfficeSupplyApprovalV2: React.FC = () => {
         onCancel={() => setCreateOpen(false)}
         title="Tạo phiếu yêu cầu VPP / TTB"
         onOk={submitCreate}
+        confirmLoading={creating}
         okText="Tạo phiếu"
         cancelText="Hủy"
         width={800}
@@ -400,6 +437,7 @@ const OfficeSupplyApprovalV2: React.FC = () => {
         onCancel={() => setReturnOpen(false)}
         title="Tạo phiếu hoàn trả VPP"
         onOk={submitCreateReturn}
+        confirmLoading={creatingReturn}
         okText="Tạo phiếu hoàn trả"
         cancelText="Hủy"
         width={800}
@@ -452,9 +490,9 @@ const OfficeSupplyApprovalV2: React.FC = () => {
         size="lg"
         title={`Duyệt hoàn trả ${approveReturn?.approvalCode || ''}`}
         footer={<>
-          <Btn variant="ghost" onClick={() => setApproveReturn(null)}>Hủy</Btn>
-          <Btn variant="primary" onClick={submitApproveReturn}>
-            <Ico name="check" size={12} /> Duyệt hoàn trả
+          <Btn variant="ghost" disabled={approvingReturn} onClick={() => setApproveReturn(null)}>Hủy</Btn>
+          <Btn variant="primary" loading={approvingReturn} disabled={approvingReturn} onClick={submitApproveReturn}>
+            <Ico name="check" size={12} /> {approvingReturn ? 'Đang duyệt…' : 'Duyệt hoàn trả'}
           </Btn>
         </>}
       >

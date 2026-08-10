@@ -345,7 +345,7 @@ const EndpointSecurityV2: React.FC = () => {
         <Filter value={fOs} onChange={setFOs} options={oses} placeholder="▾ Hệ điều hành" />
         <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFOs(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="ghost" icon="refresh" loading={loading} onClick={load}>Làm mới</Btn>
         <Btn variant="ghost" icon="grid" onClick={openSoftware}>Phần mềm</Btn>
         <Btn variant="ghost" icon="alert" onClick={openIncidents}>Sự cố ATTT</Btn>
         <Btn variant="primary" icon="plus" onClick={openCreate}>Thêm máy</Btn>
@@ -356,7 +356,8 @@ const EndpointSecurityV2: React.FC = () => {
       <DataTable<EndpointDeviceDto>
         columns={cols} data={paged} rowKey={(r) => r.id}
         onRowClick={setSel} actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có máy nào'}
+        loading={loading}
+        empty="Chưa có máy nào"
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 

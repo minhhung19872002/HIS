@@ -176,7 +176,7 @@ const AnalyzerSection: React.FC = () => {
         <Filter value={fProto} onChange={setFProto} options={protos} placeholder="▾ Protocol" />
         <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFProto(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="ghost" icon="refresh" loading={loading} onClick={load}>Làm mới</Btn>
         <Btn variant="ghost" icon="activity" onClick={runLabconnect}>LabConnect</Btn>
         <Btn variant="ghost" icon="inbox" onClick={() => navigate('/v2/analyzer-inbox')}>KQ máy</Btn>
         <Btn variant="primary" icon="plus" onClick={openCreate}>Thêm máy</Btn>
@@ -187,7 +187,8 @@ const AnalyzerSection: React.FC = () => {
       <DataTable<AnalyzerDto>
         columns={cols} data={paged} rowKey={(r) => r.id}
         onRowClick={setSel} actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có máy XN cấu hình'}
+        loading={loading}
+        empty={'Chưa có máy XN cấu hình'}
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 
@@ -328,7 +329,7 @@ const TestParamsSection: React.FC = () => {
       <div className="ab-toolbar">
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }} placeholder="Tìm theo mã, tên chỉ số…" />
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="ghost" icon="refresh" loading={loading} onClick={load}>Làm mới</Btn>
         <input
           ref={fileInputRef} type="file" accept=".csv" style={{ display: 'none' }}
           onChange={(e) => { if (e.target.files?.[0]) { handleCsvImport(e.target.files[0]); e.target.value = ''; } }}
@@ -346,7 +347,8 @@ const TestParamsSection: React.FC = () => {
             <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => del(r)} />
           </div>
         )}
-        empty={loading ? 'Đang tải…' : 'Chưa có chỉ số xét nghiệm nào'}
+        loading={loading}
+        empty={'Chưa có chỉ số xét nghiệm nào'}
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 
@@ -455,7 +457,7 @@ const ReferenceRangesSection: React.FC = () => {
           style={{ width: 260 }}
         />
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="ghost" icon="refresh" loading={loading} onClick={load}>Làm mới</Btn>
         <Btn variant="primary" icon="plus" onClick={openCreate}>Thêm dải chỉ số</Btn>
       </div>
 
@@ -468,7 +470,8 @@ const ReferenceRangesSection: React.FC = () => {
             <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => del(r)} />
           </div>
         )}
-        empty={loading ? 'Đang tải…' : 'Chưa có dải chỉ số nào'}
+        loading={loading}
+        empty={'Chưa có dải chỉ số nào'}
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={ranges.length} perPage={PER} />
 
@@ -578,7 +581,7 @@ const AnalyzerMappingSection: React.FC = () => {
           style={{ width: 260 }}
         />
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="ghost" icon="refresh" loading={loading} onClick={load}>Làm mới</Btn>
         <Btn variant="ghost" icon="zap" loading={autoMapping} disabled={!filterAnalyzerId} onClick={handleAutoMap}>
           Tự động ánh xạ
         </Btn>
@@ -594,7 +597,8 @@ const AnalyzerMappingSection: React.FC = () => {
             <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => del(r)} />
           </div>
         )}
-        empty={loading ? 'Đang tải…' : 'Chưa có ánh xạ nào'}
+        loading={loading}
+        empty={'Chưa có ánh xạ nào'}
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={mappings.length} perPage={PER} />
 

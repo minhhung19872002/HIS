@@ -206,9 +206,7 @@ const MentalHealthV2: React.FC = () => {
         <Btn variant="primary" onClick={() => setCreateOpen(true)}>
           <Ico name="plus" size={12} /> Tạo hồ sơ
         </Btn>
-        <Btn variant="ghost" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
       </div>
 
       <StatusTabs<StatusKey>
@@ -222,9 +220,10 @@ const MentalHealthV2: React.FC = () => {
         columns={columns}
         data={paged}
         rowKey={(r) => r.id}
+        loading={loading}
         onRowClick={openDetail}
         actions={rowActions}
-        empty={loading ? 'Đang tải…' : 'Không có ca tâm thần'}
+        empty="Không có ca tâm thần"
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 

@@ -191,7 +191,7 @@ const ClinicalGuidanceV2: React.FC = () => {
         <input type="date" style={SEL} value={toDate} onChange={(e) => { setToDate(e.target.value); setPage(0); }} title="Đến ngày" />
         <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFType(''); setFromDate(''); setToDate(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
         <Btn variant="primary" icon="plus" onClick={openCreate}>Đợt mới</Btn>
       </div>
 
@@ -200,7 +200,8 @@ const ClinicalGuidanceV2: React.FC = () => {
       <DataTable<GuidanceBatchDto>
         columns={cols} data={paged} rowKey={(r) => r.id}
         onRowClick={setSel} actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có đợt chỉ đạo'}
+        loading={loading}
+        empty="Chưa có đợt chỉ đạo"
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 

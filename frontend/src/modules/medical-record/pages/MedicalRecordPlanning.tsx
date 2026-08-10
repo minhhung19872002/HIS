@@ -708,7 +708,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
           />
           <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFDept(''); setStab('all'); setRcRange(null); setPage(0); }}>Bỏ lọc</Btn>
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+          <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
           <Btn variant="primary" icon="plus" onClick={openBulk}>Cấp dải mã</Btn>
         </div>
 
@@ -717,7 +717,8 @@ const MedicalRecordPlanningV2: React.FC = () => {
         <DataTable<RecordCode>
           columns={cols} data={paged} rowKey={(r) => r.id}
           onRowClick={setSel} actions={codeActions}
-          empty={loading ? 'Đang tải…' : 'Chưa có mã BA'}
+          loading={loading}
+          empty={'Chưa có mã BA'}
         />
         <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
       </>}
@@ -734,13 +735,14 @@ const MedicalRecordPlanningV2: React.FC = () => {
             placeholder={['Ngày CV từ', 'đến']}
           />
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={() => loadTransfers(trPage)}>Làm mới</Btn>
+          <Btn variant="ghost" icon="refresh" onClick={() => loadTransfers(trPage)} loading={trLoading}>Làm mới</Btn>
         </div>
 
         <DataTable<TransferRecord>
           columns={trCols} data={transfers} rowKey={(r) => r.id}
           actions={trActions}
-          empty={trLoading ? 'Đang tải…' : 'Không có chuyển viện'}
+          loading={trLoading}
+          empty={'Không có chuyển viện'}
         />
         <Pager
           page={trPage}
@@ -763,7 +765,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
             placeholder="▾ Trạng thái"
           />
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={() => loadBorrowing(brPage)}>Làm mới</Btn>
+          <Btn variant="ghost" icon="refresh" onClick={() => loadBorrowing(brPage)} loading={brLoading}>Làm mới</Btn>
           <Btn variant="primary" icon="plus" onClick={() => { setBorrowModal(true); borrowForm.resetFields(); }}>
             Tạo phiếu mượn
           </Btn>
@@ -772,7 +774,8 @@ const MedicalRecordPlanningV2: React.FC = () => {
         <DataTable<BorrowRecord>
           columns={brCols} data={borrowing} rowKey={(r) => r.id}
           actions={brActions}
-          empty={brLoading ? 'Đang tải…' : 'Không có phiếu mượn'}
+          loading={brLoading}
+          empty={'Không có phiếu mượn'}
         />
         <Pager
           page={brPage}
@@ -795,13 +798,14 @@ const MedicalRecordPlanningV2: React.FC = () => {
             placeholder="▾ Trạng thái"
           />
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={() => loadHandover(hoPage)}>Làm mới</Btn>
+          <Btn variant="ghost" icon="refresh" onClick={() => loadHandover(hoPage)} loading={hoLoading}>Làm mới</Btn>
         </div>
 
         <DataTable<HandoverRecord>
           columns={hoCols} data={handover} rowKey={(r) => r.id}
           actions={hoActions}
-          empty={hoLoading ? 'Đang tải…' : 'Không có bàn giao'}
+          loading={hoLoading}
+          empty={'Không có bàn giao'}
         />
         <Pager
           page={hoPage}
@@ -824,12 +828,13 @@ const MedicalRecordPlanningV2: React.FC = () => {
             placeholder={['Ngày khám từ', 'đến']}
           />
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={() => loadOutpatient(opPage)}>Làm mới</Btn>
+          <Btn variant="ghost" icon="refresh" onClick={() => loadOutpatient(opPage)} loading={opLoading}>Làm mới</Btn>
         </div>
 
         <DataTable<OutpatientRecord>
           columns={opCols} data={outpatient} rowKey={(r) => r.id}
-          empty={opLoading ? 'Đang tải…' : 'Không có BA ngoại trú'}
+          loading={opLoading}
+          empty={'Không có BA ngoại trú'}
         />
         <Pager
           page={opPage}
@@ -857,13 +862,14 @@ const MedicalRecordPlanningV2: React.FC = () => {
             Chưa chấm: <b>{attendance.length - attCheckedIn}/{attendance.length}</b> khoa
           </span>
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={() => loadAttendance(attDate)}>Làm mới</Btn>
+          <Btn variant="ghost" icon="refresh" onClick={() => loadAttendance(attDate)} loading={attLoading}>Làm mới</Btn>
         </div>
 
         <DataTable<DepartmentAttendance>
           columns={attCols} data={attendance} rowKey={(r) => r.departmentId}
           actions={attActions}
-          empty={attLoading ? 'Đang tải…' : 'Không có dữ liệu điểm danh'}
+          loading={attLoading}
+          empty={'Không có dữ liệu điểm danh'}
         />
       </>}
 

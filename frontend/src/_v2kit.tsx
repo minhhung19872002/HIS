@@ -38,10 +38,10 @@ import { Filter } from './components/form/Filter';
 import { StatusTabs, type StatusTab, type StatusTone } from './components/navigation/Tabs';
 import { DataTable, type ColumnDef } from './components/table/DataTable';
 import { Pager } from './components/navigation/Pagination';
-import { LoadingState } from './components/dataDisplay/Loading';
 import { EmptyState } from './components/dataDisplay/EmptyState';
 import { ErrorState } from './components/dataDisplay/ErrorState';
 import { DrawerShell } from './components/overlay/DrawerShell';
+import { Btn } from './components/actions/Btn';
 
 // ─────────────────────────── Barrel: primitive đã dời về components/<category>/ ───────────────────────────
 
@@ -54,6 +54,7 @@ export * from './components/navigation/Pagination';       // Pager
 export * from './components/dataDisplay/Loading';         // LoadingState
 export * from './components/dataDisplay/EmptyState';      // EmptyState
 export * from './components/dataDisplay/ErrorState';      // ErrorState
+export * from './components/common/Spinner/Spinner';      // Spinner
 export * from './components/dataDisplay/StatusBadge';     // StatusBadge
 export * from './components/actions/ActBtn';              // ActBtn
 export * from './components/actions/Btn';                 // BtnVariant, Btn
@@ -298,9 +299,7 @@ export function SimpleV2Page<T>({
           <TermIconCmp name="refresh" size={12} /> Bỏ lọc
         </button>
         <span className="spacer" />
-        <button type="button" className="ab-btn ghost" onClick={reload}>
-          <TermIconCmp name="refresh" size={12} /> Làm mới
-        </button>
+        <Btn variant="ghost" onClick={reload} loading={loading} icon="refresh">Làm mới</Btn>
         {toolbarRight}
         {headerActions && headerActions(reload)}
       </div>
@@ -318,10 +317,10 @@ export function SimpleV2Page<T>({
         columns={columns}
         data={paged}
         rowKey={rowKey}
+        loading={loading}
         onRowClick={drawer ? (r) => setDetail(r) : undefined}
         actions={rowActions ? (r) => rowActions(r, reload) : undefined}
-        empty={loading ? <LoadingState />
-          : error ? <ErrorState onRetry={reload} />
+        empty={error ? <ErrorState onRetry={reload} />
           : <EmptyState message={emptyMessage || `Không có ${title.toLowerCase()} nào`} />}
       />
 

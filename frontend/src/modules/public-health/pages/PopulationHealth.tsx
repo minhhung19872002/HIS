@@ -141,9 +141,7 @@ const PopulationHealthV2: React.FC = () => {
 
       <TopTabs<TKey> tab={tType} setTab={(v) => { setTType(v); setStab('all'); setPage(0); }} tabs={TYPE_TABS} actions={
         <>
-          <Btn variant="ghost" onClick={load}>
-            <Ico name="refresh" size={12} /> Làm mới
-          </Btn>
+          <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
           <Btn variant="primary" onClick={openCreate}>
             <Ico name="plus" size={12} /> Thêm HS
           </Btn>
@@ -184,7 +182,8 @@ const PopulationHealthV2: React.FC = () => {
       <DataTable<PopulationRecord>
         columns={cols} data={paged} rowKey={(r) => r.id}
         onRowClick={setSel} actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có hồ sơ'}
+        loading={loading}
+        empty="Chưa có hồ sơ"
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 

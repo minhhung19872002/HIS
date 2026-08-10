@@ -26,6 +26,7 @@ import {
   fmtDTg, tk, tw, te,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { useAbbrExpansion } from '../../../utils/abbrExpand';
 import { ABBREVIATION_SCOPES } from '../../../api/abbreviation';
 import {
@@ -175,7 +176,8 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
     try {
       const res = await getSurgeries({ examinationId, pageSize: 50 });
       setExistingList(res.data?.items ?? []);
-    } catch {
+    } catch (e) {
+      tw(friendlyErrorMessage(e, 'Không tải được danh sách tường trình đã lập'));
       setExistingList([]);
     } finally {
       setLoading(false);

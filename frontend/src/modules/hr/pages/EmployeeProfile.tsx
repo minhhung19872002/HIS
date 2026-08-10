@@ -163,7 +163,8 @@ function GenericCrudTab<T extends { id: string }>(props: CrudConfig<T>) {
             <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => remove(r)} />
           </div>
         )}
-        empty={loading ? 'Đang tải…' : 'Chưa có dữ liệu'}
+        loading={loading}
+        empty="Chưa có dữ liệu"
       />
       <ModalShell open={modal} onClose={() => { setModal(false); setEditing(null); form.resetFields(); }}
         size="md" title={editing ? 'Sửa' : 'Thêm mới'}

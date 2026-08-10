@@ -8,6 +8,7 @@ import {
   DrawerShell, DrSec, DrField,
   tk, ti, tw, type ColumnDef,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
 import { toggleFavorite, getFavorites } from '../api/ris';
 
 interface PendingService {
@@ -40,6 +41,8 @@ const RisDispatcherV2: React.FC = () => {
   // F2.8: favorite state
   const [favFilter, setFavFilter] = useState(false);
   const [favSet, setFavSet] = useState<Set<string>>(new Set());
+  const [dispatching, setDispatching] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const loadFavorites = useCallback(async () => {
     try {
@@ -88,9 +91,10 @@ const RisDispatcherV2: React.FC = () => {
   };
 
   const handleDispatch = async () => {
-    if (!dispatchModal) return;
+    if (!dispatchModal || dispatching) return;
     try {
       const v = await dispatchForm.validateFields();
+      setDispatching(true);
       await apiClient.post('/radiology-dispatch', {
         serviceRequestDetailId: dispatchModal.serviceRequestDetailId,
         roomId: v.roomId, priority: v.priority, note: v.note,
@@ -100,6 +104,7 @@ const RisDispatcherV2: React.FC = () => {
       if (room) printTicket(dispatchModal, room);
       setDispatchModal(null); dispatchForm.resetFields(); load();
     } catch { tw('Điều phối thất bại'); }
+    finally { setDispatching(false); }
   };
 
   const handleToggleFavorite = async (requestId: string) => {
@@ -116,16 +121,25 @@ const RisDispatcherV2: React.FC = () => {
   };
 
   const markArrived = async (id: string) => {
+    if (busyId) return;
+    setBusyId(id);
     try { await apiClient.post(`/radiology-dispatch/${id}/mark-arrived`); tk('Đã đánh dấu BN đến'); load(); }
     catch { tw('Lỗi'); }
+    finally { setBusyId(null); }
   };
   const markPerformed = async (id: string) => {
+    if (busyId) return;
+    setBusyId(id);
     try { await apiClient.post(`/radiology-dispatch/${id}/mark-performed`); tk('Đã đánh dấu chụp xong'); load(); }
     catch { tw('Lỗi'); }
+    finally { setBusyId(null); }
   };
   const cancelDispatch = async (id: string) => {
+    if (busyId) return;
+    setBusyId(id);
     try { await apiClient.post(`/radiology-dispatch/${id}/cancel`); tk('Đã hủy điều phối'); load(); }
     catch { tw('Lỗi'); }
+    finally { setBusyId(null); }
   };
 
   const TABS = [
@@ -242,11 +256,21 @@ const RisDispatcherV2: React.FC = () => {
           columns={queueCols} data={queue} rowKey={(r) => r.id}
           onRowClick={setSelQueue}
           actions={(r) => (
-            <div className="ab-actions">
-              {!r.isArrived && <ActBtn ic="check" title="Đã đến" onClick={() => markArrived(r.id)} />}
-              <ActBtn ic="check" title="Chụp xong" onClick={() => markPerformed(r.id)} />
-              <ActBtn ic="x" title="Hủy" tone="crit" onClick={() => cancelDispatch(r.id)} />
-            </div>
+            <RowActions actions={[
+              {
+                key: 'arrived', icon: 'check', label: 'Đã đến', primary: true,
+                hidden: r.isArrived, disabled: busyId === r.id, onClick: () => markArrived(r.id),
+              },
+              {
+                key: 'performed', icon: 'check', label: 'Chụp xong', primary: true,
+                disabled: busyId === r.id, onClick: () => markPerformed(r.id),
+              },
+              {
+                key: 'cancel', icon: 'x', label: 'Hủy điều phối', tone: 'danger',
+                confirm: `Hủy điều phối ca chụp của ${r.patientName}? BN sẽ quay lại danh sách chờ điều phối.`,
+                disabled: busyId === r.id, onClick: () => cancelDispatch(r.id),
+              },
+            ]} />
           )}
           empty={selectedRoom ? 'Hàng đợi trống' : 'Chọn phòng để xem hàng đợi'}
         />
@@ -259,7 +283,7 @@ const RisDispatcherV2: React.FC = () => {
         title={`Điều phối: ${dispatchModal?.patientName || ''}`}
         footer={<>
           <Btn variant="ghost" onClick={() => setDispatchModal(null)}>Hủy</Btn>
-          <Btn variant="primary" icon="send" onClick={handleDispatch}>Điều phối + In phiếu</Btn>
+          <Btn variant="primary" icon="send" onClick={handleDispatch} loading={dispatching}>Điều phối + In phiếu</Btn>
         </>}
       >
         <Form form={dispatchForm} layout="vertical">

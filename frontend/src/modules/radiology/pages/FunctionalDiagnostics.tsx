@@ -3,7 +3,7 @@ import {
   KpiStrip, DataTable, SearchBox, Filter, StatusBadge,
   DrawerShell, ActBtn, Btn, DrSec, DrField, Pager, useListData,
   type ColumnDef, type KpiItem, type StatusTone,
-  tk, te, fmtDTg
+  tk, te, cf, fmtDTg
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import {
@@ -40,6 +40,7 @@ const FunctionalDiagnosticsV2: React.FC = () => {
   const [fStatus, setFStatus] = useState('');
   const [page, setPage] = useState(0);
   const [detail, setDetail] = useState<FunctionalDiagnosticTestDto | null>(null);
+  const [actingId, setActingId] = useState<string | null>(null);
 
   // #352: lọc SERVER-SIDE. Trước đây chỉ tải 500 bản ghi mới nhất rồi lọc client ⇒ bản ghi cũ
   // hơn cửa sổ 500 dòng không thể tìm/lọc ra ở v2 (v1 truyền keyword/testType/status lên
@@ -66,12 +67,20 @@ const FunctionalDiagnosticsV2: React.FC = () => {
   useEffect(() => { setPage(0); }, [search, fType, fStatus]);
 
   const complete = async (r: FunctionalDiagnosticTestDto) => {
+    if (actingId) return;
+    setActingId(r.id);
     try { await fdt.complete(r.id); tk('Đã hoàn thành thăm dò'); reload(); setDetail(null); }
     catch { te('Cập nhật thất bại'); }
+    finally { setActingId(null); }
   };
-  const verify = async (r: FunctionalDiagnosticTestDto) => {
-    try { await fdt.verify(r.id); tk('Đã duyệt kết quả'); reload(); setDetail(null); }
-    catch { te('Duyệt thất bại'); }
+  const verify = (r: FunctionalDiagnosticTestDto) => {
+    cf('Duyệt kết quả thăm dò chức năng này? Kết quả sẽ được xác nhận chính thức.', async () => {
+      if (actingId) return;
+      setActingId(r.id);
+      try { await fdt.verify(r.id); tk('Đã duyệt kết quả'); reload(); setDetail(null); }
+      catch { te('Duyệt thất bại'); }
+      finally { setActingId(null); }
+    }, { confirm: 'Duyệt' });
   };
 
   const kpis: KpiItem[] = [
@@ -122,8 +131,8 @@ const FunctionalDiagnosticsV2: React.FC = () => {
         empty={loading ? 'Đang tải…' : 'Không có phiếu thăm dò chức năng'}
         actions={(r) => (
           <>
-            {r.status === 1 && <ActBtn ic="check" title="Hoàn thành" onClick={() => complete(r)} />}
-            {r.status === 2 && <ActBtn ic="check" title="Duyệt" onClick={() => verify(r)} />}
+            {r.status === 1 && <ActBtn ic="check" title="Hoàn thành" onClick={() => complete(r)} loading={actingId === r.id} />}
+            {r.status === 2 && <ActBtn ic="check" title="Duyệt" onClick={() => verify(r)} loading={actingId === r.id} />}
           </>
         )}
       />
@@ -134,12 +143,12 @@ const FunctionalDiagnosticsV2: React.FC = () => {
           <>
             <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
             {detail.status === 1 && (
-              <Btn onClick={() => complete(detail)}>
+              <Btn onClick={() => complete(detail)} loading={actingId === detail.id}>
                 <TermIcon name="check" size={12} /> Hoàn thành
               </Btn>
             )}
             {detail.status === 2 && (
-              <Btn variant="primary" onClick={() => verify(detail)}>
+              <Btn variant="primary" onClick={() => verify(detail)} loading={actingId === detail.id}>
                 <TermIcon name="check" size={12} /> Duyệt KQ
               </Btn>
             )}

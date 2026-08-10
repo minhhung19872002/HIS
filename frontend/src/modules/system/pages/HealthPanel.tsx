@@ -10,7 +10,7 @@ import {
   type HealthCheckResult, type MetricsSnapshot, type ComponentHealth,
 } from '../../../api/health';
 import {
-  KpiStrip, DataTable, StatusBadge, Btn, type ColumnDef,
+  KpiStrip, DataTable, StatusBadge, Btn, tw, type ColumnDef,
 } from '@/_v2kit';
 
 const COMPONENT_LABELS: Record<string, string> = {
@@ -64,9 +64,13 @@ const HealthPanel: React.FC<{ active?: boolean }> = ({ active = true }) => {
       if (metricsRes.status === 'fulfilled' && metricsRes.value.data) {
         setMetricsData(metricsRes.value.data as MetricsSnapshot);
       }
+      if (healthRes.status === 'rejected' || metricsRes.status === 'rejected') {
+        tw('Không lấy được dữ liệu giám sát mới nhất — đang hiển thị dữ liệu cũ');
+      }
       setLastUpdated(new Date());
     } catch (err) {
       console.warn('Health fetch failed:', err);
+      tw('Không tải được dữ liệu giám sát hệ thống');
     } finally {
       setLoading(false);
     }

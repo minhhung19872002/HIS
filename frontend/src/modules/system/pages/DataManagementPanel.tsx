@@ -10,6 +10,7 @@ import type {
 import {
   KpiStrip, DataTable, StatusBadge, Btn, tk, te, cf, type ColumnDef,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '@/utils/friendlyError';
 
 const HANDOVER_TONE: Record<number, 'ok' | 'info' | 'warn' | 'crit' | undefined> = { 0: undefined, 1: 'warn', 2: 'ok', 3: 'info' };
 
@@ -20,6 +21,7 @@ const DataManagementPanel: React.FC = () => {
   const [exportHistory, setExportHistory] = useState<DataExportResultDto[]>([]);
   const [handovers, setHandovers] = useState<DataHandoverDto[]>([]);
   const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -36,20 +38,26 @@ const DataManagementPanel: React.FC = () => {
       if (backupsRes.status === 'fulfilled') setBackups(Array.isArray(backupsRes.value) ? backupsRes.value : []);
       if (exportsRes.status === 'fulfilled') setExportHistory(Array.isArray(exportsRes.value) ? exportsRes.value : []);
       if (handoversRes.status === 'fulfilled') setHandovers(Array.isArray(handoversRes.value) ? handoversRes.value : []);
-    } catch { /* keep current */ }
+    } catch (e) { te(friendlyErrorMessage(e)); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
 
   const createBackup = () => {
+    if (busy) return;
+    setBusy('backup');
     dataExportApi.createBackup('Full')
       .then(() => { tk('Đang tạo bản sao lưu…'); load(); })
-      .catch(() => te('Không thể tạo sao lưu'));
+      .catch(() => te('Không thể tạo sao lưu'))
+      .finally(() => setBusy(null));
   };
   const exportAll = () => {
+    if (busy) return;
+    setBusy('export');
     dataExportApi.requestExport({ modules: ['all'], format: 'JSON', includeAttachments: false })
       .then(() => { tk('Đang xuất dữ liệu…'); load(); })
-      .catch(() => te('Không thể xuất dữ liệu'));
+      .catch(() => te('Không thể xuất dữ liệu'))
+      .finally(() => setBusy(null));
   };
   const createHandover = () => cf('Tạo bản sao lưu đầy đủ + biên bản chuyển giao dữ liệu cho bên thuê dịch vụ?', async () => {
     try {
@@ -58,9 +66,14 @@ const DataManagementPanel: React.FC = () => {
     } catch { te('Lỗi tạo biên bản'); }
   }, { confirm: 'Tạo' });
   const confirmHandover = (h: DataHandoverDto) => {
-    dataExportApi.confirmHandover(h.id)
-      .then(() => { tk('Đã xác nhận'); load(); })
-      .catch(() => te('Lỗi xác nhận'));
+    if (busy) return;
+    cf(`Xác nhận đã nhận biên bản chuyển giao ${h.handoverCode}?`, () => {
+      setBusy(h.id);
+      dataExportApi.confirmHandover(h.id)
+        .then(() => { tk('Đã xác nhận'); load(); })
+        .catch(() => te('Lỗi xác nhận'))
+        .finally(() => setBusy(null));
+    });
   };
 
   const moduleColumns: ColumnDef<ModuleDataCountDto>[] = [
@@ -124,7 +137,7 @@ const DataManagementPanel: React.FC = () => {
           <div className="ab-tools">
             <span style={{ fontWeight: 600 }}>Sao lưu</span>
             <span className="spacer" />
-            <Btn variant="primary" size="sm" onClick={createBackup}>Tạo sao lưu</Btn>
+            <Btn variant="primary" size="sm" onClick={createBackup} disabled={busy === 'backup'}>{busy === 'backup' ? 'Đang tạo…' : 'Tạo sao lưu'}</Btn>
           </div>
           <DataTable<BackupInfoDto> columns={backupColumns} data={backups} rowKey={(b) => b.id}
             empty="Chưa có bản sao lưu" />
@@ -133,7 +146,7 @@ const DataManagementPanel: React.FC = () => {
           <div className="ab-tools">
             <span style={{ fontWeight: 600 }}>Xuất dữ liệu</span>
             <span className="spacer" />
-            <Btn variant="primary" size="sm" onClick={exportAll}>Xuất toàn bộ</Btn>
+            <Btn variant="primary" size="sm" onClick={exportAll} disabled={busy === 'export'}>{busy === 'export' ? 'Đang xuất…' : 'Xuất toàn bộ'}</Btn>
           </div>
           <DataTable<DataExportResultDto> columns={exportColumns} data={exportHistory} rowKey={(e) => e.id}
             empty="Chưa có lần xuất nào" />
@@ -146,7 +159,7 @@ const DataManagementPanel: React.FC = () => {
         <Btn variant="primary" size="sm" onClick={createHandover}>Tạo biên bản</Btn>
       </div>
       <DataTable<DataHandoverDto> columns={handoverColumns} data={handovers} rowKey={(h) => h.id}
-        actions={(h) => h.status === 2 ? <Btn variant="primary" size="sm" onClick={() => confirmHandover(h)}>Xác nhận</Btn> : null}
+        actions={(h) => h.status === 2 ? <Btn variant="primary" size="sm" onClick={() => confirmHandover(h)} disabled={busy === h.id}>{busy === h.id ? 'Đang xác nhận…' : 'Xác nhận'}</Btn> : null}
         empty="Chưa có biên bản chuyển giao" />
     </>
   );

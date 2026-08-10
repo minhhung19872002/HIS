@@ -279,14 +279,14 @@ const PaymentReportsV2: React.FC = () => {
   ];
 
   const renderCurrent = () => {
-    if (tab === 'bc1') return <DataTable<TxnRow> columns={bc1Cols} data={bc1?.items || []} rowKey={(r) => r.txnRef} empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />;
-    if (tab === 'bc2') return <DataTable<DailySumRow> columns={bc2Cols} data={bc2?.byDay || []} rowKey={(r) => r.date} empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />;
-    if (tab === 'bc3') return <DataTable<DailyDetailRow> columns={bc3Cols} data={bc3} rowKey={(r) => r.receiptCode} empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />;
-    if (tab === 'bc4') return <DataTable<EInvoiceRow> columns={eInvoiceCols} data={bc4?.items || []} rowKey={(r) => `${r.invoiceSeries}-${r.invoiceNumber}`} empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />;
-    if (tab === 'bc5') return <DataTable<EInvoiceRow> columns={eInvoiceCols} data={bc5?.items || []} rowKey={(r) => `${r.invoiceSeries}-${r.invoiceNumber}`} empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />;
-    if (tab === 'bc6') return <DataTable<BillingDetailRow> columns={bc6Cols} data={bc6} rowKey={(_r) => Math.random().toString()} empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />;
-    if (tab === 'bc7') return <DataTable<RefundRow> columns={bc7Cols} data={bc7?.items || []} rowKey={(r) => String(r.txnRef)} empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />;
-    return <DataTable<PharmacyRetailRow> columns={bc8Cols} data={bc8?.items || []} rowKey={(r) => r.saleCode} empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />;
+    if (tab === 'bc1') return <DataTable<TxnRow> columns={bc1Cols} data={bc1?.items || []} rowKey={(r) => r.txnRef} loading={loading} empty="Không có dữ liệu" />;
+    if (tab === 'bc2') return <DataTable<DailySumRow> columns={bc2Cols} data={bc2?.byDay || []} rowKey={(r) => r.date} loading={loading} empty="Không có dữ liệu" />;
+    if (tab === 'bc3') return <DataTable<DailyDetailRow> columns={bc3Cols} data={bc3} rowKey={(r) => r.receiptCode} loading={loading} empty="Không có dữ liệu" />;
+    if (tab === 'bc4') return <DataTable<EInvoiceRow> columns={eInvoiceCols} data={bc4?.items || []} rowKey={(r) => `${r.invoiceSeries}-${r.invoiceNumber}`} loading={loading} empty="Không có dữ liệu" />;
+    if (tab === 'bc5') return <DataTable<EInvoiceRow> columns={eInvoiceCols} data={bc5?.items || []} rowKey={(r) => `${r.invoiceSeries}-${r.invoiceNumber}`} loading={loading} empty="Không có dữ liệu" />;
+    if (tab === 'bc6') return <DataTable<BillingDetailRow> columns={bc6Cols} data={bc6} rowKey={(_r) => Math.random().toString()} loading={loading} empty="Không có dữ liệu" />;
+    if (tab === 'bc7') return <DataTable<RefundRow> columns={bc7Cols} data={bc7?.items || []} rowKey={(r) => String(r.txnRef)} loading={loading} empty="Không có dữ liệu" />;
+    return <DataTable<PharmacyRetailRow> columns={bc8Cols} data={bc8?.items || []} rowKey={(r) => r.saleCode} loading={loading} empty="Không có dữ liệu" />;
   };
 
   const kpiSet = () => {
@@ -343,7 +343,7 @@ const PaymentReportsV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={handleTabChange} tabs={TABS} actions={
         <>
-          <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+          <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
           <Btn variant="ghost" icon="download" onClick={exportCsv}>Xuất CSV</Btn>
           <Btn variant="primary" icon="download" onClick={exportExcel}>Xuất Excel</Btn>
         </>

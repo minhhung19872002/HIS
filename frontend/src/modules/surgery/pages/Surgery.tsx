@@ -5,8 +5,10 @@ import type { AxiosError } from 'axios';
 import * as surgeryApi from '../api/surgery';
 import type { SurgeryDto, SurgeryTeamMemberDto, OperatingRoomDto, SurgeryScheduleDto } from '../api/surgery';
 import type { ServerValidationError } from '../../../utils/formError';
-import { SimpleV2Page, StatusBadge, ActBtn, Btn, DrawerShell, DataTable, cf, tk, tw, type ColumnDef, type StatusTab } from '@/_v2kit';
+import { SimpleV2Page, StatusBadge, Btn, DrawerShell, DataTable, cf, tk, tw, type ColumnDef, type StatusTab } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { RowActions } from '../../../components/actions';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { SurgeryCabinetIssueModal } from './SurgeryCabinetIssueModal';
 import { PreAnesthesiaModal, AnesthesiaMonitorModal, ConsentModal, PostAnesthesiaPlanModal } from './SurgeryFormModals';
 import { SurgeryRequestCreateModal } from './SurgeryRequestCreateModal';
@@ -35,6 +37,8 @@ const SurgeryV2: React.FC = () => {
   const { message } = AntdApp.useApp();
   // Refresh closure for action buttons (SimpleV2Page passes reload to actions)
   const [reloadVer, setReloadVer] = useState(0);
+  // #467: guard double-submit trên nút "Hoàn thành ca mổ" (id ca đang xử lý)
+  const [actionBusy, setActionBusy] = useState<string | null>(null);
 
   // #409: workflow modals (port v1 create-request / schedule-OR / start-surgery)
   const [createOpen, setCreateOpen] = useState(false);
@@ -58,14 +62,17 @@ const SurgeryV2: React.FC = () => {
         surgeryApi.getSurgerySchedule(dayjs().format('YYYY-MM-DD')),
       ]);
       if (rooms.status === 'fulfilled') setOrRooms(Array.isArray(rooms.value.data) ? rooms.value.data : []);
+      else tw(friendlyErrorMessage(rooms.reason, 'Không tải được danh sách phòng mổ'));
       const counts = new Map<string, number>();
       if (sched.status === 'fulfilled') {
         (sched.value.data as SurgeryScheduleDto[] | undefined)?.forEach((s) => {
           counts.set(s.operatingRoomId, (counts.get(s.operatingRoomId) || 0) + (s.surgeries?.length || 0));
         });
+      } else {
+        tw(friendlyErrorMessage(sched.reason, 'Không tải được lịch mổ hôm nay'));
       }
       setOrToday(counts);
-    } catch { tw('Không tải được trạng thái phòng mổ'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được trạng thái phòng mổ')); }
     finally { setOrLoading(false); }
   };
 
@@ -93,6 +100,8 @@ const SurgeryV2: React.FC = () => {
   // #409: hoàn thành ca mổ — VERBATIM v1 handleCompleteSurgery (confirm → completeSurgery endTime=now)
   const onComplete = (r: SurgeryDto, reload: () => void) => {
     cf(`Xác nhận hoàn thành ca phẫu thuật ${r.surgeryCode} - ${r.patientName}?`, () => {
+      if (actionBusy) return;
+      setActionBusy(r.id);
       void (async () => {
         try {
           await surgeryApi.completeSurgery({
@@ -103,6 +112,8 @@ const SurgeryV2: React.FC = () => {
           reload();
         } catch {
           tw('Có lỗi xảy ra khi hoàn thành phẫu thuật');
+        } finally {
+          setActionBusy(null);
         }
       })();
     }, { title: 'Hoàn thành phẫu thuật', confirm: 'Xác nhận' });
@@ -205,24 +216,22 @@ const SurgeryV2: React.FC = () => {
         // 0 Chờ duyệt · 1 Đã duyệt/lên lịch · 2 Đang thực hiện · 3 Hoàn thành · 4 Hủy · 5 Hoãn.
         // getSurgeries KHÔNG map operatingRoomName → không gate theo phòng được; ở trạng thái
         // "Đã duyệt" (1) cho phép cả Lên lịch (tạo SurgerySchedule) lẫn Bắt đầu (start ca).
-        <div className="ab-actions">
-          <ActBtn ic="eye" title="Hồ sơ ca mổ" onClick={() => { /* drawer auto-opens via row click */ }} />
-          {r.status === 0 && (
-            <ActBtn ic="check" title="Duyệt mổ" onClick={() => { void onApprove(r, reload); setReloadVer((v) => v + 1); }} />
-          )}
-          {r.status === 1 && (
-            <ActBtn ic="calendar" title="Lên lịch" onClick={() => { setScheduleTarget(r); scheduleReloadRef.current = reload; }} />
-          )}
-          {r.status === 1 && (
-            <ActBtn ic="activity" title="Bắt đầu" onClick={() => { setStartTarget(r); startReloadRef.current = reload; }} />
-          )}
-          {r.status === 2 && (
-            <ActBtn ic="check" title="Hoàn thành ca mổ" onClick={() => onComplete(r, reload)} />
-          )}
-          {(r.status === 0 || r.status === 1) && (
-            <ActBtn ic="x" title="Hủy ca" onClick={() => { void onCancel(r, reload); setReloadVer((v) => v + 1); }} tone="crit" />
-          )}
-        </div>
+        <RowActions actions={[
+          { key: 'view', icon: 'eye', label: 'Hồ sơ ca mổ', primary: true, onClick: () => { /* drawer auto-opens via row click */ } },
+          { key: 'approve', icon: 'check', label: 'Duyệt mổ', hidden: r.status !== 0,
+            confirm: `Duyệt ca mổ ${r.surgeryCode}?`,
+            onClick: () => { void onApprove(r, reload); setReloadVer((v) => v + 1); } },
+          { key: 'schedule', icon: 'calendar', label: 'Lên lịch', hidden: r.status !== 1,
+            onClick: () => { setScheduleTarget(r); scheduleReloadRef.current = reload; } },
+          { key: 'start', icon: 'activity', label: 'Bắt đầu', hidden: r.status !== 1,
+            onClick: () => { setStartTarget(r); startReloadRef.current = reload; } },
+          { key: 'complete', icon: 'check', label: 'Hoàn thành ca mổ', hidden: r.status !== 2,
+            disabled: actionBusy === r.id,
+            onClick: () => onComplete(r, reload) },
+          { key: 'cancel', icon: 'x', label: 'Hủy ca', tone: 'danger', hidden: !(r.status === 0 || r.status === 1),
+            confirm: `Hủy ca mổ ${r.surgeryCode}? Thao tác không thể hoàn tác.`,
+            onClick: () => { void onCancel(r, reload); setReloadVer((v) => v + 1); } },
+        ]} />
       )}
       headerActions={(reload) => (
         <>
@@ -278,7 +287,8 @@ const SurgeryV2: React.FC = () => {
                   render: (r) => orToday.get(r.id) ?? 0 },
               ]}
               data={orRooms} rowKey={(r) => r.id}
-              empty={orLoading ? 'Đang tải…' : 'Chưa có phòng mổ'}
+              loading={orLoading}
+              empty="Chưa có phòng mổ"
             />
           </DrawerShell>
         </>

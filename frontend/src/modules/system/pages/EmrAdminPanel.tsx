@@ -18,6 +18,7 @@ import {
   TopTabs, DataTable, StatusBadge, ModalShell, ActBtn, Btn, tk, te, cf,
   type ColumnDef, type TopTab,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '@/utils/friendlyError';
 
 type EmrTab = 'cover' | 'signer' | 'role' | 'operation' | 'group' | 'doctype';
 
@@ -63,7 +64,7 @@ const EmrAdminPanel: React.FC = () => {
       if (so.status === 'fulfilled') setSigningOps(so.value);
       if (dg.status === 'fulfilled') setDocGroups(dg.value);
       if (dt.status === 'fulfilled') setDocTypes(dt.value);
-    } catch { /* keep current */ } finally { setLoading(false); }
+    } catch (e) { te(friendlyErrorMessage(e)); } finally { setLoading(false); }
   }, []);
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -91,7 +92,8 @@ const EmrAdminPanel: React.FC = () => {
         case 'doctype':   ok = !!(await saveDocumentType(data));   break;
       }
       if (ok) { tk('Đã lưu'); setModalOpen(false); fetchAll(); }
-    } catch { te('Lưu thất bại'); } finally { setSaving(false); }
+      else te('Lưu thất bại');
+    } catch (e) { te(friendlyErrorMessage(e, 'Lưu thất bại')); } finally { setSaving(false); }
   };
 
   const handleDelete = (type: EmrTab, id: string) =>

@@ -216,7 +216,8 @@ const PayrollAdminV2: React.FC = () => {
             )}
           </div>
         )}
-        empty={loading ? 'Đang tải…' : 'Chưa có kỳ lương nào'}
+        loading={loading}
+        empty={'Chưa có kỳ lương nào'}
       />
 
       {selectedPeriod && (
@@ -237,7 +238,8 @@ const PayrollAdminV2: React.FC = () => {
             actions={(r) => (
               <ActBtn ic="edit" title="Sửa lương" onClick={() => openEditItem(r)} />
             )}
-            empty={itemsLoading ? 'Đang tải…' : "Chưa có dòng lương — nhấn 'Tạo dòng' ở kỳ"}
+            loading={itemsLoading}
+            empty={"Chưa có dòng lương — nhấn 'Tạo dòng' ở kỳ"}
           />
         </div>
       )}

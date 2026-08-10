@@ -187,6 +187,8 @@ const KioskSelfService: React.FC = () => {
 
   // Queue refresh
   const queueTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  // #467: chặn double-click "Gọi số tiếp theo" gọi 2 số cùng lúc / bỏ sót 1 số đang chờ.
+  const [callingNext, setCallingNext] = useState(false);
 
   const loadQueue = useCallback(async () => {
     try {
@@ -411,7 +413,9 @@ const KioskSelfService: React.FC = () => {
           )}
 
           <div style={{ marginTop: 'var(--space-16)', display: 'flex', gap: 'var(--space-12)', justifyContent: 'flex-end' }}>
-            <ActBtn ic="phone" title="Gọi số tiếp theo" onClick={async () => {
+            <ActBtn ic="phone" title="Gọi số tiếp theo" loading={callingNext} onClick={async () => {
+              if (callingNext) return;
+              setCallingNext(true);
               try {
                 const r = await callNext({});
                 if (r && 'ticketNumber' in r) {
@@ -421,6 +425,7 @@ const KioskSelfService: React.FC = () => {
                   tk('Hàng chờ rỗng');
                 }
               } catch { te('Không thể gọi số.'); }
+              finally { setCallingNext(false); }
             }} />
           </div>
         </div>

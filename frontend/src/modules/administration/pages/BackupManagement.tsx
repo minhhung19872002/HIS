@@ -244,31 +244,28 @@ const BackupManagement: React.FC = () => {
               ]}
               placeholder="Tất cả loại"
             />
-            <Btn variant="ghost" icon="refresh" onClick={reload}>Làm mới</Btn>
+            <Btn variant="ghost" icon="refresh" loading={loading} onClick={reload}>Làm mới</Btn>
           </div>
 
-          {loading ? (
-            <div className="ab-empty">Đang tải...</div>
-          ) : (
-            <DataTable
-              columns={COLS}
-              data={pageData}
-              rowKey={r => r.id}
-              onRowClick={r => setSelRow(r)}
-              actions={r => (
-                <>
-                  {r.status === 1 && (
-                    <ActBtn
-                      ic="rotate-ccw"
-                      title="Yêu cầu restore"
-                      tone="warn"
-                      onClick={() => { setSelRow(r); setRestoreOpen(true); setRestoreResult(null); setRestoreReason(''); }}
-                    />
-                  )}
-                </>
-              )}
-            />
-          )}
+          <DataTable
+            columns={COLS}
+            data={pageData}
+            loading={loading}
+            rowKey={r => r.id}
+            onRowClick={r => setSelRow(r)}
+            actions={r => (
+              <>
+                {r.status === 1 && (
+                  <ActBtn
+                    ic="rotate-ccw"
+                    title="Yêu cầu restore"
+                    tone="warn"
+                    onClick={() => { setSelRow(r); setRestoreOpen(true); setRestoreResult(null); setRestoreReason(''); }}
+                  />
+                )}
+              </>
+            )}
+          />
 
           <Pager page={page} totalPages={totalPages} setPage={setPage} total={filtered.length} perPage={PAGE_SIZE} />
         </>

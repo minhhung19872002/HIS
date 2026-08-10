@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { message, Form, Input, InputNumber, Switch, DatePicker } from 'antd';
 import dayjs from 'dayjs';
 import { ModalShell } from '../ModalShell';
+import { Btn } from '../../actions/Btn';
 import {
   OptionsSelect, RadioField, CheckboxField, AutoCompleteField,
 } from '../../form/Options';
@@ -68,7 +69,7 @@ export const CrudModal: React.FC<{
     <ModalShell open={open} onClose={onClose} title={title} sub={sub} size={size}
       footer={<>
         <button type="button" className="ab-btn" onClick={onClose}>Huỷ</button>
-        <button type="button" className="ab-btn primary" disabled={saving} onClick={submit}>{saving ? 'Đang lưu…' : 'Lưu'}</button>
+        <Btn variant="primary" loading={saving} onClick={submit}>{saving ? 'Đang lưu…' : 'Lưu'}</Btn>
       </>}>
       <Form form={form} layout="vertical" scrollToFirstError requiredMark onValuesChange={onValuesChange}>
         {fields.map((f) => (

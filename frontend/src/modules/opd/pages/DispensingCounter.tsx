@@ -7,10 +7,11 @@ import { openPrintWindow } from '../../../utils/printWindow';
 import { searchPrescriptionByCode, type DispensePrescriptionLookupDto } from '../api/examination';
 import { PharmacyExpiryBanner } from '../../pharmacy/components/PharmacyExpiryBanner';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, tk, ti, tw, Ico,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, StatusBadge, Btn,
+  DrawerShell, DrSec, DrField, tk, ti, tw, cf, Ico,
   type ColumnDef,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
 
 interface DispenseRow {
   prescriptionId: string;
@@ -57,6 +58,14 @@ const DispensingCounterV2: React.FC = () => {
   const [barcodeVal, setBarcodeVal] = useState('');
   const [barcodeLoading, setBarcodeLoading] = useState(false);
   const barcodeInputRef = useRef<InputRef>(null);
+  const [dispensing, setDispensing] = useState(false);
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+  const isBusy = (id: string) => busyIds.has(id);
+  const setBusy = (id: string, v: boolean) => setBusyIds((prev) => {
+    const n = new Set(prev);
+    if (v) n.add(id); else n.delete(id);
+    return n;
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -101,11 +110,12 @@ const DispensingCounterV2: React.FC = () => {
     all: rows.length,
   }) as Record<string, number>, [rows]);
 
-  const handleDispense = async () => {
-    if (selected.size === 0) { tw('Chưa chọn đơn thuốc'); return; }
+  const doDispenseSelected = async () => {
+    if (dispensing) return; // chặn double-click
     const ids = Array.from(selected);
     // #352: giữ lại các dòng vừa phát để in tem NGAY — sau khi load() chúng nhảy sang tab "Đã phát"
     const dispensedRows = rows.filter((r) => ids.includes(r.prescriptionId));
+    setDispensing(true);
     try {
       for (const id of ids) {
         await apiClient.post(`/warehousecomplete/issues/dispense-outpatient/${id}`);
@@ -116,6 +126,13 @@ const DispensingCounterV2: React.FC = () => {
       if (dispensedRows.length > 0) printLabels(dispensedRows); // 1 tài liệu gộp, không mở N cửa sổ
       load();
     } catch { tw('Phát thuốc thất bại'); }
+    finally { setDispensing(false); }
+  };
+
+  const handleDispense = () => {
+    if (selected.size === 0) { tw('Chưa chọn đơn thuốc'); return; }
+    if (dispensing) return;
+    cf(`Xác nhận phát ${selected.size} đơn thuốc đã chọn? Thuốc sẽ được xuất kho ngay.`, () => { void doDispenseSelected(); });
   };
 
   /** #352: phát 1 đơn NGAY TẠI DÒNG rồi TỰ MỞ tem in (v1 pages/DispensingCounter.tsx:288-302).
@@ -123,6 +140,8 @@ const DispensingCounterV2: React.FC = () => {
    *  nên dược sĩ phải đổi tab, tìm lại dòng rồi bấm in tay — bước dễ bị bỏ qua ở quầy đông,
    *  mà tem là nhãn hướng dẫn liều dùng dán lên thuốc giao cho bệnh nhân. */
   const dispenseAndPrint = async (r: DispenseRow) => {
+    if (isBusy(r.prescriptionId)) return; // chặn double-click
+    setBusy(r.prescriptionId, true);
     try {
       await apiClient.post(`/warehousecomplete/issues/dispense-outpatient/${r.prescriptionId}`);
       tk(`Đã phát đơn ${r.prescriptionCode}`);
@@ -131,13 +150,17 @@ const DispensingCounterV2: React.FC = () => {
       setSelected((prev) => { const n = new Set(prev); n.delete(r.prescriptionId); return n; });
       load();
     } catch { tw('Phát thuốc thất bại'); }
+    finally { setBusy(r.prescriptionId, false); }
   };
 
   const handleCancel = async (id: string) => {
+    if (isBusy(id)) return; // chặn double-click
+    setBusy(id, true);
     // #13: route cũ /warehousecomplete/issues/{id}/cancel KHÔNG tồn tại → dùng nhánh chuẩn
     // /pharmacy/cancel-dispensed/{prescriptionId} (hoàn tồn kho + reset trạng thái đơn).
     try { await apiClient.post(`/pharmacy/cancel-dispensed/${id}`, { reason: 'Hủy phát tại quầy' }); tk('Đã hủy phát'); load(); }
     catch { tw('Hủy thất bại'); }
+    finally { setBusy(id, false); }
   };
 
   const handleBarcodeSearch = async () => {
@@ -244,8 +267,8 @@ ${targets.map((row) => row.items.map((it) => `<div class="label"><h3>${it.medici
           <Ico name="qr" size={12} /> Quét barcode
         </Btn>
         {stab === 'pending' && selected.size > 0 && (
-          <Btn variant="primary" onClick={handleDispense}>
-            <Ico name="check" size={12} /> Phát {selected.size} đơn
+          <Btn variant="primary" disabled={dispensing} onClick={handleDispense}>
+            <Ico name="check" size={12} /> {dispensing ? 'Đang phát…' : `Phát ${selected.size} đơn`}
           </Btn>
         )}
       </div>
@@ -258,17 +281,23 @@ ${targets.map((row) => row.items.map((it) => `<div class="label"><h3>${it.medici
         selected={stab === 'pending' ? selected : null}
         onToggle={togglePending} onToggleAll={toggleAll}
         actions={(r) => (
-          <div className="ab-actions">
-            <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
-            {/* #352: phát + in tem trong 1 thao tác cho dòng đang chờ */}
-            {!r.isDispensed && (
-              <ActBtn ic="check" title="Phát đơn + in tem" onClick={() => dispenseAndPrint(r)} />
-            )}
-            <ActBtn ic="print" title="In tem" onClick={() => printLabels(r)} />
-            {r.isDispensed && (
-              <ActBtn ic="refresh" title="Hủy phát" tone="warn" onClick={() => handleCancel(r.prescriptionId)} />
-            )}
-          </div>
+          <RowActions actions={[
+            { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setDetail(r) },
+            /* #352: phát + in tem trong 1 thao tác cho dòng đang chờ — one-tap có chủ đích,
+               guard bằng busy/disabled thay vì confirm để không phá vỡ luồng nhanh tại quầy */
+            {
+              key: 'dispense', icon: 'check', label: 'Phát đơn + in tem', primary: true, hidden: r.isDispensed,
+              disabled: isBusy(r.prescriptionId),
+              onClick: () => { void dispenseAndPrint(r); },
+            },
+            { key: 'print', icon: 'print', label: 'In tem', onClick: () => printLabels(r) },
+            {
+              key: 'cancel', icon: 'refresh', label: 'Hủy phát', tone: 'danger', hidden: !r.isDispensed,
+              disabled: isBusy(r.prescriptionId),
+              confirm: `Hủy phát đơn ${r.prescriptionCode}? Thao tác sẽ hoàn tồn kho và đưa đơn về trạng thái chưa phát.`,
+              onClick: () => { void handleCancel(r.prescriptionId); },
+            },
+          ]} />
         )}
         empty={loading ? 'Đang tải…' : (stab === 'pending' ? 'Không còn đơn chờ phát' : 'Chưa phát đơn nào')}
       />
@@ -311,13 +340,16 @@ ${targets.map((row) => row.items.map((it) => `<div class="label"><h3>${it.medici
               <Ico name="print" size={12} /> In tem
             </Btn>
             {!detail.isDispensed && (
-              <Btn variant="primary" onClick={async () => {
+              <Btn variant="primary" disabled={isBusy(detail.prescriptionId)} onClick={async () => {
+                if (isBusy(detail.prescriptionId)) return;
+                setBusy(detail.prescriptionId, true);
                 try {
                   await apiClient.post(`/warehousecomplete/issues/dispense-outpatient/${detail.prescriptionId}`);
                   tk('Đã phát'); setDetail(null); load();
                 } catch { tw('Phát thất bại'); }
+                finally { setBusy(detail.prescriptionId, false); }
               }}>
-                <Ico name="check" size={12} /> Phát đơn này
+                <Ico name="check" size={12} /> {isBusy(detail.prescriptionId) ? 'Đang phát…' : 'Phát đơn này'}
               </Btn>
             )}
           </>}

@@ -1,4 +1,6 @@
 import React from 'react';
+import { Spinner } from '../../common/Spinner/Spinner';
+import { LoadingState } from '../../dataDisplay/Loading';
 
 // ─────────────────────────── Data table ───────────────────────────
 
@@ -13,6 +15,7 @@ export interface ColumnDef<T> {
 
 export function DataTable<T>({
   columns, data, rowKey, onRowClick, actions, selected, onToggle, onToggleAll, empty = 'Không có dữ liệu',
+  loading,
 }: {
   columns: ColumnDef<T>[];
   data: T[];
@@ -23,12 +26,20 @@ export function DataTable<T>({
   onToggle?: (key: string) => void;
   onToggleAll?: () => void;
   empty?: React.ReactNode;
+  /** true khi đang fetch: bảng rỗng → LoadingState; đang có dữ liệu (reload) → dim + chip spinner. */
+  loading?: boolean;
 }) {
   const allChecked = !!selected && data.length > 0 && data.every((r) => selected.has(rowKey(r)));
   const colSpan = (selected ? 1 : 0) + columns.length + (actions ? 1 : 0);
+  const reloading = !!loading && data.length > 0;
   return (
-    <div className="ab-tbl-wrap">
-      <table className="ab-tbl">
+    <div className={reloading ? 'ab-tbl-wrap is-reloading' : 'ab-tbl-wrap'}>
+      {reloading && (
+        <div className="ab-tbl-reload" role="status" aria-live="polite">
+          <span className="chip"><Spinner size="sm" /> Đang tải…</span>
+        </div>
+      )}
+      <table className="ab-tbl" aria-busy={loading || undefined}>
         <thead>
           <tr>
             {selected && (
@@ -45,7 +56,9 @@ export function DataTable<T>({
         <tbody>
           {data.length === 0 && (
             <tr>
-              <td colSpan={colSpan} style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--t-2)' }}>{empty}</td>
+              <td colSpan={colSpan} style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--t-2)' }}>
+                {loading ? <LoadingState /> : empty}
+              </td>
             </tr>
           )}
           {data.map((r) => {

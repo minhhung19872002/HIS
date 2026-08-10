@@ -1134,6 +1134,19 @@
 /* Spinner component keyframe (Spinner.tsx) */
 @keyframes ab-spin { to { transform: rotate(360deg); } }
 
+/* DataTable reload overlay (shared <DataTable loading>) — chỉ kích hoạt khi reload
+ * (loading && đã có dữ liệu): dim bảng + chip spinner sticky; chip height:0 nên
+ * không gây layout-shift, sticky dưới thead (36px) để luôn thấy khi cuộn. */
+.ab-tbl-wrap.is-reloading > .ab-tbl { opacity: 0.45; pointer-events: none; transition: opacity 0.15s ease; }
+.ab-tbl-reload { position: sticky; top: 48px; z-index: 2; height: 0; overflow: visible; display: flex; justify-content: center; }
+.ab-tbl-reload .chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 14px; border-radius: 999px;
+  background: var(--d-1); border: 1px solid var(--line);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  font-size: 12px; color: var(--t-1);
+}
+
 /* ───────────────────────────────────────────────────────────────────────────
  * UI-AUDIT #162 — utility classes cho các inline-style LẶP NHIỀU (rule-of-three).
  * Mỗi class emit CSS Y HỆT inline tương ứng (React numeric → px) → thay
@@ -1154,3 +1167,97 @@
 .ab-u-meta-mono { font-size: 11px; color: var(--t-2); font-family: var(--font-mono); } /* + mono */
 .ab-u-meta12    { font-size: 12px; color: var(--t-2); }            /* style={{ fontSize:12, color:'var(--t-2)' }} */
 .ab-u-bt        { border-top: 1px solid var(--line); }             /* style={{ borderTop:'1px solid var(--line)' }} */
+
+/* ============================================
+   #467 UX pack — skeleton / row-action menu / progress
+   ============================================ */
+
+/* Skeleton shimmer (P1-6) */
+.ab-skel {
+  display: inline-block;
+  border-radius: var(--r-1, 4px);
+  background: linear-gradient(90deg, var(--d-3) 25%, var(--d-2) 50%, var(--d-3) 75%);
+  background-size: 200% 100%;
+  animation: ab-skel-wave 1.4s ease infinite;
+}
+@keyframes ab-skel-wave { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .ab-skel { animation: none; background: var(--d-3); } }
+.ab-skel-table { display: flex; flex-direction: column; gap: 0; padding: 4px 0; }
+.ab-skel-tr {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 16px; align-items: center;
+  padding: 10px 16px; border-bottom: 1px solid var(--line-soft);
+}
+.ab-skel-form { display: flex; flex-direction: column; gap: 14px; padding: 4px 0; }
+.ab-skel-field { display: flex; flex-direction: column; gap: 6px; }
+.ab-skel-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.ab-skel-card {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r-2);
+  background: var(--d-2);
+}
+/* skeleton rows bên trong DataTable (prop loading) */
+.ab-tbl tr.skel td { padding-top: 10px; padding-bottom: 10px; }
+
+/* RowActions ⋯ dropdown (chuẩn hóa cột Action) */
+.ab-iconbtn.on { background: var(--d-3); color: var(--t-0); border-color: var(--t-3); }
+.ab-rowmenu {
+  position: fixed; z-index: 1300;
+  min-width: 180px; padding: 5px;
+  background: var(--d-1, var(--d-2));
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+  display: flex; flex-direction: column;
+}
+.ab-rowmenu-item {
+  display: flex; align-items: center; gap: 8px;
+  height: 30px; padding: 0 10px;
+  border: none; border-radius: var(--r-1, 4px);
+  background: transparent; color: var(--t-1);
+  font: inherit; font-size: 12.5px; text-align: left;
+  cursor: pointer; white-space: nowrap;
+}
+.ab-rowmenu-item:hover { background: var(--d-3); color: var(--t-0); }
+.ab-rowmenu-item:disabled { opacity: .45; cursor: not-allowed; }
+.ab-rowmenu-item.danger { color: var(--s-crit); }
+.ab-rowmenu-item.danger:hover { background: var(--s-crit-bg); color: var(--s-crit); }
+.ab-rowmenu-sep { height: 1px; margin: 4px 6px; background: var(--line); }
+
+/* ProgressOverlay — tác vụ chạy dài (P1-10) */
+.ab-progress-backdrop {
+  position: fixed; inset: 0; z-index: 1400;
+  background: rgba(0, 0, 0, .35);
+  display: grid; place-items: center;
+}
+.ab-progress-card {
+  width: min(420px, calc(100vw - 48px));
+  padding: 20px 22px;
+  background: var(--d-1, var(--d-2));
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .25);
+  display: flex; flex-direction: column; gap: 12px; align-items: stretch;
+}
+.ab-progress-title { font-size: 14px; font-weight: 600; color: var(--t-0); }
+.ab-progress-track {
+  height: 8px; border-radius: 999px; overflow: hidden;
+  background: var(--d-3); position: relative;
+}
+.ab-progress-fill {
+  height: 100%; border-radius: 999px;
+  background: var(--a-cy);
+  transition: width .3s ease;
+}
+.ab-progress-track.indet .ab-progress-fill {
+  position: absolute; width: 40%;
+  animation: ab-progress-slide 1.2s ease-in-out infinite;
+}
+@keyframes ab-progress-slide { from { left: -40%; } to { left: 100%; } }
+@media (prefers-reduced-motion: reduce) { .ab-progress-track.indet .ab-progress-fill { animation-duration: 2.4s; } }
+.ab-progress-meta {
+  display: flex; justify-content: space-between; gap: 10px;
+  font-size: 12px; color: var(--t-2); font-family: var(--font-mono);
+}
+.ab-progress-meta .pct { color: var(--t-0); font-weight: 600; }
+.ab-progress-card > .ab-btn { align-self: flex-end; }

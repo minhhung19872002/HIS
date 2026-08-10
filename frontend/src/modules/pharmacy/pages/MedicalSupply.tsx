@@ -11,6 +11,7 @@ import {
   SimpleV2Page, useTabCounts, tk, te, cf,
   type TopTab, type ColumnDef, type StatusTab, type KpiItem,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 type Tab = 'stock' | 'receipts';
 const TABS: TopTab<Tab>[] = [
@@ -69,6 +70,8 @@ const MedicalSupplyV2: React.FC = () => {
       setReceipts((resp.data?.items as StockReceiptDto[]) || []);
       setRTotal(resp.data?.totalCount ?? 0);
       setRLoaded(true);
+    } catch (e) {
+      te(friendlyErrorMessage(e, 'Tải danh sách phiếu nhập thất bại'));
     } finally { setRLoad(false); }
   }, [rSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { KpiStrip, Btn, fmtVNDg, tk, tw, te, ti } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { SurgeryReportModal } from '../../surgery/pages/SurgeryReportModal';
 import { CabinetIssueModal } from '../../pharmacy/pages/CabinetIssueModal';
 import TermIcon from '../../../components/layout/terminal/Icon';
@@ -114,7 +115,7 @@ const OpdEditorV2: React.FC = () => {
   const persist = async (): Promise<boolean> => {
     if (!examId) { tw('Chưa chọn bệnh nhân từ hàng đợi'); return false; }
     const primary = diagnoses.find((d) => d.isPrimary);
-    await Promise.allSettled([
+    const coreResults = await Promise.allSettled([
       examinationApi.updateVitalSigns(examId, { ...vitals, measuredAt: new Date().toISOString() }),
       examinationApi.updateMedicalInterview(examId, {
         historyOfPresentIllness: history, pastMedicalHistory: pastHist,
@@ -131,10 +132,19 @@ const OpdEditorV2: React.FC = () => {
         examinationId: examId, diagnosisCode: primary?.icdCode, diagnosisName: primary?.icdName,
         services: orders.map((o) => ({ serviceId: o.serviceId, quantity: o.qty, paymentType: 1, isPriority: false, isEmergency: false })),
         autoSelectRoom: true, calculateOptimalPath: true,
-      }).catch(() => { /* orders may already exist */ });
+      }).catch((e) => { tw(friendlyErrorMessage(e, 'Chỉ định CLS có thể chưa được lưu — vui lòng kiểm tra lại.')); /* hoặc đã tồn tại từ trước */ });
     }
     if (injuryInfo.injuryType) {
-      await updateInjuryInfo(examId, injuryInfo as InjuryInfoDto).catch(() => { /* non-fatal */ });
+      await updateInjuryInfo(examId, injuryInfo as InjuryInfoDto)
+        .catch((e) => { tw(friendlyErrorMessage(e, 'Khai báo TNGT (Biểu 14.5) có thể chưa được lưu — vui lòng kiểm tra lại.')); });
+    }
+    // patient-safety (#467): Promise.allSettled không tự reject — nếu bỏ qua, saveDraft/complete
+    // báo "Đã lưu" ngay cả khi TOÀN BỘ sinh hiệu/bệnh sử/khám/chẩn đoán lưu thất bại. Kiểm tra lại
+    // kết quả sau khi đã gọi đủ các API theo đúng thứ tự/điều kiện như cũ, chỉ đổi quyết định
+    // thành công/thất bại cuối cùng.
+    const failedCount = coreResults.filter((r) => r.status === 'rejected').length;
+    if (failedCount > 0) {
+      throw new Error(`Lưu thất bại ${failedCount}/${coreResults.length} mục (sinh hiệu/bệnh sử/khám/chẩn đoán)`);
     }
     return true;
   };

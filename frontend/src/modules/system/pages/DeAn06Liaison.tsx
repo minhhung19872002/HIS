@@ -44,7 +44,7 @@ const DeAn06LiaisonV2: React.FC = () => {
 // ────────────────────────── Birth ──────────────────────────
 
 const BirthTab: React.FC = () => {
-  const { rows, reload } = useListData<BirthCertificateDto>(
+  const { rows, loading, reload } = useListData<BirthCertificateDto>(
     useCallback(() => deAn06.searchBirths({ pageSize: 200 }), []),
     useCallback(() => te('Không tải được'), []),
   );
@@ -91,7 +91,7 @@ const BirthTab: React.FC = () => {
     <>
       <KpiStrip items={kpis} />
       <DataTable<BirthCertificateDto>
-        rowKey={(r) => r.id} data={rows} columns={columns}
+        rowKey={(r) => r.id} data={rows} columns={columns} loading={loading}
         onRowClick={setDetail}
         actions={(r) => r.da06Status < 2
           ? <ActBtn ic="external" title="Gửi lên cổng Đề án 06" onClick={() => submit(r)} />
@@ -142,7 +142,7 @@ const BirthTab: React.FC = () => {
 // ────────────────────────── Death ──────────────────────────
 
 const DeathTab: React.FC = () => {
-  const { rows, reload } = useListData<DeathCertificateDto>(
+  const { rows, loading, reload } = useListData<DeathCertificateDto>(
     useCallback(() => deAn06.searchDeaths({ pageSize: 200 }), []),
     useCallback(() => te('Không tải được'), []),
   );
@@ -187,7 +187,7 @@ const DeathTab: React.FC = () => {
     <>
       <KpiStrip items={kpis} />
       <DataTable<DeathCertificateDto>
-        rowKey={(r) => r.id} data={rows} columns={columns}
+        rowKey={(r) => r.id} data={rows} columns={columns} loading={loading}
         onRowClick={setDetail}
         actions={(r) => r.da06Status < 2
           ? <ActBtn ic="external" title="Gửi lên cổng Đề án 06" onClick={() => submit(r)} />
@@ -243,7 +243,7 @@ const DeathTab: React.FC = () => {
 // ────────────────────────── Dlhc (KSK lái xe) ──────────────────────────
 
 const DlhcTab: React.FC = () => {
-  const { rows, reload } = useListData<DrivingLicenseHealthCheckDto>(
+  const { rows, loading, reload } = useListData<DrivingLicenseHealthCheckDto>(
     useCallback(() => deAn06.searchDlhc({ pageSize: 200 }), []),
     useCallback(() => te('Không tải được'), []),
   );
@@ -286,7 +286,7 @@ const DlhcTab: React.FC = () => {
     <>
       <KpiStrip items={kpis} />
       <DataTable<DrivingLicenseHealthCheckDto>
-        rowKey={(r) => r.id} data={rows} columns={columns}
+        rowKey={(r) => r.id} data={rows} columns={columns} loading={loading}
         onRowClick={setDetail}
         actions={(r) => r.da06Status < 2
           ? <ActBtn ic="external" title="Gửi lên cổng Đề án 06" onClick={() => submit(r)} />

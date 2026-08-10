@@ -11,6 +11,9 @@ import {
   KpiStrip, TopTabs, StatusBadge, Btn, Ico, tk, tw,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { RowActions } from '../../../components/actions';
+import { LoadingState, TableSkeleton } from '../../../components/dataDisplay';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -104,7 +107,10 @@ const EmergencyCabinetV2: React.FC = () => {
         const items = (r.data as unknown as { items?: StockDto[] })?.items ?? (Array.isArray(r.data) ? r.data as unknown as StockDto[] : []);
         setWhStock(items.filter((s) => s.quantity > 0));
       })
-      .catch(() => setWhStock([]));
+      .catch((e) => {
+        tw(friendlyErrorMessage(e, 'Không tải được tồn kho tủ trực'));
+        setWhStock([]);
+      });
   }, [issueWh]);
 
   const expandCabinet = async (id: string) => {
@@ -114,7 +120,10 @@ const EmergencyCabinetV2: React.FC = () => {
       const r = await getStock({ warehouseId: id, page: 1, pageSize: 200 });
       const items = (r.data as unknown as { items?: StockDto[] })?.items ?? (Array.isArray(r.data) ? r.data as unknown as StockDto[] : []);
       setExpandedStock(items);
-    } catch { setExpandedStock([]); }
+    } catch (e) {
+      tw(friendlyErrorMessage(e, 'Không tải được tồn kho tủ trực'));
+      setExpandedStock([]);
+    }
   };
 
   // ── Issue helpers ─────────────────────────────────────────────────────────────
@@ -207,6 +216,10 @@ const EmergencyCabinetV2: React.FC = () => {
             <span className="spacer" />
             <Btn variant="ghost" icon="refresh" onClick={loadCabinets}>Làm mới</Btn>
           </div>
+
+          {cabLoading && filteredCabinets.length === 0 && (
+            <div style={{ padding: 'var(--space-16)' }}><LoadingState /></div>
+          )}
 
           {filteredCabinets.length === 0 && !cabLoading && (
             <div style={{ padding: 80, textAlign: 'center', color: 'var(--t-2)' }}>
@@ -374,12 +387,15 @@ const EmergencyCabinetV2: React.FC = () => {
                   <td className="mono">{(h.items || []).length}</td>
                   <td className="mono">{fmt(h.totalAmount || 0)}</td>
                   <td>
-                    <button type="button" className="ab-iconbtn" title="In phiếu" onClick={() => printIssue(h)}>
-                      <TermIcon name="printer" size={13} />
-                    </button>
+                    <RowActions actions={[
+                      { key: 'print', icon: 'printer', label: 'In phiếu', primary: true, onClick: () => printIssue(h) },
+                    ]} />
                   </td>
                 </tr>
               ))}
+              {histLoading && history.length === 0 && (
+                <tr><td colSpan={7}><TableSkeleton rows={4} cols={7} /></td></tr>
+              )}
               {history.length === 0 && !histLoading && (
                 <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: 'var(--t-2)' }}>Chưa có phiếu xuất tủ trực</td></tr>
               )}

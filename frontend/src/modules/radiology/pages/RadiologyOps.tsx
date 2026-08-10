@@ -6,7 +6,7 @@ import { getWarehouses } from '../../pharmacy/api/warehouse';
 import { unwrapList, type MaybePaged } from '../../../utils/apiNormalize';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, StatusBadge, Btn,
-  Ico, tk, ti, tw, type ColumnDef,
+  Ico, tk, ti, tw, cf, type ColumnDef,
 } from '@/_v2kit';
 
 interface Request {
@@ -53,6 +53,8 @@ const RadiologyOpsV2: React.FC = () => {
 
   const [addOnForm] = Form.useForm();
   const [dispenseForm] = Form.useForm();
+  const [addOnBusy, setAddOnBusy] = useState(false);
+  const [dispenseBusy, setDispenseBusy] = useState(false);
 
   const search = useCallback(async () => {
     if (!keyword) return;

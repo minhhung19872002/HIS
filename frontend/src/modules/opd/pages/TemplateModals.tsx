@@ -1,5 +1,5 @@
 import React from 'react';
-import { ModalShell, Btn, ActBtn } from '@/_v2kit';
+import { ModalShell, Btn, ActBtn, cf } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import type { OutpatientRecordTemplateDto } from '../../patient/api/clinicalNarratives';
 import type { DxRow } from './_shared';
@@ -81,7 +81,7 @@ export const TemplateModals: React.FC<{
                 <td>{t.templateName}</td>
                 <td className="mono">{t.diagnosisCode || '—'}</td>
                 <td className="act">
-                  <ActBtn ic="x" title="Xóa mẫu" tone="crit" onClick={() => onRemove(t.id)} />
+                  <ActBtn ic="x" title="Xóa mẫu" tone="crit" onClick={() => cf(`Xóa mẫu "${t.templateName}"? Thao tác không thể hoàn tác.`, () => onRemove(t.id), { tone: 'crit', confirm: 'Xóa' })} />
                 </td>
               </tr>
             ))}

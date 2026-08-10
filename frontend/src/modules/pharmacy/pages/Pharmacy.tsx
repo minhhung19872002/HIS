@@ -17,6 +17,8 @@ import TermIcon from '../../../components/layout/terminal/Icon';
 import BarcodeScanner from '../../../components/form/BarcodeScanner';
 import ExpiryAlertModal from './ExpiryAlertModal';
 import { fmtVND } from '../../../utils/format';
+import { RowActions } from '../../../components/actions';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 /* ────────────── Types ────────────── */
 
@@ -101,11 +103,13 @@ const PharmacyV2: React.FC = () => {
   const [rxPage,     setRxPage]     = useState(0);
   const [rxSel,      setRxSel]      = useState<PendingPrescription | null>(null);
   const [printLoad,  setPrintLoad]  = useState<string | null>(null);
+  /** Chặn double-click cho các row-action mutation (accept/reject/approve/receive/ack/resolve) */
+  const [rowBusy,    setRowBusy]    = useState<string | null>(null);
 
   const loadRx = useCallback(async () => {
     setRxLoading(true);
     try { const r = await pharmacyApi.getPendingPrescriptions(); setRxRows(Array.isArray(r.data) ? r.data : []); }
-    catch { /* silent */ } finally { setRxLoading(false); }
+    catch (e) { ti(friendlyErrorMessage(e, 'Không tải được đơn thuốc')); } finally { setRxLoading(false); }
   }, []);
   useEffect(() => { if (tab === 'rx') loadRx(); }, [tab, loadRx]);
 
@@ -193,6 +197,7 @@ const PharmacyV2: React.FC = () => {
   const [adrReact,   setAdrReact]   = useState('');
   const [adrSev,     setAdrSev]     = useState<'mild' | 'moderate' | 'severe'>('mild');
   const [adrDesc,    setAdrDesc]    = useState('');
+  const [adrSubmitting, setAdrSubmitting] = useState(false);
 
   const loadCl = useCallback(async () => {
     setClLoading(true);
@@ -286,8 +291,11 @@ const PharmacyV2: React.FC = () => {
   };
 
   const onAccept = async (r: PendingPrescription) => {
+    if (rowBusy) return;
+    setRowBusy(r.id);
     try { await pharmacyApi.acceptPrescription(r.id); message.success(`DS đã nhận · ${r.prescriptionCode}`); loadRx(); }
     catch { message.error('Nhận thất bại'); }
+    finally { setRowBusy(null); }
   };
 
   const onComplete = (r: PendingPrescription) => {
@@ -302,8 +310,11 @@ const PharmacyV2: React.FC = () => {
   };
 
   const onRejectRx = async (r: PendingPrescription) => {
+    if (rowBusy) return;
+    setRowBusy(r.id);
     try { await pharmacyApi.rejectPrescription(r.id, 'Hoàn từ giao diện cấp phát'); message.warning(`Đã hoàn · ${r.prescriptionCode}`); loadRx(); }
     catch { message.error('Hoàn thất bại'); }
+    finally { setRowBusy(null); }
   };
 
   /* ══════════════ RX DERIVED ══════════════ */
@@ -392,9 +403,27 @@ const PharmacyV2: React.FC = () => {
 
   /* ══════════════ TRANSFER HANDLERS & COLS ══════════════ */
 
-  const onApprove  = async (r: TransferRequest) => { try { await pharmacyApi.approveTransfer(r.id);  tk(`Đã duyệt · ${r.transferCode}`); loadTr(); } catch { te('Duyệt thất bại'); } };
-  const onRejectTr = async (r: TransferRequest) => { try { await pharmacyApi.rejectTransfer(r.id, 'Từ chối từ giao diện'); te(`Đã từ chối · ${r.transferCode}`); loadTr(); } catch { te('Từ chối thất bại'); } };
-  const onReceive  = async (r: TransferRequest) => { try { await pharmacyApi.receiveTransfer(r.id); tk(`Đã nhận · ${r.transferCode}`); loadTr(); } catch { te('Nhận hàng thất bại'); } };
+  const onApprove  = async (r: TransferRequest) => {
+    if (rowBusy) return;
+    setRowBusy(r.id);
+    try { await pharmacyApi.approveTransfer(r.id);  tk(`Đã duyệt · ${r.transferCode}`); loadTr(); }
+    catch { te('Duyệt thất bại'); }
+    finally { setRowBusy(null); }
+  };
+  const onRejectTr = async (r: TransferRequest) => {
+    if (rowBusy) return;
+    setRowBusy(r.id);
+    try { await pharmacyApi.rejectTransfer(r.id, 'Từ chối từ giao diện'); te(`Đã từ chối · ${r.transferCode}`); loadTr(); }
+    catch { te('Từ chối thất bại'); }
+    finally { setRowBusy(null); }
+  };
+  const onReceive  = async (r: TransferRequest) => {
+    if (rowBusy) return;
+    setRowBusy(r.id);
+    try { await pharmacyApi.receiveTransfer(r.id); tk(`Đã nhận · ${r.transferCode}`); loadTr(); }
+    catch { te('Nhận hàng thất bại'); }
+    finally { setRowBusy(null); }
+  };
 
   const trAddLine = () => {
     const inv = trInv.find((i) => i.medicineId === trPickMed);
@@ -467,8 +496,20 @@ const PharmacyV2: React.FC = () => {
     ack: alRows.filter((a) => a.acknowledged).length,
   };
 
-  const onAck     = async (r: AlertItem) => { try { await pharmacyApi.acknowledgeAlert(r.id); tk('Đã xác nhận'); loadAl(); } catch { te('Thất bại'); } };
-  const onResolve = async (r: AlertItem) => { try { await pharmacyApi.resolveAlert(r.id); tk('Đã giải quyết'); loadAl(); } catch { te('Thất bại'); } };
+  const onAck     = async (r: AlertItem) => {
+    if (rowBusy) return;
+    setRowBusy(r.id);
+    try { await pharmacyApi.acknowledgeAlert(r.id); tk('Đã xác nhận'); loadAl(); }
+    catch { te('Thất bại'); }
+    finally { setRowBusy(null); }
+  };
+  const onResolve = async (r: AlertItem) => {
+    if (rowBusy) return;
+    setRowBusy(r.id);
+    try { await pharmacyApi.resolveAlert(r.id); tk('Đã giải quyết'); loadAl(); }
+    catch { te('Thất bại'); }
+    finally { setRowBusy(null); }
+  };
 
   const alCols: ColumnDef<AlertItem>[] = [
     { key: 'type', label: 'Loại',      width: 130, render: (r) => r.type },
@@ -500,12 +541,15 @@ const PharmacyV2: React.FC = () => {
   ];
 
   const onSubmitAdr = async () => {
+    if (adrSubmitting) return;
+    setAdrSubmitting(true);
     try {
       await pharmacyApi.submitAdrReport({ patientId: adrPatient, medicationName: adrMed, reaction: adrReact, severity: adrSev, description: adrDesc });
       tk('Đã gửi báo cáo ADR'); setAdrModal(false);
       setAdrPatient(''); setAdrMed(''); setAdrReact(''); setAdrSev('mild'); setAdrDesc('');
       loadCl();
     } catch { te('Gửi báo cáo ADR thất bại'); }
+    finally { setAdrSubmitting(false); }
   };
 
   /* ══════════════════════════════ RENDER ══════════════════════════════ */
@@ -779,7 +823,12 @@ const PharmacyV2: React.FC = () => {
             )}
             <Pager page={clPage} setPage={setClPage} totalPages={clTotalPages} total={clCurRows.length} perPage={PER} />
             <ModalShell open={adrModal} onClose={() => setAdrModal(false)} title="Báo cáo phản ứng có hại (ADR)" size="md"
-              footer={<><Btn variant="ghost" onClick={() => setAdrModal(false)}>Hủy</Btn><Btn variant="primary" onClick={onSubmitAdr}>Gửi báo cáo</Btn></>}
+              footer={<>
+                <Btn variant="ghost" disabled={adrSubmitting} onClick={() => setAdrModal(false)}>Hủy</Btn>
+                <Btn variant="primary" loading={adrSubmitting} disabled={adrSubmitting} onClick={onSubmitAdr}>
+                  {adrSubmitting ? 'Đang gửi…' : 'Gửi báo cáo'}
+                </Btn>
+              </>}
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '4px 0' }}>
                 <label style={{ fontSize: 12.5 }}>Mã bệnh nhân

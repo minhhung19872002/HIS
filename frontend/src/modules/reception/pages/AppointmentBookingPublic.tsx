@@ -8,7 +8,7 @@ import type {
   BookingDepartmentDto, BookingDoctorDto, BookingSlotResult,
   BookingTimeSlot, BookingResultDto, BookingStatusDto,
 } from '../api/appointmentBooking';
-import { AbSelect, Btn, LoadingState, StatusBadge, Ico, tk, ti, tw } from '@/_v2kit';
+import { AbSelect, Btn, LoadingState, StatusBadge, Ico, tk, ti, tw, cf } from '@/_v2kit';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../../../constants/hospital';
 
 /* ==========================================================================
@@ -254,7 +254,14 @@ export default function AppointmentBookingPublic() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <StatusBadge tone={statusTone(apt.status)} dot>{apt.statusName}</StatusBadge>
                       {apt.status < 2 && (
-                        <Btn variant="crit" size="sm" onClick={() => void handleCancel(apt.appointmentCode)}>Hủy</Btn>
+                        <Btn
+                          variant="crit" size="sm"
+                          onClick={() => cf(
+                            `Hủy lịch hẹn ${apt.appointmentCode} của ${apt.patientName}? Thao tác không thể hoàn tác.`,
+                            () => void handleCancel(apt.appointmentCode),
+                            { tone: 'crit', confirm: 'Hủy lịch' },
+                          )}
+                        >Hủy</Btn>
                       )}
                     </div>
                   </div>

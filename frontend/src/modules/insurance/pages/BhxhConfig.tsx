@@ -4,7 +4,7 @@ import type { AxiosError } from 'axios';
 import apiClient from '../../../services/apiClient';
 import type { ServerValidationError } from '../../../utils/formError';
 import {
-  KpiStrip, TopTabs, StatusBadge, Btn, tk, ti, tw,
+  KpiStrip, TopTabs, StatusBadge, Btn, tk, ti, tw, LoadingState,
 } from '@/_v2kit';
 
 interface ConfigData {
@@ -24,8 +24,7 @@ const TABS = [
 
 const BhxhConfigV2: React.FC = () => {
   const [tab, setTab] = useState<Tab>('config');
-  // loading state — giá trị không render trực tiếp, nhưng setLoading vẫn được gọi (deps cho tương lai add Spin)
-  const [, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [data, setData] = useState<ConfigData | null>(null);
   const [form] = Form.useForm();
   const [testXml, setTestXml] = useState('<?xml version="1.0" encoding="UTF-8"?>\n<BHXH>\n  <MA_CSKCB></MA_CSKCB>\n  <MA_DVI></MA_DVI>\n  <data></data>\n</BHXH>');
@@ -34,6 +33,7 @@ const BhxhConfigV2: React.FC = () => {
   const [authResult, setAuthResult] = useState<AuthResult | null>(null);
   const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -52,9 +52,12 @@ const BhxhConfigV2: React.FC = () => {
   useEffect(() => { load(); }, [load]);
 
   const save = async () => {
+    if (saving) return;
     const v = await form.validateFields();
+    setSaving(true);
     try { await apiClient.post('/bhxh-config', v); tk('Đã lưu cấu hình'); load(); }
     catch { tw('Lưu thất bại'); }
+    finally { setSaving(false); }
   };
 
   const testConn = async () => {
@@ -111,13 +114,16 @@ const BhxhConfigV2: React.FC = () => {
         <>
           <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
           {tab === 'config' && (
-            <Btn variant="primary" icon="check" onClick={save}>Lưu cấu hình</Btn>
+            <Btn variant="primary" icon="check" loading={saving} onClick={save}>
+              {saving ? 'Đang lưu…' : 'Lưu cấu hình'}
+            </Btn>
           )}
         </>
       } />
 
       {tab === 'config' && (
         <div style={{ padding: 'var(--space-24)', maxWidth: 800 }}>
+          {loading && !data ? <LoadingState /> : (
           <Form form={form} layout="vertical">
             <Form.Item label="Gateway URL" name="gatewayUrl" rules={[{ required: true, type: 'url' }]}>
               <Input placeholder="https://gdbhyt.baohiemxahoi.gov.vn/api" />
@@ -143,6 +149,7 @@ const BhxhConfigV2: React.FC = () => {
               </Form.Item>
             </div>
           </Form>
+          )}
         </div>
       )}
 

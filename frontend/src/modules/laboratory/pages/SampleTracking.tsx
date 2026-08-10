@@ -262,8 +262,8 @@ const SampleTrackingV2: React.FC = () => {
             <Ico name="x" size={12} /> Bỏ lọc
           </Btn>
           <span className="spacer" />
-          <Btn variant="ghost" onClick={load}>
-            <Ico name="refresh" size={12} /> Làm mới
+          <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">
+            Làm mới
           </Btn>
           <Btn variant="ghost" onClick={() => setReportOpen(true)}>
             <Ico name="activity" size={12} /> Báo cáo
@@ -275,7 +275,8 @@ const SampleTrackingV2: React.FC = () => {
         <DataTable<SampleRejection>
           columns={cols} data={paged} rowKey={(r) => r.id}
           onRowClick={setSel} actions={actions}
-          empty={loading ? 'Đang tải…' : 'Không có mẫu bị từ chối'}
+          loading={loading}
+          empty={'Không có mẫu bị từ chối'}
         />
         <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
       </>}
@@ -283,8 +284,8 @@ const SampleTrackingV2: React.FC = () => {
       {tab === 'batches' && <>
         <div className="ab-toolbar" style={{ borderTop: 'none' }}>
           <DatePicker value={batchDate} onChange={(d) => d && setBatchDate(d)} format="DD/MM/YYYY" allowClear={false} size="small" />
-          <Btn variant="ghost" onClick={loadBatches}>
-            <Ico name="refresh" size={12} /> Tải
+          <Btn variant="ghost" onClick={loadBatches} loading={batchLoading} icon="refresh">
+            Tải
           </Btn>
           <span className="spacer" />
           <StatusBadge tone="info">Tổng {batchTotal} mẫu</StatusBadge>

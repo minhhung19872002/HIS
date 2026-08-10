@@ -510,9 +510,7 @@ const LabQCV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
-          <Btn variant="ghost" onClick={load}>
-            <Ico name="refresh" size={12} /> Làm mới
-          </Btn>
+          <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
           {tab === 'lots' && <Btn variant="primary" onClick={openCreateLot}>
             <Ico name="plus" size={12} /> Thêm lô
           </Btn>}
@@ -600,7 +598,8 @@ const LabQCV2: React.FC = () => {
           <DataTable<QCLot>
             columns={lotCols} data={pagedLots} rowKey={(r) => r.id}
             onRowClick={setSelLot} actions={lotActions}
-            empty={loading ? 'Đang tải…' : 'Chưa có lô QC'}
+            loading={loading}
+            empty={'Chưa có lô QC'}
           />
           <Pager page={page} setPage={setPage} totalPages={totalPages} total={filteredLots.length} perPage={PER} />
         </>
@@ -609,7 +608,8 @@ const LabQCV2: React.FC = () => {
           <DataTable<QCResult>
             columns={resCols} data={pagedRes} rowKey={(r) => r.id}
             onRowClick={setSelRes} actions={resActions}
-            empty={loading ? 'Đang tải…' : 'Chưa có kết quả QC'}
+            loading={loading}
+            empty={'Chưa có kết quả QC'}
           />
           <Pager page={page} setPage={setPage} totalPages={totalPages} total={filteredResults.length} perPage={PER} />
         </>
@@ -617,7 +617,8 @@ const LabQCV2: React.FC = () => {
         <>
           <DataTable<QCReport>
             columns={reportCols} data={pagedReports} rowKey={(r) => r.testCode}
-            empty={loading ? 'Đang tải…' : 'Chưa có báo cáo QC'}
+            loading={loading}
+            empty={'Chưa có báo cáo QC'}
           />
           <Pager page={page} setPage={setPage} totalPages={totalPages} total={filteredReports.length} perPage={PER} />
         </>

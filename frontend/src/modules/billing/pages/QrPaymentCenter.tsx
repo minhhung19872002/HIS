@@ -188,16 +188,16 @@ const QrPaymentCenter: React.FC = () => {
               <b>⚠ {recon.unmatchedPaid.length} giao dịch đã thu nhưng THIẾU mã tham chiếu ngân hàng</b> — cần đối soát lại với sao kê.
             </div>
           )}
-          <DataTable<QrFinanceItem> columns={txnCols} data={recon?.items ?? []} rowKey={(r) => r.id} empty={loading ? 'Đang tải…' : 'Không có giao dịch QR trong kỳ'} />
+          <DataTable<QrFinanceItem> columns={txnCols} data={recon?.items ?? []} rowKey={(r) => r.id} loading={loading} empty="Không có giao dịch QR trong kỳ" />
         </div>
       )}
 
       {tab === 'creators' && (
         <div style={{ padding: 'var(--space-12) 0', display: 'grid', gap: 'var(--space-14)' }}>
-          <DataTable<QrCreatorStat> columns={creatorCols} data={finance?.byCreator ?? []} rowKey={(r) => r.creatorName} empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />
+          <DataTable<QrCreatorStat> columns={creatorCols} data={finance?.byCreator ?? []} rowKey={(r) => r.creatorName} loading={loading} empty="Không có dữ liệu" />
           <div>
             <div style={{ fontSize: 10.5, color: 'var(--t-2)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600, margin: '0 0 var(--space-6)' }}>Chi tiết giao dịch</div>
-            <DataTable<QrFinanceItem> columns={txnCols} data={finance?.items ?? []} rowKey={(r) => r.id} empty="—" />
+            <DataTable<QrFinanceItem> columns={txnCols} data={finance?.items ?? []} rowKey={(r) => r.id} loading={loading} empty="—" />
           </div>
         </div>
       )}
@@ -211,7 +211,8 @@ const QrPaymentCenter: React.FC = () => {
             columns={disbCols}
             data={disb}
             rowKey={(r) => r.id}
-            empty={loading ? 'Đang tải…' : 'Chưa có lệnh chi hộ'}
+            loading={loading}
+            empty="Chưa có lệnh chi hộ"
             actions={(r) => (r.status === 0 || r.status === 1) ? (
               <>
                 <ActBtn ic="check" title="Duyệt + chi" onClick={() => doExecute(r)} />

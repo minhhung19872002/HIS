@@ -228,8 +228,8 @@ const TraditionalMedicineV2: React.FC = () => {
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
+        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">
+          Làm mới
         </Btn>
         <Btn variant="primary" onClick={openCreate}>
           <Ico name="plus" size={12} /> Phác đồ mới
@@ -240,8 +240,8 @@ const TraditionalMedicineV2: React.FC = () => {
 
       <DataTable<TraditionalTreatment>
         columns={cols} data={paged} rowKey={(r) => r.id}
-        onRowClick={setSel} actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có phác đồ YHCT'}
+        onRowClick={setSel} actions={actions} loading={loading}
+        empty={'Chưa có phác đồ YHCT'}
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 

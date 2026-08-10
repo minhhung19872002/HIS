@@ -46,14 +46,17 @@ const ClinicalCatalogsV2: React.FC = () => {
   const [page, setPage] = useState(0);
   const [edit, setEdit] = useState<EditState | null>(null);
   const [editIsNew, setEditIsNew] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => { setSearch(''); setPage(0); }, [tab]);
 
   const reload = async (which?: TabKey) => {
+    setLoading(true);
     try {
       if (!which || which === 'nursing') setNursing(await api.getNursingCareLevels());
       if (!which || which === 'mr')      setMrTypes(await api.getMedicalRecordTypes());
     } catch { te('Không tải được danh mục'); }
+    finally { setLoading(false); }
   };
   useEffect(() => { reload(); }, []);
 
@@ -225,7 +228,7 @@ const ClinicalCatalogsV2: React.FC = () => {
       <div className="ab-toolbar">
         <SearchBox value={search} onChange={setSearch} placeholder={tab === 'nursing' ? 'Tìm chế độ chăm sóc…' : 'Tìm loại bệnh án…'} />
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={() => reload(tab)}>Làm mới</Btn>
+        <Btn variant="ghost" icon="refresh" loading={loading} onClick={() => reload(tab)}>Làm mới</Btn>
         <Btn variant="ghost" icon="download" onClick={exportCsv}>Xuất CSV</Btn>
         <Btn variant="primary" icon="plus" onClick={() => openDrawer()}>Thêm mới</Btn>
       </div>
@@ -235,6 +238,7 @@ const ClinicalCatalogsV2: React.FC = () => {
         rowKey={(r) => r.id}
         onRowClick={(r) => openDrawer(r)}
         actions={rowAct}
+        loading={loading}
         empty={search ? 'Không khớp từ khoá.' : 'Chưa có dữ liệu.'}
       />
       <Pager page={page} totalPages={totalPages} setPage={setPage} total={filtered.length} perPage={PER} />

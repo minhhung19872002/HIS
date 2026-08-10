@@ -342,9 +342,7 @@ const CatalogsAdminV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
-          <Btn variant="ghost" onClick={currentLoad}>
-            <Ico name="refresh" size={12} /> Lam moi
-          </Btn>
+          <Btn variant="ghost" onClick={currentLoad} loading={tab === 'abbr' ? abbrLoading : tab === 'templates' ? tplLoading : tab === 'occupation' ? occLoading : tab === 'gender' ? genLoading : tab === 'ethnic' ? ethLoading : tab === 'nation' ? natLoading : facLoading} icon="refresh">Lam moi</Btn>
           <Btn variant="primary" onClick={openAdd}>
             <Ico name="plus" size={12} /> {addLabel()}
           </Btn>
@@ -362,14 +360,14 @@ const CatalogsAdminV2: React.FC = () => {
           <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Go code trong textarea roi bam F2 de tu dong thay the</span>
         </div>
         <DataTable<AbbreviationDto>
-          columns={abbrCols} data={abbrs} rowKey={(r) => r.id}
+          columns={abbrCols} data={abbrs} loading={abbrLoading} rowKey={(r) => r.id}
           actions={(r) => (
             <div className="ab-actions">
               <ActBtn ic="edit" title="Sua" onClick={() => openAbbrEdit(r)} />
               <ActBtn ic="trash" title="Xoa" tone="crit" onClick={() => deleteAbbr(r)} />
             </div>
           )}
-          empty={abbrLoading ? 'Dang tai...' : 'Chua co viet tat'}
+          empty={'Chua co viet tat'}
         />
       </>}
 
@@ -385,7 +383,7 @@ const CatalogsAdminV2: React.FC = () => {
           </Btn>
         </div>
         <DataTable<ClinicalTemplateDto>
-          columns={tplCols} data={tpls} rowKey={(r) => r.id}
+          columns={tplCols} data={tpls} loading={tplLoading} rowKey={(r) => r.id}
           onRowClick={openTplEdit}
           actions={(r) => (
             <div className="ab-actions">
@@ -393,7 +391,7 @@ const CatalogsAdminV2: React.FC = () => {
               <ActBtn ic="trash" title="Xoa" tone="crit" onClick={() => deleteTpl(r)} />
             </div>
           )}
-          empty={tplLoading ? 'Dang tai...' : 'Chua co template'}
+          empty={'Chua co template'}
         />
       </>}
 
@@ -404,14 +402,14 @@ const CatalogsAdminV2: React.FC = () => {
           <Btn variant="ghost" onClick={() => setOccKeyword('')}><Ico name="x" size={12} /> Bo loc</Btn>
         </div>
         <DataTable<OccupationDto>
-          columns={simpleCols<OccupationDto>()} data={occList} rowKey={(r) => r.id}
+          columns={simpleCols<OccupationDto>()} data={occList} loading={occLoading} rowKey={(r) => r.id}
           actions={(r) => (
             <div className="ab-actions">
               <ActBtn ic="edit" title="Sua" onClick={() => openSimpleEdit(r, occForm, setOccEditing, setOccModal)} />
               <ActBtn ic="trash" title="Xoa" tone="crit" onClick={() => makeDelete(deleteOccupation, loadOcc)(r)} />
             </div>
           )}
-          empty={occLoading ? 'Dang tai...' : 'Chua co nghe nghiep'}
+          empty={'Chua co nghe nghiep'}
         />
       </>}
 
@@ -422,14 +420,14 @@ const CatalogsAdminV2: React.FC = () => {
           <Btn variant="ghost" onClick={() => setGenKeyword('')}><Ico name="x" size={12} /> Bo loc</Btn>
         </div>
         <DataTable<GenderDto>
-          columns={simpleCols<GenderDto>()} data={genList} rowKey={(r) => r.id}
+          columns={simpleCols<GenderDto>()} data={genList} loading={genLoading} rowKey={(r) => r.id}
           actions={(r) => (
             <div className="ab-actions">
               <ActBtn ic="edit" title="Sua" onClick={() => openSimpleEdit(r, genForm, setGenEditing, setGenModal)} />
               <ActBtn ic="trash" title="Xoa" tone="crit" onClick={() => makeDelete(deleteGender, loadGen)(r)} />
             </div>
           )}
-          empty={genLoading ? 'Dang tai...' : 'Chua co gioi tinh'}
+          empty={'Chua co gioi tinh'}
         />
       </>}
 
@@ -440,14 +438,14 @@ const CatalogsAdminV2: React.FC = () => {
           <Btn variant="ghost" onClick={() => setEthKeyword('')}><Ico name="x" size={12} /> Bo loc</Btn>
         </div>
         <DataTable<EthnicDto>
-          columns={simpleCols<EthnicDto>()} data={ethList} rowKey={(r) => r.id}
+          columns={simpleCols<EthnicDto>()} data={ethList} loading={ethLoading} rowKey={(r) => r.id}
           actions={(r) => (
             <div className="ab-actions">
               <ActBtn ic="edit" title="Sua" onClick={() => openSimpleEdit(r, ethForm, setEthEditing, setEthModal)} />
               <ActBtn ic="trash" title="Xoa" tone="crit" onClick={() => makeDelete(deleteEthnic, loadEth)(r)} />
             </div>
           )}
-          empty={ethLoading ? 'Dang tai...' : 'Chua co dan toc'}
+          empty={'Chua co dan toc'}
         />
       </>}
 
@@ -458,14 +456,14 @@ const CatalogsAdminV2: React.FC = () => {
           <Btn variant="ghost" onClick={() => setNatKeyword('')}><Ico name="x" size={12} /> Bo loc</Btn>
         </div>
         <DataTable<NationDto>
-          columns={simpleCols<NationDto>()} data={natList} rowKey={(r) => r.id}
+          columns={simpleCols<NationDto>()} data={natList} loading={natLoading} rowKey={(r) => r.id}
           actions={(r) => (
             <div className="ab-actions">
               <ActBtn ic="edit" title="Sua" onClick={() => openSimpleEdit(r, natForm, setNatEditing, setNatModal)} />
               <ActBtn ic="trash" title="Xoa" tone="crit" onClick={() => makeDelete(deleteNation, loadNat)(r)} />
             </div>
           )}
-          empty={natLoading ? 'Dang tai...' : 'Chua co quoc gia'}
+          empty={'Chua co quoc gia'}
         />
       </>}
 
@@ -476,7 +474,7 @@ const CatalogsAdminV2: React.FC = () => {
           <Btn variant="ghost" onClick={() => setFacKeyword('')}><Ico name="x" size={12} /> Bo loc</Btn>
         </div>
         <DataTable<InitialFacilityDto>
-          columns={facilityCols} data={facList} rowKey={(r) => r.id}
+          columns={facilityCols} data={facList} loading={facLoading} rowKey={(r) => r.id}
           actions={(r) => (
             <div className="ab-actions">
               <ActBtn ic="edit" title="Sua" onClick={() => {
@@ -487,7 +485,7 @@ const CatalogsAdminV2: React.FC = () => {
               <ActBtn ic="trash" title="Xoa" tone="crit" onClick={() => makeDelete(deleteInitialFacility, loadFac)(r)} />
             </div>
           )}
-          empty={facLoading ? 'Dang tai...' : 'Chua co CSKCB'}
+          empty={'Chua co CSKCB'}
         />
       </>}
 

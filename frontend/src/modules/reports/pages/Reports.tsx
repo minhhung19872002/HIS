@@ -14,6 +14,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { statisticsApi } from '../../system/api/system';
 import type { DepartmentRevenueDto, HospitalDashboardDto } from '../../system/api/system';
 import apiClient from '../../../services/apiClient';
@@ -326,7 +327,10 @@ const ReportsV2: React.FC = () => {
   React.useEffect(() => {
     statisticsApi.getHospitalDashboard(dayjs().format('YYYY-MM-DD'))
       .then((response) => setDashboard(response.data))
-      .catch(() => setDashboard(null));
+      .catch((error) => {
+        message.warning(friendlyErrorMessage(error, 'Không tải được dữ liệu dashboard, đang hiển thị số liệu mẫu'));
+        setDashboard(null);
+      });
   }, []);
 
   const categoryCounts = REPORT_CATEGORIES.reduce<Record<ReportCategoryId, number>>((counts, category) => {

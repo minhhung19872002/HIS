@@ -376,7 +376,7 @@ const AssetManagementV2: React.FC = () => {
           ]}
         />
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
         {moduleTab === 'assets' && <>
           <Btn variant="ghost" icon="activity" onClick={async () => {
             setDeprOpen(true);
@@ -420,7 +420,8 @@ const AssetManagementV2: React.FC = () => {
         <DataTable<FixedAssetDto>
           columns={cols} data={paged} rowKey={(r) => r.id}
           onRowClick={setSel} actions={actions}
-          empty={loading ? 'Đang tải…' : 'Chưa có tài sản'}
+          loading={loading}
+          empty={'Chưa có tài sản'}
         />
         <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
       </>}
@@ -460,7 +461,8 @@ const AssetManagementV2: React.FC = () => {
               )}
             </div>
           )}
-          empty={loading ? 'Đang tải…' : 'Chưa có phiếu kiểm kê'}
+          loading={loading}
+          empty={'Chưa có phiếu kiểm kê'}
         />
       )}
 
@@ -486,7 +488,8 @@ const AssetManagementV2: React.FC = () => {
               {r.status < 4 && <ActBtn ic="check" title="Trao thầu" onClick={() => cf('Xác nhận trao thầu?', () => handleAwardTender(r.id))} />}
             </div>
           )}
-          empty={loading ? 'Đang tải…' : 'Chưa có gói thầu'}
+          loading={loading}
+          empty={'Chưa có gói thầu'}
         />
       )}
 
@@ -503,7 +506,8 @@ const AssetManagementV2: React.FC = () => {
               )}
             </div>
           )}
-          empty={loading ? 'Đang tải…' : 'Chưa có phiếu bàn giao'}
+          loading={loading}
+          empty={'Chưa có phiếu bàn giao'}
         />
       )}
 
@@ -519,7 +523,8 @@ const AssetManagementV2: React.FC = () => {
               {r.status === 2 && <ActBtn ic="check" title="Hoàn thành thanh lý" tone="warn" onClick={() => doCompleteDisposal(r)} />}
             </div>
           )}
-          empty={loading ? 'Đang tải…' : 'Chưa có phiếu thanh lý'}
+          loading={loading}
+          empty={'Chưa có phiếu thanh lý'}
         />
       )}
 

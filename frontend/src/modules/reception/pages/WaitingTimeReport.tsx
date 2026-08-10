@@ -137,7 +137,7 @@ const WaitingTimeReport: React.FC = () => {
         tabs={TABS}
         actions={
           <>
-            <Btn variant="ghost" icon="refresh" onClick={load} disabled={loading}>Làm mới</Btn>
+            <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
           </>
         }
       />
@@ -251,6 +251,7 @@ const WaitingTimeReport: React.FC = () => {
           columns={deptCols}
           data={data?.byDepartment ?? []}
           rowKey={(r) => r.departmentId}
+          loading={loading}
           empty={data ? 'Không có dữ liệu theo khoa' : 'Chưa tải dữ liệu'}
         />
       )}

@@ -382,7 +382,7 @@ const InfectionControlV2: React.FC = () => {
           <Filter value={fInfType} onChange={setFInfType} options={infTypes} placeholder="▾ Loại NK" />
           <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFInfType(''); setStab('all'); }}>Bỏ lọc</Btn>
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+          <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
           <Btn variant="ghost" icon="alert" onClick={() => { setIsoInit({ isMDRO: false }); setIsoOpen(true); }}>Cách ly</Btn>
           <Btn variant="primary" icon="plus" onClick={openCreate}>Báo cáo HAI</Btn>
         </div>
@@ -392,7 +392,8 @@ const InfectionControlV2: React.FC = () => {
         <DataTable<Row>
           columns={cols} data={paged} rowKey={(r) => r.id}
           onRowClick={setSel} actions={actions}
-          empty={loading ? 'Đang tải…' : 'Chưa có ca HAI'}
+          loading={loading}
+          empty={'Chưa có ca HAI'}
         />
         <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
       </>}
@@ -401,12 +402,13 @@ const InfectionControlV2: React.FC = () => {
       {tab === 'hh' && <>
         <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={() => setHhLoaded(false)}>Làm mới</Btn>
+          <Btn variant="ghost" icon="refresh" onClick={() => setHhLoaded(false)} loading={hhLoading}>Làm mới</Btn>
           <Btn variant="primary" icon="plus" onClick={() => { setHhCrudInit(null); setHhCrudOpen(true); }}>Thêm quan sát</Btn>
         </div>
         <DataTable<HandHygieneObservationDto>
           columns={hhCols} data={hhItems} rowKey={(r) => r.id}
-          empty={hhLoading ? 'Đang tải…' : 'Chưa có dữ liệu vệ sinh tay'}
+          loading={hhLoading}
+          empty={'Chưa có dữ liệu vệ sinh tay'}
         />
       </>}
 
@@ -414,7 +416,8 @@ const InfectionControlV2: React.FC = () => {
       {tab === 'outbreak' && <>
         <DataTable<OutbreakDto>
           columns={obCols} data={outbreakItems} rowKey={(r) => r.id}
-          empty={outbreakLoading ? 'Đang tải…' : 'Chưa có ổ dịch'}
+          loading={outbreakLoading}
+          empty={'Chưa có ổ dịch'}
         />
       </>}
 
@@ -428,7 +431,7 @@ const InfectionControlV2: React.FC = () => {
         ]} />
         <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={() => setIsoLoaded(false)}>Làm mới</Btn>
+          <Btn variant="ghost" icon="refresh" onClick={() => setIsoLoaded(false)} loading={isoLoading}>Làm mới</Btn>
         </div>
         <DataTable<IsolationOrderDto>
           columns={[
@@ -454,6 +457,7 @@ const InfectionControlV2: React.FC = () => {
               : <StatusBadge tone="warn" dot>{r.statusName || 'Đang cách ly'}</StatusBadge> },
           ]}
           data={isoItems} rowKey={(r) => r.id}
+          loading={isoLoading}
           onRowClick={(r) => setIsoSel(r)}
           actions={(r) => (
             <div className="ab-actions">
@@ -464,7 +468,7 @@ const InfectionControlV2: React.FC = () => {
               )}
             </div>
           )}
-          empty={isoLoading ? 'Đang tải…' : 'Chưa có y lệnh cách ly'}
+          empty={'Chưa có y lệnh cách ly'}
         />
       </>}
 

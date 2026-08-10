@@ -10,10 +10,11 @@ import {
   ROOM_TYPES, STATUS_LABELS, type RoomDto,
 } from '../api/videoConsultation';
 import {
-  KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, ModalShell, Ico, tk, ti, tw, cf,
+  KpiStrip, StatusTabs, DataTable, StatusBadge, Btn,
+  DrawerShell, DrSec, DrField, ModalShell, Ico, tk, ti, tw,
   type ColumnDef,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
 
 type SKey = 'active' | 'scheduled' | 'ended' | 'cancelled';
 const STATUS_TABS = [
@@ -43,6 +44,9 @@ const VideoConsultationV2: React.FC = () => {
   const [participantsDrawer, setParticipantsDrawer] = useState<RoomDto | null>(null);
   const [participants, setParticipants] = useState<ParticipantItem[]>([]);
   const [sel, setSel] = useState<RoomDto | null>(null);
+  /* #467: chặn double-submit khi tạo/kết thúc phòng */
+  const [creating, setCreating] = useState(false);
+  const [ending, setEnding] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,8 +61,10 @@ const VideoConsultationV2: React.FC = () => {
   useEffect(() => { load(); }, [load]);
 
   const submitCreate = async () => {
+    if (creating) return;
     try {
       const v = await createForm.validateFields();
+      setCreating(true);
       const invites = v.inviteEmails?.split(',').map((s) => s.trim()).filter(Boolean);
       const room = await createRoom({
         title: v.title, roomType: v.roomType, description: v.description,
@@ -68,6 +74,7 @@ const VideoConsultationV2: React.FC = () => {
       tk('Đã tạo phòng'); setCreateOpen(false); createForm.resetFields();
       setCurrentRoom(room); load();
     } catch { tw('Tạo phòng thất bại'); }
+    finally { setCreating(false); }
   };
 
   const start = async (r: RoomDto) => {
@@ -88,22 +95,33 @@ const VideoConsultationV2: React.FC = () => {
   };
 
   const submitEnd = async () => {
-    if (!endModal) return;
+    if (!endModal || ending) return;
     const v = await endForm.validateFields();
+    setEnding(true);
     try {
       await endRoom(endModal.id, v.conclusionNote);
       tk('Đã kết thúc phòng'); setEndModal(null); load();
     } catch { tw('Kết thúc thất bại'); }
+    finally { setEnding(false); }
   };
 
-  const cancel = (r: RoomDto) => cf('Hủy phòng hội chẩn?', async () => {
-    await cancelRoom(r.id, 'Hủy bởi host'); tk('Đã hủy phòng'); load();
-  }, { tone: 'crit', confirm: 'Hủy phòng' });
+  /* #467: tách khỏi cf() cũ — action danger giờ chuyển sang RowActions (tự confirm),
+     bọc cf() thêm ở đây sẽ bị confirm 2 lần. */
+  const doCancelRoom = async (r: RoomDto) => {
+    try {
+      await cancelRoom(r.id, 'Hủy bởi host'); tk('Đã hủy phòng'); load();
+    } catch { tw('Hủy phòng thất bại'); }
+  };
 
   const openParticipants = async (r: RoomDto) => {
     setParticipantsDrawer(r);
-    const list = await getParticipants(r.id);
-    setParticipants(list as ParticipantItem[]);
+    try {
+      const list = await getParticipants(r.id);
+      setParticipants(list as ParticipantItem[]);
+    } catch {
+      tw('Không tải được danh sách người tham gia');
+      setParticipants([]);
+    }
   };
 
   const copyLink = (r: RoomDto) => {
@@ -180,14 +198,16 @@ const VideoConsultationV2: React.FC = () => {
         columns={cols} data={rooms} rowKey={(r) => r.id}
         onRowClick={setSel}
         actions={(r) => (
-          <div className="ab-actions">
-            {r.status === 0 && <ActBtn ic="play" title="Bắt đầu" onClick={() => start(r)} />}
-            {r.status === 1 && <ActBtn ic="play" title="Tham gia" onClick={() => join(r)} />}
-            {r.status === 1 && <ActBtn ic="x" title="Kết thúc" tone="warn" onClick={() => { endForm.resetFields(); setEndModal(r); }} />}
-            {(r.status === 0 || r.status === 1) && <ActBtn ic="card" title="Copy link mời" onClick={() => copyLink(r)} />}
-            <ActBtn ic="user" title="Người tham gia" onClick={() => openParticipants(r)} />
-            {r.status === 0 && <ActBtn ic="trash" title="Hủy phòng" tone="crit" onClick={() => cancel(r)} />}
-          </div>
+          <RowActions actions={[
+            { key: 'start', icon: 'play', label: 'Bắt đầu', primary: true, hidden: r.status !== 0, onClick: () => start(r) },
+            { key: 'join', icon: 'play', label: 'Tham gia', primary: true, hidden: r.status !== 1, onClick: () => join(r) },
+            { key: 'end', icon: 'x', label: 'Kết thúc', tone: 'warn', hidden: r.status !== 1,
+              onClick: () => { endForm.resetFields(); setEndModal(r); } },
+            { key: 'copylink', icon: 'card', label: 'Copy link mời', hidden: !(r.status === 0 || r.status === 1), onClick: () => copyLink(r) },
+            { key: 'participants', icon: 'user', label: 'Người tham gia', onClick: () => openParticipants(r) },
+            { key: 'cancel', icon: 'trash', label: 'Hủy phòng', tone: 'danger', hidden: r.status !== 0,
+              confirm: 'Hủy phòng hội chẩn này? Thao tác không thể hoàn tác.', onClick: () => doCancelRoom(r) },
+          ]} />
         )}
         empty={loading ? 'Đang tải…' : 'Chưa có phòng hội chẩn'}
       />
@@ -195,7 +215,7 @@ const VideoConsultationV2: React.FC = () => {
       <ModalShell open={createOpen} onClose={() => setCreateOpen(false)} size="lg" title="Tạo phòng hội chẩn"
         footer={<>
           <Btn variant="ghost" onClick={() => setCreateOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={submitCreate}>
+          <Btn variant="primary" loading={creating} onClick={submitCreate}>
             <Ico name="plus" size={12} /> Tạo phòng
           </Btn>
         </>}>
@@ -264,7 +284,7 @@ const VideoConsultationV2: React.FC = () => {
       <ModalShell open={!!endModal} onClose={() => setEndModal(null)} size="md" title="Kết thúc phòng hội chẩn"
         footer={<>
           <Btn variant="ghost" onClick={() => setEndModal(null)}>Hủy</Btn>
-          <Btn variant="primary" style={{ color: 'var(--a-rd-text)' }} onClick={submitEnd}>
+          <Btn variant="primary" style={{ color: 'var(--a-rd-text)' }} loading={ending} onClick={submitEnd}>
             <Ico name="x" size={12} /> Kết thúc
           </Btn>
         </>}>

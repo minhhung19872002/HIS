@@ -371,9 +371,7 @@ const HivManagementV2: React.FC = () => {
           { v: 'stats',    l: 'Thống kê',     ic: 'chart' },
         ]}
         actions={
-          <Btn variant="ghost" size="sm" onClick={refreshAll}>
-            <Ico name="refresh" size={12} /> Làm mới
-          </Btn>
+          <Btn variant="ghost" size="sm" onClick={refreshAll} loading={loading} icon="refresh">Làm mới</Btn>
         }
       />
 
@@ -403,6 +401,7 @@ const HivManagementV2: React.FC = () => {
             columns={patientColumns}
             data={paged}
             rowKey={(r) => r.id}
+            loading={loading}
             onRowClick={openDetail}
             actions={(r) => (
               <div className="ab-actions">
@@ -410,7 +409,7 @@ const HivManagementV2: React.FC = () => {
                 <ActBtn ic="flask" title="Thêm kết quả XN" onClick={() => openLabModal(r.id)} />
               </div>
             )}
-            empty={loading ? 'Đang tải…' : 'Không có bệnh nhân HIV'}
+            empty="Không có bệnh nhân HIV"
           />
           <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
         </>
@@ -485,9 +484,8 @@ const HivManagementV2: React.FC = () => {
             columns={pmtctColumns}
             data={pmtctRecords}
             rowKey={(r) => r.id}
-            empty={pmtctLoading
-              ? 'Đang tải…'
-              : pmtctPatientId ? 'Chưa có hồ sơ PMTCT' : 'Chọn bà mẹ để xem hồ sơ PMTCT'}
+            loading={pmtctLoading}
+            empty={pmtctPatientId ? 'Chưa có hồ sơ PMTCT' : 'Chọn bà mẹ để xem hồ sơ PMTCT'}
           />
         </>
       )}

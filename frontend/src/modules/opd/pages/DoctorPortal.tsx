@@ -399,8 +399,9 @@ const DoctorPortalV2: React.FC = () => {
         setTab={setBlock}
         tabs={BLOCKS}
         actions={
-          <Btn variant="ghost" onClick={reloadCurrent}>
-            <Ico name="refresh" size={12} /> Làm mới
+          <Btn variant="ghost" onClick={reloadCurrent} icon="refresh"
+            loading={block === 'outpatient' ? opd.loading : block === 'inpatient' ? ipd.loading : block === 'signature' ? sig.loading : duty.loading}>
+            Làm mới
           </Btn>
         }
       />
@@ -417,7 +418,8 @@ const DoctorPortalV2: React.FC = () => {
             data={opdPaged}
             rowKey={(r) => r.id}
             onRowClick={(r) => setOpdDetail(r)}
-            empty={opd.loading ? 'Đang tải…' : opd.error ? 'Không tải được dữ liệu' : 'Không có bệnh nhân ngoại trú nào'}
+            loading={opd.loading}
+            empty={opd.error ? 'Không tải được dữ liệu' : 'Không có bệnh nhân ngoại trú nào'}
           />
           <Pager page={opdPage} setPage={setOpdPage} totalPages={opdTotalPages} total={opdFiltered.length} perPage={PER} />
 
@@ -461,7 +463,8 @@ const DoctorPortalV2: React.FC = () => {
             data={ipdPaged}
             rowKey={(r) => r.admissionId}
             onRowClick={(r) => setIpdDetail(r)}
-            empty={ipd.loading ? 'Đang tải…' : ipd.error ? 'Không tải được dữ liệu' : 'Không có bệnh nhân nội trú nào'}
+            loading={ipd.loading}
+            empty={ipd.error ? 'Không tải được dữ liệu' : 'Không có bệnh nhân nội trú nào'}
           />
           <Pager page={ipdPage} setPage={setIpdPage} totalPages={ipdTotalPages} total={ipdFiltered.length} perPage={PER} />
 
@@ -534,7 +537,8 @@ const DoctorPortalV2: React.FC = () => {
             actions={(r) => (
               <ActBtn ic="file-text" title="Ký tài liệu" onClick={() => setSignTarget(r)} />
             )}
-            empty={sig.loading ? 'Đang tải…' : sig.error ? 'Không tải được dữ liệu' : 'Không có tài liệu chờ ký'}
+            loading={sig.loading}
+            empty={sig.error ? 'Không tải được dữ liệu' : 'Không có tài liệu chờ ký'}
           />
           <Pager page={sigPage} setPage={setSigPage} totalPages={sigTotalPages} total={sigFiltered.length} perPage={PER} />
 
@@ -580,7 +584,8 @@ const DoctorPortalV2: React.FC = () => {
             columns={scheduleColumns}
             data={[...duty.rows].sort((a, b) => a.date.localeCompare(b.date))}
             rowKey={(r) => `${r.date}-${r.shiftName}`}
-            empty={duty.loading ? 'Đang tải…' : duty.error ? 'Không tải được dữ liệu' : !userId ? 'Không xác định được người dùng hiện tại' : 'Không có ca trực trong tháng này'}
+            loading={duty.loading}
+            empty={duty.error ? 'Không tải được dữ liệu' : !userId ? 'Không xác định được người dùng hiện tại' : 'Không có ca trực trong tháng này'}
           />
         </>
       )}

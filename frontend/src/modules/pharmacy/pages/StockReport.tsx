@@ -249,7 +249,7 @@ const StockReportV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
-          <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+          <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
           <Btn variant="primary" icon="download" onClick={exportCsv}>Xuất CSV</Btn>
         </>
       } />
@@ -274,19 +274,19 @@ const StockReportV2: React.FC = () => {
 
       {tab === 'detail' && (
         <DataTable<DetailRow> columns={detailCols} data={(detail.items || []).slice(page * PER, (page + 1) * PER)} rowKey={(r) => r.id}
-          empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />
+          loading={loading} empty="Không có dữ liệu" />
       )}
       {tab === 'summary' && (
         <DataTable<SummaryRow> columns={summaryCols} data={(summary.items || []).slice(page * PER, (page + 1) * PER)} rowKey={(r) => r.itemCode}
-          empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />
+          loading={loading} empty="Không có dữ liệu" />
       )}
       {tab === 'expiring' && (
         <DataTable<ExpiringRow> columns={expiringCols} data={(expiring.items || []).slice(page * PER, (page + 1) * PER)} rowKey={(r) => r.id}
-          empty={loading ? 'Đang tải…' : 'Không có thuốc sắp hết hạn'} />
+          loading={loading} empty="Không có thuốc sắp hết hạn" />
       )}
       {tab === 'low-stock' && (
         <DataTable<LowStockRow> columns={lowStockCols} data={(lowStock.items || []).slice(page * PER, (page + 1) * PER)} rowKey={(r) => r.itemCode}
-          empty={loading ? 'Đang tải…' : 'Không có thuốc tồn thấp'} />
+          loading={loading} empty="Không có thuốc tồn thấp" />
       )}
       {tab === 'locks' && (
         <DataTable<WarehouseLockStatusDto> columns={lockCols} data={locks.slice(page * PER, (page + 1) * PER)} rowKey={(r) => r.warehouseId}

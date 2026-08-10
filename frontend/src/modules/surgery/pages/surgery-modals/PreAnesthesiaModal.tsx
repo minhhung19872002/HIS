@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Input, Select, Spin } from 'antd';
 import { ModalShell, Btn, AbSelect, tk, tw, te } from '@/_v2kit';
 import TermIcon from '../../../../components/layout/terminal/Icon';
+import { friendlyErrorMessage } from '../../../../utils/friendlyError';
 import { anesthesiaApi } from '../../../patient/api/clinicalRecords';
 import { printAnesthesiaForm } from '../../api/surgery';
 import { Section, Row2, ASA_OPTIONS, MALLAMPATI_OPTIONS, ANESTHESIA_TYPE_OPTIONS } from './_shared';
@@ -90,7 +91,9 @@ export const PreAnesthesiaModal: React.FC<PreAnesthesiaModalProps> = ({
         setExistingId(null);
         setForm(EMPTY_PREANEST);
       }
-    } catch {
+    } catch (e) {
+      tw(friendlyErrorMessage(e, 'Không tải được phiếu khám tiền mê'));
+      setExistingId(null);
       setForm(EMPTY_PREANEST);
     } finally {
       setLoading(false);

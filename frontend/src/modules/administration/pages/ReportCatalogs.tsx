@@ -32,14 +32,17 @@ const ReportCatalogsV2: React.FC = () => {
   const [page, setPage] = useState(0);
   const [edit, setEdit] = useState<EditState | null>(null);
   const [editIsNew, setEditIsNew] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => { setSearch(''); setFilterType(''); setPage(0); }, [tab]);
 
   const reload = async (which?: TabKey) => {
+    setLoading(true);
     try {
       if (!which || which === 'types')  setTypes(await api.getReportServiceGroupTypes());
       if (!which || which === 'groups') setGroups(await api.getReportServiceGroups());
     } catch { te('Không tải được danh mục'); }
+    finally { setLoading(false); }
   };
   useEffect(() => { reload(); }, []);
 
@@ -216,6 +219,7 @@ const ReportCatalogsV2: React.FC = () => {
       <DataTable
         columns={cols}
         data={pageData}
+        loading={loading}
         rowKey={(r) => r.id}
         onRowClick={(r) => openDrawer(r)}
         actions={rowAct}

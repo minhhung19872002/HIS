@@ -43,6 +43,7 @@ const ZaloNotificationsV2: React.FC = () => {
 
 const ZnsLogsPanel: React.FC = () => {
   const [rows, setRows] = useState<ZaloNotificationLogDto[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [fStatus, setFStatus] = useState('');
   const [from, setFrom] = useState('');
@@ -56,6 +57,7 @@ const ZnsLogsPanel: React.FC = () => {
   };
 
   const load = useCallback(async () => {
+    setLoading(true);
     try {
       setRows(await zalo.search({
         pageSize: 200,
@@ -64,6 +66,7 @@ const ZnsLogsPanel: React.FC = () => {
       }));
     }
     catch { te('Không tải được'); }
+    finally { setLoading(false); }
   }, [from, to]);
   useEffect(() => { load(); }, [load]);
 
@@ -116,13 +119,13 @@ const ZnsLogsPanel: React.FC = () => {
         <input type="date" style={SEL_DATE} value={from} onChange={e => setFrom(e.target.value)} title="Từ ngày" />
         <input type="date" style={SEL_DATE} value={to}   onChange={e => setTo(e.target.value)}   title="Đến ngày" />
         <span className="spacer" />
-        <Btn icon="refresh" onClick={load} title="Tải lại" />
+        <Btn icon="refresh" onClick={load} loading={loading} title="Tải lại" />
         <Btn variant="primary" onClick={() => setSendOpen(true)}>
           <TermIcon name="external" size={12} /> Gửi thử
         </Btn>
       </div>
       <DataTable<ZaloNotificationLogDto>
-        rowKey={(r) => r.id} data={filtered} columns={columns}
+        rowKey={(r) => r.id} data={filtered} columns={columns} loading={loading}
         onRowClick={setDetail}
       />
       <ZnsSendModal open={sendOpen} onClose={() => setSendOpen(false)} onSent={load} />

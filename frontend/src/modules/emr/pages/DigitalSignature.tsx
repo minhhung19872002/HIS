@@ -62,6 +62,7 @@ const DigitalSignatureV2: React.FC = () => {
   const [certs, setCerts] = useState<CertificateInfo[]>([]);
   const [session, setSession] = useState<SessionStatusResponse | null>(null);
   const [pending, setPending] = useState<PendingDocument[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [fType, setFType] = useState('');
   const [page, setPage] = useState(0);
@@ -74,6 +75,7 @@ const DigitalSignatureV2: React.FC = () => {
   const isActive = !!session?.active;
 
   const fetchData = useCallback(async () => {
+    setLoading(true);
     try {
       const [tk, ct, ss, pd] = await Promise.allSettled([
         dsApi.getTokens(),
@@ -96,6 +98,7 @@ const DigitalSignatureV2: React.FC = () => {
         }));
       }
     } catch { ti('Không thể tải thông tin chữ ký số'); }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -303,8 +306,8 @@ const DigitalSignatureV2: React.FC = () => {
               <Ico name="x" size={12} /> Đóng phiên
             </Btn>
           )}
-          <Btn variant="ghost" onClick={fetchData}>
-            <Ico name="refresh" size={12} /> Làm mới
+          <Btn variant="ghost" onClick={fetchData} loading={loading} icon="refresh">
+            Làm mới
           </Btn>
         </>
       } />
@@ -343,6 +346,7 @@ const DigitalSignatureV2: React.FC = () => {
               <ActBtn ic="check" title="Ký qua phiên server (on-prem)" onClick={() => signSingle(r)} />
             </div>
           )}
+          loading={loading}
           empty={'Không có tài liệu chờ ký'}
         />
         <Pager page={page} setPage={setPage} totalPages={totalPages} total={filteredPending.length} perPage={PER} />
@@ -359,6 +363,7 @@ const DigitalSignatureV2: React.FC = () => {
               }} />
             </div>
           )}
+          loading={loading}
           empty={'Chưa có USB Token'}
         />
       )}
@@ -366,6 +371,7 @@ const DigitalSignatureV2: React.FC = () => {
       {tab === 'certs' && (
         <DataTable<CertificateInfo>
           columns={certCols} data={certs} rowKey={(r) => r.thumbprint}
+          loading={loading}
           empty={'Chưa có chứng chỉ'}
         />
       )}

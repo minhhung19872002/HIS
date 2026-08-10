@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Input, Spin } from 'antd';
 import { ModalShell, Btn, AbSelect, tk, tw, te } from '@/_v2kit';
 import TermIcon from '../../../../components/layout/terminal/Icon';
+import { friendlyErrorMessage } from '../../../../utils/friendlyError';
 import {
   getSurgeryConsents,
   saveSurgeryConsent,
@@ -105,7 +106,8 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
           signerRelationship: first.signerRelationship ?? 'BN',
         });
       }
-    } catch {
+    } catch (e) {
+      tw(friendlyErrorMessage(e, 'Không tải được danh sách cam đoan PTTT'));
       setConsents([]);
     } finally {
       setLoading(false);

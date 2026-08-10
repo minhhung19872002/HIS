@@ -325,7 +325,8 @@ const ReproductiveHealthV2: React.FC = () => {
 
           <DataTable<PrenatalRecord>
             columns={prenatalColumns}
-            data={prenatalLoading ? [] : prenatalDisplay}
+            data={prenatalDisplay}
+            loading={prenatalLoading}
             rowKey={(r) => r.id}
             onRowClick={(r) => setPrenatalSel(r)}
             actions={(r) => (
@@ -460,7 +461,8 @@ const ReproductiveHealthV2: React.FC = () => {
 
           <DataTable<FamilyPlanningRecord>
             columns={fpColumns}
-            data={fpLoading ? [] : fpDisplay}
+            data={fpDisplay}
+            loading={fpLoading}
             rowKey={(r) => r.id}
             onRowClick={(r) => setFpSel(r)}
             actions={(r) => (

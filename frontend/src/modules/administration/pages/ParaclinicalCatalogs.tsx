@@ -36,15 +36,18 @@ const ParaclinicalCatalogsV2: React.FC = () => {
   const [page, setPage] = useState(0);
   const [edit, setEdit] = useState<EditState | null>(null);
   const [editIsNew, setEditIsNew] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => { setSearch(''); setFilterMfr(''); setFilterMachine(''); setPage(0); }, [tab]);
 
   const reload = async (which?: TabKey) => {
+    setLoading(true);
     try {
       if (!which || which === 'machines') setMachines(await api.getMachineCodes());
       if (!which || which === 'svc')      setMsvc(await api.getMachineServices());
       if (!which || which === 'rooms')    setRooms(await api.getParaclinicalRoomPriorities());
     } catch { te('Không tải được danh mục'); }
+    finally { setLoading(false); }
   };
   useEffect(() => { reload(); }, []);
 
@@ -287,6 +290,7 @@ const ParaclinicalCatalogsV2: React.FC = () => {
         rowKey={(r) => r.id}
         onRowClick={(r) => openDrawer(r)}
         actions={rowAct}
+        loading={loading}
         empty={search ? 'Không khớp từ khoá.' : 'Chưa có dữ liệu.'}
       />
       <Pager page={page} totalPages={totalPages} setPage={setPage} total={filtered.length} perPage={PER} />

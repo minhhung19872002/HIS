@@ -76,14 +76,17 @@ const ProvincialHealthV2: React.FC = () => {
   const [dirStatus, setDirStatus]   = useState<number | undefined>(undefined);
   const [editDir, setEditDir]       = useState<EditDirective | null>(null);
   const [saving, setSaving]         = useState(false);
+  const [dirLoading, setDirLoading] = useState(true);
 
   // ── Reports state ──────────────────────────────────────────────────────────
   const [reports, setReports] = useState<ProvincialReportDto[]>([]);
   const [rptTotal, setRptTotal] = useState(0);
   const [rptPage, setRptPage]   = useState(0);
+  const [rptLoading, setRptLoading] = useState(true);
 
   // ── Load data ──────────────────────────────────────────────────────────────
   const loadDirectives = useCallback(async () => {
+    setDirLoading(true);
     try {
       const res = await searchDirectives({
         keyword: dirSearch || undefined,
@@ -94,14 +97,17 @@ const ProvincialHealthV2: React.FC = () => {
       setDirectives(res.items);
       setDirTotal(res.totalCount);
     } catch { te('Không tải được danh sách chỉ đạo tuyến'); }
+    finally { setDirLoading(false); }
   }, [dirSearch, dirStatus, dirPage]);
 
   const loadReports = useCallback(async () => {
+    setRptLoading(true);
     try {
       const res = await searchProvincialReports({ pageIndex: rptPage, pageSize: PER });
       setReports(res.items);
       setRptTotal(res.totalCount);
     } catch { te('Không tải được danh sách báo cáo'); }
+    finally { setRptLoading(false); }
   }, [rptPage]);
 
   useEffect(() => { if (tab === 'directives') void loadDirectives(); }, [tab, loadDirectives]);
@@ -233,6 +239,7 @@ const ProvincialHealthV2: React.FC = () => {
           <DataTable<ProvincialDirectiveDto>
             columns={colsDir}
             data={directives}
+            loading={dirLoading}
             rowKey={r => r.id}
             onRowClick={onRowClickDir}
             actions={r => (
@@ -255,6 +262,7 @@ const ProvincialHealthV2: React.FC = () => {
           <DataTable<ProvincialReportDto>
             columns={colsRpt}
             data={reports}
+            loading={rptLoading}
             rowKey={r => r.id}
           />
           <Pager

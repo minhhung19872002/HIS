@@ -24,10 +24,11 @@ import { getAssets, type FixedAssetDto } from '../api/assetManagement';
 import { catalogApi, type DepartmentCatalogDto } from '../../system/api/system/catalog';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager,
-  ActBtn, Btn, DrawerShell, DrSec, DrField, StatusBadge,
+  Btn, DrawerShell, DrSec, DrField, StatusBadge,
   tk, te, cf,
   type ColumnDef, type StatusTab, type TopTab,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -209,14 +210,21 @@ const ProcurementRequestsV2: React.FC = () => {
   // ── Row actions ───────────────────────────────────────────────────────────
 
   const rowActions = (r: AssetProcurementRequestDto) => (
-    <>
-      {r.status === 0 && <ActBtn ic="edit-2"      title="Sửa"          onClick={() => openEdit(r)} />}
-      {r.status === 0 && <ActBtn ic="send"         title="Trình duyệt"  onClick={() => handleSubmit(r)} />}
-      {r.status === 1 && <ActBtn ic="check"        title="Duyệt"        onClick={() => handleApprove(r)} />}
-      {r.status === 1 && <ActBtn ic="x"            title="Từ chối"      tone="crit" onClick={() => { setRejectTarget(r); setRejectNote(''); }} />}
-      {r.status === 2 && <ActBtn ic="check-circle" title="Hoàn tất"     onClick={() => handleComplete(r)} />}
-      {r.status === 0 && <ActBtn ic="trash-2"      title="Xóa"          tone="crit" onClick={() => handleDelete(r)} />}
-    </>
+    <RowActions actions={[
+      { key: 'edit', icon: 'edit', label: 'Sửa', primary: true, hidden: r.status !== 0,
+        onClick: () => openEdit(r) },
+      { key: 'submit', icon: 'send', label: 'Trình duyệt', primary: true, hidden: r.status !== 0,
+        onClick: () => handleSubmit(r) },
+      { key: 'approve', icon: 'check', label: 'Duyệt', primary: true, hidden: r.status !== 1,
+        onClick: () => handleApprove(r) },
+      { key: 'reject', icon: 'x', label: 'Từ chối', tone: 'danger', confirm: false, hidden: r.status !== 1,
+        onClick: () => { setRejectTarget(r); setRejectNote(''); } },
+      { key: 'complete', icon: 'check', label: 'Hoàn tất', primary: true, hidden: r.status !== 2,
+        onClick: () => handleComplete(r) },
+      { key: 'del', icon: 'trash', label: 'Xóa', tone: 'danger', hidden: r.status !== 0,
+        confirm: `Xóa phiếu "${r.requestNo}"? Thao tác không thể hoàn tác.`,
+        onClick: () => handleDelete(r) },
+    ]} />
   );
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -250,13 +258,11 @@ const ProcurementRequestsV2: React.FC = () => {
     } finally { setSaving(false); }
   };
 
-  const handleDelete = (r: AssetProcurementRequestDto) => {
-    cf(`Xóa phiếu "${r.requestNo}"?`, async () => {
-      try {
-        await deleteAssetProcurementRequest(r.id);
-        tk('Đã xóa'); void reload();
-      } catch { te('Xóa thất bại'); }
-    });
+  const handleDelete = async (r: AssetProcurementRequestDto) => {
+    try {
+      await deleteAssetProcurementRequest(r.id);
+      tk('Đã xóa'); void reload();
+    } catch { te('Xóa thất bại'); }
   };
 
   const handleSubmit = (r: AssetProcurementRequestDto) => {

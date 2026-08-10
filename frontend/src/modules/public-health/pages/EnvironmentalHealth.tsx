@@ -240,9 +240,7 @@ const EnvironmentalHealthV2: React.FC = () => {
             <Ico name="x" size={12} /> Bỏ lọc
           </Btn>
           <span className="spacer" />
-          <Btn variant="ghost" onClick={load}>
-            <Ico name="refresh" size={12} /> Làm mới
-          </Btn>
+          <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
           <Btn variant="ghost" onClick={() => { setMonitorOpen(true); loadMonitorings(); }}>
             <Ico name="activity" size={12} /> Quan trắc
           </Btn>
@@ -255,8 +253,9 @@ const EnvironmentalHealthV2: React.FC = () => {
 
         <DataTable<WasteRecord>
           columns={cols} data={paged} rowKey={(r) => r.id}
+          loading={loading}
           onRowClick={setSel} actions={actions}
-          empty={loading ? 'Đang tải…' : 'Chưa có phiếu chất thải'}
+          empty="Chưa có phiếu chất thải"
         />
         <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
       </>}

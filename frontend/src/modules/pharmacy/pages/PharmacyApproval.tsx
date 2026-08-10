@@ -348,9 +348,7 @@ const PharmacyApprovalV2: React.FC = () => {
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={refresh}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <Btn variant="ghost" onClick={refresh} loading={loading} icon="refresh">Làm mới</Btn>
         {expiring.length > 0 && (
           <Btn variant="ghost" onClick={() => setShowExpiring(true)}>
             <Ico name="alert" size={12} /> Cảnh báo HSD ({expiring.length})
@@ -368,7 +366,8 @@ const PharmacyApprovalV2: React.FC = () => {
         columns={cols} data={items} rowKey={(r) => r.id}
         onRowClick={async (r) => setDetail(await getApprovalById(r.id))}
         actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có phiếu phê duyệt'}
+        loading={loading}
+        empty="Chưa có phiếu phê duyệt"
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={total} perPage={20} />
 

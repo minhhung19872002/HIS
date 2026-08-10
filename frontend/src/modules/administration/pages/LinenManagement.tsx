@@ -54,7 +54,7 @@ const LinenManagementV2: React.FC = () => {
 // ────────────────────────── Items ──────────────────────────
 
 const LinenItemsPanel: React.FC = () => {
-  const { rows: items } = useListData<LinenItemDto>(
+  const { rows: items, loading } = useListData<LinenItemDto>(
     useCallback(() => linen.listItems({}), []),
     useCallback(() => te('Không tải được'), []),
   );
@@ -91,7 +91,7 @@ const LinenItemsPanel: React.FC = () => {
   return (
     <>
       <KpiStrip items={kpis} />
-      <DataTable<LinenItemDto> rowKey={(r) => r.id} data={items} columns={columns} onRowClick={setSel} />
+      <DataTable<LinenItemDto> rowKey={(r) => r.id} data={items} columns={columns} onRowClick={setSel} loading={loading} />
 
       <DrawerShell
         open={!!sel}
@@ -130,7 +130,7 @@ const LinenItemsPanel: React.FC = () => {
 // ────────────────────────── Transactions ──────────────────────────
 
 const LinenTxPanel: React.FC = () => {
-  const { rows, reload } = useListData<LinenTransactionDto>(
+  const { rows, loading, reload } = useListData<LinenTransactionDto>(
     useCallback(() => linen.searchTransactions({ pageSize: 200 }), []),
     useCallback(() => te('Không tải được'), []),
   );
@@ -167,7 +167,7 @@ const LinenTxPanel: React.FC = () => {
     <>
       <KpiStrip items={kpis} />
       <DataTable<LinenTransactionDto>
-        rowKey={(r) => r.id} data={rows} columns={columns} onRowClick={setSel}
+        rowKey={(r) => r.id} data={rows} columns={columns} onRowClick={setSel} loading={loading}
         actions={(r) => (
           <>
             {r.status === 0 && <ActBtn ic="external" title="Đánh dấu đã gửi" onClick={() => advance(r, 1)} />}
@@ -211,7 +211,7 @@ const LinenTxPanel: React.FC = () => {
 // ────────────────────────── Sterilization ──────────────────────────
 
 const LinenSterPanel: React.FC = () => {
-  const { rows, reload } = useListData<SterilizationScheduleDto>(
+  const { rows, loading, reload } = useListData<SterilizationScheduleDto>(
     useCallback(() => linen.searchSchedules({}), []),
     useCallback(() => te('Không tải được'), []),
   );
@@ -251,7 +251,7 @@ const LinenSterPanel: React.FC = () => {
     <>
       <KpiStrip items={kpis} />
       <DataTable<SterilizationScheduleDto>
-        rowKey={(r) => r.id} data={rows} columns={columns} onRowClick={setSel}
+        rowKey={(r) => r.id} data={rows} columns={columns} onRowClick={setSel} loading={loading}
         actions={(r) => (
           <>
             {r.status === 0 && <ActBtn ic="external" title="Bắt đầu" onClick={() => advance(r, 1)} />}

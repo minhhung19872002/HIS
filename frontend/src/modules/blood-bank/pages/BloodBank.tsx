@@ -340,8 +340,8 @@ const BloodBankV2: React.FC = () => {
         tabs={TOP_TABS}
         actions={
           <>
-            <Btn variant="ghost" onClick={reload}>
-              <TermIcon name="refresh" size={12} /> Làm mới
+            <Btn variant="ghost" onClick={reload} loading={loading} icon="refresh">
+              Làm mới
             </Btn>
             <Btn variant="ghost" onClick={() => setReceiveOpen(true)}>
               <TermIcon name="plus" size={12} /> Nhận máu
@@ -409,7 +409,8 @@ const BloodBankV2: React.FC = () => {
             data={unitsPaged}
             rowKey={(u) => u.bloodBagId}
             onRowClick={setUnitSel}
-            empty={loading ? 'Đang tải…' : <div className="ab-empty"><TermIcon name="drop" size={20} /><div>Không có đơn vị máu</div></div>}
+            loading={loading}
+            empty={<div className="ab-empty"><TermIcon name="drop" size={20} /><div>Không có đơn vị máu</div></div>}
           />
         </>
       )}
@@ -699,6 +700,7 @@ const ExpiringTab: React.FC<{
       data={rows}
       rowKey={(b) => b.bloodBagId}
       onRowClick={setSel}
+      loading={loading}
       actions={(b) => (
         <div className="ab-actions">
           {/* Máu quá hạn TUYỆT ĐỐI không cấp phát → chỉ hiện nút Tiêu huỷ */}
@@ -709,7 +711,7 @@ const ExpiringTab: React.FC<{
             onClick={() => { setDiscardReason(''); setActionBag({ bag: b, type: 'discard' }); }} />
         </div>
       )}
-      empty={loading ? 'Đang tải…' : (
+      empty={(
         <div className="ab-empty">
           <TermIcon name="check" size={20} />
           <div>{isExpired ? 'Không có túi máu nào quá hạn' : 'Không có túi máu nào sắp hết hạn'}</div>
@@ -924,7 +926,8 @@ const RequestsTab: React.FC<{
       data={rows}
       rowKey={(r) => r.id}
       onRowClick={(r) => setSel(r)}
-      empty={loading ? 'Đang tải…' : (
+      loading={loading}
+      empty={(
         <div className="ab-empty">
           <TermIcon name="search" size={20} />
           <div>Chưa có yêu cầu xuất máu</div>
@@ -1119,7 +1122,8 @@ const GelcardTab: React.FC<{
         columns={columns}
         data={rows}
         rowKey={(u) => u.bloodBagId}
-        empty={loading ? 'Đang tải…' : (
+        loading={loading}
+        empty={(
           <div className="ab-empty">
             <TermIcon name="flask" size={20} />
             <div>Không có đơn vị máu để thử Gelcard</div>

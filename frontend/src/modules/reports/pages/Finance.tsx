@@ -15,6 +15,7 @@ import {
   DrawerShell, DrSec, DrField, fmtVNDg, tk, ti, te, Ico,
   type ColumnDef, type TopTab,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 type Row = RevenueByServiceDto & { id: string };
 type DeptRow = RevenueByExecutingDeptDto & { id: string };
@@ -298,7 +299,7 @@ const FinanceV2: React.FC = () => {
       {tab === 'reports' && (
         <div style={{ padding: 'var(--space-14)', display: 'grid', gap: 'var(--space-12)', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
           <RptCard title="Chi phí theo khoa" desc="Thuốc · Vật tư · Nhân sự · Tiện ích" loading={rpLoading === 'cost'}
-            onLoad={async () => { setRpLoading('cost'); try { const r = await financeApi.getCostByDepartment(reportFrom, reportTo); setRpCost((r.data || []) as CostByDepartmentDto[]); } finally { setRpLoading(null); } }}
+            onLoad={async () => { setRpLoading('cost'); try { const r = await financeApi.getCostByDepartment(reportFrom, reportTo); setRpCost((r.data || []) as CostByDepartmentDto[]); } catch (e) { te(friendlyErrorMessage(e, 'Không tải được báo cáo chi phí theo khoa')); } finally { setRpLoading(null); } }}
             hasData={!!rpCost}
             content={rpCost ? (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -318,7 +319,7 @@ const FinanceV2: React.FC = () => {
             ) : null}
           />
           <RptCard title="Đối soát BHYT" desc="QĐ 6556/BYT · Chênh lệch quyết toán" loading={rpLoading === 'ins'}
-            onLoad={async () => { setRpLoading('ins'); try { const r = await financeApi.getInsuranceReconciliation(reportFrom, reportTo); setRpInsurance(r.data as InsuranceReconciliationDto); } finally { setRpLoading(null); } }}
+            onLoad={async () => { setRpLoading('ins'); try { const r = await financeApi.getInsuranceReconciliation(reportFrom, reportTo); setRpInsurance(r.data as InsuranceReconciliationDto); } catch (e) { te(friendlyErrorMessage(e, 'Không tải được báo cáo đối soát BHYT')); } finally { setRpLoading(null); } }}
             hasData={!!rpInsurance}
             content={rpInsurance ? (
               <div style={{ fontSize: 12 }}>
@@ -344,7 +345,7 @@ const FinanceV2: React.FC = () => {
             ) : null}
           />
           <RptCard title="Lợi nhuận phẫu thuật" desc="Doanh thu · Chi phí · Biên LN từng loại mổ" loading={rpLoading === 'surg'}
-            onLoad={async () => { setRpLoading('surg'); try { const r = await financeApi.getSurgeryProfitReport(reportFrom, reportTo); setRpSurgery((r.data || []) as SurgeryProfitReportDto[]); } finally { setRpLoading(null); } }}
+            onLoad={async () => { setRpLoading('surg'); try { const r = await financeApi.getSurgeryProfitReport(reportFrom, reportTo); setRpSurgery((r.data || []) as SurgeryProfitReportDto[]); } catch (e) { te(friendlyErrorMessage(e, 'Không tải được báo cáo lợi nhuận phẫu thuật')); } finally { setRpLoading(null); } }}
             hasData={!!rpSurgery}
             content={rpSurgery ? (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -364,7 +365,7 @@ const FinanceV2: React.FC = () => {
             ) : null}
           />
           <RptCard title="Tổng hợp thu chi" desc="Doanh thu · Chi phí · Lợi nhuận ròng" loading={rpLoading === 'sum'}
-            onLoad={async () => { setRpLoading('sum'); try { const r = await financeApi.getFinancialSummary(reportFrom, reportTo); setRpSummary(r.data as FinancialSummaryReportDto); } finally { setRpLoading(null); } }}
+            onLoad={async () => { setRpLoading('sum'); try { const r = await financeApi.getFinancialSummary(reportFrom, reportTo); setRpSummary(r.data as FinancialSummaryReportDto); } catch (e) { te(friendlyErrorMessage(e, 'Không tải được báo cáo tổng hợp thu chi')); } finally { setRpLoading(null); } }}
             hasData={!!rpSummary}
             content={rpSummary ? (
               <div style={{ fontSize: 12 }}>

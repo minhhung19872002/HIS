@@ -71,6 +71,7 @@ const SigningWorkflowV2: React.FC = () => {
   const [fDocType, setFDocType] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [batchApproving, setBatchApproving] = useState(false);
+  const [approving, setApproving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -88,7 +89,7 @@ const SigningWorkflowV2: React.FC = () => {
       }
       const s = await getSigningStats().catch(() => null);
       setStats(s);
-    } catch { setItems([]); }
+    } catch { tw('Không tải được danh sách yêu cầu trình ký'); setItems([]); }
     finally { setLoading(false); }
   }, [tab, fSignerRole, fDocType, debouncedKeyword]);
   useEffect(() => { load(); }, [load]);
@@ -180,9 +181,15 @@ const SigningWorkflowV2: React.FC = () => {
   ];
 
   const doApprove = async (id: string) => {
-    const r = await approveSigningRequest(id);
-    if (r) { tk('Đã ký duyệt'); setDetail(null); void load(); }
-    else te('Không thể ký duyệt');
+    if (approving) return; // chặn double-click gọi approveSigningRequest 2 lần
+    setApproving(true);
+    try {
+      const r = await approveSigningRequest(id);
+      if (r) { tk('Đã ký duyệt'); setDetail(null); void load(); }
+      else te('Không thể ký duyệt');
+    } finally {
+      setApproving(false);
+    }
   };
   const doReject = async (id: string) => {
     const reason = window.prompt('Lý do từ chối:');
@@ -373,8 +380,17 @@ const SigningWorkflowV2: React.FC = () => {
             <div style={{ display: 'flex', gap: 'var(--space-8)', padding: '12px 0', justifyContent: 'flex-end' }}>
               {tab === 'pending' && detail.status === 0 && (
                 <>
-                  <Btn variant="ghost" onClick={() => void doReject(detail.id)}><Ico name="x" size={12} /> Từ chối</Btn>
-                  <Btn variant="primary" onClick={() => void doApprove(detail.id)}><Ico name="check" size={12} /> Ký duyệt</Btn>
+                  <Btn variant="ghost" disabled={approving} onClick={() => void doReject(detail.id)}><Ico name="x" size={12} /> Từ chối</Btn>
+                  <Btn
+                    variant="primary" disabled={approving}
+                    onClick={() => cf(
+                      `Ký duyệt "${detail.documentTitle}"? Tài liệu sẽ được xác nhận đã ký.`,
+                      () => void doApprove(detail.id),
+                      { confirm: 'Ký duyệt' },
+                    )}
+                  >
+                    <Ico name="check" size={12} /> {approving ? 'Đang ký…' : 'Ký duyệt'}
+                  </Btn>
                 </>
               )}
               {tab === 'submitted' && (detail.status === 0 || detail.status === 4) && (

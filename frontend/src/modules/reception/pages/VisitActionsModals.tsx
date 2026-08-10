@@ -15,8 +15,9 @@ import type { DocumentHoldDto, PatientPhotoDto, CostEstimationResultDto } from '
 import { estimateCostDirect } from '../api/reception';
 import { searchServices } from '../../opd/api/examination';
 import type { ServiceDto } from '../../opd/api/examination';
-import { ModalShell } from '@/_v2kit';
+import { ModalShell, cf } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ─── Shared helpers ──────────────────────────────────────────────────────────
 
@@ -221,12 +222,13 @@ export const DocumentHoldModal: React.FC<DocumentHoldModalProps> = ({
       // DocumentHoldSearchDto does not have medicalRecordId; filter by patientId only.
       const res = await receptionApi.searchDocumentHolds({ patientId, status: 0 });
       setHeldDocs(res.data?.items || []);
-    } catch {
+    } catch (e) {
+      message.warning(friendlyErrorMessage(e, 'Không tải được danh sách giấy tờ đang giữ.'));
       setHeldDocs([]);
     } finally {
       setLoadingDocs(false);
     }
-  }, [patientId, medicalRecordId]);
+  }, [patientId, medicalRecordId, message]);
 
   useEffect(() => {
     if (open) {
@@ -421,12 +423,13 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     try {
       const res = await receptionApi.getPatientPhotos(patientId, medicalRecordId);
       setPhotos(res.data || []);
-    } catch {
+    } catch (e) {
+      message.warning(friendlyErrorMessage(e, 'Không tải được danh sách ảnh.'));
       setPhotos([]);
     } finally {
       setLoadingPhotos(false);
     }
-  }, [patientId, medicalRecordId]);
+  }, [patientId, medicalRecordId, message]);
 
   useEffect(() => {
     if (open) {
@@ -556,7 +559,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
               </div>
               <button
                 type="button"
-                onClick={() => deletePhoto(p.id)}
+                onClick={() => cf('Xoá ảnh này? Thao tác không thể hoàn tác.', () => deletePhoto(p.id), { tone: 'crit', confirm: 'Xoá' })}
                 style={{
                   position: 'absolute', top: 3, right: 3,
                   background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: 'var(--r-1)',
@@ -695,7 +698,8 @@ export const ServiceOrderModal: React.FC<ServiceOrderModalProps> = ({
     try {
       const res = await estimateCostDirect({ serviceIds, patientType: estPatientType, insuranceCoverageRate: estCoverage });
       setEstResult(res.data ?? null);
-    } catch {
+    } catch (e) {
+      message.error(friendlyErrorMessage(e, 'Dự toán viện phí thất bại. Vui lòng thử lại.'));
       setEstResult(null);
     } finally {
       setEstLoading(false);
@@ -800,7 +804,11 @@ export const ServiceOrderModal: React.FC<ServiceOrderModalProps> = ({
                 style={{ width: 48, padding: '3px 6px', border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', textAlign: 'center' }}
               />
               {rows.length > 1 && (
-                <button type="button" className="ab-iconbtn" style={{ color: 'var(--s-crit)' }} onClick={() => removeRow(row.key)}>
+                <button
+                  type="button" className="ab-iconbtn" style={{ color: 'var(--s-crit)' }}
+                  title="Xoá dòng dịch vụ" aria-label="Xoá dòng dịch vụ"
+                  onClick={() => removeRow(row.key)}
+                >
                   <TermIcon name="x" size={11} />
                 </button>
               )}

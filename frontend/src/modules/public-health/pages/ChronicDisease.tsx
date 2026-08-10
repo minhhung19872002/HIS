@@ -272,7 +272,7 @@ const ChronicDiseaseV2: React.FC = () => {
           Thêm hồ sơ
         </Btn>
         <Btn variant="ghost" icon="printer" onClick={() => window.print()}>In DS</Btn>
-        <Btn variant="ghost" icon="refresh" onClick={() => { void load(); }}>Làm mới</Btn>
+        <Btn variant="ghost" icon="refresh" loading={loading} onClick={() => { void load(); }}>Làm mới</Btn>
       </div>
 
       <StatusTabs<TabKey>
@@ -286,9 +286,10 @@ const ChronicDiseaseV2: React.FC = () => {
         columns={columns}
         data={rows}
         rowKey={(r) => r.id}
+        loading={loading}
         onRowClick={openDetail}
         actions={rowActions}
-        empty={loading ? 'Đang tải…' : 'Không có hồ sơ bệnh mạn tính'}
+        empty="Không có hồ sơ bệnh mạn tính"
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={total} perPage={PER} />
 

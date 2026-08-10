@@ -237,7 +237,7 @@ const ImmunizationV2: React.FC = () => {
         tab={tab}
         setTab={setTab}
         tabs={TABS}
-        actions={<Btn icon="refresh" onClick={tab === 'vaccinations' ? loadVax : tab === 'aefi' ? loadAefi : loadCamp} />}
+        actions={<Btn icon="refresh" loading={tab === 'vaccinations' ? vaxLoad : tab === 'aefi' ? aefiLoad : campLoad} onClick={tab === 'vaccinations' ? loadVax : tab === 'aefi' ? loadAefi : loadCamp} />}
       />
       <div style={{ paddingTop: 12 }}>
 
@@ -316,7 +316,8 @@ const ImmunizationV2: React.FC = () => {
               columns={campCols}
               data={campFiltered}
               rowKey={(r) => r.id}
-              empty={campLoad ? 'Đang tải…' : 'Chưa có chiến dịch tiêm chủng'}
+              loading={campLoad}
+              empty={'Chưa có chiến dịch tiêm chủng'}
             />
           </div>
         )}
@@ -333,7 +334,8 @@ const ImmunizationV2: React.FC = () => {
               data={aefiPaged}
               rowKey={(r) => r.id}
               onRowClick={setAefiSel}
-              empty={aefiLoad ? 'Đang tải…' : 'Không có báo cáo AEFI'}
+              loading={aefiLoad}
+              empty={'Không có báo cáo AEFI'}
             />
             <Pager
               page={aefiPage}

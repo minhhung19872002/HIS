@@ -49,13 +49,16 @@ const AdministrativeUnitsV2: React.FC = () => {
   const [page, setPage] = useState(0);
   const [edit, setEdit] = useState<EditState | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
+    setLoading(true);
     try {
       if (tab === 'province') setProvinces(await getProvinces());
       if (tab === 'district') setDistricts(await getDistricts(filterProvince || undefined));
       if (tab === 'ward')     setWards(await getWards(filterDistrict || undefined));
     } catch { te('Không tải được danh mục'); }
+    finally { setLoading(false); }
   }, [tab, filterProvince, filterDistrict]);
 
   useEffect(() => { setSearch(''); setPage(0); }, [tab, filterProvince, filterDistrict]);
@@ -207,6 +210,7 @@ const AdministrativeUnitsV2: React.FC = () => {
       <DataTable<ProvinceDto | DistrictDto | WardDto>
         columns={activeColumns as ColumnDef<ProvinceDto | DistrictDto | WardDto>[]}
         data={paged}
+        loading={loading}
         rowKey={r => r.id}
         onRowClick={onRowClick}
         actions={row => (

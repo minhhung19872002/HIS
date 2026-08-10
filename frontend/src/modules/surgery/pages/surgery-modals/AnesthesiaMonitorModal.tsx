@@ -7,6 +7,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { InputNumber, Spin } from 'antd';
 import { ModalShell, Btn, tk, tw, te } from '@/_v2kit';
 import TermIcon from '../../../../components/layout/terminal/Icon';
+import { RowActions } from '../../../../components/actions';
+import { friendlyErrorMessage } from '../../../../utils/friendlyError';
 import { anesthesiaApi } from '../../../patient/api/clinicalRecords';
 import {
   printAnesthesiaMonitor,
@@ -98,7 +100,9 @@ export const AnesthesiaMonitorModal: React.FC<AnesthesiaMonitorModalProps> = ({
         setMonitors([{ ...EMPTY_MONITOR }]);
         setDrugs([]);
       }
-    } catch {
+    } catch (e) {
+      tw(friendlyErrorMessage(e, 'Không tải được phiếu theo dõi gây mê'));
+      setExistingId(null);
       setMonitors([{ ...EMPTY_MONITOR }]);
       setDrugs([]);
     } finally {
@@ -264,9 +268,11 @@ export const AnesthesiaMonitorModal: React.FC<AnesthesiaMonitorModalProps> = ({
                         />
                       </td>
                       <td style={{ padding: '3px 4px' }}>
-                        <Btn variant="crit" size="sm" onClick={() => removeMonitor(i)}>
-                          <TermIcon name="x" size={10} />
-                        </Btn>
+                        <RowActions actions={[
+                          { key: 'del', icon: 'trash', label: 'Xóa dòng theo dõi', tone: 'danger',
+                            confirm: `Xóa dòng theo dõi lúc ${m.monitorTime || 'này'}?`,
+                            onClick: () => removeMonitor(i) },
+                        ]} />
                       </td>
                     </tr>
                   ))}
@@ -309,9 +315,11 @@ export const AnesthesiaMonitorModal: React.FC<AnesthesiaMonitorModalProps> = ({
                   onChange={(e) => setDrugField(i, 'route', e.target.value)}
                   placeholder="Đường dùng"
                 />
-                <Btn variant="crit" size="sm" onClick={() => removeDrug(i)}>
-                  <TermIcon name="x" size={10} />
-                </Btn>
+                <RowActions actions={[
+                  { key: 'del', icon: 'trash', label: 'Xóa thuốc', tone: 'danger',
+                    confirm: `Xóa thuốc ${d.drugName || 'này'}?`,
+                    onClick: () => removeDrug(i) },
+                ]} />
               </div>
             ))}
             <Btn variant="ghost" size="sm" onClick={addDrug}>

@@ -294,7 +294,7 @@ const FoodSafetyV2: React.FC = () => {
             <Filter value={fSev} onChange={setFSev} options={sevOpts} placeholder="▾ Mức độ" />
             <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFLoc(''); setFSev(''); setStab('all'); }}>Bỏ lọc</Btn>
             <span className="spacer" />
-            <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+            <Btn variant="ghost" icon="refresh" loading={loading} onClick={load}>Làm mới</Btn>
             <Btn variant="primary" icon="plus" onClick={openCreate}>Báo cáo vụ</Btn>
           </div>
 
@@ -302,8 +302,9 @@ const FoodSafetyV2: React.FC = () => {
 
           <DataTable<FoodSafetyIncident>
             columns={cols} data={paged} rowKey={(r) => r.id}
+            loading={loading}
             onRowClick={setSel} actions={actions}
-            empty={loading ? 'Đang tải…' : 'Chưa có vụ ngộ độc'}
+            empty="Chưa có vụ ngộ độc"
           />
           <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 
@@ -389,14 +390,15 @@ const FoodSafetyV2: React.FC = () => {
             <Filter value={fFacType} onChange={setFFacType} options={inspFacTypes} placeholder="▾ Loại cơ sở" />
             <Btn variant="ghost" icon="x" onClick={() => { setInspSearch(''); setFCompliance(''); setFFacType(''); setInspPage(0); }}>Bỏ lọc</Btn>
             <span className="spacer" />
-            <Btn variant="ghost" icon="refresh" onClick={loadInspections}>Làm mới</Btn>
+            <Btn variant="ghost" icon="refresh" loading={inspLoading} onClick={loadInspections}>Làm mới</Btn>
             <Btn variant="primary" icon="plus" onClick={inspOpenCreate}>Kiểm tra mới</Btn>
           </div>
 
           <DataTable<FoodInspection>
             columns={inspCols} data={inspPaged} rowKey={(r) => r.id}
+            loading={inspLoading}
             onRowClick={setInspSel} actions={inspActions}
-            empty={inspLoading ? 'Đang tải…' : 'Chưa có cuộc thanh kiểm'}
+            empty="Chưa có cuộc thanh kiểm"
           />
           <Pager page={inspPage} setPage={setInspPage} totalPages={inspTotalPages} total={inspFiltered.length} perPage={PER} />
 

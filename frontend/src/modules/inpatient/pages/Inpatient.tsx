@@ -282,9 +282,7 @@ const InpatientV2: React.FC = () => {
         tabs={TOP_TABS}
         actions={
           <>
-            <Btn variant="ghost" onClick={loadData}>
-              <TermIcon name="refresh" size={12} /> Làm mới
-            </Btn>
+            <Btn variant="ghost" onClick={loadData} loading={loading} icon="refresh">Làm mới</Btn>
             <Btn variant="ghost" onClick={() => navigate('/v2/hr')}>
               <TermIcon name="users" size={12} /> Bàn giao ca <kbd>F4</kbd>
             </Btn>
@@ -379,7 +377,8 @@ const InpatientV2: React.FC = () => {
                 <ActBtn ic="clipboard" title="Y lệnh" onClick={() => navigate('/v2/inpatient-dispensing')} />
               </div>
             )}
-            empty={loading ? 'Đang tải…' : <div className="ab-empty"><TermIcon name="users" size={20} /><div>Không có bệnh nhân nội trú</div></div>}
+            loading={loading}
+            empty={<div className="ab-empty"><TermIcon name="users" size={20} /><div>Không có bệnh nhân nội trú</div></div>}
           />
           <div className="ab-tbl-ft">
             <span>Tổng <b>{listFiltered.length}</b> BN · trang <b>{page + 1}/{listTotalPages}</b></span>
@@ -444,7 +443,8 @@ const InpatientV2: React.FC = () => {
               data={listFiltered.filter((r) => r.hasPendingOrders || r.hasUnclaimedMedicine)}
               rowKey={(r) => r.admissionId}
               onRowClick={(r) => void loadSupplyOrders(r)}
-              empty={loading ? 'Đang tải…' : <div className="ab-empty"><TermIcon name="package" size={20} /><div>Không có BN cần xử lý vật tư / dịch vụ</div></div>}
+              loading={loading}
+              empty={<div className="ab-empty"><TermIcon name="package" size={20} /><div>Không có BN cần xử lý vật tư / dịch vụ</div></div>}
             />
           </div>
 
@@ -545,7 +545,8 @@ const InpatientV2: React.FC = () => {
                   <ActBtn ic="eye" title="Hồ sơ" onClick={() => setDetail(r)} />
                 </div>
               )}
-              empty={loading ? 'Đang tải…' : <div className="ab-empty"><TermIcon name="logout" size={20} /><div>Không có bệnh nhân đã xuất viện</div></div>}
+              loading={loading}
+              empty={<div className="ab-empty"><TermIcon name="logout" size={20} /><div>Không có bệnh nhân đã xuất viện</div></div>}
             />
             <div className="ab-tbl-ft">
               <span>Tổng <b>{dischargeList.length}</b> BN · trang <b>{page + 1}/{Math.max(1, Math.ceil(dischargeList.length / LIST_PAGE))}</b></span>

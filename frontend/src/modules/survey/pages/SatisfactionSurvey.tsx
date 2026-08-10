@@ -390,8 +390,8 @@ const SatisfactionSurveyV2: React.FC = () => {
           <Ico name="refresh" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
+        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">
+          Làm mới
         </Btn>
         <Btn variant="ghost" onClick={handleExportCsv} disabled={csvLoading}>
           <Ico name="download" size={12} /> {csvLoading ? 'Đang xuất…' : 'Xuất CSV'}
@@ -429,7 +429,8 @@ const SatisfactionSurveyV2: React.FC = () => {
       <DataTable<SurveyResult>
         columns={cols} data={paged} rowKey={(r) => r.id}
         onRowClick={setSel} actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có phản hồi khảo sát'}
+        loading={loading}
+        empty="Chưa có phản hồi khảo sát"
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
       </>}
@@ -438,8 +439,8 @@ const SatisfactionSurveyV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <span style={{ color: 'var(--t-1)', fontWeight: 600 }}>Mẫu khảo sát ({surveyTemplates.length})</span>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={loadTemplates} disabled={tplLoading}>
-          <Ico name="refresh" size={12} /> Làm mới
+        <Btn variant="ghost" onClick={loadTemplates} loading={tplLoading} icon="refresh">
+          Làm mới
         </Btn>
         <Btn variant="primary" onClick={() => openTplModal()}>
           <Ico name="plus" size={12} /> Thêm mẫu mới
@@ -448,7 +449,8 @@ const SatisfactionSurveyV2: React.FC = () => {
       <DataTable<SurveyTemplate>
         columns={tplCols} data={surveyTemplates} rowKey={(t) => t.id}
         actions={tplActions}
-        empty={tplLoading ? 'Đang tải…' : 'Chưa có mẫu khảo sát'}
+        loading={tplLoading}
+        empty="Chưa có mẫu khảo sát"
       />
       </>}
 

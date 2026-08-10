@@ -293,9 +293,9 @@ const AreasTab: React.FC = () => {
           <Ico name="plus" size={12} /> Thêm khu vực
         </Btn>
       </div>
-      <DataTable<Area> columns={cols} data={data} rowKey={(r) => r.id}
+      <DataTable<Area> columns={cols} data={data} rowKey={(r) => r.id} loading={loading}
         onRowClick={setSel}
-        empty={loading ? 'Đang tải…' : 'Chưa có khu vực'} />
+        empty="Chưa có khu vực" />
 
       <DrawerShell
         open={!!sel}
@@ -334,13 +334,16 @@ const AreasTab: React.FC = () => {
 const FOLDER_TYPES: Record<number, string> = { 1: 'Normal', 2: 'Share', 3: 'Upload' };
 const FoldersTab: React.FC = () => {
   const [data, setData] = useState<FolderRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [sel, setSel] = useState<FolderRow | null>(null);
   const [form] = Form.useForm();
 
   const load = useCallback(async () => {
+    setLoading(true);
     try { const res = await apiClient.get<FolderRow[]>('/ris-catalog/folders'); setData(res.data || []); }
     catch { setData([]); }
+    finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -373,7 +376,7 @@ const FoldersTab: React.FC = () => {
           <Ico name="plus" size={12} /> Thêm thư mục
         </Btn>
       </div>
-      <DataTable<FolderRow> columns={cols} data={data} rowKey={(r) => r.id} onRowClick={setSel} empty="Chưa có thư mục" />
+      <DataTable<FolderRow> columns={cols} data={data} rowKey={(r) => r.id} loading={loading} onRowClick={setSel} empty="Chưa có thư mục" />
 
       <DrawerShell
         open={!!sel}
@@ -1042,7 +1045,7 @@ const RemotePacsTab: React.FC = () => {
           <Ico name="plus" size={12} /> Thêm server
         </Btn>
       </div>
-      <DataTable<RemoteServerRow> columns={cols} data={servers} rowKey={(r) => r.id}
+      <DataTable<RemoteServerRow> columns={cols} data={servers} rowKey={(r) => r.id} loading={loading}
         onRowClick={setSel}
         actions={(r) => (
           <div className="ab-actions">
@@ -1051,7 +1054,7 @@ const RemotePacsTab: React.FC = () => {
             <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => remove(r)} />
           </div>
         )}
-        empty={loading ? 'Đang tải…' : 'Chưa có Remote PACS server'} />
+        empty="Chưa có Remote PACS server" />
 
       <DrawerShell
         open={!!sel}
@@ -1211,13 +1214,16 @@ const TagsTab: React.FC = () => {
 const StatsTab: React.FC = () => {
   const [range, setRange] = useState<[Dayjs, Dayjs] | null>([dayjs().subtract(7, 'day'), dayjs()]);
   const [stats, setStats] = useState<Stat[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
+    setLoading(true);
     try {
       const params = range ? { fromDate: range[0].toISOString(), toDate: range[1].toISOString() } : {};
       const res = await apiClient.get<Stat[]>('/radiology-dispatch/stats', { params });
       setStats(res.data);
     } catch { setStats([]); }
+    finally { setLoading(false); }
   }, [range]);
   useEffect(() => { load(); }, [load]);
 
@@ -1246,7 +1252,7 @@ const StatsTab: React.FC = () => {
           <Ico name="archive" size={12} /> Reports đầy đủ
         </Btn>
       </div>
-      <DataTable<Stat> columns={cols} data={data} rowKey={(r) => r.label} />
+      <DataTable<Stat> columns={cols} data={data} rowKey={(r) => r.label} loading={loading} />
     </>
   );
 };

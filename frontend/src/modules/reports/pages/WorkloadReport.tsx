@@ -114,7 +114,7 @@ const WorkloadReportV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
-          <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+          <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
           <Btn variant="ghost" icon="download" onClick={exportCsv}>Xuất CSV</Btn>
           <Btn variant="primary" icon="download" onClick={exportExcel}>Xuất Excel</Btn>
         </>
@@ -128,15 +128,15 @@ const WorkloadReportV2: React.FC = () => {
 
       {tab === 'doctors' && (
         <DataTable<DoctorWorkloadDto> columns={doctorCols} data={data?.doctors || []} rowKey={(r) => r.userId}
-          empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />
+          loading={loading} empty="Không có dữ liệu" />
       )}
       {tab === 'radiologists' && (
         <DataTable<RadiologistWorkloadDto> columns={radiologistCols} data={data?.radiologists || []} rowKey={(r) => r.userId}
-          empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />
+          loading={loading} empty="Không có dữ liệu" />
       )}
       {tab === 'technicians' && (
         <DataTable<TechnicianWorkloadDto> columns={labCols} data={data?.technicians || []} rowKey={(r) => r.userId}
-          empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />
+          loading={loading} empty="Không có dữ liệu" />
       )}
     </div>
   );

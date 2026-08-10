@@ -6,9 +6,10 @@ import dayjs from 'dayjs';
 import { Input, Select, Form } from 'antd';
 import { storage } from '../../../services/storage.service';
 import {
-  DataTable, ModalShell, Btn, ActBtn, StatusBadge, tk, te, cf,
+  DataTable, ModalShell, Btn, StatusBadge, tk, te,
   type ColumnDef,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
 
 interface ReportField {
   id: string; name: string; source: string; formula?: string; format?: string; width?: number;
@@ -89,9 +90,9 @@ const ReportBuilderTab: React.FC = () => {
     saveAll([...reports, { ...r, id: nextId(), name: `${r.name} (bản sao)`, createdAt: new Date().toISOString() }]);
     tk('Đã sao chép báo cáo');
   };
-  const del = (r: CustomReportDef) => cf(`Xóa báo cáo "${r.name}"?`, () => {
+  const del = (r: CustomReportDef) => {
     saveAll(reports.filter(x => x.id !== r.id)); tk('Đã xóa báo cáo');
-  }, { tone: 'crit', confirm: 'Xóa' });
+  };
 
   const handleSave = () => {
     form.validateFields().then(v => {
@@ -157,12 +158,16 @@ const ReportBuilderTab: React.FC = () => {
           </div>
         : <DataTable<CustomReportDef>
             columns={columns} data={reports} rowKey={r => r.id}
-            actions={r => (<>
-              <ActBtn ic="play" title="Xem trước" onClick={() => { setPreviewReport(r); setPreviewOpen(true); }} />
-              <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-              <ActBtn ic="layers" title="Sao chép" onClick={() => duplicate(r)} />
-              <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => del(r)} />
-            </>)}
+            actions={r => (
+              <RowActions actions={[
+                { key: 'preview', icon: 'play', label: 'Xem trước', primary: true, onClick: () => { setPreviewReport(r); setPreviewOpen(true); } },
+                { key: 'edit', icon: 'edit', label: 'Sửa', primary: true, onClick: () => openEdit(r) },
+                { key: 'dup', icon: 'layers', label: 'Sao chép', onClick: () => duplicate(r) },
+                { key: 'del', icon: 'trash', label: 'Xóa', tone: 'danger',
+                  confirm: `Xóa báo cáo "${r.name}"?`,
+                  onClick: () => del(r) },
+              ]} />
+            )}
             empty="Không có báo cáo"
           />
       }

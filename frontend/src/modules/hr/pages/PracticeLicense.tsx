@@ -5,7 +5,7 @@ import type { PracticeLicense } from '../api/practiceLicense';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, tw, Ico,
+  DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, tw, te, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
 
@@ -201,9 +201,7 @@ const PracticeLicenseV2: React.FC = () => {
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
         <Btn variant="ghost" onClick={openExpiring}>
           <Ico name="alert" size={12} /> Cảnh báo
         </Btn>
@@ -217,7 +215,8 @@ const PracticeLicenseV2: React.FC = () => {
       <DataTable<PracticeLicense>
         columns={cols} data={paged} rowKey={(r) => r.id}
         onRowClick={setSel} actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có CCHN'}
+        loading={loading}
+        empty={'Chưa có CCHN'}
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 

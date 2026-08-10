@@ -12,6 +12,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Input, Spin } from 'antd';
 import { ModalShell, Btn, AbSelect, tk, tw, te } from '@/_v2kit';
 import TermIcon from '../../../../components/layout/terminal/Icon';
+import { friendlyErrorMessage } from '../../../../utils/friendlyError';
 import { anesthesiaApi } from '../../../patient/api/clinicalRecords';
 import { printAnesthesiaRecovery } from '../../../patient/components/AnesthesiaPrintTemplates';
 import { Section, Row2 } from './_shared';
@@ -73,7 +74,9 @@ export const PostAnesthesiaPlanModal: React.FC<PostAnesthesiaPlanModalProps> = (
         setExistingId(null);
         setForm(EMPTY_POST);
       }
-    } catch {
+    } catch (e) {
+      tw(friendlyErrorMessage(e, 'Không tải được kế hoạch sau gây mê'));
+      setExistingId(null);
       setForm(EMPTY_POST);
     } finally {
       setLoading(false);

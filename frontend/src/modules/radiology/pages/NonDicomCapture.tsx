@@ -32,6 +32,7 @@ interface ImageItem {
 
 const NonDicomCaptureV2: React.FC = () => {
   const [studies, setStudies] = useState<StudyListItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [captureModal, setCaptureModal] = useState(false);
@@ -49,11 +50,13 @@ const NonDicomCaptureV2: React.FC = () => {
   const recordedChunksRef = useRef<Blob[]>([]);
 
   const loadWorklist = useCallback(async () => {
+    setLoading(true);
     try {
       const { data } = await apiClient.get<StudyListItem[]>('/non-dicom/worklist',
         { params: { deviceType: filterType || undefined } });
       setStudies(data);
     } catch { setStudies([]); }
+    finally { setLoading(false); }
   }, [filterType]);
 
   useEffect(() => { loadWorklist(); }, [loadWorklist]);
@@ -200,9 +203,7 @@ const NonDicomCaptureV2: React.FC = () => {
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={loadWorklist}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <Btn variant="ghost" onClick={loadWorklist} loading={loading} icon="refresh">Làm mới</Btn>
         <Btn variant="primary" onClick={() => {
           createForm.resetFields();
           createForm.setFieldsValue({ deviceType: 'Endoscopy' });
@@ -213,7 +214,7 @@ const NonDicomCaptureV2: React.FC = () => {
       </div>
 
       <DataTable<StudyListItem>
-        columns={cols} data={studies} rowKey={(r) => r.id}
+        columns={cols} data={studies} rowKey={(r) => r.id} loading={loading}
         onRowClick={openDetail}
         actions={(r) => (
           <div className="ab-actions">

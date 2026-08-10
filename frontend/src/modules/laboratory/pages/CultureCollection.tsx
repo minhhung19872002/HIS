@@ -356,9 +356,7 @@ const CultureCollectionV2: React.FC = () => {
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
         <Btn variant="ghost" onClick={() => ti('Chọn chủng trong bảng → nhấn "Lịch sử" hoặc mở chi tiết → Cấy chuyền')}>
           <Ico name="activity" size={12} /> Cấy chuyền
         </Btn>
@@ -372,7 +370,8 @@ const CultureCollectionV2: React.FC = () => {
       <DataTable<CultureStock>
         columns={cols} data={paged} rowKey={(r) => r.id}
         onRowClick={setSel} actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có chủng VS lưu'}
+        loading={loading}
+        empty={'Chưa có chủng VS lưu'}
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 
