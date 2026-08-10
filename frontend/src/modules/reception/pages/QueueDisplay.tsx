@@ -478,11 +478,10 @@ function RoomQueueView() {
 
   if (roomIds.length === 0) {
     return (
-      <div className="queue-display" style={{ justifyContent: 'center', alignItems: 'center' }}>
+      <div className="queue-display" style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: 16 }}>
         <h1 style={{ fontSize: 36 }}>Hệ thống gọi bệnh nhân</h1>
-        <p style={{ color: '#a0aec0', fontSize: 18, marginTop: 16 }}>
-          Vui lòng thêm tham số <code style={{ color: '#e94560' }}>?rooms=roomId1,roomId2</code> vào URL
-        </p>
+        <p style={{ color: '#a0aec0', fontSize: 18 }}>Màn hình chờ — Chưa cấu hình phòng khám</p>
+        <p style={{ color: '#718096', fontSize: 14 }}>Liên hệ quản trị viên để thiết lập</p>
       </div>
     );
   }
@@ -521,11 +520,14 @@ function RoomQueueView() {
                 <div className="queue-room-name">{room.roomName}</div>
                 {room.doctorName && <div className="queue-room-doctor">BS. {room.doctorName}</div>}
                 {callingTicket ? (
-                  <div className={`queue-ticket-number ${getPriorityClass(callingTicket.priority)} ${blinkingIds.has(callingTicket.id) ? 'blinking' : ''}`}>
-                    {callingTicket.ticketCode}
-                  </div>
+                  <>
+                    <div className="queue-invite-label">Mời bệnh nhân</div>
+                    <div className={`queue-ticket-number ${getPriorityClass(callingTicket.priority)} ${blinkingIds.has(callingTicket.id) ? 'blinking' : ''}`}>
+                      {callingTicket.ticketCode}
+                    </div>
+                  </>
                 ) : (
-                  <div className="queue-no-calling">—</div>
+                  <div className="queue-no-calling">Không có bệnh nhân để gọi</div>
                 )}
               </div>
             );
@@ -591,8 +593,43 @@ function RoomQueueView() {
 // ?type=lab | general (AC #415); chấp nhận cả ?mode= (tương thích URL v1).
 export default function QueueDisplayV2() {
   const [searchParams] = useSearchParams();
+  const [showHelp, setShowHelp] = useState(false);
   const type = searchParams.get('type') || searchParams.get('mode');
 
-  if (type === 'lab') return <LabQueueView />;
-  return <RoomQueueView />;
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'F1') {
+        e.preventDefault();
+        setShowHelp(prev => !prev);
+      }
+      if (e.key === 'Escape') setShowHelp(false);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
+
+  return (
+    <>
+      {showHelp && (
+        <div className="queue-help-overlay" onClick={() => setShowHelp(false)}>
+          <div className="queue-help-modal" onClick={e => e.stopPropagation()}>
+            <h2>Trợ giúp — Màn hình xếp hàng</h2>
+            <div className="queue-help-keys">
+              <div><kbd>F1</kbd><span>Hiện / ẩn trợ giúp</span></div>
+              <div><kbd>F11</kbd><span>Toàn màn hình</span></div>
+              <div><kbd>Esc</kbd><span>Đóng trợ giúp</span></div>
+            </div>
+            <div className="queue-help-params">
+              <p><strong>Tham số URL:</strong></p>
+              <p><code>?rooms=id1,id2</code> — chọn phòng khám (chế độ thường)</p>
+              <p><code>?type=lab</code> — chế độ xét nghiệm</p>
+              <p><code>?queueType=2</code> — loại hàng đợi (mặc định: 2 = Khám bệnh)</p>
+            </div>
+            <button onClick={() => setShowHelp(false)}>Đóng (Esc)</button>
+          </div>
+        </div>
+      )}
+      {type === 'lab' ? <LabQueueView /> : <RoomQueueView />}
+    </>
+  );
 }
