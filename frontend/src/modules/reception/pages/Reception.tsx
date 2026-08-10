@@ -6,10 +6,11 @@ import * as receptionApi from '../api/reception';
 import type { RoomOverviewDto } from '../api/reception';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager,
-  StatusBadge, ActBtn, Btn, DrawerShell,
+  StatusBadge, Btn, DrawerShell,
   type ColumnDef,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { RowActions } from '../../../components/actions';
 
 /* ────────────────────────────────────────────────────────────
    Reception v2 — Tiếp đón
@@ -50,6 +51,10 @@ const ReceptionV2: React.FC = () => {
   const [moveFor, setMoveFor]   = useState<RawRow | null>(null);
   const [payFor, setPayFor]     = useState<RawRow | null>(null);
   const [ms03For, setMs03For]   = useState<RawRow | null>(null);
+  // #467: guard chống double-submit — busy giữ id dòng đang xử lý (checkin/hoàn thành/vắng mặt),
+  // callingNext chặn double-click "Gọi số tiếp" (gọi 2 số 1 lúc trên hàng đợi).
+  const [busy, setBusy]         = useState<string | null>(null);
+  const [callingNext, setCallingNext] = useState(false);
   const PAGE_SIZE = 14;
 
   const loadData = useCallback(() => {
@@ -132,17 +137,21 @@ const ReceptionV2: React.FC = () => {
 
   // ─── Mutations ───
   const onCallNext = async () => {
+    if (callingNext) return; // chặn double-click gọi 2 số cùng lúc
     const next = rows.find((r) => statusKey(r) === 'waiting');
     if (!next || !next.roomId) {
       message.info('Không có bệnh nhân nào đang chờ');
       return;
     }
+    setCallingNext(true);
     try {
       await receptionApi.callNextQueue(next.roomId, 1);
       message.success(`Đang gọi số ${next.queueCode || next.queueNumber} · ${next.patientName}`);
       loadData();
     } catch {
       message.error('Gọi số thất bại');
+    } finally {
+      setCallingNext(false);
     }
   };
 
@@ -166,38 +175,50 @@ const ReceptionV2: React.FC = () => {
   };
 
   const onCheckin = async (r: RawRow) => {
+    if (busy) return; // chặn double-click re-run ensureTicket → tránh cấp trùng QueueTicket
+    setBusy(r.id);
     const tid = await ensureTicket(r);
-    if (!tid) { message.error('Không tạo được số thứ tự (bệnh nhân chưa có phòng khám)'); return; }
+    if (!tid) { message.error('Không tạo được số thứ tự (bệnh nhân chưa có phòng khám)'); setBusy(null); return; }
     try {
       await receptionApi.startServing(tid);
       message.success(`Đã check-in · ${r.patientName}`);
       loadData();
     } catch {
       message.error('Check-in thất bại');
+    } finally {
+      setBusy(null);
     }
   };
 
   const onSkip = async (r: RawRow) => {
+    if (busy) return;
+    setBusy(r.id);
     const tid = await ensureTicket(r);
-    if (!tid) { message.error('Không tìm thấy số thứ tự'); return; }
+    if (!tid) { message.error('Không tìm thấy số thứ tự'); setBusy(null); return; }
     try {
       await receptionApi.skipQueue(tid, 'Bệnh nhân không đến');
       message.warning(`Đã đánh dấu vắng mặt · ${r.patientName}`);
       loadData();
     } catch {
       message.error('Thao tác thất bại');
+    } finally {
+      setBusy(null);
     }
   };
 
   const onComplete = async (r: RawRow) => {
+    if (busy) return;
+    setBusy(r.id);
     const tid = await ensureTicket(r);
-    if (!tid) { message.error('Không tìm thấy số thứ tự'); return; }
+    if (!tid) { message.error('Không tìm thấy số thứ tự'); setBusy(null); return; }
     try {
       await receptionApi.completeServing(tid);
       message.success(`Đã hoàn thành · ${r.patientName}`);
       loadData();
     } catch {
       message.error('Thao tác thất bại');
+    } finally {
+      setBusy(null);
     }
   };
 
@@ -397,7 +418,7 @@ const ReceptionV2: React.FC = () => {
             <Btn variant="ghost" onClick={() => setLookupOpen(true)}>
               <TermIcon name="search" size={12} /> Tìm BN cũ <kbd>F4</kbd>
             </Btn>
-            <Btn variant="ok" onClick={onCallNext}>
+            <Btn variant="ok" onClick={onCallNext} disabled={callingNext}>
               <TermIcon name="bell" size={12} /> Gọi số tiếp <kbd>F3</kbd>
             </Btn>
             <Btn variant="primary" onClick={() => setNewOpen(true)}>
@@ -469,30 +490,53 @@ const ReceptionV2: React.FC = () => {
             }}
             actions={(r) => {
               const sk = statusKey(r);
+              const rowBusy = busy === r.id;
               return (
-                <div className="ab-actions">
-                  {sk === 'waiting' && (
-                    <ActBtn ic="check" title="Bắt đầu khám" onClick={() => onCheckin(r)} />
-                  )}
-                  {sk === 'noshow' && (
-                    <ActBtn ic="check" title="Gọi lại" onClick={() => onCheckin(r)} />
-                  )}
-                  {(sk === 'serving' || sk === 'waitresult') && (
-                    <ActBtn ic="check" title="Hoàn thành" onClick={() => onComplete(r)} />
-                  )}
-                  {sk !== 'completed' && (
-                    <ActBtn ic="dollar" title="Thu phí" onClick={() => setPayFor(r)} />
-                  )}
-                  {sk !== 'completed' && (
-                    <ActBtn ic="refresh" title="Đổi phòng" onClick={() => setMoveFor(r)} />
-                  )}
-                  <ActBtn ic="print" title="In phiếu" onClick={() => onPrint(r)} />
-                  <ActBtn ic="file" title="In giấy yêu cầu (MS 03/BV-02)" onClick={() => setMs03For(r)} />
-                  <ActBtn ic="scan" title="In mã vạch BN" onClick={() => printBarcodeLabel(r)} />
-                  {(sk === 'waiting' || sk === 'serving' || sk === 'waitresult') && (
-                    <ActBtn ic="alert" title="Vắng mặt" onClick={() => onSkip(r)} tone="warn" />
-                  )}
-                </div>
+                <RowActions actions={[
+                  {
+                    key: 'checkin', icon: 'check',
+                    label: sk === 'noshow' ? 'Gọi lại' : 'Bắt đầu khám',
+                    primary: true,
+                    hidden: !(sk === 'waiting' || sk === 'noshow'),
+                    disabled: rowBusy,
+                    onClick: () => onCheckin(r),
+                  },
+                  {
+                    key: 'complete', icon: 'check', label: 'Hoàn thành', primary: true,
+                    hidden: !(sk === 'serving' || sk === 'waitresult'),
+                    disabled: rowBusy,
+                    onClick: () => onComplete(r),
+                  },
+                  {
+                    key: 'pay', icon: 'dollar', label: 'Thu phí',
+                    hidden: sk === 'completed',
+                    onClick: () => setPayFor(r),
+                  },
+                  {
+                    key: 'move', icon: 'refresh', label: 'Đổi phòng',
+                    hidden: sk === 'completed',
+                    onClick: () => setMoveFor(r),
+                  },
+                  {
+                    key: 'print', icon: 'printer', label: 'In phiếu',
+                    onClick: () => onPrint(r),
+                  },
+                  {
+                    key: 'ms03', icon: 'file', label: 'In giấy yêu cầu (MS 03/BV-02)',
+                    onClick: () => setMs03For(r),
+                  },
+                  {
+                    key: 'barcode', icon: 'scan', label: 'In mã vạch BN',
+                    onClick: () => printBarcodeLabel(r),
+                  },
+                  {
+                    key: 'skip', icon: 'alert', label: 'Vắng mặt', tone: 'danger',
+                    hidden: !(sk === 'waiting' || sk === 'serving' || sk === 'waitresult'),
+                    confirm: `Đánh dấu vắng mặt cho ${r.patientName}? Bệnh nhân sẽ được ghi nhận không đến khám.`,
+                    disabled: rowBusy,
+                    onClick: () => onSkip(r),
+                  },
+                ]} />
               );
             }}
             empty={
@@ -552,12 +596,12 @@ const ReceptionV2: React.FC = () => {
               <TermIcon name="scan" size={12} /> Nhãn mã vạch
             </Btn>
             {(statusKey(detail) === 'waiting' || statusKey(detail) === 'noshow') && (
-              <Btn variant="primary" onClick={() => { onCheckin(detail); setDetail(null); }}>
+              <Btn variant="primary" disabled={busy === detail.id} onClick={() => { onCheckin(detail); setDetail(null); }}>
                 <TermIcon name="check" size={12} /> {statusKey(detail) === 'noshow' ? 'Gọi lại' : 'Bắt đầu khám'}
               </Btn>
             )}
             {(statusKey(detail) === 'serving' || statusKey(detail) === 'waitresult') && (
-              <Btn variant="ok" onClick={() => { onComplete(detail); setDetail(null); }}>
+              <Btn variant="ok" disabled={busy === detail.id} onClick={() => { onComplete(detail); setDetail(null); }}>
                 <TermIcon name="check" size={12} /> Hoàn thành
               </Btn>
             )}

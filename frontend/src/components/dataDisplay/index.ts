@@ -4,3 +4,4 @@ export * from './StatusBadge';
 export * from './Loading';
 export * from './EmptyState';
 export * from './ErrorState';
+export * from './Skeleton';

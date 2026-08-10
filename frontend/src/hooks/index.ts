@@ -10,3 +10,6 @@ export { useLocalStorage } from './useLocalStorage';
 export { usePermission } from './usePermission';
 export * from './useAbbreviationExpander';
 export * from './useKeyboardShortcuts';
+export { useSessionState, clearSessionState } from './useSessionState';
+export { useScrollRestore } from './useScrollRestore';
+export { useDraft } from './useDraft';

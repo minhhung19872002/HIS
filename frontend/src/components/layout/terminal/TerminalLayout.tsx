@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ConfigProvider, message, Modal, Input, theme as antdTheme } from 'antd';
 import type { ThemeConfig } from 'antd';
 import { useAuth } from '../../../hooks/useAuth';
+import { useScrollRestore } from '../../../hooks/useScrollRestore';
 import { useTheme } from '../../../contexts/ThemeContext';
 import {
   CommandProvider, useCommandCtx, COMMANDS, type CmdId,
@@ -339,6 +340,10 @@ const TerminalShell: React.FC = () => {
   const activeItem = useMemo(() => findItemForPath(location.pathname), [location.pathname]);
   const activeGroupId = activeItem?.groupId ?? findGroupIdForPath(location.pathname);
 
+  // #467 P2-12: khôi phục vị trí scroll của .his-main khi quay lại trang (theo pathname)
+  const mainScrollRef = useRef<HTMLDivElement>(null);
+  useScrollRestore(mainScrollRef, location.pathname);
+
   const [pinnedGroupId, setPinnedGroupId] = useState<string | null>(null);
   const [hoveredGroupId, setHoveredGroupId] = useState<string | null>(null);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -652,7 +657,7 @@ const TerminalShell: React.FC = () => {
             showCount
           />
         </Modal>
-        <div className="his-main">
+        <div className="his-main" ref={mainScrollRef}>
           <div className="his-content">
             <ConfigProvider
               theme={contentTheme}
