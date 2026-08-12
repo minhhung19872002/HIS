@@ -6,6 +6,7 @@ import {
   ActBtn, Btn, StatusBadge, tk, te, cf,
   type ColumnDef, type KpiItem,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '@/utils/friendlyError';
 import { getGrants, createGrant, revokeGrant } from '../api/delegation';
 import type { DelegationGrantDto, CreateDelegationGrantDto } from '../api/delegation';
 import { adminApi } from '../api/system';
@@ -50,7 +51,7 @@ export default function DelegationPanel() {
       setGrants(g as unknown as DelegationGrantDto[]);
       setUsers(u as unknown as SystemUserDto[]);
       setRoles(r as unknown as RoleDto[]);
-    } catch { /* table shows empty */ }
+    } catch (e) { te(friendlyErrorMessage(e)); }
     finally { setLoading(false); }
   }, []);
 
@@ -68,7 +69,11 @@ export default function DelegationPanel() {
   ];
 
   const handleCreate = async () => {
-    const vals = await form.validateFields();
+    if (saving) return;
+    // validateFields() reject khi form thiếu field → không để rơi ra ngoài thành
+    // unhandled rejection (antd đã hiện lỗi inline sẵn); cùng pattern ItTicketsPanel.
+    const vals = await form.validateFields().catch(() => null);
+    if (!vals) return;
     setSaving(true);
     try {
       const dto: CreateDelegationGrantDto = {
@@ -79,22 +84,34 @@ export default function DelegationPanel() {
         reason: vals.reason || undefined,
       };
       await createGrant(dto);
+      tk('Đã tạo ủy quyền');
       setCreateOpen(false);
       form.resetFields();
       load();
-    } catch { /* errors surfaced by apiClient */ }
+    } catch (e) { te(friendlyErrorMessage(e, 'Tạo ủy quyền thất bại. Vui lòng thử lại.')); }
     finally { setSaving(false); }
   };
 
-  const handleRevoke = async (g: DelegationGrantDto) => {
-    if (!window.confirm(`Thu hồi ủy quyền "${g.roleName}" cho ${g.granteeName}?`)) return;
+  const doRevoke = async (g: DelegationGrantDto) => {
     setRevoking(true);
     try {
       await revokeGrant(g.id);
+      tk('Đã thu hồi ủy quyền');
       load();
+    } catch (e) {
+      te(friendlyErrorMessage(e, 'Thu hồi ủy quyền thất bại. Vui lòng thử lại.'));
     } finally {
       setRevoking(false);
     }
+  };
+
+  const handleRevoke = (g: DelegationGrantDto) => {
+    if (revoking) return;
+    cf(
+      `Thu hồi ủy quyền "${g.roleName}" cho ${g.granteeName}? Người được ủy sẽ mất quyền này ngay lập tức.`,
+      () => { void doRevoke(g); },
+      { tone: 'crit', confirm: 'Thu hồi' },
+    );
   };
 
   return (

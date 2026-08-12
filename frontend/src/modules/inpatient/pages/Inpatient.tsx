@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRegisterCommands } from '@/contexts/CommandContext';
 import dayjs, { type Dayjs } from 'dayjs';
 import { App as AntdApp, Input, InputNumber, Select, DatePicker } from 'antd';
@@ -18,10 +18,11 @@ import { catalogApi } from '../../system/api/system';
 import type { DepartmentCatalogDto, RoomCatalogDto } from '../../system/api/system';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager,
-  StatusBadge, ActBtn, Btn, DrawerShell, ModalShell,
+  StatusBadge, ActBtn, Btn, DrawerShell, ModalShell, tw, te,
   type ColumnDef, type TopTab,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { fmtVND } from '../../../utils/format';
 import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
@@ -135,17 +136,26 @@ const InpatientV2: React.FC = () => {
   const [supplyOrders, setSupplyOrders] = useState<InpatientServiceOrderDto[]>([]);
   const [supplyLoading, setSupplyLoading] = useState(false);
   const LIST_PAGE = 16;
+  // SearchBox KHÔNG debounce: mỗi ký tự gõ vào ô tìm kiếm sinh 1 lần loadData.
+  // Nếu API đang lỗi thì mỗi phím sẽ bắn 1 toast → chỉ bắn lại khi nội dung lỗi
+  // THAY ĐỔI, và tự "nạp lại" sau một lần tải thành công.
+  const lastLoadErrRef = useRef('');
 
   const loadData = useCallback(() => {
     setLoading(true);
     (async () => {
+      // Gom lỗi của 2 nguồn để chỉ bắn MỘT toast (tránh spam khi mất mạng).
+      const loadErrs: string[] = [];
       // 1) inpatient list (list tab + KPIs)
       let ip: InpatientListDto[] = [];
       try {
         // InpatientSearchDto dùng `page` (1-based), không phải `pageIndex` (0-based)
         const r = await getInpatientList({ page: 1, pageSize: 300, keyword: search || undefined });
         ip = r.data?.items || [];
-      } catch { ip = []; }
+      } catch (e) {
+        ip = [];
+        loadErrs.push(friendlyErrorMessage(e, 'Không tải được danh sách bệnh nhân nội trú.'));
+      }
       setInpatients(ip);
 
       // 2) ward layouts for clinical departments with beds
@@ -159,7 +169,16 @@ const InpatientV2: React.FC = () => {
           .map((l) => l.value)
           .filter((w) => (w.totalBeds ?? 0) > 0);
         setWards(ws);
-      } catch { setWards([]); }
+      } catch (e) {
+        setWards([]);
+        loadErrs.push(friendlyErrorMessage(e, 'Không tải được sơ đồ buồng/giường.'));
+      }
+      const errSig = loadErrs.join(' · ');
+      if (errSig) {
+        if (errSig !== lastLoadErrRef.current) { lastLoadErrRef.current = errSig; tw(errSig); }
+      } else {
+        lastLoadErrRef.current = '';
+      }
       setLoading(false);
     })();
   }, [search]);
@@ -172,7 +191,10 @@ const InpatientV2: React.FC = () => {
       const today = dayjs().format('YYYY-MM-DD');
       const res = await getServiceOrders(p.admissionId, today, today);
       setSupplyOrders(Array.isArray(res) ? res as InpatientServiceOrderDto[] : []);
-    } catch { setSupplyOrders([]); }
+    } catch (e) {
+      te(friendlyErrorMessage(e, 'Không tải được chỉ định vật tư / dịch vụ của bệnh nhân.'));
+      setSupplyOrders([]);
+    }
     finally { setSupplyLoading(false); }
   }, []);
 
@@ -1016,8 +1038,7 @@ const SplitEmergencyModal: React.FC<{
       );
       onDone();
     } catch (e) {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      message.error(msg || 'Tách điều trị nội trú thất bại');
+      message.error(friendlyErrorMessage(e, 'Tách điều trị nội trú thất bại. Vui lòng thử lại.'));
     } finally { setBusy(false); }
   };
 
@@ -1358,6 +1379,9 @@ const BirthCertFormModal: React.FC<{
 const DepositSection: React.FC<{ admissionId: string; onRequest: () => void }> = ({ admissionId, onRequest }) => {
   const [deposits, setDeposits] = useState<DepositRequestDto[]>([]);
   const [loading, setLoading] = useState(true);
+  // TIỀN: phải phân biệt "chưa có tạm ứng" (rỗng thật) với "không tải được" (lỗi),
+  // nếu không thu ngân dễ thu trùng/thu thiếu.
+  const [loadErr, setLoadErr] = useState('');
 
   useEffect(() => {
     if (!admissionId) return;
@@ -1365,9 +1389,15 @@ const DepositSection: React.FC<{ admissionId: string; onRequest: () => void }> =
     getDepositRequests()
       .then((r) => {
         const all = Array.isArray(r.data) ? r.data : [];
+        setLoadErr('');
         setDeposits(all.filter((d: DepositRequestDto) => d.admissionId === admissionId));
       })
-      .catch(() => setDeposits([]))
+      .catch((e) => {
+        const m = friendlyErrorMessage(e, 'Không tải được danh sách tạm ứng.');
+        setLoadErr(m);
+        tw(m);
+        setDeposits([]);
+      })
       .finally(() => setLoading(false));
   }, [admissionId]);
 
@@ -1383,7 +1413,10 @@ const DepositSection: React.FC<{ admissionId: string; onRequest: () => void }> =
         </div>
       </div>
       {loading && <div style={{ padding: 12, color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>Đang tải…</div>}
-      {!loading && deposits.length === 0 && (
+      {!loading && loadErr && (
+        <div style={{ padding: 12, color: 'var(--s-crit)', fontSize: 'var(--fs-xs)' }}>{loadErr} — chưa xác định được đã có tạm ứng hay chưa.</div>
+      )}
+      {!loading && !loadErr && deposits.length === 0 && (
         <div style={{ padding: 12, color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>Chưa có tạm ứng</div>
       )}
       {deposits.map((d) => (

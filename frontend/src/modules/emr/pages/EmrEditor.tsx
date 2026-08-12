@@ -21,7 +21,9 @@ import { generateCdaDocument } from '../api/cda';
 import {
   getAttachments, uploadAttachment, downloadAttachment, deleteAttachment,
   getCompletenessCheck, getAmendments,
+  getPrintLogs, stampPrintLog, // #352: nhật ký in + đóng dấu (parity v1)
   type EmrDocumentAttachmentDto, type EmrCompletenessDto, type EmrAmendmentDto,
+  type EmrPrintLogDto,
 } from '../api/emrAdmin';
 import {
   getPartographRecords, savePartographRecord, deletePartographRecord,
@@ -31,6 +33,8 @@ import {
 } from '../api/clinicalRecord';
 import EmrSigningChainDrawer from './EmrSigningChainDrawer';
 import PatientFlagBanner from '../../patient/components/PatientFlagBanner';
+// #352: parity v1 — Quản lý BA (6 tab con: chia sẻ/trích lục/gáy/hình ảnh/mã tắt/kiểm tra)
+import EmrManagementTabs from '@/modules/patient/components/EmrManagementTabs';
 import {
   getEmrRecords, type EmrRecordDto,
   getPatientMedicalHistory, type MedicalHistoryDto,
@@ -47,7 +51,7 @@ import { TEMPLATE_TYPES } from '../../patient/api/clinicalTemplate';
 import '../../../components/layout/terminal/ed-responsive.css';
 import { MAX_UPLOAD_MB, MAX_UPLOAD_BYTES } from '../../../config/app.config';
 
-type TabKey = 'record' | 'history' | 'treatment' | 'consult' | 'nursing' | 'reaction' | 'partograph' | 'anesthesia' | 'amendment' | 'attach';
+type TabKey = 'record' | 'history' | 'treatment' | 'consult' | 'nursing' | 'reaction' | 'partograph' | 'anesthesia' | 'amendment' | 'attach' | 'printlog' | 'management';
 const TABS: TopTab<TabKey>[] = [
   { v: 'record', l: 'Hồ sơ BA', ic: 'folder' },
   { v: 'history', l: 'Lịch sử khám', ic: 'clock' },
@@ -59,6 +63,8 @@ const TABS: TopTab<TabKey>[] = [
   { v: 'anesthesia', l: 'Phiếu gây mê', ic: 'zap' },
   { v: 'amendment', l: 'Nhật ký sửa BA', ic: 'edit-3' },
   { v: 'attach', l: 'Đính kèm', ic: 'file-text' },
+  { v: 'printlog', l: 'Nhật ký in', ic: 'print' },      // #352: parity v1
+  { v: 'management', l: 'Quản lý BA', ic: 'settings' }, // #352: parity v1
 ];
 
 // Doc file -> base64 (bo phan prefix "data:...;base64,")
@@ -79,6 +85,15 @@ const fmtSize = (n: number) =>
 const ATTACH_CATS = [
   { v: 'XN', l: 'Xét nghiệm' }, { v: 'CDHA', l: 'Chẩn đoán hình ảnh' },
   { v: 'BenhAn', l: 'Bệnh án' }, { v: 'GiayTo', l: 'Giấy tờ' }, { v: 'Khac', l: 'Khác' },
+];
+
+// #352: parity v1 — phiếu thử phản ứng thuốc (lưu local, chưa có backend endpoint)
+type DrugTestRow = {
+  id: string; date: string; drugName: string; dose: string; route: string;
+  testTime: string; result: string; reactionDescription: string; tester: string; notes: string;
+};
+const DRUG_TEST_RESULTS = [
+  { v: 'Negative', l: 'Âm tính' }, { v: 'Positive', l: 'Dương tính' }, { v: 'Unknown', l: 'Không xác định' },
 ];
 
 // TT32/2023/TT-BYT + biểu mẫu lâm sàng bổ sung
@@ -244,12 +259,23 @@ const EmrEditorV2: React.FC = () => {
   // ── Amendment audit-log ──────────────────────────────────────────
   const [amendments, setAmendments] = useState<EmrAmendmentDto[]>([]);
 
+  // ── #352: Nhật ký in ấn (parity v1) ──────────────────────────────
+  const [printLogs, setPrintLogs] = useState<EmrPrintLogDto[]>([]);
+
+  // ── #352: Phiếu thử phản ứng thuốc (parity v1 — local state) ─────
+  const [drugTests, setDrugTests] = useState<DrugTestRow[]>([]);
+  const [drugTestOpen, setDrugTestOpen] = useState(false);
+  const [drugTestForm, setDrugTestForm] = useState<Record<string, string>>({});
+  const drugTestSeq = useRef(0);
+
   const openCreate = (kind: 'treatment' | 'consult' | 'nursing') => {
     if (!examId) { tw('Chưa có lần khám để thêm phiếu'); return; }
     setForm({ date: new Date().toISOString().slice(0, 10) });
     setModal(kind);
   };
   const fld = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
+  // #352: field setter cho form phiếu thử phản ứng thuốc
+  const dtf = (k: string, v: string) => setDrugTestForm((p) => ({ ...p, [k]: v }));
 
   /** Mở preview biểu mẫu in trong DrawerShell */
   const openPrintForm = (printType: string) => {
@@ -294,6 +320,7 @@ const EmrEditorV2: React.FC = () => {
     setTab('record');
     setFull(null); setExamId(null); setTreatments([]); setConsults([]); setNursing([]);
     setAttachments([]);
+    setPrintLogs([]); setDrugTests([]); // #352: tránh lẫn dữ liệu BN cũ (an toàn BN)
     let hist: MedicalHistoryDto[] = [];
     try {
       const h = await getPatientMedicalHistory(rec.patientId, 30);
@@ -405,6 +432,14 @@ const EmrEditorV2: React.FC = () => {
     if (sel.medicalRecordId) getAmendments(sel.medicalRecordId).then(setAmendments).catch(() => setAmendments([]));
   }, [sel?.patientId, sel?.medicalRecordId]);
 
+  // #352: parity v1 — nạp nhật ký in khi MỞ tab (id = medicalRecordId, fallback examId như v1)
+  const printLogRecId = sel?.medicalRecordId || full?.id || examId;
+  useEffect(() => {
+    if (tab !== 'printlog') return;
+    if (!printLogRecId) { setPrintLogs([]); return; }
+    getPrintLogs(printLogRecId).then(setPrintLogs); // hàm đã unwrap sẵn → trả EmrPrintLogDto[]
+  }, [tab, printLogRecId]);
+
   const savePartograph = async () => {
     const admId = sel?.medicalRecordId || '';
     if (!sel || !admId) { tw('HSBA này không có phiếu nội trú để ghi biểu đồ'); return; }
@@ -429,6 +464,32 @@ const EmrEditorV2: React.FC = () => {
       const r = await getAnesthesiaRecords(sel.patientId); setAnesRecords(Array.isArray(r.data) ? r.data : []);
     } catch { te('Lưu thất bại'); }
     finally { setAnesSaving(false); }
+  };
+
+  // #352: đóng dấu 1 dòng nhật ký in → cập nhật state local (parity v1)
+  const stampLog = async (r: EmrPrintLogDto) => {
+    const ok = await stampPrintLog(r.id);
+    if (ok) {
+      setPrintLogs((prev) => prev.map((p) => (p.id === r.id ? { ...p, isStamped: true, stampedAt: new Date().toISOString() } : p)));
+      tk('Đã đóng dấu');
+    } else te('Đóng dấu thất bại');
+  };
+
+  // #352: parity v1 — phiếu thử lưu local, chưa có backend endpoint
+  const saveDrugTest = () => {
+    if (!drugTestForm.drugName?.trim()) { tw('Nhập tên thuốc'); return; }
+    drugTestSeq.current += 1;
+    setDrugTests((p) => [...p, {
+      id: `drt-${drugTestSeq.current}`,
+      date: drugTestForm.date || today(),
+      drugName: drugTestForm.drugName.trim(),
+      dose: drugTestForm.dose || '', route: drugTestForm.route || '',
+      testTime: drugTestForm.testTime || '', result: drugTestForm.result || 'Negative',
+      reactionDescription: drugTestForm.reactionDescription || '',
+      tester: drugTestForm.tester || '', notes: drugTestForm.notes || '',
+    }]);
+    tk('Đã thêm phiếu thử phản ứng thuốc');
+    setDrugTestOpen(false);
   };
 
   // ── Attachments (B3.4 so hoa HSBA — upload bytes vao DB blob) ─────
@@ -495,6 +556,37 @@ const EmrEditorV2: React.FC = () => {
     { key: 'size', label: 'Dung lượng', mono: true, width: 100, render: (r) => fmtSize(r.fileSize) },
     { key: 'by', label: 'Người tải', width: 140, render: (r) => r.uploadedByName || '—' },
     { key: 'at', label: 'Thời gian', mono: true, width: 150, render: (r) => fmtDTg(r.uploadedAt) },
+  ];
+
+  // #352: cột nhật ký in ấn (parity v1 tab printlogs)
+  const printLogCols: ColumnDef<EmrPrintLogDto>[] = [
+    { key: 'type', label: 'Loại tài liệu', width: 130, render: (r) => r.documentType },
+    { key: 'title', label: 'Tiêu đề', render: (r) => r.documentTitle },
+    { key: 'by', label: 'Người in', width: 130, render: (r) => r.printedByName || '—' },
+    { key: 'count', label: 'Lần in', width: 70, render: (r) => (
+      // badge số lần in: cam nếu in lại (>1), xanh nếu in lần đầu
+      <span style={{ display: 'inline-block', minWidth: 20, padding: '0 7px', borderRadius: 99, textAlign: 'center', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#fff', background: r.printCount > 1 ? '#fa8c16' : '#52c41a' }}>{r.printCount}</span>
+    ) },
+    { key: 'at', label: 'Ngày in', mono: true, width: 150, render: (r) => (r.printedAt ? fmtDTg(r.printedAt) : '—') },
+    { key: 'stamp', label: 'Đóng dấu', width: 120, render: (r) => (r.isStamped
+      ? <StatusBadge tone="ok">Đã đóng dấu</StatusBadge>
+      : <Btn size="sm" variant="ghost" onClick={() => { void stampLog(r); }}>Đóng dấu</Btn>) },
+  ];
+
+  // #352: cột phiếu thử phản ứng thuốc (parity v1 tab drug-reaction)
+  const drugTestCols: ColumnDef<DrugTestRow>[] = [
+    { key: 'date', label: 'Ngày', mono: true, width: 100, render: (r) => fmtDMYg(r.date) },
+    { key: 'drug', label: 'Thuốc', width: 150, render: (r) => <b>{r.drugName}</b> },
+    { key: 'dose', label: 'Liều', width: 80, render: (r) => r.dose || '—' },
+    { key: 'route', label: 'Đường dùng', width: 100, render: (r) => r.route || '—' },
+    { key: 'time', label: 'Giờ thử', mono: true, width: 70, render: (r) => r.testTime || '—' },
+    { key: 'result', label: 'Kết quả', width: 110, render: (r) => (
+      <StatusBadge tone={r.result === 'Positive' ? 'crit' : r.result === 'Negative' ? 'ok' : 'warn'}>
+        {DRUG_TEST_RESULTS.find((x) => x.v === r.result)?.l || r.result}
+      </StatusBadge>
+    ) },
+    { key: 'reaction', label: 'Mô tả PƯ', render: (r) => r.reactionDescription || '—' },
+    { key: 'tester', label: 'Người thử', width: 110, render: (r) => r.tester || '—' },
   ];
 
   const filtered = records.filter((r) =>
@@ -796,17 +888,40 @@ const EmrEditorV2: React.FC = () => {
               )}
 
               {tab === 'reaction' && (
-                <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-14)' }}>
-                  <h4 style={{ margin: '0 0 10px', fontSize: 'var(--fs-sm)' }}>Phản ứng thuốc / Dị ứng đã ghi nhận</h4>
-                  {(full?.allergies?.length ?? 0) === 0
-                    ? <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Không có dị ứng ghi nhận</div>
-                    : (
-                      <div style={{ padding: 'var(--space-10)', background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)', borderRadius: 'var(--r-2)', color: '#7f1d1d', fontSize: 'var(--fs-sm)', lineHeight: 1.8 }}>
-                        {full!.allergies.map((a) => (
-                          <div key={a.id}><b>{a.allergenName}</b>{a.reaction ? ` — ${a.reaction}` : ''} · Mức độ: {a.severity === 3 ? 'Nặng' : a.severity === 2 ? 'Vừa' : 'Nhẹ'}</div>
-                        ))}
-                      </div>
-                    )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-14)' }}>
+                  <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-14)' }}>
+                    <h4 style={{ margin: '0 0 10px', fontSize: 'var(--fs-sm)' }}>Phản ứng thuốc / Dị ứng đã ghi nhận</h4>
+                    {(full?.allergies?.length ?? 0) === 0
+                      ? <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Không có dị ứng ghi nhận</div>
+                      : (
+                        <div style={{ padding: 'var(--space-10)', background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)', borderRadius: 'var(--r-2)', color: '#7f1d1d', fontSize: 'var(--fs-sm)', lineHeight: 1.8 }}>
+                          {full!.allergies.map((a) => (
+                            <div key={a.id}><b>{a.allergenName}</b>{a.reaction ? ` — ${a.reaction}` : ''} · Mức độ: {a.severity === 3 ? 'Nặng' : a.severity === 2 ? 'Vừa' : 'Nhẹ'}</div>
+                          ))}
+                        </div>
+                      )}
+                  </div>
+
+                  {/* #352: parity v1 — phiếu thử phản ứng thuốc, lưu local, chưa có backend endpoint */}
+                  <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-14)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', marginBottom: 'var(--space-10)' }}>
+                      <h4 style={{ margin: 0, fontSize: 'var(--fs-sm)', flex: 1 }}>Phiếu thử phản ứng thuốc</h4>
+                      <Btn variant="primary" onClick={() => { setDrugTestForm({ date: today(), result: 'Negative' }); setDrugTestOpen(true); }}>
+                        <TermIcon name="plus" size={12} /> Thêm phiếu thử
+                      </Btn>
+                    </div>
+                    <DataTable<DrugTestRow>
+                      columns={drugTestCols}
+                      data={drugTests}
+                      rowKey={(r) => r.id}
+                      empty="Chưa có phiếu thử phản ứng thuốc"
+                      actions={(r) => (
+                        <div className="ab-actions">
+                          <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => setDrugTests((p) => p.filter((x) => x.id !== r.id))} />
+                        </div>
+                      )}
+                    />
+                  </div>
                 </div>
               )}
 
@@ -946,6 +1061,21 @@ const EmrEditorV2: React.FC = () => {
                       </div>
                     )}
                   />
+                </div>
+              )}
+
+              {/* #352: parity v1 — Nhật ký in ấn HSBA (đóng dấu bản in) */}
+              {tab === 'printlog' && (
+                <div>
+                  <h4 style={{ margin: '0 0 10px', fontSize: 'var(--fs-sm)' }}>Nhật ký in ấn HSBA</h4>
+                  <DataTable<EmrPrintLogDto> columns={printLogCols} data={printLogs} rowKey={(r) => r.id} empty="Chưa có nhật ký in ấn" />
+                </div>
+              )}
+
+              {/* #352: parity v1 — Quản lý BA (chia sẻ · trích lục · gáy · hình ảnh · mã tắt · kiểm tra) */}
+              {tab === 'management' && (
+                <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-14)' }}>
+                  <EmrManagementTabs />
                 </div>
               )}
             </div>
@@ -1300,6 +1430,34 @@ const EmrEditorV2: React.FC = () => {
           <FormField lbl="Đánh giá tâm lý">
             <textarea className="ed-fld" rows={2} value={anesForm.psychologicalAssessment || ''} onChange={(e) => setAnesForm((p) => ({ ...p, psychologicalAssessment: e.target.value || undefined }))} />
           </FormField>
+        </div>
+      </ModalShell>
+
+      {/* #352: parity v1 — modal thêm phiếu thử phản ứng thuốc (lưu local) */}
+      <ModalShell open={drugTestOpen} onClose={() => setDrugTestOpen(false)}
+        title="Thêm phiếu thử phản ứng thuốc" sub={sel?.patientName} size="md"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setDrugTestOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={saveDrugTest}><TermIcon name="check" size={12} /> Lưu</Btn>
+        </>}>
+        <div style={{ padding: 'var(--space-16)', display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-10)' }}>
+            <FormField lbl="Ngày thử"><input type="date" className="ed-fld" value={drugTestForm.date || ''} onChange={(e) => dtf('date', e.target.value)} /></FormField>
+            <FormField lbl="Tên thuốc *"><input className="ed-fld" value={drugTestForm.drugName || ''} onChange={(e) => dtf('drugName', e.target.value)} /></FormField>
+            <FormField lbl="Liều"><input className="ed-fld" value={drugTestForm.dose || ''} onChange={(e) => dtf('dose', e.target.value)} /></FormField>
+            <FormField lbl="Đường dùng"><input className="ed-fld" value={drugTestForm.route || ''} onChange={(e) => dtf('route', e.target.value)} placeholder="Tiêm trong da / uống…" /></FormField>
+            <FormField lbl="Giờ thử"><input type="time" className="ed-fld" value={drugTestForm.testTime || ''} onChange={(e) => dtf('testTime', e.target.value)} /></FormField>
+            <FormField lbl="Kết quả">
+              <select className="ed-fld" value={drugTestForm.result || 'Negative'} onChange={(e) => dtf('result', e.target.value)}>
+                {DRUG_TEST_RESULTS.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
+              </select>
+            </FormField>
+          </div>
+          <FormField lbl="Mô tả phản ứng"><textarea className="ed-fld" rows={2} value={drugTestForm.reactionDescription || ''} onChange={(e) => dtf('reactionDescription', e.target.value)} /></FormField>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-10)' }}>
+            <FormField lbl="Người thử"><input className="ed-fld" value={drugTestForm.tester || ''} onChange={(e) => dtf('tester', e.target.value)} /></FormField>
+            <FormField lbl="Ghi chú"><input className="ed-fld" value={drugTestForm.notes || ''} onChange={(e) => dtf('notes', e.target.value)} /></FormField>
+          </div>
         </div>
       </ModalShell>
 

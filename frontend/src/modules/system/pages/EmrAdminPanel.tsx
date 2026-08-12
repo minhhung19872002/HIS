@@ -15,7 +15,7 @@ import {
   type EmrSigningOperationDto, type EmrDocumentGroupDto, type EmrDocumentTypeDto,
 } from '../../emr/api/emrAdmin';
 import {
-  TopTabs, DataTable, StatusBadge, ModalShell, ActBtn, Btn, tk, te, cf,
+  TopTabs, DataTable, StatusBadge, ModalShell, ActBtn, Btn, tk, te, tw, cf,
   type ColumnDef, type TopTab,
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '@/utils/friendlyError';
@@ -44,7 +44,7 @@ const EmrAdminPanel: React.FC = () => {
   const [signingOps, setSigningOps] = useState<EmrSigningOperationDto[]>([]);
   const [docGroups, setDocGroups] = useState<EmrDocumentGroupDto[]>([]);
   const [docTypes, setDocTypes] = useState<EmrDocumentTypeDto[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState<EmrTab>('cover');
   const [editingItem, setEditingItem] = useState<Record<string, unknown> | null>(null);
@@ -64,6 +64,8 @@ const EmrAdminPanel: React.FC = () => {
       if (so.status === 'fulfilled') setSigningOps(so.value);
       if (dg.status === 'fulfilled') setDocGroups(dg.value);
       if (dt.status === 'fulfilled') setDocTypes(dt.value);
+      const failedCount = [ct, sg, sr, so, dg, dt].filter((x) => x.status === 'rejected').length;
+      if (failedCount > 0) tw(`${failedCount} danh mục EMR tải không thành công — vui lòng thử làm mới lại`);
     } catch (e) { te(friendlyErrorMessage(e)); } finally { setLoading(false); }
   }, []);
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -166,7 +168,7 @@ const EmrAdminPanel: React.FC = () => {
       </div>
 
       {tab === 'cover' && (
-        <DataTable<EmrCoverTypeDto> columns={coverColumns} data={coverTypes} rowKey={(r) => r.id}
+        <DataTable<EmrCoverTypeDto> columns={coverColumns} data={coverTypes} rowKey={(r) => r.id} loading={loading}
           actions={(r) => (<>
             <ActBtn ic="edit" title="Sửa" onClick={() => openModal('cover', r as unknown as Record<string, unknown>)} />
             <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => handleDelete('cover', r.id)} />
@@ -174,7 +176,7 @@ const EmrAdminPanel: React.FC = () => {
           empty={emptyMsg} />
       )}
       {tab === 'signer' && (
-        <DataTable<EmrSignerCatalogDto> columns={signerColumns} data={signers} rowKey={(r) => r.id}
+        <DataTable<EmrSignerCatalogDto> columns={signerColumns} data={signers} rowKey={(r) => r.id} loading={loading}
           actions={(r) => (<>
             <ActBtn ic="edit" title="Sửa" onClick={() => openModal('signer', r as unknown as Record<string, unknown>)} />
             <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => handleDelete('signer', r.id)} />
@@ -182,7 +184,7 @@ const EmrAdminPanel: React.FC = () => {
           empty={emptyMsg} />
       )}
       {tab === 'role' && (
-        <DataTable<EmrSigningRoleDto> columns={roleColumns} data={signingRoles} rowKey={(r) => r.id}
+        <DataTable<EmrSigningRoleDto> columns={roleColumns} data={signingRoles} rowKey={(r) => r.id} loading={loading}
           actions={(r) => (<>
             <ActBtn ic="edit" title="Sửa" onClick={() => openModal('role', r as unknown as Record<string, unknown>)} />
             <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => handleDelete('role', r.id)} />
@@ -190,7 +192,7 @@ const EmrAdminPanel: React.FC = () => {
           empty={emptyMsg} />
       )}
       {tab === 'operation' && (
-        <DataTable<EmrSigningOperationDto> columns={operationColumns} data={signingOps} rowKey={(r) => r.id}
+        <DataTable<EmrSigningOperationDto> columns={operationColumns} data={signingOps} rowKey={(r) => r.id} loading={loading}
           actions={(r) => (<>
             <ActBtn ic="edit" title="Sửa" onClick={() => openModal('operation', r as unknown as Record<string, unknown>)} />
             <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => handleDelete('operation', r.id)} />
@@ -198,7 +200,7 @@ const EmrAdminPanel: React.FC = () => {
           empty={emptyMsg} />
       )}
       {tab === 'group' && (
-        <DataTable<EmrDocumentGroupDto> columns={groupColumns} data={docGroups} rowKey={(r) => r.id}
+        <DataTable<EmrDocumentGroupDto> columns={groupColumns} data={docGroups} rowKey={(r) => r.id} loading={loading}
           actions={(r) => (<>
             <ActBtn ic="edit" title="Sửa" onClick={() => openModal('group', r as unknown as Record<string, unknown>)} />
             <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => handleDelete('group', r.id)} />
@@ -206,7 +208,7 @@ const EmrAdminPanel: React.FC = () => {
           empty={emptyMsg} />
       )}
       {tab === 'doctype' && (
-        <DataTable<EmrDocumentTypeDto> columns={docTypeColumns} data={docTypes} rowKey={(r) => r.id}
+        <DataTable<EmrDocumentTypeDto> columns={docTypeColumns} data={docTypes} rowKey={(r) => r.id} loading={loading}
           actions={(r) => (<>
             <ActBtn ic="edit" title="Sửa" onClick={() => openModal('doctype', r as unknown as Record<string, unknown>)} />
             <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => handleDelete('doctype', r.id)} />

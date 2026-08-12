@@ -53,9 +53,11 @@ import {
   DrField,
   AbSelect,
   applyServerErrors,
+  tw,
   type ColumnDef,
   type StatusTab,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -331,13 +333,13 @@ const PharmacyStockIssue: React.FC = () => {
   useEffect(() => {
     wh.getWarehouses()
       .then((r) => setWarehouses((r.data as WarehouseDto[]) || []))
-      .catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
+      .catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh sách kho')); });
     systemApi.catalog.getSuppliers()
       .then((r) => setSuppliers((r.data as SupplierCatalogDto[]) || []))
-      .catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
+      .catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh sách nhà cung cấp')); });
     systemApi.catalog.getDepartments(undefined, undefined, true)
       .then((r) => setDepartments((r.data as DepartmentCatalogDto[]) || []))
-      .catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
+      .catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh sách khoa/phòng')); });
   }, []);
 
   // ── Data loader ───────────────────────────────────────────────────────────
@@ -491,8 +493,7 @@ const PharmacyStockIssue: React.FC = () => {
       void load();
     } catch (e: unknown) {
       if (!applyServerErrors(form, e)) {
-        const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-        message.error(msg || 'Tạo phiếu thất bại');
+        message.error(friendlyErrorMessage(e, 'Tạo phiếu thất bại. Vui lòng thử lại.'));
       }
     } finally {
       setSaving(false);

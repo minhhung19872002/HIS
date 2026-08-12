@@ -7,9 +7,11 @@ import * as risApi from '../api/ris';
 import type { RadiologyOrderDto, RadiologyResultDto, PtttServiceMappingDto } from '../api/ris';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager,
-  ActBtn, Btn, DrawerShell,
+  Btn, DrawerShell, tw, te,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { RowActions } from '../../../components/actions';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { SurgeryReportModal } from '../../surgery/pages/SurgeryReportModal';
 import ShareStudyModal from '../components/ShareStudyModal';
 import DicomViewerConfig from '../components/DicomViewerConfig';
@@ -62,6 +64,8 @@ const RadiologyV2: React.FC = () => {
   // Bulk selection (Issue #144)
   const [bulkSelected, setBulkSelected] = useState<string[]>([]);
   const [burningId, setBurningId] = useState<string | null>(null); // NangCap26: ghi đĩa
+  // Guard double-submit cho bắt đầu / hoàn thành ca chụp (#467) — giữ id ca đang xử lý
+  const [acting, setActing] = useState<string | null>(null);
   const [bulkDownloading, setBulkDownloading] = useState(false);
   const [bulkApproving, setBulkApproving] = useState(false);
   const [bulkPrinting, setBulkPrinting] = useState(false);
@@ -78,7 +82,7 @@ const RadiologyV2: React.FC = () => {
       search || undefined,
     )
       .then((r) => setRows(Array.isArray(r.data) ? r.data : []))
-      .catch(() => setRows([]))
+      .catch((e) => { te(friendlyErrorMessage(e, 'Không tải được danh sách ca CĐHA')); setRows([]); })
       .finally(() => setLoading(false));
   };
   useEffect(reload, [date, search]);
@@ -98,14 +102,20 @@ const RadiologyV2: React.FC = () => {
     if (serviceIds.length === 0) { setPtttMapByRow({}); return; }
     risApi.checkBatchPtttMappings(serviceIds)
       .then((res) => setPtttMapByRow(res.data ?? {}))
-      .catch(() => setPtttMapByRow({}));
+      .catch((e) => {
+        tw(friendlyErrorMessage(e, 'Không kiểm tra được dịch vụ có tường trình PTTT — nút PTTT tạm ẩn'));
+        setPtttMapByRow({});
+      });
   }, [rows]);
 
   // Nạp danh sách phòng chụp một lần khi mount (dùng cho CallPatientModal)
   useEffect(() => {
     risApi.getRooms()
       .then((r) => setRooms((Array.isArray(r.data) ? r.data : []).map((rm) => ({ id: rm.id, name: rm.name }))))
-      .catch(() => setRooms([]));
+      .catch((e) => {
+        tw(friendlyErrorMessage(e, 'Không tải được danh sách phòng chụp — chọn phòng khi gọi bệnh nhân sẽ bị trống'));
+        setRooms([]);
+      });
   }, []);
 
   // Load full result when drawer opens
@@ -116,7 +126,10 @@ const RadiologyV2: React.FC = () => {
     if (!firstItem?.hasResult) return;
     risApi.getRadiologyResult(firstItem.id)
       .then((r) => setResult(r.data || null))
-      .catch(() => setResult(null));
+      .catch((e) => {
+        tw(friendlyErrorMessage(e, 'Không tải được kết quả đọc phim của ca này'));
+        setResult(null);
+      });
   }, [detail]);
 
   // Load PTTT mapping khi drawer mở để kiểm tra dịch vụ có mapping hay không
@@ -192,10 +205,15 @@ const RadiologyV2: React.FC = () => {
   };
   const onViewer = (r: RadiologyOrderDto) => openStudyViewer(r.studyInstanceUID);
   const onStartExam = async (r: RadiologyOrderDto) => {
+    if (acting) return; // chặn double-click ngay cả khi disabled chưa kịp render
+    setActing(r.id);
     try { await risApi.startExam(r.id); message.success('Đã bắt đầu ca chụp'); reload(); }
     catch (e) { message.error((e as ApiErr)?.response?.data?.message || 'Không bắt đầu được ca'); }
+    finally { setActing(null); }
   };
   const onCompleteExam = async (r: RadiologyOrderDto) => {
+    if (acting) return;
+    setActing(r.id);
     try {
       await risApi.completeExam(r.id);
       message.success('Đã hoàn thành ca chụp — chọn Study từ PACS để liên kết ảnh');
@@ -204,6 +222,7 @@ const RadiologyV2: React.FC = () => {
       setPacsOpen(true);
     }
     catch (e) { message.error((e as ApiErr)?.response?.data?.message || 'Không hoàn thành được ca'); }
+    finally { setActing(null); }
   };
 
   const onShare = (r: RadiologyOrderDto) => {
@@ -246,6 +265,7 @@ const RadiologyV2: React.FC = () => {
   // BE đóng gói ZIP (ảnh DICOM + phiếu kết quả + README), FE tải về,
   // người dùng ghi đĩa bằng công cụ hệ điều hành.
   const onBurnDisc = async (r: RadiologyOrderDto) => {
+    if (burningId) return; // đang đóng gói — chặn bấm lần 2
     // Endpoint nhận DicomStudies.Id — KHÔNG phải id phiếu chỉ định (r.id).
     const studyId = r.dicomStudyId;
     if (!studyId) { message.warning('Ca chụp chưa có dữ liệu ảnh trên PACS'); return; }
@@ -419,57 +439,43 @@ const RadiologyV2: React.FC = () => {
           const sk = statusKey(r.status);
           return (
             <div className="ab-actions">
-              {r.items?.[0]?.hasResult && (
-                <ActBtn ic="eye" title="Xem KQ" onClick={() => setDetail(r)} />
-              )}
-              {(sk === 'scheduled' || sk === 'imaging') && (
-                <ActBtn ic="user" title="Gọi bệnh nhân" onClick={() => setCallTarget(r)} />
-              )}
-              {sk === 'scheduled' && (
-                <ActBtn ic="play" title="Bắt đầu chụp" onClick={() => void onStartExam(r)} />
-              )}
-              {sk === 'imaging' && (
-                <ActBtn ic="check" title="Hoàn thành chụp" onClick={() => void onCompleteExam(r)} />
-              )}
-              {sk !== 'cancelled' && sk !== 'reported' && (
-                <ActBtn ic="edit" title="Nhập kết quả" onClick={() => setResultTarget(r)} />
-              )}
-              {r.items?.[0]?.hasImages && (
-                <ActBtn ic="image" title="Xem ảnh DICOM" onClick={() => onViewer(r)} />
-              )}
-              <ActBtn
-                ic={r.items?.[0]?.hasImages ? 'cloud' : 'link'}
-                title={r.items?.[0]?.hasImages ? 'Quản lý Study PACS' : 'Liên kết ảnh từ PACS'}
-                onClick={() => { setPacsTarget(r); setPacsOpen(true); }}
-              />
-              <ActBtn ic="share" title="Chia sẻ ca chụp (ẩn danh tùy chọn)" onClick={() => onShare(r)} />
-              {/* NangCap26 RIS #59 — ghi đĩa CD/DVD ảnh + kết quả */}
-              {r.items?.[0]?.hasImages && (
-                <ActBtn
-                  ic="archive"
-                  title={burningId === r.id ? 'Đang đóng gói…' : 'Ghi đĩa CD/DVD (tải gói ảnh + kết quả)'}
-                  onClick={() => void onBurnDisc(r)}
-                />
-              )}
-              <ActBtn
-                ic={bulkSelected.includes(r.id) ? 'check' : 'download'}
-                title={bulkSelected.includes(r.id) ? 'Đã chọn (bỏ chọn)' : 'Chọn cho thao tác hàng loạt'}
-                onClick={() => toggleBulkSelect(r)}
-              />
-              <ActBtn
-                ic="medicine"
-                title="Vật tư / thuốc cản quang dùng cho ca chụp"
-                onClick={() => setConsumablesTarget(r)}
-              />
-              <ActBtn ic="print" title="In phiếu" onClick={() => onPrintRow(r)} />
-              {/* Nút PTTT: chỉ hiện khi serviceId có mapping (từ batch-check) */}
-              {ptttMapByRow[r.items?.[0]?.serviceId ?? '']?.hasMapping && (
-                <ActBtn
-                  ic="scissors"
-                  title="Tường trình PTTT"
-                  onClick={() => setPtttRowTarget(r)}
-                />
-              )}
+              <RowActions actions={[
+                { key: 'view', icon: 'eye', label: 'Xem kết quả', primary: true,
+                  hidden: !r.items?.[0]?.hasResult, onClick: () => setDetail(r) },
+                { key: 'call', icon: 'user', label: 'Gọi bệnh nhân',
+                  hidden: !(sk === 'scheduled' || sk === 'imaging'), onClick: () => setCallTarget(r) },
+                { key: 'start', icon: 'play', label: 'Bắt đầu chụp', primary: true,
+                  hidden: sk !== 'scheduled', disabled: acting === r.id,
+                  onClick: () => void onStartExam(r) },
+                { key: 'complete', icon: 'check', label: 'Hoàn thành chụp', primary: true,
+                  hidden: sk !== 'imaging', disabled: acting === r.id,
+                  onClick: () => void onCompleteExam(r) },
+                { key: 'result', icon: 'edit', label: 'Nhập kết quả', primary: true,
+                  hidden: sk === 'cancelled' || sk === 'reported', onClick: () => setResultTarget(r) },
+                { key: 'viewer', icon: 'image', label: 'Xem ảnh DICOM',
+                  hidden: !r.items?.[0]?.hasImages, onClick: () => onViewer(r) },
+                { key: 'pacs', icon: r.items?.[0]?.hasImages ? 'cloud' : 'external',
+                  label: r.items?.[0]?.hasImages ? 'Quản lý Study PACS' : 'Liên kết ảnh từ PACS',
+                  onClick: () => { setPacsTarget(r); setPacsOpen(true); } },
+                { key: 'share', icon: 'send', label: 'Chia sẻ ca chụp (ẩn danh tùy chọn)',
+                  onClick: () => onShare(r) },
+                // NangCap26 RIS #59 — ghi đĩa CD/DVD ảnh + kết quả
+                { key: 'burn', icon: 'archive',
+                  label: burningId === r.id ? 'Đang đóng gói…' : 'Ghi đĩa CD/DVD (tải gói ảnh + kết quả)',
+                  hidden: !r.items?.[0]?.hasImages, disabled: burningId === r.id,
+                  onClick: () => void onBurnDisc(r) },
+                { key: 'bulk', icon: bulkSelected.includes(r.id) ? 'check' : 'download',
+                  label: bulkSelected.includes(r.id) ? 'Đã chọn (bỏ chọn)' : 'Chọn cho thao tác hàng loạt',
+                  onClick: () => toggleBulkSelect(r) },
+                { key: 'consumables', icon: 'pill', label: 'Vật tư / thuốc cản quang dùng cho ca chụp',
+                  onClick: () => setConsumablesTarget(r) },
+                { key: 'print', icon: 'printer', label: 'In phiếu',
+                  onClick: () => void onPrintRow(r) },
+                // Nút PTTT: chỉ hiện khi serviceId có mapping (từ batch-check)
+                { key: 'pttt', icon: 'scalpel', label: 'Tường trình PTTT',
+                  hidden: !ptttMapByRow[r.items?.[0]?.serviceId ?? '']?.hasMapping,
+                  onClick: () => setPtttRowTarget(r) },
+              ]} />
             </div>
           );
         }}

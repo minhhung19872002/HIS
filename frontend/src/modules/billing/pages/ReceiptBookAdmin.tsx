@@ -6,9 +6,10 @@ import apiClient from '../../../services/apiClient';
 import systemApi from '../../system/api/system';
 import { unwrapList, type MaybePaged } from '../../../utils/apiNormalize';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, StatusBadge, ActBtn, Btn,
-  tk, ti, tw, cf, type ColumnDef,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, StatusBadge, Btn,
+  tk, ti, tw, type ColumnDef,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
 
 interface Department { id: string; departmentName: string; departmentCode?: string }
 interface ReceiptBookSearchParams {
@@ -60,6 +61,9 @@ const ReceiptBookAdminV2: React.FC = () => {
   const [editing, setEditing] = useState<ReceiptBook | null>(null);
   const [closeOpen, setCloseOpen] = useState<ReceiptBook | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [activating, setActivating] = useState<string | null>(null);
   const [form] = Form.useForm();
   const [closeForm] = Form.useForm();
 
@@ -84,7 +88,7 @@ const ReceiptBookAdminV2: React.FC = () => {
       try {
         const d = await systemApi.catalog.getDepartments();
         setDepartments(unwrapList<Department>((d as { data?: MaybePaged<Department> }).data));
-      } catch { /* empty */ }
+      } catch { tw('Không tải được danh sách khoa — ô chọn Khoa trong form sẽ trống.'); }
     })();
   }, []);
 
@@ -104,34 +108,43 @@ const ReceiptBookAdminV2: React.FC = () => {
   };
 
   const submit = async () => {
+    if (saving) return;
     const v = await form.validateFields();
     const payload = {
       ...(editing ?? {}), ...v,
       issueDate: v.issueDate?.toISOString?.() ?? v.issueDate,
       registeredDate: v.registeredDate?.toISOString?.() ?? v.registeredDate,
     };
+    setSaving(true);
     try { await apiClient.post('/receipt-book', payload); tk(editing ? 'Đã cập nhật' : 'Đã thêm'); setModalOpen(false); load(); }
     catch { tw('Lưu thất bại'); }
+    finally { setSaving(false); }
   };
 
   const activate = async (row: ReceiptBook) => {
+    if (activating) return;
+    setActivating(row.id);
     try { await apiClient.post(`/receipt-book/${row.id}/activate`); tk('Đã kích hoạt'); load(); }
     catch { tw('Kích hoạt thất bại'); }
+    finally { setActivating(null); }
   };
 
   const doClose = async () => {
-    if (!closeOpen) return;
+    if (!closeOpen || closing) return;
     const v = await closeForm.validateFields();
+    setClosing(true);
     try {
       await apiClient.post(`/receipt-book/${closeOpen.id}/close`, v);
       tk('Đã đóng sổ'); setCloseOpen(null); closeForm.resetFields(); load();
     } catch { tw('Đóng sổ thất bại'); }
+    finally { setClosing(false); }
   };
 
-  const remove = (row: ReceiptBook) => cf(`Xóa sổ ${row.bookCode}?`, async () => {
+  // Confirm do RowActions (tone danger) đảm nhiệm — bỏ cf() ở đây để không hỏi 2 lần
+  const remove = async (row: ReceiptBook) => {
     try { await apiClient.delete(`/receipt-book/${row.id}`); tk('Đã xóa'); load(); }
     catch { tw('Xóa thất bại'); }
-  }, { tone: 'crit', confirm: 'Xóa' });
+  };
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: data.length };
@@ -196,10 +209,17 @@ const ReceiptBookAdminV2: React.FC = () => {
         onRowClick={openEdit}
         actions={(r) => (
           <div className="ab-actions">
-            <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-            {r.status === 0 && <ActBtn ic="play" title="Kích hoạt" onClick={() => activate(r)} />}
-            {r.status === 1 && <ActBtn ic="x" title="Đóng sổ" tone="warn" onClick={() => setCloseOpen(r)} />}
-            <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => remove(r)} />
+            <RowActions actions={[
+              { key: 'edit', icon: 'edit', label: 'Sửa sổ biên lai', primary: true, onClick: () => openEdit(r) },
+              { key: 'activate', icon: 'play', label: 'Kích hoạt sổ', primary: true,
+                hidden: r.status !== 0, disabled: activating === r.id, onClick: () => { void activate(r); } },
+              { key: 'close', icon: 'x', label: 'Đóng sổ', tone: 'warn',
+                hidden: r.status !== 1, onClick: () => setCloseOpen(r) },
+              // trả Promise để nút OK của confirm giữ spinner tới khi xóa xong (giữ nguyên hành vi cf cũ)
+              { key: 'del', icon: 'trash', label: 'Xóa sổ', tone: 'danger',
+                confirm: `Xóa sổ ${r.bookCode}? Thao tác không thể hoàn tác.`,
+                onClick: () => remove(r) },
+            ]} />
           </div>
         )}
         loading={loading}
@@ -211,7 +231,8 @@ const ReceiptBookAdminV2: React.FC = () => {
         onCancel={() => setModalOpen(false)}
         title={editing ? 'Sửa sổ biên lai' : 'Khai báo sổ mới'}
         onOk={submit}
-        okText="Lưu"
+        confirmLoading={saving}
+        okText={saving ? 'Đang lưu…' : 'Lưu'}
         cancelText="Hủy"
         width={720}
       >
@@ -248,7 +269,8 @@ const ReceiptBookAdminV2: React.FC = () => {
         onCancel={() => setCloseOpen(null)}
         title={`Đóng sổ ${closeOpen?.bookCode || ''}`}
         onOk={doClose}
-        okText="Xác nhận đóng"
+        confirmLoading={closing}
+        okText={closing ? 'Đang đóng sổ…' : 'Xác nhận đóng'}
         cancelText="Hủy"
       >
         <Form form={closeForm} layout="vertical">

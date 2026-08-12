@@ -25,6 +25,7 @@ import type {
 } from '../api/inpatient';
 import { ModalShell, Btn, DrSec, DrField, fmtVNDg, tk, tw, te } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -215,8 +216,7 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
       tk(`Đã tạo chỉ định ${lines.length} dịch vụ`);
       onDone();
     } catch (e) {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      te(msg || 'Tạo chỉ định dịch vụ thất bại');
+      te(friendlyErrorMessage(e, 'Tạo chỉ định dịch vụ thất bại'));
     } finally {
       setSaving(false);
     }

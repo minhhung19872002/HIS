@@ -19,9 +19,10 @@ import type {
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager,
   DrawerShell, DrSec, DrField, ModalShell, ActBtn, Btn, StatusBadge,
-  tk, te, cf,
+  tk, te, tw, cf,
   type ColumnDef, type TopTab, type KpiItem, type StatusTab,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import ExpiryAlertModal from './ExpiryAlertModal';
 import PaymentQRModal from '../../billing/components/PaymentQRModal';
 import { openPrintWindow, escapeHtml } from '../../../utils/printWindow';
@@ -94,6 +95,10 @@ const HospitalPharmacyV2: React.FC = () => {
   // ── Tab ──────────────────────────────────────────────────────────────────
   const [tab, setTab] = useState<PageTab>('history');
 
+  // #467: chặn double-submit cho các modal lưu (khách hàng / ca / GPP / hoa hồng).
+  // Các modal này loại trừ nhau theo tab nên dùng chung 1 cờ là đủ.
+  const [saving, setSaving] = useState(false);
+
   // ── Tab 1: History ───────────────────────────────────────────────────────
   const [hRows,    setHRows]    = useState<RetailSaleDto[]>([]);
   const [hLoading, setHLoading] = useState(false);
@@ -113,7 +118,7 @@ const HospitalPharmacyV2: React.FC = () => {
         keyword:  hSearch.trim() || undefined,
       });
       setHRows(r.items);
-    } catch { setHRows([]); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được lịch sử bán hàng.')); setHRows([]); }
     finally  { setHLoading(false); }
   }, [hSearch]);
   useEffect(() => {
@@ -122,6 +127,20 @@ const HospitalPharmacyV2: React.FC = () => {
     const t = setTimeout(() => { void loadHistory(); }, 300);
     return () => clearTimeout(t);
   }, [tab, loadHistory]);
+
+  // #467: hủy đơn bán lẻ (thao tác tiền/kho) — trước đây `.then(loadHistory)` KHÔNG có catch nên
+  // hủy thất bại mà người bán không hề biết. Giữ NGUYÊN thứ tự gọi API: cancel → reload danh sách.
+  const [cancelBusy, setCancelBusy] = useState<string | null>(null);
+  const handleCancelSale = async (r: RetailSaleDto) => {
+    if (cancelBusy) return;
+    setCancelBusy(r.id);
+    try {
+      await cancelRetailSale(r.id);
+      tk(`Đã hủy hóa đơn ${r.saleCode}`);
+      await loadHistory();
+    } catch (e) { te(friendlyErrorMessage(e, 'Hủy hóa đơn thất bại. Vui lòng thử lại.')); }
+    finally { setCancelBusy(null); }
+  };
 
   // keyword đã lọc server-side trong loadHistory; chỉ còn tab trạng thái client-side
   const hFiltered = useMemo(
@@ -187,6 +206,8 @@ const HospitalPharmacyV2: React.FC = () => {
     ]);
     if (dash.status  === 'fulfilled') setRetDash(dash.value);
     if (sales.status === 'fulfilled') setRetSales(sales.value.items);
+    const failed = [dash, sales].find((p): p is PromiseRejectedResult => p.status === 'rejected');
+    if (failed) tw(friendlyErrorMessage(failed.reason, 'Không tải được dữ liệu bán lẻ hôm nay.'));
   }, []);
   useEffect(() => { if (tab === 'retail') void loadRetail(); }, [tab, loadRetail]);
 
@@ -217,6 +238,9 @@ const HospitalPharmacyV2: React.FC = () => {
   };
   const handleCreateSale = async () => {
     if (cart.length === 0) { te('Giỏ hàng trống'); return; }
+    // #467: chặn re-entrancy — nút chỉ disabled sau khi React render lại, double-click nhanh
+    // trong cùng frame vẫn lọt 2 lần → tạo 2 hóa đơn + trừ kho 2 lần.
+    if (posLoading) return;
     setPosLoading(true);
     try {
       await createRetailSale({
@@ -260,7 +284,7 @@ const HospitalPharmacyV2: React.FC = () => {
     try {
       const r = await getPharmacyStock({ keyword: stKeyword, page: stPage, pageSize: PS });
       setStItems(r.items); setStTotal(r.totalCount);
-    } catch { setStItems([]); setStTotal(0); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được tồn kho nhà thuốc.')); setStItems([]); setStTotal(0); }
     finally  { setStLoading(false); }
   }, [stKeyword, stPage]);
   useEffect(() => {
@@ -295,7 +319,7 @@ const HospitalPharmacyV2: React.FC = () => {
   const loadRevenue = useCallback(async () => {
     setRevLoading(true);
     try { const r = await getPharmacyRevenue(revFrom, revTo); setRevData(Array.isArray(r) ? r : []); }
-    catch { setRevData([]); }
+    catch (e) { tw(friendlyErrorMessage(e, 'Không tải được báo cáo doanh thu.')); setRevData([]); }
     finally { setRevLoading(false); }
   }, [revFrom, revTo]);
   useEffect(() => { if (tab === 'report') void loadRevenue(); }, [tab, loadRevenue]);
@@ -383,7 +407,7 @@ const HospitalPharmacyV2: React.FC = () => {
         pageSize:     PS,
       });
       setCustomers(Array.isArray(r) ? r : []);
-    } catch { setCustomers([]); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh sách khách hàng.')); setCustomers([]); }
     finally  { setCustLoading(false); }
   }, [custKeyword, custTypeF, custPage]);
   useEffect(() => {
@@ -418,6 +442,8 @@ const HospitalPharmacyV2: React.FC = () => {
 
   const handleSaveCustomer = async () => {
     if (!custForm.fullName.trim()) { te('Vui lòng nhập tên khách hàng'); return; }
+    if (saving) return;
+    setSaving(true);
     try {
       await saveCustomer(custForm);
       tk('Đã lưu khách hàng');
@@ -425,6 +451,7 @@ const HospitalPharmacyV2: React.FC = () => {
       setCustForm({ fullName: '', customerType: 1 });
       void loadCustomers();
     } catch { te('Lỗi lưu khách hàng'); }
+    finally { setSaving(false); }
   };
 
   // ── Loyalty points (add / redeem) ─────────────────────────────────────────
@@ -477,7 +504,9 @@ const HospitalPharmacyV2: React.FC = () => {
       ]);
       setCurrentShift(cur.status  === 'fulfilled' ? cur.value  : null);
       setShifts(       hist.status === 'fulfilled' ? (Array.isArray(hist.value) ? hist.value : []) : []);
-    } catch { /* silent */ }
+      const failed = [cur, hist].find((p): p is PromiseRejectedResult => p.status === 'rejected');
+      if (failed) tw(friendlyErrorMessage(failed.reason, 'Không tải được thông tin ca làm việc.'));
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được thông tin ca làm việc.')); }
     finally  { setShiftLoading(false); }
   }, []);
   useEffect(() => { if (tab === 'shifts') void loadShifts(); }, [tab, loadShifts]);
@@ -500,19 +529,24 @@ const HospitalPharmacyV2: React.FC = () => {
   const shiftPaged      = shifts.slice(0, PS);
 
   const handleOpenShift = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
       await openShift({ openingCash: shiftCash, notes: shiftNotes || undefined });
       tk('Đã mở ca'); setShiftModal(null); setShiftCash(0); setShiftNotes('');
       void loadShifts();
     } catch { te('Lỗi mở ca'); }
+    finally { setSaving(false); }
   };
   const handleCloseShift = async () => {
-    if (!currentShift) return;
+    if (!currentShift || saving) return;
+    setSaving(true);
     try {
       await closeShift({ shiftId: currentShift.id, closingCash: shiftCash, notes: shiftNotes || undefined });
       tk('Đã đóng ca'); setShiftModal(null); setShiftCash(0); setShiftNotes('');
       void loadShifts();
     } catch { te('Lỗi đóng ca'); }
+    finally { setSaving(false); }
   };
 
   // ── Tab 7: GPP ────────────────────────────────────────────────────────────
@@ -539,7 +573,7 @@ const HospitalPharmacyV2: React.FC = () => {
         toDate:     gppTo,
       });
       setGppRecords(Array.isArray(r) ? r : []);
-    } catch { setGppRecords([]); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được hồ sơ GPP.')); setGppRecords([]); }
     finally  { setGppLoading(false); }
   }, [gppKeyword, gppTypeF, gppFrom, gppTo]);
   useEffect(() => {
@@ -564,6 +598,8 @@ const HospitalPharmacyV2: React.FC = () => {
   ];
 
   const handleSaveGpp = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
       await saveGppRecord(gppForm);
       tk('Đã lưu hồ sơ GPP');
@@ -571,6 +607,7 @@ const HospitalPharmacyV2: React.FC = () => {
       setGppForm({ recordType: 1, recordDate: dayjs().format('YYYY-MM-DD') });
       void loadGpp();
     } catch { te('Lỗi lưu hồ sơ GPP'); }
+    finally { setSaving(false); }
   };
 
   // ── Tab 8: Commission ──────────────────────────────────────────────────────
@@ -594,7 +631,7 @@ const HospitalPharmacyV2: React.FC = () => {
       });
       setCommissions(Array.isArray(r) ? r : []);
       setCommSelected(new Set<string>());
-    } catch { setCommissions([]); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh sách hoa hồng.')); setCommissions([]); }
     finally  { setCommLoading(false); }
   }, [commFrom, commTo, commStatusF, commKeyword]);
   useEffect(() => { if (tab === 'commission') void loadCommissions(); }, [tab, loadCommissions]);
@@ -637,6 +674,8 @@ const HospitalPharmacyV2: React.FC = () => {
     if (!commForm.quantity || commForm.quantity <= 0)       { te('Số lượng phải lớn hơn 0'); return; }
     if (commForm.saleAmount < 0)                            { te('Tiền bán không hợp lệ'); return; }
     if (commForm.commissionRate < 0 || commForm.commissionRate > 100) { te('Tỉ lệ hoa hồng phải trong khoảng 0–100%'); return; }
+    if (saving) return;
+    setSaving(true);
     try {
       await saveCommission(commForm);
       tk('Đã lưu hoa hồng');
@@ -644,6 +683,7 @@ const HospitalPharmacyV2: React.FC = () => {
       setCommForm({ quantity: 1, saleAmount: 0, commissionRate: 0, saleDate: dayjs().format('YYYY-MM-DD') });
       void loadCommissions();
     } catch { te('Lỗi lưu hoa hồng'); }
+    finally { setSaving(false); }
   };
 
   const handlePayCommissions = () => {
@@ -700,9 +740,9 @@ const HospitalPharmacyV2: React.FC = () => {
                     <ActBtn ic="qr" title="QR thanh toán" onClick={() => setQrSale(r)} />
                   )}
                   {r.status === 0 && (
-                    <ActBtn ic="x" title="Hủy đơn" tone="crit"
+                    <ActBtn ic="x" title="Hủy đơn" tone="crit" loading={cancelBusy === r.id}
                       onClick={() => cf(`Hủy hóa đơn ${r.saleCode}?`,
-                        () => { void cancelRetailSale(r.id).then(loadHistory); },
+                        () => { void handleCancelSale(r); },
                         { tone: 'crit', confirm: 'Hủy đơn' })}
                     />
                   )}
@@ -1017,7 +1057,9 @@ const HospitalPharmacyV2: React.FC = () => {
               title={custForm.id ? 'Sửa khách hàng' : 'Thêm khách hàng'} size="md"
               footer={<>
                 <Btn variant="ghost" onClick={() => setCustModalOpen(false)}>Hủy</Btn>
-                <Btn variant="primary" onClick={handleSaveCustomer}>{custForm.id ? 'Cập nhật' : 'Lưu'}</Btn>
+                <Btn variant="primary" loading={saving} onClick={handleSaveCustomer}>
+                  {saving ? 'Đang lưu…' : custForm.id ? 'Cập nhật' : 'Lưu'}
+                </Btn>
               </>}
             >
               <Form layout="vertical" style={{ padding: '4px 0' }}>
@@ -1140,7 +1182,7 @@ const HospitalPharmacyV2: React.FC = () => {
             <ModalShell open={shiftModal === 'open'} onClose={() => setShiftModal(null)} title="Mở ca làm việc" size="sm"
               footer={<>
                 <Btn variant="ghost" onClick={() => setShiftModal(null)}>Hủy</Btn>
-                <Btn variant="primary" onClick={handleOpenShift}>Mở ca</Btn>
+                <Btn variant="primary" loading={saving} onClick={handleOpenShift}>{saving ? 'Đang mở ca…' : 'Mở ca'}</Btn>
               </>}
             >
               <div style={frow}>
@@ -1156,7 +1198,7 @@ const HospitalPharmacyV2: React.FC = () => {
             <ModalShell open={shiftModal === 'close'} onClose={() => setShiftModal(null)} title="Đóng ca làm việc" size="sm"
               footer={<>
                 <Btn variant="ghost" onClick={() => setShiftModal(null)}>Hủy</Btn>
-                <Btn variant="crit" onClick={handleCloseShift}>Đóng ca</Btn>
+                <Btn variant="crit" loading={saving} onClick={handleCloseShift}>{saving ? 'Đang đóng ca…' : 'Đóng ca'}</Btn>
               </>}
             >
               <div style={frow}>
@@ -1205,7 +1247,7 @@ const HospitalPharmacyV2: React.FC = () => {
             <ModalShell open={gppModal} onClose={() => setGppModal(false)} title="Thêm ghi chép GPP" size="md"
               footer={<>
                 <Btn variant="ghost" onClick={() => setGppModal(false)}>Hủy</Btn>
-                <Btn variant="primary" onClick={handleSaveGpp}>Lưu</Btn>
+                <Btn variant="primary" loading={saving} onClick={handleSaveGpp}>{saving ? 'Đang lưu…' : 'Lưu'}</Btn>
               </>}
             >
               <div style={frow}>
@@ -1312,7 +1354,7 @@ const HospitalPharmacyV2: React.FC = () => {
             <ModalShell open={commModal} onClose={() => setCommModal(false)} title="Thêm hoa hồng" size="md"
               footer={<>
                 <Btn variant="ghost" onClick={() => setCommModal(false)}>Hủy</Btn>
-                <Btn variant="primary" onClick={handleSaveCommission}>Lưu</Btn>
+                <Btn variant="primary" loading={saving} onClick={handleSaveCommission}>{saving ? 'Đang lưu…' : 'Lưu'}</Btn>
               </>}
             >
               <div style={frow}>

@@ -8,6 +8,7 @@ import React, { useEffect, useState } from 'react';
 import apiClient from '../../../services/apiClient';
 import { storage, STORAGE_KEYS } from '../../../services/storage.service';
 import { fmtDate as fmtDateBase } from '../../../utils/format';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 const TOKEN_KEY = 'patient_portal_token';
 const INFO_KEY = 'patient_portal_account';
@@ -266,19 +267,31 @@ const PortalWorkspace: React.FC<{ info: PortalAccountInfo; onLogout: () => void 
     let alive = true;
     (async () => {
       setLoading(true); setLoadErr('');
+      // #467 — mỗi tab lỗi trước đây bị nuốt thành mảng rỗng (trông như "chưa có dữ liệu"):
+      // vẫn giữ mảng rỗng (không đổi logic) nhưng ghi nhận để báo 1 lần ở banner.
+      const failed: string[] = [];
+      let firstErr: unknown;
+      const swallow = (label: string) => (e: unknown) => {
+        failed.push(label);
+        if (firstErr === undefined) firstErr = e;
+        return [];
+      };
       try {
         // Token PortalPatient → BE tự lấy patientId từ claim, KHÔNG truyền query param
         const [v, l, p, b] = await Promise.all([
-          portalAuthApi.visits().catch(() => []),
-          portalAuthApi.labResults().catch(() => []),
-          portalAuthApi.prescriptions().catch(() => []),
-          portalAuthApi.invoices().catch(() => []),
+          portalAuthApi.visits().catch(swallow('lịch sử khám')),
+          portalAuthApi.labResults().catch(swallow('kết quả xét nghiệm')),
+          portalAuthApi.prescriptions().catch(swallow('đơn thuốc')),
+          portalAuthApi.invoices().catch(swallow('hóa đơn')),
         ]);
         if (!alive) return;
         setVisits(Array.isArray(v) ? v : []);
         setLabs(Array.isArray(l) ? l : []);
         setRx(Array.isArray(p) ? p : []);
         setBills(Array.isArray(b) ? b : []);
+        if (failed.length > 0) {
+          setLoadErr(`Không tải được ${failed.join(', ')}. ${friendlyErrorMessage(firstErr, 'Vui lòng thử lại sau ít phút hoặc đăng nhập lại.')}`);
+        }
       } catch {
         if (alive) setLoadErr('Không tải được dữ liệu — thử đăng nhập lại');
       } finally {

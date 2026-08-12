@@ -7,12 +7,11 @@
 import React, { useState } from 'react';
 import * as file from '../../../services/file.service';
 import { Form, Input, Checkbox, Button } from 'antd';
-import type { AxiosError } from 'axios';
-import type { ServerValidationError } from '../../../utils/formError';
 import {
   KpiStrip, DrawerShell, StatusBadge,
   tk, te, fmtDTg, fmtDMYg, fmtHMg,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '@/utils/friendlyError';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { emrHl7Api } from '../../../api/nangcap24';
 import type { Hl7ExportResponseDto } from '../../../api/nangcap24';
@@ -32,6 +31,7 @@ const EmrHl7Export: React.FC = () => {
   const [preview, setPreview] = useState(false);
 
   const doExport = async () => {
+    if (running) return;
     if (!recordId.trim()) { te('Cần nhập HSBA ID'); return; }
     setRunning(true);
     try {
@@ -45,8 +45,7 @@ const EmrHl7Export: React.FC = () => {
       setResult(r);
       tk(`Đã tạo ${r.messageCount} HL7 message · ${(r.contentSizeBytes / 1024).toFixed(1)} KB`);
     } catch (e: unknown) {
-      const ax = e as AxiosError<ServerValidationError>;
-      te(ax?.response?.data?.message ?? 'Xuất HL7 thất bại');
+      te(friendlyErrorMessage(e, 'Xuất HL7 thất bại'));
     } finally { setRunning(false); }
   };
 

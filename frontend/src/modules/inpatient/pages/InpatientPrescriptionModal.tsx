@@ -32,6 +32,7 @@ import { getWarehouses } from '../../pharmacy/api/warehouse';
 import type { WarehouseDto } from '../../pharmacy/api/warehouse';
 import { ModalShell, Btn, DrSec, DrField, tk, tw, te } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -151,12 +152,12 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
       const list = (w.data as WarehouseDto[]) || [];
       setWarehouses(list);
       if (list.length === 1) setWarehouseId(list[0].id);
-    } catch { setWarehouses([]); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh sách kho thuốc.')); setWarehouses([]); }
     // Đơn mẫu
     try {
       const t = await getPrescriptionTemplates();
       setTemplates(Array.isArray(t.data) ? t.data : []);
-    } catch { setTemplates([]); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh sách đơn thuốc mẫu.')); setTemplates([]); }
     // Chẩn đoán từ HSBA
     try {
       const r = await getDiagnosisFromRecord(admissionId);
@@ -243,8 +244,7 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
       tk(isDischargeRx ? 'Đã lưu đơn thuốc xuất viện' : 'Đã lưu y lệnh thuốc');
       onDone();
     } catch (e) {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      te(msg || 'Lưu y lệnh thuốc thất bại');
+      te(friendlyErrorMessage(e, 'Lưu y lệnh thuốc thất bại'));
     } finally {
       setSaving(false);
     }

@@ -3,7 +3,7 @@ import {
   KpiStrip, TopTabs, DataTable, StatusBadge, ActBtn,
   DrawerShell, DrSec, DrField, useListData,
   type ColumnDef, type TopTab, type KpiItem, type StatusTone,
-  tk, te, fmtDTg
+  tk, te, cf, fmtDTg
 } from '@/_v2kit';
 import {
   linen,
@@ -135,10 +135,16 @@ const LinenTxPanel: React.FC = () => {
     useCallback(() => te('Không tải được'), []),
   );
   const [sel, setSel] = useState<LinenTransactionDto | null>(null);
+  // #467: guard double-submit THEO TỪNG DÒNG — khoá toàn panel sẽ nuốt im lặng cú click
+  // ở dòng khác (nút dòng đó vẫn sáng nhưng bấm không có gì xảy ra).
+  const [busy, setBusy] = useState<Set<string>>(new Set());
 
   const advance = async (r: LinenTransactionDto, ns: number) => {
+    if (busy.has(r.id)) return;
+    setBusy((prev) => new Set(prev).add(r.id));
     try { await linen.updateTransactionStatus(r.id, ns); tk('Đã cập nhật trạng thái giao dịch'); reload(); }
     catch { te('Cập nhật thất bại'); }
+    finally { setBusy((prev) => { const n = new Set(prev); n.delete(r.id); return n; }); }
   };
 
   const kpis: KpiItem[] = [
@@ -170,11 +176,13 @@ const LinenTxPanel: React.FC = () => {
         rowKey={(r) => r.id} data={rows} columns={columns} onRowClick={setSel} loading={loading}
         actions={(r) => (
           <>
-            {r.status === 0 && <ActBtn ic="external" title="Đánh dấu đã gửi" onClick={() => advance(r, 1)} />}
-            {r.status === 1 && <ActBtn ic="check"    title="Nhận về"         onClick={() => advance(r, 2)} />}
-            {r.status === 2 && <ActBtn ic="check"    title="Đối chiếu xong"  onClick={() => advance(r, 3)} />}
+            {r.status === 0 && <ActBtn ic="external" title="Đánh dấu đã gửi" loading={busy.has(r.id)} onClick={() => advance(r, 1)} />}
+            {r.status === 1 && <ActBtn ic="check"    title="Nhận về"         loading={busy.has(r.id)} onClick={() => advance(r, 2)} />}
+            {r.status === 2 && <ActBtn ic="check"    title="Đối chiếu xong"  loading={busy.has(r.id)} onClick={() => advance(r, 3)} />}
             {r.status !== 4 && r.status !== 3 && (
-              <ActBtn ic="x" title="Hủy" tone="crit" onClick={() => advance(r, 4)} />
+              <ActBtn ic="x" title="Hủy" tone="crit" loading={busy.has(r.id)}
+                onClick={() => cf(`Hủy giao dịch đồ vải ${r.transactionCode}? Thao tác không thể hoàn tác.`,
+                  () => { void advance(r, 4); }, { tone: 'crit', confirm: 'Xác nhận hủy' })} />
             )}
           </>
         )}
@@ -216,10 +224,15 @@ const LinenSterPanel: React.FC = () => {
     useCallback(() => te('Không tải được'), []),
   );
   const [sel, setSel] = useState<SterilizationScheduleDto | null>(null);
+  // #467: guard double-submit theo từng dòng (xem ghi chú ở LinenTxPanel).
+  const [busy, setBusy] = useState<Set<string>>(new Set());
 
   const advance = async (r: SterilizationScheduleDto, ns: number, cult?: string) => {
+    if (busy.has(r.id)) return;
+    setBusy((prev) => new Set(prev).add(r.id));
     try { await linen.updateScheduleStatus(r.id, ns, cult); tk('Đã cập nhật'); reload(); }
     catch { te('Cập nhật thất bại'); }
+    finally { setBusy((prev) => { const n = new Set(prev); n.delete(r.id); return n; }); }
   };
 
   const kpis: KpiItem[] = [
@@ -254,9 +267,9 @@ const LinenSterPanel: React.FC = () => {
         rowKey={(r) => r.id} data={rows} columns={columns} onRowClick={setSel} loading={loading}
         actions={(r) => (
           <>
-            {r.status === 0 && <ActBtn ic="external" title="Bắt đầu" onClick={() => advance(r, 1)} />}
-            {r.status === 1 && <ActBtn ic="check" title="Hoàn thành (Pass)" onClick={() => advance(r, 2, 'Pass')} />}
-            {r.status === 1 && <ActBtn ic="x" title="Thất bại" tone="crit" onClick={() => advance(r, 3, 'Fail')} />}
+            {r.status === 0 && <ActBtn ic="external" title="Bắt đầu" loading={busy.has(r.id)} onClick={() => advance(r, 1)} />}
+            {r.status === 1 && <ActBtn ic="check" title="Hoàn thành (Pass)" loading={busy.has(r.id)} onClick={() => advance(r, 2, 'Pass')} />}
+            {r.status === 1 && <ActBtn ic="x" title="Thất bại" tone="crit" loading={busy.has(r.id)} onClick={() => advance(r, 3, 'Fail')} />}
           </>
         )}
       />

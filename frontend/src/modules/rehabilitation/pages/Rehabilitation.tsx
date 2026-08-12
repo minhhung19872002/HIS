@@ -13,10 +13,11 @@ import type {
   CreateFunctionalAssessmentDto, CreateTreatmentPlanDto,
 } from '../api/rehabilitation';
 import {
-  KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
+  KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, Btn,
   DrawerShell, DrSec, DrField, CrudModal, ModalShell, tk, ti, tw, te, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
 
 type Row = {
   id: string;
@@ -162,14 +163,18 @@ const RehabilitationV2: React.FC = () => {
   const [fType, setFType] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<Row | null>(null);
+  const [accepting, setAccepting] = useState<string | null>(null);
 
   const accept = async (r: Row) => {
+    if (accepting) return; // chặn double-submit (nút ở cột thao tác VÀ ở footer drawer)
+    setAccepting(r.id);
     try {
       await acceptReferral(r.id);
       tk(`Đã chấp nhận ${r.referralCode || ''}`.trim());
       setSel(null);
       load();
     } catch { ti('Chấp nhận thất bại'); }
+    finally { setAccepting(null); }
   };
 
   const load = async () => {
@@ -305,16 +310,18 @@ const RehabilitationV2: React.FC = () => {
   ];
 
   const actions = (r: Row) => (
-    <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      {sKey(r.status) === 'pending' && (
-        <ActBtn ic="check" title="Chấp nhận" onClick={() => accept(r)} />
-      )}
-      {sKey(r.status) !== 'pending' && sKey(r.status) !== 'cancelled' && <>
-        <ActBtn ic="stethoscope" title="Đánh giá chức năng" onClick={() => openAssess(r)} />
-        <ActBtn ic="file-text" title="Lập KH điều trị" onClick={() => openPlan(r)} />
-      </>}
-    </div>
+    <RowActions actions={[
+      { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setSel(r) },
+      { key: 'accept', icon: 'check', label: 'Chấp nhận', primary: true,
+        hidden: sKey(r.status) !== 'pending', disabled: accepting === r.id,
+        onClick: () => accept(r) },
+      { key: 'assess', icon: 'stethoscope', label: 'Đánh giá chức năng', primary: true,
+        hidden: sKey(r.status) === 'pending' || sKey(r.status) === 'cancelled',
+        onClick: () => openAssess(r) },
+      { key: 'plan', icon: 'file-text', label: 'Lập KH điều trị',
+        hidden: sKey(r.status) === 'pending' || sKey(r.status) === 'cancelled',
+        onClick: () => openPlan(r) },
+    ]} />
   );
 
   // ══════════════════════ Tab: Lịch buổi tập (schedule) ══════════════════════
@@ -446,16 +453,21 @@ const RehabilitationV2: React.FC = () => {
     finally { setCancelSaving(false); }
   };
 
-  const sessActions = (r: TreatmentSessionDto) => (
-    <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSelSession(r)} />
-      {(sessKey(r.status) === 'scheduled' || sessKey(r.status) === 'active') && <>
-        <ActBtn ic="check" title="Hoàn tất" onClick={() => openComplete(r)} />
-        <ActBtn ic="x" title="Huỷ buổi" tone="crit" onClick={() => openCancel(r, 'cancel')} />
-        <ActBtn ic="clock" title="Không đến" tone="warn" onClick={() => openCancel(r, 'noshow')} />
-      </>}
-    </div>
-  );
+  const sessActions = (r: TreatmentSessionDto) => {
+    const open = sessKey(r.status) === 'scheduled' || sessKey(r.status) === 'active';
+    return (
+      <RowActions actions={[
+        { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setSelSession(r) },
+        { key: 'done', icon: 'check', label: 'Hoàn tất', primary: true, hidden: !open,
+          onClick: () => openComplete(r) },
+        { key: 'noshow', icon: 'clock', label: 'Không đến', tone: 'warn', hidden: !open,
+          onClick: () => openCancel(r, 'noshow') },
+        // confirm: false — modal Huỷ buổi bên dưới đã là bước xác nhận (có ô lý do)
+        { key: 'cancel', icon: 'x', label: 'Huỷ buổi', tone: 'danger', confirm: false, hidden: !open,
+          onClick: () => openCancel(r, 'cancel') },
+      ]} />
+    );
+  };
 
   // ══════════════════════ Render ══════════════════════
   return (
@@ -519,8 +531,8 @@ const RehabilitationV2: React.FC = () => {
                 <Ico name="print" size={12} /> In giấy GT
               </Btn>
               {sel && sKey(sel.status) === 'pending' && (
-                <Btn variant="primary" onClick={() => accept(sel)}>
-                  <Ico name="check" size={12} /> Chấp nhận
+                <Btn variant="primary" disabled={accepting === sel.id} onClick={() => accept(sel)}>
+                  <Ico name="check" size={12} /> {accepting === sel.id ? 'Đang chấp nhận…' : 'Chấp nhận'}
                 </Btn>
               )}
               {sel && sKey(sel.status) !== 'pending' && sKey(sel.status) !== 'cancelled' && <>

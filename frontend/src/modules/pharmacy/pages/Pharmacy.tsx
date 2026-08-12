@@ -10,7 +10,7 @@ import type { PendingPrescription, InventoryItem, TransferRequest, AlertItem, Me
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager,
   DrawerShell, DrSec, DrField, ModalShell,
-  StatusBadge, ActBtn, Btn, tk, ti, te,
+  StatusBadge, ActBtn, Btn, tk, ti, te, tw,
   type ColumnDef, type TopTab, type KpiItem, type StatusTab,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
@@ -458,8 +458,7 @@ const PharmacyV2: React.FC = () => {
       trResetForm();
       loadTr();
     } catch (e) {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      te(msg || 'Tạo yêu cầu thất bại');
+      te(friendlyErrorMessage(e, 'Tạo yêu cầu chuyển kho thất bại. Vui lòng thử lại.'));
     } finally { setTrSubmitting(false); }
   };
 
@@ -904,7 +903,7 @@ const RxDrawerBody: React.FC<{ r: PendingPrescription }> = ({ r }) => {
     setLoading(true);
     pharmacyApi.getMedicationItems(r.id)
       .then((res) => setItems(Array.isArray(res.data) ? res.data : []))
-      .catch(() => setItems([]))
+      .catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh mục thuốc của đơn.')); setItems([]); })
       .finally(() => setLoading(false));
   }, [r.id]);
 

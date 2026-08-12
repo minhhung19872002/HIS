@@ -43,6 +43,7 @@ import { openAiReportHtml, downloadAiSignedPdf, uploadAiDicomSr, mergeAiToReport
 import { API_ORIGIN } from '../../../config/api.config';
 import { ORTHANC_URL } from '../../../config/env.config';
 import { dicomStudyLogApi } from '../../../api/nangcap24';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import AiLabelingModal from '@/modules/radiology/components/AiLabelingModal';
 import AiOverlayLayer from '@/modules/radiology/components/AiOverlayLayer';
 import CineControls, { type CineViewportHandle } from '@/modules/radiology/components/CineControls';
@@ -198,6 +199,8 @@ const DicomViewer: React.FC = () => {
   const [keyImages, setKeyImages] = useState<KeyImageDto[]>([]);
   // Gallery modal — quản lý danh sách key images hàng loạt
   const [keyImageGalleryOpen, setKeyImageGalleryOpen] = useState(false);
+  // Guard double-submit khi bỏ đánh dấu key image trong gallery (#467) — giữ id đang xử lý
+  const [keyImageRemoving, setKeyImageRemoving] = useState<string | null>(null);
   // Index within the current images[] array that is currently viewed in viewer
   const [viewerCurrentIdx, setViewerCurrentIdx] = useState(0);
 
@@ -315,8 +318,9 @@ const DicomViewer: React.FC = () => {
     try {
       const resp = await risApi.getKeyImages(studyUID);
       setKeyImages(resp.data ?? []);
-    } catch {
-      // Non-critical — silently skip if PACS feature not yet deployed
+    } catch (e) {
+      // Non-critical — không chặn xem ảnh, nhưng phải báo để khỏi hiểu nhầm "0 key image"
+      message.warning(friendlyErrorMessage(e, 'Không tải được danh sách Key Image của ca chụp'));
     }
   }, []);
 
@@ -427,7 +431,7 @@ const DicomViewer: React.FC = () => {
         setSelectedImageUrl(resolveApiUrl(response.data[0].imageUrl));
       }
     } catch (err) {
-      console.warn('Error loading images:', err);
+      message.warning(friendlyErrorMessage(err, 'Không tải được danh sách ảnh của series này'));
       setImages([]);
     }
   };
@@ -1430,20 +1434,35 @@ const DicomViewer: React.FC = () => {
                 <Button
                   size="small"
                   danger
-                  onClick={async () => {
-                    try {
-                      await risApi.markKeyImage({
-                        studyInstanceUID,
-                        sopInstanceUID: ki.sopInstanceUID,
-                        unmark: true,
-                      });
-                      // Reload key images
-                      const resp = await risApi.getKeyImages(studyInstanceUID);
-                      setKeyImages(resp.data ?? []);
-                      message.success('Đã xóa key image');
-                    } catch {
-                      message.error('Xóa thất bại');
-                    }
+                  loading={keyImageRemoving === ki.id}
+                  disabled={keyImageRemoving !== null && keyImageRemoving !== ki.id}
+                  onClick={() => {
+                    if (keyImageRemoving) return; // chặn bấm lần 2 khi đang xử lý
+                    Modal.confirm({
+                      title: 'Bỏ đánh dấu Key Image',
+                      content: `Bỏ đánh dấu ảnh ${ki.sopInstanceUID}? Ảnh vẫn còn trên PACS, chỉ mất nhãn Key Image.`,
+                      okText: 'Xóa',
+                      okType: 'danger',
+                      cancelText: 'Hủy',
+                      onOk: async () => {
+                        setKeyImageRemoving(ki.id);
+                        try {
+                          await risApi.markKeyImage({
+                            studyInstanceUID,
+                            sopInstanceUID: ki.sopInstanceUID,
+                            unmark: true,
+                          });
+                          // Reload key images
+                          const resp = await risApi.getKeyImages(studyInstanceUID);
+                          setKeyImages(resp.data ?? []);
+                          message.success('Đã xóa key image');
+                        } catch {
+                          message.error('Xóa thất bại');
+                        } finally {
+                          setKeyImageRemoving(null);
+                        }
+                      },
+                    });
                   }}
                 >
                   Xóa

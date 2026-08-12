@@ -18,6 +18,7 @@ import {
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 
 /* ────────────────────────────────────────────────────────────
@@ -623,7 +624,7 @@ const IncidentReportModal: React.FC<{
       setLocation(''); setDescription(''); setImmediate(''); setPatientId(''); setNotes(''); setReportable(false);
       catalogApi.getDepartments(undefined, undefined, true)
         .then((r) => setDepts(r.data || []))
-        .catch(() => setDepts([]));
+        .catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh sách khoa/phòng.')); setDepts([]); });
     }
   }, [open]);
 
@@ -742,7 +743,7 @@ const AuditCreateModal: React.FC<{
       setLeadAuditorId(''); setScope(''); setObjective(''); setCriteria(''); setNotes('');
       catalogApi.getDepartments(undefined, undefined, true)
         .then((r) => setDepts(r.data || []))
-        .catch(() => setDepts([]));
+        .catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh sách khoa/phòng.')); setDepts([]); });
     }
   }, [open]);
 

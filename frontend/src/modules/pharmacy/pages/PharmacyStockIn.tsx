@@ -51,9 +51,12 @@ import {
   DrField,
   AbSelect,
   applyServerErrors,
+  tw,
   type ColumnDef,
   type StatusTab,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -328,6 +331,13 @@ const PharmacyStockIn: React.FC = () => {
   const [detail, setDetail] = useState<StockReceiptDto | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
+  // ── Row-action guard (chặn double-click duyệt / hủy / in) — THEO TỪNG DÒNG.
+  //    Khoá chung cả bảng sẽ nuốt im lặng cú click ở dòng khác (nút dòng đó vẫn
+  //    sáng nhưng bấm không có gì xảy ra) — cùng pattern LinenManagement (#467).
+  const [busy, setBusy] = useState<Set<string>>(new Set());
+  const markBusy = (id: string) => setBusy((prev) => new Set(prev).add(id));
+  const clearBusy = (id: string) => setBusy((prev) => { const n = new Set(prev); n.delete(id); return n; });
+
   // ── Create modal ─────────────────────────────────────────────────────────
   const [createOpen, setCreateOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -338,10 +348,10 @@ const PharmacyStockIn: React.FC = () => {
   useEffect(() => {
     wh.getWarehouses()
       .then((r) => setWarehouses((r.data as WarehouseDto[]) || []))
-      .catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
+      .catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh sách kho')); });
     systemApi.catalog.getSuppliers()
       .then((r) => setSuppliers((r.data as SupplierCatalogDto[]) || []))
-      .catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
+      .catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh sách nhà cung cấp')); });
   }, []);
 
   // ── Data loader ───────────────────────────────────────────────────────────
@@ -399,6 +409,8 @@ const PharmacyStockIn: React.FC = () => {
   // ── Approve ───────────────────────────────────────────────────────────────
   const onApprove = async (r: StockReceiptDto) => {
     if (r.status !== STATUS_DRAFT) return;
+    if (busy.has(r.id)) return;
+    markBusy(r.id);
     try {
       await wh.approveStockReceipt(r.id);
       message.success(`Đã duyệt phiếu ${r.receiptCode}`);
@@ -407,17 +419,21 @@ const PharmacyStockIn: React.FC = () => {
         const res = await wh.getStockReceiptById(r.id);
         setDetail(res.data as StockReceiptDto);
       }
-    } catch {
-      message.error('Duyệt phiếu thất bại');
+    } catch (e) {
+      message.error(friendlyErrorMessage(e, 'Duyệt phiếu thất bại'));
+    } finally {
+      clearBusy(r.id);
     }
   };
 
   // ── Cancel (window.prompt pattern — same as Laboratory.tsx) ──────────────
   const onCancel = async (r: StockReceiptDto) => {
     if (r.status !== STATUS_DRAFT) return;
+    if (busy.has(r.id)) return;
     const reason = window.prompt(`Lý do hủy phiếu ${r.receiptCode}:`, '');
     if (reason === null) return;          // user pressed Cancel
     if (!reason.trim()) { message.warning('Cần nhập lý do hủy'); return; }
+    markBusy(r.id);
     try {
       await wh.cancelStockReceipt(r.id, reason.trim());
       message.success(`Đã hủy phiếu ${r.receiptCode}`);
@@ -426,20 +442,26 @@ const PharmacyStockIn: React.FC = () => {
         const res = await wh.getStockReceiptById(r.id);
         setDetail(res.data as StockReceiptDto);
       }
-    } catch {
-      message.error('Hủy phiếu thất bại');
+    } catch (e) {
+      message.error(friendlyErrorMessage(e, 'Hủy phiếu thất bại'));
+    } finally {
+      clearBusy(r.id);
     }
   };
 
   // ── Print (blob → new tab — Billing.tsx pattern) ─────────────────────────
   const onPrint = async (r: StockReceiptDto) => {
+    if (busy.has(r.id)) return;
+    markBusy(r.id);
     try {
       const res = await wh.printStockReceipt(r.id);
       const url = URL.createObjectURL(res.data as Blob);
       window.open(url, '_blank');
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } catch {
-      message.error('In phiếu thất bại');
+    } catch (e) {
+      message.error(friendlyErrorMessage(e, 'In phiếu thất bại'));
+    } finally {
+      clearBusy(r.id);
     }
   };
 
@@ -492,8 +514,7 @@ const PharmacyStockIn: React.FC = () => {
       void load();
     } catch (e: unknown) {
       if (!applyServerErrors(form, e)) {
-        const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-        message.error(msg || 'Tạo phiếu thất bại');
+        message.error(friendlyErrorMessage(e, 'Tạo phiếu thất bại. Vui lòng thử lại.'));
       }
     } finally {
       setSaving(false);
@@ -606,15 +627,24 @@ const PharmacyStockIn: React.FC = () => {
         onRowClick={openDetail}
         empty={loading ? 'Đang tải…' : 'Không có phiếu nhập nào'}
         actions={(r) => (
-          <>
-            {r.status === STATUS_DRAFT && (
-              <ActBtn ic="check" title="Duyệt phiếu" onClick={() => void onApprove(r)} />
-            )}
-            {r.status === STATUS_DRAFT && (
-              <ActBtn ic="x-circle" title="Hủy phiếu" tone="crit" onClick={() => void onCancel(r)} />
-            )}
-            <ActBtn ic="printer" title="In phiếu" onClick={() => void onPrint(r)} />
-          </>
+          <RowActions actions={[
+            {
+              key: 'approve', icon: 'check', label: 'Duyệt phiếu', primary: true,
+              hidden: r.status !== STATUS_DRAFT, disabled: busy.has(r.id),
+              onClick: () => void onApprove(r),
+            },
+            {
+              key: 'print', icon: 'printer', label: 'In phiếu',
+              disabled: busy.has(r.id),
+              onClick: () => void onPrint(r),
+            },
+            {
+              // onCancel đã hỏi lý do bằng window.prompt → tắt confirm mặc định của RowActions
+              key: 'cancel', icon: 'x', label: 'Hủy phiếu', tone: 'danger', confirm: false,
+              hidden: r.status !== STATUS_DRAFT, disabled: busy.has(r.id),
+              onClick: () => void onCancel(r),
+            },
+          ]} />
         )}
       />
 
@@ -631,12 +661,15 @@ const PharmacyStockIn: React.FC = () => {
         footer={detail && (
           <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
             {detail.status === STATUS_DRAFT && (
-              <Btn variant="ok" icon="check" onClick={() => void onApprove(detail)}>Duyệt</Btn>
+              <Btn variant="ok" icon="check" disabled={busy.has(detail.id)} onClick={() => void onApprove(detail)}>
+                {busy.has(detail.id) ? 'Đang xử lý…' : 'Duyệt'}
+              </Btn>
             )}
             {detail.status === STATUS_DRAFT && (
-              <Btn variant="crit" icon="x-circle" onClick={() => void onCancel(detail)}>Hủy phiếu</Btn>
+              /* icon 'x' — 'x-circle' KHÔNG có trong TermIcon (render rỗng), dùng đúng tên như RowAction 'Hủy phiếu' */
+              <Btn variant="crit" icon="x" disabled={busy.has(detail.id)} onClick={() => void onCancel(detail)}>Hủy phiếu</Btn>
             )}
-            <Btn variant="ghost" icon="printer" onClick={() => void onPrint(detail)}>In phiếu</Btn>
+            <Btn variant="ghost" icon="printer" disabled={busy.has(detail.id)} onClick={() => void onPrint(detail)}>In phiếu</Btn>
           </div>
         )}
       >

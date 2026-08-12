@@ -39,6 +39,10 @@ const TABS = [
   { v: 'dispense' as Tab, l: 'Xuất thuốc tại phòng (N1.15)', ic: 'medicine' },
 ];
 
+// antd Form.validateFields() reject với { errorFields } — antd đã tự bôi đỏ field, không toast trùng.
+const isFormValidationError = (e: unknown): boolean =>
+  !!e && typeof e === 'object' && Array.isArray((e as { errorFields?: unknown }).errorFields);
+
 const RadiologyOpsV2: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [requests, setRequests] = useState<Request[]>([]);
@@ -83,34 +87,41 @@ const RadiologyOpsV2: React.FC = () => {
 
   useEffect(() => {
     (async () => {
+      const failed: string[] = [];
       try { const { data: s } = await apiClient.get('/catalog/paraclinical-services', { params: { serviceType: 3, isActive: true, pageSize: 500 } });
-        setServices(unwrapList<Service>(s as MaybePaged<Service>)); } catch { /* empty */ }
+        setServices(unwrapList<Service>(s as MaybePaged<Service>)); } catch (e) { console.warn('[RadiologyOps] load paraclinical-services failed', e); failed.push('dịch vụ CĐHA'); }
       try { const { data: m } = await apiClient.get('/catalog/medicines', { params: { isActive: true, pageSize: 500 } });
-        setMedicines(unwrapList<Medicine>(m as MaybePaged<Medicine>)); } catch { /* empty */ }
+        setMedicines(unwrapList<Medicine>(m as MaybePaged<Medicine>)); } catch (e) { console.warn('[RadiologyOps] load medicines failed', e); failed.push('thuốc'); }
       try { const { data: sp } = await apiClient.get('/catalog/medical-supplies', { params: { isActive: true, pageSize: 500 } });
-        setSupplies(unwrapList<Supply>(sp as MaybePaged<Supply>)); } catch { /* empty */ }
+        setSupplies(unwrapList<Supply>(sp as MaybePaged<Supply>)); } catch (e) { console.warn('[RadiologyOps] load medical-supplies failed', e); failed.push('vật tư y tế'); }
       try { const w = await getWarehouses(1);
         const body = (w as { data?: MaybePaged<Warehouse> }).data;
-        setWarehouses(unwrapList<Warehouse>(body)); } catch { /* empty */ }
+        setWarehouses(unwrapList<Warehouse>(body)); } catch (e) { console.warn('[RadiologyOps] load warehouses failed', e); failed.push('kho xuất'); }
+      if (failed.length) tw(`Không tải được danh mục: ${failed.join(', ')}. Danh sách chọn sẽ thiếu — hãy tải lại trang.`);
     })();
   }, []);
 
   const submitAddOn = async () => {
+    if (addOnBusy) return;   // chặn double-click → tránh tạo trùng phiếu chỉ định
     if (!selected) { tw('Chọn 1 phiếu CĐHA trước'); return; }
-    const v = await addOnForm.validateFields();
+    setAddOnBusy(true);
     try {
+      const v = await addOnForm.validateFields();
       const { data }: { data: AddOnResponse } = await apiClient.post('/radiology-ops/add-on', {
         parentRequestId: selected.id, serviceIds: v.serviceIds, reason: v.reason, withContrast: v.withContrast ?? false,
       });
       tk(`Đã tạo ${data.created?.length || 0} phiếu CĐHA mới`);
       addOnForm.resetFields(); search();
-    } catch { tw('Tạo phiếu thất bại'); }
+    } catch (e) { if (!isFormValidationError(e)) tw('Tạo phiếu thất bại'); }
+    finally { setAddOnBusy(false); }
   };
 
   const submitDispense = async () => {
+    if (dispenseBusy) return;   // chặn double-click → tránh TRỪ KHO 2 LẦN
     if (!selected) { tw('Chọn 1 phiếu CĐHA trước'); return; }
-    const v = await dispenseForm.validateFields();
+    setDispenseBusy(true);
     try {
+      const v = await dispenseForm.validateFields();
       const { data }: { data: DispenseResponse } = await apiClient.post('/radiology-ops/dispense', {
         warehouseId: v.warehouseId, patientId: selected.patientId,
         radiologyRequestId: selected.id, medicalRecordId: selected.medicalRecordId, note: v.note,
@@ -126,7 +137,8 @@ const RadiologyOpsV2: React.FC = () => {
       });
       tk(`Đã xuất kho ${data.receiptCode} — ${(data.totalAmount || 0).toLocaleString('vi-VN')}đ`);
       dispenseForm.resetFields();
-    } catch { tw('Xuất kho thất bại'); }
+    } catch (e) { if (!isFormValidationError(e)) tw('Xuất kho thất bại'); }
+    finally { setDispenseBusy(false); }
   };
 
   const cols: ColumnDef<Request>[] = [
@@ -201,8 +213,8 @@ const RadiologyOpsV2: React.FC = () => {
                 <Form.Item label="Lý do chỉ định thêm" name="reason" rules={[{ required: true }]}>
                   <Input.TextArea rows={3} placeholder="VD: cần chụp thêm tư thế nghiêng để đánh giá…" />
                 </Form.Item>
-                <Btn variant="primary" onClick={submitAddOn}>
-                  <Ico name="plus" size={12} /> Tạo phiếu chỉ định thêm
+                <Btn variant="primary" onClick={submitAddOn} disabled={addOnBusy}>
+                  <Ico name="plus" size={12} /> {addOnBusy ? 'Đang tạo phiếu…' : 'Tạo phiếu chỉ định thêm'}
                 </Btn>
               </Form>
             </div>
@@ -248,8 +260,11 @@ const RadiologyOpsV2: React.FC = () => {
                 <Form.Item label="Ghi chú phiếu" name="note" style={{ marginTop: 'var(--space-16)' }}>
                   <Input.TextArea rows={2} />
                 </Form.Item>
-                <Btn variant="primary" onClick={submitDispense}>
-                  <Ico name="medicine" size={12} /> Xuất kho cho BN
+                <Btn variant="primary" disabled={dispenseBusy}
+                  onClick={() => { if (dispenseBusy) return; cf(
+                    `Xuất kho thuốc/vật tư cho bệnh nhân ${selected.patientName} (phiếu ${selected.requestCode})? Thao tác sẽ TRỪ TỒN KHO ngay và không tự hoàn lại.`,
+                    () => submitDispense(), { tone: 'warn', confirm: 'Xuất kho' }); }}>
+                  <Ico name="medicine" size={12} /> {dispenseBusy ? 'Đang xuất kho…' : 'Xuất kho cho BN'}
                 </Btn>
               </Form>
             </div>

@@ -10,6 +10,7 @@ import {
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
 
 // ──── Báo cáo ca bệnh ────
 
@@ -108,6 +109,7 @@ const EpidemiologyV2: React.FC = () => {
   const [crudOpen, setCrudOpen] = useState(false);
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
   const [newReportOpen, setNewReportOpen] = useState(false);
+  const [sending, setSending] = useState<string | null>(null); // id báo cáo đang gửi — chặn double-submit
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -178,17 +180,21 @@ const EpidemiologyV2: React.FC = () => {
 
   const openEdit = (r: DiseaseReport) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
   const sendReport = async (r: DiseaseReport) => {
+    if (sending) return;
+    setSending(r.id);
     try { await updateDiseaseReport(r.id, { status: 1 }); tk(`Đã gửi ${r.reportCode}`); load(); }
     catch { te('Gửi báo cáo thất bại'); }
+    finally { setSending(null); }
   };
 
   const actions = (r: DiseaseReport) => (
     <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-      {r.status === 0 && (
-        <ActBtn ic="send" title="Gửi báo cáo" onClick={() => sendReport(r)} />
-      )}
+      <RowActions actions={[
+        { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setSel(r) },
+        { key: 'edit', icon: 'edit', label: 'Sửa', primary: true, onClick: () => openEdit(r) },
+        { key: 'send', icon: 'send', label: 'Gửi báo cáo',
+          hidden: r.status !== 0, disabled: sending === r.id, onClick: () => sendReport(r) },
+      ]} />
     </div>
   );
 
@@ -416,7 +422,7 @@ const EpidemiologyV2: React.FC = () => {
                 <Ico name="edit" size={12} /> Sửa
               </Btn>
               {sel && sel.status === 0 && (
-                <Btn variant="primary" onClick={() => { if (sel) sendReport(sel); setSel(null); }}>
+                <Btn variant="primary" disabled={!!sending} onClick={() => { if (sel) sendReport(sel); setSel(null); }}>
                   <Ico name="send" size={12} /> Gửi báo cáo
                 </Btn>
               )}

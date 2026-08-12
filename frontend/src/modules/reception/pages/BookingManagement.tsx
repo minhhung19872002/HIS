@@ -597,7 +597,7 @@ const BookingModal: React.FC<{
     if (!open) return;
     setForm(isEdit && initial ? toFormState(initial) : EMPTY_BOOKING);
     setDoctors([]);
-    getBookingDepartments().then((d) => setDepts(Array.isArray(d) ? d : [])).catch(() => setDepts([]));
+    getBookingDepartments().then((d) => setDepts(Array.isArray(d) ? d : [])).catch(() => { tw('Không tải được danh sách khoa.'); setDepts([]); });
   }, [open, isEdit, initial]);
 
   // Tải bác sĩ theo khoa đã chọn.
@@ -606,7 +606,7 @@ const BookingModal: React.FC<{
     let alive = true;
     getBookingDoctors(form.departmentId)
       .then((d) => { if (alive) setDoctors(Array.isArray(d) ? d : []); })
-      .catch(() => { if (alive) setDoctors([]); });
+      .catch(() => { if (alive) { tw('Không tải được danh sách bác sĩ.'); setDoctors([]); } });
     return () => { alive = false; };
   }, [form.departmentId]);
 

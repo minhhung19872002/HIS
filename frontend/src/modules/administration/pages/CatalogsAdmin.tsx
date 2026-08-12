@@ -51,6 +51,8 @@ const LEVEL_OPTIONS = [
 
 const CatalogsAdminV2: React.FC = () => {
   const [tab, setTab] = useState<Tab>('abbr');
+  // #467: guard double-submit — chi 1 modal/drawer mo tai mot thoi diem nen dung chung 1 state
+  const [saving, setSaving] = useState(false);
   const [abbrs, setAbbrs] = useState<AbbreviationDto[]>([]);
   const [abbrLoading, setAbbrLoading] = useState(false);
   const [abbrScope, setAbbrScope] = useState('');
@@ -175,11 +177,14 @@ const CatalogsAdminV2: React.FC = () => {
     setAbbrModal(true);
   };
   const submitAbbr = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
       const v = await abbrForm.validateFields();
       await saveAbbreviation({ id: abbrEditing?.id, ...v });
       tk('Da luu'); setAbbrModal(false); invalidateAbbreviationCache(); loadAbbrs();
     } catch { tw('Luu that bai'); }
+    finally { setSaving(false); }
   };
   const deleteAbbr = (r: AbbreviationDto) => cf(`Xoa viet tat "${r.code}"?`, async () => {
     await deleteAbbreviation(r.id); tk('Da xoa'); invalidateAbbreviationCache(); loadAbbrs();
@@ -204,11 +209,14 @@ const CatalogsAdminV2: React.FC = () => {
     setTplDrawer(true);
   };
   const submitTpl = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
       const v = await tplForm.validateFields();
       await saveTemplate({ id: tplEditing?.id, ...v });
       tk('Da luu template'); setTplDrawer(false); loadTpls();
     } catch { tw('Luu that bai'); }
+    finally { setSaving(false); }
   };
   const deleteTpl = (r: ClinicalTemplateDto) => cf(`Xoa template "${r.templateName}"?`, async () => {
     await deleteTemplate(r.id); tk('Da xoa'); loadTpls();
@@ -258,11 +266,14 @@ const CatalogsAdminV2: React.FC = () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const makeSubmit = (editing: any, form: any, saveFn: (dto: any) => Promise<any>, setModal: (v: boolean) => void, reload: () => void) =>
     async () => {
+      if (saving) return;
+      setSaving(true);
       try {
         const v = await form.validateFields();
         await saveFn({ id: editing?.id, ...v });
         tk('Da luu'); setModal(false); reload();
       } catch { tw('Luu that bai'); }
+      finally { setSaving(false); }
     };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -497,8 +508,8 @@ const CatalogsAdminV2: React.FC = () => {
         title={abbrEditing ? 'Sua viet tat' : 'Them viet tat'}
         footer={<>
           <Btn variant="ghost" onClick={() => setAbbrModal(false)}>Huy</Btn>
-          <Btn variant="primary" onClick={submitAbbr}>
-            <Ico name="check" size={12} /> Luu
+          <Btn variant="primary" onClick={submitAbbr} disabled={saving}>
+            <Ico name="check" size={12} /> {saving ? 'Dang luu...' : 'Luu'}
           </Btn>
         </>}
       >
@@ -562,7 +573,9 @@ const CatalogsAdminV2: React.FC = () => {
             </Form>
             <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end', marginTop: 'var(--space-16)' }}>
               <Btn variant="ghost" onClick={() => setTplDrawer(false)}>Huy</Btn>
-              <Btn variant="primary" onClick={submitTpl}><Ico name="check" size={12} /> Luu</Btn>
+              <Btn variant="primary" onClick={submitTpl} disabled={saving}>
+                <Ico name="check" size={12} /> {saving ? 'Dang luu...' : 'Luu'}
+              </Btn>
             </div>
           </div>
         </div>
@@ -573,8 +586,8 @@ const CatalogsAdminV2: React.FC = () => {
         title={occEditing ? 'Sua nghe nghiep' : 'Them nghe nghiep'}
         footer={<>
           <Btn variant="ghost" onClick={() => setOccModal(false)}>Huy</Btn>
-          <Btn variant="primary" onClick={makeSubmit(occEditing, occForm, saveOccupation, setOccModal, loadOcc)}>
-            <Ico name="check" size={12} /> Luu
+          <Btn variant="primary" onClick={makeSubmit(occEditing, occForm, saveOccupation, setOccModal, loadOcc)} disabled={saving}>
+            <Ico name="check" size={12} /> {saving ? 'Dang luu...' : 'Luu'}
           </Btn>
         </>}>
         <Form form={occForm} layout="vertical">
@@ -590,8 +603,8 @@ const CatalogsAdminV2: React.FC = () => {
         title={genEditing ? 'Sua gioi tinh' : 'Them gioi tinh'}
         footer={<>
           <Btn variant="ghost" onClick={() => setGenModal(false)}>Huy</Btn>
-          <Btn variant="primary" onClick={makeSubmit(genEditing, genForm, saveGender, setGenModal, loadGen)}>
-            <Ico name="check" size={12} /> Luu
+          <Btn variant="primary" onClick={makeSubmit(genEditing, genForm, saveGender, setGenModal, loadGen)} disabled={saving}>
+            <Ico name="check" size={12} /> {saving ? 'Dang luu...' : 'Luu'}
           </Btn>
         </>}>
         <Form form={genForm} layout="vertical">
@@ -607,8 +620,8 @@ const CatalogsAdminV2: React.FC = () => {
         title={ethEditing ? 'Sua dan toc' : 'Them dan toc'}
         footer={<>
           <Btn variant="ghost" onClick={() => setEthModal(false)}>Huy</Btn>
-          <Btn variant="primary" onClick={makeSubmit(ethEditing, ethForm, saveEthnic, setEthModal, loadEth)}>
-            <Ico name="check" size={12} /> Luu
+          <Btn variant="primary" onClick={makeSubmit(ethEditing, ethForm, saveEthnic, setEthModal, loadEth)} disabled={saving}>
+            <Ico name="check" size={12} /> {saving ? 'Dang luu...' : 'Luu'}
           </Btn>
         </>}>
         <Form form={ethForm} layout="vertical">
@@ -624,8 +637,8 @@ const CatalogsAdminV2: React.FC = () => {
         title={natEditing ? 'Sua quoc gia' : 'Them quoc gia'}
         footer={<>
           <Btn variant="ghost" onClick={() => setNatModal(false)}>Huy</Btn>
-          <Btn variant="primary" onClick={makeSubmit(natEditing, natForm, saveNation, setNatModal, loadNat)}>
-            <Ico name="check" size={12} /> Luu
+          <Btn variant="primary" onClick={makeSubmit(natEditing, natForm, saveNation, setNatModal, loadNat)} disabled={saving}>
+            <Ico name="check" size={12} /> {saving ? 'Dang luu...' : 'Luu'}
           </Btn>
         </>}>
         <Form form={natForm} layout="vertical">
@@ -641,8 +654,8 @@ const CatalogsAdminV2: React.FC = () => {
         title={facEditing ? 'Sua CSKCB' : 'Them CSKCB ban dau'}
         footer={<>
           <Btn variant="ghost" onClick={() => setFacModal(false)}>Huy</Btn>
-          <Btn variant="primary" onClick={makeSubmit(facEditing, facForm, saveInitialFacility, setFacModal, loadFac)}>
-            <Ico name="check" size={12} /> Luu
+          <Btn variant="primary" onClick={makeSubmit(facEditing, facForm, saveInitialFacility, setFacModal, loadFac)} disabled={saving}>
+            <Ico name="check" size={12} /> {saving ? 'Dang luu...' : 'Luu'}
           </Btn>
         </>}>
         <Form form={facForm} layout="vertical">

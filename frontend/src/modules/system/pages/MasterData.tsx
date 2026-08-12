@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Input, InputNumber, Select, Switch, Upload, Form } from 'antd';
-import type { AxiosError } from 'axios';
 import systemApi from '../api/system';
 import { administrativeCatalogApi } from '../../administration/api/administrativeCatalog';
-import { applyServerErrors, type ServerValidationError } from '../../../utils/formError';
+import { applyServerErrors } from '../../../utils/formError';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import {
   KpiStrip, SearchBox, DataTable, StatusBadge, ModalShell, ActBtn, Btn, tk, te, tw, cf,
   type ColumnDef,
@@ -256,8 +256,7 @@ const MasterDataV2: React.FC = () => {
       else { te('Danh mục này chưa hỗ trợ ghi'); return; }
       tk(modal === 'new' ? 'Đã thêm' : 'Đã cập nhật'); setModal(null); loadOne(active);
     } catch (e: unknown) {
-      const ax = e as AxiosError<ServerValidationError>;
-      if (!applyServerErrors(mF, e)) te(ax?.response?.data?.message || 'Lưu thất bại');
+      if (!applyServerErrors(mF, e)) te(friendlyErrorMessage(e, 'Lưu thất bại'));
     }
     finally { setSaving(false); }
   };
@@ -358,7 +357,7 @@ const MasterDataV2: React.FC = () => {
               : <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Danh mục chỉ đọc (chưa có API ghi)</span>}
           </div>
           <DataTable<CatalogRow>
-            columns={columns} data={filtered} rowKey={(r) => r.id || r.code}
+            columns={columns} data={filtered} rowKey={(r) => r.id || r.code} loading={loading}
             onRowClick={writable ? openEdit : undefined}
             actions={writable ? (r) => (<><ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} /><ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => del(r)} /></>) : undefined}
             empty={loading ? 'Đang tải…' : (<div className="ab-empty"><TermIcon name="search" size={20} /><div>Không có mục nào</div></div>)}

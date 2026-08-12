@@ -11,6 +11,7 @@ import {
   getPlanningStats,
 } from '../api/medicalRecordPlanning';
 import type { BulkAllocateResult } from '../api/medicalRecordPlanning';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import {
   KpiStrip, TopTabs, type TopTab, StatusTabs, SearchBox, Filter, DataTable,
   Pager, StatusBadge, ActBtn, Btn, DrawerShell, ModalShell, DrSec, DrField,
@@ -236,6 +237,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
   const [attendance, setAttendance] = useState<DepartmentAttendance[]>([]);
   const [attLoading, setAttLoading] = useState(false);
   const [attDate, setAttDate] = useState<dayjs.Dayjs>(dayjs());
+  const [checkingIn, setCheckingIn] = useState<string | null>(null);
 
   // ─────────────────────────── Load functions ───────────────────────────────
 
@@ -243,7 +245,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
     try {
       const r = await getPlanningStats();
       setStats(r.data as PlanningStats);
-    } catch { /* silent — KPI stays at '…' */ }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được số liệu tổng quan. Các chỉ số KPI có thể chưa cập nhật.')); }
   };
 
   const load = useCallback(async () => {
@@ -492,11 +494,14 @@ const MedicalRecordPlanningV2: React.FC = () => {
   // ─────────────────────────── Attendance tab handlers ─────────────────────
 
   const handleCheckIn = async (r: DepartmentAttendance) => {
+    if (checkingIn) return;
+    setCheckingIn(r.departmentId);
     try {
       await checkIn({ departmentId: r.departmentId });
       tk(`Đã chấm công khoa ${r.departmentName}`);
       loadAttendance(attDate);
     } catch { tw('Chấm công thất bại'); }
+    finally { setCheckingIn(null); }
   };
 
   // ─────────────────────────── Computed (Codes tab) ────────────────────────
@@ -665,7 +670,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
 
   const attActions = (r: DepartmentAttendance) => !r.isCheckedIn ? (
     <div className="ab-actions">
-      <ActBtn ic="check-square" title="Chấm công" onClick={() => handleCheckIn(r)} />
+      <ActBtn ic="check-square" title="Chấm công" loading={checkingIn === r.departmentId} onClick={() => handleCheckIn(r)} />
     </div>
   ) : null;
 

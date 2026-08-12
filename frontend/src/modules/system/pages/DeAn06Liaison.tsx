@@ -1,10 +1,12 @@
 import React, { useCallback, useState } from 'react';
 import {
   KpiStrip, TopTabs, DataTable, StatusBadge,
-  DrawerShell, ActBtn, Btn, DrSec, DrField, useListData,
+  DrawerShell, Btn, DrSec, DrField, useListData,
   type ColumnDef, type TopTab, type KpiItem, type StatusTone,
   tk, te, fmtDTg, fmtDMYg
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
+import { friendlyErrorMessage } from '@/utils/friendlyError';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import {
   deAn06,
@@ -49,14 +51,18 @@ const BirthTab: React.FC = () => {
     useCallback(() => te('Không tải được'), []),
   );
   const [detail, setDetail] = useState<BirthCertificateDto | null>(null);
+  const [busy, setBusy] = useState(false); // #467: chống double-submit gửi cổng ĐA06
 
   const submit = async (r: BirthCertificateDto) => {
+    if (busy) return;
+    setBusy(true);
     try {
       await deAn06.submitBirth(r.id);
       tk(`Đã gửi lên cổng Đề án 06 — ${r.certificateNumber}`);
       reload();
       setDetail(null);
-    } catch { te('Gửi cổng thất bại'); }
+    } catch (e) { te(friendlyErrorMessage(e, 'Gửi cổng Đề án 06 thất bại. Vui lòng thử lại.')); }
+    finally { setBusy(false); }
   };
 
   const kpis: KpiItem[] = [
@@ -93,17 +99,20 @@ const BirthTab: React.FC = () => {
       <DataTable<BirthCertificateDto>
         rowKey={(r) => r.id} data={rows} columns={columns} loading={loading}
         onRowClick={setDetail}
-        actions={(r) => r.da06Status < 2
-          ? <ActBtn ic="external" title="Gửi lên cổng Đề án 06" onClick={() => submit(r)} />
-          : null}
+        actions={(r) => (
+          <RowActions actions={[
+            { key: 'submit', icon: 'external', label: 'Gửi lên cổng Đề án 06', primary: true,
+              hidden: r.da06Status >= 2, disabled: busy, onClick: () => submit(r) },
+          ]} />
+        )}
       />
       <DrawerShell open={!!detail} onClose={() => setDetail(null)} size="lg"
         title={`Chứng sinh · ${detail?.certificateNumber || ''}`}
         footer={detail && detail.da06Status < 2 ? (
           <>
             <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
-            <Btn variant="primary" onClick={() => detail && submit(detail)}>
-              <TermIcon name="external" size={12} /> Gửi cổng Đề án 06
+            <Btn variant="primary" onClick={() => detail && submit(detail)} disabled={busy}>
+              <TermIcon name="external" size={12} /> {busy ? 'Đang gửi…' : 'Gửi cổng Đề án 06'}
             </Btn>
           </>
         ) : <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>}>
@@ -147,10 +156,14 @@ const DeathTab: React.FC = () => {
     useCallback(() => te('Không tải được'), []),
   );
   const [detail, setDetail] = useState<DeathCertificateDto | null>(null);
+  const [busy, setBusy] = useState(false); // #467: chống double-submit gửi cổng ĐA06
 
   const submit = async (r: DeathCertificateDto) => {
+    if (busy) return;
+    setBusy(true);
     try { await deAn06.submitDeath(r.id); tk(`Đã gửi lên cổng Đề án 06 — ${r.certificateNumber}`); reload(); setDetail(null); }
-    catch { te('Gửi cổng thất bại'); }
+    catch (e) { te(friendlyErrorMessage(e, 'Gửi cổng Đề án 06 thất bại. Vui lòng thử lại.')); }
+    finally { setBusy(false); }
   };
 
   const kpis: KpiItem[] = [
@@ -189,17 +202,20 @@ const DeathTab: React.FC = () => {
       <DataTable<DeathCertificateDto>
         rowKey={(r) => r.id} data={rows} columns={columns} loading={loading}
         onRowClick={setDetail}
-        actions={(r) => r.da06Status < 2
-          ? <ActBtn ic="external" title="Gửi lên cổng Đề án 06" onClick={() => submit(r)} />
-          : null}
+        actions={(r) => (
+          <RowActions actions={[
+            { key: 'submit', icon: 'external', label: 'Gửi lên cổng Đề án 06', primary: true,
+              hidden: r.da06Status >= 2, disabled: busy, onClick: () => submit(r) },
+          ]} />
+        )}
       />
       <DrawerShell open={!!detail} onClose={() => setDetail(null)} size="lg"
         title={`Báo tử · ${detail?.certificateNumber || ''}`}
         footer={detail && detail.da06Status < 2 ? (
           <>
             <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
-            <Btn variant="primary" onClick={() => detail && submit(detail)}>
-              <TermIcon name="external" size={12} /> Gửi cổng Đề án 06
+            <Btn variant="primary" onClick={() => detail && submit(detail)} disabled={busy}>
+              <TermIcon name="external" size={12} /> {busy ? 'Đang gửi…' : 'Gửi cổng Đề án 06'}
             </Btn>
           </>
         ) : <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>}>
@@ -248,10 +264,14 @@ const DlhcTab: React.FC = () => {
     useCallback(() => te('Không tải được'), []),
   );
   const [detail, setDetail] = useState<DrivingLicenseHealthCheckDto | null>(null);
+  const [busy, setBusy] = useState(false); // #467: chống double-submit gửi cổng ĐA06
 
   const submit = async (r: DrivingLicenseHealthCheckDto) => {
+    if (busy) return;
+    setBusy(true);
     try { await deAn06.submitDlhc(r.id); tk(`Đã gửi lên cổng Đề án 06 — ${r.certificateNumber}`); reload(); setDetail(null); }
-    catch { te('Gửi cổng thất bại'); }
+    catch (e) { te(friendlyErrorMessage(e, 'Gửi cổng Đề án 06 thất bại. Vui lòng thử lại.')); }
+    finally { setBusy(false); }
   };
 
   const kpis: KpiItem[] = [
@@ -288,17 +308,20 @@ const DlhcTab: React.FC = () => {
       <DataTable<DrivingLicenseHealthCheckDto>
         rowKey={(r) => r.id} data={rows} columns={columns} loading={loading}
         onRowClick={setDetail}
-        actions={(r) => r.da06Status < 2
-          ? <ActBtn ic="external" title="Gửi lên cổng Đề án 06" onClick={() => submit(r)} />
-          : null}
+        actions={(r) => (
+          <RowActions actions={[
+            { key: 'submit', icon: 'external', label: 'Gửi lên cổng Đề án 06', primary: true,
+              hidden: r.da06Status >= 2, disabled: busy, onClick: () => submit(r) },
+          ]} />
+        )}
       />
       <DrawerShell open={!!detail} onClose={() => setDetail(null)} size="lg"
         title={`KSK lái xe · ${detail?.certificateNumber || ''}`}
         footer={detail && detail.da06Status < 2 ? (
           <>
             <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
-            <Btn variant="primary" onClick={() => detail && submit(detail)}>
-              <TermIcon name="external" size={12} /> Gửi cổng Đề án 06
+            <Btn variant="primary" onClick={() => detail && submit(detail)} disabled={busy}>
+              <TermIcon name="external" size={12} /> {busy ? 'Đang gửi…' : 'Gửi cổng Đề án 06'}
             </Btn>
           </>
         ) : <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>}>

@@ -13,6 +13,7 @@ import apiClient from '../../../services/apiClient';
 import {
   KpiStrip, SearchBox, DataTable, ActBtn, Btn, tw, type ColumnDef,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -52,7 +53,7 @@ const VppStockCardV2: React.FC = () => {
 
   useEffect(() => {
     apiClient.get<WarehouseDto[]>('/warehouse/warehouses', { params: { warehouseType: 2 } })
-      .then(({ data }) => setWarehouses(data || [])).catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
+      .then(({ data }) => setWarehouses(data || [])).catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh sách kho VPP')); });
   }, []);
 
   const loadStock = useCallback(async () => {

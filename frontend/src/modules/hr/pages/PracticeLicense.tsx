@@ -1,8 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dayjs from 'dayjs';
 import { searchLicenses, createLicense, updateLicense, getExpiringLicenses, renewLicense, printLicense } from '../api/practiceLicense';
 import type { PracticeLicense } from '../api/practiceLicense';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { RowActions } from '../../../components/actions';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, tw, te, Ico,
@@ -64,6 +66,8 @@ const PracticeLicenseV2: React.FC = () => {
   const [toDate, setToDate] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<PracticeLicense | null>(null);
+  const [printing, setPrinting] = useState(false);
+  const printRef = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -134,6 +138,8 @@ const PracticeLicenseV2: React.FC = () => {
   const [renewTarget, setRenewTarget] = useState<PracticeLicense | null>(null);
   const [renewDate, setRenewDate] = useState('');
   const [renewSaving, setRenewSaving] = useState(false);
+  // #467 khoá đồng bộ — `renewSaving` chỉ disable nút ở render kế tiếp, không chặn kịp double-click
+  const renewRef = useRef(false);
   const openRenew = (r: PracticeLicense) => {
     setRenewTarget(r);
     setRenewDate(dayjs(r.expiryDate).add(1, 'year').format('YYYY-MM-DD'));
@@ -141,14 +147,16 @@ const PracticeLicenseV2: React.FC = () => {
   };
   const handleRenew = async () => {
     if (!renewTarget || !renewDate) return;
+    if (renewRef.current) return;   // #467 chống double-submit: gia hạn 2 lần = 2 bản ghi gia hạn
+    renewRef.current = true;
     setRenewSaving(true);
     try {
       await renewLicense(renewTarget.id, { newExpiryDate: renewDate });
       tk(`Đã gia hạn CCHN ${renewTarget.staffName}`);
       setRenewOpen(false);
       load();
-    } catch { ti('Gia hạn thất bại'); }
-    finally { setRenewSaving(false); }
+    } catch (e: unknown) { te(friendlyErrorMessage(e, 'Gia hạn thất bại')); }
+    finally { renewRef.current = false; setRenewSaving(false); }
   };
 
   // --- Drawer cảnh báo CCHN sắp hết hạn ---
@@ -168,9 +176,12 @@ const PracticeLicenseV2: React.FC = () => {
 
   const actions = (r: PracticeLicense) => (
     <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-      <ActBtn ic="refresh" title="Gia hạn" onClick={() => openRenew(r)} />
+      <RowActions actions={[
+        { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setSel(r) },
+        { key: 'edit', icon: 'edit', label: 'Sửa', primary: true, onClick: () => openEdit(r) },
+        // confirm nằm ở drawer gia hạn (nhập ngày hết hạn mới) — không hỏi thêm ở đây
+        { key: 'renew', icon: 'refresh', label: 'Gia hạn', onClick: () => openRenew(r) },
+      ]} />
     </div>
   );
 
@@ -228,17 +239,20 @@ const PracticeLicenseV2: React.FC = () => {
         sub={sel ? `${sel.licenseNumber} · ${TYPE_LABEL[sel.licenseType] || sel.licenseType}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn onClick={async () => {
+          <Btn disabled={printing} onClick={async () => {
             if (!sel) return;
+            if (printRef.current) return;   // #467 chống double-submit: bấm In 2 lần = 2 tab/2 lần gọi BE
+            printRef.current = true;
+            setPrinting(true);
             try {
               const res = await printLicense(sel.id);
               const url = URL.createObjectURL(res.data as Blob);
               window.open(url, '_blank');
-            } catch {
-              tw('Không thể in CCHN');
-            }
+            } catch (e: unknown) {
+              tw(friendlyErrorMessage(e, 'Không thể in CCHN'));
+            } finally { printRef.current = false; setPrinting(false); }
           }}>
-            <Ico name="print" size={12} /> In CCHN
+            <Ico name="print" size={12} /> {printing ? 'Đang tạo bản in…' : 'In CCHN'}
           </Btn>
           <Btn onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
             <Ico name="edit" size={12} /> Sửa

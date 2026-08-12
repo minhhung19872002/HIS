@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { patientApi, type Patient } from '../../patient/api/patient';
 import { useAuth } from '../../../hooks/useAuth';
 import { BarcodeScanner } from '../../../components/form';
-import { SearchBox, Btn, LoadingState, Ico } from '@/_v2kit';
+import { SearchBox, Btn, LoadingState, Ico, te, tw } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 /* ==========================================================================
    Mobile Home v2 (#457) — dashboard tối ưu cho BS/ĐD dùng điện thoại/tablet.
@@ -59,7 +60,10 @@ export default function MobileHome() {
     try {
       const res = await patientApi.search({ pageSize: 10 });
       setRecent(res.data?.items ?? []);
-    } catch { /* panel BN gần đây là phụ — im lặng khi lỗi */ }
+    } catch (e) {
+      // panel BN gần đây là phụ — không chặn nghiệp vụ, chỉ cảnh báo nhẹ (#467)
+      tw(friendlyErrorMessage(e, 'Không tải được danh sách BN mới truy cập.'));
+    }
   }, []);
 
   useEffect(() => { void loadRecent(); }, [loadRecent]);
@@ -70,7 +74,9 @@ export default function MobileHome() {
     try {
       const res = await patientApi.search({ keyword: v.trim(), pageSize: 15 });
       setResults(res.data?.items ?? []);
-    } catch {
+    } catch (e) {
+      // không để lỗi tìm kiếm hiện ra như "không có kết quả" (#467)
+      te(friendlyErrorMessage(e, 'Không tìm được bệnh nhân. Vui lòng thử lại.'));
       setResults([]);
     } finally {
       setSearching(false);

@@ -22,11 +22,13 @@ import type { ProvincialReportDto, ProvincialStatsDto } from '../../administrati
 import { downloadBlob } from '../../../services/file.service';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal, ModalShell,
-  StatusTabs, DrawerShell, DrSec, DrField, tk, ti, tw, te, Ico, useListData, useTabCounts,
+  StatusTabs, DrawerShell, DrSec, DrField, tk, ti, tw, te, cf, Ico, useListData, useTabCounts,
   type ColumnDef, type CrudFieldCfg, type TopTab, type StatusTone, type KpiItem,
 } from '@/_v2kit';
+import { RowActions } from '@/components/actions';
 
 // ─────────────────────── Form value types (port từ v1 pages/health-exchange/types.ts) ───────────────────────
 
@@ -260,24 +262,32 @@ const ConnectionsPanel: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const [crudOpen, setCrudOpen] = useState(false);
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+  const [testingId, setTestingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const openCreate = () => { setCrudInit({ protocol: 'REST', dataExchangeFormat: 'JSON', authType: 'APIKey', connectionType: 'BHXH', supportedOperations: [] }); setCrudOpen(true); };
   const openEdit = (r: HIEConnectionDto) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
   const doTest = async (r: HIEConnectionDto) => {
+    if (testingId) return;
+    setTestingId(r.id);
     try {
       const res = await testConnection(r.id);
       const d = res.data as { success?: boolean; message?: string } | undefined;
       const ok = d?.success !== false;
       (ok ? tk : tw)(d?.message || (ok ? `Kết nối ${r.connectionName} OK` : 'Kết nối thất bại'));
       reload();
-    } catch { te('Test kết nối thất bại'); }
+    } catch (err) { te(friendlyErrorMessage(err, 'Test kết nối thất bại')); }
+    finally { setTestingId(null); }
   };
   const toggleActive = async (r: HIEConnectionDto) => {
+    if (togglingId) return;
+    setTogglingId(r.id);
     try {
       if (r.status === 1) { await deactivateConnection(r.id); tk('Đã tạm dừng kết nối'); }
       else { await activateConnection(r.id); tk('Đã kích hoạt kết nối'); }
       reload();
-    } catch { te('Đổi trạng thái thất bại'); }
+    } catch (err) { te(friendlyErrorMessage(err, 'Đổi trạng thái kết nối thất bại')); }
+    finally { setTogglingId(null); }
   };
 
 
@@ -327,10 +337,16 @@ const ConnectionsPanel: React.FC = () => {
 
   const actions = (r: HIEConnectionDto) => (
     <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="refresh" title="Test kết nối" onClick={() => doTest(r)} />
-      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-      <ActBtn ic={r.status === 1 ? 'x' : 'check'} title={r.status === 1 ? 'Tạm dừng' : 'Kích hoạt'} tone={r.status === 1 ? 'crit' : undefined} onClick={() => toggleActive(r)} />
+      <RowActions actions={[
+        { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setSel(r) },
+        { key: 'test', icon: 'refresh', label: 'Test kết nối', disabled: !!testingId, onClick: () => doTest(r) },
+        { key: 'edit', icon: 'edit', label: 'Sửa', primary: true, onClick: () => openEdit(r) },
+        { key: 'toggle', icon: r.status === 1 ? 'x' : 'check', label: r.status === 1 ? 'Tạm dừng' : 'Kích hoạt',
+          tone: r.status === 1 ? 'danger' : undefined,
+          confirm: r.status === 1 ? `Tạm dừng kết nối "${r.connectionName}"? Việc trao đổi dữ liệu qua kết nối này sẽ dừng lại.` : undefined,
+          disabled: !!togglingId,
+          onClick: () => toggleActive(r) },
+      ]} />
     </div>
   );
 
@@ -366,7 +382,7 @@ const ConnectionsPanel: React.FC = () => {
               tk(d?.message || `Đồng bộ hoàn tất${d?.synced != null ? ` (${d.synced} kết nối)` : ''}`);
             }
             reload();
-          } catch { te('Đồng bộ thất bại'); }
+          } catch (err) { te(friendlyErrorMessage(err, 'Đồng bộ thất bại')); }
           finally { setSyncing(false); }
         }}>
           <Ico name="cloud" size={12} /> {syncing ? 'Đang đồng bộ…' : 'Đồng bộ tất cả'}
@@ -393,8 +409,8 @@ const ConnectionsPanel: React.FC = () => {
         sub={sel ? `${sel.connectionCode} · ${sel.partnerName}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn onClick={() => { if (sel) doTest(sel); }}>
-            <Ico name="refresh" size={12} /> Test kết nối
+          <Btn disabled={!!testingId} onClick={() => { if (sel) doTest(sel); }}>
+            <Ico name="refresh" size={12} /> {testingId ? 'Đang test…' : 'Test kết nối'}
           </Btn>
           <Btn variant="primary" onClick={() => { if (sel) { openEdit(sel); setSel(null); } }}>
             <Ico name="edit" size={12} /> Chỉnh sửa
@@ -469,23 +485,30 @@ const SubmissionsPanel: React.FC<{ dashboard: HIEDashboardDto | null }> = ({ das
   const [sel, setSel] = useState<InsuranceSubmissionDto | null>(null);
   const [xmlOpen, setXmlOpen] = useState(false);
   const [xmlForm] = Form.useForm<XMLFormValues>();
+  const [resubmitBusy, setResubmitBusy] = useState(false);
+  const [xmlBusy, setXmlBusy] = useState(false);
 
   // v1: pendingSubmissions = dashboard?.pendingSubmissions ?? submissions.filter(s => s.status === 1 || s.status === 2).length
   const pendingSubmissions = dashboard?.pendingSubmissions ?? submissions.filter((s) => s.status === 1 || s.status === 2).length;
 
   const handleResubmit = async (record: InsuranceSubmissionDto) => {
+    if (resubmitBusy) return;
+    setResubmitBusy(true);
     try {
       await submitToInsurance({ submissionId: record.id, signatureRequired: false });
       tk('Đã gửi lại thành công');
       reload();
     } catch (err) {
-      console.warn('Resubmit failed:', err);
-      tw('Gửi lại thất bại');
+      tw(friendlyErrorMessage(err, 'Gửi lại thất bại'));
+    } finally {
+      setResubmitBusy(false);
     }
   };
 
   // VERBATIM logic từ v1 handleSubmitXML
   const handleSubmitXML = async (values: XMLFormValues) => {
+    if (xmlBusy) return;
+    setXmlBusy(true);
     try {
       const dto: GenerateXMLDto = {
         xmlType: values.xmlType,
@@ -507,8 +530,9 @@ const SubmissionsPanel: React.FC<{ dashboard: HIEDashboardDto | null }> = ({ das
       xmlForm.resetFields();
       reload();
     } catch (err) {
-      console.warn('Generate XML failed:', err);
-      tw('Gửi dữ liệu XML thất bại');
+      tw(friendlyErrorMessage(err, 'Gửi dữ liệu XML thất bại'));
+    } finally {
+      setXmlBusy(false);
     }
   };
 
@@ -528,7 +552,7 @@ const SubmissionsPanel: React.FC<{ dashboard: HIEDashboardDto | null }> = ({ das
     <div className="ab-actions">
       <ActBtn ic="eye" title="Xem" onClick={() => setSel(r)} />
       {(r.status === 6 || r.status === 5) && (
-        <ActBtn ic="refresh" title="Gửi lại" onClick={() => handleResubmit(r)} />
+        <ActBtn ic="refresh" title="Gửi lại" loading={resubmitBusy} onClick={() => handleResubmit(r)} />
       )}
     </div>
   );
@@ -568,8 +592,8 @@ const SubmissionsPanel: React.FC<{ dashboard: HIEDashboardDto | null }> = ({ das
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
           {sel && (sel.status === 6 || sel.status === 5) && (
-            <Btn variant="primary" onClick={() => { handleResubmit(sel); setSel(null); }}>
-              <Ico name="refresh" size={12} /> Gửi lại
+            <Btn variant="primary" disabled={resubmitBusy} onClick={() => { handleResubmit(sel); setSel(null); }}>
+              <Ico name="refresh" size={12} /> {resubmitBusy ? 'Đang gửi…' : 'Gửi lại'}
             </Btn>
           )}
         </>}
@@ -607,7 +631,9 @@ const SubmissionsPanel: React.FC<{ dashboard: HIEDashboardDto | null }> = ({ das
         size="md"
         footer={<>
           <Btn variant="ghost" onClick={() => setXmlOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={() => xmlForm.submit()}><Ico name="send" size={12} /> Gửi</Btn>
+          <Btn variant="primary" loading={xmlBusy} onClick={() => xmlForm.submit()}>
+            {!xmlBusy && <Ico name="send" size={12} />} {xmlBusy ? 'Đang gửi…' : 'Gửi'}
+          </Btn>
         </>}
       >
         <Form form={xmlForm} layout="vertical" onFinish={handleSubmitXML}>
@@ -649,12 +675,16 @@ const ReferralsPanel: React.FC<{ dashboard: HIEDashboardDto | null }> = ({ dashb
   const [sel, setSel] = useState<ElectronicReferralDto | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [referralForm] = Form.useForm<ReferralFormValues>();
+  const [creating, setCreating] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   // v1: activeReferrals = dashboard?.outboundReferralsPending ?? referrals.filter(r => r.status === 2).length
   const activeReferrals = dashboard?.outboundReferralsPending ?? referrals.filter((r) => r.status === 2).length;
 
   // VERBATIM logic từ v1 handleCreateReferral
   const handleCreateReferral = async (values: ReferralFormValues) => {
+    if (creating) return;
+    setCreating(true);
     try {
       const dto: CreateReferralDto = {
         patientId: values.patientId,
@@ -676,31 +706,38 @@ const ReferralsPanel: React.FC<{ dashboard: HIEDashboardDto | null }> = ({ dashb
       tk('Tạo phiếu chuyển viện thành công!');
       reload();
     } catch (err) {
-      console.warn('Create referral failed:', err);
-      tw('Tạo phiếu chuyển viện thất bại');
+      tw(friendlyErrorMessage(err, 'Tạo phiếu chuyển viện thất bại'));
+    } finally {
+      setCreating(false);
     }
   };
 
   const handleSend = async (record: ElectronicReferralDto) => {
+    if (busyId) return;
+    setBusyId(record.id);
     try {
       await sendReferral(record.id);
       tk('Đã gửi phiếu chuyển viện');
       reload();
     } catch (err) {
-      console.warn('Send referral failed:', err);
-      tw('Gửi phiếu thất bại');
+      tw(friendlyErrorMessage(err, 'Gửi phiếu thất bại'));
+    } finally {
+      setBusyId(null);
     }
   };
 
   const handlePrint = async (record: ElectronicReferralDto) => {
+    if (busyId) return;
+    setBusyId(record.id);
     try {
       const res = await printReferralLetter(record.id);
       const blob = new Blob([res.data], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
     } catch (err) {
-      console.warn('Print referral failed:', err);
-      tw('Không thể in phiếu chuyển viện');
+      tw(friendlyErrorMessage(err, 'Không thể in phiếu chuyển viện'));
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -771,9 +808,13 @@ const ReferralsPanel: React.FC<{ dashboard: HIEDashboardDto | null }> = ({ dashb
 
   const actions = (r: ElectronicReferralDto) => (
     <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      {r.status === 1 && <ActBtn ic="send" title="Gửi" onClick={() => handleSend(r)} />}
-      <ActBtn ic="printer" title="In" onClick={() => handlePrint(r)} />
+      <RowActions actions={[
+        { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setSel(r) },
+        { key: 'send', icon: 'send', label: 'Gửi', hidden: r.status !== 1, disabled: !!busyId,
+          confirm: `Gửi phiếu chuyển viện "${r.referralCode}" đến ${r.destinationFacilityName}? Sau khi gửi, phiếu sẽ được chuyển sang cơ sở tiếp nhận.`,
+          onClick: () => handleSend(r) },
+        { key: 'print', icon: 'printer', label: 'In phiếu', disabled: !!busyId, onClick: () => handlePrint(r) },
+      ]} />
     </div>
   );
 
@@ -814,11 +855,18 @@ const ReferralsPanel: React.FC<{ dashboard: HIEDashboardDto | null }> = ({ dashb
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
           {sel && sel.status === 1 && (
-            <Btn variant="primary" onClick={() => { handleSend(sel); setSel(null); }}>
+            <Btn
+              variant="primary"
+              disabled={!!busyId}
+              onClick={() => cf(
+                `Gửi phiếu chuyển viện "${sel.referralCode}" đến ${sel.destinationFacilityName}? Sau khi gửi, phiếu sẽ được chuyển sang cơ sở tiếp nhận.`,
+                () => { handleSend(sel); setSel(null); },
+              )}
+            >
               <Ico name="send" size={12} /> Gửi
             </Btn>
           )}
-          <Btn onClick={() => { if (sel) handlePrint(sel); }}>
+          <Btn disabled={!!busyId} onClick={() => { if (sel) handlePrint(sel); }}>
             <Ico name="printer" size={12} /> In
           </Btn>
         </>}
@@ -867,7 +915,9 @@ const ReferralsPanel: React.FC<{ dashboard: HIEDashboardDto | null }> = ({ dashb
         size="lg"
         footer={<>
           <Btn variant="ghost" onClick={() => setCreateOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={() => referralForm.submit()}><Ico name="check" size={12} /> Tạo phiếu</Btn>
+          <Btn variant="primary" loading={creating} onClick={() => referralForm.submit()}>
+            {!creating && <Ico name="check" size={12} />} {creating ? 'Đang tạo…' : 'Tạo phiếu'}
+          </Btn>
         </>}
       >
         <Form form={referralForm} layout="vertical" onFinish={handleCreateReferral}>
@@ -932,12 +982,16 @@ const ConsultationsPanel: React.FC = () => {
   const [sel, setSel] = useState<TeleconsultationRequestDto | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [consultationForm] = Form.useForm<ConsultationFormValues>();
+  const [creating, setCreating] = useState(false);
+  const [joiningId, setJoiningId] = useState<string | null>(null);
 
   // v1: activeConsultations = consultations.filter(c => c.status !== 5 && c.status !== 6).length
   const activeConsultations = consultations.filter((c) => c.status !== 5 && c.status !== 6).length;
 
   // VERBATIM logic từ v1 handleCreateConsultation
   const handleCreateConsultation = async (values: ConsultationFormValues) => {
+    if (creating) return;
+    setCreating(true);
     try {
       const dto: CreateTeleconsultRequestDto = {
         requestType: values.requestType || 'Consultation',
@@ -958,13 +1012,16 @@ const ConsultationsPanel: React.FC = () => {
       tk('Gửi yêu cầu hội chẩn thành công!');
       reload();
     } catch (err) {
-      console.warn('Create teleconsult failed:', err);
-      tw('Gửi yêu cầu hội chẩn thất bại');
+      tw(friendlyErrorMessage(err, 'Gửi yêu cầu hội chẩn thất bại'));
+    } finally {
+      setCreating(false);
     }
   };
 
   // VERBATIM logic từ v1 (nút "Vào phòng")
   const handleJoinRoom = async (record: TeleconsultationRequestDto) => {
+    if (joiningId) return;
+    setJoiningId(record.id);
     try {
       const res = await startTeleconsult(record.id);
       const roomUrl = res.data?.roomUrl || record.videoRoomUrl;
@@ -976,8 +1033,10 @@ const ConsultationsPanel: React.FC = () => {
       if (record.videoRoomUrl) {
         window.open(record.videoRoomUrl, '_blank');
       } else {
-        tw('Không thể vào phòng hội chẩn');
+        tw(friendlyErrorMessage(err, 'Không thể vào phòng hội chẩn'));
       }
+    } finally {
+      setJoiningId(null);
     }
   };
 
@@ -999,10 +1058,12 @@ const ConsultationsPanel: React.FC = () => {
 
   const actions = (r: TeleconsultationRequestDto) => (
     <div className="ab-actions">
-      {r.status === 2 && r.videoRoomUrl && (
-        <ActBtn ic="play" title="Vào phòng" onClick={() => handleJoinRoom(r)} />
-      )}
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
+      <RowActions actions={[
+        { key: 'join', icon: 'play', label: 'Vào phòng', primary: true,
+          hidden: !(r.status === 2 && r.videoRoomUrl), disabled: !!joiningId,
+          onClick: () => handleJoinRoom(r) },
+        { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setSel(r) },
+      ]} />
     </div>
   );
 
@@ -1039,8 +1100,8 @@ const ConsultationsPanel: React.FC = () => {
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
           {sel && sel.status === 2 && sel.videoRoomUrl && (
-            <Btn variant="primary" onClick={() => handleJoinRoom(sel)}>
-              <Ico name="play" size={12} /> Vào phòng
+            <Btn variant="primary" disabled={!!joiningId} onClick={() => handleJoinRoom(sel)}>
+              <Ico name="play" size={12} /> {joiningId ? 'Đang vào phòng…' : 'Vào phòng'}
             </Btn>
           )}
         </>}
@@ -1086,7 +1147,9 @@ const ConsultationsPanel: React.FC = () => {
         size="md"
         footer={<>
           <Btn variant="ghost" onClick={() => setCreateOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={() => consultationForm.submit()}><Ico name="send" size={12} /> Gửi yêu cầu</Btn>
+          <Btn variant="primary" loading={creating} onClick={() => consultationForm.submit()}>
+            {!creating && <Ico name="send" size={12} />} {creating ? 'Đang gửi…' : 'Gửi yêu cầu'}
+          </Btn>
         </>}
       >
         <Form form={consultationForm} layout="vertical" onFinish={handleCreateConsultation}>
@@ -1187,13 +1250,13 @@ const FhirPanel: React.FC = () => {
   }, [handleFhirLoadMetadata]);
 
   const handleFhirSearch = async () => {
+    if (fhirSearchLoading) return;
     setFhirSearchLoading(true);
     try {
       const results = await searchResource(fhirSearchType, { ...fhirSearchParams, _count: 20 });
       setFhirSearchResults(results);
     } catch (err) {
-      console.warn('FHIR search failed:', err);
-      tw('Tìm kiếm FHIR thất bại');
+      tw(friendlyErrorMessage(err, 'Tìm kiếm FHIR thất bại'));
     } finally {
       setFhirSearchLoading(false);
     }
@@ -1206,12 +1269,12 @@ const FhirPanel: React.FC = () => {
       setFhirJsonTitle(`${resourceType}/${resourceId}`);
       setFhirJsonDrawerOpen(true);
     } catch (err) {
-      console.warn('Failed to read FHIR resource:', err);
-      tw('Không thể đọc tài nguyên FHIR');
+      tw(friendlyErrorMessage(err, 'Không thể đọc tài nguyên FHIR'));
     }
   };
 
   const handleFhirExportPatient = async () => {
+    if (fhirSearchLoading) return;
     if (!fhirExportPatientId) {
       tw('Vui lòng nhập Patient ID');
       return;
@@ -1223,14 +1286,14 @@ const FhirPanel: React.FC = () => {
       setFhirJsonTitle(`Patient Bundle - ${fhirExportPatientId}`);
       setFhirJsonDrawerOpen(true);
     } catch (err) {
-      console.warn('Failed to export patient bundle:', err);
-      tw('Xuất dữ liệu FHIR thất bại');
+      tw(friendlyErrorMessage(err, 'Xuất dữ liệu FHIR thất bại'));
     } finally {
       setFhirSearchLoading(false);
     }
   };
 
   const handleFhirTestExternal = async () => {
+    if (fhirExternalStatus === 'loading') return;
     if (!fhirExternalUrl) {
       tw('Vui lòng nhập URL máy chủ FHIR');
       return;
@@ -1245,16 +1308,16 @@ const FhirPanel: React.FC = () => {
         setFhirExternalStatus('error');
         tw('Không thể kết nối đến máy chủ FHIR');
       }
-    } catch {
+    } catch (err) {
       setFhirExternalStatus('error');
-      tw('Kết nối FHIR thất bại');
+      tw(friendlyErrorMessage(err, 'Kết nối FHIR thất bại'));
     }
   };
 
   const handleCopyJson = () => {
     navigator.clipboard.writeText(fhirJsonContent).then(() => {
       tk('Đã sao chép JSON');
-    });
+    }).catch((err) => tw(friendlyErrorMessage(err, 'Không thể sao chép JSON')));
   };
 
   const handleDownloadJson = () => {
@@ -1339,7 +1402,10 @@ const FhirPanel: React.FC = () => {
               columns={fhirCols} data={fhirRows} rowKey={(r) => r.key}
               actions={(r) => (
                 <div className="ab-actions">
-                  <ActBtn ic="eye" title="Xem JSON" onClick={() => handleFhirViewJson(r.resourceType, r.id)} />
+                  <RowActions actions={[
+                    { key: 'json', icon: 'eye', label: 'Xem JSON', primary: true,
+                      onClick: () => handleFhirViewJson(r.resourceType, r.id) },
+                  ]} />
                 </div>
               )}
               empty="Không có kết quả"
@@ -1429,6 +1495,9 @@ const NationalRxPanel: React.FC = () => {
   const [nationalRxLoading, setNationalRxLoading] = useState(false);
   const [nationalRxSearch, setNationalRxSearch] = useState<{ status?: number; keyword?: string; pageIndex: number }>({ pageIndex: 0 });
   const [selectedNationalRxIds, setSelectedNationalRxIds] = useState<string[]>([]);
+  const [rxBusyId, setRxBusyId] = useState<string | null>(null);
+  const [rxBatchBusy, setRxBatchBusy] = useState(false);
+  const [rxTesting, setRxTesting] = useState(false);
 
   // VERBATIM logic từ v1 fetchNationalRx
   const fetchNationalRx = useCallback(async () => {
@@ -1450,33 +1519,45 @@ const NationalRxPanel: React.FC = () => {
   useEffect(() => { fetchNationalRx(); }, [fetchNationalRx]);
 
   const handleSubmitNationalRx = async (id: string) => {
+    if (rxBusyId) return;
+    setRxBusyId(id);
     try {
       await nationalRxApi.submitPrescription(id);
       tk('Đã gửi đơn thuốc lên Cổng quốc gia');
       fetchNationalRx();
-    } catch (err) { console.warn('Submit national prescription:', err); tw('Không thể gửi đơn thuốc'); }
+    } catch (err) { tw(friendlyErrorMessage(err, 'Không thể gửi đơn thuốc')); }
+    finally { setRxBusyId(null); }
   };
 
   const handleBatchSubmitNationalRx = async () => {
+    if (rxBatchBusy) return;
     if (selectedNationalRxIds.length === 0) { tw('Vui lòng chọn đơn thuốc'); return; }
+    setRxBatchBusy(true);
     try {
       const result = await nationalRxApi.submitBatch(selectedNationalRxIds);
       tk(`Gửi thành công ${result.successCount}/${selectedNationalRxIds.length} đơn thuốc`);
       setSelectedNationalRxIds([]);
       fetchNationalRx();
-    } catch (err) { console.warn('Batch submit national prescriptions:', err); tw('Không thể gửi hàng loạt'); }
+    } catch (err) { tw(friendlyErrorMessage(err, 'Không thể gửi hàng loạt')); }
+    finally { setRxBatchBusy(false); }
   };
 
   const handleRetryNationalRx = (id: string) => {
+    if (rxBusyId) return;
+    setRxBusyId(id);
     nationalRxApi.retrySubmission(id)
       .then(() => { tk('Đã gửi lại'); fetchNationalRx(); })
-      .catch(() => tw('Lỗi'));
+      .catch((err) => tw(friendlyErrorMessage(err, 'Gửi lại đơn thuốc thất bại')))
+      .finally(() => setRxBusyId(null));
   };
 
   const handleTestRxConnection = () => {
+    if (rxTesting) return;
+    setRxTesting(true);
     nationalRxApi.testConnection()
       .then((r) => { ti(`Kết nối: ${r.connected ? 'OK' : 'Lỗi'} (${r.latencyMs}ms)`); })
-      .catch(() => tw('Không thể kết nối'));
+      .catch((err) => tw(friendlyErrorMessage(err, 'Không thể kết nối Cổng đơn thuốc quốc gia')))
+      .finally(() => setRxTesting(false));
   };
 
   // v1: checkbox disabled khi status !== 0 (chỉ đơn Nháp được chọn gửi hàng loạt)
@@ -1509,8 +1590,14 @@ const NationalRxPanel: React.FC = () => {
 
   const actions = (r: NationalPrescriptionDto) => (
     <div className="ab-actions">
-      {r.status === 0 && <ActBtn ic="send" title="Gửi" onClick={() => handleSubmitNationalRx(r.id)} />}
-      {r.status === 3 && <ActBtn ic="refresh" title="Gửi lại" onClick={() => handleRetryNationalRx(r.id)} />}
+      <RowActions actions={[
+        { key: 'submit', icon: 'send', label: 'Gửi', primary: true, hidden: r.status !== 0, disabled: !!rxBusyId,
+          confirm: `Gửi đơn thuốc "${r.prescriptionCode}" lên Cổng đơn thuốc quốc gia?`,
+          onClick: () => handleSubmitNationalRx(r.id) },
+        { key: 'retry', icon: 'refresh', label: 'Gửi lại', primary: true, hidden: r.status !== 3, disabled: !!rxBusyId,
+          confirm: `Gửi lại đơn thuốc "${r.prescriptionCode}" lên Cổng đơn thuốc quốc gia?`,
+          onClick: () => handleRetryNationalRx(r.id) },
+      ]} />
     </div>
   );
 
@@ -1544,11 +1631,19 @@ const NationalRxPanel: React.FC = () => {
           onSearch={(v) => setNationalRxSearch((s) => ({ ...s, keyword: v || undefined, pageIndex: 0 }))}
         />
         <span className="spacer" />
-        <Btn variant="ghost" onClick={handleTestRxConnection}>
-          <Ico name="refresh" size={12} /> Test kết nối
+        <Btn variant="ghost" loading={rxTesting} onClick={handleTestRxConnection}>
+          {!rxTesting && <Ico name="refresh" size={12} />} {rxTesting ? 'Đang kiểm tra…' : 'Test kết nối'}
         </Btn>
-        <Btn variant="primary" disabled={selectedNationalRxIds.length === 0} onClick={handleBatchSubmitNationalRx}>
-          <Ico name="send" size={12} /> Gửi hàng loạt ({selectedNationalRxIds.length})
+        <Btn
+          variant="primary"
+          loading={rxBatchBusy}
+          disabled={selectedNationalRxIds.length === 0}
+          onClick={() => cf(
+            `Gửi ${selectedNationalRxIds.length} đơn thuốc đã chọn lên Cổng đơn thuốc quốc gia?`,
+            handleBatchSubmitNationalRx,
+          )}
+        >
+          {!rxBatchBusy && <Ico name="send" size={12} />} {rxBatchBusy ? 'Đang gửi…' : `Gửi hàng loạt (${selectedNationalRxIds.length})`}
         </Btn>
       </div>
 
@@ -1573,6 +1668,10 @@ const ProvincialPanel: React.FC = () => {
   const [provTotal, setProvTotal] = useState(0);
   const [provLoading, setProvLoading] = useState(false);
   const [provSearch, setProvSearch] = useState<{ reportType?: number; status?: number; pageIndex: number }>({ pageIndex: 0 });
+  const [provBusyId, setProvBusyId] = useState<string | null>(null);
+  // reportType đang được tạo (1 = BC ngày, 3 = BC tháng) — theo loại để spinner hiện đúng nút
+  const [provGenType, setProvGenType] = useState<number | null>(null);
+  const [provTesting, setProvTesting] = useState(false);
 
   // VERBATIM logic từ v1 fetchProvReports
   const fetchProvReports = useCallback(async () => {
@@ -1594,26 +1693,35 @@ const ProvincialPanel: React.FC = () => {
   useEffect(() => { fetchProvReports(); }, [fetchProvReports]);
 
   const handleGenerateProvReport = async (reportType: number) => {
+    if (provGenType !== null) return;
+    setProvGenType(reportType);
     try {
       const period = dayjs().format('YYYY-MM');
       await provincialApi.generateReport(reportType, period);
       tk('Đã tạo báo cáo');
       fetchProvReports();
-    } catch (err) { console.warn('Generate provincial report:', err); tw('Không thể tạo báo cáo'); }
+    } catch (err) { tw(friendlyErrorMessage(err, 'Không thể tạo báo cáo')); }
+    finally { setProvGenType(null); }
   };
 
   const handleSubmitProvReport = async (id: string) => {
+    if (provBusyId) return;
+    setProvBusyId(id);
     try {
       await provincialApi.submitReport(id);
       tk('Đã gửi báo cáo lên Sở Y tế');
       fetchProvReports();
-    } catch (err) { console.warn('Submit provincial report:', err); tw('Không thể gửi báo cáo'); }
+    } catch (err) { tw(friendlyErrorMessage(err, 'Không thể gửi báo cáo')); }
+    finally { setProvBusyId(null); }
   };
 
   const handleTestProvConnection = () => {
+    if (provTesting) return;
+    setProvTesting(true);
     provincialApi.testConnection()
       .then((r) => { ti(`Kết nối Sở Y tế: ${r.connected ? 'OK' : 'Lỗi'} (${r.latencyMs}ms)`); })
-      .catch(() => tw('Không thể kết nối'));
+      .catch((err) => tw(friendlyErrorMessage(err, 'Không thể kết nối Sở Y tế')))
+      .finally(() => setProvTesting(false));
   };
 
   const totalPages = Math.max(1, Math.ceil(provTotal / PROV_PAGE_SIZE));
@@ -1637,7 +1745,11 @@ const ProvincialPanel: React.FC = () => {
 
   const actions = (r: ProvincialReportDto) => (
     <div className="ab-actions">
-      {r.status === 0 && <ActBtn ic="send" title="Gửi" onClick={() => handleSubmitProvReport(r.id)} />}
+      <RowActions actions={[
+        { key: 'submit', icon: 'send', label: 'Gửi báo cáo', primary: true, hidden: r.status !== 0, disabled: !!provBusyId,
+          confirm: `Gửi báo cáo "${r.reportCode}" (kỳ ${r.reportPeriod}) lên Sở Y tế?`,
+          onClick: () => handleSubmitProvReport(r.id) },
+      ]} />
     </div>
   );
 
@@ -1677,14 +1789,14 @@ const ProvincialPanel: React.FC = () => {
           placeholder="▾ Trạng thái"
         />
         <span className="spacer" />
-        <Btn variant="ghost" onClick={handleTestProvConnection}>
-          <Ico name="refresh" size={12} /> Test kết nối
+        <Btn variant="ghost" loading={provTesting} onClick={handleTestProvConnection}>
+          {!provTesting && <Ico name="refresh" size={12} />} {provTesting ? 'Đang kiểm tra…' : 'Test kết nối'}
         </Btn>
-        <Btn variant="ghost" onClick={() => handleGenerateProvReport(1)}>
-          <Ico name="file-text" size={12} /> Tạo BC ngày
+        <Btn variant="ghost" loading={provGenType === 1} disabled={provGenType !== null} onClick={() => handleGenerateProvReport(1)}>
+          {provGenType !== 1 && <Ico name="file-text" size={12} />} {provGenType === 1 ? 'Đang tạo…' : 'Tạo BC ngày'}
         </Btn>
-        <Btn variant="primary" onClick={() => handleGenerateProvReport(3)}>
-          <Ico name="file-text" size={12} /> Tạo BC tháng
+        <Btn variant="primary" loading={provGenType === 3} disabled={provGenType !== null} onClick={() => handleGenerateProvReport(3)}>
+          {provGenType !== 3 && <Ico name="file-text" size={12} />} {provGenType === 3 ? 'Đang tạo…' : 'Tạo BC tháng'}
         </Btn>
       </div>
 

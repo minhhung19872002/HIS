@@ -5,9 +5,10 @@ import { fmtVND } from '../../../utils/format';
 import { searchRefunds, approveRefund, confirmRefund, cancelRefund } from '../api/billing';
 import type { RefundDto } from '../api/billing';
 import {
-  SimpleV2Page, ActBtn, ModalShell, Btn, StatusBadge, tk, te, cf,
+  SimpleV2Page, ModalShell, Btn, StatusBadge, tk, te, cf,
   type ColumnDef, type StatusTab,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
 
 /* ────────────────────────────────────────────────────────────
    #352 — Duyệt hoàn tiền (v1 pages/Billing.tsx:1344-1502).
@@ -56,6 +57,7 @@ const RefundApprovalV2: React.FC = () => {
   const doReject = async () => {
     if (!rejectFor) return;
     if (!rejectReason.trim()) { te('Cần nhập lý do từ chối'); return; }
+    if (busy) return; // #467 chống double-submit
     setBusy(true);
     try {
       await approveRefund({ refundId: rejectFor.id, isApproved: false, rejectReason: rejectReason.trim() });
@@ -68,6 +70,7 @@ const RefundApprovalV2: React.FC = () => {
 
   const doConfirm = async () => {
     if (!confirmFor) return;
+    if (busy) return; // #467 chống double-submit: xác nhận 2 lần = chi tiền hoàn 2 lần
     setBusy(true);
     try {
       await confirmRefund({ refundId: confirmFor.id, transactionNumber: txnNo.trim() || undefined, notes: confirmNote.trim() || undefined });
@@ -144,10 +147,19 @@ const RefundApprovalV2: React.FC = () => {
           reloadRef.current = reloadFn;
           return (
             <div className="ab-actions">
-              {r.status === 0 && <ActBtn ic="check" title="Duyệt hoàn tiền" onClick={() => doApprove(r)} />}
-              {r.status === 0 && <ActBtn ic="x" title="Từ chối" tone="crit" onClick={() => { setRejectReason(''); setRejectFor(r); }} />}
-              {r.status === 1 && <ActBtn ic="dollar" title="Xác nhận đã chi" onClick={() => { setTxnNo(''); setConfirmNote(''); setConfirmFor(r); }} />}
-              {(r.status === 0 || r.status === 1) && <ActBtn ic="trash" title="Hủy phiếu" tone="crit" onClick={() => doCancel(r)} />}
+              <RowActions actions={[
+                { key: 'approve', icon: 'check', label: 'Duyệt hoàn tiền', primary: true,
+                  hidden: r.status !== 0, onClick: () => doApprove(r) },
+                { key: 'paid', icon: 'dollar', label: 'Xác nhận đã chi', primary: true,
+                  hidden: r.status !== 1,
+                  onClick: () => { setTxnNo(''); setConfirmNote(''); setConfirmFor(r); } },
+                // confirm: false — bước xác nhận nằm trong modal nhập lý do / lệnh huỷ (tránh hỏi 2 lần)
+                { key: 'reject', icon: 'x', label: 'Từ chối', tone: 'danger', confirm: false,
+                  hidden: r.status !== 0,
+                  onClick: () => { setRejectReason(''); setRejectFor(r); } },
+                { key: 'cancel', icon: 'trash', label: 'Hủy phiếu', tone: 'danger', confirm: false,
+                  hidden: !(r.status === 0 || r.status === 1), onClick: () => doCancel(r) },
+              ]} />
             </div>
           );
         }}

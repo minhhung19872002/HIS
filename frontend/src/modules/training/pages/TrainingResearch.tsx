@@ -17,6 +17,7 @@ import {
   DrawerShell, DrSec, DrField, tk, ti,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
 
 // ─── Field configs ───────────────────────────────────────────────────────────
 
@@ -136,6 +137,7 @@ const TrainingResearchV2: React.FC = () => {
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [certOpen, setCertOpen] = useState(false);
   const [certStudent, setCertStudent] = useState<TrainingStudentDto | null>(null);
+  const [stuBusy, setStuBusy] = useState<string | null>(null);
 
   // ── Directions ───────────────────────────────────────────────────────────
   const [dirs, setDirs] = useState<ClinicalDirectionDto[]>([]);
@@ -336,9 +338,11 @@ const TrainingResearchV2: React.FC = () => {
 
   const classActions = (r: TrainingClassDto) => (
     <div className="ab-actions">
-      <ActBtn ic="eye"  title="Chi tiết"  onClick={() => setSel(r)} />
-      <ActBtn ic="user" title="Học viên"  onClick={() => openStudents(r)} />
-      <ActBtn ic="edit" title="Sửa"       onClick={() => openEdit(r)} />
+      <RowActions actions={[
+        { key: 'view',  icon: 'eye',  label: 'Chi tiết', primary: true, onClick: () => setSel(r) },
+        { key: 'stu',   icon: 'user', label: 'Học viên', primary: true, onClick: () => openStudents(r) },
+        { key: 'edit',  icon: 'edit', label: 'Sửa',      onClick: () => openEdit(r) },
+      ]} />
     </div>
   );
 
@@ -600,14 +604,17 @@ const TrainingResearchV2: React.FC = () => {
                   <td>
                     <div style={{ display: 'flex', gap: 4 }}>
                       {s.attendanceStatus < 3 && (
-                        <Btn variant="ghost" onClick={async () => {
+                        <Btn variant="ghost" loading={stuBusy === s.id} disabled={!!stuBusy} onClick={async () => {
+                          if (stuBusy) return;
+                          setStuBusy(s.id);
                           try {
                             await updateStudentStatus(s.id, { attendanceStatus: s.attendanceStatus + 1 });
                             tk('Đã cập nhật trạng thái');
                             await reloadStudents();
                           } catch { ti('Không cập nhật được'); }
+                          finally { setStuBusy(null); }
                         }}>
-                          {s.attendanceStatus === 1 ? 'Bắt đầu' : 'Hoàn thành'}
+                          {stuBusy === s.id ? 'Đang cập nhật…' : s.attendanceStatus === 1 ? 'Bắt đầu' : 'Hoàn thành'}
                         </Btn>
                       )}
                       {s.attendanceStatus === 3 && !s.certificateNumber && (

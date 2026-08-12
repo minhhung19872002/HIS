@@ -5,9 +5,10 @@ import {
 import type { SchoolExam, SchoolStats, School } from '../api/schoolHealth';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, fmtDMYg, Ico,
+  DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, tw, fmtDMYg, Ico,
   type ColumnDef, type StatusTab, type CrudFieldCfg,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '@/utils/friendlyError';
 
 // ─────────────────────────── Maps & options (port từ v1) ───────────────────────────
 
@@ -107,6 +108,9 @@ const SchoolHealthV2: React.FC = () => {
       setStats({ ...EMPTY_STATS, ...stRes.value });
     }
     if (scRes.status === 'fulfilled') setSchools(asArr<School>(scRes.value));
+    // gom 1 toast cho mọi nhánh rejected — tránh bắn 3 toast chồng nhau
+    const failed = [exRes, stRes, scRes].find((r): r is PromiseRejectedResult => r.status === 'rejected');
+    if (failed) tw(friendlyErrorMessage(failed.reason, 'Không tải được đầy đủ dữ liệu khám sức khỏe học đường.'));
     setLoading(false);
   }, [schoolFilter, yearFilter, gradeFilter]);
 

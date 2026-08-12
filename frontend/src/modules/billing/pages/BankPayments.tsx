@@ -9,11 +9,12 @@ import { Form, Input, DatePicker, Button } from 'antd';
 import dayjs from 'dayjs';
 import {
   KpiStrip, DataTable, StatusTabs, SearchBox, DrawerShell, ModalShell,
-  Filter, Pager, ActBtn, StatusBadge, DrSec, DrField,
+  Filter, Pager, StatusBadge, DrSec, DrField,
   tk, te, fmtVNDg, fmtDTg, fmtHMg,
 } from '@/_v2kit';
 import type { ColumnDef } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { RowActions } from '../../../components/actions';
 import { bankPaymentApi } from '../../../api/nangcap24';
 import type { SupportedBankDto } from '../../../api/nangcap24';
 import apiClient from '../../../services/apiClient';
@@ -68,6 +69,9 @@ const BankPayments: React.FC = () => {
   const [detail, setDetail] = useState<PaymentTxn | null>(null);
   const [qrFor, setQrFor] = useState<PaymentTxn | null>(null);
   const [confirming, setConfirming] = useState<PaymentTxn | null>(null);
+  // Chống double-click: xác nhận chuyển khoản / đánh dấu hết hạn đều ghi nhận tiền thật
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [expiring, setExpiring] = useState(false);
   const [form] = Form.useForm();
 
   const load = async () => {
@@ -183,11 +187,12 @@ const BankPayments: React.FC = () => {
 
   const actions = (r: PaymentTxn) => (
     <div className="ab-actions">
-      <ActBtn ic="qr" title="QR" onClick={() => setQrFor(r)} />
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
-      {r.status === 0 && (
-        <ActBtn ic="check" title="Xác nhận" onClick={() => { setConfirming(r); form.resetFields(); }} />
-      )}
+      <RowActions actions={[
+        { key: 'qr', icon: 'qr', label: 'Xem mã QR', onClick: () => setQrFor(r) },
+        { key: 'view', icon: 'eye', label: 'Chi tiết giao dịch', primary: true, onClick: () => setDetail(r) },
+        { key: 'confirm', icon: 'check', label: 'Xác nhận đã nhận tiền', primary: true,
+          hidden: r.status !== 0, onClick: () => { setConfirming(r); form.resetFields(); } },
+      ]} />
     </div>
   );
 
@@ -216,6 +221,8 @@ const BankPayments: React.FC = () => {
   };
 
   const handleMarkExpired = async () => {
+    if (expiring) return;
+    setExpiring(true);
     try {
       const res = await bankPaymentApi.markExpired();
       if (res.changed) {
@@ -226,11 +233,14 @@ const BankPayments: React.FC = () => {
       }
     } catch {
       te('Không thể đánh dấu hết hạn');
+    } finally {
+      setExpiring(false);
     }
   };
 
   const handleConfirm = async () => {
-    if (!confirming) return;
+    if (!confirming || confirmBusy) return;
+    setConfirmBusy(true);
     try {
       const values = await form.validateFields();
       await bankPaymentApi.confirmTransfer({
@@ -247,6 +257,8 @@ const BankPayments: React.FC = () => {
       const err = e as { errorFields?: unknown };
       if (err?.errorFields) return;
       te('Xác nhận thất bại');
+    } finally {
+      setConfirmBusy(false);
     }
   };
 
@@ -266,8 +278,8 @@ const BankPayments: React.FC = () => {
         <Button className="ab-btn ghost" size="small" onClick={load} loading={loading}>
           <TermIcon name="refresh" size={12} /> Làm mới
         </Button>
-        <Button className="ab-btn ghost" size="small" onClick={handleMarkExpired}>
-          <TermIcon name="clock" size={12} /> Đánh dấu hết hạn
+        <Button className="ab-btn ghost" size="small" onClick={handleMarkExpired} loading={expiring}>
+          <TermIcon name="clock" size={12} /> {expiring ? 'Đang cập nhật…' : 'Đánh dấu hết hạn'}
         </Button>
         <Button className="ab-btn ghost" size="small" onClick={exportCsv}>
           <TermIcon name="download" size={12} /> Xuất CSV
@@ -275,7 +287,7 @@ const BankPayments: React.FC = () => {
       </div>
 
       <StatusTabs value={stab} onChange={(v) => { setStab(v as BPStatusKey | 'all'); setPage(0); }} tabs={BP_STATUS} counts={counts} />
-      <DataTable columns={cols} data={paged} rowKey={r => r.id} onRowClick={setDetail} actions={actions} />
+      <DataTable columns={cols} data={paged} rowKey={r => r.id} onRowClick={setDetail} actions={actions} loading={loading} />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 
       {/* Drawer chi tiết */}
@@ -377,8 +389,8 @@ const BankPayments: React.FC = () => {
         footer={(
           <>
             <Button onClick={() => { setConfirming(null); form.resetFields(); }}>Hủy</Button>
-            <Button type="primary" onClick={handleConfirm} data-testid="confirm-bank-btn">
-              <TermIcon name="check" size={12} /> Xác nhận đã nhận tiền
+            <Button type="primary" onClick={handleConfirm} loading={confirmBusy} data-testid="confirm-bank-btn">
+              <TermIcon name="check" size={12} /> {confirmBusy ? 'Đang xác nhận…' : 'Xác nhận đã nhận tiền'}
             </Button>
           </>
         )}

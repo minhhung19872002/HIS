@@ -20,6 +20,8 @@ import {
   DrawerShell, DrSec, DrField, tk, ti, tw, te, cf, useTabCounts,
   type ColumnDef, type CrudFieldCfg, type TopTab,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 const ANALYZER_FIELDS: CrudFieldCfg[] = [
   { key: 'name', label: 'Tên máy XN', required: true },
@@ -71,12 +73,14 @@ const AnalyzerSection: React.FC = () => {
   const [sel, setSel] = useState<AnalyzerDto | null>(null);
   const [crudOpen, setCrudOpen] = useState(false);
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+  const [lcBusy, setLcBusy] = useState(false);
 
   const openCreate = () => { setCrudInit({ connectionType: 'HL7', isActive: true }); setCrudOpen(true); };
   const openEdit = (r: AnalyzerDto) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
-  const del = (r: AnalyzerDto) => cf(`Xoá máy XN "${r.name}"?`, async () => {
+  // RowActions (tone: 'danger') tự bật confirm khi xoá — không bọc cf() thêm ở đây.
+  const del = async (r: AnalyzerDto) => {
     try { await deleteAnalyzer(r.id); tk('Đã xoá'); load(); } catch { te('Xoá thất bại'); }
-  }, { tone: 'crit', confirm: 'Xoá' });
+  };
   const testConn = async (r: AnalyzerDto) => {
     try {
       const res = await testAnalyzerConnection(r.id);
@@ -85,7 +89,10 @@ const AnalyzerSection: React.FC = () => {
     } catch { te('Test kết nối thất bại'); }
   };
   const runLabconnect = async () => {
+    if (lcBusy) return;
+    setLcBusy(true);
     try { await syncLabconnect(); tk('Đã chạy đồng bộ LabConnect'); load(); } catch { te('Đồng bộ LabConnect thất bại'); }
+    finally { setLcBusy(false); }
   };
 
   const load = async () => {
@@ -93,7 +100,10 @@ const AnalyzerSection: React.FC = () => {
     try {
       const [r, lc] = await Promise.all([
         getAnalyzers(),
-        getLabconnectStatus().catch(() => ({ data: null as LabconnectStatusDto | null })),
+        getLabconnectStatus().catch((e) => {
+          tw(friendlyErrorMessage(e, 'Không lấy được trạng thái LabConnect'));
+          return { data: null as LabconnectStatusDto | null };
+        }),
       ]);
       setItems(r.data || []);
       setLabconn(lc.data || null);
@@ -154,10 +164,15 @@ const AnalyzerSection: React.FC = () => {
 
   const actions = (r: AnalyzerDto) => (
     <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="refresh" title="Test kết nối" onClick={() => testConn(r)} />
-      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-      <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => del(r)} />
+      <RowActions actions={[
+        { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setSel(r) },
+        { key: 'edit', icon: 'edit', label: 'Sửa', primary: true, onClick: () => openEdit(r) },
+        { key: 'test', icon: 'refresh', label: 'Test kết nối', onClick: () => { void testConn(r); } },
+        { key: 'del', icon: 'trash', label: 'Xoá', tone: 'danger',
+          confirm: `Xoá máy XN "${r.name}"? Thao tác không thể hoàn tác.`,
+          // trả Promise để hộp thoại xác nhận giữ spinner tới khi xoá xong (như cf() cũ)
+          onClick: () => del(r) },
+      ]} />
     </div>
   );
 
@@ -177,7 +192,9 @@ const AnalyzerSection: React.FC = () => {
         <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFProto(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
         <Btn variant="ghost" icon="refresh" loading={loading} onClick={load}>Làm mới</Btn>
-        <Btn variant="ghost" icon="activity" onClick={runLabconnect}>LabConnect</Btn>
+        <Btn variant="ghost" icon="activity" loading={lcBusy} onClick={runLabconnect}>
+          {lcBusy ? 'Đang đồng bộ…' : 'LabConnect'}
+        </Btn>
         <Btn variant="ghost" icon="inbox" onClick={() => navigate('/v2/analyzer-inbox')}>KQ máy</Btn>
         <Btn variant="primary" icon="plus" onClick={openCreate}>Thêm máy</Btn>
       </div>
@@ -404,6 +421,9 @@ const ReferenceRangesSection: React.FC = () => {
       ]);
       if (rangeRes.status === 'fulfilled') setRanges(Array.isArray(rangeRes.value.data) ? rangeRes.value.data : []);
       if (paramRes.status === 'fulfilled') setTestParams(Array.isArray(paramRes.value.data) ? paramRes.value.data : []);
+      // #467: allSettled nuốt nhánh rejected — báo 1 toast tổng hợp thay vì im lặng.
+      const rejected = [rangeRes, paramRes].filter((x): x is PromiseRejectedResult => x.status === 'rejected');
+      if (rejected.length > 0) tw(friendlyErrorMessage(rejected[0].reason, 'Không tải được đầy đủ dải chỉ số tham chiếu'));
     } catch { tw('Không thể tải dữ liệu'); }
     finally { setLoading(false); }
   }, [filterTestId]);
@@ -519,6 +539,9 @@ const AnalyzerMappingSection: React.FC = () => {
       if (mapRes.status === 'fulfilled') setMappings(Array.isArray(mapRes.value.data) ? mapRes.value.data : []);
       if (analyzerRes.status === 'fulfilled') setAnalyzers(Array.isArray(analyzerRes.value.data) ? analyzerRes.value.data : []);
       if (paramRes.status === 'fulfilled') setTestParams(Array.isArray(paramRes.value.data) ? paramRes.value.data : []);
+      // #467: allSettled nuốt nhánh rejected — báo 1 toast tổng hợp thay vì im lặng.
+      const rejected = [mapRes, analyzerRes, paramRes].filter((x): x is PromiseRejectedResult => x.status === 'rejected');
+      if (rejected.length > 0) tw(friendlyErrorMessage(rejected[0].reason, 'Không tải được đầy đủ dữ liệu ánh xạ máy XN'));
     } catch { tw('Không thể tải dữ liệu'); }
     finally { setLoading(false); }
   }, [filterAnalyzerId]);

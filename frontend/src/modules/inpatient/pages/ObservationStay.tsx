@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import apiClient from '../../../services/apiClient';
 import systemApi from '../../system/api/system';
 import { unwrapList, type MaybePaged } from '../../../utils/apiNormalize';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn, DrawerShell, ModalShell, DrSec, DrField,
   Ico, tk, ti, tw, type ColumnDef,
@@ -56,6 +57,7 @@ const ObservationStayV2: React.FC = () => {
   const [createForm] = Form.useForm();
   const [vitalForm] = Form.useForm();
   const [dischargeForm] = Form.useForm();
+  const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -75,7 +77,7 @@ const ObservationStayV2: React.FC = () => {
         setDepartments(unwrapList<Department>((d as { data?: MaybePaged<Department> }).data));
         const r = await apiClient.get('/catalog/rooms');
         setRooms(unwrapList<Room>((r as { data?: MaybePaged<Room> }).data));
-      } catch { /* empty */ }
+      } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh mục khoa/phòng.')); }
     })();
   }, []);
 
@@ -84,7 +86,7 @@ const ObservationStayV2: React.FC = () => {
     try {
       const { data } = await apiClient.get<{ vitals?: Vital[] }>(`/observation/${s.id}/vitals`);
       setVitals(data.vitals || []);
-    } catch { setVitals([]); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được sinh hiệu của phiên lưu.')); setVitals([]); }
   };
 
   const searchPatient = async (kw: string) => {
@@ -96,33 +98,40 @@ const ObservationStayV2: React.FC = () => {
   };
 
   const createStay = async () => {
+    if (submitting) return;
     const v = await createForm.validateFields();
+    setSubmitting(true);
     try {
       const { data }: { data: StayCreateResponse } = await apiClient.post('/observation', v);
       tk(`Tạo phiên ${data.stayCode} thành công`);
       setCreateOpen(false); createForm.resetFields(); load();
     } catch { tw('Tạo phiên thất bại'); }
+    finally { setSubmitting(false); }
   };
 
   const submitVital = async () => {
-    if (!detail) return;
+    if (!detail || submitting) return;
     const v = await vitalForm.validateFields();
+    setSubmitting(true);
     try {
       const { data }: { data: VitalCreateResponse } = await apiClient.post(`/observation/${detail.id}/vitals`, v);
       tk(`Đã ghi sinh hiệu (MEWS: ${data.ewsScore})`);
       vitalForm.resetFields(); setVitalOpen(false);
       openDetail(detail); load();
     } catch { tw('Ghi sinh hiệu thất bại'); }
+    finally { setSubmitting(false); }
   };
 
   const submitDischarge = async () => {
-    if (!detail || !dischargeOpen) return;
+    if (!detail || !dischargeOpen || submitting) return;
     const v = await dischargeForm.validateFields();
+    setSubmitting(true);
     try {
       await apiClient.put(`/observation/${detail.id}/${dischargeOpen}`, v);
       tk(dischargeOpen === 'discharge' ? 'Đã cho về' : 'Đã chuyển nhập viện');
       setDischargeOpen(null); setDetail(null); dischargeForm.resetFields(); load();
     } catch { tw('Xử lý thất bại'); }
+    finally { setSubmitting(false); }
   };
 
   const counts = useMemo(() => ({ all: stays.length }) as Record<string, number>, [stays]);
@@ -250,6 +259,7 @@ const ObservationStayV2: React.FC = () => {
         onCancel={() => setCreateOpen(false)}
         title="Tiếp nhận vào phòng lưu"
         onOk={createStay}
+        confirmLoading={submitting}
         okText="Tạo phiên"
         cancelText="Hủy"
         width={640}
@@ -284,8 +294,8 @@ const ObservationStayV2: React.FC = () => {
         title="Ghi sinh hiệu"
         footer={<>
           <Btn variant="ghost" onClick={() => setVitalOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={submitVital}>
-            <Ico name="check" size={12} /> Lưu
+          <Btn variant="primary" onClick={submitVital} disabled={submitting}>
+            <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : 'Lưu'}
           </Btn>
         </>}
       >
@@ -310,8 +320,8 @@ const ObservationStayV2: React.FC = () => {
         title={dischargeOpen === 'discharge' ? 'Cho về' : 'Chuyển nhập viện'}
         footer={<>
           <Btn variant="ghost" onClick={() => setDischargeOpen(null)}>Hủy</Btn>
-          <Btn variant="primary" onClick={submitDischarge}>
-            <Ico name="check" size={12} /> Xác nhận
+          <Btn variant="primary" onClick={submitDischarge} disabled={submitting}>
+            <Ico name="check" size={12} /> {submitting ? 'Đang xử lý…' : 'Xác nhận'}
           </Btn>
         </>}
       >

@@ -6,9 +6,10 @@ import {
   type DataPermissionGroupDto, type DataPermissionItemDto, type DataScopeType,
 } from '../api/dataPermission';
 import {
-  KpiStrip, DataTable, StatusBadge, Btn, ModalShell, AbSelect, tk, ti, tw,
+  KpiStrip, DataTable, StatusBadge, Btn, ModalShell, AbSelect, tk, te, tw, cf,
   type ColumnDef,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '@/utils/friendlyError';
 
 /* ──────────────────────────────────────────────────────────────────────────
    NangCap26 — I.15 Quyền dữ liệu phòng/kho · I.16 Phân quyền dữ liệu người dùng.
@@ -38,6 +39,7 @@ export const DataPermissionPanel: React.FC<Props> = ({ departments = [] }) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   const [form, setForm] = useState<{ id?: string; code: string; name: string; description?: string; isActive: boolean }>(
     { code: '', name: '', isActive: true },
@@ -47,7 +49,7 @@ export const DataPermissionPanel: React.FC<Props> = ({ departments = [] }) => {
   const load = async () => {
     setLoading(true);
     try { setGroups((await getDataPermissionGroups()).data || []); }
-    catch { ti('Không tải được nhóm quyền dữ liệu'); }
+    catch (e) { te(friendlyErrorMessage(e, 'Không tải được nhóm quyền dữ liệu')); }
     finally { setLoading(false); }
   };
   useEffect(() => { void load(); }, []);
@@ -65,6 +67,7 @@ export const DataPermissionPanel: React.FC<Props> = ({ departments = [] }) => {
   };
 
   const submit = async () => {
+    if (busy) return;
     if (!form.code.trim() || !form.name.trim()) { tw('Nhập mã và tên nhóm'); return; }
     setBusy(true);
     try {
@@ -73,13 +76,22 @@ export const DataPermissionPanel: React.FC<Props> = ({ departments = [] }) => {
       setOpen(false);
       await load();
     } catch (e) {
-      ti((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Lưu thất bại');
+      te(friendlyErrorMessage(e, 'Lưu thất bại'));
     } finally { setBusy(false); }
   };
 
-  const remove = async (g: DataPermissionGroupDto) => {
-    try { await deleteDataPermissionGroup(g.id); tk('Đã xóa nhóm'); await load(); }
-    catch (e) { ti((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Xóa thất bại'); }
+  const remove = (g: DataPermissionGroupDto) => {
+    if (removingId) return;
+    cf(
+      `Xóa nhóm quyền dữ liệu "${g.name}"? ${g.userCount} người dùng đang gán nhóm này sẽ không còn bị giới hạn phạm vi.`,
+      async () => {
+        setRemovingId(g.id);
+        try { await deleteDataPermissionGroup(g.id); tk('Đã xóa nhóm'); await load(); }
+        catch (e) { te(friendlyErrorMessage(e, 'Xóa thất bại')); }
+        finally { setRemovingId(null); }
+      },
+      { tone: 'crit', confirm: 'Xóa' },
+    );
   };
 
   const addItem = () => setItems((prev) => [...prev, { scopeType: 'Department' }]);
@@ -104,7 +116,7 @@ export const DataPermissionPanel: React.FC<Props> = ({ departments = [] }) => {
     { key: 'act', label: '', render: (r) => (
       <span style={{ display: 'inline-flex', gap: 'var(--space-6)' }}>
         <Btn variant="ghost" onClick={(e?: React.MouseEvent) => { e?.stopPropagation(); openEdit(r); }}>Sửa</Btn>
-        <Btn variant="crit" onClick={(e?: React.MouseEvent) => { e?.stopPropagation(); void remove(r); }}>Xóa</Btn>
+        <Btn variant="crit" loading={removingId === r.id} onClick={(e?: React.MouseEvent) => { e?.stopPropagation(); remove(r); }}>Xóa</Btn>
       </span>
     ) },
   ];

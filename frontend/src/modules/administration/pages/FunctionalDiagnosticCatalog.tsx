@@ -48,16 +48,22 @@ const FunctionalDiagnosticCatalog: React.FC = () => {
   const [editType, setEditType] = useState<SaveFunctionalDiagnosticTestTypeDto & { id?: string } | null>(null);
   const [editTmpl, setEditTmpl] = useState<SaveFunctionalDiagnosticTemplateDto & { id?: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loadingTypes, setLoadingTypes] = useState(true);
+  const [loadingTmpl, setLoadingTmpl] = useState(true);
 
   // ── Load ───────────────────────────────────────────────────────────────────
   const reloadTypes = useCallback(async () => {
+    setLoadingTypes(true);
     try { setTestTypes(await getTestTypes()); }
     catch { te('Không tải được danh sách loại TDCN'); }
+    finally { setLoadingTypes(false); }
   }, []);
 
   const reloadTemplates = useCallback(async () => {
+    setLoadingTmpl(true);
     try { setTemplates(await getTemplates(filterTypeId || undefined)); }
     catch { te('Không tải được danh sách mẫu kết quả'); }
+    finally { setLoadingTmpl(false); }
   }, [filterTypeId]);
 
   useEffect(() => { setSearch(''); setPage(0); }, [tab]);
@@ -196,6 +202,7 @@ const FunctionalDiagnosticCatalog: React.FC = () => {
           columns={colsType}
           data={paged as FunctionalDiagnosticTestTypeDto[]}
           rowKey={r => r.id}
+          loading={loadingTypes}
           onRowClick={onTypeRowClick}
           actions={row => (
             <ActBtn ic="trash" title="Xóa" tone="crit"
@@ -209,6 +216,7 @@ const FunctionalDiagnosticCatalog: React.FC = () => {
           columns={colsTmpl}
           data={paged as FunctionalDiagnosticTemplateDto[]}
           rowKey={r => r.id}
+          loading={loadingTmpl}
           onRowClick={onTmplRowClick}
           actions={row => (
             <ActBtn ic="trash" title="Xóa" tone="crit"

@@ -5,6 +5,7 @@ import {
   KpiStrip, TopTabs, SearchBox, DataTable, StatusBadge, ActBtn, Btn,
   tk, ti, tw, cf, type ColumnDef,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 type TabKey = 'modalities' | 'body-parts' | 'protocols' | 'report-templates' | 'icd-templates' | 'pttt-service-mappings';
 const TABS = [
@@ -55,9 +56,14 @@ const RisCatalogAdminV2: React.FC = () => {
 
   useEffect(() => {
     (async () => {
-      try { const { data: m } = await apiClient.get('/ris-catalog/modalities', { params: { isActive: true } }); setModalities(Array.isArray(m) ? (m as Row[]) : []); } catch { /* empty */ }
-      try { const { data: b } = await apiClient.get('/ris-catalog/body-parts'); setBodyParts(Array.isArray(b) ? (b as Row[]) : []); } catch { /* empty */ }
-      try { const { data: t } = await apiClient.get('/ris-catalog/report-templates', { params: { isActive: true } }); setReportTemplates(Array.isArray(t) ? (t as Row[]) : []); } catch { /* empty */ }
+      // 3 danh mục nền cho ô chọn trong modal — gom 1 cảnh báo chung, không bắn 3 toast
+      let firstErr: unknown = null;
+      try { const { data: m } = await apiClient.get('/ris-catalog/modalities', { params: { isActive: true } }); setModalities(Array.isArray(m) ? (m as Row[]) : []); } catch (e) { if (!firstErr) firstErr = e; }
+      try { const { data: b } = await apiClient.get('/ris-catalog/body-parts'); setBodyParts(Array.isArray(b) ? (b as Row[]) : []); } catch (e) { if (!firstErr) firstErr = e; }
+      try { const { data: t } = await apiClient.get('/ris-catalog/report-templates', { params: { isActive: true } }); setReportTemplates(Array.isArray(t) ? (t as Row[]) : []); } catch (e) { if (!firstErr) firstErr = e; }
+      if (firstErr) {
+        tw(friendlyErrorMessage(firstErr, 'Không tải đủ danh mục nền (Modality / Vị trí chụp / Mẫu báo cáo) — một số ô chọn trong form sẽ trống'));
+      }
     })();
   }, [tab]);
 
@@ -87,7 +93,10 @@ const RisCatalogAdminV2: React.FC = () => {
       try {
         const { data: st } = await apiClient.get('/clinical-narratives/surgery');
         setSurgeryTemplates(Array.isArray(st) ? (st as Row[]) : []);
-      } catch { /* không sẵn sàng — không block tab khác */ }
+      } catch (e) {
+        // không block tab khác, nhưng phải báo — nếu im lặng, ô chọn mẫu PTTT trống như thể chưa khai báo mẫu
+        tw(friendlyErrorMessage(e, 'Không tải được mẫu tường trình PTTT — ô chọn mẫu sẽ trống'));
+      }
     })();
   }, [tab]);
 

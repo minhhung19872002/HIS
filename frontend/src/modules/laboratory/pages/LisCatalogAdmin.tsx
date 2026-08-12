@@ -37,6 +37,7 @@ const LisCatalogAdminV2: React.FC = () => {
   const [data, setData] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
   const [form] = Form.useForm();
   const [books, setBooks] = useState<Row[]>([]);
@@ -71,21 +72,26 @@ const LisCatalogAdminV2: React.FC = () => {
 
   useEffect(() => {
     (async () => {
-      try { const { data: b } = await apiClient.get('/lis-catalog/books', { params: { isActive: true } }); setBooks(Array.isArray(b) ? (b as Row[]) : []); } catch { /* empty */ }
+      // #467: các danh mục phụ trợ nạp nền — lỗi lẻ không chặn nghiệp vụ, gom 1 toast tổng hợp.
+      let failed = 0;
+      try { const { data: b } = await apiClient.get('/lis-catalog/books', { params: { isActive: true } }); setBooks(Array.isArray(b) ? (b as Row[]) : []); } catch (e) { failed++; console.warn('[lis-catalog] books:', e); }
       try { const { data: s } = await apiClient.get('/catalog/paraclinical-services', { params: { serviceType: 2, isActive: true } });
-        setServices(normalizeArrayResponse<Row>(s)); } catch { /* empty */ }
+        setServices(normalizeArrayResponse<Row>(s)); } catch (e) { failed++; console.warn('[lis-catalog] services:', e); }
       try { const { data: sp } = await apiClient.get('/catalog/medical-supplies', { params: { isActive: true } });
-        setSupplies(normalizeArrayResponse<Row>(sp)); } catch { /* empty */ }
+        setSupplies(normalizeArrayResponse<Row>(sp)); } catch (e) { failed++; console.warn('[lis-catalog] supplies:', e); }
       try { const { data: tg } = await apiClient.get('/lis-catalog/groups', { params: { isActive: true } });
-        setTestGroups(normalizeArrayResponse<Row>(tg)); } catch { /* empty */ }
+        setTestGroups(normalizeArrayResponse<Row>(tg)); } catch (e) { failed++; console.warn('[lis-catalog] groups:', e); }
       try { const { data: st } = await apiClient.get('/lis-catalog/sample-types', { params: { isActive: true } });
-        setSampleTypes(normalizeArrayResponse<Row>(st)); } catch { /* empty */ }
+        setSampleTypes(normalizeArrayResponse<Row>(st)); } catch (e) { failed++; console.warn('[lis-catalog] sample-types:', e); }
+      if (failed > 0) tw(`Không tải được ${failed}/5 danh mục phụ trợ — một số ô chọn có thể trống. Hãy tải lại trang.`);
     })();
   }, []);
 
   const submit = async () => {
+    if (saving) return;
     const v = await form.validateFields();
     const payload = { ...(editing ?? {}), ...v };
+    setSaving(true);
     try {
       if (tab === 'abbr') {
         await saveAbbreviation({
@@ -100,6 +106,7 @@ const LisCatalogAdminV2: React.FC = () => {
       tk(editing ? 'Đã cập nhật' : 'Đã thêm'); setModalOpen(false); load();
     }
     catch { tw('Lưu thất bại'); }
+    finally { setSaving(false); }
   };
 
   const remove = (row: Row) => cf('Xóa mục này?', async () => {
@@ -366,8 +373,10 @@ const LisCatalogAdminV2: React.FC = () => {
         onCancel={() => setModalOpen(false)}
         title={editing ? 'Sửa' : 'Thêm mới'}
         onOk={submit}
-        okText="Lưu"
+        confirmLoading={saving}
+        okText={saving ? 'Đang lưu…' : 'Lưu'}
         cancelText="Hủy"
+        maskClosable={!saving}
         width={620}
       >
         <Form form={form} layout="vertical">

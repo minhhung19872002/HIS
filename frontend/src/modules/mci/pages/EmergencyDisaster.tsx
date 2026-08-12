@@ -1,11 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { App as AntdApp, Drawer, Modal, Select, Input, Tag } from 'antd';
+import { App as AntdApp, Drawer, Modal, Select, Input, Tag, Progress, Timeline } from 'antd';
 import { AlertOutlined, EyeOutlined, HomeOutlined, LogoutOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import {
   getActiveEvent, getVictims, registerVictim, activateCodeBlue, deactivateMCI,
+  // #352: panel phụ MCI (tài nguyên/nhân sự/diễn biến/lịch sử) + liên lạc GĐ + cập nhật điều trị
+  getResources, getCommandCenter, getActivityLog, getEvents, getDashboard,
+  notifyFamily, updateVictim,
   type MCIEventDto, type MCIVictimDto, type RegisterVictimDto,
+  type MCIResourceDto, type CommandCenterDto, type ActivityLogDto, type MCIDashboardDto,
 } from '../api/massCasualty';
 import { registerEmergencyPatient, type EmergencyRegistrationDto } from '../../reception/api/reception';
 import {
@@ -57,6 +61,12 @@ type EmergencyCase = {
   bed?: string;
   gcs: number;
   vitals: Vitals;
+  // #352: field riêng nạn nhân MCI (source='mci') — liên lạc GĐ + ghi chú điều trị
+  victimId?: string;
+  familyNotified?: boolean;
+  familyContactName?: string;
+  familyContactPhone?: string;
+  treatmentNotes?: string;
 };
 
 type IntakePayload = {
@@ -89,6 +99,17 @@ const STATUS_OPTIONS: StatusMeta[] = [
 ];
 
 const PAGE_SIZE = 18;
+
+// #352: panel phụ của trang MCI (drawer bên phải)
+type SidePanel = 'resources' | 'staff' | 'log' | 'start' | 'history';
+
+const PANEL_TITLES: Record<SidePanel, string> = {
+  resources: 'Tài nguyên khả dụng',
+  staff: 'Nhân sự huy động',
+  log: 'Diễn biến sự kiện',
+  start: 'Hướng dẫn phân loại START',
+  history: 'Lịch sử MCI & mức sẵn sàng',
+};
 
 // ─── ObservationStay → EmergencyCase mapper (F3 — nguồn dữ liệu thật) ──────────
 // Màn Cấp cứu đọc phiên phòng lưu thật từ /observation/list (thay seed mô phỏng cũ).
@@ -198,6 +219,12 @@ function mapVictimToCase(v: MCIVictimDto): EmergencyCase {
       temp: v.vitalSigns?.temperature ?? 0,
       spo2: v.vitalSigns?.oxygenSaturation ?? 0,
     },
+    // #352: giữ id + thông tin gia đình/ghi chú để liên lạc GĐ + cập nhật điều trị
+    victimId: v.id,
+    familyNotified: v.familyNotified,
+    familyContactName: v.familyContactName,
+    familyContactPhone: v.familyContactPhone,
+    treatmentNotes: v.treatmentNotes,
   };
 }
 
@@ -218,6 +245,17 @@ const EmergencyDisasterV2: React.FC = () => {
   const [endMciBusy, setEndMciBusy] = useState(false);
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [intakeSubmitting, setIntakeSubmitting] = useState(false);
+  // #352: panel phụ (tài nguyên/nhân sự/diễn biến/START/lịch sử MCI) + dữ liệu đi kèm
+  const [panel, setPanel] = useState<SidePanel | null>(null);
+  const [resources, setResources] = useState<MCIResourceDto | null>(null);
+  const [commandCenter, setCommandCenter] = useState<CommandCenterDto | null>(null);
+  const [activityLog, setActivityLog] = useState<ActivityLogDto[]>([]);
+  const [dashboard, setDashboard] = useState<MCIDashboardDto | null>(null);
+  const [eventHistory, setEventHistory] = useState<MCIEventDto[]>([]);
+  // #352: modal cập nhật ghi chú điều trị nạn nhân MCI
+  const [notesVictim, setNotesVictim] = useState<EmergencyCase | null>(null);
+  const [notesDraft, setNotesDraft] = useState('');
+  const [notesBusy, setNotesBusy] = useState(false);
 
   // Tải lại danh sách nạn nhân thật của sự kiện MCI đang hoạt động.
   const reloadVictims = useCallback(async (eventId: string) => {
@@ -369,6 +407,73 @@ const EmergencyDisasterV2: React.FC = () => {
     }
     mutateRow(row.code, { status: 'discharged' });
     message.success(`Đã hoàn tất xử trí cho ${row.patientName}`);
+  };
+
+  // #352: mở panel phụ + tải dữ liệu tương ứng (giữ dữ liệu cũ nếu API lỗi)
+  const openPanel = async (p: SidePanel): Promise<void> => {
+    setPanel(p);
+    try {
+      if ((p === 'resources' || p === 'staff') && activeEvent) {
+        const res = await getResources(activeEvent.id);
+        if (res?.data) setResources(res.data);
+        if (p === 'staff') {
+          const cmd = await getCommandCenter(activeEvent.id);
+          if (cmd?.data) setCommandCenter(cmd.data);
+        }
+      } else if (p === 'log' && activeEvent) {
+        const res = await getActivityLog(activeEvent.id);
+        setActivityLog(Array.isArray(res?.data) ? res.data : []);
+      } else if (p === 'history') {
+        const [dashRes, evtsRes] = await Promise.allSettled([getDashboard(), getEvents()]);
+        if (dashRes.status === 'fulfilled' && dashRes.value?.data) setDashboard(dashRes.value.data);
+        if (evtsRes.status === 'fulfilled') {
+          const list = evtsRes.value?.data;
+          setEventHistory(Array.isArray(list) ? list : []);
+        }
+      }
+    } catch {
+      // giữ dữ liệu hiện có nếu API lỗi
+    }
+  };
+
+  // #352: liên lạc gia đình nạn nhân MCI — cần SĐT người thân đã ghi nhận
+  const handleNotifyFamily = async (row: EmergencyCase): Promise<void> => {
+    if (!row.victimId) return;
+    if (!row.familyContactPhone) {
+      message.warning('Chưa có thông tin liên lạc gia đình');
+      return;
+    }
+    try {
+      await notifyFamily({
+        victimId: row.victimId,
+        contactName: row.familyContactName || '',
+        relationship: '',
+        phone: row.familyContactPhone,
+        notificationType: 'Initial',
+        message: `Thông báo về nạn nhân ${row.patientName || row.code}`,
+        notificationMethod: 'Phone',
+      });
+      message.success('Đã gửi thông báo cho gia đình');
+      await reload();
+    } catch {
+      message.error('Không thể gửi thông báo cho gia đình');
+    }
+  };
+
+  // #352: lưu ghi chú điều trị nạn nhân MCI (updateVictim)
+  const submitVictimNotes = async (): Promise<void> => {
+    if (!notesVictim?.victimId) return;
+    setNotesBusy(true);
+    try {
+      await updateVictim({ victimId: notesVictim.victimId, treatmentNotes: notesDraft.trim() });
+      message.success('Đã cập nhật ghi chú điều trị');
+      setNotesVictim(null);
+      await reload();
+    } catch {
+      message.error('Không thể cập nhật nạn nhân');
+    } finally {
+      setNotesBusy(false);
+    }
   };
 
   // Tiếp nhận ca cấp cứu mới → registerVictim vào MCI đang hoạt động.
@@ -530,6 +635,35 @@ const EmergencyDisasterV2: React.FC = () => {
                 Kết thúc sự kiện
               </button>
             )}
+            {/* #352: panel phụ khi có sự kiện MCI — tài nguyên / nhân sự / diễn biến */}
+            {activeEvent && (
+              <>
+                <button className="er-v2-btn" type="button" onClick={() => void openPanel('resources')}>
+                  <TermIcon name="layers" size={14} />
+                  Tài nguyên
+                </button>
+                <button className="er-v2-btn" type="button" onClick={() => void openPanel('staff')}>
+                  <TermIcon name="users" size={14} />
+                  Nhân sự
+                </button>
+                <button className="er-v2-btn" type="button" onClick={() => void openPanel('log')}>
+                  <TermIcon name="activity" size={14} />
+                  Diễn biến
+                </button>
+              </>
+            )}
+            {/* #352: hướng dẫn START luôn mở được (kiến thức tham khảo, kể cả không MCI) */}
+            <button className="er-v2-btn" type="button" onClick={() => void openPanel('start')}>
+              <TermIcon name="info" size={14} />
+              Hướng dẫn START
+            </button>
+            {/* #352: lịch sử MCI + mức sẵn sàng — chỉ khi không có sự kiện active */}
+            {!activeEvent && (
+              <button className="er-v2-btn" type="button" onClick={() => void openPanel('history')}>
+                <TermIcon name="clock" size={14} />
+                Lịch sử MCI
+              </button>
+            )}
           </div>
 
           <div className="er-v2-toolbar-right">
@@ -633,6 +767,27 @@ const EmergencyDisasterV2: React.FC = () => {
                         <button type="button" className="er-v2-icon-btn" onClick={(e) => { e.stopPropagation(); openCase(row); }}>
                           <EyeOutlined />
                         </button>
+                        {/* #352: nạn nhân MCI — liên lạc gia đình (khi chưa liên lạc) + cập nhật ghi chú điều trị */}
+                        {source === 'mci' && row.victimId && !row.familyNotified && (
+                          <button
+                            type="button"
+                            className="er-v2-icon-btn"
+                            title="Liên lạc gia đình"
+                            onClick={(e) => { e.stopPropagation(); void handleNotifyFamily(row); }}
+                          >
+                            <TermIcon name="phone" size={14} />
+                          </button>
+                        )}
+                        {source === 'mci' && row.victimId && (
+                          <button
+                            type="button"
+                            className="er-v2-icon-btn"
+                            title="Cập nhật ghi chú điều trị"
+                            onClick={(e) => { e.stopPropagation(); setNotesVictim(row); setNotesDraft(row.treatmentNotes ?? ''); }}
+                          >
+                            <TermIcon name="edit" size={14} />
+                          </button>
+                        )}
                         {!['admitted', 'discharged', 'referred'].includes(row.status) && (
                           <>
                             <button
@@ -750,6 +905,49 @@ const EmergencyDisasterV2: React.FC = () => {
           finally { setEndMciBusy(false); }
         }}
       />
+
+      {/* #352: drawer panel phụ — tài nguyên / nhân sự / diễn biến / START / lịch sử MCI */}
+      <Drawer
+        open={panel !== null}
+        onClose={() => setPanel(null)}
+        title={panel ? PANEL_TITLES[panel] : ''}
+        placement="right"
+        size={panel === 'history' ? 'large' : 'default'}
+      >
+        {panel === 'resources' && <ResourcePanel resources={resources} event={activeEvent} />}
+        {panel === 'staff' && (
+          <StaffPanel
+            commandCenter={commandCenter}
+            resources={resources}
+            staffActivated={activeEvent?.staffActivated ?? 0}
+          />
+        )}
+        {panel === 'log' && <ActivityLogPanel logs={activityLog} event={activeEvent} cases={rows} />}
+        {panel === 'start' && <StartGuidePanel />}
+        {panel === 'history' && <MciHistoryPanel dashboard={dashboard} events={eventHistory} />}
+      </Drawer>
+
+      {/* #352: modal cập nhật ghi chú điều trị nạn nhân MCI */}
+      <Modal
+        open={!!notesVictim}
+        title={notesVictim ? `Cập nhật điều trị · ${notesVictim.patientName}` : ''}
+        onCancel={() => setNotesVictim(null)}
+        onOk={() => void submitVictimNotes()}
+        okText="Lưu"
+        cancelText="Huỷ"
+        okButtonProps={{ loading: notesBusy }}
+        destroyOnHidden
+      >
+        <label style={{ fontSize: 13 }}>Ghi chú điều trị
+          <Input.TextArea
+            rows={4}
+            value={notesDraft}
+            onChange={(e) => setNotesDraft(e.target.value)}
+            style={{ marginTop: 4 }}
+            placeholder="Diễn biến, xử trí, y lệnh…"
+          />
+        </label>
+      </Modal>
     </div>
   );
 };
@@ -937,6 +1135,14 @@ const EmergencyCaseDrawerContent: React.FC<EmergencyCaseDrawerContentProps> = ({
           <InfoField label="Tình trạng ban đầu">
             {emergencyCase.triage <= 2 ? 'Nguy kịch, cần monitor liên tục' : 'Ổn định, theo dõi sát'}
           </InfoField>
+          {/* #352: trạng thái liên lạc gia đình — chỉ có ở nạn nhân MCI */}
+          {emergencyCase.victimId && (
+            <InfoField label="Liên lạc GĐ">
+              {emergencyCase.familyNotified
+                ? <Tag color="success">Đã liên lạc</Tag>
+                : <Tag color="warning">Chưa liên lạc</Tag>}
+            </InfoField>
+          )}
         </div>
       </section>
 
@@ -1130,6 +1336,283 @@ const EndMciModal: React.FC<EndMciModalProps> = ({
       </label>
     </div>
   </Modal>
+);
+
+/* #352: build danh sách tài nguyên từ MCIResourceDto — logic giữ nguyên v1
+   (giường/ICU, phòng mổ, máy thở, máu O+/A+, bác sĩ/điều dưỡng; resources rỗng
+   → fallback số liệu event-level bedsReserved/icuBedsReady/orsReady/bloodUnitsReady). */
+type ResourceItem = { id: string; name: string; total: number; available: number; reserved: number };
+
+function buildResourceItems(resources: MCIResourceDto | null, evt: MCIEventDto | null): ResourceItem[] {
+  const items: ResourceItem[] = [];
+  if (resources) {
+    const bed = resources.bedSummary;
+    if (bed) {
+      items.push(
+        { id: 'bed', name: 'Giường cấp cứu', total: bed.totalReserved + bed.available, available: bed.available, reserved: bed.occupied },
+        { id: 'icu', name: 'Giường ICU', total: bed.icuReserved + bed.icuAvailable, available: bed.icuAvailable, reserved: bed.icuOccupied },
+      );
+    }
+    const or = resources.orSummary;
+    if (or) {
+      items.push({ id: 'or', name: 'Phòng mổ', total: or.totalReady, available: or.available, reserved: or.inUse });
+    }
+    const vent = resources.equipmentSummary?.ventilators;
+    if (vent) {
+      items.push({ id: 'vent', name: 'Máy thở', total: vent.total, available: vent.available, reserved: vent.inUse });
+    }
+    const blood = resources.bloodSummary;
+    if (blood) {
+      items.push(
+        { id: 'blood-o', name: 'Máu O+ (đơn vị)', total: blood.unitsReady, available: blood.oPositive, reserved: blood.unitsReady - blood.oPositive },
+        { id: 'blood-a', name: 'Máu A+ (đơn vị)', total: blood.unitsReady, available: blood.aPositive, reserved: blood.unitsReady - blood.aPositive },
+      );
+    }
+    const staff = resources.staffSummary;
+    if (staff) {
+      items.push(
+        { id: 'staff-doc', name: 'Bác sĩ', total: staff.physicians + staff.nurses, available: staff.physicians, reserved: staff.present },
+        { id: 'staff-nurse', name: 'Điều dưỡng', total: staff.nurses + staff.support, available: staff.nurses, reserved: staff.present },
+      );
+    }
+  }
+  if (items.length === 0 && evt) {
+    items.push(
+      { id: 'bed-f', name: 'Giường đã phân bổ', total: evt.bedsReserved || 0, available: evt.bedsReserved || 0, reserved: 0 },
+      { id: 'icu-f', name: 'Giường ICU', total: evt.icuBedsReady || 0, available: evt.icuBedsReady || 0, reserved: 0 },
+      { id: 'or-f', name: 'Phòng mổ', total: evt.orsReady || 0, available: evt.orsReady || 0, reserved: 0 },
+      { id: 'blood-f', name: 'Máu (đơn vị)', total: evt.bloodUnitsReady || 0, available: evt.bloodUnitsReady || 0, reserved: 0 },
+    );
+  }
+  return items;
+}
+
+/* #352: panel Tài nguyên — mỗi tài nguyên 1 hàng: tên + khả dụng x/y + progress */
+const ResourcePanel: React.FC<{ resources: MCIResourceDto | null; event: MCIEventDto | null }> = ({ resources, event }) => {
+  const items = buildResourceItems(resources, event);
+  if (items.length === 0) {
+    return <div style={{ color: '#6b7280' }}>Chưa có dữ liệu tài nguyên</div>;
+  }
+  return (
+    <div>
+      {items.map((item) => (
+        <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600 }}>{item.name}</div>
+            <div style={{ color: '#6b7280', fontSize: 12 }}>Khả dụng: {item.available} / {item.total} · Đã phân bổ: {item.reserved}</div>
+          </div>
+          <Progress
+            percent={item.total > 0 ? Math.round((item.available / item.total) * 100) : 0}
+            status={item.available < 3 ? 'exception' : 'normal'}
+            size="small"
+            style={{ width: 120 }}
+          />
+        </div>
+      ))}
+    </div>
+  );
+};
+
+/* #352: panel Nhân sự — chỉ huy trưởng + trưởng bộ phận (command center) + nhân lực theo khoa (resources) */
+const StaffPanel: React.FC<{
+  commandCenter: CommandCenterDto | null;
+  resources: MCIResourceDto | null;
+  staffActivated: number;
+}> = ({ commandCenter, resources, staffActivated }) => {
+  const cards: { id: string; name: string; role: string; phone: string; status: string }[] = [];
+  if (commandCenter?.incidentCommander) {
+    const ic = commandCenter.incidentCommander;
+    cards.push({
+      id: ic.staffId || 'ic', name: ic.staffName, role: `Chỉ huy trưởng · ${ic.position}`,
+      phone: ic.phone, status: 'Đã có mặt',
+    });
+  }
+  (commandCenter?.sectionChiefs ?? []).forEach((sc, i) => {
+    cards.push({
+      id: sc.staffId || `sc-${i}`, name: sc.staffName, role: sc.sectionName || sc.section,
+      phone: sc.phone, status: 'Đã có mặt',
+    });
+  });
+  (resources?.staffSummary?.byDepartment ?? []).forEach((dept, i) => {
+    cards.push({
+      id: dept.departmentId || `dept-${i}`, name: `${dept.total} nhân viên`, role: dept.departmentName,
+      phone: '', status: 'Đang trực',
+    });
+  });
+  return (
+    <div>
+      <div style={{ marginBottom: 12, padding: '8px 12px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 4, fontSize: 13 }}>
+        Tổng nhân viên đã huy động: <b>{staffActivated}</b>
+      </div>
+      {cards.length === 0 && <div style={{ color: '#6b7280' }}>Chưa có dữ liệu nhân sự</div>}
+      {cards.map((c) => (
+        <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600 }}>{c.name}</div>
+            <div style={{ color: '#6b7280', fontSize: 12 }}>{c.role}{c.phone ? ` · SĐT: ${c.phone}` : ''}</div>
+          </div>
+          <Tag color={c.status === 'Đã có mặt' ? 'success' : 'processing'}>{c.status}</Tag>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+/* #352: panel Diễn biến sự kiện — timeline log thật; log rỗng → synthesize mốc như v1
+   (kích hoạt + huy động nhân lực + nạn nhân đầu tiên). Màu: Alert=đỏ, Resource=xanh dương, khác=xanh lá. */
+const ActivityLogPanel: React.FC<{
+  logs: ActivityLogDto[];
+  event: MCIEventDto | null;
+  cases: EmergencyCase[];
+}> = ({ logs, event, cases }) => {
+  const items: { key: string; color: string; content: React.ReactNode }[] = logs.length > 0
+    ? logs.slice(0, 20).map((log, idx) => ({
+        key: log.id || `log-${idx}`,
+        color: log.activityType === 'Alert' ? 'red' : log.activityType === 'Resource' ? 'blue' : 'green',
+        content: (
+          <>
+            <div style={{ fontWeight: 600 }}>{dayjs(log.timestamp).format('HH:mm')} · {log.description}</div>
+            <div style={{ color: '#6b7280', fontSize: 12 }}>{log.performedBy}{log.details ? ` — ${log.details}` : ''}</div>
+          </>
+        ),
+      }))
+    : event ? [
+        {
+          key: 'activated',
+          color: 'red',
+          content: (
+            <>
+              <div style={{ fontWeight: 600 }}>{dayjs(event.activatedAt).format('HH:mm')} · Kích hoạt {event.alertLevelName || `Cấp ${event.alertLevel}`}</div>
+              <div style={{ color: '#6b7280', fontSize: 12 }}>{event.eventName}</div>
+            </>
+          ),
+        },
+        {
+          key: 'staff',
+          color: 'blue',
+          content: (
+            <>
+              <div style={{ fontWeight: 600 }}>{dayjs(event.activatedAt).add(2, 'minute').format('HH:mm')} · Huy động nhân lực</div>
+              <div style={{ color: '#6b7280', fontSize: 12 }}>{event.staffActivated} nhân viên được thông báo</div>
+            </>
+          ),
+        },
+        ...(cases.length > 0 ? [{
+          key: 'first-victim',
+          color: 'green',
+          content: (
+            <>
+              <div style={{ fontWeight: 600 }}>{dayjs(cases[cases.length - 1]?.arrivalTime || event.activatedAt).format('HH:mm')} · Nạn nhân đầu tiên đến</div>
+              <div style={{ color: '#6b7280', fontSize: 12 }}>Đã tiếp nhận {cases.length} nạn nhân</div>
+            </>
+          ),
+        }] : []),
+      ] : [];
+  if (items.length === 0) {
+    return <div style={{ color: '#6b7280' }}>Chưa có diễn biến nào</div>;
+  }
+  return <Timeline items={items} />;
+};
+
+/* #352: panel Hướng dẫn START — nội dung tĩnh (5 bước + 4 ô màu chú giải), luôn xem được */
+const START_STEPS = [
+  { title: 'Bước 1 · Đi lại được?', desc: 'Có → XANH (Minor). Không → tiếp bước 2.' },
+  { title: 'Bước 2 · Tự thở?', desc: 'Không → mở đường thở; vẫn không thở → ĐEN (Tử vong).' },
+  { title: 'Bước 3 · Nhịp thở', desc: '>30 lần/phút → ĐỎ (Immediate).' },
+  { title: 'Bước 4 · Mạch quay', desc: 'Không bắt được mạch quay → ĐỎ (Immediate).' },
+  { title: 'Bước 5 · Làm theo lệnh', desc: 'Không làm theo lệnh đơn giản → ĐỎ. Có → VÀNG (Delayed).' },
+];
+
+const START_LEGEND = [
+  { label: 'ĐỎ', desc: 'Cấp cứu ngay lập tức', bg: '#fff1f0', color: '#cf1322', border: '#ffa39e' },
+  { label: 'VÀNG', desc: 'Có thể trì hoãn 1-4h', bg: '#fffbe6', color: '#d48806', border: '#ffe58f' },
+  { label: 'XANH', desc: 'Thương tích nhẹ', bg: '#f6ffed', color: '#389e0d', border: '#b7eb8f' },
+  { label: 'ĐEN', desc: 'Tử vong / Không cứu được', bg: '#f5f5f5', color: '#262626', border: '#d9d9d9' },
+];
+
+const StartGuidePanel: React.FC = () => (
+  <div>
+    <ol style={{ paddingLeft: 18, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {START_STEPS.map((s) => (
+        <li key={s.title}>
+          <div style={{ fontWeight: 600 }}>{s.title}</div>
+          <div style={{ color: '#6b7280', fontSize: 12 }}>{s.desc}</div>
+        </li>
+      ))}
+    </ol>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 16 }}>
+      {START_LEGEND.map((l) => (
+        <div key={l.label} style={{ background: l.bg, border: `1px solid ${l.border}`, borderRadius: 4, padding: '10px 12px' }}>
+          <div style={{ fontWeight: 700, color: l.color }}>{l.label}</div>
+          <div style={{ fontSize: 12, color: '#374151' }}>{l.desc}</div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+/* #352: panel Lịch sử MCI & mức sẵn sàng — 4 KPI dashboard + bảng lịch sử sự kiện */
+function alertLevelColor(level: number): string {
+  switch (level) {
+    case 2: return '#faad14';
+    case 3: return '#fa8c16';
+    case 4: return '#f5222d';
+    default: return '#52c41a';
+  }
+}
+
+const MciHistoryPanel: React.FC<{ dashboard: MCIDashboardDto | null; events: MCIEventDto[] }> = ({ dashboard, events }) => (
+  <div>
+    {dashboard && (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
+        <HistoryKpi label="Sự kiện trong năm" value={dashboard.eventsThisYear} />
+        <HistoryKpi label="Nạn nhân trong năm" value={dashboard.totalVictimsThisYear} />
+        <HistoryKpi label="Điểm sẵn sàng" value={`${dashboard.readinessScore}%`} />
+        <HistoryKpi label="Nhân viên trực" value={dashboard.staffOnCall} />
+      </div>
+    )}
+    {events.length === 0 ? (
+      <div style={{ color: '#6b7280' }}>Chưa có sự kiện MCI nào được ghi nhận</div>
+    ) : (
+      <table className="er-v2-table">
+        <thead>
+          <tr>
+            <th>Mã</th>
+            <th>Tên sự kiện</th>
+            <th>Cấp độ</th>
+            <th>Địa điểm</th>
+            <th>Thời gian</th>
+            <th>Nạn nhân</th>
+            <th>Trạng thái</th>
+          </tr>
+        </thead>
+        <tbody>
+          {events.map((e) => (
+            <tr key={e.id}>
+              <td className="mono">{e.eventCode}</td>
+              <td>{e.eventName}</td>
+              <td><Tag color={alertLevelColor(e.alertLevel)}>{e.alertLevelName || `Cấp ${e.alertLevel}`}</Tag></td>
+              <td>{e.location || '—'}</td>
+              <td className="mono">{e.activatedAt ? dayjs(e.activatedAt).format('DD/MM/YYYY HH:mm') : '—'}</td>
+              <td className="mono">{e.totalVictims ?? 0}</td>
+              <td>
+                <Tag color={e.status === 4 ? 'default' : e.status === 3 ? 'warning' : 'success'}>
+                  {e.statusName || `Trạng thái ${e.status}`}
+                </Tag>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )}
+  </div>
+);
+
+const HistoryKpi: React.FC<{ label: string; value: string | number }> = ({ label, value }) => (
+  <div style={{ border: '1px solid #e5e7eb', borderRadius: 4, padding: '8px 10px' }}>
+    <div style={{ fontSize: 11, color: '#6b7280' }}>{label}</div>
+    <div style={{ fontSize: 18, fontWeight: 700 }}>{value}</div>
+  </div>
 );
 
 type VitalCardProps = {

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import { App as AntdApp } from 'antd';
@@ -19,6 +19,7 @@ import type { BusinessAlertDto } from '../../patient/api/businessAlerts';
 import * as hrApi from '../../hr/api/medicalHR';
 import type { MedicalHRDashboardDto } from '../../hr/api/medicalHR';
 import { usePermission } from '../../../hooks/usePermission';
+import { friendlyErrorMessage } from '@/utils/friendlyError';
 import '../../../styles/Dashboard.css';
 
 import type { Kpi } from './dashboard/_shared';
@@ -79,6 +80,9 @@ const DashboardV2: React.FC = () => {
   const [stockIt, setStockIt]       = useState<ExpiryWarningDto | null>(null);
   const [alertIt, setAlertIt]       = useState<BusinessAlertDto | null>(null);
   const [showAllAlerts, setShowAllAlerts] = useState(false);
+  // #467: chống double-submit "Đánh dấu xong" ca mổ (OrCaseModal không nhận prop loading
+  // nên chặn bằng ref — click lặp trong lúc request đang bay bị bỏ qua).
+  const markingDone = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -314,16 +318,18 @@ const DashboardV2: React.FC = () => {
         onClose={() => setOrIt(null)}
         onPrint={() => message.info('Đã gửi phiếu mổ tới máy in')}
         onMarkDone={async () => {
-          if (!orIt) return;
+          if (!orIt || markingDone.current) return;
+          markingDone.current = true;
           try {
             await surgeryApi.completeSurgery({
               surgeryId: orIt.surgery.surgeryId,
               endTime: dayjs().toISOString(),
             });
             message.success(`Đã hoàn tất ca ${orIt.surgery.surgeryServiceName ?? ''}`);
-          } catch {
-            message.error('Đánh dấu hoàn tất thất bại');
+          } catch (e) {
+            message.error(friendlyErrorMessage(e, 'Đánh dấu hoàn tất thất bại. Vui lòng thử lại.'));
           } finally {
+            markingDone.current = false;
             setOrIt(null);
           }
         }}

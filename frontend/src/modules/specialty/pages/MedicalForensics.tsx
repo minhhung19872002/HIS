@@ -10,6 +10,7 @@ import {
   useTabCounts, tk, te, cf,
   type ColumnDef, type StatusTab, type CrudFieldCfg, type KpiItem,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 type SKey = 'pending' | 'examining' | 'completed' | 'approved';
 const STATUS_TABS: StatusTab<SKey>[] = [
@@ -63,7 +64,7 @@ const MedicalForensicsV2: React.FC = () => {
       const [cases, st] = await Promise.all([searchCases(), getStats()]);
       setRows(cases);
       setStats(st);
-    } catch { /* ignore */ }
+    } catch (e) { te(friendlyErrorMessage(e, 'Không tải được danh sách hồ sơ giám định.')); }
     finally { setLoading(false); }
   }, []);
 

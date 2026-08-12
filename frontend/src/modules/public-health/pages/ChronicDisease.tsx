@@ -9,10 +9,11 @@ import type {
   ChronicRecordDto, ChronicFollowUpDto, ChronicStatisticsDto, CreateChronicRecordDto,
 } from '../api/chronicDisease';
 import {
-  KpiStrip, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
+  KpiStrip, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, tw, cf,
   type ColumnDef, type StatusTab, type CrudFieldCfg,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
 
 // ─── Trạng thái hồ sơ: 0=đang theo dõi · 1=cần tái khám · 2=đã đóng · 3=đã loại ───
 type TabKey = 'active' | 'followup' | 'closed';
@@ -133,9 +134,14 @@ const ChronicDiseaseV2: React.FC = () => {
     try { await removeChronicRecord(r.id); tk('Đã loại bỏ hồ sơ'); load(); }
     catch { tw('Không thể loại bỏ hồ sơ'); }
   };
+  // "Mở lại hồ sơ" không có confirm chặn → cần guard in-flight chống double-click (#467 double-submit)
+  const [reopening, setReopening] = useState<string | null>(null);
   const doReopen = async (r: ChronicRecordDto) => {
+    if (reopening) return;
+    setReopening(r.id);
     try { await reopenChronicRecord(r.id); tk('Đã mở lại hồ sơ'); load(); }
     catch { tw('Không thể mở lại hồ sơ'); }
+    finally { setReopening(null); }
   };
 
   const addFollowUp = () => {
@@ -217,23 +223,18 @@ const ChronicDiseaseV2: React.FC = () => {
 
   const rowActions = (r: ChronicRecordDto) => (
     <div className="ab-actions">
-      <ActBtn ic="eye" title="Xem chi tiết" onClick={() => openDetail(r)} />
-      {r.status === 0 && (
-        <>
-          <ActBtn ic="edit" title="Chỉnh sửa" onClick={() => { setEditRec(r); setCrudOpen(true); }} />
-          <ActBtn
-            ic="x" title="Đóng hồ sơ" tone="warn"
-            onClick={() => cf(`Đóng hồ sơ bệnh mạn tính của ${r.patientName}?`, () => { void doClose(r); }, { tone: 'warn', confirm: 'Đóng' })}
-          />
-          <ActBtn
-            ic="trash" title="Loại bỏ" tone="crit"
-            onClick={() => cf(`Loại bỏ hồ sơ bệnh mạn tính của ${r.patientName}?`, () => { void doRemove(r); }, { tone: 'crit', confirm: 'Loại' })}
-          />
-        </>
-      )}
-      {(r.status === 2 || r.status === 3) && (
-        <ActBtn ic="refresh" title="Mở lại hồ sơ" onClick={() => { void doReopen(r); }} />
-      )}
+      <RowActions actions={[
+        { key: 'view', icon: 'eye', label: 'Xem chi tiết', primary: true, onClick: () => openDetail(r) },
+        { key: 'edit', icon: 'edit', label: 'Chỉnh sửa', primary: true,
+          hidden: r.status !== 0, onClick: () => { setEditRec(r); setCrudOpen(true); } },
+        { key: 'close', icon: 'x', label: 'Đóng hồ sơ', tone: 'warn', hidden: r.status !== 0,
+          confirm: `Đóng hồ sơ bệnh mạn tính của ${r.patientName}?`, onClick: () => { void doClose(r); } },
+        { key: 'remove', icon: 'trash', label: 'Loại bỏ', tone: 'danger', hidden: r.status !== 0,
+          confirm: `Loại bỏ hồ sơ bệnh mạn tính của ${r.patientName}? Thao tác không thể hoàn tác.`,
+          onClick: () => { void doRemove(r); } },
+        { key: 'reopen', icon: 'refresh', label: 'Mở lại hồ sơ', disabled: reopening === r.id,
+          hidden: r.status !== 2 && r.status !== 3, onClick: () => { void doReopen(r); } },
+      ]} />
     </div>
   );
 

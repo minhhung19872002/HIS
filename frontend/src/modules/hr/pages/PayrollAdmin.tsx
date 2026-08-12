@@ -1,12 +1,14 @@
 /**
  * G-41 Payroll Admin — quản lý kỳ lương + dòng lương nhân viên (MVP).
  */
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import * as file from '../../../services/file.service';
 import { fmtNum as fmt } from '../../../utils/format';
 import { Form, Input, InputNumber, Modal, Select } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../../../services/apiClient';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { RowActions } from '../../../components/actions';
 import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn,
   useListData, useTabCounts, tk, ti, tw, cf, type ColumnDef, type StatusTab,
@@ -64,6 +66,7 @@ const PayrollAdminV2: React.FC = () => {
 
   const [periodModal, setPeriodModal] = useState(false);
   const [periodForm] = Form.useForm();
+  const [savingPeriod, setSavingPeriod] = useState(false);
 
   const [selectedPeriod, setSelectedPeriod] = useState<PayrollPeriod | null>(null);
   const [items, setItems] = useState<PayrollItem[]>([]);
@@ -71,6 +74,13 @@ const PayrollAdminV2: React.FC = () => {
   const [itemModal, setItemModal] = useState(false);
   const [editingItem, setEditingItem] = useState<PayrollItem | null>(null);
   const [itemForm] = Form.useForm();
+  const [savingItem, setSavingItem] = useState(false);
+
+  // #467 — TIỀN LƯƠNG: khoá đồng bộ (ref) chống double-submit. State React chỉ có hiệu lực
+  // sau render kế tiếp nên không chặn kịp 2 cú click liên tiếp; ref chặn ngay trong cùng tick.
+  const submitRef = useRef(false);
+  const rowBusyRef = useRef(false);
+  const [busyPeriodId, setBusyPeriodId] = useState<string | null>(null);
 
   // ── Data loading ────────────────────────────────────────────────────────
 
@@ -93,28 +103,35 @@ const PayrollAdminV2: React.FC = () => {
   };
 
   const submitPeriod = async () => {
+    if (submitRef.current) return;   // #467 chống double-submit: tạo trùng kỳ lương
     const v = await periodForm.validateFields();
+    submitRef.current = true; setSavingPeriod(true);
     try {
       await apiClient.post('/admin-modules/payroll/periods', v);
       tk('Đã tạo kỳ lương'); setPeriodModal(false); reload();
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { message?: string } } };
-      tw(err?.response?.data?.message || 'Tạo kỳ lương thất bại');
-    }
+      tw(friendlyErrorMessage(e, 'Tạo kỳ lương thất bại'));
+    } finally { submitRef.current = false; setSavingPeriod(false); }
   };
 
   const approvePeriod = (p: PayrollPeriod) =>
     cf(`Duyệt kỳ lương ${p.periodCode}?`, async () => {
+      if (rowBusyRef.current) return;   // #467 chống double-submit: duyệt 2 lần = chốt quỹ lương 2 lần
+      rowBusyRef.current = true; setBusyPeriodId(p.id);
       try { await apiClient.post(`/admin-modules/payroll/periods/${p.id}/approve`); tk('Đã duyệt'); reload(); }
-      catch { tw('Duyệt thất bại'); }
+      catch (e: unknown) { tw(friendlyErrorMessage(e, 'Duyệt thất bại')); }
+      finally { rowBusyRef.current = false; setBusyPeriodId(null); }
     }, { confirm: 'Duyệt' });
 
   const generateItems = async (p: PayrollPeriod) => {
+    if (rowBusyRef.current) return;   // #467 chống double-submit: sinh dòng lương 2 lần = nhân đôi quỹ
+    rowBusyRef.current = true; setBusyPeriodId(p.id);
     try {
       await apiClient.post(`/admin-modules/payroll/periods/${p.id}/generate`);
       tk('Đã tạo dòng lương');
       if (selectedPeriod?.id === p.id) loadItems(p.id);
-    } catch { tw('Tạo dòng lương thất bại'); }
+    } catch (e: unknown) { tw(friendlyErrorMessage(e, 'Tạo dòng lương thất bại')); }
+    finally { rowBusyRef.current = false; setBusyPeriodId(null); }
   };
 
   const openEditItem = (item: PayrollItem) => {
@@ -124,14 +141,17 @@ const PayrollAdminV2: React.FC = () => {
   };
 
   const submitItem = async () => {
+    if (submitRef.current) return;   // #467 chống double-submit: lưu dòng lương 2 lần
     const v = await itemForm.validateFields();
+    submitRef.current = true; setSavingItem(true);
     try {
       await apiClient.post('/admin-modules/payroll/items', {
         ...v, id: editingItem?.id, periodId: selectedPeriod?.id,
       });
       tk('Đã lưu'); setItemModal(false);
       if (selectedPeriod) loadItems(selectedPeriod.id);
-    } catch { tw('Lưu thất bại'); }
+    } catch (e: unknown) { tw(friendlyErrorMessage(e, 'Lưu thất bại')); }
+    finally { submitRef.current = false; setSavingItem(false); }
   };
 
   const exportCsv = () => {
@@ -207,13 +227,18 @@ const PayrollAdminV2: React.FC = () => {
         onRowClick={(r) => { setSelectedPeriod(r); loadItems(r.id); }}
         actions={(r) => (
           <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
-            <ActBtn ic="eye" title="Xem dòng lương" onClick={(e) => { e.stopPropagation(); setSelectedPeriod(r); loadItems(r.id); }} />
-            {r.status === 0 && (
-              <>
-                <ActBtn ic="zap" title="Tạo dòng lương tự động" onClick={() => generateItems(r)} tone="warn" />
-                <ActBtn ic="check" title="Duyệt kỳ lương" onClick={() => approvePeriod(r)} />
-              </>
-            )}
+            <RowActions actions={[
+              { key: 'view', icon: 'eye', label: 'Xem dòng lương', primary: true,
+                onClick: () => { setSelectedPeriod(r); loadItems(r.id); } },
+              { key: 'gen', icon: 'zap', label: 'Tạo dòng lương tự động', tone: 'warn',
+                hidden: r.status !== 0, disabled: busyPeriodId === r.id,
+                confirm: `Sinh lại toàn bộ dòng lương cho kỳ ${r.periodCode}?`,
+                onClick: () => { void generateItems(r); } },
+              // confirm: false — approvePeriod đã tự gọi cf() bên trong (tránh hỏi 2 lần)
+              { key: 'approve', icon: 'check', label: 'Duyệt kỳ lương', primary: true, confirm: false,
+                hidden: r.status !== 0, disabled: busyPeriodId === r.id,
+                onClick: () => approvePeriod(r) },
+            ]} />
           </div>
         )}
         loading={loading}
@@ -252,6 +277,8 @@ const PayrollAdminV2: React.FC = () => {
         onCancel={() => setPeriodModal(false)}
         okText="Tạo"
         cancelText="Hủy"
+        confirmLoading={savingPeriod}
+        maskClosable={!savingPeriod}
         destroyOnHidden
       >
         <Form form={periodForm} layout="vertical">
@@ -275,6 +302,8 @@ const PayrollAdminV2: React.FC = () => {
         onCancel={() => setItemModal(false)}
         okText="Lưu"
         cancelText="Hủy"
+        confirmLoading={savingItem}
+        maskClosable={!savingItem}
         destroyOnHidden
         width={520}
       >

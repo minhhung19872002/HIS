@@ -8,6 +8,7 @@ import type { BloodStockDto, BloodBagDto, BloodIssueRequestDto, BloodProductType
 import { catalogApi } from '../../system/api/system';
 import type { DepartmentCatalogDto } from '../../system/api/system';
 import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager,
@@ -151,6 +152,18 @@ const BloodBankV2: React.FC = () => {
       if (e.status === 'fulfilled') setExpiring((e.value.data || []) as BloodStockDetailDto[]);
       if (r.status === 'fulfilled') setRequests((r.value.data || []) as BloodIssueRequestDto[]);
       if (x.status === 'fulfilled') setExpired((x.value.data || []) as BloodStockDetailDto[]);
+      // Patient-safety: nhánh reject trước đây im lặng → tồn kho hiển thị thiếu trông như "hết máu".
+      const failed = ([
+        [s, 'tồn kho máu'],
+        [u, 'chi tiết túi máu'],
+        [e, 'túi sắp hết hạn'],
+        [r, 'yêu cầu xuất máu'],
+        [x, 'túi đã hết hạn'],
+      ] as [PromiseSettledResult<unknown>, string][]).filter(([p]) => p.status === 'rejected');
+      if (failed.length > 0) {
+        const detail = friendlyErrorMessage((failed[0][0] as PromiseRejectedResult).reason, 'Vui lòng làm mới.');
+        message.error(`Không tải được ${failed.map(([, n]) => n).join(', ')} — số liệu kho máu đang hiển thị có thể THIẾU, không phải đã hết. ${detail}`);
+      }
       setLoading(false);
     });
   };

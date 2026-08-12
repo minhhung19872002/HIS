@@ -16,9 +16,10 @@ import type {
 } from '../api/multiFacility';
 import {
   KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, tk, ti,
+  DrawerShell, DrSec, DrField, tk, ti, tw,
   type ColumnDef,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import TermIcon from '../../../components/layout/terminal/Icon';
 
 type Tab = 'dashboard' | 'tree' | 'consolidated' | 'duty';
@@ -96,11 +97,15 @@ const Dashboard3CapV2: React.FC = () => {
   const loadTreeData = async () => {
     try {
       const [treeRes, levelsRes] = await Promise.allSettled([getBranchTree(), getBranchesByLevel()]);
+      // Hai endpoint chi nhánh thường hỏng CÙNG LÚC (BE down / thiếu quyền) → gom 1 toast,
+      // tránh bắn 2 thông báo chồng nhau lúc mount. friendlyErrorMessage vẫn console.warn từng lỗi.
+      const errs: string[] = [];
       if (treeRes.status === 'fulfilled') setTree(treeRes.value);
-      else console.warn('Branch tree load failed:', treeRes.reason);
+      else errs.push(friendlyErrorMessage(treeRes.reason, 'Không tải được cây chi nhánh'));
       if (levelsRes.status === 'fulfilled') setLevels(levelsRes.value);
-      else console.warn('Branches by level failed:', levelsRes.reason);
-    } catch (err) { console.warn('Failed to load branch tree data:', err); }
+      else errs.push(friendlyErrorMessage(levelsRes.reason, 'Không tải được danh sách chi nhánh theo tuyến'));
+      if (errs.length) tw([...new Set(errs)].join(' · '));
+    } catch (err) { tw(friendlyErrorMessage(err, 'Không tải được dữ liệu chi nhánh')); }
   };
 
   const loadDashboard = async () => {

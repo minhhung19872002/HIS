@@ -8,10 +8,12 @@ import {
 } from '../api/cultureStock';
 import type { CultureStock, CultureStockStats, CultureStockLog } from '../api/cultureStock';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, ModalShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, te, Ico,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, Btn,
+  DrawerShell, ModalShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, tw, te, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 const STOCK_FIELDS: CrudFieldCfg[] = [
   { key: 'stockCode', label: 'Mã chủng', required: true, disabledOnEdit: true },
@@ -255,7 +257,8 @@ const CultureCollectionV2: React.FC = () => {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
   // #352: danh sách tủ lạnh lấy từ API riêng (không suy từ dữ liệu trang hiện tại)
   useEffect(() => {
-    getFreezerCodes().then((c) => setFreezerCodes(Array.isArray(c) ? c : [])).catch(() => setFreezerCodes([]));
+    getFreezerCodes().then((c) => setFreezerCodes(Array.isArray(c) ? c : []))
+      .catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh sách tủ lạnh')); setFreezerCodes([]); });
   }, []);
 
   const methods = useMemo(() => {
@@ -328,12 +331,15 @@ const CultureCollectionV2: React.FC = () => {
 
   const actions = (r: CultureStock) => (
     <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-      <ActBtn ic="package" title="Lấy ống" onClick={() => setRetrieveTarget(r)} />
-      <ActBtn ic="activity" title="Cấy chuyền" onClick={() => setSubcultureTarget(r)} />
-      {/* #352: huỷ chủng — discardStock có sẵn trong api nhưng v2 chưa gọi bao giờ */}
-      <ActBtn ic="trash" title="Hủy chủng" tone="crit" onClick={() => { setDiscardReason(''); setDiscardTarget(r); }} />
+      <RowActions actions={[
+        { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setSel(r) },
+        { key: 'edit', icon: 'edit', label: 'Sửa', primary: true, onClick: () => openEdit(r) },
+        { key: 'retrieve', icon: 'download', label: 'Lấy ống', onClick: () => setRetrieveTarget(r) },
+        { key: 'subculture', icon: 'activity', label: 'Cấy chuyền', onClick: () => setSubcultureTarget(r) },
+        // #352: huỷ chủng — modal riêng bắt nhập lý do nên tắt confirm mặc định của RowActions.
+        { key: 'discard', icon: 'trash', label: 'Hủy chủng', tone: 'danger', confirm: false,
+          onClick: () => { setDiscardReason(''); setDiscardTarget(r); } },
+      ]} />
     </div>
   );
 

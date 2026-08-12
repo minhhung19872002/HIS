@@ -8,8 +8,9 @@ import { useDebounce } from '../../../hooks/useDebounce';
 import * as itTicketApi from '../api/itTicket';
 import {
   KpiStrip, SearchBox, DataTable, DrawerShell, DrSec, DrField, StatusBadge,
-  ModalShell, ActBtn, Btn, tk, te, cf, type ColumnDef,
+  ModalShell, Btn, tk, te, cf, type ColumnDef,
 } from '@/_v2kit';
+import { RowActions } from '@/components/actions';
 import { friendlyErrorMessage } from '@/utils/friendlyError';
 import { toStringValue, toNumberValue, type RawApiItem } from './helpers';
 
@@ -74,32 +75,38 @@ const ItTicketsPanel: React.FC = () => {
   useEffect(() => { load(); }, [load]);
 
   const submitCreate = async () => {
+    if (saving) return;
     let v: Record<string, unknown>;
     try { v = await createF.validateFields(); } catch { return; }
     setSaving(true);
     try {
       await itTicketApi.createItTicket(v);
       tk('Đã tạo yêu cầu CNTT'); setCreateOpen(false); createF.resetFields(); load();
-    } catch { te('Không thể tạo yêu cầu CNTT'); }
+    } catch (e) { te(friendlyErrorMessage(e, 'Không thể tạo yêu cầu CNTT')); }
     finally { setSaving(false); }
   };
 
   const submitRespond = async () => {
-    if (!respondId) return;
+    if (!respondId || saving) return;
     let v: Record<string, unknown>;
     try { v = await respondF.validateFields(); } catch { return; }
     setSaving(true);
     try {
       await itTicketApi.respondToTicket(respondId, v);
       tk('Đã phản hồi yêu cầu'); setRespondId(null); respondF.resetFields(); load();
-    } catch { te('Không thể phản hồi yêu cầu'); }
+    } catch (e) { te(friendlyErrorMessage(e, 'Không thể phản hồi yêu cầu')); }
     finally { setSaving(false); }
   };
 
-  const closeTicket = (t: TicketRow) => cf('Đóng yêu cầu này?', async () => {
-    try { await itTicketApi.closeTicket(toStringValue(t.id)); tk('Đã đóng yêu cầu'); load(); }
-    catch { te('Không thể đóng yêu cầu'); }
-  }, { confirm: 'Đóng' });
+  const closeTicket = (t: TicketRow) => {
+    if (saving) return;
+    cf('Đóng yêu cầu này?', async () => {
+      setSaving(true);
+      try { await itTicketApi.closeTicket(toStringValue(t.id)); tk('Đã đóng yêu cầu'); load(); }
+      catch (e) { te(friendlyErrorMessage(e, 'Không thể đóng yêu cầu')); }
+      finally { setSaving(false); }
+    }, { confirm: 'Đóng' });
+  };
 
   const columns: ColumnDef<TicketRow>[] = [
     { key: 'title', label: 'Tiêu đề', render: (t) => toStringValue(t.title) },
@@ -132,10 +139,17 @@ const ItTicketsPanel: React.FC = () => {
 
       <DataTable<TicketRow> columns={columns} data={tickets} rowKey={(t) => toStringValue(t.id)}
         onRowClick={(t) => setSelTicket(t)}
-        actions={(t) => (<>
-          {toNumberValue(t.status) < 2 && <ActBtn ic="send" title="Phản hồi" onClick={() => { setRespondId(toStringValue(t.id)); }} />}
-          {toNumberValue(t.status) < 3 && <ActBtn ic="x" title="Đóng" tone="crit" onClick={() => closeTicket(t)} />}
-        </>)}
+        actions={(t) => (
+          <RowActions actions={[
+            { key: 'respond', icon: 'send', label: 'Phản hồi', primary: true,
+              hidden: toNumberValue(t.status) >= 2,
+              onClick: () => { setRespondId(toStringValue(t.id)); } },
+            // closeTicket tự mở cf() bên trong → confirm:false để không hỏi 2 lần
+            { key: 'close', icon: 'x', label: 'Đóng', tone: 'danger', confirm: false,
+              hidden: toNumberValue(t.status) >= 3, disabled: saving,
+              onClick: () => closeTicket(t) },
+          ]} />
+        )}
         empty={loading ? 'Đang tải…' : 'Không có yêu cầu CNTT'} />
 
       {/* Drawer chi tiết */}

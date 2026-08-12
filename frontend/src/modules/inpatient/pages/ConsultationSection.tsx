@@ -2,12 +2,13 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Input, Select } from 'antd';
 import {
-  SearchBox, DataTable, StatusBadge, ActBtn, Btn, DrawerShell, ModalShell,
+  SearchBox, DataTable, StatusBadge, Btn, DrawerShell, ModalShell,
   StatusTabs, DrSec, DrField, tk, te,
   type ColumnDef, type StatusTab,
 } from '@/_v2kit';
 import { fmtDateTime } from '../../../utils/format';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { RowActions } from '../../../components/actions';
 import {
   getConsultations, createConsultation, completeConsultation, approveConsultation, printConsultation,
   type ConsultationDto, type CreateConsultationDto, type InpatientListDto,
@@ -191,17 +192,13 @@ const ConsultationSection: React.FC<{ inpatients: InpatientListDto[]; active: bo
           rowKey={(c) => c.id}
           onRowClick={(c) => setSel(c)}
           actions={(c) => (
-            <>
-              {c.status < 2 && (
-                <ActBtn ic="check" title="Hoàn thành hội chẩn"
-                  onClick={() => setCompleting(c)} />
-              )}
-              {c.consultationType === 3 && c.approvalStatus !== 2 && (
-                <ActBtn ic="shield" title="Duyệt / Từ chối (Lãnh đạo)"
-                  onClick={() => setApproving(c)} />
-              )}
-              <ActBtn ic="printer" title="In biên bản" onClick={() => void onPrint(c)} />
-            </>
+            <RowActions actions={[
+              { key: 'complete', icon: 'check', label: 'Hoàn thành hội chẩn', primary: true,
+                hidden: !(c.status < 2), onClick: () => setCompleting(c) },
+              { key: 'approve', icon: 'shield', label: 'Duyệt / Từ chối (Lãnh đạo)', primary: true,
+                hidden: !(c.consultationType === 3 && c.approvalStatus !== 2), onClick: () => setApproving(c) },
+              { key: 'print', icon: 'printer', label: 'In biên bản', onClick: () => void onPrint(c) },
+            ]} />
           )}
         />
       </div>

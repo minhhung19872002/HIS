@@ -166,6 +166,8 @@ const DoctorPortalV2: React.FC = () => {
   const [sigPage, setSigPage] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [signTarget, setSignTarget] = useState<PendingDocument | null>(null);
+  const [signing, setSigning] = useState(false);        // chống double-click "Ký số" (không hoàn tác)
+  const [batchSigning, setBatchSigning] = useState(false); // chống ký hàng loạt lần 2 khi lần 1 chưa xong
 
   const sigFiltered = useMemo(() => sig.rows.filter((r) => {
     if (!sigSearch.trim()) return true;
@@ -197,7 +199,8 @@ const DoctorPortalV2: React.FC = () => {
   };
 
   const handleConfirmSign = async () => {
-    if (!signTarget) return;
+    if (!signTarget || signing) return;
+    setSigning(true);
     try {
       await digitalSignApi.signDocument({
         documentId: signTarget.documentId,
@@ -210,10 +213,14 @@ const DoctorPortalV2: React.FC = () => {
       sig.reload();
     } catch {
       tw('Không thể ký số tài liệu');
+    } finally {
+      setSigning(false);
     }
   };
 
   const doBatchSign = async () => {
+    if (batchSigning) return;
+    setBatchSigning(true);
     try {
       const docType = selectedDocs[0]?.documentType || 'EMR';
       await digitalSignApi.batchSign({
@@ -226,10 +233,13 @@ const DoctorPortalV2: React.FC = () => {
       sig.reload();
     } catch {
       tw('Ký hàng loạt thất bại');
+    } finally {
+      setBatchSigning(false);
     }
   };
 
   const handleBatchSign = () => {
+    if (batchSigning) return;
     if (selectedIds.size === 0) { tw('Vui lòng chọn tài liệu cần ký'); return; }
     if (hasMixedSelectedDocTypes) { tw('Chỉ có thể ký hàng loạt các tài liệu cùng loại'); return; }
     cf(`Ký hàng loạt ${selectedIds.size} tài liệu đã chọn?`, doBatchSign, {
@@ -516,9 +526,9 @@ const DoctorPortalV2: React.FC = () => {
             <SearchBox value={sigSearch} onChange={(v) => { setSigSearch(v); setSigPage(0); }} placeholder="Tìm mã TL / tiêu đề / BN…" />
             <span className="spacer" />
             {selectedIds.size > 0 && (
-              <Btn variant="primary" disabled={hasMixedSelectedDocTypes} onClick={handleBatchSign}
+              <Btn variant="primary" disabled={hasMixedSelectedDocTypes || batchSigning} onClick={handleBatchSign}
                 title={hasMixedSelectedDocTypes ? 'Chỉ có thể ký hàng loạt khi tất cả tài liệu cùng loại' : undefined}>
-                <Ico name="file-text" size={12} /> Ký hàng loạt ({selectedIds.size})
+                <Ico name="file-text" size={12} /> {batchSigning ? 'Đang ký…' : `Ký hàng loạt (${selectedIds.size})`}
               </Btn>
             )}
           </div>
@@ -548,8 +558,10 @@ const DoctorPortalV2: React.FC = () => {
             size="sm"
             title="Xác nhận ký số"
             footer={<>
-              <Btn variant="ghost" onClick={() => setSignTarget(null)}>Hủy</Btn>
-              <Btn variant="primary" onClick={handleConfirmSign}><Ico name="check" size={12} /> Ký số</Btn>
+              <Btn variant="ghost" disabled={signing} onClick={() => setSignTarget(null)}>Hủy</Btn>
+              <Btn variant="primary" disabled={signing} onClick={handleConfirmSign}>
+                <Ico name="check" size={12} /> {signing ? 'Đang ký…' : 'Ký số'}
+              </Btn>
             </>}
           >
             {signTarget && <>

@@ -228,6 +228,7 @@ const OfficialDocumentsV2: React.FC = () => {
         columns={columns}
         data={filtered}
         rowKey={(r) => r.id}
+        loading={loading}
         onRowClick={(r) => openDetail(r)}
         actions={(r) => (
           <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
@@ -235,7 +236,7 @@ const OfficialDocumentsV2: React.FC = () => {
             <ActBtn ic="trash" title="Xóa" tone="crit" onClick={(e) => { e.stopPropagation(); del(r); }} />
           </div>
         )}
-        empty={loading ? 'Đang tải…' : 'Chưa có công văn nào'}
+        empty="Chưa có công văn nào"
       />
 
       {/* Detail / Edit Drawer */}

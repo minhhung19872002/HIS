@@ -53,10 +53,12 @@ import {
   StatusBadge,
   tk,
   te,
+  tw,
   type ColumnDef,
   type StatusTone,
 } from '@/_v2kit';
 import { useAuth } from '../../../contexts/AuthContext';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -145,6 +147,17 @@ const PatientPortalStaffV2: React.FC = () => {
       if (docRes.status === 'fulfilled') setDoctors(docRes.value.data ?? []);
       if (billRes.status === 'fulfilled') setBills(billRes.value.data ?? []);
       if (qRes.status === 'fulfilled') setQuestions(qRes.value.data ?? []);
+      // #467 — nhánh rejected trước đây bị nuốt hoàn toàn: gom 1 cảnh báo nêu rõ phần nào thiếu
+      const settled: PromiseSettledResult<unknown>[] = [accRes, apptRes, deptRes, docRes, billRes, qRes];
+      const labels = ['tài khoản', 'lịch hẹn', 'danh sách khoa', 'danh sách bác sĩ', 'hóa đơn', 'câu hỏi'];
+      const failed = labels.filter((_, i) => settled[i].status === 'rejected');
+      if (failed.length > 0) {
+        const first = settled.find((r) => r.status === 'rejected');
+        tw(`Không tải được ${failed.join(', ')}. ${friendlyErrorMessage(
+          first && first.status === 'rejected' ? first.reason : undefined,
+          'Dữ liệu hiển thị có thể chưa đầy đủ, vui lòng tải lại trang.',
+        )}`);
+      }
     } finally {
       setLoading(false);
     }

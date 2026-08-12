@@ -6,6 +6,7 @@
 // =====================================================================
 import React, { useEffect, useMemo, useState } from 'react';
 import * as file from '../../../services/file.service';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { Input, InputNumber, Select, DatePicker, Switch } from 'antd';
 import dayjs from 'dayjs';
 import * as api from '../api/masterCatalog';
@@ -52,6 +53,7 @@ const PharmacyCatalogsV2: React.FC = () => {
   const [edit, setEdit] = useState<EditState | null>(null);
   const [editIsNew, setEditIsNew] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => { setSearch(''); setPage(0); }, [tab]);
 
@@ -200,12 +202,13 @@ const PharmacyCatalogsV2: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!edit) return;
+    if (!edit || saving) return;
     const code = String(edit.code || '').trim();
     const name = String(edit.name || '').trim();
     if (!code) { te('Mã không được để trống'); return; }
     if (!name) { te('Tên không được để trống'); return; }
     const payload = { ...edit, code, name };
+    setSaving(true);
     try {
       if (tab === 'mfr') await api.saveManufacturer(payload as Partial<api.ManufacturerDto>);
       else if (tab === 'route') await api.saveMedicationRoute(payload as Partial<api.MedicationRouteDto>);
@@ -214,9 +217,9 @@ const PharmacyCatalogsV2: React.FC = () => {
       setEdit(null);
       reload(tab);
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string; title?: string } } })?.response?.data?.message
-        || (err as { response?: { data?: { title?: string } } })?.response?.data?.title;
-      te(msg || 'Lưu thất bại');
+      te(friendlyErrorMessage(err, 'Lưu thất bại. Vui lòng thử lại.'));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -285,8 +288,10 @@ const PharmacyCatalogsV2: React.FC = () => {
         sub={`Mục: ${tabsDef.find((t) => t.v === tab)?.l.split(' (')[0]}`}
         footer={(
           <>
-            <Btn variant="ghost" onClick={() => setEdit(null)}>Huỷ</Btn>
-            <Btn variant="primary" icon="check" onClick={handleSave}>{editIsNew ? 'Tạo mới' : 'Lưu'}</Btn>
+            <Btn variant="ghost" disabled={saving} onClick={() => setEdit(null)}>Huỷ</Btn>
+            <Btn variant="primary" icon="check" loading={saving} onClick={handleSave}>
+              {saving ? 'Đang lưu…' : (editIsNew ? 'Tạo mới' : 'Lưu')}
+            </Btn>
           </>
         )}
       >

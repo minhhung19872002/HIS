@@ -7,9 +7,11 @@ import {
 } from '../api/traditionalMedicine';
 import type { TraditionalTreatment, HerbalPrescription, HerbItem } from '../api/traditionalMedicine';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { RowActions } from '../../../components/actions';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, ModalShell, DrSec, DrField, CrudModal, tk, te, ti, cf, Ico,
+  DrawerShell, ModalShell, DrSec, DrField, CrudModal, tk, te, ti, tw, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
 
@@ -147,7 +149,10 @@ const TraditionalMedicineV2: React.FC = () => {
     setRxTarget(r);
     setRxList([]);
     setRxLoading(true);
-    if (herbCatalog.length === 0) { try { setHerbCatalog(await getHerbs()); } catch { /* giữ rỗng */ } }
+    if (herbCatalog.length === 0) {
+      try { setHerbCatalog(await getHerbs()); }
+      catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh mục vị thuốc. Danh sách chọn vị sẽ trống.')); }
+    }
     try {
       const rows = await getHerbalPrescriptions(r.id);
       setRxList(rows);
@@ -193,21 +198,25 @@ const TraditionalMedicineV2: React.FC = () => {
     finally { setRxSubmitting(false); }
   };
 
-  const handleComplete = (r: TraditionalTreatment) => {
-    cf(`Kết thúc điều trị cho "${r.patientName}"?`, async () => {
-      try {
-        await completeTreatment(r.id);
-        tk('Đã kết thúc điều trị');
-        load();
-      } catch { te('Kết thúc thất bại'); }
-    }, { tone: 'warn', confirm: 'Kết thúc' });
+  // Confirm do RowActions đảm nhiệm (action 'done' có `confirm`) — không bọc cf() để tránh hỏi 2 lần.
+  const handleComplete = async (r: TraditionalTreatment) => {
+    try {
+      await completeTreatment(r.id);
+      tk('Đã kết thúc điều trị');
+      load();
+    } catch { te('Kết thúc thất bại'); }
   };
 
   const actions = (r: TraditionalTreatment) => (
     <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-      {r.status === 0 && <ActBtn ic="check" title="Kết thúc ĐT" onClick={() => handleComplete(r)} />}
+      <RowActions actions={[
+        { key: 'view', icon: 'eye',  label: 'Chi tiết', primary: true, onClick: () => setSel(r) },
+        { key: 'edit', icon: 'edit', label: 'Sửa',      primary: true, onClick: () => openEdit(r) },
+        { key: 'done', icon: 'check', label: 'Kết thúc ĐT', tone: 'warn',
+          hidden: r.status !== 0,
+          confirm: `Kết thúc điều trị cho "${r.patientName}"?`,
+          onClick: () => handleComplete(r) },
+      ]} />
     </div>
   );
 

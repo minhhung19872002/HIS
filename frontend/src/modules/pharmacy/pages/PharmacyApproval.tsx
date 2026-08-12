@@ -36,10 +36,12 @@ import * as wh from '../api/warehouse';
 import type { WarehouseDto } from '../api/warehouse';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge,
-  ActBtn, Btn, DrawerShell, ModalShell, DrSec, DrField,
+  Btn, DrawerShell, ModalShell, DrSec, DrField,
   tk, ti, tw, cf, Ico,
   type ColumnDef,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
@@ -109,6 +111,9 @@ const PharmacyApprovalV2: React.FC = () => {
   const [revokeOpen, setRevokeOpen] = useState(false);
   const [revokeForm] = Form.useForm<{ reason: string }>();
 
+  // Chặn double-submit cho Duyệt / Thu hồi (#467)
+  const [acting, setActing] = useState(false);
+
   // Create requisition modal (ApprovalType=1)
   const [createOpen, setCreateOpen] = useState(false);
   const [warehouses, setWarehouses] = useState<WarehouseDto[]>([]);
@@ -146,9 +151,9 @@ const PharmacyApprovalV2: React.FC = () => {
 
   useEffect(() => { refresh(); }, [refresh]);
   useEffect(() => {
-    getExpiringMedicines(60).then(setExpiring).catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
+    getExpiringMedicines(60).then(setExpiring).catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được cảnh báo hạn sử dụng.')); });
     // Load warehouses for create form
-    wh.getWarehouses().then((r) => setWarehouses((r.data as WarehouseDto[]) || [])).catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
+    wh.getWarehouses().then((r) => setWarehouses((r.data as WarehouseDto[]) || [])).catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh sách kho — chưa lập được phiếu dự trù.')); });
   }, []);
 
   const expiredCount = useMemo(() => expiring.filter((e) => e.severity === 'expired').length, [expiring]);
@@ -168,13 +173,20 @@ const PharmacyApprovalV2: React.FC = () => {
     catch { tw('Xóa thất bại'); }
   }, { tone: 'crit', confirm: 'Xóa' });
 
+  const openDetail = async (id: string) => {
+    try { setDetail(await getApprovalById(id)); }
+    catch (e) { tw(friendlyErrorMessage(e, 'Không tải được chi tiết phiếu.')); }
+  };
+
   const openApprove = async (id: string) => {
-    const data = await getApprovalById(id);
-    setDetail(data);
-    approveForm.setFieldsValue({
-      items: data.items.map((i) => ({ itemId: i.id, approvedQuantity: i.requestedQuantity, isExcluded: false })),
-    });
-    setApproveOpen(true);
+    try {
+      const data = await getApprovalById(id);
+      setDetail(data);
+      approveForm.setFieldsValue({
+        items: data.items.map((i) => ({ itemId: i.id, approvedQuantity: i.requestedQuantity, isExcluded: false })),
+      });
+      setApproveOpen(true);
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không mở được phiếu để duyệt. Vui lòng thử lại.')); }
   };
 
   const openRevoke = (row: PharmacyApprovalDto) => {
@@ -182,7 +194,8 @@ const PharmacyApprovalV2: React.FC = () => {
   };
 
   const handleApprove = async () => {
-    if (!detail) return;
+    if (!detail || acting) return;
+    setActing(true);
     try {
       const v = await approveForm.validateFields();
       await approveApproval(detail.id, v.items, v.note);
@@ -192,15 +205,18 @@ const PharmacyApprovalV2: React.FC = () => {
       setDetail(updated);
       refresh();
     } catch { tw('Duyệt thất bại'); }
+    finally { setActing(false); }
   };
 
   const handleRevoke = async () => {
-    if (!detail) return;
+    if (!detail || acting) return;
+    setActing(true);
     try {
       const v = await revokeForm.validateFields();
       await revokeApproval(detail.id, v.reason);
       tk('Đã thu hồi'); setRevokeOpen(false); refresh();
     } catch { tw('Thu hồi thất bại'); }
+    finally { setActing(false); }
   };
 
   // Print transfer issue: opens export receipt PDF in new tab
@@ -305,20 +321,29 @@ const PharmacyApprovalV2: React.FC = () => {
     } },
   ];
 
+  // #467: cột thao tác chuẩn hoá — handleSubmit/handleDelete đã tự gọi cf() nên đặt confirm:false
+  // cho action danger (tránh confirm 2 lần). Điều kiện hiện/ẩn giữ NGUYÊN theo status như cũ.
   const actions = (r: PharmacyApprovalDto) => (
     <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={async () => setDetail(await getApprovalById(r.id))} />
-      {(r.status === 0 || r.status === 1) && (
-        <>
-          <ActBtn ic="send" title="Gửi xuống kho" onClick={() => handleSubmit(r.id)} />
-          <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => handleDelete(r.id)} />
-        </>
-      )}
-      {r.status === 2 && <ActBtn ic="check" title="Duyệt" onClick={() => openApprove(r.id)} />}
-      {r.status === 3 && <ActBtn ic="refresh" title="Thu hồi" tone="warn" onClick={() => openRevoke(r)} />}
-      {r.status === 3 && r.linkedExportReceiptId && (
-        <ActBtn ic="print" title="In phiếu xuất" onClick={() => printTransferIssue(r.linkedExportReceiptId!)} />
-      )}
+      <RowActions actions={[
+        { key: 'view', icon: 'eye', label: 'Xem chi tiết', primary: true,
+          onClick: () => { void openDetail(r.id); } },
+        { key: 'submit', icon: 'send', label: 'Gửi xuống kho', primary: true,
+          hidden: !(r.status === 0 || r.status === 1),
+          onClick: () => handleSubmit(r.id) },
+        { key: 'approve', icon: 'check', label: 'Duyệt phiếu', primary: true,
+          hidden: r.status !== 2,
+          onClick: () => { void openApprove(r.id); } },
+        { key: 'revoke', icon: 'refresh', label: 'Thu hồi phiếu', tone: 'warn',
+          hidden: r.status !== 3,
+          onClick: () => openRevoke(r) },
+        { key: 'print', icon: 'print', label: 'In phiếu xuất',
+          hidden: !(r.status === 3 && r.linkedExportReceiptId),
+          onClick: () => printTransferIssue(r.linkedExportReceiptId!) },
+        { key: 'delete', icon: 'trash', label: 'Xóa phiếu nháp', tone: 'danger', confirm: false,
+          hidden: !(r.status === 0 || r.status === 1),
+          onClick: () => handleDelete(r.id) },
+      ]} />
     </div>
   );
 
@@ -364,7 +389,7 @@ const PharmacyApprovalV2: React.FC = () => {
 
       <DataTable<PharmacyApprovalDto>
         columns={cols} data={items} rowKey={(r) => r.id}
-        onRowClick={async (r) => setDetail(await getApprovalById(r.id))}
+        onRowClick={(r) => { void openDetail(r.id); }}
         actions={actions}
         loading={loading}
         empty="Chưa có phiếu phê duyệt"
@@ -459,8 +484,8 @@ const PharmacyApprovalV2: React.FC = () => {
         title="Duyệt phiếu cấp phát"
         footer={<>
           <Btn variant="ghost" onClick={() => setApproveOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={handleApprove}>
-            <Ico name="check" size={12} /> Duyệt
+          <Btn variant="primary" onClick={handleApprove} disabled={acting}>
+            <Ico name="check" size={12} /> {acting ? 'Đang duyệt…' : 'Duyệt'}
           </Btn>
         </>}
       >
@@ -522,8 +547,8 @@ const PharmacyApprovalV2: React.FC = () => {
         title="Thu hồi phiếu đã duyệt"
         footer={<>
           <Btn variant="ghost" onClick={() => setRevokeOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={handleRevoke} style={{ color: 'var(--a-rd-text)' }}>
-            <Ico name="refresh" size={12} /> Thu hồi
+          <Btn variant="primary" onClick={handleRevoke} disabled={acting} style={{ color: 'var(--a-rd-text)' }}>
+            <Ico name="refresh" size={12} /> {acting ? 'Đang thu hồi…' : 'Thu hồi'}
           </Btn>
         </>}
       >

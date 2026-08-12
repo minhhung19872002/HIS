@@ -131,9 +131,11 @@ const AdrReportsV2: React.FC = () => {
   const [page, setPage]         = useState(0);
   const [edit, setEdit]         = useState<EditState | null>(null);
   const [saving, setSaving]     = useState(false);
+  const [loading, setLoading]   = useState(false);
 
   // ── Load data ──────────────────────────────────────────────────────────────
   const reload = useCallback(async () => {
+    setLoading(true);
     try {
       const data = await getAdrReports({
         from: filterFrom,
@@ -142,6 +144,8 @@ const AdrReportsV2: React.FC = () => {
       setRows(data);
     } catch {
       te('Không tải được danh sách ADR');
+    } finally {
+      setLoading(false);
     }
   }, [filterFrom, filterTo]);
 
@@ -360,6 +364,7 @@ const AdrReportsV2: React.FC = () => {
             columns={COLS}
             data={paged}
             rowKey={r => r.id}
+            loading={loading}
             onRowClick={openEdit}
             actions={row => (
               <ActBtn

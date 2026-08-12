@@ -10,10 +10,12 @@ import * as settingsApi from '../../system/api/userSettings';
 import type { LabDefaultRoles } from '../../system/api/userSettings';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager,
-  ActBtn, Btn, DrawerShell,
+  Btn, DrawerShell,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { RowActions } from '../../../components/actions';
 import { openPrintWindow } from '../../../utils/printWindow';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { SignatureStatusIcon, PinEntryModal } from '../../../components/digitalSignature';
 import { useSigningContext } from '../../../contexts/SigningContext';
 import { getSignatures } from '../../emr/api/digitalSignature';
@@ -87,9 +89,9 @@ const LaboratoryV2: React.FC = () => {
       setUtilCabinetStock(cabinetItems);
       setUtilChemStock(chemOnlyItems);
       setUtilChemicals(Array.isArray(chemRes.data) ? chemRes.data : []);
-    } catch {
-      // warn only — panel is non-critical
-      console.warn('[Laboratory] loadUtilData failed');
+    } catch (e) {
+      // panel phụ — không chặn nghiệp vụ, chỉ cảnh báo cho người dùng biết
+      message.warning(friendlyErrorMessage(e, 'Không tải được dữ liệu tiện ích (tủ trực / hóa chất)'));
     } finally {
       setUtilLoading(false);
     }
@@ -106,7 +108,10 @@ const LaboratoryV2: React.FC = () => {
   useEffect(() => {
     if (rolesFetched.current) return;
     rolesFetched.current = true;
-    settingsApi.getLabDefaultRoles().then(setLabRoles).catch(() => { /* non-critical */ });
+    settingsApi.getLabDefaultRoles().then(setLabRoles).catch((e) => {
+      message.warning(friendlyErrorMessage(e, 'Không tải được vai trò XN mặc định — sẽ dùng giá trị mặc định.'));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Nhập kết quả thủ công per-test (port v1 Result Entry Modal)
@@ -125,7 +130,9 @@ const LaboratoryV2: React.FC = () => {
       if (res.data.length > 0) {
         setSignatureMap((prev) => new Map(prev).set(resultId, res.data[0]));
       }
-    } catch { /* ignore */ }
+    } catch (e) {
+      message.warning(friendlyErrorMessage(e, 'Không tải được trạng thái ký số của kết quả'));
+    }
   };
 
   const handlePinSubmit = async (pin: string) => {
@@ -193,11 +200,19 @@ const LaboratoryV2: React.FC = () => {
   const [chainReason, setChainReason] = useState('');
   const [chainBusy, setChainBusy] = useState(false);
 
+  // Guard double-submit (#467): id phiếu đang có thao tác ghi chạy dở (duyệt / lấy mẫu / hủy duyệt)
+  const [acting, setActing] = useState<string | null>(null);
+
   const reload = () => {
     setLoading(true);
     labApi.getLabRequests({ fromDate: date.format('YYYY-MM-DD'), search: search || undefined })
       .then((data) => setRows(Array.isArray(data) ? data : []))
-      .catch(() => setRows([]))
+      .catch((e) => {
+        // key cố định: reload chạy theo TỪNG KÝ TỰ gõ vào SearchBox (SearchBox không debounce)
+        // → nếu API lỗi, toast phải THAY THẾ nhau chứ không xếp chồng thành hàng chục cái.
+        message.warning({ key: 'lab-list-load', content: friendlyErrorMessage(e, 'Không tải được danh sách xét nghiệm') });
+        setRows([]);
+      })
       .finally(() => setLoading(false));
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -248,16 +263,22 @@ const LaboratoryV2: React.FC = () => {
   }, [rows]);
 
   const onApprove = async (r: LabRequest) => {
+    if (acting) return;
+    setActing(r.id);
     try {
       await labApi.completeProcessing(r.id);
       message.success(`Đã duyệt ${r.requestCode}`);
       reload();
     } catch {
       message.error('Duyệt thất bại');
+    } finally {
+      setActing(null);
     }
   };
 
   const onCollect = async (r: LabRequest) => {
+    if (acting) return;
+    setActing(r.id);
     try {
       // Auto-fill KTV từ DefaultLabRole; fallback về tên generic nếu chưa cấu hình
       const collectorName = labRoles.defaultKtvName || 'KTV thu mẫu';
@@ -271,42 +292,56 @@ const LaboratoryV2: React.FC = () => {
       reload();
     } catch {
       message.error('Ghi nhận thất bại');
+    } finally {
+      setActing(null);
     }
   };
 
   // Duyệt 2 bước: KTV duyệt sơ bộ (status 3 → 4)
   const onPreliminary = async (r: LabRequest) => {
+    if (acting) return;
+    setActing(r.id);
     try {
       await labApi.preliminaryApprove(r.id);
       message.success(`Đã duyệt sơ bộ · ${r.requestCode}`);
       reload();
     } catch {
       message.error('Duyệt sơ bộ thất bại');
+    } finally {
+      setActing(null);
     }
   };
 
   // Duyệt 2 bước: BS duyệt chính thức (status 4 → 5)
   const onFinal = async (r: LabRequest) => {
+    if (acting) return;
+    setActing(r.id);
     try {
       await labApi.finalApprove(r.id);
       message.success(`Đã duyệt chính thức · ${r.requestCode}`);
       reload();
     } catch {
       message.error('Duyệt chính thức thất bại');
+    } finally {
+      setActing(null);
     }
   };
 
   // Hủy duyệt (status 4/5 → 3) — yêu cầu lý do
   const onCancelApproval = async (r: LabRequest) => {
+    if (acting) return;
     const reason = window.prompt(`Lý do hủy duyệt ${r.requestCode}:`, '');
     if (reason === null) return;            // bấm Cancel
     if (!reason.trim()) { message.warning('Cần nhập lý do hủy duyệt'); return; }
+    setActing(r.id);
     try {
       await labApi.cancelApproval(r.id, reason.trim());
       message.success(`Đã hủy duyệt · ${r.requestCode}`);
       reload();
     } catch {
       message.error('Hủy duyệt thất bại');
+    } finally {
+      setActing(null);
     }
   };
 
@@ -475,34 +510,33 @@ const LaboratoryV2: React.FC = () => {
         onRowClick={(r) => setDetail(r)}
         actions={(r) => {
           const sk = statusKey(r.status);
+          // Điều kiện hiển thị theo status giữ NGUYÊN 1-1 (map sang `hidden`).
+          // `disabled: !!acting` — khóa `acting` là khóa THEO TRANG (`if (acting) return` trong
+          // onApprove/onCollect/…), nên nút của MỌI dòng phải mờ đi khi có 1 thao tác ghi đang chạy;
+          // nếu chỉ mờ đúng dòng đang chạy thì bấm ở dòng khác sẽ chết lặng (không phản hồi gì).
           return (
             <div className="ab-actions">
-              {sk === 'ordered' && (
-                <ActBtn ic="check" title="Đánh dấu đã lấy mẫu" onClick={() => onCollect(r)} />
-              )}
-              {r.status === 1 && (
-                <ActBtn ic="qr" title="In nhãn barcode mẫu" onClick={() => onPrintBarcode(r)} />
-              )}
-              {(r.status === 2 || r.status === 3) && (
-                <ActBtn ic="edit" title="Nhập kết quả thủ công" onClick={() => setEntryTarget(r)} />
-              )}
-              {sk === 'running' && (
-                <ActBtn ic="check" title="Duyệt kết quả" onClick={() => onApprove(r)} />
-              )}
-              {r.status === 3 && (
-                <ActBtn ic="check" title="Duyệt sơ bộ (KTV)" onClick={() => onPreliminary(r)} />
-              )}
-              {r.status === 4 && (
-                <ActBtn ic="check" title="Duyệt chính thức (BS)" onClick={() => onFinal(r)} />
-              )}
-              {r.status >= 4 && (
-                <ActBtn ic="x" title="Hủy duyệt" tone="warn" onClick={() => onCancelApproval(r)} />
-              )}
-              {r.status >= 4 && !signatureMap.has(r.id) && (
-                <ActBtn ic="shield" title="Ký số kết quả xét nghiệm" onClick={() => handleSignResult(r.id)} />
-              )}
-              <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
-              <ActBtn ic="print" title="In phiếu" onClick={() => onPrintRow(r)} />
+              <RowActions actions={[
+                { key: 'collect', icon: 'check', label: 'Đánh dấu đã lấy mẫu', primary: true,
+                  hidden: sk !== 'ordered', disabled: !!acting, onClick: () => onCollect(r) },
+                { key: 'approve', icon: 'check', label: 'Duyệt kết quả', primary: true,
+                  hidden: sk !== 'running', disabled: !!acting, onClick: () => onApprove(r) },
+                { key: 'prelim', icon: 'check', label: 'Duyệt sơ bộ (KTV)', primary: true,
+                  hidden: r.status !== 3, disabled: !!acting, onClick: () => onPreliminary(r) },
+                { key: 'final', icon: 'check', label: 'Duyệt chính thức (BS)', primary: true,
+                  hidden: r.status !== 4, disabled: !!acting, onClick: () => onFinal(r) },
+                { key: 'entry', icon: 'edit', label: 'Nhập kết quả thủ công', primary: true,
+                  hidden: !(r.status === 2 || r.status === 3), onClick: () => setEntryTarget(r) },
+                { key: 'view', icon: 'eye', label: 'Xem chi tiết', onClick: () => setDetail(r) },
+                { key: 'barcode', icon: 'qr', label: 'In nhãn barcode mẫu',
+                  hidden: r.status !== 1, onClick: () => onPrintBarcode(r) },
+                { key: 'sign', icon: 'shield', label: 'Ký số kết quả xét nghiệm',
+                  hidden: !(r.status >= 4 && !signatureMap.has(r.id)), onClick: () => handleSignResult(r.id) },
+                { key: 'print', icon: 'print', label: 'In phiếu kết quả', onClick: () => onPrintRow(r) },
+                // window.prompt đã hỏi lý do bắt buộc → không confirm thêm (tránh 2 lớp hỏi)
+                { key: 'cancel-approval', icon: 'x', label: 'Hủy duyệt', tone: 'danger', confirm: false,
+                  hidden: r.status < 4, disabled: !!acting, onClick: () => onCancelApproval(r) },
+              ]} />
             </div>
           );
         }}
@@ -567,7 +601,7 @@ const LaboratoryV2: React.FC = () => {
               </Btn>
             )}
             {detail.status >= 4 && (
-              <Btn onClick={() => onCancelApproval(detail)}>
+              <Btn disabled={!!acting} onClick={() => onCancelApproval(detail)}>
                 <TermIcon name="x" size={12} /> Hủy duyệt
               </Btn>
             )}
@@ -580,18 +614,18 @@ const LaboratoryV2: React.FC = () => {
               <TermIcon name="print" size={12} /> In phiếu
             </Btn>
             {statusKey(detail.status) === 'running' && (
-              <Btn variant="primary" onClick={() => { onApprove(detail); setDetail(null); }}>
-                <TermIcon name="check" size={12} /> Duyệt KQ
+              <Btn variant="primary" disabled={!!acting} onClick={() => { onApprove(detail); setDetail(null); }}>
+                <TermIcon name="check" size={12} /> {acting === detail.id ? 'Đang duyệt…' : 'Duyệt KQ'}
               </Btn>
             )}
             {detail.status === 3 && (
-              <Btn variant="primary" onClick={() => { onPreliminary(detail); setDetail(null); }}>
-                <TermIcon name="check" size={12} /> Duyệt sơ bộ
+              <Btn variant="primary" disabled={!!acting} onClick={() => { onPreliminary(detail); setDetail(null); }}>
+                <TermIcon name="check" size={12} /> {acting === detail.id ? 'Đang duyệt…' : 'Duyệt sơ bộ'}
               </Btn>
             )}
             {detail.status === 4 && (
-              <Btn variant="primary" onClick={() => { onFinal(detail); setDetail(null); }}>
-                <TermIcon name="check" size={12} /> Duyệt chính thức
+              <Btn variant="primary" disabled={!!acting} onClick={() => { onFinal(detail); setDetail(null); }}>
+                <TermIcon name="check" size={12} /> {acting === detail.id ? 'Đang duyệt…' : 'Duyệt chính thức'}
               </Btn>
             )}
           </>

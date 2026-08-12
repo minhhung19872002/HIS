@@ -3,6 +3,7 @@ import { Form, Input, Select, Modal, Upload } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../../../services/apiClient';
 import { API_URL } from '../../../config/api.config';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import {
   KpiStrip, Filter, DataTable, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, Ico, tk, tw, cf,
@@ -42,6 +43,10 @@ const NonDicomCaptureV2: React.FC = () => {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [detailStudy, setDetailStudy] = useState<StudyListItem | null>(null);
   const [detailImages, setDetailImages] = useState<ImageItem[]>([]);
+  // Guard double-submit (#467): tạo study + upload là thao tác ghi, double-click sinh dữ liệu trùng
+  const [creating, setCreating] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
   const [createForm] = Form.useForm<{ patientId: string; patientName: string; serviceRequestDetailId?: string; deviceType: string; deviceName?: string; description?: string }>();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -55,7 +60,7 @@ const NonDicomCaptureV2: React.FC = () => {
       const { data } = await apiClient.get<StudyListItem[]>('/non-dicom/worklist',
         { params: { deviceType: filterType || undefined } });
       setStudies(data);
-    } catch { setStudies([]); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh sách study NON-DICOM')); setStudies([]); }
     finally { setLoading(false); }
   }, [filterType]);
 
@@ -70,8 +75,18 @@ const NonDicomCaptureV2: React.FC = () => {
       streamRef.current = stream;
       if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play(); }
     } catch (e: unknown) {
-      const err = e as { message?: string };
-      setCameraError(err?.message || 'Không truy cập được camera. Đảm bảo đã cấp quyền.');
+      // Thông điệp thân thiện thay cho chuỗi lỗi trình duyệt (NotAllowedError…) — kèm cách khắc phục
+      console.warn('[NonDicomCapture] getUserMedia failed:', e);
+      const name = (e as { name?: string })?.name;
+      setCameraError(
+        name === 'NotAllowedError' || name === 'SecurityError'
+          ? 'Trình duyệt đang chặn camera. Bấm biểu tượng khóa trên thanh địa chỉ → cho phép Camera và Micro, rồi bấm Thử lại.'
+          : name === 'NotFoundError' || name === 'DevicesNotFoundError'
+            ? 'Không tìm thấy camera trên máy. Hãy cắm/bật camera rồi bấm Thử lại.'
+            : name === 'NotReadableError'
+              ? 'Camera đang được ứng dụng khác sử dụng. Hãy đóng ứng dụng đó rồi bấm Thử lại.'
+              : 'Không truy cập được camera. Hãy kiểm tra quyền camera của trang rồi bấm Thử lại.',
+      );
     }
   }, []);
 
@@ -81,6 +96,8 @@ const NonDicomCaptureV2: React.FC = () => {
   }, []);
 
   const submitCreate = async () => {
+    if (creating) return; // chặn double-click tạo trùng study
+    setCreating(true);
     try {
       const v = await createForm.validateFields();
       const { data } = await apiClient.post<{ id: string }>('/non-dicom/studies', {
@@ -92,6 +109,7 @@ const NonDicomCaptureV2: React.FC = () => {
       setCreateOpen(false); setCaptureModal(true);
       await startCamera();
     } catch { tw('Tạo study thất bại'); }
+    finally { setCreating(false); }
   };
 
   const snapshot = () => {
@@ -131,6 +149,8 @@ const NonDicomCaptureV2: React.FC = () => {
 
   const uploadAll = async () => {
     if (!studyId || captures.length === 0) return;
+    if (uploading) return; // chặn double-click upload trùng file
+    setUploading(true);
     const fd = new FormData();
     captures.forEach((c, i) => {
       const ext = c.type === 'video' ? 'webm' : 'jpg';
@@ -142,7 +162,8 @@ const NonDicomCaptureV2: React.FC = () => {
       captures.forEach((c) => URL.revokeObjectURL(c.url));
       setCaptures([]); stopCamera();
       setCaptureModal(false); setStudyId(null); createForm.resetFields(); loadWorklist();
-    } catch { tw('Upload thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Upload thất bại')); }
+    finally { setUploading(false); }
   };
 
   const closeCapture = () => {
@@ -156,13 +177,18 @@ const NonDicomCaptureV2: React.FC = () => {
     try {
       const { data } = await apiClient.get<{ images: ImageItem[] }>(`/non-dicom/studies/${s.id}`);
       setDetailImages(data.images);
-    } catch { setDetailImages([]); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được ảnh/video của study')); setDetailImages([]); }
   };
 
   const deleteImage = (id: string) => cf('Xóa ảnh này?', async () => {
-    await apiClient.delete(`/non-dicom/image/${id}`);
-    setDetailImages((p) => p.filter((x) => x.id !== id));
-    tk('Đã xóa');
+    if (deletingImageId) return; // chặn xoá chồng nhau
+    setDeletingImageId(id);
+    try {
+      await apiClient.delete(`/non-dicom/image/${id}`);
+      setDetailImages((p) => p.filter((x) => x.id !== id));
+      tk('Đã xóa');
+    } catch (e) { tw(friendlyErrorMessage(e, 'Xóa ảnh thất bại')); }
+    finally { setDeletingImageId(null); }
   }, { tone: 'crit', confirm: 'Xóa' });
 
   const deviceTypeLabel = useMemo(() => {
@@ -227,7 +253,9 @@ const NonDicomCaptureV2: React.FC = () => {
       <ModalShell open={createOpen} onClose={() => setCreateOpen(false)} size="md" title="Tạo study NON-DICOM mới"
         footer={<>
           <Btn variant="ghost" onClick={() => setCreateOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={submitCreate}><Ico name="qr" size={12} /> Mở camera</Btn>
+          <Btn variant="primary" onClick={submitCreate} loading={creating} icon="qr">
+            {creating ? ' Đang tạo…' : ' Mở camera'}
+          </Btn>
         </>}>
         <Form form={createForm} layout="vertical">
           <Form.Item name="patientName" label="Tên BN" rules={[{ required: true }]}>
@@ -251,8 +279,8 @@ const NonDicomCaptureV2: React.FC = () => {
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-8)' }}>
             <Btn variant="ghost" onClick={closeCapture}>Hủy</Btn>
-            <Btn variant="primary" onClick={uploadAll} disabled={captures.length === 0}>
-              <Ico name="send" size={12} /> Upload {captures.length > 0 ? `(${captures.length})` : ''}
+            <Btn variant="primary" onClick={uploadAll} disabled={captures.length === 0} loading={uploading} icon="send">
+              {uploading ? ' Đang upload…' : ` Upload ${captures.length > 0 ? `(${captures.length})` : ''}`}
             </Btn>
           </div>
         }
@@ -360,6 +388,8 @@ const NonDicomCaptureV2: React.FC = () => {
                   )}
                   <button type="button" className="ab-iconbtn"
                     style={{ position: 'absolute', top: 4, right: 4, color: 'var(--a-rd-text)' }}
+                    disabled={deletingImageId === img.id}
+                    title={deletingImageId === img.id ? 'Đang xóa…' : 'Xóa ảnh/video này'}
                     onClick={() => deleteImage(img.id)}>
                     <Ico name="trash" size={12} />
                   </button>

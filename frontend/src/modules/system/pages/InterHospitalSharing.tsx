@@ -3,9 +3,10 @@ import dayjs from 'dayjs';
 import { searchRequests, respondToRequest, createRequest, getStats } from '../api/interHospitalSharing';
 import type { InterHospitalRequest, InterHospitalStats } from '../api/interHospitalSharing';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, CrudModal, tk, ti,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, tw,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
 
@@ -82,7 +83,10 @@ const InterHospitalSharingV2: React.FC = () => {
           fromDate: fromDate || undefined,
           toDate: toDate || undefined,
         }),
-        getStats().catch(() => null),
+        getStats().catch((e) => {
+          tw(friendlyErrorMessage(e, 'Không tải được thống kê liên viện — số liệu KPI có thể chưa cập nhật'));
+          return null;
+        }),
       ]);
       setItems(normalizeArrayResponse<InterHospitalRequest>(r));
       if (s) setStats(s);

@@ -19,11 +19,11 @@ import { runQC, getLeveyJenningsChart, getAnalyzers, getLabTestCatalog } from '.
 import type { QCResultDto, LeveyJenningsChartDto, LabAnalyzerDto, LabTestCatalogDto } from '../api/lis';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, CrudModal, ModalShell, AbSelect, tk, ti, te, cf, Ico,
+  DrawerShell, DrSec, DrField, CrudModal, ModalShell, AbSelect, tk, ti, tw, te, cf, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
-
-type ApiErr = { response?: { data?: { message?: string } } };
+import { RowActions } from '../../../components/actions';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 const LOT_FIELDS: CrudFieldCfg[] = [
   { key: 'lotNumber', label: 'Số lô', required: true, disabledOnEdit: true },
@@ -191,7 +191,7 @@ const RunQCModal: React.FC<{
       if (r.data.isAccepted) tk('QC đạt'); else ti('QC vi phạm quy tắc Westgard');
       onDone();
     } catch (e) {
-      te((e as ApiErr)?.response?.data?.message || 'Chạy QC thất bại');
+      te(friendlyErrorMessage(e, 'Chạy QC thất bại. Vui lòng thử lại.'));
     } finally { setSaving(false); }
   };
 
@@ -274,7 +274,7 @@ const LJModal: React.FC<{
       const r = await getLeveyJenningsChart(testId, analyzerId, range[0].format('YYYY-MM-DD'), range[1].format('YYYY-MM-DD'));
       setChart(r.data);
     } catch (e) {
-      te((e as ApiErr)?.response?.data?.message || 'Không tải được biểu đồ');
+      te(friendlyErrorMessage(e, 'Không tải được biểu đồ Levey-Jennings'));
     } finally { setLoading(false); }
   };
 
@@ -320,9 +320,10 @@ const LabQCV2: React.FC = () => {
   const openLJ = (r: QCResult | null) => { setLjResult(r); setLjOpen(true); };
   const openCreateLot = () => { setCrudInit({ level: 2, isActive: true }); setCrudOpen(true); };
   const openEditLot = (r: QCLot) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
-  const delLot = (r: QCLot) => cf(`Xoá lô QC "${r.lotNumber}"?`, async () => {
+  // RowActions (tone: 'danger') tự bật confirm khi xoá — không bọc cf() thêm ở đây.
+  const delLot = async (r: QCLot) => {
     try { await deleteQCLot(r.id); tk('Đã xoá'); load(); } catch { te('Xoá thất bại'); }
-  }, { tone: 'crit', confirm: 'Xoá' });
+  };
 
   const load = async () => {
     setLoading(true);
@@ -491,10 +492,15 @@ const LabQCV2: React.FC = () => {
 
   const lotActions = (r: QCLot) => (
     <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSelLot(r)} />
-      <ActBtn ic="edit" title="Sửa" onClick={() => openEditLot(r)} />
-      <ActBtn ic="activity" title="Chạy QC" onClick={() => openRunQC(r)} />
-      <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => delLot(r)} />
+      <RowActions actions={[
+        { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setSelLot(r) },
+        { key: 'run', icon: 'activity', label: 'Chạy QC', primary: true, onClick: () => openRunQC(r) },
+        { key: 'edit', icon: 'edit', label: 'Sửa', onClick: () => openEditLot(r) },
+        { key: 'del', icon: 'trash', label: 'Xoá', tone: 'danger',
+          confirm: `Xoá lô QC "${r.lotNumber}"? Thao tác không thể hoàn tác.`,
+          // trả Promise để hộp thoại xác nhận giữ spinner tới khi xoá xong (như cf() cũ)
+          onClick: () => delLot(r) },
+      ]} />
     </div>
   );
   const resActions = (r: QCResult) => (
@@ -778,6 +784,8 @@ const EqaPanel: React.FC = () => {
 
   const [resOpen, setResOpen] = useState(false);
   const [resForm, setResForm] = useState<Record<string, unknown>>({});
+  // #467: 1 state chặn double-submit cho mọi thao tác ghi của tab ngoại kiểm (key = loại + id).
+  const [busy, setBusy] = useState<string | null>(null);
 
   const loadEqa = async () => {
     setEqaLoading(true);
@@ -788,7 +796,10 @@ const EqaPanel: React.FC = () => {
     finally { setEqaLoading(false); }
   };
   useEffect(() => { loadEqa(); /* eslint-disable-next-line */ }, [sub]);
-  useEffect(() => { getEqaTests(true).then((r) => setTests(r.data || [])).catch(() => { /* danh mục rỗng là hợp lệ */ }); }, []);
+  useEffect(() => {
+    getEqaTests(true).then((r) => setTests(r.data || []))
+      .catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh mục xét nghiệm ngoại kiểm')); });
+  }, []);
 
   const openBatch = (b?: LabEqaBatchDto) => {
     setBatchForm(b
@@ -801,20 +812,26 @@ const EqaPanel: React.FC = () => {
 
   const submitBatch = async () => {
     if (!String(batchForm.batchCode || '').trim()) { ti('Nhập mã đợt ngoại kiểm'); return; }
+    if (busy) return;
+    setBusy('batch');
     try {
       await saveEqaBatch(batchForm);
       tk('Đã lưu đợt ngoại kiểm');
       setBatchOpen(false); await loadEqa();
-    } catch (e) { ti((e as ApiErr).response?.data?.message || 'Lưu thất bại'); }
+    } catch (e) { ti(friendlyErrorMessage(e, 'Lưu đợt ngoại kiểm thất bại')); }
+    finally { setBusy(null); }
   };
 
   const changeStatus = async (b: LabEqaBatchDto, status: string) => {
+    if (busy) return;
+    setBusy(`status:${b.id}`);
     try {
       await setEqaBatchStatus(b.id, status);
       tk('Đã cập nhật trạng thái đợt');
       await loadEqa();
       if (sel?.id === b.id) setSel((await getEqaBatch(b.id)).data);
-    } catch (e) { ti((e as ApiErr).response?.data?.message || 'Cập nhật thất bại'); }
+    } catch (e) { ti(friendlyErrorMessage(e, 'Cập nhật trạng thái đợt thất bại')); }
+    finally { setBusy(null); }
   };
 
   const openResult = (batchId: string, r?: LabEqaResultDto) => {
@@ -828,22 +845,28 @@ const EqaPanel: React.FC = () => {
 
   const submitResult = async () => {
     if (!resForm.eqaTestId) { ti('Chọn xét nghiệm ngoại kiểm'); return; }
+    if (busy) return;
+    setBusy('result');
     try {
       await saveEqaResult(resForm);
       tk('Đã lưu kết quả ngoại kiểm');
       setResOpen(false);
       if (sel) setSel((await getEqaBatch(sel.id)).data);
       await loadEqa();
-    } catch (e) { ti((e as ApiErr).response?.data?.message || 'Lưu kết quả thất bại'); }
+    } catch (e) { ti(friendlyErrorMessage(e, 'Lưu kết quả ngoại kiểm thất bại')); }
+    finally { setBusy(null); }
   };
 
   const submitTest = async () => {
     if (!testEdit?.code?.trim() || !testEdit?.name?.trim()) { ti('Nhập mã và tên xét nghiệm'); return; }
+    if (busy) return;
+    setBusy('test');
     try {
       await saveEqaTest(testEdit);
       tk('Đã lưu xét nghiệm ngoại kiểm');
       setTestOpen(false); setTestEdit(null); await loadEqa();
-    } catch (e) { ti((e as ApiErr).response?.data?.message || 'Lưu thất bại'); }
+    } catch (e) { ti(friendlyErrorMessage(e, 'Lưu chỉ tiêu ngoại kiểm thất bại')); }
+    finally { setBusy(null); }
   };
 
   const batchCols: ColumnDef<LabEqaBatchDto>[] = [
@@ -859,8 +882,10 @@ const EqaPanel: React.FC = () => {
     { key: 'act', label: '', render: (r) => (
       <span style={{ display: 'inline-flex', gap: 'var(--space-6)' }}>
         <Btn variant="ghost" onClick={async (e?: React.MouseEvent) => { e?.stopPropagation(); setSel((await getEqaBatch(r.id)).data); }}>Chi tiết</Btn>
-        {r.status === 'Running' && <Btn variant="primary" onClick={(e?: React.MouseEvent) => { e?.stopPropagation(); changeStatus(r, 'Reported'); }}>Báo cáo</Btn>}
-        {r.status === 'Reported' && <Btn variant="ok" onClick={(e?: React.MouseEvent) => { e?.stopPropagation(); changeStatus(r, 'Closed'); }}>Đóng đợt</Btn>}
+        {r.status === 'Running' && <Btn variant="primary" loading={busy === `status:${r.id}`}
+          onClick={(e?: React.MouseEvent) => { e?.stopPropagation(); void changeStatus(r, 'Reported'); }}>Báo cáo</Btn>}
+        {r.status === 'Reported' && <Btn variant="ok" loading={busy === `status:${r.id}`}
+          onClick={(e?: React.MouseEvent) => { e?.stopPropagation(); void changeStatus(r, 'Closed'); }}>Đóng đợt</Btn>}
       </span>
     ) },
   ];
@@ -877,10 +902,15 @@ const EqaPanel: React.FC = () => {
     { key: 'act', label: '', render: (r) => (
       <span style={{ display: 'inline-flex', gap: 'var(--space-6)' }}>
         <Btn variant="ghost" onClick={(e?: React.MouseEvent) => { e?.stopPropagation(); setTestEdit({ ...r }); setTestOpen(true); }}>Sửa</Btn>
-        <Btn variant="crit" onClick={async (e?: React.MouseEvent) => {
+        <Btn variant="crit" loading={busy === `delTest:${r.id}`} onClick={(e?: React.MouseEvent) => {
           e?.stopPropagation();
-          try { await deleteEqaTest(r.id); tk('Đã xóa'); await loadEqa(); }
-          catch (err) { ti((err as ApiErr).response?.data?.message || 'Xóa thất bại'); }
+          cf(`Xóa chỉ tiêu ngoại kiểm "${r.code} — ${r.name}"? Thao tác không thể hoàn tác.`, async () => {
+            if (busy) return;
+            setBusy(`delTest:${r.id}`);
+            try { await deleteEqaTest(r.id); tk('Đã xóa'); await loadEqa(); }
+            catch (err) { ti(friendlyErrorMessage(err, 'Xóa chỉ tiêu ngoại kiểm thất bại')); }
+            finally { setBusy(null); }
+          }, { tone: 'crit', confirm: 'Xóa' });
         }}>Xóa</Btn>
       </span>
     ) },
@@ -948,9 +978,14 @@ const EqaPanel: React.FC = () => {
                 {r.evaluation && <StatusBadge tone={EVAL_TONE[r.evaluation] || 'info'} dot>{EVAL_LABEL[r.evaluation] || r.evaluation}</StatusBadge>}
                 {sel.status !== 'Closed' && <>
                   <Btn variant="ghost" onClick={() => openResult(sel.id, r)}>Sửa</Btn>
-                  <Btn variant="crit" onClick={async () => {
-                    try { await deleteEqaResult(r.id); tk('Đã xóa kết quả'); setSel((await getEqaBatch(sel.id)).data); await loadEqa(); }
-                    catch (e) { ti((e as ApiErr).response?.data?.message || 'Xóa thất bại'); }
+                  <Btn variant="crit" loading={busy === `delRes:${r.id}`} onClick={() => {
+                    cf(`Xóa kết quả ngoại kiểm "${r.eqaTestName || r.sampleCode || ''}"? Thao tác không thể hoàn tác.`, async () => {
+                      if (busy) return;
+                      setBusy(`delRes:${r.id}`);
+                      try { await deleteEqaResult(r.id); tk('Đã xóa kết quả'); setSel((await getEqaBatch(sel.id)).data); await loadEqa(); }
+                      catch (e) { ti(friendlyErrorMessage(e, 'Xóa kết quả ngoại kiểm thất bại')); }
+                      finally { setBusy(null); }
+                    }, { tone: 'crit', confirm: 'Xóa' });
                   }}>Xóa</Btn>
                 </>}
               </div>
@@ -963,7 +998,9 @@ const EqaPanel: React.FC = () => {
         title={batchForm.id ? 'Sửa đợt ngoại kiểm' : 'Tiếp nhận bàn giao mẫu ngoại kiểm'}
         footer={<>
           <Btn variant="ghost" onClick={() => setBatchOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={submitBatch}>Lưu</Btn>
+          <Btn variant="primary" loading={busy === 'batch'} onClick={submitBatch}>
+            {busy === 'batch' ? 'Đang lưu…' : 'Lưu'}
+          </Btn>
         </>}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
           <EqaLabeledInput label="Mã đợt *" value={String(batchForm.batchCode || '')} onChange={(v) => setBatchForm((f) => ({ ...f, batchCode: v }))} />
@@ -982,7 +1019,9 @@ const EqaPanel: React.FC = () => {
         title={resForm.id ? 'Sửa kết quả ngoại kiểm' : 'Nhập kết quả ngoại kiểm'}
         footer={<>
           <Btn variant="ghost" onClick={() => setResOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={submitResult}>Lưu</Btn>
+          <Btn variant="primary" loading={busy === 'result'} onClick={submitResult}>
+            {busy === 'result' ? 'Đang lưu…' : 'Lưu'}
+          </Btn>
         </>}>
         <div style={{ display: 'grid', gap: 'var(--space-12)' }}>
           <label style={{ display: 'grid', gap: 'var(--space-4)', fontSize: 'var(--fs-sm)' }}>
@@ -1013,7 +1052,9 @@ const EqaPanel: React.FC = () => {
         title={testEdit?.id ? 'Sửa chỉ tiêu ngoại kiểm' : 'Thêm chỉ tiêu ngoại kiểm'}
         footer={<>
           <Btn variant="ghost" onClick={() => { setTestOpen(false); setTestEdit(null); }}>Hủy</Btn>
-          <Btn variant="primary" onClick={submitTest}>Lưu</Btn>
+          <Btn variant="primary" loading={busy === 'test'} onClick={submitTest}>
+            {busy === 'test' ? 'Đang lưu…' : 'Lưu'}
+          </Btn>
         </>}>
         {testEdit && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>

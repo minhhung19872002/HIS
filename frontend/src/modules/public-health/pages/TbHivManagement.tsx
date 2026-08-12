@@ -9,10 +9,12 @@ import type {
   CreateTbHivRecordDto, CreateTbHivFollowUpDto,
 } from '../api/tbHivManagement';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, Btn,
   DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, tw, fmtDMYg,
   type ColumnDef, type StatusTab, type CrudFieldCfg,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ─────────────────────────── Trạng thái hồ sơ (0..5, phòng thủ cả enum-name chuỗi từ BE) ───────────────────────────
 
@@ -145,6 +147,9 @@ const TbHivManagementV2: React.FC = () => {
       ]);
       if (rec.status === 'fulfilled') setRows(rec.value.items);
       if (st.status === 'fulfilled') setStats(st.value);
+      // allSettled không ném ra ngoài → catch dưới không thấy; gom 1 toast cho nhánh rejected
+      const failed = [rec, st].find((x): x is PromiseRejectedResult => x.status === 'rejected');
+      if (failed) tw(friendlyErrorMessage(failed.reason, 'Không thể tải dữ liệu Lao/HIV'));
     } catch { tw('Không thể tải dữ liệu Lao/HIV'); }
     finally { setLoading(false); }
   }, [search, typeFilter, categoryFilter, fromDate, toDate]);
@@ -161,6 +166,7 @@ const TbHivManagementV2: React.FC = () => {
     // List DTO của BE không có khối XN (soi đờm/CD4/VL/notes) → fetch detail để drawer đủ dữ liệu
     const [detail, fus] = await Promise.allSettled([getTbHivRecordById(r.id), getFollowUps(r.id)]);
     if (detail.status === 'fulfilled') setSel({ ...r, ...detail.value });
+    else tw('Không thể tải đầy đủ chi tiết hồ sơ — đang hiển thị dữ liệu tóm tắt');
     if (fus.status === 'fulfilled') setFollowUps(fus.value);
     else tw('Không thể tải lịch sử điều trị');
     setFuLoading(false);
@@ -334,11 +340,12 @@ const TbHivManagementV2: React.FC = () => {
 
   const rowActions = (r: TbHivRecordDto) => (
     <div className="ab-actions">
-      <ActBtn ic="eye" title="Xem chi tiết" onClick={() => openDetail(r)} />
-      {statusKey(r.status) === 'onTreatment' && (
-        <ActBtn ic="edit" title="Chỉnh sửa" onClick={() => openEdit(r)} />
-      )}
-      <ActBtn ic="printer" title="In phiếu điều trị" onClick={() => handlePrint(r)} />
+      <RowActions actions={[
+        { key: 'view', icon: 'eye', label: 'Xem chi tiết', primary: true, onClick: () => openDetail(r) },
+        { key: 'edit', icon: 'edit', label: 'Chỉnh sửa', primary: true,
+          hidden: statusKey(r.status) !== 'onTreatment', onClick: () => openEdit(r) },
+        { key: 'print', icon: 'printer', label: 'In phiếu điều trị', onClick: () => handlePrint(r) },
+      ]} />
     </div>
   );
 

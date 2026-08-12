@@ -8,10 +8,10 @@
 import React, { useEffect, useState } from 'react';
 import * as file from '../../../services/file.service';
 import dayjs from 'dayjs';
-import type { AxiosError } from 'axios';
 import { inspectorApi } from '../../../api/nangcap24';
 import type { InspectorRecordListItemDto, InspectorRecordDetailDto } from '../../../api/nangcap24';
-import type { ServerValidationError } from '../../../utils/formError';
+import { te } from '../../../_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { storage, STORAGE_KEYS } from '../../../services/storage.service';
 
@@ -70,8 +70,7 @@ const InspectorLogin: React.FC<{ onLogin: (token: string, info: InspectorInfo) =
       storage.set(STORAGE_KEYS.token, r.token);    // share with apiClient
       onLogin(r.token, r.inspector);
     } catch (e: unknown) {
-      const ax = e as AxiosError<ServerValidationError>;
-      setErr(ax?.response?.data?.message ?? 'Đăng nhập thất bại');
+      setErr(friendlyErrorMessage(e, 'Đăng nhập thất bại. Vui lòng kiểm tra tài khoản và thử lại.'));
     } finally { setL(false); }
   };
 
@@ -190,7 +189,8 @@ const InspectorWorkspace: React.FC<{ info: InspectorInfo; onLogout: () => void }
         pageIndex: page + 1, pageSize: PER_WS,
       });
       setRows(r.items); setTotal(r.totalCount);
-    } catch {
+    } catch (e) {
+      te(friendlyErrorMessage(e, 'Không tải được danh sách HSBA. Vui lòng thử lại.'));
       setRows([]); setTotal(0);
     } finally { setLoading(false); }
   };
@@ -202,14 +202,14 @@ const InspectorWorkspace: React.FC<{ info: InspectorInfo; onLogout: () => void }
     try {
       const d = await inspectorApi.getRecord(r.medicalRecordId);
       setDetail(d);
-    } catch { /* ignore */ }
+    } catch (e) { te(friendlyErrorMessage(e, 'Không mở được chi tiết HSBA. Vui lòng thử lại.')); }
   };
 
   const downloadXml = async (r: InspectorRecordListItemDto) => {
     try {
       const blob = await inspectorApi.downloadXml(r.medicalRecordId);
       file.downloadBlob(blob, `HSBA_${r.medicalRecordCode}.xml`);
-    } catch { /* ignore */ }
+    } catch (e) { te(friendlyErrorMessage(e, 'Không tải được file XML của HSBA. Vui lòng thử lại.')); }
   };
 
   return (

@@ -13,6 +13,7 @@ import {
   DrawerShell, DrSec, DrField, tk, ti, te, cf,
   type TopTab, type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
 
 const DEVICE_FIELDS: CrudFieldCfg[] = [
   { key: 'hostname', label: 'Hostname', required: true },
@@ -105,9 +106,10 @@ const EndpointSecurityV2: React.FC = () => {
     setCrudInit({ id: r.id, status: r.status, isCompliant: r.isCompliant, complianceNotes: r.complianceNotes, antivirusStatus: r.antivirusStatus, agentVersion: r.agentVersion });
     setCrudOpen(true);
   };
-  const del = (r: EndpointDeviceDto) => cf(`Xoá máy "${r.hostname}"?`, async () => {
+  // #467: RowActions (tone: 'danger') tự bật confirm khi xoá — không bọc cf() thêm ở đây.
+  const del = async (r: EndpointDeviceDto) => {
     try { await deleteDevice(r.id); tk('Đã xoá'); load(); } catch { te('Xoá thất bại'); }
-  }, { tone: 'crit', confirm: 'Xoá' });
+  };
 
   const loadDashboard = async () => {
     setDashLoading(true);
@@ -231,10 +233,15 @@ const EndpointSecurityV2: React.FC = () => {
   ];
 
   const actions = (r: EndpointDeviceDto) => (
+    // giữ .ab-actions (inline-flex + gap) vì .ab-iconbtn là display:grid — bỏ ra sẽ xếp dọc
     <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="edit" title="Cập nhật trạng thái" onClick={() => openEdit(r)} />
-      <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => del(r)} />
+      <RowActions actions={[
+        { key: 'view', icon: 'eye', label: 'Xem chi tiết', primary: true, onClick: () => setSel(r) },
+        { key: 'edit', icon: 'edit', label: 'Cập nhật trạng thái', primary: true, onClick: () => openEdit(r) },
+        { key: 'del', icon: 'trash', label: 'Xoá', tone: 'danger',
+          confirm: `Xoá máy "${r.hostname}"? Thao tác không thể hoàn tác.`,
+          onClick: () => { void del(r); } },
+      ]} />
     </div>
   );
 

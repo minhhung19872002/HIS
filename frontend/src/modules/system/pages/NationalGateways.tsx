@@ -2,10 +2,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   KpiStrip, TopTabs, DataTable, SearchBox, Filter, StatusBadge,
-  DrawerShell, ModalShell, ActBtn, Btn, DrSec, DrField, useListData,
+  DrawerShell, ModalShell, Btn, DrSec, DrField, useListData,
   type ColumnDef, type TopTab, type KpiItem, type StatusTone,
-  tk, tw, te, cf, fmtDTg, fmtDMYg
+  tk, tw, te, fmtDTg, fmtDMYg
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
+import { friendlyErrorMessage } from '@/utils/friendlyError';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import {
   npGateway, nphGateway,
@@ -18,7 +20,7 @@ import {
 type TabKey = 'rx' | 'pharm' | 'cfg';
 const TOP_TABS: TopTab<TabKey>[] = [
   { v: 'rx',    l: 'Đơn thuốc QG', ic: 'pill' },
-  { v: 'pharm', l: 'Dược QG',       ic: 'box' },
+  { v: 'pharm', l: 'Dược QG',       ic: 'archive' },
   { v: 'cfg',   l: 'Cấu hình',      ic: 'settings' },
 ];
 
@@ -54,6 +56,7 @@ const NgRxPanel: React.FC = () => {
   const [search, setSearch] = useState('');
   const [fStatus, setFStatus] = useState('');
   const [detail, setDetail] = useState<NationalPrescriptionSubmissionDetailDto | null>(null);
+  const [acting, setActing] = useState(false); // #467: chống double-submit gửi lại / hủy
 
   const filtered = rows.filter((r) => {
     if (fStatus !== '' && r.status !== Number(fStatus)) return false;
@@ -66,14 +69,20 @@ const NgRxPanel: React.FC = () => {
   });
 
   const retry = async (r: NationalPrescriptionSubmissionDto) => {
+    if (acting) return;
+    setActing(true);
     try { await npGateway.retry(r.id); tk('Đã gửi lại lên cổng QG'); reload(); }
-    catch { te('Gửi lại thất bại'); }
+    catch (e) { te(friendlyErrorMessage(e, 'Gửi lại thất bại. Vui lòng thử lại.')); }
+    finally { setActing(false); }
   };
-  const cancel = (r: NationalPrescriptionSubmissionDto) =>
-    cf(`Hủy giao dịch ${r.submissionCode}?`, async () => {
-      try { await npGateway.cancel(r.id); tw('Đã hủy giao dịch'); reload(); }
-      catch { te('Hủy thất bại'); }
-    });
+  // Confirm do RowActions (tone: 'danger') tự mở — không bọc cf() thêm ở đây (tránh hỏi 2 lần).
+  const cancel = async (r: NationalPrescriptionSubmissionDto) => {
+    if (acting) return;
+    setActing(true);
+    try { await npGateway.cancel(r.id); tw('Đã hủy giao dịch'); reload(); }
+    catch (e) { te(friendlyErrorMessage(e, 'Hủy giao dịch thất bại. Vui lòng thử lại.')); }
+    finally { setActing(false); }
+  };
 
   const kpis: KpiItem[] = [
     { lbl: 'Tổng',            val: rows.length },
@@ -107,7 +116,7 @@ const NgRxPanel: React.FC = () => {
 
   const openDetail = async (r: NationalPrescriptionSubmissionDto) => {
     try { setDetail(await npGateway.get(r.id)); }
-    catch { te('Không tải được chi tiết'); }
+    catch (e) { te(friendlyErrorMessage(e, 'Không tải được chi tiết. Vui lòng thử lại.')); }
   };
 
   return (
@@ -123,14 +132,15 @@ const NgRxPanel: React.FC = () => {
         rowKey={(r) => r.id} data={filtered} columns={columns} loading={loading}
         onRowClick={openDetail}
         actions={(r) => (
-          <>
-            {r.status !== 2 && r.status !== 4 && (
-              <ActBtn ic="refresh" title="Gửi lại" onClick={() => retry(r)} />
-            )}
-            {r.status !== 4 && (
-              <ActBtn ic="x" title="Hủy" tone="crit" onClick={() => cancel(r)} />
-            )}
-          </>
+          <RowActions actions={[
+            { key: 'retry', icon: 'refresh', label: 'Gửi lại', primary: true,
+              hidden: r.status === 2 || r.status === 4, disabled: acting,
+              onClick: () => retry(r) },
+            { key: 'cancel', icon: 'x', label: 'Hủy giao dịch', tone: 'danger',
+              hidden: r.status === 4, disabled: acting,
+              confirm: `Hủy giao dịch ${r.submissionCode}?`,
+              onClick: () => cancel(r) },
+          ]} />
         )}
       />
       <DrawerShell open={!!detail} onClose={() => setDetail(null)}
@@ -193,13 +203,18 @@ const NgPharmPanel: React.FC = () => {
   const [periodFrom, setPeriodFrom] = useState(dayjs().subtract(7, 'day').format('YYYY-MM-DD'));
   const [periodTo, setPeriodTo]     = useState(dayjs().format('YYYY-MM-DD'));
   const [genLoading, setGenLoading] = useState(false);
+  const [acting, setActing] = useState(false); // #467: chống double-submit gửi lại
 
   const retry = async (r: NationalPharmacyOutboundReportDto) => {
+    if (acting) return;
+    setActing(true);
     try { await nphGateway.retry(r.id); tk('Đã gửi lại'); reload(); }
-    catch { te('Gửi lại thất bại'); }
+    catch (e) { te(friendlyErrorMessage(e, 'Gửi lại thất bại. Vui lòng thử lại.')); }
+    finally { setActing(false); }
   };
 
   const submitGenerate = async () => {
+    if (genLoading) return;
     setGenLoading(true);
     try {
       await nphGateway.generate({
@@ -210,7 +225,7 @@ const NgPharmPanel: React.FC = () => {
       tk(`Đã tạo & gửi báo cáo ${NPH_REPORT_TYPES.find(t => t.value === reportType)?.label}`);
       setGenOpen(false);
       reload();
-    } catch { te('Tạo báo cáo thất bại'); }
+    } catch (e) { te(friendlyErrorMessage(e, 'Tạo báo cáo thất bại. Vui lòng thử lại.')); }
     finally { setGenLoading(false); }
   };
 
@@ -249,9 +264,12 @@ const NgPharmPanel: React.FC = () => {
       </div>
       <DataTable<NationalPharmacyOutboundReportDto>
         rowKey={(r) => r.id} data={rows} columns={columns} loading={loading}
-        actions={(r) => r.status !== 2
-          ? <ActBtn ic="refresh" title="Gửi lại" onClick={() => retry(r)} />
-          : null}
+        actions={(r) => (
+          <RowActions actions={[
+            { key: 'retry', icon: 'refresh', label: 'Gửi lại', primary: true,
+              hidden: r.status === 2, disabled: acting, onClick: () => retry(r) },
+          ]} />
+        )}
       />
       <ModalShell open={genOpen} onClose={() => setGenOpen(false)} title="Tạo báo cáo Dược QG" size="sm"
         footer={<>
@@ -289,29 +307,50 @@ const NgPharmPanel: React.FC = () => {
 const NgConfigPanel: React.FC = () => {
   const [cfg, setCfg] = useState<NationalGatewayConfigDto | null>(null);
   const [tested, setTested] = useState<boolean | null>(null);
+  const [saving, setSaving]   = useState(false); // #467: chống double-submit lưu / test
+  const [testing, setTesting] = useState(false);
+  const [loadErr, setLoadErr] = useState(false); // #467: tránh kẹt "Đang tải…" khi API lỗi
 
-  useEffect(() => {
-    npGateway.getConfig().then(setCfg).catch(() => te('Không tải được cấu hình'));
+  const loadCfg = useCallback(() => {
+    setLoadErr(false);
+    npGateway.getConfig().then(setCfg)
+      .catch((e) => { setLoadErr(true); te(friendlyErrorMessage(e, 'Không tải được cấu hình')); });
   }, []);
+
+  useEffect(() => { loadCfg(); }, [loadCfg]);
 
   const set = <K extends keyof NationalGatewayConfigDto>(k: K, v: NationalGatewayConfigDto[K]) =>
     setCfg((c) => c ? { ...c, [k]: v } : c);
 
   const save = async () => {
-    if (!cfg) return;
+    if (!cfg || saving) return;
+    setSaving(true);
     try { await npGateway.saveConfig(cfg); tk('Đã lưu cấu hình'); }
-    catch { te('Lưu thất bại'); }
+    catch (e) { te(friendlyErrorMessage(e, 'Lưu cấu hình thất bại. Vui lòng thử lại.')); }
+    finally { setSaving(false); }
   };
   const test = async () => {
+    if (testing) return;
+    setTesting(true);
     try {
       const r = await npGateway.testConnection();
       setTested(r.connected);
       if (r.connected) tk('Kết nối OK'); else te('Mất kết nối');
     }
-    catch { setTested(false); te('Mất kết nối'); }
+    catch (e) { setTested(false); te(friendlyErrorMessage(e, 'Mất kết nối')); }
+    finally { setTesting(false); }
   };
 
-  if (!cfg) return <div style={{ padding: 'var(--space-20)' }}>Đang tải cấu hình…</div>;
+  if (!cfg) return (
+    <div style={{ padding: 'var(--space-20)', fontSize: 'var(--fs-md)', color: 'var(--t-2)' }}>
+      {loadErr ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-10)' }}>
+          <span>Không tải được cấu hình cổng quốc gia.</span>
+          <Btn onClick={loadCfg}><TermIcon name="refresh" size={12} /> Thử lại</Btn>
+        </div>
+      ) : 'Đang tải cấu hình…'}
+    </div>
+  );
 
   return (
     <div style={{ padding: 'var(--space-20)', maxWidth: 760 }} data-testid="gateway-config-panel">
@@ -347,11 +386,11 @@ const NgConfigPanel: React.FC = () => {
           onChange={(e) => set('timeoutSeconds', Number(e.target.value))} />
       </div>
       <div style={{ display: 'flex', gap: 'var(--space-8)', marginTop: 'var(--space-16)' }}>
-        <Btn variant="primary" onClick={save}>
-          <TermIcon name="check" size={12} /> Lưu cấu hình
+        <Btn variant="primary" onClick={save} disabled={saving}>
+          <TermIcon name="check" size={12} /> {saving ? 'Đang lưu…' : 'Lưu cấu hình'}
         </Btn>
-        <Btn onClick={test}>
-          <TermIcon name="activity" size={12} /> Kiểm tra kết nối
+        <Btn onClick={test} disabled={testing}>
+          <TermIcon name="activity" size={12} /> {testing ? 'Đang kiểm tra…' : 'Kiểm tra kết nối'}
         </Btn>
         {tested !== null && (
           <StatusBadge tone={tested ? 'ok' : 'crit'} dot>

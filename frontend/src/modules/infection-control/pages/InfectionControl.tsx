@@ -12,9 +12,10 @@ import type {
   IsolationOrderDto,
 } from '../api/infectionControl';
 import { getInpatientList } from '../../inpatient/api/inpatient';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, CrudModal, Btn,
-  DrawerShell, DrSec, DrField, tk, ti,
+  DrawerShell, DrSec, DrField, tk, ti, tw,
   TopTabs, ModalShell,
   type ColumnDef, type CrudFieldCfg, type TopTab,
 } from '@/_v2kit';
@@ -190,7 +191,8 @@ const InfectionControlV2: React.FC = () => {
       try {
         const ip = await getInpatientList({ pageSize: 300 });
         setAdmissionOpts((ip.data?.items || []).map((p) => ({ value: p.admissionId, label: `${p.patientName} · ${p.bedName || p.roomName || p.departmentName}` })));
-      } catch { /* options optional */ }
+      // options optional — form vẫn mở được; cảnh báo để không hiểu nhầm "không có BN nội trú"
+      } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh sách bệnh nhân nội trú — ô chọn bệnh nhân sẽ trống.')); }
     })();
   }, []);
 
@@ -220,6 +222,7 @@ const InfectionControlV2: React.FC = () => {
   const [isoSel, setIsoSel] = useState<IsolationOrderDto | null>(null);
   const [isoDiscTarget, setIsoDiscTarget] = useState<IsolationOrderDto | null>(null);
   const [isoDiscReason, setIsoDiscReason] = useState('');
+  const [isoDiscSaving, setIsoDiscSaving] = useState(false);
 
   useEffect(() => {
     if (tab !== 'isolation' || isoLoaded) return;
@@ -235,7 +238,9 @@ const InfectionControlV2: React.FC = () => {
 
   const doDiscontinueIso = async () => {
     if (!isoDiscTarget) return;
+    if (isoDiscSaving) return; // chặn double-submit ngay cả khi disabled chưa kịp render
     if (!isoDiscReason.trim()) { ti('Nhập lý do kết thúc cách ly'); return; }
+    setIsoDiscSaving(true);
     try {
       await discontinueIsolation({ isolationOrderId: isoDiscTarget.id, reason: isoDiscReason.trim() });
       tk('Đã kết thúc cách ly');
@@ -243,6 +248,7 @@ const InfectionControlV2: React.FC = () => {
       setIsoDiscReason('');
       setIsoLoaded(false); // reload
     } catch { ti('Kết thúc cách ly thất bại'); }
+    finally { setIsoDiscSaving(false); }
   };
 
   // ─── Outbreak state ─────────────────────────────────────────────────────
@@ -266,6 +272,7 @@ const InfectionControlV2: React.FC = () => {
   const [invOpen, setInvOpen] = useState(false);
   const [invFindings, setInvFindings] = useState('');
   const [invActions, setInvActions] = useState('');
+  const [invSaving, setInvSaving] = useState(false);
 
   // ─── HAI derived ────────────────────────────────────────────────────────
   const infTypes = useMemo(() => {
@@ -602,8 +609,10 @@ const InfectionControlV2: React.FC = () => {
         sub={sel ? `Ca ${sel.caseCode || '—'} · ${sel.patientName || '—'}` : undefined}
         footer={<>
           <Btn variant="ghost" onClick={() => setInvOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={async () => {
+          <Btn variant="primary" disabled={invSaving} onClick={async () => {
             if (!sel) return;
+            if (invSaving) return; // chặn double-submit
+            setInvSaving(true);
             try {
               await investigateHAICase(
                 sel.id,
@@ -613,7 +622,8 @@ const InfectionControlV2: React.FC = () => {
               tk('Đã lưu kết quả điều tra');
               setInvOpen(false);
             } catch { ti('Không lưu được điều tra'); }
-          }}>Lưu</Btn>
+            finally { setInvSaving(false); }
+          }}>{invSaving ? 'Đang lưu…' : 'Lưu'}</Btn>
         </>}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '4px 0' }}>
@@ -695,7 +705,9 @@ const InfectionControlV2: React.FC = () => {
         size="sm"
         footer={<>
           <Btn variant="ghost" onClick={() => setIsoDiscTarget(null)}>Hủy</Btn>
-          <Btn variant="primary" onClick={doDiscontinueIso}>Xác nhận kết thúc</Btn>
+          <Btn variant="primary" disabled={isoDiscSaving} onClick={doDiscontinueIso}>
+            {isoDiscSaving ? 'Đang xử lý…' : 'Xác nhận kết thúc'}
+          </Btn>
         </>}
       >
         <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4 }}>Lý do kết thúc cách ly *</div>

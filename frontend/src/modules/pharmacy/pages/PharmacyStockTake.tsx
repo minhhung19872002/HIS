@@ -30,9 +30,11 @@ import {
   AbSelect,
   StatusBadge,
   cf,
+  tw,
   type ColumnDef,
   type StatusTone,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -125,7 +127,7 @@ const PharmacyStockTake: React.FC = () => {
   React.useEffect(() => {
     wh.getWarehouses()
       .then((r) => setWarehouses((r.data as WarehouseDto[]) || []))
-      .catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); })
+      .catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh sách kho')); })
       .finally(() => setWarehousesLoaded(true));
   }, []);
 

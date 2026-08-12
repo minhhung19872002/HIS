@@ -12,9 +12,10 @@ import type { AuditLogDto, AuditLogSearchDto } from '../api/audit';
 import { applyServerErrors, type ServerValidationError } from '../../../utils/formError';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, DrawerShell, DrSec, DrField, StatusBadge,
-  ModalShell, ActBtn, Btn, Pager, tk, te, cf,
+  ModalShell, ActBtn, Btn, Pager, tk, te, tw, cf,
   type ColumnDef, type TopTab,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import ItTicketsPanel from './ItTicketsPanel';
 import AccessMatrixPanel from './AccessMatrixPanel';
 import CompliancePanel from './CompliancePanel';
@@ -101,6 +102,9 @@ const SystemAdminV2: React.FC = () => {
   const [editRoleId, setEditRoleId] = useState<string | null>(null);
   const [allPermissions, setAllPermissions] = useState<PermissionDto[]>([]);
   const [rolePermIds, setRolePermIds] = useState<string[]>([]);
+  // #467: đánh dấu đã nạp được quyền hiện tại của vai trò chưa. Nếu GET quyền lỗi mà vẫn
+  // cho lưu, mảng rỗng sẽ ghi đè và XOÁ SẠCH quyền thật của vai trò đó.
+  const [rolePermsLoaded, setRolePermsLoaded] = useState(true);
   // ─── Config modal ───
   const [cfgModal, setCfgModal] = useState<SystemConfigDto | null>(null);
   // ─── Notification modal ───
@@ -169,7 +173,7 @@ const SystemAdminV2: React.FC = () => {
         setAuditTotal(r.data?.totalCount ?? 0);
       }
       // else: it-tickets / access-matrix / compliance / data-management / health / emr-admin = self-loading panels, no-op
-    } catch { /* keep current */ }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được dữ liệu, đang hiển thị bản cũ')); }
     finally { setLoading(false); }
   }, [tab, keyword, auditFilters, auditPage]);
   useEffect(() => { load(); }, [load]);
@@ -226,8 +230,7 @@ const SystemAdminV2: React.FC = () => {
       }
       setUserModal(null); load();
     } catch (e: unknown) {
-      const ax = e as AxiosError<ServerValidationError>;
-      if (!applyServerErrors(userF, e)) te(ax?.response?.data?.message || 'Lưu thất bại');
+      if (!applyServerErrors(userF, e)) te(friendlyErrorMessage(e, 'Lưu thất bại'));
     }
     finally { setSaving(false); }
   };
@@ -249,20 +252,28 @@ const SystemAdminV2: React.FC = () => {
       adminApi.getPermissions().then((r) => {
         const data: PermissionDto[] = Array.isArray(r) ? r : (r as { data?: PermissionDto[] })?.data ?? [];
         setAllPermissions(data);
-      }).catch(() => {});
+      }).catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh sách quyền')); });
   };
   const openNewRole = () => {
     setEditRoleId(null); setRolePermIds([]); setPermSearch('');
+    setRolePermsLoaded(true); // vai trò mới: rỗng là trạng thái đúng, không phải do lỗi tải
     roleF.resetFields(); roleF.setFieldsValue({ isActive: true, isSystemRole: false });
     ensurePermissions(); setRoleModal('new');
   };
   const openEditRole = (r: RoleDto) => {
     setEditRoleId(r.id || null); setRolePermIds([]); setPermSearch('');
+    setRolePermsLoaded(!r.id);
     roleF.setFieldsValue({ code: r.code, name: r.name, description: r.description || '', isSystemRole: r.isSystemRole, isActive: r.isActive });
     if (r.id) adminApi.getRolePermissions(r.id).then((raw) => {
       const ps: PermissionDto[] = Array.isArray(raw) ? raw : (raw as { data?: PermissionDto[] })?.data ?? [];
       setRolePermIds(ps.map(p => p.id!).filter(Boolean));
-    }).catch(() => {});
+      setRolePermsLoaded(true);
+    }).catch((e) => {
+      // #467: KHÔNG được coi là "vai trò không có quyền nào" — nếu nuốt lỗi ở đây thì
+      // submitRole() sẽ gửi mảng rỗng và XOÁ SẠCH quyền thật của vai trò.
+      tw(friendlyErrorMessage(e, 'Không tải được danh sách quyền của vai trò'));
+      setRolePermsLoaded(false);
+    });
     ensurePermissions(); setRoleModal('edit');
   };
   const submitRole = async () => {
@@ -272,18 +283,27 @@ const SystemAdminV2: React.FC = () => {
     try {
       const res = await adminApi.saveRole({ id: editRoleId || undefined, code: (v.code as string).trim(), name: (v.name as string).trim(), description: (v.description as string) || '', isSystemRole: !!v.isSystemRole, isActive: v.isActive !== false } as RoleDto);
       const savedId = editRoleId || (res?.data as RoleDto | null)?.id;
-      if (savedId && rolePermIds.length >= 0)
-        await adminApi.updateRolePermissions(savedId, rolePermIds).catch(() => {});
-      tk('Đã lưu vai trò'); setRoleModal(null); load();
+      // #467: chỉ ghi lại quyền khi ĐÃ nạp được quyền hiện tại. Trước đây điều kiện
+      // `rolePermIds.length >= 0` luôn đúng nên khi GET quyền lỗi (rolePermIds = []) thì
+      // bản lưu sẽ xoá sạch quyền của vai trò; lỗi lại bị nuốt và vẫn báo "Đã lưu".
+      let permsSaved = true;
+      if (savedId && rolePermsLoaded) {
+        try { await adminApi.updateRolePermissions(savedId, rolePermIds); }
+        catch (pe) { permsSaved = false; te(friendlyErrorMessage(pe, 'Đã lưu thông tin vai trò nhưng KHÔNG cập nhật được danh sách quyền')); }
+      } else if (savedId && !rolePermsLoaded) {
+        permsSaved = false;
+        tw('Đã lưu thông tin vai trò. Danh sách quyền giữ nguyên vì chưa tải được — hãy mở lại vai trò để chỉnh quyền.');
+      }
+      if (permsSaved) tk('Đã lưu vai trò');
+      setRoleModal(null); load();
     } catch (e: unknown) {
-      const ax = e as AxiosError<ServerValidationError>;
-      if (!applyServerErrors(roleF, e)) te(ax?.response?.data?.message || 'Lưu thất bại');
+      if (!applyServerErrors(roleF, e)) te(friendlyErrorMessage(e, 'Lưu thất bại'));
     }
     finally { setSaving(false); }
   };
   const delRole = (r: RoleDto) => {
     if (r.isSystemRole) { te('Không thể xoá vai trò hệ thống'); return; }
-    cf(`Xoá vai trò "${r.name}"?`, async () => { try { await adminApi.deleteRole(r.id!); tk('Đã xoá'); load(); } catch { te('Xoá thất bại'); } }, { tone: 'crit', confirm: 'Xoá' });
+    cf(`Xoá vai trò "${r.name}"?`, async () => { try { await adminApi.deleteRole(r.id!); tk('Đã xoá'); load(); } catch (e) { te(friendlyErrorMessage(e, 'Xoá thất bại')); } }, { tone: 'crit', confirm: 'Xoá' });
   };
 
   // ─── Config update ───
@@ -295,8 +315,7 @@ const SystemAdminV2: React.FC = () => {
     setSaving(true);
     try { await adminApi.saveSystemConfig({ ...cfgModal, configValue: v.configValue as string }); tk('Đã lưu cấu hình'); setCfgModal(null); load(); }
     catch (e: unknown) {
-      const ax = e as AxiosError<ServerValidationError>;
-      if (!applyServerErrors(cfgF, e)) te(ax?.response?.data?.message || 'Lưu thất bại');
+      if (!applyServerErrors(cfgF, e)) te(friendlyErrorMessage(e, 'Lưu thất bại'));
     }
     finally { setSaving(false); }
   };
@@ -338,7 +357,7 @@ const SystemAdminV2: React.FC = () => {
       if (para.status === 'fulfilled') { const arr = Array.isArray(para.value.data) ? para.value.data : (para.value.data as { items?: unknown[] })?.items ?? []; (arr as Record<string, unknown>[]).forEach((s) => res.push({ id: String(s.id || ''), code: String(s.serviceCode || s.code || ''), name: String(s.serviceName || s.name || ''), stype: 3 })); }
       if (med.status === 'fulfilled') { const arr = Array.isArray(med.value.data) ? med.value.data : (med.value.data as { items?: unknown[] })?.items ?? []; (arr as Record<string, unknown>[]).forEach((s) => res.push({ id: String(s.id || ''), code: String(s.medicineCode || s.code || ''), name: String(s.medicineName || s.name || ''), stype: 1 })); }
       setLockResults(res.slice(0, 50));
-    } catch { setLockResults([]); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không tìm được dịch vụ')); setLockResults([]); }
     finally { setLockSearching(false); }
   };
   const submitLock = async () => {

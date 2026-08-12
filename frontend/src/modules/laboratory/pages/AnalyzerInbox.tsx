@@ -13,6 +13,7 @@ import {
   type AnalyzerInboxItemDto,
 } from '../api/lis';
 import type { LabAnalyzerDto } from '../api/lis';
+import { friendlyErrorMessage } from '@/utils/friendlyError';
 
 // G-18: Màn "KQ máy" — inbox kết quả từ máy xét nghiệm
 // Status: 0=Pending, 1=Matched, 2=ManualMapped, 3=Ignored, 4=Transferred
@@ -116,7 +117,7 @@ const AnalyzerInboxPage: React.FC = () => {
         setSel(null);
         load();
       } catch (err: unknown) {
-        te((err as Error)?.message || 'Chuyển kết quả thất bại');
+        te(friendlyErrorMessage(err, 'Chuyển kết quả thất bại'));
       }
     }, { tone: 'info', confirm: 'Chuyển về phiếu' });
 

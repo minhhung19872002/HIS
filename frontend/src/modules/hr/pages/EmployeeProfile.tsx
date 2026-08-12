@@ -1,12 +1,14 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { fmtNum as fmt } from '../../../utils/format';
 import { Form, Input, InputNumber, DatePicker, Select, Checkbox } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../../../services/apiClient';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { RowActions } from '../../../components/actions';
 import {
-  KpiStrip, TopTabs, DataTable, StatusBadge, ActBtn, Btn,
-  ModalShell, tk, tw, cf,
+  KpiStrip, TopTabs, DataTable, StatusBadge, Btn,
+  ModalShell, tk, tw, te,
   type ColumnDef,
 } from '@/_v2kit';
 
@@ -111,6 +113,10 @@ function GenericCrudTab<T extends { id: string }>(props: CrudConfig<T>) {
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<T | null>(null);
   const [modal, setModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);   // #467 khoá đồng bộ — state React cập nhật sau render, không chặn kịp double-click
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const removingRef = useRef(false);
   const [form] = Form.useForm();
 
   const load = useCallback(async () => {
@@ -123,23 +129,29 @@ function GenericCrudTab<T extends { id: string }>(props: CrudConfig<T>) {
   useEffect(() => { load(); }, [load]);
 
   const submit = async () => {
+    if (savingRef.current) return;   // #467 chống double-submit: nhấn Lưu 2 lần = tạo 2 bản ghi trùng
     try {
       const v = await form.validateFields();
+      savingRef.current = true; setSaving(true);
       const payload = formTransform ? formTransform(v) : v;
       if (editing) (payload as Record<string, unknown>).id = editing.id;
       await apiClient.post(`${endpoint}/${userId}/${subPath}`, payload);
       tk('Đã lưu'); setModal(false); setEditing(null); form.resetFields(); load();
     } catch (err: unknown) {
-      // validateFields reject → lỗi đã hiện inline, không toast; lỗi BE → hiện message thật
+      // validateFields reject → lỗi đã hiện inline, không toast; lỗi BE → message thân thiện
       if (err && typeof err === 'object' && 'errorFields' in err) return;
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      tw(msg || 'Lưu thất bại');
-    }
+      tw(friendlyErrorMessage(err, 'Lưu thất bại'));
+    } finally { savingRef.current = false; setSaving(false); }
   };
 
-  const remove = (r: T) => cf('Xóa mục này?', async () => {
-    await apiClient.delete(`${endpoint}/${subPath}/${r.id}`); tk('Đã xóa'); load();
-  }, { tone: 'crit', confirm: 'Xóa' });
+  // #467 RowActions (tone: 'danger') tự bật confirm khi xoá — không bọc cf() thêm ở đây.
+  const remove = async (r: T) => {
+    if (removingRef.current) return;   // chống bấm Xóa 2 lần (lần 2 lỗi 404 gây toast sai)
+    removingRef.current = true; setRemovingId(r.id);
+    try { await apiClient.delete(`${endpoint}/${subPath}/${r.id}`); tk('Đã xóa'); load(); }
+    catch (e: unknown) { te(friendlyErrorMessage(e, 'Xóa thất bại')); }
+    finally { removingRef.current = false; setRemovingId(null); }
+  };
 
   const openEdit = (r: T) => {
     setEditing(r); form.resetFields();
@@ -159,8 +171,13 @@ function GenericCrudTab<T extends { id: string }>(props: CrudConfig<T>) {
         onRowClick={openEdit}
         actions={(r) => (
           <div className="ab-actions">
-            <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-            <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => remove(r)} />
+            <RowActions actions={[
+              { key: 'edit', icon: 'edit', label: 'Sửa', primary: true, onClick: () => openEdit(r) },
+              { key: 'del', icon: 'trash', label: 'Xóa', tone: 'danger',
+                confirm: 'Xóa mục này? Thao tác không thể hoàn tác.',
+                disabled: removingId === r.id,
+                onClick: () => { void remove(r); } },
+            ]} />
           </div>
         )}
         loading={loading}
@@ -169,8 +186,8 @@ function GenericCrudTab<T extends { id: string }>(props: CrudConfig<T>) {
       <ModalShell open={modal} onClose={() => { setModal(false); setEditing(null); form.resetFields(); }}
         size="md" title={editing ? 'Sửa' : 'Thêm mới'}
         footer={<>
-          <Btn variant="ghost" onClick={() => { setModal(false); setEditing(null); form.resetFields(); }}>Hủy</Btn>
-          <Btn variant="primary" icon="check" onClick={submit}>Lưu</Btn>
+          <Btn variant="ghost" disabled={saving} onClick={() => { setModal(false); setEditing(null); form.resetFields(); }}>Hủy</Btn>
+          <Btn variant="primary" icon="check" loading={saving} onClick={submit}>{saving ? 'Đang lưu…' : 'Lưu'}</Btn>
         </>}>
         <Form form={form} layout="vertical">{formItems}</Form>
       </ModalShell>
@@ -446,6 +463,7 @@ const ContractsTab: React.FC<{ userId: string }> = ({ userId }) => (
 const InsuranceTab: React.FC<{ userId: string }> = ({ userId }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const savingRef = useRef(false);   // #467 khoá đồng bộ chống double-submit (state disabled cập nhật trễ 1 render)
 
   useEffect(() => {
     apiClient.get<InsuranceData>(`/employee-profile/${userId}/insurance`)
@@ -463,6 +481,8 @@ const InsuranceTab: React.FC<{ userId: string }> = ({ userId }) => {
   }, [userId, form]);
 
   const submit = async () => {
+    if (savingRef.current) return;   // #467 chống double-submit: lưu BHXH/BHYT 2 lần
+    savingRef.current = true;
     setLoading(true);
     try {
       const v = await form.validateFields();
@@ -475,10 +495,9 @@ const InsuranceTab: React.FC<{ userId: string }> = ({ userId }) => {
       tk('Đã lưu');
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      tw(msg || 'Lưu thất bại');
+      tw(friendlyErrorMessage(err, 'Lưu thất bại'));
     }
-    finally { setLoading(false); }
+    finally { savingRef.current = false; setLoading(false); }
   };
 
   return (
@@ -506,7 +525,7 @@ const InsuranceTab: React.FC<{ userId: string }> = ({ userId }) => {
               </Form.Item>
             </div>
             <Form.Item name="note" label="Ghi chú"><Input.TextArea rows={2} /></Form.Item>
-            <Btn variant="primary" icon="check" onClick={submit} disabled={loading}>{loading ? 'Đang lưu…' : 'Lưu'}</Btn>
+            <Btn variant="primary" icon="check" onClick={submit} loading={loading}>{loading ? 'Đang lưu…' : 'Lưu'}</Btn>
           </Form>
         </div>
       </div>

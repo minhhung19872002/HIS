@@ -5,6 +5,7 @@
 // =====================================================================
 import React, { useEffect, useMemo, useState } from 'react';
 import * as file from '../../../services/file.service';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { Input, InputNumber, Select, Switch } from 'antd';
 import dayjs from 'dayjs';
 import * as api from '../api/masterCatalog';
@@ -47,6 +48,7 @@ const ClinicalCatalogsV2: React.FC = () => {
   const [edit, setEdit] = useState<EditState | null>(null);
   const [editIsNew, setEditIsNew] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => { setSearch(''); setPage(0); }, [tab]);
 
@@ -158,11 +160,12 @@ const ClinicalCatalogsV2: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!edit) return;
+    if (!edit || saving) return;
     const code = String(edit.code || '').trim();
     const name = String(edit.name || '').trim();
     if (!code) { te('Mã không được để trống'); return; }
     if (!name) { te('Tên không được để trống'); return; }
+    setSaving(true);
     try {
       if (tab === 'nursing') await api.saveNursingCareLevel({ ...edit, code, name } as Partial<api.NursingCareLevelDto>);
       else await api.saveMedicalRecordType({ ...edit, code, name } as Partial<api.MedicalRecordTypeDto>);
@@ -170,9 +173,9 @@ const ClinicalCatalogsV2: React.FC = () => {
       setEdit(null);
       reload(tab);
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string; title?: string } } })?.response?.data?.message
-        || (err as { response?: { data?: { title?: string } } })?.response?.data?.title;
-      te(msg || 'Lưu thất bại');
+      te(friendlyErrorMessage(err, 'Lưu thất bại. Vui lòng thử lại.'));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -188,10 +191,9 @@ const ClinicalCatalogsV2: React.FC = () => {
         tk('Đã xoá');
         reload(tab);
       } catch (err: unknown) {
-        // BE trả lý do cụ thể (vd "Loại bệnh án này đang khóa, không thể xóa") → hiện thật
-        const msg = (err as { response?: { data?: { message?: string; title?: string } } })?.response?.data?.message
-          || (err as { response?: { data?: { title?: string } } })?.response?.data?.title;
-        te(msg || 'Xoá thất bại');
+        // friendlyErrorMessage vẫn ưu tiên message nghiệp vụ của BE
+        // (vd "Loại bệnh án này đang khóa, không thể xóa") → hiện thật
+        te(friendlyErrorMessage(err, 'Xoá thất bại. Vui lòng thử lại.'));
       }
     }, { tone: 'crit', confirm: 'Xoá' });
   };
@@ -251,8 +253,10 @@ const ClinicalCatalogsV2: React.FC = () => {
         sub={`Mục: ${tabsDef.find((t) => t.v === tab)?.l.split(' (')[0]}`}
         footer={(
           <>
-            <Btn variant="ghost" onClick={() => setEdit(null)}>Huỷ</Btn>
-            <Btn variant="primary" icon="check" onClick={handleSave}>{editIsNew ? 'Tạo mới' : 'Lưu'}</Btn>
+            <Btn variant="ghost" disabled={saving} onClick={() => setEdit(null)}>Huỷ</Btn>
+            <Btn variant="primary" icon="check" loading={saving} onClick={handleSave}>
+              {saving ? 'Đang lưu…' : (editIsNew ? 'Tạo mới' : 'Lưu')}
+            </Btn>
           </>
         )}
       >

@@ -6,9 +6,10 @@ import {
 import type { SmsBalanceDto, SmsLogDto, SmsStatsDto } from '../api/sms';
 import {
   TopTabs, KpiStrip, StatusBadge, SearchBox, DataTable, Pager,
-  Btn, DrawerShell, DrSec, DrField, CrudModal, tk, te,
+  Btn, DrawerShell, DrSec, DrField, CrudModal, tk, te, tw,
   type ColumnDef, type KpiItem, type CrudFieldCfg,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '@/utils/friendlyError';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -115,7 +116,7 @@ const SmsManagementV2: React.FC = () => {
       const [b, s] = await Promise.all([getSmsBalance(), getSmsStats()]);
       setBalance(b as unknown as SmsBalanceDto);
       setStats(s as unknown as SmsStatsDto);
-    } catch { /* ignore */ }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được tổng quan SMS — số liệu có thể chưa cập nhật')); }
     finally { setDashLoading(false); }
   }, []);
 
@@ -136,7 +137,7 @@ const SmsManagementV2: React.FC = () => {
       setRows(r?.items ?? r?.data?.items ?? []);
       setTotal(r?.totalCount ?? r?.data?.totalCount ?? 0);
       setPage(p);
-    } catch { setRows([]); setTotal(0); }
+    } catch (e) { te(friendlyErrorMessage(e, 'Không tải được nhật ký SMS')); setRows([]); setTotal(0); }
     finally { setLogLoading(false); }
   }, [kw, fType, fStatus, fromDate, toDate]);
 
@@ -266,6 +267,7 @@ const SmsManagementV2: React.FC = () => {
         data={rows}
         rowKey={(l) => l.id}
         onRowClick={setSelected}
+        loading={logLoading}
         empty={logLoading ? 'Đang tải…' : 'Không có SMS trong bộ lọc hiện tại'}
       />
       <Pager

@@ -48,7 +48,7 @@ const DataManagementPanel: React.FC = () => {
     setBusy('backup');
     dataExportApi.createBackup('Full')
       .then(() => { tk('Đang tạo bản sao lưu…'); load(); })
-      .catch(() => te('Không thể tạo sao lưu'))
+      .catch((e) => te(friendlyErrorMessage(e, 'Không thể tạo sao lưu')))
       .finally(() => setBusy(null));
   };
   const exportAll = () => {
@@ -56,22 +56,27 @@ const DataManagementPanel: React.FC = () => {
     setBusy('export');
     dataExportApi.requestExport({ modules: ['all'], format: 'JSON', includeAttachments: false })
       .then(() => { tk('Đang xuất dữ liệu…'); load(); })
-      .catch(() => te('Không thể xuất dữ liệu'))
+      .catch((e) => te(friendlyErrorMessage(e, 'Không thể xuất dữ liệu')))
       .finally(() => setBusy(null));
   };
-  const createHandover = () => cf('Tạo bản sao lưu đầy đủ + biên bản chuyển giao dữ liệu cho bên thuê dịch vụ?', async () => {
-    try {
-      await dataExportApi.createHandover({ recipientName: 'Chủ đầu tư', recipientOrganization: 'Bệnh viện', modules: ['all'] });
-      tk('Đã tạo biên bản chuyển giao'); load();
-    } catch { te('Lỗi tạo biên bản'); }
-  }, { confirm: 'Tạo' });
+  const createHandover = () => {
+    if (busy) return;
+    cf('Tạo bản sao lưu đầy đủ + biên bản chuyển giao dữ liệu cho bên thuê dịch vụ?', async () => {
+      setBusy('handover');
+      try {
+        await dataExportApi.createHandover({ recipientName: 'Chủ đầu tư', recipientOrganization: 'Bệnh viện', modules: ['all'] });
+        tk('Đã tạo biên bản chuyển giao'); load();
+      } catch (e) { te(friendlyErrorMessage(e, 'Lỗi tạo biên bản')); }
+      finally { setBusy(null); }
+    }, { confirm: 'Tạo' });
+  };
   const confirmHandover = (h: DataHandoverDto) => {
     if (busy) return;
     cf(`Xác nhận đã nhận biên bản chuyển giao ${h.handoverCode}?`, () => {
       setBusy(h.id);
       dataExportApi.confirmHandover(h.id)
         .then(() => { tk('Đã xác nhận'); load(); })
-        .catch(() => te('Lỗi xác nhận'))
+        .catch((e) => te(friendlyErrorMessage(e, 'Lỗi xác nhận')))
         .finally(() => setBusy(null));
     });
   };
@@ -156,7 +161,7 @@ const DataManagementPanel: React.FC = () => {
       <div className="ab-tools" style={{ marginTop: 'var(--space-12)' }}>
         <span style={{ fontWeight: 600 }}>Biên bản chuyển giao dữ liệu</span>
         <span className="spacer" />
-        <Btn variant="primary" size="sm" onClick={createHandover}>Tạo biên bản</Btn>
+        <Btn variant="primary" size="sm" onClick={createHandover} disabled={busy === 'handover'}>{busy === 'handover' ? 'Đang tạo…' : 'Tạo biên bản'}</Btn>
       </div>
       <DataTable<DataHandoverDto> columns={handoverColumns} data={handovers} rowKey={(h) => h.id}
         actions={(h) => h.status === 2 ? <Btn variant="primary" size="sm" onClick={() => confirmHandover(h)} disabled={busy === h.id}>{busy === h.id ? 'Đang xác nhận…' : 'Xác nhận'}</Btn> : null}

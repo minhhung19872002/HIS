@@ -4,10 +4,11 @@ import {
   searchVaccinations, recordVaccination, searchCampaigns, getCampaignStats, getAefiReports,
 } from '../api/immunization';
 import type { Vaccination, Campaign, AefiReport, CampaignStats } from '../api/immunization';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import {
   TopTabs, KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
   StatusBadge, Btn, DrawerShell, DrSec, DrField, CrudModal,
-  SimpleV2Page, useTabCounts, tk,
+  SimpleV2Page, useTabCounts, tk, tw, te,
   type TopTab, type ColumnDef, type StatusTab, type CrudFieldCfg, type KpiItem,
 } from '@/_v2kit';
 
@@ -96,12 +97,14 @@ const ImmunizationV2: React.FC = () => {
   const loadVax = useCallback(async () => {
     setVaxLoad(true);
     try { setVaxRows(await searchVaccinations()); }
+    catch (e) { tw(friendlyErrorMessage(e, 'Không tải được hồ sơ tiêm chủng. Số liệu thống kê có thể thiếu.')); }
     finally { setVaxLoad(false); }
   }, []);
 
   const loadAefi = useCallback(async () => {
     setAefiLoad(true);
     try { setAefiRows(await getAefiReports()); setAefiLoaded(true); }
+    catch (e) { te(friendlyErrorMessage(e, 'Không tải được báo cáo AEFI. Vui lòng thử lại.')); }
     finally { setAefiLoad(false); }
   }, []);
 
@@ -110,7 +113,8 @@ const ImmunizationV2: React.FC = () => {
     try {
       const [c, s] = await Promise.all([searchCampaigns(), getCampaignStats()]);
       setCampaigns(c); setCampStats(s); setCampLoaded(true);
-    } finally { setCampLoad(false); }
+    } catch (e) { te(friendlyErrorMessage(e, 'Không tải được chiến dịch tiêm chủng. Vui lòng thử lại.')); }
+    finally { setCampLoad(false); }
   }, []);
 
   useEffect(() => { loadVax(); }, [loadVax, reloadVer]); // eslint-disable-line react-hooks/exhaustive-deps

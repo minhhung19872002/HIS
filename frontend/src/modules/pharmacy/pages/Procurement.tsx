@@ -8,9 +8,10 @@ import type {
   ProcurementRequestDto, WarehouseDto, AutoProcurementSuggestionDto,
 } from '../api/warehouse';
 import {
-  SimpleV2Page, StatusBadge, DrSec, DrField, ModalShell, Btn, ActBtn, tk, te, cf, Ico,
+  SimpleV2Page, StatusBadge, DrSec, DrField, ModalShell, Btn, ActBtn, tk, te, tw, cf, Ico,
   type ColumnDef, type StatusTab, type KpiItem,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 type SKey = 'new' | 'approved' | 'purchased' | 'cancelled';
 const STATUS_TABS: StatusTab<SKey>[] = [
@@ -107,7 +108,7 @@ const ProcurementV2: React.FC = () => {
           checked: (s.currentStock || 0) <= (s.minimumStock || 0),
         })));
       })
-      .catch(() => setCreateRows([]))
+      .catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được gợi ý dự trù tự động')); setCreateRows([]); })
       .finally(() => setSugLoading(false));
   }, [whId, createOpen]);
 

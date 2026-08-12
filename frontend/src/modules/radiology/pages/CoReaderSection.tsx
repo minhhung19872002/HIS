@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { App as AntdApp, Input, Select } from 'antd';
 import * as risApi from '../api/ris';
 import type { CoReaderDto } from '../api/ris';
-import { Btn, ActBtn, cf } from '@/_v2kit';
+import { Btn, ActBtn, cf, tw } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ─────────────── Co-Reader Section (#139) ───────────────
 
@@ -30,8 +31,9 @@ export const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) =>
     try {
       const res = await risApi.getCoReaders(reportId);
       setReaders(res.data);
-    } catch {
-      // silence — optional feature
+    } catch (e) {
+      // Không chặn nghiệp vụ nhưng phải báo — nếu im lặng, "(0)" bị hiểu là chưa có BS đồng đọc
+      tw(friendlyErrorMessage(e, 'Không tải được danh sách bác sĩ đồng đọc'));
     } finally {
       setLoading(false);
     }

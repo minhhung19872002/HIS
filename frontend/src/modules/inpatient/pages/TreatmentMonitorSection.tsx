@@ -56,6 +56,7 @@ import type {
 import { catalogApi } from '../../system/api/system';
 import type { DepartmentCatalogDto } from '../../system/api/system';
 import { ModalShell, Btn } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import BedLabResultSection from './BedLabResultSection';
 import { CabinetIssueModal, ItemPicker } from '../../pharmacy/pages/CabinetIssueModal';
@@ -942,8 +943,13 @@ const DrugReturnModal: React.FC<{
         });
         setItems(Array.from(map.values()));
       })
-      .catch(() => setItems([]))
+      .catch((e) => {
+        message.warning(friendlyErrorMessage(e, 'Không tải được danh sách thuốc đã lĩnh của đợt điều trị.'));
+        setItems([]);
+      })
       .finally(() => setLoading(false));
+  // `message` (AntdApp.useApp) ổn định theo context — không đưa vào deps để tránh refetch thừa.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, admissionId]);
 
   const toggleItem = (idx: number) =>
@@ -1128,8 +1134,7 @@ const DischargePrescriptionModal: React.FC<{
       message.success('Đã lưu đơn thuốc xuất viện (toa về)');
       onDone();
     } catch (e) {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      message.error(msg || 'Lưu đơn thuốc xuất viện thất bại');
+      message.error(friendlyErrorMessage(e, 'Lưu đơn thuốc xuất viện thất bại. Vui lòng thử lại.'));
     } finally {
       setBusy(false);
     }
@@ -1258,7 +1263,10 @@ const ClsOrdersModal: React.FC<{
     setLoading(true);
     getAdmissionServiceRequests(admissionId)
       .then((r) => setOrders(Array.isArray(r.data) ? r.data : []))
-      .catch(() => setOrders([]))
+      .catch((e) => {
+        message.warning(friendlyErrorMessage(e, 'Không tải được danh sách chỉ định CLS của đợt điều trị.'));
+        setOrders([]);
+      })
       .finally(() => setLoading(false));
   };
 
@@ -1494,8 +1502,15 @@ const InpatientDiagnosisModal: React.FC<{
         setMainName(r.data?.mainDiagnosis ?? '');
         setSecondaries(r.data?.secondaryDiagnoses ?? []);
       })
-      .catch(() => { setMainCode(''); setMainName(''); setSecondaries([]); })
+      .catch((e) => {
+        // CHẨN ĐOÁN: reset im lặng rất nguy hiểm — người dùng phải biết đây là lỗi tải,
+        // không phải "chưa có chẩn đoán", trước khi gõ đè lên hồ sơ.
+        message.error(friendlyErrorMessage(e, 'Không tải được chẩn đoán hiện tại. Vui lòng đóng và mở lại trước khi nhập.'));
+        setMainCode(''); setMainName(''); setSecondaries([]);
+      })
       .finally(() => setLoading(false));
+  // `message` (AntdApp.useApp) ổn định theo context — không đưa vào deps để tránh refetch thừa.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, admissionId]);
 
   const addSecondary = () =>

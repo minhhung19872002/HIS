@@ -15,6 +15,7 @@ import {
   type ColumnDef, type StatusTab, type TopTab, type StatusTone,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { RowActions } from '../../../components/actions';
 import { fmtVND } from '../../../utils/format';
 import ReassignObjectModal from '../../administration/components/ReassignObjectModal';
 import ApplyDiscountModal from '../components/ApplyDiscountModal';
@@ -160,15 +161,20 @@ const InvoicesPanel: React.FC = () => {
         reloadRef.current = reload;
         return (
           <div className="ab-actions">
-            {(r.paymentStatus === 0 || r.paymentStatus === 1) && (
-              <ActBtn ic="dollar" title="Thu tiền" onClick={() => setPayFor(r)} />
-            )}
-            {(r.paymentStatus === 0 || r.paymentStatus === 1) && r.totalAmount > 0 && (
-              <ActBtn ic="receipt" title="Miễn giảm" onClick={() => setDiscountFor(r)} />
-            )}
-            <ActBtn ic="users" title="Sửa đối tượng" onClick={() => setReassignFor(r)} />
-            <ActBtn ic="refresh" title="Hoàn trả chi tiết" onClick={() => setPartialRefundFor(r)} />
-            <ActBtn ic="print" title="In HĐ" onClick={() => onPrintInvoice(r)} />
+            <RowActions actions={[
+              { key: 'pay', icon: 'dollar', label: 'Thu tiền', primary: true,
+                hidden: !(r.paymentStatus === 0 || r.paymentStatus === 1),
+                onClick: () => setPayFor(r) },
+              { key: 'print', icon: 'print', label: 'In hóa đơn', primary: true,
+                onClick: () => onPrintInvoice(r) },
+              { key: 'discount', icon: 'receipt', label: 'Miễn giảm viện phí',
+                hidden: !((r.paymentStatus === 0 || r.paymentStatus === 1) && r.totalAmount > 0),
+                onClick: () => setDiscountFor(r) },
+              { key: 'reassign', icon: 'users', label: 'Sửa đối tượng thanh toán',
+                onClick: () => setReassignFor(r) },
+              { key: 'refund', icon: 'refresh', label: 'Hoàn trả chi tiết',
+                onClick: () => setPartialRefundFor(r) },
+            ]} />
           </div>
         );
       }}

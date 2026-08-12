@@ -65,7 +65,7 @@ const REPORT_CATEGORIES: ReportCategory[] = [
   { id: 'level6',     label: 'Đối chiếu L6',    icon: 'check',      color: '#7c3aed',       softColor: '#f5f3ff' },
   { id: 'cost',       label: 'Chi phí KCB',     icon: 'dollar',     color: '#0891b2',       softColor: '#ecfeff' },
   { id: 'admin',      label: 'Hành chính & CLS', icon: 'list',      color: '#0369a1',       softColor: '#e0f2fe' },
-  { id: 'pharmacy',   label: 'BC Dược',          icon: 'package',   color: '#15803d',       softColor: '#f0fdf4' },
+  { id: 'pharmacy',   label: 'BC Dược',          icon: 'pill',      color: '#15803d',       softColor: '#f0fdf4' },
 ];
 
 const REPORTS: ReportDefinition[] = [

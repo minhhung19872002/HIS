@@ -9,6 +9,7 @@ import {
   getWarehouseLockStatus, type WarehouseLockStatusDto,
 } from '../api/warehouse';
 import { unwrapList, type MaybePaged } from '../../../utils/apiNormalize';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, StatusBadge, Btn, Pager, ModalShell, tk, ti, tw,
   type ColumnDef,
@@ -64,7 +65,7 @@ const StockReportV2: React.FC = () => {
         const body = (r as { data?: MaybePaged<Warehouse> }).data;
         setWarehouses(unwrapList<Warehouse>(body));
       })
-      .catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
+      .catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh sách kho')); });
   }, []);
 
   const load = useCallback(async () => {
@@ -133,8 +134,7 @@ const StockReportV2: React.FC = () => {
       setLockTarget(null);
       await load();
     } catch (e) {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      ti(msg || 'Thao tác khóa thất bại');
+      ti(friendlyErrorMessage(e, 'Thao tác khóa thất bại'));
     } finally { setLockBusy(false); }
   };
 

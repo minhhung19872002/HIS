@@ -8,6 +8,8 @@ import {
   type ColumnDef,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { RowActions } from '../../../components/actions';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ── Types cho Panel Tiện ích XN (tái sử dụng từ Laboratory.tsx) ──
 interface UtilWarehouseStock {
@@ -49,6 +51,8 @@ const SampleReceiveV2: React.FC = () => {
   const [reviewRow, setReviewRow] = useState<PendingSample | null>(null);
   const [detail, setDetail] = useState<DetailStatus | null>(null);
   const [cancelReceiveBusy, setCancelReceiveBusy] = useState(false);
+  // Guard double-submit cho các thao tác ghi (#467): 'accept' | 'reject' | 'run' | 'review'
+  const [busy, setBusy] = useState<string | null>(null);
   const [rejectForm] = Form.useForm();
   const [runForm] = Form.useForm();
   const [reviewForm] = Form.useForm();
@@ -78,8 +82,8 @@ const SampleReceiveV2: React.FC = () => {
       const cabIds = new Set(cabItems.map((s) => s.id));
       setUtilCabinetStock(cabItems);
       setUtilChemStock(toItems(chemRes).filter((s) => !cabIds.has(s.id)));
-    } catch {
-      console.warn('[SampleReceive] loadUtilData failed');
+    } catch (e) {
+      tw(friendlyErrorMessage(e, 'Không tải được dữ liệu tồn kho tiện ích XN'));
     } finally {
       setUtilLoading(false);
     }
@@ -102,40 +106,51 @@ const SampleReceiveV2: React.FC = () => {
 
   const accept = async () => {
     if (selected.size === 0) { tw('Chưa chọn mẫu'); return; }
+    // Guard khớp ĐÚNG với `disabled` của nút (busy === 'accept'): chặn double-submit CÙNG thao tác,
+    // không chặn thao tác khác (nếu chặn cả thì nút thao tác khác vẫn sáng nhưng bấm không phản hồi).
+    if (busy === 'accept') return;
+    setBusy('accept');
     try {
       interface AcceptResponse { received?: number }
       const { data }: { data: AcceptResponse } = await apiClient.post('/sample-receive/accept', { detailIds: Array.from(selected) });
       tk(`Đã nhận ${data.received ?? 0} mẫu`); setSelected(new Set()); load();
     } catch { tw('Nhận mẫu thất bại'); }
+    finally { setBusy(null); }
   };
 
   const submitReject = async () => {
-    if (!rejectRow) return;
+    if (!rejectRow || busy === 'reject') return;
     const v = await rejectForm.validateFields();
+    setBusy('reject');
     try {
       await apiClient.post('/sample-receive/reject', { detailId: rejectRow.id, reason: v.reason });
       tk('Đã từ chối mẫu'); setRejectRow(null); rejectForm.resetFields(); load();
     } catch { tw('Từ chối thất bại'); }
+    finally { setBusy(null); }
   };
 
   const submitRun = async () => {
-    if (!runRow) return;
+    if (!runRow || busy === 'run') return;
     const v = await runForm.validateFields();
+    setBusy('run');
     try {
       await apiClient.post('/sample-receive/technician-run', {
         detailId: runRow.id, result: v.result, resultDescription: v.resultDescription,
       });
       tk('Đã ghi KQ (chờ duyệt)'); setRunRow(null); runForm.resetFields(); load();
     } catch { tw('Ghi KQ thất bại'); }
+    finally { setBusy(null); }
   };
 
   const submitReview = async () => {
-    if (!reviewRow) return;
+    if (!reviewRow || busy === 'review') return;
     const v = await reviewForm.validateFields();
+    setBusy('review');
     try {
       await apiClient.post('/sample-receive/review', { detailId: reviewRow.id, conclusion: v.conclusion });
       tk('Đã duyệt KQ'); setReviewRow(null); reviewForm.resetFields(); load();
     } catch { tw('Duyệt thất bại'); }
+    finally { setBusy(null); }
   };
 
   const cancelReceive = async (detailId: string, barcode?: string) => {
@@ -151,8 +166,7 @@ const SampleReceiveV2: React.FC = () => {
       setDetail(null);
       load();
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      ti(e?.response?.data?.message || 'Hủy nhận thất bại');
+      ti(friendlyErrorMessage(err, 'Hủy nhận thất bại'));
     } finally {
       setCancelReceiveBusy(false);
     }
@@ -232,8 +246,8 @@ const SampleReceiveV2: React.FC = () => {
           <TermIcon name="flask" size={12} /> Tiện ích XN
         </Btn>
         {activeTab === 'pending' && selected.size > 0 && (
-          <Btn variant="primary" onClick={accept}>
-            <Ico name="check" size={12} /> Nhận {selected.size} mẫu
+          <Btn variant="primary" disabled={busy === 'accept'} onClick={accept}>
+            <Ico name="check" size={12} /> {busy === 'accept' ? 'Đang nhận…' : `Nhận ${selected.size} mẫu`}
           </Btn>
         )}
       </div>
@@ -245,10 +259,14 @@ const SampleReceiveV2: React.FC = () => {
           onRowClick={openDetail}
           actions={(r) => (
             <div className="ab-actions">
-              <ActBtn ic="eye" title="Xem" onClick={() => openDetail(r)} />
-              <ActBtn ic="x" title="Từ chối" tone="crit" onClick={() => setRejectRow(r)} />
-              <ActBtn ic="activity" title="KTV ghi KQ" onClick={() => setRunRow(r)} />
-              <ActBtn ic="check" title="Reviewer duyệt" onClick={() => setReviewRow(r)} />
+              <RowActions actions={[
+                { key: 'view', icon: 'eye', label: 'Xem chi tiết', primary: true, onClick: () => openDetail(r) },
+                { key: 'run', icon: 'activity', label: 'KTV ghi kết quả', primary: true, onClick: () => setRunRow(r) },
+                { key: 'review', icon: 'check', label: 'Reviewer duyệt kết quả', onClick: () => setReviewRow(r) },
+                // Modal từ chối đã hỏi lý do bắt buộc → không confirm thêm
+                { key: 'reject', icon: 'x', label: 'Từ chối mẫu', tone: 'danger', confirm: false,
+                  onClick: () => setRejectRow(r) },
+              ]} />
             </div>
           )}
           loading={loading}
@@ -326,8 +344,8 @@ const SampleReceiveV2: React.FC = () => {
         title={`Từ chối mẫu ${rejectRow?.sampleBarcode || ''}`}
         footer={<>
           <Btn variant="ghost" onClick={() => setRejectRow(null)}>Hủy</Btn>
-          <Btn variant="primary" onClick={submitReject} style={{ color: 'var(--a-rd-text)' }}>
-            <Ico name="x" size={12} /> Từ chối
+          <Btn variant="primary" disabled={busy === 'reject'} onClick={submitReject} style={{ color: 'var(--a-rd-text)' }}>
+            <Ico name="x" size={12} /> {busy === 'reject' ? 'Đang gửi…' : 'Từ chối'}
           </Btn>
         </>}
       >
@@ -345,8 +363,8 @@ const SampleReceiveV2: React.FC = () => {
         title={`KTV ghi KQ — ${runRow?.serviceName || ''}`}
         footer={<>
           <Btn variant="ghost" onClick={() => setRunRow(null)}>Hủy</Btn>
-          <Btn variant="primary" onClick={submitRun}>
-            <Ico name="check" size={12} /> Lưu KQ
+          <Btn variant="primary" disabled={busy === 'run'} onClick={submitRun}>
+            <Ico name="check" size={12} /> {busy === 'run' ? 'Đang lưu…' : 'Lưu KQ'}
           </Btn>
         </>}
       >
@@ -368,8 +386,8 @@ const SampleReceiveV2: React.FC = () => {
         title={`Duyệt KQ — ${reviewRow?.serviceName || ''}`}
         footer={<>
           <Btn variant="ghost" onClick={() => setReviewRow(null)}>Hủy</Btn>
-          <Btn variant="primary" onClick={submitReview}>
-            <Ico name="check" size={12} /> Duyệt
+          <Btn variant="primary" disabled={busy === 'review'} onClick={submitReview}>
+            <Ico name="check" size={12} /> {busy === 'review' ? 'Đang duyệt…' : 'Duyệt'}
           </Btn>
         </>}
       >

@@ -6,6 +6,7 @@
 // =====================================================================
 import React, { useEffect, useMemo, useState } from 'react';
 import * as file from '../../../services/file.service';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { Input, InputNumber, Select, Switch } from 'antd';
 import dayjs from 'dayjs';
 import * as api from '../api/masterCatalog';
@@ -37,6 +38,7 @@ const ParaclinicalCatalogsV2: React.FC = () => {
   const [edit, setEdit] = useState<EditState | null>(null);
   const [editIsNew, setEditIsNew] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => { setSearch(''); setFilterMfr(''); setFilterMachine(''); setPage(0); }, [tab]);
 
@@ -194,7 +196,7 @@ const ParaclinicalCatalogsV2: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!edit) return;
+    if (!edit || saving) return;
     let payload = edit;
     if (tab === 'machines') {
       const code = String(edit.code || '').trim();
@@ -209,6 +211,7 @@ const ParaclinicalCatalogsV2: React.FC = () => {
       if (!(edit as any).serviceId) { te('Vui lòng chọn dịch vụ'); return; }
       if (!(edit as any).roomId) { te('Vui lòng chọn phòng'); return; }
     }
+    setSaving(true);
     try {
       if (tab === 'machines')   await api.saveMachineCode(payload as Partial<api.MachineCodeDto>);
       else if (tab === 'svc')   await api.saveMachineService(payload as Partial<api.MachineServiceDto>);
@@ -217,9 +220,9 @@ const ParaclinicalCatalogsV2: React.FC = () => {
       setEdit(null);
       reload(tab);
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string; title?: string } } })?.response?.data?.message
-        || (err as { response?: { data?: { title?: string } } })?.response?.data?.title;
-      te(msg || 'Lưu thất bại');
+      te(friendlyErrorMessage(err, 'Lưu thất bại. Vui lòng thử lại.'));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -303,8 +306,10 @@ const ParaclinicalCatalogsV2: React.FC = () => {
         sub={`Mục: ${tabsDef.find((t) => t.v === tab)?.l.split(' (')[0]}`}
         footer={(
           <>
-            <Btn variant="ghost" onClick={() => setEdit(null)}>Huỷ</Btn>
-            <Btn variant="primary" icon="check" onClick={handleSave}>{editIsNew ? 'Tạo mới' : 'Lưu'}</Btn>
+            <Btn variant="ghost" disabled={saving} onClick={() => setEdit(null)}>Huỷ</Btn>
+            <Btn variant="primary" icon="check" loading={saving} onClick={handleSave}>
+              {saving ? 'Đang lưu…' : (editIsNew ? 'Tạo mới' : 'Lưu')}
+            </Btn>
           </>
         )}
       >

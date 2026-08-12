@@ -418,23 +418,33 @@ function NotificationsSection() {
     return res.data.items;
   }, []);
   const { rows, loading, reload } = useListData(loader);
+  const [markingAll, setMarkingAll] = useState(false);
+  const [readingId, setReadingId] = useState<string | null>(null);
 
   const markRead = async (id: string) => {
+    if (readingId === id) return; // chặn double-click theo từng thông báo
+    setReadingId(id);
     try {
       await markNotificationRead(id);
       reload();
     } catch {
       te('Không thể đánh dấu đã đọc');
+    } finally {
+      setReadingId((cur) => (cur === id ? null : cur));
     }
   };
 
   const markAll = async () => {
+    if (markingAll) return; // chặn double-click
+    setMarkingAll(true);
     try {
       await markAllNotificationsRead();
       tk('Đã đánh dấu tất cả là đã đọc');
       reload();
     } catch {
       te('Không thể cập nhật thông báo');
+    } finally {
+      setMarkingAll(false);
     }
   };
 
@@ -449,8 +459,8 @@ function NotificationsSection() {
       <div className="ab-tools">
         <span className="spacer" />
         {unread > 0 && (
-          <button type="button" className="ab-btn ghost" onClick={markAll}>
-            <TermIcon name="check" size={12} /> Đánh dấu tất cả đã đọc
+          <button type="button" className="ab-btn ghost" onClick={markAll} disabled={markingAll}>
+            <TermIcon name="check" size={12} /> {markingAll ? 'Đang cập nhật…' : 'Đánh dấu tất cả đã đọc'}
           </button>
         )}
       </div>
@@ -484,8 +494,9 @@ function NotificationsSection() {
                   className="ab-btn ghost"
                   style={{ fontSize: 11, flexShrink: 0 }}
                   onClick={() => void markRead(n.id)}
+                  disabled={readingId === n.id}
                 >
-                  <TermIcon name="check" size={10} /> Đọc
+                  <TermIcon name="check" size={10} /> {readingId === n.id ? 'Đang lưu…' : 'Đọc'}
                 </button>
               )}
             </div>

@@ -7,10 +7,11 @@ import {
 import type { MethadonePatient, DoseRecord } from '../api/methadone';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, Btn,
   DrawerShell, ModalShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
 
 // Đăng ký BN mới vào chương trình Methadone (enrollPatient). Liều khởi đầu 5-200mg — port verbatim từ v1 (InputNumber min={5} max={200}).
 const ENROLL_FIELDS: CrudFieldCfg[] = [
@@ -224,10 +225,14 @@ const MethadoneTreatmentV2: React.FC = () => {
 
   const actions = (r: MethadonePatient) => (
     <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="activity" title="XN nước tiểu" onClick={() => openUrine(r)} />
-      {r.status === 0 && <ActBtn ic="check" title="Cấp liều" onClick={() => openDose(r)} />}
-      <ActBtn ic="edit" title="Sửa điều trị" onClick={() => openEdit(r)} />
+      <RowActions actions={[
+        { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setSel(r) },
+        { key: 'urine', icon: 'activity', label: 'XN nước tiểu', onClick: () => openUrine(r) },
+        // Cấp liều chỉ hiện với BN đang điều trị (status === 0) — giữ nguyên điều kiện lâm sàng của v2 cũ
+        { key: 'dose', icon: 'check', label: 'Cấp liều', primary: true,
+          hidden: r.status !== 0, onClick: () => openDose(r) },
+        { key: 'edit', icon: 'edit', label: 'Sửa điều trị', onClick: () => openEdit(r) },
+      ]} />
     </div>
   );
 

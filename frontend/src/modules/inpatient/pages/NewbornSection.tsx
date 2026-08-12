@@ -16,6 +16,7 @@ import {
 } from '../api/inpatient';
 import { ModalShell, DataTable, ActBtn, Btn, type ColumnDef } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -121,7 +122,7 @@ const NewbornSection: React.FC<NewbornSectionProps> = ({ admissionId }) => {
     setLoading(true);
     getNewborns(admissionId)
       .then((res) => setRecords(res.data ?? []))
-      .catch(() => setRecords([]))
+      .catch((e) => { message.warning(friendlyErrorMessage(e, 'Không tải được danh sách trẻ sơ sinh.')); setRecords([]); })
       .finally(() => setLoading(false));
   };
 
@@ -161,6 +162,7 @@ const NewbornSection: React.FC<NewbornSectionProps> = ({ admissionId }) => {
 
   // Save
   const handleSave = async () => {
+    if (saving) return;
     const err = validateForm(form);
     if (err) { message.error(err); return; }
 
@@ -182,8 +184,7 @@ const NewbornSection: React.FC<NewbornSectionProps> = ({ admissionId }) => {
       setModalOpen(false);
       load();
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: string } })?.response?.data ?? 'Loi khong xac dinh.';
-      message.error(msg);
+      message.error(friendlyErrorMessage(e, 'Lưu hồ sơ trẻ sơ sinh thất bại. Vui lòng thử lại.'));
     } finally {
       setSaving(false);
     }
@@ -191,7 +192,7 @@ const NewbornSection: React.FC<NewbornSectionProps> = ({ admissionId }) => {
 
   // Discharge newborn
   const handleDischarge = async () => {
-    if (!dcTarget) return;
+    if (!dcTarget || dcSaving) return;
     setDcSaving(true);
     try {
       await dischargeNewborn(dcTarget.id, dcDate);
@@ -199,8 +200,7 @@ const NewbornSection: React.FC<NewbornSectionProps> = ({ admissionId }) => {
       setDcTarget(null);
       load();
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: string } })?.response?.data ?? 'Loi khong xac dinh.';
-      message.error(msg);
+      message.error(friendlyErrorMessage(e, 'Xuất trẻ sơ sinh thất bại. Vui lòng thử lại.'));
     } finally {
       setDcSaving(false);
     }
@@ -242,7 +242,7 @@ const NewbornSection: React.FC<NewbornSectionProps> = ({ admissionId }) => {
             <ActBtn ic="edit" title="Sua" onClick={() => openEdit(r)} />
             {r.status !== 2 && (
               <ActBtn
-                ic="log-out"
+                ic="logout"
                 title="Xuat"
                 onClick={() => { setDcTarget(r); setDcDate(dayjs().format('YYYY-MM-DD')); }}
               />
@@ -260,7 +260,7 @@ const NewbornSection: React.FC<NewbornSectionProps> = ({ admissionId }) => {
         footer={
           <>
             <Btn variant="ghost" onClick={() => setModalOpen(false)}>Huy</Btn>
-            <Btn variant="primary" onClick={handleSave}>
+            <Btn variant="primary" onClick={handleSave} disabled={saving}>
               {saving ? 'Dang luu...' : 'Luu'}
             </Btn>
           </>
@@ -410,7 +410,7 @@ const NewbornSection: React.FC<NewbornSectionProps> = ({ admissionId }) => {
         footer={
           <>
             <Btn variant="ghost" onClick={() => setDcTarget(null)}>Huy</Btn>
-            <Btn variant="primary" onClick={handleDischarge}>
+            <Btn variant="primary" onClick={handleDischarge} disabled={dcSaving}>
               {dcSaving ? 'Dang xuat...' : 'Xac nhan xuat'}
             </Btn>
           </>

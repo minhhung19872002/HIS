@@ -5,9 +5,11 @@ import apiClient from '../../../services/apiClient';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import {
   KpiStrip, TopTabs, Filter, SearchBox, DataTable, StatusBadge, ActBtn, Btn,
-  ModalShell, DrawerShell, DrSec, DrField, Ico, tk, tw, cf, fmtDTg,
+  ModalShell, DrawerShell, DrSec, DrField, Ico, tk, tw, te, cf, fmtDTg,
   type ColumnDef,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { checkPACSConnection, getRemoteServers, saveRemoteServer, deleteRemoteServer } from '../api/ris/pacs';
 import { getTags, saveTag, type RadiologyTagDto } from '../api/ris/label-tag-qr';
 import {
@@ -97,30 +99,35 @@ const PermissionsTab: React.FC = () => {
   const [editModal, setEditModal] = useState(false);
   const [copyModal, setCopyModal] = useState(false);
   const [sel, setSel] = useState<PermissionRow | null>(null);
+  const [saving, setSaving] = useState(false);
   const [editForm] = Form.useForm<{ roomId?: string; roleTemplate?: string; permissions: number[] }>();
   const [copyForm] = Form.useForm<{ fromUserId: string }>();
 
   useEffect(() => {
     (async () => {
+      const errs: unknown[] = [];
       try {
         const [u, r] = await Promise.all([
-          apiClient.get<{ items?: User[] } | User[]>('/admin/users', { params: { pageSize: 200 } }).catch(() => ({ data: [] })),
-          apiClient.get<Array<{ id: string; roomName: string }>>('/RISComplete/rooms', { params: { roomType: 'radiology' } }).catch(() => ({ data: [] })),
+          apiClient.get<{ items?: User[] } | User[]>('/admin/users', { params: { pageSize: 200 } }).catch((e) => { errs.push(e); return { data: [] }; }),
+          apiClient.get<Array<{ id: string; roomName: string }>>('/RISComplete/rooms', { params: { roomType: 'radiology' } }).catch((e) => { errs.push(e); return { data: [] }; }),
         ]);
         setUsers(normalizeArrayResponse<User>(u.data));
         setRooms(r.data);
-      } catch { /* empty */ }
+      } catch (e) { errs.push(e); }
+      if (errs.length > 0) tw(friendlyErrorMessage(errs[0], 'Không tải được danh sách người dùng / máy chụp. Hãy tải lại trang.'));
     })();
   }, []);
 
   const loadPerms = useCallback(async (uid: string) => {
     try { const res = await apiClient.get<PermissionRow[]>(`/radiology-dispatch/permissions/user/${uid}`); setPermissions(res.data); }
-    catch { setPermissions([]); }
+    catch (e) { tw(friendlyErrorMessage(e, 'Không tải được quyền của người dùng này — danh sách bên dưới có thể chưa đầy đủ.')); setPermissions([]); }
   }, []);
 
   useEffect(() => { if (selectedUserId) loadPerms(selectedUserId); }, [selectedUserId, loadPerms]);
 
   const submit = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
       const v = await editForm.validateFields();
       const permInt = v.permissions?.reduce((acc, f) => acc | f, 0) ?? 0;
@@ -130,22 +137,28 @@ const PermissionsTab: React.FC = () => {
       tk('Đã lưu quyền'); setEditModal(false); editForm.resetFields();
       if (selectedUserId) loadPerms(selectedUserId);
     } catch { tw('Lưu thất bại'); }
+    finally { setSaving(false); }
   };
 
   const copy = async () => {
+    if (saving) return;
     const v = await copyForm.validateFields();
     if (!selectedUserId) return;
+    setSaving(true);
     try {
       await apiClient.post('/radiology-dispatch/permissions/copy', null, {
         params: { fromUserId: v.fromUserId, toUserId: selectedUserId },
       });
       tk('Đã copy quyền'); setCopyModal(false); copyForm.resetFields(); loadPerms(selectedUserId);
     } catch { tw('Copy thất bại'); }
+    finally { setSaving(false); }
   };
 
-  const remove = (r: PermissionRow) => cf('Xóa quyền này?', async () => {
-    await apiClient.delete(`/radiology-dispatch/permissions/${r.id}`); tk('Đã xóa');
-    if (selectedUserId) loadPerms(selectedUserId);
+  const remove = (r: PermissionRow) => cf(`Xóa quyền trên "${r.roomName}"?`, async () => {
+    try {
+      await apiClient.delete(`/radiology-dispatch/permissions/${r.id}`); tk('Đã xóa');
+      if (selectedUserId) loadPerms(selectedUserId);
+    } catch (e) { te(friendlyErrorMessage(e, 'Xóa quyền thất bại. Quyền cũ vẫn còn hiệu lực.')); }
   }, { tone: 'crit', confirm: 'Xóa' });
 
   const cols: ColumnDef<PermissionRow>[] = [
@@ -214,7 +227,9 @@ const PermissionsTab: React.FC = () => {
       <ModalShell open={editModal} onClose={() => setEditModal(false)} size="lg" title="Phân quyền"
         footer={<>
           <Btn variant="ghost" onClick={() => setEditModal(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={submit}><Ico name="check" size={12} /> Lưu</Btn>
+          <Btn variant="primary" onClick={submit} disabled={saving}>
+            <Ico name="check" size={12} /> {saving ? 'Đang lưu…' : 'Lưu'}
+          </Btn>
         </>}>
         <Form form={editForm} layout="vertical">
           <Form.Item name="roomId" label="Máy chụp (bỏ trống = áp dụng mọi máy)">
@@ -243,7 +258,9 @@ const PermissionsTab: React.FC = () => {
       <ModalShell open={copyModal} onClose={() => setCopyModal(false)} size="md" title="Copy quyền từ user khác"
         footer={<>
           <Btn variant="ghost" onClick={() => setCopyModal(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={copy}><Ico name="check" size={12} /> Copy</Btn>
+          <Btn variant="primary" onClick={copy} disabled={saving}>
+            <Ico name="check" size={12} /> {saving ? 'Đang copy…' : 'Copy'}
+          </Btn>
         </>}>
         <Form form={copyForm} layout="vertical">
           <Form.Item name="fromUserId" label="Copy từ user" rules={[{ required: true }]}>
@@ -260,22 +277,26 @@ const AreasTab: React.FC = () => {
   const [data, setData] = useState<Area[]>([]);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [sel, setSel] = useState<Area | null>(null);
   const [form] = Form.useForm();
 
   const load = useCallback(async () => {
     setLoading(true);
     try { const res = await apiClient.get<Area[]>('/ris-catalog/areas'); setData(res.data || []); }
-    catch { setData([]); }
+    catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh sách khu vực / chi nhánh.')); setData([]); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
 
   const submit = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
       const v = await form.validateFields();
       await apiClient.post('/ris-catalog/areas', v); tk('Đã lưu'); setModal(false); load();
     } catch { tw('Lưu thất bại'); }
+    finally { setSaving(false); }
   };
 
   const cols: ColumnDef<Area>[] = [
@@ -319,7 +340,9 @@ const AreasTab: React.FC = () => {
       <ModalShell open={modal} onClose={() => setModal(false)} size="md" title="Thêm khu vực / chi nhánh"
         footer={<>
           <Btn variant="ghost" onClick={() => setModal(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={submit}><Ico name="check" size={12} /> Lưu</Btn>
+          <Btn variant="primary" onClick={submit} disabled={saving}>
+            <Ico name="check" size={12} /> {saving ? 'Đang lưu…' : 'Lưu'}
+          </Btn>
         </>}>
         <Form form={form} layout="vertical">
           <Form.Item name="areaCode" label="Mã" rules={[{ required: true }]}><Input /></Form.Item>
@@ -336,22 +359,26 @@ const FoldersTab: React.FC = () => {
   const [data, setData] = useState<FolderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [sel, setSel] = useState<FolderRow | null>(null);
   const [form] = Form.useForm();
 
   const load = useCallback(async () => {
     setLoading(true);
     try { const res = await apiClient.get<FolderRow[]>('/ris-catalog/folders'); setData(res.data || []); }
-    catch { setData([]); }
+    catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh sách thư mục.')); setData([]); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
 
   const submit = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
       const v = await form.validateFields();
       await apiClient.post('/ris-catalog/folders', v); tk('Đã lưu'); setModal(false); load();
     } catch { tw('Lưu thất bại'); }
+    finally { setSaving(false); }
   };
 
   const cols: ColumnDef<FolderRow>[] = [
@@ -402,7 +429,9 @@ const FoldersTab: React.FC = () => {
       <ModalShell open={modal} onClose={() => setModal(false)} size="md" title="Thêm thư mục"
         footer={<>
           <Btn variant="ghost" onClick={() => setModal(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={submit}><Ico name="check" size={12} /> Lưu</Btn>
+          <Btn variant="primary" onClick={submit} disabled={saving}>
+            <Ico name="check" size={12} /> {saving ? 'Đang lưu…' : 'Lưu'}
+          </Btn>
         </>}>
         <Form form={form} layout="vertical">
           <Form.Item name="folderName" label="Tên thư mục" rules={[{ required: true }]}><Input /></Form.Item>
@@ -459,7 +488,8 @@ const MachinesTab: React.FC = () => {
   const [sel, setSel] = useState<Room | null>(null);
   useEffect(() => {
     apiClient.get<Room[]>('/RISComplete/rooms', { params: { roomType: 'radiology' } })
-      .then((r) => setRooms(r.data)).catch(() => setRooms([]));
+      .then((r) => setRooms(r.data))
+      .catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh sách máy chụp.')); setRooms([]); });
   }, []);
 
   const cols: ColumnDef<Room>[] = [
@@ -525,10 +555,10 @@ const SuppliesTab: React.FC = () => {
   useEffect(() => {
     getServices(SERVICE_TYPE_RADIOLOGY)
       .then(({ data }) => setServices(normalizeArrayResponse<ServiceDto>(data)))
-      .catch(() => setServices([]));
+      .catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh sách dịch vụ CĐHA — chưa thể khai định mức.')); setServices([]); });
     getWarehouses()
       .then(({ data }) => setWarehouses(normalizeArrayResponse<WarehouseDto>(data)))
-      .catch(() => setWarehouses([]));
+      .catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh sách kho — chưa tra được tồn thực tế.')); setWarehouses([]); });
   }, []);
 
   const loadNorm = useCallback(async (id: string) => {
@@ -686,6 +716,8 @@ const Hl7CdaTab: React.FC = () => {
   const [editing, setEditing] = useState<HL7CDAConfigDto | null>(null);
   const [sel, setSel] = useState<HL7MessageDto | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [saving, setSaving] = useState(false);
+  const [retrying, setRetrying] = useState<string | null>(null);
   const [form] = Form.useForm<SaveHL7CDAConfigDto>();
   const connectionType = Form.useWatch('connectionType', form);
   const isFileChannel = connectionType === 'File';
@@ -693,7 +725,7 @@ const Hl7CdaTab: React.FC = () => {
 
   const loadConfigs = useCallback(async () => {
     try { const { data } = await getHL7CDAConfigs(); setConfigs(normalizeArrayResponse<HL7CDAConfigDto>(data)); }
-    catch { setConfigs([]); }
+    catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh sách kênh HL7 — bảng bên dưới có thể chưa đầy đủ.')); setConfigs([]); }
   }, []);
 
   const loadMessages = useCallback(async () => {
@@ -705,7 +737,7 @@ const Hl7CdaTab: React.FC = () => {
         pageSize: 50,
       });
       setMessages(data?.items || []);
-    } catch { setMessages([]); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được nhật ký message HL7.')); setMessages([]); }
     finally { setLoading(false); }
   }, [statusFilter]);
 
@@ -724,17 +756,23 @@ const Hl7CdaTab: React.FC = () => {
   };
 
   const submit = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
       const v = await form.validateFields();
       await saveHL7CDAConfig({ ...v, id: editing?.id, isActive: v.isActive !== false });
       tk(editing ? 'Đã cập nhật kênh HL7' : 'Đã thêm kênh HL7');
       setModal(false); loadConfigs();
     } catch (e) { if ((e as { errorFields?: unknown }).errorFields) return; tw('Lưu kênh HL7 thất bại'); }
+    finally { setSaving(false); }
   };
 
-  const remove = (c: HL7CDAConfigDto) => cf(`Tắt kênh HL7 "${c.configName}"?`, async () => {
-    await deleteHL7CDAConfig(c.id); tk('Đã tắt kênh'); loadConfigs();
-  }, { tone: 'crit', confirm: 'Tắt kênh' });
+  // RowActions (tone: 'danger') tự bật confirm khi tắt kênh — không bọc cf() thêm ở đây.
+  const remove = async (c: HL7CDAConfigDto) => {
+    try {
+      await deleteHL7CDAConfig(c.id); tk('Đã tắt kênh'); loadConfigs();
+    } catch (e) { te(friendlyErrorMessage(e, 'Tắt kênh HL7 thất bại — kênh vẫn đang hoạt động.')); }
+  };
 
   const test = async (c: HL7CDAConfigDto) => {
     try {
@@ -745,10 +783,13 @@ const Hl7CdaTab: React.FC = () => {
   };
 
   const retry = (m: HL7MessageDto) => cf(`Gửi lại message ${m.messageControlId}?`, async () => {
+    if (retrying) return;   // chặn gửi TRÙNG message ra hệ ngoài khi bấm/confirm nhiều lần
+    setRetrying(m.id);
     try {
       await retryHL7Message(m.id);
       tk('Đã gửi lại — xem cột ACK để biết hệ nhận trả lời gì');
     } catch { tw('Gửi lại thất bại'); }
+    finally { setRetrying(null); }
     loadMessages();
   }, { confirm: 'Gửi lại' });
 
@@ -809,11 +850,13 @@ const Hl7CdaTab: React.FC = () => {
       </div>
       <DataTable<HL7CDAConfigDto> columns={cfgCols} data={configs} rowKey={(c) => c.id}
         actions={(c) => (
-          <div className="ab-actions">
-            <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(c)} />
-            <ActBtn ic="activity" title="Kiểm tra kết nối" onClick={() => test(c)} />
-            <ActBtn ic="trash" title="Tắt kênh" tone="crit" onClick={() => remove(c)} />
-          </div>
+          <RowActions actions={[
+            { key: 'edit', icon: 'edit', label: 'Sửa kênh', primary: true, onClick: () => openEdit(c) },
+            { key: 'test', icon: 'activity', label: 'Kiểm tra kết nối', primary: true, onClick: () => { void test(c); } },
+            { key: 'off', icon: 'trash', label: 'Tắt kênh', tone: 'danger',
+              confirm: `Tắt kênh HL7 "${c.configName}"? Kết quả CĐHA sẽ không gửi qua kênh này nữa.`,
+              onClick: () => { void remove(c); } },
+          ]} />
         )}
         empty="Chưa khai kênh HL7 nào" />
 
@@ -829,7 +872,8 @@ const Hl7CdaTab: React.FC = () => {
         actions={(m) => (
           <div className="ab-actions">
             {m.direction === 'Outbound' && m.status === 3 && (
-              <ActBtn ic="refresh" title="Gửi lại" onClick={() => retry(m)} />
+              <ActBtn ic="refresh" title={retrying === m.id ? 'Đang gửi lại…' : 'Gửi lại'}
+                loading={retrying === m.id} onClick={() => retry(m)} />
             )}
           </div>
         )}
@@ -873,7 +917,9 @@ const Hl7CdaTab: React.FC = () => {
         title={editing ? 'Sửa kênh HL7 / CDA' : 'Thêm kênh HL7 / CDA'}
         footer={<>
           <Btn variant="ghost" onClick={() => setModal(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={submit}><Ico name="check" size={12} /> Lưu</Btn>
+          <Btn variant="primary" onClick={submit} disabled={saving}>
+            <Ico name="check" size={12} /> {saving ? 'Đang lưu…' : 'Lưu'}
+          </Btn>
         </>}>
         <Form form={form} layout="vertical">
           <Form.Item name="configName" label="Tên kênh" rules={[{ required: true, message: 'Nhập tên kênh' }]}>
@@ -917,15 +963,35 @@ const Hl7CdaTab: React.FC = () => {
 
 const HospitalConfigTab: React.FC = () => {
   const [form] = Form.useForm();
+  const [saving, setSaving] = useState(false);
+  // #467: nạp cấu hình hỏng ⇒ form hiện TRỐNG; nếu người dùng vô tình bấm Lưu sẽ ghi đè
+  // cấu hình cũ bằng nội dung rỗng. Đánh dấu để cảnh báo + bắt xác nhận trước khi lưu.
+  const [loadFailed, setLoadFailed] = useState(false);
   useEffect(() => {
     apiClient.get('/admin/hospital-config').then(({ data }) => {
       form.setFieldsValue(data as Record<string, unknown>);
-    }).catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
+      setLoadFailed(false);
+    }).catch((e) => {
+      setLoadFailed(true);
+      tw(friendlyErrorMessage(e, 'Không tải được cấu hình bệnh viện — form đang trống, kiểm tra kỹ trước khi lưu.'));
+    });
   }, [form]);
 
-  const submit = async (values: Record<string, unknown>) => {
+  const doSave = async (values: Record<string, unknown>) => {
+    setSaving(true);
     try { await apiClient.post('/admin/hospital-config', values); tk('Đã lưu'); }
     catch { tw('Lưu thất bại'); }
+    finally { setSaving(false); }
+  };
+
+  const submit = (values: Record<string, unknown>) => {
+    if (saving) return;
+    if (loadFailed) {
+      cf('Chưa tải được cấu hình hiện tại nên form có thể đang trống. Lưu bây giờ sẽ GHI ĐÈ cấu hình cũ bằng nội dung đang hiển thị. Vẫn lưu?',
+        () => { void doSave(values); }, { tone: 'crit', confirm: 'Vẫn lưu' });
+      return;
+    }
+    void doSave(values);
   };
 
   return (
@@ -935,6 +1001,13 @@ const HospitalConfigTab: React.FC = () => {
           <span>Cấu hình bệnh viện</span>
         </div>
         <div style={{ padding: 'var(--space-20)' }}>
+          {loadFailed && (
+            <div style={{ marginBottom: 'var(--space-16)', padding: 'var(--space-12)', borderRadius: 4,
+              border: '1px solid var(--s-warn)', color: 'var(--s-warn)', fontSize: 'var(--fs-sm)' }}>
+              <Ico name="alert" size={12} /> Chưa tải được cấu hình hiện tại — các ô bên dưới có thể đang trống.
+              Hãy tải lại trang trước khi lưu để tránh ghi đè cấu hình cũ.
+            </div>
+          )}
           <Form form={form} layout="vertical" onFinish={submit}>
             <Form.Item name="hospitalName" label="Tên bệnh viện" rules={[{ required: true }]}><Input /></Form.Item>
             <Form.Item name="address" label="Địa chỉ"><Input /></Form.Item>
@@ -947,8 +1020,8 @@ const HospitalConfigTab: React.FC = () => {
             <Form.Item name="reportFooter" label="Footer phiếu KQ">
               <Input.TextArea rows={3} placeholder="Mô tả cuối phiếu in KQ…" />
             </Form.Item>
-            <Btn type="submit" variant="primary">
-              <Ico name="check" size={12} /> Lưu cấu hình
+            <Btn type="submit" variant="primary" disabled={saving}>
+              <Ico name="check" size={12} /> {saving ? 'Đang lưu…' : 'Lưu cấu hình'}
             </Btn>
           </Form>
         </div>
@@ -979,6 +1052,7 @@ const RemotePacsTab: React.FC = () => {
   const [servers, setServers] = useState<RemoteServerRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<RemoteServerRow | null>(null);
   const [sel, setSel] = useState<RemoteServerRow | null>(null);
   const [form] = Form.useForm<RemoteServerRow>();
@@ -986,7 +1060,7 @@ const RemotePacsTab: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try { const res = await getRemoteServers(); setServers((res.data as RemoteServerRow[]) || []); }
-    catch { setServers([]); }
+    catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh sách Remote PACS server.')); setServers([]); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -1006,16 +1080,22 @@ const RemotePacsTab: React.FC = () => {
   const openEdit = (r: RemoteServerRow) => { setEditing(r); form.setFieldsValue(r); setModal(true); };
 
   const submit = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
       const v = await form.validateFields();
       await saveRemoteServer({ ...v, id: editing?.id, isActive: v.isActive !== false });
       tk(editing ? 'Đã cập nhật server' : 'Đã thêm server'); setModal(false); load();
     } catch { tw('Lưu thất bại'); }
+    finally { setSaving(false); }
   };
 
-  const remove = (r: RemoteServerRow) => cf(`Xóa server "${r.name}"?`, async () => {
-    await deleteRemoteServer(r.id); tk('Đã xóa'); load();
-  }, { tone: 'crit', confirm: 'Xóa' });
+  // RowActions (tone: 'danger') tự bật confirm khi xóa — không bọc cf() thêm ở đây.
+  const remove = async (r: RemoteServerRow) => {
+    try {
+      await deleteRemoteServer(r.id); tk('Đã xóa'); load();
+    } catch (e) { te(friendlyErrorMessage(e, 'Xóa Remote PACS server thất bại — server vẫn còn trong danh sách.')); }
+  };
 
   const check = async (r: RemoteServerRow) => {
     try {
@@ -1048,11 +1128,13 @@ const RemotePacsTab: React.FC = () => {
       <DataTable<RemoteServerRow> columns={cols} data={servers} rowKey={(r) => r.id} loading={loading}
         onRowClick={setSel}
         actions={(r) => (
-          <div className="ab-actions">
-            <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-            <ActBtn ic="activity" title="DICOM C-ECHO" onClick={() => check(r)} />
-            <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => remove(r)} />
-          </div>
+          <RowActions actions={[
+            { key: 'edit', icon: 'edit', label: 'Sửa server', primary: true, onClick: () => openEdit(r) },
+            { key: 'echo', icon: 'activity', label: 'Kiểm tra DICOM C-ECHO', primary: true, onClick: () => { void check(r); } },
+            { key: 'del', icon: 'trash', label: 'Xóa server', tone: 'danger',
+              confirm: `Xóa server "${r.name}"? Thao tác không thể hoàn tác.`,
+              onClick: () => { void remove(r); } },
+          ]} />
         )}
         empty="Chưa có Remote PACS server" />
 
@@ -1085,7 +1167,9 @@ const RemotePacsTab: React.FC = () => {
         title={editing ? `Sửa Remote PACS Server` : 'Thêm Remote PACS Server'}
         footer={<>
           <Btn variant="ghost" onClick={() => setModal(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={submit}><Ico name="check" size={12} /> Lưu</Btn>
+          <Btn variant="primary" onClick={submit} disabled={saving}>
+            <Ico name="check" size={12} /> {saving ? 'Đang lưu…' : 'Lưu'}
+          </Btn>
         </>}>
         <Form form={form} layout="vertical">
           <Form.Item name="name" label="Tên server" rules={[{ required: true, message: 'Vui lòng nhập tên server' }]}>
@@ -1144,22 +1228,26 @@ const TagsTab: React.FC = () => {
   const [tags, setTags] = useState<RadiologyTagDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
 
   const load = useCallback(async () => {
     setLoading(true);
     try { const res = await getTags(keyword || undefined); setTags(res.data || []); }
-    catch { setTags([]); }
+    catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh sách tag.')); setTags([]); }
     finally { setLoading(false); }
   }, [keyword]);
   useEffect(() => { load(); }, [load]);
 
   const submit = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
       const v = await form.validateFields();
       await saveTag({ code: v.code, name: v.name, color: v.color || 'blue', description: v.description, isActive: v.isActive !== false });
       tk('Đã tạo tag mới'); setModal(false); form.resetFields(); load();
     } catch { tw('Tạo tag thất bại'); }
+    finally { setSaving(false); }
   };
 
   return (
@@ -1187,7 +1275,9 @@ const TagsTab: React.FC = () => {
       <ModalShell open={modal} onClose={() => setModal(false)} size="sm" title="Thêm Tag mới"
         footer={<>
           <Btn variant="ghost" onClick={() => setModal(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={submit}><Ico name="check" size={12} /> Lưu</Btn>
+          <Btn variant="primary" onClick={submit} disabled={saving}>
+            <Ico name="check" size={12} /> {saving ? 'Đang lưu…' : 'Lưu'}
+          </Btn>
         </>}>
         <Form form={form} layout="vertical">
           <Form.Item name="code" label="Mã tag" rules={[{ required: true, message: 'Vui lòng nhập mã tag' }]}>
@@ -1222,7 +1312,7 @@ const StatsTab: React.FC = () => {
       const params = range ? { fromDate: range[0].toISOString(), toDate: range[1].toISOString() } : {};
       const res = await apiClient.get<Stat[]>('/radiology-dispatch/stats', { params });
       setStats(res.data);
-    } catch { setStats([]); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được thống kê — các số bên dưới chưa phản ánh hoạt động thực tế.')); setStats([]); }
     finally { setLoading(false); }
   }, [range]);
   useEffect(() => { load(); }, [load]);
@@ -1281,14 +1371,16 @@ const ModalityPermTab: React.FC = () => {
 
   useEffect(() => {
     (async () => {
+      const errs: unknown[] = [];
       try {
         const [u, m] = await Promise.all([
-          apiClient.get<{ items?: User[] } | User[]>('/admin/users', { params: { pageSize: 200 } }).catch(() => ({ data: [] })),
-          apiClient.get<ModalityRow[]>('/ris-catalog/modalities', { params: { isActive: true } }).catch(() => ({ data: [] })),
+          apiClient.get<{ items?: User[] } | User[]>('/admin/users', { params: { pageSize: 200 } }).catch((e) => { errs.push(e); return { data: [] }; }),
+          apiClient.get<ModalityRow[]>('/ris-catalog/modalities', { params: { isActive: true } }).catch((e) => { errs.push(e); return { data: [] }; }),
         ]);
         setUsers(normalizeArrayResponse<User>(u.data));
         setModalities(Array.isArray(m.data) ? m.data : []);
-      } catch { /* empty */ }
+      } catch (e) { errs.push(e); }
+      if (errs.length > 0) tw(friendlyErrorMessage(errs[0], 'Không tải được danh sách người dùng / loại máy. Hãy tải lại trang.'));
     })();
   }, []);
 
@@ -1296,7 +1388,7 @@ const ModalityPermTab: React.FC = () => {
     try {
       const res = await apiClient.get<ModalityPermRow[]>(`/radiology-dispatch/permissions/user/${uid}`);
       setPerms(Array.isArray(res.data) ? res.data : []);
-    } catch { setPerms([]); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được quyền theo máy — các ô tick bên dưới có thể chưa đúng thực tế.')); setPerms([]); }
   }, []);
 
   useEffect(() => { if (selectedUserId) loadPerms(selectedUserId); }, [selectedUserId, loadPerms]);

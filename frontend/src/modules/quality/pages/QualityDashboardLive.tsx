@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KpiStrip, TopTabs, DataTable, Btn,
   type ColumnDef, type TopTab, type KpiItem,
-  fmtVNDg, fmtHMg, ti
+  fmtVNDg, fmtHMg, ti, tw as toastWarn
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { useInterval } from '../../../hooks/useInterval';
 import {
@@ -31,13 +32,27 @@ const QualityDashboardLiveV2: React.FC = () => {
   const [tab, setTab] = useState<TabKey>('clinic');
   const [data, setData] = useState<QualityDashboardDto | null>(null);
   const [refreshAt, setRefreshAt] = useState<Date>(new Date());
+  // loading CHỈ cho lần tải đầu — vòng poll 60s không bật lại để bảng không nháy
+  const [firstLoading, setFirstLoading] = useState(true);
+  const loadedRef = useRef(false);
+  const warnedRef = useRef(false);
 
   const load = useCallback(async () => {
     try {
       const d = await qualityDash.getFull();
       setData(d);
+      loadedRef.current = true;
       setRefreshAt(new Date());
-    } catch { /* tolerant */ }
+    } catch (e) {
+      // vòng poll nền khi đã có dữ liệu → vẫn im lặng (tolerant) như trước;
+      // chỉ cảnh báo 1 lần khi màn hình chưa có dữ liệu nào để hiển thị
+      if (!loadedRef.current && !warnedRef.current) {
+        warnedRef.current = true;
+        toastWarn(friendlyErrorMessage(e, 'Không tải được dữ liệu dashboard chất lượng.'));
+      }
+    } finally {
+      setFirstLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -57,11 +72,12 @@ const QualityDashboardLiveV2: React.FC = () => {
           </Btn>
         }
       />
-      {tab === 'clinic'       && <ClinicView rows={data?.clinicQueues || []} />}
-      {tab === 'inpatient'    && <InpatientView rows={data?.inpatientByDepartment || []} />}
-      {tab === 'paraclinical' && <ParaclinicalView rows={data?.paraclinical?.items || []} />}
-      {tab === 'lab'          && <LabView rows={data?.lab?.categories || []} />}
+      {tab === 'clinic'       && <ClinicView rows={data?.clinicQueues || []} loading={firstLoading} />}
+      {tab === 'inpatient'    && <InpatientView rows={data?.inpatientByDepartment || []} loading={firstLoading} />}
+      {tab === 'paraclinical' && <ParaclinicalView rows={data?.paraclinical?.items || []} loading={firstLoading} />}
+      {tab === 'lab'          && <LabView rows={data?.lab?.categories || []} loading={firstLoading} />}
       {tab === 'revenue'      && <RevenueView byCashier={data?.revenue?.byCashier || []}
+                                              loading={firstLoading}
                                               outpatientTotal={data?.revenue?.outpatientTotal || 0}
                                               inpatientTotal={data?.revenue?.inpatientTotal || 0}
                                               grandTotal={data?.revenue?.grandTotal || 0} />}
@@ -69,7 +85,7 @@ const QualityDashboardLiveV2: React.FC = () => {
   );
 };
 
-const ClinicView: React.FC<{ rows: ClinicQueueViewDto[] }> = ({ rows }) => {
+const ClinicView: React.FC<{ rows: ClinicQueueViewDto[]; loading?: boolean }> = ({ rows, loading }) => {
   const tw = rows.reduce((s, r) => s + r.waiting, 0);
   const ti2 = rows.reduce((s, r) => s + r.inProgress, 0);
   const td = rows.reduce((s, r) => s + r.completed, 0);
@@ -92,12 +108,12 @@ const ClinicView: React.FC<{ rows: ClinicQueueViewDto[] }> = ({ rows }) => {
   return (
     <>
       <KpiStrip items={kpis} />
-      <DataTable<ClinicQueueViewDto> rowKey={(r) => r.roomId} data={rows} columns={columns} />
+      <DataTable<ClinicQueueViewDto> rowKey={(r) => r.roomId} data={rows} columns={columns} loading={loading} />
     </>
   );
 };
 
-const InpatientView: React.FC<{ rows: InpatientDepartmentViewDto[] }> = ({ rows }) => {
+const InpatientView: React.FC<{ rows: InpatientDepartmentViewDto[]; loading?: boolean }> = ({ rows, loading }) => {
   const kpis: KpiItem[] = [
     { lbl: 'Khoa nội trú',     val: rows.length },
     { lbl: 'Hiện diện',        val: rows.reduce((s, r) => s + r.present, 0), tone: 'info' },
@@ -118,12 +134,12 @@ const InpatientView: React.FC<{ rows: InpatientDepartmentViewDto[] }> = ({ rows 
   return (
     <>
       <KpiStrip items={kpis} />
-      <DataTable<InpatientDepartmentViewDto> rowKey={(r) => r.departmentId} data={rows} columns={columns} />
+      <DataTable<InpatientDepartmentViewDto> rowKey={(r) => r.departmentId} data={rows} columns={columns} loading={loading} />
     </>
   );
 };
 
-const ParaclinicalView: React.FC<{ rows: ParaclinicalTypeStatusDto[] }> = ({ rows }) => {
+const ParaclinicalView: React.FC<{ rows: ParaclinicalTypeStatusDto[]; loading?: boolean }> = ({ rows, loading }) => {
   const kpis: KpiItem[] = [
     { lbl: 'Tổng loại CLS', val: rows.length },
     { lbl: 'Chưa có KQ',    val: rows.reduce((s, r) => s + r.pending, 0), tone: 'warn' },
@@ -144,12 +160,12 @@ const ParaclinicalView: React.FC<{ rows: ParaclinicalTypeStatusDto[] }> = ({ row
   return (
     <>
       <KpiStrip items={kpis} />
-      <DataTable<ParaclinicalTypeStatusDto> rowKey={(r) => r.typeName} data={rows} columns={columns} />
+      <DataTable<ParaclinicalTypeStatusDto> rowKey={(r) => r.typeName} data={rows} columns={columns} loading={loading} />
     </>
   );
 };
 
-const LabView: React.FC<{ rows: LabCategoryStatusDto[] }> = ({ rows }) => {
+const LabView: React.FC<{ rows: LabCategoryStatusDto[]; loading?: boolean }> = ({ rows, loading }) => {
   const kpis: KpiItem[] = [
     { lbl: 'Nhóm XN',    val: rows.length },
     { lbl: 'Chưa có KQ', val: rows.reduce((s, r) => s + r.pending, 0), tone: 'warn' },
@@ -170,7 +186,7 @@ const LabView: React.FC<{ rows: LabCategoryStatusDto[] }> = ({ rows }) => {
   return (
     <>
       <KpiStrip items={kpis} />
-      <DataTable<LabCategoryStatusDto> rowKey={(r) => r.categoryName} data={rows} columns={columns} />
+      <DataTable<LabCategoryStatusDto> rowKey={(r) => r.categoryName} data={rows} columns={columns} loading={loading} />
     </>
   );
 };
@@ -180,7 +196,8 @@ const RevenueView: React.FC<{
   outpatientTotal: number;
   inpatientTotal: number;
   grandTotal: number;
-}> = ({ byCashier, outpatientTotal, inpatientTotal, grandTotal }) => {
+  loading?: boolean;
+}> = ({ byCashier, outpatientTotal, inpatientTotal, grandTotal, loading }) => {
   const kpis: KpiItem[] = [
     { lbl: 'Tổng doanh thu',  val: fmtMny(grandTotal),     tone: 'ok' },
     { lbl: 'Ngoại trú',       val: fmtMny(outpatientTotal), tone: 'info' },
@@ -200,7 +217,7 @@ const RevenueView: React.FC<{
   return (
     <>
       <KpiStrip items={kpis} />
-      <DataTable<CashierRevenueDto> rowKey={(r) => r.cashierId} data={byCashier} columns={columns} />
+      <DataTable<CashierRevenueDto> rowKey={(r) => r.cashierId} data={byCashier} columns={columns} loading={loading} />
     </>
   );
 };

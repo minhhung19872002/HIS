@@ -6,9 +6,10 @@ import {
 import type { MentalHealthCase, MentalHealthAssessment, MentalHealthStats } from '../api/mentalHealth';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, Ico,
+  DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, tw, Ico,
   type ColumnDef, type StatusTab, type CrudFieldCfg,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '@/utils/friendlyError';
 
 type StatusKey = 'active' | 'stable' | 'remission' | 'discharged';
 const STATUS_TABS: StatusTab<StatusKey>[] = [
@@ -122,7 +123,7 @@ const MentalHealthV2: React.FC = () => {
     setAssessments([]);
     setALoading(true);
     try { setAssessments(await getAssessments(r.id)); }
-    catch { setAssessments([]); }
+    catch (e) { tw(friendlyErrorMessage(e, 'Không tải được lịch sử đánh giá của ca bệnh.')); setAssessments([]); }
     finally { setALoading(false); }
   };
 

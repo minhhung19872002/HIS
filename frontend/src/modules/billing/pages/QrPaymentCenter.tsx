@@ -6,9 +6,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   KpiStrip, TopTabs, ActBtn, Btn, ModalShell, DataTable, StatusBadge,
-  fmtVNDg, fmtDTg, tk, te, tw, type ColumnDef, type TopTab,
+  fmtVNDg, fmtDTg, tk, te, tw, cf, type ColumnDef, type TopTab,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import {
   getBankReconciliation, getQrFinanceReport,
   createDisbursement, executeDisbursement, cancelDisbursement, searchDisbursements,
@@ -48,6 +49,8 @@ const QrPaymentCenter: React.FC = () => {
   const [finance, setFinance] = useState<QrFinanceReport | null>(null);
   const [disb, setDisb] = useState<RefundDisbursementDto[]>([]);
   const [disbTotals, setDisbTotals] = useState<{ total: number; transferred: number }>({ total: 0, transferred: 0 });
+  // Chống double-click trên lệnh chi hộ (chi tiền thật qua NH — không hoàn tác được)
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -119,29 +122,32 @@ const QrPaymentCenter: React.FC = () => {
       tk('Đã tạo lệnh chi hộ — chờ duyệt');
       setCreateOpen(false);
       void load('disburse');
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      te(e?.response?.data?.message || 'Tạo lệnh chi thất bại');
+    } catch (err) {
+      te(friendlyErrorMessage(err, 'Tạo lệnh chi thất bại. Vui lòng kiểm tra lại thông tin và thử lại.'));
     } finally { setSaving(false); }
   };
 
   const doExecute = async (r: RefundDisbursementDto) => {
+    if (rowBusy) return;
+    setRowBusy(r.id);
     try {
       await executeDisbursement(r.id);
       tk(`Đã chi ${fmtVNDg(r.amount)} → ${r.accountNumber}`);
       void load('disburse');
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      te(e?.response?.data?.message || 'Thực hiện chi thất bại');
-    }
+    } catch (err) {
+      te(friendlyErrorMessage(err, 'Thực hiện chi thất bại. Vui lòng kiểm tra lại lệnh chi trước khi thử lại.'));
+    } finally { setRowBusy(null); }
   };
 
   const doCancel = async (r: RefundDisbursementDto) => {
+    if (rowBusy) return;
+    setRowBusy(r.id);
     try {
       await cancelDisbursement(r.id);
       tk('Đã hủy lệnh chi');
       void load('disburse');
     } catch { te('Hủy thất bại'); }
+    finally { setRowBusy(null); }
   };
 
   const kpis = tab === 'recon' && recon ? [
@@ -215,8 +221,26 @@ const QrPaymentCenter: React.FC = () => {
             empty="Chưa có lệnh chi hộ"
             actions={(r) => (r.status === 0 || r.status === 1) ? (
               <>
-                <ActBtn ic="check" title="Duyệt + chi" onClick={() => doExecute(r)} />
-                <ActBtn ic="x" title="Hủy lệnh" onClick={() => doCancel(r)} />
+                <ActBtn
+                  ic="check"
+                  title="Duyệt + chi"
+                  loading={rowBusy === r.id}
+                  onClick={() => cf(
+                    `Duyệt và CHI ${fmtVNDg(r.amount)} tới ${r.accountHolder} · ${r.bankName} ${r.accountNumber} (lệnh ${r.disbursementCode})? Tiền được chuyển qua ngân hàng và KHÔNG thể hoàn tác.`,
+                    () => { void doExecute(r); },
+                    { tone: 'crit', confirm: 'Duyệt + chi' },
+                  )}
+                />
+                <ActBtn
+                  ic="x"
+                  title="Hủy lệnh"
+                  loading={rowBusy === r.id}
+                  onClick={() => cf(
+                    `Hủy lệnh chi ${r.disbursementCode} (${fmtVNDg(r.amount)} · ${r.accountHolder})? Thao tác không thể hoàn tác.`,
+                    () => { void doCancel(r); },
+                    { tone: 'crit', confirm: 'Hủy lệnh' },
+                  )}
+                />
               </>
             ) : null}
           />

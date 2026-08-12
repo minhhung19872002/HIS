@@ -205,8 +205,7 @@ export const CabinetIssueModal: React.FC<CabinetIssueModalProps> = ({
       tk(`Đã xuất tủ trực · ${issue.issueCode}`);
       onSaved?.();
     } catch (e) {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      te(msg || 'Không thể xuất tủ trực');
+      te(friendlyErrorMessage(e, 'Không thể xuất tủ trực. Vui lòng thử lại.'));
     } finally {
       setSaving(false);
     }

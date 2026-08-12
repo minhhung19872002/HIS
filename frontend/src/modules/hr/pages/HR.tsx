@@ -89,6 +89,7 @@ import dayjs from 'dayjs';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import '../../../styles/HR.css';
 import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 import {
   ActBtn,
@@ -358,6 +359,12 @@ const HRV2: React.FC = () => {
 
   // ─── State ported từ v1 (quản trị nhân sự) ────────────────────────────────
   const [loading, setLoading] = useState(false);
+  /** #467 UX: fetch riêng của từng tab (danh mục/HĐ/chấm công/nghỉ phép/OT/khen thưởng/báo cáo). */
+  const [tabLoading, setTabLoading] = useState(false);
+  /** #467 UX: khoá double-click nút duyệt/từ chối theo dòng — key dạng `leave:<id>`. */
+  const [acting, setActing] = useState<string | null>(null);
+  /** #467 UX: khoá double-submit nút OK của các modal form (mỗi lúc chỉ 1 modal mở). */
+  const [submitting, setSubmitting] = useState(false);
   const [employees, setEmployees] = useState<StaffProfileDto[]>([]);
   const [rosterAssignments, setRosterAssignments] = useState<RosterAssignmentDto[]>([]);
   const [cmeNonCompliant, setCmeNonCompliant] = useState<CMESummaryDto[]>([]);
@@ -447,16 +454,22 @@ const HRV2: React.FC = () => {
       if (results[2].status === 'fulfilled') {
         const cmeData = results[2].value?.data;
         setCmeNonCompliant(Array.isArray(cmeData) ? cmeData : []);
+      } else {
+        message.warning('Không thể tải danh sách chưa đủ tín chỉ CME');
       }
 
       if (results[3].status === 'fulfilled') {
         const certData = results[3].value?.data;
         setExpiringCerts(Array.isArray(certData) ? certData : []);
+      } else {
+        message.warning('Không thể tải danh sách chứng chỉ sắp hết hạn');
       }
 
       if (results[4].status === 'fulfilled') {
         const shiftData = results[4].value?.data;
         setShiftDefs(Array.isArray(shiftData) ? shiftData : []);
+      } else {
+        message.warning('Không thể tải định nghĩa ca trực');
       }
 
       if (results[5].status === 'fulfilled') {
@@ -464,6 +477,8 @@ const HRV2: React.FC = () => {
         if (rosterData && rosterData.staffAssignments) {
           setRosterAssignments(rosterData.staffAssignments);
         }
+      } else {
+        message.warning('Không thể tải lịch trực tháng này');
       }
     } catch {
       message.warning('Có lỗi khi tải dữ liệu nhân sự');
@@ -477,37 +492,54 @@ const HRV2: React.FC = () => {
   }, [fetchData]);
 
   const fetchCatalogs = useCallback(async (type: string) => {
+    setTabLoading(true);
     try {
       const res = await getCatalogs(type);
       setCatalogs(Array.isArray(res?.data) ? res.data : []);
-    } catch {
+    } catch (e) {
+      message.warning(friendlyErrorMessage(e, 'Không thể tải danh mục nhân sự'));
       setCatalogs([]);
+    } finally {
+      setTabLoading(false);
     }
-  }, []);
+  }, [message]);
 
   useEffect(() => {
     fetchCatalogs(selectedCatalogType);
   }, [selectedCatalogType, fetchCatalogs]);
 
   const fetchContracts = useCallback(async () => {
+    setTabLoading(true);
     try {
       const [contractsRes, expiringRes] = await Promise.allSettled([
         getStaffContracts(),
         getExpiringContracts(90),
       ]);
       if (contractsRes.status === 'fulfilled') setContracts(Array.isArray(contractsRes.value?.data) ? contractsRes.value.data : []);
+      else message.warning('Không thể tải danh sách hợp đồng lao động');
       if (expiringRes.status === 'fulfilled') setExpiringContractsList(Array.isArray(expiringRes.value?.data) ? expiringRes.value.data : []);
-    } catch { /* ignore */ }
-  }, []);
+      else message.warning('Không thể tải danh sách hợp đồng sắp hết hạn');
+    } catch (e) {
+      message.warning(friendlyErrorMessage(e, 'Không thể tải dữ liệu hợp đồng lao động'));
+    } finally {
+      setTabLoading(false);
+    }
+  }, [message]);
 
   const fetchLeave = useCallback(async () => {
+    setTabLoading(true);
     try {
       const res = await getLeaveRequests();
       setLeaveRequests(Array.isArray(res?.data) ? res.data : []);
-    } catch { /* ignore */ }
-  }, []);
+    } catch (e) {
+      message.warning(friendlyErrorMessage(e, 'Không thể tải danh sách đơn nghỉ phép'));
+    } finally {
+      setTabLoading(false);
+    }
+  }, [message]);
 
   const fetchAttendance = useCallback(async () => {
+    setTabLoading(true);
     try {
       const now = dayjs();
       const [recRes, sumRes] = await Promise.allSettled([
@@ -515,26 +547,45 @@ const HRV2: React.FC = () => {
         getAttendanceSummary(now.year(), now.month() + 1),
       ]);
       if (recRes.status === 'fulfilled') setAttendanceRecords(Array.isArray(recRes.value?.data) ? recRes.value.data : []);
+      else message.warning('Không thể tải dữ liệu chấm công chi tiết');
       if (sumRes.status === 'fulfilled') setAttendanceSummaries(Array.isArray(sumRes.value?.data) ? sumRes.value.data : []);
-    } catch { /* ignore */ }
-  }, []);
+      else message.warning('Không thể tải bảng tổng hợp chấm công tháng');
+    } catch (e) {
+      message.warning(friendlyErrorMessage(e, 'Không thể tải dữ liệu chấm công'));
+    } finally {
+      setTabLoading(false);
+    }
+  }, [message]);
 
   const fetchOvertime = useCallback(async () => {
+    setTabLoading(true);
     try {
       const res = await getOvertimeRequests();
       setOvertimeRecords(Array.isArray(res?.data) ? res.data : []);
-    } catch { /* ignore */ }
-  }, []);
+    } catch (e) {
+      message.warning(friendlyErrorMessage(e, 'Không thể tải danh sách yêu cầu làm thêm giờ'));
+    } finally {
+      setTabLoading(false);
+    }
+  }, [message]);
 
   const fetchAwardsDiscipline = useCallback(async () => {
+    setTabLoading(true);
     try {
       const [aw, di] = await Promise.allSettled([getStaffAwards(), getStaffDisciplines()]);
       if (aw.status === 'fulfilled') setAwards(Array.isArray(aw.value?.data) ? aw.value.data : []);
+      else message.warning('Không thể tải danh sách khen thưởng');
       if (di.status === 'fulfilled') setDisciplines(Array.isArray(di.value?.data) ? di.value.data : []);
-    } catch { /* ignore */ }
-  }, []);
+      else message.warning('Không thể tải danh sách kỷ luật');
+    } catch (e) {
+      message.warning(friendlyErrorMessage(e, 'Không thể tải dữ liệu khen thưởng — kỷ luật'));
+    } finally {
+      setTabLoading(false);
+    }
+  }, [message]);
 
   const fetchReports = useCallback(async (type: string) => {
+    setTabLoading(true);
     try {
       const now = dayjs();
       if (type === 'department') {
@@ -553,8 +604,12 @@ const HRV2: React.FC = () => {
         const res = await getMovementReport(now.startOf('year').format('YYYY-MM-DD'), now.format('YYYY-MM-DD'));
         setMovementReportData(res?.data || null);
       }
-    } catch { /* ignore */ }
-  }, []);
+    } catch (e) {
+      message.warning(friendlyErrorMessage(e, 'Không thể tải báo cáo nhân sự'));
+    } finally {
+      setTabLoading(false);
+    }
+  }, [message]);
 
   // Try real HR API: load staff + current month roster, fall back to seed.
   useEffect(() => {
@@ -694,6 +749,8 @@ const HRV2: React.FC = () => {
   };
 
   const approveSwap = async (requestId: string): Promise<void> => {
+    if (acting) return;
+    setActing(`swap:${requestId}`);
     try {
       await approveSwapRequest(requestId, true);
       setSwapRequests((currentRequests) =>
@@ -702,16 +759,22 @@ const HRV2: React.FC = () => {
       message.success('Đã duyệt yêu cầu đổi ca');
     } catch {
       message.error('Duyệt đổi ca thất bại');
+    } finally {
+      setActing(null);
     }
   };
 
   const rejectSwap = async (requestId: string): Promise<void> => {
+    if (acting) return;
+    setActing(`swap:${requestId}`);
     try {
       await approveSwapRequest(requestId, false);
       setSwapRequests((currentRequests) => currentRequests.filter((request) => request.id !== requestId));
       message.warning('Đã từ chối yêu cầu đổi ca');
     } catch {
       message.error('Từ chối đổi ca thất bại');
+    } finally {
+      setActing(null);
     }
   };
 
@@ -736,6 +799,8 @@ const HRV2: React.FC = () => {
   // ─── Handlers ported verbatim từ v1 ───────────────────────────────────────
 
   const handleAddShift = async (values: Record<string, unknown>) => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       const date = values.date ? dayjs(values.date as string).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
       const month = dayjs(date).month() + 1;
@@ -754,10 +819,14 @@ const HRV2: React.FC = () => {
       fetchData();
     } catch {
       message.warning('Không thể thêm lịch trực');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleAddTraining = async (values: Record<string, unknown>) => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await createCMERecord({
         staffId: values.employeeId as string,
@@ -776,10 +845,14 @@ const HRV2: React.FC = () => {
       fetchData();
     } catch {
       message.warning('Không thể đăng ký đào tạo');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleAddEmployee = async (values: Record<string, unknown>) => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await createStaff({
         staffCode: values.staffCode as string,
@@ -799,10 +872,14 @@ const HRV2: React.FC = () => {
       fetchData();
     } catch {
       message.warning('Không thể thêm nhân viên');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleSaveCatalog = async (values: Record<string, unknown>) => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await saveCatalog({
         id: values.id as string | undefined,
@@ -819,6 +896,8 @@ const HRV2: React.FC = () => {
       fetchCatalogs(selectedCatalogType);
     } catch {
       message.warning('Không thể lưu danh mục');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -833,6 +912,8 @@ const HRV2: React.FC = () => {
   };
 
   const handleSaveContract = async (values: Record<string, unknown>) => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await saveContract({
         id: values.id as string | undefined,
@@ -850,10 +931,14 @@ const HRV2: React.FC = () => {
       fetchContracts();
     } catch {
       message.warning('Không thể lưu hợp đồng');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleCreateLeave = async (values: Record<string, unknown>) => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       const dates = values.dates as [Dayjs, Dayjs];
       const totalDays = dates[1].diff(dates[0], 'day') + 1;
@@ -871,20 +956,28 @@ const HRV2: React.FC = () => {
       fetchLeave();
     } catch {
       message.warning('Không thể tạo đơn nghỉ phép');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleApproveLeave = async (id: string, approved: boolean) => {
+    if (acting) return;
+    setActing(`leave:${id}`);
     try {
       await approveLeave(id, approved);
       message.success(approved ? 'Đã duyệt đơn nghỉ phép' : 'Đã từ chối đơn nghỉ phép');
       fetchLeave();
     } catch {
       message.warning('Không thể xử lý đơn nghỉ phép');
+    } finally {
+      setActing(null);
     }
   };
 
   const handleRecordAttendance = async (values: Record<string, unknown>) => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await recordAttendance({
         staffId: values.staffId as string,
@@ -902,10 +995,14 @@ const HRV2: React.FC = () => {
       fetchAttendance();
     } catch {
       message.warning('Không thể ghi nhận chấm công');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleCreateOvertime = async (values: Record<string, unknown>) => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await createOvertime({
         staffId: values.staffId as string,
@@ -921,20 +1018,28 @@ const HRV2: React.FC = () => {
       fetchOvertime();
     } catch {
       message.warning('Không thể tạo yêu cầu làm thêm giờ');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleApproveOvertime = async (id: string, approved: boolean) => {
+    if (acting) return;
+    setActing(`overtime:${id}`);
     try {
       await approveOvertime(id, approved);
       message.success(approved ? 'Đã duyệt làm thêm giờ' : 'Đã từ chối làm thêm giờ');
       fetchOvertime();
     } catch {
       message.warning('Không thể xử lý yêu cầu');
+    } finally {
+      setActing(null);
     }
   };
 
   const handleSaveAward = async (values: Record<string, unknown>) => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await saveAward({
         staffId: values.staffId as string,
@@ -951,10 +1056,14 @@ const HRV2: React.FC = () => {
       fetchAwardsDiscipline();
     } catch {
       message.warning('Không thể lưu khen thưởng');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleSaveDiscipline = async (values: Record<string, unknown>) => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await saveDiscipline({
         staffId: values.staffId as string,
@@ -971,6 +1080,8 @@ const HRV2: React.FC = () => {
       fetchAwardsDiscipline();
     } catch {
       message.warning('Không thể lưu kỷ luật');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -1418,8 +1529,26 @@ const HRV2: React.FC = () => {
                         <strong>{toStaff?.name}</strong>
                         <span className="muted">· Ca {shift.label} · {dayjs(request.date).format('DD/MM/YYYY')} · "{request.reason}"</span>
                         <div className="hr-v2-alert-actions">
-                          <button type="button" className="hr-v2-btn" onClick={() => rejectSwap(request.id)}>Từ chối</button>
-                          <button type="button" className="hr-v2-btn primary" onClick={() => approveSwap(request.id)}>Duyệt</button>
+                          <button
+                            type="button"
+                            className="hr-v2-btn"
+                            disabled={acting === `swap:${request.id}`}
+                            onClick={() => cf(
+                              `Từ chối yêu cầu đổi ca ${request.id} (${fromStaff?.name ?? request.from} → ${toStaff?.name ?? request.to})? Yêu cầu sẽ bị xoá khỏi danh sách.`,
+                              () => { void rejectSwap(request.id); },
+                              { tone: 'crit', confirm: 'Từ chối' },
+                            )}
+                          >
+                            {acting === `swap:${request.id}` ? 'Đang xử lý…' : 'Từ chối'}
+                          </button>
+                          <button
+                            type="button"
+                            className="hr-v2-btn primary"
+                            disabled={acting === `swap:${request.id}`}
+                            onClick={() => { void approveSwap(request.id); }}
+                          >
+                            {acting === `swap:${request.id}` ? 'Đang xử lý…' : 'Duyệt'}
+                          </button>
                         </div>
                       </div>
                     );
@@ -1543,6 +1672,7 @@ const HRV2: React.FC = () => {
                 columns={catalogColumns}
                 data={catalogs}
                 rowKey={(r) => r.id}
+                loading={tabLoading}
                 actions={(r) => (
                   <>
                     <ActBtn ic="edit" title="Sửa" onClick={() => { catalogForm.setFieldsValue(r); setIsCatalogModalOpen(true); }} />
@@ -1561,7 +1691,7 @@ const HRV2: React.FC = () => {
               {expiringContractsList.length > 0 && (
                 <Alert title={`${expiringContractsList.length} hợp đồng sắp hết hạn (90 ngày)`} type="warning" showIcon />
               )}
-              <DataTable<StaffContractDto> columns={contractColumns} data={contracts} rowKey={(r) => r.id} />
+              <DataTable<StaffContractDto> columns={contractColumns} data={contracts} rowKey={(r) => r.id} loading={tabLoading} />
             </>
           )}
 
@@ -1574,9 +1704,9 @@ const HRV2: React.FC = () => {
                 <Btn size="sm" active={attView === 'summary'} onClick={() => setAttView('summary')}>Tổng hợp tháng</Btn>
               </div>
               {attView === 'records' ? (
-                <DataTable<AttendanceRecordDto> columns={attendanceColumns} data={attendanceRecords} rowKey={(r) => r.id} />
+                <DataTable<AttendanceRecordDto> columns={attendanceColumns} data={attendanceRecords} rowKey={(r) => r.id} loading={tabLoading} />
               ) : (
-                <DataTable<AttendanceSummaryDto> columns={attendanceSummaryColumns} data={attendanceSummaries} rowKey={(r) => r.staffId} />
+                <DataTable<AttendanceSummaryDto> columns={attendanceSummaryColumns} data={attendanceSummaries} rowKey={(r) => r.staffId} loading={tabLoading} />
               )}
             </>
           )}
@@ -1590,10 +1720,21 @@ const HRV2: React.FC = () => {
                 columns={leaveColumns}
                 data={leaveRequests}
                 rowKey={(r) => r.id}
+                loading={tabLoading}
                 actions={(r) => r.status === 0 ? (
                   <>
-                    <ActBtn ic="check" title="Duyệt" onClick={() => { void handleApproveLeave(r.id, true); }} />
-                    <ActBtn ic="x" title="Từ chối" tone="crit" onClick={() => { void handleApproveLeave(r.id, false); }} />
+                    <ActBtn ic="check" title="Duyệt" loading={acting === `leave:${r.id}`} onClick={() => { void handleApproveLeave(r.id, true); }} />
+                    <ActBtn
+                      ic="x"
+                      title="Từ chối"
+                      tone="crit"
+                      loading={acting === `leave:${r.id}`}
+                      onClick={() => cf(
+                        'Từ chối đơn nghỉ phép này? Nhân viên sẽ nhận kết quả không được duyệt.',
+                        () => { void handleApproveLeave(r.id, false); },
+                        { tone: 'crit', confirm: 'Từ chối' },
+                      )}
+                    />
                   </>
                 ) : null}
               />
@@ -1609,10 +1750,21 @@ const HRV2: React.FC = () => {
                 columns={overtimeColumns}
                 data={overtimeRecords}
                 rowKey={(r) => r.id}
+                loading={tabLoading}
                 actions={(r) => r.status === 0 ? (
                   <>
-                    <ActBtn ic="check" title="Duyệt" onClick={() => { void handleApproveOvertime(r.id, true); }} />
-                    <ActBtn ic="x" title="Từ chối" tone="crit" onClick={() => { void handleApproveOvertime(r.id, false); }} />
+                    <ActBtn ic="check" title="Duyệt" loading={acting === `overtime:${r.id}`} onClick={() => { void handleApproveOvertime(r.id, true); }} />
+                    <ActBtn
+                      ic="x"
+                      title="Từ chối"
+                      tone="crit"
+                      loading={acting === `overtime:${r.id}`}
+                      onClick={() => cf(
+                        'Từ chối yêu cầu làm thêm giờ này? Giờ làm thêm sẽ không được tính công.',
+                        () => { void handleApproveOvertime(r.id, false); },
+                        { tone: 'crit', confirm: 'Từ chối' },
+                      )}
+                    />
                   </>
                 ) : null}
               />
@@ -1629,9 +1781,9 @@ const HRV2: React.FC = () => {
                 <Btn size="sm" active={awardView === 'disciplines'} onClick={() => setAwardView('disciplines')}>Kỷ luật</Btn>
               </div>
               {awardView === 'awards' ? (
-                <DataTable<StaffAwardDto> columns={awardColumns} data={awards} rowKey={(r) => r.id} />
+                <DataTable<StaffAwardDto> columns={awardColumns} data={awards} rowKey={(r) => r.id} loading={tabLoading} />
               ) : (
-                <DataTable<StaffDisciplineDto> columns={disciplineColumns} data={disciplines} rowKey={(r) => r.id} />
+                <DataTable<StaffDisciplineDto> columns={disciplineColumns} data={disciplines} rowKey={(r) => r.id} loading={tabLoading} />
               )}
             </>
           )}
@@ -1666,7 +1818,7 @@ const HRV2: React.FC = () => {
               <div style={toolbarStyle}>
                 <Btn variant="primary" icon="calendar" onClick={() => setIsShiftModalOpen(true)}>Phân ca mới</Btn>
               </div>
-              <DataTable<RosterAssignmentDto> columns={rosterShiftColumns} data={rosterAssignments} rowKey={(r) => r.id} />
+              <DataTable<RosterAssignmentDto> columns={rosterShiftColumns} data={rosterAssignments} rowKey={(r) => r.id} loading={loading} />
             </>
           )}
 
@@ -1675,12 +1827,12 @@ const HRV2: React.FC = () => {
               <div style={toolbarStyle}>
                 <Btn variant="primary" icon="plus" onClick={() => setIsTrainingModalOpen(true)}>Đăng ký đào tạo</Btn>
               </div>
-              <DataTable<CMESummaryDto> columns={trainingColumns} data={cmeNonCompliant} rowKey={(r) => r.staffId} />
+              <DataTable<CMESummaryDto> columns={trainingColumns} data={cmeNonCompliant} rowKey={(r) => r.staffId} loading={loading} />
             </>
           )}
 
           {tab === 'licenses' && (
-            <DataTable<StaffProfileDto> columns={licenseColumns} data={licensedEmployees} rowKey={(r) => r.id} />
+            <DataTable<StaffProfileDto> columns={licenseColumns} data={licensedEmployees} rowKey={(r) => r.id} loading={loading} />
           )}
 
           {tab === 'reports' && (
@@ -1705,6 +1857,7 @@ const HRV2: React.FC = () => {
                   columns={deptReportColumns}
                   data={deptReportRows}
                   rowKey={(r) => r.departmentName}
+                  loading={tabLoading}
                 />
               )}
 
@@ -1975,7 +2128,7 @@ const HRV2: React.FC = () => {
       {/* ─── Modals ported từ v1 ─────────────────────────────────────────── */}
 
       {/* Catalog Modal */}
-      <Modal title="Danh mục nhân sự" open={isCatalogModalOpen} onCancel={() => setIsCatalogModalOpen(false)} onOk={() => catalogForm.submit()} okText="Lưu" cancelText="Hủy">
+      <Modal title="Danh mục nhân sự" open={isCatalogModalOpen} onCancel={() => setIsCatalogModalOpen(false)} onOk={() => catalogForm.submit()} okText="Lưu" cancelText="Hủy" confirmLoading={submitting}>
         <Form form={catalogForm} layout="vertical" onFinish={handleSaveCatalog}>
           <Form.Item name="id" hidden><Input /></Form.Item>
           <Form.Item name="code" label="Mã" rules={[{ required: true }]}><Input /></Form.Item>
@@ -1989,7 +2142,7 @@ const HRV2: React.FC = () => {
       </Modal>
 
       {/* Contract Modal */}
-      <Modal title="Hợp đồng lao động" open={isContractModalOpen} onCancel={() => setIsContractModalOpen(false)} onOk={() => contractForm.submit()} okText="Lưu" cancelText="Hủy">
+      <Modal title="Hợp đồng lao động" open={isContractModalOpen} onCancel={() => setIsContractModalOpen(false)} onOk={() => contractForm.submit()} okText="Lưu" cancelText="Hủy" confirmLoading={submitting}>
         <Form form={contractForm} layout="vertical" onFinish={handleSaveContract}>
           <Form.Item name="staffId" label="Nhân viên" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="label" options={staffOptions} />
@@ -2012,7 +2165,7 @@ const HRV2: React.FC = () => {
       </Modal>
 
       {/* Leave Modal */}
-      <Modal title="Tạo đơn nghỉ phép" open={isLeaveModalOpen} onCancel={() => setIsLeaveModalOpen(false)} onOk={() => leaveForm.submit()} okText="Lưu" cancelText="Hủy">
+      <Modal title="Tạo đơn nghỉ phép" open={isLeaveModalOpen} onCancel={() => setIsLeaveModalOpen(false)} onOk={() => leaveForm.submit()} okText="Lưu" cancelText="Hủy" confirmLoading={submitting}>
         <Form form={leaveForm} layout="vertical" onFinish={handleCreateLeave}>
           <Form.Item name="staffId" label="Nhân viên" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="label" options={staffOptions} />
@@ -2033,7 +2186,7 @@ const HRV2: React.FC = () => {
       </Modal>
 
       {/* Attendance Modal */}
-      <Modal title="Ghi chấm công" open={isAttendanceModalOpen} onCancel={() => setIsAttendanceModalOpen(false)} onOk={() => attendanceForm.submit()} okText="Lưu" cancelText="Hủy">
+      <Modal title="Ghi chấm công" open={isAttendanceModalOpen} onCancel={() => setIsAttendanceModalOpen(false)} onOk={() => attendanceForm.submit()} okText="Lưu" cancelText="Hủy" confirmLoading={submitting}>
         <Form form={attendanceForm} layout="vertical" onFinish={handleRecordAttendance}>
           <Form.Item name="staffId" label="Nhân viên" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="label" options={staffOptions} />
@@ -2064,7 +2217,7 @@ const HRV2: React.FC = () => {
       </Modal>
 
       {/* Overtime Modal */}
-      <Modal title="Yêu cầu làm thêm giờ" open={isOvertimeModalOpen} onCancel={() => setIsOvertimeModalOpen(false)} onOk={() => overtimeForm.submit()} okText="Lưu" cancelText="Hủy">
+      <Modal title="Yêu cầu làm thêm giờ" open={isOvertimeModalOpen} onCancel={() => setIsOvertimeModalOpen(false)} onOk={() => overtimeForm.submit()} okText="Lưu" cancelText="Hủy" confirmLoading={submitting}>
         <Form form={overtimeForm} layout="vertical" onFinish={handleCreateOvertime}>
           <Form.Item name="staffId" label="Nhân viên" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="label" options={staffOptions} />
@@ -2076,7 +2229,7 @@ const HRV2: React.FC = () => {
       </Modal>
 
       {/* Award Modal */}
-      <Modal title="Khen thưởng" open={isAwardModalOpen} onCancel={() => setIsAwardModalOpen(false)} onOk={() => awardForm.submit()} okText="Lưu" cancelText="Hủy">
+      <Modal title="Khen thưởng" open={isAwardModalOpen} onCancel={() => setIsAwardModalOpen(false)} onOk={() => awardForm.submit()} okText="Lưu" cancelText="Hủy" confirmLoading={submitting}>
         <Form form={awardForm} layout="vertical" onFinish={handleSaveAward}>
           <Form.Item name="staffId" label="Nhân viên" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="label" options={staffOptions} />
@@ -2097,7 +2250,7 @@ const HRV2: React.FC = () => {
       </Modal>
 
       {/* Discipline Modal */}
-      <Modal title="Kỷ luật" open={isDisciplineModalOpen} onCancel={() => setIsDisciplineModalOpen(false)} onOk={() => disciplineForm.submit()} okText="Lưu" cancelText="Hủy">
+      <Modal title="Kỷ luật" open={isDisciplineModalOpen} onCancel={() => setIsDisciplineModalOpen(false)} onOk={() => disciplineForm.submit()} okText="Lưu" cancelText="Hủy" confirmLoading={submitting}>
         <Form form={disciplineForm} layout="vertical" onFinish={handleSaveDiscipline}>
           <Form.Item name="staffId" label="Nhân viên" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="label" options={staffOptions} />
@@ -2118,7 +2271,7 @@ const HRV2: React.FC = () => {
       </Modal>
 
       {/* Shift Modal */}
-      <Modal title="Phân ca trực" open={isShiftModalOpen} onCancel={() => setIsShiftModalOpen(false)} onOk={() => shiftForm.submit()} okText="Lưu" cancelText="Hủy">
+      <Modal title="Phân ca trực" open={isShiftModalOpen} onCancel={() => setIsShiftModalOpen(false)} onOk={() => shiftForm.submit()} okText="Lưu" cancelText="Hủy" confirmLoading={submitting}>
         <Form form={shiftForm} layout="vertical" onFinish={handleAddShift}>
           <Form.Item name="employeeId" label="Nhân viên" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="label" options={staffOptions} />
@@ -2138,7 +2291,7 @@ const HRV2: React.FC = () => {
       </Modal>
 
       {/* Training Modal */}
-      <Modal title="Đăng ký đào tạo" open={isTrainingModalOpen} onCancel={() => setIsTrainingModalOpen(false)} onOk={() => trainingForm.submit()} okText="Lưu" cancelText="Hủy">
+      <Modal title="Đăng ký đào tạo" open={isTrainingModalOpen} onCancel={() => setIsTrainingModalOpen(false)} onOk={() => trainingForm.submit()} okText="Lưu" cancelText="Hủy" confirmLoading={submitting}>
         <Form form={trainingForm} layout="vertical" onFinish={handleAddTraining}>
           <Form.Item name="employeeId" label="Nhân viên" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="label" options={staffOptions} />
@@ -2158,7 +2311,7 @@ const HRV2: React.FC = () => {
       </Modal>
 
       {/* Add Employee Modal */}
-      <Modal title="Thêm nhân viên mới" open={isAddEmployeeModalOpen} onCancel={() => setIsAddEmployeeModalOpen(false)} onOk={() => employeeForm.submit()} okText="Lưu" cancelText="Hủy" width={600}>
+      <Modal title="Thêm nhân viên mới" open={isAddEmployeeModalOpen} onCancel={() => setIsAddEmployeeModalOpen(false)} onOk={() => employeeForm.submit()} okText="Lưu" cancelText="Hủy" confirmLoading={submitting} width={600}>
         <Form form={employeeForm} layout="vertical" onFinish={handleAddEmployee}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Form.Item name="staffCode" label="Mã nhân viên" rules={[{ required: true }]}><Input /></Form.Item>

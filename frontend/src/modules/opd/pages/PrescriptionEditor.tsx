@@ -83,6 +83,8 @@ const PrescriptionEditorV2: React.FC = () => {
   const [warehouses, setWarehouses] = useState<WarehouseDto[]>([]);
   const [items, setItems] = useState<RxItem[]>([]);
   const [interactions, setInteractions] = useState<DrugInteractionDto[]>([]);
+  // #467: true = API kiểm tra tương tác lỗi ⇒ danh sách rỗng KHÔNG có nghĩa là đơn an toàn.
+  const [intCheckFailed, setIntCheckFailed] = useState(false);
   const [templates, setTemplates] = useState<PrescriptionTemplateDto[]>([]);
 
   const [drugQuery, setDQ] = useState('');
@@ -165,7 +167,11 @@ const PrescriptionEditorV2: React.FC = () => {
           if (selectReqRef.current !== reqId) return;
           if (pRes.data) await selectPatient(pRes.data);
         }
-      } catch { /* ignore preload errors */ }
+      } catch (e) {
+        // #467 AN TOÀN NGƯỜI BỆNH: preload mang theo `ctx.allergies` (cảnh báo dị ứng).
+        // Nuốt lỗi ở đây = bác sĩ kê đơn mà KHÔNG hề biết dữ liệu dị ứng đã không nạp được.
+        tw(friendlyErrorMessage(e, 'Không nạp được dữ liệu phiếu khám (gồm cảnh báo dị ứng) — hãy kiểm tra lại tiền sử dị ứng của người bệnh.'));
+      }
     })();
   }, [sp, selectPatient]);
 
@@ -185,11 +191,19 @@ const PrescriptionEditorV2: React.FC = () => {
 
   // ── Drug interactions: re-check when cart changes ────────────────
   useEffect(() => {
-    if (items.length < 2) { setInteractions([]); return; }
+    if (items.length < 2) { setInteractions([]); setIntCheckFailed(false); return; }
     let cancelled = false;
     examinationApi.checkDrugInteractions(items.map((x) => x.medicineId))
-      .then((r) => { if (!cancelled && Array.isArray(r.data)) setInteractions(r.data); })
-      .catch(() => { if (!cancelled) setInteractions([]); });
+      .then((r) => { if (!cancelled && Array.isArray(r.data)) { setInteractions(r.data); setIntCheckFailed(false); } })
+      // #467 AN TOÀN NGƯỜI BỆNH: trước đây lỗi API bị nuốt và set mảng rỗng → panel hiện
+      // "0 tương tác" y như đơn thật sự an toàn, đồng thời cổng chặn ký (interactions.length > 0)
+      // bị bỏ qua im lặng. Nay phải phân biệt rõ "đã kiểm, không có" với "CHƯA kiểm được".
+      .catch((e) => {
+        if (cancelled) return;
+        setInteractions([]);
+        setIntCheckFailed(true);
+        tw(friendlyErrorMessage(e, 'CHƯA kiểm tra được tương tác thuốc — hãy tự đối chiếu trước khi kê.'));
+      });
     return () => { cancelled = true; };
   }, [items]);
 
@@ -641,6 +655,16 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
 
       {/* Right panel: warnings & tools */}
       <aside className={'ed-right-panel ' + (rightOpen ? 'is-open' : '')} style={{ borderLeft: '1px solid var(--line)', overflow: 'auto', padding: 'var(--space-12)', background: 'var(--d-1)', display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
+        {intCheckFailed && (
+          <div style={{ padding: 'var(--space-12)', background: 'var(--s-warn-bg)', border: '1px solid var(--s-warn-bd)', borderRadius: 'var(--r-3)' }}>
+            <div style={{ color: 'var(--s-warn-tx)', fontWeight: 700, fontSize: 'var(--fs-sm)', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+              <TermIcon name="alert" size={12} /> Chưa kiểm được tương tác
+            </div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--s-warn-tx)', marginTop: 'var(--space-6)' }}>
+              Hệ thống không gọi được dịch vụ kiểm tra tương tác thuốc. Danh sách trống ở đây <b>không</b> có nghĩa là đơn an toàn — hãy tự đối chiếu trước khi ký.
+            </div>
+          </div>
+        )}
         {intCount > 0 && (
           <div onClick={() => setInterOpen(true)} style={{ padding: 'var(--space-12)', background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)', borderRadius: 'var(--r-3)', cursor: 'pointer' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

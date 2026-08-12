@@ -7,10 +7,12 @@ import { searchAppointments, getOverdueFollowUps, updateAppointmentStatus } from
 import type { AppointmentListDto } from '../api/examination';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager,
-  StatusBadge, ActBtn, Btn, DrawerShell,
+  StatusBadge, Btn, DrawerShell,
   type ColumnDef, type StatusTab,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { RowActions } from '../../../components/actions';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 const { RangePicker } = DatePicker;
 
@@ -79,6 +81,7 @@ const FollowUpV2: React.FC = () => {
   const [pageSize, setPageSize] = useState(16); // parity v1 showSizeChanger
   const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null); // parity v1 sorter Ngày hẹn (trang hiện tại)
   const [detail, setDetail] = useState<AppointmentListDto | null>(null);
+  const [acting, setActing] = useState<string | null>(null); // id lịch hẹn đang đổi trạng thái — chống double-click
   const seqRef = useRef(0);
 
   const fetchAppointments = useCallback(async () => {
@@ -123,24 +126,41 @@ const FollowUpV2: React.FC = () => {
       setRows(searchRes.value.data.items || []);
       setTotalCount(searchRes.value.data.totalCount || 0);
     } else if (searchRes.status === 'rejected') {
+      // `key` để antd THAY THẾ toast cũ thay vì xếp chồng: ô tìm kiếm không debounce nên mỗi phím
+      // gõ là một lần fetch — API hỏng mà không gộp thì gõ tên bệnh nhân sẽ bắn cả chục toast lỗi.
+      message.error({
+        content: friendlyErrorMessage(searchRes.reason, 'Không tải được danh sách lịch tái khám. Vui lòng thử lại.'),
+        key: 'followup-load-error',
+      });
       setRows([]);
       setTotalCount(0);
     }
     if (overdueRes.status === 'fulfilled' && overdueRes.value.data) {
       setOverdueList(overdueRes.value.data || []);
+    } else if (overdueRes.status === 'rejected') {
+      // KHÔNG nuốt lỗi: tab "Quá hạn" + KPI "Quá hạn 30 ngày" lấy dữ liệu từ đây. Hỏng mà im lặng
+      // thì màn hình báo 0 ca quá hạn — điều dưỡng tưởng không còn bệnh nhân nào cần gọi lại.
+      message.warning({
+        content: friendlyErrorMessage(overdueRes.reason, 'Không tải được danh sách tái khám quá hạn 30 ngày.'),
+        key: 'followup-overdue-error',
+      });
     }
     setLoading(false);
-  }, [tab, statusFilter, typeFilter, range, page, search, pageSize]);
+  }, [tab, statusFilter, typeFilter, range, page, search, pageSize, message]);
 
   useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
 
   const handleUpdateStatus = async (appointmentId: string, status: number, statusLabel: string) => {
+    if (acting) return;
+    setActing(appointmentId);
     try {
       await updateAppointmentStatus(appointmentId, status);
       message.success(`Đã cập nhật: ${statusLabel}`);
       fetchAppointments();
     } catch {
       message.error('Không thể cập nhật trạng thái');
+    } finally {
+      setActing(null);
     }
   };
 
@@ -155,12 +175,16 @@ const FollowUpV2: React.FC = () => {
    *  trạng thái lịch hẹn sang Đã xác nhận. Đó là thông báo sai sự thật với người dùng
    *  (điều dưỡng tưởng bệnh nhân đã được nhắc). Nay nói đúng việc nó làm. */
   const onMarkContacted = async (r: AppointmentListDto) => {
+    if (acting) return;
+    setActing(r.id);
     try {
       await updateAppointmentStatus(r.id, 1);
       message.success(`Đã ghi nhận liên hệ ${r.patientName} — lịch hẹn chuyển sang Đã xác nhận`);
       fetchAppointments();
     } catch {
       message.error('Không ghi nhận được liên hệ');
+    } finally {
+      setActing(null);
     }
   };
 
@@ -370,21 +394,38 @@ const FollowUpV2: React.FC = () => {
         onRowClick={(r) => setDetail(r)}
         actions={(r) => (
           <div className="ab-actions">
-            {/* #352: nút điện thoại GỌI thật, không còn âm thầm đổi trạng thái */}
-            {r.phoneNumber && (
-              <ActBtn ic="phone" title={`Gọi ${r.phoneNumber}`} onClick={() => onCall(r)} />
-            )}
-            {[0, 1].includes(r.status) && (
-              <>
-                <ActBtn ic="check" title="Ghi nhận đã liên hệ (chuyển Đã xác nhận)" onClick={() => onMarkContacted(r)} />
-                <ActBtn ic="check" title="Xác nhận đến khám" onClick={() => handleUpdateStatus(r.id, 2, 'Đã đến khám')} />
-                <ActBtn ic="x" title="Không đến" tone="crit" onClick={() => handleUpdateStatus(r.id, 3, 'Không đến')} />
-              </>
-            )}
-            {r.status === 0 && (
-              <ActBtn ic="calendar" title="Xác nhận lịch hẹn" onClick={() => handleUpdateStatus(r.id, 1, 'Đã xác nhận')} />
-            )}
-            <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
+            {/* `acting` là guard TOÀN MÀN (handleUpdateStatus/onMarkContacted `if (acting) return`)
+                nên `disabled` cũng phải toàn màn: disable riêng dòng đang chạy sẽ khiến bấm ở dòng
+                khác im lặng không phản hồi — điều dưỡng tưởng máy treo và bấm tiếp. */}
+            <RowActions actions={[
+              {
+                key: 'attended', icon: 'check', label: 'Xác nhận đến khám', primary: true,
+                hidden: ![0, 1].includes(r.status), disabled: !!acting,
+                onClick: () => handleUpdateStatus(r.id, 2, 'Đã đến khám'),
+              },
+              { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setDetail(r) },
+              {
+                key: 'contacted', icon: 'check', label: 'Ghi nhận đã liên hệ (chuyển Đã xác nhận)',
+                hidden: ![0, 1].includes(r.status), disabled: !!acting,
+                onClick: () => onMarkContacted(r),
+              },
+              // #352: nút điện thoại GỌI thật, không còn âm thầm đổi trạng thái
+              {
+                key: 'call', icon: 'phone', label: `Gọi ${r.phoneNumber}`, hidden: !r.phoneNumber,
+                onClick: () => onCall(r),
+              },
+              {
+                key: 'confirm', icon: 'calendar', label: 'Xác nhận lịch hẹn',
+                hidden: r.status !== 0, disabled: !!acting,
+                onClick: () => handleUpdateStatus(r.id, 1, 'Đã xác nhận'),
+              },
+              {
+                key: 'noshow', icon: 'x', label: 'Không đến', tone: 'danger',
+                hidden: ![0, 1].includes(r.status), disabled: !!acting,
+                confirm: `Đánh dấu ${r.patientName} không đến khám?`,
+                onClick: () => handleUpdateStatus(r.id, 3, 'Không đến'),
+              },
+            ]} />
           </div>
         )}
         empty={(
@@ -425,22 +466,24 @@ const FollowUpV2: React.FC = () => {
                 <TermIcon name="phone" size={12} /> Gọi {detail.phoneNumber}
               </Btn>
             )}
+            {/* cùng guard `acting` toàn màn với cột thao tác — không disable thì bấm lúc đang bận
+                sẽ bị bỏ qua im lặng (nút "Ghi nhận đã liên hệ" KHÔNG đóng drawer nên rất dễ gặp) */}
             {[0, 1].includes(detail.status) && (
-              <Btn onClick={() => onMarkContacted(detail)}>
+              <Btn disabled={!!acting} onClick={() => onMarkContacted(detail)}>
                 <TermIcon name="check" size={12} /> Ghi nhận đã liên hệ
               </Btn>
             )}
             {detail.status === 0 && (
-              <Btn onClick={() => { handleUpdateStatus(detail.id, 1, 'Đã xác nhận'); setDetail(null); }}>
+              <Btn disabled={!!acting} onClick={() => { handleUpdateStatus(detail.id, 1, 'Đã xác nhận'); setDetail(null); }}>
                 <TermIcon name="calendar" size={12} /> Xác nhận lịch hẹn
               </Btn>
             )}
             {[0, 1].includes(detail.status) && (
               <>
-                <Btn variant="crit" onClick={() => { handleUpdateStatus(detail.id, 3, 'Không đến'); setDetail(null); }}>
+                <Btn variant="crit" disabled={!!acting} onClick={() => { handleUpdateStatus(detail.id, 3, 'Không đến'); setDetail(null); }}>
                   <TermIcon name="x" size={12} /> Không đến
                 </Btn>
-                <Btn variant="primary" onClick={() => { handleUpdateStatus(detail.id, 2, 'Đã đến khám'); setDetail(null); }}>
+                <Btn variant="primary" disabled={!!acting} onClick={() => { handleUpdateStatus(detail.id, 2, 'Đã đến khám'); setDetail(null); }}>
                   <TermIcon name="check" size={12} /> Xác nhận đến khám
                 </Btn>
               </>

@@ -13,8 +13,10 @@ import {
   deleteHemodialysis,
   type HemodialysisSessionDto,
 } from '../api/inpatient';
-import { ModalShell, DataTable, ActBtn, Btn, type ColumnDef } from '@/_v2kit';
+import { ModalShell, DataTable, Btn, type ColumnDef } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { RowActions } from '../../../components/actions';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { printHemodialysisSheet, type HemodialysisPrintHeader } from '../../patient/components/HemodialysisSheetPrint';
 
 // ---------------------------------------------------------------------------
@@ -107,7 +109,7 @@ const HemodialysisSection: React.FC<HemodialysisSectionProps> = ({ admissionId, 
     setLoading(true);
     getHemodialysisSessions(admissionId)
       .then((res) => setRecords(res.data ?? []))
-      .catch(() => setRecords([]))
+      .catch((e) => { message.warning(friendlyErrorMessage(e, 'Không tải được danh sách buổi lọc máu.')); setRecords([]); })
       .finally(() => setLoading(false));
   };
 
@@ -152,6 +154,7 @@ const HemodialysisSection: React.FC<HemodialysisSectionProps> = ({ admissionId, 
     setForm((prev) => ({ ...prev, [key]: val }));
 
   const handleSave = async () => {
+    if (saving) return;
     const err = validateForm(form);
     if (err) { message.error(err); return; }
 
@@ -174,8 +177,7 @@ const HemodialysisSection: React.FC<HemodialysisSectionProps> = ({ admissionId, 
       setModalOpen(false);
       load();
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: string } })?.response?.data ?? 'Loi khong xac dinh.';
-      message.error(msg);
+      message.error(friendlyErrorMessage(e, 'Lưu phiếu chạy thận thất bại. Vui lòng thử lại.'));
     } finally {
       setSaving(false);
     }
@@ -235,9 +237,13 @@ const HemodialysisSection: React.FC<HemodialysisSectionProps> = ({ admissionId, 
         empty={'Chua co buoi loc mau'}
         actions={(r) => (
           <div className="ab-actions">
-            <ActBtn ic="edit" title="Sua" onClick={() => openEdit(r)} />
-            <ActBtn ic="print" title="In phieu" onClick={() => handlePrint(r)} />
-            <ActBtn ic="trash" title="Xoa" onClick={() => handleDelete(r)} />
+            <RowActions actions={[
+              { key: 'edit', icon: 'edit', label: 'Sửa phiếu chạy thận', primary: true, onClick: () => openEdit(r) },
+              { key: 'print', icon: 'print', label: 'In phiếu chạy thận', onClick: () => handlePrint(r) },
+              // handleDelete đã tự mở modal.confirm riêng → tắt confirm mặc định của RowActions.
+              { key: 'del', icon: 'trash', label: 'Xóa phiếu', tone: 'danger', confirm: false,
+                onClick: () => handleDelete(r) },
+            ]} />
           </div>
         )}
       />
@@ -250,7 +256,7 @@ const HemodialysisSection: React.FC<HemodialysisSectionProps> = ({ admissionId, 
         footer={
           <>
             <Btn variant="ghost" onClick={() => setModalOpen(false)}>Huy</Btn>
-            <Btn variant="primary" onClick={handleSave}>
+            <Btn variant="primary" onClick={handleSave} disabled={saving}>
               {saving ? 'Dang luu...' : 'Luu'}
             </Btn>
           </>

@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  KpiStrip, TopTabs, DataTable, SearchBox, Filter, StatusBadge, AbSelect, ActBtn, Btn,
+  KpiStrip, TopTabs, DataTable, SearchBox, Filter, StatusBadge, AbSelect, Btn,
   DrawerShell, ModalShell, DrSec, DrField, useListData,
   type ColumnDef, type TopTab, type KpiItem, type StatusTone,
   tk, te, tw, fmtDTg, fmtDMYg
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { RowActions } from '../../../components/actions';
 import { fmtVND } from '../../../utils/format';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import {
   einvoice,
   type EInvoiceDto,
@@ -60,7 +62,7 @@ const EInvoicesPage: React.FC = () => {
 // ── List Panel ─────────────────────────────────────────────────────────────
 
 const EInvoiceListPanel: React.FC = () => {
-  const { rows, reload } = useListData<EInvoiceDto>(
+  const { rows, loading, reload } = useListData<EInvoiceDto>(
     useCallback(() => einvoice.getList({ pageSize: 200 }), []),
     useCallback(() => te('Không tải được danh sách HĐĐT'), []),
   );
@@ -86,8 +88,8 @@ const EInvoiceListPanel: React.FC = () => {
       tk('Đã hủy hóa đơn');
       setDetail(null);
       reload();
-    } catch (err: unknown) {
-      te((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Hủy thất bại');
+    } catch (err) {
+      te(friendlyErrorMessage(err, 'Hủy hóa đơn thất bại. Vui lòng thử lại.'));
     }
   };
 
@@ -149,6 +151,7 @@ const EInvoiceListPanel: React.FC = () => {
         rowKey={(r) => r.id}
         data={filtered}
         columns={columns}
+        loading={loading}
         onRowClick={openDetail}
       />
 
@@ -234,9 +237,12 @@ const IssueModal: React.FC<{
 }> = ({ open, onClose, onIssued }) => {
   const [receiptId, setReceiptId] = useState('');
   const [provider, setProvider]   = useState('');
+  const [busy, setBusy] = useState(false);
 
   const submit = async () => {
     if (!receiptId.trim()) { te('Vui lòng nhập ID phiếu thu'); return; }
+    if (busy) return;
+    setBusy(true);
     try {
       const result = await einvoice.issue({
         receiptId: receiptId.trim(),
@@ -246,9 +252,9 @@ const IssueModal: React.FC<{
       setReceiptId('');
       setProvider('');
       onIssued();
-    } catch (err: unknown) {
-      te((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Phát hành thất bại');
-    }
+    } catch (err) {
+      te(friendlyErrorMessage(err, 'Phát hành hóa đơn thất bại. Vui lòng thử lại.'));
+    } finally { setBusy(false); }
   };
 
   return (
@@ -260,8 +266,8 @@ const IssueModal: React.FC<{
       footer={
         <>
           <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
-          <Btn variant="primary" onClick={submit}>
-            <TermIcon name="check" size={12} /> Phát hành
+          <Btn variant="primary" disabled={busy} onClick={submit}>
+            <TermIcon name="check" size={12} /> {busy ? 'Đang phát hành…' : 'Phát hành'}
           </Btn>
         </>
       }>
@@ -389,6 +395,7 @@ const BillingEInvoicePanel: React.FC = () => {
   const [issueOpen, setIssueOpen] = useState(false);
   const [sendFor, setSendFor] = useState<ElectronicInvoiceDto | null>(null);
   const [cancelFor, setCancelFor] = useState<ElectronicInvoiceDto | null>(null);
+  const [exporting, setExporting] = useState<string | null>(null);
 
   const loadStats = useCallback(() => {
     getElectronicInvoiceStats().then((r) => setStats(r.data)).catch(() => setStats(null));
@@ -399,11 +406,14 @@ const BillingEInvoicePanel: React.FC = () => {
 
   // #352: Xuất HĐ lên NCC — v1 handleExportEInvoice (gate status 0|1)
   const doExport = async (r: ElectronicInvoiceDto) => {
+    if (exporting) return;
+    setExporting(r.id);
     try {
       await exportElectronicInvoice(r.id);
       tk('Xuất hóa đơn lên nhà cung cấp thành công');
       refreshAll();
     } catch { te('Không thể xuất hóa đơn'); }
+    finally { setExporting(null); }
   };
 
   // #352: In hóa đơn đại diện — blob HTML → window.open + print (v1 handlePrintRepresentative)
@@ -486,17 +496,18 @@ const BillingEInvoicePanel: React.FC = () => {
         empty="Chưa có HĐĐT bảng kê"
         actions={(r) => (
           <div className="ab-actions">
-            {/* Gửi email khi Đã phát hành; đã từng gửi (sentTo) → Gửi lại (resend) */}
-            {r.status === 1 && (
-              <ActBtn ic="mail" title={r.sentTo ? 'Gửi lại email' : 'Gửi email'} onClick={() => setSendFor(r)} />
-            )}
-            {(r.status === 0 || r.status === 1) && (
-              <ActBtn ic="upload" title="Xuất lên NCC" onClick={() => doExport(r)} />
-            )}
-            <ActBtn ic="print" title="In đại diện" onClick={() => doPrintRep(r)} />
-            {(r.status === 1 || r.status === 2) && (
-              <ActBtn ic="x" title="Hủy HĐ" tone="crit" onClick={() => setCancelFor(r)} />
-            )}
+            <RowActions actions={[
+              // Gửi email khi Đã phát hành; đã từng gửi (sentTo) → Gửi lại (resend)
+              { key: 'send', icon: 'mail', label: r.sentTo ? 'Gửi lại email' : 'Gửi email', primary: true,
+                hidden: r.status !== 1, onClick: () => setSendFor(r) },
+              { key: 'export', icon: 'upload', label: 'Xuất lên nhà cung cấp', primary: true,
+                hidden: !(r.status === 0 || r.status === 1), disabled: exporting === r.id,
+                onClick: () => { void doExport(r); } },
+              { key: 'print', icon: 'print', label: 'In hóa đơn đại diện', onClick: () => { void doPrintRep(r); } },
+              // Hủy HĐ mở modal bắt buộc nhập lý do → confirm:false để không hỏi 2 lần
+              { key: 'cancel', icon: 'x', label: 'Hủy hóa đơn', tone: 'danger', confirm: false,
+                hidden: !(r.status === 1 || r.status === 2), onClick: () => setCancelFor(r) },
+            ]} />
           </div>
         )}
       />

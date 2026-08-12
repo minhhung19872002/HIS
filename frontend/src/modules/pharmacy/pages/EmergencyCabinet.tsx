@@ -75,13 +75,17 @@ const EmergencyCabinetV2: React.FC = () => {
       setCabinets(list);
       // fetch low-stock warnings for all cabinets in parallel
       const warnMap: Record<string, StockDto[]> = {};
+      let warnFailed = 0;   // gộp 1 toast cuối vòng lặp — không bắn toast từng tủ
       await Promise.all(list.map(async (c) => {
         try {
           const w = await getStockWarnings(c.id);
           warnMap[c.id] = Array.isArray(w.data) ? w.data : [];
-        } catch { warnMap[c.id] = []; }
+        } catch { warnFailed += 1; warnMap[c.id] = []; }
       }));
       setWarnings(warnMap);
+      if (warnFailed > 0) {
+        tw(`Không tải được cảnh báo tồn kho của ${warnFailed}/${list.length} tủ trực — số liệu cảnh báo có thể chưa đầy đủ`);
+      }
     } catch { tw('Tải danh sách tủ trực thất bại'); }
     finally { setCabLoading(false); }
   }, []);

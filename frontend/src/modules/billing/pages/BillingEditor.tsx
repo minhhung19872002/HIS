@@ -16,6 +16,7 @@ import {
   fmtVNDg, fmtDTg, tk, tw, te, type ColumnDef, type TopTab,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import PatientFlagBanner from '../../patient/components/PatientFlagBanner';
 import BusinessAlertPanel from '../../patient/components/BusinessAlertPanel';
 import PaymentQRModal from '../components/PaymentQRModal';
@@ -87,6 +88,10 @@ const BillingEditorV2: React.FC = () => {
   const [qrDepositAmount, setQrDepositAmount] = useState(0);
   const [cashbooks, setCashbooks] = useState<CashBookDto[]>([]);
   const [einvoices, setEinvoices] = useState<ElectronicInvoiceDto[]>([]);
+  const [tabLoading, setTabLoading] = useState(false); // #467: tab hoàn tiền/sổ tiền/HĐĐT đang nạp dữ liệu
+  // #467: tab Tạm ứng KHÔNG do ensureTab nạp mà do selectPatient nạp → cần cờ loading riêng,
+  // nếu không bảng hiện "Chưa có tạm ứng" (empty giả) trong lúc còn đang tải — sai trên màn tiền.
+  const [depositsLoading, setDepositsLoading] = useState(false);
 
   // ── Select patient → load unpaid items + balance ─────────────────
   // Guard chống race khi đổi BN nhanh: DS chưa thanh toán + số dư của BN cũ không được hiện dưới tên BN mới (#416, cùng pattern #374 — tiền)
@@ -97,6 +102,7 @@ const BillingEditorV2: React.FC = () => {
     setSearchOpen(false);
     setItems([]); setSel(new Set()); setBalance(null);
     setDeposits([]); setRefunds([]); setEinvoices([]);
+    setDepositsLoading(true);
     setLastPaymentId(null);
     const [svc, med, bal] = await Promise.allSettled([
       getUnpaidServices(p.patientId),
@@ -104,6 +110,13 @@ const BillingEditorV2: React.FC = () => {
       getDepositBalance(p.patientId),
     ]);
     if (selectReqRef.current !== reqId) return; // BN khác đã được chọn trong lúc chờ — bỏ response cũ
+    // #467: nhánh reject của allSettled trước đây im lặng → thu ngân tưởng BN không còn khoản phải thu.
+    // Báo rõ có phần dữ liệu chưa tải được (KHÔNG đổi luồng: vẫn dựng bảng từ các nhánh thành công).
+    const firstRejected = [svc, med, bal].find((x): x is PromiseRejectedResult => x.status === 'rejected');
+    if (firstRejected) {
+      tw(friendlyErrorMessage(firstRejected.reason,
+        'Chưa tải đủ dữ liệu viện phí (dịch vụ / thuốc / số dư tạm ứng) — kiểm tra lại trước khi thu tiền.'));
+    }
     const rows: PayRow[] = [];
     if (svc.status === 'fulfilled' && Array.isArray(svc.value.data)) {
       (svc.value.data as UnpaidServiceItemDto[]).forEach((s) => rows.push({ id: `S-${s.id}`, kind: 'service', code: s.serviceCode, name: s.serviceName, qty: s.quantity, unitPrice: s.unitPrice, amount: s.amount, patientAmount: s.patientAmount ?? s.amount }));
@@ -115,12 +128,16 @@ const BillingEditorV2: React.FC = () => {
     setSel(new Set(rows.map((r) => r.id)));
     if (bal.status === 'fulfilled' && bal.value.data) setBalance(bal.value.data);
     // lazy-load other tabs (cùng guard — deposits BN cũ về muộn cũng phải bỏ)
-    getPatientDeposits(p.patientId).then((r) => { if (selectReqRef.current !== reqId) return; setDeposits(Array.isArray(r.data) ? r.data : []); }).catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
+    getPatientDeposits(p.patientId)
+      .then((r) => { if (selectReqRef.current !== reqId) return; setDeposits(Array.isArray(r.data) ? r.data : []); })
+      .catch((e) => { if (selectReqRef.current !== reqId) return; tw(friendlyErrorMessage(e, 'Không tải được danh sách tạm ứng của bệnh nhân.')); })
+      .finally(() => { if (selectReqRef.current === reqId) setDepositsLoading(false); });
   }, []);
 
   // ── Tab data (lazy) ──────────────────────────────────────────────
   const ensureTab = useCallback(async (t: TabKey) => {
     setTab(t);
+    setTabLoading(true);
     try {
       if (t === 'refund' && refunds.length === 0) {
         const reqId = selectReqRef.current; // refunds là dữ liệu theo-BN — response về sau khi đã đổi BN thì bỏ (#416)
@@ -134,7 +151,8 @@ const BillingEditorV2: React.FC = () => {
         const r = await getElectronicInvoices();
         setEinvoices(Array.isArray(r.data) ? r.data : []);
       }
-    } catch { /* keep empty */ }
+    } catch (e) { te(friendlyErrorMessage(e, 'Không tải được dữ liệu của tab này.')); }
+    finally { setTabLoading(false); }
   }, [pt, refunds.length, cashbooks.length, einvoices.length]);
 
   const toggle = (id: string) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -151,6 +169,7 @@ const BillingEditorV2: React.FC = () => {
 
   const doPayment = async () => {
     if (!pt) return;
+    if (busy) return; // #467 chống double-submit: click nhanh 2 lần = thu tiền 2 lần
     setBusy(true);
     // Snapshot counter: nếu user đổi BN trong lúc payment in-flight → bỏ refresh tail (#416)
     const paySnapId = selectReqRef.current;
@@ -192,6 +211,7 @@ const BillingEditorV2: React.FC = () => {
   };
   const saveCreate = async () => {
     if (!pt) return;
+    if (savingC) return; // #467 chống double-submit: tránh tạo trùng phiếu tạm ứng / hoàn tiền
     const amt = Number(cform.amount);
     if (!amt || amt <= 0) { tw('Nhập số tiền hợp lệ'); return; }
     if (createModal === 'deposit' && cform.method === 3) {
@@ -273,6 +293,7 @@ const BillingEditorV2: React.FC = () => {
   };
   const issueEinv = async () => {
     if (!pt) return;
+    if (savingEinv) return; // #467 chống double-submit: tránh phát hành 2 hoá đơn điện tử
     setSavingEinv(true);
     try {
       const inv = await getPatientInvoice(pt.medicalRecordId);
@@ -415,16 +436,16 @@ const BillingEditorV2: React.FC = () => {
           {tab === 'refund' && (
             <div>
               <div style={{ marginBottom: 'var(--space-12)' }}><Btn variant="primary" onClick={() => openCreate('refund')}><TermIcon name="plus" size={12} /> Lập phiếu hoàn tiền</Btn></div>
-              <DataTable<RefundDto> columns={refundCols} data={refunds} rowKey={(r) => r.id} empty="Chưa có phiếu hoàn tiền" />
+              <DataTable<RefundDto> columns={refundCols} data={refunds} rowKey={(r) => r.id} loading={tabLoading} empty="Chưa có phiếu hoàn tiền" />
             </div>
           )}
           {tab === 'cashbook' && (
-            <DataTable<CashBookDto> columns={cashbookCols} data={cashbooks} rowKey={(r) => r.id} empty="Chưa có sổ tiền" />
+            <DataTable<CashBookDto> columns={cashbookCols} data={cashbooks} rowKey={(r) => r.id} loading={tabLoading} empty="Chưa có sổ tiền" />
           )}
           {tab === 'einv' && (
             <div>
               <div style={{ marginBottom: 'var(--space-12)' }}><Btn variant="primary" onClick={openEinv}><TermIcon name="plus" size={12} /> Phát hành HĐĐT</Btn></div>
-              <DataTable<ElectronicInvoiceDto> columns={einvCols} data={einvoices} rowKey={(r) => r.id} empty="Chưa có hoá đơn điện tử"
+              <DataTable<ElectronicInvoiceDto> columns={einvCols} data={einvoices} rowKey={(r) => r.id} loading={tabLoading} empty="Chưa có hoá đơn điện tử"
                 actions={(r) => <><ActBtn ic="send" title="Gửi email" onClick={() => openSendEmail(r)} /><ActBtn ic="print" title="In" onClick={() => doPrintInvoice(r)} /></>} />
             </div>
           )}
@@ -613,16 +634,25 @@ const BillingPatientSearch: React.FC<{ open: boolean; onClose: () => void; onPic
   const [q, setQ] = useState('');
   const [list, setList] = useState<PatientBillingStatusDto[]>([]);
   const [loading, setLoading] = useState(false);
+  // #467: `run` chạy theo TỪNG phím gõ → response cũ về sau response mới sẽ ghi đè kết quả sai,
+  // và (từ khi có toast lỗi) mỗi phím hỏng sẽ bắn 1 toast → chồng chất. Chỉ nhận response mới nhất.
+  const searchReqRef = useRef(0);
 
   const run = async (kw: string) => {
     setQ(kw);
-    if (!kw || kw.length < 2) { setList([]); return; }
+    // xoá bớt ký tự về <2 = huỷ mọi request đang bay (tăng seq) + tắt spinner, tránh kẹt "Đang tìm…"
+    if (!kw || kw.length < 2) { searchReqRef.current++; setList([]); setLoading(false); return; }
+    const reqId = ++searchReqRef.current;
     setLoading(true);
     try {
       const r = await searchPatients({ keyword: kw, page: 1, pageSize: 15 });
+      if (searchReqRef.current !== reqId) return;
       setList(r.data?.items || []);
-    } catch { setList([]); }
-    finally { setLoading(false); }
+    } catch (e) {
+      if (searchReqRef.current !== reqId) return;
+      tw(friendlyErrorMessage(e, 'Không tìm được bệnh nhân. Vui lòng thử lại.')); setList([]);
+    }
+    finally { if (searchReqRef.current === reqId) setLoading(false); }
   };
 
   return (

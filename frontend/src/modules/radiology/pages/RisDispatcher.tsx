@@ -9,6 +9,7 @@ import {
   tk, ti, tw, type ColumnDef,
 } from '@/_v2kit';
 import { RowActions } from '../../../components/actions';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { toggleFavorite, getFavorites } from '../api/ris';
 
 interface PendingService {
@@ -48,8 +49,9 @@ const RisDispatcherV2: React.FC = () => {
     try {
       const res = await getFavorites();
       setFavSet(new Set(res.data.map((f) => f.requestId)));
-    } catch {
-      // favorites are optional — silence error
+    } catch (e) {
+      // Đánh dấu yêu thích là tính năng phụ — không chặn nghiệp vụ, nhưng vẫn phải báo
+      tw(friendlyErrorMessage(e, 'Không tải được danh sách chỉ định yêu thích'));
     }
   }, []);
 
@@ -63,7 +65,12 @@ const RisDispatcherV2: React.FC = () => {
             examGroupName: examGroupFilter || undefined,
           },
         }),
-        apiClient.get<Room[]>('/RISComplete/rooms', { params: { roomType: 'radiology' } }).catch(() => ({ data: [] as Room[] })),
+        apiClient.get<Room[]>('/RISComplete/rooms', { params: { roomType: 'radiology' } })
+          .catch((e) => {
+            // .catch() lồng nuốt lỗi trước catch ngoài → không báo thì danh sách phòng rỗng, CHẶN CẢ LUỒNG ĐIỀU PHỐI
+            tw(friendlyErrorMessage(e, 'Không tải được danh sách phòng chụp — chưa thể điều phối bệnh nhân'));
+            return { data: [] as Room[] };
+          }),
       ]);
       setPending(p.data); setRooms(r.data);
       if (selectedRoom) {

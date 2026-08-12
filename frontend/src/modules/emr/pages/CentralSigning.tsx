@@ -31,11 +31,12 @@ interface SigningStats {
   topUsers?: { userFullName?: string; userName?: string; count: number }[];
 }
 
-type Tab = 'certs' | 'transactions' | 'config';
+type Tab = 'certs' | 'transactions' | 'config' | 'biometric';
 const TABS = [
-  { v: 'certs' as Tab,        l: 'Chứng thư',   ic: 'card' },
+  { v: 'certs' as Tab,        l: 'Chứng thư',    ic: 'card' },
   { v: 'transactions' as Tab, l: 'Giao dịch ký', ic: 'activity' },
-  { v: 'config' as Tab,       l: 'Cấu hình',    ic: 'edit' },
+  { v: 'config' as Tab,       l: 'Cấu hình',     ic: 'edit' },
+  { v: 'biometric' as Tab,    l: 'Sinh trắc học', ic: 'scan' },
 ];
 
 const PER = 18;
@@ -484,6 +485,68 @@ const CentralSigningV2: React.FC = () => {
               </div>
             </div>
           </ModalShell>
+        </div>
+      )}
+
+      {tab === 'biometric' && (
+        <div style={{ padding: 'var(--space-24)' }}>
+          <div className="panel" style={{ padding: 0 }}>
+            <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
+              <span>Xác thực sinh trắc học (WebAuthn/FIDO2)</span>
+            </div>
+            <div style={{ padding: 'var(--space-24)', color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>
+              <div style={{ marginBottom: 'var(--space-16)', padding: '10px 14px', background: 'var(--d-1)', borderRadius: 'var(--r-2)', borderLeft: '3px solid var(--a-bl)', color: 'var(--t-1)', lineHeight: 1.7 }}>
+                Đăng ký vân tay hoặc khuôn mặt để xác thực khi ký số.
+                Hỗ trợ <strong>Windows Hello</strong>, <strong>Touch ID</strong>, <strong>Face ID</strong> và USB security key (FIDO2).
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-16)', marginBottom: 'var(--space-20)' }}>
+                <div style={{ padding: 'var(--space-12)', background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
+                  <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-3)', marginBottom: 4 }}>Hỗ trợ WebAuthn</div>
+                  <div style={{ fontWeight: 600 }}>
+                    {typeof window !== 'undefined' && window.PublicKeyCredential
+                      ? <StatusBadge tone="ok" dot>Trình duyệt hỗ trợ</StatusBadge>
+                      : <StatusBadge tone="crit" dot>Không hỗ trợ</StatusBadge>}
+                  </div>
+                </div>
+                <div style={{ padding: 'var(--space-12)', background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
+                  <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-3)', marginBottom: 4 }}>Thiết bị</div>
+                  <div style={{ fontWeight: 600, color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Kiểm tra khi nhấn nút đăng ký</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 'var(--space-10)', flexWrap: 'wrap' }}>
+                <Btn variant="primary" onClick={async () => {
+                  if (typeof window === 'undefined' || !window.PublicKeyCredential) {
+                    tw('Trình duyệt không hỗ trợ WebAuthn'); return;
+                  }
+                  try {
+                    const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+                    if (!available) { tw('Thiết bị không hỗ trợ xác thực sinh trắc học (Windows Hello/Touch ID/Face ID)'); return; }
+                    ti('Vui lòng xác thực bằng vân tay / khuôn mặt trên thiết bị để đăng ký…');
+                  } catch { tw('Lỗi kiểm tra WebAuthn — thử trên HTTPS hoặc localhost'); }
+                }}>
+                  <Ico name="scan" size={12} /> Đăng ký sinh trắc học
+                </Btn>
+                <Btn variant="ghost" onClick={async () => {
+                  if (typeof window === 'undefined' || !window.PublicKeyCredential) {
+                    tw('Trình duyệt không hỗ trợ WebAuthn'); return;
+                  }
+                  try {
+                    const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+                    ti(available ? 'Thiết bị HỖ TRỢ xác thực sinh trắc học' : 'Thiết bị KHÔNG hỗ trợ xác thực sinh trắc học');
+                  } catch { tw('Lỗi kiểm tra'); }
+                }}>
+                  <Ico name="check" size={12} /> Kiểm tra thiết bị
+                </Btn>
+              </div>
+
+              <div style={{ marginTop: 'var(--space-20)', fontSize: 'var(--fs-sm)', color: 'var(--t-3)', lineHeight: 1.8 }}>
+                <div><strong>Lưu ý:</strong> Tính năng đăng ký sinh trắc học yêu cầu backend hỗ trợ WebAuthn challenge/response.</div>
+                <div>Hiện tại: kiểm tra khả năng tương thích thiết bị. API đăng ký sẽ được kích hoạt khi backend WebAuthn sẵn sàng.</div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

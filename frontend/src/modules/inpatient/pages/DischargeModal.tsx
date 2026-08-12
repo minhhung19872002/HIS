@@ -31,6 +31,7 @@ import type {
 } from '../api/inpatient';
 import { ModalShell, Btn, DrSec, DrField, tk, tw, te } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 const DISCHARGE_TYPES = [
   { value: 1, label: 'Ra viện' },
@@ -141,8 +142,7 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ open, patient, onClose,
       tk('Đã hoàn tất ra viện');
       onDone();
     } catch (e) {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      te(msg || 'Ra viện thất bại');
+      te(friendlyErrorMessage(e, 'Ra viện thất bại. Vui lòng kiểm tra lại thông tin và thử lại.'));
     } finally {
       setSaving(false);
     }

@@ -150,6 +150,7 @@ const DicomStudyAuditLog: React.FC = () => {
         columns={cols}
         data={paged}
         rowKey={r => r.id}
+        loading={loading}
         onRowClick={(r) => openTimeline(r.studyInstanceUid)}
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={rows.length} perPage={PER} />

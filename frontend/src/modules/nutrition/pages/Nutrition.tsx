@@ -13,6 +13,8 @@ import type {
 import { getInpatientList } from '../../inpatient/api/inpatient';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 import { openPrintWindow } from '../../../utils/printWindow';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { RowActions } from '../../../components/actions';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal, ModalShell,
   DrawerShell, DrSec, DrField, tk, ti, te, tw,
@@ -338,7 +340,8 @@ const NutritionV2: React.FC = () => {
 
   const loadDashboard = async () => {
     try { setDashboard((await getDashboard(dayjs().format('YYYY-MM-DD'))).data || null); }
-    catch { /* dashboard optional — KPI tự fallback về số liệu tính cục bộ */ }
+    // dashboard optional — KPI tự fallback về số liệu tính cục bộ, nhưng vẫn phải báo cho người dùng biết
+    catch (e) { tw(friendlyErrorMessage(e, 'Không tải được bảng tổng quan dinh dưỡng — KPI đang tính từ dữ liệu cục bộ.')); }
   };
 
   const loadScreening = async () => {
@@ -376,7 +379,7 @@ const NutritionV2: React.FC = () => {
         : 'Đã duyệt (chế độ ăn không thu tiền)');
       await loadCanteen();
     } catch (e) {
-      ti((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Duyệt thất bại');
+      te(friendlyErrorMessage(e, 'Duyệt phiếu suất ăn thất bại. Vui lòng thử lại.'));
     } finally { setCanteenBusy(null); }
   };
 
@@ -390,7 +393,7 @@ const NutritionV2: React.FC = () => {
       setRejectTarget(null); setRejectReason('');
       await loadCanteen();
     } catch (e) {
-      ti((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Từ chối thất bại');
+      te(friendlyErrorMessage(e, 'Từ chối phiếu suất ăn thất bại. Vui lòng thử lại.'));
     } finally { setCanteenBusy(null); }
   };
 
@@ -402,7 +405,7 @@ const NutritionV2: React.FC = () => {
       tk(step === 'prepared' ? 'Đã đánh dấu chuẩn bị xong' : 'Đã phát về khoa phòng');
       await loadCanteen();
     } catch (e) {
-      ti((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Thao tác thất bại');
+      te(friendlyErrorMessage(e, step === 'prepared' ? 'Đánh dấu chuẩn bị xong thất bại. Vui lòng thử lại.' : 'Phát về khoa phòng thất bại. Vui lòng thử lại.'));
     } finally { setCanteenBusy(null); }
   };
 
@@ -453,7 +456,8 @@ const NutritionV2: React.FC = () => {
         const [dt, ip] = await Promise.all([getDietTypes(), getInpatientList({ pageSize: 300 })]);
         setDietTypeOpts((dt.data || []).map((t) => ({ value: t.code, label: t.name })));
         setAdmissionOpts((ip.data?.items || []).map((p) => ({ value: p.admissionId, label: `${p.patientName} · ${p.bedName || p.roomName || p.departmentName}` })));
-      } catch { /* options optional — modal vẫn mở được, chỉ thiếu gợi ý */ }
+      // options optional — modal vẫn mở được, chỉ thiếu gợi ý; cảnh báo để người dùng biết danh sách rỗng là do lỗi tải
+      } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh mục chế độ ăn / bệnh nhân nội trú — danh sách gợi ý trong biểu mẫu sẽ trống.')); }
     })();
   }, []);
 
@@ -588,11 +592,14 @@ const NutritionV2: React.FC = () => {
   ];
 
   const actions = (r: Row) => (
-    <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-      {isActive(r.status) && <ActBtn ic="x" title="Ngưng đơn" tone="crit" onClick={() => { setCancelRow(r); setCancelReason(''); }} />}
-    </div>
+    <RowActions actions={[
+      { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setSel(r) },
+      { key: 'edit', icon: 'edit', label: 'Sửa', primary: true, onClick: () => openEdit(r) },
+      // confirm: false — modal "Ngưng đơn" bên dưới đã bắt buộc nhập lý do, không confirm 2 lần
+      { key: 'cancel', icon: 'x', label: 'Ngưng đơn', tone: 'danger', confirm: false,
+        hidden: !isActive(r.status),
+        onClick: () => { setCancelRow(r); setCancelReason(''); } },
+    ]} />
   );
 
   // ── Sàng lọc: cột + hành động ──

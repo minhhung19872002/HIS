@@ -8,11 +8,13 @@ import {
 import type { SampleRejection, SampleTrackingEvent, SampleTrackingSummary } from '../api/sampleTracking';
 import { getSampleBatches, type SampleBatchDto, type SampleBatchItemDto } from '../api/sampleBatch';
 import {
-  KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
+  KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, Btn,
   DrawerShell, ModalShell, DrSec, DrField, CrudModal, tk, ti, te, cf, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
 import { BarcodeScanner } from '@/components/form';
+import { RowActions } from '@/components/actions';
+import { friendlyErrorMessage } from '@/utils/friendlyError';
 
 type SKey = 'pending' | 'undone' | 'recollected';
 const STATUS_TABS = [
@@ -137,7 +139,7 @@ const SampleTrackingV2: React.FC = () => {
     try {
       const data = await getSampleTimeline(barcode);
       setTlEvents(Array.isArray(data) ? data : []);
-    } catch { setTlEvents([]); }
+    } catch (e) { setTlEvents([]); ti(friendlyErrorMessage(e, 'Không tải được timeline mẫu')); }
     finally { setTlLoading(false); }
   };
 
@@ -204,14 +206,17 @@ const SampleTrackingV2: React.FC = () => {
 
   const actions = (r: SampleRejection) => (
     <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="activity" title="Timeline mẫu" onClick={() => openTimeline(r.sampleBarcode)} />
-      {!r.reCollected && !r.isUndone && (
-        <>
-          <ActBtn ic="refresh" title="Hủy từ chối" onClick={() => { setUndoTarget(r); setUndoReason(''); }} />
-          <ActBtn ic="package" title="Lấy lại mẫu" onClick={() => handleReCollect(r)} />
-        </>
-      )}
+      <RowActions actions={[
+        { key: 'view', icon: 'eye', label: 'Xem chi tiết', primary: true, onClick: () => setSel(r) },
+        { key: 'timeline', icon: 'activity', label: 'Timeline mẫu', primary: true,
+          onClick: () => openTimeline(r.sampleBarcode) },
+        { key: 'undo', icon: 'refresh', label: 'Hủy từ chối',
+          hidden: r.reCollected || r.isUndone,
+          onClick: () => { setUndoTarget(r); setUndoReason(''); } },
+        { key: 'recollect', icon: 'flask', label: 'Lấy lại mẫu',
+          hidden: r.reCollected || r.isUndone,
+          onClick: () => handleReCollect(r) },
+      ]} />
     </div>
   );
 

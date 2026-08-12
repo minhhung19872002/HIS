@@ -6,6 +6,7 @@
 // =====================================================================
 import React, { useEffect, useMemo, useState } from 'react';
 import * as file from '../../../services/file.service';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { Input, InputNumber, Select, DatePicker, Switch } from 'antd';
 import dayjs from 'dayjs';
 import * as api from '../api/masterCatalog';
@@ -47,6 +48,7 @@ const FinanceCatalogsV2: React.FC = () => {
   const [edit, setEdit] = useState<EditState | null>(null);
   const [editIsNew, setEditIsNew] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => { setSearch(''); setPage(0); }, [tab]);
 
@@ -248,17 +250,19 @@ const FinanceCatalogsV2: React.FC = () => {
     return null;
   };
 
-  /** #352: lấy message thật từ server thay vì nuốt thành 'Lưu thất bại' (v1 hiện response.data.message). */
-  const serverMsg = (err: unknown, fallback: string): string => {
-    const r = (err as { response?: { data?: { message?: string; title?: string } } })?.response?.data;
-    return r?.message || r?.title || fallback;
-  };
+  /**
+   * #352: lấy message thật từ server thay vì nuốt thành 'Lưu thất bại'.
+   * #467: quy về `friendlyErrorMessage` — vẫn ưu tiên message nghiệp vụ của BE,
+   * nhưng lỗi kỹ thuật/mạng được diễn đạt bằng tiếng Việt thân thiện thay vì nguyên văn.
+   */
+  const serverMsg = (err: unknown, fallback: string): string => friendlyErrorMessage(err, fallback);
 
   // ----- Save handler -----
   const handleSave = async () => {
-    if (!edit) return;
+    if (!edit || saving) return;
     const invalid = validateEdit();
     if (invalid) { te(invalid); return; }
+    setSaving(true);
     try {
       if (tab === 'surcharge') {
         await api.saveAdditionalCharge(edit as Partial<api.AdditionalChargeDto>);
@@ -273,6 +277,7 @@ const FinanceCatalogsV2: React.FC = () => {
       setEdit(null);
       reload(tab);
     } catch (err) { te(serverMsg(err, 'Lưu thất bại')); }
+    finally { setSaving(false); }
   };
 
   // ----- Delete -----
@@ -347,8 +352,10 @@ const FinanceCatalogsV2: React.FC = () => {
         sub={`Mục: ${tabsDef.find((t) => t.v === tab)?.l.split(' (')[0]}`}
         footer={(
           <>
-            <Btn variant="ghost" onClick={() => setEdit(null)}>Huỷ</Btn>
-            <Btn variant="primary" icon="check" onClick={handleSave}>{editIsNew ? 'Tạo mới' : 'Lưu'}</Btn>
+            <Btn variant="ghost" disabled={saving} onClick={() => setEdit(null)}>Huỷ</Btn>
+            <Btn variant="primary" icon="check" loading={saving} onClick={handleSave}>
+              {saving ? 'Đang lưu…' : (editIsNew ? 'Tạo mới' : 'Lưu')}
+            </Btn>
           </>
         )}
       >

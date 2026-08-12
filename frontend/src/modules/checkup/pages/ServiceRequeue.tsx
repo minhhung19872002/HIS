@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { fmtNum as fmt } from '../../../utils/format';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { Form, Input, Checkbox } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../../../services/apiClient';
@@ -25,6 +26,7 @@ const ServiceRequeueV2: React.FC = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
 
   const search = useCallback(async () => {
@@ -35,11 +37,16 @@ const ServiceRequeueV2: React.FC = () => {
         id: string; medicalRecordCode?: string;
         patientName?: string; patient?: { fullName?: string };
       }
+      let lookupFailed = false;
       const { data: r } = await apiClient.get<{ items?: SearchedRecord[] }>('/examination/medical-records/search', {
         params: { keyword, pageSize: 1 },
-      }).catch(() => ({ data: { items: [] } }));
+      }).catch((e) => {
+        lookupFailed = true;
+        tw(friendlyErrorMessage(e, 'Không tra cứu được hồ sơ. Vui lòng thử lại.'));
+        return { data: { items: [] } };
+      });
       const item = (r?.items || [])[0];
-      if (!item) { tw('Không tìm thấy hồ sơ'); setServices([]); setMr(null); return; }
+      if (!item) { if (!lookupFailed) tw('Không tìm thấy hồ sơ'); setServices([]); setMr(null); return; }
       setMr({ id: item.id, code: item.medicalRecordCode || '', patientName: item.patientName || item.patient?.fullName || '' });
       const { data } = await apiClient.get<CancelledService[]>(`/service-refund/cancelled-services/${item.id}`);
       setServices(data || []);
@@ -49,7 +56,9 @@ const ServiceRequeueV2: React.FC = () => {
   }, [keyword]);
 
   const submit = async () => {
+    if (submitting) return;
     const v = await form.validateFields();
+    setSubmitting(true);
     try {
       interface RequeueResponse { requeued?: number; total?: number }
       const { data }: { data: RequeueResponse } = await apiClient.post('/service-refund/requeue', {
@@ -59,7 +68,8 @@ const ServiceRequeueV2: React.FC = () => {
       });
       tk(`Đã cho lại ${data.requeued ?? 0}/${data.total ?? 0} chỉ định`);
       setConfirmOpen(false); form.resetFields(); search();
-    } catch { tw('Xử lý thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Cho lại chỉ định thất bại. Vui lòng thử lại.')); }
+    finally { setSubmitting(false); }
   };
 
   const totalSelected = services.filter((s) => selected.has(s.id)).reduce((sum, s) => sum + s.amount, 0);
@@ -139,8 +149,8 @@ const ServiceRequeueV2: React.FC = () => {
         size="md"
         title="Cho lại chỉ định"
         footer={<>
-          <Btn variant="ghost" onClick={() => setConfirmOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" icon="check" onClick={submit}>Xác nhận cho lại</Btn>
+          <Btn variant="ghost" disabled={submitting} onClick={() => setConfirmOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" icon="check" loading={submitting} onClick={submit}>{submitting ? 'Đang xử lý…' : 'Xác nhận cho lại'}</Btn>
         </>}
       >
         <div style={{ padding: 'var(--space-12)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, marginBottom: 'var(--space-12)' }}>

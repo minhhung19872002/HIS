@@ -3,8 +3,9 @@ import {
   KpiStrip, TopTabs, DataTable, SearchBox, Filter, StatusBadge, AbSelect, Btn,
   DrawerShell, ModalShell, DrSec, DrField,
   type ColumnDef, type TopTab, type KpiItem, type StatusTone,
-  tk, te, fmtDTg
+  tk, te, tw, fmtDTg
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import {
   zalo,
@@ -170,9 +171,11 @@ const ZnsSendModal: React.FC<{ open: boolean; onClose: () => void; onSent: () =>
   const [tplId, setTplId] = useState('appointment_reminder');
   const [phone, setPhone] = useState('');
   const [params, setParams] = useState<Record<string, string>>({});
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    if (open) zalo.getTemplates().then(setTemplates).catch(() => { /* ignore */ });
+    if (open) zalo.getTemplates().then(setTemplates)
+      .catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh sách mẫu tin Zalo')); });
   }, [open]);
   useEffect(() => { setParams({}); }, [tplId]);
 
@@ -180,20 +183,23 @@ const ZnsSendModal: React.FC<{ open: boolean; onClose: () => void; onSent: () =>
 
   const submit = async () => {
     if (!phone) { te('Vui lòng nhập SĐT'); return; }
+    if (sending) return;
+    setSending(true);
     try {
       await zalo.send({ templateId: tplId, targetPhone: phone, templateParams: params });
       tk(`Đã gửi tin Zalo · ${phone}`);
       setPhone(''); setParams({});
       onClose(); onSent();
     } catch { te('Gửi thất bại'); }
+    finally { setSending(false); }
   };
 
   return (
     <ModalShell open={open} onClose={onClose} title="Gửi tin Zalo (ZNS)" size="md"
       footer={<>
-        <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
-        <Btn variant="primary" onClick={submit}>
-          <TermIcon name="external" size={12} /> Gửi
+        <Btn variant="ghost" onClick={onClose} disabled={sending}>Hủy</Btn>
+        <Btn variant="primary" onClick={submit} disabled={sending}>
+          <TermIcon name="external" size={12} /> {sending ? 'Đang gửi…' : 'Gửi'}
         </Btn>
       </>}>
       <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 'var(--space-10)', padding: 'var(--space-14)' }}>
@@ -218,6 +224,7 @@ const ZnsSendModal: React.FC<{ open: boolean; onClose: () => void; onSent: () =>
 const ZnsConfigPanel: React.FC = () => {
   const [cfg, setCfg] = useState<ZaloConfigDto | null>(null);
   const [tested, setTested] = useState<boolean | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     zalo.getConfig().then(setCfg).catch(() => te('Không tải được cấu hình'));
@@ -227,9 +234,11 @@ const ZnsConfigPanel: React.FC = () => {
     setCfg((c) => c ? { ...c, [k]: v } : c);
 
   const save = async () => {
-    if (!cfg) return;
+    if (!cfg || saving) return;
+    setSaving(true);
     try { await zalo.saveConfig(cfg); tk('Đã lưu cấu hình'); }
     catch { te('Lưu thất bại'); }
+    finally { setSaving(false); }
   };
   const test = async () => {
     try {
@@ -266,8 +275,8 @@ const ZnsConfigPanel: React.FC = () => {
         </label>
       </div>
       <div style={{ display: 'flex', gap: 'var(--space-8)', marginTop: 'var(--space-16)' }}>
-        <Btn variant="primary" onClick={save}>
-          <TermIcon name="check" size={12} /> Lưu cấu hình
+        <Btn variant="primary" onClick={save} disabled={saving}>
+          <TermIcon name="check" size={12} /> {saving ? 'Đang lưu…' : 'Lưu cấu hình'}
         </Btn>
         <Btn onClick={test}>
           <TermIcon name="activity" size={12} /> Kiểm tra kết nối

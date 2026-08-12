@@ -78,11 +78,11 @@ const BillingGuarantorsV2: React.FC = () => {
   const [tab, setTab] = useState<TabKey>('orgs');
 
   // data
-  const { rows: orgs, reload: reloadOrgs } = useListData<SponsorOrgDto>(
+  const { rows: orgs, loading: loadingOrgs, reload: reloadOrgs } = useListData<SponsorOrgDto>(
     useCallback(() => getSponsorOrgs(), []),
     useCallback(() => te('Không tải được đơn vị bảo lãnh'), []),
   );
-  const { rows: guarantors, reload: reloadGuarantors } = useListData<BillingGuarantorDto>(
+  const { rows: guarantors, loading: loadingGuarantors, reload: reloadGuarantors } = useListData<BillingGuarantorDto>(
     useCallback(() => getGuarantors(), []),
     useCallback(() => te('Không tải được danh sách bảo lãnh'), []),
   );
@@ -298,6 +298,7 @@ const BillingGuarantorsV2: React.FC = () => {
             columns={colsOrg}
             data={pagedRows as SponsorOrgDto[]}
             rowKey={r => r.id}
+            loading={loadingOrgs}
             onRowClick={onOrgRowClick}
             actions={row => (
               <ActBtn ic="trash" title="Xóa" tone="crit"
@@ -316,6 +317,7 @@ const BillingGuarantorsV2: React.FC = () => {
             columns={colsGuarantor}
             data={pagedRows as BillingGuarantorDto[]}
             rowKey={r => r.id}
+            loading={loadingGuarantors}
             onRowClick={onGuarantorRowClick}
             actions={row => (
               <ActBtn ic="trash" title="Hủy" tone="crit"

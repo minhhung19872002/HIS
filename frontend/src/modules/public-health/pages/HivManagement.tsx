@@ -8,9 +8,10 @@ import type { HivPatient, HivLabResult, PmtctRecord, HivStats } from '../api/hiv
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager,
   StatusBadge, ActBtn, Btn, DrawerShell, DrSec, DrField, CrudModal,
-  useTabCounts, tk, ti, Ico,
+  useTabCounts, tk, ti, tw, Ico,
   type ColumnDef, type StatusTab, type CrudFieldCfg,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '@/utils/friendlyError';
 
 /* Quản lý HIV/AIDS v2 — port từ v1 pages/HivManagement.tsx
  * 4 tab nghiệp vụ: Danh sách BN · Xét nghiệm (CD4/VL) · PMTCT · Thống kê (cascade 90-90-90)
@@ -153,6 +154,8 @@ const HivManagementV2: React.FC = () => {
     try {
       const data = patientId ? await getPmtctRecords({ patientId }) : [];
       setPmtctRecords(Array.isArray(data) ? data : []);
+    } catch (e) {
+      tw(friendlyErrorMessage(e, 'Không tải được hồ sơ PMTCT của bệnh nhân.'));
     } finally { setPmtctLoading(false); }
   };
 
@@ -166,7 +169,7 @@ const HivManagementV2: React.FC = () => {
     setLabHistory([]);
     setLabLoading(true);
     try { setLabHistory(await getLabHistory(r.id)); }
-    catch { setLabHistory([]); }
+    catch (e) { tw(friendlyErrorMessage(e, 'Không tải được lịch sử xét nghiệm CD4/tải lượng virus.')); setLabHistory([]); }
     finally { setLabLoading(false); }
   };
 

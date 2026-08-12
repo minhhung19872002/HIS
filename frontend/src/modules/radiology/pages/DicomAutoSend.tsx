@@ -9,10 +9,11 @@ import dayjs from 'dayjs';
 import { Form, Input, Select, InputNumber, Checkbox, Button } from 'antd';
 import {
   KpiStrip, TopTabs, DataTable, DrawerShell, ModalShell, ActBtn, StatusBadge, DrSec, DrField,
-  tk, te, cf, fmtDTg, fmtHMg, fmtDMYg,
+  tk, te, tw, cf, fmtDTg, fmtHMg, fmtDMYg,
 } from '@/_v2kit';
 import type { ColumnDef } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { dicomAutoSendApi } from '../../../api/nangcap24';
 import type {
   DicomAutoSendRuleDto, DicomTransmissionLogDto, DicomTransmissionStatsDto,
@@ -46,7 +47,12 @@ const DicomAutoSend: React.FC = () => {
     try {
       const [rs, ss, ts, st] = await Promise.all([
         dicomAutoSendApi.listRules(),
-        apiClient.get<RemoteServerDto[]>('/RISComplete/dicom/remote-servers').then(r => r.data).catch(() => []),
+        apiClient.get<RemoteServerDto[]>('/RISComplete/dicom/remote-servers').then(r => r.data)
+          .catch((e) => {
+            // Lỗi bị .catch() lồng nuốt trước catch ngoài → phải tự báo, nếu không dropdown máy chủ đích rỗng âm thầm
+            tw(friendlyErrorMessage(e, 'Không tải được danh sách máy chủ DICOM đích'));
+            return [];
+          }),
         dicomAutoSendApi.searchTransmissions(undefined, undefined, undefined, 1, 100),
         dicomAutoSendApi.getStats(dayjs().subtract(13, 'day').toISOString(), dayjs().toISOString()),
       ]);

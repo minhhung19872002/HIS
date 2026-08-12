@@ -9,7 +9,7 @@ import {
   StatusBadge, Btn, DrawerShell, DrSec, ModalShell, CrudModal,
   type CrudFieldCfg, useListData, useTabCounts,
   type ColumnDef, type StatusTab,
-  tk, te,
+  tk, tw, te,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { RowActions } from '../../../components/actions';
@@ -61,17 +61,19 @@ const CRUD_FIELDS: CrudFieldCfg[] = [
 const ConsultationV2: React.FC = () => {
   const { message } = AntdApp.useApp();
   const [createOpen, setCreateOpen] = useState(false);
-  const { rows, loading, reload } = useListData<ConsultationSessionDto>(
+  const { rows, loading, error, reload } = useListData<ConsultationSessionDto>(
     useCallback(() => risApi.searchConsultations({
       fromDate: dayjs().subtract(60, 'day').format('YYYY-MM-DD'),
       toDate:   dayjs().add(30, 'day').format('YYYY-MM-DD'),
       page: 1, pageSize: 200,
     }).then((r) => r.data?.items || []), []),
+    useCallback(() => te('Không tải được danh sách phiên hội chẩn. Vui lòng thử lại.'), []),
   );
   const [stab, setStab] = useState<StatusKey | 'all'>('all');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [detail, setDetail] = useState<ConsultationSessionDto | null>(null);
+  const [startingId, setStartingId] = useState<string | null>(null); // chống double-click "Bắt đầu"
   const PAGE_SIZE = 14;
 
   const counts = useTabCounts(rows, STATUS_TABS, (r) => statusKey(r.status));
@@ -197,10 +199,17 @@ const ConsultationV2: React.FC = () => {
               onClick: () => { setDetail(r); setTimeout(() => window.print(), 300); },
             },
             {
+              // guard bên dưới là TOÀN MÀN (`if (startingId) return`) nên `disabled` cũng phải
+              // toàn màn — nếu chỉ disable đúng dòng đang chạy thì bấm dòng khác sẽ im lặng
+              // không phản hồi (click chết, người dùng tưởng hệ thống treo).
               key: 'start', icon: 'play', label: 'Bắt đầu', primary: true, hidden: r.status !== 0,
+              disabled: !!startingId,
               onClick: () => {
-                risApi.startConsultation(r.id).then(() => reload())
-                  .catch((e) => te(friendlyErrorMessage(e, 'Không thể bắt đầu phiên hội chẩn.')));
+                if (startingId) return;
+                setStartingId(r.id);
+                risApi.startConsultation(r.id).then(() => { tk('Đã bắt đầu phiên hội chẩn'); reload(); })
+                  .catch((e) => te(friendlyErrorMessage(e, 'Không thể bắt đầu phiên hội chẩn.')))
+                  .finally(() => setStartingId(null));
               },
             },
             {
@@ -223,8 +232,8 @@ const ConsultationV2: React.FC = () => {
         )}
         empty={loading ? 'Đang tải…' : (
           <div className="ab-empty">
-            <TermIcon name="search" size={20} />
-            <div>Không có phiên hội chẩn nào</div>
+            <TermIcon name={error ? 'alert' : 'search'} size={20} />
+            <div>{error ? 'Không tải được danh sách hội chẩn. Vui lòng thử lại.' : 'Không có phiên hội chẩn nào'}</div>
           </div>
         )}
       />
@@ -295,8 +304,17 @@ const ConsultationDrawerBody: React.FC<{ r: ConsultationSessionDto }> = ({ r }) 
   const [savingMins, setSavingMins] = useState(false);
 
   useEffect(() => {
-    risApi.getConsultationDiscussions?.(r.id).then((res) => setDisc(res.data || [])).catch(() => {});
-    risApi.getConsultationMinutes?.(r.id).then((res) => setMins(res.data || null)).catch(() => {});
+    // Backend CHƯA expose route GET /RISComplete/consultations/cases/{id}/discussions
+    // (RISCompleteController.Capture.cs chỉ có POST + DELETE discussions) → request này LUÔN 404.
+    // 404 ở đây nghĩa là "chưa hỗ trợ", không phải sự cố của người dùng: nếu bắn toast thì mỗi
+    // lần mở drawer hội chẩn đều hiện cảnh báo giả. Lỗi thật (5xx / mất mạng) vẫn báo bình thường.
+    risApi.getConsultationDiscussions?.(r.id).then((res) => setDisc(res.data || []))
+      .catch((e) => {
+        if ((e as { response?: { status?: number } })?.response?.status === 404) return;
+        tw(friendlyErrorMessage(e, 'Không tải được nội dung thảo luận của phiên hội chẩn.'));
+      });
+    risApi.getConsultationMinutes?.(r.id).then((res) => setMins(res.data || null))
+      .catch((e) => tw(friendlyErrorMessage(e, 'Không tải được biên bản của phiên hội chẩn.')));
   }, [r.id]);
 
   return (

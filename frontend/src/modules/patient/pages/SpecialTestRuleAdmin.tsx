@@ -35,6 +35,7 @@ const SpecialTestRuleAdmin: React.FC = () => {
   const [editIsNew, setEditIsNew] = useState(false);
   const [serviceSuggestions, setServiceSuggestions] = useState<{ value: string; label: string; id: string }[]>([]);
   const [serviceSearchValue, setServiceSearchValue] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -132,6 +133,8 @@ const SpecialTestRuleAdmin: React.FC = () => {
     if (edit.windowType === 1 && (!edit.windowDays || edit.windowDays < 1)) {
       te('Số ngày phải ≥ 1'); return;
     }
+    if (saving) return;
+    setSaving(true);
     try {
       await api.saveSpecialTestRule({
         id: edit.id,
@@ -146,6 +149,8 @@ const SpecialTestRuleAdmin: React.FC = () => {
       load();
     } catch {
       te('Lưu thất bại');
+    } finally {
+      setSaving(false);
     }
   };
 

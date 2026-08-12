@@ -49,16 +49,19 @@ const ObstetricRegistersV2: React.FC = () => {
   const [page, setPage] = useState(0);
   const [edit, setEdit] = useState<EditState | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const fromIso = range[0].toISOString();
   const toIso = range[1].toISOString();
 
   const reload = useCallback(async () => {
+    setLoading(true);
     try {
       if (tab === 'birth') setBirths(await getBirths(fromIso, toIso));
       else if (tab === 'abortion') setAbortions(await getAbortions(fromIso, toIso));
       else setReport(await getObstetricReport(fromIso, toIso));
     } catch { te('Không tải được dữ liệu'); }
+    finally { setLoading(false); }
   }, [tab, fromIso, toIso]);
 
   useEffect(() => { setSearch(''); setPage(0); }, [tab]);
@@ -197,6 +200,7 @@ const ObstetricRegistersV2: React.FC = () => {
         <>
           <DataTable<BirthRegisterDto>
             columns={colsBirth} data={paged as BirthRegisterDto[]} rowKey={r => r.id}
+            loading={loading}
             onRowClick={onRowClick}
             actions={row => <ActBtn ic="trash" title="Xóa" tone="crit" onClick={e => { e.stopPropagation(); onDelete(row.id); }} />}
           />
@@ -208,6 +212,7 @@ const ObstetricRegistersV2: React.FC = () => {
         <>
           <DataTable<AbortionRegisterDto>
             columns={colsAbortion} data={paged as AbortionRegisterDto[]} rowKey={r => r.id}
+            loading={loading}
             onRowClick={onRowClick}
             actions={row => <ActBtn ic="trash" title="Xóa" tone="crit" onClick={e => { e.stopPropagation(); onDelete(row.id); }} />}
           />

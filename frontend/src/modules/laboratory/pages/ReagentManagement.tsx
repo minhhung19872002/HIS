@@ -3,10 +3,11 @@ import dayjs from 'dayjs';
 import { getReagents, createReagent, updateReagent, deleteReagent, getReagentAlerts, getReagentUsageHistory } from '../api/reagent';
 import type { Reagent, ReagentAlert, ReagentUsage } from '../api/reagent';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, cf, Ico,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, Btn,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
 
 const REAGENT_FIELDS: CrudFieldCfg[] = [
   { key: 'code', label: 'Mã hoá chất', required: true, disabledOnEdit: true },
@@ -162,15 +163,21 @@ const ReagentManagementV2: React.FC = () => {
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
   const openCreate = () => { setCrudInit({ status: 0, quantity: 0, minimumStock: 0, unit: 'test' }); setCrudOpen(true); };
   const openEdit = (r: Reagent) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
-  const del = (r: Reagent) => cf(`Xoá hoá chất "${r.name}"?`, async () => {
+  // RowActions (tone: 'danger') tự bật confirm khi xoá — không bọc cf() thêm ở đây.
+  const del = async (r: Reagent) => {
     try { await deleteReagent(r.id); tk('Đã xoá'); load(); } catch { te('Xoá thất bại'); }
-  }, { tone: 'crit', confirm: 'Xoá' });
+  };
 
   const actions = (r: Reagent) => (
     <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="edit" title="Cập nhật" onClick={() => openEdit(r)} />
-      <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => del(r)} />
+      <RowActions actions={[
+        { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setSel(r) },
+        { key: 'edit', icon: 'edit', label: 'Cập nhật', primary: true, onClick: () => openEdit(r) },
+        { key: 'del', icon: 'trash', label: 'Xoá', tone: 'danger',
+          confirm: `Xoá hoá chất "${r.name}"? Thao tác không thể hoàn tác.`,
+          // trả Promise để hộp thoại xác nhận giữ spinner tới khi xoá xong (như cf() cũ)
+          onClick: () => del(r) },
+      ]} />
     </div>
   );
 

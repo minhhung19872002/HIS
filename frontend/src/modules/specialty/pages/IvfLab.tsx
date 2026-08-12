@@ -12,6 +12,7 @@ import type {
   IvfCouple, IvfDashboard, IvfEmbryo, IvfCycle, IvfSpermSample, IvfDailyReport,
 } from '../api/ivfLab';
 import { patientApi } from '../../patient/api/patient';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, Pager, ActBtn, Btn, ModalShell,
   DrawerShell, DrSec, DrField, tk, ti, te, tw, Ico,
@@ -287,6 +288,7 @@ const CyclesTab: React.FC = () => {
   const [selectedCouple, setSelectedCouple] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
 
   useEffect(() => { getCouples().then(setCouples); }, []);
@@ -313,6 +315,8 @@ const CyclesTab: React.FC = () => {
   }, [loadCycles, selectedCouple]);
 
   const handleSave = async (): Promise<void> => {
+    if (saving) return;
+    setSaving(true);
     try {
       const values = await form.validateFields();
       values.coupleId = selectedCouple;
@@ -323,6 +327,7 @@ const CyclesTab: React.FC = () => {
       form.resetFields();
       getCycles(selectedCouple).then(setCycles);
     } catch { tw('Lưu thất bại'); }
+    finally { setSaving(false); }
   };
 
   const cols: ColumnDef<IvfCycle>[] = [
@@ -355,7 +360,9 @@ const CyclesTab: React.FC = () => {
           open onClose={() => setModalOpen(false)} size="md" title="Tạo chu kỳ IVF"
           footer={<>
             <Btn variant="ghost" onClick={() => setModalOpen(false)}>Huỷ</Btn>
-            <Btn variant="primary" onClick={handleSave}><Ico name="check" size={12} /> Lưu</Btn>
+            <Btn variant="primary" onClick={handleSave} disabled={saving}>
+              <Ico name="check" size={12} /> {saving ? 'Đang lưu…' : 'Lưu'}
+            </Btn>
           </>}
         >
           <Form form={form} layout="vertical">
@@ -387,6 +394,9 @@ const EmbryosTab: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [freezeModal, setFreezeModal] = useState<string | null>(null);
+  // thao tác trên phôi không hoàn tác → khoá toàn bộ khi 1 thao tác đang chạy
+  // ('save' | 'freeze' | id phôi đang rã đông)
+  const [busy, setBusy] = useState<string | null>(null);
   const [form] = Form.useForm();
   const [freezeForm] = Form.useForm();
 
@@ -410,6 +420,8 @@ const EmbryosTab: React.FC = () => {
   useEffect(() => { fetchEmbryos(); }, [fetchEmbryos]);
 
   const handleSave = async (): Promise<void> => {
+    if (busy) return;
+    setBusy('save');
     try {
       const values = await form.validateFields();
       values.cycleId = cycleId;
@@ -419,9 +431,12 @@ const EmbryosTab: React.FC = () => {
       form.resetFields();
       fetchEmbryos();
     } catch { tw('Lưu thất bại'); }
+    finally { setBusy(null); }
   };
 
   const handleFreeze = async (): Promise<void> => {
+    if (busy) return;
+    setBusy('freeze');
     try {
       const values = await freezeForm.validateFields();
       values.freezeDate = values.freezeDate?.format?.('YYYY-MM-DD') || values.freezeDate;
@@ -431,14 +446,18 @@ const EmbryosTab: React.FC = () => {
       freezeForm.resetFields();
       fetchEmbryos();
     } catch { tw('Đông lạnh thất bại'); }
+    finally { setBusy(null); }
   };
 
   const handleThaw = async (id: string): Promise<void> => {
+    if (busy) return;
+    setBusy(id);
     try {
       await thawEmbryo(id, { thawDate: dayjs().format('YYYY-MM-DD') });
       tk('Rã đông thành công');
       fetchEmbryos();
     } catch { tw('Rã đông thất bại'); }
+    finally { setBusy(null); }
   };
 
   const cols: ColumnDef<IvfEmbryo>[] = [
@@ -461,8 +480,8 @@ const EmbryosTab: React.FC = () => {
         </Btn>
       )}
       {r.status === 3 && (
-        <Btn size="sm" onClick={(e) => { e.stopPropagation(); handleThaw(r.id); }}>
-          Rã đông
+        <Btn size="sm" disabled={busy === r.id} onClick={(e) => { e.stopPropagation(); handleThaw(r.id); }}>
+          {busy === r.id ? 'Đang rã đông…' : 'Rã đông'}
         </Btn>
       )}
     </div>
@@ -494,7 +513,9 @@ const EmbryosTab: React.FC = () => {
           open onClose={() => setModalOpen(false)} size="md" title="Thêm phôi"
           footer={<>
             <Btn variant="ghost" onClick={() => setModalOpen(false)}>Huỷ</Btn>
-            <Btn variant="primary" onClick={handleSave}><Ico name="check" size={12} /> Lưu</Btn>
+            <Btn variant="primary" onClick={handleSave} disabled={busy === 'save'}>
+              <Ico name="check" size={12} /> {busy === 'save' ? 'Đang lưu…' : 'Lưu'}
+            </Btn>
           </>}
         >
           <Form form={form} layout="vertical">
@@ -517,7 +538,9 @@ const EmbryosTab: React.FC = () => {
           open onClose={() => setFreezeModal(null)} size="md" title="Đông lạnh phôi"
           footer={<>
             <Btn variant="ghost" onClick={() => setFreezeModal(null)}>Huỷ</Btn>
-            <Btn variant="primary" onClick={handleFreeze}><Ico name="check" size={12} /> Đông lạnh</Btn>
+            <Btn variant="primary" onClick={handleFreeze} disabled={busy === 'freeze'}>
+              <Ico name="check" size={12} /> {busy === 'freeze' ? 'Đang đông lạnh…' : 'Đông lạnh'}
+            </Btn>
           </>}
         >
           <Form form={freezeForm} layout="vertical">
@@ -620,6 +643,7 @@ const SpermBankTab: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
 
   const fetchData = useCallback(async () => {
@@ -632,6 +656,8 @@ const SpermBankTab: React.FC = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleSave = async (): Promise<void> => {
+    if (saving) return;
+    setSaving(true);
     try {
       const values = await form.validateFields();
       values.collectionDate = values.collectionDate?.format?.('YYYY-MM-DD') || values.collectionDate;
@@ -642,6 +668,7 @@ const SpermBankTab: React.FC = () => {
       form.resetFields();
       fetchData();
     } catch { tw('Lưu thất bại'); }
+    finally { setSaving(false); }
   };
 
   const cols: ColumnDef<IvfSpermSample>[] = [
@@ -682,7 +709,9 @@ const SpermBankTab: React.FC = () => {
           open onClose={() => setModalOpen(false)} size="lg" title="Thêm mẫu tinh trùng"
           footer={<>
             <Btn variant="ghost" onClick={() => setModalOpen(false)}>Huỷ</Btn>
-            <Btn variant="primary" onClick={handleSave}><Ico name="check" size={12} /> Lưu</Btn>
+            <Btn variant="primary" onClick={handleSave} disabled={saving}>
+              <Ico name="check" size={12} /> {saving ? 'Đang lưu…' : 'Lưu'}
+            </Btn>
           </>}
         >
           <Form form={form} layout="vertical">
@@ -819,7 +848,7 @@ const PatientPicker: React.FC<{
         const res = await patientApi.search({ keyword: kw.trim(), pageSize: 20 });
         const list = res.data?.items || [];
         setOpts(list.map((p) => ({ value: p.id, label: `${p.fullName} · ${p.patientCode}${p.yearOfBirth ? ` · ${p.yearOfBirth}` : ''}` })));
-      } catch { /* ignore */ }
+      } catch (e) { tw(friendlyErrorMessage(e, 'Không tìm được bệnh nhân. Vui lòng thử lại.')); }
       finally { setFetching(false); }
     }, 350);
   };

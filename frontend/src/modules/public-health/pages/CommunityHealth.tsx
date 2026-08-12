@@ -9,9 +9,10 @@ import type { Household, NcdScreening, CommunityTeam } from '../api/communityHea
 import {
   TopTabs, KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
   StatusBadge, ActBtn, Btn, DrawerShell, DrSec, DrField, CrudModal,
-  SimpleV2Page, useTabCounts, tk,
+  SimpleV2Page, useTabCounts, tk, tw,
   type TopTab, type ColumnDef, type StatusTab, type CrudFieldCfg, type KpiItem,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '@/utils/friendlyError';
 
 type Tab = 'households' | 'ncd' | 'teams';
 const TABS: TopTab<Tab>[] = [
@@ -151,12 +152,14 @@ const CommunityHealthV2: React.FC = () => {
   const loadNcd = useCallback(async () => {
     setNcdLoad(true);
     try { setNcdRows(await searchNcdScreenings()); setNcdLoaded(true); }
+    catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh sách sàng lọc NCD. Vui lòng thử lại.')); }
     finally { setNcdLoad(false); }
   }, []);
 
   const loadTeams = useCallback(async () => {
     setTeamsLoad(true);
     try { setTeams(await searchTeams()); setTeamsLoaded(true); }
+    catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh sách đội y tế. Vui lòng thử lại.')); }
     finally { setTeamsLoad(false); }
   }, []);
 
@@ -418,7 +421,8 @@ const CommunityHealthV2: React.FC = () => {
               data={ncdPaged}
               rowKey={(r) => r.id}
               onRowClick={setNcdSel}
-              empty={ncdLoad ? 'Đang tải…' : 'Chưa có kết quả sàng lọc'}
+              loading={ncdLoad}
+              empty="Chưa có kết quả sàng lọc"
             />
             <Pager
               page={ncdPage}
@@ -531,7 +535,8 @@ const CommunityHealthV2: React.FC = () => {
               columns={teamCols}
               data={teamsFiltered}
               rowKey={(r) => r.id}
-              empty={teamsLoad ? 'Đang tải…' : 'Chưa có đội y tế'}
+              loading={teamsLoad}
+              empty="Chưa có đội y tế"
             />
             <CrudModal
               open={teamCreate}

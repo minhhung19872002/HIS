@@ -15,6 +15,7 @@ import {
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, cf, te, TopTabs,
   type ColumnDef, type CrudFieldCfg, type StatusTab,
 } from '@/_v2kit';
+import { RowActions } from '../../../components/actions';
 import { DriverCheckupPrint, VsattpCheckupPrint, StudentCheckupPrint } from '../../patient/components/HealthCheckupPrintTemplates';
 
 // ---- Static base fields (common to all KSK types) ----
@@ -220,15 +221,13 @@ const CampaignTab: React.FC = () => {
 
   const camActions = (r: CheckupCampaign) => (
     <div className="ab-actions">
-      <ActBtn ic="eye"   title="Chi tiết"   onClick={() => setSel(r)} />
-      <ActBtn ic="edit"  title="Sửa"        onClick={() => openEdit(r)} />
-      <ActBtn ic="trash" title="Xóa" tone="crit"
-        onClick={() => cf(
-          `Xóa chiến dịch "${r.campaignName}"?`,
-          async () => { await deleteCampaign(r.id); tk('Đã xóa'); load(); },
-          { tone: 'crit', confirm: 'Xóa' },
-        )}
-      />
+      <RowActions actions={[
+        { key: 'view', icon: 'eye',  label: 'Chi tiết', primary: true, onClick: () => setSel(r) },
+        { key: 'edit', icon: 'edit', label: 'Sửa',      primary: true, onClick: () => openEdit(r) },
+        { key: 'del',  icon: 'trash', label: 'Xóa', tone: 'danger',
+          confirm: `Xóa chiến dịch "${r.campaignName}"? Thao tác không thể hoàn tác.`,
+          onClick: async () => { await deleteCampaign(r.id); tk('Đã xóa'); load(); } },
+      ]} />
     </div>
   );
 

@@ -9,9 +9,10 @@ import { Form, Input, Select, Button } from 'antd';
 import {
   KpiStrip, DataTable, StatusTabs, SearchBox, DrawerShell, ModalShell,
   Filter, Pager, ActBtn, StatusBadge, DrSec, DrField,
-  tk, ti, te, fmtDTg, fmtHMg,
+  tk, ti, te, tw, fmtDTg, fmtHMg,
 } from '@/_v2kit';
 import type { ColumnDef } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { hl7QueueApi } from '../../../api/nangcap24';
 import type { Hl7MessageQueueDto } from '../../../api/nangcap24';
@@ -135,7 +136,10 @@ const Hl7MessageQueue: React.FC = () => {
     try {
       const full = await hl7QueueApi.getById(r.id);
       setDetail(full ?? r);
-    } catch { setDetail(r); }
+    } catch (e) {
+      tw(friendlyErrorMessage(e, 'Không tải được chi tiết message — chỉ hiển thị thông tin tóm tắt'));
+      setDetail(r);
+    }
   };
 
   const cols: ColumnDef<Hl7MessageQueueDto>[] = [
@@ -217,7 +221,7 @@ const Hl7MessageQueue: React.FC = () => {
         tabs={HL7Q_STATUS}
         counts={statusCounts}
       />
-      <DataTable columns={cols} data={paged} rowKey={r => r.id} onRowClick={openDetail} actions={actions} />
+      <DataTable columns={cols} data={paged} rowKey={r => r.id} onRowClick={openDetail} actions={actions} loading={loading} />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 
       {/* Detail drawer */}

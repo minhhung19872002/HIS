@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import dayjs from 'dayjs';
 import { Modal } from 'antd';
 import type { SurgeryScheduleDto } from '../../../surgery/api/surgery';
+import { cf, te } from '@/_v2kit';
+import { friendlyErrorMessage } from '@/utils/friendlyError';
 
 /* ==========================================================================
    OR case modal
@@ -20,6 +22,11 @@ export const OrCaseModal: React.FC<{
   onPrint: () => void;
   onMarkDone: () => void;
 }> = ({ data, onClose, onPrint, onMarkDone }) => {
+  const [busy, setBusy] = useState(false);
+  const doMarkDone = async () => {
+    setBusy(true);
+    try { await onMarkDone(); } catch (e) { te(friendlyErrorMessage(e, 'Đánh dấu hoàn thành thất bại')); } finally { setBusy(false); }
+  };
   if (!data) return null;
   const { surgery: it, orName } = data;
   const start = it.scheduledTime ? dayjs(it.scheduledTime) : null;
@@ -40,7 +47,7 @@ export const OrCaseModal: React.FC<{
       footer={[
         <button key="close" type="button" className="btn ghost" onClick={onClose}>Đóng</button>,
         <button key="print" type="button" className="btn ghost" onClick={onPrint}>In phiếu mổ</button>,
-        <button key="done" type="button" className="btn primary" onClick={onMarkDone}>Đánh dấu xong</button>,
+        <button key="done" type="button" className="btn primary" disabled={busy} onClick={() => cf('Xác nhận hoàn thành ca phẫu thuật này?', doMarkDone, { tone: 'crit', confirm: 'Hoàn thành' })}>{busy ? 'Đang xử lý…' : 'Đánh dấu xong'}</button>,
       ]}
     >
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>

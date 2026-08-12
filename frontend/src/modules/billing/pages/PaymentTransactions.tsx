@@ -51,6 +51,8 @@ const PaymentTransactionsV2: React.FC = () => {
   const [refundOpen, setRefundOpen] = useState<PaymentTransactionDto | null>(null);
   const [sel, setSel] = useState<PaymentTransactionDto | null>(null);
   const [refundForm] = Form.useForm<{ amount: number; reason: string }>();
+  // Chống double-click nút Hoàn tiền — mỗi lần bấm là một lệnh hoàn tiền thật
+  const [refunding, setRefunding] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -78,12 +80,14 @@ const PaymentTransactionsV2: React.FC = () => {
   useEffect(() => { fetchData(); }, [page, stab, provider]);
 
   const handleRefund = async () => {
-    if (!refundOpen) return;
+    if (!refundOpen || refunding) return;
     const v = await refundForm.validateFields();
+    setRefunding(true);
     try {
       await refundPayment(refundOpen.id, v.amount, v.reason);
       tk('Đã hoàn tiền'); setRefundOpen(null); refundForm.resetFields(); fetchData();
     } catch { tw('Hoàn tiền thất bại'); }
+    finally { setRefunding(false); }
   };
 
   const counts = useMemo(() => ({ all: total }) as Record<string, number>, [total]);
