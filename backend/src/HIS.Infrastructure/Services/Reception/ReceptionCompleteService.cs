@@ -87,67 +87,6 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
 
     #region Private Helper Methods
 
-    private static byte[] BuildSimplePdf(
-        string title,
-        IEnumerable<KeyValuePair<string, string>> fields,
-        IEnumerable<string>? details = null)
-    {
-        using var memoryStream = new MemoryStream();
-        using var writer = new PdfWriter(memoryStream);
-        using var pdf = new PdfDocument(writer);
-        using var document = new Document(pdf);
-
-        // Helvetica (Type1/Latin-1) nuốt sạch ký tự tiếng Việt 2 dấu và đ/Đ:
-        // "PHIẾU SỐ THỨ TỰ" in ra thành "PHIU S TH T". Dùng font Unicode nhúng.
-        var regularFont = VietnamesePdfFonts.Regular();
-        var boldFont = VietnamesePdfFonts.Bold();
-
-        document.Add(new iText.Layout.Element.Paragraph(title)
-            .SetFont(boldFont)
-            .SetTextAlignment(TextAlignment.CENTER)
-            .SetFontSize(16)
-            .SetMarginBottom(12));
-
-        foreach (var field in fields)
-        {
-            var key = string.IsNullOrWhiteSpace(field.Key) ? "-" : field.Key;
-            var value = string.IsNullOrWhiteSpace(field.Value) ? "-" : field.Value;
-            document.Add(new iText.Layout.Element.Paragraph($"{key}: {value}")
-                .SetFont(regularFont)
-                .SetFontSize(10)
-                .SetMarginBottom(4));
-        }
-
-        if (details != null)
-        {
-            var detailItems = details.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
-            if (detailItems.Count > 0)
-            {
-                document.Add(new iText.Layout.Element.Paragraph("CHI TIẾT")
-                    .SetFont(boldFont)
-                    .SetFontSize(12)
-                    .SetMarginTop(12)
-                    .SetMarginBottom(6));
-
-                foreach (var detail in detailItems)
-                {
-                    document.Add(new iText.Layout.Element.Paragraph($"- {detail}")
-                        .SetFont(regularFont)
-                        .SetFontSize(9)
-                        .SetMarginBottom(2));
-                }
-            }
-        }
-
-        document.Add(new iText.Layout.Element.Paragraph($"Ngày in: {DateTime.Now:dd/MM/yyyy HH:mm:ss}")
-            .SetFont(regularFont)
-            .SetFontSize(8)
-            .SetTextAlignment(TextAlignment.RIGHT)
-            .SetMarginTop(16));
-
-        document.Close();
-        return memoryStream.ToArray();
-    }
 
     private async Task<(int Total, int Waiting, int InProgress, int WaitingResult, int Completed, int DoingLab, int InsuranceCount)> GetRoomStatsAsync(Guid roomId, DateTime date)
     {

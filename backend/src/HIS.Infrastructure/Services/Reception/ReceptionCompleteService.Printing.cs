@@ -37,24 +37,36 @@ public partial class ReceptionCompleteService {
     private static string GenderName(int gender) =>
         gender == 1 ? "Nam" : gender == 2 ? "Nữ" : "Khác";
 
+    /// <summary>
+    /// Tem giấy nhiệt hẹp ⇒ bỏ hẳn dòng rỗng thay vì in "-" cho tốn giấy.
+    /// Giữ lại dòng đầu (thường là họ tên) để tem không bao giờ trống thông tin định danh.
+    /// </summary>
+    private static List<KeyValuePair<string, string>> CompactRows(List<KeyValuePair<string, string>> rows) =>
+        rows.Where((r, i) => i == 0 || !string.IsNullOrWhiteSpace(r.Value) && r.Value != "-").ToList();
+
     public async Task<byte[]> PrintExaminationSlipAsync(Guid medicalRecordId)
     {
         var slip = await GetExaminationSlipDataAsync(medicalRecordId);
         var fields = new List<KeyValuePair<string, string>>
         {
-            new("Số bệnh án", slip.MedicalRecordCode),
-            new("Mã bệnh nhân", slip.PatientCode),
             new("Họ và tên", slip.PatientName),
-            new("Giới tính", GenderName(slip.Gender)),
-            new("Tuổi", slip.Age.ToString()),
+            new("Giới tính / Tuổi", $"{GenderName(slip.Gender)} · {slip.Age}"),
+            new("Số bệnh án", slip.MedicalRecordCode),
             new("Ngày tiếp nhận", slip.AdmissionDate.ToString(VnDateTime)),
-            new("Số thứ tự", slip.QueueNumber.ToString()),
             new("Phòng khám", slip.RoomName),
             new("Bác sĩ", slip.DoctorName ?? "-"),
             new("Số thẻ BHYT", slip.InsuranceNumber ?? "-")
         };
 
-        return BuildSimplePdf("PHIẾU KHÁM BỆNH", fields);
+        return BuildThermalSlipPdf(
+            title: "PHIẾU KHÁM BỆNH",
+            // STT là thứ người bệnh nhìn nhiều nhất khi ngồi chờ ⇒ đưa lên cỡ lớn.
+            bigValue: slip.QueueNumber > 0 ? $"STT: {slip.QueueNumber}" : null,
+            banner: null,
+            subtitle: null,
+            barcodeValue: slip.PatientCode,
+            rows: CompactRows(fields),
+            emphasizeRowKey: "Họ và tên");
     }
 
     public async Task<byte[]> PrintInsuranceCardHoldSlipAsync(Guid documentHoldId)
@@ -80,7 +92,15 @@ public partial class ReceptionCompleteService {
             new("Trạng thái", hold.Status == 0 ? "Đang giữ" : hold.Status == 1 ? "Đã trả" : "Thất lạc")
         };
 
-        return BuildSimplePdf("BIÊN NHẬN GIỮ GIẤY TỜ", fields);
+        return BuildThermalSlipPdf(
+            title: "BIÊN NHẬN GIỮ GIẤY TỜ",
+            bigValue: null,
+            banner: null,
+            subtitle: null,
+            barcodeValue: hold.Patient?.PatientCode,
+            rows: CompactRows(fields),
+            emphasizeRowKey: "Họ và tên",
+            notes: new List<string> { "Người bệnh giữ biên nhận này để nhận lại giấy tờ." });
     }
 
     public async Task<byte[]> PrintPatientCardAsync(Guid patientId)
@@ -108,7 +128,14 @@ public partial class ReceptionCompleteService {
             new("Phòng gần nhất", latestRecord?.Room?.RoomName ?? "-")
         };
 
-        return BuildSimplePdf("THẺ BỆNH NHÂN", fields);
+        return BuildThermalSlipPdf(
+            title: "THẺ BỆNH NHÂN",
+            bigValue: null,
+            banner: null,
+            subtitle: null,
+            barcodeValue: patient.PatientCode,
+            rows: CompactRows(fields),
+            emphasizeRowKey: "Họ và tên");
     }
 
     public async Task<byte[]> PrintServiceOrderSlipAsync(Guid medicalRecordId)
@@ -145,10 +172,21 @@ public partial class ReceptionCompleteService {
             new("Tổng tiền", serviceRequests.Sum(x => x.TotalPrice).ToString("N0") + " đ")
         };
 
-        var details = serviceRequests.Select(x =>
-            $"{x.RequestCode} | {(x.Service?.ServiceName ?? "-")} | SL: {x.Quantity} | Thành tiền: {x.TotalPrice:N0} đ");
+        // Tem hẹp 80mm: mỗi dịch vụ xuống dòng riêng thay vì nhồi 1 dòng dài rồi bị ngắt xấu.
+        var details = serviceRequests
+            .Select(x => $"• {(x.Service?.ServiceName ?? "-")}  (SL {x.Quantity} · {x.TotalPrice:N0} đ)")
+            .ToList();
 
-        return BuildSimplePdf("PHIẾU CHỈ ĐỊNH DỊCH VỤ", fields, details);
+        return BuildThermalSlipPdf(
+            title: "PHIẾU CHỈ ĐỊNH DỊCH VỤ",
+            bigValue: null,
+            banner: null,
+            subtitle: null,
+            barcodeValue: medicalRecord.Patient?.PatientCode,
+            rows: CompactRows(fields),
+            emphasizeRowKey: "Họ và tên",
+            sectionHeading: details.Count > 0 ? "DANH SÁCH DỊCH VỤ" : null,
+            sectionLines: details);
     }
 
     public async Task<ExaminationSlipDto> GetExaminationSlipDataAsync(Guid medicalRecordId)
@@ -283,14 +321,20 @@ public partial class ReceptionCompleteService {
             .Where(r => r.Key == "Tên bệnh nhân" || r.Value != "-")
             .ToList();
 
-        return BuildQueueTicketPdf(
-            ticketNumber: ticket.TicketNumber,
-            queueTypeName: queueTypeName,
-            priorityName: priorityName,
-            patientCode: patient?.PatientCode,
+        var notes = new List<string>();
+        if (estimatedWait > 0) notes.Add($"Thời gian chờ ước tính: ~{estimatedWait} phút");
+
+        return BuildThermalSlipPdf(
+            title: "PHIẾU ĐĂNG KÝ KHÁM BỆNH",
+            bigValue: $"STT: {ticket.TicketNumber}",
+            banner: priorityName,
+            subtitle: queueTypeName,
+            barcodeValue: patient?.PatientCode,
             rows: rows,
-            waitNote: estimatedWait > 0 ? $"Thời gian chờ ước tính: ~{estimatedWait} phút" : null,
-            clsLocationLines: clsLocationLines);
+            emphasizeRowKey: "Tên bệnh nhân",
+            notes: notes,
+            sectionHeading: clsLocationLines.Count > 0 ? "PHÒNG CẬN LÂM SÀNG" : null,
+            sectionLines: clsLocationLines);
     }
 
     /// <summary>
@@ -300,14 +344,17 @@ public partial class ReceptionCompleteService {
     /// Chiều cao trang tính bằng 2 lượt render (lượt 1 đo chỗ thật sự dùng) nên tem cắt sát
     /// nội dung — ước lượng tay sẽ hoặc phí giấy, hoặc tràn sang tem thứ hai.
     /// </summary>
-    private static byte[] BuildQueueTicketPdf(
-        string ticketNumber,
-        string queueTypeName,
-        string priorityName,
-        string? patientCode,
+    private static byte[] BuildThermalSlipPdf(
+        string title,
+        string? bigValue,
+        string? banner,
+        string? subtitle,
+        string? barcodeValue,
         List<KeyValuePair<string, string>> rows,
-        string? waitNote,
-        List<string> clsLocationLines)
+        string? emphasizeRowKey = null,
+        List<string>? notes = null,
+        string? sectionHeading = null,
+        List<string>? sectionLines = null)
     {
         const float rollWidth = 226.77f;   // 80mm
         const float margin = 8f;
@@ -355,32 +402,38 @@ public partial class ReceptionCompleteService {
             var regular = VietnamesePdfFonts.Regular();
             var contentWidth = rollWidth - 2 * margin;
 
-            doc.Add(new iText.Layout.Element.Paragraph("PHIẾU ĐĂNG KÝ KHÁM BỆNH")
+            doc.Add(new iText.Layout.Element.Paragraph(title)
                 .SetFont(bold).SetFontSize(9).SetTextAlignment(TextAlignment.CENTER)
                 .SetMargin(0).SetMultipliedLeading(1f));
 
-            if (!string.IsNullOrEmpty(priorityName))
+            if (!string.IsNullOrEmpty(banner))
             {
-                doc.Add(new iText.Layout.Element.Paragraph(priorityName)
+                doc.Add(new iText.Layout.Element.Paragraph(banner)
                     .SetFont(bold).SetFontSize(10).SetTextAlignment(TextAlignment.CENTER)
                     .SetMarginTop(2).SetMarginBottom(0).SetMultipliedLeading(1f));
             }
 
-            doc.Add(new iText.Layout.Element.Paragraph($"STT: {ticketNumber}")
-                .SetFont(bold).SetFontSize(26).SetTextAlignment(TextAlignment.CENTER)
-                .SetMarginTop(2).SetMarginBottom(2).SetMultipliedLeading(1f));
+            if (!string.IsNullOrEmpty(bigValue))
+            {
+                doc.Add(new iText.Layout.Element.Paragraph(bigValue)
+                    .SetFont(bold).SetFontSize(26).SetTextAlignment(TextAlignment.CENTER)
+                    .SetMarginTop(2).SetMarginBottom(2).SetMultipliedLeading(1f));
+            }
 
-            doc.Add(new iText.Layout.Element.Paragraph(queueTypeName)
-                .SetFont(regular).SetFontSize(8).SetTextAlignment(TextAlignment.CENTER)
-                .SetMargin(0).SetMultipliedLeading(1f));
+            if (!string.IsNullOrEmpty(subtitle))
+            {
+                doc.Add(new iText.Layout.Element.Paragraph(subtitle)
+                    .SetFont(regular).SetFontSize(8).SetTextAlignment(TextAlignment.CENTER)
+                    .SetMargin(0).SetMultipliedLeading(1f));
+            }
 
-            // Mã vạch mã BN để quầy quét lại, giống mẫu tham chiếu.
-            if (!string.IsNullOrWhiteSpace(patientCode))
+            // Mã vạch để quầy quét lại, giống mẫu tham chiếu.
+            if (!string.IsNullOrWhiteSpace(barcodeValue))
             {
                 const float quietZone = 10f;
                 var maxBarWidth = contentWidth - 2 * quietZone;
                 var barcode = new Barcode128(pdf);
-                barcode.SetCode(patientCode);
+                barcode.SetCode(barcodeValue);
                 barcode.SetFont(regular);
                 barcode.SetSize(6f);
                 barcode.SetBarHeight(26f);
@@ -400,8 +453,9 @@ public partial class ReceptionCompleteService {
 
             foreach (var r in rows)
             {
-                // Tên bệnh nhân in đậm + to hơn — thứ nhân viên gọi và người bệnh tự đối chiếu.
-                var isName = r.Key == "Tên bệnh nhân";
+                // Dòng trọng tâm (thường là tên bệnh nhân) in đậm + to hơn — thứ nhân viên gọi
+                // và người bệnh tự đối chiếu.
+                var isName = emphasizeRowKey != null && r.Key == emphasizeRowKey;
                 table.AddCell(new iText.Layout.Element.Cell()
                     .Add(new iText.Layout.Element.Paragraph(r.Key)
                         .SetFont(regular).SetFontSize(7.5f).SetMargin(0).SetMultipliedLeading(1.1f))
@@ -415,22 +469,28 @@ public partial class ReceptionCompleteService {
             }
             doc.Add(table);
 
-            if (!string.IsNullOrEmpty(waitNote))
+            if (notes is { Count: > 0 })
             {
-                doc.Add(new iText.Layout.Element.Paragraph(waitNote)
-                    .SetFont(regular).SetFontSize(7.5f).SetTextAlignment(TextAlignment.CENTER)
-                    .SetMarginTop(4).SetMarginBottom(0).SetMultipliedLeading(1.1f));
-            }
-
-            if (clsLocationLines.Count > 0)
-            {
-                doc.Add(new iText.Layout.Element.Paragraph("PHÒNG CẬN LÂM SÀNG")
-                    .SetFont(bold).SetFontSize(7.5f).SetTextAlignment(TextAlignment.CENTER)
-                    .SetMarginTop(4).SetMarginBottom(1).SetMultipliedLeading(1.1f));
-                foreach (var line in clsLocationLines)
+                foreach (var line in notes)
                 {
                     doc.Add(new iText.Layout.Element.Paragraph(line)
-                        .SetFont(regular).SetFontSize(7f).SetTextAlignment(TextAlignment.CENTER)
+                        .SetFont(regular).SetFontSize(7.5f).SetTextAlignment(TextAlignment.CENTER)
+                        .SetMarginTop(4).SetMarginBottom(0).SetMultipliedLeading(1.1f));
+                }
+            }
+
+            if (sectionLines is { Count: > 0 })
+            {
+                if (!string.IsNullOrEmpty(sectionHeading))
+                {
+                    doc.Add(new iText.Layout.Element.Paragraph(sectionHeading)
+                        .SetFont(bold).SetFontSize(7.5f).SetTextAlignment(TextAlignment.CENTER)
+                        .SetMarginTop(4).SetMarginBottom(1).SetMultipliedLeading(1.1f));
+                }
+                foreach (var line in sectionLines)
+                {
+                    doc.Add(new iText.Layout.Element.Paragraph(line)
+                        .SetFont(regular).SetFontSize(7f).SetTextAlignment(TextAlignment.LEFT)
                         .SetMargin(0).SetMultipliedLeading(1.1f));
                 }
             }
