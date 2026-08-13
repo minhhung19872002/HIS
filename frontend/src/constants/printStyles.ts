@@ -20,8 +20,15 @@ export const PRINT_STYLES_BASE = `
     display: none !important;
   }
   /* \`ab-module.css\` có block @media print riêng cho \`.print-paper\` kèm \`body * { visibility:hidden }\`
-     áp toàn app ⇒ phải khẳng định lại visibility cho vùng in, nếu không bản in ra trắng giấy. */
-  .emr-print-container, .emr-print-container *, body *:has(.emr-print-container) {
+     áp toàn app ⇒ phải khẳng định lại visibility cho vùng in, nếu không bản in ra trắng giấy.
+     TÁCH LÀM 2 RULE CÓ CHỦ Ý: trong CSS, chỉ cần MỘT selector trong danh sách phân cách bởi dấu phẩy
+     không hợp lệ là TOÀN BỘ rule bị bỏ. Gộp \`:has()\` chung với \`.emr-print-container\` thì trên trình
+     duyệt không hỗ trợ \`:has()\` (Chrome < 105) cả rule chết ⇒ in ra TRẮNG GIẤY. Tách ra thì rule đầu
+     luôn sống, vùng in vẫn hiện — chỉ mất phần tối ưu hoá tổ tiên. */
+  .emr-print-container, .emr-print-container * {
+    visibility: visible !important;
+  }
+  body *:has(.emr-print-container) {
     visibility: visible !important;
   }
   html, body { height: auto !important; overflow: visible !important; background: #fff !important; }
