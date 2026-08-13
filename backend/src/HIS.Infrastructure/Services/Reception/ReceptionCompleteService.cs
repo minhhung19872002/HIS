@@ -123,7 +123,7 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
             var detailItems = details.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
             if (detailItems.Count > 0)
             {
-                document.Add(new iText.Layout.Element.Paragraph("DETAILS")
+                document.Add(new iText.Layout.Element.Paragraph("CHI TIẾT")
                     .SetFont(boldFont)
                     .SetFontSize(12)
                     .SetMarginTop(12)
@@ -139,7 +139,7 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
             }
         }
 
-        document.Add(new iText.Layout.Element.Paragraph($"Generated at: {DateTime.Now:yyyy-MM-dd HH:mm:ss}")
+        document.Add(new iText.Layout.Element.Paragraph($"Ngày in: {DateTime.Now:dd/MM/yyyy HH:mm:ss}")
             .SetFont(regularFont)
             .SetFontSize(8)
             .SetTextAlignment(TextAlignment.RIGHT)
@@ -401,10 +401,10 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
         return documentType switch
         {
             1 => "CCCD/CMND",
-            2 => "The BHYT",
-            3 => "Giay gioi thieu",
-            4 => "Giay chuyen vien",
-            _ => "Giay to khac"
+            2 => "Thẻ BHYT",
+            3 => "Giấy giới thiệu",
+            4 => "Giấy chuyển viện",
+            _ => "Giấy tờ khác"
         };
     }
 

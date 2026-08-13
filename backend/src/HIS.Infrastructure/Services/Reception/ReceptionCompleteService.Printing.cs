@@ -29,24 +29,32 @@ namespace HIS.Infrastructure.Services;
 public partial class ReceptionCompleteService {
     #region 1.14 Printing
 
+    // Phiếu in trao tay người bệnh Việt Nam ⇒ nhãn + định dạng ngày phải tiếng Việt.
+    // (Trước đây 4 phiếu dưới đây in ra toàn tiếng Anh "EXAMINATION SLIP / Patient Name…".)
+    private const string VnDateTime = "dd/MM/yyyy HH:mm";
+    private const string VnDate = "dd/MM/yyyy";
+
+    private static string GenderName(int gender) =>
+        gender == 1 ? "Nam" : gender == 2 ? "Nữ" : "Khác";
+
     public async Task<byte[]> PrintExaminationSlipAsync(Guid medicalRecordId)
     {
         var slip = await GetExaminationSlipDataAsync(medicalRecordId);
         var fields = new List<KeyValuePair<string, string>>
         {
-            new("Medical Record", slip.MedicalRecordCode),
-            new("Patient Code", slip.PatientCode),
-            new("Patient Name", slip.PatientName),
-            new("Gender", slip.Gender == 1 ? "Male" : slip.Gender == 2 ? "Female" : "Other"),
-            new("Age", slip.Age.ToString()),
-            new("Admission Date", slip.AdmissionDate.ToString("yyyy-MM-dd HH:mm")),
-            new("Queue Number", slip.QueueNumber.ToString()),
-            new("Room", slip.RoomName),
-            new("Doctor", slip.DoctorName ?? "-"),
-            new("Insurance Number", slip.InsuranceNumber ?? "-")
+            new("Số bệnh án", slip.MedicalRecordCode),
+            new("Mã bệnh nhân", slip.PatientCode),
+            new("Họ và tên", slip.PatientName),
+            new("Giới tính", GenderName(slip.Gender)),
+            new("Tuổi", slip.Age.ToString()),
+            new("Ngày tiếp nhận", slip.AdmissionDate.ToString(VnDateTime)),
+            new("Số thứ tự", slip.QueueNumber.ToString()),
+            new("Phòng khám", slip.RoomName),
+            new("Bác sĩ", slip.DoctorName ?? "-"),
+            new("Số thẻ BHYT", slip.InsuranceNumber ?? "-")
         };
 
-        return BuildSimplePdf("EXAMINATION SLIP", fields);
+        return BuildSimplePdf("PHIẾU KHÁM BỆNH", fields);
     }
 
     public async Task<byte[]> PrintInsuranceCardHoldSlipAsync(Guid documentHoldId)
@@ -61,18 +69,18 @@ public partial class ReceptionCompleteService {
 
         var fields = new List<KeyValuePair<string, string>>
         {
-            new("Patient Code", hold.Patient?.PatientCode ?? "-"),
-            new("Patient Name", hold.Patient?.FullName ?? "-"),
-            new("Medical Record", hold.MedicalRecord?.MedicalRecordCode ?? "-"),
-            new("Document Type", GetDocumentTypeName(hold.DocumentType)),
-            new("Document Number", hold.DocumentNumber),
-            new("Quantity", hold.Quantity.ToString()),
-            new("Hold Date", hold.HoldDate.ToString("yyyy-MM-dd HH:mm")),
-            new("Held By", hold.HoldBy),
-            new("Status", hold.Status == 0 ? "Holding" : hold.Status == 1 ? "Returned" : "Lost")
+            new("Mã bệnh nhân", hold.Patient?.PatientCode ?? "-"),
+            new("Họ và tên", hold.Patient?.FullName ?? "-"),
+            new("Số bệnh án", hold.MedicalRecord?.MedicalRecordCode ?? "-"),
+            new("Loại giấy tờ", GetDocumentTypeName(hold.DocumentType)),
+            new("Số giấy tờ", hold.DocumentNumber),
+            new("Số lượng", hold.Quantity.ToString()),
+            new("Ngày giữ", hold.HoldDate.ToString(VnDateTime)),
+            new("Người giữ", hold.HoldBy),
+            new("Trạng thái", hold.Status == 0 ? "Đang giữ" : hold.Status == 1 ? "Đã trả" : "Thất lạc")
         };
 
-        return BuildSimplePdf("INSURANCE/DOCUMENT HOLD RECEIPT", fields);
+        return BuildSimplePdf("BIÊN NHẬN GIỮ GIẤY TỜ", fields);
     }
 
     public async Task<byte[]> PrintPatientCardAsync(Guid patientId)
@@ -89,18 +97,18 @@ public partial class ReceptionCompleteService {
 
         var fields = new List<KeyValuePair<string, string>>
         {
-            new("Patient Code", patient.PatientCode),
-            new("Patient Name", patient.FullName),
-            new("Gender", patient.Gender == 1 ? "Male" : patient.Gender == 2 ? "Female" : "Other"),
-            new("Date of Birth", patient.DateOfBirth?.ToString("yyyy-MM-dd") ?? "-"),
-            new("Phone", patient.PhoneNumber ?? "-"),
-            new("Address", patient.Address ?? "-"),
-            new("Insurance Number", patient.InsuranceNumber ?? "-"),
-            new("Latest Medical Record", latestRecord?.MedicalRecordCode ?? "-"),
-            new("Latest Room", latestRecord?.Room?.RoomName ?? "-")
+            new("Mã bệnh nhân", patient.PatientCode),
+            new("Họ và tên", patient.FullName),
+            new("Giới tính", GenderName(patient.Gender)),
+            new("Ngày sinh", patient.DateOfBirth?.ToString(VnDate) ?? "-"),
+            new("Điện thoại", patient.PhoneNumber ?? "-"),
+            new("Địa chỉ", patient.Address ?? "-"),
+            new("Số thẻ BHYT", patient.InsuranceNumber ?? "-"),
+            new("Bệnh án gần nhất", latestRecord?.MedicalRecordCode ?? "-"),
+            new("Phòng gần nhất", latestRecord?.Room?.RoomName ?? "-")
         };
 
-        return BuildSimplePdf("PATIENT CARD", fields);
+        return BuildSimplePdf("THẺ BỆNH NHÂN", fields);
     }
 
     public async Task<byte[]> PrintServiceOrderSlipAsync(Guid medicalRecordId)
@@ -130,17 +138,17 @@ public partial class ReceptionCompleteService {
 
         var fields = new List<KeyValuePair<string, string>>
         {
-            new("Medical Record", medicalRecord.MedicalRecordCode),
-            new("Patient Code", medicalRecord.Patient?.PatientCode ?? "-"),
-            new("Patient Name", medicalRecord.Patient?.FullName ?? "-"),
-            new("Total Requests", serviceRequests.Count.ToString()),
-            new("Total Amount", serviceRequests.Sum(x => x.TotalPrice).ToString("N0"))
+            new("Số bệnh án", medicalRecord.MedicalRecordCode),
+            new("Mã bệnh nhân", medicalRecord.Patient?.PatientCode ?? "-"),
+            new("Họ và tên", medicalRecord.Patient?.FullName ?? "-"),
+            new("Số dịch vụ chỉ định", serviceRequests.Count.ToString()),
+            new("Tổng tiền", serviceRequests.Sum(x => x.TotalPrice).ToString("N0") + " đ")
         };
 
         var details = serviceRequests.Select(x =>
-            $"{x.RequestCode} | {(x.Service?.ServiceName ?? "-")} | Qty: {x.Quantity} | Amount: {x.TotalPrice:N0}");
+            $"{x.RequestCode} | {(x.Service?.ServiceName ?? "-")} | SL: {x.Quantity} | Thành tiền: {x.TotalPrice:N0} đ");
 
-        return BuildSimplePdf("SERVICE ORDER SLIP", fields, details);
+        return BuildSimplePdf("PHIẾU CHỈ ĐỊNH DỊCH VỤ", fields, details);
     }
 
     public async Task<ExaminationSlipDto> GetExaminationSlipDataAsync(Guid medicalRecordId)
@@ -158,7 +166,9 @@ public partial class ReceptionCompleteService {
 
         return new ExaminationSlipDto
         {
-            HospitalName = "BENH VIEN",
+            // Tên bệnh viện thật lấy từ cấu hình triển khai (SystemConfig 'HospitalName' /
+            // env VITE_HOSPITAL_NAME phía FE); ở đây chỉ là nhãn mặc định khi chưa cấu hình.
+            HospitalName = "BỆNH VIỆN",
             MedicalRecordCode = record.MedicalRecordCode,
             QueueNumber = examination?.QueueNumber ?? 0,
             AdmissionDate = record.AdmissionDate,
