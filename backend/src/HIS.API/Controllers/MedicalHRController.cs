@@ -14,7 +14,6 @@ using HIS.Application.DTOs.PatientPortal;
 using HIS.Application.DTOs.HealthExchange;
 using HIS.Application.DTOs.MassCasualty;
 using HIS.API.Dtos.ExtendedWorkflow;
-using System.ComponentModel.DataAnnotations;
 
 namespace HIS.API.Controllers
 {
@@ -82,10 +81,17 @@ namespace HIS.API.Controllers
 
         [HttpGet("staff/{id:guid}/roster")]
         public async Task<ActionResult<List<StaffRosterAssignmentDto>>> GetStaffRoster(
-            Guid id,
-            [FromQuery, Range(2000, 2100)] int year,
-            [FromQuery, Range(1, 12)] int month)
-            => Ok(await _service.GetStaffRosterAsync(id, year, month));
+            Guid id, [FromQuery] int year, [FromQuery] int month)
+        {
+            if (year < 2000 || year > 2100 || month < 1 || month > 12)
+                return BadRequest(new
+                {
+                    error = "VALIDATION_FAILED",
+                    message = "Tháng/năm lịch trực không hợp lệ."
+                });
+
+            return Ok(await _service.GetStaffRosterAsync(id, year, month));
+        }
 
         [HttpPost("duty-roster")]
         public async Task<ActionResult<DutyRosterDto>> CreateDutyRoster([FromBody] CreateDutyRosterDto dto)
