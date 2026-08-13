@@ -258,34 +258,183 @@ public partial class ReceptionCompleteService {
             roomLocation = parts.Count > 0 ? string.Join(", ", parts) : "";
         }
 
-        var fields = new List<KeyValuePair<string, string>>
+        // Năm sinh: ưu tiên ngày sinh đầy đủ, không có thì lấy năm.
+        var birth = patient?.DateOfBirth?.Year.ToString()
+            ?? patient?.YearOfBirth?.ToString()
+            ?? "-";
+
+        var rows = new List<KeyValuePair<string, string>>
         {
-            new("Số thứ tự", ticket.TicketNumber),
-            new("Loại", queueTypeName),
-            new("Phòng", room?.RoomName ?? "-"),
-            new("Vị trí", roomLocation),
+            new("Tên bệnh nhân", patient?.FullName ?? "-"),
+            new("Năm sinh", birth),
+            new("Điện thoại", string.IsNullOrWhiteSpace(patient?.PhoneNumber) ? "-" : patient!.PhoneNumber!),
+            new("Địa chỉ", string.IsNullOrWhiteSpace(patient?.Address) ? "-" : patient!.Address!),
+            // Phòng + khoa là thứ người bệnh cần để biết đi đâu — giữ lại dù mẫu tham chiếu không có.
+            new("Phòng khám", string.IsNullOrEmpty(roomLocation)
+                ? (room?.RoomName ?? "-")
+                : $"{room?.RoomName ?? "-"} ({roomLocation})"),
             new("Khoa", room?.Department?.DepartmentName ?? "-"),
-            new("Mã BN", patient?.PatientCode ?? "-"),
-            new("Họ tên", patient?.FullName ?? "-"),
-            new("Đối tượng", ticket.QueueType == 1 ? "Tiếp đón" : "Khám bệnh"),
-            new("Thời gian chờ ước tính", estimatedWait > 0 ? $"~{estimatedWait} phút" : "Không có người chờ"),
-            new("Ngày giờ", ticket.IssueDate.ToString("dd/MM/yyyy HH:mm"))
+            new("Ngày khám", ticket.IssueDate.ToString("dd/MM/yyyy HH:mm")),
         };
 
-        if (!string.IsNullOrEmpty(priorityName))
+        // Tem giấy nhiệt: bỏ hẳn dòng không có dữ liệu thay vì in "-" (vé lấy số ở quầy CLS
+        // không gắn phòng khám/khoa ⇒ trước đây tốn 2 dòng trống). Luôn giữ dòng tên bệnh nhân.
+        rows = rows
+            .Where(r => r.Key == "Tên bệnh nhân" || r.Value != "-")
+            .ToList();
+
+        return BuildQueueTicketPdf(
+            ticketNumber: ticket.TicketNumber,
+            queueTypeName: queueTypeName,
+            priorityName: priorityName,
+            patientCode: patient?.PatientCode,
+            rows: rows,
+            waitNote: estimatedWait > 0 ? $"Thời gian chờ ước tính: ~{estimatedWait} phút" : null,
+            clsLocationLines: clsLocationLines);
+    }
+
+    /// <summary>
+    /// Tem số thứ tự khổ giấy nhiệt 80mm (chuẩn máy in bill quầy tiếp đón), KHÔNG dùng
+    /// <c>BuildSimplePdf</c> khổ A4 nữa: phiếu cũ in ra nguyên tờ A4 cho vài dòng chữ.
+    /// Bố cục: tiêu đề nhỏ → STT cỡ lớn → mã vạch mã BN → bảng thông tin → ghi chú chờ.
+    /// Chiều cao trang tính bằng 2 lượt render (lượt 1 đo chỗ thật sự dùng) nên tem cắt sát
+    /// nội dung — ước lượng tay sẽ hoặc phí giấy, hoặc tràn sang tem thứ hai.
+    /// </summary>
+    private static byte[] BuildQueueTicketPdf(
+        string ticketNumber,
+        string queueTypeName,
+        string priorityName,
+        string? patientCode,
+        List<KeyValuePair<string, string>> rows,
+        string? waitNote,
+        List<string> clsLocationLines)
+    {
+        const float rollWidth = 226.77f;   // 80mm
+        const float margin = 8f;
+        const float probeHeight = 2000f;   // trang nháp đủ cao để không ngắt trang khi ĐO
+
+        var contentHeight = MeasureContentHeight();
+        // Chặn dưới để tem quá ngắn không bị dao cắt ăn vào chữ.
+        var pageHeight = Math.Max(160f, contentHeight + 2 * margin);
+        return Render(pageHeight);
+
+        // Lượt 1: vẽ lên trang nháp rất cao rồi hỏi renderer còn trống bao nhiêu.
+        float MeasureContentHeight()
         {
-            fields.Insert(2, new KeyValuePair<string, string>("Ưu tiên", priorityName));
+            using var ms = new MemoryStream();
+            using var writer = new PdfWriter(ms);
+            using var pdf = new PdfDocument(writer);
+            pdf.SetDefaultPageSize(new IxPageSize(rollWidth, probeHeight));
+            var doc = new Document(pdf);
+            doc.SetMargins(margin, margin, margin, margin);
+            Compose(doc, pdf);
+
+            // BBox vùng-còn-lại giữ nguyên đáy, chỉ TỤT CHIỀU CAO khi phần tử được thêm vào
+            // ⇒ phải đo bằng GetHeight(), không phải GetY().
+            var remaining = doc.GetRenderer().GetCurrentArea().GetBBox().GetHeight();
+            doc.Close();
+            return (probeHeight - 2 * margin) - remaining;
         }
 
-        IEnumerable<string>? details = null;
-        if (clsLocationLines.Count > 0)
+        byte[] Render(float pageHeight)
         {
-            var locationDetails = new List<string> { "=== VỊ TRÍ PHÒNG CẬN LÂM SÀNG ===" };
-            locationDetails.AddRange(clsLocationLines);
-            details = locationDetails;
+            using var ms = new MemoryStream();
+            using var writer = new PdfWriter(ms);
+            using var pdf = new PdfDocument(writer);
+            pdf.SetDefaultPageSize(new IxPageSize(rollWidth, pageHeight));
+            var doc = new Document(pdf);
+            doc.SetMargins(margin, margin, margin, margin);
+            Compose(doc, pdf);
+            doc.Close();
+            return ms.ToArray();
         }
 
-        return BuildSimplePdf("PHIẾU SỐ THỨ TỰ", fields, details);
+        void Compose(Document doc, PdfDocument pdf)
+        {
+            var bold = VietnamesePdfFonts.Bold();
+            var regular = VietnamesePdfFonts.Regular();
+            var contentWidth = rollWidth - 2 * margin;
+
+            doc.Add(new iText.Layout.Element.Paragraph("PHIẾU ĐĂNG KÝ KHÁM BỆNH")
+                .SetFont(bold).SetFontSize(9).SetTextAlignment(TextAlignment.CENTER)
+                .SetMargin(0).SetMultipliedLeading(1f));
+
+            if (!string.IsNullOrEmpty(priorityName))
+            {
+                doc.Add(new iText.Layout.Element.Paragraph(priorityName)
+                    .SetFont(bold).SetFontSize(10).SetTextAlignment(TextAlignment.CENTER)
+                    .SetMarginTop(2).SetMarginBottom(0).SetMultipliedLeading(1f));
+            }
+
+            doc.Add(new iText.Layout.Element.Paragraph($"STT: {ticketNumber}")
+                .SetFont(bold).SetFontSize(26).SetTextAlignment(TextAlignment.CENTER)
+                .SetMarginTop(2).SetMarginBottom(2).SetMultipliedLeading(1f));
+
+            doc.Add(new iText.Layout.Element.Paragraph(queueTypeName)
+                .SetFont(regular).SetFontSize(8).SetTextAlignment(TextAlignment.CENTER)
+                .SetMargin(0).SetMultipliedLeading(1f));
+
+            // Mã vạch mã BN để quầy quét lại, giống mẫu tham chiếu.
+            if (!string.IsNullOrWhiteSpace(patientCode))
+            {
+                const float quietZone = 10f;
+                var maxBarWidth = contentWidth - 2 * quietZone;
+                var barcode = new Barcode128(pdf);
+                barcode.SetCode(patientCode);
+                barcode.SetFont(regular);
+                barcode.SetSize(6f);
+                barcode.SetBarHeight(26f);
+                barcode.SetCodeType(Barcode128.CODE128);
+                barcode.SetX(1.0f);
+                var measured = barcode.GetBarcodeSize().GetWidth();
+                if (measured > maxBarWidth) barcode.SetX(1.0f * maxBarWidth / measured);
+
+                doc.Add(new iText.Layout.Element.Image(barcode.CreateFormXObject(pdf))
+                    .SetHorizontalAlignment(HorizontalAlignment.CENTER)
+                    .SetMarginTop(4).SetMarginBottom(2));
+            }
+
+            var table = new iText.Layout.Element.Table(
+                iText.Layout.Properties.UnitValue.CreatePercentArray(new float[] { 38, 62 }))
+                .UseAllAvailableWidth();
+
+            foreach (var r in rows)
+            {
+                // Tên bệnh nhân in đậm + to hơn — thứ nhân viên gọi và người bệnh tự đối chiếu.
+                var isName = r.Key == "Tên bệnh nhân";
+                table.AddCell(new iText.Layout.Element.Cell()
+                    .Add(new iText.Layout.Element.Paragraph(r.Key)
+                        .SetFont(regular).SetFontSize(7.5f).SetMargin(0).SetMultipliedLeading(1.1f))
+                    .SetPadding(3).SetVerticalAlignment(VerticalAlignment.MIDDLE));
+                table.AddCell(new iText.Layout.Element.Cell()
+                    .Add(new iText.Layout.Element.Paragraph(r.Value)
+                        .SetFont(isName ? bold : regular)
+                        .SetFontSize(isName ? 11f : 8f)
+                        .SetMargin(0).SetMultipliedLeading(1.1f))
+                    .SetPadding(3).SetVerticalAlignment(VerticalAlignment.MIDDLE));
+            }
+            doc.Add(table);
+
+            if (!string.IsNullOrEmpty(waitNote))
+            {
+                doc.Add(new iText.Layout.Element.Paragraph(waitNote)
+                    .SetFont(regular).SetFontSize(7.5f).SetTextAlignment(TextAlignment.CENTER)
+                    .SetMarginTop(4).SetMarginBottom(0).SetMultipliedLeading(1.1f));
+            }
+
+            if (clsLocationLines.Count > 0)
+            {
+                doc.Add(new iText.Layout.Element.Paragraph("PHÒNG CẬN LÂM SÀNG")
+                    .SetFont(bold).SetFontSize(7.5f).SetTextAlignment(TextAlignment.CENTER)
+                    .SetMarginTop(4).SetMarginBottom(1).SetMultipliedLeading(1.1f));
+                foreach (var line in clsLocationLines)
+                {
+                    doc.Add(new iText.Layout.Element.Paragraph(line)
+                        .SetFont(regular).SetFontSize(7f).SetTextAlignment(TextAlignment.CENTER)
+                        .SetMargin(0).SetMultipliedLeading(1.1f));
+                }
+            }
+        }
     }
 
     /// <summary>
