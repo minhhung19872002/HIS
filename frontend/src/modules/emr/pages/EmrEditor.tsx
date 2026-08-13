@@ -132,8 +132,31 @@ const PRINT_FORMS: PrintFormEntry[] = [
   { group: 'Phẫu thuật & gây mê',      label: 'Phiếu hồi tỉnh sau mê',            printType: 'gayme-recovery' },
   { group: 'Phẫu thuật & gây mê',      label: 'Phiếu đếm gạc / dụng cụ',          printType: 'gauze-count' },
 
-  // ── Vật tư & hóa chất (NangCap26 phiếu in #98) ────────────────────
+  // ── Cận lâm sàng: port nhóm phiếu CĐHA/TDCN/XN từ v1 sang v2 (quyết định #204 — v1
+  //    ngừng phát triển, tính năng còn thiếu thì PORT). Kèm 3 phiếu XN mới của NangCap27
+  //    (HSMT 13.1.27 huyết-tủy đồ · 13.1.29 sinh thiết tủy xương · 13.1.30 nước dịch).
+  { group: 'Cận lâm sàng',             label: 'CĐHA · X-quang',                   printType: 'cdha-xray' },
+  { group: 'Cận lâm sàng',             label: 'CĐHA · CT Scanner',                printType: 'cdha-ct' },
+  { group: 'Cận lâm sàng',             label: 'CĐHA · MRI',                       printType: 'cdha-mri' },
+  { group: 'Cận lâm sàng',             label: 'CĐHA · Siêu âm',                   printType: 'cdha-ultrasound' },
+  { group: 'Cận lâm sàng',             label: 'CĐHA · Điện tâm đồ',               printType: 'cdha-ecg' },
+  { group: 'Cận lâm sàng',             label: 'TDCN · Điện não đồ',               printType: 'tdcn-eeg' },
+  { group: 'Cận lâm sàng',             label: 'TDCN · Nội soi',                   printType: 'tdcn-endoscopy' },
+  { group: 'Cận lâm sàng',             label: 'TDCN · Chức năng hô hấp',          printType: 'tdcn-pft' },
+  { group: 'Cận lâm sàng',             label: 'XN · Tổng quát',                   printType: 'xn-general' },
+  { group: 'Cận lâm sàng',             label: 'XN · Huyết học',                   printType: 'xn-hematology' },
+  { group: 'Cận lâm sàng',             label: 'XN · Sinh hóa',                    printType: 'xn-biochemistry' },
+  { group: 'Cận lâm sàng',             label: 'XN · Vi sinh',                     printType: 'xn-microbiology' },
+  { group: 'Cận lâm sàng',             label: 'XN · Đông cầm máu',                printType: 'xn-coagulation' },
+  { group: 'Cận lâm sàng',             label: 'XN · Nước tiểu / phân / dịch',     printType: 'xn-urinalysis' },
+  { group: 'Cận lâm sàng',             label: 'XN · Huyết - tủy đồ',              printType: 'xn-myelogram' },
+  { group: 'Cận lâm sàng',             label: 'XN · Sinh thiết tủy xương',        printType: 'xn-bonemarrow' },
+  { group: 'Cận lâm sàng',             label: 'XN · Nước dịch',                   printType: 'xn-bodyfluid' },
+
+  // ── Vật tư & hóa chất (NangCap26 phiếu in #98 · NangCap27 HSMT 13.1.95-96) ──
   { group: 'Vật tư & hóa chất',        label: 'Phiếu lĩnh hóa chất',              printType: 'chemical-issue' },
+  { group: 'Vật tư & hóa chất',        label: 'BB thanh lý thuốc/HC/VTYT',        printType: 'pharmacy-disposal' },
+  { group: 'Vật tư & hóa chất',        label: 'BB xác nhận mất/hỏng/vỡ',          printType: 'pharmacy-damage' },
 
   // ── Bệnh án nội trú chuyên khoa (TT32 mẫu 1-20) ───────────────────
   { group: 'BA chuyên khoa nội trú',   label: 'BA Nội khoa',                      printType: 'sp-noikhoa' },
@@ -160,6 +183,9 @@ const PRINT_FORMS: PrintFormEntry[] = [
   { group: 'BA chuyên khoa nội trú',   label: 'BA Mắt trẻ em',                    printType: 'sp-matkxt' },
   { group: 'BA chuyên khoa nội trú',   label: 'BA Phục hồi chức năng',            printType: 'sp-phcn' },
   { group: 'BA chuyên khoa nội trú',   label: 'BA PHCN nhi',                      printType: 'sp-phcnnhi' },
+  // NangCap27 — HSMT 13.1.58-59
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Phá thai',                      printType: 'sp-phathai' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Bệnh tay chân miệng',           printType: 'sp-taychanmieng' },
 
   // ── Bệnh án ngoại trú chuyên khoa (TT32 mẫu 15-17, 19, 29) ────────
   { group: 'BA chuyên khoa ngoại trú', label: 'BA Ngoại trú chung',               printType: 'sp-ngoaitru' },
@@ -196,6 +222,8 @@ const PRINT_FORMS: PrintFormEntry[] = [
   { group: 'Điều dưỡng chuyên biệt',   label: 'DD-19 · Đánh giá nuốt',              printType: 'dd19-swallowing' },
   { group: 'Điều dưỡng chuyên biệt',   label: 'DD-20 · Lưu tài liệu',              printType: 'dd20-docscan' },
   { group: 'Điều dưỡng chuyên biệt',   label: 'DD-21 · Theo dõi VAP',              printType: 'dd21-vap' },
+  // NangCap27 — HSMT 18.3.21 (khoa/phòng cấp cứu)
+  { group: 'Điều dưỡng chuyên biệt',   label: 'Theo dõi ôxy liệu pháp',            printType: 'oxygen-monitor' },
 
   // ── BHYT & thanh toán ─────────────────────────────────────────────
   { group: 'BHYT & thanh toán',         label: 'Tổng hợp thanh toán',               printType: 'finalsummary' },

@@ -14,6 +14,7 @@ import {
   MethadoneTreatmentV2, FoodSafetyV2, CommunityHealthV2, HivManagementV2, HealthEducationV2,
   EnvironmentalHealthV2, PopulationHealthV2, ReproductiveHealthV2, MentalHealthV2,
   TraumaRegistryV2, MedicalForensicsV2,
+  TransportSlipsV2, CheckupContractsV2,
 } from '../lazy/clinical.lazy';
 
 // Domain: clinical — menu groups clinical + support + public-health.
@@ -49,6 +50,8 @@ export const clinicalV2Routes: RouteEntry[] = [
   { path: 'observation-stay', Component: ObservationStayV2, meta: { title: 'Lưu theo dõi (Observation)', group: 'clinical', permission: 'MedicalRecord.Read', workspace: 'clinical', module: 'NOITRU' } },
   { path: 'service-requeue', Component: ServiceRequeueV2, meta: { permission: 'MedicalRecord.Update', title: 'Xếp lại hàng chờ DV', group: 'clinical', workspace: 'clinical', module: 'KHAMBENH' } },
   { path: 'video-consultation', Component: VideoConsultationV2, meta: { permission: 'MedicalRecord.Read', title: 'Hội chẩn video', group: 'clinical', workspace: 'clinical', module: 'KHAMBENH' } },
+  // NangCap27 — HSMT BV Tâm thần Quảng Ngãi
+  { path: 'transport-slips', Component: TransportSlipsV2, meta: { permission: 'MedicalRecord.Read', title: 'Phiếu vận chuyển [27]', group: 'clinical', workspace: 'clinical', module: 'KHAMBENH' } },
   { path: 'lite/reception', Component: ReceptionV2, meta: { title: 'Tiếp đón (lite)', group: 'clinical', permission: 'Reception.Read', workspace: 'frontoffice', module: 'TIEPDON' } },
   { path: 'lite/opd', Component: OPDV2, meta: { title: 'Khám bệnh (lite)', group: 'clinical', permission: 'MedicalRecord.Read', workspace: 'clinical', module: 'KHAMBENH' } },
   { path: 'lite/ipd', Component: InpatientV2, meta: { title: 'Nội trú (lite)', group: 'clinical', permission: 'MedicalRecord.Read', workspace: 'clinical', module: 'NOITRU' } },
@@ -78,6 +81,7 @@ export const clinicalV2Routes: RouteEntry[] = [
 
   // --- public-health group ---
   { path: 'health-checkup', Component: HealthCheckupV2, meta: { permission: 'MedicalRecord.Read', title: 'Khám sức khoẻ', group: 'public-health', workspace: 'clinical', module: 'extended' } },
+  { path: 'checkup-contracts', Component: CheckupContractsV2, meta: { permission: 'MedicalRecord.Read', title: 'Hợp đồng KSK theo đoàn [27]', group: 'public-health', workspace: 'clinical', module: 'extended' } },
   { path: 'immunization', Component: ImmunizationV2, meta: { permission: 'MedicalRecord.Read', title: 'Tiêm chủng', group: 'public-health', workspace: 'clinical', module: 'extended' } },
   { path: 'epidemiology', Component: EpidemiologyV2, meta: { permission: 'MedicalRecord.Read', title: 'Giám sát dịch tễ', group: 'public-health', workspace: 'clinical', module: 'extended' } },
   { path: 'school-health', Component: SchoolHealthV2, meta: { permission: 'MedicalRecord.Read', title: 'Y tế trường học', group: 'public-health', workspace: 'clinical', module: 'extended' } },

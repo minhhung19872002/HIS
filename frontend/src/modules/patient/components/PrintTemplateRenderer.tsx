@@ -25,6 +25,16 @@ interface PrintTemplateRendererProps {
   maternityLeaveDto?: CreateMaternityLeaveDto;
 }
 
+/** NangCap27 — các mẫu in cần bind sẵn khối hành chính người bệnh (xem nangcap27-forms.tsx). */
+const NANGCAP27_PATIENT_FORMS = new Set([
+  'oxygen-monitor',
+  'xn-myelogram',
+  'xn-bonemarrow',
+  'xn-bodyfluid',
+  'sp-phathai',
+  'sp-taychanmieng',
+]);
+
 // Renderer dispatches props per template — declare a loose record-shape so each
 // branch in render() can pass concrete props without per-template type narrowing.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -60,6 +70,16 @@ async function loadTemplate(printType: string): Promise<AnyPrintComponent | null
     // NangCap26 — X.2 #16 phiếu đếm gạc/dụng cụ · phiếu in #98 phiếu lĩnh hóa chất
     case 'gauze-count': return (await import('./EMRPrintTemplates')).GauzeCountSheetPrint;
     case 'chemical-issue': return (await import('./EMRPrintTemplates')).ChemicalIssueSlipPrint;
+
+    // NangCap27 — HSMT BV Tâm thần Quảng Ngãi: 18.3.21 · 13.1.95-96 · 13.1.27/.29/.30 · 13.1.58-59
+    case 'oxygen-monitor': return (await import('./EMRPrintTemplates')).OxygenTherapyMonitorPrint;
+    case 'pharmacy-disposal': return (await import('./EMRPrintTemplates')).PharmacyDisposalMinutesPrint;
+    case 'pharmacy-damage': return (await import('./EMRPrintTemplates')).PharmacyDamageMinutesPrint;
+    case 'xn-myelogram': return (await import('./EMRPrintTemplates')).MyelogramLabPrint;
+    case 'xn-bonemarrow': return (await import('./EMRPrintTemplates')).BoneMarrowBiopsyLabPrint;
+    case 'xn-bodyfluid': return (await import('./EMRPrintTemplates')).BodyFluidLabPrint;
+    case 'sp-phathai': return (await import('./EMRPrintTemplates')).AbortionMedicalRecordPrint;
+    case 'sp-taychanmieng': return (await import('./EMRPrintTemplates')).HandFootMouthMedicalRecordPrint;
 
     // ClinicalFormPrintTemplates
     case 'cdha-xray': return (await import('./ClinicalFormPrintTemplates')).XRayReportPrint;
@@ -313,6 +333,37 @@ export default function PrintTemplateRenderer({ printType, record, printRef, sel
   }
   if (printType === 'chemical-issue') {
     return <Component ref={printRef} slipDate={new Date().toISOString()} />;
+  }
+  // NangCap27 — biên bản kho Dược không gắn với người bệnh: chỉ cần ngày lập.
+  if (printType === 'pharmacy-disposal' || printType === 'pharmacy-damage') {
+    return <Component ref={printRef} minutesDate={new Date().toISOString()} />;
+  }
+  // NangCap27 — phiếu theo dõi ôxy · 3 phiếu XN chuyên khoa · 2 mẫu bệnh án:
+  // bind sẵn phần hành chính, phần chuyên môn ekip điền tay trên bản in.
+  if (NANGCAP27_PATIENT_FORMS.has(printType)) {
+    // PatientInfoDto chưa khai dân tộc / số thẻ BHYT — augment như branch 'referral'.
+    const p = record?.patient as (PrintRecord['patient'] & {
+      ethnicity?: string;
+      insuranceNumber?: string;
+    }) | undefined;
+    const e = (record?.examination ?? {}) as Record<string, unknown>;
+    return <Component ref={printRef}
+      patientName={p?.fullName}
+      patientCode={p?.patientCode}
+      age={p?.age}
+      gender={p?.gender}
+      address={p?.address}
+      occupation={p?.occupation}
+      ethnicity={p?.ethnicity}
+      phoneNumber={p?.phoneNumber}
+      insuranceNumber={p?.insuranceNumber}
+      departmentName={e.departmentName}
+      doctorName={e.doctorName}
+      recordCode={record?.medicalRecordCode}
+      diagnosis={record?.mainDiagnosis}
+      admissionDate={record?.admissionDate}
+      requestDate={new Date().toISOString()}
+    />;
   }
   // F10.5 KSK chuyen biet — component nhan `record` la HealthCheckup shape
   if (printType.startsWith('ksk-')) {

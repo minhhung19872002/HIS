@@ -161,6 +161,8 @@ public partial class HospitalReportService : IHospitalReportService
         ["SurgeryList"] = "Danh sach phau thuat",
         ["SurgeryProcedureActivity"] = "Hoat dong PTTT",
         ["SurgeryPathologyBonus"] = "Thuong PTTT + GPB",
+        // NangCap27 (HSMT 13.2.7)
+        ["SurgeryPlanApprovalRegister"] = "So duyet ke hoach phau thuat",
 
         // G. BHYT (Insurance)
         ["C80aNew"] = "Mau C80a moi",
@@ -199,6 +201,8 @@ public partial class HospitalReportService : IHospitalReportService
         ["InsuranceSummary"] = "Tong hop bao hiem y te",
         ["StockInventory"] = "Xuat nhap ton kho",
         ["BedOccupancy"] = "Cong suat giuong benh",
+        // NangCap27 (HSMT 13.2.10)
+        ["DailyMedicineSummaryRegister"] = "So tong hop thuoc hang ngay",
     };
 
     private static string GetReportName(string reportType) =>
@@ -342,6 +346,9 @@ public partial class HospitalReportService : IHospitalReportService
         ["SurgeryProcedure"] = (s, r, f, t, d, w) => s.FillProcedureByDept(r, f, t, d),
         ["SurgeryProcedureActivity"] = (s, r, f, t, d, w) => s.FillProcedureByDept(r, f, t, d),
         ["SurgeryPathologyBonus"] = (s, r, f, t, d, w) => s.FillSurgeryPathologyBonus(r, f, t, d),
+        // NangCap27 (HSMT 13.2.7 + 13.2.10)
+        ["SurgeryPlanApprovalRegister"] = (s, r, f, t, d, w) => s.FillSurgeryPlanApprovalRegister(r, f, t, d),
+        ["DailyMedicineSummaryRegister"] = (s, r, f, t, d, w) => s.FillDailyMedicineSummaryRegister(r, f, t, w),
 
         // ==================== G. BHYT (Insurance) ====================
         ["C80aNew"] = (s, r, f, t, d, w) => s.FillInsuranceReport(r, f, t, d),

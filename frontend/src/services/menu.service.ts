@@ -52,6 +52,7 @@ export const HIS_GROUPS: NavGroup[] = [
       { id: 'tb-hiv',            path: '/v2/tb-hiv',                   label: 'Quản lý Lao/HIV' },
       { id: 'consultation',      path: '/v2/consultation',             label: 'Hội chẩn' },
       { id: 'consultation-register', path: '/v2/consultation-register', label: 'Sổ đăng ký hội chẩn' },
+      { id: 'transport-slips',   path: '/v2/transport-slips',          label: 'Phiếu vận chuyển [27]' },
       { id: 'doctor-portal',     path: '/v2/doctor-portal',            label: 'Cổng bác sĩ' },
       { id: 'clinical-catalogs', path: '/v2/clinical-catalogs',        label: 'DM Lâm sàng' },
     ],
@@ -202,6 +203,7 @@ export const HIS_GROUPS: NavGroup[] = [
     id: 'public-health', label: 'Y tế công cộng', short: 'YTCC', icon: 'shield',
     items: [
       { id: 'health-checkup',       path: '/v2/health-checkup',       label: 'Khám sức khoẻ' },
+      { id: 'checkup-contracts',    path: '/v2/checkup-contracts',    label: 'Hợp đồng KSK theo đoàn [27]' },
       { id: 'immunization',         path: '/v2/immunization',         label: 'Tiêm chủng' },
       { id: 'epidemiology',         path: '/v2/epidemiology',         label: 'Giám sát dịch tễ' },
       { id: 'school-health',        path: '/v2/school-health',        label: 'Y tế trường học' },

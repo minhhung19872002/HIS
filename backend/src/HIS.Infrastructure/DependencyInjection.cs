@@ -258,6 +258,10 @@ public static class DependencyInjection
         // F1.8 #154: Sổ sinh đẻ + Sổ theo dõi nạo phá thai (register khoa Sản)
         services.AddScoped<IObstetricRegisterService, ObstetricRegisterService>();
 
+        // NangCap27 (HSMT BV Tâm thần Quảng Ngãi): phiếu vận chuyển BN + hợp đồng KSK theo đoàn
+        services.AddScoped<IPatientTransportSlipService, Services.NangCap27.PatientTransportSlipService>();
+        services.AddScoped<ICheckupContractService, Services.NangCap27.CheckupContractService>();
+
         // ADR báo cáo phản ứng có hại thuốc (#5 #55-59)
         services.AddScoped<IAdrReportService, AdrReportService>();
 

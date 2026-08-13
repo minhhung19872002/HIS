@@ -32,6 +32,9 @@ export const ConsultationRegisterV2 = lazy(() => import('../../modules/reception
 export const ObservationStayV2 = lazy(() => import('../../modules/inpatient/pages/ObservationStay'));
 export const ServiceRequeueV2 = lazy(() => import('../../modules/checkup/pages/ServiceRequeue'));
 export const VideoConsultationV2 = lazy(() => import('../../modules/telemedicine/pages/VideoConsultation'));
+// NangCap27 — HSMT BV Tâm thần Quảng Ngãi
+export const TransportSlipsV2 = lazy(() => import('../../modules/patient/pages/TransportSlips'));
+export const CheckupContractsV2 = lazy(() => import('../../modules/checkup/pages/CheckupContracts'));
 
 // --- support group ---
 export const PharmacyV2 = lazy(() => import('../../modules/pharmacy/pages/Pharmacy'));

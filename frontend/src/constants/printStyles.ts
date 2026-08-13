@@ -4,9 +4,47 @@
 /** Base print styles for A4 paper, Times New Roman, Vietnamese medical forms */
 export const PRINT_STYLES_BASE = `
 @media print {
-  body * { visibility: hidden; }
-  .emr-print-container, .emr-print-container * { visibility: visible; }
-  .emr-print-container { position: absolute; left: 0; top: 0; width: 210mm; }
+  /* Bản cũ: \`body * { visibility:hidden }\` + \`.emr-print-container { position:absolute; width:210mm }\`.
+     Đo bằng PDF A4 thật (Chromium) thấy 2 lỗi, đúng với MỌI biểu mẫu dùng bộ style này:
+       1. TRÀN NGANG — @page margin 20mm mỗi bên ⇒ vùng in ngang chỉ 170mm, nhưng container khai
+          210mm ⇒ nội dung chạy tới x≈680pt trên trang rộng 595pt ⇒ mất ~23-30mm mép phải
+          (cột cuối của bảng, cột chữ ký bên phải).
+       2. MẤT TRANG — phần tử position:absolute KHÔNG ngắt trang được trong Chromium ⇒ mọi thứ quá
+          trang 1 bị bỏ im lặng. Bệnh án dài in ra cụt mục cuối + mất khối ký. Nguy hiểm hơn lỗi 1
+          vì bản in trông vẫn "bình thường".
+     Cách sửa: giữ vùng in trong LUỒNG BÌNH THƯỜNG (position:static) để trình duyệt ngắt trang;
+     ẩn phần app không liên quan bằng display:none; và vô hiệu hoá các thuộc tính của tổ tiên
+     (overflow/transform/height) vốn cắt hoặc chặn ngắt trang. KHÔNG đặt \`display\` lên chính vùng in
+     hay con của nó — để CSS riêng của từng biểu mẫu (flex/table) giữ nguyên. */
+  body *:not(:has(.emr-print-container)):not(.emr-print-container):not(.emr-print-container *) {
+    display: none !important;
+  }
+  /* \`ab-module.css\` có block @media print riêng cho \`.print-paper\` kèm \`body * { visibility:hidden }\`
+     áp toàn app ⇒ phải khẳng định lại visibility cho vùng in, nếu không bản in ra trắng giấy. */
+  .emr-print-container, .emr-print-container *, body *:has(.emr-print-container) {
+    visibility: visible !important;
+  }
+  html, body { height: auto !important; overflow: visible !important; background: #fff !important; }
+  body *:has(.emr-print-container) {
+    display: block !important;
+    position: static !important;
+    overflow: visible !important;
+    transform: none !important;
+    width: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: none !important;
+    box-shadow: none !important;
+  }
+  .emr-print-container {
+    position: static;
+    width: 170mm;
+    max-width: 170mm;
+    margin: 0;
+  }
   @page { size: A4; margin: 15mm 20mm; }
 }
 .emr-print-container {

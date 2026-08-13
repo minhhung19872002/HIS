@@ -563,6 +563,11 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<Nation> Nations => Set<Nation>();
     public DbSet<InitialFacility> InitialFacilities => Set<InitialFacility>();
 
+    // NangCap27 (HSMT BV Tâm thần Quảng Ngãi): phiếu vận chuyển BN + KSK theo đoàn
+    public DbSet<PatientTransportSlip> PatientTransportSlips => Set<PatientTransportSlip>();
+    public DbSet<CheckupCompany> CheckupCompanies => Set<CheckupCompany>();
+    public DbSet<CheckupContract> CheckupContracts => Set<CheckupContract>();
+
     // F3.4 #151: BN BHYT chi trả 100% thuốc đặc trị
     public DbSet<BhytFullCoveragePatient> BhytFullCoveragePatients => Set<BhytFullCoveragePatient>();
 
@@ -788,6 +793,17 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
         // (18,2) rồi cắt mất phần lẻ (vd 0,125 ml thuốc cản quang).
         modelBuilder.Entity<RadiologyServiceNormItem>().Property(i => i.Quantity).HasPrecision(18, 3);
         modelBuilder.Entity<RadiologyPrescriptionItem>().Property(i => i.Quantity).HasPrecision(18, 3);
+
+        // NangCap27: hệ số xăng dùng decimal(18,4) trong SQL (lít/km thường < 0,1) — khai rõ
+        // để EF không mặc định (18,2) rồi làm tròn hệ số về 0 → tiền xăng luôn = 0.
+        modelBuilder.Entity<PatientTransportSlip>().Property(s => s.GasolineFactor).HasPrecision(18, 4);
+        // Phiếu vận chuyển tham chiếu danh mục, xóa danh mục không được cascade-xóa phiếu đã lập.
+        modelBuilder.Entity<PatientTransportSlip>()
+            .HasOne(s => s.Patient).WithMany().HasForeignKey(s => s.PatientId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<PatientTransportSlip>()
+            .HasOne(s => s.TransportService).WithMany().HasForeignKey(s => s.TransportServiceId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<CheckupContract>()
+            .HasOne(c => c.CheckupCompany).WithMany().HasForeignKey(c => c.CheckupCompanyId).OnDelete(DeleteBehavior.NoAction);
 
         // Fix Discharge FK: DischargedBy is the FK for DischargedBy_User navigation
         // NangCap23: fix non-conventional navigation FK mappings
