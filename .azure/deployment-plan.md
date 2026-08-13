@@ -49,6 +49,7 @@ Deploy verified NangCap27 fixes to the existing HIS production frontend and back
 
 - Backend health and login return HTTP 200.
 - `GET /api/medicalhr/staff/{loginUserId}/roster?year=2026&month=8` returns HTTP 200 and an array.
+- Invalid roster query parameters (for example `month=13`) return HTTP 400, never HTTP 500.
 - `/v2/doctor-portal` → `Lịch trực` loads without HTTP 4xx/5xx or page errors.
 - Employee portal navigation resolves to `/v2/patient-portal-staff`, not the patient self-service route.
 - Existing 106-route conformance scan, 23 representative CRUD interactions, critical API smoke, and NangCap27 print regression remain green.

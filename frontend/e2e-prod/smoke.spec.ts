@@ -149,6 +149,12 @@ test.describe('Prod smoke - API health', () => {
       console.log('5xx failures:', JSON.stringify(failures, null, 2));
     }
     expect(failures, `Endpoints still returning 5xx: ${JSON.stringify(failures)}`).toEqual([]);
+
+    const invalidRosterMonth = await request.get(
+      `${BACKEND_API}/medicalhr/staff/${userId}/roster?year=2026&month=13`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    expect(invalidRosterMonth.status(), 'Invalid roster month must be a client error, not HTTP 500').toBe(400);
   });
 });
 

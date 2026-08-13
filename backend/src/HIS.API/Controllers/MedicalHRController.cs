@@ -14,6 +14,7 @@ using HIS.Application.DTOs.PatientPortal;
 using HIS.Application.DTOs.HealthExchange;
 using HIS.Application.DTOs.MassCasualty;
 using HIS.API.Dtos.ExtendedWorkflow;
+using System.ComponentModel.DataAnnotations;
 
 namespace HIS.API.Controllers
 {
@@ -81,7 +82,9 @@ namespace HIS.API.Controllers
 
         [HttpGet("staff/{id:guid}/roster")]
         public async Task<ActionResult<List<StaffRosterAssignmentDto>>> GetStaffRoster(
-            Guid id, [FromQuery] int year, [FromQuery] int month)
+            Guid id,
+            [FromQuery, Range(2000, 2100)] int year,
+            [FromQuery, Range(1, 12)] int month)
             => Ok(await _service.GetStaffRosterAsync(id, year, month));
 
         [HttpPost("duty-roster")]
