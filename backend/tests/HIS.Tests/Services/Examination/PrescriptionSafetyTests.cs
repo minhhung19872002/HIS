@@ -7,6 +7,7 @@ using HIS.Infrastructure.Services;
 using HIS.Tests.Fixtures;
 using Microsoft.AspNetCore.Http;
 using Moq;
+using System.Text.Json;
 using Xunit;
 
 namespace HIS.Tests.Services.ExaminationFlow;
@@ -37,13 +38,24 @@ public class PrescriptionSafetyTests
         var mrId = Guid.NewGuid();
         var examId = Guid.NewGuid();
         var medId = Guid.NewGuid();
+        var departmentId = Guid.NewGuid();
+        var doctorId = Guid.NewGuid();
 
         ctx.Patients.Add(new Patient { Id = patientId, PatientCode = "BN1", FullName = "Nguyen Van Test" });
         ctx.MedicalRecords.Add(new MedicalRecord { Id = mrId, PatientId = patientId, PatientType = 2 });
+        ctx.Departments.Add(new Department
+        {
+            Id = departmentId, DepartmentCode = "KTEST", DepartmentName = "Khoa Test", IsActive = true
+        });
+        ctx.Users.Add(new User
+        {
+            Id = doctorId, Username = "doctor.test", FullName = "Bac si Test",
+            PasswordHash = "test", UserType = 1, DepartmentId = departmentId, IsActive = true
+        });
         ctx.Examinations.Add(new Examination
         {
             Id = examId, MedicalRecordId = mrId,
-            DepartmentId = Guid.NewGuid(), RoomId = Guid.NewGuid(), DoctorId = Guid.NewGuid(),
+            DepartmentId = departmentId, RoomId = Guid.NewGuid(), DoctorId = doctorId,
             Status = HIS.Core.Constants.ExaminationStatus.InProgress
         });
         ctx.Medicines.Add(new Medicine
@@ -167,5 +179,68 @@ public class PrescriptionSafetyTests
         invalid.Items[0].Quantity = 0;
         await Assert.ThrowsAsync<InvalidOperationException>(() => svc.CreatePrescriptionAsync(invalid));
         Assert.Empty(ctx.Prescriptions);
+    }
+
+    [Fact]
+    public async Task Legacy_prescription_resolves_nearest_examination_context_without_mutating_data()
+    {
+        using var ctx = TestDb.NewInMemory();
+        var (examId, _) = SeedScenario(ctx, withSevereAllergy: false);
+        var examination = ctx.Examinations.Single(e => e.Id == examId);
+        examination.StartTime = new DateTime(2026, 8, 14, 8, 0, 0);
+        var legacyPrescription = new Prescription
+        {
+            Id = Guid.NewGuid(),
+            PrescriptionCode = "RX-LEGACY",
+            PrescriptionDate = new DateTime(2026, 8, 14, 8, 15, 0),
+            MedicalRecordId = examination.MedicalRecordId,
+            ExaminationId = null,
+            DoctorId = examination.DoctorId!.Value,
+            DepartmentId = examination.DepartmentId,
+            Status = 0,
+        };
+        ctx.Prescriptions.Add(legacyPrescription);
+        ctx.SaveChanges();
+        var svc = NewService(ctx);
+
+        var result = await svc.GetPrescriptionByIdAsync(legacyPrescription.Id);
+
+        Assert.NotNull(result);
+        Assert.Equal(examId, result!.ExaminationId);
+        Assert.Null(ctx.Prescriptions.Single(p => p.Id == legacyPrescription.Id).ExaminationId);
+    }
+
+    [Fact]
+    public async Task Recent_legacy_prescription_exposes_resolved_examination_context()
+    {
+        using var ctx = TestDb.NewInMemory();
+        var (examId, _) = SeedScenario(ctx, withSevereAllergy: false);
+        var examination = ctx.Examinations.Single(e => e.Id == examId);
+        examination.StartTime = new DateTime(2026, 8, 14, 8, 0, 0);
+        ctx.Prescriptions.Add(new Prescription
+        {
+            Id = Guid.NewGuid(),
+            PrescriptionCode = "RX-RECENT-LEGACY",
+            PrescriptionDate = new DateTime(2026, 8, 14, 8, 15, 0),
+            MedicalRecordId = examination.MedicalRecordId,
+            ExaminationId = null,
+            DoctorId = examination.DoctorId!.Value,
+            DepartmentId = examination.DepartmentId,
+            Status = 0,
+        });
+        ctx.SaveChanges();
+        var savedPrescriptionDate = ctx.Prescriptions.Single().PrescriptionDate;
+        var svc = NewService(ctx);
+
+        var result = await svc.GetRecentPrescriptionsAsync(
+            savedPrescriptionDate.AddMinutes(-1),
+            savedPrescriptionDate.AddMinutes(1),
+            null,
+            20);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(result));
+
+        Assert.Equal(
+            examId,
+            json.RootElement.EnumerateArray().Single().GetProperty("examinationId").GetGuid());
     }
 }

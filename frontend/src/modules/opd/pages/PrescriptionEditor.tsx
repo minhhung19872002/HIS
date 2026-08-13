@@ -182,11 +182,32 @@ const PrescriptionEditorV2: React.FC = () => {
           const rxRes = await examinationApi.getPrescriptionById(rxId);
           if (selectReqRef.current !== reqId || !rxRes.data) return;
           const rx = rxRes.data;
-          const targetExamId = exId || rx.examinationId;
+          const usableId = (value: string | null | undefined) =>
+            value && value !== '00000000-0000-0000-0000-000000000000' ? value : null;
+          let targetExamId = usableId(exId) || usableId(rx.examinationId);
+          let fallbackPatient: Patient | null = null;
+          if (!targetExamId && pid) {
+            const patientRes = await patientApi.getById(pid);
+            if (selectReqRef.current !== reqId) return;
+            fallbackPatient = patientRes.data || null;
+            if (fallbackPatient) {
+              const examsRes = await examinationApi.searchExaminations({
+                patientCode: fallbackPatient.patientCode,
+                pageIndex: 0,
+                pageSize: 1,
+              });
+              if (selectReqRef.current !== reqId) return;
+              const examData = examsRes.data as { items?: Array<{ id: string }> } | Array<{ id: string }>;
+              const exams = Array.isArray(examData) ? examData : examData?.items;
+              targetExamId = exams?.[0]?.id || null;
+            }
+          }
           if (!targetExamId) throw new Error('Đơn thuốc không gắn với phiên khám');
           const ctxRes = await getPrescriptionContext(targetExamId);
           if (selectReqRef.current !== reqId || !ctxRes.data) return;
-          const pRes = await patientApi.getById(ctxRes.data.patientId);
+          const patient = fallbackPatient && fallbackPatient.id === ctxRes.data.patientId
+            ? fallbackPatient
+            : (await patientApi.getById(ctxRes.data.patientId)).data;
           if (selectReqRef.current !== reqId) return;
           setCtx(ctxRes.data);
           setExamId(targetExamId);
@@ -195,7 +216,7 @@ const PrescriptionEditorV2: React.FC = () => {
           setType(rx.prescriptionType === 2 ? 2 : 1);
           setWh(rx.warehouseId || '');
           setItems(rx.items.map(fromPrescriptionItem));
-          if (pRes.data) setPt(pRes.data);
+          if (patient) setPt(patient);
         } else if (exId) {
           const reqId = ++selectReqRef.current; // preload cũng là 1 request — thua nếu user chọn BN tay trong lúc chờ
           const ctxRes = await getPrescriptionContext(exId);

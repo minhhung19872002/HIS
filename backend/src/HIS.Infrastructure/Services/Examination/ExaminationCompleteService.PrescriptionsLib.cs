@@ -451,10 +451,28 @@ public partial class ExaminationCompleteService
                         || p.MedicalRecord.Patient.PatientCode.Contains(kw))));
         }
         var list = await q.OrderByDescending(p => p.PrescriptionDate).Take(pageSize).ToListAsync();
+        var legacyMedicalRecordIds = list
+            .Where(p => !p.ExaminationId.HasValue || p.ExaminationId == Guid.Empty)
+            .Select(p => p.MedicalRecordId)
+            .Distinct()
+            .ToList();
+        var fallbackExaminations = legacyMedicalRecordIds.Count == 0
+            ? new List<Examination>()
+            : await _context.Examinations
+                .Where(e => legacyMedicalRecordIds.Contains(e.MedicalRecordId))
+                .ToListAsync();
+        var examinationsByRecord = fallbackExaminations
+            .GroupBy(e => e.MedicalRecordId)
+            .ToDictionary(g => g.Key, g => (IEnumerable<Examination>)g.ToList());
+
         return list.Select(p => new
         {
             id = p.Id,
-            examinationId = p.ExaminationId,
+            examinationId = ResolvePrescriptionExaminationId(
+                p,
+                examinationsByRecord.TryGetValue(p.MedicalRecordId, out var exams)
+                    ? exams
+                    : Enumerable.Empty<Examination>()),
             prescriptionCode = p.PrescriptionCode,
             prescriptionDate = p.PrescriptionDate,
             prescribedAt = p.PrescriptionDate,

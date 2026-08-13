@@ -45,7 +45,37 @@ public partial class ExaminationCompleteService
             .ThenInclude(i => i.Medicine)
             .FirstOrDefaultAsync(p => p.Id == id);
 
-        return prescription != null ? MapToPrescriptionFullDto(prescription) : null;
+        if (prescription == null) return null;
+
+        var result = MapToPrescriptionFullDto(prescription);
+        if (result.ExaminationId == Guid.Empty)
+        {
+            // Dữ liệu trước khi Prescription.ExaminationId được bổ sung chỉ còn liên kết qua
+            // MedicalRecord. Suy ra phiên gần thời điểm kê nhất để editor vẫn nạp đúng BN/context,
+            // nhưng không backfill DB vì một hồ sơ có thể có nhiều phiên khám.
+            var candidateExaminations = await _context.Examinations
+                .Where(e => e.MedicalRecordId == prescription.MedicalRecordId)
+                .ToListAsync();
+            result.ExaminationId = ResolvePrescriptionExaminationId(prescription, candidateExaminations)
+                ?? Guid.Empty;
+        }
+
+        return result;
+    }
+
+    private static Guid? ResolvePrescriptionExaminationId(
+        Prescription prescription,
+        IEnumerable<Examination> candidateExaminations)
+    {
+        if (prescription.ExaminationId.HasValue && prescription.ExaminationId.Value != Guid.Empty)
+            return prescription.ExaminationId.Value;
+
+        return candidateExaminations
+            .Where(e => e.MedicalRecordId == prescription.MedicalRecordId)
+            .OrderBy(e => Math.Abs(((e.StartTime ?? e.CreatedAt) - prescription.PrescriptionDate).Ticks))
+            .ThenByDescending(e => e.StartTime ?? e.CreatedAt)
+            .Select(e => (Guid?)e.Id)
+            .FirstOrDefault();
     }
 
     public async Task<PrescriptionFullDto> CreatePrescriptionAsync(Application.DTOs.Examination.CreateExaminationPrescriptionDto dto, Guid prescribingUserId = default)

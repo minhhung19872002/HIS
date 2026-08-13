@@ -28,10 +28,13 @@ test('waiting OPD patient opens prescription editor with selected patient contex
   await page.getByRole('button', { name: /Chờ khám/i }).click();
   const firstWaitingPatient = page.locator('tbody tr').first();
   await expect(firstWaitingPatient).toBeVisible({ timeout: 30_000 });
-  if ((await firstWaitingPatient.innerText()).includes('Không có bệnh nhân')) {
+  const waitingPatientName = firstWaitingPatient.locator('td').nth(1).locator('b');
+  if ((await waitingPatientName.count()) === 0) {
     test.skip(true, 'Môi trường không có bệnh nhân chờ khám để kiểm tra luồng');
   }
-  await firstWaitingPatient.click();
+  const selectedPatientName = (await waitingPatientName.innerText()).trim();
+  // DataTable attaches drawer click handlers to data cells (not the action cell).
+  await firstWaitingPatient.locator('td').first().click();
 
   const prescribe = page.getByRole('button', { name: /^Kê đơn$/i });
   await expect(prescribe).toBeVisible();
@@ -39,7 +42,7 @@ test('waiting OPD patient opens prescription editor with selected patient contex
 
   await expect(page).toHaveURL(/\/v2\/prescription\/edit\?[^#]*examId=/);
   await expect(page.getByText('Chưa chọn BN')).toHaveCount(0, { timeout: 30_000 });
-  await expect(page.getByText(/BN đang kê/i)).toBeVisible();
+  await expect(page.getByText(selectedPatientName, { exact: true }).first()).toBeVisible();
 });
 
 test('existing prescription opens editor with selected patient context', async ({ page }) => {
@@ -49,13 +52,17 @@ test('existing prescription opens editor with selected patient context', async (
 
   const firstPrescription = page.locator('tbody tr').first();
   await expect(firstPrescription).toBeVisible({ timeout: 30_000 });
-  if ((await firstPrescription.innerText()).includes('Không có đơn thuốc')) {
+  const prescriptionPatientName = firstPrescription.locator('td').nth(1).locator('b');
+  if ((await prescriptionPatientName.count()) === 0) {
     test.skip(true, 'Môi trường không có đơn thuốc để kiểm tra luồng');
   }
-  await firstPrescription.click();
-  await page.getByRole('button', { name: /Mở editor kê đơn/i }).click();
+  const selectedPatientName = (await prescriptionPatientName.innerText()).trim();
+  await firstPrescription.locator('td').first().click();
+  const drawer = page.locator('.hui-drawer');
+  await expect(drawer).toBeVisible();
+  await drawer.getByRole('button', { name: /Mở editor kê đơn/i }).click();
 
-  await expect(page).toHaveURL(/\/v2\/prescription\/edit\?[^#]*prescriptionId=/);
+  await expect(page).toHaveURL(/\/v2\/prescription\/edit\?[^#]*prescriptionId=[^#&]+&examId=/);
   await expect(page.getByText('Chưa chọn BN')).toHaveCount(0, { timeout: 30_000 });
-  await expect(page.getByText(/BN đang kê/i)).toBeVisible();
+  await expect(page.getByText(selectedPatientName, { exact: true }).first()).toBeVisible();
 });
