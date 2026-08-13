@@ -18,7 +18,7 @@
  */
 import { test, expect, APIRequestContext } from '@playwright/test';
 
-const API = process.env.PROD_API_URL || 'https://his-api-694913628964.asia-southeast1.run.app/api';
+const API = process.env.PROD_API_URL || 'https://his-api.thankfulcoast-bd0486a9.southeastasia.azurecontainerapps.io/api';
 
 let adminToken = '';
 let inspectorToken = '';

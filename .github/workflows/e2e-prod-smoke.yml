@@ -1,14 +1,14 @@
 name: E2E prod smoke
 
 # Chạy bộ smoke prod (Playwright e2e-prod/smoke.spec.ts) lên runner GitHub SAU khi deploy.
-# Mục tiêu: sau khi Cloud Run chạy schema-repair + Vercel deploy FE → xác nhận các path
+# Mục tiêu: sau khi Azure Container Apps deploy + Vercel deploy FE → xác nhận các path
 # trọng yếu KHÔNG còn 500 và FE render được data (read-only, KHÔNG create/delete).
 #
 # Trigger:
-#  - workflow_dispatch: bấm tay sau khi deploy xong (FE Vercel hoặc BE Cloud Run).
-#  - workflow_run: tự chạy sau khi "Deploy backend to Cloud Run" hoàn tất THÀNH CÔNG.
+#  - workflow_dispatch: bấm tay sau khi deploy xong (FE Vercel hoặc BE Azure Container Apps).
+#  - workflow_run: tự chạy sau khi "Deploy backend to Azure Container Apps" hoàn tất THÀNH CÔNG.
 #
-# Target prod mặc định lấy từ playwright.prod.config.ts (his-psi.vercel.app + Cloud Run API).
+# Target prod mặc định lấy từ playwright.prod.config.ts (his-psi.vercel.app + Azure Container Apps API).
 # Có thể override qua input PROD_URL / PROD_API_URL khi dispatch.
 
 on:
@@ -21,9 +21,9 @@ on:
       prod_api_url:
         description: 'PROD_API_URL (BE, có /api)'
         required: false
-        default: 'https://his-api-694913628964.asia-southeast1.run.app/api'
+        default: 'https://his-api.thankfulcoast-bd0486a9.southeastasia.azurecontainerapps.io/api'
   workflow_run:
-    workflows: ['Deploy backend to Cloud Run']
+    workflows: ['Deploy backend to Azure Container Apps']
     types: [completed]
 
 # Không chạy chồng nhau.
@@ -42,7 +42,7 @@ jobs:
         working-directory: frontend
     env:
       PROD_URL: ${{ github.event.inputs.prod_url || 'https://his-psi.vercel.app' }}
-      PROD_API_URL: ${{ github.event.inputs.prod_api_url || 'https://his-api-694913628964.asia-southeast1.run.app/api' }}
+      PROD_API_URL: ${{ github.event.inputs.prod_api_url || 'https://his-api.thankfulcoast-bd0486a9.southeastasia.azurecontainerapps.io/api' }}
       CI: 'true'
     steps:
       - uses: actions/checkout@v4

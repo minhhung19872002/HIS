@@ -79,6 +79,11 @@ namespace HIS.API.Controllers
             [FromQuery] int month)
             => Ok(await _service.GetDutyRosterAsync(departmentId, year, month));
 
+        [HttpGet("staff/{id:guid}/roster")]
+        public async Task<ActionResult<List<StaffRosterAssignmentDto>>> GetStaffRoster(
+            Guid id, [FromQuery] int year, [FromQuery] int month)
+            => Ok(await _service.GetStaffRosterAsync(id, year, month));
+
         [HttpPost("duty-roster")]
         public async Task<ActionResult<DutyRosterDto>> CreateDutyRoster([FromBody] CreateDutyRosterDto dto)
             => Ok(await _service.CreateDutyRosterAsync(dto));

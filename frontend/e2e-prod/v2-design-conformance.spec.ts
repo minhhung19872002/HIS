@@ -85,7 +85,7 @@ interface PageReport {
 
 const REPORT: PageReport[] = [];
 
-const PROD_API = process.env.PROD_API_URL || 'https://his-api-694913628964.asia-southeast1.run.app/api';
+const PROD_API = process.env.PROD_API_URL || 'https://his-api.thankfulcoast-bd0486a9.southeastasia.azurecontainerapps.io/api';
 let CACHED_TOKEN: string | null = null;
 let CACHED_USER: string | null = null;
 

@@ -35,7 +35,7 @@ const GROUPS: { g: string; route: string }[] = [
   { g: 'DM Danh muc', route: 'master-data' },
 ];
 
-const PROD_API = process.env.PROD_API_URL || 'https://his-api-694913628964.asia-southeast1.run.app/api';
+const PROD_API = process.env.PROD_API_URL || 'https://his-api.thankfulcoast-bd0486a9.southeastasia.azurecontainerapps.io/api';
 let TOKEN: string | null = null;
 let USER: string | null = null;
 

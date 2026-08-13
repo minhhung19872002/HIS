@@ -12,7 +12,7 @@
 import { test, expect, Page } from '@playwright/test';
 
 const PROD_API =
-  process.env.PROD_API_URL || 'https://his-api-694913628964.asia-southeast1.run.app/api';
+  process.env.PROD_API_URL || 'https://his-api.thankfulcoast-bd0486a9.southeastasia.azurecontainerapps.io/api';
 
 const IGNORE_CONSOLE = [
   /Download the React DevTools/, /\[antd:/, /useForm/, /not connected to any Form/,

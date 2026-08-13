@@ -8,7 +8,7 @@ import { test, expect, Page, ConsoleMessage } from '@playwright/test';
  */
 
 const VOLUME_STUDY_UID = '1.3.6.1.4.1.14519.5.2.1.7009.2403.334240657131972136850343327463';
-const PROD_API = process.env.PROD_API_URL || 'https://his-api-694913628964.asia-southeast1.run.app';
+const PROD_API = process.env.PROD_API_URL || 'https://his-api.thankfulcoast-bd0486a9.southeastasia.azurecontainerapps.io';
 
 async function login(page: Page) {
   await page.goto('/login');

@@ -2,13 +2,13 @@ import { test, expect, Page, ConsoleMessage } from '@playwright/test';
 
 /**
  * Production smoke tests for https://his-psi.vercel.app.
- * Goal: after the Cloud Run schema repair runs, confirm that the critical
+ * Goal: after the Azure Container Apps deployment runs, confirm that the critical
  * paths no longer throw 500s and that the frontend can actually render data.
  *
  * These tests intentionally avoid destructive actions (no create/delete).
  */
 
-const BACKEND_API = process.env.PROD_API_URL || 'https://his-api-694913628964.asia-southeast1.run.app/api';
+const BACKEND_API = process.env.PROD_API_URL || 'https://his-api.thankfulcoast-bd0486a9.southeastasia.azurecontainerapps.io/api';
 
 const ROUTES = [
   '/',
@@ -89,7 +89,9 @@ test.describe('Prod smoke - API health', () => {
       data: { username: 'admin', password: 'Admin@123' },
       headers: { 'Content-Type': 'application/json' },
     });
-    const token = (await login.json()).data.token;
+    const loginData = (await login.json()).data;
+    const token = loginData.token;
+    const userId = loginData.user.id;
 
     const endpoints = [
       '/examination/templates/prescription',
@@ -130,6 +132,7 @@ test.describe('Prod smoke - API health', () => {
       '/occupational-health/statistics',
       '/school-health/statistics',
       '/epidemiology/outbreaks',
+      `/medicalhr/staff/${userId}/roster?year=2026&month=8`,
     ];
 
     const failures: Array<{ endpoint: string; status: number }> = [];
@@ -137,7 +140,7 @@ test.describe('Prod smoke - API health', () => {
       const res = await request.get(BACKEND_API + endpoint, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.status() >= 500) {
+      if (res.status() >= 500 || endpoint.includes('/medicalhr/staff/') && res.status() !== 200) {
         failures.push({ endpoint, status: res.status() });
       }
     }

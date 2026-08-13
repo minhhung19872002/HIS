@@ -94,6 +94,72 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
         return new DutyRosterDto { Id = roster.Id, DepartmentId = roster.DepartmentId, Year = roster.Year, Month = roster.Month, Status = roster.Status };
     }
 
+    public async Task<List<StaffRosterAssignmentDto>> GetStaffRosterAsync(Guid userOrStaffId, int year, int month)
+    {
+        if (year < 2000 || year > 2100 || month < 1 || month > 12)
+            throw new InvalidOperationException("Tháng/năm lịch trực không hợp lệ.");
+
+        var staff = await _context.MedicalStaffs.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == userOrStaffId || s.UserId == userOrStaffId);
+        if (staff == null) return new List<StaffRosterAssignmentDto>();
+
+        var shifts = await _context.DutyShifts.AsNoTracking()
+            .Include(s => s.DutyRoster).ThenInclude(r => r!.Department)
+            .Where(s => s.StaffId == staff.Id
+                && s.ShiftDate.Year == year
+                && s.ShiftDate.Month == month)
+            .OrderBy(s => s.ShiftDate)
+            .ThenBy(s => s.StartTime)
+            .ToListAsync();
+
+        return shifts.Select(s =>
+        {
+            var duration = s.EndTime >= s.StartTime
+                ? s.EndTime - s.StartTime
+                : TimeSpan.FromHours(24) - s.StartTime + s.EndTime;
+            var isOnCall = s.ShiftType.Equals("OnCall", StringComparison.OrdinalIgnoreCase)
+                || s.ShiftType.Equals("24h", StringComparison.OrdinalIgnoreCase);
+
+            return new StaffRosterAssignmentDto
+            {
+                Id = s.Id,
+                RosterId = s.DutyRosterId,
+                StaffId = staff.Id,
+                StaffCode = staff.StaffCode,
+                StaffName = staff.FullName,
+                StaffType = staff.StaffType,
+                Date = s.ShiftDate,
+                DayOfWeek = s.ShiftDate.DayOfWeek.ToString(),
+                ShiftId = s.Id,
+                ShiftName = LocalizeShiftName(s.ShiftType),
+                ShiftStart = s.StartTime.ToString(@"hh\:mm"),
+                ShiftEnd = s.EndTime.ToString(@"hh\:mm"),
+                Location = s.DutyRoster?.Department?.DepartmentName,
+                IsOnCall = isOnCall,
+                IsOvertime = duration.TotalHours > 8,
+                OvertimeHours = duration.TotalHours > 8 ? (decimal)(duration.TotalHours - 8) : null,
+                Status = s.Status switch
+                {
+                    "Confirmed" => 2,
+                    "Completed" => 3,
+                    "Absent" => 4,
+                    "Swapped" => 5,
+                    _ => 1
+                }
+            };
+        }).ToList();
+    }
+
+    private static string LocalizeShiftName(string shiftType) => shiftType switch
+    {
+        "Morning" => "Ca sáng",
+        "Afternoon" => "Ca chiều",
+        "Night" => "Ca đêm",
+        "OnCall" => "Trực",
+        "24h" => "Trực 24 giờ",
+        _ => shiftType
+    };
+
     public async Task<DutyRosterDto> CreateDutyRosterAsync(CreateDutyRosterDto dto)
     {
         var entity = new DutyRoster { Id = Guid.NewGuid(), DepartmentId = dto.DepartmentId, Year = dto.Year, Month = dto.Month, Status = "Draft", CreatedAt = DateTime.Now };

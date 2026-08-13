@@ -108,6 +108,14 @@ namespace HIS.Application.Services
             return null;
         }
 
+        public Task<List<StaffRosterAssignmentDto>> GetStaffRosterAsync(Guid userOrStaffId, int year, int month)
+        {
+            _logger.LogInformation(
+                "Getting staff roster for user/staff {UserOrStaffId}, {Year}/{Month}",
+                userOrStaffId, year, month);
+            return Task.FromResult(new List<StaffRosterAssignmentDto>());
+        }
+
         public async Task<DutyRosterDto> CreateDutyRosterAsync(CreateDutyRosterDto dto)
         {
             _logger.LogInformation("Creating duty roster for department {DepartmentId}", dto.DepartmentId);

@@ -281,6 +281,7 @@ namespace HIS.Application.Services
 
         // Duty Roster
         Task<DutyRosterDto> GetDutyRosterAsync(Guid departmentId, int year, int month);
+        Task<List<StaffRosterAssignmentDto>> GetStaffRosterAsync(Guid userOrStaffId, int year, int month);
         Task<DutyRosterDto> CreateDutyRosterAsync(CreateDutyRosterDto dto);
         Task<DutyRosterDto> PublishDutyRosterAsync(Guid rosterId);
         Task<DutyShiftDto> AddShiftAssignmentAsync(Guid shiftId, Guid staffId, string role);

@@ -176,6 +176,32 @@ namespace HIS.Application.DTOs.MedicalHR
         public string Notes { get; set; }
     }
 
+    /// <summary>
+    /// Một ca trực của cá nhân, dùng cho tab Lịch trực trong cổng bác sĩ.
+    /// StaffId có thể được tra bằng id hồ sơ nhân viên hoặc UserId đăng nhập.
+    /// </summary>
+    public class StaffRosterAssignmentDto
+    {
+        public Guid Id { get; set; }
+        public Guid RosterId { get; set; }
+        public Guid StaffId { get; set; }
+        public string StaffCode { get; set; } = string.Empty;
+        public string StaffName { get; set; } = string.Empty;
+        public string StaffType { get; set; } = string.Empty;
+        public DateTime Date { get; set; }
+        public string DayOfWeek { get; set; } = string.Empty;
+        public Guid ShiftId { get; set; }
+        public string ShiftName { get; set; } = string.Empty;
+        public string ShiftStart { get; set; } = string.Empty;
+        public string ShiftEnd { get; set; } = string.Empty;
+        public string? Location { get; set; }
+        public string? Role { get; set; }
+        public bool IsOnCall { get; set; }
+        public bool IsOvertime { get; set; }
+        public decimal? OvertimeHours { get; set; }
+        public int Status { get; set; }
+    }
+
     public class ShiftAssignmentDto
     {
         public Guid Id { get; set; }

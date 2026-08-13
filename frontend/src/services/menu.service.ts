@@ -224,7 +224,7 @@ export const HIS_GROUPS: NavGroup[] = [
   {
     id: 'portals', label: 'Cổng & Dịch vụ', short: 'CỔNG', icon: 'user-plus',
     items: [
-      { id: 'patient-portal',      path: '/v2/patient-portal',      label: 'Cổng bệnh nhân' },
+      { id: 'patient-portal-staff', path: '/v2/patient-portal-staff', label: 'Cổng bệnh nhân (Nhân viên)' },
       { id: 'mobile',              path: '/v2/mobile',              label: 'Mobile (BS/ĐD)' },
       { id: 'satisfaction-survey', path: '/v2/satisfaction-survey', label: 'Khảo sát hài lòng' },
       { id: 'help',                path: '/v2/help',                label: 'Trợ giúp' },
