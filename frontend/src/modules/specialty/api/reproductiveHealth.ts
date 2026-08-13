@@ -44,6 +44,15 @@ export interface ReproductiveHealthStats {
 
 // ---- API Functions ----
 
+const normalizePatientFields = <T extends { recordCode: string; patientName: string; patientCode: string }>(record: T): T => ({
+  ...record,
+  // Historical production rows may not be linked to a patient yet. Keep the
+  // UI searchable and renderable even when those legacy columns are null.
+  recordCode: record.recordCode ?? '',
+  patientName: record.patientName ?? '',
+  patientCode: record.patientCode ?? '',
+});
+
 export const searchPrenatal = async (params?: {
   keyword?: string;
   riskLevel?: string;
@@ -53,7 +62,7 @@ export const searchPrenatal = async (params?: {
 }) => {
   try {
     const response = await apiClient.get<PrenatalRecord[]>('/reproductive-health/prenatal', { params });
-    return response.data || [];
+    return (response.data || []).map(normalizePatientFields);
   } catch {
     console.warn('Failed to fetch prenatal records');
     return [];
@@ -82,7 +91,7 @@ export const searchFamilyPlanning = async (params?: {
 }) => {
   try {
     const response = await apiClient.get<FamilyPlanningRecord[]>('/reproductive-health/family-planning', { params });
-    return response.data || [];
+    return (response.data || []).map(normalizePatientFields);
   } catch {
     console.warn('Failed to fetch family planning records');
     return [];
@@ -112,7 +121,7 @@ export const getStats = async (): Promise<ReproductiveHealthStats> => {
 export const getHighRiskPregnancies = async () => {
   try {
     const response = await apiClient.get<PrenatalRecord[]>('/reproductive-health/high-risk');
-    return response.data || [];
+    return (response.data || []).map(normalizePatientFields);
   } catch {
     console.warn('Failed to fetch high risk pregnancies');
     return [];

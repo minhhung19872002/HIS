@@ -114,8 +114,8 @@ const SmsManagementV2: React.FC = () => {
     setDashLoading(true);
     try {
       const [b, s] = await Promise.all([getSmsBalance(), getSmsStats()]);
-      setBalance(b as unknown as SmsBalanceDto);
-      setStats(s as unknown as SmsStatsDto);
+      setBalance(b.data);
+      setStats(s.data);
     } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được tổng quan SMS — số liệu có thể chưa cập nhật')); }
     finally { setDashLoading(false); }
   }, []);
@@ -133,9 +133,9 @@ const SmsManagementV2: React.FC = () => {
         fromDate:    fromDate || undefined,
         toDate:      toDate   || undefined,
         pageIndex: p, pageSize: 20,
-      }) as any;
-      setRows(r?.items ?? r?.data?.items ?? []);
-      setTotal(r?.totalCount ?? r?.data?.totalCount ?? 0);
+      });
+      setRows(r.data.items);
+      setTotal(r.data.totalCount);
       setPage(p);
     } catch (e) { te(friendlyErrorMessage(e, 'Không tải được nhật ký SMS')); setRows([]); setTotal(0); }
     finally { setLogLoading(false); }
@@ -149,14 +149,14 @@ const SmsManagementV2: React.FC = () => {
   const handleTestConn = async () => {
     setConnLoading(true);
     try {
-      const ok = await testSmsConnection() as unknown as boolean;
+      const { data: ok } = await testSmsConnection();
       setConnOk(ok);
       if (ok) tk('Kết nối SMS thành công'); else te('Kết nối SMS thất bại');
     } catch { setConnOk(false); te('Không thể kết nối SMS'); }
     finally { setConnLoading(false); }
   };
 
-  const handleSend = async (v: Record<string, any>) => {
+  const handleSend = async (v: Record<string, unknown>) => {
     try {
       await sendTestSms(String(v.phoneNumber ?? ''), v.message ? String(v.message) : undefined);
       tk('Đã gửi SMS thử nghiệm');

@@ -128,8 +128,13 @@ export const MedicalRecordFinalSummaryPrint = forwardRef<HTMLDivElement, Medical
     const resultOptions = ['Khỏi', 'Đỡ, giảm', 'Không thay đổi', 'Nặng hơn', 'Tử vong'];
 
     return (
-      <div ref={ref} className="emr-print-container">
-        <style>{printStyles}</style>
+      <div ref={ref} className="emr-print-container final-summary-print">
+        <style>{`${printStyles}
+          @media print {
+            .emr-print-container.final-summary-print .section { margin: 8px 0; }
+            .emr-print-container.final-summary-print .field { margin: 2px 0; }
+          }
+        `}</style>
         <PrintHeader formNumber="MS. 11/BV" />
         <h2>TỔNG KẾT HỒ SƠ BỆNH ÁN</h2>
 
@@ -213,11 +218,11 @@ export const MedicalRecordFinalSummaryPrint = forwardRef<HTMLDivElement, Medical
           {followUpDate && <Field label="Hẹn tái khám" value={dayjs(followUpDate).format('DD/MM/YYYY')} />}
         </div>
 
-        <div className="signature-row" style={{ marginTop: 24 }}>
+        <div className="signature-row" style={{ marginTop: 12 }}>
           <div className="sig">
             <div className="sig-title">TRƯỞNG KHOA</div>
             <div className="sig-date">(Ký, ghi rõ họ tên)</div>
-            <div style={{ marginTop: 40 }}>{headOfDepartmentName ?? ''}</div>
+            <div style={{ marginTop: 24 }}>{headOfDepartmentName ?? ''}</div>
           </div>
           <div className="sig">
             <div className="sig-date">
@@ -225,7 +230,7 @@ export const MedicalRecordFinalSummaryPrint = forwardRef<HTMLDivElement, Medical
             </div>
             <div className="sig-title">BÁC SĨ ĐIỀU TRỊ</div>
             <div className="sig-date">(Ký, ghi rõ họ tên)</div>
-            <div style={{ marginTop: 40 }}>{attendingDoctorName ?? ''}</div>
+            <div style={{ marginTop: 24 }}>{attendingDoctorName ?? ''}</div>
           </div>
         </div>
       </div>

@@ -14,10 +14,8 @@ public partial class HospitalPharmacyService
         try
         {
             var query = _context.RetailSales
-                .Include(s => s.Patient)
-                .Include(s => s.Cashier)
-                .Include(s => s.Items)
                 .Where(s => !s.IsDeleted)
+                .AsNoTracking()
                 .AsQueryable();
 
             if (!string.IsNullOrEmpty(filter.Keyword))
@@ -43,27 +41,49 @@ public partial class HospitalPharmacyService
 
             var skip = filter.PageIndex * filter.PageSize;
 
-            return await query
+            // Patient.FullName and RetailSale.PatientName use different SQL Server
+            // collations in production. Choosing between them inside the SQL projection
+            // generates a CASE expression and fails with error 468. Fetch both columns
+            // independently, then apply the fallback after materialization.
+            var rows = await query
                 .OrderByDescending(s => s.CreatedAt)
                 .Skip(skip)
                 .Take(filter.PageSize)
-                .Select(s => new RetailSaleListDto
+                .Select(s => new
                 {
-                    Id = s.Id,
-                    SaleCode = s.SaleCode,
-                    PatientName = s.Patient != null ? s.Patient.FullName : s.PatientName,
+                    s.Id,
+                    s.SaleCode,
+                    LinkedPatientName = s.Patient != null ? s.Patient.FullName : null,
+                    FallbackPatientName = s.PatientName,
                     PatientCode = s.Patient != null ? s.Patient.PatientCode : null,
-                    PhoneNumber = s.PhoneNumber,
-                    TotalAmount = s.TotalAmount,
-                    DiscountAmount = s.DiscountAmount,
-                    PaidAmount = s.PaidAmount,
-                    PaymentMethod = s.PaymentMethod,
-                    Status = s.Status,
+                    s.PhoneNumber,
+                    s.TotalAmount,
+                    s.DiscountAmount,
+                    s.PaidAmount,
+                    s.PaymentMethod,
+                    s.Status,
                     CashierName = s.Cashier != null ? s.Cashier.FullName : null,
                     ItemCount = s.Items.Count(i => !i.IsDeleted),
-                    CreatedAt = s.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss"),
+                    s.CreatedAt,
                 })
                 .ToListAsync();
+
+            return rows.Select(s => new RetailSaleListDto
+            {
+                Id = s.Id,
+                SaleCode = s.SaleCode,
+                PatientName = s.LinkedPatientName ?? s.FallbackPatientName,
+                PatientCode = s.PatientCode,
+                PhoneNumber = s.PhoneNumber,
+                TotalAmount = s.TotalAmount,
+                DiscountAmount = s.DiscountAmount,
+                PaidAmount = s.PaidAmount,
+                PaymentMethod = s.PaymentMethod,
+                Status = s.Status,
+                CashierName = s.CashierName,
+                ItemCount = s.ItemCount,
+                CreatedAt = s.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss"),
+            }).ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
