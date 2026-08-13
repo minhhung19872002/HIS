@@ -683,8 +683,10 @@ export const ServiceOrderModal: React.FC<ServiceOrderModalProps> = ({
       const count = (result.data || []).length;
       message.success(`Đã chỉ định ${count} dịch vụ`);
       onClose();
-    } catch {
-      message.error('Chỉ định dịch vụ thất bại');
+    } catch (e) {
+      // Trước đây `catch {}` nuốt sạch lỗi ⇒ mọi nguyên nhân đều hiện đúng một câu chung chung,
+      // không ai biết là thiếu khoa, sai người chỉ định hay dịch vụ không tồn tại.
+      message.error(friendlyErrorMessage(e, 'Chỉ định dịch vụ thất bại. Vui lòng thử lại.'));
     } finally {
       setBusy(false);
     }

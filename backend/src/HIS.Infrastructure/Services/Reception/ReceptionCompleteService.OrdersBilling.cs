@@ -126,6 +126,7 @@ public partial class ReceptionCompleteService {
 
     public async Task<List<ServiceOrderResultDto>> OrderServicesAtReceptionAsync(ReceptionServiceOrderDto dto, Guid userId)
     {
+        var ctx = await LoadOrderContextAsync(dto.MedicalRecordId, userId);
         var results = new List<ServiceOrderResultDto>();
 
         foreach (var item in dto.Services)
@@ -133,21 +134,11 @@ public partial class ReceptionCompleteService {
             var service = await _context.Services.FindAsync(item.ServiceId);
             if (service == null) continue;
 
-            var serviceRequest = new ServiceRequest
-            {
-                Id = Guid.NewGuid(),
-                MedicalRecordId = dto.MedicalRecordId,
-                ServiceId = item.ServiceId,
-                Quantity = item.Quantity,
-                UnitPrice = service.UnitPrice,
-                TotalPrice = service.UnitPrice * item.Quantity,
-                RoomId = item.RoomId,
-                Status = 0, // Pending
-                RequestedByUserId = userId,
-                RequestedDate = DateTime.Now,
-                Notes = item.Notes
-            };
+            var roomId = item.RoomId;
+            if (roomId == null && dto.AutoSelectRoom)
+                roomId = await PickExecutionRoomAsync(service.ServiceType);
 
+            var serviceRequest = BuildServiceRequest(ctx, service, item.Quantity, roomId, item.PaymentType, item.Notes);
             await _context.ServiceRequests.AddAsync(serviceRequest);
 
             results.Add(new ServiceOrderResultDto
@@ -159,7 +150,7 @@ public partial class ReceptionCompleteService {
                 Quantity = item.Quantity,
                 UnitPrice = service.UnitPrice,
                 TotalPrice = serviceRequest.TotalPrice,
-                RoomId = item.RoomId,
+                RoomId = roomId,
                 Status = 0
             });
         }
@@ -167,6 +158,111 @@ public partial class ReceptionCompleteService {
         await _unitOfWork.SaveChangesAsync();
         return results;
     }
+
+    /// <summary>
+    /// Bối cảnh bắt buộc để tạo <see cref="ServiceRequest"/>: khoa chỉ định + bác sĩ/người chỉ định.
+    /// Cả hai là FK NOT NULL — bản cũ bỏ trống nên EF gửi <c>Guid.Empty</c> xuống và SQL chặn ở
+    /// <c>FK_ServiceRequests_Departments_DepartmentId</c> ⇒ toàn bộ chỉ định CLS tại tiếp đón trả 500.
+    /// </summary>
+    private async Task<(Guid MedicalRecordId, Guid? ExaminationId, Guid DepartmentId, Guid DoctorId)>
+        LoadOrderContextAsync(Guid medicalRecordId, Guid userId)
+    {
+        var record = await _context.MedicalRecords.AsNoTracking()
+            .FirstOrDefaultAsync(m => m.Id == medicalRecordId && !m.IsDeleted)
+            ?? throw new InvalidOperationException("Không tìm thấy hồ sơ tiếp đón của người bệnh.");
+
+        // Khoa chỉ định: lấy theo hồ sơ; hồ sơ chưa gắn khoa thì suy từ phòng khám đang tiếp đón.
+        var departmentId = record.DepartmentId ?? Guid.Empty;
+        if (departmentId == Guid.Empty && record.RoomId.HasValue)
+        {
+            departmentId = await _context.Rooms.AsNoTracking()
+                .Where(r => r.Id == record.RoomId)
+                .Select(r => r.DepartmentId)
+                .FirstOrDefaultAsync();
+        }
+        if (departmentId == Guid.Empty)
+            throw new InvalidOperationException("Hồ sơ chưa gắn khoa/phòng — không xác định được khoa chỉ định.");
+
+        // Người chỉ định phải là user có thật (FK). Ưu tiên bác sĩ của hồ sơ, không có thì người đang thao tác.
+        var doctorId = record.DoctorId ?? userId;
+        var doctorExists = doctorId != Guid.Empty
+            && await _context.Users.AsNoTracking().AnyAsync(u => u.Id == doctorId && !u.IsDeleted);
+        if (!doctorExists)
+            throw new InvalidOperationException("Không xác định được người chỉ định hợp lệ.");
+
+        var examinationId = await _context.Examinations.AsNoTracking()
+            .Where(e => e.MedicalRecordId == medicalRecordId && !e.IsDeleted)
+            .Select(e => (Guid?)e.Id)
+            .FirstOrDefaultAsync();
+
+        return (medicalRecordId, examinationId, departmentId, doctorId);
+    }
+
+    /// <summary>
+    /// Dựng phiếu chỉ định đúng chuẩn luồng khám (<c>ExaminationCompleteService.CreateServiceOrdersAsync</c>):
+    /// header + <see cref="ServiceRequestDetail"/> cho từng dịch vụ. Thiếu Detail thì lấy mẫu / trả kết quả /
+    /// tính viện phí đều KHÔNG thấy chỉ định — phiếu lưu được nhưng vô dụng.
+    /// </summary>
+    private static ServiceRequest BuildServiceRequest(
+        (Guid MedicalRecordId, Guid? ExaminationId, Guid DepartmentId, Guid DoctorId) ctx,
+        Service service, int quantity, Guid? roomId, int paymentType, string? notes)
+    {
+        var qty = quantity <= 0 ? 1 : quantity;
+        var amount = service.UnitPrice * qty;
+
+        var request = new ServiceRequest
+        {
+            Id = Guid.NewGuid(),
+            RequestCode = $"CDTD{DateTime.Now:yyyyMMddHHmmssfff}",
+            RequestDate = DateTime.UtcNow,
+            MedicalRecordId = ctx.MedicalRecordId,
+            ExaminationId = ctx.ExaminationId,
+            DoctorId = ctx.DoctorId,
+            DepartmentId = ctx.DepartmentId,
+            RequestType = service.ServiceType,
+            ServiceId = service.Id,
+            Quantity = qty,
+            UnitPrice = service.UnitPrice,
+            TotalPrice = amount,
+            TotalAmount = amount,
+            InsuranceAmount = 0,
+            PatientAmount = amount,
+            RoomId = roomId,
+            Status = 0, // Chờ thực hiện
+            RequestedByUserId = ctx.DoctorId,
+            RequestedDate = DateTime.Now,
+            Notes = notes
+        };
+
+        request.Details.Add(new ServiceRequestDetail
+        {
+            Id = Guid.NewGuid(),
+            ServiceRequestId = request.Id,
+            ServiceId = service.Id,
+            Quantity = qty,
+            UnitPrice = service.UnitPrice,
+            Amount = amount,
+            InsuranceAmount = 0,
+            PatientAmount = amount,
+            PatientType = paymentType,
+            Status = 0,
+            Note = notes
+        });
+
+        return request;
+    }
+
+    /// <summary>
+    /// Chọn phòng thực hiện theo loại dịch vụ (modal tiếp đón có ghi "Phòng thực hiện sẽ được tự động chọn"
+    /// nhưng bản cũ bỏ qua cờ AutoSelectRoom ⇒ phiếu luôn không có phòng).
+    /// Không tìm được phòng phù hợp thì để trống cho khoa tự phân, KHÔNG gán bừa phòng sai chuyên môn.
+    /// </summary>
+    private async Task<Guid?> PickExecutionRoomAsync(int serviceType) =>
+        await _context.Rooms.AsNoTracking()
+            .Where(r => r.IsActive && !r.IsDeleted && r.RoomType == serviceType)
+            .OrderBy(r => r.RoomName)
+            .Select(r => (Guid?)r.Id)
+            .FirstOrDefaultAsync();
 
     public async Task<List<ServiceOrderResultDto>> OrderServicesByGroupAsync(Guid medicalRecordId, Guid groupId, Guid userId)
     {
@@ -178,6 +274,8 @@ public partial class ReceptionCompleteService {
 
         if (template == null) return new List<ServiceOrderResultDto>();
 
+        // Cùng lỗi FK như OrderServicesAtReceptionAsync — dùng chung bối cảnh + bộ dựng phiếu.
+        var ctx = await LoadOrderContextAsync(medicalRecordId, userId);
         var results = new List<ServiceOrderResultDto>();
 
         foreach (var item in template.Items)
@@ -185,20 +283,8 @@ public partial class ReceptionCompleteService {
             var service = item.Service;
             if (service == null || !service.IsActive) continue;
 
-            var serviceRequest = new ServiceRequest
-            {
-                Id = Guid.NewGuid(),
-                MedicalRecordId = medicalRecordId,
-                ServiceId = item.ServiceId,
-                Quantity = item.Quantity,
-                UnitPrice = service.UnitPrice,
-                TotalPrice = service.UnitPrice * item.Quantity,
-                Status = 0, // Pending
-                RequestedByUserId = userId,
-                RequestedDate = DateTime.Now,
-                Notes = item.Notes
-            };
-
+            var roomId = await PickExecutionRoomAsync(service.ServiceType);
+            var serviceRequest = BuildServiceRequest(ctx, service, item.Quantity, roomId, 2, item.Notes);
             await _context.ServiceRequests.AddAsync(serviceRequest);
 
             results.Add(new ServiceOrderResultDto
@@ -210,6 +296,7 @@ public partial class ReceptionCompleteService {
                 Quantity = item.Quantity,
                 UnitPrice = service.UnitPrice,
                 TotalPrice = serviceRequest.TotalPrice,
+                RoomId = roomId,
                 Status = 0
             });
         }
