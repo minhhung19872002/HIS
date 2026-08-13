@@ -439,6 +439,7 @@ public partial class ExaminationCompleteService
         var q = _context.Prescriptions
             .Include(p => p.MedicalRecord).ThenInclude(m => m!.Patient)
             .Include(p => p.Doctor)
+            .Include(p => p.Department)
             .Include(p => p.Details).ThenInclude(i => i.Medicine)
             .Where(p => p.PrescriptionDate >= fromDate && p.PrescriptionDate <= toDate);
         if (!string.IsNullOrWhiteSpace(keyword))
@@ -453,25 +454,44 @@ public partial class ExaminationCompleteService
         return list.Select(p => new
         {
             id = p.Id,
+            examinationId = p.ExaminationId,
             prescriptionCode = p.PrescriptionCode,
             prescriptionDate = p.PrescriptionDate,
             prescribedAt = p.PrescriptionDate,
+            patientId = p.MedicalRecord != null ? p.MedicalRecord.PatientId : (Guid?)null,
             patientCode = p.MedicalRecord?.Patient?.PatientCode,
             patientName = p.MedicalRecord?.Patient?.FullName,
             gender = p.MedicalRecord?.Patient?.Gender,
             doctorName = p.Doctor?.FullName,
-            diagnosis = p.Diagnosis,
+            departmentName = p.Department?.DepartmentName,
+            diagnosis = p.DiagnosisName ?? p.Diagnosis,
+            instructions = p.Instructions,
             isDispensed = p.IsDispensed,
             status = p.Status,
+            statusName = p.Status switch
+            {
+                HIS.Core.Constants.PrescriptionStatus.PendingApproval => "Chờ duyệt",
+                HIS.Core.Constants.PrescriptionStatus.Approved => "Đã duyệt",
+                HIS.Core.Constants.PrescriptionStatus.Dispensed => "Đã cấp phát",
+                HIS.Core.Constants.PrescriptionStatus.PartialDispensed => "Cấp một phần",
+                HIS.Core.Constants.PrescriptionStatus.Returned => "Hoàn trả",
+                HIS.Core.Constants.PrescriptionStatus.Cancelled => "Đã hủy",
+                _ => "Không xác định",
+            },
             totalAmount = p.TotalAmount,
             items = p.Details.Select(i => new
             {
                 id = i.Id,
-                medicineName = i.Medicine != null ? i.Medicine.MedicineName : null,
+                drugName = i.Medicine != null ? i.Medicine.MedicineName : null,
+                genericName = i.Medicine != null ? i.Medicine.ActiveIngredient : null,
                 quantity = i.Quantity,
                 unit = i.Unit ?? (i.Medicine != null ? i.Medicine.Unit : null),
                 dosage = i.Dosage,
+                frequency = i.Frequency,
+                route = i.Route,
                 days = i.Days,
+                duration = i.Days + " ngày",
+                instructions = i.UsageInstructions,
             }),
         });
     }

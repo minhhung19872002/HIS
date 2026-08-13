@@ -2,33 +2,27 @@ import React from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { getPrescriptions } from '../api/patientPortal';
-import type { PrescriptionHistoryDto } from '../api/patientPortal';
-import { printExternalPrescription } from '../../opd/api/examination';
+import { getRecentPrescriptions, printExternalPrescription, type RecentPrescriptionDto } from '../../opd/api/examination';
 import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { prescriptionEditorLink, prescriptionStatusKey, type PrescriptionStatusKey } from './prescriptionFlow';
 
 /* Kê đơn v2 — list shell.
    Editor đầy đủ (search BN, search thuốc, drug interactions, ký số) là native
    v2 tại /v2/prescription/edit (PrescriptionEditor.tsx). Click "Kê đơn" mở nó. */
 
-type StatusKey = 'active' | 'dispensed' | 'expired' | 'cancelled';
+type StatusKey = PrescriptionStatusKey;
 const STATUS_TABS: StatusTab<StatusKey>[] = [
   { v: 'active',    l: 'Đang hiệu lực', tone: 'ok' },
   { v: 'dispensed', l: 'Đã cấp phát',   tone: 'ok' },
+  { v: 'returned',  l: 'Hoàn trả',       tone: 'warn' },
   { v: 'expired',   l: 'Hết hạn',       tone: 'warn' },
   { v: 'cancelled', l: 'Đã hủy',        tone: 'crit' },
 ];
-const statusKey = (s: string): StatusKey => {
-  const sl = (s || '').toLowerCase();
-  if (sl.includes('dispensed') || sl === 'cấp') return 'dispensed';
-  if (sl.includes('expired') || sl === 'hết') return 'expired';
-  if (sl.includes('cancel') || sl === 'hủy') return 'cancelled';
-  return 'active';
-};
 const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 
-type Row = PrescriptionHistoryDto & { patientName?: string; patientCode?: string };
+type Row = RecentPrescriptionDto;
+
 
 /** Mở PDF blob ở tab mới rồi tự revoke URL sau 60s */
 const openPdfBlob = (blob: Blob): void => {
@@ -52,19 +46,15 @@ const PrescriptionV2: React.FC = () => {
         </div>
       ),
     },
-    { key: 'doctor', label: 'BS kê', width: 180, render: (r) => r.prescribedBy || '—' },
-    { key: 'dept', label: 'Khoa', width: 160, render: (r) => r.department || '—' },
+    { key: 'doctor', label: 'BS kê', width: 180, render: (r) => r.doctorName || '—' },
+    { key: 'dept', label: 'Khoa', width: 160, render: (r) => r.departmentName || '—' },
     { key: 'dx', label: 'Chẩn đoán', render: (r) => r.diagnosis || '—' },
     { key: 'items', label: 'Số thuốc', mono: true, width: 90, render: (r) => `${r.items?.length || 0} loại` },
-    { key: 'date', label: 'Ngày kê', mono: true, width: 100, render: (r) => fmtDMY(r.prescribedDate) },
-    {
-      key: 'valid', label: 'Hiệu lực', mono: true, width: 130,
-      render: (r) => `${fmtDMY(r.validFrom)} → ${fmtDMY(r.validTo)}`,
-    },
+    { key: 'date', label: 'Ngày kê', mono: true, width: 100, render: (r) => fmtDMY(r.prescriptionDate) },
     {
       key: 'status', label: 'TT', width: 130,
       render: (r) => {
-        const sk = statusKey(r.status);
+        const sk = prescriptionStatusKey(r.status);
         return <StatusBadge tone={STATUS_TABS.find((t) => t.v === sk)?.tone} dot>{r.statusName || STATUS_TABS.find((t) => t.v === sk)?.l}</StatusBadge>;
       },
     },
@@ -74,34 +64,36 @@ const PrescriptionV2: React.FC = () => {
     <SimpleV2Page<Row>
       title="Đơn thuốc"
       load={async () => {
-        const r = await getPrescriptions();
+        const r = await getRecentPrescriptions({ pageSize: 100 });
         return Array.isArray(r.data) ? (r.data as Row[]) : [];
       }}
       rowKey={(r) => r.id}
       columns={columns}
       searchPlaceholder="Tìm mã đơn / BN / BS / chẩn đoán…"
-      searchOf={(r) => `${r.prescriptionCode} ${r.patientName || ''} ${r.prescribedBy || ''} ${r.diagnosis || ''}`}
+      searchOf={(r) => `${r.prescriptionCode} ${r.patientName || ''} ${r.doctorName || ''} ${r.diagnosis || ''}`}
       statusTabs={STATUS_TABS as unknown as StatusTab<string>[]}
-      statusOf={(r) => statusKey(r.status)}
+      statusOf={(r) => prescriptionStatusKey(r.status)}
       kpis={(rows) => {
         const today = dayjs().startOf('day');
-        const todayCount = rows.filter((r) => dayjs(r.prescribedDate).isSame(today, 'day')).length;
-        const active = rows.filter((r) => statusKey(r.status) === 'active').length;
-        const dispensed = rows.filter((r) => statusKey(r.status) === 'dispensed').length;
-        const expired = rows.filter((r) => statusKey(r.status) === 'expired').length;
+        const todayCount = rows.filter((r) => dayjs(r.prescriptionDate).isSame(today, 'day')).length;
+        const active = rows.filter((r) => prescriptionStatusKey(r.status) === 'active').length;
+        const dispensed = rows.filter((r) => prescriptionStatusKey(r.status) === 'dispensed').length;
+        const returned = rows.filter((r) => prescriptionStatusKey(r.status) === 'returned').length;
+        const expired = rows.filter((r) => prescriptionStatusKey(r.status) === 'expired').length;
         const totalItems = rows.reduce((s, r) => s + (r.items?.length || 0), 0);
         return [
           { lbl: 'Tổng đơn', val: rows.length, sub: 'gần đây' },
           { lbl: 'Hôm nay', val: todayCount, sub: 'mới kê', tone: 'info' },
           { lbl: 'Đang hiệu lực', val: active, tone: 'ok' },
           { lbl: 'Đã cấp phát', val: dispensed, tone: 'ok' },
+          { lbl: 'Hoàn trả', val: returned, tone: 'warn' },
           { lbl: 'Hết hạn', val: expired, tone: 'warn' },
           { lbl: 'Tổng thuốc', val: totalItems, sub: 'lượt kê' },
         ];
       }}
       rowActions={(r) => (
         <div className="ab-actions">
-          <ActBtn ic="edit" title="Mở editor kê đơn" onClick={() => navigate('/v2/prescription/edit')} />
+          <ActBtn ic="edit" title="Mở editor kê đơn" onClick={() => navigate(prescriptionEditorLink(r))} />
           <ActBtn ic="print" title="In đơn" onClick={async () => {
             try {
               const res = await printExternalPrescription(r.id);
@@ -116,10 +108,9 @@ const PrescriptionV2: React.FC = () => {
             <h5><TermIcon name="info" size={11} /> THÔNG TIN ĐƠN</h5>
             <div className="rec-kv">
               <span>Mã đơn</span><span className="mono" style={{ color: 'var(--a-cy)' }}>{r.prescriptionCode}</span>
-              <span>BS kê</span><b>{r.prescribedBy}</b>
-              <span>Khoa</span><span>{r.department}</span>
-              <span>Ngày kê</span><span>{fmtDMY(r.prescribedDate)}</span>
-              <span>Hiệu lực</span><span className="mono">{fmtDMY(r.validFrom)} → {fmtDMY(r.validTo)}</span>
+              <span>BS kê</span><b>{r.doctorName || '—'}</b>
+              <span>Khoa</span><span>{r.departmentName || '—'}</span>
+              <span>Ngày kê</span><span>{fmtDMY(r.prescriptionDate)}</span>
               {r.diagnosis && (<><span>Chẩn đoán</span><span>{r.diagnosis}</span></>)}
               {r.instructions && (<><span>Lời dặn</span><span style={{ whiteSpace: 'pre-wrap' }}>{r.instructions}</span></>)}
             </div>
@@ -133,7 +124,7 @@ const PrescriptionV2: React.FC = () => {
                   display: 'grid', gridTemplateColumns: '1fr auto', gap: 'var(--space-10)', fontSize: 12.5,
                 }}>
                   <div>
-                    <b style={{ color: 'var(--t-0)' }}>{it.drugName}</b>
+                    <b style={{ color: 'var(--t-0)' }}>{it.drugName || '—'}</b>
                     {it.genericName && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{it.genericName}</div>}
                     <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-2)' }}>
                       {it.dosage} · {it.frequency}
@@ -145,19 +136,10 @@ const PrescriptionV2: React.FC = () => {
               ))}
             </div>
           )}
-          {r.refillsAllowed != null && r.refillsAllowed > 0 && (
-            <div className="rec-section">
-              <h5><TermIcon name="refresh" size={11} /> CẤP LẠI</h5>
-              <div className="rec-kv">
-                <span>Cho phép</span><b>{r.refillsAllowed} lần</b>
-                <span>Đã dùng</span><b>{r.refillsUsed || 0} lần</b>
-              </div>
-            </div>
-          )}
           <div className="rec-section">
             <h5><TermIcon name="info" size={11} /> THAO TÁC</h5>
             <div style={{ display: 'flex', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
-              <Btn variant="primary" onClick={() => navigate('/v2/prescription/edit')}>
+              <Btn variant="primary" onClick={() => navigate(prescriptionEditorLink(r))}>
                 <TermIcon name="edit" size={12} /> Mở editor kê đơn
               </Btn>
               <Btn onClick={async () => {
@@ -181,7 +163,7 @@ const PrescriptionV2: React.FC = () => {
           <span style={{ fontSize: 14 }}>{r.patientName || '—'}</span>
         </span>
       )}
-      drawerSub={(r) => `${r.prescribedBy} · ${fmtDMY(r.prescribedDate)}`}
+      drawerSub={(r) => `${r.doctorName || '—'} · ${fmtDMY(r.prescriptionDate)}`}
       toolbarRight={
         <Btn variant="primary" onClick={() => navigate('/v2/prescription/edit')}>
           <TermIcon name="plus" size={12} /> Kê đơn mới

@@ -57,11 +57,18 @@ public partial class ExaminationCompleteService
         if (examination.MedicalRecord?.EmrFinalizedAt != null)
             throw new InvalidOperationException(EmrLockGuard.LockedMessage); // TT46
 
+        if (examination.Status == HIS.Core.Constants.ExaminationStatus.Waiting)
+            throw new InvalidOperationException("Bệnh nhân chưa bắt đầu khám. Vui lòng mở phòng khám trước khi kê đơn.");
+        if (examination.Status == HIS.Core.Constants.ExaminationStatus.Cancelled)
+            throw new InvalidOperationException("Phiên khám đã hủy, không thể kê đơn.");
+
         // Bác sĩ kê đơn = BS đã gán cho lượt khám, nếu chưa gán thì dùng user đang đăng nhập.
         // DoctorId là FK bắt buộc tới Users → KHÔNG được để Guid.Empty (gây FK conflict → 500).
-        var doctorId = examination.DoctorId ?? (prescribingUserId != Guid.Empty ? prescribingUserId : (Guid?)null);
+        var doctorId = examination.DoctorId;
         if (doctorId == null || doctorId == Guid.Empty)
             throw new Exception("Chưa xác định bác sĩ kê đơn. Vui lòng phân công bác sĩ cho lượt khám trước khi kê đơn.");
+
+        var medicines = await LoadPrescriptionMedicinesAsync(dto);
 
         var prescription = new Prescription
         {
@@ -85,15 +92,16 @@ public partial class ExaminationCompleteService
 
         foreach (var item in dto.Items)
         {
-            var medicine = await _context.Medicines.FindAsync(item.MedicineId);
-            if (medicine == null) continue;
+            var medicine = medicines[item.MedicineId];
 
             prescription.Details.Add(new PrescriptionDetail
             {
                 Id = Guid.NewGuid(),
                 PrescriptionId = prescription.Id,
                 MedicineId = item.MedicineId,
+                Medicine = medicine,
                 WarehouseId = dto.WarehouseId,
+                PatientType = item.PaymentType,
                 Quantity = item.Quantity,
                 Unit = medicine.Unit ?? "Vien",
                 Days = item.Days,
@@ -130,6 +138,18 @@ public partial class ExaminationCompleteService
 
         if (prescription == null) throw new Exception("Prescription not found");
         await EmrLockGuard.EnsureEditableByRecordAsync(_context, prescription.MedicalRecordId); // TT46
+        if (prescription.Status != HIS.Core.Constants.PrescriptionStatus.PendingApproval)
+            throw new InvalidOperationException("Chỉ đơn thuốc đang ở trạng thái nháp mới được phép chỉnh sửa.");
+
+        var examination = await _context.Examinations.FirstOrDefaultAsync(e => e.Id == prescription.ExaminationId);
+        if (examination == null)
+            throw new KeyNotFoundException("Examination not found");
+        if (examination.Status == HIS.Core.Constants.ExaminationStatus.Waiting)
+            throw new InvalidOperationException("Bệnh nhân chưa bắt đầu khám. Vui lòng mở phòng khám trước khi kê đơn.");
+        if (examination.Status == HIS.Core.Constants.ExaminationStatus.Cancelled)
+            throw new InvalidOperationException("Phiên khám đã hủy, không thể kê đơn.");
+
+        var medicines = await LoadPrescriptionMedicinesAsync(dto);
 
         // Remove old items
         _context.PrescriptionDetails.RemoveRange(prescription.Details);
@@ -137,21 +157,26 @@ public partial class ExaminationCompleteService
         // Update prescription
         prescription.DiagnosisCode = dto.DiagnosisCode;
         prescription.DiagnosisName = dto.DiagnosisName;
+        prescription.PrescriptionType = dto.PrescriptionType;
+        prescription.PaymentCategory = dto.PaymentCategory > 0 ? dto.PaymentCategory : prescription.PaymentCategory;
+        prescription.WarehouseId = dto.WarehouseId;
         prescription.TotalDays = dto.TotalDays;
         prescription.Instructions = dto.Instructions;
 
         // Add new items
-        prescription.Details = new List<PrescriptionDetail>();
+        var replacementDetails = new List<PrescriptionDetail>();
         foreach (var item in dto.Items)
         {
-            var medicine = await _context.Medicines.FindAsync(item.MedicineId);
-            if (medicine == null) continue;
+            var medicine = medicines[item.MedicineId];
 
-            prescription.Details.Add(new PrescriptionDetail
+            replacementDetails.Add(new PrescriptionDetail
             {
                 Id = Guid.NewGuid(),
                 PrescriptionId = prescription.Id,
                 MedicineId = item.MedicineId,
+                Medicine = medicine,
+                WarehouseId = dto.WarehouseId,
+                PatientType = item.PaymentType,
                 Quantity = item.Quantity,
                 Unit = medicine.Unit ?? "Vien",
                 Days = item.Days,
@@ -163,6 +188,11 @@ public partial class ExaminationCompleteService
                 TotalPrice = medicine.UnitPrice * item.Quantity
             });
         }
+
+        // The prescription is already tracked. Explicitly mark replacement rows as Added;
+        // assigning a new navigation collection alone can make EF treat client-generated IDs as Modified.
+        await _context.PrescriptionDetails.AddRangeAsync(replacementDetails);
+        prescription.Details = replacementDetails;
 
         prescription.TotalAmount = prescription.Details.Sum(i => i.TotalPrice);
 
@@ -181,6 +211,24 @@ public partial class ExaminationCompleteService
         await _unitOfWork.SaveChangesAsync();
 
         return MapToPrescriptionFullDto(prescription);
+    }
+
+    private async Task<Dictionary<Guid, Medicine>> LoadPrescriptionMedicinesAsync(
+        Application.DTOs.Examination.CreateExaminationPrescriptionDto dto)
+    {
+        if (dto.Items.Count == 0)
+            throw new InvalidOperationException("Đơn thuốc phải có ít nhất một thuốc.");
+        if (dto.Items.Any(i => i.MedicineId == Guid.Empty || i.Quantity <= 0 || i.Days <= 0))
+            throw new InvalidOperationException("Mỗi thuốc phải có mã hợp lệ, số lượng và số ngày dùng lớn hơn 0.");
+
+        var medicineIds = dto.Items.Select(i => i.MedicineId).Distinct().ToList();
+        var medicines = await _context.Medicines
+            .Where(m => medicineIds.Contains(m.Id) && !m.IsDeleted)
+            .ToDictionaryAsync(m => m.Id);
+        var missingId = medicineIds.FirstOrDefault(id => !medicines.ContainsKey(id));
+        if (missingId != Guid.Empty)
+            throw new KeyNotFoundException($"Không tìm thấy thuốc {missingId}.");
+        return medicines;
     }
 
     public async Task<bool> DeletePrescriptionAsync(Guid id)

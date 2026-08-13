@@ -226,13 +226,15 @@ public class PrescriptionFullDto
     public string? Instructions { get; set; }
 
     // Trạng thái
-    public int Status { get; set; } // 0-Chờ duyệt, 1-Đã duyệt, 2-Đã phát, 3-Hủy
+    public int Status { get; set; } // 0-Chờ duyệt, 1-Đã duyệt, 2-Đã phát, 3-Hoàn trả, 4-Hủy, 6-Cấp một phần
     public string StatusName => Status switch
     {
         0 => "Chờ duyệt",
         1 => "Đã duyệt",
         2 => "Đã phát thuốc",
-        3 => "Đã hủy",
+        3 => "Hoàn trả",
+        4 => "Đã hủy",
+        6 => "Cấp một phần",
         _ => ""
     };
 

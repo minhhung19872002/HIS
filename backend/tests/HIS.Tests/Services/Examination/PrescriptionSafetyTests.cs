@@ -43,7 +43,8 @@ public class PrescriptionSafetyTests
         ctx.Examinations.Add(new Examination
         {
             Id = examId, MedicalRecordId = mrId,
-            DepartmentId = Guid.NewGuid(), RoomId = Guid.NewGuid(), DoctorId = Guid.NewGuid()
+            DepartmentId = Guid.NewGuid(), RoomId = Guid.NewGuid(), DoctorId = Guid.NewGuid(),
+            Status = HIS.Core.Constants.ExaminationStatus.InProgress
         });
         ctx.Medicines.Add(new Medicine
         {
@@ -104,5 +105,67 @@ public class PrescriptionSafetyTests
         var result = await svc.CreatePrescriptionAsync(Dto(examId, medId));
         Assert.NotNull(result);
         Assert.Single(ctx.Prescriptions);
+    }
+
+    [Fact]
+    public async Task Create_blocks_when_examination_has_not_started()
+    {
+        using var ctx = TestDb.NewInMemory();
+        var (examId, medId) = SeedScenario(ctx, withSevereAllergy: false);
+        ctx.Examinations.Single(e => e.Id == examId).Status = HIS.Core.Constants.ExaminationStatus.Waiting;
+        ctx.SaveChanges();
+        var svc = NewService(ctx);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => svc.CreatePrescriptionAsync(Dto(examId, medId)));
+
+        Assert.Contains("chưa bắt đầu khám", error.Message);
+        Assert.Empty(ctx.Prescriptions);
+    }
+
+    [Fact]
+    public async Task Create_and_update_preserve_warehouse_and_payment_categories()
+    {
+        using var ctx = TestDb.NewInMemory();
+        var (examId, medId) = SeedScenario(ctx, withSevereAllergy: false);
+        var warehouseId = Guid.NewGuid();
+        var svc = NewService(ctx);
+        var dto = Dto(examId, medId);
+        dto.WarehouseId = warehouseId;
+        dto.PaymentCategory = 1;
+        dto.Items[0].PaymentType = 1;
+
+        var created = await svc.CreatePrescriptionAsync(dto);
+        Assert.Equal(warehouseId, created.WarehouseId);
+        Assert.Equal(1, created.PaymentType);
+        Assert.Equal(1, Assert.Single(created.Items).PaymentType);
+
+        dto.PaymentCategory = 2;
+        dto.Items[0].PaymentType = 2;
+        var updated = await svc.UpdatePrescriptionAsync(created.Id, dto);
+
+        Assert.Equal(warehouseId, updated.WarehouseId);
+        Assert.Equal(2, updated.PaymentType);
+        Assert.Equal(2, Assert.Single(updated.Items).PaymentType);
+        var stored = ctx.Prescriptions.Single(p => p.Id == created.Id);
+        Assert.Equal(2, stored.PaymentCategory);
+        Assert.Equal(warehouseId, stored.WarehouseId);
+        Assert.Equal(2, ctx.PrescriptionDetails.Single(d => d.PrescriptionId == created.Id).PatientType);
+    }
+
+    [Fact]
+    public async Task Create_rejects_empty_or_invalid_items()
+    {
+        using var ctx = TestDb.NewInMemory();
+        var (examId, medId) = SeedScenario(ctx, withSevereAllergy: false);
+        var svc = NewService(ctx);
+        var empty = Dto(examId, medId);
+        empty.Items.Clear();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => svc.CreatePrescriptionAsync(empty));
+
+        var invalid = Dto(examId, medId);
+        invalid.Items[0].Quantity = 0;
+        await Assert.ThrowsAsync<InvalidOperationException>(() => svc.CreatePrescriptionAsync(invalid));
+        Assert.Empty(ctx.Prescriptions);
     }
 }

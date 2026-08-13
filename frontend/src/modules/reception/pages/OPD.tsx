@@ -8,22 +8,19 @@ import { SimpleV2Page, StatusBadge, Btn, type ColumnDef, type StatusTab } from '
 import TermIcon from '../../../components/layout/terminal/Icon';
 import * as pdf from '../../../api/pdf';
 import { RowActions } from '../../../components/actions';
+import { canPrescribeFromOpd, opdLinks, opdStatusKey, type OpdStatusKey } from './opdFlow';
 
 /* Khám bệnh OPD v2 — list shell.
    Form khám đầy đủ (vital signs, history, exam, CĐ, CLS) là native v2 tại
    /v2/opd/edit (OpdEditor.tsx). Click "Khám" trên row mở editor đó. */
 
-type StatusKey = 'waiting' | 'inProgress' | 'waitingResult' | 'completed';
+type StatusKey = Exclude<OpdStatusKey, 'cancelled'>;
 const STATUS_TABS: StatusTab<StatusKey>[] = [
   { v: 'waiting',       l: 'Chờ khám',       tone: 'info' },
   { v: 'inProgress',    l: 'Đang khám',      tone: 'warn' },
   { v: 'waitingResult', l: 'Chờ kết quả CLS', tone: 'warn' },
   { v: 'completed',     l: 'Đã kết luận',    tone: 'ok' },
 ];
-const statusKey = (s: number | string): StatusKey => {
-  const sn = typeof s === 'number' ? s : (s === 'InProgress' ? 1 : s === 'WaitingResult' ? 2 : s === 'Completed' ? 3 : 0);
-  return sn === 1 ? 'inProgress' : sn === 2 ? 'waitingResult' : sn === 3 ? 'completed' : 'waiting';
-};
 const fmtHM = (iso?: string) => iso ? dayjs(iso).format('HH:mm') : '—';
 const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 
@@ -81,7 +78,7 @@ const OPDV2: React.FC = () => {
     {
       key: 'status', label: 'Trạng thái', width: 130,
       render: (r) => {
-        const sk = statusKey(r.status);
+        const sk = opdStatusKey(r.status);
         return <StatusBadge tone={STATUS_TABS.find((t) => t.v === sk)?.tone} dot>{r.statusName || STATUS_TABS.find((t) => t.v === sk)?.l}</StatusBadge>;
       },
     },
@@ -100,11 +97,11 @@ const OPDV2: React.FC = () => {
       searchPlaceholder="Tìm BN / mã / lý do khám…"
       searchOf={(r) => `${r.patientName} ${r.patientCode} ${r.chiefComplaint || ''}`}
       statusTabs={STATUS_TABS as unknown as StatusTab<string>[]}
-      statusOf={(r) => statusKey(r.status)}
+      statusOf={(r) => opdStatusKey(r.status)}
       kpis={(rows) => {
-        const waiting = rows.filter((r) => statusKey(r.status) === 'waiting').length;
-        const inProgress = rows.filter((r) => statusKey(r.status) === 'inProgress').length;
-        const completed = rows.filter((r) => statusKey(r.status) === 'completed').length;
+        const waiting = rows.filter((r) => opdStatusKey(r.status) === 'waiting').length;
+        const inProgress = rows.filter((r) => opdStatusKey(r.status) === 'inProgress').length;
+        const completed = rows.filter((r) => opdStatusKey(r.status) === 'completed').length;
         const bhyt = rows.filter((r) => r.insuranceNumber).length;
         const emergency = rows.filter((r) => r.isEmergency).length;
         return [
@@ -118,8 +115,15 @@ const OPDV2: React.FC = () => {
       }}
       rowActions={(r) => (
         <RowActions actions={[
-          { key: 'exam', icon: 'stethoscope', label: 'Khám', primary: true, onClick: () => navigate('/v2/opd/edit') },
-          { key: 'view', icon: 'eye', label: 'Xem hồ sơ', primary: true, onClick: () => navigate('/v2/emr/edit') },
+          {
+            key: 'exam', icon: 'stethoscope', label: 'Khám', primary: true,
+            onClick: () => {
+              const target = opdLinks(r).examination;
+              if (target) navigate(target);
+              else message.warning('Lượt tiếp đón chưa có phiên khám để mở');
+            },
+          },
+          { key: 'view', icon: 'eye', label: 'Xem hồ sơ', primary: true, onClick: () => navigate(opdLinks(r).emr) },
           {
             key: 'print', icon: 'printer', label: 'In phiếu khám',
             onClick: () => {
@@ -167,13 +171,24 @@ const OPDV2: React.FC = () => {
           <div className="rec-section">
             <h5><TermIcon name="info" size={11} /> THAO TÁC</h5>
             <div style={{ display: 'flex', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
-              <Btn variant="primary" onClick={() => navigate('/v2/opd/edit')}>
+              <Btn variant="primary" onClick={() => {
+                const target = opdLinks(r).examination;
+                if (target) navigate(target);
+                else message.warning('Lượt tiếp đón chưa có phiên khám để mở');
+              }}>
                 <TermIcon name="stethoscope" size={12} /> Mở phòng khám
               </Btn>
-              <Btn onClick={() => navigate('/v2/emr/edit')}>
+              <Btn onClick={() => navigate(opdLinks(r).emr)}>
                 <TermIcon name="eye" size={12} /> Xem HSBA
               </Btn>
-              <Btn onClick={() => navigate('/v2/prescription/edit')}>
+              <Btn onClick={() => {
+                if (!canPrescribeFromOpd(r)) {
+                  message.warning('Phiên khám không hợp lệ để kê đơn');
+                  return;
+                }
+                const target = opdLinks(r).prescription;
+                if (target) navigate(target);
+              }}>
                 <TermIcon name="flask" size={12} /> Kê đơn
               </Btn>
               <Btn onClick={() => {

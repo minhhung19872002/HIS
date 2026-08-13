@@ -145,7 +145,7 @@ export interface AdmissionDto {
   queueCode?: string;
   priority: number;
   priorityName: string;
-  status: number;
+  status: number | string;
   statusName: string;
   admissionDate: string;
   calledAt?: string;

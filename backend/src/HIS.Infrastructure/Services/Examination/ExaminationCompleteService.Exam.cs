@@ -95,6 +95,12 @@ public partial class ExaminationCompleteService
         // Sweep 2026-06-12: KeyNotFoundException → DomainExceptionFilter trả 404 (trước Exception thường → 500)
         if (examination == null) throw new KeyNotFoundException("Examination not found");
 
+        if (examination.Status == HIS.Core.Constants.ExaminationStatus.InProgress)
+            return MapToExaminationDto(examination); // idempotent: double-click/retry không ghi đè BS, giờ bắt đầu
+        if (examination.Status != HIS.Core.Constants.ExaminationStatus.Waiting)
+            throw new InvalidOperationException(
+                $"Không thể bắt đầu khám khi phiên đang ở trạng thái {HIS.Core.Constants.ExaminationStatus.GetName(examination.Status)}.");
+
         // B1 (audit bảo mật 2026-06-06, siết edge 2026-06-09): CHẶN server-side bác sĩ CCHN KHÔNG hợp lệ —
         // hết hạn/đình chỉ/thu hồi HOẶC **chưa có CCHN** trong hệ thống (khớp NangCap18, không chỉ cảnh báo mềm).
         // (Trước chỉ chặn khi có license nhưng invalid; nay chặn cả no-CCHN. Seed CCHN cho nhân sự: mig 86.)
@@ -103,7 +109,7 @@ public partial class ExaminationCompleteService
             throw new InvalidOperationException(
                 $"Không thể bắt đầu khám: {cert.Message ?? "Chứng chỉ hành nghề không hợp lệ"}");
 
-        examination.Status = 1; // In progress
+        examination.Status = HIS.Core.Constants.ExaminationStatus.InProgress;
         examination.StartTime = DateTime.Now;
         examination.DoctorId = doctorId;
 

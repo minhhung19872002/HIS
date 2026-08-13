@@ -16,22 +16,44 @@ public partial class PatientPortalServiceImpl
             .Include(x => x.MedicalRecord).ThenInclude(m => m!.Patient)
             .Include(x => x.Doctor)
             .Include(x => x.Department)
+            .Include(x => x.Details).ThenInclude(d => d.Medicine)
             .AsQueryable();
         if (patientId != Guid.Empty) query = query.Where(x => x.MedicalRecord!.PatientId == patientId);
+        if (activeOnly) query = query.Where(x => x.Status == 0 || x.Status == 1 || x.Status == 6);
         var list = await query.OrderByDescending(x => x.PrescriptionDate).Take(30).ToListAsync();
         return list.Select(e => new PortalPrescriptionDto {
             Id = e.Id,
             PrescriptionCode = e.PrescriptionCode ?? "",
             PrescriptionDate = e.PrescriptionDate,
             VisitId = e.MedicalRecordId,
+            ExaminationId = e.ExaminationId,
             PatientId = e.MedicalRecord?.PatientId,
             PatientCode = e.MedicalRecord?.Patient?.PatientCode ?? "",
             PatientName = e.MedicalRecord?.Patient?.FullName ?? "",
             Diagnosis = e.Diagnosis ?? "",
             DoctorName = e.Doctor?.FullName ?? "",
             DepartmentName = e.Department?.DepartmentName ?? "",
-            Status = e.Status == 2 ? "FullyDispensed" : e.Status == 1 ? "Active" : "Pending",
-            Items = new List<PrescriptionItemDto>()
+            Status = e.Status switch
+            {
+                1 => "Active",
+                2 => "FullyDispensed",
+                3 => "Returned",
+                4 => "Cancelled",
+                6 => "PartiallyDispensed",
+                _ => "Pending",
+            },
+            IsDispensed = e.IsDispensed,
+            Items = e.Details.Select(d => new PrescriptionItemDto
+            {
+                DrugName = d.Medicine?.MedicineName ?? "",
+                Strength = d.Medicine?.ActiveIngredient ?? "",
+                Quantity = d.Quantity,
+                Unit = d.Unit ?? d.Medicine?.Unit ?? "",
+                Dosage = d.Dosage ?? "",
+                Frequency = d.Frequency ?? "",
+                DurationDays = d.Days,
+                Instructions = d.UsageInstructions ?? "",
+            }).ToList()
         }).ToList();
     }
 

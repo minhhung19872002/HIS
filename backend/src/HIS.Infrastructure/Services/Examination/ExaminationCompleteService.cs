@@ -303,10 +303,13 @@ public partial class ExaminationCompleteService : IExaminationCompleteService
             PrescriptionType = prescription.PrescriptionType,
             DiagnosisCode = prescription.DiagnosisCode,
             DiagnosisName = prescription.DiagnosisName,
+            WarehouseId = prescription.WarehouseId,
+            WarehouseName = prescription.Warehouse?.WarehouseName,
             TotalDays = prescription.TotalDays,
             TotalAmount = prescription.TotalAmount,
             InsuranceAmount = prescription.InsuranceAmount,
             PatientAmount = prescription.PatientAmount,
+            PaymentType = prescription.PaymentCategory,
             Instructions = prescription.Instructions,
             Status = prescription.Status,
             Items = prescription.Details?.Select(i => new PrescriptionItemFullDto
@@ -316,6 +319,8 @@ public partial class ExaminationCompleteService : IExaminationCompleteService
                 MedicineCode = i.Medicine?.MedicineCode ?? "",
                 MedicineName = i.Medicine?.MedicineName ?? "",
                 ActiveIngredient = i.Medicine?.ActiveIngredient,
+                Manufacturer = i.Medicine?.Manufacturer,
+                Country = i.Medicine?.Country,
                 Quantity = i.Quantity,
                 Unit = i.Unit,
                 Days = i.Days,
@@ -324,7 +329,12 @@ public partial class ExaminationCompleteService : IExaminationCompleteService
                 Frequency = i.Frequency,
                 UsageInstructions = i.UsageInstructions,
                 UnitPrice = i.UnitPrice,
-                TotalPrice = i.TotalPrice
+                TotalPrice = i.TotalPrice,
+                InsurancePrice = i.InsuranceAmount,
+                PatientPrice = i.PatientAmount,
+                BatchNumber = i.BatchNumber,
+                ExpiryDate = i.ExpiryDate,
+                PaymentType = i.PatientType
             }).ToList() ?? new List<PrescriptionItemFullDto>()
         };
     }

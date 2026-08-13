@@ -15,7 +15,7 @@ import {
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import TermIcon from '../../../components/layout/terminal/Icon';
-import { examinationApi, printExternalPrescription, type MedicineDto, type DrugInteractionDto, type CreatePrescriptionDto, type PrescriptionTemplateDto, type WarehouseDto } from '../api/examination';
+import { examinationApi, printExternalPrescription, type MedicineDto, type DrugInteractionDto, type CreatePrescriptionDto, type PrescriptionItemFullDto, type PrescriptionTemplateDto, type WarehouseDto } from '../api/examination';
 import { patientApi, type Patient } from '../../patient/api/patient';
 import { getPrescriptionContext, type PrescriptionContextDto } from '../../patient/api/dataInheritance';
 import PatientFlagBanner from '../../patient/components/PatientFlagBanner';
@@ -66,6 +66,31 @@ const formatDosage = (it: Pick<RxItem, 'morning' | 'noon' | 'evening' | 'night' 
   return result;
 };
 
+const dosageNumber = (dosage: string | undefined, label: string): number => {
+  const match = dosage?.match(new RegExp(`${label}\\s*:\\s*(\\d+(?:[.,]\\d+)?)`, 'i'));
+  return match ? Number(match[1].replace(',', '.')) : 0;
+};
+
+const fromPrescriptionItem = (item: PrescriptionItemFullDto): RxItem => ({
+  medicineId: item.medicineId,
+  code: item.medicineCode,
+  name: item.medicineName,
+  morning: dosageNumber(item.dosage, 'Sáng'),
+  noon: dosageNumber(item.dosage, 'Trưa'),
+  evening: dosageNumber(item.dosage, 'Chiều'),
+  night: dosageNumber(item.dosage, 'Tối'),
+  mealTiming: item.dosage?.includes('Trước ăn') ? 'before' : item.dosage?.includes('Sau ăn') ? 'after' : '',
+  freq: item.frequency || '',
+  qty: item.quantity,
+  days: item.days,
+  route: item.route || 'Uống',
+  note: item.usageInstructions || '',
+  price: item.unitPrice,
+  dosageForm: item.unit || 'Viên',
+  strength: item.medicineName.match(/\d+\s*mg/i)?.[0] || '',
+  bhyt: item.paymentType === 1,
+});
+
 const PrescriptionEditorV2: React.FC = () => {
   const navigate = useNavigate();
   const [sp] = useSearchParams();
@@ -78,6 +103,8 @@ const PrescriptionEditorV2: React.FC = () => {
   const [pt, setPt] = useState<Patient | null>(null);
   const [ctx, setCtx] = useState<PrescriptionContextDto | null>(null);
   const [examinationId, setExamId] = useState<string | null>(null);
+  const [editingPrescriptionId, setEditingPrescriptionId] = useState<string | null>(null);
+  const [editingPrescriptionStatus, setEditingPrescriptionStatus] = useState<number | null>(null);
   const [type, setType] = useState<1 | 2>(1); // 1 = Ngoại trú, 2 = YHCT
   const [warehouse, setWh] = useState('');
   const [warehouses, setWarehouses] = useState<WarehouseDto[]>([]);
@@ -147,9 +174,29 @@ const PrescriptionEditorV2: React.FC = () => {
   useEffect(() => {
     const exId = sp.get('examId');
     const pid = sp.get('patientId');
+    const rxId = sp.get('prescriptionId');
     (async () => {
       try {
-        if (exId) {
+        if (rxId) {
+          const reqId = ++selectReqRef.current;
+          const rxRes = await examinationApi.getPrescriptionById(rxId);
+          if (selectReqRef.current !== reqId || !rxRes.data) return;
+          const rx = rxRes.data;
+          const targetExamId = exId || rx.examinationId;
+          if (!targetExamId) throw new Error('Đơn thuốc không gắn với phiên khám');
+          const ctxRes = await getPrescriptionContext(targetExamId);
+          if (selectReqRef.current !== reqId || !ctxRes.data) return;
+          const pRes = await patientApi.getById(ctxRes.data.patientId);
+          if (selectReqRef.current !== reqId) return;
+          setCtx(ctxRes.data);
+          setExamId(targetExamId);
+          setEditingPrescriptionId(rx.id);
+          setEditingPrescriptionStatus(rx.status);
+          setType(rx.prescriptionType === 2 ? 2 : 1);
+          setWh(rx.warehouseId || '');
+          setItems(rx.items.map(fromPrescriptionItem));
+          if (pRes.data) setPt(pRes.data);
+        } else if (exId) {
           const reqId = ++selectReqRef.current; // preload cũng là 1 request — thua nếu user chọn BN tay trong lúc chờ
           const ctxRes = await getPrescriptionContext(exId);
           if (selectReqRef.current !== reqId) return;
@@ -261,14 +308,29 @@ const PrescriptionEditorV2: React.FC = () => {
   const guard = (): boolean => {
     if (!pt) { tw('Chưa chọn bệnh nhân'); return false; }
     if (!examinationId) { tw('Bệnh nhân chưa có phiếu khám — không thể lưu đơn'); return false; }
+    if (editingPrescriptionStatus != null && editingPrescriptionStatus !== 0) {
+      tw('Chỉ đơn thuốc đang chờ duyệt mới được phép chỉnh sửa');
+      return false;
+    }
     if (items.length === 0) { tw('Chưa có thuốc trong đơn'); return false; }
     return true;
   };
 
+  const persistPrescription = async () => {
+    const response = editingPrescriptionId
+      ? await examinationApi.updatePrescription(editingPrescriptionId, buildDto())
+      : await examinationApi.createPrescription(buildDto());
+    if (response.data) {
+      setEditingPrescriptionId(response.data.id);
+      setEditingPrescriptionStatus(response.data.status);
+    }
+    return response;
+  };
+
   const doSaveDraft = async () => {
     setSaving(true);
-    try { await examinationApi.createPrescription(buildDto()); tk('Đã lưu nháp đơn thuốc'); }
-    catch { te('Lưu nháp thất bại'); }
+    try { await persistPrescription(); tk('Đã lưu nháp đơn thuốc'); }
+    catch (e) { te(friendlyErrorMessage(e, 'Lưu nháp thất bại')); }
     finally { setSaving(false); }
   };
 
@@ -281,10 +343,11 @@ const PrescriptionEditorV2: React.FC = () => {
   const completeWithSign = async () => {
     setSaving(true);
     try {
-      await examinationApi.createPrescription(buildDto());
+      const response = await persistPrescription();
       setSignOpen(false);
-      tk('✓ Đã hoàn tất & ký đơn thuốc');
-    } catch { te('Hoàn tất đơn thất bại'); }
+      tk('Đã lưu đơn thuốc — vui lòng hoàn tất ký số ở luồng trình ký');
+      navigate(`/v2/signing-workflow?documentType=Prescription&documentId=${response.data.id}`);
+    } catch (e) { te(friendlyErrorMessage(e, 'Hoàn tất đơn thất bại')); }
     finally { setSaving(false); }
   };
 
@@ -561,7 +624,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
           <Btn variant="ghost" onClick={handlePrintInternalRx}><TermIcon name="print" size={12} /> In đơn</Btn>
           <Btn variant="ghost" disabled={printingExt} onClick={printExternalRx}><TermIcon name="print" size={12} /> In toa nhà thuốc</Btn>
           <Btn variant="ghost" onClick={() => setDisclosureOpen(true)}><TermIcon name="list" size={12} /> Phiếu công khai</Btn>
-          {rxMode === 1 && <Btn variant="primary" disabled={saving} onClick={onClickSign}><TermIcon name="check" size={12} /> Hoàn tất · Ký số</Btn>}
+          {rxMode === 1 && <Btn variant="primary" disabled={saving} onClick={onClickSign}><TermIcon name="check" size={12} /> Lưu · Sang ký số</Btn>}
         </div>
 
         {/* Drug search */}
@@ -867,7 +930,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
       </DrawerShell>
 
       {/* Sign modal */}
-      <ModalShell open={signOpen} onClose={() => setSignOpen(false)} title="Hoàn tất & ký số đơn thuốc" sub="USB Token · VNPT-CA" size="sm"
+      <ModalShell open={signOpen} onClose={() => setSignOpen(false)} title="Lưu đơn & chuyển sang ký số" sub="USB Token · VNPT-CA" size="sm"
         footer={<>
           <Btn variant="ghost" onClick={() => setSignOpen(false)}>Hủy</Btn>
           <Btn variant="primary" disabled={saving} onClick={completeWithSign}><TermIcon name="check" size={12} /> Xác nhận</Btn>
@@ -878,7 +941,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
             <div style={{ color: 'var(--t-2)', marginTop: 'var(--space-3)' }}>{ctx?.mainDiagnosis || 'Chưa có chẩn đoán'}</div>
           </div>
           <div style={{ fontSize: 11.5, color: 'var(--t-2)' }}>
-            Nhấn "Xác nhận" để tạo & hoàn tất đơn. Ký số PKI đầy đủ thực hiện ở
+            Nhấn "Xác nhận" để lưu đơn, sau đó hệ thống chuyển sang luồng ký số PKI.
             <Btn variant="ghost" size="sm" style={{ marginLeft: 'var(--space-6)' }} onClick={() => { setSignOpen(false); navigate('/v2/signing-workflow'); }}>Luồng ký số</Btn>
           </div>
         </div>

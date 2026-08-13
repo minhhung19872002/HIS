@@ -175,18 +175,34 @@ public partial class ReceptionCompleteService {
         // Load latest Examination per MedicalRecord — cần examinationId để in phiếu khám (OPD).
         var medicalRecordIds = records.Select(r => r.Id).ToList();
         var examinations = await _context.Examinations
+            .Include(e => e.Doctor)
             .Where(e => medicalRecordIds.Contains(e.MedicalRecordId))
-            .Select(e => new { e.MedicalRecordId, e.Id, e.CreatedAt })
+            .Select(e => new { e.MedicalRecordId, e.Id, e.CreatedAt, e.Status, e.StartTime, e.EndTime, DoctorName = e.Doctor != null ? e.Doctor.FullName : null })
             .ToListAsync();
         var examLookup = examinations
             .GroupBy(e => e.MedicalRecordId)
-            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.CreatedAt).First().Id);
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.CreatedAt).First());
 
         var result = records.Select(m => {
             var ticket = ticketLookup.GetValueOrDefault(new { PatientId = (Guid?)m.PatientId, RoomId = m.RoomId });
             var dto = BuildAdmissionDto(m, ticket);
-            if (examLookup.TryGetValue(m.Id, out var examId))
-                dto.ExaminationId = examId;
+            if (examLookup.TryGetValue(m.Id, out var exam))
+            {
+                dto.ExaminationId = exam.Id;
+                dto.Status = exam.Status switch
+                {
+                    HIS.Core.Constants.ExaminationStatus.InProgress => "InProgress",
+                    HIS.Core.Constants.ExaminationStatus.PendingCLS => "PendingCLS",
+                    HIS.Core.Constants.ExaminationStatus.WaitingConclusion => "WaitingConclusion",
+                    HIS.Core.Constants.ExaminationStatus.Completed => "Completed",
+                    HIS.Core.Constants.ExaminationStatus.Cancelled => "Cancelled",
+                    _ => "Waiting",
+                };
+                dto.StatusName = HIS.Core.Constants.ExaminationStatus.GetName(exam.Status);
+                dto.DoctorName = exam.DoctorName;
+                dto.StartedAt = exam.StartTime;
+                dto.CompletedAt = exam.EndTime;
+            }
             return dto;
         }).ToList();
         return result;

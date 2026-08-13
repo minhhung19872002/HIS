@@ -438,30 +438,32 @@ export interface ImagingResultDto {
 export interface PrescriptionHistoryDto {
   id: string;
   prescriptionCode: string;
-  prescribedDate: string;
-  prescribedBy: string;
-  department: string;
+  prescriptionDate: string;
+  visitId: string;
+  examinationId?: string;
+  patientId?: string;
+  patientCode?: string;
+  patientName?: string;
+  doctorName?: string;
+  departmentName?: string;
   diagnosis?: string;
   items: PrescriptionItemDto[];
   instructions?: string;
-  validFrom: string;
-  validTo: string;
   status: string; // Active, Dispensed, Expired, Cancelled
-  statusName: string;
+  statusName?: string;
   dispensedAt?: string;
   dispensedBy?: string;
-  refillsAllowed?: number;
-  refillsUsed?: number;
+  canRefill?: boolean;
+  refillsRemaining?: number;
   qrCode?: string;
 }
 
 export interface PrescriptionItemDto {
   drugName: string;
-  genericName?: string;
+  strength?: string;
   dosage: string;
   frequency: string;
-  route: string;
-  duration: string;
+  durationDays: number;
   quantity: number;
   unit: string;
   instructions?: string;

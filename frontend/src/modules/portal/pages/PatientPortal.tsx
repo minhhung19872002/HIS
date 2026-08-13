@@ -263,17 +263,16 @@ function VisitsSection() {
 function PrescriptionsSection() {
   const cols: ColumnDef<PrescriptionHistoryDto>[] = [
     { key: 'code', label: 'Mã đơn', mono: true, width: 140, render: (r) => r.prescriptionCode },
-    { key: 'date', label: 'Ngày kê', mono: true, width: 110, render: (r) => fmtDMYg(r.prescribedDate) },
-    { key: 'doctor', label: 'Bác sĩ', render: (r) => r.prescribedBy },
+    { key: 'date', label: 'Ngày kê', mono: true, width: 110, render: (r) => fmtDMYg(r.prescriptionDate) },
+    { key: 'doctor', label: 'Bác sĩ', render: (r) => r.doctorName || '—' },
     { key: 'count', label: 'Số thuốc', width: 80, render: (r) => r.items.length },
-    { key: 'valid', label: 'Hiệu lực đến', mono: true, width: 120, render: (r) => fmtDMYg(r.validTo) },
     { key: 'status', label: 'TT', width: 110, render: (r) => (
       <StatusBadge tone={
         r.status === 'Active' ? 'ok'
           : r.status === 'Dispensed' ? 'info'
           : r.status === 'Cancelled' ? 'warn'
           : 'info'
-      } dot>{r.statusName}</StatusBadge>
+      } dot>{r.statusName || r.status}</StatusBadge>
     )},
   ];
 
@@ -300,7 +299,7 @@ function PrescriptionsSection() {
         open={!!detail}
         onClose={() => setDetail(null)}
         title={detail ? detail.prescriptionCode : ''}
-        sub={detail ? `${detail.prescribedBy} · ${fmtDMYg(detail.prescribedDate)}` : ''}
+        sub={detail ? `${detail.doctorName || '—'} · ${fmtDMYg(detail.prescriptionDate)}` : ''}
       >
         {detail && (
           <>
@@ -308,7 +307,7 @@ function PrescriptionsSection() {
               {detail.items.map((item, i) => (
                 <DrField key={i} lbl={item.drugName}>
                   <div>
-                    <div>{item.dosage} · {item.frequency} · {item.duration}</div>
+                    <div>{item.dosage} · {item.frequency} · {item.durationDays} ngày</div>
                     {item.instructions && <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 2 }}>{item.instructions}</div>}
                     {item.warnings && <div style={{ fontSize: 11, color: 'var(--a-rd)', marginTop: 2 }}>{item.warnings}</div>}
                   </div>
@@ -321,8 +320,7 @@ function PrescriptionsSection() {
               </DrSec>
             )}
             <DrSec title="Thông tin">
-              <DrField lbl="Hiệu lực từ">{fmtDMYg(detail.validFrom)}</DrField>
-              <DrField lbl="Đến ngày">{fmtDMYg(detail.validTo)}</DrField>
+              <DrField lbl="Ngày kê">{fmtDMYg(detail.prescriptionDate)}</DrField>
               {detail.dispensedAt && <DrField lbl="Cấp lúc">{fmtDMYg(detail.dispensedAt)}</DrField>}
             </DrSec>
           </>

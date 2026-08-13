@@ -3,8 +3,8 @@
  * Patient-safety handlers (persist/saveDraft/complete) stay here per Rule 6.
  */
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { KpiStrip, Btn, fmtVNDg, tk, tw, te, ti } from '@/_v2kit';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { SurgeryReportModal } from '../../surgery/pages/SurgeryReportModal';
@@ -43,6 +43,8 @@ import '../../../components/layout/terminal/ed-responsive.css';
 
 const OpdEditorV2: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const deepLinkHandled = useRef(false);
 
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
@@ -65,6 +67,36 @@ const OpdEditorV2: React.FC = () => {
     icdQ, searchIcd, icdResults, addIcd, setPrimary, removeIcd,
     svcQ, searchSvc, svcResults, addSvc, updateQty, removeSvc, selectPatient,
   } = useOpdPatientData({ setLeftOpen, setSelPt, setAutoSavedTs });
+
+  const openPatient = useCallback(async (patient: RoomPatientListDto) => {
+    await selectPatient(patient);
+    if (patient.status !== 0) return;
+    try {
+      await examinationApi.startExamination(patient.examinationId);
+      setSelPt((current) => current?.examinationId === patient.examinationId
+        ? { ...current, status: 1, statusName: 'Đang khám' }
+        : current);
+      await loadQueue(roomId);
+      tk('Đã bắt đầu khám');
+    } catch (error) {
+      tw(friendlyErrorMessage(error, 'Không thể bắt đầu khám — kiểm tra phân công bác sĩ và CCHN'));
+    }
+  }, [loadQueue, roomId, selectPatient]);
+
+  useEffect(() => {
+    const targetRoomId = searchParams.get('roomId');
+    if (targetRoomId && rooms.some((room) => room.id === targetRoomId) && roomId !== targetRoomId)
+      setRoomId(targetRoomId);
+  }, [roomId, rooms, searchParams, setRoomId]);
+
+  useEffect(() => {
+    const targetExamId = searchParams.get('examId');
+    if (!targetExamId || deepLinkHandled.current) return;
+    const patient = queue.find((item) => item.examinationId === targetExamId);
+    if (!patient) return;
+    deepLinkHandled.current = true;
+    void openPatient(patient);
+  }, [openPatient, queue, searchParams]);
 
   const examId = selPt?.examinationId ?? null;
 
@@ -169,6 +201,8 @@ const OpdEditorV2: React.FC = () => {
 
   const goPrescribe = () => {
     if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
+    if (selPt?.status === 0) { tw('Bệnh nhân chưa bắt đầu khám — không thể kê đơn'); return; }
+    if (selPt?.status === 5) { tw('Phiên khám đã hủy — không thể kê đơn'); return; }
     navigate(`/v2/prescription/edit?examId=${encodeURIComponent(examId)}`);
   };
 
@@ -195,7 +229,7 @@ const OpdEditorV2: React.FC = () => {
       <QueuePanel
         leftOpen={leftOpen} rooms={rooms} roomId={roomId} setRoomId={setRoomId}
         setSelPt={setSelPt} setScanOpen={setScanOpen} type={type} setType={setType}
-        queue={queue} selPt={selPt} selectPatient={selectPatient}
+        queue={queue} selPt={selPt} selectPatient={openPatient}
       />
 
       <main style={{ overflow: 'auto', padding: 'var(--space-14)', display: 'flex', flexDirection: 'column', gap: 'var(--space-14)' }}>

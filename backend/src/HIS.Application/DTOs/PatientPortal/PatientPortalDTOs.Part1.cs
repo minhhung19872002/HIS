@@ -326,6 +326,7 @@ namespace HIS.Application.DTOs.PatientPortal
         public string PrescriptionCode { get; set; }
         public DateTime PrescriptionDate { get; set; }
         public Guid VisitId { get; set; }
+        public Guid? ExaminationId { get; set; }
         public Guid? PatientId { get; set; }
         public string? PatientCode { get; set; }
         public string? PatientName { get; set; }

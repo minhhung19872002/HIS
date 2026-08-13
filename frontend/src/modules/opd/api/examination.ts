@@ -536,6 +536,38 @@ export interface PrescriptionItemFullDto {
   isOutOfStock: boolean;
 }
 
+export interface RecentPrescriptionItemDto {
+  id: string;
+  drugName?: string;
+  genericName?: string;
+  quantity: number;
+  unit?: string;
+  dosage?: string;
+  frequency?: string;
+  route?: string;
+  days: number;
+  duration: string;
+  instructions?: string;
+}
+
+export interface RecentPrescriptionDto {
+  id: string;
+  examinationId?: string;
+  patientId?: string;
+  prescriptionCode: string;
+  prescriptionDate: string;
+  patientCode?: string;
+  patientName?: string;
+  doctorName?: string;
+  departmentName?: string;
+  diagnosis?: string;
+  instructions?: string;
+  status: number;
+  statusName: string;
+  totalAmount: number;
+  items: RecentPrescriptionItemDto[];
+}
+
 export interface CreatePrescriptionDto {
   examinationId: string;
   prescriptionType: number;
@@ -1257,6 +1289,9 @@ export const printAllServiceOrders = (examinationId: string) =>
 
 export const getPrescriptions = (examinationId: string) =>
   request.get<PrescriptionFullDto[]>(`/examination/${examinationId}/prescriptions`);
+
+export const getRecentPrescriptions = (params?: { fromDate?: string; toDate?: string; keyword?: string; pageSize?: number }) =>
+  request.get<RecentPrescriptionDto[]>('/examination/prescriptions/recent', { params });
 
 export const getPrescriptionById = (id: string) =>
   request.get<PrescriptionFullDto>(`/examination/prescriptions/${id}`);
