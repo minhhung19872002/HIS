@@ -58,23 +58,32 @@ import { test, expect, Page, request } from '@playwright/test';
 
 // ==================== HELPER FUNCTIONS ====================
 
+type AuthSession = { token: string; user: string };
+let cachedAuthSession: AuthSession | null = null;
+
+async function getAuthSession(): Promise<AuthSession> {
+  if (cachedAuthSession) return cachedAuthSession;
+  const context = await request.newContext();
+  const response = await context.post(`${API_BASE_URL}/auth/login`, {
+    data: { username: 'admin', password: 'Admin@123' }
+  });
+  expect(response.ok()).toBeTruthy();
+  const body = await response.json();
+  await context.dispose();
+  const payload = body.data ?? body;
+  cachedAuthSession = {
+    token: payload.token,
+    user: JSON.stringify(payload.user ?? { username: 'admin', roles: ['Admin'] })
+  };
+  return cachedAuthSession;
+}
+
 async function login(page: Page) {
-  await page.goto('/login');
-  await page.waitForLoadState('domcontentloaded');
-
-  // Kiem tra neu da dang nhap roi thi bo qua
-  if (page.url().includes('/login')) {
-    // Dien username va password
-    await page.locator('input').first().fill('admin');
-    await page.locator('input[type="password"]').fill('Admin@123');
-
-    // Click nut dang nhap
-    await page.locator('button:has-text("Đăng nhập")').click();
-
-    // Cho chuyen trang - doi toi khi khong con o trang login
-    await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 30000 });
-    await page.waitForLoadState('domcontentloaded');
-  }
+  const session = await getAuthSession();
+  await page.addInitScript(({ token, user }) => {
+    window.localStorage.setItem('token', token);
+    window.localStorage.setItem('user', user);
+  }, session);
 }
 
 async function waitForLoading(page: Page) {
@@ -122,13 +131,7 @@ function generateSurgeryData() {
 const API_BASE_URL = 'http://localhost:5106/api';
 
 async function getAuthToken(): Promise<string> {
-  const context = await request.newContext();
-  const response = await context.post(`${API_BASE_URL}/auth/login`, {
-    data: { username: 'admin', password: 'Admin@123' }
-  });
-  const data = await response.json();
-  await context.dispose();
-  return data.data?.token ?? '';
+  return (await getAuthSession()).token;
 }
 
 async function registerPatientForSurgery(): Promise<void> {

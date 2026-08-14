@@ -1,6 +1,7 @@
 using System.Text;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using HIS.Infrastructure.Security;
 using Microsoft.AspNetCore.Http;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Examination;
@@ -30,7 +31,9 @@ public partial class ExaminationCompleteService
         if (!string.IsNullOrEmpty(patientCode))
             patient = await _context.Patients.FirstOrDefaultAsync(p => p.PatientCode == patientCode);
         else if (!string.IsNullOrEmpty(idNumber))
-            patient = await _context.Patients.FirstOrDefaultAsync(p => p.IdentityNumber == idNumber);
+            patient = await _context.Patients
+                .Where(p => !p.IsDeleted)
+                .FindByIdentityNumberDecryptedAsync(idNumber);
 
         if (patient == null) return null;
 

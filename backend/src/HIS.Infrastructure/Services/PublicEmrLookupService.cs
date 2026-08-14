@@ -3,6 +3,7 @@ using HIS.Application.DTOs.PublicEmr;
 using HIS.Application.Services;
 using HIS.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using HIS.Infrastructure.Security;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
@@ -128,14 +129,14 @@ public class PublicEmrLookupService : IPublicEmrLookupService
         var dobDate = dob.Date;
 
         // Xác thực 2 yếu tố: CCCD + ngày sinh phải khớp cùng 1 bệnh nhân.
-        var patientIds = await _db.Patients
+        var matchingPatient = await _db.Patients
             .Where(p => !p.IsDeleted
-                        && p.IdentityNumber == idNumber
                         && p.DateOfBirth != null
                         && p.DateOfBirth.Value.Date == dobDate)
-            .Select(p => p.Id)
-            .Take(20)
-            .ToListAsync();
+            .FindByIdentityNumberDecryptedAsync(idNumber);
+        var patientIds = matchingPatient == null
+            ? new List<Guid>()
+            : new List<Guid> { matchingPatient.Id };
 
         // Thông điệp trung lập khi không khớp đủ 2 yếu tố (không lộ CCCD có tồn tại hay không).
         var notFound = new PublicEmrLookupResponse

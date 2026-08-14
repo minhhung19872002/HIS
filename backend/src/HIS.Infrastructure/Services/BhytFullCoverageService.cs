@@ -37,21 +37,31 @@ public class BhytFullCoverageService : IBhytFullCoverageService
         if (dto.IsActive.HasValue)
             q = q.Where(x => x.IsActive == dto.IsActive.Value);
 
+        List<BhytFullCoveragePatient> rows;
+        int total;
         if (!string.IsNullOrWhiteSpace(dto.Keyword))
         {
             var kw = dto.Keyword.Trim();
-            q = q.Where(x =>
-                x.Patient.FullName.Contains(kw)
-                || x.Patient.PatientCode.Contains(kw)
-                || (x.Patient.InsuranceNumber != null && x.Patient.InsuranceNumber.Contains(kw)));
+            var candidates = await q.AsNoTracking().ToListAsync();
+            var matched = candidates
+                .Where(x =>
+                    x.Patient.FullName.Contains(kw, StringComparison.OrdinalIgnoreCase)
+                    || x.Patient.PatientCode.Contains(kw, StringComparison.OrdinalIgnoreCase)
+                    || (x.Patient.InsuranceNumber?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false))
+                .OrderByDescending(x => x.CreatedAt)
+                .ToList();
+            total = matched.Count;
+            rows = matched.Skip((page - 1) * pageSize).Take(pageSize).ToList();
         }
-
-        var total = await q.CountAsync();
-        var rows = await q
-            .OrderByDescending(x => x.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
+        else
+        {
+            total = await q.CountAsync();
+            rows = await q.AsNoTracking()
+                .OrderByDescending(x => x.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+        }
 
         return new PagedResultDto<BhytFullCoveragePatientDto>
         {

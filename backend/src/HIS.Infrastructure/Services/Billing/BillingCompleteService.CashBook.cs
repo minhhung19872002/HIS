@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using HIS.Infrastructure.Security;
 using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Billing;
@@ -368,7 +369,8 @@ public partial class BillingCompleteService {
             };
 
             var patient = await _context.Patients
-                .FirstOrDefaultAsync(p => p.InsuranceNumber == dto.InsuranceCardNumber);
+                .Where(p => !p.IsDeleted)
+                .FindByInsuranceNumberDecryptedAsync(dto.InsuranceCardNumber);
 
             if (patient == null)
             {

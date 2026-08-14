@@ -8,6 +8,7 @@ using HIS.Core.Interfaces;
 using HIS.Infrastructure.Configuration;
 using HIS.Infrastructure.Data;
 using HIS.Infrastructure.Extensions;
+using HIS.Infrastructure.Security;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using iText.IO.Font.Constants;
@@ -44,11 +45,15 @@ public partial class ReceptionCompleteService {
         }
         else if (!string.IsNullOrEmpty(dto.IdentityNumber))
         {
-            patient = await _context.Patients.FirstOrDefaultAsync(p => p.IdentityNumber == dto.IdentityNumber);
+            patient = await _context.Patients
+                .Where(p => !p.IsDeleted)
+                .FindByIdentityNumberDecryptedAsync(dto.IdentityNumber);
         }
         else if (!string.IsNullOrEmpty(dto.PhoneNumber))
         {
-            patient = await _context.Patients.FirstOrDefaultAsync(p => p.PhoneNumber == dto.PhoneNumber);
+            patient = await _context.Patients
+                .Where(p => !p.IsDeleted)
+                .FindByPhoneNumberDecryptedAsync(dto.PhoneNumber);
         }
         else if (dto.NewPatient != null)
         {
@@ -158,7 +163,9 @@ public partial class ReceptionCompleteService {
 
     public async Task<AdmissionDto> QuickRegisterByPhoneAsync(string phoneNumber, Guid roomId, int serviceType, Guid userId)
     {
-        var patient = await _context.Patients.FirstOrDefaultAsync(p => p.PhoneNumber == phoneNumber);
+        var patient = await _context.Patients
+            .Where(p => !p.IsDeleted)
+            .FindByPhoneNumberDecryptedAsync(phoneNumber);
         if (patient == null) throw new Exception("Khong tim thay benh nhan voi SĐT nay");
 
         return await RegisterFeePatientAsync(new FeeRegistrationDto
@@ -285,7 +292,8 @@ public partial class ReceptionCompleteService {
             {
                 // Check if patient exists by ID number
                 var existingPatient = await _context.Patients
-                    .FirstOrDefaultAsync(p => p.IdentityNumber == patientData.IdentityNumber);
+                    .Where(p => !p.IsDeleted)
+                    .FindByIdentityNumberDecryptedAsync(patientData.IdentityNumber);
 
                 if (existingPatient == null)
                 {

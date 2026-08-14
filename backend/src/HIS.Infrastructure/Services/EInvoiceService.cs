@@ -14,9 +14,8 @@ namespace HIS.Infrastructure.Services
 {
     /// <summary>
     /// HĐĐT đa NCC (VNPT/Viettel/MISA). Issue #24.
-    /// MockMode=true (mặc định) hoặc Enabled=false: sinh InvoiceNo giả, KHÔNG gọi API NCC.
-    /// MockMode=false + Enabled=true: adapter NCC thật (chưa triển khai — đánh dấu Status=4 với lỗi rõ ràng,
-    /// giữ bản ghi để truy vết; cần credential EInvoice:&lt;NCC&gt;:* qua env).
+    /// Đây là luồng phiếu thu cũ. Không được phát hành mô phỏng: khi chưa có
+    /// adapter NCC thật, API phải từ chối thay vì sinh số hóa đơn/mã CQT giả.
     /// </summary>
     public class EInvoiceService : IEInvoiceService
     {
@@ -31,7 +30,7 @@ namespace HIS.Infrastructure.Services
             _logger = logger;
         }
 
-        private bool MockMode => _config.GetValue<bool>("EInvoice:MockMode", true);
+        private bool MockMode => _config.GetValue<bool>("EInvoice:MockMode", false);
         private bool Enabled => _config.GetValue<bool>("EInvoice:Enabled", false);
         private string DefaultProvider => _config["EInvoice:Provider"] ?? "VNPT";
 
@@ -101,45 +100,23 @@ namespace HIS.Infrastructure.Services
             if (dto.ReceiptId == Guid.Empty)
                 throw new InvalidOperationException("Thiếu receiptId");
 
-            var receipt = await _db.Receipts.FirstOrDefaultAsync(r => r.Id == dto.ReceiptId && !r.IsDeleted, ct)
+            _ = await _db.Receipts.FirstOrDefaultAsync(r => r.Id == dto.ReceiptId && !r.IsDeleted, ct)
                 ?? throw new InvalidOperationException($"Không tìm thấy phiếu thu {dto.ReceiptId}");
 
             var provider = string.IsNullOrWhiteSpace(dto.Provider) ? DefaultProvider : dto.Provider!;
-            var now = DateTime.UtcNow;
-
-            var e = new EInvoice
-            {
-                Id = Guid.NewGuid(),
-                ReceiptId = receipt.Id,
-                Provider = provider,
-                TotalAmount = receipt.FinalAmount,
-                CreatedAt = now,
-                CreatedBy = issuedBy,
-            };
 
             if (MockMode || !Enabled)
             {
-                // MockMode: sinh số giả, không gọi NCC.
-                e.InvoiceNo = $"MOCK-{now:yyyyMMdd-HHmmss}-{e.Id.ToString("N").Substring(0, 6)}";
-                e.InvoiceCode = $"MOCKCQT{now:yyyyMMddHHmmss}";
-                e.TemplateCode = "1/001";
-                e.SerialNo = "C24M" + provider.Substring(0, Math.Min(3, provider.Length)).ToUpperInvariant();
-                e.Status = 1; // issued
-                e.IssuedAt = now;
-                e.PortalResponse = $"{{\"mock\":true,\"provider\":\"{provider}\",\"issuedAt\":\"{now:O}\"}}";
-                _logger.LogInformation("[MockMode] EInvoice phát hành cho phiếu thu {ReceiptId}: {InvoiceNo}", receipt.Id, e.InvoiceNo);
-            }
-            else
-            {
-                // Real mode: adapter NCC chưa triển khai — ghi nhận Status=4 + lỗi rõ ràng, giữ bản ghi để truy vết.
-                e.Status = 4; // failed
-                e.ErrorMessage = $"Adapter NCC '{provider}' chưa triển khai (cần credential EInvoice:{provider}:* + tích hợp API NCC).";
-                _logger.LogWarning("EInvoice real-mode chưa triển khai cho NCC {Provider}", provider);
+                _logger.LogWarning(
+                    "Từ chối phát hành HĐĐT phiếu thu {ReceiptId}: Enabled={Enabled}, MockMode={MockMode}",
+                    dto.ReceiptId, Enabled, MockMode);
+                throw new InvalidOperationException(
+                    "Chưa cấu hình nhà cung cấp hóa đơn điện tử thật. Không thể phát hành hóa đơn mô phỏng.");
             }
 
-            _db.EInvoices.Add(e);
-            await _db.SaveChangesAsync(ct);
-            return ToDto(e);
+            _logger.LogWarning("Luồng HĐĐT phiếu thu cũ chưa có adapter NCC {Provider}", provider);
+            throw new NotSupportedException(
+                $"Luồng HĐĐT phiếu thu chưa hỗ trợ NCC '{provider}'. Hãy phát hành từ tab HĐĐT bảng kê.");
         }
 
         public async Task<EInvoiceDto> CancelAsync(Guid id, string cancelledBy, CancellationToken ct = default)
@@ -175,11 +152,11 @@ namespace HIS.Infrastructure.Services
 
         public Task SaveConfigAsync(EInvoiceConfigDto dto, CancellationToken ct = default)
         {
-            // Runtime config KHÔNG persist qua restart — set Cloud Run env EInvoice__* để cố định.
-            _logger.LogInformation(
-                "EInvoice config save: Provider={Provider} MockMode={MockMode} Enabled={Enabled} (không persist — set qua env)",
+            _logger.LogWarning(
+                "Từ chối lưu cấu hình HĐĐT runtime: Provider={Provider}, MockMode={MockMode}, Enabled={Enabled}",
                 dto.Provider, dto.MockMode, dto.Enabled);
-            return Task.CompletedTask;
+            throw new NotSupportedException(
+                "Cấu hình hóa đơn điện tử là cấu hình triển khai chỉ đọc. Hãy cập nhật biến môi trường EInvoice__* và triển khai lại dịch vụ.");
         }
     }
 }

@@ -296,8 +296,8 @@ public partial class BillingCompleteService {
         // Phát hành HĐĐT qua nhà cung cấp THẬT (cắm-thay-được qua IElectronicInvoiceProvider).
         // - Provider đã cấu hình ("EInvoice:Enabled"=true + đủ thông tin) → gọi REST API NCC,
         //   nhận số hóa đơn + mã CQT (mã cơ quan thuế) + URL tra cứu.
-        // - Chưa cấu hình → fallback an toàn: giữ hành vi cũ (đánh dấu đã phát hành nội bộ +
-        //   mã/URL tra cứu nội bộ) để không vỡ luồng thu ngân. NCC thật sẽ ghi đè khi bật cấu hình.
+        // - Chưa cấu hình → từ chối phát hành. Không được tạo mã/URL giả rồi đánh dấu
+        //   Status=1 vì người vận hành sẽ hiểu nhầm hóa đơn đã được NCC/CQT tiếp nhận.
         if (_eInvoiceProvider.IsConfigured)
         {
             try
@@ -340,14 +340,11 @@ public partial class BillingCompleteService {
         }
         else
         {
-            // Fallback giữ hành vi cũ khi chưa cấu hình NCC (đánh dấu chờ/đã phát hành nội bộ).
-            _logger.LogInformation("HĐĐT chưa cấu hình NCC — phát hành nội bộ tạm thời cho {Id}", eInvoice.Id);
-            eInvoice.ProviderInvoiceId ??= Guid.NewGuid().ToString("N")[..16].ToUpper();
-            eInvoice.LookupCode ??= $"LK{DateTime.Now:yyyyMMddHHmmssfff}";
-            eInvoice.LookupUrl ??= $"https://einvoice.vn/lookup/{eInvoice.LookupCode}";
-
-            if (eInvoice.Status == 0) // Draft -> Issued
-                eInvoice.Status = 1;
+            _logger.LogWarning(
+                "Từ chối phát hành HĐĐT {Id}: chưa cấu hình nhà cung cấp thật",
+                eInvoice.Id);
+            throw new InvalidOperationException(
+                "Chưa cấu hình nhà cung cấp hóa đơn điện tử. Hóa đơn vẫn ở trạng thái nháp và chưa được phát hành.");
         }
 
         eInvoice.UpdatedBy = userId.ToString();

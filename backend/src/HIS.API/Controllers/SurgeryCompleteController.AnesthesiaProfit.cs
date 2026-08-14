@@ -36,7 +36,11 @@ public partial class SurgeryCompleteController
     /// <summary>
     /// Tính lợi nhuận phẫu thuật
     /// </summary>
-    [HttpGet("{surgeryId}/profit")]
+    // The main surgery controller already owns GET {id}/profit with the DTO
+    // consumed by the UI. Keep this NangCap18 breakdown on a distinct route;
+    // duplicate route templates previously caused AmbiguousMatchException.
+    [HttpGet("{surgeryId}/profit-breakdown")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<HIS.Application.DTOs.NangCap18.SurgeryProfitDto>> CalculateSurgeryProfit(Guid surgeryId)
     {
         var result = await _surgeryService.CalculateSurgeryProfitAsync(surgeryId);

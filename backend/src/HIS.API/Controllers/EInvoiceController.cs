@@ -7,8 +7,8 @@ namespace HIS.API.Controllers;
 
 /// <summary>
 /// Hóa đơn điện tử (HĐĐT) đa NCC — VNPT / Viettel / MISA.
-/// MockMode=true (mặc định): sinh InvoiceNo giả, không gọi API NCC thật.
-/// MockMode=false: cần cấu hình EInvoice:&lt;NCC&gt;:* qua env/Cloud Run.
+/// Luồng phiếu thu cũ. Chưa cấu hình NCC thật thì API từ chối phát hành;
+/// tuyệt đối không sinh số hóa đơn hoặc mã CQT giả.
 /// </summary>
 [ApiController]
 [Route("api/einvoice")]
@@ -57,8 +57,7 @@ public sealed class EInvoiceController : ControllerBase
 
     /// <summary>
     /// Phát hành HĐĐT từ phiếu thu.
-    /// MockMode=true → InvoiceNo giả "MOCK-yyyyMMdd-HHmmss-…".
-    /// MockMode=false → gọi NCC thật (cần cấu hình EInvoice:&lt;NCC&gt;:* env).
+    /// Chỉ phát hành khi có adapter NCC thật. Luồng bảng kê là luồng tích hợp chính.
     /// </summary>
     [HttpPost("issue")]
     public async Task<ActionResult<EInvoiceDto>> Issue(
@@ -89,7 +88,7 @@ public sealed class EInvoiceController : ControllerBase
 
     /// <summary>
     /// Đồng bộ trạng thái từ NCC.
-    /// MockMode=true → trả current status không đổi.
+    /// Trả trạng thái hiện có của bản ghi thuộc luồng cũ.
     /// </summary>
     [HttpPost("status/{id:guid}")]
     public async Task<ActionResult<EInvoiceDto>> SyncStatus(Guid id, CancellationToken ct = default)
@@ -115,8 +114,8 @@ public sealed class EInvoiceController : ControllerBase
     }
 
     /// <summary>
-    /// Lưu cấu hình.
-    /// Lưu ý: runtime config không persist qua restart — set bằng Cloud Run env vars để cố định.
+    /// Endpoint tương thích cũ. Cấu hình triển khai là chỉ đọc và không được
+    /// giả vờ lưu thành công trong bộ nhớ tạm.
     /// </summary>
     [HttpPut("config")]
     public async Task<ActionResult> SaveConfig(
@@ -124,6 +123,6 @@ public sealed class EInvoiceController : ControllerBase
         CancellationToken ct = default)
     {
         await _svc.SaveConfigAsync(dto, ct);
-        return Ok(new { message = "Config đã nhận. Để persist: set Cloud Run env EInvoice__* tương ứng." });
+        return NoContent();
     }
 }

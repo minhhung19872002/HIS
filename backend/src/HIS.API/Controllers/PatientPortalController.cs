@@ -206,11 +206,27 @@ namespace HIS.API.Controllers
         }
 
         [HttpGet("health-record")]
+        [HttpGet("health-records")]
         [Authorize]
         public async Task<ActionResult<HealthRecordSummaryDto>> GetHealthRecord([FromQuery] Guid patientId)
         {
             var (pid, err) = ResolvePatientId(patientId); if (err != null) return err;
             return Ok(await _service.GetHealthRecordSummaryAsync(pid));
+        }
+
+        [HttpGet("vitals")]
+        [Authorize]
+        public async Task<ActionResult<List<VitalsTrendDto>>> GetVitals(
+            [FromQuery] Guid patientId,
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate)
+        {
+            var (pid, err) = ResolvePatientId(patientId); if (err != null) return err;
+            var summary = await _service.GetHealthRecordSummaryAsync(pid);
+            var query = (summary.VitalsTrend ?? new List<VitalsTrendDto>()).AsEnumerable();
+            if (fromDate.HasValue) query = query.Where(x => x.Date >= fromDate.Value);
+            if (toDate.HasValue) query = query.Where(x => x.Date <= toDate.Value);
+            return Ok(query.ToList());
         }
 
         // G-39: Visit list for EMR tab

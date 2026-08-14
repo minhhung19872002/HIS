@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using HIS.Infrastructure.Security;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Insurance;
 using HIS.Application.DTOs.Reception;
@@ -293,8 +294,7 @@ public partial class ReceptionCompleteService {
     {
         if (string.IsNullOrWhiteSpace(keyword)) return new List<AdmissionDto>();
 
-        var kw = keyword.Trim().ToLower();
-        var pattern = $"%{kw}%";
+        var kw = keyword.Trim();
         var today = HIS.Core.Common.VnTime.TodayVn;
         var (todayFromUtc, todayToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(today);
 
@@ -302,20 +302,27 @@ public partial class ReceptionCompleteService {
         // reception search bar can find historical patients. The
         // "today's reception queue" use case is served by
         // GetTodayAdmissionsAsync; this one is a free-text patient lookup.
-        var records = await _context.MedicalRecords
+        // Patient PII fields use randomized encryption and cannot participate in
+        // SQL LIKE. Load a bounded recent candidate set, let EF decrypt it, then
+        // apply the combined code/name/CCCD/BHYT/phone search in memory.
+        var candidates = await _context.MedicalRecords
             .Include(m => m.Patient)
             .Include(m => m.Room)
             .ThenInclude(r => r!.Department)
-            .Where(m =>
-                (EF.Functions.Like(m.MedicalRecordCode, pattern) ||
-                 EF.Functions.Like(m.Patient!.PatientCode, pattern) ||
-                 EF.Functions.Like(m.Patient.FullName, pattern) ||
-                 (m.Patient.IdentityNumber != null && EF.Functions.Like(m.Patient.IdentityNumber, pattern)) ||
-                 (m.Patient.InsuranceNumber != null && EF.Functions.Like(m.Patient.InsuranceNumber, pattern)) ||
-                 (m.Patient.PhoneNumber != null && EF.Functions.Like(m.Patient.PhoneNumber, pattern))))
+            .AsNoTracking()
             .OrderByDescending(m => m.CreatedAt)
-            .Take(50)
+            .Take(5000)
             .ToListAsync();
+        var records = candidates
+            .Where(m =>
+                m.MedicalRecordCode.Contains(kw, StringComparison.OrdinalIgnoreCase)
+                || (m.Patient?.PatientCode?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (m.Patient?.FullName?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (m.Patient?.IdentityNumber?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (m.Patient?.InsuranceNumber?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (m.Patient?.PhoneNumber?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false))
+            .Take(50)
+            .ToList();
 
         // BUG-017: Load queue tickets to map actual queue numbers (same as GetTodayAdmissionsAsync)
         // IssueDate chuẩn hóa UTC — dùng DayRangeUtc để so sánh đúng ngày VN.
@@ -439,7 +446,8 @@ public partial class ReceptionCompleteService {
     {
         // Find patient by phone
         var patient = await _context.Patients
-            .FirstOrDefaultAsync(p => p.PhoneNumber == dto.PatientPhone);
+            .Where(p => !p.IsDeleted)
+            .FindByPhoneNumberDecryptedAsync(dto.PatientPhone);
 
         return await IssueQueueTicketAsync(new IssueQueueTicketDto
         {

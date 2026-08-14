@@ -3,7 +3,7 @@ import apiClient from '../../../services/apiClient';
 // ============================================================================
 // HĐĐT — Hóa đơn điện tử đa NCC (VNPT / Viettel / MISA)
 // Route BE: /api/einvoice
-// MockMode mặc định true — sinh InvoiceNo giả, không gọi NCC thật.
+// Luồng phiếu thu cũ: server từ chối phát hành nếu chưa có NCC thật.
 // ============================================================================
 
 export type EInvoiceStatus = 0 | 1 | 2 | 3 | 4;
@@ -67,8 +67,7 @@ export const einvoice = {
 
   /**
    * Phát hành HĐĐT từ phiếu thu.
-   * MockMode=true (server default) → InvoiceNo giả "MOCK-…".
-   * MockMode=false → gọi NCC thật (cần credential trong Cloud Run env).
+   * Chưa có NCC thật → server trả lỗi, không sinh số hóa đơn giả.
    */
   issue: async (dto: IssueEInvoiceDto): Promise<EInvoiceDto> => {
     const { data } = await apiClient.post<EInvoiceDto>('/einvoice/issue', dto);
@@ -83,7 +82,7 @@ export const einvoice = {
 
   /**
    * Đồng bộ trạng thái từ NCC.
-   * MockMode=true → trả current status không gọi NCC.
+   * Trả trạng thái hiện có của bản ghi thuộc luồng cũ.
    */
   syncStatus: async (id: string): Promise<EInvoiceDto> => {
     const { data } = await apiClient.post<EInvoiceDto>(`/einvoice/status/${id}`);

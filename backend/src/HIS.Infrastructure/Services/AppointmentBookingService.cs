@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using HIS.Infrastructure.Security;
 using HIS.Application.Services;
 using HIS.Core.Common;
 using HIS.Core.Entities;
@@ -219,7 +220,8 @@ public class AppointmentBookingService : IAppointmentBookingService
 
         // Kiểm tra trùng lịch hẹn (cùng SĐT, cùng ngày)
         var existingPatient = await _context.Patients
-            .FirstOrDefaultAsync(p => !p.IsDeleted && p.PhoneNumber == phone);
+            .Where(p => !p.IsDeleted)
+            .FindByPhoneNumberDecryptedAsync(phone);
 
         if (existingPatient != null)
         {
@@ -371,15 +373,26 @@ public class AppointmentBookingService : IAppointmentBookingService
 
         if (!string.IsNullOrWhiteSpace(code))
             query = query.Where(a => a.AppointmentCode == code.Trim());
-        else if (!string.IsNullOrWhiteSpace(phone))
-            query = query.Where(a => a.Patient.PhoneNumber == phone.Trim());
-        else
+        else if (string.IsNullOrWhiteSpace(phone))
             return new List<BookingStatusDto>();
 
         var appointments = await query
             .OrderByDescending(a => a.AppointmentDate)
-            .Take(20)
             .ToListAsync();
+
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            var expectedPhone = phone!.Trim();
+            appointments = appointments
+                .Where(a => string.Equals(a.Patient?.PhoneNumber?.Trim(), expectedPhone,
+                    StringComparison.OrdinalIgnoreCase))
+                .Take(20)
+                .ToList();
+        }
+        else
+        {
+            appointments = appointments.Take(20).ToList();
+        }
 
         return appointments.Select(a => MapToBookingStatus(a)).ToList();
     }

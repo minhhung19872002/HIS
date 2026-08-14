@@ -11,6 +11,7 @@ const API_BASE_URL = 'http://localhost:5106/api';
 
 // Test credentials
 const ADMIN_USER = { username: 'admin', password: 'Admin@123' };
+let cachedAuthToken: string | null = null;
 
 // API bá»c envelope {success,data} (global wrapper) â€” unwrap trÆ°á»›c khi assert shape.
 // Spec nÃ y viáº¿t trÆ°á»›c khi cÃ³ wrapper nÃªn assert trá»±c tiáº¿p â†’ 13 test fail giáº£.
@@ -20,12 +21,14 @@ function unwrap(body: any): any {
 
 // Helper function to login and get token
 async function getAuthToken(request: APIRequestContext): Promise<string> {
+  if (cachedAuthToken) return cachedAuthToken;
   const response = await request.post(`${API_BASE_URL}/Auth/login`, {
     data: ADMIN_USER
   });
   expect(response.ok()).toBeTruthy();
   const body = await response.json();
-  return body.data.token;
+  cachedAuthToken = body.data.token;
+  return cachedAuthToken!;
 }
 
 // Helper function to make authenticated API calls

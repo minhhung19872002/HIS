@@ -19,13 +19,35 @@ public partial class FhirService
 
             if (!string.IsNullOrEmpty(name))
                 query = query.Where(p => p.FullName.Contains(name));
-            if (!string.IsNullOrEmpty(identifier))
-                query = query.Where(p => p.PatientCode == identifier || p.IdentityNumber == identifier || p.InsuranceNumber == identifier);
-            if (!string.IsNullOrEmpty(phone))
-                query = query.Where(p => p.PhoneNumber != null && p.PhoneNumber.Contains(phone));
-
-            var total = await query.CountAsync();
-            var patients = await query.OrderByDescending(p => p.CreatedAt).Skip(offset).Take(count).ToListAsync();
+            count = Math.Clamp(count, 1, 200);
+            offset = Math.Max(0, offset);
+            List<Patient> patients;
+            int total;
+            if (!string.IsNullOrWhiteSpace(identifier) || !string.IsNullOrWhiteSpace(phone))
+            {
+                // Identity/insurance/phone are randomized encrypted Patient PII.
+                // Compare only after materialization/decryption; SQL equality/LIKE
+                // cannot work reliably for randomized ciphertext.
+                var candidates = await query.ToListAsync();
+                var matched = candidates
+                    .Where(p =>
+                        (string.IsNullOrWhiteSpace(identifier)
+                            || string.Equals(p.PatientCode, identifier, StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(p.IdentityNumber, identifier, StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(p.InsuranceNumber, identifier, StringComparison.OrdinalIgnoreCase))
+                        && (string.IsNullOrWhiteSpace(phone)
+                            || (p.PhoneNumber?.Contains(phone, StringComparison.OrdinalIgnoreCase) ?? false)))
+                    .OrderByDescending(p => p.CreatedAt)
+                    .ToList();
+                total = matched.Count;
+                patients = matched.Skip(offset).Take(count).ToList();
+            }
+            else
+            {
+                total = await query.CountAsync();
+                patients = await query.OrderByDescending(p => p.CreatedAt)
+                    .Skip(offset).Take(count).ToListAsync();
+            }
 
             return new FhirBundle
             {

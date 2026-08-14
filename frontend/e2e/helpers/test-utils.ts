@@ -110,7 +110,28 @@ export async function registerPatientViaAPI(patientData?: Partial<{
 
   const result = await response.json();
   await context.dispose();
-  return result;
+
+  if (!response.ok()) {
+    throw new Error(
+      `Patient registration failed (${response.status()}): ${JSON.stringify(result)}`
+    );
+  }
+
+  // All HIS APIs use the { success, data, message, errors } envelope. Returning
+  // the envelope here made workflow tests read patientId/patientCode as
+  // undefined and still report a successful registration.
+  const registration = result?.data;
+  if (
+    result?.success !== true ||
+    !registration?.id ||
+    !registration?.patientId ||
+    !registration?.patientCode ||
+    !registration?.roomId
+  ) {
+    throw new Error(`Invalid patient registration response: ${JSON.stringify(result)}`);
+  }
+
+  return registration;
 }
 
 /**

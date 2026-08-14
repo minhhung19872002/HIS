@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using HIS.Infrastructure.Security;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Insurance;
 using HIS.Application.DTOs.Reception;
@@ -358,11 +359,15 @@ public partial class ReceptionCompleteService {
         }
         else if (!string.IsNullOrEmpty(dto.IdentityNumber))
         {
-            patient = await _context.Patients.FirstOrDefaultAsync(p => p.IdentityNumber == dto.IdentityNumber);
+            patient = await _context.Patients
+                .Where(p => !p.IsDeleted)
+                .FindByIdentityNumberDecryptedAsync(dto.IdentityNumber);
         }
         else if (!string.IsNullOrEmpty(dto.InsuranceNumber))
         {
-            patient = await _context.Patients.FirstOrDefaultAsync(p => p.InsuranceNumber == dto.InsuranceNumber);
+            patient = await _context.Patients
+                .Where(p => !p.IsDeleted)
+                .FindByInsuranceNumberDecryptedAsync(dto.InsuranceNumber);
         }
 
         // BN chưa có trong hệ thống (đăng ký BHYT lần đầu) → tạo mới từ NewPatient
@@ -559,7 +564,9 @@ public partial class ReceptionCompleteService {
 
     public async Task<AdmissionDto> QuickRegisterByIdentityAsync(string identityNumber, Guid roomId, Guid userId)
     {
-        var patient = await _context.Patients.FirstOrDefaultAsync(p => p.IdentityNumber == identityNumber);
+        var patient = await _context.Patients
+            .Where(p => !p.IsDeleted)
+            .FindByIdentityNumberDecryptedAsync(identityNumber);
         if (patient == null) throw new Exception("Khong tim thay benh nhan voi CCCD nay");
 
         return await QuickRegisterByPatientCodeAsync(patient.PatientCode, roomId, userId);

@@ -41,9 +41,11 @@ public class EncryptedStringConverter : ValueConverter<string?, string?>
         catch (System.Security.Cryptography.CryptographicException)
         {
             // Graceful fallback: existing plaintext data that was stored before encryption
-            // was enabled will fail to decrypt. Return as-is so the application continues
-            // to work. The value will be encrypted on next save via the Encrypt path.
-            return value;
+            // was enabled will fail to decrypt. Data Protection payloads normally start
+            // with "CfDJ8"; returning an unreadable payload leaks ciphertext into screens
+            // and API responses. Keep genuine legacy plaintext, but hide payloads whose
+            // key is no longer available.
+            return value.StartsWith("CfDJ8", StringComparison.Ordinal) ? null : value;
         }
     }
 }

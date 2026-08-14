@@ -7,8 +7,7 @@ namespace HIS.Application.Services
 {
     /// <summary>
     /// Dịch vụ Hóa đơn điện tử (HĐĐT) đa NCC — VNPT / Viettel / MISA. Issue #24.
-    /// MockMode=true (mặc định): sinh InvoiceNo giả, không gọi API NCC.
-    /// MockMode=false + Enabled=true: gọi NCC thật (cần credential EInvoice:&lt;NCC&gt;:* qua env).
+    /// Luồng phiếu thu cũ; không cho phép phát hành mô phỏng.
     /// </summary>
     public interface IEInvoiceService
     {

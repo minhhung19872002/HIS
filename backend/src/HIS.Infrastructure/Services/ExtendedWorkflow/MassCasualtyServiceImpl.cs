@@ -5,6 +5,7 @@ using HIS.Infrastructure.Data;
 using HIS.Infrastructure.Extensions;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using HIS.Infrastructure.Security;
 
 namespace HIS.Infrastructure.Services;
 
@@ -203,7 +204,9 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
         if (e == null) return false;
         e.Name = name;
         // Check if patient exists
-        var patient = await _context.Patients.FirstOrDefaultAsync(p => p.IdentityNumber == idNumber);
+        var patient = await _context.Patients
+            .Where(p => !p.IsDeleted)
+            .FindByIdentityNumberDecryptedAsync(idNumber);
         if (patient != null) e.PatientId = patient.Id;
         await _context.SaveChangesAsync();
         return true;

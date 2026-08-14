@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using HIS.Infrastructure.Security;
 using HIS.Application.DTOs.Kiosk;
 using HIS.Application.Services;
 using HIS.Core.Common;
@@ -137,7 +138,8 @@ public class KioskService : IKioskService
 
         if (!string.IsNullOrWhiteSpace(dto.CitizenId))
             patient = await _context.Patients
-                .FirstOrDefaultAsync(p => !p.IsDeleted && p.IdentityNumber == dto.CitizenId.Trim());
+                .Where(p => !p.IsDeleted)
+                .FindByIdentityNumberDecryptedAsync(dto.CitizenId.Trim());
 
         if (patient == null && !string.IsNullOrWhiteSpace(dto.InsuranceCard))
         {

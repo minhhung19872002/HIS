@@ -5,6 +5,7 @@ using HIS.Infrastructure.Data;
 using HIS.Infrastructure.Extensions;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using HIS.Infrastructure.Security;
 
 namespace HIS.Infrastructure.Services;
 
@@ -126,7 +127,9 @@ public class HealthExchangeServiceImpl : IHealthExchangeService
 
     public async Task<ElectronicHealthRecordDto> GetEHRAsync(string patientIdNumber)
     {
-        var patient = await _context.Patients.FirstOrDefaultAsync(p => p.IdentityNumber == patientIdNumber);
+        var patient = await _context.Patients
+            .Where(p => !p.IsDeleted)
+            .FindByIdentityNumberDecryptedAsync(patientIdNumber);
         if (patient == null) return null!;
         return new ElectronicHealthRecordDto { PatientId = patientIdNumber, FullName = patient.FullName, DateOfBirth = patient.DateOfBirth ?? DateTime.MinValue, Gender = patient.Gender == 1 ? "Nam" : "Nữ", Address = patient.Address, Phone = patient.PhoneNumber };
     }

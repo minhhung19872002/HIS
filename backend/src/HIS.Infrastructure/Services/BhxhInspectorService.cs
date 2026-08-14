@@ -171,22 +171,32 @@ public class BhxhInspectorService : IBhxhInspectorService
             q = q.Where(m => m.AdmissionDate >= dto.FromDate.Value);
         if (dto.ToDate.HasValue)
             q = q.Where(m => m.AdmissionDate <= dto.ToDate.Value.AddDays(1));
-        if (!string.IsNullOrWhiteSpace(dto.Keyword))
-        {
-            var kw = dto.Keyword.Trim();
-            q = q.Where(m =>
-                m.MedicalRecordCode.Contains(kw) ||
-                (m.Patient != null && m.Patient.FullName!.Contains(kw)) ||
-                (m.Patient != null && m.Patient.InsuranceNumber != null && m.Patient.InsuranceNumber.Contains(kw)));
-        }
-        if (!string.IsNullOrWhiteSpace(dto.InsuranceNumber))
-            q = q.Where(m => m.Patient != null && m.Patient.InsuranceNumber == dto.InsuranceNumber);
         if (dto.TreatmentType.HasValue)
             q = q.Where(m => m.TreatmentType == dto.TreatmentType.Value);
 
-        var total = await q.CountAsync();
-        var items = await q
+        var candidates = await q.AsNoTracking().ToListAsync();
+        var filtered = candidates.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(dto.Keyword))
+        {
+            var kw = dto.Keyword.Trim();
+            filtered = filtered.Where(m =>
+                m.MedicalRecordCode.Contains(kw, StringComparison.OrdinalIgnoreCase)
+                || (m.Patient?.FullName?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (m.Patient?.InsuranceNumber?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+        if (!string.IsNullOrWhiteSpace(dto.InsuranceNumber))
+        {
+            filtered = filtered.Where(m => string.Equals(
+                m.Patient?.InsuranceNumber,
+                dto.InsuranceNumber.Trim(),
+                StringComparison.OrdinalIgnoreCase));
+        }
+
+        var filteredList = filtered
             .OrderByDescending(m => m.AdmissionDate)
+            .ToList();
+        var total = filteredList.Count;
+        var items = filteredList
             .Skip((dto.PageIndex - 1) * dto.PageSize)
             .Take(dto.PageSize)
             .Select(m => new InspectorRecordListItemDto
@@ -206,7 +216,7 @@ public class BhxhInspectorService : IBhxhInspectorService
                 TotalAmount = 0,
                 HasSignedXml = false
             })
-            .ToListAsync();
+            .ToList();
 
         // Log audit
         var auditLog = new BhxhInspectorAccessLog

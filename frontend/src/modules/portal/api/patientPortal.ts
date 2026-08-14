@@ -884,7 +884,7 @@ export const getAppointmentQR = (id: string) =>
 // #region Health Records
 
 export const getHealthRecord = () =>
-  apiClient.get<PatientHealthRecordDto>(`${BASE_URL}/health-records`);
+  apiClient.get<PatientHealthRecordDto>(`${BASE_URL}/health-record`);
 
 export const getVisits = (fromDate?: string, toDate?: string, page?: number, pageSize?: number) =>
   apiClient.get<PagedResultDto<VisitSummaryDto>>(`${BASE_URL}/visits`, { params: { fromDate, toDate, page, pageSize } });

@@ -4,6 +4,7 @@ using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Security;
 
 namespace HIS.Infrastructure.Services;
 
@@ -33,15 +34,15 @@ public class PatientService : IPatientService
 
     public async Task<PatientDto?> GetByIdentityNumberAsync(string identityNumber)
     {
-        var patient = await _context.Patients
-            .FirstOrDefaultAsync(p => p.IdentityNumber == identityNumber);
+        var patient = await _context.Patients.AsNoTracking()
+            .FindByIdentityNumberDecryptedAsync(identityNumber);
         return patient == null ? null : _mapper.Map<PatientDto>(patient);
     }
 
     public async Task<PatientDto?> GetByInsuranceNumberAsync(string insuranceNumber)
     {
-        var patient = await _context.Patients
-            .FirstOrDefaultAsync(p => p.InsuranceNumber == insuranceNumber);
+        var patient = await _context.Patients.AsNoTracking()
+            .FindByInsuranceNumberDecryptedAsync(insuranceNumber);
         return patient == null ? null : _mapper.Map<PatientDto>(patient);
     }
 
@@ -52,35 +53,54 @@ public class PatientService : IPatientService
         if (!string.IsNullOrEmpty(dto.PatientCode))
             query = query.Where(p => p.PatientCode.Contains(dto.PatientCode));
 
-        if (!string.IsNullOrEmpty(dto.IdentityNumber))
-            query = query.Where(p => p.IdentityNumber != null && p.IdentityNumber.Contains(dto.IdentityNumber));
+        var needsPiiSearch = !string.IsNullOrWhiteSpace(dto.IdentityNumber)
+            || !string.IsNullOrWhiteSpace(dto.PhoneNumber)
+            || !string.IsNullOrWhiteSpace(dto.InsuranceNumber)
+            || !string.IsNullOrWhiteSpace(dto.Keyword);
+        var page = Math.Max(1, dto.Page);
+        var pageSize = Math.Clamp(dto.PageSize, 1, 200);
+        List<Patient> items;
+        int totalCount;
 
-        if (!string.IsNullOrEmpty(dto.PhoneNumber))
-            query = query.Where(p => p.PhoneNumber != null && p.PhoneNumber.Contains(dto.PhoneNumber));
-
-        if (!string.IsNullOrEmpty(dto.InsuranceNumber))
-            query = query.Where(p => p.InsuranceNumber != null && p.InsuranceNumber.Contains(dto.InsuranceNumber));
-
-        if (!string.IsNullOrEmpty(dto.Keyword))
-            query = query.Where(p => p.FullName.Contains(dto.Keyword) ||
-                                    p.PatientCode.Contains(dto.Keyword) ||
-                                    (p.PhoneNumber != null && p.PhoneNumber.Contains(dto.Keyword)));
-
-        var totalCount = await query.CountAsync();
-        var items = await query
-            .OrderByDescending(p => p.CreatedAt)
-            .Skip((dto.Page - 1) * dto.PageSize)
-            .Take(dto.PageSize)
-            .ToListAsync();
+        if (needsPiiSearch)
+        {
+            var candidates = await query.AsNoTracking().ToListAsync();
+            var matched = candidates
+                .Where(p =>
+                    ContainsIgnoreCase(p.IdentityNumber, dto.IdentityNumber)
+                    && ContainsIgnoreCase(p.PhoneNumber, dto.PhoneNumber)
+                    && ContainsIgnoreCase(p.InsuranceNumber, dto.InsuranceNumber)
+                    && (string.IsNullOrWhiteSpace(dto.Keyword)
+                        || ContainsIgnoreCase(p.FullName, dto.Keyword)
+                        || ContainsIgnoreCase(p.PatientCode, dto.Keyword)
+                        || ContainsIgnoreCase(p.PhoneNumber, dto.Keyword)))
+                .OrderByDescending(p => p.CreatedAt)
+                .ToList();
+            totalCount = matched.Count;
+            items = matched.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        }
+        else
+        {
+            totalCount = await query.CountAsync();
+            items = await query.AsNoTracking()
+                .OrderByDescending(p => p.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+        }
 
         return new PagedResultDto<PatientDto>
         {
             Items = _mapper.Map<List<PatientDto>>(items),
             TotalCount = totalCount,
-            Page = dto.Page,
-            PageSize = dto.PageSize
+            Page = page,
+            PageSize = pageSize
         };
     }
+
+    private static bool ContainsIgnoreCase(string? value, string? term)
+        => string.IsNullOrWhiteSpace(term)
+            || (value?.Contains(term.Trim(), StringComparison.OrdinalIgnoreCase) ?? false);
 
     public async Task<PatientDto> CreateAsync(CreatePatientDto dto)
     {

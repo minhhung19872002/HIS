@@ -65,7 +65,11 @@ export function DataTable<T>({
             const k = rowKey(r);
             const on = !!selected && selected.has(k);
             return (
-              <tr key={k} className={on ? 'on' : ''}>
+              <tr
+                key={k}
+                className={on ? 'on' : ''}
+                data-row-clickable={onRowClick ? 'true' : undefined}
+              >
                 {selected && (
                   <td className="ck">
                     <input

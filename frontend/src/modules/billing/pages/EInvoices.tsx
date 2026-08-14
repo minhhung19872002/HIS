@@ -288,7 +288,7 @@ const IssueModal: React.FC<{
           placeholder="— Dùng mặc định server —"
         />
         <span style={{ gridColumn: '1/-1', color: 'var(--t-3)', fontSize: 11 }}>
-          MockMode: server sẽ sinh số HĐ giả (MOCK-…) nếu chưa cấu hình credential NCC thật.
+          Chưa cấu hình NCC thật, hệ thống sẽ từ chối phát hành và không sinh số hóa đơn giả.
         </span>
       </div>
     </ModalShell>
@@ -299,24 +299,10 @@ const IssueModal: React.FC<{
 
 const EInvoiceConfigPanel: React.FC = () => {
   const [cfg, setCfg]     = useState<EInvoiceConfigDto | null>(null);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     einvoice.getConfig().then(setCfg).catch(() => te('Không tải được cấu hình'));
   }, []);
-
-  const set = <K extends keyof EInvoiceConfigDto>(k: K, v: EInvoiceConfigDto[K]) =>
-    setCfg((c) => c ? { ...c, [k]: v } : c);
-
-  const save = async () => {
-    if (!cfg) return;
-    setSaving(true);
-    try {
-      const r = await einvoice.saveConfig(cfg);
-      tk(r.message);
-    } catch { te('Lưu thất bại'); }
-    finally { setSaving(false); }
-  };
 
   if (!cfg) return <div style={{ padding: 20 }}>Đang tải cấu hình…</div>;
 
@@ -327,26 +313,29 @@ const EInvoiceConfigPanel: React.FC = () => {
         <span>NCC mặc định</span>
         <AbSelect
           value={cfg.provider}
-          onChange={(v) => set('provider', v)}
+          onChange={() => undefined}
           options={PROVIDERS.map((p) => ({ value: p, label: p }))}
+          disabled
         />
         <span>Mock mode</span>
         <label>
           <input
             type="checkbox"
             checked={cfg.mockMode}
-            onChange={(e) => set('mockMode', e.target.checked)}
+            readOnly
+            disabled
           />
-          {' '}Bật mock (sinh số HĐ giả, không gọi NCC thật)
+          {' '}Chỉ đọc; production không cho phát hành mô phỏng
         </label>
         <span>Kích hoạt HĐĐT</span>
         <label>
           <input
             type="checkbox"
             checked={cfg.enabled}
-            onChange={(e) => set('enabled', e.target.checked)}
+            readOnly
+            disabled
           />
-          {' '}Cho phép phát hành HĐĐT
+          {' '}Trạng thái cấu hình triển khai hiện tại
         </label>
         <span style={{ gridColumn: '1/-1', color: 'var(--t-3)', fontSize: 11, lineHeight: 1.5 }}>
           Credential NCC (BaseUrl/Account/Password/Serial/Pattern/TaxCode) KHÔNG lưu qua UI —
@@ -357,10 +346,8 @@ const EInvoiceConfigPanel: React.FC = () => {
           (tương tự <code>EInvoice__Viettel__*</code> và <code>EInvoice__MISA__*</code>)
         </span>
       </div>
-      <div style={{ marginTop: 16 }}>
-        <Btn variant="primary" onClick={save} disabled={saving}>
-          <TermIcon name="check" size={12} /> {saving ? 'Đang lưu…' : 'Lưu cấu hình'}
-        </Btn>
+      <div style={{ marginTop: 16, color: 'var(--t-3)', fontSize: 12 }}>
+        Cấu hình chỉ đọc. Thay đổi biến môi trường EInvoice__* và triển khai lại API để áp dụng.
       </div>
     </div>
   );

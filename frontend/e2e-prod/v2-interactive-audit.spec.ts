@@ -5,8 +5,8 @@
  * v2-design-conformance.spec.ts, this spec exercises 3 core
  * interactions that should work on every list-style v2 page:
  *
- *   1. Row click          — clicking the first ab-tbl row opens a
- *                            Drawer (`.ant-drawer-content`).
+ *   1. Row click          — clicking the first clickable ab-tbl row opens a
+ *                            Drawer (`.hui-drawer` or Ant drawer).
  *   2. Search filter      — typing into `.ab-search` filters the
  *                            sibling table (row count changes).
  *   3. Status tab switch  — clicking a non-active `.ab-stab` updates
@@ -86,13 +86,16 @@ interface InteractionResult {
   searchFilters: 'pass' | 'fail' | 'n/a';
   statusTabSwitch: 'pass' | 'fail' | 'n/a';
   apiFailures: number;
+  apiFailureDetails: { url: string; status: number }[];
   pageErrors: number;
   notes: string[];
 }
 
 const REPORT: InteractionResult[] = [];
 
-test.describe.configure({ mode: 'serial' });
+// Each route is an independent audit. A failure must not skip the remaining
+// routes; CI controls worker count when production load needs throttling.
+test.describe.configure({ mode: 'default' });
 
 for (const route of ROUTES) {
   test(`v2 interactive: ${route}`, async ({ page, request }) => {
@@ -122,18 +125,23 @@ for (const route of ROUTES) {
 
     // 1. Row click → drawer
     // _v2kit DataTable binds onClick to each <td>, not <tr> — click a non-action td.
-    const tableRows = page.locator('table.ab-tbl tbody tr');
+    const tableRows = page.locator('table.ab-tbl tbody tr').filter({
+      hasNot: page.locator('td[colspan]'),
+    });
+    const clickableRows = page.locator('table.ab-tbl tbody tr[data-row-clickable="true"]');
     const rowCount = await tableRows.count();
     const hasTable = rowCount > 0;
     let rowClickOpensDrawer: InteractionResult['rowClickOpensDrawer'] = 'n/a';
-    if (hasTable) {
+    if (await clickableRows.count() > 0) {
       try {
         // Click 2nd td (skip first which is often a checkbox/code cell, both should fire)
-        const firstRowTd = tableRows.first().locator('td:not(.ck):not(.act)').first();
+        const firstRowTd = clickableRows.first().locator('td:not(.ck):not(.act)').first();
         await firstRowTd.click({ timeout: 5000, force: true });
         await page.waitForTimeout(700);
         // Antd v6 drawer: .ant-drawer is always present but .ant-drawer-open class added when shown
-        const drawerOpen = await page.locator('.ant-drawer-content:visible, .ant-drawer-open').count();
+        const drawerOpen = await page.locator(
+          '.hui-drawer:visible, .ant-drawer-content:visible, .ant-drawer-open'
+        ).count();
         if (drawerOpen > 0) {
           rowClickOpensDrawer = 'pass';
           await page.keyboard.press('Escape').catch(() => {});
@@ -174,7 +182,7 @@ for (const route of ROUTES) {
     }
 
     // 3. Status tab switch
-    const statusTabs = page.locator('.ab-stab');
+    const statusTabs = page.locator('.ab-stab button');
     const tabCount = await statusTabs.count();
     let statusTabSwitch: InteractionResult['statusTabSwitch'] = 'n/a';
     if (tabCount > 1) {
@@ -202,10 +210,18 @@ for (const route of ROUTES) {
     REPORT.push({
       route, loadOk, hasTable, rowCount,
       rowClickOpensDrawer, searchFilters, statusTabSwitch,
-      apiFailures: apiFailures.length, pageErrors: pageErrors.length, notes,
+      apiFailures: apiFailures.length,
+      apiFailureDetails: apiFailures,
+      pageErrors: pageErrors.length,
+      notes,
     });
 
-    expect(pageErrors.length, `pageerror on /v2/${route}`).toBeLessThan(5);
+    expect(loadOk, `failed to load /v2/${route}`).toBe(true);
+    expect(pageErrors, `pageerror on /v2/${route}`).toEqual([]);
+    expect(apiFailures, `API failures on /v2/${route}`).toEqual([]);
+    expect(rowClickOpensDrawer, `row click on /v2/${route}`).not.toBe('fail');
+    expect(searchFilters, `search filter on /v2/${route}`).not.toBe('fail');
+    expect(statusTabSwitch, `status tab on /v2/${route}`).not.toBe('fail');
   });
 }
 

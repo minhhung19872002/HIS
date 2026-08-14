@@ -165,8 +165,77 @@ public partial class PatientPortalServiceImpl : IPatientPortalService
         var patient = patientId == Guid.Empty
             ? await _context.Patients.OrderByDescending(x => x.CreatedAt).FirstOrDefaultAsync()
             : await _context.Patients.FirstOrDefaultAsync(x => x.Id == patientId);
-        if (patient == null) return new HealthRecordSummaryDto { PatientId = patientId, Allergies = new List<string>() };
-        return new HealthRecordSummaryDto { PatientId = patient.Id, PatientName = patient.FullName, DateOfBirth = patient.DateOfBirth ?? DateTime.MinValue, Gender = patient.Gender == 1 ? "Nam" : patient.Gender == 2 ? "Nữ" : "Khác", Allergies = new List<string>() };
+        if (patient == null)
+        {
+            return new HealthRecordSummaryDto
+            {
+                PatientId = patientId,
+                Allergies = new List<string>(),
+                ChronicConditions = new List<string>(),
+                CurrentMedications = new List<CurrentMedicationDto>(),
+                RecentVisits = new List<VisitSummaryDto>(),
+                Immunizations = new List<ImmunizationDto>(),
+                VitalsTrend = new List<VitalsTrendDto>()
+            };
+        }
+
+        var exams = await _context.Examinations
+            .AsNoTracking()
+            .Include(x => x.Room).ThenInclude(x => x!.Department)
+            .Include(x => x.Doctor)
+            .Include(x => x.MedicalRecord)
+            .Where(x => !x.IsDeleted && x.MedicalRecord!.PatientId == patient.Id)
+            .OrderByDescending(x => x.StartTime ?? x.CreatedAt)
+            .Take(30)
+            .ToListAsync();
+
+        return new HealthRecordSummaryDto
+        {
+            PatientId = patient.Id,
+            PatientCode = patient.PatientCode,
+            PatientName = patient.FullName,
+            DateOfBirth = patient.DateOfBirth ?? DateTime.MinValue,
+            Gender = patient.Gender == 1 ? "Nam" : patient.Gender == 2 ? "Nữ" : "Khác",
+            BloodType = patient.BloodType ?? string.Empty,
+            PhoneNumber = patient.PhoneNumber ?? string.Empty,
+            InsuranceNumber = patient.InsuranceNumber ?? string.Empty,
+            InsuranceExpiry = patient.InsuranceExpireDate,
+            Address = patient.Address ?? string.Empty,
+            Allergies = new List<string>(),
+            ChronicConditions = exams
+                .Select(x => x.MainDiagnosis)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Cast<string>()
+                .Take(10)
+                .ToList(),
+            CurrentMedications = new List<CurrentMedicationDto>(),
+            RecentVisits = exams.Select(x => new VisitSummaryDto
+            {
+                VisitId = x.Id,
+                VisitDate = x.StartTime ?? x.CreatedAt,
+                VisitType = x.ExaminationType == 1 ? "Khám chính" : "Tái khám",
+                Department = x.Room?.Department?.DepartmentName ?? string.Empty,
+                DoctorName = x.Doctor?.FullName ?? string.Empty,
+                Diagnosis = x.MainDiagnosis ?? string.Empty,
+                Summary = x.ConclusionNote ?? string.Empty
+            }).ToList(),
+            Immunizations = new List<ImmunizationDto>(),
+            VitalsTrend = exams
+                .Where(x => x.BloodPressureSystolic.HasValue || x.BloodPressureDiastolic.HasValue
+                    || x.Pulse.HasValue || x.Weight.HasValue)
+                .Select(x => new VitalsTrendDto
+                {
+                    Date = x.StartTime ?? x.CreatedAt,
+                    BloodPressureSystolic = x.BloodPressureSystolic,
+                    BloodPressureDiastolic = x.BloodPressureDiastolic,
+                    HeartRate = x.Pulse,
+                    Weight = x.Weight
+                })
+                .OrderBy(x => x.Date)
+                .ToList(),
+            LastUpdated = DateTime.UtcNow
+        };
     }
 
     public async Task<List<VisitSummaryDto>> GetVisitHistoryAsync(Guid patientId, int limit = 20)

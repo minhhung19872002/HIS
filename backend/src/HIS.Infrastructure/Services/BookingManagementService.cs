@@ -238,23 +238,43 @@ public class BookingManagementService : IBookingManagementService
             query = query.Where(a => a.DoctorId == search.DoctorId);
         if (search.Status.HasValue)
             query = query.Where(a => a.Status == search.Status);
+        List<Appointment> items;
+        int total;
         if (!string.IsNullOrWhiteSpace(search.Keyword))
         {
             var kw = search.Keyword.Trim();
-            query = query.Where(a =>
-                a.AppointmentCode.Contains(kw)
-                || a.Patient.FullName.Contains(kw)
-                || (a.Patient.PhoneNumber != null && a.Patient.PhoneNumber.Contains(kw)));
+
+            // Patient.PhoneNumber dùng randomized Data Protection encryption. Đẩy
+            // Contains xuống SQL khiến EF mã hóa cả tham số/escape của LIKE và SQL
+            // Server báo error 506. Materialize tập ứng viên đã được giới hạn bởi
+            // ngày/khoa/bác sĩ/trạng thái rồi mới tìm trên giá trị đã giải mã.
+            var candidates = await query.AsNoTracking().ToListAsync();
+            var matched = candidates
+                .Where(a =>
+                    a.AppointmentCode.Contains(kw, StringComparison.OrdinalIgnoreCase)
+                    || (a.Patient?.FullName?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (a.Patient?.PhoneNumber?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false))
+                .OrderByDescending(a => a.AppointmentDate)
+                .ThenBy(a => a.AppointmentTime)
+                .ToList();
+
+            total = matched.Count;
+            items = matched
+                .Skip(search.PageIndex * search.PageSize)
+                .Take(search.PageSize)
+                .ToList();
         }
-
-        var total = await query.CountAsync();
-
-        var items = await query
-            .OrderByDescending(a => a.AppointmentDate)
-            .ThenBy(a => a.AppointmentTime)
-            .Skip(search.PageIndex * search.PageSize)
-            .Take(search.PageSize)
-            .ToListAsync();
+        else
+        {
+            total = await query.CountAsync();
+            items = await query
+                .AsNoTracking()
+                .OrderByDescending(a => a.AppointmentDate)
+                .ThenBy(a => a.AppointmentTime)
+                .Skip(search.PageIndex * search.PageSize)
+                .Take(search.PageSize)
+                .ToListAsync();
+        }
 
         var typeNames = new Dictionary<int, string>
         {

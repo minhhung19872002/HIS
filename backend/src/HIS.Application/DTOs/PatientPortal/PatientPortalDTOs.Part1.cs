@@ -183,10 +183,15 @@ namespace HIS.Application.DTOs.PatientPortal
     public class HealthRecordSummaryDto
     {
         public Guid PatientId { get; set; }
+        public string PatientCode { get; set; }
         public string PatientName { get; set; }
         public DateTime DateOfBirth { get; set; }
         public string Gender { get; set; }
         public string BloodType { get; set; }
+        public string PhoneNumber { get; set; }
+        public string InsuranceNumber { get; set; }
+        public DateTime? InsuranceExpiry { get; set; }
+        public string Address { get; set; }
 
         // Allergies
         public List<string> Allergies { get; set; }

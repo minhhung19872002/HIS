@@ -238,24 +238,45 @@ public partial class ExaminationCompleteService
             query = query.Where(a => a.DepartmentId == search.DepartmentId.Value);
         if (search.DoctorId.HasValue)
             query = query.Where(a => a.DoctorId == search.DoctorId.Value);
-        if (!string.IsNullOrWhiteSpace(search.Keyword))
-        {
-            var kw = search.Keyword.Trim().ToLower();
-            query = query.Where(a => a.Patient.FullName.ToLower().Contains(kw)
-                || a.Patient.PatientCode.ToLower().Contains(kw)
-                || a.AppointmentCode.ToLower().Contains(kw)
-                || (a.Patient.PhoneNumber != null && a.Patient.PhoneNumber.Contains(kw)));
-        }
-
-        var total = await query.CountAsync();
         var page = Math.Max(1, search.Page);
         var pageSize = Math.Clamp(search.PageSize, 1, 200);
-        var items = await query
-            .OrderByDescending(a => a.AppointmentDate)
-            .ThenBy(a => a.AppointmentTime)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
+        List<Appointment> items;
+        int total;
+        if (!string.IsNullOrWhiteSpace(search.Keyword))
+        {
+            var kw = search.Keyword.Trim();
+
+            // Patient.PhoneNumber is randomized encrypted PII. SQL LIKE over that
+            // property encrypts the LIKE escape parameter and raises SQL error 506.
+            // Apply safe structural filters in SQL, then search decrypted values.
+            var candidates = await query.AsNoTracking().ToListAsync();
+            var matched = candidates
+                .Where(a =>
+                    (a.Patient?.FullName?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (a.Patient?.PatientCode?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || a.AppointmentCode.Contains(kw, StringComparison.OrdinalIgnoreCase)
+                    || (a.Patient?.PhoneNumber?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false))
+                .OrderByDescending(a => a.AppointmentDate)
+                .ThenBy(a => a.AppointmentTime)
+                .ToList();
+
+            total = matched.Count;
+            items = matched
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+        }
+        else
+        {
+            total = await query.CountAsync();
+            items = await query
+                .AsNoTracking()
+                .OrderByDescending(a => a.AppointmentDate)
+                .ThenBy(a => a.AppointmentTime)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+        }
 
         var today = DateTime.Today;
         return new PagedResultDto<AppointmentListDto>
