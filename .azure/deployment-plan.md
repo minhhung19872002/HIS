@@ -1,6 +1,6 @@
 # HIS Production Deployment Plan
 
-**Status:** Single-origin image ready — awaiting user approval to push
+**Status:** Deployed and verified — revision `his-api--0000037`, image `…:20260814-024524-c04448c`
 **Last Updated:** 2026-08-14 (Asia/Ho_Chi_Minh)
 
 ## 1. Objective
@@ -80,6 +80,14 @@ and unknown `/api` routes answered 401 instead of 404. Both fixed with
 4. Vercel keeps deploying in parallel — it stays the fallback until the Azure origin has
    run clean for a while. Decide later whether to point a custom domain at Azure and
    retire the Vercel alias.
+
+**Executed 2026-08-14.** Commit `c04448cf` → workflow run 31764608418 green on every step
+including the two new smoke checks → revision `his-api--0000037`. Verified on the Azure
+origin: `/`, `/v2/reception` and `/health-exchange` return the shell; `/health` returns
+JSON; an unknown `/api` route and `/swagger/x` return 404; pharmacy-sales 200; roster 200
+and `month=13` → 400; `schema-drift` missingCount 0; SignalR negotiate→connect 8/8.
+Playwright on that origin: login, three v2 pages and a deep-link hard reload with zero
+page errors, zero cross-origin API calls and zero 5xx.
 
 ## 7. Previous milestone — NangCap27 fix batch (verified 2026-08-14)
 
