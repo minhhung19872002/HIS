@@ -6,16 +6,17 @@
 
 | Skill | Purpose | Choose when the request involves |
 |---|---|---|
-| `his-ops-deploy` | Cloud Run (manual) + Vercel (auto) + verify | prod deploy |
+| `his-ops-deploy` | Azure Container Apps (auto via GitHub Actions) + verify + rollback | prod deploy |
 | `his-doc-feature` | the `docs/features/<feature>/` doc set | write module documentation |
 
 ## Prompt → skill chain (OPS/DOC) + PATH
 
 | When the developer prompts | Skills | Files/paths touched |
 |---|---|---|
-| "deploy [X]" | `his-ops-deploy` | `cloudbuild.yaml`, `gcloud`, `/health/schema-drift` |
+| "deploy [X]" | `his-ops-deploy` | `.github/workflows/deploy-backend.yml`, `backend/src/HIS.API/Dockerfile`, `/health/schema-drift` |
 | "write documentation for [feature]" | `his-doc-feature` | `docs/features/<feature>/` |
 
 ## Deploy reminder (critical gotcha)
-- Vercel **auto-deploys** the FE on push; Cloud Run does **NOT** auto-deploy — the backend must be deployed manually with `gcloud builds submit` + `gcloud run services update`.
-- The symptom "FE live but API 404" = forgot to deploy the backend.
+- **GCP/Cloud Run is dead** (migrated to Azure 2026-08-02) — never run a `gcloud`/`cloudbuild.yaml` recipe.
+- A push to `main` touching `backend/**`, `frontend/**` or `.dockerignore` auto-deploys the ONE image that serves both API and SPA; verify with `gh run list --workflow=deploy-backend.yml`.
+- Details (replica pin for SignalR · wwwroot must stay private · rollback · reading a prod 500) = `his-ops-deploy`, not repeated here.

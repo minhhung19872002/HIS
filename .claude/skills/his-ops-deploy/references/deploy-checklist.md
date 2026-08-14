@@ -1,24 +1,29 @@
-# HIS Deploy Checklist
+# HIS Deploy Checklist (Azure Container Apps)
 
-## Before deploying the backend
+`API=https://his-api.thankfulcoast-bd0486a9.southeastasia.azurecontainerapps.io`
+
+## Before pushing
 - [ ] `cd backend && dotnet build HIS.sln --nologo` → 0 errors
-- [ ] If there's a new table: the idempotent SQL script `backend/src/HIS.Infrastructure/Data/Scripts/NN_*.sql` is added (incrementing number, embedded resource auto-picked-up)
-- [ ] Commit + push the BE code to GitHub (Vercel auto-builds the FE; the BE doesn't yet)
-- [ ] Confirm the latest project ID / URL in CLAUDE.md (the latest work-log)
+      (output locked by a running local HIS → build to a separate `-o` folder)
+- [ ] `cd frontend && npm run build` → exit 0 (`tsc -b && vite build`; a TS error fails BOTH the
+      image build and the Vercel build)
+- [ ] New table → idempotent `backend/src/HIS.Infrastructure/Data/Scripts/NN_*.sql`
+      (number = `ls Data/Scripts/` max + 1, embedded resource is auto-picked-up)
+- [ ] Confirm the live values in `CLAUDE.md` §Production status
 
-## Deploy the backend (Cloud Run)
+## Deploy
+- [ ] Push to `main` → `.github/workflows/deploy-backend.yml` fires on `backend/**`,
+      `frontend/**`, `.dockerignore` or the workflow file
+- [ ] `gh run list --workflow=deploy-backend.yml -L 3` → the run is green
+      (test gate → image build → `az containerapp update` → login + SPA + fallback smoke)
+- [ ] `e2e-prod-smoke.yml` chains off it automatically → also green
+
+Manual fallback:
 ```bash
-IMG="asia-southeast1-docker.pkg.dev/project-4d4a3f8e-d582-4536-97f/his/his-api:$(date +%Y%m%d-%H%M%S)"
-gcloud builds submit --config cloudbuild.yaml --substitutions=_IMAGE=$IMG --project=project-4d4a3f8e-d582-4536-97f
-gcloud run services update his-api --image=$IMG --region=asia-southeast1 \
-  --project=project-4d4a3f8e-d582-4536-97f --update-env-vars=DEPLOY_AT=$(date +%s)
+TAG="ghcr.io/minhhung19872002/his-api:$(date +%Y%m%d-%H%M%S)-manual"
+docker build -f backend/src/HIS.API/Dockerfile -t "$TAG" .   # context = REPO ROOT
+docker push "$TAG" && az containerapp update -n his-api -g rg-his --image "$TAG"
 ```
-- [ ] Build SUCCESS (poll ≥60s apart, don't hammer → avoid 429)
-- [ ] Roll out 100% traffic to the new revision (`gcloud run services describe his-api --region=asia-southeast1`)
-
-## Frontend (Vercel)
-- [ ] `cd frontend && npm run build` locally, 0 errors (tsc -b + vite) BEFORE pushing (the Vercel build = npm run build, a TS error fails the deploy)
-- [ ] Push → Vercel auto-deploy → check the bundle hash changed at https://his-psi.vercel.app
 
 ## Verify prod
 ```bash
@@ -26,23 +31,36 @@ TOKEN=$(curl -s -X POST $API/api/auth/login -H "Content-Type: application/json" 
   -d '{"username":"admin","password":"Admin@123"}' | python -c "import sys,json;print(json.load(sys.stdin)['data']['token'])")
 ```
 - [ ] `GET /health/schema-drift` → `missingCount: 0`
-- [ ] Smoke the new endpoint → 200 (not 404 = BE deployed; not 500 = migration OK)
-- [ ] (if a new env is needed) `gcloud run services update his-api --update-env-vars="KEY=VALUE" ...`
+- [ ] New endpoint → 200 (404 = not deployed · 500 = migration/DI problem)
+- [ ] `curl -s $API/ | grep 'id="root"'` → the SPA shell is served from the image
+- [ ] `curl -o /dev/null -w '%{http_code}' $API/api/no-such-route` → **404**, never 200
+- [ ] SignalR still healthy — negotiate then connect must both succeed:
+      ```bash
+      CID=$(curl -s -X POST "$API/hubs/notifications/negotiate?negotiateVersion=1" \
+        -H "Authorization: Bearer $TOKEN" | python -c "import sys,json;print(json.load(sys.stdin)['connectionToken'])")
+      curl -s -o /dev/null -w '%{http_code}\n' -m 5 "$API/hubs/notifications?id=$CID" \
+        -H "Authorization: Bearer $TOKEN" -H "Accept: text/event-stream"   # 200, not 404
+      ```
+      A 404 here means the app scaled past 1 replica — see the SignalR pitfall in SKILL.md.
+- [ ] Revision actually live:
+      `az containerapp show -n his-api -g rg-his --query "properties.latestRevisionName" -o tsv`
+- [ ] New env var needed:
+      `az containerapp update -n his-api -g rg-his --set-env-vars "KEY=VALUE"`
+      (a secret → `--secrets name=value` then reference it as `secretref:name`)
 
-## Rollback (if broken after deploy)
+## Rollback
 ```bash
-# List revisions
-gcloud run revisions list --service=his-api --region=asia-southeast1 --project=project-4d4a3f8e-d582-4536-97f
-# Point traffic to the previous revision
-gcloud run services update-traffic his-api --to-revisions=<prev-rev>=100 \
-  --region=asia-southeast1 --project=project-4d4a3f8e-d582-4536-97f
+az containerapp revision list -n his-api -g rg-his \
+  --query "[].{name:name,created:properties.createdTime,img:properties.template.containers[0].image}" -o table
+az containerapp update -n his-api -g rg-his --image <previous-image-tag>
 ```
-- The DB scripts are idempotent → rollback does NOT need a schema undo (keep the tables, don't drop).
+- The app is in `Single` revision mode → the update itself shifts 100% of traffic.
+- DB scripts are idempotent → no schema undo on rollback (keep the tables, don't drop).
+- Frontend on Vercel → promote the previous Ready deployment back to the production alias.
 
 ## Reading a prod 500
 ```bash
-gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="his-api" AND httpRequest.status>=500' \
-  --freshness=40m --format="value(timestamp,httpRequest.requestUrl,httpRequest.status)" \
-  --project=project-4d4a3f8e-d582-4536-97f
-# the stack trace is in a nearby textPayload entry → grep "xception|FOREIGN|SqlExcept|column"
+az containerapp logs show -n his-api -g rg-his --type console --tail 200
+az containerapp logs show -n his-api -g rg-his --type system  --tail 50    # platform events
 ```
+Grep the stack trace for `xception|FOREIGN|SqlExcept|column|collation`.

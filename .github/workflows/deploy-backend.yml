@@ -1,16 +1,22 @@
 name: Deploy backend to Azure Container Apps
 
-# Tự động build + deploy backend lên Azure Container Apps khi push code BE vào main.
+# Tự động build + deploy lên Azure Container Apps khi push vào main.
 # Xác thực Azure bằng OIDC federated credential (keyless — không có client secret).
 # Image đẩy lên GitHub Container Registry (ghcr.io) bằng GHCR_TOKEN secret.
-# FE (Vercel) đã auto-deploy riêng; workflow này chỉ lo backend.
 # (Migrated off GCP Cloud Run 2026-08-02 — GCP billing delinquent.)
+#
+# Từ 2026-08-14 image chứa CẢ SPA (Vite build → /app/clientapp) để FE và API cùng
+# origin: hết CORS, cookie first-party, SignalR chạy URL tương đối. Vì vậy build
+# context là GỐC REPO và workflow chạy cả khi chỉ đổi frontend/**.
+# Vercel vẫn auto-deploy song song, chưa gỡ.
 
 on:
   push:
     branches: [main]
     paths:
       - 'backend/**'
+      - 'frontend/**'
+      - '.dockerignore'
       - '.github/workflows/deploy-backend.yml'
   workflow_dispatch: {}
 
@@ -52,8 +58,9 @@ jobs:
       - name: Login to ghcr.io
         run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u minhhung19872002 --password-stdin
 
+      # Context = gốc repo (không phải backend/) vì stage 1 build luôn frontend/.
       - name: Build image
-        run: docker build -f backend/src/HIS.API/Dockerfile -t "${{ steps.img.outputs.tag }}" backend
+        run: docker build -f backend/src/HIS.API/Dockerfile -t "${{ steps.img.outputs.tag }}" .
 
       - name: Push image
         run: docker push "${{ steps.img.outputs.tag }}"
@@ -83,3 +90,15 @@ jobs:
             echo "attempt $i: HTTP $CODE — retrying in 20s"; sleep 20
           done
           echo "Smoke test failed"; exit 1
+
+      # SPA đi kèm trong image: shell phải render được, và route server phải vẫn 404
+      # thật (không được trả 200 text/html — dấu hiệu fallback nuốt nhầm /api).
+      - name: Smoke test (SPA shell + fallback guard)
+        run: |
+          BASE="https://his-api.thankfulcoast-bd0486a9.southeastasia.azurecontainerapps.io"
+          SHELL_BODY=$(curl -sS -m 60 "$BASE/")
+          echo "$SHELL_BODY" | grep -q 'id="root"' || { echo "SPA shell missing"; exit 1; }
+          DEEP=$(curl -s -o /dev/null -w "%{http_code}" -m 60 "$BASE/v2/reception")
+          [ "$DEEP" = "200" ] || { echo "deep link returned $DEEP"; exit 1; }
+          UNKNOWN=$(curl -s -o /dev/null -w "%{http_code}" -m 60 "$BASE/api/definitely-not-a-route")
+          [ "$UNKNOWN" = "404" ] || { echo "unknown API route returned $UNKNOWN"; exit 1; }

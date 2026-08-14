@@ -1,69 +1,106 @@
 # HIS Production Deployment Plan
 
-**Status:** Ready for Validation
+**Status:** Single-origin image ready — awaiting user approval to push
 **Last Updated:** 2026-08-14 (Asia/Ho_Chi_Minh)
 
 ## 1. Objective
 
-Deploy verified NangCap27 fixes to the existing HIS production frontend and backend, then run the complete production regression matrix.
+Serve the Vite SPA from the same Azure Container App that serves the API, so the
+frontend and the API share one origin. Previous milestone (NangCap27 fix batch) is
+deployed and verified — see section 7.
 
 ## 2. Existing Environment
 
 - Mode: MODIFY existing production deployment
-- Frontend: Vercel Git integration, production alias `https://his-psi.vercel.app`
 - Backend: Azure Container Apps `his-api`, FQDN `his-api.thankfulcoast-bd0486a9.southeastasia.azurecontainerapps.io`
+- Frontend today: Vercel Git integration, production alias `https://his-psi.vercel.app` (stays live)
 - Azure subscription: `Azure subscription 1` (`c8f2432f-6ab7-48df-be40-64ce06bb7ba2`)
-- Tenant: `12cecf20-e0d8-49b5-8961-50850c8ef336`
-- Resource group / region: `rg-his` / Southeast Asia
-- Current backend baseline: revision `his-api--0000029`, image `ghcr.io/minhhung19872002/his-api:20260813-195917-3af1eb3`, provisioning `Succeeded`
+- Resource group / region: `rg-his` / Southeast Asia · environment `cae-his`
+- Current baseline: revision `his-api--0000036`, image `…:20260814-013026-269ad9c`, `Succeeded`
 
-## 3. Components and Deployment Recipe
+## 3. Why single-origin
 
-- Frontend recipe: push `main` to `minhhung19872002/HIS`; the existing Vercel Git integration builds and promotes the frontend.
-- Backend recipe: push `main`; `.github/workflows/deploy-backend.yml` runs the .NET test gate, builds/pushes a commit-tagged GHCR image, updates the existing Container App, and smoke-tests login.
-- Post-deploy recipe: `.github/workflows/e2e-prod-smoke.yml` runs automatically after the Azure workflow succeeds and targets the Azure API plus the Vercel production alias.
-- Infrastructure changes: none. No resource, identity, RBAC, network, database schema, SKU, or quota changes are required.
-- Quota/capacity validation: not applicable because the deployment only replaces application revisions in existing services.
+`/hubs/notifications` was returning HTTP 404 for most connections in production.
+Measured on 2026-08-14: negotiate-then-connect succeeded 3 times out of 8. Cause:
+the app ran **2 replicas** with no ingress session affinity and no SignalR backplane,
+so the negotiate and the transport upgrade landed on different replicas.
 
-## 4. Pre-deployment Gates
+`maxReplicas` is now pinned to **1** (revision `his-api--0000036`) → re-measured **8/8
+connects HTTP 200**. That is the immediate fix and it is independent of where the
+frontend is hosted.
 
-- [x] Full requirement matrix established: 779 rows across 25 functional groups.
-- [x] Production defects reproduced: doctor roster API 404; employee menu reached patient self-service APIs with a staff token.
-- [x] Relevant fixes covered by backend and frontend regression tests.
-- [x] Frontend production build passes (`npm run build`, 2026-08-14).
-- [x] Frontend unit tests pass (40/40, 2026-08-14).
-- [x] Backend tests pass (20 passed, 1 DICOM-dependent test skipped, 2026-08-14).
-- [x] Deployment configuration and current Azure target inspected.
-- [x] User explicitly requested push, production deploy, and post-deploy retest.
+Same-origin hosting is the follow-up that makes the situation structurally better:
+cookie-based affinity becomes first-party (so scaling out later is actually viable),
+CORS disappears, and the `#422` httpOnly refresh-token cookie becomes usable —
+`frontend/src/config/api.config.ts` already documents that it only works when the FE
+and the API share a site.
 
-## 5. Deployment Steps
+## 4. Change set
 
-1. Commit only the verified application/test/workflow changes; preserve the user-provided requirement document as an untracked source artifact.
-2. Push the commit to `origin/main`.
-3. Monitor the backend Azure workflow and frontend Vercel deployment to successful completion.
-4. Confirm the Container App revision uses the image tagged with the new commit SHA and reports `Succeeded`.
-5. Run production health/login, API business regression, all-route UI scan, representative CRUD, and the two repaired portal flows.
-6. If a regression is found, fix it and repeat this sequence.
+| File | Change |
+|---|---|
+| `backend/src/HIS.API/Dockerfile` | Stage 1 builds the SPA with Node 22; runtime stage copies `dist` → `/app/clientapp`. Build context moves to the repo root. `VITE_API_URL=/api` + `VITE_REALTIME_URL=/` override the Vercel-era absolute URLs in `.env.production`. |
+| `backend/src/HIS.API/Program.cs` | Serves `clientapp/` through an explicit `PhysicalFileProvider` (hard cache for `/assets`, `no-cache` for the shell) and adds an anonymous SPA fallback that still 404s `/api`, `/hubs`, `/health`, `/swagger`, `/assets`. Skipped entirely when `clientapp/` is absent, so `dotnet run` and the Vercel deployment are unaffected. |
+| `.dockerignore` (new, repo root) | Keeps `node_modules`, `.git`, `docs` out of the now-root build context. |
+| `.github/workflows/deploy-backend.yml` | Triggers on `frontend/**` too; build context `.`; extra smoke step asserting the SPA shell, a deep link, and that an unknown `/api` route is still 404. |
+| `.claude/skills/his-ops-deploy/**`, `.claude/skill-routes/ops-doc.md` | Rewritten from the dead GCP/Cloud Run recipe to Azure + the replica pin + the wwwroot warning. |
 
-## 6. Post-deployment Verification
+**`wwwroot` is deliberately not served.** It holds the 117 MB ONNX models, BHXH XSDs
+and patient photos (`wwwroot/photos/{patientId}`); a bare `UseStaticFiles()` would
+publish all of it. Only `clientapp/` is exposed.
 
-- Backend health and login return HTTP 200.
-- `GET /api/medicalhr/staff/{loginUserId}/roster?year=2026&month=8` returns HTTP 200 and an array.
-- Invalid roster query parameters (for example `month=13`) return HTTP 400, never HTTP 500.
-- `/v2/doctor-portal` → `Lịch trực` loads without HTTP 4xx/5xx or page errors.
-- Employee portal navigation resolves to `/v2/patient-portal-staff`, not the patient self-service route.
-- Existing 106-route conformance scan, 23 representative CRUD interactions, critical API smoke, and NangCap27 print regression remain green.
+## 5. Pre-deployment gates (all run 2026-08-14)
 
-## 7. Validation Proof
+- [x] `dotnet build` (Release, isolated output) → 0 errors.
+- [x] `docker build` of the combined image → success, 679 MB, 481 asset files in `clientapp/`.
+- [x] Bundle contains **no** absolute `thankfulcoast`/`vercel.app` URL; the compiled
+      constant is `normalizeUrl("/api")` → the env override beat `.env.production`.
+- [x] Image run against an **isolated** `HIS_smoketest` database (never the real `HIS`):
+      `/` · `/v2/reception` · `/health-exchange` → 200 HTML with `id="root"`;
+      `/health` → JSON; `/api/no-such-route` · `/swagger/x` → 404;
+      `/health/schema-drift` · `/hubs/notifications` → 401 (auth still enforced);
+      `/assets/<hash>.js` → `immutable`, shell → `no-cache`.
+- [x] Login through the bundled SPA + SignalR negotiate→connect → 200 on that image.
+- [x] Playwright against the local image: login, `/v2/reception`, hard reload on the
+      deep link — 0 page errors, **0 cross-origin API calls**.
+- [x] `bash .claude/lint.sh` → LINT OK.
 
-- Read-only Azure discovery succeeded with `az account show` and `az containerapp show` on 2026-08-14.
-- Existing target is healthy: provisioning state `Succeeded`; current revision `his-api--0000029`.
-- Repository workflow targets `rg-his/his-api`, uses OIDC, tests before deploy, and performs a production login smoke check.
-- Local code gates: backend 20/20 runnable tests passed; frontend 40/40 unit tests passed; TypeScript + Vite production build passed.
-- Repository-wide lint is not a release gate and currently has 188 pre-existing errors outside these changes. Changed production source files pass targeted lint; no new lint error was introduced.
+Two real defects were caught by running the image and fixed before any deploy:
+the global `FallbackPolicy` made the SPA shell answer **401** (login page unreachable),
+and unknown `/api` routes answered 401 instead of 404. Both fixed with
+`MapFallback(...).AllowAnonymous()` plus the explicit prefix guard.
 
-## 8. Rollback
+## 6. Deployment steps
 
-- Frontend: promote the previous Ready Vercel deployment/commit back to the production alias.
-- Backend: activate the previous healthy revision `his-api--0000029` (or update `his-api` back to image tag `20260813-195917-3af1eb3`).
-- Data rollback: none required; this change adds a read-only endpoint and corrects navigation only.
+1. Push to `origin/main` → `deploy-backend.yml` runs the test gate, builds the combined
+   image, updates the Container App, and smoke-tests login + SPA shell + fallback guard.
+2. Confirm the revision image tag matches the pushed commit and reports `Succeeded`.
+3. Verify on the Azure origin: login, a v2 deep link with a hard reload, SignalR
+   negotiate→connect, `GET /health/schema-drift` = 0 missing.
+4. Vercel keeps deploying in parallel — it stays the fallback until the Azure origin has
+   run clean for a while. Decide later whether to point a custom domain at Azure and
+   retire the Vercel alias.
+
+## 7. Previous milestone — NangCap27 fix batch (verified 2026-08-14)
+
+Deployed as `his-api--0000035` / `269ad9c` and verified on production: pharmacy sales
+200 (was 500), roster 200, `month=13` → 400 (was 500), schema-drift `missingCount` 0,
+and the five repaired v2 routes render with no page error and no 5xx.
+
+## 8. Known trade-offs
+
+- **Cold start.** `minReplicas: 0` — with the SPA in the same image, the first request
+  after idle now delays page load, not just the API. Raising it to 1 costs money
+  (the ACA free grant does not cover an always-on replica).
+- **No CDN** in front of the SPA on the Azure origin; assets are served by Kestrel with
+  a one-year immutable cache header.
+- **Frontend deploys are slower** — a frontend-only change now rebuilds the image
+  (~4 minutes) instead of Vercel's incremental build.
+- **`maxReplicas` must stay 1** until SignalR gets a backplane or sticky sessions.
+
+## 9. Rollback
+
+- Backend + SPA: `az containerapp update -n his-api -g rg-his --image <previous tag>`
+  (previous known-good `…:20260814-013026-269ad9c`, revision `his-api--0000036`).
+- Frontend: Vercel is untouched and still serves `https://his-psi.vercel.app`.
+- No data rollback — the change adds no schema and no migration.

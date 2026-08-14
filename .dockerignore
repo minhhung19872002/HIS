@@ -1,0 +1,21 @@
+# Build context is the repository root (see backend/src/HIS.API/Dockerfile).
+# Keep the context small: node_modules alone is larger than the whole image.
+**/bin/
+**/obj/
+**/TestResults/
+artifacts/
+.vs/
+.git/
+.github/
+.claude/
+docs/
+scripts/
+**/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+frontend/cypress/
+frontend/e2e-prod/
+frontend/.vercel/
+**/.env.local
+**/.env*.local

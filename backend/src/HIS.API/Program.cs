@@ -15,6 +15,7 @@ using HIS.API.Hubs;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.FileProviders;       // single-origin deploy: serve the SPA from clientapp/
 using Microsoft.Extensions.Caching.Memory;      // AUTHZ-2 #368: cache SecurityStamp
 using Microsoft.EntityFrameworkCore;            // AUTHZ-2 #368: DB lookup trong OnTokenValidated
 using System.Security.Claims;                   // AUTHZ-2 #368: ClaimTypes.NameIdentifier
@@ -383,6 +384,36 @@ if (!app.Environment.IsDevelopment())
     }));
 }
 
+// Single-origin deploy: the Vite build ships inside the image at clientapp/ and is
+// served by this app, so FE and API share one origin (no CORS, first-party cookies,
+// SignalR on a relative URL). Absent (plain `dotnet run`, FE on Vercel) → skipped
+// entirely, so nothing changes for the Vercel deployment.
+//
+// ⚠ Deliberately NOT wwwroot: that folder holds the ONNX models, BHXH XSDs and
+// patient photos (`wwwroot/photos/{patientId}`) — serving it publicly would leak PII.
+var clientAppRoot = Path.Combine(AppContext.BaseDirectory, "clientapp");
+var clientAppIndex = Path.Combine(clientAppRoot, "index.html");
+var serveClientApp = File.Exists(clientAppIndex);
+if (serveClientApp)
+{
+    var clientAppFiles = new PhysicalFileProvider(clientAppRoot);
+    app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = clientAppFiles });
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = clientAppFiles,
+        OnPrepareResponse = ctx =>
+        {
+            // Vite emits content-hashed names under assets/ → safe to cache hard.
+            // Everything else (index.html above all) must revalidate, otherwise a
+            // deploy leaves browsers on a stale bundle pointing at deleted chunks.
+            var isHashedAsset = ctx.Context.Request.Path.StartsWithSegments("/assets");
+            ctx.Context.Response.Headers.CacheControl = isHashedAsset
+                ? "public, max-age=31536000, immutable"
+                : "no-cache";
+        },
+    });
+}
+
 // Request metrics middleware (before auth so it captures all requests)
 app.UseMiddleware<RequestMetricsMiddleware>();
 
@@ -397,6 +428,38 @@ app.UseMiddleware<ProductionReadFallbackMiddleware>();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHub<RisChatHub>("/hubs/ris-chat");
+
+if (serveClientApp)
+{
+    // Client-side routing: any unmatched GET renders the SPA shell. Server prefixes
+    // keep returning a real 404 — an unknown /api/... must NOT answer 200 text/html,
+    // and a missing hashed chunk under /assets must fail loudly instead of being
+    // served an HTML page the browser would reject on MIME type.
+    // StartsWithSegments is segment-aware, so the SPA routes /health-exchange,
+    // /health-checkup and /health-education still fall through to the shell.
+    //
+    // AllowAnonymous is REQUIRED: the global FallbackPolicy (B3-global, 2026-06-09)
+    // demands an authenticated user on every endpoint, and this endpoint matches "/"
+    // itself — without it the login page answers 401 and nobody can ever sign in.
+    // Safe because this delegate only ever returns the public SPA shell or a 404.
+    app.MapFallback(async context =>
+    {
+        var path = context.Request.Path;
+        if (path.StartsWithSegments("/api")
+            || path.StartsWithSegments("/hubs")
+            || path.StartsWithSegments("/health")
+            || path.StartsWithSegments("/swagger")
+            || path.StartsWithSegments("/assets"))
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        context.Response.ContentType = "text/html; charset=utf-8";
+        context.Response.Headers.CacheControl = "no-cache";
+        await context.Response.SendFileAsync(clientAppIndex);
+    }).AllowAnonymous();
+}
 
 app.Run();
 
