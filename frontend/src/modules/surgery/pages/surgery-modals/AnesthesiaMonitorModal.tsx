@@ -285,44 +285,67 @@ export const AnesthesiaMonitorModal: React.FC<AnesthesiaMonitorModalProps> = ({
           </Section>
 
           <Section title={`Thuốc gây mê (${drugs.length})`}>
-            {drugs.map((d, i) => (
-              <div key={i} style={{ display: 'flex', gap: 'var(--space-6)', marginBottom: 'var(--space-6)', alignItems: 'center' }}>
-                <input
-                  type="time"
-                  className="hui-inp"
-                  style={{ width: 80, height: 28, fontSize: 'var(--fs-xs)' }}
-                  value={d.givenTime}
-                  onChange={(e) => setDrugField(i, 'givenTime', e.target.value)}
-                />
-                <input
-                  className="hui-inp"
-                  style={{ flex: 2, height: 28, fontSize: 'var(--fs-xs)' }}
-                  value={d.drugName}
-                  onChange={(e) => setDrugField(i, 'drugName', e.target.value)}
-                  placeholder="Tên thuốc…"
-                />
-                <input
-                  className="hui-inp"
-                  style={{ flex: 1, height: 28, fontSize: 'var(--fs-xs)' }}
-                  value={d.dose ?? ''}
-                  onChange={(e) => setDrugField(i, 'dose', e.target.value)}
-                  placeholder="Liều…"
-                />
-                <input
-                  className="hui-inp"
-                  style={{ width: 80, height: 28, fontSize: 'var(--fs-xs)' }}
-                  value={d.route ?? ''}
-                  onChange={(e) => setDrugField(i, 'route', e.target.value)}
-                  placeholder="Đường dùng"
-                />
-                <RowActions actions={[
-                  { key: 'del', icon: 'trash', label: 'Xóa thuốc', tone: 'danger',
-                    confirm: `Xóa thuốc ${d.drugName || 'này'}?`,
-                    onClick: () => removeDrug(i) },
-                ]} />
-              </div>
-            ))}
-            <Btn variant="ghost" size="sm" onClick={addDrug}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5 }}>
+                <thead>
+                  <tr style={{ background: 'var(--d-1)' }}>
+                    {['Giờ', 'Tên thuốc', 'Liều', 'Đường dùng', ''].map((h, i) => (
+                      <th key={i} style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 600, color: 'var(--t-2)', whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {drugs.map((d, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid var(--line)' }}>
+                      <td style={{ padding: '3px 4px' }}>
+                        <input
+                          type="time"
+                          className="hui-inp"
+                          style={{ width: 80, height: 28, fontSize: 'var(--fs-xs)' }}
+                          value={d.givenTime}
+                          onChange={(e) => setDrugField(i, 'givenTime', e.target.value)}
+                        />
+                      </td>
+                      <td style={{ padding: '3px 4px' }}>
+                        <input
+                          className="hui-inp"
+                          style={{ width: '100%', minWidth: 120, height: 28, fontSize: 'var(--fs-xs)' }}
+                          value={d.drugName}
+                          onChange={(e) => setDrugField(i, 'drugName', e.target.value)}
+                          placeholder="Tên thuốc…"
+                        />
+                      </td>
+                      <td style={{ padding: '3px 4px' }}>
+                        <input
+                          className="hui-inp"
+                          style={{ width: 90, height: 28, fontSize: 'var(--fs-xs)' }}
+                          value={d.dose ?? ''}
+                          onChange={(e) => setDrugField(i, 'dose', e.target.value)}
+                          placeholder="Liều…"
+                        />
+                      </td>
+                      <td style={{ padding: '3px 4px' }}>
+                        <input
+                          className="hui-inp"
+                          style={{ width: 90, height: 28, fontSize: 'var(--fs-xs)' }}
+                          value={d.route ?? ''}
+                          onChange={(e) => setDrugField(i, 'route', e.target.value)}
+                          placeholder="Đường dùng"
+                        />
+                      </td>
+                      <td style={{ padding: '3px 4px' }}>
+                        <RowActions actions={[
+                          { key: 'del', icon: 'trash', label: 'Xóa thuốc', tone: 'danger',
+                            confirm: `Xóa thuốc ${d.drugName || 'này'}?`,
+                            onClick: () => removeDrug(i) },
+                        ]} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Btn variant="ghost" size="sm" onClick={addDrug} style={{ marginTop: 'var(--space-6)' }}>
               <TermIcon name="plus" size={11} /> Thêm thuốc
             </Btn>
           </Section>
