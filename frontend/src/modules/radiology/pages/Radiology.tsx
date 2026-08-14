@@ -138,10 +138,14 @@ const RadiologyV2: React.FC = () => {
     if (!detail) return;
     const serviceId = detail.items?.[0]?.serviceId;
     if (!serviceId) return;
+    // The page already batch-checks all visible services. Do not issue an
+    // expected 404 for every service without a PTTT mapping when opening the
+    // detail drawer; only resolve template details for mapped services.
+    if (!ptttMapByRow[serviceId]?.hasMapping) return;
     risApi.getPtttMappingByService(serviceId)
       .then((r) => setDetailPtttMapping(r.data || null))
-      .catch(() => setDetailPtttMapping(null)); // 404 = không có mapping — ẩn nút
-  }, [detail]);
+      .catch(() => setDetailPtttMapping(null));
+  }, [detail, ptttMapByRow]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: rows.length };
