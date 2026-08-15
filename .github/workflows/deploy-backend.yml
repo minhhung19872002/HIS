@@ -1,14 +1,18 @@
-name: Deploy backend to Azure Container Apps
+name: Deploy to AWS EC2
 
-# Tự động build + deploy lên Azure Container Apps khi push vào main.
-# Xác thực Azure bằng OIDC federated credential (keyless — không có client secret).
-# Image đẩy lên GitHub Container Registry (ghcr.io) bằng GHCR_TOKEN secret.
-# (Migrated off GCP Cloud Run 2026-08-02 — GCP billing delinquent.)
+# Tự động build + deploy lên AWS EC2 khi push vào main.
+# (Migrated off Azure Container Apps 2026-08-15 — Azure SQL free quota exhausted,
+#  toàn bộ app + DB chuyển sang AWS: RDS SQL Server Express + EC2 ap-southeast-1.)
 #
-# Từ 2026-08-14 image chứa CẢ SPA (Vite build → /app/clientapp) để FE và API cùng
-# origin: hết CORS, cookie first-party, SignalR chạy URL tương đối. Vì vậy build
-# context là GỐC REPO và workflow chạy cả khi chỉ đổi frontend/**.
-# Vercel vẫn auto-deploy song song, chưa gỡ.
+# Image chứa CẢ SPA (Vite build → /app/clientapp) để FE và API cùng origin:
+# hết CORS, cookie first-party, SignalR chạy URL tương đối. Build context là
+# GỐC REPO và workflow chạy cả khi chỉ đổi frontend/**.
+#
+# Deploy qua AWS SSM send-command (KHÔNG mở SSH cho GitHub runners):
+# EC2 i-026ea43bb85a2044b mang instance-profile his-ec2-ssm; IAM user his-ci
+# chỉ được ssm:SendCommand vào đúng instance này. Container topology trên EC2:
+# caddy (80/443, HTTPS Let's Encrypt cho his.bluestar.com.vn) → his-api:8080,
+# cả hai trên docker network his-net, env tại /home/ec2-user/his-app.env.
 
 on:
   push:
@@ -27,12 +31,12 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write   # BẮT BUỘC để lấy OIDC token cho azure/login
 
 env:
   IMAGE_REPO: ghcr.io/minhhung19872002/his-api
-  ACA_APP: his-api
-  ACA_RG: rg-his
+  AWS_REGION: ap-southeast-1
+  EC2_INSTANCE_ID: i-026ea43bb85a2044b
+  APP_URL: https://his.bluestar.com.vn
 
 jobs:
   deploy:
@@ -65,26 +69,48 @@ jobs:
       - name: Push image
         run: docker push "${{ steps.img.outputs.tag }}"
 
-      - name: Azure login (OIDC)
-        uses: azure/login@v2
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy to Container Apps
+      # Deploy = SSM chạy script trên EC2: pull image mới → thay container his-api.
+      # ghcr login trên EC2 dùng credential đã lưu sẵn từ lần `docker login` đầu
+      # (root của EC2 giữ ~/.docker/config.json) — KHÔNG truyền GHCR_TOKEN qua SSM.
+      - name: Deploy to EC2 via SSM
         run: |
-          az containerapp update \
-            --name "$ACA_APP" \
-            --resource-group "$ACA_RG" \
-            --image "${{ steps.img.outputs.tag }}" \
-            --query "properties.latestRevisionName" -o tsv
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "$EC2_INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --comment "deploy ${{ steps.img.outputs.tag }}" \
+            --parameters "commands=[
+              \"set -e\",
+              \"docker pull ${{ steps.img.outputs.tag }}\",
+              \"docker rm -f his-api || true\",
+              \"docker run -d --name his-api --restart unless-stopped --network his-net --env-file /home/ec2-user/his-app.env ${{ steps.img.outputs.tag }}\",
+              \"docker image prune -af --filter until=72h || true\"
+            ]" \
+            --query "Command.CommandId" --output text)
+          echo "command: $CMD_ID"
+          for i in $(seq 1 60); do
+            STATUS=$(aws ssm get-command-invocation --command-id "$CMD_ID" \
+              --instance-id "$EC2_INSTANCE_ID" --query Status --output text 2>/dev/null || echo Pending)
+            case "$STATUS" in
+              Success) echo "deploy OK"; exit 0 ;;
+              Failed|Cancelled|TimedOut)
+                echo "deploy $STATUS"; aws ssm get-command-invocation --command-id "$CMD_ID" \
+                  --instance-id "$EC2_INSTANCE_ID" --query StandardErrorContent --output text; exit 1 ;;
+              *) sleep 10 ;;
+            esac
+          done
+          echo "deploy polling timed out"; exit 1
 
       - name: Smoke test (login endpoint)
         run: |
-          URL="https://his-api.thankfulcoast-bd0486a9.southeastasia.azurecontainerapps.io/api/auth/login"
           for i in $(seq 1 10); do
-            CODE=$(curl -s -o /dev/null -w "%{http_code}" -m 120 -X POST "$URL" \
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" -m 120 -X POST "$APP_URL/api/auth/login" \
               -H "Content-Type: application/json" \
               -d '{"username":"admin","password":"Admin@123"}') && [ "$CODE" = "200" ] && exit 0
             echo "attempt $i: HTTP $CODE — retrying in 20s"; sleep 20
@@ -95,10 +121,9 @@ jobs:
       # thật (không được trả 200 text/html — dấu hiệu fallback nuốt nhầm /api).
       - name: Smoke test (SPA shell + fallback guard)
         run: |
-          BASE="https://his-api.thankfulcoast-bd0486a9.southeastasia.azurecontainerapps.io"
-          SHELL_BODY=$(curl -sS -m 60 "$BASE/")
+          SHELL_BODY=$(curl -sS -m 60 "$APP_URL/")
           echo "$SHELL_BODY" | grep -q 'id="root"' || { echo "SPA shell missing"; exit 1; }
-          DEEP=$(curl -s -o /dev/null -w "%{http_code}" -m 60 "$BASE/v2/reception")
+          DEEP=$(curl -s -o /dev/null -w "%{http_code}" -m 60 "$APP_URL/v2/reception")
           [ "$DEEP" = "200" ] || { echo "deep link returned $DEEP"; exit 1; }
-          UNKNOWN=$(curl -s -o /dev/null -w "%{http_code}" -m 60 "$BASE/api/definitely-not-a-route")
+          UNKNOWN=$(curl -s -o /dev/null -w "%{http_code}" -m 60 "$APP_URL/api/definitely-not-a-route")
           [ "$UNKNOWN" = "404" ] || { echo "unknown API route returned $UNKNOWN"; exit 1; }
