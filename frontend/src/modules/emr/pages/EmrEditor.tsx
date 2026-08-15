@@ -236,6 +236,9 @@ const EmrEditorV2: React.FC = () => {
   const [leftOpen, setLeftOpen] = useState(false);
 
   const [records, setRecords] = useState<EmrRecordDto[]>([]);
+  // Danh sách HSBA tải chậm (API gom cả năm khám); nếu không phân biệt đang-tải với
+  // rỗng-thật thì suốt lúc chờ màn hình báo "Không có hồ sơ" → người dùng tưởng mất dữ liệu.
+  const [listLoading, setListLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [sel, setSel] = useState<EmrRecordDto | null>(null);
   const [tab, setTab] = useState<TabKey>('record');
@@ -331,6 +334,7 @@ const EmrEditorV2: React.FC = () => {
 
   // ── Load EMR list ────────────────────────────────────────────────
   const loadList = useCallback(async (kw?: string) => {
+    setListLoading(true);
     try {
       const r = await getEmrRecords(kw || undefined, 1, 300);
       // `/examination/emr-records` trả PAGED `{items,totalCount}`; interceptor đã bóc
@@ -338,6 +342,7 @@ const EmrEditorV2: React.FC = () => {
       // luôn false và danh sách rỗng dù API có dữ liệu. Dùng helper tolerant 2 shape.
       setRecords(unwrapList<EmrRecordDto>(r.data as MaybePaged<EmrRecordDto>));
     } catch { setRecords([]); }
+    finally { setListLoading(false); }
   }, []);
   useEffect(() => { loadList(); }, [loadList]);
 
@@ -706,7 +711,11 @@ const EmrEditorV2: React.FC = () => {
           </div>
         </div>
         <div style={{ overflow: 'auto', flex: 1 }}>
-          {filtered.length === 0 && <div style={{ padding: 'var(--space-16)', color: 'var(--t-3)', fontSize: 11.5, textAlign: 'center' }}>Không có hồ sơ</div>}
+          {filtered.length === 0 && (
+            <div style={{ padding: 'var(--space-16)', color: 'var(--t-3)', fontSize: 11.5, textAlign: 'center' }}>
+              {listLoading ? 'Đang tải hồ sơ…' : 'Không có hồ sơ'}
+            </div>
+          )}
           {filtered.map((r) => {
             const isSel = r.patientId === sel?.patientId;
             return (
