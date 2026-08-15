@@ -33,9 +33,19 @@ public sealed class AuditWriterWorker : BackgroundService
         _reader = reader;
         _scopeFactory = scopeFactory;
         _logger = logger;
-        _fallbackDir = configuration["AuditFallback:Directory"]
-            ?? Path.Combine(Path.GetTempPath(), "his-audit-fallback");
+        _fallbackDir = ResolveFallbackDir(configuration["AuditFallback:Directory"]);
     }
+
+    /// <summary>
+    /// Chọn thư mục fallback: config rỗng/trắng (appsettings đặt "" làm placeholder) phải
+    /// rơi về default %TEMP%/his-audit-fallback — trước đây chỉ chặn null bằng `??` nên
+    /// chuỗi rỗng lọt qua, Directory.CreateDirectory("") ném ArgumentException và toàn bộ
+    /// batch audit bị mất đúng lúc DB đang lỗi (đã xảy ra trên prod 14/8 khi Azure SQL pause).
+    /// </summary>
+    public static string ResolveFallbackDir(string? configured) =>
+        !string.IsNullOrWhiteSpace(configured)
+            ? configured
+            : Path.Combine(Path.GetTempPath(), "his-audit-fallback");
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

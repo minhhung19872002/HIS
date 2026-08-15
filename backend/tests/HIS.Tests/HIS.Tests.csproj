@@ -26,6 +26,7 @@
     <ProjectReference Include="..\..\src\HIS.Core\HIS.Core.csproj" />
     <ProjectReference Include="..\..\src\HIS.Application\HIS.Application.csproj" />
     <ProjectReference Include="..\..\src\HIS.Infrastructure\HIS.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\HIS.API\HIS.API.csproj" />
   </ItemGroup>
 
 </Project>
