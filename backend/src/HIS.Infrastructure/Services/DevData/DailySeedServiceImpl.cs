@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 
@@ -47,6 +48,25 @@ public partial class DailySeedServiceImpl : HIS.Application.Services.IDailySeedS
         "Quận 1", "Quận 3", "Quận 5", "Quận 7", "Quận 10", "Quận Bình Thạnh",
         "Quận Phú Nhuận", "Quận Tân Bình"
     };
+    /// <summary>
+    /// Sinh số thẻ BHYT 15 ký tự hợp lệ theo <see cref="BhytCardNumber"/> (QĐ 1351/QĐ-BHXH):
+    /// 2 chữ mã đối tượng + 1 số mức hưởng (1-5) + 2 số mã tỉnh + 10 số định danh.
+    /// Mã đối tượng và mức hưởng chọn theo tuổi để dữ liệu demo không mâu thuẫn nghiệp vụ
+    /// (trẻ dưới 6 tuổi hưởng 100%, hưu trí 95%, còn lại 80%).
+    /// </summary>
+    private static string BuildBhytCard(Random rng, int ageYears)
+    {
+        var (subjectCode, benefitLevel) = ageYears switch
+        {
+            < 6 => ("TE", '1'),   // trẻ em dưới 6 tuổi — 100%
+            < 23 => ("HS", '4'),  // học sinh, sinh viên — 80%
+            >= 60 => ("HT", '3'), // hưu trí — 95%
+            _ => (rng.Next(2) == 0 ? "DN" : "GD", '4') // lao động DN / hộ gia đình — 80%
+        };
+        // 79 = mã tỉnh TP.HCM, khớp ProvinceName của bệnh nhân seed.
+        return $"{subjectCode}{benefitLevel}79{rng.NextInt64(0, 10_000_000_000L):D10}";
+    }
+
     private static readonly (string IcdCode, string Name)[] Diagnoses = new[]
     {
         ("J00", "Viêm mũi họng cấp (cảm lạnh thông thường)"),
@@ -180,6 +200,13 @@ public partial class DailySeedServiceImpl : HIS.Application.Services.IDailySeedS
             var idx = existingToday + i + 1;
             var patientCode = $"BN{today:yyyyMMdd}SEED{idx:D3}";
 
+            // Đối tượng thanh toán phải chốt TRƯỚC khi dựng Patient: BN diện BHYT bắt buộc có
+            // số thẻ, nếu không màn Tiếp Đón hiện "đối tượng BHYT" mà ô số thẻ trống — mâu thuẫn
+            // nghiệp vụ lộ ngay trên lưới danh sách.
+            var patientType = rng.Next(2) == 0 ? 1 : 2; // 1 BHYT, 2 Viện phí
+            var ageYears = now.Year - year;
+            var insuranceNumber = patientType == 1 ? BuildBhytCard(rng, ageYears) : null;
+
             var patient = new Patient
             {
                 Id = Guid.NewGuid(),
@@ -195,6 +222,8 @@ public partial class DailySeedServiceImpl : HIS.Application.Services.IDailySeedS
                 ProvinceName = "TP. Hồ Chí Minh",
                 EthnicName = "Kinh",
                 NationalityName = "Việt Nam",
+                InsuranceNumber = insuranceNumber,
+                InsuranceExpireDate = insuranceNumber is null ? null : today.AddMonths(rng.Next(3, 25)),
                 CreatedAt = now,
                 UpdatedAt = now
             };
@@ -208,7 +237,7 @@ public partial class DailySeedServiceImpl : HIS.Application.Services.IDailySeedS
                 MedicalRecordCode = $"HS{today:yyyyMMdd}SEED{idx:D3}",
                 PatientId = patient.Id,
                 AdmissionDate = today,
-                PatientType = rng.Next(2) == 0 ? 1 : 2, // 1 BHYT, 2 Viện phí
+                PatientType = patientType, // 1 BHYT (đã sinh kèm số thẻ ở trên), 2 Viện phí
                 TreatmentType = 1, // Ngoại trú
                 InitialDiagnosis = diag.Name,
                 MainIcdCode = diag.IcdCode,
