@@ -162,6 +162,14 @@ public partial class ExaminationCompleteService
 
     public Task<BmiCalculationResult> CalculateBmiAsync(decimal weight, decimal height)
     {
+        // Chiều cao 0 (vd query thiếu tham số → decimal mặc định 0) làm phép chia ném
+        // DivideByZeroException → 500 "hệ thống gặp sự cố". Chặn tại service để MỌI caller
+        // nhận lỗi nghiệp vụ rõ ràng, và để chỉ số lâm sàng không bao giờ tính từ số vô lý.
+        if (weight <= 0)
+            throw new ArgumentException("Cân nặng phải lớn hơn 0", nameof(weight));
+        if (height <= 0)
+            throw new ArgumentException("Chiều cao phải lớn hơn 0", nameof(height));
+
         var heightInM = height / 100;
         var bmi = weight / (heightInM * heightInM);
 

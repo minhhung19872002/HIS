@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Reporting;
 using HIS.Application.Services;
@@ -71,8 +72,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("kpi")]
         public async Task<ActionResult<ApiResponse<KPIDashboardDto>>> GetKPIDashboard(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate)
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate)
         {
             try
             {
@@ -148,8 +149,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("clinical/patient-by-department")]
         public async Task<ActionResult<ApiResponse<PatientByDepartmentReportDto>>> GetPatientByDepartmentReport(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate,
             [FromQuery] Guid? departmentId = null)
         {
             try
@@ -168,8 +169,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("clinical/top-diseases")]
         public async Task<ActionResult<ApiResponse<Top10DiseasesReportDto>>> GetTop10DiseasesReport(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate,
             [FromQuery] string patientType = null)
         {
             try
@@ -188,8 +189,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("clinical/mortality")]
         public async Task<ActionResult<ApiResponse<MortalityReportDto>>> GetMortalityReport(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate,
             [FromQuery] Guid? departmentId = null)
         {
             try
@@ -208,8 +209,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("clinical/surgery-statistics")]
         public async Task<ActionResult<ApiResponse<SurgeryStatisticsReportDto>>> GetSurgeryStatisticsReport(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate,
             [FromQuery] Guid? departmentId = null)
         {
             try
@@ -232,8 +233,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("financial/revenue")]
         public async Task<ActionResult<ApiResponse<RevenueReportDto>>> GetRevenueReport(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate,
             [FromQuery] Guid? departmentId = null,
             [FromQuery] string patientType = null)
         {
@@ -253,8 +254,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("financial/daily-revenue")]
         public async Task<ActionResult<ApiResponse<List<RevenueByDayDto>>>> GetDailyRevenueReport(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate)
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate)
         {
             try
             {
@@ -291,8 +292,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("financial/insurance-claims")]
         public async Task<ActionResult<ApiResponse<InsuranceClaimReportDto>>> GetInsuranceClaimReport(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate)
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate)
         {
             try
             {
@@ -310,8 +311,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("financial/profit-by-department")]
         public async Task<ActionResult<ApiResponse<ProfitByDepartmentReportDto>>> GetProfitByDepartmentReport(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate)
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate)
         {
             try
             {
@@ -352,8 +353,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("pharmacy/stock-movement")]
         public async Task<ActionResult<ApiResponse<StockMovementReportDto>>> GetStockMovementReport(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate,
             [FromQuery] Guid? warehouseId = null)
         {
             try
@@ -372,8 +373,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("pharmacy/narcotic-drugs")]
         public async Task<ActionResult<ApiResponse<ControlledDrugReportDto>>> GetNarcoticDrugReport(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate)
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate)
         {
             try
             {
@@ -391,8 +392,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("pharmacy/psychotropic-drugs")]
         public async Task<ActionResult<ApiResponse<ControlledDrugReportDto>>> GetPsychotropicDrugReport(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate)
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate)
         {
             try
             {
@@ -433,8 +434,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("admin/user-statistics")]
         public async Task<ActionResult<ApiResponse<UserStatisticsReportDto>>> GetUserStatisticsReport(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate)
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate)
         {
             try
             {
@@ -452,8 +453,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("admin/audit-log")]
         public async Task<ActionResult<ApiResponse<AuditLogReportDto>>> GetAuditLogReport(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate,
             [FromQuery] string module = null,
             [FromQuery] string userName = null)
         {
@@ -478,8 +479,8 @@ namespace HIS.API.Controllers
         [HttpGet("export/excel/{reportCode}")]
         public async Task<IActionResult> ExportToExcel(
             string reportCode,
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate)
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate)
         {
             try
             {
@@ -501,8 +502,8 @@ namespace HIS.API.Controllers
         [HttpGet("export/pdf/{reportCode}")]
         public async Task<IActionResult> ExportToPdf(
             string reportCode,
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate)
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate)
         {
             try
             {

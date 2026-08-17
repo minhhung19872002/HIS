@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using HIS.Application.Services;
 using HIS.Application.DTOs.Reporting;
 
@@ -26,8 +27,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("supplier-procurement")]
         public async Task<ActionResult<SupplierProcurementReportDto>> GetSupplierProcurement(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate,
             [FromQuery] Guid? supplierId = null)
             => Ok(await _service.GetSupplierProcurementAsync(fromDate, toDate, supplierId));
 
@@ -36,8 +37,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("revenue-by-record")]
         public async Task<ActionResult<RevenueByRecordReportDto>> GetRevenueByRecord(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate,
             [FromQuery] Guid? departmentId = null)
             => Ok(await _service.GetRevenueByRecordAsync(fromDate, toDate, departmentId));
 
@@ -46,8 +47,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("dept-cost-vs-fees")]
         public async Task<ActionResult<DeptCostVsFeesReportDto>> GetDeptCostVsFees(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate,
             [FromQuery] Guid? departmentId = null)
             => Ok(await _service.GetDeptCostVsFeesAsync(fromDate, toDate, departmentId));
 
@@ -56,8 +57,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("record-cost-summary")]
         public async Task<ActionResult<RecordCostSummaryReportDto>> GetRecordCostSummary(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate,
             [FromQuery] Guid? departmentId = null)
             => Ok(await _service.GetRecordCostSummaryAsync(fromDate, toDate, departmentId));
 
@@ -66,8 +67,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("fees-vs-standards")]
         public async Task<ActionResult<FeesVsStandardsReportDto>> GetFeesVsStandards(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate,
             [FromQuery] Guid? departmentId = null)
             => Ok(await _service.GetFeesVsStandardsAsync(fromDate, toDate, departmentId));
 
@@ -76,8 +77,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("service-order-doctors")]
         public async Task<ActionResult<ServiceOrderDoctorsReportDto>> GetServiceOrderDoctors(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate,
             [FromQuery] Guid? departmentId = null)
             => Ok(await _service.GetServiceOrderDoctorsAsync(fromDate, toDate, departmentId));
 
@@ -86,8 +87,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("dispensing-vs-billing")]
         public async Task<ActionResult<DispensingVsBillingReportDto>> GetDispensingVsBilling(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate,
             [FromQuery] Guid? departmentId = null)
             => Ok(await _service.GetDispensingVsBillingAsync(fromDate, toDate, departmentId));
 
@@ -96,8 +97,8 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpGet("dispensing-vs-standards")]
         public async Task<ActionResult<DispensingVsStandardsReportDto>> GetDispensingVsStandards(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
+            [FromQuery, BindRequired] DateTime fromDate,
+            [FromQuery, BindRequired] DateTime toDate,
             [FromQuery] Guid? departmentId = null)
             => Ok(await _service.GetDispensingVsStandardsAsync(fromDate, toDate, departmentId));
     }

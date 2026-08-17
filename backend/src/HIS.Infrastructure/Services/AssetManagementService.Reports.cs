@@ -85,7 +85,10 @@ public partial class AssetManagementService
             9 => await BuildReport09_BangTinhHaoMon(filter),
             10 => await BuildReport10_PhanBoKhauHao(filter),
             >= 11 and <= 24 => await BuildReportGovernment(reportType, filter),
-            _ => throw new Exception($"Invalid report type: {reportType}"),
+            // ArgumentException để DomainExceptionFilter trả 400 kèm lý do, thay vì Exception
+            // trần → 500 "hệ thống gặp sự cố" khi client gửi thiếu/sai reportType.
+            _ => throw new ArgumentException(
+                     $"Loại báo cáo không hợp lệ: {reportType} (hợp lệ: 1-24)", nameof(reportType)),
         };
         return Encoding.UTF8.GetBytes(html);
     }
