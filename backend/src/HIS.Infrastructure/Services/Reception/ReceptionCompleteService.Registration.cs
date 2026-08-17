@@ -419,14 +419,24 @@ public partial class ReceptionCompleteService {
             await _patientRepo.AddAsync(patient);
         }
 
-        // Get emergency room
+        // Phòng cấp cứu = RoomType 6 (bảng mã chuẩn ở Room.RoomType / migration 165).
+        // Trước đây tra RoomType == 3 với chú thích "Emergency room type", nhưng 3 là PHÒNG MỔ
+        // → trên prod BN cấp cứu bị đẩy vào "Phòng VIP 103" (phòng duy nhất mang type 3).
         var emergencyRoom = await _context.Rooms
             .Include(r => r.Department)
-            .FirstOrDefaultAsync(r => r.RoomType == 3 && r.IsActive); // Emergency room type
+            .FirstOrDefaultAsync(r => r.RoomType == 6 && r.IsActive);
 
         if (emergencyRoom == null)
         {
-            emergencyRoom = await _context.Rooms.Include(r => r.Department).FirstOrDefaultAsync(r => r.IsActive);
+            // Fallback cũ lấy ĐẠI một phòng đang hoạt động — có thể rơi vào quầy tiếp đón hoặc
+            // phòng xét nghiệm. Thu hẹp về phòng khám để ít nhất còn là nơi khám được người bệnh.
+            emergencyRoom = await _context.Rooms
+                .Include(r => r.Department)
+                .FirstOrDefaultAsync(r => r.RoomType == 1 && r.IsActive);
+            _receptionLogger?.LogWarning(
+                "Đăng ký cấp cứu: không có phòng cấp cứu (RoomType=6) đang hoạt động — tạm dùng {Room}. "
+                + "Cần khai báo phòng cấp cứu trong danh mục phòng.",
+                emergencyRoom?.RoomName ?? "(không có phòng khám nào)");
         }
 
         var medicalRecord = new MedicalRecord

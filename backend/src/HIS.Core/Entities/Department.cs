@@ -36,7 +36,16 @@ public class Room : BaseEntity
     public string RoomCode { get; set; } = string.Empty;
     public string RoomName { get; set; } = string.Empty;
     public string? RoomCodeBYT { get; set; } // Mã phòng theo BYT
-    public int RoomType { get; set; } // 1-Phòng khám, 2-Phòng bệnh, 3-Phòng mổ, 4-Phòng xét nghiệm...
+    /// <summary>
+    /// Bảng mã loại phòng — NGUỒN SỰ THẬT DUY NHẤT, xem migration
+    /// <c>Data/Scripts/165_room_type_taxonomy.sql</c> để biết bối cảnh chuẩn hoá.
+    /// 1-Phòng khám · 2-Phòng bệnh (nội trú) · 3-Phòng mổ · 4-Phòng CLS/xét nghiệm ·
+    /// 5-Phòng khám sức khoẻ · 6-Phòng cấp cứu · 7-Quầy tiếp đón ·
+    /// 10..15-Phòng CĐHA chuyên biệt (XRay/CT/MRI/Siêu âm/Nội soi/ECG).
+    /// ⚠ KHÔNG gán thêm nghĩa mới cho cột này ở từng module — trước đây Surgery và RIS
+    /// tự map riêng nên cùng một giá trị bị đọc thành ba thứ khác nhau.
+    /// </summary>
+    public int RoomType { get; set; }
     public string? Location { get; set; }
     public string? Floor { get; set; } // Tang
     public string? Building { get; set; } // Toa nha

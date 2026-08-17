@@ -3,6 +3,7 @@ using HIS.Application.DTOs;
 using HIS.Application.DTOs.Insurance;
 using HIS.Application.DTOs.Reception;
 using HIS.Application.Services;
+using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Configuration;
@@ -257,12 +258,19 @@ public partial class ReceptionCompleteService {
     /// nhưng bản cũ bỏ qua cờ AutoSelectRoom ⇒ phiếu luôn không có phòng).
     /// Không tìm được phòng phù hợp thì để trống cho khoa tự phân, KHÔNG gán bừa phòng sai chuyên môn.
     /// </summary>
-    private async Task<Guid?> PickExecutionRoomAsync(int serviceType) =>
-        await _context.Rooms.AsNoTracking()
-            .Where(r => r.IsActive && !r.IsDeleted && r.RoomType == serviceType)
+    private async Task<Guid?> PickExecutionRoomAsync(int serviceType)
+    {
+        // RoomType ≠ ServiceType (hai bảng mã khác nhau) — phải ánh xạ, xem HIS.Core.Common.RoomTypes.
+        // Bản cũ so trực tiếp nên chỉ định xét nghiệm rơi vào PHÒNG BỆNH, CĐHA rơi vào PHÒNG MỔ.
+        var roomTypes = RoomTypes.ForServiceType(serviceType);
+        if (roomTypes.Length == 0) return null;
+
+        return await _context.Rooms.AsNoTracking()
+            .Where(r => r.IsActive && !r.IsDeleted && roomTypes.Contains(r.RoomType))
             .OrderBy(r => r.RoomName)
             .Select(r => (Guid?)r.Id)
             .FirstOrDefaultAsync();
+    }
 
     public async Task<List<ServiceOrderResultDto>> OrderServicesByGroupAsync(Guid medicalRecordId, Guid groupId, Guid userId)
     {
@@ -425,9 +433,13 @@ public partial class ReceptionCompleteService {
             var room = request.Room;
             if (room == null && request.Service != null)
             {
-                room = await _context.Rooms
-                    .Include(r => r.Department)
-                    .FirstOrDefaultAsync(r => r.IsActive && r.RoomType == request.Service.ServiceType);
+                // Ánh xạ ServiceType → RoomType thay vì so trực tiếp hai bảng mã khác nhau.
+                var roomTypes = RoomTypes.ForServiceType(request.Service.ServiceType);
+                room = roomTypes.Length == 0
+                    ? null
+                    : await _context.Rooms
+                        .Include(r => r.Department)
+                        .FirstOrDefaultAsync(r => r.IsActive && roomTypes.Contains(r.RoomType));
             }
 
             var estimatedMinutes = request.Service?.ServiceType switch

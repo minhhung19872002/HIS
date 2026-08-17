@@ -471,11 +471,16 @@ public partial class ExaminationCompleteService
 
             if (!availableRooms.Any())
             {
-                // Fall back to any active room of matching type
-                availableRooms = await _context.Rooms
-                    .Include(r => r.Department)
-                    .Where(r => r.IsActive && r.RoomType == service.ServiceType)
-                    .ToListAsync();
+                // Fall back to any active room that can perform this service.
+                // RoomType và ServiceType là hai bảng mã khác nhau — phải ánh xạ, không so trực tiếp
+                // (xem HIS.Core.Common.RoomTypes).
+                var roomTypes = HIS.Core.Common.RoomTypes.ForServiceType(service.ServiceType);
+                availableRooms = roomTypes.Length == 0
+                    ? new List<Room>()
+                    : await _context.Rooms
+                        .Include(r => r.Department)
+                        .Where(r => r.IsActive && roomTypes.Contains(r.RoomType))
+                        .ToListAsync();
             }
 
             var optimalRoom = availableRooms.FirstOrDefault();
