@@ -15,6 +15,7 @@ import { Topbar } from './TopBar';
 import { Ticker, type TickerPatient, type BreakGlassActive } from './PatientContextBar';
 import { authApi } from '../../../api/auth';
 import ErrorBoundary from '../../feedback/ErrorBoundary';
+import api from '../../../services/apiClient';
 import { storage, STORAGE_KEYS } from '../../../services/storage.service';
 import {
   HIS_GROUPS,
@@ -425,23 +426,39 @@ const TerminalShell: React.FC = () => {
   /* ---- Patient ticker context: URL ?pid= or localStorage his.patient ---- */
   const [patient, setPatient] = useState<TickerPatient | null>(null);
   useEffect(() => {
+    let alive = true;
+    // Pill này là thứ cho nhân viên biết ĐANG thao tác trên bệnh nhân nào. Trước đây khi có
+    // ?pid= nó dựng BN giả (tên "Bệnh nhân <pid>", luôn 45 tuổi, luôn Nam) — sai danh tính
+    // ngay trên thanh ngữ cảnh là rủi ro nhầm bệnh nhân. Nay tra cứu BN thật theo mã;
+    // không tra được thì KHÔNG hiện pill, tuyệt đối không hiển thị danh tính bịa.
+    const loadFromCode = async (code: string) => {
+      try {
+        const res = await api.get<{ id: string; patientCode?: string; fullName?: string; dateOfBirth?: string; gender?: number }>(
+          `/patients/by-code/${encodeURIComponent(code)}`,
+        );
+        const p = res.data;
+        if (!alive || !p?.fullName) { if (alive) setPatient(null); return; }
+        const born = p.dateOfBirth ? new Date(p.dateOfBirth) : null;
+        const real: TickerPatient = {
+          id: p.patientCode || code.toUpperCase(),
+          name: p.fullName,
+          age: born ? Math.max(0, new Date().getFullYear() - born.getFullYear()) : 0,
+          gender: p.gender === 2 ? 'F' : 'M',
+        };
+        setPatient(real);
+        storage.set(STORAGE_KEYS.patient, real);
+      } catch {
+        if (alive) setPatient(null);
+      }
+    };
     try {
       const params = new URLSearchParams(location.search);
       const urlPid = params.get('pid');
-      if (urlPid) {
-        const fake: TickerPatient = {
-          id: urlPid.toUpperCase(),
-          name: 'Bệnh nhân ' + urlPid,
-          age: 45,
-          gender: 'M',
-        };
-        setPatient(fake);
-        storage.set(STORAGE_KEYS.patient, fake);
-        return;
-      }
+      if (urlPid) { void loadFromCode(urlPid); return; }
       const stored = storage.getRaw(STORAGE_KEYS.patient);
       if (stored) setPatient(JSON.parse(stored));
     } catch { /* ignore bad json */ }
+    return () => { alive = false; };
   }, [location.search]);
   // #386: callbacks ổn định (useCallback) để Rail/Flyout memo hiệu quả — sidebar
   // không re-render khi điều hướng trong cùng group.

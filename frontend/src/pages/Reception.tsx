@@ -169,7 +169,11 @@ const Reception: React.FC = () => {
           dateOfBirth: a.dateOfBirth,
           phoneNumber: a.phoneNumber,
           identityNumber: a.identityNumber,
-          patientType: a.insuranceNumber ? 1 : 2, // 1=BHYT, 2=Viện phí
+          // Đối tượng thanh toán phải lấy từ hồ sơ (AdmissionDto.patientType), KHÔNG suy ra từ
+          // việc có số thẻ hay không: BN diện BHYT chưa nhập thẻ sẽ bị hiện "Viện phí", còn BN
+          // có thẻ nhưng đăng ký khám dịch vụ lại bị hiện "BHYT" — sai cả hai chiều.
+          // Giữ suy luận cũ làm phương án dự phòng cho bản ghi cũ chưa có patientType.
+          patientType: a.patientType ?? (a.insuranceNumber ? 1 : 2), // 1=BHYT, 2=Viện phí
           insuranceNumber: a.insuranceNumber,
           departmentName: a.departmentName,
           roomName: a.roomName,

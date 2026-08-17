@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import api from '../../../services/apiClient';
 
 /* Auto-extracted from TerminalLayout.tsx (#376 split) — behavior-preserving verbatim move. */
 
@@ -6,20 +7,50 @@ import React from 'react';
    Ticker — LIVE badge + optional patient pill + scrolling realtime metrics
    ========================================================================== */
 
-const TICKER_ITEMS: { label: string; val: string; unit?: string; cls?: 'up' | 'down' | 'warn' }[] = [
-  { label: 'OPD',     val: '164', unit: 'BN',   cls: 'up' },
-  { label: 'CẤP CỨU', val: '6',   unit: 'BN',   cls: 'warn' },
-  { label: 'NỘI TRÚ', val: '34',  unit: 'BN' },
-  { label: 'XN CHỜ',  val: '47' },
-  { label: 'CĐHA',    val: '9' },
-  { label: 'MỔ',      val: '7',   cls: 'up' },
-  { label: 'GIƯỜNG',  val: '60%', cls: 'warn' },
-  { label: 'BHYT',    val: '98.2%', cls: 'up' },
-  { label: 'DOANH THU', val: '64M', unit: 'VNĐ' },
-  { label: 'DƯỢC CHỜ', val: '3' },
-  { label: 'HL7',     val: 'OK',  cls: 'up' },
-  { label: 'PACS',    val: 'OK',  cls: 'up' },
+type TickerItem = { label: string; val: string; unit?: string; cls?: 'up' | 'down' | 'warn' };
+
+/** Shape trả về của GET /reception/opd-flow-stats (đã unwrap envelope bởi interceptor). */
+type OpdFlowStats = {
+  registered: number; waiting: number; inProgress: number;
+  waitingCls: number; clsResultReady: number; completed: number; paid: number;
+};
+
+/**
+ * Dải số liệu đầu màn hình gắn nhãn "LIVE" nên BẮT BUỘC là số thật.
+ * Trước đây đây là mảng hằng số (OPD 164 BN · BHYT 98.2% · DOANH THU 64M…) hiển thị trên
+ * MỌI màn v2, đá nhau với bảng dữ liệu ngay bên dưới — người dùng đối chiếu là thấy sai ngay.
+ * Nay chỉ hiển thị các chỉ số lấy được từ API thật; chỉ số nào chưa có nguồn thì KHÔNG hiện
+ * (thà thiếu còn hơn bịa). Thêm chỉ số mới => phải kèm endpoint có thật.
+ */
+const buildItems = (s: OpdFlowStats): TickerItem[] => [
+  { label: 'TIẾP ĐÓN', val: String(s.registered ?? 0), unit: 'BN', cls: 'up' },
+  { label: 'CHỜ KHÁM', val: String(s.waiting ?? 0), unit: 'BN', cls: (s.waiting ?? 0) > 0 ? 'warn' : undefined },
+  { label: 'ĐANG KHÁM', val: String(s.inProgress ?? 0), unit: 'BN' },
+  { label: 'CHỜ KQ CLS', val: String(s.waitingCls ?? 0) },
+  { label: 'CÓ KQ CLS', val: String(s.clsResultReady ?? 0) },
+  { label: 'KHÁM XONG', val: String(s.completed ?? 0), cls: 'up' },
+  { label: 'ĐÃ THU', val: String(s.paid ?? 0) },
 ];
+
+/** Số liệu tiếp đón trong ngày, tự làm mới mỗi 60s. Lỗi => trả mảng rỗng, KHÔNG giữ số cũ. */
+const useLiveTickerItems = (): TickerItem[] => {
+  const [items, setItems] = useState<TickerItem[]>([]);
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await api.get<OpdFlowStats>('/reception/opd-flow-stats');
+        if (alive && res.data) setItems(buildItems(res.data));
+      } catch {
+        if (alive) setItems([]); // không có số thật thì không hiện gì
+      }
+    };
+    load();
+    const t = setInterval(load, 60_000);
+    return () => { alive = false; clearInterval(t); };
+  }, []);
+  return items;
+};
 
 type TickerPatient = {
   id: string;
@@ -43,7 +74,9 @@ type TickerProps = {
   breakGlass?: BreakGlassActive | null;
 };
 
-const Ticker: React.FC<TickerProps> = ({ patient, onClearPatient, canBreakGlass, onBreakGlass, breakGlass }) => (
+const Ticker: React.FC<TickerProps> = ({ patient, onClearPatient, canBreakGlass, onBreakGlass, breakGlass }) => {
+  const tickerItems = useLiveTickerItems();
+  return (
   <div className="his-ticker">
     <div className="his-ticker-head"><span className="dot" />LIVE · HIS</div>
     {patient && (
@@ -77,7 +110,7 @@ const Ticker: React.FC<TickerProps> = ({ patient, onClearPatient, canBreakGlass,
       </div>
     )}
     <div className="his-ticker-scroll">
-      {[...TICKER_ITEMS, ...TICKER_ITEMS].map((t, i) => (
+      {[...tickerItems, ...tickerItems].map((t, i) => (
         <span key={i} className={'his-ticker-item ' + (t.cls || '')}>
           <span>{t.label}</span>
           <b>{t.val}{t.unit ? <span style={{ color: '#64748b', fontWeight: 400 }}> {t.unit}</span> : null}</b>
@@ -85,7 +118,8 @@ const Ticker: React.FC<TickerProps> = ({ patient, onClearPatient, canBreakGlass,
       ))}
     </div>
   </div>
-);
+  );
+};
 
 export { Ticker };
 export type { TickerPatient, BreakGlassActive };
