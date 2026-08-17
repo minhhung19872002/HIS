@@ -27,17 +27,6 @@ public partial class DailySeedServiceImpl : HIS.Application.Services.IDailySeedS
         "Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Huỳnh", "Phan", "Võ",
         "Đặng", "Bùi", "Đỗ", "Hồ", "Ngô", "Dương", "Lý", "Vũ"
     };
-    private static readonly string[] MiddleNames = new[]
-    {
-        "Văn", "Thị", "Minh", "Thanh", "Hữu", "Quốc", "Ngọc", "Thu",
-        "Hoàng", "Xuân", "Đức", "Kim", "Anh", "Bảo", "Gia", "Mai"
-    };
-    private static readonly string[] GivenNames = new[]
-    {
-        "An", "Bình", "Châu", "Dũng", "Em", "Hà", "Hải", "Hùng", "Huy",
-        "Khánh", "Linh", "Mai", "Nam", "Phong", "Quân", "Sơn", "Thảo",
-        "Trang", "Tuấn", "Tú", "Vân", "Vy", "Yến", "Long", "Đạt"
-    };
     private static readonly string[] Wards = new[]
     {
         "Phường 1", "Phường 2", "Phường 3", "Phường 4", "Phường 5",
@@ -48,6 +37,28 @@ public partial class DailySeedServiceImpl : HIS.Application.Services.IDailySeedS
         "Quận 1", "Quận 3", "Quận 5", "Quận 7", "Quận 10", "Quận Bình Thạnh",
         "Quận Phú Nhuận", "Quận Tân Bình"
     };
+    private static readonly string[] MaleMiddleNames = new[]
+    { "Văn", "Minh", "Hữu", "Quốc", "Đức", "Bảo", "Gia", "Hoàng", "Anh", "Thanh" };
+    private static readonly string[] FemaleMiddleNames = new[]
+    { "Thị", "Ngọc", "Thu", "Kim", "Mai", "Xuân", "Thanh", "Anh", "Gia", "Bảo" };
+    private static readonly string[] MaleGivenNames = new[]
+    { "An", "Bình", "Dũng", "Hải", "Hùng", "Huy", "Khánh", "Nam", "Phong", "Quân", "Sơn", "Tuấn", "Long", "Đạt" };
+    private static readonly string[] FemaleGivenNames = new[]
+    { "An", "Bình", "Châu", "Hà", "Linh", "Mai", "Thảo", "Trang", "Tú", "Vân", "Vy", "Yến", "Ngân", "Nhung" };
+
+    /// <summary>
+    /// Phòng khám có hợp với bệnh nhân không — chỉ để dữ liệu demo không phi lý
+    /// (Nhi khoa chỉ nhận trẻ dưới 16; phòng Sản chỉ nhận nữ trong tuổi sinh đẻ).
+    /// Khớp theo TÊN phòng vì danh mục phòng chưa có trường chuyên khoa; không phải luật lâm sàng.
+    /// </summary>
+    private static bool IsRoomSuitable(string? roomName, int gender, int ageYears)
+    {
+        var name = roomName ?? string.Empty;
+        if (name.Contains("Nhi", StringComparison.OrdinalIgnoreCase)) return ageYears < 16;
+        if (name.Contains("Sản", StringComparison.OrdinalIgnoreCase)) return gender == 2 && ageYears is >= 16 and <= 50;
+        return ageYears >= 16; // các phòng người lớn không nhận trẻ nhỏ
+    }
+
     /// <summary>
     /// Sinh số thẻ BHYT 15 ký tự hợp lệ theo <see cref="BhytCardNumber"/> (QĐ 1351/QĐ-BHXH):
     /// 2 chữ mã đối tượng + 1 số mức hưởng (1-5) + 2 số mã tỉnh + 10 số định danh.
@@ -132,8 +143,8 @@ public partial class DailySeedServiceImpl : HIS.Application.Services.IDailySeedS
             .CountAsync();
 
         var rooms = await _db.Rooms
-            .Where(r => r.IsActive && r.RoomType == 1)
-            .Select(r => new { r.Id, r.DepartmentId })
+            .Where(r => r.IsActive && r.RoomType == RoomTypes.Examination)
+            .Select(r => new { r.Id, r.DepartmentId, r.RoomName })
             .ToListAsync();
         if (rooms.Count == 0)
             return null;
@@ -191,8 +202,12 @@ public partial class DailySeedServiceImpl : HIS.Application.Services.IDailySeedS
         {
             var gender = rng.Next(2) + 1; // 1 Nam, 2 Nữ
             var first = FirstNames[rng.Next(FirstNames.Length)];
-            var middle = MiddleNames[rng.Next(MiddleNames.Length)];
-            var given = GivenNames[rng.Next(GivenNames.Length)];
+            // Tên đệm + tên gọi chọn theo giới tính: bản cũ bốc ngẫu nhiên nên sinh ra
+            // "Ngô Văn Hùng — Nữ", "Lý Văn Trang — Nữ" trên lưới tiếp đón, nhìn là biết dữ liệu bịa.
+            var middlePool = gender == 1 ? MaleMiddleNames : FemaleMiddleNames;
+            var givenPool = gender == 1 ? MaleGivenNames : FemaleGivenNames;
+            var middle = middlePool[rng.Next(middlePool.Length)];
+            var given = givenPool[rng.Next(givenPool.Length)];
             var fullName = $"{first} {middle} {given}";
             var year = now.Year - rng.Next(1, 85);
             var dob = new DateTime(year, rng.Next(1, 13), rng.Next(1, 28));
@@ -229,7 +244,11 @@ public partial class DailySeedServiceImpl : HIS.Application.Services.IDailySeedS
             };
             newPatients.Add(patient);
 
-            var room = rooms[rng.Next(rooms.Count)];
+            // Phòng khám phải hợp với bệnh nhân: bản cũ bốc ngẫu nhiên nên có BN nam vào
+            // "Phòng khám Sản" và cụ ông 84 tuổi vào "Phòng khám Nhi khoa".
+            var suitable = rooms.Where(r => IsRoomSuitable(r.RoomName, gender, ageYears)).ToList();
+            var pool = suitable.Count > 0 ? suitable : rooms;
+            var room = pool[rng.Next(pool.Count)];
             var diag = Diagnoses[rng.Next(Diagnoses.Length)];
             var record = new MedicalRecord
             {
