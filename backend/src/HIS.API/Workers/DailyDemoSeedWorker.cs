@@ -1,4 +1,5 @@
 using HIS.Application.Services;
+using HIS.Core.Common;
 using HIS.Infrastructure.Data;
 
 namespace HIS.API.Workers;
@@ -7,7 +8,7 @@ namespace HIS.API.Workers;
 /// Background worker bơm dữ liệu demo mỗi ngày để màn hình Tiếp Đón (và các phân hệ
 /// khác) luôn có dữ liệu để review.
 ///
-/// Mỗi chu kỳ (mặc định 24h, chạy lần đầu ~30s sau khi app khởi động) worker:
+/// Mỗi chu kỳ (chạy lần đầu ~30s sau khi app khởi động, sau đó mỗi ngày một lần) worker:
 ///   1. Gọi <see cref="IDailySeedService.RunDailySeedAsync"/> — sinh bệnh nhân tiếp đón
 ///      hôm nay + hồ sơ/khám/đơn thuốc/XN/CĐHA/PT/nội trú/viện phí/hàng đợi của ngày.
 ///   2. Gọi <see cref="IPopulateDataService.PopulateAllAsync"/> — fill các bảng còn rỗng cho
@@ -19,10 +20,16 @@ namespace HIS.API.Workers;
 /// có sẵn (#365 REFAC-3 chuyển từ controller sang service) — worker chỉ điều phối lịch
 /// chạy, không nhân bản logic.
 ///
-/// Cấu hình (mặc định TẮT cho local/test — bật trên Cloud Run qua env var):
-///   DailyDemoSeed:Enabled          (default false)   → env DailyDemoSeed__Enabled=true
+/// Lịch chạy neo vào MỐC NỬA ĐÊM GIỜ VN, không phải "24h kể từ lúc app boot". Neo theo
+/// boot làm dữ liệu của ngày mới chỉ xuất hiện đúng giờ container khởi động (vd 15:44 VN),
+/// nên màn Tiếp Đón trống suốt từ 00:00 tới lúc đó mỗi ngày — đúng triệu chứng gặp trên
+/// prod 17/08/2026. Seed lần đầu sau boot vẫn giữ để bắt kịp ngày hiện tại khi container
+/// vừa restart giữa ngày.
+///
+/// Cấu hình (mặc định TẮT cho local/test — bật trên prod qua env var):
+///   DailyDemoSeed:Enabled          (default false)    → env DailyDemoSeed__Enabled=true
 ///   DailyDemoSeed:PatientsPerDay   (default 30)
-///   DailyDemoSeed:IntervalHours    (default 24)
+///   DailyDemoSeed:RunAtVnTime      (default "00:05")  → giờ VN chạy mỗi ngày
 /// </summary>
 public sealed class DailyDemoSeedWorker : BackgroundService
 {
@@ -30,7 +37,10 @@ public sealed class DailyDemoSeedWorker : BackgroundService
     private readonly ILogger<DailyDemoSeedWorker> _logger;
     private readonly bool _enabled;
     private readonly int _patientsPerDay;
-    private readonly TimeSpan _interval;
+    private readonly TimeSpan _runAtVnTime;
+
+    /// <summary>Seed hỏng thì thử lại sớm thay vì bỏ trống cả ngày.</summary>
+    private static readonly TimeSpan RetryAfterFailure = TimeSpan.FromMinutes(30);
 
     public DailyDemoSeedWorker(
         IServiceScopeFactory scopeFactory,
@@ -41,7 +51,11 @@ public sealed class DailyDemoSeedWorker : BackgroundService
         _logger = logger;
         _enabled = config.GetValue<bool>("DailyDemoSeed:Enabled", false);
         _patientsPerDay = config.GetValue<int>("DailyDemoSeed:PatientsPerDay", 30);
-        _interval = TimeSpan.FromHours(config.GetValue<int>("DailyDemoSeed:IntervalHours", 24));
+        var runAtRaw = config.GetValue<string>("DailyDemoSeed:RunAtVnTime", "00:05");
+        _runAtVnTime = TimeSpan.TryParse(runAtRaw, out var runAt)
+                       && runAt >= TimeSpan.Zero && runAt < TimeSpan.FromDays(1)
+            ? runAt
+            : TimeSpan.FromMinutes(5);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -54,8 +68,8 @@ public sealed class DailyDemoSeedWorker : BackgroundService
         }
 
         _logger.LogInformation(
-            "DailyDemoSeedWorker started — interval={Hours}h, patientsPerDay={Count}",
-            (int)_interval.TotalHours, _patientsPerDay);
+            "DailyDemoSeedWorker started — runAtVnTime={RunAt}, patientsPerDay={Count}",
+            _runAtVnTime, _patientsPerDay);
 
         // Chờ app bootstrap + DB sẵn sàng trước khi seed lần đầu.
         try { await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken); }
@@ -63,6 +77,7 @@ public sealed class DailyDemoSeedWorker : BackgroundService
 
         while (!stoppingToken.IsCancellationRequested)
         {
+            var succeeded = true;
             try
             {
                 await SeedOnceAsync(stoppingToken);
@@ -71,12 +86,32 @@ public sealed class DailyDemoSeedWorker : BackgroundService
             catch (Exception ex)
             {
                 // Worker không được die — log rồi tiếp tục chu kỳ sau.
+                succeeded = false;
                 _logger.LogError(ex, "DailyDemoSeedWorker iteration failed — will retry next cycle");
             }
 
-            try { await Task.Delay(_interval, stoppingToken); }
+            var delay = succeeded ? DelayUntilNextVnRun() : RetryAfterFailure;
+            _logger.LogInformation(
+                "DailyDemoSeedWorker: chu kỳ kế tiếp sau {Delay} (giờ VN hiện tại {NowVn:yyyy-MM-dd HH:mm})",
+                delay, VnTime.NowVn);
+
+            try { await Task.Delay(delay, stoppingToken); }
             catch (OperationCanceledException) { break; }
         }
+    }
+
+    /// <summary>
+    /// Khoảng chờ tới lần chạy kế tiếp = <see cref="_runAtVnTime"/> của NGÀY VN kế tiếp.
+    /// Neo theo lịch VN (không cộng dồn 24h từ lúc boot) để dữ liệu "hôm nay" luôn có sẵn
+    /// ngay đầu ngày làm việc, bất kể container khởi động lúc mấy giờ.
+    /// </summary>
+    private TimeSpan DelayUntilNextVnRun()
+    {
+        var nowVn = VnTime.NowVn;
+        var nextRunVn = nowVn.Date.AddDays(1).Add(_runAtVnTime);
+        var delay = nextRunVn - nowVn;
+        // Chặn dưới: tránh busy-loop nếu đồng hồ nhảy hoặc _runAtVnTime rơi sát thời điểm hiện tại.
+        return delay < TimeSpan.FromMinutes(1) ? TimeSpan.FromMinutes(1) : delay;
     }
 
     private async Task SeedOnceAsync(CancellationToken ct)
