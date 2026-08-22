@@ -10,6 +10,8 @@ import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn,
   useListData, useTabCounts, tk, tw, cf, type ColumnDef, type StatusTab,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
+import { useTabState } from '../../../hooks/useTabState';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -54,7 +56,7 @@ const OfficialDocumentsV2: React.FC = () => {
     useCallback(() => apiClient.get<OfficialDocument[]>('/admin-modules/official-documents').then((r) => r.data), []),
     useCallback(() => tw('Tải danh sách thất bại'), []),
   );
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all');
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('');
 
@@ -218,7 +220,7 @@ const OfficialDocumentsV2: React.FC = () => {
           ]}
         />
         <div style={{ flex: 1 }} />
-        <Btn variant="ghost" icon="refresh" onClick={reload}>Làm mới</Btn>
+        <RefreshButton onRefresh={reload} />
         <Btn variant="primary" icon="plus" onClick={openAdd}>Thêm công văn</Btn>
       </div>
 
@@ -314,7 +316,7 @@ const OfficialDocumentsV2: React.FC = () => {
         )}
 
         {drawerDoc && editMode && (
-          <Form form={editForm} layout="vertical">
+          <Form form={editForm} layout="vertical" scrollToFirstError>
             <Form.Item name="documentNumber" label="Số công văn" rules={[{ required: true }]}>
               <Input />
             </Form.Item>
@@ -363,7 +365,7 @@ const OfficialDocumentsV2: React.FC = () => {
         destroyOnHidden
         width={520}
       >
-        <Form form={form} layout="vertical">
+        <Form form={form} layout="vertical" scrollToFirstError>
           <Form.Item name="documentNumber" label="Số công văn" rules={[{ required: true }]}>
             <Input placeholder="VD: 123/CV-SYT" />
           </Form.Item>

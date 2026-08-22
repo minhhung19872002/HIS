@@ -1,6 +1,8 @@
 import React from 'react';
 import { ModalShell, Btn, ActBtn, cf } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 import type { OutpatientRecordTemplateDto } from '../../patient/api/clinicalNarratives';
 import type { DxRow } from './_shared';
 
@@ -31,7 +33,9 @@ export const TemplateModals: React.FC<{
   saveOpen, setSaveOpen, name, setName, busy, onSave,
   manageOpen, setManageOpen, tpls, onRemove,
   history, exam, conclusion, diagnoses,
-}) => (
+}) => {
+  const form = useModalForm({ name: { required: true, message: 'Vui lòng nhập tên mẫu' } }, saveOpen);
+  return (
   <>
     {/* ── Modal: Lưu bản ghi hiện tại thành mẫu HSBA ───────────────── */}
     <ModalShell
@@ -43,15 +47,16 @@ export const TemplateModals: React.FC<{
       footer={
         <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
           <Btn variant="ghost" size="sm" onClick={() => setSaveOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" size="sm" disabled={busy || !name.trim()} onClick={onSave}>
-            {busy ? 'Đang lưu…' : 'Lưu mẫu'}
+          <Btn variant="primary" size="sm" loading={busy} onClick={() => { if (form.validate({ name })) onSave(); }}>
+            Lưu mẫu
           </Btn>
         </div>
       }
     >
-      <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Tên mẫu</label>
-      <input className="hui-inp" value={name} onChange={(e) => setName(e.target.value)}
-        placeholder="VD: Viêm họng cấp người lớn" style={{ width: '100%', height: 32, fontSize: 12.5 }} autoFocus />
+      <Field label="Tên mẫu" required error={form.errors.name}>
+        <input className="hui-inp" value={name} onChange={(e) => { setName(e.target.value); form.clear('name'); }}
+          placeholder="VD: Viêm họng cấp người lớn" style={{ width: '100%', height: 32, fontSize: 12.5 }} autoFocus />
+      </Field>
       <div style={{ marginTop: 'var(--space-10)', fontSize: 11.5, color: 'var(--t-2)' }}>
         Mẫu sẽ gồm: bệnh sử ({history ? history.length : 0} ký tự) · khám LS ({exam ? exam.length : 0} ký tự) ·
         kết luận ({conclusion ? conclusion.length : 0} ký tự)
@@ -90,4 +95,5 @@ export const TemplateModals: React.FC<{
       )}
     </ModalShell>
   </>
-);
+  );
+};

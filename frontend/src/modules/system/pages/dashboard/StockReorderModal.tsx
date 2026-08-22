@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { Modal, InputNumber, Select as AntdSelect, DatePicker } from 'antd';
 import type { ExpiryWarningDto } from '../../../pharmacy/api/warehouse';
+import { Field } from '../../../../components/form/Field';
+import { useModalForm } from '../../../../hooks/useModalForm';
 
 /* ==========================================================================
    Stock reorder modal — create a purchase order for a near-expiry item
@@ -20,6 +22,9 @@ export const StockReorderModal: React.FC<{
   useEffect(() => {
     if (item) setQty(Math.max((item.quantity || 100) * 3, 2000));
   }, [item]);
+  const vf = useModalForm({
+    qty: { required: true, label: 'số lượng đặt', validate: (v) => (typeof v === 'number' && v > 0) ? undefined : 'Số lượng đặt phải lớn hơn 0' },
+  }, !!item);
   if (!item) return null;
   return (
     <Modal
@@ -36,22 +41,19 @@ export const StockReorderModal: React.FC<{
       }
       footer={[
         <button key="close" type="button" className="btn ghost" onClick={onClose}>Hủy</button>,
-        <button key="po" type="button" className="btn primary" onClick={() => onCreatePO(qty)}>Tạo PO</button>,
+        <button key="po" type="button" className="btn primary" onClick={() => { if (vf.validate({ qty })) onCreatePO(qty); }}>Tạo PO</button>,
       ]}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
-        <div>
-          <div style={{ fontSize: 'var(--fs-xs)', color: '#475569', marginBottom: 'var(--space-4)', fontWeight: 500 }}>Số lượng đặt *</div>
-          <InputNumber value={qty} onChange={(v) => setQty(Number(v) || 0)} style={{ width: '100%' }} addonAfter={item.unit} min={1} />
-        </div>
-        <div>
-          <div style={{ fontSize: 'var(--fs-xs)', color: '#475569', marginBottom: 'var(--space-4)', fontWeight: 500 }}>Nhà cung cấp</div>
+        <Field label="Số lượng đặt" required error={vf.errors.qty}>
+          <InputNumber value={qty} onChange={(v) => { setQty(Number(v) || 0); vf.clear('qty'); }} style={{ width: '100%' }} addonAfter={item.unit} min={1} />
+        </Field>
+        <Field label="Nhà cung cấp">
           <AntdSelect value={supplier} onChange={setSupplier} options={SUPPLIERS.map((s) => ({ value: s, label: s }))} style={{ width: '100%' }} />
-        </div>
-        <div>
-          <div style={{ fontSize: 'var(--fs-xs)', color: '#475569', marginBottom: 'var(--space-4)', fontWeight: 500 }}>Ngày cần nhận</div>
+        </Field>
+        <Field label="Ngày cần nhận">
           <DatePicker value={needDate} onChange={setNeedDate} format="DD/MM/YYYY" style={{ width: '100%' }} />
-        </div>
+        </Field>
       </div>
     </Modal>
   );

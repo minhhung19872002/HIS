@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { DatePicker } from 'antd';
 import {
@@ -12,6 +13,7 @@ import {
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 const MONITORING_FIELDS: CrudFieldCfg[] = [
   { key: 'monitoringDate', label: 'Ngày quan trắc', type: 'date', required: true },
@@ -87,12 +89,12 @@ const EnvironmentalHealthV2: React.FC = () => {
   const [items, setItems] = useState<WasteRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all', 'stab');
   const [fType, setFType] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<WasteRecord | null>(null);
   const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
-  const [mainTab, setMainTab] = useState<MainTab>('waste');
+  const [mainTab, setMainTab] = useTabState<MainTab>('waste', 'tab');
 
   // Thống kê server (parity v1): waste stats + monitoring stats + an toàn sinh học
   const [wasteStats, setWasteStats] = useState<WasteStats>({ totalCollectedThisMonth: 0, nonCompliantItems: 0, infectiousWasteKg: 0, generalWasteKg: 0 });
@@ -240,7 +242,7 @@ const EnvironmentalHealthV2: React.FC = () => {
             <Ico name="x" size={12} /> Bỏ lọc
           </Btn>
           <span className="spacer" />
-          <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
+          <RefreshButton onRefresh={async () => { await load(); }} />
           <Btn variant="ghost" onClick={() => { setMonitorOpen(true); loadMonitorings(); }}>
             <Ico name="activity" size={12} /> Quan trắc
           </Btn>

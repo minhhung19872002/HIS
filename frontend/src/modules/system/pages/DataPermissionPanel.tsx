@@ -6,10 +6,13 @@ import {
   type DataPermissionGroupDto, type DataPermissionItemDto, type DataScopeType,
 } from '../api/dataPermission';
 import {
-  KpiStrip, DataTable, StatusBadge, Btn, ModalShell, AbSelect, tk, te, tw, cf,
+  KpiStrip, DataTable, StatusBadge, Btn, ModalShell, AbSelect, tk, te, cf,
   type ColumnDef,
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '@/utils/friendlyError';
+import { RefreshButton } from '../../../components/actions';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 
 /* ──────────────────────────────────────────────────────────────────────────
    NangCap26 — I.15 Quyền dữ liệu phòng/kho · I.16 Phân quyền dữ liệu người dùng.
@@ -68,7 +71,6 @@ export const DataPermissionPanel: React.FC<Props> = ({ departments = [] }) => {
 
   const submit = async () => {
     if (busy) return;
-    if (!form.code.trim() || !form.name.trim()) { tw('Nhập mã và tên nhóm'); return; }
     setBusy(true);
     try {
       await saveDataPermissionGroup({ ...form, items });
@@ -121,6 +123,11 @@ export const DataPermissionPanel: React.FC<Props> = ({ departments = [] }) => {
     ) },
   ];
 
+  const vf = useModalForm({
+    code: { required: true, label: 'mã nhóm' },
+    name: { required: true, label: 'tên nhóm' },
+  }, open);
+
   return (
     <>
       <KpiStrip items={[
@@ -136,7 +143,7 @@ export const DataPermissionPanel: React.FC<Props> = ({ departments = [] }) => {
           Người dùng chưa gán nhóm nào thì <b>không bị giới hạn</b>.
         </span>
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
         <Btn variant="primary" icon="plus" onClick={openCreate}>Thêm nhóm</Btn>
       </div>
 
@@ -152,23 +159,20 @@ export const DataPermissionPanel: React.FC<Props> = ({ departments = [] }) => {
         title={form.id ? 'Sửa nhóm quyền dữ liệu' : 'Thêm nhóm quyền dữ liệu'}
         footer={<>
           <Btn variant="ghost" onClick={() => setOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" disabled={busy} onClick={submit}>{busy ? 'Đang lưu…' : 'Lưu'}</Btn>
+          <Btn variant="primary" loading={busy} onClick={() => { if (vf.validate({ code: form.code, name: form.name })) submit(); }}>Lưu</Btn>
         </>}
       >
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 'var(--space-12)' }}>
-          <label style={{ display: 'grid', gap: 'var(--space-4)', fontSize: 'var(--fs-sm)' }}>
-            Mã nhóm *
-            <Input value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} placeholder="VD: KHOA_NOI" />
-          </label>
-          <label style={{ display: 'grid', gap: 'var(--space-4)', fontSize: 'var(--fs-sm)' }}>
-            Tên nhóm *
-            <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="VD: Dữ liệu khoa Nội" />
-          </label>
+          <Field label="Mã nhóm" required error={vf.errors.code}>
+            <Input value={form.code} onChange={(e) => { setForm((f) => ({ ...f, code: e.target.value })); vf.clear('code'); }} placeholder="VD: KHOA_NOI" />
+          </Field>
+          <Field label="Tên nhóm" required error={vf.errors.name}>
+            <Input value={form.name} onChange={(e) => { setForm((f) => ({ ...f, name: e.target.value })); vf.clear('name'); }} placeholder="VD: Dữ liệu khoa Nội" />
+          </Field>
         </div>
-        <label style={{ display: 'grid', gap: 'var(--space-4)', fontSize: 'var(--fs-sm)', marginTop: 'var(--space-12)' }}>
-          Mô tả
+        <Field label="Mô tả" style={{ marginTop: 'var(--space-12)' }}>
           <Input value={form.description || ''} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
-        </label>
+        </Field>
 
         <div style={{ marginTop: 'var(--space-16)' }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 'var(--space-8)' }}>

@@ -18,14 +18,26 @@ export function TopTabs<T extends string>({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="ab-toptabs">
+     <div className="ab-toptabs">
+    <div className="ab-toptabs-scroll">
       {tabs.map((t) => (
-        <button key={t.v} className={tab === t.v ? 'on' : ''} onClick={() => setTab(t.v)} type="button">
-          {t.ic && <TermIcon name={t.ic} size={13} />} {t.l}
+        <button
+          key={t.v}
+          className={tab === t.v ? 'on' : ''}
+          onClick={() => setTab(t.v)}
+          type="button"
+        >
+          {t.ic && <TermIcon name={t.ic} size={13} />}
+          {t.l}
         </button>
       ))}
-      <span className="spacer" />
-      {actions}
     </div>
+
+    {actions && (
+      <div className="ab-toptabs-actions">
+        {actions}
+      </div>
+    )}
+  </div>
   );
 }

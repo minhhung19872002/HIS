@@ -11,6 +11,7 @@ import {
   KpiStrip, DataTable, StatusBadge, Btn, tk, te, cf, type ColumnDef,
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '@/utils/friendlyError';
+import { RefreshButton } from '../../../components/actions';
 
 const HANDOVER_TONE: Record<number, 'ok' | 'info' | 'warn' | 'crit' | undefined> = { 0: undefined, 1: 'warn', 2: 'ok', 3: 'info' };
 
@@ -132,7 +133,7 @@ const DataManagementPanel: React.FC = () => {
       <div className="ab-tools">
         <span style={{ fontWeight: 600 }}>Dữ liệu theo module</span>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>{loading ? 'Đang tải…' : 'Làm mới'}</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
       </div>
       <DataTable<ModuleDataCountDto> columns={moduleColumns} data={moduleCounts} rowKey={(m) => m.moduleName}
         empty={loading ? 'Đang tải…' : 'Chưa có dữ liệu'} />

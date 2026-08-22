@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import { Form, Input, InputNumber, Switch, Select, Modal } from 'antd';
 import apiClient from '../../../services/apiClient';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
@@ -8,6 +9,7 @@ import {
   KpiStrip, TopTabs, SearchBox, DataTable, StatusBadge, ActBtn, Btn,
   tk, ti, tw, cf, type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions/RefreshButton/RefreshButton';
 
 type TabKey = 'books' | 'groups' | 'units' | 'organisms' | 'antibiotics' | 'chemicals' | 'abbr' | 'tests' | 'sendingunits';
 const TABS = [
@@ -32,7 +34,7 @@ const DATA_TYPE_OPTIONS = ['Number', 'Text', 'Enum'].map((v) => ({ label: v, val
 type Row = Record<string, any>;
 
 const LisCatalogAdminV2: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('books');
+  const [tab, setTab] = useTabState<TabKey>('books');
   const [keyword, setKeyword] = useState('');
   const [data, setData] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
@@ -345,7 +347,7 @@ const LisCatalogAdminV2: React.FC = () => {
 
       <TopTabs<TabKey> tab={tab} setTab={(v) => { setTab(v); setKeyword(''); }} tabs={TABS} actions={
         <>
-          <Btn variant="ghost" icon="refresh" loading={loading} onClick={load}>Làm mới</Btn>
+          <RefreshButton onRefresh={load} loading={loading} />
           <Btn variant="primary" icon="plus" onClick={openAdd}>Thêm mới</Btn>
         </>
       } />

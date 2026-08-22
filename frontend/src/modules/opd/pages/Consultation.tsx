@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import * as file from '../../../services/file.service';
 import dayjs from 'dayjs';
 import { App as AntdApp, Input } from 'antd';
@@ -12,8 +13,9 @@ import {
   tk, tw, te,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { Field } from '../../../components/form/Field';
 
 /** Tải CSV với BOM UTF-8 để Excel mở đúng tiếng Việt */
 function downloadCsv(filename: string, lines: string[]): void {
@@ -69,7 +71,7 @@ const ConsultationV2: React.FC = () => {
     }).then((r) => r.data?.items || []), []),
     useCallback(() => te('Không tải được danh sách phiên hội chẩn. Vui lòng thử lại.'), []),
   );
-  const [stab, setStab] = useState<StatusKey | 'all'>('all');
+  const [stab, setStab] = useTabState<StatusKey | 'all'>('all');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [detail, setDetail] = useState<ConsultationSessionDto | null>(null);
@@ -157,9 +159,7 @@ const ConsultationV2: React.FC = () => {
           <TermIcon name="refresh" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={reload}>
-          <TermIcon name="refresh" size={12} /> Làm mới
-        </Btn>
+        <RefreshButton onRefresh={reload} />
         <Btn variant="ghost" onClick={() => {
           const header = ['Ma phien', 'Chu de', 'Lich hop', 'Nguoi tao', 'So ca', 'Trang thai'];
           const rows2 = filtered.map((r) => [
@@ -423,18 +423,15 @@ const ConsultationDrawerBody: React.FC<{ r: ConsultationSessionDto }> = ({ r }) 
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div>
-            <label style={{ fontSize: 12, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Nội dung</label>
+          <Field label="Nội dung">
             <Input.TextArea rows={3} value={mContent} onChange={(e) => setMContent(e.target.value)} placeholder="Nội dung biên bản…" />
-          </div>
-          <div>
-            <label style={{ fontSize: 12, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Kết luận</label>
+          </Field>
+          <Field label="Kết luận">
             <Input.TextArea rows={3} value={mConclusion} onChange={(e) => setMConclusion(e.target.value)} placeholder="Kết luận…" />
-          </div>
-          <div>
-            <label style={{ fontSize: 12, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Khuyến nghị</label>
+          </Field>
+          <Field label="Khuyến nghị">
             <Input.TextArea rows={3} value={mRec} onChange={(e) => setMRec(e.target.value)} placeholder="Khuyến nghị…" />
-          </div>
+          </Field>
         </div>
       </ModalShell>
     </>

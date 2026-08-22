@@ -11,6 +11,7 @@ import {
   ModalShell, tk, tw, te,
   type ColumnDef,
 } from '@/_v2kit';
+import { useTabState } from '../../../hooks/useTabState';
 
 // Insurance subform có nhiều field date — lấy shape lỏng (BE trả mixed Date / string / undefined).
 interface InsuranceData {
@@ -43,7 +44,7 @@ const TABS = [
 
 
 const EmployeeProfileV2: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('assets');
+  const [tab, setTab] = useTabState<Tab>('assets');
   const [users, setUsers] = useState<User[]>([]);
   const [userId, setUserId] = useState('');
 
@@ -189,7 +190,7 @@ function GenericCrudTab<T extends { id: string }>(props: CrudConfig<T>) {
           <Btn variant="ghost" disabled={saving} onClick={() => { setModal(false); setEditing(null); form.resetFields(); }}>Hủy</Btn>
           <Btn variant="primary" icon="check" loading={saving} onClick={submit}>{saving ? 'Đang lưu…' : 'Lưu'}</Btn>
         </>}>
-        <Form form={form} layout="vertical">{formItems}</Form>
+        <Form form={form} layout="vertical" scrollToFirstError>{formItems}</Form>
       </ModalShell>
     </>
   );

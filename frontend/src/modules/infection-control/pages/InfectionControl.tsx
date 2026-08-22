@@ -19,6 +19,8 @@ import {
   TopTabs, ModalShell,
   type ColumnDef, type CrudFieldCfg, type TopTab,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
+import { useTabState } from '../../../hooks/useTabState';
 
 type Row = {
   id: string;
@@ -110,13 +112,13 @@ const obTone = (s: string): 'ok' | 'warn' | 'info' =>
 
 const InfectionControlV2: React.FC = () => {
   // ─── Tab ────────────────────────────────────────────────────────────────
-  const [tab, setTab] = useState<TabKey>('hai');
+  const [tab, setTab] = useTabState<TabKey>('hai', 'tab');
 
   // ─── HAI state ──────────────────────────────────────────────────────────
   const [items, setItems] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all', 'stab');
   const [fInfType, setFInfType] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<Row | null>(null);
@@ -203,16 +205,19 @@ const InfectionControlV2: React.FC = () => {
   const [hhCrudOpen, setHhCrudOpen] = useState(false);
   const [hhCrudInit, setHhCrudInit] = useState<Record<string, unknown> | null>(null);
 
+  const loadHh = async () => {
+    setHhLoading(true);
+    try {
+      const r = await getHandHygieneObservations();
+      setHhItems(Array.isArray(r.data) ? r.data : []);
+      setHhLoaded(true);
+    } catch { ti('Không tải được dữ liệu vệ sinh tay'); }
+    finally { setHhLoading(false); }
+  };
   useEffect(() => {
     if (tab !== 'hh' || hhLoaded) return;
-    setHhLoading(true);
-    getHandHygieneObservations()
-      .then((r) => {
-        setHhItems(Array.isArray(r.data) ? r.data : []);
-        setHhLoaded(true);
-      })
-      .catch(() => ti('Không tải được dữ liệu vệ sinh tay'))
-      .finally(() => setHhLoading(false));
+    loadHh();
+    /* eslint-disable-next-line */
   }, [tab, hhLoaded]);
 
   // ─── Isolation orders state (#352 parity v1 tab Cách ly) ────────────────
@@ -224,16 +229,19 @@ const InfectionControlV2: React.FC = () => {
   const [isoDiscReason, setIsoDiscReason] = useState('');
   const [isoDiscSaving, setIsoDiscSaving] = useState(false);
 
+  const loadIso = async () => {
+    setIsoLoading(true);
+    try {
+      const r = await getIsolationOrders();
+      setIsoItems(Array.isArray(r.data) ? r.data : []);
+      setIsoLoaded(true);
+    } catch { ti('Không tải được danh sách y lệnh cách ly'); }
+    finally { setIsoLoading(false); }
+  };
   useEffect(() => {
     if (tab !== 'isolation' || isoLoaded) return;
-    setIsoLoading(true);
-    getIsolationOrders()
-      .then((r) => {
-        setIsoItems(Array.isArray(r.data) ? r.data : []);
-        setIsoLoaded(true);
-      })
-      .catch(() => ti('Không tải được danh sách y lệnh cách ly'))
-      .finally(() => setIsoLoading(false));
+    loadIso();
+    /* eslint-disable-next-line */
   }, [tab, isoLoaded]);
 
   const doDiscontinueIso = async () => {
@@ -389,7 +397,7 @@ const InfectionControlV2: React.FC = () => {
           <Filter value={fInfType} onChange={setFInfType} options={infTypes} placeholder="▾ Loại NK" />
           <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFInfType(''); setStab('all'); }}>Bỏ lọc</Btn>
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
+          <RefreshButton onRefresh={async () => { await load() }} />
           <Btn variant="ghost" icon="alert" onClick={() => { setIsoInit({ isMDRO: false }); setIsoOpen(true); }}>Cách ly</Btn>
           <Btn variant="primary" icon="plus" onClick={openCreate}>Báo cáo HAI</Btn>
         </div>
@@ -409,7 +417,7 @@ const InfectionControlV2: React.FC = () => {
       {tab === 'hh' && <>
         <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={() => setHhLoaded(false)} loading={hhLoading}>Làm mới</Btn>
+          <RefreshButton onRefresh={loadHh} />
           <Btn variant="primary" icon="plus" onClick={() => { setHhCrudInit(null); setHhCrudOpen(true); }}>Thêm quan sát</Btn>
         </div>
         <DataTable<HandHygieneObservationDto>
@@ -438,7 +446,7 @@ const InfectionControlV2: React.FC = () => {
         ]} />
         <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={() => setIsoLoaded(false)} loading={isoLoading}>Làm mới</Btn>
+          <RefreshButton onRefresh={loadIso} />
         </div>
         <DataTable<IsolationOrderDto>
           columns={[

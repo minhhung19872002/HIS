@@ -14,6 +14,10 @@ import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, StatusBadge, Btn, Pager, ModalShell, tk, ti, tw,
   type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { useTabState } from '../../../hooks/useTabState';
 
 interface Warehouse { id: string; warehouseName: string }
 interface DetailRow { id: string; warehouseName: string; itemCode: string; itemName: string; unit?: string; batchNumber?: string; expiryDate?: string; daysToExpiry?: number; quantity: number; reservedQuantity?: number; available: number; importPrice?: number; value?: number; isLocked?: boolean }
@@ -41,7 +45,7 @@ type LockTarget =
 
 
 const StockReportV2: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('detail');
+  const [tab, setTab] = useTabState<Tab>('detail');
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [warehouseId, setWarehouseId] = useState('');
   const [keyword, setKeyword] = useState('');
@@ -58,6 +62,11 @@ const StockReportV2: React.FC = () => {
   const [lockTarget, setLockTarget] = useState<LockTarget | null>(null);
   const [lockReason, setLockReason] = useState('');
   const [lockBusy, setLockBusy] = useState(false);
+  const lockForm = useModalForm({
+    reason: {
+      validate: (v: unknown) => (!!lockTarget && !lockTarget.locked && !(typeof v === 'string' && v.trim())) ? 'Phải nhập lý do khóa' : undefined,
+    },
+  }, !!lockTarget);
 
   useEffect(() => {
     getWarehouses(1)
@@ -120,7 +129,7 @@ const StockReportV2: React.FC = () => {
   const submitLock = async () => {
     if (!lockTarget) return;
     // Khóa bắt buộc có lý do (để lại vết cho hội đồng/lãnh đạo); mở khóa thì lý do tùy chọn.
-    if (!lockTarget.locked && !lockReason.trim()) { tw('Phải nhập lý do khóa'); return; }
+    if (!lockForm.validate({ reason: lockReason })) return;
     setLockBusy(true);
     try {
       if (lockTarget.kind === 'batch') {
@@ -249,7 +258,7 @@ const StockReportV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
-          <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
+          <RefreshButton onRefresh={load} loading={loading} />
           <Btn variant="primary" icon="download" onClick={exportCsv}>Xuất CSV</Btn>
         </>
       } />
@@ -309,7 +318,7 @@ const StockReportV2: React.FC = () => {
         footer={
           <>
             <Btn variant="ghost" onClick={() => setLockTarget(null)}>Hủy</Btn>
-            <Btn variant={lockTarget?.locked ? 'primary' : 'crit'} disabled={lockBusy} onClick={submitLock}>
+            <Btn variant={lockTarget?.locked ? 'primary' : 'crit'} loading={lockBusy} onClick={submitLock}>
               {lockBusy ? 'Đang xử lý…' : lockTarget?.locked ? 'Mở khóa' : 'Khóa'}
             </Btn>
           </>
@@ -323,11 +332,12 @@ const StockReportV2: React.FC = () => {
                 : 'Sau khi khóa, kho này KHÔNG xuất và KHÔNG luân chuyển được.'}
             </div>
           )}
-          <label style={{ display: 'grid', gap: 'var(--space-4)', fontSize: 'var(--fs-sm)' }}>
-            Lý do {lockTarget?.locked ? '(tùy chọn)' : <span style={{ color: 'var(--a-cr-text)' }}>*</span>}
-            <Input.TextArea rows={3} value={lockReason} onChange={(e) => setLockReason(e.target.value)}
+          <Field label="Lý do" required={!lockTarget?.locked} error={lockForm.errors.reason}
+            hint={lockTarget?.locked ? 'tùy chọn' : undefined}>
+            <Input.TextArea rows={3} value={lockReason}
+              onChange={(e) => { setLockReason(e.target.value); lockForm.clear('reason'); }}
               placeholder={lockTarget?.locked ? 'Căn cứ quyết định mở khóa…' : 'VD: Thu hồi theo công văn số… / nghi ngờ chất lượng'} />
-          </label>
+          </Field>
         </div>
       </ModalShell>
     </div>

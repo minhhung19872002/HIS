@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { Form, Input, InputNumber, Select, Switch } from 'antd';
 import * as api from '../api/centralSigning';
@@ -8,6 +9,7 @@ import {
   DrawerShell, ModalShell, DrSec, DrField, tk, ti, tw, cf, Ico,
   type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 interface ManagedCertificate {
   id: string; serialNumber: string; subjectName: string; issuerName: string;
@@ -42,7 +44,7 @@ const TABS = [
 const PER = 18;
 
 const CentralSigningV2: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('certs');
+  const [tab, setTab] = useTabState<Tab>('certs');
   // #352: dữ liệu ghép ứng dụng OTP (QR + mã thủ công) — v2 trước đây vứt đi
   const [totpSetup, setTotpSetup] = useState<{ qrCodeUri?: string; manualEntryKey?: string } | null>(null);
   const [certs, setCerts] = useState<ManagedCertificate[]>([]);
@@ -309,13 +311,11 @@ const CentralSigningV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={(v) => { setTab(v); setPage(0); }} tabs={TABS} actions={
         <>
-          <Btn variant="ghost" onClick={() => {
+          <RefreshButton onRefresh={() => {
             if (tab === 'certs') fetchCerts();
             else if (tab === 'transactions') fetchTxs(page);
             fetchStats();
-          }}>
-            <Ico name="refresh" size={12} /> Làm mới
-          </Btn>
+          }} />
           {tab === 'certs' && (
             <Btn variant="primary" onClick={() => openCertModal()}>
               <Ico name="plus" size={12} /> Thêm chứng thư

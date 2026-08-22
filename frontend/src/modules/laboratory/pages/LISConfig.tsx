@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import {
@@ -21,6 +22,7 @@ import {
   type ColumnDef, type CrudFieldCfg, type TopTab,
 } from '@/_v2kit';
 import { RowActions } from '../../../components/actions';
+import { RefreshButton } from '../../../components/actions/RefreshButton/RefreshButton';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 const ANALYZER_FIELDS: CrudFieldCfg[] = [
@@ -67,7 +69,7 @@ const AnalyzerSection: React.FC = () => {
   const [labconn, setLabconn] = useState<LabconnectStatusDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all', 'stab');
   const [fProto, setFProto] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<AnalyzerDto | null>(null);
@@ -191,7 +193,7 @@ const AnalyzerSection: React.FC = () => {
         <Filter value={fProto} onChange={setFProto} options={protos} placeholder="▾ Protocol" />
         <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFProto(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" loading={loading} onClick={load}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
         <Btn variant="ghost" icon="activity" loading={lcBusy} onClick={runLabconnect}>
           {lcBusy ? 'Đang đồng bộ…' : 'LabConnect'}
         </Btn>
@@ -346,7 +348,7 @@ const TestParamsSection: React.FC = () => {
       <div className="ab-toolbar">
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }} placeholder="Tìm theo mã, tên chỉ số…" />
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" loading={loading} onClick={load}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
         <input
           ref={fileInputRef} type="file" accept=".csv" style={{ display: 'none' }}
           onChange={(e) => { if (e.target.files?.[0]) { handleCsvImport(e.target.files[0]); e.target.value = ''; } }}
@@ -477,7 +479,7 @@ const ReferenceRangesSection: React.FC = () => {
           style={{ width: 260 }}
         />
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" loading={loading} onClick={load}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
         <Btn variant="primary" icon="plus" onClick={openCreate}>Thêm dải chỉ số</Btn>
       </div>
 
@@ -604,7 +606,7 @@ const AnalyzerMappingSection: React.FC = () => {
           style={{ width: 260 }}
         />
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" loading={loading} onClick={load}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
         <Btn variant="ghost" icon="zap" loading={autoMapping} disabled={!filterAnalyzerId} onClick={handleAutoMap}>
           Tự động ánh xạ
         </Btn>
@@ -656,7 +658,7 @@ const MAIN_TABS: TopTab<MainTab>[] = [
 ];
 
 const LISConfigV2: React.FC = () => {
-  const [tab, setTab] = useState<MainTab>('analyzers');
+  const [tab, setTab] = useTabState<MainTab>('analyzers', 'tab');
   return (
     <div className="ab">
       <TopTabs<MainTab> tab={tab} setTab={setTab} tabs={MAIN_TABS} />

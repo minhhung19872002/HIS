@@ -18,6 +18,8 @@ import TermIcon from '../../../components/layout/terminal/Icon';
 import { RowActions } from '../../../components/actions';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { printHemodialysisSheet, type HemodialysisPrintHeader } from '../../patient/components/HemodialysisSheetPrint';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -72,21 +74,6 @@ const BLANK_FORM: FormState = {
   notes: '',
 };
 
-function validateForm(f: FormState): string | null {
-  if (!f.sessionDate) return 'Chua nhap ngay loc.';
-  if (f.weightPre < 0 || f.weightPost < 0) return 'Can nang khong duoc am.';
-  if (f.pulse < 0 || f.respiratoryRate < 0) return 'Mach / nhip tho khong duoc am.';
-  if (f.bloodFlowRate < 0) return 'Toc do mau khong duoc am.';
-  return null;
-}
-
-const IpFld: React.FC<{ label: string; full?: boolean; children: React.ReactNode }> = ({ label, full, children }) => (
-  <div style={{ gridColumn: full ? '1 / -1' : undefined }}>
-    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>{label}</div>
-    {children}
-  </div>
-);
-
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
@@ -104,6 +91,18 @@ const HemodialysisSection: React.FC<HemodialysisSectionProps> = ({ admissionId, 
   const [editing, setEditing]     = useState<HemodialysisSessionDto | null>(null);
   const [form, setForm]           = useState<FormState>(BLANK_FORM);
   const [saving, setSaving]       = useState(false);
+
+  const nonNegativeMsg = (label: string) => (v: unknown) =>
+    (typeof v === 'number' && v < 0) ? `${label} không được âm` : undefined;
+
+  const hdForm = useModalForm({
+    sessionDate: { required: true, message: 'Chưa nhập ngày lọc' },
+    weightPre: { validate: nonNegativeMsg('Cân nặng') },
+    weightPost: { validate: nonNegativeMsg('Cân nặng') },
+    pulse: { validate: nonNegativeMsg('Mạch') },
+    respiratoryRate: { validate: nonNegativeMsg('Nhịp thở') },
+    bloodFlowRate: { validate: nonNegativeMsg('Tốc độ máu') },
+  }, modalOpen);
 
   const load = () => {
     setLoading(true);
@@ -155,9 +154,6 @@ const HemodialysisSection: React.FC<HemodialysisSectionProps> = ({ admissionId, 
 
   const handleSave = async () => {
     if (saving) return;
-    const err = validateForm(form);
-    if (err) { message.error(err); return; }
-
     const payload = {
       ...form,
       endTime: form.endTime || undefined,
@@ -256,97 +252,110 @@ const HemodialysisSection: React.FC<HemodialysisSectionProps> = ({ admissionId, 
         footer={
           <>
             <Btn variant="ghost" onClick={() => setModalOpen(false)}>Huy</Btn>
-            <Btn variant="primary" onClick={handleSave} disabled={saving}>
-              {saving ? 'Dang luu...' : 'Luu'}
+            <Btn
+              variant="primary"
+              loading={saving}
+              onClick={() => {
+                if (hdForm.validate({
+                  sessionDate: form.sessionDate,
+                  weightPre: form.weightPre,
+                  weightPost: form.weightPost,
+                  pulse: form.pulse,
+                  respiratoryRate: form.respiratoryRate,
+                  bloodFlowRate: form.bloodFlowRate,
+                })) void handleSave();
+              }}
+            >
+              Luu
             </Btn>
           </>
         }
       >
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 18px', padding: '4px 0' }}>
-          <IpFld label="Ngay loc *">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 18px', padding: '4px 0' }}>
+          <Field label="Ngay loc" required error={hdForm.errors.sessionDate}>
             <DatePicker
               style={{ width: '100%' }}
               value={form.sessionDate ? dayjs(form.sessionDate) : null}
-              onChange={(d) => patchForm('sessionDate', d ? d.format('YYYY-MM-DD') : '')}
+              onChange={(d) => { patchForm('sessionDate', d ? d.format('YYYY-MM-DD') : ''); hdForm.clear('sessionDate'); }}
               format="DD/MM/YYYY"
             />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Buoi loc so">
+          <Field label="Buoi loc so">
             <InputNumber style={{ width: '100%' }} min={1} value={form.sessionNumber} onChange={(v) => patchForm('sessionNumber', v ?? 1)} />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Gio bat dau (HH:MM)">
+          <Field label="Gio bat dau (HH:MM)">
             <Input value={form.startTime.slice(0, 5)} onChange={(e) => patchForm('startTime', e.target.value + ':00')} placeholder="08:00" maxLength={5} />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Gio ket thuc (HH:MM)">
+          <Field label="Gio ket thuc (HH:MM)">
             <Input value={form.endTime.slice(0, 5)} onChange={(e) => patchForm('endTime', e.target.value ? e.target.value + ':00' : '')} placeholder="12:00" maxLength={5} />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Can nang truoc loc (kg)">
-            <InputNumber style={{ width: '100%' }} min={0} max={500} step={0.1} value={form.weightPre} onChange={(v) => patchForm('weightPre', v ?? 0)} />
-          </IpFld>
+          <Field label="Can nang truoc loc (kg)" error={hdForm.errors.weightPre}>
+            <InputNumber style={{ width: '100%' }} min={0} max={500} step={0.1} value={form.weightPre} onChange={(v) => { patchForm('weightPre', v ?? 0); hdForm.clear('weightPre'); }} />
+          </Field>
 
-          <IpFld label="Can nang sau loc (kg)">
-            <InputNumber style={{ width: '100%' }} min={0} max={500} step={0.1} value={form.weightPost} onChange={(v) => patchForm('weightPost', v ?? 0)} />
-          </IpFld>
+          <Field label="Can nang sau loc (kg)" error={hdForm.errors.weightPost}>
+            <InputNumber style={{ width: '100%' }} min={0} max={500} step={0.1} value={form.weightPost} onChange={(v) => { patchForm('weightPost', v ?? 0); hdForm.clear('weightPost'); }} />
+          </Field>
 
-          <IpFld label="Mach (lan/phut)">
-            <InputNumber style={{ width: '100%' }} min={0} max={300} value={form.pulse} onChange={(v) => patchForm('pulse', v ?? 0)} />
-          </IpFld>
+          <Field label="Mach (lan/phut)" error={hdForm.errors.pulse}>
+            <InputNumber style={{ width: '100%' }} min={0} max={300} value={form.pulse} onChange={(v) => { patchForm('pulse', v ?? 0); hdForm.clear('pulse'); }} />
+          </Field>
 
-          <IpFld label="Nhiet do (°C)">
+          <Field label="Nhiet do (°C)">
             <InputNumber style={{ width: '100%' }} min={30} max={45} step={0.1} value={form.temperature} onChange={(v) => patchForm('temperature', v ?? 0)} />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Huyet ap nam (mmHg)">
+          <Field label="Huyet ap nam (mmHg)">
             <Input value={form.bloodPressureLying} onChange={(e) => patchForm('bloodPressureLying', e.target.value)} placeholder="120/80" />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Huyet ap dung (mmHg)">
+          <Field label="Huyet ap dung (mmHg)">
             <Input value={form.bloodPressureStanding} onChange={(e) => patchForm('bloodPressureStanding', e.target.value)} placeholder="120/80" />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Nhip tho (lan/phut)">
-            <InputNumber style={{ width: '100%' }} min={0} max={100} value={form.respiratoryRate} onChange={(v) => patchForm('respiratoryRate', v ?? 0)} />
-          </IpFld>
+          <Field label="Nhip tho (lan/phut)" error={hdForm.errors.respiratoryRate}>
+            <InputNumber style={{ width: '100%' }} min={0} max={100} value={form.respiratoryRate} onChange={(v) => { patchForm('respiratoryRate', v ?? 0); hdForm.clear('respiratoryRate'); }} />
+          </Field>
 
-          <IpFld label="Toc do mau (ml/phut)">
-            <InputNumber style={{ width: '100%' }} min={0} max={600} value={form.bloodFlowRate} onChange={(v) => patchForm('bloodFlowRate', v ?? 0)} />
-          </IpFld>
+          <Field label="Toc do mau (ml/phut)" error={hdForm.errors.bloodFlowRate}>
+            <InputNumber style={{ width: '100%' }} min={0} max={600} value={form.bloodFlowRate} onChange={(v) => { patchForm('bloodFlowRate', v ?? 0); hdForm.clear('bloodFlowRate'); }} />
+          </Field>
 
-          <IpFld label="Ap luc dong mach (mmHg)">
+          <Field label="Ap luc dong mach (mmHg)">
             <InputNumber style={{ width: '100%' }} value={form.arterialPressure} onChange={(v) => patchForm('arterialPressure', v ?? undefined)} />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Ap luc tinh mach (mmHg)">
+          <Field label="Ap luc tinh mach (mmHg)">
             <InputNumber style={{ width: '100%' }} value={form.venousPressure} onChange={(v) => patchForm('venousPressure', v ?? undefined)} />
-          </IpFld>
+          </Field>
 
-          <IpFld label="PTM / TMP (mmHg)">
+          <Field label="PTM / TMP (mmHg)">
             <InputNumber style={{ width: '100%' }} min={0} step={0.1} value={form.tmp} onChange={(v) => patchForm('tmp', v ?? 0)} />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Tai dich (lit)">
+          <Field label="Tai dich (lit)">
             <InputNumber style={{ width: '100%' }} min={0} step={0.1} value={form.replacementFluid} onChange={(v) => patchForm('replacementFluid', v ?? 0)} />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Loai qua loc" full>
+          <Field label="Loai qua loc" style={{ gridColumn: '1 / -1' }}>
             <Input value={form.dialyzerType} onChange={(e) => patchForm('dialyzerType', e.target.value)} placeholder="VD: Low-flux F6, High-flux..." />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Thuoc su dung" full>
+          <Field label="Thuoc su dung" style={{ gridColumn: '1 / -1' }}>
             <Input.TextArea rows={2} value={form.medications} onChange={(e) => patchForm('medications', e.target.value)} placeholder="Heparin, thuoc khac..." />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Bien chung" full>
+          <Field label="Bien chung" style={{ gridColumn: '1 / -1' }}>
             <Input.TextArea rows={2} value={form.complications} onChange={(e) => patchForm('complications', e.target.value)} placeholder="Tut HA, chuot rut, buon non..." />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Ghi chu" full>
+          <Field label="Ghi chu" style={{ gridColumn: '1 / -1' }}>
             <Input.TextArea rows={2} value={form.notes} onChange={(e) => patchForm('notes', e.target.value)} />
-          </IpFld>
+          </Field>
         </div>
       </ModalShell>
     </div>

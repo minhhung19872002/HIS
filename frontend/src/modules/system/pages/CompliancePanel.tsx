@@ -23,6 +23,7 @@ import {
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '@/utils/friendlyError';
 import { getNestedData } from './helpers';
+import { RefreshButton } from '../../../components/actions';
 
 const { RangePicker } = DatePicker;
 
@@ -90,7 +91,7 @@ const SensitiveAccessReport: React.FC = () => {
         <RangePicker format="DD/MM/YYYY" value={dateRange}
           onChange={(dates) => { if (dates && dates[0] && dates[1]) setDateRange([dates[0], dates[1]]); }} />
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
       </div>
 
       <DataTable<SensitiveDataAccessReportDto> columns={columns} data={report} rowKey={(r) => r.userId}
@@ -204,7 +205,7 @@ const PermissionChangesReport: React.FC = () => {
         <Filter value={action} onChange={(v) => resetAndReload({ action: v })} options={ACTION_OPTIONS} placeholder="Hành động" />
         <Filter value={changeType} onChange={(v) => resetAndReload({ changeType: v })} options={CHANGE_TYPE_OPTIONS} placeholder="Loại thay đổi" />
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
       </div>
 
       <DataTable<PermissionChangeHistoryDto> columns={columns} data={rows} rowKey={(r) => r.id}
@@ -289,7 +290,7 @@ const AuditSummaryReport: React.FC = () => {
         <RangePicker format="DD/MM/YYYY" value={dateRange}
           onChange={(dates) => { if (dates && dates[0] && dates[1]) setDateRange([dates[0], dates[1]]); }} />
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--space-8)', alignItems: 'start' }}>
@@ -368,7 +369,7 @@ const RecertificationReport: React.FC = () => {
           {report ? `Tại: ${dayjs(report.asOf).format('DD/MM/YYYY HH:mm')}` : ''}
         </span>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
       </div>
       {report?.groups.map(group => (
         <div key={group.scopeType} style={{ marginBottom: '12px' }}>

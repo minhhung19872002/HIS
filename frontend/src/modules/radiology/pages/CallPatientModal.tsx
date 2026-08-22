@@ -4,7 +4,9 @@ import * as risApi from '../api/ris';
 import type { RadiologyOrderDto } from '../api/ris';
 import { ModalShell, Btn, AbSelect } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
-import { FormRow, type ApiErr } from './_shared';
+import { type ApiErr } from './_shared';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { Field } from '../../../components/form/Field';
 
 /** Gọi bệnh nhân vào phòng chụp CĐHA. roomId là bắt buộc theo CallPatientDto của backend. */
 export const CallPatientModal: React.FC<{
@@ -15,6 +17,10 @@ export const CallPatientModal: React.FC<{
   onCalled: () => void;
 }> = ({ open, order, rooms, onClose, onCalled }) => {
   const { message } = AntdApp.useApp();
+  const { errors, validate, clear } = useModalForm(
+    { roomId: { required: true, message: 'Chọn phòng chụp để gọi bệnh nhân' } },
+    open,
+  );
   const [roomId, setRoomId] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -24,7 +30,7 @@ export const CallPatientModal: React.FC<{
 
   const submit = async () => {
     if (!order) return;
-    if (!roomId) { message.warning('Chọn phòng chụp để gọi bệnh nhân'); return; }
+    if (!validate({ roomId })) return;
     setBusy(true);
     try {
       const r = await risApi.callPatient({
@@ -55,15 +61,15 @@ export const CallPatientModal: React.FC<{
       </>}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
-        <FormRow label="Phòng chụp">
+        <Field label="Phòng chụp" required error={errors.roomId}>
           <AbSelect
             options={rooms}
             fieldNames={{ value: 'id', label: 'name' }}
             value={roomId}
-            onChange={setRoomId}
+            onChange={(v) => { setRoomId(v); clear('roomId'); }}
             placeholder="— Chọn phòng —"
           />
-        </FormRow>
+        </Field>
         {order && (
           <div style={{ fontSize: 12.5, color: 'var(--t-2)', padding: '6px 10px', background: 'var(--d-1)', borderRadius: 5 }}>
             <b style={{ color: 'var(--t-1)' }}>{order.patientName}</b>

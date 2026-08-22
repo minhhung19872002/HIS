@@ -6,9 +6,18 @@ import { getInsuranceHistory } from '../../insurance/api/insurance';
 import type { InsuranceHistoryDto } from '../../insurance/api/insurance';
 import { StatusBadge, ModalShell } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 export const BhytVerifyModal: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
   const { message } = AntdApp.useApp();
   const [num, setNum] = useState('');
+  const form = useModalForm({
+    num: {
+      required: true,
+      message: 'Nhập số thẻ BHYT hợp lệ',
+      validate: (v) => (typeof v === 'string' && v.trim().length > 0 && v.trim().length < 10 ? 'Nhập số thẻ BHYT hợp lệ' : undefined),
+    },
+  }, open);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<receptionApi.InsuranceVerificationResultDto | null>(null);
@@ -25,7 +34,7 @@ export const BhytVerifyModal: React.FC<{ open: boolean; onClose: () => void }> =
   }, [open]);
 
   const verify = async () => {
-    if (!num.trim() || num.trim().length < 10) { message.warning('Nhập số thẻ BHYT hợp lệ'); return; }
+    if (!form.validate({ num })) return;
     setBusy(true);
     setHistory(null); setHistOpen(false); setAbuse(null); setAbuseDetail(false);
     try {
@@ -82,14 +91,12 @@ export const BhytVerifyModal: React.FC<{ open: boolean; onClose: () => void }> =
     >
       <div style={{ padding: 0 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-          <div>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Số thẻ BHYT *</div>
-            <Input value={num} onChange={(e) => setNum(e.target.value)} placeholder="VD: HC4010112345678" onPressEnter={verify} />
-          </div>
-          <div>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Họ tên (tùy chọn)</div>
+          <Field label="Số thẻ BHYT" required error={form.errors.num}>
+            <Input value={num} onChange={(e) => { setNum(e.target.value); form.clear('num'); }} placeholder="VD: HC4010112345678" onPressEnter={verify} />
+          </Field>
+          <Field label="Họ tên (tùy chọn)">
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Đối chiếu tên" />
-          </div>
+          </Field>
         </div>
 
         {result && (

@@ -15,6 +15,7 @@ import {
   DrawerShell, DrSec, DrField, fmtVNDg, tk, te, cf,
   type ColumnDef,
 } from '@/_v2kit';
+import { useTabState } from '../../../hooks/useTabState';
 
 type TabKey = 'surcharge' | 'other' | 'transport' | 'fuel';
 
@@ -38,7 +39,7 @@ const CALC_TYPES = [
 type EditState = Record<string, unknown> & { id?: string };
 
 const FinanceCatalogsV2: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('surcharge');
+  const [tab, setTab] = useTabState<TabKey>('surcharge');
   const [surcharge, setSurcharge] = useState<api.AdditionalChargeDto[]>([]);
   const [other, setOther] = useState<api.OtherIncomeDto[]>([]);
   const [transport, setTransport] = useState<api.TransportServiceDto[]>([]);

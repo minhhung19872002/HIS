@@ -4,12 +4,13 @@ import { searchLicenses, createLicense, updateLicense, getExpiringLicenses, rene
 import type { PracticeLicense } from '../api/practiceLicense';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, tw, te, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
+import { useTabState } from '../../../hooks/useTabState';
 
 const LICENSE_FIELDS: CrudFieldCfg[] = [
   { key: 'licenseCode', label: 'Mã CCHN', required: true, disabledOnEdit: true },
@@ -60,7 +61,7 @@ const PracticeLicenseV2: React.FC = () => {
   const [items, setItems] = useState<PracticeLicense[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all');
   const [fType, setFType] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -212,7 +213,7 @@ const PracticeLicenseV2: React.FC = () => {
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
         <Btn variant="ghost" onClick={openExpiring}>
           <Ico name="alert" size={12} /> Cảnh báo
         </Btn>

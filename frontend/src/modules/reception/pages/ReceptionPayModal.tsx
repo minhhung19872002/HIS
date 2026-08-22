@@ -3,6 +3,8 @@ import { App as AntdApp, Input, Select, InputNumber } from 'antd';
 import * as receptionApi from '../api/reception';
 import { ModalShell } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 import type { RawRow } from './shared';
 import { treatmentLabel } from './shared';
 const PAY_METHOD_OPTS = [
@@ -22,6 +24,9 @@ export const ReceptionPayModal: React.FC<{
   const [method, setMethod] = useState(1);
   const [ref, setRef] = useState('');
   const [busy, setBusy] = useState(false);
+  const form = useModalForm({
+    amount: { validate: (v) => (typeof v !== 'number' || v <= 0 ? 'Nhập số tiền thu' : undefined) },
+  }, !!row);
 
   useEffect(() => {
     if (row) { setAmount(0); setReceived(0); setMethod(1); setRef(''); }
@@ -29,7 +34,7 @@ export const ReceptionPayModal: React.FC<{
 
   const submit = async () => {
     if (!row) return;
-    if (!amount || amount <= 0) { message.warning('Nhập số tiền thu'); return; }
+    if (!form.validate({ amount })) return;
     setBusy(true);
     try {
       await receptionApi.createPayment({
@@ -78,25 +83,21 @@ export const ReceptionPayModal: React.FC<{
             <span>{treatmentLabel(row)}</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-            <div>
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Số tiền thu *</div>
-              <InputNumber value={amount} onChange={(v) => setAmount(Number(v) || 0)} min={0} style={{ width: '100%' }} formatter={fmtMoney} />
-            </div>
-            <div>
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Phương thức</div>
+            <Field label="Số tiền thu" required error={form.errors.amount}>
+              <InputNumber value={amount} onChange={(v) => { setAmount(Number(v) || 0); form.clear('amount'); }} min={0} style={{ width: '100%' }} formatter={fmtMoney} />
+            </Field>
+            <Field label="Phương thức">
               <Select value={method} onChange={setMethod} options={PAY_METHOD_OPTS} style={{ width: '100%' }} />
-            </div>
+            </Field>
             {method === 1 && (
-              <div>
-                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Tiền khách đưa</div>
+              <Field label="Tiền khách đưa">
                 <InputNumber value={received} onChange={(v) => setReceived(Number(v) || 0)} min={0} style={{ width: '100%' }} formatter={fmtMoney} />
-              </div>
+              </Field>
             )}
             {method !== 1 && (
-              <div>
-                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Mã giao dịch</div>
+              <Field label="Mã giao dịch">
                 <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Mã ref NH / thẻ" />
-              </div>
+              </Field>
             )}
           </div>
           {method === 1 && received > amount && (

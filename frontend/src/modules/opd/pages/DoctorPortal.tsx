@@ -15,6 +15,8 @@ import {
   useListData, useTabCounts, makeStatus,
   type ColumnDef, type TopTab, type StatusTone,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
+import { useTabState } from '../../../hooks/useTabState';
 
 // ============================================================================
 // Local types (ported 1:1 from v1 pages/DoctorPortal.tsx)
@@ -101,11 +103,11 @@ const handleUnavailableAction = (actionName: string): void => {
 // ============================================================================
 
 const DoctorPortalV2: React.FC = () => {
-  const [block, setBlock] = useState<BlockKey>('outpatient');
+  const [block, setBlock] = useTabState<BlockKey>('outpatient', 'tab');
 
   // ── Outpatient ──────────────────────────────────────────────────────────
   const [opdSearch, setOpdSearch] = useState('');
-  const [opdStab, setOpdStab] = useState('all');
+  const [opdStab, setOpdStab] = useTabState<string>('all', 'stab');
   const [opdPage, setOpdPage] = useState(0);
   const [opdDetail, setOpdDetail] = useState<ExaminationDto | null>(null);
   const [opdTotal, setOpdTotal] = useState(0); // totalCount thật từ server (KPI không bị trần 200)
@@ -409,10 +411,10 @@ const DoctorPortalV2: React.FC = () => {
         setTab={setBlock}
         tabs={BLOCKS}
         actions={
-          <Btn variant="ghost" onClick={reloadCurrent} icon="refresh"
-            loading={block === 'outpatient' ? opd.loading : block === 'inpatient' ? ipd.loading : block === 'signature' ? sig.loading : duty.loading}>
-            Làm mới
-          </Btn>
+          <RefreshButton
+            onRefresh={reloadCurrent}
+            loading={block === 'outpatient' ? opd.loading : block === 'inpatient' ? ipd.loading : block === 'signature' ? sig.loading : duty.loading}
+          />
         }
       />
 

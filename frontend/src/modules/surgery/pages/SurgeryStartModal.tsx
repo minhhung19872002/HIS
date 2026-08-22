@@ -98,7 +98,7 @@ export const SurgeryStartModal: React.FC<SurgeryStartModalProps> = ({ open, onCl
           </div>
 
           <Section title="Thời gian">
-            <Row2 label="Bắt đầu lúc *">
+            <Row2 label="Bắt đầu lúc">
               <DatePicker
                 showTime
                 format="DD/MM/YYYY HH:mm"

@@ -105,7 +105,7 @@ export default function ReassignObjectModal({ open, onClose, patientId, patientN
             showIcon
             style={{ marginBottom: 12 }}
           />
-          <Form form={form} layout="vertical" initialValues={{ scope: 'service', mode: 'all' }}>
+          <Form form={form} layout="vertical" initialValues={{ scope: 'service', mode: 'all' }} scrollToFirstError>
             <Form.Item name="scope" label="Số liệu" rules={[{ required: true }]}>
               <Radio.Group>
                 <Radio value="service">Viện phí (CLS, PTTT, khám)</Radio>

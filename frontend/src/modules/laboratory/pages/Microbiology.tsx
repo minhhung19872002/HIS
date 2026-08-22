@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { Input, Select } from 'antd';
 import { getMicrobiologyCultures, createCulture, updateCultureStatus, addOrganism, saveAntibiogram } from '../api/microbiology';
@@ -9,6 +10,9 @@ import {
   DrawerShell, ModalShell, DrSec, DrField, useTabCounts, tk, ti, te, Ico,
   type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions/RefreshButton/RefreshButton';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 
 const SAMPLE_OPTS = [
   { value: 'blood', label: 'Máu' }, { value: 'urine', label: 'Nước tiểu' },
@@ -64,7 +68,7 @@ const MicrobiologyV2: React.FC = () => {
   const [items, setItems] = useState<MicrobiologyCulture[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all');
   const [fType, setFType] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<MicrobiologyCulture | null>(null);
@@ -150,7 +154,7 @@ const MicrobiologyV2: React.FC = () => {
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
         <Btn variant="primary" onClick={() => setCreateOpen(true)}>
           <Ico name="plus" size={12} /> Cấy mới
         </Btn>
@@ -279,30 +283,20 @@ const MicrobiologyV2: React.FC = () => {
    Tái dùng API createCulture + field từ form v1 (8 loại mẫu, 4 loại cấy)
    ──────────────────────────────────────────────────────────── */
 
-const Fld: React.FC<{ lbl: string; req?: boolean; children: React.ReactNode }> = ({ lbl, req, children }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-    <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>
-      {lbl}{req && <span style={{ color: 'var(--s-crit)' }}> *</span>}
-    </span>
-    {children}
-  </div>
-);
-
 const CreateCultureModal: React.FC<{ onClose: () => void; onDone: () => void }> = ({ onClose, onDone }) => {
   const [labRequestId, setLabRequestId] = useState('');
   const [sampleType, setSampleType] = useState<string>();
   const [cultureType, setCultureType] = useState<string>();
   const [sampleBarcode, setSampleBarcode] = useState('');
   const [notes, setNotes] = useState('');
-  const [err, setErr] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const form = useModalForm({
+    labRequestId: { required: true, message: 'Nhập mã YC xét nghiệm' },
+    sampleType: { required: true, message: 'Chọn loại mẫu' },
+    cultureType: { required: true, message: 'Chọn loại nuôi cấy' },
+  }, true);
 
   const submit = async (): Promise<void> => {
-    if (!labRequestId.trim() || !sampleType || !cultureType) {
-      setErr('Nhập Mã YC xét nghiệm, Loại mẫu và Loại nuôi cấy');
-      return;
-    }
-    setErr('');
     setSubmitting(true);
     try {
       await createCulture({
@@ -329,30 +323,35 @@ const CreateCultureModal: React.FC<{ onClose: () => void; onDone: () => void }> 
       title="Tạo nuôi cấy mới"
       footer={<>
         <Btn variant="ghost" onClick={onClose}>Huỷ</Btn>
-        <Btn variant="primary" onClick={submit} disabled={submitting}>
+        <Btn
+          variant="primary"
+          onClick={() => {
+            if (form.validate({ labRequestId, sampleType, cultureType })) void submit();
+          }}
+          disabled={submitting}
+        >
           <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : 'Tạo cấy'}
         </Btn>
       </>}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
-        <Fld lbl="Mã yêu cầu xét nghiệm" req>
-          <Input value={labRequestId} onChange={(e) => setLabRequestId(e.target.value)} placeholder="Nhập / quét mã YC xét nghiệm" />
-        </Fld>
+        <Field label="Mã yêu cầu xét nghiệm" required error={form.errors.labRequestId}>
+          <Input value={labRequestId} onChange={(e) => { setLabRequestId(e.target.value); form.clear('labRequestId'); }} placeholder="Nhập / quét mã YC xét nghiệm" />
+        </Field>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-          <Fld lbl="Loại mẫu" req>
-            <Select style={{ width: '100%' }} value={sampleType} onChange={setSampleType} placeholder="Chọn loại mẫu" options={SAMPLE_OPTS} />
-          </Fld>
-          <Fld lbl="Loại nuôi cấy" req>
-            <Select style={{ width: '100%' }} value={cultureType} onChange={setCultureType} placeholder="Chọn loại cấy" options={CULTURE_OPTS} />
-          </Fld>
+          <Field label="Loại mẫu" required error={form.errors.sampleType}>
+            <Select style={{ width: '100%' }} value={sampleType} onChange={(v) => { setSampleType(v); form.clear('sampleType'); }} placeholder="Chọn loại mẫu" options={SAMPLE_OPTS} />
+          </Field>
+          <Field label="Loại nuôi cấy" required error={form.errors.cultureType}>
+            <Select style={{ width: '100%' }} value={cultureType} onChange={(v) => { setCultureType(v); form.clear('cultureType'); }} placeholder="Chọn loại cấy" options={CULTURE_OPTS} />
+          </Field>
         </div>
-        <Fld lbl="Barcode mẫu">
+        <Field label="Barcode mẫu">
           <Input value={sampleBarcode} onChange={(e) => setSampleBarcode(e.target.value)} placeholder="Quét barcode mẫu (nếu có)" />
-        </Fld>
-        <Fld lbl="Ghi chú">
+        </Field>
+        <Field label="Ghi chú">
           <Input.TextArea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-        </Fld>
-        {err && <div style={{ color: 'var(--s-crit)', fontSize: 'var(--fs-sm)' }}>{err}</div>}
+        </Field>
       </div>
     </ModalShell>
   );
@@ -395,12 +394,12 @@ const UpdateStatusModal: React.FC<{ culture: MicrobiologyCulture; onClose: () =>
       </>}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
-        <Fld lbl="Trạng thái" req>
+        <Field label="Trạng thái" required>
           <Select style={{ width: '100%' }} value={status} onChange={setStatus} options={STATUS_OPTS} />
-        </Fld>
-        <Fld lbl="Ghi chú">
+        </Field>
+        <Field label="Ghi chú">
           <Input.TextArea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ghi chú kết quả / diễn biến…" />
-        </Fld>
+        </Field>
       </div>
     </ModalShell>
   );
@@ -421,12 +420,13 @@ const AddOrganismModal: React.FC<{
   const [gram, setGram] = useState<string>('');
   const [morph, setMorph] = useState('');
   const [idMethod, setIdMethod] = useState('');
-  const [err, setErr] = useState('');
   const [saving, setSaving] = useState(false);
+  const form = useModalForm({
+    code: { required: true, message: 'Nhập mã vi khuẩn' },
+    name: { required: true, message: 'Nhập tên vi khuẩn' },
+  }, true);
 
   const submit = async (): Promise<void> => {
-    if (!code.trim() || !name.trim()) { setErr('Nhập Mã vi khuẩn và Tên vi khuẩn'); return; }
-    setErr('');
     setSaving(true);
     try {
       await addOrganism(cultureId, {
@@ -451,38 +451,41 @@ const AddOrganismModal: React.FC<{
       title="Thêm vi khuẩn"
       footer={<>
         <Btn variant="ghost" onClick={onClose}>Huỷ</Btn>
-        <Btn variant="primary" onClick={submit} disabled={saving}>
+        <Btn
+          variant="primary"
+          onClick={() => { if (form.validate({ code, name })) void submit(); }}
+          disabled={saving}
+        >
           <Ico name="check" size={12} /> {saving ? 'Đang lưu…' : 'Thêm'}
         </Btn>
       </>}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-          <Fld lbl="Mã vi khuẩn" req>
-            <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="VD: STAAUR" />
-          </Fld>
-          <Fld lbl="Tên vi khuẩn" req>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="VD: Staphylococcus aureus" />
-          </Fld>
+          <Field label="Mã vi khuẩn" required error={form.errors.code}>
+            <Input value={code} onChange={(e) => { setCode(e.target.value); form.clear('code'); }} placeholder="VD: STAAUR" />
+          </Field>
+          <Field label="Tên vi khuẩn" required error={form.errors.name}>
+            <Input value={name} onChange={(e) => { setName(e.target.value); form.clear('name'); }} placeholder="VD: Staphylococcus aureus" />
+          </Field>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-          <Fld lbl="Số khuẩn lạc">
+          <Field label="Số khuẩn lạc">
             <Input value={colony} onChange={(e) => setColony(e.target.value)} placeholder="VD: >100,000 CFU/mL" />
-          </Fld>
-          <Fld lbl="Nhuộm Gram">
+          </Field>
+          <Field label="Nhuộm Gram">
             <Select
               style={{ width: '100%' }} value={gram || undefined} onChange={setGram}
               allowClear options={GRAM_OPTS} placeholder="Chọn…"
             />
-          </Fld>
+          </Field>
         </div>
-        <Fld lbl="Hình thái">
+        <Field label="Hình thái">
           <Input value={morph} onChange={(e) => setMorph(e.target.value)} placeholder="VD: Cầu khuẩn chùm nho" />
-        </Fld>
-        <Fld lbl="PP định danh">
+        </Field>
+        <Field label="PP định danh">
           <Input value={idMethod} onChange={(e) => setIdMethod(e.target.value)} placeholder="VD: VITEK 2, MALDI-TOF" />
-        </Fld>
-        {err && <div style={{ color: 'var(--s-crit)', fontSize: 'var(--fs-sm)' }}>{err}</div>}
+        </Field>
       </div>
     </ModalShell>
   );

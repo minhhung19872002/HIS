@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import dayjs from 'dayjs';
+import { RefreshButton } from '../../../components/actions/RefreshButton';
 import { searchProtocols, saveProtocol, deleteProtocol, approveProtocol, newVersion as createNewVersion } from '../api/treatmentProtocol';
 import type { TreatmentProtocolDto, TreatmentProtocolStepDto, SaveTreatmentProtocolDto } from '../api/treatmentProtocol';
 import { openPrintWindow } from '../../../utils/printWindow';
@@ -8,6 +9,7 @@ import {
   DrawerShell, ModalShell, DrSec, DrField, CrudModal, tk, ti, te, cf, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
+import { useTabState } from '../../../hooks/useTabState';
 
 const PROTO_FIELDS: CrudFieldCfg[] = [
   { key: 'code', label: 'Mã phác đồ', required: true, disabledOnEdit: true, placeholder: 'PĐ-...' },
@@ -47,7 +49,7 @@ const TreatmentProtocolV2: React.FC = () => {
   const [items, setItems] = useState<TreatmentProtocolDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all');
   const [fGroup, setFGroup] = useState('');
   const [fDept, setFDept] = useState('');
   const [page, setPage] = useState(0);
@@ -221,7 +223,7 @@ const TreatmentProtocolV2: React.FC = () => {
         <Filter value={fDept} onChange={setFDept} options={depts} placeholder="▾ Khoa" />
         <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFGroup(''); setFDept(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} />
         <Btn variant="primary" icon="plus" onClick={openCreate}>Phác đồ mới</Btn>
       </div>
 

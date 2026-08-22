@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import {
   searchPatients, getLabHistory, getPmtctRecords, getStats,
@@ -12,6 +13,7 @@ import {
   type ColumnDef, type StatusTab, type CrudFieldCfg,
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '@/utils/friendlyError';
+import { RefreshButton } from '../../../components/actions';
 
 /* Quản lý HIV/AIDS v2 — port từ v1 pages/HivManagement.tsx
  * 4 tab nghiệp vụ: Danh sách BN · Xét nghiệm (CD4/VL) · PMTCT · Thống kê (cascade 90-90-90)
@@ -112,14 +114,14 @@ const PER = 15;
 // ─────────────────────────── Component chính ───────────────────────────
 
 const HivManagementV2: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('patients');
+  const [tab, setTab] = useTabState<TabKey>('patients', 'tab');
   const [patients, setPatients] = useState<HivPatient[]>([]);
   const [stats, setStats] = useState<HivStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   // tab Danh sách BN
   const [search, setSearch] = useState('');
-  const [artTab, setArtTab] = useState<ArtKey | 'all'>('all');
+  const [artTab, setArtTab] = useTabState<ArtKey | 'all'>('all', 'stab');
   const [page, setPage] = useState(0);
 
   // drawer chi tiết
@@ -374,7 +376,7 @@ const HivManagementV2: React.FC = () => {
           { v: 'stats',    l: 'Thống kê',     ic: 'chart' },
         ]}
         actions={
-          <Btn variant="ghost" size="sm" onClick={refreshAll} loading={loading} icon="refresh">Làm mới</Btn>
+          <RefreshButton onRefresh={async () => { await refreshAll(); }} />
         }
       />
 

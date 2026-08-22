@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { storage, STORAGE_KEYS } from '../../../services/storage.service';
+import { RefreshButton } from '../../../components/actions';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 import {
   Card,
   Row,
@@ -176,6 +179,7 @@ const DicomViewer: React.FC = () => {
   // QW3.3: Compare 2 studies side-by-side
   const [compareOpen, setCompareOpen] = useState(false);
   const [compareUid, setCompareUid] = useState<string>('');
+  const vfCompare = useModalForm({ compareUid: { required: true, message: 'Nhập hoặc chọn Study UID để so sánh' } }, compareOpen);
   const [patientStudies, setPatientStudies] = useState<Array<{ studyInstanceUID: string; studyDate?: string; modality?: string; serviceName?: string }>>([]);
 
   // AI Labeling
@@ -473,15 +477,12 @@ const DicomViewer: React.FC = () => {
   }, [studyInfo, studyInstanceUID]);
 
   const handleCompare = useCallback(() => {
-    if (!compareUid.trim()) {
-      message.warning('Nhập hoặc chọn Study UID để so sánh');
-      return;
-    }
+    if (!vfCompare.validate({ compareUid })) return;
     // OHIF hỗ trợ multi-study qua comma-separated StudyInstanceUIDs
     const url = `${ORTHANC_BASE}/ohif/viewer?StudyInstanceUIDs=${studyInstanceUID},${compareUid.trim()}`;
     window.open(url, '_blank', 'noopener');
     setCompareOpen(false);
-  }, [compareUid, studyInstanceUID]);
+  }, [compareUid, studyInstanceUID, vfCompare]);
 
   // QW3.12: Dual monitor — open a cloned viewer on monitor 2
   const handleOpenDualMonitor = useCallback(() => {
@@ -601,9 +602,7 @@ const DicomViewer: React.FC = () => {
         </Col>
         <Col>
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadStudyData}>
-              Làm mới
-            </Button>
+            <RefreshButton onRefresh={loadStudyData} />
             {pacsAvailable && (
               <>
                 <Button
@@ -1348,7 +1347,7 @@ const DicomViewer: React.FC = () => {
               {patientStudies.map((s) => (
                 <div
                   key={s.studyInstanceUID}
-                  onClick={() => setCompareUid(s.studyInstanceUID)}
+                  onClick={() => { setCompareUid(s.studyInstanceUID); vfCompare.clear('compareUid'); }}
                   style={{
                     padding: 8,
                     cursor: 'pointer',
@@ -1367,16 +1366,15 @@ const DicomViewer: React.FC = () => {
             </div>
           </div>
         )}
-        <div>
-          <strong>Hoặc dán Study UID:</strong>
+        <Field label="Hoặc dán Study UID:" required error={vfCompare.errors.compareUid}>
           <input
             type="text"
             value={compareUid}
-            onChange={(e) => setCompareUid(e.target.value)}
+            onChange={(e) => { setCompareUid(e.target.value); vfCompare.clear('compareUid'); }}
             placeholder="1.2.840.113619.2.55..."
             style={{ width: '100%', padding: 6, marginTop: 4, border: '1px solid #d9d9d9', borderRadius: 4, fontFamily: 'monospace', fontSize: 12 }}
           />
-        </div>
+        </Field>
       </Modal>
 
       {/* AI Labeling */}

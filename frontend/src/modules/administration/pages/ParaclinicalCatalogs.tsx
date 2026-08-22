@@ -16,6 +16,7 @@ import {
   type ColumnDef,
 } from '@/_v2kit';
 import type {TabKey} from '../types/tabs';
+import { useTabState } from '../../../hooks/useTabState';
 
 type AnyRow =
   | (api.MachineCodeDto & { _kind: 'machines' })
@@ -27,7 +28,7 @@ type EditState = Record<string, unknown> & { id?: string };
 const PER = 15;
 
 const ParaclinicalCatalogsV2: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('machines');
+  const [tab, setTab] = useTabState<TabKey>('machines');
   const [machines, setMachines] = useState<api.MachineCodeDto[]>([]);
   const [msvc, setMsvc] = useState<api.MachineServiceDto[]>([]);
   const [rooms, setRooms] = useState<api.ParaclinicalRoomPriorityDto[]>([]);
@@ -317,13 +318,13 @@ const ParaclinicalCatalogsV2: React.FC = () => {
           <DrSec title="Thông tin">
             {tab === 'machines' && (
               <>
-                <DrField lbl="Mã máy *">
+                <DrField lbl="Mã máy" required>
                   <Input value={edit.code as string || ''} onChange={(e) => setEdit({ ...edit, code: e.target.value.toUpperCase() })} placeholder="VD: MAY-XQ-01" />
                 </DrField>
                 <DrField lbl="Mã gửi BHXH">
                   <Input value={edit.bhxhCode as string || ''} onChange={(e) => setEdit({ ...edit, bhxhCode: e.target.value })} placeholder="VD: X001" />
                 </DrField>
-                <DrField lbl="Tên máy *">
+                <DrField lbl="Tên máy" required>
                   <Input value={edit.name as string || ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
                 </DrField>
                 <DrField lbl="Hãng SX">
@@ -348,7 +349,7 @@ const ParaclinicalCatalogsV2: React.FC = () => {
             )}
             {tab === 'svc' && (
               <>
-                <DrField lbl="Máy *">
+                <DrField lbl="Máy" required>
                   <Select
                     value={edit.machineCodeId as string || ''}
                     options={machines.map((m) => ({ value: m.id, label: `${m.code} · ${m.name}` }))}
@@ -359,7 +360,7 @@ const ParaclinicalCatalogsV2: React.FC = () => {
                     placeholder="Chọn máy"
                   />
                 </DrField>
-                <DrField lbl="Dịch vụ *">
+                <DrField lbl="Dịch vụ" required>
                   <Input
                     value={edit.serviceId as string || ''}
                     onChange={(e) => setEdit({ ...edit, serviceId: e.target.value })}
@@ -376,7 +377,7 @@ const ParaclinicalCatalogsV2: React.FC = () => {
             )}
             {tab === 'rooms' && (
               <>
-                <DrField lbl="Dịch vụ *">
+                <DrField lbl="Dịch vụ" required>
                   <Input value={edit.serviceId as string || ''} onChange={(e) => setEdit({ ...edit, serviceId: e.target.value })} placeholder="ID dịch vụ" />
                 </DrField>
                 <DrField lbl="Phòng">
@@ -385,7 +386,7 @@ const ParaclinicalCatalogsV2: React.FC = () => {
                 <DrField lbl="Khoa">
                   <Input value={edit.departmentId as string || ''} onChange={(e) => setEdit({ ...edit, departmentId: e.target.value })} placeholder="ID khoa" />
                 </DrField>
-                <DrField lbl="Mức ưu tiên *">
+                <DrField lbl="Mức ưu tiên" required>
                   <InputNumber
                     value={edit.priorityLevel as number ?? 1}
                     min={1}
@@ -394,7 +395,7 @@ const ParaclinicalCatalogsV2: React.FC = () => {
                     onChange={(v) => setEdit({ ...edit, priorityLevel: v ?? 1 })}
                   />
                 </DrField>
-                <DrField lbl="Thứ tự *">
+                <DrField lbl="Thứ tự" required>
                   <InputNumber
                     value={edit.sequence as number ?? 1}
                     min={0}

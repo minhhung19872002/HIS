@@ -17,6 +17,8 @@ import {
   DrawerShell, DrSec, DrField, tk, te, cf,
   type ColumnDef,
 } from '@/_v2kit';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { useTabState } from '../../../hooks/useTabState';
 
 const { RangePicker } = DatePicker;
 
@@ -40,7 +42,7 @@ const fmtDate = (iso?: string) => (iso ? dayjs(iso).format('DD/MM/YYYY HH:mm') :
 type EditState = Partial<BirthRegisterDto & AbortionRegisterDto> & { _isNew?: boolean };
 
 const ObstetricRegistersV2: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('birth');
+  const [tab, setTab] = useTabState<TabKey>('birth');
   const [births, setBirths] = useState<BirthRegisterDto[]>([]);
   const [abortions, setAbortions] = useState<AbortionRegisterDto[]>([]);
   const [report, setReport] = useState<ObstetricReportDto | null>(null);
@@ -50,6 +52,14 @@ const ObstetricRegistersV2: React.FC = () => {
   const [edit, setEdit] = useState<EditState | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const birthForm = useModalForm(
+    { motherName: { required: true, message: 'Vui lòng nhập tên sản phụ' } },
+    edit !== null && tab === 'birth',
+  );
+  const abortionForm = useModalForm(
+    { patientName: { required: true, message: 'Vui lòng nhập tên người bệnh' } },
+    edit !== null && tab === 'abortion',
+  );
 
   const fromIso = range[0].toISOString();
   const toIso = range[1].toISOString();
@@ -125,13 +135,13 @@ const ObstetricRegistersV2: React.FC = () => {
   // ── Save ───────────────────────────────────────────────────────────────────
   const onSave = async () => {
     if (!edit) return;
+    if (tab === 'birth' && !birthForm.validate({ motherName: edit.motherName })) return;
+    if (tab === 'abortion' && !abortionForm.validate({ patientName: edit.patientName })) return;
     setSaving(true);
     try {
       if (tab === 'birth') {
-        if (!edit.motherName?.trim()) { te('Nhập tên sản phụ'); setSaving(false); return; }
         await saveBirth({ ...edit, id: edit.id || ZERO } as Partial<BirthRegisterDto>);
       } else {
-        if (!edit.patientName?.trim()) { te('Nhập tên người bệnh'); setSaving(false); return; }
         await saveAbortion({ ...edit, id: edit.id || ZERO } as Partial<AbortionRegisterDto>);
       }
       tk(edit.id ? 'Đã cập nhật' : 'Đã thêm mới');
@@ -235,12 +245,12 @@ const ObstetricRegistersV2: React.FC = () => {
         {edit && tab === 'birth' && (
           <DrSec title="Thông tin ca sinh">
             <DrField lbl="STT sổ"><InputNumber style={{ width: '100%' }} min={0} value={edit.registerNo} onChange={v => patch('registerNo', v ?? 0)} /></DrField>
-            <DrField lbl="Ngày giờ sinh *">
+            <DrField lbl="Ngày giờ sinh" required>
               <DatePicker style={{ width: '100%' }} showTime format="DD/MM/YYYY HH:mm"
                 value={edit.deliveryDate ? dayjs(edit.deliveryDate) : null}
                 onChange={d => patch('deliveryDate', d ? d.toISOString() : undefined)} />
             </DrField>
-            <DrField lbl="Họ tên sản phụ *"><Input value={edit.motherName} onChange={e => patch('motherName', e.target.value)} maxLength={200} /></DrField>
+            <DrField lbl="Họ tên sản phụ" required error={birthForm.errors.motherName}><Input value={edit.motherName} onChange={e => { patch('motherName', e.target.value); birthForm.clear('motherName'); }} maxLength={200} /></DrField>
             <DrField lbl="Tuổi mẹ"><InputNumber style={{ width: '100%' }} min={0} max={100} value={edit.motherAge} onChange={v => patch('motherAge', v ?? 0)} /></DrField>
             <DrField lbl="CCCD/CMND"><Input value={edit.motherIdNumber} onChange={e => patch('motherIdNumber', e.target.value)} maxLength={50} /></DrField>
             <DrField lbl="Địa chỉ"><Input value={edit.motherAddress} onChange={e => patch('motherAddress', e.target.value)} maxLength={500} /></DrField>
@@ -258,12 +268,12 @@ const ObstetricRegistersV2: React.FC = () => {
         {edit && tab === 'abortion' && (
           <DrSec title="Thông tin ca nạo/phá thai">
             <DrField lbl="STT sổ"><InputNumber style={{ width: '100%' }} min={0} value={edit.registerNo} onChange={v => patch('registerNo', v ?? 0)} /></DrField>
-            <DrField lbl="Ngày thực hiện *">
+            <DrField lbl="Ngày thực hiện" required>
               <DatePicker style={{ width: '100%' }} showTime format="DD/MM/YYYY HH:mm"
                 value={edit.procedureDate ? dayjs(edit.procedureDate) : null}
                 onChange={d => patch('procedureDate', d ? d.toISOString() : undefined)} />
             </DrField>
-            <DrField lbl="Họ tên người bệnh *"><Input value={edit.patientName} onChange={e => patch('patientName', e.target.value)} maxLength={200} /></DrField>
+            <DrField lbl="Họ tên người bệnh" required error={abortionForm.errors.patientName}><Input value={edit.patientName} onChange={e => { patch('patientName', e.target.value); abortionForm.clear('patientName'); }} maxLength={200} /></DrField>
             <DrField lbl="Tuổi"><InputNumber style={{ width: '100%' }} min={0} max={100} value={edit.patientAge} onChange={v => patch('patientAge', v ?? 0)} /></DrField>
             <DrField lbl="CCCD/CMND"><Input value={edit.patientIdNumber} onChange={e => patch('patientIdNumber', e.target.value)} maxLength={50} /></DrField>
             <DrField lbl="Địa chỉ"><Input value={edit.patientAddress} onChange={e => patch('patientAddress', e.target.value)} maxLength={500} /></DrField>

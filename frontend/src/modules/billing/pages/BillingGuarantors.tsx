@@ -18,6 +18,7 @@ import {
   DrawerShell, DrSec, DrField, useListData, tk, te, cf,
   type ColumnDef,
 } from '@/_v2kit';
+import { useTabState } from '../../../hooks/useTabState';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -75,7 +76,7 @@ function GuarantorStatusBadge({ status }: { status: number }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const BillingGuarantorsV2: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('orgs');
+  const [tab, setTab] = useTabState<TabKey>('orgs');
 
   // data
   const { rows: orgs, loading: loadingOrgs, reload: reloadOrgs } = useListData<SponsorOrgDto>(

@@ -10,8 +10,9 @@ import { openPrintWindow } from '../../../utils/printWindow';
 import {
   KpiStrip, TopTabs, StatusBadge, Btn, Ico, tk, tw,
 } from '@/_v2kit';
+import { useTabState } from '../../../hooks/useTabState';
 import TermIcon from '../../../components/layout/terminal/Icon';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 import { LoadingState, TableSkeleton } from '../../../components/dataDisplay';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
@@ -43,7 +44,7 @@ const TABS = [
 type TabKey = typeof TABS[number]['v'];
 
 const EmergencyCabinetV2: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('cabinets');
+  const [tab, setTab] = useTabState<TabKey>('cabinets');
 
   // Cabinet list
   const [cabinets, setCabinets] = useState<WarehouseDto[]>([]);
@@ -218,7 +219,7 @@ const EmergencyCabinetV2: React.FC = () => {
               options={deptOpts.map((o) => ({ value: o.v, label: o.l }))}
             />
             <span className="spacer" />
-            <Btn variant="ghost" icon="refresh" onClick={loadCabinets}>Làm mới</Btn>
+            <RefreshButton onRefresh={loadCabinets} loading={cabLoading} />
           </div>
 
           {cabLoading && filteredCabinets.length === 0 && (
@@ -373,7 +374,7 @@ const EmergencyCabinetV2: React.FC = () => {
               options={cabinetOpts}
             />
             <span className="spacer" />
-            <Btn variant="ghost" icon="refresh" onClick={loadHistory}>Làm mới</Btn>
+            <RefreshButton onRefresh={loadHistory} loading={histLoading} />
           </div>
           <table className="ab-tbl" style={{ margin: 'var(--space-16)' }}>
             <thead>

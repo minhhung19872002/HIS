@@ -42,6 +42,7 @@ import { EmptyState } from './components/dataDisplay/EmptyState';
 import { ErrorState } from './components/dataDisplay/ErrorState';
 import { DrawerShell } from './components/overlay/DrawerShell';
 import { Btn } from './components/actions/Btn';
+import { useTabState } from './hooks/useTabState';
 
 // ─────────────────────────── Barrel: primitive đã dời về components/<category>/ ───────────────────────────
 
@@ -239,7 +240,9 @@ export function SimpleV2Page<T>({
   const [rows, setRows] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [stab, setStab] = useState<string>('all');
+  // Tab đang mở giữ theo phiên → rời trang rồi quay lại (kể cả quay lại từ màn báo lỗi)
+  // vẫn đúng tab người dùng đang thao tác, không rơi về 'all'.
+  const [stab, setStab] = useTabState<string>('all', 'stab');
   const [search, setSearch] = useState('');
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [page, setPage] = useState(0);

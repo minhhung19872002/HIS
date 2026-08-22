@@ -11,10 +11,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  KpiStrip, StatusBadge, ActBtn, Btn, ModalShell, DrawerShell, fmtVNDg, tk, tw, te,
+  KpiStrip, StatusBadge, ActBtn, Btn, ModalShell, DrawerShell, DrField, fmtVNDg, tk, tw, te,
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 import { examinationApi, printExternalPrescription, type MedicineDto, type DrugInteractionDto, type CreatePrescriptionDto, type PrescriptionItemFullDto, type PrescriptionTemplateDto, type WarehouseDto } from '../api/examination';
 import { patientApi, type Patient } from '../../patient/api/patient';
 import { getPrescriptionContext, type PrescriptionContextDto } from '../../patient/api/dataInheritance';
@@ -130,10 +132,16 @@ const PrescriptionEditorV2: React.FC = () => {
   const [templateName, setTemplateName] = useState('');
   const [templateDiagnosis, setTemplateDiagnosis] = useState('');
   const [savingTpl, setSavingTpl] = useState(false);
+  const tplForm = useModalForm({ templateName: { required: true, message: 'Vui lòng nhập tên mẫu' } }, saveTemplateOpen);
   // Interaction gate: tracks which save action was blocked by interactions
   const [pendingAction, setPendingAction] = useState<'draft' | 'sign' | null>(null);
   // Override reason for HIGH-severity drug interactions (severity>=3) — required by PrescriptionSafetyGuard
   const [overrideReason, setOverrideReason] = useState('');
+  // interForm: chỉ hiện lỗi khi user bấm nút proceed mà chưa nhập lý do (không viền đỏ ngay khi mở drawer)
+  const interForm = useModalForm(
+    { overrideReason: { required: true, message: 'Cần nhập lý do bỏ qua' } },
+    interOpen && interactions.some((i) => i.severity >= 3),
+  );
   // Phiếu công khai thuốc MSS-01
   const [disclosureOpen, setDisclosureOpen] = useState(false);
 
@@ -468,7 +476,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
   // ── Lưu mẫu đơn ───────────────────────────────────────────────────
   const handleSaveTemplate = async () => {
     if (items.length === 0) { tw('Chưa có thuốc trong đơn để lưu mẫu'); return; }
-    if (!templateName.trim()) { tw('Vui lòng nhập tên mẫu'); return; }
+    if (!tplForm.validate({ templateName })) return;
     setSavingTpl(true);
     try {
       await examinationApi.createPrescriptionTemplate({
@@ -800,14 +808,12 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
           <Btn variant="primary" disabled={savingTpl} onClick={handleSaveTemplate}><TermIcon name="check" size={12} /> Lưu mẫu</Btn>
         </>}>
         <div style={{ padding: 'var(--space-18)', display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 600, display: 'block', marginBottom: 'var(--space-4)' }}>Tên mẫu <span style={{ color: 'var(--s-crit)' }}>*</span></label>
-            <input className="hui-inp" style={{ width: '100%', height: 34 }} placeholder="VD: Cảm cúm thông thường" value={templateName} onChange={(e) => setTemplateName(e.target.value)} />
-          </div>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 600, display: 'block', marginBottom: 'var(--space-4)' }}>Chẩn đoán</label>
+          <Field label="Tên mẫu" required error={tplForm.errors.templateName}>
+            <input className="hui-inp" style={{ width: '100%', height: 34 }} placeholder="VD: Cảm cúm thông thường" value={templateName} onChange={(e) => { setTemplateName(e.target.value); tplForm.clear('templateName'); }} />
+          </Field>
+          <Field label="Chẩn đoán">
             <input className="hui-inp" style={{ width: '100%', height: 34 }} placeholder="VD: Nhiễm khuẩn đường hô hấp trên" value={templateDiagnosis} onChange={(e) => setTemplateDiagnosis(e.target.value)} />
-          </div>
+          </Field>
           <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', padding: 'var(--space-8)', background: 'var(--d-1)', borderRadius: 'var(--r-2)' }}>
             {items.map((it, i) => <div key={i}>{i + 1}. {it.name} · {formatDosage(it)} · {it.days} ngày</div>)}
           </div>
@@ -906,12 +912,14 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
               {it.description && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)', marginBottom: 'var(--space-6)' }}>{it.description}</div>}
               {it.recommendation && <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 'var(--space-10)' }}>Khuyến nghị: {it.recommendation}</div>}
               {it.severity >= 3 && (
-                <textarea
-                  placeholder="Lý do bỏ qua (bắt buộc cho tương tác NẶNG)…"
-                  value={overrideReason}
-                  onChange={(e) => setOverrideReason(e.target.value)}
-                  style={{ width: '100%', minHeight: 60, padding: 'var(--space-8)', border: `1px solid ${overrideReason.trim() ? 'var(--s-ok-bd)' : 'var(--s-crit-bd)'}`, borderRadius: 4, fontSize: 11.5 }}
-                />
+                <DrField lbl="Lý do bỏ qua" required error={interForm.errors.overrideReason}>
+                  <textarea
+                    placeholder="Lý do bỏ qua (bắt buộc cho tương tác NẶNG)…"
+                    value={overrideReason}
+                    onChange={(e) => { setOverrideReason(e.target.value); interForm.clear('overrideReason'); }}
+                    style={{ width: '100%', minHeight: 60, padding: 'var(--space-8)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 11.5 }}
+                  />
+                </DrField>
               )}
             </div>
           );
@@ -920,9 +928,9 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
           <div style={{ margin: 'var(--space-14)', padding: 'var(--space-14)', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-10)' }}>
             <Btn variant="ghost" onClick={() => { setInterOpen(false); setPendingAction(null); setOverrideReason(''); }}>Hủy</Btn>
             <Btn variant="primary"
-              disabled={saving || (interactions.some((i) => i.severity >= 3) && !overrideReason.trim())}
-              title={interactions.some((i) => i.severity >= 3) && !overrideReason.trim() ? 'Cần nhập lý do bỏ qua cho tương tác NẶNG' : undefined}
+              disabled={saving}
               onClick={async () => {
+              if (interactions.some((i) => i.severity >= 3) && !interForm.validate({ overrideReason })) return;
               setInterOpen(false);
               if (pendingAction === 'draft') { await doSaveDraft(); }
               else { setSignOpen(true); }

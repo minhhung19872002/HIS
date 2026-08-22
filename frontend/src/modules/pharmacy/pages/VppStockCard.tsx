@@ -14,6 +14,7 @@ import {
   KpiStrip, SearchBox, DataTable, ActBtn, Btn, tw, type ColumnDef,
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { RefreshButton } from '../../../components/actions';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -144,7 +145,7 @@ const VppStockCardV2: React.FC = () => {
             format="DD/MM/YYYY"
             style={{ width: 240 }}
           />
-          <Btn variant="ghost" icon="refresh" onClick={loadStock} loading={stockLoading}>Làm mới</Btn>
+          <RefreshButton onRefresh={loadStock} loading={stockLoading} />
         </div>
       </div>
 

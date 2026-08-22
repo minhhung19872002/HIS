@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { Input, InputNumber, Select } from 'antd';
 import {
@@ -13,6 +14,9 @@ import {
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
 import { RowActions } from '../../../components/actions';
+import { RefreshButton } from '../../../components/actions/RefreshButton/RefreshButton';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 const STOCK_FIELDS: CrudFieldCfg[] = [
@@ -70,12 +74,20 @@ const RetrieveAliquotModal: React.FC<{
   const [purpose, setPurpose] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const form = useModalForm({
+    count: {
+      validate: (v) => {
+        if (v == null || (typeof v === 'number' && v < 1)) return 'Số ống phải ≥ 1';
+        if (stock && typeof v === 'number' && v > stock.remainingAliquots) return `Chỉ còn ${stock.remainingAliquots} ống`;
+        return undefined;
+      },
+    },
+  }, open);
 
   useEffect(() => { if (open) { setCount(1); setPurpose(''); setNotes(''); } }, [open]);
 
   const submit = async () => {
-    if (!stock || !count || count < 1) { te('Số ống phải ≥ 1'); return; }
-    if (count > stock.remainingAliquots) { te(`Chỉ còn ${stock.remainingAliquots} ống`); return; }
+    if (!stock || !count) return; // narrows type; UX validation already gated by form.validate
     setSubmitting(true);
     try {
       await retrieveAliquot(stock.id, { aliquotCount: count, purpose: purpose.trim() || undefined, notes: notes.trim() || undefined });
@@ -91,23 +103,20 @@ const RetrieveAliquotModal: React.FC<{
       sub={stock ? `${stock.organismName} · Còn ${stock.remainingAliquots}/${stock.aliquotCount} ống` : ''}
       footer={<>
         <Btn variant="ghost" onClick={onClose}>Huỷ</Btn>
-        <Btn variant="primary" onClick={submit} disabled={submitting}>
+        <Btn variant="primary" onClick={() => { if (form.validate({ count })) void submit(); }} disabled={submitting}>
           <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : 'Lấy ống'}
         </Btn>
       </>}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
-        <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Số ống cần lấy *</div>
-          <InputNumber style={{ width: '100%' }} value={count} onChange={(v) => setCount(v)} min={1} max={stock?.remainingAliquots || 1} />
-        </div>
-        <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Mục đích</div>
+        <Field label="Số ống cần lấy" required error={form.errors.count}>
+          <InputNumber style={{ width: '100%' }} value={count} onChange={(v) => { setCount(v); form.clear('count'); }} min={1} max={stock?.remainingAliquots || 1} />
+        </Field>
+        <Field label="Mục đích">
           <Input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Vd: Cấy subculture / Kháng sinh đồ…" />
-        </div>
-        <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Ghi chú</div>
+        </Field>
+        <Field label="Ghi chú">
           <Input.TextArea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-        </div>
+        </Field>
       </div>
     </ModalShell>
   );
@@ -124,12 +133,14 @@ const SubcultureModal: React.FC<{
   const [purpose, setPurpose] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const form = useModalForm({
+    targetLocation: { required: true, message: 'Nhập vị trí chủng cấy chuyền' },
+  }, open);
 
   useEffect(() => { if (open) { setTargetLocation(''); setPurpose(''); setNotes(''); } }, [open]);
 
   const submit = async () => {
     if (!stock) return;
-    if (!targetLocation.trim()) { te('Nhập vị trí chủng cấy chuyền'); return; }
     setSubmitting(true);
     try {
       await subcultureStock(stock.id, { targetLocation: targetLocation.trim(), purpose: purpose.trim() || undefined, notes: notes.trim() || undefined });
@@ -145,23 +156,20 @@ const SubcultureModal: React.FC<{
       sub={stock?.organismName || ''}
       footer={<>
         <Btn variant="ghost" onClick={onClose}>Huỷ</Btn>
-        <Btn variant="primary" onClick={submit} disabled={submitting}>
+        <Btn variant="primary" onClick={() => { if (form.validate({ targetLocation })) void submit(); }} disabled={submitting}>
           <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : 'Xác nhận cấy'}
         </Btn>
       </>}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
-        <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Vị trí chủng mới *</div>
-          <Input value={targetLocation} onChange={(e) => setTargetLocation(e.target.value)} placeholder="Vd: Freezer-B/Rack-1/Box-3/Pos-4" />
-        </div>
-        <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Mục đích</div>
+        <Field label="Vị trí chủng mới" required error={form.errors.targetLocation}>
+          <Input value={targetLocation} onChange={(e) => { setTargetLocation(e.target.value); form.clear('targetLocation'); }} placeholder="Vd: Freezer-B/Rack-1/Box-3/Pos-4" />
+        </Field>
+        <Field label="Mục đích">
           <Input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Vd: Subculture lần 2 / Nhân giống…" />
-        </div>
-        <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Ghi chú</div>
+        </Field>
+        <Field label="Ghi chú">
           <Input.TextArea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-        </div>
+        </Field>
       </div>
     </ModalShell>
   );
@@ -203,21 +211,18 @@ const ViabilityModal: React.FC<{
         </Btn>
       </>}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
-        <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Kết quả *</div>
+        <Field label="Kết quả" required>
           <Select style={{ width: '100%' }} value={isViable} onChange={setIsViable} options={[
             { value: 'true', label: 'Sống (Viable)' },
             { value: 'false', label: 'Chết (Non-viable)' },
           ]} />
-        </div>
-        <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Phương pháp</div>
+        </Field>
+        <Field label="Phương pháp">
           <Input value={method} onChange={(e) => setMethod(e.target.value)} placeholder="Vd: Cấy thạch / Nhuộm Gram…" />
-        </div>
-        <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Ghi chú</div>
+        </Field>
+        <Field label="Ghi chú">
           <Input.TextArea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-        </div>
+        </Field>
       </div>
     </ModalShell>
   );
@@ -228,7 +233,7 @@ const CultureCollectionV2: React.FC = () => {
   const [stats, setStats] = useState<CultureStockStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all');
   const [fMethod, setFMethod] = useState('');
   // #352: lọc theo tủ lạnh (v1 có, v2 chỉ còn lọc PP bảo quản) + huỷ chủng có lý do (audit)
   const [fFreezer, setFFreezer] = useState('');
@@ -244,6 +249,9 @@ const CultureCollectionV2: React.FC = () => {
   const [logStock, setLogStock] = useState<CultureStock | null>(null);
   const [logs, setLogs] = useState<CultureStockLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const discardForm = useModalForm({
+    discardReason: { required: true, message: 'Cần nhập lý do hủy chủng' },
+  }, !!discardTarget);
 
   const load = async () => {
     setLoading(true);
@@ -362,7 +370,7 @@ const CultureCollectionV2: React.FC = () => {
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
         <Btn variant="ghost" onClick={() => ti('Chọn chủng trong bảng → nhấn "Lịch sử" hoặc mở chi tiết → Cấy chuyền')}>
           <Ico name="activity" size={12} /> Cấy chuyền
         </Btn>
@@ -453,7 +461,7 @@ const CultureCollectionV2: React.FC = () => {
             style={{ background: 'var(--s-crit)', borderColor: 'var(--s-crit)', color: '#fff' }}
             onClick={async () => {
               if (!discardTarget) return;
-              if (!discardReason.trim()) { te('Cần nhập lý do hủy chủng'); return; }
+              if (!discardForm.validate({ discardReason })) return;
               setDiscardBusy(true);
               try {
                 await discardStock(discardTarget.id, discardReason.trim());
@@ -468,9 +476,10 @@ const CultureCollectionV2: React.FC = () => {
           </Btn>
         </>}
       >
-        <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>Lý do hủy *</div>
-        <Input.TextArea rows={3} value={discardReason} onChange={(e) => setDiscardReason(e.target.value)}
-          placeholder="Vd: quá hạn bảo quản, nhiễm tạp, mất viability…" />
+        <Field label="Lý do hủy" required error={discardForm.errors.discardReason}>
+          <Input.TextArea rows={3} value={discardReason} onChange={(e) => { setDiscardReason(e.target.value); discardForm.clear('discardReason'); }}
+            placeholder="Vd: quá hạn bảo quản, nhiễm tạp, mất viability…" />
+        </Field>
       </ModalShell>
 
       {/* Modal lấy ống */}

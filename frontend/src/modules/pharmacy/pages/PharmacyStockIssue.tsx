@@ -19,6 +19,7 @@
  * paymentSource default: 0 (backend FIFO — stockId left undefined)
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import { App as AntdApp, AutoComplete, DatePicker, Form, Input, InputNumber, Select } from 'antd';
 import dayjs from 'dayjs';
 import * as wh from '../api/warehouse';
@@ -58,6 +59,7 @@ import {
   type StatusTab,
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { RefreshButton } from '../../../components/actions';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -302,7 +304,7 @@ const PharmacyStockIssue: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
-  const [activeTab, setActiveTab] = useState<IssueTypeKey | 'all'>('all');
+  const [activeTab, setActiveTab] = useTabState<IssueTypeKey | 'all'>('all');
   const [keyword, setKeyword] = useState('');
   const [filterWarehouseId, setFilterWarehouseId] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -602,7 +604,7 @@ const PharmacyStockIssue: React.FC = () => {
           Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={() => void load()}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
         <Btn variant="primary" icon="plus" onClick={openCreate}>+ Tạo phiếu xuất</Btn>
       </div>
 

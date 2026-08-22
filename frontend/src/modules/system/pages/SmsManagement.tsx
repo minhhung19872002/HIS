@@ -10,6 +10,7 @@ import {
   type ColumnDef, type KpiItem, type CrudFieldCfg,
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '@/utils/friendlyError';
+import { RefreshButton } from '@/components/actions';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -328,7 +329,7 @@ const SmsManagementV2: React.FC = () => {
         tab={tab}
         setTab={setTab}
         tabs={TOP_TABS}
-        actions={<Btn icon="refresh" onClick={loadDashboard} title="Làm mới" />}
+        actions={<RefreshButton onRefresh={loadDashboard} loading={dashLoading} />}
       />
 
       <div style={{ padding: '16px 0' }}>

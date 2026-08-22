@@ -18,22 +18,8 @@ import type { ServiceDto } from '../../opd/api/examination';
 import { ModalShell, cf } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
-
-// ─── Shared helpers ──────────────────────────────────────────────────────────
-
-const FIELD_LABEL: React.CSSProperties = {
-  fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600,
-};
-
-const FIELD_WRAP: React.CSSProperties = { marginBottom: 'var(--space-12)' };
-
-interface FieldProps { label: string; children: React.ReactNode; }
-const Field: React.FC<FieldProps> = ({ label, children }) => (
-  <div style={FIELD_WRAP}>
-    <div style={FIELD_LABEL}>{label}</div>
-    {children}
-  </div>
-);
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 
 // ─── 1. Thẻ BHYT tạm ─────────────────────────────────────────────────────────
 
@@ -62,6 +48,16 @@ export const TempInsuranceModal: React.FC<TempInsuranceModalProps> = ({
   const [guardianPhone, setGuardianPhone] = useState('');
   const [guardianIdNo, setGuardianIdNo] = useState('');
   const [guardianInsuranceNo, setGuardianInsuranceNo] = useState('');
+  const form = useModalForm({
+    patientName: { required: true, message: 'Nhập họ tên bệnh nhân' },
+    dob: {
+      required: true,
+      message: 'Nhập ngày sinh',
+      validate: (v) => (v && !(v as dayjs.Dayjs).isValid() ? 'Nhập ngày sinh' : undefined),
+    },
+    guardianName: { required: true, message: 'Nhập họ tên người giám hộ' },
+    guardianRelation: { required: true, message: 'Nhập quan hệ với người bệnh' },
+  }, open);
 
   useEffect(() => {
     if (open) {
@@ -78,16 +74,13 @@ export const TempInsuranceModal: React.FC<TempInsuranceModalProps> = ({
   }, [open, defaultPatientName, defaultDateOfBirth, defaultGender]);
 
   const submit = async () => {
-    if (!patientName.trim()) { message.warning('Nhập họ tên bệnh nhân'); return; }
-    if (!dob || !dob.isValid()) { message.warning('Nhập ngày sinh'); return; }
-    if (!guardianName.trim()) { message.warning('Nhập họ tên người giám hộ'); return; }
-    if (!guardianRelation.trim()) { message.warning('Nhập quan hệ với người bệnh'); return; }
+    if (!form.validate({ patientName, dob, guardianName, guardianRelation })) return;
 
     setBusy(true);
     try {
       await receptionApi.createTemporaryInsurance({
         patientName: patientName.trim(),
-        dateOfBirth: dob.format('YYYY-MM-DD'),
+        dateOfBirth: (dob as dayjs.Dayjs).format('YYYY-MM-DD'),
         gender,
         birthCertificateNumber: birthCertNo.trim() || undefined,
         guardian: {
@@ -128,8 +121,8 @@ export const TempInsuranceModal: React.FC<TempInsuranceModalProps> = ({
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 'var(--space-12)' }}>
-          <Field label="Họ tên bệnh nhân *">
-            <Input value={patientName} onChange={(e) => setPatientName(e.target.value)} placeholder="Tên trẻ em" />
+          <Field label="Họ tên bệnh nhân" required error={form.errors.patientName}>
+            <Input value={patientName} onChange={(e) => { setPatientName(e.target.value); form.clear('patientName'); }} placeholder="Tên trẻ em" />
           </Field>
           <Field label="Giới tính">
             <Select value={gender} onChange={setGender} style={{ width: '100%' }}
@@ -138,9 +131,9 @@ export const TempInsuranceModal: React.FC<TempInsuranceModalProps> = ({
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-          <Field label="Ngày sinh *">
+          <Field label="Ngày sinh" required error={form.errors.dob}>
             <DatePicker
-              value={dob} onChange={setDob} format="DD/MM/YYYY"
+              value={dob} onChange={(v) => { setDob(v); form.clear('dob'); }} format="DD/MM/YYYY"
               style={{ width: '100%' }} placeholder="DD/MM/YYYY"
             />
           </Field>
@@ -154,11 +147,11 @@ export const TempInsuranceModal: React.FC<TempInsuranceModalProps> = ({
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-          <Field label="Họ tên giám hộ *">
-            <Input value={guardianName} onChange={(e) => setGuardianName(e.target.value)} placeholder="Họ tên cha/mẹ" />
+          <Field label="Họ tên giám hộ" required error={form.errors.guardianName}>
+            <Input value={guardianName} onChange={(e) => { setGuardianName(e.target.value); form.clear('guardianName'); }} placeholder="Họ tên cha/mẹ" />
           </Field>
-          <Field label="Quan hệ với BN *">
-            <Input value={guardianRelation} onChange={(e) => setGuardianRelation(e.target.value)} placeholder="Cha/mẹ, anh/chị…" />
+          <Field label="Quan hệ với BN" required error={form.errors.guardianRelation}>
+            <Input value={guardianRelation} onChange={(e) => { setGuardianRelation(e.target.value); form.clear('guardianRelation'); }} placeholder="Cha/mẹ, anh/chị…" />
           </Field>
           <Field label="CCCD giám hộ">
             <Input value={guardianIdNo} onChange={(e) => setGuardianIdNo(e.target.value)} placeholder="Tùy chọn" />
@@ -214,6 +207,7 @@ export const DocumentHoldModal: React.FC<DocumentHoldModalProps> = ({
   // Return form
   const [returnNotes, setReturnNotes] = useState('');
   const [returnToName, setReturnToName] = useState('');
+  const form = useModalForm({ docNumber: { required: true, message: 'Nhập số / mã giấy tờ' } }, open);
 
   const loadHeld = useCallback(async () => {
     if (!patientId) return;
@@ -240,7 +234,7 @@ export const DocumentHoldModal: React.FC<DocumentHoldModalProps> = ({
   }, [open, loadHeld]);
 
   const submitHold = async () => {
-    if (!docNumber.trim()) { message.warning('Nhập số / mã giấy tờ'); return; }
+    if (!form.validate({ docNumber })) return;
     setBusy(true);
     try {
       await receptionApi.createDocumentHold({
@@ -310,11 +304,11 @@ export const DocumentHoldModal: React.FC<DocumentHoldModalProps> = ({
         {tab === 'hold' && (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-              <Field label="Loại giấy tờ *">
+              <Field label="Loại giấy tờ" required>
                 <Select value={docType} onChange={setDocType} style={{ width: '100%' }} options={DOCUMENT_TYPES} />
               </Field>
-              <Field label="Số / mã giấy tờ *">
-                <Input value={docNumber} onChange={(e) => setDocNumber(e.target.value)} placeholder="VD: 034093012345" />
+              <Field label="Số / mã giấy tờ" required error={form.errors.docNumber}>
+                <Input value={docNumber} onChange={(e) => { setDocNumber(e.target.value); form.clear('docNumber'); }} placeholder="VD: 034093012345" />
               </Field>
             </div>
             <Field label="Mô tả giấy tờ">
@@ -353,14 +347,12 @@ export const DocumentHoldModal: React.FC<DocumentHoldModalProps> = ({
                 {returningId === d.id ? (
                   <div style={{ marginTop: 'var(--space-8)', paddingTop: 'var(--space-8)', borderTop: '1px solid var(--line-soft)' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-8)', marginBottom: 'var(--space-8)' }}>
-                      <div>
-                        <div style={FIELD_LABEL}>Trả cho</div>
+                      <Field label="Trả cho">
                         <Input size="small" value={returnToName} onChange={(e) => setReturnToName(e.target.value)} placeholder="Tên người nhận" />
-                      </div>
-                      <div>
-                        <div style={FIELD_LABEL}>Ghi chú trả</div>
+                      </Field>
+                      <Field label="Ghi chú trả">
                         <Input size="small" value={returnNotes} onChange={(e) => setReturnNotes(e.target.value)} placeholder="Tùy chọn" />
-                      </div>
+                      </Field>
                     </div>
                     <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
                       <button type="button" className="ab-btn ghost sm" onClick={() => setReturningId(null)}>Hủy</button>
@@ -416,6 +408,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   const [preview, setPreview] = useState<string | null>(null);
   const [fileName, setFileName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const form = useModalForm({ preview: { required: true, message: 'Chọn ảnh để tải lên' } }, open);
 
   const loadPhotos = useCallback(async () => {
     if (!patientId) return;
@@ -443,6 +436,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     if (!file) return;
     if (!file.type.startsWith('image/')) { message.warning('Chỉ chấp nhận file ảnh'); return; }
     if (file.size > 5 * 1024 * 1024) { message.warning('Ảnh không được vượt quá 5MB'); return; }
+    form.clear('preview');
     setFileName(file.name);
     const reader = new FileReader();
     reader.onload = (ev) => setPreview(ev.target?.result as string);
@@ -450,9 +444,9 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   };
 
   const upload = async () => {
-    if (!preview) { message.warning('Chọn ảnh để tải lên'); return; }
+    if (!form.validate({ preview })) return;
     // base64Data = the data URL part after the comma
-    const base64Data = preview.split(',')[1];
+    const base64Data = (preview as string).split(',')[1];
     if (!base64Data) { message.warning('Không đọc được file ảnh'); return; }
     setBusy(true);
     try {
@@ -495,7 +489,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
       footer={(
         <>
           <button type="button" className="ab-btn ghost" onClick={onClose}>Đóng</button>
-          <button type="button" className="ab-btn primary" disabled={busy || !preview} onClick={upload}>
+          <button type="button" className="ab-btn primary" disabled={busy} onClick={upload}>
             <TermIcon name="upload" size={12} /> {busy ? 'Đang tải…' : 'Tải lên'}
           </button>
         </>
@@ -512,8 +506,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
           </Field>
         </div>
 
-        <div style={{ marginBottom: 'var(--space-14)' }}>
-          <div style={FIELD_LABEL}>Chọn ảnh *</div>
+        <Field label="Chọn ảnh" required error={form.errors.preview}>
           <label style={{
             display: 'block', border: '1.5px dashed var(--line)', borderRadius: 'var(--r-2)',
             padding: preview ? 0 : '20px 0', textAlign: 'center',
@@ -535,7 +528,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
               </span>
             )}
           </label>
-        </div>
+        </Field>
 
         {/* Existing photos */}
         <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 700, marginBottom: 'var(--space-8)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>

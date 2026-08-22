@@ -12,6 +12,7 @@ import {
   KpiStrip, Filter, StatusBadge, Btn, Ico, tk, ti, tw, cf, LoadingState,
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { RefreshButton } from '../../../components/actions';
 
 interface BatchDispenseResponse {
   receiptCode?: string;
@@ -158,7 +159,7 @@ ${(printData.items || []).map((it, i) => `<tr><td>${i + 1}</td><td>${it.medicine
         <Input placeholder="Ghi chú phiếu" value={note} onChange={(e) => setNote(e.target.value)} style={{ width: 240 }} />
         <Btn variant="ghost" icon="x" onClick={() => { setFilterDept(''); setWarehouseId(''); setNote(''); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
       </div>
 
       {loading && groups.length === 0 && (

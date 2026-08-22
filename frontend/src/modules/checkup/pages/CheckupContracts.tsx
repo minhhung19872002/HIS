@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import { DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import {
@@ -30,7 +31,7 @@ const contractTone = (status: number): 'info' | 'ok' | 'warn' | 'crit' =>
   status === 0 ? 'warn' : status === 1 ? 'info' : status === 2 ? 'ok' : 'crit';
 
 const CheckupContractsV2: React.FC = () => {
-  const [tab, setTab] = useState<'contracts' | 'companies'>('contracts');
+  const [tab, setTab] = useTabState<'contracts' | 'companies'>('contracts');
 
   const [companies, setCompanies] = useState<CheckupCompanyDto[]>([]);
   const [contracts, setContracts] = useState<CheckupContractDto[]>([]);

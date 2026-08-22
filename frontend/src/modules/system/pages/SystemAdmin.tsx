@@ -16,6 +16,7 @@ import {
   type ColumnDef, type TopTab,
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { RefreshButton } from '../../../components/actions';
 import ItTicketsPanel from './ItTicketsPanel';
 import AccessMatrixPanel from './AccessMatrixPanel';
 import CompliancePanel from './CompliancePanel';
@@ -514,7 +515,7 @@ const SystemAdminV2: React.FC = () => {
         {tab === 'notifications' && <Btn variant="primary" onClick={() => setNotifModal(true)}>+ Gửi thông báo</Btn>}
         {tab === 'locked-services' && <Btn variant="primary" onClick={() => { setLockModal(true); setLockResults([]); setLockKw(''); }}>+ Khóa dịch vụ</Btn>}
         {tab === 'branches' && <Btn variant="primary" onClick={openNewBranch}>+ Thêm chi nhánh</Btn>}
-        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
       </div>
 
       {tab === 'users' && (

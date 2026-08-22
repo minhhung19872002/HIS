@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import {
   KpiStrip, TopTabs, DataTable, StatusBadge, ActBtn,
   DrawerShell, DrSec, DrField, useListData,
@@ -40,7 +41,7 @@ const sterTone = (s: number): StatusTone =>
   s === 2 ? 'ok' : s === 3 ? 'crit' : s === 1 ? 'warn' : 'info';
 
 const LinenManagementV2: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('items');
+  const [tab, setTab] = useTabState<TabKey>('items');
   return (
     <div className="ab" data-testid="linen-management-page">
       <TopTabs<TabKey> tab={tab} setTab={setTab} tabs={TOP_TABS} />

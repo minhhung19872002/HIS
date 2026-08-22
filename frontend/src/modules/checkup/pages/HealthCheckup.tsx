@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import {
   searchHealthCheckups, getHealthCheckupStats, createHealthCheckup, updateHealthCheckup, getCheckupTypes,
@@ -15,58 +16,58 @@ import {
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, cf, te, TopTabs,
   type ColumnDef, type CrudFieldCfg, type StatusTab,
 } from '@/_v2kit';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 import { DriverCheckupPrint, VsattpCheckupPrint, StudentCheckupPrint } from '../../patient/components/HealthCheckupPrintTemplates';
 
 // ---- Static base fields (common to all KSK types) ----
 const BASE_FIELDS: CrudFieldCfg[] = [
-  { key: 'patientName', label: 'Ho ten doi tuong', required: true, placeholder: 'Nguyen Van A' },
-  { key: 'patientCode', label: 'Ma/CCCD', placeholder: 'tuy chon' },
-  { key: 'gender', label: 'Gioi tinh', type: 'select', required: true, options: [{ value: 1, label: 'Nam' }, { value: 2, label: 'Nu' }] },
-  { key: 'dateOfBirth', label: 'Ngay sinh', type: 'date' },
-  { key: 'checkupDate', label: 'Ngay kham', type: 'date', required: true },
-  { key: 'examDoctor', label: 'BS kham' },
-  { key: 'conclusion', label: 'Ket luan', type: 'select', options: [
-    { value: 'pass', label: 'Dat' }, { value: 'conditional', label: 'Co dieu kien' }, { value: 'fail', label: 'Khong dat' }] },
-  { key: 'status', label: 'Trang thai', type: 'select', options: [
-    { value: 0, label: 'Cho' }, { value: 1, label: 'Dang kham' }, { value: 2, label: 'Hoan thanh' }, { value: 3, label: 'Da chung nhan' }] },
-  { key: 'notes', label: 'Ghi chu', type: 'textarea' },
+  { key: 'patientName', label: 'Họ tên đối tượng', required: true, placeholder: 'Nguyen Van A' },
+  { key: 'patientCode', label: 'Mã/CCCD', placeholder: 'tùy chọn' },
+  { key: 'gender', label: 'Giới tính', type: 'select', required: true, options: [{ value: 1, label: 'Nam' }, { value: 2, label: 'Nữ' }] },
+  { key: 'dateOfBirth', label: 'Ngày sinh', type: 'date' },
+  { key: 'checkupDate', label: 'Ngày khám', type: 'date', required: true },
+  { key: 'examDoctor', label: 'Bác sĩ khám' },
+  { key: 'conclusion', label: 'Kết luận', type: 'select', options: [
+    { value: 'pass', label: 'Đạt' }, { value: 'conditional', label: 'Có điều kiện' }, { value: 'fail', label: 'Không đạt' }] },
+  { key: 'status', label: 'Trạng thái', type: 'select', options: [
+    { value: 0, label: 'Chờ' }, { value: 1, label: 'Đang khám' }, { value: 2, label: 'Hoàn thành' }, { value: 3, label: 'Đã chứng nhận' }] },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
 ];
 
 const DRIVER_FIELDS: CrudFieldCfg[] = [
-  { key: 'driverLicenseClass', label: 'Hang lai xe', placeholder: 'B1, B2, C, D, E...' },
-  { key: 'driverReactionTest', label: 'Thu phan xa', placeholder: 'KQ thu phan xa thi giac - van dong' },
-  { key: 'driverColorVision', label: 'Thi giac mau sac', placeholder: 'Phan biet mau binh thuong / khieu sac' },
+  { key: 'driverLicenseClass', label: 'Hạng lái xe', placeholder: 'B1, B2, C, D, E...' },
+  { key: 'driverReactionTest', label: 'Thử phản xạ', placeholder: 'KQ thử phản xạ thị giác - vận động' },
+  { key: 'driverColorVision', label: 'Thị giác màu sắc', placeholder: 'Phân biệt màu bình thường / khuyết sắc' },
 ];
 
 const VSATTP_FIELDS: CrudFieldCfg[] = [
-  { key: 'foodHandlerRole', label: 'Vai tro tiep xuc thuc pham', placeholder: 'Nau an / phuc vu / che bien...' },
-  { key: 'foodSafetyConclusion', label: 'Ket luan VSATTP', type: 'textarea', placeholder: 'Du/Khong du dieu kien SK tham gia che bien, kinh doanh thuc pham' },
+  { key: 'foodHandlerRole', label: 'Vai trò tiếp xúc thực phẩm', placeholder: 'Nấu ăn / phục vụ / chế biến...' },
+  { key: 'foodSafetyConclusion', label: 'Kết luận VSATTP', type: 'textarea', placeholder: 'Đủ/Không đủ điều kiện Sức khỏe tham gia chế biến, kinh doanh thực phẩm' },
 ];
 
 const CHILD_FIELDS: CrudFieldCfg[] = [
-  { key: 'ageMonths', label: 'Tuoi (thang)', placeholder: 'So thang tuoi' },
-  { key: 'developmentAssessment', label: 'Danh gia phat trien', placeholder: 'Binh thuong / Cham phat trien' },
-  { key: 'nutritionStatus', label: 'Tinh trang dinh duong', placeholder: 'Binh thuong / Suy dinh duong / Thua can' },
-  { key: 'vaccinationStatus', label: 'Tinh trang tiem chung', placeholder: 'Day du / Chua day du / Khong ro' },
+  { key: 'ageMonths', label: 'Tuổi (tháng)', placeholder: 'Số tháng tuổi' },
+  { key: 'developmentAssessment', label: 'Đánh giá phát triển', placeholder: 'Bình thường / Chậm phát triển' },
+  { key: 'nutritionStatus', label: 'Tình trạng dinh dưỡng', placeholder: 'Bình thường / Suy dinh dưỡng / Thừa cân' },
+  { key: 'vaccinationStatus', label: 'Tình trạng tiêm chủng', placeholder: 'Đủ / Chưa đủ / Không rõ' },
 ];
 
 const STATUS_LABEL: Record<number, string> = {
-  0: 'Cho', 1: 'Dang kham', 2: 'Hoan thanh', 3: 'Da chung nhan',
+  0: 'Chờ', 1: 'Đang khám', 2: 'Hoàn thành', 3: 'Đã chứng nhận',
 };
 
 type SKey = 'pending' | 'progress' | 'done' | 'certified';
 const STATUS_TABS = [
-  { v: 'pending' as SKey,   l: 'Cho',          tone: 'warn' as const },
-  { v: 'progress' as SKey,  l: 'Dang kham',    tone: 'info' as const },
-  { v: 'done' as SKey,      l: 'Hoan thanh',   tone: 'info' as const },
-  { v: 'certified' as SKey, l: 'Da chung nhan', tone: 'ok' as const },
+  { v: 'pending' as SKey,   l: 'Chờ',          tone: 'warn' as const },
+  { v: 'progress' as SKey,  l: 'Đang khám',    tone: 'info' as const },
+  { v: 'done' as SKey,      l: 'Hoàn thành',   tone: 'info' as const },
+  { v: 'certified' as SKey, l: 'Đã chứng nhận', tone: 'ok' as const },
 ];
 
 const sKey = (n: number): SKey => n === 0 ? 'pending' : n === 1 ? 'progress' : n === 2 ? 'done' : 'certified';
 
 const CONCL_LABEL: Record<string, string> = {
-  pass: 'Dat', fail: 'Khong dat', conditional: 'Co dieu kien',
+  pass: 'Đạt', fail: 'Không đạt', conditional: 'Có điều kiện',
 };
 const CONCL_TONE: Record<string, 'ok' | 'warn' | 'crit'> = {
   pass: 'ok', conditional: 'warn', fail: 'crit',
@@ -136,7 +137,7 @@ const CampaignTab: React.FC = () => {
   const [campaigns, setCampaigns] = useState<CheckupCampaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [camStab, setCamStab] = useState<CamKey | 'all'>('all');
+  const [camStab, setCamStab] = useTabState<CamKey | 'all'>('all', 'camStab');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<CheckupCampaign | null>(null);
   const [crudOpen, setCrudOpen] = useState(false);
@@ -295,7 +296,7 @@ const CampaignTab: React.FC = () => {
         />
         <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setCamStab('all'); setPage(0); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
+        <RefreshButton onRefresh={async () => { await load() }} />
         <Btn variant="primary" icon="plus" onClick={openCreate}>Chiến dịch mới</Btn>
       </div>
 
@@ -508,14 +509,14 @@ const CampaignTab: React.FC = () => {
 // ──────────────────────────────────────────────────────────────────────────────
 
 const HealthCheckupV2: React.FC = () => {
-  const [mainTab, setMainTab] = useState<'ksk' | 'campaign' | 'report'>('ksk');
+  const [mainTab, setMainTab] = useTabState<'ksk' | 'campaign' | 'report'>('ksk', 'tab');
 
   const [items, setItems] = useState<HealthCheckup[]>([]);
   const [stats, setStats] = useState<HealthCheckupStats | null>(null);
   const [checkupTypes, setCheckupTypes] = useState<CheckupType[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all', 'stab');
   const [fType, setFType] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<HealthCheckup | null>(null);
@@ -576,7 +577,7 @@ const HealthCheckupV2: React.FC = () => {
   const crudFields = useMemo<CrudFieldCfg[]>(() => {
     const typeField: CrudFieldCfg = {
       key: 'checkupType',
-      label: 'Loai KSK',
+      label: 'Loại KSK',
       type: 'select',
       required: true,
       options: checkupTypes.map((t) => ({ value: t.code, label: t.name })),
@@ -595,23 +596,23 @@ const HealthCheckupV2: React.FC = () => {
   const printKey = sel ? (TYPE_PRINT_KEY[sel.checkupType] ?? null) : null;
 
   const cols: ColumnDef<HealthCheckup>[] = [
-    { key: 'code', label: 'Ma KSK', code: true, render: (r) => r.checkupCode },
-    { key: 'pt', label: 'Doi tuong', render: (r) => (
+    { key: 'code', label: 'Mã KSK', code: true, render: (r) => r.checkupCode },
+    { key: 'pt', label: 'Đối tượng', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</div>
-        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.gender === 1 ? 'Nam' : 'Nu'} · {r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.gender === 1 ? 'Nam' : 'Nữ'} · {r.patientCode}</div>
       </div>
     ) },
-    { key: 'date', label: 'Ngay', mono: true, render: (r) => dayjs(r.checkupDate).format('DD/MM/YYYY') },
-    { key: 'type', label: 'Loai', render: (r) => {
+    { key: 'date', label: 'Ngày', mono: true, render: (r) => dayjs(r.checkupDate).format('DD/MM/YYYY') },
+    { key: 'type', label: 'Loại', render: (r) => {
       const t = checkupTypes.find((x) => x.code === r.checkupType);
       return t ? t.name : r.checkupType;
     } },
-    { key: 'doc', label: 'BS kham', render: (r) => r.examDoctor },
-    { key: 'concl', label: 'Ket luan', render: (r) => r.conclusion ? (
+    { key: 'doc', label: 'BS khám', render: (r) => r.examDoctor },
+    { key: 'concl', label: 'Kết luận', render: (r) => r.conclusion ? (
       <StatusBadge tone={CONCL_TONE[r.conclusion] || 'info'} dot>{CONCL_LABEL[r.conclusion] || r.conclusion}</StatusBadge>
     ) : <span style={{ color: 'var(--t-2)' }}>—</span> },
-    { key: 'st', label: 'Trang thai', render: (r) => {
+    { key: 'st', label: 'Trạng thái', render: (r) => {
       const t = STATUS_TABS.find((x) => x.v === sKey(r.status));
       return <StatusBadge tone={t?.tone || 'info'} dot>{STATUS_LABEL[r.status] || '—'}</StatusBadge>;
     } },
@@ -619,8 +620,8 @@ const HealthCheckupV2: React.FC = () => {
 
   const actions = (r: HealthCheckup) => (
     <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiet" onClick={() => setSel(r)} />
-      <ActBtn ic="edit" title="Sua" onClick={() => openEdit(r)} />
+      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
+      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
     </div>
   );
 
@@ -639,20 +640,20 @@ const HealthCheckupV2: React.FC = () => {
       {mainTab === 'ksk' && (
         <>
           <KpiStrip items={[
-            { lbl: 'Tong KSK', val: stats?.totalCheckups ?? items.length, sub: 'tat ca' },
-            { lbl: 'Hom nay', val: stats?.todayCount ?? 0, sub: 'da kham', tone: 'info' },
-            { lbl: 'Dat', val: stats?.passCount ?? items.filter((c) => c.conclusion === 'pass').length, sub: `${Math.round(((stats?.passCount ?? 0) / Math.max(1, stats?.totalCheckups ?? items.length)) * 100)}%`, tone: 'ok' },
-            { lbl: 'Khong dat', val: stats?.failCount ?? items.filter((c) => c.conclusion === 'fail').length, sub: 'can dieu tri', tone: 'crit' },
+            { lbl: 'Tổng KSK', val: stats?.totalCheckups ?? items.length, sub: 'tất cả' },
+            { lbl: 'Hôm nay', val: stats?.todayCount ?? 0, sub: 'đã khám', tone: 'info' },
+            { lbl: 'Đạt', val: stats?.passCount ?? items.filter((c) => c.conclusion === 'pass').length, sub: `${Math.round(((stats?.passCount ?? 0) / Math.max(1, stats?.totalCheckups ?? items.length)) * 100)}%`, tone: 'ok' },
+            { lbl: 'Không đạt', val: stats?.failCount ?? items.filter((c) => c.conclusion === 'fail').length, sub: 'cần điều trị', tone: 'crit' },
           ]} />
 
           <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
             <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
-              placeholder="Tim BN / ma KSK..." />
-            <Filter value={fType} onChange={setFType} options={typeOptions} placeholder="Loai KSK" />
-            <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>Bo loc</Btn>
+              placeholder="Tìm BN / mã KSK..." />
+            <Filter value={fType} onChange={setFType} options={typeOptions} placeholder="Loại KSK" />
+            <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>Bỏ lọc</Btn>
             <span className="spacer" />
-            <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Lam moi</Btn>
-            <Btn variant="primary" icon="plus" onClick={openCreate}>KSK moi</Btn>
+            <RefreshButton onRefresh={async () => { await load() }} />
+            <Btn variant="primary" icon="plus" onClick={openCreate}>KSK mới</Btn>
           </div>
 
           <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -661,7 +662,7 @@ const HealthCheckupV2: React.FC = () => {
             columns={cols} data={paged} rowKey={(r) => r.id}
             onRowClick={setSel} actions={actions}
             loading={loading}
-            empty={'Chua co kham SK'}
+            empty={'Chưa có khám SK'}
           />
           <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 
@@ -672,38 +673,38 @@ const HealthCheckupV2: React.FC = () => {
             title={sel ? sel.patientName : ''}
             sub={sel ? `${sel.checkupCode} · ${sel.checkupType}` : ''}
             footer={<>
-              <Btn variant="ghost" onClick={() => setSel(null)}>Dong</Btn>
-              {printKey && <Btn icon="print" onClick={handlePrintKsk}>In giay CN</Btn>}
-              <Btn variant="primary" icon="edit" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>Cap nhat</Btn>
+              <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+              {printKey && <Btn icon="print" onClick={handlePrintKsk}>In giấy CN</Btn>}
+              <Btn variant="primary" icon="edit" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>Cập nhật</Btn>
             </>}
           >
             {sel && <>
-              <DrSec title="Doi tuong">
-                <DrField lbl="Ma KSK"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.checkupCode}</span></DrField>
-                <DrField lbl="Ho ten">{sel.patientName} · {sel.patientCode}</DrField>
-                <DrField lbl="Gioi tinh">{sel.gender === 1 ? 'Nam' : 'Nu'}</DrField>
-                <DrField lbl="Ngay sinh">{dayjs(sel.dateOfBirth).format('DD/MM/YYYY')}</DrField>
-                {sel.companyName && <DrField lbl="Cong ty">{sel.companyName}</DrField>}
+              <DrSec title="Đối tượng">
+                <DrField lbl="Mã KSK"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.checkupCode}</span></DrField>
+                <DrField lbl="Họ tên">{sel.patientName} · {sel.patientCode}</DrField>
+                <DrField lbl="Giới tính">{sel.gender === 1 ? 'Nam' : 'Nữ'}</DrField>
+                <DrField lbl="Ngày sinh">{dayjs(sel.dateOfBirth).format('DD/MM/YYYY')}</DrField>
+                {sel.companyName && <DrField lbl="Công ty">{sel.companyName}</DrField>}
               </DrSec>
-              <DrSec title="Kham">
-                <DrField lbl="Loai">{checkupTypes.find((t) => t.code === sel.checkupType)?.name ?? sel.checkupType}</DrField>
-                <DrField lbl="Ngay kham">{dayjs(sel.checkupDate).format('DD/MM/YYYY')}</DrField>
-                <DrField lbl="BS kham">{sel.examDoctor}</DrField>
-                <DrField lbl="Trang thai">
+              <DrSec title="Khám">
+                <DrField lbl="Loại">{checkupTypes.find((t) => t.code === sel.checkupType)?.name ?? sel.checkupType}</DrField>
+                <DrField lbl="Ngày khám">{dayjs(sel.checkupDate).format('DD/MM/YYYY')}</DrField>
+                <DrField lbl="Bác sĩ khám">{sel.examDoctor}</DrField>
+                <DrField lbl="Trạng thái">
                   <StatusBadge tone={STATUS_TABS.find((x) => x.v === sKey(sel.status))?.tone || 'info'} dot>
                     {STATUS_LABEL[sel.status] || '—'}
                   </StatusBadge>
                 </DrField>
               </DrSec>
-              <DrSec title="Kham chuyen khoa">
-                {sel.internalMedicine && <DrField lbl="Noi khoa">{sel.internalMedicine}</DrField>}
-                {sel.surgery && <DrField lbl="Ngoai khoa">{sel.surgery}</DrField>}
-                {sel.ophthalmology && <DrField lbl="Mat">{sel.ophthalmology}</DrField>}
-                {sel.entExam && <DrField lbl="TMH">{sel.entExam}</DrField>}
+              <DrSec title="Khám chuyên khoa">
+                {sel.internalMedicine && <DrField lbl="Nội khoa">{sel.internalMedicine}</DrField>}
+                {sel.surgery && <DrField lbl="Ngoại khoa">{sel.surgery}</DrField>}
+                {sel.ophthalmology && <DrField lbl="Mắt">{sel.ophthalmology}</DrField>}
+                {sel.entExam && <DrField lbl="Tai-Mũi-Họng">{sel.entExam}</DrField>}
                 {sel.dentalExam && <DrField lbl="RHM">{sel.dentalExam}</DrField>}
-                {sel.dermatology && <DrField lbl="Da lieu">{sel.dermatology}</DrField>}
-                {sel.gynecology && <DrField lbl="Phu khoa">{sel.gynecology}</DrField>}
-                {sel.psychiatry && <DrField lbl="Tam than">{sel.psychiatry}</DrField>}
+                {sel.dermatology && <DrField lbl="Da liễu">{sel.dermatology}</DrField>}
+                {sel.gynecology && <DrField lbl="Phụ khoa">{sel.gynecology}</DrField>}
+                {sel.psychiatry && <DrField lbl="Tâm thần">{sel.psychiatry}</DrField>}
               </DrSec>
               {sel.checkupType === 'Driver' && (
                 <DrSec title="KSK Lai xe (TT36)">
@@ -714,27 +715,27 @@ const HealthCheckupV2: React.FC = () => {
               )}
               {sel.checkupType === 'FoodSafety' && (
                 <DrSec title="KSK VSATTP (TT15)">
-                  {sel.foodHandlerRole && <DrField lbl="Vai tro">{sel.foodHandlerRole}</DrField>}
-                  {sel.foodSafetyConclusion && <DrField lbl="Ket luan VSATTP">{sel.foodSafetyConclusion}</DrField>}
+                  {sel.foodHandlerRole && <DrField lbl="Vai trò">{sel.foodHandlerRole}</DrField>}
+                  {sel.foodSafetyConclusion && <DrField lbl="Kết luận VSATTP">{sel.foodSafetyConclusion}</DrField>}
                 </DrSec>
               )}
               {(sel.checkupType === 'Student' || sel.checkupType === 'ChildUnder24m') && (
-                <DrSec title="KSK Tre em / Di hoc">
-                  {sel.ageMonths != null && <DrField lbl="Tuoi (thang)">{sel.ageMonths}</DrField>}
-                  {sel.developmentAssessment && <DrField lbl="Phat trien">{sel.developmentAssessment}</DrField>}
-                  {sel.nutritionStatus && <DrField lbl="Dinh duong">{sel.nutritionStatus}</DrField>}
-                  {sel.vaccinationStatus && <DrField lbl="Tiem chung">{sel.vaccinationStatus}</DrField>}
+                <DrSec title="KSK Trẻ em / Đi học">
+                  {sel.ageMonths != null && <DrField lbl="Tuổi (tháng)">{sel.ageMonths}</DrField>}
+                  {sel.developmentAssessment && <DrField lbl="Phát triển">{sel.developmentAssessment}</DrField>}
+                  {sel.nutritionStatus && <DrField lbl="Dinh dưỡng">{sel.nutritionStatus}</DrField>}
+                  {sel.vaccinationStatus && <DrField lbl="Tiêm chủng">{sel.vaccinationStatus}</DrField>}
                 </DrSec>
               )}
-              <DrSec title="Ket luan">
+              <DrSec title="Kết luận">
                 {sel.labResults && <DrField lbl="KQ XN">{sel.labResults}</DrField>}
                 {sel.xrayResults && <DrField lbl="X-quang">{sel.xrayResults}</DrField>}
-                <DrField lbl="Ket luan">
+                <DrField lbl="Kết luận">
                   {sel.conclusion ? (
                     <StatusBadge tone={CONCL_TONE[sel.conclusion] || 'info'} dot>{CONCL_LABEL[sel.conclusion] || sel.conclusion}</StatusBadge>
                   ) : '—'}
                 </DrField>
-                {sel.notes && <DrField lbl="Ghi chu">{sel.notes}</DrField>}
+                {sel.notes && <DrField lbl="Ghi chú">{sel.notes}</DrField>}
               </DrSec>
 
               {/* Hidden print area */}
@@ -747,15 +748,15 @@ const HealthCheckupV2: React.FC = () => {
           <CrudModal
             open={crudOpen}
             onClose={() => setCrudOpen(false)}
-            title={crudInit?.id ? 'Cap nhat KSK' : 'Kham suc khoe moi'}
-            sub="KSK chuyen biet: lai xe / VSATTP / di hoc / tong quat"
+            title={crudInit?.id ? 'Cập nhật KSK' : 'Khám sức khỏe mới'}
+            sub="KSK chuyên biệt: lái xe / VSATTP / đi học / tổng quát"
             fields={crudFields}
             initial={crudInit}
             size="lg"
             onSubmit={async (v, editing) => {
               if (editing && crudInit?.id) await updateHealthCheckup(String(crudInit.id), v);
               else await createHealthCheckup(v);
-              tk(editing ? 'Da cap nhat KSK' : 'Da tao KSK');
+              tk(editing ? 'Đã cập nhật KSK' : 'Đã tạo KSK');
               load();
             }}
           />

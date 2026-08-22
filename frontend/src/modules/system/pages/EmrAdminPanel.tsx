@@ -19,6 +19,7 @@ import {
   type ColumnDef, type TopTab,
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '@/utils/friendlyError';
+import { RefreshButton } from '../../../components/actions';
 
 type EmrTab = 'cover' | 'signer' | 'role' | 'operation' | 'group' | 'doctype';
 
@@ -164,7 +165,7 @@ const EmrAdminPanel: React.FC = () => {
         <TopTabs tab={tab} setTab={setTab} tabs={EMR_TABS} />
         <span className="spacer" />
         <Btn variant="primary" onClick={() => openModal(tab)}>+ Thêm</Btn>
-        <Btn variant="ghost" onClick={fetchAll}>Làm mới</Btn>
+        <RefreshButton onRefresh={fetchAll} loading={loading} />
       </div>
 
       {tab === 'cover' && (
@@ -225,7 +226,7 @@ const EmrAdminPanel: React.FC = () => {
         footer={
           <>
             <Btn onClick={() => setModalOpen(false)}>Huỷ</Btn>
-            <Btn variant="primary" disabled={saving} onClick={handleSave}>{saving ? 'Đang lưu…' : 'Lưu'}</Btn>
+            <Btn variant="primary" loading={saving} onClick={handleSave}>{saving ? 'Đang lưu…' : 'Lưu'}</Btn>
           </>
         }
       >

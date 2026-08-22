@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Timeline, Tag, Typography, Spin, Empty, Select, Space, Button, Card, Descriptions, Tooltip } from 'antd';
+import { Timeline, Tag, Typography, Spin, Empty, Select, Space, Card, Descriptions, Tooltip } from 'antd';
+import { RefreshButton } from '../../../components/actions/RefreshButton';
 import {
   UserOutlined, ExperimentOutlined, ScanOutlined, MedicineBoxOutlined,
   DollarOutlined, FileTextOutlined, HeartOutlined, CalendarOutlined,
-  ReloadOutlined, FilterOutlined,
+  FilterOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { getPatientMedicalHistory } from '../../opd/api/examination';
@@ -202,7 +203,7 @@ const PatientTimeline: React.FC<PatientTimelineProps> = ({ patientId, onExaminat
           />
           <Text type="secondary">{filteredEvents.length} sự kiện</Text>
         </Space>
-        <Button icon={<ReloadOutlined />} size="small" onClick={fetchTimeline}>Tải lại</Button>
+        <RefreshButton onRefresh={fetchTimeline} />
       </Space>
 
       {/* Module legend */}

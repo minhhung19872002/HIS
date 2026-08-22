@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import {
   searchCases, createCase, getAssessments, screenDepression, getStats,
@@ -10,6 +11,7 @@ import {
   type ColumnDef, type StatusTab, type CrudFieldCfg,
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '@/utils/friendlyError';
+import { RefreshButton } from '../../../components/actions';
 
 type StatusKey = 'active' | 'stable' | 'remission' | 'discharged';
 const STATUS_TABS: StatusTab<StatusKey>[] = [
@@ -85,7 +87,7 @@ const MentalHealthV2: React.FC = () => {
   const [rows, setRows] = useState<MentalHealthCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<StatusKey | 'all'>('all');
+  const [stab, setStab] = useTabState<StatusKey | 'all'>('all');
   const [fType, setFType] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -207,7 +209,7 @@ const MentalHealthV2: React.FC = () => {
         <Btn variant="primary" onClick={() => setCreateOpen(true)}>
           <Ico name="plus" size={12} /> Tạo hồ sơ
         </Btn>
-        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
+        <RefreshButton onRefresh={async () => { await load(); }} />
       </div>
 
       <StatusTabs<StatusKey>

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import { Form, Input, InputNumber, Select, Checkbox } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../../../services/apiClient';
@@ -48,7 +49,7 @@ const RadiologyOpsV2: React.FC = () => {
   const [requests, setRequests] = useState<Request[]>([]);
   const [selected, setSelected] = useState<Request | null>(null);
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<Tab>('add-on');
+  const [tab, setTab] = useTabState<Tab>('add-on');
 
   const [services, setServices] = useState<Service[]>([]);
   const [medicines, setMedicines] = useState<Medicine[]>([]);

@@ -3,7 +3,7 @@
  *
  * Polls `/api/ai-labeling/queue` every 30s. Click → popover lists the most
  * recent ~20 items with patient + request code; clicking an item navigates
- * to /radiology/viewer?study=<uid>.
+ * to /v2/radiology/viewer?study=<uid>.
  *
  * Auto-queued items (created by the BackgroundService cron) show with a
  * yellow "Tự động" tag so the BS knows the AI hasn't been run yet — just
@@ -69,7 +69,7 @@ export default function AiQueueBadge() {
               style={{ cursor: 'pointer' }}
               onClick={() => {
                 setOpen(false);
-                navigate(`/radiology/viewer?study=${encodeURIComponent(it.studyInstanceUID)}`);
+                navigate(`/v2/radiology/viewer?study=${encodeURIComponent(it.studyInstanceUID)}`);
               }}
             >
               <div style={{ width: '100%' }}>

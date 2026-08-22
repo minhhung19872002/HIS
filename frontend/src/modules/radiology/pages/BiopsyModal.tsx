@@ -6,6 +6,8 @@ import type { RadiologyOrderDto } from '../api/ris';
 import { ModalShell, Btn } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { FormRow, type ApiErr } from './_shared';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { Field } from '../../../components/form/Field';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ─────────────── Modal nhập sinh thiết / GPB từ màn KQ CĐHA ───────────────
@@ -17,6 +19,10 @@ export const BiopsyModal: React.FC<{
   onSaved: () => void;
 }> = ({ open, order, onClose, onSaved }) => {
   const { message } = AntdApp.useApp();
+  const { errors, validate, clear } = useModalForm(
+    { specimenSite: { required: true, message: 'Nhập vị trí lấy mẫu' } },
+    open,
+  );
   const [specimenTypes, setSpecimenTypes] = useState<SpecimenType[]>([]);
   const [specimenType, setSpecimenType] = useState('biopsy');
   const [specimenSite, setSpecimenSite] = useState('');
@@ -51,7 +57,7 @@ export const BiopsyModal: React.FC<{
   }, [open, order, loadTypes]);
 
   const handleSave = async () => {
-    if (!specimenSite.trim()) { message.warning('Nhập vị trí lấy mẫu'); return; }
+    if (!validate({ specimenSite })) return;
     setSaving(true);
     try {
       const result = await pathologyApi.createPathologyResult({
@@ -108,13 +114,13 @@ export const BiopsyModal: React.FC<{
             options={specimenTypes.map((t) => ({ label: t.name, value: t.code }))}
           />
         </FormRow>
-        <FormRow label="Vị trí lấy mẫu">
+        <Field label="Vị trí lấy mẫu" required error={errors.specimenSite}>
           <Input
             value={specimenSite}
-            onChange={(e) => setSpecimenSite(e.target.value)}
+            onChange={(e) => { setSpecimenSite(e.target.value); clear('specimenSite'); }}
             placeholder="Mô tả vị trí lấy mẫu (vd: thùy trái tuyến giáp)"
           />
-        </FormRow>
+        </Field>
         <FormRow label="Chẩn đoán lâm sàng (nghi ngờ)">
           <Input
             value={clinicalDiagnosis}

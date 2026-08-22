@@ -15,6 +15,8 @@ import { friendlyErrorMessage } from '@/utils/friendlyError';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { emrHl7Api } from '../../../api/nangcap24';
 import type { Hl7ExportResponseDto } from '../../../api/nangcap24';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 
 const SEGMENT_OPTIONS = [
   { k: 'services',      l: 'ORM^O01 · Service Orders',   desc: 'Chỉ định dịch vụ XN / CĐHA / phẫu thuật' },
@@ -29,10 +31,11 @@ const EmrHl7Export: React.FC = () => {
   const [result, setResult] = useState<Hl7ExportResponseDto | null>(null);
   const [running, setRunning] = useState(false);
   const [preview, setPreview] = useState(false);
+  const { errors, validate, clear } = useModalForm({ recordId: { required: true, label: 'HSBA ID hoặc Mã' } });
 
   const doExport = async () => {
     if (running) return;
-    if (!recordId.trim()) { te('Cần nhập HSBA ID'); return; }
+    if (!validate({ recordId })) return;
     setRunning(true);
     try {
       const r = await emrHl7Api.export({
@@ -93,17 +96,14 @@ const EmrHl7Export: React.FC = () => {
           }}>Tham số xuất HL7</h3>
 
           <Form layout="vertical">
-            <Form.Item
-              label={<span>HSBA ID hoặc Mã <span style={{ color: '#ef4444' }}>*</span></span>}
-              extra="UUID 36-ký tự hoặc mã HSBA dạng HSBA-xxxx-xxxxx"
-            >
+            <Field label="HSBA ID hoặc Mã" required error={errors.recordId} hint="UUID 36-ký tự hoặc mã HSBA dạng HSBA-xxxx-xxxxx">
               <Input
                 data-testid="hl7-export-record-id"
                 value={recordId}
-                onChange={e => setRecordId(e.target.value)}
+                onChange={e => { setRecordId(e.target.value); clear('recordId'); }}
                 placeholder="12345678-1234-… hoặc HSBA-1018-20100"
               />
-            </Form.Item>
+            </Field>
 
             <div style={{ marginTop: 'var(--space-12)' }}>
               <label style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 'var(--space-8)', display: 'block' }}>Bao gồm các segment:</label>

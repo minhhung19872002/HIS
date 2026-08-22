@@ -58,6 +58,8 @@ import type { DepartmentCatalogDto } from '../../system/api/system';
 import { ModalShell, Btn } from '@/_v2kit';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 import BedLabResultSection from './BedLabResultSection';
 import { CabinetIssueModal, ItemPicker } from '../../pharmacy/pages/CabinetIssueModal';
 import { InpatientPrescriptionModal } from './InpatientPrescriptionModal';
@@ -187,7 +189,6 @@ const VitalSignsModal: React.FC<{
   }, [open, admissionId]);
 
   const submit = async () => {
-    if (!recordTime) { message.warning('Chọn thời điểm ghi nhận'); return; }
     const dto: CreateVitalSignsDto = {
       admissionId,
       recordTime: recordTime.toISOString(),
@@ -234,7 +235,7 @@ const VitalSignsModal: React.FC<{
       <div style={{ padding: 'var(--space-16)', display: 'flex', flexDirection: 'column', gap: 'var(--space-20)' }}>
         {/* Form */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-12)' }}>
-          <IpFld label="Thời điểm *" full>
+          <Field label="Thời điểm" required style={{ gridColumn: '1 / -1' }}>
             <DatePicker
               showTime
               value={recordTime}
@@ -242,63 +243,63 @@ const VitalSignsModal: React.FC<{
               format="DD/MM/YYYY HH:mm"
               style={{ width: '100%' }}
             />
-          </IpFld>
-          <IpFld label="Nhiệt độ (°C)">
+          </Field>
+          <Field label="Nhiệt độ (°C)">
             <InputNumber
               value={temperature} onChange={(v) => setTemperature(v)}
               min={35} max={42} step={0.1} precision={1}
               placeholder="37.0" style={{ width: '100%' }}
             />
-          </IpFld>
-          <IpFld label="Mạch (lần/phút)">
+          </Field>
+          <Field label="Mạch (lần/phút)">
             <InputNumber
               value={pulse} onChange={(v) => setPulse(v)}
               min={0} max={250} placeholder="80" style={{ width: '100%' }}
             />
-          </IpFld>
-          <IpFld label="Nhịp thở (lần/phút)">
+          </Field>
+          <Field label="Nhịp thở (lần/phút)">
             <InputNumber
               value={respiratoryRate} onChange={(v) => setRespiratoryRate(v)}
               min={0} max={60} placeholder="18" style={{ width: '100%' }}
             />
-          </IpFld>
-          <IpFld label="HA tâm thu (mmHg)">
+          </Field>
+          <Field label="HA tâm thu (mmHg)">
             <InputNumber
               value={systolicBP} onChange={(v) => setSystolicBP(v)}
               min={0} max={300} placeholder="120" style={{ width: '100%' }}
             />
-          </IpFld>
-          <IpFld label="HA tâm trương (mmHg)">
+          </Field>
+          <Field label="HA tâm trương (mmHg)">
             <InputNumber
               value={diastolicBP} onChange={(v) => setDiastolicBP(v)}
               min={0} max={200} placeholder="80" style={{ width: '100%' }}
             />
-          </IpFld>
-          <IpFld label="SpO₂ (%)">
+          </Field>
+          <Field label="SpO₂ (%)">
             <InputNumber
               value={spO2} onChange={(v) => setSpO2(v)}
               min={0} max={100} placeholder="99" style={{ width: '100%' }}
             />
-          </IpFld>
-          <IpFld label="Cân nặng (kg)">
+          </Field>
+          <Field label="Cân nặng (kg)">
             <InputNumber
               value={weight} onChange={(v) => setWeight(v)}
               min={0} max={300} step={0.1} precision={1}
               placeholder="60.0" style={{ width: '100%' }}
             />
-          </IpFld>
-          <IpFld label="Chiều cao (cm)">
+          </Field>
+          <Field label="Chiều cao (cm)">
             <InputNumber
               value={height} onChange={(v) => setHeight(v)}
               min={0} max={250} placeholder="165" style={{ width: '100%' }}
             />
-          </IpFld>
-          <IpFld label="Ghi chú" full>
+          </Field>
+          <Field label="Ghi chú" style={{ gridColumn: '1 / -1' }}>
             <Input.TextArea
               value={notes} onChange={(e) => setNotes(e.target.value)}
               rows={2} placeholder="Ghi chú lâm sàng…"
             />
-          </IpFld>
+          </Field>
         </div>
 
         {/* Trend chart */}
@@ -380,6 +381,11 @@ const TransferModal: React.FC<{
   const [treatmentSummary, setTreatmentSummary] = useState('');
   const [receivingDoctorId, setReceivingDoctorId] = useState('');
   const [busy, setBusy] = useState(false);
+  const transferForm = useModalForm({
+    targetDepartmentId: { required: true, message: 'Chọn khoa chuyển đến' },
+    targetRoomId: { required: true, message: 'Nhập mã phòng' },
+    receivingDoctorId: { required: true, message: 'Nhập mã bác sĩ tiếp nhận' },
+  }, open);
 
   useEffect(() => {
     if (!open) return;
@@ -393,9 +399,7 @@ const TransferModal: React.FC<{
   }, [open]);
 
   const submit = async () => {
-    if (!targetDepartmentId) { message.warning('Chọn khoa chuyển đến'); return; }
-    if (!targetRoomId.trim()) { message.warning('Nhập mã phòng'); return; }
-    if (!receivingDoctorId.trim()) { message.warning('Nhập mã bác sĩ tiếp nhận'); return; }
+    if (!targetDepartmentId) return; // narrows type; UX validation already gated by transferForm.validate
     const dto: DepartmentTransferDto = {
       admissionId,
       targetDepartmentId,
@@ -427,41 +431,47 @@ const TransferModal: React.FC<{
       footer={
         <>
           <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
-          <Btn variant="primary" disabled={busy} onClick={submit}>
+          <Btn
+            variant="primary"
+            disabled={busy}
+            onClick={() => {
+              if (transferForm.validate({ targetDepartmentId, targetRoomId, receivingDoctorId })) void submit();
+            }}
+          >
             <TermIcon name="check" size={12} /> {busy ? 'Đang lưu…' : 'Xác nhận chuyển khoa'}
           </Btn>
         </>
       }
     >
       <div style={{ padding: 'var(--space-16)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-        <IpFld label="Khoa chuyển đến *" full>
+        <Field label="Khoa chuyển đến" required error={transferForm.errors.targetDepartmentId} style={{ gridColumn: '1 / -1' }}>
           <Select
             value={targetDepartmentId}
-            onChange={setTargetDepartmentId}
+            onChange={(v) => { setTargetDepartmentId(v); transferForm.clear('targetDepartmentId'); }}
             showSearch optionFilterProp="label"
             placeholder="Chọn khoa"
             style={{ width: '100%' }}
             options={depts.map((d) => ({ value: d.id!, label: d.name }))}
           />
-        </IpFld>
-        <IpFld label="Mã phòng *">
-          <Input value={targetRoomId} onChange={(e) => setTargetRoomId(e.target.value)} placeholder="Mã phòng / UUID" />
-        </IpFld>
-        <IpFld label="Mã giường">
+        </Field>
+        <Field label="Mã phòng" required error={transferForm.errors.targetRoomId}>
+          <Input value={targetRoomId} onChange={(e) => { setTargetRoomId(e.target.value); transferForm.clear('targetRoomId'); }} placeholder="Mã phòng / UUID" />
+        </Field>
+        <Field label="Mã giường">
           <Input value={targetBedId} onChange={(e) => setTargetBedId(e.target.value)} placeholder="Tùy chọn" />
-        </IpFld>
-        <IpFld label="Mã BS tiếp nhận *" full>
-          <Input value={receivingDoctorId} onChange={(e) => setReceivingDoctorId(e.target.value)} placeholder="Mã BS / UUID" />
-        </IpFld>
-        <IpFld label="Lý do chuyển khoa" full>
+        </Field>
+        <Field label="Mã BS tiếp nhận" required error={transferForm.errors.receivingDoctorId} style={{ gridColumn: '1 / -1' }}>
+          <Input value={receivingDoctorId} onChange={(e) => { setReceivingDoctorId(e.target.value); transferForm.clear('receivingDoctorId'); }} placeholder="Mã BS / UUID" />
+        </Field>
+        <Field label="Lý do chuyển khoa" style={{ gridColumn: '1 / -1' }}>
           <Input.TextArea value={transferReason} onChange={(e) => setTransferReason(e.target.value)} rows={2} placeholder="Lý do chuyển…" />
-        </IpFld>
-        <IpFld label="Chẩn đoán khi chuyển" full>
+        </Field>
+        <Field label="Chẩn đoán khi chuyển" style={{ gridColumn: '1 / -1' }}>
           <Input value={diagnosisOnTransfer} onChange={(e) => setDiagnosisOnTransfer(e.target.value)} placeholder="VD: J18.9 - Viêm phổi" />
-        </IpFld>
-        <IpFld label="Tóm tắt điều trị" full>
+        </Field>
+        <Field label="Tóm tắt điều trị" style={{ gridColumn: '1 / -1' }}>
           <Input.TextArea value={treatmentSummary} onChange={(e) => setTreatmentSummary(e.target.value)} rows={3} placeholder="Tóm tắt quá trình điều trị…" />
-        </IpFld>
+        </Field>
       </div>
     </ModalShell>
   );
@@ -493,7 +503,6 @@ const NutritionModal: React.FC<{
   }, [open]);
 
   const submit = async () => {
-    if (!orderDate) { message.warning('Chọn ngày chỉ định'); return; }
     const dto: CreateNutritionOrderDto = {
       admissionId,
       orderDate: orderDate.format('YYYY-MM-DD'),
@@ -530,34 +539,34 @@ const NutritionModal: React.FC<{
       }
     >
       <div style={{ padding: 'var(--space-16)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-        <IpFld label="Ngày chỉ định *" full>
+        <Field label="Ngày chỉ định" required style={{ gridColumn: '1 / -1' }}>
           <DatePicker
             value={orderDate}
             onChange={(v) => setOrderDate(v ?? dayjs())}
             format="DD/MM/YYYY"
             style={{ width: '100%' }}
           />
-        </IpFld>
-        <IpFld label="Bữa ăn *">
+        </Field>
+        <Field label="Bữa ăn" required>
           <Select<number>
             value={mealType} onChange={setMealType}
             style={{ width: '100%' }}
             options={MEAL_TYPES}
           />
-        </IpFld>
-        <IpFld label="Mức dinh dưỡng *">
+        </Field>
+        <Field label="Mức dinh dưỡng" required>
           <Select<number>
             value={nutritionLevel} onChange={setNutritionLevel}
             style={{ width: '100%' }}
             options={NUTRITION_LEVELS}
           />
-        </IpFld>
-        <IpFld label="Mã thực đơn" full>
+        </Field>
+        <Field label="Mã thực đơn" style={{ gridColumn: '1 / -1' }}>
           <Input value={menuCode} onChange={(e) => setMenuCode(e.target.value)} placeholder="Mã thực đơn (tùy chọn)" />
-        </IpFld>
-        <IpFld label="Yêu cầu đặc biệt" full>
+        </Field>
+        <Field label="Yêu cầu đặc biệt" style={{ gridColumn: '1 / -1' }}>
           <Input.TextArea value={specialRequirements} onChange={(e) => setSpecialRequirements(e.target.value)} rows={3} placeholder="VD: Không ăn mặn, dị ứng hải sản…" />
-        </IpFld>
+        </Field>
       </div>
     </ModalShell>
   );
@@ -581,6 +590,11 @@ const InfusionModal: React.FC<{
   const [route, setRoute] = useState<string | undefined>('Tĩnh mạch ngoại vi');
   const [additionalMedication, setAdditionalMedication] = useState('');
   const [busy, setBusy] = useState(false);
+  const infusionForm = useModalForm({
+    fluidName: { required: true, message: 'Nhập tên dịch truyền' },
+    volume: { validate: (v) => (v == null || (typeof v === 'number' && v <= 0)) ? 'Nhập thể tích (ml)' : undefined },
+    dropRate: { validate: (v) => (v == null || (typeof v === 'number' && v <= 0)) ? 'Nhập tốc độ giọt/phút' : undefined },
+  }, open);
 
   useEffect(() => {
     if (!open) return;
@@ -592,9 +606,7 @@ const InfusionModal: React.FC<{
   const estMinutes = volume && dropRate ? Math.round((volume * 20) / dropRate) : null;
 
   const submit = async () => {
-    if (!fluidName.trim()) { message.warning('Nhập tên dịch truyền'); return; }
-    if (!volume || volume <= 0) { message.warning('Nhập thể tích (ml)'); return; }
-    if (!dropRate || dropRate <= 0) { message.warning('Nhập tốc độ giọt/phút'); return; }
+    if (!volume || !dropRate) return; // narrows type; UX validation already gated by infusionForm.validate
     const dto: CreateInfusionRecordDto = {
       admissionId,
       fluidName: fluidName.trim(),
@@ -625,31 +637,35 @@ const InfusionModal: React.FC<{
       footer={
         <>
           <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
-          <Btn variant="primary" disabled={busy} onClick={submit}>
+          <Btn
+            variant="primary"
+            disabled={busy}
+            onClick={() => { if (infusionForm.validate({ fluidName, volume, dropRate })) void submit(); }}
+          >
             <TermIcon name="check" size={12} /> {busy ? 'Đang lưu…' : 'Ghi nhận'}
           </Btn>
         </>
       }
     >
       <div style={{ padding: 'var(--space-16)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-        <IpFld label="Tên dịch truyền *" full>
-          <Input value={fluidName} onChange={(e) => setFluidName(e.target.value)} placeholder="VD: NaCl 0.9% 500ml" />
-        </IpFld>
-        <IpFld label="Thể tích (ml) *">
-          <InputNumber value={volume} onChange={(v) => setVolume(v)} min={1} max={5000} placeholder="500" style={{ width: '100%' }} />
-        </IpFld>
-        <IpFld label="Tốc độ (giọt/phút) *">
-          <InputNumber value={dropRate} onChange={(v) => setDropRate(v)} min={1} max={300} placeholder="40" style={{ width: '100%' }} />
-        </IpFld>
-        <IpFld label="Thời điểm bắt đầu *">
+        <Field label="Tên dịch truyền" required error={infusionForm.errors.fluidName} style={{ gridColumn: '1 / -1' }}>
+          <Input value={fluidName} onChange={(e) => { setFluidName(e.target.value); infusionForm.clear('fluidName'); }} placeholder="VD: NaCl 0.9% 500ml" />
+        </Field>
+        <Field label="Thể tích (ml)" required error={infusionForm.errors.volume}>
+          <InputNumber value={volume} onChange={(v) => { setVolume(v); infusionForm.clear('volume'); }} min={1} max={5000} placeholder="500" style={{ width: '100%' }} />
+        </Field>
+        <Field label="Tốc độ (giọt/phút)" required error={infusionForm.errors.dropRate}>
+          <InputNumber value={dropRate} onChange={(v) => { setDropRate(v); infusionForm.clear('dropRate'); }} min={1} max={300} placeholder="40" style={{ width: '100%' }} />
+        </Field>
+        <Field label="Thời điểm bắt đầu" required>
           <DatePicker showTime value={startTime} onChange={(v) => setStartTime(v ?? dayjs())} format="DD/MM/YYYY HH:mm" style={{ width: '100%' }} />
-        </IpFld>
-        <IpFld label="Đường truyền">
+        </Field>
+        <Field label="Đường truyền">
           <Select value={route} onChange={setRoute} style={{ width: '100%' }} options={INFUSION_ROUTES} />
-        </IpFld>
-        <IpFld label="Thuốc pha thêm" full>
+        </Field>
+        <Field label="Thuốc pha thêm" style={{ gridColumn: '1 / -1' }}>
           <Input value={additionalMedication} onChange={(e) => setAdditionalMedication(e.target.value)} placeholder="VD: KCl 10mEq (tùy chọn)" />
-        </IpFld>
+        </Field>
         {estMinutes != null && (
           <div style={{ gridColumn: '1 / -1', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
             ⏱ Thời gian truyền ước tính (bộ dây 20 giọt/ml): <b>{estMinutes} phút</b> (~{(estMinutes / 60).toFixed(1)} giờ)
@@ -678,6 +694,13 @@ const BloodTransfusionModal: React.FC<{
   const [volume, setVolume] = useState<number | null>(null);
   const [transfusionStart, setTransfusionStart] = useState<dayjs.Dayjs>(dayjs());
   const [busy, setBusy] = useState(false);
+  const bloodForm = useModalForm({
+    bloodType: { required: true, message: 'Chọn nhóm máu' },
+    rhFactor: { required: true, message: 'Chọn yếu tố Rh' },
+    bloodProductType: { required: true, message: 'Chọn chế phẩm máu' },
+    bagNumber: { required: true, message: 'Nhập số túi máu' },
+    volume: { validate: (v) => (v == null || (typeof v === 'number' && v <= 0)) ? 'Nhập thể tích (ml)' : undefined },
+  }, open);
 
   useEffect(() => {
     if (!open) return;
@@ -686,11 +709,8 @@ const BloodTransfusionModal: React.FC<{
   }, [open]);
 
   const submit = async () => {
-    if (!bloodType) { message.warning('Chọn nhóm máu'); return; }
-    if (!rhFactor) { message.warning('Chọn yếu tố Rh'); return; }
-    if (!bloodProductType) { message.warning('Chọn chế phẩm máu'); return; }
-    if (!bagNumber.trim()) { message.warning('Nhập số túi máu'); return; }
-    if (!volume || volume <= 0) { message.warning('Nhập thể tích (ml)'); return; }
+    // narrows type; UX validation already gated by bloodForm.validate
+    if (!bloodType || !rhFactor || !bloodProductType || !volume) return;
     const dto: CreateBloodTransfusionDto = {
       admissionId,
       bloodType,
@@ -721,7 +741,13 @@ const BloodTransfusionModal: React.FC<{
       footer={
         <>
           <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
-          <Btn variant="primary" disabled={busy} onClick={submit}>
+          <Btn
+            variant="primary"
+            disabled={busy}
+            onClick={() => {
+              if (bloodForm.validate({ bloodType, rhFactor, bloodProductType, bagNumber, volume })) void submit();
+            }}
+          >
             <TermIcon name="check" size={12} /> {busy ? 'Đang lưu…' : 'Ghi nhận'}
           </Btn>
         </>
@@ -736,24 +762,24 @@ const BloodTransfusionModal: React.FC<{
           ⚠ Đảm bảo đã định nhóm máu tại giường &amp; phản ứng chéo trước khi truyền.
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-          <IpFld label="Nhóm máu *">
-            <Select value={bloodType} onChange={setBloodType} placeholder="A / B / AB / O" style={{ width: '100%' }} options={BLOOD_TYPES} />
-          </IpFld>
-          <IpFld label="Yếu tố Rh *">
-            <Select value={rhFactor} onChange={setRhFactor} style={{ width: '100%' }} options={RH_FACTORS} />
-          </IpFld>
-          <IpFld label="Chế phẩm máu *" full>
-            <Select value={bloodProductType} onChange={setBloodProductType} style={{ width: '100%' }} options={BLOOD_PRODUCTS} />
-          </IpFld>
-          <IpFld label="Số túi máu *">
-            <Input value={bagNumber} onChange={(e) => setBagNumber(e.target.value)} placeholder="Mã đơn vị máu" />
-          </IpFld>
-          <IpFld label="Thể tích (ml) *">
-            <InputNumber value={volume} onChange={(v) => setVolume(v)} min={1} max={1000} placeholder="250" style={{ width: '100%' }} />
-          </IpFld>
-          <IpFld label="Thời điểm bắt đầu truyền *" full>
+          <Field label="Nhóm máu" required error={bloodForm.errors.bloodType}>
+            <Select value={bloodType} onChange={(v) => { setBloodType(v); bloodForm.clear('bloodType'); }} placeholder="A / B / AB / O" style={{ width: '100%' }} options={BLOOD_TYPES} />
+          </Field>
+          <Field label="Yếu tố Rh" required error={bloodForm.errors.rhFactor}>
+            <Select value={rhFactor} onChange={(v) => { setRhFactor(v); bloodForm.clear('rhFactor'); }} style={{ width: '100%' }} options={RH_FACTORS} />
+          </Field>
+          <Field label="Chế phẩm máu" required error={bloodForm.errors.bloodProductType} style={{ gridColumn: '1 / -1' }}>
+            <Select value={bloodProductType} onChange={(v) => { setBloodProductType(v); bloodForm.clear('bloodProductType'); }} style={{ width: '100%' }} options={BLOOD_PRODUCTS} />
+          </Field>
+          <Field label="Số túi máu" required error={bloodForm.errors.bagNumber}>
+            <Input value={bagNumber} onChange={(e) => { setBagNumber(e.target.value); bloodForm.clear('bagNumber'); }} placeholder="Mã đơn vị máu" />
+          </Field>
+          <Field label="Thể tích (ml)" required error={bloodForm.errors.volume}>
+            <InputNumber value={volume} onChange={(v) => { setVolume(v); bloodForm.clear('volume'); }} min={1} max={1000} placeholder="250" style={{ width: '100%' }} />
+          </Field>
+          <Field label="Thời điểm bắt đầu truyền" required style={{ gridColumn: '1 / -1' }}>
             <DatePicker showTime value={transfusionStart} onChange={(v) => setTransfusionStart(v ?? dayjs())} format="DD/MM/YYYY HH:mm" style={{ width: '100%' }} />
-          </IpFld>
+          </Field>
         </div>
       </div>
     </ModalShell>
@@ -960,7 +986,6 @@ const DrugReturnModal: React.FC<{
   const submit = async () => {
     const selected = items.filter((it) => it.selected && it.returnQty > 0);
     if (!selected.length) { message.warning('Chọn ít nhất 1 thuốc cần hoàn trả'); return; }
-    if (!reason.trim()) { message.warning('Chọn lý do hoàn trả'); return; }
     setBusy(true);
     try {
       // Import createApproval inline to avoid circular — re-import from pharmacyApproval
@@ -1047,17 +1072,17 @@ const DrugReturnModal: React.FC<{
           </div>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-          <IpFld label="Lý do hoàn trả *">
+          <Field label="Lý do hoàn trả" required>
             <Select
               value={reason}
               onChange={setReason}
               options={RETURN_REASONS}
               style={{ width: '100%' }}
             />
-          </IpFld>
-          <IpFld label="Ghi chú thêm">
+          </Field>
+          <Field label="Ghi chú thêm">
             <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ghi chú (tùy chọn)" />
-          </IpFld>
+          </Field>
         </div>
       </div>
     </ModalShell>
@@ -1094,6 +1119,9 @@ const DischargePrescriptionModal: React.FC<{
   const [lines, setLines] = useState<DischargeRxLine[]>([emptyRxLine()]);
   const [labels, setLabels] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const dpForm = useModalForm({
+    warehouseId: { required: true, message: 'Chọn kho thuốc' },
+  }, open);
 
   useEffect(() => {
     if (!open) return;
@@ -1113,7 +1141,6 @@ const DischargePrescriptionModal: React.FC<{
   const removeLine = (key: string) => setLines((ls) => ls.filter((l) => l.key !== key));
 
   const submit = async () => {
-    if (!warehouseId) { message.warning('Chọn kho thuốc'); return; }
     const valid = lines.filter((l) => l.medicineId && l.quantity > 0);
     if (valid.length === 0) { message.warning('Chọn ít nhất 1 thuốc'); return; }
     setBusy(true);
@@ -1149,7 +1176,11 @@ const DischargePrescriptionModal: React.FC<{
       footer={
         <>
           <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
-          <Btn variant="primary" disabled={busy} onClick={submit}>
+          <Btn
+            variant="primary"
+            disabled={busy}
+            onClick={() => { if (dpForm.validate({ warehouseId })) void submit(); }}
+          >
             <TermIcon name="check" size={12} /> {busy ? 'Đang lưu…' : 'Lưu đơn'}
           </Btn>
         </>
@@ -1159,10 +1190,10 @@ const DischargePrescriptionModal: React.FC<{
         <div style={{ padding: '8px 12px', borderRadius: 'var(--r-2)', background: 'var(--s-info-bg)', border: '1px solid var(--info)', fontSize: 'var(--fs-xs)', color: 'var(--t-1)' }}>
           Đơn loại <b>toa về (DrugOrderType=4)</b> — thuốc BN mang về sau xuất viện, lấy từ kho thuốc đã chọn.
         </div>
-        <IpFld label="Kho thuốc *">
+        <Field label="Kho thuốc" required error={dpForm.errors.warehouseId}>
           <Select
             value={warehouseId || undefined}
-            onChange={setWarehouseId}
+            onChange={(v) => { setWarehouseId(v); dpForm.clear('warehouseId'); }}
             placeholder="Chọn kho thuốc…"
             style={{ width: '100%' }}
             showSearch
@@ -1170,7 +1201,7 @@ const DischargePrescriptionModal: React.FC<{
             options={warehouses.map((w) => ({ value: w.id, label: `${w.warehouseCode} · ${w.warehouseName}` }))}
             notFoundContent={warehouses.length === 0 ? 'Không có kho thuốc' : 'Không tìm thấy'}
           />
-        </IpFld>
+        </Field>
 
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
@@ -1655,6 +1686,9 @@ const TreatmentSheetEditModal: React.FC<{
   const [treatmentOrders, setTreatmentOrders] = useState('');
   const [nursingOrders, setNursingOrders] = useState('');
   const [dietOrders, setDietOrders] = useState('');
+  const sheetForm = useModalForm({
+    progressNotes: { required: true, message: 'Vui lòng nhập diễn biến bệnh' },
+  }, open);
 
   useEffect(() => {
     if (!open) return;
@@ -1674,7 +1708,6 @@ const TreatmentSheetEditModal: React.FC<{
   }, [open, editing]);
 
   const submit = async () => {
-    if (!progressNotes.trim()) { message.warning('Vui lòng nhập diễn biến bệnh'); return; }
     setSaving(true);
     try {
       const dto: CreateTreatmentSheetDto = {
@@ -1700,8 +1733,6 @@ const TreatmentSheetEditModal: React.FC<{
     }
   };
 
-  const rowStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' };
-  const labelStyle: React.CSSProperties = { fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--t-2)', textTransform: 'uppercase', letterSpacing: '0.04em' };
   const taStyle: React.CSSProperties = { fontSize: 'var(--fs-sm)', borderRadius: 'var(--r-2)', border: '1px solid var(--line)', background: 'var(--d-1)', color: 'var(--t-1)', padding: '6px 8px', resize: 'vertical', outline: 'none', width: '100%', boxSizing: 'border-box' };
 
   return (
@@ -1714,15 +1745,18 @@ const TreatmentSheetEditModal: React.FC<{
       footer={
         <>
           <Btn variant="ghost" onClick={onClose} disabled={saving}>Huỷ</Btn>
-          <Btn variant="primary" onClick={submit} disabled={saving}>
+          <Btn
+            variant="primary"
+            onClick={() => { if (sheetForm.validate({ progressNotes })) void submit(); }}
+            disabled={saving}
+          >
             {saving ? 'Đang lưu…' : editing ? 'Cập nhật' : 'Ghi nhận'}
           </Btn>
         </>
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)', padding: 'var(--space-16)' }}>
-        <div style={rowStyle}>
-          <span style={labelStyle}>Ngày điều trị</span>
+        <Field label="Ngày điều trị">
           <DatePicker
             value={dayjs(date)}
             onChange={(d) => d && setDate(d.format('YYYY-MM-DD'))}
@@ -1730,19 +1764,17 @@ const TreatmentSheetEditModal: React.FC<{
             style={{ width: '100%' }}
             disabledDate={(d) => d.isAfter(dayjs(), 'day')}
           />
-        </div>
-        <div style={rowStyle}>
-          <span style={labelStyle}>Diễn biến bệnh <span style={{ color: 'var(--s-crit)' }}>*</span></span>
+        </Field>
+        <Field label="Diễn biến bệnh" required error={sheetForm.errors.progressNotes}>
           <textarea
             rows={4}
             value={progressNotes}
-            onChange={(e) => setProgressNotes(e.target.value)}
+            onChange={(e) => { setProgressNotes(e.target.value); sheetForm.clear('progressNotes'); }}
             placeholder="S/O/A — Triệu chứng, thăm khám, đánh giá…"
             style={taStyle}
           />
-        </div>
-        <div style={rowStyle}>
-          <span style={labelStyle}>Y lệnh điều trị (Plan)</span>
+        </Field>
+        <Field label="Y lệnh điều trị (Plan)">
           <textarea
             rows={3}
             value={treatmentOrders}
@@ -1750,9 +1782,8 @@ const TreatmentSheetEditModal: React.FC<{
             placeholder="Thuốc, liều, chỉ định xét nghiệm / CĐHA…"
             style={taStyle}
           />
-        </div>
-        <div style={rowStyle}>
-          <span style={labelStyle}>Y lệnh điều dưỡng</span>
+        </Field>
+        <Field label="Y lệnh điều dưỡng">
           <textarea
             rows={2}
             value={nursingOrders}
@@ -1760,15 +1791,14 @@ const TreatmentSheetEditModal: React.FC<{
             placeholder="Chăm sóc, theo dõi sinh hiệu, vệ sinh…"
             style={taStyle}
           />
-        </div>
-        <div style={rowStyle}>
-          <span style={labelStyle}>Chế độ ăn</span>
+        </Field>
+        <Field label="Chế độ ăn">
           <Input
             value={dietOrders}
             onChange={(e) => setDietOrders(e.target.value)}
             placeholder="Ăn thường / lỏng / nhạt muối / tiểu đường…"
           />
-        </div>
+        </Field>
       </div>
     </ModalShell>
   );

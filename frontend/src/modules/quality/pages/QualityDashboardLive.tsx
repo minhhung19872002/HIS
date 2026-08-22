@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import {
   KpiStrip, TopTabs, DataTable, Btn,
   type ColumnDef, type TopTab, type KpiItem,
   fmtVNDg, fmtHMg, ti, tw as toastWarn
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { RefreshButton } from '../../../components/actions';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { useInterval } from '../../../hooks/useInterval';
 import {
@@ -29,7 +31,7 @@ const TOP_TABS: TopTab<TabKey>[] = [
 ];
 
 const QualityDashboardLiveV2: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('clinic');
+  const [tab, setTab] = useTabState<TabKey>('clinic');
   const [data, setData] = useState<QualityDashboardDto | null>(null);
   const [refreshAt, setRefreshAt] = useState<Date>(new Date());
   // loading CHỈ cho lần tải đầu — vòng poll 60s không bật lại để bảng không nháy
@@ -67,9 +69,7 @@ const QualityDashboardLiveV2: React.FC = () => {
     <div className="ab" data-testid="quality-dashboard-page">
       <TopTabs<TabKey> tab={tab} setTab={setTab} tabs={TOP_TABS}
         actions={
-          <Btn onClick={refresh}>
-            <TermIcon name="refresh" size={12} /> Làm mới · {fmtHMg(refreshAt)}
-          </Btn>
+          <RefreshButton onRefresh={async () => { await refresh(); }} />
         }
       />
       {tab === 'clinic'       && <ClinicView rows={data?.clinicQueues || []} loading={firstLoading} />}

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import * as file from '../../../services/file.service';
 import dayjs from 'dayjs';
 import { App as AntdApp, DatePicker } from 'antd';
@@ -24,6 +25,7 @@ import {
   StatusTabs, DrawerShell, DrSec, DrField, LoadingState, fmtVNDg, ti, Ico,
   type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 const { RangePicker } = DatePicker;
 
@@ -97,7 +99,7 @@ const BhxhAuditV2: React.FC = () => {
   const [items, setItems] = useState<AuditRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<AuditKey | 'all'>('all');
+  const [stab, setStab] = useTabState<AuditKey | 'all'>('all', 'tab');
   const [fDept, setFDept] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<AuditRecord | null>(null);
@@ -116,7 +118,7 @@ const BhxhAuditV2: React.FC = () => {
   const [importedRows, setImportedRows] = useState<BhxhAuditImportRow[]>([]);
   const [importTotal, setImportTotal] = useState(0);
   const [importPage, setImportPage] = useState(0);
-  const [importTab, setImportTab] = useState<ImportTabKey>('all');
+  const [importTab, setImportTab] = useTabState<ImportTabKey>('all', 'stab');
   const [importSearch, setImportSearch] = useState('');
   const [importCounts, setImportCounts] = useState({ all: 0, chuaDuyet: 0, daDuyet: 0, tuChoi: 0 });
   const [importRowsLoading, setImportRowsLoading] = useState(false);
@@ -541,9 +543,7 @@ const BhxhAuditV2: React.FC = () => {
           <Ico name="refresh" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <RefreshButton onRefresh={async () => { await load(); }} />
         <Btn variant="ghost" onClick={handlePrintList} title="In danh sách hồ sơ theo bộ lọc hiện tại">
           <Ico name="print" size={12} /> In danh sách
         </Btn>

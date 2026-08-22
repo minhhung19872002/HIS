@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { App as AntdApp, Input, Select, DatePicker, Checkbox, Rate, Progress } from 'antd';
 import {
@@ -16,6 +17,7 @@ import {
   StatusBadge, ActBtn, Btn, DrawerShell, ModalShell, useTabCounts, tk, tw,
   type ColumnDef, type StatusTab, type TopTab, type StatusTone,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
@@ -98,7 +100,7 @@ const CARD_STYLE: React.CSSProperties = {
 const CARD_TITLE_STYLE: React.CSSProperties = { fontWeight: 600, fontSize: 'var(--fs-md)', marginBottom: 'var(--space-10)' };
 
 const QualityV2: React.FC = () => {
-  const [tab, setTab] = useState<TopKey>('kpi');
+  const [tab, setTab] = useTabState<TopKey>('kpi', 'tab');
   const [incidents, setIncidents] = useState<IncidentReportDto[]>([]);
   const [indicators, setIndicators] = useState<QualityIndicatorDto[]>([]);
   const [audits, setAudits] = useState<InternalAuditDto[]>([]);
@@ -106,7 +108,7 @@ const QualityV2: React.FC = () => {
   const [capas, setCapas] = useState<CAPADto[]>([]);
   const [satisfactionStats, setSatisfactionStats] = useState<SatisfactionStatisticsDto | null>(null);
   const [loading, setLoading] = useState(true);
-  const [stab, setStab] = useState<IncStatusKey | 'all'>('all');
+  const [stab, setStab] = useTabState<IncStatusKey | 'all'>('all', 'stab');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [detail, setDetail] = useState<IncidentReportDto | null>(null);
@@ -343,9 +345,7 @@ const QualityV2: React.FC = () => {
         tabs={TOP_TABS}
         actions={
           <>
-            <Btn variant="ghost" onClick={reload}>
-              <TermIcon name="refresh" size={12} /> Làm mới
-            </Btn>
+            <RefreshButton onRefresh={async () => { await reload(); }} />
             <Btn variant="ghost" onClick={executePrintReport}>
               <TermIcon name="printer" size={12} /> In báo cáo
             </Btn>
@@ -675,14 +675,14 @@ const IncidentReportModal: React.FC<{
         <Fld label="Thời điểm xảy ra">
           <DatePicker showTime value={when} onChange={(v) => v && setWhen(v)} format="DD/MM/YYYY HH:mm" style={{ width: '100%' }} />
         </Fld>
-        <Fld label="Khoa / phòng *">
+        <Fld label="Khoa / phòng">
           <Select
             value={deptId} onChange={setDeptId} showSearch optionFilterProp="label"
             placeholder="Chọn khoa" style={{ width: '100%' }}
             options={depts.map((d) => ({ value: d.id!, label: d.name }))}
           />
         </Fld>
-        <Fld label="Loại sự cố *">
+        <Fld label="Loại sự cố">
           <Select
             value={incidentType} onChange={setIncidentType} placeholder="Chọn loại"
             style={{ width: '100%' }} options={INCIDENT_TYPES.map((t) => ({ value: t.value, label: t.label }))}
@@ -694,7 +694,7 @@ const IncidentReportModal: React.FC<{
         <Fld label="Vị trí cụ thể" full>
           <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="VD: buồng bệnh 305, hành lang khoa…" />
         </Fld>
-        <Fld label="Mô tả sự cố *" full>
+        <Fld label="Mô tả sự cố" full>
           <Input.TextArea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Diễn biến, hậu quả…" />
         </Fld>
         <Fld label="Xử lý ngay" full>
@@ -790,24 +790,24 @@ const AuditCreateModal: React.FC<{
       )}
     >
       <div style={{ padding: 'var(--space-16)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-        <Fld label="Tên audit *" full>
+        <Fld label="Tên audit" full>
           <Input value={title} onChange={(e) => setTitle(e.target.value)} />
         </Fld>
-        <Fld label="Loại *">
+        <Fld label="Loại">
           <Select
             value={auditType} onChange={setAuditType} placeholder="Chọn loại audit"
             style={{ width: '100%' }}
             options={Object.entries(AUDIT_TYPE_LABELS).map(([value, label]) => ({ value, label }))}
           />
         </Fld>
-        <Fld label="Khoa / Phòng *">
+        <Fld label="Khoa / Phòng">
           <Select
             value={deptId} onChange={setDeptId} showSearch optionFilterProp="label"
             placeholder="Chọn khoa/phòng" style={{ width: '100%' }}
             options={depts.map((d) => ({ value: d.id!, label: d.name }))}
           />
         </Fld>
-        <Fld label="Ngày *">
+        <Fld label="Ngày">
           <DatePicker value={scheduledDate} onChange={(v) => v && setScheduledDate(v)} format="DD/MM/YYYY" style={{ width: '100%' }} />
         </Fld>
         <Fld label="Trưởng đoàn audit">

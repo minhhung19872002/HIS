@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import { Form, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../../../services/apiClient';
@@ -8,7 +9,7 @@ import {
   DrawerShell, DrSec, DrField,
   tk, ti, tw, type ColumnDef,
 } from '@/_v2kit';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { toggleFavorite, getFavorites } from '../api/ris';
 
@@ -37,7 +38,7 @@ const RisDispatcherV2: React.FC = () => {
   const [dispatchModal, setDispatchModal] = useState<PendingService | null>(null);
   const [selPending, setSelPending] = useState<PendingService | null>(null);
   const [selQueue, setSelQueue] = useState<QueueItem | null>(null);
-  const [tab, setTab] = useState<Tab>('pending');
+  const [tab, setTab] = useTabState<Tab>('pending');
   const [dispatchForm] = Form.useForm<{ roomId: string; priority: number; note?: string }>();
   // F2.8: favorite state
   const [favFilter, setFavFilter] = useState(false);
@@ -236,7 +237,7 @@ const RisDispatcherV2: React.FC = () => {
           >
             {favFilter ? 'Đang lọc: Yêu thích' : 'Yêu thích'}
           </Btn>
-          <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+          <RefreshButton onRefresh={load} loading={loading} />
         </>
       } />
 

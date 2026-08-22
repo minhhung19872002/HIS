@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { getReagents, createReagent, updateReagent, deleteReagent, getReagentAlerts, getReagentUsageHistory } from '../api/reagent';
 import type { Reagent, ReagentAlert, ReagentUsage } from '../api/reagent';
@@ -52,7 +53,7 @@ const ReagentManagementV2: React.FC = () => {
   const [items, setItems] = useState<Reagent[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all');
   const [fAna, setFAna] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<Reagent | null>(null);

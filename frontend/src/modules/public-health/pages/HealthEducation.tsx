@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import { fmtNum as fmt } from '../../../utils/format';
 import dayjs from 'dayjs';
 import { DatePicker } from 'antd';
@@ -10,6 +11,7 @@ import {
   DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 const CAMPAIGN_FIELDS: CrudFieldCfg[] = [
   { key: 'campaignCode', label: 'Mã chiến dịch', required: true, disabledOnEdit: true },
@@ -69,12 +71,12 @@ const sKey = (n: number): SKey =>
 const PER = 18;
 
 const HealthEducationV2: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('campaigns');
+  const [tab, setTab] = useTabState<Tab>('campaigns', 'tab');
   const [items, setItems] = useState<HealthCampaign[]>([]);
   const [materials, setMaterials] = useState<HealthMaterial[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all', 'stab');
   const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<HealthCampaign | null>(null);
@@ -192,7 +194,7 @@ const HealthEducationV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={(v) => { setTab(v); setPage(0); }} tabs={TOP_TABS} actions={
         <>
-          <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
+          <RefreshButton onRefresh={async () => { await load(); }} />
           {tab === 'campaigns' ? (
             <Btn variant="primary" onClick={openCreate}>
               <Ico name="plus" size={12} /> Chiến dịch mới

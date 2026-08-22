@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import { Form, Input, InputNumber, Select, Switch, DatePicker, Checkbox } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../../../services/apiClient';
@@ -8,7 +9,7 @@ import {
   ModalShell, DrawerShell, DrSec, DrField, Ico, tk, tw, te, cf, fmtDTg,
   type ColumnDef,
 } from '@/_v2kit';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { checkPACSConnection, getRemoteServers, saveRemoteServer, deleteRemoteServer } from '../api/ris/pacs';
 import { getTags, saveTag, type RadiologyTagDto } from '../api/ris/label-tag-qr';
@@ -65,7 +66,7 @@ const TABS = [
 ];
 
 const RisAdminV2: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('permissions');
+  const [tab, setTab] = useTabState<Tab>('permissions');
   return (
     <div className="ab">
       <KpiStrip items={[
@@ -227,8 +228,8 @@ const PermissionsTab: React.FC = () => {
       <ModalShell open={editModal} onClose={() => setEditModal(false)} size="lg" title="Phân quyền"
         footer={<>
           <Btn variant="ghost" onClick={() => setEditModal(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={submit} disabled={saving}>
-            <Ico name="check" size={12} /> {saving ? 'Đang lưu…' : 'Lưu'}
+          <Btn variant="primary" onClick={submit} loading={saving}>
+            <Ico name="check" size={12} /> Lưu
           </Btn>
         </>}>
         <Form form={editForm} layout="vertical">
@@ -258,8 +259,8 @@ const PermissionsTab: React.FC = () => {
       <ModalShell open={copyModal} onClose={() => setCopyModal(false)} size="md" title="Copy quyền từ user khác"
         footer={<>
           <Btn variant="ghost" onClick={() => setCopyModal(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={copy} disabled={saving}>
-            <Ico name="check" size={12} /> {saving ? 'Đang copy…' : 'Copy'}
+          <Btn variant="primary" onClick={copy} loading={saving}>
+            <Ico name="check" size={12} /> Copy
           </Btn>
         </>}>
         <Form form={copyForm} layout="vertical">
@@ -340,8 +341,8 @@ const AreasTab: React.FC = () => {
       <ModalShell open={modal} onClose={() => setModal(false)} size="md" title="Thêm khu vực / chi nhánh"
         footer={<>
           <Btn variant="ghost" onClick={() => setModal(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={submit} disabled={saving}>
-            <Ico name="check" size={12} /> {saving ? 'Đang lưu…' : 'Lưu'}
+          <Btn variant="primary" onClick={submit} loading={saving}>
+            <Ico name="check" size={12} /> Lưu
           </Btn>
         </>}>
         <Form form={form} layout="vertical">
@@ -865,7 +866,7 @@ const Hl7CdaTab: React.FC = () => {
         <Filter value={statusFilter} onChange={setStatusFilter} placeholder="▾ Trạng thái"
           options={[{ v: '', l: 'Tất cả' }, ...Object.entries(HL7_STATUS).map(([k, s]) => ({ v: k, l: s.l }))]} />
         <span className="spacer" />
-        <Btn onClick={loadMessages}><Ico name="refresh" size={12} /> Làm mới</Btn>
+        <RefreshButton onRefresh={loadMessages} />
       </div>
       <DataTable<HL7MessageDto> columns={msgCols} data={messages} rowKey={(m) => m.id}
         onRowClick={setSel}

@@ -28,6 +28,10 @@ import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 import { buildMedicalRecordHtml } from '../../../pages/inpatient/printTemplates';
 import { MEDICAL_RECORD_TYPES } from '../../../pages/inpatient/constants';
+import { RefreshButton } from '../../../components/actions/RefreshButton/RefreshButton';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { useTabState } from '../../../hooks/useTabState';
 
 /* ────────────────────────────────────────────────────────────
    Nội trú v2 — bed-map (Sơ đồ giường) theo mock Ward v2.
@@ -106,7 +110,7 @@ const IP_STATUS_LABEL: Record<IpStatusKey, string> = { admitted: 'Đang điều 
 const InpatientV2: React.FC = () => {
   const navigate = useNavigate();
 
-  const [tab, setTab] = useState<TopKey>('grid');
+  const [tab, setTab] = useTabState<TopKey>('grid');
   const [loading, setLoading] = useState(true);
   const [wards, setWards] = useState<WardLayoutDto[]>([]);
   const [inpatients, setInpatients] = useState<InpatientListDto[]>([]);
@@ -304,7 +308,7 @@ const InpatientV2: React.FC = () => {
         tabs={TOP_TABS}
         actions={
           <>
-            <Btn variant="ghost" onClick={loadData} loading={loading} icon="refresh">Làm mới</Btn>
+            <RefreshButton onRefresh={loadData} loading={loading} />
             <Btn variant="ghost" onClick={() => navigate('/v2/hr')}>
               <TermIcon name="users" size={12} /> Bàn giao ca <kbd>F4</kbd>
             </Btn>
@@ -854,6 +858,12 @@ const AdmitModal: React.FC<{
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<PendingAdmissionDto[]>([]);
   const [pendingId, setPendingId] = useState<string | undefined>(undefined);
+  const admitForm = useModalForm({
+    medicalRecordId: { required: true, message: 'Nhập mã HSBA' },
+    departmentId: { required: true, message: 'Chọn khoa nhập viện' },
+    roomId: { required: true, message: 'Nhập mã phòng' },
+    attendingDoctorId: { required: true, message: 'Nhập mã BS điều trị' },
+  }, open);
 
   useEffect(() => {
     if (open) {
@@ -874,10 +884,7 @@ const AdmitModal: React.FC<{
   }, [open]);
 
   const submit = async () => {
-    if (!medicalRecordId.trim()) { message.warning('Nhập mã HSBA'); return; }
-    if (!departmentId) { message.warning('Chọn khoa nhập viện'); return; }
-    if (!roomId.trim()) { message.warning('Nhập mã phòng'); return; }
-    if (!attendingDoctorId.trim()) { message.warning('Nhập mã BS điều trị'); return; }
+    if (!departmentId) return; // narrows type; UX validation already gated by admitForm.validate
     setBusy(true);
     try {
       await admitFromOpd({
@@ -908,14 +915,20 @@ const AdmitModal: React.FC<{
       footer={(
         <>
           <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
-          <Btn variant="primary" disabled={busy} onClick={submit}>
+          <Btn
+            variant="primary"
+            disabled={busy}
+            onClick={() => {
+              if (admitForm.validate({ medicalRecordId, departmentId, roomId, attendingDoctorId })) void submit();
+            }}
+          >
             <TermIcon name="check" size={12} /> {busy ? 'Đang lưu…' : 'Nhập viện'}
           </Btn>
         </>
       )}
     >
       <div style={{ padding: 'var(--space-16)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-        <IpFld label="Chọn BN chờ nhập viện (từ phòng khám)" full>
+        <Field label="Chọn BN chờ nhập viện (từ phòng khám)" style={{ gridColumn: '1 / -1' }}>
           <Select
             value={pendingId}
             onChange={(v) => {
@@ -923,7 +936,8 @@ const AdmitModal: React.FC<{
               const p = pending.find((x) => x.examinationId === v);
               if (p) {
                 setMedicalRecordId(p.medicalRecordId);
-                if (p.departmentId) setDepartmentId(p.departmentId);
+                admitForm.clear('medicalRecordId');
+                if (p.departmentId) { setDepartmentId(p.departmentId); admitForm.clear('departmentId'); }
                 setDiagnosisOnAdmission([p.diagnosisCode, p.diagnosisName].filter(Boolean).join(' - '));
                 setReasonForAdmission(p.reason || '');
                 setAdmissionType(p.isEmergency ? 1 : 2);
@@ -937,38 +951,38 @@ const AdmitModal: React.FC<{
               label: `${p.patientName} (${p.patientCode}) · ${p.medicalRecordCode}${p.departmentName ? ' · ' + p.departmentName : ''}${p.isEmergency ? ' · CẤP CỨU' : ''}`,
             }))}
           />
-        </IpFld>
-        <IpFld label="Mã hồ sơ bệnh án *" full>
-          <Input value={medicalRecordId} onChange={(e) => setMedicalRecordId(e.target.value)} placeholder="Mã HSBA hoặc UUID" />
-        </IpFld>
-        <IpFld label="Khoa nhập viện *" full>
+        </Field>
+        <Field label="Mã hồ sơ bệnh án" required error={admitForm.errors.medicalRecordId} style={{ gridColumn: '1 / -1' }}>
+          <Input value={medicalRecordId} onChange={(e) => { setMedicalRecordId(e.target.value); admitForm.clear('medicalRecordId'); }} placeholder="Mã HSBA hoặc UUID" />
+        </Field>
+        <Field label="Khoa nhập viện" required error={admitForm.errors.departmentId} style={{ gridColumn: '1 / -1' }}>
           <Select
-            value={departmentId} onChange={setDepartmentId} showSearch optionFilterProp="label"
+            value={departmentId} onChange={(v) => { setDepartmentId(v); admitForm.clear('departmentId'); }} showSearch optionFilterProp="label"
             placeholder="Chọn khoa" style={{ width: '100%' }}
             options={depts.map((d) => ({ value: d.id!, label: d.name }))}
           />
-        </IpFld>
-        <IpFld label="Mã phòng *">
-          <Input value={roomId} onChange={(e) => setRoomId(e.target.value)} placeholder="Mã phòng / UUID" />
-        </IpFld>
-        <IpFld label="Mã giường">
+        </Field>
+        <Field label="Mã phòng" required error={admitForm.errors.roomId}>
+          <Input value={roomId} onChange={(e) => { setRoomId(e.target.value); admitForm.clear('roomId'); }} placeholder="Mã phòng / UUID" />
+        </Field>
+        <Field label="Mã giường">
           <Input value={bedId} onChange={(e) => setBedId(e.target.value)} placeholder="Mã giường (tùy chọn)" />
-        </IpFld>
-        <IpFld label="Loại nhập viện *" full>
+        </Field>
+        <Field label="Loại nhập viện" required style={{ gridColumn: '1 / -1' }}>
           <Select<number>
             value={admissionType} onChange={setAdmissionType} style={{ width: '100%' }}
             options={ADMISSION_TYPES}
           />
-        </IpFld>
-        <IpFld label="Chẩn đoán vào viện" full>
+        </Field>
+        <Field label="Chẩn đoán vào viện" style={{ gridColumn: '1 / -1' }}>
           <Input value={diagnosisOnAdmission} onChange={(e) => setDiagnosisOnAdmission(e.target.value)} placeholder="VD: J18.9 - Viêm phổi" />
-        </IpFld>
-        <IpFld label="Mã BS điều trị *" full>
-          <Input value={attendingDoctorId} onChange={(e) => setAttendingDoctorId(e.target.value)} placeholder="Mã BS / UUID" />
-        </IpFld>
-        <IpFld label="Lý do nhập viện" full>
+        </Field>
+        <Field label="Mã BS điều trị" required error={admitForm.errors.attendingDoctorId} style={{ gridColumn: '1 / -1' }}>
+          <Input value={attendingDoctorId} onChange={(e) => { setAttendingDoctorId(e.target.value); admitForm.clear('attendingDoctorId'); }} placeholder="Mã BS / UUID" />
+        </Field>
+        <Field label="Lý do nhập viện" style={{ gridColumn: '1 / -1' }}>
           <Input.TextArea value={reasonForAdmission} onChange={(e) => setReasonForAdmission(e.target.value)} rows={2} placeholder="Mô tả lý do nhập viện…" />
-        </IpFld>
+        </Field>
       </div>
     </ModalShell>
   );
@@ -997,6 +1011,12 @@ const SplitEmergencyModal: React.FC<{
   const [diagnosisOnAdmission, setDiagnosisOnAdmission] = useState('');
   const [icdCode, setIcdCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const splitForm = useModalForm({
+    sourceMedicalRecordId: { required: true, message: 'Nhập mã hồ sơ cấp cứu nguồn' },
+    departmentId: { required: true, message: 'Chọn khoa nội trú tiếp nhận' },
+    roomId: { required: true, message: 'Chọn phòng' },
+    attendingDoctorId: { required: true, message: 'Nhập mã BS điều trị' },
+  }, open);
 
   useEffect(() => {
     if (open) {
@@ -1016,10 +1036,7 @@ const SplitEmergencyModal: React.FC<{
   }, [departmentId]);
 
   const submit = async () => {
-    if (!sourceMedicalRecordId.trim()) { message.warning('Nhập mã hồ sơ cấp cứu nguồn'); return; }
-    if (!departmentId) { message.warning('Chọn khoa nội trú tiếp nhận'); return; }
-    if (!roomId.trim()) { message.warning('Chọn phòng'); return; }
-    if (!attendingDoctorId.trim()) { message.warning('Nhập mã BS điều trị'); return; }
+    if (!departmentId) return; // narrows type; UX validation already gated by splitForm.validate
     setBusy(true);
     try {
       const res = await splitEmergencyToInpatient({
@@ -1051,7 +1068,13 @@ const SplitEmergencyModal: React.FC<{
       footer={(
         <>
           <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
-          <Btn variant="primary" disabled={busy} onClick={submit}>
+          <Btn
+            variant="primary"
+            disabled={busy}
+            onClick={() => {
+              if (splitForm.validate({ sourceMedicalRecordId, departmentId, roomId, attendingDoctorId })) void submit();
+            }}
+          >
             <TermIcon name="check" size={12} /> {busy ? 'Đang tách…' : 'Tách điều trị'}
           </Btn>
         </>
@@ -1062,45 +1085,45 @@ const SplitEmergencyModal: React.FC<{
           Đợt cấp cứu được chốt tại mốc tách; chỉ định và đơn thuốc phát sinh <b>sau mốc</b> chuyển sang
           hồ sơ nội trú mới. Không tách được khi đợt đã thanh toán hoặc đã duyệt/gửi hồ sơ BHYT.
         </div>
-        <IpFld label="Mã hồ sơ cấp cứu nguồn *" full>
-          <Input value={sourceMedicalRecordId} onChange={(e) => setSourceMedicalRecordId(e.target.value)} placeholder="Mã HSBA cấp cứu hoặc UUID" />
-        </IpFld>
-        <IpFld label="Mốc tách" full>
+        <Field label="Mã hồ sơ cấp cứu nguồn" required error={splitForm.errors.sourceMedicalRecordId} style={{ gridColumn: '1 / -1' }}>
+          <Input value={sourceMedicalRecordId} onChange={(e) => { setSourceMedicalRecordId(e.target.value); splitForm.clear('sourceMedicalRecordId'); }} placeholder="Mã HSBA cấp cứu hoặc UUID" />
+        </Field>
+        <Field label="Mốc tách" style={{ gridColumn: '1 / -1' }}>
           <DatePicker
             showTime format="DD/MM/YYYY HH:mm" style={{ width: '100%' }}
             value={splitAt} onChange={setSplitAt}
             placeholder="Bỏ trống = thời điểm hiện tại"
             disabledDate={(d) => d.isAfter(dayjs(), 'day')}
           />
-        </IpFld>
-        <IpFld label="Khoa nội trú tiếp nhận *" full>
+        </Field>
+        <Field label="Khoa nội trú tiếp nhận" required error={splitForm.errors.departmentId} style={{ gridColumn: '1 / -1' }}>
           <Select
-            value={departmentId} onChange={setDepartmentId} showSearch optionFilterProp="label"
+            value={departmentId} onChange={(v) => { setDepartmentId(v); splitForm.clear('departmentId'); }} showSearch optionFilterProp="label"
             placeholder="Chọn khoa" style={{ width: '100%' }}
             options={depts.map((d) => ({ value: d.id!, label: d.name }))}
           />
-        </IpFld>
-        <IpFld label="Phòng *">
+        </Field>
+        <Field label="Phòng" required error={splitForm.errors.roomId}>
           <Select
-            value={roomId || undefined} onChange={(v) => setRoomId(v || '')}
+            value={roomId || undefined} onChange={(v) => { setRoomId(v || ''); splitForm.clear('roomId'); }}
             showSearch allowClear optionFilterProp="label" style={{ width: '100%' }}
             placeholder={departmentId ? 'Chọn phòng' : 'Chọn khoa trước'}
             disabled={!departmentId}
             options={rooms.map((r) => ({ value: r.id as string, label: `${r.code} — ${r.name}` }))}
           />
-        </IpFld>
-        <IpFld label="Mã giường">
+        </Field>
+        <Field label="Mã giường">
           <Input value={bedId} onChange={(e) => setBedId(e.target.value)} placeholder="Mã giường (tùy chọn)" />
-        </IpFld>
-        <IpFld label="Mã BS điều trị *" full>
-          <Input value={attendingDoctorId} onChange={(e) => setAttendingDoctorId(e.target.value)} placeholder="Mã BS / UUID" />
-        </IpFld>
-        <IpFld label="Chẩn đoán vào viện">
+        </Field>
+        <Field label="Mã BS điều trị" required error={splitForm.errors.attendingDoctorId} style={{ gridColumn: '1 / -1' }}>
+          <Input value={attendingDoctorId} onChange={(e) => { setAttendingDoctorId(e.target.value); splitForm.clear('attendingDoctorId'); }} placeholder="Mã BS / UUID" />
+        </Field>
+        <Field label="Chẩn đoán vào viện">
           <Input value={diagnosisOnAdmission} onChange={(e) => setDiagnosisOnAdmission(e.target.value)} placeholder="VD: Viêm phổi" />
-        </IpFld>
-        <IpFld label="Mã ICD">
+        </Field>
+        <Field label="Mã ICD">
           <Input value={icdCode} onChange={(e) => setIcdCode(e.target.value)} placeholder="VD: J18.9" />
-        </IpFld>
+        </Field>
       </div>
     </ModalShell>
   );
@@ -1128,13 +1151,15 @@ const TransferBedModal: React.FC<{
   const [newBedId, setNewBedId] = useState('');
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const transferForm = useModalForm({
+    newBedId: { required: true, message: 'Nhập mã / UUID giường mới' },
+  }, open);
 
   useEffect(() => {
     if (open) { setNewBedId(''); setReason(''); }
   }, [open]);
 
   const submit = async () => {
-    if (!newBedId.trim()) { message.warning('Nhập mã / UUID giường mới'); return; }
     if (!admissionId) { message.warning('Không tìm thấy ID nhập viện'); return; }
     setBusy(true);
     try {
@@ -1158,22 +1183,26 @@ const TransferBedModal: React.FC<{
       footer={(
         <>
           <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
-          <Btn variant="primary" disabled={busy} onClick={submit}>
+          <Btn
+            variant="primary"
+            disabled={busy}
+            onClick={() => { if (transferForm.validate({ newBedId })) void submit(); }}
+          >
             <TermIcon name="check" size={12} /> {busy ? 'Đang lưu…' : 'Xác nhận chuyển'}
           </Btn>
         </>
       )}
     >
       <div style={{ padding: 'var(--space-16)', display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
-        <IpFld label="Giường hiện tại">
+        <Field label="Giường hiện tại">
           <Input value={fromBedName} disabled />
-        </IpFld>
-        <IpFld label="Giường mới (mã hoặc UUID) *">
-          <Input value={newBedId} onChange={(e) => setNewBedId(e.target.value)} placeholder="Nhập mã giường / UUID giường đích" autoFocus />
-        </IpFld>
-        <IpFld label="Lý do chuyển giường">
+        </Field>
+        <Field label="Giường mới (mã hoặc UUID)" required error={transferForm.errors.newBedId}>
+          <Input value={newBedId} onChange={(e) => { setNewBedId(e.target.value); transferForm.clear('newBedId'); }} placeholder="Nhập mã giường / UUID giường đích" autoFocus />
+        </Field>
+        <Field label="Lý do chuyển giường">
           <Input.TextArea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="VD: Yêu cầu của gia đình, gần nhà vệ sinh…" />
-        </IpFld>
+        </Field>
       </div>
     </ModalShell>
   );
@@ -1194,13 +1223,16 @@ const AssignBedModal: React.FC<{
   const { message } = AntdApp.useApp();
   const [selectedAdmissionId, setSelectedAdmissionId] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
+  const assignForm = useModalForm({
+    selectedAdmissionId: { required: true, message: 'Chọn bệnh nhân cần phân giường' },
+  }, open);
 
   useEffect(() => {
     if (open) setSelectedAdmissionId(undefined);
   }, [open]);
 
   const submit = async () => {
-    if (!selectedAdmissionId) { message.warning('Chọn bệnh nhân cần phân giường'); return; }
+    if (!selectedAdmissionId) return; // narrows type; UX validation already gated by assignForm.validate
     setBusy(true);
     try {
       const dto: CreateBedAssignmentDto = { admissionId: selectedAdmissionId, bedId };
@@ -1223,20 +1255,24 @@ const AssignBedModal: React.FC<{
       footer={(
         <>
           <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
-          <Btn variant="primary" disabled={busy} onClick={submit}>
+          <Btn
+            variant="primary"
+            disabled={busy}
+            onClick={() => { if (assignForm.validate({ selectedAdmissionId })) void submit(); }}
+          >
             <TermIcon name="check" size={12} /> {busy ? 'Đang lưu…' : 'Xác nhận phân giường'}
           </Btn>
         </>
       )}
     >
       <div style={{ padding: 'var(--space-16)', display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
-        <IpFld label="Giường được phân">
+        <Field label="Giường được phân">
           <Input value={bedName} disabled />
-        </IpFld>
-        <IpFld label="Bệnh nhân cần phân giường *">
+        </Field>
+        <Field label="Bệnh nhân cần phân giường" required error={assignForm.errors.selectedAdmissionId}>
           <Select
             value={selectedAdmissionId}
-            onChange={setSelectedAdmissionId}
+            onChange={(v) => { setSelectedAdmissionId(v); assignForm.clear('selectedAdmissionId'); }}
             showSearch
             optionFilterProp="label"
             placeholder={noBedPatients.length ? 'Chọn BN đã nhập viện chưa có giường' : 'Không có BN chưa có giường'}
@@ -1246,7 +1282,7 @@ const AssignBedModal: React.FC<{
               label: `${p.patientName} (${p.patientCode}) · ${p.departmentName}`,
             }))}
           />
-        </IpFld>
+        </Field>
       </div>
     </ModalShell>
   );
@@ -1448,14 +1484,17 @@ const DepositRequestModal: React.FC<{
   const [amount, setAmount] = useState<number | null>(null);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const depositForm = useModalForm({
+    amount: { validate: (v) => (v == null || (typeof v === 'number' && v <= 0)) ? 'Nhập số tiền tạm ứng' : undefined },
+  }, open);
 
   useEffect(() => {
     if (open) { setAmount(null); setReason(''); }
   }, [open]);
 
   const submit = async () => {
-    if (!amount || amount <= 0) { message.warning('Nhập số tiền tạm ứng'); return; }
     if (!admissionId) { message.warning('Không tìm thấy đợt điều trị'); return; }
+    if (!amount) return; // narrows type; UX validation already gated by depositForm.validate
     setBusy(true);
     try {
       const dto: CreateDepositRequestDto = { admissionId, requestedAmount: amount, reason: reason.trim() || undefined };
@@ -1478,32 +1517,36 @@ const DepositRequestModal: React.FC<{
       footer={(
         <>
           <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
-          <Btn variant="primary" disabled={busy} onClick={submit}>
+          <Btn
+            variant="primary"
+            disabled={busy}
+            onClick={() => { if (depositForm.validate({ amount })) void submit(); }}
+          >
             <TermIcon name="check" size={12} /> {busy ? 'Đang gửi…' : 'Gửi yêu cầu'}
           </Btn>
         </>
       )}
     >
       <div style={{ padding: 'var(--space-16)', display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
-        <IpFld label="Số tiền tạm ứng (VND) *">
+        <Field label="Số tiền tạm ứng (VND)" required error={depositForm.errors.amount}>
           <InputNumber
             value={amount}
-            onChange={(v) => setAmount(v)}
+            onChange={(v) => { setAmount(v); depositForm.clear('amount'); }}
             style={{ width: '100%' }}
             placeholder="VD: 2000000"
             min={0}
             formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
             parser={(v) => Number((v || '').replace(/,/g, ''))}
           />
-        </IpFld>
-        <IpFld label="Lý do / ghi chú">
+        </Field>
+        <Field label="Lý do / ghi chú">
           <Input.TextArea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={2}
             placeholder="VD: Tạm ứng chi phí phẫu thuật, thuốc đặc trị…"
           />
-        </IpFld>
+        </Field>
       </div>
     </ModalShell>
   );

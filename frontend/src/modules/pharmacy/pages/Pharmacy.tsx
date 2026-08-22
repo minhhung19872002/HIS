@@ -17,8 +17,11 @@ import TermIcon from '../../../components/layout/terminal/Icon';
 import BarcodeScanner from '../../../components/form/BarcodeScanner';
 import ExpiryAlertModal from './ExpiryAlertModal';
 import { fmtVND } from '../../../utils/format';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { useTabState } from '../../../hooks/useTabState';
 
 /* ────────────── Types ────────────── */
 
@@ -93,13 +96,13 @@ const sevTone = (s?: string): 'crit' | 'warn' | 'info' =>
 const PharmacyV2: React.FC = () => {
   const { message, modal } = AntdApp.useApp();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<PageTab>('rx');
+  const [tab, setTab] = useTabState<PageTab>('rx', 'tab');
 
   /* ── RX state ── */
   const [rxRows,     setRxRows]     = useState<PendingPrescription[]>([]);
   const [rxLoading,  setRxLoading]  = useState(true);
   const [rxSearch,   setRxSearch]   = useState('');
-  const [rxStab,     setRxStab]     = useState<RxStatus | 'all'>('all');
+  const [rxStab,     setRxStab]     = useTabState<RxStatus | 'all'>('all', 'stab');
   const [rxPage,     setRxPage]     = useState(0);
   const [rxSel,      setRxSel]      = useState<PendingPrescription | null>(null);
   const [printLoad,  setPrintLoad]  = useState<string | null>(null);
@@ -144,6 +147,14 @@ const PharmacyV2: React.FC = () => {
   const [trPickQty,  setTrPickQty]  = useState<number>(1);
   const [trSubmitting, setTrSubmitting] = useState(false);
   const [trSel,      setTrSel]      = useState<TransferRequest | null>(null);
+  const trForm = useModalForm({
+    fromWh: { required: true, message: 'Chọn kho gửi' },
+    toWh: {
+      required: true,
+      message: 'Chọn kho nhận',
+      validate: (v) => (v && v === trFromWh) ? 'Kho gửi và kho nhận phải khác nhau' : undefined,
+    },
+  }, trModal);
 
   const loadTr = useCallback(async () => {
     setTrLoading(true);
@@ -175,7 +186,7 @@ const PharmacyV2: React.FC = () => {
   /* ── Alerts state ── */
   const [alRows,     setAlRows]     = useState<AlertItem[]>([]);
   const [alLoading,  setAlLoading]  = useState(false);
-  const [alStab,     setAlStab]     = useState<'unack' | 'ack' | 'all'>('unack');
+  const [alStab,     setAlStab]     = useTabState<'unack' | 'ack' | 'all'>('unack', 'alstab');
   const [alPage,     setAlPage]     = useState(0);
 
   const loadAl = useCallback(async () => {
@@ -186,7 +197,7 @@ const PharmacyV2: React.FC = () => {
   useEffect(() => { if (tab === 'alerts') loadAl(); }, [tab, loadAl]);
 
   /* ── Clinical state ── */
-  const [clSubTab,   setClSubTab]   = useState<ClSubTab | 'all'>('reviews');
+  const [clSubTab,   setClSubTab]   = useTabState<ClSubTab | 'all'>('reviews', 'clstab');
   const [clReviews,  setClReviews]  = useState<ClinReview[]>([]);
   const [clAdr,      setClAdr]      = useState<AdrReport[]>([]);
   const [clLoading,  setClLoading]  = useState(false);
@@ -440,14 +451,14 @@ const PharmacyV2: React.FC = () => {
   const trRemoveLine = (medicineId: string) =>
     setTrItems((prev) => prev.filter((l) => l.medicineId !== medicineId));
 
-  const trCanSubmit = !!trFromWh && !!trToWh && trFromWh !== trToWh && trItems.length > 0 && !trSubmitting;
-
   const trResetForm = () => {
     setTrFromWh(''); setTrToWh(''); setTrNote(''); setTrItems([]); setTrPickMed(''); setTrPickQty(1);
   };
 
   const onCreateTransfer = async () => {
-    if (!trCanSubmit) return;
+    if (!trForm.validate({ fromWh: trFromWh, toWh: trToWh })) return;
+    if (trItems.length === 0) { tw('Chưa thêm dòng thuốc'); return; }
+    if (trSubmitting) return;
     setTrSubmitting(true);
     try {
       await pharmacyApi.createTransfer({
@@ -639,7 +650,7 @@ const PharmacyV2: React.FC = () => {
               <SearchBox value={invSearch} onChange={(v) => { setInvSearch(v); setInvPage(0); }} placeholder="Tìm tên / mã thuốc…" />
               <Btn variant="ghost" icon="scan" onClick={() => setInvScanOpen(true)}>Quét mã vạch</Btn>
               <span className="spacer" />
-              <Btn variant="ghost" icon="refresh" onClick={loadInv}>Làm mới</Btn>
+              <RefreshButton onRefresh={loadInv} loading={invLoading} />
             </div>
             <DataTable<InventoryItem>
               columns={invCols} data={invPaged} rowKey={(r) => r.id}
@@ -662,7 +673,7 @@ const PharmacyV2: React.FC = () => {
               <Select value={trStatus} onChange={(v) => { setTrStatus(v); setTrPage(0); }}
                 style={{ width: 160 }} options={TR_STATUS_OPTS} />
               <span className="spacer" />
-              <Btn variant="ghost" icon="refresh" onClick={loadTr}>Làm mới</Btn>
+              <RefreshButton onRefresh={loadTr} loading={trLoading} />
               <Btn variant="primary" icon="plus" onClick={() => setTrModal(true)}>Tạo yêu cầu</Btn>
             </div>
             <DataTable<TransferRequest>
@@ -681,23 +692,23 @@ const PharmacyV2: React.FC = () => {
             <ModalShell open={trModal} onClose={() => { setTrModal(false); trResetForm(); }} title="Tạo yêu cầu chuyển kho"
               footer={<>
                 <Btn variant="ghost" onClick={() => { setTrModal(false); trResetForm(); }}>Hủy</Btn>
-                <Btn variant="primary" loading={trSubmitting} disabled={!trCanSubmit} onClick={onCreateTransfer}>Tạo yêu cầu</Btn>
+                <Btn variant="primary" loading={trSubmitting} onClick={onCreateTransfer}>Tạo yêu cầu</Btn>
               </>}
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '4px 0' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <label style={{ fontSize: 12.5 }}>Kho gửi
+                  <Field label="Kho gửi" required error={trForm.errors.fromWh}>
                     <Select showSearch optionFilterProp="label" value={trFromWh || undefined}
-                      onChange={(v) => { setTrFromWh(v); setTrItems([]); setTrPickMed(''); }}
-                      placeholder="Chọn kho gửi" style={{ width: '100%', marginTop: 4 }}
+                      onChange={(v) => { setTrFromWh(v); setTrItems([]); setTrPickMed(''); trForm.clear('fromWh'); }}
+                      placeholder="Chọn kho gửi" style={{ width: '100%' }}
                       options={trWhs.map((w) => ({ value: w.id, label: `${w.warehouseName} (${w.warehouseCode})` }))} />
-                  </label>
-                  <label style={{ fontSize: 12.5 }}>Kho nhận
+                  </Field>
+                  <Field label="Kho nhận" required error={trForm.errors.toWh}>
                     <Select showSearch optionFilterProp="label" value={trToWh || undefined}
-                      onChange={setTrToWh}
-                      placeholder="Chọn kho nhận" style={{ width: '100%', marginTop: 4 }}
+                      onChange={(v) => { setTrToWh(v); trForm.clear('toWh'); }}
+                      placeholder="Chọn kho nhận" style={{ width: '100%' }}
                       options={trWhs.filter((w) => w.id !== trFromWh).map((w) => ({ value: w.id, label: `${w.warehouseName} (${w.warehouseCode})` }))} />
-                  </label>
+                  </Field>
                 </div>
 
                 <div>
@@ -728,12 +739,9 @@ const PharmacyV2: React.FC = () => {
                   )}
                 </div>
 
-                <label style={{ fontSize: 12.5 }}>Ghi chú
-                  <Input value={trNote} onChange={(e) => setTrNote(e.target.value)} placeholder="Ghi chú…" style={{ marginTop: 4 }} />
-                </label>
-                {!!trFromWh && !!trToWh && trFromWh === trToWh && (
-                  <div style={{ fontSize: 12, color: 'var(--s-crit)' }}>Kho gửi và kho nhận phải khác nhau</div>
-                )}
+                <Field label="Ghi chú">
+                  <Input value={trNote} onChange={(e) => setTrNote(e.target.value)} placeholder="Ghi chú…" />
+                </Field>
               </div>
             </ModalShell>
             <DrawerShell open={!!trSel} onClose={() => setTrSel(null)}
@@ -869,7 +877,7 @@ const PharmacyV2: React.FC = () => {
                 ]}
               />
               <span className="spacer" />
-              <Btn variant="ghost" icon="refresh" onClick={loadRecon}>Làm mới</Btn>
+              <RefreshButton onRefresh={loadRecon} loading={rcLoading} />
             </div>
             <div style={{ fontSize: 11.5, color: 'var(--t-3)', margin: '0 0 8px' }}>
               Đối chiếu theo <strong>đợt điều trị</strong> (hồ sơ × thuốc). Báo cáo chỉ đọc — sửa lệch do dược sĩ xử lý thủ công có duyệt.

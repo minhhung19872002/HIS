@@ -14,7 +14,7 @@ import {
   DrawerShell, DrSec, DrField, ModalShell, Ico, tk, ti, tw,
   type ColumnDef,
 } from '@/_v2kit';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 
 type SKey = 'active' | 'scheduled' | 'ended' | 'cancelled';
 const STATUS_TABS = [
@@ -165,9 +165,7 @@ const VideoConsultationV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Hội chẩn video conference (Jitsi self-host)</span>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <RefreshButton onRefresh={async () => { await load() }} />
         <Btn variant="ghost" onClick={() => {
           const cols: ExcelColumn<Record<string, unknown>>[] = [
             { header: 'Tên phòng', key: 'title' },

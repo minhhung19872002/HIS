@@ -9,11 +9,14 @@ import {
 import { fmtDateTime } from '../../../utils/format';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { RowActions } from '../../../components/actions';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 import {
   getConsultations, createConsultation, completeConsultation, approveConsultation, printConsultation,
   type ConsultationDto, type CreateConsultationDto, type InpatientListDto,
 } from '../api/inpatient';
 import { getSigners, type EmrSignerCatalogDto } from '../../emr/api/emrAdmin';
+import { useTabState } from '../../../hooks/useTabState';
 
 /* ── Issue #2: tab Hội chẩn nội trú — list / tạo / hoàn thành / in biên bản.
    Backend persist từ mig 99 (InpatientConsultations). api client đã có sẵn. ── */
@@ -60,7 +63,7 @@ const ConsultationSection: React.FC<{ inpatients: InpatientListDto[]; active: bo
   const [items, setItems] = useState<ConsultationDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<CsKey>('all');
+  const [status, setStatus] = useTabState<CsKey>('all');
   const [sel, setSel] = useState<ConsultationDto | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [completing, setCompleting] = useState<ConsultationDto | null>(null);
@@ -331,6 +334,12 @@ const CreateConsultationModal: React.FC<{
   const [clinical, setClinical] = useState('');
   const [signers, setSigners] = useState<EmrSignerCatalogDto[]>([]);
   const [saving, setSaving] = useState(false);
+  const cForm = useModalForm({
+    admissionId: { required: true, message: 'Chọn bệnh nhân hội chẩn' },
+    chairmanId: { required: true, message: 'Chọn chủ trì' },
+    secretaryId: { required: true, message: 'Chọn thư ký' },
+    reason: { required: true, message: 'Nhập lý do hội chẩn' },
+  }, open);
 
   useEffect(() => {
     if (!open) return;
@@ -352,9 +361,6 @@ const CreateConsultationModal: React.FC<{
   })), [signers]);
 
   const submit = async () => {
-    if (!admissionId) { te('Chọn bệnh nhân hội chẩn'); return; }
-    if (!chairmanId || !secretaryId) { te('Chọn chủ trì và thư ký'); return; }
-    if (!reason.trim()) { te('Nhập lý do hội chẩn'); return; }
     setSaving(true);
     try {
       const dto: CreateConsultationDto = {
@@ -388,58 +394,64 @@ const CreateConsultationModal: React.FC<{
       footer={
         <>
           <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
-          <Btn variant="primary" onClick={() => void submit()} disabled={saving}>
+          <Btn
+            variant="primary"
+            onClick={() => {
+              if (cForm.validate({ admissionId, chairmanId, secretaryId, reason })) void submit();
+            }}
+            disabled={saving}
+          >
             {saving ? 'Đang lưu…' : 'Tạo hội chẩn'}
           </Btn>
         </>
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
-        <DrField lbl="Bệnh nhân *">
-          <Select showSearch value={admissionId || undefined} onChange={setAdmissionId}
+        <Field label="Bệnh nhân" required error={cForm.errors.admissionId}>
+          <Select showSearch value={admissionId || undefined} onChange={(v) => { setAdmissionId(v); cForm.clear('admissionId'); }}
             options={patientOpts} optionFilterProp="label" placeholder="Chọn BN nội trú"
             style={{ width: '100%' }} size="small" />
-        </DrField>
+        </Field>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-8)' }}>
-          <DrField lbl="Loại hội chẩn *">
+          <Field label="Loại hội chẩn" required>
             <Select value={type} onChange={setType} options={TYPE_OPTS} style={{ width: '100%' }} size="small" />
-          </DrField>
-          <DrField lbl="Ngày *">
+          </Field>
+          <Field label="Ngày" required>
             <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} size="small" />
-          </DrField>
-          <DrField lbl="Giờ">
+          </Field>
+          <Field label="Giờ">
             <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} size="small" />
-          </DrField>
+          </Field>
         </div>
-        <DrField lbl="Địa điểm">
+        <Field label="Địa điểm">
           <Input value={location} onChange={(e) => setLocation(e.target.value)}
             placeholder="VD: Phòng giao ban khoa" size="small" />
-        </DrField>
+        </Field>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-8)' }}>
-          <DrField lbl="Chủ trì *">
-            <Select showSearch value={chairmanId || undefined} onChange={setChairmanId}
+          <Field label="Chủ trì" required error={cForm.errors.chairmanId}>
+            <Select showSearch value={chairmanId || undefined} onChange={(v) => { setChairmanId(v); cForm.clear('chairmanId'); }}
               options={signerOpts} optionFilterProp="label" placeholder="Chọn BS chủ trì"
               style={{ width: '100%' }} size="small" />
-          </DrField>
-          <DrField lbl="Thư ký *">
-            <Select showSearch value={secretaryId || undefined} onChange={setSecretaryId}
+          </Field>
+          <Field label="Thư ký" required error={cForm.errors.secretaryId}>
+            <Select showSearch value={secretaryId || undefined} onChange={(v) => { setSecretaryId(v); cForm.clear('secretaryId'); }}
               options={signerOpts} optionFilterProp="label" placeholder="Chọn thư ký"
               style={{ width: '100%' }} size="small" />
-          </DrField>
+          </Field>
         </div>
-        <DrField lbl="Thành viên tham gia">
+        <Field label="Thành viên tham gia">
           <Select mode="multiple" showSearch value={memberIds} onChange={setMemberIds}
             options={signerOpts} optionFilterProp="label" placeholder="Chọn các BS tham gia"
             style={{ width: '100%' }} size="small" maxTagCount={4} />
-        </DrField>
-        <DrField lbl="Lý do hội chẩn *">
-          <Input.TextArea value={reason} onChange={(e) => setReason(e.target.value)}
+        </Field>
+        <Field label="Lý do hội chẩn" required error={cForm.errors.reason}>
+          <Input.TextArea value={reason} onChange={(e) => { setReason(e.target.value); cForm.clear('reason'); }}
             rows={2} placeholder="Lý do mời hội chẩn" />
-        </DrField>
-        <DrField lbl="Tóm tắt lâm sàng">
+        </Field>
+        <Field label="Tóm tắt lâm sàng">
           <Input.TextArea value={clinical} onChange={(e) => setClinical(e.target.value)}
             rows={3} placeholder="Diễn biến, tình trạng hiện tại, đã điều trị gì…" />
-        </DrField>
+        </Field>
       </div>
     </ModalShell>
   );
@@ -454,6 +466,9 @@ const CompleteConsultationModal: React.FC<{
   const [conclusion, setConclusion] = useState('');
   const [treatment, setTreatment] = useState('');
   const [saving, setSaving] = useState(false);
+  const completeForm = useModalForm({
+    conclusion: { required: true, message: 'Nhập kết luận hội chẩn' },
+  }, !!target);
 
   useEffect(() => {
     if (target) { setConclusion(target.conclusion || ''); setTreatment(target.treatment || ''); }
@@ -461,7 +476,6 @@ const CompleteConsultationModal: React.FC<{
 
   const submit = async () => {
     if (!target) return;
-    if (!conclusion.trim()) { te('Nhập kết luận hội chẩn'); return; }
     setSaving(true);
     try {
       const r = await completeConsultation(target.id, conclusion.trim(), treatment.trim() || undefined);
@@ -483,21 +497,25 @@ const CompleteConsultationModal: React.FC<{
       footer={
         <>
           <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
-          <Btn variant="primary" onClick={() => void submit()} disabled={saving}>
+          <Btn
+            variant="primary"
+            onClick={() => { if (completeForm.validate({ conclusion })) void submit(); }}
+            disabled={saving}
+          >
             {saving ? 'Đang lưu…' : 'Hoàn thành'}
           </Btn>
         </>
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
-        <DrField lbl="Kết luận hội chẩn *">
-          <Input.TextArea value={conclusion} onChange={(e) => setConclusion(e.target.value)}
+        <Field label="Kết luận hội chẩn" required error={completeForm.errors.conclusion}>
+          <Input.TextArea value={conclusion} onChange={(e) => { setConclusion(e.target.value); completeForm.clear('conclusion'); }}
             rows={3} placeholder="Kết luận thống nhất của hội đồng" />
-        </DrField>
-        <DrField lbl="Hướng điều trị">
+        </Field>
+        <Field label="Hướng điều trị">
           <Input.TextArea value={treatment} onChange={(e) => setTreatment(e.target.value)}
             rows={3} placeholder="Kế hoạch điều trị tiếp theo" />
-        </DrField>
+        </Field>
       </div>
     </ModalShell>
   );
@@ -547,7 +565,7 @@ const ApproveConsultationModal: React.FC<{
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
-        <DrField lbl="Quyết định *">
+        <Field label="Quyết định" required>
           <Select
             value={decision}
             onChange={setDecision}
@@ -558,15 +576,15 @@ const ApproveConsultationModal: React.FC<{
             style={{ width: '100%' }}
             size="small"
           />
-        </DrField>
-        <DrField lbl="Ghi chú">
+        </Field>
+        <Field label="Ghi chú">
           <Input.TextArea
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={3}
             placeholder={decision === 3 ? 'Lý do từ chối (bắt buộc khi từ chối)' : 'Ghi chú thêm (tùy chọn)'}
           />
-        </DrField>
+        </Field>
       </div>
     </ModalShell>
   );

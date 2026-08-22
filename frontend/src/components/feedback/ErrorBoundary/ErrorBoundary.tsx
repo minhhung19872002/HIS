@@ -1,5 +1,5 @@
 import React from 'react';
-import { HttpError } from '../../shared/HttpError';
+import { HttpError } from '../../common/HttpError';
 
 interface ErrorBoundaryState { hasError: boolean; error: Error | null }
 
@@ -25,7 +25,6 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, Error
           variant='fullpage'
           desc={this.state.error ? `${this.state.error.name}: ${this.state.error.message}` : undefined}
           onRetry={() => { this.setState({ hasError: false, error: null }); }}
-          onBack={() => { this.setState({ hasError: false, error: null }); window.history.back(); }}
         />
       );
     }

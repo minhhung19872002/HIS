@@ -13,6 +13,7 @@ import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn,
   useListData, useTabCounts, tk, ti, tw, cf, type ColumnDef, type StatusTab,
 } from '@/_v2kit';
+import { useTabState } from '../../../hooks/useTabState';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -62,7 +63,7 @@ const PayrollAdminV2: React.FC = () => {
     useCallback(() => apiClient.get<PayrollPeriod[]>('/admin-modules/payroll/periods').then((r) => r.data), []),
     useCallback(() => ti('Tải danh sách kỳ lương thất bại'), []),
   );
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all');
 
   const [periodModal, setPeriodModal] = useState(false);
   const [periodForm] = Form.useForm();
@@ -281,7 +282,7 @@ const PayrollAdminV2: React.FC = () => {
         maskClosable={!savingPeriod}
         destroyOnHidden
       >
-        <Form form={periodForm} layout="vertical">
+        <Form form={periodForm} layout="vertical" scrollToFirstError>
           <Form.Item name="year" label="Năm" rules={[{ required: true }]}>
             <InputNumber style={{ width: '100%' }} min={2020} max={2100} />
           </Form.Item>
@@ -307,7 +308,7 @@ const PayrollAdminV2: React.FC = () => {
         destroyOnHidden
         width={520}
       >
-        <Form form={itemForm} layout="vertical">
+        <Form form={itemForm} layout="vertical" scrollToFirstError>
           <Form.Item name="workDays" label="Ngày công">
             <InputNumber style={{ width: '100%' }} min={0} max={31} step={0.5} />
           </Form.Item>

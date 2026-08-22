@@ -13,6 +13,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useModalForm } from '../../../hooks/useModalForm';
 import { AutoComplete, InputNumber, Select } from 'antd';
 import dayjs from 'dayjs';
 import { searchMedicines } from '../../opd/api/examination';
@@ -142,6 +143,11 @@ export const SurgeryCabinetIssueModal: React.FC<SurgeryCabinetIssueModalProps> =
   const [lastIssue, setLastIssue] = useState<StockIssueDto | null>(null);
   const [lineLabels, setLineLabels] = useState<Record<string, string>>({});
 
+  const { errors, validate, clear } = useModalForm(
+    { cabinetId: { required: true, message: 'Vui lòng chọn kho tủ trực' } },
+    open,
+  );
+
   const loadCabinets = useCallback(async () => {
     try {
       const res = await wh.getWarehouses(4); // WarehouseType=4 → Tủ trực
@@ -172,7 +178,7 @@ export const SurgeryCabinetIssueModal: React.FC<SurgeryCabinetIssueModalProps> =
     setLines((ls) => ls.filter((l) => l._key !== key));
 
   const handleSave = async () => {
-    if (!cabinetId) { tw('Chọn tủ trực / kho phòng mổ trước'); return; }
+    if (!validate({ cabinetId })) return;
     const validLines = lines.filter((l) => l.itemId && l.quantity > 0);
     if (validLines.length === 0) { tw('Chưa có thuốc/VTYT nào'); return; }
 
@@ -248,7 +254,7 @@ export const SurgeryCabinetIssueModal: React.FC<SurgeryCabinetIssueModalProps> =
             </Btn>
           )}
           <Btn variant="ghost" size="sm" onClick={onClose}>Đóng</Btn>
-          <Btn variant="primary" size="sm" loading={saving} disabled={!cabinetId} onClick={() => { void handleSave(); }}>
+          <Btn variant="primary" size="sm" loading={saving} onClick={() => { void handleSave(); }}>
             <TermIcon name="check" size={12} /> Xuất kho
           </Btn>
         </div>
@@ -256,10 +262,10 @@ export const SurgeryCabinetIssueModal: React.FC<SurgeryCabinetIssueModalProps> =
     >
       {/* Cabinet selector */}
       <DrSec title="Kho / Tủ trực phòng mổ">
-        <DrField lbl="Kho tủ trực *">
+        <DrField lbl="Kho tủ trực" required error={errors.cabinetId}>
           <Select
             value={cabinetId || undefined}
-            onChange={setCabinetId}
+            onChange={(v) => { setCabinetId(v); clear('cabinetId'); }}
             placeholder="Chọn tủ trực / kho phòng mổ…"
             style={{ width: '100%' }}
             options={cabinets.map((c) => ({ value: c.id, label: `${c.warehouseCode} · ${c.warehouseName}` }))}

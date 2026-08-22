@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTabState } from '@/hooks/useTabState';
 import dayjs from 'dayjs';
 import { Input, DatePicker } from 'antd';
 import {
@@ -14,6 +15,9 @@ import {
 } from '@/_v2kit';
 import { BarcodeScanner } from '@/components/form';
 import { RowActions } from '@/components/actions';
+import { RefreshButton } from '@/components/actions/RefreshButton/RefreshButton';
+import { Field } from '@/components/form/Field';
+import { useModalForm } from '@/hooks/useModalForm';
 import { friendlyErrorMessage } from '@/utils/friendlyError';
 
 type SKey = 'pending' | 'undone' | 'recollected';
@@ -69,16 +73,17 @@ const SampleTrackingV2: React.FC = () => {
   const [items, setItems] = useState<SampleRejection[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all', 'stab');
   const [fReason, setFReason] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<SampleRejection | null>(null);
   const [undoTarget, setUndoTarget] = useState<SampleRejection | null>(null);
   const [undoReason, setUndoReason] = useState('');
   const [undoLoading, setUndoLoading] = useState(false);
+  const undoForm = useModalForm({ undoReason: { required: true, message: 'Nhập lý do hủy từ chối' } }, !!undoTarget);
   const [reportOpen, setReportOpen] = useState(false);
 
-  const [tab, setTab] = useState<Tab>('rejections');
+  const [tab, setTab] = useTabState<Tab>('rejections', 'tab');
   const [rejectOpen, setRejectOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [batchDate, setBatchDate] = useState<dayjs.Dayjs>(dayjs());
@@ -267,9 +272,7 @@ const SampleTrackingV2: React.FC = () => {
             <Ico name="x" size={12} /> Bỏ lọc
           </Btn>
           <span className="spacer" />
-          <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">
-            Làm mới
-          </Btn>
+          <RefreshButton onRefresh={load} loading={loading} />
           <Btn variant="ghost" onClick={() => setReportOpen(true)}>
             <Ico name="activity" size={12} /> Báo cáo
           </Btn>
@@ -289,9 +292,7 @@ const SampleTrackingV2: React.FC = () => {
       {tab === 'batches' && <>
         <div className="ab-toolbar" style={{ borderTop: 'none' }}>
           <DatePicker value={batchDate} onChange={(d) => d && setBatchDate(d)} format="DD/MM/YYYY" allowClear={false} size="small" />
-          <Btn variant="ghost" onClick={loadBatches} loading={batchLoading} icon="refresh">
-            Tải
-          </Btn>
+          <RefreshButton onRefresh={loadBatches} loading={batchLoading} label="Tải" />
           <span className="spacer" />
           <StatusBadge tone="info">Tổng {batchTotal} mẫu</StatusBadge>
         </div>
@@ -363,7 +364,7 @@ const SampleTrackingV2: React.FC = () => {
         footer={<>
           <Btn variant="ghost" onClick={() => setUndoTarget(null)}>Huỷ</Btn>
           <Btn variant="primary" disabled={undoLoading} onClick={async () => {
-            if (!undoReason.trim()) { te('Nhập lý do hủy từ chối'); return; }
+            if (!undoForm.validate({ undoReason })) return;
             setUndoLoading(true);
             try {
               await undoRejection(undoTarget!.id, { reason: undoReason.trim() });
@@ -377,10 +378,9 @@ const SampleTrackingV2: React.FC = () => {
           </Btn>
         </>}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
-          <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Lý do hủy từ chối *</span>
-          <Input.TextArea rows={3} value={undoReason} onChange={(e) => setUndoReason(e.target.value)} placeholder="Nhập lý do…" />
-        </div>
+        <Field label="Lý do hủy từ chối" required error={undoForm.errors.undoReason}>
+          <Input.TextArea rows={3} value={undoReason} onChange={(e) => { setUndoReason(e.target.value); undoForm.clear('undoReason'); }} placeholder="Nhập lý do…" />
+        </Field>
       </ModalShell>
 
       {/* Drawer Báo cáo từ chối */}

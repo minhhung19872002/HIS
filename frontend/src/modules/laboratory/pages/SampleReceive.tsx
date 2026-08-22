@@ -9,6 +9,7 @@ import {
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { RowActions } from '../../../components/actions';
+import { RefreshButton } from '../../../components/actions/RefreshButton/RefreshButton';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ── Types cho Panel Tiện ích XN (tái sử dụng từ Laboratory.tsx) ──
@@ -241,7 +242,7 @@ const SampleReceiveV2: React.FC = () => {
         <Btn variant="ghost" onClick={() => { setKeyword(''); load(); }}>
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
-        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
         <Btn variant="ghost" onClick={() => { setUtilOpen(true); loadUtilData(); }}>
           <TermIcon name="flask" size={12} /> Tiện ích XN
         </Btn>

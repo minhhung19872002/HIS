@@ -21,36 +21,38 @@ import {
   ModalShell, Ico, tk, ti, tw, cf,
   type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
+import { useTabState } from '../../../hooks/useTabState';
 
 type Tab = 'abbr' | 'templates' | 'occupation' | 'gender' | 'ethnic' | 'nation' | 'facility';
 const TABS = [
-  { v: 'abbr' as Tab,       l: 'Viet tat (F2)',      ic: 'edit' },
-  { v: 'templates' as Tab,  l: 'Template lam sang',  ic: 'file-text' },
-  { v: 'occupation' as Tab, l: 'Nghe nghiep',        ic: 'briefcase' },
-  { v: 'gender' as Tab,     l: 'Gioi tinh',          ic: 'users' },
-  { v: 'ethnic' as Tab,     l: 'Dan toc',            ic: 'globe' },
-  { v: 'nation' as Tab,     l: 'Quoc gia',           ic: 'flag' },
-  { v: 'facility' as Tab,   l: 'CSKCB ban dau',      ic: 'home' },
+  { v: 'abbr' as Tab,       l: 'Viết tắt (F2)',      ic: 'edit' },
+  { v: 'templates' as Tab,  l: 'Template lâm sàng',  ic: 'file-text' },
+  { v: 'occupation' as Tab, l: 'Nghề nghiệp',        ic: 'briefcase' },
+  { v: 'gender' as Tab,     l: 'Giới tính',          ic: 'users' },
+  { v: 'ethnic' as Tab,     l: 'Dân tộc',            ic: 'globe' },
+  { v: 'nation' as Tab,     l: 'Quốc gia',           ic: 'flag' },
+  { v: 'facility' as Tab,   l: 'CSKCB ban đầu',      ic: 'home' },
 ];
 
 const SCOPE_OPTIONS = [
   { v: String(ABBREVIATION_SCOPES.GENERAL),      l: 'Chung' },
-  { v: String(ABBREVIATION_SCOPES.PRESCRIPTION), l: 'Ghi chu thuoc' },
-  { v: String(ABBREVIATION_SCOPES.DIAGNOSIS),    l: 'Chan doan / Trieu chung' },
-  { v: String(ABBREVIATION_SCOPES.LAB),          l: 'Ket qua XN' },
+  { v: String(ABBREVIATION_SCOPES.PRESCRIPTION), l: 'Ghi chú thuốc' },
+  { v: String(ABBREVIATION_SCOPES.DIAGNOSIS),    l: 'Chẩn đoán / Triệu chứng' },
+  { v: String(ABBREVIATION_SCOPES.LAB),          l: 'Kết quả XN' },
   { v: String(ABBREVIATION_SCOPES.RADIOLOGY),    l: 'CDHA' },
-  { v: String(ABBREVIATION_SCOPES.APPOINTMENT),  l: 'Hen' },
+  { v: String(ABBREVIATION_SCOPES.APPOINTMENT),  l: 'Đặt hẹn' },
 ];
 
 const LEVEL_OPTIONS = [
-  { value: 1, label: 'Tuyen TW' },
-  { value: 2, label: 'Tuyen tinh' },
-  { value: 3, label: 'Tuyen huyen' },
-  { value: 4, label: 'Tuyen xa' },
+  { value: 1, label: 'Tuyến TW' },
+  { value: 2, label: 'Tuyến tỉnh' },
+  { value: 3, label: 'Tuyến huyện' },
+  { value: 4, label: 'Tuyến xã' },
 ];
 
 const CatalogsAdminV2: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('abbr');
+  const [tab, setTab] = useTabState<Tab>('abbr');
   // #467: guard double-submit — chi 1 modal/drawer mo tai mot thoi diem nen dung chung 1 state
   const [saving, setSaving] = useState(false);
   const [abbrs, setAbbrs] = useState<AbbreviationDto[]>([]);
@@ -113,42 +115,42 @@ const CatalogsAdminV2: React.FC = () => {
   const loadTpls = useCallback(async () => {
     setTplLoading(true);
     try { setTpls(await searchTemplates({ templateType: tplType ? Number(tplType) : undefined, keyword: tplKeyword, pageSize: 100, onlyActive: true })); }
-    catch { setTpls([]); ti('Tai template that bai'); }
+    catch { setTpls([]); ti('Tải template thất bại'); }
     finally { setTplLoading(false); }
   }, [tplType, tplKeyword]);
 
   const loadOcc = useCallback(async () => {
     setOccLoading(true);
     try { setOccList(await getOccupations(occKeyword || undefined)); }
-    catch { setOccList([]); ti('Tai nghe nghiep that bai'); }
+    catch { setOccList([]); ti('Tải nghề nghiệp thất bại'); }
     finally { setOccLoading(false); }
   }, [occKeyword]);
 
   const loadGen = useCallback(async () => {
     setGenLoading(true);
     try { setGenList(await getGenders(genKeyword || undefined)); }
-    catch { setGenList([]); ti('Tai gioi tinh that bai'); }
+    catch { setGenList([]); ti('Tải giới tính thất bại'); }
     finally { setGenLoading(false); }
   }, [genKeyword]);
 
   const loadEth = useCallback(async () => {
     setEthLoading(true);
     try { setEthList(await getEthnics(ethKeyword || undefined)); }
-    catch { setEthList([]); ti('Tai dan toc that bai'); }
+    catch { setEthList([]); ti('Tải dân tộc thất bại'); }
     finally { setEthLoading(false); }
   }, [ethKeyword]);
 
   const loadNat = useCallback(async () => {
     setNatLoading(true);
     try { setNatList(await getNations(natKeyword || undefined)); }
-    catch { setNatList([]); ti('Tai quoc gia that bai'); }
+    catch { setNatList([]); ti('Tải quốc gia thất bại'); }
     finally { setNatLoading(false); }
   }, [natKeyword]);
 
   const loadFac = useCallback(async () => {
     setFacLoading(true);
     try { setFacList(await getInitialFacilities(facKeyword || undefined)); }
-    catch { setFacList([]); ti('Tai CSKCB that bai'); }
+    catch { setFacList([]); ti('Tải CSKCB thất bại'); }
     finally { setFacLoading(false); }
   }, [facKeyword]);
 
@@ -182,13 +184,13 @@ const CatalogsAdminV2: React.FC = () => {
     try {
       const v = await abbrForm.validateFields();
       await saveAbbreviation({ id: abbrEditing?.id, ...v });
-      tk('Da luu'); setAbbrModal(false); invalidateAbbreviationCache(); loadAbbrs();
-    } catch { tw('Luu that bai'); }
+      tk('Đã lưu'); setAbbrModal(false); invalidateAbbreviationCache(); loadAbbrs();
+    } catch { tw('Lưu thất bại'); }
     finally { setSaving(false); }
   };
-  const deleteAbbr = (r: AbbreviationDto) => cf(`Xoa viet tat "${r.code}"?`, async () => {
-    await deleteAbbreviation(r.id); tk('Da xoa'); invalidateAbbreviationCache(); loadAbbrs();
-  }, { tone: 'crit', confirm: 'Xoa' });
+  const deleteAbbr = (r: AbbreviationDto) => cf(`Xóa viết tắt "${r.code}"?`, async () => {
+    await deleteAbbreviation(r.id); tk('Đã xóa'); invalidateAbbreviationCache(); loadAbbrs();
+  }, { tone: 'crit', confirm: 'Xóa' });
 
   // ── Template handlers ──
   const openTplAdd = () => {
@@ -214,13 +216,13 @@ const CatalogsAdminV2: React.FC = () => {
     try {
       const v = await tplForm.validateFields();
       await saveTemplate({ id: tplEditing?.id, ...v });
-      tk('Da luu template'); setTplDrawer(false); loadTpls();
-    } catch { tw('Luu that bai'); }
+      tk('Đã lưu template'); setTplDrawer(false); loadTpls();
+    } catch { tw('Lưu thất bại'); }
     finally { setSaving(false); }
   };
-  const deleteTpl = (r: ClinicalTemplateDto) => cf(`Xoa template "${r.templateName}"?`, async () => {
-    await deleteTemplate(r.id); tk('Da xoa'); loadTpls();
-  }, { tone: 'crit', confirm: 'Xoa' });
+  const deleteTpl = (r: ClinicalTemplateDto) => cf(`Xóa template "${r.templateName}"?`, async () => {
+    await deleteTemplate(r.id); tk('Đã xóa'); loadTpls();
+  }, { tone: 'crit', confirm: 'Xóa' });
 
   // ── Generic simple-catalog helpers ──
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -238,12 +240,12 @@ const CatalogsAdminV2: React.FC = () => {
   // ── Column defs for simple catalogs ──
   const simpleCols = <T extends { code: string; name: string; isActive: boolean; note?: string }>(
   ): ColumnDef<T>[] => [
-    { key: 'code', label: 'Ma', render: (r) => <StatusBadge tone="info">{r.code}</StatusBadge> },
-    { key: 'name', label: 'Ten', render: (r) => r.name },
-    { key: 'note', label: 'Ghi chu', render: (r) => r.note || '' },
-    { key: 'active', label: 'Trang thai', render: (r) => r.isActive
-      ? <StatusBadge tone="ok">Hoat dong</StatusBadge>
-      : <StatusBadge tone="warn">Ngung</StatusBadge>
+    { key: 'code', label: 'Mã', render: (r) => <StatusBadge tone="info">{r.code}</StatusBadge> },
+    { key: 'name', label: 'Tên', render: (r) => r.name },
+    { key: 'note', label: 'Ghi chú', render: (r) => r.note || '' },
+    { key: 'active', label: 'Trạng thái', render: (r) => r.isActive
+      ? <StatusBadge tone="ok">Hoạt động</StatusBadge>
+      : <StatusBadge tone="warn">Ngừng</StatusBadge>
     },
   ];
 
@@ -251,14 +253,14 @@ const CatalogsAdminV2: React.FC = () => {
     LEVEL_OPTIONS.find((l) => l.value === lvl)?.label || '';
 
   const facilityCols: ColumnDef<InitialFacilityDto>[] = [
-    { key: 'code',   label: 'Ma CSKCB', render: (r) => <StatusBadge tone="info">{r.code}</StatusBadge> },
-    { key: 'name',   label: 'Ten co so', render: (r) => r.name },
-    { key: 'bhxh',  label: 'Ma BHXH', code: true, render: (r) => r.bhxhCode || '' },
-    { key: 'prov',  label: 'Tinh/TP', render: (r) => r.province || '' },
-    { key: 'level', label: 'Tuyen', render: (r) => facilityLevelLabel(r.level) },
-    { key: 'active', label: 'Trang thai', render: (r) => r.isActive
-      ? <StatusBadge tone="ok">Hoat dong</StatusBadge>
-      : <StatusBadge tone="warn">Ngung</StatusBadge>
+    { key: 'code',   label: 'Mã CSKCB', render: (r) => <StatusBadge tone="info">{r.code}</StatusBadge> },
+    { key: 'name',   label: 'Tên cơ sở', render: (r) => r.name },
+    { key: 'bhxh',  label: 'Mã BHXH', code: true, render: (r) => r.bhxhCode || '' },
+    { key: 'prov',  label: 'Tỉnh/TP', render: (r) => r.province || '' },
+    { key: 'level', label: 'Tuyến', render: (r) => facilityLevelLabel(r.level) },
+    { key: 'active', label: 'Trạng thái', render: (r) => r.isActive
+      ? <StatusBadge tone="ok">Hoạt động</StatusBadge>
+      : <StatusBadge tone="warn">Ngừng</StatusBadge>
     },
   ];
 
@@ -271,45 +273,45 @@ const CatalogsAdminV2: React.FC = () => {
       try {
         const v = await form.validateFields();
         await saveFn({ id: editing?.id, ...v });
-        tk('Da luu'); setModal(false); reload();
-      } catch { tw('Luu that bai'); }
+        tk('Đã lưu'); setModal(false); reload();
+      } catch { tw('Lưu thất bại'); }
       finally { setSaving(false); }
     };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const makeDelete = (deleteFn: (id: string) => Promise<unknown>, reload: () => void) =>
-    (r: { id: string; name: string }) => cf(`Xoa "${r.name}"?`, async () => {
-      await deleteFn(r.id); tk('Da xoa'); reload();
-    }, { tone: 'crit', confirm: 'Xoa' });
+    (r: { id: string; name: string }) => cf(`Xóa "${r.name}"?`, async () => {
+      await deleteFn(r.id); tk('Đã xóa'); reload();
+    }, { tone: 'crit', confirm: 'Xóa' });
 
   const totalCount = occList.length + genList.length + ethList.length + natList.length + facList.length;
 
   const abbrCols: ColumnDef<AbbreviationDto>[] = [
     { key: 'code', label: 'Code', render: (r) => <StatusBadge tone="info">{r.code}</StatusBadge> },
-    { key: 'exp', label: 'Cum tu day du', render: (r) => r.expansion },
+    { key: 'exp', label: 'Cụm từ đầy đủ', render: (r) => r.expansion },
     { key: 'scope', label: 'Scope', render: (r) => r.scopeName || '' },
-    { key: 'owner', label: 'Quyen', render: (r) => r.ownerUserId
-      ? <StatusBadge tone="warn">Ca nhan</StatusBadge>
+    { key: 'owner', label: 'Quyền', render: (r) => r.ownerUserId
+      ? <StatusBadge tone="warn">Cá nhân</StatusBadge>
       : <StatusBadge tone="ok">Chung</StatusBadge>
     },
-    { key: 'usage', label: 'Da dung', mono: true, render: (r) => r.usageCount },
+    { key: 'usage', label: 'Sử dụng', mono: true, render: (r) => r.usageCount },
   ];
 
   const tplCols: ColumnDef<ClinicalTemplateDto>[] = [
-    { key: 'name', label: 'Ten template', render: (r) => <b>{r.templateName}</b> },
-    { key: 'type', label: 'Loai', render: (r) => <StatusBadge tone="info">{r.templateTypeName}</StatusBadge> },
+    { key: 'name', label: 'Tên template', render: (r) => <b>{r.templateName}</b> },
+    { key: 'type', label: 'Loại', render: (r) => <StatusBadge tone="info">{r.templateTypeName}</StatusBadge> },
     { key: 'icd', label: 'ICD', code: true, render: (r) => r.icdCode || '' },
-    { key: 'gender', label: 'Gioi', render: (r) => r.gender === 1 ? 'Nam' : r.gender === 2 ? 'Nu' : 'Tat ca' },
-    { key: 'age', label: 'Tuoi', mono: true, render: (r) =>
+    { key: 'gender', label: 'Giới tính', render: (r) => r.gender === 1 ? 'Nam' : r.gender === 2 ? 'Nữ' : 'ất cả' },
+    { key: 'age', label: 'Tuổi', mono: true, render: (r) =>
       (r.minAgeYears != null || r.maxAgeYears != null)
         ? `${r.minAgeYears ?? 0}-${r.maxAgeYears ?? '?'}`
         : ''
     },
-    { key: 'public', label: 'Quyen', render: (r) => r.isPublic
-      ? <StatusBadge tone="ok">Cong khai</StatusBadge>
-      : <StatusBadge tone="warn">Ca nhan</StatusBadge>
+    { key: 'public', label: 'Quyền', render: (r) => r.isPublic
+      ? <StatusBadge tone="ok">Công khai</StatusBadge>
+      : <StatusBadge tone="warn">Cá nhân</StatusBadge>
     },
-    { key: 'usage', label: 'Da dung', mono: true, render: (r) => r.usageCount },
+    { key: 'usage', label: 'Sử dụng', mono: true, render: (r) => r.usageCount },
   ];
 
   const currentLoad = () => {
@@ -334,10 +336,10 @@ const CatalogsAdminV2: React.FC = () => {
 
   const addLabel = () => {
     const labels: Record<Tab, string> = {
-      abbr: 'Them viet tat', templates: 'Them template',
-      occupation: 'Them nghe nghiep', gender: 'Them gioi tinh',
-      ethnic: 'Them dan toc', nation: 'Them quoc gia',
-      facility: 'Them CSKCB',
+      abbr: 'Thêm viết tắt', templates: 'Thêm template',
+      occupation: 'Thêm nghề nghiệp', gender: 'Thêm giới tính',
+      ethnic: 'Thêm dân tộc', nation: 'Thêm quốc gia',
+      facility: 'Thêm CSKCB',
     };
     return labels[tab];
   };
@@ -345,15 +347,19 @@ const CatalogsAdminV2: React.FC = () => {
   return (
     <div className="ab">
       <KpiStrip items={[
-        { lbl: 'Viet tat', val: abbrs.length, sub: 'tong so', tone: 'info' },
-        { lbl: 'Template', val: tpls.length, sub: 'tong so', tone: 'ok' },
-        { lbl: 'DM hanh chinh', val: totalCount, sub: 'nghe/gioi/toc/nuoc/cskcb', tone: 'warn' },
-        { lbl: 'CSKCB', val: facList.length, sub: 'co so dang ky', tone: 'info' },
+        { lbl: 'Viết tắt', val: abbrs.length, sub: 'tổng số', tone: 'info' },
+        { lbl: 'Template', val: tpls.length, sub: 'tổng số', tone: 'ok' },
+        { lbl: 'Danh mục hành chính', val: totalCount, sub: 'nghề nghiệp/giới tính/dân tộc/quốc gia/CSKCB', tone: 'warn' },
+        { lbl: 'CSKCB', val: facList.length, sub: 'cơ sở đăng ký', tone: 'info' },
       ]} />
 
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
-          <Btn variant="ghost" onClick={currentLoad} loading={tab === 'abbr' ? abbrLoading : tab === 'templates' ? tplLoading : tab === 'occupation' ? occLoading : tab === 'gender' ? genLoading : tab === 'ethnic' ? ethLoading : tab === 'nation' ? natLoading : facLoading} icon="refresh">Lam moi</Btn>
+          <RefreshButton
+            onRefresh={currentLoad}
+            loading={tab === 'abbr' ? abbrLoading : tab === 'templates' ? tplLoading : tab === 'occupation' ? occLoading : tab === 'gender' ? genLoading : tab === 'ethnic' ? ethLoading : tab === 'nation' ? natLoading : facLoading}
+            label="Làm mới"
+          />
           <Btn variant="primary" onClick={openAdd}>
             <Ico name="plus" size={12} /> {addLabel()}
           </Btn>
@@ -363,9 +369,9 @@ const CatalogsAdminV2: React.FC = () => {
       {/* Abbr */}
       {tab === 'abbr' && <>
         <div className="ab-toolbar" style={{ borderTop: 'none' }}>
-          <Filter value={abbrScope} onChange={setAbbrScope} options={SCOPE_OPTIONS} placeholder="Loc scope" />
+          <Filter value={abbrScope} onChange={setAbbrScope} options={SCOPE_OPTIONS} placeholder="Lọc scope" />
           <Btn variant="ghost" onClick={() => setAbbrScope('')}>
-            <Ico name="x" size={12} /> Bo loc
+            <Ico name="x" size={12} /> Bộ lọc
           </Btn>
           <span className="spacer" />
           <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Go code trong textarea roi bam F2 de tu dong thay the</span>
@@ -374,11 +380,11 @@ const CatalogsAdminV2: React.FC = () => {
           columns={abbrCols} data={abbrs} loading={abbrLoading} rowKey={(r) => r.id}
           actions={(r) => (
             <div className="ab-actions">
-              <ActBtn ic="edit" title="Sua" onClick={() => openAbbrEdit(r)} />
-              <ActBtn ic="trash" title="Xoa" tone="crit" onClick={() => deleteAbbr(r)} />
+              <ActBtn ic="edit" title="Sửa" onClick={() => openAbbrEdit(r)} />
+              <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => deleteAbbr(r)} />
             </div>
           )}
-          empty={'Chua co viet tat'}
+          empty={'Chưa có viết tắt'}
         />
       </>}
 
@@ -387,10 +393,10 @@ const CatalogsAdminV2: React.FC = () => {
         <div className="ab-toolbar" style={{ borderTop: 'none' }}>
           <Filter value={tplType} onChange={setTplType}
             options={Object.entries(TEMPLATE_TYPE_LABELS).map(([k, v]) => ({ v: k, l: v as string }))}
-            placeholder="Loai template" />
-          <SearchBox value={tplKeyword} onChange={setTplKeyword} placeholder="Tim theo ten / ICD..." />
+            placeholder="Loại template" />
+          <SearchBox value={tplKeyword} onChange={setTplKeyword} placeholder="Tìm theo tên / ICD..." />
           <Btn variant="ghost" onClick={() => { setTplKeyword(''); setTplType(''); }}>
-            <Ico name="x" size={12} /> Bo loc
+            <Ico name="x" size={12} /> Bộ lọc
           </Btn>
         </div>
         <DataTable<ClinicalTemplateDto>
@@ -398,105 +404,105 @@ const CatalogsAdminV2: React.FC = () => {
           onRowClick={openTplEdit}
           actions={(r) => (
             <div className="ab-actions">
-              <ActBtn ic="edit" title="Sua" onClick={() => openTplEdit(r)} />
-              <ActBtn ic="trash" title="Xoa" tone="crit" onClick={() => deleteTpl(r)} />
+              <ActBtn ic="edit" title="Sửa" onClick={() => openTplEdit(r)} />
+              <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => deleteTpl(r)} />
             </div>
           )}
-          empty={'Chua co template'}
+          empty={'Chưa có template'}
         />
       </>}
 
       {/* Occupation */}
       {tab === 'occupation' && <>
         <div className="ab-toolbar" style={{ borderTop: 'none' }}>
-          <SearchBox value={occKeyword} onChange={setOccKeyword} placeholder="Tim theo ma / ten..." />
-          <Btn variant="ghost" onClick={() => setOccKeyword('')}><Ico name="x" size={12} /> Bo loc</Btn>
+          <SearchBox value={occKeyword} onChange={setOccKeyword} placeholder="Tìm theo mã / tên..." />
+          <Btn variant="ghost" onClick={() => setOccKeyword('')}><Ico name="x" size={12} /> Bộ lọc</Btn>
         </div>
         <DataTable<OccupationDto>
           columns={simpleCols<OccupationDto>()} data={occList} loading={occLoading} rowKey={(r) => r.id}
           actions={(r) => (
             <div className="ab-actions">
-              <ActBtn ic="edit" title="Sua" onClick={() => openSimpleEdit(r, occForm, setOccEditing, setOccModal)} />
-              <ActBtn ic="trash" title="Xoa" tone="crit" onClick={() => makeDelete(deleteOccupation, loadOcc)(r)} />
+              <ActBtn ic="edit" title="Sửa" onClick={() => openSimpleEdit(r, occForm, setOccEditing, setOccModal)} />
+              <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => makeDelete(deleteOccupation, loadOcc)(r)} />
             </div>
           )}
-          empty={'Chua co nghe nghiep'}
+          empty={'Chưa có nghề nghiệp'}
         />
       </>}
 
       {/* Gender */}
       {tab === 'gender' && <>
         <div className="ab-toolbar" style={{ borderTop: 'none' }}>
-          <SearchBox value={genKeyword} onChange={setGenKeyword} placeholder="Tim theo ma / ten..." />
-          <Btn variant="ghost" onClick={() => setGenKeyword('')}><Ico name="x" size={12} /> Bo loc</Btn>
+          <SearchBox value={genKeyword} onChange={setGenKeyword} placeholder="Tìm theo mã / tên..." />
+          <Btn variant="ghost" onClick={() => setGenKeyword('')}><Ico name="x" size={12} /> Bộ lọc</Btn>
         </div>
         <DataTable<GenderDto>
           columns={simpleCols<GenderDto>()} data={genList} loading={genLoading} rowKey={(r) => r.id}
           actions={(r) => (
             <div className="ab-actions">
-              <ActBtn ic="edit" title="Sua" onClick={() => openSimpleEdit(r, genForm, setGenEditing, setGenModal)} />
-              <ActBtn ic="trash" title="Xoa" tone="crit" onClick={() => makeDelete(deleteGender, loadGen)(r)} />
+              <ActBtn ic="edit" title="Sửa" onClick={() => openSimpleEdit(r, genForm, setGenEditing, setGenModal)} />
+              <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => makeDelete(deleteGender, loadGen)(r)} />
             </div>
           )}
-          empty={'Chua co gioi tinh'}
+          empty={'Chưa có giới tính'}
         />
       </>}
 
       {/* Ethnic */}
       {tab === 'ethnic' && <>
         <div className="ab-toolbar" style={{ borderTop: 'none' }}>
-          <SearchBox value={ethKeyword} onChange={setEthKeyword} placeholder="Tim theo ma / ten..." />
-          <Btn variant="ghost" onClick={() => setEthKeyword('')}><Ico name="x" size={12} /> Bo loc</Btn>
+          <SearchBox value={ethKeyword} onChange={setEthKeyword} placeholder="Tìm theo mã / tên..." />
+          <Btn variant="ghost" onClick={() => setEthKeyword('')}><Ico name="x" size={12} /> Bộ lọc</Btn>
         </div>
         <DataTable<EthnicDto>
           columns={simpleCols<EthnicDto>()} data={ethList} loading={ethLoading} rowKey={(r) => r.id}
           actions={(r) => (
             <div className="ab-actions">
-              <ActBtn ic="edit" title="Sua" onClick={() => openSimpleEdit(r, ethForm, setEthEditing, setEthModal)} />
-              <ActBtn ic="trash" title="Xoa" tone="crit" onClick={() => makeDelete(deleteEthnic, loadEth)(r)} />
+              <ActBtn ic="edit" title="Sửa" onClick={() => openSimpleEdit(r, ethForm, setEthEditing, setEthModal)} />
+              <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => makeDelete(deleteEthnic, loadEth)(r)} />
             </div>
           )}
-          empty={'Chua co dan toc'}
+          empty={'Chưa có dân tộc'}
         />
       </>}
 
       {/* Nation */}
       {tab === 'nation' && <>
         <div className="ab-toolbar" style={{ borderTop: 'none' }}>
-          <SearchBox value={natKeyword} onChange={setNatKeyword} placeholder="Tim theo ma / ten..." />
-          <Btn variant="ghost" onClick={() => setNatKeyword('')}><Ico name="x" size={12} /> Bo loc</Btn>
+          <SearchBox value={natKeyword} onChange={setNatKeyword} placeholder="Tìm theo mã / tên..." />
+          <Btn variant="ghost" onClick={() => setNatKeyword('')}><Ico name="x" size={12} /> Bộ lọc</Btn>
         </div>
         <DataTable<NationDto>
           columns={simpleCols<NationDto>()} data={natList} loading={natLoading} rowKey={(r) => r.id}
           actions={(r) => (
             <div className="ab-actions">
-              <ActBtn ic="edit" title="Sua" onClick={() => openSimpleEdit(r, natForm, setNatEditing, setNatModal)} />
-              <ActBtn ic="trash" title="Xoa" tone="crit" onClick={() => makeDelete(deleteNation, loadNat)(r)} />
+              <ActBtn ic="edit" title="Sửa" onClick={() => openSimpleEdit(r, natForm, setNatEditing, setNatModal)} />
+              <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => makeDelete(deleteNation, loadNat)(r)} />
             </div>
           )}
-          empty={'Chua co quoc gia'}
+          empty={'Chưa có quốc gia'}
         />
       </>}
 
       {/* InitialFacility */}
       {tab === 'facility' && <>
         <div className="ab-toolbar" style={{ borderTop: 'none' }}>
-          <SearchBox value={facKeyword} onChange={setFacKeyword} placeholder="Tim theo ma / ten / ma BHXH..." />
-          <Btn variant="ghost" onClick={() => setFacKeyword('')}><Ico name="x" size={12} /> Bo loc</Btn>
+          <SearchBox value={facKeyword} onChange={setFacKeyword} placeholder="Tìm theo mã / tên / mã BHXH..." />
+          <Btn variant="ghost" onClick={() => setFacKeyword('')}><Ico name="x" size={12} /> Bộ lọc</Btn>
         </div>
         <DataTable<InitialFacilityDto>
           columns={facilityCols} data={facList} loading={facLoading} rowKey={(r) => r.id}
           actions={(r) => (
             <div className="ab-actions">
-              <ActBtn ic="edit" title="Sua" onClick={() => {
+              <ActBtn ic="edit" title="Sửa" onClick={() => {
                 setFacEditing(r);
                 facForm.setFieldsValue(r);
                 setFacModal(true);
               }} />
-              <ActBtn ic="trash" title="Xoa" tone="crit" onClick={() => makeDelete(deleteInitialFacility, loadFac)(r)} />
+              <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => makeDelete(deleteInitialFacility, loadFac)(r)} />
             </div>
           )}
-          empty={'Chua co CSKCB'}
+          empty={'Chưa có CSKCB'}
         />
       </>}
 
@@ -505,32 +511,32 @@ const CatalogsAdminV2: React.FC = () => {
         open={abbrModal}
         onClose={() => setAbbrModal(false)}
         size="md"
-        title={abbrEditing ? 'Sua viet tat' : 'Them viet tat'}
+        title={abbrEditing ? 'Sửa viết tắt' : 'Thêm viết tắt'}
         footer={<>
-          <Btn variant="ghost" onClick={() => setAbbrModal(false)}>Huy</Btn>
-          <Btn variant="primary" onClick={submitAbbr} disabled={saving}>
-            <Ico name="check" size={12} /> {saving ? 'Dang luu...' : 'Luu'}
+          <Btn variant="ghost" onClick={() => setAbbrModal(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitAbbr} loading={saving}>
+            <Ico name="check" size={12} /> Lưu
           </Btn>
         </>}
       >
-        <Form form={abbrForm} layout="vertical">
-          <Form.Item name="code" label="Code (ngan, lowercase, khong dau)"
-            rules={[{ required: true, pattern: /^[a-z0-9]+$/, message: 'Chi chu thuong + so' }]}>
+        <Form form={abbrForm} layout="vertical" scrollToFirstError>
+          <Form.Item name="code" label="Code (ngắn, lowercase, không dấu)"
+            rules={[{ required: true, pattern: /^[a-z0-9]+$/, message: 'Chỉ chứa chữ thường + số' }]}>
             <Input placeholder="VD: ha, nth, kbt" maxLength={20} />
           </Form.Item>
-          <Form.Item name="expansion" label="Cum tu day du" rules={[{ required: true }]}>
-            <Input.TextArea rows={2} placeholder="VD: Khong bat thuong" />
+          <Form.Item name="expansion" label="Cụm từ đầy đủ" rules={[{ required: true }]}>
+            <Input.TextArea rows={2} placeholder="VD: Không bất thường" />
           </Form.Item>
           <Form.Item name="scope" label="Scope" rules={[{ required: true }]}>
             <Select options={SCOPE_OPTIONS.map((s) => ({ value: Number(s.v), label: s.l }))} />
           </Form.Item>
-          <Form.Item name="scopeKey" label="Scope key (tuy chon, cho CDHA theo ky thuat)">
-            <Input placeholder="VD: CT, MRI, XQ, noi soi" />
+          <Form.Item name="scopeKey" label="Scope key (tùy chọn, cho CDHA theo kỹ thuật)">
+            <Input placeholder="VD: CT, MRI, XQ, nội soi" />
           </Form.Item>
           <Form.Item name="ownerOnly" valuePropName="checked">
             <Checkbox>Chi minh toi dung duoc</Checkbox>
           </Form.Item>
-          <Form.Item name="sortOrder" label="Thu tu sap xep"><InputNumber min={0} /></Form.Item>
+          <Form.Item name="sortOrder" label="Thứ tự sắp xếp"><InputNumber min={0} /></Form.Item>
         </Form>
       </ModalShell>
 
@@ -542,39 +548,39 @@ const CatalogsAdminV2: React.FC = () => {
             background: 'var(--bg-card)', padding: 'var(--space-24)', overflowY: 'auto' }}
             onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-16)' }}>
-              <b style={{ fontSize: 16 }}>{tplEditing ? 'Sua template' : 'Them template moi'}</b>
+              <b style={{ fontSize: 16 }}>{tplEditing ? 'Sửa template' : 'Thêm template mới'}</b>
               <Btn variant="ghost" onClick={() => setTplDrawer(false)}><Ico name="x" size={14} /></Btn>
             </div>
-            <Form form={tplForm} layout="vertical">
-              <Form.Item name="templateName" label="Ten template" rules={[{ required: true }]}>
-                <Input placeholder="VD: Ket luan X-quang nguc binh thuong" />
+            <Form form={tplForm} layout="vertical" scrollToFirstError>
+              <Form.Item name="templateName" label="Tên template" rules={[{ required: true }]}>
+                <Input placeholder="VD: Kết luận X-quang ngực bình thường" />
               </Form.Item>
-              <Form.Item name="templateType" label="Loai" rules={[{ required: true }]}>
+              <Form.Item name="templateType" label="Loại" rules={[{ required: true }]}>
                 <Select options={Object.entries(TEMPLATE_TYPE_LABELS).map(([k, v]) => ({ value: Number(k), label: v }))} />
               </Form.Item>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 'var(--space-12)' }}>
-                <Form.Item name="icdCode" label="Ma ICD-10"><Input placeholder="VD: J18.9" maxLength={20} /></Form.Item>
-                <Form.Item name="icdName" label="Ten chan doan"><Input placeholder="Viem phoi khong xac dinh" /></Form.Item>
+                <Form.Item name="icdCode" label="Mã ICD-10"><Input placeholder="VD: J18.9" maxLength={20} /></Form.Item>
+                <Form.Item name="icdName" label="Tên chẩn đoán"><Input placeholder="Viêm phổi không xác định" /></Form.Item>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '140px 120px 120px 1fr', gap: 'var(--space-12)' }}>
-                <Form.Item name="gender" label="Gioi tinh">
-                  <Select options={[{ value: 0, label: 'Tat ca' }, { value: 1, label: 'Nam' }, { value: 2, label: 'Nu' }]} />
+                <Form.Item name="gender" label="Giới tính">
+                  <Select options={[{ value: 0, label: 'Tất cả' }, { value: 1, label: 'Nam' }, { value: 2, label: 'Nữ' }]} />
                 </Form.Item>
-                <Form.Item name="minAgeYears" label="Tuoi toi thieu"><InputNumber min={0} max={120} style={{ width: '100%' }} /></Form.Item>
-                <Form.Item name="maxAgeYears" label="Tuoi toi da"><InputNumber min={0} max={120} style={{ width: '100%' }} /></Form.Item>
+                <Form.Item name="minAgeYears" label="Tuổi tối thiểu"><InputNumber min={0} max={120} style={{ width: '100%' }} /></Form.Item>
+                <Form.Item name="maxAgeYears" label="Tuổi tối đa"><InputNumber min={0} max={120} style={{ width: '100%' }} /></Form.Item>
               </div>
-              <Form.Item name="content" label="Noi dung template" rules={[{ required: true }]}>
-                <Input.TextArea rows={12} placeholder="Noi dung mau..." />
+              <Form.Item name="content" label="Nội dung template" rules={[{ required: true }]}>
+                <Input.TextArea rows={12} placeholder="Nội dung mẫu..." />
               </Form.Item>
               <Form.Item name="isPublic" valuePropName="checked">
-                <Checkbox>Cong khai cho tat ca BS</Checkbox>
+                <Checkbox>Công khai cho tất cả BS</Checkbox>
               </Form.Item>
-              <Form.Item name="sortOrder" label="Thu tu sap xep"><InputNumber min={0} /></Form.Item>
+              <Form.Item name="sortOrder" label="Thứ tự sắp xếp"><InputNumber min={0} /></Form.Item>
             </Form>
             <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end', marginTop: 'var(--space-16)' }}>
-              <Btn variant="ghost" onClick={() => setTplDrawer(false)}>Huy</Btn>
-              <Btn variant="primary" onClick={submitTpl} disabled={saving}>
-                <Ico name="check" size={12} /> {saving ? 'Dang luu...' : 'Luu'}
+              <Btn variant="ghost" onClick={() => setTplDrawer(false)}>Hủy</Btn>
+              <Btn variant="primary" onClick={submitTpl} loading={saving}>
+                <Ico name="check" size={12} /> Lưu
               </Btn>
             </div>
           </div>
@@ -583,96 +589,96 @@ const CatalogsAdminV2: React.FC = () => {
 
       {/* ── Simple catalog modals ── */}
       <ModalShell open={occModal} onClose={() => setOccModal(false)} size="sm"
-        title={occEditing ? 'Sua nghe nghiep' : 'Them nghe nghiep'}
+        title={occEditing ? 'Sửa nghề nghiệp' : 'Thêm nghề nghiệp'}
         footer={<>
-          <Btn variant="ghost" onClick={() => setOccModal(false)}>Huy</Btn>
-          <Btn variant="primary" onClick={makeSubmit(occEditing, occForm, saveOccupation, setOccModal, loadOcc)} disabled={saving}>
-            <Ico name="check" size={12} /> {saving ? 'Dang luu...' : 'Luu'}
+          <Btn variant="ghost" onClick={() => setOccModal(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={makeSubmit(occEditing, occForm, saveOccupation, setOccModal, loadOcc)} loading={saving}>
+            <Ico name="check" size={12} /> Lưu
           </Btn>
         </>}>
-        <Form form={occForm} layout="vertical">
-          <Form.Item name="code" label="Ma" rules={[{ required: true }]}><Input maxLength={50} /></Form.Item>
-          <Form.Item name="name" label="Ten" rules={[{ required: true }]}><Input maxLength={255} /></Form.Item>
-          <Form.Item name="note" label="Ghi chu"><Input maxLength={500} /></Form.Item>
-          <Form.Item name="sortOrder" label="Thu tu"><InputNumber min={0} /></Form.Item>
-          <Form.Item name="isActive" valuePropName="checked"><Checkbox>Hoat dong</Checkbox></Form.Item>
+        <Form form={occForm} layout="vertical" scrollToFirstError>
+          <Form.Item name="code" label="Mã" rules={[{ required: true }]}><Input maxLength={50} /></Form.Item>
+          <Form.Item name="name" label="Tên" rules={[{ required: true }]}><Input maxLength={255} /></Form.Item>
+          <Form.Item name="note" label="Ghi chú"><Input maxLength={500} /></Form.Item>
+          <Form.Item name="sortOrder" label="Thứ tự"><InputNumber min={0} /></Form.Item>
+          <Form.Item name="isActive" valuePropName="checked"><Checkbox>Hoạt động</Checkbox></Form.Item>
         </Form>
       </ModalShell>
 
       <ModalShell open={genModal} onClose={() => setGenModal(false)} size="sm"
-        title={genEditing ? 'Sua gioi tinh' : 'Them gioi tinh'}
+        title={genEditing ? 'Sửa giới tính' : 'Thêm giới tính'}
         footer={<>
-          <Btn variant="ghost" onClick={() => setGenModal(false)}>Huy</Btn>
-          <Btn variant="primary" onClick={makeSubmit(genEditing, genForm, saveGender, setGenModal, loadGen)} disabled={saving}>
-            <Ico name="check" size={12} /> {saving ? 'Dang luu...' : 'Luu'}
+          <Btn variant="ghost" onClick={() => setGenModal(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={makeSubmit(genEditing, genForm, saveGender, setGenModal, loadGen)} loading={saving}>
+            <Ico name="check" size={12} /> Lưu
           </Btn>
         </>}>
-        <Form form={genForm} layout="vertical">
-          <Form.Item name="code" label="Ma" rules={[{ required: true }]}><Input maxLength={10} /></Form.Item>
-          <Form.Item name="name" label="Ten" rules={[{ required: true }]}><Input maxLength={100} /></Form.Item>
-          <Form.Item name="note" label="Ghi chu"><Input maxLength={500} /></Form.Item>
-          <Form.Item name="sortOrder" label="Thu tu"><InputNumber min={0} /></Form.Item>
-          <Form.Item name="isActive" valuePropName="checked"><Checkbox>Hoat dong</Checkbox></Form.Item>
+        <Form form={genForm} layout="vertical" scrollToFirstError>
+          <Form.Item name="code" label="Mã" rules={[{ required: true }]}><Input maxLength={10} /></Form.Item>
+          <Form.Item name="name" label="ên" rules={[{ required: true }]}><Input maxLength={100} /></Form.Item>
+          <Form.Item name="note" label="Ghi chú"><Input maxLength={500} /></Form.Item>
+          <Form.Item name="sortOrder" label="Thứ tự"><InputNumber min={0} /></Form.Item>
+          <Form.Item name="isActive" valuePropName="checked"><Checkbox>Hoạt động</Checkbox></Form.Item>
         </Form>
       </ModalShell>
 
       <ModalShell open={ethModal} onClose={() => setEthModal(false)} size="sm"
-        title={ethEditing ? 'Sua dan toc' : 'Them dan toc'}
+        title={ethEditing ? 'Sửa dân tộc' : 'Thêm dân tộc'}
         footer={<>
-          <Btn variant="ghost" onClick={() => setEthModal(false)}>Huy</Btn>
-          <Btn variant="primary" onClick={makeSubmit(ethEditing, ethForm, saveEthnic, setEthModal, loadEth)} disabled={saving}>
-            <Ico name="check" size={12} /> {saving ? 'Dang luu...' : 'Luu'}
+          <Btn variant="ghost" onClick={() => setEthModal(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={makeSubmit(ethEditing, ethForm, saveEthnic, setEthModal, loadEth)} loading={saving}>
+            <Ico name="check" size={12} /> Lưu
           </Btn>
         </>}>
-        <Form form={ethForm} layout="vertical">
-          <Form.Item name="code" label="Ma" rules={[{ required: true }]}><Input maxLength={20} /></Form.Item>
-          <Form.Item name="name" label="Ten" rules={[{ required: true }]}><Input maxLength={255} /></Form.Item>
-          <Form.Item name="note" label="Ghi chu"><Input maxLength={500} /></Form.Item>
-          <Form.Item name="sortOrder" label="Thu tu"><InputNumber min={0} /></Form.Item>
-          <Form.Item name="isActive" valuePropName="checked"><Checkbox>Hoat dong</Checkbox></Form.Item>
+        <Form form={ethForm} layout="vertical" scrollToFirstError>
+          <Form.Item name="code" label="Mã" rules={[{ required: true }]}><Input maxLength={20} /></Form.Item>
+          <Form.Item name="name" label="Tên" rules={[{ required: true }]}><Input maxLength={255} /></Form.Item>
+          <Form.Item name="note" label="Ghi chú"><Input maxLength={500} /></Form.Item>
+          <Form.Item name="sortOrder" label="Thứ tự"><InputNumber min={0} /></Form.Item>
+          <Form.Item name="isActive" valuePropName="checked"><Checkbox>Hoạt động</Checkbox></Form.Item>
         </Form>
       </ModalShell>
 
       <ModalShell open={natModal} onClose={() => setNatModal(false)} size="sm"
-        title={natEditing ? 'Sua quoc gia' : 'Them quoc gia'}
+        title={natEditing ? 'Sửa quốc gia' : 'Thêm quốc gia'}
         footer={<>
-          <Btn variant="ghost" onClick={() => setNatModal(false)}>Huy</Btn>
-          <Btn variant="primary" onClick={makeSubmit(natEditing, natForm, saveNation, setNatModal, loadNat)} disabled={saving}>
-            <Ico name="check" size={12} /> {saving ? 'Dang luu...' : 'Luu'}
+          <Btn variant="ghost" onClick={() => setNatModal(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={makeSubmit(natEditing, natForm, saveNation, setNatModal, loadNat)} loading={saving}>
+            <Ico name="check" size={12} /> Lưu
           </Btn>
         </>}>
-        <Form form={natForm} layout="vertical">
-          <Form.Item name="code" label="Ma quoc gia" rules={[{ required: true }]}><Input maxLength={10} /></Form.Item>
-          <Form.Item name="name" label="Ten quoc gia" rules={[{ required: true }]}><Input maxLength={255} /></Form.Item>
-          <Form.Item name="note" label="Ghi chu"><Input maxLength={500} /></Form.Item>
-          <Form.Item name="sortOrder" label="Thu tu"><InputNumber min={0} /></Form.Item>
-          <Form.Item name="isActive" valuePropName="checked"><Checkbox>Hoat dong</Checkbox></Form.Item>
+        <Form form={natForm} layout="vertical" scrollToFirstError>
+          <Form.Item name="code" label="Mã quốc gia" rules={[{ required: true }]}><Input maxLength={10} /></Form.Item>
+          <Form.Item name="name" label="Tên quốc gia" rules={[{ required: true }]}><Input maxLength={255} /></Form.Item>
+          <Form.Item name="note" label="Ghi chú"><Input maxLength={500} /></Form.Item>
+          <Form.Item name="sortOrder" label="Thứ tự"><InputNumber min={0} /></Form.Item>
+          <Form.Item name="isActive" valuePropName="checked"><Checkbox>Hoạt động</Checkbox></Form.Item>
         </Form>
       </ModalShell>
 
       <ModalShell open={facModal} onClose={() => setFacModal(false)} size="md"
-        title={facEditing ? 'Sua CSKCB' : 'Them CSKCB ban dau'}
+        title={facEditing ? 'Sửa CSKCB' : 'Thêm CSKCB ban đầu'}
         footer={<>
-          <Btn variant="ghost" onClick={() => setFacModal(false)}>Huy</Btn>
-          <Btn variant="primary" onClick={makeSubmit(facEditing, facForm, saveInitialFacility, setFacModal, loadFac)} disabled={saving}>
-            <Ico name="check" size={12} /> {saving ? 'Dang luu...' : 'Luu'}
+          <Btn variant="ghost" onClick={() => setFacModal(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={makeSubmit(facEditing, facForm, saveInitialFacility, setFacModal, loadFac)} loading={saving}>
+            <Ico name="check" size={12} /> Lưu
           </Btn>
         </>}>
-        <Form form={facForm} layout="vertical">
+        <Form form={facForm} layout="vertical" scrollToFirstError>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-            <Form.Item name="code" label="Ma CSKCB" rules={[{ required: true }]}><Input maxLength={20} /></Form.Item>
-            <Form.Item name="bhxhCode" label="Ma BHXH"><Input maxLength={20} /></Form.Item>
+            <Form.Item name="code" label="Mã CSKCB" rules={[{ required: true }]}><Input maxLength={20} /></Form.Item>
+            <Form.Item name="bhxhCode" label="Mã BHXH"><Input maxLength={20} /></Form.Item>
           </div>
-          <Form.Item name="name" label="Ten co so" rules={[{ required: true }]}><Input maxLength={500} /></Form.Item>
+          <Form.Item name="name" label="Tên cơ sở" rules={[{ required: true }]}><Input maxLength={500} /></Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-            <Form.Item name="province" label="Tinh/Thanh pho"><Input maxLength={100} /></Form.Item>
-            <Form.Item name="level" label="Tuyen kham">
-              <Select allowClear options={LEVEL_OPTIONS} placeholder="Chon tuyen" />
+            <Form.Item name="province" label="Tỉnh/Thành phố"><Input maxLength={100} /></Form.Item>
+            <Form.Item name="level" label="Tuyến khám">
+              <Select allowClear options={LEVEL_OPTIONS} placeholder="Chọn tuyến" />
             </Form.Item>
           </div>
-          <Form.Item name="note" label="Ghi chu"><Input maxLength={500} /></Form.Item>
-          <Form.Item name="sortOrder" label="Thu tu"><InputNumber min={0} /></Form.Item>
-          <Form.Item name="isActive" valuePropName="checked"><Checkbox>Hoat dong</Checkbox></Form.Item>
+          <Form.Item name="note" label="Ghi chú"><Input maxLength={500} /></Form.Item>
+          <Form.Item name="sortOrder" label="Thứ tự"><InputNumber min={0} /></Form.Item>
+          <Form.Item name="isActive" valuePropName="checked"><Checkbox>Hoạt động</Checkbox></Form.Item>
         </Form>
       </ModalShell>
     </div>

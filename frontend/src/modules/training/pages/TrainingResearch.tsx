@@ -17,7 +17,7 @@ import {
   DrawerShell, DrSec, DrField, tk, ti,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 
 // ─── Field configs ───────────────────────────────────────────────────────────
 
@@ -455,7 +455,7 @@ const TrainingResearchV2: React.FC = () => {
           <Filter value={fType} onChange={setFType} options={types} placeholder="▾ Loại đào tạo" />
           <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>Bỏ lọc</Btn>
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
+          <RefreshButton onRefresh={async () => { await load() }} />
         </div>
 
         <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -475,7 +475,7 @@ const TrainingResearchV2: React.FC = () => {
             placeholder="Tìm bệnh viện / BS phụ trách…" />
           <Btn variant="ghost" icon="x" onClick={() => { setDirSearch(''); setDirPage(0); }}>Bỏ lọc</Btn>
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={loadDirs} loading={dirsLoading}>Làm mới</Btn>
+          <RefreshButton onRefresh={async () => { await loadDirs() }} />
         </div>
 
         <DataTable<ClinicalDirectionDto>
@@ -493,7 +493,7 @@ const TrainingResearchV2: React.FC = () => {
             placeholder="Tìm mã / tên / chủ nhiệm đề tài…" />
           <Btn variant="ghost" icon="x" onClick={() => { setProjSearch(''); setProjPage(0); }}>Bỏ lọc</Btn>
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={loadProjs} loading={projsLoading}>Làm mới</Btn>
+          <RefreshButton onRefresh={async () => { await loadProjs() }} />
         </div>
 
         <DataTable<ResearchProjectDto>
@@ -508,7 +508,7 @@ const TrainingResearchV2: React.FC = () => {
       {mainTab === 'certificates' && <>
         <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={loadCredits} loading={credLoading}>Làm mới</Btn>
+          <RefreshButton onRefresh={async () => { await loadCredits() }} />
         </div>
         <DataTable<CreditSummaryDto>
           columns={creditCols} data={credits} rowKey={(r) => r.staffId} loading={credLoading}

@@ -11,6 +11,7 @@ import {
   DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, te, cf,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
+import { useTabState } from '../../../hooks/useTabState';
 
 const BATCH_FIELDS: CrudFieldCfg[] = [
   { key: 'title', label: 'Nội dung đợt', required: true },
@@ -53,7 +54,7 @@ const ClinicalGuidanceV2: React.FC = () => {
   const [items, setItems] = useState<GuidanceBatchDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all');
   const [fType, setFType] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');

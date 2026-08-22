@@ -9,6 +9,7 @@
  *   Import:     lazy(() => import('./WaitingTimeReport'))
  */
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import { DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import {
@@ -24,6 +25,7 @@ import {
   KpiStrip, TopTabs, DataTable, StatusBadge, Btn, ti,
   type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 const { RangePicker } = DatePicker;
 
@@ -45,7 +47,7 @@ const OBJECT_COLORS = {
 };
 
 const WaitingTimeReport: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('overview');
+  const [tab, setTab] = useTabState<Tab>('overview');
   const [range, setRange] = useState<[Dayjs, Dayjs]>([
     dayjs().subtract(30, 'day').startOf('day'),
     dayjs().endOf('day'),
@@ -137,7 +139,7 @@ const WaitingTimeReport: React.FC = () => {
         tabs={TABS}
         actions={
           <>
-            <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
+            <RefreshButton onRefresh={load} loading={loading} />
           </>
         }
       />

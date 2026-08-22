@@ -10,7 +10,7 @@ import {
   KpiStrip, SearchBox, DataTable, DrawerShell, DrSec, DrField, StatusBadge,
   ModalShell, Btn, tk, te, cf, type ColumnDef,
 } from '@/_v2kit';
-import { RowActions } from '@/components/actions';
+import { RowActions, RefreshButton } from '@/components/actions';
 import { friendlyErrorMessage } from '@/utils/friendlyError';
 import { toStringValue, toNumberValue, type RawApiItem } from './helpers';
 
@@ -134,7 +134,7 @@ const ItTicketsPanel: React.FC = () => {
         <SearchBox value={keyword} onChange={setKeyword} placeholder="Tìm kiếm yêu cầu…" />
         <span className="spacer" />
         <Btn variant="primary" onClick={() => setCreateOpen(true)}>+ Tạo yêu cầu</Btn>
-        <Btn variant="ghost" onClick={load}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
       </div>
 
       <DataTable<TicketRow> columns={columns} data={tickets} rowKey={(t) => toStringValue(t.id)}
@@ -174,7 +174,7 @@ const ItTicketsPanel: React.FC = () => {
 
       {/* Modal tạo yêu cầu */}
       <ModalShell open={createOpen} onClose={() => { setCreateOpen(false); createF.resetFields(); }} title="Tạo yêu cầu CNTT" size="sm"
-        footer={<><Btn onClick={() => { setCreateOpen(false); createF.resetFields(); }}>Huỷ</Btn><Btn variant="primary" disabled={saving} onClick={submitCreate}>{saving ? 'Đang gửi…' : 'Gửi'}</Btn></>}>
+        footer={<><Btn onClick={() => { setCreateOpen(false); createF.resetFields(); }}>Huỷ</Btn><Btn variant="primary" loading={saving} onClick={submitCreate}>{saving ? 'Đang gửi…' : 'Gửi'}</Btn></>}>
         <Form form={createF} layout="vertical" requiredMark>
           <Form.Item name="title" label="Tiêu đề" rules={[{ required: true, message: 'Vui lòng nhập tiêu đề' }]}>
             <Input placeholder="VD: Máy in phòng khám 3 bị kẹt giấy" />
@@ -193,7 +193,7 @@ const ItTicketsPanel: React.FC = () => {
 
       {/* Modal phản hồi */}
       <ModalShell open={!!respondId} onClose={() => { setRespondId(null); respondF.resetFields(); }} title="Phản hồi yêu cầu CNTT" size="sm"
-        footer={<><Btn onClick={() => { setRespondId(null); respondF.resetFields(); }}>Huỷ</Btn><Btn variant="primary" disabled={saving} onClick={submitRespond}>{saving ? 'Đang gửi…' : 'Gửi phản hồi'}</Btn></>}>
+        footer={<><Btn onClick={() => { setRespondId(null); respondF.resetFields(); }}>Huỷ</Btn><Btn variant="primary" loading={saving} onClick={submitRespond}>{saving ? 'Đang gửi…' : 'Gửi phản hồi'}</Btn></>}>
         <Form form={respondF} layout="vertical" requiredMark>
           <Form.Item name="response" label="Nội dung phản hồi" rules={[{ required: true, message: 'Vui lòng nhập nội dung phản hồi' }]}>
             <Input.TextArea rows={4} placeholder="Mô tả cách xử lý, hướng dẫn, hoặc ghi chú…" />

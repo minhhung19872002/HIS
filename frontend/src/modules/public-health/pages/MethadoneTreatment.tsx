@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { message } from 'antd';
 import {
@@ -11,7 +12,7 @@ import {
   DrawerShell, ModalShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 
 // Đăng ký BN mới vào chương trình Methadone (enrollPatient). Liều khởi đầu 5-200mg — port verbatim từ v1 (InputNumber min={5} max={200}).
 const ENROLL_FIELDS: CrudFieldCfg[] = [
@@ -72,7 +73,7 @@ const MethadoneTreatmentV2: React.FC = () => {
   const [items, setItems] = useState<MethadonePatient[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all');
   const [fPhase, setFPhase] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<MethadonePatient | null>(null);
@@ -255,7 +256,7 @@ const MethadoneTreatmentV2: React.FC = () => {
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
+        <RefreshButton onRefresh={async () => { await load(); }} />
         <Btn variant="ghost" onClick={() => {
           const active = items.find((p) => p.status === 0);
           if (active) openUrine(active);

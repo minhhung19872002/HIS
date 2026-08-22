@@ -10,6 +10,10 @@ import {
   DrawerShell, DrSec, DrField, useTabCounts, tk, ti, te, cf,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { useTabState } from '../../../hooks/useTabState';
 
 const ASSET_FIELDS: CrudFieldCfg[] = [
   { key: 'assetCode', label: 'Mã tài sản', required: true, disabledOnEdit: true, placeholder: 'VD: TS-...' },
@@ -97,7 +101,7 @@ const AssetManagementV2: React.FC = () => {
   const [dash, setDash] = useState<AssetDashboardDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all');
   const [fDept, setFDept] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<FixedAssetDto | null>(null);
@@ -130,8 +134,14 @@ const AssetManagementV2: React.FC = () => {
   const [disposals, setDisposals] = useState<AssetDisposalDto[]>([]);
   const [hoOpen, setHoOpen] = useState(false);
   const [hoForm, setHoForm] = useState<{ fixedAssetId?: string; handoverType: number; handoverDate?: string; notes?: string }>({ handoverType: 1 });
+  const hoModalForm = useModalForm({ fixedAssetId: { required: true, message: 'Vui lòng chọn tài sản cần bàn giao' } }, hoOpen);
   const [dpOpen, setDpOpen] = useState(false);
   const [dpForm, setDpForm] = useState<{ fixedAssetId?: string; disposalType: number; disposalValue?: number; residualValue?: number; reason?: string }>({ disposalType: 1 });
+  const dpModalForm = useModalForm({
+    fixedAssetId: { required: true, message: 'Vui lòng chọn tài sản cần thanh lý' },
+    disposalValue: { validate: (v) => (typeof v === 'number' && v < 0) ? 'Giá trị không được âm' : undefined },
+    residualValue: { validate: (v) => (typeof v === 'number' && v < 0) ? 'Giá trị không được âm' : undefined },
+  }, dpOpen);
   // #352: tab Báo cáo TSCĐ (catalog + biểu đồ) — port từ v1 ReportsTab + dashboard charts
   const [reportTypes, setReportTypes] = useState<AssetReportTypeDto[]>([]);
   const [repSel, setRepSel] = useState<number | undefined>();
@@ -219,7 +229,6 @@ const AssetManagementV2: React.FC = () => {
   };
 
   const submitHandover = async () => {
-    if (!hoForm.fixedAssetId) { te('Chọn tài sản cần bàn giao'); return; }
     try {
       await saveHandover({ ...hoForm });
       tk('Đã tạo phiếu bàn giao');
@@ -237,8 +246,6 @@ const AssetManagementV2: React.FC = () => {
 
   // ── #352: Thanh lý tài sản (tiền) ─────────────────────────────────────────
   const submitDisposal = async () => {
-    if (!dpForm.fixedAssetId) { te('Chọn tài sản cần thanh lý'); return; }
-    if ((dpForm.disposalValue ?? 0) < 0 || (dpForm.residualValue ?? 0) < 0) { te('Giá trị không được âm'); return; }
     try {
       await proposeDisposal({ ...dpForm });
       tk('Đã đề xuất thanh lý');
@@ -376,7 +383,7 @@ const AssetManagementV2: React.FC = () => {
           ]}
         />
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
         {moduleTab === 'assets' && <>
           <Btn variant="ghost" icon="activity" onClick={async () => {
             setDeprOpen(true);
@@ -608,15 +615,15 @@ const AssetManagementV2: React.FC = () => {
       <ModalShell open={hoOpen} onClose={() => setHoOpen(false)} title="Tạo phiếu bàn giao tài sản" size="md"
         footer={<>
           <Btn variant="ghost" onClick={() => setHoOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={submitHandover}>Lưu</Btn>
+          <Btn variant="primary" onClick={() => { if (hoModalForm.validate({ fixedAssetId: hoForm.fixedAssetId })) submitHandover(); }}>Lưu</Btn>
         </>}
       >
         <Form layout="vertical" style={{ padding: '4px 0' }}>
-          <Form.Item label="Tài sản *">
+          <Field label="Tài sản" required error={hoModalForm.errors.fixedAssetId}>
             <Select showSearch optionFilterProp="label" placeholder="Chọn tài sản…"
               value={hoForm.fixedAssetId} options={assetOptions} style={{ width: '100%' }}
-              onChange={(v) => setHoForm((p) => ({ ...p, fixedAssetId: v }))} />
-          </Form.Item>
+              onChange={(v) => { setHoForm((p) => ({ ...p, fixedAssetId: v })); hoModalForm.clear('fixedAssetId'); }} />
+          </Field>
           <Form.Item label="Loại bàn giao">
             <Select value={hoForm.handoverType} style={{ width: '100%' }}
               options={Object.entries(HANDOVER_TYPE).map(([k, l]) => ({ value: Number(k), label: l }))}
@@ -637,29 +644,29 @@ const AssetManagementV2: React.FC = () => {
       <ModalShell open={dpOpen} onClose={() => setDpOpen(false)} title="Đề xuất thanh lý tài sản" size="md"
         footer={<>
           <Btn variant="ghost" onClick={() => setDpOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={submitDisposal}>Đề xuất</Btn>
+          <Btn variant="primary" onClick={() => { if (dpModalForm.validate({ fixedAssetId: dpForm.fixedAssetId, disposalValue: dpForm.disposalValue, residualValue: dpForm.residualValue })) submitDisposal(); }}>Đề xuất</Btn>
         </>}
       >
         <Form layout="vertical" style={{ padding: '4px 0' }}>
-          <Form.Item label="Tài sản *">
+          <Field label="Tài sản" required error={dpModalForm.errors.fixedAssetId}>
             <Select showSearch optionFilterProp="label" placeholder="Chọn tài sản…"
               value={dpForm.fixedAssetId} options={assetOptions} style={{ width: '100%' }}
-              onChange={(v) => setDpForm((p) => ({ ...p, fixedAssetId: v }))} />
-          </Form.Item>
+              onChange={(v) => { setDpForm((p) => ({ ...p, fixedAssetId: v })); dpModalForm.clear('fixedAssetId'); }} />
+          </Field>
           <Form.Item label="Loại thanh lý">
             <Select value={dpForm.disposalType} style={{ width: '100%' }}
               options={Object.entries(DISPOSAL_TYPE).map(([k, l]) => ({ value: Number(k), label: l }))}
               onChange={(v) => setDpForm((p) => ({ ...p, disposalType: v }))} />
           </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Form.Item label="Giá thanh lý (đ)">
+            <Field label="Giá thanh lý (đ)" error={dpModalForm.errors.disposalValue}>
               <Input type="number" min={0} value={dpForm.disposalValue ?? ''}
-                onChange={(e) => setDpForm((p) => ({ ...p, disposalValue: e.target.value === '' ? undefined : Number(e.target.value) }))} />
-            </Form.Item>
-            <Form.Item label="Giá trị còn lại (đ)">
+                onChange={(e) => { setDpForm((p) => ({ ...p, disposalValue: e.target.value === '' ? undefined : Number(e.target.value) })); dpModalForm.clear('disposalValue'); }} />
+            </Field>
+            <Field label="Giá trị còn lại (đ)" error={dpModalForm.errors.residualValue}>
               <Input type="number" min={0} value={dpForm.residualValue ?? ''}
-                onChange={(e) => setDpForm((p) => ({ ...p, residualValue: e.target.value === '' ? undefined : Number(e.target.value) }))} />
-            </Form.Item>
+                onChange={(e) => { setDpForm((p) => ({ ...p, residualValue: e.target.value === '' ? undefined : Number(e.target.value) })); dpModalForm.clear('residualValue'); }} />
+            </Field>
           </div>
           <Form.Item label="Lý do">
             <Input.TextArea rows={2} value={dpForm.reason ?? ''}

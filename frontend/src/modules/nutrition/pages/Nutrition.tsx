@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { Input } from 'antd';
 import {
@@ -14,12 +15,14 @@ import { getInpatientList } from '../../inpatient/api/inpatient';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 import { openPrintWindow } from '../../../utils/printWindow';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal, ModalShell,
   DrawerShell, DrSec, DrField, tk, ti, te, tw,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { Field } from '../../../components/form/Field';
 
 // ─────────────────────────── In phiếu chế độ ăn (dùng chung tab Sàng lọc + Chế độ ăn) ───────────────────────────
 
@@ -227,7 +230,7 @@ const RESTRICTION_OPTIONS = [
 const PER = 18;
 
 const NutritionV2: React.FC = () => {
-  const [tab, setTab] = useState<MainTab>('screening');
+  const [tab, setTab] = useTabState<MainTab>('screening', 'tab');
   const [dashboard, setDashboard] = useState<NutritionDashboardDto | null>(null);
 
   // ── NangCap26 XII.5/XII.6: duyệt phiếu suất ăn + hàng đợi nhà ăn ──
@@ -238,12 +241,16 @@ const NutritionV2: React.FC = () => {
   const [canteenBusy, setCanteenBusy] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<CanteenQueueItemDto | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const { errors: rjErrors, validate: rjValidate, clear: rjClear } = useModalForm(
+    { rejectReason: { required: true, label: 'lý do từ chối' } },
+    !!rejectTarget,
+  );
 
   // ── Diet orders (Chế độ ăn) state ──
   const [items, setItems] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all', 'stab');
   const [fDept, setFDept] = useState('');
   const [fRoute, setFRoute] = useState('');
   const [page, setPage] = useState(0);
@@ -385,7 +392,7 @@ const NutritionV2: React.FC = () => {
 
   const doReject = async () => {
     if (!rejectTarget) return;
-    if (!rejectReason.trim()) { tw('Phải nhập lý do từ chối'); return; }
+    if (!rjValidate({ rejectReason: rejectReason.trim() })) return;
     setCanteenBusy(rejectTarget.mealPlanId);
     try {
       await rejectMealPlan(rejectTarget.mealPlanId, rejectReason.trim());
@@ -685,7 +692,7 @@ const NutritionV2: React.FC = () => {
             <Filter value={screenRisk} onChange={setScreenRisk} options={RISK_OPTIONS} placeholder="▾ Nguy cơ" />
             <Btn variant="ghost" icon="x" onClick={() => { setScreenSearch(''); setScreenDept(''); setScreenRisk(''); setScreenStab('all'); }}>Bỏ lọc</Btn>
             <span className="spacer" />
-            <Btn variant="ghost" icon="refresh" onClick={loadScreening} loading={screenLoading}>Làm mới</Btn>
+            <RefreshButton onRefresh={async () => { await loadScreening() }} />
           </div>
 
           <StatusTabs<ScreenSKey> value={screenStab} onChange={(v) => { setScreenStab(v); setScreenPage(0); }} tabs={SCREEN_TABS} counts={screenCounts} />
@@ -796,7 +803,7 @@ const NutritionV2: React.FC = () => {
             <Filter value={fRoute} onChange={setFRoute} options={routes} placeholder="▾ Đường nuôi" />
             <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFDept(''); setFRoute(''); setStab('all'); }}>Bỏ lọc</Btn>
             <span className="spacer" />
-            <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
+            <RefreshButton onRefresh={async () => { await load() }} />
             <Btn variant="primary" icon="plus" onClick={openCreate}>Đơn mới</Btn>
           </div>
 
@@ -914,7 +921,7 @@ const NutritionV2: React.FC = () => {
             <Filter value={mealTypeFilter} onChange={(v) => { setMealTypeFilter(v); setMealPage(0); }} options={MEAL_TYPE_OPTIONS} placeholder="▾ Bữa ăn" />
             <Btn variant="ghost" icon="x" onClick={() => { setMealSearch(''); setMealTypeFilter(''); setMealDate(dayjs().format('YYYY-MM-DD')); }}>Bỏ lọc</Btn>
             <span className="spacer" />
-            <Btn variant="ghost" icon="refresh" onClick={loadMeals}>Làm mới</Btn>
+            <RefreshButton onRefresh={async () => { await loadMeals() }} />
           </div>
 
           <DataTable<PlannedMealDto>
@@ -982,7 +989,7 @@ const NutritionV2: React.FC = () => {
             <Filter value={canteenMeal} onChange={setCanteenMeal} options={MEAL_TYPE_OPTIONS} placeholder="▾ Bữa ăn" />
             <Btn variant="ghost" icon="x" onClick={() => { setCanteenMeal(''); setCanteenDate(dayjs().format('YYYY-MM-DD')); }}>Bỏ lọc</Btn>
             <span className="spacer" />
-            <Btn variant="ghost" icon="refresh" onClick={loadCanteen}>Làm mới</Btn>
+            <RefreshButton onRefresh={async () => { await loadCanteen() }} />
           </div>
 
           <DataTable<CanteenQueueItemDto>
@@ -1002,11 +1009,10 @@ const NutritionV2: React.FC = () => {
               <Btn variant="crit" disabled={!!canteenBusy} onClick={doReject}>Từ chối</Btn>
             </>}
           >
-            <label style={{ display: 'grid', gap: 'var(--space-4)', fontSize: 'var(--fs-sm)' }}>
-              Lý do từ chối <span style={{ color: 'var(--a-cr-text)' }}>*</span>
-              <Input.TextArea rows={3} value={rejectReason} onChange={(e) => setRejectReason(e.target.value)}
+            <Field label="Lý do từ chối" required error={rjErrors.rejectReason}>
+              <Input.TextArea rows={3} value={rejectReason} onChange={(e) => { setRejectReason(e.target.value); rjClear('rejectReason'); }}
                 placeholder="VD: khoa gửi sai số suất / trùng phiếu…" />
-            </label>
+            </Field>
           </ModalShell>
         </>
       )}

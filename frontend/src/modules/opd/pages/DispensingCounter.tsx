@@ -11,7 +11,10 @@ import {
   DrawerShell, DrSec, DrField, tk, ti, tw, cf, Ico,
   type ColumnDef,
 } from '@/_v2kit';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { useTabState } from '../../../hooks/useTabState';
 
 interface DispenseRow {
   prescriptionId: string;
@@ -48,7 +51,7 @@ const DispensingCounterV2: React.FC = () => {
   const [date, setDate] = useState<Dayjs>(dayjs());
   const [counter, setCounter] = useState('quay1');
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey>('pending');
+  const [stab, setStab] = useTabState<SKey>('pending');
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<DispenseRow[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -58,6 +61,7 @@ const DispensingCounterV2: React.FC = () => {
   const [barcodeVal, setBarcodeVal] = useState('');
   const [barcodeLoading, setBarcodeLoading] = useState(false);
   const barcodeInputRef = useRef<InputRef>(null);
+  const barcodeForm = useModalForm({ code: { required: true, message: 'Nhập mã đơn hoặc quét barcode' } }, barcodeOpen);
   const [dispensing, setDispensing] = useState(false);
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const isBusy = (id: string) => busyIds.has(id);
@@ -164,8 +168,8 @@ const DispensingCounterV2: React.FC = () => {
   };
 
   const handleBarcodeSearch = async () => {
+    if (!barcodeForm.validate({ code: barcodeVal })) return;
     const code = barcodeVal.trim();
-    if (!code) { tw('Nhập mã đơn hoặc quét barcode'); return; }
     setBarcodeLoading(true);
     try {
       // request wrapper (examination.ts dùng @/utils/request) trả { success, data } — chấp nhận cả 2 shape
@@ -260,9 +264,7 @@ ${targets.map((row) => row.items.map((it) => `<div class="label"><h3>${it.medici
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <RefreshButton onRefresh={load} />
         <Btn variant="ghost" onClick={() => { setBarcodeOpen(true); setTimeout(() => barcodeInputRef.current?.focus(), 100); }}>
           <Ico name="qr" size={12} /> Quét barcode
         </Btn>
@@ -316,15 +318,17 @@ ${targets.map((row) => row.items.map((it) => `<div class="label"><h3>${it.medici
         <p style={{ fontSize: 'var(--fs-md)', color: 'var(--t-2)', marginBottom: 'var(--space-12)' }}>
           Nhập mã đơn thuốc hoặc để máy quét barcode tự điền vào ô bên dưới.
         </p>
-        <Input
-          ref={barcodeInputRef}
-          placeholder="VD: RX20240601001 hoặc ID đơn"
-          value={barcodeVal}
-          onChange={(e) => setBarcodeVal(e.target.value)}
-          onPressEnter={handleBarcodeSearch}
-          size="large"
-          allowClear
-        />
+        <Field label="Mã đơn thuốc" required error={barcodeForm.errors.code}>
+          <Input
+            ref={barcodeInputRef}
+            placeholder="VD: RX20240601001 hoặc ID đơn"
+            value={barcodeVal}
+            onChange={(e) => { setBarcodeVal(e.target.value); barcodeForm.clear('code'); }}
+            onPressEnter={handleBarcodeSearch}
+            size="large"
+            allowClear
+          />
+        </Field>
       </Modal>
 
       <DrawerShell

@@ -1,6 +1,8 @@
 import React from 'react';
 import { ModalShell, Btn } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 import type { ConsultationRecordDto } from '../api/examination';
 
 /* ==========================================================================
@@ -20,7 +22,9 @@ export const ConsultModal: React.FC<{
   saving: boolean;
   onSave: () => void;
   sub?: string;
-}> = ({ open, onClose, consults, form, setForm, saving, onSave, sub }) => (
+}> = ({ open, onClose, consults, form, setForm, saving, onSave, sub }) => {
+  const vf = useModalForm({ reason: { required: true, message: 'Vui lòng nhập lý do hội chẩn' } }, open);
+  return (
   <ModalShell
     open={open}
     onClose={onClose}
@@ -30,7 +34,7 @@ export const ConsultModal: React.FC<{
     footer={
       <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
         <Btn variant="ghost" size="sm" onClick={onClose}>Đóng</Btn>
-        <Btn variant="primary" size="sm" disabled={saving || !form.reason.trim()} onClick={onSave}>
+        <Btn variant="primary" size="sm" loading={saving} onClick={() => { if (vf.validate({ reason: form.reason })) onSave(); }}>
           <TermIcon name="plus" size={11} /> Lưu biên bản
         </Btn>
       </div>
@@ -56,26 +60,23 @@ export const ConsultModal: React.FC<{
       <div>
         <h4 style={{ margin: '0 0 6px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Lập biên bản mới</h4>
         <div style={{ display: 'grid', gap: 'var(--space-8)' }}>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Lý do hội chẩn <span style={{ color: 'var(--s-err)' }}>*</span></label>
-            <input className="hui-inp" style={{ width: '100%', height: 28 }} value={form.reason} onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))} placeholder="Ca khó, đa bệnh lý…" />
-          </div>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Tóm tắt diễn biến</label>
+          <Field label="Lý do hội chẩn" required error={vf.errors.reason}>
+            <input className="hui-inp" style={{ width: '100%', height: 28 }} value={form.reason} onChange={(e) => { setForm((f) => ({ ...f, reason: e.target.value })); vf.clear('reason'); }} placeholder="Ca khó, đa bệnh lý…" />
+          </Field>
+          <Field label="Tóm tắt diễn biến">
             <textarea className="hui-inp" rows={2} style={{ width: '100%', resize: 'vertical' }} value={form.summary} onChange={(e) => setForm((f) => ({ ...f, summary: e.target.value }))} />
-          </div>
+          </Field>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-8)' }}>
-            <div>
-              <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Kết luận</label>
+            <Field label="Kết luận">
               <textarea className="hui-inp" rows={2} style={{ width: '100%', resize: 'vertical' }} value={form.conclusion} onChange={(e) => setForm((f) => ({ ...f, conclusion: e.target.value }))} />
-            </div>
-            <div>
-              <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Đề nghị</label>
+            </Field>
+            <Field label="Đề nghị">
               <textarea className="hui-inp" rows={2} style={{ width: '100%', resize: 'vertical' }} value={form.recommendations} onChange={(e) => setForm((f) => ({ ...f, recommendations: e.target.value }))} />
-            </div>
+            </Field>
           </div>
         </div>
       </div>
     </div>
   </ModalShell>
-);
+  );
+};

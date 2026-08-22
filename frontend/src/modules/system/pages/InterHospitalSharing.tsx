@@ -9,6 +9,7 @@ import {
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, tw,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 const TYPE_LABEL: Record<string, string> = {
   drug_lookup: 'Tra thuốc', ecpr: 'eCPR', patient_transfer: 'Chuyển BN',
@@ -175,7 +176,7 @@ const InterHospitalSharingV2: React.FC = () => {
           value={toDate} onChange={(e) => { setToDate(e.target.value); setPage(0); }} title="Đến ngày" />
         <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFType(''); setFDir(''); setFromDate(''); setToDate(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
         <Btn variant="primary" icon="plus" onClick={() => setCreateOpen(true)}>Yêu cầu mới</Btn>
       </div>
 

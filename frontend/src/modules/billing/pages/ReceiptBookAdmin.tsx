@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import { fmtNum as fmt } from '../../../utils/format';
 import { Form, Input, InputNumber, Select, DatePicker, Modal } from 'antd';
 import dayjs from 'dayjs';
@@ -9,7 +10,7 @@ import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, StatusBadge, Btn,
   tk, ti, tw, type ColumnDef,
 } from '@/_v2kit';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 
 interface Department { id: string; departmentName: string; departmentCode?: string }
 interface ReceiptBookSearchParams {
@@ -51,7 +52,7 @@ const STATUS_LABEL: Record<number, string> = { 0: 'Đã khai', 1: 'Đang dùng',
 
 
 const ReceiptBookAdminV2: React.FC = () => {
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all');
   const [data, setData] = useState<ReceiptBook[]>([]);
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState('');
@@ -198,7 +199,7 @@ const ReceiptBookAdminV2: React.FC = () => {
         <InputNumber placeholder="Năm TC" value={fYear} onChange={(v) => setFYear(Number(v) || undefined)} size="small" style={{ width: 100 }} />
         <Btn variant="ghost" icon="x" onClick={() => { setKeyword(''); setFType(''); setFYear(undefined); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
         <Btn variant="primary" icon="plus" onClick={openAdd}>Khai báo sổ mới</Btn>
       </div>
 

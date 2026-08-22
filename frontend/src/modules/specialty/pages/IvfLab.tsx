@@ -18,6 +18,7 @@ import {
   DrawerShell, DrSec, DrField, tk, ti, te, tw, Ico,
   type ColumnDef, type TopTab,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 const PER = 18;
 
@@ -158,9 +159,7 @@ const IvfLabV2: React.FC = () => {
             <Ico name="x" size={12} /> Bỏ lọc
           </Btn>
           <span className="spacer" />
-          <Btn variant="ghost" onClick={load}>
-            <Ico name="refresh" size={12} /> Làm mới
-          </Btn>
+          <RefreshButton onRefresh={async () => { await load() }} />
           <Btn variant="ghost" onClick={() => {
             if (sel) { openEmbryos(sel); setSel(null); }
             else message.info('Chọn cặp đôi từ danh sách để xem phôi đông');
@@ -613,9 +612,7 @@ const CryoTab: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <span style={{ fontWeight: 600, color: 'var(--t-0)' }}>Phôi đông lạnh</span>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={fetchData} loading={loading}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <RefreshButton onRefresh={async () => { await fetchData() }} />
       </div>
       <DataTable<IvfEmbryo>
         columns={embryoCols} data={frozenEmbryos} rowKey={(r) => r.id}
@@ -692,9 +689,7 @@ const SpermBankTab: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <SearchBox value={keyword} onChange={(v) => { setKeyword(v); setPage(0); }} placeholder="Tìm kiếm…" />
         <span className="spacer" />
-        <Btn variant="ghost" onClick={fetchData}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <RefreshButton onRefresh={async () => { await fetchData() }} />
         <Btn variant="primary" onClick={() => { form.resetFields(); setModalOpen(true); }}>
           <Ico name="plus" size={12} /> Thêm mẫu
         </Btn>
@@ -779,9 +774,7 @@ const DashboardTab: React.FC = () => {
       <div className="ab-toolbar">
         <span style={{ fontWeight: 600, color: 'var(--t-0)' }}>Tổng quan hoạt động IVF</span>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={fetchData} loading={loading}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <RefreshButton onRefresh={async () => { await fetchData() }} />
       </div>
       {dashboard && (
         <KpiStrip items={[

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import {
   searchOccExams, getOccStats, getHazardTypes, createOccExam, updateOccExam,
@@ -9,6 +10,7 @@ import {
   ActBtn, Btn, DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, tw, Ico, fmtDMYg,
   type ColumnDef, type StatusTab, type CrudFieldCfg, type KpiItem,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 // ─── Trạng thái phiếu khám (0=Chờ khám, 1=Đang khám, 2=Hoàn thành, 3=Đã cấp GCN) ───
 type StatusKey = 'pending' | 'inProgress' | 'completed' | 'certified';
@@ -68,13 +70,13 @@ const OccupationalHealthV2: React.FC = () => {
   const [hazards, setHazards] = useState<HazardType[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [tab, setTab] = useState<TabKey>('periodic');
+  const [tab, setTab] = useTabState<TabKey>('periodic', 'tab');
   const [search, setSearch] = useState('');
   const [companyFilter, setCompanyFilter] = useState('');
   const [hazardFilter, setHazardFilter] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
-  const [stab, setStab] = useState<StatusKey | 'all'>('all');
+  const [stab, setStab] = useTabState<StatusKey | 'all'>('all', 'stab');
   const [page, setPage] = useState(0);
 
   const [sel, setSel] = useState<OccExam | null>(null);
@@ -240,7 +242,7 @@ const OccupationalHealthV2: React.FC = () => {
             <Btn variant="primary" size="sm" onClick={openCreate}>
               <Ico name="plus" size={12} /> Tạo phiếu khám
             </Btn>
-            <Btn variant="ghost" size="sm" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
+            <RefreshButton onRefresh={async () => { await load(); }} />
           </>
         )}
       />

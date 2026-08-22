@@ -64,19 +64,10 @@ export default function ApplyDiscountModal({ open, onClose, onSuccess, invoiceId
 
   const handleOk = async () => {
     try {
+      // Validate ngưỡng duyệt (approverId) + lý do "Khác" (discountNote) + ngưỡng GĐ duyệt
+      // (discountReasonCode) đã chuyển vào rules của từng Form.Item tương ứng bên dưới —
+      // validateFields() tự chặn + hiện lỗi ngay tại field, không cần toast lặp lại ở đây.
       const values = await form.validateFields();
-      if (requiresApproval && !values.approverId) {
-        message.error(`Giảm từ ${DISCOUNT_APPROVAL_THRESHOLD.toLocaleString('vi-VN')}đ trở lên phải có người duyệt`);
-        return;
-      }
-      if (requiresGmApproval && values.discountReasonCode !== 4) {
-        message.error(`Giảm từ ${DISCOUNT_GM_THRESHOLD.toLocaleString('vi-VN')}đ trở lên phải chọn lý do 'Giám đốc duyệt miễn'`);
-        return;
-      }
-      if (values.discountReasonCode === 6 && !values.discountNote) {
-        message.error('Chọn lý do "Khác" phải ghi chi tiết trong ghi chú');
-        return;
-      }
       setSubmitting(true);
       await apiClient.post('/billingcomplete/discounts/invoice', {
         invoiceId,
@@ -171,7 +162,17 @@ export default function ApplyDiscountModal({ open, onClose, onSuccess, invoiceId
         <Form.Item
           name="discountReasonCode"
           label="Lý do miễn giảm (chuẩn hóa)"
-          rules={[{ required: true, message: 'Chọn lý do' }]}
+          rules={[
+            { required: true, message: 'Chọn lý do' },
+            () => ({
+              validator: (_, value) => {
+                if (requiresGmApproval && value !== 4) {
+                  return Promise.reject(new Error(`Giảm từ ${DISCOUNT_GM_THRESHOLD.toLocaleString('vi-VN')}đ trở lên phải chọn lý do 'Giám đốc duyệt miễn'`));
+                }
+                return Promise.resolve();
+              },
+            }),
+          ]}
         >
           <Select
             options={Object.entries(DISCOUNT_REASONS)

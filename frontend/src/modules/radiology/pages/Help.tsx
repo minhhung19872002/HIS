@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import risApi from '../api/ris';
 import type { HelpCategoryDto, HelpArticleDto, TroubleshootingDto } from '../api/ris';
 import {
@@ -6,6 +7,7 @@ import {
   DrawerShell, DrSec, DrField, ti, Ico,
   type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 type Tab = 'articles' | 'categories' | 'troubleshooting';
 const TABS = [
@@ -17,7 +19,7 @@ const TABS = [
 const PER = 18;
 
 const HelpV2: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('articles');
+  const [tab, setTab] = useTabState<Tab>('articles');
   const [categories, setCategories] = useState<HelpCategoryDto[]>([]);
   const [articles, setArticles] = useState<HelpArticleDto[]>([]);
   const [troubleshooting, setTroubleshooting] = useState<TroubleshootingDto[]>([]);
@@ -164,7 +166,7 @@ const HelpV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={(v) => { setTab(v); setPage(0); }} tabs={TABS} actions={
         <>
-          <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
+          <RefreshButton onRefresh={load} loading={loading} />
         </>
       } />
 

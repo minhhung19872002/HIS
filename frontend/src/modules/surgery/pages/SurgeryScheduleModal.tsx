@@ -125,7 +125,7 @@ export const SurgeryScheduleModal: React.FC<SurgeryScheduleModalProps> = ({ open
           </div>
 
           <Section title="Lịch mổ">
-            <Row2 label="Ngày mổ *">
+            <Row2 label="Ngày mổ">
               <DatePicker
                 format="DD/MM/YYYY"
                 style={{ width: '100%' }}
@@ -136,7 +136,7 @@ export const SurgeryScheduleModal: React.FC<SurgeryScheduleModalProps> = ({ open
                 disabledDate={(current) => current && current < dayjs().startOf('day')}
               />
             </Row2>
-            <Row2 label="Giờ mổ *">
+            <Row2 label="Giờ mổ">
               <TimePicker
                 format="HH:mm"
                 style={{ width: '100%' }}
@@ -147,7 +147,7 @@ export const SurgeryScheduleModal: React.FC<SurgeryScheduleModalProps> = ({ open
                 onChange={(t) => setScheduledTime(t)}
               />
             </Row2>
-            <Row2 label="Phòng mổ *">
+            <Row2 label="Phòng mổ">
               <AbSelect
                 // Chỉ phòng TRỐNG (BE status 0) — verbatim điều kiện v1 (local status===1 ⇔ BE 0)
                 options={rooms.filter((room) => room.status === 0).map((room) => ({ value: room.id, label: room.name }))}
@@ -156,7 +156,7 @@ export const SurgeryScheduleModal: React.FC<SurgeryScheduleModalProps> = ({ open
                 placeholder="Chọn phòng mổ"
               />
             </Row2>
-            <Row2 label="Dự kiến (phút) *">
+            <Row2 label="Dự kiến (phút)">
               <InputNumber
                 min={15}
                 max={480}

@@ -208,7 +208,7 @@ export const PreAnesthesiaModal: React.FC<PreAnesthesiaModalProps> = ({
                 size="small"
               />
             </Row2>
-            <Row2 label="Phương pháp vô cảm *">
+            <Row2 label="Phương pháp vô cảm">
               <Select
                 style={{ width: '100%' }}
                 size="small"

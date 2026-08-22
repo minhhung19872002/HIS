@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { searchCases, createCase, updateCase, getOutcomeReport } from '../api/traumaRegistry';
 import type { TraumaCase, TraumaOutcomeReport } from '../api/traumaRegistry';
@@ -8,6 +9,7 @@ import {
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 const TRAUMA_FIELDS: CrudFieldCfg[] = [
   { key: 'caseCode', label: 'Mã ca', required: true, disabledOnEdit: true },
@@ -55,7 +57,7 @@ const TraumaRegistryV2: React.FC = () => {
   const [items, setItems] = useState<TraumaCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all');
   const [fTriage, setFTriage] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<TraumaCase | null>(null);
@@ -171,9 +173,7 @@ const TraumaRegistryV2: React.FC = () => {
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">
-          Làm mới
-        </Btn>
+        <RefreshButton onRefresh={async () => { await load() }} />
         <Btn variant="primary" onClick={openCreate}>
           <Ico name="plus" size={12} /> Đăng ký ca
         </Btn>

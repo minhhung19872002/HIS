@@ -21,7 +21,8 @@ import {
   StatusTabs, DrawerShell, DrSec, DrField, tk, ti, te, Ico,
   type ColumnDef,
 } from '@/_v2kit';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
+import { useTabState } from '../../../hooks/useTabState';
 
 // Backend SpecialtyEmrDto (api/specialty-emr) — fieldData is a JSON string.
 interface SpecialtyRecord {
@@ -118,7 +119,7 @@ const SpecialtyEMRV2: React.FC = () => {
   const [items, setItems] = useState<SpecialtyRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<StatusKey | 'all'>('all');
+  const [stab, setStab] = useTabState<StatusKey | 'all'>('all');
   const [fSpec, setFSpec] = useState('');
   const [range, setRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
   const [page, setPage] = useState(0);
@@ -366,7 +367,7 @@ const SpecialtyEMRV2: React.FC = () => {
           <Ico name="refresh" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
         <Btn variant="primary" onClick={openCreate}>
           <Ico name="plus" size={12} /> HSBA mới
         </Btn>

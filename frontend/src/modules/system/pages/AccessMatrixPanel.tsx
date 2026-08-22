@@ -8,6 +8,7 @@ import {
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '@/utils/friendlyError';
 import { getNestedData } from './helpers';
+import { RefreshButton } from '../../../components/actions';
 
 const CLINICAL_ROLES = ['DOCTOR', 'NURSE', 'PHARMACIST', 'LAB_TECH'];
 
@@ -43,7 +44,7 @@ const AccessMatrixPanel: React.FC = () => {
         <span style={{ fontWeight: 600 }}>Ma trận kiểm soát truy cập</span>
         <span className="spacer" />
         <Btn variant="ghost" onClick={() => window.print()}>Xuất báo cáo</Btn>
-        <Btn variant="ghost" onClick={load}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
       </div>
 
       <DataTable<AccessControlMatrixDto> columns={columns} data={matrix} rowKey={(r) => r.roleCode}

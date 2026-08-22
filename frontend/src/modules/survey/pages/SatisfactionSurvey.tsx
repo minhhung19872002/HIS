@@ -18,6 +18,7 @@ import {
   StatusTabs, TopTabs, DrawerShell, DrSec, DrField, ModalShell, tk, ti, tw, te, cf, Ico,
   type ColumnDef, type TopTab,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 interface SurveyResult {
   id: string;
@@ -390,9 +391,7 @@ const SatisfactionSurveyV2: React.FC = () => {
           <Ico name="refresh" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">
-          Làm mới
-        </Btn>
+        <RefreshButton onRefresh={async () => { await load() }} />
         <Btn variant="ghost" onClick={handleExportCsv} disabled={csvLoading}>
           <Ico name="download" size={12} /> {csvLoading ? 'Đang xuất…' : 'Xuất CSV'}
         </Btn>
@@ -439,9 +438,7 @@ const SatisfactionSurveyV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <span style={{ color: 'var(--t-1)', fontWeight: 600 }}>Mẫu khảo sát ({surveyTemplates.length})</span>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={loadTemplates} loading={tplLoading} icon="refresh">
-          Làm mới
-        </Btn>
+        <RefreshButton onRefresh={async () => { await loadTemplates() }} />
         <Btn variant="primary" onClick={() => openTplModal()}>
           <Ico name="plus" size={12} /> Thêm mẫu mới
         </Btn>

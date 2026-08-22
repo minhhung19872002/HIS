@@ -12,6 +12,8 @@ import {
   type ColumnDef, type StatusTab, type KpiItem,
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 
 type SKey = 'new' | 'approved' | 'purchased' | 'cancelled';
 const STATUS_TABS: StatusTab<SKey>[] = [
@@ -78,6 +80,7 @@ const ProcurementV2: React.FC = () => {
   const [createRows, setCreateRows] = useState<CreateRow[]>([]);
   const [sugLoading, setSugLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const form = useModalForm({ whId: { required: true, message: 'Chọn kho trước' } }, createOpen);
 
   const openCreate = async () => {
     setCreateOpen(true);
@@ -118,7 +121,7 @@ const ProcurementV2: React.FC = () => {
     setCreateRows((p) => p.map((r, i) => i === idx ? { ...r, requestQty: v } : r));
 
   const submitCreate = async () => {
-    if (!whId) { te('Chọn kho trước'); return; }
+    if (!form.validate({ whId })) return;
     const items = createRows.filter((r) => r.checked && r.requestQty > 0);
     if (items.length === 0) { te('Chọn ít nhất 1 mặt hàng'); return; }
     setSubmitting(true);
@@ -214,29 +217,25 @@ const ProcurementV2: React.FC = () => {
         size="lg"
         footer={<>
           <Btn variant="ghost" onClick={() => setCreateOpen(false)}>Huỷ</Btn>
-          <Btn variant="primary" onClick={submitCreate} disabled={submitting}>
+          <Btn variant="primary" onClick={submitCreate} loading={submitting}>
             <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : 'Tạo phiếu'}
           </Btn>
         </>}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)', padding: 'var(--space-4) 0' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-10)' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-              <label style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>
-                Kho <span style={{ color: 'var(--s-crit)' }}>*</span>
-              </label>
-              <select style={SEL} value={whId} onChange={(e) => setWhId(e.target.value)}>
+            <Field label="Kho" required error={form.errors.whId}>
+              <select style={SEL} value={whId} onChange={(e) => { setWhId(e.target.value); form.clear('whId'); }}>
                 <option value="">— Chọn kho —</option>
                 {warehouses.map((w) => (
                   <option key={w.id} value={w.id}>{w.warehouseName}</option>
                 ))}
               </select>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-              <label style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Mô tả</label>
+            </Field>
+            <Field label="Mô tả">
               <input style={CELL} value={desc} onChange={(e) => setDesc(e.target.value)}
                 placeholder="Ghi chú dự trù (tuỳ chọn)" />
-            </div>
+            </Field>
           </div>
 
           <div>

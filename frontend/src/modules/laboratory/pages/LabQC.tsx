@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Input, InputNumber, DatePicker } from 'antd';
 import {
@@ -23,6 +24,9 @@ import {
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
 import { RowActions } from '../../../components/actions';
+import { RefreshButton } from '../../../components/actions/RefreshButton/RefreshButton';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 const LOT_FIELDS: CrudFieldCfg[] = [
@@ -61,16 +65,6 @@ const QC_LEVELS = [
   { value: 'Level2', label: 'Level 2 · Normal' },
   { value: 'Level3', label: 'Level 3 · High' },
 ];
-
-const FormRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div>
-    <div style={{
-      fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
-      letterSpacing: '0.05em', color: 'var(--t-2)', marginBottom: 'var(--space-6)',
-    }}>{label}</div>
-    {children}
-  </div>
-);
 
 const QCResultPanel: React.FC<{ result: QCResultDto }> = ({ result }) => (
   <div style={{ padding: 'var(--space-14)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
@@ -154,6 +148,12 @@ const RunQCModal: React.FC<{
   const [runTime, setRunTime] = useState<Dayjs>(() => dayjs());
   const [result, setResult] = useState<QCResultDto | null>(null);
   const [saving, setSaving] = useState(false);
+  const form = useModalForm({
+    analyzerId: { required: true, message: 'Chọn máy XN' },
+    testId: { required: true, message: 'Chọn xét nghiệm' },
+    lotNumber: { required: true, message: 'Nhập số lô' },
+    value: { required: true, message: 'Nhập giá trị đo' },
+  }, open);
 
   useEffect(() => {
     if (!open) return;
@@ -176,10 +176,7 @@ const RunQCModal: React.FC<{
   }, [open, lot, tests]);
 
   const submit = async () => {
-    if (!analyzerId || !testId || !lotNumber.trim() || value == null) {
-      te('Chọn máy XN, xét nghiệm, số lô và nhập giá trị đo');
-      return;
-    }
+    if (value == null) return; // narrows type; UX validation already gated by form.validate
     setSaving(true);
     try {
       const r = await runQC({
@@ -203,30 +200,37 @@ const RunQCModal: React.FC<{
       footer={<>
         <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
         <span style={{ flex: 1 }} />
-        <Btn variant="primary" onClick={submit} loading={saving} icon="check">Chạy QC</Btn>
+        <Btn
+          variant="primary"
+          onClick={() => {
+            if (form.validate({ analyzerId, testId, lotNumber, value })) void submit();
+          }}
+          loading={saving}
+          icon="check"
+        >Chạy QC</Btn>
       </>}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
-        <FormRow label="Máy xét nghiệm">
-          <AbSelect options={analyzers} fieldNames={{ value: 'id', label: 'name' }} value={analyzerId} onChange={setAnalyzerId} placeholder="— Chọn máy —" />
-        </FormRow>
-        <FormRow label="Xét nghiệm">
-          <AbSelect options={tests} fieldNames={{ value: 'id', label: 'name' }} value={testId} onChange={setTestId} placeholder="— Chọn xét nghiệm —" />
-        </FormRow>
+        <Field label="Máy xét nghiệm" required error={form.errors.analyzerId}>
+          <AbSelect options={analyzers} fieldNames={{ value: 'id', label: 'name' }} value={analyzerId} onChange={(v) => { setAnalyzerId(v); form.clear('analyzerId'); }} placeholder="— Chọn máy —" />
+        </Field>
+        <Field label="Xét nghiệm" required error={form.errors.testId}>
+          <AbSelect options={tests} fieldNames={{ value: 'id', label: 'name' }} value={testId} onChange={(v) => { setTestId(v); form.clear('testId'); }} placeholder="— Chọn xét nghiệm —" />
+        </Field>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-          <FormRow label="Mức QC">
+          <Field label="Mức QC" required>
             <AbSelect options={QC_LEVELS} fieldNames={{ value: 'value', label: 'label' }} value={level} onChange={setLevel} />
-          </FormRow>
-          <FormRow label="Số lô QC">
-            <Input value={lotNumber} onChange={(e) => setLotNumber(e.target.value)} placeholder="Số lô…" />
-          </FormRow>
+          </Field>
+          <Field label="Số lô QC" required error={form.errors.lotNumber}>
+            <Input value={lotNumber} onChange={(e) => { setLotNumber(e.target.value); form.clear('lotNumber'); }} placeholder="Số lô…" />
+          </Field>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-          <FormRow label="Giá trị đo">
-            <InputNumber style={{ width: '100%' }} value={value} onChange={(v) => setValue(v)} placeholder="Giá trị…" />
-          </FormRow>
-          <FormRow label="Thời điểm chạy">
+          <Field label="Giá trị đo" required error={form.errors.value}>
+            <InputNumber style={{ width: '100%' }} value={value} onChange={(v) => { setValue(v); form.clear('value'); }} placeholder="Giá trị…" />
+          </Field>
+          <Field label="Thời điểm chạy" required>
             <DatePicker showTime style={{ width: '100%' }} value={runTime} onChange={(d) => setRunTime(d || dayjs())} format="DD/MM/YYYY HH:mm" />
-          </FormRow>
+          </Field>
         </div>
         {result && <QCResultPanel result={result} />}
       </div>
@@ -247,6 +251,10 @@ const LJModal: React.FC<{
   const [range, setRange] = useState<[Dayjs, Dayjs]>(() => [dayjs().subtract(30, 'day'), dayjs()]);
   const [chart, setChart] = useState<LeveyJenningsChartDto | null>(null);
   const [loading, setLoading] = useState(false);
+  const ljForm = useModalForm({
+    testId: { required: true, message: 'Chọn xét nghiệm' },
+    analyzerId: { required: true, message: 'Chọn máy XN' },
+  }, open);
 
   useEffect(() => {
     if (!open) return;
@@ -268,7 +276,7 @@ const LJModal: React.FC<{
   }, [open, result, tests]);
 
   const load = async () => {
-    if (!testId || !analyzerId) { te('Chọn xét nghiệm và máy XN'); return; }
+    if (!ljForm.validate({ testId, analyzerId })) return;
     setLoading(true);
     try {
       const r = await getLeveyJenningsChart(testId, analyzerId, range[0].format('YYYY-MM-DD'), range[1].format('YYYY-MM-DD'));
@@ -289,9 +297,21 @@ const LJModal: React.FC<{
         <Btn variant="primary" onClick={load} loading={loading} icon="activity">Vẽ biểu đồ</Btn>
       </>}>
       <div style={{ display: 'flex', gap: 'var(--space-10)', marginBottom: 'var(--space-14)', flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 180px' }}><FormRow label="Xét nghiệm"><AbSelect options={tests} fieldNames={{ value: 'id', label: 'name' }} value={testId} onChange={setTestId} placeholder="— Chọn —" /></FormRow></div>
-        <div style={{ flex: '1 1 180px' }}><FormRow label="Máy xét nghiệm"><AbSelect options={analyzers} fieldNames={{ value: 'id', label: 'name' }} value={analyzerId} onChange={setAnalyzerId} placeholder="— Chọn —" /></FormRow></div>
-        <div style={{ flex: '1 1 230px' }}><FormRow label="Khoảng thời gian"><DatePicker.RangePicker style={{ width: '100%' }} value={range} onChange={(v) => { if (v && v[0] && v[1]) setRange([v[0], v[1]]); }} format="DD/MM/YYYY" /></FormRow></div>
+        <div style={{ flex: '1 1 180px' }}>
+          <Field label="Xét nghiệm" required error={ljForm.errors.testId}>
+            <AbSelect options={tests} fieldNames={{ value: 'id', label: 'name' }} value={testId} onChange={(v) => { setTestId(v); ljForm.clear('testId'); }} placeholder="— Chọn —" />
+          </Field>
+        </div>
+        <div style={{ flex: '1 1 180px' }}>
+          <Field label="Máy xét nghiệm" required error={ljForm.errors.analyzerId}>
+            <AbSelect options={analyzers} fieldNames={{ value: 'id', label: 'name' }} value={analyzerId} onChange={(v) => { setAnalyzerId(v); ljForm.clear('analyzerId'); }} placeholder="— Chọn —" />
+          </Field>
+        </div>
+        <div style={{ flex: '1 1 230px' }}>
+          <Field label="Khoảng thời gian" required>
+            <DatePicker.RangePicker style={{ width: '100%' }} value={range} onChange={(v) => { if (v && v[0] && v[1]) setRange([v[0], v[1]]); }} format="DD/MM/YYYY" />
+          </Field>
+        </div>
       </div>
       {chart
         ? <LJChart chart={chart} />
@@ -301,7 +321,7 @@ const LJModal: React.FC<{
 };
 
 const LabQCV2: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('lots');
+  const [tab, setTab] = useTabState<Tab>('lots');
   const [lots, setLots] = useState<QCLot[]>([]);
   const [results, setResults] = useState<QCResult[]>([]);
   const [reports, setReports] = useState<QCReport[]>([]);
@@ -516,7 +536,7 @@ const LabQCV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
-          <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
+          <RefreshButton onRefresh={load} loading={loading} />
           {tab === 'lots' && <Btn variant="primary" onClick={openCreateLot}>
             <Ico name="plus" size={12} /> Thêm lô
           </Btn>}
@@ -786,6 +806,12 @@ const EqaPanel: React.FC = () => {
   const [resForm, setResForm] = useState<Record<string, unknown>>({});
   // #467: 1 state chặn double-submit cho mọi thao tác ghi của tab ngoại kiểm (key = loại + id).
   const [busy, setBusy] = useState<string | null>(null);
+  const batchValidator = useModalForm({ batchCode: { required: true, message: 'Nhập mã đợt ngoại kiểm' } }, batchOpen);
+  const resValidator = useModalForm({ eqaTestId: { required: true, message: 'Chọn xét nghiệm ngoại kiểm' } }, resOpen);
+  const testValidator = useModalForm({
+    code: { required: true, message: 'Nhập mã xét nghiệm' },
+    name: { required: true, message: 'Nhập tên xét nghiệm' },
+  }, testOpen);
 
   const loadEqa = async () => {
     setEqaLoading(true);
@@ -811,7 +837,7 @@ const EqaPanel: React.FC = () => {
   };
 
   const submitBatch = async () => {
-    if (!String(batchForm.batchCode || '').trim()) { ti('Nhập mã đợt ngoại kiểm'); return; }
+    if (!batchValidator.validate({ batchCode: batchForm.batchCode })) return;
     if (busy) return;
     setBusy('batch');
     try {
@@ -844,7 +870,7 @@ const EqaPanel: React.FC = () => {
   };
 
   const submitResult = async () => {
-    if (!resForm.eqaTestId) { ti('Chọn xét nghiệm ngoại kiểm'); return; }
+    if (!resValidator.validate({ eqaTestId: resForm.eqaTestId })) return;
     if (busy) return;
     setBusy('result');
     try {
@@ -858,7 +884,8 @@ const EqaPanel: React.FC = () => {
   };
 
   const submitTest = async () => {
-    if (!testEdit?.code?.trim() || !testEdit?.name?.trim()) { ti('Nhập mã và tên xét nghiệm'); return; }
+    if (!testValidator.validate({ code: testEdit?.code, name: testEdit?.name })) return;
+    if (!testEdit) return; // narrows type; UX validation already gated by testValidator.validate
     if (busy) return;
     setBusy('test');
     try {
@@ -929,7 +956,7 @@ const EqaPanel: React.FC = () => {
         <Btn variant={sub === 'batches' ? 'primary' : 'ghost'} onClick={() => setSub('batches')}>Đợt ngoại kiểm</Btn>
         <Btn variant={sub === 'tests' ? 'primary' : 'ghost'} onClick={() => setSub('tests')}>Danh mục XN ngoại kiểm</Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={loadEqa}><Ico name="refresh" size={12} /> Làm mới</Btn>
+        <RefreshButton onRefresh={loadEqa} />
         {sub === 'batches'
           ? <Btn variant="primary" onClick={() => openBatch()}><Ico name="plus" size={12} /> Nhận bàn giao mẫu</Btn>
           : <Btn variant="primary" onClick={() => { setTestEdit({ id: '', code: '', name: '', isActive: true } as LabEqaTestDto); setTestOpen(true); }}><Ico name="plus" size={12} /> Thêm chỉ tiêu</Btn>}
@@ -1003,7 +1030,9 @@ const EqaPanel: React.FC = () => {
           </Btn>
         </>}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-          <EqaLabeledInput label="Mã đợt *" value={String(batchForm.batchCode || '')} onChange={(v) => setBatchForm((f) => ({ ...f, batchCode: v }))} />
+          <Field label="Mã đợt" required error={batchValidator.errors.batchCode}>
+            <Input value={String(batchForm.batchCode || '')} onChange={(e) => { setBatchForm((f) => ({ ...f, batchCode: e.target.value })); batchValidator.clear('batchCode'); }} />
+          </Field>
           <EqaLabeledInput label="Kỳ (VD 2026-Q3)" value={String(batchForm.period || '')} onChange={(v) => setBatchForm((f) => ({ ...f, period: v }))} />
           <EqaLabeledInput label="Đơn vị tổ chức" value={String(batchForm.providerName || '')} onChange={(v) => setBatchForm((f) => ({ ...f, providerName: v }))} />
           <EqaLabeledInput label="Người bàn giao" value={String(batchForm.handoverBy || '')} onChange={(v) => setBatchForm((f) => ({ ...f, handoverBy: v }))} />
@@ -1024,11 +1053,10 @@ const EqaPanel: React.FC = () => {
           </Btn>
         </>}>
         <div style={{ display: 'grid', gap: 'var(--space-12)' }}>
-          <label style={{ display: 'grid', gap: 'var(--space-4)', fontSize: 'var(--fs-sm)' }}>
-            Xét nghiệm ngoại kiểm *
-            <AbSelect value={String(resForm.eqaTestId || '')} onChange={(v) => setResForm((f) => ({ ...f, eqaTestId: v }))}
+          <Field label="Xét nghiệm ngoại kiểm" required error={resValidator.errors.eqaTestId}>
+            <AbSelect value={String(resForm.eqaTestId || '')} onChange={(v) => { setResForm((f) => ({ ...f, eqaTestId: v })); resValidator.clear('eqaTestId'); }}
               options={tests.map((t) => ({ v: t.id, l: `${t.code} — ${t.name}` }))} placeholder="Chọn chỉ tiêu" />
-          </label>
+          </Field>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-12)' }}>
             <EqaLabeledInput label="Mã mẫu" value={String(resForm.sampleCode || '')} onChange={(v) => setResForm((f) => ({ ...f, sampleCode: v }))} />
             <EqaLabeledInput label="Kết quả (số)" value={String(resForm.resultValue ?? '')} onChange={(v) => setResForm((f) => ({ ...f, resultValue: v === '' ? undefined : Number(v) }))} />
@@ -1058,8 +1086,12 @@ const EqaPanel: React.FC = () => {
         </>}>
         {testEdit && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-            <EqaLabeledInput label="Mã *" value={testEdit.code} onChange={(v) => setTestEdit({ ...testEdit, code: v })} />
-            <EqaLabeledInput label="Tên *" value={testEdit.name} onChange={(v) => setTestEdit({ ...testEdit, name: v })} />
+            <Field label="Mã" required error={testValidator.errors.code}>
+              <Input value={testEdit.code} onChange={(e) => { setTestEdit({ ...testEdit, code: e.target.value }); testValidator.clear('code'); }} />
+            </Field>
+            <Field label="Tên" required error={testValidator.errors.name}>
+              <Input value={testEdit.name} onChange={(e) => { setTestEdit({ ...testEdit, name: e.target.value }); testValidator.clear('name'); }} />
+            </Field>
             <EqaLabeledInput label="Đơn vị tổ chức" value={testEdit.providerName || ''} onChange={(v) => setTestEdit({ ...testEdit, providerName: v })} />
             <EqaLabeledInput label="Chu kỳ" value={testEdit.cycle || ''} onChange={(v) => setTestEdit({ ...testEdit, cycle: v })} />
             <EqaLabeledInput label="Đơn vị đo" value={testEdit.unit || ''} onChange={(v) => setTestEdit({ ...testEdit, unit: v })} />

@@ -11,8 +11,9 @@ import {
   type ColumnDef, type StatusTab,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { useTabState } from '../../../hooks/useTabState';
 
 const { RangePicker } = DatePicker;
 
@@ -71,8 +72,8 @@ const FollowUpV2: React.FC = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [overdueList, setOverdueList] = useState<AppointmentListDto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<TabKey>('today');
-  const [stab, setStab] = useState<StatusKey | 'all'>('all');
+  const [tab, setTab] = useTabState<TabKey>('today', 'tab');
+  const [stab, setStab] = useTabState<StatusKey | 'all'>('all', 'stab');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -352,9 +353,7 @@ const FollowUpV2: React.FC = () => {
           {PAGE_SIZE_OPTS.map((n) => <option key={n} value={n}>{n}/trang</option>)}
         </select>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={fetchAppointments} loading={loading} icon="refresh">
-          Làm mới
-        </Btn>
+        <RefreshButton onRefresh={fetchAppointments} loading={loading} />
         <Btn variant="ghost" onClick={() => navigate('/v2/sms-management')}>
           <TermIcon name="message-square" size={12} /> Nhắc hàng loạt
         </Btn>

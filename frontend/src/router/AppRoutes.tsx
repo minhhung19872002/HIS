@@ -11,7 +11,7 @@ import { v2Routes } from './routeConfigs';
 import { RequirePermission } from './guards';
 import { ModuleIndex } from './lazy/common.lazy';
 import NotFound from './guards/NotFound';
-import { HttpError } from '../components/shared/HttpError';
+import { HttpError } from '../components/common/HttpError';
 import { RouteLayoutHost } from '../components/layout';
 import {
   InspectorPortalStandalone,

@@ -55,8 +55,9 @@ import {
   type ColumnDef,
   type StatusTab,
 } from '@/_v2kit';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { useTabState } from '../../../hooks/useTabState';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -317,7 +318,7 @@ const PharmacyStockIn: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
-  const [stab, setStab] = useState<StatusKey | 'all'>('all');
+  const [stab, setStab] = useTabState<StatusKey | 'all'>('all');
   const [keyword, setKeyword] = useState('');
   const [filterWarehouseId, setFilterWarehouseId] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -615,7 +616,7 @@ const PharmacyStockIn: React.FC = () => {
           Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={() => void load()}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
         <Btn variant="primary" icon="plus" onClick={openCreate}>Nhập từ NCC</Btn>
       </div>
 

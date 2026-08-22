@@ -317,7 +317,7 @@
   gap: 10px;
 }
 
-.queue-help-keys > div {
+.queue-help-keys>div {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -364,7 +364,7 @@
   font-size: 13px;
 }
 
-.queue-help-modal > button {
+.queue-help-modal>button {
   align-self: center;
   padding: 10px 32px;
   font-size: 16px;
@@ -377,13 +377,20 @@
   transition: transform 0.15s;
 }
 
-.queue-help-modal > button:hover {
+.queue-help-modal>button:hover {
   transform: scale(1.04);
 }
 
 @keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
 }
 
 /* ====== LAB QUEUE MODE ====== */
@@ -602,17 +609,41 @@
   transform: scale(0.98);
 }
 
-.kiosk-btn-ticket { border-color: rgba(82, 196, 26, 0.4); }
-.kiosk-btn-ticket:hover { border-color: #52c41a; background: rgba(82, 196, 26, 0.1); }
+.kiosk-btn-ticket {
+  border-color: rgba(82, 196, 26, 0.4);
+}
 
-.kiosk-btn-checkin { border-color: rgba(24, 144, 255, 0.4); }
-.kiosk-btn-checkin:hover { border-color: #1890ff; background: rgba(24, 144, 255, 0.1); }
+.kiosk-btn-ticket:hover {
+  border-color: #52c41a;
+  background: rgba(82, 196, 26, 0.1);
+}
 
-.kiosk-btn-price { border-color: rgba(250, 173, 20, 0.4); }
-.kiosk-btn-price:hover { border-color: #faad14; background: rgba(250, 173, 20, 0.1); }
+.kiosk-btn-checkin {
+  border-color: rgba(24, 144, 255, 0.4);
+}
 
-.kiosk-btn-survey { border-color: rgba(233, 69, 96, 0.4); }
-.kiosk-btn-survey:hover { border-color: #e94560; background: rgba(233, 69, 96, 0.1); }
+.kiosk-btn-checkin:hover {
+  border-color: #1890ff;
+  background: rgba(24, 144, 255, 0.1);
+}
+
+.kiosk-btn-price {
+  border-color: rgba(250, 173, 20, 0.4);
+}
+
+.kiosk-btn-price:hover {
+  border-color: #faad14;
+  background: rgba(250, 173, 20, 0.1);
+}
+
+.kiosk-btn-survey {
+  border-color: rgba(233, 69, 96, 0.4);
+}
+
+.kiosk-btn-survey:hover {
+  border-color: #e94560;
+  background: rgba(233, 69, 96, 0.1);
+}
 
 .kiosk-btn-icon {
   font-size: 56px;

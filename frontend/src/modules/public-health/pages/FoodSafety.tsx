@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import {
   searchIncidents, getIncidentStats, createIncident, updateIncident,
@@ -10,6 +11,7 @@ import {
   DrawerShell, DrSec, DrField, CrudModal, tk, ti,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 // ──── Incident constants ────
 
@@ -91,14 +93,14 @@ const TOP_TABS: { v: MainTab; l: string; ic?: string }[] = [
 
 const FoodSafetyV2: React.FC = () => {
   // Top tab
-  const [tab, setTab] = useState<MainTab>('incidents');
+  const [tab, setTab] = useTabState<MainTab>('incidents', 'tab');
 
   // ── Incident state ──
   const [items, setItems] = useState<FoodSafetyIncident[]>([]);
   const [stats, setStats] = useState<FoodSafetyStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all', 'stab');
   const [fLoc, setFLoc] = useState('');
   const [fSev, setFSev] = useState('');
   const [page, setPage] = useState(0);
@@ -294,7 +296,7 @@ const FoodSafetyV2: React.FC = () => {
             <Filter value={fSev} onChange={setFSev} options={sevOpts} placeholder="▾ Mức độ" />
             <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFLoc(''); setFSev(''); setStab('all'); }}>Bỏ lọc</Btn>
             <span className="spacer" />
-            <Btn variant="ghost" icon="refresh" loading={loading} onClick={load}>Làm mới</Btn>
+            <RefreshButton onRefresh={async () => { await load(); }} />
             <Btn variant="primary" icon="plus" onClick={openCreate}>Báo cáo vụ</Btn>
           </div>
 
@@ -390,7 +392,7 @@ const FoodSafetyV2: React.FC = () => {
             <Filter value={fFacType} onChange={setFFacType} options={inspFacTypes} placeholder="▾ Loại cơ sở" />
             <Btn variant="ghost" icon="x" onClick={() => { setInspSearch(''); setFCompliance(''); setFFacType(''); setInspPage(0); }}>Bỏ lọc</Btn>
             <span className="spacer" />
-            <Btn variant="ghost" icon="refresh" loading={inspLoading} onClick={loadInspections}>Làm mới</Btn>
+            <RefreshButton onRefresh={async () => { await loadInspections(); }} />
             <Btn variant="primary" icon="plus" onClick={inspOpenCreate}>Kiểm tra mới</Btn>
           </div>
 

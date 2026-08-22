@@ -17,7 +17,9 @@ import {
   DrawerShell, DrSec, DrField, CrudModal, ModalShell, tk, ti, tw, te, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { Field } from '../../../components/form/Field';
 
 type Row = {
   id: string;
@@ -389,6 +391,10 @@ const RehabilitationV2: React.FC = () => {
   // ── Thêm buổi tập ──
   const [sessionFormOpen, setSessionFormOpen] = useState(false);
   const [sfPlanId, setSfPlanId] = useState('');
+  const { errors: sfErrors, validate: sfValidate, clear: sfClear } = useModalForm(
+    { sfPlanId: { required: true, label: 'kế hoạch điều trị' } },
+    sessionFormOpen,
+  );
   const [sfDate, setSfDate] = useState<Dayjs>(dayjs());
   const [sfTime, setSfTime] = useState<Dayjs>(dayjs().hour(8).minute(0));
   const [sfLocation, setSfLocation] = useState('Phòng PHCN');
@@ -400,7 +406,7 @@ const RehabilitationV2: React.FC = () => {
   };
 
   const submitCreateSession = async () => {
-    if (!sfPlanId) { tw('Chọn kế hoạch điều trị'); return; }
+    if (!sfValidate({ sfPlanId })) return;
     setSfSaving(true);
     try {
       const dto: CreateTreatmentSessionDto = {
@@ -492,9 +498,7 @@ const RehabilitationV2: React.FC = () => {
               <Ico name="x" size={12} /> Bỏ lọc
             </Btn>
             <span className="spacer" />
-            <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">
-              Làm mới
-            </Btn>
+            <RefreshButton onRefresh={async () => { await load() }} />
             <Btn variant="primary" onClick={() => navigate('/rehabilitation')}>
               <Ico name="plus" size={12} /> Giấy GT
             </Btn>
@@ -682,9 +686,7 @@ const RehabilitationV2: React.FC = () => {
             <Btn variant="ghost" icon="chevron-right" onClick={() => { setScheduleDate((d) => d.add(1, 'day')); setSessPage(0); }} />
             <Btn variant="ghost" onClick={() => { setScheduleDate(dayjs()); setSessPage(0); }}>Hôm nay</Btn>
             <span className="spacer" />
-            <Btn variant="ghost" onClick={loadSessions} loading={sessLoading} icon="refresh">
-              Làm mới
-            </Btn>
+            <RefreshButton onRefresh={async () => { await loadSessions() }} />
             <Btn variant="primary" onClick={openCreateSession}>
               <Ico name="plus" size={12} /> Thêm buổi tập
             </Btn>
@@ -803,22 +805,22 @@ const RehabilitationV2: React.FC = () => {
             </>}
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
-              <FormRow label="Kế hoạch điều trị *">
+              <Field label="Kế hoạch điều trị" required error={sfErrors.sfPlanId}>
                 <Select
                   value={sfPlanId || undefined}
-                  onChange={(v) => setSfPlanId(v)}
+                  onChange={(v) => { setSfPlanId(v); sfClear('sfPlanId'); }}
                   style={{ width: '100%' }}
                   placeholder="— Chọn bệnh nhân / kế hoạch —"
                   showSearch
                   optionFilterProp="label"
                   options={plans.map((p) => ({ value: p.id, label: `${p.patientName || '—'} · ${p.planCode || p.rehabType || ''}` }))}
                 />
-              </FormRow>
+              </Field>
               <div style={{ display: 'flex', gap: 'var(--space-12)' }}>
-                <FormRow label="Ngày tập *" style={{ flex: 1 }}>
+                <FormRow label="Ngày tập" style={{ flex: 1 }}>
                   <DatePicker value={sfDate} onChange={(d) => d && setSfDate(d)} format="DD/MM/YYYY" style={{ width: '100%' }} />
                 </FormRow>
-                <FormRow label="Giờ bắt đầu *" style={{ flex: 1 }}>
+                <FormRow label="Giờ bắt đầu" style={{ flex: 1 }}>
                   <TimePicker value={sfTime} onChange={(t) => t && setSfTime(t)} format="HH:mm" style={{ width: '100%' }} />
                 </FormRow>
               </div>

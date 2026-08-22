@@ -20,6 +20,8 @@ import apiClient from '../../../services/apiClient';
 import { useAbbrExpansion } from '../../../utils/abbrExpand';
 import { ModalShell, Btn } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -181,7 +183,7 @@ const EnterResultModal: React.FC<{
 
               {/* Input row */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 1fr', gap: 'var(--space-10)', alignItems: 'flex-start' }}>
-                <IpFld label={`Kết quả${test.unit ? ` (${test.unit})` : ''} *`}>
+                <IpFld label={`Kết quả${test.unit ? ` (${test.unit})` : ''}`}>
                   <Input
                     value={entries[idx]?.value ?? ''}
                     onChange={(e) => setEntry(idx, 'value', e.target.value)}
@@ -244,6 +246,10 @@ const ApproveModal: React.FC<{
   const [approverUserId, setApproverUserId] = useState<string>('');
   const [approverPassword, setApproverPassword] = useState('');
   const [verifying, setVerifying] = useState(false);
+  const apForm = useModalForm({
+    approverUserId: { required: true, message: 'Chọn người duyệt' },
+    approverPassword: { required: true, message: 'Nhập mật khẩu xác thực' },
+  }, open);
 
   useEffect(() => {
     if (!open) return;
@@ -259,8 +265,6 @@ const ApproveModal: React.FC<{
 
   const submit = async () => {
     if (!order) return;
-    if (!approverUserId) { message.warning('Chọn người duyệt'); return; }
-    if (!approverPassword.trim()) { message.warning('Nhập mật khẩu xác thực'); return; }
 
     setVerifying(true);
     let valid = false;
@@ -309,19 +313,25 @@ const ApproveModal: React.FC<{
       footer={
         <>
           <Btn variant="ghost" onClick={onClose} disabled={isLoading}>Hủy</Btn>
-          <Btn variant="primary" disabled={isLoading} onClick={submit}>
+          <Btn
+            variant="primary"
+            disabled={isLoading}
+            onClick={() => {
+              if (apForm.validate({ approverUserId, approverPassword })) void submit();
+            }}
+          >
             <TermIcon name="check" size={12} /> {isLoading ? 'Đang xử lý…' : mode === 'preliminary' ? 'Duyệt sơ bộ' : 'Duyệt chính thức'}
           </Btn>
         </>
       }
     >
       <div style={{ padding: 'var(--space-16)', display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
-        <IpFld label="Người duyệt *" full>
+        <Field label="Người duyệt" required error={apForm.errors.approverUserId}>
           <Select
             style={{ width: '100%' }}
             placeholder="Chọn người duyệt…"
             value={approverUserId || undefined}
-            onChange={setApproverUserId}
+            onChange={(v) => { setApproverUserId(v); apForm.clear('approverUserId'); }}
             showSearch
             optionFilterProp="label"
             options={approverUsers.map((u) => ({
@@ -329,23 +339,23 @@ const ApproveModal: React.FC<{
               label: `${u.fullName} (${u.username})`,
             }))}
           />
-        </IpFld>
-        <IpFld label="Mật khẩu xác thực *" full>
+        </Field>
+        <Field label="Mật khẩu xác thực" required error={apForm.errors.approverPassword}>
           <Input.Password
             value={approverPassword}
-            onChange={(e) => setApproverPassword(e.target.value)}
+            onChange={(e) => { setApproverPassword(e.target.value); apForm.clear('approverPassword'); }}
             placeholder="Nhập mật khẩu của người duyệt…"
             autoComplete="new-password"
           />
-        </IpFld>
-        <IpFld label={mode === 'preliminary' ? 'Ghi chú kỹ thuật viên' : 'Ghi chú bác sĩ'} full>
+        </Field>
+        <Field label={mode === 'preliminary' ? 'Ghi chú kỹ thuật viên' : 'Ghi chú bác sĩ'}>
           <Input.TextArea
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={3}
             placeholder="Ghi chú khi duyệt (tùy chọn)…"
           />
-        </IpFld>
+        </Field>
       </div>
     </ModalShell>
   );

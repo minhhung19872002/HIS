@@ -11,6 +11,7 @@ import {
   KpiStrip, TopTabs, DataTable, StatusBadge, Btn, tk, ti, tw,
   type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 const { RangePicker } = DatePicker;
 
@@ -114,7 +115,7 @@ const WorkloadReportV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
-          <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
+          <RefreshButton onRefresh={load} loading={loading} />
           <Btn variant="ghost" icon="download" onClick={exportCsv}>Xuất CSV</Btn>
           <Btn variant="primary" icon="download" onClick={exportExcel}>Xuất Excel</Btn>
         </>

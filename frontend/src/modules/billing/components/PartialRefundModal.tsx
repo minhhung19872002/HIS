@@ -12,6 +12,8 @@ import {
   createRefund, getRefundableItems, getPatientPayments,
   type RefundableItemDto, type PatientPaymentBriefDto,
 } from '../api/billing';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 
 const { Text } = Typography;
 
@@ -44,6 +46,9 @@ export default function PartialRefundModal({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // "Phiếu thanh toán gốc" là Select nằm ngoài Antd Form (điều khiển bởi state riêng) —
+  // dùng useModalForm/Field cho đúng QUY TẮC CHUNG (đỏ * + lỗi tại field khi bấm Tạo phiếu hoàn).
+  const paymentForm = useModalForm({ paymentId: { required: true, message: 'Chọn phiếu thanh toán gốc để hoàn' } }, open);
 
   const loadData = async () => {
     if (!patientId) return;
@@ -83,13 +88,11 @@ export default function PartialRefundModal({
   const totalSelected = selectedItems.reduce((sum, r) => sum + r.patientAmount, 0);
 
   const handleOk = async () => {
+    // #419: backend RefundType=2 bắt buộc phiếu thanh toán gốc — required-field, báo tại Field.
+    const paymentOk = paymentForm.validate({ paymentId: selectedPaymentId });
     try {
       const values = await form.validateFields();
-      // #419: backend RefundType=2 bắt buộc phiếu thanh toán gốc
-      if (!selectedPayment) {
-        message.error('Chọn phiếu thanh toán gốc để hoàn');
-        return;
-      }
+      if (!paymentOk || !selectedPayment) return;
       if (values.mode === 'detail' && selectedIds.size === 0) {
         message.error('Chọn ít nhất 1 mục để hoàn chi tiết');
         return;
@@ -155,7 +158,6 @@ export default function PartialRefundModal({
       onOk={handleOk}
       onCancel={onClose}
       okText="Tạo phiếu hoàn"
-      okButtonProps={{ disabled: !selectedPayment }}
       confirmLoading={submitting}
       width={900}
       destroyOnHidden
@@ -169,18 +171,19 @@ export default function PartialRefundModal({
             style={{ marginBottom: 12 }}
           />
         )}
-        <Form.Item label="Phiếu thanh toán gốc" required>
+        <Field label="Phiếu thanh toán gốc" required error={paymentForm.errors.paymentId}>
           <Select
             value={selectedPaymentId}
-            onChange={setSelectedPaymentId}
+            onChange={(v) => { setSelectedPaymentId(v); paymentForm.clear('paymentId'); }}
             loading={loading}
             placeholder="— Chọn phiếu thanh toán đã thu —"
+            style={{ width: '100%' }}
             options={payments.map(p => ({
               value: p.id,
               label: `${p.receiptCode} · ${new Date(p.receiptDate).toLocaleDateString('vi-VN')} · ${p.finalAmount.toLocaleString('vi-VN')}đ`,
             }))}
           />
-        </Form.Item>
+        </Field>
         <Form.Item name="mode" label="Phạm vi hoàn">
           <Radio.Group>
             <Radio value="full">Hoàn toàn bộ phiếu gốc{selectedPayment ? ` (${selectedPayment.finalAmount.toLocaleString('vi-VN')}đ)` : ''}</Radio>

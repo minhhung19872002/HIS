@@ -22,13 +22,26 @@ export const DrSec: React.FC<{
   </section>
 );
 
+/** Một dòng nhãn/giá trị trong drawer. `required` + `error` là ADDITIVE (mọi call-site cũ
+ *  `<DrField lbl="…">` giữ nguyên hành vi) — dùng CHUNG một quy tắc với `components/form/Field`:
+ *  dấu `*` đỏ cạnh nhãn, lỗi hiện ngay tại trường, viền đỏ qua class `.hui-field.is-invalid`.
+ *  Nhiều form nhập liệu của HIS nằm trong drawer chứ không phải modal, nên chúng phải
+ *  trông và cư xử giống hệt modal. Layout lưới 2 cột giữ nguyên, không đổi bố cục. */
 export const DrField: React.FC<{
   lbl: string;
+  required?: boolean;
+  error?: string;
   children: React.ReactNode;
-}> = ({ lbl, children }) => (
+}> = ({ lbl, required, error, children }) => (
   <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 'var(--space-10)', padding: '4px 0', fontSize: 12.5 }}>
-    <div style={{ color: 'var(--t-2)' }}>{lbl}</div>
-    <div style={{ color: 'var(--t-0)' }}>{children}</div>
+    <div style={{ color: 'var(--t-2)' }}>
+      {lbl}
+      {required && <span className="hui-req" aria-hidden="true">*</span>}
+    </div>
+    <div className={`hui-field${error ? ' is-invalid' : ''}`} style={{ color: 'var(--t-0)' }}>
+      {children}
+      {error && <span className="hui-field-err" role="alert">{error}</span>}
+    </div>
   </div>
 );
 

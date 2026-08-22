@@ -7,7 +7,7 @@ import { registerMultipleRooms } from '../../opd/api/multiSpecialtyExam';
 import { ModalShell } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { BookingPickerModal } from './BookingPickerModal';
-import { validateCccd } from './cccd';
+import { validateCccd } from '../types/cccd';
 const VISIT_TYPES: { v: string; l: string; ic: string; fee: number; serviceType: number; bhyt?: boolean; emergency?: boolean }[] = [
   { v: 'kham-thuong', l: 'Khám thường',     ic: 'stethoscope', fee: 38000,  serviceType: 3 },
   { v: 'kham-bhyt',   l: 'Khám BHYT',        ic: 'shield',      fee: 0,      serviceType: 3, bhyt: true },

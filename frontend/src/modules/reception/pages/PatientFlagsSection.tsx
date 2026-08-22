@@ -3,6 +3,8 @@ import dayjs from 'dayjs';
 import { Select, Input, DatePicker } from 'antd';
 import { ModalShell, tk, te, cf } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 import {
   getPatientFlags, savePatientFlag, deletePatientFlag, PATIENT_FLAG_TYPES,
   type PatientFlagDto,
@@ -45,6 +47,7 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FlagFormState>(EMPTY_FLAG_FORM);
+  const vf = useModalForm({ note: { required: true, message: 'Nhập ghi chú cảnh báo' } }, modalOpen);
 
   const load = useCallback(async () => {
     if (!patientId) { setFlags([]); return; }
@@ -73,7 +76,7 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
   };
 
   const handleSave = async () => {
-    if (!form.note.trim()) { te('Nhập ghi chú cảnh báo'); return; }
+    if (!vf.validate({ note: form.note })) return;
     setSaving(true);
     try {
       await savePatientFlag({
@@ -188,44 +191,38 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
-          <div>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Loại cảnh báo</div>
+          <Field label="Loại cảnh báo">
             <Select
               style={{ width: '100%' }}
               value={form.flagType}
               onChange={(val) => setForm((s) => ({ ...s, flagType: val }))}
               options={Object.entries(PATIENT_FLAG_TYPES).map(([k, v]) => ({ value: Number(k), label: v }))}
             />
-          </div>
-          <div>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Mức độ (màu)</div>
+          </Field>
+          <Field label="Mức độ (màu)">
             <Select
               style={{ width: '100%' }}
               value={form.color}
               onChange={(val) => setForm((s) => ({ ...s, color: val }))}
               options={FLAG_COLOR_OPTIONS}
             />
-          </div>
-          <div>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>
-              Ghi chú <span style={{ color: 'var(--s-crit)' }}>*</span>
-            </div>
+          </Field>
+          <Field label="Ghi chú" required error={vf.errors.note}>
             <Input.TextArea
               rows={3}
               value={form.note}
-              onChange={(e) => setForm((s) => ({ ...s, note: e.target.value }))}
+              onChange={(e) => { setForm((s) => ({ ...s, note: e.target.value })); vf.clear('note'); }}
               placeholder="Chi tiết cảnh báo…"
             />
-          </div>
-          <div>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Hết hiệu lực (tùy chọn)</div>
+          </Field>
+          <Field label="Hết hiệu lực (tùy chọn)">
             <DatePicker
               style={{ width: '100%' }}
               format="DD/MM/YYYY"
               value={form.expiresAt ?? null}
               onChange={(d) => setForm((s) => ({ ...s, expiresAt: d }))}
             />
-          </div>
+          </Field>
         </div>
       </ModalShell>
     </div>

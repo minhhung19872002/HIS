@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import { Form, Input, InputNumber, Select } from 'antd';
 import type { AxiosError } from 'axios';
 import apiClient from '../../../services/apiClient';
@@ -6,6 +7,7 @@ import type { ServerValidationError } from '../../../utils/formError';
 import {
   KpiStrip, TopTabs, StatusBadge, Btn, tk, ti, tw, LoadingState,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 interface ConfigData {
   gatewayUrl?: string; tokenUrl?: string; username?: string; passwordMasked?: string;
@@ -23,7 +25,7 @@ const TABS = [
 ];
 
 const BhxhConfigV2: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('config');
+  const [tab, setTab] = useTabState<Tab>('config');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<ConfigData | null>(null);
   const [form] = Form.useForm();
@@ -112,7 +114,7 @@ const BhxhConfigV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
-          <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+          <RefreshButton onRefresh={async () => { await load(); }} />
           {tab === 'config' && (
             <Btn variant="primary" icon="check" loading={saving} onClick={save}>
               {saving ? 'Đang lưu…' : 'Lưu cấu hình'}

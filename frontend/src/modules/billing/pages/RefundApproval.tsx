@@ -9,6 +9,8 @@ import {
   type ColumnDef, type StatusTab,
 } from '@/_v2kit';
 import { RowActions } from '../../../components/actions';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 
 /* ────────────────────────────────────────────────────────────
    #352 — Duyệt hoàn tiền (v1 pages/Billing.tsx:1344-1502).
@@ -42,6 +44,7 @@ const RefundApprovalV2: React.FC = () => {
   const [txnNo, setTxnNo] = useState('');
   const [confirmNote, setConfirmNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const rejectForm = useModalForm({ reason: { required: true, message: 'Cần nhập lý do từ chối' } }, !!rejectFor);
 
   const reload = () => reloadRef.current?.();
 
@@ -56,7 +59,7 @@ const RefundApprovalV2: React.FC = () => {
 
   const doReject = async () => {
     if (!rejectFor) return;
-    if (!rejectReason.trim()) { te('Cần nhập lý do từ chối'); return; }
+    if (!rejectForm.validate({ reason: rejectReason })) return;
     if (busy) return; // #467 chống double-submit
     setBusy(true);
     try {
@@ -173,9 +176,11 @@ const RefundApprovalV2: React.FC = () => {
           <Btn variant="primary" loading={busy} onClick={doReject}>Xác nhận từ chối</Btn>
         </>}
       >
-        <div style={{ fontSize: 12.5, marginBottom: 6, fontWeight: 600 }}>Lý do từ chối *</div>
-        <Input.TextArea rows={3} value={rejectReason} onChange={(e) => setRejectReason(e.target.value)}
-          placeholder="Nêu rõ lý do để kế toán và bệnh nhân đối chiếu…" />
+        <Field label="Lý do từ chối" required error={rejectForm.errors.reason}>
+          <Input.TextArea rows={3} value={rejectReason}
+            onChange={(e) => { setRejectReason(e.target.value); rejectForm.clear('reason'); }}
+            placeholder="Nêu rõ lý do để kế toán và bệnh nhân đối chiếu…" />
+        </Field>
       </ModalShell>
 
       <ModalShell open={!!confirmFor} onClose={() => setConfirmFor(null)} size="sm"

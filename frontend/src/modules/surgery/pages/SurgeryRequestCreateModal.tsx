@@ -211,7 +211,7 @@ export const SurgeryRequestCreateModal: React.FC<SurgeryRequestCreateModalProps>
       }
     >
       <Section title="Bệnh nhân">
-        <Row2 label="Mã bệnh nhân *">
+        <Row2 label="Mã bệnh nhân">
           <Input
             value={form.patientCode}
             onChange={(e) => set('patientCode', e.target.value)}
@@ -219,7 +219,7 @@ export const SurgeryRequestCreateModal: React.FC<SurgeryRequestCreateModalProps>
             size="small"
           />
         </Row2>
-        <Row2 label="Tên bệnh nhân *">
+        <Row2 label="Tên bệnh nhân">
           <Input
             value={form.patientName}
             onChange={(e) => set('patientName', e.target.value)}
@@ -227,7 +227,7 @@ export const SurgeryRequestCreateModal: React.FC<SurgeryRequestCreateModalProps>
             size="small"
           />
         </Row2>
-        <Row2 label="Hồ sơ bệnh án *">
+        <Row2 label="Hồ sơ bệnh án">
           <Select
             showSearch
             filterOption={false}
@@ -246,7 +246,7 @@ export const SurgeryRequestCreateModal: React.FC<SurgeryRequestCreateModalProps>
       </Section>
 
       <Section title="Phẫu thuật / thủ thuật">
-        <Row2 label="Dịch vụ PT *">
+        <Row2 label="Dịch vụ PT">
           <Select
             showSearch
             filterOption={false}
@@ -262,7 +262,7 @@ export const SurgeryRequestCreateModal: React.FC<SurgeryRequestCreateModalProps>
             onChange={(v) => set('surgeryServiceId', v)}
           />
         </Row2>
-        <Row2 label="Loại PT/TT *">
+        <Row2 label="Loại PT/TT">
           <AbSelect
             options={[
               { value: 1, label: 'Phẫu thuật' },
@@ -273,7 +273,7 @@ export const SurgeryRequestCreateModal: React.FC<SurgeryRequestCreateModalProps>
             placeholder="Chọn loại phẫu thuật"
           />
         </Row2>
-        <Row2 label="Độ ưu tiên *">
+        <Row2 label="Độ ưu tiên">
           <AbSelect
             options={[
               { value: 1, label: 'Bình thường' },
@@ -285,7 +285,7 @@ export const SurgeryRequestCreateModal: React.FC<SurgeryRequestCreateModalProps>
             placeholder="Chọn độ ưu tiên"
           />
         </Row2>
-        <Row2 label="Phương pháp PT *">
+        <Row2 label="Phương pháp PT">
           <Input
             value={form.plannedProcedure}
             onChange={(e) => set('plannedProcedure', e.target.value)}
@@ -309,7 +309,7 @@ export const SurgeryRequestCreateModal: React.FC<SurgeryRequestCreateModalProps>
       </Section>
 
       <Section title="Chẩn đoán">
-        <Row2 label="CĐ trước mổ *">
+        <Row2 label="CĐ trước mổ">
           <TextArea
             rows={2}
             value={form.preOpDiagnosis}
@@ -317,7 +317,7 @@ export const SurgeryRequestCreateModal: React.FC<SurgeryRequestCreateModalProps>
             placeholder="Nhập chẩn đoán trước mổ"
           />
         </Row2>
-        <Row2 label="Mã ICD *">
+        <Row2 label="Mã ICD">
           <Select
             showSearch
             filterOption={false}

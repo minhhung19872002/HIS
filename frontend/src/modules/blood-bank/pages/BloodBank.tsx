@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { App as AntdApp, Input, Select, InputNumber } from 'antd';
 import type { MessageInstance } from 'antd/es/message/interface';
@@ -16,6 +17,7 @@ import {
   type ColumnDef, type TopTab,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { RefreshButton } from '../../../components/actions';
 
 /* ────────────────────────────────────────────────────────────
    Ngân hàng máu v2 — port of design-system-v2/his/project/BloodBank v2.html
@@ -116,7 +118,7 @@ const buildBloodRequestHtml = (r: BloodIssueRequestRow): string => {
 
 const BloodBankV2: React.FC = () => {
   const { message } = AntdApp.useApp();
-  const [tab, setTab] = useState<TopKey>('stock');
+  const [tab, setTab] = useTabState<TopKey>('stock');
   const [stock, setStock] = useState<BloodStockDto[]>([]);
   const [units, setUnits] = useState<BloodStockDetailDto[]>([]);
   // BE stock/expiring trả BloodStockDetailDto (bloodBagId, KHÔNG có id/donorName/unit)
@@ -353,9 +355,7 @@ const BloodBankV2: React.FC = () => {
         tabs={TOP_TABS}
         actions={
           <>
-            <Btn variant="ghost" onClick={reload} loading={loading} icon="refresh">
-              Làm mới
-            </Btn>
+            <RefreshButton onRefresh={async () => { await reload() }} />
             <Btn variant="ghost" onClick={() => setReceiveOpen(true)}>
               <TermIcon name="plus" size={12} /> Nhận máu
             </Btn>

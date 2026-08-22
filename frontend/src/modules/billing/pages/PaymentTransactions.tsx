@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import { fmtNum as fmt } from '../../../utils/format';
 import { Form, Input, InputNumber, DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
@@ -11,6 +12,7 @@ import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, ModalShell,
   DrawerShell, DrSec, DrField, Ico, tk, ti, tw, type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 const { RangePicker } = DatePicker;
 
@@ -45,7 +47,7 @@ const PaymentTransactionsV2: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [provider, setProvider] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all');
   const [range, setRange] = useState<[Dayjs, Dayjs] | null>(null);
   const [page, setPage] = useState(0);
   const [refundOpen, setRefundOpen] = useState<PaymentTransactionDto | null>(null);
@@ -152,7 +154,7 @@ const PaymentTransactionsV2: React.FC = () => {
           <Ico name="search" size={12} /> Tìm
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={fetchData} loading={loading} icon="refresh">Làm mới</Btn>
+        <RefreshButton onRefresh={fetchData} loading={loading} />
         <Btn variant="ghost" onClick={doExportExcel} disabled={items.length === 0}>
           <Ico name="download" size={12} /> Xuất Excel
         </Btn>

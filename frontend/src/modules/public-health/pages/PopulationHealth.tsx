@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { searchRecords, getStats, createRecord, updateRecord } from '../api/populationHealth';
 import type { PopulationRecord, PopulationStats } from '../api/populationHealth';
@@ -9,6 +10,7 @@ import {
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 const POP_FIELDS: CrudFieldCfg[] = [
   { key: 'recordCode', label: 'Mã hồ sơ', required: true, disabledOnEdit: true },
@@ -59,8 +61,8 @@ const PopulationHealthV2: React.FC = () => {
   const [stats, setStats] = useState<PopulationStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [tType, setTType] = useState<TKey>('all');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [tType, setTType] = useTabState<TKey>('all', 'tab');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all', 'stab');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<PopulationRecord | null>(null);
 
@@ -141,7 +143,7 @@ const PopulationHealthV2: React.FC = () => {
 
       <TopTabs<TKey> tab={tType} setTab={(v) => { setTType(v); setStab('all'); setPage(0); }} tabs={TYPE_TABS} actions={
         <>
-          <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
+          <RefreshButton onRefresh={async () => { await load(); }} />
           <Btn variant="primary" onClick={openCreate}>
             <Ico name="plus" size={12} /> Thêm HS
           </Btn>

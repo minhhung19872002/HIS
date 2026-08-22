@@ -243,7 +243,7 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
                 size="small"
               />
             </Row2>
-            <Row2 label="Phương pháp PT *">
+            <Row2 label="Phương pháp PT">
               <Input
                 value={form.plannedProcedure}
                 onChange={(e) => set('plannedProcedure', e.target.value)}

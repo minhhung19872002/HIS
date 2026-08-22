@@ -5,6 +5,8 @@ import type { CoReaderDto } from '../api/ris';
 import { Btn, ActBtn, cf, tw } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { DrField } from '../../../components/overlay/DrawerShell/DrawerShell';
 
 // ─────────────── Co-Reader Section (#139) ───────────────
 
@@ -17,6 +19,10 @@ export const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) =>
   const [readers, setReaders] = useState<CoReaderDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const { errors, validate, clear, reset } = useModalForm(
+    { readerId: { required: true, message: 'Nhập Id bác sĩ đồng đọc' } },
+    addOpen,
+  );
   const [newReaderId, setNewReaderId] = useState('');
   const [newReaderName, setNewReaderName] = useState('');
   const [newRole, setNewRole] = useState<string>('CoReader');
@@ -43,7 +49,7 @@ export const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) =>
 
   const handleAdd = async () => {
     if (adding) return;
-    if (!newReaderId.trim()) { message.warning('Nhap Id BS dong doc'); return; }
+    if (!validate({ readerId: newReaderId })) return;
     setAdding(true);
     try {
       await risApi.addCoReader({
@@ -54,7 +60,7 @@ export const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) =>
       });
       message.success('Da them BS dong doc');
       setAddOpen(false);
-      setNewReaderId(''); setNewReaderName(''); setNewRole('CoReader');
+      setNewReaderId(''); setNewReaderName(''); setNewRole('CoReader'); reset();
       load();
     } catch (e: unknown) {
       const err = e as { response?: { data?: { message?: string } } };
@@ -132,12 +138,14 @@ export const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) =>
           padding: 'var(--space-10)', background: 'var(--d-1)', border: '1px solid var(--line)',
           borderRadius: 'var(--r-2)', marginBottom: 'var(--space-8)', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)',
         }}>
-          <Input
-            size="small"
-            placeholder="User Id BS dong doc (Guid)"
-            value={newReaderId}
-            onChange={e => setNewReaderId(e.target.value)}
-          />
+          <DrField lbl="Id BS đồng đọc" required error={errors.readerId}>
+            <Input
+              size="small"
+              placeholder="User Id BS đồng đọc (Guid)"
+              value={newReaderId}
+              onChange={e => { setNewReaderId(e.target.value); clear('readerId'); }}
+            />
+          </DrField>
           <Input
             size="small"
             placeholder="Ten BS (tuy chon — backend tu lay neu bo trong)"

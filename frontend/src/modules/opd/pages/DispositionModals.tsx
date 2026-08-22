@@ -4,10 +4,16 @@
  * nhận state + setter + handler (đã đặt tên, GIỮ trong main) qua props.
  * KHÔNG chứa logic nghiệp vụ — handler submit sống ở OpdEditor.
  *   Khám thêm CK · Đổi phòng · Xóa đăng ký · Nhập viện · Chuyển viện · Hẹn tái khám
+ *
+ * Validate trường bắt buộc theo QUY TẮC CHUNG (`Field` + `useModalForm`):
+ * dấu * đỏ cạnh nhãn · modal vừa mở không báo lỗi · chỉ kiểm khi bấm nút Lưu/Tạo ·
+ * lỗi hiện ngay tại trường · nút Lưu KHÔNG disable theo trường rỗng (có bấm mới thấy lỗi).
  * ===================================================================== */
 
 import React from 'react';
 import { ModalShell, Btn } from '@/_v2kit';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import type { RoomDto, RoomPatientListDto } from '../api/examination';
 import type { DepartmentCatalogDto } from '../../system/api/system';
@@ -66,6 +72,19 @@ export const DispositionModals: React.FC<DispositionModalsProps> = ({
   transferOpen, setTransferOpen, transferFacility, setTransferFacility, transferReason, setTransferReason, transferTransport, setTransferTransport, transferSaving, onTransfer,
   apptOpen, setApptOpen, apptDate, setApptDate, apptNotes, setApptNotes, apptSaving, onAppointment,
 }) => {
+  const followUpForm = useModalForm({ roomId: { required: true, message: 'Vui lòng chọn phòng chuyên khoa' } }, followUpOpen);
+  const changeRoomForm = useModalForm({ newRoomId: { required: true, message: 'Vui lòng chọn phòng mới' } }, changeRoomOpen);
+  const deleteForm = useModalForm({ reason: { required: true, message: 'Vui lòng nhập lý do xóa' } }, deleteOpen);
+  const hospForm = useModalForm({
+    deptId: { required: true, message: 'Vui lòng chọn khoa nhập viện' },
+    reason: { required: true, message: 'Vui lòng nhập lý do nhập viện' },
+  }, hospOpen);
+  const transferForm = useModalForm({
+    facility: { required: true, message: 'Vui lòng nhập cơ sở chuyển đến' },
+    reason: { required: true, message: 'Vui lòng nhập lý do chuyển viện' },
+  }, transferOpen);
+  const apptForm = useModalForm({ date: { required: true, message: 'Vui lòng chọn ngày hẹn tái khám' } }, apptOpen);
+
   return (
     <>
       {/* ── Modal: Khám thêm CK khác ─────────────────────────────────── */}
@@ -81,8 +100,8 @@ export const DispositionModals: React.FC<DispositionModalsProps> = ({
             <Btn
               variant="primary"
               size="sm"
-              disabled={!followUpRoomId || followUpSaving}
-              onClick={onFollowUp}
+              loading={followUpSaving}
+              onClick={() => { if (followUpForm.validate({ roomId: followUpRoomId })) onFollowUp(); }}
             >
               <TermIcon name="plus" size={11} /> Tạo phiên khám
             </Btn>
@@ -90,12 +109,11 @@ export const DispositionModals: React.FC<DispositionModalsProps> = ({
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Phòng chuyên khoa <span style={{ color: 'var(--s-err)' }}>*</span></label>
+          <Field label="Phòng chuyên khoa" required error={followUpForm.errors.roomId}>
             <select
               className="hui-inp hui-sel"
               value={followUpRoomId}
-              onChange={(e) => setFollowUpRoomId(e.target.value)}
+              onChange={(e) => { setFollowUpRoomId(e.target.value); followUpForm.clear('roomId'); }}
               style={{ width: '100%', height: 30 }}
             >
               <option value="">(Chọn phòng)</option>
@@ -103,9 +121,8 @@ export const DispositionModals: React.FC<DispositionModalsProps> = ({
                 <option key={r.id} value={r.id}>{r.code} · {r.name}</option>
               ))}
             </select>
-          </div>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Lý do (tùy chọn)</label>
+          </Field>
+          <Field label="Lý do (tùy chọn)">
             <textarea
               className="hui-inp"
               value={followUpReason}
@@ -114,7 +131,7 @@ export const DispositionModals: React.FC<DispositionModalsProps> = ({
               rows={3}
               style={{ width: '100%', resize: 'vertical' }}
             />
-          </div>
+          </Field>
         </div>
       </ModalShell>
 
@@ -131,8 +148,8 @@ export const DispositionModals: React.FC<DispositionModalsProps> = ({
             <Btn
               variant="primary"
               size="sm"
-              disabled={!changeRoomNewId || changeRoomSaving}
-              onClick={onChangeRoom}
+              loading={changeRoomSaving}
+              onClick={() => { if (changeRoomForm.validate({ newRoomId: changeRoomNewId })) onChangeRoom(); }}
             >
               <TermIcon name="arrow-right" size={11} /> Xác nhận đổi phòng
             </Btn>
@@ -140,12 +157,11 @@ export const DispositionModals: React.FC<DispositionModalsProps> = ({
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Phòng mới <span style={{ color: 'var(--s-err)' }}>*</span></label>
+          <Field label="Phòng mới" required error={changeRoomForm.errors.newRoomId}>
             <select
               className="hui-inp hui-sel"
               value={changeRoomNewId}
-              onChange={(e) => setChangeRoomNewId(e.target.value)}
+              onChange={(e) => { setChangeRoomNewId(e.target.value); changeRoomForm.clear('newRoomId'); }}
               style={{ width: '100%', height: 30 }}
             >
               <option value="">(Chọn phòng)</option>
@@ -153,9 +169,8 @@ export const DispositionModals: React.FC<DispositionModalsProps> = ({
                 <option key={r.id} value={r.id}>{r.code} · {r.name}</option>
               ))}
             </select>
-          </div>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Lý do (tùy chọn)</label>
+          </Field>
+          <Field label="Lý do (tùy chọn)">
             <textarea
               className="hui-inp"
               value={changeRoomReason}
@@ -164,7 +179,7 @@ export const DispositionModals: React.FC<DispositionModalsProps> = ({
               rows={3}
               style={{ width: '100%', resize: 'vertical' }}
             />
-          </div>
+          </Field>
         </div>
       </ModalShell>
 
@@ -182,8 +197,8 @@ export const DispositionModals: React.FC<DispositionModalsProps> = ({
             <Btn
               variant="crit"
               size="sm"
-              disabled={!deleteReason.trim() || deleteSaving}
-              onClick={onDelete}
+              loading={deleteSaving}
+              onClick={() => { if (deleteForm.validate({ reason: deleteReason })) onDelete(); }}
             >
               <TermIcon name="trash" size={11} /> Xóa đăng ký
             </Btn>
@@ -194,20 +209,16 @@ export const DispositionModals: React.FC<DispositionModalsProps> = ({
           <div style={{ marginBottom: 'var(--space-10)', fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>
             Xóa đăng ký khám của <b>{selPt?.patientName}</b> (STT {selPt?.queueNumber})?
           </div>
-          <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>
-            Lý do xóa <span style={{ color: 'var(--s-err)' }}>*</span>
-          </label>
-          <textarea
-            className="hui-inp"
-            value={deleteReason}
-            onChange={(e) => setDeleteReason(e.target.value)}
-            placeholder="Bắt buộc nhập lý do xóa…"
-            rows={3}
-            style={{ width: '100%', resize: 'vertical', borderColor: !deleteReason.trim() ? 'var(--s-err)' : undefined }}
-          />
-          {!deleteReason.trim() && (
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--s-err)', marginTop: 'var(--space-4)' }}>Lý do không được để trống</div>
-          )}
+          <Field label="Lý do xóa" required error={deleteForm.errors.reason}>
+            <textarea
+              className="hui-inp"
+              value={deleteReason}
+              onChange={(e) => { setDeleteReason(e.target.value); deleteForm.clear('reason'); }}
+              placeholder="Nhập lý do xóa…"
+              rows={3}
+              style={{ width: '100%', resize: 'vertical' }}
+            />
+          </Field>
         </div>
       </ModalShell>
 
@@ -221,26 +232,41 @@ export const DispositionModals: React.FC<DispositionModalsProps> = ({
         footer={
           <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
             <Btn variant="ghost" size="sm" onClick={() => setHospOpen(false)}>Hủy</Btn>
-            <Btn variant="primary" size="sm" disabled={!hospDeptId || !hospReason.trim() || hospSaving} onClick={onHospitalize}>
+            <Btn
+              variant="primary"
+              size="sm"
+              loading={hospSaving}
+              onClick={() => { if (hospForm.validate({ deptId: hospDeptId, reason: hospReason })) onHospitalize(); }}
+            >
               <TermIcon name="bed" size={11} /> Tạo yêu cầu &amp; in
             </Btn>
           </div>
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Khoa nhập viện <span style={{ color: 'var(--s-err)' }}>*</span></label>
-            <select className="hui-inp hui-sel" value={hospDeptId} onChange={(e) => setHospDeptId(e.target.value)} style={{ width: '100%', height: 30 }}>
+          <Field label="Khoa nhập viện" required error={hospForm.errors.deptId}>
+            <select
+              className="hui-inp hui-sel"
+              value={hospDeptId}
+              onChange={(e) => { setHospDeptId(e.target.value); hospForm.clear('deptId'); }}
+              style={{ width: '100%', height: 30 }}
+            >
               <option value="">(Chọn khoa)</option>
               {departments.filter((d) => d.id).map((d) => (
                 <option key={d.id} value={d.id}>{d.code} · {d.name}</option>
               ))}
             </select>
-          </div>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Lý do nhập viện <span style={{ color: 'var(--s-err)' }}>*</span></label>
-            <textarea className="hui-inp" value={hospReason} onChange={(e) => setHospReason(e.target.value)} placeholder="Lý do nhập viện…" rows={3} style={{ width: '100%', resize: 'vertical' }} />
-          </div>
+          </Field>
+          <Field label="Lý do nhập viện" required error={hospForm.errors.reason}>
+            <textarea
+              className="hui-inp"
+              value={hospReason}
+              onChange={(e) => { setHospReason(e.target.value); hospForm.clear('reason'); }}
+              placeholder="Lý do nhập viện…"
+              rows={3}
+              style={{ width: '100%', resize: 'vertical' }}
+            />
+          </Field>
           <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)', fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>
             <input type="checkbox" checked={hospEmergency} onChange={(e) => setHospEmergency(e.target.checked)} /> Nhập viện cấp cứu
           </label>
@@ -257,25 +283,46 @@ export const DispositionModals: React.FC<DispositionModalsProps> = ({
         footer={
           <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
             <Btn variant="ghost" size="sm" onClick={() => setTransferOpen(false)}>Hủy</Btn>
-            <Btn variant="primary" size="sm" disabled={!transferFacility.trim() || !transferReason.trim() || transferSaving} onClick={onTransfer}>
+            <Btn
+              variant="primary"
+              size="sm"
+              loading={transferSaving}
+              onClick={() => { if (transferForm.validate({ facility: transferFacility, reason: transferReason })) onTransfer(); }}
+            >
               <TermIcon name="arrow-right" size={11} /> Tạo yêu cầu &amp; in
             </Btn>
           </div>
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Cơ sở chuyển đến <span style={{ color: 'var(--s-err)' }}>*</span></label>
-            <input className="hui-inp" value={transferFacility} onChange={(e) => setTransferFacility(e.target.value)} placeholder="Tên bệnh viện / cơ sở y tế…" style={{ width: '100%', height: 30 }} />
-          </div>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Lý do chuyển viện <span style={{ color: 'var(--s-err)' }}>*</span></label>
-            <textarea className="hui-inp" value={transferReason} onChange={(e) => setTransferReason(e.target.value)} placeholder="Lý do chuyển viện…" rows={3} style={{ width: '100%', resize: 'vertical' }} />
-          </div>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Phương tiện vận chuyển</label>
-            <input className="hui-inp" value={transferTransport} onChange={(e) => setTransferTransport(e.target.value)} placeholder="Xe cứu thương, tự túc…" style={{ width: '100%', height: 30 }} />
-          </div>
+          <Field label="Cơ sở chuyển đến" required error={transferForm.errors.facility}>
+            <input
+              className="hui-inp"
+              value={transferFacility}
+              onChange={(e) => { setTransferFacility(e.target.value); transferForm.clear('facility'); }}
+              placeholder="Tên bệnh viện / cơ sở y tế…"
+              style={{ width: '100%', height: 30 }}
+            />
+          </Field>
+          <Field label="Lý do chuyển viện" required error={transferForm.errors.reason}>
+            <textarea
+              className="hui-inp"
+              value={transferReason}
+              onChange={(e) => { setTransferReason(e.target.value); transferForm.clear('reason'); }}
+              placeholder="Lý do chuyển viện…"
+              rows={3}
+              style={{ width: '100%', resize: 'vertical' }}
+            />
+          </Field>
+          <Field label="Phương tiện vận chuyển">
+            <input
+              className="hui-inp"
+              value={transferTransport}
+              onChange={(e) => setTransferTransport(e.target.value)}
+              placeholder="Xe cứu thương, tự túc…"
+              style={{ width: '100%', height: 30 }}
+            />
+          </Field>
         </div>
       </ModalShell>
 
@@ -289,21 +336,37 @@ export const DispositionModals: React.FC<DispositionModalsProps> = ({
         footer={
           <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
             <Btn variant="ghost" size="sm" onClick={() => setApptOpen(false)}>Hủy</Btn>
-            <Btn variant="primary" size="sm" disabled={!apptDate || apptSaving} onClick={onAppointment}>
+            <Btn
+              variant="primary"
+              size="sm"
+              loading={apptSaving}
+              onClick={() => { if (apptForm.validate({ date: apptDate })) onAppointment(); }}
+            >
               <TermIcon name="calendar" size={11} /> Tạo lịch hẹn
             </Btn>
           </div>
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Ngày hẹn tái khám <span style={{ color: 'var(--s-err)' }}>*</span></label>
-            <input type="date" className="hui-inp" value={apptDate} onChange={(e) => setApptDate(e.target.value)} style={{ width: '100%', height: 30 }} />
-          </div>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Lý do / ghi chú</label>
-            <textarea className="hui-inp" value={apptNotes} onChange={(e) => setApptNotes(e.target.value)} placeholder="Lý do hẹn tái khám, dặn dò…" rows={3} style={{ width: '100%', resize: 'vertical' }} />
-          </div>
+          <Field label="Ngày hẹn tái khám" required error={apptForm.errors.date}>
+            <input
+              type="date"
+              className="hui-inp"
+              value={apptDate}
+              onChange={(e) => { setApptDate(e.target.value); apptForm.clear('date'); }}
+              style={{ width: '100%', height: 30 }}
+            />
+          </Field>
+          <Field label="Lý do / ghi chú">
+            <textarea
+              className="hui-inp"
+              value={apptNotes}
+              onChange={(e) => setApptNotes(e.target.value)}
+              placeholder="Lý do hẹn tái khám, dặn dò…"
+              rows={3}
+              style={{ width: '100%', resize: 'vertical' }}
+            />
+          </Field>
         </div>
       </ModalShell>
     </>

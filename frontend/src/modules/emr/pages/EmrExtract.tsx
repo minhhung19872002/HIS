@@ -10,6 +10,7 @@ import {
   tk, te, tw, cf, fmtDTg, fmtDMYg, type ColumnDef, type StatusTone,
 } from '@/_v2kit';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
+import { RefreshButton } from '../../../components/actions';
 import { getEmrRecords, getPatientMedicalHistory, type EmrRecordDto } from '../../opd/api/examination';
 import { unwrapList, type MaybePaged } from '../../../utils/apiNormalize';
 import {
@@ -128,7 +129,7 @@ const EmrExtractV2 = () => {
             <span style={{ fontSize: 12.5, color: 'var(--t-1)' }}>
               Trích lục của: <b>{sel.patientName}</b> <span className="mono">({sel.patientCode})</span>
             </span>
-            <Btn icon="refresh" onClick={() => loadExtracts(sel.examinationId)}>Làm mới</Btn>
+            <RefreshButton onRefresh={() => loadExtracts(sel.examinationId)} loading={loading} />
             <Btn variant="primary" icon="plus" onClick={() => { setForm(EMPTY_FORM); setCreateOpen(true); }}>Tạo trích lục</Btn>
           </>
         )}

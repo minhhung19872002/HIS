@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import {
   getTbHivRecords, getTbHivRecordById, getTbHivStatistics, getFollowUps,
   createTbHivRecord, updateTbHivRecord, createFollowUp,
@@ -13,7 +14,7 @@ import {
   DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, tw, fmtDMYg,
   type ColumnDef, type StatusTab, type CrudFieldCfg,
 } from '@/_v2kit';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ─────────────────────────── Trạng thái hồ sơ (0..5, phòng thủ cả enum-name chuỗi từ BE) ───────────────────────────
@@ -114,7 +115,7 @@ const TbHivManagementV2: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<StatusKey | 'all'>('all');
+  const [stab, setStab] = useTabState<StatusKey | 'all'>('all');
   const [typeFilter, setTypeFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -388,7 +389,7 @@ const TbHivManagementV2: React.FC = () => {
         />
         <span className="spacer" />
         <Btn variant="primary" icon="plus" onClick={openCreate}>Thêm hồ sơ</Btn>
-        <Btn variant="ghost" icon="refresh" loading={loading} onClick={load}>Làm mới</Btn>
+        <RefreshButton onRefresh={async () => { await load(); }} />
       </div>
 
       <StatusTabs<StatusKey>

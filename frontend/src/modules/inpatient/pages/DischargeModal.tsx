@@ -29,9 +29,11 @@ import {
 import type {
   PreDischargeCheckDto, CompleteDischargeDto, InpatientListDto, ReferralCertificateDto,
 } from '../api/inpatient';
-import { ModalShell, Btn, DrSec, DrField, tk, tw, te } from '@/_v2kit';
+import { ModalShell, Btn, DrSec, tk, te } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 
 const DISCHARGE_TYPES = [
   { value: 1, label: 'Ra viện' },
@@ -64,6 +66,13 @@ export interface DischargeModalProps {
 const DischargeModal: React.FC<DischargeModalProps> = ({ open, patient, onClose, onDone }) => {
   const { message, modal } = AntdApp.useApp();
   const admissionId = patient.admissionId;
+
+  const form = useModalForm({
+    dischargeDiagnosis: { required: true, message: 'Nhập chẩn đoán ra viện' },
+    transferToHospital: {
+      validate: (v) => (dischargeType === 2 && !String(v ?? '').trim()) ? 'Nhập cơ sở chuyển đến' : undefined,
+    },
+  }, open);
 
   const [check, setCheck] = useState<PreDischargeCheckDto | null>(null);
   const [loadingCheck, setLoadingCheck] = useState(false);
@@ -119,8 +128,6 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ open, patient, onClose,
   }, [open, admissionId, loadCheck]);
 
   const submit = async () => {
-    if (!dischargeDiagnosis.trim()) { tw('Nhập chẩn đoán ra viện'); return; }
-    if (dischargeType === 2 && !transferToHospital.trim()) { tw('Nhập cơ sở chuyển đến'); return; }
     const dto: CompleteDischargeDto = {
       admissionId,
       dischargeDate: dischargeDate.toISOString(),
@@ -247,7 +254,14 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ open, patient, onClose,
           <Btn variant="ghost" size="sm" loading={printing === 'discharge'} onClick={() => { void doPrint('discharge'); }}>
             <TermIcon name="print" size={12} /> In giấy ra viện
           </Btn>
-          <Btn variant="primary" size="sm" loading={saving} onClick={() => { void submit(); }}>
+          <Btn
+            variant="primary"
+            size="sm"
+            loading={saving}
+            onClick={() => {
+              if (form.validate({ dischargeDiagnosis, transferToHospital })) void submit();
+            }}
+          >
             <TermIcon name="check" size={12} /> Xác nhận ra viện
           </Btn>
         </div>
@@ -279,50 +293,58 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ open, patient, onClose,
       {/* Form ra viện */}
       <DrSec title="Thông tin ra viện">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 16px' }}>
-          <DrField lbl="Ngày ra viện *">
+          <Field label="Ngày ra viện" required>
             <DatePicker showTime value={dischargeDate} onChange={(v) => setDischargeDate(v ?? dayjs())} format="DD/MM/YYYY HH:mm" style={{ width: '100%' }} />
-          </DrField>
-          <DrField lbl="Loại ra viện *">
+          </Field>
+          <Field label="Loại ra viện" required>
             <Select<number> value={dischargeType} onChange={setDischargeType} options={DISCHARGE_TYPES} style={{ width: '100%' }} />
-          </DrField>
-          <DrField lbl="Tình trạng *">
+          </Field>
+          <Field label="Tình trạng" required>
             <Select<number> value={dischargeCondition} onChange={setDischargeCondition} options={DISCHARGE_CONDITIONS} style={{ width: '100%' }} />
-          </DrField>
-          <DrField lbl="Mã chẩn đoán">
+          </Field>
+          <Field label="Mã chẩn đoán">
             <Input value={dischargeDiagnosisCode} onChange={(e) => setDischargeDiagnosisCode(e.target.value)} placeholder="VD: J18.9" />
-          </DrField>
-          <DrField lbl="Chẩn đoán ra viện *">
-            <Input value={dischargeDiagnosis} onChange={(e) => setDischargeDiagnosis(e.target.value)} placeholder="Chẩn đoán ra viện" />
-          </DrField>
-          <DrField lbl="Số ngày nghỉ">
+          </Field>
+          <Field label="Chẩn đoán ra viện" required error={form.errors.dischargeDiagnosis}>
+            <Input
+              value={dischargeDiagnosis}
+              onChange={(e) => { setDischargeDiagnosis(e.target.value); form.clear('dischargeDiagnosis'); }}
+              placeholder="Chẩn đoán ra viện"
+            />
+          </Field>
+          <Field label="Số ngày nghỉ">
             <InputNumber value={sickLeaveDays} onChange={(v) => setSickLeaveDays(v)} min={0} max={365} style={{ width: '100%' }} placeholder="0" />
-          </DrField>
-          <DrField lbl="Hẹn tái khám">
+          </Field>
+          <Field label="Hẹn tái khám">
             <DatePicker value={followUpDate} onChange={(v) => setFollowUpDate(v)} format="DD/MM/YYYY" style={{ width: '100%' }} />
-          </DrField>
+          </Field>
         </div>
 
         {dischargeType === 2 && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 16px', marginTop: 'var(--space-4)' }}>
-            <DrField lbl="Chuyển đến *">
-              <Input value={transferToHospital} onChange={(e) => setTransferToHospital(e.target.value)} placeholder="Tên cơ sở chuyển đến" />
-            </DrField>
-            <DrField lbl="Lý do chuyển">
+            <Field label="Chuyển đến" required error={form.errors.transferToHospital}>
+              <Input
+                value={transferToHospital}
+                onChange={(e) => { setTransferToHospital(e.target.value); form.clear('transferToHospital'); }}
+                placeholder="Tên cơ sở chuyển đến"
+              />
+            </Field>
+            <Field label="Lý do chuyển">
               <Input value={transferReason} onChange={(e) => setTransferReason(e.target.value)} placeholder="Lý do chuyển viện" />
-            </DrField>
+            </Field>
           </div>
         )}
 
         <div style={{ marginTop: 'var(--space-6)' }}>
-          <DrField lbl="Tóm tắt điều trị">
+          <Field label="Tóm tắt điều trị">
             <Input.TextArea value={treatmentSummary} onChange={(e) => setTreatmentSummary(e.target.value)} rows={2} placeholder="Tóm tắt quá trình điều trị…" />
-          </DrField>
-          <DrField lbl="Lời dặn">
+          </Field>
+          <Field label="Lời dặn">
             <Input.TextArea value={dischargeInstructions} onChange={(e) => setDischargeInstructions(e.target.value)} rows={2} placeholder="Lời dặn cho bệnh nhân…" />
-          </DrField>
-          <DrField lbl="Dặn dùng thuốc">
+          </Field>
+          <Field label="Dặn dùng thuốc">
             <Input.TextArea value={medicationInstructions} onChange={(e) => setMedicationInstructions(e.target.value)} rows={2} placeholder="Hướng dẫn dùng thuốc khi về…" />
-          </DrField>
+          </Field>
         </div>
       </DrSec>
     </ModalShell>

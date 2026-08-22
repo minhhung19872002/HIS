@@ -12,6 +12,8 @@ import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn,
   tk, ti, tw, cf, useTabCounts, type ColumnDef, type StatusTab,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
+import { useTabState } from '../../../hooks/useTabState';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -74,7 +76,7 @@ function printDecision(d: HrDecision) {
 const HrDecisionsV2: React.FC = () => {
   const [rows, setRows] = useState<HrDecision[]>([]);
   const [loading, setLoading] = useState(false);
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all');
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('');
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([null, null]);
@@ -217,7 +219,7 @@ const HrDecisionsV2: React.FC = () => {
           options={DECISION_TYPES.map((d) => ({ value: String(d.value), label: d.label }))}
         />
         <div style={{ flex: 1 }} />
-        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} />
         <Btn variant="primary" icon="plus" onClick={openAdd}>Thêm QĐ</Btn>
       </div>
 
@@ -248,7 +250,7 @@ const HrDecisionsV2: React.FC = () => {
         destroyOnHidden
         width={520}
       >
-        <Form form={form} layout="vertical">
+        <Form form={form} layout="vertical" scrollToFirstError>
           <Form.Item name="decisionNumber" label="Số QĐ" rules={[{ required: true }]}>
             <Input placeholder="VD: 01/QĐ-BV" />
           </Form.Item>

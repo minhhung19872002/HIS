@@ -12,6 +12,7 @@ import {
   type NursingCareSheetDto, type CreateNursingCareSheetDto,
   type InpatientListDto,
 } from '../api/inpatient';
+import { RefreshButton } from '../../../components/actions/RefreshButton/RefreshButton';
 
 /* ── Ghi chép điều dưỡng per-admission: list + create (theo hội chẩn pattern) ── */
 
@@ -125,9 +126,7 @@ const NursingSection: React.FC<{ inpatients: InpatientListDto[]; active: boolean
           placeholder={['Từ ngày', 'Đến ngày']}
           allowClear
         />
-        <Btn variant="ghost" onClick={() => { if (selPatientId) void load(selPatientId); }}>
-          <TermIcon name="refresh" size={12} /> Tải lại
-        </Btn>
+        <RefreshButton onRefresh={() => { if (selPatientId) void load(selPatientId); }} label="Tải lại" />
         <span className="spacer" />
         {selPatientId && (
           <Btn icon="plus" onClick={() => { form.resetFields(); form.setFieldValue('careDate', dayjs()); setCreateOpen(true); }}

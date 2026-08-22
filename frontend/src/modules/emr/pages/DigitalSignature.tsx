@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { Form, Input, Modal } from 'antd';
 import * as dsApi from '../api/digitalSignature';
@@ -12,6 +13,7 @@ import {
   DrawerShell, DrSec, DrField, tk, ti, tw, Ico,
   type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 interface CertificateInfo {
   thumbprint: string;
@@ -57,7 +59,7 @@ const TABS = [
 const PER = 18;
 
 const DigitalSignatureV2: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('pending');
+  const [tab, setTab] = useTabState<Tab>('pending');
   const [tokens, setTokens] = useState<TokenInfoDto[]>([]);
   const [certs, setCerts] = useState<CertificateInfo[]>([]);
   const [session, setSession] = useState<SessionStatusResponse | null>(null);
@@ -131,7 +133,12 @@ const DigitalSignatureV2: React.FC = () => {
         loginForm.resetFields();
         fetchData();
       } else { tw(res.data?.message || 'Không mở được phiên'); }
-    } catch { tw('Vui lòng nhập mã PIN'); }
+    } catch (e: unknown) {
+      // Form.Item rules={required:true} đã hiện lỗi ngay tại trường PIN — không toast trùng.
+      const err = e as { errorFields?: unknown };
+      if (err?.errorFields) return;
+      tw('Không mở được phiên ký số');
+    }
   };
 
   const closeSession = async () => {
@@ -306,9 +313,7 @@ const DigitalSignatureV2: React.FC = () => {
               <Ico name="x" size={12} /> Đóng phiên
             </Btn>
           )}
-          <Btn variant="ghost" onClick={fetchData} loading={loading} icon="refresh">
-            Làm mới
-          </Btn>
+          <RefreshButton onRefresh={fetchData} loading={loading} />
         </>
       } />
 

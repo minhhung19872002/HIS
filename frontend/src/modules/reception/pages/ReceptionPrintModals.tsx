@@ -12,22 +12,9 @@ import { ModalShell, tw } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
+import { Field } from '../../../components/form/Field';
 import type { RawRow } from './shared';
 import { genderLabel, ageOf } from './shared';
-
-// ─── Shared field helpers (cùng pattern VisitActionsModals) ──────────────────
-
-const FIELD_LABEL: React.CSSProperties = {
-  fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600,
-};
-const FIELD_WRAP: React.CSSProperties = { marginBottom: 'var(--space-12)' };
-
-const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div style={FIELD_WRAP}>
-    <div style={FIELD_LABEL}>{label}</div>
-    {children}
-  </div>
-);
 
 const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div style={{

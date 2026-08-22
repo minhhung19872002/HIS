@@ -29,6 +29,7 @@ import {
   type ColumnDef, type StatusTab, type TopTab,
 } from '@/_v2kit';
 import { RowActions } from '../../../components/actions';
+import { useTabState } from '../../../hooks/useTabState';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -92,8 +93,8 @@ const emptyForm = (): SaveAssetProcurementRequestDto => ({
 // ── Component ─────────────────────────────────────────────────────────────────
 
 const ProcurementRequestsV2: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('all');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [tab, setTab] = useTabState<TabKey>('all', 'tab');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all', 'stab');
   const [rows, setRows] = useState<AssetProcurementRequestDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');

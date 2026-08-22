@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import { Alert, App as AntdApp, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import {
@@ -10,6 +11,7 @@ import {
   TopTabs,
   type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 import type {
   DicomStudyDto,
   PACSConnectionDto,
@@ -55,7 +57,7 @@ const PacsWorkspaceModal: React.FC<PacsWorkspaceModalProps> = ({
   onOpenAdmin,
 }) => {
   const { message } = AntdApp.useApp();
-  const [tab, setTab] = useState<PacsTab>('studies');
+  const [tab, setTab] = useTabState<PacsTab>('studies');
   const [studies, setStudies] = useState<DicomStudyDto[]>([]);
   const [connections, setConnections] = useState<PACSConnectionDto[]>([]);
   const [remoteServers, setRemoteServers] = useState<RemotePacsServerDto[]>([]);
@@ -368,7 +370,7 @@ const PacsWorkspaceModal: React.FC<PacsWorkspaceModalProps> = ({
               PACS lưu ảnh DICOM; HIS chỉ giữ Study UID và liên kết với phiếu chụp.
             </span>
             <span className="spacer" />
-            <Btn variant="ghost" icon="refresh" onClick={() => void load()} loading={loading}>Làm mới</Btn>
+            <RefreshButton onRefresh={() => void load()} loading={loading} />
           </div>
           <DataTable<PACSConnectionDto>
             columns={connectionColumns}

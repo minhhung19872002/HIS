@@ -4,6 +4,7 @@
 // Issues #103 #123 #124 #125 — route /v2/kiosk
 // =====================================================================
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import { fmtDate, fmtTime } from '../../../utils/format';
 import { Input, Select, Spin, Alert, QRCode, Divider } from 'antd';
 import {
@@ -129,7 +130,7 @@ const TicketResult: React.FC<TicketResultProps> = ({ result, onClose }) => {
 // ── Main component ────────────────────────────────────────────────────────────
 
 const KioskSelfService: React.FC = () => {
-  const [tab, setTab]         = useState<TabKey>('issue');
+  const [tab, setTab]         = useTabState<TabKey>('issue');
   const [loading, setLoading] = useState(false);
   const [queue, setQueue]     = useState<QueueStatusDto | null>(null);
 

@@ -4,6 +4,8 @@ import * as risApi from '../api/ris';
 import { ModalShell, Btn, AbSelect } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { FormRow, fmtDT, type ApiErr } from './_shared';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { Field } from '../../../components/form/Field';
 
 const SIGN_TYPES = [
   { id: 'USBToken', name: 'USB Token (chữ ký số CA)' },
@@ -26,6 +28,17 @@ export const SignResultModal: React.FC<{
   const [busy, setBusy] = useState(false);
   const [history, setHistory] = useState<risApi.SignatureHistoryDto[]>([]);
 
+  const needsPin = signatureType === 'USBToken' || signatureType === 'SignServer';
+  const needsOtp = signatureType === 'SmartCA' || signatureType === 'eKYC';
+
+  const { errors, validate, clear } = useModalForm(
+    {
+      pin: { required: needsPin, message: 'Nhập mã PIN của token/chứng thư' },
+      otp: { required: needsOtp, message: 'Nhập mã OTP' },
+    },
+    open,
+  );
+
   useEffect(() => {
     if (!open || !reportId) return;
     setSignatureType('USBToken'); setPin(''); setOtp('');
@@ -34,13 +47,9 @@ export const SignResultModal: React.FC<{
       .catch(() => setHistory([]));
   }, [open, reportId]);
 
-  const needsPin = signatureType === 'USBToken' || signatureType === 'SignServer';
-  const needsOtp = signatureType === 'SmartCA' || signatureType === 'eKYC';
-
   const submit = async () => {
     if (!reportId) return;
-    if (needsPin && !pin.trim()) { message.warning('Nhập mã PIN của token/chứng thư'); return; }
-    if (needsOtp && !otp.trim()) { message.warning('Nhập mã OTP'); return; }
+    if (!validate({ pin, otp })) return;
     setBusy(true);
     try {
       const r = await risApi.signResult({
@@ -85,14 +94,14 @@ export const SignResultModal: React.FC<{
           />
         </FormRow>
         {needsPin && (
-          <FormRow label="Mã PIN">
-            <Input.Password value={pin} onChange={(e) => setPin(e.target.value)} placeholder="Mã PIN token / chứng thư" />
-          </FormRow>
+          <Field label="Mã PIN" required error={errors.pin}>
+            <Input.Password value={pin} onChange={(e) => { setPin(e.target.value); clear('pin'); }} placeholder="Mã PIN token / chứng thư" />
+          </Field>
         )}
         {needsOtp && (
-          <FormRow label="Mã OTP">
-            <Input value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="Mã OTP nhận qua app/SMS" />
-          </FormRow>
+          <Field label="Mã OTP" required error={errors.otp}>
+            <Input value={otp} onChange={(e) => { setOtp(e.target.value); clear('otp'); }} placeholder="Mã OTP nhận qua app/SMS" />
+          </Field>
         )}
         {history.length > 0 && (
           <div className="rec-section" style={{ marginTop: 'var(--space-4)' }}>

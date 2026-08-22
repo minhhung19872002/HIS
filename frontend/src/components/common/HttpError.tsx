@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import TermIcon from '../layout/terminal/Icon';
 import { ROUTES } from '../../config/route.config';
+import { getBackTarget } from '../../services/navTrail.service';
 
 // ── HTTP error registry ────────────────────────────────────────────────────
 type Tone = 'crit' | 'warn' | 'info';
@@ -71,10 +72,16 @@ export const HttpError: React.FC<HttpErrorProps> = ({
     if (variant === 'page' || variant === 'fullpage') { containerRef.current?.focus(); }
   }, [variant]);
 
+  // "Quay lại" phải trả người dùng về ĐÚNG trang đang thao tác trước khi lỗi xảy ra.
+  // Màn lỗi luôn nằm tại vị trí hiện tại → mục gần nhất KHÁC nó trong vết chính là trang đó.
+  // Điều hướng bằng location.assign (không dùng router) vì ErrorBoundary gốc nằm NGOÀI Router
+  // (App.tsx) — và sau một lần crash, tải lại sạch là hành vi an toàn hơn.
   const handleBack = () => {
     if (onBack) { onBack(); return; }
-    if (window.history.length > 1) { window.history.back(); }
-    else { window.location.href = '/'; }
+    const target = getBackTarget(window.location.pathname + window.location.search);
+    if (target) { window.location.assign(target); return; }
+    if (window.history.length > 1) { window.history.back(); return; }
+    window.location.assign(ROUTES.DASHBOARD);
   };
 
   if (variant === 'inline') {

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { DatePicker, Form, Input, InputNumber, Divider } from 'antd';
 import {
@@ -17,6 +18,7 @@ import {
   Pager, StatusBadge, ActBtn, Btn, DrawerShell, ModalShell, DrSec, DrField,
   useTabCounts, cf, tk, ti, tw, Ico, type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 // ─────────────────────────── Interfaces ───────────────────────────────────────
 
@@ -170,7 +172,7 @@ const HO_STATUS_OPTS = [
 
 const MedicalRecordPlanningV2: React.FC = () => {
   // ── Tab navigation ────────────────────────────────────────────────────────
-  const [tab, setTab] = useState<TabKey>('codes');
+  const [tab, setTab] = useTabState<TabKey>('codes', 'tab');
 
   // ── Stats (KpiStrip) ──────────────────────────────────────────────────────
   const [stats, setStats] = useState<PlanningStats | null>(null);
@@ -179,7 +181,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
   const [items, setItems] = useState<RecordCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all', 'stab');
   const [fDept, setFDept] = useState('');
   const [rcRange, setRcRange] = useState<DateRange>(null); // Ngày cấp từ–đến (in-memory)
   const [page, setPage] = useState(0);
@@ -713,7 +715,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
           />
           <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFDept(''); setStab('all'); setRcRange(null); setPage(0); }}>Bỏ lọc</Btn>
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
+          <RefreshButton onRefresh={load} loading={loading} />
           <Btn variant="primary" icon="plus" onClick={openBulk}>Cấp dải mã</Btn>
         </div>
 
@@ -740,7 +742,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
             placeholder={['Ngày CV từ', 'đến']}
           />
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={() => loadTransfers(trPage)} loading={trLoading}>Làm mới</Btn>
+          <RefreshButton onRefresh={() => loadTransfers(trPage)} loading={trLoading} />
         </div>
 
         <DataTable<TransferRecord>
@@ -770,7 +772,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
             placeholder="▾ Trạng thái"
           />
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={() => loadBorrowing(brPage)} loading={brLoading}>Làm mới</Btn>
+          <RefreshButton onRefresh={() => loadBorrowing(brPage)} loading={brLoading} />
           <Btn variant="primary" icon="plus" onClick={() => { setBorrowModal(true); borrowForm.resetFields(); }}>
             Tạo phiếu mượn
           </Btn>
@@ -803,7 +805,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
             placeholder="▾ Trạng thái"
           />
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={() => loadHandover(hoPage)} loading={hoLoading}>Làm mới</Btn>
+          <RefreshButton onRefresh={() => loadHandover(hoPage)} loading={hoLoading} />
         </div>
 
         <DataTable<HandoverRecord>
@@ -833,7 +835,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
             placeholder={['Ngày khám từ', 'đến']}
           />
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={() => loadOutpatient(opPage)} loading={opLoading}>Làm mới</Btn>
+          <RefreshButton onRefresh={() => loadOutpatient(opPage)} loading={opLoading} />
         </div>
 
         <DataTable<OutpatientRecord>
@@ -867,7 +869,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
             Chưa chấm: <b>{attendance.length - attCheckedIn}/{attendance.length}</b> khoa
           </span>
           <span className="spacer" />
-          <Btn variant="ghost" icon="refresh" onClick={() => loadAttendance(attDate)} loading={attLoading}>Làm mới</Btn>
+          <RefreshButton onRefresh={() => loadAttendance(attDate)} loading={attLoading} />
         </div>
 
         <DataTable<DepartmentAttendance>

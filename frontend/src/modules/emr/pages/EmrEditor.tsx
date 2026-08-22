@@ -16,6 +16,8 @@ import {
   fmtDMYg, fmtDTg, tk, ti, te, tw, type ColumnDef, type TopTab,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { useTabState } from '../../../hooks/useTabState';
 import apiClient from '../../../services/apiClient';
 import { generateCdaDocument } from '../api/cda';
 import {
@@ -241,7 +243,7 @@ const EmrEditorV2: React.FC = () => {
   const [listLoading, setListLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [sel, setSel] = useState<EmrRecordDto | null>(null);
-  const [tab, setTab] = useState<TabKey>('record');
+  const [tab, setTab] = useTabState<TabKey>('record');
 
   const [examId, setExamId] = useState<string | null>(null);
   const [full, setFull] = useState<MedicalRecordFullDto | null>(null);
@@ -297,6 +299,12 @@ const EmrEditorV2: React.FC = () => {
   const [drugTests, setDrugTests] = useState<DrugTestRow[]>([]);
   const [drugTestOpen, setDrugTestOpen] = useState(false);
   const [drugTestForm, setDrugTestForm] = useState<Record<string, string>>({});
+
+  // ── Validate trường bắt buộc trong modal (quy tắc chung — FormField + useModalForm) ──
+  const vfMaternity = useModalForm({ days: { validate: (v) => (Number(v) > 0 ? undefined : 'Vui lòng nhập số ngày nghỉ hợp lệ') } }, maternityLeaveModalOpen);
+  const vfPtg = useModalForm({ recordTime: { required: true, message: 'Chọn thời điểm ghi' } }, ptgOpen);
+  const vfAnes = useModalForm({ anesthesiaType: { required: true, message: 'Nhập loại gây mê' } }, anesOpen);
+  const vfDrugTest = useModalForm({ drugName: { required: true, message: 'Nhập tên thuốc' } }, drugTestOpen);
   const drugTestSeq = useRef(0);
 
   const openCreate = (kind: 'treatment' | 'consult' | 'nursing') => {
@@ -476,7 +484,6 @@ const EmrEditorV2: React.FC = () => {
   const savePartograph = async () => {
     const admId = sel?.medicalRecordId || '';
     if (!sel || !admId) { tw('HSBA này không có phiếu nội trú để ghi biểu đồ'); return; }
-    if (!ptgForm.recordTime) { tw('Chọn thời điểm ghi'); return; }
     setPtgSaving(true);
     try {
       await savePartographRecord({ ...ptgForm, admissionId: admId, patientId: sel.patientId, patientName: sel.patientName } as PartographSaveDto);
@@ -488,7 +495,7 @@ const EmrEditorV2: React.FC = () => {
   };
 
   const saveAnesthesia = async () => {
-    if (!sel || !anesForm.anesthesiaType) { tw('Nhập loại gây mê'); return; }
+    if (!sel) return;
     setAnesSaving(true);
     try {
       await saveAnesthesiaRecord({ ...anesForm, surgeryId: anesForm.surgeryId || sel.medicalRecordId || '', patientId: sel.patientId, patientName: sel.patientName, asaClass: anesForm.asaClass || 1, mallampatiScore: anesForm.mallampatiScore || 1, anesthesiaType: anesForm.anesthesiaType || '', status: anesForm.status || 0, monitors: [], drugs: [], fluids: [] } as AnesthesiaSaveDto);
@@ -510,7 +517,6 @@ const EmrEditorV2: React.FC = () => {
 
   // #352: parity v1 — phiếu thử lưu local, chưa có backend endpoint
   const saveDrugTest = () => {
-    if (!drugTestForm.drugName?.trim()) { tw('Nhập tên thuốc'); return; }
     drugTestSeq.current += 1;
     setDrugTests((p) => [...p, {
       id: `drt-${drugTestSeq.current}`,
@@ -1204,10 +1210,8 @@ const EmrEditorV2: React.FC = () => {
             <Btn
               variant="primary"
               onClick={() => {
-                if (!maternityLeaveDto || maternityLeaveDto.days <= 0) {
-                  tw('Vui lòng nhập số ngày nghỉ hợp lệ');
-                  return;
-                }
+                if (!maternityLeaveDto) return;
+                if (!vfMaternity.validate({ days: maternityLeaveDto.days })) return;
                 setMaternityLeaveModalOpen(false);
                 setPrintPreviewType('maternity-leave');
                 setPrintPreviewOpen(true);
@@ -1220,41 +1224,41 @@ const EmrEditorV2: React.FC = () => {
       >
         {maternityLeaveDto && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: 'var(--space-4)', fontWeight: 500 }}>Số ngày nghỉ <span style={{ color: 'red' }}>*</span></label>
+            <FormField lbl="Số ngày nghỉ" required error={vfMaternity.errors.days}>
               <input
                 type="number"
                 min={1}
                 className="ed-fld"
                 value={maternityLeaveDto.days || ''}
-                onChange={(e) => setMaternityLeaveDto({ ...maternityLeaveDto, days: Number(e.target.value) })}
+                onChange={(e) => { setMaternityLeaveDto({ ...maternityLeaveDto, days: Number(e.target.value) }); vfMaternity.clear('days'); }}
                 style={{ width: '100%' }}
               />
-            </div>
+            </FormField>
             <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
               <div className="ab-u-flex1">
-                <label style={{ display: 'block', marginBottom: 'var(--space-4)', fontWeight: 500 }}>Từ ngày</label>
-                <input
-                  type="date"
-                  className="ed-fld"
-                  value={maternityLeaveDto.fromDate}
-                  onChange={(e) => setMaternityLeaveDto({ ...maternityLeaveDto, fromDate: e.target.value })}
-                  style={{ width: '100%' }}
-                />
+                <FormField lbl="Từ ngày">
+                  <input
+                    type="date"
+                    className="ed-fld"
+                    value={maternityLeaveDto.fromDate}
+                    onChange={(e) => setMaternityLeaveDto({ ...maternityLeaveDto, fromDate: e.target.value })}
+                    style={{ width: '100%' }}
+                  />
+                </FormField>
               </div>
               <div className="ab-u-flex1">
-                <label style={{ display: 'block', marginBottom: 'var(--space-4)', fontWeight: 500 }}>Đến ngày</label>
-                <input
-                  type="date"
-                  className="ed-fld"
-                  value={maternityLeaveDto.toDate}
-                  onChange={(e) => setMaternityLeaveDto({ ...maternityLeaveDto, toDate: e.target.value })}
-                  style={{ width: '100%' }}
-                />
+                <FormField lbl="Đến ngày">
+                  <input
+                    type="date"
+                    className="ed-fld"
+                    value={maternityLeaveDto.toDate}
+                    onChange={(e) => setMaternityLeaveDto({ ...maternityLeaveDto, toDate: e.target.value })}
+                    style={{ width: '100%' }}
+                  />
+                </FormField>
               </div>
             </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: 'var(--space-4)', fontWeight: 500 }}>Tuần thai (tuần)</label>
+            <FormField lbl="Tuần thai (tuần)">
               <input
                 type="number"
                 min={1}
@@ -1265,9 +1269,8 @@ const EmrEditorV2: React.FC = () => {
                 style={{ width: '100%' }}
                 placeholder="VD: 28"
               />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: 'var(--space-4)', fontWeight: 500 }}>Lý do nghỉ dưỡng thai</label>
+            </FormField>
+            <FormField lbl="Lý do nghỉ dưỡng thai">
               <textarea
                 className="ed-fld"
                 rows={3}
@@ -1276,7 +1279,7 @@ const EmrEditorV2: React.FC = () => {
                 style={{ width: '100%', resize: 'vertical' }}
                 placeholder="VD: Doạ sảy thai, tiền sản giật..."
               />
-            </div>
+            </FormField>
           </div>
         )}
       </ModalShell>
@@ -1315,7 +1318,7 @@ const EmrEditorV2: React.FC = () => {
         sub={sel?.patientName} size="md"
         footer={<>
           <Btn variant="ghost" onClick={() => setModal(null)}>Hủy</Btn>
-          <Btn variant="primary" disabled={savingForm} onClick={saveSheet}><TermIcon name="check" size={12} /> Lưu</Btn>
+          <Btn variant="primary" loading={savingForm} onClick={saveSheet}><TermIcon name="check" size={12} /> Lưu</Btn>
         </>}>
         <div style={{ padding: 'var(--space-16)', display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-10)' }}>
@@ -1371,15 +1374,15 @@ const EmrEditorV2: React.FC = () => {
         footer={
           <>
             <Btn variant="ghost" onClick={() => setPtgOpen(false)}>Hủy</Btn>
-            <Btn variant="primary" disabled={ptgSaving} onClick={savePartograph}>
-              {ptgSaving ? 'Đang lưu…' : 'Lưu'}
+            <Btn variant="primary" loading={ptgSaving} onClick={() => { if (vfPtg.validate({ recordTime: ptgForm.recordTime })) savePartograph(); }}>
+              Lưu
             </Btn>
           </>
         }
       >
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-10)' }}>
-          <FormField lbl="Thời điểm *">
-            <input type="datetime-local" className="ed-fld" value={ptgForm.recordTime || ''} onChange={(e) => setPtgForm((p) => ({ ...p, recordTime: e.target.value }))} />
+          <FormField lbl="Thời điểm" required error={vfPtg.errors.recordTime}>
+            <input type="datetime-local" className="ed-fld" value={ptgForm.recordTime || ''} onChange={(e) => { setPtgForm((p) => ({ ...p, recordTime: e.target.value })); vfPtg.clear('recordTime'); }} />
           </FormField>
           <FormField lbl="Mở CTC (cm)">
             <input type="number" className="ed-fld" min={0} max={10} step={0.5} value={ptgForm.cervicalDilation ?? ''} onChange={(e) => setPtgForm((p) => ({ ...p, cervicalDilation: e.target.value ? +e.target.value : undefined }))} />
@@ -1426,15 +1429,15 @@ const EmrEditorV2: React.FC = () => {
         footer={
           <>
             <Btn variant="ghost" onClick={() => setAnesOpen(false)}>Hủy</Btn>
-            <Btn variant="primary" disabled={anesSaving} onClick={saveAnesthesia}>
-              {anesSaving ? 'Đang lưu…' : 'Lưu phiếu'}
+            <Btn variant="primary" loading={anesSaving} onClick={() => { if (vfAnes.validate({ anesthesiaType: anesForm.anesthesiaType })) saveAnesthesia(); }}>
+              Lưu phiếu
             </Btn>
           </>
         }
       >
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-10)' }}>
-          <FormField lbl="Loại gây mê *">
-            <select className="ed-fld" value={anesForm.anesthesiaType || ''} onChange={(e) => setAnesForm((p) => ({ ...p, anesthesiaType: e.target.value }))}>
+          <FormField lbl="Loại gây mê" required error={vfAnes.errors.anesthesiaType}>
+            <select className="ed-fld" value={anesForm.anesthesiaType || ''} onChange={(e) => { setAnesForm((p) => ({ ...p, anesthesiaType: e.target.value })); vfAnes.clear('anesthesiaType'); }}>
               <option value="GeneralAnesthesia">Gây mê toàn thân</option>
               <option value="SpinalAnesthesia">Tê tủy sống</option>
               <option value="EpiduralAnesthesia">Gây tê ngoài màng cứng</option>
@@ -1475,12 +1478,12 @@ const EmrEditorV2: React.FC = () => {
         title="Thêm phiếu thử phản ứng thuốc" sub={sel?.patientName} size="md"
         footer={<>
           <Btn variant="ghost" onClick={() => setDrugTestOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={saveDrugTest}><TermIcon name="check" size={12} /> Lưu</Btn>
+          <Btn variant="primary" onClick={() => { if (vfDrugTest.validate({ drugName: drugTestForm.drugName })) saveDrugTest(); }}><TermIcon name="check" size={12} /> Lưu</Btn>
         </>}>
         <div style={{ padding: 'var(--space-16)', display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-10)' }}>
             <FormField lbl="Ngày thử"><input type="date" className="ed-fld" value={drugTestForm.date || ''} onChange={(e) => dtf('date', e.target.value)} /></FormField>
-            <FormField lbl="Tên thuốc *"><input className="ed-fld" value={drugTestForm.drugName || ''} onChange={(e) => dtf('drugName', e.target.value)} /></FormField>
+            <FormField lbl="Tên thuốc" required error={vfDrugTest.errors.drugName}><input className="ed-fld" value={drugTestForm.drugName || ''} onChange={(e) => { dtf('drugName', e.target.value); vfDrugTest.clear('drugName'); }} /></FormField>
             <FormField lbl="Liều"><input className="ed-fld" value={drugTestForm.dose || ''} onChange={(e) => dtf('dose', e.target.value)} /></FormField>
             <FormField lbl="Đường dùng"><input className="ed-fld" value={drugTestForm.route || ''} onChange={(e) => dtf('route', e.target.value)} placeholder="Tiêm trong da / uống…" /></FormField>
             <FormField lbl="Giờ thử"><input type="time" className="ed-fld" value={drugTestForm.testTime || ''} onChange={(e) => dtf('testTime', e.target.value)} /></FormField>
@@ -1517,10 +1520,17 @@ const Field: React.FC<{ lbl: string; children: React.ReactNode }> = ({ lbl, chil
   </div>
 );
 
-const FormField: React.FC<{ lbl: string; children: React.ReactNode }> = ({ lbl, children }) => (
-  <label style={{ display: 'block', fontSize: 11.5 }}>
-    <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>{lbl}</span>
+// `required`/`error` theo QUY TẮC CHUNG (Field + useModalForm): dấu * đỏ cạnh nhãn,
+// viền đỏ + thông báo lỗi ngay tại trường khi bấm Lưu, tái dùng class `.hui-req`/`.hui-field-err`
+// đã có sẵn trong ab-module.css để không phải import Field (tên trùng với `Field` cục bộ ở trên).
+const FormField: React.FC<{ lbl: string; required?: boolean; error?: string; children: React.ReactNode }> = ({ lbl, required, error, children }) => (
+  <label className={['hui-field', error ? 'is-invalid' : ''].filter(Boolean).join(' ')} style={{ display: 'block', fontSize: 11.5 }}>
+    <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>
+      {lbl}
+      {required && <span className="hui-req" aria-hidden="true">*</span>}
+    </span>
     {children}
+    {error && <span className="hui-field-err" role="alert">{error}</span>}
   </label>
 );
 

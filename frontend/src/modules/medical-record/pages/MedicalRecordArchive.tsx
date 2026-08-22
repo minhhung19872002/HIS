@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { Form, Input, Tree } from 'antd';
 import type { DataNode } from 'antd/es/tree';
@@ -11,6 +12,7 @@ import {
   StatusTabs, DrawerShell, ModalShell, DrSec, DrField, EmptyState, tk, ti, tw, Ico,
   type ColumnDef, type StatusTone,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 /* =====================================================================
  * Port v1 pages/MedicalRecordArchive.tsx -> v2 (#409 batch-4).
@@ -347,13 +349,13 @@ const PatientInfo: React.FC<{ exam: ArchiveExamination }> = ({ exam }) => (
 );
 
 const MedicalRecordArchiveV2: React.FC = () => {
-  const [tab, setTab] = useState<PageTab>('archive');
+  const [tab, setTab] = useTabState<PageTab>('archive', 'tab');
 
   // ══════════════ TAB LƯU TRỮ & TRA CỨU (v2 gốc — giữ nguyên) ══════════════
   const [items, setItems] = useState<ArchivedRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<ArchiveStatus | 'all'>('all');
+  const [stab, setStab] = useTabState<ArchiveStatus | 'all'>('all', 'stab');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<ArchivedRecord | null>(null);
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -831,9 +833,7 @@ const MedicalRecordArchiveV2: React.FC = () => {
             <Ico name="x" size={12} /> Bỏ lọc
           </Btn>
           <span className="spacer" />
-          <Btn variant="ghost" onClick={load}>
-            <Ico name="refresh" size={12} /> Làm mới
-          </Btn>
+          <RefreshButton onRefresh={load} loading={loading} />
           <Btn variant="primary" onClick={() => { archiveForm.resetFields(); setArchiveOpen(true); }}>
             <Ico name="archive" size={12} /> Lưu trữ ngay
           </Btn>
@@ -863,9 +863,7 @@ const MedicalRecordArchiveV2: React.FC = () => {
             <Ico name="search" size={12} /> Tìm kiếm
           </Btn>
           <span className="spacer" />
-          <Btn variant="ghost" onClick={() => searchSummaryExams(summaryPage0 + 1)}>
-            <Ico name="refresh" size={12} /> Làm mới
-          </Btn>
+          <RefreshButton onRefresh={() => searchSummaryExams(summaryPage0 + 1)} loading={summaryLoading} />
         </div>
 
         <div style={{ display: 'flex', gap: 'var(--space-14)', alignItems: 'flex-start' }}>

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import * as file from '../../../services/file.service';
 import dayjs from 'dayjs';
 import { App as AntdApp, Alert, DatePicker, Input, Select } from 'antd';
@@ -38,6 +39,7 @@ import {
   TopTabs,
   type ColumnDef, type StatusTab, type TopTab,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { fmtVND } from '../../../utils/format';
 import { openPrintWindow, escapeHtml } from '../../../utils/printWindow';
@@ -209,8 +211,8 @@ const InsuranceV2: React.FC = () => {
     useCallback(() => { message.warning('Không tải được danh sách hồ sơ BHYT'); }, [message]),
   );
 
-  const [topTab, setTopTab]             = useState<PageTab>('claims');
-  const [stab, setStab]                 = useState<StatusKey | 'all'>('all');
+  const [topTab, setTopTab]             = useTabState<PageTab>('claims', 'tab');
+  const [stab, setStab]                 = useTabState<StatusKey | 'all'>('all', 'stab');
   const [search, setSearch]             = useState('');
   const [claimDateRange, setClaimDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
   const [page, setPage]                 = useState(0);
@@ -721,9 +723,7 @@ const InsuranceV2: React.FC = () => {
             <Btn variant="ghost" onClick={handleSync} disabled={syncLoading}>
               <TermIcon name="refresh" size={12} /> {syncLoading ? 'Đang đồng bộ…' : 'Đồng bộ BHXH'}
             </Btn>
-            <Btn variant="ghost" onClick={reload}>
-              <TermIcon name="refresh" size={12} /> Làm mới
-            </Btn>
+            <RefreshButton onRefresh={async () => { await reload(); }} />
             <Btn variant="ghost" onClick={() => navigate('/v2/bhxh-audit')}>
               <TermIcon name="check" size={12} /> Validate XML
             </Btn>
@@ -1076,7 +1076,7 @@ const InsuranceV2: React.FC = () => {
           <div style={{ marginTop: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
               <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--t-1)' }}>Lịch sử xuất XML</span>
-              <Btn variant="ghost" icon="refresh" onClick={() => { void loadXmlHistory(); }}>Làm mới</Btn>
+              <RefreshButton onRefresh={async () => { await loadXmlHistory(); }} />
             </div>
             <DataTable<XmlBatchHistoryDto>
               columns={[
@@ -1126,9 +1126,7 @@ const InsuranceV2: React.FC = () => {
             <Btn icon="plus" variant="primary" onClick={() => setBatchCreateOpen(true)}>
               Tạo đợt quyết toán
             </Btn>
-            <Btn variant="ghost" onClick={() => loadBatches(batchYear)}>
-              <TermIcon name="refresh" size={12} /> Làm mới
-            </Btn>
+            <RefreshButton onRefresh={async () => { await loadBatches(batchYear); }} />
           </div>
 
           <DataTable<InsuranceSettlementBatchDto>

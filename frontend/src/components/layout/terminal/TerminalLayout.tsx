@@ -4,6 +4,9 @@ import { ConfigProvider, message, Modal, Input, theme as antdTheme } from 'antd'
 import type { ThemeConfig } from 'antd';
 import { useAuth } from '../../../hooks/useAuth';
 import { useScrollRestore } from '../../../hooks/useScrollRestore';
+import { recordLocation } from '../../../services/navTrail.service';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { Field } from '../../form/Field';
 import { useTheme } from '../../../contexts/ThemeContext';
 import {
   CommandProvider, useCommandCtx, COMMANDS, type CmdId,
@@ -345,6 +348,11 @@ const TerminalShell: React.FC = () => {
   const mainScrollRef = useRef<HTMLDivElement>(null);
   useScrollRestore(mainScrollRef, location.pathname);
 
+  // Vết điều hướng cho nút "Quay lại" ở màn báo lỗi (404/403/500/ErrorBoundary)
+  useEffect(() => {
+    recordLocation(location.pathname + location.search);
+  }, [location.pathname, location.search]);
+
   const [pinnedGroupId, setPinnedGroupId] = useState<string | null>(null);
   const [hoveredGroupId, setHoveredGroupId] = useState<string | null>(null);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -483,6 +491,13 @@ const TerminalShell: React.FC = () => {
   const [bgModalOpen, setBgModalOpen] = useState(false);
   const [bgReason, setBgReason] = useState('');
   const [bgSubmitting, setBgSubmitting] = useState(false);
+  const bgForm = useModalForm({
+    reason: {
+      required: true,
+      message: 'Vui lòng nhập lý do truy cập khẩn cấp',
+      validate: (v) => (String(v ?? '').trim().length < 20 ? 'Lý do phải có ít nhất 20 ký tự' : undefined),
+    },
+  }, bgModalOpen);
 
   useEffect(() => {
     if (!breakGlass) return;
@@ -495,10 +510,7 @@ const TerminalShell: React.FC = () => {
   const canBreakGlass = !!(user?.roles?.some((r) => r === 'Doctor' || r === 'EmergencyDoctor'));
 
   const handleBreakGlassSubmit = useCallback(async () => {
-    if (!patient || bgReason.trim().length < 20) {
-      message.warning('Lý do phải có ít nhất 20 ký tự');
-      return;
-    }
+    if (!bgForm.validate({ reason: bgReason }) || !patient) return;
     setBgSubmitting(true);
     try {
       const result = await authApi.breakGlass(patient.id, bgReason.trim());
@@ -512,7 +524,7 @@ const TerminalShell: React.FC = () => {
     } finally {
       setBgSubmitting(false);
     }
-  }, [patient, bgReason]);
+  }, [patient, bgReason, bgForm]);
 
   // Hover intent: slight delay so accidental pointer crossings don't flicker
   const scheduleHoverClose = useCallback(() => {
@@ -664,15 +676,16 @@ const TerminalShell: React.FC = () => {
           <p style={{ marginBottom: 8, color: '#ef4444', fontWeight: 600 }}>
             Hành động này sẽ được ghi vào audit log và thông báo đến Quản trị viên.
           </p>
-          <p style={{ marginBottom: 8 }}>Lý do truy cập khẩn cấp <span style={{ color: '#ef4444' }}>*</span> (tối thiểu 20 ký tự)</p>
-          <Input.TextArea
-            value={bgReason}
-            onChange={(e) => setBgReason(e.target.value)}
-            rows={4}
-            placeholder="Mô tả tình huống khẩn cấp cần truy cập hồ sơ bệnh nhân..."
-            maxLength={500}
-            showCount
-          />
+          <Field label="Lý do truy cập khẩn cấp" required error={bgForm.errors.reason} hint="Tối thiểu 20 ký tự">
+            <Input.TextArea
+              value={bgReason}
+              onChange={(e) => { setBgReason(e.target.value); bgForm.clear('reason'); }}
+              rows={4}
+              placeholder="Mô tả tình huống khẩn cấp cần truy cập hồ sơ bệnh nhân..."
+              maxLength={500}
+              showCount
+            />
+          </Field>
         </Modal>
         <div className="his-main" ref={mainScrollRef}>
           <div className="his-content">

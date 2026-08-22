@@ -16,6 +16,7 @@ import {
   type ColumnDef,
 } from '@/_v2kit';
 import type {TabKey} from '../types/tabs';
+import { useTabState } from '../../../hooks/useTabState';
 
 
 type AnyRow =
@@ -44,7 +45,7 @@ const committeeStatus = (c: api.InspectionCommitteeDto): { tone: 'ok' | 'crit' |
 };
 
 const PharmacyCatalogsV2: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('mfr');
+  const [tab, setTab] = useTabState<TabKey>('mfr');
   const [mfrs, setMfrs] = useState<api.ManufacturerDto[]>([]);
   const [routes, setRoutes] = useState<api.MedicationRouteDto[]>([]);
   const [committees, setCommittees] = useState<api.InspectionCommitteeDto[]>([]);
@@ -308,13 +309,13 @@ const EditForm: React.FC<{ tab: TabKey; edit: EditState; setEdit: (e: EditState)
   if (tab === 'mfr') {
     return (
       <DrSec title="Thông tin hãng">
-        <DrField lbl="Mã hãng *">
+        <DrField lbl="Mã hãng" required>
           <Input value={edit.code as string || ''} onChange={(e) => set('code', e.target.value.toUpperCase())} placeholder="VD: STADA" />
         </DrField>
-        <DrField lbl="Quốc gia *">
+        <DrField lbl="Quốc gia" required>
           <Input value={edit.country as string || ''} onChange={(e) => set('country', e.target.value)} placeholder="Việt Nam" />
         </DrField>
-        <DrField lbl="Tên đầy đủ *">
+        <DrField lbl="Tên đầy đủ" required>
           <Input value={edit.name as string || ''} onChange={(e) => set('name', e.target.value)} />
         </DrField>
         <DrField lbl="Địa chỉ">
@@ -336,10 +337,10 @@ const EditForm: React.FC<{ tab: TabKey; edit: EditState; setEdit: (e: EditState)
   if (tab === 'route') {
     return (
       <DrSec title="Thông tin đường dùng">
-        <DrField lbl="Mã *">
+        <DrField lbl="Mã" required>
           <Input value={edit.code as string || ''} onChange={(e) => set('code', e.target.value.toUpperCase())} placeholder="VD: UO" />
         </DrField>
-        <DrField lbl="Tên đường dùng *">
+        <DrField lbl="Tên đường dùng" required>
           <Input value={edit.name as string || ''} onChange={(e) => set('name', e.target.value)} placeholder="VD: Tiêm tĩnh mạch" />
         </DrField>
         <DrField lbl="Mã BHXH (XML 4210)">
@@ -372,16 +373,16 @@ const EditForm: React.FC<{ tab: TabKey; edit: EditState; setEdit: (e: EditState)
   return (
     <>
       <DrSec title="Thông tin chung">
-        <DrField lbl="Mã hội đồng *">
+        <DrField lbl="Mã hội đồng" required>
           <Input value={edit.code as string || ''} onChange={(e) => set('code', e.target.value.toUpperCase())} placeholder="VD: HD-2026-001" />
         </DrField>
-        <DrField lbl="Tên *">
+        <DrField lbl="Tên" required>
           <Input value={edit.name as string || ''} onChange={(e) => set('name', e.target.value)} />
         </DrField>
         <DrField lbl="Mô tả">
           <Input.TextArea value={edit.description as string || ''} onChange={(e) => set('description', e.target.value)} rows={2} />
         </DrField>
-        <DrField lbl="Hiệu lực từ *">
+        <DrField lbl="Hiệu lực từ" required>
           <DatePicker
             value={edit.effectiveFrom ? dayjs(edit.effectiveFrom as string) : null}
             format="DD/MM/YYYY"
@@ -389,7 +390,7 @@ const EditForm: React.FC<{ tab: TabKey; edit: EditState; setEdit: (e: EditState)
             onChange={(d) => set('effectiveFrom', d ? d.toISOString() : null)}
           />
         </DrField>
-        <DrField lbl="Đến *">
+        <DrField lbl="Đến" required>
           <DatePicker
             value={edit.effectiveTo ? dayjs(edit.effectiveTo as string) : null}
             format="DD/MM/YYYY"

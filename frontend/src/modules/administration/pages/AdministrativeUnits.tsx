@@ -16,6 +16,8 @@ import {
   DrawerShell, DrSec, DrField, tk, te, cf,
   type ColumnDef,
 } from '@/_v2kit';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { useTabState } from '../../../hooks/useTabState';
 
 type TabKey = 'province' | 'district' | 'ward';
 
@@ -39,7 +41,7 @@ const EMPTY_EDIT: EditState = { code: '', name: '', isActive: true };
 const PER = 20;
 
 const AdministrativeUnitsV2: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('province');
+  const [tab, setTab] = useTabState<TabKey>('province');
   const [provinces, setProvinces] = useState<ProvinceDto[]>([]);
   const [districts, setDistricts] = useState<DistrictDto[]>([]);
   const [wards, setWards]         = useState<WardDto[]>([]);
@@ -50,6 +52,12 @@ const AdministrativeUnitsV2: React.FC = () => {
   const [edit, setEdit] = useState<EditState | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const editForm = useModalForm({
+    code: { required: true, label: 'Mã' },
+    name: { required: true, label: 'Tên' },
+    provinceId: { validate: (v) => (tab === 'district' && !v) ? 'Vui lòng chọn Tỉnh/TP' : undefined },
+    districtId: { validate: (v) => (tab === 'ward' && !v) ? 'Vui lòng chọn Quận/Huyện' : undefined },
+  }, edit !== null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -138,17 +146,15 @@ const AdministrativeUnitsV2: React.FC = () => {
   // ── Save ───────────────────────────────────────────────────────────────────
   const onSave = async () => {
     if (!edit) return;
-    if (!edit.code.trim() || !edit.name.trim()) { te('Vui lòng nhập Mã và Tên'); return; }
+    if (!editForm.validate({ code: edit.code, name: edit.name, provinceId: edit.provinceId, districtId: edit.districtId })) return;
     setSaving(true);
     try {
       if (tab === 'province') {
         await saveProvince({ id: edit.id || '00000000-0000-0000-0000-000000000000', code: edit.code, name: edit.name, isActive: edit.isActive });
       } else if (tab === 'district') {
-        if (!edit.provinceId) { te('Chọn Tỉnh/TP'); return; }
-        await saveDistrict({ id: edit.id || '00000000-0000-0000-0000-000000000000', code: edit.code, name: edit.name, provinceId: edit.provinceId, isActive: edit.isActive });
+        await saveDistrict({ id: edit.id || '00000000-0000-0000-0000-000000000000', code: edit.code, name: edit.name, provinceId: edit.provinceId!, isActive: edit.isActive });
       } else {
-        if (!edit.districtId) { te('Chọn Quận/Huyện'); return; }
-        await saveWard({ id: edit.id || '00000000-0000-0000-0000-000000000000', code: edit.code, name: edit.name, districtId: edit.districtId, isActive: edit.isActive });
+        await saveWard({ id: edit.id || '00000000-0000-0000-0000-000000000000', code: edit.code, name: edit.name, districtId: edit.districtId!, isActive: edit.isActive });
       }
       tk(edit.id ? 'Đã cập nhật' : 'Đã thêm mới');
       setEdit(null);
@@ -233,18 +239,18 @@ const AdministrativeUnitsV2: React.FC = () => {
         {edit && (
           <>
             <DrSec title="Thông tin">
-              <DrField lbl="Mã *">
+              <DrField lbl="Mã" required error={editForm.errors.code}>
                 <Input
                   value={edit.code}
-                  onChange={e => setEdit({ ...edit, code: e.target.value })}
+                  onChange={e => { setEdit({ ...edit, code: e.target.value }); editForm.clear('code'); }}
                   placeholder="VD: 01, 48, 79..."
                   maxLength={20}
                 />
               </DrField>
-              <DrField lbl="Tên *">
+              <DrField lbl="Tên" required error={editForm.errors.name}>
                 <Input
                   value={edit.name}
-                  onChange={e => setEdit({ ...edit, name: e.target.value })}
+                  onChange={e => { setEdit({ ...edit, name: e.target.value }); editForm.clear('name'); }}
                   placeholder={
                     tab === 'province' ? 'Tên tỉnh/thành phố'
                     : tab === 'district' ? 'Tên quận/huyện'
@@ -255,13 +261,13 @@ const AdministrativeUnitsV2: React.FC = () => {
               </DrField>
 
               {tab === 'district' && (
-                <DrField lbl="Tỉnh/TP *">
+                <DrField lbl="Tỉnh/TP" required error={editForm.errors.provinceId}>
                   <Select
                     style={{ width: '100%' }}
                     showSearch
                     placeholder="Chọn tỉnh/TP"
                     value={edit.provinceId}
-                    onChange={v => setEdit({ ...edit, provinceId: v })}
+                    onChange={v => { setEdit({ ...edit, provinceId: v }); editForm.clear('provinceId'); }}
                     options={provinces.filter(p => p.isActive).map(p => ({ value: p.id, label: p.name }))}
                     optionFilterProp="label"
                   />
@@ -269,13 +275,13 @@ const AdministrativeUnitsV2: React.FC = () => {
               )}
 
               {tab === 'ward' && (
-                <DrField lbl="Quận/Huyện *">
+                <DrField lbl="Quận/Huyện" required error={editForm.errors.districtId}>
                   <Select
                     style={{ width: '100%' }}
                     showSearch
                     placeholder="Chọn quận/huyện"
                     value={edit.districtId}
-                    onChange={v => setEdit({ ...edit, districtId: v })}
+                    onChange={v => { setEdit({ ...edit, districtId: v }); editForm.clear('districtId'); }}
                     options={districts.filter(d => d.isActive).map(d => ({ value: d.id, label: d.name }))}
                     optionFilterProp="label"
                   />

@@ -10,8 +10,9 @@ import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, Btn, DrawerShell, ModalShell, DrSec, DrField,
   Ico, tk, ti, tw, cf, type ColumnDef,
 } from '@/_v2kit';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { useTabState } from '../../../hooks/useTabState';
 
 interface Supply {
   id: string; supplyCode: string; supplyName: string; supplyType: number;
@@ -53,7 +54,7 @@ const tabToStatus = (s: SKey | 'all') => s === 'draft' ? 1 : s === 'pending' ? 2
 
 const OfficeSupplyApprovalV2: React.FC = () => {
   const [moduleTab, setModuleTab] = useState<'requests' | 'returns'>('requests');
-  const [stab, setStab] = useState<SKey | 'all'>('pending');
+  const [stab, setStab] = useTabState<SKey | 'all'>('pending');
   const [requests, setRequests] = useState<ApprovalRequest[]>([]);
   const [returns, setReturns] = useState<ApprovalRequest[]>([]);
   const [loading, setLoading] = useState(false);
@@ -229,9 +230,7 @@ const OfficeSupplyApprovalV2: React.FC = () => {
           ]}
         />
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
         {moduleTab === 'requests' ? (
           <Btn variant="primary" onClick={() => setCreateOpen(true)}>
             <Ico name="plus" size={12} /> Tạo phiếu yêu cầu

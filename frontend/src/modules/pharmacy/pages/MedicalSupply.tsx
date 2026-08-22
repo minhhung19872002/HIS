@@ -12,6 +12,7 @@ import {
   type TopTab, type ColumnDef, type StatusTab, type KpiItem,
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { useTabState } from '../../../hooks/useTabState';
 
 type Tab = 'stock' | 'receipts';
 const TABS: TopTab<Tab>[] = [
@@ -50,7 +51,7 @@ const fmtVND = (n: number) => `${fmt(Math.round(n / 1000))}k`;
 const PER = 20;
 
 const MedicalSupplyV2: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('stock');
+  const [tab, setTab] = useTabState<Tab>('stock', 'tab');
   const today = dayjs();
 
   // ── Receipts state ──
@@ -59,7 +60,7 @@ const MedicalSupplyV2: React.FC = () => {
   const [rLoad, setRLoad]           = useState(false);
   const [rLoaded, setRLoaded]       = useState(false);
   const [rSearch, setRSearch]       = useState('');
-  const [rStab, setRStab]           = useState<RKey | 'all'>('all');
+  const [rStab, setRStab]           = useTabState<RKey | 'all'>('all', 'stab');
   const [rPage, setRPage]           = useState(0);
   const [rSel, setRSel]             = useState<StockReceiptDto | null>(null);
 

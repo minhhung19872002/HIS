@@ -19,7 +19,9 @@ import {
   DrawerShell, DrSec, DrField, tk, ti, tw,
   type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { useTabState } from '../../../hooks/useTabState';
 import TermIcon from '../../../components/layout/terminal/Icon';
 
 type Tab = 'dashboard' | 'tree' | 'consolidated' | 'duty';
@@ -79,7 +81,7 @@ const BranchTreeNode: React.FC<{
 );
 
 const Dashboard3CapV2: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('dashboard');
+  const [tab, setTab] = useTabState<Tab>('dashboard');
   const [dashboard, setDashboard] = useState<MultiFacilityDashboardDto | null>(null);
   const [tree, setTree] = useState<BranchTreeDto | null>(null);
   const [levels, setLevels] = useState<BranchTreeDto[]>([]);
@@ -221,12 +223,12 @@ const Dashboard3CapV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
-          <Btn variant="ghost" icon="refresh" loading={loading} onClick={() => {
+          <RefreshButton loading={loading} onRefresh={() => {
             if (tab === 'dashboard') loadDashboard();
             else if (tab === 'tree') loadTreeData();
             else if (tab === 'consolidated') loadReport();
             else loadDuty();
-          }}>Làm mới</Btn>
+          }} />
           <Btn variant="primary" icon="download" onClick={() => {
             if (tab === 'dashboard' && dashboard) {
               const cols: ExcelColumn<Record<string, unknown>>[] = [

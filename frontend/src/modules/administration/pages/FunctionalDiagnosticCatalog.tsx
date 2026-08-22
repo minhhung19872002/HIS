@@ -18,6 +18,8 @@ import {
   DrawerShell, DrSec, DrField, tk, te, cf,
   type ColumnDef,
 } from '@/_v2kit';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { useTabState } from '../../../hooks/useTabState';
 
 type TabKey = 'testType' | 'template';
 
@@ -37,7 +39,7 @@ const EMPTY_TMPL_EDIT: SaveFunctionalDiagnosticTemplateDto = {
 const PER = 20;
 
 const FunctionalDiagnosticCatalog: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('testType');
+  const [tab, setTab] = useTabState<TabKey>('testType');
   const [testTypes, setTestTypes] = useState<FunctionalDiagnosticTestTypeDto[]>([]);
   const [templates, setTemplates] = useState<FunctionalDiagnosticTemplateDto[]>([]);
   const [search, setSearch] = useState('');
@@ -50,6 +52,15 @@ const FunctionalDiagnosticCatalog: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [loadingTypes, setLoadingTypes] = useState(true);
   const [loadingTmpl, setLoadingTmpl] = useState(true);
+  const typeForm = useModalForm({
+    code: { required: true, label: 'Mã' },
+    name: { required: true, label: 'Tên' },
+  }, editType !== null);
+  const tmplForm = useModalForm({
+    testTypeId: { required: true, message: 'Vui lòng chọn Loại TDCN' },
+    code: { required: true, label: 'Mã' },
+    name: { required: true, label: 'Tên' },
+  }, editTmpl !== null);
 
   // ── Load ───────────────────────────────────────────────────────────────────
   const reloadTypes = useCallback(async () => {
@@ -128,7 +139,7 @@ const FunctionalDiagnosticCatalog: React.FC = () => {
   // ── Save TestType ──────────────────────────────────────────────────────────
   const onSaveType = async () => {
     if (!editType) return;
-    if (!editType.code.trim() || !editType.name.trim()) { te('Vui lòng nhập Mã và Tên'); return; }
+    if (!typeForm.validate({ code: editType.code, name: editType.name })) return;
     setSaving(true);
     try {
       await saveTestType(editType);
@@ -142,8 +153,7 @@ const FunctionalDiagnosticCatalog: React.FC = () => {
   // ── Save Template ─────────────────────────────────────────────────────────
   const onSaveTmpl = async () => {
     if (!editTmpl) return;
-    if (!editTmpl.code.trim() || !editTmpl.name.trim()) { te('Vui lòng nhập Mã và Tên'); return; }
-    if (!editTmpl.testTypeId) { te('Chọn Loại TDCN'); return; }
+    if (!tmplForm.validate({ testTypeId: editTmpl.testTypeId, code: editTmpl.code, name: editTmpl.name })) return;
     setSaving(true);
     try {
       await saveTemplate(editTmpl);
@@ -245,18 +255,18 @@ const FunctionalDiagnosticCatalog: React.FC = () => {
       >
         {editType && (
           <DrSec title="Thông tin">
-            <DrField lbl="Mã *">
+            <DrField lbl="Mã" required error={typeForm.errors.code}>
               <Input
                 value={editType.code}
-                onChange={e => setEditType({ ...editType, code: e.target.value })}
+                onChange={e => { setEditType({ ...editType, code: e.target.value }); typeForm.clear('code'); }}
                 placeholder="VD: ECG, EEG, Endoscopy..."
                 maxLength={50}
               />
             </DrField>
-            <DrField lbl="Tên *">
+            <DrField lbl="Tên" required error={typeForm.errors.name}>
               <Input
                 value={editType.name}
-                onChange={e => setEditType({ ...editType, name: e.target.value })}
+                onChange={e => { setEditType({ ...editType, name: e.target.value }); typeForm.clear('name'); }}
                 placeholder="Tên loại thăm dò chức năng"
                 maxLength={200}
               />
@@ -293,29 +303,29 @@ const FunctionalDiagnosticCatalog: React.FC = () => {
       >
         {editTmpl && (
           <DrSec title="Thông tin">
-            <DrField lbl="Loại TDCN *">
+            <DrField lbl="Loại TDCN" required error={tmplForm.errors.testTypeId}>
               <Select
                 style={{ width: '100%' }}
                 showSearch
                 placeholder="Chọn loại thăm dò"
                 value={editTmpl.testTypeId || undefined}
-                onChange={v => setEditTmpl({ ...editTmpl, testTypeId: v })}
+                onChange={v => { setEditTmpl({ ...editTmpl, testTypeId: v }); tmplForm.clear('testTypeId'); }}
                 options={testTypes.filter(t => t.isActive).map(t => ({ value: t.id, label: t.name }))}
                 optionFilterProp="label"
               />
             </DrField>
-            <DrField lbl="Mã *">
+            <DrField lbl="Mã" required error={tmplForm.errors.code}>
               <Input
                 value={editTmpl.code}
-                onChange={e => setEditTmpl({ ...editTmpl, code: e.target.value })}
+                onChange={e => { setEditTmpl({ ...editTmpl, code: e.target.value }); tmplForm.clear('code'); }}
                 placeholder="Mã mẫu"
                 maxLength={50}
               />
             </DrField>
-            <DrField lbl="Tên *">
+            <DrField lbl="Tên" required error={tmplForm.errors.name}>
               <Input
                 value={editTmpl.name}
-                onChange={e => setEditTmpl({ ...editTmpl, name: e.target.value })}
+                onChange={e => { setEditTmpl({ ...editTmpl, name: e.target.value }); tmplForm.clear('name'); }}
                 placeholder="Tên mẫu kết quả"
                 maxLength={200}
               />

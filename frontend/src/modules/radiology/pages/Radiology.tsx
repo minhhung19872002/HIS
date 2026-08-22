@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import { useNavigate } from 'react-router-dom';
 import { useRegisterCommands } from '@/contexts/CommandContext';
 import dayjs from 'dayjs';
@@ -10,7 +11,7 @@ import {
   Btn, DrawerShell, tw, te,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { SurgeryReportModal } from '../../surgery/pages/SurgeryReportModal';
 import ShareStudyModal from '../components/ShareStudyModal';
@@ -34,7 +35,7 @@ const RadiologyV2: React.FC = () => {
   const navigate = useNavigate();
   const [rows, setRows] = useState<RadiologyOrderDto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stab, setStab] = useState<StatusKey | 'all'>('all');
+  const [stab, setStab] = useTabState<StatusKey | 'all'>('all');
   const [fMod, setFMod] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
@@ -418,9 +419,7 @@ const RadiologyV2: React.FC = () => {
             </Btn>
           </>
         )}
-        <Btn variant="ghost" onClick={reload}>
-          <TermIcon name="refresh" size={12} /> Làm mới
-        </Btn>
+        <RefreshButton onRefresh={reload} />
         <Btn variant="ghost" onClick={() => navigate('/v2/ris-dispatcher')}>
           <TermIcon name="send" size={12} /> Điều phối
         </Btn>

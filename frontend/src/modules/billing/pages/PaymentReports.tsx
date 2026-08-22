@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import * as file from '../../../services/file.service';
 import { fmtNum as fmt } from '../../../utils/format';
 import { DatePicker } from 'antd';
@@ -9,6 +10,7 @@ import {
   KpiStrip, TopTabs, Filter, DataTable, StatusBadge, Btn, tk, ti, tw,
   type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 const { RangePicker } = DatePicker;
 
@@ -54,7 +56,7 @@ const defaultRange = (t: Tab): [Dayjs, Dayjs] => {
 };
 
 const PaymentReportsV2: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('bc1');
+  const [tab, setTab] = useTabState<Tab>('bc1');
   const [range, setRange] = useState<[Dayjs, Dayjs]>(defaultRange('bc1'));
   const [provider, setProvider] = useState('');
   const [loading, setLoading] = useState(false);
@@ -343,7 +345,7 @@ const PaymentReportsV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={handleTabChange} tabs={TABS} actions={
         <>
-          <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
+          <RefreshButton onRefresh={load} loading={loading} />
           <Btn variant="ghost" icon="download" onClick={exportCsv}>Xuất CSV</Btn>
           <Btn variant="primary" icon="download" onClick={exportExcel}>Xuất Excel</Btn>
         </>

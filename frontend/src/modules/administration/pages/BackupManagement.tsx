@@ -13,6 +13,10 @@ import {
   StatusBadge, ActBtn, Btn, DrawerShell, DrSec, DrField, ModalShell,
   type ColumnDef, type TopTab,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { useTabState } from '../../../hooks/useTabState';
 
 /* ────────────────────────────────────────────────────────────
    Backup Management v2 — Quản lý backup, restore, cấu hình lịch
@@ -53,7 +57,7 @@ const DEST_OPTIONS = [
 
 const BackupManagement: React.FC = () => {
   const { message } = AntdApp.useApp();
-  const [tab, setTab] = useState<TopKey>('history');
+  const [tab, setTab] = useTabState<TopKey>('history');
   const [history, setHistory] = useState<BackupHistoryDto[]>([]);
   const [config, setConfig] = useState<BackupConfigDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,6 +75,7 @@ const BackupManagement: React.FC = () => {
   const [restoreReason, setRestoreReason] = useState('');
   const [restoreResult, setRestoreResult] = useState<RestoreBackupResultDto | null>(null);
   const [restoreLoading, setRestoreLoading] = useState(false);
+  const restoreForm = useModalForm({ reason: { required: true, message: 'Vui lòng nhập lý do restore' } }, restoreOpen);
 
   // Backup now modal
   const [backupNowOpen, setBackupNowOpen] = useState(false);
@@ -173,10 +178,6 @@ const BackupManagement: React.FC = () => {
 
   const handleRequestRestore = async () => {
     if (!selRow) return;
-    if (!restoreReason.trim()) {
-      message.warning('Vui lòng nhập lý do restore.');
-      return;
-    }
     setRestoreLoading(true);
     try {
       const result = await requestRestore(selRow.id, { confirmRisk: true, reason: restoreReason });
@@ -244,7 +245,7 @@ const BackupManagement: React.FC = () => {
               ]}
               placeholder="Tất cả loại"
             />
-            <Btn variant="ghost" icon="refresh" loading={loading} onClick={reload}>Làm mới</Btn>
+            <RefreshButton onRefresh={reload} loading={loading} />
           </div>
 
           <DataTable
@@ -463,7 +464,7 @@ const BackupManagement: React.FC = () => {
               <Btn
                 variant="crit"
                 loading={restoreLoading}
-                onClick={handleRequestRestore}
+                onClick={() => { if (restoreForm.validate({ reason: restoreReason })) handleRequestRestore(); }}
               >
                 Gui yeu cau
               </Btn>
@@ -494,15 +495,14 @@ const BackupManagement: React.FC = () => {
               </div>
             )}
 
-            <div>
-              <label className="ab-label">Ly do restore (*bat buoc)</label>
+            <Field label="Ly do restore" required error={restoreForm.errors.reason}>
               <Input.TextArea
                 rows={3}
                 value={restoreReason}
-                onChange={e => setRestoreReason(e.target.value)}
+                onChange={e => { setRestoreReason(e.target.value); restoreForm.clear('reason'); }}
                 placeholder="Mo ta ly do can restore du lieu (bat buoc de ghi audit log)"
               />
-            </div>
+            </Field>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-14)' }}>

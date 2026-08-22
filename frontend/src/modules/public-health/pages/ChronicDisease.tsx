@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import {
   getChronicRecords, getChronicStatistics, getFollowUps,
@@ -13,7 +14,7 @@ import {
   DrawerShell, DrSec, DrField, CrudModal, tk, tw, cf,
   type ColumnDef, type StatusTab, type CrudFieldCfg,
 } from '@/_v2kit';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 
 // ─── Trạng thái hồ sơ: 0=đang theo dõi · 1=cần tái khám · 2=đã đóng · 3=đã loại ───
 type TabKey = 'active' | 'followup' | 'closed';
@@ -68,7 +69,7 @@ const ChronicDiseaseV2: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<ChronicStatisticsDto>(EMPTY_STATS);
 
-  const [tab, setTab] = useState<TabKey | 'all'>('active');
+  const [tab, setTab] = useTabState<TabKey | 'all'>('active');
   const [search, setSearch] = useState('');
   const [icd, setIcd] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -273,7 +274,7 @@ const ChronicDiseaseV2: React.FC = () => {
           Thêm hồ sơ
         </Btn>
         <Btn variant="ghost" icon="printer" onClick={() => window.print()}>In DS</Btn>
-        <Btn variant="ghost" icon="refresh" loading={loading} onClick={() => { void load(); }}>Làm mới</Btn>
+        <RefreshButton onRefresh={async () => { await load(); }} />
       </div>
 
       <StatusTabs<TabKey>

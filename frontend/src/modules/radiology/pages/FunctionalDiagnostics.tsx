@@ -6,6 +6,7 @@ import {
   tk, te, cf, fmtDTg
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { RefreshButton } from '../../../components/actions';
 import {
   fdt,
   type FunctionalDiagnosticTestDto
@@ -122,7 +123,7 @@ const FunctionalDiagnosticsV2: React.FC = () => {
         <span className="spacer" />
         {/* #352: nút Làm mới — worklist trước đây chỉ fetch 1 lần lúc mount nên bị stale
             (house-style v2: SimpleV2Page và các trang khác đều có nút này) */}
-        <Btn variant="ghost" icon="refresh" onClick={reload}>Làm mới</Btn>
+        <RefreshButton onRefresh={reload} />
       </div>
       <DataTable<FunctionalDiagnosticTestDto>
         rowKey={(r) => r.id} data={paged} columns={columns}

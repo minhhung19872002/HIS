@@ -19,6 +19,8 @@ import {
   type ColumnDef, type TopTab,
 } from '@/_v2kit';
 import type {TabKey} from '../types/tabs';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { useTabState } from '../../../hooks/useTabState';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -66,7 +68,7 @@ const PER = 20;
 // ─── Component ───────────────────────────────────────────────────────────────
 
 const ProvincialHealthV2: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('directives');
+  const [tab, setTab] = useTabState<TabKey>('directives');
 
   // ── Directives state ───────────────────────────────────────────────────────
   const [directives, setDirectives] = useState<ProvincialDirectiveDto[]>([]);
@@ -77,6 +79,10 @@ const ProvincialHealthV2: React.FC = () => {
   const [editDir, setEditDir]       = useState<EditDirective | null>(null);
   const [saving, setSaving]         = useState(false);
   const [dirLoading, setDirLoading] = useState(true);
+  const dirForm = useModalForm(
+    { title: { required: true, message: 'Vui lòng nhập Tiêu đề' } },
+    editDir !== null,
+  );
 
   // ── Reports state ──────────────────────────────────────────────────────────
   const [reports, setReports] = useState<ProvincialReportDto[]>([]);
@@ -181,7 +187,7 @@ const ProvincialHealthV2: React.FC = () => {
 
   const onSaveDir = async () => {
     if (!editDir) return;
-    if (!editDir.title.trim()) { te('Vui lòng nhập Tiêu đề'); return; }
+    if (!dirForm.validate({ title: editDir.title })) return;
     setSaving(true);
     try {
       const req: SaveProvincialDirectiveRequest = {
@@ -288,10 +294,10 @@ const ProvincialHealthV2: React.FC = () => {
         {editDir && (
           <>
             <DrSec title="Thông tin văn bản">
-              <DrField lbl="Tiêu đề *">
+              <DrField lbl="Tiêu đề" required error={dirForm.errors.title}>
                 <Input
                   value={editDir.title}
-                  onChange={e => setEditDir({ ...editDir, title: e.target.value })}
+                  onChange={e => { setEditDir({ ...editDir, title: e.target.value }); dirForm.clear('title'); }}
                   placeholder="Tiêu đề chỉ đạo tuyến"
                   maxLength={500}
                 />

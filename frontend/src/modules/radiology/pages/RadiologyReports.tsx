@@ -3,12 +3,14 @@
  * và đối chiếu định mức tiêu hao. Mỗi tab tải đúng báo cáo của nó và xuất được ra Excel.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import { DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import {
   KpiStrip, TopTabs, DataTable, StatusBadge, Btn, Ico, tk, tw,
   fmtVNDg, fmtDMYg, type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 import {
   getRadiologyRegister, getUltrasoundRegister, getFunctionalTestRegister,
   getStatistics, getRevenueReport, getConsumptionNormReport, exportReportToExcel,
@@ -46,7 +48,7 @@ interface ConsumptionRow {
 }
 
 const RadiologyReportsV2: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('register');
+  const [tab, setTab] = useTabState<Tab>('register');
   const [range, setRange] = useState<[Dayjs, Dayjs]>([dayjs().startOf('month'), dayjs()]);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -232,9 +234,7 @@ const RadiologyReportsV2: React.FC = () => {
           allowClear={false}
         />
         <span className="spacer" />
-        <Btn onClick={load} disabled={loading}>
-          <Ico name="refresh" size={12} /> {loading ? 'Đang tải…' : 'Làm mới'}
-        </Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
         <Btn variant="primary" onClick={exportExcel} disabled={exporting || loading}>
           <Ico name="download" size={12} /> {exporting ? 'Đang xuất…' : 'Xuất Excel'}
         </Btn>

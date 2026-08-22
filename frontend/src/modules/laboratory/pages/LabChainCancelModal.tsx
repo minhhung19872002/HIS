@@ -2,6 +2,8 @@ import React from 'react';
 import { ModalShell, Btn } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import type { LabRequest } from '../api/laboratory';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 
 export const LabChainCancelModal: React.FC<{
   open: boolean;
@@ -13,7 +15,12 @@ export const LabChainCancelModal: React.FC<{
   reason: string;
   setReason: (v: string) => void;
   onConfirm: () => void;
-}> = ({ open, onClose, busy, target, level, setLevel, reason, setReason, onConfirm }) => (
+}> = ({ open, onClose, busy, target, level, setLevel, reason, setReason, onConfirm }) => {
+  const form = useModalForm({
+    reason: { required: true, message: 'Bắt buộc nhập lý do hủy' },
+  }, open);
+
+  return (
   <ModalShell
     open={open}
     onClose={() => { if (!busy) onClose(); }}
@@ -24,7 +31,12 @@ export const LabChainCancelModal: React.FC<{
     footer={
       <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
         <Btn variant="ghost" size="sm" disabled={busy} onClick={onClose}>Hủy bỏ</Btn>
-        <Btn variant="crit" size="sm" disabled={busy || !reason.trim()} onClick={onConfirm}>
+        <Btn
+          variant="crit"
+          size="sm"
+          disabled={busy}
+          onClick={() => { if (form.validate({ reason })) onConfirm(); }}
+        >
           <TermIcon name="refresh" size={11} /> {busy ? 'Đang xử lý…' : 'Thực hiện hủy'}
         </Btn>
       </div>
@@ -47,10 +59,9 @@ export const LabChainCancelModal: React.FC<{
           </label>
         ))}
       </div>
-      <div>
-        <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Lý do hủy <span style={{ color: 'var(--s-err)' }}>*</span></label>
-        <textarea className="hui-inp" rows={2} style={{ width: '100%', resize: 'vertical' }} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Bắt buộc — ghi vào ghi chú KTV của từng chỉ số…" />
-      </div>
+      <Field label="Lý do hủy" required error={form.errors.reason}>
+        <textarea className="hui-inp" rows={2} style={{ width: '100%', resize: 'vertical' }} value={reason} onChange={(e) => { setReason(e.target.value); form.clear('reason'); }} placeholder="Bắt buộc — ghi vào ghi chú KTV của từng chỉ số…" />
+      </Field>
       {level >= 2 && (
         <div style={{ fontSize: 11.5, color: 'var(--s-warn)', padding: '6px 8px', background: 'var(--d-1)', borderRadius: 4, borderLeft: '3px solid var(--s-warn)' }}>
           ⚠ Mức này XÓA kết quả đã nhập của các chỉ số — không thể hoàn tác.
@@ -58,4 +69,5 @@ export const LabChainCancelModal: React.FC<{
       )}
     </div>
   </ModalShell>
-);
+  );
+};

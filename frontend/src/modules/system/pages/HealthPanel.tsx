@@ -10,8 +10,9 @@ import {
   type HealthCheckResult, type MetricsSnapshot, type ComponentHealth,
 } from '../../../api/health';
 import {
-  KpiStrip, DataTable, StatusBadge, Btn, tw, type ColumnDef,
+  KpiStrip, DataTable, StatusBadge, tw, type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 const COMPONENT_LABELS: Record<string, string> = {
   sqlServer: 'SQL Server',
@@ -112,7 +113,7 @@ const HealthPanel: React.FC<{ active?: boolean }> = ({ active = true }) => {
           </span>
         )}
         <span className="spacer" />
-        <Btn variant="ghost" onClick={fetchHealthData}>{loading ? 'Đang tải…' : 'Làm mới (30s)'}</Btn>
+        <RefreshButton onRefresh={fetchHealthData} loading={loading} label="Làm mới (30s)" />
       </div>
 
       {!healthData && !loading && (

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { Input, Select } from 'antd';
 import {
@@ -10,6 +11,9 @@ import {
   DrawerShell, ModalShell, DrSec, DrField, tk, ti, te, Ico,
   type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions/RefreshButton/RefreshButton';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 
 const STATUS_LABEL: Record<number, string> = {
   0: 'Đã lưu', 1: 'Đã lấy', 2: 'Đã hủy', 3: 'Hết hạn',
@@ -42,8 +46,8 @@ const ActionModal: React.FC<{
 }> = ({ open, title, label, onClose, onSubmit }) => {
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const form = useModalForm({ reason: { required: true, message: 'Nhập lý do' } }, open);
   const handleSubmit = async () => {
-    if (!reason.trim()) { te('Nhập lý do'); return; }
     setSubmitting(true);
     try { await onSubmit(reason.trim()); onClose(); }
     catch { te('Thao tác thất bại'); }
@@ -53,14 +57,17 @@ const ActionModal: React.FC<{
     <ModalShell open={open} onClose={onClose} size="sm" title={title}
       footer={<>
         <Btn variant="ghost" onClick={onClose}>Huỷ</Btn>
-        <Btn variant="primary" onClick={handleSubmit} disabled={submitting}>
+        <Btn
+          variant="primary"
+          onClick={() => { if (form.validate({ reason })) void handleSubmit(); }}
+          disabled={submitting}
+        >
           <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : label}
         </Btn>
       </>}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
-        <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Lý do *</span>
-        <Input.TextArea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Nhập lý do…" />
-      </div>
+      <Field label="Lý do" required error={form.errors.reason}>
+        <Input.TextArea rows={3} value={reason} onChange={(e) => { setReason(e.target.value); form.clear('reason'); }} placeholder="Nhập lý do…" />
+      </Field>
     </ModalShell>
   );
 };
@@ -85,15 +92,16 @@ const StoreSampleModal: React.FC<{
   const [temp, setTemp] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [err, setErr] = useState('');
+  const form = useModalForm({
+    barcode: { required: true, message: 'Nhập barcode mẫu' },
+    location: { required: true, message: 'Nhập vị trí lưu' },
+    condition: { required: true, message: 'Chọn điều kiện bảo quản' },
+  }, open);
 
-  useEffect(() => { if (open) { setBarcode(initialBarcode || ''); setErr(''); } }, [open, initialBarcode]);
+  useEffect(() => { if (open) { setBarcode(initialBarcode || ''); } }, [open, initialBarcode]);
 
   const handleSubmit = async () => {
-    if (!barcode.trim() || !location.trim() || !condition) {
-      setErr('Nhập barcode, vị trí và điều kiện bảo quản'); return;
-    }
-    setErr('');
+    if (!condition) return; // narrows type; UX validation already gated by form.validate
     setSubmitting(true);
     try {
       await storeSample({
@@ -113,34 +121,32 @@ const StoreSampleModal: React.FC<{
     <ModalShell open={open} onClose={onClose} size="md" title="Lưu mẫu vào kho"
       footer={<>
         <Btn variant="ghost" onClick={onClose}>Huỷ</Btn>
-        <Btn variant="primary" onClick={handleSubmit} disabled={submitting}>
+        <Btn
+          variant="primary"
+          onClick={() => { if (form.validate({ barcode, location, condition })) void handleSubmit(); }}
+          disabled={submitting}
+        >
           <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : 'Lưu mẫu'}
         </Btn>
       </>}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
-        <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Barcode mẫu *</div>
-          <Input value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder="Quét hoặc nhập barcode" />
-        </div>
-        <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Vị trí lưu * (vd: Freezer-A/Rack-2/Box-5/Pos-12)</div>
-          <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Freezer/Rack/Box/Position" />
-        </div>
+        <Field label="Barcode mẫu" required error={form.errors.barcode}>
+          <Input value={barcode} onChange={(e) => { setBarcode(e.target.value); form.clear('barcode'); }} placeholder="Quét hoặc nhập barcode" />
+        </Field>
+        <Field label="Vị trí lưu (vd: Freezer-A/Rack-2/Box-5/Pos-12)" required error={form.errors.location}>
+          <Input value={location} onChange={(e) => { setLocation(e.target.value); form.clear('location'); }} placeholder="Freezer/Rack/Box/Position" />
+        </Field>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-          <div>
-            <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Điều kiện bảo quản *</div>
-            <Select style={{ width: '100%' }} value={condition} onChange={setCondition} placeholder="Chọn điều kiện" options={STORAGE_COND_OPTS} />
-          </div>
-          <div>
-            <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Nhiệt độ (°C)</div>
+          <Field label="Điều kiện bảo quản" required error={form.errors.condition}>
+            <Select style={{ width: '100%' }} value={condition} onChange={(v) => { setCondition(v); form.clear('condition'); }} placeholder="Chọn điều kiện" options={STORAGE_COND_OPTS} />
+          </Field>
+          <Field label="Nhiệt độ (°C)">
             <Input value={temp} onChange={(e) => setTemp(e.target.value)} placeholder="Vd: -20" type="number" />
-          </div>
+          </Field>
         </div>
-        <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Ghi chú</div>
+        <Field label="Ghi chú">
           <Input.TextArea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-        </div>
-        {err && <div style={{ color: 'var(--s-crit)', fontSize: 'var(--fs-sm)' }}>{err}</div>}
+        </Field>
       </div>
     </ModalShell>
   );
@@ -155,11 +161,12 @@ const ScanModal: React.FC<{
   const [barcode, setBarcode] = useState('');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
+  const form = useModalForm({ barcode: { required: true, message: 'Nhập barcode' } }, open);
 
   useEffect(() => { if (open) { setBarcode(''); setErr(''); } }, [open]);
 
   const handleScan = async () => {
-    if (!barcode.trim()) { setErr('Nhập barcode'); return; }
+    if (!form.validate({ barcode })) return;
     setLoading(true);
     setErr('');
     try {
@@ -180,17 +187,15 @@ const ScanModal: React.FC<{
           <Ico name="search" size={12} /> {loading ? 'Đang tìm…' : 'Tìm mẫu'}
         </Btn>
       </>}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
-        <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Barcode *</span>
+      <Field label="Barcode" required error={form.errors.barcode || err}>
         <Input
           value={barcode}
-          onChange={(e) => setBarcode(e.target.value)}
+          onChange={(e) => { setBarcode(e.target.value); form.clear('barcode'); if (err) setErr(''); }}
           onPressEnter={handleScan}
           placeholder="Quét hoặc nhập barcode mẫu"
           autoFocus
         />
-        {err && <div style={{ color: 'var(--s-crit)', fontSize: 'var(--fs-sm)' }}>{err}</div>}
-      </div>
+      </Field>
     </ModalShell>
   );
 };
@@ -199,7 +204,7 @@ const SampleStorageV2: React.FC = () => {
   const [items, setItems] = useState<SampleStorageRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all');
   const [fCond, setFCond] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<SampleStorageRecord | null>(null);
@@ -294,9 +299,7 @@ const SampleStorageV2: React.FC = () => {
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">
-          Làm mới
-        </Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
         <Btn variant="ghost" onClick={() => setScanOpen(true)}>
           <Ico name="qr" size={12} /> Quét QR
         </Btn>

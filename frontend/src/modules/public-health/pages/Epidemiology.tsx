@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import {
   searchDiseaseReports, getEpiStats, updateDiseaseReport, reportDisease, searchOutbreaks,
@@ -10,7 +11,7 @@ import {
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 
 // ──── Báo cáo ca bệnh ────
 
@@ -93,14 +94,14 @@ const TOP_TABS: { v: MainTab; l: string; ic?: string }[] = [
 ];
 
 const EpidemiologyV2: React.FC = () => {
-  const [tab, setTab] = useState<MainTab>('reports');
+  const [tab, setTab] = useTabState<MainTab>('reports', 'tab');
 
   // ── Báo cáo ca bệnh ──
   const [items, setItems] = useState<DiseaseReport[]>([]);
   const [stats, setStats] = useState<EpiStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all', 'stab');
   const [fGroup, setFGroup] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -391,7 +392,7 @@ const EpidemiologyV2: React.FC = () => {
               <Ico name="x" size={12} /> Bỏ lọc
             </Btn>
             <span className="spacer" />
-            <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
+            <RefreshButton onRefresh={async () => { await load(); }} />
             <Btn variant="primary" onClick={() => { setNewReportOpen(true); }}>
               <Ico name="plus" size={12} /> Báo cáo mới
             </Btn>
@@ -511,7 +512,7 @@ const EpidemiologyV2: React.FC = () => {
               <Ico name="x" size={12} /> Bỏ lọc
             </Btn>
             <span className="spacer" />
-            <Btn variant="ghost" onClick={loadOutbreaks} loading={outbreakLoading} icon="refresh">Làm mới</Btn>
+            <RefreshButton onRefresh={async () => { await loadOutbreaks(); }} />
             <Btn variant="primary" onClick={obOpenCreate}>
               <Ico name="plus" size={12} /> Khai báo ổ dịch
             </Btn>
@@ -595,7 +596,7 @@ const EpidemiologyV2: React.FC = () => {
           <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
             <SearchBox value={notifSearch} onChange={setNotifSearch} placeholder="Tìm tên bệnh / mã ICD…" />
             <span className="spacer" />
-            <Btn variant="ghost" onClick={loadNotifiable} loading={notifLoading} icon="refresh">Làm mới</Btn>
+            <RefreshButton onRefresh={async () => { await loadNotifiable(); }} />
           </div>
 
           <DataTable<NotifiableDisease>

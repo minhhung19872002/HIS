@@ -11,6 +11,12 @@ import { applyServerErrors } from '../../form/applyServerErrors';
 
 // ─────────────────────────── CRUD modal (validate + focus + lỗi BE) ───────────────────────────
 
+/** Dấu * đỏ ĐỨNG SAU tên trường — khớp `components/form/Field` để modal dùng chung và
+ *  modal riêng của từng chức năng trông giống hệt nhau (mặc định Antd đặt * trước nhãn). */
+const REQUIRED_MARK = (label: React.ReactNode, info: { required: boolean }) => (
+  <>{label}{info.required && <span className="hui-req" aria-hidden="true">*</span>}</>
+);
+
 export interface CrudFieldCfg {
   key: string; label: string;
   type?: 'text' | 'textarea' | 'number' | 'select' | 'multiselect' | 'radio' | 'checkbox' | 'autocomplete' | 'switch' | 'date' | 'password';
@@ -71,7 +77,7 @@ export const CrudModal: React.FC<{
         <button type="button" className="ab-btn" onClick={onClose}>Huỷ</button>
         <Btn variant="primary" loading={saving} onClick={submit}>{saving ? 'Đang lưu…' : 'Lưu'}</Btn>
       </>}>
-      <Form form={form} layout="vertical" scrollToFirstError requiredMark onValuesChange={onValuesChange}>
+      <Form form={form} layout="vertical" scrollToFirstError requiredMark={REQUIRED_MARK} onValuesChange={onValuesChange}>
         {fields.map((f) => (
           <Form.Item key={f.key} name={f.key} label={f.label}
             valuePropName={f.type === 'switch' ? 'checked' : undefined}

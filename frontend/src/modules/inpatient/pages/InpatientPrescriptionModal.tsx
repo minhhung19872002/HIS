@@ -30,9 +30,11 @@ import type {
 } from '../api/inpatient';
 import { getWarehouses } from '../../pharmacy/api/warehouse';
 import type { WarehouseDto } from '../../pharmacy/api/warehouse';
-import { ModalShell, Btn, DrSec, DrField, tk, tw, te } from '@/_v2kit';
+import { ModalShell, Btn, DrSec, tk, tw, te } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -133,6 +135,10 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
 }) => {
   const isDischargeRx = drugOrderType === 4;
 
+  const form = useModalForm({
+    warehouseId: { required: true, message: 'Chọn kho thuốc trước' },
+  }, open);
+
   const [warehouses, setWarehouses] = useState<WarehouseDto[]>([]);
   const [warehouseId, setWarehouseId] = useState('');
   const [prescriptionDate, setPrescriptionDate] = useState<dayjs.Dayjs>(dayjs());
@@ -219,7 +225,6 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
   };
 
   const submit = async () => {
-    if (!warehouseId) { tw('Chọn kho thuốc trước'); return; }
     const valid = lines.filter((l) => l.medicineId);
     if (!valid.length) { tw('Chưa chọn thuốc nào'); return; }
     const dto: CreateInpatientPrescriptionDto = {
@@ -267,7 +272,12 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
       footer={
         <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
           <Btn variant="ghost" size="sm" onClick={onClose}>Đóng</Btn>
-          <Btn variant="primary" size="sm" loading={saving} disabled={!warehouseId} onClick={() => { void submit(); }}>
+          <Btn
+            variant="primary"
+            size="sm"
+            loading={saving}
+            onClick={() => { if (form.validate({ warehouseId })) void submit(); }}
+          >
             <TermIcon name="check" size={12} /> Lưu y lệnh
           </Btn>
         </div>
@@ -276,10 +286,10 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
       {/* Thông tin chung */}
       <DrSec title="Thông tin đơn">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 16px' }}>
-          <DrField lbl="Kho thuốc *">
+          <Field label="Kho thuốc" required error={form.errors.warehouseId}>
             <Select
               value={warehouseId || undefined}
-              onChange={setWarehouseId}
+              onChange={(v) => { setWarehouseId(v); form.clear('warehouseId'); }}
               placeholder="Chọn kho thuốc…"
               style={{ width: '100%' }}
               options={warehouses.map((w) => ({ value: w.id, label: `${w.warehouseCode} · ${w.warehouseName}` }))}
@@ -287,20 +297,20 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
               filterOption={(q, opt) => (opt?.label as string ?? '').toLowerCase().includes(q.toLowerCase())}
               notFoundContent={warehouses.length === 0 ? 'Không có kho thuốc' : 'Không tìm thấy'}
             />
-          </DrField>
-          <DrField lbl="Ngày kê *">
+          </Field>
+          <Field label="Ngày kê" required>
             <DatePicker
               showTime value={prescriptionDate}
               onChange={(v) => setPrescriptionDate(v ?? dayjs())}
               format="DD/MM/YYYY HH:mm" style={{ width: '100%' }}
             />
-          </DrField>
-          <DrField lbl="Mã chẩn đoán">
+          </Field>
+          <Field label="Mã chẩn đoán">
             <Input value={mainDiagnosisCode} onChange={(e) => setMainDiagnosisCode(e.target.value)} placeholder="VD: J18.9" />
-          </DrField>
-          <DrField lbl="Chẩn đoán">
+          </Field>
+          <Field label="Chẩn đoán">
             <Input value={mainDiagnosis} onChange={(e) => setMainDiagnosis(e.target.value)} placeholder="Chẩn đoán chính" />
-          </DrField>
+          </Field>
         </div>
       </DrSec>
 

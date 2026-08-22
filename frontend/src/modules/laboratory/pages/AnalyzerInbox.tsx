@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { Modal, Input } from 'antd';
 import {
@@ -14,6 +15,7 @@ import {
 } from '../api/lis';
 import type { LabAnalyzerDto } from '../api/lis';
 import { friendlyErrorMessage } from '@/utils/friendlyError';
+import { RefreshButton } from '@/components/actions/RefreshButton/RefreshButton';
 
 // G-18: Màn "KQ máy" — inbox kết quả từ máy xét nghiệm
 // Status: 0=Pending, 1=Matched, 2=ManualMapped, 3=Ignored, 4=Transferred
@@ -51,7 +53,7 @@ const AnalyzerInboxPage: React.FC = () => {
   const [analyzers, setAnalyzers] = useState<LabAnalyzerDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all');
   const [fAnalyzer, setFAnalyzer] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<AnalyzerInboxItemDto | null>(null);
@@ -207,7 +209,7 @@ const AnalyzerInboxPage: React.FC = () => {
         />
         <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFAnalyzer(''); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={load} loading={loading}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
       </div>
 
       <StatusTabs<SKey>

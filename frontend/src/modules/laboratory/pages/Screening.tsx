@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { getScreeningRequests, createScreeningRequest } from '../api/screening';
 import type { ScreeningRequest } from '../api/screening';
@@ -78,11 +79,11 @@ const PRENATAL_FIELDS: CrudFieldCfg[] = [
 const PER = 20;
 
 const ScreeningV2: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('newborn');
+  const [tab, setTab] = useTabState<Tab>('newborn', 'tab');
   const [rows, setRows] = useState<ScreeningRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<StatusKey | 'all'>('all');
+  const [stab, setStab] = useTabState<StatusKey | 'all'>('all', 'stab');
   const [page, setPage] = useState(0);
 
   const [sel, setSel] = useState<ScreeningRequest | null>(null);

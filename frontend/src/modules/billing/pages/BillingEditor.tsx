@@ -20,6 +20,9 @@ import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import PatientFlagBanner from '../../patient/components/PatientFlagBanner';
 import BusinessAlertPanel from '../../patient/components/BusinessAlertPanel';
 import PaymentQRModal from '../components/PaymentQRModal';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { useTabState } from '../../../hooks/useTabState';
 import {
   searchPatients, type PatientBillingStatusDto,
   getUnpaidServices, type UnpaidServiceItemDto,
@@ -56,7 +59,7 @@ const BillingEditorV2: React.FC = () => {
   const closeAll = () => { setLeftOpen(false); setRightOpen(false); };
 
   const [pt, setPt] = useState<PatientBillingStatusDto | null>(null);
-  const [tab, setTab] = useState<TabKey>('pay');
+  const [tab, setTab] = useTabState<TabKey>('pay');
   const [searchOpen, setSearchOpen] = useState(false);
 
   const [items, setItems] = useState<PayRow[]>([]);
@@ -72,12 +75,17 @@ const BillingEditorV2: React.FC = () => {
   const [emailTarget, setEmailTarget] = useState<ElectronicInvoiceDto | null>(null);
   const [emailInput, setEmailInput] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
+  const emailForm = useModalForm({ email: { required: true, message: 'Nhập địa chỉ email' } }, emailModalOpen);
 
   const [deposits, setDeposits] = useState<DepositDto[]>([]);
   const [refunds, setRefunds] = useState<RefundDto[]>([]);
   const [createModal, setCreateModal] = useState<null | 'deposit' | 'refund'>(null);
   const [cform, setCform] = useState<{ amount: string; method: number; reason: string }>({ amount: '', method: 1, reason: '' });
   const [savingC, setSavingC] = useState(false);
+  const createForm = useModalForm({
+    amount: { validate: (v: unknown) => (!Number(v) || Number(v) <= 0) ? 'Nhập số tiền hợp lệ' : undefined },
+    reason: { validate: (v: unknown) => (createModal === 'refund' && !(typeof v === 'string' && v.trim())) ? 'Nhập lý do hoàn tiền' : undefined },
+  }, createModal !== null);
   const [einvOpen, setEinvOpen] = useState(false);
   const [einvForm, setEinvForm] = useState<{ buyerName: string; buyerEmail: string; sendEmail: boolean }>({ buyerName: '', buyerEmail: '', sendEmail: false });
   const [savingEinv, setSavingEinv] = useState(false);
@@ -212,8 +220,8 @@ const BillingEditorV2: React.FC = () => {
   const saveCreate = async () => {
     if (!pt) return;
     if (savingC) return; // #467 chống double-submit: tránh tạo trùng phiếu tạm ứng / hoàn tiền
+    if (!createForm.validate({ amount: cform.amount, reason: cform.reason })) return;
     const amt = Number(cform.amount);
-    if (!amt || amt <= 0) { tw('Nhập số tiền hợp lệ'); return; }
     if (createModal === 'deposit' && cform.method === 3) {
       // NangCap25 II — tạm ứng bằng QR động: paid-hook backend tự tạo phiếu tạm ứng đã xác nhận
       setQrDepositAmount(amt);
@@ -234,7 +242,6 @@ const BillingEditorV2: React.FC = () => {
         }
         tk(`Đã tạo tạm ứng ${fmtVNDg(amt)}`);
       } else if (createModal === 'refund') {
-        if (!cform.reason.trim()) { tw('Nhập lý do hoàn tiền'); setSavingC(false); return; }
         await createRefund({ patientId: pt.patientId, refundType: 1, refundAmount: amt, refundMethod: cform.method, reason: cform.reason });
         const r = await searchRefunds({ patientId: pt.patientId, page: 1, pageSize: 50 });
         if (selectReqRef.current === createSnapId) setRefunds(r.data?.items || []);
@@ -276,7 +283,7 @@ const BillingEditorV2: React.FC = () => {
 
   const doSendEmail = async () => {
     if (!emailTarget) return;
-    if (!emailInput.trim()) { tw('Nhập địa chỉ email'); return; }
+    if (!emailForm.validate({ email: emailInput })) return;
     setSendingEmail(true);
     try {
       await sendElectronicInvoice(emailTarget.id, emailInput.trim());
@@ -503,7 +510,7 @@ const BillingEditorV2: React.FC = () => {
       <ModalShell open={confirmOpen} onClose={() => setConfirmOpen(false)} title="Xác nhận thu tiền" sub={METHODS.find((m) => m.v === method)?.l} size="sm"
         footer={<>
           <Btn variant="ghost" onClick={() => setConfirmOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" disabled={busy} onClick={doPayment}><TermIcon name={method === 3 ? 'qr' : 'check'} size={12} /> {method === 3 ? 'Mở mã QR VietQR' : 'Xác nhận đã thu'}</Btn>
+          <Btn variant="primary" loading={busy} onClick={doPayment}><TermIcon name={method === 3 ? 'qr' : 'check'} size={12} /> {method === 3 ? 'Mở mã QR VietQR' : 'Xác nhận đã thu'}</Btn>
         </>}>
         <div style={{ padding: 'var(--space-24)', textAlign: 'center' }}>
           <div style={{ fontSize: 14, color: 'var(--t-2)', marginBottom: 'var(--space-6)' }}>BN cần trả</div>
@@ -561,25 +568,25 @@ const BillingEditorV2: React.FC = () => {
         title={createModal === 'deposit' ? 'Tạo tạm ứng' : 'Lập phiếu hoàn tiền'} sub={pt?.patientName} size="sm"
         footer={<>
           <Btn variant="ghost" onClick={() => setCreateModal(null)}>Hủy</Btn>
-          <Btn variant="primary" disabled={savingC} onClick={saveCreate}><TermIcon name="check" size={12} /> Lưu</Btn>
+          <Btn variant="primary" loading={savingC} onClick={saveCreate}><TermIcon name="check" size={12} /> Lưu</Btn>
         </>}>
         <div style={{ padding: 'var(--space-18)', display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
-          <label style={{ display: 'block', fontSize: 11.5 }}>
-            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>Số tiền</span>
-            <input type="number" className="ed-fld mono" style={{ textAlign: 'right', fontSize: 16 }} value={cform.amount} onChange={(e) => setCform((p) => ({ ...p, amount: e.target.value }))} placeholder="0" autoFocus />
-          </label>
-          <div>
-            <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>{createModal === 'deposit' ? 'Phương thức nộp' : 'Phương thức hoàn'}</div>
+          <Field label="Số tiền" required error={createForm.errors.amount}>
+            <input type="number" className="ed-fld mono" style={{ textAlign: 'right', fontSize: 16 }} value={cform.amount}
+              onChange={(e) => { setCform((p) => ({ ...p, amount: e.target.value })); createForm.clear('amount'); }}
+              placeholder="0" autoFocus />
+          </Field>
+          <Field label={createModal === 'deposit' ? 'Phương thức nộp' : 'Phương thức hoàn'}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-4)' }}>
               {METHODS.map((m) => (
                 <button key={m.v} onClick={() => setCform((p) => ({ ...p, method: m.v }))} style={{ padding: '8px 6px', background: cform.method === m.v ? 'var(--a-cy)' : 'var(--d-0)', color: cform.method === m.v ? '#fff' : 'var(--t-1)', border: cform.method === m.v ? '1px solid var(--a-cy)' : '1px solid var(--line)', borderRadius: 'var(--r-2)', cursor: 'pointer', fontSize: 11.5 }}>{m.l}</button>
               ))}
             </div>
-          </div>
-          <label style={{ display: 'block', fontSize: 11.5 }}>
-            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>{createModal === 'refund' ? 'Lý do hoàn (bắt buộc)' : 'Ghi chú'}</span>
-            <textarea className="ed-fld" rows={2} value={cform.reason} onChange={(e) => setCform((p) => ({ ...p, reason: e.target.value }))} />
-          </label>
+          </Field>
+          <Field label={createModal === 'refund' ? 'Lý do hoàn' : 'Ghi chú'} required={createModal === 'refund'} error={createForm.errors.reason}>
+            <textarea className="ed-fld" rows={2} value={cform.reason}
+              onChange={(e) => { setCform((p) => ({ ...p, reason: e.target.value })); createForm.clear('reason'); }} />
+          </Field>
         </div>
       </ModalShell>
 
@@ -587,20 +594,19 @@ const BillingEditorV2: React.FC = () => {
       <ModalShell open={emailModalOpen} onClose={() => setEmailModalOpen(false)} title="Gửi hoá đơn điện tử qua email" sub={emailTarget?.eInvoiceNumber || emailTarget?.invoiceCode} size="sm"
         footer={<>
           <Btn variant="ghost" onClick={() => setEmailModalOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" disabled={sendingEmail} onClick={doSendEmail}><TermIcon name="send" size={12} /> Gửi</Btn>
+          <Btn variant="primary" loading={sendingEmail} onClick={doSendEmail}><TermIcon name="send" size={12} /> Gửi</Btn>
         </>}>
         <div style={{ padding: 'var(--space-18)' }}>
-          <label style={{ display: 'block', fontSize: 11.5 }}>
-            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>Địa chỉ email nhận</span>
+          <Field label="Địa chỉ email nhận" required error={emailForm.errors.email}>
             <input
               type="email"
               className="ed-fld"
               value={emailInput}
-              onChange={(e) => setEmailInput(e.target.value)}
+              onChange={(e) => { setEmailInput(e.target.value); emailForm.clear('email'); }}
               placeholder="vd: benhnhan@email.com"
               autoFocus
             />
-          </label>
+          </Field>
         </div>
       </ModalShell>
 
@@ -608,17 +614,15 @@ const BillingEditorV2: React.FC = () => {
       <ModalShell open={einvOpen} onClose={() => setEinvOpen(false)} title="Phát hành hoá đơn điện tử" sub={pt?.patientName} size="sm"
         footer={<>
           <Btn variant="ghost" onClick={() => setEinvOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" disabled={savingEinv} onClick={issueEinv}><TermIcon name="check" size={12} /> Phát hành</Btn>
+          <Btn variant="primary" loading={savingEinv} onClick={issueEinv}><TermIcon name="check" size={12} /> Phát hành</Btn>
         </>}>
         <div style={{ padding: 'var(--space-18)', display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
-          <label style={{ display: 'block', fontSize: 11.5 }}>
-            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>Tên người mua</span>
+          <Field label="Tên người mua">
             <input className="ed-fld" value={einvForm.buyerName} onChange={(e) => setEinvForm((p) => ({ ...p, buyerName: e.target.value }))} />
-          </label>
-          <label style={{ display: 'block', fontSize: 11.5 }}>
-            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>Email nhận hoá đơn</span>
+          </Field>
+          <Field label="Email nhận hoá đơn">
             <input type="email" className="ed-fld" value={einvForm.buyerEmail} onChange={(e) => setEinvForm((p) => ({ ...p, buyerEmail: e.target.value }))} placeholder="vd: benhnhan@email.com" />
-          </label>
+          </Field>
           <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', fontSize: 'var(--fs-sm)' }}>
             <input type="checkbox" checked={einvForm.sendEmail} onChange={(e) => setEinvForm((p) => ({ ...p, sendEmail: e.target.checked }))} />
             Gửi hoá đơn qua email sau khi phát hành

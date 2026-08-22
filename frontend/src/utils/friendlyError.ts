@@ -7,7 +7,7 @@
  * truyền (fallback) HOẶC registry HTTP tiếng Việt (httpErrorMessage) tuỳ status →
  * network/timeout → fallback chung. KHÔNG bao giờ lộ stack/status code trần cho người dùng.
  */
-import { httpErrorMessage } from '../components/shared/HttpError';
+import { httpErrorMessage } from '../components/common/HttpError';
 
 const DEFAULT_FALLBACK = 'Đã xảy ra lỗi. Vui lòng thử lại hoặc liên hệ quản trị viên.';
 

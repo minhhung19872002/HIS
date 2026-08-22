@@ -107,6 +107,10 @@ import {
   type KpiItem,
   type TopTab,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { useTabState } from '../../../hooks/useTabState';
 
 const { RangePicker } = DatePicker;
 
@@ -346,7 +350,7 @@ const EMP_PER_PAGE = 10;
 const HRV2: React.FC = () => {
   const { message } = AntdApp.useApp();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<HrTab>('roster');
+  const [tab, setTab] = useTabState<HrTab>('roster');
   const [week, setWeek] = useState(43);
   const [staffList, setStaffList] = useState<StaffMember[]>(STAFF);
   const [rota, setRota] = useState<Record<string, ShiftType[]>>(() => buildRotaSeed());
@@ -669,11 +673,25 @@ const HRV2: React.FC = () => {
     shift: 'morning' as ShiftType,
     reason: '',
   });
+  const swapModalForm = useModalForm({
+    from: { required: true, message: 'Vui lòng chọn người trực' },
+    to: { required: true, message: 'Vui lòng chọn người thay' },
+    date: { required: true, message: 'Vui lòng chọn ngày' },
+    reason: { required: true, message: 'Vui lòng nhập lý do' },
+  }, swapModalOpen);
   // Copy-week modal
   const [copyWeekOpen, setCopyWeekOpen] = useState(false);
   const [copyWeekLoading, setCopyWeekLoading] = useState(false);
   const [copySource, setCopySource] = useState<string>('');
   const [copyTarget, setCopyTarget] = useState<string>('');
+  const copyWeekForm = useModalForm({
+    source: { required: true, message: 'Vui lòng chọn tuần nguồn' },
+    target: {
+      required: true,
+      message: 'Vui lòng chọn tuần đích',
+      validate: (v) => (v && v === copySource ? 'Tuần đích không được trùng tuần nguồn' : undefined),
+    },
+  }, copyWeekOpen);
   const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([
     { id: 'CH001', from: 'BS003', to: 'BS002', date: '2026-10-23', shift: 'night', reason: 'Việc gia đình', status: 'pending' },
     { id: 'CH002', from: 'DD002', to: 'DD005', date: '2026-10-25', shift: 'evening', reason: 'Khám sức khoẻ', status: 'pending' },
@@ -779,11 +797,6 @@ const HRV2: React.FC = () => {
   };
 
   const submitSwapRequest = (): void => {
-    if (!swapForm.from || !swapForm.to || !swapForm.date || !swapForm.reason) {
-      message.warning('Cần điền đủ thông tin đổi ca');
-      return;
-    }
-
     const request: SwapRequest = {
       id: `CH${String(Date.now()).slice(-4)}`,
       ...swapForm,
@@ -1390,7 +1403,7 @@ const HRV2: React.FC = () => {
         tabs={topTabs}
         actions={(
           <>
-            <Btn icon="refresh" loading={loading} onClick={() => { void fetchData(); }}>Làm mới</Btn>
+            <RefreshButton variant="default" onRefresh={() => { void fetchData(); }} loading={loading} />
             <Btn variant="primary" icon="plus" onClick={() => setIsAddEmployeeModalOpen(true)}>Thêm nhân viên</Btn>
           </>
         )}
@@ -2017,14 +2030,7 @@ const HRV2: React.FC = () => {
         okText="Sao chép"
         cancelText="Huỷ"
         onOk={async () => {
-          if (!copySource || !copyTarget) {
-            message.warning('Cần chọn tuần nguồn và tuần đích');
-            return;
-          }
-          if (copySource === copyTarget) {
-            message.warning('Tuần nguồn và đích không được trùng nhau');
-            return;
-          }
+          if (!copyWeekForm.validate({ source: copySource, target: copyTarget })) return;
           setCopyWeekLoading(true);
           try {
             await copyWeekRoster({
@@ -2043,24 +2049,22 @@ const HRV2: React.FC = () => {
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-14)', marginTop: 'var(--space-8)' }}>
-          <div>
-            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Tuần nguồn (ISO date đầu tuần, T2)</div>
+          <Field label="Tuần nguồn (ISO date đầu tuần, T2)" required error={copyWeekForm.errors.source}>
             <input
               type="date"
               value={copySource}
               style={{ width: '100%', padding: '4px 8px', border: '1px solid var(--line)', borderRadius: 4 }}
-              onChange={(e) => setCopySource(e.target.value)}
+              onChange={(e) => { setCopySource(e.target.value); copyWeekForm.clear('source'); }}
             />
-          </div>
-          <div>
-            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Tuần đích (ISO date đầu tuần, T2)</div>
+          </Field>
+          <Field label="Tuần đích (ISO date đầu tuần, T2)" required error={copyWeekForm.errors.target}>
             <input
               type="date"
               value={copyTarget}
               style={{ width: '100%', padding: '4px 8px', border: '1px solid var(--line)', borderRadius: 4 }}
-              onChange={(e) => setCopyTarget(e.target.value)}
+              onChange={(e) => { setCopyTarget(e.target.value); copyWeekForm.clear('target'); }}
             />
-          </div>
+          </Field>
           <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
             Lịch tuần đích sẽ bị ghi đè. Nhập ngày T2 (thứ Hai) của mỗi tuần.
           </div>
@@ -2071,37 +2075,34 @@ const HRV2: React.FC = () => {
         open={swapModalOpen}
         title="Yêu cầu đổi ca"
         onCancel={() => setSwapModalOpen(false)}
-        onOk={submitSwapRequest}
+        onOk={() => { if (swapModalForm.validate(swapForm)) submitSwapRequest(); }}
         okText="Gửi yêu cầu"
         cancelText="Huỷ"
       >
         <div className="hr-v2-form">
-          <label>
-            <span>Người trực</span>
+          <Field label="Người trực" required error={swapModalForm.errors.from}>
             <Select
               value={swapForm.from || undefined}
               placeholder="Chọn nhân sự"
-              onChange={(value) => setSwapForm((current) => ({ ...current, from: value }))}
+              onChange={(value) => { setSwapForm((current) => ({ ...current, from: value })); swapModalForm.clear('from'); }}
               options={staffList.map((member) => ({ value: member.id, label: member.name }))}
             />
-          </label>
-          <label>
-            <span>Người thay</span>
+          </Field>
+          <Field label="Người thay" required error={swapModalForm.errors.to}>
             <Select
               value={swapForm.to || undefined}
               placeholder="Chọn người thay"
-              onChange={(value) => setSwapForm((current) => ({ ...current, to: value }))}
+              onChange={(value) => { setSwapForm((current) => ({ ...current, to: value })); swapModalForm.clear('to'); }}
               options={staffList.map((member) => ({ value: member.id, label: member.name }))}
             />
-          </label>
-          <label>
-            <span>Ngày</span>
+          </Field>
+          <Field label="Ngày" required error={swapModalForm.errors.date}>
             <input
               type="date"
               value={swapForm.date}
-              onChange={(event) => setSwapForm((current) => ({ ...current, date: event.target.value }))}
+              onChange={(event) => { setSwapForm((current) => ({ ...current, date: event.target.value })); swapModalForm.clear('date'); }}
             />
-          </label>
+          </Field>
           <label>
             <span>Ca trực</span>
             <Select
@@ -2113,15 +2114,14 @@ const HRV2: React.FC = () => {
               }))}
             />
           </label>
-          <label className="full">
-            <span>Lý do</span>
+          <Field className="full" label="Lý do" required error={swapModalForm.errors.reason}>
             <textarea
               rows={4}
               value={swapForm.reason}
-              onChange={(event) => setSwapForm((current) => ({ ...current, reason: event.target.value }))}
+              onChange={(event) => { setSwapForm((current) => ({ ...current, reason: event.target.value })); swapModalForm.clear('reason'); }}
               placeholder="Mô tả lý do cần đổi ca..."
             />
-          </label>
+          </Field>
         </div>
       </Modal>
 
@@ -2129,7 +2129,7 @@ const HRV2: React.FC = () => {
 
       {/* Catalog Modal */}
       <Modal title="Danh mục nhân sự" open={isCatalogModalOpen} onCancel={() => setIsCatalogModalOpen(false)} onOk={() => catalogForm.submit()} okText="Lưu" cancelText="Hủy" confirmLoading={submitting}>
-        <Form form={catalogForm} layout="vertical" onFinish={handleSaveCatalog}>
+        <Form form={catalogForm} layout="vertical" onFinish={handleSaveCatalog} scrollToFirstError>
           <Form.Item name="id" hidden><Input /></Form.Item>
           <Form.Item name="code" label="Mã" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name="name" label="Tên" rules={[{ required: true }]}><Input /></Form.Item>
@@ -2143,7 +2143,7 @@ const HRV2: React.FC = () => {
 
       {/* Contract Modal */}
       <Modal title="Hợp đồng lao động" open={isContractModalOpen} onCancel={() => setIsContractModalOpen(false)} onOk={() => contractForm.submit()} okText="Lưu" cancelText="Hủy" confirmLoading={submitting}>
-        <Form form={contractForm} layout="vertical" onFinish={handleSaveContract}>
+        <Form form={contractForm} layout="vertical" onFinish={handleSaveContract} scrollToFirstError>
           <Form.Item name="staffId" label="Nhân viên" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="label" options={staffOptions} />
           </Form.Item>
@@ -2166,7 +2166,7 @@ const HRV2: React.FC = () => {
 
       {/* Leave Modal */}
       <Modal title="Tạo đơn nghỉ phép" open={isLeaveModalOpen} onCancel={() => setIsLeaveModalOpen(false)} onOk={() => leaveForm.submit()} okText="Lưu" cancelText="Hủy" confirmLoading={submitting}>
-        <Form form={leaveForm} layout="vertical" onFinish={handleCreateLeave}>
+        <Form form={leaveForm} layout="vertical" onFinish={handleCreateLeave} scrollToFirstError>
           <Form.Item name="staffId" label="Nhân viên" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="label" options={staffOptions} />
           </Form.Item>
@@ -2187,7 +2187,7 @@ const HRV2: React.FC = () => {
 
       {/* Attendance Modal */}
       <Modal title="Ghi chấm công" open={isAttendanceModalOpen} onCancel={() => setIsAttendanceModalOpen(false)} onOk={() => attendanceForm.submit()} okText="Lưu" cancelText="Hủy" confirmLoading={submitting}>
-        <Form form={attendanceForm} layout="vertical" onFinish={handleRecordAttendance}>
+        <Form form={attendanceForm} layout="vertical" onFinish={handleRecordAttendance} scrollToFirstError>
           <Form.Item name="staffId" label="Nhân viên" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="label" options={staffOptions} />
           </Form.Item>
@@ -2218,7 +2218,7 @@ const HRV2: React.FC = () => {
 
       {/* Overtime Modal */}
       <Modal title="Yêu cầu làm thêm giờ" open={isOvertimeModalOpen} onCancel={() => setIsOvertimeModalOpen(false)} onOk={() => overtimeForm.submit()} okText="Lưu" cancelText="Hủy" confirmLoading={submitting}>
-        <Form form={overtimeForm} layout="vertical" onFinish={handleCreateOvertime}>
+        <Form form={overtimeForm} layout="vertical" onFinish={handleCreateOvertime} scrollToFirstError>
           <Form.Item name="staffId" label="Nhân viên" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="label" options={staffOptions} />
           </Form.Item>
@@ -2230,7 +2230,7 @@ const HRV2: React.FC = () => {
 
       {/* Award Modal */}
       <Modal title="Khen thưởng" open={isAwardModalOpen} onCancel={() => setIsAwardModalOpen(false)} onOk={() => awardForm.submit()} okText="Lưu" cancelText="Hủy" confirmLoading={submitting}>
-        <Form form={awardForm} layout="vertical" onFinish={handleSaveAward}>
+        <Form form={awardForm} layout="vertical" onFinish={handleSaveAward} scrollToFirstError>
           <Form.Item name="staffId" label="Nhân viên" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="label" options={staffOptions} />
           </Form.Item>
@@ -2251,7 +2251,7 @@ const HRV2: React.FC = () => {
 
       {/* Discipline Modal */}
       <Modal title="Kỷ luật" open={isDisciplineModalOpen} onCancel={() => setIsDisciplineModalOpen(false)} onOk={() => disciplineForm.submit()} okText="Lưu" cancelText="Hủy" confirmLoading={submitting}>
-        <Form form={disciplineForm} layout="vertical" onFinish={handleSaveDiscipline}>
+        <Form form={disciplineForm} layout="vertical" onFinish={handleSaveDiscipline} scrollToFirstError>
           <Form.Item name="staffId" label="Nhân viên" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="label" options={staffOptions} />
           </Form.Item>
@@ -2272,7 +2272,7 @@ const HRV2: React.FC = () => {
 
       {/* Shift Modal */}
       <Modal title="Phân ca trực" open={isShiftModalOpen} onCancel={() => setIsShiftModalOpen(false)} onOk={() => shiftForm.submit()} okText="Lưu" cancelText="Hủy" confirmLoading={submitting}>
-        <Form form={shiftForm} layout="vertical" onFinish={handleAddShift}>
+        <Form form={shiftForm} layout="vertical" onFinish={handleAddShift} scrollToFirstError>
           <Form.Item name="employeeId" label="Nhân viên" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="label" options={staffOptions} />
           </Form.Item>
@@ -2292,7 +2292,7 @@ const HRV2: React.FC = () => {
 
       {/* Training Modal */}
       <Modal title="Đăng ký đào tạo" open={isTrainingModalOpen} onCancel={() => setIsTrainingModalOpen(false)} onOk={() => trainingForm.submit()} okText="Lưu" cancelText="Hủy" confirmLoading={submitting}>
-        <Form form={trainingForm} layout="vertical" onFinish={handleAddTraining}>
+        <Form form={trainingForm} layout="vertical" onFinish={handleAddTraining} scrollToFirstError>
           <Form.Item name="employeeId" label="Nhân viên" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="label" options={staffOptions} />
           </Form.Item>
@@ -2312,7 +2312,7 @@ const HRV2: React.FC = () => {
 
       {/* Add Employee Modal */}
       <Modal title="Thêm nhân viên mới" open={isAddEmployeeModalOpen} onCancel={() => setIsAddEmployeeModalOpen(false)} onOk={() => employeeForm.submit()} okText="Lưu" cancelText="Hủy" confirmLoading={submitting} width={600}>
-        <Form form={employeeForm} layout="vertical" onFinish={handleAddEmployee}>
+        <Form form={employeeForm} layout="vertical" onFinish={handleAddEmployee} scrollToFirstError>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Form.Item name="staffCode" label="Mã nhân viên" rules={[{ required: true }]}><Input /></Form.Item>
             <Form.Item name="fullName" label="Họ và tên" rules={[{ required: true }]}><Input /></Form.Item>

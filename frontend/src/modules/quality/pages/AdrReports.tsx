@@ -4,6 +4,7 @@
 // Module #5 #55-59 — Bound to /api/adr-report
 // =====================================================================
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { DatePicker, Input, InputNumber, Select } from 'antd';
 import {
@@ -122,7 +123,7 @@ const EMPTY_EDIT: EditState = {
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 const AdrReportsV2: React.FC = () => {
-  const [tab, setTab]           = useState<TabKey>('list');
+  const [tab, setTab]           = useTabState<TabKey>('list');
   const [rows, setRows]         = useState<AdrReportDto[]>([]);
   const [summary, setSummary]   = useState<AdrReportSummaryDto | null>(null);
   const [search, setSearch]     = useState('');
@@ -403,7 +404,7 @@ const AdrReportsV2: React.FC = () => {
           <>
             {/* ── Thông tin bệnh nhân ─────────────────────────────────── */}
             <DrSec title="Thông tin bệnh nhân">
-              <DrField lbl="Họ tên bệnh nhân *">
+              <DrField lbl="Họ tên bệnh nhân" required>
                 <Input
                   value={edit.patientName}
                   onChange={e => setEdit({ ...edit, patientName: e.target.value })}
@@ -450,7 +451,7 @@ const AdrReportsV2: React.FC = () => {
 
             {/* ── Thuốc nghi ngờ ──────────────────────────────────────── */}
             <DrSec title="Thuốc nghi ngờ gây phản ứng">
-              <DrField lbl="Tên thuốc *">
+              <DrField lbl="Tên thuốc" required>
                 <Input
                   value={edit.drugName}
                   onChange={e => setEdit({ ...edit, drugName: e.target.value })}
@@ -480,7 +481,7 @@ const AdrReportsV2: React.FC = () => {
 
             {/* ── Phản ứng có hại ─────────────────────────────────────── */}
             <DrSec title="Phản ứng có hại">
-              <DrField lbl="Mô tả phản ứng *">
+              <DrField lbl="Mô tả phản ứng" required>
                 <Input.TextArea
                   rows={4}
                   value={edit.reactionDescription}
@@ -496,7 +497,7 @@ const AdrReportsV2: React.FC = () => {
                   onChange={d => setEdit({ ...edit, reactionStartDate: d ? d.toISOString() : dayjs().toISOString() })}
                 />
               </DrField>
-              <DrField lbl="Mức độ nghiêm trọng *">
+              <DrField lbl="Mức độ nghiêm trọng" required>
                 <Select
                   style={{ width: '100%' }}
                   value={edit.severity}
@@ -546,7 +547,7 @@ const AdrReportsV2: React.FC = () => {
                   maxLength={200}
                 />
               </DrField>
-              <DrField lbl="Ngày báo cáo *">
+              <DrField lbl="Ngày báo cáo" required>
                 <DatePicker
                   style={{ width: '100%' }}
                   format="DD/MM/YYYY"

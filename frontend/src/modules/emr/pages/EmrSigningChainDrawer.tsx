@@ -257,7 +257,7 @@ const EmrSigningChainDrawer: React.FC<Props> = ({
         size="md"
         footer={<>
           <Btn variant="ghost" onClick={() => setSubmitTarget(null)}>Hủy</Btn>
-          <Btn variant="primary" disabled={submitting} onClick={doSubmit}>
+          <Btn variant="primary" loading={submitting} onClick={doSubmit}>
             <TermIcon name="send" size={12} /> Gửi trình ký
           </Btn>
         </>}
@@ -328,7 +328,7 @@ const EmrSigningChainDrawer: React.FC<Props> = ({
         size="sm"
         footer={<>
           <Btn variant="ghost" onClick={() => setFinalizeOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" disabled={finalizing} onClick={doFinalize}>
+          <Btn variant="primary" loading={finalizing} onClick={doFinalize}>
             <TermIcon name="check" size={12} /> Kết thúc &amp; khóa
           </Btn>
         </>}

@@ -20,7 +20,9 @@ import {
   type ColumnDef, type StatusTab,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { Field } from '../../../components/form/Field';
 
 /* Khám từ xa v2 — port of design-system-v2/his/project/Telemedicine v2.html */
 
@@ -71,6 +73,10 @@ const TelemedicineV2: React.FC = () => {
   const [endForm, setEndForm] = useState({
     assessment: '', diagnosisMain: '', diagnosisMainIcd: '', treatmentPlan: '', followUpInstructions: '',
   });
+  const { errors: endErrors, validate: endValidate, clear: endClear } = useModalForm(
+    { diagnosisMain: { required: true, label: 'chẩn đoán chính' } },
+    !!endTarget,
+  );
   /* ── NEW: page-level tab (list | stats) ── */
   const [pageTab, setPageTab] = useState<'list' | 'stats'>('list');
   /* ── NEW: dashboard stats ── */
@@ -168,7 +174,7 @@ const TelemedicineV2: React.FC = () => {
 
   const submitEndSession = async () => {
     if (!endTarget?.sessionId) return;
-    if (!endForm.diagnosisMain.trim()) { message.warning('Cần nhập chẩn đoán chính trước khi kết thúc'); return; }
+    if (!endValidate({ diagnosisMain: endForm.diagnosisMain.trim() })) return;
     setEndBusy(true);
     try {
       // Ghi hồ sơ TRƯỚC rồi mới đóng phiên: nếu đảo thứ tự mà bước ghi lỗi thì phiên đã đóng
@@ -304,9 +310,7 @@ const TelemedicineV2: React.FC = () => {
               <TermIcon name="refresh" size={12} /> Bỏ lọc
             </Btn>
             <span className="spacer" />
-            <Btn variant="ghost" onClick={reload}>
-              <TermIcon name="refresh" size={12} /> Làm mới
-            </Btn>
+            <RefreshButton onRefresh={async () => { await reload() }} />
             <Btn variant="ghost" onClick={() => {
               if (!filtered.length) { message.warning('Không có dữ liệu để xuất'); return; }
               const header = 'Mã hẹn,Bệnh nhân,Bác sĩ,Ngày hẹn,Lý do,Trạng thái,URL phòng';
@@ -438,11 +442,11 @@ const TelemedicineV2: React.FC = () => {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12.5 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10 }}>
-            <label>Chẩn đoán chính <span style={{ color: 'var(--s-crit)' }}>*</span>
-              <Input value={endForm.diagnosisMain} style={{ marginTop: 4 }}
-                onChange={(e) => setEndForm((p) => ({ ...p, diagnosisMain: e.target.value }))}
+            <Field label="Chẩn đoán chính" required error={endErrors.diagnosisMain}>
+              <Input value={endForm.diagnosisMain}
+                onChange={(e) => { setEndForm((p) => ({ ...p, diagnosisMain: e.target.value })); endClear('diagnosisMain'); }}
                 placeholder="Chẩn đoán xác định sau buổi khám" />
-            </label>
+            </Field>
             <label>Mã ICD-10
               <Input value={endForm.diagnosisMainIcd} style={{ marginTop: 4 }}
                 onChange={(e) => setEndForm((p) => ({ ...p, diagnosisMainIcd: e.target.value }))}
@@ -687,6 +691,14 @@ const TeleBookingModal: React.FC<{
   const { message } = AntdApp.useApp();
   const [draft, setDraft] = useState<BookingDraft>(emptyBooking());
   const [busy, setBusy] = useState(false);
+  const { errors: bkErrors, validate: bkValidate, clear: bkClear } = useModalForm(
+    {
+      patientId: { required: true, label: 'mã bệnh nhân' },
+      doctorId: { required: true, label: 'mã bác sĩ' },
+      scheduledDate: { required: true, label: 'ngày khám' },
+    },
+    open,
+  );
 
   useEffect(() => { if (!open) setDraft(emptyBooking()); }, [open]);
 
@@ -705,10 +717,7 @@ const TeleBookingModal: React.FC<{
   };
 
   const doSubmit = async () => {
-    if (!draft.patientId.trim() || !draft.doctorId.trim() || !draft.scheduledDate) {
-      message.warning('Vui lòng điền đầy đủ thông tin bắt buộc');
-      return;
-    }
+    if (!bkValidate({ patientId: draft.patientId.trim(), doctorId: draft.doctorId.trim(), scheduledDate: draft.scheduledDate })) return;
     setBusy(true);
     try {
       const dto: CreateTelemedicineAppointmentDto = {
@@ -752,19 +761,21 @@ const TeleBookingModal: React.FC<{
     >
       <div style={{ display: 'flex', gap: 'var(--space-8)', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 200px' }}>
-          {fl('Mã bệnh nhân', true)}
-          <Input value={draft.patientId} onChange={(e) => set({ patientId: e.target.value })} placeholder="VD: P001" />
+          <Field label="Mã bệnh nhân" required error={bkErrors.patientId}>
+            <Input value={draft.patientId} onChange={(e) => { set({ patientId: e.target.value }); bkClear('patientId'); }} placeholder="VD: P001" />
+          </Field>
         </div>
         <div style={{ flex: '1 1 200px' }}>
-          {fl('Mã bác sĩ', true)}
-          <Input value={draft.doctorId} onChange={(e) => set({ doctorId: e.target.value })} placeholder="VD: D001" />
+          <Field label="Mã bác sĩ" required error={bkErrors.doctorId}>
+            <Input value={draft.doctorId} onChange={(e) => { set({ doctorId: e.target.value }); bkClear('doctorId'); }} placeholder="VD: D001" />
+          </Field>
         </div>
         <div style={{ flex: '1 1 200px' }}>
           {fl('Mã khoa')}
           <Input value={draft.departmentId} onChange={(e) => set({ departmentId: e.target.value })} placeholder="VD: DEP001" />
         </div>
         <div style={{ flex: '1 1 180px' }}>
-          {fl('Loại khám', true)}
+          {fl('Loại khám')}
           <Select
             style={{ width: '100%' }}
             value={draft.appointmentType}
@@ -777,13 +788,14 @@ const TeleBookingModal: React.FC<{
           />
         </div>
         <div style={{ flex: '1 1 180px' }}>
-          {fl('Ngày khám', true)}
-          <input
-            type="date"
-            style={inputStyle}
-            value={draft.scheduledDate}
-            onChange={(e) => set({ scheduledDate: e.target.value })}
-          />
+          <Field label="Ngày khám" required error={bkErrors.scheduledDate}>
+            <input
+              type="date"
+              style={inputStyle}
+              value={draft.scheduledDate}
+              onChange={(e) => { set({ scheduledDate: e.target.value }); bkClear('scheduledDate'); }}
+            />
+          </Field>
         </div>
         <div style={{ flex: '1 1 140px' }}>
           {fl('Giờ khám')}
@@ -795,7 +807,7 @@ const TeleBookingModal: React.FC<{
           />
         </div>
         <div style={{ flex: '2 1 100%' }}>
-          {fl('Lý do khám', true)}
+          {fl('Lý do khám')}
           <Input.TextArea
             rows={3}
             value={draft.chiefComplaint}

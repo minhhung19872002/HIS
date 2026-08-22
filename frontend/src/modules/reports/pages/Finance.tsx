@@ -15,6 +15,7 @@ import {
   DrawerShell, DrSec, DrField, fmtVNDg, tk, ti, te, Ico,
   type ColumnDef, type TopTab,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 type Row = RevenueByServiceDto & { id: string };
@@ -257,9 +258,7 @@ const FinanceV2: React.FC = () => {
             <Ico name="x" size={12} /> Bỏ lọc
           </Btn>
           <span className="spacer" />
-          <Btn variant="ghost" onClick={load}>
-            <Ico name="refresh" size={12} /> Làm mới
-          </Btn>
+          <RefreshButton onRefresh={load} loading={loading} />
           <Btn variant="ghost" disabled={csvLoading} onClick={handleExportCsv}>
             <Ico name="download" size={12} /> {csvLoading ? 'Đang xuất…' : 'Xuất CSV'}
           </Btn>
@@ -277,9 +276,7 @@ const FinanceV2: React.FC = () => {
         <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
           <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Doanh thu theo khoa thực hiện · {dayjs(reportFrom).format('DD/MM')} – {dayjs(reportTo).format('DD/MM/YYYY')}</span>
           <span className="spacer" />
-          <Btn variant="ghost" onClick={load}>
-            <Ico name="refresh" size={12} /> Làm mới
-          </Btn>
+          <RefreshButton onRefresh={load} loading={loading} />
         </div>
 
         <div style={{ padding: 'var(--space-14)', margin: '0 var(--space-14) var(--space-14)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>

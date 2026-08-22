@@ -13,6 +13,10 @@ import {
   StatusBadge, ActBtn, ModalShell, DrawerShell, Btn,
   type ColumnDef, type StatusTab, type KpiItem, type TopTab,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { useTabState } from '../../../hooks/useTabState';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 
@@ -98,7 +102,7 @@ const EquipmentV2: React.FC = () => {
   const { message } = AntdApp.useApp();
 
   // Tab state
-  const [tab, setTab] = useState<PageTab>('list');
+  const [tab, setTab] = useTabState<PageTab>('list', 'tab');
 
   // Data
   const [equipment, setEquipment] = useState<EquipmentDto[]>([]);
@@ -108,7 +112,7 @@ const EquipmentV2: React.FC = () => {
 
   // List filter state
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusKey | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useTabState<StatusKey | 'all'>('all', 'stab');
   const [riskFilter, setRiskFilter] = useState('');
   const [page, setPage] = useState(0);
 
@@ -124,6 +128,7 @@ const EquipmentV2: React.FC = () => {
   const [maintBusy, setMaintBusy] = useState<string | null>(null);
   const [maintRejectTarget, setMaintRejectTarget] = useState<MaintenanceScheduleDto | null>(null);
   const [maintRejectNote, setMaintRejectNote] = useState('');
+  const maintRejectForm = useModalForm({ reason: { required: true, message: 'Vui lòng nhập lý do từ chối' } }, !!maintRejectTarget);
 
   // Forms
   const [maintForm] = Form.useForm<MaintFormValues>();
@@ -313,7 +318,7 @@ const EquipmentV2: React.FC = () => {
   };
 
   const handleRejectMaintConfirm = async () => {
-    if (!maintRejectTarget || !maintRejectNote.trim()) return;
+    if (!maintRejectTarget) return;
     setMaintBusy(maintRejectTarget.id);
     try {
       await rejectMaintenanceSchedule(maintRejectTarget.id, maintRejectNote.trim());
@@ -614,9 +619,7 @@ const EquipmentV2: React.FC = () => {
                 <TermIcon name="refresh" size={12} /> Bỏ lọc
               </button>
               <span className="spacer" />
-              <button type="button" className="ab-btn ghost" disabled={loading} onClick={() => { void reload(); }}>
-                <span className={loading ? 'ab-btn-spin' : undefined} style={{ display: 'inline-flex' }}><TermIcon name="refresh" size={12} /></span> Làm mới
-              </button>
+              <RefreshButton onRefresh={reload} loading={loading} />
             </div>
 
             <StatusTabs<StatusKey>
@@ -759,7 +762,7 @@ const EquipmentV2: React.FC = () => {
         }
       >
         {(maintTarget || maintOpen) && (
-          <Form form={maintForm} layout="vertical">
+          <Form form={maintForm} layout="vertical" scrollToFirstError>
             {!maintTarget && (
               <Form.Item name="equipmentId" label="Thiết bị" rules={[{ required: true, message: 'Chọn thiết bị' }]}>
                 <Select
@@ -805,20 +808,22 @@ const EquipmentV2: React.FC = () => {
           <>
             <Btn variant="ghost" onClick={() => { setMaintRejectTarget(null); setMaintRejectNote(''); }}>Hủy</Btn>
             <Btn variant="crit"
-              disabled={!maintRejectNote.trim() || maintBusy === maintRejectTarget?.id}
-              onClick={() => { void handleRejectMaintConfirm(); }}>Từ chối</Btn>
+              loading={maintBusy === maintRejectTarget?.id}
+              onClick={() => { if (maintRejectForm.validate({ reason: maintRejectNote })) void handleRejectMaintConfirm(); }}>Từ chối</Btn>
           </>
         }
       >
         <div style={{ marginBottom: 'var(--space-8)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
           Kế hoạch bị từ chối sẽ không được đưa vào lịch thực hiện. Lý do được lưu vào hồ sơ thiết bị.
         </div>
-        <Input.TextArea
-          rows={3}
-          value={maintRejectNote}
-          onChange={(e) => setMaintRejectNote(e.target.value)}
-          placeholder="Lý do từ chối (bắt buộc)…"
-        />
+        <Field label="Lý do từ chối" required error={maintRejectForm.errors.reason}>
+          <Input.TextArea
+            rows={3}
+            value={maintRejectNote}
+            onChange={(e) => { setMaintRejectNote(e.target.value); maintRejectForm.clear('reason'); }}
+            placeholder="Lý do từ chối…"
+          />
+        </Field>
       </ModalShell>
 
       {/* ── Modal: Báo hỏng / Yêu cầu sửa chữa ────────────────────────── */}
@@ -836,7 +841,7 @@ const EquipmentV2: React.FC = () => {
         }
       >
         {repairTarget && (
-          <Form form={repairForm} layout="vertical">
+          <Form form={repairForm} layout="vertical" scrollToFirstError>
             <Form.Item name="reportedBy" label="Người báo cáo" rules={[{ required: true }]}>
               <Input placeholder="Tên người báo cáo" />
             </Form.Item>
@@ -871,20 +876,20 @@ const EquipmentV2: React.FC = () => {
           </>
         }
       >
-        <Form form={addForm} layout="vertical">
+        <Form form={addForm} layout="vertical" scrollToFirstError>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="equipmentCode" label="Mã thiết bị *" rules={[{ required: true, message: 'Nhập mã thiết bị' }]}>
+              <Form.Item name="equipmentCode" label="Mã thiết bị" rules={[{ required: true, message: 'Nhập mã thiết bị' }]}>
                 <Input placeholder="VD: ECG-001" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="name" label="Tên thiết bị *" rules={[{ required: true, message: 'Nhập tên thiết bị' }]}>
+              <Form.Item name="name" label="Tên thiết bị" rules={[{ required: true, message: 'Nhập tên thiết bị' }]}>
                 <Input placeholder="VD: Máy điện tim 12 kênh" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="category" label="Danh mục *" rules={[{ required: true, message: 'Chọn/nhập danh mục' }]}>
+              <Form.Item name="category" label="Danh mục" rules={[{ required: true, message: 'Chọn/nhập danh mục' }]}>
                 {categories.length > 0 ? (
                   <Select
                     placeholder="Chọn danh mục"
@@ -898,7 +903,7 @@ const EquipmentV2: React.FC = () => {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="riskClass" label="Nhóm nguy cơ *" rules={[{ required: true, message: 'Chọn nhóm' }]}>
+              <Form.Item name="riskClass" label="Nhóm nguy cơ" rules={[{ required: true, message: 'Chọn nhóm' }]}>
                 <Select options={[
                   { value: 'I',   label: 'Loại I'   },
                   { value: 'II',  label: 'Loại II'  },
@@ -911,22 +916,22 @@ const EquipmentV2: React.FC = () => {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="manufacturer" label="Hãng sản xuất *" rules={[{ required: true, message: 'Nhập hãng sản xuất' }]}>
+              <Form.Item name="manufacturer" label="Hãng sản xuất" rules={[{ required: true, message: 'Nhập hãng sản xuất' }]}>
                 <Input placeholder="VD: Philips, GE, Siemens" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="model" label="Model *" rules={[{ required: true, message: 'Nhập model' }]}>
+              <Form.Item name="model" label="Model" rules={[{ required: true, message: 'Nhập model' }]}>
                 <Input placeholder="VD: PageWriter TC30" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="serialNumber" label="Số serial *" rules={[{ required: true, message: 'Nhập số serial' }]}>
+              <Form.Item name="serialNumber" label="Số serial" rules={[{ required: true, message: 'Nhập số serial' }]}>
                 <Input placeholder="VD: SN2024001234" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="departmentId" label="Khoa/Phòng *" rules={[{ required: true, message: 'Nhập ID khoa' }]}>
+              <Form.Item name="departmentId" label="Khoa/Phòng" rules={[{ required: true, message: 'Nhập ID khoa' }]}>
                 <Input placeholder="ID khoa/phòng sử dụng" />
               </Form.Item>
             </Col>

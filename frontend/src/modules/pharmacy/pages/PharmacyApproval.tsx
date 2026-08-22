@@ -40,8 +40,11 @@ import {
   tk, ti, tw, cf, Ico,
   type ColumnDef,
 } from '@/_v2kit';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { useTabState } from '../../../hooks/useTabState';
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
@@ -88,7 +91,7 @@ const newReqItem = (): ReqItem => ({
 
 const PharmacyApprovalV2: React.FC = () => {
   // List state
-  const [stab, setStab] = useState<SKey | 'all'>('pending');
+  const [stab, setStab] = useTabState<SKey | 'all'>('pending');
   const [items, setItems] = useState<PharmacyApprovalDto[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -123,6 +126,14 @@ const PharmacyApprovalV2: React.FC = () => {
   const [reqItems, setReqItems] = useState<ReqItem[]>([newReqItem()]);
   const [medSuggestions, setMedSuggestions] = useState<Record<number, MedicineDto[]>>({});
   const [creating, setCreating] = useState(false);
+  const reqForm = useModalForm({
+    reqFromWh: { required: true, message: 'Chọn kho xuất (kho nguồn)' },
+    reqToWh: {
+      required: true,
+      message: 'Chọn kho nhận',
+      validate: (v) => (v && v === reqFromWh) ? 'Kho xuất và kho nhận phải khác nhau' : undefined,
+    },
+  }, createOpen);
 
   // Expiring medicines warning
   const [expiring, setExpiring] = useState<ExpiringMedicineDto[]>([]);
@@ -263,9 +274,7 @@ const PharmacyApprovalV2: React.FC = () => {
   const addItem = () => setReqItems((prev) => [...prev, newReqItem()]);
 
   const handleCreate = async () => {
-    if (!reqFromWh) { tw('Chọn kho xuất (kho nguồn)'); return; }
-    if (!reqToWh)   { tw('Chọn kho nhận'); return; }
-    if (reqFromWh === reqToWh) { tw('Kho xuất và kho nhận phải khác nhau'); return; }
+    if (!reqForm.validate({ reqFromWh, reqToWh })) return;
     const validItems = reqItems.filter((it) => it.medicineId && it.requestedQuantity > 0);
     if (validItems.length === 0) { tw('Thêm ít nhất 1 mặt hàng hợp lệ'); return; }
 
@@ -373,7 +382,7 @@ const PharmacyApprovalV2: React.FC = () => {
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={refresh} loading={loading} icon="refresh">Làm mới</Btn>
+        <RefreshButton onRefresh={refresh} loading={loading} />
         {expiring.length > 0 && (
           <Btn variant="ghost" onClick={() => setShowExpiring(true)}>
             <Ico name="alert" size={12} /> Cảnh báo HSD ({expiring.length})
@@ -484,7 +493,7 @@ const PharmacyApprovalV2: React.FC = () => {
         title="Duyệt phiếu cấp phát"
         footer={<>
           <Btn variant="ghost" onClick={() => setApproveOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={handleApprove} disabled={acting}>
+          <Btn variant="primary" onClick={handleApprove} loading={acting}>
             <Ico name="check" size={12} /> {acting ? 'Đang duyệt…' : 'Duyệt'}
           </Btn>
         </>}
@@ -547,7 +556,7 @@ const PharmacyApprovalV2: React.FC = () => {
         title="Thu hồi phiếu đã duyệt"
         footer={<>
           <Btn variant="ghost" onClick={() => setRevokeOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={handleRevoke} disabled={acting} style={{ color: 'var(--a-rd-text)' }}>
+          <Btn variant="primary" loading={acting} style={{ color: 'var(--a-rd-text)' }} onClick={handleRevoke}>
             <Ico name="refresh" size={12} /> {acting ? 'Đang thu hồi…' : 'Thu hồi'}
           </Btn>
         </>}
@@ -570,7 +579,7 @@ const PharmacyApprovalV2: React.FC = () => {
         title="Lập phiếu dự trù nội bộ"
         footer={<>
           <Btn variant="ghost" onClick={() => setCreateOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={handleCreate} disabled={creating}>
+          <Btn variant="primary" onClick={handleCreate} loading={creating}>
             <Ico name="plus" size={12} /> {creating ? 'Đang tạo…' : 'Tạo phiếu nháp'}
           </Btn>
         </>}
@@ -582,13 +591,12 @@ const PharmacyApprovalV2: React.FC = () => {
 
         {/* Kho nguồn / kho nhận */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)', marginBottom: 'var(--space-16)' }}>
-          <div>
-            <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, marginBottom: 'var(--space-4)' }}>Kho xuất (nguồn) *</div>
+          <Field label="Kho xuất (nguồn)" required error={reqForm.errors.reqFromWh}>
             <Select
               style={{ width: '100%' }}
               placeholder="Chọn kho xuất…"
               value={reqFromWh || undefined}
-              onChange={(v) => setReqFromWh(v)}
+              onChange={(v) => { setReqFromWh(v); reqForm.clear('reqFromWh'); }}
               showSearch
               optionFilterProp="children"
             >
@@ -596,14 +604,13 @@ const PharmacyApprovalV2: React.FC = () => {
                 <Option key={w.id} value={w.id}>{w.warehouseName}</Option>
               ))}
             </Select>
-          </div>
-          <div>
-            <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, marginBottom: 'var(--space-4)' }}>Kho nhận (đích) *</div>
+          </Field>
+          <Field label="Kho nhận (đích)" required error={reqForm.errors.reqToWh}>
             <Select
               style={{ width: '100%' }}
               placeholder="Chọn kho nhận…"
               value={reqToWh || undefined}
-              onChange={(v) => setReqToWh(v)}
+              onChange={(v) => { setReqToWh(v); reqForm.clear('reqToWh'); }}
               showSearch
               optionFilterProp="children"
             >
@@ -613,7 +620,7 @@ const PharmacyApprovalV2: React.FC = () => {
                   <Option key={w.id} value={w.id}>{w.warehouseName}</Option>
                 ))}
             </Select>
-          </div>
+          </Field>
         </div>
 
         <div style={{ marginBottom: 'var(--space-12)' }}>

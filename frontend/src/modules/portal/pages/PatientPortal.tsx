@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { Input } from 'antd';
 import {
@@ -602,7 +603,7 @@ function AccountSection() {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 const PatientPortalV2: React.FC = () => {
-  const [tab, setTab] = useState<AppTab>('appt');
+  const [tab, setTab] = useTabState<string>('appt');
 
   return (
     <div className="ab">

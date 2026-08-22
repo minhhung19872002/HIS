@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import { Form, Input, InputNumber, Select, Modal } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../../../services/apiClient';
@@ -9,6 +10,7 @@ import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn, DrawerShell, ModalShell, DrSec, DrField,
   Ico, tk, ti, tw, type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions/RefreshButton/RefreshButton';
 
 interface Stay {
   id: string; stayCode: string; patientCode: string; patientName: string;
@@ -43,7 +45,7 @@ const tabToStatus = (s: SKey | 'all') => s === 'observing' ? 1 : s === 'discharg
 const STATUS_LABEL: Record<number, string> = { 1: 'Đang lưu', 2: 'Cho về', 3: 'Chuyển NV', 4: 'Chuyển viện', 5: 'Tử vong' };
 
 const ObservationStayV2: React.FC = () => {
-  const [stab, setStab] = useState<SKey | 'all'>('observing');
+  const [stab, setStab] = useTabState<SKey | 'all'>('observing');
   const [stays, setStays] = useState<Stay[]>([]);
   const [loading, setLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -174,7 +176,7 @@ const ObservationStayV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Phòng lưu / Observation ngắn hạn (≤24h)</span>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
         <Btn variant="primary" onClick={() => setCreateOpen(true)}>
           <Ico name="plus" size={12} /> Tiếp nhận
         </Btn>

@@ -28,6 +28,7 @@ import {
   StatusTabs, DrawerShell, DrSec, DrField, tk, ti, tw, te, cf, Ico, useListData, useTabCounts,
   type ColumnDef, type CrudFieldCfg, type TopTab, type StatusTone, type KpiItem,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 import { RowActions } from '@/components/actions';
 
 // ─────────────────────── Form value types (port từ v1 pages/health-exchange/types.ts) ───────────────────────
@@ -368,9 +369,7 @@ const ConnectionsPanel: React.FC = () => {
           <Ico name="refresh" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={reload}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <RefreshButton onRefresh={reload} loading={loading} />
         <Btn variant="ghost" disabled={syncing} onClick={async () => {
           setSyncing(true);
           try {
@@ -829,9 +828,7 @@ const ReferralsPanel: React.FC<{ dashboard: HIEDashboardDto | null }> = ({ dashb
 
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={reload}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <RefreshButton onRefresh={reload} loading={loading} />
         <Btn variant="ghost" onClick={handlePrintBlank}>
           <Ico name="printer" size={12} /> In mẫu
         </Btn>
@@ -1077,9 +1074,7 @@ const ConsultationsPanel: React.FC = () => {
 
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={reload}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
+        <RefreshButton onRefresh={reload} loading={loading} />
         <Btn variant="primary" onClick={() => setCreateOpen(true)}>
           <Ico name="plus" size={12} /> Yêu cầu hội chẩn
         </Btn>

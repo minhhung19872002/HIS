@@ -4,12 +4,15 @@
 // Chi hộ hoàn tiền thừa (IV — MockMode đến khi có API giải ngân VCB).
 // =====================================================================
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import {
   KpiStrip, TopTabs, ActBtn, Btn, ModalShell, DataTable, StatusBadge,
-  fmtVNDg, fmtDTg, tk, te, tw, cf, type ColumnDef, type TopTab,
+  fmtVNDg, fmtDTg, tk, te, cf, type ColumnDef, type TopTab,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 import {
   getBankReconciliation, getQrFinanceReport,
   createDisbursement, executeDisbursement, cancelDisbursement, searchDisbursements,
@@ -39,7 +42,7 @@ const monthAgoISO = () => { const d = new Date(); d.setDate(d.getDate() - 30); r
 const STATUS_TONE: Record<number, 'ok' | 'warn' | 'info' | 'crit'> = { 0: 'warn', 1: 'ok', 2: 'crit', 3: 'info', 4: 'info' };
 
 const QrPaymentCenter: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('recon');
+  const [tab, setTab] = useTabState<TabKey>('recon');
   const [from, setFrom] = useState(monthAgoISO());
   const [to, setTo] = useState(todayISO());
   const [bank, setBank] = useState('');
@@ -58,6 +61,13 @@ const QrPaymentCenter: React.FC = () => {
     patientId: '', amount: '', bankBin: '970436', bankName: 'Vietcombank',
     accountNumber: '', accountHolder: '', reason: '',
   });
+  const cformRules = {
+    patientId: { required: true as const, message: 'Nhập ID bệnh nhân (lấy từ giao dịch gốc hoặc hồ sơ)' },
+    amount: { validate: (v: unknown) => (!Number(v) || Number(v) <= 0) ? 'Nhập số tiền hợp lệ' : undefined },
+    accountNumber: { required: true as const, message: 'Nhập số tài khoản nhận' },
+    accountHolder: { required: true as const, message: 'Nhập tên chủ tài khoản nhận' },
+  };
+  const cformForm = useModalForm(cformRules, createOpen);
 
   const load = useCallback(async (t: TabKey) => {
     setLoading(true);
@@ -105,9 +115,7 @@ const QrPaymentCenter: React.FC = () => {
 
   const doCreate = async () => {
     const amt = Number(cform.amount);
-    if (!cform.patientId.trim()) { tw('Nhập ID bệnh nhân (lấy từ giao dịch gốc hoặc hồ sơ)'); return; }
-    if (!amt || amt <= 0) { tw('Nhập số tiền hợp lệ'); return; }
-    if (!cform.accountNumber.trim() || !cform.accountHolder.trim()) { tw('Nhập đầy đủ tài khoản nhận'); return; }
+    if (!cformForm.validate(cform)) return;
     setSaving(true);
     try {
       await createDisbursement({
@@ -251,20 +259,21 @@ const QrPaymentCenter: React.FC = () => {
       <ModalShell open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo lệnh chi hộ hoàn tiền" sub="Chi tiền thừa qua TK Vietcombank BV → TK bệnh nhân" size="sm"
         footer={<>
           <Btn variant="ghost" onClick={() => setCreateOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" disabled={saving} onClick={doCreate}><TermIcon name="check" size={12} /> Tạo lệnh</Btn>
+          <Btn variant="primary" loading={saving} onClick={doCreate}><TermIcon name="check" size={12} /> Tạo lệnh</Btn>
         </>}>
         <div style={{ padding: 'var(--space-18)', display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
-          <label style={{ display: 'block', fontSize: 11.5 }}>
-            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>ID bệnh nhân (patientId)</span>
-            <input className="ed-fld mono" value={cform.patientId} onChange={(e) => setCform((p) => ({ ...p, patientId: e.target.value }))} placeholder="GUID bệnh nhân" autoFocus />
-          </label>
-          <label style={{ display: 'block', fontSize: 11.5 }}>
-            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>Số tiền chi hộ</span>
-            <input type="number" className="ed-fld mono" style={{ textAlign: 'right' }} value={cform.amount} onChange={(e) => setCform((p) => ({ ...p, amount: e.target.value }))} placeholder="0" />
-          </label>
+          <Field label="ID bệnh nhân (patientId)" required error={cformForm.errors.patientId}>
+            <input className="ed-fld mono" value={cform.patientId}
+              onChange={(e) => { setCform((p) => ({ ...p, patientId: e.target.value })); cformForm.clear('patientId'); }}
+              placeholder="GUID bệnh nhân" autoFocus style={{ width: '100%' }} />
+          </Field>
+          <Field label="Số tiền chi hộ" required error={cformForm.errors.amount}>
+            <input type="number" className="ed-fld mono" style={{ textAlign: 'right', width: '100%' }} value={cform.amount}
+              onChange={(e) => { setCform((p) => ({ ...p, amount: e.target.value })); cformForm.clear('amount'); }}
+              placeholder="0" />
+          </Field>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-8)' }}>
-            <label style={{ display: 'block', fontSize: 11.5 }}>
-              <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>Ngân hàng nhận</span>
+            <Field label="Ngân hàng nhận">
               <select className="ed-fld" value={cform.bankBin} onChange={(e) => {
                 const bin = e.target.value;
                 const names: Record<string, string> = { '970436': 'Vietcombank', '970418': 'BIDV', '970405': 'Agribank', '970415': 'VietinBank', '970426': 'MSB' };
@@ -276,20 +285,21 @@ const QrPaymentCenter: React.FC = () => {
                 <option value="970415">VietinBank</option>
                 <option value="970426">MSB</option>
               </select>
-            </label>
-            <label style={{ display: 'block', fontSize: 11.5 }}>
-              <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>Số tài khoản</span>
-              <input className="ed-fld mono" value={cform.accountNumber} onChange={(e) => setCform((p) => ({ ...p, accountNumber: e.target.value }))} />
-            </label>
+            </Field>
+            <Field label="Số tài khoản" required error={cformForm.errors.accountNumber}>
+              <input className="ed-fld mono" value={cform.accountNumber}
+                onChange={(e) => { setCform((p) => ({ ...p, accountNumber: e.target.value })); cformForm.clear('accountNumber'); }}
+                style={{ width: '100%' }} />
+            </Field>
           </div>
-          <label style={{ display: 'block', fontSize: 11.5 }}>
-            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>Chủ tài khoản</span>
-            <input className="ed-fld" value={cform.accountHolder} onChange={(e) => setCform((p) => ({ ...p, accountHolder: e.target.value.toUpperCase() }))} placeholder="NGUYEN VAN A" />
-          </label>
-          <label style={{ display: 'block', fontSize: 11.5 }}>
-            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>Lý do</span>
-            <textarea className="ed-fld" rows={2} value={cform.reason} onChange={(e) => setCform((p) => ({ ...p, reason: e.target.value }))} placeholder="Hoàn tiền thừa viện phí…" />
-          </label>
+          <Field label="Chủ tài khoản" required error={cformForm.errors.accountHolder}>
+            <input className="ed-fld" value={cform.accountHolder}
+              onChange={(e) => { setCform((p) => ({ ...p, accountHolder: e.target.value.toUpperCase() })); cformForm.clear('accountHolder'); }}
+              placeholder="NGUYEN VAN A" style={{ width: '100%' }} />
+          </Field>
+          <Field label="Lý do">
+            <textarea className="ed-fld" rows={2} value={cform.reason} onChange={(e) => setCform((p) => ({ ...p, reason: e.target.value }))} placeholder="Hoàn tiền thừa viện phí…" style={{ width: '100%' }} />
+          </Field>
         </div>
       </ModalShell>
     </div>

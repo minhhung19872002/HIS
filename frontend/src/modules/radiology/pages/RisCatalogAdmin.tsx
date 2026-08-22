@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import { Form, Input, InputNumber, Switch, Select, Modal } from 'antd';
 import apiClient from '../../../services/apiClient';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, StatusBadge, ActBtn, Btn,
   tk, ti, tw, cf, type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 type TabKey = 'modalities' | 'body-parts' | 'protocols' | 'report-templates' | 'icd-templates' | 'pttt-service-mappings';
@@ -30,7 +32,7 @@ const POSITION_OPTIONS = ['Standing', 'Supine', 'Prone', 'Decubitus', 'Lateral',
 type Row = Record<string, any>;
 
 const RisCatalogAdminV2: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('modalities');
+  const [tab, setTab] = useTabState<TabKey>('modalities');
   const [keyword, setKeyword] = useState('');
   const [data, setData] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
@@ -290,7 +292,7 @@ const RisCatalogAdminV2: React.FC = () => {
 
       <TopTabs<TabKey> tab={tab} setTab={(v) => { setTab(v); setKeyword(''); }} tabs={TABS} actions={
         <>
-          <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+          <RefreshButton onRefresh={load} loading={loading} />
           <Btn variant="primary" icon="plus" onClick={openAdd}>Thêm mới</Btn>
         </>
       } />

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import { useRegisterCommands } from '@/contexts/CommandContext';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
@@ -10,7 +11,7 @@ import {
   type ColumnDef,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 
 /* ────────────────────────────────────────────────────────────
    Reception v2 — Tiếp đón
@@ -29,31 +30,33 @@ import { PatientLookupModal } from './PatientLookupModal';
 import { MoveRoomModal } from './MoveRoomModal';
 import { ReceptionPayModal } from './ReceptionPayModal';
 import { PrintRequestFormModal, printBarcodeLabel } from './ReceptionPrintModals';
+import { Checkbox } from '@/components/common/Checkbox';
+import { FileUpload } from '@/components/common/FileUpload/FileUpload';
 const ReceptionV2: React.FC = () => {
   const { message } = AntdApp.useApp();
 
-  const [rows, setRows]         = useState<RawRow[]>([]);
-  const [rooms, setRooms]       = useState<RoomOverviewDto[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [tab, setTab]           = useState<TopKey>('queue');
-  const [statusTab, setStatusTab] = useState<StatusKey | 'all'>('all');
-  const [search, setSearch]     = useState('');
-  const [fDept, setFDept]       = useState('');
+  const [rows, setRows] = useState<RawRow[]>([]);
+  const [rooms, setRooms] = useState<RoomOverviewDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useTabState<TopKey>('queue', 'tab');
+  const [statusTab, setStatusTab] = useTabState<StatusKey | 'all'>('all', 'stab');
+  const [search, setSearch] = useState('');
+  const [fDept, setFDept] = useState('');
   const [fPriority, setFPriority] = useState('');
   const [fInsurance, setFInsurance] = useState('');
   const [fVisitType, setFVisitType] = useState('');
-  const [page, setPage]         = useState(0);
-  const [selRows, setSelRows]   = useState<Set<string>>(new Set());
-  const [detail, setDetail]     = useState<RawRow | null>(null);
-  const [newOpen, setNewOpen]   = useState(false);
+  const [page, setPage] = useState(0);
+  const [selRows, setSelRows] = useState<Set<string>>(new Set());
+  const [detail, setDetail] = useState<RawRow | null>(null);
+  const [newOpen, setNewOpen] = useState(false);
   const [bhytOpen, setBhytOpen] = useState(false);
   const [lookupOpen, setLookupOpen] = useState(false);
-  const [moveFor, setMoveFor]   = useState<RawRow | null>(null);
-  const [payFor, setPayFor]     = useState<RawRow | null>(null);
-  const [ms03For, setMs03For]   = useState<RawRow | null>(null);
+  const [moveFor, setMoveFor] = useState<RawRow | null>(null);
+  const [payFor, setPayFor] = useState<RawRow | null>(null);
+  const [ms03For, setMs03For] = useState<RawRow | null>(null);
   // #467: guard chống double-submit — busy giữ id dòng đang xử lý (checkin/hoàn thành/vắng mặt),
   // callingNext chặn double-click "Gọi số tiếp" (gọi 2 số 1 lúc trên hàng đợi).
-  const [busy, setBusy]         = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
   const [callingNext, setCallingNext] = useState(false);
   const PAGE_SIZE = 14;
 
@@ -409,9 +412,7 @@ const ReceptionV2: React.FC = () => {
         tabs={TOP_TABS}
         actions={
           <>
-            <Btn variant="ghost" onClick={loadData}>
-              <TermIcon name="refresh" size={12} /> Làm mới
-            </Btn>
+            <RefreshButton onRefresh={loadData} />
             <Btn variant="ghost" onClick={() => setBhytOpen(true)}>
               <TermIcon name="shield" size={12} /> Tra cứu BHYT
             </Btn>
@@ -575,11 +576,11 @@ const ReceptionV2: React.FC = () => {
         onClose={() => setDetail(null)}
         title={detail
           ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
-              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>
-                {detail.queueCode || `#${detail.queueNumber}`}
-              </span>
-              <span style={{ fontSize: 14 }}>{detail.patientName}</span>
+            <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>
+              {detail.queueCode || `#${detail.queueNumber}`}
             </span>
+            <span style={{ fontSize: 14 }}>{detail.patientName}</span>
+          </span>
           : ''}
         sub={detail
           ? `${detail.departmentName || '—'} · ${detail.roomName || '—'} · ${fmtHM(detail.admissionDate)}`
@@ -660,43 +661,145 @@ const ReceptionV2: React.FC = () => {
    ──────────────────────────────────────────────────────────── */
 const FingerprintPanel: React.FC<{ patientId?: string }> = ({ patientId }) => {
   const { message } = AntdApp.useApp();
+
   const [notCollected, setNotCollected] = useState(false);
   const [fpName, setFpName] = useState('');
-  const [fpData, setFpData] = useState<string | undefined>(undefined);
+  const [fpData, setFpData] = useState<string>();
   const [saving, setSaving] = useState(false);
 
   const onFile = (file?: File) => {
-    if (!file) { setFpData(undefined); setFpName(''); return; }
+    if (!file) {
+      setFpData(undefined);
+      setFpName('');
+      return;
+    }
+
     const reader = new FileReader();
-    reader.onload = () => { setFpData(String(reader.result)); setFpName(file.name); };
+
+    reader.onload = () => {
+      setFpData(String(reader.result));
+      setFpName(file.name);
+    };
+
     reader.readAsDataURL(file);
   };
+
+  const handleNotCollectedChange = (
+    checked: boolean,
+  ) => {
+    setNotCollected(checked);
+
+    // Nếu đánh dấu không thu thập được
+    // thì xóa file đã chọn trước đó.
+    if (checked) {
+      setFpData(undefined);
+      setFpName('');
+    }
+  };
+
+  const canSave =
+    !!patientId &&
+    (notCollected || !!fpData) &&
+    !saving;
+
   const save = async () => {
-    if (!patientId) { message.warning('Không xác định được bệnh nhân để lưu vân tay'); return; }
+    if (!patientId) {
+      message.warning(
+        'Không xác định được bệnh nhân để lưu vân tay',
+      );
+      return;
+    }
+
+    if (!notCollected && !fpData) {
+      message.warning('Vui lòng chọn ảnh vân tay');
+      return;
+    }
+
     setSaving(true);
+
     try {
-      await receptionApi.saveFingerprint(patientId, { fingerprintData: notCollected ? undefined : fpData, notCollected });
+      await receptionApi.saveFingerprint(patientId, {
+        fingerprintData: notCollected
+          ? undefined
+          : fpData,
+        notCollected,
+      });
+
       message.success('Đã lưu vân tay tiếp đón');
-    } catch { message.error('Lưu vân tay thất bại'); }
-    finally { setSaving(false); }
+    } catch {
+      message.error('Lưu vân tay thất bại');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <div style={{ marginTop: 'var(--space-14)', borderTop: '1px solid var(--line-soft)', paddingTop: 'var(--space-12)' }}>
-      <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--t-1)', marginBottom: 'var(--space-8)' }}>
+    <div
+      className="rec-section"
+      style={{
+        marginTop: 'var(--space-14)',
+        borderTop: '1px solid var(--line-soft)',
+        paddingTop: 'var(--space-12)',
+      }}
+    >
+      <div
+        style={{
+          fontSize: 'var(--fs-sm)',
+          fontWeight: 600,
+          color: 'var(--t-1)',
+          marginBottom: 'var(--space-8)',
+        }}
+      >
         <TermIcon name="user" size={12} /> Vân tay tiếp đón
       </div>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', fontSize: 12.5, marginBottom: 'var(--space-8)' }}>
-        <input type="checkbox" checked={notCollected} onChange={(e) => setNotCollected(e.target.checked)} />
-        Không thu thập được vân tay
-      </label>
-      {!notCollected && (
-        <div style={{ marginBottom: 'var(--space-8)' }}>
-          <input type="file" accept="image/*" onChange={(e) => onFile(e.target.files?.[0])} style={{ fontSize: 'var(--fs-sm)' }} />
-          {fpName && <span style={{ fontSize: 11.5, color: 'var(--t-2)', marginLeft: 'var(--space-8)' }}>{fpName}</span>}
-        </div>
-      )}
-      <Btn variant="primary" icon="check" loading={saving} onClick={save}>Lưu vân tay</Btn>
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--space-8)',
+          marginBottom: 'var(--space-8)',
+        }}
+      >
+        <Checkbox
+          label="Không thu thập được vân tay"
+          checked={notCollected}
+          onChange={(e) =>
+            handleNotCollectedChange(e.target.checked)
+          }
+        />
+
+        {!notCollected && (
+          <>
+            <FileUpload
+              fileType="image"
+              maxCount={1}
+              onFileSelect={onFile}
+            />
+
+            {fpName && (
+              <span
+                style={{
+                  fontSize: 11.5,
+                  color: 'var(--t-2)',
+                }}
+              >
+                {fpName}
+              </span>
+            )}
+          </>
+        )}
+      </div>
+
+      <Btn
+        variant="primary"
+        icon="check"
+        loading={saving}
+        disabled={!canSave}
+        onClick={save}
+      >
+        Lưu vân tay
+      </Btn>
     </div>
   );
 };

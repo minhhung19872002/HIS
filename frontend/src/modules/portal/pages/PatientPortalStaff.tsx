@@ -19,6 +19,7 @@
 //   cần endpoint admin-list riêng, backend hiện chưa có → KHÔNG dựng giả.
 // =====================================================================
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { Avatar, DatePicker, Input, Select } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
@@ -106,7 +107,7 @@ const EMPTY_QUESTION: QuestionForm = { subject: '', content: '' };
 
 const PatientPortalStaffV2: React.FC = () => {
   const { user } = useAuth();
-  const [tab, setTab] = useState<TabKey>('appointments');
+  const [tab, setTab] = useTabState<TabKey>('appointments');
   const [loading, setLoading] = useState(true);
 
   const [account, setAccount] = useState<PatientAccountDto | null>(null);
@@ -396,7 +397,7 @@ const PatientPortalStaffV2: React.FC = () => {
           </>
         )}
       >
-        <DrField lbl="Khoa *">
+        <DrField lbl="Khoa" required>
           <Select
             style={{ width: '100%' }}
             placeholder="Chọn khoa"
@@ -415,7 +416,7 @@ const PatientPortalStaffV2: React.FC = () => {
             options={doctors.map((d) => ({ value: d.id, label: d.title ? `${d.title} ${d.name} - ${d.specialty}` : `${d.name} - ${d.specialty}` }))}
           />
         </DrField>
-        <DrField lbl="Ngày *">
+        <DrField lbl="Ngày" required>
           <DatePicker
             style={{ width: '100%' }}
             format="DD/MM/YYYY"
@@ -423,7 +424,7 @@ const PatientPortalStaffV2: React.FC = () => {
             onChange={(d) => setBookForm({ ...bookForm, date: d ? d.format('YYYY-MM-DD') : undefined })}
           />
         </DrField>
-        <DrField lbl="Giờ *">
+        <DrField lbl="Giờ" required>
           <Select
             style={{ width: '100%' }}
             placeholder="Chọn giờ"
@@ -432,7 +433,7 @@ const PatientPortalStaffV2: React.FC = () => {
             options={TIME_SLOTS.map((t) => ({ value: t, label: t }))}
           />
         </DrField>
-        <DrField lbl="Loại khám *">
+        <DrField lbl="Loại khám" required>
           <Select
             style={{ width: '100%' }}
             placeholder="Chọn loại khám"
@@ -463,7 +464,7 @@ const PatientPortalStaffV2: React.FC = () => {
           </>
         )}
       >
-        <DrField lbl="Chủ đề *">
+        <DrField lbl="Chủ đề" required>
           <Input
             placeholder="Nhập chủ đề câu hỏi"
             value={askForm.subject}
@@ -480,7 +481,7 @@ const PatientPortalStaffV2: React.FC = () => {
             options={QUESTION_CATEGORIES.map((c) => ({ value: c, label: c }))}
           />
         </DrField>
-        <DrField lbl="Nội dung *">
+        <DrField lbl="Nội dung" required>
           <Input.TextArea
             rows={4}
             placeholder="Mô tả chi tiết câu hỏi của bạn..."
@@ -529,7 +530,7 @@ const PatientPortalStaffV2: React.FC = () => {
         )}
       >
         <DrField lbl="Câu hỏi">{answerTarget?.content}</DrField>
-        <DrField lbl="Trả lời *">
+        <DrField lbl="Trả lời" required>
           <Input.TextArea
             rows={4}
             placeholder="Nhập nội dung trả lời..."

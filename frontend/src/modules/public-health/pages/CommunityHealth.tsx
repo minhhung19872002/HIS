@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import {
   searchHouseholds, createHousehold, updateHousehold,
@@ -125,7 +126,7 @@ const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 const PER = 20;
 
 const CommunityHealthV2: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('households');
+  const [tab, setTab] = useTabState<Tab>('households', 'tab');
   // #352: CRUD hộ gia đình — HH_FIELDS đã định nghĩa sẵn nhưng chưa gắn CrudModal nào,
   // nên v2 chỉ xem được, không tạo/sửa được hộ (v1 có cả 2: pages/CommunityHealth.tsx:448, :273).
   const [hhCrudOpen, setHhCrudOpen] = useState(false);
@@ -137,7 +138,7 @@ const CommunityHealthV2: React.FC = () => {
   const [ncdLoad, setNcdLoad]     = useState(false);
   const [ncdLoaded, setNcdLoaded] = useState(false);
   const [ncdSearch, setNcdSearch] = useState('');
-  const [ncdStab, setNcdStab]     = useState<string | 'all'>('all');
+  const [ncdStab, setNcdStab]     = useTabState<string>('all', 'stab');
   const [ncdPage, setNcdPage]     = useState(0);
   const [ncdSel, setNcdSel]       = useState<NcdScreening | null>(null);
   const [ncdCreate, setNcdCreate] = useState(false);

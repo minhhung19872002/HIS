@@ -15,11 +15,14 @@ import {
   type ColumnDef, type StatusTab, type TopTab, type StatusTone,
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 import { fmtVND } from '../../../utils/format';
 import ReassignObjectModal from '../../administration/components/ReassignObjectModal';
 import ApplyDiscountModal from '../components/ApplyDiscountModal';
 import PartialRefundModal from '../components/PartialRefundModal';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { useTabState } from '../../../hooks/useTabState';
 
 /* Viện phí v2 — port of Billing v2.html */
 
@@ -253,6 +256,11 @@ const PayModal: React.FC<{
   const [ref, setRef] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const form = useModalForm({
+    amount: {
+      validate: (v) => (!v || Number(v) <= 0) ? 'Nhập số tiền thu' : undefined,
+    },
+  }, !!invoice);
 
   React.useEffect(() => {
     if (invoice) {
@@ -263,7 +271,7 @@ const PayModal: React.FC<{
 
   const submit = async () => {
     if (!invoice) return;
-    if (!amount || amount <= 0) { message.warning('Nhập số tiền thu'); return; }
+    if (!form.validate({ amount })) return;
     setBusy(true);
     try {
       await createPayment({
@@ -292,7 +300,7 @@ const PayModal: React.FC<{
       footer={(
         <>
           <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
-          <Btn variant="primary" disabled={busy} onClick={submit}>
+          <Btn variant="primary" loading={busy} onClick={submit}>
             <TermIcon name="check" size={12} /> {busy ? 'Đang thu…' : 'Xác nhận thu'}
           </Btn>
         </>
@@ -312,23 +320,20 @@ const PayModal: React.FC<{
             <b className="mono" style={{ color: 'var(--s-warn)' }}>{fmtVND(due)}</b>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-            <div>
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Phương thức</div>
+            <Field label="Phương thức">
               <Select value={method} onChange={setMethod} options={PAY_METHODS} style={{ width: '100%' }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Số tiền thu</div>
+            </Field>
+            <Field label="Số tiền thu" required error={form.errors.amount}>
               <InputNumber
                 value={amount}
-                onChange={(v) => setAmount(Number(v) || 0)}
+                onChange={(v) => { setAmount(Number(v) || 0); form.clear('amount'); }}
                 min={0}
                 style={{ width: '100%' }}
                 formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
               />
-            </div>
+            </Field>
             {method === 1 && (
-              <div>
-                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Tiền khách đưa</div>
+              <Field label="Tiền khách đưa">
                 <InputNumber
                   value={received}
                   onChange={(v) => setReceived(Number(v) || 0)}
@@ -336,18 +341,16 @@ const PayModal: React.FC<{
                   style={{ width: '100%' }}
                   formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                 />
-              </div>
+              </Field>
             )}
             {method !== 1 && (
-              <div>
-                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Mã giao dịch</div>
+              <Field label="Mã giao dịch">
                 <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Mã ref NH / thẻ" />
-              </div>
+              </Field>
             )}
-            <div style={{ gridColumn: '1 / -1' }}>
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Ghi chú</div>
+            <Field label="Ghi chú" style={{ gridColumn: '1 / -1' }}>
               <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ghi chú (tùy chọn)" />
-            </div>
+            </Field>
           </div>
           {method === 1 && received > amount && (
             <div style={{ marginTop: 'var(--space-10)', fontSize: 'var(--fs-md)' }}>
@@ -620,6 +623,10 @@ const CreateDepositModal: React.FC<{
   const [txnNo, setTxnNo] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const form = useModalForm({
+    patientId: { required: true, message: 'Chưa chọn bệnh nhân' },
+    amount: { validate: (v) => (!v || Number(v) <= 0) ? 'Số tiền tạm ứng phải lớn hơn 0' : undefined },
+  }, open);
 
   React.useEffect(() => {
     if (open) {
@@ -637,14 +644,13 @@ const CreateDepositModal: React.FC<{
       const items = res.data?.items || [];
       setPatients(items);
       if (items.length === 0) tw('Không tìm thấy bệnh nhân');
-      else setPatientId(items[0].patientId);
+      else { setPatientId(items[0].patientId); form.clear('patientId'); }
     } catch { te('Lỗi khi tìm kiếm bệnh nhân'); }
     finally { setSearching(false); }
   };
 
   const submit = async () => {
-    if (!patientId) { tw('Chưa chọn bệnh nhân'); return; }
-    if (!amount || amount <= 0) { tw('Số tiền tạm ứng phải lớn hơn 0'); return; }
+    if (!form.validate({ patientId, amount })) return;
     setBusy(true);
     try {
       await createDeposit({
@@ -661,10 +667,6 @@ const CreateDepositModal: React.FC<{
     finally { setBusy(false); }
   };
 
-  const lblStyle: React.CSSProperties = {
-    fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600,
-  };
-
   return (
     <ModalShell
       open={open}
@@ -674,69 +676,63 @@ const CreateDepositModal: React.FC<{
       footer={(
         <>
           <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
-          <Btn variant="primary" disabled={busy} onClick={submit}>
+          <Btn variant="primary" loading={busy} onClick={submit}>
             <TermIcon name="check" size={12} /> {busy ? 'Đang tạo…' : 'Tạo tạm ứng'}
           </Btn>
         </>
       )}
     >
       <div style={{ padding: 'var(--space-16)' }}>
-        <div style={lblStyle}>Tìm bệnh nhân *</div>
-        <div style={{ display: 'flex', gap: 'var(--space-8)', marginBottom: 'var(--space-12)' }}>
-          <Input
-            value={pkw}
-            onChange={(e) => setPkw(e.target.value)}
-            onPressEnter={findPatients}
-            placeholder="Mã BN, tên, SĐT…"
-          />
-          <Btn variant="ghost" onClick={findPatients} loading={searching}>
-            <TermIcon name="search" size={12} /> Tìm
-          </Btn>
-        </div>
+        <Field label="Tìm bệnh nhân" required error={form.errors.patientId}>
+          <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
+            <Input
+              value={pkw}
+              onChange={(e) => setPkw(e.target.value)}
+              onPressEnter={findPatients}
+              placeholder="Mã BN, tên, SĐT…"
+            />
+            <Btn variant="ghost" onClick={findPatients} loading={searching}>
+              <TermIcon name="search" size={12} /> Tìm
+            </Btn>
+          </div>
+        </Field>
         {patients.length > 0 && (
-          <div style={{ marginBottom: 'var(--space-12)' }}>
-            <div style={lblStyle}>Bệnh nhân</div>
+          <Field label="Bệnh nhân">
             <Select
               value={patientId || undefined}
-              onChange={setPatientId}
+              onChange={(v) => { setPatientId(v); form.clear('patientId'); }}
               style={{ width: '100%' }}
               options={patients.map((p) => ({ value: p.patientId, label: `${p.patientCode} - ${p.patientName}` }))}
             />
-          </div>
+          </Field>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-          <div>
-            <div style={lblStyle}>Số tiền tạm ứng *</div>
+          <Field label="Số tiền tạm ứng" required error={form.errors.amount}>
             <InputNumber
               value={amount}
-              onChange={(v) => setAmount(Number(v) || 0)}
+              onChange={(v) => { setAmount(Number(v) || 0); form.clear('amount'); }}
               min={0}
               style={{ width: '100%' }}
               formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
             />
-          </div>
-          <div>
-            <div style={lblStyle}>Phương thức</div>
+          </Field>
+          <Field label="Phương thức">
             <Select value={method} onChange={setMethod} options={PAY_METHODS} style={{ width: '100%' }} />
-          </div>
-          <div>
-            <div style={lblStyle}>Loại tạm ứng</div>
+          </Field>
+          <Field label="Loại tạm ứng">
             <Select value={depType} onChange={setDepType} options={DEPOSIT_TYPES} style={{ width: '100%' }} />
-          </div>
-          <div>
-            <div style={lblStyle}>Nguồn thu</div>
+          </Field>
+          <Field label="Nguồn thu">
             <Select value={depSource} onChange={setDepSource} options={DEPOSIT_SOURCES} style={{ width: '100%' }} />
-          </div>
+          </Field>
           {method !== 1 && (
-            <div style={{ gridColumn: '1 / -1' }}>
-              <div style={lblStyle}>Mã giao dịch</div>
+            <Field label="Mã giao dịch" style={{ gridColumn: '1 / -1' }}>
               <Input value={txnNo} onChange={(e) => setTxnNo(e.target.value)} placeholder="Mã ref NH / thẻ" />
-            </div>
+            </Field>
           )}
-          <div style={{ gridColumn: '1 / -1' }}>
-            <div style={lblStyle}>Ghi chú</div>
+          <Field label="Ghi chú" style={{ gridColumn: '1 / -1' }}>
             <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ghi chú (tùy chọn)" />
-          </div>
+          </Field>
         </div>
       </div>
     </ModalShell>
@@ -752,12 +748,13 @@ const CancelDepositModal: React.FC<{
 }> = ({ deposit, onClose, onDone }) => {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const form = useModalForm({ reason: { required: true, message: 'Cần nhập lý do hủy' } }, !!deposit);
 
   React.useEffect(() => { if (deposit) setReason(''); }, [deposit]);
 
   const submit = async () => {
     if (!deposit) return;
-    if (!reason.trim()) { tw('Cần nhập lý do hủy'); return; }
+    if (!form.validate({ reason })) return;
     setBusy(true);
     try {
       await cancelDeposit(deposit.id, reason.trim());
@@ -777,7 +774,7 @@ const CancelDepositModal: React.FC<{
       footer={(
         <>
           <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
-          <Btn variant="primary" disabled={busy} onClick={submit}>
+          <Btn variant="primary" loading={busy} onClick={submit}>
             <TermIcon name="x" size={12} /> {busy ? 'Đang hủy…' : 'Xác nhận hủy'}
           </Btn>
         </>
@@ -789,15 +786,14 @@ const CancelDepositModal: React.FC<{
             Phiếu <b className="mono">{deposit.receiptCode}</b> · {deposit.patientName}
             {' · '}<b className="mono">{fmtVND(deposit.amount)}</b>
           </div>
-          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>
-            Lý do hủy *
-          </div>
-          <Input.TextArea
-            rows={3}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Bắt buộc nhập lý do hủy phiếu"
-          />
+          <Field label="Lý do hủy" required error={form.errors.reason}>
+            <Input.TextArea
+              rows={3}
+              value={reason}
+              onChange={(e) => { setReason(e.target.value); form.clear('reason'); }}
+              placeholder="Bắt buộc nhập lý do hủy phiếu"
+            />
+          </Field>
         </div>
       )}
     </ModalShell>
@@ -861,7 +857,7 @@ const RefundsPanel: React.FC = () => {
           {' · '}Tổng tiền hoàn <b className="mono" style={{ color: 'var(--s-warn)' }}>{fmtVND(totalRefund)}</b>
         </span>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={reload} loading={loading} icon="refresh">Làm mới</Btn>
+        <RefreshButton onRefresh={reload} loading={loading} />
         <Btn variant="primary" onClick={() => navigate('/v2/refund-approval')}>
           Duyệt hoàn trả <TermIcon name="arrow-right" size={12} />
         </Btn>
@@ -891,7 +887,7 @@ const PAGE_TABS: TopTab<PageTab>[] = [
 ];
 
 const BillingV2: React.FC = () => {
-  const [tab, setTab] = useState<PageTab>('invoices');
+  const [tab, setTab] = useTabState<PageTab>('invoices');
   return (
     <div>
       <TopTabs<PageTab> tab={tab} setTab={setTab} tabs={PAGE_TABS} />

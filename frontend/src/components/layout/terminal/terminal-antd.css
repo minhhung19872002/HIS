@@ -24,6 +24,7 @@
 .his-terminal .ant-layout {
   background: #f7f9fc;
 }
+
 .his-terminal .ant-layout-content,
 .his-terminal .ant-pro-page-container,
 .his-terminal .ant-pro-grid-content {
@@ -36,20 +37,24 @@
   border: 1px solid #e4e9f0;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
-.his-terminal .ant-card > .ant-card-head {
+
+.his-terminal .ant-card>.ant-card-head {
   border-bottom: 1px solid #e4e9f0;
   padding: 0 16px;
   min-height: 44px;
 }
+
 .his-terminal .ant-card-head-title {
   font-size: 13px;
   font-weight: 600;
   color: #0f172a;
   padding: 12px 0;
 }
+
 .his-terminal .ant-card-extra {
   padding: 10px 0;
 }
+
 .his-terminal .ant-card-body {
   padding: 18px;
 }
@@ -64,23 +69,37 @@
   box-shadow: none !important;
   text-shadow: none !important;
 }
-.his-terminal .ant-btn-sm { height: 26px; padding: 0 10px; font-size: 12px; }
-.his-terminal .ant-btn-lg { height: 40px; padding: 0 18px; font-size: 14px; }
+
+.his-terminal .ant-btn-sm {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.his-terminal .ant-btn-lg {
+  height: 40px;
+  padding: 0 18px;
+  font-size: 14px;
+}
+
 .his-terminal .ant-btn-primary {
   background: #2563eb;
   border-color: #2563eb;
   font-weight: 600;
 }
+
 .his-terminal .ant-btn-primary:hover:not(:disabled),
 .his-terminal .ant-btn-primary:focus:not(:disabled) {
   background: #1d4ed8 !important;
   border-color: #1d4ed8 !important;
 }
+
 .his-terminal .ant-btn-default {
   background: #ffffff;
   border-color: #e4e9f0;
   color: #0f172a;
 }
+
 .his-terminal .ant-btn-default:hover:not(:disabled) {
   background: #f1f5f9 !important;
   border-color: #cbd6e3 !important;
@@ -96,6 +115,7 @@
   border-color: #cbd6e3 !important;
   font-size: 13px !important;
 }
+
 .his-terminal .ant-input:focus,
 .his-terminal .ant-input-focused,
 .his-terminal .ant-picker-focused,
@@ -103,7 +123,8 @@
   border-color: #2563eb !important;
   box-shadow: 0 0 0 3px #eff5ff !important;
 }
-.his-terminal .ant-form-item-label > label {
+
+.his-terminal .ant-form-item-label>label {
   font-size: 11px;
   font-weight: 600;
   color: #64748b;
@@ -116,7 +137,8 @@
   font-size: 13px;
   border-radius: 0;
 }
-.his-terminal .ant-table-thead > tr > th {
+
+.his-terminal .ant-table-thead>tr>th {
   background: #f7f9fc !important;
   color: #64748b !important;
   font-size: 11px !important;
@@ -126,25 +148,31 @@
   border-bottom: 1px solid #e4e9f0 !important;
   padding: 10px 14px !important;
 }
-.his-terminal .ant-table-thead > tr > th::before {
+
+.his-terminal .ant-table-thead>tr>th::before {
   display: none;
 }
-.his-terminal .ant-table-tbody > tr > td {
+
+.his-terminal .ant-table-tbody>tr>td {
   padding: 10px 14px !important;
   border-bottom: 1px solid #f1f4f9 !important;
   color: #0f172a;
 }
-.his-terminal .ant-table-tbody > tr:hover > td,
-.his-terminal .ant-table-tbody > tr.ant-table-row-selected > td {
+
+.his-terminal .ant-table-tbody>tr:hover>td,
+.his-terminal .ant-table-tbody>tr.ant-table-row-selected>td {
   background: #f7f9fc !important;
 }
-.his-terminal .ant-table-tbody > tr.ant-table-row-selected > td {
+
+.his-terminal .ant-table-tbody>tr.ant-table-row-selected>td {
   background: #eff5ff !important;
   box-shadow: inset 3px 0 0 #2563eb;
 }
+
 .his-terminal .ant-pagination {
   font-size: 12px;
 }
+
 .his-terminal .ant-pagination .ant-pagination-item,
 .his-terminal .ant-pagination .ant-pagination-item-link {
   border-radius: 4px;
@@ -161,9 +189,11 @@
   padding: 0 12px;
   border-bottom: 1px solid #e4e9f0;
 }
+
 .his-terminal .ant-tabs-nav::before {
   display: none;
 }
+
 .his-terminal .ant-tabs-tab {
   font-size: 13px;
   font-weight: 500;
@@ -171,10 +201,12 @@
   padding: 10px 14px !important;
   margin: 0 2px 0 0 !important;
 }
+
 .his-terminal .ant-tabs-tab-active .ant-tabs-tab-btn {
   color: #2563eb !important;
   font-weight: 600;
 }
+
 .his-terminal .ant-tabs-ink-bar {
   background: #2563eb;
   height: 2px !important;
@@ -198,20 +230,24 @@
   padding: 0;
   overflow: hidden;
 }
+
 .his-terminal .ant-modal-header {
   padding: 14px 18px !important;
   margin: 0 !important;
   border-bottom: 1px solid #e4e9f0 !important;
   background: #ffffff !important;
 }
+
 .his-terminal .ant-modal-title {
   font-size: 15px !important;
   font-weight: 600 !important;
   color: #0f172a !important;
 }
+
 .his-terminal .ant-modal-body {
   padding: 18px !important;
 }
+
 .his-terminal .ant-modal-footer {
   padding: 12px 18px !important;
   margin: 0 !important;
@@ -225,6 +261,7 @@
   background: #ffffff;
   padding: 14px 18px;
 }
+
 .his-terminal .ant-drawer-title {
   font-size: 15px;
   font-weight: 600;
@@ -241,6 +278,7 @@
   font-family: "JetBrains Mono", "SF Mono", monospace;
   margin-bottom: 8px;
 }
+
 .his-terminal .ant-statistic-content {
   font-size: 26px !important;
   font-weight: 600 !important;
@@ -249,6 +287,7 @@
   line-height: 1.1;
   font-family: Inter, system-ui, sans-serif;
 }
+
 .his-terminal .ant-statistic-content-suffix {
   font-size: 12px;
   color: #64748b;
@@ -273,6 +312,7 @@
   padding: 3px;
   border-radius: 6px;
 }
+
 .his-terminal .ant-segmented .ant-segmented-item-selected {
   background: #ffffff !important;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
@@ -283,10 +323,12 @@
   border-radius: 6px;
   padding: 10px 14px;
 }
+
 .his-terminal .ant-alert-message {
   font-size: 13px;
   font-weight: 600;
 }
+
 .his-terminal .ant-alert-description {
   font-size: 12px;
 }
@@ -298,6 +340,7 @@
   border: 1px solid #e4e9f0;
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
 }
+
 .his-terminal .ant-dropdown-menu-item {
   border-radius: 4px;
   font-size: 13px;
@@ -305,8 +348,14 @@
 }
 
 /* ---- Progress ---- */
-.his-terminal .ant-progress-bg { background-color: #2563eb !important; }
-.his-terminal .ant-progress-text { font-size: 12px; color: #64748b; }
+.his-terminal .ant-progress-bg {
+  background-color: #2563eb !important;
+}
+
+.his-terminal .ant-progress-text {
+  font-size: 12px;
+  color: #64748b;
+}
 
 /* ---- Empty state ---- */
 .his-terminal .ant-empty-description {
@@ -339,12 +388,14 @@
   padding: 0;
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.15);
 }
+
 .his-terminal .ant-popover-title {
   padding: 10px 14px;
   font-size: 13px;
   font-weight: 600;
   border-bottom: 1px solid #e4e9f0;
 }
+
 .his-terminal .ant-popover-inner-content {
   padding: 12px 14px;
 }
@@ -358,14 +409,30 @@
   letter-spacing: -0.015em;
   color: #0f172a;
 }
-.his-terminal .content h1 { font-size: 28px; font-weight: 600; }
-.his-terminal .content h2 { font-size: 22px; font-weight: 600; }
-.his-terminal .content h3 { font-size: 18px; font-weight: 600; }
-.his-terminal .content h4 { font-size: 15px; font-weight: 600; }
+
+.his-terminal .content h1 {
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.his-terminal .content h2 {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.his-terminal .content h3 {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.his-terminal .content h4 {
+  font-size: 15px;
+  font-weight: 600;
+}
 
 /* ---- Mono numeric cells: match the Terminal feel ---- */
-.his-terminal .ant-table-tbody > tr > td.ant-table-cell .ant-typography-code,
-.his-terminal .ant-table-tbody > tr > td.ant-table-cell code {
+.his-terminal .ant-table-tbody>tr>td.ant-table-cell .ant-typography-code,
+.his-terminal .ant-table-tbody>tr>td.ant-table-cell code {
   font-family: "JetBrains Mono", monospace;
   background: transparent;
   border: 0;
@@ -385,9 +452,11 @@
   background: #ffffff;
   border-color: #e4e9f0;
 }
+
 .his-terminal .ant-radio-group .ant-radio-button-wrapper:hover {
   color: #0f172a;
 }
+
 .his-terminal .ant-radio-group .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled) {
   background: #eff5ff !important;
   border-color: #bfd3fa !important;
@@ -395,9 +464,11 @@
   font-weight: 600;
   box-shadow: none !important;
 }
+
 .his-terminal .ant-radio-group .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled)::before {
   background: #bfd3fa !important;
 }
+
 .his-terminal .ant-radio-group .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled):hover {
   color: #1d4ed8 !important;
 }
@@ -409,6 +480,7 @@
   font-weight: 500;
   font-size: 13px;
 }
+
 .his-terminal .ant-input-group-addon .ant-btn-primary {
   background: #2563eb;
   border-color: #2563eb;
@@ -423,6 +495,7 @@
   border-radius: 6px;
   margin-bottom: 12px;
 }
+
 .his-terminal .ant-page-header-heading-title {
   font-size: 15px !important;
   font-weight: 600 !important;
@@ -433,20 +506,32 @@
 .his-terminal .ant-empty {
   padding: 20px 0;
 }
+
 .his-terminal .ant-empty-image {
   height: 48px !important;
   opacity: 0.6;
 }
 
 /* ---- Space / divider dots ---- */
-.his-terminal .ant-space-item { line-height: 1; }
+.his-terminal .ant-space-item {
+  line-height: 1;
+}
 
 /* ---- Badge ribbon on cards ---- */
-.his-terminal .ant-badge-status-dot { width: 6px; height: 6px; }
-.his-terminal .ant-badge-status-text { font-size: 11px; color: #64748b; }
+.his-terminal .ant-badge-status-dot {
+  width: 6px;
+  height: 6px;
+}
+
+.his-terminal .ant-badge-status-text {
+  font-size: 11px;
+  color: #64748b;
+}
 
 /* ---- Switch ---- */
-.his-terminal .ant-switch-checked { background: #2563eb; }
+.his-terminal .ant-switch-checked {
+  background: #2563eb;
+}
 
 /* ---- Checkbox / Radio tight alignment ---- */
 .his-terminal .ant-checkbox-wrapper,
@@ -457,13 +542,28 @@
 
 /* ---- Typography.Title inside content: flatter ---- */
 .his-terminal .ant-typography.ant-typography-h1,
-.his-terminal h1.ant-typography { font-size: 22px !important; margin-bottom: 12px !important; }
+.his-terminal h1.ant-typography {
+  font-size: 22px !important;
+  margin-bottom: 12px !important;
+}
+
 .his-terminal .ant-typography.ant-typography-h2,
-.his-terminal h2.ant-typography { font-size: 18px !important; margin-bottom: 10px !important; }
+.his-terminal h2.ant-typography {
+  font-size: 18px !important;
+  margin-bottom: 10px !important;
+}
+
 .his-terminal .ant-typography.ant-typography-h3,
-.his-terminal h3.ant-typography { font-size: 15px !important; margin-bottom: 8px !important; }
+.his-terminal h3.ant-typography {
+  font-size: 15px !important;
+  margin-bottom: 8px !important;
+}
+
 .his-terminal .ant-typography.ant-typography-h4,
-.his-terminal h4.ant-typography { font-size: 13px !important; margin-bottom: 6px !important; }
+.his-terminal h4.ant-typography {
+  font-size: 13px !important;
+  margin-bottom: 6px !important;
+}
 
 /* ---- Collapse / panels ---- */
 .his-terminal .ant-collapse {
@@ -471,6 +571,7 @@
   border-radius: 6px;
   background: #ffffff;
 }
+
 .his-terminal .ant-collapse-header {
   font-size: 13px !important;
   font-weight: 600 !important;
@@ -478,28 +579,38 @@
 }
 
 /* ---- Spin ---- */
-.his-terminal .ant-spin-dot-item { background: #2563eb; }
+.his-terminal .ant-spin-dot-item {
+  background: #2563eb;
+}
 
 /* ---- List items inside cards (medication lists, search results) ---- */
 .his-terminal .ant-list-item {
   padding: 10px 14px !important;
   border-bottom: 1px solid #f1f4f9;
 }
+
 .his-terminal .ant-list-item-meta-title {
   font-size: 13px;
   font-weight: 500;
   margin-bottom: 2px !important;
 }
+
 .his-terminal .ant-list-item-meta-description {
   font-size: 11px;
   color: #64748b;
 }
 
 /* ---- Avatar ---- */
-.his-terminal .ant-avatar { border-radius: 6px; }
+.his-terminal .ant-avatar {
+  border-radius: 6px;
+}
 
 /* ---- Popconfirm buttons ---- */
-.his-terminal .ant-popover-buttons .ant-btn-sm { height: 24px; padding: 0 8px; font-size: 11px; }
+.his-terminal .ant-popover-buttons .ant-btn-sm {
+  height: 24px;
+  padding: 0 8px;
+  font-size: 11px;
+}
 
 /* ============================================
    RESPONSIVE — Antd component overrides
@@ -507,15 +618,38 @@
 /* On phones, force Antd Drawer + Modal to fill the viewport regardless of
    width prop set in component code (Drawer width=560 etc.) */
 @media (max-width: 640px) {
+
   .his-terminal .ant-drawer-content-wrapper,
-  .ant-drawer-content-wrapper { width: 100vw !important; max-width: 100vw !important; }
+  .ant-drawer-content-wrapper {
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+
   .his-terminal .ant-modal,
-  .ant-modal { max-width: calc(100vw - 16px) !important; margin: 8px auto; top: 8px !important; }
+  .ant-modal {
+    max-width: calc(100vw - 16px) !important;
+    margin: 8px auto;
+    top: 8px !important;
+  }
+
   .his-terminal .ant-modal-body,
-  .ant-modal-body { max-height: calc(100vh - 140px); overflow-y: auto; }
-  .his-terminal .ant-picker-dropdown { width: calc(100vw - 16px); max-width: 360px; }
-  .his-terminal .ant-select-dropdown { max-width: calc(100vw - 16px); }
+  .ant-modal-body {
+    max-height: calc(100vh - 140px);
+    overflow-y: auto;
+  }
+
+  .his-terminal .ant-picker-dropdown {
+    width: calc(100vw - 16px);
+    max-width: 360px;
+  }
+
+  .his-terminal .ant-select-dropdown {
+    max-width: calc(100vw - 16px);
+  }
+
   /* Antd Table on mobile: horizontal scroll */
   .his-terminal .ant-table-wrapper .ant-table-content,
-  .his-terminal .ant-table-wrapper .ant-table-body { overflow-x: auto; }
+  .his-terminal .ant-table-wrapper .ant-table-body {
+    overflow-x: auto;
+  }
 }

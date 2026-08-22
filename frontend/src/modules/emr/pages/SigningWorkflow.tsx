@@ -10,6 +10,8 @@ import {
   tk, te, tw, cf, type ColumnDef, type TopTab,
 } from '@/_v2kit';
 import { useDebounce } from '../../../hooks';
+import { RefreshButton } from '../../../components/actions';
+import { useTabState } from '../../../hooks/useTabState';
 
 type Tab = 'pending' | 'submitted' | 'history' | 'stats';
 const TABS: TopTab<Tab>[] = [
@@ -59,7 +61,7 @@ const SIGNER_ROLE_OPTIONS = [
 // BE đã nhận SignerRole trong SubmitSigningRequestDto cho các caller đó.
 
 const SigningWorkflowV2: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('pending');
+  const [tab, setTab] = useTabState<Tab>('pending');
   const [items, setItems] = useState<SigningRequestItem[]>([]);
   const [stats, setStats] = useState<SigningWorkflowStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -266,7 +268,7 @@ const SigningWorkflowV2: React.FC = () => {
           </Btn>
         )}
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
       </div>
 
       {/* Cảnh báo quá hạn ký / trùng lặp — chỉ ở tab Chờ tôi ký (port từ v1) */}

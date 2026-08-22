@@ -8,6 +8,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AutoComplete, Input, InputNumber, Select, Switch } from 'antd';
 import dayjs from 'dayjs';
 import * as api from '../api/businessAlerts';
+import { useModalForm } from '../../../hooks/useModalForm';
 import { searchServices } from '../../opd/api/examination';
 import {
   KpiStrip, DataTable, Pager, SearchBox, StatusBadge, ActBtn, Btn,
@@ -36,6 +37,11 @@ const SpecialTestRuleAdmin: React.FC = () => {
   const [serviceSuggestions, setServiceSuggestions] = useState<{ value: string; label: string; id: string }[]>([]);
   const [serviceSearchValue, setServiceSearchValue] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const { errors, validate, clear } = useModalForm(
+    { testId: { required: true, message: 'Vui lòng chọn XN/CLS' } },
+    !!edit,
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -129,7 +135,7 @@ const SpecialTestRuleAdmin: React.FC = () => {
 
   const handleSave = async () => {
     if (!edit) return;
-    if (!edit.testId) { te('Vui lòng chọn XN/CLS'); return; }
+    if (!validate({ testId: edit.testId })) return;
     if (edit.windowType === 1 && (!edit.windowDays || edit.windowDays < 1)) {
       te('Số ngày phải ≥ 1'); return;
     }
@@ -243,7 +249,7 @@ const SpecialTestRuleAdmin: React.FC = () => {
       >
         {edit && (
           <DrSec title="Cấu hình quy tắc">
-            <DrField lbl="Dịch vụ XN/CLS *">
+            <DrField lbl="Dịch vụ XN/CLS" required error={errors.testId}>
               <AutoComplete
                 style={{ width: '100%' }}
                 value={serviceSearchValue}
@@ -253,12 +259,13 @@ const SpecialTestRuleAdmin: React.FC = () => {
                   const o = opt as { id: string; value: string };
                   setEdit({ ...edit, testId: o.id, _testName: o.value });
                   setServiceSearchValue(o.value);
+                  clear('testId');
                 }}
                 placeholder="Gõ tên hoặc mã XN để tìm…"
               />
             </DrField>
 
-            <DrField lbl="Loại khung thời gian *">
+            <DrField lbl="Loại khung thời gian" required>
               <Select
                 value={edit.windowType ?? 1}
                 options={WINDOW_TYPE_OPTIONS}
@@ -268,7 +275,7 @@ const SpecialTestRuleAdmin: React.FC = () => {
             </DrField>
 
             {edit.windowType === 1 && (
-              <DrField lbl="Số ngày cấm tái chỉ định *">
+              <DrField lbl="Số ngày cấm tái chỉ định" required>
                 <InputNumber
                   value={edit.windowDays ?? 1}
                   min={1}

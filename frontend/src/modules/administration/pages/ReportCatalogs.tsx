@@ -15,6 +15,8 @@ import {
   type ColumnDef,
 } from '@/_v2kit';
 import type {TabKey} from '../types/tabs';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { useTabState } from '../../../hooks/useTabState';
 
 type AnyRow =
   | (api.ReportServiceGroupTypeDto & { _kind: 'types' })
@@ -25,7 +27,7 @@ type EditState = Record<string, unknown> & { id?: string };
 const PER = 15;
 
 const ReportCatalogsV2: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('types');
+  const [tab, setTab] = useTabState<TabKey>('types');
   const [types, setTypes] = useState<api.ReportServiceGroupTypeDto[]>([]);
   const [groups, setGroups] = useState<api.ReportServiceGroupDto[]>([]);
   const [search, setSearch] = useState('');
@@ -35,6 +37,10 @@ const ReportCatalogsV2: React.FC = () => {
   const [editIsNew, setEditIsNew] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const editForm = useModalForm({
+    code: { required: true, label: 'Mã' },
+    name: { required: true, label: 'Tên' },
+  }, !!edit);
 
   useEffect(() => { setSearch(''); setFilterType(''); setPage(0); }, [tab]);
 
@@ -157,8 +163,7 @@ const ReportCatalogsV2: React.FC = () => {
     if (!edit || saving) return;
     const code = String(edit.code || '').trim();
     const name = String(edit.name || '').trim();
-    if (!code) { te('Mã không được để trống'); return; }
-    if (!name) { te('Tên không được để trống'); return; }
+    if (!editForm.validate({ code, name })) return;
     if (tab === 'groups' && !edit.groupTypeId) { te('Vui lòng chọn Nhóm loại báo cáo'); return; }
     setSaving(true);
     try {
@@ -247,11 +252,11 @@ const ReportCatalogsV2: React.FC = () => {
       >
         {edit && (
           <DrSec title="Thông tin">
-            <DrField lbl="Mã *">
-              <Input value={edit.code as string || ''} onChange={(e) => setEdit({ ...edit, code: e.target.value.toUpperCase() })} />
+            <DrField lbl="Mã" required error={editForm.errors.code}>
+              <Input value={edit.code as string || ''} onChange={(e) => { setEdit({ ...edit, code: e.target.value.toUpperCase() }); editForm.clear('code'); }} />
             </DrField>
-            <DrField lbl="Tên *">
-              <Input value={edit.name as string || ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
+            <DrField lbl="Tên" required error={editForm.errors.name}>
+              <Input value={edit.name as string || ''} onChange={(e) => { setEdit({ ...edit, name: e.target.value }); editForm.clear('name'); }} />
             </DrField>
             {tab === 'types' && (
               <DrField lbl="Nhãn báo cáo">
@@ -263,7 +268,7 @@ const ReportCatalogsV2: React.FC = () => {
               </DrField>
             )}
             {tab === 'groups' && (
-              <DrField lbl="Loại nhóm *">
+              <DrField lbl="Loại nhóm" required>
                 <Select
                   value={edit.groupTypeId as string || ''}
                   options={types.map((t) => ({ value: t.id, label: `${t.code} · ${t.name}` }))}

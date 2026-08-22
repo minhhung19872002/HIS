@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import { useNavigate } from 'react-router-dom';
 import { useRegisterCommands } from '@/contexts/CommandContext';
 import dayjs from 'dayjs';
@@ -14,6 +15,7 @@ import {
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { RowActions } from '../../../components/actions';
+import { RefreshButton } from '../../../components/actions/RefreshButton/RefreshButton';
 import { openPrintWindow } from '../../../utils/printWindow';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { SignatureStatusIcon, PinEntryModal } from '../../../components/digitalSignature';
@@ -43,7 +45,7 @@ const LaboratoryV2: React.FC = () => {
   const navigate = useNavigate();
   const [rows, setRows]   = useState<LabRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stab, setStab]   = useState<StatusKey | 'all'>('all');
+  const [stab, setStab]   = useTabState<StatusKey | 'all'>('all');
   const [fGroup, setFGroup] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage]   = useState(0);
@@ -478,7 +480,7 @@ const LaboratoryV2: React.FC = () => {
           <TermIcon name="chevronR" size={12} />
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={reload} loading={loading} icon="refresh">Làm mới</Btn>
+        <RefreshButton onRefresh={reload} loading={loading} />
         <Btn variant="ghost" onClick={() => navigate('/v2/lab-qc')}>
           <TermIcon name="chart" size={12} /> QC hôm nay
         </Btn>

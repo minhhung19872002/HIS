@@ -17,6 +17,8 @@ import {
 import { ModalShell, DataTable, ActBtn, Btn, type ColumnDef } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -76,27 +78,6 @@ const BLANK_FORM: FormState = {
   hepBVaccine: '',
 };
 
-function validateForm(f: FormState): string | null {
-  if (!f.birthDate) return 'Chua nhap ngay sinh.';
-  if (f.birthWeight <= 0) return 'Can nang phai lon hon 0 gram.';
-  if (f.apgarScore1Min < 0 || f.apgarScore1Min > 10) return 'APGAR 1 phut phai tu 0 den 10.';
-  if (f.apgarScore5Min < 0 || f.apgarScore5Min > 10) return 'APGAR 5 phut phai tu 0 den 10.';
-  if (f.apgarScore10Min !== undefined && (f.apgarScore10Min < 0 || f.apgarScore10Min > 10))
-    return 'APGAR 10 phut phai tu 0 den 10.';
-  return null;
-}
-
-// ---------------------------------------------------------------------------
-// IpFld helper (nhat quan voi TreatmentMonitorSection)
-// ---------------------------------------------------------------------------
-
-const IpFld: React.FC<{ label: string; full?: boolean; children: React.ReactNode }> = ({ label, full, children }) => (
-  <div style={{ gridColumn: full ? '1 / -1' : undefined }}>
-    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>{label}</div>
-    {children}
-  </div>
-);
-
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
@@ -116,6 +97,17 @@ const NewbornSection: React.FC<NewbornSectionProps> = ({ admissionId }) => {
   const [dcTarget, setDcTarget]     = useState<NewbornRecordDto | null>(null);
   const [dcDate, setDcDate]         = useState<string>(dayjs().format('YYYY-MM-DD'));
   const [dcSaving, setDcSaving]     = useState(false);
+
+  const apgarMsg = (label: string) => (v: unknown) =>
+    (typeof v === 'number' && (v < 0 || v > 10)) ? `${label} phải từ 0 đến 10` : undefined;
+
+  const nbForm = useModalForm({
+    birthDate: { required: true, message: 'Chưa nhập ngày sinh' },
+    birthWeight: { validate: (v) => (typeof v === 'number' && v <= 0) ? 'Cân nặng phải lớn hơn 0 gram' : undefined },
+    apgarScore1Min: { validate: apgarMsg('APGAR 1 phút') },
+    apgarScore5Min: { validate: apgarMsg('APGAR 5 phút') },
+    apgarScore10Min: { validate: apgarMsg('APGAR 10 phút') },
+  }, modalOpen);
 
   // Load records
   const load = () => {
@@ -163,9 +155,6 @@ const NewbornSection: React.FC<NewbornSectionProps> = ({ admissionId }) => {
   // Save
   const handleSave = async () => {
     if (saving) return;
-    const err = validateForm(form);
-    if (err) { message.error(err); return; }
-
     setSaving(true);
     try {
       if (editing) {
@@ -260,41 +249,53 @@ const NewbornSection: React.FC<NewbornSectionProps> = ({ admissionId }) => {
         footer={
           <>
             <Btn variant="ghost" onClick={() => setModalOpen(false)}>Huy</Btn>
-            <Btn variant="primary" onClick={handleSave} disabled={saving}>
-              {saving ? 'Dang luu...' : 'Luu'}
+            <Btn
+              variant="primary"
+              loading={saving}
+              onClick={() => {
+                if (nbForm.validate({
+                  birthDate: form.birthDate,
+                  birthWeight: form.birthWeight,
+                  apgarScore1Min: form.apgarScore1Min,
+                  apgarScore5Min: form.apgarScore5Min,
+                  apgarScore10Min: form.apgarScore10Min,
+                })) void handleSave();
+              }}
+            >
+              Luu
             </Btn>
           </>
         }
       >
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 18px', padding: '4px 0' }}>
-          <IpFld label="Ngay sinh *">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 18px', padding: '4px 0' }}>
+          <Field label="Ngay sinh" required error={nbForm.errors.birthDate}>
             <DatePicker
               style={{ width: '100%' }}
               value={form.birthDate ? dayjs(form.birthDate) : null}
-              onChange={(d) => patchForm('birthDate', d ? d.format('YYYY-MM-DD') : '')}
+              onChange={(d) => { patchForm('birthDate', d ? d.format('YYYY-MM-DD') : ''); nbForm.clear('birthDate'); }}
               format="DD/MM/YYYY"
             />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Gio sinh (HH:MM)">
+          <Field label="Gio sinh (HH:MM)">
             <Input
               value={form.birthTime.slice(0, 5)}
               onChange={(e) => patchForm('birthTime', e.target.value + ':00')}
               placeholder="07:30"
               maxLength={5}
             />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Gioi tinh *">
+          <Field label="Gioi tinh" required>
             <Select
               style={{ width: '100%' }}
               options={GENDER_OPTS}
               value={form.gender}
               onChange={(v) => patchForm('gender', v)}
             />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Phuong phap de">
+          <Field label="Phuong phap de">
             <Select
               style={{ width: '100%' }}
               options={DELIVERY_OPTS}
@@ -303,19 +304,19 @@ const NewbornSection: React.FC<NewbornSectionProps> = ({ admissionId }) => {
               allowClear
               placeholder="Chon phuong phap..."
             />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Can nang (gram) *">
+          <Field label="Can nang (gram)" required error={nbForm.errors.birthWeight}>
             <InputNumber
               style={{ width: '100%' }}
               min={1}
               max={9999}
               value={form.birthWeight}
-              onChange={(v) => patchForm('birthWeight', v ?? 0)}
+              onChange={(v) => { patchForm('birthWeight', v ?? 0); nbForm.clear('birthWeight'); }}
             />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Chieu dai (cm)">
+          <Field label="Chieu dai (cm)">
             <InputNumber
               style={{ width: '100%' }}
               min={0}
@@ -323,9 +324,9 @@ const NewbornSection: React.FC<NewbornSectionProps> = ({ admissionId }) => {
               value={form.birthLength}
               onChange={(v) => patchForm('birthLength', v ?? 0)}
             />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Vong dau (cm)">
+          <Field label="Vong dau (cm)">
             <InputNumber
               style={{ width: '100%' }}
               min={0}
@@ -333,71 +334,71 @@ const NewbornSection: React.FC<NewbornSectionProps> = ({ admissionId }) => {
               value={form.headCircumference}
               onChange={(v) => patchForm('headCircumference', v ?? 0)}
             />
-          </IpFld>
+          </Field>
 
-          <IpFld label="APGAR 1 phut * (0-10)">
+          <Field label="APGAR 1 phut (0-10)" required error={nbForm.errors.apgarScore1Min}>
             <InputNumber
               style={{ width: '100%' }}
               min={0}
               max={10}
               value={form.apgarScore1Min}
-              onChange={(v) => patchForm('apgarScore1Min', v ?? 0)}
+              onChange={(v) => { patchForm('apgarScore1Min', v ?? 0); nbForm.clear('apgarScore1Min'); }}
             />
-          </IpFld>
+          </Field>
 
-          <IpFld label="APGAR 5 phut * (0-10)">
+          <Field label="APGAR 5 phut (0-10)" required error={nbForm.errors.apgarScore5Min}>
             <InputNumber
               style={{ width: '100%' }}
               min={0}
               max={10}
               value={form.apgarScore5Min}
-              onChange={(v) => patchForm('apgarScore5Min', v ?? 0)}
+              onChange={(v) => { patchForm('apgarScore5Min', v ?? 0); nbForm.clear('apgarScore5Min'); }}
             />
-          </IpFld>
+          </Field>
 
-          <IpFld label="APGAR 10 phut (0-10)">
+          <Field label="APGAR 10 phut (0-10)" error={nbForm.errors.apgarScore10Min}>
             <InputNumber
               style={{ width: '100%' }}
               min={0}
               max={10}
               value={form.apgarScore10Min}
-              onChange={(v) => patchForm('apgarScore10Min', v ?? undefined)}
+              onChange={(v) => { patchForm('apgarScore10Min', v ?? undefined); nbForm.clear('apgarScore10Min'); }}
             />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Vitamin K" full>
+          <Field label="Vitamin K" style={{ gridColumn: '1 / -1' }}>
             <Input
               value={form.vitaminKGiven}
               onChange={(e) => patchForm('vitaminKGiven', e.target.value)}
               placeholder="Da tiem / Chua tiem / Lieu luong..."
             />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Vaccine Viem gan B" full>
+          <Field label="Vaccine Viem gan B" style={{ gridColumn: '1 / -1' }}>
             <Input
               value={form.hepBVaccine}
               onChange={(e) => patchForm('hepBVaccine', e.target.value)}
               placeholder="Da tiem / Chua tiem / Lot so..."
             />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Bien chung" full>
+          <Field label="Bien chung" style={{ gridColumn: '1 / -1' }}>
             <Input.TextArea
               rows={2}
               value={form.complications}
               onChange={(e) => patchForm('complications', e.target.value)}
               placeholder="Bien chung neu co..."
             />
-          </IpFld>
+          </Field>
 
-          <IpFld label="Ket qua kham ban dau" full>
+          <Field label="Ket qua kham ban dau" style={{ gridColumn: '1 / -1' }}>
             <Input.TextArea
               rows={3}
               value={form.initialExamFindings}
               onChange={(e) => patchForm('initialExamFindings', e.target.value)}
               placeholder="Ghi nhan kham lan dau..."
             />
-          </IpFld>
+          </Field>
         </div>
       </ModalShell>
 
@@ -417,14 +418,14 @@ const NewbornSection: React.FC<NewbornSectionProps> = ({ admissionId }) => {
         }
       >
         <div style={{ padding: '8px 0' }}>
-          <IpFld label="Ngay xuat *">
+          <Field label="Ngay xuat" required>
             <DatePicker
               style={{ width: '100%' }}
               value={dcDate ? dayjs(dcDate) : null}
               onChange={(d) => setDcDate(d ? d.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'))}
               format="DD/MM/YYYY"
             />
-          </IpFld>
+          </Field>
           {dcTarget && (
             <div style={{ marginTop: 'var(--space-12)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
               Tre sinh ngay: {fmtDate(dcTarget.birthDate)} &bull; Can nang: {dcTarget.birthWeight}g

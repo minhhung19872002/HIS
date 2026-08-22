@@ -13,7 +13,8 @@ import {
   DrawerShell, DrSec, DrField, tk, ti, te, cf,
   type TopTab, type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
+import { useTabState } from '../../../hooks/useTabState';
 
 const DEVICE_FIELDS: CrudFieldCfg[] = [
   { key: 'hostname', label: 'Hostname', required: true },
@@ -77,13 +78,13 @@ const sKey = (r: EndpointDeviceDto): SKey => {
 const PER = 18;
 
 const EndpointSecurityV2: React.FC = () => {
-  const [tab, setTab] = useState<PageTab>('overview');
+  const [tab, setTab] = useTabState<PageTab>('overview');
   const [dashboard, setDashboard] = useState<EndpointSecurityDashboardDto | null>(null);
   const [dashLoading, setDashLoading] = useState(true);
   const [items, setItems] = useState<EndpointDeviceDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all', 'stab');
   const [fOs, setFOs] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<EndpointDeviceDto | null>(null);
@@ -352,7 +353,7 @@ const EndpointSecurityV2: React.FC = () => {
         <Filter value={fOs} onChange={setFOs} options={oses} placeholder="▾ Hệ điều hành" />
         <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFOs(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" loading={loading} onClick={load}>Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
         <Btn variant="ghost" icon="grid" onClick={openSoftware}>Phần mềm</Btn>
         <Btn variant="ghost" icon="alert" onClick={openIncidents}>Sự cố ATTT</Btn>
         <Btn variant="primary" icon="plus" onClick={openCreate}>Thêm máy</Btn>

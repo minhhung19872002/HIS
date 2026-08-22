@@ -4,6 +4,8 @@ import * as receptionApi from '../api/reception';
 import type { RoomOverviewDto } from '../api/reception';
 import { ModalShell } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 import type { RawRow } from './shared';
 export const MoveRoomModal: React.FC<{
   row: RawRow | null;
@@ -15,6 +17,7 @@ export const MoveRoomModal: React.FC<{
   const [newRoomId, setNewRoomId] = useState<string | undefined>(undefined);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const form = useModalForm({ newRoomId: { required: true, message: 'Chọn phòng mới' } }, !!row);
 
   useEffect(() => {
     if (row) { setNewRoomId(undefined); setReason(''); }
@@ -29,10 +32,10 @@ export const MoveRoomModal: React.FC<{
 
   const submit = async () => {
     if (!row) return;
-    if (!newRoomId) { message.warning('Chọn phòng mới'); return; }
+    if (!form.validate({ newRoomId })) return;
     setBusy(true);
     try {
-      await receptionApi.changeRoom(row.id, newRoomId, undefined, reason.trim() || undefined);
+      await receptionApi.changeRoom(row.id, newRoomId as string, undefined, reason.trim() || undefined);
       message.success(`Đã đổi phòng · ${row.patientName}`);
       onDone();
     } catch {
@@ -68,13 +71,12 @@ export const MoveRoomModal: React.FC<{
             <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Phòng hiện tại</span>
             <b>{row.departmentName || '—'} · {row.roomName || '—'}</b>
           </div>
-          <div style={{ marginBottom: 'var(--space-12)' }}>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Phòng mới *</div>
+          <Field label="Phòng mới" required error={form.errors.newRoomId}>
             <Select
-              value={newRoomId} onChange={setNewRoomId} showSearch optionFilterProp="label"
+              value={newRoomId} onChange={(v) => { setNewRoomId(v); form.clear('newRoomId'); }} showSearch optionFilterProp="label"
               placeholder="Chọn phòng khám" style={{ width: '100%' }} options={roomOpts}
             />
-          </div>
+          </Field>
           <div>
             <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Lý do</div>
             <Input.TextArea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="Lý do đổi phòng (tùy chọn)…" />

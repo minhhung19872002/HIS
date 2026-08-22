@@ -14,10 +14,11 @@ import {
 } from '@/_v2kit';
 import type { ColumnDef } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 import { bankPaymentApi } from '../../../api/nangcap24';
 import type { SupportedBankDto } from '../../../api/nangcap24';
 import apiClient from '../../../services/apiClient';
+import { useTabState } from '../../../hooks/useTabState';
 
 interface PaymentTxn {
   id: string;
@@ -62,7 +63,7 @@ const BankPayments: React.FC = () => {
   const [rows, setRows] = useState<PaymentTxn[]>([]);
   const [banks, setBanks] = useState<SupportedBankDto[]>([]);
   const [loading, setLoading] = useState(false);
-  const [stab, setStab] = useState<BPStatusKey | 'all'>('all');
+  const [stab, setStab] = useTabState<BPStatusKey | 'all'>('all');
   const [fBank, setFBank] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
@@ -275,9 +276,7 @@ const BankPayments: React.FC = () => {
           placeholder="▾ Ngân hàng"
         />
         <span className="spacer" style={{ flex: 1 }} />
-        <Button className="ab-btn ghost" size="small" onClick={load} loading={loading}>
-          <TermIcon name="refresh" size={12} /> Làm mới
-        </Button>
+        <RefreshButton onRefresh={load} loading={loading} size="sm" />
         <Button className="ab-btn ghost" size="small" onClick={handleMarkExpired} loading={expiring}>
           <TermIcon name="clock" size={12} /> {expiring ? 'Đang cập nhật…' : 'Đánh dấu hết hạn'}
         </Button>

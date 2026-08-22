@@ -138,4 +138,4 @@ export default apiClient;
  * httpErrorMessage — chuỗi tiếng Việt mô tả lỗi HTTP cho toast/thông báo.
  * Import tại điểm hiển thị lỗi để hiện message thay vì status code trần.
  */
-export { httpErrorMessage } from '../components/shared/HttpError';
+export { httpErrorMessage } from '../components/common/HttpError';

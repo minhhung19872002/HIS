@@ -9,6 +9,9 @@ import {
   useListData, tk, te, cf, type ColumnDef,
 } from '@/_v2kit';
 import { getEmrDataTags, saveEmrDataTag, deleteEmrDataTag, type EmrDataTagDto } from '../api/emrManagement';
+import { RefreshButton } from '../../../components/actions';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 
 // Kiểu dữ liệu thẻ — khớp comment entity EmrDataTag.DataType
 const DATA_TYPES = [
@@ -35,6 +38,7 @@ const EmrDataTagsV2 = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<TagForm>(EMPTY_FORM);
+  const vf = useModalForm({ name: { required: true, message: 'Nhập tên thẻ' } }, modalOpen);
 
   const openCreate = () => { setForm(EMPTY_FORM); setModalOpen(true); };
   const openEdit = (t: EmrDataTagDto) => {
@@ -47,7 +51,6 @@ const EmrDataTagsV2 = () => {
   };
 
   const submit = async () => {
-    if (!form.name.trim()) { te('Nhập tên thẻ'); return; }
     setSaving(true);
     try {
       await saveEmrDataTag({
@@ -106,7 +109,7 @@ const EmrDataTagsV2 = () => {
       <div className="ab-tools">
         <SearchBox value={kw} onChange={setKw} placeholder="Tìm thẻ theo tên / mã / mẫu…" />
         <span className="spacer" />
-        <Btn icon="refresh" onClick={reload} loading={loading}>Làm mới</Btn>
+        <RefreshButton onRefresh={reload} loading={loading} />
         <Btn variant="primary" icon="plus" onClick={openCreate}>Thêm thẻ</Btn>
       </div>
 
@@ -136,47 +139,40 @@ const EmrDataTagsV2 = () => {
           <>
             <Btn variant="ghost" onClick={() => setModalOpen(false)}>Hủy</Btn>
             <span style={{ flex: 1 }} />
-            <Btn variant="primary" icon="check" loading={saving} onClick={submit}>Lưu</Btn>
+            <Btn variant="primary" icon="check" loading={saving} onClick={() => { if (vf.validate({ name: form.name })) submit(); }}>Lưu</Btn>
           </>
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
           <div style={{ display: 'flex', gap: 'var(--space-10)' }}>
-            <label style={{ fontSize: 12.5, flex: 2 }}>
-              <div style={{ marginBottom: 'var(--space-4)', color: 'var(--t-1)' }}>Tên thẻ *</div>
-              <input className="ed-fld" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} style={{ width: '100%' }} />
-            </label>
-            <label style={{ fontSize: 12.5, flex: 1 }}>
-              <div style={{ marginBottom: 'var(--space-4)', color: 'var(--t-1)' }}>Mã thẻ</div>
+            <Field label="Tên thẻ" required error={vf.errors.name} style={{ flex: 2 }}>
+              <input className="ed-fld" value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); vf.clear('name'); }} style={{ width: '100%' }} />
+            </Field>
+            <Field label="Mã thẻ" style={{ flex: 1 }}>
               <input className="ed-fld" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="VD: DX_MAIN" style={{ width: '100%' }} />
-            </label>
+            </Field>
           </div>
           <div style={{ display: 'flex', gap: 'var(--space-10)' }}>
-            <label style={{ fontSize: 12.5, flex: 1 }}>
-              <div style={{ marginBottom: 'var(--space-4)', color: 'var(--t-1)' }}>Kiểu dữ liệu</div>
+            <Field label="Kiểu dữ liệu" style={{ flex: 1 }}>
               <select className="ed-fld" value={form.dataType} onChange={(e) => setForm({ ...form, dataType: e.target.value })} style={{ width: '100%' }}>
                 {DATA_TYPES.map((d) => <option key={d.v} value={d.v}>{d.l}</option>)}
               </select>
-            </label>
-            <label style={{ fontSize: 12.5, flex: 1 }}>
-              <div style={{ marginBottom: 'var(--space-4)', color: 'var(--t-1)' }}>Giá trị mặc định</div>
+            </Field>
+            <Field label="Giá trị mặc định" style={{ flex: 1 }}>
               <input className="ed-fld" value={form.defaultValue} onChange={(e) => setForm({ ...form, defaultValue: e.target.value })} style={{ width: '100%' }} />
-            </label>
+            </Field>
           </div>
           <div style={{ display: 'flex', gap: 'var(--space-10)' }}>
-            <label style={{ fontSize: 12.5, flex: 1 }}>
-              <div style={{ marginBottom: 'var(--space-4)', color: 'var(--t-1)' }}>Phân loại</div>
+            <Field label="Phân loại" style={{ flex: 1 }}>
               <input className="ed-fld" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="VD: Chẩn đoán, Hành chính…" style={{ width: '100%' }} />
-            </label>
-            <label style={{ fontSize: 12.5, flex: 1 }}>
-              <div style={{ marginBottom: 'var(--space-4)', color: 'var(--t-1)' }}>Gán vào mẫu (loại tờ phiếu)</div>
+            </Field>
+            <Field label="Gán vào mẫu (loại tờ phiếu)" style={{ flex: 1 }}>
               <input className="ed-fld" value={form.formType} onChange={(e) => setForm({ ...form, formType: e.target.value })} placeholder="Để trống = mọi mẫu" style={{ width: '100%' }} />
-            </label>
+            </Field>
           </div>
-          <label style={{ fontSize: 12.5, width: 140 }}>
-            <div style={{ marginBottom: 'var(--space-4)', color: 'var(--t-1)' }}>Thứ tự sắp xếp</div>
+          <Field label="Thứ tự sắp xếp" style={{ width: 140 }}>
             <input type="number" className="ed-fld" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) })} style={{ width: '100%' }} />
-          </label>
+          </Field>
         </div>
       </ModalShell>
     </div>

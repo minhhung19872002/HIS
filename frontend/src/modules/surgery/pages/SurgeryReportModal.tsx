@@ -375,7 +375,7 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
             </div>
           </div>
 
-          <FormRow label="Phương pháp PT/TT *">
+          <FormRow label="Phương pháp PT/TT">
             <input
               className="hui-inp"
               style={{ width: '100%', height: 28 }}
@@ -417,7 +417,7 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
           </FormRow>
 
           <FormRow
-            label="Tường trình *"
+            label="Tường trình"
             extra={
               <span style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-3)', fontFamily: 'var(--font-mono)' }}>
                 <TermIcon name="zap" size={9} /> viết tắt + Space

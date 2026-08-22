@@ -5,6 +5,7 @@
  * Quy tắc tự động gửi DICOM + lịch sử transmission + thống kê 14 ngày.
  */
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { Form, Input, Select, InputNumber, Checkbox, Button } from 'antd';
 import {
@@ -13,6 +14,7 @@ import {
 } from '@/_v2kit';
 import type { ColumnDef } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { RefreshButton } from '../../../components/actions';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { dicomAutoSendApi } from '../../../api/nangcap24';
 import type {
@@ -30,7 +32,7 @@ const TABS = [
 ];
 
 const DicomAutoSend: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('rules');
+  const [tab, setTab] = useTabState<Tab>('rules');
   const [rules, setRules] = useState<DicomAutoSendRuleDto[]>([]);
   const [txns, setTxns] = useState<DicomTransmissionLogDto[]>([]);
   const [stats, setStats] = useState<DicomTransmissionStatsDto | null>(null);
@@ -209,9 +211,7 @@ const DicomAutoSend: React.FC = () => {
           <div className="ab-toolbar">
             <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>📡 {txns.length} giao dịch gần nhất · sort theo thời gian</span>
             <span className="spacer" style={{ flex: 1 }} />
-            <Button size="small" onClick={load} loading={loading}>
-              <TermIcon name="refresh" size={12} /> Tải lại
-            </Button>
+            <RefreshButton onRefresh={load} loading={loading} label="Tải lại" size="sm" />
           </div>
           <DataTable
             rowKey={r => r.id}

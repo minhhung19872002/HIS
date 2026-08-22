@@ -11,6 +11,7 @@ import {
   SimpleV2Page, useTabCounts, tk, tw, te,
   type TopTab, type ColumnDef, type StatusTab, type CrudFieldCfg, type KpiItem,
 } from '@/_v2kit';
+import { useTabState } from '../../../hooks/useTabState';
 
 type Tab = 'vaccinations' | 'campaigns' | 'aefi' | 'statistics';
 const TABS: TopTab<Tab>[] = [
@@ -71,7 +72,7 @@ const CARD: React.CSSProperties = {
 };
 
 const ImmunizationV2: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('vaccinations');
+  const [tab, setTab] = useTabState<Tab>('vaccinations');
 
   // ── Vaccinations ──
   const [vaxRows, setVaxRows]   = useState<Vaccination[]>([]);

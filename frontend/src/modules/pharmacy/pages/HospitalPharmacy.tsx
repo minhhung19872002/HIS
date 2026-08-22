@@ -26,6 +26,10 @@ import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import ExpiryAlertModal from './ExpiryAlertModal';
 import PaymentQRModal from '../../billing/components/PaymentQRModal';
 import { openPrintWindow, escapeHtml } from '../../../utils/printWindow';
+import { RefreshButton } from '../../../components/actions';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { useTabState } from '../../../hooks/useTabState';
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
@@ -93,7 +97,7 @@ const fmtDT = (s?: string | null) => s ? dayjs(s).format('DD/MM HH:mm') : '—';
 const HospitalPharmacyV2: React.FC = () => {
 
   // ── Tab ──────────────────────────────────────────────────────────────────
-  const [tab, setTab] = useState<PageTab>('history');
+  const [tab, setTab] = useTabState<PageTab>('history', 'tab');
 
   // #467: chặn double-submit cho các modal lưu (khách hàng / ca / GPP / hoa hồng).
   // Các modal này loại trừ nhau theo tab nên dùng chung 1 cờ là đủ.
@@ -102,7 +106,7 @@ const HospitalPharmacyV2: React.FC = () => {
   // ── Tab 1: History ───────────────────────────────────────────────────────
   const [hRows,    setHRows]    = useState<RetailSaleDto[]>([]);
   const [hLoading, setHLoading] = useState(false);
-  const [hStab,    setHStab]    = useState<SaleKey | 'all'>('all');
+  const [hStab,    setHStab]    = useTabState<SaleKey | 'all'>('all', 'stab');
   const [hSearch,  setHSearch]  = useState('');
   const [hPage,    setHPage]    = useState(0);
   const [hDetail,  setHDetail]  = useState<RetailSaleDto | null>(null);
@@ -396,6 +400,7 @@ const HospitalPharmacyV2: React.FC = () => {
   const [custLoading,   setCustLoading]   = useState(false);
   const [custForm,      setCustForm]      = useState<SavePharmacyCustomerDto>({ fullName: '', customerType: 1 });
   const custRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const custForm2 = useModalForm({ fullName: { required: true, message: 'Vui lòng nhập tên khách hàng' } }, custModalOpen);
 
   const loadCustomers = useCallback(async () => {
     setCustLoading(true);
@@ -441,7 +446,7 @@ const HospitalPharmacyV2: React.FC = () => {
   ];
 
   const handleSaveCustomer = async () => {
-    if (!custForm.fullName.trim()) { te('Vui lòng nhập tên khách hàng'); return; }
+    if (!custForm2.validate({ fullName: custForm.fullName })) return;
     if (saving) return;
     setSaving(true);
     try {
@@ -460,6 +465,12 @@ const HospitalPharmacyV2: React.FC = () => {
   const [ptsDesc,  setPtsDesc]  = useState('');
   const [ptsBusy,  setPtsBusy]  = useState(false);
 
+  const ptsForm = useModalForm({
+    value: {
+      validate: (v: unknown) => (!Number(v) || Number(v) <= 0) ? 'Nhập số điểm lớn hơn 0' : undefined,
+    },
+  }, !!ptsCust);
+
   const openPointsModal = (c: PharmacyCustomerDto) => {
     setPtsCust(c);
     setPtsValue(0);
@@ -468,9 +479,10 @@ const HospitalPharmacyV2: React.FC = () => {
 
   const handlePoints = (type: 'add' | 'redeem') => {
     if (!ptsCust) return;
-    if (!ptsValue || ptsValue <= 0) { te('Nhập số điểm lớn hơn 0'); return; }
+    if (!ptsForm.validate({ value: ptsValue })) return;
     if (type === 'redeem' && ptsValue > (ptsCust.totalPoints ?? 0)) {
-      te(`Khách chỉ còn ${ptsCust.totalPoints ?? 0} điểm`); return;
+      ptsForm.setError('value', `Khách chỉ còn ${ptsCust.totalPoints ?? 0} điểm`);
+      return;
     }
     const verb = type === 'add' ? 'Cộng' : 'Trừ';
     cf(`${verb} ${ptsValue} điểm cho ${ptsCust.fullName}?`, async () => {
@@ -668,12 +680,20 @@ const HospitalPharmacyV2: React.FC = () => {
   const [commForm,  setCommForm]  = useState<SavePharmacyCommissionDto>({
     quantity: 1, saleAmount: 0, commissionRate: 0, saleDate: dayjs().format('YYYY-MM-DD'),
   });
+  const commForm2 = useModalForm({
+    doctorName: { required: true, message: 'Nhập tên bác sĩ / người hưởng hoa hồng' },
+    quantity: { validate: (v: unknown) => (!Number(v) || Number(v) <= 0) ? 'Số lượng phải lớn hơn 0' : undefined },
+    saleAmount: { validate: (v: unknown) => (Number(v) < 0) ? 'Tiền bán không hợp lệ' : undefined },
+    commissionRate: { validate: (v: unknown) => (Number(v) < 0 || Number(v) > 100) ? 'Tỉ lệ hoa hồng phải trong khoảng 0–100%' : undefined },
+  }, commModal);
 
   const handleSaveCommission = async () => {
-    if (!commForm.doctorName?.trim())                       { te('Nhập tên bác sĩ / người hưởng hoa hồng'); return; }
-    if (!commForm.quantity || commForm.quantity <= 0)       { te('Số lượng phải lớn hơn 0'); return; }
-    if (commForm.saleAmount < 0)                            { te('Tiền bán không hợp lệ'); return; }
-    if (commForm.commissionRate < 0 || commForm.commissionRate > 100) { te('Tỉ lệ hoa hồng phải trong khoảng 0–100%'); return; }
+    if (!commForm2.validate({
+      doctorName: commForm.doctorName,
+      quantity: commForm.quantity,
+      saleAmount: commForm.saleAmount,
+      commissionRate: commForm.commissionRate,
+    })) return;
     if (saving) return;
     setSaving(true);
     try {
@@ -721,7 +741,7 @@ const HospitalPharmacyV2: React.FC = () => {
               <SearchBox value={hSearch} onChange={(v) => { setHSearch(v); setHPage(0); }} placeholder="Tìm khách / mã đơn / SĐT…" />
               <Btn variant="ghost" icon="refresh" onClick={() => { setHSearch(''); setHStab('all'); setHPage(0); }}>Bỏ lọc</Btn>
               <span className="spacer" />
-              <Btn variant="ghost" icon="refresh" onClick={loadHistory}>Làm mới</Btn>
+              <RefreshButton onRefresh={loadHistory} loading={hLoading} />
             </div>
             <StatusTabs<SaleKey>
               value={hStab}
@@ -798,7 +818,7 @@ const HospitalPharmacyV2: React.FC = () => {
             <KpiStrip items={retKpis} />
             <div className="ab-tools">
               <span className="spacer" />
-              <Btn variant="ghost" icon="refresh" onClick={loadRetail}>Làm mới</Btn>
+              <RefreshButton onRefresh={loadRetail} />
               <Btn variant="primary" icon="plus" onClick={() => {
                 setCart([]); setPosCustName(''); setPosCustPhone('');
                 setPosPayMethod(0); setPosDiscount(0); setMedSearch(''); setMedResults([]);
@@ -899,7 +919,7 @@ const HospitalPharmacyV2: React.FC = () => {
             <div className="ab-tools">
               <SearchBox value={stKeyword} onChange={(v) => { setStKeyword(v); setStPage(0); }} placeholder="Tìm thuốc / mã…" />
               <span className="spacer" />
-              <Btn variant="ghost" icon="refresh" onClick={loadStock}>Làm mới</Btn>
+              <RefreshButton onRefresh={loadStock} loading={stLoading} />
             </div>
             <DataTable<MedicineSearchResultDto>
               columns={stCols}
@@ -957,7 +977,7 @@ const HospitalPharmacyV2: React.FC = () => {
               />
               <span className="spacer" />
               <Btn variant="ghost" icon="printer" onClick={handlePrintRevenue} disabled={revData.length === 0}>In báo cáo</Btn>
-              <Btn variant="ghost" icon="refresh" onClick={loadRevenue}>Làm mới</Btn>
+              <RefreshButton onRefresh={loadRevenue} loading={revLoading} />
             </div>
             <DataTable<PharmacyRevenueDto>
               columns={rpCols}
@@ -987,7 +1007,7 @@ const HospitalPharmacyV2: React.FC = () => {
                 ]}
               />
               <span className="spacer" />
-              <Btn variant="ghost" icon="refresh" onClick={loadCustomers}>Làm mới</Btn>
+              <RefreshButton onRefresh={loadCustomers} loading={custLoading} />
               <Btn variant="primary" icon="plus" onClick={() => { setCustForm({ fullName: '', customerType: 1 }); setCustModalOpen(true); }}>
                 Thêm khách
               </Btn>
@@ -1062,35 +1082,35 @@ const HospitalPharmacyV2: React.FC = () => {
                 </Btn>
               </>}
             >
-              <Form layout="vertical" style={{ padding: '4px 0' }}>
-                <Form.Item label="Họ tên *">
+              <div style={{ padding: '4px 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <Field label="Họ tên" required error={custForm2.errors.fullName}>
                   <Input value={custForm.fullName}
-                    onChange={(e) => setCustForm((p) => ({ ...p, fullName: e.target.value }))}
+                    onChange={(e) => { setCustForm((p) => ({ ...p, fullName: e.target.value })); custForm2.clear('fullName'); }}
                     placeholder="Tên đầy đủ" />
-                </Form.Item>
+                </Field>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <Form.Item label="Số điện thoại">
+                  <Field label="Số điện thoại">
                     <Input value={custForm.phone ?? ''}
                       onChange={(e) => setCustForm((p) => ({ ...p, phone: e.target.value || undefined }))} />
-                  </Form.Item>
-                  <Form.Item label="Email">
+                  </Field>
+                  <Field label="Email">
                     <Input value={custForm.email ?? ''}
                       onChange={(e) => setCustForm((p) => ({ ...p, email: e.target.value || undefined }))} />
-                  </Form.Item>
+                  </Field>
                 </div>
-                <Form.Item label="Địa chỉ">
+                <Field label="Địa chỉ">
                   <Input value={custForm.address ?? ''}
                     onChange={(e) => setCustForm((p) => ({ ...p, address: e.target.value || undefined }))} />
-                </Form.Item>
+                </Field>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <Form.Item label="Ngày sinh">
+                  <Field label="Ngày sinh">
                     <DatePicker
                       value={custForm.dateOfBirth ? dayjs(custForm.dateOfBirth) : null}
                       format="DD/MM/YYYY"
                       style={{ width: '100%' }}
                       onChange={(d) => setCustForm((p) => ({ ...p, dateOfBirth: d ? d.format('YYYY-MM-DD') : undefined }))} />
-                  </Form.Item>
-                  <Form.Item label="Giới tính">
+                  </Field>
+                  <Field label="Giới tính">
                     <Select<number>
                       value={custForm.gender}
                       allowClear
@@ -1101,44 +1121,44 @@ const HospitalPharmacyV2: React.FC = () => {
                         { value: 0, label: 'Nữ' },
                       ]}
                     />
-                  </Form.Item>
+                  </Field>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <Form.Item label="Loại khách hàng">
+                  <Field label="Loại khách hàng">
                     <Select<number>
                       value={custForm.customerType}
                       onChange={(v) => setCustForm((p) => ({ ...p, customerType: v }))}
                       options={Object.entries(CTYPE).map(([k, lbl]) => ({ value: parseInt(k, 10), label: lbl }))}
                     />
-                  </Form.Item>
-                  <Form.Item label="Số thẻ thành viên">
+                  </Field>
+                  <Field label="Số thẻ thành viên">
                     <Input value={custForm.cardNumber ?? ''}
                       onChange={(e) => setCustForm((p) => ({ ...p, cardNumber: e.target.value || undefined }))} />
-                  </Form.Item>
+                  </Field>
                 </div>
-                <Form.Item label="Ghi chú">
+                <Field label="Ghi chú">
                   <Input value={custForm.notes ?? ''}
                     onChange={(e) => setCustForm((p) => ({ ...p, notes: e.target.value || undefined }))} />
-                </Form.Item>
-              </Form>
+                </Field>
+              </div>
             </ModalShell>
 
             <ModalShell open={!!ptsCust} onClose={() => setPtsCust(null)}
               title={`Điểm tích lũy — ${ptsCust?.fullName ?? ''}`} size="sm"
               footer={<>
                 <Btn variant="ghost" onClick={() => setPtsCust(null)}>Hủy</Btn>
-                <Btn variant="ghost" onClick={() => handlePoints('redeem')} disabled={ptsBusy}>Đổi điểm</Btn>
-                <Btn variant="primary" onClick={() => handlePoints('add')} disabled={ptsBusy}>Cộng điểm</Btn>
+                <Btn variant="ghost" onClick={() => handlePoints('redeem')} loading={ptsBusy}>Đổi điểm</Btn>
+                <Btn variant="primary" onClick={() => handlePoints('add')} loading={ptsBusy}>Cộng điểm</Btn>
               </>}
             >
               <div style={frow}>
                 <div style={{ fontSize: 12.5, opacity: 0.75 }}>
                   Điểm hiện có: <strong>{ptsCust?.totalPoints ?? 0}</strong>
                 </div>
-                <label style={flbl}>Số điểm *
+                <Field label="Số điểm" required error={ptsForm.errors.value}>
                   <InputNumber min={1} value={ptsValue} style={{ width: '100%' }}
-                    onChange={(v) => setPtsValue(v ?? 0)} />
-                </label>
+                    onChange={(v) => { setPtsValue(v ?? 0); ptsForm.clear('value'); }} />
+                </Field>
                 <label style={flbl}>Mô tả
                   <Input value={ptsDesc} onChange={(e) => setPtsDesc(e.target.value)}
                     placeholder="Lý do cộng / đổi điểm…" />
@@ -1169,7 +1189,7 @@ const HospitalPharmacyV2: React.FC = () => {
             )}
             <div className="ab-tools">
               <span className="spacer" />
-              <Btn variant="ghost" icon="refresh" onClick={loadShifts}>Làm mới</Btn>
+              <RefreshButton onRefresh={loadShifts} loading={shiftLoading} />
             </div>
             <DataTable<PharmacyShiftDto>
               columns={shCols}
@@ -1228,7 +1248,7 @@ const HospitalPharmacyV2: React.FC = () => {
                 ]}
               />
               <span className="spacer" />
-              <Btn variant="ghost" icon="refresh" onClick={loadGpp}>Làm mới</Btn>
+              <RefreshButton onRefresh={loadGpp} loading={gppLoading} />
               <Btn variant="primary" icon="plus" onClick={() => {
                 setGppForm({ recordType: 1, recordDate: dayjs().format('YYYY-MM-DD') });
                 setGppModal(true);
@@ -1252,7 +1272,7 @@ const HospitalPharmacyV2: React.FC = () => {
             >
               <div style={frow}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <label style={flbl}>Loại ghi chép *
+                  <label style={flbl}>Loại ghi chép
                     <Select<number>
                       value={gppForm.recordType}
                       onChange={(v) => setGppForm((p) => ({ ...p, recordType: v }))}
@@ -1317,7 +1337,7 @@ const HospitalPharmacyV2: React.FC = () => {
                 ]}
               />
               <span className="spacer" />
-              <Btn variant="ghost" icon="refresh" onClick={loadCommissions}>Làm mới</Btn>
+              <RefreshButton onRefresh={loadCommissions} loading={commLoading} />
               <Btn variant="ghost" icon="plus"
                 onClick={() => {
                   setCommForm({ quantity: 1, saleAmount: 0, commissionRate: 0, saleDate: dayjs().format('YYYY-MM-DD') });
@@ -1359,11 +1379,11 @@ const HospitalPharmacyV2: React.FC = () => {
             >
               <div style={frow}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <label style={flbl}>Bác sĩ / người hưởng *
+                  <Field label="Bác sĩ / người hưởng" required error={commForm2.errors.doctorName}>
                     <Input value={commForm.doctorName ?? ''}
-                      onChange={(e) => setCommForm((p) => ({ ...p, doctorName: e.target.value || undefined }))}
+                      onChange={(e) => { setCommForm((p) => ({ ...p, doctorName: e.target.value || undefined })); commForm2.clear('doctorName'); }}
                       placeholder="Họ tên" />
-                  </label>
+                  </Field>
                   <label style={flbl}>Ngày bán
                     <DatePicker
                       value={commForm.saleDate ? dayjs(commForm.saleDate) : null}
@@ -1377,18 +1397,18 @@ const HospitalPharmacyV2: React.FC = () => {
                     onChange={(e) => setCommForm((p) => ({ ...p, medicineName: e.target.value || undefined }))} />
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-                  <label style={flbl}>Số lượng *
+                  <Field label="Số lượng" required error={commForm2.errors.quantity}>
                     <InputNumber min={1} value={commForm.quantity} style={{ width: '100%' }}
-                      onChange={(v) => setCommForm((p) => ({ ...p, quantity: v ?? 0 }))} />
-                  </label>
-                  <label style={flbl}>Tiền bán (đ) *
+                      onChange={(v) => { setCommForm((p) => ({ ...p, quantity: v ?? 0 })); commForm2.clear('quantity'); }} />
+                  </Field>
+                  <Field label="Tiền bán (đ)" required error={commForm2.errors.saleAmount}>
                     <InputNumber min={0} value={commForm.saleAmount} style={{ width: '100%' }}
-                      onChange={(v) => setCommForm((p) => ({ ...p, saleAmount: v ?? 0 }))} />
-                  </label>
-                  <label style={flbl}>Tỉ lệ HH (%) *
+                      onChange={(v) => { setCommForm((p) => ({ ...p, saleAmount: v ?? 0 })); commForm2.clear('saleAmount'); }} />
+                  </Field>
+                  <Field label="Tỉ lệ HH (%)" required error={commForm2.errors.commissionRate}>
                     <InputNumber min={0} max={100} value={commForm.commissionRate} style={{ width: '100%' }}
-                      onChange={(v) => setCommForm((p) => ({ ...p, commissionRate: v ?? 0 }))} />
-                  </label>
+                      onChange={(v) => { setCommForm((p) => ({ ...p, commissionRate: v ?? 0 })); commForm2.clear('commissionRate'); }} />
+                  </Field>
                 </div>
                 <div style={{ fontSize: 12.5, opacity: 0.75 }}>
                   Hoa hồng tạm tính: <strong>{fmt(Math.round((commForm.saleAmount * commForm.commissionRate) / 100))}đ</strong>

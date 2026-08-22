@@ -8,7 +8,7 @@ import {
 import type { TraditionalTreatment, HerbalPrescription, HerbItem } from '../api/traditionalMedicine';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, DrSec, DrField, CrudModal, tk, te, ti, tw, Ico,
@@ -237,9 +237,7 @@ const TraditionalMedicineV2: React.FC = () => {
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">
-          Làm mới
-        </Btn>
+        <RefreshButton onRefresh={async () => { await load() }} />
         <Btn variant="primary" onClick={openCreate}>
           <Ico name="plus" size={12} /> Phác đồ mới
         </Btn>

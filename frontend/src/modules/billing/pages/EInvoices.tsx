@@ -6,9 +6,11 @@ import {
   tk, te, tw, fmtDTg, fmtDMYg
 } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
 import { fmtVND } from '../../../utils/format';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 import {
   einvoice,
   type EInvoiceDto,
@@ -238,9 +240,10 @@ const IssueModal: React.FC<{
   const [receiptId, setReceiptId] = useState('');
   const [provider, setProvider]   = useState('');
   const [busy, setBusy] = useState(false);
+  const form = useModalForm({ receiptId: { required: true, message: 'Vui lòng nhập ID phiếu thu' } }, open);
 
   const submit = async () => {
-    if (!receiptId.trim()) { te('Vui lòng nhập ID phiếu thu'); return; }
+    if (!form.validate({ receiptId })) return;
     if (busy) return;
     setBusy(true);
     try {
@@ -266,19 +269,21 @@ const IssueModal: React.FC<{
       footer={
         <>
           <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
-          <Btn variant="primary" disabled={busy} onClick={submit}>
+          <Btn variant="primary" loading={busy} onClick={submit}>
             <TermIcon name="check" size={12} /> {busy ? 'Đang phát hành…' : 'Phát hành'}
           </Btn>
         </>
       }>
       <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10, padding: 14, fontSize: 13 }}>
-        <span>ID phiếu thu</span>
-        <input
-          className="ab-sel"
-          value={receiptId}
-          onChange={(e) => setReceiptId(e.target.value)}
-          placeholder="UUID phiếu thu…"
-        />
+        <Field label="ID phiếu thu" required error={form.errors.receiptId} style={{ gridColumn: '1/-1', marginBottom: 0 }}>
+          <input
+            className="ab-sel"
+            value={receiptId}
+            onChange={(e) => { setReceiptId(e.target.value); form.clear('receiptId'); }}
+            placeholder="UUID phiếu thu…"
+            style={{ width: '100%' }}
+          />
+        </Field>
         <span>NCC (tùy chọn)</span>
         <AbSelect
           value={provider}
@@ -469,7 +474,7 @@ const BillingEInvoicePanel: React.FC = () => {
           options={STMT_STATUS.map((s) => ({ v: String(s.v), l: s.l }))}
           placeholder="▾ Trạng thái" />
         <span className="spacer" />
-        <Btn variant="ghost" onClick={refreshAll} loading={loading} icon="refresh">Làm mới</Btn>
+        <RefreshButton onRefresh={refreshAll} loading={loading} />
         <Btn variant="primary" onClick={() => setIssueOpen(true)}>
           <TermIcon name="plus" size={12} /> Phát hành HĐĐT
         </Btn>
@@ -542,6 +547,7 @@ const BillingIssueModal: React.FC<{
   const [payMethod, setPayMethod] = useState('TM');
   const [sendEmail, setSendEmail] = useState(false);
   const [busy, setBusy] = useState(false);
+  const form = useModalForm({ invoiceId: { required: true, message: 'Vui lòng chọn bảng kê' } }, open);
 
   useEffect(() => {
     if (!open) return;
@@ -554,7 +560,7 @@ const BillingIssueModal: React.FC<{
   }, [open]);
 
   const submit = async () => {
-    if (!invoiceId) { tw('Vui lòng chọn bảng kê'); return; }
+    if (!form.validate({ invoiceId })) return;
     setBusy(true);
     try {
       await issueElectronicInvoice({
@@ -581,25 +587,26 @@ const BillingIssueModal: React.FC<{
       footer={
         <>
           <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
-          <Btn variant="primary" disabled={busy} onClick={submit}>
+          <Btn variant="primary" loading={busy} onClick={submit}>
             <TermIcon name="check" size={12} /> {busy ? 'Đang phát hành…' : 'Phát hành'}
           </Btn>
         </>
       }>
       <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10, padding: 14, fontSize: 13 }}>
-        <span>Bảng kê đã thu *</span>
-        <AbSelect
-          value={invoiceId}
-          onChange={setInvoiceId}
-          options={[
-            { value: '', label: '— Chọn bảng kê —' },
-            ...invoices.map((inv) => ({
-              value: inv.id,
-              label: `${inv.invoiceCode} - ${inv.patientName} - ${fmtVND(inv.totalAmount)}`,
-            })),
-          ]}
-          placeholder="— Chọn bảng kê —"
-        />
+        <Field label="Bảng kê đã thu" required error={form.errors.invoiceId} style={{ gridColumn: '1/-1', marginBottom: 0 }}>
+          <AbSelect
+            value={invoiceId}
+            onChange={(v: string) => { setInvoiceId(v); form.clear('invoiceId'); }}
+            options={[
+              { value: '', label: '— Chọn bảng kê —' },
+              ...invoices.map((inv) => ({
+                value: inv.id,
+                label: `${inv.invoiceCode} - ${inv.patientName} - ${fmtVND(inv.totalAmount)}`,
+              })),
+            ]}
+            placeholder="— Chọn bảng kê —"
+          />
+        </Field>
         <span>Tên người mua</span>
         <input className="ab-sel" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} placeholder="Họ tên người mua (tùy chọn)" />
         <span>Mã số thuế</span>
@@ -629,13 +636,20 @@ const SendStmtModal: React.FC<{
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const resend = !!inv?.sentTo;
+  const form = useModalForm({
+    email: {
+      required: true,
+      message: 'Vui lòng nhập email nhận hóa đơn',
+      validate: (v) => (typeof v === 'string' && v.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) ? 'Email không hợp lệ' : undefined,
+    },
+  }, !!inv);
 
   useEffect(() => { if (inv) setEmail(inv.buyerEmail || inv.sentTo || ''); }, [inv]);
 
   const submit = async () => {
     if (!inv) return;
     const e = email.trim();
-    if (!e || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { tw('Email không hợp lệ'); return; }
+    if (!form.validate({ email: e })) return;
     setBusy(true);
     try {
       await (resend ? resendElectronicInvoice(inv.id, e) : sendElectronicInvoice(inv.id, e));
@@ -654,7 +668,7 @@ const SendStmtModal: React.FC<{
       footer={
         <>
           <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
-          <Btn variant="primary" disabled={busy} onClick={submit}>
+          <Btn variant="primary" loading={busy} onClick={submit}>
             <TermIcon name="mail" size={12} /> {busy ? 'Đang gửi…' : (resend ? 'Gửi lại' : 'Gửi hóa đơn')}
           </Btn>
         </>
@@ -665,8 +679,15 @@ const SendStmtModal: React.FC<{
           <b className="mono">{inv.eInvoiceNumber || '—'}</b>
           <span>Người mua</span>
           <span>{inv.buyerName || inv.patientName || '—'}</span>
-          <span>Email nhận *</span>
-          <input className="ab-sel" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="example@email.com" />
+          <Field label="Email nhận" required error={form.errors.email} style={{ gridColumn: '1/-1', marginBottom: 0 }}>
+            <input
+              className="ab-sel"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); form.clear('email'); }}
+              placeholder="example@email.com"
+              style={{ width: '100%' }}
+            />
+          </Field>
         </div>
       )}
     </ModalShell>
@@ -681,12 +702,13 @@ const CancelStmtModal: React.FC<{
 }> = ({ inv, onClose, onDone }) => {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const form = useModalForm({ reason: { required: true, message: 'Vui lòng nhập lý do hủy' } }, !!inv);
 
   useEffect(() => { if (inv) setReason(''); }, [inv]);
 
   const submit = async () => {
     if (!inv) return;
-    if (!reason.trim()) { tw('Vui lòng nhập lý do hủy'); return; }
+    if (!form.validate({ reason })) return;
     setBusy(true);
     try {
       await cancelElectronicInvoice(inv.id, reason.trim());
@@ -706,7 +728,7 @@ const CancelStmtModal: React.FC<{
       footer={
         <>
           <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
-          <Btn variant="primary" disabled={busy} onClick={submit}>
+          <Btn variant="primary" loading={busy} onClick={submit}>
             <TermIcon name="x" size={12} /> {busy ? 'Đang hủy…' : 'Xác nhận hủy'}
           </Btn>
         </>
@@ -717,15 +739,16 @@ const CancelStmtModal: React.FC<{
             Hóa đơn <b className="mono">{inv.eInvoiceNumber || '—'}</b>
             {' · '}<b className="mono">{fmtVND(inv.totalAmount)}</b>
           </div>
-          <div style={{ marginBottom: 4, fontWeight: 600, fontSize: 12 }}>Lý do hủy *</div>
-          <textarea
-            className="ab-sel"
-            rows={3}
-            style={{ width: '100%', resize: 'vertical' }}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Nhập lý do hủy hóa đơn"
-          />
+          <Field label="Lý do hủy" required error={form.errors.reason}>
+            <textarea
+              className="ab-sel"
+              rows={3}
+              style={{ width: '100%', resize: 'vertical' }}
+              value={reason}
+              onChange={(e) => { setReason(e.target.value); form.clear('reason'); }}
+              placeholder="Nhập lý do hủy hóa đơn"
+            />
+          </Field>
         </div>
       )}
     </ModalShell>

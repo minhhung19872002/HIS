@@ -96,7 +96,7 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({ open, initial, onClose,
         </div>
       }
     >
-      <Form form={form} layout="vertical" style={{ padding: '4px 0' }}>
+      <Form form={form} layout="vertical" style={{ padding: '4px 0' }} scrollToFirstError>
         <Form.Item name="name" label="Tên kết nối" rules={[{ required: true, message: 'Bắt buộc' }]}>
           <Input placeholder="VD: BV Huyện B - HIS VNPT" />
         </Form.Item>

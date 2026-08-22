@@ -14,6 +14,9 @@ import {
   DrawerShell, DrSec, DrField, tk, te, cf, Ico,
   type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
+import { useModalForm } from '../../../hooks/useModalForm';
+import { useTabState } from '../../../hooks/useTabState';
 
 type TabKey = 'nursing' | 'mr';
 
@@ -40,7 +43,7 @@ const NursingLevelChip: React.FC<{ level: number }> = ({ level }) => {
 const PER = 15;
 
 const ClinicalCatalogsV2: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('nursing');
+  const [tab, setTab] = useTabState<TabKey>('nursing');
   const [nursing, setNursing] = useState<api.NursingCareLevelDto[]>([]);
   const [mrTypes, setMrTypes] = useState<api.MedicalRecordTypeDto[]>([]);
   const [search, setSearch] = useState('');
@@ -49,6 +52,10 @@ const ClinicalCatalogsV2: React.FC = () => {
   const [editIsNew, setEditIsNew] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const editForm = useModalForm({
+    code: { required: true, label: 'Mã' },
+    name: { required: true, label: 'Tên' },
+  }, !!edit);
 
   useEffect(() => { setSearch(''); setPage(0); }, [tab]);
 
@@ -163,8 +170,7 @@ const ClinicalCatalogsV2: React.FC = () => {
     if (!edit || saving) return;
     const code = String(edit.code || '').trim();
     const name = String(edit.name || '').trim();
-    if (!code) { te('Mã không được để trống'); return; }
-    if (!name) { te('Tên không được để trống'); return; }
+    if (!editForm.validate({ code, name })) return;
     setSaving(true);
     try {
       if (tab === 'nursing') await api.saveNursingCareLevel({ ...edit, code, name } as Partial<api.NursingCareLevelDto>);
@@ -230,7 +236,7 @@ const ClinicalCatalogsV2: React.FC = () => {
       <div className="ab-toolbar">
         <SearchBox value={search} onChange={setSearch} placeholder={tab === 'nursing' ? 'Tìm chế độ chăm sóc…' : 'Tìm loại bệnh án…'} />
         <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" loading={loading} onClick={() => reload(tab)}>Làm mới</Btn>
+        <RefreshButton onRefresh={() => reload(tab)} loading={loading} />
         <Btn variant="ghost" icon="download" onClick={exportCsv}>Xuất CSV</Btn>
         <Btn variant="primary" icon="plus" onClick={() => openDrawer()}>Thêm mới</Btn>
       </div>
@@ -262,15 +268,15 @@ const ClinicalCatalogsV2: React.FC = () => {
       >
         {edit && (
           <DrSec title="Thông tin">
-            <DrField lbl="Mã *">
-              <Input value={edit.code as string || ''} onChange={(e) => setEdit({ ...edit, code: e.target.value.toUpperCase() })} />
+            <DrField lbl="Mã" required error={editForm.errors.code}>
+              <Input value={edit.code as string || ''} onChange={(e) => { setEdit({ ...edit, code: e.target.value.toUpperCase() }); editForm.clear('code'); }} />
             </DrField>
-            <DrField lbl="Tên *">
-              <Input value={edit.name as string || ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
+            <DrField lbl="Tên" required error={editForm.errors.name}>
+              <Input value={edit.name as string || ''} onChange={(e) => { setEdit({ ...edit, name: e.target.value }); editForm.clear('name'); }} />
             </DrField>
             {tab === 'nursing' && (
               <>
-                <DrField lbl="Cấp chăm sóc *">
+                <DrField lbl="Cấp chăm sóc" required>
                   <Select
                     value={edit.level as number ?? 3}
                     options={[
@@ -292,7 +298,7 @@ const ClinicalCatalogsV2: React.FC = () => {
               </>
             )}
             {tab === 'mr' && (
-              <DrField lbl="Phân loại *">
+              <DrField lbl="Phân loại" required>
                 <Select
                   value={edit.category as number ?? 1}
                   options={MR_CATEGORIES.map((c) => ({ value: c.value, label: c.label }))}

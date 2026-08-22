@@ -6,29 +6,51 @@
    `.ed-left-panel` / `.ed-right-panel`. Toggle FABs show below 1180px.
    ============================================ */
 
-.ed-panel-toggles { display: none; }
+.ed-panel-toggles {
+  display: none;
+}
 
 .ed-left-panel,
-.ed-right-panel { transition: transform .25s ease; }
+.ed-right-panel {
+  transition: transform .25s ease;
+}
 
 @media (max-width: 1180px) {
-  .ed-root { grid-template-columns: 1fr !important; }
+  .ed-root {
+    grid-template-columns: 1fr !important;
+  }
 
   .ed-left-panel,
   .ed-right-panel {
     position: fixed !important;
-    top: 0; bottom: 0;
+    top: 0;
+    bottom: 0;
     width: 320px !important;
     z-index: 200;
     background: var(--d-1) !important;
-    box-shadow: 0 10px 40px rgba(0,0,0,.35);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, .35);
     overflow-y: auto;
   }
-  .ed-left-panel  { left: 0;  transform: translateX(-105%); border-right: 1px solid var(--line); }
-  .ed-right-panel { right: 0; transform: translateX(105%);  border-left:  1px solid var(--line); }
 
-  .ed-left-panel.is-open  { transform: translateX(0); }
-  .ed-right-panel.is-open { transform: translateX(0); }
+  .ed-left-panel {
+    left: 0;
+    transform: translateX(-105%);
+    border-right: 1px solid var(--line);
+  }
+
+  .ed-right-panel {
+    right: 0;
+    transform: translateX(105%);
+    border-left: 1px solid var(--line);
+  }
+
+  .ed-left-panel.is-open {
+    transform: translateX(0);
+  }
+
+  .ed-right-panel.is-open {
+    transform: translateX(0);
+  }
 
   .ed-panel-toggles {
     display: flex;
@@ -38,36 +60,58 @@
     gap: 10px;
     z-index: 150;
   }
+
   .ed-panel-toggle {
     background: var(--c-pri);
     color: #fff;
     border: none;
     border-radius: 999px;
-    width: 48px; height: 48px;
-    display: grid; place-items: center;
+    width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
     cursor: pointer;
-    box-shadow: 0 6px 20px rgba(37,99,235,.4);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, .4);
     position: relative;
   }
+
   .ed-panel-toggle .badge {
-    position: absolute; top: -2px; right: -2px;
-    background: var(--s-crit); color: #fff;
-    border-radius: 999px; min-width: 18px; height: 18px;
-    font-size: 10px; font-weight: 700;
-    display: grid; place-items: center;
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    background: var(--s-crit);
+    color: #fff;
+    border-radius: 999px;
+    min-width: 18px;
+    height: 18px;
+    font-size: 10px;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
     padding: 0 5px;
   }
+
   .ed-panel-backdrop {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,.45);
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .45);
     z-index: 180;
   }
-  .ab-kpis { grid-template-columns: repeat(2, 1fr) !important; }
+
+  .ab-kpis {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
 }
 
 @media (max-width: 720px) {
-  .ab-kpis { grid-template-columns: 1fr !important; }
-  .ed-left-panel, .ed-right-panel { width: 88vw !important; }
+  .ab-kpis {
+    grid-template-columns: 1fr !important;
+  }
+
+  .ed-left-panel,
+  .ed-right-panel {
+    width: 88vw !important;
+  }
 }
 
 /* ── Editor inline inputs/selects (hui-inp / hui-sel) ──
@@ -88,12 +132,14 @@
   background: var(--d-0);
   transition: border-color .1s, box-shadow .1s;
 }
+
 .ed-root .hui-inp:focus,
 .ed-root .hui-sel:focus {
   outline: none;
   border-color: var(--a-cy, #22d3ee);
   box-shadow: 0 0 0 2px rgba(34, 211, 238, .2);
 }
+
 .ed-root .hui-sel {
   appearance: none;
   cursor: pointer;
@@ -114,10 +160,20 @@
   background: var(--d-0);
   transition: border-color .1s, box-shadow .1s;
 }
+
 .ed-fld:focus {
   outline: none;
   border-color: var(--a-cy, #22d3ee);
   box-shadow: 0 0 0 2px rgba(34, 211, 238, .2);
 }
-select.ed-fld { appearance: none; cursor: pointer; height: 34px; }
-textarea.ed-fld { resize: vertical; line-height: 1.5; }
+
+select.ed-fld {
+  appearance: none;
+  cursor: pointer;
+  height: 34px;
+}
+
+textarea.ed-fld {
+  resize: vertical;
+  line-height: 1.5;
+}

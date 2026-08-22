@@ -7,6 +7,8 @@ import {
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 import {
   zalo,
   type ZaloNotificationLogDto,
@@ -172,6 +174,7 @@ const ZnsSendModal: React.FC<{ open: boolean; onClose: () => void; onSent: () =>
   const [phone, setPhone] = useState('');
   const [params, setParams] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
+  const { errors, validate, clear } = useModalForm({ phone: { required: true, label: 'SĐT' } }, open);
 
   useEffect(() => {
     if (open) zalo.getTemplates().then(setTemplates)
@@ -182,7 +185,7 @@ const ZnsSendModal: React.FC<{ open: boolean; onClose: () => void; onSent: () =>
   const tpl = templates.find((t) => t.id === tplId);
 
   const submit = async () => {
-    if (!phone) { te('Vui lòng nhập SĐT'); return; }
+    if (!validate({ phone })) return;
     if (sending) return;
     setSending(true);
     try {
@@ -205,8 +208,9 @@ const ZnsSendModal: React.FC<{ open: boolean; onClose: () => void; onSent: () =>
       <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 'var(--space-10)', padding: 'var(--space-14)' }}>
         <span style={{ fontSize: 'var(--fs-md)' }}>Mẫu tin</span>
         <AbSelect value={tplId} onChange={setTplId} options={templates} fieldNames={{ value: 'id', label: 'name' }} />
-        <span style={{ fontSize: 'var(--fs-md)' }}>SĐT</span>
-        <input className="ab-sel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0901234567" />
+        <Field label="SĐT" required error={errors.phone} style={{ gridColumn: '1/-1' }}>
+          <input className="ab-sel" value={phone} onChange={(e) => { setPhone(e.target.value); clear('phone'); }} placeholder="0901234567" />
+        </Field>
         {tpl?.params_.map((p) => (
           <React.Fragment key={p}>
             <span style={{ fontSize: 'var(--fs-md)', color: 'var(--t-2)' }}>{p}</span>

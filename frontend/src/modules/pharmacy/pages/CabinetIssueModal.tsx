@@ -39,6 +39,8 @@ import {
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { RowActions } from '../../../components/actions';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -147,6 +149,7 @@ export const CabinetIssueModal: React.FC<CabinetIssueModalProps> = ({
 
   // Pick display names for line-item search placeholders
   const [lineLabels, setLineLabels] = useState<Record<string, string>>({});
+  const form = useModalForm({ cabinetId: { required: true, message: 'Chọn tủ trực trước' } }, open);
 
   const loadCabinets = useCallback(async () => {
     try {
@@ -179,7 +182,7 @@ export const CabinetIssueModal: React.FC<CabinetIssueModalProps> = ({
     setLines((ls) => ls.filter((l) => l._key !== key));
 
   const handleSave = async () => {
-    if (!cabinetId) { tw('Chọn tủ trực trước'); return; }
+    if (!form.validate({ cabinetId })) return;
     const validLines = lines.filter((l) => l.itemId && l.quantity > 0);
     if (validLines.length === 0) { tw('Chưa có thuốc/vật tư nào'); return; }
 
@@ -257,7 +260,7 @@ export const CabinetIssueModal: React.FC<CabinetIssueModalProps> = ({
             </Btn>
           )}
           <Btn variant="ghost" size="sm" onClick={onClose}>Đóng</Btn>
-          <Btn variant="primary" size="sm" loading={saving} disabled={!cabinetId} onClick={() => { void handleSave(); }}>
+          <Btn variant="primary" size="sm" loading={saving} onClick={() => { void handleSave(); }}>
             <TermIcon name="check" size={12} /> Xuất kho
           </Btn>
         </div>
@@ -265,10 +268,10 @@ export const CabinetIssueModal: React.FC<CabinetIssueModalProps> = ({
     >
       {/* Cabinet selector */}
       <DrSec title="Tủ trực">
-        <DrField lbl="Kho tủ trực *">
+        <Field label="Kho tủ trực" required error={form.errors.cabinetId}>
           <Select
             value={cabinetId || undefined}
-            onChange={setCabinetId}
+            onChange={(v) => { setCabinetId(v); form.clear('cabinetId'); }}
             placeholder="Chọn tủ trực…"
             style={{ width: '100%' }}
             options={cabinets.map((c) => ({ value: c.id, label: `${c.warehouseCode} · ${c.warehouseName}` }))}
@@ -278,7 +281,7 @@ export const CabinetIssueModal: React.FC<CabinetIssueModalProps> = ({
             }
             notFoundContent={cabinets.length === 0 ? 'Không có tủ trực nào' : 'Không tìm thấy'}
           />
-        </DrField>
+        </Field>
       </DrSec>
 
       {/* Line items */}

@@ -9,6 +9,7 @@ import {
   DrawerShell, ModalShell, Ico, tk, tw, cf,
   type ColumnDef,
 } from '@/_v2kit';
+import { RefreshButton } from '../../../components/actions';
 
 const DEVICE_TYPES = [
   { v: 'Endoscopy',     l: 'Nội soi' },
@@ -229,7 +230,7 @@ const NonDicomCaptureV2: React.FC = () => {
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={loadWorklist} loading={loading} icon="refresh">Làm mới</Btn>
+        <RefreshButton onRefresh={loadWorklist} loading={loading} />
         <Btn variant="primary" onClick={() => {
           createForm.resetFields();
           createForm.setFieldsValue({ deviceType: 'Endoscopy' });

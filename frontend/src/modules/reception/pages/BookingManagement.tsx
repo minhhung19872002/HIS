@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { Input, Select, DatePicker } from 'antd';
 import {
@@ -16,7 +17,9 @@ import {
   DrawerShell, DrSec, DrField, ModalShell, useTabCounts, tk, ti, tw, te, cf, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
-import { RowActions } from '../../../components/actions';
+import { RowActions, RefreshButton } from '../../../components/actions';
+import { Field } from '../../../components/form/Field';
+import { useModalForm } from '../../../hooks/useModalForm';
 
 const STATUS_LABEL: Record<number, string> = {
   0: 'Chờ xác nhận', 1: 'Đã xác nhận', 2: 'Đã đến', 3: 'Vắng mặt', 4: 'Hủy',
@@ -43,7 +46,7 @@ const BookingManagementV2: React.FC = () => {
   const [stats, setStats] = useState<BookingStatsDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [stab, setStab] = useTabState<SKey | 'all'>('all');
   const [fDept, setFDept] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<Booking | null>(null);
@@ -290,7 +293,7 @@ const BookingManagementV2: React.FC = () => {
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
+        <RefreshButton onRefresh={load} loading={loading} />
         <Btn variant="ghost" onClick={openSchedules}>
           <Ico name="calendar" size={12} /> Lịch bác sĩ
         </Btn>
@@ -417,7 +420,7 @@ const BookingManagementV2: React.FC = () => {
         footer={<Btn variant="ghost" onClick={() => setScheduleOpen(false)}>Đóng</Btn>}
       >
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-8)', marginBottom: 'var(--space-8)' }}>
-          <Btn variant="ghost" onClick={loadSchedules} loading={scheduleLoading} icon="refresh">Làm mới</Btn>
+          <RefreshButton onRefresh={loadSchedules} loading={scheduleLoading} />
           <Btn variant="primary" onClick={openScheduleCreate}><Ico name="plus" size={12} /> Thêm lịch làm việc</Btn>
         </div>
         {scheduleLoading && <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải lịch bác sĩ…</div>}
@@ -503,7 +506,7 @@ const BookingManagementV2: React.FC = () => {
             format="DD/MM/YYYY"
             onChange={(d) => { if (d) { setStatsDate(d); loadFullStats(d); } }}
           />
-          <Btn variant="ghost" onClick={() => loadFullStats(statsDate)} loading={statsLoading} icon="refresh">Làm mới</Btn>
+          <RefreshButton onRefresh={() => loadFullStats(statsDate)} loading={statsLoading} />
         </div>
         {statsLoading && <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải thống kê…</div>}
         {!statsLoading && fullStats && (
@@ -589,9 +592,19 @@ const BookingModal: React.FC<{
   const [depts, setDepts] = useState<BookingDepartmentDto[]>([]);
   const [doctors, setDoctors] = useState<BookingDoctorDto[]>([]);
   const [saving, setSaving] = useState(false);
+  const vf = useModalForm({
+    patientName: { required: true, message: 'Nhập họ tên bệnh nhân' },
+    phoneNumber: {
+      message: 'Số điện thoại không hợp lệ',
+      validate: (v) => (!/^0\d{9,10}$/.test(String(v ?? '').trim()) ? 'Số điện thoại không hợp lệ' : undefined),
+    },
+    appointmentDate: { required: true, message: 'Chọn ngày hẹn' },
+  }, open);
 
-  const setField = <K extends keyof NewBookingState>(k: K, v: NewBookingState[K]) =>
+  const setField = <K extends keyof NewBookingState>(k: K, v: NewBookingState[K]) => {
     setForm((s) => ({ ...s, [k]: v }));
+    if (k === 'patientName' || k === 'phoneNumber' || k === 'appointmentDate') vf.clear(k);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -611,16 +624,14 @@ const BookingModal: React.FC<{
   }, [form.departmentId]);
 
   const submit = async () => {
-    if (!form.patientName.trim()) { te('Nhập họ tên bệnh nhân'); return; }
-    if (!/^0\d{9,10}$/.test(form.phoneNumber.trim())) { te('Số điện thoại không hợp lệ'); return; }
-    if (!form.appointmentDate) { te('Chọn ngày hẹn'); return; }
+    if (!vf.validate({ patientName: form.patientName, phoneNumber: form.phoneNumber, appointmentDate: form.appointmentDate })) return;
     setSaving(true);
     try {
       if (isEdit && initial) {
         await updateBooking(initial.appointmentCode, {
           patientName: form.patientName.trim(),
           phoneNumber: form.phoneNumber.trim(),
-          appointmentDate: form.appointmentDate.format('YYYY-MM-DD'),
+          appointmentDate: form.appointmentDate!.format('YYYY-MM-DD'),
           appointmentTime: form.appointmentTime ? `${form.appointmentTime}:00` : undefined,
           departmentId: form.departmentId || undefined,
           doctorId: form.doctorId || undefined,
@@ -634,7 +645,7 @@ const BookingModal: React.FC<{
       const res = await bookAppointment({
         patientName: form.patientName.trim(),
         phoneNumber: form.phoneNumber.trim(),
-        appointmentDate: form.appointmentDate.format('YYYY-MM-DD'),
+        appointmentDate: form.appointmentDate!.format('YYYY-MM-DD'),
         appointmentTime: form.appointmentTime ? `${form.appointmentTime}:00` : undefined,
         departmentId: form.departmentId || undefined,
         doctorId: form.doctorId || undefined,

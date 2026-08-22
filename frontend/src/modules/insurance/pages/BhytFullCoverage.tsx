@@ -69,16 +69,16 @@ const FormModal: React.FC<FormModalProps> = ({ open, initial, onClose, onSaved }
       };
       if (initial?.id) {
         await updateBhytFullCoverage(initial.id, dto);
-        message.success('Cap nhat thanh cong');
+        message.success('Cập nhật thành công');
       } else {
         await createBhytFullCoverage(dto);
-        message.success('Them moi thanh cong');
+        message.success('Thêm mới thành công');
       }
       onSaved();
       onClose();
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'errorFields' in err) return; // validation error
-      message.warning(friendlyErrorMessage(err, 'Luu that bai. Vui long thu lai.'));
+      message.warning(friendlyErrorMessage(err, 'Lưu thất bại. Vui lòng thử lại.'));
     } finally {
       setSaving(false);
     }
@@ -86,12 +86,12 @@ const FormModal: React.FC<FormModalProps> = ({ open, initial, onClose, onSaved }
 
   return (
     <Modal
-      title={initial ? 'Sua khai bao BN full-coverage' : 'Them BN BHYT 100% thuoc dac tri'}
+      title={initial ? 'Sửa khai báo BN full-coverage' : 'Thêm BN BHYT 100% thuốc đặc trị'}
       open={open}
       onCancel={onClose}
       onOk={handleSubmit}
-      okText="Luu"
-      cancelText="Huy"
+      okText="Lưu"
+      cancelText="Hủy"
       confirmLoading={saving}
       afterOpenChange={(vis) => { if (vis) handleOpen(); }}
       destroyOnHidden
@@ -99,22 +99,22 @@ const FormModal: React.FC<FormModalProps> = ({ open, initial, onClose, onSaved }
       <Form form={form} layout="vertical" style={{ marginTop: 'var(--space-8)' }}>
         <Form.Item
           name="patientId"
-          label="ID Benh nhan (GUID)"
-          rules={[{ required: true, message: 'Bat buoc nhap PatientId' }]}
+          label="ID ệnh nhân (GUID)"
+          rules={[{ required: true, message: 'Bắt buộc nhập PatientId' }]}
         >
           <Input placeholder="00000000-0000-0000-0000-000000000000" disabled={!!initial} />
         </Form.Item>
         <Form.Item
           name="effectiveFrom"
           label="Hieu luc tu ngay"
-          rules={[{ required: true, message: 'Bat buoc chon ngay' }]}
+          rules={[{ required: true, message: 'Bắt buộc chọn ngày' }]}
         >
           <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
         </Form.Item>
         <Form.Item
           name="effectiveTo"
-          label="Hieu luc den ngay"
-          rules={[{ required: true, message: 'Bat buoc chon ngay' }]}
+          label="Hiệu lực đến ngày"
+          rules={[{ required: true, message: 'Bắt buộc chọn ngày' }]}
         >
           <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
         </Form.Item>
@@ -136,22 +136,22 @@ const FormModal: React.FC<FormModalProps> = ({ open, initial, onClose, onSaved }
 // ── Main page ──
 
 const COLUMNS: ColumnDef<BhytFullCoveragePatientDto>[] = [
-  { key: 'patientCode', label: 'Ma BN', render: (r) => r.patientCode },
-  { key: 'patientName', label: 'Ho ten', render: (r) => r.patientName },
-  { key: 'insuranceNumber', label: 'So the BHYT', render: (r) => r.insuranceNumber || '—' },
+  { key: 'patientCode', label: 'Mã BN', render: (r) => r.patientCode },
+  { key: 'patientName', label: 'Họ tên', render: (r) => r.patientName },
+  { key: 'insuranceNumber', label: 'Số thẻ BHYT', render: (r) => r.insuranceNumber || '—' },
   {
     key: 'effectiveFrom',
-    label: 'Hieu luc tu',
+    label: 'Hiệu lực từ',
     render: (r) => fmtDate(r.effectiveFrom),
   },
   {
     key: 'effectiveTo',
-    label: 'Hieu luc den',
+    label: 'Hiệu lực đến',
     render: (r) => fmtDate(r.effectiveTo),
   },
   {
     key: 'isActive',
-    label: 'Trang thai',
+    label: 'Trạng thái',
     render: (r) => {
       const expired = dayjs(r.effectiveTo).isBefore(today, 'day');
       if (!r.isActive || expired) return <StatusBadge tone="crit">Khong hieu luc</StatusBadge>;
@@ -160,10 +160,10 @@ const COLUMNS: ColumnDef<BhytFullCoveragePatientDto>[] = [
   },
   {
     key: 'medicineScopeJson',
-    label: 'Pham vi thuoc',
-    render: (r) => r.medicineScopeJson ? r.medicineScopeJson : <span style={{ color: '#aaa' }}>Tat ca</span>,
+    label: 'Phạm vi thuốc',
+    render: (r) => r.medicineScopeJson ? r.medicineScopeJson : <span style={{ color: '#aaa' }}>ất cả</span>,
   },
-  { key: 'note', label: 'Ghi chu', render: (r) => r.note || '—' },
+  { key: 'note', label: 'Ghi chú', render: (r) => r.note || '—' },
 ];
 
 const BhytFullCoveragePage: React.FC = () => {
@@ -188,19 +188,19 @@ const BhytFullCoveragePage: React.FC = () => {
       dayjs(r.effectiveTo).isBefore(today.add(30, 'day'), 'day'),
     );
     return [
-      { lbl: 'Tong khai bao', val: rows.length },
-      { lbl: 'Dang hieu luc', val: active.length, tone: 'ok' as const },
-      { lbl: 'Sap het han (30 ngay)', val: expiring.length, tone: expiring.length > 0 ? 'warn' as const : undefined },
+      { lbl: 'Tổng khai báo', val: rows.length },
+      { lbl: 'Đang hiệu lực', val: active.length, tone: 'ok' as const },
+      { lbl: 'Sắp hết hạn (30 ngày)', val: expiring.length, tone: expiring.length > 0 ? 'warn' as const : undefined },
     ];
   }, []);
 
   const handleDelete = useCallback(async (row: BhytFullCoveragePatientDto) => {
     modal.confirm({
-      title: 'Xac nhan xoa?',
-      content: `Xoa khai bao full-coverage cho BN ${row.patientName}?`,
-      okText: 'Xoa',
+      title: 'Xác nhận xóa?',
+      content: `Xóa khai báo full-coverage cho BN ${row.patientName}?`,
+      okText: 'Xóa',
       okType: 'danger',
-      cancelText: 'Huy',
+      cancelText: 'Hủy',
       onOk: async () => {
         try {
           await deleteBhytFullCoverage(row.id);
@@ -242,7 +242,7 @@ const BhytFullCoveragePage: React.FC = () => {
         load={load}
         rowKey={(r) => r.id}
         columns={COLUMNS}
-        searchPlaceholder="Tim theo ten, ma BN, so the BHYT..."
+        searchPlaceholder="Tim theo tên, mã BN, số thẻ BHYT..."
         searchOf={(r) => `${r.patientCode} ${r.patientName} ${r.insuranceNumber}`}
         kpis={kpis}
         pageSize={16}
@@ -256,7 +256,7 @@ const BhytFullCoveragePage: React.FC = () => {
             + Them BN
           </button>
         )}
-        emptyMessage="Chua co khai bao nao"
+        emptyMessage="Chưa có khai báo nào"
       />
       <FormModal
         open={formOpen}

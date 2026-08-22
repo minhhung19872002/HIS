@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTabState } from '../../../hooks/useTabState';
 import {
   searchSchoolExams, getSchoolStats, getSchoolList, createSchoolExam, updateSchoolExam,
 } from '../api/schoolHealth';
@@ -9,6 +10,7 @@ import {
   type ColumnDef, type StatusTab, type CrudFieldCfg,
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '@/utils/friendlyError';
+import { RefreshButton } from '../../../components/actions';
 
 // ─────────────────────────── Maps & options (port từ v1) ───────────────────────────
 
@@ -85,7 +87,7 @@ const SchoolHealthV2: React.FC = () => {
 
   // Bộ lọc client-side
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<StatusKey | 'all'>('all');
+  const [stab, setStab] = useTabState<StatusKey | 'all'>('all');
   const [page, setPage] = useState(0);
 
   const [sel, setSel] = useState<SchoolExam | null>(null);
@@ -211,7 +213,7 @@ const SchoolHealthV2: React.FC = () => {
         <Btn variant="primary" onClick={openCreate}>
           <Ico name="plus" size={12} /> Tạo phiếu khám
         </Btn>
-        <Btn variant="ghost" onClick={load} loading={loading} icon="refresh">Làm mới</Btn>
+        <RefreshButton onRefresh={async () => { await load(); }} />
       </div>
 
       <StatusTabs<StatusKey>

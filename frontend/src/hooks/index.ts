@@ -13,3 +13,6 @@ export * from './useKeyboardShortcuts';
 export { useSessionState, clearSessionState } from './useSessionState';
 export { useScrollRestore } from './useScrollRestore';
 export { useDraft } from './useDraft';
+export { useModalForm } from './useModalForm';
+export type { FieldRule, FieldRules, ModalFormApi } from './useModalForm';
+export { useTabState } from './useTabState';
