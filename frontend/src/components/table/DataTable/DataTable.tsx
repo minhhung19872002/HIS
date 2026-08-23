@@ -11,6 +11,10 @@ export interface ColumnDef<T> {
   mono?: boolean;
   code?: boolean;
   width?: string | number;
+
+  sortable?: boolean;
+  sortDirection?: 'asc' | 'desc' | null;
+  onSort?: () => void;
 }
 
 export function DataTable<T>({
@@ -44,12 +48,42 @@ export function DataTable<T>({
           <tr>
             {selected && (
               <th className="ck">
-                <input type="checkbox" checked={allChecked} onChange={onToggleAll} />
+                <input
+                  type="checkbox"
+                  checked={allChecked}
+                  onChange={onToggleAll}
+                />
               </th>
             )}
+
             {columns.map((c) => (
-              <th key={c.key} style={c.width !== undefined ? { width: c.width } : undefined}>{c.label}</th>
+              <th
+                key={c.key}
+                style={c.width !== undefined ? { width: c.width } : undefined}
+                className={c.sortable ? 'sortable' : undefined}
+                onClick={c.sortable ? c.onSort : undefined}
+              >
+                {c.sortable ? (
+                  <span className="ab-th-sort">
+                    <span>{c.label} </span>
+
+                    <span
+                      className={`ab-sort-icon ${c.sortDirection || ''}`}
+                      aria-hidden="true"
+                    >
+                      {c.sortDirection === 'asc'
+                        ? '↑'
+                        : c.sortDirection === 'desc'
+                          ? '↓'
+                          : '↕'}
+                    </span>
+                  </span>
+                ) : (
+                  c.label
+                )}
+              </th>
             ))}
+
             {actions && <th className="act">Hành động</th>}
           </tr>
         </thead>

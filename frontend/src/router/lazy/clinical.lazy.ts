@@ -18,6 +18,7 @@ export const EmrDataTagsV2 = lazy(() => import('../../modules/emr/pages/EmrDataT
 export const TelemedicineV2 = lazy(() => import('../../modules/telemedicine/pages/Telemedicine'));
 export const FollowUpV2 = lazy(() => import('../../modules/opd/pages/FollowUp'));
 export const BookingManagementV2 = lazy(() => import('../../modules/reception/pages/BookingManagement'));
+export const AppointmentBookingV2 = lazy(() => import('../../modules/reception/pages/AppointmentBookingPublic'));
 export const TreatmentProtocolV2 = lazy(() => import('../../modules/patient/pages/TreatmentProtocol'));
 export const ChronicDiseaseV2 = lazy(() => import('../../modules/public-health/pages/ChronicDisease'));
 export const TbHivManagementV2 = lazy(() => import('../../modules/public-health/pages/TbHivManagement'));

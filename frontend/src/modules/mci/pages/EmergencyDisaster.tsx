@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { App as AntdApp, Drawer, Modal, Select, Input, Tag, Progress, Timeline } from 'antd';
+import { App as AntdApp, Drawer, Modal, Select, Input, Tag, Progress, Timeline, Tooltip } from 'antd';
 import { AlertOutlined, EyeOutlined, HomeOutlined, LogoutOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import TermIcon from '../../../components/layout/terminal/Icon';
@@ -174,8 +174,8 @@ function triageFromCategory(cat?: string, color?: string): TriageLevel {
   const c = (cat || '').toLowerCase();
   const col = (color || '').toLowerCase();
   if (c === 'immediate' || col === 'red') return 1;
-  if (c === 'delayed'   || col === 'yellow') return 3;
-  if (c === 'minor'     || col === 'green') return 4;
+  if (c === 'delayed' || col === 'yellow') return 3;
+  if (c === 'minor' || col === 'green') return 4;
   if (c === 'expectant' || c === 'deceased' || col === 'black') return 2;
   return 3;
 }
@@ -183,11 +183,11 @@ function triageFromCategory(cat?: string, color?: string): TriageLevel {
 function statusFromTreatment(s?: string, dispo?: string): EmergencyStatus {
   const t = (s || '').toLowerCase();
   const d = (dispo || '').toLowerCase();
-  if (d === 'admitted')   return 'admitted';
+  if (d === 'admitted') return 'admitted';
   if (d === 'discharged') return 'discharged';
   if (d === 'transferred' || d === 'or' || d === 'icu') return 'referred';
   if (t.includes('treatment')) return 'treating';
-  if (t.includes('observ'))    return 'observing';
+  if (t.includes('observ')) return 'observing';
   return 'triage';
 }
 
@@ -606,57 +606,67 @@ const EmergencyDisasterV2: React.FC = () => {
               Code Blue
             </button>
             {activeEvent && (
-              <button
-                className="er-v2-btn"
-                type="button"
-                onClick={async () => {
-                  try {
-                    const vRes = await getVictims(activeEvent.id, 'all', 0);
-                    const list = Array.isArray(vRes?.data) ? vRes.data : [];
-                    openPrintWindow(buildMciReportHtml(activeEvent, list), { focus: true, print: { delayMs: 500 } });
-                  } catch {
-                    message.error('Không tải được danh sách nạn nhân để in báo cáo');
-                  }
-                }}
-              >
-                <TermIcon name="printer" size={14} />
-                In báo cáo MCI
-              </button>
+              <Tooltip title="In báo cáo MCI">
+                <button
+                  className="er-v2-btn"
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const vRes = await getVictims(activeEvent.id, 'all', 0);
+                      const list = Array.isArray(vRes?.data) ? vRes.data : [];
+                      openPrintWindow(buildMciReportHtml(activeEvent, list), { focus: true, print: { delayMs: 500 } });
+                    } catch {
+                      message.error('Không tải được danh sách nạn nhân để in báo cáo');
+                    }
+                  }}
+                >
+                  <TermIcon name="printer" size={14} />
+                  {/* In báo cáo MCI */}
+                </button>
+              </Tooltip>
+
             )}
             {/* #352: kết thúc sự kiện MCI — v2 kích hoạt được Code Blue nhưng KHÔNG có đường tắt
                 sự kiện, nên bệnh viện kẹt ở trạng thái thảm hoạ vô thời hạn (v1 có handleEndMCI). */}
             {activeEvent && (
-              <button
-                className="er-v2-btn"
-                type="button"
-                onClick={() => setEndMciOpen(true)}
-              >
-                <TermIcon name="check" size={14} />
-                Kết thúc sự kiện
-              </button>
+              <Tooltip title="Kết thúc sự kiện">
+                <button
+                  className="er-v2-btn"
+                  type="button"
+                  onClick={() => setEndMciOpen(true)}
+                >
+                  <TermIcon name="check" size={14} />
+                  {/* Kết thúc sự kiện */}
+                </button>
+              </Tooltip>
             )}
             {/* #352: panel phụ khi có sự kiện MCI — tài nguyên / nhân sự / diễn biến */}
             {activeEvent && (
               <>
-                <button className="er-v2-btn" type="button" onClick={() => void openPanel('resources')}>
-                  <TermIcon name="layers" size={14} />
-                  Tài nguyên
-                </button>
-                <button className="er-v2-btn" type="button" onClick={() => void openPanel('staff')}>
-                  <TermIcon name="users" size={14} />
-                  Nhân sự
-                </button>
-                <button className="er-v2-btn" type="button" onClick={() => void openPanel('log')}>
-                  <TermIcon name="activity" size={14} />
-                  Diễn biến
-                </button>
+                <Tooltip title="Tài nguyên">
+                  <button className="er-v2-btn" type="button" onClick={() => void openPanel('resources')}>
+                    <TermIcon name="layers" size={14} />
+                  </button>
+                </Tooltip>
+                <Tooltip title=" Nhân sự">
+                  <button className="er-v2-btn" type="button" onClick={() => void openPanel('staff')}>
+                    <TermIcon name="users" size={14} />
+                  </button>
+                </Tooltip>
+                <Tooltip title=" Diễn biến">
+                  <button className="er-v2-btn" type="button" onClick={() => void openPanel('log')}>
+                    <TermIcon name="activity" size={14} />
+                  </button>
+                </Tooltip>
               </>
             )}
             {/* #352: hướng dẫn START luôn mở được (kiến thức tham khảo, kể cả không MCI) */}
-            <button className="er-v2-btn" type="button" onClick={() => void openPanel('start')}>
-              <TermIcon name="info" size={14} />
-              Hướng dẫn START
-            </button>
+            <Tooltip title=" Hướng dẫn START">
+              <button className="er-v2-btn" type="button" onClick={() => void openPanel('start')}>
+                <TermIcon name="info" size={14} />
+              </button>
+            </Tooltip>
+
             {/* #352: lịch sử MCI + mức sẵn sàng — chỉ khi không có sự kiện active */}
             {!activeEvent && (
               <button className="er-v2-btn" type="button" onClick={() => void openPanel('history')}>
@@ -1075,8 +1085,8 @@ ${row('GCS', `${c.gcs}/15`)}</table></div>
 <div class="section"><h5>IV. XỬ TRÍ BAN ĐẦU</h5>
 <div style="border:1px solid #ccc;padding:6px 8px;min-height:50px">
 ${c.triage <= 2
-  ? 'Thiết lập đường truyền tĩnh mạch · Oxy mask 6L/phút · Theo dõi monitor liên tục · Hội chẩn chuyên khoa ngay.'
-  : 'Khám lâm sàng · Chỉ định cận lâm sàng cấp · Theo dõi sinh hiệu mỗi 15 phút · Chuẩn bị giường theo dõi.'}
+      ? 'Thiết lập đường truyền tĩnh mạch · Oxy mask 6L/phút · Theo dõi monitor liên tục · Hội chẩn chuyên khoa ngay.'
+      : 'Khám lâm sàng · Chỉ định cận lâm sàng cấp · Theo dõi sinh hiệu mỗi 15 phút · Chuẩn bị giường theo dõi.'}
 </div></div>
 <div style="margin-top:32px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;text-align:center;font-size:12pt">
 <div><b>Bác sĩ tiếp nhận</b><div style="height:55px"></div><b>${esc(c.doctor)}</b></div>
@@ -1467,47 +1477,47 @@ const ActivityLogPanel: React.FC<{
 }> = ({ logs, event, cases }) => {
   const items: { key: string; color: string; content: React.ReactNode }[] = logs.length > 0
     ? logs.slice(0, 20).map((log, idx) => ({
-        key: log.id || `log-${idx}`,
-        color: log.activityType === 'Alert' ? 'red' : log.activityType === 'Resource' ? 'blue' : 'green',
+      key: log.id || `log-${idx}`,
+      color: log.activityType === 'Alert' ? 'red' : log.activityType === 'Resource' ? 'blue' : 'green',
+      content: (
+        <>
+          <div style={{ fontWeight: 600 }}>{dayjs(log.timestamp).format('HH:mm')} · {log.description}</div>
+          <div style={{ color: '#6b7280', fontSize: 12 }}>{log.performedBy}{log.details ? ` — ${log.details}` : ''}</div>
+        </>
+      ),
+    }))
+    : event ? [
+      {
+        key: 'activated',
+        color: 'red',
         content: (
           <>
-            <div style={{ fontWeight: 600 }}>{dayjs(log.timestamp).format('HH:mm')} · {log.description}</div>
-            <div style={{ color: '#6b7280', fontSize: 12 }}>{log.performedBy}{log.details ? ` — ${log.details}` : ''}</div>
+            <div style={{ fontWeight: 600 }}>{dayjs(event.activatedAt).format('HH:mm')} · Kích hoạt {event.alertLevelName || `Cấp ${event.alertLevel}`}</div>
+            <div style={{ color: '#6b7280', fontSize: 12 }}>{event.eventName}</div>
           </>
         ),
-      }))
-    : event ? [
-        {
-          key: 'activated',
-          color: 'red',
-          content: (
-            <>
-              <div style={{ fontWeight: 600 }}>{dayjs(event.activatedAt).format('HH:mm')} · Kích hoạt {event.alertLevelName || `Cấp ${event.alertLevel}`}</div>
-              <div style={{ color: '#6b7280', fontSize: 12 }}>{event.eventName}</div>
-            </>
-          ),
-        },
-        {
-          key: 'staff',
-          color: 'blue',
-          content: (
-            <>
-              <div style={{ fontWeight: 600 }}>{dayjs(event.activatedAt).add(2, 'minute').format('HH:mm')} · Huy động nhân lực</div>
-              <div style={{ color: '#6b7280', fontSize: 12 }}>{event.staffActivated} nhân viên được thông báo</div>
-            </>
-          ),
-        },
-        ...(cases.length > 0 ? [{
-          key: 'first-victim',
-          color: 'green',
-          content: (
-            <>
-              <div style={{ fontWeight: 600 }}>{dayjs(cases[cases.length - 1]?.arrivalTime || event.activatedAt).format('HH:mm')} · Nạn nhân đầu tiên đến</div>
-              <div style={{ color: '#6b7280', fontSize: 12 }}>Đã tiếp nhận {cases.length} nạn nhân</div>
-            </>
-          ),
-        }] : []),
-      ] : [];
+      },
+      {
+        key: 'staff',
+        color: 'blue',
+        content: (
+          <>
+            <div style={{ fontWeight: 600 }}>{dayjs(event.activatedAt).add(2, 'minute').format('HH:mm')} · Huy động nhân lực</div>
+            <div style={{ color: '#6b7280', fontSize: 12 }}>{event.staffActivated} nhân viên được thông báo</div>
+          </>
+        ),
+      },
+      ...(cases.length > 0 ? [{
+        key: 'first-victim',
+        color: 'green',
+        content: (
+          <>
+            <div style={{ fontWeight: 600 }}>{dayjs(cases[cases.length - 1]?.arrivalTime || event.activatedAt).format('HH:mm')} · Nạn nhân đầu tiên đến</div>
+            <div style={{ color: '#6b7280', fontSize: 12 }}>Đã tiếp nhận {cases.length} nạn nhân</div>
+          </>
+        ),
+      }] : []),
+    ] : [];
   if (items.length === 0) {
     return <div style={{ color: '#6b7280' }}>Chưa có diễn biến nào</div>;
   }

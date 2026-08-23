@@ -253,17 +253,19 @@ const BookingManagementV2: React.FC = () => {
   ];
 
   const actions = (r: Booking) => (
-    <RowActions actions={[
-      { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setSel(r) },
-      { key: 'edit', icon: 'edit', label: 'Sửa lịch', primary: true, hidden: !canEdit(r), onClick: () => onEdit(r) },
-      { key: 'confirm', icon: 'check', label: 'Xác nhận', hidden: r.status !== 0, disabled: acting, onClick: () => onConfirm(r) },
-      { key: 'checkin', icon: 'arrow-right', label: 'BN đã đến', hidden: !(r.status === 0 || r.status === 1), disabled: acting, onClick: () => onCheckIn(r) },
-      // onNoShow/onCancel tự mở confirm/modal riêng — confirm:false để tránh RowActions hỏi lại lần 2.
-      { key: 'noshow', icon: 'alert', label: 'Vắng mặt', tone: 'danger', confirm: false,
-        hidden: !(r.status === 0 || r.status === 1), disabled: acting, onClick: () => onNoShow(r) },
-      { key: 'cancel', icon: 'x', label: 'Hủy lịch', tone: 'danger', confirm: false,
-        hidden: !canCancel(r), onClick: () => onCancel(r) },
-    ]} />
+    <div className="ab-actions">
+      <RowActions actions={[
+        { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setSel(r) },
+        { key: 'edit', icon: 'edit', label: 'Sửa lịch', primary: true, hidden: !canEdit(r), onClick: () => onEdit(r) },
+        { key: 'confirm', icon: 'check', label: 'Xác nhận', hidden: r.status !== 0, disabled: acting, onClick: () => onConfirm(r) },
+        { key: 'checkin', icon: 'arrow-right', label: 'BN đã đến', hidden: !(r.status === 0 || r.status === 1), disabled: acting, onClick: () => onCheckIn(r) },
+        // onNoShow/onCancel tự mở confirm/modal riêng — confirm:false để tránh RowActions hỏi lại lần 2.
+        { key: 'noshow', icon: 'alert', label: 'Vắng mặt', tone: 'danger', confirm: false,
+          hidden: !(r.status === 0 || r.status === 1), disabled: acting, onClick: () => onNoShow(r) },
+        { key: 'cancel', icon: 'x', label: 'Hủy lịch', tone: 'danger', confirm: false,
+          hidden: !canCancel(r), onClick: () => onCancel(r) },
+      ]} />
+    </div>
   );
 
   return (
@@ -280,11 +282,20 @@ const BookingManagementV2: React.FC = () => {
           placeholder="Tìm BN / mã hẹn / SĐT…" />
         <Filter value={fDept} onChange={setFDept} options={depts} placeholder="▾ Khoa" />
         {/* #352: lọc theo khoảng ngày hẹn */}
-        <Input type="date" value={dFrom} onChange={(e) => { setDFrom(e.target.value); setPage(0); }}
-          style={{ width: 150 }} title="Từ ngày hẹn" />
-        <span style={{ fontSize: 12.5, color: 'var(--t-2)' }}>→</span>
-        <Input type="date" value={dTo} onChange={(e) => { setDTo(e.target.value); setPage(0); }}
-          style={{ width: 150 }} title="Đến ngày hẹn" />
+        <DatePicker.RangePicker
+          value={[
+            dFrom ? dayjs(dFrom) : null,
+            dTo ? dayjs(dTo) : null,
+          ]}
+          format="DD/MM/YYYY"
+          placeholder={['Từ ngày hẹn', 'Đến ngày hẹn']}
+          onChange={(dates) => {
+            setDFrom(dates?.[0]?.format('YYYY-MM-DD') ?? '');
+            setDTo(dates?.[1]?.format('YYYY-MM-DD') ?? '');
+            setPage(0);
+          }}
+          style={{ width: 300 }}
+        />
         <Btn variant="ghost" onClick={() => {
           setSearch(''); setFDept(''); setStab('all');
           setDFrom(dayjs().format('YYYY-MM-DD'));

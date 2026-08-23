@@ -64,7 +64,20 @@ const Topbar: React.FC<{
   onSwitchLayout,
   onLogout,
 }) => {
+    const getShift = (hour: number) => {
+  return hour >= 6 && hour < 18
+    ? {
+        name: 'CA SÁNG',
+        className: 'shift-day',
+      }
+    : {
+        name: 'CA TỐI',
+        className: 'shift-night',
+      };
+};
+
     const now = useClock();
+    const shift = getShift(now.getHours());
     const navigate = useNavigate();
     const { user } = useAuth();
     const { isDark, toggleTheme, isCompact, toggleCompact } = useTheme();
@@ -187,7 +200,7 @@ const Topbar: React.FC<{
         <kbd>⌘</kbd><kbd>K</kbd>
       </button> */}
         <div className="his-tb-right">
-          <div className="his-chip-shift"><span className="dot" />CA SÁNG · {hh}:{mm}</div>
+          <div className={`his-chip-shift ${shift.className}`}><span className="dot" />{shift.name}  · {hh}:{mm}</div>
           {/* NangCap26 I.4 — chọn khoa/phòng đang trực (mặc định cho các màn nghiệp vụ) */}
           <WorkingPlacePicker />
           <button type="button" className="his-tb-btn" title={isDark ? 'Chế độ Sáng' : 'Chế độ Tối'} aria-label="Đổi giao diện Sáng/Tối" onClick={toggleTheme}>

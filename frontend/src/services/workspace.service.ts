@@ -18,10 +18,10 @@ export interface WorkspaceDef {
 }
 
 export const WORKSPACES: WorkspaceDef[] = [
-  { id: 'frontoffice', label: 'Tiếp đón & Thu phí',  short: 'TIẾP ĐÓN',  icon: 'user-plus',   order: 1 },
+  { id: 'frontoffice', label: 'Tiếp đón & Thu phí',  short: 'TIẾP ĐÓN',   icon: 'user-plus',   order: 1 },
   { id: 'clinical',    label: 'Chuyên môn',          short: 'CHUYÊN MÔN', icon: 'stethoscope', order: 2 },
-  { id: 'pharmacy',    label: 'Dược & Kho',          short: 'DƯỢC',      icon: 'pill',        order: 3 },
-  { id: 'backoffice',  label: 'Quản trị & Báo cáo',  short: 'QUẢN TRỊ',  icon: 'chart',       order: 4 },
+  { id: 'pharmacy',    label: 'Dược & Kho',          short: 'DƯỢC',       icon: 'pill',        order: 3 },
+  { id: 'backoffice',  label: 'Quản trị & Báo cáo',  short: 'QUẢN TRỊ',   icon: 'chart',       order: 4 },
 ];
 
 export const workspaceDef = (id: WorkspaceId): WorkspaceDef =>

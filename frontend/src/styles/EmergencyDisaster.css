@@ -137,7 +137,7 @@
 
 .er-v2-search {
   height: 34px;
-  min-width: 320px;
+  min-width: 260px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -158,7 +158,7 @@
 }
 
 .er-v2-select {
-  min-width: 190px;
+  min-width: 150px;
 }
 
 .er-v2-timestamp {

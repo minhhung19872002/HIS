@@ -66,39 +66,39 @@ import { RefreshButton } from '../../../components/actions';
 const PAGE_SIZE = 20;
 
 /** Issue type numeric values */
-const ISSUE_TYPE_DEPARTMENT  = 3;  // Xuất khoa/phòng
-const ISSUE_TYPE_TRANSFER    = 4;  // Xuất chuyển kho
+const ISSUE_TYPE_DEPARTMENT = 3;  // Xuất khoa/phòng
+const ISSUE_TYPE_TRANSFER = 4;  // Xuất chuyển kho
 const ISSUE_TYPE_SUPPLIER_RETURN = 5; // Xuất trả NCC
 const ISSUE_TYPE_DESTRUCTION = 7;  // Xuất hủy
 
 type IssueTypeKey = 'dept' | 'transfer' | 'supplier' | 'destruction';
 
 const ISSUE_TYPE_TABS: StatusTab<IssueTypeKey>[] = [
-  { v: 'dept',        l: 'Xuất khoa/phòng', tone: 'info' },
-  { v: 'transfer',    l: 'Chuyển kho',       tone: 'warn' },
-  { v: 'supplier',    l: 'Trả NCC',          tone: 'ok' },
-  { v: 'destruction', l: 'Xuất hủy',         tone: 'crit' },
+  { v: 'dept', l: 'Xuất khoa/phòng', tone: 'info' },
+  { v: 'transfer', l: 'Chuyển kho', tone: 'warn' },
+  { v: 'supplier', l: 'Trả NCC', tone: 'ok' },
+  { v: 'destruction', l: 'Xuất hủy', tone: 'crit' },
 ];
 
 const ISSUE_TYPE_SELECT_OPTIONS = [
-  { value: ISSUE_TYPE_DEPARTMENT,      label: 'Xuất khoa/phòng (loại 3)' },
-  { value: ISSUE_TYPE_TRANSFER,        label: 'Xuất chuyển kho (loại 4)' },
+  { value: ISSUE_TYPE_DEPARTMENT, label: 'Xuất khoa/phòng (loại 3)' },
+  { value: ISSUE_TYPE_TRANSFER, label: 'Xuất chuyển kho (loại 4)' },
   { value: ISSUE_TYPE_SUPPLIER_RETURN, label: 'Xuất trả NCC (loại 5)' },
-  { value: ISSUE_TYPE_DESTRUCTION,     label: 'Xuất hủy (loại 7)' },
+  { value: ISSUE_TYPE_DESTRUCTION, label: 'Xuất hủy (loại 7)' },
 ];
 
 function issueTypeKey(issueType: number): IssueTypeKey | null {
-  if (issueType === ISSUE_TYPE_DEPARTMENT)      return 'dept';
-  if (issueType === ISSUE_TYPE_TRANSFER)        return 'transfer';
+  if (issueType === ISSUE_TYPE_DEPARTMENT) return 'dept';
+  if (issueType === ISSUE_TYPE_TRANSFER) return 'transfer';
   if (issueType === ISSUE_TYPE_SUPPLIER_RETURN) return 'supplier';
-  if (issueType === ISSUE_TYPE_DESTRUCTION)     return 'destruction';
+  if (issueType === ISSUE_TYPE_DESTRUCTION) return 'destruction';
   return null;
 }
 
 function issueTypeNumeric(key: IssueTypeKey): number {
-  if (key === 'dept')        return ISSUE_TYPE_DEPARTMENT;
-  if (key === 'transfer')    return ISSUE_TYPE_TRANSFER;
-  if (key === 'supplier')    return ISSUE_TYPE_SUPPLIER_RETURN;
+  if (key === 'dept') return ISSUE_TYPE_DEPARTMENT;
+  if (key === 'transfer') return ISSUE_TYPE_TRANSFER;
+  if (key === 'supplier') return ISSUE_TYPE_SUPPLIER_RETURN;
   if (key === 'destruction') return ISSUE_TYPE_DESTRUCTION;
   return ISSUE_TYPE_DEPARTMENT;
 }
@@ -373,11 +373,11 @@ const PharmacyStockIssue: React.FC = () => {
   useEffect(() => { void load(); }, [load]);
 
   // ── KPI counts ───────────────────────────────────────────────────────────
-  const deptCount        = rows.filter((r) => r.issueType === ISSUE_TYPE_DEPARTMENT).length;
-  const transferCount    = rows.filter((r) => r.issueType === ISSUE_TYPE_TRANSFER).length;
-  const supplierCount    = rows.filter((r) => r.issueType === ISSUE_TYPE_SUPPLIER_RETURN).length;
+  const deptCount = rows.filter((r) => r.issueType === ISSUE_TYPE_DEPARTMENT).length;
+  const transferCount = rows.filter((r) => r.issueType === ISSUE_TYPE_TRANSFER).length;
+  const supplierCount = rows.filter((r) => r.issueType === ISSUE_TYPE_SUPPLIER_RETURN).length;
   const destructionCount = rows.filter((r) => r.issueType === ISSUE_TYPE_DESTRUCTION).length;
-  const totalValue       = rows.reduce((s, r) => s + (r.totalAmount || 0), 0);
+  const totalValue = rows.reduce((s, r) => s + (r.totalAmount || 0), 0);
 
   // ── Open detail drawer ───────────────────────────────────────────────────
   const openDetail = async (r: StockIssueDto) => {
@@ -472,9 +472,9 @@ const PharmacyStockIssue: React.FC = () => {
         : dayjs().format('YYYY-MM-DD'),
       warehouseId: values.warehouseId as string,
       issueType,
-      departmentId:      issueType === ISSUE_TYPE_DEPARTMENT      ? (values.departmentId as string)     : undefined,
-      targetWarehouseId: issueType === ISSUE_TYPE_TRANSFER        ? (values.targetWarehouseId as string) : undefined,
-      supplierId:        issueType === ISSUE_TYPE_SUPPLIER_RETURN  ? (values.supplierId as string)        : undefined,
+      departmentId: issueType === ISSUE_TYPE_DEPARTMENT ? (values.departmentId as string) : undefined,
+      targetWarehouseId: issueType === ISSUE_TYPE_TRANSFER ? (values.targetWarehouseId as string) : undefined,
+      supplierId: issueType === ISSUE_TYPE_SUPPLIER_RETURN ? (values.supplierId as string) : undefined,
       notes: (values.notes as string) || undefined,
       items: mappedItems,
     };
@@ -534,8 +534,8 @@ const PharmacyStockIssue: React.FC = () => {
         const typeKey = issueTypeKey(r.issueType);
         const tone = typeKey === 'dept' ? 'info'
           : typeKey === 'transfer' ? 'warn'
-          : typeKey === 'supplier' ? 'ok'
-          : 'crit';
+            : typeKey === 'supplier' ? 'ok'
+              : 'crit';
         return <StatusBadge tone={tone} dot>{r.statusName}</StatusBadge>;
       },
     },
@@ -555,9 +555,9 @@ const PharmacyStockIssue: React.FC = () => {
   };
 
   // ── Conditional create-form field rules ───────────────────────────────────
-  const isDept        = selectedIssueType === ISSUE_TYPE_DEPARTMENT;
-  const isTransfer    = selectedIssueType === ISSUE_TYPE_TRANSFER;
-  const isSupplier    = selectedIssueType === ISSUE_TYPE_SUPPLIER_RETURN;
+  const isDept = selectedIssueType === ISSUE_TYPE_DEPARTMENT;
+  const isTransfer = selectedIssueType === ISSUE_TYPE_TRANSFER;
+  const isSupplier = selectedIssueType === ISSUE_TYPE_SUPPLIER_RETURN;
   const isDestruction = selectedIssueType === ISSUE_TYPE_DESTRUCTION;
 
   return (
@@ -566,8 +566,9 @@ const PharmacyStockIssue: React.FC = () => {
       <KpiStrip items={[
         { lbl: 'Tổng phiếu (trang)', val: rows.length },
         { lbl: 'Xuất khoa/phòng', val: deptCount, tone: 'info' },
-        { lbl: 'Chuyển kho',      val: transferCount, tone: 'warn' },
-        { lbl: 'Tổng giá trị',
+        { lbl: 'Chuyển kho', val: transferCount, tone: 'warn' },
+        {
+          lbl: 'Tổng giá trị',
           val: Math.round(totalValue / 1_000_000),
           unit: 'tr₫',
           tone: 'ok',
@@ -586,19 +587,18 @@ const PharmacyStockIssue: React.FC = () => {
       <div className="ab-toolbar">
         <SearchBox value={keyword} onChange={setKeyword} placeholder="Mã phiếu / ghi chú…" />
         <Filter value={filterWarehouseId} onChange={setFilterWarehouseId} options={warehouseOpts} placeholder="▾ Tất cả kho" />
-        <DatePicker
+        <DatePicker.RangePicker
           size="small"
           format="DD/MM/YYYY"
-          placeholder="Từ ngày"
-          value={fromDate ? dayjs(fromDate) : null}
-          onChange={(d) => setFromDate(d ? d.format('YYYY-MM-DD') : '')}
-        />
-        <DatePicker
-          size="small"
-          format="DD/MM/YYYY"
-          placeholder="Đến ngày"
-          value={toDate ? dayjs(toDate) : null}
-          onChange={(d) => setToDate(d ? d.format('YYYY-MM-DD') : '')}
+          placeholder={['Từ ngày', 'Đến ngày']}
+          value={[
+            fromDate ? dayjs(fromDate) : null,
+            toDate ? dayjs(toDate) : null,
+          ]}
+          onChange={(dates) => {
+            setFromDate(dates?.[0]?.format('YYYY-MM-DD') ?? '');
+            setToDate(dates?.[1]?.format('YYYY-MM-DD') ?? '');
+          }}
         />
         <Btn variant="ghost" icon="x" onClick={() => { setKeyword(''); setFilterWarehouseId(''); setFromDate(''); setToDate(''); setActiveTab('all'); setPage(0); }}>
           Bỏ lọc
@@ -657,8 +657,8 @@ const PharmacyStockIssue: React.FC = () => {
                     <StatusBadge
                       tone={issueTypeKey(detail.issueType) === 'dept' ? 'info'
                         : issueTypeKey(detail.issueType) === 'transfer' ? 'warn'
-                        : issueTypeKey(detail.issueType) === 'supplier' ? 'ok'
-                        : 'crit'}
+                          : issueTypeKey(detail.issueType) === 'supplier' ? 'ok'
+                            : 'crit'}
                       dot
                     >
                       {detail.statusName}

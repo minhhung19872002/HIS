@@ -287,7 +287,9 @@ body[data-theme="dark"] {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  overflow: hidden;
+  overflow: auto;
+  overflow-y: auto;
+  width: 100%;
 }
 
 /* .his-status is now a flex child of .his-terminal (outside the grid) — no grid placement needed */
@@ -681,11 +683,22 @@ body[data-theme="dark"] {
   gap: 6px;
   font-family: var(--font-mono);
   font-size: 10px;
-  background: var(--s-ok-bg);
-  border: 1px solid #bbf7d0;
   border-radius: 3px;
-  color: #15803d;
   font-weight: 600;
+}
+
+/* Ca sáng */
+.his-chip-shift.shift-day {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+}
+
+/* Ca tối */
+.his-chip-shift.shift-night {
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  color: #4338ca;
 }
 
 .his-chip-shift .dot {
@@ -2056,7 +2069,7 @@ kbd {
 
 .staff-row {
   display: grid;
-  grid-template-columns: 28px 1fr auto;
+  grid-template-columns: 180px 1fr auto;
   gap: 10px;
   align-items: center;
   padding: 6px 14px;

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import * as file from '../../../services/file.service';
 import dayjs from 'dayjs';
-import { App as AntdApp, Input, InputNumber, Select } from 'antd';
+import { App as AntdApp, DatePicker, Input, InputNumber, Select } from 'antd';
 import {
   getAppointments, confirmAppointment, cancelAppointment,
   createEPrescription, signEPrescription, sendToPharmacy,
@@ -29,12 +29,12 @@ import { Field } from '../../../components/form/Field';
 type StatusKey = 'scheduled' | 'waiting' | 'ongoing' | 'completed' | 'noshow' | 'cancelled';
 
 const STATUS_TABS: StatusTab<StatusKey>[] = [
-  { v: 'scheduled', l: 'Đã đặt',         tone: 'info' },
-  { v: 'waiting',   l: 'Chờ vào phòng',  tone: 'warn' },
-  { v: 'ongoing',   l: 'Đang khám',      tone: 'warn' },
-  { v: 'completed', l: 'Hoàn tất',       tone: 'ok' },
-  { v: 'noshow',    l: 'Không tham gia', tone: 'crit' },
-  { v: 'cancelled', l: 'Đã huỷ',         tone: 'crit' },
+  { v: 'scheduled', l: 'Đã đặt', tone: 'info' },
+  { v: 'waiting', l: 'Chờ vào phòng', tone: 'warn' },
+  { v: 'ongoing', l: 'Đang khám', tone: 'warn' },
+  { v: 'completed', l: 'Hoàn tất', tone: 'ok' },
+  { v: 'noshow', l: 'Không tham gia', tone: 'crit' },
+  { v: 'cancelled', l: 'Đã huỷ', tone: 'crit' },
 ];
 
 const statusKey = (s: number): StatusKey => {
@@ -88,7 +88,7 @@ const TelemedicineV2: React.FC = () => {
     Promise.allSettled([
       getAppointments({
         fromDate: dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
-        toDate:   dayjs().add(60, 'day').format('YYYY-MM-DD'),
+        toDate: dayjs().add(60, 'day').format('YYYY-MM-DD'),
       }),
       getDashboard(dayjs().format('YYYY-MM-DD')),
     ]).then(([apptRes, dashRes]) => {
@@ -344,10 +344,14 @@ const TelemedicineV2: React.FC = () => {
             onRowClick={(r) => setDetail(r)}
             actions={(r) => (
               <RowActions actions={[
-                { key: 'join', icon: 'play', label: 'Vào phòng', primary: true,
-                  hidden: !([0, 1].includes(r.status) && !!r.videoRoomUrl), onClick: () => onJoin(r) },
-                { key: 'confirm', icon: 'check', label: 'Xác nhận', primary: true,
-                  hidden: r.status !== 0, disabled: confirmBusy === r.id, onClick: () => onConfirm(r) },
+                {
+                  key: 'join', icon: 'play', label: 'Vào phòng', primary: true,
+                  hidden: !([0, 1].includes(r.status) && !!r.videoRoomUrl), onClick: () => onJoin(r)
+                },
+                {
+                  key: 'confirm', icon: 'check', label: 'Xác nhận', primary: true,
+                  hidden: r.status !== 0, disabled: confirmBusy === r.id, onClick: () => onConfirm(r)
+                },
                 { key: 'detail', icon: 'eye', label: 'Chi tiết', onClick: () => setDetail(r) },
               ]} />
             )}
@@ -368,9 +372,9 @@ const TelemedicineV2: React.FC = () => {
         onClose={() => setDetail(null)}
         title={detail
           ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
-              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{detail.appointmentCode}</span>
-              <span style={{ fontSize: 14 }}>{detail.patientName}</span>
-            </span>
+            <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{detail.appointmentCode}</span>
+            <span style={{ fontSize: 14 }}>{detail.patientName}</span>
+          </span>
           : ''}
         sub={detail ? `${detail.doctorName} · ${fmtDT(detail.scheduledDate)}` : ''}
         size="lg"
@@ -787,24 +791,37 @@ const TeleBookingModal: React.FC<{
             ]}
           />
         </div>
-        <div style={{ flex: '1 1 180px' }}>
-          <Field label="Ngày khám" required error={bkErrors.scheduledDate}>
-            <input
-              type="date"
-              style={inputStyle}
-              value={draft.scheduledDate}
-              onChange={(e) => { set({ scheduledDate: e.target.value }); bkClear('scheduledDate'); }}
+        <div style={{ flex: '1 1 320px' }}>
+          <Field label="Ngày giờ khám" required error={bkErrors.scheduledDate}>
+            <DatePicker
+              style={{ width: '100%' }}
+              showTime={{
+                format: 'HH:mm',
+              }}
+              format="DD/MM/YYYY HH:mm"
+              value={
+                draft.scheduledDate && draft.scheduledTime
+                  ? dayjs(`${draft.scheduledDate} ${draft.scheduledTime}`)
+                  : null
+              }
+              onChange={(value) => {
+                if (!value) {
+                  set({
+                    scheduledDate: '',
+                    scheduledTime: '',
+                  });
+                  return;
+                }
+
+                set({
+                  scheduledDate: value.format('YYYY-MM-DD'),
+                  scheduledTime: value.format('HH:mm'),
+                });
+
+                bkClear('scheduledDate');
+              }}
             />
           </Field>
-        </div>
-        <div style={{ flex: '1 1 140px' }}>
-          {fl('Giờ khám')}
-          <input
-            type="time"
-            style={inputStyle}
-            value={draft.scheduledTime}
-            onChange={(e) => set({ scheduledTime: e.target.value })}
-          />
         </div>
         <div style={{ flex: '2 1 100%' }}>
           {fl('Lý do khám')}

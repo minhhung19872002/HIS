@@ -360,7 +360,7 @@ const MasterDataV2: React.FC = () => {
           <DataTable<CatalogRow>
             columns={columns} data={filtered} rowKey={(r) => r.id || r.code} loading={loading}
             onRowClick={writable ? openEdit : undefined}
-            actions={writable ? (r) => (<><ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} /><ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => del(r)} /></>) : undefined}
+            actions={writable ? (r) => (<div className="ab-actions"><ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} /><ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => del(r)} /></div>) : undefined}
             empty={loading ? 'Đang tải…' : (<div className="ab-empty"><TermIcon name="search" size={20} /><div>Không có mục nào</div></div>)}
           />
         </div>

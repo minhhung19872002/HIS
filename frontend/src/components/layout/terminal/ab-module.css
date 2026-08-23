@@ -438,6 +438,30 @@
   font-family: var(--font-mono);
   white-space: nowrap;
 }
+.ab-tbl th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.ab-th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ab-sort-icon {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.ab-tbl th.sortable:hover .ab-sort-icon {
+  opacity: 0.55;
+}
+
+.ab-sort-icon.asc,
+.ab-sort-icon.desc {
+  opacity: 1;
+}
 
 .ab-tbl thead th.ck {
   width: 28px;

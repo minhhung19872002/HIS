@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
+import { DatePicker } from 'antd';
+
+const { RangePicker } = DatePicker;
 import {
   getChronicRecords, getChronicStatistics, getFollowUps,
   createChronicRecord, updateChronicRecord, closeChronicRecord,
@@ -19,9 +22,9 @@ import { RowActions, RefreshButton } from '../../../components/actions';
 // ─── Trạng thái hồ sơ: 0=đang theo dõi · 1=cần tái khám · 2=đã đóng · 3=đã loại ───
 type TabKey = 'active' | 'followup' | 'closed';
 const STATUS_TABS: StatusTab<TabKey>[] = [
-  { v: 'active',   l: 'Đang theo dõi', tone: 'ok' },
-  { v: 'followup', l: 'Cần tái khám',  tone: 'warn' },
-  { v: 'closed',   l: 'Đã đóng',       tone: 'info' },
+  { v: 'active', l: 'Đang theo dõi', tone: 'ok' },
+  { v: 'followup', l: 'Cần tái khám', tone: 'warn' },
+  { v: 'closed', l: 'Đã đóng', tone: 'info' },
 ];
 // Backend lọc theo status dạng chuỗi: Active / Remission / Closed (giữ nguyên mapping v1)
 const TAB_STATUS_PARAM: Record<TabKey, string> = { active: 'Active', followup: 'Remission', closed: 'Closed' };
@@ -226,15 +229,23 @@ const ChronicDiseaseV2: React.FC = () => {
     <div className="ab-actions">
       <RowActions actions={[
         { key: 'view', icon: 'eye', label: 'Xem chi tiết', primary: true, onClick: () => openDetail(r) },
-        { key: 'edit', icon: 'edit', label: 'Chỉnh sửa', primary: true,
-          hidden: r.status !== 0, onClick: () => { setEditRec(r); setCrudOpen(true); } },
-        { key: 'close', icon: 'x', label: 'Đóng hồ sơ', tone: 'warn', hidden: r.status !== 0,
-          confirm: `Đóng hồ sơ bệnh mạn tính của ${r.patientName}?`, onClick: () => { void doClose(r); } },
-        { key: 'remove', icon: 'trash', label: 'Loại bỏ', tone: 'danger', hidden: r.status !== 0,
+        {
+          key: 'edit', icon: 'edit', label: 'Chỉnh sửa', primary: true,
+          hidden: r.status !== 0, onClick: () => { setEditRec(r); setCrudOpen(true); }
+        },
+        {
+          key: 'close', icon: 'x', label: 'Đóng hồ sơ', tone: 'warn', hidden: r.status !== 0,
+          confirm: `Đóng hồ sơ bệnh mạn tính của ${r.patientName}?`, onClick: () => { void doClose(r); }
+        },
+        {
+          key: 'remove', icon: 'trash', label: 'Loại bỏ', tone: 'danger', hidden: r.status !== 0,
           confirm: `Loại bỏ hồ sơ bệnh mạn tính của ${r.patientName}? Thao tác không thể hoàn tác.`,
-          onClick: () => { void doRemove(r); } },
-        { key: 'reopen', icon: 'refresh', label: 'Mở lại hồ sơ', disabled: reopening === r.id,
-          hidden: r.status !== 2 && r.status !== 3, onClick: () => { void doReopen(r); } },
+          onClick: () => { void doRemove(r); }
+        },
+        {
+          key: 'reopen', icon: 'refresh', label: 'Mở lại hồ sơ', disabled: reopening === r.id,
+          hidden: r.status !== 2 && r.status !== 3, onClick: () => { void doReopen(r); }
+        },
       ]} />
     </div>
   );
@@ -259,14 +270,18 @@ const ChronicDiseaseV2: React.FC = () => {
           onChange={(e) => { setIcd(e.target.value); setPage(0); }}
           style={{ ...INP, width: 130 }}
         />
-        <input
-          type="date" value={fromDate} title="Từ ngày chẩn đoán"
-          onChange={(e) => { setFromDate(e.target.value); setPage(0); }}
-          style={INP}
-        />
-        <input
-          type="date" value={toDate} title="Đến ngày chẩn đoán"
-          onChange={(e) => { setToDate(e.target.value); setPage(0); }}
+        <RangePicker
+          value={[
+            fromDate ? dayjs(fromDate) : null,
+            toDate ? dayjs(toDate) : null,
+          ]}
+          format="DD/MM/YYYY"
+          placeholder={['Từ ngày chẩn đoán', 'Đến ngày chẩn đoán']}
+          onChange={(dates) => {
+            setFromDate(dates?.[0]?.format('YYYY-MM-DD') ?? '');
+            setToDate(dates?.[1]?.format('YYYY-MM-DD') ?? '');
+            setPage(0);
+          }}
           style={INP}
         />
         <span className="spacer" />

@@ -493,7 +493,8 @@ const ReceptionV2: React.FC = () => {
               const sk = statusKey(r);
               const rowBusy = busy === r.id;
               return (
-                <RowActions actions={[
+                <div className="ab-actions">
+                                  <RowActions actions={[
                   {
                     key: 'checkin', icon: 'check',
                     label: sk === 'noshow' ? 'Gọi lại' : 'Bắt đầu khám',
@@ -538,6 +539,7 @@ const ReceptionV2: React.FC = () => {
                     onClick: () => onSkip(r),
                   },
                 ]} />
+                </div>
               );
             }}
             empty={

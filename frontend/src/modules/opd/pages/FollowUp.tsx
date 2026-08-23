@@ -274,6 +274,17 @@ const FollowUpV2: React.FC = () => {
     { key: 'doctor', label: 'Bác sĩ', width: 180, render: (r) => r.doctorName || '—' },
     {
       key: 'when', label: 'Hẹn tái khám', width: 130, mono: true,
+      sortable: true,
+      sortDirection: sortDir,
+      onSort: () => {
+        setSortDir((d) =>
+          d === 'asc'
+            ? 'desc'
+            : d === 'desc'
+              ? null
+              : 'asc'
+        );
+      },
       render: (r) => (
         <div className="cell-2l">
           <b>{fmtDMY(r.appointmentDate)}</b>
@@ -339,15 +350,16 @@ const FollowUpV2: React.FC = () => {
             }}
             format="DD/MM/YYYY"
             allowClear={false}
+            style={{ width: 230 }}
           />
         )}
         <Btn variant="ghost" onClick={resetFilters}>
           <TermIcon name="refresh" size={12} /> Bỏ lọc
         </Btn>
         {/* parity v1: sorter Ngày hẹn (trang hiện tại) + showSizeChanger */}
-        <Btn variant="ghost" onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : d === 'desc' ? null : 'asc'))}>
+        {/* <Btn variant="ghost" onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : d === 'desc' ? null : 'asc'))}>
           Ngày hẹn {sortDir === 'asc' ? '↑' : sortDir === 'desc' ? '↓' : '↕'}
-        </Btn>
+        </Btn> */}
         <select className="ab-sel" value={pageSize} title="Số dòng/trang"
           onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}>
           {PAGE_SIZE_OPTS.map((n) => <option key={n} value={n}>{n}/trang</option>)}

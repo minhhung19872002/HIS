@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTabState } from '../../../hooks/useTabState';
+import dayjs from 'dayjs';
+import { DatePicker } from 'antd';
 import {
   getTbHivRecords, getTbHivRecordById, getTbHivStatistics, getFollowUps,
   createTbHivRecord, updateTbHivRecord, createFollowUp,
@@ -22,11 +24,11 @@ import { friendlyErrorMessage } from '../../../utils/friendlyError';
 type StatusKey = 'onTreatment' | 'completed' | 'failed' | 'defaulted' | 'died' | 'transferred';
 const STATUS_TABS: StatusTab<StatusKey>[] = [
   { v: 'onTreatment', l: 'Đang điều trị', tone: 'info' },
-  { v: 'completed',   l: 'Hoàn thành',    tone: 'ok' },
-  { v: 'failed',      l: 'Thất bại',      tone: 'crit' },
-  { v: 'defaulted',   l: 'Bỏ trị',        tone: 'warn' },
-  { v: 'died',        l: 'Tử vong',       tone: 'crit' },
-  { v: 'transferred', l: 'Chuyển đi',     tone: 'info' },
+  { v: 'completed', l: 'Hoàn thành', tone: 'ok' },
+  { v: 'failed', l: 'Thất bại', tone: 'crit' },
+  { v: 'defaulted', l: 'Bỏ trị', tone: 'warn' },
+  { v: 'died', l: 'Tử vong', tone: 'crit' },
+  { v: 'transferred', l: 'Chuyển đi', tone: 'info' },
 ];
 const statusKey = (s: unknown): StatusKey => {
   switch (String(s)) {
@@ -269,10 +271,14 @@ const TbHivManagementV2: React.FC = () => {
     const rt = sel ? Number(sel.recordType) : -1;
     const f: CrudFieldCfg[] = [
       { key: 'visitDate', label: 'Ngày khám', type: 'date', required: true },
-      { key: 'treatmentMonth', label: 'Tháng điều trị', type: 'number', placeholder: '1',
-        rules: [{ required: true, message: 'Nhập Tháng điều trị' }, { type: 'number', min: 1, max: 36, message: 'Tháng điều trị 1–36' }] },
-      { key: 'weight', label: 'Cân nặng (kg)', type: 'number', placeholder: '0',
-        rules: [{ type: 'number', min: 0, max: 300, message: 'Cân nặng 0–300kg' }] },
+      {
+        key: 'treatmentMonth', label: 'Tháng điều trị', type: 'number', placeholder: '1',
+        rules: [{ required: true, message: 'Nhập Tháng điều trị' }, { type: 'number', min: 1, max: 36, message: 'Tháng điều trị 1–36' }]
+      },
+      {
+        key: 'weight', label: 'Cân nặng (kg)', type: 'number', placeholder: '0',
+        rules: [{ type: 'number', min: 0, max: 300, message: 'Cân nặng 0–300kg' }]
+      },
       { key: 'drugAdherence', label: 'Tuân thủ thuốc', type: 'select', required: true, options: ADHERENCE_OPTIONS },
       { key: 'sideEffects', label: 'Tác dụng phụ', type: 'textarea', placeholder: 'Mô tả tác dụng phụ (nếu có)…' },
     ];
@@ -319,32 +325,44 @@ const TbHivManagementV2: React.FC = () => {
 
   const columns: ColumnDef<TbHivRecordDto>[] = [
     { key: 'code', label: 'Mã ĐK', mono: true, width: 120, render: (r) => r.registrationCode },
-    { key: 'patient', label: 'Bệnh nhân', render: (r) => (
-      <div className="cell-2l">
-        <b>{r.patientName}</b>
-        <i className="mono">{r.patientCode}{r.phoneNumber ? ` · ${r.phoneNumber}` : ''}</i>
-      </div>
-    ) },
-    { key: 'type', label: 'Loại', width: 150,
-      render: (r) => <span className={`chip ${TYPE_TONE[r.recordType] || 'info'}`}>{TYPE_LABEL[r.recordType] || '—'}</span> },
-    { key: 'category', label: 'Phân loại', width: 120,
-      render: (r) => CATEGORY_LABEL[r.treatmentCategory] || 'Khác' },
+    {
+      key: 'patient', label: 'Bệnh nhân', render: (r) => (
+        <div className="cell-2l">
+          <b>{r.patientName}</b>
+          <i className="mono">{r.patientCode}{r.phoneNumber ? ` · ${r.phoneNumber}` : ''}</i>
+        </div>
+      )
+    },
+    {
+      key: 'type', label: 'Loại', width: 150,
+      render: (r) => <span className={`chip ${TYPE_TONE[r.recordType] || 'info'}`}>{TYPE_LABEL[r.recordType] || '—'}</span>
+    },
+    {
+      key: 'category', label: 'Phân loại', width: 120,
+      render: (r) => CATEGORY_LABEL[r.treatmentCategory] || 'Khác'
+    },
     { key: 'regimen', label: 'Phác đồ', render: (r) => r.regimen || '—' },
     { key: 'start', label: 'Bắt đầu', mono: true, width: 100, render: (r) => fmtDMYg(r.startDate) },
-    { key: 'month', label: 'Tháng ĐT', mono: true, width: 90,
-      render: (r) => (r.treatmentMonth ? `T${r.treatmentMonth}` : '—') },
-    { key: 'status', label: 'TT', width: 130, render: (r) => {
-      const t = STATUS_TABS.find((x) => x.v === statusKey(r.status));
-      return <StatusBadge tone={t?.tone} dot>{t?.l}</StatusBadge>;
-    } },
+    {
+      key: 'month', label: 'Tháng ĐT', mono: true, width: 90,
+      render: (r) => (r.treatmentMonth ? `T${r.treatmentMonth}` : '—')
+    },
+    {
+      key: 'status', label: 'TT', width: 130, render: (r) => {
+        const t = STATUS_TABS.find((x) => x.v === statusKey(r.status));
+        return <StatusBadge tone={t?.tone} dot>{t?.l}</StatusBadge>;
+      }
+    },
   ];
 
   const rowActions = (r: TbHivRecordDto) => (
     <div className="ab-actions">
       <RowActions actions={[
         { key: 'view', icon: 'eye', label: 'Xem chi tiết', primary: true, onClick: () => openDetail(r) },
-        { key: 'edit', icon: 'edit', label: 'Chỉnh sửa', primary: true,
-          hidden: statusKey(r.status) !== 'onTreatment', onClick: () => openEdit(r) },
+        {
+          key: 'edit', icon: 'edit', label: 'Chỉnh sửa', primary: true,
+          hidden: statusKey(r.status) !== 'onTreatment', onClick: () => openEdit(r)
+        },
         { key: 'print', icon: 'printer', label: 'In phiếu điều trị', onClick: () => handlePrint(r) },
       ]} />
     </div>
@@ -379,13 +397,18 @@ const TbHivManagementV2: React.FC = () => {
           options={CATEGORY_OPTIONS.map((o) => ({ v: String(o.value), l: o.label }))}
           placeholder="▾ Phân loại ĐT"
         />
-        <input
-          type="date" className="ab-sel" value={fromDate} title="Bắt đầu ĐT từ ngày"
-          onChange={(e) => { setFromDate(e.target.value); setPage(0); }}
-        />
-        <input
-          type="date" className="ab-sel" value={toDate} title="Bắt đầu ĐT đến ngày"
-          onChange={(e) => { setToDate(e.target.value); setPage(0); }}
+        <DatePicker.RangePicker
+          value={[
+            fromDate ? dayjs(fromDate) : null,
+            toDate ? dayjs(toDate) : null,
+          ]}
+          format="DD/MM/YYYY"
+          placeholder={['Bắt đầu ĐT từ ngày', 'Bắt đầu ĐT đến ngày']}
+          onChange={(dates) => {
+            setFromDate(dates?.[0]?.format('YYYY-MM-DD') ?? '');
+            setToDate(dates?.[1]?.format('YYYY-MM-DD') ?? '');
+            setPage(0);
+          }}
         />
         <span className="spacer" />
         <Btn variant="primary" icon="plus" onClick={openCreate}>Thêm hồ sơ</Btn>

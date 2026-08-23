@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import { DatePicker } from 'antd';
 import {
   financeApi,
   type RevenueByServiceDto, type RevenueByExecutingDeptDto,
@@ -21,6 +22,8 @@ import { friendlyErrorMessage } from '../../../utils/friendlyError';
 type Row = RevenueByServiceDto & { id: string };
 type DeptRow = RevenueByExecutingDeptDto & { id: string };
 type TopKey = 'service' | 'department' | 'reports';
+const { RangePicker } = DatePicker;
+
 
 const TOP_TABS: TopTab<TopKey>[] = [
   { v: 'service', l: 'Theo dịch vụ', ic: 'list' },
@@ -46,7 +49,7 @@ const FinanceV2: React.FC = () => {
   const [csvLoading, setCsvLoading] = useState(false);
   const [xlsxLoading, setXlsxLoading] = useState(false);
   const [reportFrom, setReportFrom] = useState<string>(dayjs().startOf('month').format('YYYY-MM-DD'));
-  const [reportTo,   setReportTo]   = useState<string>(dayjs().endOf('month').format('YYYY-MM-DD'));
+  const [reportTo, setReportTo] = useState<string>(dayjs().endOf('month').format('YYYY-MM-DD'));
 
   // Department detail drawer
   const [deptSel, setDeptSel] = useState<DeptRow | null>(null);
@@ -123,21 +126,27 @@ const FinanceV2: React.FC = () => {
 
   const cols: ColumnDef<Row>[] = [
     { key: 'code', label: 'Mã DV', code: true, render: (r) => r.serviceCode || '—' },
-    { key: 'name', label: 'Tên dịch vụ', render: (r) => (
-      <div>
-        <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.serviceName || '—'}</div>
-        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.serviceGroupName || '—'}</div>
-      </div>
-    ) },
+    {
+      key: 'name', label: 'Tên dịch vụ', render: (r) => (
+        <div>
+          <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.serviceName || '—'}</div>
+          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.serviceGroupName || '—'}</div>
+        </div>
+      )
+    },
     { key: 'qty', label: 'SL', mono: true, render: (r) => r.quantity || 0 },
     { key: 'rev', label: 'Doanh thu', mono: true, render: (r) => <b>{fmtVNDg(r.totalRevenue)}</b> },
-    { key: 'bhyt', label: 'BHYT', mono: true, render: (r) => (
-      <span style={{ color: 'var(--a-cy-text)' }}>{fmtVNDg(r.insuranceRevenue)}</span>
-    ) },
-    { key: 'profit', label: 'LN', mono: true, render: (r) => {
-      const ok = (r.profit || 0) >= 0;
-      return <span style={{ color: ok ? 'var(--a-em-text)' : 'var(--a-rd-text)' }}>{fmtVNDg(r.profit)}</span>;
-    } },
+    {
+      key: 'bhyt', label: 'BHYT', mono: true, render: (r) => (
+        <span style={{ color: 'var(--a-cy-text)' }}>{fmtVNDg(r.insuranceRevenue)}</span>
+      )
+    },
+    {
+      key: 'profit', label: 'LN', mono: true, render: (r) => {
+        const ok = (r.profit || 0) >= 0;
+        return <span style={{ color: ok ? 'var(--a-em-text)' : 'var(--a-rd-text)' }}>{fmtVNDg(r.profit)}</span>;
+      }
+    },
     { key: 'margin', label: 'Biên LN', mono: true, render: (r) => fmtPct(r.profitMargin) },
   ];
 
@@ -150,7 +159,7 @@ const FinanceV2: React.FC = () => {
         .map(escapeCsvCell).join(',');
       const rows = items.map((r) =>
         [r.serviceCode, r.serviceName, r.serviceGroupName, r.quantity, r.totalRevenue,
-          r.insuranceRevenue, r.patientRevenue, r.cost, r.profit, fmtPct(r.profitMargin)]
+        r.insuranceRevenue, r.patientRevenue, r.cost, r.profit, fmtPct(r.profitMargin)]
           .map(escapeCsvCell).join(','),
       );
       downloadCsv(`doanh-thu-dich-vu-${dayjs().format('YYYYMM')}.csv`, [header, ...rows]);
@@ -208,7 +217,7 @@ const FinanceV2: React.FC = () => {
         const header = ['Mã DV', 'Tên dịch vụ', 'Nhóm', 'Số lượng', 'Doanh thu', 'BHYT', 'Bệnh nhân', 'Chi phí', 'Lợi nhuận', 'Biên LN (%)']
           .map(escapeCsvCell).join(',');
         const line = [r.serviceCode, r.serviceName, r.serviceGroupName, r.quantity, r.totalRevenue,
-          r.insuranceRevenue, r.patientRevenue, r.cost, r.profit, fmtPct(r.profitMargin)]
+        r.insuranceRevenue, r.patientRevenue, r.cost, r.profit, fmtPct(r.profitMargin)]
           .map(escapeCsvCell).join(',');
         downloadCsv(`dv-${r.serviceCode || 'export'}.csv`, [header, line]);
         tk(`Đã xuất CSV: ${r.serviceName}`);
@@ -227,14 +236,32 @@ const FinanceV2: React.FC = () => {
         { lbl: 'Lợi nhuận', val: Math.round(kpis.profit / 1_000_000), unit: 'tr', sub: 'VND', tone: kpis.profit >= 0 ? 'ok' : 'crit' },
       ]} />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px var(--space-14)', borderBottom: '1px solid var(--line)' }}>
-        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Kỳ báo cáo:</span>
-        <input type="date" style={{ height: 28, padding: '0 6px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--bg-1)', fontSize: 12 }}
-          value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} />
-        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>→</span>
-        <input type="date" style={{ height: 28, padding: '0 6px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--bg-1)', fontSize: 12 }}
-          value={reportTo} onChange={(e) => setReportTo(e.target.value)} />
-        <Btn variant="ghost" onClick={() => { setReportFrom(dayjs().startOf('month').format('YYYY-MM-DD')); setReportTo(dayjs().endOf('month').format('YYYY-MM-DD')); }}>
+      <div className="ab-toolbar">
+        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
+          Kỳ báo cáo:
+        </span>
+
+        <DatePicker.RangePicker
+          value={[
+            reportFrom ? dayjs(reportFrom) : null,
+            reportTo ? dayjs(reportTo) : null,
+          ]}
+          format="DD/MM/YYYY"
+          placeholder={['Từ ngày', 'Đến ngày']}
+          onChange={(dates) => {
+            setReportFrom(dates?.[0]?.format('YYYY-MM-DD') ?? '');
+            setReportTo(dates?.[1]?.format('YYYY-MM-DD') ?? '');
+          }}
+          style={{ height: 28 }}
+        />
+
+        <Btn
+          variant="ghost"
+          onClick={() => {
+            setReportFrom(dayjs().startOf('month').format('YYYY-MM-DD'));
+            setReportTo(dayjs().endOf('month').format('YYYY-MM-DD'));
+          }}
+        >
           Tháng này
         </Btn>
       </div>
@@ -450,7 +477,7 @@ const FinanceV2: React.FC = () => {
               <StatusBadge tone={sel.profitMargin >= 30 ? 'ok' : sel.profitMargin >= 15 ? 'info' : sel.profitMargin >= 0 ? 'warn' : 'crit'}>
                 {sel.profitMargin >= 30 ? 'Hiệu quả cao'
                   : sel.profitMargin >= 15 ? 'Khá'
-                  : sel.profitMargin >= 0 ? 'Trung bình' : 'Lỗ'}
+                    : sel.profitMargin >= 0 ? 'Trung bình' : 'Lỗ'}
               </StatusBadge>
             </DrField>
           </DrSec>
@@ -463,9 +490,9 @@ const FinanceV2: React.FC = () => {
 const Row: React.FC<{ label: string; value: React.ReactNode; tone?: 'ok' | 'crit' | 'info' | 'warn'; bold?: boolean }> = ({ label, value, tone, bold }) => {
   const color = tone === 'ok' ? 'var(--a-em-text)'
     : tone === 'crit' ? 'var(--a-rd-text)'
-    : tone === 'info' ? 'var(--a-cy-text)'
-    : tone === 'warn' ? 'var(--a-or-text)'
-    : 'var(--t-0)';
+      : tone === 'info' ? 'var(--a-cy-text)'
+        : tone === 'warn' ? 'var(--a-or-text)'
+          : 'var(--t-0)';
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: bold ? 14 : 13, fontWeight: bold ? 700 : 400, color }}>
       <span>{label}</span><span style={{ fontFamily: 'var(--font-mono)' }}>{value}</span>

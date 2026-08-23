@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import { DatePicker } from 'antd';
 import { searchRequests, respondToRequest, createRequest, getStats } from '../api/interHospitalSharing';
 import type { InterHospitalRequest, InterHospitalStats } from '../api/interHospitalSharing';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
@@ -27,11 +28,11 @@ const STATUS_LABEL: Record<number, string> = {
 
 type SKey = 'pending' | 'received' | 'processing' | 'completed' | 'rejected';
 const STATUS_TABS = [
-  { v: 'pending' as SKey,    l: 'Chờ',          tone: 'warn' as const },
-  { v: 'received' as SKey,   l: 'Đã nhận',      tone: 'info' as const },
-  { v: 'processing' as SKey, l: 'Đang xử lý',   tone: 'info' as const },
-  { v: 'completed' as SKey,  l: 'Hoàn thành',   tone: 'ok' as const },
-  { v: 'rejected' as SKey,   l: 'Từ chối',      tone: 'crit' as const },
+  { v: 'pending' as SKey, l: 'Chờ', tone: 'warn' as const },
+  { v: 'received' as SKey, l: 'Đã nhận', tone: 'info' as const },
+  { v: 'processing' as SKey, l: 'Đang xử lý', tone: 'info' as const },
+  { v: 'completed' as SKey, l: 'Hoàn thành', tone: 'ok' as const },
+  { v: 'rejected' as SKey, l: 'Từ chối', tone: 'crit' as const },
 ];
 
 const sKey = (n: number): SKey =>
@@ -58,9 +59,11 @@ const InterHospitalSharingV2: React.FC = () => {
   const openRespond = (r: InterHospitalRequest) => { setRespondTarget(r); setRespondOpen(true); };
 
   const RESPOND_FIELDS: CrudFieldCfg[] = [
-    { key: 'statusDecision', label: 'Quyết định', type: 'select', required: true, options: [
-      { value: 'accept',  label: 'Tiếp nhận (Đã nhận)' },
-      { value: 'reject',  label: 'Từ chối' }] },
+    {
+      key: 'statusDecision', label: 'Quyết định', type: 'select', required: true, options: [
+        { value: 'accept', label: 'Tiếp nhận (Đã nhận)' },
+        { value: 'reject', label: 'Từ chối' }]
+    },
     { key: 'responseNotes', label: 'Nội dung phản hồi', type: 'textarea', required: true },
   ];
 
@@ -122,29 +125,39 @@ const InterHospitalSharingV2: React.FC = () => {
 
   const cols: ColumnDef<InterHospitalRequest>[] = [
     { key: 'code', label: 'Mã YC', code: true, render: (r) => r.requestCode },
-    { key: 'type', label: 'Loại', render: (r) => (
-      <StatusBadge tone="info">{TYPE_LABEL[r.requestType] || r.requestType}</StatusBadge>
-    ) },
-    { key: 'dir', label: 'Chiều', render: (r) => (
-      <span style={{ fontWeight: 600, color: r.direction === 'incoming' ? 'var(--a-cy-text)' : 'var(--a-or-text)' }}>
-        {r.direction === 'incoming' ? '← Vào' : '→ Ra'}
-      </span>
-    ) },
-    { key: 'subj', label: 'Chủ đề', render: (r) => (
-      <div>
-        <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.subject}</div>
-        {r.patientName && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>BN: {r.patientName}</div>}
-      </div>
-    ) },
+    {
+      key: 'type', label: 'Loại', render: (r) => (
+        <StatusBadge tone="info">{TYPE_LABEL[r.requestType] || r.requestType}</StatusBadge>
+      )
+    },
+    {
+      key: 'dir', label: 'Chiều', render: (r) => (
+        <span style={{ fontWeight: 600, color: r.direction === 'incoming' ? 'var(--a-cy-text)' : 'var(--a-or-text)' }}>
+          {r.direction === 'incoming' ? '← Vào' : '→ Ra'}
+        </span>
+      )
+    },
+    {
+      key: 'subj', label: 'Chủ đề', render: (r) => (
+        <div>
+          <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.subject}</div>
+          {r.patientName && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>BN: {r.patientName}</div>}
+        </div>
+      )
+    },
     { key: 'hosp', label: 'BV đối tác', render: (r) => r.direction === 'incoming' ? r.requestingHospital : r.respondingHospital },
     { key: 'time', label: 'Thời gian', mono: true, render: (r) => dayjs(r.requestedAt).format('DD/MM HH:mm') },
-    { key: 'urg', label: 'Ưu tiên', render: (r) => (
-      <StatusBadge tone={URGENCY_TONE[r.urgency] || 'info'} dot>{URGENCY_LABEL[r.urgency] || r.urgency}</StatusBadge>
-    ) },
-    { key: 'st', label: 'Trạng thái', render: (r) => {
-      const t = STATUS_TABS.find((x) => x.v === sKey(r.status));
-      return <StatusBadge tone={t?.tone || 'info'} dot>{STATUS_LABEL[r.status] || '—'}</StatusBadge>;
-    } },
+    {
+      key: 'urg', label: 'Ưu tiên', render: (r) => (
+        <StatusBadge tone={URGENCY_TONE[r.urgency] || 'info'} dot>{URGENCY_LABEL[r.urgency] || r.urgency}</StatusBadge>
+      )
+    },
+    {
+      key: 'st', label: 'Trạng thái', render: (r) => {
+        const t = STATUS_TABS.find((x) => x.v === sKey(r.status));
+        return <StatusBadge tone={t?.tone || 'info'} dot>{STATUS_LABEL[r.status] || '—'}</StatusBadge>;
+      }
+    },
   ];
 
   const actions = (r: InterHospitalRequest) => (
@@ -170,10 +183,23 @@ const InterHospitalSharingV2: React.FC = () => {
           placeholder="Tìm chủ đề / BV / BN…" />
         <Filter value={fType} onChange={setFType} options={types} placeholder="▾ Loại YC" />
         <Filter value={fDir} onChange={setFDir} options={DIR_OPTS} placeholder="▾ Chiều" />
-        <input type="date" style={{ height: 30, padding: '0 6px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--bg-1)', fontSize: 13 }}
-          value={fromDate} onChange={(e) => { setFromDate(e.target.value); setPage(0); }} title="Từ ngày" />
-        <input type="date" style={{ height: 30, padding: '0 6px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--bg-1)', fontSize: 13 }}
-          value={toDate} onChange={(e) => { setToDate(e.target.value); setPage(0); }} title="Đến ngày" />
+        <DatePicker.RangePicker
+          format="DD/MM/YYYY"
+          placeholder={['Từ ngày', 'Đến ngày']}
+          value={[
+            fromDate ? dayjs(fromDate) : null,
+            toDate ? dayjs(toDate) : null,
+          ]}
+          onChange={(dates) => {
+            setFromDate(dates?.[0]?.format('YYYY-MM-DD') ?? '');
+            setToDate(dates?.[1]?.format('YYYY-MM-DD') ?? '');
+            setPage(0);
+          }}
+          style={{
+            height: 30,
+            fontSize: 13,
+          }}
+        />
         <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFType(''); setFDir(''); setFromDate(''); setToDate(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
         <RefreshButton onRefresh={load} loading={loading} />
