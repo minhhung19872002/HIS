@@ -133,13 +133,27 @@ type DicomViewerError = {
   message?: string;
 };
 
+/**
+ * Vì sao không dùng một cờ boolean: "ca chụp chưa có ảnh" và "gọi PACS lỗi" trước đây
+ * cùng rơi vào `pacsAvailable === false`, nên màn hình báo "PACS Server chưa kết nối"
+ * cho cả hai. Người dùng đi khởi động lại PACS trong khi PACS vẫn sống và nguyên nhân
+ * thật chỉ là chưa có ảnh nào được đẩy lên. Tách trạng thái để nói đúng nguyên nhân.
+ */
+type PacsState = 'loading' | 'ready' | 'empty' | 'error' | 'missing-uid';
+
+/** Trình duyệt chỉ mở được Orthanc trực tiếp khi VITE_ORTHANC_URL được cấu hình. */
+const ORTHANC_LINKABLE = !!ORTHANC_URL;
+const ORTHANC_UNCONFIGURED_HINT =
+  'Chưa cấu hình địa chỉ Orthanc cho trình duyệt (VITE_ORTHANC_URL) — liên hệ quản trị hệ thống';
+
 const DicomViewer: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const studyInstanceUID = searchParams.get('study') || '';
 
   const [loading, setLoading] = useState(true);
-  const [pacsAvailable, setPacsAvailable] = useState(false);
+  const [pacsState, setPacsState] = useState<PacsState>('loading');
+  const pacsAvailable = pacsState === 'ready';
   const [studyInfo, setStudyInfo] = useState<StudyInfo | null>(null);
   const [series, setSeries] = useState<DicomSeriesDto[]>([]);
   const [selectedSeries, setSelectedSeries] = useState<DicomSeriesDto | null>(null);
@@ -353,13 +367,14 @@ const DicomViewer: React.FC = () => {
   const loadStudyData = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setPacsState('loading');
 
     try {
       // Try to get series list from backend API
       const seriesResponse = await risApi.getSeries(studyInstanceUID);
 
       if (seriesResponse.data && seriesResponse.data.length > 0) {
-        setPacsAvailable(true);
+        setPacsState('ready');
         setSeries(seriesResponse.data);
 
         // Extract study info from first series
@@ -391,8 +406,9 @@ const DicomViewer: React.FC = () => {
           machineName: window.location.hostname,
         }).catch(() => { /* ignore audit failure */ });
       } else {
-        // No series found - PACS may not be configured
-        setPacsAvailable(false);
+        // Máy chủ trả lời bình thường nhưng không có series nào: ảnh chưa được đẩy lên
+        // PACS (hoặc ca chụp chưa gắn Study UID). KHÔNG phải sự cố kết nối.
+        setPacsState('empty');
         setStudyInfo({
           studyInstanceUID,
         });
@@ -400,7 +416,7 @@ const DicomViewer: React.FC = () => {
     } catch (err: unknown) {
       const viewerError = err as DicomViewerError;
       console.warn('Error loading study:', err);
-      setPacsAvailable(false);
+      setPacsState('error');
       setStudyInfo({
         studyInstanceUID,
       });
@@ -417,7 +433,8 @@ const DicomViewer: React.FC = () => {
   // Check PACS availability and load study data
   useEffect(() => {
     if (!studyInstanceUID) {
-      setError('Thiếu thông tin Study UID');
+      setPacsState('missing-uid');
+      setError('Mở màn hình xem ảnh mà không kèm ca chụp nào. Hãy chọn một ca chụp từ danh sách Chẩn đoán hình ảnh.');
       setLoading(false);
       return;
     }
@@ -447,6 +464,10 @@ const DicomViewer: React.FC = () => {
   };
 
   const handleOpenOHIF = () => {
+    if (!ORTHANC_LINKABLE) {
+      message.warning(ORTHANC_UNCONFIGURED_HINT);
+      return;
+    }
     // Open OHIF Viewer integrated in Orthanc
     const ohifUrl = `${ORTHANC_BASE}/ohif/viewer?StudyInstanceUIDs=${studyInstanceUID}`;
     window.open(ohifUrl, '_blank');
@@ -478,6 +499,10 @@ const DicomViewer: React.FC = () => {
 
   const handleCompare = useCallback(() => {
     if (!vfCompare.validate({ compareUid })) return;
+    if (!ORTHANC_LINKABLE) {
+      message.warning(ORTHANC_UNCONFIGURED_HINT);
+      return;
+    }
     // OHIF hỗ trợ multi-study qua comma-separated StudyInstanceUIDs
     const url = `${ORTHANC_BASE}/ohif/viewer?StudyInstanceUIDs=${studyInstanceUID},${compareUid.trim()}`;
     window.open(url, '_blank', 'noopener');
@@ -535,10 +560,18 @@ const DicomViewer: React.FC = () => {
   }, [studyInstanceUID, liveRoomId, studyInfo]);
 
   const handleOpenOrthancExplorer = () => {
+    if (!ORTHANC_LINKABLE) {
+      message.warning(ORTHANC_UNCONFIGURED_HINT);
+      return;
+    }
     window.open(`${ORTHANC_BASE}/ui/app/#/filtered-studies?StudyInstanceUID=${studyInstanceUID}`, '_blank');
   };
 
   const handleDownloadStudy = () => {
+    if (!ORTHANC_LINKABLE) {
+      message.warning(ORTHANC_UNCONFIGURED_HINT);
+      return;
+    }
     if (studyInfo?.orthancStudyId) {
       window.open(`${ORTHANC_BASE}/studies/${studyInfo.orthancStudyId}/archive`, '_blank');
     } else {
@@ -549,6 +582,10 @@ const DicomViewer: React.FC = () => {
   const [exportLoading, setExportLoading] = useState(false);
 
   const handleExportDicom = async () => {
+    if (!ORTHANC_LINKABLE) {
+      message.warning(ORTHANC_UNCONFIGURED_HINT);
+      return;
+    }
     if (!studyInfo?.orthancStudyId) {
       message.info('Khong tim thay study de xuat');
       return;
@@ -646,6 +683,8 @@ const DicomViewer: React.FC = () => {
                   icon={<AppstoreOutlined />}
                   onClick={() => { setEmbedOhif((v) => !v); if (!embedOhif) { setUseNativeMpr(false); setUseMammo(false); setUseMip(false); } }}
                   data-testid="dicom-mpr-3d-btn"
+                  disabled={!ORTHANC_LINKABLE}
+                  title={ORTHANC_LINKABLE ? undefined : ORTHANC_UNCONFIGURED_HINT}
                 >
                   {embedOhif ? 'Ẩn OHIF' : 'MPR / 3D / Mamo (OHIF)'}
                 </Button>
@@ -681,19 +720,36 @@ const DicomViewer: React.FC = () => {
                 >
                   Tách màn hình
                 </Button>
-                <Button icon={<ExpandOutlined />} onClick={handleOpenOHIF}>
+                <Button
+                  icon={<ExpandOutlined />}
+                  onClick={handleOpenOHIF}
+                  disabled={!ORTHANC_LINKABLE}
+                  title={ORTHANC_LINKABLE ? undefined : ORTHANC_UNCONFIGURED_HINT}
+                >
                   Mở OHIF tab mới
                 </Button>
-                <Button icon={<LinkOutlined />} onClick={handleOpenOrthancExplorer}>
+                <Button
+                  icon={<LinkOutlined />}
+                  onClick={handleOpenOrthancExplorer}
+                  disabled={!ORTHANC_LINKABLE}
+                  title={ORTHANC_LINKABLE ? undefined : ORTHANC_UNCONFIGURED_HINT}
+                >
                   Orthanc Explorer
                 </Button>
-                <Button icon={<DownloadOutlined />} onClick={handleDownloadStudy}>
+                <Button
+                  icon={<DownloadOutlined />}
+                  onClick={handleDownloadStudy}
+                  disabled={!ORTHANC_LINKABLE}
+                  title={ORTHANC_LINKABLE ? undefined : ORTHANC_UNCONFIGURED_HINT}
+                >
                   Tải về
                 </Button>
                 <Button
                   icon={<ExportOutlined />}
                   onClick={handleExportDicom}
                   loading={exportLoading}
+                  disabled={!ORTHANC_LINKABLE}
+                  title={ORTHANC_LINKABLE ? undefined : ORTHANC_UNCONFIGURED_HINT}
                   data-testid="dicom-export-btn"
                 >
                   Xuất DICOM
@@ -721,39 +777,49 @@ const DicomViewer: React.FC = () => {
         </Col>
       </Row>
 
-      {/* Error Alert */}
+      {/* Error Alert — tiêu đề phải khớp nguyên nhân: thiếu Study UID không phải lỗi PACS */}
       {error && (
         <Alert
-          title="Lỗi kết nối PACS"
+          title={pacsState === 'missing-uid' ? 'Chưa chọn ca chụp' : 'Lỗi kết nối PACS'}
           description={error}
-          type="error"
+          type={pacsState === 'missing-uid' ? 'warning' : 'error'}
           showIcon
           style={{ marginBottom: 16 }}
         />
       )}
 
-      {/* PACS Not Available Warning */}
-      {!pacsAvailable && !error && (
+      {/* Chưa có ảnh ≠ mất kết nối PACS — hai nguyên nhân, hai thông báo */}
+      {(pacsState === 'empty' || pacsState === 'error') && !error && (
         <Alert
-          title="PACS Server chưa được cấu hình"
+          title={
+            pacsState === 'empty'
+              ? 'Ca chụp chưa có ảnh DICOM'
+              : 'Không lấy được dữ liệu ảnh từ máy chủ'
+          }
           description={
             <div>
-              <p>Để xem ảnh DICOM, cần có Orthanc PACS Server đang chạy.</p>
-              <p>Cấu hình mặc định:</p>
-              <ul>
-                <li>Orthanc Web: {ORTHANC_BASE}</li>
-                <li>DICOM Port: 4242</li>
-              </ul>
+              {pacsState === 'empty' ? (
+                <p>
+                  Máy chủ trả về 0 series cho ca chụp này. Thường là do ảnh chưa được đẩy
+                  từ máy chụp lên PACS, hoặc ca chụp chưa được gắn Study UID.
+                </p>
+              ) : (
+                <p>
+                  Không đọc được danh sách series. Bấm “Làm mới” để thử lại; nếu vẫn lỗi,
+                  báo quản trị hệ thống kiểm tra kết nối PACS.
+                </p>
+              )}
+              {ORTHANC_LINKABLE && <p>Orthanc Web: {ORTHANC_BASE}</p>}
               <p>
                 <strong>Study UID:</strong> {studyInstanceUID}
               </p>
               <Button
                 type="link"
                 icon={<SettingOutlined />}
-                onClick={() => navigate('/radiology')}
+                onClick={() => navigate('/v2/radiology')}
                 style={{ padding: 0 }}
               >
-                Đi tới cấu hình PACS
+                Về danh sách ca chụp
               </Button>
             </div>
           }
@@ -941,7 +1007,14 @@ const DicomViewer: React.FC = () => {
             style={{ height: 'calc(100vh - 350px)', overflowY: 'auto' }}
             extra={
               pacsAvailable && selectedSeries && (
-                <Button type="primary" size="small" icon={<ExpandOutlined />} onClick={handleOpenOHIF}>
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<ExpandOutlined />}
+                  onClick={handleOpenOHIF}
+                  disabled={!ORTHANC_LINKABLE}
+                  title={ORTHANC_LINKABLE ? undefined : ORTHANC_UNCONFIGURED_HINT}
+                >
                   Xem toàn màn hình
                 </Button>
               )
@@ -1250,10 +1323,16 @@ const DicomViewer: React.FC = () => {
               <div style={{ textAlign: 'center', padding: 40 }}>
                 <FileImageOutlined style={{ fontSize: 64, color: '#bfbfbf' }} />
                 <Title level={5} type="secondary" style={{ marginTop: 16 }}>
-                  PACS Server chưa kết nối
+                  {pacsState === 'empty' ? 'Chưa có ảnh DICOM'
+                    : pacsState === 'missing-uid' ? 'Chưa chọn ca chụp'
+                    : pacsState === 'loading' ? 'Đang tải ảnh…'
+                    : 'Không lấy được ảnh từ máy chủ'}
                 </Title>
                 <Text type="secondary">
-                  Vui lòng khởi động Orthanc PACS Server để xem ảnh DICOM
+                  {pacsState === 'empty' ? 'Ca chụp này chưa có ảnh nào được đẩy lên PACS'
+                    : pacsState === 'missing-uid' ? 'Chọn một ca chụp ở danh sách Chẩn đoán hình ảnh để xem ảnh'
+                    : pacsState === 'loading' ? 'Vui lòng đợi trong giây lát'
+                    : 'Bấm “Làm mới” để thử lại; nếu vẫn lỗi, báo quản trị hệ thống'}
                 </Text>
               </div>
             )}

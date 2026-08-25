@@ -58,6 +58,9 @@ export default function PublicStudyViewer() {
 
   const loadInstances = async (orthancStudyId: string) => {
     try {
+      // Chưa cấu hình VITE_ORTHANC_URL thì đừng ghép URL rỗng (thành đường dẫn tương đối
+      // trả về HTML của SPA) — nhảy thẳng xuống nhánh gọi qua backend.
+      if (!ORTHANC_URL) throw new Error('Chưa cấu hình địa chỉ Orthanc cho trình duyệt');
       // Orthanc REST: GET /studies/{id}/instances
       const res = await fetch(`${ORTHANC_URL}/studies/${orthancStudyId}/instances`, {
         headers: { 'Accept': 'application/json' },
@@ -142,7 +145,16 @@ export default function PublicStudyViewer() {
           )}
         </div>
 
-        {instances.length === 0 ? (
+        {!ORTHANC_URL ? (
+          // Link chia sẻ công khai không có JWT nên không dùng được proxy ảnh của backend:
+          // ảnh bắt buộc phải tải thẳng từ Orthanc. Thiếu cấu hình thì nói thẳng, đừng
+          // để thẻ <img> trỏ vào đường dẫn rỗng rồi hiện ảnh vỡ.
+          <Alert
+            title="Chưa cấu hình địa chỉ PACS công khai cho trình duyệt (VITE_ORTHANC_URL) — không hiển thị được ảnh qua link chia sẻ. Vui lòng liên hệ quản trị hệ thống."
+            type="warning"
+            showIcon
+          />
+        ) : instances.length === 0 ? (
           <Alert
             title="Không tải được danh sách ảnh — kiểm tra kết nối với PACS server"
             type="warning"

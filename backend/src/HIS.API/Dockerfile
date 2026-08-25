@@ -18,6 +18,16 @@ COPY frontend/ ./
 # hub URL and resolves it against the page origin.
 ENV VITE_API_URL=/api
 ENV VITE_REALTIME_URL=/
+
+# Orthanc URL that the BROWSER opens directly (Orthanc Explorer, OHIF, archive ZIP).
+# Left empty on purpose: an unset value used to fall back to http://localhost:8042,
+# which on an HTTPS deploy points at the user's own machine and is blocked as mixed
+# content. Empty means "not configured" and the viewer disables those buttons instead
+# of rendering dead links. Pass a real HTTPS Orthanc to enable them:
+#   docker build --build-arg VITE_ORTHANC_URL=https://pacs.example.org ...
+# DICOM images themselves do NOT need this — they stream through the API proxy.
+ARG VITE_ORTHANC_URL=""
+ENV VITE_ORTHANC_URL=$VITE_ORTHANC_URL
 RUN npm run build
 
 # ---------- Stage 2: backend ----------
