@@ -118,12 +118,19 @@ namespace HIS.Infrastructure.Services
         public async Task<bool> DestroyExpiredBloodBagsAsync(List<Guid> bloodBagIds, string reason)
         {
             if (bloodBagIds == null || !bloodBagIds.Any()) return false;
-            foreach (var id in bloodBagIds)
-            {
-                await _context.Database.ExecuteSqlRawAsync(
-                    "UPDATE BloodBags SET Status='Destroyed', Note=@p0 WHERE Id=@p1",
-                    reason ?? "Het han", id);
-            }
+
+            // #195: 1 UPDATE cho cả danh sách thay vì 1 UPDATE/túi. Tham số vẫn truyền riêng
+            // từng id (không nội suy vào chuỗi SQL); huỷ cả lô giờ là một thao tác nguyên khối
+            // chứ không còn nửa chừng khi lỗi giữa vòng lặp.
+            var ids = bloodBagIds.ToList();
+            var idParams = string.Join(",", ids.Select((_, i) => $"@p{i + 1}"));
+            var args = new object[ids.Count + 1];
+            args[0] = reason ?? "Het han";
+            for (int i = 0; i < ids.Count; i++) args[i + 1] = ids[i];
+
+            await _context.Database.ExecuteSqlRawAsync(
+                $"UPDATE BloodBags SET Status='Destroyed', Note=@p0 WHERE Id IN ({idParams})",
+                args);
             return true;
         }
 
