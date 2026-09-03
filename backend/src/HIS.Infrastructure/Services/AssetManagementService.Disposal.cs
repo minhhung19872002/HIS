@@ -140,13 +140,19 @@ public partial class AssetManagementService
             .Where(a => !a.IsDeleted && a.Status == 1 && a.UsefulLifeMonths > 0 && a.CurrentValue > 0)
             .ToListAsync();
 
+        // #195: 1 query lấy các tài sản đã tính khấu hao tháng này, thay vì 1 query/tài sản.
+        var assetIds = assets.Select(a => a.Id).ToList();
+        var alreadyCalculated = (await _context.AssetDepreciations
+                .Where(d => assetIds.Contains(d.FixedAssetId) && d.Month == month && d.Year == year && !d.IsDeleted)
+                .Select(d => d.FixedAssetId)
+                .ToListAsync())
+            .ToHashSet();
+
         var count = 0;
         foreach (var asset in assets)
         {
             // Check if already calculated for this month
-            var exists = await _context.AssetDepreciations
-                .AnyAsync(d => d.FixedAssetId == asset.Id && d.Month == month && d.Year == year && !d.IsDeleted);
-            if (exists) continue;
+            if (alreadyCalculated.Contains(asset.Id)) continue;
 
             decimal depAmount;
             if (asset.DepreciationMethod == 1) // Straight line

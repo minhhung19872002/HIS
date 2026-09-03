@@ -284,11 +284,17 @@ public class TraditionalMedicineService : ITraditionalMedicineService
             CreatedBy = by,
             Details = new List<PrescriptionDetail>(),
         };
+        // #195: tra danh mục thuốc 1 lần cho cả đơn thay vì 1 query/vị thuốc. Việc trừ tồn
+        // (DeductHerbStockFefoAsync) vẫn chạy tuần tự từng vị như cũ.
+        var herbIds = items.Select(i => i.MedicineId).Distinct().ToList();
+        var herbsById = await _context.Medicines
+            .Where(m => herbIds.Contains(m.Id))
+            .ToDictionaryAsync(m => m.Id);
+
         decimal total = 0;
         foreach (var it in items)
         {
-            var med = await _context.Medicines.FindAsync(it.MedicineId);
-            if (med == null) continue;
+            if (!herbsById.TryGetValue(it.MedicineId, out var med)) continue;
             var totalQty = it.Quantity * soThang; // lượng dùng cả đợt = mỗi thang × số thang
             var amount = med.UnitPrice * totalQty;
             total += amount;

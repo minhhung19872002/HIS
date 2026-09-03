@@ -135,6 +135,25 @@ public partial class SystemCompleteService
                 return false;
             }
 
+            // #195: hỏi DB 1 lần cho mọi mã ICD trong file thay vì 1 query/dòng. HashSet cũng
+            // chặn mã trùng trong cùng file — trước đây mỗi dòng hỏi DB nên bản ghi vừa Add mà
+            // chưa SaveChanges không thấy được.
+            var icdCodesInFile = new List<string>();
+            for (int i = 1; i < lines.Length; i++)
+            {
+                var probeCols = lines[i].Split('\t');
+                if (probeCols.Length < 2) continue;
+                var probeCode = probeCols[0].Trim();
+                if (!string.IsNullOrWhiteSpace(probeCode)) icdCodesInFile.Add(probeCode);
+            }
+            var takenIcdCodes = icdCodesInFile.Count == 0
+                ? new HashSet<string>()
+                : (await _context.IcdCodes
+                        .Where(c => icdCodesInFile.Contains(c.Code))
+                        .Select(c => c.Code)
+                        .ToListAsync())
+                    .ToHashSet();
+
             var imported = 0;
             for (int i = 1; i < lines.Length; i++)
             {
@@ -145,8 +164,7 @@ public partial class SystemCompleteService
                 var name = cols[1].Trim();
                 if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name)) continue;
 
-                var exists = await _context.IcdCodes.AnyAsync(c => c.Code == code);
-                if (exists) continue;
+                if (!takenIcdCodes.Add(code)) continue;
 
                 var icd = new IcdCode
                 {

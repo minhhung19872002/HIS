@@ -76,16 +76,19 @@ public partial class BhxhAuditService
         if (idList.Count == 0)
             throw new ArgumentException("Cần ít nhất 1 phiên giám định");
 
+        // #195: nạp 1 lần các phiên cần đóng gói thay vì 1 query/phiên.
+        var sessionsById = await _context.Set<BhxhAuditSession>()
+            .Include(s => s.Errors)
+            .Where(s => idList.Contains(s.Id) && !s.IsDeleted)
+            .ToDictionaryAsync(s => s.Id);
+
         using var zipStream = new System.IO.MemoryStream();
         using (var archive = new System.IO.Compression.ZipArchive(zipStream, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
         {
             foreach (var sessionId in idList)
             {
-                var session = await _context.Set<BhxhAuditSession>()
-                    .Include(s => s.Errors)
-                    .FirstOrDefaultAsync(s => s.Id == sessionId && !s.IsDeleted);
-
-                if (session == null) continue; // bỏ qua session không tồn tại
+                if (!sessionsById.TryGetValue(sessionId, out var session))
+                    continue; // bỏ qua session không tồn tại
 
                 var xmlBytes = await ExportXmlAsync(sessionId);
                 var entryName = $"{session.SessionCode}.xml";

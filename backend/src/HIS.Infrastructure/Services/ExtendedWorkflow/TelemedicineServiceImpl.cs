@@ -221,10 +221,17 @@ public class TelemedicineServiceImpl : ITelemedicineService
                         CreatedBy = by,
                         Details = new List<PrescriptionDetail>(),
                     };
+                    // #195: tra danh mục thuốc 1 lần cho cả đơn thay vì 1 query/dòng thuốc.
+                    var teleItems = e.Items ?? new List<TelePrescriptionItem>();
+                    var teleMedIds = teleItems.Select(i => i.MedicineId).Distinct().ToList();
+                    var teleMedsById = await _context.Medicines
+                        .Where(m => teleMedIds.Contains(m.Id))
+                        .ToDictionaryAsync(m => m.Id);
+
                     decimal total = 0;
-                    foreach (var it in e.Items ?? new List<TelePrescriptionItem>())
+                    foreach (var it in teleItems)
                     {
-                        var med = await _context.Medicines.FindAsync(it.MedicineId);
+                        teleMedsById.TryGetValue(it.MedicineId, out var med);
                         var price = med?.UnitPrice ?? 0;
                         var amount = price * it.Quantity;
                         total += amount;

@@ -121,6 +121,17 @@ public class NationalPrescriptionService : INationalPrescriptionService
         var results = new List<BatchItemResult>();
         int success = 0, fail = 0;
 
+        // #195: nạp 1 lần các đơn hợp lệ trong lô thay vì 1 query/đơn.
+        var parsedIds = prescriptionIds
+            .Select(s => Guid.TryParse(s, out var g) ? g : (Guid?)null)
+            .Where(g => g.HasValue)
+            .Select(g => g!.Value)
+            .Distinct()
+            .ToList();
+        var prescriptionsById = await _db.Prescriptions
+            .Where(p => parsedIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id);
+
         foreach (var idStr in prescriptionIds)
         {
             if (!Guid.TryParse(idStr, out var id))
@@ -130,7 +141,7 @@ public class NationalPrescriptionService : INationalPrescriptionService
                 continue;
             }
 
-            var prescription = await _db.Prescriptions.FindAsync(id);
+            prescriptionsById.TryGetValue(id, out var prescription);
             if (prescription == null)
             {
                 fail++;

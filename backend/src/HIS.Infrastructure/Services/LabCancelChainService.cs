@@ -54,10 +54,14 @@ public class LabCancelChainService : ILabCancelChainService
     /// <summary>Cập nhật Status phiếu cha theo các dòng còn lại: còn dòng "Có KQ" → 2 (đang có KQ), ngược lại → 2 (đang TH).</summary>
     private async Task UpdateParentStatusAsync(IEnumerable<Guid> serviceRequestIds)
     {
-        foreach (var srId in serviceRequestIds.Distinct())
+        // #195: nạp 1 lần các phiếu cha thay vì 1 query/phiếu.
+        var srIds = serviceRequestIds.Distinct().ToList();
+        var parents = await _db.ServiceRequests
+            .Where(r => srIds.Contains(r.Id))
+            .ToListAsync();
+
+        foreach (var sr in parents)
         {
-            var sr = await _db.ServiceRequests.FirstOrDefaultAsync(r => r.Id == srId);
-            if (sr == null) continue;
             // Phiếu "Có kết quả" (Status=3) khi đã rollback KQ phải lùi về "Đang thực hiện" (2).
             if (sr.Status == 3) sr.Status = 2;
         }

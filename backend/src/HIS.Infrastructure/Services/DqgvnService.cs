@@ -374,10 +374,17 @@ public partial class DqgvnService : IDqgvnService
             ["DQGVN:TimeoutSeconds"] = config.TimeoutSeconds.ToString()
         };
 
+        // #195: nạp 1 lần các khoá cấu hình thay vì 1 query/khoá.
+        var configKeys = configEntries.Keys.ToList();
+        var existingConfigs = (await _context.SystemConfigs
+                .Where(c => configKeys.Contains(c.ConfigKey))
+                .ToListAsync())
+            .GroupBy(c => c.ConfigKey)
+            .ToDictionary(g => g.Key, g => g.First());
+
         foreach (var entry in configEntries)
         {
-            var existing = await _context.SystemConfigs
-                .FirstOrDefaultAsync(c => c.ConfigKey == entry.Key);
+            existingConfigs.TryGetValue(entry.Key, out var existing);
 
             if (existing != null)
             {

@@ -232,18 +232,21 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
             _context.DutyRosters.Add(targetRoster);
         }
 
+        // #195: nạp 1 lần các ca đã có của bảng đích thay vì 1 query/ca nguồn.
+        var existingShiftKeys = (await _context.DutyShifts
+                .Where(s => s.DutyRosterId == targetRoster.Id && !s.IsDeleted)
+                .Select(s => new { s.StaffId, s.ShiftDate, s.ShiftType })
+                .ToListAsync())
+            .Select(s => (s.StaffId, s.ShiftDate.Date, s.ShiftType))
+            .ToHashSet();
+
         int copied = 0, skipped = 0;
         foreach (var shift in sourceShifts)
         {
             var newDate = shift.ShiftDate.AddDays(diff);
 
             // Kiểm tra trùng (cùng staff + ngày + loại ca)
-            var exists = await _context.DutyShifts.AnyAsync(s =>
-                s.DutyRosterId == targetRoster.Id
-                && s.StaffId == shift.StaffId
-                && s.ShiftDate.Date == newDate.Date
-                && s.ShiftType == shift.ShiftType
-                && !s.IsDeleted);
+            var exists = existingShiftKeys.Contains((shift.StaffId, newDate.Date, shift.ShiftType));
 
             if (exists && !dto.OverwriteExisting)
             {

@@ -138,6 +138,32 @@ public partial class SystemCompleteService
                 return false;
             }
 
+            // #195: tra dịch vụ + giá đang hiệu lực 1 lần cho cả file, thay vì 2 query/dòng.
+            var serviceCodesInFile = new List<string>();
+            for (int i = 1; i < lines.Length; i++)
+            {
+                var probeCols = lines[i].Split('\t');
+                if (probeCols.Length < 3) continue;
+                var probeCode = probeCols[0].Trim();
+                if (!string.IsNullOrWhiteSpace(probeCode)) serviceCodesInFile.Add(probeCode);
+            }
+            var servicesByCode = serviceCodesInFile.Count == 0
+                ? new Dictionary<string, Service>()
+                : (await _context.Services
+                        .Where(s => serviceCodesInFile.Contains(s.ServiceCode) && !s.IsDeleted)
+                        .ToListAsync())
+                    .GroupBy(s => s.ServiceCode)
+                    .ToDictionary(g => g.Key, g => g.First());
+
+            var matchedServiceIds = servicesByCode.Values.Select(s => s.Id).ToList();
+            var activePricesByService = matchedServiceIds.Count == 0
+                ? new Dictionary<Guid, List<ServicePrice>>()
+                : (await _context.Set<ServicePrice>()
+                        .Where(sp => matchedServiceIds.Contains(sp.ServiceId) && sp.IsActive)
+                        .ToListAsync())
+                    .GroupBy(sp => sp.ServiceId)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+
             var imported = 0;
             for (int i = 1; i < lines.Length; i++)
             {
@@ -148,8 +174,7 @@ public partial class SystemCompleteService
                 var priceType = cols.Length > 1 ? cols[1].Trim() : "BHYT";
                 if (string.IsNullOrWhiteSpace(serviceCode)) continue;
 
-                var service = await _context.Services.FirstOrDefaultAsync(s => s.ServiceCode == serviceCode && !s.IsDeleted);
-                if (service == null)
+                if (!servicesByCode.TryGetValue(serviceCode, out var service))
                 {
                     _logger.LogWarning("ImportServicePricesFromExcelAsync: Service code '{Code}' not found, skipping row {Row}", serviceCode, i + 1);
                     continue;
@@ -158,10 +183,14 @@ public partial class SystemCompleteService
                 if (!decimal.TryParse(cols[2].Trim(), out var price)) continue;
                 var insurancePrice = cols.Length > 3 && decimal.TryParse(cols[3].Trim(), out var ip) ? ip : price;
 
-                // Deactivate existing prices of the same type for this service
-                var existingPrices = await _context.Set<ServicePrice>()
-                    .Where(sp => sp.ServiceId == service.Id && sp.PriceType == priceType && sp.IsActive)
-                    .ToListAsync();
+                // Deactivate existing prices of the same type for this service. Lọc trên bản đã
+                // nạp nên dòng sau vẫn thấy được thay đổi của dòng trước, y như khi hỏi lại DB
+                // trong cùng transaction chưa SaveChanges.
+                var existingPrices = (activePricesByService.TryGetValue(service.Id, out var servicePrices)
+                        ? servicePrices
+                        : new List<ServicePrice>())
+                    .Where(sp => sp.PriceType == priceType && sp.IsActive)
+                    .ToList();
                 foreach (var ep in existingPrices)
                 {
                     ep.EndDate = effectiveDate.AddDays(-1);

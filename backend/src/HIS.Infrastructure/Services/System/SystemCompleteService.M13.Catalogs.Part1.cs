@@ -369,6 +369,24 @@ public partial class SystemCompleteService
                 return false;
             }
 
+            // #195: hỏi DB 1 lần cho mọi mã trong file thay vì 1 query/dòng. HashSet cũng nuốt
+            // luôn mã vừa thêm nên file có mã trùng nhau không còn tạo 2 bản ghi như trước.
+            var codesInFile = new List<string>();
+            for (int i = 1; i < lines.Length; i++)
+            {
+                var probeCols = lines[i].Split('\t');
+                if (probeCols.Length < 2) continue;
+                var probeCode = probeCols[0].Trim();
+                if (!string.IsNullOrWhiteSpace(probeCode)) codesInFile.Add(probeCode);
+            }
+            var takenCodes = codesInFile.Count == 0
+                ? new HashSet<string>()
+                : (await _context.Medicines
+                        .Where(m => codesInFile.Contains(m.MedicineCode) && !m.IsDeleted)
+                        .Select(m => m.MedicineCode)
+                        .ToListAsync())
+                    .ToHashSet();
+
             var imported = 0;
             // Skip header row (line 0), parse data rows
             for (int i = 1; i < lines.Length; i++)
@@ -381,8 +399,7 @@ public partial class SystemCompleteService
                 if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name)) continue;
 
                 // Skip if code already exists
-                var exists = await _context.Medicines.AnyAsync(m => m.MedicineCode == code && !m.IsDeleted);
-                if (exists) continue;
+                if (!takenCodes.Add(code)) continue;
 
                 var medicine = new Medicine
                 {
@@ -569,6 +586,24 @@ public partial class SystemCompleteService
                 return false;
             }
 
+            // #195: hỏi DB 1 lần cho mọi mã trong file thay vì 1 query/dòng (xem ghi chú ở
+            // ImportMedicinesFromExcelAsync — HashSet cũng chặn mã trùng trong cùng file).
+            var supplyCodesInFile = new List<string>();
+            for (int i = 1; i < lines.Length; i++)
+            {
+                var probeCols = lines[i].Split('\t');
+                if (probeCols.Length < 2) continue;
+                var probeCode = probeCols[0].Trim();
+                if (!string.IsNullOrWhiteSpace(probeCode)) supplyCodesInFile.Add(probeCode);
+            }
+            var takenSupplyCodes = supplyCodesInFile.Count == 0
+                ? new HashSet<string>()
+                : (await _context.MedicalSupplies
+                        .Where(s => supplyCodesInFile.Contains(s.SupplyCode) && !s.IsDeleted)
+                        .Select(s => s.SupplyCode)
+                        .ToListAsync())
+                    .ToHashSet();
+
             var imported = 0;
             for (int i = 1; i < lines.Length; i++)
             {
@@ -579,8 +614,7 @@ public partial class SystemCompleteService
                 var name = cols[1].Trim();
                 if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name)) continue;
 
-                var exists = await _context.MedicalSupplies.AnyAsync(s => s.SupplyCode == code && !s.IsDeleted);
-                if (exists) continue;
+                if (!takenSupplyCodes.Add(code)) continue;
 
                 var supply = new MedicalSupply
                 {
