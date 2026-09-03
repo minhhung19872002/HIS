@@ -85,27 +85,10 @@
       "Bash(*DROP TABLE*)",
       "PowerShell(Remove-Item * -Recurse -Force*)",
       "PowerShell(*DROP DATABASE*)",
-      "PowerShell(*DROP TABLE*)",
-      "Read(./.env)",
-      "Read(./.env.*)",
-      "Read(./**/.env)",
-      "Read(./**/.env.local)",
-      "Read(./**/.env.*.local)",
-      "Read(./**/appsettings.Production.json)",
-      "Read(./**/*.key)",
-      "Read(./**/*.pem)",
-      "Read(./**/*.pfx)",
-      "Read(./**/*.p12)",
-      "Read(./**/id_rsa)",
-      "Read(./**/id_ed25519)",
-      "Read(./secrets/**)",
-      "Read(./scratchpad/**)"
+      "PowerShell(*DROP TABLE*)"
     ],
     "ask": [
-      "Bash(gh workflow run:*)",
-      "Bash(gh workflow run *)",
-      "Bash(gcloud *)",
-      "PowerShell(gcloud *)"
+      "Bash(gh workflow run:*)"
     ],
     "allow": [
       "Bash(grep:*)",
