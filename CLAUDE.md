@@ -154,23 +154,22 @@ All services must be registered in `backend/src/HIS.Infrastructure/DependencyInj
 
 | Item | Value |
 |---|---|
-| Backend (Azure Container Apps) | app `his-api` · resource group `rg-his` · env `cae-his` · region `southeastasia` · image `ghcr.io/minhhung19872002/his-api` (migrated off GCP 2026-08-02, GCP billing delinquent) |
-| API URL prod | https://his-api.thankfulcoast-bd0486a9.southeastasia.azurecontainerapps.io |
-| Frontend (Vercel) | https://his-psi.vercel.app |
-| Azure SQL DB | `HIS` · server `his-sql-bp2026.database.windows.net` · serverless **free offer** (100k vCore-s/month, auto-pause when exhausted) · collation Vietnamese_CI_AS · login `hisadmin` (password in Container App secret `sqlconn`) |
+| Backend + SPA (AWS EC2) | EC2 `his-app` = `i-026ea43bb85a2044b` @ `13.212.160.6` · region `ap-southeast-1` · container `his-api` behind `caddy` (80/443, Let's Encrypt) on docker network `his-net` · image `ghcr.io/minhhung19872002/his-api` · env file `/home/ec2-user/his-app.env`. **One image serves BOTH API and the Vite SPA** (same origin, `VITE_API_URL=/api` baked in the Dockerfile — `frontend/.env.production` is NOT used by prod). Migrated off Azure 2026-08-15 (Azure SQL free quota exhausted; Azure + Vercel torn down). |
+| Prod URL (FE + API) | https://his.bluestar.com.vn (`/health`, `/api/*`, `/v2/*`) |
+| AWS RDS SQL Server | `HIS` · `his-sql.cpw88q4ge4ct.ap-southeast-1.rds.amazonaws.com:1433` · SQL 2022 Express · db.t3.small (micro hit RESOURCE_SEMAPHORE) · DB collation Vietnamese_CI_AS (server collation is SQL_Latin1) · login `hisadmin` (password in `his-app.env` on EC2) · private (1433 only from EC2 SG) |
 | Admin login (all envs) | `admin` / `Admin@123` |
 | Local Docker | container `his-sqlserver` · DB `HIS` · sqlcmd `/opt/mssql-tools18/bin/sqlcmd` |
 | PACS prod | Orthanc @ https://168-110-52-7.nip.io (Oracle VM `168.110.52.7`) · storage Cloudflare R2 `his-pacs-dicom` |
 | Jitsi prod | https://161-33-180-17.nip.io (Oracle VM `161.33.180.17`) |
 
 ### Deploy (→ skill `his-ops-deploy`)
-- **Frontend Vercel**: auto-deploys on every push to `main`.
-- **Backend Azure Container Apps**: **auto-deploys via GitHub Actions** (`.github/workflows/deploy-backend.yml`) when a push
-  touches `backend/**` (since 2026-08-02, Azure OIDC keyless auth, image on ghcr.io). Check: `gh run list --workflow=deploy-backend.yml`.
-  Manual fallback: `docker build -f backend/src/HIS.API/Dockerfile -t ghcr.io/minhhung19872002/his-api:<tag> backend`
-  → `docker push` → `az containerapp update -n his-api -g rg-his --image <tag>`.
+- **AWS EC2 (FE + BE in one image)**: **auto-deploys via GitHub Actions** (`.github/workflows/deploy-backend.yml`, "Deploy to AWS EC2")
+  when a push touches `backend/**` **or `frontend/**`** (since 2026-08-15): `dotnet test` gate → build (context = repo root) → push ghcr →
+  **SSM send-command** to the EC2 (no SSH for runners) → smoke login + SPA shell. Check: `gh run list --workflow=deploy-backend.yml`.
+  Manual fallback: `docker build -f backend/src/HIS.API/Dockerfile -t ghcr.io/minhhung19872002/his-api:<tag> .`
+  → `docker push` → on EC2 (SSH `ec2-user`, or SSM): `docker pull <tag> && docker rm -f his-api && docker run -d --name his-api --restart unless-stopped --network his-net --env-file /home/ec2-user/his-app.env <tag>`.
 - After a migration: `GET /health/schema-drift` (Admin) → `missingCount` must be 0.
   `ProductionSchemaRepairRunner` auto-applies `Data/Scripts/*.sql` at startup.
 
 ### Secrets
-Do NOT hardcode cloud secrets (Orthanc/R2/seed-key/DB sa) into a tracked file. Get them from the Cloud Run env (`gcloud run services describe his-api`). Security TODO: **rotate the R2 API token** → Issue #25.
+Do NOT hardcode cloud secrets (Orthanc/R2/seed-key/DB sa) into a tracked file. Get them from `/home/ec2-user/his-app.env` on the EC2 (or GitHub repo secrets for CI). Security TODO: **rotate the R2 API token** → Issue #25.
