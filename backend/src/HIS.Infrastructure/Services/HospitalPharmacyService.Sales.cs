@@ -322,6 +322,10 @@ public partial class HospitalPharmacyService
 
             // #195: 1 query lấy tồn cho cả trang kết quả thay vì 1 query/thuốc. Vẫn chọn lô hạn
             // dùng sớm nhất (null xếp trước, giống ORDER BY của SQL Server).
+            // Thuốc có NHIỀU lô cùng hạn dùng (thường là cùng lô ở 2 kho) thì "lô sớm nhất"
+            // không đủ để chỉ ra một dòng: bản cũ để SQL TOP 1 tự chọn, bản gom-1-query lại
+            // giữ thứ tự DB trả về, nên số tồn hiển thị đổi lô. Phá hoà tường minh — nhiều
+            // hàng trước, rồi Id — để kết quả không còn phụ thuộc bên nào sắp xếp.
             var listedMedicineIds = medicines.Select(m => m.Id).Distinct().ToList();
             var stockByMedicine = listedMedicineIds.Count == 0
                 ? new Dictionary<Guid?, InventoryItem>()
@@ -329,7 +333,11 @@ public partial class HospitalPharmacyService
                         .Where(i => listedMedicineIds.Contains(i.MedicineId!.Value) && !i.IsDeleted && i.Quantity > 0)
                         .ToListAsync())
                     .GroupBy(i => i.MedicineId)
-                    .ToDictionary(g => g.Key, g => g.OrderBy(i => i.ExpiryDate).First());
+                    .ToDictionary(g => g.Key, g => g
+                        .OrderBy(i => i.ExpiryDate)
+                        .ThenByDescending(i => i.Quantity)
+                        .ThenBy(i => i.Id)
+                        .First());
 
             // Get stock for each medicine
             foreach (var med in medicines)
