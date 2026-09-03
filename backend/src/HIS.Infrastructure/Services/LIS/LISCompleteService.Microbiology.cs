@@ -193,15 +193,29 @@ public partial class LISCompleteService
         // Remove existing AST results (upsert strategy: clear + re-insert)
         _context.AntibioticSensitivityResults.RemoveRange(organism.Antibiogram);
 
+        // #195: tra danh mục kháng sinh 1 lần cho cả lô thay vì 1 query/kháng sinh.
+        var antibioticCodes = results
+            .Select(r => r.AntibioticCode?.Trim())
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Distinct()
+            .ToList();
+        var masterByCode = antibioticCodes.Count == 0
+            ? new Dictionary<string, Guid>()
+            : (await _context.LabAntibiotics
+                    .Where(a => antibioticCodes.Contains(a.AntibioticCode))
+                    .Select(a => new { a.AntibioticCode, a.Id })
+                    .ToListAsync())
+                .GroupBy(a => a.AntibioticCode)
+                .ToDictionary(g => g.Key, g => g.First().Id);
+
         foreach (var r in results)
         {
             // Try to match master catalog
             Guid? labAntibioticId = null;
-            if (!string.IsNullOrWhiteSpace(r.AntibioticCode))
+            if (!string.IsNullOrWhiteSpace(r.AntibioticCode)
+                && masterByCode.TryGetValue(r.AntibioticCode.Trim(), out var masterId))
             {
-                var master = await _context.LabAntibiotics
-                    .FirstOrDefaultAsync(a => a.AntibioticCode == r.AntibioticCode.Trim());
-                labAntibioticId = master?.Id;
+                labAntibioticId = masterId;
             }
 
             _context.AntibioticSensitivityResults.Add(new AntibioticSensitivityResult
@@ -259,14 +273,28 @@ public partial class LISCompleteService
 
         if (dto.Organisms != null)
         {
+            // #195: tra danh mục vi khuẩn 1 lần cho cả lô thay vì 1 query/chủng.
+            var organismCodes = dto.Organisms
+                .Select(o => o.OrganismCode?.Trim())
+                .Where(c => !string.IsNullOrWhiteSpace(c))
+                .Distinct()
+                .ToList();
+            var organismMasterByCode = organismCodes.Count == 0
+                ? new Dictionary<string, Guid>()
+                : (await _context.LabOrganisms
+                        .Where(x => organismCodes.Contains(x.OrganismCode))
+                        .Select(x => new { x.OrganismCode, x.Id })
+                        .ToListAsync())
+                    .GroupBy(x => x.OrganismCode)
+                    .ToDictionary(g => g.Key, g => g.First().Id);
+
             foreach (var o in dto.Organisms)
             {
                 Guid? labOrganismId = null;
-                if (!string.IsNullOrWhiteSpace(o.OrganismCode))
+                if (!string.IsNullOrWhiteSpace(o.OrganismCode)
+                    && organismMasterByCode.TryGetValue(o.OrganismCode.Trim(), out var organismMasterId))
                 {
-                    var master = await _context.LabOrganisms
-                        .FirstOrDefaultAsync(x => x.OrganismCode == o.OrganismCode.Trim());
-                    labOrganismId = master?.Id;
+                    labOrganismId = organismMasterId;
                 }
 
                 _context.MicrobiologyOrganismFindings.Add(new MicrobiologyOrganismFinding
@@ -314,14 +342,26 @@ public partial class LISCompleteService
 
         if (dto.Results != null)
         {
+            // #195: xác thực id kháng sinh 1 lần cho cả lô thay vì 1 query/kết quả.
+            var antibioticIds = dto.Results
+                .Select(r => r.AntibioticId)
+                .Where(id => id != Guid.Empty)
+                .Distinct()
+                .ToList();
+            var knownAntibioticIds = antibioticIds.Count == 0
+                ? new HashSet<Guid>()
+                : (await _context.LabAntibiotics
+                        .Where(a => antibioticIds.Contains(a.Id))
+                        .Select(a => a.Id)
+                        .ToListAsync())
+                    .ToHashSet();
+
             foreach (var r in dto.Results)
             {
                 Guid? labAntibioticId = null;
-                if (r.AntibioticId != Guid.Empty)
+                if (r.AntibioticId != Guid.Empty && knownAntibioticIds.Contains(r.AntibioticId))
                 {
-                    var master = await _context.LabAntibiotics
-                        .FirstOrDefaultAsync(a => a.Id == r.AntibioticId);
-                    labAntibioticId = master?.Id;
+                    labAntibioticId = r.AntibioticId;
                 }
 
                 _context.AntibioticSensitivityResults.Add(new AntibioticSensitivityResult

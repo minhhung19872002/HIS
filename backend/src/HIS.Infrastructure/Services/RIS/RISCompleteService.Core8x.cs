@@ -776,14 +776,19 @@ public partial class RISCompleteService
             return result;
         }
 
-        foreach (var orderId in dto.OrderIds.Distinct())
+        // #195: batch-load các phiếu thay vì 1 query/phiếu trong vòng lặp.
+        var orderIds = dto.OrderIds.Distinct().ToList();
+        var requestsById = await _context.RadiologyRequests
+            .Include(r => r.Patient)
+            .Include(r => r.Service)
+            .Include(r => r.RequestingDoctor)
+            .Include(r => r.Exams)
+            .Where(r => orderIds.Contains(r.Id))
+            .ToDictionaryAsync(r => r.Id);
+
+        foreach (var orderId in orderIds)
         {
-            var request = await _context.RadiologyRequests
-                .Include(r => r.Patient)
-                .Include(r => r.Service)
-                .Include(r => r.RequestingDoctor)
-                .Include(r => r.Exams)
-                .FirstOrDefaultAsync(r => r.Id == orderId);
+            requestsById.TryGetValue(orderId, out var request);
 
             if (request == null)
             {

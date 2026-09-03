@@ -442,11 +442,19 @@ public partial class RISCompleteService
         var rooms = await _context.Rooms.Where(r => r.RoomType >= 10 && r.RoomType < 20 && r.IsActive).ToListAsync();
         var result = new List<RoomStatisticsDto>();
 
+        // #195: 1 query cho mọi phòng thay vì 1 query/phòng trong vòng lặp.
+        var roomIds = rooms.Select(r => r.Id).ToList();
+        var assignmentsByRoom = (await _context.Set<RadiologyRoomAssignment>()
+                .Where(a => roomIds.Contains(a.RoomId) && a.AssignedAt >= rsFromUtc && a.AssignedAt < rsToUtc)
+                .ToListAsync())
+            .GroupBy(a => a.RoomId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
         foreach (var room in rooms)
         {
-            var assignments = await _context.Set<RadiologyRoomAssignment>()
-                .Where(a => a.RoomId == room.Id && a.AssignedAt >= rsFromUtc && a.AssignedAt < rsToUtc)
-                .ToListAsync();
+            var assignments = assignmentsByRoom.TryGetValue(room.Id, out var roomAssignments)
+                ? roomAssignments
+                : new List<RadiologyRoomAssignment>();
 
             result.Add(new RoomStatisticsDto
             {
@@ -560,12 +568,18 @@ public partial class RISCompleteService
 
     public async Task<bool> AssignTagsToRequestAsync(AssignTagRequestDto request)
     {
+        // #195: nạp 1 lần các nhãn đã gắn thay vì 1 query/nhãn. Set này cũng chặn luôn
+        // trường hợp TagIds gửi lên trùng nhau — trước đây mỗi vòng lặp query DB nên bản
+        // ghi vừa Add (chưa SaveChanges) không thấy được ⇒ chèn trùng.
+        var existingTagIds = (await _context.Set<RadiologyRequestTag>()
+                .Where(rt => rt.RadiologyRequestId == request.RadiologyRequestId)
+                .Select(rt => rt.TagId)
+                .ToListAsync())
+            .ToHashSet();
+
         foreach (var tagId in request.TagIds)
         {
-            var existingTag = await _context.Set<RadiologyRequestTag>()
-                .FirstOrDefaultAsync(rt => rt.RadiologyRequestId == request.RadiologyRequestId && rt.TagId == tagId);
-
-            if (existingTag == null)
+            if (existingTagIds.Add(tagId))
             {
                 var requestTag = new RadiologyRequestTag
                 {

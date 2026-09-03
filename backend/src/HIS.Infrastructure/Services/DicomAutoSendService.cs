@@ -263,11 +263,16 @@ public class DicomAutoSendService : IDicomAutoSendService
             .Where(r => r.IsActive && r.TriggerType == "on_arrival" && !r.IsDeleted)
             .OrderBy(r => r.Priority).ToListAsync();
 
+        // #195: nạp 1 lần các đích gửi thay vì 1 query/rule trong vòng lặp.
+        var destinationIds = rules.Select(r => r.DestinationServerId).Distinct().ToList();
+        var activeServersById = await _db.RemotePacsServers
+            .Where(s => destinationIds.Contains(s.Id) && s.IsActive && !s.IsDeleted)
+            .ToDictionaryAsync(s => s.Id);
+
         int triggered = 0;
         foreach (var rule in rules)
         {
-            var server = await _db.RemotePacsServers
-                .FirstOrDefaultAsync(s => s.Id == rule.DestinationServerId && s.IsActive && !s.IsDeleted);
+            activeServersById.TryGetValue(rule.DestinationServerId, out var server);
             if (server == null)
             {
                 _logger.LogWarning("Skipping DICOM auto-send rule {RuleId}: destination is inactive", rule.Id);

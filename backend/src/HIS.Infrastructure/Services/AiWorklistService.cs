@@ -107,18 +107,27 @@ public class AiWorklistService : BackgroundService
             .ToListAsync(ct);
         var alreadySet = new HashSet<string>(alreadyQueued, StringComparer.OrdinalIgnoreCase);
 
+        // #195: nạp 1 lần các ca chụp đứng sau những study sắp xếp hàng, thay vì 1 query/study.
+        var examIdsNeeded = recent
+            .Where(s => !alreadySet.Contains(s.StudyInstanceUID))
+            .Select(s => s.RadiologyExamId)
+            .Distinct()
+            .ToList();
+        var examsById = await db.RadiologyExams
+            .Include(e => e.RadiologyRequest)
+                .ThenInclude(r => r!.Patient)
+            .Include(e => e.RadiologyRequest)
+                .ThenInclude(r => r!.RequestingDoctor)
+            .Where(e => examIdsNeeded.Contains(e.Id))
+            .ToDictionaryAsync(e => e.Id, ct);
+
         int created = 0;
         foreach (var study in recent)
         {
             if (alreadySet.Contains(study.StudyInstanceUID)) continue;
 
             // Get the RadiologyRequest behind this study so we can pull patient/dept.
-            var examWithReq = await db.RadiologyExams
-                .Include(e => e.RadiologyRequest)
-                    .ThenInclude(r => r!.Patient)
-                .Include(e => e.RadiologyRequest)
-                    .ThenInclude(r => r!.RequestingDoctor)
-                .FirstOrDefaultAsync(e => e.Id == study.RadiologyExamId, ct);
+            examsById.TryGetValue(study.RadiologyExamId, out var examWithReq);
 
             var req = examWithReq?.RadiologyRequest;
             var marker = new AiLabelingResult

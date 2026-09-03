@@ -107,14 +107,21 @@ public partial class SurgeryOperationServiceImpl
                 .Where(sr => sr.MedicalRecordId == (req.MedicalRecordId ?? Guid.Empty))
                 .ToListAsync();
 
+            // #195: 1 query cho mọi phiếu thay vì 1 query/phiếu trong vòng lặp.
+            // Vẫn ghép lại theo đúng thứ tự phiếu như vòng lặp cũ để bảng in không đổi.
+            var serviceReqIds = serviceReqs.Select(sr => sr.Id).ToList();
+            var detailsByRequest = (await _context.Set<ServiceRequestDetail>()
+                    .Include(d => d.Service)
+                    .Where(d => serviceReqIds.Contains(d.ServiceRequestId))
+                    .ToListAsync())
+                .GroupBy(d => d.ServiceRequestId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
             var allDetails = new List<ServiceRequestDetail>();
             foreach (var sr in serviceReqs)
             {
-                var details = await _context.Set<ServiceRequestDetail>()
-                    .Include(d => d.Service)
-                    .Where(d => d.ServiceRequestId == sr.Id)
-                    .ToListAsync();
-                allDetails.AddRange(details);
+                if (detailsByRequest.TryGetValue(sr.Id, out var srDetails))
+                    allDetails.AddRange(srDetails);
             }
 
             var body = new StringBuilder();
@@ -208,6 +215,15 @@ public partial class SurgeryOperationServiceImpl
 
             var firstPat = serviceReqs.FirstOrDefault()?.MedicalRecord?.Patient;
 
+            // #195: 1 query cho mọi phiếu thay vì 1 query/phiếu trong vòng lặp render bên dưới.
+            var printedReqIds = serviceReqs.Select(sr => sr.Id).ToList();
+            var detailsByRequest = (await _context.Set<ServiceRequestDetail>()
+                    .Include(d => d.Service)
+                    .Where(d => printedReqIds.Contains(d.ServiceRequestId))
+                    .ToListAsync())
+                .GroupBy(d => d.ServiceRequestId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
             var body = new StringBuilder();
             body.AppendLine(GetHospitalHeader());
             body.AppendLine(@"<div class=""form-title"">TỔNG HỢP PHIẾU CHỈ ĐỊNH DỊCH VỤ</div>");
@@ -225,10 +241,9 @@ public partial class SurgeryOperationServiceImpl
                 body.AppendLine($@"<div class=""field""><span class=""field-label"">Ngày chỉ định:</span><span class=""field-value"">{sr.RequestDate:dd/MM/yyyy HH:mm}</span></div>");
                 body.AppendLine($@"<div class=""field""><span class=""field-label"">BS chỉ định:</span><span class=""field-value"">{Esc(sr.Doctor?.FullName)}</span></div>");
 
-                var details = await _context.Set<ServiceRequestDetail>()
-                    .Include(d => d.Service)
-                    .Where(d => d.ServiceRequestId == sr.Id)
-                    .ToListAsync();
+                var details = detailsByRequest.TryGetValue(sr.Id, out var srDetails)
+                    ? srDetails
+                    : new List<ServiceRequestDetail>();
 
                 body.AppendLine(@"<table class=""bordered""><thead><tr><th>STT</th><th>Tên dịch vụ</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead><tbody>");
                 for (int i = 0; i < details.Count; i++)
