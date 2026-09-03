@@ -2,26 +2,24 @@
 
 > **★ RESPONSE LANGUAGE (all sessions):** reply to the user in the language of their message — a Vietnamese prompt gets a Vietnamese reply, an English prompt gets an English reply. These governance files being written in English is for token efficiency only; it does NOT change the response language. (The `UserPromptSubmit` hook in `.claude/settings.json` requires the one-line skill note in Vietnamese **only when a code task actually starts** — a Q&A/explanation turn prints none.)
 
-## ⚠️ SKILL ROUTING — MUST BE INCLUDED BEFORE EVERY TASK CODE
+## Skills & pipeline (reference, not a mandatory pre-step)
 
-> Applies to **all sessions and all machines** working on this project.
+> User decision 2026-09-03: the old "MUST read `.claude/SKILL-MAP.md` BEFORE every task" mandate is
+> **REMOVED**, along with its `UserPromptSubmit` reminder hook. Do not open the map as ceremony and do
+> not announce it — get straight to the work.
 
-When you receive **any request for feature development, code fixes, test writing, migration, deployment, or documentation** (including short prompts that do NOT mention specific skills), **BEFORE you start working on it, you must:**
-
-1. **Read `.claude/SKILL-MAP.md`** — the 2-tier skill map (CORE `core-*` portable + PROJECT `his-*` HIS-specific).
-2. **Pick the right skill** per the routing table (sections 1+2): apply `core-*` first → `his-*` after, in the correct order + path.
-3. **If NO skill fits** → follow **section (6) FALLBACK**: prefer extending an existing skill; only propose creating a
-   new skill when the task is **reused many times** (ask the user to approve); a one-off task is done directly, no skill created.
-4. **Run the task through the PIPELINE** `.claude/workflow/workflow.md` — every input goes from the map → the 5-stage flow
-   (Router→Planner→Worker→Reviewer→Finalizer) → completes one process. A non-trivial task uses the state-store
-   `.claude/workflow/task.md`; mark `DONE` only after passing `.claude/workflow/checklist.md`. (Trivial/Q&A → skip the pipeline.)
+`.claude/SKILL-MAP.md` (+ the `skill-routes/<tier>.md` sub-maps) and `.claude/workflow/workflow.md` are
+still there as **reference**: consult them when a task is genuinely unfamiliar or when you want the
+established recipe for a tier. The engineering standards they encode still apply and are not optional —
+verify before asserting, map the blast radius before editing shared code, keep the diff minimal, pass the
+build-gate — but they apply as habits, not as a file you must read first.
 
 > ★ **WHEN CREATING/EDITING any file in `.claude` (governance) — MANDATORY** (anti-drift, the root of all past contradictions):
 > (a) **Check `.claude/REGISTRY.md` FIRST** — a rule that already has an owner file → only **1 line + a link**, do NOT copy the content;
 > a new rule → add a row to REGISTRY then write it in **one single place**. (b) **Do NOT hard-code changing values**
 > (migration number/date/count) → use a dynamic directive. (c) **After editing → run `bash .claude/lint.sh`** (must be LINT OK).
 
-Skills live in `.claude/skills/` (their description auto-loads). SKILL-MAP/PROMPT-TEMPLATES + `.claude/workflow/*` are normal files — you **must proactively Read** them per this instruction. Skipping the routing/pipeline step = wrong process.
+Skills live in `.claude/skills/` (their description auto-loads, so a relevant one surfaces on its own). SKILL-MAP/PROMPT-TEMPLATES + `.claude/workflow/*` are ordinary reference files — read them when they help, not on every task.
 
 ## Agent routing (self-selected — ALWAYS state what you're using)
 
@@ -43,6 +41,14 @@ Default to **replying inline** (cheapest). Only spawn a subagent when the work i
 | Many independent pieces | fan-out **in parallel** (warn about the token cost first) |
 
 **Model tier (save the Opus budget — every session/machine):** the main-loop model is chosen by the user via `/model`; I do **NOT change it mid-session**. Light/repeated/bulk **isolated** work (as above) — besides `agy` — can be pushed to a **subagent `model: haiku/sonnet`** to avoid spending the Opus budget; **heavy / needs-intelligence / touches HIS patient-safety·DI·contract·DB·secret·money** work → **keep Opus** on the main loop (per "Reconcile agy↔guardrail" above — do NOT delegate guardrail code). A session of all light work → prefer `/model` **Sonnet**; a heavy/refactor/migration session → **Opus**. **★ AT THE START OF EVERY session / new chat window (every session·every machine):** assess the session's nature right from the first request → if the current model is in the **wrong tier**, **nudge the user to `/model` the right tier BEFORE starting** (e.g. an all-Q&A/boilerplate session on Opus → suggest dropping to **Sonnet**; about to refactor/migrate/patient-safety on Sonnet → suggest **Opus**); if the model already matches, stay quiet and get to work. *(A soft nudge — not a harness auto-switch.)*
+
+## Working conventions
+
+- **Tìm/đọc code dùng tool Grep và Read, KHÔNG dùng `cd ... && grep <glob>` qua Bash** — Bash luôn
+  phải qua vòng permission (một `grep -r` neo ở gốc repo chạm được `./.env`, `./frontend/.env`,
+  `./deploy/pacs/oracle/*.key` nên bị deny rule chặn phòng ngừa), còn Grep/Read là read-only nên
+  không bị hỏi. Deny/allow của repo: `.claude/settings.json` (secret được neo theo đường dẫn thật,
+  không chặn cả cây source).
 
 ## Project Structure
 - **Backend**: ASP.NET Core Clean Architecture (HIS.Core → HIS.Application → HIS.Infrastructure → HIS.API)

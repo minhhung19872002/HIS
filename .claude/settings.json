@@ -11,15 +11,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo \"SKILL-ROUTER reminder: For any feature/code/test/migration/deploy/doc task in this HIS project, FIRST read .claude/SKILL-MAP.md (thin router), THEN per its dispatch table (2) read the matching .claude/skill-routes/<tier>.md sub-map (fe/be/test/ops-doc; _reference.md for the end-to-end playbook), and route to the core-* + his-* skills before implementing (fallback per section 6 if none fit). PRE-FLIGHT for any code task: clarify-if-ambiguous (ask, don't guess) -> verify-before-assert (never invent files/symbols/fields) -> impact-analysis (map blast radius before editing shared code) -> minimal-change (smallest correct diff, no over-engineering). OUTPUT STYLE (core-execution-output): concise grouped summaries by default, no raw-log/probe/temp-path/bg-poll spam; auto-expand to exact failing command + root-cause logs only on failure or when asked; always surface destructive ops (rm, git reset/force, db migration, pkg install, env change); never hide errors or claim unverified success. REQUIRED OUTPUT: print the skill note ONLY when you actually start a code task (feature/fix/refactor/migration/test/deploy/doc) -- one line in Vietnamese naming the skill(s) selected AND its file location (path under .claude/skills/<name>/ for project skills, or note 'skill built-in/plugin' if it lives outside that folder). For a question, discussion, explanation or lookup turn: print NO skill note at all (matches workflow.md, which already skips the skill-note for Q&A).\"",
-            "statusMessage": "Skill-router reminder"
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
             "shell": "bash",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/remind-pipeline.sh\"",
             "statusMessage": "Pipeline reminder"
@@ -95,33 +86,64 @@
       "PowerShell(Remove-Item * -Recurse -Force*)",
       "PowerShell(*DROP DATABASE*)",
       "PowerShell(*DROP TABLE*)",
-      "Read(**/.env)",
-      "Read(**/.env.*)",
-      "Read(**/secrets/**)",
-      "Read(**/*.pem)",
-      "Read(**/*.key)",
-      "Read(**/*.pfx)",
-      "Read(**/appsettings.Production.json)"
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./frontend/.env)",
+      "Read(./frontend/.env.*)",
+      "Read(./backend/**/.env)",
+      "Read(./backend/**/.env.*)",
+      "Read(./backend/**/appsettings.Production.json)",
+      "Read(./deploy/**/.env)",
+      "Read(./deploy/**/.env.*)",
+      "Read(./deploy/**/*.key)",
+      "Read(./deploy/**/*.pem)",
+      "Read(./deploy/**/*.pfx)",
+      "Read(./.claude/worktrees/**/.env)",
+      "Read(./.claude/worktrees/**/.env.*)",
+      "Read(./secrets/**)"
     ],
     "ask": [
+      "Bash(git push:*)",
+      "Bash(git push *)",
+      "PowerShell(git push*)",
+      "Bash(gh workflow run:*)",
+      "Bash(gh workflow run *)",
       "Bash(gcloud *)",
       "PowerShell(gcloud *)"
     ],
     "allow": [
-      "Bash(git status*)",
-      "Bash(git diff*)",
-      "Bash(git log*)",
-      "Bash(git show*)",
-      "Bash(git branch*)",
-      "Bash(git fetch*)",
-      "Bash(git pull --ff-only*)",
-      "Bash(npm run build*)",
-      "Bash(npm run lint*)",
-      "Bash(npm test*)",
-      "Bash(dotnet build *)",
-      "Bash(npx cypress *)",
-      "Bash(npx playwright test*)",
-      "Bash(gh issue *)"
-    ]
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(sed -n:*)",
+      "Bash(wc:*)",
+      "Bash(git status)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git show:*)",
+      "Bash(git fetch:*)",
+      "Bash(git branch:*)",
+      "Bash(git stash list)",
+      "Bash(git worktree list)",
+      "Bash(git pull --ff-only:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh secret list)",
+      "Bash(dotnet build:*)",
+      "Bash(npm run build)",
+      "Bash(npm run build:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx cypress:*)",
+      "Bash(npx playwright test:*)"
+    ],
+    "defaultMode": "acceptEdits"
   }
 }
