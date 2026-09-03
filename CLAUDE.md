@@ -44,11 +44,29 @@ Default to **replying inline** (cheapest). Only spawn a subagent when the work i
 
 ## Working conventions
 
-- **Tìm/đọc code dùng tool Grep và Read, KHÔNG dùng `cd ... && grep <glob>` qua Bash** — Bash luôn
-  phải qua vòng permission (một `grep -r` neo ở gốc repo chạm được `./.env`, `./frontend/.env`,
-  `./deploy/pacs/oracle/*.key` nên bị deny rule chặn phòng ngừa), còn Grep/Read là read-only nên
-  không bị hỏi. Deny/allow của repo: `.claude/settings.json` (secret được neo theo đường dẫn thật,
-  không chặn cả cây source).
+### ★ Đọc file: dùng TOOL, không dùng Bash (bắt buộc — mọi phiên, mọi máy)
+
+Ba gạch đầu dòng, không có ngoại lệ:
+
+- **Đọc 1 file → tool `Read`.** KHÔNG `cat`, KHÔNG `head`/`tail`/`sed -n`, KHÔNG `grep` qua Bash.
+- **Tìm chuỗi trong nhiều file → tool `Grep`** (tìm file theo tên → `Glob`). KHÔNG `cd ... && grep -rn`,
+  KHÔNG `find`.
+- **Bash CHỈ dùng cho việc Bash mới làm được**: `git`, `gh`, `dotnet`, `npm`/`npx`, `curl`, `docker`.
+
+Vì sao: Bash phải qua vòng permission, còn Read/Grep/Glob là read-only nên không bị hỏi. Hai kiểu
+vướng hay gặp và **cả hai đều KHÔNG phải do rule `Read()`**:
+
+1. **Bị hỏi duyệt** — lệnh Bash ghép bằng `&&` (vd `git diff --stat && git diff <file>`) không khớp
+   pattern allow `Bash(git diff:*)`. Tách thành từng lệnh rời, hoặc dùng tool.
+2. **Bị chặn** — `cd` ở lệnh trước làm cwd của Bash trôi, path tương đối resolve sai
+   (vd `frontend/.env.production` → `backend/frontend/.env.production`) rồi khớp deny rule. **Luôn
+   dùng đường dẫn tuyệt đối trong Bash**, đừng dựa vào cwd.
+
+Deny/allow của repo: `.claude/settings.json` (file **duy nhất** có rule `Read()`; `settings.local.json`
+cả cấp project lẫn cấp user đều `deny: []`). Deny chỉ neo vào **secret**: `.env` · `.env.local` ·
+`.env.*.local` · `appsettings.Production.json` · `*.key|pem|pfx|p12` · `id_rsa`/`id_ed25519` ·
+`secrets/**` · `scratchpad/**`. **KHÔNG chặn source code, KHÔNG chặn CLAUDE.md, KHÔNG chặn `docs/**`**
+— gặp prompt khi đọc mấy thứ đó thì nguyên nhân là 1 hoặc 2 ở trên, đừng nới rule.
 
 ## Project Structure
 - **Backend**: ASP.NET Core Clean Architecture (HIS.Core → HIS.Application → HIS.Infrastructure → HIS.API)
