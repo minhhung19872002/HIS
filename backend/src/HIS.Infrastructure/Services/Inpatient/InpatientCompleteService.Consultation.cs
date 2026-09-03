@@ -337,10 +337,17 @@ public partial class InpatientCompleteService {
             .OrderBy(n => n.CareDate).ThenBy(n => n.CareTime)
             .ToListAsync();
 
+        // #195: nạp 1 lần điều dưỡng của cả phiếu thay vì 1 query/dòng chăm sóc.
+        var nurseIds = sheets.Where(s => s.NurseId.HasValue).Select(s => s.NurseId!.Value).Distinct().ToList();
+        var nursesById = nurseIds.Count == 0
+            ? new Dictionary<Guid, User>()
+            : await _context.Users.Where(u => nurseIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id);
+
         var rows = new List<NursingCareRow>();
         foreach (var sheet in sheets)
         {
-            var nurse = sheet.NurseId.HasValue ? await _context.Users.FindAsync(sheet.NurseId.Value) : null;
+            User nurse = null;
+            if (sheet.NurseId.HasValue) nursesById.TryGetValue(sheet.NurseId.Value, out nurse);
             rows.Add(new NursingCareRow
             {
                 Date = sheet.CareDate,

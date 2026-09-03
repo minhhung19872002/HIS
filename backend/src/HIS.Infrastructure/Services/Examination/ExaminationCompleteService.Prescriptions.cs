@@ -363,15 +363,25 @@ public partial class ExaminationCompleteService
             .Where(m => medicineIds.Contains(m.Id))
             .ToListAsync();
 
+        // #195: 1 query lấy mọi cặp tương tác trong danh sách thuốc, thay vì 1 query cho MỖI
+        // cặp — 10 thuốc là 45 round-trip, mà đây là đường kiểm tra an toàn kê đơn.
+        var interactionRows = await _context.DrugInteractions
+            .Where(d => medicineIds.Contains(d.Medicine1Id) && medicineIds.Contains(d.Medicine2Id))
+            .ToListAsync();
+        var interactionByPair = new Dictionary<(Guid, Guid), DrugInteraction>();
+        foreach (var row in interactionRows)
+        {
+            // Lưu cả 2 chiều để tra theo thứ tự nào cũng khớp, giống điều kiện OR trước đây.
+            interactionByPair.TryAdd((row.Medicine1Id, row.Medicine2Id), row);
+            interactionByPair.TryAdd((row.Medicine2Id, row.Medicine1Id), row);
+        }
+
         // Check interactions between each pair
         for (int i = 0; i < medicineIds.Count - 1; i++)
         {
             for (int j = i + 1; j < medicineIds.Count; j++)
             {
-                var interaction = await _context.DrugInteractions
-                    .FirstOrDefaultAsync(d =>
-                        (d.Medicine1Id == medicineIds[i] && d.Medicine2Id == medicineIds[j]) ||
-                        (d.Medicine1Id == medicineIds[j] && d.Medicine2Id == medicineIds[i]));
+                interactionByPair.TryGetValue((medicineIds[i], medicineIds[j]), out var interaction);
 
                 if (interaction != null)
                 {

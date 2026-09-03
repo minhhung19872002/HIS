@@ -141,13 +141,30 @@ public partial class BillingCompleteService {
                 throw new InvalidOperationException(
                     $"Tổng hoàn chi tiết ({sumItems:N0}đ) không khớp với tổng yêu cầu hoàn ({dto.RefundAmount:N0}đ)");
 
+            // #195: nạp 1 lần các dòng cần kiểm tra thay vì 1 query/dòng. Vòng lặp vẫn chạy
+            // đúng thứ tự dto.Items nên lỗi nào bật ra trước vẫn y như cũ.
+            var refundServiceIds = dto.Items.Where(i => i.ItemType == "service").Select(i => i.ItemId).Distinct().ToList();
+            var refundMedicineIds = dto.Items.Where(i => i.ItemType == "medicine").Select(i => i.ItemId).Distinct().ToList();
+
+            var refundServiceDetails = refundServiceIds.Count == 0
+                ? new Dictionary<Guid, ServiceRequestDetail>()
+                : await _context.ServiceRequestDetails
+                    .Include(d => d.ServiceRequest)
+                    .Where(d => refundServiceIds.Contains(d.Id))
+                    .ToDictionaryAsync(d => d.Id);
+
+            var refundPrescriptionDetails = refundMedicineIds.Count == 0
+                ? new Dictionary<Guid, PrescriptionDetail>()
+                : await _context.PrescriptionDetails
+                    .Include(d => d.Prescription)
+                    .Where(d => refundMedicineIds.Contains(d.Id))
+                    .ToDictionaryAsync(d => d.Id);
+
             foreach (var item in dto.Items)
             {
                 if (item.ItemType == "service")
                 {
-                    var sr = await _context.ServiceRequestDetails
-                        .Include(d => d.ServiceRequest)
-                        .FirstOrDefaultAsync(d => d.Id == item.ItemId);
+                    refundServiceDetails.TryGetValue(item.ItemId, out var sr);
                     if (sr == null) throw new Exception($"Dịch vụ {item.ItemId} không tồn tại");
                     // BHYT không cho hoàn chi tiết CLS đã có kết quả
                     if (sr.PatientType == 1 && !string.IsNullOrWhiteSpace(sr.Result))
@@ -156,9 +173,7 @@ public partial class BillingCompleteService {
                 }
                 else if (item.ItemType == "medicine")
                 {
-                    var pd = await _context.PrescriptionDetails
-                        .Include(d => d.Prescription)
-                        .FirstOrDefaultAsync(d => d.Id == item.ItemId);
+                    refundPrescriptionDetails.TryGetValue(item.ItemId, out var pd);
                     if (pd == null) throw new Exception($"Thuốc {item.ItemId} không tồn tại");
                     if (pd.PatientType == 1)
                         throw new InvalidOperationException(

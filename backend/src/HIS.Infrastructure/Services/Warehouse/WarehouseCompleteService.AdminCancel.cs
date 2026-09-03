@@ -356,14 +356,23 @@ public partial class WarehouseCompleteService {
             CreatedBy = userId.ToString()
         };
 
+        // #195: nạp 1 lần các dòng tồn của kho này thay vì 1 query/dòng phiếu. Vẫn tra đúng
+        // theo MedicineId như cũ (kể cả khi null), và hai dòng cùng thuốc vẫn cộng dồn vào
+        // cùng một bản ghi tồn — trước đây query lặp cũng trả về chính bản đang được theo dõi.
+        var returnedMedicineIds = exportReceipt.Details.Select(d => d.MedicineId).Distinct().ToList();
+        var inventoryByMedicine = (await _context.Set<InventoryItem>()
+                .Where(i => i.WarehouseId == exportReceipt.WarehouseId && returnedMedicineIds.Contains(i.MedicineId))
+                .ToListAsync())
+            .GroupBy(i => i.MedicineId)
+            .ToDictionary(g => g.Key, g => g.First());
+
         // Hoàn trả từng item về tồn kho
         foreach (var detail in exportReceipt.Details)
         {
             var itemId = detail.MedicineId ?? detail.SupplyId ?? detail.InventoryItemId;
             if (itemId.HasValue)
             {
-                var inventoryItem = await _context.Set<InventoryItem>()
-                    .FirstOrDefaultAsync(i => i.WarehouseId == exportReceipt.WarehouseId && i.MedicineId == detail.MedicineId);
+                inventoryByMedicine.TryGetValue(detail.MedicineId, out var inventoryItem);
 
                 if (inventoryItem != null)
                 {
@@ -592,13 +601,21 @@ public partial class WarehouseCompleteService {
             CreatedBy = userId.ToString()
         };
 
+        // #195: 1 query lấy chi tiết của mọi phiếu nguồn thay vì 1 query/phiếu.
+        var sourceVoucherIds = vouchers.Select(v => v.Id).ToList();
+        var detailsByVoucher = (await _context.ExportReceiptDetails
+                .Where(d => sourceVoucherIds.Contains(d.ExportReceiptId) && !d.IsDeleted)
+                .ToListAsync())
+            .GroupBy(d => d.ExportReceiptId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
         // Copy all details from source vouchers
         decimal totalAmount = 0;
         foreach (var voucher in vouchers)
         {
-            var details = await _context.ExportReceiptDetails
-                .Where(d => d.ExportReceiptId == voucher.Id && !d.IsDeleted)
-                .ToListAsync();
+            var details = detailsByVoucher.TryGetValue(voucher.Id, out var voucherDetails)
+                ? voucherDetails
+                : new List<ExportReceiptDetail>();
 
             foreach (var detail in details)
             {

@@ -297,6 +297,16 @@ public partial class InsuranceXmlService
     {
         var batches = new List<InsuranceSettlementBatchDto>();
 
+        // #195: 1 query cho cả năm thay vì 12 query/tháng, và chỉ lấy 4 cột cần dùng thay vì
+        // nạp nguyên entity. Chia ngăn vẫn dùng đúng biểu thức [đầu tháng, cuối tháng] cũ —
+        // kể cả nét lệch sẵn có là endDate rơi vào 00:00 ngày cuối tháng.
+        var yearStart = new DateTime(year, 1, 1);
+        var yearEnd = new DateTime(year, 12, 1).AddMonths(1).AddDays(-1);
+        var yearClaims = await _context.InsuranceClaims
+            .Where(c => c.ServiceDate >= yearStart && c.ServiceDate <= yearEnd)
+            .Select(c => new { c.ServiceDate, c.TotalAmount, c.InsuranceAmount, c.PatientAmount })
+            .ToListAsync();
+
         for (int month = 1; month <= 12; month++)
         {
             var startDate = new DateTime(year, month, 1);
@@ -305,9 +315,9 @@ public partial class InsuranceXmlService
             // Only include months that have passed or are current
             if (startDate > DateTime.Today) break;
 
-            var claims = await _context.InsuranceClaims
+            var claims = yearClaims
                 .Where(c => c.ServiceDate >= startDate && c.ServiceDate <= endDate)
-                .ToListAsync();
+                .ToList();
 
             batches.Add(new InsuranceSettlementBatchDto
             {
@@ -368,14 +378,24 @@ public partial class InsuranceXmlService
         int acceptedCount = 0, rejectedCount = 0;
         decimal acceptedInsurance = 0, rejectedTotal = 0;
 
+        // #195: nạp 1 lần KQ giám định cũ của mọi hồ sơ trong kỳ, thay vì 1 query/dòng file.
+        var claimIdsInPeriod = byCode.Values.Select(c => c.Id).Distinct().ToList();
+        var oldRejectionsByClaim = claimIdsInPeriod.Count == 0
+            ? new Dictionary<Guid, List<InsuranceRejection>>()
+            : (await _context.InsuranceRejections
+                    .Where(x => claimIdsInPeriod.Contains(x.ClaimId) && !x.IsDeleted)
+                    .ToListAsync())
+                .GroupBy(x => x.ClaimId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
         foreach (var row in rows)
         {
             if (!byCode.TryGetValue(row.MaLk, out var claim) || processed.Contains(claim.Id)) continue;
             processed.Add(claim.Id);
 
             // Xoá KQ giám định cũ của hồ sơ → re-import idempotent.
-            var oldRej = await _context.InsuranceRejections.Where(x => x.ClaimId == claim.Id && !x.IsDeleted).ToListAsync();
-            if (oldRej.Count > 0) _context.InsuranceRejections.RemoveRange(oldRej);
+            if (oldRejectionsByClaim.TryGetValue(claim.Id, out var oldRej) && oldRej.Count > 0)
+                _context.InsuranceRejections.RemoveRange(oldRej);
 
             claim.ProcessedAt = now;
             claim.ProcessedBy = userId == Guid.Empty ? null : userId;

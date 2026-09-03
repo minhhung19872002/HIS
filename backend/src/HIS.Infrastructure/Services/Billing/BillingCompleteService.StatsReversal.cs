@@ -310,6 +310,15 @@ public partial class BillingCompleteService {
             decimal totalAmount = 0;
             var errors = new List<string>();
 
+            // #195: 1 query gom tiền dịch vụ theo hồ sơ thay vì 1 sum/hồ sơ.
+            var xmlRecordIds = records.Select(r => r.Id).ToList();
+            var srTotalByRecord = (await _context.ServiceRequests
+                    .Where(sr => xmlRecordIds.Contains(sr.MedicalRecordId) && sr.Status != 4)
+                    .GroupBy(sr => sr.MedicalRecordId)
+                    .Select(g => new { RecordId = g.Key, Total = g.Sum(sr => sr.TotalAmount) })
+                    .ToListAsync())
+                .ToDictionary(x => x.RecordId, x => x.Total);
+
             foreach (var record in records)
             {
                 if (string.IsNullOrEmpty(record.InsuranceNumber))
@@ -318,9 +327,7 @@ public partial class BillingCompleteService {
                     continue;
                 }
 
-                var srTotal = await _context.ServiceRequests
-                    .Where(sr => sr.MedicalRecordId == record.Id && sr.Status != 4)
-                    .SumAsync(sr => sr.TotalAmount);
+                var srTotal = srTotalByRecord.TryGetValue(record.Id, out var recordTotal) ? recordTotal : 0;
                 totalAmount += srTotal;
 
                 xmlBuilder.AppendLine($"    <HOSO>");

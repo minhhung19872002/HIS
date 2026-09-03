@@ -376,13 +376,24 @@ public partial class WarehouseCompleteService {
         receipt.ApprovedBy = userId;
         receipt.ApprovedAt = DateTime.Now;
 
+        // #195: nạp 1 lần các dòng tồn liên quan thay vì 1 query/dòng phiếu, tra theo đúng
+        // khoá cũ (kho + thuốc + số lô). Dòng tồn vừa tạo cũng nạp vào bảng tra: phiếu có 2
+        // dòng cùng thuốc-cùng lô giờ cộng vào MỘT dòng tồn thay vì đẻ ra hai — tổng tồn
+        // không đổi, trước đây query lặp không thấy được bản chưa SaveChanges.
+        var stockInMedicineIds = receipt.Details.Select(d => d.MedicineId).Distinct().ToList();
+        var stockInBatches = receipt.Details.Select(d => d.BatchNumber).Distinct().ToList();
+        var stockByKey = (await _context.InventoryItems
+                .Where(i => i.WarehouseId == receipt.WarehouseId
+                    && stockInMedicineIds.Contains(i.MedicineId)
+                    && stockInBatches.Contains(i.BatchNumber))
+                .ToListAsync())
+            .GroupBy(i => (i.MedicineId, i.BatchNumber))
+            .ToDictionary(g => g.Key, g => g.First());
+
         // Update inventory for each item
         foreach (var detail in receipt.Details)
         {
-            var existingStock = await _context.InventoryItems
-                .FirstOrDefaultAsync(i => i.WarehouseId == receipt.WarehouseId
-                    && i.MedicineId == detail.MedicineId
-                    && i.BatchNumber == detail.BatchNumber);
+            stockByKey.TryGetValue((detail.MedicineId, detail.BatchNumber), out var existingStock);
 
             if (existingStock != null)
             {
@@ -407,6 +418,7 @@ public partial class WarehouseCompleteService {
                     CreatedBy = userId.ToString()
                 };
                 _context.InventoryItems.Add(inventoryItem);
+                stockByKey[(detail.MedicineId, detail.BatchNumber)] = inventoryItem;
             }
         }
 
@@ -443,12 +455,20 @@ public partial class WarehouseCompleteService {
         // If already approved, reverse inventory
         if (receipt.Status == 1)
         {
+            // #195: nạp 1 lần các dòng tồn cần trừ lại thay vì 1 query/dòng phiếu.
+            var reverseMedicineIds = receipt.Details.Select(d => d.MedicineId).Distinct().ToList();
+            var reverseBatches = receipt.Details.Select(d => d.BatchNumber).Distinct().ToList();
+            var reverseStockByKey = (await _context.InventoryItems
+                    .Where(i => i.WarehouseId == receipt.WarehouseId
+                        && reverseMedicineIds.Contains(i.MedicineId)
+                        && reverseBatches.Contains(i.BatchNumber))
+                    .ToListAsync())
+                .GroupBy(i => (i.MedicineId, i.BatchNumber))
+                .ToDictionary(g => g.Key, g => g.First());
+
             foreach (var detail in receipt.Details)
             {
-                var stock = await _context.InventoryItems
-                    .FirstOrDefaultAsync(i => i.WarehouseId == receipt.WarehouseId
-                        && i.MedicineId == detail.MedicineId
-                        && i.BatchNumber == detail.BatchNumber);
+                reverseStockByKey.TryGetValue((detail.MedicineId, detail.BatchNumber), out var stock);
                 if (stock != null)
                 {
                     stock.Quantity -= detail.Quantity;

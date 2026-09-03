@@ -136,13 +136,24 @@ public partial class ReceptionCompleteService {
             .Where(s => serviceIds.Contains(s.Id))
             .ToDictionaryAsync(s => s.Id);
 
+        // #195: phòng thực hiện chỉ phụ thuộc ServiceType và cách chọn là tất định (sắp theo
+        // tên, lấy phòng đầu) — nhớ lại theo loại dịch vụ để không hỏi DB lặp cho từng dòng.
+        var roomByServiceType = new Dictionary<int, Guid?>();
+
         foreach (var item in dto.Services)
         {
             if (!servicesMap.TryGetValue(item.ServiceId, out var service)) continue;
 
             var roomId = item.RoomId;
             if (roomId == null && dto.AutoSelectRoom)
-                roomId = await PickExecutionRoomAsync(service.ServiceType);
+            {
+                if (!roomByServiceType.TryGetValue(service.ServiceType, out var pickedRoom))
+                {
+                    pickedRoom = await PickExecutionRoomAsync(service.ServiceType);
+                    roomByServiceType[service.ServiceType] = pickedRoom;
+                }
+                roomId = pickedRoom;
+            }
 
             var serviceRequest = BuildServiceRequest(ctx, service, item.Quantity, roomId, item.PaymentType, item.Notes);
             await _context.ServiceRequests.AddAsync(serviceRequest);
@@ -291,12 +302,19 @@ public partial class ReceptionCompleteService {
         var ctx = await LoadOrderContextAsync(medicalRecordId, userId);
         var results = new List<ServiceOrderResultDto>();
 
+        // #195: nhớ phòng theo loại dịch vụ (xem ghi chú ở OrderServicesAtReceptionAsync).
+        var roomByServiceType = new Dictionary<int, Guid?>();
+
         foreach (var item in template.Items)
         {
             var service = item.Service;
             if (service == null || !service.IsActive) continue;
 
-            var roomId = await PickExecutionRoomAsync(service.ServiceType);
+            if (!roomByServiceType.TryGetValue(service.ServiceType, out var roomId))
+            {
+                roomId = await PickExecutionRoomAsync(service.ServiceType);
+                roomByServiceType[service.ServiceType] = roomId;
+            }
             var serviceRequest = BuildServiceRequest(ctx, service, item.Quantity, roomId, 2, item.Notes);
             await _context.ServiceRequests.AddAsync(serviceRequest);
 
@@ -432,19 +450,27 @@ public partial class ReceptionCompleteService {
         var totalMinutes = 0;
         var stepNumber = 1;
 
+        // #195: phòng gợi ý chỉ phụ thuộc ServiceType — nhớ lại để không hỏi DB cho từng phiếu.
+        var fallbackRoomByServiceType = new Dictionary<int, Room>();
+
         foreach (var request in serviceRequests)
         {
             // Find optimal room for this service
             var room = request.Room;
             if (room == null && request.Service != null)
             {
-                // Ánh xạ ServiceType → RoomType thay vì so trực tiếp hai bảng mã khác nhau.
-                var roomTypes = RoomTypes.ForServiceType(request.Service.ServiceType);
-                room = roomTypes.Length == 0
-                    ? null
-                    : await _context.Rooms
-                        .Include(r => r.Department)
-                        .FirstOrDefaultAsync(r => r.IsActive && roomTypes.Contains(r.RoomType));
+                var serviceType = request.Service.ServiceType;
+                if (!fallbackRoomByServiceType.TryGetValue(serviceType, out room))
+                {
+                    // Ánh xạ ServiceType → RoomType thay vì so trực tiếp hai bảng mã khác nhau.
+                    var roomTypes = RoomTypes.ForServiceType(serviceType);
+                    room = roomTypes.Length == 0
+                        ? null
+                        : await _context.Rooms
+                            .Include(r => r.Department)
+                            .FirstOrDefaultAsync(r => r.IsActive && roomTypes.Contains(r.RoomType));
+                    fallbackRoomByServiceType[serviceType] = room;
+                }
             }
 
             var estimatedMinutes = request.Service?.ServiceType switch

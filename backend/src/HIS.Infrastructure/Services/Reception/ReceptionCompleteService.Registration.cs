@@ -286,14 +286,24 @@ public partial class ReceptionCompleteService {
 
         var importBranchId = await GetUserBranchIdAsync(userId); // R3 đa cơ sở — tính 1 lần cho cả batch
 
+        // #195: CCCD được mã hoá ngẫu nhiên nên không so được trong SQL — FindByIdentityNumber-
+        // DecryptedAsync phải nạp + giải mã TOÀN BỘ bảng Patients mỗi lần gọi. Trong vòng lặp
+        // import thì mỗi dòng file là một lần quét cả bảng. Nạp 1 lần cho cả lô, đối chiếu y hệt
+        // (trim + không phân biệt hoa thường, lấy bản khớp đầu tiên).
+        // Danh sách này cũng nhận luôn bệnh nhân vừa tạo, nên file có 2 dòng cùng CCCD không còn
+        // đẻ ra 2 hồ sơ: trước đây mỗi dòng hỏi lại DB mà bản vừa Add thì chưa SaveChanges.
+        var importCandidates = await _context.Patients.Where(p => !p.IsDeleted).ToListAsync();
+
         foreach (var patientData in dto.Patients)
         {
             try
             {
                 // Check if patient exists by ID number
-                var existingPatient = await _context.Patients
-                    .Where(p => !p.IsDeleted)
-                    .FindByIdentityNumberDecryptedAsync(patientData.IdentityNumber);
+                var identityNumber = patientData.IdentityNumber?.Trim();
+                var existingPatient = string.IsNullOrWhiteSpace(identityNumber)
+                    ? null
+                    : importCandidates.FirstOrDefault(p => string.Equals(
+                        p.IdentityNumber?.Trim(), identityNumber, StringComparison.OrdinalIgnoreCase));
 
                 if (existingPatient == null)
                 {
@@ -311,6 +321,7 @@ public partial class ReceptionCompleteService {
                         BranchId = importBranchId // R3 đa cơ sở
                     };
                     await _patientRepo.AddAsync(existingPatient);
+                    importCandidates.Add(existingPatient);
                 }
 
                 success++;

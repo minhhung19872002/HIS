@@ -419,12 +419,18 @@ public partial class InpatientCompleteService {
         var now = DateTime.Now;
         var userStr = userId.ToString();
 
+        // #195: nạp 1 lần các phiếu cần hủy thay vì 1 query/phiếu. Điều kiện lọc giữ nguyên
+        // (đúng hồ sơ của lượt nằm viện, chưa hủy) nên phiếu nào rơi vào FailedIds vẫn thế.
+        var cancelIds = dto.ServiceRequestIds.ToList();
+        var cancellableById = await _context.ServiceRequests
+            .Where(r => cancelIds.Contains(r.Id)
+                && r.MedicalRecordId == admission.MedicalRecordId
+                && r.Status != 4)
+            .ToDictionaryAsync(r => r.Id);
+
         foreach (var requestId in dto.ServiceRequestIds)
         {
-            var sr = await _context.ServiceRequests
-                .FirstOrDefaultAsync(r => r.Id == requestId
-                    && r.MedicalRecordId == admission.MedicalRecordId
-                    && r.Status != 4);
+            cancellableById.TryGetValue(requestId, out var sr);
             if (sr == null)
             {
                 result.FailedIds.Add(requestId);

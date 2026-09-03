@@ -96,6 +96,12 @@ public partial class DailySeedServiceImpl
                 .OrderBy(a => a.AdmissionDate)
                 .Take(3)
                 .ToListAsync();
+            // #195: nạp 1 lần các giường cần trả thay vì 1 query/lượt ra viện.
+            var dischargeBedIds = candidateAdms.Where(a => a.BedId.HasValue).Select(a => a.BedId!.Value).Distinct().ToList();
+            var dischargeBeds = dischargeBedIds.Count == 0
+                ? new Dictionary<Guid, Bed>()
+                : await _db.Beds.Where(x => dischargeBedIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id);
+
             foreach (var adm in candidateAdms)
             {
                 _db.Discharges.Add(new Discharge
@@ -112,10 +118,9 @@ public partial class DailySeedServiceImpl
                     CreatedAt = now, UpdatedAt = now
                 });
                 adm.Status = 2;
-                if (adm.BedId.HasValue)
+                if (adm.BedId.HasValue && dischargeBeds.TryGetValue(adm.BedId.Value, out var b))
                 {
-                    var b = await _db.Beds.FirstOrDefaultAsync(x => x.Id == adm.BedId.Value);
-                    if (b != null) b.Status = 0;
+                    b.Status = 0;
                 }
                 newDischarges++;
             }

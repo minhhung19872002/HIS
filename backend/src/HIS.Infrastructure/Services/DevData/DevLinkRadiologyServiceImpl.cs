@@ -110,13 +110,21 @@ public class DevLinkRadiologyServiceImpl : IDevLinkRadiologyService
 
         int requestsUpdated = 0, examsCreated = 0, studiesCreated = 0;
 
+        // #195: nạp 1 lần ca chụp của các phiếu hôm nay thay vì 1 query/phiếu.
+        var todayRequestIds = todayRequests.Select(r => r.Id).ToList();
+        var examsByRequest = (await _db.RadiologyExams
+                .Where(e => todayRequestIds.Contains(e.RadiologyRequestId))
+                .ToListAsync())
+            .GroupBy(e => e.RadiologyRequestId)
+            .ToDictionary(g => g.Key, g => g.First());
+
         for (int idx = 0; idx < todayRequests.Count; idx++)
         {
             var req = todayRequests[idx];
             var (uid, orthancId, seriesCount, instanceCount) = studyMeta[idx % studyMeta.Count];
 
             // Ensure RadiologyExam exists
-            var exam = await _db.RadiologyExams.FirstOrDefaultAsync(e => e.RadiologyRequestId == req.Id);
+            examsByRequest.TryGetValue(req.Id, out var exam);
             if (exam == null)
             {
                 exam = new RadiologyExam

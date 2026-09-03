@@ -320,13 +320,21 @@ public partial class HospitalPharmacyService
                 })
                 .ToListAsync();
 
+            // #195: 1 query lấy tồn cho cả trang kết quả thay vì 1 query/thuốc. Vẫn chọn lô hạn
+            // dùng sớm nhất (null xếp trước, giống ORDER BY của SQL Server).
+            var listedMedicineIds = medicines.Select(m => m.Id).Distinct().ToList();
+            var stockByMedicine = listedMedicineIds.Count == 0
+                ? new Dictionary<Guid?, InventoryItem>()
+                : (await _context.InventoryItems
+                        .Where(i => listedMedicineIds.Contains(i.MedicineId!.Value) && !i.IsDeleted && i.Quantity > 0)
+                        .ToListAsync())
+                    .GroupBy(i => i.MedicineId)
+                    .ToDictionary(g => g.Key, g => g.OrderBy(i => i.ExpiryDate).First());
+
             // Get stock for each medicine
             foreach (var med in medicines)
             {
-                var stock = await _context.InventoryItems
-                    .Where(i => i.MedicineId == med.Id && !i.IsDeleted && i.Quantity > 0)
-                    .OrderBy(i => i.ExpiryDate)
-                    .FirstOrDefaultAsync();
+                stockByMedicine.TryGetValue(med.Id, out var stock);
 
                 if (stock != null)
                 {
