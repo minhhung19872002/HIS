@@ -263,6 +263,64 @@ namespace HIS.Infrastructure.Services
             return result != null ? Convert.ToInt32(result) : 0;
         }
 
+        // perf(#195): batch equivalent of GetProductTypeNameAsync used by CreateBloodOrderAsync's
+        // item loop. Single round-trip for all requested product-type ids.
+        private async Task<Dictionary<Guid, string>> GetProductTypeNamesAsync(IEnumerable<Guid> productTypeIds)
+        {
+            var ids = productTypeIds.Distinct().ToList();
+            var map = new Dictionary<Guid, string>();
+            if (ids.Count == 0) return map;
+
+            using var connection = _context.Database.GetDbConnection();
+            await connection.OpenAsync();
+            using var cmd = connection.CreateCommand();
+            var ps = ids.Select((_, idx) => $"@pt{idx}").ToList();
+            cmd.CommandText = $"SELECT Id, Name FROM BloodProductTypes WHERE Id IN ({string.Join(",", ps)})";
+            for (int idx = 0; idx < ids.Count; idx++)
+                cmd.Parameters.Add(new SqlParameter($"@pt{idx}", ids[idx]));
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+                map[reader.GetGuid(0)] = reader["Name"]?.ToString() ?? "";
+            return map;
+        }
+
+        // perf(#195): batch equivalent of GetProductTypeNameAsync + GetSystemQuantityAsync used by
+        // CreateInventoryAsync/UpdateInventoryAsync item loops. Single round-trip for all product
+        // type names + a single grouped scan of BloodBags for all (BloodType, RhFactor, ProductTypeId)
+        // combos, instead of 2 queries per item (each on its own connection).
+        private async Task<(Dictionary<Guid, string> ProductTypeNames, Dictionary<(string BloodType, string RhFactor, Guid ProductTypeId), int> SystemQuantities)> GetProductTypeNamesAndSystemQuantitiesAsync()
+        {
+            var ptNameMap = new Dictionary<Guid, string>();
+            var sysQtyMap = new Dictionary<(string, string, Guid), int>();
+
+            using var connection = _context.Database.GetDbConnection();
+            await connection.OpenAsync();
+
+            using (var cmd = connection.CreateCommand())
+            {
+                cmd.CommandText = "SELECT Id, Name FROM BloodProductTypes";
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                    ptNameMap[reader.GetGuid(0)] = reader["Name"]?.ToString() ?? "";
+            }
+
+            using (var cmd2 = connection.CreateCommand())
+            {
+                cmd2.CommandText = @"SELECT BloodType, RhFactor, ProductTypeId, COUNT(*) AS Cnt
+                    FROM BloodBags
+                    WHERE Status IN ('Available','Reserved')
+                    GROUP BY BloodType, RhFactor, ProductTypeId";
+                using var reader2 = await cmd2.ExecuteReaderAsync();
+                while (await reader2.ReadAsync())
+                {
+                    var key = (reader2["BloodType"]?.ToString() ?? "", reader2["RhFactor"]?.ToString() ?? "", reader2.GetGuid(reader2.GetOrdinal("ProductTypeId")));
+                    sysQtyMap[key] = reader2.GetInt32(reader2.GetOrdinal("Cnt"));
+                }
+            }
+
+            return (ptNameMap, sysQtyMap);
+        }
+
         #endregion
     }
 }

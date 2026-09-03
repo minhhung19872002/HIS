@@ -191,10 +191,15 @@ namespace HIS.Infrastructure.Services
 
             if (dto.Items != null)
             {
+                // perf(#195): batch-load product-type names instead of GetProductTypeNameAsync per
+                // item (each opens its own DB connection). Read-only lookup, unaffected by this
+                // loop's own inserts into BloodOrderItems.
+                var ptNameMap = await GetProductTypeNamesAsync(dto.Items.Select(i => i.ProductTypeId));
+
                 foreach (var item in dto.Items)
                 {
                     var itemId = Guid.NewGuid();
-                    var ptName = await GetProductTypeNameAsync(item.ProductTypeId);
+                    var ptName = ptNameMap.TryGetValue(item.ProductTypeId, out var ptn) ? ptn : "";
 
                     await _context.Database.ExecuteSqlRawAsync(
                         @"INSERT INTO BloodOrderItems (Id, OrderId, ProductTypeId, ProductTypeName, BloodType, RhFactor, OrderedQuantity, IssuedQuantity, TransfusedQuantity, Status, Note)

@@ -109,11 +109,17 @@ namespace HIS.Infrastructure.Services
 
             if (dto.Items != null)
             {
+                // perf(#195): batch-load product-type names + system quantities once instead of
+                // calling GetProductTypeNameAsync/GetSystemQuantityAsync per item (each opens its
+                // own DB connection). Read-only lookups against BloodProductTypes/BloodBags; not
+                // affected by this loop's own inserts into BloodInventoryItems.
+                var (ptNameMap, sysQtyMap) = await GetProductTypeNamesAndSystemQuantitiesAsync();
+
                 foreach (var item in dto.Items)
                 {
                     var itemId = Guid.NewGuid();
-                    var ptName = await GetProductTypeNameAsync(item.ProductTypeId);
-                    var sysQty = await GetSystemQuantityAsync(item.BloodType, item.RhFactor, item.ProductTypeId);
+                    var ptName = ptNameMap.TryGetValue(item.ProductTypeId, out var ptn) ? ptn : "";
+                    var sysQty = sysQtyMap.TryGetValue((item.BloodType, item.RhFactor, item.ProductTypeId), out var sq) ? sq : 0;
 
                     await _context.Database.ExecuteSqlRawAsync(
                         @"INSERT INTO BloodInventoryItems (Id, InventoryId, BloodType, RhFactor, ProductTypeName, SystemQuantity, ActualQuantity, Variance, Note)
@@ -140,11 +146,17 @@ namespace HIS.Infrastructure.Services
 
             if (dto.Items != null)
             {
+                // perf(#195): batch-load product-type names + system quantities once instead of
+                // calling GetProductTypeNameAsync/GetSystemQuantityAsync per item (each opens its
+                // own DB connection). Read-only lookups against BloodProductTypes/BloodBags; not
+                // affected by this loop's own inserts into BloodInventoryItems.
+                var (ptNameMap, sysQtyMap) = await GetProductTypeNamesAndSystemQuantitiesAsync();
+
                 foreach (var item in dto.Items)
                 {
                     var itemId = Guid.NewGuid();
-                    var ptName = await GetProductTypeNameAsync(item.ProductTypeId);
-                    var sysQty = await GetSystemQuantityAsync(item.BloodType, item.RhFactor, item.ProductTypeId);
+                    var ptName = ptNameMap.TryGetValue(item.ProductTypeId, out var ptn) ? ptn : "";
+                    var sysQty = sysQtyMap.TryGetValue((item.BloodType, item.RhFactor, item.ProductTypeId), out var sq) ? sq : 0;
 
                     await _context.Database.ExecuteSqlRawAsync(
                         @"INSERT INTO BloodInventoryItems (Id, InventoryId, BloodType, RhFactor, ProductTypeName, SystemQuantity, ActualQuantity, Variance, Note)
