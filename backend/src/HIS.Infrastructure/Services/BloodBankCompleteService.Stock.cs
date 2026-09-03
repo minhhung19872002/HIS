@@ -128,9 +128,10 @@ namespace HIS.Infrastructure.Services
             args[0] = reason ?? "Het han";
             for (int i = 0; i < ids.Count; i++) args[i + 1] = ids[i];
 
-            await _context.Database.ExecuteSqlRawAsync(
-                $"UPDATE BloodBags SET Status='Destroyed', Note=@p0 WHERE Id IN ({idParams})",
-                args);
+            // Nối chuỗi thay vì nội suy: chỉ có tên tham số được ghép vào câu lệnh, và tránh
+            // luôn cảnh báo EF1002 (nội suy vào SQL thô) vốn không nên xuất hiện ở module này.
+            var sql = "UPDATE BloodBags SET Status='Destroyed', Note=@p0 WHERE Id IN (" + idParams + ")";
+            await _context.Database.ExecuteSqlRawAsync(sql, args);
             return true;
         }
 
