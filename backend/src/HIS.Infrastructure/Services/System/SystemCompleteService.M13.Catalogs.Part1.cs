@@ -379,13 +379,17 @@ public partial class SystemCompleteService
                 var probeCode = probeCols[0].Trim();
                 if (!string.IsNullOrWhiteSpace(probeCode)) codesInFile.Add(probeCode);
             }
+            // SQL so mã theo collation CI_AS (không phân biệt hoa/thường, bỏ qua khoảng trắng cuối)
+            // nên bộ nhớ phải so y như vậy — HashSet/Dictionary mặc định phân biệt hoa/thường từng để
+            // mã 'a00' lọt qua khi DB đã có 'A00' (ICD có UNIQUE => SaveChanges ném => hỏng cả file).
             var takenCodes = codesInFile.Count == 0
-                ? new HashSet<string>()
+                ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 : (await _context.Medicines
                         .Where(m => codesInFile.Contains(m.MedicineCode) && !m.IsDeleted)
                         .Select(m => m.MedicineCode)
                         .ToListAsync())
-                    .ToHashSet();
+                    .Select(c => c.Trim())
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             var imported = 0;
             // Skip header row (line 0), parse data rows
@@ -597,12 +601,13 @@ public partial class SystemCompleteService
                 if (!string.IsNullOrWhiteSpace(probeCode)) supplyCodesInFile.Add(probeCode);
             }
             var takenSupplyCodes = supplyCodesInFile.Count == 0
-                ? new HashSet<string>()
+                ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 : (await _context.MedicalSupplies
                         .Where(s => supplyCodesInFile.Contains(s.SupplyCode) && !s.IsDeleted)
                         .Select(s => s.SupplyCode)
                         .ToListAsync())
-                    .ToHashSet();
+                    .Select(c => c.Trim())
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             var imported = 0;
             for (int i = 1; i < lines.Length; i++)

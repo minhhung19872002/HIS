@@ -147,13 +147,15 @@ public partial class SystemCompleteService
                 var probeCode = probeCols[0].Trim();
                 if (!string.IsNullOrWhiteSpace(probeCode)) serviceCodesInFile.Add(probeCode);
             }
+            // Khoá tra theo ngữ nghĩa SQL (CI_AS: không phân biệt hoa/thường, bỏ khoảng trắng cuối)
+            // — xem ghi chú ở ImportMedicinesFromExcelAsync.
             var servicesByCode = serviceCodesInFile.Count == 0
-                ? new Dictionary<string, Service>()
+                ? new Dictionary<string, Service>(StringComparer.OrdinalIgnoreCase)
                 : (await _context.Services
                         .Where(s => serviceCodesInFile.Contains(s.ServiceCode) && !s.IsDeleted)
                         .ToListAsync())
-                    .GroupBy(s => s.ServiceCode)
-                    .ToDictionary(g => g.Key, g => g.First());
+                    .GroupBy(s => s.ServiceCode.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
             var matchedServiceIds = servicesByCode.Values.Select(s => s.Id).ToList();
             var activePricesByService = matchedServiceIds.Count == 0

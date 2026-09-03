@@ -199,14 +199,16 @@ public partial class LISCompleteService
             .Where(c => !string.IsNullOrWhiteSpace(c))
             .Distinct()
             .ToList();
+        // Khoá tra theo ngữ nghĩa SQL (CI_AS: không phân biệt hoa/thường, bỏ khoảng trắng cuối)
+        // — trước đây so trong SQL nên 'amx' vẫn khớp 'AMX'; Dictionary mặc định thì không.
         var masterByCode = antibioticCodes.Count == 0
-            ? new Dictionary<string, Guid>()
+            ? new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase)
             : (await _context.LabAntibiotics
                     .Where(a => antibioticCodes.Contains(a.AntibioticCode))
                     .Select(a => new { a.AntibioticCode, a.Id })
                     .ToListAsync())
-                .GroupBy(a => a.AntibioticCode)
-                .ToDictionary(g => g.Key, g => g.First().Id);
+                .GroupBy(a => a.AntibioticCode.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
 
         foreach (var r in results)
         {
@@ -280,13 +282,13 @@ public partial class LISCompleteService
                 .Distinct()
                 .ToList();
             var organismMasterByCode = organismCodes.Count == 0
-                ? new Dictionary<string, Guid>()
+                ? new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase)
                 : (await _context.LabOrganisms
                         .Where(x => organismCodes.Contains(x.OrganismCode))
                         .Select(x => new { x.OrganismCode, x.Id })
                         .ToListAsync())
-                    .GroupBy(x => x.OrganismCode)
-                    .ToDictionary(g => g.Key, g => g.First().Id);
+                    .GroupBy(x => x.OrganismCode.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
 
             foreach (var o in dto.Organisms)
             {

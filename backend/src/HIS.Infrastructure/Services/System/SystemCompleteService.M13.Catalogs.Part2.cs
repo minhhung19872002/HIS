@@ -146,13 +146,17 @@ public partial class SystemCompleteService
                 var probeCode = probeCols[0].Trim();
                 if (!string.IsNullOrWhiteSpace(probeCode)) icdCodesInFile.Add(probeCode);
             }
+            // SQL so mã theo collation CI_AS (không phân biệt hoa/thường, bỏ qua khoảng trắng cuối)
+            // nên bộ nhớ phải so y như vậy — HashSet/Dictionary mặc định phân biệt hoa/thường từng để
+            // mã 'a00' lọt qua khi DB đã có 'A00' (ICD có UNIQUE => SaveChanges ném => hỏng cả file).
             var takenIcdCodes = icdCodesInFile.Count == 0
-                ? new HashSet<string>()
+                ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 : (await _context.IcdCodes
                         .Where(c => icdCodesInFile.Contains(c.Code))
                         .Select(c => c.Code)
                         .ToListAsync())
-                    .ToHashSet();
+                    .Select(c => c.Trim())
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             var imported = 0;
             for (int i = 1; i < lines.Length; i++)
