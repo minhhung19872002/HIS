@@ -1,0 +1,67 @@
+[
+  {
+    "tc": "TC-PERM-001",
+    "user": "bsannn",
+    "role": "Bác sĩ",
+    "adminRoute": "http://localhost:3001/v2/admin",
+    "adminApiStatus": 403
+  },
+  {
+    "tc": "TC-PERM-002",
+    "user": "ddgiang",
+    "role": "Điều dưỡng",
+    "adminRoute": "http://localhost:3001/v2/admin",
+    "adminApiStatus": 403
+  },
+  {
+    "tc": "TC-PERM-003",
+    "user": "ktvkhanh",
+    "role": "KTV XN",
+    "adminRoute": "http://localhost:3001/v2/admin",
+    "adminApiStatus": 403
+  },
+  {
+    "tc": "TC-PERM-004",
+    "user": "dsoanh",
+    "role": "Dược sĩ",
+    "adminRoute": "http://localhost:3001/v2/admin",
+    "adminApiStatus": 403
+  },
+  {
+    "tc": "TC-PERM-005",
+    "user": "lthung",
+    "role": "Tiếp đón",
+    "adminRoute": "http://localhost:3001/v2/admin",
+    "adminApiStatus": 403
+  },
+  {
+    "tc": "TC-PERM-006",
+    "user": "tnmai",
+    "role": "Thu ngân",
+    "adminRoute": "http://localhost:3001/v2/admin",
+    "adminApiStatus": 403
+  },
+  {
+    "tc": "TC-PERM-010",
+    "user": "admin",
+    "role": "Quản trị hệ thống",
+    "adminRoute": "http://localhost:3001/v2/admin",
+    "adminApiStatus": 200
+  },
+  {
+    "tc": "TC-PERM-012",
+    "noToken": 401,
+    "garbageToken": 401
+  },
+  {
+    "tc": "TC-PERM-013",
+    "lockedLoginStayedOnLogin": true,
+    "message": "Tên đăng nhập hoặc mật khẩu không đúng!"
+  },
+  {
+    "tc": "TC-PERM-014",
+    "apiStatus": 401,
+    "finalUrl": "http://localhost:3001/login",
+    "tokenStillStored": false
+  }
+]
