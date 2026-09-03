@@ -73,15 +73,29 @@ public partial class ReportingCompleteService : IReportingCompleteService
             var todaySummary = await BuildSummaryAsync(targetDate, targetDate.AddDays(1));
             var monthSummary = await BuildSummaryAsync(monthStart, monthEnd);
 
+            // #195: 2 query cho cả tuần thay vì 14 query (mỗi ngày 1 count + 1 sum).
+            // Vẫn chia ngăn trong bộ nhớ theo đúng mốc [d, d+1) cũ nên `date` có kèm giờ
+            // cũng cho ra y hệt kết quả trước.
+            var trendStart = targetDate.AddDays(-6);
+            var trendEnd = targetDate.AddDays(1);
+
+            var admissionDates = await _context.MedicalRecords
+                .Where(m => m.AdmissionDate >= trendStart && m.AdmissionDate < trendEnd && !m.IsDeleted)
+                .Select(m => m.AdmissionDate)
+                .ToListAsync();
+
+            var receiptAmounts = await _context.Receipts
+                .Where(r => r.ReceiptDate >= trendStart && r.ReceiptDate < trendEnd && r.Status == 1 && !r.IsDeleted)
+                .Select(r => new { r.ReceiptDate, r.FinalAmount })
+                .ToListAsync();
+
             // 7-day patient trend
             var patientTrend = new List<DashboardChartDataDto>();
             for (int i = 6; i >= 0; i--)
             {
                 var d = targetDate.AddDays(-i);
                 var dEnd = d.AddDays(1);
-                var count = await _context.MedicalRecords
-                    .Where(m => m.AdmissionDate >= d && m.AdmissionDate < dEnd && !m.IsDeleted)
-                    .CountAsync();
+                var count = admissionDates.Count(x => x >= d && x < dEnd);
                 patientTrend.Add(new DashboardChartDataDto
                 {
                     Date = d, Label = d.ToString("dd/MM"), Value = count
@@ -94,9 +108,9 @@ public partial class ReportingCompleteService : IReportingCompleteService
             {
                 var d = targetDate.AddDays(-i);
                 var dEnd = d.AddDays(1);
-                var rev = await _context.Receipts
-                    .Where(r => r.ReceiptDate >= d && r.ReceiptDate < dEnd && r.Status == 1 && !r.IsDeleted)
-                    .SumAsync(r => (decimal?)r.FinalAmount) ?? 0;
+                var rev = receiptAmounts
+                    .Where(r => r.ReceiptDate >= d && r.ReceiptDate < dEnd)
+                    .Sum(r => r.FinalAmount);
                 revenueTrend.Add(new DashboardChartDataDto
                 {
                     Date = d, Label = d.ToString("dd/MM"), Value = rev

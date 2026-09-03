@@ -501,16 +501,39 @@ public partial class SystemCompleteService
 
             // 7-day trends
             var trendStart = todayStart.AddDays(-6);
+
+            // #195: 3 query gom theo ngày cho cả tuần, thay vì 21 query (7 ngày × 3 chỉ số).
+            // todayStart = reportDate.Date nên ngăn trùng khít ngày dương lịch ⇒ GroupBy(.Date) tương đương.
+            var outpatientsByDay = (await _context.Examinations
+                    .Where(e => e.CreatedAt >= trendStart && e.CreatedAt < todayEnd)
+                    .GroupBy(e => e.CreatedAt.Date)
+                    .Select(g => new { Day = g.Key, Count = g.Count() })
+                    .ToListAsync())
+                .ToDictionary(x => x.Day, x => x.Count);
+
+            var admissionsByDay = (await _context.Admissions
+                    .Where(a => a.AdmissionDate >= trendStart && a.AdmissionDate < todayEnd)
+                    .GroupBy(a => a.AdmissionDate.Date)
+                    .Select(g => new { Day = g.Key, Count = g.Count() })
+                    .ToListAsync())
+                .ToDictionary(x => x.Day, x => x.Count);
+
+            var revenueByDay = (await _context.Receipts
+                    .Where(r => r.CreatedAt >= trendStart && r.CreatedAt < todayEnd && r.Status == 1)
+                    .GroupBy(r => r.CreatedAt.Date)
+                    .Select(g => new { Day = g.Key, Total = g.Sum(r => (decimal?)r.Amount) })
+                    .ToListAsync())
+                .ToDictionary(x => x.Day, x => x.Total ?? 0);
+
             var trends = new List<DashboardTrendDto>();
             for (var d = trendStart; d <= todayStart; d = d.AddDays(1))
             {
-                var dEnd = d.AddDays(1);
                 trends.Add(new DashboardTrendDto
                 {
                     Date = d,
-                    Outpatients = await _context.Examinations.CountAsync(e => e.CreatedAt >= d && e.CreatedAt < dEnd),
-                    Admissions = await _context.Admissions.CountAsync(a => a.AdmissionDate >= d && a.AdmissionDate < dEnd),
-                    Revenue = await _context.Receipts.Where(r => r.CreatedAt >= d && r.CreatedAt < dEnd && r.Status == 1).SumAsync(r => (decimal?)r.Amount) ?? 0
+                    Outpatients = outpatientsByDay.TryGetValue(d, out var dayOutpatients) ? dayOutpatients : 0,
+                    Admissions = admissionsByDay.TryGetValue(d, out var dayAdmissions) ? dayAdmissions : 0,
+                    Revenue = revenueByDay.TryGetValue(d, out var dayRevenue) ? dayRevenue : 0
                 });
             }
 
@@ -571,30 +594,58 @@ public partial class SystemCompleteService
                 .OrderBy(d => d.DisplayOrder)
                 .ToListAsync();
 
+            // #195: 5 query gom theo khoa cho toàn bộ danh sách, thay vì 5 query/khoa.
+            var deptIds = departments.Select(d => d.Id).ToList();
+
+            var outpatientByDept = (await _context.Examinations
+                    .Where(e => deptIds.Contains(e.DepartmentId) && e.CreatedAt >= from && e.CreatedAt < to)
+                    .GroupBy(e => e.DepartmentId)
+                    .Select(g => new { DeptId = g.Key, Count = g.Count() })
+                    .ToListAsync())
+                .ToDictionary(x => x.DeptId, x => x.Count);
+
+            var admissionsByDept = (await _context.Admissions
+                    .Where(a => deptIds.Contains(a.DepartmentId) && a.AdmissionDate >= from && a.AdmissionDate < to)
+                    .GroupBy(a => a.DepartmentId)
+                    .Select(g => new { DeptId = g.Key, Count = g.Count() })
+                    .ToListAsync())
+                .ToDictionary(x => x.DeptId, x => x.Count);
+
+            var inpatientByDept = (await _context.Admissions
+                    .Where(a => deptIds.Contains(a.DepartmentId) && a.Status == 0)
+                    .GroupBy(a => a.DepartmentId)
+                    .Select(g => new { DeptId = g.Key, Count = g.Count() })
+                    .ToListAsync())
+                .ToDictionary(x => x.DeptId, x => x.Count);
+
+            var dischargesByDept = (await _context.Discharges
+                    .Where(d => deptIds.Contains(d.Admission.DepartmentId) && d.DischargeDate >= from && d.DischargeDate < to)
+                    .GroupBy(d => d.Admission.DepartmentId)
+                    .Select(g => new { DeptId = g.Key, Count = g.Count() })
+                    .ToListAsync())
+                .ToDictionary(x => x.DeptId, x => x.Count);
+
+            var revenueByDept = (await _context.Receipts
+                    .Where(r => r.MedicalRecord != null && r.MedicalRecord.DepartmentId != null
+                        && deptIds.Contains(r.MedicalRecord.DepartmentId.Value)
+                        && r.CreatedAt >= from && r.CreatedAt < to && r.Status == 1)
+                    .GroupBy(r => r.MedicalRecord!.DepartmentId!.Value)
+                    .Select(g => new { DeptId = g.Key, Total = g.Sum(r => (decimal?)r.Amount) })
+                    .ToListAsync())
+                .ToDictionary(x => x.DeptId, x => x.Total ?? 0);
+
             var result = new List<DepartmentStatisticsDto>();
             foreach (var dept in departments)
             {
-                var outpatient = await _context.Examinations
-                    .CountAsync(e => e.DepartmentId == dept.Id && e.CreatedAt >= from && e.CreatedAt < to);
-                var admissions = await _context.Admissions
-                    .CountAsync(a => a.DepartmentId == dept.Id && a.AdmissionDate >= from && a.AdmissionDate < to);
-                var inpatient = await _context.Admissions
-                    .CountAsync(a => a.DepartmentId == dept.Id && a.Status == 0);
-                var discharges = await _context.Discharges
-                    .CountAsync(d => d.Admission.DepartmentId == dept.Id && d.DischargeDate >= from && d.DischargeDate < to);
-                var revenue = await _context.Receipts
-                    .Where(r => r.MedicalRecord != null && r.MedicalRecord.DepartmentId == dept.Id && r.CreatedAt >= from && r.CreatedAt < to && r.Status == 1)
-                    .SumAsync(r => (decimal?)r.Amount) ?? 0;
-
                 result.Add(new DepartmentStatisticsDto
                 {
                     DepartmentId = dept.Id,
                     DepartmentName = dept.DepartmentName,
-                    OutpatientCount = outpatient,
-                    InpatientCount = inpatient,
-                    AdmissionCount = admissions,
-                    DischargeCount = discharges,
-                    Revenue = revenue
+                    OutpatientCount = outpatientByDept.TryGetValue(dept.Id, out var outpatient) ? outpatient : 0,
+                    InpatientCount = inpatientByDept.TryGetValue(dept.Id, out var inpatient) ? inpatient : 0,
+                    AdmissionCount = admissionsByDept.TryGetValue(dept.Id, out var admissions) ? admissions : 0,
+                    DischargeCount = dischargesByDept.TryGetValue(dept.Id, out var discharges) ? discharges : 0,
+                    Revenue = revenueByDept.TryGetValue(dept.Id, out var revenue) ? revenue : 0
                 });
             }
             return result;

@@ -53,14 +53,31 @@ public class BookingManagementService : IBookingManagementService
 
         var bookedCounts = new Dictionary<string, int>();
         foreach (var pair in dateDeptPairs)
+            bookedCounts[$"{pair.Date:yyyyMMdd}_{pair.DepartmentId}_{pair.DoctorId}"] = 0;
+
+        // #195: 1 query gom theo (ngày, khoa, bác sĩ) thay vì 1 count/cặp lịch. Lọc theo khoảng
+        // ngày rồi ghép khoá trong bộ nhớ — cặp nào không có lịch hẹn vẫn giữ 0 như trước.
+        if (dateDeptPairs.Count > 0)
         {
-            var count = await _context.Appointments
-                .Where(a => !a.IsDeleted && a.AppointmentDate.Date == pair.Date
-                    && a.DepartmentId == pair.DepartmentId
-                    && a.DoctorId == pair.DoctorId
-                    && a.Status < 3)
-                .CountAsync();
-            bookedCounts[$"{pair.Date:yyyyMMdd}_{pair.DepartmentId}_{pair.DoctorId}"] = count;
+            var bookingFrom = dateDeptPairs.Min(p => p.Date);
+            var bookingTo = dateDeptPairs.Max(p => p.Date).AddDays(1);
+            var bookingDeptIds = dateDeptPairs.Select(p => (Guid?)p.DepartmentId).Distinct().ToList();
+            var bookingDoctorIds = dateDeptPairs.Select(p => (Guid?)p.DoctorId).Distinct().ToList();
+
+            var bookedRows = await _context.Appointments
+                .Where(a => !a.IsDeleted && a.Status < 3
+                    && a.AppointmentDate >= bookingFrom && a.AppointmentDate < bookingTo
+                    && bookingDeptIds.Contains(a.DepartmentId)
+                    && bookingDoctorIds.Contains(a.DoctorId))
+                .GroupBy(a => new { Day = a.AppointmentDate.Date, a.DepartmentId, a.DoctorId })
+                .Select(g => new { g.Key.Day, g.Key.DepartmentId, g.Key.DoctorId, Count = g.Count() })
+                .ToListAsync();
+
+            foreach (var row in bookedRows)
+            {
+                var key = $"{row.Day:yyyyMMdd}_{row.DepartmentId}_{row.DoctorId}";
+                if (bookedCounts.ContainsKey(key)) bookedCounts[key] = row.Count;
+            }
         }
 
         return schedules.Select(s => new DoctorScheduleListDto

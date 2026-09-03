@@ -131,6 +131,7 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
             .ToListAsync();
 
         var archived = new List<ArchiveDto>();
+        var createdArchives = new List<MedicalRecordArchive>();
         foreach (var record in records)
         {
             var archive = new MedicalRecordArchive
@@ -147,19 +148,17 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
                 CreatedBy = userId.ToString()
             };
             await _context.MedicalRecordArchives.AddAsync(archive);
+            createdArchives.Add(archive);
         }
 
         if (records.Any())
         {
             await _unitOfWork.SaveChangesAsync();
-            foreach (var record in records)
+            // #195: dùng luôn bản ghi vừa tạo thay vì hỏi lại DB id của từng hồ sơ. Danh sách
+            // `records` đã loại hồ sơ có phiếu lưu trữ nên trước đó cũng chỉ tra đúng bản này.
+            foreach (var archive in createdArchives)
             {
-                var dto = await GetArchiveByIdAsync(
-                    await _context.MedicalRecordArchives
-                        .Where(a => a.MedicalRecordId == record.Id && !a.IsDeleted)
-                        .Select(a => a.Id)
-                        .FirstAsync());
-                archived.Add(dto);
+                archived.Add(await GetArchiveByIdAsync(archive.Id));
             }
         }
 

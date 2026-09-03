@@ -153,15 +153,33 @@ public class ProcurementService : IProcurementService
             CreatedAt = DateTime.UtcNow
         };
 
+        // #195: 1 query tra tồn cho cả phiếu thay vì 1 sum/dòng.
+        var requestedItemIds = dto.Items
+            .Where(i => i.ItemId.HasValue)
+            .Select(i => i.ItemId!.Value)
+            .Distinct()
+            .ToList();
+        var stockRows = requestedItemIds.Count == 0
+            ? new List<(Guid? MedicineId, Guid? SupplyId, decimal Quantity)>()
+            : (await _context.InventoryItems
+                    .Where(x => !x.IsDeleted
+                        && ((x.MedicineId != null && requestedItemIds.Contains(x.MedicineId.Value))
+                         || (x.SupplyId != null && requestedItemIds.Contains(x.SupplyId.Value))))
+                    .Select(x => new { x.MedicineId, x.SupplyId, x.Quantity })
+                    .ToListAsync())
+                .Select(x => (x.MedicineId, x.SupplyId, x.Quantity))
+                .ToList();
+
         foreach (var itemDto in dto.Items)
         {
             // Look up current stock from InventoryItems if ItemId provided
             int currentStock = 0;
             if (itemDto.ItemId.HasValue)
             {
-                var totalQty = await _context.InventoryItems
-                    .Where(x => (x.MedicineId == itemDto.ItemId.Value || x.SupplyId == itemDto.ItemId.Value) && !x.IsDeleted)
-                    .SumAsync(x => x.Quantity);
+                var itemId = itemDto.ItemId.Value;
+                var totalQty = stockRows
+                    .Where(x => x.MedicineId == itemId || x.SupplyId == itemId)
+                    .Sum(x => x.Quantity);
                 currentStock = (int)totalQty;
             }
 

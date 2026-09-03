@@ -122,44 +122,66 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
                 .CountAsync(p => !string.IsNullOrEmpty(p.InsuranceNumber));
 
             // === 7-day trend ===
-            for (var d = weekStart; d <= reportDate; d = d.AddDays(1))
-            {
-                var dayStart = d.Date;
-                var dayEnd = d.Date.AddDays(1);
+            // #195: 4 query gom theo ngày cho cả tuần thay vì 28 query (7 ngày × 4 chỉ số).
+            // Bộ lọc chi nhánh không đổi theo ngày nên dựng 1 lần; mốc ngày vẫn là [d.Date, +1).
+            var weekFrom = weekStart.Date;
+            var weekTo = reportDate.Date.AddDays(1);
 
-                var dayQuery = _context.QueueTickets
-                    .Where(q => q.IssueDate >= dayStart && q.IssueDate < dayEnd && !q.IsDeleted);
+            var weekQueueQuery = _context.QueueTickets
+                .Where(q => q.IssueDate >= weekFrom && q.IssueDate < weekTo && !q.IsDeleted);
+            if (!includeAll && branchIdsToInclude.Count > 0)
+                weekQueueQuery = weekQueueQuery.Where(q => q.BranchId.HasValue && branchIdsToInclude.Contains(q.BranchId.Value));
+            else if (!includeAll && branchId.HasValue)
+                weekQueueQuery = weekQueueQuery.Where(q => q.BranchId == branchId);
 
-                if (!includeAll && branchIdsToInclude.Count > 0)
-                    dayQuery = dayQuery.Where(q => q.BranchId.HasValue && branchIdsToInclude.Contains(q.BranchId.Value));
-                else if (!includeAll && branchId.HasValue)
-                    dayQuery = dayQuery.Where(q => q.BranchId == branchId);
+            var outpatientsByDay = (await weekQueueQuery
+                    .Where(q => q.QueueType == 2)
+                    .GroupBy(q => q.IssueDate.Date)
+                    .Select(g => new { Day = g.Key, Count = g.Count() })
+                    .ToListAsync())
+                .ToDictionary(x => x.Day, x => x.Count);
 
-                var outpatientCount = await dayQuery.CountAsync(q => q.QueueType == 2);
-                var admissionCount = await _context.Admissions
-                    .Where(a => a.AdmissionDate >= dayStart && a.AdmissionDate < dayEnd && !a.IsDeleted)
+            var admissionsByDay = (await _context.Admissions
+                    .Where(a => a.AdmissionDate >= weekFrom && a.AdmissionDate < weekTo && !a.IsDeleted)
                     .Where(a => !includeAll
                         ? (branchIdsToInclude.Count > 0
                             ? (a.MedicalRecord != null && a.MedicalRecord.Patient != null &&
                                a.MedicalRecord.Patient.BranchId.HasValue && branchIdsToInclude.Contains(a.MedicalRecord.Patient.BranchId.Value))
                             : (a.MedicalRecord != null && a.MedicalRecord.Patient != null && a.MedicalRecord.Patient.BranchId == branchId))
                         : true)
-                    .CountAsync();
+                    .GroupBy(a => a.AdmissionDate.Date)
+                    .Select(g => new { Day = g.Key, Count = g.Count() })
+                    .ToListAsync())
+                .ToDictionary(x => x.Day, x => x.Count);
 
-                var dischargeCount = await _context.Discharges
-                    .Where(dc => dc.DischargeDate >= dayStart && dc.DischargeDate < dayEnd && !dc.IsDeleted)
-                    .CountAsync();
+            var dischargesByDay = (await _context.Discharges
+                    .Where(dc => dc.DischargeDate >= weekFrom && dc.DischargeDate < weekTo && !dc.IsDeleted)
+                    .GroupBy(dc => dc.DischargeDate.Date)
+                    .Select(g => new { Day = g.Key, Count = g.Count() })
+                    .ToListAsync())
+                .ToDictionary(x => x.Day, x => x.Count);
 
-                // Revenue from payments
-                var dayRevenue = await _context.Receipts
-                    .Where(p => p.ReceiptDate >= dayStart && p.ReceiptDate < dayEnd && !p.IsDeleted)
+            var revenueByDay = (await _context.Receipts
+                    .Where(p => p.ReceiptDate >= weekFrom && p.ReceiptDate < weekTo && !p.IsDeleted)
                     .Where(p => !includeAll
                         ? (branchIdsToInclude.Count > 0
                             ? (p.MedicalRecord != null && p.MedicalRecord.Patient != null &&
                                p.MedicalRecord.Patient.BranchId.HasValue && branchIdsToInclude.Contains(p.MedicalRecord.Patient.BranchId.Value))
                             : (p.MedicalRecord != null && p.MedicalRecord.Patient != null && p.MedicalRecord.Patient.BranchId == branchId))
                         : true)
-                    .SumAsync(p => p.FinalAmount);
+                    .GroupBy(p => p.ReceiptDate.Date)
+                    .Select(g => new { Day = g.Key, Total = g.Sum(p => p.FinalAmount) })
+                    .ToListAsync())
+                .ToDictionary(x => x.Day, x => x.Total);
+
+            for (var d = weekStart; d <= reportDate; d = d.AddDays(1))
+            {
+                var dayStart = d.Date;
+
+                var outpatientCount = outpatientsByDay.TryGetValue(dayStart, out var dayOut) ? dayOut : 0;
+                var admissionCount = admissionsByDay.TryGetValue(dayStart, out var dayAdm) ? dayAdm : 0;
+                var dischargeCount = dischargesByDay.TryGetValue(dayStart, out var dayDis) ? dayDis : 0;
+                var dayRevenue = revenueByDay.TryGetValue(dayStart, out var dayRev) ? dayRev : 0;
 
                 weekTrend.Add(new DailyTrendItem
                 {
@@ -189,39 +211,60 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
                 .Include(d => d.Rooms)
                 .ToListAsync();
 
-            foreach (var dept in depts.Take(10))
-            {
-                var deptTodayQuery = _context.QueueTickets
-                    .Where(q => q.IssueDate >= todayStart && q.IssueDate < todayEnd && !q.IsDeleted);
+            // #195: 3 query gom cho 10 khoa thay vì 3 query/khoa. Bộ lọc chi nhánh của hàng đợi
+            // không phụ thuộc khoa nên dựng 1 lần; số theo khoa vẫn quy về phòng / DepartmentId
+            // của hồ sơ y hệt vòng lặp cũ.
+            var topDepts = depts.Take(10).ToList();
+            var topDeptIds = topDepts.Select(d => d.Id).ToList();
+            var roomIdsByDept = topDepts.ToDictionary(d => d.Id, d => d.Rooms.Select(r => r.Id).ToList());
+            var allRoomIds = roomIdsByDept.SelectMany(kv => kv.Value).Distinct().ToList();
 
-                if (!includeAll && branchIdsToInclude.Count > 0)
-                    deptTodayQuery = deptTodayQuery.Where(q => q.BranchId.HasValue && branchIdsToInclude.Contains(q.BranchId.Value));
-                else if (!includeAll && branchId.HasValue)
-                    deptTodayQuery = deptTodayQuery.Where(q => q.BranchId == branchId);
+            var deptTodayQuery = _context.QueueTickets
+                .Where(q => q.IssueDate >= todayStart && q.IssueDate < todayEnd && !q.IsDeleted);
+            if (!includeAll && branchIdsToInclude.Count > 0)
+                deptTodayQuery = deptTodayQuery.Where(q => q.BranchId.HasValue && branchIdsToInclude.Contains(q.BranchId.Value));
+            else if (!includeAll && branchId.HasValue)
+                deptTodayQuery = deptTodayQuery.Where(q => q.BranchId == branchId);
 
-                var roomIds = dept.Rooms.Select(r => r.Id).ToList();
+            var ticketsByRoom = allRoomIds.Count == 0
+                ? new Dictionary<Guid, int>()
+                : (await deptTodayQuery
+                        .Where(q => q.RoomId != null && allRoomIds.Contains(q.RoomId.Value))
+                        .GroupBy(q => q.RoomId!.Value)
+                        .Select(g => new { RoomId = g.Key, Count = g.Count() })
+                        .ToListAsync())
+                    .ToDictionary(x => x.RoomId, x => x.Count);
 
-                var outCount = roomIds.Count > 0
-                    ? await deptTodayQuery.CountAsync(q => roomIds.Contains(q.RoomId ?? Guid.Empty))
-                    : 0;
-
-                var admCount = await _context.Admissions
+            var admByDept = (await _context.Admissions
                     .Where(a => a.AdmissionDate >= todayStart && a.AdmissionDate < todayEnd && !a.IsDeleted)
-                    .Where(a => a.MedicalRecord != null && dept.Id == a.MedicalRecord.DepartmentId)
-                    .CountAsync();
+                    .Where(a => a.MedicalRecord != null && a.MedicalRecord.DepartmentId != null
+                        && topDeptIds.Contains(a.MedicalRecord.DepartmentId.Value))
+                    .GroupBy(a => a.MedicalRecord!.DepartmentId!.Value)
+                    .Select(g => new { DeptId = g.Key, Count = g.Count() })
+                    .ToListAsync())
+                .ToDictionary(x => x.DeptId, x => x.Count);
 
-                var deptRevenue = await _context.Receipts
+            var revenueByDept = (await _context.Receipts
                     .Where(p => p.ReceiptDate >= todayStart && p.ReceiptDate < todayEnd && !p.IsDeleted)
-                    .Where(p => p.MedicalRecord != null && dept.Id == p.MedicalRecord.DepartmentId)
-                    .SumAsync(p => p.FinalAmount);
+                    .Where(p => p.MedicalRecord != null && p.MedicalRecord.DepartmentId != null
+                        && topDeptIds.Contains(p.MedicalRecord.DepartmentId.Value))
+                    .GroupBy(p => p.MedicalRecord!.DepartmentId!.Value)
+                    .Select(g => new { DeptId = g.Key, Total = g.Sum(p => p.FinalAmount) })
+                    .ToListAsync())
+                .ToDictionary(x => x.DeptId, x => x.Total);
+
+            foreach (var dept in topDepts)
+            {
+                var roomIds = roomIdsByDept[dept.Id];
+                var outCount = roomIds.Sum(id => ticketsByRoom.TryGetValue(id, out var c) ? c : 0);
 
                 deptStats.Add(new BranchDepartmentStat
                 {
                     DepartmentId = dept.Id,
                     DepartmentName = dept.DepartmentName,
                     OutpatientCount = outCount,
-                    AdmissionCount = admCount,
-                    Revenue = deptRevenue
+                    AdmissionCount = admByDept.TryGetValue(dept.Id, out var admCount) ? admCount : 0,
+                    Revenue = revenueByDept.TryGetValue(dept.Id, out var deptRevenue) ? deptRevenue : 0
                 });
             }
 

@@ -22,21 +22,61 @@ public class ProvincialHealthService : IProvincialHealthService
         var now = DateTime.Now;
         var reports = new List<ProvincialReportDto>();
 
+        // #195: 4 query gom theo tháng cho cả 6 tháng, thay vì 24 query (mỗi tháng 4 count).
+        // Ngăn vẫn đúng bằng tháng dương lịch nên GroupBy(Year, Month) cho kết quả y hệt.
+        var windowStart = new DateTime(now.AddMonths(-5).Year, now.AddMonths(-5).Month, 1);
+        var windowEnd = new DateTime(now.Year, now.Month, 1).AddMonths(1);
+
+        var outpatientsByMonth = (await _db.Examinations
+                .Where(e => e.CreatedAt >= windowStart && e.CreatedAt < windowEnd)
+                .GroupBy(e => new { e.CreatedAt.Year, e.CreatedAt.Month })
+                .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
+                .ToListAsync())
+            .ToDictionary(x => (x.Year, x.Month), x => x.Count);
+
+        var inpatientsByMonth = (await _db.Admissions
+                .Where(a => a.AdmissionDate >= windowStart && a.AdmissionDate < windowEnd)
+                .GroupBy(a => new { a.AdmissionDate.Year, a.AdmissionDate.Month })
+                .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
+                .ToListAsync())
+            .ToDictionary(x => (x.Year, x.Month), x => x.Count);
+
+        // Hai nguồn dưới vẫn bọc try/catch như trước: bảng có thể chưa tồn tại ở môi trường cũ.
+        var labTestsByMonth = new Dictionary<(int, int), int>();
+        try
+        {
+            labTestsByMonth = (await _db.ServiceRequests // #14e: model 1
+                    .Where(l => l.RequestType == 1 && !l.IsDeleted && l.CreatedAt >= windowStart && l.CreatedAt < windowEnd)
+                    .GroupBy(l => new { l.CreatedAt.Year, l.CreatedAt.Month })
+                    .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
+                    .ToListAsync())
+                .ToDictionary(x => (x.Year, x.Month), x => x.Count);
+        }
+        catch { }
+
+        var radiologyExamsByMonth = new Dictionary<(int, int), int>();
+        try
+        {
+            radiologyExamsByMonth = (await _db.Set<HIS.Core.Entities.RadiologyRequest>()
+                    .Where(r => r.CreatedAt >= windowStart && r.CreatedAt < windowEnd)
+                    .GroupBy(r => new { r.CreatedAt.Year, r.CreatedAt.Month })
+                    .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
+                    .ToListAsync())
+                .ToDictionary(x => (x.Year, x.Month), x => x.Count);
+        }
+        catch { }
+
         // Get real data counts for recent months
         for (int i = 0; i < 6; i++)
         {
             var month = now.AddMonths(-i);
             var startOfMonth = new DateTime(month.Year, month.Month, 1);
-            var endOfMonth = startOfMonth.AddMonths(1);
 
-            var outpatients = await _db.Examinations
-                .CountAsync(e => e.CreatedAt >= startOfMonth && e.CreatedAt < endOfMonth);
-            var inpatients = await _db.Admissions
-                .CountAsync(a => a.AdmissionDate >= startOfMonth && a.AdmissionDate < endOfMonth);
-
-            int labTests = 0, radiologyExams = 0;
-            try { labTests = await _db.ServiceRequests.CountAsync(l => l.RequestType == 1 && !l.IsDeleted && l.CreatedAt >= startOfMonth && l.CreatedAt < endOfMonth); } catch { } // #14e: model 1
-            try { radiologyExams = await _db.Set<HIS.Core.Entities.RadiologyRequest>().CountAsync(r => r.CreatedAt >= startOfMonth && r.CreatedAt < endOfMonth); } catch { }
+            var bucket = (month.Year, month.Month);
+            outpatientsByMonth.TryGetValue(bucket, out var outpatients);
+            inpatientsByMonth.TryGetValue(bucket, out var inpatients);
+            labTestsByMonth.TryGetValue(bucket, out var labTests);
+            radiologyExamsByMonth.TryGetValue(bucket, out var radiologyExams);
 
             var report = new ProvincialReportDto
             {

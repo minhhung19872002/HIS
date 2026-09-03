@@ -393,17 +393,28 @@ public partial class BusinessAlertService
 
             var bedCapacityWarnPct = AlertInt("Inpatient:BedCapacityWarnPct", 85);
             var bedCapacityCriticalPct = AlertInt("Inpatient:BedCapacityCriticalPct", 95);
+            // #195: 1 query gom giường theo khoa thay vì 2 count/khoa.
+            var bedDeptIds = departments.Select(d => d.Id).ToList();
+            var bedCountsByDept = (await _context.Beds
+                    .Where(b => b.Room != null && bedDeptIds.Contains(b.Room.DepartmentId) && b.IsActive)
+                    .GroupBy(b => b.Room!.DepartmentId)
+                    .Select(g => new
+                    {
+                        DeptId = g.Key,
+                        Total = g.Count(),
+                        Occupied = g.Count(b => b.Status == 1) // Status 1 = Occupied
+                    })
+                    .ToListAsync())
+                .ToDictionary(x => x.DeptId, x => (x.Total, x.Occupied));
+
             foreach (var dept in departments)
             {
-                var totalBeds = await _context.Beds
-                    .Where(b => b.Room != null && b.Room.DepartmentId == dept.Id && b.IsActive)
-                    .CountAsync();
+                if (!bedCountsByDept.TryGetValue(dept.Id, out var beds)) continue;
 
+                var totalBeds = beds.Total;
                 if (totalBeds == 0) continue;
 
-                var occupiedBeds = await _context.Beds
-                    .Where(b => b.Room != null && b.Room.DepartmentId == dept.Id && b.IsActive && b.Status == 1) // Status 1 = Occupied
-                    .CountAsync();
+                var occupiedBeds = beds.Occupied;
 
                 var occupancyRate = (double)occupiedBeds / totalBeds * 100;
                 if (occupancyRate > bedCapacityWarnPct)

@@ -30,18 +30,36 @@ public partial class SystemCompleteService
 
             var thresholds = await thresholdQuery.ToListAsync();
 
+            // #195: 1 query gom tồn theo (thuốc, kho) thay vì 1 sum/ngưỡng. Mỗi ngưỡng vẫn tự
+            // chọn phạm vi như trước: lọc theo kho được truyền vào, hoặc kho của ngưỡng, hoặc
+            // cộng mọi kho khi ngưỡng không gắn kho.
+            var thresholdMedicineIds = thresholds.Select(t => t.MedicineId).Distinct().ToList();
+            var stockScope = _context.InventoryItems.AsNoTracking()
+                .Where(ii => thresholdMedicineIds.Contains(ii.MedicineId!.Value)
+                    && ii.ItemType == "Medicine" && ii.Quantity > 0);
+            if (warehouseId.HasValue)
+                stockScope = stockScope.Where(ii => ii.WarehouseId == warehouseId.Value);
+
+            var stockRows = await stockScope
+                .GroupBy(ii => new { ii.MedicineId, ii.WarehouseId })
+                .Select(g => new { g.Key.MedicineId, g.Key.WarehouseId, Quantity = g.Sum(ii => ii.Quantity) })
+                .ToListAsync();
+
+            var stockByMedicineWarehouse = stockRows
+                .ToDictionary(x => (x.MedicineId, x.WarehouseId), x => x.Quantity);
+            var stockByMedicine = stockRows
+                .GroupBy(x => x.MedicineId)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
+
             var result = new List<LowStockDrugReportDto>();
             foreach (var t in thresholds)
             {
-                var stockQuery = _context.InventoryItems.AsNoTracking()
-                    .Where(ii => ii.MedicineId == t.MedicineId && ii.ItemType == "Medicine" && ii.Quantity > 0);
-
-                if (warehouseId.HasValue)
-                    stockQuery = stockQuery.Where(ii => ii.WarehouseId == warehouseId.Value);
-                else if (t.WarehouseId.HasValue)
-                    stockQuery = stockQuery.Where(ii => ii.WarehouseId == t.WarehouseId.Value);
-
-                var currentStock = await stockQuery.SumAsync(ii => ii.Quantity);
+                decimal currentStock;
+                if (!warehouseId.HasValue && t.WarehouseId.HasValue)
+                    currentStock = stockByMedicineWarehouse.TryGetValue(((Guid?)t.MedicineId, t.WarehouseId.Value), out var scoped)
+                        ? scoped : 0;
+                else
+                    currentStock = stockByMedicine.TryGetValue(t.MedicineId, out var total) ? total : 0;
 
                 if (currentStock < t.MinimumQuantity)
                 {
