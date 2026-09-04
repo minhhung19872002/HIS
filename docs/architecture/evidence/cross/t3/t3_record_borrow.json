@@ -1,20 +1,20 @@
 {
- "ranAt": "2026-09-05T01:08:12",
+ "ranAt": "2026-09-05T01:24:43",
  "cases": [
   {
    "case": "phiếu mượn ĐƯỢC ghi xuống cơ sở dữ liệu",
    "pass": true,
-   "detail": "HTTP 200 · số phiếu 0 → 1 · mã API trả về='PM20260904180811'"
+   "detail": "HTTP 200 · số phiếu 0 → 1 · mã API trả về='PM20260904182443'"
   },
   {
    "case": "tra được đúng phiếu theo Id mà API trả về",
    "pass": true,
-   "detail": "Id='f85375da-3464-4412-b19b-bef297b7d596' · số dòng khớp=1"
+   "detail": "Id='8e19653c-d52c-49a6-b7f1-12ba612950f8' · số dòng khớp=1"
   },
   {
    "case": "phiếu vừa tạo hiện ra ở danh sách phiếu mượn",
    "pass": true,
-   "detail": "HTTP 200 · tìm mã 'PM20260904180811' trong danh sách=True"
+   "detail": "HTTP 200 · tìm mã 'PM20260904182443' trong danh sách=True"
   }
  ]
 }

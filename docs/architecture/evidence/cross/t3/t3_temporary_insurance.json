@@ -1,0 +1,40 @@
+{
+ "ranAt": "2026-09-05T01:25:31",
+ "cases": [
+  {
+   "case": "thẻ tạm ĐƯỢC lưu xuống InsuranceCards",
+   "pass": true,
+   "detail": "HTTP 200 · số thẻ='TM202609050001' · số dòng lưu được=1"
+  },
+  {
+   "case": "hồ sơ trẻ ĐƯỢC tạo thật (không phải Guid bịa)",
+   "pass": true,
+   "detail": "patientId='cb8c4f95-fc49-428b-835b-dddc34fe34cb' · tra trong Patients thấy 1 dòng"
+  },
+  {
+   "case": "ĐỐI CHỨNG: trẻ đủ điều kiện vẫn cấp được, hạn = ngày tròn 6 tuổi",
+   "pass": true,
+   "detail": "HTTP 200 · isEligible=True · hết hạn='2031-09-05'"
+  },
+  {
+   "case": "số thẻ lúc cấp và lúc tra lại KHỚP nhau",
+   "pass": true,
+   "detail": "HTTP 200 · cấp='TM202609050001' · tra lại='TM202609050001'"
+  },
+  {
+   "case": "người chưa cấp thẻ: KHÔNG bịa ra số thẻ",
+   "pass": true,
+   "detail": "HTTP 404 · {\"message\":\"Bệnh nhân này chưa được cấp thẻ BHYT tạm.\"}"
+  },
+  {
+   "case": "trẻ TRÊN 6 tuổi bị TỪ CHỐI cấp",
+   "pass": true,
+   "detail": "HTTP 400 · {\"error\":\"INVALID_STATE\",\"message\":\"Trẻ đã đủ 72 tháng tuổi, không còn thuộc diệ"
+  },
+  {
+   "case": "trẻ vừa tròn 6 tuổi (72 tháng) không còn đủ điều kiện",
+   "pass": true,
+   "detail": "HTTP 400 · {\"error\":\"INVALID_STATE\",\"message\":\"Trẻ đã đủ 72 tháng tuổi, không còn thuộc diệ"
+  }
+ ]
+}

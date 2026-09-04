@@ -1265,6 +1265,8 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
                 entity.Property(p => p.PhoneNumber).HasConversion(encryptedConverter);
                 entity.Property(p => p.Email).HasConversion(encryptedConverter);
                 entity.Property(p => p.InsuranceNumber).HasConversion(encryptedConverter);
+                // #218/T3 (migration 179): số giấy khai sinh là PII cùng loại — mã hoá tại chỗ.
+                entity.Property(p => p.BirthCertificateNumber).HasConversion(encryptedConverter);
                 // NangCap21 - Chi nhánh đăng ký (nullable FK)
                 entity.HasOne(p => p.Branch).WithMany().HasForeignKey(p => p.BranchId).OnDelete(DeleteBehavior.SetNull);
             });

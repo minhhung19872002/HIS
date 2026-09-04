@@ -29,6 +29,16 @@ public static class PatientPiiLookup
         CancellationToken cancellationToken = default)
         => FindAsync(query, p => p.InsuranceNumber, value, cancellationToken);
 
+    /// <summary>
+    /// #218/T3 (migration 179): tra bệnh nhân theo số giấy khai sinh — giấy tờ định danh duy nhất
+    /// của trẻ sơ sinh khi cấp thẻ BHYT tạm. Cột mã hoá nên phải tra giải mã như ba hàm trên.
+    /// </summary>
+    public static Task<Patient?> FindByBirthCertificateNumberDecryptedAsync(
+        this IQueryable<Patient> query,
+        string value,
+        CancellationToken cancellationToken = default)
+        => FindAsync(query, p => p.BirthCertificateNumber, value, cancellationToken);
+
     private static async Task<Patient?> FindAsync(
         IQueryable<Patient> query,
         Func<Patient, string?> selector,

@@ -807,3 +807,43 @@ public static class AppointmentStatus
             $"Không chuyển lịch hẹn từ \"{Label(from)}\" sang \"{Label(to)}\" được.");
     }
 }
+
+/// <summary>
+/// Loại thẻ BHYT — `InsuranceCard.CardType`.
+///
+/// <para>#218/T3: cột này trước đây chỉ có chú thích "Loại thẻ" và **không chỗ nào trong mã ghi vào
+/// nó** (bảng `InsuranceCards` cũng chưa từng có dòng nào, dù `KioskService` vẫn ĐỌC nó để bệnh nhân
+/// tự check-in bằng số thẻ). Vì cột còn trống hoàn toàn nên đặt nghĩa ở đây là an toàn — khác hẳn
+/// `Discharges.DischargeCondition` hay `MedicalRecordArchives.Status`, hai chỗ đã có người dùng theo
+/// nghĩa khác và việc mượn lại đã gây hỏng số liệu (§42).</para>
+/// </summary>
+public static class InsuranceCardType
+{
+    /// <summary>Thẻ BHYT thường do cơ quan BHXH cấp.</summary>
+    public const int Standard = 0;
+
+    /// <summary>
+    /// Thẻ BHYT TẠM bệnh viện cấp cho trẻ dưới 6 tuổi chưa có thẻ chính thức (CV 3434/BYT-BH).
+    /// </summary>
+    public const int TemporaryUnderSix = 1;
+
+    /// <summary>Trẻ dưới 6 tuổi hưởng 100% chi phí khám chữa bệnh.</summary>
+    public const int UnderSixPaymentRate = 100;
+
+    /// <summary>
+    /// Chế độ áp dụng cho trẻ **dưới 6 tuổi**, thẻ có giá trị đến ngày trẻ đủ **72 tháng**.
+    ///
+    /// <para>#218/T3 — trước đây có hai luật tuổi khác nhau trong cùng một file, và luật dùng để CẤP
+    /// thì sai: <c>Today.Year - dob.Year &lt;= 6</c> nhận cả trẻ đã 6 tuổi, lại còn tính trừ năm nên
+    /// trẻ sinh 31/12 bị coi là già thêm gần một tuổi. Đếm theo THÁNG mới đúng.</para>
+    /// </summary>
+    public static bool IsUnderSix(DateTime dateOfBirth, DateTime asOf)
+    {
+        var thang = (asOf.Year - dateOfBirth.Year) * 12 + asOf.Month - dateOfBirth.Month;
+        if (asOf.Day < dateOfBirth.Day) thang--;
+        return thang < 72;
+    }
+
+    /// <summary>Ngày thẻ hết hiệu lực: ngày trẻ đủ 72 tháng.</summary>
+    public static DateTime ExpiryFor(DateTime dateOfBirth) => dateOfBirth.AddYears(6);
+}

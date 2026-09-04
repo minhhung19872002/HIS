@@ -1,33 +1,33 @@
 {
- "ranAt": "2026-09-05T01:07:04",
+ "ranAt": "2026-09-05T01:23:35",
  "cases": [
   {
    "case": "thêm loại chế phẩm",
    "serviceMethod": "SaveProductTypeAsync",
    "status": 200,
    "pass": true,
-   "body": "{\"success\":true,\"data\":{\"id\":\"4c65a6fb-f2cd-4d42-b6e0-bc8b2f43f6f5\",\"code\":\"T3NUL545221\",\""
+   "body": "{\"success\":true,\"data\":{\"id\":\"ee0f1392-8e58-4adc-9c84-b9d86511d66a\",\"code\":\"T3NUL546213\",\""
   },
   {
    "case": "thêm nhà cung cấp",
    "serviceMethod": "SaveSupplierAsync",
    "status": 200,
    "pass": true,
-   "body": "{\"success\":true,\"data\":{\"id\":\"360e3490-3757-449a-a4ec-02868b3914b3\",\"code\":\"T3NULS545221\","
+   "body": "{\"success\":true,\"data\":{\"id\":\"a73c0564-065c-4244-8a92-12e50ca6175e\",\"code\":\"T3NULS546213\","
   },
   {
    "case": "tạo phiếu nhập máu",
    "serviceMethod": "CreateImportReceiptAsync",
    "status": 201,
    "pass": true,
-   "body": "{\"success\":true,\"data\":{\"id\":\"74116536-5801-467c-a404-7e2e670444bb\",\"receiptCode\":\"IMP2026"
+   "body": "{\"success\":true,\"data\":{\"id\":\"807d5107-9d59-4c82-bd6b-60910f83ef1d\",\"receiptCode\":\"IMP2026"
   },
   {
    "case": "sửa phiếu nhập máu",
    "serviceMethod": "UpdateImportReceiptAsync",
    "status": 200,
    "pass": true,
-   "body": "{\"success\":true,\"data\":{\"id\":\"74116536-5801-467c-a404-7e2e670444bb\",\"receiptCode\":\"IMP2026"
+   "body": "{\"success\":true,\"data\":{\"id\":\"807d5107-9d59-4c82-bd6b-60910f83ef1d\",\"receiptCode\":\"IMP2026"
   },
   {
    "case": "xác nhận phiếu nhập",
@@ -41,7 +41,7 @@
    "serviceMethod": "CreateIssueRequestAsync",
    "status": 200,
    "pass": true,
-   "body": "{\"success\":true,\"data\":{\"id\":\"d0565a56-62a1-4d8f-aa76-290a5b92d8ff\",\"requestCode\":\"REQ2026"
+   "body": "{\"success\":true,\"data\":{\"id\":\"1bed2d50-5bf9-49bb-860e-356af5ae93e4\",\"requestCode\":\"REQ2026"
   },
   {
    "case": "duyệt phiếu lĩnh",
@@ -55,14 +55,14 @@
    "serviceMethod": "IssueBloodAsync",
    "status": 200,
    "pass": true,
-   "body": "{\"success\":true,\"data\":{\"id\":\"29d896d0-e2e2-40a8-90a4-7157bd7561e3\",\"receiptCode\":\"ISS2026"
+   "body": "{\"success\":true,\"data\":{\"id\":\"69bc02b3-942c-4e64-ad64-dd8d7abc04ef\",\"receiptCode\":\"ISS2026"
   },
   {
    "case": "tạo phiếu chỉ định máu",
    "serviceMethod": "CreateBloodOrderAsync",
    "status": 200,
    "pass": true,
-   "body": "{\"success\":true,\"data\":{\"id\":\"71bfc21c-0707-4f7b-b130-4efca05a2a1f\",\"orderCode\":\"ORD202609"
+   "body": "{\"success\":true,\"data\":{\"id\":\"679e7cea-68fc-4bce-ac19-f7c55630758f\",\"orderCode\":\"ORD202609"
   },
   {
    "case": "gán túi máu cho chỉ định",
@@ -104,14 +104,14 @@
    "serviceMethod": "SaveProductTypeAsync",
    "status": 200,
    "pass": true,
-   "body": "{\"success\":true,\"data\":{\"id\":\"03caf009-0572-4194-8474-697137c35f4a\",\"code\":\"T3NULN545221\","
+   "body": "{\"success\":true,\"data\":{\"id\":\"cffd192e-4434-48f9-b607-f08e2afd2e86\",\"code\":\"T3NULN546213\","
   },
   {
    "case": "nhà cung cấp, bỏ trống hạn giấy phép",
    "serviceMethod": "SaveSupplierAsync",
    "status": 200,
    "pass": true,
-   "body": "{\"success\":true,\"data\":{\"id\":\"01781eab-9e51-478f-9254-10f19e3ff926\",\"code\":\"T3NULN545221\","
+   "body": "{\"success\":true,\"data\":{\"id\":\"7b8f32b0-5734-4321-b2bd-26d0f42e007f\",\"code\":\"T3NULN546213\","
   },
   {
    "case": "đổi trạng thái túi máu",

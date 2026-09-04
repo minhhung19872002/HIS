@@ -42,6 +42,14 @@ public class Patient : BaseEntity
     public string? InsuranceFacilityCode { get; set; } // Mã CSKCB ban đầu
     public string? InsuranceFacilityName { get; set; }
 
+    /// <summary>
+    /// Số giấy khai sinh. #218/T3 (migration 179): trẻ sơ sinh chưa có CCCD, đây là giấy tờ định
+    /// danh duy nhất — không lưu thì mỗi lần trẻ đến khám lại đẻ ra một hồ sơ bệnh nhân mới.
+    /// PII, được mã hoá tại chỗ như `IdentityNumber`/`InsuranceNumber`; tra bằng
+    /// `PatientPiiLookup.FindByBirthCertificateNumberDecryptedAsync`, không tra bằng `==` dưới SQL.
+    /// </summary>
+    public string? BirthCertificateNumber { get; set; }
+
     // Người giám hộ (cho trẻ em)
     public string? GuardianName { get; set; }
     public string? GuardianPhone { get; set; }

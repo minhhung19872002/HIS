@@ -43,12 +43,13 @@ một bài đo cho thứ vốn đã đúng*).
 | 39 | **Nhóm A** — 7 cửa ghi rỗng, bảng đã sẵn | Bấm "gửi máy phân tích" → **máy không bao giờ nhận y lệnh** | 0/6 → 6/6 |
 | 40-41 | Hai cửa **bán thuốc** ở kho | Dược sĩ bán thuốc, phần mềm báo xong, **tiền không vào sổ, tồn kho không trừ** | 0/3 → 3/3 |
 | 42 | Kế hoạch tổng hợp hồ sơ | Duyệt phiếu chuyển tuyến **ghi kết cục người bệnh thành "khỏi"** — vào đúng số liệu tử vong/khỏi bệnh báo lên Sở | 1/10 → 10/10 |
+| 43 | Thẻ BHYT tạm trẻ dưới 6 tuổi | Tra thẻ của **bất kỳ ai** cũng ra một tấm thẻ bịa; trẻ 8 tuổi vẫn cấp được vì luật tính rồi **không ai thi hành** | 1/7 → 7/7 |
 
-**Hồi quy hiện tại: 35 bộ đo, 236/236.** `dotnet test` 225 passed. Migration 168-178.
+**Hồi quy hiện tại: 36 bộ đo, 243/243.** `dotnet test` 225 passed. Migration 168-179.
 
 ### Ba hình dạng lặp lại, và cái đã làm với chúng
 
-1. **Một luật, thi hành ở một cửa, bỏ trống ở cửa bên cạnh** — gặp **mười sáu** lần (§5·10·11·12·15·18·21·26·31·33 + ba cửa §34). Sau lần thứ mười thì viết bộ dò
+1. **Một luật, thi hành ở một cửa, bỏ trống ở cửa bên cạnh** — gặp **mười bảy** lần (§5·10·11·12·15·18·21·26·31·33 + ba cửa §34 + hai luật tuổi §43). Sau lần thứ mười thì viết bộ dò
    thứ hai `t3_verified_edit_sweep.py` (§34) — và nó tìm ra ngay ba cửa mà đọc tay đã bỏ sót.
    Từ §26 trở đi, vá một cửa đã thành lý do để **đi tìm cửa còn lại** thay vì chờ gặp may.
 2. **Mượn ô trạng thái của tính năng khác** — gặp **năm** lần (§20·24·28 + hai lần nữa ở §42),
@@ -2037,3 +2038,108 @@ làm nốt phần đang dở".
 
 `t3_record_planning.py`: **1/10 → 10/10**, đối chứng ngược vẫn đạt.
 Hồi quy toàn bộ **35 bộ đo, 236/236**. `dotnet test` **225 passed**. Build 0 lỗi.
+
+---
+
+## §43. Thẻ BHYT tạm cho trẻ dưới 6 tuổi — cấp thẻ không lưu, tra thẻ thì bịa
+
+Mục này tôi xếp vào **nhóm B** ("chưa có bảng") lúc khảo sát §38. Mở ra thì bảng `InsuranceCards`
+đã có sẵn, 18 cột, đủ chỗ cho thẻ tạm. Tức đây là **nhóm A** — chỉ thiếu đường ghi.
+
+Lần thứ hai trong đợt phân loại của tôi bị chính dữ liệu lật lại; lần trước là
+`CompleteStockTakeAsync`, nơi chú thích `// no StockTake table yet` nói ngược với một bảng 14 cột đang
+tồn tại. Cả hai lần đều cùng một sai lầm: **tin vào những gì mã nguồn nói về thế giới, thay vì đi hỏi
+thế giới.** Lần này còn không có chú thích nào để đổ lỗi — tôi chỉ đơn giản không tra bảng.
+
+### Ba chuyện, nặng dần
+
+**Một.** `CreateTemporaryInsuranceAsync` không ghi gì, và trả `PatientId = Guid.NewGuid()` — một mã
+bệnh nhân không thuộc về ai. Người tiếp đón cấp thẻ, phần mềm in ra số thẻ, bệnh viện không giữ bản
+ghi nào.
+
+**Hai.** Nó **tính điều kiện rồi bỏ qua kết quả**:
+
+```csharp
+var eligibility = await CheckTemporaryInsuranceEligibilityAsync(dto.DateOfBirth);
+return new TemporaryInsuranceCardDto { ..., IsEligible = eligibility.IsEligible, ... };
+```
+
+Không có `if` nào cả. Trẻ 8 tuổi vẫn nhận HTTP 200 kèm một tấm thẻ đầy đủ số hiệu và hạn dùng, chỉ
+khác mỗi cái cờ `IsEligible = false` nằm trong thân phản hồi — mà nếu giao diện không đọc cờ ấy thì
+không ai biết. Kiểm tra được thực hiện, kết quả được trả về, và **không ai thi hành nó**.
+
+**Ba — nặng nhất.** `GetTemporaryInsuranceAsync` **bịa thẻ cho bất kỳ ai**. Nó không đọc thẻ đã cấp:
+
+```csharp
+TemporaryInsuranceNumber = $"TMP-{patientId.ToString()[..8].ToUpper()}",
+IssueDate = DateTime.Now,
+ExpiryDate = patient.DateOfBirth?.AddYears(6) ?? DateTime.Now.AddYears(6),
+```
+
+Truyền vào mã của một cụ già 70 tuổi thì vẫn nhận về một tấm thẻ BHYT tạm, có số hiệu, có ngày cấp
+là hôm nay, có hạn dùng. Nó **không bao giờ trả "chưa có thẻ"**. Cùng họ với vụ ký số tự sinh
+`Findings = "Ky so tu dong"` (§31): phần mềm tự tạo ra dữ liệu chưa ai nhập.
+
+Và hai cửa sinh số thẻ theo hai định dạng khác nhau — `TM{yyyyMMddHHmmss}` khi cấp, `TMP-{id[..8]}`
+khi tra — nên kể cả có lưu thì số in ra lúc cấp cũng không khớp số tra lại.
+
+### Hai luật tuổi trong cùng một file, và luật đang dùng thì sai
+
+```
+CheckTemporaryInsuranceEligibilityAsync   Today.Year - dob.Year <= 6      → nhận cả trẻ 6 tuổi
+GetTemporaryInsuranceAsync                (Now - dob).TotalDays < 365*6   → dưới 6 tuổi
+```
+
+Chế độ là **trẻ em dưới 6 tuổi**, thẻ có giá trị đến ngày trẻ đủ **72 tháng**. Luật dùng để cấp sai
+hai lần: `<= 6` nhận cả trẻ đã qua sinh nhật thứ sáu, và trừ năm cho nhau thì trẻ sinh 31/12 bị tính
+già thêm gần một tuổi. Lần thứ mười bảy của hình dạng *một luật, hai cửa, mỗi cửa hiểu một kiểu*.
+
+Nay cả hai gọi chung `InsuranceCardType.IsUnderSix` — đếm theo tháng.
+
+### Một bảng chỉ có người đọc, không ai ghi
+
+`InsuranceCards` được `KioskService` đọc để bệnh nhân tự check-in bằng số thẻ BHYT. Nhưng tra khắp mã
+nguồn thì **không chỗ nào ghi vào bảng đó**, và bảng đang rỗng. Nên tra cứu ở kiosk luôn trượt — không
+phải vì logic sai, mà vì không có gì để tra. Bản vá này là đường ghi đầu tiên vào bảng ấy.
+
+Cột `CardType` cũng chưa ai từng ghi, nên đặt nghĩa cho nó là an toàn — khác hẳn
+`Discharges.DischargeCondition` và `MedicalRecordArchives.Status` ở §42, hai chỗ **đã có người dùng
+theo nghĩa khác** và việc mượn lại đã làm hỏng số liệu. Trước khi gán nghĩa cho một cột, việc phải làm
+là đếm xem ai đang ghi và ai đang đọc nó; ở đây câu trả lời là *không ai*, nên mới được phép.
+
+### Đo trước khi vá
+
+`t3_temporary_insurance.py` — 7 ca, **1/7**. Ca đạt duy nhất là đối chứng ngược.
+
+```
+thẻ tạm ĐƯỢC lưu xuống InsuranceCards            FAIL  HTTP 200 · số thẻ='TM20260905011807' · lưu được 0 dòng
+hồ sơ trẻ ĐƯỢC tạo thật                          FAIL  patientId='d53d26d1-…' · tra Patients thấy 0 dòng
+ĐỐI CHỨNG: trẻ đủ điều kiện vẫn cấp được         PASS  HTTP 200 · isEligible=True
+số thẻ lúc cấp và lúc tra lại KHỚP nhau          FAIL  HTTP 404 (chưa có route GET)
+người chưa cấp thẻ: KHÔNG bịa ra số thẻ          FAIL  HTTP 404, thân rỗng
+trẻ TRÊN 6 tuổi bị TỪ CHỐI cấp                   FAIL  HTTP 200 kèm thẻ
+trẻ vừa tròn 6 tuổi không còn đủ điều kiện        FAIL  HTTP 200 kèm thẻ
+```
+
+### Bản vá
+
+- `CreateTemporaryInsuranceAsync` **từ chối** khi không đủ điều kiện, tra hồ sơ trẻ theo giấy khai
+  sinh để không tạo trùng, tạo hồ sơ nếu chưa có, rồi ghi `InsuranceCards` với
+  `CardType = TemporaryUnderSix`, `PaymentRate = 100` (trẻ dưới 6 tuổi hưởng 100%), hạn đến ngày trẻ
+  đủ 72 tháng. Chặn cấp trùng khi trẻ đã có thẻ tạm còn hiệu lực.
+- Số thẻ đánh theo **bộ đếm trong ngày** thay vì dấu thời gian: hai lượt cấp trong cùng một giây ra
+  trùng số, mà số thẻ là thứ người ta cầm đi đối chiếu.
+- `GetTemporaryInsuranceAsync` **đọc thẻ thật**, chưa cấp thì trả `null`.
+- Thêm route `GET insurance/temporary/{patientId}` — hàm này đã có trong interface và đã cài đặt
+  nhưng **chưa từng có route nào**: cấp được thẻ mà không tra lại được thì tính năng chưa xong. Chưa
+  cấp thì trả **404 kèm câu tiếng Việt**, thay vì bịa ra một tấm thẻ.
+- Migration **179**: `Patients.BirthCertificateNumber`. Trẻ sơ sinh chưa có CCCD, giấy khai sinh là
+  giấy tờ định danh duy nhất — không lưu thì mỗi lần trẻ đến khám lại đẻ ra một hồ sơ mới. Cột này là
+  PII cùng loại `IdentityNumber`/`InsuranceNumber` nên **mã hoá tại chỗ**, và vì bản mã không tra được
+  bằng `=` dưới SQL nên bổ sung `FindByBirthCertificateNumberDecryptedAsync` đúng khuôn ba hàm tra PII
+  đã có. Không đánh index: index trên bản mã vô dụng.
+
+### Sau khi vá
+
+`t3_temporary_insurance.py`: **1/7 → 7/7**, đối chứng ngược vẫn đạt.
+Hồi quy toàn bộ **36 bộ đo, 243/243**. `dotnet test` **225 passed**. Build 0 lỗi.

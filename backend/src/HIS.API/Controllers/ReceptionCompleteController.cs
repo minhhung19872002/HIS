@@ -364,6 +364,22 @@ public partial class ReceptionCompleteController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// 1.4.5: Tra thẻ BHYT tạm đã cấp của một bệnh nhân.
+    ///
+    /// <para>#218/T3 — `GetTemporaryInsuranceAsync` có trong interface và đã cài đặt, nhưng **chưa
+    /// từng có route nào**: cấp được thẻ mà không tra lại được thì tính năng chưa xong. Chưa cấp thì
+    /// trả 404 kèm câu tiếng Việt, thay vì bịa ra một tấm thẻ như bản cũ vẫn làm.</para>
+    /// </summary>
+    [HttpGet("insurance/temporary/{patientId:guid}")]
+    public async Task<ActionResult<TemporaryInsuranceCardDto>> GetTemporaryInsurance(Guid patientId)
+    {
+        var result = await _receptionService.GetTemporaryInsuranceAsync(patientId);
+        if (result == null)
+            return NotFound(new { message = "Bệnh nhân này chưa được cấp thẻ BHYT tạm." });
+        return Ok(result);
+    }
+
     #endregion
 
     #region 1.5 Chụp ảnh bệnh nhân và giấy tờ

@@ -1,10 +1,11 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using HIS.Infrastructure.Security;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Insurance;
 using HIS.Application.DTOs.Reception;
 using HIS.Application.Services;
 using HIS.Core.Common;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Configuration;
@@ -291,52 +292,171 @@ public partial class ReceptionCompleteService {
 
     #region 1.4 Temporary Insurance for Newborns
 
+    /// <summary>
+    /// Chế độ áp dụng cho trẻ **dưới 6 tuổi** (CV 3434/BYT-BH), thẻ giá trị đến ngày trẻ đủ 72 tháng.
+    ///
+    /// <para>#218/T3 — trước đây file này có **hai luật tuổi khác nhau**, và luật dùng để CẤP thì
+    /// sai: <c>Today.Year - dateOfBirth.Year &lt;= 6</c> nhận cả trẻ đã 6 tuổi, lại còn trừ năm cho
+    /// nhau nên trẻ sinh cuối năm bị tính già thêm gần một tuổi. Hàm đọc bên dưới lại dùng luật khác
+    /// (<c>&lt; 365*6</c> ngày). Nay cả hai gọi chung <see cref="InsuranceCardType.IsUnderSix"/> —
+    /// lần thứ mười bảy trong đợt gặp hình dạng "một luật, hai cửa, mỗi cửa hiểu một kiểu".</para>
+    /// </summary>
     public async Task<(bool IsEligible, string Message)> CheckTemporaryInsuranceEligibilityAsync(DateTime dateOfBirth)
     {
-        var age = DateTime.Today.Year - dateOfBirth.Year;
-        if (age <= 6)
-            return (true, "Du dieu kien cap the BHYT tam");
-        return (false, "Tre tren 6 tuoi khong du dieu kien");
+        await Task.CompletedTask;
+        if (dateOfBirth.Date > DateTime.Today)
+            return (false, "Ngày sinh ở tương lai, không hợp lệ.");
+        if (InsuranceCardType.IsUnderSix(dateOfBirth, DateTime.Today))
+            return (true, "Đủ điều kiện cấp thẻ BHYT tạm (trẻ dưới 6 tuổi).");
+        return (false, "Trẻ đã đủ 72 tháng tuổi, không còn thuộc diện cấp thẻ BHYT tạm.");
     }
 
+    /// <summary>
+    /// Cấp thẻ BHYT tạm cho trẻ dưới 6 tuổi chưa có thẻ chính thức.
+    ///
+    /// <para>#218/T3 — trước đây hàm này **không ghi gì** và trả <c>PatientId = Guid.NewGuid()</c>,
+    /// tức một mã bệnh nhân không thuộc về ai. Người tiếp đón cấp thẻ, phần mềm in ra số thẻ, bệnh
+    /// viện không giữ bản ghi nào. Nó cũng **tính điều kiện rồi bỏ qua kết quả**: trẻ 8 tuổi vẫn
+    /// nhận HTTP 200 kèm một tấm thẻ, chỉ khác mỗi cờ <c>IsEligible = false</c> mà không ai đọc.</para>
+    ///
+    /// <para>Bảng <c>InsuranceCards</c> đã có sẵn 18 cột — đây là **nhóm A** (thiếu đường ghi), tôi
+    /// xếp nhầm sang nhóm B lúc khảo sát §38. Ghi vào đó cũng làm sống lại một đường đọc đang chết:
+    /// <c>KioskService</c> cho bệnh nhân tự check-in bằng số thẻ BHYT qua chính bảng này, mà trước
+    /// nay không chỗ nào ghi vào nên tra cứu ấy luôn trượt.</para>
+    /// </summary>
     public async Task<TemporaryInsuranceCardDto> CreateTemporaryInsuranceAsync(CreateTemporaryInsuranceDto dto, Guid userId)
     {
-        var eligibility = await CheckTemporaryInsuranceEligibilityAsync(dto.DateOfBirth);
+        if (string.IsNullOrWhiteSpace(dto.PatientName))
+            throw new InvalidOperationException("Chưa nhập họ tên trẻ.");
+
+        var (duDieuKien, thongBao) = await CheckTemporaryInsuranceEligibilityAsync(dto.DateOfBirth);
+        if (!duDieuKien)
+            throw new InvalidOperationException(thongBao);
+
+        // Trẻ có thể đã được tiếp đón trước đó — tra theo giấy khai sinh để không tạo trùng hồ sơ.
+        Patient? patient = null;
+        if (!string.IsNullOrWhiteSpace(dto.BirthCertificateNumber))
+        {
+            // Cột mã hoá ⇒ tra giải mã, không so bằng `==` dưới SQL (khuôn `PatientPiiLookup`).
+            patient = await _context.Patients.Where(p => !p.IsDeleted)
+                .FindByBirthCertificateNumberDecryptedAsync(dto.BirthCertificateNumber.Trim());
+        }
+
+        if (patient == null)
+        {
+            patient = new Patient
+            {
+                Id = Guid.NewGuid(),
+                PatientCode = await GeneratePatientCodeAsync(),
+                FullName = dto.PatientName.Trim(),
+                DateOfBirth = dto.DateOfBirth,
+                YearOfBirth = dto.DateOfBirth.Year,
+                Gender = dto.Gender,
+                BirthCertificateNumber = dto.BirthCertificateNumber?.Trim(),
+                Address = dto.Address,
+                GuardianName = dto.Guardian?.FullName,
+                GuardianPhone = dto.Guardian?.PhoneNumber,
+                GuardianRelationship = dto.Guardian?.Relationship,
+                BranchId = await GetUserBranchIdAsync(userId),
+                CreatedAt = DateTime.Now,
+                CreatedBy = userId.ToString(),
+                IsDeleted = false,
+            };
+            await _patientRepo.AddAsync(patient);
+        }
+
+        // Một trẻ chỉ giữ một thẻ tạm còn hiệu lực.
+        var theCu = await _context.InsuranceCards.FirstOrDefaultAsync(c =>
+            !c.IsDeleted && c.PatientId == patient.Id
+            && c.CardType == InsuranceCardType.TemporaryUnderSix && c.IsActive);
+        if (theCu != null)
+            throw new InvalidOperationException(
+                $"Trẻ này đã có thẻ BHYT tạm số {theCu.CardNumber} còn hiệu lực đến "
+                + $"{theCu.EndDate:dd/MM/yyyy}. Muốn cấp lại thì phải thu hồi thẻ cũ.");
+
+        var homNay = DateTime.Now;
+        var ngay = homNay.ToString("yyyyMMdd");
+        // Đánh số theo bộ đếm trong ngày. Bản cũ dùng `TM{yyyyMMddHHmmss}`: hai lượt cấp trong cùng
+        // một giây ra trùng số, mà số thẻ là thứ người ta cầm đi đối chiếu.
+        var soTrongNgay = await _context.InsuranceCards
+            .CountAsync(c => c.CardNumber.StartsWith($"TM{ngay}"));
+
+        var card = new InsuranceCard
+        {
+            Id = Guid.NewGuid(),
+            PatientId = patient.Id,
+            CardNumber = $"TM{ngay}{(soTrongNgay + 1):D4}",
+            StartDate = homNay,
+            EndDate = InsuranceCardType.ExpiryFor(dto.DateOfBirth),
+            CardType = InsuranceCardType.TemporaryUnderSix,
+            PaymentRate = InsuranceCardType.UnderSixPaymentRate, // trẻ dưới 6 tuổi hưởng 100%
+            Note = $"Thẻ tạm cấp theo giấy khai sinh {dto.BirthCertificateNumber}",
+            IsActive = true,
+            CreatedAt = homNay,
+            CreatedBy = userId.ToString(),
+        };
+        _context.InsuranceCards.Add(card);
+        await _unitOfWork.SaveChangesAsync();
 
         return new TemporaryInsuranceCardDto
         {
-            PatientId = Guid.NewGuid(),
-            PatientName = dto.PatientName,
+            PatientId = patient.Id,
+            PatientName = patient.FullName,
             DateOfBirth = dto.DateOfBirth,
             BirthCertificateNumber = dto.BirthCertificateNumber,
             Guardian = dto.Guardian,
-            TemporaryInsuranceNumber = $"TM{DateTime.Now:yyyyMMddHHmmss}",
-            IssueDate = DateTime.Now,
-            ExpiryDate = dto.DateOfBirth.AddYears(6),
-            IsEligible = eligibility.IsEligible,
-            EligibilityMessage = eligibility.Message
+            TemporaryInsuranceNumber = card.CardNumber,
+            IssueDate = card.StartDate ?? homNay,
+            ExpiryDate = card.EndDate ?? InsuranceCardType.ExpiryFor(dto.DateOfBirth),
+            IsEligible = true,
+            EligibilityMessage = thongBao,
         };
     }
 
+    /// <summary>
+    /// Tra thẻ BHYT tạm ĐÃ CẤP của một bệnh nhân. Chưa cấp thì trả <c>null</c>.
+    ///
+    /// <para>#218/T3 — trước đây hàm này **bịa thẻ cho bất kỳ ai**: nó không đọc thẻ đã cấp mà sinh
+    /// <c>TemporaryInsuranceNumber = $"TMP-{patientId[..8]}"</c> cho mọi bệnh nhân truyền vào, kể cả
+    /// cụ già 70 tuổi, kèm ngày cấp là hôm nay. Nó không bao giờ trả "chưa có thẻ". Cùng họ với vụ
+    /// ký số tự sinh <c>Findings = "Ky so tu dong"</c> (§31): phần mềm tự tạo ra dữ liệu chưa ai
+    /// nhập. Số thẻ nó sinh còn khác hẳn số mà cửa cấp thẻ in ra (<c>TM…</c> vs <c>TMP-…</c>), nên
+    /// kể cả có lưu thì hai đầu cũng không khớp nhau.</para>
+    /// </summary>
     public async Task<TemporaryInsuranceCardDto?> GetTemporaryInsuranceAsync(Guid patientId)
     {
-        var patient = await _patientRepo.GetByIdAsync(patientId);
-        if (patient == null) return null;
+        var card = await _context.InsuranceCards
+            .Where(c => !c.IsDeleted && c.PatientId == patientId
+                        && c.CardType == InsuranceCardType.TemporaryUnderSix && c.IsActive)
+            .OrderByDescending(c => c.StartDate)
+            .FirstOrDefaultAsync();
+        if (card == null) return null;
 
-        // Temporary insurance cards are for newborns/children under 6
-        var isEligible = patient.DateOfBirth.HasValue &&
-            (DateTime.Now - patient.DateOfBirth.Value).TotalDays < 365 * 6;
+        var patient = await _patientRepo.GetByIdAsync(patientId);
+        var dob = patient?.DateOfBirth ?? card.EndDate?.AddYears(-6) ?? DateTime.Today;
+        // Thẻ hết hạn khi trẻ đủ 72 tháng — dùng chung một luật với cửa cấp thẻ.
+        var conHan = InsuranceCardType.IsUnderSix(dob, DateTime.Today)
+                     && (card.EndDate == null || card.EndDate.Value.Date >= DateTime.Today);
 
         return new TemporaryInsuranceCardDto
         {
             PatientId = patientId,
-            PatientName = patient.FullName,
-            DateOfBirth = patient.DateOfBirth ?? DateTime.Now,
-            TemporaryInsuranceNumber = $"TMP-{patientId.ToString()[..8].ToUpper()}",
-            IssueDate = DateTime.Now,
-            ExpiryDate = patient.DateOfBirth?.AddYears(6) ?? DateTime.Now.AddYears(6),
-            IsEligible = isEligible,
-            EligibilityMessage = isEligible ? "Đủ điều kiện cấp thẻ BHYT tạm" : "Không đủ điều kiện (trên 6 tuổi)"
+            PatientName = patient?.FullName ?? string.Empty,
+            DateOfBirth = dob,
+            BirthCertificateNumber = patient?.BirthCertificateNumber,
+            Guardian = new GuardianInfoDto
+            {
+                FullName = patient?.GuardianName ?? string.Empty,
+                PhoneNumber = patient?.GuardianPhone,
+                Relationship = patient?.GuardianRelationship,
+            },
+            TemporaryInsuranceNumber = card.CardNumber,
+            IssueDate = card.StartDate ?? card.CreatedAt,
+            ExpiryDate = card.EndDate ?? InsuranceCardType.ExpiryFor(dob),
+            IsEligible = conHan,
+            EligibilityMessage = conHan
+                ? "Thẻ còn hiệu lực."
+                : "Thẻ đã hết hiệu lực (trẻ đã đủ 72 tháng tuổi).",
         };
     }
 
