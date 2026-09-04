@@ -3,6 +3,68 @@
 > Task: **#218 [T3][TEST] State-transition matrix**. Script + dữ liệu đo:
 > `docs/architecture/evidence/cross/t3/` (`t3_state_transitions.py`, `t3_transition_matrix.json`).
 
+## 0. Bảng tổng — đọc cái này trước
+
+Tài liệu đã dài 32 mục. Bảng dưới là toàn bộ lỗi tìm được, **kèm con số đo TRƯỚC và SAU mỗi bản vá**
+(con số "trước" là bắt buộc: thiếu nó thì không phân biệt được *đã sửa một lỗi thật* với *viết thêm
+một bài đo cho thứ vốn đã đúng*).
+
+| § | Chỗ hỏng | Hậu quả nặng nhất | Trước → sau |
+|---|---|---|---|
+| 2-4 | Đơn thuốc · xét nghiệm · CĐHA | Bác sĩ hủy đơn, nhà thuốc **vẫn phát được** | 6/15 → 15/15 |
+| 5 | Sửa nội dung phiếu CĐHA đã ký số | Chữ ký bảo chứng cho nội dung khác nội dung đã ký | 3/8 → 8/8 |
+| 10 | Chuyển khoa nội trú | **Mất bàn giao lâm sàng**; 2 bệnh nhân 1 giường | 4/7 → 7/7 |
+| 11 | Tiền tạm ứng | Phiếu 1.000.000đ **chi ra 2.000.000đ** | 3/8 → 8/8 |
+| 12 | Gửi hồ sơ BHXH | Gửi lại đợt **đã nộp** lên cổng nhà nước | 4/10 → 10/10 |
+| 13 | Ca mổ | **8 hàm rỗng**; kết thúc ca chưa bắt đầu làm **mất tường trình** | 3/13 → 13/13 |
+| 14 | Ngân hàng máu | **Truyền sai nhóm máu** (B+ cho bệnh nhân A+) | 5/12 → 12/12 |
+| 15 | Xuất kho ngoại trú | Phát một đơn hai lần, trừ kho hai lần | 2/5 → 5/5 |
+| 16-17 | 2 migration hỏng ở **mọi** lần khởi động | Nhật ký kiểm toán **không hề** chống sửa/xoá | 0 → gắn cổng CI |
+| 18 | Cổng thanh toán | Đơn 1.000.000đ, callback khai trả 1.000đ → **ghi thu đủ**; ZaloPay xác nhận nhầm giao dịch **8 tháng tuổi** | 1/4 → 6/6 |
+| 19 | Lịch hẹn khám | Luật **chỉ tồn tại trong trình duyệt** | 3/9 → 9/9 |
+| 20 | Đóng hồ sơ bệnh án | Ghi `Status=5` = **"Hủy"** → hồ sơ khám xong hiện ra như đã hủy | 1/5 → 6/6 |
+| 21 | Hủy duyệt CĐHA | Chữ ký **vẫn còn hiệu lực**; lý do hủy `(trống)` | 1/5 → 5/5 |
+| 22 | Đảo bút toán | Đảo hai lần **trừ tiền hai lần** | 1/3 → 3/3 |
+| 23 | Hủy xuất viện | **Xoá cứng** tóm tắt ra viện; hủy được cả ca **tử vong** | 2/4 → 5/5 |
+| 24 | Từ vựng `Admissions.Status` | Chú thích **nói ngược** với mã đang chạy | sửa tài liệu |
+| 25 | Tạo phiếu mượn hồ sơ | **Hàm rỗng** — API trả 200, DB `0 → 0` | 0/3 → 3/3 |
+| 26 | Mượn hồ sơ (cửa 2) | Mượn chồng **ghi đè người đang giữ** | 2/5 → 5/5 |
+| 27 | Hủy lượt khám | Lý do hủy **ghi đè kết luận của bác sĩ** | 2/6 → 7/7 |
+| 28 | Gửi Cổng đơn thuốc quốc gia | **"Hủy gửi" = hủy đơn thuốc** của bệnh nhân | 0/3 → 5/5 |
+| 29 | Hủy chỉ định dịch vụ | Ghi số 3 thay vì 4 ⇒ **hóa đơn vẫn tính tiền** | 1/3 → 3/3 |
+| 30 | Hủy phiếu mổ | Hủy được ca **đã mổ xong**; lý do đè ghi chú lâm sàng | 1/6 → 6/6 |
+| 31 | Ký số CĐHA | **Ký được phiếu chưa ai viết** (`Findings = "Ky so tu dong"`) | 1/4 → 4/4 |
+| 32 | Kết thúc truyền dịch | **Kết thúc trước khi bắt đầu** | 1/3 → 3/3 |
+
+**Hồi quy hiện tại: 24 bộ đo, 164/164.** `dotnet test` 225 passed. Migration 168-176.
+
+### Ba hình dạng lặp lại, và cái đã làm với chúng
+
+1. **Một luật, thi hành ở một cửa, bỏ trống ở cửa bên cạnh** — gặp **chín** lần (§5·10·11·12·15·18·21·26·31).
+   Từ §26 trở đi, vá một cửa đã thành lý do để **đi tìm cửa còn lại** thay vì chờ gặp may.
+2. **Mượn ô trạng thái của tính năng khác** — gặp **ba** lần (§20·24·28) ở ba module, ba người viết.
+   Vì thế mới viết `t3_status_vocabulary_sweep.py` (§29): nó bắt đúng §20 mà nó sinh ra để bắt, và
+   tìm thêm được §29 chưa ai biết. Cả hai vế của bộ dò hiện **đều sạch**.
+3. **Kẹp triệu chứng thay vì chặn nguyên nhân** — §32 (`Math.Max(0, …)`). Khó thấy nhất, vì nhìn vào
+   code thì tưởng đã có ai nghĩ đến rồi.
+
+### Bốn lần bài đo của chính tôi báo PASS giả
+
+Ghi lại vì đây là rủi ro lớn nhất của cả đợt — một bài đo sai thì tệ hơn không đo, vì nó cấp giấy
+chứng nhận cho thứ đang hỏng.
+
+* §20 — `canClose:false` khiến hàm **thoát sớm**; trạng thái không đổi trông hệt "hành xử đúng";
+* §23 — `SUM` trên tập rỗng trả `NULL`, mà `NULL != "0"` nên ca chứng minh dữ liệu **bị xoá sạch**
+  lại được chấm đạt;
+* §25 — assert vào trường `Purpose` mà bộ lọc không hề soi;
+* §30 — **vá trước rồi mới đo**, nên 6/6 đầu tiên không nói được gì; đã `git stash` bản vá, dựng lại,
+  đo trên mã cũ để lấy con số thật (1/6).
+
+Mỗi lần đều **sửa phép đo rồi đo lại**, không sửa kỳ vọng cho vừa kết quả. Và khi một ca đo cũ trở
+nên lỗi thời sau bản vá (§21), nó được đổi sang đo điều **mạnh hơn** chứ không hạ chuẩn.
+
+---
+
 ## 1. Điểm xuất phát: không có luật nào được thi hành
 
 Cả codebase chỉ có **một** bảng luật chuyển trạng thái — `MedicalRecordStatus.CanTransition`
