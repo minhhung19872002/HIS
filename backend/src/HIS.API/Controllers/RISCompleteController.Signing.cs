@@ -153,12 +153,23 @@ namespace HIS.API.Controllers
                     try
                     {
                         // Save signature to database through RIS service
-                        await _risService.SignResultAsync(new SignResultRequestDto
+                        var saved = await _risService.SignResultAsync(new SignResultRequestDto
                         {
                             ReportId = reportGuid,
                             SignatureType = "USBToken",
                             Note = $"Signed with certificate: {result.SignerName}"
                         });
+
+                        // #218/T3: `SignResultAsync` nay TỪ CHỐI (trả Success=false, không ném) khi phiếu
+                        // đã có chữ ký còn hiệu lực hoặc chỉ định chưa có phiếu đọc. Chỗ này vốn chỉ bắt
+                        // exception, nên nếu không đọc cờ trả về thì chữ ký USB đã tạo bên Windows sẽ
+                        // KHÔNG được lưu mà người dùng vẫn thấy báo "ký số thành công".
+                        if (!saved.Success)
+                        {
+                            _logger.LogWarning("Không lưu được chữ ký vào hồ sơ {ReportId}: {Message}",
+                                reportGuid, saved.Message);
+                            result.Message = $"Ký số thành công nhưng chưa lưu vào hồ sơ: {saved.Message}";
+                        }
                     }
                     catch (Exception dbEx)
                     {
