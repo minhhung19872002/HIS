@@ -1030,3 +1030,45 @@ thiếu:
 
 `IsActive` nay gồm cả 6 (chờ ra viện thì vẫn còn nằm viện). Hôm nay không đổi hành vi ở đâu vì không
 có đường nào ghi giá trị 6 — nhưng đúng nghĩa hơn, và khớp với chỗ đọc duy nhất của giá trị đó.
+
+---
+
+## 25. Mượn hồ sơ bệnh án — cửa TẠO phiếu là hàm rỗng, ba cửa còn lại đều thật
+
+Module mượn hồ sơ (`api/medical-record-planning/borrowing/*`) có bốn thao tác. Ba trong bốn làm việc
+thật trên bảng `MedicalRecordBorrowRequests`: xem danh sách (truy vấn có `Include` bệnh nhân + hồ sơ
+lưu trữ), gia hạn (đọc bản ghi thật, dời `ExpectedReturnDate`, `SaveChanges`), trả hồ sơ (đọc bản
+ghi thật, đặt ngày trả, `SaveChanges`).
+
+Cửa thứ tư — **tạo** phiếu mượn — thì:
+
+```csharp
+var code = $"PM-{DateTime.UtcNow:yyyyMMdd}-{new Random().Next(1000, 9999)}";
+await Task.CompletedTask;
+return new RecordBorrowDto { Id = Guid.NewGuid(), BorrowCode = code, ... };
+```
+
+Không chạm vào `_context` một lần nào. Đo được **0/3**: số phiếu trong bảng `0 → 0`, trong khi API
+trả **HTTP 200** kèm mã phiếu `PM-20260904-7674` và một Id trông hoàn toàn hợp lệ.
+
+Người dùng bấm "Mượn hồ sơ", nhận mã phiếu, giao diện báo thành công — rồi danh sách phiếu mượn
+ngay bên cạnh không bao giờ thấy phiếu đó. Tập hồ sơ giấy rời khỏi kho mà hệ thống không biết ai
+đang giữ.
+
+Cùng hình dạng với tám hàm rỗng bên ca mổ ở §13: một chuỗi nghiệp vụ mà mọi mắt xích đều thật trừ
+mắt xích đầu tiên. Điểm khiến nó khó phát hiện hơn hẳn: **API trả 200 kèm dữ liệu hợp lệ**, không có
+lỗi nào để ai nhìn thấy. Nên bài đo này cố ý **không chấm theo mã HTTP** mà đếm số dòng trong bảng
+trước/sau, rồi tra đúng cái Id mà API vừa nói là đã tạo.
+
+Vá: ghi thật, theo đúng hình dạng `MedicalRecordArchiveService.CreateBorrowRequestAsync` vốn đã làm
+đúng — tra hồ sơ lưu trữ, **chặn hồ sơ đang có người mượn** (không để hai người cùng cầm một tập hồ
+sơ giấy), rồi lưu và trả về DTO dựng từ dữ liệu thật. **3/3.**
+
+### Một FAIL nữa là lỗi của bài đo, không phải của sản phẩm
+
+Ca thứ ba ("phiếu vừa tạo hiện ra ở danh sách") vẫn FAIL sau khi đã vá. Đọc kỹ `GetBorrowingAsync`
+thì bộ lọc từ khoá chỉ soi `RequestCode`, tên bệnh nhân và `ArchiveCode` — **không soi `Purpose`**,
+mà bài đo lại đi tìm cái dấu `T3BRW` nằm trong `Purpose`. Bài đo sai, không phải sản phẩm sai.
+
+Đổi sang tìm theo **đúng mã phiếu mà API vừa trả về**: vừa khớp bộ lọc, vừa là khẳng định mạnh hơn —
+chính cái phiếu API nói đã tạo phải hiện ra ở danh sách, chứ không chỉ "có phiếu nào đó".

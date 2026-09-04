@@ -86,19 +86,65 @@ public partial class MedicalRecordPlanningService
         }
     }
 
+    /// <summary>
+    /// Tạo phiếu mượn hồ sơ bệnh án.
+    ///
+    /// <para>#218/T3 — trước đây hàm này là một cái vỏ: sinh một mã phiếu bằng <c>Random</c>, một
+    /// <c>Guid.NewGuid()</c>, rồi trả về mà **không chạm vào `_context` lần nào**. Người dùng bấm
+    /// "Mượn hồ sơ", nhận mã phiếu trông rất thật và giao diện báo thành công, nhưng không có gì
+    /// được ghi xuống — trong khi ba thao tác còn lại của chính module này (xem danh sách, gia hạn,
+    /// trả) đều làm việc thật trên `MedicalRecordBorrowRequests`. Khó thấy vì API trả 200 kèm dữ
+    /// liệu hợp lệ, không có lỗi nào để ai nhìn thấy. Đo được ở
+    /// evidence/cross/t3/t3_record_borrow.json: số phiếu 0 → 0.</para>
+    ///
+    /// <para>Nay ghi thật, theo đúng hình dạng <c>MedicalRecordArchiveService.CreateBorrowRequestAsync</c>
+    /// vốn đã làm đúng: tra hồ sơ lưu trữ, chặn hồ sơ đang có người mượn, rồi lưu.</para>
+    /// </summary>
     public async Task<RecordBorrowDto> CreateBorrowAsync(CreateBorrowDto dto, Guid userId)
     {
-        var code = $"PM-{DateTime.UtcNow:yyyyMMdd}-{new Random().Next(1000, 9999)}";
-        await Task.CompletedTask;
-        return new RecordBorrowDto
+        var archive = await _context.MedicalRecordArchives
+            .Include(a => a.Patient)
+            .Include(a => a.MedicalRecord)
+            .FirstOrDefaultAsync(a => a.MedicalRecordId == dto.MedicalRecordId && !a.IsDeleted)
+            ?? throw new KeyNotFoundException(
+                "Hồ sơ bệnh án này chưa được nhập kho lưu trữ nên chưa mượn được.");
+
+        // 2 = đang cho mượn. Không cho hai người cầm cùng một tập hồ sơ giấy.
+        if (archive.Status == 2 || archive.IsOnLoan)
+            throw new InvalidOperationException("Hồ sơ đang có người mượn, chưa trả về kho.");
+
+        var borrowDays = dto.BorrowDays > 0 ? dto.BorrowDays : 7;
+        var now = DateTime.UtcNow;
+        var request = new MedicalRecordBorrowRequest
         {
             Id = Guid.NewGuid(),
-            BorrowCode = code,
+            RequestCode = $"PM{now:yyyyMMddHHmmss}",
+            MedicalRecordArchiveId = archive.Id,
+            RequestedById = userId,
+            RequestDate = now,
             Purpose = dto.Purpose,
-            BorrowDate = DateTime.UtcNow,
-            ExpectedReturnDate = DateTime.UtcNow.AddDays(dto.BorrowDays),
+            ExpectedReturnDate = now.AddDays(borrowDays),
+            Status = 0, // Chờ duyệt
+            CreatedAt = now,
+            CreatedBy = userId.ToString(),
+        };
+        await _context.MedicalRecordBorrowRequests.AddAsync(request);
+        await _context.SaveChangesAsync();
+
+        var borrower = await _context.Users.FindAsync(userId);
+        return new RecordBorrowDto
+        {
+            Id = request.Id,
+            BorrowCode = request.RequestCode,
+            RecordCode = archive.MedicalRecord?.MedicalRecordCode,
+            PatientCode = archive.Patient?.PatientCode,
+            PatientName = archive.Patient?.FullName,
+            BorrowerName = borrower?.FullName,
+            Purpose = request.Purpose,
+            BorrowDate = request.RequestDate,
+            ExpectedReturnDate = request.ExpectedReturnDate,
             Status = 0,
-            StatusName = "Dang muon",
+            StatusName = "Đang mượn",
         };
     }
 
