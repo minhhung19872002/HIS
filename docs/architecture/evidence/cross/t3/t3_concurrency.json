@@ -1,5 +1,5 @@
 {
- "ranAt": "2026-09-04T12:20:10",
+ "ranAt": "2026-09-04T12:42:22",
  "fanout": 5,
  "checks": [
   {
@@ -10,12 +10,12 @@
   {
    "check": "A2. người thua cuộc nhận 409, không phải 500",
    "pass": true,
-   "detail": "Status|IsDispensed=2|1 · mã HTTP: [409, 200, 409, 409, 409] (kỳ vọng 1×200 + 4×409)"
+   "detail": "Status|IsDispensed=2|1 · mã HTTP: [409, 409, 200, 409, 409] (kỳ vọng 1×200 + 4×409)"
   },
   {
    "check": "B1. kết cục là MỘT trạng thái hợp lệ",
    "pass": true,
-   "detail": "duyệt=200 · từ chối=200 → trạng thái cuối=2 (1 duyệt / 2 từ chối)"
+   "detail": "duyệt=200 · từ chối=400 → trạng thái cuối=1 (1 duyệt / 2 từ chối)"
   },
   {
    "check": "C1. hủy nhiều lần vẫn ra một kết quả",

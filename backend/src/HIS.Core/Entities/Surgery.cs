@@ -121,6 +121,15 @@ public class SurgeryRecord : BaseEntity
     public string? PostOpDiagnosis { get; set; }
     public string? PostOpIcdCode { get; set; }
 
+    /// <summary>
+    /// Kết luận ca mổ. Thêm 2026-09-04 (#218): DTO và giao diện vốn đã gửi trường này lên nhưng
+    /// bảng không có cột nào nhận, nên kết luận bị rơi ngay trên đường thuận.
+    /// </summary>
+    public string? Conclusion { get; set; }
+
+    /// <summary>Chẩn đoán kèm theo (mã ICD phụ), ngăn cách bằng dấu chấm phẩy.</summary>
+    public string? SecondaryIcdCodes { get; set; }
+
     // Hướng dẫn sau mổ
     public string? PostOpInstructions { get; set; }
     public string? PostOpCare { get; set; } // Chăm sóc sau mổ

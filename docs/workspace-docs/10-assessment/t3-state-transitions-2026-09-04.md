@@ -365,3 +365,71 @@ và `SubmittedAt` trước/sau mới thấy dấu gửi cũ bị ghi đè, tức
 
 Bài học: **đo trạng thái cuối là không đủ khi trạng thái cuối của "chặn" và của "làm lại rồi ghi đè"
 trùng nhau.** Phải tìm một dấu vết chỉ thay đổi khi hành động thật sự xảy ra.
+
+## 13. Ca mổ — mười lỗi, trong đó tám lỗi làm mất tường trình phẫu thuật
+
+Đo 13 ca (`evidence/cross/t3/t3_surgery_transitions.py`). Trước khi sửa: **3/13**.
+
+### Nhóm A — không có luật trạng thái (4 lỗi)
+
+| Tình huống | Trước | Sau |
+|---|---|---|
+| Bắt đầu một ca mổ **đã hủy** | cho qua, trạng thái nhảy từ 4 về 2 | 400 |
+| Bắt đầu **lần thứ hai** | cho qua, **đẻ thêm biên bản mổ thứ hai** cho cùng một ca | 400, vẫn 1 biên bản |
+| Kết thúc một ca **chưa từng bắt đầu** | 200, **toàn bộ tường trình rơi mất** | 400 kèm hướng dẫn |
+| Bắt đầu với `surgeryId` không tồn tại | **200 kèm DTO rỗng** (thành công giả) | 400 |
+
+Ca thứ ba là nặng nhất về mặt hồ sơ. Biên bản mổ **chỉ** được tạo ở bước bắt đầu, mà chẩn đoán sau
+mổ, mô tả quá trình và tai biến lại ghi vào biên bản đó qua một `if (record != null)`. Không có biên
+bản thì mọi thứ bác sĩ vừa gõ biến mất, còn màn hình báo lưu xong.
+
+Ca thứ tư đáng chú ý vì lý do khác: chú thích ngay trong file ghi rõ đợt 2026-06-12 đã bỏ kiểu
+"thành công giả" này — **nhưng chỉ sửa ở `CompleteSurgeryAsync`, còn hàm anh em ngay bên trên thì
+bỏ sót**. Lại đúng hình dạng cũ, lần này giữa hai hàm nằm sát nhau trong cùng một file.
+
+### Nhóm B — tám endpoint GHI là hàm rỗng (6 lỗi đo được)
+
+`SurgeryOperationServiceImpl.Execution.cs` có **tám** hàm chỉ đọc lại ca mổ rồi trả về, **không ghi
+gì cả**, trong khi controller trả 200 kèm một DTO hợp lệ:
+
+| Endpoint | Trạng thái cũ | Nay |
+|---|---|---|
+| `PUT {id}/execution` | rỗng | ghi thật (chẩn đoán trước/sau mổ, mô tả, kết luận, tai biến, phương pháp, thời gian) |
+| `PUT {id}/pre-diagnosis` | rỗng | ghi thật |
+| `PUT {id}/post-diagnosis` | rỗng | ghi thật |
+| `PUT {id}/team` | rỗng | ghi thật (đặt lại ekip) |
+| đổi thành viên ekip | rỗng | ghi thật, đóng `LeftAt` người cũ + mở `JoinedAt` người mới |
+| `UpdateDescription` / `UpdateConclusion` (chưa nối route) | rỗng | ghi thật |
+| `PUT {id}/tt50-info` | rỗng | **báo lỗi rõ ràng** — xem bên dưới |
+
+Đây là cùng loại với vụ bàn giao chuyển khoa, nhưng ở quy mô tám endpoint và trên **tường trình phẫu
+thuật**. Bác sĩ sửa chẩn đoán sau mổ, màn hình báo xong, không có chữ nào được lưu.
+
+### Kết luận ca mổ rơi ngay trên đường thuận
+
+`CompleteSurgeryDto` và `SurgeryExecutionDto` đều có trường `Conclusion`, giao diện đều gửi lên,
+nhưng `SurgeryRecords` **không có cột nào tên như vậy** và `CompleteSurgeryAsync` cũng không ánh xạ
+nó đi đâu. Không cần tình huống lạ nào: mổ xong, ghi kết luận, kết luận biến mất. Migration `170`
+thêm `Conclusion` + `SecondaryIcdCodes`.
+
+### TT50: cố ý báo lỗi thay vì tiếp tục nói dối
+
+Khai báo TT50 **chưa cài đặt**, và em không tự cài vì hai chỗ phải người dùng chốt — đoán là hỏng hồ
+sơ pháp lý:
+
+- **Bộ số vai trò**: `SurgeryTeamMember.Role` là một cột chung, trong khi DTO đang có bộ số **riêng**
+  cho điều dưỡng (1 dụng cụ, 2 chạy ngoài, 3 phụ mê). Không biết phẫu thuật viên chính / phụ 1 /
+  phụ 2 / gây mê / phụ mê mang số nào.
+- **Chứng chỉ hành nghề** của phẫu thuật viên và `AnesthesiaNotes` chưa có cột nào để lưu.
+
+Nên hàm này nay **ném lỗi 400 kèm câu giải thích** thay vì trả 200 rỗng. Với một biểu mẫu có giá trị
+pháp lý, để bác sĩ tin là đã khai trong khi không có gì được lưu là tệ hơn hẳn một thông báo lỗi.
+
+Đo lại **13/13**.
+
+### Một ca đo phải đổi kỳ vọng — ghi lại
+
+Ban đầu ca "cập nhật ekip mổ" kỳ vọng hệ thống **phải báo lỗi** (vì lúc đó nó là hàm rỗng). Sau khi
+cài đặt thật thì trả 200 mới là đúng, nên kỳ vọng cũ hoá sai. Đã đổi ca đo sang điều mạnh hơn: đọc
+thẳng DB xem ekip **có được lưu thật không**. Đổi kỳ vọng theo sản phẩm là hợp lệ khi sản phẩm đã
+được sửa đúng hướng — điều không được phép là đổi kỳ vọng để né một lỗi chưa sửa.

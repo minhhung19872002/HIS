@@ -1,0 +1,96 @@
+{
+ "ranAt": "2026-09-04T12:41:49",
+ "cases": [
+  {
+   "case": "bắt đầu ca mổ đã lên lịch",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · số biên bản mổ=1"
+  },
+  {
+   "case": "kết thúc ca mổ và tường trình được lưu",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · chẩn đoán sau mổ='KL-GOC' · trạng thái yêu cầu=3"
+  },
+  {
+   "case": "tường trình không bị vứt khi chưa bắt đầu",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 400 · số biên bản=0 · chẩn đoán sau mổ=''"
+  },
+  {
+   "case": "bắt đầu lần hai không đẻ thêm biên bản",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · số biên bản trước=1 sau=1"
+  },
+  {
+   "case": "hủy ca mổ đưa yêu cầu sang trạng thái 4",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · trạng thái=4"
+  },
+  {
+   "case": "bắt đầu một ca mổ ĐÃ HỦY",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · trạng thái sau=4 (4 = vẫn đang hủy)"
+  },
+  {
+   "case": "bắt đầu ca mổ với id không có (phải báo lỗi)",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · Khong tim thay lich mo cua ca nay (surgeryId khong hop le hoac chua len lich)"
+  },
+  {
+   "case": "sửa chẩn đoán SAU mổ được lưu",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · trong DB='SUA-SAU-MO'"
+  },
+  {
+   "case": "sửa chẩn đoán TRƯỚC mổ được lưu",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · trong DB='SUA-TRUOC-MO'"
+  },
+  {
+   "case": "cập nhật thông tin thực hiện được lưu",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · chẩn đoán sau mổ trong DB='EXEC-SAU-MO'"
+  },
+  {
+   "case": "kết luận mổ có chỗ lưu và được lưu",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "cột Conclusion=CO · giá trị='EXEC-kết-luận'"
+  },
+  {
+   "case": "khai báo TT50 không được im lặng báo thành công",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · Khai báo TT50 chưa được cài đặt trên máy chủ nên chưa lưu được. Vui lòng nhập ekip mổ qua chức năng cập nhật ekip, và báo quản trị để bổ sung phần TT50."
+  },
+  {
+   "case": "cập nhật ekip mổ được lưu thật",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · số thành viên ekip trong DB=1"
+  }
+ ]
+}

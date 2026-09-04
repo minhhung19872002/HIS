@@ -222,6 +222,68 @@ public static class RefundStatus
 }
 
 /// <summary>
+/// Trạng thái của YÊU CẦU PHẪU THUẬT (<c>SurgeryRequests.Status</c>) và của LỊCH MỔ
+/// (<c>SurgerySchedules.Status</c>). Hai bảng đi song song và code cập nhật cả hai cùng lúc.
+/// </summary>
+public static class SurgeryStatus
+{
+    // SurgeryRequests.Status
+    public const int RequestScheduled = 1;  // Đã duyệt / đã lên lịch
+    public const int RequestInProgress = 2; // Đang mổ
+    public const int RequestCompleted = 3;  // Hoàn thành
+    public const int RequestCancelled = 4;  // Hủy / từ chối duyệt
+
+    // SurgerySchedules.Status
+    public const int SchedulePreparing = 2;  // Đang chuẩn bị
+    public const int ScheduleInProgress = 3; // Đang mổ
+    public const int ScheduleCompleted = 4;  // Hoàn thành
+
+    public static string RequestLabel(int status) => status switch
+    {
+        RequestScheduled => "Đã lên lịch",
+        RequestInProgress => "Đang mổ",
+        RequestCompleted => "Đã hoàn thành",
+        RequestCancelled => "Đã hủy",
+        _ => $"Không xác định ({status})",
+    };
+
+    /// <summary>
+    /// Ca mổ đã bắt đầu được chưa. Chặn hai thứ: ca ĐÃ HỦY (mổ một ca đã hủy), và ca đang mổ hoặc
+    /// đã mổ xong (gọi lại sẽ đẻ thêm một biên bản mổ thứ hai cho cùng một ca).
+    /// </summary>
+    public static bool CanStart(int requestStatus, int scheduleStatus)
+        => requestStatus != RequestCancelled
+           && scheduleStatus != ScheduleInProgress
+           && scheduleStatus != ScheduleCompleted;
+
+    public static void EnsureCanStart(int requestStatus, int scheduleStatus)
+    {
+        if (requestStatus == RequestCancelled)
+            throw new InvalidOperationException("Ca mổ đã hủy, không bắt đầu được.");
+        if (scheduleStatus == ScheduleInProgress)
+            throw new InvalidOperationException("Ca mổ đang diễn ra, không bắt đầu lại được.");
+        if (scheduleStatus == ScheduleCompleted)
+            throw new InvalidOperationException("Ca mổ đã kết thúc, không bắt đầu lại được.");
+    }
+
+    /// <summary>
+    /// Ca mổ kết thúc được chưa. Quan trọng nhất là <paramref name="hasRecord"/>: biên bản mổ chỉ
+    /// sinh ra ở bước BẮT ĐẦU, mà toàn bộ tường trình (chẩn đoán sau mổ, mô tả, tai biến) lại ghi
+    /// vào biên bản đó. Kết thúc một ca chưa từng bắt đầu thì tường trình rơi hết mà API vẫn trả
+    /// 200 — đo được ở evidence/cross/t3/t3_surgery_transitions.json.
+    /// </summary>
+    public static void EnsureCanComplete(int scheduleStatus, bool hasRecord)
+    {
+        if (scheduleStatus == ScheduleCompleted)
+            throw new InvalidOperationException("Ca mổ đã kết thúc rồi.");
+        if (!hasRecord)
+            throw new InvalidOperationException(
+                "Ca mổ chưa được bắt đầu nên chưa có biên bản mổ để ghi tường trình. "
+                + "Bấm \"Bắt đầu ca mổ\" trước rồi kết thúc.");
+    }
+}
+
+/// <summary>
 /// Trạng thái của ĐỢT XUẤT XML gửi cơ quan bảo hiểm xã hội (<c>InsuranceXmlBatches.Status</c>).
 ///
 /// <para>Đây là đường duy nhất trong hệ thống mà hậu quả đi RA NGOÀI bệnh viện: gửi trùng một đợt
