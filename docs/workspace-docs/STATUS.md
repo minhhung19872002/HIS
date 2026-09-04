@@ -535,11 +535,14 @@
 ### 🔴 CHỜ USER QUYẾT (đã comment đầy đủ trong issue, không tự làm)
 1. **#216** — (a) bật biến repo `VITE_ACCESS_GATING` trên prod (server đã chặn đủ, không bật cũng không hở bảo mật);
    (b) **TC-PERM-015 bắt đổi mật khẩu lần đầu/hết hạn**: chức năng CHƯA CÓ trong hệ thống — làm mới hay ghi nhận không áp dụng.
-2. **#218** — 5 quyết định: (a) bắt buộc ký số trước khi gửi BHXH (siết là tê liệt cơ sở chưa cấu hình chữ ký);
+2. **#218** — 8 việc (5 quyết định + 3 việc đã định vị, cố ý chưa làm): (a) bắt buộc ký số trước khi gửi BHXH (siết là tê liệt cơ sở chưa cấu hình chữ ký);
    (b) `Deposits.Status = 3` mang HAI nghĩa (đường ghi "đã tiêu hết" vs mọi báo cáo đọc "đã hoàn tiền") — sửa phía nào cũng đổi số liệu báo cáo đã phát;
    (c) đánh số lại `ServiceRequests.RequestType` cho dữ liệu CŨ (hệ quả kiểm toán);
    (d) `MedicalRecords.Status` hai từ vựng (ngoại trú 2 = chờ kết luận vs nội trú 2 = đang điều trị) — áp luật sẽ chặn nhầm xuất viện thật;
-   (e) `ClaimStatus` ↔ `InsuranceXmlBatches.Status` không nối nhau — sửa = thiết kế lại liên kết, vượt phạm vi bản vá guard.
+   (e) `ClaimStatus` ↔ `InsuranceXmlBatches.Status` không nối nhau — sửa = thiết kế lại liên kết, vượt phạm vi bản vá guard;
+   (f) **TT50 khai báo phẫu thuật** — nay đã BÁO LỖI RÕ thay vì trả 200 rỗng, nhưng chưa cài vì cần chốt bộ số vai trò `SurgeryTeamMember.Role` + chỗ lưu chứng chỉ hành nghề và `AnesthesiaNotes`.
+   (g) **48 chỗ `DBNull` còn lại** trong 6 tệp module máu — chỉ hỏng KHI giá trị rỗng. Cố ý không sửa loạt: mỗi chỗ một đường ghi khác, chỉ đo được vài đường ⇒ nên làm một lượt RIÊNG CÓ bài đo, không sửa mù.
+   (h) **`BloodBagAssignments`·`BloodIssueReceipts`·`BloodIssueItems` KHÔNG có script tạo bảng** trong repo (tồn tại do tạo tay) ⇒ môi trường dựng mới hỏng ngay; cần một migration.
 
 ### Đã đóng
 - **#217** (luồng chính đầu→cuối) và **#219** (lỗi API + phản ứng giao diện) — DONE, đã comment kết quả đầy đủ.
