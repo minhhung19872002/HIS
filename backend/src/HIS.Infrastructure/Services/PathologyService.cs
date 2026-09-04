@@ -156,6 +156,27 @@ public class PathologyService : IPathologyService
         var result = await _context.PathologyResults.FindAsync(id)
             ?? throw new InvalidOperationException("Result not found");
 
+        // #218/T3: kết quả ĐÃ DUYỆT thì không sửa nội dung được nữa.
+        //
+        // `VerifyPathologyResultAsync` ngay dưới được canh rất kỹ — kiểm phiếu hợp lệ, kiểm phiếu đã
+        // hoàn thành, và chặn duyệt lại một kết quả đã duyệt. Nhưng cửa SỬA này trước đây không hỏi
+        // `VerifiedAt` một lần nào, nên sau khi bác sĩ GPB đã duyệt vẫn đổi được `Diagnosis`,
+        // `IcdCode`, mô tả đại thể/vi thể… trong khi `VerifiedBy`/`VerifiedByName`/`VerifiedAt` giữ
+        // nguyên. Phiếu mang tên người duyệt và giờ duyệt, nhưng chẩn đoán đã khác cái người đó
+        // thật sự đọc và ký.
+        //
+        // Với giải phẫu bệnh thì chẩn đoán ấy thường là kết luận ung thư — thứ quyết định phác đồ.
+        // Đo được ở evidence/cross/t3/t3_pathology_verified_edit.json: một chẩn đoán ác tính đã duyệt
+        // bị đổi thành lành tính, mà chữ ký duyệt vẫn còn nguyên.
+        //
+        // Cùng hình dạng với §5 (sửa nội dung phiếu CĐHA đã ký số): lớp xác nhận có tồn tại và được
+        // canh kỹ ở đường của chính nó, nhưng cửa sửa nội dung không tra tới nó.
+        if (result.VerifiedAt.HasValue)
+            throw new InvalidOperationException(
+                $"Kết quả GPB này đã được {result.VerifiedByName ?? "bác sĩ"} duyệt lúc "
+                + $"{result.VerifiedAt:HH:mm dd/MM/yyyy} — không sửa nội dung được nữa. "
+                + "Cần tu chỉnh thì phải hủy duyệt trước, có lưu vết.");
+
         if (dto.GrossDescription != null) result.GrossDescription = dto.GrossDescription;
         if (dto.MicroscopicDescription != null) result.MicroscopicDescription = dto.MicroscopicDescription;
         if (dto.Diagnosis != null) result.Diagnosis = dto.Diagnosis;

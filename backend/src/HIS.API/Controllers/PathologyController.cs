@@ -62,8 +62,18 @@ public class PathologyController : ControllerBase
     [RequirePermission(PermissionCatalog.LabResult.Create)]
     public async Task<ActionResult<PathologyResultDto>> UpdatePathologyResult(Guid id, [FromBody] UpdatePathologyResultDto dto)
     {
-        var result = await _pathologyService.UpdatePathologyResultAsync(id, dto);
-        return Ok(result);
+        // #218/T3: guard "kết quả đã duyệt thì không sửa" ném InvalidOperationException. Controller
+        // này không gắn DomainExceptionFilter, nên bắt tại chỗ để ra 400 kèm lý do — cùng cách mà
+        // VerifyPathologyResult ngay dưới vẫn làm, thay vì để lọt thành 500 trần.
+        try
+        {
+            var result = await _pathologyService.UpdatePathologyResultAsync(id, dto);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
+        }
     }
 
     [HttpGet("statistics")]

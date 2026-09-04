@@ -35,12 +35,13 @@ một bài đo cho thứ vốn đã đúng*).
 | 30 | Hủy phiếu mổ | Hủy được ca **đã mổ xong**; lý do đè ghi chú lâm sàng | 1/6 → 6/6 |
 | 31 | Ký số CĐHA | **Ký được phiếu chưa ai viết** (`Findings = "Ky so tu dong"`) | 1/4 → 4/4 |
 | 32 | Kết thúc truyền dịch | **Kết thúc trước khi bắt đầu** | 1/3 → 3/3 |
+| 33 | Giải phẫu bệnh | Chẩn đoán **ác tính đã duyệt** sửa thành lành tính, chữ ký duyệt vẫn nguyên | 1/3 → 3/3 |
 
-**Hồi quy hiện tại: 24 bộ đo, 164/164.** `dotnet test` 225 passed. Migration 168-176.
+**Hồi quy hiện tại: 25 bộ đo, 167/167.** `dotnet test` 225 passed. Migration 168-176.
 
 ### Ba hình dạng lặp lại, và cái đã làm với chúng
 
-1. **Một luật, thi hành ở một cửa, bỏ trống ở cửa bên cạnh** — gặp **chín** lần (§5·10·11·12·15·18·21·26·31).
+1. **Một luật, thi hành ở một cửa, bỏ trống ở cửa bên cạnh** — gặp **mười** lần (§5·10·11·12·15·18·21·26·31·33).
    Từ §26 trở đi, vá một cửa đã thành lý do để **đi tìm cửa còn lại** thay vì chờ gặp may.
 2. **Mượn ô trạng thái của tính năng khác** — gặp **ba** lần (§20·24·28) ở ba module, ba người viết.
    Vì thế mới viết `t3_status_vocabulary_sweep.py` (§29): nó bắt đúng §20 mà nó sinh ra để bắt, và
@@ -1442,3 +1443,39 @@ Một dạng đáng để ý riêng: mấy lỗi trước trong đợt là *thi�
 **có tồn tại trong đầu người viết** — bằng chứng là cái `Math.Max` — nhưng được cài ở dạng làm cho
 triệu chứng biến mất thay vì chặn nguyên nhân. Đó là loại khó thấy hơn, vì nhìn vào code thì tưởng
 đã có ai đó nghĩ đến rồi.
+
+---
+
+## 33. Giải phẫu bệnh — sửa được kết quả đã duyệt, chữ ký duyệt vẫn nguyên
+
+`VerifyPathologyResultAsync` được canh rất kỹ: kiểm kết quả có gắn phiếu hợp lệ không, kiểm phiếu đã
+hoàn thành chưa, và chặn duyệt lại một kết quả đã duyệt. Nhưng `UpdatePathologyResultAsync` — cửa
+**sửa nội dung** — **không hỏi `VerifiedAt` một lần nào**.
+
+Đo được **1/3**, và kết quả in ra tự nói hết:
+
+```
+Diagnosis trước:  UNG-THU-BIEU-MO-TUYEN-DO-BIET-HOA-CAO
+Diagnosis sau:    LANH-TINH-DA-SUA-SAU-KHI-DUYET     ← HTTP 200
+người duyệt|đã duyệt = BS Duyet|co                   ← không đổi
+```
+
+Một chẩn đoán **ác tính đã duyệt bị đổi thành lành tính**, trong khi `VerifiedByName` và `VerifiedAt`
+giữ nguyên. Phiếu vẫn mang tên bác sĩ giải phẫu bệnh và giờ duyệt, nhưng nội dung đã khác cái người
+đó thật sự đọc và ký. Với GPB thì chẩn đoán ấy thường là kết luận ung thư — thứ quyết định phác đồ
+điều trị.
+
+Đúng hình dạng §5 (sửa nội dung phiếu CĐHA đã ký số), và là lần **thứ mười** trong đợt gặp *một luật
+thi hành ở một cửa, bỏ trống ở cửa bên cạnh*: lớp xác nhận **có tồn tại và được canh kỹ ở đường của
+chính nó**, nhưng cửa sửa nội dung không tra tới nó.
+
+Vá: chặn sửa khi `VerifiedAt` đã có, thông báo nói rõ ai duyệt và duyệt lúc nào. Controller này
+không gắn `DomainExceptionFilter` nên bắt exception tại chỗ để ra **400** kèm lý do — đúng cách mà
+`VerifyPathologyResult` ngay dưới vẫn làm, thay vì để lọt thành 500 trần.
+
+Đối chứng âm: kết quả **chưa duyệt** vẫn phải sửa được bình thường. `t3_pathology_verified_edit.py`:
+**3/3**.
+
+Ghi nhận một chỗ module này làm **đúng**, để không đổ oan: controller đã chặn sẵn `RequestId` rỗng
+(*"Thiếu RequestId (phiếu GPB)"*), nên không tạo được kết quả GPB mồ côi không gắn phiếu nào — tôi
+đã nghi chỗ đó và kiểm, hoá ra đã có người canh rồi.

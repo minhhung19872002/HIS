@@ -1,0 +1,26 @@
+{
+ "ranAt": "2026-09-04T21:39:16",
+ "cases": [
+  {
+   "case": "KHÔNG sửa được chẩn đoán của kết quả đã duyệt",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · Diagnosis hiện tại='UNG-THU-BIEU-MO-TUYEN-DO-BIET-HOA-CAO'"
+  },
+  {
+   "case": "chữ ký duyệt không còn bảo chứng cho nội dung khác",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "người duyệt|đã duyệt = BS Duyet|co"
+  },
+  {
+   "case": "kết quả chưa duyệt ĐƯỢC sửa bình thường",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · Diagnosis='T3GPB-SUA-HOP-LE'"
+  }
+ ]
+}
