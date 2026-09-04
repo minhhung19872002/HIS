@@ -433,3 +433,81 @@ Ban đầu ca "cập nhật ekip mổ" kỳ vọng hệ thống **phải báo l�
 cài đặt thật thì trả 200 mới là đúng, nên kỳ vọng cũ hoá sai. Đã đổi ca đo sang điều mạnh hơn: đọc
 thẳng DB xem ekip **có được lưu thật không**. Đổi kỳ vọng theo sản phẩm là hợp lệ khi sản phẩm đã
 được sửa đúng hướng — điều không được phép là đổi kỳ vọng để né một lỗi chưa sửa.
+
+## 14. Ngân hàng máu — truyền được sai nhóm, và ba lỗi hạ tầng
+
+Đây là chỗ rủi ro cao nhất trong cả đợt. Truyền nhầm nhóm hồng cầu gây tan máu cấp, có thể tử vong,
+và không đảo ngược được.
+
+Toàn bộ module này viết bằng **SQL trần** (`ExecuteSqlRawAsync` / `GetDbConnection`), không qua EF
+entity. Đo 12 ca (`evidence/cross/t3/t3_blood_transitions.py`). Trước khi sửa: **2/8**.
+
+### Sáu lỗ hổng an toàn truyền máu
+
+| Tình huống | Trước | Sau |
+|---|---|---|
+| Gán túi **B+** cho người bệnh **A+** | cho qua | 400 kèm câu nêu rõ hai nhóm máu |
+| Gán túi **Rh+** cho người bệnh **Rh−** | cho qua | 400 |
+| Gán túi **đã hết hạn** | cho qua | 400 kèm ngày hết hạn |
+| Gán lại túi **đã truyền** cho người khác | cho qua | 400 |
+| "Bắt đầu truyền" một túi **chưa hề được gán** | cho qua, túi nhảy sang `Transfusing` | 400 |
+| Truyền túi có **phản ứng chéo ghi KHÔNG PHÙ HỢP** | cho qua | 400 |
+| Xuất máu theo phiếu lĩnh **chưa duyệt** / **đã từ chối** | cho qua | 400 |
+| Xuất lại chính túi vừa xuất | cho qua | 400 |
+
+Không nơi nào trong hệ thống đối chiếu ABO/Rh — máy chủ không tính, và giao diện chỉ có một ô chọn
+"Phù hợp / Không phù hợp" do người dùng **tự chọn** (`BloodBank.tsx`). Trong khi đó `BloodOrders` đã
+có sẵn `PatientBloodType` và `PatientRhFactor`: dữ liệu để đối chiếu vốn nằm ngay trên phiếu chỉ định.
+
+Câu `UPDATE BloodBags SET Status='Transfusing'` trong `StartTransfusionAsync` chạy **bất kể** câu
+cập nhật `BloodBagAssignments` phía trên có khớp dòng nào không — nên chỉ cần một `orderItemId` hợp
+lệ và một `bloodBagId` bất kỳ là "bắt đầu truyền" được một túi chưa gán cho ai.
+
+### Phạm vi của luật tương thích — cố ý hẹp
+
+`BloodCompatibility` chỉ kết luận cho **khối hồng cầu (RBC)** và **máu toàn phần (WB)**, nơi luật ABO
+là luật cứng. Huyết tương (FFP), tiểu cầu (PLT), tủa lạnh (CRYO) có luật **khác** — huyết tương gần
+như ngược lại — nên lớp này trả "không kết luận" cho chúng. Thà không chặn còn hơn chặn sai một chỉ
+định đúng.
+
+Máu toàn phần siết chặt hơn khối hồng cầu: WB phải **đúng nhóm** vì mang theo cả huyết tương người
+cho, trong khi RBC nhóm O truyền được cho mọi nhóm.
+
+**Không biết thì không chặn.** Nhóm máu người bệnh hoặc của túi mà trống thì không kết luận. Trong
+cấp cứu chảy máu ồ ạt, nhóm máu thường chưa có kết quả và vẫn phải truyền được máu O — chặn ở đó là
+gây hại chứ không phải ngăn hại. Đã neo bằng một ca đối chứng ngược trong bài đo.
+
+Tương tự, **không bắt buộc phải có kết quả phản ứng chéo** mới cho truyền: chỉ chặn khi đã có kết
+luận *không hợp*. Bắt buộc sẽ chặn đường phát máu khẩn.
+
+### Ba lỗi hạ tầng lộ ra trong lúc đo
+
+**(1) `using` trên kết nối của EF — 24 chỗ.** `using var connection = _context.Database.GetDbConnection();`
+**Dispose kết nối do DbContext sở hữu**, nên lệnh kế tiếp trên cùng context ném *"The ConnectionString
+property has not been initialized"*. Gặp thật khi tạo phiếu chỉ định máu: hàm tra tên chế phẩm đóng
+kết nối, câu INSERT ngay sau đó hỏng. Đã sửa cả 24 chỗ sang lấy kết nối không `using` + mở theo trạng
+thái.
+
+**(2) Guard ra HTTP 500.** `BloodBankCompleteController` không gắn `DomainExceptionFilter`, nên mọi
+guard an toàn truyền máu vừa thêm đều trả 500. Điều dưỡng đọc 500 thành "lỗi máy chủ" rồi thử lại,
+thay vì hiểu "không được truyền túi này" — đúng bài học *cơ chế đúng mà báo sai thì vẫn hỏng ở mắt
+người dùng*. Đã gắn filter; bài đo nay **bắt buộc mã 400**, chặn được mà trả 500 vẫn tính là trượt.
+
+**(3) `DBNull` trong `ExecuteSqlRawAsync` — tạo phiếu lĩnh máu hỏng 100%.** EF Core không ánh xạ
+được kiểu `DBNull`; `CreateIssueRequestAsync` truyền `DBNull.Value` cho `PatientCode`/`PatientName`
+**luôn luôn**, nên chức năng này chưa bao giờ chạy được. Đã sửa bằng `SqlParameter` có tên.
+
+### 🔴 Còn lại, chưa sửa — chưa đo được nên chưa dám sửa mù
+
+Cùng lỗi `DBNull` ở trên còn **48 chỗ nữa** trong 6 tệp của module máu
+(`Catalogs` · `ImportReceipts` · `Inventory` · `IssueRequests` · `Orders` · `Stock`). Khác chỗ đã sửa
+ở một điểm: chúng chỉ hỏng **khi giá trị đó rỗng**, nên có đường chạy được có đường không.
+
+Không sửa loạt cả 48 chỗ vì mỗi chỗ nằm trên một đường ghi khác nhau và em chỉ dựng được bài đo cho
+vài đường. Sửa 48 chỗ trên đường ghi của ngân hàng máu mà không đo lại từng đường thì đúng kiểu
+"sửa mù" mà cả đợt này đang tránh. Đây là việc rõ ràng, đã định vị chính xác, nên làm thành một lượt
+riêng có bài đo đi kèm.
+
+Ngoài ra `BloodBagAssignments`, `BloodIssueReceipts`, `BloodIssueItems` **không có script tạo bảng
+nào trong repo** — chúng tồn tại trên máy này và trên prod do tạo tay. Một môi trường dựng mới sẽ
+hỏng ngay ở các đường này. Ghi lại để xử lý bằng một migration.

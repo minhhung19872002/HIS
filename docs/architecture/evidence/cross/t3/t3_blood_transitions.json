@@ -1,0 +1,89 @@
+{
+ "ranAt": "2026-09-04T12:58:51",
+ "cases": [
+  {
+   "case": "gán túi O+ cho bệnh nhân A+ (hợp nhóm)",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · trạng thái túi=Reserved"
+  },
+  {
+   "case": "gán túi B+ cho bệnh nhân A+ (SAI NHÓM)",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · trạng thái túi=Available · KHÔNG TƯƠNG THÍCH NHÓM MÁU. Người bệnh nhóm A+ không nhận được túi máu nhóm B+."
+  },
+  {
+   "case": "gán túi Rh+ cho bệnh nhân Rh- (SAI Rh)",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · trạng thái túi=Available"
+  },
+  {
+   "case": "gán túi máu ĐÃ HẾT HẠN",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · trạng thái túi=Available · Túi máu đã hết hạn ngày 01/09/2026, không sử dụng được."
+  },
+  {
+   "case": "gán lại túi máu ĐÃ TRUYỀN",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · trạng thái túi=Transfused"
+  },
+  {
+   "case": "bắt đầu truyền túi chưa hề được gán",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · trạng thái túi trước=Available sau=Available"
+  },
+  {
+   "case": "truyền túi có phản ứng chéo KHÔNG PHÙ HỢP",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · trạng thái túi trước=Reserved sau=Reserved · Phản ứng chéo ghi \"Không phù hợp\" — không truyền túi máu này."
+  },
+  {
+   "case": "xuất máu theo phiếu lĩnh CHƯA DUYỆT",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · trạng thái túi=Available · Phiếu lĩnh máu đang ở trạng thái \"Pending\", chưa xuất máu được."
+  },
+  {
+   "case": "xuất máu theo phiếu lĩnh ĐÃ TỪ CHỐI",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · trạng thái túi=Available"
+  },
+  {
+   "case": "xuất máu theo phiếu đã duyệt",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · trạng thái túi=Issued"
+  },
+  {
+   "case": "xuất lại chính túi máu vừa xuất",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · số dòng xuất của túi này=1"
+  },
+  {
+   "case": "chưa biết nhóm máu vẫn truyền được máu O-",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · trạng thái túi=Reserved"
+  }
+ ]
+}

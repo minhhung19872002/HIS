@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -21,8 +21,12 @@ namespace HIS.Infrastructure.Services
             DateTime fromDate, DateTime toDate, string status = null)
         {
             var results = new List<BloodInventoryDto>();
-            using var connection = _context.Database.GetDbConnection();
-            await connection.OpenAsync();
+            // #218/T3 (2026-09-04): KHÔNG `using` kết nối này — nó thuộc về DbContext.
+            // `using` sẽ Dispose kết nối của EF, nên lệnh kế tiếp trên cùng context ném
+            // "The ConnectionString property has not been initialized". Gặp thật khi tạo
+            // phiếu chỉ định máu: hàm tra tên chế phẩm đóng kết nối, câu INSERT sau đó hỏng.
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
             using var command = connection.CreateCommand();
 
             var sql = @"SELECT Id, InventoryCode, InventoryDate, Status, ConductedBy, ApprovedBy, ApprovedDate,
@@ -50,8 +54,12 @@ namespace HIS.Infrastructure.Services
         public async Task<BloodInventoryDto> GetInventoryAsync(Guid inventoryId)
         {
             BloodInventoryDto inv = null;
-            using var connection = _context.Database.GetDbConnection();
-            await connection.OpenAsync();
+            // #218/T3 (2026-09-04): KHÔNG `using` kết nối này — nó thuộc về DbContext.
+            // `using` sẽ Dispose kết nối của EF, nên lệnh kế tiếp trên cùng context ném
+            // "The ConnectionString property has not been initialized". Gặp thật khi tạo
+            // phiếu chỉ định máu: hàm tra tên chế phẩm đóng kết nối, câu INSERT sau đó hỏng.
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
 
             using (var cmd = connection.CreateCommand())
             {

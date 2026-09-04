@@ -18,6 +18,11 @@ namespace HIS.API.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
+    // #218/T3 (2026-09-04): các guard an toàn truyền máu (sai nhóm · hết hạn · chưa gán · phản ứng
+    // chéo không hợp) ném InvalidOperationException. Không có filter này thì chúng ra HTTP 500, và
+    // điều dưỡng đọc thành "lỗi máy chủ" thay vì "không được truyền túi này" — cơ chế chặn đúng mà
+    // báo sai thì ở mắt người dùng vẫn là hỏng.
+    [TypeFilter(typeof(Filters.DomainExceptionFilter))]
     public partial class BloodBankCompleteController : ControllerBase
     {
         private readonly IBloodBankCompleteService _bloodBankService;

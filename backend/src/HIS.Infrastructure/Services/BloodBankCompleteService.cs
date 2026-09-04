@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -111,8 +111,12 @@ namespace HIS.Infrastructure.Services
         private async Task<BloodIssueReceiptDto> GetIssueReceiptByIdAsync(Guid receiptId)
         {
             BloodIssueReceiptDto receipt = null;
-            using var connection = _context.Database.GetDbConnection();
-            await connection.OpenAsync();
+            // #218/T3 (2026-09-04): KHÔNG `using` kết nối này — nó thuộc về DbContext.
+            // `using` sẽ Dispose kết nối của EF, nên lệnh kế tiếp trên cùng context ném
+            // "The ConnectionString property has not been initialized". Gặp thật khi tạo
+            // phiếu chỉ định máu: hàm tra tên chế phẩm đóng kết nối, câu INSERT sau đó hỏng.
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
 
             using (var cmd = connection.CreateCommand())
             {
@@ -176,8 +180,12 @@ namespace HIS.Infrastructure.Services
             string bloodType, string rhFactor, Guid? productTypeId, string status, int? daysUntilExpiry, bool expiredOnly)
         {
             var results = new List<BloodStockDetailDto>();
-            using var connection = _context.Database.GetDbConnection();
-            await connection.OpenAsync();
+            // #218/T3 (2026-09-04): KHÔNG `using` kết nối này — nó thuộc về DbContext.
+            // `using` sẽ Dispose kết nối của EF, nên lệnh kế tiếp trên cùng context ném
+            // "The ConnectionString property has not been initialized". Gặp thật khi tạo
+            // phiếu chỉ định máu: hàm tra tên chế phẩm đóng kết nối, câu INSERT sau đó hỏng.
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
             using var command = connection.CreateCommand();
 
             var sql = @"SELECT b.Id AS BloodBagId, b.BagCode, b.Barcode, b.BloodType, b.RhFactor,
@@ -239,8 +247,12 @@ namespace HIS.Infrastructure.Services
 
         private async Task<string> GetProductTypeNameAsync(Guid productTypeId)
         {
-            using var connection = _context.Database.GetDbConnection();
-            await connection.OpenAsync();
+            // #218/T3 (2026-09-04): KHÔNG `using` kết nối này — nó thuộc về DbContext.
+            // `using` sẽ Dispose kết nối của EF, nên lệnh kế tiếp trên cùng context ném
+            // "The ConnectionString property has not been initialized". Gặp thật khi tạo
+            // phiếu chỉ định máu: hàm tra tên chế phẩm đóng kết nối, câu INSERT sau đó hỏng.
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
             using var command = connection.CreateCommand();
             command.CommandText = "SELECT Name FROM BloodProductTypes WHERE Id = @id";
             command.Parameters.Add(new SqlParameter("@id", productTypeId));
@@ -250,8 +262,12 @@ namespace HIS.Infrastructure.Services
 
         private async Task<int> GetSystemQuantityAsync(string bloodType, string rhFactor, Guid productTypeId)
         {
-            using var connection = _context.Database.GetDbConnection();
-            await connection.OpenAsync();
+            // #218/T3 (2026-09-04): KHÔNG `using` kết nối này — nó thuộc về DbContext.
+            // `using` sẽ Dispose kết nối của EF, nên lệnh kế tiếp trên cùng context ném
+            // "The ConnectionString property has not been initialized". Gặp thật khi tạo
+            // phiếu chỉ định máu: hàm tra tên chế phẩm đóng kết nối, câu INSERT sau đó hỏng.
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
             using var command = connection.CreateCommand();
             command.CommandText = @"SELECT COUNT(*) FROM BloodBags
                 WHERE BloodType = @bt AND RhFactor = @rh AND ProductTypeId = @pt
@@ -271,8 +287,12 @@ namespace HIS.Infrastructure.Services
             var map = new Dictionary<Guid, string>();
             if (ids.Count == 0) return map;
 
-            using var connection = _context.Database.GetDbConnection();
-            await connection.OpenAsync();
+            // #218/T3 (2026-09-04): KHÔNG `using` kết nối này — nó thuộc về DbContext.
+            // `using` sẽ Dispose kết nối của EF, nên lệnh kế tiếp trên cùng context ném
+            // "The ConnectionString property has not been initialized". Gặp thật khi tạo
+            // phiếu chỉ định máu: hàm tra tên chế phẩm đóng kết nối, câu INSERT sau đó hỏng.
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
             using var cmd = connection.CreateCommand();
             var ps = ids.Select((_, idx) => $"@pt{idx}").ToList();
             cmd.CommandText = $"SELECT Id, Name FROM BloodProductTypes WHERE Id IN ({string.Join(",", ps)})";
@@ -293,8 +313,12 @@ namespace HIS.Infrastructure.Services
             var ptNameMap = new Dictionary<Guid, string>();
             var sysQtyMap = new Dictionary<(string, string, Guid), int>();
 
-            using var connection = _context.Database.GetDbConnection();
-            await connection.OpenAsync();
+            // #218/T3 (2026-09-04): KHÔNG `using` kết nối này — nó thuộc về DbContext.
+            // `using` sẽ Dispose kết nối của EF, nên lệnh kế tiếp trên cùng context ném
+            // "The ConnectionString property has not been initialized". Gặp thật khi tạo
+            // phiếu chỉ định máu: hàm tra tên chế phẩm đóng kết nối, câu INSERT sau đó hỏng.
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
 
             using (var cmd = connection.CreateCommand())
             {

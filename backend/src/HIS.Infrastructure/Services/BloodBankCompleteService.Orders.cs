@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using HIS.Application.DTOs.BloodBank;
 using HIS.Application.Services;
+using HIS.Core.Constants;
 using HIS.Infrastructure.Data;
 
 namespace HIS.Infrastructure.Services
@@ -21,8 +22,12 @@ namespace HIS.Infrastructure.Services
             DateTime fromDate, DateTime toDate, Guid? departmentId = null, Guid? patientId = null, string status = null)
         {
             var results = new List<BloodOrderDto>();
-            using var connection = _context.Database.GetDbConnection();
-            await connection.OpenAsync();
+            // #218/T3 (2026-09-04): KHÔNG `using` kết nối này — nó thuộc về DbContext.
+            // `using` sẽ Dispose kết nối của EF, nên lệnh kế tiếp trên cùng context ném
+            // "The ConnectionString property has not been initialized". Gặp thật khi tạo
+            // phiếu chỉ định máu: hàm tra tên chế phẩm đóng kết nối, câu INSERT sau đó hỏng.
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
             using var command = connection.CreateCommand();
 
             var sql = @"SELECT Id, OrderCode, OrderDate, PatientId, PatientCode, PatientName,
@@ -75,8 +80,12 @@ namespace HIS.Infrastructure.Services
         public async Task<BloodOrderDto> GetBloodOrderAsync(Guid orderId)
         {
             BloodOrderDto order = null;
-            using var connection = _context.Database.GetDbConnection();
-            await connection.OpenAsync();
+            // #218/T3 (2026-09-04): KHÔNG `using` kết nối này — nó thuộc về DbContext.
+            // `using` sẽ Dispose kết nối của EF, nên lệnh kế tiếp trên cùng context ném
+            // "The ConnectionString property has not been initialized". Gặp thật khi tạo
+            // phiếu chỉ định máu: hàm tra tên chế phẩm đóng kết nối, câu INSERT sau đó hỏng.
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
 
             using (var cmd = connection.CreateCommand())
             {
@@ -225,8 +234,70 @@ namespace HIS.Infrastructure.Services
             return rows > 0;
         }
 
+        /// <summary>
+        /// Tình trạng túi máu + nhóm máu người bệnh của một dòng chỉ định, đọc một lượt để gác.
+        /// </summary>
+        private async Task<(string BagStatus, DateTime? Expiry, string? BagAbo, string? BagRh,
+                            string? ProductCode, string? PatientAbo, string? PatientRh, bool OrderItemExists)>
+            LoadTransfusionContextAsync(Guid orderItemId, Guid bloodBagId)
+        {
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = @"
+                SELECT b.Status, b.ExpiryDate, b.BloodType, b.RhFactor, pt.Code,
+                       o.PatientBloodType, o.PatientRhFactor,
+                       CASE WHEN oi.Id IS NULL THEN 0 ELSE 1 END AS ItemExists
+                FROM BloodBags b
+                LEFT JOIN BloodProductTypes pt ON pt.Id = b.ProductTypeId
+                LEFT JOIN BloodOrderItems oi ON oi.Id = @itemId
+                LEFT JOIN BloodOrders o ON o.Id = oi.OrderId
+                WHERE b.Id = @bagId";
+            cmd.Parameters.Add(new SqlParameter("@itemId", orderItemId));
+            cmd.Parameters.Add(new SqlParameter("@bagId", bloodBagId));
+            using var r = await cmd.ExecuteReaderAsync();
+            if (!await r.ReadAsync())
+                throw new KeyNotFoundException("Không tìm thấy túi máu.");
+            string? S(int i) => r.IsDBNull(i) ? null : r.GetString(i);
+            return (S(0) ?? "", r.IsDBNull(1) ? null : r.GetDateTime(1), S(2), S(3), S(4), S(5), S(6),
+                    !r.IsDBNull(7) && r.GetInt32(7) == 1);
+        }
+
+        /// <summary>
+        /// #218/T3 (2026-09-04): gác chung cho mọi đường đưa một túi máu tới người bệnh.
+        ///
+        /// Trước đây KHÔNG có một phép kiểm nào: gán được túi B+ cho người bệnh A+, gán được túi đã
+        /// hết hạn, và gán lại được túi đã truyền cho người khác. Đo ở
+        /// evidence/cross/t3/t3_blood_transitions.json.
+        /// </summary>
+        private static void EnsureBagUsable(
+            string bagStatus, DateTime? expiry, string? bagAbo, string? bagRh, string? productCode,
+            string? patientAbo, string? patientRh, string[] allowedStatuses)
+        {
+            if (expiry.HasValue && expiry.Value.Date < DateTime.Now.Date)
+                throw new InvalidOperationException(
+                    $"Túi máu đã hết hạn ngày {expiry.Value:dd/MM/yyyy}, không sử dụng được.");
+
+            if (!allowedStatuses.Contains(bagStatus, StringComparer.OrdinalIgnoreCase))
+                throw new InvalidOperationException(
+                    $"Túi máu đang ở trạng thái \"{bagStatus}\", không thực hiện được thao tác này.");
+
+            var match = BloodCompatibility.Check(productCode, patientAbo, patientRh, bagAbo, bagRh);
+            if (match == BloodCompatibility.BloodMatch.Incompatible)
+                throw new InvalidOperationException(
+                    "KHÔNG TƯƠNG THÍCH NHÓM MÁU. "
+                    + BloodCompatibility.Describe(patientAbo, patientRh, bagAbo, bagRh));
+        }
+
         public async Task<bool> AssignBloodBagToPatientAsync(Guid orderItemId, Guid bloodBagId)
         {
+            var ctx = await LoadTransfusionContextAsync(orderItemId, bloodBagId);
+            if (!ctx.OrderItemExists)
+                throw new KeyNotFoundException("Không tìm thấy dòng chỉ định máu.");
+            // Túi được phép gán khi còn trong kho, hoặc đã xuất cho khoa nhưng chưa dùng.
+            EnsureBagUsable(ctx.BagStatus, ctx.Expiry, ctx.BagAbo, ctx.BagRh, ctx.ProductCode,
+                            ctx.PatientAbo, ctx.PatientRh, new[] { "Available", "Issued" });
+
             var assignId = Guid.NewGuid();
             await _context.Database.ExecuteSqlRawAsync(
                 @"INSERT INTO BloodBagAssignments (Id, OrderItemId, BloodBagId, BagCode, BloodType, RhFactor, Volume, ExpiryDate, CrossMatchResult, CrossMatchDate, TransfusionStatus, TransfusionStartTime, TransfusionEndTime, TransfusionNote)
@@ -272,15 +343,59 @@ namespace HIS.Infrastructure.Services
 
         public async Task<bool> StartTransfusionAsync(Guid orderItemId, Guid bloodBagId)
         {
+            var ctx = await LoadTransfusionContextAsync(orderItemId, bloodBagId);
+            // Chỉ truyền được túi đang được giữ cho chính người bệnh này.
+            EnsureBagUsable(ctx.BagStatus, ctx.Expiry, ctx.BagAbo, ctx.BagRh, ctx.ProductCode,
+                            ctx.PatientAbo, ctx.PatientRh, new[] { "Reserved", "Issued" });
+
+            // #218/T3: phản ứng chéo đã ghi là KHÔNG PHÙ HỢP thì dừng. Cố ý KHÔNG bắt buộc phải có
+            // kết quả phản ứng chéo mới cho truyền — cấp cứu chảy máu ồ ạt có phát máu trước khi có
+            // kết quả, chặn ở đó là gây hại. Chỉ chặn khi đã có kết luận không hợp.
+            var xm = await GetCrossMatchResultAsync(orderItemId, bloodBagId);
+            if (!string.IsNullOrWhiteSpace(xm) && IsIncompatibleCrossMatch(xm))
+                throw new InvalidOperationException(
+                    $"Phản ứng chéo ghi \"{xm}\" — không truyền túi máu này.");
+
             var rows = await _context.Database.ExecuteSqlRawAsync(
                 @"UPDATE BloodBagAssignments SET TransfusionStatus='Transfusing', TransfusionStartTime=@p0
                 WHERE OrderItemId=@p1 AND BloodBagId=@p2",
                 DateTime.Now, orderItemId, bloodBagId);
 
+            // #218/T3: câu này trước đây chạy BẤT KỂ câu trên có khớp dòng nào không, nên "bắt đầu
+            // truyền" được cho một túi chưa hề được gán — túi nhảy thẳng sang 'Transfusing'.
+            if (rows == 0)
+                throw new InvalidOperationException(
+                    "Túi máu này chưa được gán cho dòng chỉ định, không bắt đầu truyền được.");
+
             await _context.Database.ExecuteSqlRawAsync(
                 "UPDATE BloodBags SET Status='Transfusing' WHERE Id=@p0", bloodBagId);
 
-            return rows > 0;
+            return true;
+        }
+
+        /// <summary>Kết quả phản ứng chéo đã ghi cho cặp (dòng chỉ định, túi máu), null nếu chưa có.</summary>
+        private async Task<string?> GetCrossMatchResultAsync(Guid orderItemId, Guid bloodBagId)
+        {
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = "SELECT CrossMatchResult FROM BloodBagAssignments WHERE OrderItemId=@i AND BloodBagId=@b";
+            cmd.Parameters.Add(new SqlParameter("@i", orderItemId));
+            cmd.Parameters.Add(new SqlParameter("@b", bloodBagId));
+            var v = await cmd.ExecuteScalarAsync();
+            return v == null || v == DBNull.Value ? null : v.ToString();
+        }
+
+        /// <summary>
+        /// Kết quả phản ứng chéo là chuỗi do người dùng chọn ở giao diện, không phải mã. Nhận diện
+        /// theo cả tiếng Việt lẫn tiếng Anh, và cả bản không dấu.
+        /// </summary>
+        private static bool IsIncompatibleCrossMatch(string result)
+        {
+            var s = result.Trim().ToLowerInvariant();
+            return s.Contains("không phù hợp") || s.Contains("khong phu hop")
+                   || s.Contains("không hợp") || s.Contains("khong hop")
+                   || s.Contains("incompatible") || s.Contains("dương tính") || s.Contains("duong tinh");
         }
 
         public async Task<bool> CompleteTransfusionAsync(Guid orderItemId, Guid bloodBagId, string note)

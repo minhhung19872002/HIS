@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -30,8 +30,12 @@ namespace HIS.Infrastructure.Services
             else if (toDate > sqlMax) toDate = sqlMax;
 
             var results = new List<BloodIssueRequestDto>();
-            using var connection = _context.Database.GetDbConnection();
-            await connection.OpenAsync();
+            // #218/T3 (2026-09-04): KHÔNG `using` kết nối này — nó thuộc về DbContext.
+            // `using` sẽ Dispose kết nối của EF, nên lệnh kế tiếp trên cùng context ném
+            // "The ConnectionString property has not been initialized". Gặp thật khi tạo
+            // phiếu chỉ định máu: hàm tra tên chế phẩm đóng kết nối, câu INSERT sau đó hỏng.
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
             using var command = connection.CreateCommand();
 
             var sql = @"SELECT r.Id, r.RequestCode, r.RequestDate, r.DepartmentId,
@@ -67,8 +71,12 @@ namespace HIS.Infrastructure.Services
 
         public async Task<BloodIssueRequestDto> GetIssueRequestAsync(Guid requestId)
         {
-            using var connection = _context.Database.GetDbConnection();
-            await connection.OpenAsync();
+            // #218/T3 (2026-09-04): KHÔNG `using` kết nối này — nó thuộc về DbContext.
+            // `using` sẽ Dispose kết nối của EF, nên lệnh kế tiếp trên cùng context ném
+            // "The ConnectionString property has not been initialized". Gặp thật khi tạo
+            // phiếu chỉ định máu: hàm tra tên chế phẩm đóng kết nối, câu INSERT sau đó hỏng.
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
             using var command = connection.CreateCommand();
 
             command.CommandText = @"SELECT r.Id, r.RequestCode, r.RequestDate, r.DepartmentId,
@@ -92,21 +100,30 @@ namespace HIS.Infrastructure.Services
             var id = Guid.NewGuid();
             var code = $"REQ{DateTime.Now:yyyyMMddHHmmss}";
 
+            // #218/T3 (2026-09-04): trước đây các giá trị rỗng truyền thẳng `DBNull.Value` làm đối
+            // số cho `ExecuteSqlRawAsync`. EF Core không ánh xạ được kiểu `DBNull` nên ném
+            // "The current provider doesn't have a store type mapping for properties of type
+            // 'DBNull'" — và vì `PatientCode`/`PatientName` LUÔN là DBNull ở đây, tạo phiếu lĩnh máu
+            // hỏng 100%, không phải thỉnh thoảng. Truyền `SqlParameter` có tên thì EF không phải
+            // đoán kiểu nữa.
+            SqlParameter P(string name, object? value) =>
+                new SqlParameter(name, value ?? DBNull.Value);
+
             await _context.Database.ExecuteSqlRawAsync(
                 @"INSERT INTO BloodIssueRequests (Id, RequestCode, RequestDate, DepartmentId, RequestedById, PatientId, PatientCode, PatientName, BloodType, RhFactor, ProductTypeId, RequestedQuantity, IssuedQuantity, Urgency, Status, ClinicalIndication, Note, CreatedAt)
                 VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, 0, @p12, 'Pending', @p13, @p14, @p15)",
-                id, code, DateTime.Now, dto.DepartmentId,
-                dto.DepartmentId,
-                dto.PatientId ?? (object)DBNull.Value,
-                (object)DBNull.Value, (object)DBNull.Value,
-                dto.BloodType ?? (object)DBNull.Value,
-                dto.RhFactor ?? (object)DBNull.Value,
-                dto.ProductTypeId,
-                dto.RequestedQuantity,
-                dto.Urgency ?? "Normal",
-                dto.ClinicalIndication ?? (object)DBNull.Value,
-                dto.Note ?? (object)DBNull.Value,
-                DateTime.Now);
+                P("@p0", id), P("@p1", code), P("@p2", DateTime.Now), P("@p3", dto.DepartmentId),
+                P("@p4", dto.DepartmentId),
+                P("@p5", dto.PatientId),
+                P("@p6", null), P("@p7", null),
+                P("@p8", dto.BloodType),
+                P("@p9", dto.RhFactor),
+                P("@p10", dto.ProductTypeId),
+                P("@p11", dto.RequestedQuantity),
+                P("@p12", dto.Urgency ?? "Normal"),
+                P("@p13", dto.ClinicalIndication),
+                P("@p14", dto.Note),
+                P("@p15", DateTime.Now));
 
             return await GetIssueRequestAsync(id);
         }
@@ -129,6 +146,11 @@ namespace HIS.Infrastructure.Services
 
         public async Task<BloodIssueReceiptDto> IssueBloodAsync(IssueBloodDto dto)
         {
+            // #218/T3 (2026-09-04): trước đây đường này không đọc trạng thái của PHIẾU LĨNH lẫn của
+            // TÚI MÁU. Hệ quả: xuất được máu theo một phiếu đã bị từ chối, và xuất lại được một túi
+            // đã xuất/đã truyền (câu `UPDATE BloodBags SET Status='Issued'` không có điều kiện nào).
+            await EnsureIssuableAsync(dto.RequestId, dto.BloodBagIds);
+
             var receiptId = Guid.NewGuid();
             var receiptCode = $"ISS{DateTime.Now:yyyyMMddHHmmss}";
 
@@ -169,12 +191,61 @@ namespace HIS.Infrastructure.Services
             return await GetIssueReceiptByIdAsync(receiptId);
         }
 
+        /// <summary>
+        /// #218/T3: phiếu lĩnh phải đang ở trạng thái phát được, và từng túi máu phải còn trong kho
+        /// và còn hạn. Kiểm TẤT CẢ trước khi ghi dòng nào, để không xuất được nửa phiếu rồi mới hỏng.
+        /// </summary>
+        private async Task EnsureIssuableAsync(Guid requestId, List<Guid> bagIds)
+        {
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
+
+            using (var cmd = connection.CreateCommand())
+            {
+                cmd.CommandText = "SELECT Status FROM BloodIssueRequests WHERE Id=@id";
+                cmd.Parameters.Add(new SqlParameter("@id", requestId));
+                var v = await cmd.ExecuteScalarAsync();
+                if (v == null || v == DBNull.Value)
+                    throw new KeyNotFoundException("Không tìm thấy phiếu lĩnh máu.");
+                var status = v.ToString() ?? "";
+                // 'Approved' và 'PartiallyIssued' là hai trạng thái còn phát tiếp được.
+                // 'Pending' chưa duyệt, 'Cancelled' đã từ chối, 'FullyIssued' đã phát đủ.
+                if (!string.Equals(status, "Approved", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(status, "PartiallyIssued", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException(
+                        $"Phiếu lĩnh máu đang ở trạng thái \"{status}\", chưa xuất máu được.");
+            }
+
+            foreach (var bagId in bagIds ?? new List<Guid>())
+            {
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = "SELECT BagCode, Status, ExpiryDate FROM BloodBags WHERE Id=@id";
+                cmd.Parameters.Add(new SqlParameter("@id", bagId));
+                using var r = await cmd.ExecuteReaderAsync();
+                if (!await r.ReadAsync())
+                    throw new KeyNotFoundException($"Không tìm thấy túi máu {bagId}.");
+                var code = r.IsDBNull(0) ? bagId.ToString() : r.GetString(0);
+                var st = r.IsDBNull(1) ? "" : r.GetString(1);
+                var exp = r.IsDBNull(2) ? (DateTime?)null : r.GetDateTime(2);
+                if (exp.HasValue && exp.Value.Date < DateTime.Now.Date)
+                    throw new InvalidOperationException(
+                        $"Túi máu {code} đã hết hạn ngày {exp.Value:dd/MM/yyyy}, không xuất được.");
+                if (!string.Equals(st, "Available", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException(
+                        $"Túi máu {code} đang ở trạng thái \"{st}\", không xuất được.");
+            }
+        }
+
         public async Task<List<BloodIssueReceiptDto>> GetIssueReceiptsAsync(
             DateTime fromDate, DateTime toDate, Guid? departmentId = null)
         {
             var results = new List<BloodIssueReceiptDto>();
-            using var connection = _context.Database.GetDbConnection();
-            await connection.OpenAsync();
+            // #218/T3 (2026-09-04): KHÔNG `using` kết nối này — nó thuộc về DbContext.
+            // `using` sẽ Dispose kết nối của EF, nên lệnh kế tiếp trên cùng context ném
+            // "The ConnectionString property has not been initialized". Gặp thật khi tạo
+            // phiếu chỉ định máu: hàm tra tên chế phẩm đóng kết nối, câu INSERT sau đó hỏng.
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
             using var command = connection.CreateCommand();
 
             var sql = @"SELECT r.Id, r.ReceiptCode, r.IssueDate, r.DepartmentId,
