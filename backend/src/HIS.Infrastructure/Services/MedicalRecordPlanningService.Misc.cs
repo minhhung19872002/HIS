@@ -12,19 +12,61 @@ public partial class MedicalRecordPlanningService
     // Record Copying
     // ========================================================================
 
+    /// <summary>
+    /// Người bệnh / thân nhân / cơ quan xin sao chụp hồ sơ bệnh án.
+    ///
+    /// <para>#218/T3 — trước đây là hàm rỗng: sinh mã bằng <c>new Random()</c>,
+    /// <c>await Task.CompletedTask</c>, trả DTO "Chờ xử lý" như thể đã tiếp nhận. Không có bảng
+    /// nào để lưu, nên yêu cầu sao chụp không để lại dấu vết nào — trong khi đây đúng là việc
+    /// phải lưu vết theo TT 46/2018 (ai xin, mục đích gì, bao nhiêu bản). Bảng
+    /// <c>RecordCopyRequests</c> thêm ở migration 178.</para>
+    ///
+    /// <para>Mã cấp theo bộ đếm trong ngày thay vì <c>Random</c>: hai yêu cầu cùng lúc bốc trúng
+    /// cùng một số ngẫu nhiên là chuyện có thật, và mã sao chụp là thứ người ta cầm đi đối chiếu.</para>
+    /// </summary>
     public async Task<RecordCopyDto> CreateRecordCopyAsync(CreateRecordCopyDto dto, Guid userId)
     {
-        var code = $"SC-{DateTime.UtcNow:yyyyMMdd}-{new Random().Next(1000, 9999)}";
-        await Task.CompletedTask;
-        return new RecordCopyDto
+        if (dto.CopyCount <= 0)
+            throw new InvalidOperationException("Số bản sao phải lớn hơn 0.");
+
+        var record = await _context.MedicalRecords
+            .Include(r => r.Patient)
+            .FirstOrDefaultAsync(r => r.Id == dto.MedicalRecordId && !r.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ bệnh án");
+
+        var now = DateTime.UtcNow;
+        var dateStr = now.ToString("yyyyMMdd");
+        var soTrongNgay = await _context.RecordCopyRequests
+            .CountAsync(x => x.CopyCode.StartsWith($"SC-{dateStr}-"));
+
+        var request = new RecordCopyRequest
         {
             Id = Guid.NewGuid(),
-            CopyCode = code,
+            CopyCode = $"SC-{dateStr}-{(soTrongNgay + 1):D4}",
+            MedicalRecordId = record.Id,
             Requester = dto.Requester,
             Purpose = dto.Purpose,
             CopyCount = dto.CopyCount,
-            RequestDate = DateTime.UtcNow,
-            Status = 0,
+            RequestDate = now,
+            RequestedById = userId,
+            Status = 0, // Chờ xử lý
+            CreatedAt = now,
+            CreatedBy = userId.ToString(),
+        };
+        _context.RecordCopyRequests.Add(request);
+        await _context.SaveChangesAsync();
+
+        return new RecordCopyDto
+        {
+            Id = request.Id,
+            CopyCode = request.CopyCode,
+            RecordCode = record.MedicalRecordCode,
+            PatientName = record.Patient?.FullName,
+            Requester = request.Requester,
+            Purpose = request.Purpose,
+            CopyCount = request.CopyCount,
+            RequestDate = request.RequestDate,
+            Status = request.Status,
             StatusName = "Cho xu ly",
         };
     }
@@ -119,8 +161,10 @@ public partial class MedicalRecordPlanningService
 
             var totalTransfers = await _context.Set<Discharge>()
                 .CountAsync(d => !d.IsDeleted && d.DischargeType == 2);
+            // Đếm theo trạng thái DUYỆT HỒ SƠ. Trước đây đếm `DischargeCondition == 0`, tức mượn
+            // cột kết cục điều trị của người bệnh — mà 0 còn không nằm trong dải lâm sàng 1..5.
             var pendingTransfers = await _context.Set<Discharge>()
-                .CountAsync(d => !d.IsDeleted && d.DischargeType == 2 && d.DischargeCondition == 0);
+                .CountAsync(d => !d.IsDeleted && d.DischargeType == 2 && (d.TransferStatus ?? 0) == 0);
 
             var activeBorrows = await _context.Set<MedicalRecordBorrowRequest>()
                 .CountAsync(b => !b.IsDeleted && b.Status == 3);
@@ -128,10 +172,16 @@ public partial class MedicalRecordPlanningService
                 .CountAsync(b => !b.IsDeleted && b.Status == 3 &&
                     b.ExpectedReturnDate.HasValue && b.ExpectedReturnDate.Value < DateTime.UtcNow);
 
+            // Đếm theo trạng thái BÀN GIAO. Trước đây đếm cột `Status` của kho lưu trữ, mà ở đó
+            // giá trị 2 nghĩa là "đang mượn" ⇒ hồ sơ đang cho người khác mượn bị đếm vào
+            // `completedHandovers`.
             var pendingHandovers = await _context.MedicalRecordArchives
-                .CountAsync(a => !a.IsDeleted && a.Status == 0);
+                .CountAsync(a => !a.IsDeleted && (a.HandoverStatus ?? 0) <= 1);
             var completedHandovers = await _context.MedicalRecordArchives
-                .CountAsync(a => !a.IsDeleted && a.Status >= 1);
+                .CountAsync(a => !a.IsDeleted && a.HandoverStatus == 2);
+
+            var recordCopyRequests = await _context.RecordCopyRequests
+                .CountAsync(x => !x.IsDeleted);
 
             var outpatientRecords = await _context.Set<Examination>()
                 .CountAsync(e => !e.IsDeleted && e.MedicalRecord.TreatmentType == 1);
@@ -148,6 +198,7 @@ public partial class MedicalRecordPlanningService
                 PendingHandovers = pendingHandovers,
                 CompletedHandovers = completedHandovers,
                 OutpatientRecords = outpatientRecords,
+                RecordCopyRequests = recordCopyRequests,
             };
         }
         catch (Exception ex)

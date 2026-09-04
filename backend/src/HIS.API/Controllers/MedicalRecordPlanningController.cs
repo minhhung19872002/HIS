@@ -8,6 +8,10 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/medical-record-planning")]
 [Authorize]
+// #218/T3: các cửa ghi ở đây nay có gác nghiệp vụ thật (chưa gửi mà đòi duyệt, từ chối mà không
+// ghi lý do, trùng số chuyển tuyến...) ⇒ InvalidOperationException phải ra 400 kèm message, chứ
+// không phải 500. Trước đây các hàm này không ghi gì nên cũng chẳng bao giờ từ chối được việc gì.
+[TypeFilter(typeof(Filters.DomainExceptionFilter))]
 public class MedicalRecordPlanningController : ControllerBase
 {
     private readonly IMedicalRecordPlanningService _planningService;

@@ -129,6 +129,28 @@ public class Discharge : BaseEntity
 
     public Guid DischargedBy { get; set; }
     public virtual User DischargedBy_User { get; set; } = null!; // Bác sĩ ra viện
+
+    // ── Luồng duyệt hồ sơ CHUYỂN TUYẾN (DischargeType = 2) ──────────────────────────────────
+    // #218/T3: luồng này trước đây mượn `DischargeCondition` làm trạng thái duyệt
+    // (`DischargeCondition = dto.Approve ? 1 : 2`). Mà `DischargeCondition` là KẾT CỤC ĐIỀU TRỊ
+    // của người bệnh, được các báo cáo bệnh viện đọc để đếm số ca khỏi/đỡ/nặng hơn/TỬ VONG
+    // (HospitalReportService.Part2, SystemCompleteService.M16.Statistics). Nên duyệt một phiếu
+    // chuyển tuyến lại ghi kết cục người bệnh thành "khỏi", và người bệnh tử vong hiện trên màn
+    // chuyển tuyến thành "hoàn thành". Việc hành chính nay có cột riêng. Migration 178.
+
+    /// <summary>0 chờ duyệt · 1 đã duyệt · 2 từ chối · 3 hoàn thành. NULL = chưa vào luồng duyệt.</summary>
+    public int? TransferStatus { get; set; }
+    public DateTime? TransferApprovedAt { get; set; }
+    public Guid? TransferApprovedById { get; set; }
+
+    /// <summary>
+    /// Lý do từ chối chuyển tuyến. Trước đây ghi vào `DischargeInstructions`, tức xoá mất
+    /// hướng dẫn sau xuất viện của người bệnh — lần thứ tư trong đợt gặp hình dạng này.
+    /// </summary>
+    public string? TransferRejectReason { get; set; }
+
+    public string? TransferNumber { get; set; } // Số công văn chuyển tuyến
+    public DateTime? TransferNumberAssignedAt { get; set; }
 }
 
 /// <summary>

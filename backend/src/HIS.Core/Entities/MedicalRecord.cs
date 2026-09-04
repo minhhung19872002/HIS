@@ -205,7 +205,54 @@ public class MedicalRecordArchive : BaseEntity
     public DateTime? ReturnedAt { get; set; }
     public string? BorrowReason { get; set; }
 
+    // ── Bàn giao hồ sơ về kho lưu trữ ───────────────────────────────────────────────────────
+    // #218/T3: màn bàn giao (MedicalRecordPlanningService) trước đây đọc chung cột `Status` ở
+    // trên, nhưng theo một bộ nghĩa KHÁC hẳn kho lưu trữ:
+    //
+    //     giá trị │ kho lưu trữ (cột Status ở trên) │ màn bàn giao
+    //     ────────┼─────────────────────────────────┼──────────────
+    //        2    │ ĐANG MƯỢN                       │ ĐÃ DUYỆT
+    //
+    // nên hồ sơ đang cho người khác mượn hiện trên màn bàn giao thành "đã duyệt", và bị đếm vào
+    // `completedHandovers`. Bàn giao nay có cột riêng. Migration 178.
+
+    /// <summary>0 nháp · 1 đã gửi · 2 đã duyệt · 3 từ chối. NULL = chưa vào luồng bàn giao.</summary>
+    public int? HandoverStatus { get; set; }
+    public DateTime? HandoverSubmittedAt { get; set; }
+    public Guid? HandoverSubmittedById { get; set; }
+    public DateTime? HandoverApprovedAt { get; set; }
+    public Guid? HandoverApprovedById { get; set; }
+    public string? HandoverNote { get; set; }
+    public string? HandoverRejectReason { get; set; }
+
     public virtual ICollection<MedicalRecordBorrowRequest> BorrowRequests { get; set; } = new List<MedicalRecordBorrowRequest>();
+}
+
+/// <summary>
+/// Yêu cầu SAO CHỤP hồ sơ bệnh án — người bệnh/thân nhân/cơ quan xin bản sao.
+///
+/// <para>#218/T3: `CreateRecordCopyAsync` trước đây là hàm rỗng (sinh mã bằng `new Random()`,
+/// `await Task.CompletedTask`, trả DTO như thể đã lưu) và **chưa có bảng nào để lưu**. Sao chụp hồ
+/// sơ là việc phải lưu vết theo TT 46/2018: ai xin, mục đích gì, bao nhiêu bản, ai duyệt.</para>
+/// </summary>
+public class RecordCopyRequest : BaseEntity
+{
+    public string CopyCode { get; set; } = string.Empty;
+
+    public Guid MedicalRecordId { get; set; }
+    public virtual MedicalRecord MedicalRecord { get; set; } = null!;
+
+    public string? Requester { get; set; } // Người/cơ quan xin sao chụp
+    public string? Purpose { get; set; }   // Mục đích: giám định BHXH, pháp lý, chuyển viện...
+    public int CopyCount { get; set; } = 1;
+
+    public DateTime RequestDate { get; set; }
+    public Guid? RequestedById { get; set; }
+
+    /// <summary>0 chờ xử lý · 1 đã duyệt · 2 đã giao bản sao · 3 từ chối.</summary>
+    public int Status { get; set; }
+    public string? RejectReason { get; set; }
+    public DateTime? HandedOverAt { get; set; }
 }
 
 /// <summary>

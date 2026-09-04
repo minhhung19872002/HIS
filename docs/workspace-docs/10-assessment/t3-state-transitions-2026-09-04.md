@@ -41,17 +41,31 @@ một bài đo cho thứ vốn đã đúng*).
 | 36 | Hồ sơ **đã khoá TT46** | Vẫn ghi đè được **chẩn đoán chính**; đọc hết 37 chỗ bộ dò chỉ ra | 1/2 → 2/2 |
 | 37-38 | **25 hàm rỗng** (bộ dò thứ ba) | Đọc hết: **7 lỗi vá được ngay** (bảng đã có) · 17 tính năng thiếu · 1 báo nhầm | khảo sát |
 | 39 | **Nhóm A** — 7 cửa ghi rỗng, bảng đã sẵn | Bấm "gửi máy phân tích" → **máy không bao giờ nhận y lệnh** | 0/6 → 6/6 |
+| 40-41 | Hai cửa **bán thuốc** ở kho | Dược sĩ bán thuốc, phần mềm báo xong, **tiền không vào sổ, tồn kho không trừ** | 0/3 → 3/3 |
+| 42 | Kế hoạch tổng hợp hồ sơ | Duyệt phiếu chuyển tuyến **ghi kết cục người bệnh thành "khỏi"** — vào đúng số liệu tử vong/khỏi bệnh báo lên Sở | 1/10 → 10/10 |
 
-**Hồi quy hiện tại: 29 bộ đo, 181/181.** `dotnet test` 225 passed. Migration 168-176.
+**Hồi quy hiện tại: 35 bộ đo, 236/236.** `dotnet test` 225 passed. Migration 168-178.
 
 ### Ba hình dạng lặp lại, và cái đã làm với chúng
 
 1. **Một luật, thi hành ở một cửa, bỏ trống ở cửa bên cạnh** — gặp **mười sáu** lần (§5·10·11·12·15·18·21·26·31·33 + ba cửa §34). Sau lần thứ mười thì viết bộ dò
    thứ hai `t3_verified_edit_sweep.py` (§34) — và nó tìm ra ngay ba cửa mà đọc tay đã bỏ sót.
    Từ §26 trở đi, vá một cửa đã thành lý do để **đi tìm cửa còn lại** thay vì chờ gặp may.
-2. **Mượn ô trạng thái của tính năng khác** — gặp **ba** lần (§20·24·28) ở ba module, ba người viết.
-   Vì thế mới viết `t3_status_vocabulary_sweep.py` (§29): nó bắt đúng §20 mà nó sinh ra để bắt, và
-   tìm thêm được §29 chưa ai biết. Cả hai vế của bộ dò hiện **đều sạch**.
+2. **Mượn ô trạng thái của tính năng khác** — gặp **năm** lần (§20·24·28 + hai lần nữa ở §42),
+   ở năm module, năm người viết. Vì thế mới viết `t3_status_vocabulary_sweep.py` (§29): nó bắt đúng
+   §20 mà nó sinh ra để bắt, và tìm thêm được §29 chưa ai biết.
+
+   Nhưng §42 cho thấy **bộ dò ấy có một góc mù**, và góc mù đó chính là nơi hai vụ nặng nhất nằm.
+   Nó so *chú thích với chú thích* và *giá trị ghi với dải đã khai báo* — nên nó chỉ thấy được mâu
+   thuẫn khi hai cách hiểu cùng nằm trong tầm đọc của nó. Ở §42, hai tính năng đọc **cùng một cột
+   trong cùng một bảng** theo hai bộ nghĩa khác nhau, mà mỗi bên tự nó đều nhất quán: kho lưu trữ
+   ghi `Status = 2` nghĩa "đang mượn", màn bàn giao đọc `Status = 2` ra "đã duyệt", không bên nào
+   viết sai chú thích của mình. Cái sai chỉ hiện ra khi đặt hai bên cạnh nhau — mà muốn đặt cạnh
+   nhau thì phải **lần theo đường đọc**, chứ không phải đọc từng hàm.
+
+   Nên từ §42, khi vá một cửa ghi rỗng, việc đầu tiên không phải là viết phần ghi, mà là **đi tìm ai
+   đang đọc cột sắp ghi vào**. Ở đây nó đáng: nếu cứ theo chú thích DTO mà cho `ApproveHandoverAsync`
+   ghi `Status = 2`, bản vá sẽ đánh dấu hồ sơ thành đang-cho-mượn — tức tự tay tạo ra vụ thứ sáu.
 3. **Kẹp triệu chứng thay vì chặn nguyên nhân** — §32 (`Math.Max(0, …)`). Khó thấy nhất, vì nhìn vào
    code thì tưởng đã có ai nghĩ đến rồi.
 
@@ -1850,3 +1864,176 @@ từ chính đối tượng vừa ghi thay vì trả null. Sửa ở bản đún
 
 Điều đáng rút: **ủy thác cho code có sẵn không phải là tin nó đúng.** Nó là cách tốt nhất để dùng
 lại thứ đã được kiểm — nhưng lần đầu có người thật sự gọi đến, một lỗi nằm im từ lâu mới lộ.
+
+---
+
+## §42. Kế hoạch tổng hợp hồ sơ — bốn cửa ghi rỗng, và hai cột trạng thái mang hai nghĩa
+
+`MedicalRecordPlanningService` có bốn hàm cùng đúng khuôn đã gặp ở §25 (`CreateBorrowAsync`): sinh mã
+bằng `new Random()`, `await Task.CompletedTask`, rồi trả DTO như thể đã lưu.
+
+```
+SubmitHandoverAsync        gửi bàn giao hồ sơ        POST /handover/submit
+ApproveHandoverAsync       duyệt bàn giao            POST /handover/approve
+AssignTransferNumberAsync  cấp số chuyển tuyến       POST /transfers/assign-number
+CreateRecordCopyAsync      yêu cầu sao chụp hồ sơ    POST /record-copy
+```
+
+Bốn cái vỏ rỗng ấy hóa ra là phần nhẹ nhất của mục này.
+
+### Đi tìm chỗ để ghi, thì gặp chỗ đang bị ghi sai
+
+Trước khi viết phần ghi, tôi đi tìm **ai đang đọc** cột sắp ghi vào. Việc đó lòi ra hai vụ nặng hơn
+cả bốn hàm rỗng cộng lại — và cả hai đều cùng một hình dạng: **mượn ô trạng thái của tính năng
+khác** (lần thứ tư và thứ năm trong đợt).
+
+**Vụ thứ nhất — `MedicalRecordArchives.Status` bị hai bên đọc khác nhau:**
+
+| giá trị | kho lưu trữ (`MedicalRecordArchiveService`) | màn bàn giao (`GetHandoverStatusName`) |
+|---|---|---|
+| 0 | chờ lưu | nháp |
+| 1 | đã lưu | đã gửi |
+| **2** | **đang mượn** | **đã duyệt** |
+
+Không bên nào viết sai chú thích của mình; mỗi bên tự nó đều nhất quán. Cái sai chỉ hiện ra khi đặt
+hai bên cạnh nhau: hồ sơ **đang cho người khác mượn** hiện trên màn bàn giao thành "đã duyệt", và
+`GetStatsAsync` đếm nó vào `completedHandovers`.
+
+Và đây là cái bẫy: chú thích của `HandoverRecordDto` ghi `2 = Approved`. Cứ theo đó mà cho
+`ApproveHandoverAsync` ghi `Status = 2` thì **mỗi lần duyệt bàn giao sẽ đánh dấu hồ sơ thành
+đang-cho-mượn**, hỏng luôn luồng mượn/trả — tức bản vá tự tay tạo ra vụ thứ sáu.
+
+**Vụ thứ hai — nặng hơn hẳn.** `ApproveTransferAsync` không rỗng, nó ghi thật, nhưng ghi vào hai cột
+đều là **nội dung lâm sàng của người bệnh**:
+
+```csharp
+discharge.DischargeCondition    = dto.Approve ? 1 : 2;
+discharge.DischargeInstructions = dto.Approve ? discharge.DischargeInstructions : dto.RejectReason;
+```
+
+Cột thứ hai là *hướng dẫn sau xuất viện* — từ chối một phiếu thì xoá mất hướng dẫn đó. Lần thứ tư
+trong đợt gặp đúng hình dạng "lý do ghi đè nội dung có sẵn" (§23·27·30).
+
+Cột thứ nhất mới là chỗ đắt. Entity định nghĩa rõ:
+
+```csharp
+public int DischargeCondition { get; set; } // 1-Khỏi, 2-Đỡ, 3-Không thay đổi, 4-Nặng hơn, 5-Tử vong
+```
+
+và nó được đọc đúng nghĩa đó ở những nơi này:
+
+```
+HospitalReportService.Part2.cs:426-430        đếm Khỏi / Đỡ / Không đổi / Nặng hơn / Tử vong
+SystemCompleteService.M16.Statistics.cs:113   RecoveredCount · ImprovedCount · DeathCount
+SystemCompleteService.M16.Statistics.cs:417   DischargeCondition == 5 dùng làm số ca TỬ VONG
+ReportingCompleteService.Part2.cs:356         đếm ca nặng lên
+PdfGenerationService.cs:329                   in ra giấy tờ
+```
+
+Nghĩa là **bấm duyệt một phiếu chuyển tuyến thì ghi kết cục điều trị của người bệnh thành "khỏi"**,
+từ chối thì thành "đỡ" — vào đúng những con số bệnh viện báo lên cơ quan quản lý. Chiều đọc ngược
+cũng sai: `GetTransfersAsync` diễn giải cột lâm sàng này thành trạng thái hồ sơ, nên người bệnh
+chuyển tuyến có kết cục **tử vong (5)** hoặc **nặng hơn (4)** hiện trên màn chuyển tuyến thành
+"Hoàn thành".
+
+Đo được tận nơi, không suy luận: dựng một phiếu chuyển tuyến với `DischargeCondition = 5` (tử vong),
+gọi API duyệt, đọc lại DB ra **1 = khỏi**.
+
+### Đo trước khi vá
+
+`t3_record_planning.py` — 10 ca, **1/10**. Ca duy nhất đạt là ca đối chứng ngược.
+
+```
+gửi bàn giao ĐƯỢC ghi xuống hồ sơ lưu trữ              FAIL  HTTP 200 · HandoverStatus=<null>
+duyệt bàn giao ĐƯỢC ghi xuống hồ sơ lưu trữ            FAIL  HTTP 200 · HandoverStatus=<null>
+duyệt bàn giao KHÔNG đụng cột Status của kho lưu trữ   PASS  Status=1
+hồ sơ ĐANG MƯỢN không bị báo là đã duyệt bàn giao      FAIL  hiện "Da duyet"
+cấp số chuyển tuyến ĐƯỢC ghi xuống phiếu               FAIL  HTTP 200 · TransferNumber=<null>
+từ chối chuyển tuyến KHÔNG đè hướng dẫn sau xuất viện  FAIL  hướng dẫn còn = T3KHTH-LY-DO-TU-CHOI
+ĐỐI CHỨNG: duyệt chuyển tuyến hợp lệ vẫn chạy          FAIL  TransferStatus=<null>
+duyệt chuyển tuyến KHÔNG ghi đè kết cục điều trị       FAIL  dựng 5=tử vong → đọc lại ra 1=khỏi
+kết cục tử vong không bị đọc thành trạng thái hồ sơ    FAIL  phiếu tử vong hiện là "Hoan thanh"
+yêu cầu sao chụp ĐƯỢC lưu vết                          FAIL  HTTP 200 · số yêu cầu lưu được=0
+```
+
+Cả bốn cửa rỗng đều trả **HTTP 200**. Đó là điểm chung của mọi hàm rỗng gặp trong đợt: chúng không
+báo lỗi, chúng báo thành công.
+
+### Một ca đối chứng suýt nghiệm thu chính con bug
+
+Bản đầu của bài đo, ca đối chứng ngược viết thế này:
+
+```python
+case("ĐỐI CHỨNG: duyệt chuyển tuyến hợp lệ vẫn chạy", dc == "1" and hd_ok == HD, ...)
+```
+
+`dc == "1"` — tức nó khẳng định rằng sau khi duyệt, `DischargeCondition` **phải bằng 1**. Nhưng đó
+đúng là hành vi hỏng: ghi kết cục người bệnh thành "khỏi". Bài đo của tôi đang lấy con bug làm chuẩn
+nghiệm thu, và nếu để nguyên thì bản vá đúng sẽ bị nó chấm là **trượt**.
+
+Bắt được vì viết xong ca "không ghi đè kết cục điều trị" ngay bên dưới thì thấy hai ca đòi hai điều
+ngược nhau về cùng một cột. Sửa lại: đối chứng khẳng định `TransferStatus == 1` (ô hành chính của
+chính nó) và hướng dẫn lâm sàng còn nguyên.
+
+Ca cuối cũng phải sửa vì lý do tương tự: nó đọc phiếu **vừa bị lệnh duyệt của ca trước ghi đè**, nên
+PASS vì nhiễu chứ không vì đúng. Tách riêng một phiếu tử vong không bấm duyệt để đọc. Sau khi sửa,
+số đo nền tụt từ 2/10 xuống **1/10** — sát thực tế hơn.
+
+Đây là lần thứ bảy trong đợt bài đo của chính tôi báo sai. Sáu lần trước là *PASS giả*; lần này khác
+loại và nguy hơn: **một kỳ vọng sai chép lại nguyên hành vi hỏng**. PASS giả thì bản vá đúng vẫn qua
+được; kỳ vọng sai thì nó chặn bản vá đúng, và cách "sửa" tự nhiên nhất lại là đi sửa code cho khớp
+bài đo.
+
+### Bản vá
+
+Migration **178** — mỗi khối tách một cột đang bị dùng nhầm:
+
+| thêm vào | thay cho việc mượn |
+|---|---|
+| `MedicalRecordArchives.HandoverStatus` + 6 cột phụ | `Status` của kho lưu trữ |
+| `Discharges.TransferStatus` + duyệt bởi ai/lúc nào | `DischargeCondition` (kết cục điều trị) |
+| `Discharges.TransferRejectReason` | `DischargeInstructions` (hướng dẫn sau xuất viện) |
+| `Discharges.TransferNumber` + `TransferNumberAssignedAt` | *(chưa có chỗ nào để giữ)* |
+| bảng `RecordCopyRequests` | *(chưa có bảng nào)* |
+
+Về **dữ liệu cũ đã bị ghi sai**, migration cố ý làm ít hơn khả năng của nó:
+
+- `DischargeCondition = 0` trên phiếu chuyển tuyến thì **chắc chắn** là dấu vết của luồng duyệt — 0
+  không nằm trong dải lâm sàng 1..5. Chuyển sang `TransferStatus`, trả cột lâm sàng về 3 "không thay
+  đổi": trung tính, không tự nhận người bệnh đã khỏi và cũng không khai tử ai.
+- `DischargeCondition = 1` hoặc `2` thì **không suy đoán được**: có thể là kết cục thật (khỏi/đỡ),
+  cũng có thể là dấu vết của lỗi này. Cố ý **không sửa** — chỉ điền `TransferStatus` để màn hình thôi
+  đọc nhầm cột. Sửa mò một con số lâm sàng còn tệ hơn để nguyên.
+
+Phần mã: bốn hàm rỗng nay ghi thật, kèm gác nghiệp vụ (chưa gửi mà đòi duyệt · duyệt lại hồ sơ đã
+duyệt · từ chối mà không ghi lý do · trùng số công văn · duyệt phiếu không phải chuyển tuyến). Ba
+đường đọc (`GetHandoverAsync`, `GetTransfersAsync`, `GetStatsAsync`) chuyển sang cột mới. Controller
+gắn `DomainExceptionFilter` để lỗi nghiệp vụ ra **400 kèm câu tiếng Việt** thay vì 500 — trước đây
+không cần, vì bốn hàm ấy chẳng bao giờ từ chối việc gì.
+
+Và bỏ khối `catch` của `ApproveTransferAsync`: nó nuốt lỗi rồi trả DTO "Đã duyệt", người dùng thấy
+báo thành công cho một việc chưa hề xảy ra.
+
+### Còn nợ lại, có chủ ý
+
+Ba thứ nhìn thấy trong lúc làm nhưng **không** gộp vào bản vá này:
+
+1. **`catch` → trả số liệu bịa** nằm khắp service: `GetStatsAsync` hỏng thì trả `TotalRecords = 1250,
+   PendingCodes = 70…`; `GetAttendanceAsync` hỏng thì trả "5 khoa, 3 đã điểm danh"; `CheckInAsync`
+   hỏng thì vẫn trả `Success = true`; hai đường đọc trả `GetStubHandovers`/`GetStubTransfers` với tên
+   người bệnh bịa ("Lê Văn B", "BV Chợ Rẫy"). Người dùng không có cách nào phân biệt số thật với số
+   bịa. Cùng họ với vụ ký số tự sinh `Findings = "Ky so tu dong"` (§31), nhưng ở đây là **cả một
+   service**, không phải một hàm — sửa cần rà từng đường đọc và thống nhất cách báo lỗi ra UI.
+2. **`MedicalRecordArchives` giữ trạng thái mượn ở hai nơi**: cột `Status = 2` và cột `IsOnLoan`.
+   Hai nguồn sự thật cho một sự việc, sớm muộn lệch nhau.
+3. **`CreateRecordCopyAsync` chưa có đường đọc**: mới có cửa ghi (`POST /record-copy`), chưa có
+   `GetRecordCopiesAsync` để xem/duyệt/giao bản sao. Bảng đã dựng đủ cột cho luồng đó
+   (`Status`, `RejectReason`, `HandedOverAt`).
+
+Ghi ra đây để không rơi, theo đúng kỷ luật "thấy việc của phần khác thì ghi vào kế hoạch trước, rồi
+làm nốt phần đang dở".
+
+### Sau khi vá
+
+`t3_record_planning.py`: **1/10 → 10/10**, đối chứng ngược vẫn đạt.
+Hồi quy toàn bộ **35 bộ đo, 236/236**. `dotnet test` **225 passed**. Build 0 lỗi.

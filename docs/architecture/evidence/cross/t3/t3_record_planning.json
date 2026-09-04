@@ -1,0 +1,55 @@
+{
+ "ranAt": "2026-09-05T01:08:16",
+ "cases": [
+  {
+   "case": "gửi bàn giao ĐƯỢC ghi xuống hồ sơ lưu trữ",
+   "pass": true,
+   "detail": "HTTP 200 · HandoverStatus=1 (mong 1)"
+  },
+  {
+   "case": "duyệt bàn giao ĐƯỢC ghi xuống hồ sơ lưu trữ",
+   "pass": true,
+   "detail": "HTTP 200 · HandoverStatus=2 (mong 2)"
+  },
+  {
+   "case": "duyệt bàn giao KHÔNG đụng cột Status của kho lưu trữ",
+   "pass": true,
+   "detail": "Status=1 (phải giữ nguyên 1 = đã lưu)"
+  },
+  {
+   "case": "hồ sơ ĐANG MƯỢN không bị báo là 'đã duyệt bàn giao'",
+   "pass": true,
+   "detail": "HTTP 200 · {\"success\":true,\"data\":{\"totalCount\":1,\"items\":[{\"id\":\"06fa1341-445c-4c74-8700-e991e169541d\",\"handoverCode\":\"T"
+  },
+  {
+   "case": "cấp số chuyển tuyến ĐƯỢC ghi xuống phiếu",
+   "pass": true,
+   "detail": "HTTP 200 · TransferNumber=T3KHTH-CV-001"
+  },
+  {
+   "case": "từ chối chuyển tuyến KHÔNG đè hướng dẫn sau xuất viện",
+   "pass": true,
+   "detail": "HTTP 200 · hướng dẫn còn='T3KHTH-HUONG-DAN-LAM-SANG: uong thuoc du 7 ngay, tai kham th'"
+  },
+  {
+   "case": "ĐỐI CHỨNG: duyệt chuyển tuyến hợp lệ vẫn chạy",
+   "pass": true,
+   "detail": "HTTP 200 · TransferStatus=1 · hướng dẫn nguyên vẹn=True"
+  },
+  {
+   "case": "duyệt chuyển tuyến KHÔNG ghi đè kết cục điều trị",
+   "pass": true,
+   "detail": "HTTP 200 · DischargeCondition=5 (dựng 5=tử vong, duyệt xong phải vẫn 5)"
+  },
+  {
+   "case": "kết cục tử vong không bị đọc thành trạng thái hồ sơ",
+   "pass": true,
+   "detail": "HTTP 200 · phiếu tử vong CHƯA duyệt hiện là 'Cho duyet' (mong 'Cho duyet')"
+  },
+  {
+   "case": "yêu cầu sao chụp ĐƯỢC lưu vết",
+   "pass": true,
+   "detail": "HTTP 200 · số yêu cầu lưu được=1"
+  }
+ ]
+}

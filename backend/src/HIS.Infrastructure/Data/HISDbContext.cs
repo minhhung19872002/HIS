@@ -46,6 +46,9 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<MedicalRecord> MedicalRecords => Set<MedicalRecord>();
     public DbSet<MedicalRecordArchive> MedicalRecordArchives => Set<MedicalRecordArchive>();
     public DbSet<MedicalRecordBorrowRequest> MedicalRecordBorrowRequests => Set<MedicalRecordBorrowRequest>();
+    // #218/T3 (migration 178): yêu cầu sao chụp hồ sơ — trước đây `CreateRecordCopyAsync` sinh mã
+    // rồi trả DTO như thể đã lưu, mà không có bảng nào để lưu.
+    public DbSet<RecordCopyRequest> RecordCopyRequests => Set<RecordCopyRequest>();
     public DbSet<Examination> Examinations => Set<Examination>();
     // #218/T3 (migration 177): giấy chứng nhận nghỉ việc hưởng BHXH — trước đây hai cửa cấp giấy
     // là hàm rỗng, bệnh viện không giữ lại bản ghi nào về tờ giấy đã phát ra tay người bệnh.
