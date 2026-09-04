@@ -36,12 +36,14 @@ một bài đo cho thứ vốn đã đúng*).
 | 31 | Ký số CĐHA | **Ký được phiếu chưa ai viết** (`Findings = "Ky so tu dong"`) | 1/4 → 4/4 |
 | 32 | Kết thúc truyền dịch | **Kết thúc trước khi bắt đầu** | 1/3 → 3/3 |
 | 33 | Giải phẫu bệnh | Chẩn đoán **ác tính đã duyệt** sửa thành lành tính, chữ ký duyệt vẫn nguyên | 1/3 → 3/3 |
+| 34 | **Ba cửa nữa** sửa phiếu CĐHA đã ký | Cửa thứ nhất nằm **cách hàm đã vá 120 dòng** — đọc tay đã sót, bộ dò tìm ra | 1/4 → 4/4 |
 
-**Hồi quy hiện tại: 25 bộ đo, 167/167.** `dotnet test` 225 passed. Migration 168-176.
+**Hồi quy hiện tại: 26 bộ đo, 171/171.** `dotnet test` 225 passed. Migration 168-176.
 
 ### Ba hình dạng lặp lại, và cái đã làm với chúng
 
-1. **Một luật, thi hành ở một cửa, bỏ trống ở cửa bên cạnh** — gặp **mười** lần (§5·10·11·12·15·18·21·26·31·33).
+1. **Một luật, thi hành ở một cửa, bỏ trống ở cửa bên cạnh** — gặp **mười ba** lần (§5·10·11·12·15·18·21·26·31·33 + ba cửa §34). Sau lần thứ mười thì viết bộ dò
+   thứ hai `t3_verified_edit_sweep.py` (§34) — và nó tìm ra ngay ba cửa mà đọc tay đã bỏ sót.
    Từ §26 trở đi, vá một cửa đã thành lý do để **đi tìm cửa còn lại** thay vì chờ gặp may.
 2. **Mượn ô trạng thái của tính năng khác** — gặp **ba** lần (§20·24·28) ở ba module, ba người viết.
    Vì thế mới viết `t3_status_vocabulary_sweep.py` (§29): nó bắt đúng §20 mà nó sinh ra để bắt, và
@@ -49,7 +51,7 @@ một bài đo cho thứ vốn đã đúng*).
 3. **Kẹp triệu chứng thay vì chặn nguyên nhân** — §32 (`Math.Max(0, …)`). Khó thấy nhất, vì nhìn vào
    code thì tưởng đã có ai nghĩ đến rồi.
 
-### Bốn lần bài đo của chính tôi báo PASS giả
+### Năm lần bài đo của chính tôi báo PASS giả
 
 Ghi lại vì đây là rủi ro lớn nhất của cả đợt — một bài đo sai thì tệ hơn không đo, vì nó cấp giấy
 chứng nhận cho thứ đang hỏng.
@@ -59,7 +61,10 @@ chứng nhận cho thứ đang hỏng.
   lại được chấm đạt;
 * §25 — assert vào trường `Purpose` mà bộ lọc không hề soi;
 * §30 — **vá trước rồi mới đo**, nên 6/6 đầu tiên không nói được gì; đã `git stash` bản vá, dựng lại,
-  đo trên mã cũ để lấy con số thật (1/6).
+  đo trên mã cũ để lấy con số thật (1/6);
+* §34 — thiếu một trường bắt buộc của DTO nên nhận 400 `TechnicianNote is required`, request **chưa
+  hề tới service**, mà bài đo chấm là "đã bị chặn". Cứu được nhờ **đối chứng âm** cũng FAIL — hai kết
+  quả mâu thuẫn thì ít nhất một cái sai.
 
 Mỗi lần đều **sửa phép đo rồi đo lại**, không sửa kỳ vọng cho vừa kết quả. Và khi một ca đo cũ trở
 nên lỗi thời sau bản vá (§21), nó được đổi sang đo điều **mạnh hơn** chứ không hạ chuẩn.
@@ -1479,3 +1484,50 @@ không gắn `DomainExceptionFilter` nên bắt exception tại chỗ để ra *
 Ghi nhận một chỗ module này làm **đúng**, để không đổ oan: controller đã chặn sẵn `RequestId` rỗng
 (*"Thiếu RequestId (phiếu GPB)"*), nên không tạo được kết quả GPB mồ côi không gắn phiếu nào — tôi
 đã nghi chỗ đó và kiểm, hoá ra đã có người canh rồi.
+
+---
+
+## 34. Bộ dò thứ hai — và ba cửa nữa sửa được phiếu CĐHA đã ký số
+
+§33 là lần **thứ mười** gặp cùng một hình dạng: hệ thống **có** lớp xác nhận (bác sĩ duyệt, ký số,
+khoá hồ sơ), lớp ấy **được canh rất kỹ ở đường của chính nó**, nhưng một cửa **sửa nội dung** ở chỗ
+khác không tra tới nó. Mười lần thì thôi tìm bằng tay.
+
+`t3_verified_edit_sweep.py` làm hai bước: (1) quét entity tìm "cổng xác nhận" — trường `DateTime?`
+tên `VerifiedAt` / `ApprovedAt` / `SignedAt` / `FinalizedAt` / `LockedAt` / `EmrFinalizedAt` /
+`ConfirmedAt` (tìm được **31 thực thể**); (2) quét service tìm hàm **gán vào trường nội dung** của
+những thực thể ấy mà thân hàm **không nhắc tới cổng** và không gọi `EmrLockGuard`. Bỏ qua các hàm
+tên `Approve/Verify/Sign/Lock/Cancel/...` — đó là hàm có nhiệm vụ ĐẶT cổng.
+
+Ra **37 chỗ**. Phần lớn vô hại khi đọc kỹ (hàm chỉ đọc, hàm seed dữ liệu dev, hoặc hàm đã gác bằng
+`Status` thay vì bằng cổng — như chính `EnterRadiologyResultAsync` đã vá ở §5). Nhưng nó chỉ đúng
+vào **ba cửa CĐHA chưa ai gác**, cùng ghi vào đúng ba trường mà §5 đã canh:
+
+| Cửa | Làm gì |
+|---|---|
+| `UpdateRadiologyResultAsync` — `PUT /results/{id}` | ghi cả `Findings`/`Impression`/`Recommendations`, nằm **cách hàm đã vá 120 dòng** trong cùng file |
+| `CopyReportResultAsync` — `POST /coreaders/copy-from` | **chép đè** cả ba trường từ một phiếu khác sang |
+| `MergeCoReaderOpinionsAsync` — `POST /coreaders/merge` | ghi đè `Impression` bằng ý kiến hội chẩn gộp lại |
+
+Cả ba chạy được trên phiếu **đã duyệt và đã ký số**, chữ ký vẫn giữ `Status = 1`. Đo được **1/4**.
+Vá bằng đúng lớp gác của §5; đối chứng âm: phiếu **chưa ký** vẫn phải sửa được. **4/4.**
+
+Cái đáng nói: cửa thứ nhất nằm **ngay dưới** hàm tôi tự tay vá ở §5, và tôi đã đọc file đó. Đọc tay
+vẫn sót. Bộ dò thì không.
+
+### Lần thứ năm bài đo của tôi báo PASS giả
+
+Lượt đo đầu, cửa 1 báo **PASS** — nội dung không đổi, trông như đã bị chặn. Nhưng đối chứng âm cũng
+**FAIL** với HTTP 400, tức phiếu *chưa ký* cũng không sửa được. Hai kết quả mâu thuẫn nhau thì ít
+nhất một cái sai. Đọc thân phản hồi:
+
+```
+HTTP 400 : {"error":"VALIDATION_FAILED","message":"The TechnicianNote field is required."}
+```
+
+Bài đo thiếu một trường bắt buộc của DTO, nên request **chưa hề tới service** — và "bị từ chối vì lý
+do khác" để lại dấu vết y hệt "bị chặn đúng luật". Thêm trường vào, thêm một câu dừng hẳn nếu vẫn
+thấy lỗi thiếu trường, rồi đo lại: 1/4.
+
+Điều cứu được lượt đo này chính là **đối chứng âm**. Nếu bài đo chỉ có các ca "phải chặn", cửa 1 đã
+lặng lẽ được chấm đạt và tôi đã bỏ sót một trong ba cửa.

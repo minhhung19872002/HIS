@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -368,6 +368,14 @@ public partial class RISCompleteService
             .FirstOrDefaultAsync(r => r.Id == resultId);
 
         if (report == null) return null;
+
+        // #218/T3: cùng lớp gác với EnterRadiologyResultAsync (§5). Bộ dò
+        // `t3_verified_edit_sweep.py` chỉ ra rằng lớp gác ấy mới chỉ đặt ở MỘT trong bốn cửa ghi
+        // vào Findings/Impression/Recommendations — ba cửa còn lại sửa được cả phiếu đã ký số,
+        // trong khi chữ ký vẫn giữ Status=1 và tiếp tục bảo chứng cho nội dung đã bị thay.
+        var hasActiveSignature = await _context.Set<RadiologySignatureHistory>()
+            .AnyAsync(sig => sig.RadiologyReportId == resultId && sig.Status == 1);
+        RadiologyReportStatus.EnsureCanEditContent(report.Status, hasActiveSignature);
 
         report.Findings = dto.Description;
         report.Impression = dto.Conclusion;

@@ -1,0 +1,33 @@
+{
+ "ranAt": "2026-09-04T21:48:05",
+ "cases": [
+  {
+   "case": "sửa phiếu ĐÃ KÝ qua PUT /results/{id} bị chặn",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · nội dung='NOI-DUNG-BAC-SI-DA-KY ~~ NOI-DUNG-BAC-SI-DA-KY'"
+  },
+  {
+   "case": "chép đè nội dung sang phiếu ĐÃ KÝ bị chặn",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · nội dung='NOI-DUNG-BAC-SI-DA-KY ~~ NOI-DUNG-BAC-SI-DA-KY'"
+  },
+  {
+   "case": "gộp ý kiến vào phiếu ĐÃ KÝ bị chặn",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · nội dung='NOI-DUNG-BAC-SI-DA-KY ~~ NOI-DUNG-BAC-SI-DA-KY'"
+  },
+  {
+   "case": "phiếu chưa ký ĐƯỢC sửa bình thường",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · nội dung='T3EDG-SUA-HOP-LE ~~ ok'"
+  }
+ ]
+}

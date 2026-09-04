@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs.Radiology;
 using HIS.Application.Services;
 using HIS.Core.Entities;
+using HIS.Core.Constants;
 
 namespace HIS.Infrastructure.Services;
 
@@ -146,6 +147,15 @@ public partial class RISCompleteService
         if (target == null)
             throw new InvalidOperationException($"Report dich {dto.TargetReportId} khong ton tai.");
 
+
+        // #218/T3: cùng lớp gác với EnterRadiologyResultAsync (§5). Bộ dò
+        // `t3_verified_edit_sweep.py` chỉ ra rằng lớp gác ấy mới chỉ đặt ở MỘT trong bốn cửa ghi
+        // vào Findings/Impression/Recommendations — ba cửa còn lại sửa được cả phiếu đã ký số,
+        // trong khi chữ ký vẫn giữ Status=1 và tiếp tục bảo chứng cho nội dung đã bị thay.
+        var hasActiveSignature = await _context.Set<RadiologySignatureHistory>()
+            .AnyAsync(sig => sig.RadiologyReportId == dto.TargetReportId && sig.Status == 1);
+        RadiologyReportStatus.EnsureCanEditContent(target.Status, hasActiveSignature);
+
         // Copy noi dung
         target.Findings        = source.Findings;
         target.Impression      = source.Impression;
@@ -192,6 +202,15 @@ public partial class RISCompleteService
             .FirstOrDefaultAsync(r => r.Id == dto.RadiologyReportId && !r.IsDeleted);
         if (report == null)
             throw new InvalidOperationException($"Report {dto.RadiologyReportId} khong ton tai.");
+
+
+        // #218/T3: cùng lớp gác với EnterRadiologyResultAsync (§5). Bộ dò
+        // `t3_verified_edit_sweep.py` chỉ ra rằng lớp gác ấy mới chỉ đặt ở MỘT trong bốn cửa ghi
+        // vào Findings/Impression/Recommendations — ba cửa còn lại sửa được cả phiếu đã ký số,
+        // trong khi chữ ký vẫn giữ Status=1 và tiếp tục bảo chứng cho nội dung đã bị thay.
+        var hasActiveSignature = await _context.Set<RadiologySignatureHistory>()
+            .AnyAsync(sig => sig.RadiologyReportId == dto.RadiologyReportId && sig.Status == 1);
+        RadiologyReportStatus.EnsureCanEditContent(report.Status, hasActiveSignature);
 
         var coReaders = await _context.Set<RadiologyReportCoReader>()
             .AsNoTracking()
