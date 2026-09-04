@@ -251,6 +251,16 @@ public partial class InpatientCompleteController : ControllerBase
     }
 
     /// <summary>
+    /// Lịch sử chuyển khoa của một lượt nội trú, kèm bàn giao lâm sàng (#218)
+    /// </summary>
+    [HttpGet("department-transfers/{admissionId}")]
+    public async Task<ActionResult<List<DepartmentTransferHistoryDto>>> GetDepartmentTransfers(Guid admissionId)
+    {
+        var result = await _inpatientService.GetDepartmentTransfersAsync(admissionId);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Gửi khám chuyên khoa
     /// </summary>
     [HttpPost("specialty-consult")]

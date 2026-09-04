@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Inpatient;
 using HIS.Application.Services;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
@@ -478,6 +479,52 @@ public partial class InpatientCompleteService {
         if (admission == null)
             throw new KeyNotFoundException("Admission not found");
 
+        // T3/#218 (2026-09-04): lượt nội trú đã kết thúc thì không chuyển khoa được nữa. Trước đây
+        // đường này không đọc `Status` lần nào, nên một bệnh nhân ĐÃ XUẤT VIỆN (hoặc đã tử vong,
+        // đã chuyển viện, đã bỏ về) vẫn chuyển được sang khoa khác và được xếp giường ở đó.
+        if (!AdmissionStatus.IsActive(admission.Status))
+            throw new InvalidOperationException(
+                $"Lượt nội trú đã kết thúc ({AdmissionStatus.Label(admission.Status)}), không chuyển khoa được.");
+
+        // T3/#218: giường đích phải còn trống. Đây là cùng một luật mà `TransferBedAsync` đã thi
+        // hành (và câu báo lỗi lấy nguyên của nó cho nhất quán) — chỉ riêng đường chuyển khoa là bỏ
+        // trống, nên hai bệnh nhân nằm chung một giường.
+        if (dto.TargetBedId.HasValue)
+        {
+            var targetBed = await _context.Beds.FirstOrDefaultAsync(b => b.Id == dto.TargetBedId.Value);
+            if (targetBed == null)
+                throw new KeyNotFoundException("Không tìm thấy giường đích.");
+
+            var bedOccupied = await _context.Set<BedAssignment>()
+                .AnyAsync(ba => ba.BedId == dto.TargetBedId.Value
+                                && ba.Status == 0
+                                && ba.AdmissionId != dto.AdmissionId);
+            if (bedOccupied)
+                throw new InvalidOperationException(
+                    $"Giường {targetBed.BedName} đã có bệnh nhân, vui lòng chọn giường khác");
+        }
+
+        // Ghi lại bàn giao TRƯỚC khi đổi khoa — cần khoa/phòng/giường cũ để lưu vào lịch sử.
+        var transferLog = new DepartmentTransfer
+        {
+            Id = Guid.NewGuid(),
+            AdmissionId = admission.Id,
+            FromDepartmentId = admission.DepartmentId,
+            FromRoomId = admission.RoomId,
+            FromBedId = admission.BedId,
+            ToDepartmentId = dto.TargetDepartmentId,
+            ToRoomId = dto.TargetRoomId,
+            ToBedId = dto.TargetBedId,
+            TransferredAt = DateTime.Now,
+            ReceivingDoctorId = dto.ReceivingDoctorId == Guid.Empty ? null : dto.ReceivingDoctorId,
+            TransferReason = dto.TransferReason,
+            DiagnosisOnTransfer = dto.DiagnosisOnTransfer,
+            TreatmentSummary = dto.TreatmentSummary,
+            CreatedAt = DateTime.Now,
+            CreatedBy = userId.ToString(),
+        };
+        _context.DepartmentTransfers.Add(transferLog);
+
         // Release current bed
         var currentBedAssignment = await _context.Set<BedAssignment>()
             .FirstOrDefaultAsync(ba => ba.AdmissionId == dto.AdmissionId && ba.Status == 0);
@@ -543,6 +590,55 @@ public partial class InpatientCompleteService {
             Status = GetAdmissionStatusName(admission.Status),
             CreatedDate = admission.CreatedAt
         };
+    }
+
+    /// <summary>
+    /// Lịch sử chuyển khoa của một lượt nội trú, mới nhất trước (#218 / T3).
+    /// Cửa đọc cho phần bàn giao lâm sàng mà trước đây bị bỏ rơi không lưu ở đâu cả.
+    /// </summary>
+    public async Task<List<DepartmentTransferHistoryDto>> GetDepartmentTransfersAsync(Guid admissionId)
+    {
+        var rows = await _context.DepartmentTransfers
+            .AsNoTracking()
+            .Where(t => t.AdmissionId == admissionId && !t.IsDeleted)
+            .OrderByDescending(t => t.TransferredAt)
+            .ToListAsync();
+        if (rows.Count == 0) return new List<DepartmentTransferHistoryDto>();
+
+        // Gom tên trong 3 truy vấn thay vì tra từng dòng (tránh N+1 như đợt #195 đã dọn).
+        var deptIds = rows.Select(r => r.FromDepartmentId).Concat(rows.Select(r => r.ToDepartmentId)).Distinct().ToList();
+        var bedIds = rows.Select(r => r.FromBedId).Concat(rows.Select(r => r.ToBedId))
+            .Where(b => b.HasValue).Select(b => b!.Value).Distinct().ToList();
+        var docIds = rows.Where(r => r.ReceivingDoctorId.HasValue).Select(r => r.ReceivingDoctorId!.Value).Distinct().ToList();
+
+        var deptNames = await _context.Departments.AsNoTracking()
+            .Where(d => deptIds.Contains(d.Id)).ToDictionaryAsync(d => d.Id, d => d.DepartmentName);
+        var bedNames = bedIds.Count == 0 ? new Dictionary<Guid, string>()
+            : await _context.Beds.AsNoTracking().Where(b => bedIds.Contains(b.Id))
+                .ToDictionaryAsync(b => b.Id, b => b.BedName);
+        var docNames = docIds.Count == 0 ? new Dictionary<Guid, string>()
+            : await _context.Users.AsNoTracking().Where(u => docIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, u => u.FullName);
+
+        string? BedName(Guid? id) => id.HasValue && bedNames.TryGetValue(id.Value, out var n) ? n : null;
+
+        return rows.Select(t => new DepartmentTransferHistoryDto
+        {
+            Id = t.Id,
+            AdmissionId = t.AdmissionId,
+            FromDepartmentId = t.FromDepartmentId,
+            FromDepartmentName = deptNames.TryGetValue(t.FromDepartmentId, out var fd) ? fd : "",
+            ToDepartmentId = t.ToDepartmentId,
+            ToDepartmentName = deptNames.TryGetValue(t.ToDepartmentId, out var td) ? td : "",
+            FromBedName = BedName(t.FromBedId),
+            ToBedName = BedName(t.ToBedId),
+            TransferredAt = t.TransferredAt,
+            ReceivingDoctorId = t.ReceivingDoctorId,
+            ReceivingDoctorName = t.ReceivingDoctorId.HasValue && docNames.TryGetValue(t.ReceivingDoctorId.Value, out var dn) ? dn : null,
+            TransferReason = t.TransferReason,
+            DiagnosisOnTransfer = t.DiagnosisOnTransfer,
+            TreatmentSummary = t.TreatmentSummary,
+        }).ToList();
     }
 
     public Task<CombinedTreatmentDto> TransferCombinedTreatmentAsync(Guid combinedTreatmentId, Guid newDepartmentId, Guid userId)

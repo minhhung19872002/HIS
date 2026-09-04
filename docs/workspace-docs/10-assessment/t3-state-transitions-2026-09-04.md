@@ -201,3 +201,51 @@ sửa sau khi hủy duyệt · sửa sau khi thu hồi chữ ký) đều vẫn q
   Không ảnh hưởng bài đo nhưng là lỗi phân nhóm danh mục.
 - Nhiều chú thích tiếng Việt trong `RISCompleteService.ImagingApproval.cs` bị mojibake hai lần UTF-8
   (`Chá»‰ Ã¡p khi...`), cùng loại với F5 đã sửa cho bảng ICD. Chỉ là chú thích, không đụng chạy.
+
+## 10. Chuyển khoa nội trú — ba lỗi, trong đó một lỗi mất dữ liệu
+
+`InpatientCompleteService.TransferDepartmentAsync`. Đọc mã thấy ba chỗ đáng ngờ, đo 7 ca
+(`evidence/cross/t3/t3_transfer_department.py`) thì cả ba đều đúng là lỗi.
+
+**(1) Không kiểm trạng thái lượt nội trú.** `Admissions.Status`: 0 đang điều trị · 1 xuất viện ·
+2 chuyển viện · 3 tử vong · 4 bỏ về. Đường chuyển khoa không đọc cột này lần nào, nên một bệnh nhân
+**đã xuất viện** vẫn chuyển được sang khoa khác — HTTP 200 — và được **xếp giường** ở đó. Trên bảng
+điều hành giường bệnh, một người đã về nhà vẫn đang chiếm giường.
+
+**(2) Không kiểm giường đích còn trống.** Lại đúng cái bất đối xứng hai cửa như vụ xét nghiệm:
+đường **chuyển giường** (`TransferBedAsync`) có kiểm và ném đúng câu *"Giường … đã có bệnh nhân,
+vui lòng chọn giường khác"*; đường **chuyển khoa** tạo thẳng `BedAssignment` mới. Đo được hai bệnh
+nhân cùng giữ một giường.
+
+Cùng một luật, viết ra rồi, thi hành ở một cửa và bỏ trống ở cửa kia. Đây là lần thứ ba trong đợt
+này gặp đúng hình dạng đó (xét nghiệm: máy vs nhập tay; CĐHA: chữ ký vs trạng thái; nay: chuyển
+giường vs chuyển khoa). Đáng ghi lại như một chỗ cần soi mặc định: **khi thấy một luật, hỏi ngay còn
+cửa nào khác vào cùng dữ liệu đó không.**
+
+**(3) Bàn giao lâm sàng bị bỏ rơi — lỗi mất dữ liệu.** `DepartmentTransferDto` mang bốn trường:
+`TransferReason`, `DiagnosisOnTransfer`, `TreatmentSummary`, `ReceivingDoctorId`. Grep toàn bộ
+`HIS.Infrastructure` thì **không chỗ nào đọc** bốn trường đó, và không có bảng lịch sử chuyển khoa
+nào. Đo lại bằng cách dò **22 cột chữ** của `Admissions` + `MedicalRecords`: 0 cột giữ lại chuỗi bàn
+giao. Bác sĩ viết tóm tắt điều trị lúc bàn giao xong nó bay mất, mà API vẫn trả 200 kèm một
+`AdmissionDto` hợp lệ.
+
+Đây là loại lỗi mà bài đo đường-thuận-suôn-sẻ **không bao giờ** thấy: mọi thứ đều 200, dữ liệu trả
+về đều hợp lệ, chỉ có thứ người dùng gõ vào là biến mất.
+
+**Sửa:**
+- `AdmissionStatus` (trong `StatusConstants.cs`) + chặn khi lượt đã kết thúc, câu báo lỗi nêu rõ
+  đang ở trạng thái nào.
+- Kiểm giường đích, dùng **nguyên câu báo lỗi** của `TransferBedAsync` cho nhất quán.
+- Bảng `DepartmentTransfers` (migration `168_department_transfer_history.sql`, idempotent) + ghi
+  bàn giao **trước** khi đổi khoa (cần khoa/phòng/giường cũ) + cửa đọc
+  `GET /api/inpatient/department-transfers/{admissionId}`. Lưu mà không đọc ra được thì vẫn coi như
+  mất, nên cửa đọc là phần bắt buộc chứ không phải phần thêm.
+
+Đo lại **7/7**, gồm cả việc đọc ngược bàn giao ra qua cửa mới và kiểm đúng khoa đi/khoa đến.
+
+**Bẫy trong chính bài đo, ghi lại:** lượt đầu em đoán tên cột là `Notes` để tìm chuỗi bàn giao. Cột
+đó không tồn tại → `sqlcmd` trả chuỗi *"Invalid column name"* → hàm kiểm đọc chuỗi đó thành "có dữ
+liệu" và báo **ĐẠT**. Một bài đo báo xanh vì lý do sai còn tệ hơn không đo. Nay lấy danh sách cột
+thật từ `INFORMATION_SCHEMA` và **dừng hẳn** nếu danh sách rỗng, thay vì đo mù. Ca đối chứng cũng
+hỏng tương tự vì gọi `change-bed` (route thật là `transfer-bed`) nên ăn 404 rồi bị đọc thành "không
+chặn".

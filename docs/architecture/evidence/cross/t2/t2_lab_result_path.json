@@ -1,15 +1,15 @@
 {
- "ranAt": "2026-09-04T11:10:23",
+ "ranAt": "2026-09-04T11:35:56",
  "steps": [
   {
    "step": "1. Tạo bệnh nhân",
    "pass": true,
-   "detail": "HTTP 201 · mã=BN26000015"
+   "detail": "HTTP 201 · mã=BN26000029"
   },
   {
    "step": "2. Tiếp đón + lượt khám",
    "pass": true,
-   "detail": "hồ sơ 540E356A-DD57-4293-8B51-DB53E8D1DF3A · lượt khám 3E116E5E-0667-499B-981E-25AE801642B8"
+   "detail": "hồ sơ ED53669B-4EFF-45D0-967E-3AA368020CBE · lượt khám 36B3329A-8A9B-4135-AEE2-F0DC61B61CC7"
   },
   {
    "step": "3. Chỉ định xét nghiệm",

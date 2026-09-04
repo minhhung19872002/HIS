@@ -98,6 +98,9 @@ public interface IInpatientCompleteService
     /// </summary>
     Task<AdmissionDto> TransferDepartmentAsync(DepartmentTransferDto dto, Guid userId);
 
+    /// <summary>Lịch sử chuyển khoa của một lượt nội trú, kèm phần bàn giao lâm sàng (#218).</summary>
+    Task<List<DepartmentTransferHistoryDto>> GetDepartmentTransfersAsync(Guid admissionId);
+
     /// <summary>
     /// Chuyển điều trị kết hợp
     /// </summary>

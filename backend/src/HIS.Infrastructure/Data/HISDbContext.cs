@@ -370,6 +370,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<NewbornRecord> NewbornRecords => Set<NewbornRecord>(); // #50-54: hồ sơ trẻ sơ sinh
     public DbSet<HemodialysisSession> HemodialysisSessions => Set<HemodialysisSession>(); // #148: phiếu theo dõi chạy thận
     public DbSet<InfusionRecord> InfusionRecords => Set<InfusionRecord>(); // #16: truyền dịch persist thật
+    public DbSet<DepartmentTransfer> DepartmentTransfers => Set<DepartmentTransfer>(); // #218: bàn giao chuyển khoa trước đây bị bỏ rơi
     public DbSet<InpatientConsultation> InpatientConsultations => Set<InpatientConsultation>(); // #16: hội chẩn nội trú persist thật
     public DbSet<InpatientConsultationMember> InpatientConsultationMembers => Set<InpatientConsultationMember>();
 

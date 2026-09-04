@@ -1,0 +1,54 @@
+{
+ "ranAt": "2026-09-04T11:46:45",
+ "cases": [
+  {
+   "case": "chuyển khoa cho lượt đang điều trị",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · khoa mới khớp=True"
+  },
+  {
+   "case": "lý do + tóm tắt điều trị đọc lại được",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · số lần chuyển trong lịch sử=1 · đủ 4 trường bàn giao=True (dò thêm 22 cột chữ cũ: 0 chỗ)"
+  },
+  {
+   "case": "lịch sử ghi đúng khoa đi và khoa đến",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "từ Khoa Cấp cứu → Khoa Dược"
+  },
+  {
+   "case": "chuyển vào giường đã có bệnh nhân khác",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · số người đang giữ giường đích=1"
+  },
+  {
+   "case": "chuyển giường vào giường đã có người",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · người giữ giường đích trước=1 sau=1 · Giường Giường 102-5 đã có bệnh nhân, vui lòng chọn giường khác"
+  },
+  {
+   "case": "xuất viện đưa lượt sang trạng thái 1",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "Admissions.Status=1 (1 = đã xuất viện)"
+  },
+  {
+   "case": "chuyển khoa cho bệnh nhân ĐÃ XUẤT VIỆN",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · giường đang giữ sau khi chuyển=0"
+  }
+ ]
+}

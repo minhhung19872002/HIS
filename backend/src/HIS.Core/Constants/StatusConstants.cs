@@ -222,6 +222,32 @@ public static class RefundStatus
 }
 
 /// <summary>
+/// Trạng thái của một LƯỢT NỘI TRÚ (<c>Admissions.Status</c>) — từ vựng mà code đang chạy dùng,
+/// đọc từ bảng ánh xạ trong <c>InpatientCompleteService.Discharge.cs</c>.
+/// </summary>
+public static class AdmissionStatus
+{
+    public const int InTreatment = 0;      // Đang điều trị
+    public const int Discharged = 1;       // Đã xuất viện
+    public const int TransferredOut = 2;   // Chuyển viện
+    public const int Died = 3;             // Tử vong
+    public const int LeftAgainstAdvice = 4; // Bỏ về
+
+    public static string Label(int status) => status switch
+    {
+        InTreatment => "Đang điều trị",
+        Discharged => "Đã xuất viện",
+        TransferredOut => "Đã chuyển viện",
+        Died => "Đã tử vong",
+        LeftAgainstAdvice => "Đã bỏ về",
+        _ => $"Không xác định ({status})",
+    };
+
+    /// <summary>Lượt còn đang nằm viện — điều kiện của mọi thao tác điều trị (chuyển khoa, xếp giường…).</summary>
+    public static bool IsActive(int status) => status == InTreatment;
+}
+
+/// <summary>
 /// Trạng thái THẬT của một dòng chỉ định (<c>ServiceRequestDetails.Status</c>) trên đường xét
 /// nghiệm và chẩn đoán hình ảnh. Đây là từ vựng mà code đang chạy dùng — xem
 /// <c>LISCompleteService.QCHistory.cs</c> (bảng đổi số sang nhãn hiển thị).

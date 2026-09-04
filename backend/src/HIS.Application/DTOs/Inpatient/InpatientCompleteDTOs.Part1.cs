@@ -313,6 +313,35 @@ public class DepartmentTransferDto
 }
 
 /// <summary>
+/// Một lần chuyển khoa đã xảy ra, đọc từ lịch sử.
+///
+/// Trước 2026-09-04 bốn trường bàn giao ở <see cref="DepartmentTransferDto"/> gửi lên rồi bị bỏ đi
+/// không lưu ở đâu cả (#218 / T3). Nay có bảng `DepartmentTransfers` giữ lại, và DTO này là cửa đọc
+/// ra — để phần bàn giao còn xem lại được chứ không chỉ nằm im trong cơ sở dữ liệu.
+/// </summary>
+public class DepartmentTransferHistoryDto
+{
+    public Guid Id { get; set; }
+    public Guid AdmissionId { get; set; }
+
+    public Guid FromDepartmentId { get; set; }
+    public string FromDepartmentName { get; set; } = string.Empty;
+    public Guid ToDepartmentId { get; set; }
+    public string ToDepartmentName { get; set; } = string.Empty;
+
+    public string? FromBedName { get; set; }
+    public string? ToBedName { get; set; }
+
+    public DateTime TransferredAt { get; set; }
+    public Guid? ReceivingDoctorId { get; set; }
+    public string? ReceivingDoctorName { get; set; }
+
+    public string? TransferReason { get; set; }
+    public string? DiagnosisOnTransfer { get; set; }
+    public string? TreatmentSummary { get; set; }
+}
+
+/// <summary>
 /// DTO điều trị kết hợp
 /// </summary>
 public class CombinedTreatmentDto
