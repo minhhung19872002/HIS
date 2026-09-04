@@ -222,6 +222,41 @@ public static class RefundStatus
 }
 
 /// <summary>
+/// Trạng thái của PHIẾU TẠM ỨNG (<c>Deposits.Status</c>) — từ vựng mà code đang chạy dùng, đọc từ
+/// <c>BillingCompleteService.Payments.cs</c>.
+///
+/// <para>⚠️ <b>Lệch nghĩa đã biết, CHƯA sửa:</b> giá trị <see cref="FullyUsed"/> được ĐƯỜNG GHI đặt
+/// khi số dư về 0 vì đã tiêu hết (<c>Payments.cs</c>, chú thích "Đã sử dụng hết"), nhưng mọi BÁO CÁO
+/// lại đọc nó là "đã hoàn tiền" (<c>StatsReversal.cs</c>, <c>AdminReports.cs</c>). Chú thích trên
+/// entity <c>Deposit</c> cũng ghi "3-Refunded". Ba nơi hiểu một con số theo hai nghĩa. Không tự sửa
+/// vì đổi phía nào cũng làm đổi SỐ LIỆU BÁO CÁO đã phát ra ngoài — cần người dùng quyết.</para>
+/// </summary>
+public static class DepositStatus
+{
+    public const int Confirmed = 2;  // Đã xác nhận — còn tiêu / hoàn được
+    public const int FullyUsed = 3;  // Số dư về 0 (xem cảnh báo lệch nghĩa ở trên)
+    public const int Cancelled = 5;  // Đã hủy
+
+    public static string Label(int status) => status switch
+    {
+        Confirmed => "Đã xác nhận",
+        FullyUsed => "Đã dùng hết",
+        Cancelled => "Đã hủy",
+        _ => $"Không xác định ({status})",
+    };
+
+    /// <summary>Phiếu còn được đụng tới tiền không (tiêu hoặc hoàn). Phiếu đã hủy thì không.</summary>
+    public static bool IsSpendable(int status) => status != Cancelled;
+
+    /// <summary>Ném <see cref="InvalidOperationException"/> (→ HTTP 400) khi phiếu đã hủy.</summary>
+    public static void EnsureSpendable(int status, string action)
+    {
+        if (!IsSpendable(status))
+            throw new InvalidOperationException($"Phiếu tạm ứng đã hủy, không {action} được.");
+    }
+}
+
+/// <summary>
 /// Trạng thái của một LƯỢT NỘI TRÚ (<c>Admissions.Status</c>) — từ vựng mà code đang chạy dùng,
 /// đọc từ bảng ánh xạ trong <c>InpatientCompleteService.Discharge.cs</c>.
 /// </summary>

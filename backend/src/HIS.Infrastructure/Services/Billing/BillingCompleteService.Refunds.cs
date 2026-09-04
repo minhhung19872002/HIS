@@ -115,9 +115,32 @@ public partial class BillingCompleteService {
             var originalDeposit = await _context.Deposits.FindAsync(dto.OriginalDepositId.Value);
             if (originalDeposit == null)
                 throw new KeyNotFoundException("Phiếu tạm ứng gốc không tồn tại");
-            var availableAmount = originalDeposit.Amount - originalDeposit.UsedAmount;
+
+            // #218/T3 (2026-09-04): nhánh "phiếu thanh toán" ngay bên dưới vẫn luôn kiểm
+            // `Status == 2` (đã hủy) và chặn; nhánh tạm ứng này thì không kiểm gì. Cùng một luật,
+            // hai nhánh cách nhau mười dòng, một nhánh có một nhánh không.
+            DepositStatus.EnsureSpendable(originalDeposit.Status, "hoàn tiền");
+
+            // #218/T3: phần ĐÃ HOÀN phải bị trừ khỏi số dư khả dụng. Đường hoàn tiền không hề tăng
+            // `UsedAmount` ở bất kỳ bước nào — kể cả `ConfirmRefundAsync`, tức lúc tiền đã ra khỏi
+            // quỹ — nên trước đây mỗi lần hoàn đều nhìn thấy số dư y như cũ và hoàn được vô hạn lần.
+            // Đo thực tế: phiếu 1.000.000đ chi ra 2.000.000đ.
+            // Phiếu hoàn đang CHỜ DUYỆT cũng tính vào đây (giữ chỗ), chỉ bỏ qua phiếu đã từ chối /
+            // đã hủy — nếu không thì hai người cùng lập hai phiếu hoàn cho một khoản.
+            var alreadyRefunded = await _context.Receipts
+                .Where(r => r.ReceiptType == 3
+                            && r.OriginalDepositId == dto.OriginalDepositId.Value
+                            && !r.IsDeleted
+                            && r.Status != RefundStatus.Rejected
+                            && r.Status != RefundStatus.Cancelled)
+                .SumAsync(r => (decimal?)r.FinalAmount) ?? 0m;
+
+            var availableAmount = originalDeposit.Amount - originalDeposit.UsedAmount - alreadyRefunded;
             if (dto.RefundAmount > availableAmount)
-                throw new InvalidOperationException($"Số tiền hoàn ({dto.RefundAmount:N0}đ) vượt quá số dư tạm ứng ({availableAmount:N0}đ)");
+                throw new InvalidOperationException(
+                    alreadyRefunded > 0
+                        ? $"Số tiền hoàn ({dto.RefundAmount:N0}đ) vượt quá số dư tạm ứng còn lại ({availableAmount:N0}đ; phiếu này đã hoàn {alreadyRefunded:N0}đ)"
+                        : $"Số tiền hoàn ({dto.RefundAmount:N0}đ) vượt quá số dư tạm ứng ({availableAmount:N0}đ)");
         }
         else if (dto.RefundType == 2 && dto.OriginalPaymentId.HasValue)
         {
@@ -197,6 +220,10 @@ public partial class BillingCompleteService {
             FinalAmount = dto.RefundAmount,
             Status = 0, // Chờ duyệt
             CashierId = userId,
+            // #218/T3: lưu NGUỒN được hoàn. Trước đây hai giá trị này chỉ đi qua DTO rồi mất, nên
+            // không có cách nào cộng tổng đã hoàn của một phiếu tạm ứng.
+            OriginalDepositId = dto.OriginalDepositId,
+            OriginalPaymentId = dto.OriginalPaymentId,
             Note = dto.Items is { Count: > 0 }
                 ? $"{dto.Reason} | Hoàn chi tiết {dto.Items.Count} mục"
                 : dto.Reason,

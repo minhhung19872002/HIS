@@ -249,3 +249,58 @@ liệu" và báo **ĐẠT**. Một bài đo báo xanh vì lý do sai còn tệ h
 thật từ `INFORMATION_SCHEMA` và **dừng hẳn** nếu danh sách rỗng, thay vì đo mù. Ca đối chứng cũng
 hỏng tương tự vì gọi `change-bed` (route thật là `transfer-bed`) nên ăn 404 rồi bị đọc thành "không
 chặn".
+
+## 11. Tiền tạm ứng — một phiếu 1.000.000đ chi ra 2.000.000đ
+
+Lỗi tiền nặng nhất tìm được trong cả đợt.
+
+`Deposits.Status`: 2 đã xác nhận · 3 số dư về 0 · 5 đã hủy. Đo 8 ca
+(`evidence/cross/t3/t3_deposit_transitions.py`), ba lỗi:
+
+**(1) Phiếu đã hủy vẫn tiêu được.** Hủy chỉ đặt `Status = 5`, không đụng `RemainingAmount`; còn
+`UseDepositForPaymentAsync` chỉ so số dư, không đọc `Status`. Đo: hủy xong vẫn trừ được 100.000đ.
+
+**(2) Phiếu đã hủy vẫn hoàn được.** Đây là ví dụ sạch nhất của hình dạng lỗi lặp lại cả đợt — và
+lần này hai vế nằm **trong cùng một hàm, cách nhau mười dòng**:
+
+```csharp
+// nhánh phiếu thanh toán — CÓ kiểm
+if (originalPayment.Status == 2)
+    throw new InvalidOperationException("Phiếu thanh toán gốc đã bị hủy");
+
+// nhánh phiếu tạm ứng — KHÔNG kiểm gì
+var availableAmount = originalDeposit.Amount - originalDeposit.UsedAmount;
+```
+
+**(3) Hoàn được nhiều lần cùng một phiếu — tiền ra thật.** Số dư khả dụng tính bằng
+`Amount - UsedAmount`, mà **đường hoàn tiền không hề tăng `UsedAmount` ở bất kỳ bước nào**, kể cả
+`ConfirmRefundAsync` — tức là lúc tiền đã ra khỏi quỹ. Nên lần hoàn thứ hai nhìn thấy số dư y như
+lần đầu.
+
+Không dừng bài đo ở bước "lập phiếu hoàn được", mà đi hết chuỗi lập → duyệt → xác nhận chi rồi cộng
+tổng tiền thực sự ra khỏi quỹ. Kết quả: **phiếu tạm ứng 1.000.000đ chi ra 2.000.000đ**. Nếu chỉ đo
+tới bước lập phiếu thì chỉ thấy "HTTP 200 hơi lạ", không thấy được thiệt hại.
+
+### Vì sao không sửa bằng cách tăng `UsedAmount`
+
+Cách nhanh nhất là cho `ConfirmRefundAsync` cộng vào `UsedAmount`. Nhưng `UsedAmount` mang nghĩa
+"đã tiêu cho dịch vụ", và các báo cáo đang đọc nó theo đúng nghĩa đó — nhét tiền hoàn vào sẽ làm
+lệch số liệu đã phát ra ngoài.
+
+Nguyên nhân gốc nằm chỗ khác: `CreateRefundDto` nhận `OriginalDepositId`, `RefundDto` trả nó về, mà
+**`Receipts` không có cột nào lưu nó**. Phiếu hoàn không truy ngược được về nguồn — chỉ có một câu
+ghi chú tiếng Việt, máy không đọc được. Không có liên kết đó thì không cách nào cộng tổng đã hoàn.
+
+**Sửa:** migration `169_receipt_refund_source.sql` thêm `Receipts.OriginalDepositId` +
+`OriginalPaymentId` (nullable, idempotent) + chỉ mục; `CreateRefundAsync` lưu nguồn và tính
+`availableAmount = Amount − UsedAmount − (tổng đã hoàn chưa bị từ chối/hủy)`. Phiếu hoàn **đang chờ
+duyệt** cũng tính vào tổng đó để hai người không lập hai phiếu cho cùng một khoản. Thêm
+`DepositStatus.EnsureSpendable` cho cả hai đường tiêu tiền.
+
+Đo lại **8/8**. Câu báo lỗi nay nói rõ phần đã hoàn: *"vượt quá số dư tạm ứng còn lại (300.000đ;
+phiếu này đã hoàn 400.000đ)"* — trước chỉ nói số dư, người thu ngân không hiểu vì sao.
+
+**Ghi nhận, chưa sửa:** giá trị `Status = 3` được **đường ghi** đặt khi tiêu hết (chú thích "Đã sử
+dụng hết") nhưng **mọi báo cáo** đọc nó là "đã hoàn tiền" (`StatsReversal.cs`, `AdminReports.cs`), và
+chú thích trên entity cũng ghi "3-Refunded". Ba nơi hiểu một con số theo hai nghĩa. Không tự sửa vì
+đổi phía nào cũng làm đổi số liệu báo cáo đã phát ra ngoài — cần người dùng quyết.

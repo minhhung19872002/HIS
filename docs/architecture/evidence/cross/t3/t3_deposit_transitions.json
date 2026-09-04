@@ -1,0 +1,61 @@
+{
+ "ranAt": "2026-09-04T12:09:41",
+ "cases": [
+  {
+   "case": "tiêu tạm ứng đang còn hiệu lực",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · Status=2 · còn lại=700000 · đã dùng=300000"
+  },
+  {
+   "case": "hoàn lần đầu trong số dư",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · đã chi=400000"
+  },
+  {
+   "case": "hoàn vượt quá phần chưa tiêu",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · Số tiền hoàn (900,000đ) vượt quá số dư tạm ứng còn lại (300,000đ; phiếu này đã hoàn 400,000đ)"
+  },
+  {
+   "case": "hủy đưa phiếu sang trạng thái 5",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · Status=5 · còn lại=1000000"
+  },
+  {
+   "case": "tiêu phiếu tạm ứng đã hủy",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · Status=5 · đã dùng=0"
+  },
+  {
+   "case": "hoàn tiền cho phiếu tạm ứng đã hủy",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · Phiếu tạm ứng đã hủy, không hoàn tiền được."
+  },
+  {
+   "case": "hoàn lần hai cùng một phiếu tạm ứng",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · đã chi sau lần 1=1000000 · sau lần 2=1000000"
+  },
+  {
+   "case": "tổng chi không vượt quá giá trị phiếu",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "đã chi cho phiếu 1.000.000 = 1000000"
+  }
+ ]
+}

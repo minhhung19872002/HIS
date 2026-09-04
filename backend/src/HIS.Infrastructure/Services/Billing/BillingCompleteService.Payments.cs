@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using HIS.Core.Constants;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Billing;
 using HIS.Application.Services;
@@ -170,6 +171,10 @@ public partial class BillingCompleteService {
         var deposit = await _context.Deposits.FindAsync(dto.DepositId);
         if (deposit == null)
             throw new KeyNotFoundException("Không tìm thấy phiếu tạm ứng"); // #462: 404, không phải 500
+        // #218/T3 (2026-09-04): hủy phiếu tạm ứng chỉ đặt `Status = 5`, KHÔNG đụng tới
+        // `RemainingAmount`. Đường này trước đây chỉ so số dư nên phiếu đã hủy vẫn tiêu được bình
+        // thường — đo được: hủy xong vẫn trừ được 100.000đ khỏi phiếu.
+        DepositStatus.EnsureSpendable(deposit.Status, "sử dụng");
         // #189: chặn số tiền <= 0 trước khi so số dư
         if (dto.Amount <= 0)
             throw new InvalidOperationException("Số tiền sử dụng phải lớn hơn 0");

@@ -42,6 +42,15 @@ public class Receipt : BaseEntity
     public string? Note { get; set; }
     public int Status { get; set; } // 1-Đã thu, 2-Đã hủy
 
+    /// <summary>
+    /// Với phiếu HOÀN TRẢ (<c>ReceiptType = 3</c>): nguồn được hoàn. Trước 2026-09-04 hai giá trị
+    /// này chỉ đi qua DTO rồi mất, nên không gì ràng buộc được tổng hoàn ≤ số dư — đo được một phiếu
+    /// tạm ứng 1.000.000đ chi ra 2.000.000đ (#218 / T3). Nay lưu lại để vừa chặn được, vừa truy
+    /// ngược được phiếu hoàn về nguồn của nó.
+    /// </summary>
+    public Guid? OriginalDepositId { get; set; }
+    public Guid? OriginalPaymentId { get; set; }
+
     // Nhân viên thu
     public Guid CashierId { get; set; }
     public virtual User Cashier { get; set; } = null!;
