@@ -1802,3 +1802,51 @@ chung đúng một con số. Về lại 3/3, và ca 1 giờ mới thật sự ki
 Bài học riêng của lần này: **một bài đo phụ thuộc vào "hôm nay" của hai đồng hồ khác nhau là bài đo
 đúng theo lịch.** Nó xanh suốt nhiều ngày rồi đỏ vào đúng ngày ta không ngờ — hoặc tệ hơn, xanh giả
 suốt nhiều ngày như ca 1 ở đây.
+
+---
+
+## 41. Bán thuốc theo đơn — giao diện gọi cửa giả, bản đúng nằm ngay bên cạnh
+
+Mục này thuộc nhóm B, nhưng mở ra đọc thì khác hẳn các mục khác trong nhóm — và khác theo hướng đáng
+lo hơn: **bản đúng đã tồn tại sẵn**, chỉ là giao diện gọi nhầm bản giả.
+
+| Nơi | Tình trạng |
+|---|---|
+| `WarehouseCompleteService.CreatePharmacySaleByPrescriptionAsync` | vỏ rỗng |
+| `WarehouseCompleteService.CreateRetailSaleAsync` | vỏ rỗng — gán vài trường lên chính DTO người dùng gửi lên rồi trả lại nguyên si |
+| `HospitalPharmacyService.CreateSaleAsync` | **đúng và đầy đủ**: ghi `RetailSales` + `RetailSaleItems`, trừ tồn kho **FEFO**, chạy trong **transaction**, từ chối khi thiếu tồn |
+
+Mà `frontend/src/modules/pharmacy/api/warehouse.ts` trỏ vào `/warehouse/pharmacy-sales/*` — tức dược
+sĩ bán thuốc qua đúng hai cửa vỏ rỗng. Đo trước khi vá **0/3**: tồn kho `10000` không đổi, không
+phiếu nào được ghi, API vẫn trả 200.
+
+Vá **không viết bản thứ ba**. Hai cửa kho thành lớp mỏng **ủy thác**. Sau mười sáu lần gặp *một luật
+thi hành ở một cửa, bỏ trống ở cửa bên cạnh*, kỷ luật rút ra là: **gặp hai cửa cùng làm một việc thì
+hợp nhất, đừng nhân bản.** Thêm gác bán trùng — `RetailSale` vốn đã có cột `PrescriptionId` nhưng
+không đường nào truyền xuống, nên chưa từng chặn được bán một đơn hai lần (bài học §15).
+
+### Việc ủy thác làm lộ một lỗi tiềm ẩn trong chính bản đúng
+
+Sau bước ủy thác đầu tiên, bài đo cho **3/3 nhưng ca đầu trả HTTP 500**. Ghi đúng, trừ kho đúng, mà
+người dùng thấy lỗi. Truy ra:
+
+```csharp
+CashierId = Guid.Empty, // Set from auth context in controller if needed
+...
+return (await GetSaleByIdAsync(sale.Id))!;
+```
+
+Không ai "set from auth context" cả. Và `GetSaleByIdAsync` có `.Include(s => s.Cashier)` — không
+`User` nào mang Guid rỗng, nên **phiếu vừa tạo không tra ra được**, hàm trả `null` dù đã ghi thành
+công. Dấu `!` ở cuối chỉ tắt cảnh báo trình biên dịch chứ không đổi sự thật.
+
+Nghĩa là bản "đúng" này **luôn trả null cho mọi người gọi** kể từ khi viết — chỉ chưa ai chạm vào để
+lộ ra.
+
+Vá ở gốc thay vì né: truyền `CashierId` thật từ người gọi, và nếu đọc lại vẫn không ra thì dựng DTO
+từ chính đối tượng vừa ghi thay vì trả null. Sửa ở bản đúng nên mọi người gọi đều hưởng.
+
+`t3_pharmacy_sale.py`: **3/3**, HTTP 200, không còn `NullReferenceException` trong log.
+
+Điều đáng rút: **ủy thác cho code có sẵn không phải là tin nó đúng.** Nó là cách tốt nhất để dùng
+lại thứ đã được kiểm — nhưng lần đầu có người thật sự gọi đến, một lỗi nằm im từ lâu mới lộ.

@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Warehouse;
@@ -22,14 +22,19 @@ public partial class WarehouseCompleteService : IWarehouseCompleteService
     private readonly IRepository<InventoryItem> _inventoryRepo;
     private readonly IRepository<Prescription> _prescriptionRepo;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IHospitalPharmacyService _hospitalPharmacy;
 
     public WarehouseCompleteService(
         HISDbContext context,
         IRepository<Warehouse> warehouseRepo,
         IRepository<InventoryItem> inventoryRepo,
         IRepository<Prescription> prescriptionRepo,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        // #218/T3: hai cửa bán thuốc của service này ủy thác cho bản đúng ở đây thay vì
+        // viết bản thứ ba. HospitalPharmacyService chỉ phụ thuộc HISDbContext nên không có vòng.
+        IHospitalPharmacyService hospitalPharmacy)
     {
+        _hospitalPharmacy = hospitalPharmacy;
         _context = context;
         _warehouseRepo = warehouseRepo;
         _inventoryRepo = inventoryRepo;

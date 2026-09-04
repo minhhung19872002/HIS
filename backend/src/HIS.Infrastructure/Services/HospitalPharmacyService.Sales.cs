@@ -1,4 +1,4 @@
-using Microsoft.Data.SqlClient;
+﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
@@ -155,6 +155,17 @@ public partial class HospitalPharmacyService
             .CountAsync();
         var saleCode = $"NT-{dateStr}-{(todayCount + 1):D4}";
 
+        // #218/T3: bán theo đơn thì chặn bán trùng — bài học §15 (phát một đơn hai lần thì
+        // trừ kho hai lần). Cột `RetailSale.PrescriptionId` vốn đã có, chỉ chưa ai dùng.
+        if (dto.PrescriptionId.HasValue && dto.PrescriptionId.Value != Guid.Empty)
+        {
+            var daBan = await _context.RetailSales.AnyAsync(x =>
+                x.PrescriptionId == dto.PrescriptionId.Value && x.Status != "Cancelled" && !x.IsDeleted);
+            if (daBan)
+                throw new InvalidOperationException(
+                    "Đơn thuốc này đã được bán trước đó. Muốn bán lại thì phải hủy phiếu bán cũ.");
+        }
+
         var totalAmount = dto.Items.Sum(i => i.Quantity * i.UnitPrice - i.DiscountAmount);
         var paidAmount = totalAmount - dto.DiscountAmount;
 
@@ -162,6 +173,7 @@ public partial class HospitalPharmacyService
         {
             Id = Guid.NewGuid(),
             SaleCode = saleCode,
+            PrescriptionId = dto.PrescriptionId,
             PatientId = dto.PatientId,
             PatientName = dto.PatientName,
             PhoneNumber = dto.PhoneNumber,
@@ -171,7 +183,7 @@ public partial class HospitalPharmacyService
             PaymentMethod = dto.PaymentMethod,
             PaymentReference = dto.PaymentReference,
             Status = "Completed",
-            CashierId = Guid.Empty, // Set from auth context in controller if needed
+            CashierId = dto.CashierId ?? Guid.Empty, // #218/T3: nhận từ người gọi, xem chú thích trên DTO
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
         };
@@ -224,7 +236,35 @@ public partial class HospitalPharmacyService
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
-            return (await GetSaleByIdAsync(sale.Id))!;
+            // #218/T3: `GetSaleByIdAsync` có `.Include(s => s.Cashier)`; nếu phiếu không gắn được
+            // người thu tiền thì nó trả null và cả hàm này trả null cho người gọi dù ĐÃ ghi
+            // thành công — dấu `!` cũ chỉ tắt cảnh báo chứ không đổi sự thật. Đo được ở
+            // evidence/cross/t3/t3_pharmacy_sale.json: bán thành công nhưng API trả 500.
+            // Nay dựng DTO từ chính đối tượng vừa ghi khi đọc lại không ra.
+            return await GetSaleByIdAsync(sale.Id) ?? new RetailSaleDetailDto
+            {
+                Id = sale.Id,
+                SaleCode = sale.SaleCode,
+                PatientId = sale.PatientId,
+                PatientName = sale.PatientName,
+                PhoneNumber = sale.PhoneNumber,
+                TotalAmount = sale.TotalAmount,
+                DiscountAmount = sale.DiscountAmount,
+                PaidAmount = sale.PaidAmount,
+                PaymentMethod = sale.PaymentMethod,
+                Status = sale.Status,
+                CashierId = sale.CashierId,
+                Notes = sale.Notes,
+                Items = dto.Items.Select(i => new RetailSaleItemDto
+                {
+                    MedicineId = i.MedicineId,
+                    MedicineName = i.MedicineName,
+                    Unit = i.Unit,
+                    Quantity = i.Quantity,
+                    UnitPrice = i.UnitPrice,
+                    Amount = i.Quantity * i.UnitPrice,
+                }).ToList(),
+            };
         }
         catch
         {

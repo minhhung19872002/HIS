@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Warehouse;
@@ -546,31 +546,116 @@ public partial class WarehouseCompleteService {
         return await CreateStockIssueByTypeAsync(dto, userId, 12, "TT");
     }
 
+    /// <summary>
+    /// Bán thuốc theo đơn bác sĩ.
+    ///
+    /// <para>#218/T3 — trước đây là vỏ rỗng: sinh `SaleCode` từ `DateTime.Now`, `Items = []`,
+    /// `TotalAmount = 0`, không ghi gì. Mà giao diện dược lại gọi đúng cửa này
+    /// (`frontend/src/modules/pharmacy/api/warehouse.ts`), nên dược sĩ bán thuốc, phần mềm báo thành
+    /// công, **tiền không vào sổ và tồn kho không trừ**. Đo được ở
+    /// evidence/cross/t3/t3_pharmacy_sale.json.</para>
+    ///
+    /// <para>Bản đúng đã tồn tại ở `HospitalPharmacyService.CreateSaleAsync` — ghi `RetailSales` +
+    /// `RetailSaleItems`, trừ tồn kho theo FEFO, chạy trong transaction, từ chối khi thiếu tồn. Nên
+    /// cửa này **ủy thác** cho bản đúng thay vì viết bản thứ ba: sau mười sáu lần gặp hình dạng "một
+    /// luật thi hành ở một cửa, bỏ trống ở cửa bên cạnh", gặp hai cửa cùng làm một việc thì hợp nhất,
+    /// đừng nhân bản.</para>
+    /// </summary>
     public async Task<PharmacySaleDto> CreatePharmacySaleByPrescriptionAsync(Guid prescriptionId, Guid userId)
     {
+        var prescription = await _context.Prescriptions
+            .Include(p => p.Details).ThenInclude(d => d.Medicine)
+            .Include(p => p.MedicalRecord).ThenInclude(m => m.Patient)
+            .FirstOrDefaultAsync(p => p.Id == prescriptionId && !p.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy đơn thuốc");
+
+        var lines = prescription.Details.Where(d => !d.IsDeleted && d.Quantity > 0).ToList();
+        if (lines.Count == 0)
+            throw new InvalidOperationException("Đơn thuốc không có dòng thuốc nào để bán.");
+
+        var patient = prescription.MedicalRecord?.Patient;
+        var sale = await _hospitalPharmacy.CreateSaleAsync(new CreateRetailSaleDto
+        {
+            PrescriptionId = prescriptionId,
+            CashierId = userId,
+            PatientId = patient?.Id,
+            PatientName = patient?.FullName,
+            PhoneNumber = patient?.PhoneNumber,
+            PaymentMethod = "Cash",
+            Notes = $"Bán theo đơn {prescription.PrescriptionCode}",
+            Items = lines.Select(d => new CreateRetailSaleItemDto
+            {
+                MedicineId = d.MedicineId,
+                MedicineName = d.Medicine?.MedicineName ?? string.Empty,
+                Unit = d.Unit ?? d.Medicine?.Unit,
+                Quantity = d.Quantity,
+                UnitPrice = d.UnitPrice,
+                WarehouseId = d.WarehouseId,
+            }).ToList(),
+        });
+
         var user = await _context.Users.FindAsync(userId);
         return new PharmacySaleDto
         {
-            Id = Guid.NewGuid(),
-            SaleCode = $"BT{DateTime.Now:yyyyMMddHHmmss}",
+            Id = sale.Id,
+            SaleCode = sale.SaleCode,
             SaleDate = DateTime.Now,
             SaleType = 1, // Theo đơn BS
             PrescriptionId = prescriptionId,
-            Items = new List<PharmacySaleItemDto>(),
-            SubTotal = 0,
-            TotalAmount = 0,
+            PatientId = patient?.Id,
+            PatientName = patient?.FullName,
+            Items = sale.Items.Select(i => new PharmacySaleItemDto
+            {
+                Id = i.Id,
+                ItemId = i.MedicineId,
+                ItemName = i.MedicineName,
+                Unit = i.Unit ?? string.Empty,
+                Quantity = i.Quantity,
+                UnitPrice = i.UnitPrice,
+            }).ToList(),
+            SubTotal = sale.TotalAmount,
+            TotalAmount = sale.TotalAmount,
             SoldBy = userId,
             SoldByName = user?.FullName ?? string.Empty
         };
     }
 
+    /// <summary>
+    /// Bán lẻ tại quầy. #218/T3 — trước đây chỉ gán vài trường lên chính DTO người dùng gửi lên rồi
+    /// trả lại nguyên si, không ghi gì. Nay cũng ủy thác cho `HospitalPharmacyService.CreateSaleAsync`
+    /// như cửa bán theo đơn, để hai đường bán thuốc dùng chung đúng một bản có trừ tồn kho.
+    /// </summary>
     public async Task<PharmacySaleDto> CreateRetailSaleAsync(PharmacySaleDto dto, Guid userId)
     {
+        var lines = (dto.Items ?? new List<PharmacySaleItemDto>())
+            .Where(i => i.Quantity > 0).ToList();
+        if (lines.Count == 0)
+            throw new InvalidOperationException("Phiếu bán lẻ không có dòng hàng nào.");
+
+        var sale = await _hospitalPharmacy.CreateSaleAsync(new CreateRetailSaleDto
+        {
+            CashierId = userId,
+            PatientId = dto.PatientId,
+            PatientName = dto.PatientName ?? dto.CustomerName,
+            PaymentMethod = "Cash",
+            Items = lines.Select(i => new CreateRetailSaleItemDto
+            {
+                MedicineId = i.ItemId,
+                MedicineName = i.ItemName,
+                Unit = i.Unit,
+                Quantity = i.Quantity,
+                UnitPrice = i.UnitPrice,
+                WarehouseId = dto.WarehouseId == Guid.Empty ? null : dto.WarehouseId,
+            }).ToList(),
+        });
+
         var user = await _context.Users.FindAsync(userId);
-        dto.Id = Guid.NewGuid();
-        dto.SaleCode = $"BL{DateTime.Now:yyyyMMddHHmmss}";
+        dto.Id = sale.Id;
+        dto.SaleCode = sale.SaleCode;
         dto.SaleDate = DateTime.Now;
         dto.SaleType = 2; // Bán lẻ
+        dto.SubTotal = sale.TotalAmount;
+        dto.TotalAmount = sale.TotalAmount;
         dto.SoldBy = userId;
         dto.SoldByName = user?.FullName ?? string.Empty;
         return dto;

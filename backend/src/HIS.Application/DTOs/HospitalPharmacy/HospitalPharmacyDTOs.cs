@@ -1,4 +1,4 @@
-namespace HIS.Application.DTOs;
+﻿namespace HIS.Application.DTOs;
 
 public class RetailSaleSearchDto
 {
@@ -56,6 +56,22 @@ public class RetailSaleItemDto
 
 public class CreateRetailSaleDto
 {
+    /// <summary>
+    /// Đơn thuốc gốc khi bán theo đơn bác sĩ. #218/T3: `RetailSale` vốn đã có cột
+    /// `PrescriptionId` nhưng không đường nào truyền xuống, nên không chặn được bán trùng
+    /// một đơn hai lần. Nay có.
+    /// </summary>
+    public Guid? PrescriptionId { get; set; }
+
+    /// <summary>
+    /// Người thu tiền. #218/T3: trước đây `CreateSaleAsync` đặt cứng `CashierId = Guid.Empty`
+    /// kèm chú thích "Set from auth context in controller if needed" — nhưng không ai set.
+    /// Hậu quả không chỉ là thiếu dữ liệu: hàm đọc lại `GetSaleByIdAsync` có
+    /// `.Include(s => s.Cashier)` nên phiếu vừa tạo KHÔNG tra ra được, và `CreateSaleAsync`
+    /// trả về null dù đã ghi thành công (dấu `!` chỉ tắt cảnh báo, không đổi sự thật).
+    /// </summary>
+    public Guid? CashierId { get; set; }
+
     public Guid? PatientId { get; set; }
     public string? PatientName { get; set; }
     public string? PhoneNumber { get; set; }

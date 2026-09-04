@@ -1,0 +1,20 @@
+{
+ "ranAt": "2026-09-05T00:46:05",
+ "cases": [
+  {
+   "case": "phiếu bán ĐƯỢC ghi xuống RetailSales",
+   "pass": true,
+   "detail": "HTTP 200 · số phiếu gắn đơn này=1"
+  },
+  {
+   "case": "tồn kho ĐƯỢC trừ đúng 10",
+   "pass": true,
+   "detail": "tồn kho 10000.0 → 9990.0 (giảm 10.0)"
+  },
+  {
+   "case": "bán trùng cùng một đơn bị chặn",
+   "pass": true,
+   "detail": "HTTP 400 · số phiếu=1 · tồn kho trừ thêm 0.0 · {\"error\":\"INVALID_STATE\",\"message\":\"Đơn thuốc"
+  }
+ ]
+}
