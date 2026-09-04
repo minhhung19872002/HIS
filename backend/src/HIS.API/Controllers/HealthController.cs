@@ -120,6 +120,32 @@ public class HealthController : ControllerBase
     }
 
     /// <summary>
+    /// Các batch migration hỏng ở lần khởi động gần nhất. Admin-only.
+    ///
+    /// <para><c>failedCount = 0</c> nghĩa là mọi script đã chạy sạch. Khác 0 là **phải xử lý**, kể
+    /// cả khi ứng dụng đang chạy bình thường: bộ chạy cố ý nuốt lỗi từng batch để một script hỏng
+    /// không chặn khởi động, nên một migration hỏng KHÔNG làm gì đổ vỡ ngay mà chỉ để lại hậu quả
+    /// âm thầm.</para>
+    ///
+    /// <para>Đúng chuyện đó đã xảy ra: `143_patient_search_accent_ci_ai.sql` và
+    /// `150_authz5_auditlogs_append_only.sql` hỏng ở MỌI lần khởi động suốt thời gian dài. Hậu quả
+    /// là tìm bệnh nhân không dấu chỉ chạy trên cột họ tên, và nhật ký kiểm toán không hề có lớp
+    /// chống sửa/xoá mà TT 54/2017 yêu cầu. Cả hai chỉ lộ ra vì có người tình cờ đọc log khởi động
+    /// (#218 / T3). Endpoint này để lần sau không phải trông vào sự tình cờ đó.</para>
+    /// </summary>
+    [HttpGet("/health/migrations")]
+    [Authorize(Roles = RoleNames.Admin)]
+    public IActionResult GetMigrationFailures()
+    {
+        var failures = HIS.Infrastructure.Data.ProductionSchemaRepairRunner.LastRunFailures;
+        return Ok(new
+        {
+            failedCount = failures.Count,
+            failures = failures.Select(f => new { f.Script, f.Error, f.Preview }),
+        });
+    }
+
+    /// <summary>
     /// Schema drift check: reports DbSet types whose backing table is missing in the
     /// current database, plus any table names the runtime model expects. Admin-only.
     /// Used for post-deploy verification when endpoints silently return empty data

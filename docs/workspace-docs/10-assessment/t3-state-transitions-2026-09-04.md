@@ -662,3 +662,40 @@ Dòng cũ biến mất, đúng một dòng, và không có lỗi nào trong log.
 > này. Trong khoảng giữa hai lần deploy, chu kỳ dọn nhật ký trên prod sẽ báo lỗi một lần và không
 > xoá gì. Không mất dữ liệu, không gián đoạn dịch vụ — chỉ là bỏ lỡ một chu kỳ prune trên cửa sổ lưu
 > 730 ngày. Lẽ ra nên gộp hai thay đổi vào một commit.
+
+## 17. Bịt cái cơ chế đã giấu hai lỗi trên
+
+Hai migration hỏng ở §16 không phải là hai sự cố riêng lẻ — chúng là **triệu chứng của một cơ chế**.
+`ProductionSchemaRepairRunner` cố ý nuốt lỗi từng batch để một script hỏng không chặn khởi động máy
+chủ. Lựa chọn đó đúng. Nhưng lỗi chỉ để lại một dòng `LogWarning`, chìm giữa hàng trăm dòng cảnh báo
+nullable của EF, nên nó **vô hình**. Hai script hỏng ở mọi lần khởi động suốt thời gian dài, và chỉ
+lộ ra vì tình cờ có người đọc log.
+
+Hậu quả không hề nhỏ: tìm bệnh nhân không dấu chỉ chạy trên cột họ tên, và nhật ký kiểm toán không
+có lớp chống sửa/xoá mà TT 54/2017 yêu cầu. Sửa hai script là cần, nhưng chưa đủ — lần sau lại có
+script hỏng thì vẫn không ai biết.
+
+**Ba thay đổi:**
+
+1. Bộ chạy **ghi lại** mọi batch hỏng của lần khởi động gần nhất (tên script · thông báo lỗi · 200
+   ký tự đầu), gồm cả hai chỗ nuốt lỗi khác của pha model-driven mà trước đây cũng chỉ có log.
+2. Nâng từ `LogWarning` lên **`LogError`** — một migration hỏng là chuyện phải xử lý, không phải
+   chuyện đáng lưu ý.
+3. Cửa đọc **`GET /health/migrations`** (Admin), trả `failedCount` + danh sách. Đặt cạnh
+   `/health/schema-drift` vốn đã dùng cho việc xác minh sau deploy.
+
+**Kiểm chứng cả hai chiều**, không chỉ đường suôn sẻ: thêm một script cố tình sai
+(`SELECT * FROM dbo.BangKhongHeTonTai`), khởi động lại, endpoint trả
+
+```
+failedCount = 1
+  999_TEMP_broken_probe.sql | Invalid object name 'dbo.BangKhongHeTonTai_T3PROBE'.
+```
+
+gỡ script đó ra, khởi động lại, về `failedCount = 0`. Nếu chỉ đo chiều "0 lỗi thì báo 0" thì một
+endpoint luôn trả 0 cũng qua được — đúng kiểu khẳng định yếu mà cả đợt này đang tránh.
+
+**Chưa làm, có chủ ý:** chưa gắn điều kiện này vào bước smoke của deploy để bắt CI đỏ khi
+`failedCount > 0`. Lý do: hiện chưa nhìn được con số của prod, và thêm một cổng chặn khi chưa biết
+phía sau nó có gì là tự chặn đường triển khai của chính mình. Đúng thứ tự là **để endpoint lên prod
+trước, đọc con số thật, rồi mới gắn cổng**.

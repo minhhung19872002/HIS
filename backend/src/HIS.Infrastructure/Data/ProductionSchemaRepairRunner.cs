@@ -1,4 +1,4 @@
-using System.Data;
+﻿using System.Data;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -22,10 +22,35 @@ public static class ProductionSchemaRepairRunner
 {
     private const string ResourceNamespace = "HIS.Infrastructure.Data.Scripts.";
 
+    /// <summary>Một batch script hỏng ở lần khởi động này.</summary>
+    public sealed record FailedBatch(string Script, string Error, string Preview);
+
+    private static readonly List<FailedBatch> _failures = new();
+    private static readonly object _failuresLock = new();
+
+    /// <summary>
+    /// Các batch hỏng ở lần khởi động gần nhất — rỗng nghĩa là mọi script đã chạy sạch.
+    ///
+    /// <para>Vì sao cần: bộ chạy này CỐ Ý nuốt lỗi từng batch để một script hỏng không chặn khởi
+    /// động máy chủ. Lựa chọn đó đúng, nhưng nó biến lỗi thành **vô hình**: hai script
+    /// (`143_patient_search_accent_ci_ai.sql` và `150_authz5_auditlogs_append_only.sql`) đã hỏng ở
+    /// MỌI lần khởi động suốt thời gian dài mà không ai thấy — hậu quả là tìm bệnh nhân không dấu
+    /// chỉ chạy một phần, và nhật ký kiểm toán KHÔNG hề có lớp chống sửa/xoá mà pháp luật yêu cầu.
+    /// Cả hai chỉ lộ ra khi có người tình cờ đọc log khởi động (#218 / T3, 2026-09-04).</para>
+    ///
+    /// <para>Đọc qua <c>GET /health/migrations</c> để lần deploy sau nhìn thấy được ngay.</para>
+    /// </summary>
+    public static IReadOnlyList<FailedBatch> LastRunFailures
+    {
+        get { lock (_failuresLock) return _failures.ToArray(); }
+    }
+
     public static async Task RunAsync(HISDbContext context, ILogger logger)
     {
         if (!context.Database.IsSqlServer())
             return;
+
+        lock (_failuresLock) _failures.Clear();
 
         var connectionString = context.Database.GetConnectionString()
             ?? throw new InvalidOperationException("Database connection string is not configured.");
@@ -75,10 +100,16 @@ public static class ProductionSchemaRepairRunner
                 }
                 catch (Exception ex)
                 {
-                    logger.LogWarning(ex,
-                        "Schema repair batch failed (script: {Script}). First 200 chars: {Preview}",
-                        scriptName,
-                        batch.Length > 200 ? batch.Substring(0, 200) : batch);
+                    var preview = batch.Length > 200 ? batch.Substring(0, 200) : batch;
+                    lock (_failuresLock)
+                        _failures.Add(new FailedBatch(scriptName, ex.Message, preview));
+
+                    // Error chứ không phải Warning: một migration hỏng là chuyện phải xử lý, không
+                    // phải chuyện đáng lưu ý. Trước đây ở mức Warning nên nó chìm giữa hàng trăm
+                    // dòng cảnh báo nullable của EF và không ai thấy suốt thời gian dài.
+                    logger.LogError(ex,
+                        "Schema repair batch FAILED (script: {Script}). First 200 chars: {Preview}",
+                        scriptName, preview);
                 }
             }
 
@@ -113,7 +144,11 @@ public static class ProductionSchemaRepairRunner
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "GenerateCreateScript failed; skipping model-driven schema creation.");
+            // #218/T3: ghi nhận để `/health/migrations` thấy được — bỏ qua cả một pha sửa schema
+            // mà chỉ để lại một dòng log là đúng kiểu lỗi vô hình đã giấu hai script hỏng rất lâu.
+            lock (_failuresLock)
+                _failures.Add(new FailedBatch("(model-driven phase)", ex.Message, "GenerateCreateScript"));
+            logger.LogError(ex, "GenerateCreateScript FAILED; skipping model-driven schema creation.");
             return;
         }
 
@@ -220,8 +255,11 @@ public static class ProductionSchemaRepairRunner
             // Flatten to a single line so Cloud Logging doesn't split on newlines.
             var flat = statement.Replace("\r", " ").Replace("\n", " ");
             if (flat.Length > 3000) flat = flat.Substring(0, 3000) + "...";
-            logger.LogWarning(ex,
-                "Model-driven schema repair giving up on {Table}. STATEMENT={Statement}",
+            lock (_failuresLock)
+                _failures.Add(new FailedBatch("(model-driven: " + tableName + ")", ex.Message,
+                    flat.Length > 200 ? flat.Substring(0, 200) : flat));
+            logger.LogError(ex,
+                "Model-driven schema repair GAVE UP on {Table}. STATEMENT={Statement}",
                 tableName,
                 flat);
         }
