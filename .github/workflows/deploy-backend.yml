@@ -136,3 +136,21 @@ jobs:
           [ "$DEEP" = "200" ] || { echo "deep link returned $DEEP"; exit 1; }
           UNKNOWN=$(curl -s -o /dev/null -w "%{http_code}" -m 60 "$APP_URL/api/definitely-not-a-route")
           [ "$UNKNOWN" = "404" ] || { echo "unknown API route returned $UNKNOWN"; exit 1; }
+
+      # Migration hỏng KHÔNG làm app đổ: ProductionSchemaRepairRunner cố ý nuốt lỗi từng batch để
+      # một script hỏng không chặn khởi động. Chính vì vậy nó vô hình — hai script
+      # (143 tìm-không-dấu, 150 audit append-only) hỏng ở MỌI lần khởi động suốt thời gian dài,
+      # hậu quả là tìm bệnh nhân chỉ chạy một phần và nhật ký kiểm toán không có lớp chống sửa/xoá
+      # theo TT 54/2017. Chúng chỉ lộ ra vì tình cờ có người đọc log (#218 / T3, 2026-09-04).
+      # Cổng này để lần sau không phải trông vào sự tình cờ đó.
+      - name: Smoke test (không có migration nào hỏng)
+        run: |
+          TOKEN=$(curl -sS -m 60 -X POST "$APP_URL/api/auth/login"             -H "Content-Type: application/json"             -d '{"username":"admin","password":"Admin@123"}'             | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['token'])")
+          BODY=$(curl -sS -m 60 -H "Authorization: Bearer $TOKEN" "$APP_URL/health/migrations")
+          COUNT=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); d=d.get('data',d); print(d['failedCount'])")
+          if [ "$COUNT" != "0" ]; then
+            echo "::error::$COUNT batch migration HỎNG trên prod — xử lý trước khi đi tiếp:"
+            echo "$BODY" | python3 -m json.tool
+            exit 1
+          fi
+          echo "migrations OK — 0 batch hỏng"

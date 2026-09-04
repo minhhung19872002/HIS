@@ -695,7 +695,12 @@ failedCount = 1
 gỡ script đó ra, khởi động lại, về `failedCount = 0`. Nếu chỉ đo chiều "0 lỗi thì báo 0" thì một
 endpoint luôn trả 0 cũng qua được — đúng kiểu khẳng định yếu mà cả đợt này đang tránh.
 
-**Chưa làm, có chủ ý:** chưa gắn điều kiện này vào bước smoke của deploy để bắt CI đỏ khi
-`failedCount > 0`. Lý do: hiện chưa nhìn được con số của prod, và thêm một cổng chặn khi chưa biết
-phía sau nó có gì là tự chặn đường triển khai của chính mình. Đúng thứ tự là **để endpoint lên prod
-trước, đọc con số thật, rồi mới gắn cổng**.
+**Bước hai — gắn cổng, sau khi đã đọc được con số thật.** Endpoint lên prod, đọc ra
+`failedCount = 0` (tức hai bản vá ở §16 đã ăn trên prod chứ không chỉ ở máy dev), lúc đó mới thêm
+bước smoke `Smoke test (không có migration nào hỏng)` vào `.github/workflows/deploy-backend.yml`:
+đăng nhập, gọi `/health/migrations`, và **bắt CI đỏ** nếu `failedCount > 0`, in luôn danh sách script
+hỏng vào log của workflow.
+
+Cố ý làm hai bước chứ không một: thêm một cổng chặn khi chưa nhìn được phía sau nó có gì là tự chặn
+đường triển khai của chính mình. Trước khi đẩy, đã chạy thử **đúng chuỗi lệnh của bước đó** với prod
+để không đẩy một cổng chưa từng chạy.
