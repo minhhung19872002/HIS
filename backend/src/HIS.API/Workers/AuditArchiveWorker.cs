@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using HIS.Infrastructure.Data;
@@ -159,25 +159,40 @@ public sealed class AuditArchiveWorker : BackgroundService
         // Dùng GUID literal trong raw SQL để không phụ thuộc tham số (tránh kết nối khác nhau
         // giữa SET CONTEXT_INFO và DELETE). GUIDs là hằng nội bộ — không có SQL injection risk.
         var ids = rows.Select(r => r.Id).ToList();
-        await db.Database.ExecuteSqlRawAsync(CtxInfoSet, cancellationToken: ct);
+
+        // #218/T3 (2026-09-04): PHẢI mở kết nối tường minh quanh cả cụm — `CONTEXT_INFO` sống theo
+        // PHIÊN. Ngoài transaction, EF mở/đóng kết nối cho từng lệnh và pool `sp_reset_connection`
+        // xoá context, nên `SET` rồi `DELETE` gọi rời nhau thì cờ không còn lúc DELETE chạy.
+        // Chú thích cũ ở trên nói dùng GUID literal để "tránh kết nối khác nhau" — nhưng bỏ tham số
+        // không ngăn được việc đổi kết nối, chỉ mở kết nối tường minh mới ngăn được.
+        // Đo được: SET và DELETE ở hai kết nối → dòng audit vẫn còn (bị chặn); cùng phiên → xoá được.
+        await db.Database.OpenConnectionAsync(ct);
         try
         {
-            const int chunkSize = 500; // 500 × 38 chars/GUID ≈ 19 KB — an toàn với SQL Server
-            int deleted = 0;
-            for (int i = 0; i < ids.Count; i += chunkSize)
+            await db.Database.ExecuteSqlRawAsync(CtxInfoSet, cancellationToken: ct);
+            try
             {
-                if (ct.IsCancellationRequested) break;
-                var inClause = string.Join(", ", ids.Skip(i).Take(chunkSize).Select(id => $"'{id:D}'"));
-                deleted += await db.Database.ExecuteSqlRawAsync(
-                    $"DELETE FROM dbo.AuditLogs WHERE Id IN ({inClause})",
-                    cancellationToken: ct);
+                const int chunkSize = 500; // 500 × 38 chars/GUID ≈ 19 KB — an toàn với SQL Server
+                int deleted = 0;
+                for (int i = 0; i < ids.Count; i += chunkSize)
+                {
+                    if (ct.IsCancellationRequested) break;
+                    var inClause = string.Join(", ", ids.Skip(i).Take(chunkSize).Select(id => $"'{id:D}'"));
+                    deleted += await db.Database.ExecuteSqlRawAsync(
+                        $"DELETE FROM dbo.AuditLogs WHERE Id IN ({inClause})",
+                        cancellationToken: ct);
+                }
+                return deleted;
             }
-            return deleted;
+            finally
+            {
+                try { await db.Database.ExecuteSqlRawAsync(CtxInfoReset, cancellationToken: CancellationToken.None); }
+                catch { /* best-effort */ }
+            }
         }
         finally
         {
-            try { await db.Database.ExecuteSqlRawAsync(CtxInfoReset, cancellationToken: CancellationToken.None); }
-            catch { /* best-effort */ }
+            try { await db.Database.CloseConnectionAsync(); } catch { /* best-effort */ }
         }
     }
 

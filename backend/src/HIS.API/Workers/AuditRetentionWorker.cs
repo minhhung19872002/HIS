@@ -1,4 +1,4 @@
-using HIS.Infrastructure.Data;
+﻿using HIS.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace HIS.API.Workers;
@@ -129,16 +129,34 @@ public sealed class AuditRetentionWorker : BackgroundService
 
     private async Task<int> DeleteBatchAsync(HISDbContext db, string sql, DateTime cutoff, CancellationToken ct)
     {
-        await db.Database.ExecuteSqlRawAsync(CtxInfoSet, cancellationToken: ct);
+        // #218/T3 (2026-09-04): PHẢI mở kết nối tường minh quanh cả cụm.
+        //
+        // `CONTEXT_INFO` sống theo PHIÊN kết nối. Ngoài transaction, EF mở kết nối cho từng lệnh
+        // rồi đóng ngay, và kết nối trả về pool sẽ bị `sp_reset_connection` xoá sạch context. Nên
+        // `SET` và `DELETE` gọi rời nhau thì cờ KHÔNG còn lúc DELETE chạy → trigger
+        // `trg_AuditLogs_NoDelete` chặn và job dọn nhật ký hỏng lặng lẽ.
+        //
+        // Đo được: chạy SET và DELETE ở hai kết nối → dòng audit VẪN CÒN (bị chặn); gộp cùng một
+        // phiên → xoá được. Trước đây không lộ ra vì trigger chưa bao giờ được tạo (migration 150
+        // lỗi cú pháp ở mọi lần khởi động); nay trigger đã sống thì đường này phải đúng.
+        await db.Database.OpenConnectionAsync(ct);
         try
         {
-            return await db.Database.ExecuteSqlRawAsync(sql, new object[] { cutoff }, cancellationToken: ct);
+            await db.Database.ExecuteSqlRawAsync(CtxInfoSet, cancellationToken: ct);
+            try
+            {
+                return await db.Database.ExecuteSqlRawAsync(sql, new object[] { cutoff }, cancellationToken: ct);
+            }
+            finally
+            {
+                // Best-effort reset — không dùng ct (không muốn bỏ sót reset khi cancel).
+                try { await db.Database.ExecuteSqlRawAsync(CtxInfoReset, cancellationToken: CancellationToken.None); }
+                catch { /* best-effort */ }
+            }
         }
         finally
         {
-            // Best-effort reset — không dùng ct (không muốn bỏ sót reset khi cancel).
-            try { await db.Database.ExecuteSqlRawAsync(CtxInfoReset, cancellationToken: CancellationToken.None); }
-            catch { /* best-effort */ }
+            try { await db.Database.CloseConnectionAsync(); } catch { /* best-effort */ }
         }
     }
 }

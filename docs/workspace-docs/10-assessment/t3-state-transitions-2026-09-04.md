@@ -624,3 +624,41 @@ Một bộ chạy migration "log warning rồi đi tiếp" là lựa chọn đú
 biến lỗi thành thứ vô hình. Hai script này hỏng ở **mọi lần khởi động** và không ai thấy, trong khi
 hậu quả là một chức năng chạy dở và một lớp bảo vệ pháp lý không tồn tại. Đáng có một điều kiểm coi
 "số batch migration hỏng > 0" là bất thường cần xử lý, thay vì để nó nằm im trong log.
+
+### Bật trigger xong mới lộ ra job dọn nhật ký sẽ hỏng
+
+Sửa xong migration 150 thì phải hỏi tiếp: **có đường nào đang xoá `AuditLogs` mà nay sẽ bị chặn
+không?** Có hai — `AuditRetentionWorker` và `AuditArchiveWorker`. Cả hai đã được viết sẵn theo hợp
+đồng của trigger (`SET CONTEXT_INFO 0x52455445` trước khi xoá), nên thoạt nhìn là an toàn.
+
+Nhưng `CONTEXT_INFO` sống theo **phiên kết nối**, còn hai worker gọi `SET` và `DELETE` bằng **hai
+lệnh rời nhau** trên cùng `DbContext`. Ngoài transaction, EF mở kết nối cho từng lệnh rồi đóng ngay,
+và kết nối trả về pool bị `sp_reset_connection` xoá sạch context.
+
+Đo trực tiếp:
+
+| Cách chạy | Kết quả |
+|---|---|
+| `SET` và `DELETE` ở **hai kết nối** | dòng audit **vẫn còn** → bị trigger chặn |
+| `SET` và `DELETE` trong **cùng một phiên** | xoá được |
+
+Chú thích sẵn có trong `AuditArchiveWorker` cho thấy tác giả đã ngờ tới chuyện này ("dùng GUID
+literal … tránh kết nối khác nhau giữa SET CONTEXT_INFO và DELETE") — nhưng bỏ tham số hoá không
+ngăn được việc đổi kết nối, chỉ **mở kết nối tường minh** mới ngăn được.
+
+**Sửa:** `OpenConnectionAsync` / `CloseConnectionAsync` bao quanh cả cụm ở cả hai worker, giữ nguyên
+cấu trúc và giá trị trả về.
+
+**Kiểm chứng đầu-cuối, không chỉ suy luận:** dựng một dòng audit `Timestamp` 1200 ngày trước với
+`Action = 'Login'`, khởi động máy chủ, đợi worker chạy (nó trễ 10 phút sau khởi động). Sau ~9 phút:
+
+```
+AuditRetention: -1 audit entry (auth<2024-09-04, access<2025-03-05)
+```
+
+Dòng cũ biến mất, đúng một dòng, và không có lỗi nào trong log.
+
+> **Ghi nhận thứ tự triển khai:** commit bật trigger (`59de5c9f`) lên prod **trước** bản vá worker
+> này. Trong khoảng giữa hai lần deploy, chu kỳ dọn nhật ký trên prod sẽ báo lỗi một lần và không
+> xoá gì. Không mất dữ liệu, không gián đoạn dịch vụ — chỉ là bỏ lỡ một chu kỳ prune trên cửa sổ lưu
+> 730 ngày. Lẽ ra nên gộp hai thay đổi vào một commit.
