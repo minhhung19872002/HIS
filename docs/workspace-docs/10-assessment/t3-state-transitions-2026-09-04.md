@@ -37,12 +37,13 @@ một bài đo cho thứ vốn đã đúng*).
 | 32 | Kết thúc truyền dịch | **Kết thúc trước khi bắt đầu** | 1/3 → 3/3 |
 | 33 | Giải phẫu bệnh | Chẩn đoán **ác tính đã duyệt** sửa thành lành tính, chữ ký duyệt vẫn nguyên | 1/3 → 3/3 |
 | 34 | **Ba cửa nữa** sửa phiếu CĐHA đã ký | Cửa thứ nhất nằm **cách hàm đã vá 120 dòng** — đọc tay đã sót, bộ dò tìm ra | 1/4 → 4/4 |
+| 35 | Hội chẩn **thuốc dấu \*** | Ghi đè kết luận sau khi **lãnh đạo đã duyệt**, chữ duyệt giữ nguyên | 1/2 → 2/2 |
 
-**Hồi quy hiện tại: 26 bộ đo, 171/171.** `dotnet test` 225 passed. Migration 168-176.
+**Hồi quy hiện tại: 27 bộ đo, 173/173.** `dotnet test` 225 passed. Migration 168-176.
 
 ### Ba hình dạng lặp lại, và cái đã làm với chúng
 
-1. **Một luật, thi hành ở một cửa, bỏ trống ở cửa bên cạnh** — gặp **mười ba** lần (§5·10·11·12·15·18·21·26·31·33 + ba cửa §34). Sau lần thứ mười thì viết bộ dò
+1. **Một luật, thi hành ở một cửa, bỏ trống ở cửa bên cạnh** — gặp **mười bốn** lần (§5·10·11·12·15·18·21·26·31·33 + ba cửa §34). Sau lần thứ mười thì viết bộ dò
    thứ hai `t3_verified_edit_sweep.py` (§34) — và nó tìm ra ngay ba cửa mà đọc tay đã bỏ sót.
    Từ §26 trở đi, vá một cửa đã thành lý do để **đi tìm cửa còn lại** thay vì chờ gặp may.
 2. **Mượn ô trạng thái của tính năng khác** — gặp **ba** lần (§20·24·28) ở ba module, ba người viết.
@@ -1531,3 +1532,51 @@ thấy lỗi thiếu trường, rồi đo lại: 1/4.
 
 Điều cứu được lượt đo này chính là **đối chứng âm**. Nếu bài đo chỉ có các ca "phải chặn", cửa 1 đã
 lặng lẽ được chấm đạt và tôi đã bỏ sót một trong ba cửa.
+
+---
+
+## 35. Đọc nốt danh sách bộ dò — một lỗi nữa, và một câu tôi viết vội phải sửa
+
+### Câu viết vội
+
+§34 tôi viết *"phần lớn 37 chỗ là vô hại khi đọc kỹ"*. Thật ra lúc ấy tôi mới đọc ba chỗ CĐHA, còn
+lại **suy từ tên hàm**. Đó là một khẳng định chưa trả tiền — đúng cái kiểu mà cả đợt này đang chống.
+Nên đọc nốt các ứng viên còn có sức nặng:
+
+| Chỗ | Kết luận sau khi ĐỌC |
+|---|---|
+| `WarehouseCompleteService.UpdateStockReceiptAsync` | **Có gác** — `if (receipt.Status != 0) throw "Chỉ cập nhật được phiếu ở trạng thái Mới tạo"`. Bộ dò báo nhầm vì nó gác bằng `Status`, không bằng `ApprovedAt`. |
+| `PharmacyApprovalService.UpdateAsync` | **Có gác** — `if (approval.Status >= 3) throw "Phiếu đã duyệt, không thể sửa. Thu hồi duyệt trước."` |
+| `InpatientCompleteService.CompleteConsultationAsync` | **KHÔNG có gác — lỗi thật.** |
+
+Vậy con số đúng là: hai chỗ tôi nêu tên đều đã được canh tử tế bằng `Status` (bộ dò chỉ soi tên
+trường cổng nên báo dư), và **một chỗ nữa là lỗi thật**.
+
+### Lỗi thật: ghi đè kết luận hội chẩn thuốc dấu *
+
+Hội chẩn loại 3 là **hội chẩn thuốc dấu \***, nhóm thuốc phải có lãnh đạo duyệt mới dùng.
+`ApproveConsultationAsync` ghi `ApprovalStatus = 2` kèm `ApprovedBy` + `ApprovedAt` — một người cụ
+thể đứng tên chịu trách nhiệm cho **kết luận và phương hướng điều trị** của buổi hội chẩn.
+
+`CompleteConsultationAsync` (`POST /api/inpatient/consultations/{id}/complete`) là bốn dòng gán,
+không hỏi `ApprovedAt` lần nào. Đo được:
+
+```
+KET-LUAN-LANH-DAO-DA-DUYET  →  KET-LUAN-BI-SUA-SAU-KHI-DUYET   (HTTP 200)
+trạng thái duyệt: DA-DUYET  →  DA-DUYET                        (không đổi)
+```
+
+Chữ duyệt của lãnh đạo đứng tên cho một kết luận khác hẳn cái người đó đã đọc và ký. Với thuốc dấu *
+thì đó chính là thứ quy trình duyệt sinh ra để ràng buộc.
+
+Vá cả `CompleteConsultationAsync` và `UpdateConsultationAsync`. **Ghi cho đúng:**
+`UpdateConsultationAsync` hôm nay **không có route API nào gọi tới** — rà toàn bộ chỉ thấy khai báo
+ở interface — nên nó chưa phải lỗi đang phát tác; vá cùng lúc cho nhất quán, và bài đo chỉ đo được
+đường có thật là `complete`. **1/2 → 2/2.**
+
+### Điều rút ra về chính bộ dò
+
+Bộ dò báo dư ở hai chỗ vì nó chỉ soi tên **trường cổng** (`ApprovedAt`…), trong khi nhiều nơi gác
+bằng **`Status`**. Đó là giới hạn có thật, và nó nằm đúng chỗ nên nằm: bộ dò được viết để **thu hẹp
+phạm vi cho người đọc**, không phải để tự kết luận. Một bộ dò báo dư thì tốn công đọc; một bộ dò báo
+thiếu thì bỏ lọt lỗi. Chọn báo dư là chọn đúng.

@@ -1,0 +1,19 @@
+{
+ "ranAt": "2026-09-04T21:55:47",
+ "cases": [
+  {
+   "case": "KHÔNG ghi đè được kết luận đã duyệt",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · kết luận ~~ trạng thái duyệt = 'KET-LUAN-LANH-DAO-DA-DUYET ~~ DA-DUYET'"
+  },
+  {
+   "case": "hội chẩn chưa duyệt ĐƯỢC ghi kết luận",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · 'T3HCH-KET-LUAN-HOP-LE ~~ chua-duyet'"
+  }
+ ]
+}

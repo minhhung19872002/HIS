@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Inpatient;
 using HIS.Application.Services;
@@ -51,6 +51,20 @@ public partial class InpatientCompleteService {
             .FirstOrDefaultAsync(c => c.Id == id)
             ?? throw new InvalidOperationException("Không tìm thấy hội chẩn");
 
+        // #218/T3: hội chẩn ĐÃ ĐƯỢC LÃNH ĐẠO DUYỆT thì không sửa nội dung nữa.
+        //
+        // Hội chẩn loại 3 là hội chẩn thuốc dấu * — nhóm thuốc phải có lãnh đạo duyệt mới dùng được.
+        // `ApproveConsultationAsync` ghi ApprovalStatus=2 kèm ApprovedBy/ApprovedAt, tức một người cụ
+        // thể đứng tên chịu trách nhiệm cho kết luận và phương hướng điều trị của buổi hội chẩn.
+        // Trước đây hai cửa dưới đây ghi đè được kết luận sau khi đã duyệt, mà chữ duyệt giữ nguyên —
+        // lãnh đạo đứng tên cho một kết luận khác hẳn cái mình đã đọc.
+        // Đo được ở evidence/cross/t3/t3_consultation_approved.json. Tìm ra bằng bộ dò
+        // t3_verified_edit_sweep.py, không phải tình cờ.
+        if (entity.ApprovedAt != null)
+            throw new InvalidOperationException(
+                $"Hội chẩn đã được duyệt lúc {entity.ApprovedAt:HH:mm dd/MM/yyyy} — không sửa nội dung "
+                + "được nữa. Cần tu chỉnh thì phải thu hồi duyệt trước.");
+
         var now = DateTime.Now;
         entity.ConsultationType = dto.ConsultationType;
         entity.ConsultationDate = dto.ConsultationDate;
@@ -99,6 +113,20 @@ public partial class InpatientCompleteService {
         var entity = await _context.InpatientConsultations.Include(c => c.Members)
             .FirstOrDefaultAsync(c => c.Id == id)
             ?? throw new InvalidOperationException("Không tìm thấy hội chẩn");
+
+        // #218/T3: hội chẩn ĐÃ ĐƯỢC LÃNH ĐẠO DUYỆT thì không sửa nội dung nữa.
+        //
+        // Hội chẩn loại 3 là hội chẩn thuốc dấu * — nhóm thuốc phải có lãnh đạo duyệt mới dùng được.
+        // `ApproveConsultationAsync` ghi ApprovalStatus=2 kèm ApprovedBy/ApprovedAt, tức một người cụ
+        // thể đứng tên chịu trách nhiệm cho kết luận và phương hướng điều trị của buổi hội chẩn.
+        // Trước đây hai cửa dưới đây ghi đè được kết luận sau khi đã duyệt, mà chữ duyệt giữ nguyên —
+        // lãnh đạo đứng tên cho một kết luận khác hẳn cái mình đã đọc.
+        // Đo được ở evidence/cross/t3/t3_consultation_approved.json. Tìm ra bằng bộ dò
+        // t3_verified_edit_sweep.py, không phải tình cờ.
+        if (entity.ApprovedAt != null)
+            throw new InvalidOperationException(
+                $"Hội chẩn đã được duyệt lúc {entity.ApprovedAt:HH:mm dd/MM/yyyy} — không sửa nội dung "
+                + "được nữa. Cần tu chỉnh thì phải thu hồi duyệt trước.");
 
         entity.Conclusion = conclusion;
         entity.Treatment = treatment;
