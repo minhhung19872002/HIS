@@ -536,14 +536,18 @@
 ### 🔴 CHỜ USER QUYẾT (đã comment đầy đủ trong issue, không tự làm)
 1. **#216** — (a) bật biến repo `VITE_ACCESS_GATING` trên prod (server đã chặn đủ, không bật cũng không hở bảo mật);
    (b) **TC-PERM-015 bắt đổi mật khẩu lần đầu/hết hạn**: chức năng CHƯA CÓ trong hệ thống — làm mới hay ghi nhận không áp dụng.
-2. **#218** — 8 việc (5 quyết định + 3 việc đã định vị, cố ý chưa làm): (a) bắt buộc ký số trước khi gửi BHXH (siết là tê liệt cơ sở chưa cấu hình chữ ký);
+2. **#218** — còn **6 việc** (5 quyết định + TT50); hai việc (g)(h) đã XONG ở đợt 15: (a) bắt buộc ký số trước khi gửi BHXH (siết là tê liệt cơ sở chưa cấu hình chữ ký);
    (b) `Deposits.Status = 3` mang HAI nghĩa (đường ghi "đã tiêu hết" vs mọi báo cáo đọc "đã hoàn tiền") — sửa phía nào cũng đổi số liệu báo cáo đã phát;
    (c) đánh số lại `ServiceRequests.RequestType` cho dữ liệu CŨ (hệ quả kiểm toán);
    (d) `MedicalRecords.Status` hai từ vựng (ngoại trú 2 = chờ kết luận vs nội trú 2 = đang điều trị) — áp luật sẽ chặn nhầm xuất viện thật;
    (e) `ClaimStatus` ↔ `InsuranceXmlBatches.Status` không nối nhau — sửa = thiết kế lại liên kết, vượt phạm vi bản vá guard;
    (f) **TT50 khai báo phẫu thuật** — nay đã BÁO LỖI RÕ thay vì trả 200 rỗng, nhưng chưa cài vì cần chốt bộ số vai trò `SurgeryTeamMember.Role` + chỗ lưu chứng chỉ hành nghề và `AnesthesiaNotes`.
-   (g) **48 chỗ `DBNull` còn lại** trong 6 tệp module máu — chỉ hỏng KHI giá trị rỗng. Cố ý không sửa loạt: mỗi chỗ một đường ghi khác, chỉ đo được vài đường ⇒ nên làm một lượt RIÊNG CÓ bài đo, không sửa mù.
-   (h) **`BloodBagAssignments`·`BloodIssueReceipts`·`BloodIssueItems` KHÔNG có script tạo bảng** trong repo (tồn tại do tạo tay) ⇒ môi trường dựng mới hỏng ngay; cần một migration.
+   ~~(g) 48 chỗ `DBNull`~~ **XONG đợt 15** — và kết luận cũ NÓI QUÁ, đã đính chính: 43 chỗ gần như không tới được qua API (validation chặn trước), ngoại lệ là **kiểu giá trị nullable**, và 4 chỗ vô điều kiện = **2 chức năng CHẾT** (tạo phiếu lĩnh máu · tạo phiếu nhập máu). Đã sửa; bộ đo 17 đường ghi module máu = 17/17.
+   ~~(h) 3 bảng máu thiếu script~~ **XONG đợt 15** — migration `171_blood_bank_missing_tables.sql`, kiểm chứng bằng cách dựng trên DB TRẮNG rồi so từng cột với DB thật.
+
+### 🟡 Hai việc MỚI phát hiện, chưa xử lý
+- **`143_patient_search_accent_ci_ai.sql` HỎNG ở MỌI lần khởi động** ("ALTER COLUMN IdentityNumber failed because one or more objects access this column"). Runner ghi log rồi chạy tiếp ⇒ âm thầm hỏng đã lâu. Cần xem migration còn cần không; nếu cần thì phải drop index/constraint đang giữ cột trước.
+- **DB tạm `HIS_MIGTEST`** (rỗng, 3 bảng) còn trên SQL Server local — lệnh xoá DB bị chặn bởi luật quyền, cần xoá tay.
 
 ### Đã đóng
 - **#217** (luồng chính đầu→cuối) và **#219** (lỗi API + phản ứng giao diện) — DONE, đã comment kết quả đầy đủ.
