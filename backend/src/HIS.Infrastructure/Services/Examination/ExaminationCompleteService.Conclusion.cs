@@ -8,6 +8,7 @@ using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
+using HIS.Core.Constants;
 using static HIS.Infrastructure.Services.PdfTemplateHelper;
 using ServiceDto = HIS.Application.Services.ServiceDto;
 using RoomDto = HIS.Application.Services.RoomDto;
@@ -579,8 +580,22 @@ public partial class ExaminationCompleteService
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
         if (examination == null) return false;
 
-        examination.Status = 5; // Cancelled
-        examination.ConclusionNote = reason;
+        // #218/T3: hồ sơ đã khóa TT46 thì không hủy lượt khám được — sửa kết luận của chính lượt đó
+        // đã bị EmrLockGuard chặn, mà hủy cả lượt lại lọt thì lớp khóa chẳng còn nghĩa gì.
+        await EmrLockGuard.EnsureEditableByExaminationAsync(_context, examinationId);
+
+        if (examination.Status == ExaminationStatus.Cancelled)
+            throw new InvalidOperationException("Lượt khám đã hủy trước đó rồi.");
+        if (examination.Status == ExaminationStatus.Completed)
+            throw new InvalidOperationException(
+                "Lượt khám đã hoàn thành, không hủy thẳng được. "
+                + "Nếu cần hủy thì mở lại kết luận (bỏ hoàn thành) trước, rồi mới hủy.");
+
+        examination.Status = ExaminationStatus.Cancelled;
+        // #218/T3: lý do hủy đi vào ô riêng `CancelReason` (migration 174), KHÔNG ghi đè
+        // `ConclusionNote` — đó là kết luận khám của bác sĩ, và CdaDocumentService lấy đúng ô ấy
+        // làm phần diễn biến lâm sàng cho tài liệu CDA gửi hồ sơ sức khỏe quốc gia.
+        examination.CancelReason = reason;
 
         await _examinationRepo.UpdateAsync(examination);
         await _unitOfWork.SaveChangesAsync();
@@ -597,9 +612,24 @@ public partial class ExaminationCompleteService
 
         if (examination == null) throw new KeyNotFoundException("Examination not found");
 
-        examination.Status = 1; // Back to in progress
+        // #218/T3: trước đây gán `Status = 1` bất kể đang ở đâu, nên "mở lại kết luận" dùng được cả
+        // trên lượt ĐÃ HỦY — biến một lượt khám đã hủy thành đang khám. Và hồ sơ đã khóa TT46 cũng
+        // mở lại được, trong khi sửa kết luận của chính lượt đó thì bị chặn.
+        await EmrLockGuard.EnsureEditableByExaminationAsync(_context, examinationId);
+
+        if (examination.Status == ExaminationStatus.Cancelled)
+            throw new InvalidOperationException(
+                "Lượt khám đã hủy, không mở lại kết luận được.");
+        if (examination.Status != ExaminationStatus.Completed)
+            throw new InvalidOperationException(
+                $"Lượt khám đang ở trạng thái \"{ExaminationStatus.GetName(examination.Status)}\" — "
+                + "chưa hoàn thành nên không có kết luận nào để mở lại.");
+
+        examination.Status = ExaminationStatus.InProgress;
         examination.EndTime = null;
         examination.ConclusionType = null;
+        // Lý do mở lại: giữ vào cùng ô với lý do hủy thay vì nhận rồi vứt như trước.
+        examination.CancelReason = $"Mở lại kết luận: {reason}";
 
         await _unitOfWork.SaveChangesAsync();
 

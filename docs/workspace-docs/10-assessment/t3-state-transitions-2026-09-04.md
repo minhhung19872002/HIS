@@ -1101,3 +1101,49 @@ chạy. `t3_archive_loan.py`: **5/5**.
 
 Ghi lại một điều làm đúng, để không đổ oan: cửa này **có** lưu lý do mượn vào `BorrowReason` — khác
 với `CancelApprovalAsync` (§21) và `CancelDischargeAsync` (§23) vốn nhận lý do rồi vứt.
+
+---
+
+## 27. Hủy / mở lại lượt khám — lý do hủy ghi đè lên kết luận của bác sĩ
+
+Hai thao tác trên cùng một lượt khám, cùng một file, cùng không có một lượt kiểm nào. Đo được **2/6**.
+
+### a. Lý do hủy xoá mất kết luận khám
+
+`CancelExaminationAsync` (`POST /api/examination/{id}/cancel`) toàn bộ là hai dòng gán:
+
+```csharp
+examination.Status = 5;                  // Cancelled
+examination.ConclusionNote = reason;     // ← ghi ĐÈ
+```
+
+`ConclusionNote` là **kết luận khám của bác sĩ**: `CompleteExaminationAsync` và
+`UpdateConclusionAsync` đều ghi nó từ `dto.ConclusionNotes`, và `CdaDocumentService` lấy đúng ô đó
+làm phần diễn biến lâm sàng cho tài liệu CDA gửi hồ sơ sức khỏe quốc gia. Đo được: kết luận
+`KET-LUAN-CUA-BAC-SI` bị thay bằng `T3EXC ly do huy` chỉ sau một lần gọi. Cùng dạng với lỗi mất bàn
+giao lâm sàng khi chuyển khoa ở §10.
+
+Đáng chú ý: **chính entity này đã học bài đó một lần rồi**. Ngay phía trên có dòng
+`// Yêu cầu chuyển viện — lưu có cấu trúc thay vì gộp vào ConclusionNote`, và `RequestTransferAsync`
+lưu năm trường riêng thay vì nhét chuỗi vào đó. Bài học có, chỉ là không áp sang đường hủy.
+
+Vá theo đúng tiền lệ ấy: **migration 174** thêm `Examinations.CancelReason`, lý do hủy đi vào ô của
+nó, kết luận của bác sĩ giữ nguyên.
+
+### b. Không có gác nào khác
+
+* hủy được lượt khám **đã hoàn thành** (phải mở lại kết luận trước rồi mới hủy — đúng chuỗi mà
+  `LabCancelChainService` đã làm cho xét nghiệm);
+* hủy được lượt thuộc hồ sơ **đã khóa TT46**, trong khi sửa kết luận của chính lượt đó thì
+  `EmrLockGuard` chặn — khóa mà hủy cả lượt vẫn lọt thì lớp khóa chẳng còn nghĩa gì;
+* `RevertCompletionAsync` gán `Status = 1` bất kể đang ở đâu nên **mở lại được cả lượt đã hủy**, và
+  tham số `reason` nhận rồi vứt (giống §21, §23).
+
+Vá: `EmrLockGuard` ở cả hai đường; chặn hủy khi đã hủy hoặc đã hoàn thành; chặn mở lại khi đã hủy
+hoặc khi chưa từng hoàn thành; lý do mở lại cũng lưu vào `CancelReason`.
+
+Hai **đối chứng âm** (hủy một lượt đang khám dở, mở lại một lượt vừa hoàn thành) cộng một ca khẳng
+định lý do **thật sự** nằm trong ô mới và kết luận còn nguyên bên cạnh — vì "chuyển sang ô riêng"
+chỉ có nghĩa nếu đo được cả hai vế. `t3_examination_cancel_revert.py`: **7/7**.
+
+Tiện thể sửa chú thích `Examinations.Status` vốn bỏ sót giá trị 5 (Hủy) — cùng loại với §24.

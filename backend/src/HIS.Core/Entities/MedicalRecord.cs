@@ -153,7 +153,16 @@ public class Examination : BaseEntity
     public string? TransferDiagnosisName { get; set; }  // Tên chẩn đoán khi chuyển
     public string? TransferReason { get; set; }         // Lý do chuyển viện
 
-    public int Status { get; set; } // 0-Chờ khám, 1-Đang khám, 2-Chờ CLS, 3-Chờ kết luận, 4-Hoàn thành
+    /// <summary>
+    /// Lý do HỦY lượt khám. Thêm 2026-09-04 (#218/T3, migration 174).
+    /// Trước đây `CancelExaminationAsync` nhét lý do hủy vào <see cref="ConclusionNote"/>, ghi đè
+    /// mất kết luận khám của bác sĩ — cùng bài học với dòng "Yêu cầu chuyển viện — lưu có cấu trúc
+    /// thay vì gộp vào ConclusionNote" ở trên.
+    /// </summary>
+    public string? CancelReason { get; set; }
+
+    // Chú thích cũ bỏ sót giá trị 5. Từ vựng đầy đủ ở HIS.Core.Constants.ExaminationStatus.
+    public int Status { get; set; } // 0-Chờ khám, 1-Đang khám, 2-Chờ CLS, 3-Chờ kết luận, 4-Hoàn thành, 5-Hủy
 }
 
 /// <summary>

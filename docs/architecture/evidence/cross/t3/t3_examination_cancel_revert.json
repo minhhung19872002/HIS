@@ -1,0 +1,54 @@
+{
+ "ranAt": "2026-09-04T20:46:35",
+ "cases": [
+  {
+   "case": "kết luận của bác sĩ KHÔNG bị lý do hủy ghi đè",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · ConclusionNote hiện tại='KET-LUAN-CUA-BAC-SI'"
+  },
+  {
+   "case": "hủy một lượt khám ĐÃ HOÀN THÀNH bị chặn",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "trạng thái=4 (5=đã hủy)"
+  },
+  {
+   "case": "hủy lượt khám của hồ sơ ĐÃ KHÓA bị chặn",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · trạng thái=1 · {\"error\":\"INVALID_STATE\",\"message\":\"Hồ sơ bệnh án "
+  },
+  {
+   "case": "mở lại một lượt khám ĐÃ HỦY bị chặn",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · trạng thái=5 · {\"error\":\"INVALID_STATE\",\"message\":\"Lượt khám đã h"
+  },
+  {
+   "case": "hủy một lượt đang khám dở ĐƯỢC chạy",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · trạng thái=5"
+  },
+  {
+   "case": "lý do hủy lưu vào ô riêng, kết luận còn nguyên",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "CancelReason ~~ ConclusionNote = 'T3EXC huy hop le ~~ KET-LUAN-CUA-BAC-SI'"
+  },
+  {
+   "case": "mở lại một lượt vừa hoàn thành ĐƯỢC chạy",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · trạng thái=1"
+  }
+ ]
+}
