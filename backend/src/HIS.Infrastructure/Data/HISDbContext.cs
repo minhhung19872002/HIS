@@ -49,6 +49,9 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     // #218/T3 (migration 178): yêu cầu sao chụp hồ sơ — trước đây `CreateRecordCopyAsync` sinh mã
     // rồi trả DTO như thể đã lưu, mà không có bảng nào để lưu.
     public DbSet<RecordCopyRequest> RecordCopyRequests => Set<RecordCopyRequest>();
+    // #218/T3 (migration 180): link chia sẻ kết quả CĐHA — trước đây mã chia sẻ + mã truy cập không
+    // được lưu, và cửa đọc `[AllowAnonymous]` bỏ qua cả hai tham số.
+    public DbSet<RadiologyResultShare> RadiologyResultShares => Set<RadiologyResultShare>();
     public DbSet<Examination> Examinations => Set<Examination>();
     // #218/T3 (migration 177): giấy chứng nhận nghỉ việc hưởng BHXH — trước đây hai cửa cấp giấy
     // là hàm rỗng, bệnh viện không giữ lại bản ghi nào về tờ giấy đã phát ra tay người bệnh.

@@ -108,29 +108,151 @@ public partial class RISCompleteService
         return result;
     }
 
+    /// <summary>Số lần nhập sai mã truy cập trước khi khoá link, và thời gian khoá.</summary>
+    private const int ShareMaxFailedAttempts = 5;
+    private static readonly TimeSpan ShareLockDuration = TimeSpan.FromMinutes(30);
+
+    /// <summary>
+    /// Băm mã truy cập kèm muối là chính mã chia sẻ, để hai link cùng mã truy cập không ra cùng băm.
+    /// </summary>
+    private static string HashAccessCode(string accessCode, string shareCode)
+    {
+        var bytes = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes($"{accessCode}|{shareCode}"));
+        return Convert.ToHexString(bytes);
+    }
+
+    /// <summary>
+    /// Tạo link chia sẻ một kết quả CĐHA cho người bệnh (QR + mã truy cập).
+    ///
+    /// <para>#218/T3 — trước đây hàm này sinh mã chia sẻ và mã truy cập rồi **không lưu cái nào**.
+    /// Người bệnh cầm mã QR về, quét lên, và nó không mở được gì; ở đầu kia
+    /// <see cref="GetSharedResultAsync"/> cũng không có gì để đối chiếu nên bỏ qua luôn cả hai tham
+    /// số. Nay ghi xuống `RadiologyResultShares` (migration 180).</para>
+    ///
+    /// <para>Ba điểm khác bản cũ: mã chia sẻ dài 32 ký tự sinh bằng <c>RandomNumberGenerator</c> thay
+    /// vì 8 ký tự đầu của một Guid; mã truy cập sinh bằng nguồn ngẫu nhiên mật mã thay vì
+    /// <c>new Random()</c>; và mã truy cập **chỉ lưu dạng băm** — ai đọc được bảng thì cũng mở được
+    /// mọi kết quả đang chia sẻ.</para>
+    /// </summary>
     public async Task<ShareResultQRDto> CreateShareResultQRAsync(Guid resultId, int? validityHours = 24)
     {
-        var shareCode = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
-        var accessCode = new Random().Next(1000, 9999).ToString();
+        var report = await _context.RadiologyReports
+            .FirstOrDefaultAsync(r => r.Id == resultId && !r.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy kết quả chẩn đoán hình ảnh để chia sẻ");
+
+        var gio = validityHours ?? 24;
+        if (gio < 1 || gio > 24 * 30)
+            throw new InvalidOperationException("Hạn chia sẻ phải từ 1 giờ đến 30 ngày.");
+
+        var shareCode = Convert.ToHexString(
+            System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
+        var accessCode = System.Security.Cryptography.RandomNumberGenerator
+            .GetInt32(0, 1_000_000).ToString("D6");
+
+        var now = DateTime.Now;
+        var share = new RadiologyResultShare
+        {
+            Id = Guid.NewGuid(),
+            ShareCode = shareCode,
+            AccessCodeHash = HashAccessCode(accessCode, shareCode),
+            RadiologyReportId = report.Id,
+            ExpiresAt = now.AddHours(gio),
+            IsRevoked = false,
+            CreatedAt = now,
+        };
+        _context.RadiologyResultShares.Add(share);
+        await _context.SaveChangesAsync();
 
         return new ShareResultQRDto
         {
             ResultId = resultId,
             ShareUrl = $"/api/RISComplete/shared-result/{shareCode}",
-            QRCodeBase64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"SHARE|{resultId}|{shareCode}")),
-            ExpiresAt = DateTime.Now.AddHours(validityHours ?? 24),
-            AccessCode = accessCode
+            QRCodeBase64 = Convert.ToBase64String(
+                System.Text.Encoding.UTF8.GetBytes($"SHARE|{resultId}|{shareCode}")),
+            ExpiresAt = share.ExpiresAt,
+            // Bản rõ chỉ xuất hiện đúng một lần, ở đây, để đưa cho người bệnh. DB chỉ giữ băm.
+            AccessCode = accessCode,
         };
     }
 
+    /// <summary>
+    /// Người bệnh mở link chia sẻ. Endpoint gọi hàm này là **`[AllowAnonymous]`**.
+    ///
+    /// <para>#218/T3 — bản cũ **bỏ qua cả `shareCode` lẫn `accessCode`** và trả một DTO dựng sẵn
+    /// (<c>Description = "Shared result - implement validation"</c>). Nói cho công bằng thì nó chưa
+    /// rò rỉ dữ liệu nào, vì DTO ấy rỗng. Cái nguy là chỗ này để sẵn **một cửa không cần đăng nhập,
+    /// đứng đúng nơi kết quả người bệnh sẽ chảy qua, với phần kiểm tra chưa cài** — người nối nó vào
+    /// dữ liệu thật mà quên cài kiểm tra sẽ mở kết quả của mọi người bệnh cho bất kỳ ai gọi.</para>
+    ///
+    /// <para>Thông báo lỗi cố ý **giống hệt nhau** cho mọi lý do từ chối (không có mã, sai mã, hết
+    /// hạn, đã thu hồi): đây là cửa ẩn danh, phân biệt được lý do là phân biệt được mã nào có thật.</para>
+    /// </summary>
     public async Task<RadiologyResultDto> GetSharedResultAsync(string shareCode, string accessCode)
     {
-        // In production, validate share code and access code from database
+        const string tuChoi = "Link chia sẻ không hợp lệ, đã hết hạn hoặc mã truy cập không đúng.";
+
+        if (string.IsNullOrWhiteSpace(shareCode) || string.IsNullOrWhiteSpace(accessCode))
+            throw new KeyNotFoundException(tuChoi);
+
+        var ma = shareCode.Trim();
+        var share = await _context.RadiologyResultShares
+            .FirstOrDefaultAsync(s => s.ShareCode == ma && !s.IsDeleted);
+        if (share == null)
+            throw new KeyNotFoundException(tuChoi);
+
+        var now = DateTime.Now;
+        if (share.IsRevoked || share.ExpiresAt < now)
+            throw new KeyNotFoundException(tuChoi);
+        if (share.LockedUntil.HasValue && share.LockedUntil.Value > now)
+            throw new KeyNotFoundException(tuChoi);
+
+        // So sánh theo thời gian cố định: so chuỗi thường rò rỉ độ dài tiền tố khớp.
+        var dung = System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+            System.Text.Encoding.UTF8.GetBytes(share.AccessCodeHash),
+            System.Text.Encoding.UTF8.GetBytes(HashAccessCode(accessCode.Trim(), share.ShareCode)));
+
+        if (!dung)
+        {
+            share.FailedAttempts++;
+            if (share.FailedAttempts >= ShareMaxFailedAttempts)
+                share.LockedUntil = now.Add(ShareLockDuration);
+            share.UpdatedAt = now;
+            await _context.SaveChangesAsync();
+            throw new KeyNotFoundException(tuChoi);
+        }
+
+        var report = await _context.RadiologyReports
+            .Include(r => r.Radiologist)
+            .Include(r => r.RadiologyExam).ThenInclude(e => e.RadiologyRequest).ThenInclude(q => q.Patient)
+            .Include(r => r.RadiologyExam).ThenInclude(e => e.RadiologyRequest).ThenInclude(q => q.Service)
+            .FirstOrDefaultAsync(r => r.Id == share.RadiologyReportId && !r.IsDeleted);
+        if (report == null)
+            throw new KeyNotFoundException(tuChoi);
+
+        // Mở được thì xoá bộ đếm sai và ghi lại dấu vết truy cập.
+        share.FailedAttempts = 0;
+        share.LockedUntil = null;
+        share.AccessCount++;
+        share.LastAccessedAt = now;
+        share.UpdatedAt = now;
+        await _context.SaveChangesAsync();
+
+        var req = report.RadiologyExam?.RadiologyRequest;
         return new RadiologyResultDto
         {
-            Id = Guid.NewGuid(),
-            Description = "Shared result - implement validation",
-            Conclusion = "Shared result"
+            Id = report.Id,
+            OrderItemId = report.RadiologyExamId,
+            OrderCode = req?.RequestCode ?? string.Empty,
+            PatientId = req?.PatientId ?? Guid.Empty,
+            PatientCode = req?.Patient?.PatientCode ?? string.Empty,
+            PatientName = req?.Patient?.FullName ?? string.Empty,
+            ServiceCode = req?.Service?.ServiceCode ?? string.Empty,
+            ServiceName = req?.Service?.ServiceName ?? string.Empty,
+            ResultDate = report.ReportDate ?? report.CreatedAt,
+            Description = report.Findings ?? string.Empty,
+            Conclusion = report.Impression ?? string.Empty,
+            DoctorName = report.Radiologist?.FullName ?? string.Empty,
         };
     }
 

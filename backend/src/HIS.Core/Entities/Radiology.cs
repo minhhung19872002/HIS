@@ -1077,3 +1077,40 @@ public class RadiologyPrescriptionItem : BaseEntity
 }
 
 #endregion
+
+/// <summary>
+/// Link chia sẻ một kết quả chẩn đoán hình ảnh cho người bệnh (mã QR + mã truy cập).
+///
+/// <para>#218/T3 (migration 180): trước đây `CreateShareResultQRAsync` sinh mã chia sẻ và mã truy
+/// cập rồi **không lưu cái nào**, còn `GetSharedResultAsync(shareCode, accessCode)` **bỏ qua cả hai
+/// tham số** và trả một DTO dựng sẵn — trong khi endpoint đọc là `[AllowAnonymous]`. Tính năng vừa
+/// không chạy (mã đưa người bệnh không mở được gì), vừa để sẵn một cửa không cần đăng nhập ở đúng
+/// chỗ kết quả người bệnh sẽ chảy qua, với toàn bộ phần kiểm tra chưa cài.</para>
+/// </summary>
+public class RadiologyResultShare : BaseEntity
+{
+    public string ShareCode { get; set; } = string.Empty;
+
+    /// <summary>
+    /// SHA-256 của (mã truy cập + ShareCode). **Không lưu bản rõ**: ai đọc được bảng này thì cũng
+    /// mở được mọi kết quả đang chia sẻ.
+    /// </summary>
+    public string AccessCodeHash { get; set; } = string.Empty;
+
+    public Guid RadiologyReportId { get; set; }
+    public virtual RadiologyReport RadiologyReport { get; set; } = null!;
+
+    public DateTime ExpiresAt { get; set; }
+    public bool IsRevoked { get; set; }
+    public DateTime? RevokedAt { get; set; }
+
+    /// <summary>
+    /// Số lần nhập sai liên tiếp. Mã truy cập 4 số chỉ có 10.000 khả năng — không đếm thì dò hết
+    /// trong vài giây.
+    /// </summary>
+    public int FailedAttempts { get; set; }
+    public DateTime? LockedUntil { get; set; }
+
+    public int AccessCount { get; set; }
+    public DateTime? LastAccessedAt { get; set; }
+}

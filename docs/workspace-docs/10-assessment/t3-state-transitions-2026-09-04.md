@@ -44,8 +44,10 @@ một bài đo cho thứ vốn đã đúng*).
 | 40-41 | Hai cửa **bán thuốc** ở kho | Dược sĩ bán thuốc, phần mềm báo xong, **tiền không vào sổ, tồn kho không trừ** | 0/3 → 3/3 |
 | 42 | Kế hoạch tổng hợp hồ sơ | Duyệt phiếu chuyển tuyến **ghi kết cục người bệnh thành "khỏi"** — vào đúng số liệu tử vong/khỏi bệnh báo lên Sở | 1/10 → 10/10 |
 | 43 | Thẻ BHYT tạm trẻ dưới 6 tuổi | Tra thẻ của **bất kỳ ai** cũng ra một tấm thẻ bịa; trẻ 8 tuổi vẫn cấp được vì luật tính rồi **không ai thi hành** | 1/7 → 7/7 |
+| 44 | Chia sẻ kết quả CĐHA qua QR | Cửa **`[AllowAnonymous]`** bỏ qua cả mã chia sẻ lẫn mã truy cập — cơ chế bảo vệ chưa hề được cài | 0/7 → 7/7 |
+| 44 | Mẫu kết quả CĐHA | Cả **bảy hàm** là hardcode: soạn mẫu thì mất, bấm xoá thì không xoá | 0/6 → 6/6 |
 
-**Hồi quy hiện tại: 36 bộ đo, 243/243.** `dotnet test` 225 passed. Migration 168-179.
+**Hồi quy hiện tại: 38 bộ đo, 256/256.** `dotnet test` 225 passed. Migration 168-180.
 
 ### Ba hình dạng lặp lại, và cái đã làm với chúng
 
@@ -70,7 +72,14 @@ một bài đo cho thứ vốn đã đúng*).
 3. **Kẹp triệu chứng thay vì chặn nguyên nhân** — §32 (`Math.Max(0, …)`). Khó thấy nhất, vì nhìn vào
    code thì tưởng đã có ai nghĩ đến rồi.
 
-### Sáu lần bài đo của chính tôi báo PASS giả
+### Tám lần bài đo của chính tôi tự báo sai
+
+> Sáu lần đầu là **PASS giả** (bài đo chấm đạt cho hành vi hỏng). Lần thứ bảy khác loại và
+> nguy hơn — một **kỳ vọng sai** chép lại nguyên hành vi hỏng, tức nó sẽ chấm bản vá ĐÚNG là
+> trượt (§42). Lần thứ tám quay lại dạng PASS giả nhưng ở hình dạng đã gặp: ca đo kiểu "X
+> không xảy ra" đạt chỉ vì **điều kiện để X có thể xảy ra không hề tồn tại** (§44, và trước
+> đó là §23). Kỷ luật rút ra: mọi ca "X không xảy ra" phải kèm một khẳng định rằng dữ liệu
+> để X có thể xảy ra là có thật.
 
 Ghi lại vì đây là rủi ro lớn nhất của cả đợt — một bài đo sai thì tệ hơn không đo, vì nó cấp giấy
 chứng nhận cho thứ đang hỏng.
@@ -2143,3 +2152,117 @@ trẻ vừa tròn 6 tuổi không còn đủ điều kiện        FAIL  HTTP 20
 
 `t3_temporary_insurance.py`: **1/7 → 7/7**, đối chứng ngược vẫn đạt.
 Hồi quy toàn bộ **36 bộ đo, 243/243**. `dotnet test` **225 passed**. Build 0 lỗi.
+
+---
+
+## §44. Ba tính năng CĐHA chưa từng được nối dây — và một cửa ẩn danh không kiểm gì
+
+Ba mục nhóm B nằm cùng một service (`RISCompleteService`), cùng một kiểu: giao diện có, endpoint có,
+DTO có, chỉ phần nối vào cơ sở dữ liệu là không có.
+
+### Chia sẻ kết quả cho người bệnh qua QR — vấn đề ở đây là an ninh
+
+`CreateShareResultQRAsync` sinh một mã chia sẻ và một mã truy cập 4 số, **không lưu cái nào**, rồi
+đưa cho người bệnh. Đầu kia:
+
+```csharp
+public async Task<RadiologyResultDto> GetSharedResultAsync(string shareCode, string accessCode)
+{
+    // In production, validate share code and access code from database
+    return new RadiologyResultDto { Description = "Shared result - implement validation", ... };
+}
+```
+
+Hàm **bỏ qua cả hai tham số**. Và endpoint gọi nó là:
+
+```csharp
+[HttpGet("shared-result/{shareCode}")]
+[AllowAnonymous]
+```
+
+Nói cho công bằng: **hôm nay nó chưa rò rỉ dữ liệu nào** — DTO dựng sẵn ấy rỗng. Đo được: gọi bằng
+một mã chia sẻ bịa hoàn toàn cũng trả **HTTP 200**, nhưng thân phản hồi không có gì thật.
+
+Cái đang hỏng là hai chuyện khác. Thứ nhất, tính năng **không chạy**: mã QR và mã truy cập đưa cho
+người bệnh không mở được gì. Thứ hai, và đây mới là chỗ đáng lo — chỗ này để sẵn **một cửa không cần
+đăng nhập, đứng đúng nơi kết quả chẩn đoán hình ảnh của người bệnh sẽ chảy qua, với toàn bộ cơ chế
+bảo vệ chưa được cài**. Người làm đúng việc mà chú thích `// In production, validate...` bảo làm —
+tức nối nó vào dữ liệu thật — sẽ mở kết quả của mọi người bệnh cho bất kỳ ai gọi, trừ khi họ tự nhớ
+cài phần kiểm tra trước. Chú thích ấy mô tả một món nợ, nhưng không chặn ai vay thêm.
+
+Bản vá dựng bảng `RadiologyResultShares` (migration 180) và cài đủ phần bảo vệ mà cái tên tính năng
+đã hứa:
+
+| việc | bản cũ | bản vá |
+|---|---|---|
+| mã chia sẻ | 8 ký tự đầu một Guid | 32 ký tự từ `RandomNumberGenerator` |
+| mã truy cập | `new Random().Next(1000, 9999)` | 6 số từ nguồn ngẫu nhiên mật mã |
+| lưu mã truy cập | không lưu | chỉ lưu **băm SHA-256**, muối bằng mã chia sẻ |
+| so mã | không so | so theo **thời gian cố định** |
+| dò mã | không đếm | khoá 30 phút sau 5 lần sai |
+| hết hạn · thu hồi | không kiểm | kiểm cả hai |
+| dấu vết truy cập | không có | đếm lượt xem + mốc xem gần nhất |
+
+Một chi tiết cố ý: thông báo từ chối **giống hệt nhau** cho mọi lý do (không có mã, sai mã, hết hạn,
+đã thu hồi). Đây là cửa ẩn danh — phân biệt được lý do là phân biệt được mã nào có thật.
+
+Mã truy cập 4 số chỉ có 10.000 khả năng, nên nếu chỉ lưu mà không đếm số lần thử thì dò hết trong
+vài giây. Ca đo bắt đúng chuyện đó: nhập sai 6 lần rồi nhập **đúng**, vẫn phải bị từ chối.
+
+### Mẫu kết quả CĐHA — cả cụm bảy hàm là hardcode
+
+```
+GetResultTemplatesAsync             ┐
+GetResultTemplatesByServiceTypeAsync│  đều `return Task.FromResult(GetDefaultTemplates())`
+GetResultTemplatesByServiceAsync    │  — cùng một danh sách dựng cứng trong mã
+GetResultTemplatesByGenderAsync     │
+GetAllResultTemplatesAsync          ┘
+SaveResultTemplateAsync              dội lại chính DTO người dùng vừa gửi lên
+DeleteResultTemplateAsync            `return Task.FromResult(true)`
+```
+
+Bác sĩ soạn mẫu mô tả riêng cho khoa mình, bấm lưu, phần mềm báo xong; mở lại thì mẫu biến mất. Bấm
+xoá một mẫu, phần mềm báo xong; mở lại mẫu vẫn còn. Và hai đường "lọc theo dịch vụ" với "lọc theo
+giới tính" thì lọc trên chính danh sách cứng ấy, nên luôn trả cùng kết quả bất kể tham số.
+
+Bảng `RadiologyReportTemplates` đã tồn tại — **nhóm A** lần nữa, chỉ thiếu đường ghi. Nhưng nó thiếu
+đúng ba cột mà hai đường đọc kia cần (`ServiceId`, `Gender`, `IsDefault`) — không có chúng thì "lọc
+theo dịch vụ" không thể là gì khác ngoài hardcode. Migration 180 bổ sung.
+
+`GetDefaultTemplates()` giữ lại làm **mẫu gợi ý khi kho mẫu còn trống hẳn** (bệnh viện mới cài chưa
+soạn mẫu nào), và chỉ khi thật sự trống — không trộn với mẫu người dùng soạn. Nếu trộn thì lặp lại
+đúng cái đã ghi thành món nợ ở §42: người dùng không phân biệt được đâu là dữ liệu của mình, đâu là
+thứ phần mềm tự bịa ra.
+
+### Bài đo của tôi lại có PASS rỗng — lần thứ tám
+
+Bản đầu của `t3_radiology_templates.py` cho số nền **3/6**. Ba ca đạt là:
+
+```
+lọc theo dịch vụ KHÁC không trả mẫu của dịch vụ này    PASS
+mẫu chỉ dùng cho NỮ không hiện ở lọc giới tính NAM     PASS
+xoá mẫu thì mẫu THẬT SỰ biến mất                       PASS  (còn lại 0 dòng)
+```
+
+Cả ba đạt vì **không có mẫu nào tồn tại**. Không lưu được gì thì đương nhiên không lọt sang bộ lọc
+khác, và đương nhiên sau khi xoá "còn 0 dòng". Đúng hình dạng đã bắt ở §23, nơi `SUM` trên tập rỗng
+trả `NULL` và ca chứng minh bản ghi bị xoá cứng lại được chấm là đạt.
+
+Chữa bằng cách buộc mỗi ca **tự chứng minh có gì để đo**: hai ca lọc đòi thêm `luu == 1`, ca xoá đếm
+số dòng **trước** khi xoá và đòi phải bằng 1. Đo lại: số nền tụt xuống **0/6** — trung thực.
+
+Điều rút ra, sau tám lần: một ca đo dạng "X không xảy ra" gần như luôn cần một khẳng định đi kèm rằng
+**điều kiện để X có thể xảy ra là có thật**. Thiếu vế đó thì nó không kiểm tra sản phẩm, nó chỉ kiểm
+tra rằng tập dữ liệu đang rỗng.
+
+### Còn lại
+
+`SaveScheduleAsync` (lịch phòng chụp) cũng cùng khuôn — dội lại DTO, không ghi. **Chưa vá trong đợt
+này**: lịch phòng chụp cần chốt nghiệp vụ đặt chỗ (một ca chiếm bao lâu, chồng ca xử lý thế nào,
+`MaxSlots` tính theo gì) mà đoán ra thì dễ dựng sai luồng hơn là để nguyên. Ghi vào đây để không rơi.
+
+### Sau khi vá
+
+`t3_share_result_qr.py`: **0/7 → 7/7**. `t3_radiology_templates.py`: **0/6 → 6/6**. Cả hai đối chứng
+ngược đều giữ.
+Hồi quy toàn bộ **38 bộ đo, 256/256**. `dotnet test` **225 passed**. Build 0 lỗi.

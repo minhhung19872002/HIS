@@ -1,5 +1,5 @@
 {
- "ranAt": "2026-09-05T01:24:20",
+ "ranAt": "2026-09-05T01:40:23",
  "cases": [
   {
    "case": "gửi lên cổng KHÔNG tự duyệt đơn thuốc",
@@ -27,7 +27,7 @@
    "mustBlock": false,
    "blocked": false,
    "pass": true,
-   "detail": "HTTP 200 · NationalPortalStatus|TransactionId|SubmittedAt = 1|CQLKCB-20260905012420-E43C3205|co"
+   "detail": "HTTP 200 · NationalPortalStatus|TransactionId|SubmittedAt = 1|CQLKCB-20260905014022-E43C3205|co"
   },
   {
    "case": "hủy gửi ghi vào ô cổng, đơn thuốc vẫn nguyên",

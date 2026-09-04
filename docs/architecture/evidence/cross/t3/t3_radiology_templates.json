@@ -1,0 +1,35 @@
+{
+ "ranAt": "2026-09-05T01:40:42",
+ "cases": [
+  {
+   "case": "mẫu ĐƯỢC lưu xuống bảng",
+   "pass": true,
+   "detail": "HTTP 200 · id='3de4224d' · số dòng lưu được=1"
+  },
+  {
+   "case": "ĐỐI CHỨNG: mở lại danh sách vẫn thấy mẫu vừa soạn",
+   "pass": true,
+   "detail": "HTTP 200 · 1 mẫu · thấy mẫu vừa soạn=True"
+  },
+  {
+   "case": "lọc theo dịch vụ KHÁC không trả mẫu của dịch vụ này",
+   "pass": true,
+   "detail": "HTTP 200 · có mẫu để lọc=True · mẫu lọt sang dịch vụ khác=False"
+  },
+  {
+   "case": "mẫu chỉ dùng cho NỮ không hiện ở lọc giới tính NAM",
+   "pass": true,
+   "detail": "HTTP 200 · có mẫu để lọc=True · mẫu nữ lọt sang nam=False"
+  },
+  {
+   "case": "sửa mẫu ghi đè bản cũ, không đẻ thêm dòng",
+   "pass": true,
+   "detail": "HTTP 200 · dòng đã sửa=1 · tổng dòng cùng mã=1"
+  },
+  {
+   "case": "xoá mẫu thì mẫu THẬT SỰ biến mất",
+   "pass": true,
+   "detail": "HTTP 204 · trước khi xoá có 1 dòng · sau khi xoá còn 0"
+  }
+ ]
+}

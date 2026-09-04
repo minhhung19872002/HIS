@@ -81,6 +81,18 @@ public class RadiologyReportTemplate : BaseEntity
     public string? Note { get; set; }
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
+
+    // #218/T3 (migration 180): cụm mẫu kết quả CĐHA trước đây là hardcode — bốn đường đọc trả cùng
+    // một danh sách dựng trong mã, lưu không ghi, xoá trả `true` mà không xoá. Nối vào bảng này thì
+    // thiếu đúng ba cột mà hai đường đọc "lọc theo dịch vụ" và "lọc theo giới tính" cần.
+
+    public Guid? ServiceId { get; set; }
+    public Guid? ServiceTypeId { get; set; }
+
+    /// <summary>'Male' · 'Female' · 'Both'. Một số mẫu chỉ dùng cho một giới.</summary>
+    public string? Gender { get; set; }
+
+    public bool IsDefault { get; set; }
 }
 
 /// <summary>

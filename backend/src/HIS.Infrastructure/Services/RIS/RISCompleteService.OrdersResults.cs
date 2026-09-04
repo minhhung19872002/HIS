@@ -181,50 +181,143 @@ public partial class RISCompleteService
         };
     }
 
-    public async Task<List<RadiologyResultTemplateDto>> GetResultTemplatesByServiceTypeAsync(Guid serviceTypeId)
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // Mẫu kết quả CĐHA — #218/T3
+    //
+    // Cả cụm này trước đây là **hardcode**: bốn đường đọc đều trả về cùng một danh sách dựng trong
+    // mã (`GetDefaultTemplates()`), `SaveResultTemplateAsync` không ghi gì, `DeleteResultTemplateAsync`
+    // trả `true` mà không xoá. Bác sĩ soạn mẫu riêng cho khoa mình thì mất; bấm xoá thì phần mềm báo
+    // xong mà mẫu vẫn còn nguyên ở lần mở sau.
+    //
+    // Bảng `RadiologyReportTemplates` đã tồn tại sẵn — lại là nhóm A, chỉ thiếu đường ghi. Migration
+    // 180 bổ sung `ServiceId`/`ServiceTypeId`/`Gender`/`IsDefault`, ba cột mà chính hai đường đọc
+    // "lọc theo dịch vụ" và "lọc theo giới tính" cần mới làm được việc của chúng.
+    //
+    // `GetDefaultTemplates()` giữ lại làm **mẫu gợi ý khi kho mẫu còn trống** (bệnh viện mới cài
+    // chưa soạn mẫu nào), và chỉ dùng khi thật sự trống — không trộn lẫn với mẫu do người dùng soạn,
+    // để không lặp lại kiểu "trả số liệu bịa mà người dùng không phân biệt được" đã gặp ở §42.
+    // ════════════════════════════════════════════════════════════════════════════════════════
+
+    private IQueryable<RadiologyReportTemplate> TemplateQuery() =>
+        _context.Set<RadiologyReportTemplate>().Where(t => !t.IsDeleted);
+
+    private static RadiologyResultTemplateDto ToTemplateDto(RadiologyReportTemplate t) =>
+        new RadiologyResultTemplateDto
+        {
+            Id = t.Id,
+            Code = t.TemplateCode,
+            Name = t.TemplateName,
+            ServiceTypeId = t.ServiceTypeId,
+            ServiceId = t.ServiceId,
+            Gender = t.Gender ?? "Both",
+            DescriptionTemplate = t.FindingsTemplate,
+            ConclusionTemplate = t.ImpressionTemplate,
+            NoteTemplate = t.Note,
+            SortOrder = t.SortOrder,
+            IsDefault = t.IsDefault,
+            IsActive = t.IsActive,
+            CreatedBy = t.CreatedBy,
+        };
+
+    /// <summary>
+    /// Mẫu gợi ý chỉ dùng khi kho mẫu còn TRỐNG HẲN. Có một mẫu người dùng soạn thì thôi trộn —
+    /// người dùng phải phân biệt được đâu là mẫu của mình.
+    /// </summary>
+    private async Task<List<RadiologyResultTemplateDto>> TemplatesOrSeedAsync(
+        IQueryable<RadiologyReportTemplate> query)
     {
-        // Return templates based on service type
-        return await Task.FromResult(GetDefaultTemplates());
+        var rows = await query.OrderBy(t => t.SortOrder).ThenBy(t => t.TemplateName).ToListAsync();
+        if (rows.Count > 0) return rows.Select(ToTemplateDto).ToList();
+        return await TemplateQuery().AnyAsync() ? new List<RadiologyResultTemplateDto>()
+                                                : GetDefaultTemplates();
     }
+
+    public async Task<List<RadiologyResultTemplateDto>> GetResultTemplatesByServiceTypeAsync(Guid serviceTypeId)
+        => await TemplatesOrSeedAsync(TemplateQuery().Where(t => t.IsActive && t.ServiceTypeId == serviceTypeId));
 
     public async Task<List<RadiologyResultTemplateDto>> GetResultTemplatesByServiceAsync(Guid serviceId)
-    {
-        return await Task.FromResult(GetDefaultTemplates());
-    }
+        => await TemplatesOrSeedAsync(TemplateQuery().Where(t => t.IsActive && t.ServiceId == serviceId));
 
     public async Task<List<RadiologyResultTemplateDto>> GetResultTemplatesByGenderAsync(string gender)
-    {
-        var templates = GetDefaultTemplates();
-        return await Task.FromResult(templates.Where(t => t.Gender == "Both" || t.Gender == gender).ToList());
-    }
+        => await TemplatesOrSeedAsync(TemplateQuery()
+            .Where(t => t.IsActive && (t.Gender == null || t.Gender == "Both" || t.Gender == gender)));
 
     public async Task<List<RadiologyResultTemplateDto>> GetAllResultTemplatesAsync(string keyword = null)
     {
-        return await Task.FromResult(GetDefaultTemplates());
+        var q = TemplateQuery();
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var kw = keyword.Trim().ToLower();
+            q = q.Where(t => t.TemplateCode.ToLower().Contains(kw) || t.TemplateName.ToLower().Contains(kw));
+        }
+        return await TemplatesOrSeedAsync(q);
     }
 
+    /// <summary>
+    /// Lưu mẫu kết quả — thêm mới hoặc sửa mẫu sẵn có. #218/T3: trước đây chỉ dội lại DTO người dùng
+    /// vừa gửi lên, mẫu không đi đến đâu cả.
+    /// </summary>
     public async Task<RadiologyResultTemplateDto> SaveResultTemplateAsync(SaveResultTemplateDto dto)
     {
-        return new RadiologyResultTemplateDto
+        if (string.IsNullOrWhiteSpace(dto.Code)) throw new InvalidOperationException("Chưa nhập mã mẫu.");
+        if (string.IsNullOrWhiteSpace(dto.Name)) throw new InvalidOperationException("Chưa nhập tên mẫu.");
+
+        var code = dto.Code.Trim();
+        var now = DateTime.Now;
+
+        RadiologyReportTemplate? entity = null;
+        if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
         {
-            Id = dto.Id ?? Guid.NewGuid(),
-            Code = dto.Code,
-            Name = dto.Name,
-            ServiceTypeId = dto.ServiceTypeId,
-            ServiceId = dto.ServiceId,
-            Gender = dto.Gender,
-            DescriptionTemplate = dto.DescriptionTemplate,
-            ConclusionTemplate = dto.ConclusionTemplate,
-            NoteTemplate = dto.NoteTemplate,
-            SortOrder = dto.SortOrder,
-            IsDefault = dto.IsDefault,
-            IsActive = dto.IsActive
-        };
+            entity = await _context.Set<RadiologyReportTemplate>()
+                .FirstOrDefaultAsync(t => t.Id == dto.Id.Value && !t.IsDeleted)
+                ?? throw new KeyNotFoundException("Không tìm thấy mẫu kết quả cần sửa");
+        }
+
+        // Mã mẫu là thứ người dùng gõ để gọi mẫu ra, trùng mã thì gọi nhầm mẫu.
+        var trung = await TemplateQuery().AnyAsync(t =>
+            t.TemplateCode == code && (entity == null || t.Id != entity.Id));
+        if (trung) throw new InvalidOperationException($"Mã mẫu {code} đã được dùng cho mẫu khác.");
+
+        if (entity == null)
+        {
+            entity = new RadiologyReportTemplate { Id = Guid.NewGuid(), CreatedAt = now };
+            _context.Set<RadiologyReportTemplate>().Add(entity);
+        }
+        else
+        {
+            entity.UpdatedAt = now;
+        }
+
+        entity.TemplateCode = code;
+        entity.TemplateName = dto.Name.Trim();
+        entity.ServiceTypeId = dto.ServiceTypeId;
+        entity.ServiceId = dto.ServiceId;
+        entity.Gender = string.IsNullOrWhiteSpace(dto.Gender) ? "Both" : dto.Gender.Trim();
+        entity.FindingsTemplate = dto.DescriptionTemplate;
+        entity.ImpressionTemplate = dto.ConclusionTemplate;
+        entity.Note = dto.NoteTemplate;
+        entity.SortOrder = dto.SortOrder;
+        entity.IsDefault = dto.IsDefault;
+        entity.IsActive = dto.IsActive;
+
+        await _context.SaveChangesAsync();
+        return ToTemplateDto(entity);
     }
 
+    /// <summary>
+    /// Xoá mềm một mẫu kết quả. #218/T3: trước đây trả `true` mà không xoá gì — người dùng bấm xoá,
+    /// phần mềm báo xong, mở lại vẫn thấy mẫu ở đó.
+    /// </summary>
     public async Task<bool> DeleteResultTemplateAsync(Guid templateId)
     {
-        return await Task.FromResult(true);
+        var entity = await _context.Set<RadiologyReportTemplate>()
+            .FirstOrDefaultAsync(t => t.Id == templateId && !t.IsDeleted);
+        if (entity == null) return false;
+
+        entity.IsDeleted = true;
+        entity.UpdatedAt = DateTime.Now;
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     public async Task<RadiologyResultDto> ChangeResultTemplateAsync(ChangeResultTemplateDto dto)

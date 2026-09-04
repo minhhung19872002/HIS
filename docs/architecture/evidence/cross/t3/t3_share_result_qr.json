@@ -1,0 +1,40 @@
+{
+ "ranAt": "2026-09-05T01:41:06",
+ "cases": [
+  {
+   "case": "link chia sẻ ĐƯỢC lưu lại",
+   "pass": true,
+   "detail": "HTTP 200 · mã chia sẻ='D35A03139D4CE0AB013821F3F02094E4' · số dòng lưu được=1"
+  },
+  {
+   "case": "mã truy cập KHÔNG lưu dạng rõ",
+   "pass": true,
+   "detail": "tìm mã '235820' trong cột băm: không thấy"
+  },
+  {
+   "case": "SAI mã truy cập bị từ chối",
+   "pass": true,
+   "detail": "HTTP 404 · lọt kết luận=False · {\"error\":\"NOT_FOUND\",\"message\":\"Link chia sẻ không hợp lệ, đ"
+  },
+  {
+   "case": "mã chia sẻ KHÔNG TỒN TẠI bị từ chối",
+   "pass": true,
+   "detail": "HTTP 404 · {\"error\":\"NOT_FOUND\",\"message\":\"Link chia sẻ không hợp lệ, đ"
+  },
+  {
+   "case": "dò mã liên tiếp bị KHOÁ (kể cả sau đó nhập đúng)",
+   "pass": true,
+   "detail": "HTTP 404 · {\"error\":\"NOT_FOUND\",\"message\":\"Link chia sẻ không hợp lệ, đã hết hạn "
+  },
+  {
+   "case": "link ĐÃ THU HỒI không mở được nữa",
+   "pass": true,
+   "detail": "HTTP 404 · có bảng=True · lọt kết luận=False"
+  },
+  {
+   "case": "ĐỐI CHỨNG: mã ĐÚNG mở được đúng kết quả đó",
+   "pass": true,
+   "detail": "HTTP 200 · trả đúng kết luận của phiếu=True"
+  }
+ ]
+}
