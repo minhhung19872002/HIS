@@ -388,7 +388,7 @@ namespace HIS.API.Controllers
     public async Task<IActionResult> RejectSample([FromBody] RejectSampleRequest dto)
     {
         var ok = await _lisService.RejectSampleAsync(dto.SampleId, dto.Reason, GetUserId());
-        if (!ok) return NotFound();
+        if (!ok) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok();
     }
 
@@ -396,7 +396,7 @@ namespace HIS.API.Controllers
     public async Task<IActionResult> UndoRejectSample([FromBody] UndoRejectRequest dto)
     {
         var ok = await _lisService.UndoRejectSampleAsync(dto.SampleId, GetUserId());
-        if (!ok) return NotFound();
+        if (!ok) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok();
     }
 

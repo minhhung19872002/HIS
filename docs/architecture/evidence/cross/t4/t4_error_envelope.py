@@ -41,12 +41,17 @@ CASES = [
     ("xuất viện: lượt không có",      "POST", "/api/inpatient/discharge",
      {"admissionId": GHOST, "dischargeDate": "2026-09-04T00:00:00", "dischargeType": 1,
       "dischargeCondition": 1}),
+    # Nhóm endpoint trả `NotFound()` KHÔNG kèm thân: ASP.NET tự sinh ProblemDetails
+    # ({type,title,status,traceId}) — hình dạng thứ ba mà 11 ca đầu không chạm tới. Phát hiện khi
+    # thử trên prod, nên thêm vào đây để lần sau không sót.
+    ("hóa đơn: id không có (thân rỗng)", "GET", "/api/BillingComplete/invoices/%s" % GHOST, None),
+    ("gói thầu: id không có (thân rỗng)", "GET", "/api/asset-management/tenders/%s" % GHOST, None),
 ]
 
 
 def http(method, path, token, body):
     req = urllib.request.Request(
-        BASE + path, data=json.dumps(body).encode(), method=method,
+        BASE + path, data=(json.dumps(body).encode() if body is not None else None), method=method,
         headers={"Content-Type": "application/json", "Authorization": "Bearer " + token})
     try:
         with urllib.request.urlopen(req, timeout=30) as r:

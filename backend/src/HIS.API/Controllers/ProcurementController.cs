@@ -60,7 +60,7 @@ public class AssetProcurementController : ControllerBase
     public async Task<ActionResult<AssetProcurementRequestDto>> GetById(Guid id)
     {
         var result = await _service.GetByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -87,7 +87,7 @@ public class AssetProcurementController : ControllerBase
         try
         {
             var ok = await _service.DeleteAsync(id);
-            if (!ok) return NotFound();
+            if (!ok) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
             return NoContent();
         }
         catch (InvalidOperationException ex)

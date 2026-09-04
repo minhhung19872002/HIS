@@ -1,8 +1,8 @@
 {
- "ranAt": "2026-09-04T10:50:06",
+ "ranAt": "2026-09-04T11:19:25",
  "distinctShapes": 2,
  "shapes": {
-  "{error, message}": 10,
+  "{error, message}": 12,
   "{error, field, message}": 1
  },
  "cases": [
@@ -93,6 +93,22 @@
    "status": 404,
    "shape": "{error, message}",
    "body": "{\"error\":\"NOT_FOUND\",\"message\":\"Admission not found\"}"
+  },
+  {
+   "case": "hóa đơn: id không có (thân rỗng)",
+   "method": "GET",
+   "path": "/api/BillingComplete/invoices/00000000-0000-0000-0000-0000000000ff",
+   "status": 404,
+   "shape": "{error, message}",
+   "body": "{\"error\":\"NOT_FOUND\",\"message\":\"Không tìm thấy dữ liệu.\"}"
+  },
+  {
+   "case": "gói thầu: id không có (thân rỗng)",
+   "method": "GET",
+   "path": "/api/asset-management/tenders/00000000-0000-0000-0000-0000000000ff",
+   "status": 404,
+   "shape": "{error, message}",
+   "body": "{\"error\":\"NOT_FOUND\",\"message\":\"Không tìm thấy dữ liệu.\"}"
   }
  ]
 }

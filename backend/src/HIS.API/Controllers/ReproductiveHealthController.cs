@@ -30,7 +30,7 @@ public class ReproductiveHealthController : ControllerBase
     public async Task<ActionResult<PrenatalRecordDetailDto>> GetPrenatalById(Guid id)
     {
         var result = await _service.GetPrenatalByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 

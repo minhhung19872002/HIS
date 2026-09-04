@@ -20,7 +20,7 @@ public partial class SurgeryCompleteController
     public async Task<ActionResult<SurgeryBloodOrderDto>> GetBloodOrder(Guid surgeryId)
     {
         var result = await _surgeryService.GetBloodOrderAsync(surgeryId);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 

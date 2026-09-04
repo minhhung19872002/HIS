@@ -56,7 +56,7 @@ public partial class ReceptionCompleteController : ControllerBase
     public async Task<ActionResult<RoomOverviewDto>> GetRoomDetail(Guid roomId, [FromQuery] DateTime? date)
     {
         var result = await _receptionService.GetRoomDetailAsync(roomId, date ?? DateTime.Today);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 

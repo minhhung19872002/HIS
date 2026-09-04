@@ -118,7 +118,7 @@ public partial class SurgeryCompleteController
     public async Task<ActionResult<MedicineDetailDto>> GetMedicineDetail(Guid medicineId, [FromQuery] Guid warehouseId)
     {
         var result = await _surgeryService.GetMedicineDetailAsync(medicineId, warehouseId);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 

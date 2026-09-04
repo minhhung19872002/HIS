@@ -111,7 +111,7 @@ public partial class SurgeryCompleteController : ControllerBase
     public async Task<ActionResult<SurgeryDto>> GetSurgery(Guid id)
     {
         var result = await _surgeryService.GetSurgeryByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -203,7 +203,7 @@ public partial class SurgeryCompleteController : ControllerBase
     public async Task<ActionResult<SurgeryPackageDto>> GetSurgeryPackage(Guid id)
     {
         var result = await _surgeryService.GetSurgeryPackageByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 

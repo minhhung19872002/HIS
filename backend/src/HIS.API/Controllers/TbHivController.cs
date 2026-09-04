@@ -51,7 +51,7 @@ public class TbHivController : ControllerBase
     public async Task<ActionResult<TbHivRecordDetailDto>> GetRecordById(Guid id)
     {
         var result = await _tbHivService.GetRecordByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -75,7 +75,7 @@ public class TbHivController : ControllerBase
     public async Task<ActionResult> CloseRecord(Guid id, [FromBody] CloseTbHivRecordDto dto)
     {
         var success = await _tbHivService.CloseRecordAsync(id, dto);
-        if (!success) return NotFound();
+        if (!success) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(new { message = "Record closed successfully" });
     }
 

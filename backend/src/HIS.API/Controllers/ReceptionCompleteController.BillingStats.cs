@@ -146,7 +146,7 @@ public partial class ReceptionCompleteController
     public async Task<ActionResult<QueueConfigurationDto>> GetQueueConfiguration(Guid roomId, [FromQuery] int queueType)
     {
         var result = await _receptionService.GetQueueConfigurationAsync(roomId, queueType);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 

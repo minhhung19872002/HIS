@@ -34,7 +34,7 @@ public class IvfLabController : ControllerBase
     public async Task<ActionResult<IvfCoupleDetailDto>> GetCoupleById(Guid id)
     {
         var result = await _ivfLabService.GetCoupleByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -58,7 +58,7 @@ public class IvfLabController : ControllerBase
     public async Task<ActionResult<IvfCycleDetailDto>> GetCycleById(Guid id)
     {
         var result = await _ivfLabService.GetCycleByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -87,7 +87,7 @@ public class IvfLabController : ControllerBase
     public async Task<ActionResult<IvfOvumPickupDto>> GetOvumPickup([FromQuery] Guid cycleId)
     {
         var result = await _ivfLabService.GetOvumPickupAsync(cycleId);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 

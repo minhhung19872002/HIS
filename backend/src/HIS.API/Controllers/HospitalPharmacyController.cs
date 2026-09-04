@@ -48,7 +48,7 @@ public class HospitalPharmacyController : ControllerBase
     public async Task<ActionResult<RetailSaleDetailDto>> GetSaleById(Guid id)
     {
         var result = await _hospitalPharmacyService.GetSaleByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -65,7 +65,7 @@ public class HospitalPharmacyController : ControllerBase
     public async Task<ActionResult> CancelSale(Guid id, [FromBody] CancelSaleDto dto)
     {
         var success = await _hospitalPharmacyService.CancelSaleAsync(id, dto.Reason);
-        if (!success) return NotFound();
+        if (!success) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(new { message = "Sale cancelled successfully" });
     }
 
@@ -101,7 +101,7 @@ public class HospitalPharmacyController : ControllerBase
     public async Task<ActionResult<PharmacyCustomerDetailDto>> GetCustomerById(Guid id)
     {
         var result = await _hospitalPharmacyService.GetCustomerByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 

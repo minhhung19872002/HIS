@@ -251,7 +251,7 @@ namespace HIS.API.Controllers
         {
             var (pid, err) = ResolvePatientId(patientId); if (err != null) return err;
             var result = await _service.GetVisitDetailAsync(examId, pid);
-            if (result == null) return NotFound();
+            if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
             return Ok(result);
         }
 
@@ -262,7 +262,7 @@ namespace HIS.API.Controllers
         {
             var (pid, err) = ResolvePatientId(patientId); if (err != null) return err;
             var bytes = await _service.ExportHealthRecordPdfAsync(pid);
-            if (bytes == null || bytes.Length == 0) return NotFound();
+            if (bytes == null || bytes.Length == 0) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
             return File(bytes, "text/html", "ho-so-suc-khoe.html");
         }
 

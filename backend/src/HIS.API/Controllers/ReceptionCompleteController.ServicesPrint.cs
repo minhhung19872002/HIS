@@ -36,7 +36,7 @@ public partial class ReceptionCompleteController
     public async Task<ActionResult<PatientVisitHistoryDto>> GetVisitDetail(Guid medicalRecordId)
     {
         var result = await _receptionService.GetVisitDetailAsync(medicalRecordId);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 

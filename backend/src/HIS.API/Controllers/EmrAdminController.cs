@@ -169,7 +169,7 @@ public class EmrAdminController : ControllerBase
     public async Task<IActionResult> DownloadAttachment(Guid id)
     {
         var r = await _service.DownloadAttachmentAsync(id);
-        if (r == null) return NotFound();
+        if (r == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return File(r.Content, r.FileType, r.FileName);
     }
 

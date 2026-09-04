@@ -31,7 +31,7 @@ public class TraumaRegistryController : ControllerBase
     public async Task<ActionResult<TraumaCaseDto>> GetById(Guid id)
     {
         var result = await _service.GetByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 

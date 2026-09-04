@@ -41,7 +41,7 @@ public partial class BillingCompleteController
     public async Task<ActionResult<InvoiceDto>> GetInvoice(Guid id)
     {
         var result = await _billingService.GetInvoiceByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -52,7 +52,7 @@ public partial class BillingCompleteController
     public async Task<ActionResult<InvoiceDto>> GetPatientInvoice(Guid medicalRecordId)
     {
         var result = await _billingService.GetPatientInvoiceAsync(medicalRecordId);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -140,7 +140,7 @@ public partial class BillingCompleteController
     public async Task<ActionResult<ElectronicInvoiceDto>> GetElectronicInvoiceById(Guid id)
     {
         var result = await _billingService.GetElectronicInvoiceByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -194,7 +194,7 @@ public partial class BillingCompleteController
     public async Task<ActionResult> PrintRepresentativeInvoice(Guid id)
     {
         var result = await _billingService.PrintRepresentativeInvoiceAsync(id);
-        if (result.Length == 0) return NotFound();
+        if (result.Length == 0) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return File(result, "text/html", "hoadon_daidien.html");
     }
 }

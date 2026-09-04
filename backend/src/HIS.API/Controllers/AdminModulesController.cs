@@ -50,14 +50,14 @@ public class AdminModulesController : ControllerBase
     public async Task<IActionResult> ApprovePeriod(Guid id)
     {
         try { return Ok(await _svc.ApprovePayrollPeriodAsync(id, GetUserName())); }
-        catch (KeyNotFoundException) { return NotFound(); }
+        catch (KeyNotFoundException) { return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." }); }
     }
 
     [HttpPost("payroll/periods/{id:guid}/generate")]
     public async Task<IActionResult> GenerateItems(Guid id)
     {
         try { return Ok(await _svc.GeneratePayrollItemsAsync(id, GetUserId())); }
-        catch (KeyNotFoundException) { return NotFound(); }
+        catch (KeyNotFoundException) { return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." }); }
     }
 
     [HttpGet("payroll/periods/{id:guid}/items")]

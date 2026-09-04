@@ -45,7 +45,7 @@ public class ClinicalGuidanceController : ControllerBase
     public async Task<ActionResult<ClinicalGuidanceBatchDetailDto>> GetBatchById(Guid id)
     {
         var result = await _clinicalGuidanceService.GetBatchByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -67,7 +67,7 @@ public class ClinicalGuidanceController : ControllerBase
     public async Task<ActionResult> CompleteBatch(Guid id, [FromBody] CompleteClinicalGuidanceBatchDto dto)
     {
         var success = await _clinicalGuidanceService.CompleteBatchAsync(id, dto);
-        if (!success) return NotFound();
+        if (!success) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(new { message = "Batch completed successfully" });
     }
 
@@ -75,7 +75,7 @@ public class ClinicalGuidanceController : ControllerBase
     public async Task<ActionResult> CancelBatch(Guid id)
     {
         var success = await _clinicalGuidanceService.CancelBatchAsync(id);
-        if (!success) return NotFound();
+        if (!success) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(new { message = "Batch cancelled successfully" });
     }
 

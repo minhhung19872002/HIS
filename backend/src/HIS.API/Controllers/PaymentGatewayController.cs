@@ -57,7 +57,7 @@ public class PaymentGatewayController : ControllerBase
     {
         var q = Request.Query.ToDictionary(x => x.Key, x => x.Value.ToString());
         var result = await _service.HandleVnPayReturnAsync(q);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -185,7 +185,7 @@ public class PaymentGatewayController : ControllerBase
     public async Task<IActionResult> KioskQrStatus(Guid transactionId)
     {
         var t = await _service.GetTransactionByIdAsync(transactionId);
-        if (t == null) return NotFound();
+        if (t == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(new { status = t.Status, statusText = t.StatusText });
     }
 

@@ -46,7 +46,7 @@ public class CommunityHealthController : ControllerBase
     public async Task<ActionResult<HouseholdListDto>> GetHouseholdById(Guid id)
     {
         var result = await _communityHealthService.GetHouseholdByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -115,7 +115,7 @@ public class CommunityHealthController : ControllerBase
     public async Task<ActionResult<NcdScreeningListDto>> GetNcdScreeningById(Guid id)
     {
         var result = await _communityHealthService.GetNcdScreeningByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -162,7 +162,7 @@ public class CommunityHealthController : ControllerBase
     public async Task<ActionResult<TeamListDto>> GetTeamById(Guid id)
     {
         var result = await _communityHealthService.GetTeamByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 

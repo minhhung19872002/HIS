@@ -102,13 +102,13 @@ public class NonDicomController : ControllerBase
     {
         // #181: chống path-traversal — fileName phải là tên file thuần (không chứa thư mục / "..").
         if (string.IsNullOrWhiteSpace(fileName) || fileName != Path.GetFileName(fileName))
-            return BadRequest();
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Dữ liệu không hợp lệ." });
         var studyDir = Path.GetFullPath(Path.Combine(GetStorageRoot(), studyId.ToString()));
         var path = Path.GetFullPath(Path.Combine(studyDir, fileName));
         // defense-in-depth: path đã resolve phải nằm TRONG thư mục study.
         if (!path.StartsWith(studyDir + Path.DirectorySeparatorChar, StringComparison.Ordinal))
-            return BadRequest();
-        if (!System.IO.File.Exists(path)) return NotFound();
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Dữ liệu không hợp lệ." });
+        if (!System.IO.File.Exists(path)) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         var ext = Path.GetExtension(fileName).ToLowerInvariant();
         var mime = ext switch
         {

@@ -77,7 +77,7 @@ public partial class BillingCompleteController
     public async Task<ActionResult<AccountingApprovalDto>> GetApprovalDetail(Guid invoiceId)
     {
         var result = await _billingService.GetApprovalDetailAsync(invoiceId);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 

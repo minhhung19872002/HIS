@@ -48,7 +48,7 @@ public class TrainingResearchController : ControllerBase
     public async Task<ActionResult<TrainingClassDetailDto>> GetClassById(Guid id)
     {
         var result = await _service.GetClassByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -115,7 +115,7 @@ public class TrainingResearchController : ControllerBase
     public async Task<ActionResult<ClinicalDirectionDetailDto>> GetDirectionById(Guid id)
     {
         var result = await _service.GetDirectionByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -156,7 +156,7 @@ public class TrainingResearchController : ControllerBase
     public async Task<ActionResult<ResearchProjectDetailDto>> GetProjectById(Guid id)
     {
         var result = await _service.GetProjectByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 

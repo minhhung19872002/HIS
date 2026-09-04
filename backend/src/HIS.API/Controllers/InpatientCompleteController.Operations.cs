@@ -49,7 +49,7 @@ public partial class InpatientCompleteController
     public async Task<IActionResult> AcknowledgeShiftHandover(Guid id)
     {
         var ok = await _inpatientService.AcknowledgeShiftHandoverAsync(id, GetCurrentUserId());
-        if (!ok) return NotFound();
+        if (!ok) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(new { message = "Xác nhận bàn giao thành công" });
     }
 

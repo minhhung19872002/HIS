@@ -96,7 +96,7 @@ public class BusinessAlertController : ControllerBase
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
         var result = await _alertService.AcknowledgeAlertAsync(id, userId, dto);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -108,7 +108,7 @@ public class BusinessAlertController : ControllerBase
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
         var result = await _alertService.ResolveAlertAsync(id, userId);
-        if (!result) return NotFound();
+        if (!result) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok();
     }
 
@@ -217,7 +217,7 @@ public class BusinessAlertController : ControllerBase
     public async Task<IActionResult> GetSpecialTestRuleById(Guid id)
     {
         var result = await _alertService.GetSpecialTestRuleByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -240,7 +240,7 @@ public class BusinessAlertController : ControllerBase
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
         var ok = await _alertService.DeleteSpecialTestRuleAsync(id, userId);
-        if (!ok) return NotFound();
+        if (!ok) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok();
     }
 }

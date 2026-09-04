@@ -44,7 +44,7 @@ public class PathologyController : ControllerBase
     public async Task<ActionResult<PathologyRequestDetailDto>> GetPathologyRequestById(Guid id)
     {
         var result = await _pathologyService.GetPathologyRequestByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 

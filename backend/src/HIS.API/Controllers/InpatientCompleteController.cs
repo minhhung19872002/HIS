@@ -141,7 +141,7 @@ public partial class InpatientCompleteController : ControllerBase
     {
         var result = await _inpatientService.GetAdmissionDetailAsync(admissionId);
         if (result == null)
-            return NotFound();
+            return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 

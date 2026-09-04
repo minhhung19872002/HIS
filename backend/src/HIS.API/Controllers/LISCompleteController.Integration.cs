@@ -262,7 +262,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<MicrobiologyCultureV2Dto>> GetMicrobiologyCultureById(Guid id)
         {
             var result = await _lisService.GetMicrobiologyCultureByIdAsync(id);
-            if (result == null) return NotFound();
+            if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
             return Ok(result);
         }
 

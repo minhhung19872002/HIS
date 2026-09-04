@@ -38,7 +38,7 @@ public class AssetManagementController : ControllerBase
     public async Task<ActionResult<TenderDto>> GetTenderById(Guid id)
     {
         var result = await _service.GetTenderByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -82,7 +82,7 @@ public class AssetManagementController : ControllerBase
     public async Task<ActionResult<FixedAssetDto>> GetAssetById(Guid id)
     {
         var result = await _service.GetAssetByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -235,7 +235,7 @@ public class AssetManagementController : ControllerBase
     public async Task<ActionResult<AssetStocktakeDto>> GetStocktake(Guid id)
     {
         var result = await _service.GetStocktakeByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 

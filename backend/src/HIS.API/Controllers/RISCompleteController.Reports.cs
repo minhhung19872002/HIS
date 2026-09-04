@@ -258,7 +258,7 @@ namespace HIS.API.Controllers
                     var contentType = response.Content.Headers.ContentType?.ToString() ?? "image/png";
                     return File(content, contentType);
                 }
-                return NotFound();
+                return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
             }
             catch
             {
@@ -301,7 +301,7 @@ namespace HIS.API.Controllers
                     var content = await fallback.Content.ReadAsByteArrayAsync();
                     return File(content, "image/png");
                 }
-                return NotFound();
+                return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
             }
             catch
             {
@@ -333,7 +333,7 @@ namespace HIS.API.Controllers
                     var content = await response.Content.ReadAsByteArrayAsync();
                     return File(content, "application/dicom", $"{instanceId}.dcm");
                 }
-                return NotFound();
+                return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
             }
             catch
             {

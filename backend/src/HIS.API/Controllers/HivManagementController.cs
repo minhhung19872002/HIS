@@ -45,7 +45,7 @@ public class HivManagementController : ControllerBase
     public async Task<ActionResult<HivPatientListDto>> GetPatientById(Guid id)
     {
         var result = await _hivManagementService.GetPatientByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 

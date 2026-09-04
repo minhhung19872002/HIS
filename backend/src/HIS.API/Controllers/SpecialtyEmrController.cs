@@ -30,7 +30,7 @@ public class SpecialtyEmrController : ControllerBase
     public async Task<ActionResult<SpecialtyEmrDto>> GetById(Guid id)
     {
         var result = await _service.GetByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -45,7 +45,7 @@ public class SpecialtyEmrController : ControllerBase
     public async Task<ActionResult> Delete(Guid id)
     {
         var deleted = await _service.DeleteAsync(id);
-        if (!deleted) return NotFound();
+        if (!deleted) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return NoContent();
     }
 

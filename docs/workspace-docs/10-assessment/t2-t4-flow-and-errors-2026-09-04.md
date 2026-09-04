@@ -207,8 +207,28 @@ status hoặc theo chuỗi tiếng Việt. Toàn repo có **132 chỗ** như v�
 `error = "VALIDATION_FAILED"` cho `BadRequest(...)` — dùng đúng bộ mã mà `DomainExceptionFilter` đã
 phát, để hai đường hội tụ. 67 + 65 chỗ, chạy thử khô trước. Người đọc `message` cũ không ảnh hưởng.
 
-**Đo lại: còn 2 hình dạng**, và cả hai đều có `error` + `message` (`field` chỉ là phần thêm cho lỗi
-nhập liệu) — đủ để FE viết một handler duy nhất.
+**Đo lại lần một: còn 2 hình dạng** trên đúng 11 endpoint đã gọi. Nhưng con số đó chỉ đúng trong
+phạm vi bộ đo — thử thẳng trên prod thì `GET /api/BillingComplete/invoices/{id-không-có}` trả về
+`{type, title, status, traceId}`, tức **ProblemDetails do ASP.NET tự sinh**. Đây là hình dạng thứ tư
+mà 11 lượt gọi trên không chạm tới, vì nó không đến từ chỗ viết tay nào cả: nó sinh ra khi controller
+`return NotFound();` **không kèm thân**, framework tự dựng thân thay. Rà toàn repo thấy **92 chỗ**
+`NotFound()` và **3 chỗ** `BadRequest()` rỗng thân ở 49 controller.
+
+Bài học ghi lại cho lần sau: *"đo 11 endpoint thấy 2 hình dạng"* không phải là *"cả hệ thống có 2
+hình dạng"*. Câu kết luận phải nói rõ phạm vi đã đo, và phải soát cả bằng đọc mã chứ không chỉ bằng
+gọi thử.
+
+**Sửa vòng hai:** cấp thân chuẩn cho toàn bộ 95 chỗ rỗng đó, dùng đúng hai mã `NOT_FOUND` /
+`VALIDATION_FAILED` như trên. Thêm hai ca rỗng-thân vào bộ đo (`hóa đơn`, `gói thầu`) để lần chạy
+sau không sót nữa.
+
+**Đo lại lần hai (13 lượt gọi): còn 2 hình dạng**, cả hai đều có `error` + `message` (`field` chỉ là
+phần thêm cho lỗi nhập liệu) — đủ để FE viết một handler duy nhất. Không còn chỗ nào rỗng thân
+(`grep` đếm được 0).
+
+Một cái bẫy nữa gặp khi thêm ca đo: 404 kèm `Content-Length: 0` có thể là **định tuyến không khớp**
+chứ không phải controller trả về. Ca `warehouse/stock-receipts` ban đầu rơi vào đúng bẫy này — route
+đó không tồn tại — nên đã đổi sang `asset-management/tenders/{id}` là endpoint có thật.
 
 ### Chưa phủ
 

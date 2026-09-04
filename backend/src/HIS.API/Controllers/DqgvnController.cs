@@ -47,7 +47,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<DqgvnSubmissionDto>> GetSubmission(Guid id)
         {
             var result = await _service.GetSubmissionAsync(id);
-            if (result == null) return NotFound();
+            if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
             return Ok(result);
         }
 

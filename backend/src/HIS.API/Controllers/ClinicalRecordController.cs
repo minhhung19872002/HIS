@@ -50,7 +50,7 @@ public class ClinicalRecordController : ControllerBase
     public async Task<ActionResult> DeletePartographRecord(Guid id)
     {
         var success = await _service.DeletePartographRecordAsync(id);
-        if (!success) return NotFound();
+        if (!success) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok();
     }
 
@@ -84,7 +84,7 @@ public class ClinicalRecordController : ControllerBase
     public async Task<ActionResult<AnesthesiaRecordDto>> GetAnesthesiaById(Guid id)
     {
         var result = await _service.GetAnesthesiaByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -99,7 +99,7 @@ public class ClinicalRecordController : ControllerBase
     public async Task<ActionResult> DeleteAnesthesiaRecord(Guid id)
     {
         var success = await _service.DeleteAnesthesiaRecordAsync(id);
-        if (!success) return NotFound();
+        if (!success) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok();
     }
 }

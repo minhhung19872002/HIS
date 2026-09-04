@@ -92,7 +92,7 @@ public class BhxhInspectorPortalController : ControllerBase
     public async Task<IActionResult> DownloadSignedXml(Guid id)
     {
         var bytes = await _service.DownloadSignedXmlAsync(id, GetInspectorId(), GetClientIp());
-        if (bytes == null) return NotFound();
+        if (bytes == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return File(bytes, "application/xml", $"HSBA_{id}.xml");
     }
 

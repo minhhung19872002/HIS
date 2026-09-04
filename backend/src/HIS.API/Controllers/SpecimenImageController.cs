@@ -184,10 +184,10 @@ public class SpecimenImageController : ControllerBase
     {
         // Chống path traversal
         if (fileName.Contains("..") || fileName.Contains('/') || fileName.Contains('\\'))
-            return BadRequest();
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Dữ liệu không hợp lệ." });
 
         var path = Path.Combine(GetStorageRoot(), fileName);
-        if (!System.IO.File.Exists(path)) return NotFound();
+        if (!System.IO.File.Exists(path)) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
 
         var ext = Path.GetExtension(fileName).ToLowerInvariant();
         var mime = ext switch

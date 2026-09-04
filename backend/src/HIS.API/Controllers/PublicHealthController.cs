@@ -35,7 +35,7 @@ public class PublicHealthController : ControllerBase
     public async Task<IActionResult> GetHealthCheckupById(Guid id)
     {
         var result = await _service.GetHealthCheckupByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -96,7 +96,7 @@ public class PublicHealthController : ControllerBase
     public async Task<IActionResult> GetVaccinationRecordById(Guid id)
     {
         var result = await _service.GetVaccinationRecordByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -178,7 +178,7 @@ public class PublicHealthController : ControllerBase
     public async Task<IActionResult> GetDiseaseReportById(Guid id)
     {
         var result = await _service.GetDiseaseReportByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -267,7 +267,7 @@ public class PublicHealthController : ControllerBase
     public async Task<IActionResult> GetSchoolHealthExamById(Guid id)
     {
         var result = await _service.GetSchoolHealthExamByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -328,7 +328,7 @@ public class PublicHealthController : ControllerBase
     public async Task<IActionResult> GetOccupationalHealthExamById(Guid id)
     {
         var result = await _service.GetOccupationalHealthExamByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
@@ -389,7 +389,7 @@ public class PublicHealthController : ControllerBase
     public async Task<IActionResult> GetMethadonePatientById(Guid id)
     {
         var result = await _service.GetMethadonePatientByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 

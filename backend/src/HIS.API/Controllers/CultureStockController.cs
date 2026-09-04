@@ -28,7 +28,7 @@ public class CultureStockController : ControllerBase
     public async Task<IActionResult> GetCultureStockById(Guid id)
     {
         var result = await _service.GetCultureStockByIdAsync(id);
-        if (result == null) return NotFound();
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         return Ok(result);
     }
 
