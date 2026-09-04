@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using HIS.Core.Constants;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Warehouse;
 using HIS.Application.Services;
@@ -467,9 +468,13 @@ public partial class WarehouseCompleteService {
         if (prescription == null)
             throw new Exception("Prescription not found");
         if (prescription.IsDispensed)
-            throw new Exception("Đơn thuốc đã được phát, không thể hủy");
+            throw new InvalidOperationException("Đơn thuốc đã được phát, không thể hủy");
 
-        prescription.Status = 5; // Hủy
+        // #218/T3: chỗ này từng ghi 5. Với ĐƠN THUỐC, 5 không phải là một trạng thái nào cả —
+        // "Hủy" là 4 (5 là Cancelled của ExaminationStatus/LabRequestStatus, lẫn sang đây). Hệ quả:
+        // đơn hủy quá hạn lấy thuốc mang trạng thái lạ, mọi màn lọc theo Status==4 đều không thấy nó.
+        PrescriptionStatus.EnsureCanTransition(prescription.Status, PrescriptionStatus.Cancelled);
+        prescription.Status = PrescriptionStatus.Cancelled;
         await _context.SaveChangesAsync();
         return true;
     }

@@ -1,0 +1,222 @@
+{
+ "ranAt": "2026-09-04T09:50:34",
+ "entity": "Prescription",
+ "legalTransitions": {
+  "0": [
+   1,
+   4
+  ],
+  "1": [
+   2,
+   4,
+   6
+  ],
+  "6": [
+   2,
+   3,
+   4
+  ],
+  "2": [
+   3
+  ],
+  "3": [],
+  "4": []
+ },
+ "probes": [
+  {
+   "from": 0,
+   "fromName": "Chờ duyệt",
+   "action": "accept",
+   "to": 1,
+   "toName": "Đã duyệt",
+   "legal": true,
+   "http": 200,
+   "statusAfter": 1,
+   "changed": true,
+   "verdict": "OK",
+   "body": "{\"success\":true,\"data\":{\"id\":\"d08d6fd6-9573-46f3-a59e-8f241c4fe6dc\",\"status\":\"accepted\"},\"message\":null,\"errors\":null,\"m"
+  },
+  {
+   "from": 0,
+   "fromName": "Chờ duyệt",
+   "action": "reject",
+   "to": 4,
+   "toName": "Hủy",
+   "legal": true,
+   "http": 200,
+   "statusAfter": 4,
+   "changed": true,
+   "verdict": "OK",
+   "body": "{\"success\":true,\"data\":true,\"message\":null,\"errors\":null,\"meta\":null}"
+  },
+  {
+   "from": 0,
+   "fromName": "Chờ duyệt",
+   "action": "dispense",
+   "to": 2,
+   "toName": "Đã cấp phát",
+   "legal": false,
+   "http": 400,
+   "statusAfter": 0,
+   "changed": false,
+   "verdict": "OK",
+   "body": "{\"message\":\"Không thể chuyển đơn thuốc từ trạng thái \\\"Chờ duyệt\\\" sang \\\"Đã cấp phát\\\".\"}"
+  },
+  {
+   "from": 1,
+   "fromName": "Đã duyệt",
+   "action": "reject",
+   "to": 4,
+   "toName": "Hủy",
+   "legal": true,
+   "http": 200,
+   "statusAfter": 4,
+   "changed": true,
+   "verdict": "OK",
+   "body": "{\"success\":true,\"data\":true,\"message\":null,\"errors\":null,\"meta\":null}"
+  },
+  {
+   "from": 1,
+   "fromName": "Đã duyệt",
+   "action": "dispense",
+   "to": 2,
+   "toName": "Đã cấp phát",
+   "legal": true,
+   "http": 200,
+   "statusAfter": 2,
+   "changed": true,
+   "verdict": "OK",
+   "body": "{\"success\":true,\"data\":true,\"message\":null,\"errors\":null,\"meta\":null}"
+  },
+  {
+   "from": 2,
+   "fromName": "Đã cấp phát",
+   "action": "accept",
+   "to": 1,
+   "toName": "Đã duyệt",
+   "legal": false,
+   "http": 400,
+   "statusAfter": 2,
+   "changed": false,
+   "verdict": "OK",
+   "body": "{\"error\":\"INVALID_STATE\",\"message\":\"Không thể chuyển đơn thuốc từ trạng thái \\\"Đã cấp phát\\\" sang \\\"Đã duyệt\\\".\"}"
+  },
+  {
+   "from": 2,
+   "fromName": "Đã cấp phát",
+   "action": "reject",
+   "to": 4,
+   "toName": "Hủy",
+   "legal": false,
+   "http": 400,
+   "statusAfter": 2,
+   "changed": false,
+   "verdict": "OK",
+   "body": "{\"error\":\"INVALID_STATE\",\"message\":\"Không thể chuyển đơn thuốc từ trạng thái \\\"Đã cấp phát\\\" sang \\\"Hủy\\\".\"}"
+  },
+  {
+   "from": 3,
+   "fromName": "Hoàn trả",
+   "action": "accept",
+   "to": 1,
+   "toName": "Đã duyệt",
+   "legal": false,
+   "http": 400,
+   "statusAfter": 3,
+   "changed": false,
+   "verdict": "OK",
+   "body": "{\"error\":\"INVALID_STATE\",\"message\":\"Không thể chuyển đơn thuốc từ trạng thái \\\"Hoàn trả\\\" sang \\\"Đã duyệt\\\".\"}"
+  },
+  {
+   "from": 3,
+   "fromName": "Hoàn trả",
+   "action": "reject",
+   "to": 4,
+   "toName": "Hủy",
+   "legal": false,
+   "http": 400,
+   "statusAfter": 3,
+   "changed": false,
+   "verdict": "OK",
+   "body": "{\"error\":\"INVALID_STATE\",\"message\":\"Không thể chuyển đơn thuốc từ trạng thái \\\"Hoàn trả\\\" sang \\\"Hủy\\\".\"}"
+  },
+  {
+   "from": 3,
+   "fromName": "Hoàn trả",
+   "action": "dispense",
+   "to": 2,
+   "toName": "Đã cấp phát",
+   "legal": false,
+   "http": 400,
+   "statusAfter": 3,
+   "changed": false,
+   "verdict": "OK",
+   "body": "{\"message\":\"Không thể chuyển đơn thuốc từ trạng thái \\\"Hoàn trả\\\" sang \\\"Đã cấp phát\\\".\"}"
+  },
+  {
+   "from": 4,
+   "fromName": "Hủy",
+   "action": "accept",
+   "to": 1,
+   "toName": "Đã duyệt",
+   "legal": false,
+   "http": 400,
+   "statusAfter": 4,
+   "changed": false,
+   "verdict": "OK",
+   "body": "{\"error\":\"INVALID_STATE\",\"message\":\"Không thể chuyển đơn thuốc từ trạng thái \\\"Hủy\\\" sang \\\"Đã duyệt\\\".\"}"
+  },
+  {
+   "from": 4,
+   "fromName": "Hủy",
+   "action": "dispense",
+   "to": 2,
+   "toName": "Đã cấp phát",
+   "legal": false,
+   "http": 400,
+   "statusAfter": 4,
+   "changed": false,
+   "verdict": "OK",
+   "body": "{\"message\":\"Không thể chuyển đơn thuốc từ trạng thái \\\"Hủy\\\" sang \\\"Đã cấp phát\\\".\"}"
+  },
+  {
+   "from": 6,
+   "fromName": "Cấp một phần",
+   "action": "accept",
+   "to": 1,
+   "toName": "Đã duyệt",
+   "legal": false,
+   "http": 400,
+   "statusAfter": 6,
+   "changed": false,
+   "verdict": "OK",
+   "body": "{\"error\":\"INVALID_STATE\",\"message\":\"Không thể chuyển đơn thuốc từ trạng thái \\\"Cấp một phần\\\" sang \\\"Đã duyệt\\\".\"}"
+  },
+  {
+   "from": 6,
+   "fromName": "Cấp một phần",
+   "action": "reject",
+   "to": 4,
+   "toName": "Hủy",
+   "legal": true,
+   "http": 200,
+   "statusAfter": 4,
+   "changed": true,
+   "verdict": "OK",
+   "body": "{\"success\":true,\"data\":true,\"message\":null,\"errors\":null,\"meta\":null}"
+  },
+  {
+   "from": 6,
+   "fromName": "Cấp một phần",
+   "action": "dispense",
+   "to": 2,
+   "toName": "Đã cấp phát",
+   "legal": true,
+   "http": 200,
+   "statusAfter": 2,
+   "changed": true,
+   "verdict": "OK",
+   "body": "{\"success\":true,\"data\":true,\"message\":null,\"errors\":null,\"meta\":null}"
+  }
+ ]
+}

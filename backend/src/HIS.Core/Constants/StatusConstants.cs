@@ -92,6 +92,49 @@ public static class PrescriptionStatus
     // 6 = Cấp một phần (conformance state-machine tài liệu). KHÔNG chèn vào value 3 để tránh dịch literal
     // Status==3/4 đang dùng khắp billing/data-inheritance/insurance. Set khi còn dòng thuốc chưa cấp đủ.
     public const int PartialDispensed = 6;
+
+    /// <summary>
+    /// #218/T3: luật chuyển trạng thái đơn thuốc. Trước đây KHÔNG có luật nào — đo bằng API thật
+    /// (docs/architecture/evidence/cross/t3) thì 9/15 lượt chuyển bất hợp lệ đều được chấp nhận với
+    /// HTTP 200, trong đó có hai lượt nguy hiểm: đơn đã HỦY vẫn cấp phát được, và đơn ĐÃ CẤP PHÁT
+    /// vẫn hủy được (thuốc đã rời kho nhưng hồ sơ ghi là hủy).
+    /// </summary>
+    private static readonly Dictionary<int, int[]> ValidTransitions = new()
+    {
+        { PendingApproval,  [Approved, Cancelled] },              // chờ duyệt → duyệt | hủy
+        { Approved,         [Dispensed, PartialDispensed, Cancelled] },
+        { PartialDispensed, [Dispensed, Returned, Cancelled] },   // cấp nốt | hoàn trả | hủy phần còn lại
+        // Đã ra khỏi kho thì KHÔNG được lật cờ trạng thái suông nữa. Việc "hủy đơn đã phát" có thật,
+        // nhưng đi bằng WarehouseCompleteService.CancelDispensedPrescriptionAsync — đường đó trả thuốc
+        // về kho rồi mới đặt Cancelled, và không đi qua guard này.
+        { Dispensed,        [Returned] },
+        { Returned,         [] },
+        { Cancelled,        [] },
+    };
+
+    /// <summary>Giữ nguyên trạng thái luôn hợp lệ (gọi lại cùng một hành động = không làm gì).</summary>
+    public static bool CanTransition(int from, int to)
+        => from == to || (ValidTransitions.TryGetValue(from, out var allowed) && allowed.Contains(to));
+
+    /// <summary>Ném <see cref="InvalidOperationException"/> nếu lượt chuyển không hợp lệ —
+    /// DomainExceptionFilter map thành 400 INVALID_STATE với đúng câu tiếng Việt này.</summary>
+    public static void EnsureCanTransition(int from, int to)
+    {
+        if (!CanTransition(from, to))
+            throw new InvalidOperationException(
+                $"Không thể chuyển đơn thuốc từ trạng thái \"{GetName(from)}\" sang \"{GetName(to)}\".");
+    }
+
+    public static string GetName(int status) => status switch
+    {
+        PendingApproval => "Chờ duyệt",
+        Approved => "Đã duyệt",
+        Dispensed => "Đã cấp phát",
+        Returned => "Hoàn trả",
+        Cancelled => "Hủy",
+        PartialDispensed => "Cấp một phần",
+        _ => $"Không xác định ({status})",
+    };
 }
 
 public static class LabRequestStatus

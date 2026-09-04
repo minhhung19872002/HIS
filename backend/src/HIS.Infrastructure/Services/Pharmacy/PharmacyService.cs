@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using HIS.Core.Constants;
 using Microsoft.Extensions.Logging;
 using HIS.Application.Services;
 using HIS.Core.Entities;
@@ -68,7 +69,9 @@ public partial class PharmacyService : IPharmacyService
             .FirstOrDefaultAsync(p => p.Id == prescriptionId && !p.IsDeleted);
         if (prescription == null) return false;
 
-        prescription.Status = 1; // Đã duyệt
+        // #218/T3: trước đây không kiểm gì — đơn đã HỦY hay đã CẤP PHÁT vẫn "duyệt" lại được.
+        PrescriptionStatus.EnsureCanTransition(prescription.Status, PrescriptionStatus.Approved);
+        prescription.Status = PrescriptionStatus.Approved;
         prescription.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         return true;
@@ -80,7 +83,9 @@ public partial class PharmacyService : IPharmacyService
             .FirstOrDefaultAsync(p => p.Id == prescriptionId && !p.IsDeleted);
         if (prescription == null) return false;
 
-        prescription.Status = 4; // Hủy
+        // #218/T3: hủy đơn ĐÃ CẤP PHÁT nghĩa là thuốc đã rời kho nhưng hồ sơ ghi là hủy — chặn.
+        PrescriptionStatus.EnsureCanTransition(prescription.Status, PrescriptionStatus.Cancelled);
+        prescription.Status = PrescriptionStatus.Cancelled;
         prescription.Note = reason ?? prescription.Note;
         prescription.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
@@ -153,6 +158,10 @@ public partial class PharmacyService : IPharmacyService
         // Idempotent: đã phát rồi thì KHÔNG trừ kho lần nữa.
         if (prescription.IsDispensed)
             return new PharmacyDispenseResultDto();
+
+        // #218/T3: chỉ đơn ĐÃ DUYỆT (hoặc đang cấp dở) mới được phát. Trước đây đơn chờ duyệt,
+        // đơn đã hủy và đơn đã hoàn trả đều phát được — bỏ qua hẳn bước dược sĩ duyệt.
+        PrescriptionStatus.EnsureCanTransition(prescription.Status, PrescriptionStatus.Dispensed);
 
         // Phát thuốc PHẢI trừ kho FEFO (audit luồng nghiệp vụ 2026-06-06 #6): đi qua nhánh chuẩn
         // WarehouseComplete (tạo phiếu xuất + trừ tồn + set trạng thái đơn trong transaction).

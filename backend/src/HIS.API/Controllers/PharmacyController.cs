@@ -49,6 +49,13 @@ public partial class PharmacyController : ControllerBase
                 return NotFound(new { message = "Không tìm thấy đơn thuốc" });
             return Ok(new { id = prescriptionId.ToString(), status = "accepted" });
         }
+        catch (InvalidOperationException ex)
+        {
+            // #218/T3: chuyển trạng thái bất hợp lệ là lỗi NGHIỆP VỤ của người gọi, không phải sự cố
+            // máy chủ — trả 400 kèm câu giải thích để giao diện hiện đúng, không nuốt thành 500.
+            _logger.LogInformation("Chặn chuyển trạng thái đơn thuốc {Id}: {Msg}", prescriptionId, ex.Message);
+            return BadRequest(new { error = "INVALID_STATE", message = ex.Message });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error accepting prescription {Id}", prescriptionId);
@@ -64,6 +71,13 @@ public partial class PharmacyController : ControllerBase
             if (!await _pharmacyService.RejectPrescriptionAsync(prescriptionId, request?.Reason))
                 return NotFound(new { message = "Không tìm thấy đơn thuốc" });
             return Ok(true);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // #218/T3: chuyển trạng thái bất hợp lệ là lỗi NGHIỆP VỤ của người gọi, không phải sự cố
+            // máy chủ — trả 400 kèm câu giải thích để giao diện hiện đúng, không nuốt thành 500.
+            _logger.LogInformation("Chặn chuyển trạng thái đơn thuốc {Id}: {Msg}", prescriptionId, ex.Message);
+            return BadRequest(new { error = "INVALID_STATE", message = ex.Message });
         }
         catch (Exception ex)
         {
