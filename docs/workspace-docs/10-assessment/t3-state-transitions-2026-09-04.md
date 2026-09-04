@@ -962,3 +962,71 @@ trị còn lại — đó chính là kiểu vơ đoán đã gây ra lỗi ở §
 
 Đối chứng âm: lần đảo **đầu tiên** bắt buộc vẫn phải chạy và phải trừ đúng 500.000đ.
 `t3_billing_reversal.py`: **3/3** (trước vá 1/3).
+
+---
+
+## 23. Hủy xuất viện — xoá cứng bản tóm tắt ra viện, và hủy được cả ca tử vong
+
+`CancelDischargeAsync` (`POST /api/inpatient/cancel-discharge/{admissionId}`) có ba vấn đề nằm gọn
+trong mười dòng. Đo được **2/4**:
+
+**a. Xoá CỨNG bản ghi ra viện.** `_context.Set<Discharge>().Remove(discharge)` — không phải xoá mềm.
+Mà `Discharge` giữ chẩn đoán ra viện, tóm tắt điều trị, hướng dẫn sau xuất viện, ngày hẹn tái khám
+và người cho ra viện: một phần hồ sơ bệnh án. Bấm một nút là mất hẳn khỏi bảng, không còn gì đối
+chiếu. Trớ trêu là hạ tầng đã sẵn: `Discharge` kế thừa `BaseEntity` (có `IsDeleted`) và
+`HISDbContext` đã cài **bộ lọc xóa-mềm toàn cục** — chỉ là chỗ này không dùng.
+
+**b. Tham số `reason` nhận rồi vứt** — y hệt `CancelApprovalAsync` bên CĐHA ở §21. Hủy một quyết
+định ra viện là việc phải giải trình được.
+
+**c. Không xét trạng thái lượt nội trú.** `admission.Status = 0` gán cứng, nên hủy được cả lượt đã
+ghi **tử vong** và đưa bệnh nhân về "đang điều trị".
+
+Vá: xoá mềm thay vì xoá cứng; chặn khi lượt đã ghi tử vong; ghi lý do vào **nhật ký kiểm toán** —
+`Discharge` không có ô nào để ghi, mà nhật ký mới là chỗ đúng cho *ai làm gì, lúc nào, vì sao*, và
+từ đợt §16–17 bảng đó đã thật sự chống sửa/xoá bằng trigger nên lý do ghi vào đấy không xoá đi được.
+`t3_discharge_cancel.py`: **5/5**.
+
+### Một PASS giả nữa, và lần này là do `SUM` trên tập rỗng
+
+Lượt đo đầu báo ca (a) **PASS**. Câu đếm viết bằng `SUM(CASE WHEN IsDeleted=0 …)`; khi bản ghi đã bị
+xoá sạch thì không còn dòng nào, `SUM` trả **NULL**, sqlcmd in ra chuỗi `'NULL'`, và phép so
+`!= "0"` hoá ra đúng. Tức là đúng cái ca chứng minh dữ liệu bị xoá hẳn lại được chấm là đạt.
+
+Cùng một kiểu sai với ca `canClose:false` ở §20: **giá trị "không có gì" bị đọc nhầm thành "có và
+ổn"**. Đổi sang `COUNT(CASE WHEN … THEN 1 END)` (không đếm NULL, tập rỗng ra 0) và khẳng định thẳng
+`còn sống + xoá mềm >= 1`. Đo lại: 2/4.
+
+---
+
+## 24. Từ vựng `Admissions.Status` — chú thích trong entity nói ngược với mã đang chạy
+
+Khi đọc `Admission` để vá §23 thì thấy chú thích ngay trên trường:
+
+```csharp
+// 0-Đang điều trị, 1-Chuyển khoa(legacy), 2-Xuất viện, 3-Tử vong, 4-Bỏ về, 5-…, 6-Chờ ra viện
+```
+
+Nhưng `DischargeAsync` — mã thật sự chạy — ánh xạ `DischargeType` sang `Status` thế này:
+`1 Ra viện → 1`, `2 Chuyển viện → 2`, `3 Bỏ về → 4`, `4 Tử vong → 3`. Tức **1 là Xuất viện, 2 là
+Chuyển viện**, ngược với chú thích.
+
+Chuyện này đáng ngại hơn một dòng chú thích cũ: đây chính là loại nguyên liệu đã đẻ ra lỗi §20 (đóng
+hồ sơ ghi `Status = 5` vì tin rằng 5 nghĩa là "đã đóng", trong khi 5 là "đã hủy"). Ai đọc chú thích
+này rồi viết một câu gác `Status == 2` để chặn hồ sơ đã ra viện sẽ chặn nhầm ca chuyển viện và bỏ
+lọt ca ra viện.
+
+Đối chiếu bằng dữ liệu thật thay vì tin chú thích: bảng `Admissions` đang có 33 dòng ở 0, 94 ở 1,
+7 ở 2 — khớp với "1 = đã ra viện là nhóm đông nhất", không khớp với "1 = chuyển khoa legacy".
+
+Sửa chú thích cho đúng và trỏ về `AdmissionStatus`, đồng thời bổ sung hai giá trị mà lớp hằng số còn
+thiếu:
+
+* `TransferredDepartment = 5` — chuyển khoa nội bộ, do `TransferDepartmentAsync` ghi. **Không** tính
+  là còn hoạt động: lượt đó đã được thay bằng một lượt mới ở khoa đến.
+* `PendingDischarge = 6` — **khai báo nhưng chưa có đường ghi nào**. Rà toàn bộ mã nguồn chỉ thấy
+  một chỗ ĐỌC (`TreatmentRelationshipService`, gom chung với 0 và 5 là "còn đang điều trị"), không
+  chỗ nào GÁN. Ghi rõ như vậy trong tài liệu hằng số thay vì để người sau gặp số 6 rồi đoán.
+
+`IsActive` nay gồm cả 6 (chờ ra viện thì vẫn còn nằm viện). Hôm nay không đổi hành vi ở đâu vì không
+có đường nào ghi giá trị 6 — nhưng đúng nghĩa hơn, và khớp với chỗ đọc duy nhất của giá trị đó.

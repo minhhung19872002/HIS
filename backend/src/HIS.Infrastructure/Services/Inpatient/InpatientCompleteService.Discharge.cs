@@ -3,6 +3,7 @@ using HIS.Application.DTOs;
 using HIS.Application.DTOs.Inpatient;
 using HIS.Application.Services;
 using HIS.Core.Entities;
+using HIS.Core.Constants;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
 using System.Text;
@@ -167,17 +168,57 @@ public partial class InpatientCompleteService {
         if (discharge == null)
             throw new KeyNotFoundException("Discharge record not found");
 
-        _context.Set<Discharge>().Remove(discharge);
+        var admission = await _context.Set<Admission>().FindAsync(admissionId);
+
+        // #218/T3: không hủy được lượt đã ghi TỬ VONG. Trước đây `admission.Status = 0` gán cứng,
+        // nên một lượt đã ghi tử vong bấm "hủy xuất viện" là bệnh nhân quay lại "đang điều trị".
+        if (admission != null && admission.Status == AdmissionStatus.Died)
+            throw new InvalidOperationException(
+                "Lượt nội trú đã ghi nhận tử vong — không hủy xuất viện được. "
+                + "Nếu ghi nhầm loại ra viện thì phải sửa qua đường tu chỉnh hồ sơ, có lưu vết.");
+
+        // #218/T3: XOÁ MỀM, không xoá cứng. `Discharge` giữ chẩn đoán ra viện, tóm tắt điều trị,
+        // hướng dẫn sau xuất viện, ngày hẹn tái khám và người cho ra viện — tức một phần hồ sơ bệnh
+        // án. `Remove()` trước đây xoá hẳn khỏi bảng, bấm một nút là mất sạch không còn gì đối chiếu.
+        // Entity kế thừa BaseEntity và HISDbContext đã có bộ lọc xóa-mềm toàn cục, nên dòng đã đánh
+        // dấu sẽ tự biến khỏi mọi truy vấn thường mà vẫn còn nguyên trong bảng.
+        discharge.IsDeleted = true;
+        discharge.UpdatedAt = DateTime.UtcNow;
+        discharge.UpdatedBy = userId.ToString();
 
         // Revert admission status
-        var admission = await _context.Set<Admission>().FindAsync(admissionId);
         if (admission != null)
-            admission.Status = 0; // Đang điều trị
+            admission.Status = AdmissionStatus.InTreatment;
 
         // Update medical record
         var medRecord = await _context.MedicalRecords.FindAsync(admission?.MedicalRecordId);
         if (medRecord != null)
             medRecord.Status = 2; // Đang điều trị
+
+        // #218/T3: LÝ DO trước đây nhận rồi vứt — hủy một quyết định ra viện là việc phải giải trình
+        // được. `Discharge` không có ô nào để ghi, nên ghi vào nhật ký kiểm toán: đó mới là chỗ đúng
+        // cho "ai làm gì, lúc nào, vì sao", và từ đợt sửa trước (#218) bảng này đã thật sự chống
+        // sửa/xoá bằng trigger nên lý do ghi vào đây không bị xoá đi được.
+        _context.AuditLogs.Add(new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            TableName = "Discharges",
+            RecordId = discharge.Id,
+            EntityType = "Discharge",
+            EntityId = discharge.Id.ToString(),
+            Action = "CancelDischarge",
+            Module = "Inpatient",
+            UserId = userId,
+            Timestamp = DateTime.UtcNow,
+            Details = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                admissionId,
+                reason,
+                dischargeType = discharge.DischargeType,
+                dischargeDate = discharge.DischargeDate,
+            }),
+            CreatedAt = DateTime.UtcNow,
+        });
 
         await _context.SaveChangesAsync();
         return true;

@@ -422,6 +422,20 @@ public static class AdmissionStatus
     public const int Died = 3;             // Tử vong
     public const int LeftAgainstAdvice = 4; // Bỏ về
 
+    /// <summary>
+    /// Đã chuyển khoa NỘI BỘ — lượt cũ được đóng lại và mở một lượt mới ở khoa đến.
+    /// `InpatientCompleteService.PatientMgmt.TransferDepartmentAsync` ghi giá trị này.
+    /// </summary>
+    public const int TransferredDepartment = 5;
+
+    /// <summary>
+    /// Chờ ra viện. <b>Khai báo nhưng chưa có đường ghi nào</b> — rà toàn bộ mã nguồn 2026-09-04 chỉ
+    /// thấy một chỗ ĐỌC (`TreatmentRelationshipService`, gom chung với 0 và 5 là "còn đang điều trị"),
+    /// không có chỗ nào GÁN. Giữ hằng số ở đây để đặt tên cho giá trị đó thay vì để ai đó gặp số 6
+    /// rồi đoán.
+    /// </summary>
+    public const int PendingDischarge = 6;
+
     public static string Label(int status) => status switch
     {
         InTreatment => "Đang điều trị",
@@ -429,11 +443,23 @@ public static class AdmissionStatus
         TransferredOut => "Đã chuyển viện",
         Died => "Đã tử vong",
         LeftAgainstAdvice => "Đã bỏ về",
+        TransferredDepartment => "Đã chuyển khoa",
+        PendingDischarge => "Chờ ra viện",
         _ => $"Không xác định ({status})",
     };
 
-    /// <summary>Lượt còn đang nằm viện — điều kiện của mọi thao tác điều trị (chuyển khoa, xếp giường…).</summary>
-    public static bool IsActive(int status) => status == InTreatment;
+    /// <summary>
+    /// Lượt còn đang nằm viện — điều kiện của mọi thao tác điều trị (chuyển khoa, xếp giường…).
+    ///
+    /// <para>Gồm cả <see cref="PendingDischarge"/>: bệnh nhân chờ ra viện thì vẫn còn nằm viện. Hôm
+    /// nay không có đường nào ghi giá trị 6 nên vế này chưa đổi hành vi của bất cứ chỗ nào; để sẵn
+    /// cho đúng nghĩa, và vì chỗ ĐỌC duy nhất của giá trị 6 cũng đang gom nó vào nhóm còn điều trị.</para>
+    ///
+    /// <para><see cref="TransferredDepartment"/> thì <b>không</b> tính là còn hoạt động: lượt đó đã
+    /// được thay bằng một lượt mới ở khoa đến, mọi thao tác phải làm trên lượt mới.</para>
+    /// </summary>
+    public static bool IsActive(int status)
+        => status == InTreatment || status == PendingDischarge;
 }
 
 /// <summary>

@@ -30,7 +30,11 @@ public class Admission : BaseEntity
     public virtual Bed? Bed { get; set; }
 
     // Trạng thái
-    public int Status { get; set; } // 0-Đang điều trị, 1-Chuyển khoa(legacy), 2-Xuất viện, 3-Tử vong, 4-Bỏ về, 5-Đã chuyển khoa(nội bộ, FLOW-2 #11), 6-Chờ ra viện
+    // #218/T3 (2026-09-04): chú thích cũ ghi "1-Chuyển khoa(legacy), 2-Xuất viện" là SAI so với mã
+    // đang chạy. `DischargeAsync` ánh xạ DischargeType → Status: 1 Ra viện→1, 2 Chuyển viện→2,
+    // 3 Bỏ về→4, 4 Tử vong→3. Từ vựng đúng nằm ở HIS.Core.Constants.AdmissionStatus — dùng nó thay
+    // vì đọc số ở đây.
+    public int Status { get; set; } // xem AdmissionStatus: 0-Đang điều trị, 1-Xuất viện, 2-Chuyển viện, 3-Tử vong, 4-Bỏ về, 5-Đã chuyển khoa(nội bộ), 6-Chờ ra viện(chưa có đường ghi)
 
     // Chẩn đoán khi nhập viện
     public string? DiagnosisOnAdmission { get; set; }

@@ -1,0 +1,40 @@
+{
+ "ranAt": "2026-09-04T20:28:10",
+ "cases": [
+  {
+   "case": "bản tóm tắt ra viện KHÔNG bị xoá cứng",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 200 · còn sống=0 · xoá mềm=1 (0|0 = mất hẳn)"
+  },
+  {
+   "case": "lượt nội trú về lại 'đang điều trị'",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "trạng thái=0 (0=đang điều trị)"
+  },
+  {
+   "case": "LÝ DO hủy được ghi vào nhật ký kiểm toán",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "số dòng nhật ký khớp lý do=1"
+  },
+  {
+   "case": "KHÔNG hủy được lượt đã ghi tử vong",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · trạng thái=3 · {\"error\":\"INVALID_STATE\",\"message\":\"Lượt nội trú đã ghi nhận"
+  },
+  {
+   "case": "hủy xuất viện khi chưa xuất viện bị chặn",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 404 · {\"error\":\"NOT_FOUND\",\"message\":\"Discharge record not found\"}"
+  }
+ ]
+}
