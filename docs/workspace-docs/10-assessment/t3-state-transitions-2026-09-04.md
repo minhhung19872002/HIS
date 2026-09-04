@@ -570,3 +570,57 @@ chặn". Nhưng FEFO chọn lô có hạn gần nhất, thường không phải 
 
 Ghi lại lần hai vì rõ ràng ghi một lần là chưa đủ: khi đo tác động của một thao tác lên kho, đơn vị
 đo phải là **toàn bộ phần dữ liệu thao tác đó có thể chạm tới**, không phải phần mình vừa dựng.
+
+## 16. Hai migration hỏng âm thầm ở mọi lần khởi động
+
+Phát hiện từ log khởi động chứ không phải từ đi tìm. Bộ chạy migration ghi warning rồi đi tiếp, nên
+cả hai đã hỏng lặng lẽ rất lâu — và cả hai đều để lại **hậu quả thật**, không chỉ là dòng log bẩn.
+
+### `143` — tìm bệnh nhân không dấu mới xong một phần ba
+
+Script 143 đổi collation ba cột tìm kiếm của `Patients` sang `Latin1_General_CI_AI` để lễ tân gõ
+không dấu vẫn ra kết quả. Con trỏ của nó đổi `FullName` xong thì **chết ở cột có index** và hai cột
+còn lại không bao giờ được đổi:
+
+| Cột | Trước | |
+|---|---|---|
+| `FullName` | `Latin1_General_CI_AI` | ✔ đã đổi |
+| `PhoneNumber` | `Vietnamese_CI_AS` | ✗ |
+| `IdentityNumber` | `Vietnamese_CI_AS` | ✗ — `IX_Patients_IdentityNumber` chặn `ALTER` |
+
+Chính header của 143 đã lường trước tình huống này (*"nếu env nào đó có index chặn ALTER … → xử lý
+tay"*) nhưng chưa ai xử lý. Migration `172` bỏ index → `ALTER` → tạo lại index. Cả hai index đều
+nonclustered, không unique, một cột nên tạo lại là khôi phục y nguyên. Đo lại: cả ba cột đúng
+collation, cả năm index của `Patients` còn đủ.
+
+### `150` — nhật ký kiểm toán chưa bao giờ được bảo vệ
+
+Nặng hơn nhiều. Script 150 (AUTHZ-5 / #371) tạo hai trigger chặn `UPDATE`/`DELETE` trên `AuditLogs`
+theo yêu cầu bất biến của TT 54/2017 và NĐ 13/2023. Đo trước khi sửa: **0 trigger trên `AuditLogs`**
+— nhật ký kiểm toán sửa và xoá được thoải mái, suốt từ lúc script được thêm vào.
+
+Nguyên nhân là một lỗi cú pháp hai tầng, và tầng thứ hai chỉ lộ ra sau khi sửa tầng thứ nhất:
+
+1. `RAISERROR(N'câu một ' N'câu hai', 16, 1)` — nối hai chuỗi liền nhau là cú pháp của C/Python,
+   **T-SQL không có**.
+2. Thêm dấu `+` vào vẫn hỏng: `RAISERROR` **không nhận biểu thức**, chỉ nhận chuỗi hằng hoặc biến.
+   Vẫn lỗi 102, lần này là *"Incorrect syntax near '+'"*.
+
+Phải gom câu vào một biến rồi mới `RAISERROR(@msg, 16, 1)`.
+
+Bài đo (`evidence/cross/t3/t3_auditlog_append_only.py`) cố ý **không hỏi "trigger có tồn tại
+không"** mà hỏi "dữ liệu có bị sửa được không": ghi một dòng audit thật, thử sửa, thử xoá, rồi đọc
+lại. Kết quả sau khi sửa — **5/5**:
+
+- sửa: `Action` vẫn là giá trị gốc, không thành `DA-BI-SUA`
+- xoá: dòng vẫn còn
+- xoá có cờ `CONTEXT_INFO = 'RETE'` (job retention được phép): dòng mới mất — đúng thiết kế
+
+Sau bản vá, đây là lần khởi động **đầu tiên không batch migration nào hỏng**.
+
+### Bài học
+
+Một bộ chạy migration "log warning rồi đi tiếp" là lựa chọn đúng để không chặn khởi động, nhưng nó
+biến lỗi thành thứ vô hình. Hai script này hỏng ở **mọi lần khởi động** và không ai thấy, trong khi
+hậu quả là một chức năng chạy dở và một lớp bảo vệ pháp lý không tồn tại. Đáng có một điều kiểm coi
+"số batch migration hỏng > 0" là bất thường cần xử lý, thay vì để nó nằm im trong log.

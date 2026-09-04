@@ -42,11 +42,15 @@ AFTER UPDATE
 AS
 BEGIN
     SET NOCOUNT ON;
-    RAISERROR(
+    -- `RAISERROR` chỉ nhận CHUỖI HẰNG hoặc BIẾN, không nhận biểu thức: viết thẳng
+    -- `N'a' + N'b'` vào tham số là lỗi cú pháp 102 ("Incorrect syntax near '+'"), và bản gốc
+    -- còn viết `N'a' N'b'` (nối kiểu C/Python — T-SQL không có). Vì `CREATE TRIGGER` nằm trong
+    -- batch riêng nên runner chỉ log warning rồi chạy tiếp, khiến HAI TRIGGER NÀY CHƯA BAO GIỜ
+    -- ĐƯỢC TẠO — đo được: 0 trigger trên AuditLogs. Gom câu vào biến rồi mới RAISERROR.
+    DECLARE @msg nvarchar(400) =
         N'AuditLogs is append-only: UPDATE is not permitted (immutability requirement per TT 54/2017). '
-        N'Contact the DBA to perform authorized schema maintenance.',
-        16, 1
-    );
+        + N'Contact the DBA to perform authorized schema maintenance.';
+    RAISERROR(@msg, 16, 1);
     ROLLBACK TRANSACTION;
 END
 GO
@@ -71,11 +75,10 @@ BEGIN
     DECLARE @ctx VARBINARY(128) = CONTEXT_INFO();
     IF @ctx IS NULL OR LEFT(@ctx, 4) <> 0x52455445
     BEGIN
-        RAISERROR(
+        DECLARE @msg nvarchar(400) =
             N'AuditLogs is append-only: DELETE is not permitted. '
-            N'Authorized retention job must SET CONTEXT_INFO 0x52455445... before DELETE.',
-            16, 1
-        );
+            + N'Authorized retention job must SET CONTEXT_INFO 0x52455445... before DELETE.';
+        RAISERROR(@msg, 16, 1);
         ROLLBACK TRANSACTION;
     END
 END

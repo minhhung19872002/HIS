@@ -1,40 +1,40 @@
 {
- "ranAt": "2026-09-04T13:43:26",
+ "ranAt": "2026-09-04T16:57:21",
  "cases": [
   {
    "case": "phát lần đầu trừ đúng số đã kê",
    "mustBlock": false,
    "blocked": false,
    "pass": true,
-   "detail": "HTTP 200 · tổng tồn 190.0 → 184.0 (kê 6)"
+   "detail": "HTTP 200 · tổng tồn 194.0 → 188.0 (kê 6)"
   },
   {
    "case": "phát LẦN HAI không được trừ kho nữa",
    "mustBlock": true,
    "blocked": true,
    "pass": true,
-   "detail": "HTTP 400 · tồn sau lần 1=184.0 · sau lần 2=184.0 · Đơn thuốc này đã phát hết, không phát lại được."
+   "detail": "HTTP 400 · tồn sau lần 1=188.0 · sau lần 2=188.0 · Đơn thuốc này đã phát hết, không phát lại được."
   },
   {
    "case": "phát lần đầu qua cửa dược",
    "mustBlock": false,
    "blocked": false,
    "pass": true,
-   "detail": "HTTP 200 · tổng tồn 184.0 → 178.0 (kê 6)"
+   "detail": "HTTP 200 · tổng tồn 188.0 → 182.0 (kê 6)"
   },
   {
    "case": "phát LẦN HAI qua cửa dược",
    "mustBlock": true,
    "blocked": true,
    "pass": true,
-   "detail": "HTTP 200 · tồn sau lần 1=178.0 · sau lần 2=178.0 · {\"success\":true,\"data\":true,\"message\":null,\"e"
+   "detail": "HTTP 200 · tồn sau lần 1=182.0 · sau lần 2=182.0 · {\"success\":true,\"data\":true,\"message\":null,\"e"
   },
   {
    "case": "đơn thuốc khác vẫn phát được bình thường",
    "mustBlock": false,
    "blocked": false,
    "pass": true,
-   "detail": "HTTP 200 · tồn trước=178.0 sau=172.0 (kỳ vọng giảm 6)"
+   "detail": "HTTP 200 · tồn trước=182.0 sau=176.0 (kỳ vọng giảm 6)"
   }
  ]
 }

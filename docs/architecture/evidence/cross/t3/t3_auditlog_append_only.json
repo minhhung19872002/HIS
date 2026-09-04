@@ -1,0 +1,30 @@
+{
+ "ranAt": "2026-09-04T16:56:17",
+ "cases": [
+  {
+   "case": "hai trigger bất biến tồn tại",
+   "pass": true,
+   "detail": "số trigger trên AuditLogs=2"
+  },
+  {
+   "case": "ghi được một dòng nhật ký",
+   "pass": true,
+   "detail": "số dòng vừa ghi=1"
+  },
+  {
+   "case": "SỬA nhật ký: giá trị gốc còn nguyên",
+   "pass": true,
+   "detail": "Action sau khi thử sửa='T3AUDIT-GOC'"
+  },
+  {
+   "case": "XOÁ nhật ký: dòng vẫn còn",
+   "pass": true,
+   "detail": "số dòng còn lại=1"
+  },
+  {
+   "case": "job retention (có cờ RETE) vẫn xoá được",
+   "pass": true,
+   "detail": "số dòng còn lại=0"
+  }
+ ]
+}
