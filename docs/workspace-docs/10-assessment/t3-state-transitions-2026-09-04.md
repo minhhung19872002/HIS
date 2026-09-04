@@ -880,3 +880,46 @@ lỗi. Đo thẳng: sau khi đóng, `PUT /api/examination/{id}/conclusion` trả
 (*"Hồ sơ bệnh án đã kết thúc và được khóa theo TT46/2018-TT-BYT"*) thay vì *"phiếu khám đã hủy"*.
 
 `t3_emr_close_semantics.py`: **6/6** (trước vá 1/5).
+
+---
+
+## 21. Hủy duyệt kết quả chẩn đoán hình ảnh — hai cửa hủy, một cửa làm đủ, một cửa làm trống
+
+Việc "đưa phiếu đã duyệt về nháp" có **hai** đường trong module CĐHA, và chúng kết thúc ở đúng cùng
+một trạng thái (`Status = 0`, xoá `ApprovedBy`/`ApprovedAt`):
+
+* `CancelSignedResultAsync` — làm đủ: **thu hồi chữ ký số** (`Status = 3`) và **ghi lý do** vào
+  `RejectReason`.
+* `CancelApprovalAsync` (`POST /api/RISComplete/results/{id}/cancel-approval`) — toàn bộ thân hàm là
+  bốn dòng gán. Nhận tham số `reason` rồi **vứt đi không dùng lần nào**. Không đụng tới chữ ký.
+
+Đo được **1/5**, ba lỗi thật cộng một lỗi hiển nhiên:
+
+| Đo | Kết quả trước vá |
+|---|---|
+| hủy duyệt một phiếu **chưa hề duyệt** | HTTP 200 — xoá luôn dấu vết người duyệt của phiếu khác trạng thái |
+| chữ ký số sau khi hủy duyệt | **vẫn còn hiệu lực** (`Status = 1`) |
+| lý do hủy duyệt | **`(trống)`** — API nhận rồi vứt |
+| chỉ định sau khi hủy duyệt | **kẹt ở 5 (đã duyệt)** trong khi phiếu đã về 0 (nháp) |
+
+Chữ ký còn hiệu lực trên một phiếu hệ thống đang coi là chưa duyệt nghĩa là chữ ký đang bảo chứng
+cho một thứ không còn tồn tại. Và hủy duyệt một kết quả chẩn đoán hình ảnh đã ký là việc phải giải
+trình được — giao diện có bắt nhập lý do, API có nhận, nhưng không chỗ nào giữ lại.
+
+Vá: cho cửa yếu làm đúng những gì cửa kia vẫn làm — chặn khi không có gì để hủy, thu hồi mọi chữ ký
+còn hiệu lực kèm lý do, và trả `RadiologyRequest.Status` từ 5 về 4 để phiếu và chỉ định thôi nói
+khác nhau. Đối chứng âm: hủy duyệt một phiếu đã duyệt không ký vẫn phải chạy được. **5/5.**
+
+### Một ca đo cũ trở nên lỗi thời, và cách xử lý
+
+Sau bản vá, `t3_radiology_transitions` tụt từ 8/8 xuống 7/8. Không phải hồi quy sản phẩm — mà là
+**tiền đề của một ca đo không còn tồn tại**. Ca đó (đợt §5) hỏi: *"hủy duyệt xong mà chữ ký VẪN còn
+hiệu lực, thì sửa nội dung có bị chặn không?"* — đúng vào thời điểm ấy, vì `CancelApprovalAsync`
+không thu hồi chữ ký, nên lối vòng **ký → hủy duyệt → sửa** có thật và phải chặn ở cửa *sửa*. Nay
+lối vòng bị bịt ngay từ **gốc**: hủy duyệt đã thu hồi chữ ký, nên không còn chữ ký "vẫn còn hiệu
+lực" nào để thử.
+
+Đổi ca đó sang đo điều **mạnh hơn** — hủy duyệt bắt buộc phải thu hồi chữ ký — chứ không sửa kỳ vọng
+cho vừa kết quả. Lớp chắn cũ ("có chữ ký còn hiệu lực thì cấm sửa") vẫn nguyên vẹn và vẫn được ca
+*"sửa nội dung phiếu ĐÃ KÝ SỐ"* canh, vẫn PASS với HTTP 400. Nói cách khác: giữ nguyên lớp chắn ở
+cửa sửa, thêm lớp chắn ở gốc, và bài đo phản ánh đúng cả hai.

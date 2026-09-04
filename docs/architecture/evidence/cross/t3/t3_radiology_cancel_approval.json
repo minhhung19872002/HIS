@@ -1,0 +1,40 @@
+{
+ "ranAt": "2026-09-04T20:14:23",
+ "cases": [
+  {
+   "case": "hủy duyệt một phiếu CHƯA duyệt",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · {\"error\":\"INVALID_STATE\",\"message\":\"Phiếu đang ở trạng thái nháp, chưa"
+  },
+  {
+   "case": "chữ ký số bị THU HỒI khi hủy duyệt",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "trạng thái chữ ký=3 (1=còn hiệu lực, 3=đã thu hồi)"
+  },
+  {
+   "case": "LÝ DO hủy duyệt được lưu lại",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "RejectReason='T3RCA ly do that'"
+  },
+  {
+   "case": "chỉ định KHÔNG còn kẹt ở 'đã duyệt'",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "phiếu=0 · chỉ định=4 (5=đã duyệt)"
+  },
+  {
+   "case": "hủy duyệt một phiếu đã duyệt (không ký) ĐƯỢC chạy",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · phiếu sau khi hủy=0 (0=nháp)"
+  }
+ ]
+}

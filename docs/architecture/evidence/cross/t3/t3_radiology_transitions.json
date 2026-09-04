@@ -1,5 +1,5 @@
 {
- "ranAt": "2026-09-04T20:04:11",
+ "ranAt": "2026-09-04T20:13:31",
  "cases": [
   {
    "case": "nhập kết quả lần đầu vào phiếu nháp",
@@ -44,11 +44,11 @@
    "detail": "HTTP 400 · Status=2 · Kết luận='KL-SUA-HOP-LE' · chữ ký còn hiệu lực=1"
   },
   {
-   "case": "sửa khi chữ ký vẫn còn hiệu lực",
-   "mustBlock": true,
-   "blocked": true,
+   "case": "hủy duyệt thu hồi chữ ký, không để sót lối vòng",
+   "mustBlock": false,
+   "blocked": false,
    "pass": true,
-   "detail": "HTTP 400 · Status=0 · Kết luận='KL-SUA-HOP-LE' · chữ ký còn hiệu lực=1"
+   "detail": "số chữ ký còn hiệu lực sau khi hủy duyệt=0 (phải là 0)"
   },
   {
    "case": "sửa sau khi đã thu hồi chữ ký",

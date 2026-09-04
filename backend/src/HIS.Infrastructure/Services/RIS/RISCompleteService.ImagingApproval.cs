@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs.Radiology;
 using HIS.Application.Services;
 using HIS.Core.Entities;
+using HIS.Core.Constants;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
 using HIS.Infrastructure.Extensions;
@@ -700,15 +701,48 @@ public partial class RISCompleteService
         return true;
     }
 
+    /// <summary>
+    /// Hủy duyệt kết quả: đưa phiếu về nháp, thu hồi chữ ký số và ghi lại lý do.
+    ///
+    /// <para>#218/T3 — trước đây toàn bộ thân hàm là bốn dòng gán: nhận <paramref name="reason"/>
+    /// rồi vứt đi không dùng lần nào, không đụng tới chữ ký, không gỡ trạng thái của chỉ định.
+    /// `CancelSignedResultAsync` — cửa còn lại làm đúng cùng việc này, kết thúc ở đúng cùng một
+    /// trạng thái — thì thu hồi chữ ký và ghi `RejectReason`. Lại một luật thi hành ở một cửa.</para>
+    /// </summary>
     public async Task<bool> CancelApprovalAsync(Guid resultId, string reason)
     {
         var report = await _context.RadiologyReports.FindAsync(resultId);
         if (report == null) return false;
 
-        report.Status = 0; // Back to draft
+        // Không có gì để hủy thì đừng xoá dấu vết người duyệt của một phiếu khác trạng thái.
+        if (report.Status == RadiologyReportStatus.Draft)
+            throw new InvalidOperationException("Phiếu đang ở trạng thái nháp, chưa duyệt nên không có gì để hủy duyệt.");
+
+        // Chữ ký số phải bị thu hồi cùng lúc. Để nguyên Status=1 thì chữ ký vẫn đang bảo chứng cho
+        // một phiếu mà hệ thống đã coi là chưa duyệt — đúng lối vòng đã ghi ở OrdersResults.cs.
+        var activeSignatures = await _context.Set<RadiologySignatureHistory>()
+            .Where(s => s.RadiologyReportId == resultId && s.Status == 1)
+            .ToListAsync();
+        foreach (var signature in activeSignatures)
+        {
+            signature.Status = 3; // Cancelled — giống hệt CancelSignedResultAsync
+            signature.RejectReason = reason;
+            signature.UpdatedAt = DateTime.UtcNow;
+        }
+
+        report.Status = RadiologyReportStatus.Draft;
         report.ApprovedBy = null;
         report.ApprovedAt = null;
         report.UpdatedAt = DateTime.Now;
+
+        // Duyệt thì đặt RadiologyRequest.Status = 5 (Approved); hủy duyệt phải trả về 4 (Reported),
+        // nếu không thì phiếu về nháp trong khi chỉ định vẫn khai là đã duyệt.
+        var exam = await _context.RadiologyExams
+            .Include(e => e.RadiologyRequest)
+            .FirstOrDefaultAsync(e => e.Id == report.RadiologyExamId);
+        if (exam?.RadiologyRequest != null && exam.RadiologyRequest.Status == 5)
+            exam.RadiologyRequest.Status = 4; // Reported
+
         await _unitOfWork.SaveChangesAsync();
         return true;
     }

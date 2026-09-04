@@ -202,15 +202,22 @@ def main():
 
         # Lối vòng: `CancelApprovalAsync` đưa phiếu về nháp NHƯNG không đụng tới lịch sử chữ ký.
         # Nếu chỉ gác theo `Status` thì đi đường này vẫn sửa được nội dung dưới một chữ ký còn sống.
-        print("\n── lối vòng: hủy DUYỆT (không thu hồi chữ ký) rồi sửa ──")
+        # ── lối vòng ký → hủy duyệt → sửa, nay bịt ngay từ GỐC ─────────────
+        # Ca này trước đây hỏi: "hủy duyệt xong, chữ ký VẪN còn hiệu lực, vậy sửa có bị chặn không?"
+        # Khi ấy `CancelApprovalAsync` đưa phiếu về nháp mà không đụng tới chữ ký, nên tình huống đó
+        # có thật và phải chặn ở cửa SỬA. Đợt sau (cùng #218) vá thẳng vào gốc: hủy duyệt nay THU HỒI
+        # chữ ký kèm lý do, đúng như `CancelSignedResultAsync` vẫn làm.
+        #
+        # Nên tiền đề của ca cũ không còn tồn tại: sau khi hủy duyệt thì không còn chữ ký nào "vẫn
+        # còn hiệu lực" để mà thử. Đổi ca này sang đo điều MẠNH HƠN — hủy duyệt phải thu hồi chữ ký —
+        # chứ không sửa kỳ vọng cho vừa kết quả. Lớp chắn "có chữ ký còn hiệu lực thì cấm sửa" vẫn
+        # được ca "sửa nội dung phiếu ĐÃ KÝ SỐ" ở trên canh nguyên vẹn.
+        print("\n── hủy DUYỆT phải thu hồi luôn chữ ký (bịt lối vòng từ gốc) ──")
         http("POST", "/api/RISComplete/results/%s/cancel-approval" % report_id, tok, {"reason": TAG})
-        st, b = enter("Sửa qua lối vòng.", "KL-LOI-VONG")
-        rstat, impr, _ = report_state()
         still_signed = sql("SELECT COUNT(*) FROM RadiologySignatureHistories "
                            "WHERE RadiologyReportId='%s' AND Status=1" % report_id)
-        case("sửa khi chữ ký vẫn còn hiệu lực", True, impr != "KL-LOI-VONG",
-             "HTTP %s · Status=%s · Kết luận=%r · chữ ký còn hiệu lực=%s"
-             % (st, rstat, impr, still_signed))
+        case("hủy duyệt thu hồi chữ ký, không để sót lối vòng", False, still_signed != "0",
+             "số chữ ký còn hiệu lực sau khi hủy duyệt=%s (phải là 0)" % still_signed)
 
         print("\n── thu hồi chữ ký rồi sửa (đối chứng dương: phải CHO qua) ──")
         http("POST", "/api/RISComplete/results/cancel-signed", tok,
