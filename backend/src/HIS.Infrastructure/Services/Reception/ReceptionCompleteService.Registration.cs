@@ -95,14 +95,14 @@ public partial class ReceptionCompleteService {
 
         if (patient == null)
         {
-            throw new Exception("Khong tim thay benh nhan. Vui long nhap thong tin moi.");
+            throw new KeyNotFoundException("Khong tim thay benh nhan. Vui long nhap thong tin moi.");
         }
 
         // Check existing active medical record for this patient
         var existingActiveRecord = await _context.MedicalRecords
             .FirstOrDefaultAsync(m => m.PatientId == patient.Id && m.Status < 3 && m.TreatmentType == 1);
         if (existingActiveRecord != null)
-            throw new Exception($"Bệnh nhân đã có hồ sơ khám đang hoạt động (Mã: {existingActiveRecord.MedicalRecordCode})");
+            throw new InvalidOperationException($"Bệnh nhân đã có hồ sơ khám đang hoạt động (Mã: {existingActiveRecord.MedicalRecordCode})");
 
         // Create medical record
         var room = await _context.Rooms.Include(r => r.Department).FirstOrDefaultAsync(r => r.Id == dto.RoomId);
@@ -166,7 +166,7 @@ public partial class ReceptionCompleteService {
         var patient = await _context.Patients
             .Where(p => !p.IsDeleted)
             .FindByPhoneNumberDecryptedAsync(phoneNumber);
-        if (patient == null) throw new Exception("Khong tim thay benh nhan voi SĐT nay");
+        if (patient == null) throw new KeyNotFoundException("Khong tim thay benh nhan voi SĐT nay");
 
         return await RegisterFeePatientAsync(new FeeRegistrationDto
         {
@@ -211,7 +211,7 @@ public partial class ReceptionCompleteService {
     public async Task<HealthCheckContractDto> UpdateHealthCheckContractAsync(Guid id, HealthCheckContractDto dto, Guid userId)
     {
         var contract = await _context.HealthCheckContracts.FindAsync(id);
-        if (contract == null) throw new Exception("Contract not found");
+        if (contract == null) throw new KeyNotFoundException("Contract not found");
 
         contract.ContractName = dto.ContractName;
         contract.CompanyName = dto.CompanyName;
@@ -407,7 +407,7 @@ public partial class ReceptionCompleteService {
         if (dto.PatientId.HasValue)
         {
             patient = await _patientRepo.GetByIdAsync(dto.PatientId.Value)
-                ?? throw new Exception("Patient not found");
+                ?? throw new KeyNotFoundException("Patient not found");
         }
         else
         {
@@ -510,7 +510,7 @@ public partial class ReceptionCompleteService {
             .Include(m => m.Patient)
             .FirstOrDefaultAsync(m => m.Id == dto.MedicalRecordId);
 
-        if (medicalRecord == null) throw new Exception("Medical record not found");
+        if (medicalRecord == null) throw new KeyNotFoundException("Medical record not found");
 
         var patient = medicalRecord.Patient;
         patient.FullName = dto.FullName;
@@ -646,7 +646,7 @@ public partial class ReceptionCompleteService {
             .Include(m => m.Patient)
             .FirstOrDefaultAsync(m => m.Id == dto.MedicalRecordId);
 
-        if (medicalRecord == null) throw new Exception("Medical record not found");
+        if (medicalRecord == null) throw new KeyNotFoundException("Medical record not found");
 
         medicalRecord.RoomId = dto.NewRoomId;
         if (dto.NewDoctorId.HasValue)
@@ -676,7 +676,7 @@ public partial class ReceptionCompleteService {
             .Include(m => m.Patient)
             .FirstOrDefaultAsync(m => m.Id == id);
 
-        if (medicalRecord == null) throw new Exception("Medical record not found");
+        if (medicalRecord == null) throw new KeyNotFoundException("Medical record not found");
 
         if (dto.DepartmentId.HasValue)
             medicalRecord.DepartmentId = dto.DepartmentId;
@@ -702,7 +702,7 @@ public partial class ReceptionCompleteService {
             .Include(m => m.Patient)
             .FirstOrDefaultAsync(m => m.Id == admissionId);
 
-        if (medicalRecord == null) throw new Exception("Medical record not found");
+        if (medicalRecord == null) throw new KeyNotFoundException("Medical record not found");
 
         // Link to other payer by updating PatientType and payer reference
         medicalRecord.PatientType = 3; // 3 = Other payer
@@ -742,7 +742,7 @@ public partial class ReceptionCompleteService {
     public async Task SaveGuardianInfoAsync(Guid patientId, GuardianInfoDto guardian, Guid userId)
     {
         var patient = await _patientRepo.GetByIdAsync(patientId);
-        if (patient == null) throw new Exception("Patient not found");
+        if (patient == null) throw new KeyNotFoundException("Patient not found");
 
         patient.GuardianName = guardian.FullName;
         patient.GuardianPhone = guardian.PhoneNumber;

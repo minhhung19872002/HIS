@@ -128,7 +128,7 @@ public partial class BillingCompleteService {
     {
         var cashBook = await _context.CashBooks.FirstOrDefaultAsync(cb => cb.Id == cashBookId);
         if (cashBook == null)
-            throw new Exception("Cash book not found");
+            throw new KeyNotFoundException("Cash book not found");
 
         if (!cashBook.IsClosed)
         {
@@ -159,7 +159,7 @@ public partial class BillingCompleteService {
     {
         var cashBook = await _context.CashBooks.FirstOrDefaultAsync(cb => cb.Id == cashBookId);
         if (cashBook == null)
-            throw new Exception("Cash book not found");
+            throw new KeyNotFoundException("Cash book not found");
 
         if (cashBook.IsClosed)
         {

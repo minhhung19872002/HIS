@@ -152,7 +152,7 @@ public partial class IvfLabService : IIvfLabService
             if (dto.Id.HasValue && dto.Id != Guid.Empty)
             {
                 entity = await _context.Set<IvfPatientCouple>().FindAsync(dto.Id.Value)
-                    ?? throw new Exception("Couple not found");
+                    ?? throw new KeyNotFoundException("Couple not found");
                 entity.UpdatedAt = DateTime.UtcNow;
             }
             else
@@ -292,7 +292,7 @@ public partial class IvfLabService : IIvfLabService
             if (dto.Id.HasValue && dto.Id != Guid.Empty)
             {
                 entity = await _context.Set<IvfCycle>().FindAsync(dto.Id.Value)
-                    ?? throw new Exception("Cycle not found");
+                    ?? throw new KeyNotFoundException("Cycle not found");
                 entity.UpdatedAt = DateTime.UtcNow;
             }
             else
@@ -344,7 +344,7 @@ public partial class IvfLabService : IIvfLabService
             if (dto.Id.HasValue && dto.Id != Guid.Empty)
             {
                 entity = await _context.Set<IvfOvumPickup>().FindAsync(dto.Id.Value)
-                    ?? throw new Exception("OvumPickup not found");
+                    ?? throw new KeyNotFoundException("OvumPickup not found");
                 entity.UpdatedAt = DateTime.UtcNow;
             }
             else
@@ -432,7 +432,7 @@ public partial class IvfLabService : IIvfLabService
             if (dto.Id.HasValue && dto.Id != Guid.Empty)
             {
                 entity = await _context.Set<IvfEmbryo>().FindAsync(dto.Id.Value)
-                    ?? throw new Exception("Embryo not found");
+                    ?? throw new KeyNotFoundException("Embryo not found");
                 entity.UpdatedAt = DateTime.UtcNow;
             }
             else

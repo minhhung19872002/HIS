@@ -21,7 +21,7 @@ public partial class BillingCompleteService {
             .Include(m => m.Patient)
             .FirstOrDefaultAsync(m => m.Id == dto.MedicalRecordId);
         if (medicalRecord == null)
-            throw new Exception("Medical record not found");
+            throw new KeyNotFoundException("Medical record not found");
 
         // MedicalRecord has IsClosed property - use it as lock indicator
         medicalRecord.IsClosed = true;
@@ -58,7 +58,7 @@ public partial class BillingCompleteService {
             .Include(m => m.Patient)
             .FirstOrDefaultAsync(m => m.Id == medicalRecordId);
         if (medicalRecord == null)
-            throw new Exception("Medical record not found");
+            throw new KeyNotFoundException("Medical record not found");
 
         medicalRecord.IsClosed = false;
         medicalRecord.UpdatedAt = DateTime.Now;
@@ -193,7 +193,7 @@ public partial class BillingCompleteService {
     {
         var invoice = await _context.InvoiceSummaries.FindAsync(dto.InvoiceId);
         if (invoice == null)
-            throw new Exception("Invoice not found");
+            throw new KeyNotFoundException("Invoice not found");
 
         decimal discountAmount = 0;
         if (dto.DiscountType == 1 && dto.DiscountPercent.HasValue)
@@ -242,7 +242,7 @@ public partial class BillingCompleteService {
     {
         var invoice = await _context.InvoiceSummaries.FindAsync(dto.InvoiceId);
         if (invoice == null)
-            throw new Exception("Invoice not found");
+            throw new KeyNotFoundException("Invoice not found");
 
         // Calculate total discount from individual service discounts
         decimal totalDiscount = 0;
@@ -312,7 +312,7 @@ public partial class BillingCompleteService {
         // discountId maps to InvoiceSummary.Id (discount is stored on the invoice)
         var invoice = await _context.InvoiceSummaries.FindAsync(discountId);
         if (invoice == null)
-            throw new Exception("Invoice not found");
+            throw new KeyNotFoundException("Invoice not found");
 
         invoice.DiscountAmount = 0;
         invoice.DiscountReason = $"Hủy miễn giảm: {reason}";

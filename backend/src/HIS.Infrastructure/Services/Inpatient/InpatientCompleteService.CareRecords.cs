@@ -42,7 +42,7 @@ public partial class InpatientCompleteService {
     public async Task<InfusionRecordDto> UpdateInfusionRecordAsync(Guid id, string observations, string? complications, Guid userId)
     {
         var entity = await _context.InfusionRecords.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted)
-            ?? throw new Exception("Không tìm thấy phiếu truyền dịch");
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu truyền dịch");
         entity.Observations = observations;
         entity.Complications = complications;
         entity.UpdatedAt = DateTime.UtcNow;
@@ -54,7 +54,7 @@ public partial class InpatientCompleteService {
     public async Task<InfusionRecordDto> CompleteInfusionAsync(Guid id, DateTime endTime, Guid userId)
     {
         var entity = await _context.InfusionRecords.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted)
-            ?? throw new Exception("Không tìm thấy phiếu truyền dịch");
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu truyền dịch");
         entity.EndTime = endTime;
         entity.DurationMinutes = (int)Math.Max(0, (endTime - entity.StartTime).TotalMinutes);
         entity.CompletedBy = userId;

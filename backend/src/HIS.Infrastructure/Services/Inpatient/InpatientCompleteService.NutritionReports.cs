@@ -461,8 +461,8 @@ public partial class InpatientCompleteService {
         var sr = await _context.ServiceRequests
             .Include(r => r.Details).ThenInclude(d => d.Service)
             .FirstOrDefaultAsync(r => r.Id == serviceRequestId);
-        if (sr == null) throw new Exception("ServiceRequest not found");
-        if (sr.Status == 4) throw new Exception("Cannot update cancelled ServiceRequest");
+        if (sr == null) throw new KeyNotFoundException("ServiceRequest not found");
+        if (sr.Status == 4) throw new InvalidOperationException("Cannot update cancelled ServiceRequest");
 
         var now = DateTime.Now;
         var userStr = userId.ToString();

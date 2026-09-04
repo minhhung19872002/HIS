@@ -10,6 +10,7 @@ namespace HIS.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/booking-management")]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // #219/T4: guard nghiệp vụ ra 400/404 kèm lý do, không phải 500 trần
 [Authorize]
 public class BookingManagementController : ControllerBase
 {

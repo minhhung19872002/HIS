@@ -55,7 +55,7 @@ namespace HIS.Infrastructure.Services
             if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
             {
                 entity = await _db.Set<EmrCoverType>().FindAsync(dto.Id.Value)
-                    ?? throw new Exception("Cover type not found");
+                    ?? throw new KeyNotFoundException("Cover type not found");
                 entity.Code = dto.Code; entity.Name = dto.Name; entity.Category = dto.Category;
                 entity.DepartmentId = dto.DepartmentId; entity.DepartmentName = dto.DepartmentName;
                 entity.Description = dto.Description; entity.SortOrder = dto.SortOrder;
@@ -113,7 +113,7 @@ namespace HIS.Infrastructure.Services
             if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
             {
                 entity = await _db.Set<EmrSignerCatalog>().FindAsync(dto.Id.Value)
-                    ?? throw new Exception("Signer not found");
+                    ?? throw new KeyNotFoundException("Signer not found");
                 entity.UserId = dto.UserId; entity.UserName = dto.UserName; entity.FullName = dto.FullName;
                 entity.Title = dto.Title; entity.DepartmentId = dto.DepartmentId;
                 entity.DepartmentName = dto.DepartmentName; entity.CertificateInfo = dto.CertificateInfo;
@@ -167,7 +167,7 @@ namespace HIS.Infrastructure.Services
             if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
             {
                 entity = await _db.Set<EmrSigningRole>().FindAsync(dto.Id.Value)
-                    ?? throw new Exception("Signing role not found");
+                    ?? throw new KeyNotFoundException("Signing role not found");
                 entity.Code = dto.Code; entity.Name = dto.Name; entity.Description = dto.Description;
                 entity.SortOrder = dto.SortOrder; entity.IsActive = dto.IsActive;
             }
@@ -209,7 +209,7 @@ namespace HIS.Infrastructure.Services
             if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
             {
                 entity = await _db.Set<EmrSigningOperation>().FindAsync(dto.Id.Value)
-                    ?? throw new Exception("Signing operation not found");
+                    ?? throw new KeyNotFoundException("Signing operation not found");
                 entity.Code = dto.Code; entity.Name = dto.Name; entity.RoleId = dto.RoleId;
                 entity.RoleName = dto.RoleName; entity.DocumentType = dto.DocumentType;
                 entity.IsRequired = dto.IsRequired; entity.SortOrder = dto.SortOrder; entity.IsActive = dto.IsActive;
@@ -258,7 +258,7 @@ namespace HIS.Infrastructure.Services
             if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
             {
                 entity = await _db.Set<EmrDocumentGroup>().FindAsync(dto.Id.Value)
-                    ?? throw new Exception("Document group not found");
+                    ?? throw new KeyNotFoundException("Document group not found");
                 entity.Code = dto.Code; entity.Name = dto.Name; entity.Category = dto.Category;
                 entity.SortOrder = dto.SortOrder; entity.IsActive = dto.IsActive;
             }
@@ -300,7 +300,7 @@ namespace HIS.Infrastructure.Services
             if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
             {
                 entity = await _db.Set<EmrDocumentType>().FindAsync(dto.Id.Value)
-                    ?? throw new Exception("Document type not found");
+                    ?? throw new KeyNotFoundException("Document type not found");
                 entity.Code = dto.Code; entity.Name = dto.Name; entity.GroupId = dto.GroupId;
                 entity.GroupName = dto.GroupName; entity.FormTemplateKey = dto.FormTemplateKey;
                 entity.IsRequired = dto.IsRequired; entity.SortOrder = dto.SortOrder; entity.IsActive = dto.IsActive;

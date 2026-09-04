@@ -41,12 +41,31 @@ một quy tắc nghiệp vụ rõ ràng ("Phiếu khám chưa hoàn thành, vui 
 17 chỗ "… not found" → `KeyNotFoundException` (**404**), 2 guard trạng thái → `InvalidOperationException`
 (**400**). Sau sửa, bước 6/7 của luồng chạy đúng thứ tự nghiệp vụ và trả 200.
 
-**Còn nợ:** toàn repo còn **226** chỗ `throw new Exception(...)` trong `HIS.Infrastructure/Services`,
-tập trung ở `MedicalRecordArchiveService` (14) · `BillingCompleteService.Refunds` (13) ·
-`BookingManagementService` (11) · `WarehouseCompleteService.StockOut` (10) ·
-`ReceptionCompleteService.Registration` (10)… Mỗi chỗ là một quy tắc nghiệp vụ đang hiện ra như sự cố
-máy chủ. Luật chuyển đổi đã rõ và máy móc ("… not found" → 404, còn lại → 400), nhưng đây là code
-đụng tiền và an toàn người bệnh nên sửa theo đợt có đo, không sửa cả loạt một lần.
+### Quét nốt 226 chỗ còn lại — làm hai đợt, đo giữa hai đợt
+
+Sau khi sửa 19 chỗ trên đường khám, toàn repo còn **226** chỗ `throw new Exception(...)` trong
+`HIS.Infrastructure/Services`. Mỗi chỗ là một quy tắc nghiệp vụ đang hiện ra như sự cố máy chủ.
+
+Không sửa tay từng chỗ, cũng không sửa cả loạt một lần. Cách làm: một bộ phân loại
+(`evidence/cross/t4/classify_service_throws.py`) áp đúng luật mà filter đã ghi — message có
+"not found" / "không tồn tại" / "không tìm thấy" thì là **404**, còn lại là **400** — chạy **thử khô
+trước để soi từng dòng**, rồi mới áp dụng.
+
+| Đợt | Phạm vi | 404 | 400 | Giữ nguyên |
+|---|---|---:|---:|---:|
+| 1 | Viện phí · Tiếp đón · Kho · Lưu trữ hồ sơ (14 file) | 68 | 27 | 1 |
+| 2 | 37 file còn lại | 91 | 19 | 2 |
+
+Ba chỗ **giữ nguyên** là `throw new Exception(msg, ex)` trong `catch` — đó là bọc lỗi gốc từ nhà
+cung cấp hóa đơn điện tử và từ luồng tạo yêu cầu phẫu thuật, đúng là sự cố máy chủ thật, không phải
+guard nghiệp vụ. Sau hai đợt, tầng service còn đúng 2 chỗ `Exception` trần và cả hai đều thuộc loại đó.
+
+Năm controller sở hữu các service vừa đổi mà chưa gắn `DomainExceptionFilter` (Procurement · IvfLab ·
+Patients · AppointmentBooking) nay đã gắn — đổi kiểu ở service mà controller không map thì vẫn ra 500.
+
+**Đo lại trên API đang chạy** (`t4_not_found_codes.py`): gọi 16 endpoint bằng một id không tồn tại →
+**0/16 còn trả 500**. 13 trả 404 kèm câu giải thích, 2 endpoint trả rỗng theo thiết kế (không ném
+guard), 1 là 405 do bộ dò gọi sai verb. Luồng T2 chạy lại vẫn **14/14**, test gate vẫn 62 pass.
 
 ### Ba lần chạy đầu KHÔNG phải lỗi sản phẩm
 

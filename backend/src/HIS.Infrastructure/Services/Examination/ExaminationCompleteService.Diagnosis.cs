@@ -51,7 +51,7 @@ public partial class ExaminationCompleteService
     {
         await EmrLockGuard.EnsureEditableByExaminationAsync(_context, examinationId); // TT46
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
-        if (examination == null) throw new Exception("Examination not found");
+        if (examination == null) throw new KeyNotFoundException("Examination not found");
 
         if (dto.IsPrimary)
         {
@@ -91,7 +91,7 @@ public partial class ExaminationCompleteService
     {
         await EmrLockGuard.EnsureEditableByExaminationAsync(_context, examinationId); // TT46
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
-        if (examination == null) throw new Exception("Examination not found");
+        if (examination == null) throw new KeyNotFoundException("Examination not found");
 
         examination.InitialDiagnosis = dto.PreliminaryDiagnosis;
         examination.MainIcdCode = dto.PrimaryIcdCode;
@@ -248,7 +248,7 @@ public partial class ExaminationCompleteService
             .Include(e => e.MedicalRecord)
             .FirstOrDefaultAsync(e => e.Id == dto.OriginalExaminationId);
 
-        if (originalExam == null) throw new Exception("Original examination not found");
+        if (originalExam == null) throw new KeyNotFoundException("Original examination not found");
 
         var newRoom = await _context.Rooms
             .Include(r => r.Department)
@@ -279,7 +279,7 @@ public partial class ExaminationCompleteService
             .ThenInclude(m => m.Patient)
             .FirstOrDefaultAsync(e => e.Id == dto.ExaminationId);
 
-        if (examination == null) throw new Exception("Examination not found");
+        if (examination == null) throw new KeyNotFoundException("Examination not found");
 
         var newRoom = await _context.Rooms
             .Include(r => r.Department)
@@ -341,7 +341,7 @@ public partial class ExaminationCompleteService
             .ThenInclude(m => m.Patient)
             .FirstOrDefaultAsync(e => e.Id == examinationId);
 
-        if (examination == null) throw new Exception("Examination not found");
+        if (examination == null) throw new KeyNotFoundException("Examination not found");
 
         examination.Status = 4; // Completed
         examination.EndTime = DateTime.Now;

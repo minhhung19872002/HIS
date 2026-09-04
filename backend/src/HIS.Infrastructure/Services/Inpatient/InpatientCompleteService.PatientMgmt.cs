@@ -261,7 +261,7 @@ public partial class InpatientCompleteService {
             .FirstOrDefaultAsync(m => m.Id == dto.MedicalRecordId);
 
         if (medicalRecord == null)
-            throw new Exception("Medical record not found");
+            throw new KeyNotFoundException("Medical record not found");
 
         // Update medical record to IPD type
         medicalRecord.TreatmentType = 2; // Inpatient
@@ -350,7 +350,7 @@ public partial class InpatientCompleteService {
             .Include(a => a.MedicalRecord)
             .FirstOrDefaultAsync(a => a.Id == dto.SourceAdmissionId);
         if (sourceAdmission == null)
-            throw new Exception("Source admission not found");
+            throw new KeyNotFoundException("Source admission not found");
 
         var medicalRecord = sourceAdmission.MedicalRecord;
         medicalRecord.DepartmentId = dto.TargetDepartmentId;
@@ -476,7 +476,7 @@ public partial class InpatientCompleteService {
             .Include(a => a.Patient)
             .FirstOrDefaultAsync(a => a.Id == dto.AdmissionId);
         if (admission == null)
-            throw new Exception("Admission not found");
+            throw new KeyNotFoundException("Admission not found");
 
         // Release current bed
         var currentBedAssignment = await _context.Set<BedAssignment>()
@@ -604,7 +604,7 @@ public partial class InpatientCompleteService {
             .Include(a => a.Patient)
             .FirstOrDefaultAsync(a => a.Id == dto.AdmissionId);
         if (admission == null)
-            throw new Exception("Admission not found");
+            throw new KeyNotFoundException("Admission not found");
 
         var medRecord = await _context.MedicalRecords.FindAsync(admission.MedicalRecordId);
         if (medRecord != null)

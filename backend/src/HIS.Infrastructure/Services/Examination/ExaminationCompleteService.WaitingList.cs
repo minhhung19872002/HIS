@@ -147,7 +147,7 @@ public partial class ExaminationCompleteService
             .ThenInclude(m => m.Patient)
             .FirstOrDefaultAsync(e => e.Id == examinationId);
 
-        if (examination == null) throw new Exception("Examination not found");
+        if (examination == null) throw new KeyNotFoundException("Examination not found");
 
         return new CallingPatientDto
         {
@@ -232,7 +232,7 @@ public partial class ExaminationCompleteService
             .Include(e => e.MedicalRecord)
             .FirstOrDefaultAsync(e => e.Id == examinationId);
 
-        if (examination == null) throw new Exception("Examination not found");
+        if (examination == null) throw new KeyNotFoundException("Examination not found");
 
         // KQ Xét nghiệm — đọc từ ServiceRequestDetail (model 1, RequestType=1 XN), nơi
         // SampleReceive/LIS ghi KQ thật + nơi billing đọc. Bảng LabResults (model 2) thực tế

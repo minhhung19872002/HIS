@@ -63,7 +63,7 @@ public partial class AssetManagementService
         FixedAsset entity;
         if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
         {
-            entity = await _context.FixedAssets.FindAsync(dto.Id.Value) ?? throw new Exception("Asset not found");
+            entity = await _context.FixedAssets.FindAsync(dto.Id.Value) ?? throw new KeyNotFoundException("Asset not found");
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }
@@ -129,7 +129,7 @@ public partial class AssetManagementService
 
     public async Task<string> GenerateQrCodeAsync(Guid assetId)
     {
-        var asset = await _context.FixedAssets.FindAsync(assetId) ?? throw new Exception("Asset not found");
+        var asset = await _context.FixedAssets.FindAsync(assetId) ?? throw new KeyNotFoundException("Asset not found");
 
         // Generate QR code content as base64 (simple text-based for now)
         var qrContent = $"ASSET:{asset.AssetCode}|{asset.AssetName}|SN:{asset.SerialNumber}|DEPT:{asset.DepartmentId}";
@@ -236,7 +236,7 @@ public partial class AssetManagementService
         AssetHandover entity;
         if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
         {
-            entity = await _context.AssetHandovers.FindAsync(dto.Id.Value) ?? throw new Exception("Handover not found");
+            entity = await _context.AssetHandovers.FindAsync(dto.Id.Value) ?? throw new KeyNotFoundException("Handover not found");
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }
@@ -269,7 +269,7 @@ public partial class AssetManagementService
     public async Task<AssetHandoverDto> ConfirmHandoverAsync(Guid handoverId, string userId)
     {
         var entity = await _context.AssetHandovers.Include(h => h.FixedAsset).FirstOrDefaultAsync(h => h.Id == handoverId)
-            ?? throw new Exception("Handover not found");
+            ?? throw new KeyNotFoundException("Handover not found");
 
         entity.Status = 2; // Confirmed
         entity.ReceivedById = userId;

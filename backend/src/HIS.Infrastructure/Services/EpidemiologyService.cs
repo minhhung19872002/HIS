@@ -170,7 +170,7 @@ public class EpidemiologyService : IEpidemiologyService
             .Include(d => d.Investigator)
             .Include(d => d.ContactTraces)
             .FirstOrDefaultAsync(d => d.Id == id && !d.IsDeleted)
-            ?? throw new Exception("Không tìm thấy ca bệnh");
+            ?? throw new KeyNotFoundException("Không tìm thấy ca bệnh");
 
         if (dto.Classification.HasValue) entity.Classification = dto.Classification.Value;
         if (dto.Outcome.HasValue) entity.Outcome = dto.Outcome.Value;
@@ -213,7 +213,7 @@ public class EpidemiologyService : IEpidemiologyService
     {
         var diseaseCase = await _context.DiseaseCases
             .FirstOrDefaultAsync(d => d.Id == caseId && !d.IsDeleted)
-            ?? throw new Exception("Không tìm thấy ca bệnh");
+            ?? throw new KeyNotFoundException("Không tìm thấy ca bệnh");
 
         var entity = new ContactTrace
         {

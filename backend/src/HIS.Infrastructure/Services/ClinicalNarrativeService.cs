@@ -71,7 +71,7 @@ public class ClinicalNarrativeService : IClinicalNarrativeService
         if (dto.Id != Guid.Empty)
         {
             entity = await _db.SurgeryNarrativeTemplates.FirstOrDefaultAsync(x => x.Id == dto.Id)
-                ?? throw new Exception("Template không tồn tại");
+                ?? throw new KeyNotFoundException("Template không tồn tại");
             entity.TemplateCode = dto.TemplateCode;
             entity.TemplateName = dto.TemplateName;
             entity.SurgeryServiceId = dto.SurgeryServiceId;
@@ -183,7 +183,7 @@ public class ClinicalNarrativeService : IClinicalNarrativeService
         if (dto.Id != Guid.Empty)
         {
             entity = await _db.OutpatientRecordTemplates.FirstOrDefaultAsync(x => x.Id == dto.Id)
-                ?? throw new Exception("Template không tồn tại");
+                ?? throw new KeyNotFoundException("Template không tồn tại");
             entity.TemplateCode = dto.TemplateCode;
             entity.TemplateName = dto.TemplateName;
             entity.DiagnosisCode = dto.DiagnosisCode;

@@ -153,7 +153,7 @@ public class ImmunizationService : IImmunizationService
         var entity = await _context.VaccinationRecords
             .Include(v => v.Patient)
             .FirstOrDefaultAsync(v => v.Id == id && !v.IsDeleted)
-            ?? throw new Exception("Không tìm thấy bản ghi tiêm chủng");
+            ?? throw new KeyNotFoundException("Không tìm thấy bản ghi tiêm chủng");
 
         entity.AefiReport = dto.AefiReport;
         entity.AefiSeverity = dto.AefiSeverity;

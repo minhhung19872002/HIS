@@ -19,7 +19,7 @@ public partial class WarehouseCompleteService {
     {
         var warehouse = await _context.Warehouses.FindAsync(dto.WarehouseId);
         if (warehouse == null)
-            throw new Exception("Warehouse not found");
+            throw new KeyNotFoundException("Warehouse not found");
 
         var user = await _context.Users.FindAsync(userId);
         var items = new List<ProcurementItemDto>();
@@ -466,7 +466,7 @@ public partial class WarehouseCompleteService {
     {
         var prescription = await _context.Prescriptions.FindAsync(prescriptionId);
         if (prescription == null)
-            throw new Exception("Prescription not found");
+            throw new KeyNotFoundException("Prescription not found");
         if (prescription.IsDispensed)
             throw new InvalidOperationException("Đơn thuốc đã được phát, không thể hủy");
 
@@ -483,7 +483,7 @@ public partial class WarehouseCompleteService {
     {
         var warehouse = await _context.Warehouses.FindAsync(warehouseId);
         if (warehouse == null)
-            throw new Exception("Warehouse not found");
+            throw new KeyNotFoundException("Warehouse not found");
 
         // Get current stock for the warehouse
         var stocks = await _context.InventoryItems

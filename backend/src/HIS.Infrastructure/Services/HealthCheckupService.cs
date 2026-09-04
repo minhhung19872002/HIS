@@ -223,10 +223,10 @@ public partial class HealthCheckupService : IHealthCheckupService
             .Include(r => r.Campaign)
             .Include(r => r.Doctor)
             .FirstOrDefaultAsync(r => r.Id == recordId && !r.IsDeleted)
-            ?? throw new Exception("Không tìm thấy phiếu khám sức khỏe");
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu khám sức khỏe");
 
         if (entity.CertificateIssued)
-            throw new Exception("Giấy chứng nhận đã được cấp");
+            throw new InvalidOperationException("Giấy chứng nhận đã được cấp");
 
         entity.CertificateIssued = true;
         entity.CertificateNumber = $"GCN{DateTime.Now:yyyyMMdd}{new Random().Next(1000, 9999)}";

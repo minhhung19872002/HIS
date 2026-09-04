@@ -409,7 +409,7 @@ public partial class ReceptionCompleteService {
 
         if (patient == null)
         {
-            throw new Exception("Khong tim thay benh nhan. Vui long dang ky moi.");
+            throw new KeyNotFoundException("Khong tim thay benh nhan. Vui long dang ky moi.");
         }
 
         // Verify insurance
@@ -422,13 +422,13 @@ public partial class ReceptionCompleteService {
 
         if (!insuranceResult.IsValid)
         {
-            throw new Exception($"The BHYT khong hop le: {insuranceResult.ErrorMessage}");
+            throw new InvalidOperationException($"The BHYT khong hop le: {insuranceResult.ErrorMessage}");
         }
 
         // Check insurance card expiry date
         if (insuranceResult.EndDate.HasValue && insuranceResult.EndDate.Value.Date < DateTime.Today)
         {
-            throw new Exception($"Thẻ BHYT đã hết hạn ngày {insuranceResult.EndDate.Value:dd/MM/yyyy}");
+            throw new InvalidOperationException($"Thẻ BHYT đã hết hạn ngày {insuranceResult.EndDate.Value:dd/MM/yyyy}");
         }
 
         // Update patient insurance info.
@@ -505,7 +505,7 @@ public partial class ReceptionCompleteService {
     public async Task<AdmissionDto> QuickRegisterByPatientCodeAsync(string patientCode, Guid roomId, Guid userId)
     {
         var patient = await _context.Patients.FirstOrDefaultAsync(p => p.PatientCode == patientCode);
-        if (patient == null) throw new Exception("Khong tim thay benh nhan");
+        if (patient == null) throw new KeyNotFoundException("Khong tim thay benh nhan");
 
         if (!string.IsNullOrEmpty(patient.InsuranceNumber))
         {
@@ -533,10 +533,10 @@ public partial class ReceptionCompleteService {
             .Include(a => a.Patient)
             .FirstOrDefaultAsync(a => a.AppointmentCode == appointmentCode && a.Status == 1);
 
-        if (appointment == null) throw new Exception("Khong tim thay lich hen hoac lich hen da su dung");
+        if (appointment == null) throw new KeyNotFoundException("Khong tim thay lich hen hoac lich hen da su dung");
 
         var patient = appointment.Patient;
-        var roomId = appointment.RoomId ?? throw new Exception("Lich hen khong co phong kham");
+        var roomId = appointment.RoomId ?? throw new InvalidOperationException("Lich hen khong co phong kham");
 
         // Mark appointment as used
         appointment.Status = 2; // Used
@@ -567,7 +567,7 @@ public partial class ReceptionCompleteService {
         var patient = await _context.Patients
             .Where(p => !p.IsDeleted)
             .FindByIdentityNumberDecryptedAsync(identityNumber);
-        if (patient == null) throw new Exception("Khong tim thay benh nhan voi CCCD nay");
+        if (patient == null) throw new KeyNotFoundException("Khong tim thay benh nhan voi CCCD nay");
 
         return await QuickRegisterByPatientCodeAsync(patient.PatientCode, roomId, userId);
     }
@@ -578,7 +578,7 @@ public partial class ReceptionCompleteService {
             .Include(m => m.Patient)
             .FirstOrDefaultAsync(m => m.MedicalRecordCode == treatmentCode);
 
-        if (medicalRecord == null) throw new Exception("Khong tim thay ma dieu tri");
+        if (medicalRecord == null) throw new KeyNotFoundException("Khong tim thay ma dieu tri");
 
         return await QuickRegisterByPatientCodeAsync(medicalRecord.Patient.PatientCode, roomId, userId);
     }
@@ -592,7 +592,7 @@ public partial class ReceptionCompleteService {
             return await QuickRegisterByPatientCodeAsync(smartCardData.PatientCode, roomId, userId);
         }
 
-        throw new Exception("Khong doc duoc thong tin tu the");
+        throw new InvalidOperationException("Khong doc duoc thong tin tu the");
     }
 
     #endregion

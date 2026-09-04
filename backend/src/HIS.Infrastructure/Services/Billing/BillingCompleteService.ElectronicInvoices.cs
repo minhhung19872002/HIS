@@ -83,7 +83,7 @@ public partial class BillingCompleteService {
             .FirstOrDefaultAsync(i => i.Id == dto.InvoiceId);
 
         if (invoice == null)
-            throw new Exception("Không tìm thấy bảng kê viện phí");
+            throw new KeyNotFoundException("Không tìm thấy bảng kê viện phí");
 
         // Get patient info
         Patient? patient = null;
@@ -168,10 +168,10 @@ public partial class BillingCompleteService {
     {
         var eInvoice = await _context.ElectronicInvoices.FindAsync(eInvoiceId);
         if (eInvoice == null)
-            throw new Exception("Không tìm thấy hóa đơn điện tử");
+            throw new KeyNotFoundException("Không tìm thấy hóa đơn điện tử");
 
         if (eInvoice.Status == 3)
-            throw new Exception("Hóa đơn đã bị hủy trước đó");
+            throw new InvalidOperationException("Hóa đơn đã bị hủy trước đó");
 
         eInvoice.Status = 3; // Cancelled
         eInvoice.CancelReason = reason;
@@ -263,10 +263,10 @@ public partial class BillingCompleteService {
     {
         var eInvoice = await _context.ElectronicInvoices.FindAsync(eInvoiceId);
         if (eInvoice == null)
-            throw new Exception("Không tìm thấy hóa đơn điện tử");
+            throw new KeyNotFoundException("Không tìm thấy hóa đơn điện tử");
 
         if (eInvoice.Status == 3)
-            throw new Exception("Không thể gửi hóa đơn đã hủy");
+            throw new InvalidOperationException("Không thể gửi hóa đơn đã hủy");
 
         // Update sent status
         eInvoice.SentAt = DateTime.Now;
@@ -288,10 +288,10 @@ public partial class BillingCompleteService {
             .FirstOrDefaultAsync(e => e.Id == eInvoiceId);
 
         if (eInvoice == null)
-            throw new Exception("Không tìm thấy hóa đơn điện tử");
+            throw new KeyNotFoundException("Không tìm thấy hóa đơn điện tử");
 
         if (eInvoice.Status == 3)
-            throw new Exception("Không thể xuất hóa đơn đã hủy");
+            throw new InvalidOperationException("Không thể xuất hóa đơn đã hủy");
 
         // Phát hành HĐĐT qua nhà cung cấp THẬT (cắm-thay-được qua IElectronicInvoiceProvider).
         // - Provider đã cấu hình ("EInvoice:Enabled"=true + đủ thông tin) → gọi REST API NCC,

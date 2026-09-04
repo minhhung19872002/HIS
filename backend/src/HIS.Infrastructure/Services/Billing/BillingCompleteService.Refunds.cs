@@ -103,7 +103,7 @@ public partial class BillingCompleteService {
     {
         var patient = await _context.Patients.FindAsync(dto.PatientId);
         if (patient == null)
-            throw new Exception("Patient not found");
+            throw new KeyNotFoundException("Patient not found");
         // #189: chặn số tiền hoàn <= 0 (chống "hoàn âm" = rút tiền bệnh nhân)
         if (dto.RefundAmount <= 0)
             throw new InvalidOperationException("Số tiền hoàn phải lớn hơn 0");
@@ -113,24 +113,24 @@ public partial class BillingCompleteService {
         {
             var originalDeposit = await _context.Deposits.FindAsync(dto.OriginalDepositId.Value);
             if (originalDeposit == null)
-                throw new Exception("Phiếu tạm ứng gốc không tồn tại");
+                throw new KeyNotFoundException("Phiếu tạm ứng gốc không tồn tại");
             var availableAmount = originalDeposit.Amount - originalDeposit.UsedAmount;
             if (dto.RefundAmount > availableAmount)
-                throw new Exception($"Số tiền hoàn ({dto.RefundAmount:N0}đ) vượt quá số dư tạm ứng ({availableAmount:N0}đ)");
+                throw new InvalidOperationException($"Số tiền hoàn ({dto.RefundAmount:N0}đ) vượt quá số dư tạm ứng ({availableAmount:N0}đ)");
         }
         else if (dto.RefundType == 2 && dto.OriginalPaymentId.HasValue)
         {
             var originalPayment = await _context.Receipts.FindAsync(dto.OriginalPaymentId.Value);
             if (originalPayment == null)
-                throw new Exception("Phiếu thanh toán gốc không tồn tại");
+                throw new KeyNotFoundException("Phiếu thanh toán gốc không tồn tại");
             if (originalPayment.Status == 2)
-                throw new Exception("Phiếu thanh toán gốc đã bị hủy");
+                throw new InvalidOperationException("Phiếu thanh toán gốc đã bị hủy");
             if (dto.RefundAmount > originalPayment.FinalAmount)
-                throw new Exception($"Số tiền hoàn ({dto.RefundAmount:N0}đ) vượt quá số tiền đã thanh toán ({originalPayment.FinalAmount:N0}đ)");
+                throw new InvalidOperationException($"Số tiền hoàn ({dto.RefundAmount:N0}đ) vượt quá số tiền đã thanh toán ({originalPayment.FinalAmount:N0}đ)");
         }
         else
         {
-            throw new Exception("Cần chỉ định phiếu tạm ứng hoặc phiếu thanh toán gốc");
+            throw new InvalidOperationException("Cần chỉ định phiếu tạm ứng hoặc phiếu thanh toán gốc");
         }
 
         // Sprint 3 Item 2.5: partial refund validation
@@ -165,7 +165,7 @@ public partial class BillingCompleteService {
                 if (item.ItemType == "service")
                 {
                     refundServiceDetails.TryGetValue(item.ItemId, out var sr);
-                    if (sr == null) throw new Exception($"Dịch vụ {item.ItemId} không tồn tại");
+                    if (sr == null) throw new KeyNotFoundException($"Dịch vụ {item.ItemId} không tồn tại");
                     // BHYT không cho hoàn chi tiết CLS đã có kết quả
                     if (sr.PatientType == 1 && !string.IsNullOrWhiteSpace(sr.Result))
                         throw new InvalidOperationException(
@@ -174,7 +174,7 @@ public partial class BillingCompleteService {
                 else if (item.ItemType == "medicine")
                 {
                     refundPrescriptionDetails.TryGetValue(item.ItemId, out var pd);
-                    if (pd == null) throw new Exception($"Thuốc {item.ItemId} không tồn tại");
+                    if (pd == null) throw new KeyNotFoundException($"Thuốc {item.ItemId} không tồn tại");
                     if (pd.PatientType == 1)
                         throw new InvalidOperationException(
                             "BHYT: không thể hoàn chi tiết thuốc. Phải hoàn trả toàn bộ toa.");
@@ -236,7 +236,7 @@ public partial class BillingCompleteService {
             .Include(r => r.Patient)
             .FirstOrDefaultAsync(r => r.Id == dto.RefundId && r.ReceiptType == 3);
         if (receipt == null)
-            throw new Exception("Refund not found");
+            throw new KeyNotFoundException("Refund not found");
 
         if (dto.IsApproved)
         {
@@ -273,7 +273,7 @@ public partial class BillingCompleteService {
             .Include(r => r.Patient)
             .FirstOrDefaultAsync(r => r.Id == dto.RefundId && r.ReceiptType == 3);
         if (receipt == null)
-            throw new Exception("Refund not found");
+            throw new KeyNotFoundException("Refund not found");
 
         receipt.Status = 4; // Đã xác nhận hoàn
         receipt.Note = $"{receipt.Note} | Xác nhận: {dto.Notes} | Mã GD: {dto.TransactionNumber}";
@@ -315,9 +315,9 @@ public partial class BillingCompleteService {
         var receipt = await _context.Receipts
             .FirstOrDefaultAsync(r => r.Id == refundId && r.ReceiptType == 3);
         if (receipt == null)
-            throw new Exception("Refund not found");
+            throw new KeyNotFoundException("Refund not found");
         if (receipt.Status == 5)
-            throw new Exception("Refund already cancelled");
+            throw new InvalidOperationException("Refund already cancelled");
 
         receipt.Status = 5; // Đã hủy
         receipt.Note = $"{receipt.Note} | Hủy: {reason}";

@@ -339,7 +339,7 @@ public partial class ReceptionCompleteService {
     public async Task<ServiceOrderResultDto> UpdateServiceOrderAsync(Guid orderId, ReceptionServiceOrderItemDto dto, Guid userId)
     {
         var request = await _context.ServiceRequests.FindAsync(orderId);
-        if (request == null) throw new Exception("Service order not found");
+        if (request == null) throw new KeyNotFoundException("Service order not found");
 
         request.Quantity = dto.Quantity;
         request.TotalPrice = request.UnitPrice * dto.Quantity;
@@ -639,7 +639,7 @@ public partial class ReceptionCompleteService {
             .Include(m => m.Patient)
             .FirstOrDefaultAsync(m => m.Id == medicalRecordId);
 
-        if (record == null) throw new Exception("Medical record not found");
+        if (record == null) throw new KeyNotFoundException("Medical record not found");
 
         // Calculate total service amount
         var totalServiceAmount = await _context.ServiceRequests

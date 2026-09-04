@@ -234,10 +234,10 @@ public partial class InpatientCompleteService {
     public async Task<InpatientDiagnosisDto> SaveInpatientDiagnosisAsync(Guid admissionId, SaveInpatientDiagnosisDto dto, Guid userId)
     {
         var admission = await _context.Set<Admission>().FindAsync(admissionId)
-            ?? throw new Exception($"Đợt điều trị {admissionId} không tìm thấy");
+            ?? throw new KeyNotFoundException($"Đợt điều trị {admissionId} không tìm thấy");
 
         var medRecord = await _context.MedicalRecords.FindAsync(admission.MedicalRecordId)
-            ?? throw new Exception($"Hồ sơ bệnh án không tìm thấy");
+            ?? throw new KeyNotFoundException($"Hồ sơ bệnh án không tìm thấy");
 
         // Update MedicalRecord fields (existing columns — no migration needed)
         medRecord.MainIcdCode = dto.MainDiagnosisCode?.Trim();
@@ -331,7 +331,7 @@ public partial class InpatientCompleteService {
         // tại giường biến mất, không lấy mẫu/trả KQ/tính viện phí được.
         var admission = await _context.Set<Admission>()
             .FirstOrDefaultAsync(a => a.Id == dto.AdmissionId);
-        if (admission == null) throw new Exception("Admission not found");
+        if (admission == null) throw new KeyNotFoundException("Admission not found");
         await CheckDepositEnforceBlockAsync(admission.PatientId); // F3.3
 
         var doctor = await _context.Users.FindAsync(userId);

@@ -20,14 +20,14 @@ public partial class InpatientCompleteService {
             .Include(a => a.Patient)
             .FirstOrDefaultAsync(a => a.Id == dto.AdmissionId);
         if (admission == null)
-            throw new Exception("Admission not found");
+            throw new KeyNotFoundException("Admission not found");
 
         var bed = await _context.Beds
             .Include(b => b.Room)
             .ThenInclude(r => r.Department)
             .FirstOrDefaultAsync(b => b.Id == dto.BedId);
         if (bed == null)
-            throw new Exception("Bed not found");
+            throw new KeyNotFoundException("Bed not found");
 
         // E2E fix (prod-e2e 2026-06-17): idempotent. Nếu giường đã gán ACTIVE cho CHÍNH admission này
         // (vd admit-from-opd đã tự gán giường đầu trống trong phòng) → trả assignment hiện có thay vì ném
@@ -110,13 +110,13 @@ public partial class InpatientCompleteService {
             .ThenInclude(r => r.Department)
             .FirstOrDefaultAsync(b => b.Id == dto.NewBedId);
         if (newBed == null)
-            throw new Exception("New bed not found");
+            throw new KeyNotFoundException("New bed not found");
 
         // Check destination bed availability
         var bedOccupied = await _context.Set<BedAssignment>()
             .AnyAsync(ba => ba.BedId == dto.NewBedId && ba.Status == 0);
         if (bedOccupied)
-            throw new Exception($"Giường {newBed.BedName} đã có bệnh nhân, vui lòng chọn giường khác");
+            throw new InvalidOperationException($"Giường {newBed.BedName} đã có bệnh nhân, vui lòng chọn giường khác");
 
         // Create new assignment
         var newAssignment = new BedAssignment

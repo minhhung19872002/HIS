@@ -21,7 +21,7 @@ public partial class IvfLabService
             if (dto.Id.HasValue && dto.Id != Guid.Empty)
             {
                 entity = await _context.Set<IvfEmbryoTransfer>().FindAsync(dto.Id.Value)
-                    ?? throw new Exception("Transfer not found");
+                    ?? throw new KeyNotFoundException("Transfer not found");
                 entity.UpdatedAt = DateTime.UtcNow;
             }
             else
@@ -145,7 +145,7 @@ public partial class IvfLabService
             if (dto.Id.HasValue && dto.Id != Guid.Empty)
             {
                 entity = await _context.Set<IvfSpermBank>().FindAsync(dto.Id.Value)
-                    ?? throw new Exception("Sperm sample not found");
+                    ?? throw new KeyNotFoundException("Sperm sample not found");
                 entity.UpdatedAt = DateTime.UtcNow;
             }
             else
@@ -259,7 +259,7 @@ public partial class IvfLabService
             if (dto.Id.HasValue && dto.Id != Guid.Empty)
             {
                 entity = await _context.Set<IvfBiopsy>().FindAsync(dto.Id.Value)
-                    ?? throw new Exception("Biopsy not found");
+                    ?? throw new KeyNotFoundException("Biopsy not found");
                 entity.UpdatedAt = DateTime.UtcNow;
             }
             else

@@ -194,7 +194,7 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
         try
         {
             var request = await _context.Set<SurgeryRequest>().FindAsync(dto.SurgeryId);
-            if (request == null) throw new Exception("Surgery request not found");
+            if (request == null) throw new KeyNotFoundException("Surgery request not found");
 
             request.Status = dto.IsApproved ? 1 : 4;
             request.UpdatedAt = DateTime.Now;
@@ -218,7 +218,7 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
     public async Task<SurgeryDto> RejectSurgeryAsync(Guid surgeryId, string reason, Guid userId)
     {
         var request = await _context.Set<SurgeryRequest>().FindAsync(surgeryId);
-        if (request == null) throw new Exception("Surgery request not found");
+        if (request == null) throw new KeyNotFoundException("Surgery request not found");
 
         request.Status = 4;
         request.Notes = reason;

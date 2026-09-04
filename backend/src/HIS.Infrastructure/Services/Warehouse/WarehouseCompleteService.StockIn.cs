@@ -18,7 +18,7 @@ public partial class WarehouseCompleteService {
     {
         var warehouse = await _context.Warehouses.FindAsync(dto.WarehouseId);
         if (warehouse == null)
-            throw new Exception("Warehouse not found");
+            throw new KeyNotFoundException("Warehouse not found");
 
         var importReceipt = new ImportReceipt
         {
@@ -152,9 +152,9 @@ public partial class WarehouseCompleteService {
             .Include(r => r.Details)
             .FirstOrDefaultAsync(r => r.Id == id);
         if (receipt == null)
-            throw new Exception("Stock receipt not found");
+            throw new KeyNotFoundException("Stock receipt not found");
         if (receipt.Status != 0)
-            throw new Exception("Chỉ có thể cập nhật phiếu ở trạng thái Mới tạo");
+            throw new InvalidOperationException("Chỉ có thể cập nhật phiếu ở trạng thái Mới tạo");
 
         // Update header fields
         receipt.ReceiptDate = dto.ReceiptDate;
@@ -256,7 +256,7 @@ public partial class WarehouseCompleteService {
     {
         var warehouse = await _context.Warehouses.FindAsync(dto.WarehouseId);
         if (warehouse == null)
-            throw new Exception("Warehouse not found");
+            throw new KeyNotFoundException("Warehouse not found");
 
         var importReceipt = new ImportReceipt
         {
@@ -368,9 +368,9 @@ public partial class WarehouseCompleteService {
                 .ThenInclude(d => d.Medicine)
             .FirstOrDefaultAsync(r => r.Id == id);
         if (receipt == null)
-            throw new Exception("Stock receipt not found");
+            throw new KeyNotFoundException("Stock receipt not found");
         if (receipt.Status != 0)
-            throw new Exception("Receipt is not in pending status");
+            throw new InvalidOperationException("Receipt is not in pending status");
 
         receipt.Status = 1; // Đã duyệt
         receipt.ApprovedBy = userId;
@@ -450,7 +450,7 @@ public partial class WarehouseCompleteService {
             .Include(r => r.Details)
             .FirstOrDefaultAsync(r => r.Id == id);
         if (receipt == null)
-            throw new Exception("Stock receipt not found");
+            throw new KeyNotFoundException("Stock receipt not found");
 
         // If already approved, reverse inventory
         if (receipt.Status == 1)

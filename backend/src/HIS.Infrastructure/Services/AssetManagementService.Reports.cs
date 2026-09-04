@@ -47,7 +47,7 @@ public partial class AssetManagementService
     public async Task<AssetQrCodeDto> GetAssetQrCodeDataAsync(Guid assetId)
     {
         var asset = await _context.FixedAssets.Where(a => a.Id == assetId && !a.IsDeleted).FirstOrDefaultAsync()
-            ?? throw new Exception("Asset not found");
+            ?? throw new KeyNotFoundException("Asset not found");
 
         string? deptName = null;
         if (asset.DepartmentId.HasValue)

@@ -8,6 +8,7 @@ namespace HIS.API.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // #219/T4: guard nghiep vu ra 400/404 kem ly do, khong phai 500 tran
 public class PatientsController : ControllerBase
 {
     private readonly IPatientService _patientService;

@@ -14,6 +14,7 @@ namespace HIS.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/asset-procurement")]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // #219/T4: guard nghiep vu ra 400/404 kem ly do, khong phai 500 tran
 [Authorize]
 public class AssetProcurementController : ControllerBase
 {

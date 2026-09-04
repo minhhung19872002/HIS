@@ -122,7 +122,7 @@ public partial class InpatientCompleteService {
     {
         var admission = await _context.Set<Admission>().FindAsync(dto.AdmissionId);
         if (admission == null)
-            throw new Exception("Admission not found");
+            throw new KeyNotFoundException("Admission not found");
         await EmrLockGuard.EnsureEditableByRecordAsync(_context, admission.MedicalRecordId); // TT46
         await CheckDepositEnforceBlockAsync(admission.PatientId); // F3.3
 
@@ -237,7 +237,7 @@ public partial class InpatientCompleteService {
             .Include(p => p.Details)
             .FirstOrDefaultAsync(p => p.Id == id);
         if (prescription == null)
-            throw new Exception("Prescription not found");
+            throw new KeyNotFoundException("Prescription not found");
         await EmrLockGuard.EnsureEditableByRecordAsync(_context, prescription.MedicalRecordId); // TT46
 
         prescription.PrescriptionDate = dto.PrescriptionDate;

@@ -20,7 +20,7 @@ public partial class InpatientCompleteService {
             .Include(a => a.Patient)
             .FirstOrDefaultAsync(a => a.Id == admissionId);
         if (admission == null)
-            throw new Exception("Admission not found");
+            throw new KeyNotFoundException("Admission not found");
 
         // Check unpaid prescriptions
         var unclaimedRx = await _context.Prescriptions
@@ -74,7 +74,7 @@ public partial class InpatientCompleteService {
             .Include(a => a.Patient)
             .FirstOrDefaultAsync(a => a.Id == dto.AdmissionId);
         if (admission == null)
-            throw new Exception("Admission not found");
+            throw new KeyNotFoundException("Admission not found");
         if (admission.Status != 0)
             // Business guard → InvalidOperationException để DomainExceptionFilter trả 400 (INVALID_STATE) thay vì 500.
             throw new InvalidOperationException("Bệnh nhân không trong trạng thái đang điều trị, không thể xuất viện");
@@ -165,7 +165,7 @@ public partial class InpatientCompleteService {
         var discharge = await _context.Set<Discharge>()
             .FirstOrDefaultAsync(d => d.AdmissionId == admissionId);
         if (discharge == null)
-            throw new Exception("Discharge record not found");
+            throw new KeyNotFoundException("Discharge record not found");
 
         _context.Set<Discharge>().Remove(discharge);
 

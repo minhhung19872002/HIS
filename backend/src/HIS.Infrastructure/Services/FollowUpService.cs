@@ -144,7 +144,7 @@ public class FollowUpService : IFollowUpService
             .Include(f => f.Doctor)
             .Include(f => f.Department)
             .FirstOrDefaultAsync(f => f.Id == id && !f.IsDeleted)
-            ?? throw new Exception("Không tìm thấy lịch tái khám");
+            ?? throw new KeyNotFoundException("Không tìm thấy lịch tái khám");
 
         entity.Status = dto.Status;
         entity.ActualDate = dto.ActualDate;
@@ -160,7 +160,7 @@ public class FollowUpService : IFollowUpService
     {
         var entity = await _context.FollowUpAppointments
             .FirstOrDefaultAsync(f => f.Id == id && !f.IsDeleted)
-            ?? throw new Exception("Không tìm thấy lịch tái khám");
+            ?? throw new KeyNotFoundException("Không tìm thấy lịch tái khám");
 
         entity.ReminderSent = true;
         entity.UpdatedAt = DateTime.UtcNow;

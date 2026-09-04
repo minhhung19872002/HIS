@@ -345,7 +345,7 @@ public partial class InpatientCompleteService {
     public async Task<VitalSignsRecordDto> UpdateVitalSignsAsync(Guid id, CreateVitalSignsDto dto, Guid userId)
     {
         var entity = await _context.InpatientVitalSigns.FirstOrDefaultAsync(v => v.Id == id && !v.IsDeleted);
-        if (entity == null) throw new Exception("Vital signs record not found");
+        if (entity == null) throw new KeyNotFoundException("Vital signs record not found");
         entity.RecordTime = dto.RecordTime;
         entity.Temperature = dto.Temperature;
         entity.Pulse = dto.Pulse;

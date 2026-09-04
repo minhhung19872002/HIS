@@ -404,7 +404,7 @@ public partial class ReceptionCompleteService {
                 && t.IssueDate >= iqFromUtc && t.IssueDate < iqToUtc
                 && t.Status < 2); // Waiting or InProgress
         if (existingTicket != null)
-            throw new Exception($"Bệnh nhân đã có số thứ tự {existingTicket.TicketNumber} tại phòng này hôm nay");
+            throw new InvalidOperationException($"Bệnh nhân đã có số thứ tự {existingTicket.TicketNumber} tại phòng này hôm nay");
 
         var ticket = new QueueTicket
         {
@@ -488,7 +488,7 @@ public partial class ReceptionCompleteService {
     public async Task<QueueTicketDto> CallSpecificAsync(Guid ticketId, Guid userId)
     {
         var ticket = await _context.QueueTickets.FindAsync(ticketId);
-        if (ticket == null) throw new Exception("Ticket not found");
+        if (ticket == null) throw new KeyNotFoundException("Ticket not found");
 
         ticket.Status = 1; // Calling
         ticket.CalledTime = DateTime.Now;
@@ -503,7 +503,7 @@ public partial class ReceptionCompleteService {
     public async Task<QueueTicketDto> RecallAsync(Guid ticketId, Guid userId)
     {
         var ticket = await _context.QueueTickets.FindAsync(ticketId);
-        if (ticket == null) throw new Exception("Ticket not found");
+        if (ticket == null) throw new KeyNotFoundException("Ticket not found");
 
         ticket.CalledTime = DateTime.Now;
         ticket.CalledByUserId = userId;
@@ -516,7 +516,7 @@ public partial class ReceptionCompleteService {
     public async Task<QueueTicketDto> SkipAsync(Guid ticketId, Guid userId, string? reason)
     {
         var ticket = await _context.QueueTickets.FindAsync(ticketId);
-        if (ticket == null) throw new Exception("Ticket not found");
+        if (ticket == null) throw new KeyNotFoundException("Ticket not found");
 
         ticket.Status = 4; // Skipped
         ticket.Notes = reason;
@@ -530,7 +530,7 @@ public partial class ReceptionCompleteService {
     public async Task<QueueTicketDto> StartServingAsync(Guid ticketId, Guid userId)
     {
         var ticket = await _context.QueueTickets.FindAsync(ticketId);
-        if (ticket == null) throw new Exception("Ticket not found");
+        if (ticket == null) throw new KeyNotFoundException("Ticket not found");
 
         ticket.Status = 2; // Serving
         await SyncMedicalRecordStatusAsync(ticket, mrStatus: 1); // InProgress
@@ -543,7 +543,7 @@ public partial class ReceptionCompleteService {
     public async Task<QueueTicketDto> CompleteServingAsync(Guid ticketId)
     {
         var ticket = await _context.QueueTickets.FindAsync(ticketId);
-        if (ticket == null) throw new Exception("Ticket not found");
+        if (ticket == null) throw new KeyNotFoundException("Ticket not found");
 
         ticket.Status = 3; // Completed
         ticket.CompletedTime = DateTime.Now;

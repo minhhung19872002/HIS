@@ -116,7 +116,7 @@ public class PatientService : IPatientService
     public async Task<PatientDto> UpdateAsync(UpdatePatientDto dto)
     {
         var patient = await _context.Patients.FindAsync(dto.Id)
-            ?? throw new Exception("Patient not found");
+            ?? throw new KeyNotFoundException("Patient not found");
 
         _mapper.Map(dto, patient);
         await _context.SaveChangesAsync();
@@ -127,7 +127,7 @@ public class PatientService : IPatientService
     public async Task DeleteAsync(Guid id)
     {
         var patient = await _context.Patients.FindAsync(id)
-            ?? throw new Exception("Patient not found");
+            ?? throw new KeyNotFoundException("Patient not found");
 
         patient.IsDeleted = true;
         await _context.SaveChangesAsync();

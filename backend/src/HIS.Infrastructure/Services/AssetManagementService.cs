@@ -80,7 +80,7 @@ public partial class AssetManagementService : IAssetManagementService
         Tender entity;
         if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
         {
-            entity = await _context.Tenders.FindAsync(dto.Id.Value) ?? throw new Exception("Tender not found");
+            entity = await _context.Tenders.FindAsync(dto.Id.Value) ?? throw new KeyNotFoundException("Tender not found");
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }
@@ -157,7 +157,7 @@ public partial class AssetManagementService : IAssetManagementService
         TenderItem entity;
         if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
         {
-            entity = await _context.TenderItems.FindAsync(dto.Id.Value) ?? throw new Exception("TenderItem not found");
+            entity = await _context.TenderItems.FindAsync(dto.Id.Value) ?? throw new KeyNotFoundException("TenderItem not found");
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }
@@ -186,7 +186,7 @@ public partial class AssetManagementService : IAssetManagementService
 
     public async Task<TenderDto> AwardTenderAsync(AwardTenderDto dto, string userId)
     {
-        var entity = await _context.Tenders.FindAsync(dto.TenderId) ?? throw new Exception("Tender not found");
+        var entity = await _context.Tenders.FindAsync(dto.TenderId) ?? throw new KeyNotFoundException("Tender not found");
         entity.Status = 4; // Awarded
         entity.WinnerSupplierId = dto.WinnerSupplierId;
         entity.ContractNumber = dto.ContractNumber;

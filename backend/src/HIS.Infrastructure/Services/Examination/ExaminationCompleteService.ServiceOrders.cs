@@ -62,11 +62,11 @@ public partial class ExaminationCompleteService
     public async Task<List<ServiceOrderFullDto>> CreateServiceOrdersAsync(CreateServiceOrderDto dto)
     {
         var examination = await _examinationRepo.GetByIdAsync(dto.ExaminationId);
-        if (examination == null) throw new Exception("Examination not found");
+        if (examination == null) throw new KeyNotFoundException("Examination not found");
         var effectiveDoctorId = examination.DoctorId ?? GetCurrentUserId();
         if (!effectiveDoctorId.HasValue)
         {
-            throw new Exception("No valid doctor/user is available to create service orders");
+            throw new InvalidOperationException("No valid doctor/user is available to create service orders");
         }
 
         var results = new List<ServiceOrderFullDto>();
@@ -166,7 +166,7 @@ public partial class ExaminationCompleteService
     public async Task<ServiceOrderFullDto> UpdateServiceOrderAsync(Guid orderId, ServiceOrderFullDto dto)
     {
         var request = await _context.ServiceRequests.FindAsync(orderId);
-        if (request == null) throw new Exception("Service order not found");
+        if (request == null) throw new KeyNotFoundException("Service order not found");
 
         request.Quantity = dto.Quantity;
         request.TotalPrice = dto.UnitPrice * dto.Quantity;
@@ -291,7 +291,7 @@ public partial class ExaminationCompleteService
             .Include(t => t.Items)
             .FirstOrDefaultAsync(t => t.Id == id);
 
-        if (template == null) throw new Exception("Template not found");
+        if (template == null) throw new KeyNotFoundException("Template not found");
 
         template.TemplateCode = dto.TemplateCode;
         template.TemplateName = dto.TemplateName;

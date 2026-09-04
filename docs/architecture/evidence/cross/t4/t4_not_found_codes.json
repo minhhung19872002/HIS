@@ -1,0 +1,133 @@
+{
+ "ranAt": "2026-09-04T10:37:40",
+ "probes": [
+  {
+   "method": "GET",
+   "path": "/api/BillingComplete/invoices/00000000-0000-0000-0000-0000000000ff",
+   "label": "hóa đơn",
+   "status": 404,
+   "verdict": "OK (không tìm thấy)",
+   "body": "{\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.5.5\",\"title\":\"Not Found\",\"status\":404,\"traceId\":\"00-4c5c9e4385a6b69d92677e6995b8e4ae-62816c897c38b30c-00"
+  },
+  {
+   "method": "GET",
+   "path": "/api/BillingComplete/cash-books/00000000-0000-0000-0000-0000000000ff",
+   "label": "sổ quỹ",
+   "status": 404,
+   "verdict": "OK (không tìm thấy)",
+   "body": "{\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.5.5\",\"title\":\"Not Found\",\"status\":404,\"traceId\":\"00-4f5c56944a53dc3490bf50fc2452efeb-c55207f070d06c52-00"
+  },
+  {
+   "method": "GET",
+   "path": "/api/BillingComplete/e-invoices/00000000-0000-0000-0000-0000000000ff",
+   "label": "hóa đơn điện tử",
+   "status": 404,
+   "verdict": "OK (không tìm thấy)",
+   "body": "{\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.5.5\",\"title\":\"Not Found\",\"status\":404,\"traceId\":\"00-69cbcf903489845f30151acf636d351c-91c883ceb0ade1b6-00"
+  },
+  {
+   "method": "POST",
+   "path": "/api/BillingComplete/e-invoices/00000000-0000-0000-0000-0000000000ff/cancel",
+   "label": "hủy hóa đơn điện tử",
+   "status": 404,
+   "verdict": "OK (không tìm thấy)",
+   "body": "{\"error\":\"NOT_FOUND\",\"message\":\"Không tìm thấy hóa đơn điện tử\"}"
+  },
+  {
+   "method": "GET",
+   "path": "/api/BillingComplete/records/00000000-0000-0000-0000-0000000000ff/lock-status",
+   "label": "trạng thái khóa hồ sơ",
+   "status": 200,
+   "verdict": "endpoint trả rỗng, không ném guard",
+   "body": "{\"success\":true,\"data\":{\"isError\":false,\"errorMessage\":null,\"medicalRecordId\":\"00000000-0000-0000-0000-000000000000\",\"medicalRecordCode\":\"\",\"patientName\":\"\",\"is"
+  },
+  {
+   "method": "GET",
+   "path": "/api/BillingComplete/discounts/history/00000000-0000-0000-0000-0000000000ff",
+   "label": "lịch sử miễn giảm",
+   "status": 200,
+   "verdict": "endpoint trả rỗng, không ném guard",
+   "body": "{\"success\":true,\"data\":[],\"message\":null,\"errors\":null,\"meta\":null}"
+  },
+  {
+   "method": "GET",
+   "path": "/api/warehouse/stock-receipts/00000000-0000-0000-0000-0000000000ff",
+   "label": "phiếu nhập kho",
+   "status": 404,
+   "verdict": "OK (không tìm thấy)",
+   "body": ""
+  },
+  {
+   "method": "GET",
+   "path": "/api/warehouse/stock-issues/00000000-0000-0000-0000-0000000000ff",
+   "label": "phiếu xuất kho",
+   "status": 404,
+   "verdict": "OK (không tìm thấy)",
+   "body": ""
+  },
+  {
+   "method": "GET",
+   "path": "/api/medical-record-archive/borrows/00000000-0000-0000-0000-0000000000ff",
+   "label": "phiếu mượn hồ sơ",
+   "status": 404,
+   "verdict": "OK (không tìm thấy)",
+   "body": ""
+  },
+  {
+   "method": "GET",
+   "path": "/api/reception/admissions/00000000-0000-0000-0000-0000000000ff",
+   "label": "lượt tiếp đón",
+   "status": 405,
+   "verdict": "khác",
+   "body": ""
+  },
+  {
+   "method": "GET",
+   "path": "/api/Patients/00000000-0000-0000-0000-0000000000ff",
+   "label": "bệnh nhân",
+   "status": 404,
+   "verdict": "OK (không tìm thấy)",
+   "body": "{\"success\":false,\"message\":\"Patient not found\",\"data\":null,\"errors\":null}"
+  },
+  {
+   "method": "GET",
+   "path": "/api/examination/00000000-0000-0000-0000-0000000000ff",
+   "label": "lượt khám",
+   "status": 404,
+   "verdict": "OK (không tìm thấy)",
+   "body": ""
+  },
+  {
+   "method": "GET",
+   "path": "/api/inpatient/admissions/00000000-0000-0000-0000-0000000000ff",
+   "label": "lượt nội trú",
+   "status": 404,
+   "verdict": "OK (không tìm thấy)",
+   "body": ""
+  },
+  {
+   "method": "GET",
+   "path": "/api/SurgeryComplete/requests/00000000-0000-0000-0000-0000000000ff",
+   "label": "yêu cầu phẫu thuật",
+   "status": 404,
+   "verdict": "OK (không tìm thấy)",
+   "body": ""
+  },
+  {
+   "method": "GET",
+   "path": "/api/procurement/00000000-0000-0000-0000-0000000000ff",
+   "label": "gói mua sắm",
+   "status": 404,
+   "verdict": "OK (không tìm thấy)",
+   "body": "{\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.5.5\",\"title\":\"Not Found\",\"status\":404,\"traceId\":\"00-9b9a62fbab1a29b81369d42d5dff3ed4-cf998c47f91c5fc7-00"
+  },
+  {
+   "method": "GET",
+   "path": "/api/ivf-lab/cycles/00000000-0000-0000-0000-0000000000ff",
+   "label": "chu kỳ IVF",
+   "status": 404,
+   "verdict": "OK (không tìm thấy)",
+   "body": "{\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.5.5\",\"title\":\"Not Found\",\"status\":404,\"traceId\":\"00-1d905c1a8723bc3d3915d5fc4479353e-c651f95b4380dbc6-00"
+  }
+ ]
+}

@@ -237,9 +237,9 @@ public partial class WarehouseCompleteService {
                 .ThenInclude(m => m.Patient)
             .FirstOrDefaultAsync(p => p.Id == orderSummaryId && p.PrescriptionType == 2);
         if (prescription == null)
-            throw new Exception("Inpatient prescription not found");
+            throw new KeyNotFoundException("Inpatient prescription not found");
 
-        var warehouseId = prescription.WarehouseId ?? throw new Exception("No warehouse assigned");
+        var warehouseId = prescription.WarehouseId ?? throw new InvalidOperationException("No warehouse assigned");
         var warehouse = await _context.Warehouses.FindAsync(warehouseId);
 
         // NangCap26 V.33: kho đang khóa → không phát thuốc nội trú.
@@ -355,7 +355,7 @@ public partial class WarehouseCompleteService {
     {
         var warehouse = await _context.Warehouses.FindAsync(dto.WarehouseId);
         if (warehouse == null)
-            throw new Exception("Warehouse not found");
+            throw new KeyNotFoundException("Warehouse not found");
 
         // NangCap26 V.33: kho đang khóa → không xuất cho khoa/phòng.
         await EnsureWarehouseNotLockedAsync(dto.WarehouseId);
@@ -402,7 +402,7 @@ public partial class WarehouseCompleteService {
                     .FirstOrDefaultAsync();
 
             if (stock == null)
-                throw new Exception($"Insufficient stock for item {item.ItemId}");
+                throw new InvalidOperationException($"Insufficient stock for item {item.ItemId}");
 
             // NangCap26 V.31: chọn đích danh lô cũng không được nếu lô đang khóa.
             EnsureBatchNotLocked(stock);
@@ -527,9 +527,9 @@ public partial class WarehouseCompleteService {
         // Validate cabinet warehouse (must be WarehouseType=4 or IsCabinet=true)
         var warehouse = await _context.Warehouses.FindAsync(dto.WarehouseId);
         if (warehouse == null)
-            throw new Exception("Warehouse not found");
+            throw new KeyNotFoundException("Warehouse not found");
         if (warehouse.WarehouseType != 4 && !warehouse.IsCabinet)
-            throw new Exception("Selected warehouse is not an emergency cabinet (WarehouseType must be 4 or IsCabinet=true)");
+            throw new InvalidOperationException("Selected warehouse is not an emergency cabinet (WarehouseType must be 4 or IsCabinet=true)");
 
         return await CreateStockIssueByTypeAsync(dto, userId, 12, "TT");
     }
@@ -570,9 +570,9 @@ public partial class WarehouseCompleteService {
             .Include(r => r.Details)
             .FirstOrDefaultAsync(r => r.Id == id);
         if (receipt == null)
-            throw new Exception("Stock issue not found");
+            throw new KeyNotFoundException("Stock issue not found");
         if (receipt.Status == 2)
-            throw new Exception("Phiếu xuất đã bị hủy trước đó");
+            throw new InvalidOperationException("Phiếu xuất đã bị hủy trước đó");
 
         // If already issued, reverse inventory
         if (receipt.Status == 1)
@@ -601,7 +601,7 @@ public partial class WarehouseCompleteService {
     {
         var warehouse = await _context.Warehouses.FindAsync(dto.WarehouseId);
         if (warehouse == null)
-            throw new Exception("Warehouse not found");
+            throw new KeyNotFoundException("Warehouse not found");
 
         // NangCap26 V.33: kho đang khóa → chặn mọi phiếu xuất/luân chuyển từ kho này.
         await EnsureWarehouseNotLockedAsync(dto.WarehouseId);
@@ -653,7 +653,7 @@ public partial class WarehouseCompleteService {
                     .FirstOrDefaultAsync();
 
             if (stock == null)
-                throw new Exception($"Insufficient stock for item {item.ItemId}");
+                throw new InvalidOperationException($"Insufficient stock for item {item.ItemId}");
 
             // NangCap26 V.31: chọn đích danh lô cũng không được nếu lô đang khóa.
             EnsureBatchNotLocked(stock);

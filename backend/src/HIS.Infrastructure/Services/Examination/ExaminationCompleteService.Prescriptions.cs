@@ -83,7 +83,7 @@ public partial class ExaminationCompleteService
         var examination = await _context.Examinations
             .Include(e => e.MedicalRecord)
             .FirstOrDefaultAsync(e => e.Id == dto.ExaminationId);
-        if (examination == null) throw new Exception("Examination not found");
+        if (examination == null) throw new KeyNotFoundException("Examination not found");
         if (examination.MedicalRecord?.EmrFinalizedAt != null)
             throw new InvalidOperationException(EmrLockGuard.LockedMessage); // TT46
 
@@ -96,7 +96,7 @@ public partial class ExaminationCompleteService
         // DoctorId là FK bắt buộc tới Users → KHÔNG được để Guid.Empty (gây FK conflict → 500).
         var doctorId = examination.DoctorId;
         if (doctorId == null || doctorId == Guid.Empty)
-            throw new Exception("Chưa xác định bác sĩ kê đơn. Vui lòng phân công bác sĩ cho lượt khám trước khi kê đơn.");
+            throw new InvalidOperationException("Chưa xác định bác sĩ kê đơn. Vui lòng phân công bác sĩ cho lượt khám trước khi kê đơn.");
 
         var medicines = await LoadPrescriptionMedicinesAsync(dto);
 
@@ -166,7 +166,7 @@ public partial class ExaminationCompleteService
             .Include(p => p.Details)
             .FirstOrDefaultAsync(p => p.Id == id);
 
-        if (prescription == null) throw new Exception("Prescription not found");
+        if (prescription == null) throw new KeyNotFoundException("Prescription not found");
         await EmrLockGuard.EnsureEditableByRecordAsync(_context, prescription.MedicalRecordId); // TT46
         if (prescription.Status != HIS.Core.Constants.PrescriptionStatus.PendingApproval)
             throw new InvalidOperationException("Chỉ đơn thuốc đang ở trạng thái nháp mới được phép chỉnh sửa.");
@@ -663,7 +663,7 @@ public partial class ExaminationCompleteService
             .Include(t => t.Items)
             .FirstOrDefaultAsync(t => t.Id == id);
 
-        if (template == null) throw new Exception("Template not found");
+        if (template == null) throw new KeyNotFoundException("Template not found");
 
         template.TemplateCode = dto.TemplateCode;
         template.TemplateName = dto.TemplateName;
@@ -718,7 +718,7 @@ public partial class ExaminationCompleteService
             .ThenInclude(i => i.Medicine)
             .FirstOrDefaultAsync(t => t.Id == templateId);
 
-        if (template == null) throw new Exception("Template not found");
+        if (template == null) throw new KeyNotFoundException("Template not found");
 
         var createDto = new Application.DTOs.Examination.CreateExaminationPrescriptionDto
         {
@@ -747,7 +747,7 @@ public partial class ExaminationCompleteService
             .Include(p => p.Details)
             .FirstOrDefaultAsync(p => p.Id == prescriptionId);
 
-        if (prescription == null) throw new Exception("Prescription not found");
+        if (prescription == null) throw new KeyNotFoundException("Prescription not found");
 
         var dto = new ExaminationPrescriptionTemplateDto
         {

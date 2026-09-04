@@ -70,12 +70,12 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
             .Include(r => r.Department)
             .FirstOrDefaultAsync(r => r.Id == dto.MedicalRecordId && !r.IsDeleted);
 
-        if (record == null) throw new Exception("Không tìm thấy hồ sơ bệnh án");
+        if (record == null) throw new KeyNotFoundException("Không tìm thấy hồ sơ bệnh án");
 
         // Check existing archive
         var existing = await _context.MedicalRecordArchives
             .AnyAsync(a => a.MedicalRecordId == dto.MedicalRecordId && !a.IsDeleted);
-        if (existing) throw new Exception("Hồ sơ đã được lưu trữ");
+        if (existing) throw new InvalidOperationException("Hồ sơ đã được lưu trữ");
 
         var archive = new MedicalRecordArchive
         {
@@ -105,7 +105,7 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
     public async Task<ArchiveDto> UpdateArchiveLocationAsync(Guid archiveId, UpdateArchiveLocationDto dto, Guid userId)
     {
         var archive = await _context.MedicalRecordArchives.FindAsync(archiveId);
-        if (archive == null) throw new Exception("Không tìm thấy hồ sơ lưu trữ");
+        if (archive == null) throw new KeyNotFoundException("Không tìm thấy hồ sơ lưu trữ");
 
         archive.StorageLocation = dto.StorageLocation ?? archive.StorageLocation;
         archive.ShelfNumber = dto.ShelfNumber ?? archive.ShelfNumber;
@@ -168,8 +168,8 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
     public async Task<BorrowRequestDto> CreateBorrowRequestAsync(CreateArchiveBorrowDto dto, Guid userId)
     {
         var archive = await _context.MedicalRecordArchives.FindAsync(dto.MedicalRecordArchiveId);
-        if (archive == null) throw new Exception("Không tìm thấy hồ sơ lưu trữ");
-        if (archive.Status == 2) throw new Exception("Hồ sơ đang được mượn");
+        if (archive == null) throw new KeyNotFoundException("Không tìm thấy hồ sơ lưu trữ");
+        if (archive.Status == 2) throw new InvalidOperationException("Hồ sơ đang được mượn");
 
         var request = new MedicalRecordBorrowRequest
         {
@@ -194,7 +194,7 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
     public async Task<BorrowRequestDto> ApproveBorrowRequestAsync(Guid requestId, bool approve, string? rejectReason, Guid userId)
     {
         var request = await _context.MedicalRecordBorrowRequests.FindAsync(requestId);
-        if (request == null) throw new Exception("Không tìm thấy phiếu mượn");
+        if (request == null) throw new KeyNotFoundException("Không tìm thấy phiếu mượn");
 
         request.Status = approve ? 1 : 2; // 1=Đã duyệt, 2=Từ chối
         request.ApprovedById = userId;
@@ -211,8 +211,8 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
         var request = await _context.MedicalRecordBorrowRequests
             .Include(r => r.MedicalRecordArchive)
             .FirstOrDefaultAsync(r => r.Id == requestId);
-        if (request == null) throw new Exception("Không tìm thấy phiếu mượn");
-        if (request.Status != 1) throw new Exception("Phiếu mượn chưa được duyệt");
+        if (request == null) throw new KeyNotFoundException("Không tìm thấy phiếu mượn");
+        if (request.Status != 1) throw new InvalidOperationException("Phiếu mượn chưa được duyệt");
 
         request.Status = 3; // Đang mượn
         request.BorrowedDate = DateTime.UtcNow;
@@ -228,8 +228,8 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
         var request = await _context.MedicalRecordBorrowRequests
             .Include(r => r.MedicalRecordArchive)
             .FirstOrDefaultAsync(r => r.Id == requestId);
-        if (request == null) throw new Exception("Không tìm thấy phiếu mượn");
-        if (request.Status != 3) throw new Exception("Phiếu mượn chưa được giao");
+        if (request == null) throw new KeyNotFoundException("Không tìm thấy phiếu mượn");
+        if (request.Status != 3) throw new InvalidOperationException("Phiếu mượn chưa được giao");
 
         request.Status = 4; // Đã trả
         request.ReturnedDate = DateTime.UtcNow;
@@ -372,15 +372,15 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
             .FirstOrDefaultAsync(e => e.Id == dto.ExaminationId);
 
         if (exam == null)
-            throw new Exception("Không tìm thấy lượt khám");
+            throw new KeyNotFoundException("Không tìm thấy lượt khám");
         if (exam.MedicalRecord == null)
-            throw new Exception("Không tìm thấy hồ sơ bệnh án cho lượt khám này");
+            throw new KeyNotFoundException("Không tìm thấy hồ sơ bệnh án cho lượt khám này");
 
         // Check if already archived
         var existing = await _context.MedicalRecordArchives
             .AnyAsync(a => a.MedicalRecordId == exam.MedicalRecordId && !a.IsDeleted);
         if (existing)
-            throw new Exception("Hồ sơ bệnh án đã được lưu trữ trước đó");
+            throw new InvalidOperationException("Hồ sơ bệnh án đã được lưu trữ trước đó");
 
         var record = exam.MedicalRecord;
         var archive = new MedicalRecordArchive
@@ -422,7 +422,7 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
             .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted);
 
         if (archive == null)
-            throw new Exception("Không tìm thấy hồ sơ lưu trữ");
+            throw new KeyNotFoundException("Không tìm thấy hồ sơ lưu trữ");
 
         var record = archive.MedicalRecord;
         var patient = archive.Patient ?? record?.Patient;

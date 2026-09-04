@@ -9,6 +9,7 @@ namespace HIS.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/booking")]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // #219/T4: guard nghiep vu ra 400/404 kem ly do, khong phai 500 tran
 [AllowAnonymous]
 public class AppointmentBookingController : ControllerBase
 {

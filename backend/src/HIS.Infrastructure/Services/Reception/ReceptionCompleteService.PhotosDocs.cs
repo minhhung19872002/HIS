@@ -188,7 +188,7 @@ public partial class ReceptionCompleteService {
     public async Task<DocumentHoldDto> ReturnDocumentAsync(ReturnDocumentDto dto, Guid userId)
     {
         var docHold = await _context.DocumentHolds.FindAsync(dto.DocumentHoldId);
-        if (docHold == null) throw new Exception("Document hold not found");
+        if (docHold == null) throw new KeyNotFoundException("Document hold not found");
 
         docHold.ReturnDate = DateTime.Now;
         docHold.ReturnedByUserId = userId;
@@ -266,7 +266,7 @@ public partial class ReceptionCompleteService {
             .ThenInclude(m => m.Patient)
             .FirstOrDefaultAsync(d => d.Id == documentHoldId);
 
-        if (hold == null) throw new Exception("Document hold not found");
+        if (hold == null) throw new KeyNotFoundException("Document hold not found");
 
         return new DocumentHoldReceiptDto
         {

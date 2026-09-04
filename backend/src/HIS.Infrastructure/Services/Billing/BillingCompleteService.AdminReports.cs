@@ -67,7 +67,7 @@ public partial class BillingCompleteService {
         var cashBook = await _context.CashBooks
             .FirstOrDefaultAsync(cb => cb.CashierId == dto.CashierId && !cb.IsClosed);
         if (cashBook == null)
-            throw new Exception("No open cash book found for this cashier");
+            throw new InvalidOperationException("No open cash book found for this cashier");
 
         // Calculate totals from receipts in this cash book's period
         var receipts = await _context.Receipts

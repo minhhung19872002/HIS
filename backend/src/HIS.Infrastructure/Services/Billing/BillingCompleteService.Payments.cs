@@ -20,7 +20,7 @@ public partial class BillingCompleteService {
     {
         var patient = await _context.Patients.FindAsync(dto.PatientId);
         if (patient == null)
-            throw new Exception("Patient not found");
+            throw new KeyNotFoundException("Patient not found");
         // #189: chặn số tiền <= 0 (chống bản ghi tài chính rác/âm)
         if (dto.Amount <= 0)
             throw new InvalidOperationException("Số tiền tạm ứng phải lớn hơn 0");
@@ -260,9 +260,9 @@ public partial class BillingCompleteService {
     {
         var deposit = await _context.Deposits.FindAsync(depositId);
         if (deposit == null)
-            throw new Exception("Deposit not found");
+            throw new KeyNotFoundException("Deposit not found");
         if (deposit.UsedAmount > 0)
-            throw new Exception("Cannot cancel deposit that has been partially used");
+            throw new InvalidOperationException("Cannot cancel deposit that has been partially used");
 
         deposit.Status = 5; // Đã hủy
         deposit.Notes = $"{deposit.Notes} | Hủy: {reason}";

@@ -161,11 +161,11 @@ public partial class PaymentGatewayService
             .Include(t => t.Patient)
             .FirstOrDefaultAsync(t => t.Id == dto.TransactionId);
 
-        if (txn == null) throw new Exception("Giao dịch không tồn tại");
+        if (txn == null) throw new KeyNotFoundException("Giao dịch không tồn tại");
         var supportedBanks = new[] { "bidv", "vcb", "vietcombank", "agribank", "vietinbank", "msb" };
         if (!supportedBanks.Contains(txn.Provider))
-            throw new Exception("Chỉ có thể xác nhận thủ công cho giao dịch ngân hàng");
-        if (txn.Status == 1) throw new Exception("Giao dịch đã được xác nhận");
+            throw new InvalidOperationException("Chỉ có thể xác nhận thủ công cho giao dịch ngân hàng");
+        if (txn.Status == 1) throw new InvalidOperationException("Giao dịch đã được xác nhận");
 
         txn.Status = 1;
         txn.CompletedAt = DateTime.UtcNow;

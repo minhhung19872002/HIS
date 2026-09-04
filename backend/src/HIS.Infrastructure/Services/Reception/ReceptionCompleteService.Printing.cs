@@ -77,7 +77,7 @@ public partial class ReceptionCompleteService {
             .FirstOrDefaultAsync(x => x.Id == documentHoldId);
 
         if (hold == null)
-            throw new Exception("Document hold not found");
+            throw new KeyNotFoundException("Document hold not found");
 
         var fields = new List<KeyValuePair<string, string>>
         {
@@ -107,7 +107,7 @@ public partial class ReceptionCompleteService {
     {
         var patient = await _context.Patients.AsNoTracking().FirstOrDefaultAsync(x => x.Id == patientId);
         if (patient == null)
-            throw new Exception("Patient not found");
+            throw new KeyNotFoundException("Patient not found");
 
         var latestRecord = await _context.MedicalRecords.AsNoTracking()
             .Include(x => x.Room)
@@ -145,7 +145,7 @@ public partial class ReceptionCompleteService {
             .FirstOrDefaultAsync(x => x.Id == medicalRecordId);
 
         if (medicalRecord == null)
-            throw new Exception("Medical record not found");
+            throw new KeyNotFoundException("Medical record not found");
 
         List<ServiceRequest> serviceRequests;
         try
@@ -197,7 +197,7 @@ public partial class ReceptionCompleteService {
             .Include(m => m.Doctor)
             .FirstOrDefaultAsync(m => m.Id == medicalRecordId);
 
-        if (record == null) throw new Exception("Medical record not found");
+        if (record == null) throw new KeyNotFoundException("Medical record not found");
 
         var examination = await _context.Examinations.AsNoTracking()
             .FirstOrDefaultAsync(e => e.MedicalRecordId == medicalRecordId);

@@ -213,10 +213,10 @@ public class ProcurementService : IProcurementService
             .Include(p => p.Department)
             .Include(p => p.RequestedBy)
             .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted)
-            ?? throw new Exception("Không tìm thấy phiếu dự trù");
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu dự trù");
 
         if (entity.Status != 1)
-            throw new Exception("Chỉ có thể duyệt phiếu đang chờ duyệt");
+            throw new InvalidOperationException("Chỉ có thể duyệt phiếu đang chờ duyệt");
 
         entity.Status = 2; // Approved
         entity.ApprovedDate = DateTime.UtcNow;
@@ -245,10 +245,10 @@ public class ProcurementService : IProcurementService
             .Include(p => p.Department)
             .Include(p => p.RequestedBy)
             .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted)
-            ?? throw new Exception("Không tìm thấy phiếu dự trù");
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu dự trù");
 
         if (entity.Status != 1)
-            throw new Exception("Chỉ có thể từ chối phiếu đang chờ duyệt");
+            throw new InvalidOperationException("Chỉ có thể từ chối phiếu đang chờ duyệt");
 
         entity.Status = 3; // Rejected
         entity.RejectReason = reason;

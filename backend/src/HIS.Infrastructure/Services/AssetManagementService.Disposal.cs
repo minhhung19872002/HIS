@@ -44,7 +44,7 @@ public partial class AssetManagementService
 
     public async Task<AssetDisposalDto> ProposeDisposalAsync(ProposeDisposalDto dto, string userId)
     {
-        var asset = await _context.FixedAssets.FindAsync(dto.FixedAssetId) ?? throw new Exception("Asset not found");
+        var asset = await _context.FixedAssets.FindAsync(dto.FixedAssetId) ?? throw new KeyNotFoundException("Asset not found");
 
         var entity = new AssetDisposal
         {
@@ -78,7 +78,7 @@ public partial class AssetManagementService
     public async Task<AssetDisposalDto> ApproveDisposalAsync(Guid disposalId, string userId)
     {
         var entity = await _context.AssetDisposals.Include(d => d.FixedAsset).FirstOrDefaultAsync(d => d.Id == disposalId)
-            ?? throw new Exception("Disposal not found");
+            ?? throw new KeyNotFoundException("Disposal not found");
 
         entity.Status = 2; // Approved
         entity.ApprovalDate = DateTime.UtcNow;
@@ -103,7 +103,7 @@ public partial class AssetManagementService
     public async Task<AssetDisposalDto> CompleteDisposalAsync(Guid disposalId, string userId)
     {
         var entity = await _context.AssetDisposals.Include(d => d.FixedAsset).FirstOrDefaultAsync(d => d.Id == disposalId)
-            ?? throw new Exception("Disposal not found");
+            ?? throw new KeyNotFoundException("Disposal not found");
 
         entity.Status = 3; // Completed
         entity.DisposalDate = DateTime.UtcNow;

@@ -206,7 +206,7 @@ public partial class ExaminationCompleteService
     public async Task<PrescriptionFullDto> CopyPrescriptionFromHistoryAsync(Guid examinationId, Guid sourcePrescriptionId)
     {
         var source = await GetPrescriptionByIdAsync(sourcePrescriptionId);
-        if (source == null) throw new Exception("Source prescription not found");
+        if (source == null) throw new KeyNotFoundException("Source prescription not found");
 
         source.Id = Guid.NewGuid();
         source.ExaminationId = examinationId;

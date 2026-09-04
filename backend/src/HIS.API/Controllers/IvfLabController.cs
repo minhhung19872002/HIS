@@ -7,6 +7,7 @@ namespace HIS.API.Controllers;
 
 [ApiController]
 [Route("api/ivf-lab")]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // #219/T4: guard nghiep vu ra 400/404 kem ly do, khong phai 500 tran
 [Authorize]
 public class IvfLabController : ControllerBase
 {

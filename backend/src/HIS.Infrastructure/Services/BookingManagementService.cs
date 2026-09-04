@@ -111,7 +111,7 @@ public class BookingManagementService : IBookingManagementService
         if (dto.Id.HasValue)
         {
             schedule = await _context.DoctorSchedules.FindAsync(dto.Id.Value)
-                ?? throw new Exception("Không tìm thấy lịch làm việc");
+                ?? throw new KeyNotFoundException("Không tìm thấy lịch làm việc");
             schedule.DoctorId = dto.DoctorId;
             schedule.DepartmentId = dto.DepartmentId;
             schedule.RoomId = dto.RoomId;
@@ -184,7 +184,7 @@ public class BookingManagementService : IBookingManagementService
     public async Task DeleteDoctorScheduleAsync(Guid id)
     {
         var schedule = await _context.DoctorSchedules.FindAsync(id)
-            ?? throw new Exception("Không tìm thấy lịch làm việc");
+            ?? throw new KeyNotFoundException("Không tìm thấy lịch làm việc");
         schedule.IsDeleted = true;
         schedule.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();
@@ -193,7 +193,7 @@ public class BookingManagementService : IBookingManagementService
     public async Task GenerateRecurringSchedulesAsync(Guid scheduleId, DateTime fromDate, DateTime toDate)
     {
         var template = await _context.DoctorSchedules.FindAsync(scheduleId)
-            ?? throw new Exception("Không tìm thấy lịch mẫu");
+            ?? throw new KeyNotFoundException("Không tìm thấy lịch mẫu");
 
         var targetDayOfWeek = (System.DayOfWeek)template.DayOfWeek;
         var current = fromDate.Date;
@@ -337,15 +337,15 @@ public class BookingManagementService : IBookingManagementService
             .Include(a => a.Doctor)
             .Include(a => a.Room)
             .FirstOrDefaultAsync(a => !a.IsDeleted && a.AppointmentCode == appointmentCode)
-            ?? throw new Exception("Không tìm thấy lịch hẹn");
+            ?? throw new KeyNotFoundException("Không tìm thấy lịch hẹn");
 
         // Chỉ cho sửa khi lịch chưa đến khám / chưa hủy / chưa đánh dấu vắng (status 0-Chờ XN, 1-Đã XN)
         if (appointment.Status >= 2)
-            throw new Exception("Không thể sửa lịch hẹn đã đến khám hoặc đã hủy");
+            throw new InvalidOperationException("Không thể sửa lịch hẹn đã đến khám hoặc đã hủy");
 
         // Validate ngày hẹn (tái dùng quy tắc của BookAppointment)
         if (dto.AppointmentDate.Date < DateTime.Today)
-            throw new Exception("Ngày hẹn không hợp lệ");
+            throw new InvalidOperationException("Ngày hẹn không hợp lệ");
 
         // Cập nhật thông tin bệnh nhân trên hồ sơ (nếu có nhập)
         if (appointment.Patient != null)
@@ -365,7 +365,7 @@ public class BookingManagementService : IBookingManagementService
                 && a.AppointmentDate.Date == dto.AppointmentDate.Date
                 && a.Status < 3);
         if (duplicate)
-            throw new Exception("Bệnh nhân đã có lịch hẹn khác trong ngày này");
+            throw new InvalidOperationException("Bệnh nhân đã có lịch hẹn khác trong ngày này");
 
         // Khi đổi khoa: tự gán lại phòng trống (giống logic BookAppointment)
         if (dto.DepartmentId != appointment.DepartmentId)
@@ -453,13 +453,13 @@ public class BookingManagementService : IBookingManagementService
             .Include(a => a.Doctor)
             .Include(a => a.Room)
             .FirstOrDefaultAsync(a => !a.IsDeleted && a.AppointmentCode == appointmentCode)
-            ?? throw new Exception("Không tìm thấy lịch hẹn");
+            ?? throw new KeyNotFoundException("Không tìm thấy lịch hẹn");
 
         if (appointment.Status == 2)
-            throw new Exception("Không thể hủy lịch hẹn đã check-in (BN đã đến khám)");
+            throw new InvalidOperationException("Không thể hủy lịch hẹn đã check-in (BN đã đến khám)");
 
         if (appointment.Status >= 3)
-            throw new Exception("Lịch hẹn đã ở trạng thái kết thúc, không thể hủy");
+            throw new InvalidOperationException("Lịch hẹn đã ở trạng thái kết thúc, không thể hủy");
 
         appointment.Status = 4; // Đã hủy
         appointment.UpdatedAt = DateTime.UtcNow;
@@ -668,7 +668,7 @@ public class BookingManagementService : IBookingManagementService
             .Include(a => a.Doctor)
             .Include(a => a.Room)
             .FirstOrDefaultAsync(a => !a.IsDeleted && a.AppointmentCode == appointmentCode)
-            ?? throw new Exception("Không tìm thấy lịch hẹn");
+            ?? throw new KeyNotFoundException("Không tìm thấy lịch hẹn");
 
         appointment.Status = newStatus;
         appointment.UpdatedAt = DateTime.UtcNow;

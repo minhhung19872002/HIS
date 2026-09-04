@@ -97,7 +97,7 @@ public class SurgeryPrescriptionServiceImpl : ISurgeryPrescriptionService
     public async Task<SurgeryMedicineDto> AddMedicineAsync(AddSurgeryMedicineDto dto, Guid userId)
     {
         var med = await _context.Medicines.FirstOrDefaultAsync(m => m.Id == dto.MedicineId)
-            ?? throw new Exception("Không tìm thấy thuốc");
+            ?? throw new KeyNotFoundException("Không tìm thấy thuốc");
         var unitPrice = (dto.PaymentObject == 1 && med.InsurancePrice > 0) ? med.InsurancePrice : med.UnitPrice;
         var (deducted, batch) = await DeductStockFefoAsync(dto.WarehouseId, dto.MedicineId, null, dto.Quantity);
         var entity = new SurgeryMedicineItem
@@ -125,7 +125,7 @@ public class SurgeryPrescriptionServiceImpl : ISurgeryPrescriptionService
     public async Task<SurgerySupplyDto> AddSupplyAsync(AddSurgerySupplyDto dto, Guid userId)
     {
         var sup = await _context.MedicalSupplies.FirstOrDefaultAsync(s => s.Id == dto.SupplyId)
-            ?? throw new Exception("Không tìm thấy vật tư");
+            ?? throw new KeyNotFoundException("Không tìm thấy vật tư");
         var unitPrice = (dto.PaymentObject == 1 && sup.InsurancePrice > 0) ? sup.InsurancePrice : sup.UnitPrice;
         var (deducted, batch) = await DeductStockFefoAsync(dto.WarehouseId, null, dto.SupplyId, dto.Quantity);
         var entity = new SurgerySupplyItem
@@ -153,7 +153,7 @@ public class SurgeryPrescriptionServiceImpl : ISurgeryPrescriptionService
     public async Task<SurgeryMedicineDto> UpdateMedicineAsync(Guid medicineItemId, AddSurgeryMedicineDto dto, Guid userId)
     {
         var entity = await _context.SurgeryMedicineItems.FirstOrDefaultAsync(m => m.Id == medicineItemId && !m.IsDeleted);
-        if (entity == null) throw new Exception("Không tìm thấy dòng thuốc PTTT");
+        if (entity == null) throw new KeyNotFoundException("Không tìm thấy dòng thuốc PTTT");
         entity.Quantity = dto.Quantity;
         entity.Amount = entity.UnitPrice * dto.Quantity;
         entity.PaymentObject = dto.PaymentObject == 0 ? entity.PaymentObject : dto.PaymentObject;
@@ -166,7 +166,7 @@ public class SurgeryPrescriptionServiceImpl : ISurgeryPrescriptionService
     public async Task<SurgerySupplyDto> UpdateSupplyAsync(Guid supplyItemId, AddSurgerySupplyDto dto, Guid userId)
     {
         var entity = await _context.SurgerySupplyItems.FirstOrDefaultAsync(s => s.Id == supplyItemId && !s.IsDeleted);
-        if (entity == null) throw new Exception("Không tìm thấy dòng vật tư PTTT");
+        if (entity == null) throw new KeyNotFoundException("Không tìm thấy dòng vật tư PTTT");
         entity.Quantity = dto.Quantity;
         entity.Amount = entity.UnitPrice * dto.Quantity;
         entity.PaymentObject = dto.PaymentObject == 0 ? entity.PaymentObject : dto.PaymentObject;

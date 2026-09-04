@@ -149,7 +149,7 @@ public partial class ExaminationCompleteService
     public async Task<TreatmentSheetDto> UpdateTreatmentSheetAsync(Guid id, TreatmentSheetDto dto)
     {
         var sheet = await _context.TreatmentSheets.FindAsync(id);
-        if (sheet == null) throw new Exception("Treatment sheet not found");
+        if (sheet == null) throw new KeyNotFoundException("Treatment sheet not found");
         await EmrLockGuard.EnsureEditableByExaminationAsync(_context, sheet.ExaminationId); // TT46
 
         sheet.TreatmentDate = dto.TreatmentDate ?? sheet.TreatmentDate;
@@ -223,7 +223,7 @@ public partial class ExaminationCompleteService
     public async Task<ConsultationRecordDto> UpdateConsultationRecordAsync(Guid id, ConsultationRecordDto dto)
     {
         var record = await _context.ConsultationRecords.FindAsync(id);
-        if (record == null) throw new Exception("Consultation record not found");
+        if (record == null) throw new KeyNotFoundException("Consultation record not found");
         await EmrLockGuard.EnsureEditableByExaminationAsync(_context, record.ExaminationId); // TT46
 
         record.ConsultationDate = dto.ConsultationDate ?? record.ConsultationDate;
@@ -302,7 +302,7 @@ public partial class ExaminationCompleteService
     public async Task<NursingCareSheetDto> UpdateNursingCareSheetAsync(Guid id, NursingCareSheetDto dto)
     {
         var sheet = await _context.NursingCareSheets.FindAsync(id);
-        if (sheet == null) throw new Exception("Nursing care sheet not found");
+        if (sheet == null) throw new KeyNotFoundException("Nursing care sheet not found");
         await EmrLockGuard.EnsureEditableByExaminationAsync(_context, sheet.ExaminationId); // TT46
 
         sheet.CareDate = dto.CareDate ?? sheet.CareDate;

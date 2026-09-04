@@ -407,14 +407,14 @@ public class AppointmentBookingService : IAppointmentBookingService
             .FirstOrDefaultAsync(a => !a.IsDeleted && a.AppointmentCode == appointmentCode);
 
         if (appointment == null)
-            throw new Exception("Không tìm thấy lịch hẹn");
+            throw new KeyNotFoundException("Không tìm thấy lịch hẹn");
 
         // Xác thực bằng SĐT
         if (appointment.Patient.PhoneNumber != dto.PhoneNumber?.Trim())
-            throw new Exception("Số điện thoại không khớp");
+            throw new InvalidOperationException("Số điện thoại không khớp");
 
         if (appointment.Status >= 2)
-            throw new Exception("Không thể hủy lịch hẹn đã hoàn thành");
+            throw new InvalidOperationException("Không thể hủy lịch hẹn đã hoàn thành");
 
         appointment.Status = 4; // Hủy
         appointment.Notes = string.IsNullOrEmpty(appointment.Notes)

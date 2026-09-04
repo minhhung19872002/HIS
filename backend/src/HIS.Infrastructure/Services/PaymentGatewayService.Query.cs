@@ -87,12 +87,12 @@ public partial class PaymentGatewayService
     public async Task<PaymentTransactionDto> RefundAsync(PaymentRefundDto dto, Guid userId)
     {
         var txn = await _db.PaymentTransactions.FirstOrDefaultAsync(t => t.Id == dto.TransactionId);
-        if (txn == null) throw new Exception("Giao dịch không tồn tại");
-        if (txn.Status != 1) throw new Exception("Chỉ có thể hoàn tiền giao dịch đã thành công");
+        if (txn == null) throw new KeyNotFoundException("Giao dịch không tồn tại");
+        if (txn.Status != 1) throw new InvalidOperationException("Chỉ có thể hoàn tiền giao dịch đã thành công");
 
         var refundAmount = dto.Amount > 0 ? dto.Amount : txn.Amount;
         if (refundAmount > txn.Amount - txn.RefundedAmount)
-            throw new Exception("Số tiền hoàn vượt quá số còn lại có thể hoàn");
+            throw new InvalidOperationException("Số tiền hoàn vượt quá số còn lại có thể hoàn");
 
         // Tích hợp thật với gateway refund API đòi hỏi merchant contract —
         // tạm ghi nhận soft-refund và kế toán có thể đối soát thủ công.
