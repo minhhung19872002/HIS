@@ -361,7 +361,9 @@ public partial class SystemCompleteService
     {
         try
         {
-            var text = Encoding.UTF8.GetString(fileData);
+            // #216/F5: file .csv/.tsv xuất từ Excel thường có BOM UTF-8 => ký tự U+FEFF vô hình dính vào ô
+            // đầu tiên của dòng header/dòng 1, làm mã danh mục lệch. Bỏ BOM ngay khi giải mã.
+            var text = Encoding.UTF8.GetString(fileData).TrimStart('﻿');
             var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             if (lines.Length < 2)
             {
@@ -582,7 +584,9 @@ public partial class SystemCompleteService
     {
         try
         {
-            var text = Encoding.UTF8.GetString(fileData);
+            // #216/F5: file .csv/.tsv xuất từ Excel thường có BOM UTF-8 => ký tự U+FEFF vô hình dính vào ô
+            // đầu tiên của dòng header/dòng 1, làm mã danh mục lệch. Bỏ BOM ngay khi giải mã.
+            var text = Encoding.UTF8.GetString(fileData).TrimStart('﻿');
             var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             if (lines.Length < 2)
             {
