@@ -24,10 +24,22 @@ Gặp mười lần trước khi bộ dò này ra đời, trong đó ba lần n�
 Bỏ qua các hàm mang tên `Approve/Verify/Sign/Finalize/Lock/Confirm/Reject/Cancel/Reopen/Unlock` —
 đó là những hàm có nhiệm vụ ĐẶT cổng, không phải cửa sửa nội dung.
 
-**Bộ dò chỉ THU HẸP, không kết luận.** Lượt chạy 2026-09-04 ra 37 chỗ; đọc bằng mắt thì phần lớn vô
-hại (hàm chỉ đọc, hàm seed dữ liệu dev, hoặc hàm đã gác bằng `Status` thay vì bằng cổng — như
-`EnterRadiologyResultAsync` dùng `RadiologyReportStatus.EnsureCanEditContent`). Nhưng nó chỉ **đúng
-vào ba cửa CĐHA chưa ai gác**, trong đó có cửa nằm ngay dưới hàm tôi vừa vá — thứ mà đọc tay đã bỏ sót.
+**Bộ dò chỉ THU HẸP, không kết luận.** Lượt chạy 2026-09-04 ra **37 chỗ**. Đã đọc tay và kết luận
+được **6 chỗ**; 31 chỗ còn lại **chưa ai đọc từng cái** — đừng coi chúng là đã sạch.
+
+Kết quả 6 chỗ đã đọc:
+
+* **4 lỗi thật, đã vá**: ba cửa CĐHA (`UpdateRadiologyResultAsync`, `CopyReportResultAsync`,
+  `MergeCoReaderOpinionsAsync`) và `CompleteConsultationAsync` (hội chẩn thuốc dấu *);
+* **2 báo dư**: `UpdateStockReceiptAsync` và `PharmacyApprovalService.UpdateAsync` — cả hai **có gác
+  đàng hoàng**, chỉ là gác bằng `Status` chứ không bằng trường cổng nên bộ dò không thấy.
+
+Đáng chú ý: một trong bốn cửa hỏng nằm **ngay dưới hàm đã được vá tay trước đó**, trong file đã đọc.
+Đọc tay vẫn sót; bộ dò thì không.
+
+**Vì sao chấp nhận báo dư.** Bộ dò chỉ soi tên trường cổng (`ApprovedAt`…) nên bỏ qua những chỗ gác
+bằng `Status` — tỉ lệ báo dư là có thật và đã biết. Đổi lại nó không bỏ lọt. Một bộ dò báo dư thì
+tốn công đọc; một bộ dò báo thiếu thì bỏ lọt lỗi.
 
 Không cần API hay DB — chỉ đọc mã nguồn.
 """
@@ -132,9 +144,10 @@ def main():
     for path, line_no, method, cls, gates in hits:
         print("  %-50s :%-5d %-38s %s(%s)" % (path, line_no, method, cls, ",".join(gates)))
 
-    print("\nBộ dò chỉ THU HẸP phạm vi, KHÔNG tự kết luận. Phần lớn kết quả là vô hại: hàm chỉ đọc,")
-    print("hàm seed dữ liệu dev, hoặc hàm đã gác bằng `Status` thay vì bằng cổng. Phải mở từng chỗ")
-    print("ra đọc mới biết đâu là cửa thật sự để hở.")
+    print("\nBộ dò chỉ THU HẸP phạm vi, KHÔNG tự kết luận — và KHÔNG phải chỗ nào ở trên cũng đã")
+    print("có người đọc. Tính đến 2026-09-04 mới đọc tay 6 chỗ: 4 lỗi thật (đã vá) + 2 báo dư (có")
+    print("gác bằng `Status` nên bộ dò không thấy). Số còn lại CHƯA AI ĐỌC — đừng coi là đã sạch.")
+    print("Nguồn báo dư đã biết: hàm chỉ đọc, hàm seed dữ liệu dev, và hàm gác bằng `Status`.")
 
 
 if __name__ == "__main__":

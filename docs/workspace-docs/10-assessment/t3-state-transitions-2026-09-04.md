@@ -1500,9 +1500,10 @@ tên `VerifiedAt` / `ApprovedAt` / `SignedAt` / `FinalizedAt` / `LockedAt` / `Em
 những thực thể ấy mà thân hàm **không nhắc tới cổng** và không gọi `EmrLockGuard`. Bỏ qua các hàm
 tên `Approve/Verify/Sign/Lock/Cancel/...` — đó là hàm có nhiệm vụ ĐẶT cổng.
 
-Ra **37 chỗ**. Phần lớn vô hại khi đọc kỹ (hàm chỉ đọc, hàm seed dữ liệu dev, hoặc hàm đã gác bằng
-`Status` thay vì bằng cổng — như chính `EnterRadiologyResultAsync` đã vá ở §5). Nhưng nó chỉ đúng
-vào **ba cửa CĐHA chưa ai gác**, cùng ghi vào đúng ba trường mà §5 đã canh:
+Ra **37 chỗ**. *(Câu ban đầu ở đây viết "phần lớn vô hại khi đọc kỹ" — xem §35: lúc viết tôi mới đọc
+ba chỗ, phần còn lại chỉ suy từ tên hàm. Con số đã đọc tay thật sự là **6/37**, kết quả ở §35.)*
+Trong ba chỗ đọc đầu tiên, cả ba đều là **cửa CĐHA chưa ai gác**, cùng ghi vào đúng ba trường mà §5
+đã canh:
 
 | Cửa | Làm gì |
 |---|---|
