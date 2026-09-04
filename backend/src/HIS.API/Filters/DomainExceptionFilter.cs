@@ -14,6 +14,8 @@ namespace HIS.API.Filters;
 ///   NotSupportedException        → 400 Bad Request   (tuỳ chọn chưa hỗ trợ — trả lý do thật)
 ///   KeyNotFoundException         → 404 Not Found     (entity không tồn tại)
 ///   JsonException                → 400 Bad Request   (malformed JSON từ DB hoặc payload)
+///   DbUpdateConcurrencyException → 409 Conflict      (RowVersion chặn lost-update; đã có sẵn,
+///                                                    chỉ thiếu ở controller tự bắt Exception)
 ///   DbUpdateException + UNIQUE   → 409 Conflict      (race-condition duplicate)
 ///   DbUpdateException khác       → 500 (log + masked message)
 ///   OperationCanceledException   → 499 Client Closed (user huỷ giữa chừng)

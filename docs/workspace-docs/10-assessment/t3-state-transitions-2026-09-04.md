@@ -98,4 +98,26 @@ Còn lại chưa đo: chỉ định CLS (lab/CĐHA), phiếu thanh toán và t�
 mua sắm/ADR. Script `t3_state_transitions.py` dựng sẵn khuôn (seed → gọi endpoint → đọc lại DB), thêm
 thực thể mới chỉ cần khai bảng `LEGAL` + danh sách `ACTIONS`.
 
-Đua trạng thái hai người dùng đồng thời (gắn #188) cũng chưa đo.
+## 6. Đua trạng thái — hai người thao tác cùng lúc (gắn #188)
+
+`t3_concurrency.py` bắn N request **đồng thời** (thả cùng lúc bằng barrier) rồi đọc lại DB xem
+**tác động thật**, không chỉ đếm HTTP 200. **4/4 đạt:**
+
+| Tình huống | Kết quả |
+|---|---|
+| 5 phiên cùng cấp phát một đơn 10 viên | **Kho trừ đúng 10** (3334 → 3324). Không trừ hai lần. |
+| — mã trả về | 1×200 + **4×409**. |
+| Duyệt và từ chối cùng một phiếu hoàn tiền cùng lúc | Kết cục là **một** trạng thái hợp lệ (từ chối). |
+| 5 phiên cùng hủy một đơn | Tất cả 200, trạng thái cuối = Hủy (idempotent). |
+
+**Lỗi tìm ra và đã sửa:** khoá lạc quan (`RowVersion` trên `InventoryItems`) **vốn đã chặn đúng** —
+lượt chạy đầu cho `[500, 500, 200, 500, 500]`, tức bốn người thua đều bị ngăn ghi. Nhưng
+`PharmacyController.CompleteDispensing` bắt `Exception` chung nên `DbUpdateConcurrencyException` bị
+nuốt thành **500**: dược sĩ đọc thành "lỗi máy chủ" thay vì biết quầy khác vừa phát xong đơn này.
+`DomainExceptionFilter` thực ra ĐÃ map exception đó sang 409 — chỉ là controller tự bắt trước nên
+filter không thấy. Nay controller trả **409 `CONCURRENT_UPDATE`** kèm câu tiếng Việt.
+
+Bài học ghi lại: **cơ chế bảo vệ đúng mà báo cáo sai thì vẫn hỏng ở mắt người dùng.**
+
+Lượt chạy đầu của bài này còn suýt kết luận sai "kho không bị trừ" — vì đo mỗi lô vừa nạp, trong khi
+FEFO chọn lô hạn gần nhất là lô khác. Phải đo **tổng tồn của cả thuốc** trước/sau.

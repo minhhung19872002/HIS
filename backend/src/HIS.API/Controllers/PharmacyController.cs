@@ -119,6 +119,14 @@ public partial class PharmacyController : ControllerBase
             _logger.LogWarning(ex, "CompleteDispensing: không đủ tồn kho cho prescription {Id}", prescriptionId);
             return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException ex)
+        {
+            // #218: hai quầy bấm phát cùng một đơn. RowVersion chặn đúng người thứ hai — nhưng trước
+            // đây nó rơi vào catch chung thành 500, nên dược sĩ đọc là "lỗi máy chủ" thay vì biết
+            // rằng đơn vừa được quầy khác phát xong.
+            _logger.LogInformation(ex, "Cấp phát đồng thời cho prescription {Id} — quầy khác đã phát trước", prescriptionId);
+            return Conflict(new { error = "CONCURRENT_UPDATE", message = "Đơn thuốc vừa được quầy khác cấp phát. Vui lòng tải lại." });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error completing dispensing for prescription {Id}", prescriptionId);
