@@ -1,0 +1,68 @@
+{
+ "ranAt": "2026-09-04T11:35:28",
+ "cases": [
+  {
+   "case": "hủy rồi vẫn nhập tay được KQ",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · Status=3 · Result=''"
+  },
+  {
+   "case": "hủy rồi máy vẫn bắn được KQ vào",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 200 · Status=3 · Result='' · 0"
+  },
+  {
+   "case": "đè KQ đã duyệt bằng nhập tay",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · Status=2 · Result='5.0' · reviewed"
+  },
+  {
+   "case": "đè KQ đã duyệt bằng KQ máy",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 200 · Status=2 · Result='5.0' · reviewed"
+  },
+  {
+   "case": "luồng máy nói rõ lý do từ chối",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "errors=['Mẫu T3LAB-BC-001 / XN_CREATININ: kết quả đã duyệt, không ghi đè. Phải hủy duyệt trước.']"
+  },
+  {
+   "case": "duyệt KQ của chỉ định đã hủy",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · Status=3 · unreviewed"
+  },
+  {
+   "case": "hủy KQ khi chưa hủy duyệt",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · Status=2 · Result='5.0'"
+  },
+  {
+   "case": "hủy lấy mẫu khi đang có KQ",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · Status=2 · Result='5.0'"
+  },
+  {
+   "case": "hủy KQ đúng chuỗi (đã hủy duyệt)",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · Status=1 (1 = Đang TH) · Result=''"
+  }
+ ]
+}

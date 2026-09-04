@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using HIS.Application.DTOs.Laboratory;
 using HIS.Application.Services;
 using HIS.Core.Entities;
+using HIS.Core.Constants;
 using HIS.Infrastructure.Data;
 using HIS.Infrastructure.Extensions;
 using HIS.Infrastructure.Services.HL7;
@@ -29,6 +30,12 @@ public partial class LISCompleteService {
             .FirstOrDefaultAsync(x => x.Id == dto.LabTestItemId && !x.IsDeleted);
 
         if (d == null) return false;
+
+        // T3/#218 (2026-09-04): chiều ngược đã có LabCancelChainService gác theo chuỗi (hủy duyệt →
+        // hủy KQ → hủy lấy mẫu), nhưng chiều thuận trước đây KHÔNG kiểm gì: ghi được kết quả vào
+        // chỉ định đã hủy, và đè được lên kết quả bác sĩ đã duyệt mà không để lại dấu vết.
+        // Đường máy phân tích (Worklist.cs) vốn đã lọc Status != 3 — đây là vế còn thiếu.
+        LabDetailStatus.EnsureCanWriteResult(d.Status, d.ReviewedAt != null);
 
         // Write result directly onto SRD (model 1 is the source of truth now)
         d.Result = dto.Result;

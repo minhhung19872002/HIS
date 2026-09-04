@@ -1,0 +1,61 @@
+{
+ "ranAt": "2026-09-04T11:35:13",
+ "cases": [
+  {
+   "case": "nhập kết quả lần đầu vào phiếu nháp",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · Status=0 (0 = nháp) · Kết luận='KL-GOC'"
+  },
+  {
+   "case": "duyệt chính thức đưa phiếu sang trạng thái 2",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · Status=2"
+  },
+  {
+   "case": "sửa nội dung phiếu ĐÃ DUYỆT",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · Status=2 · Kết luận='KL-GOC'"
+  },
+  {
+   "case": "sửa sau khi đã hủy duyệt",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · Status=0 (0 = nháp) · Kết luận='KL-SUA-HOP-LE'"
+  },
+  {
+   "case": "ký số đưa phiếu sang trạng thái đã ký",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · Status=2 · chữ ký còn hiệu lực=1"
+  },
+  {
+   "case": "sửa nội dung phiếu ĐÃ KÝ SỐ",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · Status=2 · Kết luận='KL-SUA-HOP-LE' · chữ ký còn hiệu lực=1"
+  },
+  {
+   "case": "sửa khi chữ ký vẫn còn hiệu lực",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · Status=0 · Kết luận='KL-SUA-HOP-LE' · chữ ký còn hiệu lực=1"
+  },
+  {
+   "case": "sửa sau khi đã thu hồi chữ ký",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · Status=0 (0 = nháp) · Kết luận='KL-SAU-THU-HOI'"
+  }
+ ]
+}

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using HIS.Application.DTOs.Laboratory;
 using HIS.Application.Services;
 using HIS.Core.Entities;
+using HIS.Core.Constants;
 using HIS.Infrastructure.Data;
 using HIS.Infrastructure.Extensions;
 using HIS.Infrastructure.Services.HL7;
@@ -96,6 +97,33 @@ public partial class LISCompleteService
                         && d.Service.ServiceCode == result.TestCode
                         && d.ServiceRequest.RequestType == 1
                         && !d.ServiceRequest.IsDeleted);
+
+                // T3/#218 (2026-09-04): kết quả đã được bác sĩ duyệt thì máy KHÔNG được đè lên.
+                // Trước đây dòng khớp bị ghi đè lặng lẽ, ReviewedAt vẫn còn nguyên nên bệnh án hiện
+                // một con số khác con số đã duyệt mà không có dấu vết nào. Ở đây không ném lỗi vì
+                // đó sẽ giết cả lô kết quả của máy — thay vào đó bỏ qua dòng này, giữ nguyên bản tin
+                // thô để người soi lại được, và báo trong `errors` của phản hồi.
+                if (srd != null && srd.ReviewedAt != null)
+                {
+                    _logger.LogWarning("Refusing to overwrite reviewed result on {SrdId} (barcode {Barcode}, test {TestCode})",
+                        srd.Id, result.SampleId, result.TestCode);
+                    errors.Add($"Mẫu {result.SampleId} / {result.TestCode}: kết quả đã duyệt, không ghi đè. Phải hủy duyệt trước.");
+
+                    _context.LabRawResults.Add(new LabRawResult
+                    {
+                        AnalyzerId = analyzerId,
+                        SampleId = result.SampleId,
+                        PatientId = result.PatientId,
+                        TestCode = result.TestCode,
+                        Result = result.Value,
+                        Unit = result.Units,
+                        Flag = result.AbnormalFlag,
+                        ResultTime = result.ResultDateTime,
+                        RawMessage = rawData,
+                        Status = 0 // chờ người xử lý, KHÔNG tính là đã khớp
+                    });
+                    continue;
+                }
 
                 if (srd != null)
                 {

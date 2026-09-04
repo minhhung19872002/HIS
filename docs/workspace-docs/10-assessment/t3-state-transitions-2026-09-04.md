@@ -121,3 +121,83 @@ Bài học ghi lại: **cơ chế bảo vệ đúng mà báo cáo sai thì vẫn
 
 Lượt chạy đầu của bài này còn suýt kết luận sai "kho không bị trừ" — vì đo mỗi lô vừa nạp, trong khi
 FEFO chọn lô hạn gần nhất là lô khác. Phải đo **tổng tồn của cả thuốc** trước/sau.
+
+## 7. Xét nghiệm — chiều thuận không được gác như chiều ngược
+
+Hai hằng số `LabRequestStatus` và `RadiologyRequestStatus` trong `StatusConstants.cs` hoá ra **không
+được dùng ở bất kỳ đâu** (grep = 0 lượt). Trạng thái chạy thật là số trần trên
+`ServiceRequestDetails.Status`, từ vựng đọc được ở `LISCompleteService.QCHistory.cs`:
+
+| Số | Nghĩa |
+|---:|---|
+| 0 | Chờ lấy mẫu |
+| 1 | Đang thực hiện (đã có mẫu) |
+| 2 | Có kết quả (`ReviewedAt != null` ⇒ đã bác sĩ duyệt) |
+| 3 | Đã hủy |
+
+Điều đáng chú ý: chiều NGƯỢC đã được gác **rất tốt**. `LabCancelChainService` bắt đúng chuỗi — muốn
+hủy kết quả phải hủy duyệt trước, muốn hủy lấy mẫu phải hủy kết quả trước — và cả ba ca đối chứng
+dương đều chặn đúng. Nghĩa là ý đồ nghiệp vụ đã rõ ràng và đã được viết ra một lần rồi.
+
+Chiều THUẬN thì không có vế đối xứng. Đo 9 ca (`evidence/cross/t3/t3_lab_transitions.py`):
+
+| Tình huống | Trước | Sau |
+|---|---|---|
+| Chỉ định **đã hủy** vẫn nhập tay được kết quả | cho qua, HTTP 200 | 400 |
+| Chỉ định đã hủy nhận kết quả từ máy | đã chặn sẵn | 400 giữ nguyên |
+| **Đè** kết quả đã duyệt bằng nhập tay | cho qua | 400 |
+| **Đè** kết quả đã duyệt bằng kết quả máy | cho qua | bỏ qua + báo lý do |
+
+Cái đáng nói nhất là sự **bất đối xứng giữa hai cửa vào**: đường máy phân tích
+(`LISCompleteService.Worklist.cs`) vốn đã lọc `Status != 3`, đường nhập tay (`EnterLabResultAsync`)
+thì không kiểm gì cả. Cùng một luật, thi hành ở một cửa và bỏ trống ở cửa kia — đúng kiểu lỗi chỉ lộ
+ra khi đo cả hai đường chứ không đo một đường.
+
+Hai lượt **đè kết quả đã duyệt** nặng hơn: `ReviewedAt` vẫn còn nguyên sau khi bị đè, nên bệnh án
+hiện một con số khác con số bác sĩ đã duyệt mà không để lại dấu vết nào.
+
+**Sửa:** `LabDetailStatus.EnsureCanWriteResult(status, isReviewed)` trong `StatusConstants.cs`, gọi
+từ `EnterLabResultAsync`. Đường máy KHÔNG ném lỗi — ném thì giết cả lô kết quả của máy — mà bỏ qua
+dòng đó, giữ bản tin thô để người soi lại được, và báo trong `errors` của phản hồi. Đo lại **9/9**.
+
+## 8. Chẩn đoán hình ảnh — sửa được kết luận đã ký số
+
+Đây là lỗi nặng nhất tìm được trong cả đợt T1-T4.
+
+`RadiologyReports.Status`: 0 nháp · 1 sơ duyệt · 2 duyệt chính thức / đã ký số. Hệ thống có sẵn
+**hai cửa đi ra**: `CancelApprovalAsync` (hủy duyệt) và `CancelSignedResultAsync` (thu hồi chữ ký,
+đánh dấu `RadiologySignatureHistory.Status = 3`). Ý đồ nghiệp vụ không thể rõ hơn.
+
+Nhưng `EnterRadiologyResultAsync` ghi thẳng `Findings`/`Impression`/`Recommendations` mà **không
+kiểm gì**. Đo 8 ca (`evidence/cross/t3/t3_radiology_transitions.py`), đi đúng đường thật từ tiếp đón
+→ chỉ định CĐHA → điều phối → thực hiện → nhập kết quả:
+
+| Tình huống | Trước | Sau |
+|---|---|---|
+| Sửa nội dung phiếu **đã duyệt chính thức** | cho qua, Status vẫn = 2 | 400 |
+| Sửa nội dung phiếu **đã ký số** | cho qua, **chữ ký vẫn còn hiệu lực** | 400 |
+| Lối vòng: ký → hủy duyệt → sửa | cho qua, chữ ký vẫn còn hiệu lực | 400 |
+
+Hệ quả của dòng thứ hai: chữ ký số đang bảo chứng cho một nội dung **khác** nội dung bác sĩ thực sự
+ký, và không có gì trong hồ sơ cho thấy điều đó đã xảy ra. Với một phiếu kết quả có giá trị pháp lý
+thì đây là lỗi toàn vẹn hồ sơ, không chỉ là lỗi quy trình.
+
+Dòng thứ ba là lý do bản vá **không được gác theo `Status` thôi**: `CancelApprovalAsync` đưa phiếu về
+nháp nhưng KHÔNG đụng tới lịch sử chữ ký. Nếu chỉ kiểm `Status` thì còn nguyên lối vòng ký → hủy
+duyệt → sửa. Ca này chỉ lộ ra vì đã đọc kỹ `CancelApprovalAsync` rồi mới thêm ca đo — không phải vì
+đo mò.
+
+**Sửa:** `RadiologyReportStatus.EnsureCanEditContent(status, hasActiveSignature)`, xét **cả hai**
+điều kiện độc lập nhau. Sơ duyệt (trạng thái 1) **cố ý** vẫn cho sửa: đó là bước đọc đầu của kỹ thuật
+viên, bác sĩ còn phải hoàn thiện tường trình sau. Đo lại **8/8**, ba đối chứng dương (sửa bản nháp ·
+sửa sau khi hủy duyệt · sửa sau khi thu hồi chữ ký) đều vẫn qua nên không chặn nhầm đường hợp lệ.
+
+## 9. Ghi chú quan sát, chưa xử lý
+
+- `CancelApprovalAsync` (hủy duyệt CĐHA) không thu hồi chữ ký. Sau bản vá thì lối vòng đã bị bịt,
+  nhưng bản thân việc "phiếu về nháp mà chữ ký vẫn sống" vẫn là trạng thái khó hiểu khi đọc dữ liệu.
+  Không tự sửa vì thu hồi chữ ký là hành vi có ý nghĩa pháp lý, phải đi qua đúng cửa của nó.
+- Dữ liệu mẫu có dịch vụ `PT-CAT-RUOT-THUA` (phẫu thuật cắt ruột thừa) nằm trong nhóm `CDHA_*`.
+  Không ảnh hưởng bài đo nhưng là lỗi phân nhóm danh mục.
+- Nhiều chú thích tiếng Việt trong `RISCompleteService.ImagingApproval.cs` bị mojibake hai lần UTF-8
+  (`Chá»‰ Ã¡p khi...`), cùng loại với F5 đã sửa cho bảng ICD. Chỉ là chú thích, không đụng chạy.

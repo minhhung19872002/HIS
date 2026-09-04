@@ -221,6 +221,64 @@ public static class RefundStatus
     };
 }
 
+/// <summary>
+/// Trạng thái THẬT của một dòng chỉ định (<c>ServiceRequestDetails.Status</c>) trên đường xét
+/// nghiệm và chẩn đoán hình ảnh. Đây là từ vựng mà code đang chạy dùng — xem
+/// <c>LISCompleteService.QCHistory.cs</c> (bảng đổi số sang nhãn hiển thị).
+///
+/// Trong <see cref="HasResult"/>, cột <c>ReviewedAt</c> phân biệt tiếp "có KQ" với "đã bác sĩ duyệt".
+///
+/// <para><b>Chiều ngược</b> đã được <c>LabCancelChainService</c> gác theo đúng chuỗi: hủy duyệt →
+/// hủy KQ → hủy lấy mẫu. <see cref="EnsureCanWriteResult"/> là vế đối xứng cho chiều thuận, để
+/// không ai ghi được kết quả vào chỉ định đã hủy hoặc đè lên kết quả đã duyệt.</para>
+/// </summary>
+public static class LabDetailStatus
+{
+    public const int Pending = 0;        // Chờ lấy mẫu
+    public const int InProgress = 1;     // Đang thực hiện (đã có mẫu)
+    public const int HasResult = 2;      // Có kết quả (ReviewedAt != null ⇒ đã duyệt)
+    public const int Cancelled = 3;      // Đã hủy
+
+    public static string Label(int status) => status switch
+    {
+        Pending => "Chờ",
+        InProgress => "Đang thực hiện",
+        HasResult => "Có kết quả",
+        Cancelled => "Đã hủy",
+        _ => $"Không xác định ({status})",
+    };
+
+    /// <summary>
+    /// Dòng chỉ định có đang nhận được kết quả mới không. Hai trường hợp phải từ chối:
+    /// chỉ định đã hủy, và kết quả đã được duyệt (phải hủy duyệt trước mới ghi đè được).
+    /// </summary>
+    public static bool CanWriteResult(int status, bool isReviewed)
+        => status != Cancelled && !isReviewed;
+
+    /// <summary>Lý do từ chối, hoặc <c>null</c> nếu được phép ghi.</summary>
+    public static string? WriteResultRefusal(int status, bool isReviewed)
+    {
+        if (status == Cancelled)
+            return "Chỉ định đã hủy, không ghi được kết quả.";
+        if (isReviewed)
+            return "Kết quả đã được duyệt. Phải hủy duyệt trước khi ghi đè.";
+        return null;
+    }
+
+    /// <summary>Ném <see cref="InvalidOperationException"/> (→ HTTP 400) khi không được phép ghi.</summary>
+    public static void EnsureCanWriteResult(int status, bool isReviewed)
+    {
+        var refusal = WriteResultRefusal(status, isReviewed);
+        if (refusal != null) throw new InvalidOperationException(refusal);
+    }
+}
+
+/// <summary>
+/// ⚠️ KHÔNG được dùng ở đâu trong code đang chạy (grep = 0 lượt, kiểm 2026-09-04). Đường xét
+/// nghiệm thật dùng <see cref="LabDetailStatus"/> trên <c>ServiceRequestDetails.Status</c>, có
+/// từ vựng 4 trạng thái khác hẳn 6 trạng thái ở đây. Giữ lại để không phá mã ngoài, đừng dùng cho
+/// code mới.
+/// </summary>
 public static class LabRequestStatus
 {
     public const int Pending = 0;
@@ -231,6 +289,69 @@ public static class LabRequestStatus
     public const int Cancelled = 5;
 }
 
+/// <summary>
+/// Trạng thái của PHIẾU KẾT QUẢ chẩn đoán hình ảnh (<c>RadiologyReports.Status</c>) — từ vựng mà
+/// code đang chạy dùng, đọc từ <c>RISCompleteService.ImagingApproval.cs</c> và
+/// <c>RISCompleteService.IntegrationSignature.cs</c>.
+///
+/// <para>Hệ thống có sẵn hai cửa ĐI RA khỏi trạng thái đã duyệt: <c>CancelApprovalAsync</c> (hủy
+/// duyệt) và <c>CancelSignedResultAsync</c> (thu hồi chữ ký). <see cref="EnsureCanEditContent"/> là
+/// vế bắt buộc phải đi qua hai cửa đó trước khi sửa nội dung.</para>
+///
+/// <para><b>Vì sao phải xét cả chữ ký chứ không chỉ <c>Status</c>:</b> <c>CancelApprovalAsync</c>
+/// đưa phiếu về nháp nhưng KHÔNG đụng tới <c>RadiologySignatureHistory</c>. Chỉ gác theo
+/// <c>Status</c> thì còn một lối vòng: ký số → hủy duyệt → sửa, và chữ ký vẫn còn hiệu lực trên nội
+/// dung đã bị đổi. Đo được lối vòng này ở
+/// <c>evidence/cross/t3/t3_radiology_transitions.json</c>.</para>
+/// </summary>
+public static class RadiologyReportStatus
+{
+    public const int Draft = 0;              // Nháp — đang viết
+    public const int PreliminaryApproved = 1; // Sơ duyệt (KTV/BS đọc lần đầu)
+    public const int FinalApproved = 2;      // Duyệt chính thức / đã ký số
+
+    public static string Label(int status) => status switch
+    {
+        Draft => "Nháp",
+        PreliminaryApproved => "Sơ duyệt",
+        FinalApproved => "Đã duyệt",
+        _ => $"Không xác định ({status})",
+    };
+
+    /// <summary>
+    /// Có được sửa nội dung (mô tả · kết luận · ghi chú) của phiếu không.
+    ///
+    /// <para>Sơ duyệt (<see cref="PreliminaryApproved"/>) CỐ Ý vẫn cho sửa: đó là bước đọc đầu của
+    /// kỹ thuật viên, bác sĩ còn phải hoàn thiện tường trình sau đó. Chỉ chặn khi đã duyệt chính
+    /// thức hoặc khi còn một chữ ký đang có hiệu lực.</para>
+    /// </summary>
+    public static bool CanEditContent(int status, bool hasActiveSignature)
+        => status != FinalApproved && !hasActiveSignature;
+
+    /// <summary>Lý do từ chối, hoặc <c>null</c> nếu được phép sửa.</summary>
+    public static string? EditContentRefusal(int status, bool hasActiveSignature)
+    {
+        if (hasActiveSignature)
+            return "Kết quả đã ký số. Phải thu hồi chữ ký trước khi sửa nội dung.";
+        if (status == FinalApproved)
+            return "Kết quả đã duyệt chính thức. Phải hủy duyệt trước khi sửa nội dung.";
+        return null;
+    }
+
+    /// <summary>Ném <see cref="InvalidOperationException"/> (→ HTTP 400) khi không được phép sửa.</summary>
+    public static void EnsureCanEditContent(int status, bool hasActiveSignature)
+    {
+        var refusal = EditContentRefusal(status, hasActiveSignature);
+        if (refusal != null) throw new InvalidOperationException(refusal);
+    }
+}
+
+/// <summary>
+/// ⚠️ KHÔNG được dùng ở đâu trong code đang chạy (grep = 0 lượt, kiểm 2026-09-04). Xem ghi chú ở
+/// <see cref="LabRequestStatus"/>. Trạng thái CHỈ ĐỊNH CĐHA thật nằm trên
+/// <c>RadiologyRequests.Status</c> (2 = đang thực hiện · 3 = đã chụp · 4 = đã tường trình ·
+/// 5 = đã duyệt); trạng thái PHIẾU KẾT QUẢ nằm ở <see cref="RadiologyReportStatus"/>.
+/// </summary>
 public static class RadiologyRequestStatus
 {
     public const int Pending = 0;

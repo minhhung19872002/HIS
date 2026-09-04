@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs.Radiology;
 using HIS.Application.Services;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
@@ -283,6 +284,17 @@ public partial class RISCompleteService
             };
             await _context.RadiologyReports.AddAsync(report);
         }
+
+        // T3/#218 (2026-09-04): trước đây đường này ghi đè Findings/Impression bất kể phiếu đang ở
+        // trạng thái nào — kể cả phiếu ĐÃ KÝ SỐ. Chữ ký trong RadiologySignatureHistory vẫn giữ
+        // Status=1 sau khi nội dung bị đổi, tức là chữ ký bảo chứng cho một nội dung khác nội dung
+        // bác sĩ thực sự ký. Phải đi qua CancelApprovalAsync / CancelSignedResultAsync trước.
+        //
+        // Xét cả chữ ký chứ không chỉ Status: CancelApprovalAsync đưa phiếu về nháp nhưng KHÔNG thu
+        // hồi chữ ký, nên nếu chỉ gác theo Status thì còn lối vòng ký → hủy duyệt → sửa.
+        var hasActiveSignature = report.Id != Guid.Empty && await _context.Set<RadiologySignatureHistory>()
+            .AnyAsync(s => s.RadiologyReportId == report.Id && s.Status == 1);
+        RadiologyReportStatus.EnsureCanEditContent(report.Status, hasActiveSignature);
 
         report.Findings = dto.Description;
         report.Impression = dto.Conclusion;

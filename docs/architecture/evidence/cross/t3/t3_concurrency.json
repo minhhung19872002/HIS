@@ -1,21 +1,21 @@
 {
- "ranAt": "2026-09-04T11:00:08",
+ "ranAt": "2026-09-04T11:36:33",
  "fanout": 5,
  "checks": [
   {
    "check": "A1. kho chỉ bị trừ ĐÚNG MỘT LẦN",
    "pass": true,
-   "detail": "đơn 10 viên, 5 request song song (1×200) → tổng tồn 3334.0 → 3324.0, trừ 10.0 (đúng phải là 10)"
+   "detail": "đơn 10 viên, 5 request song song (2×200) → tổng tồn 3344.0 → 3334.0, trừ 10.0 (đúng phải là 10)"
   },
   {
    "check": "A2. người thua cuộc nhận 409, không phải 500",
    "pass": true,
-   "detail": "Status|IsDispensed=2|1 · mã HTTP: [409, 409, 200, 409, 409] (kỳ vọng 1×200 + 4×409)"
+   "detail": "Status|IsDispensed=2|1 · mã HTTP: [409, 409, 200, 200, 409] (kỳ vọng 1×200 + 4×409)"
   },
   {
    "check": "B1. kết cục là MỘT trạng thái hợp lệ",
    "pass": true,
-   "detail": "duyệt=200 · từ chối=200 → trạng thái cuối=2 (1 duyệt / 2 từ chối)"
+   "detail": "duyệt=200 · từ chối=200 → trạng thái cuối=1 (1 duyệt / 2 từ chối)"
   },
   {
    "check": "C1. hủy nhiều lần vẫn ra một kết quả",
