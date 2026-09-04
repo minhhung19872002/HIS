@@ -63,6 +63,8 @@ jobs:
         run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u minhhung19872002 --password-stdin
 
       # Context = gốc repo (không phải backend/) vì stage 1 build luôn frontend/.
+      # VITE_ACCESS_GATING = ẩn menu/route theo permission (#216/F1). Chưa đặt biến thì để "false"
+      # (giữ nguyên giao diện hiện tại); đặt repo variable = true để bật, không cần sửa code.
       # VITE_ORTHANC_URL = địa chỉ Orthanc mà TRÌNH DUYỆT mở trực tiếp (Orthanc Explorer /
       # OHIF / tải archive) — bake lúc build SPA, lấy từ repo variable (Settings → Variables →
       # Actions). Để trống thì UI tự khoá các nút mở Orthanc thay vì trỏ về localhost.
@@ -70,6 +72,7 @@ jobs:
         run: >-
           docker build -f backend/src/HIS.API/Dockerfile
           --build-arg VITE_ORTHANC_URL="${{ vars.VITE_ORTHANC_URL }}"
+          --build-arg VITE_ACCESS_GATING="${{ vars.VITE_ACCESS_GATING || 'false' }}"
           -t "${{ steps.img.outputs.tag }}" .
 
       - name: Push image

@@ -28,6 +28,17 @@ ENV VITE_REALTIME_URL=/
 # DICOM images themselves do NOT need this — they stream through the API proxy.
 ARG VITE_ORTHANC_URL=""
 ENV VITE_ORTHANC_URL=$VITE_ORTHANC_URL
+
+# Ẩn menu/route theo permission của người đăng nhập (#216/F1). An ninh THẬT nằm ở backend —
+# mỗi endpoint ghi đã gate bằng permission (#216/F2) — nên đây thuần là UX: bật thì mỗi vai trò
+# chỉ thấy phần việc của mình, tắt thì thấy đủ menu và vẫn bị backend chặn ở nơi không có quyền.
+# Mặc định TẮT để không đổi giao diện của ai khi chưa chủ động bật; đổi bằng repo variable
+# VITE_ACCESS_GATING=true, KHÔNG cần sửa code:
+#   docker build --build-arg VITE_ACCESS_GATING=true ...
+# Trước khi bật: mọi vai trò đang dùng phải có permission trong ma trận Role×Permission
+# (PermissionCatalogSeeder), nếu không vai trò đó sẽ thấy menu rỗng.
+ARG VITE_ACCESS_GATING="false"
+ENV VITE_ACCESS_GATING=$VITE_ACCESS_GATING
 RUN npm run build
 
 # ---------- Stage 2: backend ----------

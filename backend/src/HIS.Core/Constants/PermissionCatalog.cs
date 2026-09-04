@@ -120,6 +120,90 @@ public static class PermissionCatalog
         public const string Approve = "Insurance.Approve";
     }
 
+    // AUTHZ #216/F2: resource cho các miền còn để [Authorize] trần ở đường ghi.
+    public static class Inpatient
+    {
+        public const string Read = "Inpatient.Read";
+        public const string Admit = "Inpatient.Admit";
+        public const string Update = "Inpatient.Update";
+        public const string Discharge = "Inpatient.Discharge";
+        public const string Approve = "Inpatient.Approve";
+    }
+
+    public static class Catalog
+    {
+        public const string Read = "Catalog.Read";
+        public const string Manage = "Catalog.Manage";
+    }
+
+    public static class PublicHealth
+    {
+        public const string Read = "PublicHealth.Read";
+        public const string Update = "PublicHealth.Update";
+        public const string Submit = "PublicHealth.Submit";
+    }
+
+    public static class Asset
+    {
+        public const string Read = "Asset.Read";
+        public const string Manage = "Asset.Manage";
+        public const string Approve = "Asset.Approve";
+        /// <summary>Đề nghị sửa chữa/bảo trì — mọi nhân viên phải báo hỏng được, không cần quyền quản lý tài sản.</summary>
+        public const string Request = "Asset.Request";
+    }
+
+    public static class Hr
+    {
+        public const string Read = "Hr.Read";
+        public const string Manage = "Hr.Manage";
+        public const string Approve = "Hr.Approve";
+        /// <summary>Tự nộp đơn nghỉ phép/tăng ca của CHÍNH mình — khác hẳn quyền quản lý nhân sự.</summary>
+        public const string SelfService = "Hr.SelfService";
+    }
+
+    public static class Laboratory
+    {
+        public const string Configure = "Laboratory.Configure";
+    }
+
+    public static class Telehealth
+    {
+        public const string Read = "Telehealth.Read";
+        public const string Update = "Telehealth.Update";
+    }
+
+    public static class Quality
+    {
+        public const string Read = "Quality.Read";
+        public const string Update = "Quality.Update";
+    }
+
+    public static class Nutrition
+    {
+        public const string Read = "Nutrition.Read";
+        public const string Update = "Nutrition.Update";
+        public const string Approve = "Nutrition.Approve";
+    }
+
+    public static class Rehab
+    {
+        public const string Read = "Rehab.Read";
+        public const string Update = "Rehab.Update";
+    }
+
+    public static class Checkup
+    {
+        public const string Read = "Checkup.Read";
+        public const string Update = "Checkup.Update";
+    }
+
+    public static class Integration
+    {
+        public const string Read = "Integration.Read";
+        public const string Submit = "Integration.Submit";
+        public const string Configure = "Integration.Configure";
+    }
+
     /// <summary>Định nghĩa 1 permission cho seeder (mã · tên VN · module · nhạy cảm — audit đậm hơn ở AUTHZ-5).</summary>
     public sealed record PermissionDef(string Code, string Name, string Module, bool IsSensitive = false);
 
@@ -188,5 +272,40 @@ public static class PermissionCatalog
         new(Insurance.Read,        "Xem BHYT/BHXH",              "Insurance"),
         new(Insurance.Submit,      "Gửi hồ sơ BHYT",             "Insurance"),
         new(Insurance.Approve,     "Duyệt giám định BHYT",       "Insurance",     IsSensitive: true),
+
+        // AUTHZ #216/F2
+        new(Inpatient.Read,        "Xem nội trú",                "Inpatient"),
+        new(Inpatient.Admit,       "Nhập viện",                  "Inpatient"),
+        new(Inpatient.Update,      "Cập nhật nội trú",           "Inpatient"),
+        new(Inpatient.Discharge,   "Xuất viện",                  "Inpatient",     IsSensitive: true),
+        new(Inpatient.Approve,     "Duyệt hội chẩn/nội trú",     "Inpatient",     IsSensitive: true),
+        new(Catalog.Read,          "Xem danh mục",               "Catalog"),
+        new(Catalog.Manage,        "Quản lý danh mục dùng chung","Catalog",       IsSensitive: true),
+        new(PublicHealth.Read,     "Xem y tế công cộng",         "PublicHealth"),
+        new(PublicHealth.Update,   "Cập nhật y tế công cộng",    "PublicHealth"),
+        new(PublicHealth.Submit,   "Gửi báo cáo y tế công cộng", "PublicHealth"),
+        new(Asset.Read,            "Xem tài sản/thiết bị",       "Asset"),
+        new(Asset.Manage,          "Quản lý tài sản/thiết bị",   "Asset"),
+        new(Asset.Approve,         "Duyệt tài sản/thanh lý",     "Asset",         IsSensitive: true),
+        new(Asset.Request,         "Đề nghị sửa chữa/bảo trì",   "Asset"),
+        new(Hr.Read,               "Xem nhân sự",                "HR"),
+        new(Hr.Manage,             "Quản lý nhân sự",            "HR",            IsSensitive: true),
+        new(Hr.Approve,            "Duyệt nghỉ phép/tăng ca",    "HR",            IsSensitive: true),
+        new(Hr.SelfService,        "Tự nộp đơn nghỉ phép/tăng ca","HR"),
+        new(Laboratory.Configure,  "Cấu hình LIS/máy xét nghiệm","Laboratory",    IsSensitive: true),
+        new(Telehealth.Read,       "Xem khám từ xa",             "Telehealth"),
+        new(Telehealth.Update,     "Thực hiện khám từ xa",       "Telehealth"),
+        new(Quality.Read,          "Xem chất lượng/sự cố",       "Quality"),
+        new(Quality.Update,        "Cập nhật chất lượng/sự cố",  "Quality"),
+        new(Nutrition.Read,        "Xem dinh dưỡng",             "Nutrition"),
+        new(Nutrition.Update,      "Cập nhật dinh dưỡng",        "Nutrition"),
+        new(Nutrition.Approve,     "Duyệt suất ăn",              "Nutrition"),
+        new(Rehab.Read,            "Xem phục hồi chức năng",     "Rehabilitation"),
+        new(Rehab.Update,          "Cập nhật phục hồi chức năng","Rehabilitation"),
+        new(Checkup.Read,          "Xem khám sức khỏe",          "Checkup"),
+        new(Checkup.Update,        "Cập nhật khám sức khỏe",     "Checkup"),
+        new(Integration.Read,      "Xem tích hợp/liên thông",    "Integration"),
+        new(Integration.Submit,    "Gửi dữ liệu liên thông",     "Integration"),
+        new(Integration.Configure, "Cấu hình kết nối liên thông","Integration",   IsSensitive: true),
     };
 }

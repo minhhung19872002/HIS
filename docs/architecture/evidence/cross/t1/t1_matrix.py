@@ -45,6 +45,29 @@ def http(method, path, token=None, body=None, timeout=25):
     except Exception as e:  # timeout / connection
         return -1, str(e)
 
+def http_multipart(method, path, token=None):
+    """Gửi lại bằng multipart/form-data.
+
+    Endpoint upload từ chối body JSON ngay ở tầng routing (ConsumesMatcherPolicy) và trả 415
+    TRƯỚC khi middleware authorize chạy, nên 415 KHÔNG nói được gì về cổng quyền. Phải hỏi lại
+    đúng content-type thì mới đọc được 401/403/200 thật."""
+    b = "----t1probe"
+    body = ("--" + b + "\r\n"
+            "Content-Disposition: form-data; name=\"file\"; filename=\"probe.csv\"\r\n"
+            "Content-Type: text/csv\r\n\r\n\r\n"
+            "--" + b + "--\r\n").encode()
+    hdr = {"Content-Type": "multipart/form-data; boundary=" + b}
+    if token: hdr["Authorization"] = "Bearer " + token
+    req = urllib.request.Request(BASE + path, data=body, method=method, headers=hdr)
+    try:
+        with urllib.request.urlopen(req, timeout=25) as r:
+            return r.status, r.read().decode("utf-8", "replace")
+    except urllib.error.HTTPError as e:
+        return e.code, e.read().decode("utf-8", "replace")
+    except Exception as e:
+        return -1, str(e)
+
+
 def login(u, p):
     for attempt in range(8):
         s, b = http("POST", "/api/auth/login", body={"username": u, "password": p})
@@ -78,6 +101,7 @@ def classify(status):
     if status == 404: return "notfound"   # route never matched — inventory gap, not a verdict on the gate
     if status == -1: return "timeout"
     if status >= 500: return "error500"
+    if status == 415: return "media415"   # vẫn chưa tới authorize — không phải phán quyết về cổng
     return "allow"
 
 def main():
@@ -121,7 +145,10 @@ def main():
         for r in negs:
             exp = expected(r["guard"], r["roles"], r["permissions"], roles, perms)
             if exp != "forbid": continue  # never execute a mutation the role is allowed to run
-            s, b = http(r["method"], "/api" + r["route"] if not r["route"].startswith("/api") else r["route"], tok, body={})
+            path = "/api" + r["route"] if not r["route"].startswith("/api") else r["route"]
+            s, b = http(r["method"], path, tok, body={})
+            if s == 415:  # routing chặn JSON trước authorize — hỏi lại đúng content-type
+                s, b = http_multipart(r["method"], path, tok)
             results.append({"user": u, "role": label, "method": r["method"], "route": r["route"], "guard": r["guard"],
                             "ep_roles": "|".join(r["roles"]), "ep_perms": "|".join(r["permissions"]),
                             "expected": exp, "status": s, "actual": classify(s), "body": b[:160].replace("\n", " ")})
@@ -143,6 +170,7 @@ def main():
         if a == "timeout": return "TIMEOUT"
         if a == "error500": return "ERROR500"
         if a == "notfound": return "ROUTE-404"
+        if a == "media415": return "MEDIA-415"
         if e == "unauth": return "OK" if a == "unauth" else "SEC-NOAUTH"
         if e == "forbid" and a == "allow": return "SEC-BYPASS"
         if e == "allow" and a == "forbid": return "OVER-RESTRICT"

@@ -7,6 +7,7 @@ combined with method-level overrides. Emits JSON rows
 the T1 role x endpoint matrix, later checked live against a running API.
 """
 import json, os, re, sys
+import write_permission_map  # #216/F2: bảng gán quyền cho đường ghi (đọc từ WritePermissionMap.cs)
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 ROOT = r"D:\Source\HIS\backend\src\HIS.API\Controllers"
 
@@ -101,7 +102,15 @@ for fn, src in files.items():
             eff_perms = list(dict.fromkeys(cperms + perms))
             if eff == 'auth' and (croles and not roles): eff = 'roles'; eff_roles = croles
             if eff_perms and eff != 'anonymous': eff = 'permission+roles' if eff_roles else 'permission'
-            rows.append({'file': fn, 'controller': cname, 'method': http, 'route': route, 'action': am.group(2),
+            action_name = am.group(2)
+            # #216/F2: action ghi chi con [Authorize] tran duoc WritePermissionConvention gate
+            # theo bang khai bao, khong phai bang attribute — nen phai tra bang o day.
+            if eff in ('auth', 'none') and http not in ('GET', 'HEAD', 'OPTIONS'):
+                wp = write_permission_map.resolve(cname.replace('Controller', ''), action_name)
+                if wp:
+                    eff = 'permission'
+                    eff_perms = [wp]
+            rows.append({'file': fn, 'controller': cname, 'method': http, 'route': route, 'action': action_name,
                          'guard': eff, 'roles': eff_roles, 'permissions': eff_perms})
 
 out = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'authz_inventory.json')

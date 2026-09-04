@@ -60,6 +60,10 @@ builder.Services.AddHostedService<HIS.API.Workers.AuditArchiveWorker>(); // #371
 // Controllers
 builder.Services.AddControllers(options =>
     {
+        // AUTHZ #216/F2: gate đường GHI đang chỉ có [Authorize] trần bằng policy perm:{code}
+        // theo bảng khai báo WritePermissionMap. Phải đứng TRƯỚC các filter khác vì nó sửa
+        // ApplicationModel lúc dựng, không phải lúc chạy request.
+        options.Conventions.Add(new HIS.API.Authorization.WritePermissionConvention());
         options.Filters.Add<HIS.API.Filters.ApiResponseWrapperFilter>();
         // #369: UnauthorizedAccessException → 403 (trước đây rơi vào catch-all → 500).
         options.Filters.Add<HIS.API.Filters.ForbiddenExceptionFilter>();
@@ -426,6 +430,14 @@ app.UseMiddleware<AuditLogMiddleware>();
 app.UseMiddleware<ProductionReadFallbackMiddleware>();
 
 app.MapControllers();
+
+// AUTHZ #216/F2: ép dựng endpoint ngay để convention chạy xong TRƯỚC request đầu tiên, rồi in kiểm kê.
+// Audit() ném nếu bảng quyền tham chiếu mã không có trong PermissionCatalog (cấu hình đó sẽ khóa mọi vai trò),
+// và liệt kê action ghi còn chưa gate để không endpoint mới nào lặng lẽ ở mức "đăng nhập là gọi được".
+_ = app.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>().Endpoints.Count;
+app.Services.GetRequiredService<ILoggerFactory>()
+    .CreateLogger("WritePermissionConvention")
+    .LogInformation("{Audit}", HIS.API.Authorization.WritePermissionConvention.Audit());
 app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHub<RisChatHub>("/hubs/ris-chat");
 
