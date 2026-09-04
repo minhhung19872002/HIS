@@ -128,7 +128,7 @@ Chi tiết từng kiểm tra: `docs/architecture/evidence/cross/t1/t1_phase2_res
 | 016 | Khoá sau N lần sai + 2FA | **Tìm ra F8** rồi sửa; sau sửa bộ đếm chạy tới ngưỡng. `IsTwoFactorEnabled` + `/auth/enable-2fa` + `/auth/verify-otp` đã có. |
 | 018 | Đối soát audit | Chỉ người có quyền đọc được `/api/audit/logs` (admin 200 · bác sĩ 403). Lưu ý: `AuditLogMiddleware` **cố ý** chỉ ghi POST/PUT/DELETE và GET chi tiết nhạy cảm — GET danh sách không sinh bản ghi. |
 | 019 | Thu hồi quyền có hiệu lực | Xoá link Role→Permission → quyền biến mất khỏi `/api/me/permissions` sau khi hết cache 30s; khôi phục link → có lại. |
-| 020 | Theme/i18n màn login | Chưa chạy — thuộc nhóm giao diện, gộp vào đợt chứng cứ UI. |
+| 020 | Theme/i18n màn login | **Tìm ra lỗi giao diện toàn app.** Chế độ tối: chữ trong ô nhập đo được `rgb(31,41,55)` trên nền `rgb(31,31,31)` — tương phản gần 1:1, không đọc nổi. Nguyên nhân: `theme.config.ts` đặt `colorText`/`colorTextSecondary`/`colorBgLayout` **cố định màu sáng ngoài nhánh isDark**, ghi đè kết quả của `darkAlgorithm` → hỏng MỌI chữ ở chế độ tối, không riêng màn đăng nhập. Đã cho các token rẽ nhánh theo chế độ (kèm `Table.headerBg/headerColor/rowHoverBg`, `Tag.defaultBg`, `Descriptions.labelBg`). Đo lại: **sáng 14,68:1 · tối 13,31:1** (ngưỡng WCAG AA là 4,5:1). Phần i18n: repo **không dùng thư viện đa ngữ nào** — sản phẩm chỉ tiếng Việt, chuỗi viết thẳng trong mã; test khẳng định đúng hiện trạng đó. |
 
 ## 5. Còn nợ
 
@@ -136,7 +136,6 @@ Chi tiết từng kiểm tra: `docs/architecture/evidence/cross/t1/t1_phase2_res
   đọc được". F7 đã chặn người NGOÀI, nhưng giữa các vai trò nội bộ thì một KTV vẫn đọc được danh
   sách của khoa khác. Siết tiếp cần gate GET theo permission + scope theo khoa (AUTHZ-3 #369).
 - **TC-PERM-015** cần quyết định: làm tính năng buộc đổi mật khẩu, hay ghi nhận là không làm.
-- **TC-PERM-020** chưa chạy.
 - **Bật F1 trên prod** là quyết định của người dùng: đặt repo variable `VITE_ACCESS_GATING=true`.
   Trước khi bật, mọi vai trò đang dùng thật phải có mặt trong ma trận Role×Permission — hiện ma
   trận phủ đủ 8 RoleCode LIVE, custom role (nếu prod có) sẽ thấy menu rỗng.

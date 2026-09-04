@@ -1,0 +1,26 @@
+[
+  {
+    "tc": "TC-PERM-020",
+    "mode": "light",
+    "stored": "light",
+    "applied": "light",
+    "color": "rgb(31, 41, 55)",
+    "background": "rgb(255, 255, 255)",
+    "contrast": 14.68
+  },
+  {
+    "tc": "TC-PERM-020",
+    "mode": "dark",
+    "stored": "dark",
+    "applied": "dark",
+    "color": "rgb(229, 231, 235)",
+    "background": "rgb(31, 31, 31)",
+    "contrast": 13.31
+  },
+  {
+    "tc": "TC-PERM-020",
+    "check": "i18n",
+    "langSwitcher": 0,
+    "hasVietnamese": true
+  }
+]
