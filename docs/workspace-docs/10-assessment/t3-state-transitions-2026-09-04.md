@@ -304,3 +304,64 @@ phiếu này đã hoàn 400.000đ)"* — trước chỉ nói số dư, người 
 dụng hết") nhưng **mọi báo cáo** đọc nó là "đã hoàn tiền" (`StatsReversal.cs`, `AdminReports.cs`), và
 chú thích trên entity cũng ghi "3-Refunded". Ba nơi hiểu một con số theo hai nghĩa. Không tự sửa vì
 đổi phía nào cũng làm đổi số liệu báo cáo đã phát ra ngoài — cần người dùng quyết.
+
+## 12. Gửi hồ sơ BHXH — đường duy nhất có hậu quả ra ngoài bệnh viện
+
+Mọi lỗi ở các mục trên đều nằm trong bệnh viện. Mục này thì không: dữ liệu chi phí khám chữa bệnh
+được truyền lên cổng của cơ quan bảo hiểm xã hội. Gửi trùng một đợt là nộp trùng hồ sơ thật.
+
+Hai bảng trạng thái, và **chúng không nối với nhau**:
+
+| Bảng | Từ vựng |
+|---|---|
+| `InsuranceXmlBatches.Status` | 0 đã xuất · 1 đã ký số · 2 đã gửi BHXH · 3 bị từ chối |
+| `InsuranceClaims.ClaimStatus` | 0 chờ · 1 khóa · 2 đã duyệt · 3/4 từ chối · 5 đã thanh toán |
+
+Đo 10 ca (`evidence/cross/t3/t3_bhxh_transitions.py`), sáu lỗi:
+
+**(1) Gửi lại được một đợt ĐÃ GỬI.** `SubmitToInsurancePortalAsync` có ba lớp kiểm — đợt tồn tại,
+thư mục còn, có file xml — nhưng không đọc `Status` lần nào. Bấm gửi hai lần là hồ sơ đi lên cơ quan
+bảo hiểm hai lần.
+
+**(2) Ký lại được một đợt ĐÃ GỬI**, và việc ký đặt `Status = 1` đè lên `2`, tức lặng lẽ xoá dấu vết
+rằng đợt đó đã được truyền đi.
+
+**(3)–(5) Sửa được nội dung hồ sơ đã khóa, đã duyệt, và ĐÃ THANH TOÁN.** `UpdateInsuranceClaimAsync`
+chỉ kiểm `claim == null`. Hồ sơ quyết toán đã chốt mà chẩn đoán vẫn đổi được.
+
+**(6) Xoá được hồ sơ ĐÃ THANH TOÁN.** `DeleteInsuranceClaimAsync` cũng chỉ kiểm `claim == null` —
+và còn không lọc `!IsDeleted`.
+
+**Sửa:** `InsuranceXmlBatchStatus` + `InsuranceClaimStatus` trong `StatusConstants.cs`; guard đặt
+**ngay sau khi tìm thấy bản ghi**, trước mọi việc khác. Vị trí này quan trọng: nếu đặt guard ký-lại
+sau khâu đọc chứng thư thì người dùng nhận được một lỗi mật mã khó hiểu thay vì câu "đợt đã gửi rồi"
+— chính lượt đo đầu đã lộ ra điều đó (thông báo là *"Không đọc được chứng thư số"*).
+
+Hai chỗ **cố ý vẫn cho qua**, vì siết là hỏng quy trình thật: hồ sơ **bị từ chối** vẫn sửa được (đó
+chính là luồng sửa-rồi-nộp-lại), và hồ sơ **bị từ chối vẫn không xoá được** — cặp này rất dễ gộp
+nhầm thành một luật nên đã neo bằng test riêng.
+
+Đo lại **10/10**.
+
+### Ghi nhận, cố ý CHƯA sửa
+
+- **Gửi đợt CHƯA KÝ SỐ vẫn qua.** Bắt buộc ký số trước khi gửi có thể làm tê liệt hoàn toàn một cơ
+  sở chưa cấu hình chữ ký số. Đây là câu hỏi nghiệp vụ/pháp lý, không phải câu hỏi kỹ thuật — cần
+  người dùng quyết. Bài đo giữ ca này ở dạng **quan sát**, luôn báo ĐẠT, phần chữ mới là thứ đáng đọc.
+- **`ClaimStatus` và `InsuranceXmlBatches.Status` không nối nhau.** Khóa một hồ sơ không đụng tới đợt
+  nào; gửi một đợt không cập nhật `ClaimStatus` của các hồ sơ trong đó. Hai cờ "đã nộp chưa" có thể
+  nói khác nhau và khác cả với thứ cơ quan bảo hiểm thực sự nhận được. Sửa việc này là thiết kế lại
+  liên kết giữa hai bảng, vượt phạm vi một bản vá guard.
+- Chuỗi khóa/mở khóa và `ProcessRejectedClaimAsync` vẫn chưa có luật chuyển trạng thái (mở khóa được
+  cả hồ sơ đã thanh toán). Mở khóa chỉ Admin/Manager và có ghi lý do, nên coi là quyền can thiệp
+  hành chính có chủ đích; ghi lại để quyết sau.
+
+### Bẫy trong chính bài đo, ghi lại
+
+Lượt đầu kết luận "gửi lại đã bị chặn" — **sai**. Cổng BHXH ở máy này chạy chế độ giả lập
+(`BhxhGateway:UseMock=true`), nên lượt gửi thứ hai vẫn trả "thành công" và **ghi lại `Status = 2`
+y như cũ**. Bài đo đọc đúng con số đó rồi báo ĐẠT GIẢ. Chỉ khi chuyển sang so `SubmitTransactionId`
+và `SubmittedAt` trước/sau mới thấy dấu gửi cũ bị ghi đè, tức hệ thống đã thực sự đi ra cổng lần nữa.
+
+Bài học: **đo trạng thái cuối là không đủ khi trạng thái cuối của "chặn" và của "làm lại rồi ghi đè"
+trùng nhau.** Phải tìm một dấu vết chỉ thay đổi khi hành động thật sự xảy ra.

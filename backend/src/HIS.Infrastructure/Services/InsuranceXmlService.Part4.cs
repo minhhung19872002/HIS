@@ -1,4 +1,4 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using System.Text;
 using System.Xml.Linq;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +12,8 @@ using HIS.Core.Entities;
 using HIS.Infrastructure.Configuration;
 using HIS.Infrastructure.Data;
 using static HIS.Infrastructure.Services.PdfTemplateHelper;
+
+using HIS.Core.Constants;
 
 namespace HIS.Infrastructure.Services;
 
@@ -35,6 +37,26 @@ public partial class InsuranceXmlService
                 {
                     Success = false,
                     Message = "Không tìm thấy đợt xuất XML. Vui lòng xuất lại XML trước khi gửi.",
+                    SubmitTime = DateTime.Now
+                };
+            }
+
+            // #218/T3 (2026-09-04): đợt đã gửi rồi thì KHÔNG gửi lại. Trước đây đường này có ba lớp
+            // kiểm (đợt tồn tại · thư mục còn · có file xml) nhưng không đọc `Status` lần nào, nên
+            // bấm gửi hai lần là hồ sơ chi phí đi lên cơ quan bảo hiểm hai lần. Đo được: `SubmittedAt`
+            // và `SubmitTransactionId` của lượt gửi cũ bị ghi đè, tức là đã thực sự ra cổng lần nữa.
+            // Đặt NGAY sau khi tìm thấy đợt, trước mọi việc khác — chặn phải xảy ra trước khi gói file.
+            if (InsuranceXmlBatchStatus.IsAlreadySubmitted(batch.Status))
+            {
+                _logger.LogWarning("Submit rejected: batch {BatchCode} already submitted at {At} (txn {Txn})",
+                    batch.BatchCode, batch.SubmittedAt, batch.SubmitTransactionId);
+                return new SubmitResultDto
+                {
+                    Success = false,
+                    Message = $"Đợt {batch.BatchCode} đã gửi lên BHXH lúc {batch.SubmittedAt:dd/MM/yyyy HH:mm} "
+                              + $"(mã giao dịch {batch.SubmitTransactionId}). Không gửi lại để tránh trùng hồ sơ; "
+                              + "nếu cần nộp lại, hãy xuất đợt mới.",
+                    TransactionId = batch.SubmitTransactionId,
                     SubmitTime = DateTime.Now
                 };
             }

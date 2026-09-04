@@ -1,0 +1,75 @@
+{
+ "ranAt": "2026-09-04T12:19:19",
+ "cases": [
+  {
+   "case": "gửi lại một đợt đã gửi lên BHXH",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 200 · dấu gửi GIỮ NGUYÊN · Đợt T3BHX-SENT đã gửi lên BHXH lúc 01/09/2026 08:00 (mã giao"
+  },
+  {
+   "case": "(quan sát) gửi đợt chưa ký số",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · Status sau=2 · đã đi ra cổng=True · [MOCK] Du lieu duoc tiep nhan GIA LAP (BhxhGateway:UseM"
+  },
+  {
+   "case": "ký lại đợt đã gửi (phải nói vì đã gửi)",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · Status sau=2 · Đợt XML đã gửi lên BHXH, không ký lại được. Nếu cần nộp lại, hãy xuất "
+  },
+  {
+   "case": "sửa chẩn đoán: hồ sơ đang chờ (0)",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · chẩn đoán sau='SUA' · {\"success\":true,\"data\":{\"id\":\"300ca14c-36b3-4a5c-a"
+  },
+  {
+   "case": "sửa chẩn đoán: hồ sơ đã khóa (1)",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · chẩn đoán sau='J18' · Hồ sơ đã khóa, phải mở khóa trước khi sửa."
+  },
+  {
+   "case": "sửa chẩn đoán: hồ sơ đã duyệt (2)",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · chẩn đoán sau='J18' · Hồ sơ ở trạng thái \"Đã duyệt\", không sửa được nội "
+  },
+  {
+   "case": "sửa chẩn đoán: hồ sơ bị từ chối (4)",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · chẩn đoán sau='SUA' · {\"success\":true,\"data\":{\"id\":\"1f8c74a1-a23b-4f97-8"
+  },
+  {
+   "case": "sửa chẩn đoán: hồ sơ ĐÃ THANH TOÁN (5)",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · chẩn đoán sau='J18' · Hồ sơ ở trạng thái \"Đã thanh toán\", không sửa được"
+  },
+  {
+   "case": "xoá hồ sơ ĐÃ THANH TOÁN",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · IsDeleted=0"
+  },
+  {
+   "case": "xoá hồ sơ đang chờ (phải cho qua)",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · IsDeleted=1"
+  }
+ ]
+}

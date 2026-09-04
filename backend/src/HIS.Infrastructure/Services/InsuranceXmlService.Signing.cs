@@ -1,10 +1,12 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs.Insurance;
 using HIS.Core.Entities;
+
+using HIS.Core.Constants;
 
 namespace HIS.Infrastructure.Services;
 
@@ -83,6 +85,12 @@ public partial class InsuranceXmlService
         var batch = await _context.Set<InsuranceXmlBatch>()
             .FirstOrDefaultAsync(b => b.Id == batchId && !b.IsDeleted);
         if (batch == null) return fail("Không tìm thấy đợt xuất XML.");
+
+        // #218/T3 (2026-09-04): ký lại một đợt ĐÃ GỬI sẽ đặt `Status = 1` đè lên `2`, tức lặng lẽ
+        // xoá dấu vết rằng đợt đó đã được truyền lên cơ quan bảo hiểm. Đặt guard ở NGAY ĐÂY, trước
+        // mọi việc đọc chứng thư — nếu đặt sau, người dùng nhận được lỗi mật mã và không hiểu vì sao.
+        InsuranceXmlBatchStatus.EnsureNotSubmitted(batch.Status, "ký lại");
+
         if (string.IsNullOrWhiteSpace(batch.FilePath) || !Directory.Exists(batch.FilePath))
             return fail($"Đợt {batch.BatchCode} không còn file XML trên máy chủ. Vui lòng xuất lại.");
 

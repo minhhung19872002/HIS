@@ -1,4 +1,4 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using System.Text;
 using System.Xml.Linq;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +12,8 @@ using HIS.Core.Entities;
 using HIS.Infrastructure.Configuration;
 using HIS.Infrastructure.Data;
 using static HIS.Infrastructure.Services.PdfTemplateHelper;
+
+using HIS.Core.Constants;
 
 namespace HIS.Infrastructure.Services;
 
@@ -333,6 +335,12 @@ public partial class InsuranceXmlService : IInsuranceXmlService
         if (claim == null)
             throw new InvalidOperationException($"Claim {maLk} not found");
 
+        // #218/T3 (2026-09-04): trước đây đường này chỉ kiểm `claim == null`, nên sửa được chẩn
+        // đoán của hồ sơ đã khóa, đã được cơ quan bảo hiểm duyệt, và cả hồ sơ ĐÃ THANH TOÁN — hồ sơ
+        // quyết toán đã chốt mà nội dung vẫn đổi được. Hồ sơ BỊ TỪ CHỐI cố ý vẫn sửa được: đó là
+        // quy trình sửa-rồi-nộp-lại.
+        InsuranceClaimStatus.EnsureEditable(claim.ClaimStatus);
+
         if (!string.IsNullOrEmpty(dto.DiagnosisCode))
             claim.MainDiagnosisCode = dto.DiagnosisCode;
         if (!string.IsNullOrEmpty(dto.DiagnosisName))
@@ -346,8 +354,10 @@ public partial class InsuranceXmlService : IInsuranceXmlService
 
     public async Task<bool> DeleteInsuranceClaimAsync(string maLk)
     {
-        var claim = await _context.InsuranceClaims.FirstOrDefaultAsync(c => c.ClaimCode == maLk);
+        var claim = await _context.InsuranceClaims.FirstOrDefaultAsync(c => c.ClaimCode == maLk && !c.IsDeleted);
         if (claim == null) return false;
+        // #218/T3: chỉ hồ sơ CHƯA đi đâu mới xoá được. Trước đây xoá được cả hồ sơ đã thanh toán.
+        InsuranceClaimStatus.EnsureDeletable(claim.ClaimStatus);
         claim.IsDeleted = true;
         await _context.SaveChangesAsync();
         return true;

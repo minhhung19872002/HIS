@@ -222,6 +222,98 @@ public static class RefundStatus
 }
 
 /// <summary>
+/// Trạng thái của ĐỢT XUẤT XML gửi cơ quan bảo hiểm xã hội (<c>InsuranceXmlBatches.Status</c>).
+///
+/// <para>Đây là đường duy nhất trong hệ thống mà hậu quả đi RA NGOÀI bệnh viện: gửi trùng một đợt
+/// là gửi trùng hồ sơ thật lên cổng của cơ quan bảo hiểm.</para>
+/// </summary>
+public static class InsuranceXmlBatchStatus
+{
+    public const int Exported = 0;   // Đã xuất file, chưa ký
+    public const int Signed = 1;     // Đã ký số
+    public const int Submitted = 2;  // Đã gửi BHXH
+    public const int Rejected = 3;   // Bị từ chối — sửa rồi gửi lại là hợp lệ
+
+    public static string Label(int status) => status switch
+    {
+        Exported => "Đã xuất",
+        Signed => "Đã ký số",
+        Submitted => "Đã gửi BHXH",
+        Rejected => "Bị từ chối",
+        _ => $"Không xác định ({status})",
+    };
+
+    /// <summary>
+    /// Đợt đã gửi rồi thì không đụng vào nữa: không gửi lại (trùng hồ sơ ở cơ quan bảo hiểm) và
+    /// không ký lại (ký lại đặt <see cref="Signed"/> đè lên, xoá mất dấu là nó ĐÃ gửi).
+    ///
+    /// <para>Cố ý KHÔNG bắt buộc <see cref="Signed"/> trước khi gửi: một cơ sở chưa cấu hình chữ ký
+    /// số sẽ bị chặn hoàn toàn khỏi việc gửi hồ sơ. Đó là câu hỏi nghiệp vụ, cần người dùng quyết —
+    /// ghi lại ở evidence/cross/t3/t3_bhxh_transitions.json.</para>
+    /// </summary>
+    public static bool IsAlreadySubmitted(int status) => status == Submitted;
+
+    /// <summary>Ném <see cref="InvalidOperationException"/> (→ HTTP 400) nếu đợt đã gửi.</summary>
+    public static void EnsureNotSubmitted(int status, string action)
+    {
+        if (IsAlreadySubmitted(status))
+            throw new InvalidOperationException(
+                $"Đợt XML đã gửi lên BHXH, không {action} được. Nếu cần nộp lại, hãy xuất đợt mới.");
+    }
+}
+
+/// <summary>
+/// Trạng thái của một HỒ SƠ đề nghị thanh toán bảo hiểm (<c>InsuranceClaims.ClaimStatus</c>).
+/// </summary>
+public static class InsuranceClaimStatus
+{
+    public const int Pending = 0;           // Chờ — còn sửa thoải mái
+    public const int Locked = 1;            // Đã khóa (chốt để đưa vào đợt xuất)
+    public const int Approved = 2;          // Cơ quan bảo hiểm đã duyệt
+    public const int PartiallyRejected = 3; // Từ chối một phần
+    public const int FullyRejected = 4;     // Từ chối toàn bộ
+    public const int Paid = 5;              // Đã thanh toán
+
+    public static string Label(int status) => status switch
+    {
+        Pending => "Chờ",
+        Locked => "Đã khóa",
+        Approved => "Đã duyệt",
+        PartiallyRejected => "Từ chối một phần",
+        FullyRejected => "Từ chối toàn bộ",
+        Paid => "Đã thanh toán",
+        _ => $"Không xác định ({status})",
+    };
+
+    /// <summary>
+    /// Còn sửa được nội dung không. Hồ sơ **bị từ chối** CỐ Ý vẫn sửa được — đó chính là quy trình
+    /// sửa-rồi-nộp-lại mà <c>ProcessRejectedClaimAsync</c> phục vụ. Hồ sơ đã khóa thì phải mở khóa
+    /// trước (đã có endpoint riêng, chỉ Admin/Manager).
+    /// </summary>
+    public static bool IsEditable(int status)
+        => status == Pending || status == PartiallyRejected || status == FullyRejected;
+
+    /// <summary>Chỉ hồ sơ chưa đi đâu cả mới xoá được.</summary>
+    public static bool IsDeletable(int status) => status == Pending;
+
+    public static void EnsureEditable(int status)
+    {
+        if (!IsEditable(status))
+            throw new InvalidOperationException(
+                status == Locked
+                    ? "Hồ sơ đã khóa, phải mở khóa trước khi sửa."
+                    : $"Hồ sơ ở trạng thái \"{Label(status)}\", không sửa được nội dung.");
+    }
+
+    public static void EnsureDeletable(int status)
+    {
+        if (!IsDeletable(status))
+            throw new InvalidOperationException(
+                $"Hồ sơ ở trạng thái \"{Label(status)}\", không xoá được.");
+    }
+}
+
+/// <summary>
 /// Trạng thái của PHIẾU TẠM ỨNG (<c>Deposits.Status</c>) — từ vựng mà code đang chạy dùng, đọc từ
 /// <c>BillingCompleteService.Payments.cs</c>.
 ///
