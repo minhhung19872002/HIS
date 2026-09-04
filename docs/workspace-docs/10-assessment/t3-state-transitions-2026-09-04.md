@@ -47,8 +47,9 @@ một bài đo cho thứ vốn đã đúng*).
 | 44 | Chia sẻ kết quả CĐHA qua QR | Cửa **`[AllowAnonymous]`** bỏ qua cả mã chia sẻ lẫn mã truy cập — cơ chế bảo vệ chưa hề được cài | 0/7 → 7/7 |
 | 44 | Mẫu kết quả CĐHA | Cả **bảy hàm** là hardcode: soạn mẫu thì mất, bấm xoá thì không xoá | 0/6 → 6/6 |
 | 45 | Vật tư tái sử dụng | Cả **sổ theo dõi tiệt khuẩn** được bịa ra từ **hash của Id**: số lần đã dùng, trạng thái, ngày tiệt khuẩn gần nhất | 0/7 → 7/7 |
+| 46 | Nhập danh mục BHYT | Nhập tệp xong báo **"0 dòng" không kèm lỗi** — đọc ra thành *file của bạn rỗng*, nên người dùng đi soi lại tệp của mình | 0/7 → 7/7 |
 
-**Hồi quy hiện tại: 39 bộ đo, 263/263.** `dotnet test` 225 passed. Migration 168-181.
+**Hồi quy hiện tại: 40 bộ đo, 270/270.** `dotnet test` 225 passed. Migration 168-181.
 
 ### Ba hình dạng lặp lại, và cái đã làm với chúng
 
@@ -2355,3 +2356,74 @@ phẩm thì không. Ở đây bài đo sai *và* sản phẩm thiếu, nên sử
 
 `t3_reusable_supply.py`: **0/7 → 7/7**, đối chứng ngược vẫn đạt.
 Hồi quy toàn bộ **39 bộ đo, 263/263**. `dotnet test` **225 passed**. Build 0 lỗi.
+
+---
+
+## §46. Nhập danh mục BHYT — hàm rỗng đổ lỗi cho dữ liệu người dùng
+
+```csharp
+public async Task<ImportResultDto> ImportMedicineCatalogAsync(byte[] fileContent)
+{
+    return new ImportResultDto { TotalRows = 0, SuccessRows = 0, FailedRows = 0, Errors = new() };
+}
+```
+
+`ImportServiceCatalogAsync` y hệt. `UpdateInsurancePricesAsync` thì `return dto;`.
+
+Cách phản hồi này đáng nói riêng, tách khỏi chuyện hàm rỗng. Trả `TotalRows = 0` **không kèm lỗi nào**
+đọc ra thành *"file của bạn rỗng"*, chứ không phải *"chức năng này chưa làm gì"*. Người quản trị nhập
+danh mục BHYT theo một quyết định mới của Bộ, thấy 0 dòng, sẽ đi kiểm tra lại file của mình — mở
+Excel ra soi, xuất lại, thử định dạng khác. Một hàm rỗng **im lặng** còn đỡ hơn một hàm rỗng **đổ lỗi
+cho dữ liệu người dùng**: cái sau tiêu thời gian của người khác vào một chỗ không có gì để tìm.
+
+Đây là biến thể thứ ba trong đợt của cùng một chuyện — phần mềm nói điều nó không biết. §31 ký tên
+vào một phiếu chưa ai viết; §45 bịa số liệu tiệt khuẩn từ hash; ở đây nó không bịa dữ liệu, nó bịa
+**một chẩn đoán về dữ liệu của bạn**.
+
+### Giá BHYT vốn được thiết kế để có phiên bản
+
+`InsurancePriceConfigs` có sẵn `EffectiveFrom` · `EffectiveTo` · `DecisionNumber`. Đó không phải cột
+thừa: hồ sơ thanh toán của tháng trước phải được giám định theo giá của tháng trước, và số quyết định
+là căn cứ pháp lý của mức giá. Nên nhập giá mới phải **đóng bản cũ và mở bản mới**, không ghi đè —
+ghi đè là xoá mất căn cứ của mọi hồ sơ đã gửi đi.
+
+Bản vá làm đúng thế: mỗi dòng nhập vào sẽ `EffectiveTo = ngày hiệu lực mới - 1` cho bản đang chạy,
+`IsActive = false`, rồi thêm một dòng mới. Đo được: sau khi nhập giá 15.000 từ 01/07, bản 12.000 vẫn
+còn nguyên với `EffectiveTo = 2026-06-30`.
+
+### Bản vá
+
+Dự án không có thư viện đọc Excel/CSV nào, nên tự tách CSV (có xử lý ô bọc trong dấu nháy kép) —
+đủ dùng cho tệp danh mục BHYT xuất ra CSV, và không thêm phụ thuộc.
+
+Ba chỗ báo lỗi thay cho im lặng:
+
+| tình huống | bản cũ | bản vá |
+|---|---|---|
+| tệp không đọc được | `0 dòng`, không lỗi | 400 + nêu rõ định dạng và danh sách cột |
+| thiếu cột bắt buộc | `0 dòng`, không lỗi | 400 + liệt kê đúng cột nào thiếu |
+| một dòng thiếu giá | không có khái niệm | đếm vào `FailedRows` + `RowNumber` + tên cột + lý do |
+
+`RowNumber` tính cả dòng tiêu đề, để người dùng mở tệp ra là nhảy đúng dòng đó.
+
+### `UpdateInsurancePricesAsync` — cố ý không tự cài
+
+`InsurancePriceUpdateBatchDto` chỉ mang phần đầu của đợt (mã đợt, số quyết định, ngày hiệu lực, số
+lượng) và **không có danh sách dòng giá nào**. Không có gì để áp. Đoán ra nguồn giá thì dễ dựng sai
+luồng tiền hơn là để nguyên — cùng lý do đã hoãn `SaveScheduleAsync` ở §44.
+
+Nhưng để nguyên **không có nghĩa là để nó báo thành công**. Nay nó ném lỗi nói rõ chưa dùng được và
+chỉ sang đường đi đúng (nhập tệp danh mục). Người dùng biết mình chưa cập nhật được giá nào — đó là
+toàn bộ khác biệt giữa một tính năng chưa làm và một tính năng nói dối.
+
+### Còn nợ lại
+
+`UpdateMedicineMappingAsync` / `UpdateServiceMappingAsync` (sửa giá **từng dòng**) ghi đè
+`InsurancePrice` **tại chỗ**, không đóng bản cũ — tức cùng một chuyện mà bản vá này vừa chữa cho đường
+nhập tệp, nhưng ở đường sửa tay. Hai hàm đó đang chạy và có người dùng, nên đổi hành vi của chúng là
+việc riêng, không gộp vào đây. Ghi ra để không rơi.
+
+### Sau khi vá
+
+`t3_insurance_catalog_import.py`: **0/7 → 7/7**, đối chứng ngược vẫn đạt.
+Hồi quy toàn bộ **40 bộ đo, 270/270**. `dotnet test` **225 passed**. Build 0 lỗi.

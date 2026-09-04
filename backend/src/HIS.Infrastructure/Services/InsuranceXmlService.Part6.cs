@@ -317,20 +317,204 @@ public partial class InsuranceXmlService
         return dto;
     }
 
-    public async Task<ImportResultDto> ImportMedicineCatalogAsync(byte[] fileContent)
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // Nhập danh mục BHYT — #218/T3
+    //
+    // Hai hàm nhập trước đây trả cứng `{ TotalRows = 0, SuccessRows = 0, FailedRows = 0 }` không kèm
+    // lỗi nào. Cách phản hồi ấy đáng nói riêng: nó đọc ra thành "file của bạn rỗng", chứ không phải
+    // "chức năng này chưa làm gì". Người quản trị nhập danh mục theo một quyết định mới của Bộ, thấy
+    // 0 dòng, sẽ đi kiểm tra lại file của mình. Một hàm rỗng IM LẶNG còn đỡ hơn một hàm rỗng ĐỔ LỖI
+    // CHO DỮ LIỆU NGƯỜI DÙNG.
+    //
+    // `InsurancePriceConfigs` có sẵn `EffectiveFrom`/`EffectiveTo`/`DecisionNumber` — giá BHYT được
+    // thiết kế để CÓ PHIÊN BẢN theo ngày hiệu lực, vì hồ sơ thanh toán tháng trước phải được giám
+    // định theo giá tháng trước. Nên nhập giá mới ĐÓNG bản cũ và MỞ bản mới, không ghi đè: ghi đè là
+    // xoá mất căn cứ của mọi hồ sơ đã gửi.
+    // ════════════════════════════════════════════════════════════════════════════════════════
+
+    private static readonly string[] CatalogColumns =
+        { "ItemCode", "ItemName", "Unit", "InsurancePrice", "PaymentRate", "EffectiveFrom", "DecisionNumber" };
+
+    /// <summary>
+    /// Tách file CSV thành các dòng ô. Dự án không có thư viện đọc Excel/CSV nào nên tự tách; đủ dùng
+    /// cho tệp danh mục BHYT xuất ra CSV (có hỗ trợ ô bọc trong dấu nháy kép).
+    /// </summary>
+    private static List<string> SplitCsvLine(string line)
     {
-        return new ImportResultDto { TotalRows = 0, SuccessRows = 0, FailedRows = 0, Errors = new List<ImportError>() };
+        var cells = new List<string>();
+        var sb = new StringBuilder();
+        bool inQuote = false;
+        for (int i = 0; i < line.Length; i++)
+        {
+            var c = line[i];
+            if (inQuote)
+            {
+                if (c == '"' && i + 1 < line.Length && line[i + 1] == '"') { sb.Append('"'); i++; }
+                else if (c == '"') inQuote = false;
+                else sb.Append(c);
+            }
+            else if (c == '"') inQuote = true;
+            else if (c == ',') { cells.Add(sb.ToString().Trim()); sb.Clear(); }
+            else sb.Append(c);
+        }
+        cells.Add(sb.ToString().Trim());
+        return cells;
     }
 
-    public async Task<ImportResultDto> ImportServiceCatalogAsync(byte[] fileContent)
+    /// <summary>
+    /// Nhập một tệp danh mục giá BHYT. <paramref name="isMedicine"/> quyết định đối chiếu mã sang
+    /// `Medicines` hay `Services`.
+    /// </summary>
+    private async Task<ImportResultDto> ImportCatalogAsync(byte[] fileContent, bool isMedicine)
     {
-        return new ImportResultDto { TotalRows = 0, SuccessRows = 0, FailedRows = 0, Errors = new List<ImportError>() };
+        var result = new ImportResultDto();
+
+        if (fileContent == null || fileContent.Length == 0)
+            throw new InvalidOperationException("Chưa chọn tệp danh mục để nhập.");
+
+        string text;
+        try
+        {
+            text = new UTF8Encoding(false, throwOnInvalidBytes: true)
+                .GetString(fileContent).TrimStart('﻿');
+        }
+        catch (Exception)
+        {
+            // Trước đây chỗ này trả "0 dòng" và người dùng đi kiểm tra lại file của mình.
+            throw new InvalidOperationException(
+                "Không đọc được nội dung tệp. Danh mục phải là tệp CSV mã hoá UTF-8, "
+                + "cột: " + string.Join(", ", CatalogColumns) + ".");
+        }
+
+        var lines = text.Replace("\r\n", "\n").Split('\n')
+            .Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
+        if (lines.Count == 0)
+            throw new InvalidOperationException("Tệp danh mục rỗng.");
+
+        var header = SplitCsvLine(lines[0]);
+        var thieuCot = CatalogColumns
+            .Where(c => !header.Any(h => string.Equals(h, c, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+        if (thieuCot.Count > 0)
+            throw new InvalidOperationException(
+                $"Tệp thiếu cột bắt buộc: {string.Join(", ", thieuCot)}. "
+                + "Dòng đầu tiên phải là dòng tiêu đề cột.");
+
+        int Idx(string name) => header.FindIndex(h => string.Equals(h, name, StringComparison.OrdinalIgnoreCase));
+        int iCode = Idx("ItemCode"), iName = Idx("ItemName"), iUnit = Idx("Unit"),
+            iPrice = Idx("InsurancePrice"), iRate = Idx("PaymentRate"),
+            iFrom = Idx("EffectiveFrom"), iQd = Idx("DecisionNumber");
+
+        var now = DateTime.Now;
+        for (int r = 1; r < lines.Count; r++)
+        {
+            result.TotalRows++;
+            var soDong = r + 1; // số dòng trong tệp, tính cả dòng tiêu đề — để người dùng mở ra sửa
+            var cells = SplitCsvLine(lines[r]);
+
+            string Cell(int i) => i >= 0 && i < cells.Count ? cells[i] : string.Empty;
+
+            void Loi(string cot, string thongBao)
+            {
+                result.FailedRows++;
+                result.Errors.Add(new ImportError
+                {
+                    RowNumber = soDong,
+                    ColumnName = cot,
+                    ErrorMessage = thongBao,
+                });
+            }
+
+            var code = Cell(iCode);
+            if (string.IsNullOrWhiteSpace(code)) { Loi("ItemCode", "Thiếu mã danh mục."); continue; }
+            if (string.IsNullOrWhiteSpace(Cell(iName))) { Loi("ItemName", "Thiếu tên danh mục."); continue; }
+
+            if (!decimal.TryParse(Cell(iPrice), System.Globalization.NumberStyles.Any,
+                                  System.Globalization.CultureInfo.InvariantCulture, out var gia)
+                || gia < 0)
+            { Loi("InsurancePrice", "Giá BHYT không hợp lệ hoặc bỏ trống."); continue; }
+
+            if (!decimal.TryParse(Cell(iRate), System.Globalization.NumberStyles.Any,
+                                  System.Globalization.CultureInfo.InvariantCulture, out var tyLe)
+                || tyLe < 0 || tyLe > 100)
+            { Loi("PaymentRate", "Tỷ lệ thanh toán phải trong khoảng 0-100."); continue; }
+
+            if (!DateTime.TryParse(Cell(iFrom), System.Globalization.CultureInfo.InvariantCulture,
+                                   System.Globalization.DateTimeStyles.None, out var hieuLucTu))
+            { Loi("EffectiveFrom", "Ngày hiệu lực không hợp lệ (định dạng yyyy-MM-dd)."); continue; }
+
+            var qd = Cell(iQd);
+
+            // Đóng bản giá đang hiệu lực của cùng mã, thay vì ghi đè lên nó.
+            var dangHieuLuc = await _context.InsurancePriceConfigs
+                .Where(c => !c.IsDeleted && c.IsActive && c.ItemCode == code)
+                .ToListAsync();
+            foreach (var cu in dangHieuLuc)
+            {
+                cu.IsActive = false;
+                cu.EffectiveTo = hieuLucTu.AddDays(-1);
+                cu.UpdatedAt = now;
+            }
+
+            Guid? medicineId = null, serviceId = null;
+            if (isMedicine)
+                medicineId = await _context.Medicines
+                    .Where(m => !m.IsDeleted && m.MedicineCode == code)
+                    .Select(m => (Guid?)m.Id).FirstOrDefaultAsync();
+            else
+                serviceId = await _context.Services
+                    .Where(s => !s.IsDeleted && s.ServiceCode == code)
+                    .Select(s => (Guid?)s.Id).FirstOrDefaultAsync();
+
+            _context.InsurancePriceConfigs.Add(new InsurancePriceConfig
+            {
+                Id = Guid.NewGuid(),
+                MedicineId = medicineId,
+                ServiceId = serviceId,
+                ItemCode = code,
+                ItemName = Cell(iName),
+                Unit = Cell(iUnit),
+                InsurancePrice = gia,
+                PaymentRate = tyLe,
+                IsActive = true,
+                EffectiveFrom = hieuLucTu,
+                DecisionNumber = string.IsNullOrWhiteSpace(qd) ? null : qd,
+                DecisionDate = string.IsNullOrWhiteSpace(qd) ? null : hieuLucTu,
+                CreatedAt = now,
+            });
+            result.SuccessRows++;
+        }
+
+        await _context.SaveChangesAsync();
+        _logger?.LogInformation(
+            "Nhập danh mục BHYT ({Loai}): {Tong} dòng, {Ok} thành công, {Hong} hỏng",
+            isMedicine ? "thuốc" : "dịch vụ", result.TotalRows, result.SuccessRows, result.FailedRows);
+        return result;
     }
 
-    public async Task<InsurancePriceUpdateBatchDto> UpdateInsurancePricesAsync(InsurancePriceUpdateBatchDto dto)
-    {
-        return dto;
-    }
+    public Task<ImportResultDto> ImportMedicineCatalogAsync(byte[] fileContent)
+        => ImportCatalogAsync(fileContent, isMedicine: true);
+
+    public Task<ImportResultDto> ImportServiceCatalogAsync(byte[] fileContent)
+        => ImportCatalogAsync(fileContent, isMedicine: false);
+
+    /// <summary>
+    /// #218/T3 — hàm này trước đây là `return dto;`: báo cập nhật giá hàng loạt thành công mà không
+    /// đổi giá nào.
+    ///
+    /// <para>Cố ý **KHÔNG tự cài** thay vì cài đoán: <see cref="InsurancePriceUpdateBatchDto"/> chỉ
+    /// mang phần đầu của đợt (mã đợt, số quyết định, ngày hiệu lực, số lượng) và **không có danh sách
+    /// dòng giá nào** — không có gì để áp. Đoán ra nguồn giá thì dễ dựng sai luồng tiền hơn là để
+    /// nguyên. Đường đi đúng đã có: nhập tệp danh mục qua
+    /// <see cref="ImportMedicineCatalogAsync"/> / <see cref="ImportServiceCatalogAsync"/>.</para>
+    ///
+    /// <para>Nay báo lỗi rõ ràng thay vì báo thành công suông — để người dùng biết mình chưa cập nhật
+    /// được giá nào, đúng bài học của cả đợt này.</para>
+    /// </summary>
+    public Task<InsurancePriceUpdateBatchDto> UpdateInsurancePricesAsync(InsurancePriceUpdateBatchDto dto)
+        => throw new InvalidOperationException(
+            "Cập nhật giá BHYT theo đợt chưa dùng được: phiếu đợt không mang danh sách dòng giá. "
+            + "Hãy nhập tệp danh mục qua chức năng \"Nhập danh mục thuốc/dịch vụ BHYT\".");
 
     public async Task<List<IcdInsuranceMapDto>> GetValidIcdCodesAsync(string? keyword = null)
     {

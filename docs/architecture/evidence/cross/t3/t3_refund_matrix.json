@@ -1,5 +1,5 @@
 {
- "ranAt": "2026-09-05T01:55:03",
+ "ranAt": "2026-09-05T02:04:52",
  "entity": "Refund (Receipts.ReceiptType=3)",
  "legalTransitions": {
   "0": [
@@ -27,7 +27,7 @@
    "statusAfter": 1,
    "changed": true,
    "verdict": "OK",
-   "body": "{\"success\":true,\"data\":{\"id\":\"c5b8b547-394e-47c8-94f3-de665aa6ac00\",\"refundCode\":\"T3REFUND-0-92486\",\"patientId\":\"eabf9ce"
+   "body": "{\"success\":true,\"data\":{\"id\":\"57557953-ae52-43d7-8b76-909adf8fdfa9\",\"refundCode\":\"T3REFUND-0-82344\",\"patientId\":\"eabf9ce"
   },
   {
    "from": 0,
@@ -40,7 +40,7 @@
    "statusAfter": 2,
    "changed": true,
    "verdict": "OK",
-   "body": "{\"success\":true,\"data\":{\"id\":\"c4970eed-4d9e-471b-9052-5868fcb57beb\",\"refundCode\":\"T3REFUND-0-93170\",\"patientId\":\"eabf9ce"
+   "body": "{\"success\":true,\"data\":{\"id\":\"7a26d300-b34a-4a25-b4bb-db209f216018\",\"refundCode\":\"T3REFUND-0-83014\",\"patientId\":\"eabf9ce"
   },
   {
    "from": 0,
@@ -92,7 +92,7 @@
    "statusAfter": 4,
    "changed": true,
    "verdict": "OK",
-   "body": "{\"success\":true,\"data\":{\"id\":\"941fce39-825b-4a0c-b538-066f0eebce52\",\"refundCode\":\"T3REFUND-1-95850\",\"patientId\":\"eabf9ce"
+   "body": "{\"success\":true,\"data\":{\"id\":\"eb1dbef5-740a-42e2-bfb0-03f4cc45c4a6\",\"refundCode\":\"T3REFUND-1-85602\",\"patientId\":\"eabf9ce"
   },
   {
    "from": 1,

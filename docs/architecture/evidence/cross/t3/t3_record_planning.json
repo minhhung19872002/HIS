@@ -1,5 +1,5 @@
 {
- "ranAt": "2026-09-05T01:54:51",
+ "ranAt": "2026-09-05T02:04:41",
  "cases": [
   {
    "case": "gửi bàn giao ĐƯỢC ghi xuống hồ sơ lưu trữ",
@@ -19,7 +19,7 @@
   {
    "case": "hồ sơ ĐANG MƯỢN không bị báo là 'đã duyệt bàn giao'",
    "pass": true,
-   "detail": "HTTP 200 · {\"success\":true,\"data\":{\"totalCount\":1,\"items\":[{\"id\":\"b6f3d306-e91d-4e61-99a8-0c53a503acfa\",\"handoverCode\":\"T"
+   "detail": "HTTP 200 · {\"success\":true,\"data\":{\"totalCount\":1,\"items\":[{\"id\":\"b123a8b7-9caa-451a-a55d-cf53b6370cbe\",\"handoverCode\":\"T"
   },
   {
    "case": "cấp số chuyển tuyến ĐƯỢC ghi xuống phiếu",

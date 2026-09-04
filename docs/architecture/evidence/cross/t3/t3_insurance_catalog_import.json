@@ -1,0 +1,40 @@
+{
+ "ranAt": "2026-09-05T02:04:00",
+ "cases": [
+  {
+   "case": "dòng danh mục ĐƯỢC ghi xuống InsurancePriceConfigs",
+   "pass": true,
+   "detail": "HTTP 200 · SuccessRows=2 · số dòng ghi được=2"
+  },
+  {
+   "case": "ĐỐI CHỨNG: file hợp lệ nhập đủ số dòng, không báo lỗi",
+   "pass": true,
+   "detail": "tổng=2 · thành công=2 · hỏng=0"
+  },
+  {
+   "case": "giá mới mở bản GHI ĐÈ bản cũ",
+   "pass": true,
+   "detail": "HTTP 200 · giá bản mới='15000'"
+  },
+  {
+   "case": "bản giá CŨ được đóng lại chứ không bị xoá",
+   "pass": true,
+   "detail": "hết hiệu lực từ='2026-06-30' · giá cũ còn nguyên='12000'"
+  },
+  {
+   "case": "file KHÔNG đọc được thì BÁO LỖI, không im lặng trả 0 dòng",
+   "pass": true,
+   "detail": "HTTP 400 · tổng=None · hỏng=None · số lỗi=0"
+  },
+  {
+   "case": "dòng thiếu giá bị đếm HỎNG kèm số dòng + lý do",
+   "pass": true,
+   "detail": "thành công=1 · hỏng=1 · lỗi=[{\"rowNumber\": 2, \"columnName\": \"InsurancePrice\", \"errorMessage\": \"Giá BHYT khôn"
+  },
+  {
+   "case": "danh mục DỊCH VỤ cũng nhập được, gắn đúng ServiceId",
+   "pass": true,
+   "detail": "HTTP 200 · số dòng dịch vụ ghi được=1"
+  }
+ ]
+}
