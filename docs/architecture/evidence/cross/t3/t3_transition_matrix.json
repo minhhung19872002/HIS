@@ -1,5 +1,5 @@
 {
- "ranAt": "2026-09-04T10:13:22",
+ "ranAt": "2026-09-04T11:14:06",
  "entity": "Prescription",
  "legalTransitions": {
   "0": [
@@ -34,7 +34,7 @@
    "statusAfter": 1,
    "changed": true,
    "verdict": "OK",
-   "body": "{\"success\":true,\"data\":{\"id\":\"7d8d2f78-3901-4889-bf52-08723c181cc8\",\"status\":\"accepted\"},\"message\":null,\"errors\":null,\"m"
+   "body": "{\"success\":true,\"data\":{\"id\":\"9cc8a63b-9735-4c4a-9faf-4b038e0223ac\",\"status\":\"accepted\"},\"message\":null,\"errors\":null,\"m"
   },
   {
    "from": 0,
@@ -60,7 +60,7 @@
    "statusAfter": 0,
    "changed": false,
    "verdict": "OK",
-   "body": "{\"message\":\"Không thể chuyển đơn thuốc từ trạng thái \\\"Chờ duyệt\\\" sang \\\"Đã cấp phát\\\".\"}"
+   "body": "{\"error\":\"VALIDATION_FAILED\",\"message\":\"Không thể chuyển đơn thuốc từ trạng thái \\\"Chờ duyệt\\\" sang \\\"Đã cấp phát\\\".\"}"
   },
   {
    "from": 1,
@@ -151,7 +151,7 @@
    "statusAfter": 3,
    "changed": false,
    "verdict": "OK",
-   "body": "{\"message\":\"Không thể chuyển đơn thuốc từ trạng thái \\\"Hoàn trả\\\" sang \\\"Đã cấp phát\\\".\"}"
+   "body": "{\"error\":\"VALIDATION_FAILED\",\"message\":\"Không thể chuyển đơn thuốc từ trạng thái \\\"Hoàn trả\\\" sang \\\"Đã cấp phát\\\".\"}"
   },
   {
    "from": 4,
@@ -177,7 +177,7 @@
    "statusAfter": 4,
    "changed": false,
    "verdict": "OK",
-   "body": "{\"message\":\"Không thể chuyển đơn thuốc từ trạng thái \\\"Hủy\\\" sang \\\"Đã cấp phát\\\".\"}"
+   "body": "{\"error\":\"VALIDATION_FAILED\",\"message\":\"Không thể chuyển đơn thuốc từ trạng thái \\\"Hủy\\\" sang \\\"Đã cấp phát\\\".\"}"
   },
   {
    "from": 6,

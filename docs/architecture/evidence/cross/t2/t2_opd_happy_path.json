@@ -1,20 +1,20 @@
 {
- "ranAt": "2026-09-04T10:36:44",
+ "ranAt": "2026-09-04T11:13:51",
  "steps": [
   {
    "step": "1. Tạo bệnh nhân",
    "pass": true,
-   "detail": "HTTP 201 · patientId=4dc2fbcb-2e6f-4903-3cf2-08df0a35ba24 · mã=BN26000010"
+   "detail": "HTTP 201 · patientId=89839bfa-3348-486e-211e-08df0a3a6f1b · mã=BN26000016"
   },
   {
    "step": "2. Tiếp đón đăng ký khám",
    "pass": true,
-   "detail": "HTTP 200 · tạo hồ sơ bệnh án A86A35E4-2B8A-4DBC-BD80-8F60528237A6"
+   "detail": "HTTP 200 · tạo hồ sơ bệnh án 6B82E361-5F88-4FFD-9FDC-E9F3FEB3BA29"
   },
   {
    "step": "3. Tiếp đón sinh lượt khám",
    "pass": true,
-   "detail": "examinationId=D23433CA-E690-4275-853D-DBEC15EF26AA"
+   "detail": "examinationId=DEA5BAFB-F48A-451D-955A-526897201CF3"
   },
   {
    "step": "4. Bắt đầu khám",
@@ -39,7 +39,7 @@
   {
    "step": "8. Kê đơn thuốc",
    "pass": true,
-   "detail": "HTTP 200 · prescriptionId=18D65222-67F9-4DC1-B3D2-FBD80DE3906F · Status=0"
+   "detail": "HTTP 200 · prescriptionId=09F2E7DF-2157-4724-AF4D-796BE2DC6A75 · Status=0"
   },
   {
    "step": "9. Đơn có dòng thuốc",
