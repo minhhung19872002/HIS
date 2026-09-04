@@ -528,8 +528,19 @@
   **#24/#25** credential NCC/R2 · **#22/#113/#133/#134** chờ phần cứng (máy XN / thiết bị).
 
 ## Việc kế tiếp
-1. **User quyết push #192 NotEmptyGuid** (6 file tách bạch, `git add` tường minh) — đang CHỜ vì cây có việc song song Antigravity.
-2. Xác nhận với user nhóm uncommitted #200/#215-print/FE là việc song song của họ → KHÔNG đụng; verify deploy #291/#192-Range đã push.
+
+### 🔴 CHỜ USER QUYẾT (đã comment đầy đủ trong issue, không tự làm)
+1. **#216** — (a) bật biến repo `VITE_ACCESS_GATING` trên prod (server đã chặn đủ, không bật cũng không hở bảo mật);
+   (b) **TC-PERM-015 bắt đổi mật khẩu lần đầu/hết hạn**: chức năng CHƯA CÓ trong hệ thống — làm mới hay ghi nhận không áp dụng.
+2. **#218** — 5 quyết định: (a) bắt buộc ký số trước khi gửi BHXH (siết là tê liệt cơ sở chưa cấu hình chữ ký);
+   (b) `Deposits.Status = 3` mang HAI nghĩa (đường ghi "đã tiêu hết" vs mọi báo cáo đọc "đã hoàn tiền") — sửa phía nào cũng đổi số liệu báo cáo đã phát;
+   (c) đánh số lại `ServiceRequests.RequestType` cho dữ liệu CŨ (hệ quả kiểm toán);
+   (d) `MedicalRecords.Status` hai từ vựng (ngoại trú 2 = chờ kết luận vs nội trú 2 = đang điều trị) — áp luật sẽ chặn nhầm xuất viện thật;
+   (e) `ClaimStatus` ↔ `InsuranceXmlBatches.Status` không nối nhau — sửa = thiết kế lại liên kết, vượt phạm vi bản vá guard.
+
+### Đã đóng
+- **#217** (luồng chính đầu→cuối) và **#219** (lỗi API + phản ứng giao diện) — DONE, đã comment kết quả đầy đủ.
+
+### Quy tắc giữ nguyên
 3. **#195** write-path N+1 (tiền/kho/safety) — làm ở phiên có deploy + smoke (không tự sửa mù).
-3. **TEST** (#191/#212/#216-347, label `test`) làm **CUỐI CÙNG** — chỉ sau khi 100% fix/tech-debt DONE. KHÔNG ngoại lệ.
-4. **LUÔN** `git fetch` + `git pull --ff-only` + đối chiếu CODE (route/feature/issue đã có chưa) **TRƯỚC** khi pick task (2 máy song song).
+4. **LUÔN** `git fetch` + `git pull --ff-only` + đối chiếu CODE **TRƯỚC** khi pick task (2 máy song song).
