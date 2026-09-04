@@ -39,6 +39,7 @@ một bài đo cho thứ vốn đã đúng*).
 | 34 | **Ba cửa nữa** sửa phiếu CĐHA đã ký | Cửa thứ nhất nằm **cách hàm đã vá 120 dòng** — đọc tay đã sót, bộ dò tìm ra | 1/4 → 4/4 |
 | 35 | Hội chẩn **thuốc dấu \*** | Ghi đè kết luận sau khi **lãnh đạo đã duyệt**, chữ duyệt giữ nguyên | 1/2 → 2/2 |
 | 36 | Hồ sơ **đã khoá TT46** | Vẫn ghi đè được **chẩn đoán chính**; đọc hết 37 chỗ bộ dò chỉ ra | 1/2 → 2/2 |
+| 37-38 | **25 hàm rỗng** (bộ dò thứ ba) | Đọc hết: **7 lỗi vá được ngay** (bảng đã có) · 17 tính năng thiếu · 1 báo nhầm | khảo sát |
 
 **Hồi quy hiện tại: 28 bộ đo, 175/175.** `dotnet test` 225 passed. Migration 168-176.
 
@@ -1673,3 +1674,72 @@ làm gì với nó là của chủ sản phẩm, không phải của tôi:
 
 Ba đường này khác nhau về công sức và rủi ro tới mức chọn sai là hỏng việc. Tôi không đoán thay.
 **21/25 chỗ chưa đọc tay** — con số 24 ở trên là "chưa thấy chú thích", chưa phải "đã xác nhận rỗng".
+
+---
+
+## 38. Đọc hết 25 hàm rỗng — và một chú thích "nợ có sổ" hoá ra đã lỗi thời
+
+§37 tôi dừng ở việc báo cáo và hỏi. Anh chọn **đọc hết trước rồi mới quyết**. Đã đọc xong cả 25.
+
+### Điều lật ngược phân loại của chính tôi
+
+§37 tôi khen `CompleteStockTakeAsync` là **"khoảng trống đã khai báo — món nợ có sổ"**, dựa vào chú
+thích trong code:
+
+```csharp
+// Stock take is handled in-memory (no StockTake table yet)
+```
+
+Nhưng tra thẳng cơ sở dữ liệu: **bảng `StockTakes` TỒN TẠI, 14 cột, đã map EF.** Chú thích ấy đúng
+vào lúc viết, và đã **lỗi thời** — bảng được thêm sau đó mà code không ai quay lại nối vào.
+
+Vậy nó không phải "nợ có sổ" mà là **nợ đã trả nhưng code không biết** — tệ hơn hàm rỗng im lặng một
+bậc, vì chú thích còn *trấn an* người đọc rằng đây là chuyện đã biết và có lý do. Tôi đã dựa vào
+đúng chú thích ấy để xếp loại, và xếp sai.
+
+Bài học nhỏ mà lặp lại suốt đợt: **chú thích là lời khai, không phải bằng chứng.** §24
+(`Admissions.Status`), §29 (`Deposits.Status`), và giờ là chỗ này — cả ba lần đều phải đối chiếu với
+dữ liệu thật mới ra sự thật.
+
+### Phân loại đầy đủ 25 chỗ
+
+| Nhóm | Số | Nghĩa là gì |
+|---|---|---|
+| **A. Bảng ĐÃ CÓ, chỉ thiếu đường ghi** | **7** | **Lỗi vá được ngay** — bảng thật, đủ cột, EF đã map, đường ĐỌC đã dùng bảng đó rồi; chỉ mỗi đường GHI là vỏ rỗng. Đúng khuôn §25 (`CreateBorrowAsync`) đã vá |
+| **B. Chưa có bảng** | **17** | **Tính năng còn thiếu** — muốn làm phải có bảng + migration + nghiệp vụ + màn hình. Đây là backlog sản phẩm, không phải sửa lỗi |
+| **C. Có chủ ý, báo nhầm** | **1** | `CreateSettlementBatchAsync` — truy vấn `InsuranceClaims` thật, tính on-the-fly, có chú thích giải thích vì sao Id phải deterministic. **Thiết kế đúng**, không phải hàm rỗng |
+
+**Nhóm A (7 hàm — bảng sẵn sàng):**
+
+| Hàm | Bảng | Cột |
+|---|---|---|
+| `SaveLabTestGroupAsync` | `LabTestGroups` | 11 |
+| `SaveConclusionTemplateAsync` | `LabConclusionTemplates` | 14 |
+| `CreateWorklistAsync` | `LabWorklists` | 19 |
+| `ApproveProcurementRequestAsync` | `ProcurementRequests` | 16 |
+| `RecordConsignmentUsageAsync` | `ConsignmentStocks` | 18 |
+| `UpdateStockTakeResultsAsync` | `StockTakes` | 14 |
+| `CompleteStockTakeAsync` | `StockTakes` | 14 |
+
+Ở cả bảy, đường **đọc** đã dùng bảng thật — `GetProcurementRequestsAsync` truy vấn
+`_context.ProcurementRequests`, `GetLabTestGroupsAsync` truy vấn `_context.LabTestGroups`. Chỉ đường
+**ghi** là vỏ rỗng. Y hệt §25: xem danh sách · gia hạn · trả đều thật, chỉ mỗi *tạo* là rỗng.
+
+**Nhóm B** gồm những cái nặng về hậu quả nhưng **không có chỗ để ghi**: giấy nghỉ ốm / nghỉ thai sản
+(`SickLeaves`, `MaternityLeaves` — không có bảng), bán thuốc theo đơn (`PharmacySales` — không có),
+thẻ BHYT tạm (`TemporaryInsuranceCards` — không có), bàn giao / sao chép hồ sơ, mẫu kết quả CĐHA,
+vật tư tái sử dụng, nhập danh mục thuốc/dịch vụ BHYT.
+
+Bốn hàm trong `MedicalRecordPlanningService` (`SubmitHandoverAsync`, `ApproveHandoverAsync`,
+`CreateRecordCopyAsync`, `AssignTransferNumberAsync`) dùng **cùng một khuôn** `Random()` +
+`await Task.CompletedTask` — đúng khuôn `CreateBorrowAsync` mà §25 đã vá trong chính service ấy. Tức
+cả module lưu trữ hồ sơ được dựng khung một lượt rồi bỏ dở, và §25 chỉ mới nối lại một mắt.
+
+### Việc này đổi câu hỏi cho anh
+
+Trước khi đọc, câu hỏi là "làm 24 tính năng hay không". Sau khi đọc, nó tách làm hai câu khác hẳn:
+
+* **Nhóm A (7 hàm)** — đây là **lỗi**, không phải tính năng thiếu. Bảng đã có, đọc đã chạy, chỉ thiếu
+  đường ghi. Vá được trong tầm một đợt như các mục trước, không cần migration.
+* **Nhóm B (17 hàm)** — đây thật sự là **backlog sản phẩm**. Vẫn cần anh quyết: làm dần, cho báo lỗi
+  rõ, hay ghi thành nợ có sổ.

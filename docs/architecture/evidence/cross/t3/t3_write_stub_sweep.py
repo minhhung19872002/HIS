@@ -32,13 +32,23 @@ Sau khi loại hai nhóm trên: **25 chỗ** (lượt chạy 2026-09-04).
 * `ApproveProcurementRequestAsync` — **rỗng thật**, trả DTO với `Status = 1 // Đã duyệt` bịa ra;
 * `SaveLabTestAsync` — **rỗng thật**, `return new LabTestCatalogDto { Code = dto.Code, ... }`, tức
   vọng lại đúng cái vừa nhận vào;
-* `CompleteStockTakeAsync` — rỗng **nhưng ĐÃ KHAI BÁO**: có chú thích `// Stock take is handled
-  in-memory (no StockTake table yet)`. Đây là **khoảng trống có chủ ý**, khác hẳn hàm rỗng không nói gì.
+* `CompleteStockTakeAsync` — rỗng, có chú thích `// Stock take is handled in-memory (no StockTake
+  table yet)`. **Lượt đầu tôi xếp nó là "khoảng trống có chủ ý" — SAI.** Tra cơ sở dữ liệu thì bảng
+  `StockTakes` **TỒN TẠI, 14 cột, đã map EF**. Chú thích đúng vào lúc viết và nay đã lỗi thời: bảng
+  được thêm sau mà code không ai quay lại nối vào. Đây là **nợ đã trả nhưng code không biết** — tệ
+  hơn hàm rỗng im lặng một bậc, vì chú thích còn trấn an người đọc rằng đã có lý do.
 
-Phân biệt *khai báo* với *giấu* là việc bộ dò không làm được, mà lại là việc quan trọng nhất: một
-khoảng trống đã ghi ra là món nợ có sổ; một hàm rỗng im lặng là cái bẫy.
+**Chú thích là lời khai, không phải bằng chứng.** Muốn phân loại thì phải đối chiếu với bảng thật.
 
-**21/25 chỗ chưa đọc tay.** Đừng coi là đã kết luận.
+**ĐÃ ĐỌC HẾT 25 (2026-09-04)** — kết quả ở §38 của báo cáo T3:
+
+* **7 chỗ bảng ĐÃ CÓ, chỉ thiếu đường ghi** → **lỗi vá được ngay**, không cần migration:
+  `SaveLabTestGroupAsync`, `SaveConclusionTemplateAsync`, `CreateWorklistAsync`,
+  `ApproveProcurementRequestAsync`, `RecordConsignmentUsageAsync`, `UpdateStockTakeResultsAsync`,
+  `CompleteStockTakeAsync`. Ở cả bảy, đường ĐỌC đã dùng bảng thật rồi;
+* **17 chỗ chưa có bảng** → tính năng còn thiếu, cần migration + nghiệp vụ = backlog sản phẩm;
+* **1 chỗ báo nhầm có chủ ý**: `CreateSettlementBatchAsync` tính on-the-fly từ `InsuranceClaims`
+  thật, có chú thích giải thích vì sao Id phải deterministic — thiết kế đúng.
 
 Không cần API hay DB — chỉ đọc mã nguồn.
 """
