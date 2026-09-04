@@ -180,6 +180,15 @@ public class WriteGapService : IWriteGapService
     {
         var archive = await _db.MedicalRecordArchives.FirstOrDefaultAsync(a => a.Id == dto.ArchiveId);
         if (archive == null) return ServiceOutcome.NotFound();
+
+        // #218/T3: đây là cửa THỨ HAI cho mượn cùng một tập hồ sơ. Cửa kia
+        // (`MedicalRecordPlanningService.CreateBorrowAsync`) đã chặn "hồ sơ đang có người mượn";
+        // cửa này trước đó không kiểm gì, nên người thứ hai vẫn mượn được và `BorrowedByUserId` bị
+        // ghi đè — hệ thống quên mất ai đang thật sự cầm tập hồ sơ giấy trong tay.
+        if (archive.IsOnLoan || archive.Status == 2)
+            return ServiceOutcome.Bad(
+                "Hồ sơ đang có người mượn, chưa trả về kho. Phải trả trước rồi mới cho mượn tiếp.");
+
         archive.IsOnLoan = true;
         archive.BorrowedByUserId = userId;
         archive.BorrowedAt = DateTime.Now;
@@ -195,6 +204,13 @@ public class WriteGapService : IWriteGapService
     {
         var archive = await _db.MedicalRecordArchives.FirstOrDefaultAsync(a => a.Id == dto.ArchiveId);
         if (archive == null) return ServiceOutcome.NotFound();
+
+        // #218/T3: không "trả" một tập hồ sơ chưa hề rời kho. Trước đây hàm này gán thẳng
+        // `ReturnedAt = DateTime.Now` cho cả hồ sơ đang nằm yên trong kho, tức dựng ra một lượt trả
+        // cho một lượt mượn không tồn tại.
+        if (!archive.IsOnLoan && archive.Status != 2)
+            return ServiceOutcome.Bad("Hồ sơ đang ở trong kho, không có lượt mượn nào để trả.");
+
         archive.IsOnLoan = false;
         archive.ReturnedAt = DateTime.Now;
         archive.Status = 1; // Đã lưu

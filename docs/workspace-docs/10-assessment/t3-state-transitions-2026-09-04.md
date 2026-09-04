@@ -1072,3 +1072,32 @@ mà bài đo lại đi tìm cái dấu `T3BRW` nằm trong `Purpose`. Bài đo s
 
 Đổi sang tìm theo **đúng mã phiếu mà API vừa trả về**: vừa khớp bộ lọc, vừa là khẳng định mạnh hơn —
 chính cái phiếu API nói đã tạo phải hiện ra ở danh sách, chứ không chỉ "có phiếu nào đó".
+
+---
+
+## 26. Mượn/trả hồ sơ lưu trữ — cửa thứ hai, và lần này biết trước nó ở đâu
+
+Vá §25 xong thì cửa tạo phiếu mượn đã chặn "hồ sơ đang có người mượn". Nhưng cùng một tập hồ sơ giấy
+còn **một cửa nữa** cho mượn: `WriteGapService.BorrowRecordAsync`
+(`POST /api/write-gap/record-planning/borrow`), thao tác thẳng trên `MedicalRecordArchives`. Toàn bộ
+phần kiểm của nó:
+
+```csharp
+var archive = await _db.MedicalRecordArchives.FirstOrDefaultAsync(a => a.Id == dto.ArchiveId);
+if (archive == null) return ServiceOutcome.NotFound();
+archive.IsOnLoan = true;                    // hết
+```
+
+Lần này không phải tình cờ tìm ra: sau tám lần gặp đúng hình dạng *một luật, thi hành ở một cửa, bỏ
+trống ở cửa bên cạnh*, việc vá một cửa đã thành lý do để đi tìm cửa còn lại. Đo được **2/5**:
+
+* **mượn chồng lên lượt mượn đang mở** — người thứ hai nhận 200, `BorrowedByUserId` và `BorrowReason`
+  bị ghi đè sang người mới. Hệ thống quên mất ai đang thật sự cầm tập hồ sơ giấy trong tay;
+* **trả một tập hồ sơ chưa hề rời kho** — 200, và `ReturnedAt` được đặt cho một lượt mượn không tồn tại.
+
+Vá: chặn mượn khi `IsOnLoan` hoặc `Status == 2`; chặn trả khi hồ sơ đang nằm trong kho. Hai **đối
+chứng âm** giữ cho bản vá trung thực — mượn lần đầu và trả một hồ sơ đang mượn đều bắt buộc vẫn phải
+chạy. `t3_archive_loan.py`: **5/5**.
+
+Ghi lại một điều làm đúng, để không đổ oan: cửa này **có** lưu lý do mượn vào `BorrowReason` — khác
+với `CancelApprovalAsync` (§21) và `CancelDischargeAsync` (§23) vốn nhận lý do rồi vứt.

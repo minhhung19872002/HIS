@@ -1,0 +1,40 @@
+{
+ "ranAt": "2026-09-04T20:40:09",
+ "cases": [
+  {
+   "case": "mượn lần đầu ĐƯỢC chạy",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · trạng thái|đang mượn|người mượn = 2|1|9E5309DC-ECF9-4D48-9A09-224CD15347B1"
+  },
+  {
+   "case": "mượn chồng lên lượt mượn đang mở bị chặn",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · {\"message\":\"Hồ sơ đang có người mượn, chưa trả về kho. Phải "
+  },
+  {
+   "case": "người đang giữ hồ sơ không bị ghi đè",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "lý do đang lưu='T3ARC muon lan 1'"
+  },
+  {
+   "case": "trả hồ sơ chưa mượn bị chặn",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · ngày trả được đặt=khong · {\"message\":\"Hồ sơ đang ở trong kho, không có "
+  },
+  {
+   "case": "trả một hồ sơ đang mượn ĐƯỢC chạy",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · trạng thái|đang mượn|người mượn = 1|0|9E5309DC-ECF9-4D48-9A09-224CD15347B1"
+  }
+ ]
+}
