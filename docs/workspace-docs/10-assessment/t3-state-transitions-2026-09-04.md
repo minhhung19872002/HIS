@@ -497,20 +497,36 @@ người dùng*. Đã gắn filter; bài đo nay **bắt buộc mã 400**, chặ
 được kiểu `DBNull`; `CreateIssueRequestAsync` truyền `DBNull.Value` cho `PatientCode`/`PatientName`
 **luôn luôn**, nên chức năng này chưa bao giờ chạy được. Đã sửa bằng `SqlParameter` có tên.
 
-### 🔴 Còn lại, chưa sửa — chưa đo được nên chưa dám sửa mù
+### Lỗi `DBNull` — đo lại thì bức tranh khác hẳn điều em viết ban đầu
 
-Cùng lỗi `DBNull` ở trên còn **48 chỗ nữa** trong 6 tệp của module máu
-(`Catalogs` · `ImportReceipts` · `Inventory` · `IssueRequests` · `Orders` · `Stock`). Khác chỗ đã sửa
-ở một điểm: chúng chỉ hỏng **khi giá trị đó rỗng**, nên có đường chạy được có đường không.
+Ban đầu em ghi ở đây là "còn 48 chỗ, chỉ hỏng khi giá trị rỗng, cần một lượt riêng". Đã dựng bài đo
+(`evidence/cross/t3/t3_blood_null_fields.py`) và **kết luận đó nói quá**. Sự thật:
 
-Không sửa loạt cả 48 chỗ vì mỗi chỗ nằm trên một đường ghi khác nhau và em chỉ dựng được bài đo cho
-vài đường. Sửa 48 chỗ trên đường ghi của ngân hàng máu mà không đo lại từng đường thì đúng kiểu
-"sửa mù" mà cả đợt này đang tránh. Đây là việc rõ ràng, đã định vị chính xác, nên làm thành một lượt
-riêng có bài đo đi kèm.
+- **43 chỗ dạng `x ?? DBNull.Value`** chỉ nổ khi `x` thật sự null. Nhưng DTO của module này khai
+  chuỗi là **không-nullable**, và `[ApiController]` bắt buộc trường không-nullable phải có giá trị —
+  gửi thiếu là bị chặn ở tầng kiểm tra dữ liệu với 400 **trước khi** chạm tới câu SQL. Qua API,
+  phần lớn không tới được.
+- **Trừ một loại: kiểu giá trị nullable.** `DateTime?`, `decimal?` KHÔNG bị bắt buộc, nên nhánh null
+  của chúng tới được thật. Bỏ trống `LicenseExpiryDate` là **thêm nhà cung cấp hỏng ngay** — đo được.
+- **4 chỗ bắn `DBNull` vô điều kiện** thì nổ 100%: `CreateIssueRequestAsync` (PatientCode/PatientName)
+  và `CreateImportReceiptAsync` (DonorName · Temperature · Note). Nghĩa là **tạo phiếu lĩnh máu** và
+  **tạo phiếu nhập máu** chưa bao giờ chạy được — hai chức năng chết, không phải hai quả mìn.
 
-Ngoài ra `BloodBagAssignments`, `BloodIssueReceipts`, `BloodIssueItems` **không có script tạo bảng
-nào trong repo** — chúng tồn tại trên máy này và trên prod do tạo tay. Một môi trường dựng mới sẽ
-hỏng ngay ở các đường này. Ghi lại để xử lý bằng một migration.
+Đã sửa cả bốn chỗ vô điều kiện + toàn bộ danh mục (chế phẩm · nhà cung cấp) bằng `SqlParameter` có
+tên. Bài đo nay gọi **17 đường ghi** của module máu bằng payload đầy đủ, cộng một lượt bỏ trống các
+trường kiểu giá trị nullable: **17/17**. Còn 19 chỗ `?? DBNull` chưa đổi, nhưng cả 17 đường ghi đều
+đã chạy qua chúng nên không còn là ẩn số.
+
+**Cách nói đúng của phát hiện này**: không phải "48 quả mìn", mà là "hai chức năng chết + một loại
+trường (nullable value type) thật sự nguy hiểm". Đếm số dòng khớp `grep` không phải là đếm rủi ro;
+phải hỏi thêm *đường nào thực sự tới được chỗ đó*.
+
+### Bảng thiếu script tạo — đã xử lý
+
+`BloodBagAssignments`, `BloodIssueReceipts`, `BloodIssueItems` không có script tạo bảng nào trong
+repo; chúng tồn tại ở máy dev và prod do tạo tay. Migration `171_blood_bank_missing_tables.sql` chép
+đúng hình dạng đang chạy, có kiểm chứng: chạy trên một cơ sở dữ liệu trắng rồi so từng cột (tên ·
+kiểu · độ dài · precision · scale · nullable) với DB thật — khớp cả ba bảng; chạy lần hai là no-op.
 
 ## 15. Xuất kho ngoại trú — phát một đơn hai lần, trừ kho hai lần
 

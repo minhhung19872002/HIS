@@ -106,9 +106,6 @@ namespace HIS.Infrastructure.Services
             // 'DBNull'" — và vì `PatientCode`/`PatientName` LUÔN là DBNull ở đây, tạo phiếu lĩnh máu
             // hỏng 100%, không phải thỉnh thoảng. Truyền `SqlParameter` có tên thì EF không phải
             // đoán kiểu nữa.
-            SqlParameter P(string name, object? value) =>
-                new SqlParameter(name, value ?? DBNull.Value);
-
             await _context.Database.ExecuteSqlRawAsync(
                 @"INSERT INTO BloodIssueRequests (Id, RequestCode, RequestDate, DepartmentId, RequestedById, PatientId, PatientCode, PatientName, BloodType, RhFactor, ProductTypeId, RequestedQuantity, IssuedQuantity, Urgency, Status, ClinicalIndication, Note, CreatedAt)
                 VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, 0, @p12, 'Pending', @p13, @p14, @p15)",

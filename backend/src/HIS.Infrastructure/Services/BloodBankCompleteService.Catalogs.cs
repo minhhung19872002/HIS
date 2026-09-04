@@ -15,6 +15,14 @@ namespace HIS.Infrastructure.Services
 {
     public partial class BloodBankCompleteService
     {
+        // #218/T3 (2026-09-04): `DBNull.Value` truyền thẳng làm đối số cho `ExecuteSqlRawAsync` thì
+        // EF Core không ánh xạ được kiểu. Nguy hiểm nhất là các trường KIỂU GIÁ TRỊ NULLABLE
+        // (`DateTime?`, `decimal?`): `[ApiController]` bắt buộc chuỗi không-nullable phải có giá trị
+        // nên nhánh null của chúng gần như không tới được qua API, NHƯNG nullable value type thì
+        // không bị bắt buộc — bỏ trống `LicenseExpiryDate` là thêm nhà cung cấp hỏng ngay.
+        // `SqlParameter` có tên thì EF không phải đoán kiểu nữa.
+        private static SqlParameter P(string name, object? value) => new SqlParameter(name, value ?? DBNull.Value);
+
         #region Catalogs
 
         public async Task<List<BloodProductTypeDto>> GetProductTypesAsync()
@@ -59,11 +67,11 @@ namespace HIS.Infrastructure.Services
                 await _context.Database.ExecuteSqlRawAsync(
                     @"INSERT INTO BloodProductTypes (Id, Code, Name, Description, ShelfLifeDays, MinTemperature, MaxTemperature, StandardVolume, Unit, Price, InsurancePrice, IsActive)
                     VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11)",
-                    dto.Id, dto.Code, dto.Name, dto.Description ?? (object)DBNull.Value,
-                    dto.ShelfLifeDays, dto.MinTemperature ?? (object)DBNull.Value,
-                    dto.MaxTemperature ?? (object)DBNull.Value,
-                    dto.StandardVolume ?? (object)DBNull.Value,
-                    dto.Unit ?? "mL", dto.Price, dto.InsurancePrice, dto.IsActive);
+                    P("@p0", dto.Id), P("@p1", dto.Code), P("@p2", dto.Name), P("@p3", dto.Description),
+                    P("@p4", dto.ShelfLifeDays), P("@p5", dto.MinTemperature),
+                    P("@p6", dto.MaxTemperature),
+                    P("@p7", dto.StandardVolume),
+                    P("@p8", dto.Unit ?? "mL"), P("@p9", dto.Price), P("@p10", dto.InsurancePrice), P("@p11", dto.IsActive));
             }
             else
             {
@@ -71,11 +79,11 @@ namespace HIS.Infrastructure.Services
                     @"UPDATE BloodProductTypes SET Code=@p0, Name=@p1, Description=@p2, ShelfLifeDays=@p3,
                     MinTemperature=@p4, MaxTemperature=@p5, StandardVolume=@p6, Unit=@p7,
                     Price=@p8, InsurancePrice=@p9, IsActive=@p10 WHERE Id=@p11",
-                    dto.Code, dto.Name, dto.Description ?? (object)DBNull.Value,
-                    dto.ShelfLifeDays, dto.MinTemperature ?? (object)DBNull.Value,
-                    dto.MaxTemperature ?? (object)DBNull.Value,
-                    dto.StandardVolume ?? (object)DBNull.Value,
-                    dto.Unit ?? "mL", dto.Price, dto.InsurancePrice, dto.IsActive, dto.Id);
+                    P("@p0", dto.Code), P("@p1", dto.Name), P("@p2", dto.Description),
+                    P("@p3", dto.ShelfLifeDays), P("@p4", dto.MinTemperature),
+                    P("@p5", dto.MaxTemperature),
+                    P("@p6", dto.StandardVolume),
+                    P("@p7", dto.Unit ?? "mL"), P("@p8", dto.Price), P("@p9", dto.InsurancePrice), P("@p10", dto.IsActive), P("@p11", dto.Id));
             }
             return dto;
         }
@@ -128,14 +136,14 @@ namespace HIS.Infrastructure.Services
                 await _context.Database.ExecuteSqlRawAsync(
                     @"INSERT INTO BloodSuppliers (Id, Code, Name, Address, Phone, Email, ContactPerson, License, LicenseExpiryDate, IsActive)
                     VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9)",
-                    dto.Id, dto.Code, dto.Name,
-                    dto.Address ?? (object)DBNull.Value,
-                    dto.Phone ?? (object)DBNull.Value,
-                    dto.Email ?? (object)DBNull.Value,
-                    dto.ContactPerson ?? (object)DBNull.Value,
-                    dto.License ?? (object)DBNull.Value,
-                    dto.LicenseExpiryDate ?? (object)DBNull.Value,
-                    dto.IsActive);
+                    P("@p0", dto.Id), P("@p1", dto.Code), P("@p2", dto.Name),
+                    P("@p3", dto.Address),
+                    P("@p4", dto.Phone),
+                    P("@p5", dto.Email),
+                    P("@p6", dto.ContactPerson),
+                    P("@p7", dto.License),
+                    P("@p8", dto.LicenseExpiryDate),
+                    P("@p9", dto.IsActive));
             }
             else
             {
@@ -143,14 +151,14 @@ namespace HIS.Infrastructure.Services
                     @"UPDATE BloodSuppliers SET Code=@p0, Name=@p1, Address=@p2, Phone=@p3,
                     Email=@p4, ContactPerson=@p5, License=@p6, LicenseExpiryDate=@p7, IsActive=@p8
                     WHERE Id=@p9",
-                    dto.Code, dto.Name,
-                    dto.Address ?? (object)DBNull.Value,
-                    dto.Phone ?? (object)DBNull.Value,
-                    dto.Email ?? (object)DBNull.Value,
-                    dto.ContactPerson ?? (object)DBNull.Value,
-                    dto.License ?? (object)DBNull.Value,
-                    dto.LicenseExpiryDate ?? (object)DBNull.Value,
-                    dto.IsActive, dto.Id);
+                    P("@p0", dto.Code), P("@p1", dto.Name),
+                    P("@p2", dto.Address),
+                    P("@p3", dto.Phone),
+                    P("@p4", dto.Email),
+                    P("@p5", dto.ContactPerson),
+                    P("@p6", dto.License),
+                    P("@p7", dto.LicenseExpiryDate),
+                    P("@p8", dto.IsActive), P("@p9", dto.Id));
             }
             return dto;
         }

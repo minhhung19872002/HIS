@@ -166,13 +166,18 @@ namespace HIS.Infrastructure.Services
             var totalBags = dto.Items?.Count ?? 0;
             var totalAmount = dto.Items?.Sum(i => i.Price * i.Volume) ?? 0;
 
+            // #218/T3 (2026-09-04): `DBNull.Value` truyền thẳng làm đối số cho `ExecuteSqlRawAsync`
+            // thì EF Core không ánh xạ được kiểu. Ba chỗ trong vòng lặp dưới bắn DBNull **vô điều
+            // kiện** (DonorName · Temperature · Note) nên tạo phiếu nhập máu hỏng 100% mỗi khi có
+            // dòng hàng — đo được: HTTP 400 INVALID_STATE "store type mapping ... 'DBNull'".
+            // `SqlParameter` có tên thì EF không phải đoán kiểu nữa.
             await _context.Database.ExecuteSqlRawAsync(
                 @"INSERT INTO BloodImportReceipts (Id, ReceiptCode, ReceiptDate, SupplierId, DeliveryPerson, ReceiverName, Status, TotalBags, TotalAmount, Note, CreatedAt, CreatedBy)
                 VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11)",
-                receiptId, receiptCode, dto.ReceiptDate, dto.SupplierId,
-                dto.DeliveryPerson ?? (object)DBNull.Value, "System",
-                "Draft", totalBags, totalAmount,
-                dto.Note ?? (object)DBNull.Value, DateTime.Now, "System");
+                P("@p0", receiptId), P("@p1", receiptCode), P("@p2", dto.ReceiptDate), P("@p3", dto.SupplierId),
+                P("@p4", dto.DeliveryPerson), P("@p5", "System"),
+                P("@p6", "Draft"), P("@p7", totalBags), P("@p8", totalAmount),
+                P("@p9", dto.Note), P("@p10", DateTime.Now), P("@p11", "System"));
 
             if (dto.Items != null)
             {
@@ -186,22 +191,22 @@ namespace HIS.Infrastructure.Services
                     await _context.Database.ExecuteSqlRawAsync(
                         @"INSERT INTO BloodImportItems (Id, ReceiptId, BloodBagId, BagCode, Barcode, BloodType, RhFactor, ProductTypeId, Volume, Unit, CollectionDate, ExpiryDate, DonorCode, Price, Amount, TestResults)
                         VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15)",
-                        itemId, receiptId, bagId, item.BagCode, barcode,
-                        item.BloodType, item.RhFactor, item.ProductTypeId,
-                        item.Volume, "mL", item.CollectionDate, item.ExpiryDate,
-                        item.DonorCode ?? (object)DBNull.Value, item.Price, amount,
-                        item.TestResults ?? (object)DBNull.Value);
+                        P("@p0", itemId), P("@p1", receiptId), P("@p2", bagId), P("@p3", item.BagCode), P("@p4", barcode),
+                        P("@p5", item.BloodType), P("@p6", item.RhFactor), P("@p7", item.ProductTypeId),
+                        P("@p8", item.Volume), P("@p9", "mL"), P("@p10", item.CollectionDate), P("@p11", item.ExpiryDate),
+                        P("@p12", item.DonorCode), P("@p13", item.Price), P("@p14", amount),
+                        P("@p15", item.TestResults));
 
                     await _context.Database.ExecuteSqlRawAsync(
                         @"INSERT INTO BloodBags (Id, BagCode, Barcode, BloodType, RhFactor, ProductTypeId, Volume, Unit, CollectionDate, ExpiryDate, DonorCode, DonorName, SupplierId, Status, StorageLocation, Temperature, TestResults, IsTestPassed, Note, CreatedAt, CreatedBy)
                         VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20)",
-                        bagId, item.BagCode, barcode, item.BloodType, item.RhFactor,
-                        item.ProductTypeId, item.Volume, "mL",
-                        item.CollectionDate, item.ExpiryDate,
-                        item.DonorCode ?? (object)DBNull.Value, (object)DBNull.Value,
-                        dto.SupplierId, "Available", "Kho mau",
-                        (object)DBNull.Value, item.TestResults ?? (object)DBNull.Value,
-                        true, (object)DBNull.Value, DateTime.Now, "System");
+                        P("@p0", bagId), P("@p1", item.BagCode), P("@p2", barcode), P("@p3", item.BloodType), P("@p4", item.RhFactor),
+                        P("@p5", item.ProductTypeId), P("@p6", item.Volume), P("@p7", "mL"),
+                        P("@p8", item.CollectionDate), P("@p9", item.ExpiryDate),
+                        P("@p10", item.DonorCode), P("@p11", null),
+                        P("@p12", dto.SupplierId), P("@p13", "Available"), P("@p14", "Kho mau"),
+                        P("@p15", null), P("@p16", item.TestResults),
+                        P("@p17", true), P("@p18", null), P("@p19", DateTime.Now), P("@p20", "System"));
                 }
             }
             return await GetImportReceiptAsync(receiptId);
