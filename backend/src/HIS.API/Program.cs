@@ -251,13 +251,21 @@ builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHand
 
 builder.Services.AddRateLimiter(options =>
 {
-    options.AddFixedWindowLimiter("login", opt =>
-    {
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.PermitLimit = 10;
-        opt.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
-        opt.QueueLimit = 0;
-    });
+    // #216/F8: bucket đăng nhập TỪNG LÀ TOÀN CỤC 10 lần/phút — tức là cả bệnh viện chung 10 lượt
+    // đăng nhập mỗi phút. T1 đợt 2 vấp đúng vào đó: 6 lần nhập sai liên tiếp trả 429 ngay từ lần thứ
+    // hai nên bộ đếm khoá tài khoản không bao giờ chạm ngưỡng, và ở đầu ca thì hàng chục nhân viên
+    // đăng nhập cùng lúc sẽ chặn lẫn nhau. Đây đúng vấn đề đã sửa cho bucket "refresh" bên dưới,
+    // chỉ là bỏ sót "login". Partition theo IP với hạn mức rộng đủ cho NAT bệnh viện; chống dò mật
+    // khẩu là việc của khoá tài khoản theo FailedLoginCount, không phải của rate limit.
+    options.AddPolicy("login", httpContext =>
+        System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 60,
+                QueueLimit = 0
+            }));
     // AUTHZ-2 #368: /auth/refresh có bucket RIÊNG, partition THEO IP (review: global bucket = attacker
     // ẩn danh 60 req/phút chặn refresh TOÀN VIỆN). 120/phút/IP đủ cho NAT bệnh viện (nhiều máy trạm
     // chung 1 IP công cộng, burst đầu ca) mà vẫn vô nghĩa với brute-force token 256-bit.
@@ -422,6 +430,10 @@ if (serveClientApp)
 app.UseMiddleware<RequestMetricsMiddleware>();
 
 app.UseAuthentication();
+// #216/F7: token cổng ngoài (giám định BHXH, bệnh nhân) chỉ được đi trong route cổng của nó.
+// Đặt NGAY SAU UseAuthentication để chặn trước khi bất kỳ endpoint nào chạy — kể cả các GET
+// chỉ có [Authorize] trần, vốn là chỗ token cổng ngoài lọt qua.
+app.UseMiddleware<HIS.API.Middleware.ExternalActorScopeMiddleware>();
 app.UseAuthorization();
 app.UseRateLimiter();
 
