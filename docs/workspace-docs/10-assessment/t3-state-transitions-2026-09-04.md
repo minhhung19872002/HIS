@@ -1624,3 +1624,52 @@ Vá bằng `EmrLockGuard.EnsureEditableByRecordAsync`. Ở cửa tiếp đón, *
 
 Vậy là bộ dò thứ hai, chạy một lần, đọc hết 37 chỗ: **6 lỗi thật**, 3 báo dư vì gác kiểu khác,
 4 nằm ngoài phạm vi, 24 khớp nhầm. Danh sách "chưa ai đọc" nay **rỗng**.
+
+---
+
+## 37. Bộ dò thứ ba — 24 hàm rỗng có route sống, và vì sao tôi DỪNG ở việc báo cáo
+
+Hình dạng lặp lại thứ ba của đợt: **hàm có tên hứa hẹn ghi dữ liệu, trả về DTO trông như thật, nhưng
+không ghi gì.** Gặp ba lần: tám hàm ca mổ (§13), `CreateBorrowAsync` (§25), và phiếu CĐHA tự dựng để
+ký (§31). Loại này **khó thấy hơn hẳn lỗi thiếu gác**: API trả 200 kèm Id và mã phiếu đúng định
+dạng, không có lỗi nào để ai nhìn thấy.
+
+`t3_write_stub_sweep.py` tìm `public async Task<...Dto>` có tên bắt đầu bằng động từ hứa hẹn ghi,
+thân hàm dựng DTO nhưng không gọi `SaveChanges`/`.Add`/`.Update`/`ExecuteSql`.
+
+### Hai lớp báo nhầm phải hiệu chỉnh trước khi tin con số
+
+Lượt đầu ra 38 chỗ. Đọc mẫu thì thấy hai nhóm bị vu oan:
+
+1. **Ủy thác** — `CreateEmergencyDepositAsync` chỉ `return await CreateDepositAsync(...)`, và hàm kia
+   ghi thật. Loại → còn 27.
+2. **Gateway gọi dịch vụ ngoài** — `VnptEInvoiceProvider.IssueAsync` validate đầu vào, dựng payload,
+   gọi API VNPT, có retry và idempotency key. **Không ghi DB là đúng thiết kế** — việc của nó là gọi
+   nhà cung cấp. Nếu không loại nhóm này thì bộ dò vu oan cho code làm đúng. Loại → còn **25**.
+
+Đọc tay 4 chỗ để hiệu chỉnh: `CreateSickLeaveAsync`, `ApproveProcurementRequestAsync`,
+`SaveLabTestAsync` **rỗng thật**; `CompleteStockTakeAsync` rỗng **nhưng đã khai báo** — có chú thích
+`// Stock take is handled in-memory (no StockTake table yet)`.
+
+**Phân biệt "đã khai báo" với "im lặng" là việc quan trọng nhất, và bộ dò không làm được.** Một
+khoảng trống đã ghi ra là món nợ có sổ; một hàm rỗng không nói gì là cái bẫy. Chia theo tiêu chí đó:
+**1 đã khai báo, 24 im lặng** — trong đó **23 có route API sống**.
+
+Vài chỗ đáng chú ý trong nhóm im lặng: `CreateSickLeaveAsync` / `CreateMaternityLeaveAsync` (giấy
+nghỉ ốm, nghỉ thai sản — giấy tờ dùng để hưởng BHXH), `CreatePharmacySaleByPrescriptionAsync` (bán
+thuốc: tiền + tồn kho), `ApproveProcurementRequestAsync`, `RecordSterilizationAsync` (tiệt khuẩn —
+hồ sơ kiểm soát nhiễm khuẩn).
+
+### Vì sao tôi dừng ở việc báo cáo
+
+**Hiện thực hoá 24 tính năng không phải là sửa lỗi — đó là một phần backlog sản phẩm**, và quyết định
+làm gì với nó là của chủ sản phẩm, không phải của tôi:
+
+* **làm cho đủ** — nhiều tuần công, phải có bảng dữ liệu, migration, màn hình, nghiệp vụ cho từng cái;
+* **cho chúng báo lỗi rõ ràng** thay vì giả vờ thành công — trung thực hơn, nhưng **sẽ làm gãy màn
+  hình** mà người dùng có thể đang bấm hằng ngày (dù bấm xong chẳng lưu gì);
+* **chấp nhận và ghi thành nợ có sổ** — biến 24 cái bẫy im lặng thành 24 khoảng trống đã khai báo,
+  như `CompleteStockTakeAsync` đang là.
+
+Ba đường này khác nhau về công sức và rủi ro tới mức chọn sai là hỏng việc. Tôi không đoán thay.
+**21/25 chỗ chưa đọc tay** — con số 24 ở trên là "chưa thấy chú thích", chưa phải "đã xác nhận rỗng".
