@@ -1,0 +1,65 @@
+[
+  {
+    "tc": "TC-PERM-001",
+    "user": "bsannn",
+    "role": "Bác sĩ",
+    "permissions": 45,
+    "menuGroups": 9,
+    "menuItems": 83,
+    "seesAdmin": false
+  },
+  {
+    "tc": "TC-PERM-002",
+    "user": "ddgiang",
+    "role": "Điều dưỡng",
+    "permissions": 26,
+    "menuGroups": 8,
+    "menuItems": 67,
+    "seesAdmin": false
+  },
+  {
+    "tc": "TC-PERM-003",
+    "user": "ktvkhanh",
+    "role": "KTV XN",
+    "permissions": 12,
+    "menuGroups": 3,
+    "menuItems": 18,
+    "seesAdmin": false
+  },
+  {
+    "tc": "TC-PERM-004",
+    "user": "dsoanh",
+    "role": "Dược sĩ",
+    "permissions": 17,
+    "menuGroups": 6,
+    "menuItems": 21,
+    "seesAdmin": false
+  },
+  {
+    "tc": "TC-PERM-005",
+    "user": "lthung",
+    "role": "Tiếp đón",
+    "permissions": 18,
+    "menuGroups": 5,
+    "menuItems": 16,
+    "seesAdmin": false
+  },
+  {
+    "tc": "TC-PERM-006",
+    "user": "tnmai",
+    "role": "Thu ngân",
+    "permissions": 20,
+    "menuGroups": 4,
+    "menuItems": 21,
+    "seesAdmin": false
+  },
+  {
+    "tc": "TC-PERM-010",
+    "user": "admin",
+    "role": "Quản trị hệ thống",
+    "permissions": 105,
+    "menuGroups": 10,
+    "menuItems": 156,
+    "seesAdmin": true
+  }
+]

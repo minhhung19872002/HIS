@@ -1,0 +1,149 @@
+{
+ "ranAt": "2026-09-04T09:44:07",
+ "roleClaimsSeen": [
+  "Accountant",
+  "Admin",
+  "Bác sĩ",
+  "Cashier",
+  "Director",
+  "Doctor",
+  "Dược sĩ",
+  "Kỹ thuật viên XN",
+  "LabTech",
+  "Manager",
+  "Nurse",
+  "Pharmacist",
+  "PharmacyManager",
+  "Quản trị hệ thống",
+  "Receptionist",
+  "Thu ngân",
+  "Tiếp đón",
+  "Điều dưỡng"
+ ],
+ "departmentHead": {
+  "orphan": true,
+  "endpoints_gated_only_by_department_head": []
+ },
+ "checks": [
+  {
+   "tc": "TC-PERM-009",
+   "name": "Director claim",
+   "pass": true,
+   "detail": "claim của admin = ['Quản trị hệ thống', 'Admin', 'Manager', 'Director'] → Director có"
+  },
+  {
+   "tc": "TC-PERM-009",
+   "name": "gate quản trị",
+   "pass": true,
+   "detail": "GET /api/admin/users → admin 200 · bác sĩ 403"
+  },
+  {
+   "tc": "TC-PERM-008",
+   "name": "role orphan",
+   "pass": true,
+   "detail": "không JWT nào của 8 user seed phát 'DepartmentHead' (claim thấy được: 18 tên); endpoint gate CHỈ bằng DepartmentHead: 0"
+  },
+  {
+   "tc": "TC-PERM-007",
+   "name": "đăng nhập cổng",
+   "pass": true,
+   "detail": "POST /inspector-portal/login → 200, có token: True"
+  },
+  {
+   "tc": "TC-PERM-007",
+   "name": "role claim",
+   "pass": true,
+   "detail": "claim = ['BhxhInspector']"
+  },
+  {
+   "tc": "TC-PERM-007",
+   "name": "cách ly hai chiều",
+   "pass": true,
+   "detail": "hồ sơ: giám định viên 200 · bác sĩ 403"
+  },
+  {
+   "tc": "TC-PERM-007",
+   "name": "không chạm được nội bộ",
+   "pass": true,
+   "detail": "token giám định vào /admin/users 403 · /reception/opd-flow-stats 403 (trước F7 endpoint thứ hai trả 200 — người ngoài đọc được số liệu điều hành)"
+  },
+  {
+   "tc": "TC-PERM-011",
+   "name": "đăng ký + đăng nhập",
+   "pass": true,
+   "detail": "register → 200 {\"success\":true,\"data\":{\"id\":\"38aab80d-cfff-49bb-94ed-69 · username sinh ra 'bn.t1.probe@example.invalid' · login → 200 · token: True"
+  },
+  {
+   "tc": "TC-PERM-011",
+   "name": "role claim",
+   "pass": true,
+   "detail": "claim = ['PortalPatient']"
+  },
+  {
+   "tc": "TC-PERM-011",
+   "name": "không chạm được nội bộ",
+   "pass": true,
+   "detail": "token bệnh nhân vào /admin/users 403 · /reception/opd-flow-stats 403"
+  },
+  {
+   "tc": "TC-PERM-011",
+   "name": "vẫn đi được trong cổng của mình",
+   "pass": true,
+   "detail": "token bệnh nhân trong /api/portal/* → 404 (F7 không chặn nhầm)"
+  },
+  {
+   "tc": "TC-PERM-015",
+   "name": "cơ chế buộc đổi mật khẩu",
+   "pass": false,
+   "detail": "cột Users liên quan: không có · file backend nhắc tới: không có → CHƯA CÓ TÍNH NĂNG (khoảng trống, không phải lỗi)"
+  },
+  {
+   "tc": "TC-PERM-016",
+   "name": "đếm sai mật khẩu",
+   "pass": true,
+   "detail": "6 lần sai → status [401, 401, 401, 401, 401, 401] · FailedLoginCount=5 · LockoutEndAt=2026-09-04T02:47:45.4180638"
+  },
+  {
+   "tc": "TC-PERM-016",
+   "name": "khoá chặn cả mật khẩu đúng",
+   "pass": true,
+   "detail": "mật khẩu ĐÚNG khi đang khoá → 401 {\"success\":false,\"message\":\"Invalid username or password\",\"data\":null,\"errors\":null}"
+  },
+  {
+   "tc": "TC-PERM-016",
+   "name": "mở khoá khôi phục",
+   "pass": true,
+   "detail": "sau khi reset khoá → đăng nhập được"
+  },
+  {
+   "tc": "TC-PERM-016",
+   "name": "2FA có mặt",
+   "pass": true,
+   "detail": "cột Users.IsTwoFactorEnabled: 1 · endpoint /auth/enable-2fa + /auth/verify-otp có trong controller"
+  },
+  {
+   "tc": "TC-PERM-018",
+   "name": "audit có ghi",
+   "pass": true,
+   "detail": "AuditLogs 39151 → 39152"
+  },
+  {
+   "tc": "TC-PERM-018",
+   "name": "chỉ người có quyền đọc audit",
+   "pass": true,
+   "detail": "GET /api/audit/logs → admin 200 · bác sĩ 403"
+  },
+  {
+   "tc": "TC-PERM-019",
+   "name": "thu hồi quyền có hiệu lực",
+   "pass": true,
+   "detail": "trước: có Reception.Update · sau khi xoá link + chờ hết cache 30s: đã mất"
+  },
+  {
+   "tc": "TC-PERM-019",
+   "name": "cấp lại quyền phục hồi",
+   "pass": true,
+   "detail": "sau khi khôi phục link: có lại"
+  }
+ ]
+}
