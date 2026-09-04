@@ -704,3 +704,63 @@ hỏng vào log của workflow.
 Cố ý làm hai bước chứ không một: thêm một cổng chặn khi chưa nhìn được phía sau nó có gì là tự chặn
 đường triển khai của chính mình. Trước khi đẩy, đã chạy thử **đúng chuỗi lệnh của bước đó** với prod
 để không đẩy một cổng chưa từng chạy.
+
+---
+
+## 18. Cổng thanh toán — hai cổng không đếm tiền, một cổng khớp nhầm đơn
+
+Ba cổng (VNPay · MoMo · ZaloPay) cùng nhận callback từ máy chủ nhà cung cấp, cùng ghi
+`PaymentTransactions` rồi gọi `LinkReceiptAsync` lập phiếu thu. Đây là **lần thứ sáu** trong đợt này
+gặp đúng một hình dạng: *một luật, thi hành ở một cửa, bỏ trống ở cửa bên cạnh*. VNPay được làm rất
+chuẩn — kiểm chữ ký, chặn gọi trùng, **và đối chiếu số tiền**. Hai cổng còn lại kiểm chữ ký, chặn gọi
+trùng, rồi thôi.
+
+### a. MoMo và ZaloPay chưa từng đọc trường `amount`
+
+`LinkReceiptAsync` lập phiếu thu với `Amount = txn.Amount` — tức **số tiền trên đơn của mình**, không
+phải số tiền cổng báo là đã trả. Nên nếu callback báo trả ít hơn mà hệ thống vẫn nhận, sổ quỹ được ghi
+**đủ số của đơn**. Đo trước khi sửa, với chữ ký tự tính nên đi đúng đường thật:
+
+| Cổng | Đơn | Callback khai đã trả | Kết quả |
+|---|---|---|---|
+| VNPay | 1.000.000đ | 1.000đ | chặn — `rspCode 04 Amount mismatch` |
+| MoMo | 1.000.000đ | 1.000đ | **nhận · phiếu thu +1.000.000đ** |
+| ZaloPay | 1.000.000đ | 1.000đ | **nhận · phiếu thu +1.000.000đ** |
+
+Nghĩa là bệnh viện ghi nhận đã thu đủ 1.000.000đ trong khi thực nhận 1.000đ. Vá bằng đúng bước VNPay
+đang làm, đặt ngay sau khâu kiểm chữ ký. Khác VNPay ở một điểm phải để ý: **VNPay gửi số tiền nhân
+100, MoMo và ZaloPay gửi VND thẳng** — chép nguyên công thức của VNPay sang là sai 100 lần.
+
+### b. ZaloPay khớp giao dịch bằng đuôi 6 ký tự, bỏ hẳn phần ngày
+
+ZaloPay bắt buộc `app_trans_id` có dạng `yyMMdd_xxxxxx`, nên mã gửi đi được ghép từ ngày cộng **6 ký
+tự cuối** của `TxnRef`. Nhưng callback về thì tra ngược bằng:
+
+```csharp
+_db.PaymentTransactions.FirstOrDefaultAsync(t => t.TxnRef.EndsWith(suffix))
+```
+
+Phần ngày bị bỏ hoàn toàn. Mà `TxnRef` = `HIS` + `yyyyMMddHHmmss` + 4 số ngẫu nhiên, nên 6 ký tự cuối
+chỉ là **giây + số ngẫu nhiên**: 60 × 9.000 = 540.000 tổ hợp để phân biệt mọi giao dịch từ trước tới
+nay, và `FirstOrDefault` không có `ORDER BY` nào bảo đảm chọn cái nào.
+
+Cách đo đầu tiên dựng **cả hai** giao dịch (một cũ, một mới) rồi xem cái nào được xác nhận. Nó chọn
+đúng cái mới — nhưng đó là **may**, không phải bảo đảm, nên phép đo đó không chứng minh được gì. Đo
+lại bằng cách chỉ dựng **duy nhất một giao dịch 8 tháng tuổi** rồi gửi callback mang ngày **hôm nay**,
+trùng đuôi. Hệ thống xác nhận giao dịch tháng 1 đó — chứng minh dứt khoát rằng ngày không được dùng.
+
+Vá: thêm cột `PaymentTransactions.ProviderOrderRef` (migration 173) lưu **nguyên văn mã đơn đã gửi**,
+callback khớp tuyệt đối theo cột đó.
+
+**Đường lùi cho đơn đang dở.** Các đơn tạo trước bản vá chưa có `ProviderOrderRef`; nếu bỏ hẳn lối cũ
+thì mọi đơn đang chờ trả tiền lúc triển khai sẽ mất callback. Nên giữ lối khớp đuôi làm đường lùi,
+nhưng siết đúng ba chỗ từng hở: chỉ nhận đơn **còn chờ**, **tạo trong 24 giờ qua**, và phải là **kết
+quả duy nhất** — hai đơn trùng đuôi thì từ chối, vì ghi nhầm đơn tệ hơn là bắt gọi lại.
+
+### c. Bốn ca "phải chặn" chưa đủ để tin bản vá
+
+Cả bốn ca trên đều có dạng *hệ thống phải từ chối*, nên một bản vá chặn sạch mọi callback cũng đạt
+4/4 — tức bản đo không phân biệt được "vá đúng" với "làm hỏng đường thu tiền". Thêm hai **đối chứng
+âm**: callback đúng mã đơn, đúng số tiền, cho cả ZaloPay và MoMo, bắt buộc phải được ghi nhận **và**
+phải lập phiếu thu đúng 300.000đ. `docs/architecture/evidence/cross/t3/t3_payment_gateway.py`:
+**6/6**, trong đó ZaloPay hợp lệ ghi phiếu thu đúng 300.000đ.

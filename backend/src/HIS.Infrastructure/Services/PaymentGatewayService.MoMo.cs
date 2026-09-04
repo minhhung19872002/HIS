@@ -115,6 +115,18 @@ public partial class PaymentGatewayService
 
         if (txn.Status == 1) return new VnPayIpnResultDto { RspCode = "02", Message = "Already confirmed" };
 
+        // #218/T3: đối chiếu SỐ TIỀN, đúng như nhánh VNPay vẫn làm. Thiếu bước này thì một IPN
+        // hợp lệ chữ ký nhưng khai `amount=1000` cho đơn 1.000.000đ vẫn được ghi nhận, và
+        // `LinkReceiptAsync` lập phiếu thu theo `txn.Amount` (số của ĐƠN, không phải số đã trả)
+        // nên sổ quỹ ghi đủ 1.000.000đ trong khi bệnh viện chỉ nhận 1.000đ. Đo được ở
+        // evidence/cross/t3/t3_payment_gateway.json. Khác VNPay: MoMo gửi VND thẳng, không nhân 100.
+        if (!long.TryParse(amount, out var momoAmount) || momoAmount != (long)txn.Amount)
+        {
+            _logger.LogWarning("MoMo IPN sai số tiền cho {OrderId}: báo {Reported}, đơn {Expected}",
+                orderId, amount, txn.Amount);
+            return new VnPayIpnResultDto { RspCode = "04", Message = "Amount mismatch" };
+        }
+
         txn.GatewayTxnRef = transId;
         txn.ResponseCode = int.TryParse(resultCode, out var rc) ? rc : null;
         txn.ResponseMessage = message;

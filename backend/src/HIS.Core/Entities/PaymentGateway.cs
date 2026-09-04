@@ -1,4 +1,4 @@
-namespace HIS.Core.Entities;
+﻿namespace HIS.Core.Entities;
 
 /// <summary>
 /// Giao dịch cổng thanh toán - PaymentTransaction
@@ -8,6 +8,15 @@ public class PaymentTransaction : BaseEntity
 {
     public string TxnRef { get; set; } = string.Empty;
     public string? GatewayTxnRef { get; set; }
+
+    /// <summary>
+    /// Mã đơn ĐÃ GỬI cho nhà cung cấp (ZaloPay: `app_trans_id`). Thêm 2026-09-04 (#218).
+    /// ZaloPay bắt buộc mã có dạng `yyMMdd_xxxxxx` nên không thể dùng thẳng `TxnRef`; trước đây
+    /// callback tra ngược bằng `TxnRef.EndsWith(6 ký tự cuối)`, mà 6 ký tự đó chỉ là giây + số
+    /// ngẫu nhiên — đo được một callback hôm nay xác nhận nhầm giao dịch 8 tháng tuổi.
+    /// Lưu nguyên văn ở đây để khớp tuyệt đối.
+    /// </summary>
+    public string? ProviderOrderRef { get; set; }
 
     public string Provider { get; set; } = string.Empty;
 

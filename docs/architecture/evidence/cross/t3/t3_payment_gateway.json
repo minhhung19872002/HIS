@@ -1,0 +1,47 @@
+{
+ "ranAt": "2026-09-04T19:44:51",
+ "cases": [
+  {
+   "case": "VNPay: callback báo sai số tiền",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 200 · trạng thái=0 · {\"success\":true,\"data\":{\"rspCode\":\"04\",\"message\":\"Amount mis"
+  },
+  {
+   "case": "MoMo: callback báo sai số tiền",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 200 · trạng thái=0 · phiếu thu tăng 0.0 (đơn 1.000.000, báo trả 1.000)"
+  },
+  {
+   "case": "ZaloPay: callback báo sai số tiền",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 200 · trạng thái=0 · phiếu thu tăng 0.0"
+  },
+  {
+   "case": "ZaloPay: callback hôm nay KHÔNG được khớp giao dịch tháng 1",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 200 · giao dịch 8 tháng tuổi: trạng thái=0 · {\"success\":true,\"data\":{\"return_code\":-1,\"return_messag"
+  },
+  {
+   "case": "ZaloPay: callback hợp lệ ĐƯỢC ghi nhận",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · trạng thái=1 · phiếu thu tăng 300000.0 (đúng 300.000)"
+  },
+  {
+   "case": "MoMo: IPN hợp lệ ĐƯỢC ghi nhận",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · trạng thái=1"
+  }
+ ]
+}
