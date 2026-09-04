@@ -72,6 +72,80 @@ def main():
     print("Script chỉ THU HẸP phạm vi, không tự kết luận: hai chỗ nói khác nhau có thể chỉ là hai")
     print("thực thể khác nhau trùng tên biến. Phải mở từng chỗ ra đọc mới biết đâu là mượn ô thật.")
 
+    out_of_range()
+
+
+ENTITIES = os.path.abspath(os.path.join(HERE, "..", "..", "..", "..", "..",
+                                        "backend", "src", "HIS.Core", "Entities"))
+CLASS_RE = re.compile(r'public\s+(?:sealed\s+)?class\s+(\w+)\s*:\s*BaseEntity')
+STATUS_DOC_RE = re.compile(r'public\s+int\??\s+Status\s*\{[^}]*\}\s*//\s*(.+)')
+DECL_RE = re.compile(r'var\s+(\w+)\s*=\s*await\s+_(?:context|db)\.(?:Set<(\w+)>\(\)|(\w+))')
+PLAIN_ASSIGN_RE = re.compile(r'\b(\w+)\.Status\s*=\s*(\d+)\s*;')
+
+
+def out_of_range():
+    """Vế thứ hai của bộ dò: gán một giá trị NGOÀI dải mà chính entity khai báo.
+
+    Vế trên chỉ thấy được những chỗ có chú thích. Vế này không cần chú thích: đọc dải giá trị
+    từ chú thích trên chính trường `Status` của entity, rồi soi mọi lệnh gán trong service. Lệch
+    dải nghĩa là **một trong hai đang sai** — hoặc mã ghi nhầm số, hoặc chú thích entity đã cũ.
+
+    Chạy 2026-09-04: đúng 1 chỗ, và là chú thích cũ chứ không phải mã sai — `Deposit` khai báo
+    "1-Active, 2-Used, 3-Refunded" trong khi mã ghi 3 = "đã dùng hết", 5 = "đã hủy". Đối chiếu dữ
+    liệu thật: 117 phiếu ở trạng thái 2 mà tổng số dư CÒN LẠI là 32.185.000đ — nếu 2 là "Used" thì
+    số dư đã phải bằng 0. Đã sửa chú thích; đúng cái bẫy đã gây ra lỗi §20.
+    """
+    vocab = {}
+    for dirpath, _, filenames in os.walk(ENTITIES):
+        for filename in filenames:
+            if not filename.endswith(".cs"):
+                continue
+            current = None
+            for line in io.open(os.path.join(dirpath, filename),
+                                encoding="utf-8-sig", errors="replace").read().split("\n"):
+                found = CLASS_RE.search(line)
+                if found:
+                    current = found.group(1)
+                doc = STATUS_DOC_RE.search(line)
+                if doc and current:
+                    values = {int(v) for v in re.findall(r'(?<![\w.])(\d+)\s*[-=]\s*\w', doc.group(1))}
+                    if len(values) >= 3:
+                        vocab[current] = values
+
+    def class_of(dbset):
+        for name in vocab:
+            if dbset in (name, name + "s", name + "es"):
+                return name
+        return None
+
+    hits = []
+    for dirpath, _, filenames in os.walk(ROOT):
+        for filename in sorted(filenames):
+            if not filename.endswith(".cs"):
+                continue
+            path = os.path.join(dirpath, filename)
+            var2cls = {}
+            for i, line in enumerate(io.open(path, encoding="utf-8-sig",
+                                             errors="replace").read().split("\n")):
+                decl = DECL_RE.search(line)
+                if decl:
+                    cls = decl.group(2) or class_of(decl.group(3) or "")
+                    if cls in vocab:
+                        var2cls[decl.group(1)] = cls
+                for var, value in PLAIN_ASSIGN_RE.findall(line):
+                    cls = var2cls.get(var)
+                    if cls and int(value) not in vocab[cls]:
+                        hits.append((os.path.relpath(path, ROOT), i + 1, cls, var, value,
+                                     sorted(vocab[cls])))
+
+    print("\n\nVế 2 — gán giá trị NGOÀI dải mà chính entity khai báo")
+    print("Đọc được từ vựng của %d entity. Số chỗ lệch dải: %d\n" % (len(vocab), len(hits)))
+    for path, line_no, cls, var, value, allowed in hits:
+        print("  %s:%d" % (path, line_no))
+        print("      %s.Status = %s   (%s khai báo: %s)" % (var, value, cls, allowed))
+    if not hits:
+        print("  (không còn chỗ nào — mọi lệnh gán đều nằm trong dải entity khai báo)")
+
 
 if __name__ == "__main__":
     main()

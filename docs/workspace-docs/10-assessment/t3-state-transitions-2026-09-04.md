@@ -1243,3 +1243,25 @@ Bài đo vì thế không hỏi *"trạng thái sau khi hủy là mấy"* mà h�
 
 Sửa đúng một ký tự. Tìm ra nó mới là phần khó — và đó là lý do bộ dò đáng giữ lại, chạy lại mỗi khi
 có người thêm một trạng thái mới.
+
+### Vế thứ hai của bộ dò, và chỗ nó tìm ra
+
+Vế trên chỉ thấy được những lệnh gán **có chú thích**. Vế thứ hai không cần chú thích: đọc dải giá
+trị từ chính chú thích trên trường `Status` của mỗi entity (93 entity đọc được), rồi soi mọi lệnh
+gán trong tầng service. Lệch dải nghĩa là **một trong hai đang sai** — hoặc mã ghi nhầm số, hoặc chú
+thích entity đã cũ.
+
+Đúng **một chỗ** lệch: `deposit.Status = 5` trong khi `Deposit` khai báo `1-Active, 2-Used,
+3-Refunded`. Lần này **mã đúng, chú thích sai** — và sai cả ba giá trị, bỏ sót luôn giá trị 5.
+
+Đối chiếu bằng dữ liệu thật thay vì tin bên nào: bảng `Deposits` có **117 phiếu ở trạng thái 2 với
+tổng số dư CÒN LẠI là 32.185.000đ**. Nếu 2 nghĩa là "Used" thì số dư đã phải bằng 0. Vậy 2 là "đã
+xác nhận, còn tiêu được" — đúng như `DepositStatus` và như bài đo tiền tạm ứng (§11) vẫn chạy 8/8.
+
+Đây chính xác là cái bẫy đã gây ra §20: ai đọc `2-Used` rồi viết một câu gác coi 2 là "đã dùng xong"
+sẽ **chặn nhầm toàn bộ phiếu tạm ứng đang còn tiền**. Sửa chú thích, trỏ về `DepositStatus`, ghi
+luôn rằng giá trị 1 không có đường ghi nào. Không đổi một dòng hành vi nào — nhưng gỡ đi đúng thứ
+nguyên liệu đã đẻ ra ba lỗi của đợt này.
+
+Sau khi sửa, cả hai vế của bộ dò đều sạch: 0 chỗ lệch dải, và mọi cặp mâu thuẫn còn lại đều đã đọc
+và xác nhận là trùng tên biến vô hại.

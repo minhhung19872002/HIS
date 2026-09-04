@@ -229,7 +229,13 @@ public class Deposit : BaseEntity
     public Guid ReceivedByUserId { get; set; }
     public virtual User ReceivedBy { get; set; } = null!;
 
-    public int Status { get; set; } // 1-Active, 2-Used, 3-Refunded
+    // #218/T3 (2026-09-04): chú thích cũ ghi "1-Active, 2-Used, 3-Refunded" — SAI cả ba giá trị và
+    // bỏ sót giá trị 5. Mã đang chạy: `BillingCompleteService.Payments` ghi 3 = "Đã sử dụng hết" và
+    // 5 = "Đã hủy". Đối chiếu dữ liệu thật: 117 phiếu ở trạng thái 2 mà tổng SỐ DƯ CÒN LẠI là
+    // 32.185.000đ — nếu 2 nghĩa là "Used" thì số dư đã phải bằng 0.
+    // Ai đọc "2-Used" rồi viết một câu gác coi 2 là "đã dùng xong" sẽ chặn nhầm toàn bộ phiếu tạm
+    // ứng đang còn tiền. Từ vựng đúng ở HIS.Core.Constants.DepositStatus — dùng nó, đừng đọc số ở đây.
+    public int Status { get; set; } // xem DepositStatus: 2-Đã xác nhận, 3-Đã dùng hết, 5-Đã hủy (1 không có đường ghi nào)
     public decimal UsedAmount { get; set; }
     public decimal RemainingAmount { get; set; }
 
