@@ -190,3 +190,55 @@ public class ExportReceiptDetail : BaseEntity
     public decimal UnitPrice { get; set; }
     public decimal Amount { get; set; }
 }
+
+/// <summary>
+/// Một HIỆN VẬT tái sử dụng cụ thể đang lưu hành (hai cái kìm cùng loại là hai dòng, đếm số lần
+/// dùng riêng).
+///
+/// <para>#218/T3 (migration 181): trước đây không có bảng nào, và đường đọc `GetReusableSuppliesAsync`
+/// **bịa ra cả sổ theo dõi từ hash của Id** dòng danh mục — số lần đã tái sử dụng, trạng thái, ngày
+/// tiệt khuẩn gần nhất, tất cả đều là phép băm. Màn hình ấy là thứ nhân viên kiểm soát nhiễm khuẩn
+/// đọc để biết dụng cụ nào đã tiệt khuẩn.</para>
+/// </summary>
+public class ReusableSupplyInstance : BaseEntity
+{
+    public string InstanceCode { get; set; } = string.Empty;
+
+    public Guid SupplyId { get; set; }
+    public virtual MedicalSupply Supply { get; set; } = null!;
+
+    public Guid? WarehouseId { get; set; }
+
+    /// <summary>Xem <see cref="HIS.Core.Constants.ReusableSupplyStatus"/>.</summary>
+    public int Status { get; set; } = 1;
+
+    /// <summary>Số lần được phép tái sử dụng. Giới hạn tồn tại vì dụng cụ xuống cấp.</summary>
+    public int MaxReuseCount { get; set; } = 10;
+    public int CurrentReuseCount { get; set; }
+
+    public DateTime? LastSterilizationAt { get; set; }
+    public DateTime? NextSterilizationDue { get; set; }
+
+    public DateTime? RetiredAt { get; set; }
+    public string? RetiredReason { get; set; }
+    public string? Note { get; set; }
+}
+
+/// <summary>
+/// Nhật ký từng mẻ tiệt khuẩn của một hiện vật — để truy vết ngược khi có sự cố nhiễm khuẩn.
+/// </summary>
+public class SterilizationLog : BaseEntity
+{
+    public Guid InstanceId { get; set; }
+    public DateTime SterilizedAt { get; set; }
+
+    /// <summary>
+    /// Số lần tái sử dụng SAU mẻ này, chụp lại tại thời điểm ghi. Cố ý không đọc động từ hiện vật —
+    /// cùng lý do với giấy nghỉ ốm chụp chẩn đoán ở migration 177.
+    /// </summary>
+    public int ReuseCountAfter { get; set; }
+
+    public string? Method { get; set; }
+    public Guid? PerformedById { get; set; }
+    public string? Note { get; set; }
+}

@@ -52,6 +52,10 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     // #218/T3 (migration 180): link chia sẻ kết quả CĐHA — trước đây mã chia sẻ + mã truy cập không
     // được lưu, và cửa đọc `[AllowAnonymous]` bỏ qua cả hai tham số.
     public DbSet<RadiologyResultShare> RadiologyResultShares => Set<RadiologyResultShare>();
+    // #218/T3 (migration 181): sổ theo dõi vật tư tái sử dụng — trước đây cả sổ được bịa ra từ hash
+    // của Id dòng danh mục (số lần đã dùng, trạng thái, ngày tiệt khuẩn gần nhất).
+    public DbSet<ReusableSupplyInstance> ReusableSupplyInstances => Set<ReusableSupplyInstance>();
+    public DbSet<SterilizationLog> SterilizationLogs => Set<SterilizationLog>();
     public DbSet<Examination> Examinations => Set<Examination>();
     // #218/T3 (migration 177): giấy chứng nhận nghỉ việc hưởng BHXH — trước đây hai cửa cấp giấy
     // là hàm rỗng, bệnh viện không giữ lại bản ghi nào về tờ giấy đã phát ra tay người bệnh.

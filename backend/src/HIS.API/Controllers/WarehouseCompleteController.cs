@@ -659,6 +659,20 @@ public class WarehouseCompleteController : ControllerBase
     }
 
     /// <summary>
+    /// Đổi trạng thái vật tư tái sử dụng (sẵn sàng · đang dùng · chờ tiệt khuẩn · loại bỏ).
+    ///
+    /// <para>#218/T3: `UpdateReusableSupplyStatusAsync` có trong interface và đã cài đặt, nhưng
+    /// **chưa từng có route nào** gọi tới — nên trạng thái dụng cụ không đổi được từ giao diện.</para>
+    /// </summary>
+    [HttpPut("reusable-supplies/{id}/status")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.WarehouseStaff)]
+    public async Task<ActionResult<ReusableSupplyDto>> UpdateReusableSupplyStatus(Guid id, [FromBody] int status)
+    {
+        var result = await _warehouseService.UpdateReusableSupplyStatusAsync(id, status, GetCurrentUserId());
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Hàng ký gửi
     /// </summary>
     [HttpGet("consignment-stock")]

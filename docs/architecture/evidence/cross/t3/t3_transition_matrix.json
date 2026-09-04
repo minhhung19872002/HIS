@@ -1,5 +1,5 @@
 {
- "ranAt": "2026-09-05T01:41:17",
+ "ranAt": "2026-09-05T01:55:19",
  "entity": "Prescription",
  "legalTransitions": {
   "0": [
@@ -34,7 +34,7 @@
    "statusAfter": 1,
    "changed": true,
    "verdict": "OK",
-   "body": "{\"success\":true,\"data\":{\"id\":\"5f50ce18-4197-4cb8-a7af-f974ce6035a6\",\"status\":\"accepted\"},\"message\":null,\"errors\":null,\"m"
+   "body": "{\"success\":true,\"data\":{\"id\":\"ff66b763-b01c-4558-aa94-231b4122aa3b\",\"status\":\"accepted\"},\"message\":null,\"errors\":null,\"m"
   },
   {
    "from": 0,

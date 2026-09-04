@@ -1,5 +1,5 @@
 {
- "ranAt": "2026-09-05T01:41:37",
+ "ranAt": "2026-09-05T01:55:39",
  "cases": [
   {
    "case": "thẻ tạm ĐƯỢC lưu xuống InsuranceCards",
@@ -9,7 +9,7 @@
   {
    "case": "hồ sơ trẻ ĐƯỢC tạo thật (không phải Guid bịa)",
    "pass": true,
-   "detail": "patientId='1bb869f4-3c3b-4a43-834a-64dd8a8a80e4' · tra trong Patients thấy 1 dòng"
+   "detail": "patientId='9fbe2a11-3cb1-4ed2-a589-05840609f027' · tra trong Patients thấy 1 dòng"
   },
   {
    "case": "ĐỐI CHỨNG: trẻ đủ điều kiện vẫn cấp được, hạn = ngày tròn 6 tuổi",

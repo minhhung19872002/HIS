@@ -46,8 +46,9 @@ một bài đo cho thứ vốn đã đúng*).
 | 43 | Thẻ BHYT tạm trẻ dưới 6 tuổi | Tra thẻ của **bất kỳ ai** cũng ra một tấm thẻ bịa; trẻ 8 tuổi vẫn cấp được vì luật tính rồi **không ai thi hành** | 1/7 → 7/7 |
 | 44 | Chia sẻ kết quả CĐHA qua QR | Cửa **`[AllowAnonymous]`** bỏ qua cả mã chia sẻ lẫn mã truy cập — cơ chế bảo vệ chưa hề được cài | 0/7 → 7/7 |
 | 44 | Mẫu kết quả CĐHA | Cả **bảy hàm** là hardcode: soạn mẫu thì mất, bấm xoá thì không xoá | 0/6 → 6/6 |
+| 45 | Vật tư tái sử dụng | Cả **sổ theo dõi tiệt khuẩn** được bịa ra từ **hash của Id**: số lần đã dùng, trạng thái, ngày tiệt khuẩn gần nhất | 0/7 → 7/7 |
 
-**Hồi quy hiện tại: 38 bộ đo, 256/256.** `dotnet test` 225 passed. Migration 168-180.
+**Hồi quy hiện tại: 39 bộ đo, 263/263.** `dotnet test` 225 passed. Migration 168-181.
 
 ### Ba hình dạng lặp lại, và cái đã làm với chúng
 
@@ -2266,3 +2267,91 @@ này**: lịch phòng chụp cần chốt nghiệp vụ đặt chỗ (một ca c
 `t3_share_result_qr.py`: **0/7 → 7/7**. `t3_radiology_templates.py`: **0/6 → 6/6**. Cả hai đối chứng
 ngược đều giữ.
 Hồi quy toàn bộ **38 bộ đo, 256/256**. `dotnet test` **225 passed**. Build 0 lỗi.
+
+---
+
+## §45. Vật tư tái sử dụng — cả sổ theo dõi tiệt khuẩn được bịa ra từ hash của Id
+
+Đây là ca trơ trẽn nhất trong đợt, và cũng là ca duy nhất mà chính mã nguồn nói thẳng ra rằng nó đang
+bịa. Đường đọc `GetReusableSuppliesAsync` không đọc bản ghi nào — nó lấy 30 dòng danh mục
+`MedicalSupplies` rồi sinh số:
+
+```csharp
+// Demo: synthesize a deterministic reusable-supply list from existing
+// MedicalSupplies catalog since there is no dedicated tracking table.
+int current  = (s.Id.GetHashCode() & 0x7fffffff) % max;                // số lần đã tái sử dụng
+int stat     = idx % 10 switch { ... };                                // trạng thái theo VỊ TRÍ trong danh sách
+var lastSter = today.AddDays(-((s.Id.GetHashCode() & 0xff) % 25 + 1));  // ngày tiệt khuẩn gần nhất
+```
+
+Màn hình này là thứ nhân viên kiểm soát nhiễm khuẩn đọc để biết **dụng cụ nào đã tiệt khuẩn, tiệt
+khuẩn lúc nào, và đã tái sử dụng bao nhiêu lần**. Giới hạn số lần tái sử dụng tồn tại vì dụng cụ
+xuống cấp. Mọi con số trên màn hình ấy là một phép băm trên Id của dòng danh mục — kể cả cái quyết
+định khi nào phải loại bỏ dụng cụ.
+
+Nó còn bỏ qua cột `MedicalSupplies.IsReusable` **đã có sẵn**, nên vật tư dùng-một-lần cũng hiện ra
+trong danh sách như thể tái sử dụng được.
+
+Hai cửa ghi cũng chỉ dội lại DTO:
+
+```
+UpdateReusableSupplyStatusAsync   `await Task.CompletedTask` rồi trả DTO — và KHÔNG CÓ ROUTE
+RecordSterilizationAsync          trả `CurrentReuseCount = 0` cứng, bất kể dụng cụ đã dùng mấy lần
+```
+
+Chỗ `CurrentReuseCount = 0` ấy đáng nói riêng. Hôm nay nó vô hại vì chẳng ghi đi đâu. Nhưng nếu có ai
+nối nó vào dữ liệu thật — đúng việc mà chú thích `no dedicated tracking table` mời gọi — thì **mỗi lần
+tiệt khuẩn sẽ xoá sạch lịch sử tái sử dụng** của dụng cụ. Tiệt khuẩn phải *làm tăng* số lần đã dùng,
+không phải đặt về 0. Đây là hình dạng đã gặp ở §44 (cửa `[AllowAnonymous]` chưa cài kiểm tra): một
+đoạn mã tạm không chỉ thiếu chức năng, nó còn **cài sẵn một hành vi sai** cho người đến sau kế thừa.
+
+### Đo trước khi vá
+
+`t3_reusable_supply.py` — 7 ca, **0/7**. Bài đo cố ý chạy được ở cả hai trạng thái mã: nó gieo một
+dòng danh mục có mã sắp lên đầu, nên bản cũ (bịa từ danh mục) cũng trả về dòng ấy — chỉ khác là mọi
+con số đều sai.
+
+```
+ngày tiệt khuẩn đọc lại ĐÚNG ngày vừa ghi      FAIL  ghi 2026-09-02 · đọc lại '2026-08-24'
+số lần tái sử dụng TĂNG, không nhảy về 0        FAIL  trước=6 · sau=6
+mỗi lần tiệt khuẩn để lại một dòng nhật ký      FAIL  số dòng nhật ký=0
+đổi trạng thái ĐƯỢC lưu                         FAIL  HTTP 404 (không có route)
+```
+
+Ngày đọc lại là **2026-08-24** trong khi vừa ghi 2026-09-02 — chính là ngày mà hash sinh ra.
+
+### Bản vá
+
+Migration **181** dựng hai bảng:
+
+- `ReusableSupplyInstances` — mỗi dòng là một **hiện vật cụ thể**. Hai cái kìm cùng loại là hai dòng,
+  đếm số lần dùng riêng; đó là toàn bộ lý do tính năng này tồn tại.
+- `SterilizationLogs` — mỗi mẻ tiệt khuẩn một dòng, để truy vết ngược khi có sự cố nhiễm khuẩn (cần
+  biết dụng cụ ấy đã qua những mẻ nào). `ReuseCountAfter` **chụp lại** tại thời điểm ghi thay vì đọc
+  động từ hiện vật — cùng lý do với giấy nghỉ ốm chụp chẩn đoán ở migration 177.
+
+Phần mã: ba hàm đọc/ghi nối vào bảng thật; `RecordSterilizationAsync` **tăng** số lần dùng rồi tự
+chuyển hiện vật sang "hết số lần dùng lại" khi chạm trần; `UpdateReusableSupplyStatusAsync` từ chối
+đặt một hiện vật đã dùng đủ số lần trở lại trạng thái còn dùng được; thêm route `PUT
+/reusable-supplies/{id}/status` vốn chưa từng có. Từ vựng trạng thái vào `StatusConstants.cs` —
+trước đây nó được sinh bằng `idx % 10` trên **vị trí dòng trong danh sách**, tức đổi theo cách sắp
+xếp chứ không theo hiện vật.
+
+### Một ca hỏng chỉ ra thiếu sót thật trong DTO
+
+Lần đo lại đầu tiên được 6/7. Ca hỏng là "đổi trạng thái vật tư A không đụng vật tư B", với
+`trạng thái B=None` — bài đo tìm hiện vật B theo `itemCode`, mà cả ba hiện vật cùng một dòng danh mục
+nên `itemCode` của chúng **giống hệt nhau**.
+
+Đó là lỗi bài đo. Nhưng nó chỉ ra một thiếu sót thật: `ReusableSupplyDto` không có ô nào mang **mã
+hiện vật**, chỉ có mã và tên của dòng danh mục. Nghĩa là giao diện không phân biệt được hai cái kìm
+cùng loại — trong khi cả tính năng tồn tại để đếm số lần dùng riêng cho từng cái.
+
+Nên bản vá là thêm `InstanceCode` vào DTO, không phải nới lỏng ca đo. Phân biệt hai chuyện này quan
+trọng: sửa bài đo cho khớp sản phẩm là hợp lệ khi bài đo sai; sửa bài đo để né một thiếu sót của sản
+phẩm thì không. Ở đây bài đo sai *và* sản phẩm thiếu, nên sửa cả hai.
+
+### Sau khi vá
+
+`t3_reusable_supply.py`: **0/7 → 7/7**, đối chứng ngược vẫn đạt.
+Hồi quy toàn bộ **39 bộ đo, 263/263**. `dotnet test` **225 passed**. Build 0 lỗi.

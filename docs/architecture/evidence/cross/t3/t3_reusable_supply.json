@@ -1,0 +1,40 @@
+{
+ "ranAt": "2026-09-05T01:55:04",
+ "cases": [
+  {
+   "case": "ngày tiệt khuẩn đọc lại ĐÚNG ngày vừa ghi",
+   "pass": true,
+   "detail": "HTTP 200 · ghi 2026-09-02 · đọc lại '2026-09-02'"
+  },
+  {
+   "case": "tiệt khuẩn làm số lần tái sử dụng TĂNG, không nhảy về 0",
+   "pass": true,
+   "detail": "trước=4 · sau=5 (mong 5)"
+  },
+  {
+   "case": "mỗi lần tiệt khuẩn để lại một dòng nhật ký truy vết",
+   "pass": true,
+   "detail": "số dòng nhật ký=1"
+  },
+  {
+   "case": "đổi trạng thái ĐƯỢC lưu (đọc lại thấy trạng thái mới)",
+   "pass": true,
+   "detail": "HTTP 200 · trạng thái đọc lại=3 (mong 3)"
+  },
+  {
+   "case": "đổi trạng thái vật tư A KHÔNG đụng vật tư B",
+   "pass": true,
+   "detail": "có đổi được A=True · trạng thái B=1 (mong 1)"
+  },
+  {
+   "case": "vật tư ĐÃ HẾT số lần dùng không đặt lại 'sẵn sàng' được",
+   "pass": true,
+   "detail": "HTTP 400 · {\"error\":\"INVALID_STATE\",\"message\":\"Vật tư đã dùng đủ 10 lần cho phép,"
+  },
+  {
+   "case": "ĐỐI CHỨNG: vật tư còn hạn dùng lại vẫn tiệt khuẩn được, về 'sẵn sàng'",
+   "pass": true,
+   "detail": "HTTP 200 · trạng thái sau tiệt khuẩn=1"
+  }
+ ]
+}

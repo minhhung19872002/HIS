@@ -847,3 +847,27 @@ public static class InsuranceCardType
     /// <summary>Ngày thẻ hết hiệu lực: ngày trẻ đủ 72 tháng.</summary>
     public static DateTime ExpiryFor(DateTime dateOfBirth) => dateOfBirth.AddYears(6);
 }
+
+/// <summary>
+/// Trạng thái một hiện vật tái sử dụng — `ReusableSupplyInstance.Status`.
+/// #218/T3: trước đây trạng thái này được sinh ra bằng `idx % 10` trên VỊ TRÍ của dòng trong danh
+/// sách trả về, nên nó đổi theo cách sắp xếp chứ không theo hiện vật.
+/// </summary>
+public static class ReusableSupplyStatus
+{
+    public const int Ready = 1;        // sẵn sàng dùng
+    public const int InUse = 2;        // đang sử dụng
+    public const int AwaitingSteril = 3; // chờ tiệt khuẩn
+    public const int Retired = 4;      // hết số lần dùng lại / đã loại bỏ
+
+    public static bool IsValid(int status) => status >= Ready && status <= Retired;
+
+    public static string Label(int status) => status switch
+    {
+        Ready => "Sẵn sàng",
+        InUse => "Đang sử dụng",
+        AwaitingSteril => "Chờ tiệt khuẩn",
+        Retired => "Hết số lần dùng lại",
+        _ => $"Không xác định ({status})",
+    };
+}

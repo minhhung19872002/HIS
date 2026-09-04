@@ -359,6 +359,13 @@ public class ReusableSupplyDto
     public string ItemCode { get; set; } = string.Empty;
     public string ItemName { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Mã của chính HIỆN VẬT này. #218/T3: `ItemCode`/`ItemName` là của dòng DANH MỤC, nên hai cái
+    /// kìm cùng loại hiện lên giống hệt nhau — mà cả tính năng tồn tại để đếm số lần dùng RIÊNG cho
+    /// từng hiện vật. Không có ô này thì màn hình không phân biệt được chúng.
+    /// </summary>
+    public string InstanceCode { get; set; } = string.Empty;
+
     public int MaxReuseCount { get; set; }
     public int CurrentReuseCount { get; set; }
     public int RemainingUses => MaxReuseCount - CurrentReuseCount;

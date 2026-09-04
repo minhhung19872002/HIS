@@ -4,6 +4,7 @@ using HIS.Application.DTOs;
 using HIS.Application.DTOs.Warehouse;
 using HIS.Application.Services;
 using HIS.Core.Common;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
@@ -55,72 +56,139 @@ public partial class WarehouseCompleteService {
         };
     }
 
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // Vật tư tái sử dụng — #218/T3
+    //
+    // Cả tính năng này trước đây được BỊA RA TỪ HASH CỦA Id. Đường đọc không đọc bản ghi nào — nó
+    // lấy 30 dòng danh mục `MedicalSupplies` rồi sinh số:
+    //
+    //     int current  = (s.Id.GetHashCode() & 0x7fffffff) % max;                // số lần đã tái sử dụng
+    //     int stat     = idx % 10 switch { ... };                                // trạng thái theo VỊ TRÍ trong danh sách
+    //     var lastSter = today.AddDays(-((s.Id.GetHashCode() & 0xff) % 25 + 1));  // ngày tiệt khuẩn gần nhất
+    //
+    // kèm chú thích thành thật "Demo: synthesize ... since there is no dedicated tracking table".
+    //
+    // Màn hình này nói cho nhân viên kiểm soát nhiễm khuẩn biết dụng cụ nào đã tiệt khuẩn, tiệt khuẩn
+    // lúc nào, và đã tái sử dụng bao nhiêu lần — giới hạn số lần tồn tại vì dụng cụ xuống cấp. Mọi
+    // con số trên đó là một phép băm. Nó còn bỏ qua cả cột `MedicalSupplies.IsReusable` sẵn có, nên
+    // vật tư dùng-một-lần cũng hiện ra như tái sử dụng được.
+    //
+    // Migration 181 dựng `ReusableSupplyInstances` (mỗi dòng một hiện vật cụ thể — hai cái kìm cùng
+    // loại đếm số lần dùng riêng) và `SterilizationLogs` (truy vết ngược khi có sự cố nhiễm khuẩn).
+    // ════════════════════════════════════════════════════════════════════════════════════════
+
+    private static ReusableSupplyDto ToReusableDto(ReusableSupplyInstance i) => new ReusableSupplyDto
+    {
+        Id = i.Id,
+        ItemId = i.SupplyId,
+        ItemCode = i.Supply?.SupplyCode ?? i.InstanceCode,
+        ItemName = i.Supply?.SupplyName ?? string.Empty,
+        InstanceCode = i.InstanceCode,
+        MaxReuseCount = i.MaxReuseCount,
+        CurrentReuseCount = i.CurrentReuseCount,
+        LastSterilizationDate = i.LastSterilizationAt,
+        NextSterilizationDue = i.NextSterilizationDue,
+        Status = i.Status,
+    };
+
     public async Task<List<ReusableSupplyDto>> GetReusableSuppliesAsync(Guid? warehouseId, int? status)
     {
-        // Demo: synthesize a deterministic reusable-supply list from existing
-        // MedicalSupplies catalog since there is no dedicated tracking table.
-        // Each catalog row becomes one reusable "item" whose status / reuse
-        // count is derived from the Id so UI renders stable data per refresh.
-        var supplies = await _context.MedicalSupplies
-            .Where(s => s.IsActive)
-            .OrderBy(s => s.SupplyCode)
-            .Take(30)
-            .Select(s => new { s.Id, s.SupplyCode, s.SupplyName })
+        var query = _context.ReusableSupplyInstances
+            .Include(i => i.Supply)
+            .Where(i => !i.IsDeleted);
+
+        if (warehouseId.HasValue) query = query.Where(i => i.WarehouseId == warehouseId.Value);
+        if (status.HasValue) query = query.Where(i => i.Status == status.Value);
+
+        var rows = await query
+            .OrderBy(i => i.InstanceCode)
             .ToListAsync();
-        var today = DateTime.UtcNow.AddHours(7).Date;
-        var list = supplies.Select((s, idx) =>
-        {
-            int max = 10;
-            int current = (s.Id.GetHashCode() & 0x7fffffff) % max;
-            int stat = idx % 10 switch
-            {
-                0 or 1 or 2 or 3 or 4 or 5 => 1, // Sẵn sàng
-                6 or 7 => 2,                     // Đang sử dụng
-                8 => 3,                          // Chờ tiệt khuẩn
-                _ => current >= max - 1 ? 4 : 1  // Hết hạn hoặc sẵn sàng
-            };
-            var lastSter = today.AddDays(-((s.Id.GetHashCode() & 0xff) % 25 + 1));
-            return new ReusableSupplyDto
-            {
-                Id = s.Id,
-                ItemId = s.Id,
-                ItemCode = s.SupplyCode,
-                ItemName = s.SupplyName,
-                MaxReuseCount = max,
-                CurrentReuseCount = current,
-                LastSterilizationDate = lastSter,
-                NextSterilizationDue = lastSter.AddDays(30),
-                Status = stat
-            };
-        }).ToList();
-        if (status.HasValue) list = list.Where(x => x.Status == status.Value).ToList();
-        return list;
+
+        return rows.Select(ToReusableDto).ToList();
     }
 
+    /// <summary>
+    /// Đổi trạng thái một hiện vật (sẵn sàng · đang sử dụng · chờ tiệt khuẩn · hết hạn dùng lại).
+    ///
+    /// <para>#218/T3 — trước đây `await Task.CompletedTask` rồi dội lại DTO, và **không có route
+    /// nào** gọi tới. Nay ghi thật, kèm gác: dụng cụ đã dùng đủ số lần cho phép thì không đặt lại
+    /// thành "sẵn sàng" được — đó chính là con số dùng để quyết định khi nào loại bỏ.</para>
+    /// </summary>
     public async Task<ReusableSupplyDto> UpdateReusableSupplyStatusAsync(Guid id, int status, Guid userId)
     {
-        await Task.CompletedTask;
-        return new ReusableSupplyDto
-        {
-            Id = id,
-            Status = status,
-            CurrentReuseCount = 0,
-            MaxReuseCount = 10
-        };
+        if (!ReusableSupplyStatus.IsValid(status))
+            throw new InvalidOperationException(
+                $"Trạng thái {status} không hợp lệ cho vật tư tái sử dụng.");
+
+        var inst = await _context.ReusableSupplyInstances
+            .Include(i => i.Supply)
+            .FirstOrDefaultAsync(i => i.Id == id && !i.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy vật tư tái sử dụng");
+
+        if (inst.CurrentReuseCount >= inst.MaxReuseCount
+            && status != ReusableSupplyStatus.Retired)
+            throw new InvalidOperationException(
+                $"Vật tư đã dùng đủ {inst.MaxReuseCount} lần cho phép, phải loại bỏ. "
+                + "Không đặt lại thành trạng thái còn dùng được.");
+
+        inst.Status = status;
+        inst.UpdatedAt = DateTime.Now;
+        inst.UpdatedBy = userId.ToString();
+        if (status == ReusableSupplyStatus.Retired && inst.RetiredAt == null)
+            inst.RetiredAt = DateTime.Now;
+
+        await _context.SaveChangesAsync();
+        return ToReusableDto(inst);
     }
 
+    /// <summary>
+    /// Ghi nhận một mẻ tiệt khuẩn cho hiện vật.
+    ///
+    /// <para>#218/T3 — trước đây cũng chỉ dội lại DTO, và trả cứng <c>CurrentReuseCount = 0</c>. Chỗ
+    /// số 0 ấy đáng nói riêng: nếu có ai nối nó vào dữ liệu thật thì **mỗi lần tiệt khuẩn sẽ xoá
+    /// sạch lịch sử tái sử dụng** của dụng cụ — đúng con số dùng để quyết định khi nào loại bỏ. Tiệt
+    /// khuẩn phải LÀM TĂNG số lần đã dùng, không phải đặt về 0.</para>
+    /// </summary>
     public async Task<ReusableSupplyDto> RecordSterilizationAsync(Guid id, DateTime sterilizationDate, Guid userId)
     {
-        await Task.CompletedTask;
-        return new ReusableSupplyDto
+        var inst = await _context.ReusableSupplyInstances
+            .Include(i => i.Supply)
+            .FirstOrDefaultAsync(i => i.Id == id && !i.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy vật tư tái sử dụng");
+
+        if (sterilizationDate.Date > DateTime.Today)
+            throw new InvalidOperationException("Ngày tiệt khuẩn ở tương lai, không hợp lệ.");
+        if (inst.Status == ReusableSupplyStatus.Retired)
+            throw new InvalidOperationException("Vật tư đã loại bỏ, không tiệt khuẩn để dùng lại.");
+        if (inst.CurrentReuseCount >= inst.MaxReuseCount)
+            throw new InvalidOperationException(
+                $"Vật tư đã dùng đủ {inst.MaxReuseCount} lần cho phép, phải loại bỏ chứ không tiệt khuẩn lại.");
+
+        inst.CurrentReuseCount++;
+        inst.LastSterilizationAt = sterilizationDate;
+        inst.NextSterilizationDue = sterilizationDate.AddDays(30);
+        inst.Status = inst.CurrentReuseCount >= inst.MaxReuseCount
+            ? ReusableSupplyStatus.Retired
+            : ReusableSupplyStatus.Ready;
+        inst.UpdatedAt = DateTime.Now;
+        inst.UpdatedBy = userId.ToString();
+
+        // Nhật ký để truy vết ngược khi có sự cố nhiễm khuẩn: cần biết dụng cụ ấy đã qua mẻ nào.
+        // `ReuseCountAfter` chụp lại tại thời điểm ghi, cố ý không đọc động từ hiện vật — cùng lý do
+        // với giấy nghỉ ốm chụp chẩn đoán ở migration 177.
+        _context.SterilizationLogs.Add(new SterilizationLog
         {
-            Id = id,
-            Status = 1, // Sẵn sàng
-            LastSterilizationDate = sterilizationDate,
-            NextSterilizationDue = sterilizationDate.AddDays(30),
-            CurrentReuseCount = 0,
-            MaxReuseCount = 10
-        };
+            Id = Guid.NewGuid(),
+            InstanceId = inst.Id,
+            SterilizedAt = sterilizationDate,
+            ReuseCountAfter = inst.CurrentReuseCount,
+            PerformedById = userId,
+            CreatedAt = DateTime.Now,
+            CreatedBy = userId.ToString(),
+        });
+
+        await _context.SaveChangesAsync();
+        return ToReusableDto(inst);
     }
 
     public async Task<List<ConsignmentStockDto>> GetConsignmentStockAsync(Guid? warehouseId, Guid? supplierId)
