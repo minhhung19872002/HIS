@@ -1,10 +1,10 @@
 {
- "ranAt": "2026-09-05T02:04:32",
+ "ranAt": "2026-09-05T02:17:11",
  "cases": [
   {
    "case": "mẫu ĐƯỢC lưu xuống bảng",
    "pass": true,
-   "detail": "HTTP 200 · id='a6cbafec' · số dòng lưu được=1"
+   "detail": "HTTP 200 · id='ad549fb1' · số dòng lưu được=1"
   },
   {
    "case": "ĐỐI CHỨNG: mở lại danh sách vẫn thấy mẫu vừa soạn",

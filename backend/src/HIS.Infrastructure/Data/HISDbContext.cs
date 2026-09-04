@@ -56,6 +56,9 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     // của Id dòng danh mục (số lần đã dùng, trạng thái, ngày tiệt khuẩn gần nhất).
     public DbSet<ReusableSupplyInstance> ReusableSupplyInstances => Set<ReusableSupplyInstance>();
     public DbSet<SterilizationLog> SterilizationLogs => Set<SterilizationLog>();
+    // #218/T3 (migration 182): đợt nộp tiền tạm ứng thu tại khoa về quỹ — trước đây cả hai đầu của
+    // việc bàn giao tiền này (nộp và tiếp nhận) đều là vỏ rỗng.
+    public DbSet<DepartmentDepositBatch> DepartmentDepositBatches => Set<DepartmentDepositBatch>();
     public DbSet<Examination> Examinations => Set<Examination>();
     // #218/T3 (migration 177): giấy chứng nhận nghỉ việc hưởng BHXH — trước đây hai cửa cấp giấy
     // là hàm rỗng, bệnh viện không giữ lại bản ghi nào về tờ giấy đã phát ra tay người bệnh.

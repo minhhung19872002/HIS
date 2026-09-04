@@ -1,5 +1,5 @@
 {
- "ranAt": "2026-09-05T02:03:19",
+ "ranAt": "2026-09-05T02:15:56",
  "cases": [
   {
    "case": "gửi lại một đợt đã gửi lên BHXH",
@@ -27,7 +27,7 @@
    "mustBlock": false,
    "blocked": false,
    "pass": true,
-   "detail": "HTTP 200 · chẩn đoán sau='SUA' · {\"success\":true,\"data\":{\"id\":\"125ace9b-0b18-454a-b"
+   "detail": "HTTP 200 · chẩn đoán sau='SUA' · {\"success\":true,\"data\":{\"id\":\"b6acc566-7101-46fa-8"
   },
   {
    "case": "sửa chẩn đoán: hồ sơ đã khóa (1)",
@@ -48,7 +48,7 @@
    "mustBlock": false,
    "blocked": false,
    "pass": true,
-   "detail": "HTTP 200 · chẩn đoán sau='SUA' · {\"success\":true,\"data\":{\"id\":\"e9853335-fcea-4939-9"
+   "detail": "HTTP 200 · chẩn đoán sau='SUA' · {\"success\":true,\"data\":{\"id\":\"ccebeebe-ee71-4c1c-9"
   },
   {
    "case": "sửa chẩn đoán: hồ sơ ĐÃ THANH TOÁN (5)",

@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using HIS.Core.Constants;
@@ -66,69 +66,149 @@ public partial class BillingCompleteService {
         };
     }
 
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // Nộp tiền tạm ứng thu tại khoa về quỹ bệnh viện — #218/T3
+    //
+    // Cả HAI đầu của việc bàn giao tiền này trước đây là vỏ rỗng. `CreateDepartmentDepositAsync` đọc
+    // thật (tra khoa, tra các phiếu, cộng tổng tiền) rồi KHÔNG ghi gì: sinh mã biên lai
+    // `TUK{yyyyMMddHHmmssfff}` và trả DTO. `ReceiveDepartmentDepositAsync` có chú thích thẳng thắn
+    // `// No DepartmentDeposit table - return stub confirming receipt`, trả "đã tiếp nhận" kèm
+    // `TotalAmount = 0`.
+    //
+    // Hệ quả: nộp lại đúng những phiếu ấy lần nữa vẫn được, và khi đối chiếu quỹ thì không tra ra ai
+    // nộp cái gì lúc nào. Đây là tiền mặt đi qua tay người.
+    //
+    // Cố ý KHÔNG mượn `Deposits.Status` làm dấu đã-nộp — cột đó đang có lệch nghĩa ĐÃ BIẾT mà chưa
+    // sửa (giá trị 3: đường ghi đặt là "đã tiêu hết", báo cáo đọc là "đã hoàn tiền"). Migration 182
+    // cho việc nộp một cột riêng.
+    // ════════════════════════════════════════════════════════════════════════════════════════
+
+    private static DepartmentDepositDto ToBatchDto(
+        DepartmentDepositBatch batch, Department? dept, User? submitter, User? receiver,
+        List<Deposit> deposits) => new DepartmentDepositDto
+    {
+        Id = batch.Id,
+        ReceiptCode = batch.ReceiptCode,
+        DepartmentId = batch.DepartmentId,
+        DepartmentCode = dept?.DepartmentCode ?? string.Empty,
+        DepartmentName = dept?.DepartmentName ?? string.Empty,
+        SubmittedBy = batch.SubmittedById ?? Guid.Empty,
+        SubmittedByName = submitter?.FullName ?? string.Empty,
+        Deposits = deposits.Select(d => new DepositDto
+        {
+            Id = d.Id,
+            ReceiptCode = d.ReceiptNumber,
+            PatientId = d.PatientId ?? Guid.Empty,
+            Amount = d.Amount,
+            UsedAmount = d.UsedAmount,
+            RemainingAmount = d.RemainingAmount,
+            Status = d.Status,
+            StatusName = DepositStatus.Label(d.Status),
+            CreatedAt = d.CreatedAt,
+        }).ToList(),
+        TotalAmount = batch.TotalAmount,
+        PaymentMethod = 1,
+        CashierId = batch.ReceivedById ?? Guid.Empty,
+        CashierName = receiver?.FullName ?? string.Empty,
+        Status = batch.ReceivedAt.HasValue ? 2 : 1, // 1 chờ tiếp nhận · 2 đã tiếp nhận
+        CreatedAt = batch.CreatedAt,
+        ReceivedAt = batch.ReceivedAt,
+    };
+
     public async Task<DepartmentDepositDto> CreateDepartmentDepositAsync(Guid departmentId, List<Guid> depositIds, Guid userId)
     {
-        var department = await _context.Departments.FindAsync(departmentId);
+        if (depositIds == null || depositIds.Count == 0)
+            throw new InvalidOperationException("Chưa chọn phiếu tạm ứng nào để nộp.");
+
+        var department = await _context.Departments.FindAsync(departmentId)
+            ?? throw new KeyNotFoundException("Không tìm thấy khoa");
+
         var deposits = await _context.Deposits
-            .Where(d => depositIds.Contains(d.Id))
+            .Where(d => depositIds.Contains(d.Id) && !d.IsDeleted)
             .ToListAsync();
 
-        var user = await _context.Users.FindAsync(userId);
-        var totalAmount = deposits.Sum(d => d.Amount);
+        var thieu = depositIds.Where(id => deposits.All(d => d.Id != id)).ToList();
+        if (thieu.Count > 0)
+            throw new KeyNotFoundException($"Không tìm thấy {thieu.Count} phiếu tạm ứng trong danh sách nộp.");
 
-        return new DepartmentDepositDto
+        // Nộp trùng: trước đây không chặn được vì không có gì ghi lại lần nộp trước.
+        var daNop = deposits.Where(d => d.HandoverBatchId.HasValue).ToList();
+        if (daNop.Count > 0)
+            throw new InvalidOperationException(
+                $"Có {daNop.Count} phiếu đã nộp về quỹ trước đó: "
+                + string.Join(", ", daNop.Take(5).Select(d => d.ReceiptNumber)));
+
+        var daHuy = deposits.Where(d => d.Status == DepositStatus.Cancelled).ToList();
+        if (daHuy.Count > 0)
+            throw new InvalidOperationException(
+                $"Có {daHuy.Count} phiếu đã hủy, không nộp về quỹ được: "
+                + string.Join(", ", daHuy.Take(5).Select(d => d.ReceiptNumber)));
+
+        var now = DateTime.Now;
+        var ngay = now.ToString("yyyyMMdd");
+        // Đánh số theo bộ đếm trong ngày. Bản cũ dùng `TUK{yyyyMMddHHmmssfff}` — mã biên lai gắn với
+        // mốc thời gian đến mili giây thì không ai đọc ra và không tra cứu được.
+        var soTrongNgay = await _context.DepartmentDepositBatches
+            .CountAsync(b => b.ReceiptCode.StartsWith($"TUK{ngay}"));
+
+        var batch = new DepartmentDepositBatch
         {
             Id = Guid.NewGuid(),
-            ReceiptCode = $"TUK{DateTime.Now:yyyyMMddHHmmssfff}",
+            ReceiptCode = $"TUK{ngay}-{(soTrongNgay + 1):D4}",
             DepartmentId = departmentId,
-            DepartmentCode = department?.DepartmentCode ?? string.Empty,
-            DepartmentName = department?.DepartmentName ?? string.Empty,
-            SubmittedBy = userId,
-            SubmittedByName = user?.FullName ?? string.Empty,
-            Deposits = deposits.Select(d => new DepositDto
-            {
-                Id = d.Id,
-                ReceiptCode = d.ReceiptNumber,
-                PatientId = d.PatientId ?? Guid.Empty,
-                Amount = d.Amount,
-                UsedAmount = d.UsedAmount,
-                RemainingAmount = d.RemainingAmount,
-                Status = d.Status,
-                StatusName = "Đã xác nhận",
-                CreatedAt = d.CreatedAt
-            }).ToList(),
-            TotalAmount = totalAmount,
-            PaymentMethod = 1,
-            CashierId = userId,
-            CashierName = user?.FullName ?? string.Empty,
-            Status = 1, // Chờ tiếp nhận
-            CreatedAt = DateTime.Now
+            SubmittedById = userId,
+            SubmittedAt = now,
+            DepositCount = deposits.Count,
+            TotalAmount = deposits.Sum(d => d.Amount),
+            CreatedAt = now,
+            CreatedBy = userId.ToString(),
         };
+        _context.DepartmentDepositBatches.Add(batch);
+
+        foreach (var d in deposits)
+        {
+            d.HandoverBatchId = batch.Id;
+            d.HandoverAt = now;
+            d.UpdatedAt = now;
+            // `Status` là của vòng đời tiền tạm ứng (còn tiêu / đã tiêu hết / đã hủy). Việc nộp về
+            // quỹ là chuyện khác. Cố ý KHÔNG đụng vào.
+        }
+
+        await _context.SaveChangesAsync();
+
+        var submitter = await _context.Users.FindAsync(userId);
+        return ToBatchDto(batch, department, submitter, null, deposits);
     }
 
+    /// <summary>
+    /// Thủ quỹ tiếp nhận một đợt nộp từ khoa. #218/T3 — trước đây trả "đã tiếp nhận" kèm
+    /// <c>TotalAmount = 0</c> mà không ghi gì.
+    /// </summary>
     public async Task<DepartmentDepositDto> ReceiveDepartmentDepositAsync(Guid departmentDepositId, Guid userId)
     {
-        var user = await _context.Users.FindAsync(userId);
+        var batch = await _context.DepartmentDepositBatches
+            .FirstOrDefaultAsync(b => b.Id == departmentDepositId && !b.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy đợt nộp tạm ứng");
 
-        // No DepartmentDeposit table - return stub confirming receipt
-        return new DepartmentDepositDto
-        {
-            Id = departmentDepositId,
-            ReceiptCode = $"TUK{departmentDepositId.ToString()[..8]}",
-            DepartmentId = Guid.Empty,
-            DepartmentCode = string.Empty,
-            DepartmentName = string.Empty,
-            SubmittedBy = Guid.Empty,
-            SubmittedByName = string.Empty,
-            Deposits = new List<DepositDto>(),
-            TotalAmount = 0,
-            PaymentMethod = 1,
-            CashierId = userId,
-            CashierName = user?.FullName ?? string.Empty,
-            Status = 2, // Đã tiếp nhận
-            CreatedAt = DateTime.Now,
-            ReceivedAt = DateTime.Now
-        };
+        if (batch.ReceivedAt.HasValue)
+            throw new InvalidOperationException(
+                $"Đợt nộp {batch.ReceiptCode} đã được tiếp nhận lúc {batch.ReceivedAt:dd/MM/yyyy HH:mm}.");
+
+        var now = DateTime.Now;
+        batch.ReceivedById = userId;
+        batch.ReceivedAt = now;
+        batch.UpdatedAt = now;
+        batch.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
+
+        var department = await _context.Departments.FindAsync(batch.DepartmentId);
+        var submitter = batch.SubmittedById.HasValue
+            ? await _context.Users.FindAsync(batch.SubmittedById.Value) : null;
+        var receiver = await _context.Users.FindAsync(userId);
+        var deposits = await _context.Deposits
+            .Where(d => d.HandoverBatchId == batch.Id && !d.IsDeleted).ToListAsync();
+
+        return ToBatchDto(batch, department, submitter, receiver, deposits);
     }
 
     public async Task<DepositBalanceDto> GetDepositBalanceAsync(Guid patientId)

@@ -63,9 +63,99 @@ public partial class LISCompleteService {
         }
     }
 
+    /// <summary>
+    /// Thêm/sửa một chỉ số xét nghiệm trong danh mục.
+    ///
+    /// <para>#218/T3 — trước đây là <c>return new LabTestCatalogDto { Code = dto.Code, Name = dto.Name };</c>:
+    /// kỹ thuật viên khai một xét nghiệm mới, phần mềm báo xong, mở lại thì không có. Đường đọc
+    /// <see cref="GetLabTestCatalogAsync"/> lấy từ <c>Services</c> với <c>ServiceType = 2</c> nên bảng
+    /// đã có sẵn — lại là nhóm A, chỉ thiếu đường ghi.</para>
+    ///
+    /// <para>Nhưng <see cref="SaveLabTestDto"/> mang theo <c>ResultType</c>, <c>SampleType</c>,
+    /// <c>TubeType</c>, <c>DecimalPlaces</c>, <c>ResultOptions</c>, <c>EnglishName</c> mà
+    /// <c>Services</c> chưa có ô nào để giữ. Ghi mà im lặng bỏ mất mấy trường ấy thì vẫn là cùng một
+    /// lỗi, chỉ nhỏ hơn — migration 182 thêm cột. Đó là thông số quyết định cách nhập/hiển thị kết
+    /// quả và nội dung in trên nhãn dán ống.</para>
+    /// </summary>
     public async Task<LabTestCatalogDto> SaveLabTestAsync(SaveLabTestDto dto)
     {
-        return new LabTestCatalogDto { Code = dto.Code, Name = dto.Name };
+        if (string.IsNullOrWhiteSpace(dto.Code))
+            throw new InvalidOperationException("Chưa nhập mã xét nghiệm.");
+        if (string.IsNullOrWhiteSpace(dto.Name))
+            throw new InvalidOperationException("Chưa nhập tên xét nghiệm.");
+
+        var code = dto.Code.Trim();
+        var now = DateTime.Now;
+
+        Service? svc = null;
+        if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
+        {
+            svc = await _context.Services.FirstOrDefaultAsync(s => s.Id == dto.Id.Value && !s.IsDeleted)
+                ?? throw new KeyNotFoundException("Không tìm thấy xét nghiệm cần sửa");
+        }
+
+        // Mã dịch vụ là thứ dùng để chỉ định và để đối chiếu BHYT — trùng mã là chỉ định nhầm.
+        var trung = await _context.Services.AnyAsync(s =>
+            !s.IsDeleted && s.ServiceCode == code && (svc == null || s.Id != svc.Id));
+        if (trung)
+            throw new InvalidOperationException($"Mã dịch vụ {code} đã được dùng cho dịch vụ khác.");
+
+        if (svc == null)
+        {
+            if (dto.GroupId == Guid.Empty)
+                throw new InvalidOperationException("Chưa chọn nhóm xét nghiệm.");
+            var coNhom = await _context.ServiceGroups.AnyAsync(g => g.Id == dto.GroupId && !g.IsDeleted);
+            if (!coNhom) throw new KeyNotFoundException("Không tìm thấy nhóm xét nghiệm");
+
+            svc = new Service
+            {
+                Id = Guid.NewGuid(),
+                ServiceType = 2, // Lab — cùng giá trị mà đường đọc lọc theo
+                ServiceGroupId = dto.GroupId,
+                CreatedAt = now,
+            };
+            _context.Services.Add(svc);
+        }
+        else
+        {
+            if (dto.GroupId != Guid.Empty) svc.ServiceGroupId = dto.GroupId;
+            svc.UpdatedAt = now;
+        }
+
+        svc.ServiceCode = code;
+        svc.ServiceName = dto.Name.Trim();
+        svc.EnglishName = dto.EnglishName;
+        svc.Unit = dto.Unit;
+        svc.ResultType = dto.ResultType;
+        svc.ResultOptions = dto.ResultOptions;
+        svc.DecimalPlaces = dto.DecimalPlaces;
+        svc.SampleType = dto.SampleType;
+        svc.TubeType = dto.TubeType;
+        if (dto.Price.HasValue) svc.UnitPrice = dto.Price.Value;
+        if (dto.InsurancePrice.HasValue) svc.InsurancePrice = dto.InsurancePrice.Value;
+        if (dto.TATMinutes.HasValue) svc.EstimatedMinutes = dto.TATMinutes.Value;
+        svc.RequiresResult = true;
+        svc.RequiresSample = !string.IsNullOrWhiteSpace(dto.SampleType);
+        svc.IsActive = dto.IsActive;
+
+        await _context.SaveChangesAsync();
+
+        var group = await _context.ServiceGroups
+            .FirstOrDefaultAsync(g => g.Id == svc.ServiceGroupId);
+
+        return new LabTestCatalogDto
+        {
+            Id = svc.Id,
+            Code = svc.ServiceCode,
+            Name = svc.ServiceName,
+            GroupId = svc.ServiceGroupId,
+            GroupName = group?.GroupName ?? string.Empty,
+            Unit = svc.Unit ?? string.Empty,
+            Price = svc.UnitPrice,
+            InsurancePrice = svc.InsurancePrice,
+            TATMinutes = svc.EstimatedMinutes > 0 ? svc.EstimatedMinutes : null,
+            IsActive = svc.IsActive,
+        };
     }
 
     public async Task<List<LabTestGroupDto>> GetLabTestGroupsAsync()

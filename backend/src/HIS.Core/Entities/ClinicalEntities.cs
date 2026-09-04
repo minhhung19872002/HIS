@@ -1,4 +1,4 @@
-namespace HIS.Core.Entities;
+﻿namespace HIS.Core.Entities;
 
 /// <summary>
 /// Di ung - Allergy
@@ -241,6 +241,41 @@ public class Deposit : BaseEntity
 
     // #188: optimistic concurrency token — chống double-use số dư tạm ứng khi 2 thao tác trừ đồng thời.
     public byte[]? RowVersion { get; set; }
+
+    // ── Nộp tiền tạm ứng thu tại khoa về quỹ bệnh viện ──────────────────────────────────────
+    // #218/T3 (migration 182): trước đây `CreateDepartmentDepositAsync` đọc thật, cộng tổng tiền
+    // thật, rồi KHÔNG ghi gì — điều dưỡng nộp tiền, phần mềm in mã biên lai, không dòng nào ghi lại
+    // rằng số tiền ấy đã nộp. Nộp lại đúng những phiếu ấy lần nữa vẫn được.
+    //
+    // Cố ý KHÔNG mượn `Status` ở trên làm dấu đã-nộp: cột đó đang có lệch nghĩa ĐÃ BIẾT mà chưa sửa
+    // (xem chú thích ngay trên nó). Thêm nghĩa thứ ba vào là lặp lại đúng hình dạng đã làm hỏng số
+    // liệu tử vong ở migration 178.
+    public Guid? HandoverBatchId { get; set; }
+    public DateTime? HandoverAt { get; set; }
+}
+
+/// <summary>
+/// Một đợt nộp tiền tạm ứng thu tại khoa về quỹ bệnh viện.
+/// #218/T3 (migration 182): trước đây cả hai đầu của việc bàn giao tiền này đều là vỏ rỗng —
+/// `CreateDepartmentDepositAsync` không ghi, và `ReceiveDepartmentDepositAsync` có chú thích thẳng
+/// thắn `// No DepartmentDeposit table - return stub confirming receipt` rồi trả "đã tiếp nhận" kèm
+/// `TotalAmount = 0`.
+/// </summary>
+public class DepartmentDepositBatch : BaseEntity
+{
+    public string ReceiptCode { get; set; } = string.Empty;
+
+    public Guid DepartmentId { get; set; }
+    public Guid? SubmittedById { get; set; }
+    public DateTime SubmittedAt { get; set; }
+
+    public int DepositCount { get; set; }
+    public decimal TotalAmount { get; set; }
+
+    public Guid? ReceivedById { get; set; }
+    public DateTime? ReceivedAt { get; set; }
+
+    public string? Note { get; set; }
 }
 
 // Entity `Payment` (bang dbo.Payments) da bo: day la so phieu thu RIENG cua Tiep don, khong

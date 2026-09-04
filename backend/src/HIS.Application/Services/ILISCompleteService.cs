@@ -788,19 +788,24 @@ namespace HIS.Application.Services
 
     public class SaveLabTestDto
     {
+        // #218/T3: mấy trường tuỳ chọn dưới đây từng khai là `string` (không dấu `?`), nên với
+        // nullable reference types bật, ASP.NET coi TẤT CẢ là bắt buộc — kỹ thuật viên không lưu nổi
+        // một xét nghiệm nếu không điền cả tên tiếng Anh và danh sách lựa chọn kết quả. Đo được:
+        // `{"error":"VALIDATION_FAILED","message":"The EnglishName field is required."}`.
+        // Chỉ mã và tên là thật sự bắt buộc, và chúng được gác trong service kèm câu tiếng Việt.
         public Guid? Id { get; set; }
-        public string Code { get; set; }
-        public string Name { get; set; }
-        public string EnglishName { get; set; }
+        public string? Code { get; set; }
+        public string? Name { get; set; }
+        public string? EnglishName { get; set; }
         public Guid GroupId { get; set; }
-        public string Unit { get; set; }
-        public string ResultType { get; set; } // Numeric, Text, Selection
-        public string ResultOptions { get; set; }
+        public string? Unit { get; set; }
+        public string? ResultType { get; set; } // Numeric, Text, Selection
+        public string? ResultOptions { get; set; }
         public int? DecimalPlaces { get; set; }
         public decimal? Price { get; set; }
         public decimal? InsurancePrice { get; set; }
-        public string SampleType { get; set; }
-        public string TubeType { get; set; }
+        public string? SampleType { get; set; }
+        public string? TubeType { get; set; }
         public int? TATMinutes { get; set; }
         public bool IsActive { get; set; }
     }

@@ -1,4 +1,4 @@
-namespace HIS.Core.Entities;
+﻿namespace HIS.Core.Entities;
 
 /// <summary>
 /// Nhóm dịch vụ - ServiceGroup
@@ -52,6 +52,20 @@ public class Service : BaseEntity
 
     public bool IsActive { get; set; } = true;
     public int DisplayOrder { get; set; }
+
+    // ── Thông số kỹ thuật của XÉT NGHIỆM (ServiceType = 2) ──────────────────────────────────
+    // #218/T3 (migration 182): `SaveLabTestDto` mang theo mấy trường này từ giao diện xuống, nhưng
+    // `Services` không có ô nào để giữ — nên `SaveLabTestAsync` có ghi cũng im lặng bỏ mất chúng.
+    // Đây là thông số quyết định cách nhập và hiển thị kết quả, và nội dung in trên nhãn dán ống.
+    public string? EnglishName { get; set; }
+
+    /// <summary>'Numeric' · 'Text' · 'Selection' — kết quả là số hay chữ hay chọn trong danh sách.</summary>
+    public string? ResultType { get; set; }
+    public string? ResultOptions { get; set; }
+    public int? DecimalPlaces { get; set; }
+
+    public string? SampleType { get; set; } // loại bệnh phẩm
+    public string? TubeType { get; set; }   // loại ống lấy máu — in trên nhãn dán
 
     // Navigation
     public virtual ICollection<ServicePrice> ServicePrices { get; set; } = new List<ServicePrice>();

@@ -48,8 +48,14 @@ một bài đo cho thứ vốn đã đúng*).
 | 44 | Mẫu kết quả CĐHA | Cả **bảy hàm** là hardcode: soạn mẫu thì mất, bấm xoá thì không xoá | 0/6 → 6/6 |
 | 45 | Vật tư tái sử dụng | Cả **sổ theo dõi tiệt khuẩn** được bịa ra từ **hash của Id**: số lần đã dùng, trạng thái, ngày tiệt khuẩn gần nhất | 0/7 → 7/7 |
 | 46 | Nhập danh mục BHYT | Nhập tệp xong báo **"0 dòng" không kèm lỗi** — đọc ra thành *file của bạn rỗng*, nên người dùng đi soi lại tệp của mình | 0/7 → 7/7 |
+| 47 | Nộp tạm ứng khoa → quỹ | **Cả hai đầu** của một cuộc bàn giao TIỀN MẶT đều vỏ rỗng; nộp lại đúng những phiếu ấy vẫn được | 1/7 → 7/7 |
+| 47 | Danh mục xét nghiệm | Lưu không ghi; và một nửa thông số kỹ thuật **không có cột nào để giữ** | (cùng bộ trên) |
 
-**Hồi quy hiện tại: 40 bộ đo, 270/270.** `dotnet test` 225 passed. Migration 168-181.
+**Hồi quy hiện tại: 41 bộ đo, 277/277.** `dotnet test` 225 passed. Migration 168-182.
+
+> **Nhóm B đã hết**, trừ hai mục cố ý hoãn vì cần người dùng chốt nghiệp vụ: `SaveScheduleAsync`
+> (lịch phòng chụp, §44) và `UpdateInsurancePricesAsync` (giá theo đợt, §46 — nay báo lỗi
+> rõ thay vì báo thành công suông).
 
 ### Ba hình dạng lặp lại, và cái đã làm với chúng
 
@@ -2427,3 +2433,85 @@ việc riêng, không gộp vào đây. Ghi ra để không rơi.
 
 `t3_insurance_catalog_import.py`: **0/7 → 7/7**, đối chứng ngược vẫn đạt.
 Hồi quy toàn bộ **40 bộ đo, 270/270**. `dotnet test` **225 passed**. Build 0 lỗi.
+
+---
+
+## §47. Nộp tiền tạm ứng từ khoa về quỹ, và danh mục xét nghiệm — hai mục cuối của nhóm B
+
+### Cả hai đầu của một cuộc bàn giao tiền mặt đều là vỏ rỗng
+
+`CreateDepartmentDepositAsync` **đọc thật** — tra khoa, tra từng phiếu tạm ứng, cộng tổng tiền — rồi
+không ghi gì: sinh mã biên lai `TUK{yyyyMMddHHmmssfff}` và trả DTO. Điều dưỡng nộp tiền tạm ứng thu
+tại khoa về quỹ bệnh viện, phần mềm in ra mã biên lai, và **không dòng nào ghi lại rằng số tiền ấy đã
+được nộp**.
+
+Đầu bên kia cũng vậy, và nó nói thẳng ra:
+
+```csharp
+public async Task<DepartmentDepositDto> ReceiveDepartmentDepositAsync(Guid departmentDepositId, Guid userId)
+{
+    // No DepartmentDeposit table - return stub confirming receipt
+    return new DepartmentDepositDto { ..., TotalAmount = 0, Status = 2 /* Đã tiếp nhận */, ... };
+}
+```
+
+Thủ quỹ bấm tiếp nhận, được xác nhận, không gì được ghi. Hệ quả đo được: nộp lại đúng những phiếu ấy
+lần nữa vẫn ra HTTP 200, và khi đối chiếu quỹ thì không tra ra ai nộp cái gì lúc nào.
+
+Đây là **tiền mặt đi qua tay người**, và cái duy nhất chứng minh nó đã đổi tay là một mã biên lai
+sinh từ đồng hồ hệ thống.
+
+**Cố ý không mượn `Deposits.Status`** làm dấu đã-nộp. Cột ấy đang mang một lệch nghĩa **đã biết mà cố
+ý chưa sửa** — giá trị 3 được đường ghi đặt là "đã tiêu hết" nhưng mọi báo cáo đọc là "đã hoàn tiền",
+và không tự sửa vì đổi phía nào cũng làm đổi số liệu đã phát ra ngoài. Thêm nghĩa thứ ba vào một cột
+vốn đã mang hai nghĩa là lặp lại đúng hình dạng đã làm hỏng số liệu tử vong ở §42. Migration 182 cho
+việc nộp một cột riêng.
+
+Mã biên lai cũng đổi: `TUK{yyyyMMddHHmmssfff}` → `TUK{yyyyMMdd}-{NNNN}`. Mã gắn với mốc thời gian đến
+mili giây thì không ai đọc ra và không tra cứu được.
+
+### Danh mục xét nghiệm — nhóm A, nhưng có một nửa không có chỗ để lưu
+
+`SaveLabTestAsync` là `return new LabTestCatalogDto { Code = dto.Code, Name = dto.Name };`. Kỹ thuật
+viên khai một xét nghiệm mới, phần mềm báo xong, mở lại thì không có.
+
+Đường đọc `GetLabTestCatalogAsync` lấy từ `Services` với `ServiceType = 2` nên bảng đã có sẵn — lại
+là nhóm A. Nhưng `SaveLabTestDto` mang theo `ResultType`, `SampleType`, `TubeType`, `DecimalPlaces`,
+`ResultOptions`, `EnglishName` mà `Services` **không có ô nào để giữ**. Ghi mà im lặng bỏ mất mấy
+trường ấy thì vẫn là cùng một lỗi, chỉ nhỏ hơn — và chúng không phải trường trang trí:
+`ResultType`/`DecimalPlaces` quyết định kết quả nhập là số hay chữ và làm tròn mấy chữ số;
+`SampleType`/`TubeType` là loại bệnh phẩm và loại ống lấy máu **in trên nhãn dán ống**. Migration 182
+thêm cột.
+
+### Một lỗi lộ ra vì đo, không vì đọc
+
+Sau khi cài xong, ca lưu xét nghiệm vẫn trả **HTTP 400** — cùng mã lỗi như lúc chưa vá. Nếu chỉ nhìn
+số 400 rồi kết luận "gác của tôi chặn" thì đã bỏ qua. Đọc thân phản hồi:
+
+```json
+{"error":"VALIDATION_FAILED","message":"The EnglishName field is required.","field":"EnglishName"}
+```
+
+`SaveLabTestDto` khai `public string EnglishName` — không có dấu `?`. Với nullable reference types
+bật, ASP.NET coi mọi trường như thế là **bắt buộc**. Nghĩa là kỹ thuật viên không lưu nổi một xét
+nghiệm nếu không điền cả **tên tiếng Anh** lẫn **danh sách lựa chọn kết quả** — hai thứ phần lớn xét
+nghiệm không có.
+
+Đó là một lỗi thật, và nó **có từ trước bản vá**: hàm cũ không ghi gì nên chẳng ai phát hiện, vì màn
+hình có bấm được hay không cũng ra cùng một kết quả. Nó chỉ lộ ra ở đúng thời điểm cửa ghi bắt đầu
+hoạt động. Sửa DTO cho các trường tuỳ chọn thành `string?`; mã và tên vẫn bắt buộc, nhưng gác trong
+service kèm câu tiếng Việt thay vì thông báo khung tiếng Anh.
+
+Đây là lần thứ hai trong đợt một bản vá làm lộ ra lỗi có sẵn ở chỗ nó vừa chạm tới (lần trước:
+§40-41, ủy thác bán thuốc làm lộ `CashierId = Guid.Empty` khiến hàm luôn trả null). Kỷ luật rút ra:
+**đọc thân phản hồi, đừng đọc mã trạng thái** — 400 trước và 400 sau bản vá có thể là hai lỗi khác
+hẳn nhau.
+
+### Sau khi vá
+
+`t3_dept_deposit_lab_catalog.py`: **1/7 → 7/7**, đối chứng ngược vẫn đạt.
+Hồi quy toàn bộ **41 bộ đo, 277/277**. `dotnet test` **225 passed**. Build 0 lỗi.
+
+Đến đây **nhóm B đã hết**, trừ hai mục cố ý hoãn vì cần người dùng chốt nghiệp vụ:
+`SaveScheduleAsync` (lịch phòng chụp — §44) và `UpdateInsurancePricesAsync` (cập nhật giá theo đợt —
+§46, nay báo lỗi rõ thay vì báo thành công suông).

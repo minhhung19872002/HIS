@@ -1,15 +1,15 @@
 {
- "ranAt": "2026-09-05T02:04:58",
+ "ranAt": "2026-09-05T02:17:37",
  "cases": [
   {
    "case": "link chia sẻ ĐƯỢC lưu lại",
    "pass": true,
-   "detail": "HTTP 200 · mã chia sẻ='D4CE388F3F7CBDA17FCA4C16F5095DED' · số dòng lưu được=1"
+   "detail": "HTTP 200 · mã chia sẻ='C2E7B2D61A00D1E18144F737EAFC5FEC' · số dòng lưu được=1"
   },
   {
    "case": "mã truy cập KHÔNG lưu dạng rõ",
    "pass": true,
-   "detail": "tìm mã '032959' trong cột băm: không thấy"
+   "detail": "tìm mã '472027' trong cột băm: không thấy"
   },
   {
    "case": "SAI mã truy cập bị từ chối",

@@ -1,0 +1,40 @@
+{
+ "ranAt": "2026-09-05T02:16:24",
+ "cases": [
+  {
+   "case": "phiếu nộp ĐƯỢC ghi lại",
+   "pass": true,
+   "detail": "HTTP 200 · mã biên lai='TUK20260905-0001' · số dòng ghi được=1"
+  },
+  {
+   "case": "hai phiếu tạm ứng ĐƯỢC đánh dấu đã nộp",
+   "pass": true,
+   "detail": "số phiếu có HandoverBatchId=2 (mong 2)"
+  },
+  {
+   "case": "KHÔNG mượn Deposits.Status làm dấu đã nộp",
+   "pass": true,
+   "detail": "có ghi dấu riêng=True · Status min/max='2/2' (phải giữ 2/2)"
+  },
+  {
+   "case": "nộp trùng phiếu đã nộp bị CHẶN",
+   "pass": true,
+   "detail": "HTTP 400 · {\"error\":\"INVALID_STATE\",\"message\":\"Có 2 phiếu đã nộp về quỹ trước đó: T3TU"
+  },
+  {
+   "case": "ĐỐI CHỨNG: nộp lô phiếu CHƯA nộp vẫn chạy, tổng tiền đúng",
+   "pass": true,
+   "detail": "HTTP 200 · tổng tiền=200000.0 (mong 200000)"
+  },
+  {
+   "case": "xét nghiệm ĐƯỢC lưu xuống Services",
+   "pass": true,
+   "detail": "HTTP 200 · số dòng ghi được=1"
+  },
+  {
+   "case": "thông số kỹ thuật KHÔNG bị bỏ mất khi lưu",
+   "pass": true,
+   "detail": "ResultType|SampleType|TubeType|DecimalPlaces = 'Numeric|Mau toan phan|Ong nap xanh|2'"
+  }
+ ]
+}
