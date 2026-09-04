@@ -235,3 +235,44 @@ chứ không phải controller trả về. Ca `warehouse/stock-receipts` ban đ�
 Phản ứng của **giao diện** trước lỗi đường ghi (mới đo hình dạng phản hồi ở tầng API, chưa đo màn
 hình hiện gì khi bấm Lưu mà API trả 400). Kiểm `envelope` một lớp bằng vitest cho `apiClient` (yêu
 cầu "FE không double-unwrap" của #219) cũng chưa làm — repo hiện chưa cấu hình vitest. Hạ mặc định `timeout` xuống ~20s cho đường đọc sau khi đã gán timeout riêng cho các lời gọi nặng.
+
+### Bấm LƯU mà hỏng thì màn hình nói gì
+
+Phần trên mới đo hình dạng lỗi ở tầng API. Đây là nửa còn lại của #219: người dùng đã gõ xong biểu
+mẫu, bấm nút, và máy chủ từ chối. Đây là lúc nguy hiểm nhất — lỗi bị nuốt thì người ta tưởng đã lưu
+xong rồi bỏ đi.
+
+Đo hai **mặt ghi khác hẳn nhau về cấu trúc**, cố ý không gộp làm một
+(`frontend/e2e/t4-write-error-feedback.spec.ts`):
+
+**(a) Wizard tiếp đón** — nằm trong khung ứng dụng, dùng chung `apiClient` và toast của khung. Lái
+wizard tới bước cuối rồi chặn `POST /api/reception/register/fee` ở tầng mạng (nên không sinh dữ liệu
+thật), trả lần lượt 400 · 409 · 500 với ba câu **khác nhau** để biết chắc màn hình hiện câu của máy
+chủ chứ không phải một câu chung. Cả ba: câu hiện đúng · biểu mẫu vẫn mở · nút không kẹt · không lỗi
+JavaScript. **3/3 đạt, không phải sửa gì.**
+
+**(b) Màn hình đăng nhập** — ở NGOÀI khung, `AuthContext.login` tự bắt lỗi lấy. Chỗ này có lỗi thật.
+
+`AuthContext.login` bắt hết mọi ngoại lệ rồi `return false`, và `Login.tsx` dịch `false` thành
+**"Tên đăng nhập hoặc mật khẩu không đúng!"**. Nghĩa là bị **chặn tần suất (429)** hay **máy chủ
+hỏng (5xx / mất mạng)** đều bị báo thành sai mật khẩu. Người dùng nghe sai nguyên nhân, gõ lại, hỏng
+tiếp — và sau 5 lần thì **bị khóa tài khoản** vì một sự cố không dính gì tới mật khẩu của họ. Khối
+`catch` trong `Login.tsx` là mã chết trên đường này, vì `login()` đã nuốt hết rồi.
+
+Việc này đáng chú ý hơn vì chính đợt sửa hôm nay đã đổi bộ giới hạn đăng nhập từ 10 lượt/phút cho
+**cả bệnh viện** sang 60 lượt/phút **mỗi IP** — tức 429 nay là trạng thái người dùng thật có thể
+chạm tới (một quầy tiếp đón đông sau NAT chung).
+
+**Sửa:** `LoginResult` tách `false` (401 — máy chủ từ chối thông tin đăng nhập) khỏi `'throttled'`
+(429) và `'unavailable'` (5xx · mất mạng · thân trả về lạ); `Login.tsx` nói đúng nguyên nhân cho
+từng trường hợp. Đo lại **2/2**, và điều kiểm chặt nhất là *không được đổ lỗi cho mật khẩu*.
+
+**Cố ý KHÔNG sửa:** câu chữ cho trường hợp sai mật khẩu thật. Máy chủ **cố tình** trả cùng một câu
+chung cho cả tài khoản đang bị khóa (`AuthService.LoginAsync` trả `null` ở nhánh khóa) để không lộ
+tài khoản nào có thật hay đang bị khóa. Bắt giao diện lặp lại câu của máy chủ ở màn hình chưa đăng
+nhập là đi ngược chủ ý đó. Lượt đo đầu của em kỳ vọng sai chính chỗ này — đã sửa lại kỳ vọng sau khi
+đọc `AuthService`, chứ không phải sửa sản phẩm cho vừa bài đo.
+
+**Một bẫy nữa của bộ đo:** ba ca đầu ban đầu gom kết quả vào một mảng chung rồi ghi ở `afterAll`.
+Playwright chạy song song nhiều tiến trình nên tệp bằng chứng chỉ còn **1 trong 3 ca**. Nay mỗi ca
+ghi một tệp riêng dưới `evidence/cross/t4/write-errors/`.

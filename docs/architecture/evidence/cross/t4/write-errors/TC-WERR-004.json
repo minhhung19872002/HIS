@@ -1,0 +1,12 @@
+{
+ "ranAt": "2026-09-04T04:54:40.814Z",
+ "tc": "TC-WERR-004",
+ "code": 429,
+ "surface": "màn hình đăng nhập (ngoài khung ứng dụng)",
+ "interceptedUrl": "http://localhost:5106/api/auth/login",
+ "saidRightCause": true,
+ "blamedPassword": false,
+ "stayedOnLogin": true,
+ "jsErrors": 0,
+ "shot": "TC-WERR-004_login_429.png"
+}

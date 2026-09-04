@@ -16,7 +16,16 @@ interface OtpPending {
   expiresAt: string;
 }
 
-type LoginResult = 'success' | 'otp' | false;
+/**
+ * `false` = máy chủ TỪ CHỐI thông tin đăng nhập (401). `'throttled'` = bị chặn vì thử quá nhiều
+ * lần (429). `'unavailable'` = không hỏi được máy chủ (mất mạng, 5xx, thân trả về lạ).
+ *
+ * T4/#219 (2026-09-04): trước đây cả ba đều gộp thành `false`, nên `Login.tsx` báo "Tên đăng nhập
+ * hoặc mật khẩu không đúng!" cho cả lượt bị chặn tần suất lẫn lượt máy chủ hỏng. Người dùng nghe
+ * sai nguyên nhân, gõ lại mật khẩu, hỏng tiếp, và cuối cùng bị KHÓA tài khoản (ngưỡng 5 lần) vì
+ * một sự cố không liên quan gì tới mật khẩu của họ.
+ */
+type LoginResult = 'success' | 'otp' | 'throttled' | 'unavailable' | false;
 
 // Helper log auth error với HTTP status + message (debug only — không expose lên UI;
 // Login.tsx vẫn render generic message khi return false giữ contract).
@@ -133,10 +142,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           return 'success';
         }
       }
-      return false;
+      // 2xx nhưng thân trả về không có token lẫn cờ OTP — không phải "sai mật khẩu",
+      // mà là không hiểu được câu trả lời.
+      return 'unavailable';
     } catch (err) {
       logAuthError('login', err);
-      return false;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const status = (err as any)?.response?.status as number | undefined;
+      if (status === 429) return 'throttled';
+      // Chỉ 401 mới thật sự là "thông tin đăng nhập không đúng". Máy chủ CỐ Ý cũng trả 401 cho
+      // tài khoản đang bị khóa (tránh lộ việc tài khoản có tồn tại / đang bị khóa) — nên câu chữ
+      // ở màn hình đăng nhập giữ nguyên chung chung là đúng, không sửa.
+      if (status === 401) return false;
+      return 'unavailable';
     }
   };
 

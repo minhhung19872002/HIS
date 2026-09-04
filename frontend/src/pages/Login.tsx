@@ -54,6 +54,12 @@ const Login: React.FC = () => {
         navigate('/');
       } else if (result === 'otp') {
         // OTP step will be shown via otpPending state
+      } else if (result === 'throttled') {
+        // T4/#219: bị chặn vì thử quá nhiều lần. Trước đây báo "sai mật khẩu" — người dùng gõ lại,
+        // hỏng tiếp, rồi bị khóa tài khoản vì một nguyên nhân không dính gì tới mật khẩu.
+        message.warning('Bạn đã thử đăng nhập quá nhiều lần. Vui lòng chờ một phút rồi thử lại.', 6);
+      } else if (result === 'unavailable') {
+        message.error('Không kết nối được máy chủ. Vui lòng kiểm tra mạng rồi thử lại.', 6);
       } else {
         message.error('Tên đăng nhập hoặc mật khẩu không đúng!');
       }

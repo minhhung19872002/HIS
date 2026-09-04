@@ -1,0 +1,12 @@
+{
+ "ranAt": "2026-09-04T04:54:43.143Z",
+ "tc": "TC-WERR-003",
+ "code": 500,
+ "surface": "wizard tiếp đón (trong khung ứng dụng)",
+ "interceptedUrl": "http://localhost:5106/api/reception/register/fee",
+ "messageShown": true,
+ "formStillOpen": true,
+ "stuckLoading": false,
+ "jsErrors": 0,
+ "shot": "TC-WERR-003_reception_write_error.png"
+}

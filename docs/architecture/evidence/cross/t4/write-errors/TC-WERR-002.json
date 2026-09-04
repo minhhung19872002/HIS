@@ -1,0 +1,12 @@
+{
+ "ranAt": "2026-09-04T04:54:42.957Z",
+ "tc": "TC-WERR-002",
+ "code": 409,
+ "surface": "wizard tiếp đón (trong khung ứng dụng)",
+ "interceptedUrl": "http://localhost:5106/api/reception/register/fee",
+ "messageShown": true,
+ "formStillOpen": true,
+ "stuckLoading": false,
+ "jsErrors": 0,
+ "shot": "TC-WERR-002_reception_write_conflict.png"
+}

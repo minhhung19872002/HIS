@@ -1,0 +1,12 @@
+{
+ "ranAt": "2026-09-04T04:54:40.901Z",
+ "tc": "TC-WERR-005",
+ "code": 503,
+ "surface": "màn hình đăng nhập (ngoài khung ứng dụng)",
+ "interceptedUrl": "http://localhost:5106/api/auth/login",
+ "saidRightCause": true,
+ "blamedPassword": false,
+ "stayedOnLogin": true,
+ "jsErrors": 0,
+ "shot": "TC-WERR-005_login_503.png"
+}
