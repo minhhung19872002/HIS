@@ -81,6 +81,16 @@ public partial class WarehouseCompleteService {
         // NangCap26 V.33: kho đang khóa → không phát thuốc ngoại trú.
         await EnsureWarehouseNotLockedAsync(warehouseId);
 
+        // #218/T3 (2026-09-04): gọi lần thứ hai trước đây chạy lại TOÀN BỘ vòng FEFO và trừ kho
+        // thêm một lần nữa — đo được tổng tồn 166 → 160 ở lượt phát thứ hai của cùng một đơn.
+        // Hàm anh em bên NỘI TRÚ đã lọc `d.Status == 0` từ lâu; đường ngoại trú thì không.
+        // `IsDispensed` có được đặt bên dưới nhưng không chỗ nào đọc nó làm điều kiện — nó chỉ dùng
+        // để lọc danh sách chờ phát trên màn hình, tức giấu đơn khỏi worklist chứ không chặn một
+        // lời gọi thẳng theo id.
+        if (!prescription.Details.Any(d => !d.IsDeleted && d.Status == 0))
+            throw new InvalidOperationException(
+                "Đơn thuốc này đã phát hết, không phát lại được.");
+
         await using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
@@ -105,7 +115,9 @@ public partial class WarehouseCompleteService {
         decimal totalAmount = 0;
         var issueItems = new List<StockIssueItemDto>();
 
-        foreach (var detail in prescription.Details)
+        // #218/T3: chỉ những dòng CHƯA phát, giống hệt hàm anh em bên nội trú. Thiếu mệnh đề này là
+        // gọi lại sẽ phát lại cả những dòng đã phát rồi.
+        foreach (var detail in prescription.Details.Where(d => d.Status == 0))
         {
             // FEFO gộp NHIỀU lô (audit luồng nghiệp vụ 2026-06-06 #12): chọn các lô còn hạn theo
             // hạn dùng tăng dần đến khi đủ số lượng. Tổng tồn không đủ → THROW (transaction rollback),

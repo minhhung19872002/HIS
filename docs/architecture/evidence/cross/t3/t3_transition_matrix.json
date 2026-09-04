@@ -1,5 +1,5 @@
 {
- "ranAt": "2026-09-04T12:19:52",
+ "ranAt": "2026-09-04T13:06:40",
  "entity": "Prescription",
  "legalTransitions": {
   "0": [
@@ -34,7 +34,7 @@
    "statusAfter": 1,
    "changed": true,
    "verdict": "OK",
-   "body": "{\"success\":true,\"data\":{\"id\":\"3bae2ed9-9fe0-43a5-9470-e3b6c22a5090\",\"status\":\"accepted\"},\"message\":null,\"errors\":null,\"m"
+   "body": "{\"success\":true,\"data\":{\"id\":\"1f5e1575-0567-4d0e-beb3-0dd652f5aa39\",\"status\":\"accepted\"},\"message\":null,\"errors\":null,\"m"
   },
   {
    "from": 0,
@@ -82,11 +82,11 @@
    "to": 2,
    "toName": "Đã cấp phát",
    "legal": true,
-   "http": 200,
-   "statusAfter": 2,
-   "changed": true,
-   "verdict": "OK",
-   "body": "{\"success\":true,\"data\":true,\"message\":null,\"errors\":null,\"meta\":null}"
+   "http": 400,
+   "statusAfter": 1,
+   "changed": false,
+   "verdict": "CHẶN-NHẦM",
+   "body": "{\"error\":\"VALIDATION_FAILED\",\"message\":\"Đơn thuốc này đã phát hết, không phát lại được.\"}"
   },
   {
    "from": 2,
@@ -212,11 +212,11 @@
    "to": 2,
    "toName": "Đã cấp phát",
    "legal": true,
-   "http": 200,
-   "statusAfter": 2,
-   "changed": true,
-   "verdict": "OK",
-   "body": "{\"success\":true,\"data\":true,\"message\":null,\"errors\":null,\"meta\":null}"
+   "http": 400,
+   "statusAfter": 6,
+   "changed": false,
+   "verdict": "CHẶN-NHẦM",
+   "body": "{\"error\":\"VALIDATION_FAILED\",\"message\":\"Đơn thuốc này đã phát hết, không phát lại được.\"}"
   }
  ]
 }

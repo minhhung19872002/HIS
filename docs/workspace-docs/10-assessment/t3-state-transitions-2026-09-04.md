@@ -511,3 +511,46 @@ riêng có bài đo đi kèm.
 Ngoài ra `BloodBagAssignments`, `BloodIssueReceipts`, `BloodIssueItems` **không có script tạo bảng
 nào trong repo** — chúng tồn tại trên máy này và trên prod do tạo tay. Một môi trường dựng mới sẽ
 hỏng ngay ở các đường này. Ghi lại để xử lý bằng một migration.
+
+## 15. Xuất kho ngoại trú — phát một đơn hai lần, trừ kho hai lần
+
+Lần thứ **năm** trong đợt này gặp cùng một hình dạng. Hai hàm phát thuốc gần như song sinh, lệch nhau
+đúng một mệnh đề:
+
+```csharp
+// nội trú  — có lọc
+foreach (var detail in prescription.Details.Where(d => d.Status == 0))
+// ngoại trú — không lọc
+foreach (var detail in prescription.Details)
+```
+
+Bên nội trú bỏ qua những dòng đã phát nên gọi lại là vô hại; bên ngoại trú chạy lại toàn bộ vòng FEFO.
+`Prescriptions.IsDispensed` có được **đặt** nhưng không chỗ nào **đọc** nó làm điều kiện — nó chỉ dùng
+để lọc danh sách chờ phát trên màn hình, tức giấu đơn khỏi worklist chứ không chặn một lời gọi thẳng
+theo id.
+
+Đo (`evidence/cross/t3/t3_stockout_double_dispense.py`), tổng tồn của thuốc trong kho:
+
+| Cửa vào | Lần 1 | Lần 2 | Kết luận |
+|---|---|---|---|
+| `/api/warehouse/issues/dispense-outpatient/{id}` | 172 → 166 | **166 → 160** | trừ kho hai lần |
+| `/api/pharmacy/prescriptions/{id}/dispense` | 160 → 154 | 154 → 154 | đã chặn sẵn |
+
+Cửa dược chặn đúng — đó là đối chứng dương cho thấy luật này đã tồn tại ở một cửa.
+
+**Sửa:** thêm `.Where(d => d.Status == 0)` cho khớp hàm anh em, và chặn ngay từ đầu nếu không còn
+dòng nào chưa phát — nếu chỉ lọc vòng lặp thì lần gọi thứ hai sẽ tạo một phiếu xuất **rỗng** rồi trả
+200, tức lại một kiểu thành công giả. Đo lại **5/5**.
+
+Chú thích ngay tại chỗ còn ghi một lần lệch **ngược lại** trước đây (nội trú thiếu bộ lọc lô khoá mà
+ngoại trú đã có, sửa ở NangCap26 V.31). Cặp hàm này đã trôi khỏi nhau theo cả hai chiều, ở hai thời
+điểm khác nhau — đây là loại chỗ nên có một bài đo chạy thường xuyên chứ không chỉ sửa một lần.
+
+### Bẫy trong chính bài đo — lặp lại đúng cái bẫy đã ghi ở §11
+
+Lượt đầu đo tồn kho theo **riêng lô vừa nạp**, thấy tồn không đổi, và suýt kết luận "hệ thống đã
+chặn". Nhưng FEFO chọn lô có hạn gần nhất, thường không phải lô mình vừa nạp. Đúng cái bẫy đã gặp và
+đã ghi lại ở bài đo luồng ngoại trú — vậy mà vẫn dẫm lại. Phải đo **tổng tồn của thuốc trong kho**.
+
+Ghi lại lần hai vì rõ ràng ghi một lần là chưa đủ: khi đo tác động của một thao tác lên kho, đơn vị
+đo phải là **toàn bộ phần dữ liệu thao tác đó có thể chạm tới**, không phải phần mình vừa dựng.

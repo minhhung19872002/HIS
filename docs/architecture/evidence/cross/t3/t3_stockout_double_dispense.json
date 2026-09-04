@@ -1,0 +1,40 @@
+{
+ "ranAt": "2026-09-04T13:05:36",
+ "cases": [
+  {
+   "case": "phát lần đầu trừ đúng số đã kê",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · tổng tồn 148.0 → 142.0 (kê 6)"
+  },
+  {
+   "case": "phát LẦN HAI không được trừ kho nữa",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · tồn sau lần 1=142.0 · sau lần 2=142.0 · Đơn thuốc này đã phát hết, không phát lại được."
+  },
+  {
+   "case": "phát lần đầu qua cửa dược",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · tổng tồn 142.0 → 136.0 (kê 6)"
+  },
+  {
+   "case": "phát LẦN HAI qua cửa dược",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 200 · tồn sau lần 1=136.0 · sau lần 2=136.0 · {\"success\":true,\"data\":true,\"message\":null,\"e"
+  },
+  {
+   "case": "đơn thuốc khác vẫn phát được bình thường",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · tồn trước=136.0 sau=130.0 (kỳ vọng giảm 6)"
+  }
+ ]
+}
