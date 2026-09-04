@@ -78,11 +78,26 @@ Ghi lại để lần sau không mất công đuổi nhầm:
 - Bước cấp phát dừng ở "không đủ tồn kho" là **đúng**; muốn đo tiếp phải nạp tồn cho đúng viên thuốc
   vừa kê vào kho lẻ ngoại trú.
 
+## 1b. T2 #217 — luồng NỘI TRÚ
+
+`t2_inpatient_happy_path.py` — **10/10 bước đạt**: tiếp đón → nhập viện từ phòng khám
+(`Admissions.Status = 0`) → xếp giường (`BedAssignments` giữ 1) → kê đơn nội trú → cấp phát →
+**xuất viện** (`Status = 1`) → **giường được trả** (`ReleasedAt` có giá trị) → **hủy xuất viện đưa
+về điều trị** (`Status` về 0).
+
+Lượt chạy đầu dừng ở bước xuất viện với **400 `INVALID_STATE`: "Không thể xuất viện: Còn 1 đơn thuốc
+chưa cấp"**. Đó là **guard đúng và đang hoạt động** — đáng ghi lại, vì nó tương phản với các guard
+còn thiếu ở §4b và ở #218: luồng nội trú có kiểm, đường hoàn tiền thì không. Lỗi thuộc về bài test
+(kê đơn rồi bỏ đó); sửa bằng cách nạp tồn kho và cấp phát cho xong rồi mới xuất viện.
+
+Một chi tiết nữa của bài test: `cancel-discharge` nhận `[FromBody] string`, gửi object `{}` sẽ bị
+model-binder từ chối 400 — không phải lỗi sản phẩm.
+
 ### Chưa phủ
 
 Kết quả xét nghiệm/CĐHA thật (không có endpoint nhập tay — kết quả về qua máy phân tích LIS, phải
-đi đường `LISComplete/mock-receive` rồi `inbox/{id}/transfer`), luồng nội trú (nhập viện → điều trị →
-xuất viện), ký số, gửi hồ sơ BHXH.
+đi đường `LISComplete/mock-receive` rồi `inbox/{id}/transfer`), ký số, gửi hồ sơ BHXH, và luồng
+chuyển khoa / chuyển viện.
 
 ## 2. T4 #219 — giao diện trước các mã lỗi API
 

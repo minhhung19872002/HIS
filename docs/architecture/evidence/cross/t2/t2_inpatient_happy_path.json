@@ -1,0 +1,55 @@
+{
+ "ranAt": "2026-09-04T10:46:15",
+ "steps": [
+  {
+   "step": "1. Tạo bệnh nhân",
+   "pass": true,
+   "detail": "HTTP 201 · mã=BN26000012"
+  },
+  {
+   "step": "2. Tiếp đón tạo hồ sơ",
+   "pass": true,
+   "detail": "HTTP 200 · hồ sơ 3E3A96A3-DF46-4485-93CC-90635ACBEEF1"
+  },
+  {
+   "step": "3. Nhập viện từ phòng khám",
+   "pass": true,
+   "detail": "HTTP 200 · admissionId=6B67F68F-35F8-4EFF-AE31-865B534073A7 · {\"success\":true,\"data\":{\"id\":\"6b67f68f-35f8-4eff-ae31-865b534073a7\",\"admissionCode\":null,\""
+  },
+  {
+   "step": "4. Lượt nội trú ở trạng thái điều trị",
+   "pass": true,
+   "detail": "Admissions.Status=0 (0 = đang điều trị)"
+  },
+  {
+   "step": "5. Xếp giường",
+   "pass": true,
+   "detail": "HTTP 200 · BedAssignments đang giữ=1 · {\"success\":true,\"data\":{\"id\":\"da1ef187-d558-4bb3-b789-8d762fb7570e\",\"admissionId"
+  },
+  {
+   "step": "6. Kê đơn nội trú",
+   "pass": true,
+   "detail": "HTTP 200 · Prescriptions=1 · {\"success\":true,\"data\":{\"id\":\"8ff82404-eb65-4207-88c8-98ce034776ab\",\"admissionId"
+  },
+  {
+   "step": "7. Cấp phát đơn nội trú",
+   "pass": true,
+   "detail": "HTTP 200 · IsDispensed=1"
+  },
+  {
+   "step": "8. Xuất viện",
+   "pass": true,
+   "detail": "HTTP 200 · Admissions.Status=1 (1 = đã xuất viện) · {\"success\":true,\"data\":{\"id\":\"b1ff608c-eee2-4b61-854e-a47cdfb56346\",\"admissionId"
+  },
+  {
+   "step": "9. Xuất viện trả giường",
+   "pass": true,
+   "detail": "BedAssignments đã trả=1 (kỳ vọng 1)"
+  },
+  {
+   "step": "10. Hủy xuất viện đưa về điều trị",
+   "pass": true,
+   "detail": "HTTP 200 · Admissions.Status=0 (kỳ vọng 0) · {\"success\":true,\"data\":true,\"message\":null,\"errors\":null,\"meta\":null}"
+  }
+ ]
+}

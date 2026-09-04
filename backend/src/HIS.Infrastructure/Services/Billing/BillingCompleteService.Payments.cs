@@ -429,7 +429,8 @@ public partial class BillingCompleteService {
     {
         var receipt = await _context.Receipts.FindAsync(paymentId);
         if (receipt == null)
-            throw new InvalidOperationException("Khong tim thay phieu thu");
+            // Không tìm thấy là 404, không phải lỗi quy tắc nghiệp vụ (400).
+            throw new KeyNotFoundException("Khong tim thay phieu thu");
         if (receipt.Status == 2)
             throw new InvalidOperationException("Phieu thu da huy truoc do");
 
