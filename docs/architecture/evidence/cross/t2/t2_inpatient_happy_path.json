@@ -1,20 +1,20 @@
 {
- "ranAt": "2026-09-04T13:06:08",
+ "ranAt": "2026-09-04T16:57:36",
  "steps": [
   {
    "step": "1. Tạo bệnh nhân",
    "pass": true,
-   "detail": "HTTP 201 · mã=BN26000080"
+   "detail": "HTTP 201 · mã=BN26000092"
   },
   {
    "step": "2. Tiếp đón tạo hồ sơ",
    "pass": true,
-   "detail": "HTTP 200 · hồ sơ 2EAD8B82-36C7-41C6-A67E-566E810B73D0"
+   "detail": "HTTP 200 · hồ sơ 5CBE4D88-55F7-4402-8AE1-311DC9645D76"
   },
   {
    "step": "3. Nhập viện từ phòng khám",
    "pass": true,
-   "detail": "HTTP 200 · admissionId=1D3CD261-CF27-43B3-8E4D-A968ABA1E071 · {\"success\":true,\"data\":{\"id\":\"1d3cd261-cf27-43b3-8e4d-a968aba1e071\",\"admissionCode\":null,\""
+   "detail": "HTTP 200 · admissionId=1ACB8140-182C-4A1F-8C22-155077B005B2 · {\"success\":true,\"data\":{\"id\":\"1acb8140-182c-4a1f-8c22-155077b005b2\",\"admissionCode\":null,\""
   },
   {
    "step": "4. Lượt nội trú ở trạng thái điều trị",
@@ -24,12 +24,12 @@
   {
    "step": "5. Xếp giường",
    "pass": true,
-   "detail": "HTTP 200 · BedAssignments đang giữ=1 · {\"success\":true,\"data\":{\"id\":\"52a10a16-a823-442a-b12d-c88e7711d23c\",\"admissionId"
+   "detail": "HTTP 200 · BedAssignments đang giữ=1 · {\"success\":true,\"data\":{\"id\":\"525d18df-9895-463a-b252-03186c8bd0de\",\"admissionId"
   },
   {
    "step": "6. Kê đơn nội trú",
    "pass": true,
-   "detail": "HTTP 200 · Prescriptions=1 · {\"success\":true,\"data\":{\"id\":\"60a9bb02-d3c4-4081-98ed-402c40cd920b\",\"admissionId"
+   "detail": "HTTP 200 · Prescriptions=1 · {\"success\":true,\"data\":{\"id\":\"8854a8c0-d230-40f4-af51-9705fca83543\",\"admissionId"
   },
   {
    "step": "7. Cấp phát đơn nội trú",
@@ -39,7 +39,7 @@
   {
    "step": "8. Xuất viện",
    "pass": true,
-   "detail": "HTTP 200 · Admissions.Status=1 (1 = đã xuất viện) · {\"success\":true,\"data\":{\"id\":\"d0c52a1c-9397-4a05-a418-43ab7bc4fad8\",\"admissionId"
+   "detail": "HTTP 200 · Admissions.Status=1 (1 = đã xuất viện) · {\"success\":true,\"data\":{\"id\":\"f2897912-ef7f-49c9-926f-8d947ef2221b\",\"admissionId"
   },
   {
    "step": "9. Xuất viện trả giường",
