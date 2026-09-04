@@ -764,3 +764,58 @@ Cả bốn ca trên đều có dạng *hệ thống phải từ chối*, nên m�
 âm**: callback đúng mã đơn, đúng số tiền, cho cả ZaloPay và MoMo, bắt buộc phải được ghi nhận **và**
 phải lập phiếu thu đúng 300.000đ. `docs/architecture/evidence/cross/t3/t3_payment_gateway.py`:
 **6/6**, trong đó ZaloPay hợp lệ ghi phiếu thu đúng 300.000đ.
+
+---
+
+## 19. Lịch hẹn khám — luật chỉ tồn tại trong trình duyệt
+
+Module đặt lịch có năm trạng thái: 0 Chờ xác nhận · 1 Đã xác nhận · 2 Đã đến khám · 3 Không đến ·
+4 Đã hủy. Phần lớn được canh cẩn thận:
+
+* `CancelBookingAsync` (hủy tại quầy) chặn hủy lịch đã check-in và lịch đã kết thúc;
+* `CancelAppointmentAsync` (bệnh nhân tự hủy) xác thực số điện thoại rồi chặn `Status >= 2`;
+* `UpdateBookingAsync` (đổi lịch) chặn `Status >= 2`, chặn ngày quá khứ, chặn trùng lịch trong ngày;
+* `CheckinFromBookingAsync` (tiếp đón lập hồ sơ) chặn `Status >= 2` và chặn hồ sơ khám trùng.
+
+Ba nút còn lại — **xác nhận · BN đã đến · vắng mặt** — là ba dòng gọi chung một hàm
+`UpdateBookingStatus(code, newStatus, name)`. Toàn bộ phần kiểm của hàm đó:
+
+```csharp
+appointment.Status = newStatus;   // không có một câu if nào phía trên
+```
+
+Đo trước khi sửa (`t3_appointment_transitions.py`): **cả sáu bước chuyển sai đều trả HTTP 200**.
+
+| Lịch đang ở | Bấm | Sau khi bấm |
+|---|---|---|
+| Đã hủy | Xác nhận | **Đã xác nhận** — lịch đã hủy sống lại |
+| Đã đến khám | Xác nhận | Đã xác nhận |
+| Không đến | Xác nhận | Đã xác nhận |
+| Đã đến khám | Vắng mặt | **Không đến** — xoá dấu vết bệnh nhân đã tới |
+| Đã hủy | BN đã đến | Đã đến khám |
+| Không đến | BN đã đến | Đã đến khám |
+
+Hàng thứ tư đáng ngại nhất: `GetBookingStatsAsync` tính tỉ lệ vắng khám bằng
+`noShow / (attended + noShow)`, lấy đúng hai con số vừa bị viết đè. Một lần bấm nhầm là báo cáo vắng
+khám lệch, mà không để lại dấu gì cho người đọc báo cáo biết.
+
+### Chỗ đáng chú ý: giao diện đã đúng sẵn
+
+Kiểm `BookingManagement.tsx` thì thấy cả ba nút **đã ẩn đúng theo luật** — `confirm` chỉ hiện ở
+trạng thái 0, `checkin` và `noshow` chỉ hiện ở 0 hoặc 1. Nghĩa là luật có thật, được viết ra đầy đủ,
+nhưng **chỉ tồn tại trong trình duyệt**. Mọi đường gọi thẳng API — client khác, script, một tab để
+lâu rồi bấm lại, hay một yêu cầu dựng tay — đều đi qua không vướng gì.
+
+Đây là biến thể sắc hơn của cái hình dạng đã gặp sáu lần trong đợt này: không phải *một luật thi
+hành ở một cửa, bỏ trống ở cửa bên cạnh*, mà là **một luật thi hành ở lớp không thể thi hành được**.
+Giao diện ẩn nút là để đỡ cho người dùng, không phải để chặn; nó không nhìn thấy các đường vào khác.
+
+Vá: `AppointmentStatus.EnsureCanTransition(from, to)` trong `StatusConstants.cs`, gọi ngay đầu
+`UpdateBookingStatus` — một chỗ, ba nút cùng ăn. Ba trạng thái 2/3/4 là **kết thúc**, không quay
+ngược; muốn khám thì đặt lịch mới. Thông báo lỗi nói rõ lịch đang ở đâu và vì sao không đi tiếp
+được, và vì controller đã gắn `DomainExceptionFilter` nên nó ra 400 kèm `message`, đúng cái mà
+`runAction` trong giao diện đang đọc — nhân viên tiếp đón thấy lý do thật chứ không phải
+"Xác nhận thất bại". **Không sửa gì ở giao diện: nó vốn đã đúng.**
+
+Ba **đối chứng âm** giữ cho bản vá trung thực (0→1, 1→2, 1→3 bắt buộc vẫn thông), vì sáu ca trên đều
+dạng "phải chặn" nên một bản vá chặn sạch mọi nút cũng đạt 6/6. Kết quả: **9/9** (trước vá 3/9).

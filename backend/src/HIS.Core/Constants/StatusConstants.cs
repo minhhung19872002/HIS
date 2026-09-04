@@ -699,3 +699,65 @@ public static class TreatmentType
         _ => "Khác",
     };
 }
+
+/// <summary>
+/// Trạng thái LỊCH HẸN KHÁM (<c>Appointments.Status</c>).
+///
+/// <para>Module đặt lịch phần lớn được canh cẩn thận: hủy tại quầy, bệnh nhân tự hủy, đổi lịch và
+/// tiếp đón-lập-hồ-sơ đều chặn <c>Status &gt;= 2</c>. Nhưng ba nút xác nhận · đã đến khám · không
+/// đến lại dùng chung một hàm gán thẳng trạng thái, **không kiểm gì**. Đo được ở
+/// evidence/cross/t3/t3_appointment_transitions.json: cả sáu bước chuyển sai đều trả HTTP 200 —
+/// lịch đã hủy bấm "xác nhận" là sống lại, lịch đã đến khám bấm "không đến" là xoá dấu vết bệnh
+/// nhân đã tới (và <c>GetBookingStatsAsync</c> tính tỉ lệ vắng từ chính hai con số đó).</para>
+/// </summary>
+public static class AppointmentStatus
+{
+    public const int Pending = 0;    // Chờ xác nhận
+    public const int Confirmed = 1;  // Đã xác nhận
+    public const int Attended = 2;   // Đã đến khám
+    public const int NoShow = 3;     // Không đến
+    public const int Cancelled = 4;  // Đã hủy
+
+    public static string Label(int status) => status switch
+    {
+        Pending => "Chờ xác nhận",
+        Confirmed => "Đã xác nhận",
+        Attended => "Đã đến khám",
+        NoShow => "Không đến",
+        Cancelled => "Đã hủy",
+        _ => $"Không xác định ({status})",
+    };
+
+    /// <summary>
+    /// Ba trạng thái KẾT THÚC. Đã đến khám thì lượt khám có thật và thường đã kéo theo hồ sơ khám;
+    /// không đến và đã hủy đều là kết luận cuối của lịch. Từ đây không quay ngược được nữa —
+    /// muốn khám thì đặt lịch mới, chứ không hồi sinh lịch cũ.
+    /// </summary>
+    public static bool IsTerminal(int status)
+        => status == Attended || status == NoShow || status == Cancelled;
+
+    /// <summary>
+    /// Bước chuyển hợp lệ, dùng chung cho cả ba nút. Chỉ có đúng bốn đường:
+    /// chờ xác nhận → đã xác nhận · chờ xác nhận|đã xác nhận → đã đến khám · → không đến.
+    /// </summary>
+    public static bool CanTransition(int from, int to) => to switch
+    {
+        Confirmed => from == Pending,
+        Attended => from == Pending || from == Confirmed,
+        NoShow => from == Pending || from == Confirmed,
+        _ => false,
+    };
+
+    public static void EnsureCanTransition(int from, int to)
+    {
+        if (CanTransition(from, to)) return;
+
+        if (IsTerminal(from))
+            throw new InvalidOperationException(
+                $"Lịch hẹn đang ở trạng thái \"{Label(from)}\" — đây là trạng thái kết thúc, "
+                + $"không chuyển sang \"{Label(to)}\" được. Nếu bệnh nhân cần khám thì đặt lịch mới.");
+
+        throw new InvalidOperationException(
+            $"Không chuyển lịch hẹn từ \"{Label(from)}\" sang \"{Label(to)}\" được.");
+    }
+}

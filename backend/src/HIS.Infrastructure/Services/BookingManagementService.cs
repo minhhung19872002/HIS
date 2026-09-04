@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using HIS.Core.Constants;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
@@ -669,6 +670,12 @@ public class BookingManagementService : IBookingManagementService
             .Include(a => a.Room)
             .FirstOrDefaultAsync(a => !a.IsDeleted && a.AppointmentCode == appointmentCode)
             ?? throw new KeyNotFoundException("Không tìm thấy lịch hẹn");
+
+        // #218/T3: hàm này trước đây gán thẳng trạng thái mới, KHÔNG kiểm gì — trong khi hủy, đổi
+        // lịch và tiếp đón ngay cạnh đó đều chặn `Status >= 2`. Cả sáu bước chuyển sai đều trả
+        // HTTP 200 (evidence/cross/t3/t3_appointment_transitions.json): lịch đã hủy bấm "xác nhận"
+        // là sống lại, lịch đã đến khám bấm "không đến" là xoá dấu vết bệnh nhân đã tới.
+        AppointmentStatus.EnsureCanTransition(appointment.Status, newStatus);
 
         appointment.Status = newStatus;
         appointment.UpdatedAt = DateTime.UtcNow;
