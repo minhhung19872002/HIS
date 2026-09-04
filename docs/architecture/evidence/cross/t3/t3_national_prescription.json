@@ -1,0 +1,40 @@
+{
+ "ranAt": "2026-09-04T20:57:24",
+ "cases": [
+  {
+   "case": "gửi lên cổng KHÔNG tự duyệt đơn thuốc",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 200 · trạng thái cấp phát: Chờ duyệt → Chờ duyệt"
+  },
+  {
+   "case": "gửi lại KHÔNG kéo đơn đã cấp phát lùi lại",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 200 · trạng thái cấp phát: Đã cấp phát → Đã cấp phát"
+  },
+  {
+   "case": "hủy GỬI KHÔNG hủy luôn đơn thuốc",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 200 · trạng thái cấp phát: Đã duyệt → Đã duyệt"
+  },
+  {
+   "case": "gửi lên cổng ĐƯỢC ghi vào ô riêng của cổng",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · NationalPortalStatus|TransactionId|SubmittedAt = 1|CQLKCB-20260904205724-E43C3205|co"
+  },
+  {
+   "case": "hủy gửi ghi vào ô cổng, đơn thuốc vẫn nguyên",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · NationalPortalStatus|Status = '3|0' (mong đợi '3|0')"
+  }
+ ]
+}

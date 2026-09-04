@@ -1147,3 +1147,53 @@ Hai **đối chứng âm** (hủy một lượt đang khám dở, mở lại m�
 chỉ có nghĩa nếu đo được cả hai vế. `t3_examination_cancel_revert.py`: **7/7**.
 
 Tiện thể sửa chú thích `Examinations.Status` vốn bỏ sót giá trị 5 (Hủy) — cùng loại với §24.
+
+---
+
+## 28. Gửi đơn thuốc lên Cổng quốc gia — ghi trạng thái GỬI vào ô trạng thái CẤP PHÁT
+
+`Prescriptions.Status` là trạng thái **duyệt và cấp phát thuốc**, ghi rõ ngay trên entity:
+`0-Chờ duyệt · 1-Đã duyệt · 2-Đã cấp phát · 3-Hoàn trả · 4-Hủy`.
+
+`NationalPrescriptionService` dùng đúng ô đó để ghi trạng thái **gửi lên Cổng đơn thuốc quốc gia**.
+Đo được **0/3**:
+
+| Bấm | Đơn thuốc trước | Đơn thuốc sau |
+|---|---|---|
+| Gửi lên cổng | Chờ duyệt (0) | **Đã duyệt (1)** — bỏ qua hẳn bước duyệt của dược sĩ |
+| Gửi lại | Đã cấp phát (2) | **Đã duyệt (1)** — thuốc đã ra khỏi quầy mà hệ thống bảo chưa phát |
+| **Hủy gửi** | Đã duyệt (1) | **Hủy (4)** — voiding luôn đơn thuốc của bệnh nhân |
+
+Hàng cuối là nặng nhất: bấm "hủy gửi lên cổng" — một thao tác về đường truyền dữ liệu — làm đơn
+thuốc của bệnh nhân bị hủy.
+
+### Không chỉ đường ghi: cả màn hình đang đọc nhầm ô
+
+Sửa ba lệnh ghi là chưa đủ, vì phần đọc cũng dựa trên cùng nhầm lẫn ấy:
+
+* `SearchAsync` lọc `p.Status == search.Status` — bộ lọc "trạng thái gửi" của màn hình Cổng ĐTQG
+  thật ra đang lọc theo trạng thái cấp phát thuốc;
+* `SubmittedAt = p.Status >= 1 ? p.CreatedAt : null` — "ngày gửi" được **bịa** từ ngày tạo đơn;
+* `GetStatsAsync` đếm `Status == 1/2/3/0` làm "đã gửi / đã nhận / **bị cổng từ chối** / chờ gửi" —
+  ô "đơn bị cổng từ chối" thật ra đang đếm **đơn hoàn trả thuốc**.
+* `SubmitBatchAsync` cũng gán `Status = 1` — vá `SubmitAsync` mà quên nó thì lại đúng cái hình dạng
+  cả đợt đang gỡ.
+
+Vá: **migration 175** thêm `NationalPortalStatus` / `NationalPortalTransactionId` /
+`NationalPortalSubmittedAt`; cả năm chỗ (gửi · gửi lô · gửi lại · hủy gửi · đọc) chuyển sang ô riêng,
+`Prescriptions.Status` không bị đụng tới nữa. Thêm gác chặn gửi lại một đơn đã gửi.
+
+### Đối chứng âm là bắt buộc ở đây
+
+Ba ca đầu đều dạng *"không được đụng vào `Status`"*, nên một bản vá **gỡ sạch mọi lệnh ghi** cũng đạt
+3/3 — tức tính năng gửi cổng biến mất mà bài đo vẫn báo xanh. Hai ca thêm bắt buộc trạng thái gửi
+phải **thật sự nằm ở ô riêng và đọc lại được**: sau khi gửi, `NationalPortalStatus = 1` +
+`TransactionId` dạng `CQLKCB-…` + `SubmittedAt` có giá trị; sau khi hủy gửi,
+`NationalPortalStatus = 3` **và** `Prescriptions.Status` còn nguyên.
+
+`t3_national_prescription.py`: **5/5**.
+
+Đây là lần thứ ba trong đợt gặp một tính năng mượn ô trạng thái của tính năng khác (§20 đóng hồ sơ
+ghi `Status=5` = "đã hủy"; §24 chú thích `Admissions.Status` nói ngược với mã đang chạy). Ba lần
+khác module, khác người viết, cùng một cách hỏng — nên đây không phải ba lỗi rời rạc mà là một thói
+quen: **cần trạng thái mới thì mượn tạm ô sẵn có, thay vì thêm một ô.**
