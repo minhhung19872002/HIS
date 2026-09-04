@@ -55,8 +55,26 @@ public partial class InpatientCompleteService {
     {
         var entity = await _context.InfusionRecords.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted)
             ?? throw new KeyNotFoundException("Không tìm thấy phiếu truyền dịch");
+        // #218/T3: hai lượt kiểm còn thiếu.
+        //
+        // (1) Giờ kết thúc phải sau giờ bắt đầu. Dấu hiệu nằm ngay trong `Math.Max(0, …)` cũ:
+        //     người viết BIẾT hiệu số có thể âm nhưng kẹp triệu chứng thay vì từ chối dữ liệu vào,
+        //     nên phiếu truyền dịch ghi được EndTime sớm hơn StartTime với thời lượng 0 phút — một
+        //     y lệnh truyền dịch kết thúc trước khi bắt đầu, nằm trong hồ sơ chăm sóc người bệnh.
+        //     Đo được ở evidence/cross/t3/t3_infusion_complete.json.
+        if (endTime < entity.StartTime)
+            throw new InvalidOperationException(
+                $"Giờ kết thúc ({endTime:HH:mm dd/MM}) sớm hơn giờ bắt đầu truyền "
+                + $"({entity.StartTime:HH:mm dd/MM}). Kiểm tra lại giờ nhập.");
+
+        // (2) Không kết thúc lại một phiếu đã kết thúc: gọi lần hai ghi đè cả EndTime lẫn
+        //     CompletedBy, tức xoá mất ai thật sự kết thúc lượt truyền và vào lúc nào.
+        if (entity.EndTime != null)
+            throw new InvalidOperationException(
+                $"Phiếu truyền dịch đã kết thúc lúc {entity.EndTime:HH:mm dd/MM} rồi.");
+
         entity.EndTime = endTime;
-        entity.DurationMinutes = (int)Math.Max(0, (endTime - entity.StartTime).TotalMinutes);
+        entity.DurationMinutes = (int)(endTime - entity.StartTime).TotalMinutes;
         entity.CompletedBy = userId;
         entity.Status = 1; // Hoàn thành
         entity.UpdatedAt = DateTime.UtcNow;

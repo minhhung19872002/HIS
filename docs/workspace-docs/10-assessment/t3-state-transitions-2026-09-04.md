@@ -1350,3 +1350,33 @@ và ghi kết quả trước, rồi mới ký số."*
 
 Đáng chú ý là ba lỗi này nằm ở module tôi đã vá **hai lần** trong cùng đợt. Vá quanh một chỗ mà
 không mở chính chỗ đó ra đọc thì vẫn còn sót — và lần này cái sót là nặng nhất trong ba.
+
+---
+
+## 32. Kết thúc truyền dịch — kết thúc trước khi bắt đầu, và kết thúc lại lần hai
+
+`CompleteInfusionAsync` nhận thẳng `endTime` từ người gọi rồi ghi xuống, không kiểm gì:
+
+```csharp
+entity.EndTime = endTime;
+entity.DurationMinutes = (int)Math.Max(0, (endTime - entity.StartTime).TotalMinutes);
+```
+
+Dấu hiệu nằm ngay trong `Math.Max(0, …)`: người viết **biết** hiệu số có thể âm, nhưng chọn **kẹp
+triệu chứng** thay vì từ chối dữ liệu vào. Đo được (**1/3**): phiếu bắt đầu 10:00, gửi giờ kết thúc
+08:00 → hệ thống nhận, ghi `EndTime` sớm hơn `StartTime` với thời lượng 0 phút. Một y lệnh truyền
+dịch kết thúc trước khi bắt đầu, nằm trong hồ sơ chăm sóc người bệnh.
+
+Và không có gác chống gọi lại: kết thúc một phiếu **đã kết thúc** ghi đè cả `EndTime` lẫn
+`CompletedBy` — đo được 12:00 bị thay bằng 15:00, tức xoá mất ai thật sự kết thúc lượt truyền và vào
+lúc nào.
+
+Vá: từ chối giờ kết thúc sớm hơn giờ bắt đầu (kèm cả hai mốc giờ trong thông báo để điều dưỡng biết
+sai ở đâu), chặn kết thúc lần hai, và bỏ luôn `Math.Max(0, …)` — khi đầu vào đã được kiểm thì phép
+kẹp ấy chỉ còn che lỗi. Đối chứng âm: kết thúc hợp lệ lúc 12:00 vẫn phải chạy và tính đúng **120
+phút**. `t3_infusion_complete.py`: **3/3**.
+
+Một dạng đáng để ý riêng: mấy lỗi trước trong đợt là *thiếu hẳn lượt kiểm*. Chỗ này thì lượt kiểm
+**có tồn tại trong đầu người viết** — bằng chứng là cái `Math.Max` — nhưng được cài ở dạng làm cho
+triệu chứng biến mất thay vì chặn nguyên nhân. Đó là loại khó thấy hơn, vì nhìn vào code thì tưởng
+đã có ai đó nghĩ đến rồi.

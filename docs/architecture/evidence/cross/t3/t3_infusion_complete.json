@@ -1,0 +1,26 @@
+{
+ "ranAt": "2026-09-04T21:28:56",
+ "cases": [
+  {
+   "case": "KHÔNG nhận giờ kết thúc sớm hơn giờ bắt đầu",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · chua-ket-thuc|?|0 · {\"error\":\"INVALID_STATE\",\"message\":\"Giờ kết t"
+  },
+  {
+   "case": "KHÔNG ghi đè giờ kết thúc đã ghi nhận",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · giờ kết thúc: '2026-09-04 12:00:00' → '2026-09-04 12:00:00'"
+  },
+  {
+   "case": "kết thúc hợp lệ (12:00) ĐƯỢC chạy, tính đúng 120 phút",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · trạng-thái|số-phút|Status = hop-le|120|1"
+  }
+ ]
+}
