@@ -1,0 +1,33 @@
+{
+ "ranAt": "2026-09-04T21:23:34",
+ "cases": [
+  {
+   "case": "ký số lần đầu ĐƯỢC chạy",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · số chữ ký còn hiệu lực=1"
+  },
+  {
+   "case": "KHÔNG chồng thêm chữ ký thứ hai còn hiệu lực",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 200 · số chữ ký còn hiệu lực=1 (phải là 1)"
+  },
+  {
+   "case": "hủy ký thu hồi HẾT chữ ký còn hiệu lực",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 200 · còn sót 0 chữ ký sống (phiếu về nháp mà vẫn bị khoá sửa)"
+  },
+  {
+   "case": "KHÔNG tự dựng phiếu 'Ky so tu dong' rồi ký",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 200 · số phiếu nội dung bịa: 0 → 0"
+  }
+ ]
+}

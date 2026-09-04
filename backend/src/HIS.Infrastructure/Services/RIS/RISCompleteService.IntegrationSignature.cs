@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -262,22 +262,18 @@ public partial class RISCompleteService
                 }
                 else
                 {
-                    // No report exists, create one for the first exam
-                    var firstExam = radiologyRequest.Exams.FirstOrDefault();
-                    if (firstExam != null)
+                    // #218/T3: nhánh này TRƯỚC ĐÂY tự dựng một phiếu đọc mới với
+                    // `Findings = "Ky so tu dong"` rồi ký luôn và đặt Status = 2 (đã duyệt).
+                    // Tức là sinh ra một kết quả chẩn đoán hình ảnh MANG CHỮ KÝ SỐ HỢP LỆ nhưng
+                    // nội dung do máy bịa, không bác sĩ nào đọc phim. Chữ ký số là thứ để quy
+                    // trách nhiệm — nó không được bảo chứng cho nội dung không ai viết.
+                    // Đo được ở evidence/cross/t3/t3_radiology_sign.json: số phiếu nội dung bịa 0 → 1.
+                    return new SignResultResponseDto
                     {
-                        report = new RadiologyReport
-                        {
-                            Id = Guid.NewGuid(),
-                            RadiologyExamId = firstExam.Id,
-                            RadiologistId = GetCurrentUserIdOrAdmin(), // Admin user
-                            Findings = "Ky so tu dong",
-                            ReportDate = DateTime.Now,
-                            Status = 1,
-                            CreatedAt = DateTime.Now
-                        };
-                        await _context.RadiologyReports.AddAsync(report);
-                    }
+                        Success = false,
+                        Message = "Chỉ định này chưa có phiếu đọc kết quả. Bác sĩ phải đọc và ghi "
+                                + "kết quả trước, rồi mới ký số."
+                    };
                 }
             }
         }
@@ -286,6 +282,18 @@ public partial class RISCompleteService
         {
             return new SignResultResponseDto { Success = false, Message = "Khong tim thay ket qua CDHA. Vui long kiem tra lai." };
         }
+
+        // #218/T3: chặn ký chồng. Trước đây mỗi lần gọi là thêm một chữ ký Status=1, nên phiếu
+        // có thể mang nhiều chữ ký cùng còn hiệu lực — mà cửa hủy chỉ thu hồi cái mới nhất.
+        var alreadySigned = await _context.Set<RadiologySignatureHistory>()
+            .AnyAsync(sig => sig.RadiologyReportId == report.Id && sig.Status == 1);
+        if (alreadySigned)
+            return new SignResultResponseDto
+            {
+                Success = false,
+                Message = "Phiếu này đã có chữ ký số còn hiệu lực. Muốn ký lại thì phải hủy "
+                        + "kết quả đã ký trước."
+            };
 
         // Create signature history
         var signatureHistory = new RadiologySignatureHistory
@@ -320,15 +328,19 @@ public partial class RISCompleteService
         var report = await _context.RadiologyReports.FindAsync(dto.ReportId);
         if (report == null) return false;
 
-        var latestSignature = await _context.Set<RadiologySignatureHistory>()
+        // #218/T3: thu hồi HẾT chữ ký còn hiệu lực, không chỉ cái mới nhất. Dữ liệu cũ có thể
+        // đã có phiếu mang nhiều chữ ký sống (ký chồng nay đã chặn ở SignResultAsync); nếu chỉ
+        // thu hồi cái mới nhất thì phiếu về nháp mà vẫn còn một chữ ký sống, và lớp gác
+        // `hasActiveSignature` sẽ cấm sửa nội dung vĩnh viễn — phiếu kẹt cứng.
+        var activeSignatures = await _context.Set<RadiologySignatureHistory>()
             .Where(s => s.RadiologyReportId == dto.ReportId && s.Status == 1)
-            .OrderByDescending(s => s.SignedAt)
-            .FirstOrDefaultAsync();
+            .ToListAsync();
 
-        if (latestSignature != null)
+        foreach (var signature in activeSignatures)
         {
-            latestSignature.Status = 3; // Cancelled
-            latestSignature.RejectReason = dto.Reason;
+            signature.Status = 3; // Cancelled
+            signature.RejectReason = dto.Reason;
+            signature.UpdatedAt = DateTime.UtcNow;
         }
 
         report.Status = 0; // Back to draft

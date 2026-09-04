@@ -1305,3 +1305,48 @@ bị thay bằng lý do hủy. Rồi mới khôi phục bản vá, dựng lại,
 
 Con số "trước khi vá" không phải thủ tục cho đẹp báo cáo: không có nó thì không phân biệt được
 "đã sửa một lỗi thật" với "viết thêm một bài đo cho thứ vốn đã đúng".
+
+---
+
+## 31. Ký số kết quả CĐHA — ký được hai lần, và ký được cả phiếu chưa ai viết
+
+Đợt này đã vá hai cửa **quanh** chữ ký CĐHA: cấm sửa nội dung phiếu đã ký (§5), và bắt hủy duyệt
+phải thu hồi chữ ký (§21). Chính cửa **KÝ** thì chưa ai đụng tới. Đo được **1/4**.
+
+### a. Ký hai lần thì có hai chữ ký cùng còn hiệu lực
+
+`SignResultAsync` không hỏi phiếu đã có chữ ký chưa; mỗi lần gọi là thêm một dòng
+`RadiologySignatureHistory` với `Status = 1`. Hậu quả lộ ra ở cửa hủy: `CancelSignedResultAsync`
+chỉ thu hồi **chữ ký mới nhất** (`OrderByDescending(SignedAt).FirstOrDefault()`).
+
+Ghép hai chuyện lại: ký hai lần rồi hủy một lần ⇒ phiếu về nháp **nhưng vẫn còn một chữ ký sống**.
+Và lớp gác `hasActiveSignature` vá ở §5 sẽ cấm sửa nội dung **vĩnh viễn** — phiếu kẹt cứng, không
+sửa được mà cũng không ký lại cho sạch được. Một lớp bảo vệ đúng, gặp một lỗ ở cửa khác, thành cái
+bẫy khoá chết dữ liệu.
+
+Vá cả hai vế: chặn ký chồng ở `SignResultAsync`, và cho `CancelSignedResultAsync` thu hồi **hết**
+chữ ký còn hiệu lực (dữ liệu cũ có thể đã có phiếu nhiều chữ ký sống) — đúng như `CancelApprovalAsync`
+đã làm ở §21.
+
+### b. Ký một chỉ định chưa có phiếu đọc thì hệ thống tự dựng phiếu rồi ký
+
+Khi tra không ra phiếu, `SignResultAsync` đi nhánh dự phòng và **tạo mới một phiếu đọc**:
+
+```csharp
+Findings = "Ky so tu dong",
+Status = 1,
+```
+
+rồi ký và đặt `Status = 2` (đã duyệt). Kết quả: **một kết quả chẩn đoán hình ảnh mang chữ ký số hợp
+lệ, nội dung do máy bịa, không bác sĩ nào đọc phim.** Đo được: số phiếu có `Findings = 'Ky so tu
+dong'` đi từ **0 → 1** chỉ sau một lời gọi.
+
+Chữ ký số tồn tại để quy trách nhiệm — nó không được phép bảo chứng cho nội dung không ai viết. Bỏ
+hẳn nhánh dựng phiếu; trả về thông báo rõ: *"Chỉ định này chưa có phiếu đọc kết quả. Bác sĩ phải đọc
+và ghi kết quả trước, rồi mới ký số."*
+
+Đối chứng âm giữ cho bản vá trung thực: **ký lần đầu vẫn phải chạy được**. `t3_radiology_sign.py`:
+**4/4**.
+
+Đáng chú ý là ba lỗi này nằm ở module tôi đã vá **hai lần** trong cùng đợt. Vá quanh một chỗ mà
+không mở chính chỗ đó ra đọc thì vẫn còn sót — và lần này cái sót là nặng nhất trong ba.
