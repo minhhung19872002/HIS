@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Insurance;
 using HIS.Application.DTOs.Reception;
@@ -677,6 +677,12 @@ public partial class ReceptionCompleteService {
             .FirstOrDefaultAsync(m => m.Id == id);
 
         if (medicalRecord == null) throw new KeyNotFoundException("Medical record not found");
+
+        // #218/T3: `InitialDiagnosis` là nội dung lâm sàng — hồ sơ đã khoá TT46 thì không sửa được.
+        // Khoa/phòng/bác sĩ phụ trách là thông tin điều phối, không thuộc phạm vi khoá nội dung, nên
+        // chỉ gác đúng nhánh ghi chẩn đoán chứ không chặn cả hàm.
+        if (!string.IsNullOrEmpty(dto.InitialDiagnosis))
+            await EmrLockGuard.EnsureEditableByRecordAsync(_context, medicalRecord.Id);
 
         if (dto.DepartmentId.HasValue)
             medicalRecord.DepartmentId = dto.DepartmentId;

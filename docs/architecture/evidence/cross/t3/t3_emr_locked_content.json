@@ -1,0 +1,19 @@
+{
+ "ranAt": "2026-09-04T22:25:13",
+ "cases": [
+  {
+   "case": "KHÔNG ghi được chẩn đoán vào hồ sơ đã khoá",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · MainDiagnosis='CHAN-DOAN-GOC-TRONG-HO-SO-DA-KHOA'"
+  },
+  {
+   "case": "hồ sơ chưa khoá ĐƯỢC ghi chẩn đoán",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · MainDiagnosis='T3LCK-CHAN-DOAN-HOP-LE'"
+  }
+ ]
+}

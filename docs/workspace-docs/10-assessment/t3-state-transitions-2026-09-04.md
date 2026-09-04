@@ -38,12 +38,13 @@ một bài đo cho thứ vốn đã đúng*).
 | 33 | Giải phẫu bệnh | Chẩn đoán **ác tính đã duyệt** sửa thành lành tính, chữ ký duyệt vẫn nguyên | 1/3 → 3/3 |
 | 34 | **Ba cửa nữa** sửa phiếu CĐHA đã ký | Cửa thứ nhất nằm **cách hàm đã vá 120 dòng** — đọc tay đã sót, bộ dò tìm ra | 1/4 → 4/4 |
 | 35 | Hội chẩn **thuốc dấu \*** | Ghi đè kết luận sau khi **lãnh đạo đã duyệt**, chữ duyệt giữ nguyên | 1/2 → 2/2 |
+| 36 | Hồ sơ **đã khoá TT46** | Vẫn ghi đè được **chẩn đoán chính**; đọc hết 37 chỗ bộ dò chỉ ra | 1/2 → 2/2 |
 
-**Hồi quy hiện tại: 27 bộ đo, 173/173.** `dotnet test` 225 passed. Migration 168-176.
+**Hồi quy hiện tại: 28 bộ đo, 175/175.** `dotnet test` 225 passed. Migration 168-176.
 
 ### Ba hình dạng lặp lại, và cái đã làm với chúng
 
-1. **Một luật, thi hành ở một cửa, bỏ trống ở cửa bên cạnh** — gặp **mười bốn** lần (§5·10·11·12·15·18·21·26·31·33 + ba cửa §34). Sau lần thứ mười thì viết bộ dò
+1. **Một luật, thi hành ở một cửa, bỏ trống ở cửa bên cạnh** — gặp **mười sáu** lần (§5·10·11·12·15·18·21·26·31·33 + ba cửa §34). Sau lần thứ mười thì viết bộ dò
    thứ hai `t3_verified_edit_sweep.py` (§34) — và nó tìm ra ngay ba cửa mà đọc tay đã bỏ sót.
    Từ §26 trở đi, vá một cửa đã thành lý do để **đi tìm cửa còn lại** thay vì chờ gặp may.
 2. **Mượn ô trạng thái của tính năng khác** — gặp **ba** lần (§20·24·28) ở ba module, ba người viết.
@@ -1581,3 +1582,45 @@ Bộ dò báo dư ở hai chỗ vì nó chỉ soi tên **trường cổng** (`Ap
 bằng **`Status`**. Đó là giới hạn có thật, và nó nằm đúng chỗ nên nằm: bộ dò được viết để **thu hẹp
 phạm vi cho người đọc**, không phải để tự kết luận. Một bộ dò báo dư thì tốn công đọc; một bộ dò báo
 thiếu thì bỏ lọt lỗi. Chọn báo dư là chọn đúng.
+
+---
+
+## 36. Đọc hết 37 chỗ — hồ sơ đã khoá TT46 vẫn sửa được chẩn đoán
+
+§35 mới đọc 6/37 và tôi đã ghi rõ 31 chỗ còn lại **chưa ai đọc**. Đọc nốt.
+
+### Kết quả phân loại đầy đủ
+
+| Nhóm | Số | Kết luận |
+|---|---|---|
+| **Lỗi thật, đã vá** | 6 | ba cửa CĐHA (§34) · hội chẩn thuốc dấu \* (§35) · **hai cửa ghi chẩn đoán vào hồ sơ đã khoá** (mục này) |
+| Đã có gác, bộ dò báo dư | 3 | gác bằng `Status` chứ không bằng trường cổng: `UpdateStockReceiptAsync`, `PharmacyApprovalService.UpdateAsync`, `EnterRadiologyResultAsync` (dùng `RadiologyReportStatus.EnsureCanEditContent`) |
+| **Ngoài phạm vi khoá nội dung** | 4 | ghi logistics/hành chính chứ không phải nội dung lâm sàng: `TransferDepartmentAsync` · `ChangeRoomAsync` (giường/phòng/khoa), `UpdateInsuranceAsync` (số thẻ BHYT), `RegisterWithOtherPayerAsync` (đối tượng chi trả). TT46 khoá **nội dung hồ sơ**, không khoá việc sửa chỗ nằm hay đối tượng chi trả |
+| Khớp nhầm | 24 | hàm `Get*`/`Build*Dto` chỉ đọc · hai hàm seed dữ liệu dev · gán vào biến trùng tên (`.Count`, `.Id`) |
+
+Việc phân loại này là phần **đáng giá nhất** của lần đọc: bốn chỗ nhóm ba trông y hệt lỗi nếu chỉ
+nhìn tên hàm, nhưng chúng ghi chỗ nằm và đối tượng chi trả — chặn chúng lại theo TT46 là **hiểu sai
+luật và làm khổ người dùng**. Bộ dò không phân biệt được; chỉ có đọc mới phân biệt được.
+
+### Lỗi thật của mục này
+
+`EmrLockGuard` sinh ra đúng để chặn sửa nội dung hồ sơ đã kết thúc. Docstring của nó nói thẳng:
+
+> gọi 1 dòng ở đầu **mọi** mutation nội dung (tờ điều trị, **chẩn đoán**, kết luận, sinh hiệu, đơn
+> thuốc, ...)
+
+Nhưng "mọi" chưa thành mọi. Hai cửa ghi chẩn đoán không gọi lấy một dòng:
+
+* `SaveInpatientDiagnosisAsync` (`POST /api/inpatient/diagnosis/{admissionId}`) — ghi `MainDiagnosis`,
+  `MainIcdCode`, `SubDiagnosis`, `SubIcdCodes`;
+* `UpdateAdmissionAsync` (`PUT /api/reception/admissions/{id}`) — ghi `InitialDiagnosis`.
+
+Đo được **1/2**: chẩn đoán chính của một hồ sơ **đã khoá TT46** bị ghi đè, HTTP 200.
+
+Vá bằng `EmrLockGuard.EnsureEditableByRecordAsync`. Ở cửa tiếp đón, **chỉ gác đúng nhánh ghi chẩn
+đoán** chứ không chặn cả hàm — vì cùng hàm đó còn sửa khoa/phòng/bác sĩ phụ trách, là thứ vẫn phải
+đổi được sau khi hồ sơ khoá. Đối chứng âm: hồ sơ **chưa khoá** vẫn phải ghi chẩn đoán bình thường.
+`t3_emr_locked_content.py`: **2/2**.
+
+Vậy là bộ dò thứ hai, chạy một lần, đọc hết 37 chỗ: **6 lỗi thật**, 3 báo dư vì gác kiểu khác,
+4 nằm ngoài phạm vi, 24 khớp nhầm. Danh sách "chưa ai đọc" nay **rỗng**.

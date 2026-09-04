@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Inpatient;
 using HIS.Application.Services;
@@ -238,6 +238,13 @@ public partial class InpatientCompleteService {
 
         var medRecord = await _context.MedicalRecords.FindAsync(admission.MedicalRecordId)
             ?? throw new KeyNotFoundException($"Hồ sơ bệnh án không tìm thấy");
+
+        // #218/T3: hồ sơ đã kết thúc và khoá theo TT46 thì không ghi chẩn đoán vào nữa.
+        // `EmrLockGuard` sinh ra đúng cho việc này — docstring của nó ghi "gọi 1 dòng ở đầu mọi
+        // mutation nội dung (tờ điều trị, CHẨN ĐOÁN, kết luận, sinh hiệu, đơn thuốc...)" — nhưng cửa
+        // này chưa gọi. Đo được ở evidence/cross/t3/t3_emr_locked_content.json: chẩn đoán chính của
+        // một hồ sơ đã khoá bị ghi đè, HTTP 200. Tìm ra bằng bộ dò t3_verified_edit_sweep.py.
+        await EmrLockGuard.EnsureEditableByRecordAsync(_context, medRecord.Id);
 
         // Update MedicalRecord fields (existing columns — no migration needed)
         medRecord.MainIcdCode = dto.MainDiagnosisCode?.Trim();

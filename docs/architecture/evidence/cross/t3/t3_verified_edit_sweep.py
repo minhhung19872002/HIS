@@ -24,22 +24,30 @@ Gặp mười lần trước khi bộ dò này ra đời, trong đó ba lần n�
 Bỏ qua các hàm mang tên `Approve/Verify/Sign/Finalize/Lock/Confirm/Reject/Cancel/Reopen/Unlock` —
 đó là những hàm có nhiệm vụ ĐẶT cổng, không phải cửa sửa nội dung.
 
-**Bộ dò chỉ THU HẸP, không kết luận.** Lượt chạy 2026-09-04 ra **37 chỗ**. Đã đọc tay và kết luận
-được **6 chỗ**; 31 chỗ còn lại **chưa ai đọc từng cái** — đừng coi chúng là đã sạch.
+**Bộ dò chỉ THU HẸP, không kết luận.** Lượt chạy 2026-09-04 ra **37 chỗ**, và **đã đọc tay hết cả
+37** (xem §34-§36 của báo cáo T3). Kết quả:
 
-Kết quả 6 chỗ đã đọc:
+* **6 lỗi thật, đã vá** — ba cửa CĐHA (`UpdateRadiologyResultAsync`, `CopyReportResultAsync`,
+  `MergeCoReaderOpinionsAsync`), `CompleteConsultationAsync` (hội chẩn thuốc dấu *), và hai cửa ghi
+  chẩn đoán vào hồ sơ đã khoá TT46 (`SaveInpatientDiagnosisAsync`, `UpdateAdmissionAsync`);
+* **3 báo dư** — có gác đàng hoàng nhưng gác bằng `Status` chứ không bằng trường cổng, nên bộ dò
+  không thấy: `UpdateStockReceiptAsync`, `PharmacyApprovalService.UpdateAsync`,
+  `EnterRadiologyResultAsync`;
+* **4 ngoài phạm vi** — ghi logistics/hành chính chứ không phải nội dung lâm sàng (giường/phòng/khoa,
+  số thẻ BHYT, đối tượng chi trả). TT46 khoá **nội dung hồ sơ**, không khoá chỗ nằm hay đối tượng
+  chi trả — chặn mấy chỗ này lại là hiểu sai luật và làm khổ người dùng;
+* **24 khớp nhầm** — hàm `Get*`/`Build*Dto` chỉ đọc, hai hàm seed dữ liệu dev, và gán vào biến trùng
+  tên (`.Count`, `.Id`).
 
-* **4 lỗi thật, đã vá**: ba cửa CĐHA (`UpdateRadiologyResultAsync`, `CopyReportResultAsync`,
-  `MergeCoReaderOpinionsAsync`) và `CompleteConsultationAsync` (hội chẩn thuốc dấu *);
-* **2 báo dư**: `UpdateStockReceiptAsync` và `PharmacyApprovalService.UpdateAsync` — cả hai **có gác
-  đàng hoàng**, chỉ là gác bằng `Status` chứ không bằng trường cổng nên bộ dò không thấy.
-
-Đáng chú ý: một trong bốn cửa hỏng nằm **ngay dưới hàm đã được vá tay trước đó**, trong file đã đọc.
+Đáng chú ý: một trong sáu cửa hỏng nằm **ngay dưới hàm đã được vá tay trước đó**, trong file đã đọc.
 Đọc tay vẫn sót; bộ dò thì không.
 
-**Vì sao chấp nhận báo dư.** Bộ dò chỉ soi tên trường cổng (`ApprovedAt`…) nên bỏ qua những chỗ gác
-bằng `Status` — tỉ lệ báo dư là có thật và đã biết. Đổi lại nó không bỏ lọt. Một bộ dò báo dư thì
-tốn công đọc; một bộ dò báo thiếu thì bỏ lọt lỗi.
+**Vì sao chấp nhận báo dư.** Bộ dò chỉ soi tên trường cổng (`ApprovedAt`…) nên bỏ qua chỗ gác bằng
+`Status` — tỉ lệ báo dư là có thật và đã biết. Đổi lại nó không bỏ lọt. Một bộ dò báo dư thì tốn công
+đọc; một bộ dò báo thiếu thì bỏ lọt lỗi.
+
+**Và vì sao vẫn phải đọc tay.** Bốn chỗ "ngoài phạm vi" trông y hệt lỗi nếu chỉ nhìn tên hàm. Bộ dò
+không phân biệt được *nội dung lâm sàng* với *thông tin điều phối*; chỉ có người đọc mới phân biệt được.
 
 Không cần API hay DB — chỉ đọc mã nguồn.
 """
@@ -144,10 +152,10 @@ def main():
     for path, line_no, method, cls, gates in hits:
         print("  %-50s :%-5d %-38s %s(%s)" % (path, line_no, method, cls, ",".join(gates)))
 
-    print("\nBộ dò chỉ THU HẸP phạm vi, KHÔNG tự kết luận — và KHÔNG phải chỗ nào ở trên cũng đã")
-    print("có người đọc. Tính đến 2026-09-04 mới đọc tay 6 chỗ: 4 lỗi thật (đã vá) + 2 báo dư (có")
-    print("gác bằng `Status` nên bộ dò không thấy). Số còn lại CHƯA AI ĐỌC — đừng coi là đã sạch.")
-    print("Nguồn báo dư đã biết: hàm chỉ đọc, hàm seed dữ liệu dev, và hàm gác bằng `Status`.")
+    print("\nBộ dò chỉ THU HẸP phạm vi, KHÔNG tự kết luận. Lượt 2026-09-04 đã đọc tay HẾT 37 chỗ:")
+    print("6 lỗi thật (đã vá) · 3 báo dư (có gác bằng `Status` nên bộ dò không thấy) · 4 ngoài")
+    print("phạm vi (ghi logistics/hành chính, không phải nội dung lâm sàng) · 24 khớp nhầm.")
+    print("Vẫn phải đọc tay: bộ dò không phân biệt được nội dung lâm sàng với thông tin điều phối.")
 
 
 if __name__ == "__main__":
