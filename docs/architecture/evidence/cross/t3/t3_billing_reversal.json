@@ -1,0 +1,26 @@
+{
+ "ranAt": "2026-09-04T20:20:32",
+ "cases": [
+  {
+   "case": "lần đảo đầu chạy được và trừ đúng 500.000đ",
+   "mustBlock": false,
+   "blocked": false,
+   "pass": true,
+   "detail": "HTTP 200 · hóa đơn 5000000.0 → 4500000.0 (giảm 500000.0)"
+  },
+  {
+   "case": "đảo lần hai bị chặn",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "HTTP 400 · {\"error\":\"VALIDATION_FAILED\",\"message\":\"Chỉ định này đã được đảo bút t"
+  },
+  {
+   "case": "hóa đơn KHÔNG bị trừ thêm lần nữa",
+   "mustBlock": true,
+   "blocked": true,
+   "pass": true,
+   "detail": "sau lần 1=4500000.0 · sau lần 2=4500000.0 (trừ thêm 0.0) · trạng thái chỉ định=4"
+  }
+ ]
+}

@@ -412,6 +412,24 @@ public partial class BillingCompleteService {
         if (serviceRequest == null)
             throw new InvalidOperationException("Không tìm thấy chỉ định dịch vụ");
 
+        // #218/T3: chặn đảo bút toán LẦN HAI trên cùng một chỉ định.
+        //
+        // Hàm này tính lại số tiền từ chi tiết chỉ định rồi TRỪ THẲNG vào hóa đơn, nhưng trước đây
+        // không đọc trạng thái hiện tại một lần nào. Gọi lần hai thì chi tiết chỉ định vẫn y nguyên
+        // nên số tiền tính ra vẫn thế, và hóa đơn bị trừ thêm một lần nữa — trong khi `Status = 4`
+        // gán lại không đổi gì, nên nhìn trạng thái cuối KHÔNG thấy dấu vết lần đảo thừa.
+        // Đo được ở evidence/cross/t3/t3_billing_reversal.json: hóa đơn 5.000.000 → 4.500.000 →
+        // 4.000.000 cho một dịch vụ chỉ tính tiền một lần. Cùng hình dạng với lỗi tiền tạm ứng
+        // (§11: phiếu 1.000.000đ chi ra 2.000.000đ), lần này theo chiều ngược lại.
+        //
+        // So với 4 — đúng giá trị mà chính hàm này ghi xuống ở cuối — chứ không tự đặt ra một bộ
+        // trạng thái mới cho ServiceRequests khi chưa xác minh được đủ các giá trị còn lại.
+        const int serviceRequestCancelled = 4;
+        if (serviceRequest.Status == serviceRequestCancelled)
+            throw new InvalidOperationException(
+                "Chỉ định này đã được đảo bút toán (hoặc đã hủy) trước đó — không đảo lại lần nữa. "
+                + "Xem lịch sử đảo bút toán của hồ sơ để đối chiếu.");
+
         var serviceName = await _context.Services
             .Where(s => s.Id == serviceRequest.ServiceId)
             .Select(s => s.ServiceName)

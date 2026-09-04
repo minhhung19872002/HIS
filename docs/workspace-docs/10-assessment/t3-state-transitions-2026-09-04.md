@@ -923,3 +923,42 @@ lực" nào để thử.
 cho vừa kết quả. Lớp chắn cũ ("có chữ ký còn hiệu lực thì cấm sửa") vẫn nguyên vẹn và vẫn được ca
 *"sửa nội dung phiếu ĐÃ KÝ SỐ"* canh, vẫn PASS với HTTP 400. Nói cách khác: giữ nguyên lớp chắn ở
 cửa sửa, thêm lớp chắn ở gốc, và bài đo phản ánh đúng cả hai.
+
+---
+
+## 22. Đảo bút toán dịch vụ — đảo hai lần thì trừ tiền hai lần
+
+`ReverseServiceChargeAsync` (`POST /api/BillingComplete/reverse-charge`) là bút toán đảo khi hủy một
+dịch vụ đã tính tiền: tính lại số tiền từ chi tiết chỉ định, **trừ thẳng vào hóa đơn**
+(`TotalServiceAmount` và `TotalAmount`), rồi đặt `ServiceRequests.Status = 4`.
+
+Nó **không đọc trạng thái hiện tại của chỉ định một lần nào** trước khi làm. Gọi lần thứ hai trên
+đúng chỉ định đó thì chi tiết chỉ định vẫn y nguyên nên số tiền tính ra vẫn thế, và hóa đơn bị trừ
+thêm lần nữa. Đo được:
+
+```
+hóa đơn 5.000.000  →(đảo lần 1)  4.500.000  →(đảo lần 2)  4.000.000
+trạng thái chỉ định: 4 sau lần 1, vẫn 4 sau lần 2
+```
+
+Một dịch vụ chỉ tính tiền **một lần** bị gỡ khỏi hóa đơn **hai lần**. Cùng hình dạng với lỗi tiền
+tạm ứng ở §11 (phiếu 1.000.000đ chi ra 2.000.000đ), lần này theo chiều ngược lại.
+
+Có chặn sàn `if (< 0) = 0` nên hóa đơn không âm — đó chính là chỗ nguy: với hóa đơn đủ lớn, lần đảo
+thừa không tạo ra con số vô lý nào để ai đó phải giật mình, chỉ lặng lẽ gỡ thêm một khoản chưa từng
+được tính.
+
+### Vì sao phải đo bằng TIỀN, không đo bằng trạng thái
+
+`Status = 4` gán lại lần hai không đổi gì cả. Nên một bài đo hỏi "sau khi gọi lần hai thì chỉ định ở
+trạng thái nào" sẽ thấy đúng cái nó mong đợi và **báo PASS** — trong khi hóa đơn vừa mất thêm nửa
+triệu. Lại đúng bài học của lượt đo BHXH và lượt đo đóng hồ sơ ở §20: **trạng thái cuối giống nhau
+không có nghĩa là chuyện đã xảy ra giống nhau.** Bài đo này so `TotalAmount` trước và sau từng lần
+gọi.
+
+Vá: chặn khi chỉ định đã ở trạng thái 4. So với **đúng giá trị mà chính hàm này ghi xuống ở cuối**,
+chứ không tự đặt ra một bộ trạng thái mới cho `ServiceRequests` khi chưa xác minh được đủ các giá
+trị còn lại — đó chính là kiểu vơ đoán đã gây ra lỗi ở §20.
+
+Đối chứng âm: lần đảo **đầu tiên** bắt buộc vẫn phải chạy và phải trừ đúng 500.000đ.
+`t3_billing_reversal.py`: **3/3** (trước vá 1/3).
