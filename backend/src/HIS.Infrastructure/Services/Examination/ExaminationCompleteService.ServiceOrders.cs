@@ -1,6 +1,7 @@
 using System.Text;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Http;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Examination;
@@ -97,7 +98,8 @@ public partial class ExaminationCompleteService
                 PatientAmount = service.UnitPrice * item.Quantity,
                 DoctorId = effectiveDoctorId.Value,
                 DepartmentId = examination.DepartmentId,
-                RequestType = service.ServiceType,
+                // #217/T2: KHÔNG chép thẳng — hai bảng dùng hai từ vựng lệch nhau một bậc.
+                RequestType = ServiceRequestType.FromServiceType(service.ServiceType),
                 IsEmergency = item.IsEmergency,
                 IsPriority = item.IsPriority,
                 RequestedByUserId = effectiveDoctorId.Value,

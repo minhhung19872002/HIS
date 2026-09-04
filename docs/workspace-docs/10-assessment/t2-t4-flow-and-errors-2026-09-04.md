@@ -95,9 +95,49 @@ model-binder từ chối 400 — không phải lỗi sản phẩm.
 
 ### Chưa phủ
 
-Kết quả xét nghiệm/CĐHA thật (không có endpoint nhập tay — kết quả về qua máy phân tích LIS, phải
-đi đường `LISComplete/mock-receive` rồi `inbox/{id}/transfer`), ký số, gửi hồ sơ BHXH, và luồng
-chuyển khoa / chuyển viện.
+Ký số, gửi hồ sơ BHXH, luồng chuyển khoa / chuyển viện, và đường kết quả CĐHA (bài này mới phủ XN).
+
+## 1c. T2 #217 — đường KẾT QUẢ XÉT NGHIỆM (và hai lỗi nó lôi ra)
+
+Không có endpoint "nhập kết quả bằng tay": kết quả về từ máy phân tích qua HL7 ORU^R01, cửa mô
+phỏng chính thức là `LISComplete/mock-receive/{analyzerId}`. Hệ thống khớp kết quả với chỉ định bằng
+**mã vạch mẫu + mã dịch vụ + `ServiceRequest.RequestType == 1`**.
+
+`t2_lab_result_path.py` — **7/7 sau khi sửa**: chỉ định xét nghiệm thật → dán mã vạch → máy trả kết
+quả → kết quả vào đúng dòng chỉ định (`Status = 2`, `Result = 9.9`), cờ bất thường giữ đúng giá trị
+máy gửi, và một lượt bắn bằng mã vạch lạ không khớp nhầm ai (`matchedCount = 0`).
+
+### Lỗi 1 — chỉ định xét nghiệm bị gán nhầm LOẠI, nên kết quả máy không bao giờ khớp
+
+Hai bảng dùng hai từ vựng khác nhau, **lệch nhau một bậc**, và cả hai đều ghi rõ trong entity:
+
+| | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|
+| `Service.ServiceType` | Khám | **XN** | CĐHA | TDCN | PTTT |
+| `ServiceRequest.RequestType` | **XN** | CĐHA | TDCN | PTTT | Khác |
+
+Đường chỉ định của phòng khám gán thẳng `RequestType = service.ServiceType`, tức chép nguyên mã bảng
+này sang bảng kia. Một chỉ định **xét nghiệm** vì thế được ghi là loại **CĐHA**; chỉ định CĐHA thành
+TDCN. Bộ khớp kết quả lọc `RequestType == 1` nên **không bao giờ khớp được phiếu xét nghiệm tạo từ
+phòng khám** — đo trực tiếp: `matchedCount = 0`, `unmatchedCount = 1`.
+
+Dữ liệu hiện tại cho thấy đúng sự lộn xộn đó: `RequestType = 1` đang chứa **12 lượt KHÁM** lẫn 12
+xét nghiệm; `RequestType = 2` chứa 10 xét nghiệm lẫn 10 CĐHA; 9 dòng mang giá trị 0.
+
+**Sửa:** thêm `ServiceRequestType.FromServiceType()` — phép đổi có tên, có test — và dùng nó ở đường
+chỉ định. Sau sửa, chỉ định xét nghiệm ra `RequestType = 1` và kết quả khớp đúng.
+
+> **Còn nợ (KHÔNG tự làm):** các dòng `ServiceRequests` đã có trong DB vẫn mang loại cũ. Đánh số lại
+> hồ sơ lâm sàng đã tồn tại là việc có hệ quả kiểm toán, cần người dùng quyết trước khi viết migration.
+
+### Lỗi 2 — cờ bất thường của máy bị vứt lặng lẽ
+
+`MockReceiveResultsAsync` dựng segment OBX với các trường **lệch một bậc**: cờ bất thường nằm ngay
+sau đơn vị, tức rơi vào **OBX-7 (khoảng tham chiếu)**, trong khi `HL7Parser` đọc cờ ở **OBX-8**;
+trạng thái `F` cũng nằm ở OBX-10 thay vì OBX-11. Hệ quả: cờ do máy gửi bị bỏ, hệ thống tự suy cờ từ
+khoảng tham chiếu. Đo được: **máy gửi `H`, DB ghi `L`** — ngược hẳn ý nghĩa lâm sàng.
+
+**Sửa:** trả các trường về đúng vị trí HL7. Sau sửa: máy gửi `H` → DB ghi `H`.
 
 ## 2. T4 #219 — giao diện trước các mã lỗi API
 

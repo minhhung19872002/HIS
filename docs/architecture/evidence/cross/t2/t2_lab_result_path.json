@@ -1,0 +1,40 @@
+{
+ "ranAt": "2026-09-04T11:10:23",
+ "steps": [
+  {
+   "step": "1. Tạo bệnh nhân",
+   "pass": true,
+   "detail": "HTTP 201 · mã=BN26000015"
+  },
+  {
+   "step": "2. Tiếp đón + lượt khám",
+   "pass": true,
+   "detail": "hồ sơ 540E356A-DD57-4293-8B51-DB53E8D1DF3A · lượt khám 3E116E5E-0667-499B-981E-25AE801642B8"
+  },
+  {
+   "step": "3. Chỉ định xét nghiệm",
+   "pass": true,
+   "detail": "HTTP 200 · dịch vụ XN_CREATININ · RequestType=1 (1 = xét nghiệm)"
+  },
+  {
+   "step": "4. Dán mã vạch cho mẫu",
+   "pass": true,
+   "detail": "SampleBarcode=T2LAB-BC-001"
+  },
+  {
+   "step": "5. Kết quả vào đúng dòng chỉ định",
+   "pass": true,
+   "detail": "HTTP 200 · Status=2 (2 = có KQ) · Result=9.9 · {\"success\":true,\"data\":{\"processedCount\":1,\"matchedCount\":1,\"unmatchedCount\":0,\""
+  },
+  {
+   "step": "6. Cờ của máy được giữ nguyên",
+   "pass": true,
+   "detail": "Flag=H (máy gửi H)"
+  },
+  {
+   "step": "7. Mã vạch lạ không khớp nhầm ai",
+   "pass": true,
+   "detail": "HTTP 200 · matchedCount=0 · {\"success\":true,\"data\":{\"processedCount\":1,\"matchedCount\":0,\"unmatchedCount\":1,\"errors\":[]},\"message\":null,\"er"
+  }
+ ]
+}

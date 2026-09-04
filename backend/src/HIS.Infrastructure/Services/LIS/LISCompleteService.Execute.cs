@@ -600,7 +600,12 @@ public partial class LISCompleteService {
             var barcode = item.SampleBarcode ?? "MOCK001";
             var obTime  = (item.ResultTime ?? DateTime.Now).ToString("yyyyMMddHHmmss");
             sb.AppendLine($"OBR|1|{barcode}|{barcode}|{item.TestCode}^{item.TestCode}||{obTime}");
-            sb.AppendLine($"OBX|1|NM|{item.TestCode}^{item.TestCode}||{item.Result}|{item.Unit ?? ""}|{item.Flag ?? "N"}|||F|||{obTime}");
+            // #217/T2: các trường bị lệch một bậc. Cờ bất thường phải nằm ở OBX-8 (HL7Parser đọc
+            // GetField(8)), nhưng bản cũ đặt nó ngay sau đơn vị nên nó rơi vào OBX-7 = khoảng tham
+            // chiếu; kết quả là cờ máy gửi bị vứt lặng lẽ và hệ thống tự suy cờ từ range. Trạng thái
+            // "F" cũng vì thế nằm ở OBX-10 thay vì OBX-11. Đo được: máy gửi H, DB ghi L.
+            // Đúng thứ tự: 7 = khoảng tham chiếu (để trống), 8 = cờ, 11 = trạng thái, 14 = giờ đo.
+            sb.AppendLine($"OBX|1|NM|{item.TestCode}^{item.TestCode}||{item.Result}|{item.Unit ?? ""}||{item.Flag ?? "N"}|||F|||{obTime}");
         }
 
         return await ProcessAnalyzerResultAsync(analyzerId, sb.ToString());

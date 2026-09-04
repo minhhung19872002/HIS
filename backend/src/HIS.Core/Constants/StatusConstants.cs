@@ -143,6 +143,45 @@ public static class PrescriptionStatus
 /// chuyển bất hợp lệ đều được chấp nhận với HTTP 200, trong đó ba lượt cho tiền RA KHỎI QUỸ sai:
 /// xác nhận chi cho phiếu chưa từng duyệt, cho phiếu đã từ chối, và cho phiếu đã hủy.
 /// </summary>
+/// <summary>
+/// #217/T2: hai từ vựng KHÁC NHAU cùng nói về "loại dịch vụ", lệch nhau một bậc —
+///   <c>Service.ServiceType</c>      : 1-Khám, 2-XN, 3-CĐHA, 4-TDCN, 5-PTTT
+///   <c>ServiceRequest.RequestType</c>: 1-XN,   2-CĐHA, 3-TDCN, 4-PTTT, 5-Khác
+/// Đường chỉ định của khám từng gán thẳng <c>RequestType = service.ServiceType</c>, tức chép nguyên
+/// mã của bảng này sang bảng kia: chỉ định XÉT NGHIỆM ra loại "CĐHA", chỉ định CĐHA ra "TDCN".
+/// Hệ quả đo được: bộ khớp kết quả máy phân tích lọc <c>RequestType == 1</c> nên KHÔNG BAO GIỜ khớp
+/// được phiếu xét nghiệm tạo từ phòng khám; các màn đếm "kết quả XN" cũng đếm nhầm nhóm.
+/// Đổi mã ở đây để việc chuyển đổi có tên và không ai chép chéo lần nữa.
+/// </summary>
+public static class ServiceRequestType
+{
+    public const int Lab = 1;          // XN
+    public const int Imaging = 2;      // CĐHA
+    public const int FunctionTest = 3; // TDCN
+    public const int Surgery = 4;      // PTTT
+    public const int Other = 5;        // Khác
+
+    /// <summary>Đổi <c>Service.ServiceType</c> sang <c>ServiceRequest.RequestType</c>.</summary>
+    public static int FromServiceType(int serviceType) => serviceType switch
+    {
+        2 => Lab,           // XN
+        3 => Imaging,       // CĐHA
+        4 => FunctionTest,  // TDCN
+        5 => Surgery,       // PTTT
+        _ => Other,         // 1-Khám và mọi giá trị lạ
+    };
+
+    public static string GetName(int requestType) => requestType switch
+    {
+        Lab => "Xét nghiệm",
+        Imaging => "Chẩn đoán hình ảnh",
+        FunctionTest => "Thăm dò chức năng",
+        Surgery => "Phẫu thuật - thủ thuật",
+        Other => "Khác",
+        _ => $"Không xác định ({requestType})",
+    };
+}
+
 public static class RefundStatus
 {
     public const int PendingApproval = 0;  // Chờ duyệt
