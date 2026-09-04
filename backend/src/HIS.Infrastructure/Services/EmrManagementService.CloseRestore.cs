@@ -56,14 +56,33 @@ public partial class EmrManagementService
             };
             _context.Set<EmrCloseLog>().Add(closeLog);
 
-            // Update examination status to locked/closed (Status=5 for closed EMR)
+            // #218/T3: KHÓA bằng cờ riêng TT46, KHÔNG ghi đè `Examinations.Status`.
+            //
+            // Chỗ này trước đây viết `examination.Status = 5; // Closed`. Nhưng trong
+            // `ExaminationStatus` thì **5 = Cancelled (Hủy)** — nên đóng một hồ sơ đã khám xong lại
+            // đánh dấu lượt khám đó là ĐÃ HỦY, ở đúng cái ô mà cả hệ thống đang đọc: hàng đợi tiếp
+            // đón in nhãn "Hủy", kê đơn từ chối vì "Phiên khám đã hủy", sửa kết luận từ chối vì
+            // "Phiếu khám đã hủy". Khóa thì có khóa, nhưng khóa bằng cách khai man.
+            //
+            // `EmrAdminService.FinalizeRecordAsync` đã gặp và sửa đúng lỗi này rồi — dòng cảnh báo
+            // "⚠️ Trước đây set Status=5 — SAI semantics" nằm ngay đầu hàm đó. Bản sửa ấy chỉ áp ở
+            // một cửa; cửa B.2.5 này vẫn làm đúng cái việc mà nó nói là sai. Nay dùng chung một cơ
+            // chế: `MedicalRecords.EmrFinalizedAt/By`, cái mà `EmrLockGuard` đang chặn sửa nội dung
+            // với đúng câu TT46. Đo được ở evidence/cross/t3/t3_emr_close_semantics.json.
             var examination = await _context.Examinations
                 .FirstOrDefaultAsync(e => e.Id == dto.ExaminationId && !e.IsDeleted);
-            if (examination != null)
+            if (examination?.MedicalRecordId != null)
             {
-                examination.Status = 5; // Closed
-                examination.UpdatedAt = DateTime.UtcNow;
-                examination.UpdatedBy = userId;
+                var record = await _context.MedicalRecords
+                    .FirstOrDefaultAsync(m => m.Id == examination.MedicalRecordId && !m.IsDeleted);
+                if (record != null && record.EmrFinalizedAt == null)
+                {
+                    Guid.TryParse(userId, out var uid);
+                    record.EmrFinalizedAt = DateTime.UtcNow;
+                    record.EmrFinalizedBy = uid == Guid.Empty ? null : uid;
+                    record.UpdatedAt = DateTime.UtcNow;
+                    record.UpdatedBy = userId;
+                }
             }
 
             await _context.SaveChangesAsync();
@@ -96,14 +115,26 @@ public partial class EmrManagementService
             };
             _context.Set<EmrCloseLog>().Add(reopenLog);
 
-            // Update examination status back to in-progress (Status=3)
+            // #218/T3: gỡ đúng cái cờ đã đặt lúc đóng, KHÔNG đụng vào `Examinations.Status`.
+            //
+            // Chỗ này trước đây viết `examination.Status = 3; // In progress` — sai hai lần. Một,
+            // 3 là "Chờ kết luận" chứ không phải "Đang khám" (1). Hai, và tệ hơn: nó gán CỨNG,
+            // bất kể lượt khám trước đó ở đâu. Một lượt khám Hoàn thành (4) đóng rồi mở lại thì
+            // thành Chờ kết luận — mất luôn dữ kiện đã khám xong, không có gì khôi phục lại được.
+            // Trạng thái lượt khám vốn không phải việc của thao tác đóng/mở hồ sơ.
             var examination = await _context.Examinations
                 .FirstOrDefaultAsync(e => e.Id == examinationId && !e.IsDeleted);
-            if (examination != null)
+            if (examination?.MedicalRecordId != null)
             {
-                examination.Status = 3; // In progress
-                examination.UpdatedAt = DateTime.UtcNow;
-                examination.UpdatedBy = userId;
+                var record = await _context.MedicalRecords
+                    .FirstOrDefaultAsync(m => m.Id == examination.MedicalRecordId && !m.IsDeleted);
+                if (record != null && record.EmrFinalizedAt != null)
+                {
+                    record.EmrFinalizedAt = null;
+                    record.EmrFinalizedBy = null;
+                    record.UpdatedAt = DateTime.UtcNow;
+                    record.UpdatedBy = userId;
+                }
             }
 
             await _context.SaveChangesAsync();

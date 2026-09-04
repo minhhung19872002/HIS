@@ -819,3 +819,64 @@ ngược; muốn khám thì đặt lịch mới. Thông báo lỗi nói rõ lị
 
 Ba **đối chứng âm** giữ cho bản vá trung thực (0→1, 1→2, 1→3 bắt buộc vẫn thông), vì sáu ca trên đều
 dạng "phải chặn" nên một bản vá chặn sạch mọi nút cũng đạt 6/6. Kết quả: **9/9** (trước vá 3/9).
+
+---
+
+## 20. Đóng hồ sơ bệnh án — cùng một lỗi, đã sửa đúng ở một nơi, còn nguyên ở nơi kia
+
+Hệ thống có **hai** đường đóng hồ sơ bệnh án. Đường thứ nhất,
+`EmrAdminService.FinalizeRecordAsync`, làm đúng — và ngay trên đầu hàm còn ghi lại bài học:
+
+```csharp
+// ⚠️ Trước đây set Status=5 — SAI semantics (5 = ... của luồng khám).
+// Nay khóa bằng cờ riêng EmrFinalizedAt/By + ghi vết/phiên bản vào EmrAmendments
+```
+
+Khóa bằng `MedicalRecords.EmrFinalizedAt`, có `EmrLockGuard` chặn sửa nội dung với đúng câu TT46,
+mở lại phải qua đường riêng hạn chế quyền + bắt buộc lý do + lưu vết `EmrAmendments`.
+
+Đường thứ hai, `EmrManagementService.CloseEmrAsync` (B.2.5, `POST /api/emr-management/close`), **vẫn
+làm đúng cái việc mà dòng cảnh báo trên gọi là SAI**: `examination.Status = 5; // Closed`. Mà
+`ExaminationStatus` nói rõ **5 = Cancelled (Hủy)**.
+
+Đây là hình dạng quen thuộc của cả đợt, lần này ở dạng gắt nhất: không phải luật được viết một nơi
+rồi quên nơi kia — mà là **bản sửa của chính lỗi này chỉ được áp ở một cửa**.
+
+### Hậu quả: khóa bằng cách khai man
+
+Ô `Examinations.Status` là ô cả hệ thống đang đọc, nên một hồ sơ đã khám xong và được đóng đúng quy
+trình sẽ hiện ra khắp nơi như một lượt khám **đã bị hủy**:
+
+* `ReceptionCompleteService.Queue` in nhãn "Hủy";
+* `ExaminationCompleteService.Prescriptions` từ chối kê đơn: *"Phiên khám đã hủy"*;
+* `ExaminationCompleteService.Conclusion` từ chối sửa kết luận: *"Phiếu khám đã hủy"*.
+
+Khóa thì có khóa. Nhưng khóa nhờ một lời khai sai, và người dùng đọc được lý do sai.
+
+`ReopenEmrAsync` còn gán `Status = 3` ("Chờ kết luận") **bất kể trước đó là gì** — một lượt khám
+Hoàn thành (4) đóng rồi mở lại thành Chờ kết luận, mất luôn dữ kiện đã khám xong.
+
+### Lượt đo đầu báo PASS cho việc chưa hề xảy ra
+
+Lượt chạy đầu cho 3/5, trong đó hai ca đầu **PASS** — trạng thái vẫn là 4, cờ TT46 vẫn trống, trông
+hệt như "đóng hồ sơ hành xử đúng". Đọc kỹ thân phản hồi mới thấy `canClose: false, errorCount: 2`:
+`CloseEmrAsync` chỉ đóng khi bộ tự kiểm sạch lỗi, nên nó **thoát sớm, không ghi gì**. Trạng thái
+không đổi vì phép đóng chưa từng chạy.
+
+Đúng cái bẫy đã gặp ở bài BHXH: **đo trạng thái cuối là không đủ khi "bị từ chối" và "chưa xảy ra"
+để lại cùng một dấu vết.** Sửa bằng cách tắt tạm luật tự kiểm cho phép đóng chạy thật, và thêm một
+câu chặn — nếu vẫn `canClose:false` thì **dừng hẳn**, không chấm điểm. Đo lại: **1/5**.
+
+### Bản vá và ca phải có
+
+Dùng chung cơ chế mà đường thứ nhất đã dùng: đóng thì đặt `EmrFinalizedAt/By`, mở lại thì gỡ, và
+**không đụng vào `Examinations.Status`** — trạng thái lượt khám vốn không phải việc của thao tác
+đóng/mở hồ sơ.
+
+Ca quan trọng nhất không phải bốn ca trên mà là ca thứ năm: **khóa có còn khóa không.** Trước bản
+vá, hồ sơ đã đóng chặn được sửa nội dung — nhưng chặn *nhờ* `Status = 5` bị đọc nhầm là đã hủy. Bỏ
+dòng gán đó đi mà không có gì thay thế thì hoá ra mở toang hồ sơ đã đóng, tức bản vá còn tệ hơn
+lỗi. Đo thẳng: sau khi đóng, `PUT /api/examination/{id}/conclusion` trả **400** kèm đúng câu TT46
+(*"Hồ sơ bệnh án đã kết thúc và được khóa theo TT46/2018-TT-BYT"*) thay vì *"phiếu khám đã hủy"*.
+
+`t3_emr_close_semantics.py`: **6/6** (trước vá 1/5).

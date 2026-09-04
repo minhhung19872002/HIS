@@ -1,0 +1,35 @@
+{
+ "ranAt": "2026-09-04T20:05:04",
+ "cases": [
+  {
+   "case": "đóng hồ sơ KHÔNG ghi đè trạng thái thành 'Hủy' (5)",
+   "pass": true,
+   "detail": "HTTP 200 · trạng thái sau khi đóng=4 (4=Hoàn thành, 5=Hủy)"
+  },
+  {
+   "case": "đóng hồ sơ đặt cờ khóa TT46 EmrFinalizedAt",
+   "pass": true,
+   "detail": "EmrFinalizedAt=co"
+  },
+  {
+   "case": "lượt khám đã xong KHÔNG bị hiển thị là 'Hủy'",
+   "pass": true,
+   "detail": "nhãn hệ thống đang hiển thị: 'Hoàn thành'"
+  },
+  {
+   "case": "hồ sơ ĐÃ ĐÓNG vẫn chặn sửa nội dung",
+   "pass": true,
+   "detail": "HTTP 400 · {\"error\":\"INVALID_STATE\",\"message\":\"Hồ sơ bệnh án đã kết thúc và được khóa theo TT46/2018-TT-BYT — không thể s"
+  },
+  {
+   "case": "mở lại trả về ĐÚNG trạng thái cũ (Hoàn thành=4)",
+   "pass": true,
+   "detail": "HTTP 200 · trạng thái sau khi mở lại=4 (3=Chờ kết luận)"
+  },
+  {
+   "case": "mở lại gỡ cờ khóa TT46",
+   "pass": true,
+   "detail": "EmrFinalizedAt=khong"
+  }
+ ]
+}
