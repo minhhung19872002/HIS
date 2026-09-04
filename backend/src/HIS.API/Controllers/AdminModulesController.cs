@@ -43,7 +43,7 @@ public class AdminModulesController : ControllerBase
     public async Task<IActionResult> CreatePeriod([FromBody] CreatePayrollPeriodDto dto)
     {
         try { return Ok(await _svc.CreatePayrollPeriodAsync(dto, GetUserId())); }
-        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message }); }
     }
 
     [HttpPost("payroll/periods/{id:guid}/approve")]

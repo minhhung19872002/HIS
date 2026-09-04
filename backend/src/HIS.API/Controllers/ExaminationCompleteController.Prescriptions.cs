@@ -35,10 +35,10 @@ public partial class ExaminationCompleteController : ControllerBase
     public async Task<IActionResult> SearchPrescriptionByCode(string code)
     {
         if (string.IsNullOrWhiteSpace(code))
-            return BadRequest(new { message = "Mã đơn không được để trống" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Mã đơn không được để trống" });
         var result = await _examinationService.SearchPrescriptionByCodeAsync(code);
         if (result == null)
-            return NotFound(new { message = $"Không tìm thấy đơn thuốc với mã '{code.Trim()}'" });
+            return NotFound(new { error = "NOT_FOUND", message = $"Không tìm thấy đơn thuốc với mã '{code.Trim()}'" });
         return Ok(result);
     }
 

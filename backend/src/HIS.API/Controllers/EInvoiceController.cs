@@ -49,7 +49,7 @@ public sealed class EInvoiceController : ControllerBase
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(new { error = "NOT_FOUND", message = ex.Message });
         }
     }
 
@@ -80,8 +80,8 @@ public sealed class EInvoiceController : ControllerBase
         {
             return Ok(await _svc.CancelAsync(id, cancelledBy, ct));
         }
-        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
-        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = "NOT_FOUND", message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message }); }
     }
 
     // ── Sync Status ──────────────────────────────────────────────────────────
@@ -97,7 +97,7 @@ public sealed class EInvoiceController : ControllerBase
         {
             return Ok(await _svc.SyncStatusAsync(id, ct));
         }
-        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = "NOT_FOUND", message = ex.Message }); }
     }
 
     // ── Config ───────────────────────────────────────────────────────────────

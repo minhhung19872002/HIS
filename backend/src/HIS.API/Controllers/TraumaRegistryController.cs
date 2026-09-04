@@ -39,7 +39,7 @@ public class TraumaRegistryController : ControllerBase
     public async Task<ActionResult<TraumaCaseDto>> CreateCase([FromBody] CreateTraumaCaseDto dto)
     {
         if (dto == null || ((dto.PatientId == null || dto.PatientId == Guid.Empty) && string.IsNullOrWhiteSpace(dto.PatientName)))
-            return BadRequest(new { message = "Thiếu thông tin bệnh nhân (PatientId hoặc PatientName)" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu thông tin bệnh nhân (PatientId hoặc PatientName)" });
         return Ok(await _service.CreateCaseAsync(dto));
     }
 

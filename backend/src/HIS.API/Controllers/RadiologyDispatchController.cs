@@ -28,7 +28,7 @@ public class RadiologyDispatchController : ControllerBase
     public async Task<IActionResult> Cancel(Guid id)
     {
         if (!await _svc.CancelAsync(id))
-            return BadRequest(new { message = "Đã thực hiện, không hủy được" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Đã thực hiện, không hủy được" });
         return Ok();
     }
 

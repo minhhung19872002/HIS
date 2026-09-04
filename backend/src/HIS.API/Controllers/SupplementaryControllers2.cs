@@ -55,7 +55,7 @@ public class SchoolHealthController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(new { error = "NOT_FOUND", message = ex.Message });
         }
     }
 
@@ -131,7 +131,7 @@ public class OccupationalHealthController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(new { error = "NOT_FOUND", message = ex.Message });
         }
     }
 
@@ -195,7 +195,7 @@ public class MethadoneController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
     }
 
@@ -212,7 +212,7 @@ public class MethadoneController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
     }
 
@@ -229,7 +229,7 @@ public class MethadoneController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
     }
 
@@ -266,7 +266,7 @@ public class MethadoneController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(new { error = "NOT_FOUND", message = ex.Message });
         }
     }
 
@@ -330,7 +330,7 @@ public class BhxhAuditController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(new { error = "NOT_FOUND", message = ex.Message });
         }
     }
 
@@ -357,7 +357,7 @@ public class BhxhAuditController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(new { error = "NOT_FOUND", message = ex.Message });
         }
     }
 
@@ -384,7 +384,7 @@ public class BhxhAuditController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(new { error = "NOT_FOUND", message = ex.Message });
         }
     }
 
@@ -412,7 +412,7 @@ public class BhxhAuditController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
     }
 
@@ -430,7 +430,7 @@ public class BhxhAuditController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
     }
 
@@ -441,7 +441,7 @@ public class BhxhAuditController : ControllerBase
     public async Task<ActionResult<BhxhAuditBatchSubmitResultDto>> SubmitBatch([FromBody] BatchSubmitAuditDto dto)
     {
         if (dto?.SessionIds == null || !dto.SessionIds.Any())
-            return BadRequest(new { message = "Cần chọn ít nhất 1 phiên giám định" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Cần chọn ít nhất 1 phiên giám định" });
 
         var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString());
         var result = await _service.SubmitBatchAsync(dto.SessionIds, userId);
@@ -461,7 +461,7 @@ public class BhxhAuditController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(new { error = "NOT_FOUND", message = ex.Message });
         }
     }
 
@@ -474,7 +474,7 @@ public class BhxhAuditController : ControllerBase
     public async Task<IActionResult> ExportBatchXml([FromBody] BatchExportXmlDto dto)
     {
         if (dto?.SessionIds == null || !dto.SessionIds.Any())
-            return BadRequest(new { message = "Cần chọn ít nhất 1 phiên giám định" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Cần chọn ít nhất 1 phiên giám định" });
 
         try
         {
@@ -484,11 +484,11 @@ public class BhxhAuditController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(new { error = "NOT_FOUND", message = ex.Message });
         }
     }
 
@@ -505,7 +505,7 @@ public class BhxhAuditController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(new { error = "NOT_FOUND", message = ex.Message });
         }
     }
 
@@ -523,10 +523,10 @@ public class BhxhAuditController : ControllerBase
     public async Task<ActionResult<BhxhAuditImportResultDto>> ImportAuditCsv(IFormFile file)
     {
         if (file == null || file.Length == 0)
-            return BadRequest(new { message = "Chua chon file CSV" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Chua chon file CSV" });
 
         if (!file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(new { message = "Chi ho tro file CSV. Excel can them thu vien ClosedXML/EPPlus." });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Chi ho tro file CSV. Excel can them thu vien ClosedXML/EPPlus." });
 
         var userId = Guid.TryParse(
             User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,

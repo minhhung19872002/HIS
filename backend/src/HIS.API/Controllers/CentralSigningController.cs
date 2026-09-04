@@ -223,7 +223,7 @@ public class CentralSigningController : ControllerBase
     {
         var imageBytes = Convert.FromBase64String(request.ImageBase64);
         var success = await _signingService.UploadSignatureImageAsync(request.Cccd, imageBytes);
-        return success ? Ok() : NotFound(new { message = "Không tìm thấy chứng thư số với CCCD này" });
+        return success ? Ok() : NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy chứng thư số với CCCD này" });
     }
 
     /// <summary>Export serial number list</summary>

@@ -42,10 +42,10 @@ public class ClinicalPharmacyController : ControllerBase
     public async Task<ActionResult<DrugInteractionImportResultDto>> ImportDrugInteractionsCsv(IFormFile file)
     {
         if (file == null || file.Length == 0)
-            return BadRequest(new { message = "Chua chon file CSV" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Chua chon file CSV" });
 
         if (!file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(new { message = "Chi ho tro file CSV. Excel can them thu vien ClosedXML/EPPlus." });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Chi ho tro file CSV. Excel can them thu vien ClosedXML/EPPlus." });
 
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms);

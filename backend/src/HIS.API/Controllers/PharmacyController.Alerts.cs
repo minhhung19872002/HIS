@@ -28,7 +28,7 @@ public partial class PharmacyController
         try
         {
             if (!await _pharmacyService.AcknowledgeAlertAsync(alertId))
-                return NotFound(new { message = "Không tìm thấy cảnh báo" });
+                return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy cảnh báo" });
             return Ok(true);
         }
         catch (Exception ex)
@@ -44,7 +44,7 @@ public partial class PharmacyController
         try
         {
             if (!await _pharmacyService.ResolveAlertAsync(alertId))
-                return NotFound(new { message = "Không tìm thấy cảnh báo" });
+                return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy cảnh báo" });
             return Ok(true);
         }
         catch (Exception ex)

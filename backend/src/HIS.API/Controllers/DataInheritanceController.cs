@@ -30,7 +30,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<OpdContextDto>> GetOpdContext(Guid examinationId)
         {
             var result = await _service.GetOpdContextAsync(examinationId);
-            if (result == null) return NotFound(new { message = "Không tìm thấy lượt khám" });
+            if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy lượt khám" });
             return Ok(result);
         }
 
@@ -42,7 +42,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<PrescriptionContextDto>> GetPrescriptionContext(Guid examinationId)
         {
             var result = await _service.GetPrescriptionContextAsync(examinationId);
-            if (result == null) return NotFound(new { message = "Không tìm thấy lượt khám" });
+            if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy lượt khám" });
             return Ok(result);
         }
 
@@ -54,7 +54,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<BillingContextDto>> GetBillingContext(Guid medicalRecordId)
         {
             var result = await _service.GetBillingContextAsync(medicalRecordId);
-            if (result == null) return NotFound(new { message = "Không tìm thấy hồ sơ bệnh án" });
+            if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy hồ sơ bệnh án" });
             return Ok(result);
         }
 
@@ -66,7 +66,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<PharmacyContextDto>> GetPharmacyContext(Guid prescriptionId)
         {
             var result = await _service.GetPharmacyContextAsync(prescriptionId);
-            if (result == null) return NotFound(new { message = "Không tìm thấy đơn thuốc" });
+            if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy đơn thuốc" });
             return Ok(result);
         }
 
@@ -78,7 +78,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<AdmissionContextDto>> GetAdmissionContext(Guid examinationId)
         {
             var result = await _service.GetAdmissionContextAsync(examinationId);
-            if (result == null) return NotFound(new { message = "Không tìm thấy lượt khám" });
+            if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy lượt khám" });
             return Ok(result);
         }
     }

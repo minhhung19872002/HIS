@@ -59,10 +59,10 @@ public partial class DigitalSignatureController
         var signature = await _signatureStore.GetSignatureByIdAsync(signatureId);
 
         if (signature == null)
-            return NotFound(new { message = "Không tìm thấy chữ ký" });
+            return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy chữ ký" });
 
         if (signature.Status != 0)
-            return BadRequest(new { message = "Chữ ký đã bị thu hồi" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Chữ ký đã bị thu hồi" });
 
         // Only the signer or admin can revoke
         if (signature.SignedByUserId != userId)
@@ -120,7 +120,7 @@ public partial class DigitalSignatureController
     {
         var signature = await _signatureStore.GetSignatureByIdAsync(signatureId);
         if (signature == null)
-            return NotFound(new { message = "Không tìm thấy chữ ký" });
+            return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy chữ ký" });
 
         // Try reading from disk path
         if (!string.IsNullOrEmpty(signature.SignedDocumentPath) && System.IO.File.Exists(signature.SignedDocumentPath))
@@ -145,7 +145,7 @@ public partial class DigitalSignatureController
             }
         }
 
-        return NotFound(new { message = "File PDF đã ký không tồn tại" });
+        return NotFound(new { error = "NOT_FOUND", message = "File PDF đã ký không tồn tại" });
     }
 
     /// <summary>

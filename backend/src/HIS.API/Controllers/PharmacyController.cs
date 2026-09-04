@@ -46,7 +46,7 @@ public partial class PharmacyController : ControllerBase
         try
         {
             if (!await _pharmacyService.AcceptPrescriptionAsync(prescriptionId))
-                return NotFound(new { message = "Không tìm thấy đơn thuốc" });
+                return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy đơn thuốc" });
             return Ok(new { id = prescriptionId.ToString(), status = "accepted" });
         }
         catch (InvalidOperationException ex)
@@ -69,7 +69,7 @@ public partial class PharmacyController : ControllerBase
         try
         {
             if (!await _pharmacyService.RejectPrescriptionAsync(prescriptionId, request?.Reason))
-                return NotFound(new { message = "Không tìm thấy đơn thuốc" });
+                return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy đơn thuốc" });
             return Ok(true);
         }
         catch (InvalidOperationException ex)
@@ -108,16 +108,16 @@ public partial class PharmacyController : ControllerBase
         {
             var result = await _pharmacyService.CompleteDispensingAsync(prescriptionId, CurrentUserId());
             if (result.NotFound)
-                return NotFound(new { message = "Không tìm thấy đơn thuốc" });
+                return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy đơn thuốc" });
             if (result.NoWarehouse)
-                return BadRequest(new { message = result.Message });
+                return BadRequest(new { error = "VALIDATION_FAILED", message = result.Message });
             return Ok(true);
         }
         catch (InvalidOperationException ex)
         {
             // #12: tồn kho không đủ → lỗi client rõ ràng (không phải 500), người dùng biết để nhập kho.
             _logger.LogWarning(ex, "CompleteDispensing: không đủ tồn kho cho prescription {Id}", prescriptionId);
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -133,7 +133,7 @@ public partial class PharmacyController : ControllerBase
         {
             var dispensed = await _pharmacyService.UpdateDispensedQuantityAsync(itemId, request.Quantity, request.BatchNumber);
             if (dispensed == null)
-                return NotFound(new { message = "Không tìm thấy chi tiết đơn thuốc" });
+                return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy chi tiết đơn thuốc" });
             return Ok(new { id = itemId.ToString(), dispensedQuantity = dispensed.Value });
         }
         catch (Exception ex)

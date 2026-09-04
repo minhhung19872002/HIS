@@ -40,7 +40,7 @@ public class CdaDocumentController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
     }
 
@@ -61,7 +61,7 @@ public class CdaDocumentController : ControllerBase
     public async Task<IActionResult> GetCdaDocument(Guid id)
     {
         var result = await _cdaService.GetCdaDocumentAsync(id);
-        if (result == null) return NotFound(new { message = $"CDA document {id} not found" });
+        if (result == null) return NotFound(new { error = "NOT_FOUND", message = $"CDA document {id} not found" });
         return Ok(result);
     }
 
@@ -79,7 +79,7 @@ public class CdaDocumentController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(new { error = "NOT_FOUND", message = ex.Message });
         }
     }
 
@@ -96,7 +96,7 @@ public class CdaDocumentController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(new { error = "NOT_FOUND", message = ex.Message });
         }
     }
 
@@ -113,7 +113,7 @@ public class CdaDocumentController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
     }
 
@@ -130,7 +130,7 @@ public class CdaDocumentController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
     }
 
@@ -148,7 +148,7 @@ public class CdaDocumentController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
     }
 }

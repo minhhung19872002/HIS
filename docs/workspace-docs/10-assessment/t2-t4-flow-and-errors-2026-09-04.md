@@ -148,8 +148,30 @@ endpoint, không phải `**/api/**`" của #219.
 
 Hai lỗi này đều thuộc loại "test xanh/đỏ vì lý do sai", nguy hiểm hơn test đỏ thật, nên ghi lại đây.
 
+### Hình dạng lỗi trên đường GHI
+
+#219 muốn lỗi có **một** hình dạng để giao diện chỉ viết một error-handler. Gọi 11 endpoint ghi tới
+hạn (thu tiền · tạm ứng · hoàn tiền · duyệt hoàn · hủy phiếu thu · dược duyệt · kê đơn · tiếp đón ·
+nhập viện · xuất viện) bằng payload sai hoặc id không tồn tại thì đo được **3 hình dạng**:
+
+| Hình dạng | Số lượt | Nguồn |
+|---|---:|---|
+| `{error, message}` | 9 | `DomainExceptionFilter` |
+| `{error, field, message}` | 1 | model-binding (thêm `field`, vẫn là siêu tập) |
+| `{message}` | 1 | các `NotFound(new { message = … })` viết tay ở controller |
+
+Cái lệch thật là hình dạng thứ ba: **thiếu `error`** nên FE không đọc được mã, phải đoán theo HTTP
+status hoặc theo chuỗi tiếng Việt. Toàn repo có **132 chỗ** như vậy ở 43 controller.
+
+**Sửa (thuần bổ sung, không đụng `message`):** thêm `error = "NOT_FOUND"` cho `NotFound(...)` và
+`error = "VALIDATION_FAILED"` cho `BadRequest(...)` — dùng đúng bộ mã mà `DomainExceptionFilter` đã
+phát, để hai đường hội tụ. 67 + 65 chỗ, chạy thử khô trước. Người đọc `message` cũ không ảnh hưởng.
+
+**Đo lại: còn 2 hình dạng**, và cả hai đều có `error` + `message` (`field` chỉ là phần thêm cho lỗi
+nhập liệu) — đủ để FE viết một handler duy nhất.
+
 ### Chưa phủ
 
-Lỗi trên đường **ghi** (tạo phiếu thu / hoàn tiền / kê đơn / upload) — mới đo đường đọc của trang.
-Kiểm `envelope` một lớp bằng vitest cho `apiClient` (yêu cầu "FE không double-unwrap" của #219) cũng
-chưa làm. Hạ mặc định `timeout` xuống ~20s cho đường đọc sau khi đã gán timeout riêng cho các lời gọi nặng.
+Phản ứng của **giao diện** trước lỗi đường ghi (mới đo hình dạng phản hồi ở tầng API, chưa đo màn
+hình hiện gì khi bấm Lưu mà API trả 400). Kiểm `envelope` một lớp bằng vitest cho `apiClient` (yêu
+cầu "FE không double-unwrap" của #219) cũng chưa làm — repo hiện chưa cấu hình vitest. Hạ mặc định `timeout` xuống ~20s cho đường đọc sau khi đã gán timeout riêng cho các lời gọi nặng.

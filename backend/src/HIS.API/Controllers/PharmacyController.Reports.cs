@@ -74,7 +74,7 @@ public partial class PharmacyController
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -113,7 +113,7 @@ public partial class PharmacyController
         {
             var html = await _pharmacyService.PrintDrugLabelAsync(prescriptionId);
             if (html == null)
-                return NotFound(new { message = "Không tìm thấy đơn thuốc" });
+                return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy đơn thuốc" });
             return Content(html, "text/html; charset=utf-8");
         }
         catch (Exception ex)

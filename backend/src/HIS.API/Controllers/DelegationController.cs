@@ -48,7 +48,7 @@ public class DelegationController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
     }
 
@@ -58,7 +58,7 @@ public class DelegationController : ControllerBase
     {
         var username = _currentUser.UserName ?? _currentUser.UserId ?? "unknown";
         var ok = await _delegation.RevokeGrantAsync(id, username);
-        if (!ok) return NotFound(new { message = "Không tìm thấy ủy quyền hoặc đã thu hồi." });
+        if (!ok) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy ủy quyền hoặc đã thu hồi." });
         return Ok(new { revoked = true });
     }
 }

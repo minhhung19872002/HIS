@@ -56,7 +56,7 @@ public class HospitalPharmacyController : ControllerBase
     public async Task<ActionResult<RetailSaleDetailDto>> CreateSale([FromBody] CreateRetailSaleDto dto)
     {
         if (dto == null || dto.Items == null || dto.Items.Count == 0)
-            return BadRequest(new { message = "Phiếu bán lẻ phải có ít nhất 1 mặt hàng" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Phiếu bán lẻ phải có ít nhất 1 mặt hàng" });
         var result = await _hospitalPharmacyService.CreateSaleAsync(dto);
         return Ok(result);
     }
@@ -201,7 +201,7 @@ public class HospitalPharmacyController : ControllerBase
     public async Task<ActionResult> PayCommissions([FromBody] PayCommissionDto dto)
     {
         var success = await _hospitalPharmacyService.PayCommissionsAsync(dto);
-        if (!success) return NotFound(new { message = "No pending commissions found" });
+        if (!success) return NotFound(new { error = "NOT_FOUND", message = "No pending commissions found" });
         return Ok(new { message = "Commissions paid successfully" });
     }
 

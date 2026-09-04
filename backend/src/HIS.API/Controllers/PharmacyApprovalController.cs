@@ -46,7 +46,7 @@ public class PharmacyApprovalController : ControllerBase
     public async Task<ActionResult<PharmacyApprovalDto>> Submit([FromBody] SubmitApprovalDto dto)
     {
         if (dto == null || dto.ApprovalId == Guid.Empty)
-            return BadRequest(new { message = "Thiếu ApprovalId" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu ApprovalId" });
         return Ok(await _service.SubmitAsync(dto, GetUserId()));
     }
 

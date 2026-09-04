@@ -165,7 +165,7 @@ public class MasterCatalogController : ControllerBase
     public async Task<IActionResult> DeleteMedicalRecordType(Guid id)
     {
         try { return await _svc.DeleteMedicalRecordTypeAsync(id) ? Ok() : NotFound(); }
-        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message }); }
     }
 
     // #12 ParaclinicalRoomPriority

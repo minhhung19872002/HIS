@@ -1,0 +1,98 @@
+{
+ "ranAt": "2026-09-04T10:50:06",
+ "distinctShapes": 2,
+ "shapes": {
+  "{error, message}": 10,
+  "{error, field, message}": 1
+ },
+ "cases": [
+  {
+   "case": "thu tiền: số tiền <= 0",
+   "method": "POST",
+   "path": "/api/BillingComplete/payments",
+   "status": 400,
+   "shape": "{error, message}",
+   "body": "{\"error\":\"INVALID_STATE\",\"message\":\"Số tiền thanh toán phải lớn hơn 0\"}"
+  },
+  {
+   "case": "tạm ứng: số tiền <= 0",
+   "method": "POST",
+   "path": "/api/BillingComplete/deposits",
+   "status": 404,
+   "shape": "{error, message}",
+   "body": "{\"error\":\"NOT_FOUND\",\"message\":\"Patient not found\"}"
+  },
+  {
+   "case": "hoàn tiền: thiếu chứng từ gốc",
+   "method": "POST",
+   "path": "/api/BillingComplete/refunds",
+   "status": 404,
+   "shape": "{error, message}",
+   "body": "{\"error\":\"NOT_FOUND\",\"message\":\"Patient not found\"}"
+  },
+  {
+   "case": "duyệt hoàn tiền: id không có",
+   "method": "POST",
+   "path": "/api/BillingComplete/refunds/approve",
+   "status": 404,
+   "shape": "{error, message}",
+   "body": "{\"error\":\"NOT_FOUND\",\"message\":\"Refund not found\"}"
+  },
+  {
+   "case": "hủy phiếu thu: id không có",
+   "method": "POST",
+   "path": "/api/BillingComplete/payments/00000000-0000-0000-0000-0000000000ff/cancel",
+   "status": 404,
+   "shape": "{error, message}",
+   "body": "{\"error\":\"NOT_FOUND\",\"message\":\"Khong tim thay phieu thu\"}"
+  },
+  {
+   "case": "dược duyệt đơn: id không có",
+   "method": "POST",
+   "path": "/api/pharmacy/prescriptions/00000000-0000-0000-0000-0000000000ff/accept",
+   "status": 404,
+   "shape": "{error, message}",
+   "body": "{\"error\":\"NOT_FOUND\",\"message\":\"Không tìm thấy đơn thuốc\"}"
+  },
+  {
+   "case": "kê đơn: lượt khám không có",
+   "method": "POST",
+   "path": "/api/examination/prescriptions",
+   "status": 404,
+   "shape": "{error, message}",
+   "body": "{\"error\":\"NOT_FOUND\",\"message\":\"Examination not found\"}"
+  },
+  {
+   "case": "kê đơn: sai kiểu dữ liệu",
+   "method": "POST",
+   "path": "/api/examination/prescriptions",
+   "status": 400,
+   "shape": "{error, field, message}",
+   "body": "{\"error\":\"VALIDATION_FAILED\",\"message\":\"The dto field is required.\",\"field\":\"dto\"}"
+  },
+  {
+   "case": "tiếp đón: thiếu phòng khám",
+   "method": "POST",
+   "path": "/api/reception/register/fee",
+   "status": 404,
+   "shape": "{error, message}",
+   "body": "{\"error\":\"NOT_FOUND\",\"message\":\"Khong tim thay benh nhan. Vui long nhap thong tin moi.\"}"
+  },
+  {
+   "case": "nhập viện: hồ sơ không có",
+   "method": "POST",
+   "path": "/api/inpatient/admit-from-opd",
+   "status": 404,
+   "shape": "{error, message}",
+   "body": "{\"error\":\"NOT_FOUND\",\"message\":\"Medical record not found\"}"
+  },
+  {
+   "case": "xuất viện: lượt không có",
+   "method": "POST",
+   "path": "/api/inpatient/discharge",
+   "status": 404,
+   "shape": "{error, message}",
+   "body": "{\"error\":\"NOT_FOUND\",\"message\":\"Admission not found\"}"
+  }
+ ]
+}

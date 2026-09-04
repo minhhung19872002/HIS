@@ -184,7 +184,7 @@ public class MedicalRecordArchiveController : ControllerBase
         }
         catch (Exception ex)
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(new { error = "NOT_FOUND", message = ex.Message });
         }
     }
 
@@ -201,7 +201,7 @@ public class MedicalRecordArchiveController : ControllerBase
         }
         catch (Exception ex)
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(new { error = "NOT_FOUND", message = ex.Message });
         }
     }
 }

@@ -30,7 +30,7 @@ public partial class PharmacyController
         {
             if (!Guid.TryParse(request.FromWarehouse, out var fromId) ||
                 !Guid.TryParse(request.ToWarehouse, out var toId))
-                return BadRequest(new { message = "Kho xuất/nhập không hợp lệ" });
+                return BadRequest(new { error = "VALIDATION_FAILED", message = "Kho xuất/nhập không hợp lệ" });
 
             List<TransferItemInput>? items = null;
             if (request.Items is { Count: > 0 })
@@ -40,7 +40,7 @@ public partial class PharmacyController
                 {
                     Guid? medicineId = Guid.TryParse(line.MedicineId, out var mid) ? mid : null;
                     if (medicineId == null && string.IsNullOrWhiteSpace(line.MedicationCode))
-                        return BadRequest(new { message = "Dòng thuốc thiếu mã thuốc (medicineId hoặc medicationCode)" });
+                        return BadRequest(new { error = "VALIDATION_FAILED", message = "Dòng thuốc thiếu mã thuốc (medicineId hoặc medicationCode)" });
                     items.Add(new TransferItemInput(medicineId, line.MedicationCode, line.Quantity, line.BatchNumber, line.Note));
                 }
             }
@@ -58,7 +58,7 @@ public partial class PharmacyController
         catch (InvalidOperationException ex)
         {
             // Lỗi nghiệp vụ từ service (kho trùng / thuốc không tồn / vượt tồn) → 400 kèm message
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -73,7 +73,7 @@ public partial class PharmacyController
         try
         {
             if (!await _pharmacyService.ApproveTransferAsync(transferId))
-                return NotFound(new { message = "Không tìm thấy phiếu điều chuyển" });
+                return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy phiếu điều chuyển" });
             return Ok(new { id = transferId.ToString(), status = "approved" });
         }
         catch (Exception ex)
@@ -89,7 +89,7 @@ public partial class PharmacyController
         try
         {
             if (!await _pharmacyService.RejectTransferAsync(transferId, request?.Reason))
-                return NotFound(new { message = "Không tìm thấy phiếu điều chuyển" });
+                return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy phiếu điều chuyển" });
             return Ok(new { id = transferId.ToString(), status = "rejected" });
         }
         catch (Exception ex)
@@ -105,7 +105,7 @@ public partial class PharmacyController
         try
         {
             if (!await _pharmacyService.ReceiveTransferAsync(transferId))
-                return NotFound(new { message = "Không tìm thấy phiếu điều chuyển" });
+                return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy phiếu điều chuyển" });
             return Ok(new { id = transferId.ToString(), status = "received" });
         }
         catch (Exception ex)

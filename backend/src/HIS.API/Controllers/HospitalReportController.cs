@@ -68,7 +68,7 @@ namespace HIS.API.Controllers
             [FromQuery] DateTime? to = null)
         {
             if (string.IsNullOrWhiteSpace(dto?.ToEmail))
-                return BadRequest(new { message = "toEmail không được để trống" });
+                return BadRequest(new { error = "VALIDATION_FAILED", message = "toEmail không được để trống" });
 
             var fromDate = dto.From.HasValue ? dto.From : from;
             var toDate = dto.To.HasValue ? dto.To : to;

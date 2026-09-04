@@ -41,7 +41,7 @@ public class ForensicController : ControllerBase
     public async Task<ActionResult<ForensicCaseDto>> CreateCase([FromBody] CreateForensicCaseDto dto)
     {
         if (dto == null || ((dto.PatientId == null || dto.PatientId == Guid.Empty) && string.IsNullOrWhiteSpace(dto.PatientName)))
-            return BadRequest(new { message = "Thiếu thông tin đối tượng (PatientId hoặc PatientName)" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu thông tin đối tượng (PatientId hoặc PatientName)" });
         return Ok(await _forensicService.CreateCaseAsync(dto, GetUserId()));
     }
 

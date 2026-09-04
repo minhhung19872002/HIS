@@ -59,7 +59,7 @@ public class TbHivController : ControllerBase
     public async Task<ActionResult<TbHivRecordDetailDto>> CreateRecord([FromBody] CreateTbHivRecordDto dto)
     {
         if (dto == null || dto.PatientId == Guid.Empty)
-            return BadRequest(new { message = "Thiếu PatientId" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu PatientId" });
         var result = await _tbHivService.CreateRecordAsync(dto);
         return Ok(result);
     }

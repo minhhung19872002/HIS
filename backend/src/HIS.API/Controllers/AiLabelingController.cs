@@ -131,7 +131,7 @@ public class AiLabelingController : ControllerBase
         // POST /ai-labeling endpoint is where accountability lives.
         var cfg = ResolveModelConfig(modality);
         if (cfg == null)
-            return NotFound(new { message = $"Modality '{modality}' không hỗ trợ AI" });
+            return NotFound(new { error = "NOT_FOUND", message = $"Modality '{modality}' không hỗ trợ AI" });
 
         var fileName = Path.GetFileName(cfg.Value.ModelFileName ?? "chestxray_densenet121_res224_all.onnx");
         var path = Path.Combine(AppContext.BaseDirectory, "wwwroot", "ai-models", fileName);
@@ -272,7 +272,7 @@ public class AiLabelingController : ControllerBase
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("không tồn tại"))
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(new { error = "NOT_FOUND", message = ex.Message });
         }
     }
 
@@ -291,7 +291,7 @@ public class AiLabelingController : ControllerBase
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("không tồn tại"))
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(new { error = "NOT_FOUND", message = ex.Message });
         }
     }
 
@@ -309,7 +309,7 @@ public class AiLabelingController : ControllerBase
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("không tồn tại"))
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(new { error = "NOT_FOUND", message = ex.Message });
         }
     }
 
@@ -327,7 +327,7 @@ public class AiLabelingController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -353,7 +353,7 @@ public class AiLabelingController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
     }
 

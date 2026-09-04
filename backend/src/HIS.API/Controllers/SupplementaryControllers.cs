@@ -373,7 +373,7 @@ public class HealthCheckupController : ControllerBase
         }
         catch (Exception ex)
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(new { error = "NOT_FOUND", message = ex.Message });
         }
     }
 
@@ -415,7 +415,7 @@ public class HealthCheckupController : ControllerBase
     public async Task<IActionResult> ImportBatchExcel(Guid campaignId, IFormFile file)
     {
         if (file == null || file.Length == 0)
-            return BadRequest(new { message = "Vui lòng chọn file Excel" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Vui lòng chọn file Excel" });
 
         using var stream = file.OpenReadStream();
         var result = await _service.ImportBatchExcelAsync(campaignId, stream, file.FileName);

@@ -54,7 +54,7 @@ public class NonDicomController : ControllerBase
         var study = await _db.NonDicomStudies.FirstOrDefaultAsync(s => s.Id == studyId)
             ?? throw new KeyNotFoundException();
 
-        if (files.Count == 0) return BadRequest(new { message = "Chưa có file" });
+        if (files.Count == 0) return BadRequest(new { error = "VALIDATION_FAILED", message = "Chưa có file" });
 
         var storageRoot = GetStorageRoot();
         var studyDir = Path.Combine(storageRoot, studyId.ToString());

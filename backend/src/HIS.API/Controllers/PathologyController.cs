@@ -53,7 +53,7 @@ public class PathologyController : ControllerBase
     public async Task<ActionResult<PathologyResultDto>> CreatePathologyResult([FromBody] CreatePathologyResultDto dto)
     {
         if (dto == null || dto.RequestId == null || dto.RequestId == Guid.Empty)
-            return BadRequest(new { message = "Thiếu RequestId (phiếu GPB)" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu RequestId (phiếu GPB)" });
         var result = await _pathologyService.CreatePathologyResultAsync(dto);
         return Ok(result);
     }
@@ -92,7 +92,7 @@ public class PathologyController : ControllerBase
     public async Task<ActionResult<CancelledPathologyRequestDto>> CancelPathologyRequest(Guid id, [FromBody] CancelPathologyRequestDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto?.Reason))
-            return BadRequest(new { message = "Lý do hủy là bắt buộc" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Lý do hủy là bắt buộc" });
 
         var cancelledBy = User.FindFirst(ClaimTypes.Name)?.Value
             ?? User.FindFirst("name")?.Value
@@ -106,7 +106,7 @@ public class PathologyController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
     }
 
@@ -128,7 +128,7 @@ public class PathologyController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
     }
 
@@ -143,7 +143,7 @@ public class PathologyController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
     }
 }

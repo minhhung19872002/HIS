@@ -35,7 +35,7 @@ public class SmsController : ControllerBase
     public async Task<IActionResult> SendTestSms([FromBody] SendTestSmsDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.PhoneNumber))
-            return BadRequest(new { message = "Vui lòng nhập số điện thoại" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Vui lòng nhập số điện thoại" });
 
         var result = await _smsService.SendSmsAsync(
             dto.PhoneNumber,

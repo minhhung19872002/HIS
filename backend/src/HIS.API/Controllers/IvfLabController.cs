@@ -42,7 +42,7 @@ public class IvfLabController : ControllerBase
     public async Task<ActionResult<IvfCoupleDto>> SaveCouple([FromBody] SaveIvfCoupleDto dto)
     {
         if (dto == null || dto.WifePatientId == Guid.Empty || dto.HusbandPatientId == Guid.Empty)
-            return BadRequest(new { message = "Thiếu thông tin vợ/chồng (WifePatientId, HusbandPatientId)" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu thông tin vợ/chồng (WifePatientId, HusbandPatientId)" });
         return Ok(await _ivfLabService.SaveCoupleAsync(dto));
     }
 

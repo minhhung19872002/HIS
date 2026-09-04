@@ -59,10 +59,10 @@ public class SpecimenImageController : ControllerBase
         [FromForm] string source = "manual")
     {
         if (file == null || file.Length == 0)
-            return BadRequest(new { message = "Chưa có file ảnh" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Chưa có file ảnh" });
 
         if (pathologyResultId == null && serviceRequestDetailId == null)
-            return BadRequest(new { message = "Phải truyền pathologyResultId hoặc serviceRequestDetailId" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Phải truyền pathologyResultId hoặc serviceRequestDetailId" });
 
         var ext = Path.GetExtension(file.FileName);
         var safeExt = new[] { ".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".bmp" }
@@ -103,10 +103,10 @@ public class SpecimenImageController : ControllerBase
     public async Task<IActionResult> UploadBase64([FromBody] UploadBase64Dto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Base64Data))
-            return BadRequest(new { message = "Chưa có dữ liệu ảnh" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Chưa có dữ liệu ảnh" });
 
         if (dto.PathologyResultId == null && dto.ServiceRequestDetailId == null)
-            return BadRequest(new { message = "Phải truyền pathologyResultId hoặc serviceRequestDetailId" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Phải truyền pathologyResultId hoặc serviceRequestDetailId" });
 
         // Strip data URI prefix if present: "data:image/jpeg;base64,..."
         var rawBase64 = dto.Base64Data.Contains(',')
@@ -120,7 +120,7 @@ public class SpecimenImageController : ControllerBase
         }
         catch
         {
-            return BadRequest(new { message = "Dữ liệu base64 không hợp lệ" });
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Dữ liệu base64 không hợp lệ" });
         }
 
         var ext = dto.MimeType switch

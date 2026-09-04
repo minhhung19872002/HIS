@@ -128,7 +128,7 @@ public class BookingManagementController : ControllerBase
             else if (DateTime.TryParse(date, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var dateTime))
                 parsedDate = dateTime.Date;
             else
-                return BadRequest(new { message = "Invalid date format" });
+                return BadRequest(new { error = "VALIDATION_FAILED", message = "Invalid date format" });
         }
 
         var result = await _service.GetBookingStatsAsync(parsedDate);

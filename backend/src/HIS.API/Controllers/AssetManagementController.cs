@@ -262,8 +262,8 @@ public class AssetManagementController : ControllerBase
         Guid id, Guid itemId, [FromBody] UpdateAssetStocktakeItemDto dto)
     {
         try { return Ok(await _service.UpdateStocktakeItemAsync(id, itemId, dto, GetUserId())); }
-        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
-        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = "NOT_FOUND", message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message }); }
     }
 
     /// <summary>In phiếu kiểm kê tài sản theo stocktakeId — HTML report.</summary>
@@ -275,6 +275,6 @@ public class AssetManagementController : ControllerBase
             var bytes = await _service.PrintStocktakeAsync(id);
             return File(bytes, "text/html; charset=utf-8");
         }
-        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = "NOT_FOUND", message = ex.Message }); }
     }
 }

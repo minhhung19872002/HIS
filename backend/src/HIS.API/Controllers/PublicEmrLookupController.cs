@@ -51,7 +51,7 @@ public class PublicEmrLookupController : ControllerBase
     {
         var file = await _service.GetDocumentPdfAsync(documentId, token, ClientIp, ClientUserAgent, Request.Path);
         if (file == null)
-            return NotFound(new { message = "Không thể truy cập tài liệu. Vui lòng tra cứu lại." });
+            return NotFound(new { error = "NOT_FOUND", message = "Không thể truy cập tài liệu. Vui lòng tra cứu lại." });
 
         return File(file.Content, file.ContentType, file.FileName);
     }
