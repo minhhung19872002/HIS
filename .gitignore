@@ -248,3 +248,5 @@ ghinho.txt
 /test-*.ps1
 
 .obsidian
+# T4 (#219): storageState của Playwright chứa JWT phiên đăng nhập — KHÔNG commit.
+frontend/e2e/.t4-auth.json

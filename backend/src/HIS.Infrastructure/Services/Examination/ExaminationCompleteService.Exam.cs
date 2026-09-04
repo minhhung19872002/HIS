@@ -33,7 +33,7 @@ public partial class ExaminationCompleteService
             .ThenInclude(r => r.Department)
             .FirstOrDefaultAsync(e => e.Id == examinationId);
 
-        if (examination == null) throw new Exception("Examination not found");
+        if (examination == null) throw new KeyNotFoundException("Examination not found");
 
         // AUTHZ-3 (#369) — guard: kill-switch OFF by default (Auth:TreatmentRelationshipEnabled=false).
         if (_currentUser.UserGuid.HasValue)
@@ -124,7 +124,7 @@ public partial class ExaminationCompleteService
     {
         await EmrLockGuard.EnsureEditableByExaminationAsync(_context, examinationId); // TT46
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
-        if (examination == null) throw new Exception("Examination not found");
+        if (examination == null) throw new KeyNotFoundException("Examination not found");
 
         examination.Temperature = dto.Temperature;
         examination.Pulse = dto.Pulse;
@@ -203,7 +203,7 @@ public partial class ExaminationCompleteService
     public async Task<MedicalInterviewDto> UpdateMedicalInterviewAsync(Guid examinationId, MedicalInterviewDto dto)
     {
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
-        if (examination == null) throw new Exception("Examination not found");
+        if (examination == null) throw new KeyNotFoundException("Examination not found");
 
         examination.ChiefComplaint = dto.ChiefComplaint;
         examination.PresentIllness = dto.HistoryOfPresentIllness;
@@ -229,7 +229,7 @@ public partial class ExaminationCompleteService
     public async Task<PhysicalExaminationDto> UpdatePhysicalExaminationAsync(Guid examinationId, PhysicalExaminationDto dto)
     {
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
-        if (examination == null) throw new Exception("Examination not found");
+        if (examination == null) throw new KeyNotFoundException("Examination not found");
 
         examination.PhysicalExamination = dto.GeneralAppearance;
         examination.SystemsReview = dto.OtherFindings;
@@ -309,7 +309,7 @@ public partial class ExaminationCompleteService
     public async Task<ExaminationTemplateDto> UpdateExaminationTemplateAsync(Guid id, ExaminationTemplateDto dto)
     {
         var template = await _context.ExaminationTemplates.FindAsync(id);
-        if (template == null) throw new Exception("Template not found");
+        if (template == null) throw new KeyNotFoundException("Template not found");
 
         template.TemplateName = dto.TemplateName;
         template.TemplateCode = dto.TemplateCode;
@@ -339,10 +339,10 @@ public partial class ExaminationCompleteService
     public async Task<PhysicalExaminationDto> ApplyExaminationTemplateAsync(Guid examinationId, Guid templateId)
     {
         var template = await _context.ExaminationTemplates.FindAsync(templateId);
-        if (template == null) throw new Exception("Template not found");
+        if (template == null) throw new KeyNotFoundException("Template not found");
 
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
-        if (examination == null) throw new Exception("Examination not found");
+        if (examination == null) throw new KeyNotFoundException("Examination not found");
 
         examination.ChiefComplaint = template.ChiefComplaintTemplate;
         examination.PhysicalExamination = template.PhysicalExamTemplate;
@@ -361,7 +361,7 @@ public partial class ExaminationCompleteService
     public async Task<ExaminationTemplateDto> SaveAsExaminationTemplateAsync(Guid examinationId, string templateName)
     {
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
-        if (examination == null) throw new Exception("Examination not found");
+        if (examination == null) throw new KeyNotFoundException("Examination not found");
 
         var template = new ExaminationTemplate
         {
@@ -437,7 +437,7 @@ public partial class ExaminationCompleteService
     public async Task<AllergyDto> UpdatePatientAllergyAsync(Guid id, AllergyDto dto)
     {
         var allergy = await _context.Allergies.FindAsync(id);
-        if (allergy == null) throw new Exception("Allergy not found");
+        if (allergy == null) throw new KeyNotFoundException("Allergy not found");
 
         allergy.AllergyType = dto.AllergyType;
         allergy.AllergenName = dto.AllergenName ?? "";
@@ -505,7 +505,7 @@ public partial class ExaminationCompleteService
     public async Task<ContraindicationDto> UpdatePatientContraindicationAsync(Guid id, ContraindicationDto dto)
     {
         var contraindication = await _context.Contraindications.FindAsync(id);
-        if (contraindication == null) throw new Exception("Contraindication not found");
+        if (contraindication == null) throw new KeyNotFoundException("Contraindication not found");
 
         contraindication.ContraindicationType = dto.ContraindicationType;
         contraindication.ItemName = dto.ItemName ?? "";

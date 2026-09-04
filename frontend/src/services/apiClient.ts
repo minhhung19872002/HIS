@@ -56,6 +56,14 @@ export const apiClient = axios.create({
   // #422: chỉ gửi cookie khi cookie-mode bật (CORS đã AllowCredentials + origins cụ thể).
   // Mặc định false → byte-equivalent hành vi cũ (không đính kèm credentials).
   withCredentials: REFRESH_COOKIE_MODE,
+  // #219/T4: KHÔNG có timeout thì một request treo (mạng chập chờn, backend nghẽn) sẽ không bao giờ
+  // resolve NÊN CŨNG không bao giờ reject — trang đứng ở "Đang tải…" vĩnh viễn, không báo lỗi, không
+  // có nút thử lại. Đo được đúng như vậy trên màn Khám bệnh: sau 20s spinner vẫn quay. Các trang đã
+  // xử lý đúng phần của mình (SimpleV2Page có .catch().finally()), chỉ thiếu cái mốc để dừng chờ.
+  // 60s là mức rộng rãi: dài hơn hẳn mọi truy vấn danh sách bình thường nên không cắt nhầm việc đang
+  // chạy được, mà vẫn chặn được cảnh chờ vô hạn. Lời gọi nặng (xuất PDF/Excel, gói DICOM) nếu cần lâu
+  // hơn thì truyền `timeout` riêng cho request đó.
+  timeout: 60_000,
 });
 
 // Request interceptor

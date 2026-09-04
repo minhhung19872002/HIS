@@ -45,7 +45,7 @@ public partial class ExaminationCompleteService
             .Include(e => e.MedicalRecord)
             .FirstOrDefaultAsync(e => e.Id == examinationId);
 
-        if (examination == null) throw new Exception("Examination not found");
+        if (examination == null) throw new KeyNotFoundException("Examination not found");
         // InvalidOperationException → DomainExceptionFilter trả 400 INVALID_STATE message rõ (không 500 mask)
         if (examination.Status == 4) throw new InvalidOperationException("Đã hoàn thành, cần mở khóa trước");
 
@@ -92,11 +92,11 @@ public partial class ExaminationCompleteService
             .Include(e => e.MedicalRecord)
             .FirstOrDefaultAsync(e => e.Id == examinationId);
 
-        if (examination == null) throw new Exception("Examination not found");
+        if (examination == null) throw new KeyNotFoundException("Examination not found");
         if (examination.MedicalRecord?.EmrFinalizedAt != null)
             throw new InvalidOperationException(EmrLockGuard.LockedMessage); // TT46
-        if (examination.Status == 5) throw new Exception("Phiếu khám đã hủy, không thể sửa kết luận");
-        if (examination.Status < 4) throw new Exception("Phiếu khám chưa hoàn thành, vui lòng dùng CompleteExamination");
+        if (examination.Status == 5) throw new InvalidOperationException("Phiếu khám đã hủy, không thể sửa kết luận");
+        if (examination.Status < 4) throw new InvalidOperationException("Phiếu khám chưa hoàn thành, vui lòng dùng CompleteExamination");
 
         examination.ConclusionType = dto.ConclusionType;
         examination.ConclusionNote = dto.ConclusionNotes;
@@ -132,7 +132,7 @@ public partial class ExaminationCompleteService
             .ThenInclude(m => m.Patient)
             .FirstOrDefaultAsync(e => e.Id == examinationId);
 
-        if (examination == null) throw new Exception("Examination not found");
+        if (examination == null) throw new KeyNotFoundException("Examination not found");
 
         examination.ConclusionType = 3; // Hospitalization
         examination.ConclusionNote = dto.Reason;
@@ -157,7 +157,7 @@ public partial class ExaminationCompleteService
             .ThenInclude(m => m.Patient)
             .FirstOrDefaultAsync(e => e.Id == examinationId);
 
-        if (examination == null) throw new Exception("Examination not found");
+        if (examination == null) throw new KeyNotFoundException("Examination not found");
 
         examination.ConclusionType = 4; // Transfer
         // Persist từng trường riêng thay vì gộp chuỗi vào ConclusionNote
@@ -182,7 +182,7 @@ public partial class ExaminationCompleteService
             .Include(e => e.MedicalRecord)
             .FirstOrDefaultAsync(e => e.Id == examinationId);
 
-        if (examination == null) throw new Exception("Examination not found");
+        if (examination == null) throw new KeyNotFoundException("Examination not found");
 
         var appointment = new Appointment
         {
@@ -293,7 +293,7 @@ public partial class ExaminationCompleteService
             .Include(a => a.Doctor)
             .FirstOrDefaultAsync(a => a.Id == appointmentId);
 
-        if (appointment == null) throw new Exception("Appointment not found");
+        if (appointment == null) throw new KeyNotFoundException("Appointment not found");
 
         appointment.Status = status;
         appointment.UpdatedAt = DateTime.UtcNow;
@@ -595,7 +595,7 @@ public partial class ExaminationCompleteService
             .ThenInclude(m => m.Patient)
             .FirstOrDefaultAsync(e => e.Id == examinationId);
 
-        if (examination == null) throw new Exception("Examination not found");
+        if (examination == null) throw new KeyNotFoundException("Examination not found");
 
         examination.Status = 1; // Back to in progress
         examination.EndTime = null;

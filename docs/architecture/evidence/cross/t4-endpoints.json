@@ -1,0 +1,6 @@
+{
+  "/v2/reception": "http://localhost:5106/api/reception/rooms/overview?date=2026-09-04",
+  "/v2/opd": "http://localhost:5106/api/reception/admissions/today?date=2026-09-04",
+  "/v2/pharmacy": "http://localhost:5106/api/pharmacy/pending-prescriptions",
+  "/v2/finance": "http://localhost:5106/api/finance/revenue/executing-dept?fromDate=2026-09-01&toDate=2026-09-30"
+}

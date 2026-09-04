@@ -1,0 +1,187 @@
+[
+  {
+    "tc": "TC-ERR-000",
+    "endpoints": {
+      "/v2/reception": "http://localhost:5106/api/reception/rooms/overview?date=2026-09-04",
+      "/v2/opd": "http://localhost:5106/api/reception/admissions/today?date=2026-09-04",
+      "/v2/pharmacy": "http://localhost:5106/api/pharmacy/pending-prescriptions",
+      "/v2/finance": "http://localhost:5106/api/finance/revenue/executing-dept?fromDate=2026-09-01&toDate=2026-09-30"
+    }
+  },
+  {
+    "tc": "TC-ERR-001",
+    "route": "/v2/reception",
+    "status": 400,
+    "shell": 1,
+    "spinners": 0,
+    "textLength": 1563,
+    "jsErrors": 0
+  },
+  {
+    "tc": "TC-ERR-001",
+    "route": "/v2/reception",
+    "status": 403,
+    "shell": 1,
+    "spinners": 0,
+    "textLength": 1563,
+    "jsErrors": 0
+  },
+  {
+    "tc": "TC-ERR-001",
+    "route": "/v2/reception",
+    "status": 404,
+    "shell": 1,
+    "spinners": 0,
+    "textLength": 1563,
+    "jsErrors": 0
+  },
+  {
+    "tc": "TC-ERR-001",
+    "route": "/v2/reception",
+    "status": 500,
+    "shell": 1,
+    "spinners": 0,
+    "textLength": 1563,
+    "jsErrors": 0
+  },
+  {
+    "tc": "TC-ERR-001",
+    "route": "/v2/reception",
+    "status": "timeout",
+    "spinners": 0,
+    "textLength": 1563,
+    "jsErrors": 0
+  },
+  {
+    "tc": "TC-ERR-002",
+    "route": "/v2/opd",
+    "status": 400,
+    "shell": 1,
+    "spinners": 0,
+    "textLength": 796,
+    "jsErrors": 0
+  },
+  {
+    "tc": "TC-ERR-002",
+    "route": "/v2/opd",
+    "status": 403,
+    "shell": 1,
+    "spinners": 0,
+    "textLength": 796,
+    "jsErrors": 0
+  },
+  {
+    "tc": "TC-ERR-002",
+    "route": "/v2/opd",
+    "status": 404,
+    "shell": 1,
+    "spinners": 0,
+    "textLength": 796,
+    "jsErrors": 0
+  },
+  {
+    "tc": "TC-ERR-002",
+    "route": "/v2/opd",
+    "status": 500,
+    "shell": 1,
+    "spinners": 0,
+    "textLength": 796,
+    "jsErrors": 0
+  },
+  {
+    "tc": "TC-ERR-002",
+    "route": "/v2/opd",
+    "status": "timeout",
+    "spinners": 0,
+    "textLength": 796,
+    "jsErrors": 0
+  },
+  {
+    "tc": "TC-ERR-003",
+    "route": "/v2/pharmacy",
+    "status": 400,
+    "shell": 1,
+    "spinners": 0,
+    "textLength": 874,
+    "jsErrors": 0
+  },
+  {
+    "tc": "TC-ERR-003",
+    "route": "/v2/pharmacy",
+    "status": 403,
+    "shell": 1,
+    "spinners": 0,
+    "textLength": 874,
+    "jsErrors": 0
+  },
+  {
+    "tc": "TC-ERR-003",
+    "route": "/v2/pharmacy",
+    "status": 404,
+    "shell": 1,
+    "spinners": 0,
+    "textLength": 874,
+    "jsErrors": 0
+  },
+  {
+    "tc": "TC-ERR-003",
+    "route": "/v2/pharmacy",
+    "status": 500,
+    "shell": 1,
+    "spinners": 0,
+    "textLength": 874,
+    "jsErrors": 0
+  },
+  {
+    "tc": "TC-ERR-003",
+    "route": "/v2/pharmacy",
+    "status": "timeout",
+    "spinners": 0,
+    "textLength": 874,
+    "jsErrors": 0
+  },
+  {
+    "tc": "TC-ERR-004",
+    "route": "/v2/finance",
+    "status": 400,
+    "shell": 1,
+    "spinners": 0,
+    "textLength": 839,
+    "jsErrors": 0
+  },
+  {
+    "tc": "TC-ERR-004",
+    "route": "/v2/finance",
+    "status": 403,
+    "shell": 1,
+    "spinners": 0,
+    "textLength": 839,
+    "jsErrors": 0
+  },
+  {
+    "tc": "TC-ERR-004",
+    "route": "/v2/finance",
+    "status": 404,
+    "shell": 1,
+    "spinners": 0,
+    "textLength": 839,
+    "jsErrors": 0
+  },
+  {
+    "tc": "TC-ERR-004",
+    "route": "/v2/finance",
+    "status": 500,
+    "shell": 1,
+    "spinners": 0,
+    "textLength": 839,
+    "jsErrors": 0
+  },
+  {
+    "tc": "TC-ERR-004",
+    "route": "/v2/finance",
+    "status": "timeout",
+    "spinners": 0,
+    "textLength": 839,
+    "jsErrors": 0
+  }
+]

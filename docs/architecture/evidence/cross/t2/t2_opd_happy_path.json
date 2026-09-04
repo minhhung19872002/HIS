@@ -1,0 +1,75 @@
+{
+ "ranAt": "2026-09-04T10:16:46",
+ "steps": [
+  {
+   "step": "1. Tạo bệnh nhân",
+   "pass": true,
+   "detail": "HTTP 201 · patientId=16d6861d-afd2-4a2f-8b21-08df0a31078a · mã=BN26000009"
+  },
+  {
+   "step": "2. Tiếp đón đăng ký khám",
+   "pass": true,
+   "detail": "HTTP 200 · tạo hồ sơ bệnh án 3636865F-BFD2-4432-B1C4-6FE13014B0A1"
+  },
+  {
+   "step": "3. Tiếp đón sinh lượt khám",
+   "pass": true,
+   "detail": "examinationId=3FE480A9-5B19-4881-BE31-E40480EAB416"
+  },
+  {
+   "step": "4. Bắt đầu khám",
+   "pass": true,
+   "detail": "HTTP 200 · Examinations.Status=1 (kỳ vọng 1 Đang khám)"
+  },
+  {
+   "step": "5. Chỉ định cận lâm sàng",
+   "pass": true,
+   "detail": "HTTP 200 · ServiceRequests=1 · đơn giá dịch vụ=5000000.00"
+  },
+  {
+   "step": "6. Hoàn thành lượt khám",
+   "pass": true,
+   "detail": "HTTP 200 · Examinations.Status=4 (kỳ vọng 4 Hoàn thành)"
+  },
+  {
+   "step": "7. Sửa kết luận sau khi hoàn thành",
+   "pass": true,
+   "detail": "HTTP 200"
+  },
+  {
+   "step": "8. Kê đơn thuốc",
+   "pass": true,
+   "detail": "HTTP 200 · prescriptionId=0249CDD7-2D2F-4EEF-84DA-BA82D40735FB · Status=0"
+  },
+  {
+   "step": "9. Đơn có dòng thuốc",
+   "pass": true,
+   "detail": "PrescriptionDetails=1"
+  },
+  {
+   "step": "9b. Dược duyệt đơn",
+   "pass": true,
+   "detail": "HTTP 200 · Prescriptions.Status=1 (kỳ vọng 1 Đã duyệt)"
+  },
+  {
+   "step": "10. Cấp phát thuốc",
+   "pass": true,
+   "detail": "HTTP 200 · Status|IsDispensed=2|1 · {\"success\":true,\"data\":true,\"message\":null,\"errors\":null,\"meta\":null}"
+  },
+  {
+   "step": "11. Kho bị trừ đúng số đã phát",
+   "pass": true,
+   "detail": "tồn lô T2E2E còn 94.0000 (nạp 100, kê 6 → kỳ vọng 94)"
+  },
+  {
+   "step": "12. Thu tiền vào sổ phiếu thu",
+   "pass": true,
+   "detail": "HTTP 200 · tổng Receipts.FinalAmount=50000.00 (kỳ vọng 50000)"
+  },
+  {
+   "step": "13. Chặn hủy đơn ĐÃ PHÁT",
+   "pass": true,
+   "detail": "HTTP 400 (kỳ vọng 400) · Status giữ nguyên 2"
+  }
+ ]
+}
