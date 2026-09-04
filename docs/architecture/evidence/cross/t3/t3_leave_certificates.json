@@ -1,0 +1,40 @@
+{
+ "ranAt": "2026-09-05T00:32:28",
+ "cases": [
+  {
+   "case": "giấy nghỉ ốm ĐƯỢC ghi xuống bảng",
+   "pass": true,
+   "detail": "HTTP 200 · số giấy trong bảng=1"
+  },
+  {
+   "case": "giấy mang SỐ GIẤY và CHẨN ĐOÁN chụp tại lúc cấp",
+   "pass": true,
+   "detail": "số giấy ~~ chẩn đoán = 'NO202609-00001 ~~ VIEM-PHOI-LUC-CAP-GIAY'"
+  },
+  {
+   "case": "chẩn đoán trên giấy đã cấp KHÔNG đổi theo",
+   "pass": true,
+   "detail": "chẩn đoán trên giấy='VIEM-PHOI-LUC-CAP-GIAY'"
+  },
+  {
+   "case": "cấp trùng giấy cùng loại bị chặn",
+   "pass": true,
+   "detail": "HTTP 400 · số giấy=1 · {\"error\":\"INVALID_STATE\",\"message\":\"Lượt khám này "
+  },
+  {
+   "case": "khoảng ngày ngược bị từ chối",
+   "pass": true,
+   "detail": "HTTP 400 · số giấy=0 · {\"error\":\"INVALID_STATE\",\"message\":\"Ngày kết thúc "
+  },
+  {
+   "case": "giấy nghỉ thai sản ĐƯỢC ghi, giữ số tuần thai",
+   "pass": true,
+   "detail": "HTTP 200 · số giấy=1 · tuần thai=38"
+  },
+  {
+   "case": "không cấp giấy trên lượt khám đã hủy",
+   "pass": true,
+   "detail": "HTTP 400 · số giấy=0 · {\"error\":\"INVALID_STATE\",\"message\":\"Lượt khám đã h"
+  }
+ ]
+}

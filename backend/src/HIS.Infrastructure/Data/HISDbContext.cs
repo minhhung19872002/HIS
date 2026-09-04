@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.DataProtection;
+﻿using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -47,6 +47,10 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<MedicalRecordArchive> MedicalRecordArchives => Set<MedicalRecordArchive>();
     public DbSet<MedicalRecordBorrowRequest> MedicalRecordBorrowRequests => Set<MedicalRecordBorrowRequest>();
     public DbSet<Examination> Examinations => Set<Examination>();
+    // #218/T3 (migration 177): giấy chứng nhận nghỉ việc hưởng BHXH — trước đây hai cửa cấp giấy
+    // là hàm rỗng, bệnh viện không giữ lại bản ghi nào về tờ giấy đã phát ra tay người bệnh.
+    public DbSet<SickLeave> SickLeaves => Set<SickLeave>();
+    public DbSet<MaternityLeave> MaternityLeaves => Set<MaternityLeave>();
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<AppointmentService> AppointmentServices => Set<AppointmentService>();
     public DbSet<DoctorSchedule> DoctorSchedules => Set<DoctorSchedule>();

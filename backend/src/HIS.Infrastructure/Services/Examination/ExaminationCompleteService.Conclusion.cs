@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
@@ -384,18 +384,148 @@ public partial class ExaminationCompleteService
         };
     }
 
+    /// <summary>
+    /// Cấp giấy chứng nhận nghỉ việc hưởng BHXH — nghỉ ốm (mẫu C65-HD, TT 56/2017).
+    ///
+    /// <para>#218/T3 (migration 177): trước đây hàm này chỉ dựng một DTO với Id = Guid.NewGuid()
+    /// rồi trả về — không ghi dòng nào. Bệnh viện cấp giấy cho người bệnh mà không giữ lại bản ghi:
+    /// không tra cứu lại được đã cấp cho ai, bao nhiêu ngày, và không đối chiếu được khi cơ quan
+    /// BHXH hỏi. Đo được ở evidence/cross/t3/t3_leave_certificates.json.</para>
+    /// </summary>
     public async Task<SickLeaveDto> CreateSickLeaveAsync(Guid examinationId, CreateSickLeaveDto dto)
     {
+        var r = await IssueLeaveCertificateAsync(examinationId, dto.Days, dto.FromDate, dto.ToDate,
+                                                 dto.Reason, gestationalWeeks: null, isMaternity: false);
         return new SickLeaveDto
         {
-            Id = Guid.NewGuid(),
-            ExaminationId = examinationId,
-            Days = dto.Days,
-            FromDate = dto.FromDate,
-            ToDate = dto.ToDate,
-            Reason = dto.Reason,
-            IssuedAt = DateTime.Now
+            Id = r.Id,
+            ExaminationId = r.ExaminationId,
+            Days = r.Days,
+            FromDate = r.FromDate,
+            ToDate = r.ToDate,
+            Reason = r.Reason,
+            DoctorName = r.DoctorName,
+            IssuedAt = r.IssuedAt,
         };
+    }
+
+    /// <summary>Cấp giấy nghỉ thai sản. Dùng chung đường ghi với nghỉ ốm, thêm số tuần thai.</summary>
+    public async Task<MaternityLeaveDto> CreateMaternityLeaveAsync(Guid examinationId, CreateMaternityLeaveDto dto)
+    {
+        var r = await IssueLeaveCertificateAsync(examinationId, dto.Days, dto.FromDate, dto.ToDate,
+                                                 dto.Reason, dto.GestationalWeeks, isMaternity: true);
+        return new MaternityLeaveDto
+        {
+            Id = r.Id,
+            ExaminationId = r.ExaminationId,
+            Days = r.Days,
+            FromDate = r.FromDate,
+            ToDate = r.ToDate,
+            GestationalWeeks = r.GestationalWeeks,
+            Reason = r.Reason,
+            DoctorName = r.DoctorName,
+            IssuedAt = r.IssuedAt,
+        };
+    }
+
+    private sealed record IssuedLeave(Guid Id, Guid ExaminationId, int Days, DateTime FromDate,
+                                      DateTime ToDate, int? GestationalWeeks, string? Reason,
+                                      string? DoctorName, DateTime IssuedAt);
+
+    /// <summary>
+    /// Đường ghi chung của hai loại giấy nghỉ. Gom về một chỗ để hai cửa không lệch nhau — đúng cái
+    /// hình dạng "một luật thi hành ở một cửa, bỏ trống ở cửa bên cạnh" mà cả đợt #218 đang gỡ.
+    /// </summary>
+    private async Task<IssuedLeave> IssueLeaveCertificateAsync(
+        Guid examinationId, int days, DateTime fromDate, DateTime toDate,
+        string? reason, int? gestationalWeeks, bool isMaternity)
+    {
+        var examination = await _context.Examinations
+            .Include(e => e.MedicalRecord).ThenInclude(m => m.Patient)
+            .Include(e => e.Doctor)
+            .FirstOrDefaultAsync(e => e.Id == examinationId && !e.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy lượt khám");
+
+        if (examination.Status == ExaminationStatus.Cancelled)
+            throw new InvalidOperationException("Lượt khám đã hủy, không cấp giấy nghỉ được.");
+
+        // Kiểm khoảng ngày ngay từ đầu vào — bài học §32 (truyền dịch kết thúc trước khi bắt đầu):
+        // chặn nguyên nhân chứ đừng kẹp triệu chứng.
+        if (toDate.Date < fromDate.Date)
+            throw new InvalidOperationException(
+                $"Ngày kết thúc ({toDate:dd/MM/yyyy}) sớm hơn ngày bắt đầu ({fromDate:dd/MM/yyyy}).");
+        var span = (toDate.Date - fromDate.Date).Days + 1;
+        if (days <= 0) days = span;
+        if (days != span)
+            throw new InvalidOperationException(
+                $"Số ngày nghỉ ({days}) không khớp khoảng {fromDate:dd/MM/yyyy}-{toDate:dd/MM/yyyy} ({span} ngày).");
+
+        var loai = isMaternity ? "thai sản" : "ốm";
+        var daCap = isMaternity
+            ? await _context.MaternityLeaves.AnyAsync(x => x.ExaminationId == examinationId && !x.IsDeleted)
+            : await _context.SickLeaves.AnyAsync(x => x.ExaminationId == examinationId && !x.IsDeleted);
+        if (daCap)
+            throw new InvalidOperationException(
+                $"Lượt khám này đã cấp giấy nghỉ {loai} rồi. Muốn cấp lại thì phải hủy giấy cũ.");
+
+        var patient = examination.MedicalRecord?.Patient;
+        var now = DateTime.UtcNow;
+        var prefix = (isMaternity ? "TS" : "NO") + now.ToString("yyyyMM");
+        var soDaCap = isMaternity
+            ? await _context.MaternityLeaves.CountAsync(x => x.CertificateNumber.StartsWith(prefix))
+            : await _context.SickLeaves.CountAsync(x => x.CertificateNumber.StartsWith(prefix));
+        var certificateNumber = $"{prefix}-{soDaCap + 1:D5}";
+
+        var id = Guid.NewGuid();
+        if (isMaternity)
+        {
+            await _context.MaternityLeaves.AddAsync(new MaternityLeave
+            {
+                Id = id,
+                CertificateNumber = certificateNumber,
+                ExaminationId = examinationId,
+                MedicalRecordId = examination.MedicalRecordId,
+                PatientId = patient?.Id ?? Guid.Empty,
+                Days = days,
+                FromDate = fromDate,
+                ToDate = toDate,
+                GestationalWeeks = gestationalWeeks,
+                Reason = reason,
+                DiagnosisCode = examination.MainIcdCode,
+                DiagnosisName = examination.MainDiagnosis,
+                InsuranceNumber = patient?.InsuranceNumber,
+                Workplace = patient?.Workplace,
+                IssuedByDoctorId = examination.DoctorId,
+                IssuedAt = now,
+                CreatedAt = now,
+            });
+        }
+        else
+        {
+            await _context.SickLeaves.AddAsync(new SickLeave
+            {
+                Id = id,
+                CertificateNumber = certificateNumber,
+                ExaminationId = examinationId,
+                MedicalRecordId = examination.MedicalRecordId,
+                PatientId = patient?.Id ?? Guid.Empty,
+                Days = days,
+                FromDate = fromDate,
+                ToDate = toDate,
+                Reason = reason,
+                DiagnosisCode = examination.MainIcdCode,
+                DiagnosisName = examination.MainDiagnosis,
+                InsuranceNumber = patient?.InsuranceNumber,
+                Workplace = patient?.Workplace,
+                IssuedByDoctorId = examination.DoctorId,
+                IssuedAt = now,
+                CreatedAt = now,
+            });
+        }
+
+        await _unitOfWork.SaveChangesAsync();
+        return new IssuedLeave(id, examinationId, days, fromDate, toDate, gestationalWeeks,
+                               reason, examination.Doctor?.FullName, now);
     }
 
     public async Task<byte[]> PrintSickLeaveAsync(Guid examinationId)
@@ -453,21 +583,6 @@ public partial class ExaminationCompleteService
             return Encoding.UTF8.GetBytes(html);
         }
         catch { return Array.Empty<byte>(); }
-    }
-
-    public async Task<MaternityLeaveDto> CreateMaternityLeaveAsync(Guid examinationId, CreateMaternityLeaveDto dto)
-    {
-        return new MaternityLeaveDto
-        {
-            Id = Guid.NewGuid(),
-            ExaminationId = examinationId,
-            Days = dto.Days,
-            FromDate = dto.FromDate,
-            ToDate = dto.ToDate,
-            GestationalWeeks = dto.GestationalWeeks,
-            Reason = dto.Reason,
-            IssuedAt = DateTime.Now
-        };
     }
 
     public async Task<byte[]> PrintMaternityLeaveAsync(Guid examinationId, CreateMaternityLeaveDto dto)
