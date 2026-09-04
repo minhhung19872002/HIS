@@ -53,6 +53,32 @@ hạn lấy thuốc mang một trạng thái lạ, và mọi màn lọc theo `St
 Đã sửa về hằng `PrescriptionStatus.Cancelled`, kèm guard, và đổi `throw new Exception` thành
 `InvalidOperationException` để lỗi nghiệp vụ ra 400 thay vì 500.
 
+## 4b. Phiếu hoàn tiền — cùng bệnh, ở miền tiền
+
+Hỏi tiếp câu y hệt cho `Receipts` với `ReceiptType = 3`. `ApproveRefundAsync` và `ConfirmRefundAsync`
+chỉ kiểm phiếu có tồn tại rồi gán thẳng trạng thái; guard duy nhất trong cả nhóm là "không hủy lại
+phiếu đã hủy".
+
+**Trước khi sửa: 11/16 lượt chuyển bất hợp lệ được chấp nhận, tất cả HTTP 200.** Ba lượt trong đó
+cho **tiền ra khỏi quỹ** sai:
+
+| Từ | Hành động | Vì sao nghiêm trọng |
+|---|---|---|
+| Chờ duyệt | confirm | **Chi tiền cho phiếu chưa từng được duyệt** — bỏ qua hẳn khâu phê duyệt. |
+| Từ chối | confirm | Chi tiền cho yêu cầu đã bị từ chối. |
+| Đã hủy | confirm | Chi tiền cho phiếu đã hủy. |
+
+Còn lại là lật ngược trạng thái kết thúc: phiếu đã chi vẫn "duyệt"/"từ chối"/"hủy" lại được trên
+giấy, phiếu đã từ chối vẫn duyệt lại được.
+
+**Sửa:** thêm `RefundStatus` vào `StatusConstants.cs` với bảng luật — tiền chỉ ra khỏi quỹ **sau khi
+đã duyệt**; từ chối / đã chi / đã hủy là trạng thái kết thúc — rồi nối vào ba đường ghi
+(approve/reject, confirm, cancel). Các con số 0/1/2/4/5 giữ nguyên vì dữ liệu prod đang dùng chúng;
+chỉ thay số trần bằng hằng có tên.
+
+**Sau khi sửa: 0/16 lượt bất hợp lệ lọt (tất cả trả 400), 5/5 lượt hợp lệ vẫn chạy.** 12 unit test
+giữ bảng luật; test gate lên 83 pass.
+
 ## 5. CHƯA sửa — và vì sao không nên sửa vội
 
 **`MedicalRecords.Status` đang mang HAI bộ từ vựng khác nhau trên cùng một cột.**
@@ -68,7 +94,7 @@ hình dữ liệu (một cột hai ý nghĩa), phải giải trước bằng cá
 `TreatmentType`, rồi mới thi hành máy trạng thái. Sửa mù ở đây rủi ro cao hơn hẳn lợi ích, nên chỉ
 ghi nhận.
 
-Còn lại chưa đo: chỉ định CLS (lab/CĐHA), phiếu thanh toán/hoàn tiền, ký số, hồ sơ BHXH, đơn duyệt
+Còn lại chưa đo: chỉ định CLS (lab/CĐHA), phiếu thanh toán và tạm ứng, ký số, hồ sơ BHXH, đơn duyệt
 mua sắm/ADR. Script `t3_state_transitions.py` dựng sẵn khuôn (seed → gọi endpoint → đọc lại DB), thêm
 thực thể mới chỉ cần khai bảng `LEGAL` + danh sách `ACTIONS`.
 

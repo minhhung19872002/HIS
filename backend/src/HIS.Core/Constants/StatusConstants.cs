@@ -137,6 +137,51 @@ public static class PrescriptionStatus
     };
 }
 
+/// <summary>
+/// #218/T3: trạng thái PHIẾU HOÀN TIỀN (Receipts với ReceiptType = 3). Trước đây chỉ là số trần rải
+/// trong BillingCompleteService.Refunds và KHÔNG có luật chuyển nào — đo trên API thật thì 11/16 lượt
+/// chuyển bất hợp lệ đều được chấp nhận với HTTP 200, trong đó ba lượt cho tiền RA KHỎI QUỸ sai:
+/// xác nhận chi cho phiếu chưa từng duyệt, cho phiếu đã từ chối, và cho phiếu đã hủy.
+/// </summary>
+public static class RefundStatus
+{
+    public const int PendingApproval = 0;  // Chờ duyệt
+    public const int Approved = 1;         // Đã duyệt
+    public const int Rejected = 2;         // Từ chối
+    public const int Paid = 4;             // Đã chi hoàn
+    public const int Cancelled = 5;        // Đã hủy
+
+    /// <summary>Nguyên tắc: tiền chỉ ra khỏi quỹ SAU KHI đã duyệt; từ chối/đã chi/đã hủy là trạng thái kết thúc.</summary>
+    private static readonly Dictionary<int, int[]> ValidTransitions = new()
+    {
+        { PendingApproval, [Approved, Rejected, Cancelled] },
+        { Approved,        [Paid, Cancelled] },
+        { Rejected,        [] },
+        { Paid,            [] },
+        { Cancelled,       [] },
+    };
+
+    public static bool CanTransition(int from, int to)
+        => from == to || (ValidTransitions.TryGetValue(from, out var allowed) && allowed.Contains(to));
+
+    public static void EnsureCanTransition(int from, int to)
+    {
+        if (!CanTransition(from, to))
+            throw new InvalidOperationException(
+                $"Không thể chuyển phiếu hoàn tiền từ trạng thái \"{GetName(from)}\" sang \"{GetName(to)}\".");
+    }
+
+    public static string GetName(int status) => status switch
+    {
+        PendingApproval => "Chờ duyệt",
+        Approved => "Đã duyệt",
+        Rejected => "Từ chối",
+        Paid => "Đã chi hoàn",
+        Cancelled => "Đã hủy",
+        _ => $"Không xác định ({status})",
+    };
+}
+
 public static class LabRequestStatus
 {
     public const int Pending = 0;

@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using HIS.Core.Constants;
 using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Billing;
@@ -238,13 +239,17 @@ public partial class BillingCompleteService {
         if (receipt == null)
             throw new KeyNotFoundException("Refund not found");
 
+        // #218/T3: trước đây gán thẳng, nên phiếu đã TỪ CHỐI / đã CHI / đã HỦY vẫn duyệt lại được.
+        var target = dto.IsApproved ? RefundStatus.Approved : RefundStatus.Rejected;
+        RefundStatus.EnsureCanTransition(receipt.Status, target);
+
         if (dto.IsApproved)
         {
-            receipt.Status = 1; // Đã duyệt
+            receipt.Status = RefundStatus.Approved;
         }
         else
         {
-            receipt.Status = 2; // Từ chối
+            receipt.Status = RefundStatus.Rejected;
             receipt.Note = $"{receipt.Note} | Từ chối: {dto.RejectReason}";
         }
 
@@ -275,7 +280,10 @@ public partial class BillingCompleteService {
         if (receipt == null)
             throw new KeyNotFoundException("Refund not found");
 
-        receipt.Status = 4; // Đã xác nhận hoàn
+        // #218/T3: đây là lúc TIỀN RA KHỎI QUỸ. Trước đây không kiểm gì, nên chi được cho phiếu
+        // chưa từng duyệt, phiếu đã từ chối và cả phiếu đã hủy.
+        RefundStatus.EnsureCanTransition(receipt.Status, RefundStatus.Paid);
+        receipt.Status = RefundStatus.Paid;
         receipt.Note = $"{receipt.Note} | Xác nhận: {dto.Notes} | Mã GD: {dto.TransactionNumber}";
         receipt.UpdatedAt = DateTime.Now;
         receipt.UpdatedBy = userId.ToString();
@@ -316,10 +324,11 @@ public partial class BillingCompleteService {
             .FirstOrDefaultAsync(r => r.Id == refundId && r.ReceiptType == 3);
         if (receipt == null)
             throw new KeyNotFoundException("Refund not found");
-        if (receipt.Status == 5)
+        RefundStatus.EnsureCanTransition(receipt.Status, RefundStatus.Cancelled);
+        if (receipt.Status == RefundStatus.Cancelled)
             throw new InvalidOperationException("Refund already cancelled");
 
-        receipt.Status = 5; // Đã hủy
+        receipt.Status = RefundStatus.Cancelled;
         receipt.Note = $"{receipt.Note} | Hủy: {reason}";
         receipt.UpdatedAt = DateTime.Now;
         receipt.UpdatedBy = userId.ToString();
