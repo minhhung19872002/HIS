@@ -1,4 +1,4 @@
-using Microsoft.Data.SqlClient;
+﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Surgery;
@@ -7,6 +7,7 @@ using HIS.Application.Services.Surgery;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
+using HIS.Core.Constants;
 using IcdCodeDto = HIS.Application.Services.IcdCodeDto;
 using SurgeryServiceDto = HIS.Application.Services.SurgeryServiceDto;
 
@@ -220,8 +221,12 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
         var request = await _context.Set<SurgeryRequest>().FindAsync(surgeryId);
         if (request == null) throw new KeyNotFoundException("Surgery request not found");
 
-        request.Status = 4;
-        request.Notes = reason;
+        // #218/T3: không từ chối duyệt một ca đã mổ hoặc đang mổ — việc đã xảy ra trên người bệnh.
+        SurgeryStatus.EnsureCanCancelRequest(request.Status, "từ chối duyệt");
+
+        request.Status = SurgeryStatus.RequestCancelled;
+        // Lý do vào ô riêng (migration 176), KHÔNG ghi đè `Notes` — đó là ghi chú lâm sàng của phiếu.
+        request.CancelReason = reason;
         request.UpdatedAt = DateTime.Now;
         request.UpdatedBy = userId.ToString();
 
@@ -510,8 +515,12 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
         var request = await _context.Set<SurgeryRequest>().FindAsync(surgeryId);
         if (request == null) return false;
 
-        request.Status = 4;
-        request.Notes = reason;
+        // #218/T3: hủy một ca ĐÃ MỔ XONG thì biên bản mổ vẫn nằm đó còn phiếu lại khai là đã hủy —
+        // hai thứ nói ngược nhau về một việc đã thật sự xảy ra trên người bệnh.
+        SurgeryStatus.EnsureCanCancelRequest(request.Status, "hủy");
+
+        request.Status = SurgeryStatus.RequestCancelled;
+        request.CancelReason = reason;
         request.UpdatedAt = DateTime.Now;
         request.UpdatedBy = userId.ToString();
         await _context.SaveChangesAsync();

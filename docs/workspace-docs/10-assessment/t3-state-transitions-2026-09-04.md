@@ -1265,3 +1265,43 @@ nguyên liệu đã đẻ ra ba lỗi của đợt này.
 
 Sau khi sửa, cả hai vế của bộ dò đều sạch: 0 chỗ lệch dải, và mọi cặp mâu thuẫn còn lại đều đã đọc
 và xác nhận là trùng tên biến vô hại.
+
+---
+
+## 30. Hủy / từ chối phiếu mổ — hủy được cả ca đã mổ xong, lý do đè lên ghi chú lâm sàng
+
+§13 đã vá bước **bắt đầu** và **kết thúc** ca mổ. Còn hai cửa nữa của cùng phiếu mổ —
+`RejectSurgeryAsync` và `CancelSurgeryAsync` — và cả hai là bốn dòng gán y hệt nhau:
+
+```csharp
+request.Status = 4;
+request.Notes = reason;      // ← ghi ĐÈ
+```
+
+Đo được **1/6**:
+
+* **hủy được ca mổ ĐÃ HOÀN THÀNH.** Biên bản mổ vẫn nằm đó, còn phiếu mổ thì khai là đã hủy — hai
+  thứ nói ngược nhau về một việc đã thật sự xảy ra trên người bệnh;
+* **hủy được ca ĐANG MỔ**;
+* **từ chối duyệt được một ca đã mổ xong**;
+* **`Notes` bị lý do hủy ghi đè.** `SurgeryRequests.Notes` là ghi chú lâm sàng của phiếu, ghi lúc tạo
+  từ `dto.Notes` và đọc ra làm `Description`. Đo được: `GHI-CHU-LAM-SANG-CUA-PHIEU-MO` bị thay bằng
+  `T3SRG huy hop le`.
+
+Đúng dạng §27, và cũng như §27, **chính entity này đã học bài một lần rồi** — `Surgery.cs` ngay dưới
+`Notes` có dòng *"Tường trình PTTT … tách khỏi sentinel Notes (migration 78)"*. Lần ấy tách tường
+trình ra; lần này lý do hủy vẫn nằm nguyên trong `Notes`.
+
+Vá: `SurgeryStatus.EnsureCanCancelRequest` (chặn ca đã hoàn thành · đang mổ · đã hủy rồi) và
+**migration 176** thêm `SurgeryRequests.CancelReason`. **6/6.**
+
+### Một sai sót về quy trình của chính tôi
+
+Ca này tôi **vá trước rồi mới đo** — ngược với kỷ luật đã giữ suốt cả đợt, và kết quả 6/6 đầu tiên
+vì thế không nói được gì về mức độ hỏng trước đó. Đã sửa lại cho đúng: cất bản vá đi
+(`git stash`), dựng lại, chạy bài đo trên mã cũ để lấy con số thật — **1/6**, và chính lượt chạy đó
+in ra `CancelReason ~~ Notes = '(trong) ~~ T3SRG huy hop le'`, tức nhìn thấy tận mắt ghi chú lâm sàng
+bị thay bằng lý do hủy. Rồi mới khôi phục bản vá, dựng lại, đo lại 6/6.
+
+Con số "trước khi vá" không phải thủ tục cho đẹp báo cáo: không có nó thì không phân biệt được
+"đã sửa một lỗi thật" với "viết thêm một bài đo cho thứ vốn đã đúng".

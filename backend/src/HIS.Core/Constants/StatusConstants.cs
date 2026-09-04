@@ -272,6 +272,26 @@ public static class SurgeryStatus
     /// vào biên bản đó. Kết thúc một ca chưa từng bắt đầu thì tường trình rơi hết mà API vẫn trả
     /// 200 — đo được ở evidence/cross/t3/t3_surgery_transitions.json.
     /// </summary>
+    /// <summary>
+    /// Phiếu mổ còn hủy / từ chối duyệt được không.
+    ///
+    /// <para>#218/T3 — `CancelSurgeryAsync` và `RejectSurgeryAsync` trước đây gán thẳng
+    /// <see cref="RequestCancelled"/> không kiểm gì, nên hủy được cả ca **đã mổ xong** và ca **đang
+    /// mổ**. Hủy một ca đã hoàn thành thì biên bản mổ vẫn nằm đó còn phiếu lại khai là đã hủy — hai
+    /// thứ nói ngược nhau về một việc đã thật sự xảy ra trên người bệnh.</para>
+    /// </summary>
+    public static void EnsureCanCancelRequest(int requestStatus, string action)
+    {
+        if (requestStatus == RequestCompleted)
+            throw new InvalidOperationException(
+                $"Ca mổ đã hoàn thành, không {action} được. Biên bản mổ đã ghi nhận ca này thật sự đã diễn ra.");
+        if (requestStatus == RequestInProgress)
+            throw new InvalidOperationException(
+                $"Ca mổ đang diễn ra, không {action} được.");
+        if (requestStatus == RequestCancelled)
+            throw new InvalidOperationException("Ca mổ đã hủy trước đó rồi.");
+    }
+
     public static void EnsureCanComplete(int scheduleStatus, bool hasRecord)
     {
         if (scheduleStatus == ScheduleCompleted)

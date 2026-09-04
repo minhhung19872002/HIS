@@ -45,6 +45,13 @@ public class SurgeryRequest : BaseEntity
     public string? Notes { get; set; }
     public string? SpecialRequirements { get; set; } // Yêu cầu đặc biệt
 
+    /// <summary>
+    /// Lý do HỦY hoặc TỪ CHỐI DUYỆT phiếu mổ. Thêm 2026-09-04 (#218/T3, migration 176).
+    /// Trước đây `RejectSurgeryAsync`/`CancelSurgeryAsync` nhét lý do vào <see cref="Notes"/>, ghi
+    /// đè mất ghi chú lâm sàng của phiếu — cùng bài học với dòng "tách khỏi sentinel Notes" ngay dưới.
+    /// </summary>
+    public string? CancelReason { get; set; }
+
     // Tường trình PTTT (OPD-inline, phiếu MS.PT-02) — tách khỏi sentinel Notes (migration 78)
     public string? SurgeryReport { get; set; } // Tường trình phẫu thuật
     public string? Conclusion { get; set; } // Kết luận sau PT
