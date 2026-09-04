@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Microsoft.EntityFrameworkCore;
 using HIS.Core.Constants;
 using HIS.Application.DTOs;
@@ -132,19 +132,42 @@ public partial class WarehouseCompleteService {
         return suggestions.OrderByDescending(s => s.SuggestedQuantity).ToList();
     }
 
+    /// <summary>
+    /// Duyệt đề nghị mua sắm. #218/T3 — trước đây trả về một DTO bịa (`RequestCode` ghép từ Id,
+    /// `Status = 1 // Đã duyệt`) mà KHÔNG ghi gì, trong khi bảng `ProcurementRequests` đã có sẵn và
+    /// `GetProcurementRequestsAsync` ngay dưới vẫn truy vấn nó. Đo được ở
+    /// evidence/cross/t3/t3_stub_group_a.json: bấm duyệt xong, đề nghị vẫn nguyên trạng thái cũ.
+    /// </summary>
     public async Task<ProcurementRequestDto> ApproveProcurementRequestAsync(Guid id, Guid userId)
     {
+        var request = await _context.ProcurementRequests
+            .Include(p => p.Items)
+            .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy đề nghị mua sắm");
+
+        // 2 = Đã duyệt (xem chú thích trên entity: 0 Draft, 1 Pending, 2 Approved, 3 Rejected, 4 Completed)
+        if (request.Status == 2)
+            throw new InvalidOperationException("Đề nghị mua sắm này đã được duyệt trước đó.");
+        if (request.Status == 3)
+            throw new InvalidOperationException("Đề nghị mua sắm đã bị từ chối, không duyệt được.");
+
+        request.Status = 2;
+        request.ApprovedById = userId;
+        request.ApprovedDate = DateTime.UtcNow;
+        request.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
         var user = await _context.Users.FindAsync(userId);
         return new ProcurementRequestDto
         {
-            Id = id,
-            RequestCode = $"DT-{id.ToString()[..8]}",
-            RequestDate = DateTime.Now,
-            Status = 1, // Đã duyệt
+            Id = request.Id,
+            RequestCode = request.RequestCode,
+            RequestDate = request.RequestDate,
+            Status = request.Status,
             Items = new List<ProcurementItemDto>(),
             CreatedBy = userId,
             CreatedByName = user?.FullName ?? string.Empty,
-            CreatedAt = DateTime.Now
+            CreatedAt = request.CreatedAt
         };
     }
 
@@ -539,44 +562,94 @@ public partial class WarehouseCompleteService {
         };
     }
 
+    /// <summary>
+    /// Ghi kết quả kiểm kê kho. #218/T3 — trước đây chỉ gán `item.StockTakeId` lên DTO **trong bộ
+    /// nhớ** rồi trả về, không ghi dòng nào. Bảng `StockTakes`/`StockTakeItems` đã có sẵn.
+    /// </summary>
     public async Task<StockTakeDto> UpdateStockTakeResultsAsync(Guid stockTakeId, List<StockTakeItemDto> items, Guid userId)
     {
-        var user = await _context.Users.FindAsync(userId);
+        var stockTake = await _context.StockTakes
+            .FirstOrDefaultAsync(s => s.Id == stockTakeId && !s.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu kiểm kê");
+        if (stockTake.Status >= 2)
+            throw new InvalidOperationException(
+                "Phiếu kiểm kê đã hoàn thành, không ghi thêm kết quả được.");
 
-        // Update StockTakeId on each item
-        foreach (var item in items)
+        // Ghi đè trọn bộ dòng kiểm kê của phiếu: đây là "lưu kết quả kiểm", không phải thêm dần.
+        var old = await _context.StockTakeItems.Where(i => i.StockTakeId == stockTakeId).ToListAsync();
+        _context.StockTakeItems.RemoveRange(old);
+
+        var now = DateTime.UtcNow;
+        foreach (var item in items ?? new List<StockTakeItemDto>())
         {
             item.StockTakeId = stockTakeId;
+            await _context.StockTakeItems.AddAsync(new StockTakeItem
+            {
+                Id = Guid.NewGuid(),
+                StockTakeId = stockTakeId,
+                InventoryItemId = item.StockId,
+                ItemId = item.ItemId,
+                ItemCode = item.ItemCode,
+                ItemName = item.ItemName,
+                Unit = item.Unit,
+                BatchNumber = item.BatchNumber,
+                ExpiryDate = item.ExpiryDate,
+                BookQuantity = item.BookQuantity,
+                ActualQuantity = item.ActualQuantity,
+                CreatedAt = now,
+            });
         }
 
+        stockTake.Status = 1; // Đang kiểm
+        stockTake.UpdatedAt = now;
+        stockTake.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
+
+        var user = await _context.Users.FindAsync(userId);
         return new StockTakeDto
         {
-            Id = stockTakeId,
-            StockTakeCode = $"KK-{stockTakeId.ToString()[..8]}",
-            StockTakeDate = DateTime.Now,
-            Items = items,
-            Status = 1, // Đang kiểm
+            Id = stockTake.Id,
+            StockTakeCode = stockTake.StockTakeCode,
+            StockTakeDate = stockTake.StockTakeDate,
+            Items = items ?? new List<StockTakeItemDto>(),
+            Status = stockTake.Status,
             CreatedBy = userId,
             CreatedByName = user?.FullName ?? string.Empty,
-            CreatedAt = DateTime.Now
+            CreatedAt = stockTake.CreatedAt
         };
     }
 
+    /// <summary>
+    /// Hoàn thành phiếu kiểm kê.
+    ///
+    /// <para>#218/T3 — chú thích cũ ở đây viết <c>// Stock take is handled in-memory (no StockTake
+    /// table yet)</c>. Chú thích đó **đã lỗi thời**: bảng `StockTakes` tồn tại, 14 cột, EF đã map.
+    /// Bảng được thêm sau mà code không ai quay lại nối vào — nợ đã trả nhưng code không biết, và
+    /// chú thích còn trấn an người đọc rằng đây là chuyện đã biết và có lý do.</para>
+    /// </summary>
     public async Task<StockTakeDto> CompleteStockTakeAsync(Guid stockTakeId, Guid userId)
     {
-        // Stock take is handled in-memory (no StockTake table yet)
-        // Return completed status
-        var user = await _context.Users.FindAsync(userId);
+        var stockTake = await _context.StockTakes
+            .FirstOrDefaultAsync(s => s.Id == stockTakeId && !s.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu kiểm kê");
+        if (stockTake.Status >= 2)
+            throw new InvalidOperationException("Phiếu kiểm kê đã hoàn thành trước đó.");
 
+        stockTake.Status = 2; // Hoàn thành
+        stockTake.UpdatedAt = DateTime.UtcNow;
+        stockTake.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
+
+        var user = await _context.Users.FindAsync(userId);
         return new StockTakeDto
         {
-            Id = stockTakeId,
-            StockTakeCode = $"KK-{stockTakeId.ToString()[..8]}",
-            StockTakeDate = DateTime.Now,
-            Status = 2,
+            Id = stockTake.Id,
+            StockTakeCode = stockTake.StockTakeCode,
+            StockTakeDate = stockTake.StockTakeDate,
+            Status = stockTake.Status,
             CreatedBy = userId,
             CreatedByName = user?.FullName ?? string.Empty,
-            CreatedAt = DateTime.Now
+            CreatedAt = stockTake.CreatedAt
         };
     }
 

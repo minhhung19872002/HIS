@@ -1,0 +1,35 @@
+{
+ "ranAt": "2026-09-05T00:22:04",
+ "cases": [
+  {
+   "case": "nhóm xét nghiệm ĐƯỢC ghi xuống LabTestGroups",
+   "pass": true,
+   "detail": "HTTP 200 · số dòng 0 → 1"
+  },
+  {
+   "case": "mẫu kết luận ĐƯỢC ghi xuống LabConclusionTemplates",
+   "pass": true,
+   "detail": "HTTP 200 · số dòng 0 → 1"
+  },
+  {
+   "case": "worklist ĐƯỢC ghi xuống LabWorklists",
+   "pass": true,
+   "detail": "HTTP 200 · số dòng worklist của item này=1"
+  },
+  {
+   "case": "duyệt đề nghị mua sắm ĐƯỢC ghi xuống DB",
+   "pass": true,
+   "detail": "HTTP 200 · Status|ApprovedDate = '2|co' (mong đợi '2|co')"
+  },
+  {
+   "case": "ghi kết quả kiểm kê ĐƯỢC lưu (trạng thái đổi)",
+   "pass": true,
+   "detail": "HTTP 200 · Status=1 (0=mới tạo, 1=đang kiểm)"
+  },
+  {
+   "case": "hoàn thành kiểm kê ĐƯỢC lưu",
+   "pass": true,
+   "detail": "HTTP 200 · Status=2 (2=hoàn thành)"
+  }
+ ]
+}

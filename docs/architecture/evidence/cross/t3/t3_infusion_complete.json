@@ -1,5 +1,5 @@
 {
- "ranAt": "2026-09-04T22:25:05",
+ "ranAt": "2026-09-05T00:21:52",
  "cases": [
   {
    "case": "KHÔNG nhận giờ kết thúc sớm hơn giờ bắt đầu",
@@ -13,7 +13,7 @@
    "mustBlock": true,
    "blocked": true,
    "pass": true,
-   "detail": "HTTP 400 · giờ kết thúc: '2026-09-04 12:00:00' → '2026-09-04 12:00:00'"
+   "detail": "HTTP 400 · giờ kết thúc: '2026-09-05 12:00:00' → '2026-09-05 12:00:00'"
   },
   {
    "case": "kết thúc hợp lệ (12:00) ĐƯỢC chạy, tính đúng 120 phút",

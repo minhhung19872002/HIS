@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Warehouse;
@@ -165,15 +165,41 @@ public partial class WarehouseCompleteService {
         }).ToList();
     }
 
+    /// <summary>
+    /// Ghi nhận sử dụng hàng ký gửi. #218/T3 — trước đây trả về một DTO bịa (`Quantity = 100` cứng,
+    /// `ConsignmentDate` là "tháng trước") mà không ghi gì, trong khi bảng `ConsignmentStocks` đã có
+    /// sẵn và `GetConsignmentStocksAsync` ngay trên vẫn truy vấn nó.
+    /// Ghi chú: hàm này hiện CHƯA có route API nào gọi tới — vá cho nhất quán với sáu hàm cùng nhóm.
+    /// </summary>
     public async Task<ConsignmentStockDto> RecordConsignmentUsageAsync(Guid consignmentId, decimal quantity, Guid userId)
     {
-        await Task.CompletedTask;
+        if (quantity <= 0)
+            throw new InvalidOperationException("Số lượng sử dụng phải lớn hơn 0.");
+
+        var stock = await _context.ConsignmentStocks
+            .FirstOrDefaultAsync(c => c.Id == consignmentId && !c.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy lô hàng ký gửi");
+
+        var remaining = stock.Quantity - stock.UsedQuantity;
+        if (quantity > remaining)
+            throw new InvalidOperationException(
+                $"Chỉ còn {remaining:N0} trong lô ký gửi, không ghi nhận sử dụng {quantity:N0} được.");
+
+        stock.UsedQuantity += quantity;
+        stock.UpdatedAt = DateTime.UtcNow;
+        stock.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
+
         return new ConsignmentStockDto
         {
-            Id = consignmentId,
-            Quantity = 100,
-            UsedQuantity = quantity,
-            ConsignmentDate = DateTime.Now.AddMonths(-1)
+            Id = stock.Id,
+            SupplierId = stock.SupplierId,
+            WarehouseId = stock.WarehouseId,
+            BatchNumber = stock.BatchNumber,
+            Quantity = stock.Quantity,
+            UsedQuantity = stock.UsedQuantity,
+            ConsignmentDate = stock.ConsignmentDate,
+            ExpirationDate = stock.ExpirationDate,
         };
     }
 

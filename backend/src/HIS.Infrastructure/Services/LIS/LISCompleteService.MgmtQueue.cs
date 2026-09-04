@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -92,9 +92,40 @@ public partial class LISCompleteService {
         }
     }
 
+    /// <summary>
+    /// Lưu nhóm xét nghiệm. #218/T3 — trước đây hàm này chỉ vọng lại đúng cái vừa nhận vào
+    /// (`return new LabTestGroupDto { Code = dto.Code, Name = dto.Name }`), không ghi gì, trong khi
+    /// bảng `LabTestGroups` đã có sẵn và `GetLabTestGroupsAsync` ngay dưới vẫn truy vấn nó.
+    /// </summary>
     public async Task<LabTestGroupDto> SaveLabTestGroupAsync(SaveLabTestGroupDto dto)
     {
-        return new LabTestGroupDto { Code = dto.Code, Name = dto.Name };
+        LabTestGroup entity;
+        if (dto.Id.HasValue)
+        {
+            entity = await _context.LabTestGroups.FirstOrDefaultAsync(g => g.Id == dto.Id.Value && !g.IsDeleted)
+                ?? throw new KeyNotFoundException("Không tìm thấy nhóm xét nghiệm");
+        }
+        else
+        {
+            entity = new LabTestGroup { Id = Guid.NewGuid(), CreatedAt = DateTime.UtcNow };
+            await _context.LabTestGroups.AddAsync(entity);
+        }
+
+        entity.Code = dto.Code;
+        entity.Name = dto.Name;
+        entity.SortOrder = dto.SortOrder;
+        entity.IsActive = dto.IsActive;
+        entity.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return new LabTestGroupDto
+        {
+            Id = entity.Id,
+            Code = entity.Code,
+            Name = entity.Name,
+            SortOrder = entity.SortOrder,
+            IsActive = entity.IsActive,
+        };
     }
 
     public async Task<List<ReferenceRangeDto>> GetReferenceRangesAsync(Guid testId)
@@ -302,9 +333,38 @@ public partial class LISCompleteService {
         }
     }
 
+    /// <summary>Lưu mẫu kết luận xét nghiệm. #218/T3 — trước đây là vỏ rỗng, xem SaveLabTestGroupAsync.</summary>
     public async Task<LabConclusionTemplateDto> SaveConclusionTemplateAsync(SaveConclusionTemplateDto dto)
     {
-        return new LabConclusionTemplateDto { TemplateCode = dto.TemplateCode, TemplateName = dto.TemplateName };
+        LabConclusionTemplate entity;
+        if (dto.Id.HasValue)
+        {
+            entity = await _context.LabConclusionTemplates.FirstOrDefaultAsync(t => t.Id == dto.Id.Value && !t.IsDeleted)
+                ?? throw new KeyNotFoundException("Không tìm thấy mẫu kết luận");
+        }
+        else
+        {
+            entity = new LabConclusionTemplate { Id = Guid.NewGuid(), CreatedAt = DateTime.UtcNow };
+            await _context.LabConclusionTemplates.AddAsync(entity);
+        }
+
+        entity.ServiceId = dto.TestId;
+        entity.TemplateCode = dto.TemplateCode;
+        entity.TemplateName = dto.TemplateName;
+        entity.ConclusionText = dto.ConclusionText;
+        entity.Condition = dto.Condition;
+        entity.IsActive = dto.IsActive;
+        entity.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return new LabConclusionTemplateDto
+        {
+            Id = entity.Id,
+            TemplateCode = entity.TemplateCode,
+            TemplateName = entity.TemplateName,
+            ConclusionText = entity.ConclusionText,
+            IsActive = entity.IsActive,
+        };
     }
 
     #endregion

@@ -21,7 +21,7 @@ Tiền tố dữ liệu T3INF.
 Cần: API :5106, DB his-sqlserver.
 """
 import json, os, subprocess, sys, urllib.error, urllib.request, uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -81,14 +81,25 @@ def main():
         if len(adm) != 36:
             raise SystemExit("không tìm được lượt nội trú: %r" % adm)
 
+        # Giờ bắt đầu phải do CHÍNH bài đo quyết định, không lấy `GETDATE()` của máy chủ CSDL.
+        #
+        # Lượt trước gieo `StartTime` bằng `GETDATE()` (đồng hồ container, UTC) nhưng tính giờ kết
+        # thúc bằng `datetime.now()` (đồng hồ máy chạy bài đo, UTC+7). Hai đồng hồ lệch 7 giờ, và
+        # khi chạy qua nửa đêm thì lệch hẳn MỘT NGÀY: giờ bắt đầu thành 2026-09-04 10:00 còn giờ kết
+        # thúc là 2026-09-05 12:00 → 1560 phút thay vì 120.
+        #
+        # Tệ hơn con số sai: ca "kết thúc TRƯỚC khi bắt đầu" gửi 08:00 ngày 05 — vẫn SAU 10:00 ngày
+        # 04, nên nó được nhận **hợp lệ** và bài đo chấm ĐẠT. Tức ca đó không hề đo cái nó nói.
+        # Nay gieo bằng một mốc tuyệt đối do bài đo tự tính, hai bên dùng chung đúng một con số.
+        START = datetime.now().replace(hour=10, minute=0, second=0, microsecond=0)
+
         def seed(status=0):
-            """Phiếu truyền dịch bắt đầu lúc 10:00 HÔM NAY."""
+            """Phiếu truyền dịch bắt đầu lúc 10:00 hôm nay, theo ĐÚNG đồng hồ của bài đo."""
             sql("DELETE FROM InfusionRecords WHERE Id='%s'; "
                 "INSERT INTO InfusionRecords (Id, AdmissionId, FluidName, Volume, DropRate, "
                 " StartTime, StartedBy, Status, CreatedAt, IsDeleted) VALUES "
-                "('%s','%s', N'%s-NaCl 0.9%%', 500, 40, "
-                " DATEADD(hour, 10, CAST(CAST(GETDATE() AS date) AS datetime2)), '%s', %d, GETUTCDATE(), 0);"
-                % (inf_id, inf_id, adm, TAG, uid, status))
+                "('%s','%s', N'%s-NaCl 0.9%%', 500, 40, '%s', '%s', %d, GETUTCDATE(), 0);"
+                % (inf_id, inf_id, adm, TAG, START.strftime("%Y-%m-%dT%H:%M:%S"), uid, status))
 
         def state():
             return sql("SELECT CASE WHEN EndTime IS NULL THEN 'chua-ket-thuc' "
@@ -100,7 +111,7 @@ def main():
         # ── 1. Kết thúc TRƯỚC giờ bắt đầu ──────────────────────────────────
         print("── Kết thúc truyền dịch vào lúc 08:00, trong khi bắt đầu lúc 10:00 ──")
         seed()
-        som = datetime.now().strftime("%Y-%m-%dT08:00:00")
+        som = (START - timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%S")   # 08:00 — TRƯỚC giờ bắt đầu
         st, b = http("POST", "/api/inpatient/infusion-records/%s/complete" % inf_id, som)
         s1 = state()
         case("KHÔNG nhận giờ kết thúc sớm hơn giờ bắt đầu", True,
@@ -110,11 +121,11 @@ def main():
         # ── 2. Kết thúc lại một phiếu đã kết thúc ──────────────────────────
         print("\n── Kết thúc lại một phiếu ĐÃ kết thúc ──")
         seed()
-        ok_time = datetime.now().strftime("%Y-%m-%dT12:00:00")
+        ok_time = (START + timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%S")  # 12:00 — sau 120 phút
         http("POST", "/api/inpatient/infusion-records/%s/complete" % inf_id, ok_time)
         first = sql("SELECT CONVERT(varchar(19), EndTime, 120) FROM InfusionRecords WHERE Id='%s'" % inf_id)
         st, b = http("POST", "/api/inpatient/infusion-records/%s/complete" % inf_id,
-                     datetime.now().strftime("%Y-%m-%dT15:00:00"))
+                     (START + timedelta(hours=5)).strftime("%Y-%m-%dT%H:%M:%S"))
         second = sql("SELECT CONVERT(varchar(19), EndTime, 120) FROM InfusionRecords WHERE Id='%s'" % inf_id)
         case("KHÔNG ghi đè giờ kết thúc đã ghi nhận", True, first == second,
              "HTTP %s · giờ kết thúc: %r → %r" % (st, first, second))

@@ -21,9 +21,67 @@ public partial class LISCompleteService
 {
     #region Worklist & Analyzer Integration
 
+    /// <summary>
+    /// Tạo worklist gửi máy phân tích. #218/T3 — trước đây trả về một `WorklistDto` rỗng mà không
+    /// ghi gì, trong khi bảng `LabWorklists` đã có sẵn (19 cột) và `GetPendingWorklistsAsync` ngay
+    /// dưới vẫn truy vấn dữ liệu thật. Người dùng bấm "gửi máy", nhận HTTP 200, và không dòng nào
+    /// được ghi — máy phân tích không bao giờ nhận được y lệnh.
+    /// Đo được ở evidence/cross/t3/t3_stub_group_a.json.
+    /// </summary>
     public async Task<WorklistDto> CreateWorklistAsync(CreateWorklistDto dto)
     {
-        return new WorklistDto { AnalyzerId = dto.AnalyzerId, Items = new List<WorklistItemDto>() };
+        var orderIds = (dto.OrderIds ?? new List<Guid>()).Where(x => x != Guid.Empty).Distinct().ToList();
+        if (orderIds.Count == 0)
+            throw new InvalidOperationException("Chưa chọn chỉ định nào để gửi máy phân tích.");
+
+        var details = await _context.ServiceRequestDetails
+            .Include(d => d.Service)
+            .Include(d => d.ServiceRequest).ThenInclude(r => r.MedicalRecord).ThenInclude(m => m.Patient)
+            .Where(d => orderIds.Contains(d.Id) && !d.IsDeleted)
+            .ToListAsync();
+        if (details.Count == 0)
+            throw new KeyNotFoundException("Không tìm thấy chỉ định xét nghiệm nào trong danh sách đã chọn.");
+
+        var now = DateTime.UtcNow;
+        var items = new List<WorklistItemDto>();
+        foreach (var detail in details)
+        {
+            // Không gửi trùng: một chỉ định đã có worklist đang chờ trên cùng máy thì bỏ qua.
+            var already = await _context.LabWorklists.AnyAsync(w =>
+                w.LabRequestItemId == detail.Id && w.AnalyzerId == dto.AnalyzerId
+                && w.Status < 2 && !w.IsDeleted);
+            if (already) continue;
+
+            var barcode = detail.SampleBarcode ?? detail.Id.ToString("N")[..12].ToUpperInvariant();
+            await _context.LabWorklists.AddAsync(new LabWorklist
+            {
+                Id = Guid.NewGuid(),
+                AnalyzerId = dto.AnalyzerId,
+                LabRequestItemId = detail.Id,
+                SampleBarcode = barcode,
+                TestCodes = detail.Service?.ServiceCode,
+                SentAt = now,
+                Status = 0,
+                RetryCount = 0,
+                CreatedAt = now,
+            });
+
+            var patient = detail.ServiceRequest?.MedicalRecord?.Patient;
+            items.Add(new WorklistItemDto
+            {
+                SampleId = barcode,
+                PatientId = patient?.PatientCode ?? "",
+                PatientName = patient?.FullName ?? "",
+                DateOfBirth = patient?.DateOfBirth,
+                Gender = patient == null ? null : (patient.Gender == 1 ? "Nam" : patient.Gender == 2 ? "Nữ" : "Khác"),
+                TestCodes = string.IsNullOrWhiteSpace(detail.Service?.ServiceCode)
+                    ? new List<string>()
+                    : new List<string> { detail.Service!.ServiceCode },
+            });
+        }
+
+        await _context.SaveChangesAsync();
+        return new WorklistDto { AnalyzerId = dto.AnalyzerId, Items = items };
     }
 
     public async Task<List<WorklistDto>> GetPendingWorklistsAsync(Guid? analyzerId = null)

@@ -40,8 +40,9 @@ một bài đo cho thứ vốn đã đúng*).
 | 35 | Hội chẩn **thuốc dấu \*** | Ghi đè kết luận sau khi **lãnh đạo đã duyệt**, chữ duyệt giữ nguyên | 1/2 → 2/2 |
 | 36 | Hồ sơ **đã khoá TT46** | Vẫn ghi đè được **chẩn đoán chính**; đọc hết 37 chỗ bộ dò chỉ ra | 1/2 → 2/2 |
 | 37-38 | **25 hàm rỗng** (bộ dò thứ ba) | Đọc hết: **7 lỗi vá được ngay** (bảng đã có) · 17 tính năng thiếu · 1 báo nhầm | khảo sát |
+| 39 | **Nhóm A** — 7 cửa ghi rỗng, bảng đã sẵn | Bấm "gửi máy phân tích" → **máy không bao giờ nhận y lệnh** | 0/6 → 6/6 |
 
-**Hồi quy hiện tại: 28 bộ đo, 175/175.** `dotnet test` 225 passed. Migration 168-176.
+**Hồi quy hiện tại: 29 bộ đo, 181/181.** `dotnet test` 225 passed. Migration 168-176.
 
 ### Ba hình dạng lặp lại, và cái đã làm với chúng
 
@@ -54,7 +55,7 @@ một bài đo cho thứ vốn đã đúng*).
 3. **Kẹp triệu chứng thay vì chặn nguyên nhân** — §32 (`Math.Max(0, …)`). Khó thấy nhất, vì nhìn vào
    code thì tưởng đã có ai nghĩ đến rồi.
 
-### Năm lần bài đo của chính tôi báo PASS giả
+### Sáu lần bài đo của chính tôi báo PASS giả
 
 Ghi lại vì đây là rủi ro lớn nhất của cả đợt — một bài đo sai thì tệ hơn không đo, vì nó cấp giấy
 chứng nhận cho thứ đang hỏng.
@@ -67,7 +68,10 @@ chứng nhận cho thứ đang hỏng.
   đo trên mã cũ để lấy con số thật (1/6);
 * §34 — thiếu một trường bắt buộc của DTO nên nhận 400 `TechnicianNote is required`, request **chưa
   hề tới service**, mà bài đo chấm là "đã bị chặn". Cứu được nhờ **đối chứng âm** cũng FAIL — hai kết
-  quả mâu thuẫn thì ít nhất một cái sai.
+  quả mâu thuẫn thì ít nhất một cái sai;
+* §39 — gieo giờ bắt đầu bằng đồng hồ **container CSDL** nhưng tính giờ kết thúc bằng đồng hồ **máy
+  chạy bài đo**; lệch 7 giờ, chạy qua nửa đêm thành lệch một ngày. Ca "kết thúc trước khi bắt đầu"
+  do đó **chưa hề đo cái nó nói** kể từ lúc viết.
 
 Mỗi lần đều **sửa phép đo rồi đo lại**, không sửa kỳ vọng cho vừa kết quả. Và khi một ca đo cũ trở
 nên lỗi thời sau bản vá (§21), nó được đổi sang đo điều **mạnh hơn** chứ không hạ chuẩn.
@@ -1743,3 +1747,58 @@ Trước khi đọc, câu hỏi là "làm 24 tính năng hay không". Sau khi đ
   đường ghi. Vá được trong tầm một đợt như các mục trước, không cần migration.
 * **Nhóm B (17 hàm)** — đây thật sự là **backlog sản phẩm**. Vẫn cần anh quyết: làm dần, cho báo lỗi
   rõ, hay ghi thành nợ có sổ.
+
+---
+
+## 39. Nhóm A — nối lại bảy cửa ghi, bảng vốn đã nằm sẵn ở đó
+
+§38 tách 25 hàm rỗng theo một tiêu chí: **bảng dữ liệu đã tồn tại hay chưa.** Bảy hàm rơi vào nhóm
+"bảng đã có" — tức không phải tính năng thiếu mà là **lỗi**: bảng thật, đủ cột, EF đã map, và đường
+**đọc** đã dùng bảng đó rồi; chỉ mỗi đường **ghi** là vỏ rỗng.
+
+Đo trước khi vá: **0/6** (sáu cửa có route API; cửa thứ bảy `RecordConsignmentUsageAsync` chưa có
+route nên vá cho nhất quán mà không đo qua HTTP được).
+
+| Cửa | Trước | Sau |
+|---|---|---|
+| `SaveLabTestGroupAsync` → `LabTestGroups` | 0 → 0 dòng | 0 → 1 |
+| `SaveConclusionTemplateAsync` → `LabConclusionTemplates` | 0 → 0 | 0 → 1 |
+| `CreateWorklistAsync` → `LabWorklists` | 0 worklist | 1 worklist |
+| `ApproveProcurementRequestAsync` → `ProcurementRequests` | `Status 1 \| ApprovedDate khong` | `2 \| co` |
+| `UpdateStockTakeResultsAsync` → `StockTakes` | Status 0 | Status 1 |
+| `CompleteStockTakeAsync` → `StockTakes` | Status 0 | Status 2 |
+
+Vá không chỉ là "thêm `SaveChanges`". Mỗi cửa còn thiếu đúng những lượt kiểm mà cả đợt này đang đi
+tìm, nên thêm luôn: duyệt lại một đề nghị **đã duyệt** bị chặn; ghi kết quả kiểm kê vào phiếu **đã
+hoàn thành** bị chặn; gửi máy phân tích **không tạo worklist trùng** cho cùng một chỉ định; ghi nhận
+sử dụng hàng ký gửi **không vượt quá số còn lại trong lô**.
+
+`CreateWorklistAsync` là cửa đáng lo nhất trong bảy: người dùng bấm "gửi máy", nhận HTTP 200, và
+**máy phân tích không bao giờ nhận được y lệnh** — không có dòng nào để gửi.
+
+**6/6** sau khi vá, `t3_stub_group_a.py`.
+
+### Lần thứ sáu bài đo của tôi báo PASS giả — lần này do lệch đồng hồ
+
+Chạy regression sau khi vá, `t3_infusion_complete` tụt 3/3 → 2/3, dù không bản vá nào của nhóm A
+chạm tới truyền dịch. Đọc kỹ: thời lượng ra **1560 phút** thay vì 120.
+
+Nguyên nhân là bài đo, không phải sản phẩm. Nó gieo `StartTime` bằng `GETDATE()` — **đồng hồ của
+container CSDL** — nhưng tính giờ kết thúc bằng `datetime.now()` — **đồng hồ máy chạy bài đo**. Hai
+đồng hồ lệch 7 giờ, và lượt chạy này rơi qua nửa đêm nên lệch hẳn **một ngày**:
+
+```
+host : 2026-09-05 00:19        DB : 2026-09-04 17:19
+StartTime gieo = 2026-09-04 10:00     endTime gửi = 2026-09-05 12:00   → 26 giờ
+```
+
+Tệ hơn con số sai: ca **"kết thúc trước khi bắt đầu"** gửi 08:00 ngày 05 — vẫn **sau** 10:00 ngày 04
+— nên nó được nhận hợp lệ và bài đo chấm **ĐẠT**. Ca ấy đã không hề đo cái nó nói suốt từ lúc viết,
+và chỉ lộ ra vì hôm nay chạy qua nửa đêm.
+
+Sửa: mốc thời gian do **chính bài đo** quyết định và truyền xuống dưới dạng tuyệt đối, hai bên dùng
+chung đúng một con số. Về lại 3/3, và ca 1 giờ mới thật sự kiểm được điều nó tuyên bố.
+
+Bài học riêng của lần này: **một bài đo phụ thuộc vào "hôm nay" của hai đồng hồ khác nhau là bài đo
+đúng theo lịch.** Nó xanh suốt nhiều ngày rồi đỏ vào đúng ngày ta không ngờ — hoặc tệ hơn, xanh giả
+suốt nhiều ngày như ca 1 ở đây.
