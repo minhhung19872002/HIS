@@ -36,7 +36,7 @@ const FAILURES = [
     body: { error: 'VALIDATION_FAILED', message: 'Bệnh nhân này đã có lượt khám đang mở tại phòng khác.' },
   },
   {
-    tc: 'TC-WERR-002', code: 409, state: 'conflict',
+    tc: 'TC-WERR-002', code: 409, state: 'error',
     body: { error: 'CONCURRENT_UPDATE', message: 'Quầy khác vừa tiếp đón bệnh nhân này, vui lòng tải lại.' },
   },
   {
@@ -144,7 +144,9 @@ test.describe('[T4 #219] Lỗi trên đường GHI có tới được mắt ngư
       const stuckLoading = await submit.locator('.ant-btn-loading-icon').count()
         .then((n) => n > 0).catch(() => false);
 
-      const shot = path.join(EVID, 't4', `${f.tc}_reception_write_${f.state}.png`);
+      // §2 evidence/README: ảnh nằm THẲNG trong cross/, tên `TC-<CODE>-<NNN>__s<NN>__<state>`,
+      // và <state> phải thuộc bộ trạng thái hợp lệ — nếu không viewer sẽ không khớp được ảnh với task.
+      const shot = path.join(EVID, `${f.tc}__s01__${f.state}.png`);
       fs.mkdirSync(path.dirname(shot), { recursive: true });
       await page.screenshot({ path: shot, fullPage: false });
 
@@ -173,12 +175,12 @@ test.describe('[T4 #219] Lỗi trên đường GHI có tới được mắt ngư
   // trước đợt sửa này, bị chặn tần suất và máy chủ hỏng đều bị báo thành "sai mật khẩu".
   const LOGIN_CASES = [
     {
-      tc: 'TC-WERR-004', code: 429, label: 'bị chặn vì thử quá nhiều lần',
+      tc: 'TC-WERR-004', code: 429, state: 'toast', label: 'bị chặn vì thử quá nhiều lần',
       body: {},
       expect: /quá nhiều lần/i, mustNotSay: /mật khẩu không đúng/i,
     },
     {
-      tc: 'TC-WERR-005', code: 503, label: 'máy chủ không trả lời',
+      tc: 'TC-WERR-005', code: 503, state: 'error', label: 'máy chủ không trả lời',
       body: { error: 'UNAVAILABLE', message: 'Hệ thống đang bảo trì.' },
       expect: /Không kết nối được máy chủ/i, mustNotSay: /mật khẩu không đúng/i,
     },
@@ -215,7 +217,7 @@ test.describe('[T4 #219] Lỗi trên đường GHI có tới được mắt ngư
 
       const stayedOnLogin = page.url().includes('/login');
 
-      const shot = path.join(EVID, 't4', `${c.tc}_login_${c.code}.png`);
+      const shot = path.join(EVID, `${c.tc}__s01__${c.state}.png`);
       fs.mkdirSync(path.dirname(shot), { recursive: true });
       await page.screenshot({ path: shot, fullPage: false });
 

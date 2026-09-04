@@ -1,5 +1,5 @@
 {
- "ranAt": "2026-09-04T04:54:40.814Z",
+ "ranAt": "2026-09-04T05:01:42.396Z",
  "tc": "TC-WERR-004",
  "code": 429,
  "surface": "màn hình đăng nhập (ngoài khung ứng dụng)",
@@ -8,5 +8,5 @@
  "blamedPassword": false,
  "stayedOnLogin": true,
  "jsErrors": 0,
- "shot": "TC-WERR-004_login_429.png"
+ "shot": "TC-WERR-004__s01__toast.png"
 }

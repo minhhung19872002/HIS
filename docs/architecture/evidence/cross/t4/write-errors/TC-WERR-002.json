@@ -1,5 +1,5 @@
 {
- "ranAt": "2026-09-04T04:54:42.957Z",
+ "ranAt": "2026-09-04T05:01:44.274Z",
  "tc": "TC-WERR-002",
  "code": 409,
  "surface": "wizard tiếp đón (trong khung ứng dụng)",
@@ -8,5 +8,5 @@
  "formStillOpen": true,
  "stuckLoading": false,
  "jsErrors": 0,
- "shot": "TC-WERR-002_reception_write_conflict.png"
+ "shot": "TC-WERR-002__s01__error.png"
 }
