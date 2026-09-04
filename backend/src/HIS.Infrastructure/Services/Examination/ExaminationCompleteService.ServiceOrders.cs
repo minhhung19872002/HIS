@@ -185,7 +185,16 @@ public partial class ExaminationCompleteService
         var request = await _context.ServiceRequests.FindAsync(orderId);
         if (request == null || request.Status != 0) return false;
 
-        request.Status = 3; // Cancelled
+        // #218/T3: trước đây ghi 3. Nhưng với `ServiceRequests` thì **4 = đã hủy**, và cả phần còn
+        // lại của hệ thống đồng thuận chuyện đó: `BillingCompleteService.Printing` (3 chỗ) và
+        // `.Refunds` lọc `ServiceRequest.Status != 4` để loại chỉ định đã hủy khỏi hóa đơn;
+        // `InpatientCompleteService.NutritionReports` ném lỗi khi `== 4`; `OrdersReports` ghi 4 kèm
+        // chú thích "ServiceRequest.Status: 4=hủy; SRD.Status: 3=hủy"; `LabCancelChainService` coi 3
+        // là trạng thái đang-làm-việc.
+        //
+        // Nên hủy bằng số 3 thì chỉ định vẫn `!= 4` ⇒ hóa đơn VẪN TÍNH TIỀN dịch vụ đã bị hủy.
+        // Đo được ở evidence/cross/t3/t3_service_order_cancel.json.
+        request.Status = 4; // Cancelled
         request.Notes = reason;
 
         await _unitOfWork.SaveChangesAsync();

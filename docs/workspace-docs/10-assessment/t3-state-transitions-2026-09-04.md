@@ -1197,3 +1197,49 @@ phải **thật sự nằm ở ô riêng và đọc lại được**: sau khi g�
 ghi `Status=5` = "đã hủy"; §24 chú thích `Admissions.Status` nói ngược với mã đang chạy). Ba lần
 khác module, khác người viết, cùng một cách hỏng — nên đây không phải ba lỗi rời rạc mà là một thói
 quen: **cần trạng thái mới thì mượn tạm ô sẵn có, thay vì thêm một ô.**
+
+---
+
+## 29. Thôi tìm bằng may: bộ dò từ vựng trạng thái — và cái nó tìm ra ngay
+
+Ba lỗi §20, §24, §28 là **cùng một cách hỏng** ở ba module khác nhau, ba người viết khác nhau: cần
+một trạng thái mới thì mượn tạm ô sẵn có thay vì thêm một ô. Ba lỗi rời rạc thì vá ba lần; ba lần
+cùng hình dạng thì đó là một **thói quen**, và tìm nó bằng may là không đủ.
+
+`t3_status_vocabulary_sweep.py` khai thác một điều sẵn có trong mã: mỗi chỗ ghi
+`x.Status = <số>;  // <chú thích>` là một **lời khai** — người viết đang nói con số đó nghĩa là gì.
+Gom mọi lời khai theo cặp *(tên biến, giá trị)*; cặp nào có hai lời khai mâu thuẫn thì hoặc là hai
+thực thể khác nhau trùng tên biến (vô hại), hoặc là một bên đang mượn ô của bên kia.
+
+Bộ dò **không tự kết luận** — nó thu hẹp từ vài nghìn dòng xuống 8 cặp đáng đọc. Đọc hết 8:
+
+* 6 cặp là trùng tên biến chung chung (`request`, `session`, `schedule`… dùng cho `ServiceRequest`,
+  `RadiologyRequest`, `MedicalRecordBorrowRequest`, `RadiologyDutySchedule`, `SurgerySchedule`…) —
+  vô hại, đã kiểm từng cặp;
+* 1 cặp chính là §20 đã vá — tức bộ dò **bắt được đúng con lỗi nó sinh ra để bắt**;
+* **1 cặp là lỗi mới, chưa ai biết.**
+
+### Cái nó tìm ra: hủy chỉ định dịch vụ nhưng vẫn bị tính tiền
+
+Với `ServiceRequests` thì **4 = đã hủy**. Cả phần còn lại của hệ thống đồng thuận:
+`BillingCompleteService.Printing` (3 chỗ) và `.Refunds` lọc `ServiceRequest.Status != 4` để **loại
+chỉ định đã hủy khỏi hóa đơn**; `InpatientCompleteService.NutritionReports` ném lỗi khi `== 4`;
+`OrdersReports` ghi 4 kèm chú thích nói thẳng *"ServiceRequest.Status: 4=hủy; SRD.Status: 3=hủy"*;
+`LabCancelChainService` coi 3 là trạng thái đang-làm-việc.
+
+Nhưng `CancelServiceOrderAsync` (`POST /api/examination/service-orders/{id}/cancel`) viết:
+
+```csharp
+request.Status = 3; // Cancelled
+```
+
+Tên hàm, chú thích, tham số `reason` — tất cả đều nói đây là hủy. Chỉ con số là sai. Và hậu quả
+không nằm ở màn hình mà nằm ở **hóa đơn**: chỉ định đã hủy mang `Status = 3`, tức `!= 4`, nên mọi
+câu lọc của bên viện phí vẫn tính nó vào. **Bệnh nhân bị thu tiền một dịch vụ đã bị hủy.**
+
+Bài đo vì thế không hỏi *"trạng thái sau khi hủy là mấy"* mà hỏi đúng câu người bệnh quan tâm:
+**"bên viện phí có còn tính tiền dịch vụ đó không"** — chạy chính câu lọc `Status <> 4` mà hóa đơn
+đang dùng. Trước vá: **CÒN tính tiền**. Sau vá: không. `t3_service_order_cancel.py`: **3/3**.
+
+Sửa đúng một ký tự. Tìm ra nó mới là phần khó — và đó là lý do bộ dò đáng giữ lại, chạy lại mỗi khi
+có người thêm một trạng thái mới.
