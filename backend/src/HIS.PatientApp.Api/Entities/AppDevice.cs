@@ -30,7 +30,7 @@ public class AppDevice
     public string? PushToken { get; set; }
 
     /// <summary>
-    /// Khoá công khai của cặp khoá sinh trắc trên máy. Máy ký challenge bằng khoá riêng vốn chỉ mở
+    /// Khoá công khai RSA của cặp khoá sinh trắc trên máy. Máy ký challenge bằng khoá riêng vốn chỉ mở
     /// được sau khi xác thực FaceID/vân tay — server nhờ đó tin được rằng đúng chủ máy vừa xác thực,
     /// chứ không chỉ tin lời app nói.
     /// </summary>

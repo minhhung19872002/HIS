@@ -3,10 +3,10 @@ namespace HIS.PatientApp.Api.Entities;
 /// <summary>
 /// Thử thách một lần cho đăng nhập bằng sinh trắc học (HSMT I.2 #9).
 ///
-/// Cách hoạt động: lúc bật sinh trắc, app sinh cặp khoá ECDSA P-256 và cất khoá riêng trong
-/// Keychain/Keystore với điều kiện "chỉ mở được sau khi xác thực sinh trắc"; khoá công khai gửi lên
-/// server. Khi đăng nhập, server phát một chuỗi ngẫu nhiên, app ký bằng khoá riêng — việc ký thành
-/// công chứng minh chủ máy vừa quét mặt hoặc vân tay.
+/// Cách hoạt động: lúc bật sinh trắc, app sinh cặp khoá RSA-2048 và cất khoá riêng trong
+/// Keystore (Android) hoặc bọc bằng Secure Enclave (iOS), với điều kiện "chỉ mở được sau khi xác
+/// thực sinh trắc"; khoá công khai gửi lên server. Khi đăng nhập, server phát một chuỗi ngẫu nhiên,
+/// app ký SHA256withRSA — việc ký thành công chứng minh chủ máy vừa quét mặt hoặc vân tay.
 ///
 /// Vì sao không chỉ để app báo "đã xác thực xong": app bị sửa đổi có thể nói dối. Chữ ký thì không
 /// giả được nếu không mở được khoá riêng.

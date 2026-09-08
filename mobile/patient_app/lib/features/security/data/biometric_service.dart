@@ -1,105 +1,81 @@
+import 'package:biometric_signature/android_config.dart';
 import 'package:biometric_signature/biometric_signature.dart';
 import 'package:flutter/foundation.dart';
 
-/// Vì sao máy không dùng được sinh trắc học — để nói với người dùng cho đúng việc cần làm.
-enum BiometricUnavailableReason {
-  /// Máy không có phần cứng sinh trắc.
-  noHardware,
-
-  /// Có phần cứng nhưng người dùng chưa đăng ký vân tay/khuôn mặt nào.
-  notEnrolled,
-
-  /// Không có khoá màn hình — Keystore/Keychain không bảo vệ được khoá riêng.
-  noDeviceLock,
-
-  unknown,
-}
-
 class BiometricStatus {
-  const BiometricStatus.available()
+  const BiometricStatus.available(this.biometryName)
       : isAvailable = true,
         reason = null;
-  const BiometricStatus.unavailable(this.reason) : isAvailable = false;
+  const BiometricStatus.unavailable(this.reason) : isAvailable = false, biometryName = null;
 
   final bool isAvailable;
-  final BiometricUnavailableReason? reason;
 
-  String get message => switch (reason) {
-        BiometricUnavailableReason.noHardware =>
-          'Thiết bị này không hỗ trợ vân tay hoặc nhận diện khuôn mặt.',
-        BiometricUnavailableReason.notEnrolled =>
-          'Bạn chưa cài vân tay hoặc khuôn mặt trong Cài đặt của máy.',
-        BiometricUnavailableReason.noDeviceLock =>
-          'Vui lòng đặt khoá màn hình cho máy trước khi bật đăng nhập bằng sinh trắc học.',
-        _ => 'Hiện chưa dùng được đăng nhập bằng sinh trắc học trên thiết bị này.',
-      };
+  /// FaceID · TouchID · Fingerprint… — dùng để gọi đúng tên trên giao diện.
+  final String? biometryName;
+
+  /// Lý do thô do nền tảng trả về, chỉ dùng để ghi log.
+  final String? reason;
+
+  String get message => isAvailable
+      ? 'Dùng ${biometryName ?? 'sinh trắc học'} để đăng nhập.'
+      : 'Bạn chưa cài vân tay hoặc khuôn mặt trong Cài đặt của máy, '
+          'hoặc thiết bị này không hỗ trợ.';
 }
 
 /// Đăng nhập bằng sinh trắc học (HSMT I.2 #9).
 ///
-/// Cách làm: máy sinh một cặp khoá **ECDSA P-256** với khoá riêng nằm trong Keystore (Android) /
-/// Secure Enclave (iOS) và **chỉ mở được sau khi quét vân tay hoặc khuôn mặt**. Khoá công khai gửi
-/// lên server. Khi đăng nhập, server phát một chuỗi ngẫu nhiên, máy ký, server kiểm chữ ký.
+/// Cách làm: máy sinh một cặp khoá **RSA-2048** với khoá riêng nằm trong Keystore (Android) hoặc
+/// được Secure Enclave bọc lại (iOS), và **chỉ mở được sau khi quét vân tay hoặc khuôn mặt**. Khoá
+/// công khai gửi lên server dưới dạng DER SubjectPublicKeyInfo mã hoá base64. Khi đăng nhập, server
+/// phát một chuỗi ngẫu nhiên, máy ký `SHA256withRSA`, server kiểm chữ ký.
 ///
 /// Vì sao không đơn giản là "app hỏi vân tay rồi báo server đã xác thực xong": server không có cách
 /// nào biết lời báo đó là thật. Một bản app bị sửa đổi sẽ báo "xong" mà chẳng quét gì. Chữ ký thì
 /// không giả được nếu không mở được khoá riêng.
+///
+/// ⚠️ Ghim ở `biometric_signature` **6.x**, KHÔNG nâng lên 13.x: bản mới đòi iOS tối thiểu **13.0**
+/// (podspec `s.platform = :ios, '13.0'`), tức là mất cam kết iOS 12.0 của hồ sơ mời thầu. Điều này
+/// do CI build iOS thật phát hiện, không phải suy đoán — xem docs/features/patient-app/README.md §6.2.
 class BiometricService {
   BiometricService([BiometricSignature? plugin])
       : _plugin = plugin ?? BiometricSignature();
 
   final BiometricSignature _plugin;
 
-  /// Tên khoá trong Keystore/Keychain. Đặt cố định để lần sau còn tìm lại đúng khoá.
-  static const _keyAlias = 'his_patient_app_biometric';
-
   Future<BiometricStatus> status() async {
     try {
-      final availability = await _plugin.biometricAuthAvailable();
-      if (availability.canAuthenticate == true) return const BiometricStatus.available();
-
-      if (availability.hasEnrolledBiometrics == false) {
-        return const BiometricStatus.unavailable(BiometricUnavailableReason.notEnrolled);
+      // Trả về "FaceID" / "TouchID" / "fingerprint"… khi dùng được, hoặc "none, <lý do>".
+      final result = await _plugin.biometricAuthAvailable();
+      if (result == null || result.startsWith('none')) {
+        debugPrint('[biometric] không dùng được: $result');
+        return BiometricStatus.unavailable(result);
       }
-      if (!await _plugin.isDeviceLockSet()) {
-        return const BiometricStatus.unavailable(BiometricUnavailableReason.noDeviceLock);
-      }
-      return const BiometricStatus.unavailable(BiometricUnavailableReason.noHardware);
+      return BiometricStatus.available(result);
     } catch (error) {
       debugPrint('[biometric] không kiểm tra được khả năng sinh trắc: $error');
-      return const BiometricStatus.unavailable(BiometricUnavailableReason.unknown);
+      return const BiometricStatus.unavailable('exception');
     }
   }
 
+  /// Khoá đã tạo và còn hiệu lực chưa.
+  ///
+  /// `checkValidity: true` để phát hiện trường hợp người dùng vừa thêm vân tay mới — lúc đó hệ điều
+  /// hành vô hiệu hoá khoá cũ, và nếu không kiểm thì mãi tới lúc đăng nhập mới biết.
   Future<bool> hasKey() async {
     try {
-      return await _plugin.biometricKeyExists(keyAlias: _keyAlias);
+      return await _plugin.biometricKeyExists(checkValidity: true) ?? false;
     } catch (_) {
       return false;
     }
   }
 
-  /// Sinh cặp khoá và trả về khoá công khai (DER SubjectPublicKeyInfo, base64) để gửi lên server.
+  /// Sinh cặp khoá và trả về khoá công khai (DER SubjectPublicKeyInfo, base64).
   /// Null nếu người dùng huỷ hoặc máy không tạo được khoá.
   Future<String?> createKey() async {
     try {
-      final result = await _plugin.createKeys(
-        keyAlias: _keyAlias,
-        keyFormat: KeyFormat.base64,
-        config: CreateKeysConfig(
-          signatureType: SignatureType.ecdsa,
-          // Bắt buộc xác thực sinh trắc mỗi lần dùng khoá — đó chính là điều làm cho chữ ký
-          // chứng minh được "đúng chủ máy vừa quét", chứ không chỉ "đúng máy này".
-          enforceBiometric: true,
-          requireAuthentication: true,
-          // Đăng ký thêm vân tay mới thì khoá cũ mất hiệu lực: người khác thêm vân tay của họ vào
-          // máy sẽ không mở được tài khoản của người bệnh.
-          setInvalidatedByBiometricEnrollment: true,
-          promptSubtitle: 'Xác thực để bật đăng nhập bằng sinh trắc học',
-        ),
-        promptMessage: 'Xác thực để bật đăng nhập bằng sinh trắc học',
-      );
-      return result.publicKey;
+      // useStrongBox: dùng chip bảo mật rời trên máy Android có hỗ trợ. Máy không có thì thư viện
+      // tự lùi về Keystore thường, nên bật là an toàn.
+      return await _plugin.createKeys(config: AndroidConfig(useStrongBox: true));
     } catch (error) {
       debugPrint('[biometric] không tạo được khoá: $error');
       return null;
@@ -109,19 +85,11 @@ class BiometricService {
   /// Ký chuỗi thử thách của server. Null nếu người dùng huỷ hoặc xác thực thất bại.
   Future<String?> sign(String nonce) async {
     try {
-      final result = await _plugin.createSignature(
-        payload: nonce,
-        keyAlias: _keyAlias,
-        signatureFormat: SignatureFormat.base64,
-        config: CreateSignatureConfig(
-          promptSubtitle: 'Xác thực để đăng nhập',
-          // KHÔNG cho dùng PIN/hình mở khoá của máy thay thế: người bệnh đã có mã PIN riêng của app
-          // cho trường hợp đó. Ở đây phải đúng sinh trắc học.
-          allowDeviceCredentials: false,
-        ),
-        promptMessage: 'Xác thực để đăng nhập',
-      );
-      return result.signature;
+      return await _plugin.createSignature(options: {
+        'payload': nonce,
+        'promptMessage': 'Xác thực để đăng nhập',
+        'cancelButtonText': 'Huỷ',
+      });
     } catch (error) {
       debugPrint('[biometric] không ký được: $error');
       return null;
@@ -131,7 +99,7 @@ class BiometricService {
   /// Xoá khoá khi người dùng tắt sinh trắc hoặc đăng xuất.
   Future<void> deleteKey() async {
     try {
-      await _plugin.deleteKeys(keyAlias: _keyAlias);
+      await _plugin.deleteKeys();
     } catch (error) {
       debugPrint('[biometric] không xoá được khoá: $error');
     }

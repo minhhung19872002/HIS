@@ -94,7 +94,7 @@ public class VerifyPinDto
 
 public class EnrollBiometricDto
 {
-    /// <summary>Khoá công khai ECDSA P-256, mã hoá base64 theo định dạng SubjectPublicKeyInfo (DER).</summary>
+    /// <summary>Khoá công khai RSA-2048, DER SubjectPublicKeyInfo, mã hoá base64.</summary>
     [Required, MaxLength(1024)]
     public string PublicKey { get; set; } = string.Empty;
 
@@ -114,7 +114,7 @@ public class BiometricLoginDto
     [Required] public string DeviceKey { get; set; } = string.Empty;
     [Required] public Guid ChallengeId { get; set; }
 
-    /// <summary>Chữ ký DER của nonce, base64.</summary>
+    /// <summary>Chữ ký SHA256withRSA (PKCS#1 v1.5) của nonce, mã hoá base64.</summary>
     [Required] public string Signature { get; set; } = string.Empty;
 }
 

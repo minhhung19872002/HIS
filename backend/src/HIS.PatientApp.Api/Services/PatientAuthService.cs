@@ -441,17 +441,24 @@ public class PatientAuthService
         return AuthOutcome.Ok(BuildResult(account, issued));
     }
 
-    private static bool TryImportPublicKey(string base64PublicKey, out ECDsa? key)
+    /// <summary>
+    /// Nhập khoá công khai sinh trắc do thiết bị gửi lên.
+    ///
+    /// Định dạng: **RSA-2048, DER SubjectPublicKeyInfo, mã hoá base64** — đúng thứ mà cả hai nền tảng
+    /// sinh ra: Android trả `PublicKey.encoded` (đã là X.509 SubjectPublicKeyInfo), iOS bọc khoá thô
+    /// bằng header RSA OID trước khi trả về.
+    /// </summary>
+    private static bool TryImportPublicKey(string base64PublicKey, out RSA? key)
     {
         key = null;
         try
         {
-            var ecdsa = ECDsa.Create();
-            ecdsa.ImportSubjectPublicKeyInfo(Convert.FromBase64String(base64PublicKey), out _);
-            key = ecdsa;
+            var rsa = RSA.Create();
+            rsa.ImportSubjectPublicKeyInfo(Convert.FromBase64String(base64PublicKey), out _);
+            key = rsa;
             return true;
         }
-        catch (Exception ex) when (ex is FormatException or CryptographicException)
+        catch (Exception ex) when (ex is FormatException or CryptographicException or ArgumentException)
         {
             return false;
         }
@@ -469,8 +476,9 @@ public class PatientAuthService
                     Encoding.UTF8.GetBytes(nonce),
                     Convert.FromBase64String(base64Signature),
                     HashAlgorithmName.SHA256,
-                    // Nền tảng di động (Keychain iOS, Keystore Android) ký ra DER, không phải IEEE P1363.
-                    DSASignatureFormat.Rfc3279DerSequence);
+                    // Cả Android (Signature "SHA256withRSA") lẫn iOS
+                    // (SecKeyAlgorithm.rsaSignatureMessagePKCS1v15SHA256) đều ký kiểu này.
+                    RSASignaturePadding.Pkcs1);
             }
             catch (Exception ex) when (ex is FormatException or CryptographicException)
             {

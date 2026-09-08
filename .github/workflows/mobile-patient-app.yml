@@ -90,7 +90,14 @@ jobs:
         with:
           api-level: 30
           arch: x86_64
-          target: google_apis
+          # Ảnh "default" nhẹ hơn google_apis và ổn định hơn trên runner. Bộ chụp màn hình không cần
+          # Google Play services: Firebase chưa cấu hình thì app tự tắt phần thông báo đẩy.
+          target: default
+          force-avd-creation: false
+          # Bộ cờ này là cách khắc phục quen thuộc cho việc máy ảo "offline" giữa chừng trên runner.
+          emulator-options: >-
+            -no-snapshot-save -no-window -gpu swiftshader_indirect
+            -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           working-directory: ${{ env.APP_DIR }}
           script: |
