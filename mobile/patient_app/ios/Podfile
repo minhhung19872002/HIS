@@ -32,10 +32,17 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  # CO Y KHONG dat use_frameworks!: Firebase iOS SDK 10.x (di kem firebase_messaging 14.x —
-  # nhanh cuoi cung con ho tro iOS 12) co header khong modular, va gap use_frameworks! se hong
-  # voi loi "Include of non-modular header inside framework module". Mau Podfile mac dinh cua
-  # Flutter cung khong dat co nay.
+  # Bat buoc phai co use_frameworks!: cac pod viet bang Swift (pdfrx, biometric_signature...)
+  # khong tich hop duoc duoi dang thu vien tinh thuan tuy — CocoaPods bao thang
+  # "The following Swift pods cannot yet be integrated as static libraries".
+  #
+  # Dung :linkage => :static de van goi thanh framework nhung lien ket tinh: cach nay giu duoc
+  # kich thuoc ban dong goi va la cach Firebase khuyen dung.
+  #
+  # Doi lai, Firebase iOS SDK 10.x (di kem firebase_messaging 14.x — nhanh cuoi cung con ho tro
+  # iOS 12) tron header modular va khong modular, nen phai bat
+  # CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES o post_install ben duoi.
+  use_frameworks! :linkage => :static
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 
