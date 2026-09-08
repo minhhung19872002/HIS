@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.Options;
 
 namespace HIS.PatientApp.Api.Connector;
@@ -46,13 +47,13 @@ public class HisRestConnector : IHisConnector
     public async Task<IReadOnlyList<HisPatient>> FindPatientsByPhoneAsync(
         string phoneNumber, CancellationToken ct = default)
     {
-        var envelope = await SendAsync<HisEnvelope<HisPagedResult<HisPatient>>>(
+        var page = await SendAsync<HisPagedResult<HisPatient>>(
             () => new HttpRequestMessage(HttpMethod.Post, "/api/patients/search")
             {
                 Content = JsonContent.Create(new { keyword = phoneNumber, pageIndex = 1, pageSize = 20 }),
             }, ct);
 
-        var items = envelope?.Data?.Items ?? new List<HisPatient>();
+        var items = page?.Items ?? new List<HisPatient>();
 
         // Search của HIS khớp mờ trên nhiều trường (tên, mã, CCCD, BHYT, SĐT). Không lọc lại đúng số
         // điện thoại thì rất dễ trả về người khác — và ở đây "trả nhầm người" nghĩa là gắn tài khoản
@@ -101,10 +102,10 @@ public class HisRestConnector : IHisConnector
     public async Task<IReadOnlyList<HisRoom>> GetRoomsAsync(
         Guid? departmentId, CancellationToken ct = default)
     {
-        var envelope = await SendAsync<HisEnvelope<List<HisRoom>>>(
-            () => new HttpRequestMessage(HttpMethod.Get, "/api/reception/rooms/overview"), ct);
+        var rooms = await SendAsync<List<HisRoom>>(
+            () => new HttpRequestMessage(HttpMethod.Get, "/api/reception/rooms/overview"), ct)
+            ?? new List<HisRoom>();
 
-        var rooms = envelope?.Data ?? new List<HisRoom>();
         return departmentId.HasValue
             ? rooms.Where(r => r.DepartmentId == departmentId).ToList()
             : rooms;
@@ -242,12 +243,8 @@ public class HisRestConnector : IHisConnector
     }
 
     /// <summary>GET trả null khi HIS báo 404, ném khi lỗi khác.</summary>
-    private async Task<T?> GetOrNullAsync<T>(string path, CancellationToken ct) where T : class
-    {
-        var envelope = await SendAsync<HisEnvelope<T>>(
-            () => new HttpRequestMessage(HttpMethod.Get, path), ct, allowNotFound: true);
-        return envelope?.Data;
-    }
+    private Task<T?> GetOrNullAsync<T>(string path, CancellationToken ct) where T : class
+        => SendAsync<T>(() => new HttpRequestMessage(HttpMethod.Get, path), ct, allowNotFound: true);
 
     private async Task<TResponse?> SendAsync<TResponse>(
         Func<HttpRequestMessage> requestFactory,
@@ -276,8 +273,35 @@ public class HisRestConnector : IHisConnector
                     (int)response.StatusCode);
             }
 
-            return await response.Content.ReadFromJsonAsync<TResponse>(cancellationToken: ct);
+            return await ReadPayloadAsync<TResponse>(response, ct);
         }
+    }
+
+    private static readonly JsonSerializerOptions PayloadJson =
+        new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
+
+    /// <summary>
+    /// Bóc kết quả thật ra khỏi lớp vỏ <c>{success, data, message, errors, meta}</c> mà HIS.API bọc
+    /// quanh mọi phản hồi.
+    ///
+    /// Chịu được CẢ HAI dạng — có vỏ và không vỏ — vì HIS không bọc đồng nhất (ví dụ <c>/health</c>
+    /// trả thẳng). Đoán sai lớp vỏ không làm request lỗi mà làm mọi trường về giá trị mặc định:
+    /// vé xếp hàng mã rỗng, danh sách khoa trống. Đó là kiểu hỏng âm thầm, nguy hiểm hơn 500.
+    /// </summary>
+    private static async Task<T?> ReadPayloadAsync<T>(HttpResponseMessage response, CancellationToken ct)
+        where T : class
+    {
+        await using var stream = await response.Content.ReadAsStreamAsync(ct);
+        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+
+        var root = document.RootElement;
+        var body = root.ValueKind == JsonValueKind.Object
+                   && root.TryGetProperty("success", out _)
+                   && root.TryGetProperty("data", out var data)
+            ? data
+            : root;
+
+        return body.ValueKind == JsonValueKind.Null ? null : body.Deserialize<T>(PayloadJson);
     }
 
     private async Task<HttpResponseMessage> SendOnceAsync(

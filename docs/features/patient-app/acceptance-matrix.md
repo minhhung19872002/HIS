@@ -41,14 +41,18 @@
 
 | # | Yêu cầu HSMT | Màn hình / API | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|---|
-| I.2.3.1 | Kết nối với HIS lấy **STT ưu tiên ngoại trú** | Màn "Lấy số thứ tự"; `POST /patient/queue/take-number` → HIS `POST /api/reception/queue/issue-mobile` (**đã sửa để nhận `Priority` + lý do ưu tiên** — GAP 13, 14) | Lấy số với hồ sơ thuộc diện ưu tiên → vé trả về `Priority = 1`, và ở màn lễ tân vé đó được gọi trước vé thường cùng phòng | 2 | ⬜ |
-| I.2.3.2 | *(bổ trợ)* Xem số đang gọi, số người còn chờ, thời gian dự kiến | `GET /patient/queue/status/{ticketId}` (GAP 15) + `GET /api/reception/queue/display/{roomId}` | Lấy số → màn hiển thị đúng "đang gọi", "còn N người", "~M phút"; lễ tân gọi số → app cập nhật (GAP 16) | 2 | ⬜ |
+| I.2.3.1 | Kết nối với HIS lấy **STT ưu tiên ngoại trú** | Màn "Lấy số thứ tự"; `POST /patient/queue/take-number` → HIS `POST /api/reception/queue/issue-mobile` (**đã sửa để nhận `Priority` + lý do ưu tiên** — GAP 13, 14) | ✅ Đã kiểm: `smoke-queue-priority.py` TC-Q1…TC-Q5 (19/19) — người ≥60 tuổi được ưu tiên **dù không khai**; khai sai tuổi bị từ chối; lý do không kiểm được vẫn cấp số nhưng gắn cờ chờ lễ tân xác minh; cấp cứu không cấp qua app | 2 | 🔄 |
+| I.2.3.2 | *(bổ trợ)* Xem số đang gọi, số người còn chờ, thời gian dự kiến | `GET /patient/queue/tickets/{ticketId}/status` (GAP 15) + màn `queue_ticket_page.dart` hỏi lại mỗi 20 giây | ✅ Đã kiểm: TC-Q6, TC-Q12 — trả đúng "còn N người", **không lộ thông tin định danh bệnh nhân**; TC-Q16: vé của người khác trả 404 y như vé không tồn tại | 2 | 🔄 |
+| I.2.3.3 | *(bổ trợ)* Không cho một người ôm nhiều số cùng phòng trong ngày | Chỉ số duy nhất `(AccountId, RoomId, QueueDate)` trên `app_queue_tickets`; `GET /patient/queue/tickets` để mở lại app là thấy số cũ | ✅ Đã kiểm: TC-Q13 (lấy lần hai bị chặn, báo rõ mã số đã có), TC-Q15 (danh sách số hôm nay), **TC-Q17 (người mới KHÔNG bị vé vô danh của người khác chặn — lỗi cũ, xem [D10](decisions.md))** | 2 | 🔄 |
 
 ### 4. Đặt khám
 
 | # | Yêu cầu HSMT | Màn hình / API | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|---|
-| I.2.4.1 | Đặt lịch khám online trên app | Màn "Đặt khám" (chuyên khoa → bác sĩ → ngày → khung giờ → lý do → xác nhận); `GET /patient/appointments/slots` (**đọc `DoctorSchedule` thật** — GAP 18), `POST /patient/appointments` | Đặt 1 lịch → xuất hiện ở web quản trị và ở HIS; chọn ngày bác sĩ không trực → không có slot; huỷ/đổi lịch chạy được (GAP 20); nhận thông báo xác nhận + nhắc trước 1 ngày & 1 giờ | 2 | ⬜ |
+| I.2.4.1 | Đặt lịch khám online trên app | Màn "Đặt khám" (chuyên khoa → bác sĩ → ngày → khung giờ → lý do → xác nhận); `GET /patient/appointments/slots` (**đọc `DoctorSchedule` thật** — GAP 18), `POST /patient/appointments` | ✅ Đã kiểm: `smoke-patient-app-phase2.py` TC-A01…TC-A06 (29/29) — khung giờ sinh từ lịch trực thật kèm sức chứa từng khung; ngày đã qua bị từ chối; đặt xong lịch hiện trong "Lịch khám của tôi" **và** sinh thông báo trong hộp thư | 2 | 🔄 |
+| I.2.4.2 | Huỷ / đổi lịch đã đặt (GAP 20) | `PUT /patient/appointments/{code}/cancel`, `PUT /patient/appointments/{code}/reschedule` → HIS `AppointmentBookingService.RescheduleAppointmentAsync` (**mới**) | ✅ Đã kiểm: TC-A07 (đổi lịch → ngày mới đúng, trạng thái quay về *chờ xác nhận*), TC-A08 (đổi sang ngày đã qua bị từ chối), TC-A09 (huỷ → trạng thái *đã huỷ*) | 2 | 🔄 |
+| I.2.4.3 | Nhận thông báo xác nhận và **nhắc lịch trước 1 ngày / 1 giờ** | `AppointmentReminderWorker` + bảng `appointment_reminders`; thông báo vào hộp thư, đẩy qua relay nếu có cấu hình | ✅ Đã kiểm: TC-A06 (thông báo xác nhận). ⚠️ Mốc nhắc 24h/1h chưa kiểm được bằng smoke vì phụ thuộc đồng hồ thật — sẽ kiểm ở Phase 8 bằng test tua thời gian | 2 | 🔄 |
+| I.2.4.4 | *(bổ trợ)* Lịch của người này không lọt sang tài khoản khác | Số điện thoại gửi sang HIS luôn lấy từ token, không nhận từ body | ✅ Đã kiểm: TC-A10 — tài khoản khác không thấy mã lịch vừa đặt | 2 | 🔄 |
 
 ### 5. Xem kết quả KCB — Ngoại trú
 

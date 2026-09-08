@@ -398,13 +398,21 @@ public partial class ReceptionCompleteService {
 
         // Check duplicate ticket: same patient, same room, same day
         // IssueDate chuẩn hóa UTC — dùng DayRangeUtc để so sánh đúng ngày VN.
-        var existingTicket = await _context.QueueTickets
-            .FirstOrDefaultAsync(t => t.PatientId == dto.PatientId
-                && t.RoomId == dto.RoomId
-                && t.IssueDate >= iqFromUtc && t.IssueDate < iqToUtc
-                && t.Status < 2); // Waiting or InProgress
-        if (existingTicket != null)
-            throw new InvalidOperationException($"Bệnh nhân đã có số thứ tự {existingTicket.TicketNumber} tại phòng này hôm nay");
+        //
+        // CHỈ chặn khi biết đích danh bệnh nhân. Trước đây điều kiện là `t.PatientId == dto.PatientId`
+        // với cả hai vế null: EF dịch thành `PatientId IS NULL AND @p IS NULL`, nên MỘT vé vô danh
+        // bất kỳ trong phòng đã chặn mọi khách vãng lai tiếp theo của cả ngày. Không có định danh thì
+        // không có cơ sở nào để nói hai người là một.
+        if (dto.PatientId.HasValue)
+        {
+            var existingTicket = await _context.QueueTickets
+                .FirstOrDefaultAsync(t => t.PatientId == dto.PatientId
+                    && t.RoomId == dto.RoomId
+                    && t.IssueDate >= iqFromUtc && t.IssueDate < iqToUtc
+                    && t.Status < 2); // Waiting or InProgress
+            if (existingTicket != null)
+                throw new InvalidOperationException($"Bệnh nhân đã có số thứ tự {existingTicket.TicketNumber} tại phòng này hôm nay");
+        }
 
         var ticket = new QueueTicket
         {

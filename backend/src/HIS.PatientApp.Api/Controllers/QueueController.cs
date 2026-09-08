@@ -1,3 +1,4 @@
+using HIS.PatientApp.Api.Common;
 using HIS.PatientApp.Api.Connector;
 using HIS.PatientApp.Api.Data;
 using HIS.PatientApp.Api.Entities;
@@ -60,57 +61,135 @@ public class QueueController : ControllerBase
         }
     }
 
+    /// <summary>Những số thứ tự người bệnh đã xin trong ngày hôm nay.</summary>
+    [HttpGet("tickets")]
+    public async Task<IActionResult> MyTickets(CancellationToken ct)
+    {
+        var accountId = User.GetAccountId();
+        var today = VnClock.Today;
+
+        // Chiếu ra DTO thay vì trả thẳng thực thể: thực thể có AccountId, không việc gì phải ra ngoài.
+        var tickets = await _db.QueueTickets
+            .AsNoTracking()
+            .Where(t => t.AccountId == accountId && t.QueueDate == today)
+            .OrderBy(t => t.CreatedAt)
+            .Select(t => new MyQueueTicketDto
+            {
+                Id = t.HisTicketId,
+                TicketCode = t.TicketCode,
+                QueueNumber = t.QueueNumber,
+                RoomId = t.RoomId,
+                RoomName = t.RoomName,
+                QueueType = t.QueueType,
+                Priority = t.Priority,
+                PriorityVerified = t.PriorityVerified,
+                IssuedAt = t.CreatedAt,
+            })
+            .ToListAsync(ct);
+
+        return Ok(ApiResponse<IReadOnlyList<MyQueueTicketDto>>.Ok(tickets));
+    }
+
     /// <summary>Lấy số thứ tự. Trả về vé kèm mức ưu tiên mà HIS quyết định.</summary>
     [HttpPost("take-number")]
     public async Task<IActionResult> TakeNumber([FromBody] TakeNumberDto dto, CancellationToken ct)
     {
+        var accountId = User.GetAccountId();
         var account = await _db.Accounts
-            .Where(a => a.Id == User.GetAccountId())
+            .Where(a => a.Id == accountId)
             .Select(a => new { a.PhoneNumber, a.FullName, a.HisPatientId })
             .FirstOrDefaultAsync(ct);
 
         if (account is null) return NotFound(ApiResponse.Fail("Không tìm thấy tài khoản."));
 
+        var today = VnClock.Today;
+
+        // Chống trùng phải làm ở đây: tài khoản chưa liên kết hồ sơ thì bên HIS là khách vô danh,
+        // HIS không có gì để nhận ra hai lần xin số là cùng một người.
+        var existing = await _db.QueueTickets.AsNoTracking().FirstOrDefaultAsync(
+            t => t.AccountId == accountId && t.RoomId == dto.RoomId && t.QueueDate == today, ct);
+
+        if (existing is not null)
+        {
+            return BadRequest(ApiResponse.Fail(
+                $"Bạn đã có số thứ tự {existing.TicketCode} tại phòng này hôm nay. "
+                + "Vui lòng dùng số đã lấy."));
+        }
+
+        HisQueueTicket ticket;
         try
         {
-            var ticket = await _his.TakeQueueNumberAsync(
+            ticket = await _his.TakeQueueNumberAsync(
                 account.PhoneNumber, account.FullName, dto.RoomId,
                 dto.QueueType <= 0 ? 2 : dto.QueueType, dto.PriorityReason, ct);
-
-            // Ghi nhật ký: lấy số là một hành động chạm vào hồ sơ bệnh nhân.
-            if (account.HisPatientId.HasValue)
-            {
-                _db.AccessAuditLogs.Add(new AccessAuditLog
-                {
-                    ActorAccountId = User.GetAccountId(),
-                    ActorType = "patient",
-                    TargetPatientId = account.HisPatientId.Value,
-                    Action = "take_queue_number",
-                    ResourceRef = $"queue_ticket:{ticket.Id}",
-                    Ip = HttpContext.GetClientIp(),
-                    UserAgent = Request.Headers.UserAgent.ToString(),
-                });
-                await _db.SaveChangesAsync(ct);
-            }
-
-            return Ok(ApiResponse<HisQueueTicket>.Ok(ticket, BuildPriorityMessage(ticket)));
         }
         catch (HisConnectorException ex) when (ex.StatusCode == StatusCodes.Status400BadRequest)
         {
-            // HIS chặn khi đã có vé cùng phòng trong ngày — nói lại cho người bệnh hiểu.
+            // HIS chặn khi hồ sơ này đã có vé cùng phòng trong ngày (lấy ở quầy chẳng hạn).
             return BadRequest(ApiResponse.Fail(
-                "Bạn đã có số thứ tự tại phòng này hôm nay. Vui lòng dùng số đã lấy."));
+                "Hồ sơ của bạn đã có số thứ tự tại phòng này hôm nay. Vui lòng dùng số đã lấy."));
         }
         catch (HisConnectorException ex)
         {
             return HisUnavailable(ex);
         }
+
+        var record = _db.QueueTickets.Add(new AppQueueTicket
+        {
+            AccountId = accountId,
+            HisTicketId = ticket.Id,
+            TicketCode = ticket.TicketCode,
+            QueueNumber = ticket.QueueNumber,
+            RoomId = dto.RoomId,
+            RoomName = ticket.RoomName,
+            QueueType = ticket.QueueType,
+            QueueDate = today,
+            Priority = ticket.Priority,
+            PriorityVerified = ticket.PriorityVerified,
+        });
+
+        // Ghi nhật ký: lấy số là một hành động chạm vào hồ sơ bệnh nhân.
+        if (account.HisPatientId.HasValue)
+        {
+            _db.AccessAuditLogs.Add(new AccessAuditLog
+            {
+                ActorAccountId = accountId,
+                ActorType = "patient",
+                TargetPatientId = account.HisPatientId.Value,
+                Action = "take_queue_number",
+                ResourceRef = $"queue_ticket:{ticket.Id}",
+                Ip = HttpContext.GetClientIp(),
+                UserAgent = Request.Headers.UserAgent.ToString(),
+            });
+        }
+
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex)
+        {
+            // Hai lần bấm sát nhau: chỉ số duy nhất chặn dòng thứ hai. Vé đã cấp bên HIS rồi nên báo
+            // thành công thay vì bắt người bệnh xin lại — nhưng vẫn phải cứu lấy dòng nhật ký.
+            _logger.LogInformation(ex, "Vé trùng do bấm hai lần, tài khoản {AccountId}.", accountId);
+            record.State = EntityState.Detached;
+            await _db.SaveChangesAsync(ct);
+        }
+
+        return Ok(ApiResponse<HisQueueTicket>.Ok(ticket, BuildPriorityMessage(ticket)));
     }
 
     /// <summary>Trạng thái vé: đang gọi số nào, còn bao nhiêu người, ước tính bao nhiêu phút.</summary>
     [HttpGet("tickets/{ticketId:guid}/status")]
     public async Task<IActionResult> TicketStatus(Guid ticketId, CancellationToken ct)
     {
+        // Vé của người khác thì trả 404 y như vé không tồn tại: nói "vé này có nhưng không phải của
+        // bạn" đã là tiết lộ.
+        var owned = await _db.QueueTickets.AsNoTracking().AnyAsync(
+            t => t.HisTicketId == ticketId && t.AccountId == User.GetAccountId(), ct);
+
+        if (!owned) return NotFound(ApiResponse.Fail("Không tìm thấy số thứ tự."));
+
         try
         {
             var status = await _his.GetQueueTicketStatusAsync(ticketId, ct);
@@ -143,6 +222,20 @@ public class QueueController : ControllerBase
             "Hiện chưa kết nối được tới hệ thống bệnh viện. Vui lòng thử lại sau ít phút.",
             "HIS_UNAVAILABLE"));
     }
+}
+
+/// <summary>Một số thứ tự app đã xin trong ngày. <c>Id</c> là id vé bên HIS — dùng để hỏi trạng thái.</summary>
+public class MyQueueTicketDto
+{
+    public Guid Id { get; set; }
+    public string TicketCode { get; set; } = string.Empty;
+    public int QueueNumber { get; set; }
+    public Guid RoomId { get; set; }
+    public string? RoomName { get; set; }
+    public int QueueType { get; set; }
+    public int Priority { get; set; }
+    public bool PriorityVerified { get; set; }
+    public DateTime IssuedAt { get; set; }
 }
 
 public class TakeNumberDto

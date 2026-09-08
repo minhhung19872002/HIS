@@ -8,7 +8,11 @@ import '../../features/auth/presentation/forgot_password_page.dart';
 import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/register_page.dart';
 import '../../features/home/presentation/home_page.dart';
+import '../../features/appointments/presentation/appointments_page.dart';
+import '../../features/appointments/presentation/book_appointment_page.dart';
 import '../../features/home/presentation/splash_page.dart';
+import '../../features/queue/presentation/queue_page.dart';
+import '../../features/queue/presentation/queue_ticket_page.dart';
 import '../../features/notifications/presentation/notifications_page.dart';
 import '../../features/security/presentation/devices_page.dart';
 import '../../features/security/presentation/security_page.dart';
@@ -27,6 +31,10 @@ class AppRoutes {
   static const notifications = '/notifications';
   static const security = '/security';
   static const setPin = '/security/pin';
+  static const queue = '/queue';
+  static const queueTicket = '/queue/ticket';
+  static const appointments = '/appointments';
+  static const bookAppointment = '/appointments/book';
 }
 
 /// Đưa `Listenable` cho go_router từ một provider của Riverpod, để router vẽ lại khi trạng thái
@@ -55,6 +63,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: AppRoutes.notifications, builder: (_, _) => const NotificationsPage()),
       GoRoute(path: AppRoutes.security, builder: (_, _) => const SecurityPage()),
       GoRoute(path: AppRoutes.setPin, builder: (_, _) => const SetPinPage()),
+      GoRoute(path: AppRoutes.queue, builder: (_, _) => const QueuePage()),
+      GoRoute(
+        path: '${AppRoutes.queueTicket}/:ticketId',
+        builder: (context, state) => QueueTicketPage(
+          ticketId: state.pathParameters['ticketId']!,
+          initialMessage: state.extra as String?,
+        ),
+      ),
+      GoRoute(path: AppRoutes.appointments, builder: (_, _) => const AppointmentsPage()),
+      GoRoute(path: AppRoutes.bookAppointment, builder: (_, _) => const BookAppointmentPage()),
       GoRoute(
         path: AppRoutes.changePassword,
         builder: (context, state) => ChangePasswordPage(

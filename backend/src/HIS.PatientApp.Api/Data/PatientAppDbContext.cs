@@ -22,6 +22,7 @@ public class PatientAppDbContext : DbContext
     public DbSet<PushOutbox> PushOutbox => Set<PushOutbox>();
     public DbSet<AccessAuditLog> AccessAuditLogs => Set<AccessAuditLog>();
     public DbSet<AppointmentReminder> AppointmentReminders => Set<AppointmentReminder>();
+    public DbSet<AppQueueTicket> QueueTickets => Set<AppQueueTicket>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -135,6 +136,20 @@ public class PatientAppDbContext : DbContext
             e.Property(x => x.AppointmentCode).HasMaxLength(50).IsRequired();
             e.Property(x => x.DepartmentName).HasMaxLength(200);
             e.Property(x => x.DoctorName).HasMaxLength(200);
+            e.Property(x => x.RoomName).HasMaxLength(100);
+            e.HasOne(x => x.Account).WithMany()
+                .HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<AppQueueTicket>(e =>
+        {
+            e.ToTable("app_queue_tickets");
+            e.HasKey(x => x.Id);
+            // Một tài khoản chỉ giữ một số còn hiệu lực cho mỗi phòng trong ngày. Ràng buộc đặt ở
+            // CSDL chứ không chỉ trong code: hai lần bấm gần nhau vẫn chạy song song được.
+            e.HasIndex(x => new { x.AccountId, x.RoomId, x.QueueDate }).IsUnique();
+            e.HasIndex(x => x.HisTicketId);
+            e.Property(x => x.TicketCode).HasMaxLength(20).IsRequired();
             e.Property(x => x.RoomName).HasMaxLength(100);
             e.HasOne(x => x.Account).WithMany()
                 .HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade);

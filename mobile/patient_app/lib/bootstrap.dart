@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import 'app.dart';
 import 'core/config/app_flavor.dart';
@@ -10,6 +11,10 @@ import 'core/push_providers.dart';
 /// Giữ một chỗ duy nhất để về sau thêm Crashlytics, kiểm tra root/jailbreak… mà không phải sửa ba file.
 Future<void> bootstrap(AppConfig config) async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Nạp dữ liệu định dạng ngày tiếng Việt. Thiếu bước này thì DateFormat('EEEE', 'vi')
+  // ném lỗi ngay lần đầu hiển thị lịch hẹn.
+  await initializeDateFormatting('vi');
 
   final container = ProviderContainer(
     overrides: [appConfigProvider.overrideWithValue(config)],

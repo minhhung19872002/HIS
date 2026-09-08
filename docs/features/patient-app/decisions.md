@@ -110,3 +110,37 @@ thật.
 **Ràng buộc tự đặt:** bản giả **chỉ được bật khi cấu hình nói rõ**; chạy ở môi trường thật mà thiếu
 cấu hình dịch vụ thật thì ứng dụng **ném lỗi lúc khởi động** chứ không âm thầm dùng bản giả.
 Danh sách credential cần cấp: [`external-services-setup.md`](external-services-setup.md).
+
+---
+
+## D9 — Connector bóc vỏ `{success,data}` một cách khoan dung
+
+**Chọn:** `HisRestConnector.ReadPayloadAsync` tự nhận ra lớp vỏ `{success, data, message, errors,
+meta}` mà HIS.API bọc quanh mọi phản hồi, và cũng chấp nhận phản hồi trần.
+
+**Lý do:** đoán sai lớp vỏ **không** làm request lỗi — `System.Text.Json` chỉ trả về đối tượng toàn
+giá trị mặc định. Triệu chứng ngoài đời là "lấy số thành công" nhưng mã vé rỗng và danh sách khoa
+trống, tức là hỏng âm thầm, khó lần ra hơn hẳn một lỗi 500. Đã bị đúng lỗi này ở lần chạy smoke
+Phase 2 đầu tiên: 4/15 ca hỏng vì cùng một nguyên nhân.
+
+**Đánh đổi:** một phản hồi *thật sự* có hai trường tên `success` và `data` sẽ bị bóc nhầm. Chấp nhận
+được vì đó chính là quy ước envelope của HIS, không phải trùng hợp.
+
+---
+
+## D10 — Chống lấy trùng số thứ tự đặt ở BFF, không đặt ở HIS
+
+**Chọn:** HIS chỉ chặn trùng khi **biết đích danh bệnh nhân** (`PatientId != null`); phép chặn theo
+người dùng app nằm ở BFF, dựa trên bảng `app_queue_tickets` với chỉ số duy nhất
+`(AccountId, RoomId, QueueDate)`.
+
+**Lý do:** điều kiện cũ `t.PatientId == dto.PatientId` với cả hai vế `null` được EF dịch thành
+`PatientId IS NULL AND @p IS NULL` — nghĩa là **một** vé vô danh trong phòng chặn mọi khách vãng lai
+tiếp theo của cả ngày hôm đó. Tài khoản app chưa liên kết hồ sơ thì bên HIS đúng là khách vô danh,
+nên HIS không có cơ sở nào để nói hai người là một; danh tính duy nhất tồn tại là tài khoản app.
+
+**Được thêm:** có bảng này thì API hỏi trạng thái vé mới kiểm được vé có phải của người đang đăng nhập
+không — vé của người khác trả 404 y như vé không tồn tại. Trước đó ai cầm được id vé cũng tra được.
+
+**Đánh đổi:** một người dùng hai tài khoản app vẫn lấy được hai số. Chặn việc đó cần định danh thật
+(liên kết hồ sơ), thuộc phần liên kết hồ sơ bệnh án.

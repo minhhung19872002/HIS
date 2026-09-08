@@ -20,8 +20,10 @@ class HomePage extends ConsumerWidget {
     final account = auth.value is AuthSignedIn ? (auth.value! as AuthSignedIn).account : null;
 
     final shortcuts = <_Shortcut>[
-      _Shortcut(Icons.confirmation_number_outlined, l10n.shortcutQueue, phase: 2),
-      _Shortcut(Icons.event_available_outlined, l10n.shortcutBooking, phase: 2),
+      _Shortcut(Icons.confirmation_number_outlined, l10n.shortcutQueue,
+          route: AppRoutes.queue, phase: 2),
+      _Shortcut(Icons.event_available_outlined, l10n.shortcutBooking,
+          route: AppRoutes.appointments, phase: 2),
       _Shortcut(Icons.science_outlined, l10n.shortcutResults, phase: 3),
       _Shortcut(Icons.medication_outlined, l10n.shortcutPrescription, phase: 3),
       _Shortcut(Icons.folder_shared_outlined, l10n.shortcutWallet, phase: 5),
@@ -68,9 +70,11 @@ class HomePage extends ConsumerWidget {
               for (final shortcut in shortcuts)
                 _ShortcutTile(
                   shortcut: shortcut,
-                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('"${shortcut.label}" sẽ có ở giai đoạn tới.')),
-                  ),
+                  onTap: shortcut.route != null
+                      ? () => context.push(shortcut.route!)
+                      : () => ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('"${shortcut.label}" sẽ có ở giai đoạn tới.')),
+                          ),
                 ),
             ],
           ),
@@ -98,11 +102,14 @@ class HomePage extends ConsumerWidget {
 }
 
 class _Shortcut {
-  const _Shortcut(this.icon, this.label, {required this.phase});
+  const _Shortcut(this.icon, this.label, {this.route, required this.phase});
   final IconData icon;
   final String label;
 
-  /// Giai đoạn sẽ hoàn thiện lối tắt này (theo docs/features/patient-app/README.md §5).
+  /// Đường tới màn hình. null = chưa làm xong, còn ở giai đoạn sau.
+  final String? route;
+
+  /// Giai đoạn hoàn thiện lối tắt này (theo docs/features/patient-app/README.md §5).
   final int phase;
 }
 
