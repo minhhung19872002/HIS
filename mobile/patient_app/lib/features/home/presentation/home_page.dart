@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/router/app_router.dart';
+import '../../../core/security/lock_gate.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/presentation/auth_controller.dart';
 
@@ -30,8 +31,10 @@ class HomePage extends ConsumerWidget {
           route: AppRoutes.prescriptions, phase: 3),
       _Shortcut(Icons.local_hotel_outlined, 'Điều trị nội trú',
           route: AppRoutes.admissions, phase: 4),
-      _Shortcut(Icons.folder_shared_outlined, l10n.shortcutWallet, phase: 5),
-      _Shortcut(Icons.family_restroom_outlined, l10n.shortcutFamily, phase: 5),
+      _Shortcut(Icons.folder_shared_outlined, l10n.shortcutWallet,
+          route: AppRoutes.documents, phase: 5),
+      _Shortcut(Icons.family_restroom_outlined, l10n.shortcutFamily,
+          route: AppRoutes.family, phase: 5),
     ];
 
     return Scaffold(
@@ -58,6 +61,7 @@ class HomePage extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          const DeviceIntegrityBanner(),
           if (account != null) _PatientCard(name: account.fullName,
               phoneNumber: account.phoneNumber,
               patientCode: account.patientCode,

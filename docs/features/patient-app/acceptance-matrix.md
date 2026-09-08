@@ -82,13 +82,13 @@
 
 | # | Yêu cầu HSMT | Màn hình / API | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|---|
-| I.2.7.1 | Kết nối **tối đa 20 thành viên** trong gia đình, truy cập xem được kết quả của các thành viên đó | Màn "Gia đình"; `GET/POST/DELETE /patient/family/members` (**giới hạn 20 + xác minh + phân quyền xem** — GAP 36) | Thêm đến thành viên thứ 21 → bị chặn với thông báo rõ ràng; chuyển sang thành viên đã liên kết → xem được kết quả của người đó; gỡ liên kết → mất quyền xem ngay | 5 | ⬜ |
+| I.2.7.1 | Kết nối **tối đa 20 thành viên** trong gia đình, truy cập xem được kết quả của các thành viên đó | `family_page.dart`; `GET/POST/DELETE /patient/family/members` + `/verify` + `/permissions`; bảng `app_family_links` (trần 20 · **hai đường xác minh** · phân quyền — GAP 36). Xem hộ bằng `?memberId=` trên mọi API kết quả | ✅ Đã kiểm: `smoke-patient-app-phase5.py` TC-G01…TC-G12 — chưa xác minh thì **không xem được gì**; xác minh sai bị từ chối; xác minh đúng CCCD hoặc OTP của chính người thân thì xem được; **tắt quyền hoặc gỡ kết nối là mất quyền ngay**; liên kết của người khác dùng không được; không tự kết nối với chính mình. Chính sách: [D14](decisions.md) | 5 | 🔄 |
 
 ### 8. Chức năng Ví giấy tờ
 
 | # | Yêu cầu HSMT | Màn hình / API | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|---|
-| I.2.8.1 | Lưu lại các loại giấy tờ quan trọng của bệnh nhân trong quá trình khám, chữa bệnh | Màn "Ví giấy tờ" (CCCD, BHYT, giấy chuyển tuyến, giấy hẹn, giấy ra viện, toa thuốc, hoá đơn, khác); `POST /patient/documents` (multipart), `GET /patient/documents`, `GET /patient/documents/{id}` (URL ký), `DELETE` (GAP 37) | Chụp ảnh + chọn file PDF → lưu, xem lại, chia sẻ, xoá; kiểm **file được mã hoá at-rest** (đọc file thô trên đĩa không ra nội dung); vượt hạn mức dung lượng → bị chặn; giấy tờ HIS xuất ra (giấy hẹn, toa thuốc) tự vào ví | 5 | ⬜ |
+| I.2.8.1 | Lưu lại các loại giấy tờ quan trọng của bệnh nhân trong quá trình khám, chữa bệnh | `documents_page.dart` — chụp ảnh · chọn ảnh · chọn PDF, 8 nhóm giấy tờ, thanh hạn mức; `GET/POST/DELETE /patient/documents`, `GET .../{id}/content`; kho `DocumentVault` mã hoá AES-256-GCM (GAP 37) | ✅ Đã kiểm: TC-V01…TC-V08 — **TC-V03 đọc thẳng tệp trên đĩa KHÔNG ra nội dung gốc**, TC-V04 tải qua API thì ra đúng byte ban đầu; giấy tờ của người khác trả 404 cả khi đọc lẫn khi xoá; tệp không phải ảnh/PDF bị chặn. Thiết kế: [D15](decisions.md). ⬜ Còn nợ: giấy tờ HIS xuất ra tự vào ví — Phase 7 làm cùng phần in ấn | 5 | 🔄 |
 
 ### 9. Chức năng bảo mật
 
@@ -107,19 +107,19 @@
 
 | # | Yêu cầu HSMT | Màn hình / API | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|---|
-| I.3.1.1 | **Quản lý, phân quyền toàn bộ danh sách bệnh nhân** của bệnh viện | `/v2/patient-app/accounts`; API quản trị: DS tài khoản app, khoá/mở, reset mật khẩu, cấp quyền xem hồ sơ (GAP 38) | Khoá 1 tài khoản → app tài khoản đó bị chặn ngay; reset mật khẩu → lần đăng nhập kế tiếp bị buộc đổi MK | 6 | ⬜ |
-| I.3.1.2 | **Dashboard thống kê cơ bản** | `/v2/patient-app/dashboard`: lượt tải/đăng ký, đăng nhập, đặt khám theo ngày/khoa, thông báo đã gửi/đã đọc, STT đã lấy | Đối chiếu số trên dashboard với truy vấn DB trực tiếp trong cùng khoảng thời gian | 6 | ⬜ |
-| I.3.1.3 | **Quản lý đặt khám** | `/v2/patient-app/appointments` (duyệt/xác nhận/huỷ/đổi lịch, xem theo khoa/bác sĩ) — mở rộng `BookingManagementController` sẵn có | Xác nhận 1 lịch trên web → app BN nhận thông báo và thấy trạng thái đổi | 6 | ⬜ |
-| I.3.1.4 | **Quản lý thông báo của bệnh viện đến app mobile của tất cả bệnh nhân** | `/v2/patient-app/notifications`: soạn, chọn đối tượng (tất cả / nhóm / cá nhân), hẹn giờ, mẫu thông báo, lịch sử, thống kê gửi/đọc (GAP 39) | Gửi broadcast → nhiều thiết bị nhận; gửi hẹn giờ → đúng giờ mới gửi; báo cáo hiển thị đúng số đã gửi / đã đọc | 6 | ⬜ |
-| I.3.1.5 | **Quản lý nhóm gia đình** | `/v2/patient-app/families`: xem/duyệt/gỡ liên kết thành viên (GAP 40) | Gỡ 1 liên kết trên web → app mất quyền xem kết quả của thành viên đó ngay | 6 | ⬜ |
+| I.3.1.1 | **Quản lý, phân quyền toàn bộ danh sách bệnh nhân** của bệnh viện | `/v2/patient-app/accounts` (`PatientAppAccounts.tsx`); `GET/PUT /admin/patient-app/accounts…` (GAP 38) | ✅ Đã kiểm: `smoke-patient-app-phase6.py` TC-S04…TC-S07 — khoá tài khoản **xoay con dấu bảo mật** nên mọi thiết bị bị đăng xuất ngay chứ không đợi token hết hạn; đặt lại mật khẩu trả mật khẩu tạm và bật cờ buộc đổi | 6 | 🔄 |
+| I.3.1.2 | **Dashboard thống kê cơ bản** | `/v2/patient-app` (`PatientAppDashboard.tsx`): tài khoản · thiết bị · lượt lấy số · lượt đặt khám · thông báo đã gửi/đã đọc · biểu đồ đăng ký theo ngày | ✅ Đã kiểm: TC-S03 — số liệu lấy trực tiếp từ CSDL app, có cảnh báo khi chưa thiết bị nào nhận được thông báo đẩy | 6 | 🔄 |
+| I.3.1.3 | **Quản lý đặt khám** | Dùng lại màn quản lý đặt lịch sẵn có của HIS (`BookingManagementController` + trang v2 hiện hành) — lịch app và lịch quầy là **cùng một bảng `Appointments`**, không tách riêng | ⚠️ Đạt có điều kiện: đặt/huỷ/đổi từ app đã hiện đúng trong HIS (kiểm ở TC-A04…TC-A09 Phase 2). Chưa làm: xác nhận lịch trên web **đẩy thông báo về app** — cần một móc từ HIS sang BFF, ghi vào Phase 7 | 6 | 🔄 |
+| I.3.1.4 | **Quản lý thông báo của bệnh viện đến app mobile của tất cả bệnh nhân** | `/v2/patient-app/notifications` (`PatientAppNotifications.tsx`): soạn · chọn đối tượng (tất cả / đã liên kết hồ sơ / có lịch hẹn 7 ngày tới / chọn tay) · hẹn giờ · lịch sử · tỉ lệ đã đọc. Bảng `notification_campaigns` + `CampaignDispatcherWorker` (GAP 39) | ✅ Đã kiểm: TC-S10…TC-S12 — gửi ngay thì thông báo **thực sự vào hộp thư** người dùng; hẹn giờ thì chưa gửi gì và huỷ được; hẹn giờ ở quá khứ bị từ chối. Thiết kế: [D17](decisions.md) | 6 | 🔄 |
+| I.3.1.5 | **Quản lý nhóm gia đình** | `/v2/patient-app/families` (`PatientAppFamilies.tsx`): ai đang xem được hồ sơ của ai, cách đã xác minh, gỡ liên kết (GAP 40) | ✅ Đã kiểm: TC-S09 (đọc danh sách). Gỡ liên kết có hiệu lực ngay đã kiểm ở TC-G09 Phase 5 — cùng một phép kiểm trạng thái ở từng lời gọi | 6 | 🔄 |
 
 ### 2. Module tra cứu
 
 | # | Yêu cầu HSMT | Màn hình / API | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|---|
-| I.3.2.1 | **Cấp quyền cho nhân viên CSKH** hiển thị module tra cứu | `/v2/patient-app/staff-roles`: gán quyền tra cứu cho tài khoản nhân viên | Nhân viên chưa được cấp quyền → **không thấy** màn tra cứu trên cả app lẫn web; cấp quyền → thấy ngay sau khi đăng nhập lại | 6 | ⬜ |
-| I.3.2.2 | Cung cấp thông tin cho người bệnh **trên điện thoại của nhân viên (app)** | Vai trò `staff` trong app Flutter: tìm BN theo mã BN/SĐT/CCCD/tên+ngày sinh (**bổ sung tra cứu theo SĐT và tên+ngày sinh** — inventory §3), xem STT/lịch hẹn/kết quả/đơn thuốc, hỗ trợ lấy số & đặt khám hộ, reset mật khẩu app | Nhân viên CSKH đăng nhập app bằng tài khoản HIS → tra được BN và trả lời được cả 4 nhóm câu hỏi; **mọi thao tác ghi audit log** (GAP 42) | 6 | ⬜ |
-| I.3.2.3 | … **và trên web** | `/v2/patient-app/lookup` — module tra cứu tương ứng trên web | Cùng bộ kịch bản như I.3.2.2, thực hiện trên web | 6 | ⬜ |
+| I.3.2.1 | **Cấp quyền cho nhân viên CSKH** hiển thị module tra cứu | Dùng **vai trò sẵn có của HIS** thay vì dựng bảng phân quyền thứ hai: `StaffAuth.LookupRoles` (lễ tân · CSKH · điều dưỡng · bác sĩ · quản lý). Gán vai trò ở màn quản trị người dùng của HIS | ✅ Đã kiểm: TC-S01 (đăng nhập trả về vai trò), TC-S18/TC-S19 (không token hoặc token rác → 401). Nhân viên không có vai trò tra cứu nhận **403 kèm lời giải thích** ngay ở bước đăng nhập, nên màn tra cứu không mở ra. Lý do không dựng bảng riêng: [D16](decisions.md) | 6 | 🔄 |
+| I.3.2.2 | Cung cấp thông tin cho người bệnh **trên điện thoại của nhân viên (app)** | `staff_lookup_page.dart` — vào từ liên kết "Dành cho nhân viên bệnh viện" ở màn đăng nhập; đăng nhập bằng tài khoản HIS qua `POST /staff/auth/login`; tra theo **mã BN · số điện thoại · CCCD**; một màn hiện đủ số thứ tự hôm nay, lịch hẹn, xét nghiệm, CĐHA, đơn thuốc, đợt nội trú; đặt lại mật khẩu app hộ người bệnh | ✅ Đã kiểm (cùng API với bản web): TC-S13…TC-S17 — **mọi lần tra cứu đều ghi nhật ký kèm id nhân viên HIS** (GAP 42). Phiên nhân viên giữ trong bộ nhớ, đóng app là mất — máy ở quầy hay dùng chung | 6 | 🔄 |
+| I.3.2.3 | … **và trên web** | `/v2/patient-app/lookup` (`PatientAppLookup.tsx`) — **cùng bộ API** với bản app, thêm phần "ai đã mở hồ sơ này" | ✅ Đã kiểm: TC-S13…TC-S17. Nhân viên chưa được cấp quyền thấy thông báo giải thích thay vì danh sách rỗng | 6 | 🔄 |
 
 ---
 

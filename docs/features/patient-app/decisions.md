@@ -199,3 +199,94 @@ phòng nên không bị hiểu nhầm là hai số khác nhau.
 
 **Sẽ đổi khi:** bệnh viện muốn mỗi chỉ định một số riêng. Lúc đó thêm cột liên kết là đúng, và chỗ
 đọc ở đây chỉ cần đổi một hàm.
+
+---
+
+## D14 — Kết nối gia đình có đúng hai đường xác minh, không có đường thứ ba
+
+**Chọn:**
+1. Người thân **có tài khoản app** → gửi OTP tới **số của chính người đó**; họ đọc mã cho người xin
+   liên kết.
+2. Người thân **chưa có tài khoản** (trẻ nhỏ, người già) → phải khai đúng **số CCCD/CMND hoặc ngày
+   sinh** ghi trên hồ sơ HIS.
+
+**Lý do:** "xem kết quả của người thân" và "đọc trộm bệnh án người lạ" chỉ khác nhau ở bước xác minh.
+Ai tự quyết được thì phải là người đồng ý — đó là đường 1. Trẻ nhỏ và người già không tự đồng ý được
+qua điện thoại, nên đường 2 dựa vào thứ mà người nhà biết còn người lạ thì không.
+
+**Cố ý KHÔNG nhận số điện thoại làm bằng chứng định danh** ở đường 2: đó là thứ dễ biết nhất trong ba
+thứ, và với người thân chưa có tài khoản thì số trên hồ sơ rất thường chính là số của người đi đăng ký
+hộ — dùng nó là tự chứng minh cho chính mình.
+
+**Quyền được kiểm ở từng lời gọi**, không kèm vào token: gỡ kết nối hay tắt quyền có hiệu lực ngay,
+không phải đợi token cũ hết hạn. Nhật ký ghi **người xem** (tài khoản) tách khỏi **hồ sơ bị xem**
+(bệnh nhân) — đúng lúc người nhà xem hộ là lúc câu hỏi "ai đã xem hồ sơ này" đáng giá nhất.
+
+**Trần 20 thành viên đếm cả bản ghi chờ xác minh**, để không lách bằng cách tạo hàng loạt yêu cầu.
+
+---
+
+## D15 — Ví giấy tờ mã hoá AES-256-GCM, khoá nằm ngoài cơ sở dữ liệu
+
+**Chọn:** nội dung tệp không nằm trong CSDL và không nằm dạng thô trên đĩa. Mỗi tệp mã hoá AES-256-GCM
+với nonce ngẫu nhiên riêng; khoá lấy từ cấu hình máy chủ (`DocumentVault:Key`). CSDL chỉ giữ siêu dữ
+liệu, nonce và thẻ xác thực.
+
+**Lý do:** ảnh chụp CCCD và thẻ BHYT của cả bệnh viện nằm chung một thư mục. Một bản sao lưu bị rò rỉ
+hay một ổ đĩa bị vứt đi không được phép trở thành một vụ lộ dữ liệu. Khoá để cạnh dữ liệu thì mã hoá
+chỉ còn là hình thức, nên khoá ở cấu hình chứ không ở CSDL.
+
+**Chọn GCM chứ không phải CBC:** GCM vừa mã hoá vừa xác thực — sửa một byte trong tệp là giải mã hỏng
+ngay, không lặng lẽ trả ra dữ liệu rác.
+
+**Chỉ nhận ảnh và PDF.** Ví giấy tờ không phải nơi chứa tệp bất kỳ; một tệp thực thi nằm trong đó chỉ
+tạo thêm bề mặt tấn công mà không phục vụ ai.
+
+**Hạn mức:** 10 MB mỗi tệp, 100 MB mỗi tài khoản. Đủ cho vài chục giấy tờ, không đủ để app thành ổ lưu
+trữ. Ảnh chụp được giảm về 1600px ngay tại máy trước khi gửi — vừa vào hạn mức, vừa đỡ tốn dữ liệu di
+động của người bệnh.
+
+**Ràng buộc tự đặt:** chạy ngoài `Development` mà thiếu `DocumentVault:Key` thì **ném lỗi lúc khởi
+động**. Thiếu khoá thì kho sinh một khoá tạm theo tiến trình — chạy được, nhưng khởi động lại là mọi
+giấy tờ cũ giải mã hỏng. Thà chết lúc khởi động còn hơn để người bệnh phát hiện khi mở giấy tờ của
+mình.
+
+---
+
+## D16 — BFF nhận thẳng token của HIS cho API quản trị, không cấp danh tính thứ hai
+
+**Chọn:** BFF mở một **lược đồ xác thực thứ hai** (`HisStaff`) xác thực bằng khoá ký của HIS Core.
+Web quản trị và app nhân viên gửi chính token HIS mà nhân viên đã có. BFF không cấp token riêng cho
+nhân viên và không lưu mật khẩu của họ.
+
+**Lý do:** nhân viên chỉ nên có **một** danh tính. Cấp thêm một danh tính thứ hai nghĩa là thêm một
+chỗ phải nhớ thu hồi khi họ nghỉ việc — và chỗ bị quên luôn là chỗ thứ hai.
+
+**Vì sao là lược đồ riêng chứ không phải cùng khoá với token người bệnh:** dùng chung khoá thì token
+người bệnh mở được API quản trị. Hai khoá tách bạch khiến điều đó bất khả thi chứ không chỉ là "chưa
+ai làm".
+
+**Đăng nhập cho app nhân viên đi vòng qua BFF** (`POST /staff/auth/login` chuyển tiếp sang HIS) để giữ
+nguyên tắc *app chỉ nói chuyện với BFF*: app không cần biết địa chỉ HIS Core, đổi địa chỉ về sau không
+phải phát hành lại app.
+
+**Hai mức quyền:** `AdminRoles` hẹp (khoá tài khoản, đặt lại mật khẩu, gửi thông báo toàn hệ thống);
+`LookupRoles` rộng hơn, gồm lễ tân và điều dưỡng, vì tra cứu hộ người bệnh là việc hằng ngày. Nhân
+viên ngoài danh sách nhận 403 kèm lời giải thích, chứ không phải một màn hình trống.
+
+---
+
+## D17 — Chiến dịch thông báo tách khỏi bản ghi thông báo
+
+**Chọn:** bảng `notification_campaigns` riêng, mỗi thông báo gửi ra mang `CampaignId`.
+
+**Lý do:** hai bảng trả lời hai câu hỏi khác nhau. Bản ghi thông báo trả lời *"người này nhận được
+gì"*; chiến dịch trả lời *"bệnh viện đã gửi gì, cho bao nhiêu người, bao nhiêu người đã đọc"*. Nhồi
+cả hai vào một bảng thì câu hỏi thứ hai phải đếm bằng cách gom nhóm theo tiêu đề — sai ngay khi hai
+đợt trùng tiêu đề.
+
+**Gửi ngay và hẹn giờ dùng chung một hàm** (`CampaignSender`): hai bản sao của logic gửi hàng loạt là
+hai chỗ để lệch nhau.
+
+**Đã gửi là không thu hồi được**, và giao diện nói đúng như vậy — thông báo đã nằm trong hộp thư của
+người dùng. Chỉ chiến dịch *chưa gửi* mới huỷ được.

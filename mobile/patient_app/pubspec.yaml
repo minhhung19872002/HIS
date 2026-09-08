@@ -36,6 +36,9 @@ dependencies:
   permission_handler: 11.3.1
   image_picker: ^1.2.1
   file_picker: ^8.1.2
+  # Dùng trực tiếp để đặt Content-Type cho phần tệp trong multipart; dio đã kéo sẵn
+  # gói này nhưng khai báo tường minh để bản nâng cấp của dio không lặng lẽ rút nó đi.
+  http_parser: ^4.0.2
   flutter_image_compress: ^2.3.0
   webview_flutter: ^4.13.1
   qr_flutter: ^4.1.0

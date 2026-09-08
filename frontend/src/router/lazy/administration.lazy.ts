@@ -29,6 +29,13 @@ export const FunctionalDiagnosticCatalogV2 = lazy(() => import('../../modules/ad
 export const ProvincialHealthV2 = lazy(() => import('../../modules/administration/pages/ProvincialHealth'));
 export const BackupManagementV2 = lazy(() => import('../../modules/administration/pages/BackupManagement'));
 export const HisConnectionsV2 = lazy(() => import('../../modules/administration/pages/HisConnections'));
+
+// App bệnh nhân (HSMT I.3) — quản trị và tra cứu
+export const PatientAppDashboardV2 = lazy(() => import('../../modules/administration/pages/PatientAppDashboard'));
+export const PatientAppAccountsV2 = lazy(() => import('../../modules/administration/pages/PatientAppAccounts'));
+export const PatientAppFamiliesV2 = lazy(() => import('../../modules/administration/pages/PatientAppFamilies'));
+export const PatientAppNotificationsV2 = lazy(() => import('../../modules/administration/pages/PatientAppNotifications'));
+export const PatientAppLookupV2 = lazy(() => import('../../modules/administration/pages/PatientAppLookup'));
 export const KioskSelfServiceV2 = lazy(() => import('../../modules/reception/pages/KioskSelfService'));
 export const ReportsV2 = lazy(() => import('../../modules/reports/pages/Reports'));
 export const WaitingTimeReportV2 = lazy(() => import('../../modules/reception/pages/WaitingTimeReport'));

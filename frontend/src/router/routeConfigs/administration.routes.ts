@@ -5,6 +5,8 @@ import {
   TrainingResearchV2, PracticeLicenseV2, EndpointSecurityV2, AdministrativeUnitsV2,
   ObstetricRegistersV2, AdrReportsV2, BillingGuarantorsV2, FunctionalDiagnosticCatalogV2,
   ProvincialHealthV2, BackupManagementV2, HisConnectionsV2, KioskSelfServiceV2, ReportsV2,
+  PatientAppDashboardV2, PatientAppAccountsV2, PatientAppFamiliesV2,
+  PatientAppNotificationsV2, PatientAppLookupV2,
   WaitingTimeReportV2, ReportCatalogsV2, QualityDashboardLiveV2, WorkloadReportV2,
   CatalogsAdminV2, EmployeeProfileV2,
   DigitalSignatureV2, CentralSigningV2, SigningWorkflowV2, BiometricEnrollmentV2, MasterDataV2,
@@ -37,6 +39,13 @@ export const administrationV2Routes: RouteEntry[] = [
   { path: 'provincial-health',             Component: ProvincialHealthV2,            meta: { title: 'Chỉ đạo tuyến',                group: 'management', permission: 'System.Configure',   workspace: 'backoffice',  module: 'extended' } },
   { path: 'backup-management',             Component: BackupManagementV2,            meta: { title: 'Quản lý Backup',               group: 'management', permission: 'System.Configure',   workspace: 'backoffice',  module: 'QUANTRI' } },
   { path: 'his-connections',               Component: HisConnectionsV2,              meta: { title: 'Kết nối HIS',                  group: 'management', permission: 'System.Configure',   workspace: 'backoffice',  module: 'QUANTRI' } },
+  // App bệnh nhân (HSMT I.3). Quản trị dùng System.Configure; tra cứu mở rộng hơn cho CSKH nên
+  // dùng Reception.Read — máy chủ vẫn kiểm vai trò lần nữa, đây chỉ là lớp ẩn menu.
+  { path: 'patient-app',                   Component: PatientAppDashboardV2,         meta: { title: 'App bệnh nhân',                group: 'management', permission: 'System.Configure',   workspace: 'backoffice',  module: 'QUANTRI' } },
+  { path: 'patient-app/accounts',          Component: PatientAppAccountsV2,          meta: { title: 'App BN · Tài khoản',           group: 'management', permission: 'System.Configure',   workspace: 'backoffice',  module: 'QUANTRI' } },
+  { path: 'patient-app/families',          Component: PatientAppFamiliesV2,          meta: { title: 'App BN · Nhóm gia đình',       group: 'management', permission: 'System.Configure',   workspace: 'backoffice',  module: 'QUANTRI' } },
+  { path: 'patient-app/notifications',     Component: PatientAppNotificationsV2,     meta: { title: 'App BN · Thông báo',           group: 'management', permission: 'System.Configure',   workspace: 'backoffice',  module: 'QUANTRI' } },
+  { path: 'patient-app/lookup',            Component: PatientAppLookupV2,            meta: { title: 'App BN · Tra cứu CSKH',        group: 'management', permission: 'Reception.Read',     workspace: 'frontoffice', module: 'TIEPDON' } },
   { path: 'kiosk',                         Component: KioskSelfServiceV2,            meta: { title: 'Kiosk tự phục vụ',             group: 'management', permission: 'Reception.Read',     workspace: 'frontoffice', module: 'TIEPDON' } },
   { path: 'reports',                       Component: ReportsV2,                     meta: { title: 'Báo cáo',                      group: 'management', permission: 'Report.Read',        workspace: 'backoffice',  module: 'BAOCAO' } },
   { path: 'reports/waiting-time',          Component: WaitingTimeReportV2,           meta: { title: 'Phân tích thời gian chờ',      group: 'management', permission: 'Report.Read',        workspace: 'backoffice',  module: 'BAOCAO' } },

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/router/app_router.dart';
+import '../../family/presentation/family_page.dart';
 import '../domain/result_models.dart';
 import 'results_providers.dart';
 import 'widgets/result_scaffolding.dart';
@@ -22,12 +23,18 @@ class ResultsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Đang xem hộ người thân thì phải nói ra ngay trên tiêu đề. Nhìn nhầm kết quả của mẹ thành của
+    // mình là kiểu nhầm lẫn nguy hiểm nhất mà app này có thể gây ra.
+    final viewing = ref.watch(viewingMemberProvider);
+
     return DefaultTabController(
       length: 6,
       initialIndex: initialTab,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Kết quả khám'),
+          title: Text(viewing == null ? 'Kết quả khám' : 'Kết quả của ${viewing.name}'),
+          backgroundColor:
+              viewing == null ? null : Theme.of(context).colorScheme.tertiaryContainer,
           bottom: const TabBar(
             isScrollable: true,
             tabs: [

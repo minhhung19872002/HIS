@@ -206,6 +206,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       onPressed: _busy ? null : () => context.push(AppRoutes.register),
                       child: const Text('Đăng ký tài khoản mới'),
                     ),
+                    // Lối vào module tra cứu của nhân viên (HSMT I.3 #2.2). Để chữ nhỏ ở cuối màn:
+                    // người bệnh không cần tới nó, còn nhân viên thì biết mình đang tìm gì.
+                    TextButton(
+                      onPressed: _busy ? null : () => context.push(AppRoutes.staffLookup),
+                      child: const Text('Dành cho nhân viên bệnh viện'),
+                    ),
                   ],
                 ),
               ),

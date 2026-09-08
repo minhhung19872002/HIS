@@ -71,6 +71,24 @@ builder.Services.AddScoped<OtpService>();
 builder.Services.AddScoped<PatientAuthService>();
 builder.Services.AddScoped<NotificationService>();
 
+// ------------------------------------------------- ví giấy tờ (HSMT I.2 #8)
+
+var vaultOptions = builder.Configuration.GetSection("DocumentVault").Get<DocumentVaultOptions>()
+                   ?? new DocumentVaultOptions();
+
+// Khoá mã hoá giấy tờ phải có thật ở môi trường thật. Thiếu khoá thì DocumentVault sinh một khoá
+// tạm theo tiến trình — chạy được, nhưng khởi động lại là mọi giấy tờ cũ giải mã hỏng. Thà chết ở
+// lúc khởi động còn hơn phát hiện ra khi người bệnh mở giấy tờ của mình.
+if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(vaultOptions.Key))
+{
+    throw new InvalidOperationException(
+        "Chưa cấu hình DocumentVault:Key. Sinh khoá: openssl rand -base64 32");
+}
+
+Directory.CreateDirectory(vaultOptions.RootPath);
+builder.Services.AddSingleton(vaultOptions);
+builder.Services.AddSingleton<DocumentVault>();
+
 // ------------------------------------------------------- đẩy thông báo (push)
 
 var pushOptions = builder.Configuration.GetSection(PushRelayOptions.SectionName).Get<PushRelayOptions>()
@@ -100,6 +118,9 @@ builder.Services.AddHostedService<PushDispatcherWorker>();
 
 // Nhắc lịch khám trước 1 ngày và trước 1 giờ (HSMT I.2 #4).
 builder.Services.AddHostedService<AppointmentReminderWorker>();
+
+// Gửi các đợt thông báo đã hẹn giờ của bệnh viện (HSMT I.3 #1.4).
+builder.Services.AddHostedService<CampaignDispatcherWorker>();
 
 // Bản gửi OTP thật cắm ở đây. Bản ghi-log chỉ được phép ở môi trường phát triển: in mã OTP ra log
 // ở production đồng nghĩa ai đọc được log là đăng nhập được vào tài khoản người bệnh.
@@ -173,9 +194,50 @@ builder.Services
                 }
             },
         };
+    })
+    // ---------------------------------------------- lược đồ thứ hai: nhân viên HIS
+    //
+    // Web quản trị nằm trong SPA của HIS, nhân viên đã có token do HIS Core cấp. BFF nhận chính token
+    // đó thay vì bắt đăng nhập lần hai. Khoá ký và issuer LẤY TỪ CẤU HÌNH CỦA HIS (`HisJwt`), tách
+    // hẳn khỏi khoá của người bệnh — dùng chung khoá là để token bệnh nhân mở được API quản trị.
+    .AddJwtBearer(StaffAuth.Scheme, options =>
+    {
+        var hisJwt = builder.Configuration.GetSection("HisJwt");
+        var hisKey = hisJwt["Key"] ?? "";
+
+        if (!builder.Environment.IsDevelopment() && hisKey.Length < 32)
+        {
+            throw new InvalidOperationException(
+                "Chưa cấu hình HisJwt:Key (khoá ký token của HIS Core). "
+                + "Thiếu nó thì web quản trị không xác thực được nhân viên.");
+        }
+
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = hisJwt["Issuer"],
+            ValidAudience = hisJwt["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(hisKey.Length >= 32 ? hisKey : new string('x', 32))),
+            ClockSkew = TimeSpan.Zero,
+        };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(StaffAuth.AdminPolicy, policy => policy
+        .AddAuthenticationSchemes(StaffAuth.Scheme)
+        .RequireAuthenticatedUser()
+        .RequireRole(StaffAuth.AdminRoles));
+
+    options.AddPolicy(StaffAuth.LookupPolicy, policy => policy
+        .AddAuthenticationSchemes(StaffAuth.Scheme)
+        .RequireAuthenticatedUser()
+        .RequireRole(StaffAuth.LookupRoles));
+});
 
 // ------------------------------------------------------- giới hạn tần suất
 
@@ -195,11 +257,18 @@ builder.Services.AddRateLimiter(options =>
             Window = TimeSpan.FromMinutes(1),
         }));
 
+    // Giới hạn theo IP ở đây chỉ là LỚP CHẶN THỨ HAI. Lớp thật nằm trong `OtpService`: tối đa 3 mã
+    // trong 15 phút cho MỖI SỐ ĐIỆN THOẠI — đó mới là thứ chặn được việc dội tin nhắn vào một người.
+    //
+    // Vì sao không siết chặt theo IP: mạng di động Việt Nam dùng CGNAT dày đặc, hàng nghìn thuê bao
+    // chung một địa chỉ công cộng. Đặt 5 lần/10 phút theo IP nghĩa là cả một vùng thuê bao chỉ xin
+    // được 5 mã mỗi 10 phút — người bệnh thứ sáu trong ngày sẽ bị chặn mà không hiểu vì sao, còn kẻ
+    // lạm dụng thật thì chỉ cần đổi mạng. Con số dưới đây đủ rộng cho một trạm phát sóng đông người,
+    // mà vẫn chặn một máy đơn lẻ dội hàng nghìn yêu cầu.
     options.AddPolicy(RateLimitPolicies.Otp, context =>
         RateLimitPartition.GetFixedWindowLimiter(PartitionKey(context), _ => new FixedWindowRateLimiterOptions
         {
-            // Chặt hơn: mỗi lần gọi là một tin nhắn tốn tiền, và cũng là một lần làm phiền chủ số.
-            PermitLimit = 5,
+            PermitLimit = 30,
             Window = TimeSpan.FromMinutes(10),
         }));
 });

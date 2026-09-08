@@ -96,6 +96,18 @@ class BiometricService {
     }
   }
 
+  /// Chỉ hỏi sinh trắc để xác nhận "đúng là chủ máy", không dùng kết quả để đăng nhập.
+  ///
+  /// Dùng cho việc mở khoá màn hình khi app tự khoá. Cách làm là ký một chuỗi ngẫu nhiên vứt đi:
+  /// thư viện chỉ ký được sau khi hệ điều hành xác thực vân tay/khuôn mặt thành công, nên ký được
+  /// nghĩa là đã xác thực được. Chữ ký không gửi đi đâu cả.
+  Future<bool> verifyPresence() async {
+    if (!await hasKey()) return false;
+
+    final nonce = 'unlock-${DateTime.now().microsecondsSinceEpoch}';
+    return await sign(nonce) != null;
+  }
+
   /// Xoá khoá khi người dùng tắt sinh trắc hoặc đăng xuất.
   Future<void> deleteKey() async {
     try {

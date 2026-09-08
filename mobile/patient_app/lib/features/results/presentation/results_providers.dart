@@ -1,11 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers.dart';
+import '../../family/presentation/family_page.dart';
 import '../data/results_repository.dart';
 import '../domain/result_models.dart';
 
+/// Kho kết quả, đã gắn sẵn "đang xem hồ sơ của ai".
+///
+/// Đọc `viewingMemberProvider` ở đây một lần thay vì truyền `memberId` xuống từng lời gọi: chỉ cần
+/// một chỗ quên truyền là màn hình đó lặng lẽ hiện hồ sơ của người khác.
 final resultsRepositoryProvider = Provider<ResultsRepository>(
-  (ref) => ResultsRepository(ref.watch(apiClientProvider)),
+  (ref) => ResultsRepository(
+    ref.watch(apiClientProvider),
+    memberId: ref.watch(viewingMemberProvider)?.id,
+  ),
 );
 
 /// Lọc theo một lượt khám; null = xem tất cả.

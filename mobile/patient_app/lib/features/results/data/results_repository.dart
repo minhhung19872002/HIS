@@ -6,21 +6,26 @@ import '../../../core/network/failure_mapper.dart';
 import '../domain/inpatient_models.dart';
 import '../domain/result_models.dart';
 
-/// Gọi API kết quả khám của BFF (HSMT I.2 #5).
+/// Gọi API kết quả khám của BFF (HSMT I.2 #5, #6).
+///
+/// [memberId] là id liên kết gia đình: bỏ trống = hồ sơ của chính mình, có giá trị = hồ sơ của
+/// người thân đã kết nối (HSMT I.2 #7). Máy chủ kiểm quyền ở từng lời gọi.
 class ResultsRepository {
-  ResultsRepository(this._client);
+  ResultsRepository(this._client, {this.memberId});
   final Dio _client;
+  final String? memberId;
 
   static const _base = '/patient/results';
 
   Future<List<Visit>> visits({int limit = 20}) =>
-      _list('$_base/visits', Visit.fromJson, query: {'limit': limit});
+      _list('$_base/visits', Visit.fromJson, query: {'limit': limit, ..._scope(null, null)});
 
   Future<List<LabResult>> labResults({String? visitId, String? admissionId}) =>
       _list('$_base/lab', LabResult.fromJson, query: _scope(visitId, admissionId));
 
   Future<LabResult> labResult(String id) async {
-    final data = await _run(() => _client.get<Map<String, dynamic>>('$_base/lab/$id'));
+    final data = await _run(
+        () => _client.get<Map<String, dynamic>>('$_base/lab/$id', queryParameters: _scope(null, null)));
     return LabResult.fromJson(data['data'] as Map<String, dynamic>? ?? const {});
   }
 
@@ -28,12 +33,14 @@ class ResultsRepository {
       _list('$_base/imaging', ImagingResult.fromJson, query: _scope(visitId, admissionId));
 
   Future<ImagingResult> imagingResult(String id) async {
-    final data = await _run(() => _client.get<Map<String, dynamic>>('$_base/imaging/$id'));
+    final data = await _run(() => _client.get<Map<String, dynamic>>('$_base/imaging/$id',
+        queryParameters: _scope(null, null)));
     return ImagingResult.fromJson(data['data'] as Map<String, dynamic>? ?? const {});
   }
 
   Future<List<ImagingInstance>> imagingImages(String resultId) =>
-      _list('$_base/imaging/$resultId/images', ImagingInstance.fromJson);
+      _list('$_base/imaging/$resultId/images', ImagingInstance.fromJson,
+          query: _scope(null, null));
 
   /// Tải một ảnh đã dựng. Trả byte để `Image.memory` vẽ thẳng — ảnh đi qua BFF nên cần header
   /// xác thực, mà `Image.network` thì không mang được header của interceptor.
@@ -41,7 +48,7 @@ class ResultsRepository {
     try {
       final response = await _client.get<List<int>>(
         '$_base/imaging/$resultId/images/$instanceId',
-        queryParameters: {'width': width},
+        queryParameters: {'width': width, ..._scope(null, null)},
         options: Options(responseType: ResponseType.bytes),
       );
       return Uint8List.fromList(response.data ?? const []);
@@ -54,34 +61,39 @@ class ResultsRepository {
       _list('$_base/functional', FunctionalResult.fromJson, query: _scope(visitId, admissionId));
 
   Future<FunctionalResult> functionalResult(String id) async {
-    final data = await _run(() => _client.get<Map<String, dynamic>>('$_base/functional/$id'));
+    final data = await _run(() => _client.get<Map<String, dynamic>>('$_base/functional/$id',
+        queryParameters: _scope(null, null)));
     return FunctionalResult.fromJson(data['data'] as Map<String, dynamic>? ?? const {});
   }
 
   Future<List<HealthCheckup>> healthCheckups() =>
-      _list('$_base/health-checkups', HealthCheckup.fromJson);
+      _list('$_base/health-checkups', HealthCheckup.fromJson, query: _scope(null, null));
 
   Future<List<Prescription>> prescriptions({bool activeOnly = false}) =>
-      _list('$_base/prescriptions', Prescription.fromJson, query: {'activeOnly': activeOnly});
+      _list('$_base/prescriptions', Prescription.fromJson,
+          query: {'activeOnly': activeOnly, ..._scope(null, null)});
 
   // ------------------------------------------------------------- nội trú
 
   Future<List<Admission>> admissions() =>
-      _list('$_base/admissions', Admission.fromJson);
+      _list('$_base/admissions', Admission.fromJson, query: _scope(null, null));
 
   Future<MedicineDisclosure> medicineDisclosure(String admissionId) async {
-    final data = await _run(() => _client
-        .get<Map<String, dynamic>>('$_base/admissions/$admissionId/medicine-disclosure'));
+    final data = await _run(() => _client.get<Map<String, dynamic>>(
+        '$_base/admissions/$admissionId/medicine-disclosure',
+        queryParameters: _scope(null, null)));
     return MedicineDisclosure.fromJson(data['data'] as Map<String, dynamic>? ?? const {});
   }
 
   Future<List<ServiceOrder>> serviceOrders(String admissionId) =>
-      _list('$_base/admissions/$admissionId/service-orders', ServiceOrder.fromJson);
+      _list('$_base/admissions/$admissionId/service-orders', ServiceOrder.fromJson,
+          query: _scope(null, null));
 
-  /// Phạm vi lọc: theo lượt khám ngoại trú hoặc theo đợt nằm viện.
-  static Map<String, dynamic> _scope(String? visitId, String? admissionId) => {
+  /// Phạm vi truy vấn: lượt khám, đợt nằm viện, và hồ sơ của ai.
+  Map<String, dynamic> _scope(String? visitId, String? admissionId) => {
         if (visitId != null) 'visitId': visitId,
         if (admissionId != null) 'admissionId': admissionId,
+        if (memberId != null) 'memberId': memberId,
       };
 
   Future<List<T>> _list<T>(

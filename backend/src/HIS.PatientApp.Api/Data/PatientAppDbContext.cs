@@ -23,6 +23,9 @@ public class PatientAppDbContext : DbContext
     public DbSet<AccessAuditLog> AccessAuditLogs => Set<AccessAuditLog>();
     public DbSet<AppointmentReminder> AppointmentReminders => Set<AppointmentReminder>();
     public DbSet<AppQueueTicket> QueueTickets => Set<AppQueueTicket>();
+    public DbSet<AppFamilyLink> FamilyLinks => Set<AppFamilyLink>();
+    public DbSet<AppDocument> Documents => Set<AppDocument>();
+    public DbSet<NotificationCampaign> NotificationCampaigns => Set<NotificationCampaign>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -154,6 +157,57 @@ public class PatientAppDbContext : DbContext
             e.HasOne(x => x.Account).WithMany()
                 .HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade);
         });
+
+        b.Entity<AppFamilyLink>(e =>
+        {
+            e.ToTable("app_family_links");
+            e.HasKey(x => x.Id);
+            // Một hồ sơ chỉ liên kết một lần với một tài khoản: thêm lại thì cập nhật bản cũ.
+            e.HasIndex(x => new { x.OwnerAccountId, x.MemberPatientId }).IsUnique();
+            e.Property(x => x.MemberPatientCode).HasMaxLength(50).IsRequired();
+            e.Property(x => x.MemberName).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Relationship).HasMaxLength(50);
+            e.Property(x => x.Status).HasMaxLength(20).IsRequired();
+            e.Property(x => x.VerificationMethod).HasMaxLength(40);
+            e.HasOne(x => x.Owner).WithMany()
+                .HasForeignKey(x => x.OwnerAccountId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<AppDocument>(e =>
+        {
+            e.ToTable("app_documents");
+            e.HasKey(x => x.Id);
+            // Ví luôn đọc theo tài khoản, mới nhất trước.
+            e.HasIndex(x => new { x.AccountId, x.CreatedAt });
+            e.Property(x => x.Category).HasMaxLength(30).IsRequired();
+            e.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            e.Property(x => x.FileName).HasMaxLength(260).IsRequired();
+            e.Property(x => x.ContentType).HasMaxLength(120).IsRequired();
+            e.Property(x => x.StoragePath).HasMaxLength(300).IsRequired();
+            e.Property(x => x.Sha256).HasMaxLength(64).IsRequired();
+            e.Property(x => x.Source).HasMaxLength(20).IsRequired();
+            e.Property(x => x.Note).HasMaxLength(500);
+            e.HasOne(x => x.Account).WithMany()
+                .HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<NotificationCampaign>(e =>
+        {
+            e.ToTable("notification_campaigns");
+            e.HasKey(x => x.Id);
+            // Worker quét những chiến dịch đã hẹn giờ và tới hạn.
+            e.HasIndex(x => new { x.Status, x.ScheduledAt });
+            e.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Body).HasMaxLength(2000).IsRequired();
+            e.Property(x => x.Category).HasMaxLength(30).IsRequired();
+            e.Property(x => x.DeepLink).HasMaxLength(300);
+            e.Property(x => x.Audience).HasMaxLength(30).IsRequired();
+            e.Property(x => x.Status).HasMaxLength(20).IsRequired();
+            e.Property(x => x.CreatedByName).HasMaxLength(200);
+            e.Property(x => x.FailureReason).HasMaxLength(500);
+        });
+
+        b.Entity<AppNotification>(e => e.HasIndex(x => x.CampaignId));
 
         b.Entity<AccessAuditLog>(e =>
         {
