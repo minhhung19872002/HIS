@@ -44,6 +44,17 @@ target 'Runner' do
   # CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES o post_install ben duoi.
   use_frameworks! :linkage => :static
 
+  # Bat modular headers cho pod Firebase. Header cua FLTFirebaseMessagingPlugin.h co dong
+  # `#import <Firebase/Firebase.h>`; khi pod duoc dong goi thanh framework module ma Firebase
+  # KHONG modular thi Xcode bao "Include of non-modular header inside framework module" va dung
+  # build. Rieng co CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES o post_install khong
+  # du — da thu va van hong.
+  pod 'Firebase', :modular_headers => true
+  pod 'FirebaseCore', :modular_headers => true
+  pod 'FirebaseCoreInternal', :modular_headers => true
+  pod 'FirebaseMessaging', :modular_headers => true
+  pod 'GoogleUtilities', :modular_headers => true
+
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 
   target 'RunnerTests' do
