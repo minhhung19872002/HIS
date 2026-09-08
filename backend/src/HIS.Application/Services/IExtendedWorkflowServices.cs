@@ -443,11 +443,25 @@ namespace HIS.Application.Services
         Task<byte[]> ExportHealthRecordPdfAsync(Guid patientId);
 
         // Lab & Imaging Results
-        Task<List<PortalLabResultDto>> GetLabResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null);
+        Task<List<PortalLabResultDto>> GetLabResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null);
         Task<PortalLabResultDto> GetLabResultAsync(Guid id);
         Task<bool> MarkLabResultViewedAsync(Guid id);
-        Task<List<PortalImagingResultDto>> GetImagingResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null);
+        Task<List<PortalImagingResultDto>> GetImagingResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null);
         Task<PortalImagingResultDto> GetImagingResultAsync(Guid id);
+
+        /// <summary>Ảnh PACS của một phiếu KQ CĐHA. Rỗng nếu ca chụp chưa có ảnh hoặc PACS không tới được.</summary>
+        Task<List<PortalImagingInstanceDto>> GetImagingInstancesAsync(Guid reportId);
+
+        /// <summary>Kiểm tra một instance PACS có thuộc phiếu KQ này không — chốt chặn trước khi trả ảnh.</summary>
+        Task<bool> IsInstanceInReportAsync(Guid reportId, string instanceId);
+
+        /// <summary>Bệnh nhân này thuộc lượt khám nào (dùng để đối chiếu quyền xem một phiếu KQ).</summary>
+        Task<Guid?> GetResultOwnerPatientIdAsync(string resultKind, Guid resultId);
+
+        // Thăm dò chức năng (GAP 25) và khám sức khoẻ hợp đồng (GAP 27)
+        Task<List<PortalFunctionalResultDto>> GetFunctionalResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null);
+        Task<PortalFunctionalResultDto> GetFunctionalResultAsync(Guid id);
+        Task<List<PortalHealthCheckupDto>> GetHealthCheckupsAsync(Guid patientId);
 
         // Prescriptions
         Task<List<PortalPrescriptionDto>> GetPrescriptionsAsync(Guid patientId, bool activeOnly = true);

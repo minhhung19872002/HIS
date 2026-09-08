@@ -458,6 +458,7 @@ public partial class RISCompleteService
                                     SOPInstanceUID = sopUID,
                                     SeriesInstanceUID = seriesInstanceUID,
                                     InstanceNumber = idx++,
+                                    OrthancInstanceId = instId,
                                     ThumbnailUrl = $"/api/RISComplete/pacs/instances/{instId}/preview",
                                     ImageUrl = $"/api/RISComplete/pacs/instances/{instId}/rendered?width=1024",
                                     WadoUrl = $"/api/RISComplete/pacs/instances/{instId}/file",
@@ -494,6 +495,7 @@ public partial class RISCompleteService
                 SOPInstanceUID = $"{seriesInstanceUID}.{i}",
                 SeriesInstanceUID = seriesInstanceUID,
                 InstanceNumber = i,
+                OrthancInstanceId = study.Id.ToString(),
                 ThumbnailUrl = $"/api/RISComplete/pacs/instances/{study.Id}/preview",
                 ImageUrl = $"/api/RISComplete/pacs/instances/{study.Id}/rendered?width=1024",
                 WadoUrl = ""

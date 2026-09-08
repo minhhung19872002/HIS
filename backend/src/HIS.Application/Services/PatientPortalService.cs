@@ -154,7 +154,7 @@ namespace HIS.Application.Services
         }
 
         // Lab & Imaging Results
-        public async Task<List<PortalLabResultDto>> GetLabResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null)
+        public async Task<List<PortalLabResultDto>> GetLabResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null)
         {
             _logger.LogInformation("Getting lab results for patient {PatientId}", patientId);
             return new List<PortalLabResultDto>();
@@ -172,7 +172,7 @@ namespace HIS.Application.Services
             return true;
         }
 
-        public async Task<List<PortalImagingResultDto>> GetImagingResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null)
+        public async Task<List<PortalImagingResultDto>> GetImagingResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null)
         {
             _logger.LogInformation("Getting imaging results for patient {PatientId}", patientId);
             return new List<PortalImagingResultDto>();
@@ -182,6 +182,42 @@ namespace HIS.Application.Services
         {
             _logger.LogInformation("Getting imaging result {Id}", id);
             return null;
+        }
+
+        public async Task<List<PortalImagingInstanceDto>> GetImagingInstancesAsync(Guid reportId)
+        {
+            _logger.LogInformation("Getting PACS instances for report {ReportId}", reportId);
+            return new List<PortalImagingInstanceDto>();
+        }
+
+        public async Task<bool> IsInstanceInReportAsync(Guid reportId, string instanceId)
+        {
+            _logger.LogInformation("Checking instance {InstanceId} against report {ReportId}", instanceId, reportId);
+            return false;
+        }
+
+        public async Task<Guid?> GetResultOwnerPatientIdAsync(string resultKind, Guid resultId)
+        {
+            _logger.LogInformation("Resolving owner of {Kind} result {Id}", resultKind, resultId);
+            return null;
+        }
+
+        public async Task<List<PortalFunctionalResultDto>> GetFunctionalResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null)
+        {
+            _logger.LogInformation("Getting functional results for patient {PatientId}", patientId);
+            return new List<PortalFunctionalResultDto>();
+        }
+
+        public async Task<PortalFunctionalResultDto> GetFunctionalResultAsync(Guid id)
+        {
+            _logger.LogInformation("Getting functional result {Id}", id);
+            return null;
+        }
+
+        public async Task<List<PortalHealthCheckupDto>> GetHealthCheckupsAsync(Guid patientId)
+        {
+            _logger.LogInformation("Getting health checkups for patient {PatientId}", patientId);
+            return new List<PortalHealthCheckupDto>();
         }
 
         // Prescriptions

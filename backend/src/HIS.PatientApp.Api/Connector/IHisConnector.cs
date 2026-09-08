@@ -71,4 +71,47 @@ public interface IHisConnector
     Task<HisBookingStatus> RescheduleAppointmentAsync(
         string appointmentCode, string phoneNumber, DateTime newDate, TimeSpan? newTime,
         Guid? newDoctorId, string? reason, CancellationToken ct = default);
+
+    // -------------------------------------- kết quả khám ngoại trú (I.2 #5)
+    //
+    // Mọi hàm dưới đây nhận patientId. BFF LUÔN truyền id của tài khoản đang đăng nhập, không bao giờ
+    // nhận từ thân yêu cầu — token gửi sang HIS là tài khoản dịch vụ nên HIS sẽ đưa bất cứ hồ sơ nào
+    // được hỏi. Chốt chặn nằm ở BFF.
+
+    Task<IReadOnlyList<HisVisitSummary>> GetVisitsAsync(
+        Guid patientId, int limit = 20, CancellationToken ct = default);
+
+    Task<IReadOnlyList<HisLabResult>> GetLabResultsAsync(
+        Guid patientId, Guid? visitId = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// Chi tiết một phiếu xét nghiệm kèm từng chỉ số. Null nếu HIS không có, HOẶC phiếu không thuộc
+    /// <paramref name="patientId"/> — HIS tự đối chiếu chủ sở hữu rồi trả 404, nên phép kiểm không
+    /// phụ thuộc vào việc BFF có nhớ kiểm hay không.
+    /// </summary>
+    Task<HisLabResult?> GetLabResultAsync(Guid patientId, Guid resultId, CancellationToken ct = default);
+
+    Task<IReadOnlyList<HisImagingResult>> GetImagingResultsAsync(
+        Guid patientId, Guid? visitId = null, CancellationToken ct = default);
+
+    Task<HisImagingResult?> GetImagingResultAsync(Guid patientId, Guid resultId, CancellationToken ct = default);
+
+    /// <summary>Danh sách ảnh PACS của một phiếu KQ CĐHA.</summary>
+    Task<IReadOnlyList<HisImagingInstance>> GetImagingInstancesAsync(
+        Guid patientId, Guid resultId, CancellationToken ct = default);
+
+    /// <summary>Ảnh đã dựng. Null nếu HIS/PACS không có ảnh đó.</summary>
+    Task<HisImageBytes?> GetImagingInstanceImageAsync(
+        Guid patientId, Guid resultId, string instanceId, int width, CancellationToken ct = default);
+
+    Task<IReadOnlyList<HisFunctionalResult>> GetFunctionalResultsAsync(
+        Guid patientId, Guid? visitId = null, CancellationToken ct = default);
+
+    Task<HisFunctionalResult?> GetFunctionalResultAsync(Guid patientId, Guid resultId, CancellationToken ct = default);
+
+    Task<IReadOnlyList<HisHealthCheckup>> GetHealthCheckupsAsync(
+        Guid patientId, CancellationToken ct = default);
+
+    Task<IReadOnlyList<HisPrescription>> GetPrescriptionsAsync(
+        Guid patientId, bool activeOnly, CancellationToken ct = default);
 }

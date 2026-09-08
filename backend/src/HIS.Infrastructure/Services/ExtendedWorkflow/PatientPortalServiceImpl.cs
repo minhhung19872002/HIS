@@ -1,4 +1,4 @@
-using HIS.Application.DTOs.PatientPortal;
+﻿using HIS.Application.DTOs.PatientPortal;
 using HIS.Application.Services;
 using HIS.Core.Common;
 using HIS.Core.Entities;
@@ -14,7 +14,16 @@ namespace HIS.Infrastructure.Services;
 public partial class PatientPortalServiceImpl : IPatientPortalService
 {
     private readonly HISDbContext _context;
-    public PatientPortalServiceImpl(HISDbContext context) => _context = context;
+
+    // RIS là nơi duy nhất biết cách nói chuyện với Orthanc (cấu hình, xác thực, tìm study). Cổng bệnh
+    // nhân mượn lại thay vì tự dựng một đường ống PACS thứ hai — hai đường ống thì sớm muộn cũng lệch.
+    private readonly IRISCompleteService _ris;
+
+    public PatientPortalServiceImpl(HISDbContext context, IRISCompleteService ris)
+    {
+        _context = context;
+        _ris = ris;
+    }
 
     public async Task<PortalAccountDto> GetAccountAsync(Guid accountId)
     {
@@ -406,21 +415,35 @@ th {{ background: #f0f0f0; text-align: center; }}
         }
     }
 
-    public async Task<List<PortalLabResultDto>> GetLabResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null)
+    public async Task<List<PortalLabResultDto>> GetLabResultsAsync(
+        Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null)
     {
         try
         {
             // #14b: KQ XN đọc từ ServiceRequestDetail (model 1) — bảng LabResults (model 2) chết
             // trong luồng thật nên BN trước đây không thấy KQ trên portal.
-            var query = _context.ServiceRequestDetails
-                .Include(d => d.ServiceRequest).ThenInclude(r => r.MedicalRecord)
-                .Where(d => d.ServiceRequest.RequestType == 1 && d.Status != 3
-                         && (d.Status == 2 || d.Result != null || d.ResultDate != null));
-            if (patientId != Guid.Empty) query = query.Where(d => d.ServiceRequest.MedicalRecord.PatientId == patientId);
+            var query = LabResultQuery();
+            if (patientId != Guid.Empty) query = query.Where(d => d.ServiceRequest.MedicalRecord!.PatientId == patientId);
             if (fromDate.HasValue) query = query.Where(d => d.ResultDate >= fromDate);
             if (toDate.HasValue) query = query.Where(d => d.ResultDate <= toDate);
+            // GAP 26: lọc theo lượt khám để trả lời được câu "kết quả của lần khám này".
+            if (visitId.HasValue) query = query.Where(d => d.ServiceRequest.ExaminationId == visitId);
+
             var list = await query.OrderByDescending(d => d.ResultDate).Take(30).ToListAsync();
-            return list.Select(d => new PortalLabResultDto { Id = d.Id, OrderCode = d.ServiceRequest != null ? d.ServiceRequest.RequestCode : "", ResultDate = d.ResultDate ?? DateTime.MinValue, Status = d.Status == 2 ? "Completed" : "Pending" }).ToList();
+            if (list.Count == 0) return new List<PortalLabResultDto>();
+
+            // Chỉ số chi tiết KHÔNG nạp ở màn danh sách (30 phiếu × hàng chục chỉ số là quá nhiều),
+            // nhưng cờ bất thường thì phải có: người bệnh cần thấy ngay phiếu nào đáng chú ý mà
+            // không phải mở lần lượt từng cái.
+            var ids = list.Select(d => d.Id).ToList();
+            var abnormal = await _context.ServiceRequestDetailParameters
+                .Where(p => ids.Contains(p.ServiceRequestDetailId)
+                            && p.Flag != null && p.Flag != "" && p.Flag != "N")
+                .Select(p => p.ServiceRequestDetailId)
+                .Distinct()
+                .ToListAsync();
+
+            return list.Select(d => MapLabResult(d, abnormal.Contains(d.Id))).ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
@@ -431,8 +454,41 @@ th {{ background: #f0f0f0; text-align: center; }}
     public async Task<PortalLabResultDto> GetLabResultAsync(Guid id)
     {
         // #14b: đọc 1 KQ XN từ ServiceRequestDetail (model 1).
-        var e = await _context.ServiceRequestDetails.Include(d => d.ServiceRequest).FirstOrDefaultAsync(d => d.Id == id);
-        return e == null ? null! : new PortalLabResultDto { Id = e.Id, OrderCode = e.ServiceRequest != null ? e.ServiceRequest.RequestCode : "", ResultDate = e.ResultDate ?? DateTime.MinValue, Status = e.Status == 2 ? "Completed" : "Pending" };
+        var e = await LabResultQuery(requireResult: false).FirstOrDefaultAsync(d => d.Id == id);
+        if (e == null) return null!;
+
+        var parameters = await _context.ServiceRequestDetailParameters
+            .Where(p => p.ServiceRequestDetailId == id)
+            .OrderBy(p => p.SequenceNumber)
+            .ToListAsync();
+
+        var dto = MapLabResult(e, parameters.Any(p => IsAbnormalFlag(p.Flag)));
+        dto.TestItems = parameters.Select(p => new LabTestItemDto
+        {
+            TestName = string.IsNullOrWhiteSpace(p.ParameterName) ? p.ParameterCode : p.ParameterName,
+            Result = p.Value ?? "",
+            Unit = p.Unit ?? "",
+            NormalRange = FormatReferenceRange(p),
+            Flag = DescribeFlag(p.Flag),
+            Interpretation = "",
+        }).ToList();
+
+        // Không có chỉ số tách dòng (máy XN chưa nối, KTV gõ tay vào ô kết quả) thì vẫn phải cho
+        // người bệnh xem được cái đã có, thay vì đưa ra một bảng rỗng.
+        if (dto.TestItems.Count == 0 && !string.IsNullOrWhiteSpace(e.Result))
+        {
+            dto.TestItems.Add(new LabTestItemDto
+            {
+                TestName = e.Service?.ServiceName ?? "Kết quả",
+                Result = e.Result!,
+                Unit = "",
+                NormalRange = "",
+                Flag = "Normal",
+                Interpretation = e.Conclusion ?? "",
+            });
+        }
+
+        return dto;
     }
 
     public Task<bool> MarkLabResultViewedAsync(Guid id)
@@ -440,17 +496,138 @@ th {{ background: #f0f0f0; text-align: center; }}
         return Task.FromResult(true);
     }
 
-    public async Task<List<PortalImagingResultDto>> GetImagingResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null)
+    public async Task<List<PortalImagingResultDto>> GetImagingResultsAsync(
+        Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null)
     {
-        var query = _context.RadiologyReports.Include(x => x.RadiologyExam).ThenInclude(x => x!.RadiologyRequest).Include(x => x.RadiologyExam).ThenInclude(x => x!.Modality).AsQueryable();
+        var query = ImagingResultQuery();
         if (patientId != Guid.Empty) query = query.Where(x => x.RadiologyExam!.RadiologyRequest!.PatientId == patientId);
+        if (fromDate.HasValue) query = query.Where(x => x.RadiologyExam!.ExamDate >= fromDate);
+        if (toDate.HasValue) query = query.Where(x => x.RadiologyExam!.ExamDate <= toDate);
+        if (visitId.HasValue) query = query.Where(x => x.RadiologyExam!.RadiologyRequest!.ExaminationId == visitId);
+
         var list = await query.OrderByDescending(x => x.ReportDate).Take(30).ToListAsync();
-        return list.Select(e => new PortalImagingResultDto { Id = e.Id, Modality = e.RadiologyExam?.Modality?.ModalityName ?? "", StudyDate = e.RadiologyExam?.ExamDate, Status = e.Status == 1 ? "Completed" : "Pending" }).ToList();
+        return list.Select(MapImagingResult).ToList();
     }
 
     public async Task<PortalImagingResultDto> GetImagingResultAsync(Guid id)
     {
-        var e = await _context.RadiologyReports.Include(x => x.RadiologyExam).ThenInclude(x => x!.Modality).FirstOrDefaultAsync(x => x.Id == id);
-        return e == null ? null! : new PortalImagingResultDto { Id = e.Id, Modality = e.RadiologyExam?.Modality?.ModalityName ?? "", StudyDate = e.RadiologyExam?.ExamDate, Findings = e.Findings, Status = e.Status == 1 ? "Completed" : "Pending" };
+        var e = await ImagingResultQuery().FirstOrDefaultAsync(x => x.Id == id);
+        return e == null ? null! : MapImagingResult(e);
+    }
+
+    // ------------------------------------------------------- truy vấn và ánh xạ
+
+    /// <summary>
+    /// Phiếu XN đã có kết quả. <paramref name="requireResult"/> = false khi mở đúng một phiếu: người
+    /// bệnh bấm vào từ danh sách nên phiếu chắc chắn hợp lệ, mà trả 404 cho phiếu đang chờ kết quả
+    /// thì khó hiểu hơn là hiện "đang chờ".
+    /// </summary>
+    private IQueryable<ServiceRequestDetail> LabResultQuery(bool requireResult = true)
+    {
+        var query = _context.ServiceRequestDetails
+            .Include(d => d.Service)
+            .Include(d => d.ServiceRequest).ThenInclude(r => r.MedicalRecord)
+            .Include(d => d.ServiceRequest).ThenInclude(r => r.Doctor)
+            .Include(d => d.ServiceRequest).ThenInclude(r => r.Department)
+            .Include(d => d.Service).ThenInclude(s => s.ServiceGroup)
+            .Where(d => d.ServiceRequest.RequestType == 1 && d.Status != 3);
+
+        return requireResult
+            ? query.Where(d => d.Status == 2 || d.Result != null || d.ResultDate != null)
+            : query;
+    }
+
+    private IQueryable<RadiologyReport> ImagingResultQuery() => _context.RadiologyReports
+        .Include(x => x.Radiologist)
+        .Include(x => x.RadiologyExam).ThenInclude(x => x!.Modality)
+        .Include(x => x.RadiologyExam).ThenInclude(x => x!.DicomStudies)
+        .Include(x => x.RadiologyExam).ThenInclude(x => x!.RadiologyRequest).ThenInclude(r => r!.Service)
+        .Include(x => x.RadiologyExam).ThenInclude(x => x!.RadiologyRequest).ThenInclude(r => r!.RequestingDoctor)
+        .AsQueryable();
+
+    private static PortalLabResultDto MapLabResult(ServiceRequestDetail d, bool hasAbnormal)
+    {
+        var request = d.ServiceRequest;
+        return new PortalLabResultDto
+        {
+            Id = d.Id,
+            OrderCode = request?.RequestCode ?? "",
+            OrderDate = request?.RequestDate ?? d.CreatedAt,
+            ResultDate = d.ResultDate,
+            OrderingDoctor = request?.Doctor?.FullName ?? "",
+            Department = request?.Department?.DepartmentName ?? "",
+            TestCategory = d.Service?.ServiceGroup?.GroupName ?? "",
+            ServiceName = d.Service?.ServiceName ?? "",
+            Status = DescribeResultStatus(d.Status),
+            HasAbnormal = hasAbnormal,
+            VisitId = request?.ExaminationId,
+            TestItems = new List<LabTestItemDto>(),
+            // Phiếu chưa có kết quả thì không có gì để in — để trống còn hơn đưa một đường dẫn 404.
+            ReportUrl = d.Status == 2 ? $"/api/portal/lab-results/{d.Id}/pdf" : "",
+        };
+    }
+
+    private static PortalImagingResultDto MapImagingResult(RadiologyReport e)
+    {
+        var exam = e.RadiologyExam;
+        var request = exam?.RadiologyRequest;
+        var study = exam?.DicomStudies?.OrderByDescending(s => s.StudyDate).FirstOrDefault();
+        var imageCount = study?.NumberOfImages ?? 0;
+
+        return new PortalImagingResultDto
+        {
+            Id = e.Id,
+            OrderCode = request?.RequestCode ?? "",
+            OrderDate = request?.RequestDate ?? e.CreatedAt,
+            StudyDate = exam?.ExamDate,
+            OrderingDoctor = request?.RequestingDoctor?.FullName ?? "",
+            Department = "",
+            Modality = exam?.Modality?.ModalityName ?? "",
+            BodyPart = request?.BodyPart ?? "",
+            StudyDescription = study?.StudyDescription ?? exam?.ExamName ?? request?.Service?.ServiceName ?? "",
+            Findings = e.Findings ?? "",
+            Impression = e.Impression ?? "",
+            Recommendations = e.Recommendations ?? "",
+            ReportingDoctor = e.Radiologist?.FullName ?? "",
+            // Chỉ coi là xem được khi bác sĩ đã đọc xong. Ảnh thô chưa có kết luận đưa cho người bệnh
+            // thì chỉ gây hoang mang.
+            Status = e.Status >= 1 ? "Completed" : "Pending",
+            HasImages = imageCount > 0 && !string.IsNullOrWhiteSpace(study?.StudyInstanceUID),
+            ImageCount = imageCount,
+            StudyInstanceUid = study?.StudyInstanceUID ?? "",
+            ImageViewerUrl = imageCount > 0 ? $"/api/portal/imaging-results/{e.Id}/instances" : "",
+            ThumbnailUrls = new List<string>(),
+            VisitId = request?.ExaminationId,
+        };
+    }
+
+    private static bool IsAbnormalFlag(string? flag) =>
+        !string.IsNullOrWhiteSpace(flag) && !string.Equals(flag, "N", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Cờ LIS (H/L/HH/LL) → chữ mà người không làm xét nghiệm vẫn hiểu.</summary>
+    private static string DescribeFlag(string? flag) => (flag ?? "").ToUpperInvariant() switch
+    {
+        "H" => "High",
+        "L" => "Low",
+        "HH" => "Critical",
+        "LL" => "Critical",
+        _ => "Normal",
+    };
+
+    private static string DescribeResultStatus(int status) => status switch
+    {
+        2 => "Completed",
+        1 => "InProgress",
+        _ => "Pending",
+    };
+
+    /// <summary>Ưu tiên chuỗi khoảng tham chiếu do LIS gửi; không có thì ghép từ min/max.</summary>
+    private static string FormatReferenceRange(ServiceRequestDetailParameter p)
+    {
+        if (!string.IsNullOrWhiteSpace(p.ReferenceRange)) return p.ReferenceRange!;
+        if (p.ReferenceMin.HasValue && p.ReferenceMax.HasValue) return $"{p.ReferenceMin} - {p.ReferenceMax}";
+        if (p.ReferenceMin.HasValue) return $"≥ {p.ReferenceMin}";
+        if (p.ReferenceMax.HasValue) return $"≤ {p.ReferenceMax}";
+        return "";
     }
 }

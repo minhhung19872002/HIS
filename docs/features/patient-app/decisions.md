@@ -144,3 +144,39 @@ không — vé của người khác trả 404 y như vé không tồn tại. Tr�
 
 **Đánh đổi:** một người dùng hai tài khoản app vẫn lấy được hai số. Chặn việc đó cần định danh thật
 (liên kết hồ sơ), thuộc phần liên kết hồ sơ bệnh án.
+
+---
+
+## D11 — App hiện bảng chỉ số gốc, không nhúng PDF kết quả xét nghiệm
+
+**Chọn:** màn kết quả xét nghiệm dựng **bảng chỉ số từ dữ liệu** (`ServiceRequestDetailParameters`),
+không tải và nhúng tệp PDF. Trường `ReportUrl` trong DTO vẫn trỏ tới `api/portal/lab-results/{id}/pdf`
+để bản in dùng sau.
+
+**Lý do:** HSMT viết "xem file kết quả xét nghiệm". Cái người bệnh cần là **đọc được kết quả**, và
+bảng dữ liệu làm việc đó tốt hơn hẳn một ảnh PDF trên màn hình 5 inch: chữ không vỡ khi phóng to, đọc
+được bằng trình đọc màn hình, và tô được cờ bất thường ngay tại dòng. Nhúng PDF còn kéo theo
+`pdfrx` — một trong những gói phải ghim bản cũ vì iOS 12 (xem [D3](decisions.md)).
+
+**Đánh đổi:** kết quả nào LIS chỉ trả một khối văn bản (máy chưa nối, KTV gõ tay) thì bảng chỉ có một
+dòng. Đã xử lý: rơi về hiển thị nguyên khối kết quả + kết luận thay vì bảng rỗng.
+
+**Còn nợ:** endpoint PDF thật để in/gửi email — gộp vào phần in ấn ở Phase 7.
+
+---
+
+## D12 — Kiểm chủ sở hữu phiếu kết quả đặt ở HIS, không chỉ ở BFF
+
+**Chọn:** các route chi tiết `api/portal/{lab,imaging,functional}-results/{id}` nhận thêm
+`patientId`; HIS tự đối chiếu phiếu có thuộc hồ sơ đó không rồi trả 404 nếu không. BFF luôn gửi kèm
+id hồ sơ của tài khoản đang đăng nhập.
+
+**Lý do:** token BFF gửi sang HIS là **tài khoản dịch vụ** — nó đọc được hồ sơ của bất kỳ ai. Nếu phép
+kiểm chỉ nằm ở BFF thì toàn bộ hồ sơ bệnh án của bệnh viện chỉ cách một dòng code bị quên. Đặt thêm
+một lớp ngay tại HIS khiến lỗ hổng cần **hai** sai sót độc lập mới mở ra.
+
+Cách cũ (BFF tải danh sách của mình rồi tìm id trong đó) vừa tốn một lượt gọi thừa, vừa **sai**: danh
+sách bị giới hạn 30 phiếu gần nhất, nên phiếu cũ hơn sẽ bị chính chủ nhìn thành 404.
+
+**Ảnh hưởng tương thích:** `patientId` là tuỳ chọn; không truyền thì hành vi của nhân viên tra cứu giữ
+nguyên như trước. Token `PortalPatient` vẫn luôn lấy hồ sơ từ claim.

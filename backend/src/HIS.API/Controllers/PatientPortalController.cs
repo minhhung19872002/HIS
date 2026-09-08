@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.Services;
@@ -271,10 +271,31 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<List<PortalLabResultDto>>> GetLabResults(
             [FromQuery] Guid patientId,
             [FromQuery] DateTime? fromDate,
-            [FromQuery] DateTime? toDate)
+            [FromQuery] DateTime? toDate,
+            [FromQuery] Guid? visitId = null)
         {
             var (pid, err) = ResolvePatientId(patientId); if (err != null) return err;
-            return Ok(await _service.GetLabResultsAsync(pid, fromDate, toDate));
+            return Ok(await _service.GetLabResultsAsync(pid, fromDate, toDate, visitId));
+        }
+
+        /// <summary>
+        /// Chi tiết một phiếu xét nghiệm, kèm từng chỉ số và khoảng tham chiếu (GAP 23).
+        ///
+        /// Phải tự kiểm chủ sở hữu: id phiếu KHÔNG mang theo patientId nên
+        /// <c>ResolvePatientId</c> ở đây không đủ — thiếu bước này thì đổi id là xem được phiếu của
+        /// người khác.
+        /// </summary>
+        [HttpGet("lab-results/{id}")]
+        [Authorize]
+        public async Task<ActionResult<PortalLabResultDto>> GetLabResult(
+            Guid id, [FromQuery] Guid? patientId = null)
+        {
+            var denied = await DenyIfNotOwnResultAsync("lab", id, patientId);
+            if (denied != null) return denied;
+
+            var result = await _service.GetLabResultAsync(id);
+            if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy kết quả." });
+            return Ok(result);
         }
 
         [HttpGet("imaging-results")]
@@ -282,10 +303,158 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<List<PortalImagingResultDto>>> GetImagingResults(
             [FromQuery] Guid patientId,
             [FromQuery] DateTime? fromDate,
-            [FromQuery] DateTime? toDate)
+            [FromQuery] DateTime? toDate,
+            [FromQuery] Guid? visitId = null)
         {
             var (pid, err) = ResolvePatientId(patientId); if (err != null) return err;
-            return Ok(await _service.GetImagingResultsAsync(pid, fromDate, toDate));
+            return Ok(await _service.GetImagingResultsAsync(pid, fromDate, toDate, visitId));
+        }
+
+        /// <summary>Chi tiết một phiếu KQ CĐHA: mô tả, kết luận, đề nghị (GAP 23).</summary>
+        [HttpGet("imaging-results/{id}")]
+        [Authorize]
+        public async Task<ActionResult<PortalImagingResultDto>> GetImagingResult(
+            Guid id, [FromQuery] Guid? patientId = null)
+        {
+            var denied = await DenyIfNotOwnResultAsync("imaging", id, patientId);
+            if (denied != null) return denied;
+
+            var result = await _service.GetImagingResultAsync(id);
+            if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy kết quả." });
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Danh sách ảnh PACS của một phiếu KQ CĐHA (GAP 29, 30 — hai route cũ giao diện đang gọi đều
+        /// trả 404).
+        /// </summary>
+        [HttpGet("imaging-results/{id}/instances")]
+        [Authorize]
+        public async Task<ActionResult<List<PortalImagingInstanceDto>>> GetImagingInstances(
+            Guid id, [FromQuery] Guid? patientId = null)
+        {
+            var denied = await DenyIfNotOwnResultAsync("imaging", id, patientId);
+            if (denied != null) return denied;
+
+            return Ok(await _service.GetImagingInstancesAsync(id));
+        }
+
+        /// <summary>
+        /// Ảnh đã dựng của một instance, đi qua HIS để không lộ địa chỉ và mật khẩu PACS ra ngoài.
+        ///
+        /// Hai lớp kiểm: phiếu có phải của người đang đăng nhập không, VÀ ảnh có thật sự thuộc phiếu
+        /// đó không. Thiếu lớp thứ hai thì ai có một phiếu hợp lệ của mình là xem được mọi ảnh trong
+        /// PACS.
+        /// </summary>
+        [HttpGet("imaging-results/{id}/instances/{instanceId}/rendered")]
+        [Authorize]
+        public async Task<ActionResult> GetImagingInstanceRendered(
+            Guid id, string instanceId, [FromQuery] int width = 1024,
+            [FromQuery] Guid? patientId = null)
+        {
+            var denied = await DenyIfNotOwnResultAsync("imaging", id, patientId);
+            if (denied != null) return denied;
+
+            if (!await _service.IsInstanceInReportAsync(id, instanceId))
+                return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy ảnh." });
+
+            var pacsBaseUrl = _configuration["PACS:BaseUrl"]?.TrimEnd('/');
+            if (string.IsNullOrWhiteSpace(pacsBaseUrl))
+                return StatusCode(503, new { error = "PACS_NOT_CONFIGURED", message = "Hệ thống lưu trữ hình ảnh chưa được cấu hình." });
+
+            if (width <= 0 || width > 4096) width = 1024;
+
+            try
+            {
+                using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+                var authBytes = System.Text.Encoding.ASCII.GetBytes(
+                    $"{_configuration["PACS:Username"]}:{_configuration["PACS:Password"]}");
+                httpClient.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(authBytes));
+
+                var response = await httpClient.GetAsync(
+                    $"{pacsBaseUrl}/instances/{Uri.EscapeDataString(instanceId)}/rendered?width={width}");
+
+                // Orthanc đời cũ không có /rendered — lùi về /preview thay vì báo lỗi cho người bệnh.
+                if (!response.IsSuccessStatusCode)
+                    response = await httpClient.GetAsync(
+                        $"{pacsBaseUrl}/instances/{Uri.EscapeDataString(instanceId)}/preview");
+
+                if (!response.IsSuccessStatusCode)
+                    return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy ảnh." });
+
+                return File(await response.Content.ReadAsByteArrayAsync(),
+                    response.Content.Headers.ContentType?.ToString() ?? "image/png");
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                return StatusCode(502, new { error = "PACS_UNREACHABLE", message = "Chưa lấy được hình ảnh. Vui lòng thử lại sau." });
+            }
+        }
+
+        /// <summary>Kết quả thăm dò chức năng: điện tim, điện não, nội soi… (GAP 25).</summary>
+        [HttpGet("functional-results")]
+        [Authorize]
+        public async Task<ActionResult<List<PortalFunctionalResultDto>>> GetFunctionalResults(
+            [FromQuery] Guid patientId,
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate,
+            [FromQuery] Guid? visitId = null)
+        {
+            var (pid, err) = ResolvePatientId(patientId); if (err != null) return err;
+            return Ok(await _service.GetFunctionalResultsAsync(pid, fromDate, toDate, visitId));
+        }
+
+        [HttpGet("functional-results/{id}")]
+        [Authorize]
+        public async Task<ActionResult<PortalFunctionalResultDto>> GetFunctionalResult(
+            Guid id, [FromQuery] Guid? patientId = null)
+        {
+            var denied = await DenyIfNotOwnResultAsync("functional", id, patientId);
+            if (denied != null) return denied;
+
+            var result = await _service.GetFunctionalResultAsync(id);
+            if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy kết quả." });
+            return Ok(result);
+        }
+
+        /// <summary>Khám sức khoẻ hợp đồng của chính người bệnh này (GAP 27).</summary>
+        [HttpGet("health-checkups")]
+        [Authorize]
+        public async Task<ActionResult<List<PortalHealthCheckupDto>>> GetHealthCheckups(
+            [FromQuery] Guid patientId)
+        {
+            var (pid, err) = ResolvePatientId(patientId); if (err != null) return err;
+            return Ok(await _service.GetHealthCheckupsAsync(pid));
+        }
+
+        /// <summary>
+        /// Chặn khi phiếu kết quả không thuộc về người bệnh được phép xem.
+        ///
+        /// Hai đường vào:
+        /// <list type="bullet">
+        /// <item>Token <c>PortalPatient</c> — hồ sơ lấy từ claim, bên gọi không có tiếng nói.</item>
+        /// <item>Token nhân viên hoặc tài khoản dịch vụ — nếu bên gọi khai <paramref name="requestedPatientId"/>
+        ///       thì phiếu phải thuộc đúng hồ sơ đó. App mobile đi đường này: BFF luôn khai hồ sơ của
+        ///       tài khoản đang đăng nhập, nên phép kiểm chạy ngay tại HIS thay vì phải tin BFF.</item>
+        /// </list>
+        /// Không khai gì thì giữ nguyên hành vi cũ của nhân viên tra cứu theo phạm vi công việc.
+        ///
+        /// Trả 404 chứ không 403: "phiếu này có thật nhưng không phải của bạn" tự nó đã là một mẩu
+        /// thông tin.
+        /// </summary>
+        private async Task<ActionResult?> DenyIfNotOwnResultAsync(
+            string resultKind, Guid resultId, Guid? requestedPatientId = null)
+        {
+            Guid? expected = IsPortalPatient ? ClaimPatientId : requestedPatientId;
+
+            if (IsPortalPatient && (expected is null || expected == Guid.Empty)) return Forbid();
+            if (expected is null || expected == Guid.Empty) return null;
+
+            var owner = await _service.GetResultOwnerPatientIdAsync(resultKind, resultId);
+            return owner == expected
+                ? null
+                : NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy kết quả." });
         }
 
         [HttpGet("prescriptions")]

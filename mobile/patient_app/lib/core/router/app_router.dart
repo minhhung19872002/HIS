@@ -12,6 +12,10 @@ import '../../features/appointments/presentation/appointments_page.dart';
 import '../../features/appointments/presentation/book_appointment_page.dart';
 import '../../features/home/presentation/splash_page.dart';
 import '../../features/queue/presentation/queue_page.dart';
+import '../../features/results/presentation/functional_result_page.dart';
+import '../../features/results/presentation/imaging_result_page.dart';
+import '../../features/results/presentation/lab_result_page.dart';
+import '../../features/results/presentation/results_page.dart';
 import '../../features/queue/presentation/queue_ticket_page.dart';
 import '../../features/notifications/presentation/notifications_page.dart';
 import '../../features/security/presentation/devices_page.dart';
@@ -35,6 +39,8 @@ class AppRoutes {
   static const queueTicket = '/queue/ticket';
   static const appointments = '/appointments';
   static const bookAppointment = '/appointments/book';
+  static const results = '/results';
+  static const prescriptions = '/results/prescriptions';
 }
 
 /// Đưa `Listenable` cho go_router từ một provider của Riverpod, để router vẽ lại khi trạng thái
@@ -73,6 +79,28 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: AppRoutes.appointments, builder: (_, _) => const AppointmentsPage()),
       GoRoute(path: AppRoutes.bookAppointment, builder: (_, _) => const BookAppointmentPage()),
+      GoRoute(path: AppRoutes.results, builder: (_, _) => const ResultsPage()),
+      // Lối tắt "Đơn thuốc" ở trang chủ mở thẳng tab đơn thuốc — người bệnh bấm vào đó là đang đi
+      // tìm đúng thứ đó, không nên bắt họ tìm tiếp trong sáu tab.
+      GoRoute(
+        path: AppRoutes.prescriptions,
+        builder: (_, _) => const ResultsPage(initialTab: 4),
+      ),
+      GoRoute(
+        path: '${AppRoutes.results}/lab/:resultId',
+        builder: (context, state) =>
+            LabResultPage(resultId: state.pathParameters['resultId']!),
+      ),
+      GoRoute(
+        path: '${AppRoutes.results}/imaging/:resultId',
+        builder: (context, state) =>
+            ImagingResultPage(resultId: state.pathParameters['resultId']!),
+      ),
+      GoRoute(
+        path: '${AppRoutes.results}/functional/:resultId',
+        builder: (context, state) =>
+            FunctionalResultPage(resultId: state.pathParameters['resultId']!),
+      ),
       GoRoute(
         path: AppRoutes.changePassword,
         builder: (context, state) => ChangePasswordPage(

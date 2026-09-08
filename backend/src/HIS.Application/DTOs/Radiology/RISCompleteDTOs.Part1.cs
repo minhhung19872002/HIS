@@ -199,6 +199,13 @@ namespace HIS.Application.DTOs.Radiology
         public string ImageUrl { get; set; }
         public string WadoUrl { get; set; }
 
+        /// <summary>
+        /// Id instance trong Orthanc. Trước đây chỉ nằm lẫn bên trong <see cref="ImageUrl"/>, ai cần
+        /// thì tự cắt chuỗi — cách đó vỡ ngay khi đường dẫn proxy đổi. Cổng bệnh nhân dùng id này để
+        /// đối chiếu ảnh có đúng thuộc phiếu kết quả đang xem không.
+        /// </summary>
+        public string? OrthancInstanceId { get; set; }
+
         // Mammography hanging-protocol metadata (DICOM tags 0020,0062 + 0018,5101)
         public string? Laterality { get; set; }      // "L", "R", "B" (both)
         public string? ViewPosition { get; set; }    // "CC", "MLO", "ML", "LM", ...

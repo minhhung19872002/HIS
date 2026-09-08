@@ -206,6 +206,113 @@ public class HisRestConnector : IHisConnector
         return result ?? throw new HisConnectorException("HIS không trả về kết quả đổi lịch.");
     }
 
+    // ------------------------------------------- kết quả ngoại trú (I.2 #5)
+
+    public async Task<IReadOnlyList<HisVisitSummary>> GetVisitsAsync(
+        Guid patientId, int limit = 20, CancellationToken ct = default)
+        => await SendAsync<List<HisVisitSummary>>(
+            () => new HttpRequestMessage(
+                HttpMethod.Get, $"/api/portal/visits?patientId={patientId}&limit={limit}"), ct)
+            ?? new List<HisVisitSummary>();
+
+    public async Task<IReadOnlyList<HisLabResult>> GetLabResultsAsync(
+        Guid patientId, Guid? visitId = null, CancellationToken ct = default)
+        => await SendAsync<List<HisLabResult>>(
+            () => new HttpRequestMessage(
+                HttpMethod.Get, $"/api/portal/lab-results?patientId={patientId}{VisitQuery(visitId)}"), ct)
+            ?? new List<HisLabResult>();
+
+    public Task<HisLabResult?> GetLabResultAsync(Guid patientId, Guid resultId, CancellationToken ct = default)
+        => SendAsync<HisLabResult>(
+            () => new HttpRequestMessage(
+                HttpMethod.Get, $"/api/portal/lab-results/{resultId}?patientId={patientId}"),
+            ct, allowNotFound: true);
+
+    public async Task<IReadOnlyList<HisImagingResult>> GetImagingResultsAsync(
+        Guid patientId, Guid? visitId = null, CancellationToken ct = default)
+        => await SendAsync<List<HisImagingResult>>(
+            () => new HttpRequestMessage(
+                HttpMethod.Get, $"/api/portal/imaging-results?patientId={patientId}{VisitQuery(visitId)}"), ct)
+            ?? new List<HisImagingResult>();
+
+    public Task<HisImagingResult?> GetImagingResultAsync(Guid patientId, Guid resultId, CancellationToken ct = default)
+        => SendAsync<HisImagingResult>(
+            () => new HttpRequestMessage(
+                HttpMethod.Get, $"/api/portal/imaging-results/{resultId}?patientId={patientId}"),
+            ct, allowNotFound: true);
+
+    public async Task<IReadOnlyList<HisImagingInstance>> GetImagingInstancesAsync(
+        Guid patientId, Guid resultId, CancellationToken ct = default)
+        => await SendAsync<List<HisImagingInstance>>(
+            () => new HttpRequestMessage(
+                HttpMethod.Get,
+                $"/api/portal/imaging-results/{resultId}/instances?patientId={patientId}"), ct)
+            ?? new List<HisImagingInstance>();
+
+    /// <summary>
+    /// Ảnh là dữ liệu nhị phân nên không đi qua <see cref="SendAsync"/> (hàm đó chỉ đọc JSON).
+    /// Vẫn giữ nguyên cách thử lại một lần khi token hết hạn.
+    /// </summary>
+    public async Task<HisImageBytes?> GetImagingInstanceImageAsync(
+        Guid patientId, Guid resultId, string instanceId, int width, CancellationToken ct = default)
+    {
+        var path = $"/api/portal/imaging-results/{resultId}/instances/"
+                   + $"{Uri.EscapeDataString(instanceId)}/rendered?width={width}&patientId={patientId}";
+
+        var response = await SendOnceAsync(() => new HttpRequestMessage(HttpMethod.Get, path), ct);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            _tokenProvider.Invalidate();
+            response.Dispose();
+            response = await SendOnceAsync(() => new HttpRequestMessage(HttpMethod.Get, path), ct);
+        }
+
+        using (response)
+        {
+            if (response.StatusCode == HttpStatusCode.NotFound) return null;
+
+            if (!response.IsSuccessStatusCode)
+                throw new HisConnectorException(
+                    $"HIS trả về HTTP {(int)response.StatusCode} khi lấy ảnh CĐHA.", (int)response.StatusCode);
+
+            return new HisImageBytes(
+                await response.Content.ReadAsByteArrayAsync(ct),
+                response.Content.Headers.ContentType?.ToString() ?? "image/png");
+        }
+    }
+
+    public async Task<IReadOnlyList<HisFunctionalResult>> GetFunctionalResultsAsync(
+        Guid patientId, Guid? visitId = null, CancellationToken ct = default)
+        => await SendAsync<List<HisFunctionalResult>>(
+            () => new HttpRequestMessage(
+                HttpMethod.Get, $"/api/portal/functional-results?patientId={patientId}{VisitQuery(visitId)}"), ct)
+            ?? new List<HisFunctionalResult>();
+
+    public Task<HisFunctionalResult?> GetFunctionalResultAsync(Guid patientId, Guid resultId, CancellationToken ct = default)
+        => SendAsync<HisFunctionalResult>(
+            () => new HttpRequestMessage(
+                HttpMethod.Get, $"/api/portal/functional-results/{resultId}?patientId={patientId}"),
+            ct, allowNotFound: true);
+
+    public async Task<IReadOnlyList<HisHealthCheckup>> GetHealthCheckupsAsync(
+        Guid patientId, CancellationToken ct = default)
+        => await SendAsync<List<HisHealthCheckup>>(
+            () => new HttpRequestMessage(
+                HttpMethod.Get, $"/api/portal/health-checkups?patientId={patientId}"), ct)
+            ?? new List<HisHealthCheckup>();
+
+    public async Task<IReadOnlyList<HisPrescription>> GetPrescriptionsAsync(
+        Guid patientId, bool activeOnly, CancellationToken ct = default)
+        => await SendAsync<List<HisPrescription>>(
+            () => new HttpRequestMessage(
+                HttpMethod.Get,
+                $"/api/portal/prescriptions?patientId={patientId}&activeOnly={activeOnly.ToString().ToLowerInvariant()}"),
+            ct)
+            ?? new List<HisPrescription>();
+
+    private static string VisitQuery(Guid? visitId) => visitId.HasValue ? $"&visitId={visitId}" : "";
+
     /// <summary>
     /// Nhớ tạm danh mục ít đổi (khoa, bác sĩ) để đỡ đập vào HIS mỗi lần app mở màn đặt khám.
     /// Bộ nhớ dùng chung toàn tiến trình nên phải khoá khi ghi.

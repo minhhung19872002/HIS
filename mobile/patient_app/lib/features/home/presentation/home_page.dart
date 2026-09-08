@@ -24,8 +24,10 @@ class HomePage extends ConsumerWidget {
           route: AppRoutes.queue, phase: 2),
       _Shortcut(Icons.event_available_outlined, l10n.shortcutBooking,
           route: AppRoutes.appointments, phase: 2),
-      _Shortcut(Icons.science_outlined, l10n.shortcutResults, phase: 3),
-      _Shortcut(Icons.medication_outlined, l10n.shortcutPrescription, phase: 3),
+      _Shortcut(Icons.science_outlined, l10n.shortcutResults,
+          route: AppRoutes.results, phase: 3),
+      _Shortcut(Icons.medication_outlined, l10n.shortcutPrescription,
+          route: AppRoutes.prescriptions, phase: 3),
       _Shortcut(Icons.folder_shared_outlined, l10n.shortcutWallet, phase: 5),
       _Shortcut(Icons.family_restroom_outlined, l10n.shortcutFamily, phase: 5),
     ];

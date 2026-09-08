@@ -277,6 +277,15 @@ namespace HIS.Application.DTOs.PatientPortal
 
         // Report
         public string ReportUrl { get; set; }
+
+        /// <summary>Lượt khám sinh ra chỉ định này — để lọc "kết quả của lần khám này".</summary>
+        public Guid? VisitId { get; set; }
+
+        /// <summary>Tên dịch vụ xét nghiệm (VD "Công thức máu 18 thông số").</summary>
+        public string ServiceName { get; set; }
+
+        /// <summary>Có ít nhất một chỉ số vượt khoảng tham chiếu — app tô cờ ở danh sách.</summary>
+        public bool HasAbnormal { get; set; }
     }
 
     public class LabTestItemDto
@@ -318,6 +327,91 @@ namespace HIS.Application.DTOs.PatientPortal
         public List<string> ThumbnailUrls { get; set; }
 
         public bool IsViewed { get; set; }
+
+        /// <summary>Lượt khám sinh ra chỉ định này.</summary>
+        public Guid? VisitId { get; set; }
+
+        /// <summary>Study Instance UID trong PACS — khoá để lấy danh sách ảnh.</summary>
+        public string StudyInstanceUid { get; set; }
+
+        public int ImageCount { get; set; }
+
+        /// <summary>Đề nghị của bác sĩ đọc phim (tái khám, chụp bổ sung…).</summary>
+        public string Recommendations { get; set; }
+    }
+
+    /// <summary>
+    /// Kết quả thăm dò chức năng cho Patient Portal (HSMT app I.2 #5 — điện tim, điện não, nội soi,
+    /// đo loãng xương, hô hấp, thính lực…). Trước đây bệnh nhân không có đường nào xem được.
+    /// </summary>
+    public class PortalFunctionalResultDto
+    {
+        public Guid Id { get; set; }
+        public string TestCode { get; set; }
+
+        /// <summary>Mã loại: ECG, ECGStress, Endoscopy, BoneDensity, EEG, EMG, Spirometry, Audiometry.</summary>
+        public string TestType { get; set; }
+
+        /// <summary>Tên loại đã dịch sang tiếng Việt để hiển thị thẳng.</summary>
+        public string TestTypeName { get; set; }
+
+        public DateTime? PerformedAt { get; set; }
+        public string PerformingDoctorName { get; set; }
+        public string DeviceName { get; set; }
+
+        public string ClinicalIndication { get; set; }
+        public string Findings { get; set; }
+        public string Conclusion { get; set; }
+        public string Recommendation { get; set; }
+
+        /// <summary>Các số đo, đã tách từ JSON để app khỏi phải tự phân tích.</summary>
+        public List<FunctionalMeasurementDto> Measurements { get; set; } = new List<FunctionalMeasurementDto>();
+
+        public int ImageCount { get; set; }
+
+        /// <summary>0 chờ · 1 đang làm · 2 đã có KQ · 3 đã duyệt · 4 huỷ.</summary>
+        public int Status { get; set; }
+        public string StatusName { get; set; }
+
+        public Guid? VisitId { get; set; }
+    }
+
+    public class FunctionalMeasurementDto
+    {
+        public string Name { get; set; }
+        public string Value { get; set; }
+    }
+
+    /// <summary>
+    /// Đợt khám sức khoẻ hợp đồng của một người bệnh (HSMT app I.2 #5).
+    /// </summary>
+    public class PortalHealthCheckupDto
+    {
+        public Guid Id { get; set; }
+        public string RecordCode { get; set; }
+        public string CampaignName { get; set; }
+        public string CompanyName { get; set; }
+        public DateTime? CheckupDate { get; set; }
+
+        /// <summary>Phân loại sức khoẻ I…V theo Quyết định 1613/BYT-QĐ.</summary>
+        public string HealthClassification { get; set; }
+        public string Conclusion { get; set; }
+        public string Recommendation { get; set; }
+
+        public bool CertificateIssued { get; set; }
+        public string CertificateNumber { get; set; }
+        public DateTime? CertificateDate { get; set; }
+    }
+
+    /// <summary>Một ảnh trong PACS, đủ để app dựng khung xem ảnh.</summary>
+    public class PortalImagingInstanceDto
+    {
+        /// <summary>Id instance trong Orthanc — ghép vào URL ảnh.</summary>
+        public string InstanceId { get; set; }
+        public string SeriesInstanceUid { get; set; }
+        public int SeriesNumber { get; set; }
+        public int InstanceNumber { get; set; }
+        public string SeriesDescription { get; set; }
     }
 
 
