@@ -98,9 +98,10 @@ Và **1 rủi ro bảo mật phải bịt trước khi phát hành app** (§6.1)
 │   ├─ Auth riêng cho BN: JWT + refresh, OTP, PIN, device key       │
 │   ├─ IHisConnector ──► HisRestConnector (gọi API HIS qua HTTP)    │
 │   │                    (I.1 "dựa trên các API HIS cung cấp")      │
-│   ├─ DbContext riêng: tài khoản app, thiết bị, gia đình,          │
-│   │   ví giấy tờ (metadata), thông báo, outbox push               │
 │   └─ Lưu file ví giấy tờ (mã hoá at-rest)                         │
+│  postgres  (CSDL RIÊNG của app — quyết định D9)                   │
+│   └─ tài khoản app, thiết bị, gia đình, ví giấy tờ (metadata),    │
+│      thông báo, outbox push. KHÔNG đụng schema HIS                │
 │                                                                    │
 │  his-api (HIS Core hiện có) + SQL Server + Orthanc PACS + LIS      │
 └────────────────────────────────────────────────────────────────────┘
@@ -117,9 +118,10 @@ Và **1 rủi ro bảo mật phải bịt trước khi phát hành app** (§6.1)
 | D5 | **PACS trên app = WebView + token ngắn hạn**, ảnh preview qua proxy `api/RISComplete/pacs/instances/{id}/rendered` | Đường proxy này là đường ảnh thật FE đang dùng; `WadoRsUrl` trong `ViewerUrlDto` trỏ route chết |
 | D6 | **Web quản trị đặt trong `frontend/` hiện có**, route `/v2/patient-app/*` | Cùng stack React 19 + `_v2kit` + `TerminalLayout`; SSO sẵn bằng tài khoản HIS; không dựng app thứ hai |
 | D7 | **Module tra cứu CSKH = cùng codebase Flutter**, phân vai trò bằng JWT claim `role` | Đúng HSMT I.3 #2 "trên điện thoại của nhân viên (app) **và** trên web" |
-| D8 | **Flutter + Riverpod + go_router + dio**, Clean Architecture feature-first | Theo prompt §4.1; đã kiểm chứng resolve + build APK PASS |
-| D9 | **CSDL riêng của app** — ⏳ *chờ quyết định*, xem §7 câu hỏi Q2 | Ảnh hưởng hạ tầng, backup, vận hành |
-| D10 | **Kế hoạch không tạo GitHub Issue mới** — theo `CLAUDE.md` (quyết định 2026-08-04). Kế hoạch sống trong tài liệu này + `docs/workspace-docs/STATUS.md` | Prompt gốc §1.2 yêu cầu tạo Issue, nhưng luật project cấm; luật project thắng |
+| D8 | **Flutter + Riverpod + go_router + dio**, Clean Architecture feature-first | Theo prompt §4.1 |
+| D9 | **CSDL riêng của app = PostgreSQL** (container riêng trong DC) | ✅ **Quyết định 2026-09-08** — theo đúng prompt gốc §3; cô lập dữ liệu app khỏi schema HIS triệt để |
+| D10 | **Flutter pin ở 3.32.8** (bản stable cuối cùng còn target iOS 12.0), quản lý bằng **FVM** theo project | ✅ **Quyết định 2026-09-08** — đáp ứng đúng chữ HSMT "iOS 12.0 trở lên". Pin theo project (không hạ SDK toàn máy) để các dự án Flutter khác trên cùng máy không bị ảnh hưởng |
+| D11 | **Kế hoạch không tạo GitHub Issue mới** — theo `CLAUDE.md` (quyết định 2026-08-04). Kế hoạch sống trong tài liệu này + `docs/workspace-docs/STATUS.md` | Prompt gốc §1.2 yêu cầu tạo Issue, nhưng luật project cấm; luật project thắng |
 
 ---
 
@@ -127,14 +129,14 @@ Và **1 rủi ro bảo mật phải bịt trước khi phát hành app** (§6.1)
 
 | Phase | Nội dung | Đầu ra & tiêu chí xong |
 |---|---|---|
-| **0** ⏳ | Khảo sát HIS · kế hoạch · skeleton | `00-his-api-inventory.md` ✅ · `README.md` ✅ · `acceptance-matrix.md` ✅ · Flutter project build xanh ✅ (`flutter analyze` sạch, APK debug PASS) · **chờ duyệt §7** |
-| **1** | **Auth + bảo mật + thiết bị + push** | Đăng nhập BN có refresh · buộc đổi MK lần đầu · PIN 6 số · sinh trắc · DS thiết bị + đăng xuất từ xa · nhận push khi app chạy ngầm · relay VPS chạy · **bịt IDOR §6.1** |
+| **0** ✅ | Khảo sát HIS · kế hoạch · skeleton | `00-his-api-inventory.md` ✅ · `README.md` ✅ · `acceptance-matrix.md` ✅ · Flutter pin 3.32.8 qua FVM, iOS 12.0 + `minSdk 25` ✅ · `flutter analyze` sạch · widget test PASS · APK debug PASS · **3 quyết định đã chốt (§7)** |
+| **1** | **Auth + bảo mật + thiết bị + push** | Đăng nhập BN có refresh · buộc đổi MK lần đầu · PIN 6 số · sinh trắc · DS thiết bị + đăng xuất từ xa · nhận push khi app chạy ngầm · relay VPS chạy · dựng `HIS.PatientApp.Api` + PostgreSQL |
 | **2** | **Lấy STT + Đặt khám + realtime** | Lấy được **STT ưu tiên** ngoại trú, xem số đang gọi / còn bao nhiêu người / ước tính phút · đặt-huỷ-đổi lịch theo lịch trực thật · nhắc lịch trước 1 ngày & 1 giờ |
 | **3** | **Kết quả ngoại trú** | Bảng chỉ số XN + cờ bất thường + **file PDF** · KQ CĐHA + **xem ảnh PACS** · **TDCN** · đơn thuốc · **KSK hợp đồng** |
 | **4** | **Kết quả nội trú** | DS đợt điều trị · **chỉ định CLS + STT thực hiện** · XN/CĐHA/TDCN nội trú · **công khai thuốc theo ngày** (SL, đơn giá, thành tiền, BHYT chi trả) |
 | **5** | **Gia đình + Ví giấy tờ + Inbox** | Liên kết **tối đa 20 thành viên** có xác minh & phân quyền · ví giấy tờ mã hoá · inbox thông báo có deep-link |
 | **6** | **Web quản trị + Module tra cứu** | Dashboard · quản lý tài khoản app · quản lý đặt khám · **chiến dịch thông báo** · quản lý nhóm gia đình · tra cứu CSKH (web + app) · audit log |
-| **7** | **Hardening · SSL · deploy · tài liệu · store** | Chặn chụp màn hình · auto-lock · cảnh báo root/jailbreak · SSL toàn bộ endpoint · runbook deploy DC+VPS · HDSD (BN/CSKH/quản trị) · tài liệu "công nghệ tương đương" · checklist nghiệm thu 100% Đạt |
+| **7** | **Hardening · SSL · deploy · tài liệu · store** | **Bịt IDOR §6.1** · chặn chụp màn hình · auto-lock · cảnh báo root/jailbreak · SSL toàn bộ endpoint · runbook deploy DC+VPS · HDSD (BN/CSKH/quản trị) · tài liệu "công nghệ tương đương" · checklist nghiệm thu 100% Đạt |
 | **8** | **TEST** (bắt buộc, **luôn đi cuối** theo `CLAUDE.md`) | Unit/widget/golden/integration + E2E + evidence viewer |
 
 > ⚠️ **Luật project**: mọi việc fix/feature phải xong TRƯỚC khi bắt đầu bất kỳ task test nào
@@ -144,20 +146,66 @@ Và **1 rủi ro bảo mật phải bịt trước khi phát hành app** (§6.1)
 
 ## 6. Rủi ro
 
-### 6.1 🔴 Bảo mật — phải bịt TRƯỚC khi phát hành app
+### 6.1 🔴 IDOR ở HIS Core — đã quyết xử lý ở Phase 7
 
 `ExaminationCompleteController` (`:18`), `LISCompleteController` (`:25`), `PdfController` (`:20`) chỉ
 khai `[Authorize]` **không có `Roles=`**. Một JWT `PortalPatient` hợp lệ vì thế **vẫn qua được**
 `GET /api/examination/{id}/medical-record`, `GET /api/examination/{id}/lab-results`,
 `GET /api/LISComplete/patients/{patientId}/history`, `GET /api/pdf/lab-result/{requestId}` — và **không
-có kiểm tra** id đó thuộc về bệnh nhân nào. Hôm nay bề mặt này chỉ lộ trong mạng nội bộ; **phát hành
-app là đưa nó ra Internet**. → Xử lý ngay ở **Phase 1**, không đợi Phase 7.
+có kiểm tra** id đó thuộc về bệnh nhân nào.
 
-### 6.2 🔴 iOS 12.0 — không khả thi với Flutter hiện tại
+**Quyết định 2026-09-08: xử lý ở Phase 7 (hardening)**, theo lộ trình gốc.
 
-Flutter 3.47.2 sinh project `IPHONEOS_DEPLOYMENT_TARGET = 15.0`. Hạ xuống 12.0 buộc phải dùng Flutter
-rất cũ (mất cập nhật bảo mật, nhiều package không cài được) hoặc viết native iOS riêng.
-→ **Cần quyết định của chủ đầu tư** — xem §7 câu hỏi Q1.
+Hệ quả bắt buộc phải tuân thủ cho tới khi vá xong:
+
+- **KHÔNG phát hành bản app nào tới người dùng thật** — kể cả TestFlight, internal testing của Google
+  Play, hay bản APK gửi tay — trước khi Phase 7 đóng. Chỉ cần một bản app ra ngoài là bề mặt này
+  ra Internet.
+- **Môi trường dev/staging của app phải nằm sau VPN hoặc IP allow-list**, không mở ra Internet công khai.
+- Đưa hạng mục này vào **đầu** danh sách Phase 7, không để trôi xuống cuối cùng của phase.
+
+### 6.2 iOS 12.0 — đã quyết: pin Flutter 3.32.8
+
+**Quyết định 2026-09-08: giữ đúng chữ HSMT "iOS 12.0 trở lên"** bằng cách hạ Flutter.
+
+Đã xác minh trên chính repo Flutter: mức tối thiểu iOS được nâng 12 → 13 ở commit `09d4dabd6d6`
+(*"iOS: Update minimum iOS version to 13.0"*, 2025-04-24), và tag stable **đầu tiên** chứa commit đó là
+**3.35.0**. Tiếp đó 13 → 15 ở `5ead723e20e`. Vì vậy **Flutter 3.32.8 là bản stable cuối cùng còn target
+iOS 12.0** — đã kiểm chứng template của tag 3.32.8 ghi `IPHONEOS_DEPLOYMENT_TARGET = 12.0`.
+
+Cách triển khai: **pin theo project bằng FVM** (`.fvmrc` = `3.32.8`), **không hạ SDK toàn máy** — các
+project Flutter khác trên cùng máy vẫn dùng bản mới. Lệnh chạy là `fvm flutter …`, và `pubspec.yaml`
+khoá `flutter: ">=3.32.0 <3.35.0"` để không ai vô tình nâng lên bản làm mất iOS 12.
+
+**Cái giá phải trả — theo dõi suốt vòng đời hợp đồng:**
+
+| Hệ quả | Chi tiết |
+|---|---|
+| Flutter 3.32.8 **không còn nhận bản vá bảo mật** | Phát hành 2025-07-25. Phải tự theo dõi CVE của Flutter/Dart và của từng package |
+| Toàn bộ package phải dùng **bản cũ hơn** | Riverpod **2.6** (không dùng được Riverpod 3), `flutter_secure_storage` 10.x, `local_auth` 2.x, `go_router` 17, `file_picker` 11, `flutter_lints` 5… |
+| Không dùng được tính năng ngôn ngữ/framework mới | Code phải giữ trong khả năng của **Dart 3.8** |
+| Rủi ro khi store siết yêu cầu | Nếu Apple/Google về sau bắt buộc SDK mới hơn, sẽ phải nâng Flutter và **mất iOS 12** — lúc đó vẫn quay về bài toán §6.2 nhưng ở thời điểm gấp hơn |
+
+**Bốn chỉnh sửa Android bắt buộc** để bộ package hiện tại build được trên template cũ của 3.32.8 —
+ghi lại để không ai "dọn dẹp" nhầm:
+
+| Chỉnh sửa | Ở đâu | Vì sao |
+|---|---|---|
+| `ndkVersion = "27.0.12077973"` | `android/app/build.gradle.kts` | 19 plugin (firebase, pdfrx, secure_storage…) đòi NDK 27; mặc định của 3.32.8 là 26.3 |
+| `compileSdk = 36` | `android/app/build.gradle.kts` | `androidx.core 1.18.0` do các plugin kéo vào bắt buộc compile với API 36. **Không đụng tới `minSdk = 25`** |
+| AGP `8.7.3` → `8.9.1` | `android/settings.gradle.kts` | `androidx.core 1.18.0` đòi AGP ≥ 8.9.1. Gradle 8.12 trong wrapper đã đủ |
+| `isCoreLibraryDesugaringEnabled = true` + `desugar_jdk_libs:2.1.4` | `android/app/build.gradle.kts` | `flutter_local_notifications` dùng `java.time` vốn chỉ có từ API 26. Desugaring dịch ngược xuống bytecode chạy được trên Android 7.1 — **chính là thứ cho phép giữ `minSdk 25`** |
+
+Hai package phải ghim bản cũ hơn nữa vì bản mới đòi Android SDK 36 / Kotlin DSL mới:
+`permission_handler` **11.3.1** và `flutter_secure_storage` **9.2.4`.
+
+> ⚠️ `flutter_secure_storage` 9.x mặc định **KHÔNG mã hoá** trên Android — phải truyền
+> `AndroidOptions(encryptedSharedPreferences: true)`, đã làm ở
+> `lib/core/storage/secure_store.dart`. Bản 11.x mã hoá mặc định nhưng không dùng được ở đây.
+
+Cổng đã chạy lại đầy đủ trên 3.32.8: `fvm flutter analyze` **sạch** · widget test **PASS** ·
+`fvm flutter build apk --debug` **PASS** · `ios/Runner.xcodeproj/project.pbxproj` (3 chỗ) và
+`ios/Flutter/AppFrameworkInfo.plist` đều ghi **12.0**.
 
 ### 6.3 🟠 Khác
 
@@ -172,10 +220,10 @@ rất cũ (mất cập nhật bảo mật, nhiều package không cài được)
 
 ---
 
-## 7. ⏳ Cần anh quyết trước khi bắt đầu Phase 1
+## 7. ✅ Các quyết định đã chốt (2026-09-08)
 
-| # | Câu hỏi | Vì sao cần |
-|---|---|---|
-| **Q1** | **iOS tối thiểu**: chấp nhận **iOS 15** (Flutter mới, an toàn) + văn bản giải trình, hay bắt buộc **iOS 12** theo đúng chữ HSMT? | Quyết định này thay đổi toàn bộ lựa chọn công nghệ; không thể sửa về sau mà không làm lại |
-| **Q2** | **CSDL riêng của app**: dùng **PostgreSQL** (theo prompt gốc, thêm 1 engine mới vào hệ thống đang thuần SQL Server) hay **SQL Server schema riêng** (không thêm hạ tầng, dùng lại bộ migration + health-check drift + backup sẵn có)? | Ảnh hưởng hạ tầng DC, quy trình backup, kỹ năng vận hành |
-| **Q3** | **Bịt lỗ IDOR §6.1** — làm ngay ở Phase 1 (khuyến nghị) hay tách thành việc riêng làm trước? | Đây là sửa HIS Core, có thể ảnh hưởng màn hình nhân viên đang dùng |
+| # | Vấn đề | Quyết định | Đã làm gì |
+|---|---|---|---|
+| **Q1** | iOS tối thiểu | **Giữ iOS 12.0 đúng HSMT** — hạ Flutter về **3.32.8** | Pin bằng FVM theo project (`.fvmrc`), tái sinh `android/` + `ios/` theo template 3.32.8, giải lại toàn bộ package cho Dart 3.8. Chi tiết + cái giá phải trả: §6.2 |
+| **Q2** | CSDL riêng của app | **PostgreSQL** (container riêng trong DC), theo prompt gốc §3 | Ghi vào quyết định D9; dựng ở Phase 1 |
+| **Q3** | Lỗ IDOR ở 3 controller HIS Core | **Xử lý ở Phase 7 (hardening)** | Ghi vào lộ trình Phase 7 kèm ràng buộc "không phát hành bản app nào ra ngoài trước khi vá" — §6.1 |

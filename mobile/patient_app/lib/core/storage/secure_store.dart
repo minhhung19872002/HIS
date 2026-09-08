@@ -9,9 +9,11 @@ class SecureStore {
   SecureStore([FlutterSecureStorage? storage])
       : _storage = storage ??
             const FlutterSecureStorage(
-              // v11 luôn mã hoá bằng AES-GCM trên Android nên không còn cờ
-              // `encryptedSharedPreferences` như các bản trước.
-              aOptions: AndroidOptions(),
+              // BẮT BUỘC bật: ở flutter_secure_storage 9.x cờ này mặc định FALSE,
+              // tức token/PIN sẽ nằm trong SharedPreferences thường nếu quên bật.
+              // (Bản 11.x mã hoá mặc định, nhưng 11.x đòi Android SDK 36 nên
+              // không dùng được với Flutter 3.32.8 — xem README §6.2.)
+              aOptions: AndroidOptions(encryptedSharedPreferences: true),
               // `first_unlock_this_device`: chỉ đọc được sau lần mở khoá đầu tiên
               // và KHÔNG theo iCloud Keychain sang máy khác — token/PIN không rời thiết bị.
               iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock_this_device),

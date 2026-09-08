@@ -50,3 +50,6 @@ app.*.map.json
 # Code sinh tự động bởi `flutter gen-l10n` (chạy lại mỗi lần `flutter pub get`
 # nhờ `generate: true` trong pubspec) — không commit để tránh nhiễu diff.
 /lib/l10n/app_localizations*.dart
+
+# FVM Version Cache
+.fvm/

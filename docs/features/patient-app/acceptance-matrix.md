@@ -139,8 +139,13 @@
 | # | Yêu cầu HSMT | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|
 | C.1 | **Không giới hạn số lượng người dùng** app | Không có khoá cứng số tài khoản trong mã nguồn/giấy phép; đo tải với N người dùng đồng thời ở Phase 7 | 7 | ⬜ |
-| C.2 | Hỗ trợ **iOS ≥ 12.0** | ⚠️ **Rủi ro** — Flutter 3.47.2 chỉ hỗ trợ từ iOS 15. Xem `README.md` §6.2 + câu hỏi Q1 | 0 | ⚠️ |
-| C.3 | Hỗ trợ **Android ≥ 7.2** | `minSdk = 25` (Android 7.1.1) tại `mobile/patient_app/android/app/build.gradle.kts:24`; build APK debug **PASS**; chạy thử trên emulator API 25 | 0 | ⚠️ |
+| C.2 | Hỗ trợ **iOS ≥ 12.0** | Project pin Flutter **3.32.8** qua FVM (`.fvmrc`) — bản stable cuối cùng còn target iOS 12.0. `ios/Runner.xcodeproj/project.pbxproj` và `ios/Flutter/AppFrameworkInfo.plist` đều ghi **12.0**. Nghiệm thu: mở Xcode xem Deployment Target = 12.0 + chạy thật trên simulator iOS 12 | 0 → 7 | ⚠️ |
+| C.3 | Hỗ trợ **Android ≥ 7.2** | `minSdk = 25` (Android 7.1.1) tại `mobile/patient_app/android/app/build.gradle.kts:29`; build APK debug **PASS**. Nghiệm thu: chạy thật trên emulator API 25 | 0 → 7 | ⚠️ |
 
-> **C.3** đang là ⚠️ chứ chưa ✅ vì mới chứng minh **build** được ở `minSdk 25`; sẽ nâng lên ✅ sau khi
-> **chạy thật** trên emulator API 25 ở Phase 7.
+> **C.2 và C.3** đang là ⚠️ chứ chưa ✅ vì mới chứng minh **cấu hình và build** đạt ngưỡng; nâng lên ✅
+> sau khi **chạy thật** trên simulator iOS 12 và emulator Android API 25 ở Phase 7.
+>
+> ⚠️ **Ràng buộc phát hành (quyết định Q3 — `README.md` §6.1):** lỗ IDOR ở `ExaminationCompleteController` /
+> `LISCompleteController` / `PdfController` được xếp xử lý ở Phase 7. Cho tới khi vá xong, **không phát
+> hành bản app nào tới người dùng thật** (kể cả TestFlight / internal testing / APK gửi tay), và môi
+> trường dev-staging của app phải nằm sau VPN hoặc IP allow-list.

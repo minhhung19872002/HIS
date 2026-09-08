@@ -31,8 +31,8 @@
 | **Nội trú** | **Không có endpoint liệt kê đợt nhập viện của 1 BN**; "công khai thuốc" chỉ có **PDF**, DTO JSON `MedicineDisclosureDto` tồn tại nhưng **không service nào điền** | Phase 4 phải thêm 3-4 endpoint JSON. |
 | **STT thực hiện CLS nội trú** | **Không có field STT** trên `ServiceRequest`/`ServiceRequestDetail` | Phải bổ sung (join `RadiologyRoomAssignment.QueueNumber` chỉ phủ CĐHA). |
 | **KSK hợp đồng** | Module có (`api/health-checkup/*`) nhưng **chỉ tra theo `campaignId`**, không có theo `patientId`; `CheckupRecordDto.PatientId` nullable | Bổ sung `GetRecordsByPatientAsync`. |
-| **iOS 12.0 (HSMT)** | ❌ **Không khả thi với Flutter hiện tại** — Flutter 3.47.2 sinh `IPHONEOS_DEPLOYMENT_TARGET = 15.0` | Rủi ro nghiệm thu — xem §12. |
-| **Android 7.2 (HSMT)** | ✅ Đạt — đã đặt `minSdk = 25` (Android 7.1.1); build APK debug **PASS** | Không vấn đề. |
+| **iOS 12.0 (HSMT)** | ✅ Đạt sau khi **pin Flutter 3.32.8** (bản stable cuối còn target iOS 12.0) qua FVM | Quyết định 2026-09-08 — đánh đổi: SDK không còn nhận bản vá bảo mật, toàn bộ package phải dùng bản cũ. Xem §12. |
+| **Android 7.2 (HSMT)** | ✅ Đạt — `minSdk = 25` (Android 7.1.1); build APK debug **PASS** | Không vấn đề. |
 
 ---
 
@@ -438,8 +438,8 @@ Module **tồn tại** nhưng là quản trị theo **đợt/hợp đồng cho t
 
 | Dòng HSMT | Rủi ro | Đề xuất xử lý |
 |---|---|---|
-| "iOS phiên bản **12.0** trở lên" | ❌ **Flutter 3.47.2 sinh project `IPHONEOS_DEPLOYMENT_TARGET = 15.0`** (`mobile/patient_app/ios/Runner.xcodeproj/project.pbxproj:363,490,542`). Flutter đã bỏ hỗ trợ iOS 12 từ lâu; hạ xuống 12 buộc phải dùng Flutter cũ (~3.24, không còn cập nhật bảo mật, nhiều package không cài được) hoặc viết native. | Ba lựa chọn: (a) **giữ Flutter mới, min iOS 15** + văn bản giải trình "iOS 12/13/14 chiếm <1% thiết bị đang hoạt động, Apple đã ngừng hỗ trợ" — cần **chủ đầu tư chấp thuận**; (b) hạ Flutter về bản cũ hỗ trợ iOS 12 — **không khuyến nghị** (rủi ro bảo mật + package); (c) viết native iOS riêng cho iOS 12 — chi phí gấp bội. → **Cần quyết định của anh trước Phase 1.** |
-| "Android **7.2** trở lên" | ✅ Đạt. Android 7.2 không tồn tại (7.1.1 = API 25); đã đặt `minSdk = 25` (`android/app/build.gradle.kts:24`), build APK debug **PASS**. | Ghi chú trong tài liệu nghiệm thu: 7.1.1 = API 25 ⊇ "7.2". |
+| "iOS phiên bản **12.0** trở lên" | ✅ **Đã giải quyết** — pin Flutter **3.32.8**. Xác minh trên repo Flutter: mức tối thiểu nâng 12 → 13 ở commit `09d4dabd6d6` (2025-04-24), tag stable đầu tiên chứa nó là **3.35.0**; 13 → 15 ở `5ead723e20e`. Template của tag 3.32.8 ghi `IPHONEOS_DEPLOYMENT_TARGET = 12.0`. Project đã tái sinh `ios/` theo template này → `project.pbxproj` và `AppFrameworkInfo.plist` đều **12.0**. | **Quyết định 2026-09-08** (phương án b). Pin bằng **FVM theo project** (`.fvmrc`), không hạ SDK toàn máy; `pubspec.yaml` khoá `flutter: ">=3.32.0 <3.35.0"`. **Đánh đổi phải theo dõi suốt hợp đồng**: 3.32.8 phát hành 2025-07-25 và không còn nhận bản vá bảo mật; toàn bộ package phải dùng bản cũ (Riverpod 2.6, secure_storage 10.x, local_auth 2.x, go_router 17, flutter_lints 5); code giới hạn trong Dart 3.8. |
+| "Android **7.2** trở lên" | ✅ Đạt. Android 7.2 không tồn tại (7.1.1 = API 25); đã đặt `minSdk = 25` (`android/app/build.gradle.kts:29`), build APK debug **PASS**. | Ghi chú trong tài liệu nghiệm thu: 7.1.1 = API 25 ⊇ "7.2". |
 | I.1 "công nghệ nhúng trên nền Linux tích hợp bản quyền HĐH và CSDL **hoặc công nghệ tương đương**" | Cần văn bản đối chiếu. | Docker trên Ubuntu LTS + CSDL mã nguồn mở có giấy phép hợp lệ → viết `docs/architecture/operations/patient-app-equivalent-technology.md`. |
 | I.4 "Chứng chỉ số **DV SSL**" | Let's Encrypt là DV SSL hợp lệ; đã dùng sẵn cho `his.bluestar.com.vn` và PACS. | Ghi rõ trong runbook + chụp bằng chứng chứng chỉ. |
 | II "VPS Cloud SSD ≥ 15GB, RAM ≥ 2GB, CPU ≥ 2 core" | Stack VPS phải gọn < 1.5GB RAM. | Caddy + relay .NET (hoặc Node) + Redis → khả thi; đo và ghi số thật khi triển khai. |
