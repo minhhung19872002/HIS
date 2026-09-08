@@ -44,17 +44,6 @@ target 'Runner' do
   # CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES o post_install ben duoi.
   use_frameworks! :linkage => :static
 
-  # Bat modular headers cho pod Firebase. Header cua FLTFirebaseMessagingPlugin.h co dong
-  # `#import <Firebase/Firebase.h>`; khi pod duoc dong goi thanh framework module ma Firebase
-  # KHONG modular thi Xcode bao "Include of non-modular header inside framework module" va dung
-  # build. Rieng co CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES o post_install khong
-  # du — da thu va van hong.
-  pod 'Firebase', :modular_headers => true
-  pod 'FirebaseCore', :modular_headers => true
-  pod 'FirebaseCoreInternal', :modular_headers => true
-  pod 'FirebaseMessaging', :modular_headers => true
-  pod 'GoogleUtilities', :modular_headers => true
-
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 
   target 'RunnerTests' do
@@ -71,9 +60,18 @@ post_install do |installer|
       # Ep lai 12.0 de moi pod cung build cho iOS 12 — mot pod doi cao hon se lam ca app mat iOS 12.
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
 
-      # Firebase iOS SDK 10.x tron lan header modular va khong modular. Khong bat co nay thi
-      # Xcode bao "Include of non-modular header inside framework module" va dung build.
+      # Firebase iOS SDK 10.x tron lan header modular va khong modular:
+      # FLTFirebaseMessagingPlugin.h co dong `#import <Firebase/Firebase.h>` ma Firebase.h khong
+      # phai module. Hai co duoi day di CUNG NHAU moi du:
+      #
+      #   * CLANG_ALLOW_NON_MODULAR_INCLUDES... cho phep trinh bien dich chap nhan.
+      #   * ENABLE_MODULE_VERIFIER = NO. Tu Xcode 15, module verifier chay MOT LUOT RIENG voi bo co
+      #     nghiem ngat cua no va BO QUA co o tren, nen chi dat mot minh co dau tien thi build van
+      #     dung dung cho do. Runner dang dung Xcode 16.4.
+      #
+      # Chi tat verifier cho POD, khong dung toi ma nguon cua app.
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      config.build_settings['ENABLE_MODULE_VERIFIER'] = 'NO'
 
       # Quyen cho cac plugin dung permission_handler: chi bat dung nhung quyen app thuc su xin,
       # de App Store khong hoi ve nhung quyen khong dung toi.
