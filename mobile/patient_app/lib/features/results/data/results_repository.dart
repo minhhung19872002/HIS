@@ -29,6 +29,21 @@ class ResultsRepository {
     return LabResult.fromJson(data['data'] as Map<String, dynamic>? ?? const {});
   }
 
+  /// Bản in phiếu xét nghiệm (HTML), để người bệnh xem, in ra hoặc gửi cho bác sĩ khác.
+  Future<String> labResultReport(String id) async {
+    try {
+      final response = await _client.get<String>(
+        '$_base/lab/$id/report',
+        queryParameters: _scope(null, null),
+        // Ép về text: mặc định dio đoán kiểu theo Content-Type và có thể trả về Map.
+        options: Options(responseType: ResponseType.plain),
+      );
+      return response.data ?? '';
+    } on DioException catch (e) {
+      throw mapDioError(e);
+    }
+  }
+
   Future<List<ImagingResult>> imagingResults({String? visitId, String? admissionId}) =>
       _list('$_base/imaging', ImagingResult.fromJson, query: _scope(visitId, admissionId));
 

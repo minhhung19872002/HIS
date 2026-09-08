@@ -229,6 +229,11 @@ public class HisRestConnector : IHisConnector
                 HttpMethod.Get, $"/api/portal/lab-results/{resultId}?patientId={patientId}"),
             ct, allowNotFound: true);
 
+    public Task<HisImageBytes?> GetLabResultReportAsync(
+        Guid patientId, Guid resultId, CancellationToken ct = default)
+        => GetBinaryAsync(
+            $"/api/portal/lab-results/{resultId}/report?patientId={patientId}", ct);
+
     public async Task<IReadOnlyList<HisImagingResult>> GetImagingResultsAsync(
         Guid patientId, Guid? visitId = null, Guid? admissionId = null, CancellationToken ct = default)
         => await SendAsync<List<HisImagingResult>>(
@@ -255,12 +260,18 @@ public class HisRestConnector : IHisConnector
     /// Ảnh là dữ liệu nhị phân nên không đi qua <see cref="SendAsync"/> (hàm đó chỉ đọc JSON).
     /// Vẫn giữ nguyên cách thử lại một lần khi token hết hạn.
     /// </summary>
-    public async Task<HisImageBytes?> GetImagingInstanceImageAsync(
+    public Task<HisImageBytes?> GetImagingInstanceImageAsync(
         Guid patientId, Guid resultId, string instanceId, int width, CancellationToken ct = default)
-    {
-        var path = $"/api/portal/imaging-results/{resultId}/instances/"
-                   + $"{Uri.EscapeDataString(instanceId)}/rendered?width={width}&patientId={patientId}";
+        => GetBinaryAsync(
+            $"/api/portal/imaging-results/{resultId}/instances/"
+            + $"{Uri.EscapeDataString(instanceId)}/rendered?width={width}&patientId={patientId}", ct);
 
+    /// <summary>
+    /// Tải một tài nguyên nhị phân (ảnh, bản in). Không đi qua <see cref="SendAsync"/> vì hàm đó chỉ
+    /// đọc JSON, nhưng vẫn giữ nguyên cách thử lại một lần khi token hết hạn.
+    /// </summary>
+    private async Task<HisImageBytes?> GetBinaryAsync(string path, CancellationToken ct)
+    {
         var response = await SendOnceAsync(() => new HttpRequestMessage(HttpMethod.Get, path), ct);
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
@@ -276,11 +287,11 @@ public class HisRestConnector : IHisConnector
 
             if (!response.IsSuccessStatusCode)
                 throw new HisConnectorException(
-                    $"HIS trả về HTTP {(int)response.StatusCode} khi lấy ảnh CĐHA.", (int)response.StatusCode);
+                    $"HIS trả về HTTP {(int)response.StatusCode} cho {path}.", (int)response.StatusCode);
 
             return new HisImageBytes(
                 await response.Content.ReadAsByteArrayAsync(ct),
-                response.Content.Headers.ContentType?.ToString() ?? "image/png");
+                response.Content.Headers.ContentType?.ToString() ?? "application/octet-stream");
         }
     }
 

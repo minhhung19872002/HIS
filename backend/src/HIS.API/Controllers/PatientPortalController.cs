@@ -37,7 +37,9 @@ namespace HIS.API.Controllers
             _configuration = configuration;
         }
 
-        private const string PortalPatientRole = "PortalPatient";
+        // Cùng một hằng với ExternalActorScopeMiddleware: token phát ra ở đây mang role này, và rào
+        // chắn nhốt token trong /api/portal cũng đọc đúng hằng này.
+        private const string PortalPatientRole = RoleNames.PortalPatient;
         private bool IsPortalPatient => User.IsInRole(PortalPatientRole);
         private Guid ClaimAccountId => Guid.TryParse(
             User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var g) ? g : Guid.Empty;
@@ -240,9 +242,10 @@ namespace HIS.API.Controllers
             return Ok(await _service.GetVisitHistoryAsync(pid, limit));
         }
 
-        // G-39: Full visit detail - security: service verifies exam belongs to patientId
-        // RISK NOTE: patientId accepted from query param (current portal auth model) — not from JWT claims.
-        // If portal moves to patient self-login, extract patientId from claims instead.
+        // G-39: Full visit detail — service kiểm exam có thuộc patientId không.
+        // Ghi chú rủi ro cũ ("patientId lấy từ query, chưa lấy từ claim") ĐÃ HẾT HIỆU LỰC: R2 thêm
+        // self-login, và `ResolvePatientId` ở đầu file đã lấy patientId từ claim cho token
+        // PortalPatient — query param lệch claim thì trả 403 chứ không được dùng.
         [HttpGet("visits/{examId}")]
         [Authorize]
         public async Task<ActionResult<PortalVisitDetailDto>> GetVisitDetail(
@@ -297,6 +300,27 @@ namespace HIS.API.Controllers
             var result = await _service.GetLabResultAsync(id);
             if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy kết quả." });
             return Ok(result);
+        }
+
+        /// <summary>
+        /// Bản in phiếu kết quả xét nghiệm — trả HTML in được, đúng như mọi bản in khác của HIS.
+        ///
+        /// Đây là đích của trường <c>ReportUrl</c> trong DTO. Trước đây trường đó trỏ vào một đường
+        /// dẫn không tồn tại, tức là app hiện một nút bấm vào chỉ ra lỗi.
+        /// </summary>
+        [HttpGet("lab-results/{id}/report")]
+        [Authorize]
+        public async Task<ActionResult> GetLabResultReport(
+            Guid id, [FromQuery] Guid? patientId = null)
+        {
+            var denied = await DenyIfNotOwnResultAsync("lab", id, patientId);
+            if (denied != null) return denied;
+
+            var bytes = await _service.GetLabResultReportAsync(id);
+            if (bytes.Length == 0)
+                return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy kết quả." });
+
+            return File(bytes, "text/html; charset=utf-8", $"ket-qua-xet-nghiem-{id}.html");
         }
 
         [HttpGet("imaging-results")]

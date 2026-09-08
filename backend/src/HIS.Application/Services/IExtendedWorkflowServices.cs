@@ -446,6 +446,9 @@ namespace HIS.Application.Services
         Task<List<PortalLabResultDto>> GetLabResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null, Guid? admissionId = null);
         Task<PortalLabResultDto> GetLabResultAsync(Guid id);
         Task<bool> MarkLabResultViewedAsync(Guid id);
+
+        /// <summary>Bản in phiếu kết quả xét nghiệm (HTML). Mảng rỗng nếu không có phiếu.</summary>
+        Task<byte[]> GetLabResultReportAsync(Guid resultId);
         Task<List<PortalImagingResultDto>> GetImagingResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null, Guid? admissionId = null);
         Task<PortalImagingResultDto> GetImagingResultAsync(Guid id);
 

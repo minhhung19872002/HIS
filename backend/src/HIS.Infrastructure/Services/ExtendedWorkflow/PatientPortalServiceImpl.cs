@@ -574,7 +574,7 @@ th {{ background: #f0f0f0; text-align: center; }}
             VisitId = request?.ExaminationId,
             TestItems = new List<LabTestItemDto>(),
             // Phiếu chưa có kết quả thì không có gì để in — để trống còn hơn đưa một đường dẫn 404.
-            ReportUrl = d.Status == 2 ? $"/api/portal/lab-results/{d.Id}/pdf" : "",
+            ReportUrl = d.Status == 2 ? $"/api/portal/lab-results/{d.Id}/report" : "",
         };
     }
 

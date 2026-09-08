@@ -290,3 +290,34 @@ hai chỗ để lệch nhau.
 
 **Đã gửi là không thu hồi được**, và giao diện nói đúng như vậy — thông báo đã nằm trong hộp thư của
 người dùng. Chỉ chiến dịch *chưa gửi* mới huỷ được.
+
+---
+
+## D18 — Nhốt token cổng ngoài theo chủ thể, không đi gắn `Roles=` cho từng controller
+
+**Bối cảnh:** rủi ro Q3/§6.1 — `ExaminationCompleteController`, `LISCompleteController`,
+`PdfController` chỉ khai `[Authorize]` trần, nên một token `PortalPatient` hợp lệ đọc được hồ sơ của
+bất kỳ ai chỉ bằng cách đổi id trên URL.
+
+**Chọn:** chặn ở **một chỗ, theo chủ thể** — `ExternalActorScopeMiddleware` chạy ngay sau
+`UseAuthentication`, nhốt mỗi role cổng ngoài trong đúng tiền tố route của cổng đó.
+
+**Vì sao không enumerate `Roles=` cho ba controller kia:** cách đó *mở mặc định*. Ba controller hôm nay
+là ba cái đã bị soi ra; HIS còn hàng trăm route chỉ ở mức `[Authorize]`, và controller viết ngày mai
+cũng vậy. Vá ba chỗ là vá ba chỗ, còn bề mặt thì nguyên. Chặn theo chủ thể thì *đóng mặc định*: người
+ngoài chỉ đi được trong cổng của họ, route mới sinh ra bao nhiêu cũng nằm ngoài tầm với — mà không ai
+phải nhớ thêm gì.
+
+Đổi lại, cách này dồn rủi ro vào **một danh sách phải đúng**. Hai việc giữ cho nó đúng:
+
+- Danh sách đọc **hằng `RoleNames`**, cùng hằng mà hai pipeline phát token dùng. Đổi tên role ở một nơi
+  sẽ không còn âm thầm làm rào chắn hết khớp — mà rào chắn hết khớp thì không có lỗi nào báo, chỉ có
+  người ngoài đi được khắp HIS.
+- **`phase7` TC-S01…TC-S04** dựng token bệnh nhân thật (đăng ký → liên kết hồ sơ → đăng nhập ở HIS) rồi
+  bắn vào cả bốn route trong báo cáo rủi ro cộng một route điều hành, đòi 403 `OUT_OF_PORTAL_SCOPE`;
+  đồng thời đòi `/api/portal` vẫn 200 để rào chắn không âm thầm chặn nhầm chính người bệnh.
+
+**Quyền sở hữu từng hồ sơ vẫn xét riêng bên trong `/api/portal`** (`ResolvePatientId`,
+`DenyIfNotOwnResultAsync` — [D12](decisions.md)). Rào chắn này trả lời *"anh có được vào cổng này
+không"*, không trả lời *"hồ sơ này có phải của anh không"*. Thiếu vế thứ hai thì một người bệnh vẫn
+đọc được hồ sơ người bệnh khác, vì cả hai đều hợp lệ ở cổng đó.

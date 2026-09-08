@@ -10,6 +10,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Khoá ở đây chỉ là lớp che của giao diện. Nó không thay thế token: token vẫn sống, và phía máy chủ
 /// vẫn là nơi quyết định phiên còn hiệu lực hay không.
 class AppLock extends Notifier<bool> with WidgetsBindingObserver {
+  /// [clock] chỉ để kiểm thử tua nhanh hai phút — chạy thật thì luôn là đồng hồ máy.
+  AppLock({DateTime Function()? clock}) : _now = clock ?? DateTime.now;
+
+  final DateTime Function() _now;
+
   /// Rời tiền cảnh quá lâu thì phải mở khoá lại. Hai phút: đủ dài để nghe một cuộc gọi hay chụp một
   /// tấm ảnh rồi quay lại, đủ ngắn để máy bỏ quên trên bàn không mở ra đọc được.
   static const idleTimeout = Duration(minutes: 2);
@@ -40,13 +45,13 @@ class AppLock extends Notifier<bool> with WidgetsBindingObserver {
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
-        _leftForegroundAt ??= DateTime.now();
+        _leftForegroundAt ??= _now();
 
       case AppLifecycleState.resumed:
         final leftAt = _leftForegroundAt;
         _leftForegroundAt = null;
 
-        if (leftAt != null && DateTime.now().difference(leftAt) >= idleTimeout) {
+        if (leftAt != null && _now().difference(leftAt) >= idleTimeout) {
           lockNow();
         }
 

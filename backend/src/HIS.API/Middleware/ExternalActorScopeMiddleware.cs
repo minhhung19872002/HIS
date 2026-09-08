@@ -1,3 +1,5 @@
+using HIS.Core.Constants;
+
 namespace HIS.API.Middleware;
 
 /// <summary>
@@ -23,11 +25,17 @@ public sealed class ExternalActorScopeMiddleware
     private readonly RequestDelegate _next;
     private readonly ILogger<ExternalActorScopeMiddleware> _logger;
 
-    /// <summary>Role của cổng ngoài → tiền tố route DUY NHẤT mà nó được đi.</summary>
+    /// <summary>
+    /// Role của cổng ngoài → tiền tố route DUY NHẤT mà nó được đi.
+    ///
+    /// Dùng hằng trong <see cref="RoleNames"/> chứ không viết lại chuỗi: hai chỗ phát token cũng lấy
+    /// role từ đúng những hằng này, nên đổi tên role ở một nơi sẽ không âm thầm làm rào chắn ở đây
+    /// hết khớp — mà rào chắn hết khớp thì cổng ngoài đi được khắp HIS, không có lỗi nào báo.
+    /// </summary>
     private static readonly (string Role, string[] Prefixes)[] ExternalActors =
     {
-        ("BhxhInspector", new[] { "/api/inspector-portal" }),
-        ("PortalPatient", new[] { "/api/portal" }),
+        (RoleNames.BhxhInspector, new[] { "/api/inspector-portal" }),
+        (RoleNames.PortalPatient, new[] { "/api/portal" }),
     };
 
     public ExternalActorScopeMiddleware(RequestDelegate next, ILogger<ExternalActorScopeMiddleware> logger)

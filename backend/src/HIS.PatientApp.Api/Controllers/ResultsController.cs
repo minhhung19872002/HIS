@@ -65,6 +65,36 @@ public class ResultsController : ControllerBase
         ForPatient<HisLabResult>("view_lab_result", $"lab_result:{resultId}", memberId,
             pid => _his.GetLabResultAsync(pid, resultId, ct), ct);
 
+    /// <summary>
+    /// Bản in phiếu xét nghiệm, để người bệnh in ra hoặc gửi cho bác sĩ khác (HSMT I.2 #5).
+    /// </summary>
+    [HttpGet("lab/{resultId:guid}/report")]
+    [Produces("text/html")]
+    public async Task<IActionResult> LabResultReport(
+        Guid resultId, [FromQuery] Guid? memberId, CancellationToken ct)
+    {
+        var account = await CurrentAccountAsync(ct);
+        if (account is null) return NotLinked();
+
+        var (targetPatientId, denied) = await ResolveTargetAsync(account, memberId, ct);
+        if (denied is not null) return denied;
+
+        try
+        {
+            var report = await _his.GetLabResultReportAsync(targetPatientId!.Value, resultId, ct);
+            if (report is null) return NotFound(ApiResponse.Fail("Không tìm thấy kết quả."));
+
+            await AuditAsync(account, targetPatientId.Value, "download_lab_report",
+                $"lab_result:{resultId}", ct);
+
+            return File(report.Content, report.ContentType);
+        }
+        catch (HisConnectorException ex)
+        {
+            return Unavailable(ex);
+        }
+    }
+
     // -------------------------------------------------- chẩn đoán hình ảnh
 
     [HttpGet("imaging")]

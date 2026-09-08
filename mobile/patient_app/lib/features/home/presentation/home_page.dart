@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/router/app_router.dart';
 import '../../../core/security/lock_gate.dart';
+import 'update_gate.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/presentation/auth_controller.dart';
 
@@ -61,6 +62,7 @@ class HomePage extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          const UpdateAvailableBanner(),
           const DeviceIntegrityBanner(),
           if (account != null) _PatientCard(name: account.fullName,
               phoneNumber: account.phoneNumber,

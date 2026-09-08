@@ -155,6 +155,25 @@ if lab_id:
     check("TC-R03 AST duoc danh dau cao", ast is not None and ast.get("flag") == "High",
           f"{ast.get('result') if ast else '?'} {ast.get('unit') if ast else ''}")
 
+if lab_id:
+    print("=== TC-R15 ban in phieu xet nghiem ===")
+    st, r, raw = None, None, None
+    import urllib.request as _u
+    req = _u.Request(BFF + f"/results/lab/{lab_id}/report")
+    req.add_header("Authorization", "Bearer " + token)
+    try:
+        with _u.urlopen(req) as resp:
+            st, raw = resp.status, resp.read().decode("utf-8", "replace")
+    except Exception as e:  # noqa: BLE001 — bo test can bao loi that
+        st, raw = getattr(e, "status", 0), ""
+
+    check("TC-R15 tai duoc ban in", st == 200 and len(raw) > 200, f"status={st} {len(raw)} ky tu")
+    check("TC-R15 ban in co ten benh nhan", "Nguyễn Văn Demo" in raw)
+    check("TC-R15 ban in co bang chi so", "<table>" in raw and "AST" in raw)
+    check("TC-R15 chi so bat thuong duoc danh dau", "abnormal" in raw)
+    check("TC-R15 co canh bao khong tu chan doan",
+          "không tự chẩn đoán" in raw.lower() or "không tự chẩn đoán" in raw)
+
 if visit_id:
     print("=== TC-R04 loc ket qua theo lan kham ===")
     st, r = call("GET", f"/results/lab?visitId={visit_id}", token=token)

@@ -136,7 +136,7 @@ Và **1 rủi ro bảo mật phải bịt trước khi phát hành app** (§6.1)
 | **4** | **Kết quả nội trú** | DS đợt điều trị · **chỉ định CLS + STT thực hiện** · XN/CĐHA/TDCN nội trú · **công khai thuốc theo ngày** (SL, đơn giá, thành tiền, BHYT chi trả) |
 | **5** | **Gia đình + Ví giấy tờ + Inbox** | Liên kết **tối đa 20 thành viên** có xác minh & phân quyền · ví giấy tờ mã hoá · inbox thông báo có deep-link |
 | **6** | **Web quản trị + Module tra cứu** | Dashboard · quản lý tài khoản app · quản lý đặt khám · **chiến dịch thông báo** · quản lý nhóm gia đình · tra cứu CSKH (web + app) · audit log |
-| **7** | **Hardening · SSL · deploy · tài liệu · store** | **Bịt IDOR §6.1** · chặn chụp màn hình · auto-lock · cảnh báo root/jailbreak · SSL toàn bộ endpoint · runbook deploy DC+VPS · HDSD (BN/CSKH/quản trị) · tài liệu "công nghệ tương đương" · checklist nghiệm thu 100% Đạt |
+| **7** ✅ | **Hardening · SSL · deploy · tài liệu · store** | ✅ Bịt IDOR §6.1 (đo bằng `phase7` TC-S01…TC-S04) · chặn chụp màn hình (FLAG_SECURE + lớp mờ iOS) · tự khoá sau 2 phút (7 unit test) · cảnh báo root/jailbreak · buộc đổi mật khẩu chặn ở server (TC-S05) · xoá tài khoản theo yêu cầu hai kho ứng dụng (TC-P06…TC-P11) · chặn bản app quá cũ (TC-P01…TC-P05) · bản in kết quả xét nghiệm (`phase3` TC-R15) · Caddy + Let's Encrypt · `deploy-runbook.md` · 3 tài liệu HDSD · `patient-app-equivalent-technology.md` · bảng nghiệm thu **39 ✅ / 8 ⚠️ / 0 ⬜** |
 | **8** | **TEST** (bắt buộc, **luôn đi cuối** theo `CLAUDE.md`) | Unit/widget/golden/integration + E2E + evidence viewer |
 
 > ⚠️ **Luật project**: mọi việc fix/feature phải xong TRƯỚC khi bắt đầu bất kỳ task test nào
@@ -146,23 +146,31 @@ Và **1 rủi ro bảo mật phải bịt trước khi phát hành app** (§6.1)
 
 ## 6. Rủi ro
 
-### 6.1 🔴 IDOR ở HIS Core — đã quyết xử lý ở Phase 7
+### 6.1 ✅ IDOR ở HIS Core — đã đóng ở Phase 7 (2026-09-09)
 
-`ExaminationCompleteController` (`:18`), `LISCompleteController` (`:25`), `PdfController` (`:20`) chỉ
-khai `[Authorize]` **không có `Roles=`**. Một JWT `PortalPatient` hợp lệ vì thế **vẫn qua được**
-`GET /api/examination/{id}/medical-record`, `GET /api/examination/{id}/lab-results`,
+**Vấn đề gốc.** `ExaminationCompleteController` (`:18`), `LISCompleteController` (`:25`),
+`PdfController` (`:20`) chỉ khai `[Authorize]` **không có `Roles=`**. Một JWT `PortalPatient` hợp lệ vì
+thế **qua được** `GET /api/examination/{id}/medical-record`, `GET /api/examination/{id}/lab-results`,
 `GET /api/LISComplete/patients/{patientId}/history`, `GET /api/pdf/lab-result/{requestId}` — và **không
 có kiểm tra** id đó thuộc về bệnh nhân nào.
 
-**Quyết định 2026-09-08: xử lý ở Phase 7 (hardening)**, theo lộ trình gốc.
+**Cách bịt (xem [D18](decisions.md)).** Không đi enumerate `Roles=` cho từng controller — làm thế là
+mở-mặc-định: quên một controller mới là hở lại, mà không có gì báo. Chặn theo **chủ thể**, một chỗ, ngay
+sau `UseAuthentication`: [`ExternalActorScopeMiddleware`](../../../backend/src/HIS.API/Middleware/ExternalActorScopeMiddleware.cs)
+nhốt mỗi role cổng ngoài trong đúng tiền tố route của cổng đó (`PortalPatient` → `/api/portal`,
+`BhxhInspector` → `/api/inspector-portal`), mọi đường khác trả **403 `OUT_OF_PORTAL_SCOPE`**. Bên trong
+`/api/portal` thì `ResolvePatientId`/`DenyIfNotOwnResultAsync` mới xét tiếp quyền sở hữu từng hồ sơ.
 
-Hệ quả bắt buộc phải tuân thủ cho tới khi vá xong:
+Phase 7 làm thêm hai việc để rào chắn không lệch theo thời gian:
 
-- **KHÔNG phát hành bản app nào tới người dùng thật** — kể cả TestFlight, internal testing của Google
-  Play, hay bản APK gửi tay — trước khi Phase 7 đóng. Chỉ cần một bản app ra ngoài là bề mặt này
-  ra Internet.
-- **Môi trường dev/staging của app phải nằm sau VPN hoặc IP allow-list**, không mở ra Internet công khai.
-- Đưa hạng mục này vào **đầu** danh sách Phase 7, không để trôi xuống cuối cùng của phase.
+- Danh sách role cổng ngoài nay đọc **hằng `RoleNames`** — cùng hằng mà hai chỗ phát token dùng — thay
+  vì chuỗi viết tay. Đổi tên role ở một nơi không còn âm thầm vô hiệu hoá rào chắn.
+- **`phase7` TC-S01…TC-S04** dựng token bệnh nhân thật rồi bắn vào cả 4 route trong danh sách trên cộng
+  `GET /api/reception/opd-flow-stats`: tất cả phải 403 `OUT_OF_PORTAL_SCOPE`, `/api/portal` vẫn 200, và
+  đổi `patientId` sang người khác thì 403. Đây là bằng chứng đo được, không phải đọc mã.
+
+**Ràng buộc phát hành đi kèm rủi ro này đã được gỡ.** Vẫn còn một điều kiện độc lập: xem
+[`store-release-checklist.md`](store-release-checklist.md) trước khi nộp lên hai kho ứng dụng.
 
 ### 6.2 iOS 12.0 — đã quyết: pin Flutter 3.32.8
 
@@ -250,4 +258,4 @@ build ra** = **12.0**. Chạy 7/7 test và chụp 6 màn trên iPhone simulator.
 |---|---|---|---|
 | **Q1** | iOS tối thiểu | **Giữ iOS 12.0 đúng HSMT** — hạ Flutter về **3.32.8** | Pin bằng FVM theo project (`.fvmrc`), tái sinh `android/` + `ios/` theo template 3.32.8, giải lại toàn bộ package cho Dart 3.8. Chi tiết + cái giá phải trả: §6.2 |
 | **Q2** | CSDL riêng của app | **PostgreSQL** (container riêng trong DC), theo prompt gốc §3 | Ghi vào quyết định D9; dựng ở Phase 1 |
-| **Q3** | Lỗ IDOR ở 3 controller HIS Core | **Xử lý ở Phase 7 (hardening)** | Ghi vào lộ trình Phase 7 kèm ràng buộc "không phát hành bản app nào ra ngoài trước khi vá" — §6.1 |
+| **Q3** | Lỗ IDOR ở 3 controller HIS Core | **Xử lý ở Phase 7 (hardening)** — ✅ **đã đóng 2026-09-09** | Chặn theo chủ thể ở `ExternalActorScopeMiddleware` thay vì enumerate `Roles=` từng controller; role đọc từ hằng `RoleNames`; `phase7` TC-S01…TC-S04 đo lại bằng token thật. Chi tiết: §6.1 + [D18](decisions.md) |

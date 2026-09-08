@@ -22,6 +22,7 @@ import '../../features/results/presentation/lab_result_page.dart';
 import '../../features/results/presentation/results_page.dart';
 import '../../features/queue/presentation/queue_ticket_page.dart';
 import '../../features/notifications/presentation/notifications_page.dart';
+import '../../features/security/presentation/delete_account_page.dart';
 import '../../features/security/presentation/devices_page.dart';
 import '../../features/staff/presentation/staff_lookup_page.dart';
 import '../../features/security/presentation/security_page.dart';
@@ -40,6 +41,7 @@ class AppRoutes {
   static const notifications = '/notifications';
   static const security = '/security';
   static const setPin = '/security/pin';
+  static const deleteAccount = '/security/delete-account';
   static const queue = '/queue';
   static const queueTicket = '/queue/ticket';
   static const appointments = '/appointments';
@@ -78,6 +80,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: AppRoutes.notifications, builder: (_, _) => const NotificationsPage()),
       GoRoute(path: AppRoutes.security, builder: (_, _) => const SecurityPage()),
       GoRoute(path: AppRoutes.setPin, builder: (_, _) => const SetPinPage()),
+      GoRoute(path: AppRoutes.deleteAccount, builder: (_, _) => const DeleteAccountPage()),
       GoRoute(path: AppRoutes.queue, builder: (_, _) => const QueuePage()),
       GoRoute(
         path: '${AppRoutes.queueTicket}/:ticketId',

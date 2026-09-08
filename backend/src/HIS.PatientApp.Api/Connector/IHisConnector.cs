@@ -91,6 +91,10 @@ public interface IHisConnector
     /// </summary>
     Task<HisLabResult?> GetLabResultAsync(Guid patientId, Guid resultId, CancellationToken ct = default);
 
+    /// <summary>Bản in phiếu xét nghiệm (HTML). Null nếu phiếu không thuộc bệnh nhân này.</summary>
+    Task<HisImageBytes?> GetLabResultReportAsync(
+        Guid patientId, Guid resultId, CancellationToken ct = default);
+
     Task<IReadOnlyList<HisImagingResult>> GetImagingResultsAsync(
         Guid patientId, Guid? visitId = null, Guid? admissionId = null, CancellationToken ct = default);
 

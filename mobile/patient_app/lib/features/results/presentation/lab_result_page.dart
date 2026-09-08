@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../domain/result_models.dart';
+import 'lab_report_page.dart';
 import 'results_providers.dart';
 import 'widgets/result_scaffolding.dart';
 
@@ -20,7 +21,23 @@ class LabResultPage extends ConsumerWidget {
     final async = ref.watch(labResultProvider(resultId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Kết quả xét nghiệm')),
+      appBar: AppBar(
+        title: const Text('Kết quả xét nghiệm'),
+        actions: [
+          // Chỉ hiện khi phiếu đã có kết quả: bản in của phiếu đang chờ thì rỗng.
+          if (async.valueOrNull?.isCompleted == true)
+            IconButton(
+              icon: const Icon(Icons.description_outlined),
+              tooltip: 'Xem bản in',
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => LabReportPage(
+                  resultId: resultId,
+                  title: async.valueOrNull?.title ?? 'Bản in kết quả',
+                ),
+              )),
+            ),
+        ],
+      ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => ResultErrorView(

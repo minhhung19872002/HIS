@@ -79,6 +79,18 @@ class SecurityPage extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push(AppRoutes.devices),
           ),
+
+          const Divider(),
+          const _SectionHeader('Tài khoản'),
+          ListTile(
+            leading: Icon(Icons.delete_forever_outlined,
+                color: Theme.of(context).colorScheme.error),
+            title: Text('Xoá tài khoản',
+                style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            subtitle: const Text('Xoá tài khoản app. Hồ sơ bệnh án tại bệnh viện vẫn được giữ.'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push(AppRoutes.deleteAccount),
+          ),
         ],
       ),
     );

@@ -172,6 +172,12 @@ namespace HIS.Application.Services
             return true;
         }
 
+        public async Task<byte[]> GetLabResultReportAsync(Guid resultId)
+        {
+            _logger.LogInformation("Getting lab result report {Id}", resultId);
+            return new byte[0];
+        }
+
         public async Task<List<PortalImagingResultDto>> GetImagingResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null, Guid? admissionId = null)
         {
             _logger.LogInformation("Getting imaging results for patient {PatientId}", patientId);
