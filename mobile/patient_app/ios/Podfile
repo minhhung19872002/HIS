@@ -42,22 +42,26 @@ target 'Runner' do
   # Doi lai, Firebase iOS SDK 10.x (di kem firebase_messaging 14.x — nhanh cuoi cung con ho tro
   # iOS 12) tron header modular va khong modular, nen phai bat
   # CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES o post_install ben duoi.
-  use_frameworks!
-
-  # BAT BUOC di kem use_frameworks! khi dung Firebase iOS SDK 10.x.
+  # KHONG dung use_frameworks!. Day la mau chot de giu duoc iOS 12.
   #
-  # `Firebase` la pod chi-co-header, khong co file nguon, nen CocoaPods khong dung duoc framework
-  # cho no — header roi vao Pods/Headers/Public/Firebase/Firebase.h, tuc KHONG modular. Trong khi
-  # do firebase_messaging lai la framework module va header cua no `#import <Firebase/Firebase.h>`.
-  # Clang cam include header khong modular tu ben trong mot framework module, nen build dung.
+  # Firebase iOS SDK 10.x — nhanh cuoi cung con ho tro iOS 12 — co pod `Firebase` chi-co-header,
+  # khong co file nguon, nen CocoaPods khong dung framework cho no duoc: header nam o
+  # Pods/Headers/Public/Firebase/Firebase.h, tuc KHONG modular. Bat use_frameworks! thi
+  # firebase_messaging tro thanh framework module, ma header cua no lai `#import <Firebase/Firebase.h>`
+  # — Clang cam include header khong modular tu ben trong framework module, va build dung.
   #
-  # use_modular_headers! sinh module map cho MOI pod, ke ca pod chi-co-header, nen lenh include kia
-  # tro thanh modular va hop le. Day dung la cap co ma mau Podfile cua Flutter thoi Firebase 10.x
-  # van dat san.
+  # Bo use_frameworks! thi khong con framework module nao, lenh include kia tro thanh include
+  # thuong va hop le. Doi lai, cac pod Swift doi phu thuoc cua chung phai co module map:
+  #   * DKPhotoGallery (do file_picker keo vao) can SDWebImage
+  #   * FirebaseCoreInternal can GoogleUtilities
+  # use_modular_headers! sinh module map cho moi pod, dung nhu CocoaPods goi y trong thong bao loi.
   #
-  # Da thu va KHONG du: chi dat CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES; bo han
-  # use_frameworks! (pod Swift nhu pdfrx bao khong tich hop duoc dang thu vien tinh);
-  # khai :modular_headers => true cho tung pod Firebase; tat ENABLE_MODULE_VERIFIER.
+  # Da thu va KHONG hieu qua, ghi lai de khoi thu lai:
+  #   * chi dat CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES
+  #   * use_frameworks! :linkage => :static
+  #   * khai :modular_headers => true rieng cho tung pod Firebase
+  #   * tat ENABLE_MODULE_VERIFIER
+  #   * use_frameworks! di kem use_modular_headers!
   use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
