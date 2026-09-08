@@ -170,19 +170,11 @@ jobs:
       - name: Khởi động iPhone simulator
         id: sim
         run: |
-          # Chọn iPhone mới nhất đang có trên runner.
-          UDID=$(xcrun simctl list devices available -j \
-            | python3 -c "
-import json,sys
-data = json.load(sys.stdin)['devices']
-best = None
-for runtime, devices in data.items():
-    if 'iOS' not in runtime:
-        continue
-    for d in devices:
-        if d.get('isAvailable') and d['name'].startswith('iPhone'):
-            best = d['udid']
-print(best or '')")
+          # Lấy iPhone khả dụng cuối cùng trong danh sách (thường là đời mới nhất trên runner).
+          # Tên máy đổi theo từng bản Xcode nên bám theo tên cứng sẽ hỏng khi runner nâng cấp.
+          UDID=$(xcrun simctl list devices available | grep -E '^ +iPhone' | tail -1 | grep -oE '[0-9A-Fa-f-]{36}')
+          if [ -z "$UDID" ]; then echo "::error::Không tìm thấy iPhone simulator nào"; exit 1; fi
+          echo "Dùng simulator $UDID"
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
