@@ -122,7 +122,12 @@ jobs:
           working-directory: ${{ env.APP_DIR }}
           # MỘT DÒNG: action này truyền `script` vào `sh -c`, nên xuống dòng bằng dấu \ sẽ bị nuốt
           # và Flutter nhận được đối số rác (`Target file "\" not found.`).
-          script: flutter drive --driver=test_driver/integration_test.dart --target=integration_test/screenshots_test.dart -d emulator-5554
+          #
+          # --no-enable-impeller: runner bị GitHub tắt đúng lúc app khởi động renderer Impeller
+          # (log dừng ngay sau "Created VkInstance ... for application:'Impeller'"). Máy ảo đang
+          # chạy GPU phần mềm (swiftshader), cộng thêm Vulkan là quá sức. Bản phát hành thật vẫn
+          # dùng Impeller như mặc định — cờ này chỉ áp cho lần chạy trên CI.
+          script: flutter drive --no-enable-impeller --driver=test_driver/integration_test.dart --target=integration_test/screenshots_test.dart -d emulator-5554
 
       - uses: actions/upload-artifact@v4
         if: always()
