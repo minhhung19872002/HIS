@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>HIS.PatientApp.Relay</RootNamespace>
+    <!-- Chay tren VPS 2GB RAM (HSMT muc II): giu anh va bo nho o muc toi thieu. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <TieredPGO>true</TieredPGO>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Lay access token cho FCM HTTP v1 tu khoa tai khoan dich vu Google. -->
+    <PackageReference Include="Google.Apis.Auth" Version="1.68.0" />
+  </ItemGroup>
+
+</Project>

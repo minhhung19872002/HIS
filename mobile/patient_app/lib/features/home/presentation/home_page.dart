@@ -33,9 +33,14 @@ class HomePage extends ConsumerWidget {
         title: Text(l10n.appTitle),
         actions: [
           IconButton(
-            icon: const Icon(Icons.devices_outlined),
-            tooltip: 'Thiết bị đăng nhập',
-            onPressed: () => context.push(AppRoutes.devices),
+            icon: const Icon(Icons.notifications_outlined),
+            tooltip: 'Thông báo',
+            onPressed: () => context.push(AppRoutes.notifications),
+          ),
+          IconButton(
+            icon: const Icon(Icons.shield_outlined),
+            tooltip: 'Bảo mật',
+            onPressed: () => context.push(AppRoutes.security),
           ),
           IconButton(
             icon: const Icon(Icons.logout),

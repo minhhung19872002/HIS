@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/error/failure.dart';
 import '../../../core/router/app_router.dart';
+import '../../security/presentation/security_page.dart';
 import 'auth_controller.dart';
 
 /// Đăng nhập bằng số điện thoại + mật khẩu (HSMT I.2 #2).
@@ -61,6 +62,49 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   String _messageOf(Object error) =>
       error is Failure ? error.message : 'Đã có lỗi xảy ra. Vui lòng thử lại.';
+
+  /// Đăng nhập bằng vân tay / khuôn mặt (HSMT I.2 #9).
+  ///
+  /// Ba bước: xin chuỗi thử thách từ server → ký bằng khoá riêng (chỉ mở được sau khi quét) →
+  /// gửi chữ ký lên. Server kiểm chữ ký chứ không tin lời app nói là đã xác thực xong.
+  Future<void> _biometricLogin() async {
+    final phone = _phone.text.trim();
+    if (phone.length < 9) {
+      setState(() => _error = 'Vui lòng nhập số điện thoại để đăng nhập bằng sinh trắc học.');
+      return;
+    }
+
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+
+    try {
+      final repo = ref.read(authRepositoryProvider);
+      final deviceKey = await repo.currentDeviceKey();
+      final challenge = await repo.biometricChallenge(phoneNumber: phone, deviceKey: deviceKey);
+
+      final signature = await ref.read(biometricServiceProvider).sign(challenge.nonce);
+      if (signature == null) {
+        // Người dùng huỷ hoặc quét không nhận — không phải lỗi, đừng doạ họ bằng thông báo đỏ.
+        return;
+      }
+
+      await repo.biometricLogin(
+        phoneNumber: phone,
+        deviceKey: deviceKey,
+        challengeId: challenge.challengeId,
+        signature: signature,
+      );
+      await ref.read(authControllerProvider.notifier).reload();
+
+      if (mounted) context.go(AppRoutes.home);
+    } on Failure catch (e) {
+      setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -139,6 +183,20 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           : const Text('Đăng nhập'),
                     ),
                     const SizedBox(height: 12),
+
+                    // Chỉ hiện nút sinh trắc khi máy thật sự dùng được — hiện một nút bấm vào là
+                    // báo lỗi thì tệ hơn là không hiện.
+                    ref.watch(biometricStatusProvider).maybeWhen(
+                          data: (status) => status.isAvailable
+                              ? OutlinedButton.icon(
+                                  onPressed: _busy ? null : _biometricLogin,
+                                  icon: const Icon(Icons.fingerprint),
+                                  label: const Text('Đăng nhập bằng vân tay / khuôn mặt'),
+                                )
+                              : const SizedBox.shrink(),
+                          orElse: () => const SizedBox.shrink(),
+                        ),
+
                     TextButton(
                       onPressed: _busy ? null : () => context.push(AppRoutes.forgotPassword),
                       child: const Text('Quên mật khẩu?'),

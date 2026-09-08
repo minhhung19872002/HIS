@@ -1,0 +1,42 @@
+# Caddy tren VPS Cloud — HSMT muc I.4 (chung chi so DV SSL) va muc II.
+#
+# Caddy tu xin va tu gia han chung chi Let's Encrypt (loai DV SSL) cho domain cong khai.
+# Khong co buoc gia han thu cong nao, nen khong co ngay chung chi het han vi quen.
+
+{
+	email {$ACME_EMAIL}
+	# Chi ghi log loi de dia 15GB cua VPS khong bi log nuot dan.
+	log {
+		level ERROR
+	}
+}
+
+{$PATIENTAPP_DOMAIN} {
+	encode gzip
+
+	# Cac header bao ve co ban. HSTS bat buoc trinh duyet chi noi bang HTTPS.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		# Khong lo lam bang phan mem gi cho ke do tim.
+		-Server
+	}
+
+	# Diem nhan yeu cau day thong bao tu data center benh vien.
+	# Relay tu kiem X-Relay-Key; Caddy chi lam nhiem vu TLS va chuyen tiep.
+	handle /push {
+		reverse_proxy relay:8080
+	}
+
+	handle /health {
+		reverse_proxy relay:8080
+	}
+
+	# Moi duong khac deu tu choi: VPS nay KHONG phai cong vao API cua benh vien.
+	# Du lieu y te khong bao gio di qua day.
+	handle {
+		respond "Not found" 404
+	}
+}

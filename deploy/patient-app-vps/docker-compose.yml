@@ -1,0 +1,71 @@
+# =============================================================================
+# HSMT Muc II — HE THONG TRUYEN TAI DU LIEU NGUOI DUNG (VPS Cloud)
+# Cau hinh toi thieu theo HSMT: SSD >= 15GB, RAM >= 2GB, CPU >= 2 core.
+#
+# Stack nay CO Y giu that gon de vua ngan sach do:
+#   caddy  ~30MB   TLS + reverse proxy (chung chi DV SSL Let's Encrypt — HSMT I.4)
+#   relay  ~120MB  chuyen tiep thong bao sang FCM
+#   tong   ~150MB / 2048MB
+#
+# Khong dat redis o day: hang doi thong bao da nam trong bang push_outbox tai data center,
+# them mot hang doi thu hai chi tao them cho de mat thong bao chu khong giup gi.
+#
+# Nhung dieu VPS nay KHONG lam:
+#   - Khong luu bat ky du lieu y te nao. Khong co CSDL.
+#   - Khong mo duong tu Internet vao data center. Chieu ket noi luon la DC -> VPS.
+#
+# Khoi dong:
+#   cp .env.example .env && cp fcm-service-account.json.example fcm-service-account.json
+#   docker compose up -d
+# =============================================================================
+
+services:
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: patientapp-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data       # chung chi Let's Encrypt — mat volume nay la phai xin lai chung chi
+      - caddy_config:/config
+    environment:
+      # Domain cong khai cua app, vi du app.benhvien.vn
+      PATIENTAPP_DOMAIN: ${PATIENTAPP_DOMAIN:?bat buoc dat trong .env}
+      # Email nhan canh bao truoc khi chung chi het han.
+      ACME_EMAIL: ${ACME_EMAIL:?bat buoc dat trong .env}
+    depends_on:
+      - relay
+    restart: unless-stopped
+    networks:
+      - relay-net
+
+  relay:
+    image: ${RELAY_IMAGE:-ghcr.io/minhhung19872002/his-patientapp-relay:latest}
+    container_name: patientapp-relay
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Relay__ApiKey: ${RELAY_API_KEY:?bat buoc dat trong .env, toi thieu 24 ky tu}
+      Fcm__ProjectId: ${FCM_PROJECT_ID:?bat buoc dat trong .env}
+      Fcm__CredentialsPath: /run/secrets/fcm-service-account.json
+    volumes:
+      # Khoa tai khoan dich vu Firebase. Chi doc, va chi ton tai tren VPS —
+      # data center benh vien khong can biet khoa nay.
+      - ./fcm-service-account.json:/run/secrets/fcm-service-account.json:ro
+    # Khong publish cong: chi Caddy trong cung mang goi vao.
+    mem_limit: 256m
+    restart: unless-stopped
+    networks:
+      - relay-net
+
+volumes:
+  caddy_data:
+    name: patientapp_caddy_data
+  caddy_config:
+    name: patientapp_caddy_config
+
+networks:
+  relay-net:
+    name: patientapp-relay-net
+    driver: bridge

@@ -5,7 +5,8 @@
 > **Tiêu chí bàn giao: 100% dòng phải "✅ Đạt".**
 >
 > Trạng thái: `⬜ Chưa làm` · `🔄 Đang làm` · `✅ Đạt` · `⚠️ Đạt có điều kiện` (ghi rõ điều kiện).
-> Cập nhật cuối: **2026-09-08** (kết thúc Phase 0).
+> Cập nhật cuối: **2026-09-08** — kết thúc **Phase 1** (xác thực · bảo mật · thiết bị · thông báo).
+> Bằng chứng đo được: `scripts/smoke-patient-app-auth.py` chạy thật **47 PASS / 0 FAIL**.
 >
 > 🔗 [`README.md`](README.md) (kế hoạch) · [`00-his-api-inventory.md`](00-his-api-inventory.md) (khảo sát; số GAP tham chiếu §11).
 
@@ -33,7 +34,8 @@
 | # | Yêu cầu HSMT | Màn hình / API | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|---|
 | I.2.2.1 | Đăng nhập / **giữ đăng nhập** trên app | Màn Đăng nhập (`login_page.dart`); `POST /api/v1/patient/auth/login`, `.../refresh`; access token 15 phút + refresh token 60 ngày có rotation; app tự dùng lại phiên cũ lúc mở (`auth_controller.dart`) | ✅ API đã kiểm: TC-01, TC-07, TC-08 trong `scripts/smoke-patient-app-auth.py` (40/40 PASS). ⏳ Còn phải kiểm trên **thiết bị thật**: đăng nhập → tắt app → mở lại sau khi access token hết hạn → vào thẳng | 1 | 🔄 |
-| I.2.2.2 | **Chạy ngầm** để nhận các thông báo từ máy chủ | FCM background handler + `flutter_local_notifications`; `PUT /api/v1/patient/devices/push-token`; bảng `push_outbox`; relay trên VPS | Đóng app (cả background lẫn đã tắt hẳn) → gửi thông báo từ web quản trị → thiết bị hiện notification; chạm vào → mở đúng màn (GAP 11) | 1 | ⬜ |
+| I.2.2.2 | **Chạy ngầm** để nhận các thông báo từ máy chủ | Bảng `push_outbox` + `PushDispatcherWorker` (giãn cách tăng dần, dọn token chết) → relay `HIS.PatientApp.Relay` trên VPS → FCM. App: `firebaseBackgroundHandler` + `flutter_local_notifications`; `PUT /api/v1/patient/devices/push-token` | ✅ Đã cài đặt và build sạch cả hai đầu. 🚧 **Chưa kiểm được end-to-end vì chưa có dự án Firebase** (thiếu `google-services.json` / `GoogleService-Info.plist` và khoá tài khoản dịch vụ FCM). Kiểm cuối: đóng app cả ở chế độ nền lẫn tắt hẳn → gửi thông báo → máy hiện notification → chạm vào mở đúng màn | 1 | 🔄 |
+| I.2.2.3 | *(bổ trợ)* Hộp thư thông báo trong app | `GET /api/v1/patient/notifications`, `/unread-count`, `PUT .../{id}/read`, `PUT .../read-all`; màn `notifications_page.dart` | ✅ Đã kiểm: TC-16, TC-17 — trong đó **thông báo của người này không lọt sang tài khoản khác** (trả 404, và không đánh dấu đọc hộ được) | 1 | 🔄 |
 
 ### 3. Lấy số thứ tự
 
@@ -89,8 +91,8 @@
 | # | Yêu cầu HSMT | Màn hình / API | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|---|
 | I.2.9.1 | **Đổi mật khẩu riêng khi đăng nhập lần đầu** | Màn "Đổi mật khẩu lần đầu" (`change_password_page.dart`, không cho bấm back); `AppAccount.MustChangePassword` + claim `pwdChangeRequired` + `PasswordChangeRequiredMiddleware` chặn mọi đường trừ đổi MK/đăng xuất/`me` | ✅ Cơ chế đã có và app đã chặn đúng (widget test "Bị buộc đổi mật khẩu"). ⏳ Còn thiếu **nơi bật cờ**: web quản trị cấp tài khoản / reset mật khẩu (Phase 6). Kiểm cuối: tài khoản do quầy cấp → đăng nhập → vào thẳng màn đổi MK; gọi API khác bằng token đó → **server chặn** (ẩn nút ≠ chặn API) | 1 → 6 | 🔄 |
-| I.2.9.2 | **Tạo mã bảo mật** (PIN) | `POST /api/v1/patient/auth/pin`, `.../pin/verify`; từ chối PIN dễ đoán (sáu số giống nhau, dãy liên tiếp); sai 5 lần khoá 15 phút | ✅ API đã kiểm: TC-11, TC-12 (bao gồm cả từ chối `111111` và `123456`). ⏳ Còn màn nhập PIN trên app + khoá app tự động | 1 | 🔄 |
-| I.2.9.3 | **Sử dụng sinh trắc học của điện thoại để đăng nhập, xem bệnh án** | Cặp khoá ECDSA P-256 sinh trên máy, khoá riêng cất trong Keychain/Keystore chỉ mở được sau xác thực sinh trắc; server phát nonce, máy ký, server kiểm chữ ký (`/auth/biometric/enroll`, `/challenge`, `/login`) | ✅ Đã cài đặt phía server (nonce dùng một lần, hết hạn 2 phút, kiểm chữ ký DER). ⏳ Chưa nối `local_auth` phía app. Kiểm cuối: bật sinh trắc → đăng nhập bằng vân tay; mở màn bệnh án phải xác thực lại; tắt sinh trắc ở cài đặt máy → quay về PIN/mật khẩu | 1 | 🔄 |
+| I.2.9.2 | **Tạo mã bảo mật** (PIN) | `POST /api/v1/patient/auth/pin`, `.../pin/verify`; từ chối PIN dễ đoán (sáu số giống nhau, dãy liên tiếp); sai 5 lần khoá 15 phút | ✅ API đã kiểm: TC-11, TC-12 (bao gồm cả từ chối `111111` và `123456`); màn đặt PIN `set_pin_page.dart` đã có, chặn PIN yếu ngay trên máy để khỏi chờ một vòng mạng. ⏳ Còn khoá app tự động sau N phút (Phase 7) | 1 | 🔄 |
+| I.2.9.3 | **Sử dụng sinh trắc học của điện thoại để đăng nhập, xem bệnh án** | Cặp khoá ECDSA P-256 sinh trên máy, khoá riêng cất trong Keychain/Keystore chỉ mở được sau xác thực sinh trắc; server phát nonce, máy ký, server kiểm chữ ký (`/auth/biometric/enroll`, `/challenge`, `/login`) | ✅ Đã cài đặt **cả hai đầu**: server phát nonce dùng một lần hết hạn 2 phút và kiểm chữ ký DER; app dùng `biometric_signature` sinh khoá ECDSA P-256 trong Keystore/Secure Enclave với `enforceBiometric` + `setInvalidatedByBiometricEnrollment` (thêm vân tay mới thì khoá cũ mất hiệu lực). Nút đăng nhập sinh trắc chỉ hiện khi máy thật sự dùng được. ⏳ Cần **thiết bị thật** để kiểm. Kiểm cuối: bật sinh trắc → đăng nhập bằng vân tay; mở màn bệnh án phải xác thực lại; tắt sinh trắc ở cài đặt máy → quay về PIN/mật khẩu | 1 | 🔄 |
 | I.2.9.4 | **Quản lý tất cả thiết bị đăng nhập** | Màn "Thiết bị đăng nhập" (`devices_page.dart`); `GET /api/v1/patient/devices`, `DELETE .../{id}`, `DELETE .../others`; thu hồi tức thì bằng cách xoay `SecurityStamp` | ✅ Đã kiểm: TC-04, TC-05, TC-06 (đăng nhập lại cùng máy không đẻ dòng mới), TC-13 — **máy bị đăng xuất từ xa mất quyền ngay lần gọi API kế tiếp**, không đợi token hết hạn. ⏳ Còn kiểm trên thiết bị thật | 1 | 🔄 |
 
 ---

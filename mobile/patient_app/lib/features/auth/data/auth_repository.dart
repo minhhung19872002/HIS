@@ -119,6 +119,50 @@ class AuthRepository {
             data: {'pin': pin},
           )).then((_) {});
 
+  /// Gửi khoá công khai sinh trắc của máy này lên server (HSMT I.2 #9).
+  Future<void> enrollBiometric({required String publicKey, required String password}) =>
+      _run(() => _client.post<Map<String, dynamic>>(
+            '$_base/biometric/enroll',
+            data: {'publicKey': publicKey, 'password': password},
+          )).then((_) {});
+
+  /// Xin chuỗi thử thách để ký. Trả về (challengeId, nonce).
+  Future<({String challengeId, String nonce})> biometricChallenge({
+    required String phoneNumber,
+    required String deviceKey,
+  }) async {
+    final data = await _run(() => _client.post<Map<String, dynamic>>(
+          '$_base/biometric/challenge',
+          data: {'phoneNumber': phoneNumber, 'deviceKey': deviceKey},
+        ));
+    return (
+      challengeId: data['challengeId'] as String? ?? '',
+      nonce: data['nonce'] as String? ?? '',
+    );
+  }
+
+  Future<AuthSession> biometricLogin({
+    required String phoneNumber,
+    required String deviceKey,
+    required String challengeId,
+    required String signature,
+  }) async {
+    final data = await _run(() => _client.post<Map<String, dynamic>>(
+          '$_base/biometric/login',
+          data: {
+            'phoneNumber': phoneNumber,
+            'deviceKey': deviceKey,
+            'challengeId': challengeId,
+            'signature': signature,
+          },
+        ));
+    return _persist(data);
+  }
+
+  /// Khoá thiết bị đang dùng — cần cho luồng đăng nhập sinh trắc, vì server nhận diện máy qua nó.
+  Future<String> currentDeviceKey() async =>
+      (await _deviceInfo.collect()).deviceKey;
+
   Future<List<LoginDevice>> devices() async {
     final response = await _rawRun(() => _client.get<Map<String, dynamic>>('/patient/devices'));
     final list = response['data'] as List<dynamic>? ?? const [];

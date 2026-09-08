@@ -75,13 +75,23 @@ def check(name, condition, detail=""):
     print(("  PASS  " if condition else "  FAIL  ") + name + (" | " + detail if detail else ""))
 
 
-def latest_otp():
-    """Doc ban ghi OTP moi nhat tu CSDL roi do nguoc ma 6 so tu ban bam."""
+def psql(sql):
+    """Chay mot cau SQL tren CSDL cua app va tra ve o dau tien (chuoi rong neu khong co)."""
     out = subprocess.run(
         ["docker", "exec", PG_CONTAINER, "psql", "-U", "patientapp", "-d", "his_patientapp",
-         "-t", "-A", "-c", 'SELECT "CodeHash" FROM otp_challenges ORDER BY "CreatedAt" DESC LIMIT 1'],
+         "-t", "-A", "-c", sql],
         capture_output=True, text=True, check=True)
-    digest = out.stdout.strip()
+    return out.stdout.strip()
+
+
+def normalized_phone(phone):
+    """Giong PhoneNumbers.Normalize ben server: 09xxxxxxxx -> +849xxxxxxxx."""
+    return "+84" + phone[1:] if phone.startswith("0") else phone
+
+
+def latest_otp():
+    """Doc ban ghi OTP moi nhat tu CSDL roi do nguoc ma 6 so tu ban bam."""
+    digest = psql('SELECT "CodeHash" FROM otp_challenges ORDER BY "CreatedAt" DESC LIMIT 1')
     for i in range(1_000_000):
         code = "%06d" % i
         if hashlib.sha256(code.encode()).hexdigest() == digest:
@@ -239,6 +249,51 @@ st, _ = call("POST", "/auth/login", {"phoneNumber": PHONE, "password": PASSWORD,
 check("TC-14 mat khau cu khong dung duoc nua", st == 401, f"status={st}")
 st, _ = call("POST", "/auth/login", {"phoneNumber": PHONE, "password": NEW_PASSWORD, "device": DEV_B})
 check("TC-14 mat khau moi dung duoc", st == 200, f"status={st}")
+
+# ------------------------------------------------------------ thong bao
+print("=== TC-16 hop thu thong bao ===")
+st, r = call("POST", "/auth/login", {"phoneNumber": PHONE, "password": NEW_PASSWORD, "device": DEV_A})
+token_a = (r.get("data") or {}).get("token")
+
+account_id = psql(
+    f"""SELECT "Id" FROM app_accounts WHERE "PhoneNumber" = '{normalized_phone(PHONE)}'""")
+check("TC-16 tim thay tai khoan trong CSDL", bool(account_id), account_id)
+
+psql(f"""INSERT INTO app_notifications
+         ("Id","AccountId","Title","Body","Category","IsRead","CreatedAt")
+         VALUES (gen_random_uuid(),'{account_id}','Ket qua xet nghiem','Da co ket qua.',
+                 'result',false,now())""")
+
+st, r = call("GET", "/notifications", token=token_a)
+items = r.get("data") or []
+check("TC-16 doc duoc hop thu", st == 200 and len(items) == 1, f"status={st} so thong bao={len(items)}")
+
+st, r = call("GET", "/notifications/unread-count", token=token_a)
+check("TC-16 dem dung so chua doc", r.get("data") == 1, f"unread={r.get('data')}")
+
+notification_id = items[0]["id"] if items else ""
+
+print("=== TC-17 thong bao cua nguoi nay KHONG lo sang nguoi khac ===")
+# Tai khoan thu hai, dung so dien thoai khac.
+other_phone = "09" + "".join(random.choice("0123456789") for _ in range(8))
+st, _ = call("POST", "/auth/request-otp", {"phoneNumber": other_phone, "purpose": "register"},
+             wait_seconds=610)
+other_otp = latest_otp()
+st, r = call("POST", "/auth/register", {
+    "phoneNumber": other_phone, "otpCode": other_otp, "password": PASSWORD,
+    "fullName": "Nguoi khac", "device": DEV_B})
+token_other = (r.get("data") or {}).get("token")
+check("TC-17 tao duoc tai khoan thu hai", bool(token_other), f"status={st}")
+
+st, r = call("GET", "/notifications", token=token_other)
+check("TC-17 khong thay thong bao cua nguoi khac", len(r.get("data") or []) == 0,
+      f"so thong bao thay duoc={len(r.get('data') or [])}")
+
+st, _ = call("PUT", f"/notifications/{notification_id}/read", token=token_other)
+check("TC-17 khong danh dau doc ho duoc (tra 404, khong phai 403)", st == 404, f"status={st}")
+
+still_unread = psql(f"""SELECT "IsRead" FROM app_notifications WHERE "Id" = '{notification_id}'""")
+check("TC-17 thong bao van con chua doc", still_unread == "f", f"IsRead={still_unread}")
 
 # ---------------------------------------------------------------- ket qua
 print()

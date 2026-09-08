@@ -9,7 +9,10 @@ import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/register_page.dart';
 import '../../features/home/presentation/home_page.dart';
 import '../../features/home/presentation/splash_page.dart';
+import '../../features/notifications/presentation/notifications_page.dart';
 import '../../features/security/presentation/devices_page.dart';
+import '../../features/security/presentation/security_page.dart';
+import '../../features/security/presentation/set_pin_page.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -21,6 +24,9 @@ class AppRoutes {
   static const changePassword = '/change-password';
   static const home = '/';
   static const devices = '/devices';
+  static const notifications = '/notifications';
+  static const security = '/security';
+  static const setPin = '/security/pin';
 }
 
 /// Đưa `Listenable` cho go_router từ một provider của Riverpod, để router vẽ lại khi trạng thái
@@ -46,6 +52,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: AppRoutes.forgotPassword, builder: (_, _) => const ForgotPasswordPage()),
       GoRoute(path: AppRoutes.home, builder: (_, _) => const HomePage()),
       GoRoute(path: AppRoutes.devices, builder: (_, _) => const DevicesPage()),
+      GoRoute(path: AppRoutes.notifications, builder: (_, _) => const NotificationsPage()),
+      GoRoute(path: AppRoutes.security, builder: (_, _) => const SecurityPage()),
+      GoRoute(path: AppRoutes.setPin, builder: (_, _) => const SetPinPage()),
       GoRoute(
         path: AppRoutes.changePassword,
         builder: (context, state) => ChangePasswordPage(

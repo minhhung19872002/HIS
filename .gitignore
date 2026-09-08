@@ -250,3 +250,7 @@ ghinho.txt
 .obsidian
 # T4 (#219): storageState của Playwright chứa JWT phiên đăng nhập — KHÔNG commit.
 frontend/e2e/.t4-auth.json
+
+# Khoá tài khoản dịch vụ Firebase của relay đẩy thông báo (deploy/patient-app-vps).
+# Ai có file này là gửi được thông báo giả mạo tới mọi người bệnh.
+fcm-service-account.json

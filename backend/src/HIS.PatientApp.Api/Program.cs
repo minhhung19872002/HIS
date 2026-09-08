@@ -6,6 +6,7 @@ using HIS.PatientApp.Api.Connector;
 using HIS.PatientApp.Api.Data;
 using HIS.PatientApp.Api.Entities;
 using HIS.PatientApp.Api.Middleware;
+using HIS.PatientApp.Api.Push;
 using HIS.PatientApp.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<AppJwtOptions>(builder.Configuration.GetSection(AppJwtOptions.SectionName));
 builder.Services.Configure<HisConnectorOptions>(
     builder.Configuration.GetSection(HisConnectorOptions.SectionName));
+builder.Services.Configure<PushRelayOptions>(
+    builder.Configuration.GetSection(PushRelayOptions.SectionName));
 
 var jwtOptions = builder.Configuration.GetSection(AppJwtOptions.SectionName).Get<AppJwtOptions>()
                  ?? new AppJwtOptions();
@@ -63,6 +66,34 @@ builder.Services
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<OtpService>();
 builder.Services.AddScoped<PatientAuthService>();
+builder.Services.AddScoped<NotificationService>();
+
+// ------------------------------------------------------- đẩy thông báo (push)
+
+var pushOptions = builder.Configuration.GetSection(PushRelayOptions.SectionName).Get<PushRelayOptions>()
+                  ?? new PushRelayOptions();
+
+if (string.IsNullOrWhiteSpace(pushOptions.BaseUrl))
+{
+    // Không cấu hình relay thì thông báo vẫn vào hộp thư, chỉ là không đẩy được. Bản này ghi log
+    // cảnh báo mỗi lần thay vì im lặng — "app không nhận được thông báo" rất khó truy nếu hệ thống
+    // không nói gì.
+    builder.Services.AddScoped<IPushSender, DisabledPushSender>();
+}
+else
+{
+    builder.Services.AddScoped<IPushSender, RelayPushSender>();
+    builder.Services.AddHttpClient(RelayPushSender.HttpClientName, client =>
+    {
+        client.BaseAddress = new Uri(pushOptions.BaseUrl.TrimEnd('/') + "/");
+        client.Timeout = TimeSpan.FromSeconds(pushOptions.TimeoutSeconds);
+        // Relay chỉ nhận yêu cầu có khoá này: không có nó thì ai biết địa chỉ relay cũng gửi được
+        // thông báo giả mạo tới người bệnh.
+        client.DefaultRequestHeaders.Add("X-Relay-Key", pushOptions.ApiKey);
+    });
+}
+
+builder.Services.AddHostedService<PushDispatcherWorker>();
 
 // Bản gửi OTP thật cắm ở đây. Bản ghi-log chỉ được phép ở môi trường phát triển: in mã OTP ra log
 // ở production đồng nghĩa ai đọc được log là đăng nhập được vào tài khoản người bệnh.
