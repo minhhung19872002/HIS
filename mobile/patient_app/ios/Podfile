@@ -42,7 +42,23 @@ target 'Runner' do
   # Doi lai, Firebase iOS SDK 10.x (di kem firebase_messaging 14.x — nhanh cuoi cung con ho tro
   # iOS 12) tron header modular va khong modular, nen phai bat
   # CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES o post_install ben duoi.
-  use_frameworks! :linkage => :static
+  use_frameworks!
+
+  # BAT BUOC di kem use_frameworks! khi dung Firebase iOS SDK 10.x.
+  #
+  # `Firebase` la pod chi-co-header, khong co file nguon, nen CocoaPods khong dung duoc framework
+  # cho no — header roi vao Pods/Headers/Public/Firebase/Firebase.h, tuc KHONG modular. Trong khi
+  # do firebase_messaging lai la framework module va header cua no `#import <Firebase/Firebase.h>`.
+  # Clang cam include header khong modular tu ben trong mot framework module, nen build dung.
+  #
+  # use_modular_headers! sinh module map cho MOI pod, ke ca pod chi-co-header, nen lenh include kia
+  # tro thanh modular va hop le. Day dung la cap co ma mau Podfile cua Flutter thoi Firebase 10.x
+  # van dat san.
+  #
+  # Da thu va KHONG du: chi dat CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES; bo han
+  # use_frameworks! (pod Swift nhu pdfrx bao khong tich hop duoc dang thu vien tinh);
+  # khai :modular_headers => true cho tung pod Firebase; tat ENABLE_MODULE_VERIFIER.
+  use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 
