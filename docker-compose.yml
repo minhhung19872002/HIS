@@ -125,6 +125,36 @@ services:
     networks:
       - his-network
 
+  # ---------------------------------------------------------------------------
+  # CSDL RIENG cua app mobile ho tro nguoi benh (HSMT muc I.2/I.3).
+  # Tach hoan toan khoi SQL Server cua HIS: app chi giu tai khoan, thiet bi, thong
+  # bao, vi giay to. Du lieu y te nam lai HIS va duoc lay qua IHisConnector.
+  # Cong 5439: may dev cua doi da co san nhieu Postgres o 5432/5433/5434/15432/25432/55432.
+  # Chi tiet: docs/features/patient-app/README.md §4
+  # ---------------------------------------------------------------------------
+  patientapp-postgres:
+    image: postgres:16-alpine
+    container_name: his-patientapp-postgres
+    environment:
+      POSTGRES_DB: his_patientapp
+      POSTGRES_USER: patientapp
+      # Chi dung cho may dev. Production doc tu file env tren may chu, khong commit.
+      POSTGRES_PASSWORD: ${PATIENTAPP_DB_PASSWORD:-patientapp_dev}
+      # Collation hop voi tieng Viet cho cac cot ten nguoi.
+      LANG: C.UTF-8
+    ports:
+      - "${PATIENTAPP_DB_HOST_PORT:-5439}:5432"
+    volumes:
+      - patientapp_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U patientapp -d his_patientapp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - his-network
+
 volumes:
   sqlserver_data:
     name: his_sqlserver_data
@@ -134,6 +164,8 @@ volumes:
     name: his_orthanc_peer_data
   redis_data:
     name: his_redis_data
+  patientapp_pgdata:
+    name: his_patientapp_pgdata
 
 networks:
   his-network:

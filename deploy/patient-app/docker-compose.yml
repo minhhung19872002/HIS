@@ -1,0 +1,78 @@
+# =============================================================================
+# HSMT Muc I — trien khai tai DATA CENTER BENH VIEN
+#
+# Chay cung mang voi HIS Core de BFF goi HIS qua dia chi noi bo, khong ra Internet.
+# TLS va cong khai ra ngoai do stack tren VPS dam nhiem (xem ../patient-app-vps/).
+#
+# Khoi dong:
+#   cd deploy/patient-app
+#   cp .env.example .env      # roi dien bi mat that
+#   docker compose up -d
+#
+# Tai lieu: docs/features/patient-app/README.md §4
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # CSDL rieng cua app (quyet dinh D9). Chi chua tai khoan app, thiet bi, thong bao,
+  # vi giay to. KHONG chua du lieu kham chua benh — thu do nam lai trong HIS.
+  # ---------------------------------------------------------------------------
+  patientapp-postgres:
+    image: postgres:16-alpine
+    container_name: patientapp-postgres
+    environment:
+      POSTGRES_DB: ${PATIENTAPP_DB_NAME:-his_patientapp}
+      POSTGRES_USER: ${PATIENTAPP_DB_USER:-patientapp}
+      POSTGRES_PASSWORD: ${PATIENTAPP_DB_PASSWORD:?bat buoc dat trong .env}
+      LANG: C.UTF-8
+    volumes:
+      - patientapp_pgdata:/var/lib/postgresql/data
+    # KHONG publish cong ra host: chi cac container cung mang moi duoc noi vao CSDL.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PATIENTAPP_DB_USER:-patientapp} -d ${PATIENTAPP_DB_NAME:-his_patientapp}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - patientapp-net
+
+  # ---------------------------------------------------------------------------
+  # BFF: module ket noi (HSMT I.1) + API cho app nguoi benh (I.2) va web quan tri (I.3).
+  # ---------------------------------------------------------------------------
+  patientapp-api:
+    image: ${PATIENTAPP_IMAGE:-ghcr.io/minhhung19872002/his-patientapp-api:latest}
+    container_name: patientapp-api
+    depends_on:
+      patientapp-postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__PatientAppDb: >-
+        Host=patientapp-postgres;Port=5432;Database=${PATIENTAPP_DB_NAME:-his_patientapp};Username=${PATIENTAPP_DB_USER:-patientapp};Password=${PATIENTAPP_DB_PASSWORD}
+      # Khoa ky rieng, KHONG dung chung voi HIS Core: token app ro ra khong duoc mo cua vao HIS.
+      AppJwt__Key: ${PATIENTAPP_JWT_KEY:?bat buoc dat trong .env, toi thieu 32 ky tu}
+      # Dia chi noi bo cua HIS Core trong data center.
+      HisConnector__BaseUrl: ${HIS_CORE_BASE_URL:?bat buoc dat trong .env}
+      # Tai khoan dich vu quyen toi thieu — KHONG dung lai tai khoan admin.
+      HisConnector__ServiceUsername: ${HIS_SERVICE_USERNAME:?bat buoc dat trong .env}
+      HisConnector__ServicePassword: ${HIS_SERVICE_PASSWORD:?bat buoc dat trong .env}
+    ports:
+      # Chi mo tren loopback: Caddy tren VPS noi vao qua duong ham, khong phoi ra Internet.
+      - "127.0.0.1:${PATIENTAPP_API_PORT:-8090}:8080"
+    restart: unless-stopped
+    networks:
+      - patientapp-net
+      # Mang cua HIS Core de goi duoc bang ten container thay vi dia chi IP.
+      - his-net
+
+volumes:
+  patientapp_pgdata:
+    name: patientapp_pgdata
+
+networks:
+  patientapp-net:
+    name: patientapp-net
+    driver: bridge
+  his-net:
+    external: true

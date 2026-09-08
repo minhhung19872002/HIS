@@ -16,7 +16,7 @@
 | # | Yêu cầu HSMT | Đáp ứng bằng | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|---|
 | I.1.1 | Toàn bộ hệ thống thiết kế theo công nghệ nhúng trên nền Linux, tích hợp bản quyền HĐH và CSDL — **hoặc công nghệ tương đương** | Docker trên Ubuntu LTS (giấy phép GPL/hợp lệ) + CSDL mã nguồn mở/có bản quyền hợp lệ; tài liệu đối chiếu `docs/architecture/operations/patient-app-equivalent-technology.md` | Xuất trình tài liệu đối chiếu + `docker version`, `lsb_release -a`, bản quyền CSDL trên máy chủ DC | 7 | ⬜ |
-| I.1.2 | Hệ thống tích hợp module kết nối với HIS **dựa trên các API HIS cung cấp** | `IHisConnector` + `HisRestConnector` (HTTP tới HIS Core), tài liệu `his-connector-mapping.md` | Bật log connector, chứng minh mọi truy vấn nghiệp vụ đi qua HTTP API của HIS; tắt HIS Core → app báo lỗi có kiểm soát (circuit breaker) | 1 | ⬜ |
+| I.1.2 | Hệ thống tích hợp module kết nối với HIS **dựa trên các API HIS cung cấp** | `IHisConnector` + `HisRestConnector` gọi HIS qua HTTP; project **cố ý không tham chiếu** HIS.Core/Application/Infrastructure; thử lại 2 lần + ngắt mạch (Polly). Mapping: [`his-connector-mapping.md`](his-connector-mapping.md) | ✅ Đã cài đặt và build sạch. ⏳ Kiểm cuối: bật log connector chứng minh mọi truy vấn nghiệp vụ đi qua HTTP API của HIS; tắt HIS Core → `GET /health/ready` trả 503 và app báo lỗi có kiểm soát thay vì treo | 1 | 🔄 |
 
 ---
 
@@ -32,8 +32,8 @@
 
 | # | Yêu cầu HSMT | Màn hình / API | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|---|
-| I.2.2.1 | Đăng nhập / **giữ đăng nhập** trên app | Màn Đăng nhập; `POST /patient/auth/login`, `POST /patient/auth/refresh` | Đăng nhập → tắt app → mở lại sau > thời hạn access token → vẫn vào thẳng, không phải nhập lại (GAP 6) | 1 | ⬜ |
-| I.2.2.2 | **Chạy ngầm** để nhận các thông báo từ máy chủ | FCM background handler + `flutter_local_notifications`; `POST /patient/devices/register-token`; relay VPS | Đóng app (background & killed) → gửi thông báo từ web quản trị → thiết bị hiện notification; chạm vào → deep-link đúng màn (GAP 11) | 1 | ⬜ |
+| I.2.2.1 | Đăng nhập / **giữ đăng nhập** trên app | Màn Đăng nhập (`login_page.dart`); `POST /api/v1/patient/auth/login`, `.../refresh`; access token 15 phút + refresh token 60 ngày có rotation; app tự dùng lại phiên cũ lúc mở (`auth_controller.dart`) | ✅ API đã kiểm: TC-01, TC-07, TC-08 trong `scripts/smoke-patient-app-auth.py` (40/40 PASS). ⏳ Còn phải kiểm trên **thiết bị thật**: đăng nhập → tắt app → mở lại sau khi access token hết hạn → vào thẳng | 1 | 🔄 |
+| I.2.2.2 | **Chạy ngầm** để nhận các thông báo từ máy chủ | FCM background handler + `flutter_local_notifications`; `PUT /api/v1/patient/devices/push-token`; bảng `push_outbox`; relay trên VPS | Đóng app (cả background lẫn đã tắt hẳn) → gửi thông báo từ web quản trị → thiết bị hiện notification; chạm vào → mở đúng màn (GAP 11) | 1 | ⬜ |
 
 ### 3. Lấy số thứ tự
 
@@ -88,10 +88,10 @@
 
 | # | Yêu cầu HSMT | Màn hình / API | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|---|
-| I.2.9.1 | **Đổi mật khẩu riêng khi đăng nhập lần đầu** | Màn "Đổi mật khẩu bắt buộc"; `PortalAccount.MustChangePassword` + middleware chặn mọi route trừ đổi MK/đăng xuất (GAP 8) | Tài khoản mới cấp → đăng nhập → bị đưa thẳng tới màn đổi MK; gọi thẳng API khác bằng token đó → **bị server chặn** (ẩn nút ≠ chặn API) | 1 | ⬜ |
-| I.2.9.2 | **Tạo mã bảo mật** (PIN) | Màn "Tạo/đổi mã PIN"; `POST /patient/auth/pin` (GAP 9) | Đặt PIN 6 số → thoát app → mở lại yêu cầu PIN; nhập sai N lần → khoá theo chính sách | 1 | ⬜ |
-| I.2.9.3 | **Sử dụng sinh trắc học của điện thoại để đăng nhập, xem bệnh án** | `local_auth` (FaceID/TouchID/vân tay) + device key ký challenge; `POST /patient/auth/biometric/*` (GAP 9) | Bật sinh trắc → đăng nhập bằng khuôn mặt/vân tay; mở màn bệnh án yêu cầu xác thực sinh trắc lại; tắt sinh trắc ở cài đặt máy → app quay về PIN/mật khẩu | 1 | ⬜ |
-| I.2.9.4 | **Quản lý tất cả thiết bị đăng nhập** | Màn "Thiết bị"; `GET /patient/devices`, `DELETE /patient/devices/{id}`, `DELETE /patient/devices` (GAP 10, dùng `SecurityStamp` để thu hồi tức thì — GAP 4) | Đăng nhập trên 2 máy → cả 2 hiện trong danh sách (tên máy, HĐH, IP, lần cuối hoạt động); đăng xuất từ xa máy A trên máy B → **máy A mất phiên ngay lần gọi API kế tiếp** | 1 | ⬜ |
+| I.2.9.1 | **Đổi mật khẩu riêng khi đăng nhập lần đầu** | Màn "Đổi mật khẩu lần đầu" (`change_password_page.dart`, không cho bấm back); `AppAccount.MustChangePassword` + claim `pwdChangeRequired` + `PasswordChangeRequiredMiddleware` chặn mọi đường trừ đổi MK/đăng xuất/`me` | ✅ Cơ chế đã có và app đã chặn đúng (widget test "Bị buộc đổi mật khẩu"). ⏳ Còn thiếu **nơi bật cờ**: web quản trị cấp tài khoản / reset mật khẩu (Phase 6). Kiểm cuối: tài khoản do quầy cấp → đăng nhập → vào thẳng màn đổi MK; gọi API khác bằng token đó → **server chặn** (ẩn nút ≠ chặn API) | 1 → 6 | 🔄 |
+| I.2.9.2 | **Tạo mã bảo mật** (PIN) | `POST /api/v1/patient/auth/pin`, `.../pin/verify`; từ chối PIN dễ đoán (sáu số giống nhau, dãy liên tiếp); sai 5 lần khoá 15 phút | ✅ API đã kiểm: TC-11, TC-12 (bao gồm cả từ chối `111111` và `123456`). ⏳ Còn màn nhập PIN trên app + khoá app tự động | 1 | 🔄 |
+| I.2.9.3 | **Sử dụng sinh trắc học của điện thoại để đăng nhập, xem bệnh án** | Cặp khoá ECDSA P-256 sinh trên máy, khoá riêng cất trong Keychain/Keystore chỉ mở được sau xác thực sinh trắc; server phát nonce, máy ký, server kiểm chữ ký (`/auth/biometric/enroll`, `/challenge`, `/login`) | ✅ Đã cài đặt phía server (nonce dùng một lần, hết hạn 2 phút, kiểm chữ ký DER). ⏳ Chưa nối `local_auth` phía app. Kiểm cuối: bật sinh trắc → đăng nhập bằng vân tay; mở màn bệnh án phải xác thực lại; tắt sinh trắc ở cài đặt máy → quay về PIN/mật khẩu | 1 | 🔄 |
+| I.2.9.4 | **Quản lý tất cả thiết bị đăng nhập** | Màn "Thiết bị đăng nhập" (`devices_page.dart`); `GET /api/v1/patient/devices`, `DELETE .../{id}`, `DELETE .../others`; thu hồi tức thì bằng cách xoay `SecurityStamp` | ✅ Đã kiểm: TC-04, TC-05, TC-06 (đăng nhập lại cùng máy không đẻ dòng mới), TC-13 — **máy bị đăng xuất từ xa mất quyền ngay lần gọi API kế tiếp**, không đợi token hết hạn. ⏳ Còn kiểm trên thiết bị thật | 1 | 🔄 |
 
 ---
 

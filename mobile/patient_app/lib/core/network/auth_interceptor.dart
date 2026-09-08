@@ -32,10 +32,22 @@ class AuthInterceptor extends Interceptor {
   final FutureOr<void> Function() onSessionExpired;
 
   static const _retriedFlag = 'x-retried';
+
+  /// Đường làm mới token, tính từ `baseUrl` (đã bao gồm `/api/v1`).
+  static const refreshPath = '/patient/auth/refresh';
+
   Future<String?>? _inFlightRefresh;
 
+  /// Những đường KHÔNG được gắn token và KHÔNG được thử làm mới: bản thân chúng là
+  /// cách lấy token, nên can thiệp vào sẽ tạo đệ quy.
   bool _isAuthPath(String path) =>
-      path.contains('/auth/refresh') || path.contains('/auth/login');
+      path.contains('/auth/refresh') ||
+      path.contains('/auth/login') ||
+      path.contains('/auth/register') ||
+      path.contains('/auth/request-otp') ||
+      path.contains('/auth/reset-password') ||
+      path.contains('/auth/biometric/challenge') ||
+      path.contains('/auth/biometric/login');
 
   @override
   Future<void> onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
@@ -86,7 +98,7 @@ class AuthInterceptor extends Interceptor {
 
     try {
       final response = await _refreshClient.post<Map<String, dynamic>>(
-        '/auth/refresh',
+        refreshPath,
         data: {'refreshToken': refreshToken},
       );
       final data = response.data?['data'] as Map<String, dynamic>? ?? response.data;
