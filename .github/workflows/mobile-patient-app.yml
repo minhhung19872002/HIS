@@ -62,6 +62,12 @@ jobs:
         working-directory: ${{ env.APP_DIR }}
         run: flutter analyze
 
+      # Một plugin nâng lên bản đòi iOS 13/15 là cả app mất iOS 12 — mà `pub upgrade` vẫn báo thành
+      # công và `analyze` vẫn sạch. Trên Windows không có cách nào biết vì không build được iOS.
+      # Bước này soi podspec của từng plugin nên bắt được ngay, không cần macOS.
+      - name: Không plugin nào được vượt iOS 12.0
+        run: python3 scripts/check-ios-min-deployment-target.py ${{ env.APP_DIR }} 12.0
+
       - name: Chạy unit + widget test
         working-directory: ${{ env.APP_DIR }}
         run: flutter test
@@ -141,6 +147,12 @@ jobs:
       - name: Phân tích tĩnh
         working-directory: ${{ env.APP_DIR }}
         run: flutter analyze
+
+      # Một plugin nâng lên bản đòi iOS 13/15 là cả app mất iOS 12 — mà `pub upgrade` vẫn báo thành
+      # công và `analyze` vẫn sạch. Trên Windows không có cách nào biết vì không build được iOS.
+      # Bước này soi podspec của từng plugin nên bắt được ngay, không cần macOS.
+      - name: Không plugin nào được vượt iOS 12.0
+        run: python3 scripts/check-ios-min-deployment-target.py ${{ env.APP_DIR }} 12.0
 
       - name: Chạy unit + widget test
         working-directory: ${{ env.APP_DIR }}

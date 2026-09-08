@@ -27,16 +27,16 @@ dependencies:
   flutter_secure_storage: 9.2.4
   local_auth: ^2.3.0
   intl: ^0.20.2
-  firebase_core: ^4.14.0
-  firebase_messaging: ^16.6.0
+  firebase_core: ^2.32.0
+  firebase_messaging: ^14.7.10
   flutter_local_notifications: ^20.1.0
-  device_info_plus: ^12.4.0
-  package_info_plus: ^9.0.1
-  connectivity_plus: ^7.3.1
+  device_info_plus: ^10.1.2
+  package_info_plus: ^8.0.2
+  connectivity_plus: ^6.0.5
   permission_handler: 11.3.1
   image_picker: ^1.2.1
-  file_picker: ^11.0.3
-  flutter_image_compress: ^2.5.1
+  file_picker: ^8.1.2
+  flutter_image_compress: ^2.3.0
   webview_flutter: ^4.13.1
   qr_flutter: ^4.1.0
   cached_network_image: ^3.4.1
@@ -45,7 +45,7 @@ dependencies:
   shared_preferences: ^2.5.3
   signalr_netcore: ^1.4.4
   hive_ce: ^2.19.3
-  pdfrx: ^2.1.5
+  pdfrx: ^1.0.87
   # GHIM 6.x, KHONG nang len 13.x: ban moi doi iOS toi thieu 13.0 (podspec s.platform =
   # :ios, '13.0'), tuc mat cam ket iOS 12.0 cua ho so moi thau. CI build iOS that da bat duoc
   # dieu nay — xem docs/features/patient-app/README.md §6.2.
