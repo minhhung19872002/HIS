@@ -32,7 +32,10 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  use_frameworks!
+  # CO Y KHONG dat use_frameworks!: Firebase iOS SDK 10.x (di kem firebase_messaging 14.x —
+  # nhanh cuoi cung con ho tro iOS 12) co header khong modular, va gap use_frameworks! se hong
+  # voi loi "Include of non-modular header inside framework module". Mau Podfile mac dinh cua
+  # Flutter cung khong dat co nay.
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 
@@ -49,6 +52,10 @@ post_install do |installer|
       # flutter_additional_ios_build_settings co the keo muc toi thieu len theo ban Flutter.
       # Ep lai 12.0 de moi pod cung build cho iOS 12 — mot pod doi cao hon se lam ca app mat iOS 12.
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
+
+      # Firebase iOS SDK 10.x tron lan header modular va khong modular. Khong bat co nay thi
+      # Xcode bao "Include of non-modular header inside framework module" va dung build.
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
 
       # Quyen cho cac plugin dung permission_handler: chi bat dung nhung quyen app thuc su xin,
       # de App Store khong hoi ve nhung quyen khong dung toi.
