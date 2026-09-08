@@ -141,11 +141,17 @@
 | # | Yêu cầu HSMT | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|
 | C.1 | **Không giới hạn số lượng người dùng** app | Không có khoá cứng số tài khoản trong mã nguồn/giấy phép; đo tải với N người dùng đồng thời ở Phase 7 | 7 | ⬜ |
-| C.2 | Hỗ trợ **iOS ≥ 12.0** | Project pin Flutter **3.32.8** qua FVM (`.fvmrc`) — bản stable cuối cùng còn target iOS 12.0. `ios/Runner.xcodeproj/project.pbxproj` và `ios/Flutter/AppFrameworkInfo.plist` đều ghi **12.0**. Nghiệm thu: mở Xcode xem Deployment Target = 12.0 + chạy thật trên simulator iOS 12 | 0 → 7 | ⚠️ |
-| C.3 | Hỗ trợ **Android ≥ 7.2** | `minSdk = 25` (Android 7.1.1) tại `mobile/patient_app/android/app/build.gradle.kts:29`; build APK debug **PASS**. Nghiệm thu: chạy thật trên emulator API 25 | 0 → 7 | ⚠️ |
+| C.2 | Hỗ trợ **iOS ≥ 12.0** | Flutter pin **3.32.8**; `project.pbxproj` (3 chỗ), `AppFrameworkInfo.plist` và `Podfile` đều khai **12.0**; Podfile dùng **thư viện tĩnh + `use_modular_headers!`** để Firebase 10.x build được ở iOS 12 | ✅ **Đã build thật trên macOS runner (Xcode 16.4)**: `flutter build ios --simulator` PASS, và `MinimumOSVersion` trong Info.plist **của chính bản build ra** = **12.0**. Chạy 7/7 test + chụp 6 màn trên iPhone simulator. Bằng chứng: `docs/features/patient-app/screenshots/ios-*.png`, workflow `mobile-patient-app.yml`. ⏳ Còn kiểm trên **thiết bị iOS 12 thật** ở Phase 7 | 0 → 7 | 🔄 |
+| C.3 | Hỗ trợ **Android ≥ 7.2** | `minSdk = 25` (Android 7.1.1); desugaring bật để `java.time` chạy được trên API 25 | ✅ **Đã chạy thật trên máy ảo Android 7.1.1 (API 25)** — đúng ngưỡng HSMT — bộ chụp 6/6 PASS. Ngoài ra chạy đầy đủ có đăng nhập thật qua BFF + PostgreSQL trên Android 16. Bằng chứng: `screenshots/android*.png`. ⏳ Còn kiểm trên **máy Android 7.x thật** ở Phase 7 | 0 → 7 | 🔄 |
 
-> **C.2 và C.3** đang là ⚠️ chứ chưa ✅ vì mới chứng minh **cấu hình và build** đạt ngưỡng; nâng lên ✅
-> sau khi **chạy thật** trên simulator iOS 12 và emulator Android API 25 ở Phase 7.
+> **C.2 và C.3** giữ 🔄 chứ chưa ✅ vì mới chạy trên **máy ảo/simulator**; nâng lên ✅ sau khi chạy trên
+> **thiết bị thật** ở Phase 7. Riêng ngưỡng phiên bản thì đã được chứng minh bằng sản phẩm build ra,
+> không phải bằng khai báo suông.
+>
+> 🔒 **Giữ được iOS 12.0 là điều kiện mong manh** — 7 gói phải ghim ở bản cũ (Firebase 2.x/14.x,
+> biometric_signature 6.x, device_info_plus 10.x, package_info_plus 8.x, connectivity_plus 6.x,
+> file_picker 8.x, pdfrx 1.x) và Podfile phải dùng thư viện tĩnh + `use_modular_headers!`. CI có bước
+> `scripts/check-ios-min-deployment-target.py` chặn mọi lần nâng gói làm vượt ngưỡng.
 >
 > ⚠️ **Ràng buộc phát hành (quyết định Q3 — `README.md` §6.1):** lỗ IDOR ở `ExaminationCompleteController` /
 > `LISCompleteController` / `PdfController` được xếp xử lý ở Phase 7. Cho tới khi vá xong, **không phát

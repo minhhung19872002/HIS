@@ -204,8 +204,32 @@ Hai package phải ghim bản cũ hơn nữa vì bản mới đòi Android SDK 3
 > `lib/core/storage/secure_store.dart`. Bản 11.x mã hoá mặc định nhưng không dùng được ở đây.
 
 Cổng đã chạy lại đầy đủ trên 3.32.8: `fvm flutter analyze` **sạch** · widget test **PASS** ·
-`fvm flutter build apk --debug` **PASS** · `ios/Runner.xcodeproj/project.pbxproj` (3 chỗ) và
-`ios/Flutter/AppFrameworkInfo.plist` đều ghi **12.0**.
+`fvm flutter build apk --debug` **PASS** · `ios/Runner.xcodeproj/project.pbxproj` (3 chỗ),
+`ios/Flutter/AppFrameworkInfo.plist` và `ios/Podfile` đều ghi **12.0**.
+
+### Ba tầng chặn iOS 12 đã gỡ được (phát hiện bằng build thật trên macOS runner)
+
+Không tầng nào trong số này lộ ra khi build trên Windows: `flutter pub upgrade` báo thành công,
+`flutter analyze` sạch, APK build ngon. Chúng chỉ hiện ra ở bước `pod install` / `xcodebuild`.
+
+| # | Chặn ở đâu | Vì sao | Cách gỡ |
+|---|---|---|---|
+| 1 | `biometric_signature` 13.x | podspec khai `s.platform = :ios, '13.0'` | Hạ về **6.x** (bản cuối còn 12.0). Kéo theo đổi chữ ký từ ECDSA P-256 sang **RSA-2048 SHA-256 PKCS#1 v1.5** ở cả app lẫn server |
+| 2 | `firebase_core` 4.x | đòi **iOS 15.0** | Hạ về **2.x** (Firebase iOS SDK 10.x). Kéo theo phải lùi 6 gói khác vì `firebase_messaging` 14.x dùng gói `web` 0.5 còn các gói mới đã sang `web` 1.x |
+| 3 | Xcode dừng ở *"Include of non-modular header inside framework module"* | `Firebase` là pod **chỉ-có-header**, CocoaPods không dựng framework cho nó được nên header không modular; mà `firebase_messaging` lại là framework module và import đúng header đó | **Bỏ hẳn `use_frameworks!`** (dùng thư viện tĩnh) + `use_modular_headers!`. Không còn framework module thì lệnh import trở thành include thường và hợp lệ |
+
+Ở tầng 3, năm cách sau **đã thử và không hiệu quả** — ghi lại để khỏi lặp: chỉ đặt
+`CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES`; `use_frameworks! :linkage => :static`;
+khai `:modular_headers => true` riêng cho từng pod Firebase; tắt `ENABLE_MODULE_VERIFIER`;
+`use_frameworks!` đi kèm `use_modular_headers!`.
+
+**Kết quả đo được** (workflow `.github/workflows/mobile-patient-app.yml`, Xcode 16.4):
+`flutter build ios --simulator` **PASS**, và `MinimumOSVersion` trong `Info.plist` của **chính bản
+build ra** = **12.0**. Chạy 7/7 test và chụp 6 màn trên iPhone simulator.
+
+> ⚠️ Giữ được iOS 12 là điều kiện **mong manh**: 7 gói phải ghim ở bản cũ. CI có bước
+> `scripts/check-ios-min-deployment-target.py` đọc `pubspec.lock` rồi soi podspec từng plugin, nên
+> chặn được ngay trên Linux/Windows mà không cần macOS.
 
 ### 6.3 🟠 Khác
 

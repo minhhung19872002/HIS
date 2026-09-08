@@ -91,6 +91,17 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      # Runner ubuntu chỉ có ~14GB trống. Máy ảo cộng Gradle daemon cộng APK debug 219MB đã hai lần
+      # làm runner bị GitHub tắt giữa chừng ("The runner has received a shutdown signal").
+      # Dọn những bộ công cụ dựng sẵn mà job này không dùng để lấy lại vài GB.
+      - name: Dọn chỗ trống trên runner
+        run: |
+          echo "--- trước khi dọn ---"; df -h / | tail -1
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk \
+                      /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY/CodeQL" || true
+          sudo apt-get clean || true
+          echo "--- sau khi dọn ---"; df -h / | tail -1
+
       - name: Chụp màn hình trên máy ảo Android
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -101,9 +112,12 @@ jobs:
           target: default
           force-avd-creation: false
           # Bộ cờ này là cách khắc phục quen thuộc cho việc máy ảo "offline" giữa chừng trên runner.
+          # Giới hạn RAM máy ảo: mặc định nó xin nhiều hơn phần runner còn lại sau khi Gradle
+          # đã chiếm, và đó là lý do runner bị tắt giữa chừng.
           emulator-options: >-
             -no-snapshot-save -no-window -gpu swiftshader_indirect
             -noaudio -no-boot-anim -camera-back none
+            -memory 2048 -partition-size 2048
           disable-animations: true
           working-directory: ${{ env.APP_DIR }}
           # MỘT DÒNG: action này truyền `script` vào `sh -c`, nên xuống dòng bằng dấu \ sẽ bị nuốt
