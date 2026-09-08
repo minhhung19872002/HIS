@@ -16,7 +16,8 @@ public partial class PatientPortalServiceImpl
     // ------------------------------------------------- thăm dò chức năng (GAP 25)
 
     public async Task<List<PortalFunctionalResultDto>> GetFunctionalResultsAsync(
-        Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null)
+        Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null,
+        Guid? admissionId = null)
     {
         var query = _context.FunctionalDiagnosticTests.AsNoTracking()
             // Chỉ trả phiếu đã có kết quả hoặc đã duyệt. Phiếu mới chỉ định thì chưa có gì để đọc,
@@ -26,6 +27,11 @@ public partial class PatientPortalServiceImpl
         if (fromDate.HasValue) query = query.Where(t => t.PerformedAt >= fromDate);
         if (toDate.HasValue) query = query.Where(t => t.PerformedAt <= toDate);
         if (visitId.HasValue) query = query.Where(t => t.ExaminationId == visitId);
+
+        // Nội trú (GAP 33): lọc theo hồ sơ bệnh án của đợt nằm viện.
+        var recordId = await ResolveAdmissionRecordAsync(patientId, admissionId);
+        if (recordId.HasValue) query = query.Where(t => t.MedicalRecordId == recordId);
+        else if (admissionId.HasValue) return new List<PortalFunctionalResultDto>();
 
         var list = await query.OrderByDescending(t => t.PerformedAt).Take(30).ToListAsync();
         return list.Select(MapFunctionalResult).ToList();

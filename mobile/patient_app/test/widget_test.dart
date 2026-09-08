@@ -52,13 +52,14 @@ Future<void> _pumpApp(WidgetTester tester, AuthState state) async {
 }
 
 void main() {
-  testWidgets('Đã đăng nhập: trang chủ hiển thị đủ 6 lối tắt theo HSMT I.2', (tester) async {
+  testWidgets('Đã đăng nhập: trang chủ hiển thị đủ 7 lối tắt theo HSMT I.2', (tester) async {
     await _pumpApp(tester, const AuthSignedIn(_account));
 
     expect(find.text('Lấy số thứ tự'), findsOneWidget);
     expect(find.text('Đặt khám'), findsOneWidget);
     expect(find.text('Kết quả khám'), findsOneWidget);
     expect(find.text('Đơn thuốc'), findsOneWidget);
+    expect(find.text('Điều trị nội trú'), findsOneWidget);
     expect(find.text('Ví giấy tờ'), findsOneWidget);
     expect(find.text('Gia đình'), findsOneWidget);
   });

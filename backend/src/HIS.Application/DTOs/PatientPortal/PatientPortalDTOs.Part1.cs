@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace HIS.Application.DTOs.PatientPortal
@@ -401,6 +401,106 @@ namespace HIS.Application.DTOs.PatientPortal
         public bool CertificateIssued { get; set; }
         public string CertificateNumber { get; set; }
         public DateTime? CertificateDate { get; set; }
+    }
+
+    /// <summary>
+    /// Một đợt nằm viện (HSMT app I.2 #6). Trước đây không có đường nào để bệnh nhân liệt kê các đợt
+    /// điều trị nội trú của chính mình.
+    /// </summary>
+    public class PortalAdmissionDto
+    {
+        public Guid Id { get; set; }
+        public Guid MedicalRecordId { get; set; }
+        public string MedicalRecordCode { get; set; }
+
+        public DateTime AdmissionDate { get; set; }
+        public DateTime? DischargeDate { get; set; }
+
+        /// <summary>Số ngày nằm viện tính tới hôm nay nếu chưa ra viện.</summary>
+        public int DaysOfStay { get; set; }
+
+        public string DepartmentName { get; set; }
+        public string RoomName { get; set; }
+        public string BedName { get; set; }
+        public string AdmittingDoctorName { get; set; }
+
+        public string ReasonForAdmission { get; set; }
+        public string DiagnosisOnAdmission { get; set; }
+        public string DischargeDiagnosis { get; set; }
+
+        /// <summary>Xem <c>HIS.Core.Constants.AdmissionStatus</c>.</summary>
+        public int Status { get; set; }
+        public string StatusName { get; set; }
+        public bool IsInProgress { get; set; }
+    }
+
+    /// <summary>
+    /// Bảng công khai thuốc nội trú theo mẫu 11D/BV-01/TT23 (HSMT app I.2 #6 "xem công khai thuốc").
+    /// Trước đây HIS chỉ xuất được bản in; DTO này là dạng dữ liệu để app dựng bảng.
+    /// </summary>
+    public class PortalMedicineDisclosureDto
+    {
+        public Guid AdmissionId { get; set; }
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+
+        public List<PortalMedicineDisclosureItemDto> Items { get; set; } = new List<PortalMedicineDisclosureItemDto>();
+
+        public decimal TotalAmount { get; set; }
+        public decimal InsuranceAmount { get; set; }
+        public decimal PatientAmount { get; set; }
+    }
+
+    public class PortalMedicineDisclosureItemDto
+    {
+        public DateTime PrescriptionDate { get; set; }
+        public string MedicineCode { get; set; }
+        public string MedicineName { get; set; }
+        public string ActiveIngredient { get; set; }
+        public string Unit { get; set; }
+        public decimal Quantity { get; set; }
+        public decimal UnitPrice { get; set; }
+        public decimal Amount { get; set; }
+
+        /// <summary>BHYT · Viện phí · Khác — nguồn chi trả của dòng thuốc này.</summary>
+        public string PaymentSourceName { get; set; }
+
+        public string Dosage { get; set; }
+        public string Frequency { get; set; }
+        public string UsageInstructions { get; set; }
+    }
+
+    /// <summary>
+    /// Một chỉ định cận lâm sàng trong đợt nội trú, kèm số thứ tự thực hiện (HSMT app I.2 #6).
+    /// </summary>
+    public class PortalServiceOrderDto
+    {
+        public Guid Id { get; set; }
+        public string OrderCode { get; set; }
+        public DateTime OrderDate { get; set; }
+
+        public string ServiceName { get; set; }
+
+        /// <summary>1 Xét nghiệm · 2 CĐHA · 3 TDCN · 4 Thủ thuật — theo <c>ServiceRequest.RequestType</c>.</summary>
+        public int RequestType { get; set; }
+        public string RequestTypeName { get; set; }
+
+        public string ExecuteRoomName { get; set; }
+        public string OrderingDoctor { get; set; }
+
+        /// <summary>0 chờ · 1 đang thực hiện · 2 đã có kết quả · 3 huỷ.</summary>
+        public int Status { get; set; }
+        public string StatusName { get; set; }
+        public DateTime? ResultDate { get; set; }
+
+        /// <summary>
+        /// Số thứ tự thực hiện tại phòng cận lâm sàng, ví dụ "C012". Rỗng khi chưa lấy số hoặc khi
+        /// phòng đó không phát số.
+        /// </summary>
+        public string QueueNumber { get; set; }
+
+        /// <summary>Còn bao nhiêu người trước mình; -1 = không xác định được.</summary>
+        public int PeopleAhead { get; set; }
     }
 
     /// <summary>Một ảnh trong PACS, đủ để app dựng khung xem ảnh.</summary>

@@ -216,10 +216,11 @@ public class HisRestConnector : IHisConnector
             ?? new List<HisVisitSummary>();
 
     public async Task<IReadOnlyList<HisLabResult>> GetLabResultsAsync(
-        Guid patientId, Guid? visitId = null, CancellationToken ct = default)
+        Guid patientId, Guid? visitId = null, Guid? admissionId = null, CancellationToken ct = default)
         => await SendAsync<List<HisLabResult>>(
             () => new HttpRequestMessage(
-                HttpMethod.Get, $"/api/portal/lab-results?patientId={patientId}{VisitQuery(visitId)}"), ct)
+                HttpMethod.Get,
+                $"/api/portal/lab-results?patientId={patientId}{Scope(visitId, admissionId)}"), ct)
             ?? new List<HisLabResult>();
 
     public Task<HisLabResult?> GetLabResultAsync(Guid patientId, Guid resultId, CancellationToken ct = default)
@@ -229,10 +230,11 @@ public class HisRestConnector : IHisConnector
             ct, allowNotFound: true);
 
     public async Task<IReadOnlyList<HisImagingResult>> GetImagingResultsAsync(
-        Guid patientId, Guid? visitId = null, CancellationToken ct = default)
+        Guid patientId, Guid? visitId = null, Guid? admissionId = null, CancellationToken ct = default)
         => await SendAsync<List<HisImagingResult>>(
             () => new HttpRequestMessage(
-                HttpMethod.Get, $"/api/portal/imaging-results?patientId={patientId}{VisitQuery(visitId)}"), ct)
+                HttpMethod.Get,
+                $"/api/portal/imaging-results?patientId={patientId}{Scope(visitId, admissionId)}"), ct)
             ?? new List<HisImagingResult>();
 
     public Task<HisImagingResult?> GetImagingResultAsync(Guid patientId, Guid resultId, CancellationToken ct = default)
@@ -283,10 +285,11 @@ public class HisRestConnector : IHisConnector
     }
 
     public async Task<IReadOnlyList<HisFunctionalResult>> GetFunctionalResultsAsync(
-        Guid patientId, Guid? visitId = null, CancellationToken ct = default)
+        Guid patientId, Guid? visitId = null, Guid? admissionId = null, CancellationToken ct = default)
         => await SendAsync<List<HisFunctionalResult>>(
             () => new HttpRequestMessage(
-                HttpMethod.Get, $"/api/portal/functional-results?patientId={patientId}{VisitQuery(visitId)}"), ct)
+                HttpMethod.Get,
+                $"/api/portal/functional-results?patientId={patientId}{Scope(visitId, admissionId)}"), ct)
             ?? new List<HisFunctionalResult>();
 
     public Task<HisFunctionalResult?> GetFunctionalResultAsync(Guid patientId, Guid resultId, CancellationToken ct = default)
@@ -311,7 +314,35 @@ public class HisRestConnector : IHisConnector
             ct)
             ?? new List<HisPrescription>();
 
-    private static string VisitQuery(Guid? visitId) => visitId.HasValue ? $"&visitId={visitId}" : "";
+    /// <summary>Phạm vi lọc kết quả: theo lượt khám ngoại trú hoặc theo đợt nằm viện.</summary>
+    private static string Scope(Guid? visitId, Guid? admissionId) =>
+        (visitId.HasValue ? $"&visitId={visitId}" : "")
+        + (admissionId.HasValue ? $"&admissionId={admissionId}" : "");
+
+    // ------------------------------------------------------------- nội trú
+
+    public async Task<IReadOnlyList<HisAdmission>> GetAdmissionsAsync(
+        Guid patientId, CancellationToken ct = default)
+        => await SendAsync<List<HisAdmission>>(
+            () => new HttpRequestMessage(
+                HttpMethod.Get, $"/api/portal/admissions?patientId={patientId}"), ct)
+            ?? new List<HisAdmission>();
+
+    public Task<HisMedicineDisclosure?> GetMedicineDisclosureAsync(
+        Guid patientId, Guid admissionId, CancellationToken ct = default)
+        => SendAsync<HisMedicineDisclosure>(
+            () => new HttpRequestMessage(
+                HttpMethod.Get,
+                $"/api/portal/admissions/{admissionId}/medicine-disclosure?patientId={patientId}"),
+            ct, allowNotFound: true);
+
+    public async Task<IReadOnlyList<HisServiceOrder>> GetServiceOrdersAsync(
+        Guid patientId, Guid admissionId, CancellationToken ct = default)
+        => await SendAsync<List<HisServiceOrder>>(
+            () => new HttpRequestMessage(
+                HttpMethod.Get,
+                $"/api/portal/admissions/{admissionId}/service-orders?patientId={patientId}"), ct)
+            ?? new List<HisServiceOrder>();
 
     /// <summary>
     /// Nhớ tạm danh mục ít đổi (khoa, bác sĩ) để đỡ đập vào HIS mỗi lần app mở màn đặt khám.

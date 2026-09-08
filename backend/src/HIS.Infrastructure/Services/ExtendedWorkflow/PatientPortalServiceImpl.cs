@@ -416,7 +416,8 @@ th {{ background: #f0f0f0; text-align: center; }}
     }
 
     public async Task<List<PortalLabResultDto>> GetLabResultsAsync(
-        Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null)
+        Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null,
+        Guid? admissionId = null)
     {
         try
         {
@@ -428,6 +429,10 @@ th {{ background: #f0f0f0; text-align: center; }}
             if (toDate.HasValue) query = query.Where(d => d.ResultDate <= toDate);
             // GAP 26: lọc theo lượt khám để trả lời được câu "kết quả của lần khám này".
             if (visitId.HasValue) query = query.Where(d => d.ServiceRequest.ExaminationId == visitId);
+            // Nội trú (GAP 33): kết quả gắn với hồ sơ bệnh án của đợt nằm viện, không gắn lượt khám.
+            var recordId = await ResolveAdmissionRecordAsync(patientId, admissionId);
+            if (recordId.HasValue) query = query.Where(d => d.ServiceRequest.MedicalRecordId == recordId);
+            else if (admissionId.HasValue) return new List<PortalLabResultDto>();
 
             var list = await query.OrderByDescending(d => d.ResultDate).Take(30).ToListAsync();
             if (list.Count == 0) return new List<PortalLabResultDto>();
@@ -497,13 +502,19 @@ th {{ background: #f0f0f0; text-align: center; }}
     }
 
     public async Task<List<PortalImagingResultDto>> GetImagingResultsAsync(
-        Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null)
+        Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null,
+        Guid? admissionId = null)
     {
         var query = ImagingResultQuery();
         if (patientId != Guid.Empty) query = query.Where(x => x.RadiologyExam!.RadiologyRequest!.PatientId == patientId);
         if (fromDate.HasValue) query = query.Where(x => x.RadiologyExam!.ExamDate >= fromDate);
         if (toDate.HasValue) query = query.Where(x => x.RadiologyExam!.ExamDate <= toDate);
         if (visitId.HasValue) query = query.Where(x => x.RadiologyExam!.RadiologyRequest!.ExaminationId == visitId);
+
+        var recordId = await ResolveAdmissionRecordAsync(patientId, admissionId);
+        if (recordId.HasValue)
+            query = query.Where(x => x.RadiologyExam!.RadiologyRequest!.MedicalRecordId == recordId);
+        else if (admissionId.HasValue) return new List<PortalImagingResultDto>();
 
         var list = await query.OrderByDescending(x => x.ReportDate).Take(30).ToListAsync();
         return list.Select(MapImagingResult).ToList();

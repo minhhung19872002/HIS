@@ -12,6 +12,8 @@ import '../../features/appointments/presentation/appointments_page.dart';
 import '../../features/appointments/presentation/book_appointment_page.dart';
 import '../../features/home/presentation/splash_page.dart';
 import '../../features/queue/presentation/queue_page.dart';
+import '../../features/results/presentation/admission_detail_page.dart';
+import '../../features/results/presentation/admissions_page.dart';
 import '../../features/results/presentation/functional_result_page.dart';
 import '../../features/results/presentation/imaging_result_page.dart';
 import '../../features/results/presentation/lab_result_page.dart';
@@ -41,6 +43,7 @@ class AppRoutes {
   static const bookAppointment = '/appointments/book';
   static const results = '/results';
   static const prescriptions = '/results/prescriptions';
+  static const admissions = '/admissions';
 }
 
 /// Đưa `Listenable` cho go_router từ một provider của Riverpod, để router vẽ lại khi trạng thái
@@ -80,6 +83,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: AppRoutes.appointments, builder: (_, _) => const AppointmentsPage()),
       GoRoute(path: AppRoutes.bookAppointment, builder: (_, _) => const BookAppointmentPage()),
       GoRoute(path: AppRoutes.results, builder: (_, _) => const ResultsPage()),
+      GoRoute(path: AppRoutes.admissions, builder: (_, _) => const AdmissionsPage()),
+      GoRoute(
+        path: '${AppRoutes.admissions}/:admissionId',
+        builder: (context, state) =>
+            AdmissionDetailPage(admissionId: state.pathParameters['admissionId']!),
+      ),
       // Lối tắt "Đơn thuốc" ở trang chủ mở thẳng tab đơn thuốc — người bệnh bấm vào đó là đang đi
       // tìm đúng thứ đó, không nên bắt họ tìm tiếp trong sáu tab.
       GoRoute(

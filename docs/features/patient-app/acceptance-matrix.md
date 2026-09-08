@@ -71,12 +71,12 @@
 
 | # | Yêu cầu HSMT | Màn hình / API | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|---|
-| I.2.6.1 | **Kết quả xét nghiệm** (nội trú) | Màn "Kết quả · Nội trú" → đợt điều trị → XN; `GET /patient/admissions` (**endpoint mới** — GAP 31), `GET /patient/admissions/{id}/lab-results` (GAP 33) | Chọn 1 đợt nằm viện → hiện đúng các phiếu XN của đợt đó, không lẫn của đợt khác | 4 | ⬜ |
-| I.2.6.2 | **Kết quả CĐHA cho người bệnh nội trú** | `GET /patient/admissions/{id}/imaging-results` (GAP 33) | Đối chiếu với phiếu CĐHA trong bệnh án | 4 | ⬜ |
-| I.2.6.3 | **Kết quả thăm dò chức năng cho người bệnh nội trú** | `GET /patient/admissions/{id}/functional-results` (GAP 33) | Đối chiếu với phiếu TDCN trong bệnh án | 4 | ⬜ |
-| I.2.6.4 | **Xem công khai thuốc** | Màn "Công khai thuốc" theo ngày; `GET /patient/admissions/{id}/medicine-disclosure` (**endpoint JSON mới**, tái dùng query của `PrintMedicineDisclosureAsync` — GAP 32) | Đối chiếu từng dòng (ngày, tên thuốc, ĐVT, SL, đơn giá, thành tiền, nguồn BHYT/viện phí) với bản in DD.09/BV-01 của khoa | 4 | ⬜ |
-| I.2.6.5 | **Xem hình ảnh PACS trên app** (nội trú) | Dùng chung viewer của I.2.5.7 | Mở ca chụp thuộc đợt nội trú → xem được ảnh | 4 | ⬜ |
-| I.2.6.6 | **Xem được chỉ định CLS nội trú và STT** | Màn "Chỉ định CLS"; `GET /patient/admissions/{id}/service-orders` **kèm STT thực hiện** (**bổ sung field** — GAP 34) | Mỗi chỉ định hiện đúng trạng thái (chờ / đang thực hiện / đã có KQ) **và số thứ tự thực hiện**; đối chiếu với phòng thực hiện | 4 | ⬜ |
+| I.2.6.1 | **Kết quả xét nghiệm** (nội trú) | `admissions_page.dart` → `admission_detail_page.dart` tab Xét nghiệm; `GET /patient/results/admissions` (**endpoint mới** — GAP 31), `GET /patient/results/lab?admissionId=…` (GAP 33) | ✅ Đã kiểm: `smoke-patient-app-phase4.py` TC-N01, TC-N04 (27/27) — danh sách đợt có khoa · phòng · giường · số ngày nằm; lọc theo đợt **không lẫn phiếu ngoại trú** | 4 | 🔄 |
+| I.2.6.2 | **Kết quả CĐHA cho người bệnh nội trú** | Tab Hình ảnh trong chi tiết đợt; `GET /patient/results/imaging?admissionId=…` (GAP 33) | ✅ Đã kiểm: TC-N04 — lọc theo đợt trả đúng phạm vi (đợt demo chưa có CĐHA nên rỗng, không lấy nhầm của đợt/lượt khác) | 4 | 🔄 |
+| I.2.6.3 | **Kết quả thăm dò chức năng cho người bệnh nội trú** | Tab Thăm dò CN trong chi tiết đợt; `GET /patient/results/functional?admissionId=…` (GAP 33) | ✅ Đã kiểm: TC-N04 — như trên | 4 | 🔄 |
+| I.2.6.4 | **Xem công khai thuốc** | Tab "Công khai thuốc", nhóm theo ngày như bản in; `GET /patient/results/admissions/{id}/medicine-disclosure` (**endpoint JSON mới**, dùng đúng điều kiện `PrescriptionType = 2` của bản in — GAP 32) | ✅ Đã kiểm: TC-N02 — mỗi dòng đủ ngày · tên thuốc · hoạt chất · ĐVT · SL · đơn giá · thành tiền · nguồn chi trả · cách dùng; **tổng tiền = tổng các dòng** và **BHYT + phần người bệnh = tổng tiền** | 4 | 🔄 |
+| I.2.6.5 | **Xem hình ảnh PACS trên app** (nội trú) | Dùng chung khung xem ảnh của I.2.5.7 — cùng route `results/imaging/{id}` | ✅ Đường dẫn đã nối (tab Hình ảnh mở đúng trang chi tiết). ⚠️ Ảnh thật cần PACS có dữ liệu — chụp bằng chứng ở Phase 8 | 4 | 🔄 |
+| I.2.6.6 | **Xem được chỉ định CLS nội trú và STT** | Tab "Chỉ định CLS"; `GET /patient/results/admissions/{id}/service-orders` **kèm số thứ tự thực hiện** (GAP 34) | ✅ Đã kiểm: TC-N03 — mỗi chỉ định có tên dịch vụ, phòng thực hiện, trạng thái bằng chữ, **số thứ tự** (in to trong thẻ) và số người còn chờ trước. Cách suy ra số: xem [D13](decisions.md) | 4 | 🔄 |
 
 ### 7. Chức năng quản lý gia đình
 

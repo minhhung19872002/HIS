@@ -272,10 +272,11 @@ namespace HIS.API.Controllers
             [FromQuery] Guid patientId,
             [FromQuery] DateTime? fromDate,
             [FromQuery] DateTime? toDate,
-            [FromQuery] Guid? visitId = null)
+            [FromQuery] Guid? visitId = null,
+            [FromQuery] Guid? admissionId = null)
         {
             var (pid, err) = ResolvePatientId(patientId); if (err != null) return err;
-            return Ok(await _service.GetLabResultsAsync(pid, fromDate, toDate, visitId));
+            return Ok(await _service.GetLabResultsAsync(pid, fromDate, toDate, visitId, admissionId));
         }
 
         /// <summary>
@@ -304,10 +305,11 @@ namespace HIS.API.Controllers
             [FromQuery] Guid patientId,
             [FromQuery] DateTime? fromDate,
             [FromQuery] DateTime? toDate,
-            [FromQuery] Guid? visitId = null)
+            [FromQuery] Guid? visitId = null,
+            [FromQuery] Guid? admissionId = null)
         {
             var (pid, err) = ResolvePatientId(patientId); if (err != null) return err;
-            return Ok(await _service.GetImagingResultsAsync(pid, fromDate, toDate, visitId));
+            return Ok(await _service.GetImagingResultsAsync(pid, fromDate, toDate, visitId, admissionId));
         }
 
         /// <summary>Chi tiết một phiếu KQ CĐHA: mô tả, kết luận, đề nghị (GAP 23).</summary>
@@ -399,10 +401,11 @@ namespace HIS.API.Controllers
             [FromQuery] Guid patientId,
             [FromQuery] DateTime? fromDate,
             [FromQuery] DateTime? toDate,
-            [FromQuery] Guid? visitId = null)
+            [FromQuery] Guid? visitId = null,
+            [FromQuery] Guid? admissionId = null)
         {
             var (pid, err) = ResolvePatientId(patientId); if (err != null) return err;
-            return Ok(await _service.GetFunctionalResultsAsync(pid, fromDate, toDate, visitId));
+            return Ok(await _service.GetFunctionalResultsAsync(pid, fromDate, toDate, visitId, admissionId));
         }
 
         [HttpGet("functional-results/{id}")]
@@ -416,6 +419,42 @@ namespace HIS.API.Controllers
             var result = await _service.GetFunctionalResultAsync(id);
             if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy kết quả." });
             return Ok(result);
+        }
+
+        /// <summary>Các đợt nằm viện của người bệnh (GAP 31).</summary>
+        [HttpGet("admissions")]
+        [Authorize]
+        public async Task<ActionResult<List<PortalAdmissionDto>>> GetAdmissions(
+            [FromQuery] Guid patientId)
+        {
+            var (pid, err) = ResolvePatientId(patientId); if (err != null) return err;
+            return Ok(await _service.GetAdmissionsAsync(pid));
+        }
+
+        /// <summary>
+        /// Bảng công khai thuốc của một đợt nội trú (GAP 32) — trước đây HIS chỉ xuất được bản in.
+        /// </summary>
+        [HttpGet("admissions/{admissionId}/medicine-disclosure")]
+        [Authorize]
+        public async Task<ActionResult<PortalMedicineDisclosureDto>> GetMedicineDisclosure(
+            Guid admissionId, [FromQuery] Guid patientId)
+        {
+            var (pid, err) = ResolvePatientId(patientId); if (err != null) return err;
+
+            var result = await _service.GetMedicineDisclosureAsync(pid, admissionId);
+            if (result == null)
+                return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy đợt điều trị." });
+            return Ok(result);
+        }
+
+        /// <summary>Chỉ định cận lâm sàng của đợt nội trú, kèm số thứ tự thực hiện (GAP 34).</summary>
+        [HttpGet("admissions/{admissionId}/service-orders")]
+        [Authorize]
+        public async Task<ActionResult<List<PortalServiceOrderDto>>> GetServiceOrders(
+            Guid admissionId, [FromQuery] Guid patientId)
+        {
+            var (pid, err) = ResolvePatientId(patientId); if (err != null) return err;
+            return Ok(await _service.GetServiceOrdersAsync(pid, admissionId));
         }
 
         /// <summary>Khám sức khoẻ hợp đồng của chính người bệnh này (GAP 27).</summary>

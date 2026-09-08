@@ -82,7 +82,7 @@ public interface IHisConnector
         Guid patientId, int limit = 20, CancellationToken ct = default);
 
     Task<IReadOnlyList<HisLabResult>> GetLabResultsAsync(
-        Guid patientId, Guid? visitId = null, CancellationToken ct = default);
+        Guid patientId, Guid? visitId = null, Guid? admissionId = null, CancellationToken ct = default);
 
     /// <summary>
     /// Chi tiết một phiếu xét nghiệm kèm từng chỉ số. Null nếu HIS không có, HOẶC phiếu không thuộc
@@ -92,7 +92,7 @@ public interface IHisConnector
     Task<HisLabResult?> GetLabResultAsync(Guid patientId, Guid resultId, CancellationToken ct = default);
 
     Task<IReadOnlyList<HisImagingResult>> GetImagingResultsAsync(
-        Guid patientId, Guid? visitId = null, CancellationToken ct = default);
+        Guid patientId, Guid? visitId = null, Guid? admissionId = null, CancellationToken ct = default);
 
     Task<HisImagingResult?> GetImagingResultAsync(Guid patientId, Guid resultId, CancellationToken ct = default);
 
@@ -105,7 +105,7 @@ public interface IHisConnector
         Guid patientId, Guid resultId, string instanceId, int width, CancellationToken ct = default);
 
     Task<IReadOnlyList<HisFunctionalResult>> GetFunctionalResultsAsync(
-        Guid patientId, Guid? visitId = null, CancellationToken ct = default);
+        Guid patientId, Guid? visitId = null, Guid? admissionId = null, CancellationToken ct = default);
 
     Task<HisFunctionalResult?> GetFunctionalResultAsync(Guid patientId, Guid resultId, CancellationToken ct = default);
 
@@ -114,4 +114,15 @@ public interface IHisConnector
 
     Task<IReadOnlyList<HisPrescription>> GetPrescriptionsAsync(
         Guid patientId, bool activeOnly, CancellationToken ct = default);
+
+    // ------------------------------------------------------- nội trú (I.2 #6)
+
+    Task<IReadOnlyList<HisAdmission>> GetAdmissionsAsync(Guid patientId, CancellationToken ct = default);
+
+    /// <summary>Bảng công khai thuốc. Null khi đợt điều trị không thuộc bệnh nhân này.</summary>
+    Task<HisMedicineDisclosure?> GetMedicineDisclosureAsync(
+        Guid patientId, Guid admissionId, CancellationToken ct = default);
+
+    Task<IReadOnlyList<HisServiceOrder>> GetServiceOrdersAsync(
+        Guid patientId, Guid admissionId, CancellationToken ct = default);
 }

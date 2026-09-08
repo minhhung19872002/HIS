@@ -145,3 +145,70 @@ public class HisPrescription
 
 /// <summary>Ảnh đã dựng của một instance PACS, kèm kiểu nội dung để trả nguyên vẹn cho app.</summary>
 public record HisImageBytes(byte[] Content, string ContentType);
+
+// ============================================================================
+// Nội trú (HSMT I.2 #6)
+// ============================================================================
+
+public class HisAdmission
+{
+    [JsonPropertyName("id")] public Guid Id { get; set; }
+    [JsonPropertyName("medicalRecordCode")] public string? MedicalRecordCode { get; set; }
+    [JsonPropertyName("admissionDate")] public DateTime AdmissionDate { get; set; }
+    [JsonPropertyName("dischargeDate")] public DateTime? DischargeDate { get; set; }
+    [JsonPropertyName("daysOfStay")] public int DaysOfStay { get; set; }
+    [JsonPropertyName("departmentName")] public string? DepartmentName { get; set; }
+    [JsonPropertyName("roomName")] public string? RoomName { get; set; }
+    [JsonPropertyName("bedName")] public string? BedName { get; set; }
+    [JsonPropertyName("admittingDoctorName")] public string? AdmittingDoctorName { get; set; }
+    [JsonPropertyName("reasonForAdmission")] public string? ReasonForAdmission { get; set; }
+    [JsonPropertyName("diagnosisOnAdmission")] public string? DiagnosisOnAdmission { get; set; }
+    [JsonPropertyName("dischargeDiagnosis")] public string? DischargeDiagnosis { get; set; }
+    [JsonPropertyName("status")] public int Status { get; set; }
+    [JsonPropertyName("statusName")] public string? StatusName { get; set; }
+    [JsonPropertyName("isInProgress")] public bool IsInProgress { get; set; }
+}
+
+public class HisMedicineDisclosureItem
+{
+    [JsonPropertyName("prescriptionDate")] public DateTime PrescriptionDate { get; set; }
+    [JsonPropertyName("medicineCode")] public string? MedicineCode { get; set; }
+    [JsonPropertyName("medicineName")] public string? MedicineName { get; set; }
+    [JsonPropertyName("activeIngredient")] public string? ActiveIngredient { get; set; }
+    [JsonPropertyName("unit")] public string? Unit { get; set; }
+    [JsonPropertyName("quantity")] public decimal Quantity { get; set; }
+    [JsonPropertyName("unitPrice")] public decimal UnitPrice { get; set; }
+    [JsonPropertyName("amount")] public decimal Amount { get; set; }
+    [JsonPropertyName("paymentSourceName")] public string? PaymentSourceName { get; set; }
+    [JsonPropertyName("dosage")] public string? Dosage { get; set; }
+    [JsonPropertyName("frequency")] public string? Frequency { get; set; }
+    [JsonPropertyName("usageInstructions")] public string? UsageInstructions { get; set; }
+}
+
+public class HisMedicineDisclosure
+{
+    [JsonPropertyName("admissionId")] public Guid AdmissionId { get; set; }
+    [JsonPropertyName("fromDate")] public DateTime? FromDate { get; set; }
+    [JsonPropertyName("toDate")] public DateTime? ToDate { get; set; }
+    [JsonPropertyName("items")] public List<HisMedicineDisclosureItem> Items { get; set; } = new();
+    [JsonPropertyName("totalAmount")] public decimal TotalAmount { get; set; }
+    [JsonPropertyName("insuranceAmount")] public decimal InsuranceAmount { get; set; }
+    [JsonPropertyName("patientAmount")] public decimal PatientAmount { get; set; }
+}
+
+public class HisServiceOrder
+{
+    [JsonPropertyName("id")] public Guid Id { get; set; }
+    [JsonPropertyName("orderCode")] public string? OrderCode { get; set; }
+    [JsonPropertyName("orderDate")] public DateTime OrderDate { get; set; }
+    [JsonPropertyName("serviceName")] public string? ServiceName { get; set; }
+    [JsonPropertyName("requestType")] public int RequestType { get; set; }
+    [JsonPropertyName("requestTypeName")] public string? RequestTypeName { get; set; }
+    [JsonPropertyName("executeRoomName")] public string? ExecuteRoomName { get; set; }
+    [JsonPropertyName("orderingDoctor")] public string? OrderingDoctor { get; set; }
+    [JsonPropertyName("status")] public int Status { get; set; }
+    [JsonPropertyName("statusName")] public string? StatusName { get; set; }
+    [JsonPropertyName("resultDate")] public DateTime? ResultDate { get; set; }
+    [JsonPropertyName("queueNumber")] public string? QueueNumber { get; set; }
+    [JsonPropertyName("peopleAhead")] public int PeopleAhead { get; set; }
+}

@@ -180,3 +180,22 @@ sách bị giới hạn 30 phiếu gần nhất, nên phiếu cũ hơn sẽ bị
 
 **Ảnh hưởng tương thích:** `patientId` là tuỳ chọn; không truyền thì hành vi của nhân viên tra cứu giữ
 nguyên như trước. Token `PortalPatient` vẫn luôn lấy hồ sơ từ claim.
+
+---
+
+## D13 — Số thứ tự thực hiện CLS suy ra từ vé xếp hàng, không thêm cột vào CSDL
+
+**Chọn:** ghép chỉ định cận lâm sàng với vé xếp hàng theo bộ ba **(bệnh nhân, phòng thực hiện,
+ngày)**, thay vì thêm cột `ServiceRequestDetailId` vào bảng `QueueTickets`.
+
+**Lý do:** HIS chưa có liên kết nào giữa hai thứ đó. Thêm cột thì phải sửa cả luồng phát số ở lễ tân
+và luồng điều phối CLS để điền vào — một thay đổi lan rộng qua vùng đang chạy thật, chỉ để hiển thị
+một con số. Phép ghép theo bộ ba là đúng cách một điều dưỡng đối chiếu bằng mắt, và dùng được ngay
+trên dữ liệu đang có.
+
+**Hệ quả đã biết, chấp nhận:** hai chỉ định cùng phòng trong cùng ngày sẽ hiện **cùng một số**. Đó
+lại chính là thực tế — người bệnh cũng chỉ xếp hàng một lần cho cả hai. Số thứ tự luôn hiện kèm tên
+phòng nên không bị hiểu nhầm là hai số khác nhau.
+
+**Sẽ đổi khi:** bệnh viện muốn mỗi chỉ định một số riêng. Lúc đó thêm cột liên kết là đúng, và chỗ
+đọc ở đây chỉ cần đổi một hàm.

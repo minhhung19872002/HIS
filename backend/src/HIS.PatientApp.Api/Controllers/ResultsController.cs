@@ -46,9 +46,10 @@ public class ResultsController : ControllerBase
     // ------------------------------------------------------ xét nghiệm
 
     [HttpGet("lab")]
-    public Task<IActionResult> LabResults([FromQuery] Guid? visitId, CancellationToken ct) =>
+    public Task<IActionResult> LabResults(
+        [FromQuery] Guid? visitId, [FromQuery] Guid? admissionId, CancellationToken ct) =>
         ForPatient<IReadOnlyList<HisLabResult>>("view_lab_results", null,
-            async pid => await _his.GetLabResultsAsync(pid, visitId, ct), ct);
+            async pid => await _his.GetLabResultsAsync(pid, visitId, admissionId, ct), ct);
 
     /// <summary>Chi tiết một phiếu xét nghiệm: từng chỉ số, khoảng tham chiếu, cờ bất thường.</summary>
     [HttpGet("lab/{resultId:guid}")]
@@ -59,9 +60,10 @@ public class ResultsController : ControllerBase
     // -------------------------------------------------- chẩn đoán hình ảnh
 
     [HttpGet("imaging")]
-    public Task<IActionResult> ImagingResults([FromQuery] Guid? visitId, CancellationToken ct) =>
+    public Task<IActionResult> ImagingResults(
+        [FromQuery] Guid? visitId, [FromQuery] Guid? admissionId, CancellationToken ct) =>
         ForPatient<IReadOnlyList<HisImagingResult>>("view_imaging_results", null,
-            async pid => await _his.GetImagingResultsAsync(pid, visitId, ct), ct);
+            async pid => await _his.GetImagingResultsAsync(pid, visitId, admissionId, ct), ct);
 
     [HttpGet("imaging/{resultId:guid}")]
     public Task<IActionResult> ImagingResult(Guid resultId, CancellationToken ct) =>
@@ -107,9 +109,10 @@ public class ResultsController : ControllerBase
     // -------------------------------------------------- thăm dò chức năng
 
     [HttpGet("functional")]
-    public Task<IActionResult> FunctionalResults([FromQuery] Guid? visitId, CancellationToken ct) =>
+    public Task<IActionResult> FunctionalResults(
+        [FromQuery] Guid? visitId, [FromQuery] Guid? admissionId, CancellationToken ct) =>
         ForPatient<IReadOnlyList<HisFunctionalResult>>("view_functional_results", null,
-            async pid => await _his.GetFunctionalResultsAsync(pid, visitId, ct), ct);
+            async pid => await _his.GetFunctionalResultsAsync(pid, visitId, admissionId, ct), ct);
 
     [HttpGet("functional/{resultId:guid}")]
     public Task<IActionResult> FunctionalResult(Guid resultId, CancellationToken ct) =>
@@ -129,6 +132,31 @@ public class ResultsController : ControllerBase
     public Task<IActionResult> Prescriptions([FromQuery] bool activeOnly, CancellationToken ct) =>
         ForPatient<IReadOnlyList<HisPrescription>>("view_prescriptions", null,
             async pid => await _his.GetPrescriptionsAsync(pid, activeOnly, ct), ct);
+
+    // ------------------------------------------------------------ nội trú
+
+    /// <summary>Các đợt nằm viện của người bệnh (HSMT I.2 #6).</summary>
+    [HttpGet("admissions")]
+    public Task<IActionResult> Admissions(CancellationToken ct) =>
+        ForPatient<IReadOnlyList<HisAdmission>>("view_admissions", null,
+            async pid => await _his.GetAdmissionsAsync(pid, ct), ct);
+
+    /// <summary>
+    /// Bảng công khai thuốc của một đợt nội trú — mẫu 11D/BV-01/TT23 mà khoa dán ở đầu giường, nay
+    /// người bệnh xem được trên điện thoại.
+    /// </summary>
+    [HttpGet("admissions/{admissionId:guid}/medicine-disclosure")]
+    public Task<IActionResult> MedicineDisclosure(Guid admissionId, CancellationToken ct) =>
+        ForPatient<HisMedicineDisclosure>(
+            "view_medicine_disclosure", $"admission:{admissionId}",
+            pid => _his.GetMedicineDisclosureAsync(pid, admissionId, ct), ct);
+
+    /// <summary>Chỉ định cận lâm sàng của đợt nội trú, kèm số thứ tự thực hiện.</summary>
+    [HttpGet("admissions/{admissionId:guid}/service-orders")]
+    public Task<IActionResult> ServiceOrders(Guid admissionId, CancellationToken ct) =>
+        ForPatient<IReadOnlyList<HisServiceOrder>>(
+            "view_service_orders", $"admission:{admissionId}",
+            async pid => await _his.GetServiceOrdersAsync(pid, admissionId, ct), ct);
 
     // ----------------------------------------------------------- nội bộ
 

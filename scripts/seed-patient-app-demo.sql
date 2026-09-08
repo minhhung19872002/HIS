@@ -32,6 +32,12 @@ DECLARE @FdtId           uniqueidentifier = 'AAAA0010-0000-0000-0000-00000000000
 DECLARE @CampaignId      uniqueidentifier = 'AAAA0011-0000-0000-0000-000000000001';
 DECLARE @CheckupId       uniqueidentifier = 'AAAA0012-0000-0000-0000-000000000001';
 DECLARE @PrescriptionId  uniqueidentifier = 'AAAA0013-0000-0000-0000-000000000001';
+DECLARE @AdmissionId     uniqueidentifier = 'AAAA0014-0000-0000-0000-000000000001';
+DECLARE @IpRecordId      uniqueidentifier = 'AAAA0015-0000-0000-0000-000000000001';
+DECLARE @IpSrId          uniqueidentifier = 'AAAA0016-0000-0000-0000-000000000001';
+DECLARE @IpSrdId         uniqueidentifier = 'AAAA0017-0000-0000-0000-000000000001';
+DECLARE @IpRxId          uniqueidentifier = 'AAAA0018-0000-0000-0000-000000000001';
+DECLARE @IpTicketId      uniqueidentifier = 'AAAA0019-0000-0000-0000-000000000001';
 
 DECLARE @Phone nvarchar(20) = N'0900000001';
 DECLARE @Now datetime2 = SYSUTCDATETIME();
@@ -44,6 +50,7 @@ DECLARE @LabServiceId uniqueidentifier = (SELECT TOP 1 Id FROM Services WHERE Se
 DECLARE @ImgServiceId uniqueidentifier = (SELECT TOP 1 Id FROM Services WHERE ServiceType = 3 AND IsDeleted = 0 ORDER BY ServiceCode);
 DECLARE @ModalityId   uniqueidentifier = (SELECT TOP 1 Id FROM RadiologyModalities WHERE IsDeleted = 0 ORDER BY ModalityCode);
 DECLARE @MedicineId   uniqueidentifier = (SELECT TOP 1 Id FROM Medicines WHERE IsDeleted = 0 ORDER BY MedicineName);
+DECLARE @BedId        uniqueidentifier = (SELECT TOP 1 Id FROM Beds WHERE IsDeleted = 0 ORDER BY BedName);
 
 IF @ImgServiceId IS NULL SET @ImgServiceId = @LabServiceId;
 
@@ -198,6 +205,71 @@ BEGIN
             N'1 viên', N'2 lần/ngày', 7, N'Viên',
             N'Uống sau ăn 30 phút, sáng và tối', 185000, 0, @Now, 0);
 END
+
+-- ============================================================ NOI TRU
+-- Mot dot nam vien dang dieu tri, co: don thuoc noi tru (bang cong khai thuoc),
+-- mot chi dinh can lam sang chua co ket qua, va mot ve xep hang tai phong thuc
+-- hien de kiem so thu tu.
+
+IF NOT EXISTS (SELECT 1 FROM MedicalRecords WHERE Id = @IpRecordId)
+    INSERT INTO MedicalRecords (Id, MedicalRecordCode, PatientId, AdmissionDate,
+                                InsuranceFiveYearContinuous, CreatedAt, IsDeleted)
+    VALUES (@IpRecordId, N'HS-DEMO-NT', @PatientId, DATEADD(day, -5, @Now), 0, @Now, 0);
+
+IF NOT EXISTS (SELECT 1 FROM Admissions WHERE Id = @AdmissionId)
+    INSERT INTO Admissions (Id, PatientId, MedicalRecordId, AdmissionDate, AdmissionType,
+                            AdmittingDoctorId, DepartmentId, RoomId, BedId, Status,
+                            ReasonForAdmission, DiagnosisOnAdmission, CreatedAt, IsDeleted)
+    VALUES (@AdmissionId, @PatientId, @IpRecordId, DATEADD(day, -5, @Now), 3,
+            @DoctorId, @DepartmentId, @RoomId, @BedId, 0,
+            N'Đau bụng dữ dội, sốt cao', N'Viêm ruột thừa cấp (K35.8)', @Now, 0);
+
+-- Don thuoc noi tru (PrescriptionType = 2) -> bang cong khai thuoc
+IF @MedicineId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Prescriptions WHERE Id = @IpRxId)
+BEGIN
+    INSERT INTO Prescriptions (Id, PrescriptionCode, PrescriptionDate, MedicalRecordId,
+                               DoctorId, DepartmentId, PrescriptionType, Diagnosis, TotalDays,
+                               TotalTangs, TotalAmount, InsuranceAmount, PatientAmount, Status,
+                               IsDispensed, PaymentCategory, DrugOrderType, CreatedAt, IsDeleted)
+    VALUES (@IpRxId, N'DT-DEMO-NT', DATEADD(day, -4, @Now), @IpRecordId,
+            @DoctorId, @DepartmentId, 2, N'Viêm ruột thừa cấp (K35.8)', 3,
+            0, 96000, 76800, 19200, 2, 1, 1, 1, @Now, 0);
+
+    INSERT INTO PrescriptionDetails (Id, PrescriptionId, MedicineId, Quantity, DispensedQuantity,
+                                     UnitPrice, Amount, InsuranceAmount, PatientAmount, PatientType,
+                                     InsurancePaymentRate, Dosage, Frequency, Days, Unit,
+                                     UsageInstructions, TotalPrice, Status, CreatedAt, IsDeleted)
+    VALUES (NEWID(), @IpRxId, @MedicineId, 6, 6,
+            16000, 96000, 76800, 19200, 1, 80,
+            N'1 lọ', N'2 lần/ngày', 3, N'Lọ',
+            N'Tiêm tĩnh mạch chậm, sáng và chiều', 96000, 2, @Now, 0);
+END
+
+-- Chi dinh can lam sang cua dot noi tru, chua co ket qua
+IF NOT EXISTS (SELECT 1 FROM ServiceRequests WHERE Id = @IpSrId)
+    INSERT INTO ServiceRequests (Id, RequestCode, RequestDate, MedicalRecordId,
+                                 DoctorId, DepartmentId, ExecuteRoomId, RequestType,
+                                 IsEmergency, IsPriority, Status,
+                                 Quantity, UnitPrice, TotalPrice, TotalAmount, InsuranceAmount,
+                                 PatientAmount, IsPaid, CreatedAt, IsDeleted)
+    VALUES (@IpSrId, N'XN-DEMO-NT', @Now, @IpRecordId,
+            @DoctorId, @DepartmentId, @RoomId, 1,
+            0, 0, 0,
+            1, 90000, 90000, 90000, 72000, 18000, 1, @Now, 0);
+
+IF NOT EXISTS (SELECT 1 FROM ServiceRequestDetails WHERE Id = @IpSrdId)
+    INSERT INTO ServiceRequestDetails (Id, ServiceRequestId, ServiceId, Quantity, UnitPrice, Amount,
+                                       InsuranceAmount, PatientAmount, PatientType, InsurancePaymentRate,
+                                       Status, IsSampleCollected, ReceiveStatus, CreatedAt, IsDeleted)
+    VALUES (@IpSrdId, @IpSrId, @LabServiceId, 1, 90000, 90000, 72000, 18000, 1, 80,
+            0, 0, 0, @Now, 0);
+
+-- Ve xep hang tai phong thuc hien, de app hien duoc so thu tu cua chi dinh tren
+IF NOT EXISTS (SELECT 1 FROM QueueTickets WHERE Id = @IpTicketId)
+    INSERT INTO QueueTickets (Id, TicketNumber, QueueNumber, IssueDate, PatientId, RoomId,
+                              QueueType, Priority, PriorityVerified, Status, Notes, CreatedAt, IsDeleted)
+    VALUES (@IpTicketId, N'C042', 42, @Now, @PatientId, @RoomId,
+            3, 0, 0, 0, N'Demo', @Now, 0);
 
 SELECT N'Da tao du lieu demo cho benh nhan' AS Ket_qua,
        (SELECT PatientCode FROM Patients WHERE Id = @PatientId) AS Ma_benh_nhan,

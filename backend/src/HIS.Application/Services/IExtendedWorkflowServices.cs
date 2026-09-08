@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using HIS.Application.DTOs.Telemedicine;
@@ -443,10 +443,10 @@ namespace HIS.Application.Services
         Task<byte[]> ExportHealthRecordPdfAsync(Guid patientId);
 
         // Lab & Imaging Results
-        Task<List<PortalLabResultDto>> GetLabResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null);
+        Task<List<PortalLabResultDto>> GetLabResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null, Guid? admissionId = null);
         Task<PortalLabResultDto> GetLabResultAsync(Guid id);
         Task<bool> MarkLabResultViewedAsync(Guid id);
-        Task<List<PortalImagingResultDto>> GetImagingResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null);
+        Task<List<PortalImagingResultDto>> GetImagingResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null, Guid? admissionId = null);
         Task<PortalImagingResultDto> GetImagingResultAsync(Guid id);
 
         /// <summary>Ảnh PACS của một phiếu KQ CĐHA. Rỗng nếu ca chụp chưa có ảnh hoặc PACS không tới được.</summary>
@@ -458,8 +458,22 @@ namespace HIS.Application.Services
         /// <summary>Bệnh nhân này thuộc lượt khám nào (dùng để đối chiếu quyền xem một phiếu KQ).</summary>
         Task<Guid?> GetResultOwnerPatientIdAsync(string resultKind, Guid resultId);
 
+        // Nội trú (HSMT app I.2 #6 — GAP 31, 32, 33, 34)
+
+        /// <summary>Các đợt nằm viện của một bệnh nhân, mới nhất trước.</summary>
+        Task<List<PortalAdmissionDto>> GetAdmissionsAsync(Guid patientId);
+
+        /// <summary>
+        /// Bảng công khai thuốc của một đợt nội trú. Trả null khi đợt đó không thuộc
+        /// <paramref name="patientId"/> — phép kiểm nằm tại đây chứ không phó thác cho bên gọi.
+        /// </summary>
+        Task<PortalMedicineDisclosureDto> GetMedicineDisclosureAsync(Guid patientId, Guid admissionId);
+
+        /// <summary>Chỉ định cận lâm sàng của đợt nội trú, kèm số thứ tự thực hiện.</summary>
+        Task<List<PortalServiceOrderDto>> GetServiceOrdersAsync(Guid patientId, Guid admissionId);
+
         // Thăm dò chức năng (GAP 25) và khám sức khoẻ hợp đồng (GAP 27)
-        Task<List<PortalFunctionalResultDto>> GetFunctionalResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null);
+        Task<List<PortalFunctionalResultDto>> GetFunctionalResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null, Guid? visitId = null, Guid? admissionId = null);
         Task<PortalFunctionalResultDto> GetFunctionalResultAsync(Guid id);
         Task<List<PortalHealthCheckupDto>> GetHealthCheckupsAsync(Guid patientId);
 
