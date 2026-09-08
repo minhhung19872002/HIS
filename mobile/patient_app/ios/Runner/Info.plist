@@ -5,7 +5,17 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Patient App</string>
+	<string>HIS Người bệnh</string>
+	<!-- Mo ta quyen: App Store TU CHOI ban phat hanh neu app dung tinh nang ma khong khai o day.
+	     Van ban phai noi ro DUNG DE LAM GI — nguoi benh doc dong nay khi he dieu hanh hoi. -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>Dùng Face ID để đăng nhập nhanh và mở khoá phần bệnh án của bạn.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Dùng máy ảnh để chụp giấy tờ (CCCD, thẻ BHYT, giấy hẹn) lưu vào ví giấy tờ.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Chọn ảnh giấy tờ có sẵn trong máy để lưu vào ví giấy tờ.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Lưu kết quả khám hoặc giấy tờ đã tải về vào thư viện ảnh của bạn.</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

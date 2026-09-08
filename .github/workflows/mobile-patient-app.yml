@@ -1,0 +1,219 @@
+name: Mobile — App hỗ trợ người bệnh
+
+# Kiểm app Flutter trên CẢ Android lẫn iOS, và chụp màn hình làm bằng chứng nghiệm thu.
+#
+# Vì sao có việc này: máy phát triển của đội là Windows nên KHÔNG build được iOS tại chỗ.
+# macOS runner ở đây là đường duy nhất để chứng minh app dựng và chạy được trên iOS —
+# và để chứng minh mức iOS tối thiểu đúng 12.0 như hồ sơ mời thầu yêu cầu.
+#
+# Tài liệu: docs/features/patient-app/README.md
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/patient_app/**'
+      - '.github/workflows/mobile-patient-app.yml'
+  pull_request:
+    paths:
+      - 'mobile/patient_app/**'
+  workflow_dispatch:
+
+env:
+  # Bản stable CUỐI CÙNG còn target iOS 12.0 (từ 3.35.0 mức tối thiểu là 13.0).
+  # Phải khớp với mobile/patient_app/.fvmrc.
+  FLUTTER_VERSION: '3.32.8'
+  APP_DIR: mobile/patient_app
+
+jobs:
+  android:
+    name: Android (phân tích · test · build · chụp màn hình)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Xác nhận bản Flutter khớp .fvmrc
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          PINNED=$(python3 -c "import json;print(json.load(open('.fvmrc'))['flutter'])")
+          ACTUAL=$(flutter --version | head -1 | awk '{print $2}')
+          echo "pin=$PINNED  đang chạy=$ACTUAL"
+          # Chạy sai bản là âm thầm mất iOS 12 — thà dừng ở đây còn hơn phát hiện lúc nghiệm thu.
+          [ "$PINNED" = "$ACTUAL" ] || { echo "::error::Bản Flutter không khớp .fvmrc"; exit 1; }
+
+      - name: Lấy phụ thuộc
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter pub get
+
+      - name: Phân tích tĩnh
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter analyze
+
+      - name: Chạy unit + widget test
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter test
+
+      - name: Xác nhận minSdk = 25 (Android 7.1.1, đúng dòng "Android 7.2 trở lên" của HSMT)
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          grep -q 'minSdk = 25' android/app/build.gradle.kts \
+            || { echo "::error::minSdk không còn là 25"; exit 1; }
+          echo "minSdk = 25 ✓"
+
+      - name: Build APK debug
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter build apk --debug
+
+      # Máy ảo Android trên runner cần KVM mới chạy được ở tốc độ dùng được.
+      - name: Bật KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Chụp màn hình trên máy ảo Android
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          working-directory: ${{ env.APP_DIR }}
+          script: |
+            flutter drive \
+              --driver=test_driver/integration_test.dart \
+              --target=integration_test/screenshots_test.dart \
+              -d emulator-5554
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: anh-man-hinh-android
+          path: ${{ env.APP_DIR }}/screenshots/
+          if-no-files-found: warn
+
+  ios:
+    name: iOS (build · chụp màn hình trên simulator · kiểm mức iOS tối thiểu)
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Môi trường
+        run: |
+          flutter --version
+          xcodebuild -version
+          echo "--- simulator có sẵn ---"
+          xcrun simctl list devices available | head -40
+
+      - name: Lấy phụ thuộc
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter pub get
+
+      - name: Phân tích tĩnh
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter analyze
+
+      - name: Chạy unit + widget test
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter test
+
+      # Bằng chứng cho hồ sơ mời thầu: mức iOS tối thiểu đúng 12.0 ở CẢ BA nơi khai báo.
+      - name: Kiểm mức iOS tối thiểu = 12.0
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          echo "--- project.pbxproj ---"
+          grep -c 'IPHONEOS_DEPLOYMENT_TARGET = 12.0;' ios/Runner.xcodeproj/project.pbxproj
+          grep -q 'IPHONEOS_DEPLOYMENT_TARGET = 12.0;' ios/Runner.xcodeproj/project.pbxproj \
+            || { echo "::error::project.pbxproj không còn target iOS 12.0"; exit 1; }
+
+          echo "--- AppFrameworkInfo.plist ---"
+          /usr/libexec/PlistBuddy -c "Print :MinimumOSVersion" ios/Flutter/AppFrameworkInfo.plist
+
+          echo "--- Podfile ---"
+          grep -q "platform :ios, '12.0'" ios/Podfile \
+            || { echo "::error::Podfile không còn platform :ios 12.0"; exit 1; }
+          echo "Cả ba nơi đều khai iOS 12.0 ✓"
+
+      - name: Build cho simulator (không ký số)
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter build ios --simulator --debug
+
+      - name: Xác nhận sản phẩm build thật sự mang MinimumOSVersion 12.0
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          APP=build/ios/iphonesimulator/Runner.app
+          echo "MinimumOSVersion trong Info.plist của bản build:"
+          /usr/libexec/PlistBuddy -c "Print :MinimumOSVersion" "$APP/Info.plist"
+
+      - name: Khởi động iPhone simulator
+        id: sim
+        run: |
+          # Chọn iPhone mới nhất đang có trên runner.
+          UDID=$(xcrun simctl list devices available -j \
+            | python3 -c "
+import json,sys
+data = json.load(sys.stdin)['devices']
+best = None
+for runtime, devices in data.items():
+    if 'iOS' not in runtime:
+        continue
+    for d in devices:
+        if d.get('isAvailable') and d['name'].startswith('iPhone'):
+            best = d['udid']
+print(best or '')")
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl list devices | grep Booted
+
+      - name: Chụp màn hình trên iOS simulator
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          flutter drive \
+            --driver=test_driver/integration_test.dart \
+            --target=integration_test/screenshots_test.dart \
+            -d ${{ steps.sim.outputs.udid }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: anh-man-hinh-ios
+          path: ${{ env.APP_DIR }}/screenshots/
+          if-no-files-found: warn
+
+      # Chụp thêm bằng chính simulator để có ảnh kèm khung máy iPhone, dễ đưa vào hồ sơ nghiệm thu.
+      - name: Ảnh toàn màn hình simulator
+        if: always()
+        run: |
+          mkdir -p sim-shots
+          xcrun simctl io ${{ steps.sim.outputs.udid }} screenshot sim-shots/ios-simulator.png || true
+          ls -la sim-shots || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: anh-simulator-ios
+          path: sim-shots/
+          if-no-files-found: ignore

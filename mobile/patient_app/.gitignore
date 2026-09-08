@@ -53,3 +53,7 @@ app.*.map.json
 
 # FVM Version Cache
 .fvm/
+# Ảnh do `flutter drive` sinh ra khi chạy bộ chụp màn hình — CI thu lại làm hiện vật,
+# không cần nằm trong lịch sử git. Ảnh dùng làm bằng chứng nghiệm thu nằm ở
+# docs/features/patient-app/screenshots/.
+/screenshots/

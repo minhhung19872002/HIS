@@ -118,6 +118,12 @@ class _DeviceTile extends StatelessWidget {
   final LoginDevice device;
   final VoidCallback onRevoke;
 
+  String get _platformLine => [
+        if (device.osVersion != null && device.osVersion!.isNotEmpty) device.osVersion!,
+        if (device.appVersion != null && device.appVersion!.isNotEmpty)
+          'Phiên bản ${device.appVersion}',
+      ].join(' · ');
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -149,10 +155,9 @@ class _DeviceTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Text([
-              if (device.osVersion != null) device.osVersion!,
-              if (device.appVersion != null) 'Phiên bản ${device.appVersion}',
-            ].join(' · ')),
+            // Chỉ dựng dòng này khi thật sự có nội dung: thiết bị cũ chưa gửi phiên bản HĐH sẽ để
+            // lại một dòng trống trông như lỗi hiển thị.
+            if (_platformLine.isNotEmpty) Text(_platformLine),
             Text('Hoạt động lần cuối: ${formatter.format(device.lastSeenAt)}'),
             if (device.lastIp != null) Text('Địa chỉ: ${device.lastIp}'),
             if (device.biometricEnabled)

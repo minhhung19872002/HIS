@@ -1,0 +1,63 @@
+# Podfile cho app ho tro nguoi benh.
+#
+# Dat tuong minh platform :ios, '12.0' — dung dong "iOS 12.0 tro len" cua ho so moi thau.
+# Neu de Flutter tu sinh Podfile, no lay muc mac dinh cua ban Flutter dang chay va se AM THAM
+# nang muc toi thieu len khi ai do doi ban SDK. Xem docs/features/patient-app/README.md §6.2.
+platform :ios, '12.0'
+
+# Tat gui thong ke ban dung ve CocoaPods.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. Chay `flutter pub get` truoc."
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT khong co trong #{generated_xcode_build_settings_path}. Xoa roi chay lai `flutter pub get`."
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+flutter_ios_podfile_setup
+
+target 'Runner' do
+  use_frameworks!
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+
+  target 'RunnerTests' do
+    inherit! :search_paths
+  end
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+
+    target.build_configurations.each do |config|
+      # flutter_additional_ios_build_settings co the keo muc toi thieu len theo ban Flutter.
+      # Ep lai 12.0 de moi pod cung build cho iOS 12 — mot pod doi cao hon se lam ca app mat iOS 12.
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
+
+      # Quyen cho cac plugin dung permission_handler: chi bat dung nhung quyen app thuc su xin,
+      # de App Store khong hoi ve nhung quyen khong dung toi.
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
+        '$(inherited)',
+        'PERMISSION_NOTIFICATIONS=1',
+        'PERMISSION_PHOTOS=1',
+        'PERMISSION_CAMERA=1',
+      ]
+    end
+  end
+end
