@@ -15,6 +15,17 @@ public class QueueTicket : BaseEntity
     public int Priority { get; set; } // 0-Bình thường, 1-Ưu tiên, 2-Cấp cứu
     public int Status { get; set; } // 0-Chờ, 1-Đang gọi, 2-Đang phục vụ, 3-Hoàn thành, 4-Bỏ qua
 
+    // Migration 184 — phục vụ "lấy STT ưu tiên ngoại trú" qua app di động (HSMT I.2 #3).
+    // 1-Người cao tuổi, 2-Trẻ em dưới 6 tuổi, 3-Phụ nữ có thai, 4-Người khuyết tật nặng,
+    // 5-Người có công, 6-Cấp cứu, 9-Khác. NULL = không ghi nhận lý do.
+    public int? PriorityReason { get; set; }
+
+    // Đã đối chiếu được lý do ưu tiên bằng dữ liệu trong HIS hay chưa.
+    // Tuổi suy ra từ ngày sinh nên đối chiếu được ngay; "đang có thai" hay "khuyết tật nặng" thì
+    // không, nên vé vẫn được cấp số ưu tiên nhưng cờ này = false để quầy lễ tân xác minh khi gọi.
+    // Không có cờ này thì ai khai gì cũng được ưu tiên, và người ưu tiên THẬT sẽ bị thiệt.
+    public bool PriorityVerified { get; set; }
+
     public Guid? PatientId { get; set; }
     public virtual Patient? Patient { get; set; }
 

@@ -75,6 +75,16 @@ public class IssueQueueTicketDto
     public Guid RoomId { get; set; }
     public int QueueType { get; set; } // 1-Tiếp đón, 2-Khám bệnh, 3-CLS, 4-Thanh toán, 5-Lĩnh thuốc
     public int Priority { get; set; } // 0-Thường, 1-Ưu tiên, 2-Cấp cứu
+
+    /// <summary>Lý do ưu tiên (migration 184). Xem <c>MobileQueueTicketDto.PriorityReason</c>.</summary>
+    public int? PriorityReason { get; set; }
+
+    /// <summary>
+    /// Đã đối chiếu được lý do ưu tiên chưa. Nhân viên lễ tân cấp số tại quầy thì mặc định là
+    /// true (họ nhìn thấy người thật); số xin qua app thì do máy chủ tự quyết.
+    /// </summary>
+    public bool PriorityVerified { get; set; } = true;
+
     public string? Source { get; set; } // Kiosk, Mobile, Counter
 }
 
@@ -108,6 +118,27 @@ public class QueueTicketDto
 
     public int Priority { get; set; }
     public string PriorityName => Priority switch { 2 => "Cấp cứu", 1 => "Ưu tiên", _ => "Thường" };
+
+    /// <summary>Lý do ưu tiên — xem <c>MobileQueueTicketDto.PriorityReason</c>.</summary>
+    public int? PriorityReason { get; set; }
+
+    public string? PriorityReasonName => PriorityReason switch
+    {
+        1 => "Người cao tuổi",
+        2 => "Trẻ em dưới 6 tuổi",
+        3 => "Phụ nữ có thai",
+        4 => "Người khuyết tật nặng",
+        5 => "Người có công",
+        6 => "Cấp cứu",
+        9 => "Khác",
+        _ => null
+    };
+
+    /// <summary>
+    /// false = lý do ưu tiên do người bệnh tự khai và chưa đối chiếu được. Màn hình lễ tân nên
+    /// hiển thị cảnh báo để nhân viên xác minh khi gọi số.
+    /// </summary>
+    public bool PriorityVerified { get; set; }
 
     public int Status { get; set; } // 0-Chờ, 1-Đang gọi, 2-Đã vào, 3-Bỏ qua, 4-Hoàn thành
     public string StatusName => Status switch
@@ -157,6 +188,16 @@ public class MobileQueueTicketDto
     public string? InsuranceNumber { get; set; }
     public Guid RoomId { get; set; }
     public int QueueType { get; set; }
+
+    /// <summary>
+    /// Lý do xin ưu tiên (HSMT app mobile I.2 #3 "lấy STT ưu tiên ngoại trú"):
+    /// 1-Người cao tuổi, 2-Trẻ em dưới 6 tuổi, 3-Phụ nữ có thai, 4-Người khuyết tật nặng,
+    /// 5-Người có công, 9-Khác. Bỏ trống = xin số thường.
+    ///
+    /// Máy chủ KHÔNG tin thẳng giá trị này: tuổi được đối chiếu lại với ngày sinh trong hồ sơ,
+    /// còn lý do không kiểm được thì vé vẫn ưu tiên nhưng bị đánh dấu chờ xác minh tại quầy.
+    /// </summary>
+    public int? PriorityReason { get; set; }
 }
 
 
@@ -550,3 +591,41 @@ public class HealthCheckPatientImportDto
 }
 
 
+
+/// <summary>
+/// Trạng thái một vé xếp hàng, dành cho app di động hỏi lại sau khi đã lấy số (migration 184,
+/// HSMT app mobile I.2 #3).
+///
+/// Cố ý KHÔNG chứa thông tin định danh người bệnh: app đã biết vé của mình, và endpoint tra theo
+/// mã vé là công khai nên không được để lộ ai đang khám ở đâu.
+/// </summary>
+public class QueueTicketStatusDto
+{
+    public Guid TicketId { get; set; }
+    public string TicketCode { get; set; } = string.Empty;
+    public int QueueNumber { get; set; }
+    public Guid RoomId { get; set; }
+    public string RoomName { get; set; } = string.Empty;
+
+    public int Status { get; set; } // 0-Chờ, 1-Đang gọi, 2-Đang phục vụ, 3-Hoàn thành, 4-Bỏ qua
+    public string StatusName => Status switch
+    {
+        0 => "Đang chờ",
+        1 => "Đang gọi bạn",
+        2 => "Đang khám",
+        3 => "Đã xong",
+        4 => "Đã bỏ qua",
+        _ => ""
+    };
+
+    public int Priority { get; set; }
+    public bool PriorityVerified { get; set; }
+
+    /// <summary>Số đang được gọi tại phòng, để người bệnh tự ước lượng.</summary>
+    public string? CurrentServingTicket { get; set; }
+
+    /// <summary>Số người còn chờ TRƯỚC vé này (đã tính cả thứ tự ưu tiên).</summary>
+    public int PeopleAhead { get; set; }
+
+    public int EstimatedWaitMinutes { get; set; }
+}

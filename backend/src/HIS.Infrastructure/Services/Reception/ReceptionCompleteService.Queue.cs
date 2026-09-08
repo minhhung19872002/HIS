@@ -414,6 +414,8 @@ public partial class ReceptionCompleteService {
             IssueDate = DateTime.UtcNow, // Chuẩn hóa UTC — query dùng DayRangeUtc để so sánh đúng ngày VN
             QueueType = dto.QueueType,
             Priority = dto.Priority,
+            PriorityReason = dto.PriorityReason,
+            PriorityVerified = dto.Priority > 0 && dto.PriorityVerified,
             Status = 0, // Waiting
             PatientId = dto.PatientId,
             RoomId = dto.RoomId,
@@ -437,6 +439,8 @@ public partial class ReceptionCompleteService {
             RoomName = room?.RoomName ?? "",
             QueueType = ticket.QueueType,
             Priority = ticket.Priority,
+            PriorityReason = ticket.PriorityReason,
+            PriorityVerified = ticket.PriorityVerified,
             Status = ticket.Status,
             EstimatedWaitMinutes = await CalculateEstimatedWaitAsync(dto.RoomId, dto.QueueType)
         };
@@ -449,15 +453,81 @@ public partial class ReceptionCompleteService {
             .Where(p => !p.IsDeleted)
             .FindByPhoneNumberDecryptedAsync(dto.PatientPhone);
 
+        var (priority, reason, verified) = ResolveMobilePriority(dto.PriorityReason, patient);
+
         return await IssueQueueTicketAsync(new IssueQueueTicketDto
         {
             PatientId = patient?.Id,
             PatientName = dto.PatientName ?? patient?.FullName,
             RoomId = dto.RoomId,
             QueueType = dto.QueueType,
-            Priority = 0,
+            Priority = priority,
+            PriorityReason = reason,
+            PriorityVerified = verified,
             Source = "Mobile"
         });
+    }
+
+    /// <summary>
+    /// Quyết định mức ưu tiên cho số thứ tự xin qua app (HSMT app mobile I.2 #3, migration 184).
+    ///
+    /// Nguyên tắc: <b>không tin thẳng lời khai</b>.
+    /// <list type="bullet">
+    /// <item>Tuổi suy ra được từ ngày sinh trong hồ sơ, nên tự đối chiếu và đánh dấu đã xác minh.
+    ///       Người bệnh khai "cao tuổi" mà hồ sơ ghi 30 tuổi thì không được ưu tiên.</item>
+    /// <item>Người đủ điều kiện theo tuổi thì <b>được ưu tiên kể cả khi không khai</b> — người cao
+    ///       tuổi thường là nhóm ít rành thao tác trên app nhất.</item>
+    /// <item>Lý do không kiểm được (có thai, khuyết tật nặng, người có công) vẫn được cấp số ưu tiên
+    ///       — chặn thì tính năng thành vô nghĩa — nhưng đánh dấu <c>PriorityVerified = false</c> để
+    ///       quầy lễ tân xác minh khi gọi. Nếu ai khai gì cũng được ưu tiên mà không ai biết, người
+    ///       ưu tiên THẬT sẽ là người bị thiệt.</item>
+    /// <item>Không có hồ sơ trong HIS thì không tự đối chiếu được gì: cho ưu tiên theo lời khai
+    ///       nhưng chưa xác minh.</item>
+    /// </list>
+    /// Cấp cứu (mức 2) cố ý KHÔNG cấp qua app: người cấp cứu vào thẳng khoa cấp cứu, không ngồi
+    /// bấm điện thoại xin số.
+    /// </summary>
+    private static (int Priority, int? Reason, bool Verified) ResolveMobilePriority(
+        int? declaredReason, Patient? patient)
+    {
+        const int ReasonElderly = 1;
+        const int ReasonYoungChild = 2;
+
+        var age = CalculateAgeInVn(patient);
+
+        // Ngưỡng theo Luật Người cao tuổi (từ đủ 60) và trẻ em dưới 6 tuổi — hai nhóm được ưu tiên
+        // khám bệnh theo quy định hiện hành.
+        if (age is >= 60) return (1, ReasonElderly, true);
+        if (age is < 6) return (1, ReasonYoungChild, true);
+
+        if (declaredReason is null or 0) return (0, null, false);
+
+        // Khai là cao tuổi hoặc trẻ em nhưng ngày sinh nói khác: từ chối, không phải nghi ngờ ai
+        // mà vì đây là điều đối chiếu được nên phải đối chiếu.
+        if (age is not null && (declaredReason == ReasonElderly || declaredReason == ReasonYoungChild))
+            return (0, null, false);
+
+        // Cấp cứu không đi đường này.
+        if (declaredReason == 6) return (0, null, false);
+
+        return (1, declaredReason, false);
+    }
+
+    /// <summary>Tuổi tính theo ngày giờ Việt Nam; null nếu hồ sơ không có ngày sinh.</summary>
+    private static int? CalculateAgeInVn(Patient? patient)
+    {
+        var dateOfBirth = patient?.DateOfBirth;
+        if (dateOfBirth is null) return null;
+
+        // VnTime.TodayVn trả DateTime đã cắt giờ; dùng DateOnly để so sánh cho khỏi lẫn phần giờ.
+        var today = DateOnly.FromDateTime(HIS.Core.Common.VnTime.TodayVn);
+        var birthDate = DateOnly.FromDateTime(dateOfBirth.Value);
+        var age = today.Year - birthDate.Year;
+
+        // Chưa tới sinh nhật năm nay thì trừ đi một tuổi.
+        if (birthDate > today.AddYears(-age)) age--;
+
+        return age < 0 ? null : age;
     }
 
     public async Task<QueueTicketDto?> CallNextAsync(Guid roomId, int queueType, Guid userId)
@@ -498,6 +568,60 @@ public partial class ReceptionCompleteService {
         await _unitOfWork.SaveChangesAsync();
 
         return (await GetQueueTicketByIdAsync(ticketId))!;
+    }
+
+    public async Task<QueueTicketStatusDto?> GetQueueTicketStatusAsync(Guid ticketId)
+    {
+        var ticket = await _context.QueueTickets
+            .Include(t => t.Room)
+            .FirstOrDefaultAsync(t => t.Id == ticketId && !t.IsDeleted);
+
+        if (ticket == null) return null;
+
+        var (fromUtc, toUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
+
+        // Đếm số người đứng TRƯỚC vé này theo đúng thứ tự mà CallNextAsync sẽ gọi: ưu tiên cao hơn
+        // đi trước, cùng mức ưu tiên thì số nhỏ đi trước. Đếm kiểu khác sẽ ra một con số không khớp
+        // với thực tế người bệnh nhìn thấy ở phòng khám.
+        var peopleAhead = ticket.Status == 0
+            ? await _context.QueueTickets.CountAsync(t =>
+                t.RoomId == ticket.RoomId &&
+                t.QueueType == ticket.QueueType &&
+                t.IssueDate >= fromUtc && t.IssueDate < toUtc &&
+                t.Status == 0 &&
+                !t.IsDeleted &&
+                (t.Priority > ticket.Priority ||
+                 (t.Priority == ticket.Priority && t.QueueNumber < ticket.QueueNumber)))
+            : 0;
+
+        var currentServing = await _context.QueueTickets
+            .Where(t => t.RoomId == ticket.RoomId &&
+                        t.QueueType == ticket.QueueType &&
+                        t.IssueDate >= fromUtc && t.IssueDate < toUtc &&
+                        (t.Status == 1 || t.Status == 2) &&
+                        !t.IsDeleted)
+            .OrderByDescending(t => t.CalledTime)
+            .Select(t => t.TicketNumber)
+            .FirstOrDefaultAsync();
+
+        var averageWait = ticket.RoomId.HasValue
+            ? await CalculateEstimatedWaitAsync(ticket.RoomId.Value, ticket.QueueType)
+            : 0;
+
+        return new QueueTicketStatusDto
+        {
+            TicketId = ticket.Id,
+            TicketCode = ticket.TicketNumber,
+            QueueNumber = ticket.QueueNumber,
+            RoomId = ticket.RoomId ?? Guid.Empty,
+            RoomName = ticket.Room?.RoomName ?? "",
+            Status = ticket.Status,
+            Priority = ticket.Priority,
+            PriorityVerified = ticket.PriorityVerified,
+            CurrentServingTicket = currentServing,
+            PeopleAhead = peopleAhead,
+            EstimatedWaitMinutes = averageWait,
+        };
     }
 
     public async Task<QueueTicketDto> RecallAsync(Guid ticketId, Guid userId)

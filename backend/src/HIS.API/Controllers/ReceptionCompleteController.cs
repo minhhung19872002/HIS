@@ -248,6 +248,21 @@ public partial class ReceptionCompleteController : ControllerBase
     }
 
     /// <summary>
+    /// Trạng thái một vé xếp hàng — dành cho app di động hỏi lại sau khi đã lấy số
+    /// (HSMT app mobile I.2 #3; xem docs/features/patient-app/00-his-api-inventory.md §11.4 GAP 15).
+    ///
+    /// Nhẹ hơn nhiều so với tải cả màn hình hàng đợi của phòng, nên app gọi lại được thường xuyên.
+    /// Không trả về thông tin định danh người bệnh: endpoint này công khai, chỉ cần biết mã vé.
+    /// </summary>
+    [HttpGet("queue/ticket/{ticketId}/status")]
+    [AllowAnonymous]
+    public async Task<ActionResult<QueueTicketStatusDto>> GetQueueTicketStatus(Guid ticketId)
+    {
+        var result = await _receptionService.GetQueueTicketStatusAsync(ticketId);
+        return result is null ? NotFound() : Ok(result);
+    }
+
+    /// <summary>
     /// Lấy danh sách số đang gọi
     /// </summary>
     [HttpGet("queue/calling/{roomId}")]

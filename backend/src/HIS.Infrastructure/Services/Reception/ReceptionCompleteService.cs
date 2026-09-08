@@ -273,6 +273,10 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
             RoomName = ticket.Room?.RoomName ?? "",
             QueueType = ticket.QueueType,
             Priority = ticket.Priority,
+            // Migration 184: lễ tân cần nhìn thấy vé ưu tiên nào do người bệnh tự khai qua app mà
+            // chưa đối chiếu được, để xác minh lúc gọi số.
+            PriorityReason = ticket.PriorityReason,
+            PriorityVerified = ticket.PriorityVerified,
             Status = ticket.Status,
             CalledCount = 1,
             CalledAt = ticket.CalledTime,

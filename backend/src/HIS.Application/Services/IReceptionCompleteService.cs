@@ -67,6 +67,13 @@ public interface IReceptionCompleteService
     Task<QueueTicketDto> IssueQueueTicketMobileAsync(MobileQueueTicketDto dto);
 
     /// <summary>
+    /// Trạng thái hiện tại của MỘT vé: đang gọi số nào, còn bao nhiêu người trước, ước tính
+    /// bao nhiêu phút. Dành cho app di động hỏi lại định kỳ sau khi đã lấy số — nhẹ hơn nhiều
+    /// so với tải cả màn hình hàng đợi của phòng. Null nếu không có vé.
+    /// </summary>
+    Task<QueueTicketStatusDto?> GetQueueTicketStatusAsync(Guid ticketId);
+
+    /// <summary>
     /// Lấy số tiếp theo
     /// </summary>
     Task<QueueTicketDto?> CallNextAsync(Guid roomId, int queueType, Guid userId);
