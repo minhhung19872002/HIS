@@ -106,11 +106,9 @@ jobs:
             -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           working-directory: ${{ env.APP_DIR }}
-          script: |
-            flutter drive \
-              --driver=test_driver/integration_test.dart \
-              --target=integration_test/screenshots_test.dart \
-              -d emulator-5554
+          # MỘT DÒNG: action này truyền `script` vào `sh -c`, nên xuống dòng bằng dấu \ sẽ bị nuốt
+          # và Flutter nhận được đối số rác (`Target file "\" not found.`).
+          script: flutter drive --driver=test_driver/integration_test.dart --target=integration_test/screenshots_test.dart -d emulator-5554
 
       - uses: actions/upload-artifact@v4
         if: always()
