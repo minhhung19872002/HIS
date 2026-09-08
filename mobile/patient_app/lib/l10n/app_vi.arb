@@ -1,0 +1,26 @@
+{
+  "@@locale": "vi",
+  "appTitle": "HIS Người bệnh",
+  "@appTitle": { "description": "Tên app hiển thị trên thanh tiêu đề" },
+
+  "navHome": "Trang chủ",
+  "navResults": "Kết quả",
+  "navNotifications": "Thông báo",
+  "navAccount": "Tài khoản",
+
+  "actionRetry": "Thử lại",
+  "actionCancel": "Huỷ",
+  "actionContinue": "Tiếp tục",
+
+  "shortcutQueue": "Lấy số thứ tự",
+  "shortcutBooking": "Đặt khám",
+  "shortcutResults": "Kết quả khám",
+  "shortcutPrescription": "Đơn thuốc",
+  "shortcutWallet": "Ví giấy tờ",
+  "shortcutFamily": "Gia đình",
+
+  "stateEmpty": "Chưa có dữ liệu",
+  "stateLoadFailed": "Không tải được dữ liệu",
+  "errorNetwork": "Không có kết nối mạng. Vui lòng thử lại.",
+  "errorSessionExpired": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
+}

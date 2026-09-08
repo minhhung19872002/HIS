@@ -1,0 +1,25 @@
+{
+  "@@locale": "en",
+  "appTitle": "HIS Patient",
+
+  "navHome": "Home",
+  "navResults": "Results",
+  "navNotifications": "Notifications",
+  "navAccount": "Account",
+
+  "actionRetry": "Retry",
+  "actionCancel": "Cancel",
+  "actionContinue": "Continue",
+
+  "shortcutQueue": "Get a number",
+  "shortcutBooking": "Book a visit",
+  "shortcutResults": "Visit results",
+  "shortcutPrescription": "Prescriptions",
+  "shortcutWallet": "Document wallet",
+  "shortcutFamily": "Family",
+
+  "stateEmpty": "No data yet",
+  "stateLoadFailed": "Could not load data",
+  "errorNetwork": "No network connection. Please try again.",
+  "errorSessionExpired": "Your session has expired. Please sign in again."
+}

@@ -1,0 +1,181 @@
+# App Mobile Hỗ trợ Người bệnh (HIS PatientApp) — Tổng quan & Kế hoạch
+
+> Gói thầu: **"Thuê phần mềm ứng dụng di động (app mobile) phục vụ công tác quản lý, hỗ trợ người bệnh"**.
+> Nguồn yêu cầu: `docs/mobile/NangCapMobileApp.pdf` (HSMT) + `docs/mobile/PROMPT_HIS_PatientApp_Flutter.md`.
+>
+> 📚 Bộ tài liệu: [`00-his-api-inventory.md`](00-his-api-inventory.md) (khảo sát API HIS) ·
+> [`acceptance-matrix.md`](acceptance-matrix.md) (bảng đối chiếu nghiệm thu) ·
+> `his-connector-mapping.md` (mapping connector — viết ở Phase 1) ·
+> `analysis.md` · `test-plan.md` · `test-guide.md` · `workflow-test.md` · `summary.md` (viết dần theo phase).
+
+---
+
+## 1. Phạm vi theo HSMT
+
+| Mục | Nội dung | Nơi triển khai |
+|---|---|---|
+| **I.1** | Module kết nối — hệ thống trên nền Linux, tích hợp bản quyền HĐH & CSDL (hoặc **công nghệ tương đương**); kết nối HIS **dựa trên các API HIS cung cấp** | Data center bệnh viện |
+| **I.2** | Module tính năng người dùng — app cho người bệnh (9 phân hệ, xem §3) | Data center bệnh viện |
+| **I.3** | Module tính năng quản trị — web cho nhân viên quản lý & CSKH (2 phân hệ) | Data center bệnh viện |
+| **I.4** | Chứng chỉ số **DV SSL** hoặc tương đương | Mọi domain công khai |
+| **II** | Hệ thống truyền tải dữ liệu người dùng trên **VPS Cloud** (SSD ≥ 15GB, RAM ≥ 2GB, CPU ≥ 2 core) | VPS cloud |
+
+Ràng buộc: **không giới hạn số người dùng** · **iOS ≥ 12.0** · **Android ≥ 7.2**.
+
+---
+
+## 2. Hiện trạng HIS — vì sao kế hoạch này khác prompt gốc
+
+Khảo sát (chi tiết ở [`00-his-api-inventory.md`](00-his-api-inventory.md)) cho ra **một phát hiện làm
+thay đổi khối lượng công việc**: HIS **đã có sẵn một cổng bệnh nhân tương đối đầy đủ** (gói "NangCap19"):
+
+- `PatientPortalController` — ~40 route: lượt khám, KQ xét nghiệm, KQ CĐHA, đơn thuốc, hoá đơn,
+  lịch hẹn, thành viên gia đình, nhắc thuốc, chỉ số sức khoẻ, hỏi-đáp bác sĩ.
+- Entity: `PortalAccount`, `PortalAppointment`, `FamilyMember`, `MedicineReminder`, `HealthMetric`,
+  `PatientQuestion` (`ExtendedWorkflowEntities.cs:1424-1604`).
+- Role `PortalPatient` + **pattern chống IDOR đã đúng chuẩn** (`ResolvePatientId`,
+  `PatientPortalController.cs:47-64`).
+
+→ App **không xây từ số 0**. Phần lớn Phase 3-5 là **điền nốt dữ liệu vào DTO đã khai sẵn** và
+**siết bảo mật**, không phải viết mới toàn bộ nghiệp vụ.
+
+Ngược lại, có **5 mảng hoàn toàn chưa tồn tại**, chiếm phần lớn công sức thật:
+
+1. **Push notification** — không có FCM/APNs ở bất kỳ đâu trong backend (grep = 0 kết quả).
+2. **Xác thực cấp app** — token BN 8h cứng, không refresh, không OTP, không PIN, không sinh trắc,
+   không quản lý thiết bị.
+3. **Ví giấy tờ** — chưa có module nào.
+4. **Web quản trị + module tra cứu CSKH** — chưa có.
+5. **Nội trú cho BN** — không có API liệt kê đợt nhập viện, công khai thuốc chỉ có PDF, không có
+   STT thực hiện CLS.
+
+Và **1 rủi ro bảo mật phải bịt trước khi phát hành app** (§6.1).
+
+---
+
+## 3. Đối chiếu yêu cầu ↔ hiện trạng (mức phân hệ)
+
+### I.2 — Module tính năng người dùng
+
+| # | Phân hệ HSMT | Hiện trạng | Việc phải làm |
+|---|---|---|---|
+| 1 | Tải app trên App Store & Google Play | ✗ | Đóng gói, metadata, chính sách quyền riêng tư, xoá tài khoản, quy trình phát hành |
+| 2 | Đăng nhập / **giữ đăng nhập** / **chạy ngầm nhận thông báo** | ⚠️ có login, ✗ refresh, ✗ push | Refresh token + FCM/APNs + background handler + relay VPS |
+| 3 | Lấy **STT ưu tiên** ngoại trú | ⚠️ có cấp số, ✗ ưu tiên qua app | Bỏ hard-code `Priority = 0`, thêm lý do ưu tiên, GET trạng thái vé |
+| 4 | Đặt khám online | ⚠️ có, slot **hard-code** | Nối slot vào `DoctorSchedule`, thêm đổi lịch, gán phòng đúng |
+| 5 | Xem KQ KCB **ngoại trú** (thường · KSK hợp đồng · XN · CĐHA · TDCN · đơn thuốc · **PACS** · **file PDF**) | ⚠️ DTO đã khai đủ field nhưng service **bỏ trống**; ✗ TDCN; ✗ KSK theo BN | Điền mapping, thêm route chi tiết, sinh `ImageViewerUrl` PACS, cầu nối PDF, thêm TDCN + KSK |
+| 6 | Xem KQ KCB **nội trú** (XN · CĐHA · TDCN · **công khai thuốc** · PACS · **chỉ định CLS + STT**) | ✗ gần như toàn bộ | Thêm 5-6 endpoint JSON; **bổ sung field STT thực hiện** |
+| 7 | Quản lý gia đình — **tối đa 20 thành viên** | ⚠️ có `FamilyMember`, ✗ giới hạn/xác minh/phân quyền | Giới hạn 20, quy trình xác minh, phân quyền xem, chuyển chủ hộ |
+| 8 | Ví giấy tờ | ✗ | Module mới: upload, mã hoá at-rest, hạn mức, tự nạp giấy tờ HIS xuất ra |
+| 9 | Bảo mật — đổi MK lần đầu · **mã PIN** · **sinh trắc học** · **quản lý thiết bị** | ⚠️ có cho nhân viên, ✗ cho BN | Nhân bản `MustChangePassword` sang `PortalAccount`; PIN; device-key sinh trắc; bảng thiết bị + đăng xuất từ xa |
+
+### I.3 — Module tính năng quản trị
+
+| # | Phân hệ HSMT | Hiện trạng | Việc phải làm |
+|---|---|---|---|
+| 1 | Web quản lý: phân quyền DS bệnh nhân · dashboard · quản lý đặt khám · **quản lý thông báo** · quản lý nhóm gia đình | ⚠️ có `BookingManagementController` cho đặt khám; ✗ phần còn lại | Module v2 mới trong `frontend/` + API quản trị |
+| 2 | Module tra cứu cho nhân viên CSKH (**trên app và trên web**) | ✗ | Vai trò `staff` trong app Flutter + màn tra cứu trên web; audit log mọi truy cập |
+
+---
+
+## 4. Kiến trúc
+
+```
+      [App Flutter (iOS/Android)]            [Web quản trị (React, trong frontend/ hiện có)]
+        vai trò: patient | staff                        vai trò: AppAdmin | CSKH | Xem
+                   │                                              │
+                   ▼  HTTPS (DV SSL)                              ▼
+┌───────────────────── VPS CLOUD (HSMT Mục II) ─────────────────────┐
+│  Caddy: reverse proxy + TLS (Let's Encrypt, tự gia hạn)           │
+│  notification-relay: nhận outbox → gửi FCM/APNs, có hàng đợi      │
+│  redis: hàng đợi + chống gửi trùng                                │
+│  ⚠️ KHÔNG lưu dữ liệu y tế — chỉ device token + nội dung thông báo │
+│  Ngân sách: RAM < 1.5GB / 2GB, đĩa < 10GB / 15GB                  │
+└──────────────────────────┬────────────────────────────────────────┘
+                           │  mTLS (hoặc WireGuard) — chỉ 1 chiều DC → VPS
+┌────────────── DATA CENTER BỆNH VIỆN (HSMT Mục I) ─────────────────┐
+│  patientapp-api  (HIS.PatientApp.Api — .NET 9, Docker/Linux)      │
+│   ├─ Auth riêng cho BN: JWT + refresh, OTP, PIN, device key       │
+│   ├─ IHisConnector ──► HisRestConnector (gọi API HIS qua HTTP)    │
+│   │                    (I.1 "dựa trên các API HIS cung cấp")      │
+│   ├─ DbContext riêng: tài khoản app, thiết bị, gia đình,          │
+│   │   ví giấy tờ (metadata), thông báo, outbox push               │
+│   └─ Lưu file ví giấy tờ (mã hoá at-rest)                         │
+│                                                                    │
+│  his-api (HIS Core hiện có) + SQL Server + Orthanc PACS + LIS      │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+### 4.1 Quyết định kỹ thuật
+
+| # | Quyết định | Lý do |
+|---|---|---|
+| D1 | **Project mới `backend/src/HIS.PatientApp.Api`** trong cùng solution `HIS.sln` | HSMT tách I.1/I.2/I.3 thành các "Hệ thống" riêng → một container triển khai riêng dễ nghiệm thu; đồng thời cô lập bề mặt Internet khỏi HIS Core |
+| D2 | **`IHisConnector` + `HisRestConnector`** gọi HIS Core qua REST (Polly circuit-breaker, cache danh mục) | Đúng chữ HSMT I.1 "dựa trên các API HIS cung cấp"; thay HIS khác chỉ cần viết connector mới |
+| D3 | **Thiếu endpoint → bổ sung vào HIS Core** theo Clean Architecture, có test, ghi vào inventory | Không nhân bản logic nghiệp vụ (nguyên tắc §1.4 của prompt) |
+| D4 | **Push = FCM** (Android + iOS qua APNs); backend ghi `notifications` + **outbox**, relay VPS gửi | HSMT I.2 #2 + Mục II; outbox để không mất thông báo khi VPS/mạng gián đoạn |
+| D5 | **PACS trên app = WebView + token ngắn hạn**, ảnh preview qua proxy `api/RISComplete/pacs/instances/{id}/rendered` | Đường proxy này là đường ảnh thật FE đang dùng; `WadoRsUrl` trong `ViewerUrlDto` trỏ route chết |
+| D6 | **Web quản trị đặt trong `frontend/` hiện có**, route `/v2/patient-app/*` | Cùng stack React 19 + `_v2kit` + `TerminalLayout`; SSO sẵn bằng tài khoản HIS; không dựng app thứ hai |
+| D7 | **Module tra cứu CSKH = cùng codebase Flutter**, phân vai trò bằng JWT claim `role` | Đúng HSMT I.3 #2 "trên điện thoại của nhân viên (app) **và** trên web" |
+| D8 | **Flutter + Riverpod + go_router + dio**, Clean Architecture feature-first | Theo prompt §4.1; đã kiểm chứng resolve + build APK PASS |
+| D9 | **CSDL riêng của app** — ⏳ *chờ quyết định*, xem §7 câu hỏi Q2 | Ảnh hưởng hạ tầng, backup, vận hành |
+| D10 | **Kế hoạch không tạo GitHub Issue mới** — theo `CLAUDE.md` (quyết định 2026-08-04). Kế hoạch sống trong tài liệu này + `docs/workspace-docs/STATUS.md` | Prompt gốc §1.2 yêu cầu tạo Issue, nhưng luật project cấm; luật project thắng |
+
+---
+
+## 5. Lộ trình
+
+| Phase | Nội dung | Đầu ra & tiêu chí xong |
+|---|---|---|
+| **0** ⏳ | Khảo sát HIS · kế hoạch · skeleton | `00-his-api-inventory.md` ✅ · `README.md` ✅ · `acceptance-matrix.md` ✅ · Flutter project build xanh ✅ (`flutter analyze` sạch, APK debug PASS) · **chờ duyệt §7** |
+| **1** | **Auth + bảo mật + thiết bị + push** | Đăng nhập BN có refresh · buộc đổi MK lần đầu · PIN 6 số · sinh trắc · DS thiết bị + đăng xuất từ xa · nhận push khi app chạy ngầm · relay VPS chạy · **bịt IDOR §6.1** |
+| **2** | **Lấy STT + Đặt khám + realtime** | Lấy được **STT ưu tiên** ngoại trú, xem số đang gọi / còn bao nhiêu người / ước tính phút · đặt-huỷ-đổi lịch theo lịch trực thật · nhắc lịch trước 1 ngày & 1 giờ |
+| **3** | **Kết quả ngoại trú** | Bảng chỉ số XN + cờ bất thường + **file PDF** · KQ CĐHA + **xem ảnh PACS** · **TDCN** · đơn thuốc · **KSK hợp đồng** |
+| **4** | **Kết quả nội trú** | DS đợt điều trị · **chỉ định CLS + STT thực hiện** · XN/CĐHA/TDCN nội trú · **công khai thuốc theo ngày** (SL, đơn giá, thành tiền, BHYT chi trả) |
+| **5** | **Gia đình + Ví giấy tờ + Inbox** | Liên kết **tối đa 20 thành viên** có xác minh & phân quyền · ví giấy tờ mã hoá · inbox thông báo có deep-link |
+| **6** | **Web quản trị + Module tra cứu** | Dashboard · quản lý tài khoản app · quản lý đặt khám · **chiến dịch thông báo** · quản lý nhóm gia đình · tra cứu CSKH (web + app) · audit log |
+| **7** | **Hardening · SSL · deploy · tài liệu · store** | Chặn chụp màn hình · auto-lock · cảnh báo root/jailbreak · SSL toàn bộ endpoint · runbook deploy DC+VPS · HDSD (BN/CSKH/quản trị) · tài liệu "công nghệ tương đương" · checklist nghiệm thu 100% Đạt |
+| **8** | **TEST** (bắt buộc, **luôn đi cuối** theo `CLAUDE.md`) | Unit/widget/golden/integration + E2E + evidence viewer |
+
+> ⚠️ **Luật project**: mọi việc fix/feature phải xong TRƯỚC khi bắt đầu bất kỳ task test nào
+> (`CLAUDE.md` §Plan/task management). Phase 8 chỉ khởi động khi Phase 1-7 đã đóng.
+
+---
+
+## 6. Rủi ro
+
+### 6.1 🔴 Bảo mật — phải bịt TRƯỚC khi phát hành app
+
+`ExaminationCompleteController` (`:18`), `LISCompleteController` (`:25`), `PdfController` (`:20`) chỉ
+khai `[Authorize]` **không có `Roles=`**. Một JWT `PortalPatient` hợp lệ vì thế **vẫn qua được**
+`GET /api/examination/{id}/medical-record`, `GET /api/examination/{id}/lab-results`,
+`GET /api/LISComplete/patients/{patientId}/history`, `GET /api/pdf/lab-result/{requestId}` — và **không
+có kiểm tra** id đó thuộc về bệnh nhân nào. Hôm nay bề mặt này chỉ lộ trong mạng nội bộ; **phát hành
+app là đưa nó ra Internet**. → Xử lý ngay ở **Phase 1**, không đợi Phase 7.
+
+### 6.2 🔴 iOS 12.0 — không khả thi với Flutter hiện tại
+
+Flutter 3.47.2 sinh project `IPHONEOS_DEPLOYMENT_TARGET = 15.0`. Hạ xuống 12.0 buộc phải dùng Flutter
+rất cũ (mất cập nhật bảo mật, nhiều package không cài được) hoặc viết native iOS riêng.
+→ **Cần quyết định của chủ đầu tư** — xem §7 câu hỏi Q1.
+
+### 6.3 🟠 Khác
+
+| Rủi ro | Ảnh hưởng | Giảm thiểu |
+|---|---|---|
+| `GetBillingStatement6556Async` là **stub hard-code** (`InpatientCompleteService.Discharge.cs:381-390`) | Nếu app dùng, hiển thị số liệu bịa | Không dùng route này; implement thật nếu cần |
+| Slot đặt khám hard-code, không đọc `DoctorSchedule` | BN đặt vào giờ bác sĩ không trực → khiếu nại | Phase 2 nối slot vào lịch trực thật |
+| Hai hệ thống số (`QueueTicket` vs `KioskTicket`) không liên thông | Số trên app khác số ở kiosk | Chốt `QueueTicket` là nguồn sự thật; ghi rõ trong HDSD |
+| `StudyShareService` từ chối `HideDemographics` | Tên BN lộ trong DICOM tag nếu dùng share-link | Dùng đường proxy có xác thực thay vì share-link công khai |
+| VPS 2GB RAM | Stack quá tải | Đo RAM thật khi triển khai; giữ < 1.5GB |
+| Không giới hạn người dùng | Tải cao lúc cao điểm sáng | Cache danh mục, rate-limit, đo tải ở Phase 7 |
+
+---
+
+## 7. ⏳ Cần anh quyết trước khi bắt đầu Phase 1
+
+| # | Câu hỏi | Vì sao cần |
+|---|---|---|
+| **Q1** | **iOS tối thiểu**: chấp nhận **iOS 15** (Flutter mới, an toàn) + văn bản giải trình, hay bắt buộc **iOS 12** theo đúng chữ HSMT? | Quyết định này thay đổi toàn bộ lựa chọn công nghệ; không thể sửa về sau mà không làm lại |
+| **Q2** | **CSDL riêng của app**: dùng **PostgreSQL** (theo prompt gốc, thêm 1 engine mới vào hệ thống đang thuần SQL Server) hay **SQL Server schema riêng** (không thêm hạ tầng, dùng lại bộ migration + health-check drift + backup sẵn có)? | Ảnh hưởng hạ tầng DC, quy trình backup, kỹ năng vận hành |
+| **Q3** | **Bịt lỗ IDOR §6.1** — làm ngay ở Phase 1 (khuyến nghị) hay tách thành việc riêng làm trước? | Đây là sửa HIS Core, có thể ảnh hưởng màn hình nhân viên đang dùng |
