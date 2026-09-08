@@ -11,6 +11,15 @@ public interface IAppointmentBookingService
     Task<BookingResultDto> BookAppointmentAsync(OnlineBookingDto dto);
     Task<List<BookingStatusDto>> LookupAppointmentsAsync(string? code, string? phone);
     Task<BookingStatusDto> CancelAppointmentAsync(string appointmentCode, CancelBookingDto dto);
+
+    /// <summary>
+    /// Người bệnh tự đổi ngày/giờ lịch hẹn (HSMT app mobile I.2 #4).
+    ///
+    /// Trước đây chỉ có huỷ rồi đặt lại, mà đặt lại thì đụng bộ đếm chống lạm dụng
+    /// (MaxPerPhonePerDay) nên người bệnh đổi lịch hai lần trong ngày là bị chặn — xem
+    /// docs/features/patient-app/00-his-api-inventory.md §11.5 GAP 20.
+    /// </summary>
+    Task<BookingStatusDto> RescheduleAppointmentAsync(string appointmentCode, RescheduleBookingDto dto);
     Task<List<BookingServiceDto>> GetBookingServicesAsync(Guid? departmentId);
 }
 
@@ -115,6 +124,21 @@ public class BookingStatusDto
     public string? Reason { get; set; }
     public int Status { get; set; }
     public string StatusName { get; set; } = string.Empty;
+}
+
+/// <summary>Yêu cầu đổi lịch của người bệnh.</summary>
+public class RescheduleBookingDto
+{
+    /// <summary>Xác thực chủ lịch hẹn, giống luồng huỷ.</summary>
+    public string PhoneNumber { get; set; } = string.Empty;
+
+    public DateTime NewAppointmentDate { get; set; }
+    public TimeSpan? NewAppointmentTime { get; set; }
+
+    /// <summary>Đổi luôn bác sĩ nếu người bệnh chọn người khác; bỏ trống thì giữ nguyên.</summary>
+    public Guid? NewDoctorId { get; set; }
+
+    public string? Reason { get; set; }
 }
 
 public class CancelBookingDto

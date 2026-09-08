@@ -21,6 +21,7 @@ public class PatientAppDbContext : DbContext
     public DbSet<AppNotification> Notifications => Set<AppNotification>();
     public DbSet<PushOutbox> PushOutbox => Set<PushOutbox>();
     public DbSet<AccessAuditLog> AccessAuditLogs => Set<AccessAuditLog>();
+    public DbSet<AppointmentReminder> AppointmentReminders => Set<AppointmentReminder>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -121,6 +122,22 @@ public class PatientAppDbContext : DbContext
             e.Property(x => x.LastError).HasMaxLength(1000);
             e.HasOne(x => x.Notification).WithMany()
                 .HasForeignKey(x => x.NotificationId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<AppointmentReminder>(e =>
+        {
+            e.ToTable("appointment_reminders");
+            e.HasKey(x => x.Id);
+            // Một mã lịch hẹn chỉ có một dòng cho mỗi tài khoản: đồng bộ lại thì cập nhật, không đẻ thêm.
+            e.HasIndex(x => new { x.AccountId, x.AppointmentCode }).IsUnique();
+            // Worker quét theo thời điểm hẹn.
+            e.HasIndex(x => new { x.AppointmentAt, x.Status });
+            e.Property(x => x.AppointmentCode).HasMaxLength(50).IsRequired();
+            e.Property(x => x.DepartmentName).HasMaxLength(200);
+            e.Property(x => x.DoctorName).HasMaxLength(200);
+            e.Property(x => x.RoomName).HasMaxLength(100);
+            e.HasOne(x => x.Account).WithMany()
+                .HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<AccessAuditLog>(e =>

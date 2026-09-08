@@ -81,6 +81,30 @@ public class AppointmentBookingController : ControllerBase
     /// <summary>
     /// Hủy lịch hẹn
     /// </summary>
+    /// <summary>
+    /// Người bệnh tự đổi ngày/giờ lịch hẹn (HSMT app mobile I.2 #4).
+    ///
+    /// Trước đây chỉ có huỷ rồi đặt lại, mà đặt lại đụng bộ đếm chống lạm dụng nên đổi lịch hai lần
+    /// trong ngày là bị chặn. Xác thực bằng số điện thoại giống luồng huỷ.
+    /// </summary>
+    [HttpPut("{appointmentCode}/reschedule")]
+    public async Task<ActionResult<BookingStatusDto>> Reschedule(
+        string appointmentCode, [FromBody] RescheduleBookingDto dto)
+    {
+        try
+        {
+            return Ok(await _bookingService.RescheduleAppointmentAsync(appointmentCode, dto));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPut("{appointmentCode}/cancel")]
     public async Task<ActionResult<BookingStatusDto>> CancelAppointment(
         string appointmentCode,

@@ -30,4 +30,45 @@ public interface IHisConnector
 
     /// <summary>HIS có sống không — dùng cho endpoint /health của BFF.</summary>
     Task<bool> PingAsync(CancellationToken ct = default);
+
+    // ---------------------------------------------------------- danh mục
+
+    /// <summary>Khoa khám mở cho đặt lịch. Có nhớ tạm vì danh mục ít đổi.</summary>
+    Task<IReadOnlyList<HisDepartment>> GetDepartmentsAsync(CancellationToken ct = default);
+
+    Task<IReadOnlyList<HisDoctor>> GetDoctorsAsync(Guid? departmentId, CancellationToken ct = default);
+
+    /// <summary>Phòng khám đang mở, kèm số người đang chờ — app dùng để chọn nơi lấy số.</summary>
+    Task<IReadOnlyList<HisRoom>> GetRoomsAsync(Guid? departmentId, CancellationToken ct = default);
+
+    // ------------------------------------------------- số thứ tự (I.2 #3)
+
+    /// <summary>
+    /// Lấy số thứ tự ngoại trú. <paramref name="priorityReason"/> bỏ trống = số thường; HIS tự đối
+    /// chiếu tuổi từ hồ sơ nên người cao tuổi vẫn được ưu tiên dù không khai.
+    /// </summary>
+    Task<HisQueueTicket> TakeQueueNumberAsync(
+        string phoneNumber, string? patientName, Guid roomId, int queueType,
+        int? priorityReason, CancellationToken ct = default);
+
+    /// <summary>Trạng thái vé: đang gọi số nào, còn bao nhiêu người, ước tính bao nhiêu phút.</summary>
+    Task<HisQueueTicketStatus?> GetQueueTicketStatusAsync(Guid ticketId, CancellationToken ct = default);
+
+    // --------------------------------------------------- đặt khám (I.2 #4)
+
+    Task<HisSlotResult> GetSlotsAsync(
+        DateTime date, Guid? departmentId, Guid? doctorId, CancellationToken ct = default);
+
+    Task<HisBookingResult> BookAppointmentAsync(object payload, CancellationToken ct = default);
+
+    /// <summary>Tra lịch hẹn theo số điện thoại của người bệnh.</summary>
+    Task<IReadOnlyList<HisBookingStatus>> LookupAppointmentsAsync(
+        string phoneNumber, CancellationToken ct = default);
+
+    Task<HisBookingStatus> CancelAppointmentAsync(
+        string appointmentCode, string phoneNumber, string? reason, CancellationToken ct = default);
+
+    Task<HisBookingStatus> RescheduleAppointmentAsync(
+        string appointmentCode, string phoneNumber, DateTime newDate, TimeSpan? newTime,
+        Guid? newDoctorId, string? reason, CancellationToken ct = default);
 }

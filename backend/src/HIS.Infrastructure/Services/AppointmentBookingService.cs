@@ -81,16 +81,20 @@ public class AppointmentBookingService : IAppointmentBookingService
         return doctors;
     }
 
+    /// <summary>
+    /// Khung giờ dự phòng khi khoa/bác sĩ CHƯA có lịch trực trong <c>DoctorSchedules</c>.
+    /// Sáng 7:30-11:30, chiều 13:30-16:30, mỗi slot 30 phút, tối đa 5 người.
+    /// </summary>
+    private static readonly (TimeSpan Start, TimeSpan End)[] FallbackShifts =
+    {
+        (new TimeSpan(7, 30, 0), new TimeSpan(11, 30, 0)),
+        (new TimeSpan(13, 30, 0), new TimeSpan(16, 30, 0)),
+    };
+    private const int FallbackSlotMinutes = 30;
+    private const int FallbackMaxPerSlot = 5;
+
     public async Task<BookingSlotResult> GetAvailableSlotsAsync(DateTime date, Guid? departmentId, Guid? doctorId)
     {
-        // Khung giờ làm việc: Sáng 7:30-11:30, Chiều 13:30-16:30
-        var morningStart = new TimeSpan(7, 30, 0);
-        var morningEnd = new TimeSpan(11, 30, 0);
-        var afternoonStart = new TimeSpan(13, 30, 0);
-        var afternoonEnd = new TimeSpan(16, 30, 0);
-        var slotDuration = TimeSpan.FromMinutes(30);
-        var maxBookingsPerSlot = 5; // Tối đa 5 BN mỗi khung giờ
-
         // Đếm số lịch hẹn hiện có trong ngày
         var existingBookings = await _context.Appointments
             .Where(a => !a.IsDeleted && a.AppointmentDate.Date == date.Date && a.Status < 3) // Chưa hủy/không đến
@@ -104,8 +108,29 @@ public class AppointmentBookingService : IAppointmentBookingService
             b => b.Time ?? TimeSpan.Zero,
             b => b.Count);
 
-        var morningSlots = GenerateSlots(morningStart, morningEnd, slotDuration, maxBookingsPerSlot, bookingMap, date);
-        var afternoonSlots = GenerateSlots(afternoonStart, afternoonEnd, slotDuration, maxBookingsPerSlot, bookingMap, date);
+        // Lịch trực THẬT của bác sĩ trong ngày. Trước đây hàm này dùng khung giờ cứng 7:30-11:30 /
+        // 13:30-16:30 với hạn 5 người cho MỌI bác sĩ, nên app có thể cho người bệnh đặt vào giờ bác
+        // sĩ không trực — họ đến nơi mới biết. Xem docs/features/patient-app/00-his-api-inventory.md
+        // §11.5 GAP 18.
+        var shifts = await GetWorkingShiftsAsync(date, departmentId, doctorId);
+
+        var morningSlots = new List<BookingTimeSlot>();
+        var afternoonSlots = new List<BookingTimeSlot>();
+
+        foreach (var shift in shifts)
+        {
+            var slots = GenerateSlots(
+                shift.Start, shift.End,
+                TimeSpan.FromMinutes(shift.SlotMinutes),
+                shift.MaxPerSlot, bookingMap, date);
+
+            // Ca kết thúc từ 12h trở về trước tính là ca sáng; còn lại xếp vào chiều.
+            if (shift.End <= new TimeSpan(12, 0, 0)) morningSlots.AddRange(slots);
+            else afternoonSlots.AddRange(slots);
+        }
+
+        morningSlots = morningSlots.OrderBy(s => s.StartTime).ToList();
+        afternoonSlots = afternoonSlots.OrderBy(s => s.StartTime).ToList();
 
         string? deptName = null;
         string? docName = null;
@@ -259,20 +284,41 @@ public class AppointmentBookingService : IAppointmentBookingService
         if (existingPatient == null)
             await _context.Patients.AddAsync(patient);
 
-        // Tìm phòng trống
+        // Chọn phòng. Ưu tiên đúng phòng bác sĩ ngồi hôm đó theo lịch trực — trước đây hàm này lấy
+        // phòng active đầu tiên của khoa, nên giấy hẹn có thể ghi sai phòng và người bệnh đi lạc.
+        // Xem docs/features/patient-app/00-his-api-inventory.md §11.5 GAP 19.
         Guid? roomId = null;
         string? roomName = null;
-        if (dto.DepartmentId.HasValue)
+
+        if (dto.DoctorId.HasValue)
         {
-            var room = await _context.Rooms
+            var day = dto.AppointmentDate.Date;
+            var dayOfWeek = (int)day.DayOfWeek;
+
+            roomId = await _context.DoctorSchedules
+                .Where(s => !s.IsDeleted && s.IsActive && s.DoctorId == dto.DoctorId && s.RoomId != null)
+                .Where(s => s.ScheduleDate.Date == day || (s.IsRecurring && s.DayOfWeek == dayOfWeek))
+                // Lịch đúng ngày thắng lịch lặp hàng tuần.
+                .OrderByDescending(s => s.ScheduleDate.Date == day)
+                .Select(s => s.RoomId)
+                .FirstOrDefaultAsync();
+        }
+
+        if (roomId == null && dto.DepartmentId.HasValue)
+        {
+            roomId = await _context.Rooms
                 .Where(r => !r.IsDeleted && r.IsActive && r.DepartmentId == dto.DepartmentId)
                 .OrderBy(r => r.DisplayOrder)
+                .Select(r => (Guid?)r.Id)
                 .FirstOrDefaultAsync();
-            if (room != null)
-            {
-                roomId = room.Id;
-                roomName = room.RoomName;
-            }
+        }
+
+        if (roomId != null)
+        {
+            roomName = await _context.Rooms
+                .Where(r => r.Id == roomId)
+                .Select(r => r.RoomName)
+                .FirstOrDefaultAsync();
         }
 
         // Tạo mã lịch hẹn
@@ -397,6 +443,88 @@ public class AppointmentBookingService : IAppointmentBookingService
         return appointments.Select(a => MapToBookingStatus(a)).ToList();
     }
 
+    public async Task<BookingStatusDto> RescheduleAppointmentAsync(
+        string appointmentCode, RescheduleBookingDto dto)
+    {
+        var appointment = await _context.Appointments
+            .Include(a => a.Patient)
+            .Include(a => a.Department)
+            .Include(a => a.Doctor)
+            .Include(a => a.Room)
+            .FirstOrDefaultAsync(a => !a.IsDeleted && a.AppointmentCode == appointmentCode);
+
+        if (appointment == null)
+            throw new KeyNotFoundException("Không tìm thấy lịch hẹn");
+
+        // Xác thực chủ lịch hẹn bằng SĐT, giống hệt luồng huỷ.
+        if (appointment.Patient?.PhoneNumber != dto.PhoneNumber?.Trim())
+            throw new InvalidOperationException("Số điện thoại không khớp");
+
+        if (appointment.Status >= 2)
+            throw new InvalidOperationException("Lịch hẹn đã đến khám hoặc đã kết thúc, không đổi được");
+        if (appointment.Status == 4)
+            throw new InvalidOperationException("Lịch hẹn đã huỷ, vui lòng đặt lịch mới");
+
+        if (dto.NewAppointmentDate.Date < DateTime.Today)
+            throw new InvalidOperationException("Ngày hẹn mới không hợp lệ");
+
+        var newDoctorId = dto.NewDoctorId ?? appointment.DoctorId;
+
+        // Khung giờ mới phải nằm trong ca trực thật và còn chỗ. Không kiểm thì đổi lịch trở thành
+        // đường vòng để lách đúng cái ràng buộc mà luồng đặt mới đang giữ.
+        if (dto.NewAppointmentTime.HasValue)
+        {
+            var slots = await GetAvailableSlotsAsync(
+                dto.NewAppointmentDate, appointment.DepartmentId, newDoctorId);
+
+            var target = slots.MorningSlots.Concat(slots.AfternoonSlots)
+                .FirstOrDefault(s => s.StartTime == dto.NewAppointmentTime.Value);
+
+            if (target is null)
+                throw new InvalidOperationException("Khung giờ này không nằm trong lịch làm việc của bác sĩ");
+            if (!target.IsAvailable)
+                throw new InvalidOperationException("Khung giờ này đã hết chỗ, vui lòng chọn giờ khác");
+        }
+
+        var oldDate = appointment.AppointmentDate;
+        var oldTime = appointment.AppointmentTime;
+
+        appointment.AppointmentDate = dto.NewAppointmentDate.Date;
+        appointment.AppointmentTime = dto.NewAppointmentTime ?? appointment.AppointmentTime;
+        appointment.DoctorId = newDoctorId;
+        // Đổi lịch thì trạng thái quay về "chờ xác nhận": lịch cũ đã được duyệt không có nghĩa lịch
+        // mới cũng được duyệt.
+        appointment.Status = 0;
+        appointment.UpdatedAt = DateTime.UtcNow;
+
+        var note = $"Đổi lịch từ {oldDate:dd/MM/yyyy}"
+                   + (oldTime.HasValue ? $" {oldTime:hh\\:mm}" : "")
+                   + $" sang {appointment.AppointmentDate:dd/MM/yyyy}"
+                   + (appointment.AppointmentTime.HasValue ? $" {appointment.AppointmentTime:hh\\:mm}" : "")
+                   + (string.IsNullOrWhiteSpace(dto.Reason) ? "" : $" — {dto.Reason}");
+
+        appointment.Notes = string.IsNullOrEmpty(appointment.Notes) ? note : $"{appointment.Notes}\n{note}";
+
+        // Phòng có thể đổi theo bác sĩ hoặc theo ngày.
+        var day = appointment.AppointmentDate.Date;
+        var dayOfWeek = (int)day.DayOfWeek;
+        var newRoomId = await _context.DoctorSchedules
+            .Where(s => !s.IsDeleted && s.IsActive && s.DoctorId == newDoctorId && s.RoomId != null)
+            .Where(s => s.ScheduleDate.Date == day || (s.IsRecurring && s.DayOfWeek == dayOfWeek))
+            .OrderByDescending(s => s.ScheduleDate.Date == day)
+            .Select(s => s.RoomId)
+            .FirstOrDefaultAsync();
+        if (newRoomId != null) appointment.RoomId = newRoomId;
+
+        await _unitOfWork.SaveChangesAsync();
+
+        // Nạp lại phòng/bác sĩ để phản hồi trả đúng tên mới.
+        await _context.Entry(appointment).Reference(a => a.Room).LoadAsync();
+        await _context.Entry(appointment).Reference(a => a.Doctor).LoadAsync();
+
+        return MapToBookingStatus(appointment);
+    }
+
     public async Task<BookingStatusDto> CancelAppointmentAsync(string appointmentCode, CancelBookingDto dto)
     {
         var appointment = await _context.Appointments
@@ -471,6 +599,79 @@ public class AppointmentBookingService : IAppointmentBookingService
     }
 
     // === Helpers ===
+
+    /// <summary>Một ca làm việc đã quy về khung giờ + độ dài slot + sức chứa mỗi slot.</summary>
+    private readonly record struct WorkingShift(
+        TimeSpan Start, TimeSpan End, int SlotMinutes, int MaxPerSlot);
+
+    /// <summary>
+    /// Ca làm việc thật trong ngày, đọc từ <c>DoctorSchedules</c> (bảng mà màn "Quản lý lịch làm việc
+    /// bác sĩ" đang ghi vào).
+    ///
+    /// Quy tắc:
+    /// <list type="bullet">
+    /// <item>Ưu tiên lịch đúng ngày; không có thì lấy lịch lặp hàng tuần khớp thứ.</item>
+    /// <item><c>MaxPatients</c> của cả ca được chia đều cho số slot trong ca, để tổng số người nhận
+    ///       trong ca không vượt quá con số bác sĩ đã đăng ký.</item>
+    /// <item>Không tìm được lịch nào thì rơi về khung giờ hành chính mặc định — thà cho đặt rồi lễ tân
+    ///       xác nhận, còn hơn hiện "hết chỗ" ở khoa chưa kịp khai báo lịch.</item>
+    /// </list>
+    /// </summary>
+    private async Task<List<WorkingShift>> GetWorkingShiftsAsync(
+        DateTime date, Guid? departmentId, Guid? doctorId)
+    {
+        var day = date.Date;
+        var dayOfWeek = (int)day.DayOfWeek;
+
+        var query = _context.DoctorSchedules
+            .Where(s => !s.IsDeleted && s.IsActive)
+            .Where(s => !departmentId.HasValue || s.DepartmentId == departmentId)
+            .Where(s => !doctorId.HasValue || s.DoctorId == doctorId);
+
+        var schedules = await query
+            .Where(s => s.ScheduleDate.Date == day)
+            .Select(s => new { s.StartTime, s.EndTime, s.MaxPatients, s.SlotDurationMinutes })
+            .ToListAsync();
+
+        if (schedules.Count == 0)
+        {
+            schedules = await query
+                .Where(s => s.IsRecurring && s.DayOfWeek == dayOfWeek)
+                .Select(s => new { s.StartTime, s.EndTime, s.MaxPatients, s.SlotDurationMinutes })
+                .ToListAsync();
+        }
+
+        if (schedules.Count == 0)
+        {
+            return FallbackShifts
+                .Select(f => new WorkingShift(f.Start, f.End, FallbackSlotMinutes, FallbackMaxPerSlot))
+                .ToList();
+        }
+
+        var shifts = new List<WorkingShift>();
+        foreach (var schedule in schedules)
+        {
+            // Dữ liệu lịch có thể khai thiếu hoặc khai 0; ép về giá trị dùng được thay vì chia cho 0.
+            var slotMinutes = schedule.SlotDurationMinutes > 0 ? schedule.SlotDurationMinutes : FallbackSlotMinutes;
+            if (schedule.EndTime <= schedule.StartTime) continue;
+
+            var totalMinutes = (schedule.EndTime - schedule.StartTime).TotalMinutes;
+            var slotCount = Math.Max(1, (int)(totalMinutes / slotMinutes));
+            var maxPatients = schedule.MaxPatients > 0 ? schedule.MaxPatients : FallbackMaxPerSlot * slotCount;
+
+            shifts.Add(new WorkingShift(
+                schedule.StartTime,
+                schedule.EndTime,
+                slotMinutes,
+                Math.Max(1, maxPatients / slotCount)));
+        }
+
+        return shifts.Count > 0
+            ? shifts.OrderBy(s => s.Start).ToList()
+            : FallbackShifts
+                .Select(f => new WorkingShift(f.Start, f.End, FallbackSlotMinutes, FallbackMaxPerSlot))
+                .ToList();
+    }
 
     private static List<BookingTimeSlot> GenerateSlots(
         TimeSpan start, TimeSpan end, TimeSpan duration, int maxPerSlot,

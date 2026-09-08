@@ -20,6 +20,8 @@ public class HisRestConnector : IHisConnector
     private readonly HisServiceTokenProvider _tokenProvider;
     private readonly ILogger<HisRestConnector> _logger;
 
+    private readonly HisConnectorOptions _options;
+
     public HisRestConnector(
         IHttpClientFactory httpFactory,
         HisServiceTokenProvider tokenProvider,
@@ -28,6 +30,7 @@ public class HisRestConnector : IHisConnector
     {
         _httpFactory = httpFactory;
         _tokenProvider = tokenProvider;
+        _options = options.Value;
         _logger = logger;
     }
 
@@ -72,6 +75,170 @@ public class HisRestConnector : IHisConnector
         {
             return false;
         }
+    }
+
+    // ------------------------------------------------------------ danh mục
+
+    public async Task<IReadOnlyList<HisDepartment>> GetDepartmentsAsync(CancellationToken ct = default)
+        => await GetCachedAsync("departments", TimeSpan.FromMinutes(_options.CatalogCacheMinutes),
+            async () => await SendAsync<List<HisDepartment>>(
+                () => new HttpRequestMessage(HttpMethod.Get, "/api/booking/departments"), ct)
+                ?? new List<HisDepartment>(), ct);
+
+    public async Task<IReadOnlyList<HisDoctor>> GetDoctorsAsync(
+        Guid? departmentId, CancellationToken ct = default)
+    {
+        var path = departmentId.HasValue
+            ? $"/api/booking/doctors?departmentId={departmentId}"
+            : "/api/booking/doctors";
+
+        return await GetCachedAsync($"doctors:{departmentId}",
+            TimeSpan.FromMinutes(_options.CatalogCacheMinutes),
+            async () => await SendAsync<List<HisDoctor>>(
+                () => new HttpRequestMessage(HttpMethod.Get, path), ct) ?? new List<HisDoctor>(), ct);
+    }
+
+    public async Task<IReadOnlyList<HisRoom>> GetRoomsAsync(
+        Guid? departmentId, CancellationToken ct = default)
+    {
+        var envelope = await SendAsync<HisEnvelope<List<HisRoom>>>(
+            () => new HttpRequestMessage(HttpMethod.Get, "/api/reception/rooms/overview"), ct);
+
+        var rooms = envelope?.Data ?? new List<HisRoom>();
+        return departmentId.HasValue
+            ? rooms.Where(r => r.DepartmentId == departmentId).ToList()
+            : rooms;
+    }
+
+    // ---------------------------------------------------------- số thứ tự
+
+    public async Task<HisQueueTicket> TakeQueueNumberAsync(
+        string phoneNumber, string? patientName, Guid roomId, int queueType,
+        int? priorityReason, CancellationToken ct = default)
+    {
+        var ticket = await SendAsync<HisQueueTicket>(
+            () => new HttpRequestMessage(HttpMethod.Post, "/api/reception/queue/issue-mobile")
+            {
+                Content = JsonContent.Create(new
+                {
+                    patientPhone = phoneNumber,
+                    patientName,
+                    roomId,
+                    queueType,
+                    priorityReason,
+                }),
+            }, ct);
+
+        return ticket ?? throw new HisConnectorException("HIS không trả về vé xếp hàng.");
+    }
+
+    public Task<HisQueueTicketStatus?> GetQueueTicketStatusAsync(
+        Guid ticketId, CancellationToken ct = default)
+        => SendAsync<HisQueueTicketStatus>(
+            () => new HttpRequestMessage(
+                HttpMethod.Get, $"/api/reception/queue/ticket/{ticketId}/status"),
+            ct, allowNotFound: true);
+
+    // ------------------------------------------------------------ đặt khám
+
+    public async Task<HisSlotResult> GetSlotsAsync(
+        DateTime date, Guid? departmentId, Guid? doctorId, CancellationToken ct = default)
+    {
+        var query = $"?date={date:yyyy-MM-dd}";
+        if (departmentId.HasValue) query += $"&departmentId={departmentId}";
+        if (doctorId.HasValue) query += $"&doctorId={doctorId}";
+
+        return await SendAsync<HisSlotResult>(
+            () => new HttpRequestMessage(HttpMethod.Get, "/api/booking/slots" + query), ct)
+            ?? new HisSlotResult { Date = date };
+    }
+
+    public async Task<HisBookingResult> BookAppointmentAsync(object payload, CancellationToken ct = default)
+    {
+        var result = await SendAsync<HisBookingResult>(
+            () => new HttpRequestMessage(HttpMethod.Post, "/api/booking/book")
+            {
+                Content = JsonContent.Create(payload),
+            }, ct);
+
+        return result ?? throw new HisConnectorException("HIS không trả về kết quả đặt lịch.");
+    }
+
+    public async Task<IReadOnlyList<HisBookingStatus>> LookupAppointmentsAsync(
+        string phoneNumber, CancellationToken ct = default)
+        => await SendAsync<List<HisBookingStatus>>(
+            () => new HttpRequestMessage(
+                HttpMethod.Get, $"/api/booking/lookup?phone={Uri.EscapeDataString(phoneNumber)}"), ct)
+            ?? new List<HisBookingStatus>();
+
+    public async Task<HisBookingStatus> CancelAppointmentAsync(
+        string appointmentCode, string phoneNumber, string? reason, CancellationToken ct = default)
+    {
+        var result = await SendAsync<HisBookingStatus>(
+            () => new HttpRequestMessage(
+                HttpMethod.Put, $"/api/booking/{Uri.EscapeDataString(appointmentCode)}/cancel")
+            {
+                Content = JsonContent.Create(new { phoneNumber, reason }),
+            }, ct);
+
+        return result ?? throw new HisConnectorException("HIS không trả về kết quả huỷ lịch.");
+    }
+
+    public async Task<HisBookingStatus> RescheduleAppointmentAsync(
+        string appointmentCode, string phoneNumber, DateTime newDate, TimeSpan? newTime,
+        Guid? newDoctorId, string? reason, CancellationToken ct = default)
+    {
+        var result = await SendAsync<HisBookingStatus>(
+            () => new HttpRequestMessage(
+                HttpMethod.Put, $"/api/booking/{Uri.EscapeDataString(appointmentCode)}/reschedule")
+            {
+                Content = JsonContent.Create(new
+                {
+                    phoneNumber,
+                    newAppointmentDate = newDate,
+                    newAppointmentTime = newTime,
+                    newDoctorId,
+                    reason,
+                }),
+            }, ct);
+
+        return result ?? throw new HisConnectorException("HIS không trả về kết quả đổi lịch.");
+    }
+
+    /// <summary>
+    /// Nhớ tạm danh mục ít đổi (khoa, bác sĩ) để đỡ đập vào HIS mỗi lần app mở màn đặt khám.
+    /// Bộ nhớ dùng chung toàn tiến trình nên phải khoá khi ghi.
+    /// </summary>
+    private static readonly Dictionary<string, (object Value, DateTime ExpiresAt)> CatalogCache = new();
+    private static readonly SemaphoreSlim CacheGate = new(1, 1);
+
+    private async Task<T> GetCachedAsync<T>(
+        string key, TimeSpan lifetime, Func<Task<T>> factory, CancellationToken ct) where T : class
+    {
+        await CacheGate.WaitAsync(ct);
+        try
+        {
+            if (CatalogCache.TryGetValue(key, out var hit) && hit.ExpiresAt > DateTime.UtcNow)
+                return (T)hit.Value;
+        }
+        finally
+        {
+            CacheGate.Release();
+        }
+
+        var value = await factory();
+
+        await CacheGate.WaitAsync(ct);
+        try
+        {
+            CatalogCache[key] = (value, DateTime.UtcNow.Add(lifetime));
+        }
+        finally
+        {
+            CacheGate.Release();
+        }
+
+        return value;
     }
 
     /// <summary>GET trả null khi HIS báo 404, ném khi lỗi khác.</summary>

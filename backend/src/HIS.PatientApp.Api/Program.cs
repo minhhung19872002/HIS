@@ -8,6 +8,7 @@ using HIS.PatientApp.Api.Entities;
 using HIS.PatientApp.Api.Middleware;
 using HIS.PatientApp.Api.Push;
 using HIS.PatientApp.Api.Services;
+using HIS.PatientApp.Api.Workers;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -23,6 +24,8 @@ builder.Services.Configure<HisConnectorOptions>(
     builder.Configuration.GetSection(HisConnectorOptions.SectionName));
 builder.Services.Configure<PushRelayOptions>(
     builder.Configuration.GetSection(PushRelayOptions.SectionName));
+builder.Services.Configure<AppointmentReminderOptions>(
+    builder.Configuration.GetSection(AppointmentReminderOptions.SectionName));
 
 var jwtOptions = builder.Configuration.GetSection(AppJwtOptions.SectionName).Get<AppJwtOptions>()
                  ?? new AppJwtOptions();
@@ -94,6 +97,9 @@ else
 }
 
 builder.Services.AddHostedService<PushDispatcherWorker>();
+
+// Nhắc lịch khám trước 1 ngày và trước 1 giờ (HSMT I.2 #4).
+builder.Services.AddHostedService<AppointmentReminderWorker>();
 
 // Bản gửi OTP thật cắm ở đây. Bản ghi-log chỉ được phép ở môi trường phát triển: in mã OTP ra log
 // ở production đồng nghĩa ai đọc được log là đăng nhập được vào tài khoản người bệnh.
