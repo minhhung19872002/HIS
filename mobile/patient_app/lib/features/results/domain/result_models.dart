@@ -55,8 +55,22 @@ class LabTestItem {
   final String flag;
   final String? interpretation;
 
-  bool get isAbnormal => flag != 'Normal';
-  bool get isCritical => flag == 'Critical';
+  /// Cờ rỗng nghĩa là **máy chủ không nói gì**, không phải "bất thường".
+  ///
+  /// Trước đây phép so là `flag != 'Normal'`, nên một cờ rỗng làm cả bảng đỏ rực kèm cảnh báo
+  /// "phiếu này có chỉ số ngoài khoảng tham chiếu" — đúng cái làm người bệnh hoảng, và tệ hơn là làm
+  /// chỉ số bất thường thật lẫn vào giữa hàng chục dòng đỏ giả.
+  ///
+  /// Ngược lại, một cờ **lạ** (server sau này thêm giá trị mới) vẫn tính là bất thường: thà đánh dấu
+  /// thừa còn hơn giấu mất một chỉ số nguy hiểm vì app chưa biết tên cờ đó.
+  bool get isAbnormal {
+    final f = flag.trim();
+    return f.isNotEmpty && f.toLowerCase() != 'normal';
+  }
+
+  bool get isCritical => flag.trim().toLowerCase() == 'critical';
+  bool get isHigh => flag.trim().toLowerCase() == 'high';
+  bool get isLow => flag.trim().toLowerCase() == 'low';
 
   factory LabTestItem.fromJson(Map<String, dynamic> json) => LabTestItem(
         testName: json['testName'] as String? ?? '',

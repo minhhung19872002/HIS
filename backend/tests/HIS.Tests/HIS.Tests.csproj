@@ -27,6 +27,12 @@
     <ProjectReference Include="..\..\src\HIS.Application\HIS.Application.csproj" />
     <ProjectReference Include="..\..\src\HIS.Infrastructure\HIS.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\HIS.API\HIS.API.csproj" />
+    <!--
+      App người bệnh (BFF). Project đó CỐ Ý không tham chiếu HIS.* — nó gọi HIS qua HTTP theo đúng
+      chữ HSMT I.1. Ràng buộc ấy là của project sản phẩm; bộ test thì được phép tham chiếu cả hai,
+      và phải tham chiếu, nếu không thì logic của BFF chỉ kiểm được bằng cách dựng cả máy chủ lên.
+    -->
+    <ProjectReference Include="..\..\src\HIS.PatientApp.Api\HIS.PatientApp.Api.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,3 +1,4 @@
+using HIS.PatientApp.Api.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -38,8 +39,8 @@ public class AppConfigController : ControllerBase
             MinimumVersion = minimum,
             LatestVersion = latest,
             StoreUrl = section[isIos ? "AppStoreUrl" : "PlayStoreUrl"] ?? "",
-            UpdateRequired = CompareVersions(version, minimum) < 0,
-            UpdateAvailable = CompareVersions(version, latest) < 0,
+            UpdateRequired = AppVersions.Compare(version, minimum) < 0,
+            UpdateAvailable = AppVersions.Compare(version, latest) < 0,
             MaintenanceMessage = section["MaintenanceMessage"],
             SupportPhone = section["SupportPhone"] ?? "",
         };
@@ -47,46 +48,7 @@ public class AppConfigController : ControllerBase
         return Ok(ApiResponse<AppConfigDto>.Ok(config));
     }
 
-    /// <summary>
-    /// So sánh hai chuỗi phiên bản dạng "1.2.3". Trả &lt;0 nếu <paramref name="current"/> cũ hơn.
-    ///
-    /// Thiếu hoặc sai định dạng thì coi như <b>đủ mới</b> (trả 0). Cố ý nghiêng về phía không chặn:
-    /// một lỗi phân tích chuỗi không được phép khoá cả người bệnh ra ngoài app của họ.
-    /// </summary>
-    private static int CompareVersions(string? current, string? minimum)
-    {
-        if (string.IsNullOrWhiteSpace(current) || string.IsNullOrWhiteSpace(minimum)) return 0;
-
-        // Trả null khi có bất kỳ phần nào không phải số. Cách cũ đổi phần lạ thành 0, khiến chuỗi
-        // rác như "abc" thành phiên bản 0 — tức là CŨ HƠN mọi mốc, và app bị khoá ngoài vì một lỗi
-        // đọc chuỗi. Đúng hướng phải ngược lại: không hiểu thì đừng chặn.
-        static int[]? Parse(string value)
-        {
-            var parts = value.Split('+')[0].Split('.');   // bỏ phần build "1.2.3+45"
-            var numbers = new int[parts.Length];
-
-            for (var i = 0; i < parts.Length; i++)
-            {
-                if (!int.TryParse(parts[i], out numbers[i])) return null;
-            }
-
-            return numbers;
-        }
-
-        var left = Parse(current);
-        var right = Parse(minimum);
-
-        if (left is null || right is null) return 0;
-
-        for (var i = 0; i < Math.Max(left.Length, right.Length); i++)
-        {
-            var a = i < left.Length ? left[i] : 0;
-            var b = i < right.Length ? right[i] : 0;
-            if (a != b) return a.CompareTo(b);
-        }
-
-        return 0;
-    }
+    // So sánh phiên bản nằm ở Common/AppVersions.cs — đủ nhiều bẫy để cần test riêng.
 }
 
 public class AppConfigDto

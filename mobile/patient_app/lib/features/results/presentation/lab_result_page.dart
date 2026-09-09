@@ -145,8 +145,8 @@ class _ResultTable extends StatelessWidget {
                   ),
                   // Mũi tên nói rõ cao hay thấp — chỉ tô đỏ thì người bệnh vẫn phải tự so với
                   // khoảng tham chiếu để đoán.
-                  if (item.flag == 'High') const Icon(Icons.arrow_upward, size: 14),
-                  if (item.flag == 'Low') const Icon(Icons.arrow_downward, size: 14),
+                  if (item.isHigh) const Icon(Icons.arrow_upward, size: 14),
+                  if (item.isLow) const Icon(Icons.arrow_downward, size: 14),
                   if (item.isCritical)
                     const Padding(
                       padding: EdgeInsets.only(left: 4),
