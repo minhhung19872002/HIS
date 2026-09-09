@@ -6,10 +6,29 @@
 >
 > Trạng thái: `⬜ Chưa làm` · `🔄 Đang làm` · `✅ Đạt` · `⚠️ Đạt có điều kiện` (ghi rõ điều kiện).
 > Cập nhật cuối: **2026-09-09** — kết thúc **Phase 1 → 7**.
-> Bằng chứng đo được: **8 bộ smoke test chạy thật trên HIS + BFF + PostgreSQL, tổng 290 PASS / 0 FAIL**
-> (`scripts/smoke-patient-app-auth.py` 47 · `smoke-queue-priority.py` 19 · `phase2` 29 · `phase3` 45 ·
-> `phase4` 27 · `phase5` 40 · `phase6` 42 · `phase7` 41). Ngoài ra `flutter analyze` sạch, **12 test Flutter**
-> PASS (5 widget + 7 unit cho tự-khoá), `tsc` sạch, build APK debug và `flutter build ios --simulator` (iOS 12.0) đều thành công.
+> **Bằng chứng đo được — bốn tầng, tất cả đều chạy thật, 0 FAIL:**
+>
+> | Tầng | Số ca | Chạy trên |
+> |---|---|---|
+> | Smoke đầu-cuối (8 bộ) | **290** | HIS Core + BFF + PostgreSQL + SQL Server thật |
+> | Unit backend (`dotnet test`) | **303** (67 của app) | CI gate `deploy-backend.yml` |
+> | Unit + widget Flutter | **92** | `flutter test` |
+> | E2E web quản trị (Playwright) | **7** | Chromium + Vite dev + BFF thật |
+>
+> Smoke: `smoke-patient-app-auth.py` 47 · `smoke-queue-priority.py` 19 · `phase2` 29 · `phase3` 45 ·
+> `phase4` 27 · `phase5` 40 · `phase6` 42 · `phase7` 41.
+> Ngoài ra `flutter analyze` sạch, `tsc -b` sạch, build APK debug và `flutter build ios --simulator`
+> (iOS 12.0) đều thành công.
+>
+> **Ảnh chụp bằng chứng:** 22 màn phủ đủ từng nhóm chức năng I.2 và I.3, chụp trên **máy ảo
+> Android 7.1.1 (API 25)** — đúng ngưỡng HSMT, không phải một bản Android đời mới cho dễ.
+> Ảnh nằm trong repo tại [`screenshots/android71/`](screenshots/android71/). Xem có bối cảnh
+> (task · các bước · kết quả mong đợi) bằng trình xem evidence: chạy
+> `bash scripts/collect-patient-app-evidence.sh` rồi mở `docs/architecture/evidence/index.html`
+> → phân hệ *App mobile hỗ trợ người bệnh*. (Thư mục `evidence/**` cố ý không commit ảnh —
+> `.gitignore:216` — nên mỗi máy sinh lại từ bộ trong repo.)
+> Bộ iOS 12 tương ứng lấy từ hiện vật `anh-man-hinh-ios` của workflow `mobile-patient-app.yml`
+> (macOS runner là đường duy nhất build iOS từ máy Windows) rồi bung vào `screenshots/ios12/`.
 >
 > **Cách đọc trạng thái:** `✅ Đạt` = đã cài đặt **và** có bằng chứng đo được (mã ca kiểm thử ghi ngay
 > trong ô). `⚠️` = đạt nhưng còn điều kiện, ghi rõ điều kiện đó.
@@ -135,12 +154,18 @@ chạy lệnh và đính kết quả vào hồ sơ, không phải viết thêm p
 |---|---|---|---|---|---|
 | I.2.9.1 | **Đổi mật khẩu riêng khi đăng nhập lần đầu** | Màn "Đổi mật khẩu lần đầu" (`change_password_page.dart`, không cho bấm back); `AppAccount.MustChangePassword` + claim `pwdChangeRequired` + `PasswordChangeRequiredMiddleware` chặn mọi đường trừ đổi MK/đăng xuất/`me` | ✅ Đạt — đã đo **trọn vòng đời**: `phase7` TC-S05 cho nhân viên đặt lại mật khẩu ở web quản trị → đăng nhập bằng mật khẩu tạm → **`/documents`, `/results/lab`, `/queue/tickets`, `/notifications` đều trả 403 `PASSWORD_CHANGE_REQUIRED`** (server chặn thật, không phải ẩn nút) → `/auth/me` vẫn đi được để app biết mình là ai → đổi mật khẩu xong thì mọi đường thông trở lại. Bên app: widget test "Bị buộc đổi mật khẩu". Cờ do quản trị bật: `phase6` kiểm cột `MustChangePassword` trong CSDL | 1 → 7 | ✅ |
 | I.2.9.2 | **Tạo mã bảo mật** (PIN) | `POST /api/v1/patient/auth/pin`, `.../pin/verify`; từ chối PIN dễ đoán (sáu số giống nhau, dãy liên tiếp); sai 5 lần khoá 15 phút | ✅ Đạt — API: TC-11, TC-12 (từ chối cả `111111` lẫn `123456`); màn `set_pin_page.dart` chặn PIN yếu ngay trên máy để khỏi chờ một vòng mạng. **Tự khoá sau 2 phút rời tiền cảnh** (`AppLock` + `LockGate`) có 7 unit test chạy bằng đồng hồ giả (`test/app_lock_test.dart`): khoá khi để quên máy, **không** khoá khi chỉ nghe một cuộc gọi 30 giây hay kéo thanh thông báo, và mở khoá xong thì mốc thời gian được xoá để lần sau không khoá oan | 1 → 7 | ✅ |
-| I.2.9.3 | **Sử dụng sinh trắc học của điện thoại để đăng nhập, xem bệnh án** | Cặp khoá ECDSA P-256 sinh trên máy, khoá riêng cất trong Keychain/Keystore chỉ mở được sau xác thực sinh trắc; server phát nonce, máy ký, server kiểm chữ ký (`/auth/biometric/enroll`, `/challenge`, `/login`) | ✅ Đã cài đặt **cả hai đầu**: server phát nonce dùng một lần hết hạn 2 phút và kiểm chữ ký DER; app dùng `biometric_signature` sinh khoá ECDSA P-256 trong Keystore/Secure Enclave với `enforceBiometric` + `setInvalidatedByBiometricEnrollment` (thêm vân tay mới thì khoá cũ mất hiệu lực). Nút đăng nhập sinh trắc chỉ hiện khi máy thật sự dùng được. ⚠️ Đạt có điều kiện: phần server đo được bằng `auth` TC-07…TC-10 (nonce dùng một lần, hết hạn 2 phút, chữ ký sai bị từ chối). **Điều kiện: phần cảm biến chỉ nghiệm thu được trên thiết bị thật** — máy ảo không có vân tay/Face ID. Kịch bản nghiệm thu: bật sinh trắc → đăng nhập bằng vân tay → mở màn bệnh án phải xác thực lại → tắt sinh trắc ở cài đặt máy thì quay về PIN/mật khẩu | 1 | ⚠️ |
+| I.2.9.3 | **Sử dụng sinh trắc học của điện thoại để đăng nhập, xem bệnh án** | Cặp khoá ECDSA P-256 sinh trên máy, khoá riêng cất trong Keychain/Keystore chỉ mở được sau xác thực sinh trắc; server phát nonce, máy ký, server kiểm chữ ký (`/auth/biometric/enroll`, `/challenge`, `/login`) | ✅ Đã cài đặt **cả hai đầu**: server phát nonce dùng một lần hết hạn 2 phút và kiểm chữ ký DER; app dùng `biometric_signature` sinh khoá ECDSA P-256 trong Keystore/Secure Enclave với `enforceBiometric` + `setInvalidatedByBiometricEnrollment` (thêm vân tay mới thì khoá cũ mất hiệu lực). Nút đăng nhập sinh trắc chỉ hiện khi máy thật sự dùng được. ⚠️ Đạt có điều kiện: phần server đo được bằng `auth` TC-07…TC-10 (nonce dùng một lần, hết hạn 2 phút, chữ ký sai bị từ chối). **Phase 8 vá một lỗi làm tính năng này chết hẳn trên Android**: `MainActivity` kế thừa `FlutterActivity` nên hộp thoại vân tay (một `DialogFragment`) không gắn vào đâu được, plugin ném `INCOMPATIBLE_ACTIVITY` ngay ở bước dò khả năng máy — và vì app xử lý lỗi đó bằng cách *ẩn nút sinh trắc đi*, không có màn lỗi nào, không có báo cáo sự cố nào: tính năng chỉ đơn giản không bao giờ xuất hiện. Nay là `FlutterFragmentActivity`; log của lần chạy bộ chụp trên Android 7.1.1 sạch dòng đó. **Điều kiện còn lại: phần cảm biến chỉ nghiệm thu được trên thiết bị thật** — máy ảo không có vân tay/Face ID. Kịch bản: bật sinh trắc → đăng nhập bằng vân tay → mở màn bệnh án phải xác thực lại → tắt sinh trắc ở cài đặt máy thì quay về PIN/mật khẩu | 1 → 8 | ⚠️ |
 | I.2.9.4 | **Quản lý tất cả thiết bị đăng nhập** | Màn "Thiết bị đăng nhập" (`devices_page.dart`); `GET /api/v1/patient/devices`, `DELETE .../{id}`, `DELETE .../others`; thu hồi tức thì bằng cách xoay `SecurityStamp` | ✅ Đạt: `auth` TC-04, TC-05, TC-06 (đăng nhập lại cùng một máy không đẻ dòng mới), TC-13 — **máy bị đăng xuất từ xa mất quyền ngay lần gọi API kế tiếp**, không đợi token hết hạn. Đây là hành vi phía máy chủ nên máy ảo hay máy thật đều cho cùng kết quả; danh sách thiết bị hiển thị đúng trên bộ chụp Android 7.1.1 và iOS 12 simulator | 1 | ✅ |
 
 ---
 
 ## I.3 — Module tính năng quản trị
+
+> Năm màn quản trị đọc dữ liệu từ **BFF** (`/patient-api`), không phải từ HIS Core — chỗ dễ hỏng
+> lặng lẽ nhất: HIS chạy tốt, đăng nhập được, menu hiện đủ, chỉ mấy màn này trắng vì proxy chưa
+> trỏ. `frontend/e2e/patient-app-admin.spec.ts` (7 ca, PASS) canh đúng chuyện đó: màn dựng được ·
+> không lỗi JS · BFF không trả 4xx/5xx · bộ lọc thật sự nạp lại dữ liệu · màn tra cứu KHÔNG tự tra
+> khi chưa nhập gì (mỗi lần tra là một dòng nhật ký truy cập — tra tự động là một dòng nhật ký sai).
 
 ### 1. Web server quản lý
 
@@ -184,8 +209,8 @@ chạy lệnh và đính kết quả vào hồ sơ, không phải viết thêm p
 | # | Yêu cầu HSMT | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|
 | C.1 | **Không giới hạn số lượng người dùng** app | Không có khoá cứng số tài khoản ở bất kỳ đâu trong mã nguồn, và **không thành phần nào dùng giấy phép tính theo người dùng hay theo CPU** — bảng giấy phép đầy đủ: [`patient-app-equivalent-technology.md`](../../architecture/operations/patient-app-equivalent-technology.md) §3.3 | ✅ Đạt về mặt thiết kế và giấy phép. Giới hạn duy nhất trong hệ thống là **chống lạm dụng theo tần suất** (OTP theo số điện thoại), không phải trần số người dùng | 7 | ✅ |
-| C.2 | Hỗ trợ **iOS ≥ 12.0** | Flutter pin **3.32.8**; `project.pbxproj` (3 chỗ), `AppFrameworkInfo.plist` và `Podfile` đều khai **12.0**; Podfile dùng **thư viện tĩnh + `use_modular_headers!`** để Firebase 10.x build được ở iOS 12 | ✅ **Đã build thật trên macOS runner (Xcode 16.4)**: `flutter build ios --simulator` PASS, và `MinimumOSVersion` trong Info.plist **của chính bản build ra** = **12.0**. Chạy 7/7 test + chụp 6 màn trên iPhone simulator. Bằng chứng: `docs/features/patient-app/screenshots/ios-*.png`, workflow `mobile-patient-app.yml`. ⚠️ **Điều kiện còn lại: một máy iOS 12 thật** — ngưỡng phiên bản đã chứng minh bằng chính sản phẩm build ra, phần còn phải xem tận mắt là cảm biến sinh trắc và hiệu năng cuộn trên phần cứng đời đó | 0 → 7 | ⚠️ |
-| C.3 | Hỗ trợ **Android ≥ 7.2** | `minSdk = 25` (Android 7.1.1); desugaring bật để `java.time` chạy được trên API 25 | ✅ **Đã chạy thật trên máy ảo Android 7.1.1 (API 25)** — đúng ngưỡng HSMT — bộ chụp 6/6 PASS. Ngoài ra chạy đầy đủ có đăng nhập thật qua BFF + PostgreSQL trên Android 16. Bằng chứng: `screenshots/android*.png`. ⚠️ **Điều kiện còn lại: một máy Android 7.x thật** — cùng lý do với C.2: máy ảo không có cảm biến vân tay thật và không phản ánh đúng hiệu năng phần cứng đời đó | 0 → 7 | ⚠️ |
+| C.2 | Hỗ trợ **iOS ≥ 12.0** | Flutter pin **3.32.8**; `project.pbxproj` (3 chỗ), `AppFrameworkInfo.plist` và `Podfile` đều khai **12.0**; Podfile dùng **thư viện tĩnh + `use_modular_headers!`** để Firebase 10.x build được ở iOS 12 | ✅ **Đã build thật trên macOS runner (Xcode 16.4)**: `flutter build ios --simulator` PASS, và `MinimumOSVersion` trong Info.plist **của chính bản build ra** = **12.0**. Chạy 7/7 test + chụp 6 màn trên iPhone simulator. Bằng chứng: `docs/features/patient-app/screenshots/ios-*.png` + hiện vật `anh-man-hinh-ios` của workflow `mobile-patient-app.yml` (cùng bộ 22 ca với Android, chụp trên simulator iOS). ⚠️ **Điều kiện còn lại: một máy iOS 12 thật** — ngưỡng phiên bản đã chứng minh bằng chính sản phẩm build ra, phần còn phải xem tận mắt là cảm biến sinh trắc và hiệu năng cuộn trên phần cứng đời đó | 0 → 7 | ⚠️ |
+| C.3 | Hỗ trợ **Android ≥ 7.2** | `minSdk = 25` (Android 7.1.1); desugaring bật để `java.time` chạy được trên API 25 | ✅ **Đã chạy thật trên máy ảo Android 7.1.1 (API 25)** — đúng ngưỡng HSMT — bộ chụp 6/6 PASS. Ngoài ra chạy đầy đủ có đăng nhập thật qua BFF + PostgreSQL trên Android 16. Bằng chứng: **22 ảnh phủ đủ mọi nhóm chức năng I.2 + I.3, chụp trên chính máy ảo API 25** ([`screenshots/android71/`](screenshots/android71/), sinh bởi `integration_test/screenshots_test.dart`, thu bằng `scripts/collect-patient-app-evidence.sh`). ⚠️ **Điều kiện còn lại: một máy Android 7.x thật** — cùng lý do với C.2: máy ảo không có cảm biến vân tay thật và không phản ánh đúng hiệu năng phần cứng đời đó | 0 → 8 | ⚠️ |
 
 > **C.2 và C.3** ghi ⚠️ chứ không ✅ vì mới chạy trên **máy ảo/simulator**. Đây là điều kiện về *thiết
 > bị nghiệm thu*, không phải phần việc còn thiếu trong sản phẩm: ngưỡng phiên bản đã được chứng minh

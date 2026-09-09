@@ -106,7 +106,7 @@ const PatientAppFamilies: React.FC = () => {
   ];
 
   return (
-    <div className="ab">
+    <div className="ab" data-testid="patient-app-families-page">
       <KpiStrip items={kpis} />
 
       <div className="ab-tools">

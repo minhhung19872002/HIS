@@ -58,6 +58,15 @@ export default defineConfig({
         changeOrigin: true,
         ws: true,
       },
+      // BFF app người bệnh (HIS.PatientApp.Api) — 5 màn /v2/patient-app/* gọi vào đây.
+      // Thiếu dòng này thì `/patient-api/...` rơi vào SPA fallback và trả về index.html: màn hình
+      // trắng, không lỗi mạng, không lỗi JS — hỏng đúng kiểu khó lần ra nhất. Ở môi trường thật
+      // reverse proxy đảm nhiệm việc định tuyến này (xem docs/features/patient-app/deploy-runbook.md §3).
+      '/patient-api': {
+        target: 'http://localhost:5200',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/patient-api/, ''),
+      },
       '/health': {
         target: 'http://localhost:5106',
         changeOrigin: true,

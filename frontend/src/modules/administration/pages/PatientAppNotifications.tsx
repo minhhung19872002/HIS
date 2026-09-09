@@ -260,7 +260,7 @@ const PatientAppNotifications: React.FC = () => {
   ];
 
   return (
-    <div className="ab">
+    <div className="ab" data-testid="patient-app-notifications-page">
       <KpiStrip items={kpis} />
 
       <div className="ab-tools">

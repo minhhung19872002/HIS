@@ -105,6 +105,12 @@ jobs:
       - name: Chụp màn hình trên máy ảo Android
         uses: reactivecircus/android-emulator-runner@v2
         with:
+          # ⚠️ API 30, KHÔNG phải 25. Job này là lưới an toàn chạy mỗi lần push — nó chứng minh app
+          # dựng và đi hết được các màn, KHÔNG phải bằng chứng cho ngưỡng "Android 7.2 trở lên" của
+          # HSMT. Bằng chứng cho ngưỡng đó là bộ ảnh chụp trên máy ảo **Android 7.1.1 (API 25)**
+          # `HIS_Android71_API25`, chạy tay và đính vào `docs/architecture/evidence/spec-app/`
+          # (xem `docs/features/patient-app/acceptance-matrix.md` dòng C.3). API 25 trên runner
+          # dựng chậm và hay rớt giữa chừng nên không đặt vào đường chạy mỗi push.
           api-level: 30
           arch: x86_64
           # Ảnh "default" nhẹ hơn google_apis và ổn định hơn trên runner. Bộ chụp màn hình không cần

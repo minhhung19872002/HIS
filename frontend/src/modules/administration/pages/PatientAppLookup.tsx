@@ -144,7 +144,7 @@ const PatientAppLookup: React.FC = () => {
   ];
 
   return (
-    <div className="ab">
+    <div className="ab" data-testid="patient-app-lookup-page">
       <div className="ab-tools">
         <SearchBox
           value={keyword}

@@ -80,7 +80,7 @@ const PatientAppDashboardPage: React.FC = () => {
   const peak = Math.max(1, ...data.registrationsByDay.map((d) => d.count));
 
   return (
-    <div className="ab">
+    <div className="ab" data-testid="patient-app-dashboard-page">
       <div className="ab-tools">
         <Filter
           value={days}
