@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/widgets.dart';
 import '../../family/presentation/family_page.dart';
 import '../domain/result_models.dart';
 import 'results_providers.dart';
@@ -43,7 +44,7 @@ class ResultsPage extends ConsumerWidget {
           foregroundColor: relative ? AppColors.relativeDeep : AppColors.textPrimary,
           surfaceTintColor: Colors.transparent,
           bottom: PreferredSize(
-            preferredSize: Size.fromHeight(relative ? 82 : 56),
+            preferredSize: Size.fromHeight(relative ? 134 : 108),
             child: Container(
               color: relative ? AppColors.relativeTint : AppColors.surface,
               child: Column(
@@ -51,11 +52,19 @@ class ResultsPage extends ConsumerWidget {
                 children: [
                   if (relative)
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0, AppSpacing.screen, 8),
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.screen,
+                        0,
+                        AppSpacing.screen,
+                        8,
+                      ),
                       child: Row(
                         children: [
-                          const Icon(Icons.people_alt_outlined,
-                              size: 16, color: AppColors.relative),
+                          const Icon(
+                            Icons.people_alt_outlined,
+                            size: 16,
+                            color: AppColors.relative,
+                          ),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
@@ -72,6 +81,7 @@ class ResultsPage extends ConsumerWidget {
                         ],
                       ),
                     ),
+                  const _MemberChips(),
                   const _ResultTabChips(),
                   const Divider(height: 1, color: AppColors.border),
                 ],
@@ -88,6 +98,120 @@ class ResultsPage extends ConsumerWidget {
             _PrescriptionsTab(),
             _CheckupsTab(),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Chip chọn hồ sơ đang xem: "Tôi" và từng người thân đã được cho phép xem kết quả.
+///
+/// Đặt ngay trên đầu màn thay vì bắt quay về màn Gia đình để đổi: người chăm bố mẹ già thường
+/// phải xem qua lại giữa vài hồ sơ trong cùng một lượt, và đi vòng mỗi lần là mỗi lần dễ quên
+/// mình đang xem hộ ai.
+///
+/// Không có người thân nào thì không chiếm chỗ.
+class _MemberChips extends ConsumerWidget {
+  const _MemberChips();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final family = ref.watch(familyProvider).valueOrNull;
+    final viewing = ref.watch(viewingMemberProvider);
+
+    // Chỉ hiện người đã được cấp quyền xem kết quả — người chưa xác minh mà hiện ra thì chạm vào
+    // chỉ nhận về màn trống.
+    final members = (family?.items ?? const []).where((m) => m.canViewResults).toList();
+    if (members.isEmpty) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 52,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen, vertical: 6),
+        children: [
+          _MemberChip(
+            label: 'Tôi',
+            initial: 'T',
+            selected: viewing == null,
+            onTap: () => ref.read(viewingMemberProvider.notifier).select(null),
+          ),
+          for (final member in members) ...[
+            const SizedBox(width: 8),
+            _MemberChip(
+              label: member.name,
+              initial: member.name.trim().isEmpty
+                  ? '?'
+                  : member.name.trim().characters.last.toUpperCase(),
+              selected: viewing?.id == member.id,
+              onTap: () => ref.read(viewingMemberProvider.notifier).select(member),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MemberChip extends StatelessWidget {
+  const _MemberChip({
+    required this.label,
+    required this.initial,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final String initial;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: selected ? 'Đang xem hồ sơ $label' : 'Xem hồ sơ $label',
+      child: Material(
+        color: selected ? AppColors.relative : AppColors.pageBackground,
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadii.pill),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(7, 7, 14, 7),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: selected ? Colors.white : AppColors.relativeBg,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    initial,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: selected ? AppColors.relative : AppColors.relativeDeep,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 9),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: selected ? Colors.white : AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -201,19 +325,22 @@ class _VisitsTab extends ConsumerWidget {
           color: isSelected ? Theme.of(context).colorScheme.primaryContainer : null,
           child: ListTile(
             leading: const Icon(Icons.medical_information_outlined),
-            title: Text(visit.diagnosis?.isNotEmpty == true
-                ? visit.diagnosis!
-                : 'Lượt khám ${visit.visitDate == null ? '' : _day.format(visit.visitDate!)}'),
-            subtitle: Text([
-              if (visit.visitDate != null) _day.format(visit.visitDate!),
-              if (visit.department?.isNotEmpty == true) visit.department!,
-              if (visit.doctorName?.isNotEmpty == true) 'BS ${visit.doctorName}',
-            ].join(' · ')),
+            title: Text(
+              visit.diagnosis?.isNotEmpty == true
+                  ? visit.diagnosis!
+                  : 'Lượt khám ${visit.visitDate == null ? '' : _day.format(visit.visitDate!)}',
+            ),
+            subtitle: Text(
+              [
+                if (visit.visitDate != null) _day.format(visit.visitDate!),
+                if (visit.department?.isNotEmpty == true) visit.department!,
+                if (visit.doctorName?.isNotEmpty == true) 'BS ${visit.doctorName}',
+              ].join(' · '),
+            ),
             trailing: Icon(isSelected ? Icons.filter_alt : Icons.filter_alt_outlined),
             // Chạm để lọc mọi tab còn lại theo đúng lần khám này; chạm lần nữa để bỏ lọc.
-            onTap: () => ref
-                .read(visitFilterProvider.notifier)
-                .select(isSelected ? null : visit.visitId),
+            onTap: () =>
+                ref.read(visitFilterProvider.notifier).select(isSelected ? null : visit.visitId),
           ),
         );
       },
@@ -230,8 +357,14 @@ class _FilterBanner extends ConsumerWidget {
     final visitId = ref.watch(visitFilterProvider);
     if (visitId == null) return const SizedBox.shrink();
 
-    final visit = ref.watch(visitsProvider).valueOrNull?.where((v) => v.visitId == visitId).firstOrNull;
-    final label = visit?.visitDate == null ? 'một lần khám' : 'lần khám ${_day.format(visit!.visitDate!)}';
+    final visit = ref
+        .watch(visitsProvider)
+        .valueOrNull
+        ?.where((v) => v.visitId == visitId)
+        .firstOrNull;
+    final label = visit?.visitDate == null
+        ? 'một lần khám'
+        : 'lần khám ${_day.format(visit!.visitDate!)}';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -290,12 +423,14 @@ class _LabTab extends ConsumerWidget {
             color: lab.hasAbnormal ? Theme.of(context).colorScheme.error : null,
           ),
           title: Text(lab.title),
-          subtitle: Text([
-            if (lab.resultDate != null) _day.format(lab.resultDate!),
-            if (lab.orderingDoctor?.isNotEmpty == true) 'BS ${lab.orderingDoctor}',
-            if (lab.hasAbnormal) 'có chỉ số ngoài khoảng bình thường',
-            if (!lab.isCompleted) 'đang chờ kết quả',
-          ].join(' · ')),
+          subtitle: Text(
+            [
+              if (lab.resultDate != null) _day.format(lab.resultDate!),
+              if (lab.orderingDoctor?.isNotEmpty == true) 'BS ${lab.orderingDoctor}',
+              if (lab.hasAbnormal) 'có chỉ số ngoài khoảng bình thường',
+              if (!lab.isCompleted) 'đang chờ kết quả',
+            ].join(' · '),
+          ),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => context.push('${AppRoutes.results}/lab/${lab.id}'),
         ),
@@ -322,12 +457,14 @@ class _ImagingTab extends ConsumerWidget {
         child: ListTile(
           leading: const Icon(Icons.monitor_heart_outlined),
           title: Text(img.title),
-          subtitle: Text([
-            if (img.studyDate != null) _day.format(img.studyDate!),
-            if (img.reportingDoctor?.isNotEmpty == true) 'BS ${img.reportingDoctor}',
-            if (img.hasImages) '${img.imageCount} ảnh',
-            if (!img.isCompleted) 'đang chờ đọc kết quả',
-          ].join(' · ')),
+          subtitle: Text(
+            [
+              if (img.studyDate != null) _day.format(img.studyDate!),
+              if (img.reportingDoctor?.isNotEmpty == true) 'BS ${img.reportingDoctor}',
+              if (img.hasImages) '${img.imageCount} ảnh',
+              if (!img.isCompleted) 'đang chờ đọc kết quả',
+            ].join(' · '),
+          ),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => context.push('${AppRoutes.results}/imaging/${img.id}'),
         ),
@@ -354,11 +491,13 @@ class _FunctionalTab extends ConsumerWidget {
         child: ListTile(
           leading: const Icon(Icons.timeline_outlined),
           title: Text(test.testTypeName),
-          subtitle: Text([
-            if (test.performedAt != null) _day.format(test.performedAt!),
-            if (test.performingDoctorName?.isNotEmpty == true) 'BS ${test.performingDoctorName}',
-            if (test.statusName?.isNotEmpty == true) test.statusName!,
-          ].join(' · ')),
+          subtitle: Text(
+            [
+              if (test.performedAt != null) _day.format(test.performedAt!),
+              if (test.performingDoctorName?.isNotEmpty == true) 'BS ${test.performingDoctorName}',
+              if (test.statusName?.isNotEmpty == true) test.statusName!,
+            ].join(' · '),
+          ),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => context.push('${AppRoutes.results}/functional/${test.id}'),
         ),
@@ -390,42 +529,223 @@ class _PrescriptionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      margin: EdgeInsets.zero,
-      child: ExpansionTile(
-        leading: const Icon(Icons.receipt_long_outlined),
-        title: Text(prescription.prescriptionCode),
-        subtitle: Text([
-          if (prescription.prescriptionDate != null) _day.format(prescription.prescriptionDate!),
-          if (prescription.doctorName?.isNotEmpty == true) 'BS ${prescription.doctorName}',
-          '${prescription.items.length} thuốc',
-        ].join(' · ')),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+    return AppCard(
+      radius: AppRadii.cardLarge,
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (prescription.diagnosis?.isNotEmpty == true)
-            DetailRow(Icons.medical_information_outlined, 'Chẩn đoán', prescription.diagnosis),
-          const SizedBox(height: 8),
-          for (final item in prescription.items)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(item.drugName, style: theme.textTheme.titleSmall),
-                  if (item.strength?.isNotEmpty == true)
-                    Text(item.strength!, style: theme.textTheme.bodySmall),
-                  Text('${item.schedule} · ${item.quantity} ${item.unit ?? ''}'.trim()),
-                  // Cách dùng in đậm: đây là dòng người bệnh cần nhớ nhất khi về nhà.
-                  if (item.instructions?.isNotEmpty == true)
-                    Text(item.instructions!,
-                        style: theme.textTheme.bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.w600)),
-                ],
-              ),
+          // Đầu đơn: mã đơn đặt bằng Sora, ngày và bác sĩ, số loại thuốc.
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.cardLarge),
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: AppColors.border)),
             ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.relativeBg,
+                    borderRadius: BorderRadius.circular(AppRadii.iconBox),
+                  ),
+                  child: const Icon(
+                    Icons.receipt_long_outlined,
+                    size: 21,
+                    color: AppColors.relative,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        prescription.prescriptionCode,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: AppFonts.display,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        [
+                          if (prescription.prescriptionDate != null)
+                            _day.format(prescription.prescriptionDate!),
+                          if (prescription.doctorName?.isNotEmpty == true)
+                            'BS ${prescription.doctorName}',
+                        ].join(' · '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.relativeTint,
+                    borderRadius: BorderRadius.circular(AppRadii.pill),
+                  ),
+                  child: Text(
+                    '${prescription.items.length} thuốc',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.relative,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.cardLarge, 16, AppSpacing.cardLarge, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (prescription.diagnosis?.isNotEmpty == true) ...[
+                  DetailRow(
+                    Icons.medical_information_outlined,
+                    'Chẩn đoán',
+                    prescription.diagnosis,
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                for (var i = 0; i < prescription.items.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 14),
+                  _DrugRow(item: prescription.items[i]),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Một thuốc trong đơn: dải màu dọc · tên + số lượng · chip liều · cách dùng in đậm.
+class _DrugRow extends StatelessWidget {
+  const _DrugRow({required this.item});
+  final PrescriptionItem item;
+
+  /// Các mẩu liều dùng làm chip.
+  ///
+  /// Lấy ĐÚNG những gì đơn thuốc ghi (`dosage`, `frequency`, `durationDays`), không suy ra gì
+  /// thêm. Bản thiết kế vẽ chip kiểu "Sáng 1 / Trưa 1 / Tối 1", nhưng dữ liệu chỉ có "2 lần/ngày"
+  /// — tự chia thành buổi sáng, buổi trưa là BỊA RA CHỈ DẪN DÙNG THUỐC, thứ tuyệt đối không được
+  /// làm trong một app y tế.
+  List<String> get _chips => [
+    if (item.dosage?.isNotEmpty == true) item.dosage!,
+    if (item.frequency?.isNotEmpty == true) item.frequency!,
+    if ((item.durationDays ?? 0) > 0) '${item.durationDays} ngày',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final quantity = '${item.quantity}${item.unit == null ? '' : ' ${item.unit}'}'.trim();
+
+    // `IntrinsicHeight` để dải màu dọc cao đúng bằng khối chữ bên cạnh. Không có nó thì
+    // `CrossAxisAlignment.stretch` nhận chiều cao VÔ HẠN (Row nằm trong Column của danh sách
+    // cuộn) và cả màn vỡ layout. Đắt hơn một lượt đo, nhưng mỗi đơn chỉ vài thuốc.
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Dải màu dọc tách các thuốc trong một đơn dài, khỏi phải kẻ đường ngang.
+          Container(
+            width: 4,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF8B5CF6), AppColors.accentDeep],
+              ),
+              borderRadius: BorderRadius.circular(AppRadii.pill),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.strength?.isNotEmpty == true
+                            ? '${item.drugName} ${item.strength}'
+                            : item.drugName,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    if (quantity.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        quantity,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (_chips.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final chip in _chips)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.tint,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            chip,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+                // Cách dùng in đậm: đây là dòng người bệnh cần nhớ nhất khi về nhà.
+                if (item.instructions?.isNotEmpty == true) ...[
+                  const SizedBox(height: 9),
+                  Text(
+                    item.instructions!,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      height: 1.45,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -451,12 +771,17 @@ class _CheckupsTab extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(checkup.campaignName ?? 'Đợt khám sức khoẻ',
-                  style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                checkup.campaignName ?? 'Đợt khám sức khoẻ',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               const SizedBox(height: 8),
               DetailRow(Icons.business_outlined, 'Đơn vị', checkup.companyName),
-              DetailRow(Icons.event_outlined, 'Ngày khám',
-                  checkup.checkupDate == null ? null : _day.format(checkup.checkupDate!)),
+              DetailRow(
+                Icons.event_outlined,
+                'Ngày khám',
+                checkup.checkupDate == null ? null : _day.format(checkup.checkupDate!),
+              ),
               DetailRow(Icons.favorite_outline, 'Phân loại', checkup.healthClassification),
               if (checkup.certificateIssued)
                 DetailRow(Icons.verified_outlined, 'Giấy chứng nhận', checkup.certificateNumber),
