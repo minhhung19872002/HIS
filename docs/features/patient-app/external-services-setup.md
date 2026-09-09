@@ -15,18 +15,60 @@ giả bật sẵn ở môi trường phát triển (quyết định [D8](decisio
 | | |
 |---|---|
 | **Dùng cho** | Đăng ký tài khoản, quên mật khẩu, xác thực số điện thoại (HSMT I.2 #1, #9) |
-| **Bản giả** | `LoggingOtpSender` — in mã ra log ứng dụng, chỉ đăng ký khi `ASPNETCORE_ENVIRONMENT=Development` |
-| **Chỗ cắm bản thật** | `IOtpSender` trong `backend/src/HIS.PatientApp.Api/Services/` |
-| **Chặn khởi động** | Có. Ngoài `Development` mà không có `IOtpSender` thật → ném lỗi ở `Program.cs` |
+| **Bản giả** | `LoggingOtpSender` — in mã ra log, chỉ dùng được khi `ASPNETCORE_ENVIRONMENT=Development` |
+| **Bản thật** | `HttpOtpSender` — **đã viết sẵn**, chỉ cần điền cấu hình, không phải sửa mã nguồn |
+| **Chuyển bản** | `OtpSender:Provider` = `fake` \| `http` |
+| **Chặn khởi động** | Có. Ngoài `Development` mà `Provider` vẫn là `fake` → ném lỗi ở `Program.cs` |
 
 **Cần xin:**
-- Nhà cung cấp SMS brandname (Viettel / VNPT / FPT / Twilio…) — bệnh viện thường đã có hợp đồng sẵn
-  cho SMS nhắc lịch.
-- Brandname đã đăng ký (ví dụ `BVXYZ`), API endpoint, `client_id` / `client_secret` hoặc API key.
+- Nhà cung cấp SMS brandname (Viettel / VNPT / FPT / eSMS / SpeedSMS…) — bệnh viện thường đã có hợp
+  đồng sẵn cho SMS nhắc lịch.
+- Brandname đã đăng ký (ví dụ `BVXYZ`), địa chỉ API, và API key hoặc `client_id`/`client_secret`.
 - Hạn mức tin/ngày và chi phí mỗi tin — ảnh hưởng tới việc đặt trần chống lạm dụng.
 
-**Đã có sẵn phía app:** giới hạn 5 lần xin OTP / 10 phút / IP, mã hết hạn sau 5 phút, lưu dạng băm
-SHA-256 chứ không lưu mã gốc.
+### Cắm cổng SMS vào — chỉ sửa cấu hình
+
+`HttpOtpSender` gọi cổng SMS theo một **khuôn mẫu khai trong cấu hình**, cố ý không viết cứng cho
+một nhà cung cấp cụ thể: mọi cổng brandname trong nước đều là "POST một JSON hoặc một form tới một
+URL kèm header xác thực", khác nhau chỉ ở tên trường. Viết cứng nghĩa là bệnh viện đổi nhà cung cấp
+thì phải sửa mã và phát hành lại.
+
+Hai chỗ thay trong `BodyTemplate`: `{phone}` và `{message}`. Hai chỗ thay trong `MessageTemplate`:
+`{code}` và `{minutes}`.
+
+```jsonc
+// appsettings.Production.json
+"OtpSender": {
+  "Provider": "http",
+  "Url": "https://api.nha-cung-cap.vn/sms/send",
+  "Method": "POST",
+  "ContentType": "application/json",
+  "Headers": { "Authorization": "Bearer <api-key>" },
+  "BodyTemplate": "{\"to\":\"{phone}\",\"content\":\"{message}\",\"brandname\":\"BVXYZ\"}",
+  // Nhiều cổng trả HTTP 200 kèm mã lỗi trong thân. Khai chuỗi phải có thì mới coi là gửi được,
+  // nếu không hệ thống tưởng đã gửi còn người bệnh thì không nhận được gì.
+  "SuccessContains": "\"CodeResult\":\"100\"",
+  // NoPlus = 84912345678 · Local = 0912345678 · E164 = +84912345678
+  "PhoneFormat": "NoPlus",
+  "MessageTemplate": "Ma xac minh cua ban la {code}, het han sau {minutes} phut. Khong chia se ma nay cho bat ky ai."
+}
+```
+
+Cổng cũ chỉ nhận form cũng cắm được, không phải sửa mã:
+
+```jsonc
+"ContentType": "application/x-www-form-urlencoded",
+"BodyTemplate": "phone={phone}&content={message}&apikey=<api-key>&brandname=BVXYZ"
+```
+
+**Kiểm sau khi cắm:** khởi động BFF (không còn ném lỗi cấu hình) → bấm "gửi mã" trên app → điện
+thoại phải nhận được tin. Cổng từ chối thì app báo lỗi và cho bấm gửi lại, **không** âm thầm coi
+như đã gửi. Hành vi này có 11 bài kiểm tự động trong `HttpOtpSenderTests` (bao gồm cả trường hợp
+HTTP 200 nhưng thân phản hồi báo lỗi, và dấu nháy trong lời nhắn không được làm hỏng JSON).
+
+**Đã có sẵn phía app:** giới hạn tần suất xin OTP theo số điện thoại và theo IP, mã hết hạn sau
+5 phút, lưu dạng băm SHA-256 chứ không lưu mã gốc, và **mã OTP không bao giờ được ghi vào log** ở
+bản thật.
 
 ---
 

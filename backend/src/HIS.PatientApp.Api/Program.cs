@@ -137,18 +137,44 @@ builder.Services.AddHostedService<AppointmentReminderWorker>();
 // Gửi các đợt thông báo đã hẹn giờ của bệnh viện (HSMT I.3 #1.4).
 builder.Services.AddHostedService<CampaignDispatcherWorker>();
 
-// Bản gửi OTP thật cắm ở đây. Bản ghi-log chỉ được phép ở môi trường phát triển: in mã OTP ra log
-// ở production đồng nghĩa ai đọc được log là đăng nhập được vào tài khoản người bệnh.
-if (builder.Environment.IsDevelopment())
+// Kênh gửi OTP: bản THẬT (gọi cổng SMS của bệnh viện) và bản GIẢ (in ra log) chọn bằng cấu hình.
+//
+// Bản in-log chỉ được phép ở môi trường phát triển: in mã OTP ra log ở môi trường thật đồng nghĩa
+// ai đọc được log là đăng nhập được vào tài khoản người bệnh — mà log thì được gom về máy giám sát,
+// nhiều người đọc, và giữ lâu hơn hẳn dữ liệu nghiệp vụ.
+builder.Services.Configure<OtpSenderOptions>(
+    builder.Configuration.GetSection(OtpSenderOptions.SectionName));
+
+var otpOptions = builder.Configuration.GetSection(OtpSenderOptions.SectionName).Get<OtpSenderOptions>()
+                 ?? new OtpSenderOptions();
+
+var useRealOtpSender = string.Equals(otpOptions.Provider, "http", StringComparison.OrdinalIgnoreCase);
+
+if (useRealOtpSender)
+{
+    if (string.IsNullOrWhiteSpace(otpOptions.Url) || string.IsNullOrWhiteSpace(otpOptions.BodyTemplate))
+    {
+        throw new InvalidOperationException(
+            "OtpSender:Provider = http nhưng thiếu Url hoặc BodyTemplate. "
+            + "Xem docs/features/patient-app/external-services-setup.md §1.");
+    }
+
+    builder.Services.AddScoped<IOtpSender, HttpOtpSender>();
+    builder.Services.AddHttpClient(HttpOtpSender.HttpClientName, client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(otpOptions.TimeoutSeconds);
+    });
+}
+else if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddScoped<IOtpSender, LoggingOtpSender>();
 }
 else
 {
-    // TODO(Phase 1 — tích hợp SMS): thay bằng bản gọi gateway SMS thật của bệnh viện.
-    // Cố ý ném ngay lúc khởi động thay vì âm thầm không gửi được mã.
+    // Cố ý ném ngay lúc khởi động thay vì âm thầm in mã ra log ở môi trường thật.
     throw new InvalidOperationException(
-        "Chưa cấu hình kênh gửi OTP thật. Đăng ký một IOtpSender gọi gateway SMS trước khi chạy ngoài môi trường phát triển.");
+        "Chưa cấu hình kênh gửi OTP thật: đặt OtpSender:Provider = \"http\" cùng Url/BodyTemplate "
+        + "của cổng SMS. Xem docs/features/patient-app/external-services-setup.md §1.");
 }
 
 // ---------------------------------------------------------------- xác thực
