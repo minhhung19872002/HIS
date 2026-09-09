@@ -17,6 +17,7 @@ class AppPrimaryButton extends StatelessWidget {
     this.icon,
     this.loading = false,
     this.gradient = AppGradients.primaryButton,
+    this.foreground = Colors.white,
     this.height = AppSpacing.buttonHeight,
     this.expand = true,
   });
@@ -26,6 +27,11 @@ class AppPrimaryButton extends StatelessWidget {
   final IconData? icon;
   final bool loading;
   final Gradient gradient;
+
+  /// Màu chữ và biểu tượng. Đổi khi [gradient] SÁNG — trắng trên nền xanh nhạt chỉ đạt ~1.7:1,
+  /// dưới xa ngưỡng 4.5:1, và đây là nút chính của màn nên không được để đoán chữ.
+  final Color foreground;
+
   final double height;
 
   /// `false` khi nút nằm cạnh nút khác trong một `Row` — khi đó nó co theo nội dung.
@@ -41,25 +47,25 @@ class AppPrimaryButton extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (loading)
-          const SizedBox(
+          SizedBox(
             width: 20,
             height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+            child: CircularProgressIndicator(strokeWidth: 2.4, color: foreground),
           )
         else ...[
           if (icon != null) ...[
-            Icon(icon, size: 20, color: Colors.white),
+            Icon(icon, size: 20, color: foreground),
             const SizedBox(width: 10),
           ],
           Flexible(
             child: Text(
               label,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: AppFonts.body,
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: Colors.white,
+                color: foreground,
               ),
             ),
           ),
