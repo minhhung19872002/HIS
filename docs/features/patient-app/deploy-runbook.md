@@ -195,7 +195,7 @@ Dựng ngày 2026-09-09 để bàn giao thử: cài app lên điện thoại th�
 
 | | |
 |---|---|
-| Địa chỉ | **https://patientapp.14-225-83-93.nip.io** |
+| Địa chỉ | **https://patient.bluestar.com.vn** — web quản trị ở `/`, API cho app ở `/api/*` |
 | Thư mục | `/home/hung/his-patientapp/` trên VM (`ssh hung@14.225.83.93`) |
 | Chứng chỉ | Let's Encrypt (DV), tự gia hạn — HSMT I.4.1 |
 | Tài nguyên | API 85 MB + PostgreSQL 41 MB |
@@ -230,6 +230,21 @@ cd ~/his-patientapp && docker compose pull && docker compose up -d   # hoặc n�
 docker logs patientapp-api 2>&1 | grep '\[DEV\] OTP'
 ```
 
+### Một tên miền cho tất cả
+
+Ban đầu bản UAT có ba địa chỉ: `patientapp.<ip>.nip.io` cho BFF, `admin.<ip>.nip.io` tạm cho web
+quản trị, và `patient.bluestar.com.vn`. Đã gộp còn một.
+
+Lý do không chỉ là cho gọn: web quản trị gọi API sang **khác origin** là dính CORS, và đó đúng là
+lỗi đã gặp — trình duyệt chặn, axios báo lỗi mạng, màn đăng nhập hiện "kiểm tra kết nối mạng" trong
+khi mạng chẳng sao cả. Để web và API cùng một gốc thì vấn đề đó không tồn tại.
+
+> ⚠️ **Đổi địa chỉ thì giữ song song một thời gian.** Lần gộp này đã tắt địa chỉ nip.io **trước
+> khi** đưa APK mới cho người dùng, nên bản app đang cài trên máy mất đường về và không đăng ký
+> được. Thứ tự đúng: phát hành app trỏ địa chỉ mới → chờ người dùng cập nhật → mới tắt địa chỉ cũ.
+
+Cấu hình cũ sao lưu tại `sites/his-patientapp.caddy.bak-truoc-gop-ten-mien-<ngày>`.
+
 ### ⚠️ Hai điều kiện chưa xong ở bản UAT này
 
 1. **`HIS_SERVICE_USERNAME/PASSWORD` để trống** → mọi màn cần dữ liệu bệnh viện sẽ báo "chưa kết nối
@@ -247,6 +262,6 @@ docker logs patientapp-api 2>&1 | grep '\[DEV\] OTP'
 ```bash
 cd mobile/patient_app
 fvm flutter build apk --debug --split-per-abi -t lib/main_dev.dart \
-  --dart-define=API_BASE_URL=https://patientapp.14-225-83-93.nip.io/api/v1
+  --dart-define=API_BASE_URL=https://patient.bluestar.com.vn/api/v1
 # → build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk
 ```

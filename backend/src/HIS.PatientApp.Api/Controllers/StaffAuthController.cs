@@ -100,9 +100,30 @@ public class StaffAuthController : ControllerBase
         return Ok(ApiResponse<StaffLoginResultDto>.Ok(new StaffLoginResultDto
         {
             Token = token,
-            FullName = payload.TryGetProperty("fullName", out var n) ? n.GetString() ?? "" : "",
+            // HIS trả tên trong `data.user.fullName`, KHÔNG phải `data.fullName` — tìm nhầm chỗ nên
+            // tên nhân viên hiện trống trên thanh trên cùng của web quản trị. Đọc cả hai dạng để đổi
+            // bản HIS hoặc ghép với HIS hãng khác không gãy lại.
+            FullName = ReadFullName(payload),
             Roles = roles,
         }));
+    }
+
+    /// <summary>Tên nhân viên: HIS đặt ở `data.user.fullName`; chấp nhận cả `data.fullName`.</summary>
+    private static string ReadFullName(System.Text.Json.JsonElement payload)
+    {
+        if (payload.TryGetProperty("user", out var user)
+            && user.ValueKind == System.Text.Json.JsonValueKind.Object
+            && user.TryGetProperty("fullName", out var nested)
+            && nested.ValueKind == System.Text.Json.JsonValueKind.String)
+        {
+            var value = nested.GetString();
+            if (!string.IsNullOrWhiteSpace(value)) return value;
+        }
+
+        return payload.TryGetProperty("fullName", out var flat)
+               && flat.ValueKind == System.Text.Json.JsonValueKind.String
+            ? flat.GetString() ?? ""
+            : "";
     }
 
     /// <summary>
