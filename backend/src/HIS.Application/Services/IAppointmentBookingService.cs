@@ -92,6 +92,22 @@ public class OnlineBookingDto
     // Anti-fraud — điền bởi controller, KHÔNG nhận từ client body
     /// <summary>IP của client, lấy từ HttpContext.Connection.RemoteIpAddress tại controller (server-side). Không trust field này nếu được gửi lên từ body.</summary>
     public string? ClientIp { get; set; }
+
+    /// <summary>
+    /// Người gọi có mang danh tính đã xác thực không (điền bởi controller từ
+    /// <c>User.Identity.IsAuthenticated</c>, KHÔNG nhận từ body).
+    ///
+    /// <para>Dùng để bỏ hạn mức đặt-lịch-theo-IP. Hạn mức đó sinh ra để chặn một kẻ vô danh nện
+    /// biểu mẫu đặt lịch công khai. Nhưng app hỗ trợ người bệnh đi qua BFF, mà BFF là MỘT máy chủ:
+    /// HIS nhìn thấy đúng một địa chỉ IP cho TOÀN BỘ người bệnh trong cả nước. Giữ nguyên hạn mức
+    /// thì người thứ 11 đặt lịch trong ngày — và mọi người sau đó — đều bị từ chối, dù họ chẳng
+    /// liên quan gì tới nhau.</para>
+    ///
+    /// <para>Bỏ hạn mức IP KHÔNG mở toang cửa: hạn mức theo SỐ ĐIỆN THOẠI vẫn giữ nguyên, và với
+    /// người dùng app thì số điện thoại đã qua xác thực OTP — đó mới là danh tính có nghĩa. Danh
+    /// sách chặn theo IP cũng giữ, vì đó là thao tác quản trị viên đặt tay.</para>
+    /// </summary>
+    public bool IsAuthenticatedCaller { get; set; }
 }
 
 public class BookingResultDto

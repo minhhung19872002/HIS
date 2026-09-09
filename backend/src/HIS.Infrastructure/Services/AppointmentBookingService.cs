@@ -229,7 +229,13 @@ public class AppointmentBookingService : IAppointmentBookingService
         }
 
         // === Anti-fraud: đếm số lần đặt hôm nay theo IP ===
-        if (!string.IsNullOrEmpty(ip))
+        //
+        // Bỏ qua khi người gọi đã xác thực. Hạn mức này chặn kẻ vô danh nện biểu mẫu công khai;
+        // nhưng app hỗ trợ người bệnh đi qua BFF, mà BFF là MỘT máy chủ — HIS thấy đúng một IP cho
+        // toàn bộ người bệnh. Giữ nguyên thì người thứ 11 đặt lịch trong ngày và mọi người sau đó
+        // đều bị từ chối với câu "Quá nhiều yêu cầu từ địa chỉ này", dù chẳng liên quan gì nhau.
+        // Hạn mức theo SỐ ĐIỆN THOẠI ở trên vẫn áp, và với người dùng app thì số đó đã qua OTP.
+        if (!string.IsNullOrEmpty(ip) && !dto.IsAuthenticatedCaller)
         {
             var ipAttemptsToday = await _context.Set<BookingAttemptLog>()
                 .CountAsync(l => !l.IsDeleted

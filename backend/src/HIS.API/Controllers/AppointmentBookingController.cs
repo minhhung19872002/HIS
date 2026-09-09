@@ -62,6 +62,12 @@ public class AppointmentBookingController : ControllerBase
         // Lấy IP server-side — KHÔNG tin bất kỳ header nào từ client body
         // X-Forwarded-For không dùng vì có thể bị spoofed; dùng RemoteIpAddress của TCP connection
         dto.ClientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+
+        // Endpoint này AllowAnonymous cho biểu mẫu đặt lịch công khai, nhưng lời gọi VẪN có thể
+        // mang token — BFF của app hỗ trợ người bệnh gọi bằng tài khoản dịch vụ. Một lời gọi có
+        // danh tính không phải là kẻ vô danh nện biểu mẫu, nên nó không chịu hạn mức theo IP
+        // (xem `OnlineBookingDto.IsAuthenticatedCaller`). Hạn mức theo số điện thoại vẫn áp.
+        dto.IsAuthenticatedCaller = User.Identity?.IsAuthenticated == true;
         var result = await _bookingService.BookAppointmentAsync(dto);
         return Ok(result);
     }
