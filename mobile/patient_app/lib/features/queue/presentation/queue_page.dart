@@ -194,15 +194,21 @@ class _MyTicketsToday extends ConsumerWidget {
                     gradient: AppGradients.ticketBadge,
                     shape: BoxShape.circle,
                   ),
-                  child: Text(
-                    ticket.ticketCode,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontFamily: AppFonts.display,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.navyInk,
+                  // Thu nhỏ thay vì cắt: mã vé cắt cụt là mất đúng thứ cần đọc.
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 5),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        ticket.ticketCode,
+                        maxLines: 1,
+                        style: const TextStyle(
+                          fontFamily: AppFonts.display,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.navyInk,
+                        ),
+                      ),
                     ),
                   ),
                 ),

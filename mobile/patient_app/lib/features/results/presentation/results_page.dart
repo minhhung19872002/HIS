@@ -649,6 +649,19 @@ class _DrugRow extends StatelessWidget {
     if ((item.durationDays ?? 0) > 0) '${item.durationDays} ngày',
   ];
 
+  /// Tên thuốc kèm hàm lượng, KHÔNG lặp lại nếu tên đã có sẵn hàm lượng.
+  ///
+  /// HIS thường đã gộp hàm lượng vào tên ("Amlodipin 5mg") mà vẫn điền tiếp trường `strength`
+  /// ("5mg"). Ghép thẳng hai thứ ra "Amlodipin 5mg 5mg" — đọc như một liều khác hẳn, mà đây đúng
+  /// là dòng người bệnh nhìn để biết mình đang uống thuốc gì.
+  String get _nameWithStrength {
+    final name = item.drugName.trim();
+    final strength = item.strength?.trim() ?? '';
+    if (strength.isEmpty) return name;
+    if (name.toLowerCase().contains(strength.toLowerCase())) return name;
+    return '$name $strength';
+  }
+
   @override
   Widget build(BuildContext context) {
     final quantity = '${item.quantity}${item.unit == null ? '' : ' ${item.unit}'}'.trim();
@@ -682,9 +695,7 @@ class _DrugRow extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        item.strength?.isNotEmpty == true
-                            ? '${item.drugName} ${item.strength}'
-                            : item.drugName,
+                        _nameWithStrength,
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,

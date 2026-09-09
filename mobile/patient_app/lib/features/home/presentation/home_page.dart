@@ -84,8 +84,10 @@ class HomePage extends ConsumerWidget {
               crossAxisCount: 4,
               crossAxisSpacing: AppSpacing.grid,
               mainAxisSpacing: AppSpacing.grid,
-              // Ô vuông + chỗ cho nhãn hai dòng ("Điều trị nội trú", "Lấy số thứ tự").
-              childAspectRatio: 0.72,
+              // Ô vuông + chỗ cho nhãn HAI DÒNG. 0.72 chỉ chừa ~25dp cho chữ, đủ một dòng —
+              // nên trên máy 320dp nhãn bị cắt còn "Đặt", "Đơn", "Điều trị", và người dùng đi tìm
+              // nút đặt lịch khám không nhận ra nó. 0.60 chừa ~43dp, đủ hai dòng 12sp.
+              childAspectRatio: 0.60,
               children: [
                 for (final shortcut in shortcuts)
                   _ShortcutTile(
@@ -379,9 +381,11 @@ class _PatientCard extends StatelessWidget {
                           const Flexible(
                             child: Text(
                               'Đã liên kết hồ sơ bệnh án',
-                              maxLines: 1,
+                              // Hai dòng: trên máy 320dp một dòng bị cắt thành "…hồ sơ bện…",
+                              // và câu cụt đó không nói được gì.
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 12, color: AppColors.tintMid),
+                              style: TextStyle(fontSize: 12, height: 1.3, color: AppColors.tintMid),
                             ),
                           ),
                         ],
@@ -583,15 +587,22 @@ class _PulsingBadgeState extends State<_PulsingBadge> with SingleTickerProviderS
               gradient: AppGradients.ticketBadge,
               shape: BoxShape.circle,
             ),
-            child: Text(
-              widget.code,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontFamily: AppFonts.display,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: AppColors.navyInk,
+            // Thu nhỏ chữ thay vì cắt cụt: mã vé bị cắt thành "A-O…" là mất đúng thứ người
+            // bệnh mở màn này để xem.
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  widget.code,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontFamily: AppFonts.display,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navyInk,
+                  ),
+                ),
               ),
             ),
           ),

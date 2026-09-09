@@ -220,7 +220,17 @@ class _AppointmentCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(appointment.appointmentCode, style: theme.textTheme.titleMedium),
+                  // Một dòng, thu nhỏ nếu chật. Để nguyên thì mã bị bẻ giữa chừng thành
+                  // "LH-2026-000" / "7" — đọc như hai thứ khác nhau.
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      appointment.appointmentCode,
+                      maxLines: 1,
+                      style: theme.textTheme.titleMedium,
+                    ),
+                  ),
                 ),
                 Chip(
                   label: Text(appointment.statusName ?? ''),
