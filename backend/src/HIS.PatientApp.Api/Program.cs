@@ -103,6 +103,21 @@ if (string.IsNullOrWhiteSpace(pushOptions.BaseUrl))
 }
 else
 {
+    // Bẫy cấu hình đã gặp thật khi đo nghiệm thu: đặt BaseUrl là `http://...` trong khi Caddy trên
+    // VPS đẩy mọi thứ sang HTTPS (308). `HttpClient` không đi theo chuyển hướng đó, nên MỌI thông
+    // báo đều rơi vào nhánh "chưa gửi được, sẽ thử lại" rồi thử mãi — trong CSDL chỉ thấy
+    // AttemptCount tăng dần, không có lỗi nào nói rõ nguyên nhân, và người bệnh thì không bao giờ
+    // nhận được gì. Nói to ngay lúc khởi động rẻ hơn nhiều so với truy ngược từ triệu chứng đó.
+    if (!pushOptions.BaseUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+        && !pushOptions.BaseUrl.Contains("localhost", StringComparison.OrdinalIgnoreCase)
+        && !pushOptions.BaseUrl.Contains("127.0.0.1", StringComparison.Ordinal))
+    {
+        Console.Error.WriteLine(
+            "[CẢNH BÁO] PushRelay:BaseUrl không phải https — nếu relay nằm sau Caddy thì mọi lời "
+            + "gọi sẽ bị chuyển hướng 308 và KHÔNG thông báo nào tới được người bệnh. "
+            + $"Giá trị hiện tại: {pushOptions.BaseUrl}");
+    }
+
     builder.Services.AddScoped<IPushSender, RelayPushSender>();
     builder.Services.AddHttpClient(RelayPushSender.HttpClientName, client =>
     {

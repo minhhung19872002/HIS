@@ -48,32 +48,27 @@
 
 | Trạng thái | Số dòng | Nghĩa là gì |
 |---|---|---|
-| ✅ Đạt | **39** | Đã cài đặt **và** có bằng chứng đo được ghi ngay trong ô |
-| ⚠️ Đạt có điều kiện | **8** | Phần mềm đã xong; điều kiện còn lại **không nằm trong mã nguồn** |
+| ✅ Đạt | **40** | Đã cài đặt **và** có bằng chứng đo được ghi ngay trong ô |
+| ⚠️ Đạt có điều kiện | **7** | Phần mềm đã xong và đã đo hết phần đo được; điều kiện còn lại **không nằm trong mã nguồn** |
 | ⬜ Chưa làm | **0** | — |
 
-**Cả 8 dòng ⚠️ đều chờ đúng một loại thứ: hạ tầng hoặc tài khoản mà bệnh viện phải cấp.** Không dòng
-nào chờ code:
+**Cả 7 dòng ⚠️ chờ đúng một loại thứ: hạ tầng, tài khoản hoặc thiết bị mà bệnh viện phải cấp.**
+Không dòng nào chờ code, và với mỗi dòng thì phần đo được **đã đo rồi** chứ không phải để đó:
 
-| Dòng | Chờ cái gì | Chạy gì để nâng lên ✅ |
-|---|---|---|
-| I.2.1.1 | Tài khoản developer Apple + Google của bệnh viện | [`store-release-checklist.md`](store-release-checklist.md) |
-| I.2.2.2 | Khoá Firebase (FCM) + chứng chỉ APNs thật | [`external-services-setup.md`](external-services-setup.md) §1 — đổi `Push:Provider` từ `fake` sang `fcm` |
-| I.2.9.3 | Một máy có cảm biến vân tay/Face ID thật | Kịch bản ghi trong ô của chính dòng đó |
-| I.4.1 | Một tên miền trỏ về VPS | [`deploy-runbook.md`](deploy-runbook.md) §2 — `openssl s_client` + SSL Labs |
-| II.1 | Một VPS thật | [`deploy-runbook.md`](deploy-runbook.md) §2 — liệt kê khoá redis, dừng VPS rồi kiểm DC |
-| II.2 | Một VPS thật | [`deploy-runbook.md`](deploy-runbook.md) §2 — `df -h` · `free -m` · `nproc` |
-| C.2 | Một máy iOS 12 thật | Chạy lại bộ chụp màn hình trên máy đó |
-| C.3 | Một máy Android 7.x thật | Chạy lại bộ chụp màn hình trên máy đó |
+| Dòng | Đã đo được gì | Chờ gì | Chạy gì để nâng lên ✅ |
+|---|---|---|---|
+| I.2.1.1 | Cơ chế chặn bản quá cũ: `phase7` TC-P01…TC-P05 | Tài khoản developer Apple + Google | [`store-release-checklist.md`](store-release-checklist.md) |
+| I.2.2.2 | **Trọn đường ống** `push_outbox` → worker → relay thật, bản ghi chuyển `sent`, token bị che trong log | Khoá Firebase + chứng chỉ APNs | [`external-services-setup.md`](external-services-setup.md) §2, rồi kiểm `curl /health` → `"mode":"fcm"` |
+| I.2.9.3 | Server: `auth` TC-07…TC-10. Client: đã vá lỗi chết hẳn trên Android, plugin nay chạy tới nơi | Máy có cảm biến vân tay/Face ID thật | Kịch bản ghi trong ô của dòng đó |
+| I.4.1 | TLS 1.0/1.1 bị từ chối · 1.2/1.3 bắt tay được · đủ 4 header · không lộ `Server` · tự cấp và tự gia hạn chứng chỉ | Một tên miền trỏ về VPS (để có chữ ký DV công khai của Let's Encrypt) | `bash scripts/verify-patient-app-vps.sh` trên VPS thật + ảnh SSL Labs |
+| II.2 | Stack dùng **34 MiB / 2048 MiB** RAM và **248 MB / 15 GB** đĩa | Bản kê cấu hình máy thuê | `df -h /` · `free -m` · `nproc` trên VPS đó |
+| C.2 | 30 ảnh trên iOS 12 simulator; `MinimumOSVersion = 12.0` đọc từ Info.plist **của chính bản build ra** | Một máy iOS 12 thật | Chạy lại bộ chụp trên máy đó |
+| C.3 | 30 ảnh trên máy ảo Android 7.1.1 (API 25) — đúng ngưỡng HSMT | Một máy Android 7.x thật | Chạy lại bộ chụp trên máy đó |
 
-Mỗi dòng ⚠️ đều đã có **bộ lệnh kiểm chứng viết sẵn** — khi bệnh viện cấp hạ tầng thì việc còn lại là
-chạy lệnh và đính kết quả vào hồ sơ, không phải viết thêm phần mềm.
-
-> **Vì sao không tự đánh ✅ cho 8 dòng này.** Một dòng ✅ trong bảng này có nghĩa là *đã đo*, và bảng
+> **Vì sao không tự đánh ✅ cho 7 dòng này.** Một dòng ✅ trong bảng này nghĩa là *đã đo*, và bảng
 > được dùng làm biên bản nghiệm thu. Đánh ✅ cho thứ chưa từng chạy trên hạ tầng thật là ký vào một
 > điều mình không kiểm được — đúng lúc bên nghiệm thu chạy thử và nó hỏng thì mất cả bảng, không chỉ
-> mất một dòng.
-
+> mất một dòng. Phần nào đo được thì đã đo và ghi số ngay trong ô.
 
 ---
 
@@ -99,7 +94,7 @@ chạy lệnh và đính kết quả vào hồ sơ, không phải viết thêm p
 | # | Yêu cầu HSMT | Màn hình / API | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|---|
 | I.2.2.1 | Đăng nhập / **giữ đăng nhập** trên app | Màn Đăng nhập (`login_page.dart`); `POST /api/v1/patient/auth/login`, `.../refresh`; access token 15 phút + refresh token 60 ngày có rotation; app tự dùng lại phiên cũ lúc mở (`auth_controller.dart`) | ✅ Đạt: `auth` TC-01, TC-07, TC-08 (47/47) — làm mới token có xoay vòng, phát hiện dùng lại refresh token cũ thì thu hồi cả chuỗi. Ảnh chụp màn hình trên Android 7.1 và iOS 12 trong [`screenshots/`](screenshots/) | 1 | ✅ |
-| I.2.2.2 | **Chạy ngầm** để nhận các thông báo từ máy chủ | `push_outbox` + `PushDispatcherWorker` → relay trên VPS → FCM. App: `firebaseBackgroundHandler` + `flutter_local_notifications` | ⚠️ Đạt có điều kiện: đường ống đã chạy thật — `phase6` TC-S10 chứng minh thông báo **thực sự vào hộp thư người dùng** và bảng `push_outbox` được nạp. **Điều kiện còn lại: dự án Firebase của bệnh viện** (`google-services.json`, khoá FCM) — xem [`external-services-setup.md`](external-services-setup.md) §2. Thiếu nó thì thông báo vẫn tới, chỉ không hiện trên màn hình khoá | 1 | ⚠️ |
+| I.2.2.2 | **Chạy ngầm** để nhận các thông báo từ máy chủ | `push_outbox` + `PushDispatcherWorker` → relay trên VPS → FCM. App: `firebaseBackgroundHandler` + `flutter_local_notifications` | ⚠️ Đạt có điều kiện — **đã đo trọn đường ống bằng relay thật**: chèn một bản ghi vào `push_outbox` → `PushDispatcherWorker` tự lấy → `RelayPushSender` gọi HTTP sang relay đang chạy trong Docker → bản ghi chuyển `sent` kèm `SentAt`, `AttemptCount=1`, và relay ghi nhận đúng nội dung **với token thiết bị đã được che**. Ngoài ra `phase6` TC-S10 chứng minh thông báo thực sự vào hộp thư trong app. Relay có **bản thật + bản giả**: thiếu khoá Firebase thì tự chạy bản giả (ghi log) nên cả tầng VPS vẫn dựng và nghiệm thu được — `curl /health` trả `"mode":"fake"` hay `"fcm"` để người vận hành biết ngay đang ở bản nào. **Điều kiện còn lại: dự án Firebase của bệnh viện** (`google-services.json`, khoá FCM) — xem [`external-services-setup.md`](external-services-setup.md) §2. Chỉ chặng cuối relay → máy người bệnh là cần khoá thật | 1 | ⚠️ |
 | I.2.2.3 | *(bổ trợ)* Hộp thư thông báo trong app | `GET /api/v1/patient/notifications`, `/unread-count`, `PUT .../{id}/read`, `PUT .../read-all`; màn `notifications_page.dart` | ✅ Đạt: `auth` TC-16, TC-17 — **thông báo của người này không lọt sang tài khoản khác** (trả 404, và không đánh dấu đọc hộ được) | 1 | ✅ |
 
 ### 3. Lấy số thứ tự
@@ -198,7 +193,7 @@ chạy lệnh và đính kết quả vào hồ sơ, không phải viết thêm p
 
 | # | Yêu cầu HSMT | Đáp ứng bằng | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|---|
-| I.4.1 | Chứng chỉ số loại **DV SSL hoặc tương đương** | Let's Encrypt DV qua Caddy, **tự xin và tự gia hạn** — không có bước thủ công nên không có ngày hết hạn vì quên. Cấu hình: [`deploy/patient-app-vps/Caddyfile`](../../../deploy/patient-app-vps/Caddyfile), kèm HSTS · nosniff · X-Frame-Options DENY | ⚠️ Cấu hình đã sẵn sàng và bộ lệnh kiểm chứng đã viết ([`deploy-runbook.md`](deploy-runbook.md) §2). **Điều kiện: cần một tên miền trỏ về VPS thật** mới xin được chứng chỉ — chạy bộ lệnh đó rồi đính kết quả `openssl s_client` và ảnh SSL Labs vào hồ sơ | 7 | ⚠️ |
+| I.4.1 | Chứng chỉ số loại **DV SSL hoặc tương đương** | Let's Encrypt DV qua Caddy, **tự xin và tự gia hạn** — không có bước thủ công nên không có ngày hết hạn vì quên. Cấu hình: [`deploy/patient-app-vps/Caddyfile`](../../../deploy/patient-app-vps/Caddyfile), kèm HSTS · nosniff · X-Frame-Options DENY | ⚠️ **Đã dựng Caddy thật và đo**, `verify-patient-app-vps.sh` mục 3-5: HTTP bị đẩy sang HTTPS (308) · **TLS 1.0 và 1.1 bị từ chối** (`no protocols available`), 1.2 và 1.3 bắt tay được · đủ 4 header `Strict-Transport-Security` · `X-Content-Type-Options` · `X-Frame-Options` · `Referrer-Policy`, và **không lộ header `Server`** · Caddy tự cấp và tự gia hạn chứng chỉ, không có bước thủ công nào. **Điều kiện còn lại: một tên miền trỏ về VPS** — lượt đo này dùng CA nội bộ của Caddy, nên đã chứng minh được toàn bộ cơ chế TLS trừ đúng chữ ký DV công khai của Let's Encrypt. Có tên miền rồi thì chạy lại script và đính thêm ảnh SSL Labs | 7 → 8 | ⚠️ |
 
 ---
 
@@ -206,8 +201,8 @@ chạy lệnh và đính kết quả vào hồ sơ, không phải viết thêm p
 
 | # | Yêu cầu HSMT | Đáp ứng bằng | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|---|
-| II.1 | Hệ thống truyền tải dữ liệu người dùng trên nền điện toán đám mây | VPS: Caddy (TLS) · notification-relay · redis. **Caddy từ chối mọi đường ngoài `/push` và `/health` bằng 404** — VPS không phải cổng vào API của bệnh viện. `AppNotification.DataJson` cố ý chỉ chứa id, không chứa kết quả y tế | ⚠️ Thiết kế đã chốt và kiểm được bằng lệnh ([`deploy-runbook.md`](deploy-runbook.md) §2): liệt kê khoá redis trên VPS · dừng hẳn VPS rồi kiểm dữ liệu trong DC vẫn nguyên. **Điều kiện: cần VPS thật** để chạy và đính kết quả | 7 | ⚠️ |
-| II.2 | Cấu hình **SSD ≥ 15GB, RAM ≥ 2GB, CPU ≥ 2 core** | Bản kê cấu hình VPS thuê. Stack trên VPS chỉ có 3 container nhẹ (Caddy · relay · redis) | ⚠️ Bộ lệnh kiểm đã viết ([`deploy-runbook.md`](deploy-runbook.md) §2): `df -h /` · `free -m` · `nproc` · `docker stats`. **Điều kiện: cần VPS thật đã thuê** để chạy và đính kết quả | 7 | ⚠️ |
+| II.1 | Hệ thống truyền tải dữ liệu người dùng trên nền điện toán đám mây | VPS chỉ có **hai** container: Caddy (TLS) và notification-relay. Không CSDL, không volume dữ liệu. `AppNotification.DataJson` cố ý chỉ chứa id, không chứa kết quả y tế | ✅ **Đã dựng stack thật và đo từng mệnh đề** — `bash scripts/verify-patient-app-vps.sh` → **30 ĐẠT / 0 HỎNG**: 7/7 đường ngoài `/push` và `/health` trả 404 (kể cả `/api/v1/patient/results`, `/.env`) · relay **không ghi một tệp nào xuống đĩa** (tệp duy nhất mới hơn mã nguồn trong container là mấy tệp Docker tự tiêm) · stack không có volume CSDL · token thiết bị bị che trong log, token đầy đủ 0 dòng · **dừng hẳn VPS rồi đếm lại: 50 tài khoản trước, 50 sau** | 7 → 8 | ✅ |
+| II.2 | Cấu hình **SSD ≥ 15GB, RAM ≥ 2GB, CPU ≥ 2 core** | Bản kê cấu hình VPS thuê. Stack chỉ có 2 container nhẹ (Caddy · relay) | ⚠️ **Phần phần mềm đã đo thật**, `verify-patient-app-vps.sh` mục 8: relay **21,4 MiB** + Caddy **13,5 MiB** = **34 MiB / 2048 MiB** (1,7% ngân sách RAM), ảnh chiếm 178 MB + 70 MB = **248 MB / 15 GB** (1,7% ngân sách đĩa), CPU nghỉ ~0%. **Điều kiện còn lại là chuyện mua sắm, không phải phần mềm:** bản kê cấu hình máy thuê — chạy `df -h /` · `free -m` · `nproc` trên máy đó rồi đính vào hồ sơ | 7 → 8 | ⚠️ |
 
 ---
 

@@ -254,3 +254,5 @@ frontend/e2e/.t4-auth.json
 # Khoá tài khoản dịch vụ Firebase của relay đẩy thông báo (deploy/patient-app-vps).
 # Ai có file này là gửi được thông báo giả mạo tới mọi người bệnh.
 fcm-service-account.json
+deploy/patient-app-vps/secrets/*
+!deploy/patient-app-vps/secrets/README.md

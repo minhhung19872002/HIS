@@ -42,17 +42,28 @@ services:
       - relay-net
 
   relay:
-    image: ${RELAY_IMAGE:-ghcr.io/minhhung19872002/his-patientapp-relay:latest}
+    image: ${RELAY_IMAGE:-his-patientapp-relay:local}
+    # Build tu nguon khi chua co anh dung san. Truoc day o day chi co `image:` tro vao ghcr,
+    # nhung khong CI nao build va day anh do len — nen `docker compose up -d` tren mot VPS moi
+    # chet ngay voi "manifest unknown", dung cai lenh ghi trong so tay trien khai.
+    build:
+      context: ../..
+      dockerfile: backend/src/HIS.PatientApp.Relay/Dockerfile
     container_name: patientapp-relay
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       Relay__ApiKey: ${RELAY_API_KEY:?bat buoc dat trong .env, toi thieu 24 ky tu}
-      Fcm__ProjectId: ${FCM_PROJECT_ID:?bat buoc dat trong .env}
-      Fcm__CredentialsPath: /run/secrets/fcm-service-account.json
+      # De trong hai bien nay thi relay chay o CHE DO GIA: ghi thong bao vao log thay vi gui sang
+      # Firebase. Du de dung ca tang VPS len va nghiem thu muc II ma khong can khoa Firebase.
+      # Dat chung vao la tu chuyen sang gui that. Kiem bang: curl /health -> "mode":"fcm".
+      Fcm__ProjectId: ${FCM_PROJECT_ID:-}
+      Fcm__CredentialsPath: ${FCM_CREDENTIALS_PATH:-/run/secrets/fcm-service-account.json}
     volumes:
-      # Khoa tai khoan dich vu Firebase. Chi doc, va chi ton tai tren VPS —
-      # data center benh vien khong can biet khoa nay.
-      - ./fcm-service-account.json:/run/secrets/fcm-service-account.json:ro
+      # Gan CA THU MUC chu khong gan rieng file: bind-mount mot file chua ton tai thi Docker tao ra
+      # mot THU MUC trung ten, roi relay doc no nhu khoa va chet voi mot loi kho hieu. Gan thu muc
+      # thi thieu khoa chi don gian la khong co file -> relay tu chuyen sang che do gia.
+      # Khoa Firebase chi ton tai tren VPS; data center benh vien khong can biet khoa nay.
+      - ./secrets:/run/secrets:ro
     # Khong publish cong: chi Caddy trong cung mang goi vao.
     mem_limit: 256m
     restart: unless-stopped
