@@ -11,10 +11,48 @@ import 'package:dio/dio.dart';
 /// chỉ có nguồn byte là được thay. Ảnh chụp vì thế là bằng chứng cho cả đường ống, không riêng lớp
 /// vẽ. Dữ liệu dưới đây khớp đúng hình dạng mà BFF thật trả về — bộ smoke
 /// `scripts/smoke-patient-app-*.py` là thứ canh cho hình dạng đó không lệch.
+/// Kiểu phản hồi mà máy chủ giả dựng lên, để chụp được cả những trạng thái KHÔNG phải đường vui.
+///
+/// Quy ước evidence (`docs/architecture/evidence/README.md` §3) đòi ảnh cho *mọi* trạng thái giao
+/// diện liên quan, không riêng đường thành công — và với app y tế thì màn lỗi mới là màn đáng soi
+/// nhất: nó phải nói được người bệnh nên làm gì tiếp, chứ không phải in ra một mã lỗi.
+enum DemoMode {
+  /// Dữ liệu đầy đủ, máy chủ trả 200.
+  full,
+
+  /// Máy chủ sống nhưng người bệnh chưa có dữ liệu nào — màn phải nói rõ chứ không để trắng.
+  empty,
+
+  /// Máy chủ hỏng (500). Màn phải hiện lời giải thích đọc được kèm nút thử lại.
+  serverError,
+}
+
 class DemoBackendAdapter implements HttpClientAdapter {
+  DemoBackendAdapter({this.mode = DemoMode.full});
+
+  final DemoMode mode;
+
   @override
   Future<ResponseBody> fetch(RequestOptions options, Stream<List<int>>? _, Future<void>? __) async {
     final path = options.path;
+
+    if (mode == DemoMode.serverError) {
+      return ResponseBody.fromString(
+        '{"success":false,"data":null,"message":"Hệ thống bệnh viện đang bận. Vui lòng thử lại sau ít phút.",'
+        '"errors":null,"meta":null}',
+        500,
+        headers: {Headers.contentTypeHeader: [Headers.jsonContentType]},
+      );
+    }
+
+    if (mode == DemoMode.empty) {
+      // Danh sách rỗng cho mọi tuyến; các màn hình dạng bảng phải rơi vào nhánh "chưa có gì".
+      return ResponseBody.fromString(
+        _envelope(_empty),
+        200,
+        headers: {Headers.contentTypeHeader: [Headers.jsonContentType]},
+      );
+    }
 
     // Khớp theo khoá DÀI NHẤT, không theo thứ tự khai báo: `/results/admissions/x/service-orders`
     // chứa cả `/results/admissions` lẫn `/service-orders`, và chỉ khoá dài mới là câu trả lời đúng.

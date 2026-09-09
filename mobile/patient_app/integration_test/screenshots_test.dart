@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -42,15 +42,16 @@ void main() {
   );
 
   /// Dio thật, chỉ thay bộ chuyển tải bằng máy chủ giả.
-  Dio demoClient() => Dio(BaseOptions(baseUrl: 'http://demo.local/api/v1'))
-    ..httpClientAdapter = DemoBackendAdapter();
+  Dio demoClient(DemoMode mode) => Dio(BaseOptions(baseUrl: 'http://demo.local/api/v1'))
+    ..httpClientAdapter = DemoBackendAdapter(mode: mode);
 
-  Future<void> pump(WidgetTester tester, AuthState state) async {
+  Future<void> pump(WidgetTester tester, AuthState state,
+      {DemoMode mode = DemoMode.full}) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           appConfigProvider.overrideWithValue(AppConfig.dev),
-          apiClientProvider.overrideWithValue(demoClient()),
+          apiClientProvider.overrideWithValue(demoClient(mode)),
           authControllerProvider.overrideWith(() => _FakeAuthController(state)),
         ],
         child: const PatientApp(),
@@ -60,8 +61,9 @@ void main() {
   }
 
   /// Mở app rồi đi tới một đường dẫn — nhanh và ổn định hơn hẳn việc bấm lần lượt qua các màn.
-  Future<void> open(WidgetTester tester, String route) async {
-    await pump(tester, const AuthSignedIn(linkedAccount));
+  Future<void> open(WidgetTester tester, String route,
+      {DemoMode mode = DemoMode.full}) async {
+    await pump(tester, const AuthSignedIn(linkedAccount), mode: mode);
 
     final context = tester.element(find.byType(Navigator).first);
     ProviderScope.containerOf(context, listen: false).read(routerProvider).go(route);
@@ -227,6 +229,52 @@ void main() {
   testWidgets('TC-APP-090 màn tra cứu cho nhân viên chăm sóc khách hàng', (tester) async {
     await open(tester, AppRoutes.staffLookup);
     await capture(tester, '090', 'form');
+  });
+
+  // ======================================= trạng thái KHÔNG phải đường vui (evidence §3)
+  // Với app y tế, đây mới là những màn đáng soi: người bệnh gặp chúng đúng lúc đang lo, nên chúng
+  // phải nói được *nên làm gì tiếp*, chứ không phải in ra một mã lỗi rồi để họ tự đoán.
+
+  testWidgets('TC-APP-100 máy chủ hỏng: nói người bệnh nên làm gì, có nút thử lại', (tester) async {
+    await open(tester, AppRoutes.results, mode: DemoMode.serverError);
+
+    // Không được để lộ mã lỗi kỹ thuật hay vết ngăn xếp ra màn hình người bệnh.
+    expect(find.textContaining('Exception'), findsNothing);
+    expect(find.textContaining('DioException'), findsNothing);
+    await capture(tester, '100', 'error');
+  });
+
+  testWidgets('TC-APP-101 chưa có kết quả nào: nói rõ chứ không để trắng', (tester) async {
+    await open(tester, AppRoutes.results, mode: DemoMode.empty);
+    await capture(tester, '101', 'empty');
+  });
+
+  testWidgets('TC-APP-102 hộp thư rỗng', (tester) async {
+    await open(tester, AppRoutes.notifications, mode: DemoMode.empty);
+    await capture(tester, '102', 'empty');
+  });
+
+  testWidgets('TC-APP-103 ví giấy tờ chưa có gì', (tester) async {
+    await open(tester, AppRoutes.documents, mode: DemoMode.empty);
+    await capture(tester, '103', 'empty');
+  });
+
+  testWidgets('TC-APP-104 chưa kết nối người thân nào', (tester) async {
+    await open(tester, AppRoutes.family, mode: DemoMode.empty);
+    await capture(tester, '104', 'empty');
+  });
+
+  testWidgets('TC-APP-105 đăng nhập bỏ trống: báo lỗi ngay trên máy, không chờ vòng mạng',
+      (tester) async {
+    await pump(tester, const AuthSignedOut());
+
+    // Bấm đăng nhập khi chưa nhập gì — kiểm tra trên máy phải bắt được trước khi gọi máy chủ.
+    final button = find.widgetWithText(FilledButton, 'Đăng nhập');
+    if (button.evaluate().isNotEmpty) {
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+    }
+    await capture(tester, '105', 'validation');
   });
 }
 

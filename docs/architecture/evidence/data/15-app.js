@@ -693,8 +693,198 @@ window.TP.modules.push(...[
      "#218"
     ],
     "notes": "Vai trò ngoài danh sách nhận 403 kèm lời giải thích, không phải màn trống — phase6."
+   },
+   {
+    "id": "TC-APP-100",
+    "title": "Máy chủ hỏng (500): nói người bệnh nên làm gì, có nút thử lại",
+    "category": "negative",
+    "priority": "P1",
+    "role": "Người bệnh (PortalPatient qua BFF)",
+    "preconditions": "App chạy trên máy Android 7.1.1 (API 25) hoặc iOS 12. Máy chủ giả (`integration_test/demo_backend.dart`) được đặt sang chế độ `serverError` (trả 500) hoặc `empty` (trả danh sách rỗng), nên màn hình đi qua đúng nhánh xử lý thật của nó.",
+    "steps": [
+     "Đặt máy chủ giả sang chế độ trả 500",
+     "Mở màn Kết quả"
+    ],
+    "expected": "Hiện lời giải thích đọc được bằng tiếng Việt kèm nút thử lại. **Không được lộ mã lỗi kỹ thuật hay vết ngăn xếp** — bộ chụp khẳng định bằng `expect(find.textContaining('Exception'), findsNothing)`.",
+    "evidence": [
+     {
+      "name": "TC-APP-100__s01__error",
+      "caption": "Chụp trên Android 7.1.1 (API 25)",
+      "uiState": "error"
+     },
+     {
+      "name": "TC-APP-100__s02__error",
+      "caption": "Chụp trên iOS 12 simulator",
+      "uiState": "error"
+     }
+    ],
+    "refIssues": [
+     "#218"
+    ],
+    "notes": "Với app y tế, màn lỗi mới là màn đáng soi: người bệnh gặp nó đúng lúc đang lo về kết quả của mình."
+   },
+   {
+    "id": "TC-APP-101",
+    "title": "Chưa có kết quả nào: nói rõ chứ không để màn trắng",
+    "category": "edge",
+    "priority": "P1",
+    "role": "Người bệnh (PortalPatient qua BFF)",
+    "preconditions": "App chạy trên máy Android 7.1.1 (API 25) hoặc iOS 12. Máy chủ giả (`integration_test/demo_backend.dart`) được đặt sang chế độ `serverError` (trả 500) hoặc `empty` (trả danh sách rỗng), nên màn hình đi qua đúng nhánh xử lý thật của nó.",
+    "steps": [
+     "Đặt máy chủ giả sang chế độ trả danh sách rỗng",
+     "Mở màn Kết quả"
+    ],
+    "expected": "Hiện thông điệp 'chưa có dữ liệu' thay vì một bảng trống — người bệnh phải phân biệt được 'chưa có kết quả' với 'app hỏng'.",
+    "evidence": [
+     {
+      "name": "TC-APP-101__s01__empty",
+      "caption": "Chụp trên Android 7.1.1 (API 25)",
+      "uiState": "empty"
+     },
+     {
+      "name": "TC-APP-101__s02__empty",
+      "caption": "Chụp trên iOS 12 simulator",
+      "uiState": "empty"
+     }
+    ],
+    "refIssues": [
+     "#218"
+    ],
+    "notes": ""
+   },
+   {
+    "id": "TC-APP-102",
+    "title": "Hộp thư thông báo rỗng",
+    "category": "edge",
+    "priority": "P1",
+    "role": "Người bệnh (PortalPatient qua BFF)",
+    "preconditions": "App chạy trên máy Android 7.1.1 (API 25) hoặc iOS 12. Máy chủ giả (`integration_test/demo_backend.dart`) được đặt sang chế độ `serverError` (trả 500) hoặc `empty` (trả danh sách rỗng), nên màn hình đi qua đúng nhánh xử lý thật của nó.",
+    "steps": [
+     "Máy chủ giả trả rỗng",
+     "Mở màn Thông báo"
+    ],
+    "expected": "Hộp thư rỗng có thông điệp riêng, không phải một danh sách trắng.",
+    "evidence": [
+     {
+      "name": "TC-APP-102__s01__empty",
+      "caption": "Chụp trên Android 7.1.1 (API 25)",
+      "uiState": "empty"
+     },
+     {
+      "name": "TC-APP-102__s02__empty",
+      "caption": "Chụp trên iOS 12 simulator",
+      "uiState": "empty"
+     }
+    ],
+    "refIssues": [
+     "#218"
+    ],
+    "notes": ""
+   },
+   {
+    "id": "TC-APP-103",
+    "title": "Ví giấy tờ chưa có gì",
+    "category": "edge",
+    "priority": "P1",
+    "role": "Người bệnh (PortalPatient qua BFF)",
+    "preconditions": "App chạy trên máy Android 7.1.1 (API 25) hoặc iOS 12. Máy chủ giả (`integration_test/demo_backend.dart`) được đặt sang chế độ `serverError` (trả 500) hoặc `empty` (trả danh sách rỗng), nên màn hình đi qua đúng nhánh xử lý thật của nó.",
+    "steps": [
+     "Máy chủ giả trả rỗng",
+     "Mở màn Ví giấy tờ"
+    ],
+    "expected": "Hiện lời mời thêm giấy tờ đầu tiên kèm hạn mức, không phải màn trống.",
+    "evidence": [
+     {
+      "name": "TC-APP-103__s01__empty",
+      "caption": "Chụp trên Android 7.1.1 (API 25)",
+      "uiState": "empty"
+     },
+     {
+      "name": "TC-APP-103__s02__empty",
+      "caption": "Chụp trên iOS 12 simulator",
+      "uiState": "empty"
+     }
+    ],
+    "refIssues": [
+     "#218"
+    ],
+    "notes": ""
+   },
+   {
+    "id": "TC-APP-104",
+    "title": "Chưa kết nối người thân nào",
+    "category": "edge",
+    "priority": "P1",
+    "role": "Người bệnh (PortalPatient qua BFF)",
+    "preconditions": "App chạy trên máy Android 7.1.1 (API 25) hoặc iOS 12. Máy chủ giả (`integration_test/demo_backend.dart`) được đặt sang chế độ `serverError` (trả 500) hoặc `empty` (trả danh sách rỗng), nên màn hình đi qua đúng nhánh xử lý thật của nó.",
+    "steps": [
+     "Máy chủ giả trả rỗng",
+     "Mở màn Gia đình"
+    ],
+    "expected": "Hiện hướng dẫn thêm người thân và mức trần 20 thành viên.",
+    "evidence": [
+     {
+      "name": "TC-APP-104__s01__empty",
+      "caption": "Chụp trên Android 7.1.1 (API 25)",
+      "uiState": "empty"
+     },
+     {
+      "name": "TC-APP-104__s02__empty",
+      "caption": "Chụp trên iOS 12 simulator",
+      "uiState": "empty"
+     }
+    ],
+    "refIssues": [
+     "#218"
+    ],
+    "notes": ""
+   },
+   {
+    "id": "TC-APP-105",
+    "title": "Đăng nhập bỏ trống: báo lỗi ngay trên máy, không chờ một vòng mạng",
+    "category": "edge",
+    "priority": "P1",
+    "role": "Người bệnh (PortalPatient qua BFF)",
+    "preconditions": "App chạy trên máy Android 7.1.1 (API 25) hoặc iOS 12. Máy chủ giả (`integration_test/demo_backend.dart`) được đặt sang chế độ `serverError` (trả 500) hoặc `empty` (trả danh sách rỗng), nên màn hình đi qua đúng nhánh xử lý thật của nó.",
+    "steps": [
+     "Ở màn đăng nhập bấm 'Đăng nhập' khi chưa nhập gì"
+    ],
+    "expected": "Hiện thông báo dưới ô nhập ngay lập tức. Kiểm trên máy để người bệnh ở vùng sóng yếu không phải chờ một vòng mạng chỉ để biết mình quên nhập số điện thoại.",
+    "evidence": [
+     {
+      "name": "TC-APP-105__s01__validation",
+      "caption": "Chụp trên Android 7.1.1 (API 25)",
+      "uiState": "validation"
+     },
+     {
+      "name": "TC-APP-105__s02__validation",
+      "caption": "Chụp trên iOS 12 simulator",
+      "uiState": "validation"
+     }
+    ],
+    "refIssues": [
+     "#218"
+    ],
+    "notes": ""
    }
   ],
-  "gaps": []
+  "gaps": [
+   "**Chưa chụp `loading` và `success/toast`.** Hai trạng thái này chỉ tồn tại trong khoảnh khắc: máy chủ giả trả về tức thì nên không có khung hình nào ở giữa, còn toast thành công cần một thao tác ghi thật (lấy số, đặt lịch, tải giấy tờ). Muốn phủ nốt thì máy chủ giả cần thêm độ trễ có chủ đích và các tuyến POST — việc của đợt sau.",
+   "**Chưa chụp `modal` · `drawer` · `tab` · `filter` · `dropdown`.** Bộ chụp dựng màn qua go_router nên vào thẳng trạng thái nghỉ của từng màn; các lớp phủ này cần chuỗi thao tác riêng.",
+   "**Nửa iOS 12 của mỗi ô evidence (s02) chưa có.** Máy phát triển chạy Windows nên không build được iOS; bộ iOS lấy từ hiện vật `anh-man-hinh-ios` của workflow `mobile-patient-app.yml` (macOS runner) rồi bung vào `docs/features/patient-app/screenshots/ios12/` và chạy lại `scripts/collect-patient-app-evidence.sh`.",
+   "**Ảnh chụp trên MÁY ẢO, chưa phải máy thật.** Ngưỡng phiên bản thì đã chứng minh bằng chính bản build ra (Android API 25 thật sự chạy được; `MinimumOSVersion = 12.0` đọc từ Info.plist của bản build iOS). Phần chỉ máy thật mới nghiệm thu được là **cảm biến sinh trắc** và hiệu năng cuộn trên phần cứng đời đó — xem dòng I.2.9.3, C.2 và C.3 của bảng đối chiếu.",
+   "**Nghiệp vụ không nằm trong bộ ảnh này.** Ảnh chứng minh app dựng và vẽ đúng trên đúng nền tảng; phần nghiệp vụ chạy với API + CSDL thật do 8 bộ `scripts/smoke-patient-app-*.py` (290 ca) đảm nhiệm, và web quản trị do `frontend/e2e/patient-app-admin.spec.ts` (7 ca)."
+  ],
+  "ui_state_checklist": [
+   "form — ĐÃ CHỤP (đăng nhập · đăng ký · quên mật khẩu · đặt lịch · đặt PIN · tra cứu)",
+   "list — ĐÃ CHỤP (trang chủ · lấy số · lịch hẹn · kết quả · đơn thuốc · nội trú · gia đình · ví · thông báo · bảo mật · thiết bị)",
+   "detail — ĐÃ CHỤP (phiếu xét nghiệm có chỉ số bất thường · công khai thuốc theo ngày)",
+   "empty — ĐÃ CHỤP (chưa liên kết hồ sơ · kết quả · hộp thư · ví giấy tờ · gia đình)",
+   "error — ĐÃ CHỤP (máy chủ trả 500, không lộ vết ngăn xếp)",
+   "validation — ĐÃ CHỤP (đăng nhập bỏ trống)",
+   "permission — ĐÃ CHỤP (bị buộc đổi mật khẩu, không vào được màn nào khác)",
+   "confirm — ĐÃ CHỤP (xoá tài khoản)",
+   "loading · success/toast · modal · drawer · tab · filter · dropdown — CHƯA CHỤP, xem phần gap"
+  ]
  }
 ]);
