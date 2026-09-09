@@ -926,9 +926,9 @@ window.TP.modules.push(...[
    }
   ],
   "gaps": [
+   "**Đã đủ cả hai nền tảng:** 30 ô `s01` (Android 7.1.1 API 25) + 30 ô `s02` (iOS 12 simulator) = 60/60 ô có ảnh. Bộ iOS sinh bởi job macOS của `mobile-patient-app.yml`; máy phát triển chạy Windows nên không build được iOS tại chỗ.",
    "**Chưa chụp `success/toast`.** Toast thành công chỉ hiện sau một thao tác GHI thật (lấy số, đặt lịch, tải giấy tờ lên) — máy chủ giả hiện chỉ phục vụ các tuyến ĐỌC. Đường ghi đã được kiểm ở tầng API bằng `scripts/smoke-patient-app-*.py` với CSDL thật, nên đây là thiếu ảnh chứ không phải thiếu kiểm.",
    "**Chưa chụp `modal` · `drawer` · `tab` · `filter` · `dropdown`.** Bộ chụp dựng màn qua go_router nên vào thẳng trạng thái nghỉ của từng màn; các lớp phủ này cần chuỗi thao tác riêng.",
-   "**Nửa iOS 12 của mỗi ô evidence (s02) chưa có.** Máy phát triển chạy Windows nên không build được iOS; bộ iOS lấy từ hiện vật `anh-man-hinh-ios` của workflow `mobile-patient-app.yml` (macOS runner) rồi bung vào `docs/features/patient-app/screenshots/ios12/` và chạy lại `scripts/collect-patient-app-evidence.sh`.",
    "**Ảnh chụp trên MÁY ẢO, chưa phải máy thật.** Ngưỡng phiên bản thì đã chứng minh bằng chính bản build ra (Android API 25 thật sự chạy được; `MinimumOSVersion = 12.0` đọc từ Info.plist của bản build iOS). Phần chỉ máy thật mới nghiệm thu được là **cảm biến sinh trắc** và hiệu năng cuộn trên phần cứng đời đó — xem dòng I.2.9.3, C.2 và C.3 của bảng đối chiếu.",
    "**Nghiệp vụ không nằm trong bộ ảnh này.** Ảnh chứng minh app dựng và vẽ đúng trên đúng nền tảng; phần nghiệp vụ chạy với API + CSDL thật do 8 bộ `scripts/smoke-patient-app-*.py` (290 ca) đảm nhiệm, và web quản trị do `frontend/e2e/patient-app-admin.spec.ts` (7 ca)."
   ],

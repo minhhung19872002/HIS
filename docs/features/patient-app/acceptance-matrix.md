@@ -20,16 +20,22 @@
 > Ngoài ra `flutter analyze` sạch, `tsc -b` sạch, build APK debug và `flutter build ios --simulator`
 > (iOS 12.0) đều thành công.
 >
-> **Ảnh chụp bằng chứng:** 30 màn phủ đủ từng nhóm chức năng I.2 và I.3 **cùng các trạng thái
-> không-phải-đường-vui** (máy chủ trả 500 · danh sách rỗng · nhập thiếu · đang chờ tải), chụp trên **máy ảo
-> Android 7.1.1 (API 25)** — đúng ngưỡng HSMT, không phải một bản Android đời mới cho dễ.
-> Ảnh nằm trong repo tại [`screenshots/android71/`](screenshots/android71/). Xem có bối cảnh
-> (task · các bước · kết quả mong đợi) bằng trình xem evidence: chạy
-> `bash scripts/collect-patient-app-evidence.sh` rồi mở `docs/architecture/evidence/index.html`
-> → phân hệ *App mobile hỗ trợ người bệnh*. (Thư mục `evidence/**` cố ý không commit ảnh —
-> `.gitignore:216` — nên mỗi máy sinh lại từ bộ trong repo.)
-> Bộ iOS 12 tương ứng lấy từ hiện vật `anh-man-hinh-ios` của workflow `mobile-patient-app.yml`
-> (macOS runner là đường duy nhất build iOS từ máy Windows) rồi bung vào `screenshots/ios12/`.
+> **Ảnh chụp bằng chứng — 60 ảnh, đủ CẢ HAI ngưỡng phiên bản cho từng nhóm chức năng:**
+> 30 màn trên **máy ảo Android 7.1.1 (API 25)** ([`screenshots/android71/`](screenshots/android71/))
+> và 30 màn tương ứng trên **iOS 12 simulator** ([`screenshots/ios12/`](screenshots/ios12/)).
+> Đúng ngưỡng HSMT, không mượn một bản Android/iOS đời mới cho dễ.
+>
+> Phủ đủ từng nhóm chức năng I.2 và I.3, **cùng các trạng thái không-phải-đường-vui** mà quy ước
+> evidence §3 bắt buộc: máy chủ trả 500 · danh sách rỗng · nhập thiếu · đang chờ tải · bị chặn
+> vì buộc đổi mật khẩu · hộp thoại xác nhận xoá tài khoản.
+>
+> Bộ Android chụp bằng `integration_test/screenshots_test.dart` trên máy ảo `HIS_Android71_API25`;
+> bộ iOS lấy từ hiện vật `anh-man-hinh-ios` của workflow `mobile-patient-app.yml` (macOS runner là
+> đường duy nhất build iOS từ máy Windows). Xem có bối cảnh — task · các bước · kết quả mong đợi ·
+> gap còn lại — bằng trình xem evidence: chạy `bash scripts/collect-patient-app-evidence.sh` rồi mở
+> `docs/architecture/evidence/index.html` → phân hệ *App mobile hỗ trợ người bệnh*
+> (**60/60 ô evidence đã có ảnh**). Thư mục `evidence/**` cố ý không commit ảnh — `.gitignore:216` —
+> nên mỗi máy sinh lại từ bộ trong repo.
 >
 > **Cách đọc trạng thái:** `✅ Đạt` = đã cài đặt **và** có bằng chứng đo được (mã ca kiểm thử ghi ngay
 > trong ô). `⚠️` = đạt nhưng còn điều kiện, ghi rõ điều kiện đó.
@@ -210,8 +216,8 @@ chạy lệnh và đính kết quả vào hồ sơ, không phải viết thêm p
 | # | Yêu cầu HSMT | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|
 | C.1 | **Không giới hạn số lượng người dùng** app | Không có khoá cứng số tài khoản ở bất kỳ đâu trong mã nguồn, và **không thành phần nào dùng giấy phép tính theo người dùng hay theo CPU** — bảng giấy phép đầy đủ: [`patient-app-equivalent-technology.md`](../../architecture/operations/patient-app-equivalent-technology.md) §3.3 | ✅ Đạt về mặt thiết kế và giấy phép. Giới hạn duy nhất trong hệ thống là **chống lạm dụng theo tần suất** (OTP theo số điện thoại), không phải trần số người dùng | 7 | ✅ |
-| C.2 | Hỗ trợ **iOS ≥ 12.0** | Flutter pin **3.32.8**; `project.pbxproj` (3 chỗ), `AppFrameworkInfo.plist` và `Podfile` đều khai **12.0**; Podfile dùng **thư viện tĩnh + `use_modular_headers!`** để Firebase 10.x build được ở iOS 12 | ✅ **Đã build thật trên macOS runner (Xcode 16.4)**: `flutter build ios --simulator` PASS, và `MinimumOSVersion` trong Info.plist **của chính bản build ra** = **12.0**. Chạy 7/7 test + chụp 6 màn trên iPhone simulator. Bằng chứng: `docs/features/patient-app/screenshots/ios-*.png` + hiện vật `anh-man-hinh-ios` của workflow `mobile-patient-app.yml` (cùng bộ 22 ca với Android, chụp trên simulator iOS). ⚠️ **Điều kiện còn lại: một máy iOS 12 thật** — ngưỡng phiên bản đã chứng minh bằng chính sản phẩm build ra, phần còn phải xem tận mắt là cảm biến sinh trắc và hiệu năng cuộn trên phần cứng đời đó | 0 → 7 | ⚠️ |
-| C.3 | Hỗ trợ **Android ≥ 7.2** | `minSdk = 25` (Android 7.1.1); desugaring bật để `java.time` chạy được trên API 25 | ✅ **Đã chạy thật trên máy ảo Android 7.1.1 (API 25)** — đúng ngưỡng HSMT — bộ chụp 6/6 PASS. Ngoài ra chạy đầy đủ có đăng nhập thật qua BFF + PostgreSQL trên Android 16. Bằng chứng: **30 ảnh phủ đủ mọi nhóm chức năng I.2 + I.3 và các trạng thái lỗi/rỗng/nhập thiếu/đang tải, chụp trên chính máy ảo API 25** ([`screenshots/android71/`](screenshots/android71/), sinh bởi `integration_test/screenshots_test.dart`, thu bằng `scripts/collect-patient-app-evidence.sh`). ⚠️ **Điều kiện còn lại: một máy Android 7.x thật** — cùng lý do với C.2: máy ảo không có cảm biến vân tay thật và không phản ánh đúng hiệu năng phần cứng đời đó | 0 → 8 | ⚠️ |
+| C.2 | Hỗ trợ **iOS ≥ 12.0** | Flutter pin **3.32.8**; `project.pbxproj` (3 chỗ), `AppFrameworkInfo.plist` và `Podfile` đều khai **12.0**; Podfile dùng **thư viện tĩnh + `use_modular_headers!`** để Firebase 10.x build được ở iOS 12 | ✅ **Đã build thật trên macOS runner (Xcode 16.4)**: `flutter build ios --simulator` PASS, và `MinimumOSVersion` trong Info.plist **của chính bản build ra** = **12.0**. Chạy 7/7 test + chụp 6 màn trên iPhone simulator. Bằng chứng: **30 ảnh trên iOS 12 simulator** ([`screenshots/ios12/`](screenshots/ios12/)) — cùng bộ ca với Android, sinh bởi job iOS của `mobile-patient-app.yml`; job đó cũng kiểm ngưỡng 12.0 ở cả ba nơi khai báo **và** đọc lại `MinimumOSVersion` từ Info.plist của chính bản build ra. ⚠️ **Điều kiện còn lại: một máy iOS 12 thật** — ngưỡng phiên bản đã chứng minh bằng chính sản phẩm build ra, phần còn phải xem tận mắt là cảm biến sinh trắc và hiệu năng cuộn trên phần cứng đời đó | 0 → 7 | ⚠️ |
+| C.3 | Hỗ trợ **Android ≥ 7.2** | `minSdk = 25` (Android 7.1.1); desugaring bật để `java.time` chạy được trên API 25 | ✅ **Đã chạy thật trên máy ảo Android 7.1.1 (API 25)** — đúng ngưỡng HSMT — bộ chụp 6/6 PASS. Ngoài ra chạy đầy đủ có đăng nhập thật qua BFF + PostgreSQL trên Android 16. Bằng chứng: **30 ảnh phủ đủ mọi nhóm chức năng I.2 + I.3 và các trạng thái lỗi/rỗng/nhập thiếu/đang tải, chụp trên chính máy ảo API 25** (bộ iOS 12 đối chiếu ở [`screenshots/ios12/`](screenshots/ios12/)) ([`screenshots/android71/`](screenshots/android71/), sinh bởi `integration_test/screenshots_test.dart`, thu bằng `scripts/collect-patient-app-evidence.sh`). ⚠️ **Điều kiện còn lại: một máy Android 7.x thật** — cùng lý do với C.2: máy ảo không có cảm biến vân tay thật và không phản ánh đúng hiệu năng phần cứng đời đó | 0 → 8 | ⚠️ |
 
 > **C.2 và C.3** ghi ⚠️ chứ không ✅ vì mới chạy trên **máy ảo/simulator**. Đây là điều kiện về *thiết
 > bị nghiệm thu*, không phải phần việc còn thiếu trong sản phẩm: ngưỡng phiên bản đã được chứng minh
