@@ -47,6 +47,18 @@ void main() {
 
   Future<void> pump(WidgetTester tester, AuthState state,
       {DemoMode mode = DemoMode.full}) async {
+    // Bật "giảm chuyển động" của hệ điều hành.
+    //
+    // Trang chủ có vòng sáng nhấp nháy quanh mã số thứ tự, màn số thứ tự có chấm "TRỰC TIẾP" —
+    // đều là `AnimationController` lặp vô hạn, nên khung hình KHÔNG BAO GIỜ đứng yên và
+    // `pumpAndSettle` bên dưới sẽ treo tới lúc hết giờ.
+    //
+    // Ảnh chụp không mất gì: vòng sáng đứng yên ở khung đầu, còn mọi thứ khác vẽ y nguyên. Và
+    // app vốn tôn trọng thiết lập này nên đây cũng là ảnh của một trạng thái có thật.
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true, reduceMotion: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
