@@ -275,6 +275,34 @@ window.TP.modules.push(...[
     "notes": "Ưu tiên (người cao tuổi, trẻ dưới 6 tuổi, thai phụ, khuyết tật nặng, người có công) đã kiểm bằng smoke-queue-priority.py."
    },
    {
+    "id": "TC-APP-011",
+    "title": "Theo dõi số đã lấy: đang gọi số nào, còn bao nhiêu người, ước tính bao nhiêu phút",
+    "category": "happy",
+    "priority": "P0",
+    "role": "Người bệnh (PortalPatient qua BFF)",
+    "preconditions": "Đã lấy một số thứ tự trong ngày. Máy chủ giả trả trạng thái vé ở chế độ `full`.",
+    "steps": [
+     "Từ màn lấy số, mở vé đã lấy (hoặc mở thẳng /queue/ticket/<id>)"
+    ],
+    "expected": "Hiện mã vé, số đang được gọi, **số người còn phía trước** và **ước tính số phút** — ba con số mà HSMT I.2 #3 đòi, không chỉ 'số của bạn là 42'. Màn tự hỏi lại máy chủ mỗi 20 giây; HIS chưa có kênh realtime cho hàng đợi (khảo sát §11.4 GAP 16) nên hỏi lại định kỳ là cách trung thực nhất hiện có.",
+    "evidence": [
+     {
+      "name": "TC-APP-011__s01__detail",
+      "caption": "Chụp trên Android 7.1.1 (API 25)",
+      "uiState": "detail"
+     },
+     {
+      "name": "TC-APP-011__s02__detail",
+      "caption": "Chụp trên iOS 12 simulator",
+      "uiState": "detail"
+     }
+    ],
+    "refIssues": [
+     "#218"
+    ],
+    "notes": "Vé ưu tiên chưa xác minh vẫn hiện là ưu tiên, kèm ghi chú quầy sẽ kiểm khi gọi số."
+   },
+   {
     "id": "TC-APP-020",
     "title": "Danh sách lịch hẹn đã đặt",
     "category": "happy",
@@ -866,10 +894,39 @@ window.TP.modules.push(...[
      "#218"
     ],
     "notes": ""
+   },
+   {
+    "id": "TC-APP-106",
+    "title": "Đang chờ máy chủ: có dấu hiệu đang tải, không phải màn trắng",
+    "category": "edge",
+    "priority": "P1",
+    "role": "Người bệnh (PortalPatient qua BFF)",
+    "preconditions": "Máy chủ giả đặt sang chế độ `slow` (trễ 30 giây). Bộ chụp cố ý **không** dùng `pumpAndSettle` ở ca này: `pumpAndSettle` đợi cho hết mọi vòng quay, tức là đợi qua mất đúng khung hình cần chụp.",
+    "steps": [
+     "Mở màn Kết quả khi máy chủ trả lời rất chậm",
+     "Chụp trong lúc còn đang chờ"
+    ],
+    "expected": "Hiện vòng quay chờ. Người bệnh ở vùng sóng yếu nhìn khung hình này lâu nhất trong cả app, nên để trắng ở đây là để họ tưởng app treo.",
+    "evidence": [
+     {
+      "name": "TC-APP-106__s01__loading",
+      "caption": "Chụp trên Android 7.1.1 (API 25)",
+      "uiState": "loading"
+     },
+     {
+      "name": "TC-APP-106__s02__loading",
+      "caption": "Chụp trên iOS 12 simulator",
+      "uiState": "loading"
+     }
+    ],
+    "refIssues": [
+     "#218"
+    ],
+    "notes": ""
    }
   ],
   "gaps": [
-   "**Chưa chụp `loading` và `success/toast`.** Hai trạng thái này chỉ tồn tại trong khoảnh khắc: máy chủ giả trả về tức thì nên không có khung hình nào ở giữa, còn toast thành công cần một thao tác ghi thật (lấy số, đặt lịch, tải giấy tờ). Muốn phủ nốt thì máy chủ giả cần thêm độ trễ có chủ đích và các tuyến POST — việc của đợt sau.",
+   "**Chưa chụp `success/toast`.** Toast thành công chỉ hiện sau một thao tác GHI thật (lấy số, đặt lịch, tải giấy tờ lên) — máy chủ giả hiện chỉ phục vụ các tuyến ĐỌC. Đường ghi đã được kiểm ở tầng API bằng `scripts/smoke-patient-app-*.py` với CSDL thật, nên đây là thiếu ảnh chứ không phải thiếu kiểm.",
    "**Chưa chụp `modal` · `drawer` · `tab` · `filter` · `dropdown`.** Bộ chụp dựng màn qua go_router nên vào thẳng trạng thái nghỉ của từng màn; các lớp phủ này cần chuỗi thao tác riêng.",
    "**Nửa iOS 12 của mỗi ô evidence (s02) chưa có.** Máy phát triển chạy Windows nên không build được iOS; bộ iOS lấy từ hiện vật `anh-man-hinh-ios` của workflow `mobile-patient-app.yml` (macOS runner) rồi bung vào `docs/features/patient-app/screenshots/ios12/` và chạy lại `scripts/collect-patient-app-evidence.sh`.",
    "**Ảnh chụp trên MÁY ẢO, chưa phải máy thật.** Ngưỡng phiên bản thì đã chứng minh bằng chính bản build ra (Android API 25 thật sự chạy được; `MinimumOSVersion = 12.0` đọc từ Info.plist của bản build iOS). Phần chỉ máy thật mới nghiệm thu được là **cảm biến sinh trắc** và hiệu năng cuộn trên phần cứng đời đó — xem dòng I.2.9.3, C.2 và C.3 của bảng đối chiếu.",
@@ -878,13 +935,14 @@ window.TP.modules.push(...[
   "ui_state_checklist": [
    "form — ĐÃ CHỤP (đăng nhập · đăng ký · quên mật khẩu · đặt lịch · đặt PIN · tra cứu)",
    "list — ĐÃ CHỤP (trang chủ · lấy số · lịch hẹn · kết quả · đơn thuốc · nội trú · gia đình · ví · thông báo · bảo mật · thiết bị)",
-   "detail — ĐÃ CHỤP (phiếu xét nghiệm có chỉ số bất thường · công khai thuốc theo ngày)",
+   "detail — ĐÃ CHỤP (phiếu xét nghiệm có chỉ số bất thường · công khai thuốc theo ngày · theo dõi số thứ tự)",
    "empty — ĐÃ CHỤP (chưa liên kết hồ sơ · kết quả · hộp thư · ví giấy tờ · gia đình)",
    "error — ĐÃ CHỤP (máy chủ trả 500, không lộ vết ngăn xếp)",
+   "loading — ĐÃ CHỤP (máy chủ trả lời chậm)",
    "validation — ĐÃ CHỤP (đăng nhập bỏ trống)",
    "permission — ĐÃ CHỤP (bị buộc đổi mật khẩu, không vào được màn nào khác)",
    "confirm — ĐÃ CHỤP (xoá tài khoản)",
-   "loading · success/toast · modal · drawer · tab · filter · dropdown — CHƯA CHỤP, xem phần gap"
+   "success/toast · modal · drawer · tab · filter · dropdown — CHƯA CHỤP, xem phần gap"
   ]
  }
 ]);

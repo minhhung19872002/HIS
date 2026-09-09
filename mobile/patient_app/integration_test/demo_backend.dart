@@ -25,6 +25,13 @@ enum DemoMode {
 
   /// Máy chủ hỏng (500). Màn phải hiện lời giải thích đọc được kèm nút thử lại.
   serverError,
+
+  /// Máy chủ trả lời rất chậm — để bắt được khung hình `loading`.
+  ///
+  /// Không có chế độ này thì không chụp nổi trạng thái chờ: máy chủ giả trả về tức thì nên màn
+  /// hình nhảy thẳng từ trống sang có dữ liệu, không có khung nào ở giữa. Mà với người bệnh ở
+  /// vùng sóng yếu thì đây lại là khung hình họ nhìn lâu nhất.
+  slow,
 }
 
 class DemoBackendAdapter implements HttpClientAdapter {
@@ -35,6 +42,11 @@ class DemoBackendAdapter implements HttpClientAdapter {
   @override
   Future<ResponseBody> fetch(RequestOptions options, Stream<List<int>>? _, Future<void>? __) async {
     final path = options.path;
+
+    if (mode == DemoMode.slow) {
+      // Đủ lâu để chụp xong khung hình chờ, đủ ngắn để bộ chụp không hết giờ.
+      await Future<void>.delayed(const Duration(seconds: 30));
+    }
 
     if (mode == DemoMode.serverError) {
       return ResponseBody.fromString(
@@ -94,6 +106,12 @@ class DemoBackendAdapter implements HttpClientAdapter {
     '/queue/tickets': '''
       [{"id":"t1","ticketCode":"A-042","queueNumber":42,"roomId":"r1",
         "roomName":"Phòng khám 1","priority":1,"priorityVerified":false}]''',
+    // Màn theo dõi số hỏi lại tuyến này mỗi 20 giây. Phải khai riêng vì nó trả một ĐỐI TƯỢNG,
+    // trong khi `/queue/tickets` trả một danh sách — khớp nhầm là màn hình vỡ khi đọc JSON.
+    '/queue/tickets/t1/status': '''
+      {"ticketId":"t1","ticketCode":"A-042","roomName":"Phòng khám 1","status":0,
+       "statusName":"Đang chờ","currentServingTicket":"A-037","peopleAhead":5,
+       "estimatedWaitMinutes":25,"priority":1,"priorityVerified":false}''',
 
     // ------------------------------------------------------------------ đặt khám
     '/appointments/departments': '''

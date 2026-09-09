@@ -71,11 +71,20 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 2));
   }
 
-  Future<void> shot(WidgetTester tester, String name) async {
+  /// [settle] = false khi đang chụp một trạng thái THOÁNG QUA (vòng quay chờ).
+  ///
+  /// `pumpAndSettle` đợi cho khung hình đứng yên hẳn — nghĩa là đợi qua luôn cái khoảnh khắc cần
+  /// chụp, rồi chụp ra màn đã tải xong nhưng vẫn dán nhãn `loading`. Bằng chứng sai nhãn còn tệ hơn
+  /// là thiếu bằng chứng: người đọc hồ sơ nghiệm thu tin vào cái nhãn.
+  Future<void> shot(WidgetTester tester, String name, {bool settle = true}) async {
     // Android cần chuyển surface sang ảnh trước khi chụp; iOS thì không, và gọi nhầm sẽ ném lỗi.
     if (Platform.isAndroid) {
       await binding.convertFlutterSurfaceToImage();
-      await tester.pumpAndSettle();
+      if (settle) {
+        await tester.pumpAndSettle();
+      } else {
+        await tester.pump();
+      }
     }
     await binding.takeScreenshot(name);
   }
@@ -87,8 +96,9 @@ void main() {
   /// mỗi ô trong `data/15-app.js` ghi rõ ô nào là nền tảng nào.
   final step = Platform.isIOS ? 's02' : 's01';
 
-  Future<void> capture(WidgetTester tester, String code, String state) =>
-      shot(tester, 'TC-APP-$code' '__${step}__$state');
+  Future<void> capture(WidgetTester tester, String code, String state,
+          {bool settle = true}) =>
+      shot(tester, 'TC-APP-$code' '__${step}__$state', settle: settle);
 
   // =============================================================== I.2 #1-2 đăng nhập
   testWidgets('TC-APP-001 màn đăng nhập', (tester) async {
@@ -146,6 +156,15 @@ void main() {
   testWidgets('TC-APP-010 chọn khoa và phòng để lấy số', (tester) async {
     await open(tester, AppRoutes.queue);
     await capture(tester, '010', 'list');
+  });
+
+  testWidgets('TC-APP-011 theo dõi số đã lấy: đang gọi số nào, còn bao nhiêu người',
+      (tester) async {
+    await open(tester, '${AppRoutes.queueTicket}/t1');
+
+    // Ba con số HSMT I.2 #3 đòi phải thấy được, không chỉ là "số của bạn là 42".
+    expect(find.textContaining('A-042'), findsWidgets);
+    await capture(tester, '011', 'detail');
   });
 
   // =============================================================== I.2 #4 đặt khám
@@ -262,6 +281,39 @@ void main() {
   testWidgets('TC-APP-104 chưa kết nối người thân nào', (tester) async {
     await open(tester, AppRoutes.family, mode: DemoMode.empty);
     await capture(tester, '104', 'empty');
+  });
+
+  testWidgets('TC-APP-106 đang chờ máy chủ: có dấu hiệu đang tải, không phải màn trắng',
+      (tester) async {
+    // Không dùng `open()` vì nó `pumpAndSettle` — mà pumpAndSettle sẽ đợi cho hết vòng quay, tức
+    // là đợi luôn qua mất đúng khung hình cần chụp.
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appConfigProvider.overrideWithValue(AppConfig.dev),
+          apiClientProvider.overrideWithValue(demoClient(DemoMode.slow)),
+          authControllerProvider.overrideWith(
+              () => _FakeAuthController(const AuthSignedIn(linkedAccount))),
+        ],
+        child: const PatientApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    final context = tester.element(find.byType(Navigator).first);
+    ProviderScope.containerOf(context, listen: false)
+        .read(routerProvider)
+        .go(AppRoutes.results);
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+
+    // Phải đang ở giữa chừng thì mới có cái để chụp — khẳng định trước khi bấm máy, để một lần
+    // đổi cách dựng màn về sau không âm thầm biến ảnh này thành màn đã tải xong.
+    expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+    await capture(tester, '106', 'loading', settle: false);
   });
 
   testWidgets('TC-APP-105 đăng nhập bỏ trống: báo lỗi ngay trên máy, không chờ vòng mạng',
