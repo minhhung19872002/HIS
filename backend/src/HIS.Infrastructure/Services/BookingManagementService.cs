@@ -237,6 +237,26 @@ public class BookingManagementService : IBookingManagementService
 
     // === Booking Management ===
 
+    /// <summary>
+    /// Đưa số điện thoại về một dạng duy nhất để so sánh: chỉ giữ chữ số, bỏ mã quốc gia Việt Nam
+    /// và số 0 đứng đầu.
+    ///
+    /// <para>"0399166923", "+84399166923", "84 399 166 923" và "399166923" đều ra "399166923".
+    /// Nhờ vậy nhân viên gõ kiểu nào cũng tìm ra, không phải đoán xem bản ghi được lưu ở dạng gì.</para>
+    ///
+    /// <para>Trả chuỗi rỗng khi không có chữ số nào — bên gọi tự bỏ qua, tránh việc một từ khoá
+    /// không phải số điện thoại lại khớp với mọi bản ghi.</para>
+    /// </summary>
+    private static string NormalizePhone(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+
+        var digits = new string(value.Where(char.IsDigit).ToArray());
+        if (digits.StartsWith("84", StringComparison.Ordinal) && digits.Length > 9)
+            digits = digits[2..];
+        return digits.TrimStart('0');
+    }
+
     public async Task<BookingManagementPagedResult> GetBookingsAsync(BookingSearchDto search)
     {
         var query = _context.Appointments
@@ -267,11 +287,24 @@ public class BookingManagementService : IBookingManagementService
             // Server báo error 506. Materialize tập ứng viên đã được giới hạn bởi
             // ngày/khoa/bác sĩ/trạng thái rồi mới tìm trên giá trị đã giải mã.
             var candidates = await query.AsNoTracking().ToListAsync();
+
+            // Số điện thoại phải so ở DẠNG CHUẨN HOÁ, không so nguyên văn.
+            //
+            // Lịch đặt qua app hỗ trợ người bệnh lưu số ở dạng quốc tế ("+84399166923"), còn nhân
+            // viên gõ đúng dạng người bệnh đọc cho họ ("0399166923"). `Contains` nguyên văn không
+            // khớp — "+84399166923" không chứa "0399166923" — nên MỌI lịch đặt qua app đều không
+            // tìm được bằng số điện thoại. Đây là lỗi đã gặp thật: chủ đầu tư đặt lịch trên app,
+            // nhân viên tra số trên HIS ra "Chưa có lịch hẹn", và cả hai bên kết luận lịch không
+            // vào hệ thống.
+            var kwPhone = NormalizePhone(kw);
+
             var matched = candidates
                 .Where(a =>
                     a.AppointmentCode.Contains(kw, StringComparison.OrdinalIgnoreCase)
                     || (a.Patient?.FullName?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
-                    || (a.Patient?.PhoneNumber?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false))
+                    || (a.Patient?.PhoneNumber?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (kwPhone.Length >= 6
+                        && NormalizePhone(a.Patient?.PhoneNumber).Contains(kwPhone, StringComparison.Ordinal)))
                 .OrderBy(a => a.AppointmentDate)
                 .ThenBy(a => a.AppointmentTime)
                 .ToList();
