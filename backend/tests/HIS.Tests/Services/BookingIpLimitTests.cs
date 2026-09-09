@@ -136,3 +136,99 @@ public sealed class BookingIpLimitTests
         Assert.DoesNotContain("địa chỉ này", result.Message ?? string.Empty);
     }
 }
+
+/// <summary>
+/// Hạn mức theo SỐ ĐIỆN THOẠI không được tính lịch ĐÃ HUỶ.
+///
+/// <para>Hạn mức sinh ra để một người không ôm nhiều chỗ khám. Lịch đã huỷ thì không ôm chỗ nào —
+/// chỗ đó đã trả lại. Tính cả lịch đã huỷ nghĩa là người bệnh bấm nhầm giờ rồi tự sửa lại bị PHẠT
+/// mất một suất trong ngày, mà người dùng chính của app là người cao tuổi — nhóm bấm nhầm nhiều
+/// nhất.</para>
+///
+/// <para>Chuyện đã xảy ra thật: chủ đầu tư đặt 3 lịch, huỷ 1, và bị chặn khi chỉ còn 2 lịch còn
+/// hiệu lực.</para>
+/// </summary>
+public sealed class BookingCancelledQuotaTests
+{
+    private const string Phone = "0955555555";
+
+    private static AppointmentBookingService Build(HIS.Infrastructure.Data.HISDbContext context) =>
+        new(context,
+            new Mock<IUnitOfWork>().Object,
+            new Mock<IEmailService>().Object,
+            new Mock<ISmsService>().Object);
+
+    /// <summary>Ghi N lượt đặt thành công hôm nay; `cancelled` lượt đầu bị huỷ.</summary>
+    private static async Task SeedAsync(
+        HIS.Infrastructure.Data.HISDbContext context, int total, int cancelled)
+    {
+        for (var i = 0; i < total; i++)
+        {
+            var code = $"DK-QUOTA-{i:D2}";
+            context.Set<BookingAttemptLog>().Add(new BookingAttemptLog
+            {
+                Id = Guid.NewGuid(),
+                PhoneNumber = Phone,
+                IpAddress = "203.0.113.5",
+                IsSuccessful = true,
+                AppointmentCode = code,
+                CreatedAt = DateTime.UtcNow,
+            });
+            context.Appointments.Add(new Appointment
+            {
+                Id = Guid.NewGuid(),
+                AppointmentCode = code,
+                AppointmentDate = DateTime.Today.AddDays(3 + i),
+                AppointmentType = 2,
+                Status = i < cancelled ? 4 : 1,   // 4 = đã huỷ
+            });
+        }
+        await context.SaveChangesAsync();
+    }
+
+    private static OnlineBookingDto NewBooking() => new()
+    {
+        PatientName = "Người bệnh kiểm thử",
+        PhoneNumber = Phone,
+        AppointmentDate = DateTime.Today.AddDays(1),
+        AppointmentTime = new TimeSpan(8, 0, 0),
+        AppointmentType = 2,
+        ClientIp = "203.0.113.5",
+        IsAuthenticatedCaller = true,
+    };
+
+    [Fact]
+    public async Task Ba_lich_CON_HIEU_LUC_thi_bi_chan()
+    {
+        using var context = TestDb.NewInMemory();
+        await SeedAsync(context, total: 3, cancelled: 0);
+
+        var result = await Build(context).BookAppointmentAsync(NewBooking());
+
+        Assert.False(result.Success);
+        Assert.Contains("Số điện thoại này", result.Message);
+    }
+
+    /// <summary>Mệnh đề then chốt: huỷ một lịch thì được đặt lại.</summary>
+    [Fact]
+    public async Task Ba_lich_nhung_MOT_DA_HUY_thi_van_dat_duoc()
+    {
+        using var context = TestDb.NewInMemory();
+        await SeedAsync(context, total: 3, cancelled: 1);
+
+        var result = await Build(context).BookAppointmentAsync(NewBooking());
+
+        Assert.DoesNotContain("Số điện thoại này", result.Message ?? string.Empty);
+    }
+
+    [Fact]
+    public async Task Huy_het_thi_dat_lai_thoai_mai_trong_han_muc()
+    {
+        using var context = TestDb.NewInMemory();
+        await SeedAsync(context, total: 3, cancelled: 3);
+
+        var result = await Build(context).BookAppointmentAsync(NewBooking());
+
+        Assert.DoesNotContain("Số điện thoại này", result.Message ?? string.Empty);
+    }
+}

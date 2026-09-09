@@ -216,12 +216,30 @@ public class AppointmentBookingService : IAppointmentBookingService
         }
 
         // === Anti-fraud: đếm số lần đặt hôm nay theo SĐT (dùng VnTime.DayRangeUtc — tránh bug ca đêm) ===
+        //
+        // Lịch ĐÃ HUỶ không tính vào hạn mức.
+        //
+        // Hạn mức này sinh ra để một người không ôm nhiều chỗ khám. Lịch đã huỷ thì không ôm chỗ
+        // nào cả — chỗ đó đã trả lại cho người khác. Tính cả lịch đã huỷ nghĩa là người bệnh bấm
+        // nhầm giờ rồi tự sửa lại bị PHẠT mất một suất trong ngày, mà người dùng chính của app lại
+        // là người cao tuổi, nhóm bấm nhầm nhiều nhất. Đây là chuyện đã xảy ra thật: chủ đầu tư
+        // đặt 3 lịch, huỷ 1, và bị chặn khi chỉ còn 2 lịch còn hiệu lực.
+        //
+        // Trạng thái 4 = đã huỷ (xem `Appointment.Status`).
         var (dayStart, dayEnd) = VnTime.DayRangeUtc(VnTime.TodayVn);
+
+        var cancelledCodesToday = await _context.Appointments
+            .Where(a => !a.IsDeleted && a.Status == 4 && a.AppointmentCode != null)
+            .Select(a => a.AppointmentCode!)
+            .ToListAsync();
+
         var phoneAttemptsToday = await _context.Set<BookingAttemptLog>()
             .CountAsync(l => !l.IsDeleted
                 && l.PhoneNumber == phone
                 && l.IsSuccessful
-                && l.CreatedAt >= dayStart && l.CreatedAt < dayEnd);
+                && l.CreatedAt >= dayStart && l.CreatedAt < dayEnd
+                // Lượt đặt chưa gắn được mã hẹn thì vẫn tính — không có cách nào biết nó đã huỷ hay chưa.
+                && (l.AppointmentCode == null || !cancelledCodesToday.Contains(l.AppointmentCode)));
         if (phoneAttemptsToday >= maxPerPhone)
         {
             await LogAttemptAsync(phone, ip, false, null, $"Phone limit {maxPerPhone}/day exceeded");
