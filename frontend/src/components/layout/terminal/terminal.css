@@ -240,7 +240,7 @@ body[data-theme="dark"] {
 /* ============== APP SHELL ============== */
 .his-app {
   display: grid;
-  grid-template-columns: 64px 1fr;
+  grid-template-columns: 64px minmax(0, 1fr);
   grid-template-rows: 44px 32px 1fr;
   flex: 1;
   min-height: 0;
@@ -249,7 +249,7 @@ body[data-theme="dark"] {
 }
 
 .his-app.has-pinned {
-  grid-template-columns: 64px 240px 1fr;
+  grid-template-columns: 64px 240px minmax(0, 1fr);
 }
 
 .his-app.has-pinned .his-topbar,
@@ -582,6 +582,7 @@ body[data-theme="dark"] {
   align-items: center;
   padding: 0 14px;
   gap: 12px;
+  min-width: 0;
 }
 
 .his-tb-crumb {
@@ -955,7 +956,14 @@ body[data-theme="dark"] {
   letter-spacing: 0.02em;
   height: 26px;
   flex-shrink: 0;
-  overflow: hidden;
+  /* never swallow segments silently — narrow windows/tablets swipe instead */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.his-status::-webkit-scrollbar {
+  display: none;
 }
 
 .his-status .seg {
@@ -2205,11 +2213,11 @@ kbd {
 /* Tablet ≤ 900px: collapse rail labels, slim chrome */
 @media (max-width: 900px) {
   .his-app {
-    grid-template-columns: 48px 1fr;
+    grid-template-columns: 48px minmax(0, 1fr);
   }
 
   .his-app.has-pinned {
-    grid-template-columns: 48px 200px 1fr;
+    grid-template-columns: 48px 200px minmax(0, 1fr);
   }
 
   .his-rail {
@@ -2318,12 +2326,12 @@ kbd {
 /* Phone ≤ 640px: ultra-compact */
 @media (max-width: 640px) {
   .his-app {
-    grid-template-columns: 44px 1fr;
+    grid-template-columns: 44px minmax(0, 1fr);
     grid-template-rows: 40px 28px 1fr;
   }
 
   .his-app.has-pinned {
-    grid-template-columns: 44px 1fr;
+    grid-template-columns: 44px minmax(0, 1fr);
     grid-template-rows: 40px 28px 1fr;
   }
 
@@ -2531,9 +2539,9 @@ kbd {
     width: 100%;
   }
 
-  /* Dashboard ultra-compact: single col KPIs */
+  /* Dashboard: 2 compact KPI columns (matches .ab-kpis on phones) */
   .dash-top {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
     gap: 8px;
   }
 
@@ -2559,5 +2567,87 @@ kbd {
 
   .btn {
     min-height: 32px;
+  }
+}
+/* ============================================
+   PHONE ≤700px — shell chrome (topbar + status bar)
+   The grid already collapses to a 44px rail; what stayed broken on a real
+   phone was the chrome: the topbar breadcrumb was squeezed to ~45px and the
+   status bar lost ~200px of segments behind `overflow: hidden`.
+   ============================================ */
+@media (max-width: 700px) {
+  .his-topbar {
+    padding: 0 8px;
+    gap: 6px;
+  }
+
+  /* Breadcrumb keeps the page name (the hospital name is not worth 40% of a
+     390px topbar) and ellipsises instead of being clipped to nothing. */
+  .his-tb-crumb {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /* Only the current page survives; the hospital name and the parent group
+     ate the whole 390px topbar and got clipped mid-word. */
+  .his-tb-crumb .hosp,
+  .his-tb-crumb .slash,
+  .his-tb-crumb>span:not(.here):not(.hosp) {
+    display: none;
+  }
+
+  .his-tb-crumb .here {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .his-tb-right {
+    min-width: 0;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  /* Desktop-only affordances: browser reload covers refresh, the phone has a
+     clock, and v1 layout is being retired. */
+  .his-clock,
+  .his-tb-btn--refresh,
+  .his-tb-btn--layout {
+    display: none;
+  }
+
+  /* Panel headers are nowrap flex rows with a fixed 40px height — title +
+     actions overflowed and were cut. Let them wrap onto a second line. */
+  .panel-h {
+    height: auto;
+    min-height: 36px;
+    padding: 6px 10px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .panel-body.pad {
+    padding: 10px;
+  }
+
+  /* Status bar: keyboard hints are meaningless on touch (it already swipes). */
+  .his-status {
+    gap: 10px;
+    padding: 0 8px;
+  }
+
+  .his-status .his-status-cmd,
+  .his-status kbd,
+  .his-status .spacer {
+    display: none;
+  }
+
+  .his-status .seg,
+  .his-status .sep {
+    flex: 0 0 auto;
   }
 }

@@ -1808,13 +1808,25 @@
 
 /* ≤700px: collapse all multi-col grids to 1, drawer full-screen, table scroll */
 @media (max-width: 700px) {
+  /* 2 compact columns — 1 card per row pushed the table 6 screens down */
   .ab-kpis {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: repeat(2, 1fr) !important;
   }
 
   .ab-kpi {
     border-right: none !important;
     border-bottom: 1px solid var(--line);
+    padding: 8px 10px;
+  }
+
+  .ab-kpi:nth-child(odd) {
+    border-right: 1px solid var(--line) !important;
+  }
+
+  /* 26px is right for "30", not for a KPI whose value is a room name */
+  .ab-kpi .val {
+    font-size: 20px;
+    overflow-wrap: anywhere;
   }
 
   .ab-kpi:last-child {
@@ -1830,6 +1842,46 @@
     grid-template-columns: 1fr !important;
   }
 
+  /* Inline grid templates are the biggest remaining source of clipped cards on
+     a phone: 121 call-sites use '1fr 1fr', plus fixed-px column sets like
+     '110px 1fr 220px 140px 90px'. Stack them. auto-fit/auto-fill grids already
+     reflow on their own, so only their too-wide minmax floors are collapsed.
+     Scoped to the v2 content area + overlays (portaled outside .his-content). */
+  .his-content [style*="grid-template-columns"]:not([style*="auto-fit"]):not([style*="auto-fill"]),
+  .hui-drawer [style*="grid-template-columns"]:not([style*="auto-fit"]):not([style*="auto-fill"]),
+  .hui-modal [style*="grid-template-columns"]:not([style*="auto-fit"]):not([style*="auto-fill"]),
+  .his-content [style*="minmax(220px"],
+  .his-content [style*="minmax(230px"],
+  .his-content [style*="minmax(260px"],
+  .his-content [style*="minmax(280px"],
+  .his-content [style*="minmax(300px"],
+  .his-content [style*="minmax(320px"],
+  .his-content [style*="minmax(360px"],
+  .hui-drawer [style*="minmax(320px"],
+  .hui-modal [style*="minmax(320px"] {
+    /* minmax(0,…) not 1fr: a bare `1fr` track takes its min-content as the
+       minimum, so a wide child re-inflates the column past the viewport. */
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  /* A bare <table class="ab-tbl"> dropped into a card with inline
+     `overflow: hidden` (no .ab-tbl-wrap) loses its right-hand columns with no
+     way to scroll to them — let that card scroll sideways instead. */
+  .his-content :has(> .ab-tbl),
+  .hui-drawer :has(> .ab-tbl),
+  .hui-modal :has(> .ab-tbl) {
+    overflow-x: auto !important;
+  }
+
+  /* Modals: 40px/20px of chrome padding is a quarter of a phone screen */
+  .hui-modal-wrap {
+    padding: 12px 8px;
+  }
+
+  .hui-modal {
+    max-height: calc(100vh - 24px);
+  }
+
   /* Reduce panel padding */
   [style*="padding:\"12px 20px\""],
   [style*="padding: 12px 20px"] {
@@ -1841,8 +1893,27 @@
     overflow-x: auto;
   }
 
+  /* Phone: the page scrolls as one document instead of squeezing the table
+     into the ~150px left under the KPI strip. The table keeps its own
+     sideways scroll for wide columns. */
+  .ab {
+    height: auto;
+    min-height: 100%;
+  }
+
   .ab-tbl-wrap {
     overflow-x: auto;
+    flex: 0 0 auto;
+  }
+
+  .ab-tbl-ft {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+
+  .ab-tbl-ft .spacer {
+    display: none;
   }
 
   /* Drawer full-screen */
@@ -1889,15 +1960,68 @@
     flex-shrink: 0;
   }
 
-  /* Filter row stacks */
+  /* Filter row wraps; the search box owns a full row, the rest flow after it */
   .ab-tools {
-    flex-direction: column;
+    flex-wrap: wrap;
     align-items: stretch;
+    padding: 8px 10px;
   }
 
-  .ab-tools .ab-search,
-  .ab-tools .ab-sel {
+  .ab-tools .ab-search {
+    flex: 1 1 100%;
     width: 100%;
+    min-width: 0;
+  }
+
+  .ab-tools .ab-sel {
+    flex: 1 1 45%;
+    min-width: 0;
+  }
+
+  /* Page-header action buttons sat on the same nowrap row as the tabs and
+     squeezed them to zero width — give them their own scrollable row. */
+  .ab-toptabs {
+    flex-wrap: wrap;
+    padding: 6px 10px;
+    gap: 6px;
+  }
+
+  .ab-toptabs .ab-toptabs-scroll {
+    flex: 1 1 100%;
+  }
+
+  .ab-toptabs-actions {
+    flex: 1 1 100%;
+    min-width: 0;
+    margin-left: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .ab-toptabs-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ab-toptabs-actions > * {
+    flex-shrink: 0;
+  }
+
+  /* Status tabs / toolbars swipe sideways instead of being cut off */
+  .ab-stab {
+    padding: 6px 10px 0;
+    scrollbar-width: none;
+  }
+
+  .ab-stab::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ab-stab button {
+    flex-shrink: 0;
+  }
+
+  .ab-toolbar {
+    padding: 8px 10px;
   }
 }
 

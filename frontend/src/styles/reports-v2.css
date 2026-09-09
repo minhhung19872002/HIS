@@ -626,3 +626,31 @@
     grid-template-columns: 1fr;
   }
 }
+/* Phone ≤700px: the board head is a nowrap flex row — the period switch lost
+   its last segments behind `overflow: hidden`. Let the head wrap. */
+@media (max-width: 700px) {
+  .reports-v2-board-head {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .reports-v2-period-switch {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .reports-v2-period-switch::-webkit-scrollbar {
+    display: none;
+  }
+
+  .reports-v2-period-switch button {
+    flex: 0 0 auto;
+    padding: 5px 10px;
+  }
+
+  .reports-v2-metrics,
+  .reports-v2-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

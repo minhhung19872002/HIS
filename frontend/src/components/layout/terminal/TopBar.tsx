@@ -209,7 +209,7 @@ const Topbar: React.FC<{
           {/* <button type="button" className={`his-tb-btn${isCompact ? ' on' : ''}`} title={isCompact ? 'Mật độ Thường' : 'Mật độ Gọn'} aria-label="Đổi mật độ hiển thị" aria-pressed={isCompact} onClick={toggleCompact}>
           <TermIcon name="list" size={15} />
         </button> */}
-          <button type="button" className="his-tb-btn" title="Giao ca / Làm mới" onClick={() => window.location.reload()}>
+          <button type="button" className="his-tb-btn his-tb-btn--refresh" title="Giao ca / Làm mới" onClick={() => window.location.reload()}>
             <TermIcon name="refresh" size={15} />
           </button>
           {/* <button type="button" className="his-tb-btn" title="Trợ giúp (F1)" onClick={() => navigate('/v2/help')}>
@@ -222,7 +222,7 @@ const Topbar: React.FC<{
               {unreadCount > 0 && <span className="dot-alert" />}
             </button>
           </Popover>
-          <button type="button" className="his-tb-btn" onClick={onSwitchLayout} title="Chuyển sang Layout cũ (v1)">
+          <button type="button" className="his-tb-btn his-tb-btn--layout" onClick={onSwitchLayout} title="Chuyển sang Layout cũ (v1)">
             <TermIcon name="external" size={15} />
           </button>
           <div className="his-clock">

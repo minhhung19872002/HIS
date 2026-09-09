@@ -17,7 +17,9 @@
 
 @media (max-width: 1180px) {
   .ed-root {
-    grid-template-columns: 1fr !important;
+    /* minmax(0,…): a bare `1fr` inflates to the panel's min-content width and
+       pushes the editor off-screen on tablets/phones. */
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 
   .ed-left-panel,
@@ -104,8 +106,9 @@
 }
 
 @media (max-width: 720px) {
+  /* keep 2 compact columns on phones (matches ab-module.css) */
   .ab-kpis {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: repeat(2, 1fr) !important;
   }
 
   .ed-left-panel,
