@@ -20,7 +20,9 @@ class SecurityPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authControllerProvider);
-    final account = auth.value is AuthSignedIn ? (auth.value! as AuthSignedIn).account : null;
+    // `valueOrNull` chứ KHÔNG `value`: trên `AsyncError`, `.value` NÉM LẠI lỗi ngay trong `build`.
+    final state = auth.valueOrNull;
+    final account = state is AuthSignedIn ? state.account : null;
     final biometric = ref.watch(biometricStatusProvider);
 
     return Scaffold(

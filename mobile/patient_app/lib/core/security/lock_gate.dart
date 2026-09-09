@@ -25,7 +25,10 @@ class LockGate extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locked = ref.watch(appLockProvider);
-    final signedIn = ref.watch(authControllerProvider).value is AuthSignedIn;
+    // `valueOrNull` chứ KHÔNG `value`: trên `AsyncError`, `.value` NÉM LẠI lỗi. `LockGate` bọc
+    // TOÀN BỘ app, nên một lần mất mạng lúc mở app là màn trắng — không phải màn lỗi có nút thử
+    // lại, mà trắng hẳn.
+    final signedIn = ref.watch(authControllerProvider).valueOrNull is AuthSignedIn;
 
     return Stack(
       children: [

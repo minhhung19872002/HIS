@@ -32,7 +32,12 @@ class HomePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppL10n.of(context);
     final auth = ref.watch(authControllerProvider);
-    final account = auth.value is AuthSignedIn ? (auth.value! as AuthSignedIn).account : null;
+    // `valueOrNull` chứ KHÔNG `value`: trên `AsyncError`, `.value` NÉM LẠI lỗi thay vì trả null,
+    // và lỗi đó nổ ngay trong `build` làm vỡ cả màn. Trang chủ đọc bốn provider — chỉ cần một
+    // trong bốn hỏng (mất mạng, máy chủ 500) là người bệnh mất luôn trang chủ, kể cả những khối
+    // không liên quan gì tới provider hỏng đó.
+    final state = auth.valueOrNull;
+    final account = state is AuthSignedIn ? state.account : null;
 
     final shortcuts = <_Shortcut>[
       _Shortcut(Icons.confirmation_number_outlined, l10n.shortcutQueue,
@@ -122,7 +127,7 @@ class _Greeting extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final initial = name.trim().isEmpty ? '?' : name.trim().characters.first.toUpperCase();
-    final unread = ref.watch(unreadCountProvider).value ?? 0;
+    final unread = ref.watch(unreadCountProvider).valueOrNull ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -438,7 +443,7 @@ class _TodayTicketCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tickets = ref.watch(myTicketsTodayProvider).value;
+    final tickets = ref.watch(myTicketsTodayProvider).valueOrNull;
     if (tickets == null || tickets.isEmpty) return const SizedBox.shrink();
 
     final ticket = tickets.first;
@@ -604,7 +609,7 @@ class _UpcomingAppointment extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final appointments = ref.watch(myAppointmentsProvider);
 
-    final upcoming = (appointments.value ?? const <Appointment>[])
+    final upcoming = (appointments.valueOrNull ?? const <Appointment>[])
         .where((a) => !a.isCancelled)
         .toList()
       ..sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
