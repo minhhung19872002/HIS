@@ -797,6 +797,17 @@ class _SlotCell extends StatelessWidget {
   final bool selected;
   final VoidCallback? onTap;
 
+  /// Giờ bắt đầu dạng "HH:mm".
+  ///
+  /// Máy chủ trả `startTime` kiểu "13:30:00" và `displayTime` có thể là cả khoảng
+  /// ("13:30 - 14:00"). Ô giờ chỉ đủ chỗ cho giờ bắt đầu.
+  String get _startHhmm {
+    final parts = slot.startTime.split(':');
+    if (parts.length >= 2) return '${parts[0]}:${parts[1]}';
+    // Không đọc được `startTime` thì lấy tạm phần đầu của `displayTime`.
+    return slot.displayTime.split(RegExp(r'\s*-\s*')).first.trim();
+  }
+
   @override
   Widget build(BuildContext context) {
     final full = !slot.isAvailable;
@@ -824,7 +835,13 @@ class _SlotCell extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadii.field),
               child: Center(
                 child: Text(
-                  slot.displayTime,
+                  // CHỈ giờ bắt đầu, không phải cả khoảng "13:30 - 14:00": ô cao 48 trong lưới 3
+                  // cột không đủ chỗ cho khoảng đầy đủ, chữ xuống hai dòng rồi bị cắt mất nửa
+                  // dưới — nhìn ra "13:30 -" cụt lủn, không đọc được giờ kết thúc mà cũng chẳng
+                  // đọc trọn giờ bắt đầu. Khoảng đầy đủ vẫn còn ở tooltip và ở nhãn trợ năng.
+                  _startHhmm,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: selected ? FontWeight.w800 : FontWeight.w600,

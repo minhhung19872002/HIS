@@ -76,20 +76,36 @@ class AppPrimaryButton extends StatelessWidget {
     return Opacity(
       // Mờ đi khi khoá, nhưng vẫn giữ khối màu để người dùng thấy nút vẫn ở đó.
       opacity: enabled ? 1 : 0.55,
-      child: Ink(
+      // ⚠️ `Container` TỰ vẽ gradient, KHÔNG dùng `Ink`.
+      //
+      // `Ink` không tự vẽ gì cả: nó gửi hình nền lên `Material` gần nhất phía trên rồi để
+      // `Material` vẽ hộ. Nên chỉ cần giữa nút và `Material` đó có một widget nền ĐỤC là hình nền
+      // bị che sạch — nút vẫn chiếm chỗ, vẫn bấm được, nhưng KHÔNG NHÌN THẤY.
+      //
+      // Đúng chuyện đã xảy ra: thanh đáy màn đặt lịch và màn lấy số đều là `Container` nền trắng
+      // đục, `Material` gần nhất là của `Scaffold` nằm dưới nó — nên nút "Xác nhận" biến mất và
+      // người bệnh không có cách nào lưu lịch. Chỉ lộ ra khi nhìn ảnh chụp trên máy thật; mã vẫn
+      // dịch được, test vẫn xanh, vì nút vẫn có mặt trong cây widget.
+      //
+      // `Material` trong suốt lồng bên trong chỉ để lấy gợn nước — nó không che gradient.
+      child: Container(
         height: height,
         decoration: BoxDecoration(
           gradient: gradient,
           borderRadius: shape,
           boxShadow: enabled ? AppShadows.primaryGlow : null,
         ),
-        child: InkWell(
-          onTap: enabled ? onPressed : null,
+        child: Material(
+          color: Colors.transparent,
           borderRadius: shape,
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: content,
+          child: InkWell(
+            onTap: enabled ? onPressed : null,
+            borderRadius: shape,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: content,
+              ),
             ),
           ),
         ),

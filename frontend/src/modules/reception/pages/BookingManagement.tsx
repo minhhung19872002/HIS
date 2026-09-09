@@ -67,8 +67,17 @@ const BookingManagementV2: React.FC = () => {
 
   // Stats drawer (parity với tab "Thống kê" ở v1 — theo ngày + phân bổ theo khoa)
   // #352: khoảng ngày xem lịch hẹn (mặc định hôm nay → +7 ngày, phủ ca "gọi xác nhận ngày mai")
+  // Khoảng ngày mặc định phải PHỦ HẾT tầm mà app cho người bệnh đặt trước (60 ngày).
+  //
+  // Trước đây mặc định 7 ngày. Người bệnh đặt lịch cho 20/09 và 27/09 qua app, lịch VÀO HIS đầy
+  // đủ, nhưng màn này không hiện vì hai ngày đó nằm ngoài khoảng lọc — và nhân viên kết luận là
+  // lịch không vào hệ thống. Một bản ghi có thật mà mặc định bị giấu đi là cái bẫy, không phải
+  // bộ lọc.
+  const DEFAULT_RANGE_DAYS = 60;
   const [dFrom, setDFrom] = useState<string>(dayjs().format('YYYY-MM-DD'));
-  const [dTo, setDTo] = useState<string>(dayjs().add(7, 'day').format('YYYY-MM-DD'));
+  const [dTo, setDTo] = useState<string>(
+    dayjs().add(DEFAULT_RANGE_DAYS, 'day').format('YYYY-MM-DD'),
+  );
   const [statsOpen, setStatsOpen] = useState(false);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsDate, setStatsDate] = useState<dayjs.Dayjs>(dayjs());
@@ -299,10 +308,29 @@ const BookingManagementV2: React.FC = () => {
         <Btn variant="ghost" onClick={() => {
           setSearch(''); setFDept(''); setStab('all');
           setDFrom(dayjs().format('YYYY-MM-DD'));
-          setDTo(dayjs().add(7, 'day').format('YYYY-MM-DD'));
+          setDTo(dayjs().add(DEFAULT_RANGE_DAYS, 'day').format('YYYY-MM-DD'));
+          setPage(0);
         }}>
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
+        {/* Nút nhanh: nhân viên hay hỏi đúng ba câu này, khỏi phải mở lịch chọn tay hai lần. */}
+        {([
+          ['Hôm nay', 0],
+          ['7 ngày', 7],
+          ['30 ngày', 30],
+        ] as const).map(([label, days]) => (
+          <Btn
+            key={label}
+            variant="ghost"
+            onClick={() => {
+              setDFrom(dayjs().format('YYYY-MM-DD'));
+              setDTo(dayjs().add(days, 'day').format('YYYY-MM-DD'));
+              setPage(0);
+            }}
+          >
+            {label}
+          </Btn>
+        ))}
         <span className="spacer" />
         <RefreshButton onRefresh={load} loading={loading} />
         <Btn variant="ghost" onClick={openSchedules}>
