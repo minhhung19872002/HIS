@@ -238,34 +238,27 @@ builder.Services
     })
     // ---------------------------------------------- lược đồ thứ hai: nhân viên HIS
     //
-    // Web quản trị nằm trong SPA của HIS, nhân viên đã có token do HIS Core cấp. BFF nhận chính token
-    // đó thay vì bắt đăng nhập lần hai. Khoá ký và issuer LẤY TỪ CẤU HÌNH CỦA HIS (`HisJwt`), tách
-    // hẳn khỏi khoá của người bệnh — dùng chung khoá là để token bệnh nhân mở được API quản trị.
-    .AddJwtBearer(StaffAuth.Scheme, options =>
+    // Nhân viên đã có token do HIS Core cấp; BFF nhận chính token đó thay vì bắt đăng nhập lần hai.
+    //
+    // BFF **hỏi lại HIS** xem token còn hiệu lực không, thay vì tự kiểm chữ ký. HIS ký bằng HMAC —
+    // khoá đối xứng — nên muốn tự kiểm thì phải giữ chính khoá ký của HIS, mà giữ khoá đó nghĩa là
+    // BFF tự đúc được token HIS cho bất kỳ vai trò nào. Quyền đó lớn hơn hẳn thứ nó cần, và với một
+    // dịch vụ mở ra Internet thì không đáng đánh đổi. Chi tiết: [D21] trong decisions.md.
+    .AddScheme<HisIntrospectionOptions, HisIntrospectionHandler>(StaffAuth.Scheme, options =>
     {
-        var hisJwt = builder.Configuration.GetSection("HisJwt");
-        var hisKey = hisJwt["Key"] ?? "";
-
-        if (!builder.Environment.IsDevelopment() && hisKey.Length < 32)
-        {
-            throw new InvalidOperationException(
-                "Chưa cấu hình HisJwt:Key (khoá ký token của HIS Core). "
-                + "Thiếu nó thì web quản trị không xác thực được nhân viên.");
-        }
-
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = hisJwt["Issuer"],
-            ValidAudience = hisJwt["Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(hisKey.Length >= 32 ? hisKey : new string('x', 32))),
-            ClockSkew = TimeSpan.Zero,
-        };
+        builder.Configuration.GetSection("HisStaffAuth").Bind(options);
     });
+
+// HttpClient riêng cho việc kiểm token: timeout ngắn, vì nó nằm trên đường xử lý của MỌI lời gọi
+// API quản trị — HIS chậm một nhịp thì cả web quản trị đứng theo.
+builder.Services.AddHttpClient(HisIntrospectionHandler.HttpClientName, client =>
+{
+    var baseUrl = builder.Configuration["HisConnector:BaseUrl"];
+    if (!string.IsNullOrWhiteSpace(baseUrl)) client.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+
+builder.Services.AddMemoryCache();
 
 builder.Services.AddAuthorization(options =>
 {

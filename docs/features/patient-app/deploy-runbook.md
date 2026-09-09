@@ -67,7 +67,7 @@ im lặng:
 | Biến | Thiếu thì sao |
 |---|---|
 | `AppJwt__Key` | Khoá ký token — thiếu là ai cũng làm token giả được |
-| `HisJwt__Key` | Khoá xác thực nhân viên — thiếu là web quản trị không đăng nhập được |
+| ~~`HisJwt__Key`~~ | **Không cần nữa** từ [D21]: BFF hỏi lại HIS để xác thực nhân viên thay vì giữ khoá ký của HIS |
 | `DocumentVault__Key` | Khoá mã hoá giấy tờ — thiếu thì khởi động lại là giấy tờ cũ hỏng hết |
 
 Ngoài ra `IOtpSender` thật phải được đăng ký; bản in-log chỉ chạy ở `Development`.
@@ -182,7 +182,7 @@ Và cả hai đều vô nghĩa nếu mất `DocumentVault__Key` — lưu khoá *
 |---|---|
 | App báo *"chưa kết nối được hệ thống bệnh viện"* | `curl http://127.0.0.1:8090/health/ready` · HIS Core còn sống không · tài khoản dịch vụ còn hiệu lực không |
 | Đăng ký báo lỗi gửi mã | Log `patientapp-api` tìm `IOtpSender` · hạn mức của nhà cung cấp SMS |
-| Web quản trị đăng nhập được HIS nhưng vào màn app bị 401 | `HisJwt__Key` trên BFF phải **trùng** `Jwt:Key` của HIS Core |
+| Web quản trị đăng nhập được HIS nhưng vào màn app bị 401 | BFF hỏi HIS `GET /api/auth/me` để xác thực — kiểm `HisConnector:BaseUrl` có đúng địa chỉ HIS không, và HIS có sống không. Vai trò của nhân viên phải nằm trong `StaffAuth.AdminRoles`/`LookupRoles` |
 | Giấy tờ mở ra báo lỗi giải mã | `DocumentVault__Key` có bị đổi không · ổ đĩa `patientapp_vault` có được gắn đúng không |
 | Thông báo không tới máy người bệnh | Bảng điều khiển: *"thiết bị nhận được thông báo đẩy"* · cấu hình Firebase · relay trên VPS còn sống không |
 | Cần chặn khẩn một bản app hỏng | Nâng `AppRelease__MinimumAndroidVersion` — xem [`store-release-checklist.md`](store-release-checklist.md) §7 |

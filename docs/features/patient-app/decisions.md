@@ -368,3 +368,40 @@ việc báo đổi/huỷ lịch khám thì mức đó chấp nhận được, c�
 
 **Báo SAU khi lưu, không phải trước:** lưu hỏng mà đã báo thì người bệnh nhận thông báo "lịch đã
 dời" trong khi hệ thống vẫn giữ giờ cũ — sai lệch tệ hơn là chậm một vòng.
+
+---
+
+## D21 — BFF hỏi lại HIS để xác thực nhân viên, thay vì giữ khoá ký của HIS
+
+**Thay cho [D16].** D16 cho BFF nhận thẳng token của HIS và **tự kiểm chữ ký** bằng `HisJwt:Key` —
+chính khoá ký của HIS Core. Chạy được, nhưng sai ở hai chỗ chỉ lộ ra khi nhìn xa hơn một bệnh viện.
+
+**Sai thứ nhất — quyền lớn hơn thứ cần.** HIS ký bằng HMAC, thuật toán khoá đối xứng: cùng một khoá
+dùng để ký và để kiểm. Đưa khoá đó cho BFF nghĩa là BFF không chỉ *kiểm* được token HIS mà còn **tự
+đúc ra token HIS** cho bất kỳ vai trò nào — nó có thể tự tạo một token "giám đốc" rồi cầm sang gọi
+thẳng HIS. BFF là dịch vụ mở ra Internet; cho nó quyền giả mạo mọi nhân viên là cái giá không đáng.
+
+**Sai thứ hai — chặn đường bán sản phẩm.** Ghép app với HIS của đơn vị khác thì phải đi xin khoá ký
+JWT của họ. Không ai đưa, và đúng ra là không nên đưa. Nghĩa là D16 kẹt ngay ở khách hàng thứ hai.
+
+**Chọn:** `HisIntrospectionHandler` — lấy token từ header rồi **hỏi HIS** (`GET /api/auth/me`) xem
+còn hiệu lực không; HIS trả 200 kèm `id`/`fullName`/`roles`/`roleCodes` thì dựng danh tính từ đó.
+BFF không giữ khoá nào của HIS nữa. Bỏ hẳn biến `HisJwt:Key`.
+
+**Được thêm một thứ không tính trước:** nhân viên bị khoá tài khoản giữa chừng nay mất quyền sau
+vài phút (hết vòng cache), thay vì phải đợi token hết hạn như hướng cũ.
+
+**Trả giá:** mỗi lần kiểm là một lời gọi mạng. Bù bằng cache theo băm của token, mặc định 2 phút —
+`HisStaffAuth:CacheSeconds`. Con số đó chính là độ trễ giữa lúc quầy khoá tài khoản và lúc người đó
+mất quyền, nên đừng đặt dài.
+
+**Ba chỗ dễ làm sai, đều có test canh:**
+- **HIS chết KHÔNG phải là "token sai".** Gộp hai thứ lại thì người vận hành đi tìm nhầm sang phía
+  tài khoản trong khi lỗi nằm ở kết nối. Lỗi mạng và HTTP 5xx đều trả thông điệp "chưa kết nối
+  được hệ thống bệnh viện", chỉ 401/403 mới là token sai.
+- **Nhớ cả kết quả TỪ CHỐI.** Không thì một token rác gọi liên tục biến web quản trị thành công cụ
+  nện HIS: mỗi lời gọi là một lượt hỏi.
+- **Lỗi kết nối thì KHÔNG nhớ.** Nhớ lại thì HIS sống dậy rồi mà nhân viên vẫn bị chặn hết vòng cache.
+
+**Khoá cache là băm SHA-256 của token, không phải chính token** — khoá cache lọt ra qua dump bộ nhớ
+hay log chẩn đoán thì cũng không đăng nhập được bằng nó.
