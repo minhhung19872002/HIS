@@ -252,7 +252,8 @@ void main() {
       await launch(tester);
       await tapShortcut(tester, 'Kết quả khám');
 
-      await tester.tap(find.widgetWithText(Tab, 'Xét nghiệm'));
+      // Sáu nhóm kết quả nay là chip pill chứ không còn `TabBar`, nên tìm theo chữ.
+      await tester.tap(find.text('Xét nghiệm'));
       await tester.pumpAndSettle(const Duration(seconds: 2));
       expectNoErrorState('Tab xét nghiệm');
 

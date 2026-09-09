@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/router/app_router.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../family/presentation/family_page.dart';
 import '../domain/result_models.dart';
 import 'results_providers.dart';
@@ -27,24 +28,55 @@ class ResultsPage extends ConsumerWidget {
     // mình là kiểu nhầm lẫn nguy hiểm nhất mà app này có thể gây ra.
     final viewing = ref.watch(viewingMemberProvider);
 
+    final relative = viewing != null;
+
     return DefaultTabController(
       length: 6,
       initialIndex: initialTab,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(viewing == null ? 'Kết quả khám' : 'Kết quả của ${viewing.name}'),
-          backgroundColor:
-              viewing == null ? null : Theme.of(context).colorScheme.tertiaryContainer,
-          bottom: const TabBar(
-            isScrollable: true,
-            tabs: [
-              Tab(text: 'Lượt khám'),
-              Tab(text: 'Xét nghiệm'),
-              Tab(text: 'Hình ảnh'),
-              Tab(text: 'Thăm dò CN'),
-              Tab(text: 'Đơn thuốc'),
-              Tab(text: 'Khám sức khoẻ'),
-            ],
+          title: Text(relative ? 'Kết quả của ${viewing.name}' : 'Kết quả khám'),
+          // Xem hộ người thân thì đổi hẳn sang tông tím và nói thẳng đang xem hộ ai. Nhìn nhầm
+          // kết quả của mẹ thành của mình là kiểu nhầm lẫn nguy hiểm nhất app này gây ra được,
+          // nên tín hiệu phải mạnh: đổi màu cả thanh tiêu đề chứ không chỉ thêm một dòng nhỏ.
+          backgroundColor: relative ? AppColors.relativeTint : AppColors.surface,
+          foregroundColor: relative ? AppColors.relativeDeep : AppColors.textPrimary,
+          surfaceTintColor: Colors.transparent,
+          bottom: PreferredSize(
+            preferredSize: Size.fromHeight(relative ? 82 : 56),
+            child: Container(
+              color: relative ? AppColors.relativeTint : AppColors.surface,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (relative)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0, AppSpacing.screen, 8),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.people_alt_outlined,
+                              size: 16, color: AppColors.relative),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Đang xem hộ: ${viewing.name}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.relative,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const _ResultTabChips(),
+                  const Divider(height: 1, color: AppColors.border),
+                ],
+              ),
+            ),
           ),
         ),
         body: const TabBarView(
@@ -57,6 +89,92 @@ class ResultsPage extends ConsumerWidget {
             _CheckupsTab(),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Sáu nhóm kết quả dạng chip pill, cuộn ngang.
+///
+/// Vẫn chạy trên `TabController` như cũ (nên `initialTab` và `TabBarView` giữ nguyên), chỉ thay
+/// lớp vẽ: `TabBar` gạch chân mảnh khó thấy nhóm nào đang mở, còn chip nền đặc thì thấy ngay.
+class _ResultTabChips extends StatefulWidget {
+  const _ResultTabChips();
+
+  @override
+  State<_ResultTabChips> createState() => _ResultTabChipsState();
+}
+
+class _ResultTabChipsState extends State<_ResultTabChips> {
+  static const _labels = [
+    'Lượt khám',
+    'Xét nghiệm',
+    'Hình ảnh',
+    'Thăm dò CN',
+    'Đơn thuốc',
+    'Khám sức khoẻ',
+  ];
+
+  TabController? _controller;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final controller = DefaultTabController.of(context);
+    if (identical(controller, _controller)) return;
+    _controller?.removeListener(_onTabChanged);
+    _controller = controller..addListener(_onTabChanged);
+  }
+
+  @override
+  void dispose() {
+    _controller?.removeListener(_onTabChanged);
+    super.dispose();
+  }
+
+  void _onTabChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final index = _controller?.index ?? 0;
+
+    return SizedBox(
+      height: 56,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen, vertical: 8),
+        itemCount: _labels.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final selected = i == index;
+          return Semantics(
+            selected: selected,
+            button: true,
+            child: Material(
+              color: selected ? AppColors.primary : AppColors.pageBackground,
+              borderRadius: BorderRadius.circular(AppRadii.pill),
+              child: InkWell(
+                onTap: () => _controller?.animateTo(i),
+                borderRadius: BorderRadius.circular(AppRadii.pill),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Center(
+                    child: Text(
+                      _labels[i],
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: selected ? Colors.white : AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -117,22 +235,34 @@ class _FilterBanner extends ConsumerWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: Theme.of(context).colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
-          child: Row(
-            children: [
-              const Icon(Icons.filter_alt, size: 18),
-              const SizedBox(width: 8),
-              Expanded(child: Text('Đang lọc theo $label')),
-              TextButton(
-                onPressed: () => ref.read(visitFilterProvider.notifier).select(null),
-                child: const Text('Bỏ lọc'),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 4, 4, 4),
+        decoration: BoxDecoration(
+          // Tông "đang chờ" chứ không phải tông thông tin: đây là một BỘ LỌC ĐANG BẬT, và người
+          // bệnh không thấy nó thì sẽ tưởng mình chẳng có kết quả nào khác.
+          color: AppColors.warningBg,
+          borderRadius: BorderRadius.circular(AppRadii.field),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.filter_alt, size: 18, color: AppColors.warning),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Đang lọc theo $label',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.warning,
+                ),
               ),
-            ],
-          ),
+            ),
+            TextButton(
+              onPressed: () => ref.read(visitFilterProvider.notifier).select(null),
+              style: TextButton.styleFrom(foregroundColor: AppColors.warning),
+              child: const Text('Bỏ lọc'),
+            ),
+          ],
         ),
       ),
     );

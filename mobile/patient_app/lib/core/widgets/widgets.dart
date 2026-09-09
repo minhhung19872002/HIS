@@ -11,3 +11,4 @@ export 'app_primary_button.dart';
 export 'app_section_title.dart';
 export 'app_states.dart';
 export 'app_status_pill.dart';
+export 'reference_range_bar.dart';

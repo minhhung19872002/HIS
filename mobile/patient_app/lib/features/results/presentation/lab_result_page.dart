@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/widgets.dart';
 import '../domain/result_models.dart';
 import 'lab_report_page.dart';
 import 'results_providers.dart';
@@ -110,53 +112,123 @@ class _AbnormalNotice extends StatelessWidget {
   }
 }
 
-/// Bảng chỉ số. Cuộn ngang được vì tên chỉ số tiếng Việt khá dài, mà điện thoại đời cũ thì hẹp.
+/// Danh sách chỉ số, mỗi chỉ số một dòng kèm thanh khoảng tham chiếu.
+///
+/// Thay bảng cuộn ngang: bảng bắt người bệnh vừa cuộn ngang vừa tự so "6.8" với "3.5 - 5.5" rồi
+/// tự kết luận. Nhiều người không làm phép so đó, hoặc làm sai. Một chấm nằm ngoài dải xanh thì
+/// nhìn là hiểu.
+///
+/// Chỉ số nào KHÔNG đọc được thành số (kết quả dạng chữ như "Âm tính", hay khoảng ghi "< 5") thì
+/// giữ nguyên cách hiện bằng chữ — vẽ thanh dựa trên số đoán bừa còn tệ hơn không vẽ.
 class _ResultTable extends StatelessWidget {
   const _ResultTable({required this.items});
   final List<LabTestItem> items;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columnSpacing: 16,
-        headingRowHeight: 40,
-        columns: const [
-          DataColumn(label: Text('Chỉ số')),
-          DataColumn(label: Text('Kết quả')),
-          DataColumn(label: Text('Đơn vị')),
-          DataColumn(label: Text('Bình thường')),
+    return Column(
+      children: [
+        for (var i = 0; i < items.length; i++) ...[
+          if (i > 0) const Divider(height: 1, color: AppColors.border),
+          _LabItemRow(item: items[i]),
         ],
-        rows: [
-          for (final item in items)
-            DataRow(cells: [
-              DataCell(Text(item.testName)),
-              DataCell(Row(
-                children: [
-                  Text(
-                    item.result,
+      ],
+    );
+  }
+}
+
+class _LabItemRow extends StatelessWidget {
+  const _LabItemRow({required this.item});
+  final LabTestItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final range = ReferenceRange.tryParse(item.normalRange, item.result);
+    final abnormal = item.isAbnormal;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  item.testName,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Mũi tên nói rõ cao hay thấp — chỉ tô đỏ thì người bệnh vẫn phải tự so với khoảng
+              // tham chiếu để đoán.
+              if (item.isHigh)
+                const Icon(Icons.arrow_upward, size: 15, color: AppColors.danger),
+              if (item.isLow)
+                const Icon(Icons.arrow_downward, size: 15, color: AppColors.danger),
+              if (item.isCritical)
+                const Icon(Icons.priority_high, size: 15, color: AppColors.danger),
+              const SizedBox(width: 4),
+              // Giá trị và đơn vị là hai `Text` riêng: số đặt bằng Sora đậm, đơn vị nhỏ và nhạt
+              // hơn — mắt bắt vào con số trước, đúng thứ người bệnh đi tìm.
+              Text(
+                item.result,
+                style: TextStyle(
+                  fontFamily: AppFonts.display,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: abnormal ? AppColors.danger : AppColors.textPrimary,
+                ),
+              ),
+              if (item.unit != null && item.unit!.isNotEmpty) ...[
+                const SizedBox(width: 3),
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    item.unit!,
                     style: TextStyle(
-                      fontWeight: item.isAbnormal ? FontWeight.bold : FontWeight.normal,
-                      color: item.isAbnormal ? theme.colorScheme.error : null,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: abnormal ? AppColors.danger : AppColors.textSecondary,
                     ),
                   ),
-                  // Mũi tên nói rõ cao hay thấp — chỉ tô đỏ thì người bệnh vẫn phải tự so với
-                  // khoảng tham chiếu để đoán.
-                  if (item.isHigh) const Icon(Icons.arrow_upward, size: 14),
-                  if (item.isLow) const Icon(Icons.arrow_downward, size: 14),
-                  if (item.isCritical)
-                    const Padding(
-                      padding: EdgeInsets.only(left: 4),
-                      child: Icon(Icons.priority_high, size: 14),
-                    ),
-                ],
-              )),
-              DataCell(Text(item.unit ?? '')),
-              DataCell(Text(item.normalRange ?? '')),
-            ]),
+                ),
+              ],
+            ],
+          ),
+          if (range != null) ...[
+            const SizedBox(height: 10),
+            ReferenceRangeBar(
+              range: range,
+              label: '${item.testName}: ${item.result}'
+                  '${item.unit == null ? '' : ' ${item.unit}'}, '
+                  '${range.isNormal ? 'trong' : 'ngoài'} khoảng bình thường '
+                  '${item.normalRange}',
+            ),
+            const SizedBox(height: 6),
+          ] else
+            const SizedBox(height: 4),
+          Row(
+            children: [
+              if (item.normalRange != null && item.normalRange!.isNotEmpty)
+                Expanded(
+                  child: Text(
+                    'Bình thường: ${item.normalRange}'
+                    '${item.unit == null || item.unit!.isEmpty ? '' : ' ${item.unit}'}',
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                )
+              else
+                const Spacer(),
+              if (abnormal)
+                const AppStatusPill('Ngoài khoảng', tone: AppStatusTone.warn, dense: true),
+            ],
+          ),
         ],
       ),
     );

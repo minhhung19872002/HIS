@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:patient_app/core/theme/app_theme.dart';
 import 'package:patient_app/features/results/domain/result_models.dart';
 import 'package:patient_app/features/results/presentation/lab_result_page.dart';
 import 'package:patient_app/features/results/presentation/results_providers.dart';
@@ -41,7 +42,10 @@ void main() {
 
     await tester.pumpWidget(ProviderScope(
       overrides: [labResultProvider('lab-1').overrideWith((ref) async => result)],
-      child: const MaterialApp(home: LabResultPage(resultId: 'lab-1')),
+      // Dựng bằng CHÍNH chủ đề của app, không phải `MaterialApp` trần: màn này lấy màu cảnh báo
+      // từ bảng token, nên chạy dưới chủ đề mặc định của Flutter là kiểm nhầm một bảng màu không
+      // ai thấy bao giờ.
+      child: MaterialApp(theme: AppTheme.light(), home: const LabResultPage(resultId: 'lab-1')),
     ));
     await tester.pumpAndSettle();
   }
@@ -67,13 +71,15 @@ void main() {
     expect(find.textContaining('Khoa Khám bệnh', findRichText: true), findsOneWidget);
   });
 
-  testWidgets('Bảng chỉ số hiện đủ kết quả, đơn vị và khoảng tham chiếu', (tester) async {
+  testWidgets('Danh sách chỉ số hiện đủ kết quả, đơn vị và khoảng tham chiếu', (tester) async {
     await pump(tester, lab(items: const [normalItem, highItem]));
 
     expect(find.text('ALT'), findsOneWidget);
     expect(find.text('AST'), findsOneWidget);
     expect(find.text('120'), findsOneWidget);
-    expect(find.text('5 - 40'), findsNWidgets(2));
+    // Khoảng tham chiếu nay đi kèm nhãn ("Bình thường: 5 - 40 U/L") thay vì đứng riêng một cột
+    // như hồi còn là bảng.
+    expect(find.textContaining('5 - 40'), findsNWidgets(2));
   });
 
   testWidgets('Chỉ số CAO có mũi tên lên, chỉ số THẤP có mũi tên xuống', (tester) async {
@@ -92,7 +98,9 @@ void main() {
 
     final abnormal = tester.widget<Text>(find.text('120'));
     expect(abnormal.style?.color, errorColor);
-    expect(abnormal.style?.fontWeight, FontWeight.bold);
+    // Đậm hơn hoặc bằng `bold` — bản thiết kế đặt số bằng Sora w800.
+    expect(abnormal.style!.fontWeight!.index,
+        greaterThanOrEqualTo(FontWeight.bold.index));
 
     final normal = tester.widget<Text>(find.text('22'));
     expect(normal.style?.color, isNot(errorColor));
