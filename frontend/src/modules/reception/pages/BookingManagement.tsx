@@ -18,6 +18,7 @@ import {
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
 import { SortTh, useSortableRows } from '../../../components/table';
+import { utcToLocal } from '../../../utils/format';
 import { RowActions, RefreshButton } from '../../../components/actions';
 import { Field } from '../../../components/form/Field';
 import { useModalForm } from '../../../hooks/useModalForm';
@@ -272,11 +273,15 @@ const BookingManagementV2: React.FC = () => {
     { key: 'made', label: 'Tạo lúc', mono: true, width: 110,
       // Thứ tự mặc định của bảng là theo mốc này giảm dần. Không hiện nó ra thì người dùng nhìn
       // bảng chỉ thấy ngày hẹn nhảy lung tung và tưởng bảng sắp xếp hỏng.
-      sortValue: (r) => (r.createdAt ? new Date(r.createdAt).getTime() : null),
+      // `utcToLocal`: backend tra "2026-09-09T16:11:53" KHÔNG có chữ "Z", trình duyệt hiểu nhầm là
+      // giờ địa phương nên lịch đặt lúc 23:11 hiện thành 16:11 — chậm đúng 7 tiếng.
+      sortValue: (r) => (r.createdAt ? utcToLocal(r.createdAt).getTime() : null),
       render: (r) => (r.createdAt ? (
         <div>
-          <div>{dayjs(r.createdAt).format('DD/MM/YYYY')}</div>
-          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{dayjs(r.createdAt).format('HH:mm')}</div>
+          <div>{dayjs(utcToLocal(r.createdAt)).format('DD/MM/YYYY')}</div>
+          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
+            {dayjs(utcToLocal(r.createdAt)).format('HH:mm')}
+          </div>
         </div>
       ) : '—') },
     { key: 'st', label: 'Trạng thái', render: (r) => {

@@ -34,3 +34,22 @@ export const fmtTime = (d: string | number | Date): string =>
  * (Billing/Insurance/Inpatient/Pharmacy) — output giu nguyen hanh vi cu.
  */
 export const fmtVND = (n?: number | null): string => `${fmtNum(n)} ₫`;
+
+/**
+ * Doc mot moc thoi gian do backend tra ve, hieu dung la gio UTC.
+ *
+ * ASP.NET tra `DateTime` doc tu SQL Server voi `Kind = Unspecified`, nen chuoi JSON ra dang
+ * "2026-09-09T16:11:53" — KHONG co chu "Z" va khong co offset. Trinh duyet gap chuoi khong co
+ * dau hieu mui gio thi coi do la gio DIA PHUONG, nen mot ban ghi tao luc 23:11 gio Viet Nam se
+ * hien thanh 16:11: cham 7 tieng.
+ *
+ * Sai lech nay chi lo ra o nhung cho hien GIO. Cot "Tao luc" cua man quan ly dat lich la mot: nhan
+ * vien nhin vao de biet lich vua dat cach day bao lau.
+ *
+ * Chuoi da co "Z" hoac da co offset ("+07:00") thi giu nguyen, khong dan them gi.
+ */
+export const utcToLocal = (value: string | number | Date): Date => {
+  if (typeof value !== 'string') return new Date(value);
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(value.trim());
+  return new Date(hasZone ? value : `${value}Z`);
+};

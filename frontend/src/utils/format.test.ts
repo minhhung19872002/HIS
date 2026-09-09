@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fmtDate, fmtNum, fmtVND } from './format';
+import { fmtDate, fmtNum, fmtVND, utcToLocal } from './format';
 
 // Locale vi-VN dùng '.' làm phân cách nghìn.
 describe('fmtNum', () => {
@@ -32,5 +32,30 @@ describe('fmtDate', () => {
   });
   it('input xấu → "Invalid Date" (behavior-preservation, không guard)', () => {
     expect(fmtDate('not-a-date')).toBe('Invalid Date');
+  });
+});
+
+describe('utcToLocal — moc thoi gian backend tra ve khong co mui gio', () => {
+  it('chuoi khong co "Z" duoc hieu la UTC', () => {
+    // Backend tra dang nay cho `createdAt` cua lich hen.
+    expect(utcToLocal('2026-09-09T16:11:53').toISOString()).toBe('2026-09-09T16:11:53.000Z');
+  });
+
+  it('giu nguyen chuoi da co "Z"', () => {
+    expect(utcToLocal('2026-09-09T16:11:53Z').toISOString()).toBe('2026-09-09T16:11:53.000Z');
+  });
+
+  it('giu nguyen chuoi da co offset', () => {
+    expect(utcToLocal('2026-09-09T23:11:53+07:00').toISOString()).toBe('2026-09-09T16:11:53.000Z');
+  });
+
+  it('giu duoc phan mili giay', () => {
+    expect(utcToLocal('2026-09-09T16:11:53.762').toISOString()).toBe('2026-09-09T16:11:53.762Z');
+  });
+
+  it('Date va so thi tra thang, khong dan them gi', () => {
+    const d = new Date('2026-09-09T16:11:53Z');
+    expect(utcToLocal(d).getTime()).toBe(d.getTime());
+    expect(utcToLocal(d.getTime()).getTime()).toBe(d.getTime());
   });
 });
