@@ -41,7 +41,11 @@ class _DocumentsPageState extends ConsumerState<DocumentsPage> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _busy ? null : _add,
         icon: _busy
-            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
             : const Icon(Icons.add_a_photo_outlined),
         label: const Text('Thêm giấy tờ'),
       ),
@@ -55,8 +59,10 @@ class _DocumentsPageState extends ConsumerState<DocumentsPage> {
               children: [
                 const Icon(Icons.cloud_off, size: 56),
                 const SizedBox(height: 12),
-                Text(error is Failure ? error.message : 'Không tải được ví giấy tờ.',
-                    textAlign: TextAlign.center),
+                Text(
+                  error is Failure ? error.message : 'Không tải được ví giấy tờ.',
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 16),
                 FilledButton.tonal(
                   onPressed: () => ref.invalidate(documentWalletProvider),
@@ -95,15 +101,17 @@ class _DocumentsPageState extends ConsumerState<DocumentsPage> {
                   Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
-                      leading: Icon(document.isPdf
-                          ? Icons.picture_as_pdf_outlined
-                          : Icons.image_outlined),
+                      leading: Icon(
+                        document.isPdf ? Icons.picture_as_pdf_outlined : Icons.image_outlined,
+                      ),
                       title: Text(document.title),
-                      subtitle: Text([
-                        DocumentCategory.parse(document.category).label,
-                        document.readableSize,
-                        if (document.createdAt != null) _day.format(document.createdAt!),
-                      ].join(' · ')),
+                      subtitle: Text(
+                        [
+                          DocumentCategory.parse(document.category).label,
+                          document.readableSize,
+                          if (document.createdAt != null) _day.format(document.createdAt!),
+                        ].join(' · '),
+                      ),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline),
                         tooltip: 'Xoá',
@@ -180,9 +188,9 @@ class _DocumentsPageState extends ConsumerState<DocumentsPage> {
       }
     } on Exception catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Không đọc được tệp: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Không đọc được tệp: $e')));
       }
       return;
     }
@@ -194,7 +202,9 @@ class _DocumentsPageState extends ConsumerState<DocumentsPage> {
 
     setState(() => _busy = true);
     try {
-      await ref.read(documentsRepositoryProvider).upload(
+      await ref
+          .read(documentsRepositoryProvider)
+          .upload(
             bytes: bytes,
             fileName: fileName,
             contentType: contentType,
@@ -204,8 +214,9 @@ class _DocumentsPageState extends ConsumerState<DocumentsPage> {
           );
       ref.invalidate(documentWalletProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Đã lưu vào ví giấy tờ.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Đã lưu vào ví giấy tờ.')));
       }
     } on Failure catch (e) {
       if (mounted) {
@@ -226,30 +237,35 @@ class _DocumentsPageState extends ConsumerState<DocumentsPage> {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: const Text('Lưu giấy tờ'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<DocumentCategory>(
-                value: category,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Loại giấy tờ'),
-                items: [
-                  for (final c in DocumentCategory.values)
-                    DropdownMenuItem(value: c, child: Text(c.label)),
-                ],
-                onChanged: (v) => setState(() => category = v ?? DocumentCategory.other),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: title,
-                decoration: const InputDecoration(labelText: 'Tên gợi nhớ'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: note,
-                decoration: const InputDecoration(labelText: 'Ghi chú (không bắt buộc)'),
-              ),
-            ],
+          // `SingleChildScrollView` chứ không để `Column` trần: bàn phím bật lên là hộp thoại co
+          // lại, nội dung không vừa và Flutter vẽ sọc vàng-đen "BOTTOM OVERFLOWED" đè lên ô nhập.
+          // Cho cuộn thì bàn phím che bớt cũng vẫn với tới được mọi ô.
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<DocumentCategory>(
+                  value: category,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Loại giấy tờ'),
+                  items: [
+                    for (final c in DocumentCategory.values)
+                      DropdownMenuItem(value: c, child: Text(c.label)),
+                  ],
+                  onChanged: (v) => setState(() => category = v ?? DocumentCategory.other),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: title,
+                  decoration: const InputDecoration(labelText: 'Tên gợi nhớ'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: note,
+                  decoration: const InputDecoration(labelText: 'Ghi chú (không bắt buộc)'),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Huỷ')),
@@ -276,9 +292,9 @@ class _DocumentsPageState extends ConsumerState<DocumentsPage> {
       return;
     }
 
-    await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => _DocumentViewerPage(document: document),
-    ));
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => _DocumentViewerPage(document: document)));
   }
 
   Future<void> _remove(PatientDocument document) async {
@@ -330,10 +346,7 @@ class _QuotaBar extends StatelessWidget {
             // Expanded chứ không để Text tự do: ở cỡ chữ mới, nhãn cộng con số dung lượng rộng
             // hơn thẻ trên màn 360dp và hàng bị tràn.
             Expanded(
-              child: Text(
-                'Dung lượng đã dùng',
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
+              child: Text('Dung lượng đã dùng', style: Theme.of(context).textTheme.labelLarge),
             ),
             const SizedBox(width: 8),
             Text(wallet.readableUsed),
@@ -358,8 +371,9 @@ class _DocumentViewerPage extends ConsumerStatefulWidget {
 }
 
 class _DocumentViewerPageState extends ConsumerState<_DocumentViewerPage> {
-  late final Future<Uint8List> _future =
-      ref.read(documentsRepositoryProvider).content(widget.document.id);
+  late final Future<Uint8List> _future = ref
+      .read(documentsRepositoryProvider)
+      .content(widget.document.id);
 
   @override
   Widget build(BuildContext context) {

@@ -64,10 +64,9 @@ class _StaffLoginFormState extends ConsumerState<_StaffLoginForm> {
     });
 
     try {
-      final session = await ref.read(staffRepositoryProvider).login(
-            username: _username.text.trim(),
-            password: _password.text,
-          );
+      final session = await ref
+          .read(staffRepositoryProvider)
+          .login(username: _username.text.trim(), password: _password.text);
       ref.read(staffSessionProvider.notifier).signIn(session);
     } on Failure catch (e) {
       setState(() => _error = e.message);
@@ -116,16 +115,17 @@ class _StaffLoginFormState extends ConsumerState<_StaffLoginForm> {
           ),
         ),
 
-        if (_error != null) ...[
-          const SizedBox(height: 16),
-          _ErrorBox(message: _error!),
-        ],
+        if (_error != null) ...[const SizedBox(height: 16), _ErrorBox(message: _error!)],
 
         const SizedBox(height: 24),
         FilledButton(
           onPressed: _busy ? null : _submit,
           child: _busy
-              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text('Đăng nhập'),
         ),
       ],
@@ -205,15 +205,15 @@ class _StaffSearchState extends ConsumerState<_StaffSearch> {
                     onPressed: _busy ? null : _search,
                     child: _busy
                         ? const SizedBox(
-                            height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : const Text('Tra'),
                   ),
                 ],
               ),
-              if (_error != null) ...[
-                const SizedBox(height: 12),
-                _ErrorBox(message: _error!),
-              ],
+              if (_error != null) ...[const SizedBox(height: 12), _ErrorBox(message: _error!)],
             ],
           ),
         ),
@@ -222,33 +222,35 @@ class _StaffSearchState extends ConsumerState<_StaffSearch> {
           child: results == null
               ? const _Hint(text: 'Nhập thông tin người bệnh rồi bấm Tra.')
               : results.isEmpty
-                  ? const _Hint(text: 'Không tìm thấy người bệnh nào khớp thông tin đã nhập.')
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                      itemCount: results.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (context, index) {
-                        final patient = results[index];
-                        return Card(
-                          margin: EdgeInsets.zero,
-                          child: ListTile(
-                            title: Text(patient.fullName),
-                            subtitle: Text([
-                              patient.patientCode,
-                              if (patient.dateOfBirth != null) _day.format(patient.dateOfBirth!),
-                              if (patient.phoneNumber?.isNotEmpty == true) patient.phoneNumber!,
-                            ].join(' · ')),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                              builder: (_) => StaffPatientPage(
-                                patient: patient,
-                                token: widget.session.token,
-                              ),
-                            )),
+              ? const _Hint(text: 'Không tìm thấy người bệnh nào khớp thông tin đã nhập.')
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  itemCount: results.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final patient = results[index];
+                    return Card(
+                      margin: EdgeInsets.zero,
+                      child: ListTile(
+                        title: Text(patient.fullName),
+                        subtitle: Text(
+                          [
+                            patient.patientCode,
+                            if (patient.dateOfBirth != null) _day.format(patient.dateOfBirth!),
+                            if (patient.phoneNumber?.isNotEmpty == true) patient.phoneNumber!,
+                          ].join(' · '),
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                StaffPatientPage(patient: patient, token: widget.session.token),
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
         ),
       ],
     );
@@ -302,18 +304,21 @@ class _StaffPatientPageState extends ConsumerState<StaffPatientPage> {
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Mật khẩu tạm'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SelectableText(
-                password,
-                style: const TextStyle(
-                  fontSize: 28, fontFamily: 'monospace', letterSpacing: 3,
+          // `SingleChildScrollView` chứ không để `Column` trần: bàn phím bật lên là hộp thoại co
+          // lại, nội dung không vừa và Flutter vẽ sọc vàng-đen "BOTTOM OVERFLOWED" đè lên ô nhập.
+          // Cho cuộn thì bàn phím che bớt cũng vẫn với tới được mọi ô.
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SelectableText(
+                  password,
+                  style: const TextStyle(fontSize: 28, fontFamily: 'monospace', letterSpacing: 3),
                 ),
-              ),
-              const SizedBox(height: 12),
-              const Text('Đọc cho người bệnh và nhắc họ đổi ngay sau khi đăng nhập.'),
-            ],
+                const SizedBox(height: 12),
+                const Text('Đọc cho người bệnh và nhắc họ đổi ngay sau khi đăng nhập.'),
+              ],
+            ),
           ),
           actions: [
             FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Đã rõ')),
@@ -359,16 +364,20 @@ class _StaffPatientPageState extends ConsumerState<StaffPatientPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(summary.patient.fullName,
-                          style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        summary.patient.fullName,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       const SizedBox(height: 4),
-                      Text([
-                        summary.patient.patientCode,
-                        if (summary.patient.dateOfBirth != null)
-                          _day.format(summary.patient.dateOfBirth!),
-                        if (summary.patient.phoneNumber?.isNotEmpty == true)
-                          summary.patient.phoneNumber!,
-                      ].join(' · ')),
+                      Text(
+                        [
+                          summary.patient.patientCode,
+                          if (summary.patient.dateOfBirth != null)
+                            _day.format(summary.patient.dateOfBirth!),
+                          if (summary.patient.phoneNumber?.isNotEmpty == true)
+                            summary.patient.phoneNumber!,
+                        ].join(' · '),
+                      ),
                       const SizedBox(height: 8),
                       Text(summary.patient.appStatusLabel),
                       if (summary.patient.hasAppAccount) ...[
@@ -386,18 +395,32 @@ class _StaffPatientPageState extends ConsumerState<StaffPatientPage> {
                 ),
               ),
 
-              _Section(title: 'Số thứ tự hôm nay', lines: summary.queueTickets,
-                  empty: 'Hôm nay chưa lấy số.'),
-              _Section(title: 'Lịch hẹn', lines: summary.appointments,
-                  empty: 'Không có lịch hẹn.'),
-              _Section(title: 'Xét nghiệm gần đây', lines: summary.labResults,
-                  empty: 'Chưa có kết quả xét nghiệm.'),
-              _Section(title: 'Chẩn đoán hình ảnh', lines: summary.imagingResults,
-                  empty: 'Chưa có kết quả chẩn đoán hình ảnh.'),
-              _Section(title: 'Đơn thuốc', lines: summary.prescriptions,
-                  empty: 'Chưa có đơn thuốc.'),
-              _Section(title: 'Đợt nội trú', lines: summary.admissions,
-                  empty: 'Chưa có đợt nội trú.'),
+              _Section(
+                title: 'Số thứ tự hôm nay',
+                lines: summary.queueTickets,
+                empty: 'Hôm nay chưa lấy số.',
+              ),
+              _Section(title: 'Lịch hẹn', lines: summary.appointments, empty: 'Không có lịch hẹn.'),
+              _Section(
+                title: 'Xét nghiệm gần đây',
+                lines: summary.labResults,
+                empty: 'Chưa có kết quả xét nghiệm.',
+              ),
+              _Section(
+                title: 'Chẩn đoán hình ảnh',
+                lines: summary.imagingResults,
+                empty: 'Chưa có kết quả chẩn đoán hình ảnh.',
+              ),
+              _Section(
+                title: 'Đơn thuốc',
+                lines: summary.prescriptions,
+                empty: 'Chưa có đơn thuốc.',
+              ),
+              _Section(
+                title: 'Đợt nội trú',
+                lines: summary.admissions,
+                empty: 'Chưa có đợt nội trú.',
+              ),
             ],
           );
         },
@@ -454,11 +477,11 @@ class _Hint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(text, textAlign: TextAlign.center),
-        ),
-      );
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Text(text, textAlign: TextAlign.center),
+    ),
+  );
 }
 
 class _ErrorBox extends StatelessWidget {
@@ -478,7 +501,9 @@ class _ErrorBox extends StatelessWidget {
         children: [
           Icon(Icons.error_outline, color: scheme.onErrorContainer),
           const SizedBox(width: 12),
-          Expanded(child: Text(message, style: TextStyle(color: scheme.onErrorContainer))),
+          Expanded(
+            child: Text(message, style: TextStyle(color: scheme.onErrorContainer)),
+          ),
         ],
       ),
     );

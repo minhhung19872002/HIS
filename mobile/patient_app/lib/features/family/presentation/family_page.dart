@@ -56,8 +56,10 @@ class FamilyPage extends ConsumerWidget {
               children: [
                 const Icon(Icons.cloud_off, size: 56),
                 const SizedBox(height: 12),
-                Text(error is Failure ? error.message : 'Không tải được danh sách gia đình.',
-                    textAlign: TextAlign.center),
+                Text(
+                  error is Failure ? error.message : 'Không tải được danh sách gia đình.',
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 16),
                 FilledButton.tonal(
                   onPressed: () => ref.invalidate(familyProvider),
@@ -124,27 +126,35 @@ class FamilyPage extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Thêm người thân'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: code,
-              decoration: const InputDecoration(
-                labelText: 'Mã bệnh nhân',
-                helperText: 'In trên thẻ khám bệnh của người thân',
+        // `SingleChildScrollView` chứ không để `Column` trần: bàn phím bật lên là hộp thoại co
+        // lại, nội dung không vừa và Flutter vẽ sọc vàng-đen "BOTTOM OVERFLOWED" đè lên ô nhập.
+        // Cho cuộn thì bàn phím che bớt cũng vẫn với tới được mọi ô.
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: code,
+                decoration: const InputDecoration(
+                  labelText: 'Mã bệnh nhân',
+                  helperText: 'In trên thẻ khám bệnh của người thân',
+                ),
+                textCapitalization: TextCapitalization.characters,
               ),
-              textCapitalization: TextCapitalization.characters,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: relationship,
-              decoration: const InputDecoration(labelText: 'Quan hệ (Cha, Mẹ, Con…)'),
-            ),
-          ],
+              const SizedBox(height: 12),
+              TextField(
+                controller: relationship,
+                decoration: const InputDecoration(labelText: 'Quan hệ (Cha, Mẹ, Con…)'),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Huỷ')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Tiếp tục')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Tiếp tục'),
+          ),
         ],
       ),
     );
@@ -152,10 +162,9 @@ class FamilyPage extends ConsumerWidget {
     if (submitted != true || !context.mounted) return;
 
     try {
-      final result = await ref.read(familyRepositoryProvider).add(
-            patientCode: code.text.trim(),
-            relationship: relationship.text.trim(),
-          );
+      final result = await ref
+          .read(familyRepositoryProvider)
+          .add(patientCode: code.text.trim(), relationship: relationship.text.trim());
       ref.invalidate(familyProvider);
       if (context.mounted) await _showVerifyDialog(context, ref, result);
     } on Failure catch (e) {
@@ -167,7 +176,10 @@ class FamilyPage extends ConsumerWidget {
 
   /// Hộp thoại xác minh, nội dung đổi theo cách mà máy chủ yêu cầu.
   Future<void> _showVerifyDialog(
-      BuildContext context, WidgetRef ref, AddFamilyMemberResult result) async {
+    BuildContext context,
+    WidgetRef ref,
+    AddFamilyMemberResult result,
+  ) async {
     final input = TextEditingController();
     final isOtp = result.verification == FamilyVerification.memberOtp;
 
@@ -175,27 +187,35 @@ class FamilyPage extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Xác nhận kết nối với ${result.memberName}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(result.message),
-            const SizedBox(height: 12),
-            TextField(
-              controller: input,
-              keyboardType: isOtp ? TextInputType.number : TextInputType.text,
-              decoration: InputDecoration(
-                labelText: isOtp ? 'Mã xác nhận' : 'Số CCCD/CMND hoặc ngày sinh',
-                helperText: isOtp
-                    ? 'Mã đã gửi tới ${result.maskedPhone ?? "số điện thoại của người thân"}'
-                    : 'Ngày sinh nhập theo dạng 1975-04-12',
+        // `SingleChildScrollView` chứ không để `Column` trần: bàn phím bật lên là hộp thoại co
+        // lại, nội dung không vừa và Flutter vẽ sọc vàng-đen "BOTTOM OVERFLOWED" đè lên ô nhập.
+        // Cho cuộn thì bàn phím che bớt cũng vẫn với tới được mọi ô.
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(result.message),
+              const SizedBox(height: 12),
+              TextField(
+                controller: input,
+                keyboardType: isOtp ? TextInputType.number : TextInputType.text,
+                decoration: InputDecoration(
+                  labelText: isOtp ? 'Mã xác nhận' : 'Số CCCD/CMND hoặc ngày sinh',
+                  helperText: isOtp
+                      ? 'Mã đã gửi tới ${result.maskedPhone ?? "số điện thoại của người thân"}'
+                      : 'Ngày sinh nhập theo dạng 1975-04-12',
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Để sau')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Xác nhận')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Xác nhận'),
+          ),
         ],
       ),
     );
@@ -203,16 +223,18 @@ class FamilyPage extends ConsumerWidget {
     if (confirmed != true || !context.mounted) return;
 
     try {
-      await ref.read(familyRepositoryProvider).verify(
+      await ref
+          .read(familyRepositoryProvider)
+          .verify(
             result.linkId,
             otpCode: isOtp ? input.text.trim() : null,
             identityData: isOtp ? null : input.text.trim(),
           );
       ref.invalidate(familyProvider);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Đã kết nối với ${result.memberName}.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Đã kết nối với ${result.memberName}.')));
       }
     } on Failure catch (e) {
       if (context.mounted) {
@@ -235,8 +257,7 @@ class FamilyPage extends ConsumerWidget {
         ),
       );
 
-  Future<void> _editPermissions(
-      BuildContext context, WidgetRef ref, FamilyMember member) async {
+  Future<void> _editPermissions(BuildContext context, WidgetRef ref, FamilyMember member) async {
     var view = member.canViewResults;
     var book = member.canBookAppointments;
     var queue = member.canTakeQueueNumber;
@@ -246,25 +267,30 @@ class FamilyPage extends ConsumerWidget {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: Text('Quyền với ${member.name}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SwitchListTile(
-                value: view,
-                onChanged: (v) => setState(() => view = v),
-                title: const Text('Xem kết quả khám'),
-              ),
-              SwitchListTile(
-                value: book,
-                onChanged: (v) => setState(() => book = v),
-                title: const Text('Đặt lịch khám hộ'),
-              ),
-              SwitchListTile(
-                value: queue,
-                onChanged: (v) => setState(() => queue = v),
-                title: const Text('Lấy số thứ tự hộ'),
-              ),
-            ],
+          // `SingleChildScrollView` chứ không để `Column` trần: bàn phím bật lên là hộp thoại co
+          // lại, nội dung không vừa và Flutter vẽ sọc vàng-đen "BOTTOM OVERFLOWED" đè lên ô nhập.
+          // Cho cuộn thì bàn phím che bớt cũng vẫn với tới được mọi ô.
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SwitchListTile(
+                  value: view,
+                  onChanged: (v) => setState(() => view = v),
+                  title: const Text('Xem kết quả khám'),
+                ),
+                SwitchListTile(
+                  value: book,
+                  onChanged: (v) => setState(() => book = v),
+                  title: const Text('Đặt lịch khám hộ'),
+                ),
+                SwitchListTile(
+                  value: queue,
+                  onChanged: (v) => setState(() => queue = v),
+                  title: const Text('Lấy số thứ tự hộ'),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Huỷ')),
@@ -277,7 +303,9 @@ class FamilyPage extends ConsumerWidget {
     if (saved != true || !context.mounted) return;
 
     try {
-      await ref.read(familyRepositoryProvider).updatePermissions(
+      await ref
+          .read(familyRepositoryProvider)
+          .updatePermissions(
             member.id,
             canViewResults: view,
             canBookAppointments: book,
@@ -380,9 +408,9 @@ class _MemberCard extends StatelessWidget {
             Row(
               children: [
                 CircleAvatar(
-                  child: Text(member.name.isNotEmpty
-                      ? member.name.characters.first.toUpperCase()
-                      : '?'),
+                  child: Text(
+                    member.name.isNotEmpty ? member.name.characters.first.toUpperCase() : '?',
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -390,10 +418,13 @@ class _MemberCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(member.name, style: theme.textTheme.titleMedium),
-                      Text([
-                        if (member.relationship?.isNotEmpty == true) member.relationship!,
-                        member.patientCode,
-                      ].join(' · '), style: theme.textTheme.bodySmall),
+                      Text(
+                        [
+                          if (member.relationship?.isNotEmpty == true) member.relationship!,
+                          member.patientCode,
+                        ].join(' · '),
+                        style: theme.textTheme.bodySmall,
+                      ),
                     ],
                   ),
                 ),
@@ -415,14 +446,16 @@ class _MemberCard extends StatelessWidget {
                   TextButton(onPressed: onPermissions, child: const Text('Quyền')),
                 if (onVerify != null)
                   FilledButton.tonal(
-                      style: AppTheme.rowButton,
-                      onPressed: onVerify,
-                      child: const Text('Xác nhận')),
+                    style: AppTheme.rowButton,
+                    onPressed: onVerify,
+                    child: const Text('Xác nhận'),
+                  ),
                 if (onView != null)
                   FilledButton(
-                      style: AppTheme.rowButton,
-                      onPressed: onView,
-                      child: const Text('Xem hồ sơ')),
+                    style: AppTheme.rowButton,
+                    onPressed: onView,
+                    child: const Text('Xem hồ sơ'),
+                  ),
               ],
             ),
           ],

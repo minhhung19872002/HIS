@@ -41,8 +41,10 @@ class AppointmentsPage extends ConsumerWidget {
               children: [
                 const Icon(Icons.cloud_off, size: 56),
                 const SizedBox(height: 12),
-                Text(error is Failure ? error.message : 'Không tải được lịch khám.',
-                    textAlign: TextAlign.center),
+                Text(
+                  error is Failure ? error.message : 'Không tải được lịch khám.',
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 16),
                 FilledButton.tonal(
                   onPressed: () => ref.invalidate(myAppointmentsProvider),
@@ -84,33 +86,45 @@ class AppointmentsPage extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Huỷ lịch khám?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Lịch hẹn ${appointment.appointmentCode} ngày '
-                '${DateFormat('dd/MM/yyyy').format(appointment.appointmentDate)} sẽ bị huỷ.'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: reason,
-              decoration: const InputDecoration(labelText: 'Lý do (không bắt buộc)'),
-            ),
-          ],
+        // `SingleChildScrollView` chứ không để `Column` trần: bàn phím bật lên là hộp thoại co
+        // lại, nội dung không vừa và Flutter vẽ sọc vàng-đen "BOTTOM OVERFLOWED" đè lên ô nhập.
+        // Cho cuộn thì bàn phím che bớt cũng vẫn với tới được mọi ô.
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Lịch hẹn ${appointment.appointmentCode} ngày '
+                '${DateFormat('dd/MM/yyyy').format(appointment.appointmentDate)} sẽ bị huỷ.',
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: reason,
+                decoration: const InputDecoration(labelText: 'Lý do (không bắt buộc)'),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Không')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Huỷ lịch')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Huỷ lịch'),
+          ),
         ],
       ),
     );
     if (confirmed != true || !context.mounted) return;
 
     try {
-      await ref.read(appointmentRepositoryProvider)
+      await ref
+          .read(appointmentRepositoryProvider)
           .cancel(appointment.appointmentCode, reason: reason.text.trim());
       ref.invalidate(myAppointmentsProvider);
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Đã huỷ lịch khám.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Đã huỷ lịch khám.')));
       }
     } on Failure catch (e) {
       if (context.mounted) {
@@ -144,13 +158,16 @@ class AppointmentsPage extends ConsumerWidget {
     }
     if (!context.mounted) return;
 
-    final available = [...slots.morningSlots, ...slots.afternoonSlots]
-        .where((s) => s.isAvailable)
-        .toList();
+    final available = [
+      ...slots.morningSlots,
+      ...slots.afternoonSlots,
+    ].where((s) => s.isAvailable).toList();
 
     if (available.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ngày này không còn khung giờ trống. Vui lòng chọn ngày khác.')),
+        const SnackBar(
+          content: Text('Ngày này không còn khung giờ trống. Vui lòng chọn ngày khác.'),
+        ),
       );
       return;
     }
@@ -176,15 +193,14 @@ class AppointmentsPage extends ConsumerWidget {
     if (picked == null || !context.mounted) return;
 
     try {
-      await ref.read(appointmentRepositoryProvider).reschedule(
-            appointment.appointmentCode,
-            newDate: newDate,
-            newTime: picked.startTime,
-          );
+      await ref
+          .read(appointmentRepositoryProvider)
+          .reschedule(appointment.appointmentCode, newDate: newDate, newTime: picked.startTime);
       ref.invalidate(myAppointmentsProvider);
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Đã đổi lịch khám.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Đã đổi lịch khám.')));
       }
     } on Failure catch (e) {
       if (context.mounted) {
@@ -278,15 +294,15 @@ class _AppointmentCard extends StatelessWidget {
   }
 
   Widget _row(IconData icon, String text) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          children: [
-            Icon(icon, size: 18),
-            const SizedBox(width: 8),
-            Expanded(child: Text(text)),
-          ],
-        ),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Row(
+      children: [
+        Icon(icon, size: 18),
+        const SizedBox(width: 8),
+        Expanded(child: Text(text)),
+      ],
+    ),
+  );
 
   /// Server trả "HH:mm:ss"; người bệnh chỉ cần giờ và phút.
   static String _formatTime(String raw) {

@@ -484,6 +484,8 @@ class _WaitingStats extends StatelessWidget {
             icon: Icons.campaign_outlined,
             label: 'Đang gọi số',
             value: status.currentServingTicket ?? 'Chưa gọi số nào',
+            // Chưa gọi số nào thì giá trị là một CÂU, không phải mã số.
+            valueIsSentence: status.currentServingTicket == null,
           ),
           _statDivider,
           _StatRow(
@@ -515,6 +517,7 @@ class _StatRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.highlight = false,
+    this.valueIsSentence = false,
   });
 
   final IconData icon;
@@ -522,27 +525,59 @@ class _StatRow extends StatelessWidget {
   final String value;
   final bool highlight;
 
+  /// Giá trị là một CÂU chứ không phải con số ("Chưa gọi số nào").
+  ///
+  /// Câu thì đặt bằng phông chữ thường và cỡ nhỏ hơn: phông Sora w800 cỡ 19 dành cho SỐ, nó rộng
+  /// và không xuống dòng đẹp, một câu đặt bằng nó sẽ chiếm gần hết hàng.
+  final bool valueIsSentence;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(icon, size: 20, color: AppColors.accent),
           const SizedBox(width: 14),
-          Expanded(
+          // Nhãn giữ ÍT NHẤT một phần ba hàng.
+          //
+          // Trước đây nhãn là `Expanded` còn giá trị là `Text` trần — mà `Text` trần trong `Row`
+          // là con KHÔNG co giãn, nên nó lấy đúng bề rộng nó muốn rồi mới chừa phần thừa cho
+          // `Expanded`. Gặp giá trị dài như "Chưa gọi số nào" thì nhãn chỉ còn vài pixel và bị bẻ
+          // thành MỘT CHỮ MỖI DÒNG: "Đ / a / n / g / g / ọ / i / s / ố". Cho cả hai cùng co giãn
+          // thì bề rộng được chia theo tỉ lệ thay vì bên này nuốt hết của bên kia.
+          Flexible(
             child: Text(
               label,
+              // Chặn cứng 2 dòng. Ở máy hẹp 320dp, nhãn dài nhất ("Dự kiến còn khoảng") cộng giá
+              // trị dài nhất ("Chưa gọi số nào") KHÔNG đủ chỗ nằm cùng một hàng — nên phải chấp
+              // nhận xuống dòng. Nhưng chặn ở 2 dòng thì không bao giờ rơi lại vào cảnh mỗi dòng
+              // một chữ.
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 15, color: AppColors.onDarkSubtle),
             ),
           ),
-          Text(
-            value,
-            style: TextStyle(
-              fontFamily: AppFonts.display,
-              fontSize: 19,
-              fontWeight: FontWeight.w800,
-              color: highlight ? AppColors.accent : Colors.white,
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: valueIsSentence
+                  ? TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: highlight ? AppColors.accent : Colors.white,
+                    )
+                  : TextStyle(
+                      fontFamily: AppFonts.display,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: highlight ? AppColors.accent : Colors.white,
+                    ),
             ),
           ),
         ],
