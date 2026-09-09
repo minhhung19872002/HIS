@@ -256,3 +256,6 @@ frontend/e2e/.t4-auth.json
 fcm-service-account.json
 deploy/patient-app-vps/secrets/*
 !deploy/patient-app-vps/secrets/README.md
+mobile/patient_app/android/key.properties
+mobile/patient_app/android/*.jks
+mobile/patient_app/android/*.keystore

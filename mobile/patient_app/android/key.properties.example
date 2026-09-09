@@ -1,0 +1,15 @@
+# Khoá ký bản phát hành Android — copy thành `key.properties` rồi điền.
+#
+# ⚠️ TUYỆT ĐỐI KHÔNG commit `key.properties` lẫn file .jks. Mất khoá này là **không bao giờ cập
+# nhật được app trên Google Play nữa** — phải phát hành một app mới với tên gói khác, và toàn bộ
+# người dùng cũ phải cài lại từ đầu. Cất vào két bí mật của bệnh viện, ít nhất hai người giữ được.
+#
+# Tạo khoá (hạn 27 năm cho đủ vòng đời một hệ thống bệnh viện):
+#   keytool -genkey -v -keystore his-patient-app.jks -keyalg RSA -keysize 2048 \
+#           -validity 10000 -alias his-patient-app
+#
+# Đường dẫn tính từ thư mục `android/`.
+storeFile=his-patient-app.jks
+storePassword=
+keyAlias=his-patient-app
+keyPassword=

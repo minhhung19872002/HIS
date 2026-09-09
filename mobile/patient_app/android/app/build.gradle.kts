@@ -1,9 +1,22 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// Khoa ky ban phat hanh. File nay KHONG nam trong repo (xem android/key.properties.example).
+//
+// Vi sao phai co: truoc day ban release duoc ky bang khoa DEBUG. Google Play tu choi thang
+// ("You uploaded an APK signed with a debug certificate"), va neu bang cach nao do lot ra thi
+// khoa debug la khoa ai cung co - bat ky ai cung ky duoc mot ban cap nhat gia mao cho app y te.
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("key.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+val hasReleaseKeystore = keystoreProperties.getProperty("storeFile") != null
 
 android {
     namespace = "vn.com.bluestar.his.patient_app"
@@ -28,10 +41,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        // Da chot: dinh danh ung dung tren ca hai kho. Doi gia tri nay sau khi phat hanh la
+        // TAO MOT APP KHAC - nguoi dung cu khong nhan duoc ban cap nhat nao nua.
         applicationId = "vn.com.bluestar.his.patient_app"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         // HSMT: ho tro Android 7.1.1 tro len (API 25). Flutter mac dinh thap hon
         // nen ghi de len 25 de khop dong "Android 7.2 tro len" cua ho so moi thau.
         minSdk = 25
@@ -40,11 +52,46 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        // Chi khai khi that su co khoa: khai san mot config tro vao file khong ton tai se lam
+        // moi lenh gradle chet, ke ca `flutter build apk --debug`.
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            if (hasReleaseKeystore) {
+                signingConfig = signingConfigs.getByName("release")
+            } else {
+                // KHONG roi ve khoa debug mot cach im lang. Mot ban release ky bang khoa debug
+                // vua bi Google Play tu choi, vua la lo hong that neu no lot ra ngoai. Bao that
+                // to o day de nguoi build biet ngay, thay vi phat hien luc nop len kho.
+                logger.warn(
+                    "\n" +
+                    "===================================================================\n" +
+                    "  CANH BAO: chua co android/key.properties nen BAN RELEASE KHONG\n" +
+                    "  DUOC KY. File .apk/.aab tao ra chi dung de thu, KHONG nop len kho\n" +
+                    "  ung dung duoc. Xem android/key.properties.example de tao khoa.\n" +
+                    "==================================================================="
+                )
+                signingConfig = null
+            }
+
+            // Thu nho ban phat hanh. Bat cung luc voi shrinkResources - bat mot minh
+            // shrinkResources se lam gradle bao loi.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }

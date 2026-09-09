@@ -79,9 +79,40 @@ jobs:
             || { echo "::error::minSdk không còn là 25"; exit 1; }
           echo "minSdk = 25 ✓"
 
+      # Bản release ký bằng khoá DEBUG bị Google Play từ chối thẳng, mà lỗi đó chỉ lộ ra lúc nộp
+      # lên kho — sau khi đã qua hết mọi bước khác. Chặn ngay ở đây.
+      - name: Bản release KHÔNG được ký bằng khoá debug
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          if grep -A3 'release {' android/app/build.gradle.kts | grep -q 'signingConfigs.getByName("debug")'; then
+            echo "::error::buildTypes.release đang ký bằng khoá debug — Google Play sẽ từ chối"
+            exit 1
+          fi
+          echo "release không dùng khoá debug ✓"
+
       - name: Build APK debug
         working-directory: ${{ env.APP_DIR }}
         run: flutter build apk --debug
+
+      # Nhiều lỗi CHỈ xuất hiện ở bản release: R8 cắt mất lớp gọi qua JNI/reflection thì app crash
+      # ngay lúc khởi động, mà chạy debug thì không bao giờ thấy. Build thật ở đây để bắt sớm.
+      - name: Build bản phát hành (AAB) — bắt lỗi R8/proguard
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter build appbundle --release
+
+      - name: Bản phát hành phải CHƯA được ký (chưa có khoá của bệnh viện)
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          python3 - <<'PY'
+          import sys, zipfile
+          z = zipfile.ZipFile("build/app/outputs/bundle/release/app-release.aab")
+          sigs = [n for n in z.namelist()
+                  if n.startswith("META-INF/") and n.endswith((".RSA", ".DSA", ".EC", ".SF"))]
+          if sigs:
+              print(f"::error::AAB đã mang chữ ký {sigs} — khoá nào lọt vào CI?")
+              sys.exit(1)
+          print("AAB chưa ký ✓ (khoá thật do bệnh viện giữ, xem android/key.properties.example)")
+          PY
 
       # Máy ảo Android trên runner cần KVM mới chạy được ở tốc độ dùng được.
       - name: Bật KVM
