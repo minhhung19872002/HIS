@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 
 /// Máy chủ giả cho bộ chụp màn hình bằng chứng nghiệm thu.
@@ -66,6 +69,30 @@ class DemoBackendAdapter implements HttpClientAdapter {
       );
     }
 
+    // Hai tuyến KHÔNG trả JSON bọc trong vỏ `{success,data}` — phải chặn trước khi vào bảng tuyến,
+    // nếu không app nhận vỏ JSON ở chỗ nó đang đợi byte ảnh / HTML và hỏng theo kiểu khó lần.
+    //
+    // Ảnh PACS: trả một PNG THẬT chứ không phải byte rác. `Image.memory` gặp byte không giải mã
+    // được sẽ ném lỗi qua `FlutterError.onError` và làm hỏng cả bài kiểm — mà lỗi đó lại chẳng liên
+    // quan gì tới thứ đang kiểm. Ảnh thật cũng chứng minh được cả đường ống ảnh chạy tới nơi.
+    if (path.contains('/images/')) {
+      return ResponseBody.fromBytes(
+        _pngPixels,
+        200,
+        headers: {Headers.contentTypeHeader: ['image/png']},
+      );
+    }
+
+    // Bản in phiếu xét nghiệm là HTML thô (app nạp thẳng vào khung xem web).
+    if (path.endsWith('/report')) {
+      return ResponseBody.fromString(
+        '<html><body><h1>PHIẾU KẾT QUẢ XÉT NGHIỆM</h1>'
+        '<p>Mã phiếu: XN-2026-0001</p></body></html>',
+        200,
+        headers: {Headers.contentTypeHeader: ['text/html; charset=utf-8']},
+      );
+    }
+
     // Khớp theo khoá DÀI NHẤT, không theo thứ tự khai báo: `/results/admissions/x/service-orders`
     // chứa cả `/results/admissions` lẫn `/service-orders`, và chỉ khoá dài mới là câu trả lời đúng.
     // Dựa vào thứ tự khai báo thì thêm một tuyến mới là âm thầm cướp tuyến cũ.
@@ -86,6 +113,10 @@ class DemoBackendAdapter implements HttpClientAdapter {
 
   static const _empty = '[]';
 
+  /// PNG 8×8 hợp lệ, đứng thay cho ảnh dựng từ PACS.
+  static final Uint8List _pngPixels = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGPQiJqGFTEMLQkAPt1GAZiARKAAAAAASUVORK5CYII=');
+
   /// BFF gói mọi phản hồi trong `{success, data, message}` — giữ nguyên để kho dữ liệu bóc đúng như
   /// khi chạy thật.
   static String _envelope(String data) =>
@@ -103,6 +134,11 @@ class DemoBackendAdapter implements HttpClientAdapter {
         "doctorName":"BS.CKI Nguyễn Văn A","waitingCount":8},
        {"roomId":"r2","roomName":"Phòng khám 2","departmentName":"Khoa Khám bệnh",
         "doctorName":"BS. Trần Thị B","waitingCount":3}]''',
+    // Cấp số: trả về MỘT vé, kèm `message` — app hiện nguyên văn lời nhắc mang giấy tờ.
+    '/queue/take-number': '''
+      {"id":"t1","ticketCode":"A-042","queueNumber":42,"roomId":"r1",
+       "roomName":"Phòng khám 1","priority":1,"priorityReasonName":"Người cao tuổi",
+       "priorityVerified":false,"status":0,"statusName":"Đang chờ","estimatedWaitMinutes":25}''',
     '/queue/tickets': '''
       [{"id":"t1","ticketCode":"A-042","queueNumber":42,"roomId":"r1",
         "roomName":"Phòng khám 1","priority":1,"priorityVerified":false}]''',
@@ -166,21 +202,24 @@ class DemoBackendAdapter implements HttpClientAdapter {
         "status":"Completed","hasAbnormal":true,"testItems":[]},
        {"id":"lab-2","orderCode":"XN-2026-0002","serviceName":"Huyết học","testCategory":"Huyết học",
         "orderDate":"2026-09-09T08:05:00","status":"Pending","hasAbnormal":false,"testItems":[]}]''',
-    '/results/imaging': '''
-      [{"id":"img-1","orderCode":"CDHA-2026-0001","modality":"CT","bodyPart":"Lồng ngực",
-        "studyDescription":"CT ngực có tiêm thuốc","studyDate":"2026-09-09T09:15:00",
-        "conclusion":"Không thấy tổn thương khu trú nhu mô phổi hai bên.",
-        "orderingDoctor":"BS.CKI Nguyễn Văn A","status":"Completed",
-        "hasImages":true,"imageCount":24}]''',
-    '/results/functional': '''
-      [{"id":"tdcn-1","orderCode":"TDCN-2026-0001","serviceName":"Điện tim 12 chuyển đạo",
-        "performedAt":"2026-09-09T09:40:00","performedBy":"KTV. Lê Văn C",
-        "conclusion":"Nhịp xoang đều, tần số 78 lần/phút. Không thấy dấu hiệu thiếu máu cơ tim.",
-        "status":"Completed",
-        "measurements":[{"name":"Tần số tim","value":"78","unit":"lần/phút"},
-                        {"name":"Trục điện tim","value":"+45","unit":"độ"}]}]''',
+    // Ten truong khop `HisImagingResult` (Connector/HisResultModels.cs): mo ta la `findings`, ket
+    // luan la `impression`. Ban cu goi ca hai la `conclusion` — khong ten nao duoc doc, nen man chi
+    // tiet hien "Ket luan" TRONG trong khi may chu van tra 200 va anh chup van trong binh thuong.
+    '/results/imaging/img-1/images': '''
+      [{"instanceId":"inst-1","seriesNumber":1,"instanceNumber":1,
+        "seriesDescription":"Chest CT axial"},
+       {"instanceId":"inst-2","seriesNumber":1,"instanceNumber":2,
+        "seriesDescription":"Chest CT axial"}]''',
+    '/results/imaging/img-1': _imagingDetail,
+    '/results/imaging': '[$_imagingDetail]',
+    // Khop `HisFunctionalResult`: `testCode` + `testTypeName` + `performingDoctorName` +
+    // `statusName`. Ban cu dung `orderCode`/`serviceName`/`performedBy`/`status` — the phieu hien
+    // ten dich vu TRONG, va khong bai kiem nao cham vao tab nay nen loi nam im.
+    '/results/functional/tdcn-1': _functionalDetail,
+    '/results/functional': '[$_functionalDetail]',
     '/results/prescriptions': '''
-      [{"id":"rx-1","prescriptionCode":"DT-2026-0031","issuedAt":"2026-09-09T11:00:00",
+      [{"id":"rx-1","prescriptionCode":"DT-2026-0031","prescriptionDate":"2026-09-09T11:00:00",
+        "status":"Dispensed","isDispensed":true,
         "doctorName":"BS.CKI Nguyễn Văn A","departmentName":"Khoa Khám bệnh",
         "diagnosis":"Tăng huyết áp nguyên phát (I10)","note":"Uống sau ăn, tái khám sau 4 tuần.",
         "items":[
@@ -190,10 +229,14 @@ class DemoBackendAdapter implements HttpClientAdapter {
           {"drugName":"Atorvastatin 20mg","strength":"20mg","quantity":28,"unit":"viên",
            "dosage":"1 viên","frequency":"1 lần/ngày","durationDays":28,
            "instructions":"Uống buổi tối"}]}]''',
+    // Khop `HisHealthCheckup`: `recordCode` + `campaignName` + `companyName` +
+    // `healthClassification`. Ban cu dung `checkupCode`/`contractName`/`classification`.
     '/results/health-checkups': '''
-      [{"id":"ksk-1","checkupCode":"KSK-2026-0005","contractName":"Công ty CP Bluestar",
-        "checkupDate":"2026-08-20T08:00:00","conclusion":"Sức khoẻ loại II",
-        "classification":"Loại II","status":"Completed"}]''',
+      [{"id":"ksk-1","recordCode":"KSK-2026-0005","campaignName":"Khám sức khoẻ định kỳ 2026",
+        "companyName":"Công ty CP Bluestar","checkupDate":"2026-08-20T08:00:00",
+        "healthClassification":"Loại II","conclusion":"Sức khoẻ loại II, đủ điều kiện làm việc.",
+        "recommendation":"Khám lại sau 12 tháng.",
+        "certificateIssued":true,"certificateNumber":"GCN-2026-0091"}]''',
 
     // ------------------------------------------------------------ kết quả nội trú
     // Khop `HisAdmission` (Connector/HisResultModels.cs). Ban cu dung `admissionCode`/`admittedAt`/
@@ -206,21 +249,38 @@ class DemoBackendAdapter implements HttpClientAdapter {
         "reasonForAdmission":"Sốt cao, ho, khó thở 3 ngày",
         "diagnosisOnAdmission":"Viêm phổi cộng đồng (J18)","dischargeDiagnosis":null,
         "status":1,"statusName":"Đang điều trị","isInProgress":true}]''',
+    // Khop `HisMedicineDisclosure`: mot DANH SACH PHANG cac dong thuoc (`items`), moi dong co
+    // `medicineName` + `paymentSourceName`, kem ba con so tong o cap ngoai. Ban cu gom theo
+    // `days` va goi ten thuoc la `drugName` — khong dong nao doc duoc, tab cong khai thuoc hien
+    // "chua co thuoc nao duoc cap phat" trong khi may chu tra du du lieu.
     '/medicine-disclosure': '''
-      {"admissionCode":"NT-2026-0012","patientName":"Nguyễn Văn Demo",
-       "days":[{"date":"2026-09-08T00:00:00","total":186000,"insurancePaid":149000,
-                "patientPaid":37000,
-                "items":[{"drugName":"Ceftriaxon 1g","unit":"lọ","quantity":2,"unitPrice":68000,
-                          "amount":136000,"insuranceRate":80},
-                         {"drugName":"Natri clorid 0,9% 500ml","unit":"chai","quantity":2,
-                          "unitPrice":25000,"amount":50000,"insuranceRate":80}]}]}''',
-    '/service-orders': '''
-      [{"id":"so-1","serviceName":"Chụp X-quang ngực thẳng","departmentName":"Khoa CĐHA",
-        "roomName":"Phòng X-quang 1","orderedAt":"2026-09-08T07:30:00","status":"Chờ thực hiện",
-        "queueNumber":5,"doctorName":"BS.CKII Phạm Văn D"},
-       {"id":"so-2","serviceName":"Công thức máu","departmentName":"Khoa Xét nghiệm",
-        "roomName":"Phòng lấy mẫu","orderedAt":"2026-09-08T07:35:00","status":"Đã có kết quả",
-        "queueNumber":null,"doctorName":"BS.CKII Phạm Văn D"}]''',
+      {"admissionId":"adm-1","fromDate":"2026-09-02T00:00:00","toDate":"2026-09-09T00:00:00",
+       "totalAmount":186000,"insuranceAmount":149000,"patientAmount":37000,
+       "items":[{"prescriptionDate":"2026-09-08T00:00:00","medicineName":"Ceftriaxon 1g",
+                 "activeIngredient":"Ceftriaxon","unit":"lọ","quantity":2,"unitPrice":68000,
+                 "amount":136000,"paymentSourceName":"BHYT chi trả 80%",
+                 "dosage":"1 lọ","frequency":"2 lần/ngày",
+                 "usageInstructions":"Tiêm tĩnh mạch chậm"},
+                {"prescriptionDate":"2026-09-08T00:00:00",
+                 "medicineName":"Natri clorid 0,9% 500ml","activeIngredient":"Natri clorid",
+                 "unit":"chai","quantity":2,"unitPrice":25000,"amount":50000,
+                 "paymentSourceName":"BHYT chi trả 80%","dosage":"1 chai",
+                 "frequency":"2 lần/ngày","usageInstructions":"Truyền tĩnh mạch"}]}''',
+    // Khop `HisServiceOrder`: `requestTypeName` · `executeRoomName` · `orderingDoctor` ·
+    // `statusName` · `queueNumber` (CHUOI) · `peopleAhead`. Ban cu dung `departmentName`/
+    // `roomName`/`orderedAt`/`status`/`doctorName` va `queueNumber` la SO — the chi dinh mat sach
+    // phong thuc hien, trang thai va SO THU TU, dung thu ma HSMT I.2.6.6 doi hoi.
+    // ⚠️ Khoá phải DÀI HƠN `/results/admissions`, nếu không luật "khớp khoá dài nhất" trả về danh
+    // sách đợt điều trị cho tuyến chỉ định — và tab "Chỉ định CLS" trống trơn dù máy chủ trả 200.
+    '/results/admissions/adm-1/service-orders': '''
+      [{"id":"so-1","orderCode":"CLS-2026-0101","serviceName":"Chụp X-quang ngực thẳng",
+        "requestTypeName":"Chẩn đoán hình ảnh","executeRoomName":"Phòng X-quang 1",
+        "orderDate":"2026-09-08T07:30:00","orderingDoctor":"BS.CKII Phạm Văn D",
+        "status":1,"statusName":"Chờ thực hiện","queueNumber":"5","peopleAhead":2},
+       {"id":"so-2","orderCode":"CLS-2026-0102","serviceName":"Công thức máu",
+        "requestTypeName":"Xét nghiệm","executeRoomName":"Phòng lấy mẫu",
+        "orderDate":"2026-09-08T07:35:00","orderingDoctor":"BS.CKII Phạm Văn D",
+        "status":3,"statusName":"Đã có kết quả","queueNumber":null,"peopleAhead":-1}]''',
 
     // ------------------------------------------------------------------- gia đình
     '/family/members': '''
@@ -272,12 +332,63 @@ class DemoBackendAdapter implements HttpClientAdapter {
         "appVersion":"1.0.0","lastIp":"10.0.0.31","lastSeenAt":"2026-09-07T20:14:00",
         "createdAt":"2026-08-20T18:00:00","biometricEnabled":true,"isCurrent":false}]''',
 
+    // ------------------------------------------------------------------ xoá tài khoản
+    // Màn xoá tài khoản đọc bản kê "sẽ mất những gì" trước khi cho bấm nút. Thiếu tuyến này thì
+    // màn rơi vào nhánh lỗi và không kiểm được đúng thứ đáng kiểm: người bệnh phải THẤY mình mất gì.
+    '/account/deletion-preview': '''
+      {"devices":2,"documents":3,"familyLinks":2,"notifications":3}''',
+
+    // ------------------------------------------------- tra cứu cho nhân viên (HSMT I.3 #2.2)
+    '/staff/auth/login': '''
+      {"token":"staff-token-demo","fullName":"Lê Thị CSKH","roles":["Reception"]}''',
+    '/staff/lookup/patients/p1/summary': '''
+      {"patient":{"patientId":"p1","patientCode":"BN000123","fullName":"Nguyễn Văn Test",
+                  "dateOfBirth":"1975-04-12T00:00:00","gender":1,"phoneNumber":"0912345678",
+                  "hasAppAccount":true,"appAccountStatus":"Active","appMustChangePassword":false,
+                  "appLastLoginAt":"2026-09-09T07:10:00"},
+       "queueTicketsToday":[{"ticketCode":"A-042","roomName":"Phòng khám 1","priority":1}],
+       "appointments":[{"appointmentCode":"LH-2026-0007","appointmentDate":"2026-09-12T00:00:00",
+                        "departmentName":"Khoa Khám bệnh","statusName":"Đã xác nhận"}],
+       "labResults":[{"orderCode":"XN-2026-0001","serviceName":"Sinh hoá máu",
+                      "resultDate":"2026-09-09T10:30:00","hasAbnormal":true}],
+       "imagingResults":[],"prescriptions":[],"admissions":[]}''',
+    '/staff/lookup/patients': '''
+      [{"patientId":"p1","patientCode":"BN000123","fullName":"Nguyễn Văn Test",
+        "dateOfBirth":"1975-04-12T00:00:00","gender":1,"phoneNumber":"0912345678",
+        "hasAppAccount":true,"appAccountStatus":"Active","appMustChangePassword":false,
+        "appLastLoginAt":"2026-09-09T07:10:00"}]''',
+
     // --------------------------------------------------- cấu hình phát hành (không chặn)
     '/app-config': '''
       {"minimumVersion":"1.0.0","latestVersion":"1.0.0","storeUrl":"",
        "updateRequired":false,"updateAvailable":false,
        "maintenanceMessage":null,"supportPhone":"1900 1234"}''',
   };
+
+  /// Một ca CĐHA — dùng chung cho danh sách và cho màn chi tiết, nên không thể lệch nhau.
+  static const _imagingDetail = '''
+    {"id":"img-1","orderCode":"CDHA-2026-0001","modality":"CT","bodyPart":"Lồng ngực",
+     "studyDescription":"CT ngực có tiêm thuốc","orderDate":"2026-09-09T08:50:00",
+     "studyDate":"2026-09-09T09:15:00",
+     "findings":"Nhu mô phổi hai bên sáng đều. Không thấy hạch trung thất to.",
+     "impression":"Không thấy tổn thương khu trú nhu mô phổi hai bên.",
+     "recommendations":"Chụp kiểm tra lại sau 6 tháng nếu còn ho kéo dài.",
+     "orderingDoctor":"BS.CKI Nguyễn Văn A","reportingDoctor":"BS.CKII Vũ Thị E",
+     "status":"Completed","hasImages":true,"imageCount":24}''';
+
+  /// Một phiếu thăm dò chức năng — cũng dùng chung cho danh sách và chi tiết.
+  static const _functionalDetail = '''
+    {"id":"tdcn-1","testCode":"TDCN-2026-0001","testType":"ECG",
+     "testTypeName":"Điện tim 12 chuyển đạo","performedAt":"2026-09-09T09:40:00",
+     "performingDoctorName":"KTV. Lê Văn C","deviceName":"Nihon Kohden ECG-2350",
+     "clinicalIndication":"Theo dõi tăng huyết áp",
+     "findings":"Nhịp xoang đều, không thấy ngoại tâm thu.",
+     "conclusion":"Nhịp xoang đều, tần số 78 lần/phút. Không thấy dấu hiệu thiếu máu cơ tim.",
+     "recommendation":"Không cần can thiệp thêm.",
+     "status":2,"statusName":"Đã có kết quả","imageCount":0,
+     "measurements":[{"name":"Tần số tim","value":"78 lần/phút"},
+                     {"name":"Trục điện tim","value":"+45 độ"},
+                     {"name":"Khoảng QT","value":"398 ms"}]}''';
 
   static const _labDetail = '''
     {"id":"lab-1","orderCode":"XN-2026-0001","serviceName":"Sinh hoá máu","testCategory":"Sinh hoá",

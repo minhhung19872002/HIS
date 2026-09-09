@@ -206,6 +206,18 @@ void main() {
     await capture(tester, '032', 'list');
   });
 
+  // Hai màn dưới đây trước nay không có ảnh trong hồ sơ, mà bảng nghiệm thu lại đòi bằng chứng cho
+  // I.2.5.4 (CĐHA: mô tả · kết luận · ảnh PACS) và I.2.5.5 (thăm dò chức năng: các số đo).
+  testWidgets('TC-APP-033 chi tiết chẩn đoán hình ảnh kèm ảnh PACS', (tester) async {
+    await open(tester, '${AppRoutes.results}/imaging/img-1');
+    await capture(tester, '033', 'detail');
+  });
+
+  testWidgets('TC-APP-034 chi tiết thăm dò chức năng', (tester) async {
+    await open(tester, '${AppRoutes.results}/functional/tdcn-1');
+    await capture(tester, '034', 'detail');
+  });
+
   // ====================================================== I.2 #6 kết quả nội trú
   testWidgets('TC-APP-040 các đợt điều trị nội trú', (tester) async {
     await open(tester, AppRoutes.admissions);

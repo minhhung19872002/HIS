@@ -29,7 +29,9 @@ jobs:
   android:
     name: Android (phân tích · test · build · chụp màn hình)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # 60 chứ không phải 45: bộ đi-hết-chức-năng nay có 29 bài (trước là 15) và chạy hai lượt —
+    # một lượt `flutter test` không cần máy, một lượt `flutter drive` trên máy ảo.
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4

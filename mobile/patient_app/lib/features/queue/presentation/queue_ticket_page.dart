@@ -598,16 +598,29 @@ class _QueueProgress extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Cả hai chữ đều CO GIÃN. `Text` trần trong `Row` lấy đúng bề rộng nó muốn, nên khi người
+        // dùng phóng to cỡ chữ của hệ điều hành (người cao tuổi hay đặt 150–200%) thì hai dòng này
+        // cộng lại vượt bề ngang máy và hàng bị tràn — chữ cuối biến mất sau vạch sọc vàng đen.
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Tiến độ hàng đợi',
-              style: TextStyle(fontSize: 12, color: Color(0xFFA3BEDC)),
+            const Flexible(
+              child: Text(
+                'Tiến độ hàng đợi',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: Color(0xFFA3BEDC)),
+              ),
             ),
-            Text(
-              ahead == 0 ? 'Sắp tới lượt' : 'Còn $ahead người',
-              style: const TextStyle(fontSize: 12, color: Color(0xFFA3BEDC)),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                ahead == 0 ? 'Sắp tới lượt' : 'Còn $ahead người',
+                maxLines: 1,
+                textAlign: TextAlign.right,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12, color: Color(0xFFA3BEDC)),
+              ),
             ),
           ],
         ),

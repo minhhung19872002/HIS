@@ -237,10 +237,16 @@ class _MoneyRow extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
+      // Nhãn co giãn, SỐ TIỀN thì không: tiền là thứ tuyệt đối không được cắt bớt hay bỏ lửng.
+      // Để cả hai là `Text` trần thì hàng tràn khi người dùng phóng to cỡ chữ hệ thống — và phần
+      // biến mất sau vạch sọc chính là con số.
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: style),
+          Flexible(
+            child: Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: style),
+          ),
+          const SizedBox(width: 12),
           Text('${_money.format(amount)} đ', style: style),
         ],
       ),

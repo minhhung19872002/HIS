@@ -183,6 +183,10 @@ class _DeleteAccountPageState extends ConsumerState<DeleteAccountPage> {
           TextField(
             controller: _password,
             obscureText: true,
+            // Vẽ lại khi gõ. Nút xoá mở khoá theo `_password.text.isEmpty`, mà gõ vào một ô không
+            // báo gì thì màn KHÔNG dựng lại: ai tích ô xác nhận TRƯỚC rồi mới gõ mật khẩu sẽ thấy
+            // nút chết cứng và không hiểu vì sao — đường duy nhất thoát ra là tích đi tích lại.
+            onChanged: (_) => setState(() {}),
             decoration: const InputDecoration(
               labelText: 'Nhập mật khẩu để xác nhận',
               prefixIcon: Icon(Icons.lock_outline),
