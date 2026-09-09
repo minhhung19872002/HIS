@@ -275,8 +275,8 @@ const PatientAppNotifications: React.FC = () => {
           : (
             <>
               <DataTable
-                        sortScope="page"
-data={rows}
+                sortScope="page"
+                data={rows}
                 columns={columns}
                 rowKey={(c) => c.id}
                 onRowClick={setDetail}

@@ -300,8 +300,8 @@ const ChronicDiseaseV2: React.FC = () => {
       />
 
       <DataTable<ChronicRecordDto>
-                sortScope="page"
-columns={columns}
+        sortScope="page"
+        columns={columns}
         data={rows}
         rowKey={(r) => r.id}
         loading={loading}

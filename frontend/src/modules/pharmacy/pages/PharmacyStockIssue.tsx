@@ -610,8 +610,8 @@ const PharmacyStockIssue: React.FC = () => {
 
       {/* Main table */}
       <DataTable<StockIssueDto>
-                sortScope="page"
-columns={columns}
+        sortScope="page"
+        columns={columns}
         data={rows}
         rowKey={(r) => r.id}
         onRowClick={openDetail}

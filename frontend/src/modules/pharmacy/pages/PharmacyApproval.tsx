@@ -397,8 +397,8 @@ const PharmacyApprovalV2: React.FC = () => {
         tabs={STATUS_TABS} counts={counts} />
 
       <DataTable<PharmacyApprovalDto>
-                sortScope="page"
-columns={cols} data={items} rowKey={(r) => r.id}
+        sortScope="page"
+        columns={cols} data={items} rowKey={(r) => r.id}
         onRowClick={(r) => { void openDetail(r.id); }}
         actions={actions}
         loading={loading}

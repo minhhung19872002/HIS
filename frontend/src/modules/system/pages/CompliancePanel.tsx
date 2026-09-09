@@ -94,8 +94,9 @@ const SensitiveAccessReport: React.FC = () => {
         <RefreshButton onRefresh={load} loading={loading} />
       </div>
 
-      <DataTable<SensitiveDataAccessReportDto>         sortScope="page"
-columns={columns} data={report} rowKey={(r) => r.userId}
+      <DataTable<SensitiveDataAccessReportDto>
+        sortScope="page"
+        columns={columns} data={report} rowKey={(r) => r.userId}
         onRowClick={(r) => setSelUser(r)}
         empty={loading ? 'Đang tải…' : 'Không có truy cập nhạy cảm trong khoảng thời gian này'} />
 
