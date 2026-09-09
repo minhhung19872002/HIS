@@ -29,6 +29,30 @@ class AppConfig {
 
   bool get isProd => flavor == AppFlavor.prod;
 
+  /// Địa chỉ máy chủ ghi đè lúc build, để không phải sửa mã mỗi lần đổi máy đích:
+  ///
+  /// ```
+  /// flutter build apk --debug \
+  ///   --dart-define=API_BASE_URL=http://192.168.1.7:5200/api/v1
+  /// ```
+  ///
+  /// Cần cho hai việc thật: cài lên **điện thoại thật** (bản dev trỏ `10.0.2.2`, vốn là bí danh của
+  /// máy chủ nhìn từ máy ảo Android — trên máy thật thì địa chỉ đó không tồn tại), và trỏ app sang
+  /// máy demo của bệnh viện mà không phải dựng một flavor mới.
+  static const _apiBaseUrlOverride = String.fromEnvironment('API_BASE_URL');
+
+  /// Cấu hình sau khi áp ghi đè. `bootstrap` gọi cái này chứ không dùng thẳng hằng flavor.
+  AppConfig get resolved => _apiBaseUrlOverride.isEmpty
+      ? this
+      : AppConfig(
+          flavor: flavor,
+          apiBaseUrl: _apiBaseUrlOverride,
+          appName: appName,
+          enableHttpLog: enableHttpLog,
+          connectTimeout: connectTimeout,
+          receiveTimeout: receiveTimeout,
+        );
+
   static const dev = AppConfig(
     flavor: AppFlavor.dev,
     // 10.0.2.2 = localhost của máy chủ nhìn từ Android emulator.

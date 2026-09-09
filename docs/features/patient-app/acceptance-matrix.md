@@ -64,9 +64,13 @@ từng nhóm chức năng trên cả Android 7.1.1 lẫn iOS 12.
 
 ---
 
-## Điều kiện tại chỗ — 7 việc thuộc bên A
+## Điều kiện tại chỗ — còn 6 việc thuộc bên A
 
-Bảy dòng dưới đây **phần mềm đã xong và đã đo hết phần đo được**, nhưng lượt nghiệm thu cuối tại
+> ✅ **I.4.1 đã đóng ngày 2026-09-09**: bản UAT dựng trên VM 14.225.83.93 đã có chứng chỉ
+> **Let's Encrypt** thật, nên điều kiện "cần một tên miền" không còn. Giữ dòng đó trong bảng để
+> thấy đường đi. Chi tiết: [`deploy-runbook.md`](deploy-runbook.md) §7.
+
+Sáu dòng còn lại dưới đây **phần mềm đã xong và đã đo hết phần đo được**, nhưng lượt nghiệm thu cuối tại
 bệnh viện cần một thứ mà chỉ bên A cấp được. Chúng được đánh dấu 🔑 trong ô bằng chứng.
 
 | Dòng | Đã đo được gì | 🔑 Bên A cần cấp | Chạy gì khi đã có |
@@ -74,7 +78,7 @@ bệnh viện cần một thứ mà chỉ bên A cấp được. Chúng được
 | I.2.1.1 | Chặn bản quá cũ (`phase7` TC-P01…P05); `flutter build appbundle --release` PASS; AAB không mang chữ ký nào; CI chặn việc ký bằng khoá debug | Tài khoản developer Apple + Google | [`store-release-checklist.md`](store-release-checklist.md) |
 | I.2.2.2 | **Trọn đường ống** `push_outbox` → worker → relay thật → `sent`; token bị che trong log | Khoá Firebase + chứng chỉ APNs | [`external-services-setup.md`](external-services-setup.md) §2, rồi `curl /health` → `"mode":"fcm"` |
 | I.2.9.3 | Server: `auth` TC-07…TC-10. Client: đã vá lỗi làm sinh trắc chết hẳn trên Android; plugin nay chạy tới nơi | Một máy có cảm biến vân tay/Face ID thật | Kịch bản ghi trong ô của dòng đó |
-| I.4.1 | TLS 1.0/1.1 bị từ chối · 1.2/1.3 bắt tay được · đủ 4 header · không lộ `Server` · tự cấp và tự gia hạn chứng chỉ | Một tên miền trỏ về VPS | `bash scripts/verify-patient-app-vps.sh` trên VPS thật + ảnh SSL Labs |
+| I.4.1 | ✅ **ĐÃ XONG** — bản UAT https://patientapp.14-225-83-93.nip.io có chứng chỉ **Let's Encrypt** thật, hạn 08/12/2026, tự gia hạn; TLS 1.0/1.1 bị từ chối, đủ 4 header | *(không còn chờ gì)* | Chỉ còn đính ảnh SSL Labs vào hồ sơ |
 | II.2 | Stack dùng **34 MiB / 2048 MiB** RAM và **248 MB / 15 GB** đĩa | Bản kê cấu hình máy thuê | `df -h /` · `free -m` · `nproc` trên VPS đó |
 | C.2 | 30 ảnh trên iOS 12 simulator; `MinimumOSVersion = 12.0` đọc từ Info.plist **của chính bản build ra** | Một máy iOS 12 thật | Chạy lại bộ chụp trên máy đó |
 | C.3 | 30 ảnh trên máy ảo Android 7.1.1 (API 25) — đúng ngưỡng HSMT | Một máy Android 7.x thật | Chạy lại bộ chụp trên máy đó |
@@ -208,7 +212,7 @@ bệnh viện cần một thứ mà chỉ bên A cấp được. Chúng được
 
 | # | Yêu cầu HSMT | Đáp ứng bằng | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|---|
-| I.4.1 | Chứng chỉ số loại **DV SSL hoặc tương đương** | Let's Encrypt DV qua Caddy, **tự xin và tự gia hạn** — không có bước thủ công nên không có ngày hết hạn vì quên. Cấu hình: [`deploy/patient-app-vps/Caddyfile`](../../../deploy/patient-app-vps/Caddyfile), kèm HSTS · nosniff · X-Frame-Options DENY | ✅ **Đã dựng Caddy thật và đo**, `verify-patient-app-vps.sh` mục 3-5: HTTP bị đẩy sang HTTPS (308) · **TLS 1.0 và 1.1 bị từ chối** (`no protocols available`), 1.2 và 1.3 bắt tay được · đủ 4 header `Strict-Transport-Security` · `X-Content-Type-Options` · `X-Frame-Options` · `Referrer-Policy`, và **không lộ header `Server`** · Caddy tự cấp và tự gia hạn chứng chỉ, không có bước thủ công nào. 🔑 **Điều kiện còn lại: một tên miền trỏ về VPS** — lượt đo này dùng CA nội bộ của Caddy, nên đã chứng minh được toàn bộ cơ chế TLS trừ đúng chữ ký DV công khai của Let's Encrypt. Có tên miền rồi thì chạy lại script và đính thêm ảnh SSL Labs | 7 → 8 | ✅ |
+| I.4.1 | Chứng chỉ số loại **DV SSL hoặc tương đương** | Let's Encrypt DV qua Caddy, **tự xin và tự gia hạn** — không có bước thủ công nên không có ngày hết hạn vì quên. Cấu hình: [`deploy/patient-app-vps/Caddyfile`](../../../deploy/patient-app-vps/Caddyfile), kèm HSTS · nosniff · X-Frame-Options DENY | ✅ **Đã dựng Caddy thật và đo**, `verify-patient-app-vps.sh` mục 3-5: HTTP bị đẩy sang HTTPS (308) · **TLS 1.0 và 1.1 bị từ chối** (`no protocols available`), 1.2 và 1.3 bắt tay được · đủ 4 header `Strict-Transport-Security` · `X-Content-Type-Options` · `X-Frame-Options` · `Referrer-Policy`, và **không lộ header `Server`** · Caddy tự cấp và tự gia hạn chứng chỉ, không có bước thủ công nào. **Và nay đã có chứng chỉ DV THẬT**: bản UAT chạy tại https://patientapp.14-225-83-93.nip.io do **Let's Encrypt** cấp (`CN=YE2`, hạn 08/12/2026, tự gia hạn) — đo trực tiếp trên đường công khai: TLS 1.0/1.1 bị từ chối · 1.2/1.3 bắt tay được · đủ 4 header · không lộ `Server` · HTTP đẩy sang HTTPS (308). Chi tiết triển khai: [`deploy-runbook.md`](deploy-runbook.md) §7. Còn lại chỉ là đính thêm ảnh SSL Labs vào hồ sơ | 7 → 8 | ✅ |
 
 ---
 

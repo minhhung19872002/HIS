@@ -186,3 +186,67 @@ Và cả hai đều vô nghĩa nếu mất `DocumentVault__Key` — lưu khoá *
 | Giấy tờ mở ra báo lỗi giải mã | `DocumentVault__Key` có bị đổi không · ổ đĩa `patientapp_vault` có được gắn đúng không |
 | Thông báo không tới máy người bệnh | Bảng điều khiển: *"thiết bị nhận được thông báo đẩy"* · cấu hình Firebase · relay trên VPS còn sống không |
 | Cần chặn khẩn một bản app hỏng | Nâng `AppRelease__MinimumAndroidVersion` — xem [`store-release-checklist.md`](store-release-checklist.md) §7 |
+
+---
+
+## 7. Bản UAT đang chạy — VM 14.225.83.93
+
+Dựng ngày 2026-09-09 để bàn giao thử: cài app lên điện thoại thật và bấm được qua Internet.
+
+| | |
+|---|---|
+| Địa chỉ | **https://patientapp.14-225-83-93.nip.io** |
+| Thư mục | `/home/hung/his-patientapp/` trên VM (`ssh hung@14.225.83.93`) |
+| Chứng chỉ | Let's Encrypt (DV), tự gia hạn — HSMT I.4.1 |
+| Tài nguyên | API 85 MB + PostgreSQL 41 MB |
+
+### Khác bản gốc ở chỗ nào
+
+Đây **không phải** data center bệnh viện, nên `docker-compose.yml` trên VM khác bản trong repo
+(`deploy/patient-app/`) hai điểm:
+
+1. **HIS Core không nằm cùng máy** → gọi qua Internet `https://his.bluestar.com.vn`, không dùng
+   mạng nội bộ `his-net`.
+2. **TLS do `proxy-caddy` sẵn có trên VM đảm nhiệm**, không dựng stack VPS riêng.
+
+### VM này chạy chung với hơn chục dự án khác — ba nguyên tắc bắt buộc
+
+- **Thêm site = thêm MỘT file** `/home/hung/proxy/sites/his-patientapp.caddy`. Không sửa file của
+  dự án khác. Thư mục đó vốn được thiết kế theo lối này.
+- **`caddy validate` trước, reload sau.** Reload nóng, không restart proxy. Xong phải kiểm lại vài
+  site khác còn 200 (`uat.tihelab.vn`, `attp.bluestar.com.vn`).
+- **Tên container đặt đầy đủ** (`patientapp-api`, không phải `api`). Proxy nằm trong nhiều mạng
+  cùng lúc nên tên ngắn sẽ phân giải sang container của dự án khác theo may rủi — bài học đã ghi
+  trong `foodsafe.caddy`.
+
+```bash
+# Nâng cấp
+ssh hung@14.225.83.93
+cd ~/his-patientapp && docker compose pull && docker compose up -d   # hoặc nạp ảnh mới:
+#   (máy dev)  docker build -f backend/src/HIS.PatientApp.Api/Dockerfile -t his-patientapp-api:uat .
+#              docker save his-patientapp-api:uat | gzip -1 | ssh hung@14.225.83.93 'gunzip | docker load'
+
+# Xem mã OTP khi đang chạy chế độ Development
+docker logs patientapp-api 2>&1 | grep '\[DEV\] OTP'
+```
+
+### ⚠️ Hai điều kiện chưa xong ở bản UAT này
+
+1. **`HIS_SERVICE_USERNAME/PASSWORD` để trống** → mọi màn cần dữ liệu bệnh viện sẽ báo "chưa kết nối
+   được hệ thống". Cần một tài khoản HIS **quyền tối thiểu**; cố ý không dùng `admin` vì tài khoản đó
+   nhìn được hồ sơ mọi bệnh nhân, mà `.env` nằm trên một VM dùng chung nhiều dự án.
+2. **`PATIENTAPP_ENV=Development`** để bản gửi OTP in mã ra log (chưa có cổng SMS). **Không được để
+   người bệnh thật dùng ở trạng thái này** — ai đọc được log là đăng nhập được vào tài khoản bất kỳ.
+   Có cổng SMS rồi thì đổi sang `Production` và khai `OtpSender` theo
+   [`external-services-setup.md`](external-services-setup.md) §1.
+3. **`HIS_JWT_KEY` đang là giá trị ngẫu nhiên** → web quản trị chưa đăng nhập được. Phải đặt **trùng**
+   `Jwt:Key` của HIS Core.
+
+### Build APK trỏ vào bản UAT
+
+```bash
+cd mobile/patient_app
+fvm flutter build apk --debug --split-per-abi -t lib/main_dev.dart \
+  --dart-define=API_BASE_URL=https://patientapp.14-225-83-93.nip.io/api/v1
+# → build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk
+```
