@@ -23,9 +23,9 @@ class TimeSlot {
   factory TimeSlot.fromJson(Map<String, dynamic> json) => TimeSlot(
         startTime: json['startTime'] as String? ?? '',
         displayTime: json['displayTime'] as String? ?? '',
-        isAvailable: json['isAvailable'] as bool? ?? false,
-        currentBookings: json['currentBookings'] as int? ?? 0,
-        maxBookings: json['maxBookings'] as int? ?? 0,
+        isAvailable: asBool(json['isAvailable']),
+        currentBookings: asInt(json['currentBookings']),
+        maxBookings: asInt(json['maxBookings']),
       );
 }
 
@@ -54,7 +54,7 @@ class SlotResult {
         afternoonSlots: (json['afternoonSlots'] as List<dynamic>? ?? const [])
             .map((e) => TimeSlot.fromJson(e as Map<String, dynamic>))
             .toList(),
-        totalAvailable: json['totalAvailable'] as int? ?? 0,
+        totalAvailable: asInt(json['totalAvailable']),
         departmentName: json['departmentName'] as String?,
         doctorName: json['doctorName'] as String?,
       );

@@ -1,6 +1,8 @@
 /// Mô hình cho module tra cứu của nhân viên CSKH (HSMT I.3 #2.2).
 library;
 
+import '../../../core/json.dart';
+
 DateTime? _date(Object? v) => v is String && v.isNotEmpty ? DateTime.tryParse(v) : null;
 
 class StaffSession {
@@ -57,11 +59,11 @@ class StaffPatient {
         patientCode: json['patientCode'] as String? ?? '',
         fullName: json['fullName'] as String? ?? '',
         dateOfBirth: _date(json['dateOfBirth']),
-        gender: json['gender'] as int?,
+        gender: tryAsInt(json['gender']),
         phoneNumber: json['phoneNumber'] as String?,
-        hasAppAccount: json['hasAppAccount'] as bool? ?? false,
+        hasAppAccount: asBool(json['hasAppAccount']),
         appAccountStatus: json['appAccountStatus'] as String?,
-        appMustChangePassword: json['appMustChangePassword'] as bool? ?? false,
+        appMustChangePassword: asBool(json['appMustChangePassword']),
         appLastLoginAt: _date(json['appLastLoginAt']),
       );
 }
@@ -115,9 +117,9 @@ class StaffPatientSummary {
               title: t['ticketCode'] as String? ?? '',
               subtitle: [
                 if ((t['roomName'] as String?)?.isNotEmpty == true) t['roomName'] as String,
-                if ((t['priority'] as int? ?? 0) > 0) 'số ưu tiên',
+                if (asInt(t['priority']) > 0) 'số ưu tiên',
               ].join(' · '),
-              highlight: (t['priority'] as int? ?? 0) > 0,
+              highlight: asInt(t['priority']) > 0,
             )),
         appointments: _map(json['appointments'], (a) => StaffSummaryLine(
               title: a['appointmentCode'] as String? ?? '',

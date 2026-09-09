@@ -1,3 +1,5 @@
+
+import '../../../core/json.dart';
 /// Một thông báo trong hộp thư của app.
 class AppNotificationItem {
   const AppNotificationItem({
@@ -27,7 +29,7 @@ class AppNotificationItem {
         body: json['body'] as String? ?? '',
         category: json['category'] as String? ?? 'system',
         deepLink: json['deepLink'] as String?,
-        isRead: json['isRead'] as bool? ?? false,
+        isRead: asBool(json['isRead']),
         createdAt:
             DateTime.tryParse(json['createdAt'] as String? ?? '')?.toLocal() ?? DateTime.now(),
       );

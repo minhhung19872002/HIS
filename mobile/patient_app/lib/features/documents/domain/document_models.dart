@@ -1,3 +1,5 @@
+
+import '../../../core/json.dart';
 /// Một giấy tờ trong ví (HSMT I.2 #8).
 class PatientDocument {
   const PatientDocument({
@@ -41,7 +43,7 @@ class PatientDocument {
         title: json['title'] as String? ?? '',
         fileName: json['fileName'] as String? ?? '',
         contentType: json['contentType'] as String? ?? '',
-        sizeBytes: json['sizeBytes'] as int? ?? 0,
+        sizeBytes: asInt(json['sizeBytes']),
         source: json['source'] as String? ?? 'manual',
         note: json['note'] as String?,
         createdAt: json['createdAt'] is String
@@ -72,9 +74,9 @@ class DocumentWallet {
         items: (json['items'] as List<dynamic>? ?? const [])
             .map((e) => PatientDocument.fromJson(e as Map<String, dynamic>))
             .toList(),
-        usedBytes: json['usedBytes'] as int? ?? 0,
-        quotaBytes: json['quotaBytes'] as int? ?? 0,
-        maxFileBytes: json['maxFileBytes'] as int? ?? 0,
+        usedBytes: asInt(json['usedBytes']),
+        quotaBytes: asInt(json['quotaBytes']),
+        maxFileBytes: asInt(json['maxFileBytes']),
       );
 }
 

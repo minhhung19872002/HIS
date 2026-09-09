@@ -1,3 +1,5 @@
+
+import '../../../core/json.dart';
 /// Tài khoản app của người bệnh, theo góc nhìn của giao diện.
 class Account {
   const Account({
@@ -30,11 +32,11 @@ class Account {
         id: json['id'] as String? ?? '',
         phoneNumber: json['phoneNumber'] as String? ?? '',
         fullName: json['fullName'] as String? ?? '',
-        isLinked: json['isLinked'] as bool? ?? false,
+        isLinked: asBool(json['isLinked']),
         patientCode: json['patientCode'] as String?,
-        mustChangePassword: json['mustChangePassword'] as bool? ?? false,
-        hasPin: json['hasPin'] as bool? ?? false,
-        biometricEnabled: json['biometricEnabled'] as bool? ?? false,
+        mustChangePassword: asBool(json['mustChangePassword']),
+        hasPin: asBool(json['hasPin']),
+        biometricEnabled: asBool(json['biometricEnabled']),
       );
 }
 
@@ -77,7 +79,7 @@ class LoginDevice {
             DateTime.now(),
         createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '')?.toLocal() ??
             DateTime.now(),
-        biometricEnabled: json['biometricEnabled'] as bool? ?? false,
-        isCurrent: json['isCurrent'] as bool? ?? false,
+        biometricEnabled: asBool(json['biometricEnabled']),
+        isCurrent: asBool(json['isCurrent']),
       );
 }

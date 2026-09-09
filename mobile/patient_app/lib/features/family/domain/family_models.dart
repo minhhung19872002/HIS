@@ -1,3 +1,5 @@
+
+import '../../../core/json.dart';
 /// Thành viên gia đình đã kết nối (HSMT I.2 #7).
 class FamilyMember {
   const FamilyMember({
@@ -33,9 +35,9 @@ class FamilyMember {
         name: json['name'] as String? ?? '',
         relationship: json['relationship'] as String?,
         status: json['status'] as String? ?? 'Pending',
-        canViewResults: json['canViewResults'] as bool? ?? false,
-        canBookAppointments: json['canBookAppointments'] as bool? ?? false,
-        canTakeQueueNumber: json['canTakeQueueNumber'] as bool? ?? false,
+        canViewResults: asBool(json['canViewResults']),
+        canBookAppointments: asBool(json['canBookAppointments']),
+        canTakeQueueNumber: asBool(json['canTakeQueueNumber']),
         verifiedAt: json['verifiedAt'] is String
             ? DateTime.tryParse(json['verifiedAt'] as String)
             : null,
@@ -51,7 +53,7 @@ class FamilyList {
         items: (json['items'] as List<dynamic>? ?? const [])
             .map((e) => FamilyMember.fromJson(e as Map<String, dynamic>))
             .toList(),
-        maxMembers: json['maxMembers'] as int? ?? 20,
+        maxMembers: asInt(json['maxMembers'], fallback: 20),
       );
 }
 

@@ -4,6 +4,8 @@
 /// Màn hình phải hiển thị được phần đã có thay vì trắng cả trang chỉ vì thiếu một trường.
 library;
 
+import '../../../core/json.dart';
+
 DateTime? _date(Object? value) =>
     value is String && value.isNotEmpty ? DateTime.tryParse(value) : null;
 
@@ -124,7 +126,7 @@ class LabResult {
         orderingDoctor: json['orderingDoctor'] as String?,
         department: json['department'] as String?,
         status: json['status'] as String? ?? 'Pending',
-        hasAbnormal: json['hasAbnormal'] as bool? ?? false,
+        hasAbnormal: asBool(json['hasAbnormal']),
         visitId: json['visitId'] as String?,
         testItems: (json['testItems'] as List<dynamic>? ?? const [])
             .map((e) => LabTestItem.fromJson(e as Map<String, dynamic>))
@@ -188,8 +190,8 @@ class ImagingResult {
         reportingDoctor: json['reportingDoctor'] as String?,
         orderingDoctor: json['orderingDoctor'] as String?,
         status: json['status'] as String? ?? 'Pending',
-        hasImages: json['hasImages'] as bool? ?? false,
-        imageCount: json['imageCount'] as int? ?? 0,
+        hasImages: asBool(json['hasImages']),
+        imageCount: asInt(json['imageCount']),
         visitId: json['visitId'] as String?,
       );
 }
@@ -210,8 +212,8 @@ class ImagingInstance {
 
   factory ImagingInstance.fromJson(Map<String, dynamic> json) => ImagingInstance(
         instanceId: json['instanceId'] as String? ?? '',
-        seriesNumber: json['seriesNumber'] as int? ?? 0,
-        instanceNumber: json['instanceNumber'] as int? ?? 0,
+        seriesNumber: asInt(json['seriesNumber']),
+        instanceNumber: asInt(json['instanceNumber']),
         seriesDescription: json['seriesDescription'] as String?,
       );
 }
@@ -308,7 +310,7 @@ class HealthCheckup {
         healthClassification: json['healthClassification'] as String?,
         conclusion: json['conclusion'] as String?,
         recommendation: json['recommendation'] as String?,
-        certificateIssued: json['certificateIssued'] as bool? ?? false,
+        certificateIssued: asBool(json['certificateIssued']),
         certificateNumber: json['certificateNumber'] as String?,
       );
 }
@@ -344,11 +346,11 @@ class PrescriptionItem {
   factory PrescriptionItem.fromJson(Map<String, dynamic> json) => PrescriptionItem(
         drugName: json['drugName'] as String? ?? '',
         strength: json['strength'] as String?,
-        quantity: json['quantity'] as num? ?? 0,
+        quantity: asDouble(json['quantity']),
         unit: json['unit'] as String?,
         dosage: json['dosage'] as String?,
         frequency: json['frequency'] as String?,
-        durationDays: json['durationDays'] as int?,
+        durationDays: tryAsInt(json['durationDays']),
         instructions: json['instructions'] as String?,
       );
 }
@@ -384,7 +386,7 @@ class Prescription {
         departmentName: json['departmentName'] as String?,
         diagnosis: json['diagnosis'] as String?,
         status: json['status'] as String?,
-        isDispensed: json['isDispensed'] as bool? ?? false,
+        isDispensed: asBool(json['isDispensed']),
         items: (json['items'] as List<dynamic>? ?? const [])
             .map((e) => PrescriptionItem.fromJson(e as Map<String, dynamic>))
             .toList(),

@@ -52,7 +52,7 @@ class Admission {
         medicalRecordCode: json['medicalRecordCode'] as String?,
         admissionDate: _date(json['admissionDate']),
         dischargeDate: _date(json['dischargeDate']),
-        daysOfStay: json['daysOfStay'] as int? ?? 0,
+        daysOfStay: asInt(json['daysOfStay']),
         departmentName: json['departmentName'] as String?,
         roomName: json['roomName'] as String?,
         bedName: json['bedName'] as String?,
@@ -62,7 +62,7 @@ class Admission {
         dischargeDiagnosis: json['dischargeDiagnosis'] as String?,
         status: asInt(json['status']),
         statusName: json['statusName'] as String?,
-        isInProgress: json['isInProgress'] as bool? ?? false,
+        isInProgress: asBool(json['isInProgress']),
       );
 }
 
@@ -98,9 +98,9 @@ class MedicineDisclosureItem {
         medicineName: json['medicineName'] as String? ?? '',
         activeIngredient: json['activeIngredient'] as String?,
         unit: json['unit'] as String?,
-        quantity: json['quantity'] as num? ?? 0,
-        unitPrice: json['unitPrice'] as num? ?? 0,
-        amount: json['amount'] as num? ?? 0,
+        quantity: asDouble(json['quantity']),
+        unitPrice: asDouble(json['unitPrice']),
+        amount: asDouble(json['amount']),
         paymentSourceName: json['paymentSourceName'] as String?,
         dosage: json['dosage'] as String?,
         frequency: json['frequency'] as String?,
@@ -144,9 +144,9 @@ class MedicineDisclosure {
         items: (json['items'] as List<dynamic>? ?? const [])
             .map((e) => MedicineDisclosureItem.fromJson(e as Map<String, dynamic>))
             .toList(),
-        totalAmount: json['totalAmount'] as num? ?? 0,
-        insuranceAmount: json['insuranceAmount'] as num? ?? 0,
-        patientAmount: json['patientAmount'] as num? ?? 0,
+        totalAmount: asDouble(json['totalAmount']),
+        insuranceAmount: asDouble(json['insuranceAmount']),
+        patientAmount: asDouble(json['patientAmount']),
       );
 }
 
@@ -199,6 +199,6 @@ class ServiceOrder {
         statusName: json['statusName'] as String?,
         resultDate: _date(json['resultDate']),
         queueNumber: json['queueNumber'] as String?,
-        peopleAhead: json['peopleAhead'] as int? ?? -1,
+        peopleAhead: asInt(json['peopleAhead'], fallback: -1),
       );
 }
