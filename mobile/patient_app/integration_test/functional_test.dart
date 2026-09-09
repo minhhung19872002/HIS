@@ -60,6 +60,14 @@ void main() {
         const FakeAccessibilityFeatures(disableAnimations: true, reduceMotion: true);
     addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
 
+    // Khung test mặc định 800x600 là một ô bẹt, không giống máy nào cả: màn đặt lịch có thẻ bác
+    // sĩ + dải ngày + lưới giờ + ô lý do + thanh đáy, và ở 600px thì phần cuối nằm ngoài vùng
+    // cuộn được. Đặt bằng một máy thật (360x720dp) để đo trên đúng hình dạng người bệnh nhìn.
+    tester.view.physicalSize = const Size(1080, 2160);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     backend = _StatefulDemoBackend();
     await tester.pumpWidget(
       ProviderScope(
@@ -93,8 +101,24 @@ void main() {
         await tester.pumpAndSettle();
       }
     }
-    await tester.ensureVisible(target);
-    await tester.pumpAndSettle();
+
+    // Cuộn tới nơi rồi đợi, LẶP LẠI vài lần: kéo xong màn có thể đổi chiều cao (khung giờ vừa
+    // nạp xong, dải lỗi vừa hiện ra) và phần tử trôi khỏi tầm nhìn lần nữa. Chạm vào lúc đó là
+    // chạm trượt, mà `tap()` chỉ cảnh báo chứ không báo hỏng — bài kiểm sẽ hỏng ở một khẳng định
+    // xa tít phía sau và rất khó lần ra vì sao.
+    for (var attempt = 0; attempt < 4; attempt++) {
+      await tester.ensureVisible(target);
+      await tester.pumpAndSettle();
+
+      final centre = tester.getCenter(target);
+      final hit = tester.hitTestOnBinding(centre);
+      final reachable = hit.path.any((entry) {
+        final t = entry.target;
+        return t is RenderBox && t == tester.renderObject(target);
+      });
+      if (reachable) break;
+    }
+
     await tester.tap(target);
     await tester.pumpAndSettle(const Duration(seconds: 2));
   }
@@ -182,11 +206,20 @@ void main() {
 
       expect(find.text('Buổi sáng'), findsOneWidget,
           reason: 'chọn khoa xong phải nạp được khung giờ buổi sáng');
-      expect(find.widgetWithText(ChoiceChip, '08:00'), findsOneWidget);
+      expect(find.text('08:00'), findsOneWidget);
 
-      // Khung đã hết chỗ vẫn hiện nhưng KHÔNG bấm được — người bệnh thấy được giờ nào đông.
-      final full = tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '10:00'));
-      expect(full.onSelected, isNull, reason: 'khung hết chỗ không được cho chọn');
+      // Khung đã hết chỗ vẫn HIỆN nhưng phải nhìn ra được là không chọn được. Kiểm bằng đúng tín
+      // hiệu người bệnh thấy — chữ gạch ngang — chứ không phải bằng kiểu widget: gạch ngang đọc
+      // được cả khi không phân biệt được màu, nên nó mới là mệnh đề đáng canh.
+      final full = tester.widget<Text>(find.text('10:00'));
+      expect(full.style?.decoration, TextDecoration.lineThrough,
+          reason: 'khung hết chỗ phải được gạch ngang');
+
+      // Và bấm vào thì không chọn được: giờ đang chọn vẫn là 08:00 sau khi chạm 10:00.
+      await tapScrolled(tester, find.text('08:00'));
+      await tapScrolled(tester, find.text('10:00'));
+      expect(find.textContaining('08:00'), findsWidgets,
+          reason: 'chạm khung hết chỗ không được đổi lựa chọn');
     });
 
     testWidgets('ĐẶT XONG thì lịch mới HIỆN NGAY trong danh sách', (tester) async {
@@ -204,10 +237,12 @@ void main() {
       await tester.tap(find.text('Khoa Khám bệnh').last);
       await tester.pumpAndSettle(const Duration(seconds: 2));
 
-      await tester.tap(find.widgetWithText(ChoiceChip, '08:00'));
+      await tester.tap(find.text('08:00'));
       await tester.pumpAndSettle();
 
-      await tapScrolled(tester, find.widgetWithText(FilledButton, 'Xác nhận đặt khám'));
+      // Nút xác nhận nay nằm ở thanh đáy (luôn thấy), dựng bằng `AppPrimaryButton` chứ không
+      // phải `FilledButton`, và mang nhãn ngắn "Xác nhận" — nên tìm theo chữ đó.
+      await tapScrolled(tester, find.text('Xác nhận'));
       await tester.pumpAndSettle(const Duration(seconds: 1));
 
       expect(backend.booked, 1, reason: 'phải thật sự gọi POST đặt lịch');

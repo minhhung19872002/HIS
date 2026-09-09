@@ -327,7 +327,15 @@ class _QuotaBar extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Dung lượng đã dùng', style: Theme.of(context).textTheme.labelLarge),
+            // Expanded chứ không để Text tự do: ở cỡ chữ mới, nhãn cộng con số dung lượng rộng
+            // hơn thẻ trên màn 360dp và hàng bị tràn.
+            Expanded(
+              child: Text(
+                'Dung lượng đã dùng',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+            ),
+            const SizedBox(width: 8),
             Text(wallet.readableUsed),
           ],
         ),

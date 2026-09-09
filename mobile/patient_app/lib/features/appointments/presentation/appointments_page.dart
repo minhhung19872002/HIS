@@ -244,11 +244,15 @@ class _AppointmentCard extends StatelessWidget {
 
             if (appointment.canModify) ...[
               const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              // `Wrap` chứ không `Row`: trên màn 360dp — cỡ phổ biến nhất — hai nút cộng khoảng
+              // đệm rộng hơn thẻ và hàng bị tràn. `Wrap` cho nút thứ hai xuống dòng thay vì cắt
+              // cụt, mà trên màn rộng thì vẫn nằm cùng hàng như cũ.
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   TextButton(onPressed: onCancel, child: const Text('Huỷ lịch')),
-                  const SizedBox(width: 8),
                   FilledButton.tonal(
                     style: AppTheme.rowButton,
                     onPressed: onReschedule,
