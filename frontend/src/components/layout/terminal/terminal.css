@@ -2613,10 +2613,13 @@ kbd {
   }
 
   /* Desktop-only affordances: browser reload covers refresh, the phone has a
-     clock, and v1 layout is being retired. */
+     clock, v1 layout is being retired, and the workspace switcher (330px of
+     TẤT CẢ/TIẾP ĐÓN/CHUYÊN MÔN/…) squeezed the breadcrumb to 0px — the rail
+     flyout still reaches every module. */
   .his-clock,
   .his-tb-btn--refresh,
-  .his-tb-btn--layout {
+  .his-tb-btn--layout,
+  .his-tb-workspaces {
     display: none;
   }
 

@@ -160,7 +160,7 @@ const Topbar: React.FC<{
         {/* #404: workspace switcher — chỉ khi user thấy được ≥2 workspace. Nút "Tất cả"
           (undefined) là mặc định — hiện toàn bộ menu; các nút còn lại lọc theo workspace. */}
         {workspaces.length >= 2 && onSwitchWorkspace && (
-          <div style={{ display: 'inline-flex', gap: 2, marginRight: 8, border: '1px solid var(--line)', borderRadius: 6, padding: 2 }}>
+          <div className="his-tb-workspaces" style={{ display: 'inline-flex', gap: 2, marginRight: 8, border: '1px solid var(--line)', borderRadius: 6, padding: 2 }}>
             <button
               type="button"
               title="Tất cả không gian làm việc"
