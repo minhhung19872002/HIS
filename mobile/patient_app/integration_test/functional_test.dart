@@ -733,6 +733,12 @@ void main() {
       await tapScrolled(tester, find.textContaining('Tôi hiểu thao tác này'));
       await tester.enterText(find.widgetWithText(TextField, 'Nhập mật khẩu để xác nhận'), 'Admin@123');
       await tester.pumpAndSettle();
+
+      // Cuộn lại tới nút TRƯỚC KHI soi nó. Trên máy thật, gõ chữ làm bàn phím ảo trồi lên và ăn
+      // mất nửa dưới màn; nút nằm cuối danh sách cuộn nên bị bỏ khỏi cây, và phép soi trạng thái
+      // hỏng bằng "Bad state: No element" — một lỗi chỉ lộ ra trên simulator, không bao giờ thấy
+      // khi chạy `flutter test` không cần máy.
+      await scrollTo(tester, button);
       expect(tester.widget<FilledButton>(button).onPressed, isNotNull,
           reason: 'tích ô xác nhận rồi mới gõ mật khẩu mà nút vẫn câm thì không xoá được nữa');
     });
