@@ -1,5 +1,5 @@
 {
- "ranAt": "2026-09-04T09:44:07",
+ "ranAt": "2026-09-05T07:50:42",
  "roleClaimsSeen": [
   "Accountant",
   "Admin",
@@ -71,7 +71,7 @@
    "tc": "TC-PERM-011",
    "name": "đăng ký + đăng nhập",
    "pass": true,
-   "detail": "register → 200 {\"success\":true,\"data\":{\"id\":\"38aab80d-cfff-49bb-94ed-69 · username sinh ra 'bn.t1.probe@example.invalid' · login → 200 · token: True"
+   "detail": "register → 200 {\"success\":true,\"data\":{\"id\":\"6390c13e-1215-471a-afc5-39 · username sinh ra 'bn.t1.probe@example.invalid' · login → 200 · token: True"
   },
   {
    "tc": "TC-PERM-011",
@@ -94,14 +94,14 @@
   {
    "tc": "TC-PERM-015",
    "name": "cơ chế buộc đổi mật khẩu",
-   "pass": false,
-   "detail": "cột Users liên quan: không có · file backend nhắc tới: không có → CHƯA CÓ TÍNH NĂNG (khoảng trống, không phải lỗi)"
+   "pass": true,
+   "detail": "cột Users liên quan: MustChangePassword,PasswordChangedAt · file backend nhắc tới: backend/src/HIS.Application/DTOs/AuthDto.cs\nbackend/src/HIS.Core/Entities/User.cs\nbackend/src/HIS.Infrastructure/Services/AuthService.cs\nbackend/src/HIS.Infrastructure/Services/System/SystemCompleteService.M17.Admin.Part1.cs → CÓ"
   },
   {
    "tc": "TC-PERM-016",
    "name": "đếm sai mật khẩu",
    "pass": true,
-   "detail": "6 lần sai → status [401, 401, 401, 401, 401, 401] · FailedLoginCount=5 · LockoutEndAt=2026-09-04T02:47:45.4180638"
+   "detail": "6 lần sai → status [401, 401, 401, 401, 401, 401] · FailedLoginCount=5 · LockoutEndAt=2026-09-05T00:54:20.8823157"
   },
   {
    "tc": "TC-PERM-016",
@@ -125,7 +125,7 @@
    "tc": "TC-PERM-018",
    "name": "audit có ghi",
    "pass": true,
-   "detail": "AuditLogs 39151 → 39152"
+   "detail": "AuditLogs 52150 → 52151"
   },
   {
    "tc": "TC-PERM-018",

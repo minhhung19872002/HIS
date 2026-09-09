@@ -1,5 +1,5 @@
 {
- "ranAt": "2026-09-05T02:16:13",
+ "ranAt": "2026-09-05T07:47:08",
  "cases": [
   {
    "case": "gán túi O+ cho bệnh nhân A+ (hợp nhóm)",
@@ -27,7 +27,7 @@
    "mustBlock": true,
    "blocked": true,
    "pass": true,
-   "detail": "HTTP 400 · trạng thái túi=Available · Túi máu đã hết hạn ngày 01/09/2026, không sử dụng được."
+   "detail": "HTTP 400 · trạng thái túi=Available · Túi máu đã hết hạn ngày 02/09/2026, không sử dụng được."
   },
   {
    "case": "gán lại túi máu ĐÃ TRUYỀN",

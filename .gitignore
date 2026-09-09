@@ -177,6 +177,9 @@ test-reception-full.ps1
 
 # SQL Server backup dump (local migration artifact)
 *.bak
+# Ban sao luu tay cua file cau hinh (`settings.json.bak2`...). `*.bak` khong bat duoc duoi co so,
+# ma cac file nay deu la ban sao cua thu DA NAM TRONG git — giu lai chi lam ban `git status`.
+*.bak[0-9]
 
 # Large ONNX model files: 28MB DenseNet + 90MB ResNet50 both shipped in
 # image so /api/ai-labeling/model endpoint can serve either without R2.
