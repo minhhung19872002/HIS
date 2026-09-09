@@ -38,7 +38,12 @@ const PatientAppDashboardPage: React.FC = () => {
   useEffect(() => { reload(); }, [reload]);
 
   if (loading) return <LoadingState />;
-  if (error || !data) return <ErrorState onRetry={reload} />;
+  // Kiểm cả HÌNH DẠNG chứ không chỉ null: một phản hồi 200 sai kiểu (proxy trả index.html,
+  // BFF đổi hợp đồng) từng làm trang nổ `TypeError ... reading 'map'` giữa lúc vẽ, thay vì
+  // hiện màn lỗi có nút thử lại.
+  if (error || !data || !Array.isArray(data.registrationsByDay)) {
+    return <ErrorState onRetry={reload} />;
+  }
 
   const accountKpis: KpiItem[] = [
     { lbl: 'Tài khoản app', val: data.totalAccounts, tone: 'info' },

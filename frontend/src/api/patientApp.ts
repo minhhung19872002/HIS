@@ -30,6 +30,19 @@ client.interceptors.request.use((config) => {
 // Bóc vỏ {success,data} giống apiClient của HIS, để trang gọi nhận thẳng payload.
 client.interceptors.response.use((response) => {
   const body = response.data;
+
+  // Reverse proxy chưa định tuyến `/patient-api` thì lời gọi rơi vào SPA fallback và nhận về
+  // **index.html kèm HTTP 200**. Không chặn ở đây thì chuỗi HTML đó chảy thẳng vào trang và nổ
+  // `Cannot read properties of undefined (reading 'map')` — một TypeError trần, không nói được gì
+  // về nguyên nhân thật. Đây là lỗi cấu hình hay gặp nhất của 5 màn này nên phải gọi đúng tên nó.
+  if (typeof body === 'string' && body.trimStart().startsWith('<')) {
+    throw new Error(
+      'Không gọi được máy chủ app người bệnh: địa chỉ /patient-api đang trả về trang web thay vì '
+      + 'dữ liệu. Reverse proxy chưa định tuyến /patient-api sang BFF (xem '
+      + 'docs/features/patient-app/deploy-runbook.md §3).',
+    );
+  }
+
   if (body && typeof body === 'object' && 'success' in body && 'data' in body) {
     response.data = body.data;
   }
