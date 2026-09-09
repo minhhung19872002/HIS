@@ -57,7 +57,7 @@ Không dòng nào chờ code, và với mỗi dòng thì phần đo được **�
 
 | Dòng | Đã đo được gì | Chờ gì | Chạy gì để nâng lên ✅ |
 |---|---|---|---|
-| I.2.1.1 | Cơ chế chặn bản quá cũ: `phase7` TC-P01…TC-P05 | Tài khoản developer Apple + Google | [`store-release-checklist.md`](store-release-checklist.md) |
+| I.2.1.1 | Cơ chế chặn bản cũ (`phase7` TC-P01…TC-P05) **và khâu đóng gói**: `flutter build appbundle --release` PASS, AAB không mang chữ ký nào, CI chặn việc ký bằng khoá debug | Tài khoản developer Apple + Google | [`store-release-checklist.md`](store-release-checklist.md) |
 | I.2.2.2 | **Trọn đường ống** `push_outbox` → worker → relay thật, bản ghi chuyển `sent`, token bị che trong log | Khoá Firebase + chứng chỉ APNs | [`external-services-setup.md`](external-services-setup.md) §2, rồi kiểm `curl /health` → `"mode":"fcm"` |
 | I.2.9.3 | Server: `auth` TC-07…TC-10. Client: đã vá lỗi chết hẳn trên Android, plugin nay chạy tới nơi | Máy có cảm biến vân tay/Face ID thật | Kịch bản ghi trong ô của dòng đó |
 | I.4.1 | TLS 1.0/1.1 bị từ chối · 1.2/1.3 bắt tay được · đủ 4 header · không lộ `Server` · tự cấp và tự gia hạn chứng chỉ | Một tên miền trỏ về VPS (để có chữ ký DV công khai của Let's Encrypt) | `bash scripts/verify-patient-app-vps.sh` trên VPS thật + ảnh SSL Labs |
@@ -87,7 +87,7 @@ Không dòng nào chờ code, và với mỗi dòng thì phần đo được **�
 
 | # | Yêu cầu HSMT | Màn hình / API | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|---|
-| I.2.1.1 | Người dùng tải và cập nhật ứng dụng **đã được duyệt an toàn** từ App Store và Google Play | `GET /api/v1/app-config` + `UpdateGate` phủ toàn app; checklist phát hành: [`store-release-checklist.md`](store-release-checklist.md) | ✅ Cơ chế đã kiểm: `phase7` TC-P01…TC-P05 — bản cũ hơn mức tối thiểu bị chặn kèm nút mở kho ứng dụng và số hỗ trợ; **phiên bản sai định dạng KHÔNG chặn ai** (lỗi đọc chuỗi không được phép khoá người bệnh ra ngoài); iOS và Android đọc mốc riêng. ⚠️ Việc nộp lên hai kho cần tài khoản developer của bệnh viện — checklist đã liệt kê đủ | 7 | ⚠️ |
+| I.2.1.1 | Người dùng tải và cập nhật ứng dụng **đã được duyệt an toàn** từ App Store và Google Play | `GET /api/v1/app-config` + `UpdateGate` phủ toàn app; **cấu hình ký bản phát hành** (`android/key.properties`) + rút gọn R8 kèm `proguard-rules.pro`; checklist phát hành: [`store-release-checklist.md`](store-release-checklist.md) | ✅ Cơ chế chặn bản cũ đã kiểm: `phase7` TC-P01…TC-P05 — bản cũ hơn mức tối thiểu bị chặn kèm nút mở kho ứng dụng và số hỗ trợ; **phiên bản sai định dạng KHÔNG chặn ai**; iOS và Android đọc mốc riêng. **Khâu đóng gói cũng đã sửa và đo**: trước đây bản release bị ký bằng khoá **debug** (Google Play từ chối thẳng, và khoá debug thì ai cũng có) — nay đọc khoá thật từ `key.properties`, thiếu khoá thì để bản chưa ký và cảnh báo to chứ không âm thầm rơi về khoá debug. `flutter build appbundle --release` PASS (57,5 MB) và AAB xác nhận **không mang chữ ký nào**; CI chặn nếu `release` lại trỏ về khoá debug. ⚠️ **Điều kiện còn lại: tài khoản developer Apple + Google của bệnh viện** để ký và nộp — xem [`store-release-checklist.md`](store-release-checklist.md) | 7 | ⚠️ |
 
 ### 2. Đăng nhập
 
