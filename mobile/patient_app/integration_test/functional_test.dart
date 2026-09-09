@@ -47,6 +47,19 @@ void main() {
   late _StatefulDemoBackend backend;
 
   Future<void> launch(WidgetTester tester, {AuthState? state}) async {
+    // Bật "giảm chuyển động" của hệ điều hành cho cả lượt chạy.
+    //
+    // Trang chủ có vòng sáng nhấp nháy quanh mã số thứ tự — một `AnimationController` lặp vô
+    // hạn. Khung hình vì thế KHÔNG BAO GIỜ đứng yên, và `pumpAndSettle` treo tới lúc hết giờ:
+    // cả bộ kiểm đứng im 10 phút rồi báo "did not complete" ở mọi bài.
+    //
+    // Đây không phải mẹo cho qua bài: app vốn tôn trọng thiết lập này (người bệnh say tàu xe hay
+    // nhạy cảm với chuyển động bật nó lên), nên bật ở đây vừa gỡ được treo, vừa kiểm luôn nhánh
+    // giảm-chuyển-động có thật sự dừng hoạt ảnh hay không.
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true, reduceMotion: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+
     backend = _StatefulDemoBackend();
     await tester.pumpWidget(
       ProviderScope(
