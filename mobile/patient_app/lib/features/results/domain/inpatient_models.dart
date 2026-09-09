@@ -1,6 +1,8 @@
 /// Mô hình nội trú (HSMT I.2 #6): đợt nằm viện, bảng công khai thuốc, chỉ định cận lâm sàng.
 library;
 
+import '../../../core/json.dart';
+
 DateTime? _date(Object? value) =>
     value is String && value.isNotEmpty ? DateTime.tryParse(value) : null;
 
@@ -58,7 +60,7 @@ class Admission {
         reasonForAdmission: json['reasonForAdmission'] as String?,
         diagnosisOnAdmission: json['diagnosisOnAdmission'] as String?,
         dischargeDiagnosis: json['dischargeDiagnosis'] as String?,
-        status: json['status'] as int? ?? 0,
+        status: asInt(json['status']),
         statusName: json['statusName'] as String?,
         isInProgress: json['isInProgress'] as bool? ?? false,
       );
@@ -193,7 +195,7 @@ class ServiceOrder {
         requestTypeName: json['requestTypeName'] as String?,
         executeRoomName: json['executeRoomName'] as String?,
         orderingDoctor: json['orderingDoctor'] as String?,
-        status: json['status'] as int? ?? 0,
+        status: asInt(json['status']),
         statusName: json['statusName'] as String?,
         resultDate: _date(json['resultDate']),
         queueNumber: json['queueNumber'] as String?,

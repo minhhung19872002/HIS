@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/providers.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/theme/app_theme.dart';
 import '../data/family_repository.dart';
 import '../domain/family_models.dart';
 
@@ -413,9 +414,15 @@ class _MemberCard extends StatelessWidget {
                 if (onPermissions != null)
                   TextButton(onPressed: onPermissions, child: const Text('Quyền')),
                 if (onVerify != null)
-                  FilledButton.tonal(onPressed: onVerify, child: const Text('Xác nhận')),
+                  FilledButton.tonal(
+                      style: AppTheme.rowButton,
+                      onPressed: onVerify,
+                      child: const Text('Xác nhận')),
                 if (onView != null)
-                  FilledButton(onPressed: onView, child: const Text('Xem hồ sơ')),
+                  FilledButton(
+                      style: AppTheme.rowButton,
+                      onPressed: onView,
+                      child: const Text('Xem hồ sơ')),
               ],
             ),
           ],

@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { Alert, Button, Form, Input, Typography } from 'antd';
-import { LockOutlined, UserOutlined } from '@ant-design/icons';
+import { Alert, Button, Card, Form, Input, Typography } from 'antd';
+import { LockOutlined, MedicineBoxOutlined, UserOutlined } from '@ant-design/icons';
 import { useAuth } from './auth';
+
+// Nền và bố cục màn chưa-đăng-nhập lấy đúng của HIS, không dựng lại.
+import { AuthLayout } from '@/components/layout/AuthLayout';
 
 /**
  * Màn đăng nhập cho nhân viên bệnh viện.
@@ -34,21 +37,22 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'linear-gradient(160deg,#e6f4f1 0%,#f7fafc 60%)', padding: 16,
-    }}>
-      <div style={{
-        width: '100%', maxWidth: 400, background: '#fff', borderRadius: 12, padding: 32,
-        boxShadow: '0 8px 30px rgba(0,0,0,.08)',
-      }}>
+    <AuthLayout>
+      <Card style={{ width: 420, borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: 40, lineHeight: 1 }}>🩺</div>
-          <Typography.Title level={4} style={{ marginTop: 12, marginBottom: 4 }}>
-            Quản trị app người bệnh
+          <div style={{
+            width: 64, height: 64, borderRadius: 16,
+            background: 'linear-gradient(135deg, #1677ff, #4096ff)',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            marginBottom: 12,
+          }}>
+            <MedicineBoxOutlined style={{ fontSize: 32, color: '#fff' }} />
+          </div>
+          <Typography.Title level={3} style={{ margin: 0, color: '#1677ff' }}>
+            App hỗ trợ người bệnh
           </Typography.Title>
           <Typography.Text type="secondary">
-            Đăng nhập bằng tài khoản HIS của bạn
+            Trang quản trị — đăng nhập bằng tài khoản HIS của bạn
           </Typography.Text>
         </div>
 
@@ -77,7 +81,7 @@ export const LoginPage: React.FC = () => {
             Đăng nhập
           </Button>
         </Form>
-      </div>
-    </div>
+      </Card>
+    </AuthLayout>
   );
 };

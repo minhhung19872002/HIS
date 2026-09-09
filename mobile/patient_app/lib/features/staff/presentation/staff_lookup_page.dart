@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/error/failure.dart';
+import '../../../core/theme/app_theme.dart';
 import '../domain/staff_models.dart';
 import 'staff_providers.dart';
 
@@ -200,6 +201,7 @@ class _StaffSearchState extends ConsumerState<_StaffSearch> {
                   ),
                   const SizedBox(width: 8),
                   FilledButton(
+                    style: AppTheme.rowButton,
                     onPressed: _busy ? null : _search,
                     child: _busy
                         ? const SizedBox(

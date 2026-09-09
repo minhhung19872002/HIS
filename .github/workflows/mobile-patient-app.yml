@@ -164,7 +164,11 @@ jobs:
           # (log dừng ngay sau "Created VkInstance ... for application:'Impeller'"). Máy ảo đang
           # chạy GPU phần mềm (swiftshader), cộng thêm Vulkan là quá sức. Bản phát hành thật vẫn
           # dùng Impeller như mặc định — cờ này chỉ áp cho lần chạy trên CI.
-          script: flutter drive --no-enable-impeller --driver=test_driver/integration_test.dart --target=integration_test/screenshots_test.dart -d emulator-5554
+          # Hai lượt trên CÙNG một máy ảo: đi hết chức năng (có khẳng định — hỏng là đỏ CI), rồi
+          # mới chụp bằng chứng. Thứ tự có chủ đích: bộ chụp không khẳng định gì, nên nếu một màn
+          # rơi vào nhánh lỗi thì nó vẫn cho ra ảnh và vẫn xanh. Chạy bộ khẳng định TRƯỚC thì lỗi
+          # đó chặn được ngay, thay vì nằm im trong một tấm ảnh dán nhãn "list".
+          script: flutter drive --no-enable-impeller --driver=test_driver/integration_test.dart --target=integration_test/functional_test.dart -d emulator-5554 && flutter drive --no-enable-impeller --driver=test_driver/integration_test.dart --target=integration_test/screenshots_test.dart -d emulator-5554
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -252,6 +256,16 @@ jobs:
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl list devices | grep Booted
+
+      # Đi hết chức năng trên simulator TRƯỚC khi chụp: bộ này có khẳng định nên hỏng là đỏ CI,
+      # còn bộ chụp thì màn có lỗi vẫn cho ra ảnh và vẫn xanh.
+      - name: Đi hết chức năng trên iOS simulator
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          flutter drive \
+            --driver=test_driver/integration_test.dart \
+            --target=integration_test/functional_test.dart \
+            -d ${{ steps.sim.outputs.udid }}
 
       - name: Chụp màn hình trên iOS simulator
         working-directory: ${{ env.APP_DIR }}

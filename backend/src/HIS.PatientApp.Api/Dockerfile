@@ -20,9 +20,30 @@ RUN dotnet publish backend/src/HIS.PatientApp.Api/HIS.PatientApp.Api.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 
+# curl chi de phuc vu HEALTHCHECK ben duoi. Anh `dotnet/aspnet` KHONG co san wget lan curl —
+# HEALTHCHECK goi wget thi container bao "unhealthy" vinh vien voi "wget: not found", trong khi
+# app van chay tot. Luc do ai nhin `docker ps` cung tuong dich vu hong, con `depends_on:
+# condition: service_healthy` thi treo mai khong khoi dong duoc thu khac.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Chay bang tai khoan khong phai root: neu co lo hong RCE thi ke tan cong khong san
 # duoc quyen root trong container.
 RUN adduser --system --group --uid 10001 patientapp
+
+# Tao san thu muc vi giay to VA giao quyen cho user chay app — TRUOC khi doi sang USER.
+#
+# Thieu hai dong nay thi Docker tao volume `/app/vault` thuoc root, con app chay bang user
+# `patientapp` nen khong ghi noi: moi lan nguoi benh tai giay to len deu tra 500
+# "Access to the path '/app/vault/xx' is denied". Loi nay KHONG bao gio lo ra o may dev, vi o do
+# app chay bang chinh tai khoan cua lap trinh vien va ghi vao mot thu muc thuong.
+#
+# Docker gan volume rong vao mot thu muc DA CO trong anh thi no chep ca quyen so huu sang volume —
+# nen thu muc phai ton tai san o day, khong the tao luc chay.
+RUN mkdir -p /app/vault && chown -R patientapp:patientapp /app/vault
+VOLUME ["/app/vault"]
+
 USER patientapp
 
 COPY --from=build /app/publish .
@@ -33,6 +54,6 @@ EXPOSE 8080
 
 # TLS do Caddy tren VPS dam nhiem (HSMT I.4). Container nay chay HTTP sau proxy.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:8080/health || exit 1
+    CMD curl --fail --silent --show-error http://localhost:8080/health || exit 1
 
 ENTRYPOINT ["dotnet", "HIS.PatientApp.Api.dll"]

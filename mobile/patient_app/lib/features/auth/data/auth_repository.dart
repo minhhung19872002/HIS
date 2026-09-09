@@ -169,11 +169,31 @@ class AuthRepository {
     return list.map((e) => LoginDevice.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<void> revokeDevice(String deviceId) =>
-      _rawRun(() => _client.delete<Map<String, dynamic>>('/patient/devices/$deviceId')).then((_) {});
+  Future<void> revokeDevice(String deviceId) async {
+    final body = await _rawRun(
+        () => _client.delete<Map<String, dynamic>>('/patient/devices/$deviceId'));
+    await _adoptRefreshedTokens(body);
+  }
 
-  Future<void> revokeOtherDevices() =>
-      _rawRun(() => _client.delete<Map<String, dynamic>>('/patient/devices/others')).then((_) {});
+  Future<void> revokeOtherDevices() async {
+    final body =
+        await _rawRun(() => _client.delete<Map<String, dynamic>>('/patient/devices/others'));
+    await _adoptRefreshedTokens(body);
+  }
+
+  /// Thu hồi một máy sẽ xoay con dấu bảo mật của CẢ tài khoản, nên token máy đang cầm cũng chết
+  /// theo. Server cấp lại token mới ngay trong phản hồi; không nhặt lấy thì màn hình kế tiếp nhận
+  /// 401 và người bệnh bị đá ra đăng nhập lại — đúng lúc họ đang dọn dẹp vì nghi bị lộ tài khoản.
+  Future<void> _adoptRefreshedTokens(Map<String, dynamic> body) async {
+    final data = body['data'];
+    if (data is! Map<String, dynamic>) return;
+
+    final token = data['token'] as String?;
+    final refreshToken = data['refreshToken'] as String?;
+    if (token == null || refreshToken == null) return;
+
+    await _store.saveTokens(accessToken: token, refreshToken: refreshToken);
+  }
 
   /// Đăng xuất máy hiện tại. Xoá phiên cục bộ kể cả khi gọi server thất bại — người dùng đã bấm
   /// đăng xuất thì máy này phải sạch, dù mạng có lỗi.

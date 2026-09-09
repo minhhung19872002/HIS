@@ -1,3 +1,5 @@
+import '../../../core/json.dart';
+
 /// Một khung giờ khám.
 class TimeSlot {
   const TimeSlot({
@@ -89,17 +91,38 @@ class Appointment {
 
   bool get isCancelled => status == 4;
 
+  /// Tên trạng thái bằng chữ → mã số, cho trường hợp máy chủ trả tên thay vì số.
+  static const _statusNames = {
+    'pending': 0,
+    'chờxácnhận': 0,
+    'confirmed': 1,
+    'đãxácnhận': 1,
+    'arrived': 2,
+    'checkedin': 2,
+    'completed': 2,
+    'đãđếnkhám': 2,
+    'noshow': 3,
+    'khôngđến': 3,
+    'cancelled': 4,
+    'canceled': 4,
+    'đãhuỷ': 4,
+    'đãhủy': 4,
+  };
+
   factory Appointment.fromJson(Map<String, dynamic> json) => Appointment(
-        appointmentCode: json['appointmentCode'] as String? ?? '',
+        appointmentCode: asString(json['appointmentCode']) ?? '',
+        // `scheduledAt` là tên khác của cùng một trường ở vài bản BFF.
         appointmentDate:
-            DateTime.tryParse(json['appointmentDate'] as String? ?? '')?.toLocal() ??
-                DateTime.now(),
-        appointmentTime: json['appointmentTime'] as String?,
-        departmentName: json['departmentName'] as String?,
-        doctorName: json['doctorName'] as String?,
-        roomName: json['roomName'] as String?,
-        status: json['status'] as int? ?? 0,
-        statusName: json['statusName'] as String?,
-        reason: json['reason'] as String?,
+            asDateTime(json, const ['appointmentDate', 'scheduledAt']) ?? DateTime.now(),
+        appointmentTime: asString(json['appointmentTime']),
+        departmentName: asString(json['departmentName']),
+        doctorName: asString(json['doctorName']),
+        roomName: asString(json['roomName']),
+        status: asStatusCode(json['status'], _statusNames),
+        // Máy chủ trả trạng thái bằng chữ mà không kèm `statusName` thì dùng luôn chữ đó. Không
+        // lấy khi trạng thái là số — nhãn "3" trên thẻ lịch hẹn chẳng nói lên điều gì.
+        statusName: asString(json['statusName']) ??
+            (json['status'] is String ? json['status'] as String : null),
+        reason: asString(json['reason']),
       );
 }

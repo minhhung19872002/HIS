@@ -1,3 +1,5 @@
+import '../../../core/json.dart';
+
 /// Khoa khám.
 class Department {
   const Department({required this.id, required this.name, this.code, this.availableDoctors = 0});
@@ -11,7 +13,7 @@ class Department {
         id: json['id'] as String? ?? '',
         name: json['name'] as String? ?? '',
         code: json['code'] as String?,
-        availableDoctors: json['availableDoctors'] as int? ?? 0,
+        availableDoctors: asInt(json['availableDoctors']),
       );
 }
 
@@ -56,7 +58,7 @@ class ClinicRoom {
         roomName: json['roomName'] as String? ?? '',
         departmentName: json['departmentName'] as String?,
         doctorName: json['doctorName'] as String?,
-        waitingCount: json['waitingCount'] as int? ?? 0,
+        waitingCount: asInt(json['waitingCount']),
       );
 }
 
@@ -109,15 +111,15 @@ class QueueTicket {
   factory QueueTicket.fromJson(Map<String, dynamic> json) => QueueTicket(
         id: json['id'] as String? ?? '',
         ticketCode: json['ticketCode'] as String? ?? '',
-        queueNumber: json['queueNumber'] as int? ?? 0,
+        queueNumber: asInt(json['queueNumber']),
         roomId: json['roomId'] as String? ?? '',
         roomName: json['roomName'] as String?,
-        priority: json['priority'] as int? ?? 0,
+        priority: asInt(json['priority']),
         priorityReasonName: json['priorityReasonName'] as String?,
-        priorityVerified: json['priorityVerified'] as bool? ?? false,
-        status: json['status'] as int? ?? 0,
+        priorityVerified: asBool(json['priorityVerified']),
+        status: asInt(json['status']),
         statusName: json['statusName'] as String?,
-        estimatedWaitMinutes: json['estimatedWaitMinutes'] as int? ?? 0,
+        estimatedWaitMinutes: asInt(json['estimatedWaitMinutes']),
       );
 }
 
@@ -149,11 +151,11 @@ class IssuedTicket {
   factory IssuedTicket.fromJson(Map<String, dynamic> json) => IssuedTicket(
         id: json['id'] as String? ?? '',
         ticketCode: json['ticketCode'] as String? ?? '',
-        queueNumber: json['queueNumber'] as int? ?? 0,
+        queueNumber: asInt(json['queueNumber']),
         roomId: json['roomId'] as String? ?? '',
         roomName: json['roomName'] as String?,
-        priority: json['priority'] as int? ?? 0,
-        priorityVerified: json['priorityVerified'] as bool? ?? false,
+        priority: asInt(json['priority']),
+        priorityVerified: asBool(json['priorityVerified']),
       );
 }
 
@@ -193,12 +195,12 @@ class QueueTicketStatus {
         ticketId: json['ticketId'] as String? ?? '',
         ticketCode: json['ticketCode'] as String? ?? '',
         roomName: json['roomName'] as String? ?? '',
-        status: json['status'] as int? ?? 0,
+        status: asInt(json['status']),
         statusName: json['statusName'] as String?,
         currentServingTicket: json['currentServingTicket'] as String?,
-        peopleAhead: json['peopleAhead'] as int? ?? 0,
-        estimatedWaitMinutes: json['estimatedWaitMinutes'] as int? ?? 0,
-        priority: json['priority'] as int? ?? 0,
-        priorityVerified: json['priorityVerified'] as bool? ?? false,
+        peopleAhead: asInt(json['peopleAhead']),
+        estimatedWaitMinutes: asInt(json['estimatedWaitMinutes']),
+        priority: asInt(json['priority']),
+        priorityVerified: asBool(json['priorityVerified']),
       );
 }

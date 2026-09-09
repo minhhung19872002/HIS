@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/error/failure.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/theme/app_theme.dart';
 import '../domain/appointment_models.dart';
 import 'book_appointment_page.dart';
 
@@ -248,7 +249,11 @@ class _AppointmentCard extends StatelessWidget {
                 children: [
                   TextButton(onPressed: onCancel, child: const Text('Huỷ lịch')),
                   const SizedBox(width: 8),
-                  FilledButton.tonal(onPressed: onReschedule, child: const Text('Đổi lịch')),
+                  FilledButton.tonal(
+                    style: AppTheme.rowButton,
+                    onPressed: onReschedule,
+                    child: const Text('Đổi lịch'),
+                  ),
                 ],
               ),
             ],

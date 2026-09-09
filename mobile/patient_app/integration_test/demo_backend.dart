@@ -116,21 +116,48 @@ class DemoBackendAdapter implements HttpClientAdapter {
     // ------------------------------------------------------------------ đặt khám
     '/appointments/departments': '''
       [{"id":"d1","name":"Khoa Khám bệnh","code":"KKB","availableDoctors":4}]''',
+    // Phai khai rieng: `/appointments/doctors` chi chua `/appointments`, nen thieu dong nay thi no
+    // roi vao tuyen danh sach lich hen va `Doctor.fromJson` doc phai JSON cua lich hen — o chon
+    // bac si hien ra vai dong trong.
+    '/appointments/doctors': '''
+      [{"id":"bs1","fullName":"Nguyễn Văn A","title":"BS.CKI","specialty":"Nội tổng quát"},
+       {"id":"bs2","fullName":"Trần Thị B","title":"BS.","specialty":"Tim mạch"}]''',
+    // Tuyen nay tra mot DOI TUONG chia buoi sang/chieu, khong phai mot danh sach phang —
+    // khop `HisSlotResult` trong `Connector/HisQueueModels.cs`. Ban cu o day dung `start`/`end`/
+    // `remaining`, doc len duoc mot luoi khung gio TRONG, va man dat kham thanh ra khong bam
+    // duoc gio nao trong khi may chu van bao 200.
     '/appointments/slots': '''
-      [{"start":"2026-09-12T08:00:00","end":"2026-09-12T08:30:00","doctorId":"bs1",
-        "doctorName":"BS.CKI Nguyễn Văn A","roomName":"Phòng khám 1","remaining":3},
-       {"start":"2026-09-12T09:00:00","end":"2026-09-12T09:30:00","doctorId":"bs2",
-        "doctorName":"BS. Trần Thị B","roomName":"Phòng khám 2","remaining":1}]''',
+      {"date":"2026-09-12T00:00:00","departmentName":"Khoa Khám bệnh","doctorName":null,
+       "morningSlots":[
+         {"startTime":"08:00:00","endTime":"08:30:00","displayTime":"08:00",
+          "isAvailable":true,"currentBookings":2,"maxBookings":5},
+         {"startTime":"09:00:00","endTime":"09:30:00","displayTime":"09:00",
+          "isAvailable":true,"currentBookings":4,"maxBookings":5},
+         {"startTime":"10:00:00","endTime":"10:30:00","displayTime":"10:00",
+          "isAvailable":false,"currentBookings":5,"maxBookings":5}],
+       "afternoonSlots":[
+         {"startTime":"14:00:00","endTime":"14:30:00","displayTime":"14:00",
+          "isAvailable":true,"currentBookings":1,"maxBookings":5}],
+       "totalAvailable":3}''',
+    // Hinh dang PHAI khop BFF that (xem `scripts/smoke-patient-app-uat.py` muc "DAT KHAM"):
+    // `appointmentDate` + `appointmentTime` roi nhau, `status` la SO. Ban cu o day ghi
+    // `scheduledAt` va `status:"Confirmed"` — doc len la nem loi ep kieu, man lich hen roi vao
+    // nhanh loi, va anh chup bang chung van bi dan nhan "list" nhu the moi thu binh thuong.
     '/appointments': '''
-      [{"id":"a1","appointmentCode":"LH-2026-0007","scheduledAt":"2026-09-12T08:00:00",
-        "departmentName":"Khoa Khám bệnh","doctorName":"BS.CKI Nguyễn Văn A",
-        "roomName":"Phòng khám 1","status":"Confirmed","reason":"Tái khám tăng huyết áp"}]''',
+      [{"id":"a1","appointmentCode":"LH-2026-0007","appointmentDate":"2026-09-12T00:00:00",
+        "appointmentTime":"08:00:00","departmentName":"Khoa Khám bệnh",
+        "doctorName":"BS.CKI Nguyễn Văn A","roomName":"Phòng khám 1",
+        "status":1,"statusName":"Đã xác nhận","reason":"Tái khám tăng huyết áp"}]''',
 
     // ------------------------------------------------------------ kết quả ngoại trú
+    // Ten truong khop `HisVisitSummary` (Connector/HisResultModels.cs): `visitId` + `department`.
+    // Ban cu ghi `id`/`visitCode`/`departmentName` — doc len thi ma lan kham rong va the khong hien
+    // duoc ten khoa, nhung man khong bao loi gi nen anh chup bang chung trong nhu binh thuong.
     '/results/visits': '''
-      [{"id":"v1","examinationId":"e1","visitCode":"KB-2026-0912","visitDate":"2026-09-09T07:45:00",
-        "departmentName":"Khoa Khám bệnh","doctorName":"BS.CKI Nguyễn Văn A",
-        "diagnosis":"Tăng huyết áp nguyên phát (I10)"}]''',
+      [{"visitId":"11111111-1111-1111-1111-111111111111","visitDate":"2026-09-09T07:45:00",
+        "visitType":"Ngoại trú","department":"Khoa Khám bệnh","doctorName":"BS.CKI Nguyễn Văn A",
+        "diagnosis":"Tăng huyết áp nguyên phát (I10)",
+        "summary":"Huyết áp 150/95, kê đơn điều chỉnh liều."}]''',
     '/results/lab/lab-1': _labDetail,
     '/results/lab': '''
       [{"id":"lab-1","orderCode":"XN-2026-0001","serviceName":"Sinh hoá máu","testCategory":"Sinh hoá",
@@ -169,11 +196,16 @@ class DemoBackendAdapter implements HttpClientAdapter {
         "classification":"Loại II","status":"Completed"}]''',
 
     // ------------------------------------------------------------ kết quả nội trú
+    // Khop `HisAdmission` (Connector/HisResultModels.cs). Ban cu dung `admissionCode`/`admittedAt`/
+    // `diagnosis`/`attendingDoctor` va `status` bang chu — khong ten nao trong so do duoc doc,
+    // nen the dot dieu tri hien tro tieu de "Dot dieu tri" trong khong va ngay thang bo trong.
     '/results/admissions': '''
-      [{"id":"adm-1","admissionCode":"NT-2026-0012","departmentName":"Khoa Nội tổng hợp",
-        "roomName":"Phòng 305","bedName":"Giường 3","admittedAt":"2026-09-02T14:20:00",
-        "dischargedAt":null,"diagnosis":"Viêm phổi cộng đồng (J18)","status":"Đang điều trị",
-        "attendingDoctor":"BS.CKII Phạm Văn D"}]''',
+      [{"id":"adm-1","medicalRecordCode":"NT-2026-0012","admissionDate":"2026-09-02T14:20:00",
+        "dischargeDate":null,"daysOfStay":7,"departmentName":"Khoa Nội tổng hợp",
+        "roomName":"Phòng 305","bedName":"Giường 3","admittingDoctorName":"BS.CKII Phạm Văn D",
+        "reasonForAdmission":"Sốt cao, ho, khó thở 3 ngày",
+        "diagnosisOnAdmission":"Viêm phổi cộng đồng (J18)","dischargeDiagnosis":null,
+        "status":1,"statusName":"Đang điều trị","isInProgress":true}]''',
     '/medicine-disclosure': '''
       {"admissionCode":"NT-2026-0012","patientName":"Nguyễn Văn Demo",
        "days":[{"date":"2026-09-08T00:00:00","total":186000,"insurancePaid":149000,
@@ -214,9 +246,12 @@ class DemoBackendAdapter implements HttpClientAdapter {
                  "source":"his","note":null,"createdAt":"2026-08-28T16:40:00"}]}''',
 
     // ------------------------------------------------------------------- thông báo
+    // Tra thang MOT DANH SACH, khong boc trong {unread, items}: `NotificationRepository.inbox`
+    // doc `data` nhu List, va bo smoke UAT cung xac nhan BFF that tra list. Ban cu boc them mot
+    // lop nen `data as List?` nem loi ngay, hop thu hien man "khong tai duoc".
+    '/notifications/unread-count': '2',
     '/notifications': '''
-      {"unread":2,
-       "items":[{"id":"n1","title":"Kết quả xét nghiệm đã có",
+      [{"id":"n1","title":"Kết quả xét nghiệm đã có",
                  "body":"Phiếu XN-2026-0001 đã có kết quả. Bấm để xem.",
                  "type":"lab_result","isRead":false,"createdAt":"2026-09-09T10:31:00",
                  "data":"{\\"labResultId\\":\\"lab-1\\"}"},
@@ -226,7 +261,7 @@ class DemoBackendAdapter implements HttpClientAdapter {
                  "createdAt":"2026-09-11T08:00:00","data":"{\\"appointmentId\\":\\"a1\\"}"},
                 {"id":"n3","title":"Tiêm chủng mở rộng tháng 9",
                  "body":"Bệnh viện tổ chức tiêm vắc-xin cúm mùa từ 15/09 đến 30/09.",
-                 "type":"campaign","isRead":true,"createdAt":"2026-09-05T07:00:00","data":null}]}''',
+                 "type":"campaign","isRead":true,"createdAt":"2026-09-05T07:00:00","data":null}]''',
 
     // -------------------------------------------------------------------- thiết bị
     '/devices': '''

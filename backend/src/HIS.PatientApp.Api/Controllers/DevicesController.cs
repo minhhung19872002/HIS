@@ -69,11 +69,22 @@ public class DevicesController : ControllerBase
             .FirstOrDefaultAsync(d => d.Id == deviceId && d.AccountId == accountId, ct);
         if (device is null) return NotFound(ApiResponse.Fail("Không tìm thấy thiết bị."));
 
+        var revokingSelf = deviceId == User.GetDeviceId();
+
         await _tokens.RevokeDeviceAsync(accountId, deviceId, DateTime.UtcNow, ct);
         await _db.SaveChangesAsync(ct);
 
         _logger.LogInformation("Tài khoản {AccountId} đăng xuất từ xa thiết bị {DeviceId}.", accountId, deviceId);
-        return Ok(ApiResponse.Ok("Đã đăng xuất thiết bị."));
+
+        // Thu hồi xoay con dấu bảo mật để token của máy bị đuổi chết NGAY. Nhưng con dấu là của cả
+        // tài khoản, nên nó giết luôn token của MÁY ĐANG THAO TÁC — người bệnh mất điện thoại, đăng
+        // nhập máy mới, thu hồi máy cũ, rồi bị văng ra khỏi chính máy đang cầm. Cấp lại token ngay
+        // để họ đi tiếp, giống cách `đổi mật khẩu` đã làm.
+        var fresh = revokingSelf ? null : await ReissueCurrentAsync(accountId, ct);
+
+        return Ok(ApiResponse<RevokeResultDto>.Ok(
+            new RevokeResultDto { Token = fresh?.AccessToken, RefreshToken = fresh?.RefreshToken },
+            "Đã đăng xuất thiết bị."));
     }
 
     /// <summary>
@@ -98,16 +109,21 @@ public class DevicesController : ControllerBase
             .ToListAsync(ct);
         foreach (var token in tokens) token.RevokedAt = now;
 
-        // Xoay con dấu để access token của các máy kia chết ngay. Máy hiện tại cũng phải làm mới
-        // token một lần — chấp nhận, vì đây là thao tác người dùng chủ động chọn khi nghi bị lộ.
+        // Xoay con dấu để access token của các máy kia chết ngay. Con dấu là của cả tài khoản nên
+        // nó giết luôn token của máy đang thao tác — chính là máy người bệnh đang cầm để dọn dẹp.
+        // Cấp lại token ngay bên dưới để họ không bị văng ra khỏi app đúng lúc đang lo bị lộ.
         var account = await _db.Accounts.FirstOrDefaultAsync(a => a.Id == accountId, ct);
         if (account is not null) account.SecurityStamp = Guid.NewGuid().ToString("N");
 
         await _db.SaveChangesAsync(ct);
 
+        var fresh = await ReissueCurrentAsync(accountId, ct);
+
         _logger.LogInformation(
             "Tài khoản {AccountId} đăng xuất {Count} thiết bị khác.", accountId, others.Count);
-        return Ok(ApiResponse.Ok($"Đã đăng xuất {others.Count} thiết bị khác."));
+        return Ok(ApiResponse<RevokeResultDto>.Ok(
+            new RevokeResultDto { Token = fresh?.AccessToken, RefreshToken = fresh?.RefreshToken },
+            $"Đã đăng xuất {others.Count} thiết bị khác."));
     }
 
     /// <summary>Cập nhật token nhận thông báo của máy hiện tại (FCM xoay token định kỳ).</summary>
@@ -128,10 +144,43 @@ public class DevicesController : ControllerBase
 
         return Ok(ApiResponse.Ok("Đã cập nhật thiết lập thông báo."));
     }
+
+    /// <summary>
+    /// Cấp lại token cho máy đang thao tác sau khi con dấu bảo mật bị xoay.
+    ///
+    /// Null khi không dựng lại được (máy đã bị thu hồi, hoặc token không mang deviceId) — bên gọi
+    /// hiểu là phải đăng nhập lại, đúng như trước.
+    /// </summary>
+    private async Task<IssuedTokens?> ReissueCurrentAsync(Guid accountId, CancellationToken ct)
+    {
+        var deviceId = User.GetDeviceId();
+        if (deviceId == Guid.Empty) return null;
+
+        var account = await _db.Accounts.FirstOrDefaultAsync(a => a.Id == accountId, ct);
+        var device = await _db.Devices
+            .FirstOrDefaultAsync(d => d.Id == deviceId && d.AccountId == accountId && d.RevokedAt == null, ct);
+
+        if (account is null || device is null) return null;
+
+        var issued = await _tokens.IssueAsync(
+            account, device, HttpContext.Connection.RemoteIpAddress?.ToString(), ct);
+        await _db.SaveChangesAsync(ct);
+        return issued;
+    }
 }
 
 public class UpdatePushTokenDto
 {
     /// <summary>Token FCM mới; để trống nghĩa là người dùng đã tắt thông báo.</summary>
     public string? PushToken { get; set; }
+}
+
+/// <summary>
+/// Kết quả thu hồi thiết bị. `token` khác null nghĩa là máy đang thao tác được cấp token mới —
+/// app phải thay token đang giữ, nếu không lời gọi kế tiếp sẽ nhận 401.
+/// </summary>
+public class RevokeResultDto
+{
+    public string? Token { get; set; }
+    public string? RefreshToken { get; set; }
 }
