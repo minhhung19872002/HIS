@@ -19,6 +19,7 @@ import {
   type ColumnDef, type TopTab,
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
+import { SortTh, useSortableRows } from '../../../components/table';
 
 const PER = 18;
 
@@ -55,6 +56,16 @@ const IvfLabV2: React.FC = () => {
   // ── Quản lý phôi đông ─────────────────────────────────────────────────────
   const [embryoTarget, setEmbryoTarget] = useState<IvfCouple | null>(null);
   const [embryos, setEmbryos] = useState<IvfEmbryo[]>([]);
+
+  // Danh sách phôi đông là bảng CHỈ ĐỌC nên sắp xếp thoải mái; "Chất lượng" gộp từ ba mốc ngày nên
+  // phải khai giá trị so sánh đúng như ô đang hiện.
+  const embSort = useSortableRows(embryos, {
+    code: (r) => r.embryoCode,
+    grade: (r) => r.day5Grade || r.day3Grade || r.day2Grade,
+    frozen: (r) => r.freezeDate,
+    loc: (r) => [r.strawCode, r.boxCode, r.tankCode].filter(Boolean).join(' / '),
+    st: (r) => r.statusName || r.status,
+  });
   const [embryoLoading, setEmbryoLoading] = useState(false);
 
   const openEmbryos = async (couple: IvfCouple) => {
@@ -239,15 +250,15 @@ const IvfLabV2: React.FC = () => {
             <table className="ab-tbl">
               <thead>
                 <tr>
-                  <th>Mã phôi</th>
-                  <th>Chất lượng</th>
-                  <th>Ngày đông</th>
-                  <th>Ống / Hộp / Tủ</th>
-                  <th>Trạng thái</th>
+                  <SortTh s={embSort} k="code">Mã phôi</SortTh>
+                  <SortTh s={embSort} k="grade">Chất lượng</SortTh>
+                  <SortTh s={embSort} k="frozen">Ngày đông</SortTh>
+                  <SortTh s={embSort} k="loc">Ống / Hộp / Tủ</SortTh>
+                  <SortTh s={embSort} k="st">Trạng thái</SortTh>
                 </tr>
               </thead>
               <tbody>
-                {embryos.map((e) => (
+                {embSort.rows.map((e) => (
                   <tr key={e.id}>
                     <td className="mono">{e.embryoCode}</td>
                     <td>{e.day5Grade || e.day3Grade || e.day2Grade || '—'}</td>

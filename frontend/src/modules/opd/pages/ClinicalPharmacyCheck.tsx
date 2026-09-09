@@ -6,6 +6,7 @@ import { importDrugInteractionsCsv, type DrugInteractionImportResult } from '../
 import {
   KpiStrip, SearchBox, StatusBadge, Btn, Ico, tk, ti, tw,
 } from '@/_v2kit';
+import { SortTh, useSortableRows } from '../../../components/table';
 
 interface PharmacyCheckData {
   patient: {
@@ -30,6 +31,29 @@ const SEVERITY_TONE: Record<number, 'ok' | 'warn' | 'crit'> = { 1: 'warn', 2: 'w
 const ClinicalPharmacyCheckV2: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [data, setData] = useState<PharmacyCheckData | null>(null);
+
+  // Ba bảng chỉ đọc trong màn này nối sắp xếp; bảng DÒNG ĐƠN THUỐC thì KHÔNG — thứ tự dòng ở đó là
+  // một phần của đơn, sắp lại là làm sai tài liệu.
+  //
+  // `data` có thể là null lúc chưa tải xong, nhưng hook phải gọi vô điều kiện nên truyền mảng rỗng.
+  const itxSort = useSortableRows(data?.interactions ?? [], {
+    sev: (r) => r.severity,            // ô hiện chữ, thứ tự nặng-nhẹ nằm ở số
+    desc: (r) => r.description,
+    mgmt: (r) => r.management,
+  });
+  const mrSort = useSortableRows(data?.activeMedicalRecords ?? [], {
+    code: (r) => r.medicalRecordCode,
+    in: (r) => r.admissionDate,
+    dx: (r) => r.mainDiagnosis,
+    type: (r) => r.patientType,
+  });
+  // Giữ nguyên giới hạn 20 dòng như trước, chỉ đổi thứ tự bên trong 20 dòng đó.
+  const svcSort = useSortableRows((data?.services ?? []).slice(0, 20), {
+    name: (r) => r.serviceName,
+    when: (r) => r.createdAt,          // ô hiện "DD/MM HH:mm" — không có năm
+    st: (r) => r.status,
+    amt: (r) => r.amount,
+  });
   const [loading, setLoading] = useState(false);
 
   // --- Import tuong tac thuoc ---
@@ -182,9 +206,13 @@ const ClinicalPharmacyCheckV2: React.FC = () => {
                 <span>⚠️ Tương tác thuốc ({data.interactions.length})</span>
               </div>
               <table className="ab-tbl">
-                <thead><tr><th>Mức độ</th><th>Mô tả</th><th>Khuyến nghị</th></tr></thead>
+                <thead><tr>
+                  <SortTh s={itxSort} k="sev">Mức độ</SortTh>
+                  <SortTh s={itxSort} k="desc">Mô tả</SortTh>
+                  <SortTh s={itxSort} k="mgmt">Khuyến nghị</SortTh>
+                </tr></thead>
                 <tbody>
-                  {data.interactions.map((it) => (
+                  {itxSort.rows.map((it) => (
                     <tr key={it.id}>
                       <td><StatusBadge tone={SEVERITY_TONE[it.severity] || 'warn'} dot>{SEVERITY_LABEL[it.severity]}</StatusBadge></td>
                       <td>{it.description || '—'}</td>
@@ -202,9 +230,14 @@ const ClinicalPharmacyCheckV2: React.FC = () => {
                 <span>Hồ sơ BA đang hoạt động ({data.activeMedicalRecords.length})</span>
               </div>
               <table className="ab-tbl">
-                <thead><tr><th>Mã HSBA</th><th>Vào viện</th><th>Chẩn đoán chính</th><th>Đối tượng</th></tr></thead>
+                <thead><tr>
+                  <SortTh s={mrSort} k="code">Mã HSBA</SortTh>
+                  <SortTh s={mrSort} k="in">Vào viện</SortTh>
+                  <SortTh s={mrSort} k="dx">Chẩn đoán chính</SortTh>
+                  <SortTh s={mrSort} k="type">Đối tượng</SortTh>
+                </tr></thead>
                 <tbody>
-                  {data.activeMedicalRecords.map((mr) => (
+                  {mrSort.rows.map((mr) => (
                     <tr key={mr.id}>
                       <td className="mono">{mr.medicalRecordCode}</td>
                       <td className="mono">{dayjs(mr.admissionDate).format('DD/MM/YYYY')}</td>
@@ -260,9 +293,14 @@ const ClinicalPharmacyCheckV2: React.FC = () => {
                 <span>CLS + Dịch vụ gần đây ({data.services.length})</span>
               </div>
               <table className="ab-tbl">
-                <thead><tr><th>Dịch vụ</th><th>Ngày</th><th>Trạng thái</th><th>Giá</th></tr></thead>
+                <thead><tr>
+                  <SortTh s={svcSort} k="name">Dịch vụ</SortTh>
+                  <SortTh s={svcSort} k="when">Ngày</SortTh>
+                  <SortTh s={svcSort} k="st">Trạng thái</SortTh>
+                  <SortTh s={svcSort} k="amt">Giá</SortTh>
+                </tr></thead>
                 <tbody>
-                  {data.services.slice(0, 20).map((s, i) => (
+                  {svcSort.rows.map((s, i) => (
                     <tr key={i}>
                       <td>{s.serviceName}</td>
                       <td className="mono">{dayjs(s.createdAt).format('DD/MM HH:mm')}</td>
