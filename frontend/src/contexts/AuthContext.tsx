@@ -25,7 +25,9 @@ interface OtpPending {
  * sai nguyên nhân, gõ lại mật khẩu, hỏng tiếp, và cuối cùng bị KHÓA tài khoản (ngưỡng 5 lần) vì
  * một sự cố không liên quan gì tới mật khẩu của họ.
  */
-type LoginResult = 'success' | 'otp' | 'throttled' | 'unavailable' | false;
+// #216 TC-PERM-015: `'change-password'` = đăng nhập ĐÚNG nhưng tài khoản đang bị buộc đổi mật khẩu
+// (mới tạo / admin reset / quá hạn) — Login.tsx đưa thẳng tới màn đổi, không vào dashboard.
+type LoginResult = 'success' | 'change-password' | 'otp' | 'throttled' | 'unavailable' | false;
 
 // Helper log auth error với HTTP status + message (debug only — không expose lên UI;
 // Login.tsx vẫn render generic message khi return false giữ contract).
@@ -138,6 +140,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           storage.set(STORAGE_KEYS.user, payload.user);
           await Promise.all([loadPermissions(), loadEnabledModules()]); // #378+#405
           setUser(payload.user);
+          // #216 TC-PERM-015: bị buộc đổi mật khẩu → không hiện cảnh báo hạn dùng, không vào dashboard.
+          if (payload.user?.mustChangePassword) return 'change-password';
           checkExpiryAlertsOnLogin();
           return 'success';
         }

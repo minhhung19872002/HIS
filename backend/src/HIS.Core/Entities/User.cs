@@ -34,6 +34,13 @@ public class User : BaseEntity
     // Two-Factor Authentication
     public bool IsTwoFactorEnabled { get; set; } = false;
 
+    // #216 TC-PERM-015 (migration 183): buộc đổi mật khẩu lần đầu / khi hết hạn.
+    // MustChangePassword đặt khi admin tạo user / reset / đặt hộ mật khẩu (mật khẩu hiện tại là thứ
+    // người khác biết); xoá khi chính user đổi xong. PasswordChangedAt là mốc tính hết hạn theo
+    // Auth:PasswordMaxAgeDays — migration backfill = lúc deploy để không ai bị chặn ngay sáng hôm sau.
+    public bool MustChangePassword { get; set; } = false;
+    public DateTime? PasswordChangedAt { get; set; }
+
     // AUTHZ-2 (#368): con dấu thu hồi phiên — xoay khi đổi mật khẩu / force-logout / phát hiện reuse.
     // JWT mang giá trị này; OnTokenValidated từ chối token khi không còn khớp → thu hồi TỨC THỜI
     // (không đợi token hết hạn). NULL với user cũ trước deploy → token grace-accept đến khi hết hạn tự nhiên.

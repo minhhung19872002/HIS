@@ -68,10 +68,19 @@ namespace HIS.API.Controllers
             return Ok(result);
         }
 
+        // #216 TC-PERM-015: endpoint này được miễn gate quyền (WritePermissionMap.ExemptActions) với
+        // lý do "đổi mật khẩu của chính mình", nhưng route nhận {userId} bất kỳ. Chặn ở đây: chỉ chính
+        // chủ hoặc Admin; và service còn đòi mật khẩu hiện tại. Không biết mật khẩu hiện tại thì đi
+        // đường reset-password (gate Admin, đặt cờ buộc đổi).
         [HttpPost("api/admin/users/{userId}/change-password")]
         [Authorize]
         public async Task<ActionResult<bool>> ChangePassword(Guid userId, [FromBody] AdminChangePasswordDto dto)
         {
+            var callerStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var isSelf = Guid.TryParse(callerStr, out var callerId) && callerId == userId;
+            if (!isSelf && !User.IsInRole(RoleNames.Admin))
+                return StatusCode(403, new { error = "FORBIDDEN", message = "Chỉ được đổi mật khẩu của chính mình." });
+
             var result = await _service.ChangePasswordAsync(userId, dto);
             return Ok(result);
         }

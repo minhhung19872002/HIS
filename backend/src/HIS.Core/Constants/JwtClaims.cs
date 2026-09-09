@@ -30,4 +30,9 @@ public static class JwtClaims
 
     /// <summary>AUTHZ-2 (#368): security stamp để thu hồi token tức thời. OnTokenValidated so khớp với User.SecurityStamp; lệch = token bị thu hồi.</summary>
     public const string SecurityStamp = "securityStamp";
+
+    /// <summary>#216 TC-PERM-015: có mặt (giá trị = lý do: first_login | expired) khi tài khoản đang bị BUỘC đổi mật khẩu.
+    /// PasswordChangeRequiredMiddleware chặn mọi /api/* trừ đường đổi mật khẩu/đăng xuất. Đặt lúc phát token; đổi xong
+    /// thì SecurityStamp xoay → token cũ chết → token mới không mang claim.</summary>
+    public const string PasswordChangeRequired = "pwdChangeRequired";
 }

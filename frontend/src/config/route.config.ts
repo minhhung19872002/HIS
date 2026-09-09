@@ -5,6 +5,8 @@
 
 export const ROUTES = {
   LOGIN:     '/login',
+  /** #216 TC-PERM-015: màn buộc đổi mật khẩu (lần đầu / hết hạn). Ngoài ProtectedRoute, tự kiểm đăng nhập. */
+  CHANGE_PASSWORD: '/change-password',
   HOME:      '/v2',
   DASHBOARD: '/v2/dashboard',
   /** Error page: ROUTES.ERROR(404) → '/v2/error/404' */

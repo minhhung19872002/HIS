@@ -132,6 +132,15 @@ apiClient.interceptors.response.use(
         }
       }
     }
+    // #216 TC-PERM-015: server từ chối vì tài khoản đang bị buộc đổi mật khẩu → đưa về màn đổi.
+    // Bắt ở đây để cả lời gọi nền (poll thông báo…) lẫn người gõ thẳng URL đều về cùng một chỗ.
+    if (error.response?.status === 403) {
+      const bodyErr = (error.response?.data as { error?: string } | undefined)?.error;
+      if (bodyErr === 'PASSWORD_CHANGE_REQUIRED' && window.location.pathname !== '/change-password') {
+        window.location.href = '/change-password';
+        return Promise.reject(error);
+      }
+    }
     // 503 = bảo trì → signal để layout hiện banner (TODO: implement MaintenanceBanner listener in TerminalLayout)
     if (error.response?.status === 503) {
       window.dispatchEvent(new CustomEvent('his:maintenance', { detail: { retry: error.config?.url } }));

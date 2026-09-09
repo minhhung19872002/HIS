@@ -5,7 +5,7 @@ import { ROUTES } from '../config/route.config';
 
 // Extracted verbatim from App.tsx (behavior-preserving refactor #375).
 export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   if (isLoading) {
     return (
@@ -21,6 +21,12 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
 
   if (!isAuthenticated) {
     return <Navigate to={ROUTES.LOGIN} replace />;
+  }
+
+  // #216 TC-PERM-015: đang bị buộc đổi mật khẩu thì gõ thẳng URL nghiệp vụ cũng quay về màn đổi.
+  // Đây chỉ là lớp UX; lớp thật là PasswordChangeRequiredMiddleware ở server (mọi /api/* → 403).
+  if (user?.mustChangePassword) {
+    return <Navigate to={ROUTES.CHANGE_PASSWORD} replace />;
   }
 
   return <>{children}</>;

@@ -33,6 +33,13 @@ public class UserDto
     public List<string> RoleCodes { get; set; } = new();
     public List<string> Permissions { get; set; } = new();
     public bool IsTwoFactorEnabled { get; set; }
+
+    /// <summary>#216 TC-PERM-015: đang bị buộc đổi mật khẩu — FE đưa thẳng tới màn đổi, không vào dashboard.
+    /// Server vẫn chặn độc lập qua PasswordChangeRequiredMiddleware (ẩn nút ≠ chặn API).</summary>
+    public bool MustChangePassword { get; set; }
+
+    /// <summary>Lý do: "first_login" (tài khoản mới / admin reset) hoặc "expired" (quá Auth:PasswordMaxAgeDays).</summary>
+    public string? MustChangePasswordReason { get; set; }
 }
 
 public class ChangePasswordDto

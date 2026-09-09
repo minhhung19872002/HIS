@@ -9,6 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using AutoMapper;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
+using HIS.Core.Common;
 using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
@@ -94,7 +95,7 @@ public class AuthService : IAuthService
 
         // Normal login (no 2FA) — #384: last-wins đá phiên cũ
         var stamp = await ApplySingleSessionPolicyAsync(user);
-        var userDto = _mapper.Map<UserDto>(user);
+        var userDto = MapUserDto(user);
         var token = GenerateJwtToken(userDto, stamp);
         var expireMinutes = int.Parse(_configuration["Jwt:ExpireMinutes"] ?? "60");
 
@@ -152,7 +153,7 @@ public class AuthService : IAuthService
 
         // #384: last-wins đá phiên cũ (luồng OTP)
         var stamp = await ApplySingleSessionPolicyAsync(user);
-        var userDto = _mapper.Map<UserDto>(user);
+        var userDto = MapUserDto(user);
         var token = GenerateJwtToken(userDto, stamp);
         var expireMinutes = int.Parse(_configuration["Jwt:ExpireMinutes"] ?? "60");
 
@@ -241,7 +242,17 @@ public class AuthService : IAuthService
         if (!BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, user.PasswordHash))
             return false;
 
+        // #216 TC-PERM-015: trước đây nhận mọi chuỗi làm mật khẩu mới — kể cả "1", kể cả chính mật
+        // khẩu cũ. Luật ở PasswordPolicy (thuần, có unit test); câu lỗi tiếng Việt lên thẳng UI qua
+        // DomainExceptionFilter (InvalidOperationException → 400).
+        if (!string.Equals(dto.NewPassword, dto.ConfirmPassword, StringComparison.Ordinal))
+            throw new InvalidOperationException("Mật khẩu xác nhận không khớp.");
+        var loi = PasswordPolicy.Validate(dto.NewPassword, dto.CurrentPassword, user.Username);
+        if (loi != null) throw new InvalidOperationException(loi);
+
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+        user.MustChangePassword = false;      // chính chủ đã đổi — hết buộc
+        user.PasswordChangedAt = DateTime.UtcNow; // đồng hồ hết hạn chạy lại từ đây
         // AUTHZ-2 (#368): đổi mật khẩu → xoay SecurityStamp (đá mọi access token đang sống) +
         // thu hồi mọi refresh token của user (không thiết bị nào refresh tiếp được).
         user.SecurityStamp = NewSecurityStamp();
@@ -280,7 +291,7 @@ public class AuthService : IAuthService
         }
 
         var stamp = await EnsureSecurityStampAsync(user);
-        var userDto = _mapper.Map<UserDto>(user);
+        var userDto = MapUserDto(user);
         var token = GenerateJwtToken(userDto, stamp);
         var expireMinutes = int.Parse(_configuration["Jwt:ExpireMinutes"] ?? "60");
 
@@ -322,7 +333,7 @@ public class AuthService : IAuthService
                         .ThenInclude(rp => rp.Permission)
             .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
 
-        return user == null ? null : _mapper.Map<UserDto>(user);
+        return user == null ? null : MapUserDto(user);
     }
 
     // Map RoleCode from DB to English role names expected by [Authorize(Roles=...)]
@@ -337,6 +348,22 @@ public class AuthService : IAuthService
         { "CASHIER", new[] { "Cashier", "Accountant" } },
         { "IMAGING_TECH", new[] { "ImagingTech" } },
     };
+
+    /// <summary>
+    /// #216 TC-PERM-015: mọi UserDto phát ra từ service này (đăng nhập, OTP, refresh, WebAuthn, /me)
+    /// đều đi qua đây để mang cờ buộc-đổi-mật-khẩu tính theo cùng một luật. Tính lúc phát token, và
+    /// refresh cũng đi qua nên mật khẩu hết hạn giữa phiên sẽ có hiệu lực trong vòng một chu kỳ
+    /// access token (≤ Jwt:ExpireMinutes).
+    /// </summary>
+    private UserDto MapUserDto(User user)
+    {
+        var dto = _mapper.Map<UserDto>(user);
+        var maxAge = int.TryParse(_configuration["Auth:PasswordMaxAgeDays"], out var d) ? d : 0;
+        var reason = PasswordPolicy.MustChange(user.MustChangePassword, user.PasswordChangedAt, maxAge, DateTime.UtcNow);
+        dto.MustChangePassword = reason != null;
+        dto.MustChangePasswordReason = reason;
+        return dto;
+    }
 
     public string GenerateJwtToken(UserDto user, string? securityStamp = null)
     {
@@ -355,6 +382,10 @@ public class AuthService : IAuthService
         // Không có stamp = token cũ trước deploy → grace-accept (không revoke được, để hết hạn tự nhiên).
         if (!string.IsNullOrEmpty(securityStamp))
             claims.Add(new Claim(JwtClaims.SecurityStamp, securityStamp));
+
+        // #216 TC-PERM-015: đang bị buộc đổi mật khẩu → claim để middleware chặn không cần chạm DB.
+        if (user.MustChangePassword)
+            claims.Add(new Claim(JwtClaims.PasswordChangeRequired, user.MustChangePasswordReason ?? PasswordPolicy.ReasonFirstLogin));
 
         // AUTHZ-3 (#369): claim departmentId (không có = không giới hạn theo khoa)
         if (user.DepartmentId.HasValue)
@@ -494,7 +525,7 @@ public class AuthService : IAuthService
 
         // #384: last-wins đá phiên cũ (luồng WebAuthn)
         var stamp = await ApplySingleSessionPolicyAsync(user);
-        var userDto = _mapper.Map<UserDto>(user);
+        var userDto = MapUserDto(user);
         var token = GenerateJwtToken(userDto, stamp);
         var expireMinutes = int.Parse(_configuration["Jwt:ExpireMinutes"] ?? "60");
 

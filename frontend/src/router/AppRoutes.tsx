@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useGlobalAbbreviationExpander } from '../hooks/useAbbreviationExpander';
 import MainLayout from '../components/layout/MainLayout';
 import Login from '../pages/Login';
+import ChangePasswordRequired from '../pages/ChangePasswordRequired';
 import { ProtectedRoute } from './RouteGuard';
 import { HomeEntry } from './LayoutResolver';
 import { v2Routes } from './routeConfigs';
@@ -178,6 +179,8 @@ const AppRoutes: React.FC = () => {
           path="/login"
           element={isAuthenticated ? <Navigate to="/" replace /> : <Login />}
         />
+        {/* #216 TC-PERM-015: ngoài ProtectedRoute (ProtectedRoute sẽ đá về đây khi bị buộc đổi) — trang tự kiểm đăng nhập. */}
+        <Route path="/change-password" element={<ChangePasswordRequired />} />
         <Route
           path="/"
           element={

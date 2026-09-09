@@ -4,6 +4,7 @@ import { UserOutlined, LockOutlined, SafetyOutlined, ArrowLeftOutlined, MailOutl
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { AuthLayout } from '../components/layout/AuthLayout';
+import { ROUTES } from '../config/route.config';
 
 const { Title } = Typography;
 
@@ -23,9 +24,15 @@ const Login: React.FC = () => {
   // thay vì im lặng như token hết hạn thường.
   React.useEffect(() => {
     try {
-      if (sessionStorage.getItem('logout_reason') === 'SESSION_INVALIDATED') {
+      const reason = sessionStorage.getItem('logout_reason');
+      if (reason === 'SESSION_INVALIDATED') {
         sessionStorage.removeItem('logout_reason');
         message.warning('Tài khoản của bạn vừa đăng nhập ở nơi khác — phiên này đã bị đăng xuất.', 8);
+      } else if (reason === 'PASSWORD_CHANGED') {
+        // #216 TC-PERM-015: đổi mật khẩu xong thì mọi phiên cũ bị thu hồi (SecurityStamp xoay) →
+        // về đây đăng nhập lại bằng mật khẩu mới. Nói rõ để người dùng không tưởng bị lỗi.
+        sessionStorage.removeItem('logout_reason');
+        message.success('Đã đổi mật khẩu. Vui lòng đăng nhập lại bằng mật khẩu mới.', 8);
       }
     } catch { /* private-mode */ }
   }, []);
@@ -52,6 +59,9 @@ const Login: React.FC = () => {
       if (result === 'success') {
         message.success('Đăng nhập thành công!');
         navigate('/');
+      } else if (result === 'change-password') {
+        // #216 TC-PERM-015: tài khoản mới / admin reset / mật khẩu quá hạn → phải đổi trước.
+        navigate(ROUTES.CHANGE_PASSWORD, { replace: true });
       } else if (result === 'otp') {
         // OTP step will be shown via otpPending state
       } else if (result === 'throttled') {

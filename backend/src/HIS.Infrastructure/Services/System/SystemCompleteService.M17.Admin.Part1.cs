@@ -150,6 +150,9 @@ public partial class SystemCompleteService
                 DepartmentId = dto.DepartmentId,
                 BranchId = dto.BranchId, // R3 đa cơ sở
                 PasswordHash = HashPassword(dto.InitialPassword ?? "123456"),
+                // #216 TC-PERM-015: mật khẩu khởi tạo là thứ admin biết → buộc đổi ở lần đăng nhập đầu.
+                MustChangePassword = true,
+                PasswordChangedAt = DateTime.UtcNow,
                 IsActive = true,
                 UserType = 5 // Default: Employee
             };
@@ -285,6 +288,10 @@ public partial class SystemCompleteService
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null) return false;
             user.PasswordHash = HashPassword("123456"); // Default reset password
+            // #216 TC-PERM-015: mật khẩu mặc định ai cũng đoán được → buộc đổi ngay lần đăng nhập tới.
+            user.MustChangePassword = true;
+            user.PasswordChangedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return true;
         }
@@ -301,8 +308,25 @@ public partial class SystemCompleteService
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null) return false;
-            if (dto.NewPassword != dto.ConfirmPassword) return false;
+
+            // #216 TC-PERM-015 (lỗi tìm ra khi đo): hàm này NHẬN `CurrentPassword` rồi bỏ qua, và
+            // endpoint gọi nó được miễn gate quyền với chú thích "đổi mật khẩu của chính mình" —
+            // nhưng route nhận {userId} BẤT KỲ. Hệ quả: ai đã đăng nhập cũng đặt được mật khẩu mới
+            // cho bất kỳ tài khoản nào mà không cần biết mật khẩu cũ. Nay: phải chứng minh biết mật
+            // khẩu hiện tại (không biết → dùng reset-password, endpoint đó gate Admin và đặt cờ
+            // buộc đổi). Controller còn chặn thêm caller ≠ userId khi không phải Admin.
+            if (string.IsNullOrEmpty(dto.CurrentPassword)
+                || !BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, user.PasswordHash))
+                throw new InvalidOperationException("Mật khẩu hiện tại không đúng.");
+            if (!string.Equals(dto.NewPassword, dto.ConfirmPassword, StringComparison.Ordinal))
+                throw new InvalidOperationException("Mật khẩu xác nhận không khớp.");
+            var loi = HIS.Core.Common.PasswordPolicy.Validate(dto.NewPassword, dto.CurrentPassword, user.Username);
+            if (loi != null) throw new InvalidOperationException(loi);
+
             user.PasswordHash = HashPassword(dto.NewPassword);
+            user.MustChangePassword = false;
+            user.PasswordChangedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return true;
         }

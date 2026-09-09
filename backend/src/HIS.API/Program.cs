@@ -434,6 +434,9 @@ app.UseAuthentication();
 // Đặt NGAY SAU UseAuthentication để chặn trước khi bất kỳ endpoint nào chạy — kể cả các GET
 // chỉ có [Authorize] trần, vốn là chỗ token cổng ngoài lọt qua.
 app.UseMiddleware<HIS.API.Middleware.ExternalActorScopeMiddleware>();
+// #216/TC-PERM-015: tài khoản đang bị buộc đổi mật khẩu chỉ được đi tới đường đổi mật khẩu/đăng xuất.
+// Cùng chỗ với ExternalActorScope: sau UseAuthentication (đã có claim), trước mọi endpoint.
+app.UseMiddleware<HIS.API.Middleware.PasswordChangeRequiredMiddleware>();
 app.UseAuthorization();
 app.UseRateLimiter();
 

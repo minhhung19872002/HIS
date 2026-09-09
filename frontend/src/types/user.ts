@@ -13,4 +13,8 @@ export interface User {
   roles: string[];
   permissions: string[];
   isTwoFactorEnabled?: boolean;
+  /** #216 TC-PERM-015: đang bị buộc đổi mật khẩu → RouteGuard đưa tới /change-password; server chặn độc lập. */
+  mustChangePassword?: boolean;
+  /** 'first_login' (tài khoản mới / admin reset) | 'expired' (mật khẩu quá hạn). */
+  mustChangePasswordReason?: string;
 }
