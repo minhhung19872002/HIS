@@ -272,7 +272,7 @@ public class BookingManagementService : IBookingManagementService
                     a.AppointmentCode.Contains(kw, StringComparison.OrdinalIgnoreCase)
                     || (a.Patient?.FullName?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
                     || (a.Patient?.PhoneNumber?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false))
-                .OrderByDescending(a => a.AppointmentDate)
+                .OrderBy(a => a.AppointmentDate)
                 .ThenBy(a => a.AppointmentTime)
                 .ToList();
 
@@ -287,7 +287,12 @@ public class BookingManagementService : IBookingManagementService
             total = await query.CountAsync();
             items = await query
                 .AsNoTracking()
-                .OrderByDescending(a => a.AppointmentDate)
+                // TĂNG dần chứ không giảm dần: nhân viên mở màn này để xem SẮP TỚI có ai, nên
+                // lịch gần nhất phải ở trên. Sắp giảm dần thì lịch xa nhất lên đầu và lịch ngày
+                // mai bị đẩy xuống — càng nới khoảng ngày thì nó càng chìm sâu, tới mức nhân viên
+                // tưởng lịch không vào (đúng lỗi chủ đầu tư báo: "đặt lịch ngày mai mà không thấy
+                // trên màn quản lý đặt lịch").
+                .OrderBy(a => a.AppointmentDate)
                 .ThenBy(a => a.AppointmentTime)
                 .Skip(search.PageIndex * search.PageSize)
                 .Take(search.PageSize)

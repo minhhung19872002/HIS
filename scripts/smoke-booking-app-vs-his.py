@@ -117,7 +117,10 @@ if not deps:
 dep = deps[0]
 
 import datetime
-day = (datetime.date.today() + datetime.timedelta(days=3)).isoformat()
+# Mac dinh dat cach 3 ngay; truyen so ngay o dong lenh de kiem dung ngay chu dau tu bao hong
+# (vd `1` = ngay mai, dung mac dinh cua man dat lich tren app).
+offset = int(sys.argv[1]) if len(sys.argv) > 1 else 3
+day = (datetime.date.today() + datetime.timedelta(days=offset)).isoformat()
 st, body = call(APP, "GET",
                 f"/patient/appointments/slots?departmentId={dep['id']}&date={day}", token=token)
 slots = (data_of(body) or {}).get("morningSlots") or []
