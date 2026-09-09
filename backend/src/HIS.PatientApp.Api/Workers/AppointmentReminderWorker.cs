@@ -89,6 +89,11 @@ public class AppointmentReminderWorker : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PatientAppDbContext>();
         var his = scope.ServiceProvider.GetRequiredService<IHisConnector>();
+        var notifications = scope.ServiceProvider.GetRequiredService<NotificationService>();
+
+        // Gom thay đổi rồi báo SAU khi lưu: báo trước mà lưu hỏng thì người bệnh nhận thông báo
+        // "lịch đã dời" trong khi hệ thống vẫn giữ giờ cũ.
+        var changes = new List<AppointmentChange>();
 
         var activeSince = DateTime.UtcNow.AddDays(-Math.Max(1, _options.ActiveWithinDays));
 
@@ -121,11 +126,27 @@ public class AppointmentReminderWorker : BackgroundService
             {
                 var at = CombineDateAndTime(appointment.AppointmentDate, appointment.AppointmentTime);
 
-                // Chỉ quan tâm lịch còn ở phía trước và chưa đóng.
-                if (at <= now || appointment.Status >= 2) continue;
-
                 var reminder = await db.AppointmentReminders.FirstOrDefaultAsync(
                     r => r.AccountId == account.Id && r.AppointmentCode == appointment.AppointmentCode, ct);
+
+                // Lịch bị đóng (huỷ / hoãn) ở quầy: người bệnh PHẢI biết, nếu không họ vẫn đi khám
+                // theo giờ cũ. Trước đây nhánh này bị `continue` bỏ qua hoàn toàn — app im lặng, và
+                // người bệnh chỉ phát hiện khi đã tới nơi.
+                if (appointment.Status >= 2)
+                {
+                    if (reminder is not null)
+                    {
+                        changes.Add(new AppointmentChange(
+                            account.Id, reminder.AppointmentCode, AppointmentChangeKind.Closed,
+                            reminder.AppointmentAt, at, reminder.DepartmentName, reminder.DoctorName));
+
+                        db.AppointmentReminders.Remove(reminder);
+                    }
+                    continue;
+                }
+
+                // Lịch đã qua thì thôi, không nhắc và cũng không báo đổi.
+                if (at <= now) continue;
 
                 if (reminder is null)
                 {
@@ -139,7 +160,12 @@ public class AppointmentReminderWorker : BackgroundService
                 else if (reminder.AppointmentAt != at)
                 {
                     // Lịch dời sang giờ khác thì phải nhắc lại từ đầu, nếu không người bệnh chỉ nhận
-                    // được lời nhắc của giờ cũ.
+                    // được lời nhắc của giờ cũ. Và phải báo cho họ biết là đã dời.
+                    changes.Add(new AppointmentChange(
+                        account.Id, reminder.AppointmentCode, AppointmentChangeKind.Rescheduled,
+                        reminder.AppointmentAt, at,
+                        appointment.DepartmentName, appointment.DoctorName));
+
                     reminder.RemindedDayBeforeAt = null;
                     reminder.RemindedHourBeforeAt = null;
                 }
@@ -159,7 +185,43 @@ public class AppointmentReminderWorker : BackgroundService
             .ExecuteDeleteAsync(ct);
 
         await db.SaveChangesAsync(ct);
+
+        // Báo cho người bệnh biết quầy đã đổi gì (HSMT I.3 #1.3 — quản lý đặt khám).
+        foreach (var change in changes)
+        {
+            var (title, body) = change.Kind == AppointmentChangeKind.Closed
+                ? ("Lịch khám đã bị huỷ",
+                   $"Lịch khám {FormatVn(change.OldAt)}"
+                   + (string.IsNullOrWhiteSpace(change.DepartmentName) ? "" : $" tại {change.DepartmentName}")
+                   + " đã bị huỷ. Vui lòng đặt lại hoặc liên hệ bệnh viện nếu bạn không yêu cầu việc này.")
+                : ("Lịch khám đã được đổi giờ",
+                   $"Lịch khám của bạn dời từ {FormatVn(change.OldAt)} sang {FormatVn(change.NewAt)}"
+                   + (string.IsNullOrWhiteSpace(change.DoctorName) ? "" : $" — {change.DoctorName}") + ".");
+
+            await notifications.CreateAsync(
+                change.AccountId, title, body,
+                NotificationCategory.Appointment,
+                deepLink: "/appointments",
+                data: new { appointmentCode = change.AppointmentCode, kind = change.Kind.ToString() },
+                ct: ct);
+        }
+
+        if (changes.Count > 0)
+        {
+            _logger.LogInformation(
+                "Đã báo {Count} thay đổi lịch khám do quầy thực hiện.", changes.Count);
+        }
     }
+
+    private enum AppointmentChangeKind { Rescheduled, Closed }
+
+    private record AppointmentChange(
+        Guid AccountId, string AppointmentCode, AppointmentChangeKind Kind,
+        DateTime OldAt, DateTime NewAt, string? DepartmentName, string? DoctorName);
+
+    /// <summary>Giờ Việt Nam cho người đọc — dữ liệu lưu UTC.</summary>
+    private static string FormatVn(DateTime utc) =>
+        (utc + TimeSpan.FromHours(7)).ToString("HH:mm 'ngày' dd/MM/yyyy");
 
     private async Task SendDueRemindersAsync(CancellationToken ct)
     {

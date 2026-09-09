@@ -321,3 +321,50 @@ phải nhớ thêm gì.
 `DenyIfNotOwnResultAsync` — [D12](decisions.md)). Rào chắn này trả lời *"anh có được vào cổng này
 không"*, không trả lời *"hồ sơ này có phải của anh không"*. Thiếu vế thứ hai thì một người bệnh vẫn
 đọc được hồ sơ người bệnh khác, vì cả hai đều hợp lệ ở cổng đó.
+
+---
+
+## D19 — Bảng nghiệm thu tách "phần bàn giao của bên B" khỏi "điều kiện tại chỗ của bên A"
+
+**Chọn:** cột `TT` chỉ chứng nhận **phần mềm** — 47/47 dòng ✅. Những gì bệnh viện phải cấp (tài
+khoản hai kho ứng dụng, khoá Firebase/APNs, tên miền, bản kê cấu hình VPS thuê, hai máy thật để
+kiểm cảm biến sinh trắc) tách sang mục *Điều kiện tại chỗ*, và đánh dấu 🔑 ngay trong ô bằng chứng
+của đúng dòng đó.
+
+**Lý do:** trộn hai loại vào một cột thì cột đó không đọc được nữa. Một dòng "chưa đạt" sẽ vừa có
+nghĩa *phần mềm còn thiếu* vừa có nghĩa *chờ bệnh viện mở tài khoản developer* — hai việc của hai
+bên khác nhau, hai cách xử lý khác nhau, và người đọc biên bản không phân biệt được. Tách ra thì
+bên A biết chính xác mình phải cấp gì, bên B chịu trách nhiệm rõ ràng cho toàn bộ 47 dòng phần mềm.
+
+**Ràng buộc tự đặt để việc tách này không thành cách nói giảm:** ô bằng chứng của bảy dòng đó phải
+ghi **đã đo được gì** bằng số liệu thật, và ghi **chưa đo được gì**. Không ô nào được tuyên bố đã
+kiểm một thứ chưa từng chạy trên hạ tầng thật. Ví dụ I.4.1 ghi rõ đã đo TLS 1.0/1.1 bị từ chối,
+1.2/1.3 bắt tay được, đủ 4 header — và ghi rõ chữ ký DV công khai của Let's Encrypt thì chưa, vì
+lượt đo dùng CA nội bộ của Caddy.
+
+**Cái giá:** người đọc lướt chỉ nhìn cột `TT` sẽ tưởng mọi thứ đã sẵn sàng phát hành. Bù lại bằng
+mục *Điều kiện tại chỗ* đặt ngay dưới bảng tổng kết, trước mọi bảng chi tiết, kèm cột "chạy gì khi
+đã có" để bên A biết việc tiếp theo là gì.
+
+---
+
+## D20 — Quầy đổi lịch thì BFF tự phát hiện khi đồng bộ, không làm móc từ HIS sang BFF
+
+**Bối cảnh:** dòng I.3.1.3 của bảng nghiệm thu từng ghi "Chưa làm: xác nhận lịch trên web đẩy thông
+báo về app — cần một móc từ HIS sang BFF". Nghiêm trọng hơn phần bị ghi: lịch **bị huỷ** ở quầy
+trước đây bị nhánh đồng bộ `continue` bỏ qua hoàn toàn, nên app im lặng và người bệnh chỉ phát hiện
+khi đã tới bệnh viện.
+
+**Chọn:** `AppointmentReminderWorker` vốn đã hỏi HIS lịch sắp tới của từng tài khoản mỗi vòng. So
+kết quả với bảng `appointment_reminders`: lệch giờ → báo *"lịch đã được đổi giờ"* kèm giờ cũ và giờ
+mới; lịch bị đóng → báo *"lịch khám đã bị huỷ"*. Không thêm endpoint nào, không đổi HIS.
+
+**Vì sao không làm móc HIS → BFF:** nó đảo chiều phụ thuộc. Cả gói được dựng trên nguyên tắc app
+gọi HIS qua HTTP (HSMT I.1), HIS không biết gì về app. Thêm một móc ngược nghĩa là HIS Core phải
+biết địa chỉ BFF, phải có khoá gọi sang, phải xử lý khi BFF chết — và mỗi lần đổi địa chỉ BFF là
+một lần sửa HIS. Đổi lại, cách đang chọn có độ trễ bằng chu kỳ đồng bộ (mặc định 10 phút); với
+việc báo đổi/huỷ lịch khám thì mức đó chấp nhận được, còn nếu bệnh viện cần nhanh hơn thì hạ
+`AppointmentReminder:PollIntervalMinutes` chứ không phải đổi kiến trúc.
+
+**Báo SAU khi lưu, không phải trước:** lưu hỏng mà đã báo thì người bệnh nhận thông báo "lịch đã
+dời" trong khi hệ thống vẫn giữ giờ cũ — sai lệch tệ hơn là chậm một vòng.
