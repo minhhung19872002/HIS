@@ -2618,9 +2618,13 @@ kbd {
      flyout still reaches every module. */
   .his-clock,
   .his-tb-btn--refresh,
-  .his-tb-btn--layout,
-  .his-tb-workspaces {
+  .his-tb-btn--layout {
     display: none;
+  }
+
+  /* !important: the switcher carries an inline `display: inline-flex` */
+  .his-tb-workspaces {
+    display: none !important;
   }
 
   /* Panel headers are nowrap flex rows with a fixed 40px height — title +
