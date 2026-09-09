@@ -115,7 +115,6 @@ const ReceptionV2: React.FC = () => {
   }, [rows, statusTab, fDept, fPriority, fInsurance, fVisitType, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const tabCounts = useMemo(() => {
     const c: Record<string, number> = { all: rows.length };
@@ -476,7 +475,10 @@ const ReceptionV2: React.FC = () => {
 
           <DataTable<RawRow>
             columns={columns}
-            data={paged}
+            data={filtered}
+            page={page}
+            perPage={PAGE_SIZE}
+            onSortChange={() => setPage(0)}
             rowKey={(r) => r.id}
             onRowClick={(r) => setDetail(r)}
             selected={selRows}
@@ -485,9 +487,11 @@ const ReceptionV2: React.FC = () => {
               if (s.has(k)) s.delete(k); else s.add(k);
               setSelRows(s);
             }}
-            onToggleAll={() => {
-              if (selRows.size === paged.length) setSelRows(new Set());
-              else setSelRows(new Set(paged.map((r) => r.id)));
+            // `visible` do bảng đưa xuống — sau khi bảng sắp xếp, trang không tự dựng lại được
+            // đúng tập dòng đang hiện.
+            onToggleAll={(visible) => {
+              if (selRows.size === visible.length) setSelRows(new Set());
+              else setSelRows(new Set(visible.map((r) => r.id)));
             }}
             actions={(r) => {
               const sk = statusKey(r);

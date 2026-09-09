@@ -148,7 +148,6 @@ const EpidemiologyV2: React.FC = () => {
   }, [items, search, stab, fGroup]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const cols: ColumnDef<DiseaseReport>[] = [
     { key: 'code', label: 'Mã BC', code: true, render: (r) => r.reportCode },
@@ -401,7 +400,7 @@ const EpidemiologyV2: React.FC = () => {
           <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
 
           <DataTable<DiseaseReport>
-            columns={cols} data={paged} rowKey={(r) => r.id}
+            columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
             loading={loading}
             onRowClick={setSel} actions={actions}
             empty="Chưa có báo cáo dịch tễ"

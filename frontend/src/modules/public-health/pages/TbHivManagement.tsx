@@ -321,7 +321,6 @@ const TbHivManagementV2: React.FC = () => {
   );
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const columns: ColumnDef<TbHivRecordDto>[] = [
     { key: 'code', label: 'Mã ĐK', mono: true, width: 120, render: (r) => r.registrationCode },
@@ -424,7 +423,10 @@ const TbHivManagementV2: React.FC = () => {
 
       <DataTable<TbHivRecordDto>
         columns={columns}
-        data={paged}
+        data={filtered}
+        page={page}
+        perPage={PER}
+        onSortChange={() => setPage(0)}
         rowKey={(r) => r.id}
         onRowClick={openDetail}
         actions={rowActions}

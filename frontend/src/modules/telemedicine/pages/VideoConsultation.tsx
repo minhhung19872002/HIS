@@ -15,6 +15,7 @@ import {
   type ColumnDef,
 } from '@/_v2kit';
 import { RowActions, RefreshButton } from '../../../components/actions';
+import { SortTh, useSortableRows } from '../../../components/table';
 
 type SKey = 'active' | 'scheduled' | 'ended' | 'cancelled';
 const STATUS_TABS = [
@@ -43,6 +44,16 @@ const VideoConsultationV2: React.FC = () => {
   const [endForm] = Form.useForm<{ conclusionNote?: string }>();
   const [participantsDrawer, setParticipantsDrawer] = useState<RoomDto | null>(null);
   const [participants, setParticipants] = useState<ParticipantItem[]>([]);
+
+  // Cột "Tham gia" hiện "HH:mm DD/MM" — so theo chữ thì 23:00 hôm qua đứng sau 08:00 hôm nay, nên
+  // phải so theo mốc thời gian gốc.
+  const partSort = useSortableRows(participants, {
+    name: (r) => r.displayName,
+    user: (r) => r.userName,
+    mail: (r) => r.email,
+    role: (r) => r.role,
+    joined: (r) => r.joinedAt,
+  });
   const [sel, setSel] = useState<RoomDto | null>(null);
   /* #467: chặn double-submit khi tạo/kết thúc phòng */
   const [creating, setCreating] = useState(false);
@@ -336,12 +347,18 @@ const VideoConsultationV2: React.FC = () => {
         size="md" title={`Người tham gia: ${participantsDrawer?.title || ''}`}>
         <div style={{ padding: 'var(--space-16)' }}>
           <table className="ab-tbl">
-            <thead><tr><th>Tên hiển thị</th><th>User</th><th>Email</th><th>Role</th><th>Tham gia</th></tr></thead>
+            <thead><tr>
+              <SortTh s={partSort} k="name">Tên hiển thị</SortTh>
+              <SortTh s={partSort} k="user">User</SortTh>
+              <SortTh s={partSort} k="mail">Email</SortTh>
+              <SortTh s={partSort} k="role">Role</SortTh>
+              <SortTh s={partSort} k="joined">Tham gia</SortTh>
+            </tr></thead>
             <tbody>
               {participants.length === 0 && (
                 <tr><td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: 'var(--t-2)' }}>Chưa có người tham gia</td></tr>
               )}
-              {participants.map((p) => (
+              {partSort.rows.map((p) => (
                 <tr key={p.id}>
                   <td>{p.displayName}</td>
                   <td className="mono">{p.userName || '—'}</td>

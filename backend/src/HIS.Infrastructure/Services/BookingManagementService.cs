@@ -305,8 +305,8 @@ public class BookingManagementService : IBookingManagementService
                     || (a.Patient?.PhoneNumber?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
                     || (kwPhone.Length >= 6
                         && NormalizePhone(a.Patient?.PhoneNumber).Contains(kwPhone, StringComparison.Ordinal)))
-                .OrderBy(a => a.AppointmentDate)
-                .ThenBy(a => a.AppointmentTime)
+                .OrderByDescending(a => a.CreatedAt)
+                .ThenByDescending(a => a.AppointmentDate)
                 .ToList();
 
             total = matched.Count;
@@ -320,13 +320,14 @@ public class BookingManagementService : IBookingManagementService
             total = await query.CountAsync();
             items = await query
                 .AsNoTracking()
-                // TĂNG dần chứ không giảm dần: nhân viên mở màn này để xem SẮP TỚI có ai, nên
-                // lịch gần nhất phải ở trên. Sắp giảm dần thì lịch xa nhất lên đầu và lịch ngày
-                // mai bị đẩy xuống — càng nới khoảng ngày thì nó càng chìm sâu, tới mức nhân viên
-                // tưởng lịch không vào (đúng lỗi chủ đầu tư báo: "đặt lịch ngày mai mà không thấy
-                // trên màn quản lý đặt lịch").
-                .OrderBy(a => a.AppointmentDate)
-                .ThenBy(a => a.AppointmentTime)
+                // Thứ tự mặc định: LỊCH VỪA ĐẶT lên đầu (theo mốc tạo, không theo ngày hẹn).
+                //
+                // Sắp theo ngày hẹn — tăng hay giảm đều vậy — thì lịch mới đặt xong nằm lẫn đâu đó
+                // giữa danh sách theo đúng ngày hẹn của nó, và người vừa đặt xong không thấy nó
+                // đâu. Muốn xem theo ngày hẹn thì bấm thẳng tiêu đề cột "Ngày · Giờ", vì từ nay
+                // mọi cột đều sắp xếp được.
+                .OrderByDescending(a => a.CreatedAt)
+                .ThenByDescending(a => a.AppointmentDate)
                 .Skip(search.PageIndex * search.PageSize)
                 .Take(search.PageSize)
                 .ToListAsync();
@@ -360,7 +361,8 @@ public class BookingManagementService : IBookingManagementService
                 RoomName = a.Room?.RoomName,
                 Reason = a.Reason,
                 Status = a.Status,
-                StatusName = statusNames.GetValueOrDefault(a.Status, "Không xác định")
+                StatusName = statusNames.GetValueOrDefault(a.Status, "Không xác định"),
+                CreatedAt = a.CreatedAt
             }).ToList(),
             TotalCount = total,
             PageIndex = search.PageIndex,
@@ -465,7 +467,8 @@ public class BookingManagementService : IBookingManagementService
             RoomName = appointment.Room?.RoomName,
             Reason = appointment.Reason,
             Status = appointment.Status,
-            StatusName = statusNames.GetValueOrDefault(appointment.Status, "Không xác định")
+            StatusName = statusNames.GetValueOrDefault(appointment.Status, "Không xác định"),
+            CreatedAt = appointment.CreatedAt
         };
     }
 
@@ -530,7 +533,8 @@ public class BookingManagementService : IBookingManagementService
             RoomName = appointment.Room?.RoomName,
             Reason = appointment.Reason,
             Status = 4,
-            StatusName = "Đã hủy"
+            StatusName = "Đã hủy",
+            CreatedAt = appointment.CreatedAt
         };
     }
 
@@ -745,7 +749,8 @@ public class BookingManagementService : IBookingManagementService
             RoomName = appointment.Room?.RoomName,
             Reason = appointment.Reason,
             Status = appointment.Status,
-            StatusName = statusNames.GetValueOrDefault(appointment.Status, "Không xác định")
+            StatusName = statusNames.GetValueOrDefault(appointment.Status, "Không xác định"),
+            CreatedAt = appointment.CreatedAt
         };
     }
 }

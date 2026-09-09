@@ -192,7 +192,6 @@ const HivManagementV2: React.FC = () => {
     });
   }, [patients, search, artTab]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   // ── cảnh báo bất thường (tab Xét nghiệm) ──
   const cd4Alerts = useMemo(
@@ -404,7 +403,10 @@ const HivManagementV2: React.FC = () => {
 
           <DataTable<HivPatient>
             columns={patientColumns}
-            data={paged}
+            data={filtered}
+            page={page}
+            perPage={PER}
+            onSortChange={() => setPage(0)}
             rowKey={(r) => r.id}
             loading={loading}
             onRowClick={openDetail}

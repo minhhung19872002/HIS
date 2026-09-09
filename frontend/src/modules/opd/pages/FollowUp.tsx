@@ -80,7 +80,6 @@ const FollowUpV2: React.FC = () => {
   const [range, setRange] = useState<[Dayjs, Dayjs]>([dayjs(), dayjs()]);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(16); // parity v1 showSizeChanger
-  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null); // parity v1 sorter Ngày hẹn (trang hiện tại)
   const [detail, setDetail] = useState<AppointmentListDto | null>(null);
   const [acting, setActing] = useState<string | null>(null); // id lịch hẹn đang đổi trạng thái — chống double-click
   const seqRef = useRef(0);
@@ -218,15 +217,9 @@ const FollowUpV2: React.FC = () => {
   const totalPages = isServerPaged
     ? Math.max(1, Math.ceil(totalCount / pageSize))
     : Math.max(1, Math.ceil(filtered.length / pageSize));
-  const pagedRaw = isServerPaged ? filtered : filtered.slice(page * pageSize, (page + 1) * pageSize);
-  // Sorter Ngày hẹn trên trang hiện tại (đúng hành vi Antd sorter + server pagination của v1)
-  const paged = useMemo(() => {
-    if (!sortDir) return pagedRaw;
-    return [...pagedRaw].sort((a, b) => {
-      const d = dayjs(a.appointmentDate).valueOf() - dayjs(b.appointmentDate).valueOf();
-      return sortDir === 'asc' ? d : -d;
-    });
-  }, [pagedRaw, sortDir]);
+  // Việc sắp xếp đã giao hẳn cho `DataTable` (mọi cột, sắp trên toàn tập rồi mới cắt trang).
+  // Riêng các tab phân trang ở MÁY CHỦ thì `filtered` chỉ là trang đang tải, nên bảng sắp trong
+  // phạm vi trang đó — đúng như v1 vẫn làm; tab "Quá hạn" tải hết nên sắp trên toàn danh sách.
 
   // KPI hôm-nay như v1 (tính trên trang dữ liệu đang tải, cùng semantics v1)
   const kpis = useMemo(() => {
@@ -274,17 +267,6 @@ const FollowUpV2: React.FC = () => {
     { key: 'doctor', label: 'Bác sĩ', width: 180, render: (r) => r.doctorName || '—' },
     {
       key: 'when', label: 'Hẹn tái khám', width: 130, mono: true,
-      sortable: true,
-      sortDirection: sortDir,
-      onSort: () => {
-        setSortDir((d) =>
-          d === 'asc'
-            ? 'desc'
-            : d === 'desc'
-              ? null
-              : 'asc'
-        );
-      },
       render: (r) => (
         <div className="cell-2l">
           <b>{fmtDMY(r.appointmentDate)}</b>
@@ -356,10 +338,6 @@ const FollowUpV2: React.FC = () => {
         <Btn variant="ghost" onClick={resetFilters}>
           <TermIcon name="refresh" size={12} /> Bỏ lọc
         </Btn>
-        {/* parity v1: sorter Ngày hẹn (trang hiện tại) + showSizeChanger */}
-        {/* <Btn variant="ghost" onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : d === 'desc' ? null : 'asc'))}>
-          Ngày hẹn {sortDir === 'asc' ? '↑' : sortDir === 'desc' ? '↓' : '↕'}
-        </Btn> */}
         <select className="ab-sel" value={pageSize} title="Số dòng/trang"
           onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}>
           {PAGE_SIZE_OPTS.map((n) => <option key={n} value={n}>{n}/trang</option>)}
@@ -399,7 +377,11 @@ const FollowUpV2: React.FC = () => {
 
       <DataTable<AppointmentListDto>
         columns={columns}
-        data={paged}
+        data={filtered}
+        page={isServerPaged ? undefined : page}
+        perPage={isServerPaged ? undefined : pageSize}
+        onSortChange={() => setPage(0)}
+        sortScope={isServerPaged ? 'page' : 'all'}
         loading={loading}
         rowKey={(r) => r.id}
         onRowClick={(r) => setDetail(r)}

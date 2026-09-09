@@ -161,7 +161,6 @@ const QualityV2: React.FC = () => {
   }, [incidents, stab, search]);
 
   const totalPages = Math.max(1, Math.ceil(incFiltered.length / PAGE_SIZE));
-  const paged = incFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const kpis = useMemo(() => {
     const total = indicators.length;
@@ -371,7 +370,10 @@ const QualityV2: React.FC = () => {
           <StatusTabs<IncStatusKey> value={stab} onChange={setStab} tabs={INC_TABS} counts={incCounts} />
           <DataTable<IncidentReportDto>
             columns={incColumns}
-            data={paged}
+            data={incFiltered}
+            page={page}
+            perPage={PAGE_SIZE}
+            onSortChange={() => setPage(0)}
             rowKey={(r) => r.id}
             onRowClick={(r) => setDetail(r)}
             actions={(r) => (

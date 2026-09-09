@@ -367,7 +367,6 @@ const BhxhAuditV2: React.FC = () => {
   }, [items, search, stab, fDept, fPayment, dateRange]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const totalIns = items.reduce((s, r) => s + (r.insuranceAmount || 0), 0);
   // totalAmt removed - không dùng trong KPI strip hiện tại (chỉ hiển thị totalIns)
@@ -572,7 +571,7 @@ const BhxhAuditV2: React.FC = () => {
       <StatusTabs<AuditKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
 
       <DataTable<AuditRecord>
-        columns={cols} data={paged} rowKey={(r) => r.id}
+        columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
         onRowClick={setSel} actions={actions}
         empty={loading ? 'Đang tải…' : 'Chưa có hồ sơ giám định'}
       />

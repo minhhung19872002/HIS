@@ -14,6 +14,7 @@ import { RefreshButton } from '../../../components/actions';
 import { Field } from '../../../components/form/Field';
 import { useModalForm } from '../../../hooks/useModalForm';
 import { useTabState } from '../../../hooks/useTabState';
+import { SortTh, useSortableRows } from '../../../components/table';
 
 const ASSET_FIELDS: CrudFieldCfg[] = [
   { key: 'assetCode', label: 'Mã tài sản', required: true, disabledOnEdit: true, placeholder: 'VD: TS-...' },
@@ -121,6 +122,17 @@ const AssetManagementV2: React.FC = () => {
   const [deprOpen, setDeprOpen] = useState(false);
   const [deprLoading, setDeprLoading] = useState(false);
   const [deprItems, setDeprItems] = useState<DepreciationReportDto[]>([]);
+
+  // Bảng khấu hao dựng tay → nối sắp xếp bằng hook dùng chung. Ba cột tiền phải so theo SỐ trong dữ
+  // liệu, không so theo chữ đã định dạng: chữ có dấu phân nhóm nghìn và cả dấu trừ ở cột khấu hao.
+  const deprSort = useSortableRows(deprItems, {
+    code: (r) => r.assetCode,
+    name: (r) => r.assetName,
+    dept: (r) => r.departmentName,
+    open: (r) => r.openingValue,
+    depr: (r) => r.depreciationAmount,
+    close: (r) => r.closingValue,
+  });
   // Tenders (đấu thầu)
   const [tenders, setTenders] = useState<TenderDto[]>([]);
   const [tenderDetail, setTenderDetail] = useState<TenderDto | null>(null);
@@ -324,7 +336,6 @@ const AssetManagementV2: React.FC = () => {
   }, [items, stab, fDept]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const cols: ColumnDef<FixedAssetDto>[] = [
     { key: 'code', label: 'Mã TS', code: true, render: (r) => r.assetCode },
@@ -425,7 +436,7 @@ const AssetManagementV2: React.FC = () => {
         </div>
         <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
         <DataTable<FixedAssetDto>
-          columns={cols} data={paged} rowKey={(r) => r.id}
+          columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
           onRowClick={setSel} actions={actions}
           loading={loading}
           empty={'Chưa có tài sản'}
@@ -946,12 +957,16 @@ const AssetManagementV2: React.FC = () => {
           <table className="ab-tbl" style={{ width: '100%', fontSize: 'var(--fs-sm)' }}>
             <thead>
               <tr>
-                <th>Mã TS</th><th>Tên tài sản</th><th>Khoa</th>
-                <th>Đầu kỳ (đ)</th><th>Khấu hao (đ)</th><th>Cuối kỳ (đ)</th>
+                <SortTh s={deprSort} k="code">Mã TS</SortTh>
+                <SortTh s={deprSort} k="name">Tên tài sản</SortTh>
+                <SortTh s={deprSort} k="dept">Khoa</SortTh>
+                <SortTh s={deprSort} k="open">Đầu kỳ (đ)</SortTh>
+                <SortTh s={deprSort} k="depr">Khấu hao (đ)</SortTh>
+                <SortTh s={deprSort} k="close">Cuối kỳ (đ)</SortTh>
               </tr>
             </thead>
             <tbody>
-              {deprItems.map((d) => (
+              {deprSort.rows.map((d) => (
                 <tr key={d.fixedAssetId}>
                   <td className="mono">{d.assetCode}</td>
                   <td>{d.assetName}</td>

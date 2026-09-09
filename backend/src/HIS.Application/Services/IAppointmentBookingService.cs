@@ -140,6 +140,15 @@ public class BookingStatusDto
     public string? Reason { get; set; }
     public int Status { get; set; }
     public string StatusName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Thời điểm lịch hẹn được TẠO (UTC) — khác với ngày hẹn.
+    ///
+    /// <para>Màn quản lý đặt lịch xếp mặc định theo mốc này giảm dần, để lịch vừa đặt xong luôn nằm
+    /// dòng đầu. Không có nó thì "mới nhất" chỉ còn đoán theo ngày hẹn, mà một lịch đặt hôm nay cho
+    /// tháng sau lại có ngày hẹn xa nhất.</para>
+    /// </summary>
+    public DateTime CreatedAt { get; set; }
 }
 
 /// <summary>Yêu cầu đổi lịch của người bệnh.</summary>

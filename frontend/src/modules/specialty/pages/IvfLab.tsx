@@ -96,7 +96,6 @@ const IvfLabV2: React.FC = () => {
   }, [items, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const calcAge = (dob?: string) => dob ? dayjs().diff(dayjs(dob), 'year') : null;
 
@@ -172,7 +171,7 @@ const IvfLabV2: React.FC = () => {
         </div>
 
         <DataTable<IvfCouple>
-          columns={cols} data={paged} rowKey={(r) => r.id}
+          columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
           onRowClick={setSel} actions={actions}
           empty={loading ? 'Đang tải…' : 'Chưa có cặp đôi đăng ký IVF'}
         />
@@ -682,7 +681,6 @@ const SpermBankTab: React.FC = () => {
   ];
 
   const totalPages = Math.max(1, Math.ceil(data.length / PER));
-  const paged = data.slice(page * PER, (page + 1) * PER);
 
   return (
     <>
@@ -695,7 +693,7 @@ const SpermBankTab: React.FC = () => {
         </Btn>
       </div>
       <DataTable<IvfSpermSample>
-        columns={cols} data={paged} rowKey={(r) => r.id}
+        columns={cols} data={data} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
         empty={loading ? 'Đang tải…' : 'Chưa có mẫu tinh trùng'}
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={data.length} perPage={PER} />

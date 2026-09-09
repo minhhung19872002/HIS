@@ -163,7 +163,8 @@ const PaymentTransactionsV2: React.FC = () => {
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
 
       <DataTable<PaymentTransactionDto>
-        columns={cols} data={items} rowKey={(r) => r.id}
+                sortScope="page"
+columns={cols} data={items} rowKey={(r) => r.id}
         onRowClick={setSel}
         actions={(r) => (
           <div className="ab-actions">

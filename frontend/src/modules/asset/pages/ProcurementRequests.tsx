@@ -158,7 +158,6 @@ const ProcurementRequestsV2: React.FC = () => {
     });
   }, [rows, tab, stab, search]);
 
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
 
   // ── KPI ──────────────────────────────────────────────────────────────────
@@ -362,7 +361,10 @@ const ProcurementRequestsV2: React.FC = () => {
 
       <DataTable<AssetProcurementRequestDto>
         columns={columns}
-        data={paged}
+        data={filtered}
+        page={page}
+        perPage={PER}
+        onSortChange={() => setPage(0)}
         rowKey={r => r.id}
         onRowClick={r => setDetail(r)}
         actions={rowActions}

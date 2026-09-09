@@ -119,7 +119,6 @@ const TelemedicineV2: React.FC = () => {
   }, [rows, stab, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const today = dayjs().startOf('day');
   const kpis = useMemo(() => ({
@@ -339,7 +338,10 @@ const TelemedicineV2: React.FC = () => {
 
           <DataTable<TelemedicineAppointmentDto>
             columns={columns}
-            data={paged}
+            data={filtered}
+            page={page}
+            perPage={PAGE_SIZE}
+            onSortChange={() => setPage(0)}
             rowKey={(r) => r.id}
             onRowClick={(r) => setDetail(r)}
             actions={(r) => (

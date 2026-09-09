@@ -164,7 +164,8 @@ const PatientAppAccounts: React.FC = () => {
           : (
             <>
               <DataTable
-                data={rows}
+                        sortScope="page"
+data={rows}
                 columns={columns}
                 rowKey={(a) => a.id}
                 onRowClick={setDetail}

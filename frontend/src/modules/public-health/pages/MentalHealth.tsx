@@ -139,7 +139,6 @@ const MentalHealthV2: React.FC = () => {
   }, [rows, stab]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const columns: ColumnDef<MentalHealthCase>[] = [
     { key: 'code', label: 'Mã ca', mono: true, width: 130, render: (r) => r.caseCode },
@@ -221,7 +220,10 @@ const MentalHealthV2: React.FC = () => {
 
       <DataTable<MentalHealthCase>
         columns={columns}
-        data={paged}
+        data={filtered}
+        page={page}
+        perPage={PER}
+        onSortChange={() => setPage(0)}
         rowKey={(r) => r.id}
         loading={loading}
         onRowClick={openDetail}

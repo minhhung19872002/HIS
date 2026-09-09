@@ -249,7 +249,6 @@ const LaboratoryV2: React.FC = () => {
   }, [rows, stab, fGroup]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   // KPIs
   const kpis = useMemo(() => {
@@ -507,7 +506,10 @@ const LaboratoryV2: React.FC = () => {
 
       <DataTable<LabRequest>
         columns={LAB_COLUMNS}
-        data={paged}
+        data={filtered}
+        page={page}
+        perPage={PAGE_SIZE}
+        onSortChange={() => setPage(0)}
         rowKey={(r) => r.id}
         onRowClick={(r) => setDetail(r)}
         actions={(r) => {

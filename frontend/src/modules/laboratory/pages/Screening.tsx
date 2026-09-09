@@ -113,7 +113,6 @@ const ScreeningV2: React.FC = () => {
   }, [rows, search, stab, tab]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const newbornCols: ColumnDef<ScreeningRequest>[] = [
     { key: 'code', label: 'Mã SL', mono: true, width: 120, render: (r) => r.requestCode },
@@ -226,7 +225,10 @@ const ScreeningV2: React.FC = () => {
 
       <DataTable<ScreeningRequest>
         columns={columns}
-        data={paged}
+        data={filtered}
+        page={page}
+        perPage={PER}
+        onSortChange={() => setPage(0)}
         rowKey={(r) => r.id}
         onRowClick={setSel}
         actions={rowActions}

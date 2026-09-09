@@ -128,7 +128,6 @@ const OccupationalHealthV2: React.FC = () => {
     [baseFiltered, stab],
   );
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const diseaseCount = rows.filter((r) => !!r.occupationalDisease).length;
   const companyOptions = useMemo(
@@ -291,7 +290,10 @@ const OccupationalHealthV2: React.FC = () => {
 
           <DataTable<OccExam>
             columns={columns}
-            data={paged}
+            data={filtered}
+            page={page}
+            perPage={PER}
+            onSortChange={() => setPage(0)}
             rowKey={(r) => r.id}
             onRowClick={(r) => setSel(r)}
             actions={rowActions}

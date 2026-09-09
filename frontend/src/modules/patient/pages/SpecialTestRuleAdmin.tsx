@@ -222,7 +222,8 @@ const SpecialTestRuleAdmin: React.FC = () => {
       </div>
 
       <DataTable
-        columns={cols}
+                sortScope="page"
+columns={cols}
         data={rows}
         rowKey={(r) => r.id}
         onRowClick={(r) => openDrawer(r)}

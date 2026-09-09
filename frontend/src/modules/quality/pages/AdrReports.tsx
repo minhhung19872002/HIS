@@ -175,7 +175,6 @@ const AdrReportsV2: React.FC = () => {
     );
   }, [rows, search]);
 
-  const paged = filteredRows.slice(page * PER, (page + 1) * PER);
 
   // ── KPI strip ──────────────────────────────────────────────────────────────
   const kpis = [
@@ -363,7 +362,10 @@ const AdrReportsV2: React.FC = () => {
         <>
           <DataTable<AdrReportDto>
             columns={COLS}
-            data={paged}
+            data={filteredRows}
+            page={page}
+            perPage={PER}
+            onSortChange={() => setPage(0)}
             rowKey={r => r.id}
             loading={loading}
             onRowClick={openEdit}

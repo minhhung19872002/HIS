@@ -91,7 +91,6 @@ const FinanceV2: React.FC = () => {
   }, [items, search, fGroup]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const kpis = useMemo(() => {
     const totalRev = items.reduce((s, r) => s + (r.totalRevenue || 0), 0);
@@ -292,7 +291,7 @@ const FinanceV2: React.FC = () => {
         </div>
 
         <DataTable<Row>
-          columns={cols} data={paged} rowKey={(r) => r.id}
+          columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
           onRowClick={setSel} actions={actions}
           empty={loading ? 'Đang tải…' : 'Không có dữ liệu doanh thu'}
         />

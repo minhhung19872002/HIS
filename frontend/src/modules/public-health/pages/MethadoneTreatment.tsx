@@ -13,6 +13,7 @@ import {
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
 import { RowActions, RefreshButton } from '../../../components/actions';
+import { SortTh, useSortableRows } from '../../../components/table';
 
 // Đăng ký BN mới vào chương trình Methadone (enrollPatient). Liều khởi đầu 5-200mg — port verbatim từ v1 (InputNumber min={5} max={200}).
 const ENROLL_FIELDS: CrudFieldCfg[] = [
@@ -107,7 +108,6 @@ const MethadoneTreatmentV2: React.FC = () => {
   }, [items, search, stab, fPhase]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const cols: ColumnDef<MethadonePatient>[] = [
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
@@ -209,6 +209,14 @@ const MethadoneTreatmentV2: React.FC = () => {
   // ── Lịch sử cấp liều ──────────────────────────────────────────────────────
   const [histTarget, setHistTarget] = useState<MethadonePatient | null>(null);
   const [histRows, setHistRows] = useState<DoseRecord[]>([]);
+
+  const histSort = useSortableRows(histRows, {
+    when: (r) => r.doseDate,
+    dose: (r) => r.doseAmount,
+    type: (r) => r.doseType,
+    by: (r) => r.administeredBy,
+    st: (r) => r.status,
+  });
   const [histLoading, setHistLoading] = useState(false);
 
   const openHistory = async (r: MethadonePatient) => {
@@ -278,7 +286,7 @@ const MethadoneTreatmentV2: React.FC = () => {
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
 
       <DataTable<MethadonePatient>
-        columns={cols} data={paged} rowKey={(r) => r.id}
+        columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
         onRowClick={setSel} actions={actions}
         loading={loading}
         empty="Chưa có BN methadone"
@@ -460,10 +468,16 @@ const MethadoneTreatmentV2: React.FC = () => {
         {!histLoading && histRows.length > 0 && (
           <table className="ab-tbl">
             <thead>
-              <tr><th>Ngày</th><th>Liều (mg)</th><th>Hình thức</th><th>Người cấp</th><th>Trạng thái</th></tr>
+              <tr>
+                <SortTh s={histSort} k="when">Ngày</SortTh>
+                <SortTh s={histSort} k="dose">Liều (mg)</SortTh>
+                <SortTh s={histSort} k="type">Hình thức</SortTh>
+                <SortTh s={histSort} k="by">Người cấp</SortTh>
+                <SortTh s={histSort} k="st">Trạng thái</SortTh>
+              </tr>
             </thead>
             <tbody>
-              {histRows.map((row) => (
+              {histSort.rows.map((row) => (
                 <tr key={row.id}>
                   <td className="mono">{dayjs(row.doseDate).format('DD/MM/YYYY HH:mm')}</td>
                   <td className="mono"><b>{row.doseAmount}</b></td>

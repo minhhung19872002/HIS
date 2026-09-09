@@ -131,7 +131,6 @@ const SchoolHealthV2: React.FC = () => {
   }, [rows, search, stab]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const openCreate = () => { setEditRow(null); setModalOpen(true); };
   const openEdit = (r: SchoolExam) => { setSel(null); setEditRow(r); setModalOpen(true); };
@@ -225,7 +224,10 @@ const SchoolHealthV2: React.FC = () => {
 
       <DataTable<SchoolExam>
         columns={columns}
-        data={paged}
+        data={filtered}
+        page={page}
+        perPage={PER}
+        onSortChange={() => setPage(0)}
         rowKey={(r) => r.id}
         onRowClick={setSel}
         actions={rowActions}

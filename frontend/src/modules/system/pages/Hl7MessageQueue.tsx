@@ -80,7 +80,6 @@ const Hl7MessageQueue: React.FC = () => {
     return true;
   });
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const kpis = [
     { lbl: 'Tổng message', val: counts.total, sub: 'queue hiện tại' },
@@ -221,7 +220,7 @@ const Hl7MessageQueue: React.FC = () => {
         tabs={HL7Q_STATUS}
         counts={statusCounts}
       />
-      <DataTable columns={cols} data={paged} rowKey={r => r.id} onRowClick={openDetail} actions={actions} loading={loading} />
+      <DataTable columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={r => r.id} onRowClick={openDetail} actions={actions} loading={loading} />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 
       {/* Detail drawer */}

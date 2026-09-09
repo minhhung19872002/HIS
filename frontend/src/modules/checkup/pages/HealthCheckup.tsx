@@ -197,7 +197,6 @@ const CampaignTab: React.FC = () => {
   }, [campaigns, search, camStab]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const camCols: ColumnDef<CheckupCampaign>[] = [
     { key: 'code', label: 'Mã chiến dịch', code: true, render: (r) => r.campaignCode },
@@ -309,7 +308,7 @@ const CampaignTab: React.FC = () => {
 
       <DataTable<CheckupCampaign>
         columns={camCols}
-        data={paged}
+        data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)}
         rowKey={(r) => r.id}
         onRowClick={setSel}
         actions={camActions}
@@ -570,7 +569,6 @@ const HealthCheckupV2: React.FC = () => {
   }, [items, search, stab, fType]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   // Dynamic fields: show type selector + base fields + specialty fields based on selectedType.
   // selectedType is updated when user opens edit (from record.checkupType) or when selecting type in form.
@@ -659,7 +657,7 @@ const HealthCheckupV2: React.FC = () => {
           <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
 
           <DataTable<HealthCheckup>
-            columns={cols} data={paged} rowKey={(r) => r.id}
+            columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
             onRowClick={setSel} actions={actions}
             loading={loading}
             empty={'Chưa có khám SK'}

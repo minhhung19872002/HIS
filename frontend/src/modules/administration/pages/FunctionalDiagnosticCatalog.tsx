@@ -91,7 +91,6 @@ const FunctionalDiagnosticCatalog: React.FC = () => {
     return templates.filter(t => !kw || t.name.toLowerCase().includes(kw) || t.code.toLowerCase().includes(kw));
   }, [tab, testTypes, templates, search]);
 
-  const paged = rows.slice(page * PER, (page + 1) * PER);
 
   // ── KPI ────────────────────────────────────────────────────────────────────
   const kpis = [
@@ -210,7 +209,7 @@ const FunctionalDiagnosticCatalog: React.FC = () => {
       {tab === 'testType' && (
         <DataTable<FunctionalDiagnosticTestTypeDto>
           columns={colsType}
-          data={paged as FunctionalDiagnosticTestTypeDto[]}
+          data={rows as FunctionalDiagnosticTestTypeDto[]} page={page} perPage={PER} onSortChange={() => setPage(0)}
           rowKey={r => r.id}
           loading={loadingTypes}
           onRowClick={onTypeRowClick}
@@ -224,7 +223,7 @@ const FunctionalDiagnosticCatalog: React.FC = () => {
       {tab === 'template' && (
         <DataTable<FunctionalDiagnosticTemplateDto>
           columns={colsTmpl}
-          data={paged as FunctionalDiagnosticTemplateDto[]}
+          data={rows as FunctionalDiagnosticTemplateDto[]} page={page} perPage={PER} onSortChange={() => setPage(0)}
           rowKey={r => r.id}
           loading={loadingTmpl}
           onRowClick={onTmplRowClick}

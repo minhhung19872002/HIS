@@ -449,13 +449,28 @@
   gap: 5px;
 }
 
+/* Mọi cột đều sắp xếp được, nên mũi tên phải THẤY ĐƯỢC lúc nghỉ: ẩn hẳn (opacity 0) thì trên
+   máy cảm ứng — vốn không có trạng thái hover — sẽ không ai biết là bấm được vào tiêu đề cột. */
 .ab-sort-icon {
-  opacity: 0;
+  opacity: 0.28;
   transition: opacity 0.15s ease;
 }
 
 .ab-tbl th.sortable:hover .ab-sort-icon {
-  opacity: 0.55;
+  opacity: 0.7;
+}
+
+.ab-tbl-sortnote {
+  padding: 6px 10px;
+  font-size: var(--fs-xs);
+  color: var(--t-2);
+  background: var(--d-1);
+  border-bottom: 1px solid var(--line);
+}
+
+.ab-tbl th.sortable:focus-visible {
+  outline: 2px solid var(--a-cy);
+  outline-offset: -2px;
 }
 
 .ab-sort-icon.asc,

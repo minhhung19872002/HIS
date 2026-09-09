@@ -121,7 +121,6 @@ const DigitalSignatureV2: React.FC = () => {
   }, [pending, search, fType]);
 
   const totalPages = Math.max(1, Math.ceil(filteredPending.length / PER));
-  const paged = filteredPending.slice(page * PER, (page + 1) * PER);
 
   const openSession = async () => {
     try {
@@ -276,16 +275,13 @@ const DigitalSignatureV2: React.FC = () => {
     if (next.has(id)) next.delete(id); else next.add(id);
     setSelectedIds(next);
   };
-  const toggleAll = () => {
-    if (paged.every((p) => selectedIds.has(p.id))) {
-      const next = new Set(selectedIds);
-      paged.forEach((p) => next.delete(p.id));
-      setSelectedIds(next);
-    } else {
-      const next = new Set(selectedIds);
-      paged.forEach((p) => next.add(p.id));
-      setSelectedIds(next);
-    }
+  // Nhận `visible` từ bảng: sau khi bảng tự sắp xếp, trang không còn tự dựng lại được đúng tập
+  // dòng đang hiện nữa — tự cắt lại theo thứ tự cũ sẽ chọn nhầm sang dòng khác.
+  const toggleAll = (visible: PendingDocument[]) => {
+    const next = new Set(selectedIds);
+    if (visible.every((p) => selectedIds.has(p.id))) visible.forEach((p) => next.delete(p.id));
+    else visible.forEach((p) => next.add(p.id));
+    setSelectedIds(next);
   };
 
   return (
@@ -341,7 +337,8 @@ const DigitalSignatureV2: React.FC = () => {
 
       {tab === 'pending' && <>
         <DataTable<PendingDocument>
-          columns={pendingCols} data={paged} rowKey={(r) => r.id}
+          columns={pendingCols} data={filteredPending} page={page} perPage={PER}
+          onSortChange={() => setPage(0)} rowKey={(r) => r.id}
           onRowClick={setSelDoc}
           selected={selectedIds} onToggle={togglePending} onToggleAll={toggleAll}
           actions={(r) => (

@@ -277,7 +277,6 @@ export function SimpleV2Page<T>({
   }), [rows, stab, statusTabs, statusOf, filters, filterValues, search, searchOf]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
 
   return (
     <div className="ab">
@@ -318,7 +317,10 @@ export function SimpleV2Page<T>({
 
       <DataTable<T>
         columns={columns}
-        data={paged}
+        data={filtered}
+        page={page}
+        perPage={pageSize}
+        onSortChange={() => setPage(0)}
         rowKey={rowKey}
         loading={loading}
         onRowClick={drawer ? (r) => setDetail(r) : undefined}

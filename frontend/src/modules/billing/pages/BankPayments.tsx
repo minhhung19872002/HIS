@@ -122,7 +122,6 @@ const BankPayments: React.FC = () => {
     return true;
   });
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const totalAmount = filtered.reduce((s, r) => s + r.amount, 0);
   const successAmount = filtered.filter(r => r.status === 1).reduce((s, r) => s + r.amount, 0);
@@ -286,7 +285,7 @@ const BankPayments: React.FC = () => {
       </div>
 
       <StatusTabs value={stab} onChange={(v) => { setStab(v as BPStatusKey | 'all'); setPage(0); }} tabs={BP_STATUS} counts={counts} />
-      <DataTable columns={cols} data={paged} rowKey={r => r.id} onRowClick={setDetail} actions={actions} loading={loading} />
+      <DataTable columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={r => r.id} onRowClick={setDetail} actions={actions} loading={loading} />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 
       {/* Drawer chi tiết */}

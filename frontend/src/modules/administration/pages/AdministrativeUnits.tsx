@@ -82,7 +82,6 @@ const AdministrativeUnitsV2: React.FC = () => {
     return wards.filter(w => !kw || w.name.toLowerCase().includes(kw) || w.code.includes(kw));
   }, [tab, provinces, districts, wards, search]);
 
-  const paged = rows.slice(page * PER, (page + 1) * PER);
 
   // ── KPI ────────────────────────────────────────────────────────────────────
   const kpis = [
@@ -215,7 +214,10 @@ const AdministrativeUnitsV2: React.FC = () => {
 
       <DataTable<ProvinceDto | DistrictDto | WardDto>
         columns={activeColumns as ColumnDef<ProvinceDto | DistrictDto | WardDto>[]}
-        data={paged}
+        data={rows}
+        page={page}
+        perPage={PER}
+        onSortChange={() => setPage(0)}
         loading={loading}
         rowKey={r => r.id}
         onRowClick={onRowClick}

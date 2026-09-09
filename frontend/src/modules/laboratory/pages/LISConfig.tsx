@@ -133,7 +133,6 @@ const AnalyzerSection: React.FC = () => {
   }, [items, search, stab, fProto]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const cols: ColumnDef<AnalyzerDto>[] = [
     { key: 'name', label: 'Máy XN', render: (r) => (
@@ -204,7 +203,7 @@ const AnalyzerSection: React.FC = () => {
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
 
       <DataTable<AnalyzerDto>
-        columns={cols} data={paged} rowKey={(r) => r.id}
+        columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
         onRowClick={setSel} actions={actions}
         loading={loading}
         empty={'Chưa có máy XN cấu hình'}
@@ -326,7 +325,6 @@ const TestParamsSection: React.FC = () => {
   }, [params, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const cols: ColumnDef<TestParameterDto>[] = [
     { key: 'code', label: 'Mã', code: true, render: (r) => r.code },
@@ -358,7 +356,7 @@ const TestParamsSection: React.FC = () => {
       </div>
 
       <DataTable<TestParameterDto>
-        columns={cols} data={paged} rowKey={(r) => r.id}
+        columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
         onRowClick={openEdit}
         actions={(r) => (
           <div className="ab-actions">
@@ -466,7 +464,6 @@ const ReferenceRangesSection: React.FC = () => {
   ];
 
   const totalPages = Math.max(1, Math.ceil(ranges.length / PER));
-  const paged = ranges.slice(page * PER, (page + 1) * PER);
 
   return (
     <>
@@ -484,7 +481,7 @@ const ReferenceRangesSection: React.FC = () => {
       </div>
 
       <DataTable<ReferenceRangeDto>
-        columns={cols} data={paged} rowKey={(r) => r.id}
+        columns={cols} data={ranges} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
         onRowClick={openEdit}
         actions={(r) => (
           <div className="ab-actions">
@@ -593,7 +590,6 @@ const AnalyzerMappingSection: React.FC = () => {
   ];
 
   const totalPages = Math.max(1, Math.ceil(mappings.length / PER));
-  const paged = mappings.slice(page * PER, (page + 1) * PER);
 
   return (
     <>
@@ -614,7 +610,7 @@ const AnalyzerMappingSection: React.FC = () => {
       </div>
 
       <DataTable<AnalyzerMappingDto>
-        columns={cols} data={paged} rowKey={(r) => r.id}
+        columns={cols} data={mappings} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
         onRowClick={openEdit}
         actions={(r) => (
           <div className="ab-actions">

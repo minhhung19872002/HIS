@@ -87,7 +87,6 @@ const ObstetricRegistersV2: React.FC = () => {
     return [];
   }, [tab, births, abortions, search]);
 
-  const paged = rows.slice(page * PER, (page + 1) * PER);
 
   // ── KPI ────────────────────────────────────────────────────────────────────
   const kpis = [
@@ -209,7 +208,7 @@ const ObstetricRegistersV2: React.FC = () => {
       {tab === 'birth' && (
         <>
           <DataTable<BirthRegisterDto>
-            columns={colsBirth} data={paged as BirthRegisterDto[]} rowKey={r => r.id}
+            columns={colsBirth} data={rows as BirthRegisterDto[]} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={r => r.id}
             loading={loading}
             onRowClick={onRowClick}
             actions={row => <ActBtn ic="trash" title="Xóa" tone="crit" onClick={e => { e.stopPropagation(); onDelete(row.id); }} />}
@@ -221,7 +220,7 @@ const ObstetricRegistersV2: React.FC = () => {
       {tab === 'abortion' && (
         <>
           <DataTable<AbortionRegisterDto>
-            columns={colsAbortion} data={paged as AbortionRegisterDto[]} rowKey={r => r.id}
+            columns={colsAbortion} data={rows as AbortionRegisterDto[]} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={r => r.id}
             loading={loading}
             onRowClick={onRowClick}
             actions={row => <ActBtn ic="trash" title="Xóa" tone="crit" onClick={e => { e.stopPropagation(); onDelete(row.id); }} />}

@@ -172,7 +172,6 @@ const RadiologyV2: React.FC = () => {
   useEffect(() => setPage(0), [stab, fMod, search, date]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const kpis = useMemo(() => {
     const reading  = rows.filter((r) => statusKey(r.status) === 'reading').length;
@@ -435,7 +434,10 @@ const RadiologyV2: React.FC = () => {
 
       <DataTable<RadiologyOrderDto>
         columns={radiologyColumns}
-        data={paged}
+        data={filtered}
+        page={page}
+        perPage={PAGE_SIZE}
+        onSortChange={() => setPage(0)}
         rowKey={(r) => r.id}
         onRowClick={(r) => setDetail(r)}
         actions={(r) => {

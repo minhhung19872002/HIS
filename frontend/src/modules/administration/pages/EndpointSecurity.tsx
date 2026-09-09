@@ -14,6 +14,7 @@ import {
   type TopTab, type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
 import { RowActions, RefreshButton } from '../../../components/actions';
+import { SortTh, useSortableRows } from '../../../components/table';
 import { useTabState } from '../../../hooks/useTabState';
 
 const DEVICE_FIELDS: CrudFieldCfg[] = [
@@ -101,6 +102,30 @@ const EndpointSecurityV2: React.FC = () => {
   const [softwareOpen, setSoftwareOpen] = useState(false);
   const [softwareLoading, setSoftwareLoading] = useState(false);
   const [software, setSoftware] = useState<InstalledSoftwareDto[]>([]);
+
+  // Hai bảng trong drawer dựng tay (không qua DataTable) → nối sắp xếp bằng hook dùng chung.
+  //
+  // Mấy cột này BẮT BUỘC phải khai giá trị so sánh riêng, không so theo chữ đang hiện:
+  //  - "Mức độ" hiện chữ ("Nghiêm trọng"/"Cao"/…) nhưng thứ tự nặng-nhẹ nằm ở số `severity`;
+  //  - "Thời gian" hiện "DD/MM HH:mm" KHÔNG có năm, so theo chữ thì sự cố tháng 12 năm ngoái
+  //    đứng sau sự cố tháng 1 năm nay.
+  const incSort = useSortableRows(incidents, {
+    code: (r) => r.incidentCode,
+    title: (r) => r.title,
+    sev: (r) => r.severity,
+    cat: (r) => r.category,
+    host: (r) => r.deviceHostname,
+    st: (r) => r.status,
+    when: (r) => r.createdAt,
+  });
+  const swSort = useSortableRows(software, {
+    name: (r) => r.softwareName,
+    ver: (r) => r.version,
+    pub: (r) => r.publisher,
+    cat: (r) => r.category,
+    st: (r) => (r.isAuthorized ? 1 : 0),
+  });
+
 
   const openCreate = () => { setCrudInit({}); setCrudOpen(true); };
   const openEdit = (r: EndpointDeviceDto) => {
@@ -200,7 +225,6 @@ const EndpointSecurityV2: React.FC = () => {
   }, [items, search, stab, fOs]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const cols: ColumnDef<EndpointDeviceDto>[] = [
     { key: 'host', label: 'Hostname', code: true, render: (r) => r.hostname },
@@ -362,7 +386,7 @@ const EndpointSecurityV2: React.FC = () => {
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
 
       <DataTable<EndpointDeviceDto>
-        columns={cols} data={paged} rowKey={(r) => r.id}
+        columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
         onRowClick={setSel} actions={actions}
         loading={loading}
         empty="Chưa có máy nào"
@@ -444,12 +468,18 @@ const EndpointSecurityV2: React.FC = () => {
           <table className="ab-tbl" style={{ width: '100%', fontSize: 'var(--fs-sm)' }}>
             <thead>
               <tr>
-                <th>Mã SC</th><th>Tiêu đề</th><th>Mức độ</th>
-                <th>Danh mục</th><th>Máy bị ảnh hưởng</th><th>Trạng thái</th><th>Thời gian</th><th></th>
+                <SortTh s={incSort} k="code">Mã SC</SortTh>
+                <SortTh s={incSort} k="title">Tiêu đề</SortTh>
+                <SortTh s={incSort} k="sev">Mức độ</SortTh>
+                <SortTh s={incSort} k="cat">Danh mục</SortTh>
+                <SortTh s={incSort} k="host">Máy bị ảnh hưởng</SortTh>
+                <SortTh s={incSort} k="st">Trạng thái</SortTh>
+                <SortTh s={incSort} k="when">Thời gian</SortTh>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {incidents.map((inc) => (
+              {incSort.rows.map((inc) => (
                 <tr key={inc.id}>
                   <td className="mono">{inc.incidentCode}</td>
                   <td>{inc.title}</td>
@@ -523,11 +553,16 @@ const EndpointSecurityV2: React.FC = () => {
           <table className="ab-tbl" style={{ width: '100%', fontSize: 'var(--fs-sm)' }}>
             <thead>
               <tr>
-                <th>Phần mềm</th><th>Phiên bản</th><th>Nhà phát triển</th><th>Phân loại</th><th>Trạng thái</th><th></th>
+                <SortTh s={swSort} k="name">Phần mềm</SortTh>
+                <SortTh s={swSort} k="ver">Phiên bản</SortTh>
+                <SortTh s={swSort} k="pub">Nhà phát triển</SortTh>
+                <SortTh s={swSort} k="cat">Phân loại</SortTh>
+                <SortTh s={swSort} k="st">Trạng thái</SortTh>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {software.map((sw) => (
+              {swSort.rows.map((sw) => (
                 <tr key={sw.id}>
                   <td>{sw.softwareName}</td>
                   <td className="mono">{sw.version || '—'}</td>

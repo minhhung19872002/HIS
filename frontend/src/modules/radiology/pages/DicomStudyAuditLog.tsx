@@ -74,7 +74,6 @@ const DicomStudyAuditLog: React.FC = () => {
   };
 
   const totalPages = Math.max(1, Math.ceil(rows.length / PER));
-  const paged = rows.slice(page * PER, (page + 1) * PER);
 
   const uniqueStudies = new Set(rows.map(r => r.studyInstanceUid)).size;
   const uniqueUsers = new Set(rows.filter(r => r.performedByName && !r.performedByName.includes('auto') && !r.performedByName.includes('System')).map(r => r.performedByName)).size;
@@ -148,7 +147,10 @@ const DicomStudyAuditLog: React.FC = () => {
 
       <DataTable
         columns={cols}
-        data={paged}
+        data={rows}
+        page={page}
+        perPage={PER}
+        onSortChange={() => setPage(0)}
         rowKey={r => r.id}
         loading={loading}
         onRowClick={(r) => openTimeline(r.studyInstanceUid)}

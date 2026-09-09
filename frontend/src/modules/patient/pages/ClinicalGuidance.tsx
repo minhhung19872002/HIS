@@ -97,7 +97,6 @@ const ClinicalGuidanceV2: React.FC = () => {
   );
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const cols: ColumnDef<GuidanceBatchDto>[] = [
     { key: 'code', label: 'Mã đợt', code: true, render: (r) => r.batchCode },
@@ -199,7 +198,7 @@ const ClinicalGuidanceV2: React.FC = () => {
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
 
       <DataTable<GuidanceBatchDto>
-        columns={cols} data={paged} rowKey={(r) => r.id}
+        columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
         onRowClick={setSel} actions={actions}
         loading={loading}
         empty="Chưa có đợt chỉ đạo"

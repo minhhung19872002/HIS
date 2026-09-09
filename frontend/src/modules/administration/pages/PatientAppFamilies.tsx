@@ -122,7 +122,8 @@ const PatientAppFamilies: React.FC = () => {
           : (
             <>
               <DataTable
-                data={rows}
+                        sortScope="page"
+data={rows}
                 columns={columns}
                 rowKey={(l) => l.id}
                 onRowClick={setDetail}

@@ -85,6 +85,8 @@ export interface BookingStatusDto {
   reason?: string;
   status: number;
   statusName: string;
+  /** Thời điểm lịch được TẠO (ISO, UTC) — khác ngày hẹn; màn quản lý xếp mặc định theo mốc này. */
+  createdAt?: string;
 }
 
 export interface BookingServiceDto {

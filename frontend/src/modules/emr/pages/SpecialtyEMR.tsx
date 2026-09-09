@@ -180,7 +180,6 @@ const SpecialtyEMRV2: React.FC = () => {
   );
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const bySpecialty = useMemo(() => {
     const map = new Map<string, number>();
@@ -390,7 +389,7 @@ const SpecialtyEMRV2: React.FC = () => {
       )}
 
       <DataTable<SpecialtyRecord>
-        columns={cols} data={paged} rowKey={(r) => r.id}
+        columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
         onRowClick={setSel} actions={actions}
         loading={loading}
         empty="Chưa có hồ sơ chuyên khoa"

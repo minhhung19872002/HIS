@@ -310,7 +310,6 @@ const ConnectionsPanel: React.FC = () => {
   }, [items, search, stab, fType]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const totalErr = items.reduce((s, r) => s + (r.errorCount || 0), 0);
 
@@ -394,7 +393,7 @@ const ConnectionsPanel: React.FC = () => {
       <StatusTabs<StatusKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
 
       <DataTable<HIEConnectionDto>
-        columns={cols} data={paged} rowKey={(r) => r.id}
+        columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
         onRowClick={setSel} actions={actions}
         empty={loading ? 'Đang tải…' : 'Chưa có kết nối HIE nào'}
       />

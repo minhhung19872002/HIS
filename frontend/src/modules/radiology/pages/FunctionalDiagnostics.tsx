@@ -64,7 +64,6 @@ const FunctionalDiagnosticsV2: React.FC = () => {
   }), [rows, fType, fStatus]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
   useEffect(() => { setPage(0); }, [search, fType, fStatus]);
 
   const complete = async (r: FunctionalDiagnosticTestDto) => {
@@ -126,7 +125,7 @@ const FunctionalDiagnosticsV2: React.FC = () => {
         <RefreshButton onRefresh={reload} />
       </div>
       <DataTable<FunctionalDiagnosticTestDto>
-        rowKey={(r) => r.id} data={paged} columns={columns}
+        rowKey={(r) => r.id} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} columns={columns}
         onRowClick={setDetail}
         // #352: phân biệt đang-tải với không-có-dữ-liệu (trước đây bảng trống trơn khi tải)
         empty={loading ? 'Đang tải…' : 'Không có phiếu thăm dò chức năng'}

@@ -17,6 +17,7 @@ import {
   DrawerShell, DrSec, DrField, ModalShell, useTabCounts, tk, ti, tw, te, cf, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
+import { SortTh, useSortableRows } from '../../../components/table';
 import { RowActions, RefreshButton } from '../../../components/actions';
 import { Field } from '../../../components/form/Field';
 import { useModalForm } from '../../../hooks/useModalForm';
@@ -62,6 +63,18 @@ const BookingManagementV2: React.FC = () => {
   const [schedules, setSchedules] = useState<DoctorScheduleListDto[]>([]);
   const [schDepts, setSchDepts] = useState<BookingDepartmentDto[]>([]);
   const [schDoctors, setSchDoctors] = useState<BookingDoctorDto[]>([]);
+  // Bảng lịch bác sĩ dựng tay (không qua DataTable) nên nối sắp xếp bằng hook dùng chung.
+  // `booked` so theo TỈ LỆ đã đặt chứ không theo chuỗi "12/30": xếp theo chuỗi thì "9/30" đứng sau
+  // "12/30", mà điều dưỡng mở cột này ra là để tìm ca sắp đầy.
+  const schSort = useSortableRows(schedules, {
+    date: (r) => r.scheduleDate,
+    doctor: (r) => r.doctorName,
+    dept: (r) => r.departmentName,
+    room: (r) => r.roomName,
+    shift: (r) => r.startTime,
+    booked: (r) => (r.maxPatients > 0 ? r.bookedCount / r.maxPatients : -1),
+    active: (r) => (r.isActive ? 1 : 0),
+  });
   const [scheduleCrudOpen, setScheduleCrudOpen] = useState(false);
   const [scheduleCrudInit, setScheduleCrudInit] = useState<Record<string, unknown> | null>(null);
 
@@ -236,7 +249,6 @@ const BookingManagementV2: React.FC = () => {
   }, [items, search, stab, fDept]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const cols: ColumnDef<Booking>[] = [
     { key: 'code', label: 'Mã hẹn', code: true, render: (r) => r.appointmentCode },
@@ -246,7 +258,9 @@ const BookingManagementV2: React.FC = () => {
         {r.phoneNumber && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>📞 {r.phoneNumber}</div>}
       </div>
     ) },
-    { key: 'date', label: 'Ngày · Giờ', mono: true, render: (r) => (
+    { key: 'date', label: 'Ngày · Giờ', mono: true,
+      sortValue: (r) => `${dayjs(r.appointmentDate).format('YYYY-MM-DD')} ${r.appointmentTime || '00:00'}`,
+      render: (r) => (
       <div>
         <div>{dayjs(r.appointmentDate).format('DD/MM/YYYY')}</div>
         {r.appointmentTime && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.appointmentTime}</div>}
@@ -255,6 +269,16 @@ const BookingManagementV2: React.FC = () => {
     { key: 'dept', label: 'Khoa', render: (r) => r.departmentName || '—' },
     { key: 'doc', label: 'BS', render: (r) => r.doctorName || '—' },
     { key: 'reason', label: 'Lý do', render: (r) => <span style={{ fontSize: 'var(--fs-sm)' }}>{r.reason || '—'}</span> },
+    { key: 'made', label: 'Tạo lúc', mono: true, width: 110,
+      // Thứ tự mặc định của bảng là theo mốc này giảm dần. Không hiện nó ra thì người dùng nhìn
+      // bảng chỉ thấy ngày hẹn nhảy lung tung và tưởng bảng sắp xếp hỏng.
+      sortValue: (r) => (r.createdAt ? new Date(r.createdAt).getTime() : null),
+      render: (r) => (r.createdAt ? (
+        <div>
+          <div>{dayjs(r.createdAt).format('DD/MM/YYYY')}</div>
+          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{dayjs(r.createdAt).format('HH:mm')}</div>
+        </div>
+      ) : '—') },
     { key: 'st', label: 'Trạng thái', render: (r) => {
       const t = STATUS_TABS.find((x) => x.v === sKey(r.status));
       return <StatusBadge tone={t?.tone || 'info'} dot>{STATUS_LABEL[r.status] || '—'}</StatusBadge>;
@@ -347,7 +371,7 @@ const BookingManagementV2: React.FC = () => {
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
 
       <DataTable<Booking>
-        columns={cols} data={paged} rowKey={(r) => r.id} loading={loading}
+        columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id} loading={loading}
         onRowClick={setSel} actions={actions}
         empty="Chưa có lịch hẹn"
       />
@@ -470,11 +494,18 @@ const BookingManagementV2: React.FC = () => {
           <table className="ab-tbl" style={{ width: '100%', fontSize: 'var(--fs-sm)' }}>
             <thead>
               <tr>
-                <th>Ngày</th><th>Bác sĩ</th><th>Khoa</th><th>Phòng</th><th>Ca</th><th>Đã đặt/Tối đa</th><th>Trạng thái</th><th></th>
+                <SortTh s={schSort} k="date">Ngày</SortTh>
+                <SortTh s={schSort} k="doctor">Bác sĩ</SortTh>
+                <SortTh s={schSort} k="dept">Khoa</SortTh>
+                <SortTh s={schSort} k="room">Phòng</SortTh>
+                <SortTh s={schSort} k="shift">Ca</SortTh>
+                <SortTh s={schSort} k="booked">Đã đặt/Tối đa</SortTh>
+                <SortTh s={schSort} k="active">Trạng thái</SortTh>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {schedules.map((s) => (
+              {schSort.rows.map((s) => (
                 <tr key={s.id}>
                   <td className="mono">{dayjs(s.scheduleDate).format('DD/MM (ddd)')}</td>
                   <td>{s.title ? `${s.title} ` : ''}{s.doctorName}</td>

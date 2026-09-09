@@ -73,7 +73,6 @@ const EmrCloudSync: React.FC = () => {
     return true;
   });
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const totalBytes = rows.reduce((s, r) => s + r.fileSizeBytes, 0);
   const doneBytes = rows.filter(r => r.status === 'done').reduce((s, r) => s + r.fileSizeBytes, 0);
@@ -211,7 +210,7 @@ const EmrCloudSync: React.FC = () => {
       </div>
 
       <StatusTabs value={stab} onChange={(v) => { setStab(v as CSStatusKey | 'all'); setPage(0); }} tabs={CS_STATUS} counts={counts} />
-      <DataTable columns={cols} data={paged} rowKey={r => r.id} onRowClick={setDetail} actions={actions} loading={loading} />
+      <DataTable columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={r => r.id} onRowClick={setDetail} actions={actions} loading={loading} />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 
       {/* Detail drawer */}

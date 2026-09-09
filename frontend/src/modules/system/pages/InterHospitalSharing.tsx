@@ -121,7 +121,6 @@ const InterHospitalSharingV2: React.FC = () => {
   const DIR_OPTS = [{ v: 'incoming', l: '← Vào' }, { v: 'outgoing', l: '→ Ra' }];
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const cols: ColumnDef<InterHospitalRequest>[] = [
     { key: 'code', label: 'Mã YC', code: true, render: (r) => r.requestCode },
@@ -209,7 +208,7 @@ const InterHospitalSharingV2: React.FC = () => {
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
 
       <DataTable<InterHospitalRequest>
-        columns={cols} data={paged} rowKey={(r) => r.id}
+        columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
         onRowClick={setSel} actions={actions} loading={loading}
         empty={'Chưa có yêu cầu liên viện'}
       />

@@ -109,7 +109,6 @@ const AnalyzerInboxPage: React.FC = () => {
   }, [items, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const doTransfer = (r: AnalyzerInboxItemDto) =>
     cf(`Chuyển kết quả "${r.testCode}" (mã: ${r.sampleBarcode}) về phiếu?`, async () => {
@@ -221,7 +220,10 @@ const AnalyzerInboxPage: React.FC = () => {
 
       <DataTable<AnalyzerInboxItemDto>
         columns={cols}
-        data={paged}
+        data={filtered}
+        page={page}
+        perPage={PER}
+        onSortChange={() => setPage(0)}
         rowKey={(r) => r.id}
         onRowClick={setSel}
         actions={actions}

@@ -302,7 +302,6 @@ const SatisfactionSurveyV2: React.FC = () => {
   }, [items, search, stab, fTmpl]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const avg = items.length ? items.reduce((s, r) => s + (r.score || 0), 0) / items.length : 0;
   const last30 = items.filter((r) => r.date && dayjs(r.date).isAfter(dayjs().subtract(30, 'day'))).length;
@@ -426,7 +425,7 @@ const SatisfactionSurveyV2: React.FC = () => {
       )}
 
       <DataTable<SurveyResult>
-        columns={cols} data={paged} rowKey={(r) => r.id}
+        columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
         onRowClick={setSel} actions={actions}
         loading={loading}
         empty="Chưa có phản hồi khảo sát"

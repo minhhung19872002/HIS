@@ -151,3 +151,131 @@ public sealed class BookingPhoneSearchTests
         Assert.Equal(0, await CountAsync(context, keyword));
     }
 }
+
+/// <summary>
+/// Thứ tự mặc định của màn "Quản lý đặt lịch": lịch VỪA ĐẶT phải nằm dòng đầu.
+///
+/// <para>Bộ này canh đúng chỗ chủ đầu tư báo: đặt lịch xong mở màn quản lý mà không thấy đâu. Sắp
+/// theo NGÀY HẸN — tăng hay giảm cũng vậy — thì một lịch vừa đặt cho tháng sau sẽ rơi đúng vị trí
+/// ngày hẹn của nó ở giữa (hoặc cuối) danh sách, trong khi người vừa bấm "Đặt lịch" thì tìm nó ở
+/// dòng đầu.</para>
+/// </summary>
+public sealed class BookingManagementOrderTests
+{
+    private static (HIS.Infrastructure.Data.HISDbContext ctx, Patient p) Seed()
+    {
+        var context = TestDb.NewInMemory();
+        var patient = new Patient
+        {
+            Id = Guid.NewGuid(),
+            PatientCode = "BN-ORDER-01",
+            FullName = "Benh Nhan Sap Xep",
+            PhoneNumber = "0912000111"
+        };
+        context.Patients.Add(patient);
+        return (context, patient);
+    }
+
+    /// <summary>
+    /// Thêm một lịch hẹn rồi ĐẶT LẠI mốc tạo.
+    ///
+    /// <para>Phải đặt sau khi lưu vì `HISDbContext.SaveChangesAsync` đóng dấu
+    /// `CreatedAt = DateTime.UtcNow` cho mọi bản ghi mới (HISDbContext.cs:1413) — gán trước rồi lưu
+    /// thì giá trị bị ghi đè, và phép kiểm sẽ chỉ đang kiểm cái đồng hồ. Lần lưu thứ hai là
+    /// `Modified` nên chỉ đụng `UpdatedAt`.</para>
+    /// </summary>
+    private static async Task AddBookingAsync(
+        HIS.Infrastructure.Data.HISDbContext context, Patient p, string code, int dayOffset, DateTime createdAt)
+    {
+        var booking = new Appointment
+        {
+            Id = Guid.NewGuid(),
+            AppointmentCode = code,
+            AppointmentDate = DateTime.Today.AddDays(dayOffset),
+            PatientId = p.Id,
+            Patient = p,
+            AppointmentType = 2,
+            Status = 0
+        };
+        context.Appointments.Add(booking);
+        await context.SaveChangesAsync();
+
+        booking.CreatedAt = createdAt;
+        await context.SaveChangesAsync();
+    }
+
+    private static Task<BookingManagementPagedResult> ListAsync(HIS.Infrastructure.Data.HISDbContext context) =>
+        new BookingManagementService(context, new Mock<IUnitOfWork>().Object)
+            .GetBookingsAsync(new BookingSearchDto
+            {
+                FromDate = DateTime.Today,
+                ToDate = DateTime.Today.AddDays(90),
+                PageSize = 20
+            });
+
+    [Fact]
+    public async Task Danh_sach_mac_dinh_dua_lich_vua_dat_len_dau()
+    {
+        var (context, patient) = Seed();
+        var now = DateTime.UtcNow;
+
+        // Lịch đặt SAU CÙNG lại có ngày hẹn XA NHẤT.
+        await AddBookingAsync(context, patient, "DK-CU", 1, now.AddHours(-5));
+        await AddBookingAsync(context, patient, "DK-GIUA", 30, now.AddHours(-2));
+        await AddBookingAsync(context, patient, "DK-MOI-NHAT", 60, now);
+
+        var result = await ListAsync(context);
+
+        Assert.Equal(
+            new[] { "DK-MOI-NHAT", "DK-GIUA", "DK-CU" },
+            result.Items.Select(i => i.AppointmentCode).ToArray());
+        context.Dispose();
+    }
+
+    [Fact]
+    public async Task Lich_dat_moi_nhat_van_len_dau_ke_ca_khi_ngay_hen_som_nhat()
+    {
+        var (context, patient) = Seed();
+        var now = DateTime.UtcNow;
+
+        // Lần này lịch mới đặt lại có ngày hẹn GẦN NHẤT. Ai "sửa" thành sắp giảm dần theo NGÀY HẸN
+        // thì phép kiểm trên vẫn xanh, còn phép kiểm này đỏ ngay.
+        await AddBookingAsync(context, patient, "DK-CU", 60, now.AddHours(-5));
+        await AddBookingAsync(context, patient, "DK-MOI-NHAT", 1, now);
+
+        var result = await ListAsync(context);
+
+        Assert.Equal("DK-MOI-NHAT", result.Items[0].AppointmentCode);
+        context.Dispose();
+    }
+
+    [Fact]
+    public async Task Lich_dat_cu_nhat_van_xuong_cuoi_ke_ca_khi_ngay_hen_xa_nhat()
+    {
+        var (context, patient) = Seed();
+        var now = DateTime.UtcNow;
+
+        // Chốt nốt chiều còn lại: sắp TĂNG dần theo ngày hẹn cũng phải đỏ.
+        await AddBookingAsync(context, patient, "DK-CU", 1, now.AddHours(-5));
+        await AddBookingAsync(context, patient, "DK-MOI-NHAT", 60, now);
+
+        var result = await ListAsync(context);
+
+        Assert.Equal("DK-CU", result.Items[^1].AppointmentCode);
+        context.Dispose();
+    }
+
+    [Fact]
+    public async Task Tra_ve_moc_tao_de_giao_dien_con_sap_xep_duoc()
+    {
+        var (context, patient) = Seed();
+        var created = DateTime.UtcNow.AddHours(-3);
+        await AddBookingAsync(context, patient, "DK-CO-MOC", 2, created);
+
+        var result = await ListAsync(context);
+
+        // Không có mốc tạo thì giao diện chỉ còn cách đoán "mới nhất" theo ngày hẹn.
+        Assert.Equal(created, Assert.Single(result.Items).CreatedAt);
+        context.Dispose();
+    }
+}

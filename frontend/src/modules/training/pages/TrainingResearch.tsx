@@ -18,6 +18,7 @@ import {
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
 import { RowActions, RefreshButton } from '../../../components/actions';
+import { SortTh, useSortableRows } from '../../../components/table';
 
 // ─── Field configs ───────────────────────────────────────────────────────────
 
@@ -133,6 +134,16 @@ const TrainingResearchV2: React.FC = () => {
   const [studentsOpen, setStudentsOpen] = useState(false);
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [students, setStudents] = useState<TrainingStudentDto[]>([]);
+
+  // Cột "Điểm" để `null` khi chưa chấm — trả null để dòng chưa có điểm luôn nằm cuối, dù sắp
+  // tăng hay giảm; quy ra 0 thì học viên chưa chấm sẽ lẫn vào nhóm điểm kém.
+  const stuSort = useSortableRows(students, {
+    name: (r) => r.displayName,
+    type: (r) => r.studentTypeName || r.studentType,
+    score: (r) => r.score ?? null,
+    att: (r) => r.attendanceStatus,
+    cert: (r) => r.certificateNumber,
+  });
   const [studentsClass, setStudentsClass] = useState<TrainingClassDto | null>(null);
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [certOpen, setCertOpen] = useState(false);
@@ -273,7 +284,6 @@ const TrainingResearchV2: React.FC = () => {
   }, [items, search, stab, fType]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged      = filtered.slice(page * PER, (page + 1) * PER);
 
   // ─── Derived: Directions ──────────────────────────────────────────────────
 
@@ -461,7 +471,8 @@ const TrainingResearchV2: React.FC = () => {
         <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
 
         <DataTable<TrainingClassDto>
-          columns={cols} data={paged} rowKey={(r) => r.id}
+          columns={cols} data={filtered} page={page} perPage={PER}
+          onSortChange={() => setPage(0)} rowKey={(r) => r.id}
           onRowClick={setSel} actions={classActions} loading={loading}
           empty={'Chưa có lớp đào tạo'}
         />
@@ -586,10 +597,18 @@ const TrainingResearchV2: React.FC = () => {
         {!studentsLoading && students.length > 0 && (
           <table className="ab-tbl" style={{ width: '100%', fontSize: 'var(--fs-sm)' }}>
             <thead>
-              <tr><th>#</th><th>Tên học viên</th><th>Loại</th><th>Điểm</th><th>Trạng thái</th><th>Chứng chỉ</th><th /></tr>
+              <tr>
+                <th>#</th>
+                <SortTh s={stuSort} k="name">Tên học viên</SortTh>
+                <SortTh s={stuSort} k="type">Loại</SortTh>
+                <SortTh s={stuSort} k="score">Điểm</SortTh>
+                <SortTh s={stuSort} k="att">Trạng thái</SortTh>
+                <SortTh s={stuSort} k="cert">Chứng chỉ</SortTh>
+                <th />
+              </tr>
             </thead>
             <tbody>
-              {students.map((s, i) => (
+              {stuSort.rows.map((s, i) => (
                 <tr key={s.id}>
                   <td className="mono">{i + 1}</td>
                   <td>{s.displayName || '—'}</td>

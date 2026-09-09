@@ -114,7 +114,6 @@ const MedicalForensicsV2: React.FC = () => {
     );
   });
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const kpis: KpiItem[] = [
     { lbl: 'Tổng HS', val: rows.length },
@@ -166,7 +165,10 @@ const MedicalForensicsV2: React.FC = () => {
       />
       <DataTable<ForensicCase>
         columns={cols}
-        data={paged}
+        data={filtered}
+        page={page}
+        perPage={PER}
+        onSortChange={() => setPage(0)}
         rowKey={(r) => r.id}
         onRowClick={openDetail}
         empty={loading ? 'Đang tải…' : 'Không có hồ sơ giám định'}

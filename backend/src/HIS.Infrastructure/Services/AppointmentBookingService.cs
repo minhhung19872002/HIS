@@ -755,7 +755,8 @@ public class AppointmentBookingService : IAppointmentBookingService
             RoomName = a.Room?.RoomName,
             Reason = a.Reason,
             Status = a.Status,
-            StatusName = statusNames.GetValueOrDefault(a.Status, "Không xác định")
+            StatusName = statusNames.GetValueOrDefault(a.Status, "Không xác định"),
+            CreatedAt = a.CreatedAt
         };
     }
 

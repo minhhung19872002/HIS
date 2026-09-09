@@ -88,7 +88,6 @@ const TraditionalMedicineV2: React.FC = () => {
   }, [items, search, stab, fType]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const cols: ColumnDef<TraditionalTreatment>[] = [
     { key: 'code', label: 'Mã PĐ', code: true, render: (r) => r.treatmentCode },
@@ -246,7 +245,7 @@ const TraditionalMedicineV2: React.FC = () => {
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
 
       <DataTable<TraditionalTreatment>
-        columns={cols} data={paged} rowKey={(r) => r.id}
+        columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
         onRowClick={setSel} actions={actions} loading={loading}
         empty={'Chưa có phác đồ YHCT'}
       />

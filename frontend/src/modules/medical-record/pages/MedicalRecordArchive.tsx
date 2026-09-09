@@ -13,6 +13,7 @@ import {
   type ColumnDef, type StatusTone,
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
+import { SortTh, useSortableRows } from '../../../components/table';
 
 /* =====================================================================
  * Port v1 pages/MedicalRecordArchive.tsx -> v2 (#409 batch-4).
@@ -348,6 +349,44 @@ const PatientInfo: React.FC<{ exam: ArchiveExamination }> = ({ exam }) => (
   </div>
 );
 
+
+/**
+ * Bảng hiển thị một mảng JSON bất kỳ trong nội dung hồ sơ lưu trữ — cột sinh ra từ chính khoá của
+ * phần tử đầu tiên.
+ *
+ * Tách thành component riêng chỉ vì một lẽ: `useSortableRows` là hook, mà chỗ dùng trước đây là một
+ * hàm render lồng bên trong component khác, gọi hook ở đó là sai quy tắc hook (số lần gọi thay đổi
+ * theo số mảng có trong dữ liệu).
+ */
+const ArrayTable: React.FC<{ arr: Record<string, unknown>[] }> = ({ arr }) => {
+  const colKeys = useMemo(
+    () => Object.keys(arr[0]).filter((k) => typeof arr[0][k] !== 'object'),
+    [arr],
+  );
+  const accessors = useMemo(
+    () => Object.fromEntries(colKeys.map((c) => [c, (row: Record<string, unknown>) => row[c]])),
+    [colKeys],
+  );
+  const sorter = useSortableRows(arr, accessors);
+
+  return (
+    <div className="ab-tbl-wrap" style={{ overflowX: 'auto' }}>
+      <table className="ab-tbl">
+        <thead>
+          <tr>{colKeys.map((c) => <SortTh key={c} s={sorter} k={c}>{c}</SortTh>)}</tr>
+        </thead>
+        <tbody>
+          {sorter.rows.map((item, i) => (
+            <tr key={i}>
+              {colKeys.map((c) => <td key={c}>{String(item[c] ?? '-')}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 const MedicalRecordArchiveV2: React.FC = () => {
   const [tab, setTab] = useTabState<PageTab>('archive', 'tab');
 
@@ -458,7 +497,6 @@ const MedicalRecordArchiveV2: React.FC = () => {
   }, [items, search, stab]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const archivedCount = counts.archived ?? 0;
   const pendingCount  = counts.pending  ?? 0;
@@ -728,25 +766,7 @@ const MedicalRecordArchiveV2: React.FC = () => {
       ([k]) => Array.isArray(detailContent[k]),
     );
 
-    const renderArrayTable = (arr: Record<string, unknown>[]) => {
-      const colKeys = Object.keys(arr[0]).filter((k) => typeof arr[0][k] !== 'object');
-      return (
-        <div className="ab-tbl-wrap" style={{ overflowX: 'auto' }}>
-          <table className="ab-tbl">
-            <thead>
-              <tr>{colKeys.map((c) => <th key={c}>{c}</th>)}</tr>
-            </thead>
-            <tbody>
-              {arr.map((item, i) => (
-                <tr key={i}>
-                  {colKeys.map((c) => <td key={c}>{String(item[c] ?? '-')}</td>)}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      );
-    };
+    const renderArrayTable = (arr: Record<string, unknown>[]) => <ArrayTable arr={arr} />;
 
     return (
       <>
@@ -847,7 +867,7 @@ const MedicalRecordArchiveV2: React.FC = () => {
         />
 
         <DataTable<ArchivedRecord>
-          columns={cols} data={paged} rowKey={(r) => r.id}
+          columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
           onRowClick={setSel} actions={actions}
           empty={loading ? 'Đang tải…' : 'Chưa có hồ sơ lưu trữ'}
         />

@@ -121,7 +121,6 @@ const HealthEducationV2: React.FC = () => {
   }, [materials, search]);
 
   const totalPages = Math.max(1, Math.ceil((tab === 'campaigns' ? filtered.length : filteredMaterials.length) / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
   const pagedMaterials = filteredMaterials.slice(page * PER, (page + 1) * PER);
 
   const cols: ColumnDef<HealthCampaign>[] = [
@@ -229,7 +228,7 @@ const HealthEducationV2: React.FC = () => {
         <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
 
         <DataTable<HealthCampaign>
-          columns={cols} data={paged} rowKey={(r) => r.id}
+          columns={cols} data={filtered} page={page} perPage={PER} onSortChange={() => setPage(0)} rowKey={(r) => r.id}
           loading={loading}
           onRowClick={setSel} actions={actions}
           empty="Chưa có chiến dịch GDSK"

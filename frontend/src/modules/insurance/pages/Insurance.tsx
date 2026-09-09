@@ -290,7 +290,6 @@ const InsuranceV2: React.FC = () => {
   }), [rows, stab, search, claimDateRange]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const kpis = useMemo(() => {
     const totalAmount = rows.reduce((s, r) => s + (r.totalAmount || 0), 0);
@@ -754,7 +753,10 @@ const InsuranceV2: React.FC = () => {
 
           <DataTable<InsuranceClaimSummaryDto>
             columns={columns}
-            data={paged}
+            data={filtered}
+            page={page}
+            perPage={PAGE_SIZE}
+            onSortChange={() => setPage(0)}
             rowKey={(r) => r.id}
             onRowClick={(r) => setDetail(r)}
             actions={(r) => (
