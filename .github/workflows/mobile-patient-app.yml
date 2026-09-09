@@ -90,6 +90,18 @@ jobs:
           fi
           echo "release không dùng khoá debug ✓"
 
+      - name: Bản phát hành PHẢI còn chặn chụp màn hình
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          # Bản debug được phép chụp màn hình (để chủ đầu tư góp ý và làm hồ sơ nghiệm thu), nhưng
+          # bản phát hành cho người bệnh thật thì KHÔNG. Nới nhầm ra là ảnh kết quả xét nghiệm lọt
+          # vào thư viện ảnh và vào danh sách ứng dụng gần đây — hỏng im lặng, không ai thấy.
+          MAIN=android/app/src/main/kotlin/vn/com/bluestar/his/patient_app/MainActivity.kt
+          grep -q 'FLAG_SECURE' "$MAIN"             || { echo "::error::MainActivity không còn đặt FLAG_SECURE"; exit 1; }
+          grep -q 'isDebuggableBuild()' "$MAIN"             || { echo "::error::MainActivity không còn phân biệt bản debug/phát hành"; exit 1; }
+          grep -q 'if (!isDebuggableBuild())' "$MAIN"             || { echo "::error::FLAG_SECURE không còn được đặt cho bản KHÔNG phải debug"; exit 1; }
+          echo "bản phát hành vẫn chặn chụp màn hình ✓"
+
       - name: Build APK debug
         working-directory: ${{ env.APP_DIR }}
         run: flutter build apk --debug

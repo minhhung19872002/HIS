@@ -1,5 +1,6 @@
 package vn.com.bluestar.his.patient_app
 
+import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.view.WindowManager
 import io.flutter.embedding.android.FlutterFragmentActivity
@@ -26,6 +27,29 @@ import io.flutter.embedding.android.FlutterFragmentActivity
 class MainActivity : FlutterFragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+
+        if (!isDebuggableBuild()) {
+            window.setFlags(
+                WindowManager.LayoutParams.FLAG_SECURE,
+                WindowManager.LayoutParams.FLAG_SECURE,
+            )
+        }
     }
+
+    /**
+     * Bản đang chạy có phải bản gỡ lỗi (debug) không.
+     *
+     * Chỉ bản gỡ lỗi mới được phép chụp màn hình. Lý do: bản UAT đưa cho chủ đầu tư và bộ phận
+     * nghiệm thu là bản debug, mà `FLAG_SECURE` khiến họ **không chụp nổi màn hình nào** để góp ý
+     * hay đưa vào hồ sơ — Android chỉ báo cụt lủn "không thể chụp màn hình do chính sách ứng dụng".
+     *
+     * Bản phát hành lên kho ứng dụng — bản mà người bệnh thật cài — vẫn chặn đủ như cũ. Nói cách
+     * khác, dữ liệu y tế của người bệnh thật KHÔNG bị nới lỏng gì; chỉ bản kiểm thử nội bộ, chạy
+     * trên dữ liệu kiểm thử, mới chụp được.
+     *
+     * Đọc cờ `FLAG_DEBUGGABLE` lúc chạy thay vì `BuildConfig.DEBUG`: `BuildConfig` phải bật thêm
+     * `buildFeatures` mới sinh ra ở AGP 8, còn cờ này thì luôn có sẵn và không thêm cấu hình nào.
+     */
+    private fun isDebuggableBuild(): Boolean =
+        (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
 }
