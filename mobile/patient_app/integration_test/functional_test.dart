@@ -687,11 +687,20 @@ void main() {
       expect(find.text('Chest CT axial'), findsWidgets,
           reason: 'mất tên chuỗi thì các ảnh CT trông như nhau');
 
-      // `fling` (có lực), KHÔNG `drag`: ảnh nằm trong `InteractiveViewer` (để phóng to), nên cú
-      // kéo một ngón tranh chấp giữa "pan ảnh" và "vuốt sang trang". Trên simulator iOS cú kéo
-      // chậm vẫn sang trang, còn trên máy ảo Android thì bị ăn mất — `fling` có vận tốc nên
-      // `PageScrollPhysics` chốt sang trang kế ở cả hai nền tảng.
-      await tester.fling(find.byType(PageView), const Offset(-300, 0), 1200);
+      // Vuốt bằng CHUỖI CỬ CHỈ từng nhịp, không `drag`/`fling` một phát.
+      //
+      // `drag` gửi đúng MỘT sự kiện di chuyển, `fling` gửi một chùm rất sát nhau: cả hai đều dựa
+      // vào bộ đo vận tốc, mà trên máy ảo Android (GPU phần mềm, khung hình thưa) dấu thời gian
+      // giãn ra nên vận tốc đo được tụt xuống gần 0 — `PageScrollPhysics` coi như người dùng chỉ
+      // nhích tay rồi thả, và ảnh không sang. Ngón tay thật thì gửi hàng chục nhịp di chuyển:
+      // dựng lại đúng như vậy, và kéo quá NỬA bề ngang màn để dù vận tốc bằng 0 vẫn chốt sang
+      // trang kế.
+      final swipe = await tester.startGesture(tester.getCenter(find.byType(PageView)));
+      for (var step = 0; step < 12; step++) {
+        await swipe.moveBy(const Offset(-30, 0));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await swipe.up();
       await tester.pumpAndSettle(const Duration(seconds: 2));
       expect(find.text('Ảnh 2/2'), findsOneWidget,
           reason: 'vuốt ngang phải sang được ảnh kế — một ca CT có hàng chục ảnh');
