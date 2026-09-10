@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert, Button, Modal, Form, Select, Input, DatePicker, List, Tag, Popconfirm, Space, message,
+  Alert, Button, Modal, Form, Select, Input, DatePicker, List, Tag, Popconfirm, Popover, Space, message,
 } from 'antd';
 import { PlusOutlined, WarningFilled } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -197,10 +197,41 @@ export default function PatientFlagBanner({ patientId, patientName, compact, onC
         title={
           <Space wrap>
             <strong>Cảnh báo BN{patientName ? ` — ${patientName}` : ''}:</strong>
+            {/* Bấm thẻ = XEM CHI TIẾT, không phải sửa thẳng.
+                Ghi chú bị cắt ở 60 ký tự nên người ta bấm chính vì muốn đọc tiếp — trước đây
+                lại rơi vào form sửa. Đọc là việc hằng ngày, sửa là việc hiếm, mà đây là hồ sơ
+                an toàn người bệnh nên sửa phải là hành động CHỦ Ý thêm một bước.
+                Popover cũng là chỗ để lộ ra người đặt / thời điểm / hạn hiệu lực — DTO có sẵn
+                nhưng trước giờ không hiển thị ở đâu cả. */}
             {flags.map(f => (
-              <Tag key={f.id} color={f.color} onClick={() => openEdit(f)} style={{ cursor: 'pointer' }}>
-                {f.flagTypeName}: {f.note.substring(0, 60)}{f.note.length > 60 ? '…' : ''}
-              </Tag>
+              <Popover
+                key={f.id}
+                trigger="click"
+                placement="bottomLeft"
+                title={<Space><Tag color={f.color} style={{ marginInlineEnd: 0 }}>{f.flagTypeName}</Tag></Space>}
+                content={
+                  <div style={{ maxWidth: 380 }}>
+                    <div style={{ whiteSpace: 'pre-wrap', marginBottom: 10 }}>{f.note}</div>
+                    <div style={{ fontSize: 12, color: 'var(--t-2, #64748b)', lineHeight: 1.7 }}>
+                      <div>Người đặt: <strong>{f.createdByName || '—'}</strong></div>
+                      <div>Đặt lúc: {dayjs(f.createdAt).format('HH:mm DD/MM/YYYY')}</div>
+                      <div>
+                        Hiệu lực đến:{' '}
+                        {f.expiresAt
+                          ? <strong>{dayjs(f.expiresAt).format('DD/MM/YYYY')}</strong>
+                          : 'không thời hạn'}
+                      </div>
+                    </div>
+                    <div style={{ marginTop: 10, textAlign: 'right' }}>
+                      <Button size="small" onClick={() => openEdit(f)}>Sửa</Button>
+                    </div>
+                  </div>
+                }
+              >
+                <Tag color={f.color} style={{ cursor: 'pointer' }}>
+                  {f.flagTypeName}: {f.note.substring(0, 60)}{f.note.length > 60 ? '…' : ''}
+                </Tag>
+              </Popover>
             ))}
             <Button size="small" type="link" icon={<PlusOutlined />} onClick={openNew}>
               Thêm

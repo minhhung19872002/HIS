@@ -339,6 +339,17 @@ const PrescriptionEditorV2: React.FC = () => {
   const EMPTY_RX_HINT = 'Chưa có thuốc trong đơn — tìm và thêm thuốc ở thanh tìm kiếm bên dưới trước';
   const drugInputRef = useRef<HTMLInputElement>(null);
 
+  /** Chỉ đòi hỏi "đơn đã có thuốc" — nhẹ hơn guard() (vốn kiểm tra cả BN / phiếu khám /
+   *  trạng thái đơn). Dùng cho các thao tác mở panel-modal: chặn NGAY LÚC BẤM thay vì mở
+   *  form rỗng cho người dùng điền xong mới báo không lưu được. */
+  const requireItems = (): boolean => {
+    if (items.length > 0) return true;
+    tw(EMPTY_RX_HINT);
+    drugInputRef.current?.focus();
+    drugInputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    return false;
+  };
+
   const guard = (): boolean => {
     if (!pt) { tw('Chưa chọn bệnh nhân'); return false; }
     if (!examinationId) { tw('Bệnh nhân chưa có phiếu khám — không thể lưu đơn'); return false; }
@@ -346,14 +357,9 @@ const PrescriptionEditorV2: React.FC = () => {
       tw('Chỉ đơn thuốc đang chờ duyệt mới được phép chỉnh sửa');
       return false;
     }
-    if (items.length === 0) {
-      tw(EMPTY_RX_HINT);
-      // Toast ở đỉnh màn hình tắt sau ~3s, bác sĩ đang nhìn nút giữa màn nên dễ bỏ lỡ.
-      // Đưa luôn con trỏ về ô tìm thuốc: vừa báo vừa chỉ chỗ làm tiếp.
-      drugInputRef.current?.focus();
-      drugInputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      return false;
-    }
+    // Toast ở đỉnh màn hình tắt sau ~3s, bác sĩ đang nhìn nút giữa màn nên dễ bỏ lỡ.
+    // requireItems() vừa báo vừa đưa con trỏ về ô tìm thuốc — chỉ chỗ làm tiếp.
+    if (!requireItems()) return false;
     return true;
   };
 
@@ -664,7 +670,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
               guard() vừa báo vừa ĐƯA CON TRỎ về ô tìm thuốc — chỉ thẳng việc cần làm tiếp. */}
           <Btn variant="ghost" onClick={() => setTplOpen(true)}><TermIcon name="folder" size={12} /> Đơn mẫu</Btn>
           <Btn variant="ghost" title={noItems ? EMPTY_RX_HINT : undefined}
-            onClick={() => setSaveTemplateOpen(true)}><TermIcon name="folder" size={12} /> Lưu mẫu</Btn>
+            onClick={() => { if (requireItems()) setSaveTemplateOpen(true); }}><TermIcon name="folder" size={12} /> Lưu mẫu</Btn>
           <Btn variant="ghost" disabled={saving} title={noItems ? EMPTY_RX_HINT : undefined}
             onClick={saveDraft}><TermIcon name="folder" size={12} /> Lưu nháp</Btn>
           <Btn variant="ghost" title={noItems ? EMPTY_RX_HINT : undefined}
@@ -672,7 +678,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
           <Btn variant="ghost" disabled={printingExt} title={noItems ? EMPTY_RX_HINT : undefined}
             onClick={printExternalRx}><TermIcon name="print" size={12} /> In toa nhà thuốc</Btn>
           <Btn variant="ghost" title={noItems ? EMPTY_RX_HINT : undefined}
-            onClick={() => setDisclosureOpen(true)}><TermIcon name="list" size={12} /> Phiếu công khai</Btn>
+            onClick={() => { if (requireItems()) setDisclosureOpen(true); }}><TermIcon name="list" size={12} /> Phiếu công khai</Btn>
           {rxMode === 1 && (
             <Btn variant="primary" disabled={saving} title={noItems ? EMPTY_RX_HINT : undefined}
               onClick={onClickSign}><TermIcon name="check" size={12} /> Lưu · Sang ký số</Btn>
