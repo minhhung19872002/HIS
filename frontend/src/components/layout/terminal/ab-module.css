@@ -22,7 +22,10 @@
 /* KPI strip */
 .ab-kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  /* auto-fit theo bề rộng THẬT: nhiều KPI vẫn nằm gọn 1 hàng thay vì tụt xuống 2-3 hàng.
+     minmax(0,1fr) cũ chỉ đúng ở desktop rộng; các breakpoint bên dưới ép 3/2 cột nên
+     strip phình lên 196-294px. Xem block "Responsive collapse". */
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   gap: 0;
   background: var(--d-2);
   border-bottom: 1px solid var(--line);
@@ -30,10 +33,16 @@
   width: 100%;
 }
 
+/* Card compact: nhãn 1 dòng, [giá trị + sub] chung 1 dòng → ~48px/hàng thay vì ~99px */
 .ab-kpi {
-  padding: 12px 16px;
+  padding: 6px 14px;
   border-right: 1px solid var(--line-soft);
   position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 6px;
+  min-width: 0;
 }
 
 .ab-kpi:last-child {
@@ -41,28 +50,35 @@
 }
 
 .ab-kpi .lbl {
-  font-size: 10px;
+  flex: 1 0 100%;
+  font-size: 9.5px;
+  line-height: 1.4;
   font-family: var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--t-2);
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ab-kpi .val {
-  font-size: 26px;
+  font-size: 17px;
+  line-height: 1.3;
   font-weight: 700;
   color: var(--t-0);
-  margin-top: 2px;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .ab-kpi .sub {
-  font-size: 11px;
+  font-size: 10.5px;
+  line-height: 1.3;
   color: var(--t-2);
   font-family: var(--font-mono);
-  margin-top: 1px;
 }
 
 .ab-kpi.ok .val {
@@ -1704,14 +1720,8 @@
 
 /* Responsive collapse */
 @media (max-width: 1280px) {
-  .ab-kpis {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  .ab-kpi:nth-child(3n) {
-    border-right: none;
-  }
-
+  /* KPI: KHÔNG ép 3 cột nữa — auto-fit ở base đã tự xếp tối đa item mỗi hàng
+     (ép 3 cột làm strip 4 KPI tụt thành 2 hàng = 196px). */
   .ab-stat-grid {
     grid-template-columns: 1fr;
   }
@@ -1741,20 +1751,9 @@
 
 /* ≤1100px: 4-col KPI grids → 2-col, 3-col → 2-col */
 @media (max-width: 1100px) {
+  /* KPI: giữ auto-fit (cột hẹp hơn) thay vì ép 2 cột — 6 KPI ép 2 cột = 3 hàng/294px. */
   .ab-kpis {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-
-  .ab-kpi {
-    border-right: none !important;
-  }
-
-  .ab-kpi:nth-child(2n) {
-    border-right: none !important;
-  }
-
-  .ab-kpi:nth-child(odd) {
-    border-right: 1px solid var(--line) !important;
+    grid-template-columns: repeat(auto-fit, minmax(116px, 1fr)) !important;
   }
 
   /* Inline grids common in v2 pages */
@@ -1816,7 +1815,7 @@
   .ab-kpi {
     border-right: none !important;
     border-bottom: 1px solid var(--line);
-    padding: 8px 10px;
+    padding: 5px 10px;
   }
 
   .ab-kpi:nth-child(odd) {
@@ -1825,7 +1824,7 @@
 
   /* 26px is right for "30", not for a KPI whose value is a room name */
   .ab-kpi .val {
-    font-size: 20px;
+    font-size: 15px;
     overflow-wrap: anywhere;
   }
 

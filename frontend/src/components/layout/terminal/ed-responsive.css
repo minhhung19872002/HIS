@@ -100,8 +100,9 @@
     z-index: 180;
   }
 
+  /* KPI: auto-fit thay vì ép 2 cột — ép 2 cột từ 1180px làm strip tụt 2-3 hàng */
   .ab-kpis {
-    grid-template-columns: repeat(2, 1fr) !important;
+    grid-template-columns: repeat(auto-fit, minmax(116px, 1fr)) !important;
   }
 }
 
