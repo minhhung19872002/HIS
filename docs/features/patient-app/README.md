@@ -233,7 +233,7 @@ khai `:modular_headers => true` riêng cho từng pod Firebase; tắt `ENABLE_MO
 
 **Kết quả đo được** (workflow `.github/workflows/mobile-patient-app.yml`, Xcode 16.4):
 `flutter build ios --simulator` **PASS**, và `MinimumOSVersion` trong `Info.plist` của **chính bản
-build ra** = **12.0**. Chạy 7/7 test và chụp 6 màn trên iPhone simulator.
+build ra** = **12.0**. Chạy **57/57 bài đi-hết-chức-năng** (bấm thật từng màn trên simulator) và chụp **30 màn** trên iPhone simulator.
 
 > ⚠️ Giữ được iOS 12 là điều kiện **mong manh**: 7 gói phải ghim ở bản cũ. CI có bước
 > `scripts/check-ios-min-deployment-target.py` đọc `pubspec.lock` rồi soi podspec từng plugin, nên

@@ -12,13 +12,14 @@
 > bên dưới. Trộn hai loại vào một cột thì không đọc được cột đó nói gì: một dòng "chưa đạt"
 > sẽ vừa có nghĩa "phần mềm còn thiếu" vừa có nghĩa "chờ bệnh viện mở tài khoản".
 > Cập nhật cuối: **2026-09-09** — kết thúc **Phase 1 → 7**.
-> **Bằng chứng đo được — bốn tầng, tất cả đều chạy thật, 0 FAIL:**
+> **Bằng chứng đo được — năm tầng, tất cả đều chạy thật, 0 FAIL:**
 >
 > | Tầng | Số ca | Chạy trên |
 > |---|---|---|
 > | Smoke đầu-cuối (8 bộ) | **290** | HIS Core + BFF + PostgreSQL + SQL Server thật |
 > | Unit backend (`dotnet test`) | **303** (67 của app) | CI gate `deploy-backend.yml` |
-> | Unit + widget Flutter | **92** | `flutter test` |
+> | Unit + widget Flutter | **165** | `flutter test` |
+> | Đi hết chức năng bằng cách BẤM | **57** | `flutter drive` trên máy ảo Android **và** iOS simulator |
 > | E2E web quản trị (Playwright) | **7** | Chromium + Vite dev + BFF thật |
 >
 > Smoke: `smoke-patient-app-auth.py` 47 · `smoke-queue-priority.py` 19 · `phase2` 29 · `phase3` 45 ·
@@ -58,8 +59,8 @@
 | ⬜ Chưa làm | 0 |
 
 Mỗi ô ghi thẳng mã ca kiểm thử đã chạy. Bằng chứng nền: **290** ca smoke đầu-cuối trên HIS + BFF +
-PostgreSQL + SQL Server thật · **314** unit test backend (trong cổng CI `dotnet test`) · **92** test
-Flutter · **7** ca E2E web quản trị · **30 ĐẠT / 0 HỎNG** khi dựng thật tầng VPS · **60 ảnh** phủ
+PostgreSQL + SQL Server thật · **314** unit test backend (trong cổng CI `dotnet test`) · **165** test
+Flutter (trong đó **57** bài đi hết chức năng bằng cách bấm, chạy cả trên máy ảo Android và iOS simulator) · **7** ca E2E web quản trị · **30 ĐẠT / 0 HỎNG** khi dựng thật tầng VPS · **60 ảnh** phủ
 từng nhóm chức năng trên cả Android 7.1.1 lẫn iOS 12.
 
 ---
@@ -230,7 +231,7 @@ bệnh viện cần một thứ mà chỉ bên A cấp được. Chúng được
 | # | Yêu cầu HSMT | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|
 | C.1 | **Không giới hạn số lượng người dùng** app | Không có khoá cứng số tài khoản ở bất kỳ đâu trong mã nguồn, và **không thành phần nào dùng giấy phép tính theo người dùng hay theo CPU** — bảng giấy phép đầy đủ: [`patient-app-equivalent-technology.md`](../../architecture/operations/patient-app-equivalent-technology.md) §3.3 | ✅ Đạt về mặt thiết kế và giấy phép. Giới hạn duy nhất trong hệ thống là **chống lạm dụng theo tần suất** (OTP theo số điện thoại), không phải trần số người dùng | 7 | ✅ |
-| C.2 | Hỗ trợ **iOS ≥ 12.0** | Flutter pin **3.32.8**; `project.pbxproj` (3 chỗ), `AppFrameworkInfo.plist` và `Podfile` đều khai **12.0**; Podfile dùng **thư viện tĩnh + `use_modular_headers!`** để Firebase 10.x build được ở iOS 12 | ✅ **Đã build thật trên macOS runner (Xcode 16.4)**: `flutter build ios --simulator` PASS, và `MinimumOSVersion` trong Info.plist **của chính bản build ra** = **12.0**. Chạy 7/7 test + chụp 6 màn trên iPhone simulator. Bằng chứng: **30 ảnh trên iOS 12 simulator** ([`screenshots/ios12/`](screenshots/ios12/)) — cùng bộ ca với Android, sinh bởi job iOS của `mobile-patient-app.yml`; job đó cũng kiểm ngưỡng 12.0 ở cả ba nơi khai báo **và** đọc lại `MinimumOSVersion` từ Info.plist của chính bản build ra. ⚠️ 🔑 **Điều kiện còn lại: một máy iOS 12 thật** — ngưỡng phiên bản đã chứng minh bằng chính sản phẩm build ra, phần còn phải xem tận mắt là cảm biến sinh trắc và hiệu năng cuộn trên phần cứng đời đó | 0 → 7 | ✅ |
+| C.2 | Hỗ trợ **iOS ≥ 12.0** | Flutter pin **3.32.8**; `project.pbxproj` (3 chỗ), `AppFrameworkInfo.plist` và `Podfile` đều khai **12.0**; Podfile dùng **thư viện tĩnh + `use_modular_headers!`** để Firebase 10.x build được ở iOS 12 | ✅ **Đã build thật trên macOS runner (Xcode 16.4)**: `flutter build ios --simulator` PASS, và `MinimumOSVersion` trong Info.plist **của chính bản build ra** = **12.0**. Chạy **57/57 bài đi-hết-chức-năng** (bấm thật từng màn trên simulator) và chụp **30 màn** trên iPhone simulator. Bằng chứng: **30 ảnh trên iOS 12 simulator** ([`screenshots/ios12/`](screenshots/ios12/)) — cùng bộ ca với Android, sinh bởi job iOS của `mobile-patient-app.yml`; job đó cũng kiểm ngưỡng 12.0 ở cả ba nơi khai báo **và** đọc lại `MinimumOSVersion` từ Info.plist của chính bản build ra. ⚠️ 🔑 **Điều kiện còn lại: một máy iOS 12 thật** — ngưỡng phiên bản đã chứng minh bằng chính sản phẩm build ra, phần còn phải xem tận mắt là cảm biến sinh trắc và hiệu năng cuộn trên phần cứng đời đó | 0 → 7 | ✅ |
 | C.3 | Hỗ trợ **Android ≥ 7.2** | `minSdk = 25` (Android 7.1.1); desugaring bật để `java.time` chạy được trên API 25 | ✅ **Đã chạy thật trên máy ảo Android 7.1.1 (API 25)** — đúng ngưỡng HSMT — bộ chụp 6/6 PASS. Ngoài ra chạy đầy đủ có đăng nhập thật qua BFF + PostgreSQL trên Android 16. Bằng chứng: **30 ảnh phủ đủ mọi nhóm chức năng I.2 + I.3 và các trạng thái lỗi/rỗng/nhập thiếu/đang tải, chụp trên chính máy ảo API 25** (bộ iOS 12 đối chiếu ở [`screenshots/ios12/`](screenshots/ios12/)) ([`screenshots/android71/`](screenshots/android71/), sinh bởi `integration_test/screenshots_test.dart`, thu bằng `scripts/collect-patient-app-evidence.sh`). ⚠️ 🔑 **Điều kiện còn lại: một máy Android 7.x thật** — cùng lý do với C.2: máy ảo không có cảm biến vân tay thật và không phản ánh đúng hiệu năng phần cứng đời đó | 0 → 8 | ✅ |
 
 > **C.2 và C.3** ghi ⚠️ chứ không ✅ vì mới chạy trên **máy ảo/simulator**. Đây là điều kiện về *thiết
