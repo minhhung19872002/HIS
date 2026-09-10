@@ -85,7 +85,7 @@ bệnh viện cần một thứ mà chỉ bên A cấp được. Chúng được
 | I.4.1 | ✅ **ĐÃ XONG** — bản UAT https://patientapp.14-225-83-93.nip.io có chứng chỉ **Let's Encrypt** thật, hạn 08/12/2026, tự gia hạn; TLS 1.0/1.1 bị từ chối, đủ 4 header | *(không còn chờ gì)* | Chỉ còn đính ảnh SSL Labs vào hồ sơ |
 | II.2 | Stack dùng **34 MiB / 2048 MiB** RAM và **248 MB / 15 GB** đĩa | Bản kê cấu hình máy thuê | `df -h /` · `free -m` · `nproc` trên VPS đó |
 | C.2 | 30 ảnh trên iOS 12 simulator; `MinimumOSVersion = 12.0` đọc từ Info.plist **của chính bản build ra** | Một máy iOS 12 thật | Chạy lại bộ chụp trên máy đó |
-| C.3 | 30 ảnh trên máy ảo Android 7.1.1 (API 25) — đúng ngưỡng HSMT | Một máy Android 7.x thật | Chạy lại bộ chụp trên máy đó |
+| C.3 | 30 ảnh trên máy ảo Android 7.1.1 (API 25) — đúng ngưỡng HSMT | Một máy Android 7.x thật | Chạy lại bộ chụp trên máy đó, **và vuốt tay sang ảnh PACS kế** trong khung xem ảnh: cử chỉ này tự động hoá KHÔNG ăn trên máy ảo Android (bộ nhận cử chỉ của `InteractiveViewer` thắng cú kéo ngang), còn iOS simulator thì sang ảnh bình thường — nên đây là mục duy nhất của bộ 57 bài phải xem bằng mắt trên Android |
 
 > **Vì sao tách riêng thay vì để chung một cột trạng thái.** Trộn lại thì cột đó không đọc được:
 > một dòng "chưa đạt" vừa có thể nghĩa là *phần mềm còn thiếu*, vừa có thể nghĩa là *chờ bệnh viện
