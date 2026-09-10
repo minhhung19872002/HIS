@@ -3,6 +3,14 @@ import { useSearchParams } from 'react-router-dom';
 import { publicClient } from '../../../api/publicClient';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 import type { QueueDisplayDto, QueueTicketDto } from '../api/reception';
+import {
+  announceVi,
+  browserVoiceCount,
+  hasVietnameseVoice,
+  probeServerVoice,
+  speakableViCode,
+  unlockAudio,
+} from '../viSpeech';
 import '../../../styles/QueueDisplay.css';
 
 /* ────────────────────────────────────────────────────────────
@@ -66,68 +74,6 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
-/**
- * Giọng đọc tiếng Việt.
- *
- * `utterance.lang = 'vi-VN'` chỉ là GỢI Ý. Trình duyệt vẫn đọc bằng giọng mặc định — trên máy
- * Việt Nam thường là giọng tiếng Anh — nếu không chỉ đích danh `utterance.voice`. Đó là lý do
- * loa đọc "Mời số B001 vào Phòng khám Sản" ra giọng Anh dù chữ đã là tiếng Việt.
- *
- * Danh sách giọng nạp BẤT ĐỒNG BỘ: lần gọi `getVoices()` đầu tiên hầu như luôn trả mảng rỗng,
- * phải nghe thêm sự kiện `voiceschanged`.
- */
-let viVoice: SpeechSynthesisVoice | null = null;
-/** Số giọng máy đang có — để nói cho người lắp TV biết vì sao không có tiếng Việt. */
-let voiceCount = 0;
-
-function pickViVoice() {
-  const voices = window.speechSynthesis?.getVoices() ?? [];
-  voiceCount = voices.length;
-  const isVi = (v: SpeechSynthesisVoice) => {
-    // `lang` không thống nhất giữa các hệ: 'vi-VN', 'vi_VN', đôi khi chỉ 'vi'. Có giọng khai lang
-    // lạ nhưng tên thì ghi rõ ("Google Tiếng Việt", "Microsoft An - Vietnamese"), nên dò cả tên.
-    const lang = (v.lang ?? '').toLowerCase().replace('_', '-');
-    if (lang === 'vi-vn' || lang === 'vi' || lang.startsWith('vi-')) return true;
-    const name = (v.name ?? '').toLowerCase();
-    return name.includes('vietnam') || name.includes('tiếng việt') || name.includes('tieng viet');
-  };
-  viVoice = voices.find(isVi) ?? null;
-}
-
-if (typeof window !== 'undefined' && window.speechSynthesis) {
-  pickViVoice();
-  window.speechSynthesis.addEventListener?.('voiceschanged', pickViVoice);
-}
-
-/**
- * Máy có giọng Việt hay không — dùng để cảnh báo người lắp TV, xem overlay bật âm thanh.
- * KHÔNG export: file này chỉ được phép export component, nếu không Fast Refresh gãy
- * (`react-refresh/only-export-components`).
- */
-function hasVietnameseVoice(): boolean {
-  if (!viVoice) pickViVoice();
-  return viVoice !== null;
-}
-
-/**
- * Tách mã vé thành từng ký tự để loa đọc rời: "B001" → "B 0 0 1" (đọc ra "bê không không một").
- * Để nguyên thì bộ đọc hay gộp thành một từ vô nghĩa, mà trong phòng chờ ồn thì đọc rời mới nghe
- * ra được.
- */
-function speakableCode(code: string): string {
-  return code.split('').join(' ');
-}
-
-function announce(text: string) {
-  if (!window.speechSynthesis) return;
-  if (!viVoice) pickViVoice(); // giọng có thể vừa nạp xong sau lần thử đầu
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'vi-VN';
-  if (viVoice) utterance.voice = viVoice;
-  utterance.rate = 0.9;
-  window.speechSynthesis.speak(utterance);
-}
-
 function beep() {
   try {
     const ctx = new AudioContext();
@@ -187,7 +133,7 @@ function LabQueueView() {
       if (audioEnabled) {
         const item = data.completedItems.find(c => c.id === newIds[0]);
         if (item) {
-          announce(`Kết quả xét nghiệm mã ${speakableCode(item.orderCode)} đã hoàn thành`);
+          announceVi(`Kết quả xét nghiệm mã ${speakableViCode(item.orderCode)} đã hoàn thành`);
         } else {
           beep();
         }
@@ -224,11 +170,7 @@ function LabQueueView() {
   const enableAudio = () => {
     setAudioEnabled(true);
     setShowOverlay(false);
-    if (window.speechSynthesis) {
-      const u = new SpeechSynthesisUtterance('');
-      u.volume = 0;
-      window.speechSynthesis.speak(u);
-    }
+    unlockAudio();
   };
 
   return (
@@ -397,6 +339,8 @@ function RoomQueueView() {
   const [clock, setClock] = useState(formatTime(new Date()));
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [showOverlay, setShowOverlay] = useState(true);
+  /** null = chưa hỏi xong. Máy chủ đọc được thì khỏi bắt người lắp TV đi cài giọng cho Windows. */
+  const [serverVoiceReady, setServerVoiceReady] = useState<boolean | null>(null);
   const [blinkingIds, setBlinkingIds] = useState<Set<string>>(new Set());
 
   const previousCallingIdsRef = useRef<Set<string> | null>(null);
@@ -406,6 +350,13 @@ function RoomQueueView() {
   useEffect(() => {
     const timer = setInterval(() => setClock(formatTime(new Date())), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Máy chủ có đọc được tiếng Việt không — quyết định có phải nhắc đi cài giọng cho Windows.
+  useEffect(() => {
+    let active = true;
+    probeServerVoice().then((ok) => { if (active) setServerVoiceReady(ok); });
+    return () => { active = false; };
   }, []);
 
   // Announce new calls
@@ -463,11 +414,9 @@ function RoomQueueView() {
         for (const id of newIds) {
           const info = currentCallingMap.get(id);
           if (info) {
-            if (window.speechSynthesis) {
-              announce(`Mời số ${speakableCode(info.code)} vào ${info.room}`);
-            } else {
-              beep();
-            }
+            // Không còn chặn theo `window.speechSynthesis`: giọng chính giờ do máy chủ đọc, máy
+            // trạm thiếu bộ đọc của trình duyệt vẫn nghe được.
+            announceVi(`Mời số ${speakableViCode(info.code)} vào ${info.room}`);
           }
         }
       }
@@ -519,11 +468,7 @@ function RoomQueueView() {
   const enableAudio = () => {
     setAudioEnabled(true);
     setShowOverlay(false);
-    if (window.speechSynthesis) {
-      const u = new SpeechSynthesisUtterance('');
-      u.volume = 0;
-      window.speechSynthesis.speak(u);
-    }
+    unlockAudio();
   };
 
   const dismissOverlay = () => {
@@ -566,7 +511,7 @@ function RoomQueueView() {
           {/* Không có giọng Việt thì loa vẫn đọc, nhưng bằng giọng mặc định của máy (thường là
               tiếng Anh) — nghe rất khó hiểu. Nói ra ngay lúc lắp TV, đừng để tới lúc có người
               bệnh ngồi chờ mới phát hiện. */}
-          {!hasVietnameseVoice() && (
+          {serverVoiceReady === false && !hasVietnameseVoice() && (
             <p style={{ color: '#f6ad55', fontSize: 14, maxWidth: 620, textAlign: 'center', lineHeight: 1.6 }}>
               <b>Máy này chưa có giọng đọc tiếng Việt</b> — loa sẽ đọc bằng giọng mặc định (thường
               là tiếng Anh), nghe không ra tên số.
@@ -575,7 +520,7 @@ function RoomQueueView() {
               Thêm giọng nói → Tiếng Việt</b>, xong khởi động lại trình duyệt và mở lại trang này.
               <br />
               <span style={{ opacity: 0.75, fontSize: 12.5 }}>
-                (Trình duyệt đang thấy {voiceCount} giọng, không giọng nào là tiếng Việt.)
+                (Trình duyệt đang thấy {browserVoiceCount()} giọng, không giọng nào là tiếng Việt.)
               </span>
             </p>
           )}

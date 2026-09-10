@@ -214,6 +214,10 @@ public static class DependencyInjection
         services.AddMemoryCache();
         services.AddScoped<IPublicEmrLookupService, PublicEmrLookupService>();
 
+        // Đọc số thứ tự bằng tiếng Việt ngay trên máy chủ (Piper) — màn hình gọi số không còn
+        // phụ thuộc giọng cài trên TV. Singleton vì chỉ cầm đường dẫn + hàng đợi tiến trình.
+        services.AddSingleton<IViSpeechService, HIS.Infrastructure.Services.Speech.PiperSpeechService>();
+
         // Security Compliance (Level 6 - access control matrix, sensitive data access reports)
         services.AddScoped<ISecurityService, SecurityService>();
 

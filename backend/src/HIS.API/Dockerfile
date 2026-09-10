@@ -55,6 +55,38 @@ COPY backend/ .
 WORKDIR /src/src/HIS.API
 RUN dotnet publish "HIS.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
+# ---------- Stage 2b: bộ đọc tiếng Việt (Piper) ----------
+# Màn hình gọi số treo ở sảnh trước đây đọc bằng Web Speech API của trình duyệt, nên máy nào không
+# cài giọng tiếng Việt thì loa đọc ra giọng Anh. Nhúng luôn Piper + giọng vi_VN vào ảnh để máy chủ
+# tự đọc: mọi TV nghe giống nhau, không phải cài gì trên máy trạm, không tốn phí theo lượt.
+FROM debian:bookworm-slim AS piper
+ARG PIPER_RELEASE=2023.11.14-2
+ARG PIPER_VOICE=vi_VN-vais1000-medium
+ARG PIPER_VOICE_PATH=vi/vi_VN/vais1000/medium
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /build
+# Nhị phân dựng sẵn: đã kèm onnxruntime + espeak-ng-data nên ảnh chạy không cần Python.
+RUN curl -fsSL -o piper.tar.gz \
+      "https://github.com/rhasspy/piper/releases/download/${PIPER_RELEASE}/piper_linux_x86_64.tar.gz" \
+    && tar -xzf piper.tar.gz \
+    && rm piper.tar.gz
+RUN curl -fsSL -o "piper/${PIPER_VOICE}.onnx" \
+      "https://huggingface.co/rhasspy/piper-voices/resolve/main/${PIPER_VOICE_PATH}/${PIPER_VOICE}.onnx" \
+    && curl -fsSL -o "piper/${PIPER_VOICE}.onnx.json" \
+      "https://huggingface.co/rhasspy/piper-voices/resolve/main/${PIPER_VOICE_PATH}/${PIPER_VOICE}.onnx.json"
+# Bớt phần không dùng: mô hình tiếng Ả Rập, hai CLI phụ, và từ điển của những ngôn ngữ khác
+# (espeak chỉ nạp từ điển của ngôn ngữ đang đọc). Giữ vi_dict + phondata/phontab/lang.
+# ~22MB, đáng cắt vì ảnh này EC2 phải kéo về mỗi lần deploy.
+RUN rm -rf piper/libtashkeel_model.ort piper/piper_phonemize piper/espeak-ng piper/pkgconfig \
+    && find piper/espeak-ng-data -maxdepth 1 -name "*_dict" ! -name "vi_dict" -delete
+
+# Đọc thử ngay lúc dựng ảnh: sai đường dẫn hay hỏng file thì gãy Ở ĐÂY, không phải lúc bệnh nhân chờ.
+RUN echo "Mời số bê không không một vào phòng khám" \
+    | piper/piper --model "piper/${PIPER_VOICE}.onnx" --output_file /tmp/smoke.wav \
+    && test -s /tmp/smoke.wav
+
 # ---------- Stage 3: runtime ----------
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
@@ -71,6 +103,9 @@ RUN apt-get update \
 EXPOSE 8080
 
 COPY --from=build /app/publish .
+# Bộ đọc tiếng Việt cho màn hình gọi số (endpoint GET /api/tts/vi). Thiếu thư mục này thì endpoint
+# trả 503 và màn hình tự quay về giọng của trình duyệt — không làm sập gì khác.
+COPY --from=piper /build/piper /opt/piper
 # Deliberately NOT wwwroot: that folder holds AI models, BHXH XSDs and patient
 # photos, none of which may be served publicly. Program.cs serves only clientapp/.
 COPY --from=frontend /fe/dist ./clientapp
