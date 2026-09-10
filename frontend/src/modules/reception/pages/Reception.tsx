@@ -32,6 +32,16 @@ import { ReceptionPayModal } from './ReceptionPayModal';
 import { PrintRequestFormModal, printBarcodeLabel } from './ReceptionPrintModals';
 import { Checkbox } from '@/components/common/Checkbox';
 import { FileUpload } from '@/components/common/FileUpload/FileUpload';
+import { useWorkingDepartment } from '../../../hooks/useWorkingDepartment';
+
+/**
+ * Hàng đợi của QUẦY TIẾP ĐÓN — mã 1 theo `QueueTicketDto.QueueTypeName`
+ * (1 Tiếp đón · 2 Khám bệnh · 3 Cận lâm sàng · 4 Thanh toán · 5 Lĩnh thuốc).
+ *
+ * Vé lấy qua app thuộc hàng đợi KHÁM BỆNH (2) nên KHÔNG gọi ở đây — chỗ gọi hàng đợi đó là trang
+ * "Màn hình gọi số", nơi người dùng chọn được phòng và loại hàng đợi.
+ */
+const QUEUE_TYPE_RECEPTION = 1;
 const ReceptionV2: React.FC = () => {
   const { message } = AntdApp.useApp();
 
@@ -58,6 +68,7 @@ const ReceptionV2: React.FC = () => {
   // callingNext chặn double-click "Gọi số tiếp" (gọi 2 số 1 lúc trên hàng đợi).
   const [busy, setBusy] = useState<string | null>(null);
   const [callingNext, setCallingNext] = useState(false);
+  const { place } = useWorkingDepartment();
   const PAGE_SIZE = 14;
 
   const loadData = useCallback(() => {
@@ -138,17 +149,41 @@ const ReceptionV2: React.FC = () => {
   }, [rows, rooms]);
 
   // ─── Mutations ───
+  /**
+   * Gọi vé kế tiếp trong hàng đợi TIẾP ĐÓN của phòng đang trực.
+   *
+   * Ba chỗ từng sai, đều dẫn tới "bấm mà không thấy gì xảy ra":
+   *
+   * 1. Phòng lấy từ dòng đầu danh sách. Trang này liệt kê MỌI phòng, nên dòng đầu là phòng nào
+   *    hoàn toàn do bộ lọc/sắp xếp quyết định — gọi số cho phòng của người khác.
+   * 2. Thông báo lấy tên từ DÒNG HỒ SƠ, trong khi máy chủ tự chọn người kế tiếp theo thứ tự cấp
+   *    cứu → ưu tiên → số nhỏ. Hai bên có thể ra hai người khác nhau, và lễ tân sẽ xướng nhầm tên.
+   * 3. Máy chủ trả 204 rỗng khi hàng đợi không còn ai, nhưng chỗ này không kiểm — vẫn báo "Đang gọi
+   *    số …" cho một vé không hề được gọi.
+   */
   const onCallNext = async () => {
     if (callingNext) return; // chặn double-click gọi 2 số cùng lúc
-    const next = rows.find((r) => statusKey(r) === 'waiting');
-    if (!next || !next.roomId) {
-      message.info('Không có bệnh nhân nào đang chờ');
+
+    // Phòng đang trực là câu trả lời đúng cho "gọi cho phòng nào"; chỉ khi chưa đặt mới đoán theo
+    // dòng đang chờ đầu tiên.
+    const fallback = rows.find((r) => statusKey(r) === 'waiting');
+    const roomId = place.roomId || fallback?.roomId;
+    const roomName = place.roomName || fallback?.roomName || 'phòng này';
+
+    if (!roomId) {
+      message.info('Chưa chọn khoa/phòng làm việc — bấm biểu tượng ô vuông trên thanh đầu để chọn.');
       return;
     }
+
     setCallingNext(true);
     try {
-      await receptionApi.callNextQueue(next.roomId, 1);
-      message.success(`Đang gọi số ${next.queueCode || next.queueNumber} · ${next.patientName}`);
+      const res = await receptionApi.callNextQueue(roomId, QUEUE_TYPE_RECEPTION);
+      const called = res.data;
+      if (!called) {
+        message.info(`Không còn vé nào đang chờ ở ${roomName}`);
+        return;
+      }
+      message.success(`Đang gọi ${called.ticketCode} · ${called.patientName || '(không rõ BN)'}`);
       loadData();
     } catch {
       message.error('Gọi số thất bại');
