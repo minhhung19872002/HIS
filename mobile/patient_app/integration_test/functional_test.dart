@@ -340,7 +340,17 @@ void main() {
       // Diện ưu tiên phải chọn được ngay trên màn này (nằm dưới nếp gấp — kéo tới rồi mới soi).
       await scrollTo(tester, find.text('Không thuộc diện ưu tiên'));
       expect(find.text('Không thuộc diện ưu tiên'), findsOneWidget);
-      expect(find.text('Người cao tuổi (từ 60 tuổi)'), findsOneWidget);
+      // ĐỦ NĂM diện theo luật, không chỉ mỗi người cao tuổi: thiếu một diện thì người thuộc diện đó
+      // phải ra quầy xin thủ công, đúng thứ mà app sinh ra để bỏ đi.
+      for (final reason in const [
+        'Người cao tuổi (từ 60 tuổi)',
+        'Trẻ em dưới 6 tuổi',
+        'Phụ nữ có thai',
+        'Người khuyết tật nặng',
+        'Người có công với cách mạng',
+      ]) {
+        expect(find.text(reason), findsOneWidget, reason: 'thiếu diện ưu tiên "$reason"');
+      }
     });
 
     testWidgets('chưa chọn phòng mà bấm lấy số: nhắc tại chỗ, không gọi máy chủ', (tester) async {
