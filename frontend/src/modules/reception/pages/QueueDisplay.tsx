@@ -66,10 +66,55 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
+/**
+ * Giọng đọc tiếng Việt.
+ *
+ * `utterance.lang = 'vi-VN'` chỉ là GỢI Ý. Trình duyệt vẫn đọc bằng giọng mặc định — trên máy
+ * Việt Nam thường là giọng tiếng Anh — nếu không chỉ đích danh `utterance.voice`. Đó là lý do
+ * loa đọc "Mời số B001 vào Phòng khám Sản" ra giọng Anh dù chữ đã là tiếng Việt.
+ *
+ * Danh sách giọng nạp BẤT ĐỒNG BỘ: lần gọi `getVoices()` đầu tiên hầu như luôn trả mảng rỗng,
+ * phải nghe thêm sự kiện `voiceschanged`.
+ */
+let viVoice: SpeechSynthesisVoice | null = null;
+
+function pickViVoice() {
+  const voices = window.speechSynthesis?.getVoices() ?? [];
+  viVoice = voices.find((v) => v.lang === 'vi-VN')
+    ?? voices.find((v) => v.lang?.toLowerCase().startsWith('vi'))
+    ?? null;
+}
+
+if (typeof window !== 'undefined' && window.speechSynthesis) {
+  pickViVoice();
+  window.speechSynthesis.addEventListener?.('voiceschanged', pickViVoice);
+}
+
+/**
+ * Máy có giọng Việt hay không — dùng để cảnh báo người lắp TV, xem overlay bật âm thanh.
+ * KHÔNG export: file này chỉ được phép export component, nếu không Fast Refresh gãy
+ * (`react-refresh/only-export-components`).
+ */
+function hasVietnameseVoice(): boolean {
+  if (!viVoice) pickViVoice();
+  return viVoice !== null;
+}
+
+/**
+ * Tách mã vé thành từng ký tự để loa đọc rời: "B001" → "B 0 0 1" (đọc ra "bê không không một").
+ * Để nguyên thì bộ đọc hay gộp thành một từ vô nghĩa, mà trong phòng chờ ồn thì đọc rời mới nghe
+ * ra được.
+ */
+function speakableCode(code: string): string {
+  return code.split('').join(' ');
+}
+
 function announce(text: string) {
   if (!window.speechSynthesis) return;
+  if (!viVoice) pickViVoice(); // giọng có thể vừa nạp xong sau lần thử đầu
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'vi-VN';
+  if (viVoice) utterance.voice = viVoice;
   utterance.rate = 0.9;
   window.speechSynthesis.speak(utterance);
 }
@@ -133,7 +178,7 @@ function LabQueueView() {
       if (audioEnabled) {
         const item = data.completedItems.find(c => c.id === newIds[0]);
         if (item) {
-          announce(`Kết quả xét nghiệm mã ${item.orderCode} đã hoàn thành`);
+          announce(`Kết quả xét nghiệm mã ${speakableCode(item.orderCode)} đã hoàn thành`);
         } else {
           beep();
         }
@@ -393,7 +438,7 @@ function RoomQueueView() {
           const info = currentCallingMap.get(id);
           if (info) {
             if (window.speechSynthesis) {
-              announce(`Mời số ${info.code} vào ${info.room}`);
+              announce(`Mời số ${speakableCode(info.code)} vào ${info.room}`);
             } else {
               beep();
             }
@@ -492,6 +537,16 @@ function RoomQueueView() {
         <div className="audio-overlay">
           <button onClick={enableAudio}>Bật âm thanh</button>
           <p>Nhấn để bật thông báo giọng nói khi gọi bệnh nhân</p>
+          {/* Không có giọng Việt thì loa vẫn đọc, nhưng bằng giọng mặc định của máy (thường là
+              tiếng Anh) — nghe rất khó hiểu. Nói ra ngay lúc lắp TV, đừng để tới lúc có người
+              bệnh ngồi chờ mới phát hiện. */}
+          {!hasVietnameseVoice() && (
+            <p style={{ color: '#f6ad55', fontSize: 14, maxWidth: 620, textAlign: 'center' }}>
+              Máy này chưa có giọng đọc tiếng Việt — loa sẽ đọc bằng giọng mặc định, nghe không rõ.
+              Cài gói giọng tiếng Việt của hệ điều hành (Windows: Cài đặt → Thời gian &amp; ngôn ngữ
+              → Giọng nói) rồi mở lại trang.
+            </p>
+          )}
           <button onClick={dismissOverlay} style={{ background: 'transparent', border: '1px solid #a0aec0', fontSize: 16, padding: '8px 24px' }}>
             Bỏ qua
           </button>
