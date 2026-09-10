@@ -75,27 +75,59 @@ const QueueBoard: React.FC = () => {
   useEffect(() => { void loadRooms(); }, [loadRooms]);
 
   // Số liệu sống của riêng những phòng ĐANG CHỌN. Không nạp cho cả trăm phòng: trang này để chọn
-  // phòng, không phải để theo dõi — theo dõi là việc của bảng chiếu.
+  // phòng và gọi số, không phải để theo dõi cả bệnh viện.
   const selectedKey = useMemo(() => [...selected].sort().join(','), [selected]);
-  useEffect(() => {
+
+  const pullLive = useCallback(async () => {
     const ids = selectedKey ? selectedKey.split(',') : [];
     if (ids.length === 0) { setLive({}); return; }
-    let alive = true;
-    const pull = async () => {
-      const results = await Promise.allSettled(
-        ids.map((id) => receptionApi.getQueueDisplay(id, Number(queueType))),
-      );
-      if (!alive) return;
-      const next: Record<string, QueueDisplayDto> = {};
-      results.forEach((res, i) => {
-        if (res.status === 'fulfilled' && res.value.data) next[ids[i]] = res.value.data;
-      });
-      setLive(next);
-    };
-    void pull();
-    const t = window.setInterval(() => void pull(), 10_000);
-    return () => { alive = false; window.clearInterval(t); };
+    const results = await Promise.allSettled(
+      ids.map((id) => receptionApi.getQueueDisplay(id, Number(queueType))),
+    );
+    const next: Record<string, QueueDisplayDto> = {};
+    results.forEach((res, i) => {
+      if (res.status === 'fulfilled' && res.value.data) next[ids[i]] = res.value.data;
+    });
+    setLive(next);
   }, [selectedKey, queueType]);
+
+  useEffect(() => {
+    void pullLive();
+    const t = window.setInterval(() => void pullLive(), 10_000);
+    return () => window.clearInterval(t);
+  }, [pullLive]);
+
+  /**
+   * Chạy một thao tác gọi số rồi nạp lại ngay.
+   *
+   * `acting` khoá theo từng vé để chặn bấm hai lần — gọi trùng một vé thì bảng chiếu nhấp nháy hai
+   * lần và loa đọc tên hai lượt, người bệnh không biết có phải gọi mình không.
+   */
+  const [acting, setActing] = useState<string | null>(null);
+  const runAction = async (key: string, fn: () => Promise<unknown>, ok: string) => {
+    if (acting) return;
+    setActing(key);
+    try {
+      await fn();
+      tk(ok);
+      await pullLive();
+    } catch (e) {
+      tw(friendlyErrorMessage(e, 'Thao tác không thành công.'));
+    } finally {
+      setActing(null);
+    }
+  };
+
+  const callNext = (room: QueueDisplayDto) => runAction(
+    `next:${room.roomId}`,
+    async () => {
+      const res = await receptionApi.callNextQueue(room.roomId, Number(queueType));
+      // Máy chủ trả rỗng khi hàng đợi hết người — nói thẳng thay vì báo "đã gọi" cho một vé không
+      // tồn tại.
+      if (!res.data) throw new Error('Không còn người bệnh nào đang chờ ở phòng này.');
+    },
+    `Đã gọi số tiếp theo · ${room.roomName}`,
+  );
 
   useEffect(() => {
     try {
@@ -240,6 +272,111 @@ const QueueBoard: React.FC = () => {
           fontFamily: 'var(--font-mono)', overflowWrap: 'anywhere',
         }}>
           {boardUrl}
+        </div>
+      )}
+
+      {selected.size > 0 && (
+        <div className="ab-stack" style={{ padding: '0 14px 14px', display: 'grid', gap: 'var(--space-12)' }}>
+          {[...selected].map((id) => {
+            const room = live[id];
+            if (!room) return null;
+            const now = room.currentServing || room.callingList[0];
+            return (
+              <div key={id} style={{
+                border: '1px solid var(--line)', borderRadius: 'var(--r-3)',
+                background: 'var(--d-0)', overflow: 'hidden',
+              }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 'var(--space-10)',
+                  padding: '8px 12px', background: 'var(--d-1)', borderBottom: '1px solid var(--line)',
+                }}>
+                  <b>{room.roomName}</b>
+                  {room.doctorName && <span className="chip info">BS. {room.doctorName}</span>}
+                  <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
+                    {now ? <>Đang gọi <b className="mono">{now.ticketCode}</b></> : 'Chưa gọi số nào'}
+                    {' · '}{room.totalWaiting} đang chờ
+                  </span>
+                  <span className="spacer" />
+                  {now && (
+                    <Btn variant="ghost" disabled={acting !== null}
+                      onClick={() => void runAction(`recall:${now.id}`,
+                        () => receptionApi.recallQueue(now.id), `Đã gọi lại ${now.ticketCode}`)}>
+                      Gọi lại
+                    </Btn>
+                  )}
+                  <Btn variant="primary" disabled={acting !== null}
+                    onClick={() => void callNext(room)}>
+                    Gọi số tiếp
+                  </Btn>
+                </div>
+
+                {room.waitingList.length === 0 ? (
+                  <div style={{ padding: 'var(--space-14)', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>
+                    Không còn ai đang chờ.
+                  </div>
+                ) : (
+                  <table className="ab-tbl">
+                    <thead>
+                      <tr>
+                        <th style={{ width: 90 }}>Số</th>
+                        <th>Bệnh nhân</th>
+                        <th style={{ width: 180 }}>Ưu tiên</th>
+                        <th style={{ width: 210 }}>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {room.waitingList.map((t) => (
+                        <tr key={t.id}>
+                          <td className="mono"><b>{t.ticketCode}</b></td>
+                          <td>{t.patientName || <i style={{ color: 'var(--t-3)' }}>(không rõ BN)</i>}</td>
+                          <td>
+                            {t.priority > 0 ? (
+                              <>
+                                <StatusBadge tone={t.priority === 2 ? 'crit' : 'warn'} dot>
+                                  {t.priorityName}
+                                </StatusBadge>
+                                {t.priorityReasonName && (
+                                  <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginLeft: 6 }}>
+                                    {t.priorityReasonName}
+                                  </span>
+                                )}
+                                {/* Người bệnh tự khai qua app mà HIS không đối chiếu được — lễ tân
+                                    phải hỏi giấy tờ lúc gọi, nếu không thì người ưu tiên THẬT chịu
+                                    thiệt. Backend cấp cờ này sẵn, trước nay không màn nào hiện. */}
+                                {t.priorityVerified === false && (
+                                  <span className="chip warn" style={{ marginLeft: 6 }}>chưa xác minh</span>
+                                )}
+                              </>
+                            ) : <span style={{ color: 'var(--t-3)' }}>Thường</span>}
+                          </td>
+                          <td>
+                            <div className="ab-actions">
+                              <Btn variant="ghost" disabled={acting !== null}
+                                onClick={() => void runAction(`call:${t.id}`,
+                                  () => receptionApi.callSpecificQueue(t.id), `Đã gọi ${t.ticketCode}`)}>
+                                Gọi
+                              </Btn>
+                              <Btn variant="ghost" disabled={acting !== null}
+                                onClick={() => void runAction(`serve:${t.id}`,
+                                  () => receptionApi.startServing(t.id), `${t.ticketCode} đã vào khám`)}>
+                                Vào khám
+                              </Btn>
+                              <Btn variant="ghost" disabled={acting !== null}
+                                onClick={() => void runAction(`skip:${t.id}`,
+                                  () => receptionApi.skipQueue(t.id, 'Bệnh nhân không đến'),
+                                  `Đã đánh dấu vắng mặt ${t.ticketCode}`)}>
+                                Vắng
+                              </Btn>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

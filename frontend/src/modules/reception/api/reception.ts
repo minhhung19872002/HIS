@@ -71,6 +71,15 @@ export interface QueueTicketDto {
   estimatedWaitMinutes: number;
   counter?: string;
   calledBy?: string;
+  /** Lý do ưu tiên người bệnh khai khi lấy số qua app (1 cao tuổi, 2 trẻ <6t, 3 có thai…). */
+  priorityReason?: number;
+  priorityReasonName?: string;
+  /**
+   * false = lý do ưu tiên do người bệnh TỰ KHAI và HIS chưa đối chiếu được (có thai, khuyết tật
+   * nặng, người có công). Màn gọi số phải cảnh báo để lễ tân xác minh lúc gọi — nếu ai khai gì
+   * cũng được ưu tiên mà không ai kiểm, người ưu tiên THẬT là người chịu thiệt.
+   */
+  priorityVerified?: boolean;
 }
 
 export interface QueueDisplayDto {
