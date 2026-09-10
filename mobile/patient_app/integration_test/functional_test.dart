@@ -387,6 +387,29 @@ void main() {
       // Nút cập nhật tay phải có: sóng yếu thì nhịp 20 giây không tới nơi.
       expect(find.text('Cập nhật ngay'), findsOneWidget);
     });
+
+    testWidgets('lấy số xong: danh sách "Số của bạn hôm nay" được nạp lại NGAY', (tester) async {
+      // Chủ đầu tư từng báo: lấy số xong quay ra không thấy số mình vừa lấy nên bấm lấy lần nữa,
+      // mà máy chủ chặn trùng phòng trong ngày — nhìn từ phía người bệnh thành "lấy mãi không được".
+      // Gốc: danh sách vé hôm nay do trang chính giữ sống, không tự nạp lại. Bài này canh đúng một
+      // mệnh đề: sau khi máy chủ cấp vé, app phải HỎI LẠI danh sách chứ không tin bộ nhớ cũ.
+      await launch(tester);
+      await tapShortcut(tester, 'Lấy số thứ tự');
+      await tapScrolled(tester, find.text('chờ 8'));
+
+      final mark = backend.calls.length;
+      await tapScrolled(
+          tester, find.widgetWithText(AppPrimaryButton, 'Lấy số thứ tự'));
+
+      final after = backend.calls.sublist(mark);
+      final took = after.indexWhere((c) => c.startsWith('POST') && c.contains('take-number'));
+      expect(took, isNot(-1), reason: 'phải thật sự gọi máy chủ để cấp số');
+      expect(
+          after.skip(took).any((c) =>
+              c.startsWith('GET') && c.contains('/queue/tickets') && !c.contains('/status')),
+          isTrue,
+          reason: 'cấp số xong mà không hỏi lại danh sách vé hôm nay thì màn vẫn hiện dữ liệu cũ');
+    });
   });
 
   // ============================================================ đặt khám

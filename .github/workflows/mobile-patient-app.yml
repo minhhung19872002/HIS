@@ -29,7 +29,7 @@ jobs:
   android:
     name: Android (phân tích · test · build · chụp màn hình)
     runs-on: ubuntu-latest
-    # 90 chứ không phải 60: bộ đi-hết-chức-năng nay có 57 bài (trước là 29) và chạy HAI lượt —
+    # 90 chứ không phải 60: bộ đi-hết-chức-năng nay có 58 bài (trước là 29) và chạy HAI lượt —
     # một lượt `flutter test` không cần máy, một lượt `flutter drive` trên máy ảo — nên mỗi bài
     # thêm vào tốn thời gian ở cả hai chỗ. Lần chạy 29 bài mất 36 phút, mà hết giờ giữa bộ kiểm thì
     # không có kết luận nào để đọc, chỉ có một job bị cắt.
@@ -196,7 +196,7 @@ jobs:
   ios:
     name: iOS (build · chụp màn hình trên simulator · kiểm mức iOS tối thiểu)
     runs-on: macos-15
-    # Xem ghi chú ở job Android: 57 bài × hai lượt chạy.
+    # Xem ghi chú ở job Android: 58 bài × hai lượt chạy.
     timeout-minutes: 90
 
     steps:
