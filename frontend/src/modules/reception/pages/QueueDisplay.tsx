@@ -402,16 +402,31 @@ function RoomQueueView() {
   // Announce new calls
   const handleNewCalls = useCallback((allData: QueueDisplayDto[]) => {
     const currentIds = new Set<string>();
-    const currentCallingMap = new Map<string, { code: string; room: string }>();
+    const currentCallingMap = new Map<string, { id: string; code: string; room: string }>();
+
+    /**
+     * Khoá nhận biết MỘT LƯỢT GỌI, không phải một cái vé.
+     *
+     * Trước đây chỉ dùng `ticket.id`. Bấm "Gọi lại" thì vẫn là vé đó, id không đổi, nên bảng chiếu
+     * coi như "đã biết rồi" — không nháy, không đọc loa. Đúng lúc cần nhất (người bệnh không nghe
+     * thấy lần đầu) thì nút gọi lại lại chẳng làm gì cả.
+     *
+     * `calledAt` chính là thứ `RecallAsync` cập nhật mỗi lần gọi, nên ghép vào là mỗi lượt gọi
+     * thành một khoá khác nhau. (Không dùng `calledCount`: bảng `QueueTickets` không có cột đó,
+     * DTO đang gán cứng bằng 1.)
+     */
+    const callKey = (t: { id: string; calledAt?: string }) => `${t.id}@${t.calledAt ?? ''}`;
 
     for (const room of allData) {
       for (const ticket of room.callingList) {
-        currentIds.add(ticket.id);
-        currentCallingMap.set(ticket.id, { code: ticket.ticketCode, room: room.roomName });
+        const k = callKey(ticket);
+        currentIds.add(k);
+        currentCallingMap.set(k, { id: ticket.id, code: ticket.ticketCode, room: room.roomName });
       }
       if (room.currentServing) {
-        currentIds.add(room.currentServing.id);
-        currentCallingMap.set(room.currentServing.id, { code: room.currentServing.ticketCode, room: room.roomName });
+        const k = callKey(room.currentServing);
+        currentIds.add(k);
+        currentCallingMap.set(k, { id: room.currentServing.id, code: room.currentServing.ticketCode, room: room.roomName });
       }
     }
 
@@ -430,7 +445,9 @@ function RoomQueueView() {
     }
 
     if (newIds.length > 0) {
-      setBlinkingIds(new Set(newIds));
+      // Phần nháy tra theo ID VÉ (`blinkingIds.has(ticket.id)` lúc render), còn `newIds` là khoá
+      // lượt gọi — phải đổi về id vé, nếu không số vừa gọi sẽ không nháy.
+      setBlinkingIds(new Set(newIds.map((k) => currentCallingMap.get(k)?.id).filter((x): x is string => !!x)));
       setTimeout(() => setBlinkingIds(new Set()), 5000);
 
       if (audioEnabled) {
