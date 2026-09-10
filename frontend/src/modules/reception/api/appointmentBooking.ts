@@ -100,8 +100,10 @@ export interface BookingServiceDto {
 
 // === API Functions ===
 
-export const getBookingDepartments = () =>
-  publicClient.get<BookingDepartmentDto[]>('/booking/departments').then(r => r.data);
+/** `date` (YYYY-MM-DD): có thì `availableDoctors` đếm theo CA TRỰC của ngày đó — cùng quy tắc
+ *  với getBookingDoctors, để con số "(N BS)" không lệch với dropdown chọn bác sĩ. */
+export const getBookingDepartments = (date?: string) =>
+  publicClient.get<BookingDepartmentDto[]>('/booking/departments', { params: { date } }).then(r => r.data);
 
 /** `date` (YYYY-MM-DD): có thì ưu tiên bác sĩ CÓ CA TRỰC ở khoa đó hôm ấy — kể cả bác sĩ khoa
  *  khác được phân trực sang. Khoa chưa khai ca cho ngày đó thì BE rơi về bác sĩ cơ hữu. */

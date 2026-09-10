@@ -24,9 +24,9 @@ public class AppointmentBookingController : ControllerBase
     /// Lấy danh sách khoa khám bệnh
     /// </summary>
     [HttpGet("departments")]
-    public async Task<ActionResult<List<BookingDepartmentDto>>> GetDepartments()
+    public async Task<ActionResult<List<BookingDepartmentDto>>> GetDepartments([FromQuery] DateTime? date)
     {
-        var result = await _bookingService.GetBookingDepartmentsAsync();
+        var result = await _bookingService.GetBookingDepartmentsAsync(date);
         return Ok(result);
     }
 

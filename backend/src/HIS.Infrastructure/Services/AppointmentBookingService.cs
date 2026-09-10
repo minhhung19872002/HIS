@@ -36,7 +36,7 @@ public class AppointmentBookingService : IAppointmentBookingService
         _smsService = smsService;
     }
 
-    public async Task<List<BookingDepartmentDto>> GetBookingDepartmentsAsync()
+    public async Task<List<BookingDepartmentDto>> GetBookingDepartmentsAsync(DateTime? date = null)
     {
         var departments = await _context.Departments
             .Where(d => !d.IsDeleted && d.IsActive && d.DepartmentType == 1) // Type 1 = Khoa khám bệnh
@@ -49,12 +49,52 @@ public class AppointmentBookingService : IAppointmentBookingService
                 Name = d.DepartmentName,
                 Description = d.Description,
                 AvailableRooms = _context.Rooms.Count(r => !r.IsDeleted && r.IsActive && r.DepartmentId == d.Id),
-                // Đếm theo khoa CƠ HỮU (endpoint này không có ngày nên không suy ra ca trực được).
+                // Mặc định đếm theo khoa CƠ HỮU; có `date` thì đếm lại theo ca trực bên dưới.
                 AvailableDoctors = _context.Users.Count(u => !u.IsDeleted && u.IsActive && u.DepartmentId == d.Id && u.UserType == UserTypes.Doctor)
             })
             .ToBoundedListAsync("AppointmentBookingService.GetBookingDepartmentsAsync");
 
+        if (date.HasValue)
+            await ApplyScheduledDoctorCountsAsync(departments, date.Value);
+
         return departments;
+    }
+
+    /// <summary>
+    /// Đếm lại <c>AvailableDoctors</c> theo CA TRỰC của ngày, dùng ĐÚNG quy tắc của
+    /// <see cref="GetScheduledDoctorIdsAsync"/> (ca đúng ngày → ca lặp theo thứ → rơi về khoa cơ
+    /// hữu). Không dùng chung quy tắc thì con số "(N BS)" trên thẻ khoa sẽ lệch với chính dropdown
+    /// chọn bác sĩ — người dùng thấy "1 BS" rồi mở ra lại là một người khác.
+    ///
+    /// Gộp 2 truy vấn cho TẤT CẢ khoa (không lặp từng khoa) để không thành N+1.
+    /// </summary>
+    private async Task ApplyScheduledDoctorCountsAsync(List<BookingDepartmentDto> departments, DateTime date)
+    {
+        if (departments.Count == 0) return;
+
+        var day = date.Date;
+        var dayOfWeek = (int)day.DayOfWeek;
+        var deptIds = departments.Select(d => d.Id).ToList();
+
+        var shifts = await ActiveDoctorShifts()
+            .Where(s => deptIds.Contains(s.DepartmentId))
+            .Where(s => s.ScheduleDate.Date == day || (s.IsRecurring && s.DayOfWeek == dayOfWeek))
+            .Select(s => new { s.DepartmentId, s.DoctorId, s.ScheduleDate, s.IsRecurring })
+            .ToListAsync();
+
+        foreach (var dept in departments)
+        {
+            var exact = shifts.Where(s => s.DepartmentId == dept.Id && s.ScheduleDate.Date == day)
+                .Select(s => s.DoctorId).Distinct().Count();
+            var count = exact > 0
+                ? exact
+                : shifts.Where(s => s.DepartmentId == dept.Id && s.IsRecurring)
+                    .Select(s => s.DoctorId).Distinct().Count();
+
+            // Không có BÁC SĨ HỢP LỆ nào trực ngày đó → GIỮ số bác sĩ cơ hữu (fallback y như dropdown).
+            if (count > 0)
+                dept.AvailableDoctors = count;
+        }
     }
 
     public async Task<List<BookingDoctorDto>> GetBookingDoctorsAsync(Guid? departmentId, DateTime? date = null)
@@ -100,6 +140,19 @@ public class AppointmentBookingService : IAppointmentBookingService
     }
 
     /// <summary>
+    /// Ca trực chỉ tính khi người được phân THỰC SỰ là bác sĩ đang hoạt động.
+    ///
+    /// ⚠️ Bỏ điều kiện này là hỏng thật: DB đang có lịch lặp của Khoa Ngoại phân cho một ĐIỀU
+    /// DƯỠNG (rác sinh ra từ thời dropdown "bác sĩ" còn lọc nhầm UserType == 2). Nếu chỉ xét "có
+    /// bản ghi lịch hay không" thì khoa đó coi như ĐÃ khai ca → không fallback → lọc ra 0 bác sĩ
+    /// → dropdown RỖNG 5/7 ngày trong tuần. Phải xét "có BÁC SĨ HỢP LỆ trực hay không".
+    /// </summary>
+    private IQueryable<DoctorSchedule> ActiveDoctorShifts() =>
+        _context.DoctorSchedules.Where(s => !s.IsDeleted && s.IsActive
+            && _context.Users.Any(u => u.Id == s.DoctorId
+                && !u.IsDeleted && u.IsActive && u.UserType == UserTypes.Doctor));
+
+    /// <summary>
     /// Id bác sĩ có ca trực ở khoa <paramref name="departmentId"/> vào <paramref name="date"/>.
     /// Ưu tiên ca đúng ngày; không có thì lấy ca lặp hàng tuần khớp thứ — khớp đúng thứ tự mà
     /// <see cref="GetWorkingShiftsAsync"/> dùng để dựng khung giờ, để danh sách bác sĩ và khung
@@ -110,8 +163,7 @@ public class AppointmentBookingService : IAppointmentBookingService
         var day = date.Date;
         var dayOfWeek = (int)day.DayOfWeek;
 
-        var query = _context.DoctorSchedules
-            .Where(s => !s.IsDeleted && s.IsActive && s.DepartmentId == departmentId);
+        var query = ActiveDoctorShifts().Where(s => s.DepartmentId == departmentId);
 
         var ids = await query
             .Where(s => s.ScheduleDate.Date == day)

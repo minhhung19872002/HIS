@@ -88,15 +88,26 @@ export default function AppointmentBookingPublic() {
     setErrs((e) => ({ ...e, [k]: undefined }));
   };
 
+  // Số "(N BS)" trên từng khoa đếm theo ca trực của NGÀY đang chọn, nên phải tải lại khi đổi ngày.
   useEffect(() => {
-    getBookingDepartments().then(setDepartments).catch(() => tw('Không tải được danh sách khoa'));
-  }, []);
+    getBookingDepartments(form.appointmentDate || undefined)
+      .then(setDepartments).catch(() => tw('Không tải được danh sách khoa'));
+  }, [form.appointmentDate]);
 
-  const onDepartmentChange = async (departmentId: string) => {
+  // Danh sách bác sĩ phụ thuộc khoa + NGÀY (ca trực): bác sĩ được phân trực sang khoa khác vẫn
+  // chọn được, và đổi ngày thì phải tải lại theo ca trực của ngày mới.
+  useEffect(() => {
+    if (!form.departmentId) { setDoctors([]); return; }
+    let alive = true;
+    getBookingDoctors(form.departmentId, form.appointmentDate || undefined)
+      .then((d) => { if (alive) setDoctors(Array.isArray(d) ? d : []); })
+      .catch(() => { /* BS là tùy chọn */ });
+    return () => { alive = false; };
+  }, [form.departmentId, form.appointmentDate]);
+
+  const onDepartmentChange = (departmentId: string) => {
     setForm((f) => ({ ...f, departmentId, doctorId: '' }));
     setDoctors([]); setSlots(null); setSelectedSlot(null);
-    if (!departmentId) return;
-    try { setDoctors(await getBookingDoctors(departmentId)); } catch { /* BS là tùy chọn */ }
   };
 
   const loadSlots = async () => {
@@ -320,7 +331,13 @@ export default function AppointmentBookingPublic() {
                         style={{ width: '100%' }}
                         min={dayjs().format('YYYY-MM-DD')}
                         value={form.appointmentDate}
-                        onChange={(e) => { set('appointmentDate', e.target.value); setSlots(null); setSelectedSlot(null); }}
+                        // Đổi ngày → danh sách bác sĩ đổi theo ca trực, nên bỏ chọn bác sĩ cũ để
+                        // không đặt nhầm người không trực hôm đó.
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, appointmentDate: e.target.value, doctorId: '' }));
+                          setErrs((x) => ({ ...x, appointmentDate: undefined }));
+                          setSlots(null); setSelectedSlot(null);
+                        }}
                       />
                     </Field>
                     <Field label="Loại khám">
