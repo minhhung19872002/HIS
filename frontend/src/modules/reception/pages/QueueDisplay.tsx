@@ -77,12 +77,21 @@ function formatTime(date: Date): string {
  * phải nghe thêm sự kiện `voiceschanged`.
  */
 let viVoice: SpeechSynthesisVoice | null = null;
+/** Số giọng máy đang có — để nói cho người lắp TV biết vì sao không có tiếng Việt. */
+let voiceCount = 0;
 
 function pickViVoice() {
   const voices = window.speechSynthesis?.getVoices() ?? [];
-  viVoice = voices.find((v) => v.lang === 'vi-VN')
-    ?? voices.find((v) => v.lang?.toLowerCase().startsWith('vi'))
-    ?? null;
+  voiceCount = voices.length;
+  const isVi = (v: SpeechSynthesisVoice) => {
+    // `lang` không thống nhất giữa các hệ: 'vi-VN', 'vi_VN', đôi khi chỉ 'vi'. Có giọng khai lang
+    // lạ nhưng tên thì ghi rõ ("Google Tiếng Việt", "Microsoft An - Vietnamese"), nên dò cả tên.
+    const lang = (v.lang ?? '').toLowerCase().replace('_', '-');
+    if (lang === 'vi-vn' || lang === 'vi' || lang.startsWith('vi-')) return true;
+    const name = (v.name ?? '').toLowerCase();
+    return name.includes('vietnam') || name.includes('tiếng việt') || name.includes('tieng viet');
+  };
+  viVoice = voices.find(isVi) ?? null;
 }
 
 if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -558,10 +567,16 @@ function RoomQueueView() {
               tiếng Anh) — nghe rất khó hiểu. Nói ra ngay lúc lắp TV, đừng để tới lúc có người
               bệnh ngồi chờ mới phát hiện. */}
           {!hasVietnameseVoice() && (
-            <p style={{ color: '#f6ad55', fontSize: 14, maxWidth: 620, textAlign: 'center' }}>
-              Máy này chưa có giọng đọc tiếng Việt — loa sẽ đọc bằng giọng mặc định, nghe không rõ.
-              Cài gói giọng tiếng Việt của hệ điều hành (Windows: Cài đặt → Thời gian &amp; ngôn ngữ
-              → Giọng nói) rồi mở lại trang.
+            <p style={{ color: '#f6ad55', fontSize: 14, maxWidth: 620, textAlign: 'center', lineHeight: 1.6 }}>
+              <b>Máy này chưa có giọng đọc tiếng Việt</b> — loa sẽ đọc bằng giọng mặc định (thường
+              là tiếng Anh), nghe không ra tên số.
+              <br />
+              Cài giọng tiếng Việt cho Windows: <b>Cài đặt → Thời gian &amp; ngôn ngữ → Giọng nói →
+              Thêm giọng nói → Tiếng Việt</b>, xong khởi động lại trình duyệt và mở lại trang này.
+              <br />
+              <span style={{ opacity: 0.75, fontSize: 12.5 }}>
+                (Trình duyệt đang thấy {voiceCount} giọng, không giọng nào là tiếng Việt.)
+              </span>
             </p>
           )}
           <button onClick={dismissOverlay} style={{ background: 'transparent', border: '1px solid #a0aec0', fontSize: 16, padding: '8px 24px' }}>
