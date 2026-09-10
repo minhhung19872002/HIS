@@ -837,6 +837,52 @@ void main() {
           reason: 'phải quay về hồ sơ của mình được, nếu không người dùng bị kẹt ở hồ sơ người khác');
     });
 
+    testWidgets('THÊM người thân trọn vòng: điền mã BN → máy chủ chọn cách xác minh → nhập mã',
+        (tester) async {
+      await launch(tester);
+      await tapShortcut(tester, 'Gia đình');
+
+      await tapScrolled(tester, find.widgetWithText(FloatingActionButton, 'Thêm người thân'));
+      await tester.enterText(find.widgetWithText(TextField, 'Mã bệnh nhân'), 'BN000456');
+      await tester.enterText(find.widgetWithText(TextField, 'Quan hệ (Cha, Mẹ, Con…)'), 'Vợ');
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Tiếp tục'));
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+
+      expect(backend.calls.any((c) => c.startsWith('POST') && c.contains('/family/members')), isTrue,
+          reason: 'phải gọi máy chủ để tạo liên kết');
+
+      // CÁCH XÁC MINH do máy chủ chọn, vì chỉ máy chủ biết người thân đó đã có tài khoản app hay
+      // chưa: có tài khoản thì gửi OTP tới số của CHÍNH HỌ (họ phải đồng ý), chưa có thì khai CCCD.
+      expect(find.text('Xác nhận kết nối với Nguyễn Thị Hoa'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'Mã xác nhận'), findsOneWidget,
+          reason: 'máy chủ trả member_otp thì phải hỏi MÃ, không hỏi CCCD');
+      expect(find.textContaining('09****678'), findsOneWidget,
+          reason: 'phải cho biết mã gửi tới số nào, và số đó phải bị che');
+
+      await tester.enterText(find.widgetWithText(TextField, 'Mã xác nhận'), '654321');
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Xác nhận').last);
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+
+      expect(backend.calls.any((c) => c.contains('/members/f3/verify')), isTrue);
+      expect(find.textContaining('Đã kết nối với Nguyễn Thị Hoa'), findsOneWidget);
+    });
+
+    testWidgets('GỠ người thân: xác nhận rồi thì máy chủ thật sự nhận lệnh gỡ', (tester) async {
+      // Bài "hỏi lại" ở trên chỉ kiểm nhánh BẤM HUỶ. Nhánh đồng ý cũng phải kiểm: một nút xác nhận
+      // không gọi gì là lỗi im lặng tệ nhất — người dùng tin là đã gỡ quyền xem hồ sơ của mình.
+      await launch(tester);
+      await tapShortcut(tester, 'Gia đình');
+
+      await tapScrolled(tester, find.widgetWithText(TextButton, 'Gỡ').first);
+      await tester.tap(find.widgetWithText(FilledButton, 'Gỡ'));
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+
+      expect(backend.calls.any((c) => c.startsWith('DELETE') && c.contains('/members/f1')), isTrue,
+          reason: 'đồng ý gỡ mà máy chủ không nhận lệnh thì người kia vẫn xem được hồ sơ');
+    });
+
     testWidgets('XÁC NHẬN người thân đang chờ: máy chủ mới là nơi quyết', (tester) async {
       await launch(tester);
       await tapShortcut(tester, 'Gia đình');
@@ -877,6 +923,21 @@ void main() {
 
       expect(backend.calls.where((c) => c.startsWith('DELETE')), isEmpty);
       expect(find.text('CCCD mặt trước'), findsOneWidget, reason: 'huỷ rồi mà giấy tờ vẫn mất là hỏng');
+    });
+
+    testWidgets('XOÁ giấy tờ: xác nhận rồi thì máy chủ thật sự nhận lệnh xoá', (tester) async {
+      // Bài ở trên chỉ kiểm nhánh BẤM HUỶ. Nhánh đồng ý cũng phải kiểm: nút "Xoá" không gọi gì thì
+      // giấy tờ biến khỏi màn (vì danh sách nạp lại) mà vẫn nằm trên máy chủ — hoặc ngược lại.
+      await launch(tester);
+      await tapShortcut(tester, 'Ví giấy tờ');
+
+      await tapScrolled(tester, find.byTooltip('Xoá').first);
+      await tester.tap(find.widgetWithText(FilledButton, 'Xoá'));
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+
+      expect(backend.calls.any((c) => c.startsWith('DELETE') && c.contains('/documents/doc-1')),
+          isTrue,
+          reason: 'đồng ý xoá mà máy chủ không nhận lệnh thì giấy tờ vẫn còn trong kho');
     });
 
     testWidgets('thêm giấy tờ: đủ ba đường chụp ảnh · chọn ảnh · chọn tệp PDF', (tester) async {
@@ -1402,6 +1463,17 @@ class _StatefulDemoBackend implements HttpClientAdapter {
     if (options.method == 'POST' && isAppointmentList) {
       booked++;
       return _json('{"success":true,"data":null,"message":"Đã đặt lịch khám.",'
+          '"errors":null,"meta":null}');
+    }
+
+    // Thêm người thân trả về MỘT ĐỐI TƯỢNG kèm cách xác minh mà máy chủ chọn, và `message` của vỏ
+    // phản hồi chính là câu hướng dẫn app hiện trong hộp thoại xác minh. Bảng tuyến dùng chung
+    // không làm được việc này: `POST /family/members` và `GET /family/members` cùng đường dẫn mà
+    // trả hai hình dạng khác nhau.
+    if (options.method == 'POST' && path.endsWith('/family/members')) {
+      return _json('{"success":true,"data":{"linkId":"f3","memberName":"Nguyễn Thị Hoa",'
+          '"verificationMethod":"member_otp","maskedPhone":"09****678"},'
+          '"message":"Mã xác nhận đã gửi tới số điện thoại của người thân.",'
           '"errors":null,"meta":null}');
     }
 
