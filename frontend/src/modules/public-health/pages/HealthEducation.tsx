@@ -121,7 +121,6 @@ const HealthEducationV2: React.FC = () => {
   }, [materials, search]);
 
   const totalPages = Math.max(1, Math.ceil((tab === 'campaigns' ? filtered.length : filteredMaterials.length) / PER));
-  const pagedMaterials = filteredMaterials.slice(page * PER, (page + 1) * PER);
 
   const cols: ColumnDef<HealthCampaign>[] = [
     { key: 'code', label: 'Mã CD', code: true, render: (r) => r.campaignCode },
@@ -238,7 +237,8 @@ const HealthEducationV2: React.FC = () => {
 
       {tab === 'materials' && <>
         <DataTable<HealthMaterial>
-          columns={matCols} data={pagedMaterials} rowKey={(r) => r.id}
+          columns={matCols} data={filteredMaterials} page={page} perPage={PER}
+          onSortChange={() => setPage(0)} rowKey={(r) => r.id}
           loading={loading}
           empty="Chưa có tài liệu GDSK"
         />

@@ -65,6 +65,7 @@ import { CabinetIssueModal, ItemPicker } from '../../pharmacy/pages/CabinetIssue
 import { InpatientPrescriptionModal } from './InpatientPrescriptionModal';
 import { InpatientServiceOrderCreateModal } from './InpatientServiceOrderCreateModal';
 import DischargeModal from './DischargeModal';
+import { SortTh, useSortableRows } from '../../../components/table';
 
 // ---------------------------------------------------------------------------
 // Local helpers
@@ -1361,6 +1362,13 @@ const ClsOrdersModal: React.FC<{
   };
 
   const activeOrders = orders.filter((o) => o.status !== 4);
+  const orderSort = useSortableRows(activeOrders, {
+    service: (o) => o.serviceName ?? o.requestCode,
+    type: (o) => o.requestTypeName ?? o.requestType,
+    status: (o) => o.statusName ?? o.status,
+    payer: (o) => o.patientTypeName ?? o.patientType,
+    amount: (o) => o.totalAmount ?? 0,
+  });
 
   return (
    <>
@@ -1405,15 +1413,15 @@ const ClsOrdersModal: React.FC<{
                       }}
                     />
                   </th>
-                  <th style={{ padding: '6px 8px', textAlign: 'left' }}>Dịch vụ</th>
-                  <th style={{ padding: '6px 8px', textAlign: 'center', width: 80 }}>Loại</th>
-                  <th style={{ padding: '6px 8px', textAlign: 'center', width: 90 }}>Trạng thái</th>
-                  <th style={{ padding: '6px 8px', textAlign: 'center', width: 100 }}>Đ.Tượng TT</th>
-                  <th style={{ padding: '6px 8px', textAlign: 'right', width: 80 }}>Tiền</th>
+                  <SortTh s={orderSort} k="service" style={{ padding: '6px 8px', textAlign: 'left' }}>Dịch vụ</SortTh>
+                  <SortTh s={orderSort} k="type" style={{ padding: '6px 8px', textAlign: 'center', width: 80 }}>Loại</SortTh>
+                  <SortTh s={orderSort} k="status" style={{ padding: '6px 8px', textAlign: 'center', width: 90 }}>Trạng thái</SortTh>
+                  <SortTh s={orderSort} k="payer" style={{ padding: '6px 8px', textAlign: 'center', width: 100 }}>Đ.Tượng TT</SortTh>
+                  <SortTh s={orderSort} k="amount" style={{ padding: '6px 8px', textAlign: 'right', width: 80 }}>Tiền</SortTh>
                 </tr>
               </thead>
               <tbody>
-                {activeOrders.map((o) => {
+                {orderSort.rows.map((o) => {
                   const isCancellable = o.status < 3;
                   const isChangingPayment = paymentChangeId === o.id;
                   return (

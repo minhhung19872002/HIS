@@ -1,6 +1,10 @@
 import React, { useCallback, useState } from 'react';
 import { Alert, Form, Input, Select, Switch } from 'antd';
 import dayjs from 'dayjs';
+import { SortTh, useSortableRows } from '../../../components/table';
+
+/** Ô tiêu đề bảng "đợt thiếu phiếu" — bảng này kẻ viền bằng style rời, không dùng lớp `ab-tbl`. */
+const MISSING_TH: React.CSSProperties = { padding: '6px 8px' };
 import {
   getConnections,
   saveConnection,
@@ -142,6 +146,13 @@ const MissingFormsModal: React.FC<MissingFormsModalProps> = ({ open, onClose }) 
   const [toDate, setToDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [encType, setEncType] = useState<'OPD' | 'IPD' | ''>('');
   const [result, setResult] = useState<MissingFormsCheckResultDto | null>(null);
+  const missingSort = useSortableRows(result?.items ?? [], {
+    type: (i) => i.encounterType,
+    ptCode: (i) => i.patientCode,
+    ptName: (i) => i.patientName,
+    date: (i) => i.encounterDate,
+    forms: (i) => i.missingFormNames.join(', '),
+  });
   const [loading, setLoading] = useState(false);
 
   const run = async () => {
@@ -222,15 +233,15 @@ const MissingFormsModal: React.FC<MissingFormsModalProps> = ({ open, onClose }) 
             <table style={{ width: '100%', fontSize: 'var(--fs-md)', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: 'var(--bg-2)', color: 'var(--t-2)', textAlign: 'left' }}>
-                  <th style={{ padding: '6px 8px' }}>Loại</th>
-                  <th style={{ padding: '6px 8px' }}>Mã BN</th>
-                  <th style={{ padding: '6px 8px' }}>Tên BN</th>
-                  <th style={{ padding: '6px 8px' }}>Ngày đợt</th>
-                  <th style={{ padding: '6px 8px' }}>Phiếu còn thiếu</th>
+                  <SortTh s={missingSort} k="type" style={MISSING_TH}>Loại</SortTh>
+                  <SortTh s={missingSort} k="ptCode" style={MISSING_TH}>Mã BN</SortTh>
+                  <SortTh s={missingSort} k="ptName" style={MISSING_TH}>Tên BN</SortTh>
+                  <SortTh s={missingSort} k="date" style={MISSING_TH}>Ngày đợt</SortTh>
+                  <SortTh s={missingSort} k="forms" style={MISSING_TH}>Phiếu còn thiếu</SortTh>
                 </tr>
               </thead>
               <tbody>
-                {result.items.map((item) => (
+                {missingSort.rows.map((item) => (
                   <tr key={item.encounterId} style={{ borderBottom: '1px solid var(--b-1)' }}>
                     <td style={{ padding: '5px 8px' }}>
                       <StatusBadge tone={item.encounterType === 'OPD' ? 'info' : 'warn'}>

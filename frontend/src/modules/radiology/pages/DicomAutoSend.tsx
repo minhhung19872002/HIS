@@ -21,6 +21,7 @@ import type {
   DicomAutoSendRuleDto, DicomTransmissionLogDto, DicomTransmissionStatsDto,
 } from '../../../api/nangcap24';
 import apiClient from '../../../services/apiClient';
+import { SortTh, useSortableRows } from '../../../components/table';
 
 interface RemoteServerDto { id: string; name: string; aeTitle: string; host: string; port: number; isActive: boolean; }
 
@@ -36,6 +37,11 @@ const DicomAutoSend: React.FC = () => {
   const [rules, setRules] = useState<DicomAutoSendRuleDto[]>([]);
   const [txns, setTxns] = useState<DicomTransmissionLogDto[]>([]);
   const [stats, setStats] = useState<DicomTransmissionStatsDto | null>(null);
+  const destSort = useSortableRows(stats?.byDestination ?? [], {
+    dest: (b) => b.destinationName,
+    count: (b) => b.count,
+    bytes: (b) => b.bytes,
+  });
   const [servers, setServers] = useState<RemoteServerDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [ruleModal, setRuleModal] = useState<DicomAutoSendRuleDto | 'new' | null>(null);
@@ -230,10 +236,14 @@ const DicomAutoSend: React.FC = () => {
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
               <thead style={{ background: 'var(--d-1)' }}>
-                <tr><th style={{ textAlign: 'left', padding: '8px 16px' }}>Đích</th><th style={{ textAlign: 'right', padding: '8px 16px' }}>Số ca</th><th style={{ textAlign: 'right', padding: '8px 16px' }}>Dung lượng</th></tr>
+                <tr>
+                  <SortTh s={destSort} k="dest" style={{ textAlign: 'left', padding: '8px 16px' }}>Đích</SortTh>
+                  <SortTh s={destSort} k="count" style={{ textAlign: 'right', padding: '8px 16px' }}>Số ca</SortTh>
+                  <SortTh s={destSort} k="bytes" style={{ textAlign: 'right', padding: '8px 16px' }}>Dung lượng</SortTh>
+                </tr>
               </thead>
               <tbody>
-                {stats.byDestination.map(b => (
+                {destSort.rows.map(b => (
                   <tr key={b.destinationName} style={{ borderTop: '1px solid var(--line-soft)' }}>
                     <td style={{ padding: '8px 16px' }}>{b.destinationName}</td>
                     <td className="mono" style={{ padding: '8px 16px', textAlign: 'right', fontWeight: 600 }}>{b.count.toLocaleString()}</td>

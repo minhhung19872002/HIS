@@ -243,7 +243,6 @@ const CentralSigningV2: React.FC = () => {
   }, [certs, search, fStorage]);
 
   const certPages = Math.max(1, Math.ceil(filteredCerts.length / PER));
-  const pagedCerts = filteredCerts.slice(page * PER, (page + 1) * PER);
 
   const certCols: ColumnDef<ManagedCertificate>[] = [
     { key: 'sn', label: 'Số serial', code: true, render: (r) => r.serialNumber.slice(0, 16) + '…' },
@@ -360,7 +359,8 @@ const CentralSigningV2: React.FC = () => {
 
       {tab === 'certs' && <>
         <DataTable<ManagedCertificate>
-          columns={certCols} data={pagedCerts} rowKey={(r) => r.id}
+          columns={certCols} data={filteredCerts} page={page} perPage={PER}
+          onSortChange={() => setPage(0)} rowKey={(r) => r.id}
           onRowClick={setSelCert}
           actions={(r) => (
             <div className="ab-actions">

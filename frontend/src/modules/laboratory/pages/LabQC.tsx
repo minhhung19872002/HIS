@@ -398,9 +398,6 @@ const LabQCV2: React.FC = () => {
   }, [reports, search]);
 
   const totalPages = Math.max(1, Math.ceil((tab === 'lots' ? filteredLots.length : tab === 'results' ? filteredResults.length : filteredReports.length) / PER));
-  const pagedLots = filteredLots.slice(page * PER, (page + 1) * PER);
-  const pagedRes = filteredResults.slice(page * PER, (page + 1) * PER);
-  const pagedReports = filteredReports.slice(page * PER, (page + 1) * PER);
 
   const lotKpis = useMemo(() => {
     const today = dayjs();
@@ -622,7 +619,8 @@ const LabQCV2: React.FC = () => {
       {tab === 'eqa' ? null : tab === 'lots' ? (
         <>
           <DataTable<QCLot>
-            columns={lotCols} data={pagedLots} rowKey={(r) => r.id}
+            columns={lotCols} data={filteredLots} page={page} perPage={PER}
+            onSortChange={() => setPage(0)} rowKey={(r) => r.id}
             onRowClick={setSelLot} actions={lotActions}
             loading={loading}
             empty={'Chưa có lô QC'}
@@ -632,7 +630,8 @@ const LabQCV2: React.FC = () => {
       ) : tab === 'results' ? (
         <>
           <DataTable<QCResult>
-            columns={resCols} data={pagedRes} rowKey={(r) => r.id}
+            columns={resCols} data={filteredResults} page={page} perPage={PER}
+            onSortChange={() => setPage(0)} rowKey={(r) => r.id}
             onRowClick={setSelRes} actions={resActions}
             loading={loading}
             empty={'Chưa có kết quả QC'}
@@ -642,7 +641,8 @@ const LabQCV2: React.FC = () => {
       ) : (
         <>
           <DataTable<QCReport>
-            columns={reportCols} data={pagedReports} rowKey={(r) => r.testCode}
+            columns={reportCols} data={filteredReports} page={page} perPage={PER}
+            onSortChange={() => setPage(0)} rowKey={(r) => r.testCode}
             loading={loading}
             empty={'Chưa có báo cáo QC'}
           />

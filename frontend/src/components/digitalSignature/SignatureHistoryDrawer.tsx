@@ -19,6 +19,7 @@ import {
   DownloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { withSorters } from '../table';
 import {
   getRecordSignatures,
   signOrder,
@@ -271,7 +272,7 @@ export default function SignatureHistoryDrawer({
         )}
 
         <Table
-          columns={columns}
+          columns={withSorters(columns)}
           dataSource={rows}
           rowKey="id"
           loading={loading}

@@ -220,7 +220,6 @@ const CommunityHealthV2: React.FC = () => {
     });
   }, [ncdRows, ncdSearch, ncdStab]);
   const ncdPages = Math.max(1, Math.ceil(ncdFiltered.length / PER));
-  const ncdPaged = ncdFiltered.slice(ncdPage * PER, (ncdPage + 1) * PER);
   const ncdCounts = useTabCounts(ncdRows, NCD_STATUS_TABS, (r) => ncdStatus(r.status));
 
   const ncdCols: ColumnDef<NcdScreening>[] = [
@@ -419,7 +418,10 @@ const CommunityHealthV2: React.FC = () => {
             />
             <DataTable<NcdScreening>
               columns={ncdCols}
-              data={ncdPaged}
+              data={ncdFiltered}
+              page={ncdPage}
+              perPage={PER}
+              onSortChange={() => setNcdPage(0)}
               rowKey={(r) => r.id}
               onRowClick={setNcdSel}
               loading={ncdLoad}

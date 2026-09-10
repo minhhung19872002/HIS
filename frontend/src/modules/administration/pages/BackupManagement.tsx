@@ -138,7 +138,6 @@ const BackupManagement: React.FC = () => {
   }, [history, filterStatus, filterType, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageData = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const COLS: ColumnDef<BackupHistoryDto>[] = [
     {
@@ -250,7 +249,10 @@ const BackupManagement: React.FC = () => {
 
           <DataTable
             columns={COLS}
-            data={pageData}
+            data={filtered}
+            page={page}
+            perPage={PAGE_SIZE}
+            onSortChange={() => setPage(0)}
             loading={loading}
             rowKey={r => r.id}
             onRowClick={r => setSelRow(r)}

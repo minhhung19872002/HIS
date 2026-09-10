@@ -2,6 +2,7 @@ import React from 'react';
 import { ModalShell, Btn, ActBtn, cf } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { Field } from '../../../components/form/Field';
+import { SortTh, useSortableRows } from '../../../components/table';
 import { useModalForm } from '../../../hooks/useModalForm';
 import type { OutpatientRecordTemplateDto } from '../../patient/api/clinicalNarratives';
 import type { DxRow } from './_shared';
@@ -35,6 +36,11 @@ export const TemplateModals: React.FC<{
   history, exam, conclusion, diagnoses,
 }) => {
   const form = useModalForm({ name: { required: true, message: 'Vui lòng nhập tên mẫu' } }, saveOpen);
+  const tplSort = useSortableRows(tpls, {
+    code: (t) => t.templateCode,
+    name: (t) => t.templateName,
+    icd: (t) => t.diagnosisCode,
+  });
   return (
   <>
     {/* ── Modal: Lưu bản ghi hiện tại thành mẫu HSBA ───────────────── */}
@@ -78,9 +84,16 @@ export const TemplateModals: React.FC<{
         </div>
       ) : (
         <table className="ab-tbl ab-u-wfull">
-          <thead><tr><th>Mã</th><th>Tên mẫu</th><th>ICD</th><th style={{ width: 60 }} /></tr></thead>
+          <thead>
+            <tr>
+              <SortTh s={tplSort} k="code">Mã</SortTh>
+              <SortTh s={tplSort} k="name">Tên mẫu</SortTh>
+              <SortTh s={tplSort} k="icd">ICD</SortTh>
+              <th style={{ width: 60 }} />
+            </tr>
+          </thead>
           <tbody>
-            {tpls.map((t) => (
+            {tplSort.rows.map((t) => (
               <tr key={t.id}>
                 <td className="mono">{t.templateCode}</td>
                 <td>{t.templateName}</td>

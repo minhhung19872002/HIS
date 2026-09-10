@@ -258,7 +258,6 @@ const InpatientV2: React.FC = () => {
     return true;
   }), [inpatients, fWard, wards]);
   const listTotalPages = Math.max(1, Math.ceil(listFiltered.length / LIST_PAGE));
-  const listPaged = listFiltered.slice(page * LIST_PAGE, (page + 1) * LIST_PAGE);
 
   const ordersList = useMemo(() => inpatients.filter((r) => r.hasPendingOrders || r.hasUnclaimedMedicine || r.hasPendingLabResults), [inpatients]);
 
@@ -394,7 +393,10 @@ const InpatientV2: React.FC = () => {
         <div className="ab-stack">
           <DataTable<InpatientListDto>
             columns={listColumns}
-            data={listPaged}
+            data={listFiltered}
+            page={page}
+            perPage={LIST_PAGE}
+            onSortChange={() => setPage(0)}
             rowKey={(r) => r.admissionId}
             onRowClick={setDetail}
             actions={(r) => (
@@ -563,7 +565,10 @@ const InpatientV2: React.FC = () => {
                 { key: 'admit', label: 'Vào viện', mono: true, width: 110, render: (r) => fmtDMY(r.admissionDate) },
                 { key: 'los', label: 'Ngày nằm', mono: true, width: 90, render: (r) => `${r.daysOfStay} ngày` },
               ]}
-              data={dischargeList.slice(page * LIST_PAGE, (page + 1) * LIST_PAGE)}
+              data={dischargeList}
+              page={page}
+              perPage={LIST_PAGE}
+              onSortChange={() => setPage(0)}
               rowKey={(r) => r.admissionId}
               onRowClick={setDetail}
               actions={(r) => (

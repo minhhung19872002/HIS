@@ -108,6 +108,7 @@ import {
   type TopTab,
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
+import { SortTh, useSortableRows } from '../../../components/table';
 import { Field } from '../../../components/form/Field';
 import { useModalForm } from '../../../hooks/useModalForm';
 import { useTabState } from '../../../hooks/useTabState';
@@ -726,6 +727,14 @@ const HRV2: React.FC = () => {
     }
     return Math.max(0, shiftCount(staffId) - staff.quota);
   };
+
+  // Bảng lịch trực: chỉ ba cột "Nhân sự / Ca / OT" là so sánh được. Bảy cột ngày chứa ký hiệu ca
+  // (S/C/Đ/off) — sắp theo ký hiệu không mang nghĩa gì, nên để nguyên.
+  const rotaSort = useSortableRows(visibleStaff, {
+    person: (m) => m.name,
+    shifts: (m) => shiftCount(m.id),
+    ot: (m) => overtimeCount(m.id),
+  });
 
   const dayStats = useMemo(() => {
     return DAYS.map((_, dayIndex) => {
@@ -1348,7 +1357,6 @@ const HRV2: React.FC = () => {
 
   const empTotalPages = Math.max(1, Math.ceil(employees.length / EMP_PER_PAGE));
   const empPageSafe = Math.min(empPage, empTotalPages - 1);
-  const empPaged = employees.slice(empPageSafe * EMP_PER_PAGE, (empPageSafe + 1) * EMP_PER_PAGE);
 
   // ─── KPI strip (verbatim số liệu từ v1 Statistic) ─────────────────────────
 
@@ -1574,19 +1582,19 @@ const HRV2: React.FC = () => {
               <table className="hr-v2-table">
                 <thead>
                   <tr>
-                    <th className="sticky-col">Nhân sự</th>
+                    <SortTh s={rotaSort} k="person" className="sticky-col">Nhân sự</SortTh>
                     {DAYS.map((day, index) => (
                       <th key={day}>
                         {day}
                         <div>{weekStart.add(index, 'day').format('DD/MM')}</div>
                       </th>
                     ))}
-                    <th>Ca</th>
-                    <th>OT</th>
+                    <SortTh s={rotaSort} k="shifts">Ca</SortTh>
+                    <SortTh s={rotaSort} k="ot">OT</SortTh>
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleStaff.map((member) => {
+                  {rotaSort.rows.map((member) => {
                     const total = shiftCount(member.id);
                     const overtime = overtimeCount(member.id);
                     return (
@@ -1661,7 +1669,10 @@ const HRV2: React.FC = () => {
             <>
               <DataTable<StaffProfileDto>
                 columns={employeeColumns}
-                data={empPaged}
+                data={employees}
+                page={empPageSafe}
+                perPage={EMP_PER_PAGE}
+                onSortChange={() => setEmpPage(0)}
                 rowKey={(r) => r.id}
                 onRowClick={(r) => setProfileStaff(r)}
                 actions={(r) => <ActBtn ic="eye" title="Chi tiết" onClick={() => setProfileStaff(r)} />}

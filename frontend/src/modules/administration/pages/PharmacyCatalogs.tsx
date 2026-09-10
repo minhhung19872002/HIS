@@ -87,7 +87,6 @@ const PharmacyCatalogsV2: React.FC = () => {
   }, [rows, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const pageData = filtered.slice(page * PER, (page + 1) * PER);
 
   // KPIs
   const kpis = useMemo(() => {
@@ -272,7 +271,10 @@ const PharmacyCatalogsV2: React.FC = () => {
       </div>
       <DataTable
         columns={cols}
-        data={pageData}
+        data={filtered}
+        page={page}
+        perPage={PER}
+        onSortChange={() => setPage(0)}
         rowKey={(r) => r.id}
         onRowClick={(r) => openDrawer(r)}
         actions={rowAct}

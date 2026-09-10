@@ -10,6 +10,7 @@ import {
   EyeOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { withSorters } from '../../../../components/table';
 import * as emrMgmt from '../../../emr/api/emrManagement';
 import type {
   EmrShareDto, ShareAccessLogDto,
@@ -104,7 +105,7 @@ export const SharingTab: React.FC = () => {
       <Table
         size="small" loading={loading} dataSource={shares} rowKey="id"
         pagination={{ pageSize: 10, showSizeChanger: false }}
-        columns={[
+        columns={withSorters([
           { title: 'Benh nhan', dataIndex: 'patientName', key: 'patient', width: 140, ellipsis: true },
           { title: 'Nguoi chia se', dataIndex: 'sharedByName', key: 'sharedBy', width: 120 },
           { title: 'Loai', dataIndex: 'shareTargetType', key: 'targetType', width: 90,
@@ -131,7 +132,7 @@ export const SharingTab: React.FC = () => {
               </Space>
             ),
           },
-        ]}
+        ])}
       />
 
       <Modal title="Tao chia se benh an" open={modalOpen} onOk={handleCreate} onCancel={() => setModalOpen(false)} okText="Chia se" cancelText="Huy" width={500}>

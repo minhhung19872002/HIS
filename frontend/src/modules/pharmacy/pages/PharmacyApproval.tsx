@@ -41,6 +41,7 @@ import {
   type ColumnDef,
 } from '@/_v2kit';
 import { RowActions, RefreshButton } from '../../../components/actions';
+import { SortTh, useSortableRows } from '../../../components/table';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { Field } from '../../../components/form/Field';
 import { useModalForm } from '../../../hooks/useModalForm';
@@ -170,6 +171,18 @@ const PharmacyApprovalV2: React.FC = () => {
   const expiredCount = useMemo(() => expiring.filter((e) => e.severity === 'expired').length, [expiring]);
   const criticalCount = useMemo(() => expiring.filter((e) => e.severity === 'critical').length, [expiring]);
   const warningCount  = useMemo(() => expiring.filter((e) => e.severity === 'warning').length, [expiring]);
+
+  // Bảng cảnh báo HSD là DANH SÁCH tra cứu (không phải dòng chứng từ) nên sắp xếp được: dược sĩ
+  // hay cần xem lô nào hết hạn trước, hoặc gom theo kho.
+  const expiringSorter = useSortableRows(expiring, {
+    code: (e) => e.medicineCode,
+    name: (e) => e.medicineName,
+    batch: (e) => e.batchNumber,
+    expiry: (e) => e.expiryDate,
+    days: (e) => e.daysUntilExpiry,
+    qty: (e) => e.quantity,
+    warehouse: (e) => e.warehouseName,
+  });
   const counts = useMemo(() => ({ all: total }) as Record<string, number>, [total]);
   const typeOpts = Object.entries(APPROVAL_TYPE_LABELS).map(([k, v]) => ({ v: k, l: v as string }));
 
@@ -725,12 +738,17 @@ const PharmacyApprovalV2: React.FC = () => {
         <table className="ab-tbl">
           <thead>
             <tr>
-              <th>Mã</th><th>Tên thuốc</th><th>Lô</th><th>HSD</th>
-              <th>Còn lại</th><th>SL tồn</th><th>Kho</th>
+              <SortTh s={expiringSorter} k="code">Mã</SortTh>
+              <SortTh s={expiringSorter} k="name">Tên thuốc</SortTh>
+              <SortTh s={expiringSorter} k="batch">Lô</SortTh>
+              <SortTh s={expiringSorter} k="expiry">HSD</SortTh>
+              <SortTh s={expiringSorter} k="days">Còn lại</SortTh>
+              <SortTh s={expiringSorter} k="qty">SL tồn</SortTh>
+              <SortTh s={expiringSorter} k="warehouse">Kho</SortTh>
             </tr>
           </thead>
           <tbody>
-            {expiring.map((e) => (
+            {expiringSorter.rows.map((e) => (
               <tr key={e.inventoryItemId}>
                 <td className="mono">{e.medicineCode}</td>
                 <td>{e.medicineName}</td>

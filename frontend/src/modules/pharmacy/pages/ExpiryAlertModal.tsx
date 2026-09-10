@@ -4,6 +4,7 @@ import { Modal, Table, Tag, Button } from 'antd';
 import * as pharmacyApi from '../api/pharmacy';
 import type { LoginExpiryAlert } from '../api/pharmacy';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { withSorters } from '../../../components/table';
 import { tk, tw, te } from '@/_v2kit';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
@@ -118,7 +119,7 @@ const ExpiryAlertModal: React.FC = () => {
       </p>
       <Table
         dataSource={alerts}
-        columns={columns}
+        columns={withSorters(columns)}
         rowKey="id"
         pagination={false}
         size="small"

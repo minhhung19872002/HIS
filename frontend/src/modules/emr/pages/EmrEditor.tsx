@@ -52,6 +52,10 @@ import ClinicalTemplatePicker from '../../patient/components/ClinicalTemplatePic
 import { TEMPLATE_TYPES } from '../../patient/api/clinicalTemplate';
 import '../../../components/layout/terminal/ed-responsive.css';
 import { MAX_UPLOAD_MB, MAX_UPLOAD_BYTES } from '../../../config/app.config';
+import { SortTh, useSortableRows } from '../../../components/table';
+
+/** Ô tiêu đề nhật ký sửa đổi — bảng này kẻ viền bằng style rời, không dùng lớp `ab-tbl`. */
+const AMEND_TH: React.CSSProperties = { padding: '6px 8px', color: 'var(--t-2)', fontWeight: 600 };
 
 type TabKey = 'record' | 'history' | 'treatment' | 'consult' | 'nursing' | 'reaction' | 'partograph' | 'anesthesia' | 'amendment' | 'attach' | 'printlog' | 'management';
 const TABS: TopTab<TabKey>[] = [
@@ -291,6 +295,13 @@ const EmrEditorV2: React.FC = () => {
 
   // ── Amendment audit-log ──────────────────────────────────────────
   const [amendments, setAmendments] = useState<EmrAmendmentDto[]>([]);
+  const amendSort = useSortableRows(amendments, {
+    at: (a) => a.performedAt,
+    action: (a) => a.actionName,
+    reason: (a) => a.reason,
+    by: (a) => a.performedByName || a.performedBy,
+    version: (a) => a.versionNo,
+  });
 
   // ── #352: Nhật ký in ấn (parity v1) ──────────────────────────────
   const [printLogs, setPrintLogs] = useState<EmrPrintLogDto[]>([]);
@@ -1046,15 +1057,15 @@ const EmrEditorV2: React.FC = () => {
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
                         <thead>
                           <tr style={{ borderBottom: '2px solid var(--line)', textAlign: 'left' }}>
-                            <th style={{ padding: '6px 8px', color: 'var(--t-2)', fontWeight: 600 }}>Thời gian</th>
-                            <th style={{ padding: '6px 8px', color: 'var(--t-2)', fontWeight: 600 }}>Thao tác</th>
-                            <th style={{ padding: '6px 8px', color: 'var(--t-2)', fontWeight: 600 }}>Lý do</th>
-                            <th style={{ padding: '6px 8px', color: 'var(--t-2)', fontWeight: 600 }}>Người thực hiện</th>
-                            <th style={{ padding: '6px 8px', color: 'var(--t-2)', fontWeight: 600 }}>Phiên bản</th>
+                            <SortTh s={amendSort} k="at" style={AMEND_TH}>Thời gian</SortTh>
+                            <SortTh s={amendSort} k="action" style={AMEND_TH}>Thao tác</SortTh>
+                            <SortTh s={amendSort} k="reason" style={AMEND_TH}>Lý do</SortTh>
+                            <SortTh s={amendSort} k="by" style={AMEND_TH}>Người thực hiện</SortTh>
+                            <SortTh s={amendSort} k="version" style={AMEND_TH}>Phiên bản</SortTh>
                           </tr>
                         </thead>
                         <tbody>
-                          {amendments.map((a) => (
+                          {amendSort.rows.map((a) => (
                             <tr key={a.id} style={{ borderBottom: '1px solid var(--line-soft)' }}>
                               <td style={{ padding: '6px 8px', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{fmtDTg(a.performedAt)}</td>
                               <td style={{ padding: '6px 8px' }}>

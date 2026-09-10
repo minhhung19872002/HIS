@@ -14,6 +14,13 @@ import { te } from '../../../_v2kit';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { storage, STORAGE_KEYS } from '../../../services/storage.service';
+import { SortTh, useSortableRows } from '../../../components/table';
+
+/**
+ * Ô tiêu đề bảng HSBA. Cổng thanh tra chạy NGOÀI layout chính nên không có CSS `ab-*`; con trỏ
+ * phải khai tại chỗ, nếu không người dùng không biết là tiêu đề bấm được.
+ */
+const INSP_TH: React.CSSProperties = { padding: '10px 12px', cursor: 'pointer' };
 
 const INSPECTOR_TOKEN_KEY = 'inspector_token';
 const INSPECTOR_INFO_KEY = 'inspector_info';
@@ -198,6 +205,20 @@ const InspectorWorkspace: React.FC<{ info: InspectorInfo; onLogout: () => void }
   useEffect(() => { load(); }, [page]);
 
   const totalPages = Math.max(1, Math.ceil(total / PER_WS));
+
+  // Danh sách này phân trang ở MÁY CHỦ nên chỉ cầm được trang đang tải — sắp xếp vì thế chỉ có tác
+  // dụng trong trang đó, và bảng phải nói thẳng điều đó ra (xem ghi chú dưới tiêu đề bảng).
+  const recSort = useSortableRows(rows, {
+    code: (r) => r.medicalRecordCode,
+    patient: (r) => r.patientName,
+    bhyt: (r) => r.insuranceNumber,
+    dept: (r) => r.departmentName,
+    admit: (r) => r.admissionDate,
+    discharge: (r) => r.dischargeDate,
+    dx: (r) => r.diagnosis,
+    type: (r) => r.treatmentTypeName,
+    amount: (r) => r.totalAmount,
+  });
   const openDetail = async (r: InspectorRecordListItemDto) => {
     try {
       const d = await inspectorApi.getRecord(r.medicalRecordId);
@@ -288,18 +309,23 @@ const InspectorWorkspace: React.FC<{ info: InspectorInfo; onLogout: () => void }
             <h3 style={{ margin: 0, fontSize: 14, color: '#1e3a8a' }}>Danh sách HSBA ({total})</h3>
             <div style={{ fontSize: 11, color: '#64748b' }}>📋 Mọi thao tác xem / tải đều ghi nhật ký audit</div>
           </div>
+          {recSort.state && (
+            <div style={{ padding: '6px 18px', fontSize: 11, color: '#92400e', background: '#fffbeb', borderBottom: '1px solid #e2e8f0' }}>
+              Đang sắp xếp trong phạm vi trang đang tải — danh sách này phân trang ở máy chủ, đổi trang sẽ sắp lại theo trang mới.
+            </div>
+          )}
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
             <thead style={{ background: '#f8fafc' }}>
               <tr style={{ textAlign: 'left', color: '#475569' }}>
-                <th style={{ padding: '10px 12px', fontWeight: 600 }}>Mã HSBA</th>
-                <th style={{ padding: '10px 12px' }}>Tên BN</th>
-                <th style={{ padding: '10px 12px' }}>BHYT</th>
-                <th style={{ padding: '10px 12px' }}>Khoa</th>
-                <th style={{ padding: '10px 12px' }}>Vào</th>
-                <th style={{ padding: '10px 12px' }}>Ra</th>
-                <th style={{ padding: '10px 12px' }}>Chẩn đoán</th>
-                <th style={{ padding: '10px 12px' }}>Loại</th>
-                <th style={{ padding: '10px 12px', textAlign: 'right' }}>Tổng tiền</th>
+                <SortTh s={recSort} k="code" style={{ ...INSP_TH, fontWeight: 600 }}>Mã HSBA</SortTh>
+                <SortTh s={recSort} k="patient" style={INSP_TH}>Tên BN</SortTh>
+                <SortTh s={recSort} k="bhyt" style={INSP_TH}>BHYT</SortTh>
+                <SortTh s={recSort} k="dept" style={INSP_TH}>Khoa</SortTh>
+                <SortTh s={recSort} k="admit" style={INSP_TH}>Vào</SortTh>
+                <SortTh s={recSort} k="discharge" style={INSP_TH}>Ra</SortTh>
+                <SortTh s={recSort} k="dx" style={INSP_TH}>Chẩn đoán</SortTh>
+                <SortTh s={recSort} k="type" style={INSP_TH}>Loại</SortTh>
+                <SortTh s={recSort} k="amount" style={{ ...INSP_TH, textAlign: 'right' }}>Tổng tiền</SortTh>
                 <th style={{ padding: '10px 12px' }}></th>
               </tr>
             </thead>
@@ -310,7 +336,7 @@ const InspectorWorkspace: React.FC<{ info: InspectorInfo; onLogout: () => void }
               {!loading && rows.length === 0 && (
                 <tr><td colSpan={10} style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Không có HSBA</td></tr>
               )}
-              {!loading && rows.map(r => (
+              {!loading && recSort.rows.map(r => (
                 <tr key={r.medicalRecordId} onClick={() => openDetail(r)} style={{ borderTop: '1px solid #e2e8f0', cursor: 'pointer' }}>
                   <td style={{ padding: '10px 12px', fontFamily: 'monospace', color: '#1e3a8a', fontWeight: 600 }}>{r.medicalRecordCode}</td>
                   <td style={{ padding: '10px 12px' }}>

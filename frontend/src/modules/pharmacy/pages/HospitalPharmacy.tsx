@@ -159,7 +159,6 @@ const HospitalPharmacyV2: React.FC = () => {
   }, [hRows]);
 
   const hTotalPages = Math.max(1, Math.ceil(hFiltered.length / PS));
-  const hPaged      = hFiltered.slice(hPage * PS, (hPage + 1) * PS);
 
   const hKpis: KpiItem[] = useMemo(() => {
     const done = hRows.filter((r) => r.status === 1);
@@ -366,7 +365,6 @@ const HospitalPharmacyV2: React.FC = () => {
   };
 
   const revTotalPages = Math.max(1, Math.ceil(revData.length / PS));
-  const revPaged      = revData.slice(revPage * PS, (revPage + 1) * PS);
   const revKpis: KpiItem[] = useMemo(() => {
     const tot = revData.reduce((acc, r) => ({
       sales: acc.sales + r.totalSales,
@@ -422,8 +420,10 @@ const HospitalPharmacyV2: React.FC = () => {
     return () => clearTimeout(custRef.current);
   }, [tab, loadCustomers]);
 
+  // Danh sách khách hàng phân trang ở MÁY CHỦ (`loadCustomers` truyền `pageIndex`), nên `customers`
+  // vốn đã chỉ là trang đang tải. Cắt thêm lần nữa ở client sẽ làm trang 2 trở đi trống trơn; bảng
+  // nhận nguyên mảng và tự nói rõ là chỉ sắp trong phạm vi trang (`sortScope="page"`).
   const custTotalPages = Math.max(1, Math.ceil(customers.length / PS));
-  const custPaged      = customers.slice(custPage * PS, (custPage + 1) * PS);
   const custKpis: KpiItem[] = useMemo(() => [
     { lbl: 'Khách hàng', val: customers.length },
     { lbl: 'VIP',        val: customers.filter((c) => c.customerType === 2).length, tone: 'ok'   as const }, // 2=VIP
@@ -538,7 +538,6 @@ const HospitalPharmacyV2: React.FC = () => {
   ];
 
   const shiftTotalPages = Math.max(1, Math.ceil(shifts.length / PS));
-  const shiftPaged      = shifts.slice(0, PS);
 
   const handleOpenShift = async () => {
     if (saving) return;
@@ -596,7 +595,6 @@ const HospitalPharmacyV2: React.FC = () => {
   }, [tab, loadGpp]);
 
   const gppTotalPages = Math.max(1, Math.ceil(gppRecords.length / PS));
-  const gppPaged      = gppRecords.slice(gppPage * PS, (gppPage + 1) * PS);
 
   const gpCols: ColumnDef<PharmacyGppRecordDto>[] = [
     { key: 'recordDate',   label: 'Ngày',       mono: true, render: (r) => fmtD(r.recordDate) },
@@ -649,7 +647,6 @@ const HospitalPharmacyV2: React.FC = () => {
   useEffect(() => { if (tab === 'commission') void loadCommissions(); }, [tab, loadCommissions]);
 
   const commTotalPages = Math.max(1, Math.ceil(commissions.length / PS));
-  const commPaged      = commissions.slice(commPage * PS, (commPage + 1) * PS);
   const commKpis: KpiItem[] = useMemo(() => {
     const pending    = commissions.filter((c) => c.status === 1); // 1=Pending
     const pendingAmt = pending.reduce((s, c) => s + c.commissionAmount, 0);
@@ -751,7 +748,10 @@ const HospitalPharmacyV2: React.FC = () => {
             />
             <DataTable<RetailSaleDto>
               columns={hCols}
-              data={hPaged}
+              data={hFiltered}
+              page={hPage}
+              perPage={PS}
+              onSortChange={() => setHPage(0)}
               rowKey={(r) => r.id}
               onRowClick={setHDetail}
               actions={(r) => (
@@ -981,7 +981,10 @@ const HospitalPharmacyV2: React.FC = () => {
             </div>
             <DataTable<PharmacyRevenueDto>
               columns={rpCols}
-              data={revPaged}
+              data={revData}
+              page={revPage}
+              perPage={PS}
+              onSortChange={() => setRevPage(0)}
               rowKey={(r) => r.date}
               empty={revLoading ? 'Đang tải…' : 'Không có dữ liệu doanh thu'}
             />
@@ -1014,7 +1017,8 @@ const HospitalPharmacyV2: React.FC = () => {
             </div>
             <DataTable<PharmacyCustomerDto>
               columns={cuCols}
-              data={custPaged}
+              data={customers}
+              sortScope="page"
               rowKey={(r) => r.id}
               onRowClick={setCustDetail}
               actions={(r) => (
@@ -1193,7 +1197,9 @@ const HospitalPharmacyV2: React.FC = () => {
             </div>
             <DataTable<PharmacyShiftDto>
               columns={shCols}
-              data={shiftPaged}
+              data={shifts}
+              page={0}
+              perPage={PS}
               rowKey={(r) => r.id}
               empty={shiftLoading ? 'Đang tải…' : 'Không có ca làm việc'}
             />
@@ -1258,7 +1264,10 @@ const HospitalPharmacyV2: React.FC = () => {
             </div>
             <DataTable<PharmacyGppRecordDto>
               columns={gpCols}
-              data={gppPaged}
+              data={gppRecords}
+              page={gppPage}
+              perPage={PS}
+              onSortChange={() => setGppPage(0)}
               rowKey={(r) => r.id}
               empty={gppLoading ? 'Đang tải…' : 'Không có hồ sơ GPP'}
             />
@@ -1355,7 +1364,10 @@ const HospitalPharmacyV2: React.FC = () => {
             </div>
             <DataTable<PharmacyCommissionDto>
               columns={cmCols}
-              data={commPaged}
+              data={commissions}
+              page={commPage}
+              perPage={PS}
+              onSortChange={() => setCommPage(0)}
               rowKey={(r) => r.id}
               selected={commSelected}
               onToggle={(key) => setCommSelected((prev) => {

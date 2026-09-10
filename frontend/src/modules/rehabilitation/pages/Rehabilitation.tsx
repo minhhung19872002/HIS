@@ -364,7 +364,6 @@ const RehabilitationV2: React.FC = () => {
     [sessions, sessStab],
   );
   const sessTotalPages = Math.max(1, Math.ceil(sessFiltered.length / PER));
-  const sessPaged = sessFiltered.slice(sessPage * PER, (sessPage + 1) * PER);
 
   const sessCols: ColumnDef<TreatmentSessionDto>[] = [
     { key: 'time', label: 'Giờ', mono: true, render: (r) => (
@@ -694,7 +693,8 @@ const RehabilitationV2: React.FC = () => {
           <StatusTabs<SessStatusKey> value={sessStab} onChange={(v) => { setSessStab(v); setSessPage(0); }} tabs={SESS_STATUS_TABS} counts={sessCounts} />
 
           <DataTable<TreatmentSessionDto>
-            columns={sessCols} data={sessPaged} rowKey={(r) => r.id}
+            columns={sessCols} data={sessFiltered} page={sessPage} perPage={PER}
+            onSortChange={() => setSessPage(0)} rowKey={(r) => r.id}
             onRowClick={setSelSession} actions={sessActions}
             loading={sessLoading}
             empty="Chưa có buổi tập trong ngày"

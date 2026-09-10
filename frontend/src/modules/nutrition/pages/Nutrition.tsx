@@ -530,7 +530,6 @@ const NutritionV2: React.FC = () => {
   }, [combinedScreenings, screenSearch, screenStab, screenDept, screenRisk]);
 
   const screenTotalPages = Math.max(1, Math.ceil(screenFiltered.length / PER));
-  const screenPaged = screenFiltered.slice(screenPage * PER, (screenPage + 1) * PER);
 
   // ── Bữa ăn: dữ liệu dẫn xuất ──
   const mealList = mealPlan?.meals || [];
@@ -545,7 +544,6 @@ const NutritionV2: React.FC = () => {
   }, [mealPlan, mealSearch, mealTypeFilter]);
 
   const mealTotalPages = Math.max(1, Math.ceil(mealFiltered.length / PER));
-  const mealPaged = mealFiltered.slice(mealPage * PER, (mealPage + 1) * PER);
 
   const mealKpis = useMemo(() => {
     const total = mealList.length;
@@ -697,7 +695,8 @@ const NutritionV2: React.FC = () => {
           <StatusTabs<ScreenSKey> value={screenStab} onChange={(v) => { setScreenStab(v); setScreenPage(0); }} tabs={SCREEN_TABS} counts={screenCounts} />
 
           <DataTable<NutritionScreeningDto>
-            columns={screenCols} data={screenPaged} rowKey={(r) => r.id}
+            columns={screenCols} data={screenFiltered} page={screenPage} perPage={PER}
+            onSortChange={() => setScreenPage(0)} rowKey={(r) => r.id}
             onRowClick={setScreenSel} actions={screenActions}
             loading={screenLoading}
             empty={'Chưa có bệnh nhân cần sàng lọc'}
@@ -924,7 +923,8 @@ const NutritionV2: React.FC = () => {
           </div>
 
           <DataTable<PlannedMealDto>
-            columns={mealCols} data={mealPaged} rowKey={(m) => m.id}
+            columns={mealCols} data={mealFiltered} page={mealPage} perPage={PER}
+            onSortChange={() => setMealPage(0)} rowKey={(m) => m.id}
             onRowClick={setMealSel}
             empty={mealLoading ? 'Đang tải…' : 'Chưa có kế hoạch bữa ăn cho ngày này'}
           />

@@ -9,6 +9,7 @@ import {
 } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { createApproval, submitApproval, searchApprovals, APPROVAL_TYPE_LABELS, STATUS_LABELS, STATUS_COLORS, type PharmacyApprovalDto } from '../api/pharmacyApproval';
+import { withSorters } from '../../../components/table';
 
 const OBJECT_OPTIONS = [
   { value: 'BHYT', label: 'BHYT' },
@@ -284,7 +285,7 @@ export default function StockReservationModal({
           loading={loadingList}
           pagination={false}
           size="small"
-          columns={[
+          columns={withSorters([
             { title: 'Mã phiếu', dataIndex: 'approvalCode', width: 200 },
             { title: 'Loại', dataIndex: 'approvalTypeName' },
             {
@@ -307,7 +308,7 @@ export default function StockReservationModal({
               width: 140,
               render: (v: string) => fmtDateTime(v),
             },
-          ]}
+          ])}
         />
       </div>
     </Modal>

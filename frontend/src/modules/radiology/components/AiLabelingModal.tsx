@@ -20,6 +20,7 @@ import {
   type AiResultDto,
 } from '../api/aiLabeling';
 import { runInference, computeOcclusionHeatmaps, type InferenceResult } from '../../../services/aiLabeling.service';
+import { withSorters } from '../../../components/table';
 
 const { Text, Title } = Typography;
 
@@ -336,7 +337,7 @@ export default function AiLabelingModal({
                 size="small"
                 pagination={false}
                 dataSource={result.labels}
-                columns={[
+                columns={withSorters([
                   {
                     title: 'Chẩn đoán gợi ý',
                     dataIndex: 'labelVi',
@@ -380,7 +381,7 @@ export default function AiLabelingModal({
                       />
                     ),
                   },
-                ]}
+                ])}
               />
               <div style={{ marginTop: 12 }}>
                 <Text strong>Ghi chú BS:</Text>
@@ -430,7 +431,7 @@ export default function AiLabelingModal({
             rowKey="id"
             size="small"
             dataSource={history}
-            columns={[
+            columns={withSorters([
               {
                 title: 'Thời gian',
                 dataIndex: 'createdAt',
@@ -465,7 +466,7 @@ export default function AiLabelingModal({
                 width: 90,
                 render: (v: number) => `${v}ms`,
               },
-            ]}
+            ])}
             expandable={{
               expandedRowRender: (row) => {
                 try {

@@ -14,6 +14,7 @@ import * as emrMgmt from '../../../emr/api/emrManagement';
 import type {
   AutoCheckRuleDto, AutoCheckViolationDto,
 } from '../../../emr/api/emrManagement';
+import { withSorters } from '../../../../components/table';
 
 const { TextArea } = Input;
 
@@ -112,7 +113,7 @@ export const AutoCheckTab: React.FC = () => {
           <div style={{ marginTop: 12 }}>
             <Alert title={`Phat hien ${violations.length} thieu sot`} type="warning" showIcon style={{ marginBottom: 8 }} />
             <Table size="small" dataSource={violations} rowKey={(_, i) => `v-${i}`} pagination={false}
-              columns={[
+              columns={withSorters([
                 { title: 'Muc do', dataIndex: 'severity', key: 'sev', width: 90,
                   render: (v: string) => <Tag color={severityColors[v] || 'default'}>
                     {v === 'Error' ? <><WarningOutlined /> Loi</> : v === 'Warning' ? <><WarningOutlined /> Canh bao</> : 'Thong tin'}
@@ -120,7 +121,7 @@ export const AutoCheckTab: React.FC = () => {
                 { title: 'Bieu mau', dataIndex: 'formType', key: 'form', width: 130 },
                 { title: 'Truong', dataIndex: 'fieldName', key: 'field', width: 130 },
                 { title: 'Noi dung', dataIndex: 'message', key: 'msg' },
-              ]}
+              ])}
             />
           </div>
         )}
@@ -137,7 +138,7 @@ export const AutoCheckTab: React.FC = () => {
       <Table
         size="small" loading={loading} dataSource={rules} rowKey="id"
         pagination={{ pageSize: 10, showSizeChanger: false }}
-        columns={[
+        columns={withSorters([
           { title: 'Ten quy tac', dataIndex: 'name', key: 'name', width: 180, ellipsis: true },
           { title: 'Loai', dataIndex: 'ruleType', key: 'type', width: 100,
             render: (v: string) => <Tag>{v}</Tag> },
@@ -157,7 +158,7 @@ export const AutoCheckTab: React.FC = () => {
               </Space>
             ),
           },
-        ]}
+        ])}
       />
 
       <Modal title={editingRule ? 'Chinh sua quy tac' : 'Them quy tac'} open={modalOpen}

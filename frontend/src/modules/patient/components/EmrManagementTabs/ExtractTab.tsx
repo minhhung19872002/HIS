@@ -12,6 +12,7 @@ import * as emrMgmt from '../../../emr/api/emrManagement';
 import type {
   EmrExtractDto,
 } from '../../../emr/api/emrManagement';
+import { withSorters } from '../../../../components/table';
 
 // ============ Tab 1: Chia se BA (Sharing B.1.2) ============
 
@@ -83,7 +84,7 @@ export const ExtractTab: React.FC = () => {
       <Table
         size="small" loading={loading} dataSource={extracts} rowKey="id"
         pagination={{ pageSize: 10, showSizeChanger: false }}
-        columns={[
+        columns={withSorters([
           { title: 'Benh nhan', dataIndex: 'patientName', key: 'patient', width: 140, ellipsis: true },
           { title: 'Nguoi trich', dataIndex: 'extractedByName', key: 'extractedBy', width: 120 },
           { title: 'Loai', dataIndex: 'extractType', key: 'type', width: 80,
@@ -108,7 +109,7 @@ export const ExtractTab: React.FC = () => {
                 <Button size="small" danger icon={<CloseCircleOutlined />} />
               </Popconfirm>
             ) : null },
-        ]}
+        ])}
       />
 
       <Modal title="Tao trich luc benh an" open={modalOpen} onOk={handleCreate} onCancel={() => setModalOpen(false)} okText="Tao" cancelText="Huy" width={480}>

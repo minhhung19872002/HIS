@@ -26,6 +26,12 @@ import {
   type ColumnDef,
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
+import { SortTh, useSortableRows } from '../../../components/table';
+
+/** Ô tiêu đề cột số của bảng "từng khâu" — bảng này kẻ viền bằng style rời, không dùng `ab-tbl`. */
+const PHASE_TH_NUM: React.CSSProperties = {
+  padding: '6px 12px', textAlign: 'right', border: '1px solid var(--c-border)',
+};
 
 const { RangePicker } = DatePicker;
 
@@ -75,6 +81,31 @@ const WaitingTimeReport: React.FC = () => {
   }, [range]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Bảng "từng khâu" dựng thành mảng dòng trước khi vẽ, để sắp xếp được: câu hỏi thường gặp của
+  // bảng này là "khâu nào đang chậm nhất", trả lời bằng mắt trên 5 dòng số thì rất dễ nhìn nhầm.
+  const phaseRows = PHASE_LABELS.map(({ key, label }) => {
+    const pick = (o: WaitingPhaseAnalysisDto['insurancePatients']) =>
+      key === 'overallMinutes' ? o.overallMinutes
+      : key === 'examDurationMinutes' ? o.examDurationMinutes
+      : key === 'registrationToExamMinutes' ? o.registrationToExamMinutes
+      : null;
+    return {
+      key,
+      label,
+      overall: data ? (data[key] as number) : 0,
+      ins: data ? pick(data.insurancePatients) : null,
+      fee: data ? pick(data.feePatients) : null,
+      svc: data ? pick(data.servicePatients) : null,
+    };
+  });
+  const phaseSort = useSortableRows(phaseRows, {
+    phase: (r) => r.label,
+    overall: (r) => r.overall,
+    ins: (r) => r.ins,
+    fee: (r) => r.fee,
+    svc: (r) => r.svc,
+  });
 
   // Dữ liệu biểu đồ so sánh 3 đối tượng theo từng phase
   const phaseChartData = data ? [
@@ -180,28 +211,15 @@ const WaitingTimeReport: React.FC = () => {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-md)' }}>
                 <thead>
                   <tr style={{ background: 'var(--c-row-alt)' }}>
-                    <th style={{ padding: '6px 12px', textAlign: 'left', border: '1px solid var(--c-border)' }}>Khâu</th>
-                    <th style={{ padding: '6px 12px', textAlign: 'right', border: '1px solid var(--c-border)' }}>Tổng TB</th>
-                    <th style={{ padding: '6px 12px', textAlign: 'right', border: '1px solid var(--c-border)' }}>BHYT</th>
-                    <th style={{ padding: '6px 12px', textAlign: 'right', border: '1px solid var(--c-border)' }}>Viện phí</th>
-                    <th style={{ padding: '6px 12px', textAlign: 'right', border: '1px solid var(--c-border)' }}>Dịch vụ</th>
+                    <SortTh s={phaseSort} k="phase" style={{ padding: '6px 12px', textAlign: 'left', border: '1px solid var(--c-border)' }}>Khâu</SortTh>
+                    <SortTh s={phaseSort} k="overall" style={PHASE_TH_NUM}>Tổng TB</SortTh>
+                    <SortTh s={phaseSort} k="ins" style={PHASE_TH_NUM}>BHYT</SortTh>
+                    <SortTh s={phaseSort} k="fee" style={PHASE_TH_NUM}>Viện phí</SortTh>
+                    <SortTh s={phaseSort} k="svc" style={PHASE_TH_NUM}>Dịch vụ</SortTh>
                   </tr>
                 </thead>
                 <tbody>
-                  {PHASE_LABELS.map(({ key, label }) => {
-                    const overall = data[key] as number;
-                    const ins = key === 'overallMinutes' ? data.insurancePatients.overallMinutes
-                              : key === 'examDurationMinutes' ? data.insurancePatients.examDurationMinutes
-                              : key === 'registrationToExamMinutes' ? data.insurancePatients.registrationToExamMinutes
-                              : null;
-                    const fee = key === 'overallMinutes' ? data.feePatients.overallMinutes
-                              : key === 'examDurationMinutes' ? data.feePatients.examDurationMinutes
-                              : key === 'registrationToExamMinutes' ? data.feePatients.registrationToExamMinutes
-                              : null;
-                    const svc = key === 'overallMinutes' ? data.servicePatients.overallMinutes
-                              : key === 'examDurationMinutes' ? data.servicePatients.examDurationMinutes
-                              : key === 'registrationToExamMinutes' ? data.servicePatients.registrationToExamMinutes
-                              : null;
+                  {phaseSort.rows.map(({ key, label, overall, ins, fee, svc }) => {
                     const fmt = (v: number | null) => v != null && v > 0 ? v.toFixed(1) : '—';
                     return (
                       <tr key={key}>

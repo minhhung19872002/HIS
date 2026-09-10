@@ -17,7 +17,11 @@ import {
   type ColumnDef, type TopTab,
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
+import { SortTh, useSortableRows } from '../../../components/table';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+
+/** Ô tiêu đề của hai bảng trong thẻ báo cáo — chúng kẻ viền bằng style rời, không dùng `ab-tbl`. */
+const RPT_TH: React.CSSProperties = { padding: '4px 6px', textAlign: 'left', color: 'var(--t-2)' };
 
 type Row = RevenueByServiceDto & { id: string };
 type DeptRow = RevenueByExecutingDeptDto & { id: string };
@@ -59,6 +63,23 @@ const FinanceV2: React.FC = () => {
   const [rpCost, setRpCost] = useState<CostByDepartmentDto[] | null>(null);
   const [rpSummary, setRpSummary] = useState<FinancialSummaryReportDto | null>(null);
   const [rpInsurance, setRpInsurance] = useState<InsuranceReconciliationDto | null>(null);
+
+  // Hai bảng báo cáo dưới đây tồn tại để trả lời "khoa nào tốn nhất", "loại mổ nào lãi nhất" —
+  // câu hỏi đó chỉ trả lời được khi bấm được tiêu đề cột.
+  const costSort = useSortableRows(rpCost ?? [], {
+    dept: (r) => r.departmentName || r.departmentCode,
+    medicine: (r) => r.medicineCost,
+    supply: (r) => r.supplyCost,
+    personnel: (r) => r.personnelCost,
+    total: (r) => r.totalCost,
+  });
+  const surgerySort = useSortableRows(rpSurgery ?? [], {
+    name: (r) => r.surgeryName,
+    count: (r) => r.surgeryCount,
+    revenue: (r) => r.totalRevenue,
+    cost: (r) => r.totalCost,
+    margin: (r) => r.profitMargin,
+  });
   const [rpLoading, setRpLoading] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -327,9 +348,13 @@ const FinanceV2: React.FC = () => {
             content={rpCost ? (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead><tr style={{ borderBottom: '1px solid var(--line)' }}>
-                  {['Khoa', 'Thuốc', 'Vật tư', 'Nhân sự', 'Tổng CP'].map((h) => <th key={h} style={{ padding: '4px 6px', textAlign: 'left', color: 'var(--t-2)' }}>{h}</th>)}
+                  <SortTh s={costSort} k="dept" style={RPT_TH}>Khoa</SortTh>
+                  <SortTh s={costSort} k="medicine" style={RPT_TH}>Thuốc</SortTh>
+                  <SortTh s={costSort} k="supply" style={RPT_TH}>Vật tư</SortTh>
+                  <SortTh s={costSort} k="personnel" style={RPT_TH}>Nhân sự</SortTh>
+                  <SortTh s={costSort} k="total" style={RPT_TH}>Tổng CP</SortTh>
                 </tr></thead>
-                <tbody>{rpCost.map((r) => (
+                <tbody>{costSort.rows.map((r) => (
                   <tr key={r.departmentId} style={{ borderBottom: '1px solid var(--line)' }}>
                     <td style={{ padding: '4px 6px' }}>{r.departmentName || r.departmentCode}</td>
                     <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)' }}>{fmtVNDg(r.medicineCost)}</td>
@@ -373,9 +398,13 @@ const FinanceV2: React.FC = () => {
             content={rpSurgery ? (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead><tr style={{ borderBottom: '1px solid var(--line)' }}>
-                  {['Loại mổ', 'SL', 'Doanh thu', 'Chi phí', 'LN%'].map((h) => <th key={h} style={{ padding: '4px 6px', textAlign: 'left', color: 'var(--t-2)' }}>{h}</th>)}
+                  <SortTh s={surgerySort} k="name" style={RPT_TH}>Loại mổ</SortTh>
+                  <SortTh s={surgerySort} k="count" style={RPT_TH}>SL</SortTh>
+                  <SortTh s={surgerySort} k="revenue" style={RPT_TH}>Doanh thu</SortTh>
+                  <SortTh s={surgerySort} k="cost" style={RPT_TH}>Chi phí</SortTh>
+                  <SortTh s={surgerySort} k="margin" style={RPT_TH}>LN%</SortTh>
                 </tr></thead>
-                <tbody>{rpSurgery.map((r) => (
+                <tbody>{surgerySort.rows.map((r) => (
                   <tr key={r.surgeryId} style={{ borderBottom: '1px solid var(--line)' }}>
                     <td style={{ padding: '4px 6px' }}>{r.surgeryName}</td>
                     <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)' }}>{r.surgeryCount}</td>

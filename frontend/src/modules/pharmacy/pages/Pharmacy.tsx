@@ -249,7 +249,6 @@ const PharmacyV2: React.FC = () => {
     [rcRows, rcType],
   );
   const rcTotalPages = Math.max(1, Math.ceil(rcFiltered.length / PER));
-  const rcPaged      = rcFiltered.slice(rcPage * PER, (rcPage + 1) * PER);
   const rcKpis: KpiItem[] = useMemo(() => [
     { lbl: 'HSBA đối chiếu', val: rcSummary?.medicalRecordCount ?? 0 },
     { lbl: 'Chưa/thiếu cấp', val: rcSummary?.notDispensedCount ?? 0,  tone: 'crit' as const },
@@ -361,7 +360,6 @@ const PharmacyV2: React.FC = () => {
   }, [rxRows]);
 
   const rxTotalPages = Math.max(1, Math.ceil(rxFiltered.length / PER));
-  const rxPaged = rxFiltered.slice(rxPage * PER, (rxPage + 1) * PER);
 
   const rxCols: ColumnDef<PendingPrescription>[] = [
     {
@@ -393,7 +391,6 @@ const PharmacyV2: React.FC = () => {
     return invRows.filter((r) => !k || `${r.medicationName} ${r.medicationCode}`.toLowerCase().includes(k));
   }, [invRows, invSearch]);
   const invTotalPages = Math.max(1, Math.ceil(invFiltered.length / PER));
-  const invPaged = invFiltered.slice(invPage * PER, (invPage + 1) * PER);
 
   const invCols: ColumnDef<InventoryItem>[] = [
     { key: 'name', label: 'Thuốc',       render: (r) => <div className="cell-2l"><b>{r.medicationName}</b><i className="mono">{r.medicationCode}</i></div> },
@@ -489,7 +486,6 @@ const PharmacyV2: React.FC = () => {
     },
   ];
   const trTotalPages = Math.max(1, Math.ceil(trRows.length / PER));
-  const trPaged = trRows.slice(trPage * PER, (trPage + 1) * PER);
 
   /* ══════════════ ALERTS DERIVED ══════════════ */
 
@@ -499,7 +495,6 @@ const PharmacyV2: React.FC = () => {
     return alRows;
   }, [alRows, alStab]);
   const alTotalPages = Math.max(1, Math.ceil(alFiltered.length / PER));
-  const alPaged = alFiltered.slice(alPage * PER, (alPage + 1) * PER);
   const alCounts: Record<string, number> = {
     all: alRows.length,
     unack: alRows.filter((a) => !a.acknowledged).length,
@@ -533,7 +528,6 @@ const PharmacyV2: React.FC = () => {
 
   const clCurRows = clSubTab === 'adr' ? clAdr : clReviews;
   const clTotalPages = Math.max(1, Math.ceil(clCurRows.length / PER));
-  const clPaged = clCurRows.slice(clPage * PER, (clPage + 1) * PER);
   const clCounts: Record<string, number> = { all: clCurRows.length, reviews: clReviews.length, adr: clAdr.length };
 
   const revCols: ColumnDef<ClinReview>[] = [
@@ -594,7 +588,8 @@ const PharmacyV2: React.FC = () => {
               counts={rxCounts}
             />
             <DataTable<PendingPrescription>
-              columns={rxCols} data={rxPaged} rowKey={(r) => r.id}
+              columns={rxCols} data={rxFiltered} page={rxPage} perPage={PER}
+              onSortChange={() => setRxPage(0)} rowKey={(r) => r.id}
               onRowClick={setRxSel}
               actions={(r) => (
                 <div className="ab-actions">
@@ -653,7 +648,8 @@ const PharmacyV2: React.FC = () => {
               <RefreshButton onRefresh={loadInv} loading={invLoading} />
             </div>
             <DataTable<InventoryItem>
-              columns={invCols} data={invPaged} rowKey={(r) => r.id}
+              columns={invCols} data={invFiltered} page={invPage} perPage={PER}
+              onSortChange={() => setInvPage(0)} rowKey={(r) => r.id}
               empty={invLoading ? 'Đang tải…' : 'Kho thuốc trống'}
             />
             <Pager page={invPage} setPage={setInvPage} totalPages={invTotalPages} total={invFiltered.length} perPage={PER} />
@@ -677,7 +673,8 @@ const PharmacyV2: React.FC = () => {
               <Btn variant="primary" icon="plus" onClick={() => setTrModal(true)}>Tạo yêu cầu</Btn>
             </div>
             <DataTable<TransferRequest>
-              columns={trCols} data={trPaged} rowKey={(r) => r.id}
+              columns={trCols} data={trRows} page={trPage} perPage={PER}
+              onSortChange={() => setTrPage(0)} rowKey={(r) => r.id}
               onRowClick={(r) => setTrSel(r)}
               actions={(r) => (
                 <div className="ab-actions">
@@ -789,7 +786,8 @@ const PharmacyV2: React.FC = () => {
               counts={alCounts}
             />
             <DataTable<AlertItem>
-              columns={alCols} data={alPaged} rowKey={(r) => r.id}
+              columns={alCols} data={alFiltered} page={alPage} perPage={PER}
+              onSortChange={() => setAlPage(0)} rowKey={(r) => r.id}
               actions={(r) => (
                 <div className="ab-actions">
                   {!r.acknowledged && <ActBtn ic="check" title="Xác nhận"    onClick={() => onAck(r)} />}
@@ -819,12 +817,14 @@ const PharmacyV2: React.FC = () => {
             )}
             {clSubTab !== 'adr' ? (
               <DataTable<ClinReview>
-                columns={revCols} data={clPaged as ClinReview[]} rowKey={(r) => r.id}
+                columns={revCols} data={clCurRows as ClinReview[]} page={clPage} perPage={PER}
+                onSortChange={() => setClPage(0)} rowKey={(r) => r.id}
                 empty={clLoading ? 'Đang tải…' : 'Không có phiếu duyệt'}
               />
             ) : (
               <DataTable<AdrReport>
-                columns={adrCols} data={clPaged as AdrReport[]} rowKey={(r) => r.id}
+                columns={adrCols} data={clCurRows as AdrReport[]} page={clPage} perPage={PER}
+                onSortChange={() => setClPage(0)} rowKey={(r) => r.id}
                 empty={clLoading ? 'Đang tải…' : 'Chưa có báo cáo ADR'}
               />
             )}
@@ -884,7 +884,10 @@ const PharmacyV2: React.FC = () => {
             </div>
             <DataTable<pharmacyApi.ReconciliationRow>
               columns={rcCols}
-              data={rcPaged}
+              data={rcFiltered}
+              page={rcPage}
+              perPage={PER}
+              onSortChange={() => setRcPage(0)}
               rowKey={(r) => `${r.medicalRecordId}-${r.medicineId}-${r.discrepancyType}`}
               empty={rcLoading ? 'Đang tải…' : 'Không phát hiện lệch trong khoảng đã chọn'}
             />

@@ -92,9 +92,6 @@ const HelpV2: React.FC = () => {
     return Math.max(1, Math.ceil(len / PER));
   }, [tab, filteredArticles.length, filteredCategories.length, filteredTroubleshooting.length]);
 
-  const pagedArticles = filteredArticles.slice(page * PER, (page + 1) * PER);
-  const pagedCategories = filteredCategories.slice(page * PER, (page + 1) * PER);
-  const pagedTroubleshooting = filteredTroubleshooting.slice(page * PER, (page + 1) * PER);
 
   const articleCols: ColumnDef<HelpArticleDto>[] = [
     { key: 'title', label: 'Tiêu đề', render: (r) => (
@@ -187,7 +184,8 @@ const HelpV2: React.FC = () => {
 
       {tab === 'articles' && <>
         <DataTable<HelpArticleDto>
-          columns={articleCols} data={pagedArticles} rowKey={(r) => r.id}
+          columns={articleCols} data={filteredArticles} page={page} perPage={PER}
+          onSortChange={() => setPage(0)} rowKey={(r) => r.id}
           onRowClick={openArticle}
           actions={(r) => (
             <div className="ab-actions">
@@ -202,7 +200,8 @@ const HelpV2: React.FC = () => {
 
       {tab === 'categories' && <>
         <DataTable<HelpCategoryDto>
-          columns={categoryCols} data={pagedCategories} rowKey={(r) => r.id}
+          columns={categoryCols} data={filteredCategories} page={page} perPage={PER}
+          onSortChange={() => setPage(0)} rowKey={(r) => r.id}
           onRowClick={setSelCat}
           actions={(r) => (
             <div className="ab-actions">
@@ -217,7 +216,8 @@ const HelpV2: React.FC = () => {
 
       {tab === 'troubleshooting' && <>
         <DataTable<TroubleshootingDto>
-          columns={troubleshootingCols} data={pagedTroubleshooting} rowKey={(r) => r.id}
+          columns={troubleshootingCols} data={filteredTroubleshooting} page={page} perPage={PER}
+          onSortChange={() => setPage(0)} rowKey={(r) => r.id}
           onRowClick={setSelTrouble}
           actions={(r) => (
             <div className="ab-actions">

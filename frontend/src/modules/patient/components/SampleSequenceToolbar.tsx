@@ -11,6 +11,7 @@ import { Button, Modal, Form, Input, InputNumber, Select, message, Table, Tag, S
 import { PlusOutlined, BarcodeOutlined, EditOutlined, HistoryOutlined, CalendarOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../../../services/apiClient';
+import { withSorters } from '../../../components/table';
 
 interface Props {
   serviceRequestDetailId?: string;
@@ -328,7 +329,7 @@ export default function SampleSequenceToolbar({
             dataSource={appointList}
             rowKey="id"
             pagination={false}
-            columns={[
+            columns={withSorters([
               {
                 title: 'Ngày hẹn',
                 dataIndex: 'appointmentAt',
@@ -368,7 +369,7 @@ export default function SampleSequenceToolbar({
                     <Button size="small" danger onClick={() => cancelAppoint(r.id)}>Hủy</Button>
                   ) : null,
               },
-            ]}
+            ])}
           />
         )}
       </Drawer>

@@ -13,6 +13,7 @@ import {
 import { useTabState } from '../../../hooks/useTabState';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { RowActions, RefreshButton } from '../../../components/actions';
+import { SortTh, useSortableRows } from '../../../components/table';
 import { LoadingState, TableSkeleton } from '../../../components/dataDisplay';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
@@ -103,6 +104,25 @@ const EmergencyCabinetV2: React.FC = () => {
 
   useEffect(() => { loadCabinets(); }, [loadCabinets]);
   useEffect(() => { if (tab === 'history') loadHistory(); }, [tab, loadHistory]);
+
+  // Hai bảng dựng tay dưới đây là DANH SÁCH tra cứu (tồn của tủ đang mở, lịch sử phiếu xuất) chứ
+  // không phải dòng chứng từ, nên sắp xếp được như mọi bảng khác.
+  const stockSorter = useSortableRows(expandedStock, {
+    code: (s) => s.itemCode,
+    name: (s) => s.itemName,
+    qty: (s) => s.quantity,
+    unit: (s) => s.unit,
+    batch: (s) => s.batchNumber,
+    expiry: (s) => s.expiryDate,
+  });
+  const histSorter = useSortableRows(history, {
+    code: (h) => h.issueCode,
+    date: (h) => h.issueDate,
+    warehouse: (h) => h.warehouseName,
+    notes: (h) => h.notes,
+    lines: (h) => (h.items || []).length,
+    amount: (h) => h.totalAmount || 0,
+  });
 
   // when issue warehouse changes, load its stock
   useEffect(() => {
@@ -262,10 +282,17 @@ const EmergencyCabinetV2: React.FC = () => {
                       )}
                       <table className="ab-tbl">
                         <thead>
-                          <tr><th>Mã</th><th>Tên hàng</th><th>SL tồn</th><th>ĐV</th><th>Lô</th><th>HSD</th></tr>
+                          <tr>
+                            <SortTh s={stockSorter} k="code">Mã</SortTh>
+                            <SortTh s={stockSorter} k="name">Tên hàng</SortTh>
+                            <SortTh s={stockSorter} k="qty">SL tồn</SortTh>
+                            <SortTh s={stockSorter} k="unit">ĐV</SortTh>
+                            <SortTh s={stockSorter} k="batch">Lô</SortTh>
+                            <SortTh s={stockSorter} k="expiry">HSD</SortTh>
+                          </tr>
                         </thead>
                         <tbody>
-                          {expandedStock.map((s) => (
+                          {stockSorter.rows.map((s) => (
                             <tr key={s.id} style={warn.some((w) => w.id === s.id) ? { background: 'var(--s-warn-bg)' } : undefined}>
                               <td className="mono">{s.itemCode}</td>
                               <td>{s.itemName}</td>
@@ -379,11 +406,17 @@ const EmergencyCabinetV2: React.FC = () => {
           <table className="ab-tbl" style={{ margin: 'var(--space-16)' }}>
             <thead>
               <tr>
-                <th>Số phiếu</th><th>Ngày</th><th>Tủ trực</th><th>Ghi chú</th><th>SL dòng</th><th>Tổng tiền</th><th style={{ width: 60 }}></th>
+                <SortTh s={histSorter} k="code">Số phiếu</SortTh>
+                <SortTh s={histSorter} k="date">Ngày</SortTh>
+                <SortTh s={histSorter} k="warehouse">Tủ trực</SortTh>
+                <SortTh s={histSorter} k="notes">Ghi chú</SortTh>
+                <SortTh s={histSorter} k="lines">SL dòng</SortTh>
+                <SortTh s={histSorter} k="amount">Tổng tiền</SortTh>
+                <th style={{ width: 60 }}></th>
               </tr>
             </thead>
             <tbody>
-              {history.map((h) => (
+              {histSorter.rows.map((h) => (
                 <tr key={h.id}>
                   <td className="mono">{h.issueCode}</td>
                   <td className="mono">{dayjs(h.issueDate).format('DD/MM/YYYY HH:mm')}</td>

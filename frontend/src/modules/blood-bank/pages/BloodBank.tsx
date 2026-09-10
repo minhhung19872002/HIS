@@ -334,7 +334,6 @@ const BloodBankV2: React.FC = () => {
       },
     },
   ];
-  const unitsPaged = unitsFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
     <div className="ab">
@@ -419,7 +418,10 @@ const BloodBankV2: React.FC = () => {
           </div>
           <DataTable<BloodStockDetailDto>
             columns={unitColumns}
-            data={unitsPaged}
+            data={unitsFiltered}
+            page={page}
+            perPage={PAGE_SIZE}
+            onSortChange={() => setPage(0)}
             rowKey={(u) => u.bloodBagId}
             onRowClick={setUnitSel}
             loading={loading}
@@ -446,7 +448,10 @@ const BloodBankV2: React.FC = () => {
               </div>
             ))}
           </div>
-          <ExpiringTab rows={expiringFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)} loading={loading} message={message} onReload={reload} />
+          <ExpiringTab
+            rows={expiringFiltered} page={page} perPage={PAGE_SIZE} onSortChange={() => setPage(0)}
+            loading={loading} message={message} onReload={reload}
+          />
         </>
       )}
       {tab === 'expired' && (
@@ -466,13 +471,23 @@ const BloodBankV2: React.FC = () => {
             </div>
           )}
           <ExpiringTab
-            rows={expiredFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)}
+            rows={expiredFiltered} page={page} perPage={PAGE_SIZE} onSortChange={() => setPage(0)}
             loading={loading} message={message} onReload={reload} mode="expired"
           />
         </>
       )}
-      {tab === 'requests' && <RequestsTab rows={requestsFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)} loading={loading} units={units} onReload={reload} />}
-      {tab === 'gelcard' && <GelcardTab rows={gelcardFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)} allActiveUnits={gelcardBase} loading={loading} results={gelcardResults} onSaveResult={saveGelcardResult} />}
+      {tab === 'requests' && (
+        <RequestsTab
+          rows={requestsFiltered} page={page} perPage={PAGE_SIZE} onSortChange={() => setPage(0)}
+          loading={loading} units={units} onReload={reload}
+        />
+      )}
+      {tab === 'gelcard' && (
+        <GelcardTab
+          rows={gelcardFiltered} page={page} perPage={PAGE_SIZE} onSortChange={() => setPage(0)}
+          allActiveUnits={gelcardBase} loading={loading} results={gelcardResults} onSaveResult={saveGelcardResult}
+        />
+      )}
 
       <Pager page={page} totalPages={totalPages} setPage={setPage}
         total={tab === 'stock' ? unitsFiltered.length : tab === 'expiring' ? expiringFiltered.length : tab === 'expired' ? expiredFiltered.length : tab === 'gelcard' ? gelcardFiltered.length : requestsFiltered.length} perPage={PAGE_SIZE} />
@@ -658,13 +673,17 @@ const BbFld: React.FC<{ label?: string; full?: boolean; children: React.ReactNod
 );
 
 const ExpiringTab: React.FC<{
+  /** TOÀN BỘ dòng đã lọc — bảng tự sắp rồi mới cắt trang, nên KHÔNG cắt sẵn ở ngoài. */
   rows: BloodStockDetailDto[];
+  page: number;
+  perPage: number;
+  onSortChange: () => void;
   loading: boolean;
   message: MessageInstance;
   onReload: () => void;
   /** #352: 'expired' = túi ĐÃ quá hạn → CHỈ được tiêu huỷ, không cấp phát (patient-safety). */
   mode?: 'expiring' | 'expired';
-}> = ({ rows, loading, message, onReload, mode = 'expiring' }) => {
+}> = ({ rows, page, perPage, onSortChange, loading, message, onReload, mode = 'expiring' }) => {
   const isExpired = mode === 'expired';
   const [sel, setSel] = useState<BloodStockDetailDto | null>(null);
   const [actionBag, setActionBag] = useState<{ bag: BloodStockDetailDto; type: 'dispense' | 'discard' } | null>(null);
@@ -711,6 +730,9 @@ const ExpiringTab: React.FC<{
     <DataTable<BloodStockDetailDto>
       columns={columns}
       data={rows}
+      page={page}
+      perPage={perPage}
+      onSortChange={onSortChange}
       rowKey={(b) => b.bloodBagId}
       onRowClick={setSel}
       loading={loading}
@@ -816,11 +838,15 @@ const ExpiringTab: React.FC<{
 };
 
 const RequestsTab: React.FC<{
+  /** TOÀN BỘ dòng đã lọc — bảng tự sắp rồi mới cắt trang, nên KHÔNG cắt sẵn ở ngoài. */
   rows: BloodIssueRequestDto[];
+  page: number;
+  perPage: number;
+  onSortChange: () => void;
   loading: boolean;
   units: BloodStockDetailDto[];
   onReload: () => void;
-}> = ({ rows, loading, units, onReload }) => {
+}> = ({ rows, page, perPage, onSortChange, loading, units, onReload }) => {
   const { message } = AntdApp.useApp();
   const [sel, setSel] = useState<BloodIssueRequestRow | null>(null);
   // #420: port Duyệt + Xuất máu từ v1 (approveIssueRequest / issueBlood)
@@ -937,6 +963,9 @@ const RequestsTab: React.FC<{
     <DataTable<BloodIssueRequestRow>
       columns={cols}
       data={rows}
+      page={page}
+      perPage={perPage}
+      onSortChange={onSortChange}
       rowKey={(r) => r.id}
       onRowClick={(r) => setSel(r)}
       loading={loading}
@@ -1062,12 +1091,16 @@ const GELCARD_BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const GELCARD_RH_OPTS = [{ value: '+', label: 'Rh (+)' }, { value: '-', label: 'Rh (-)' }];
 
 const GelcardTab: React.FC<{
+  /** TOÀN BỘ dòng đã lọc — bảng tự sắp rồi mới cắt trang, nên KHÔNG cắt sẵn ở ngoài. */
   rows: BloodStockDetailDto[];
+  page: number;
+  perPage: number;
+  onSortChange: () => void;
   allActiveUnits: BloodStockDetailDto[];
   loading: boolean;
   results: Record<string, string>;
   onSaveResult: (bloodBagId: string, testResult: string) => void;
-}> = ({ rows, allActiveUnits, loading, results, onSaveResult }) => {
+}> = ({ rows, page, perPage, onSortChange, allActiveUnits, loading, results, onSaveResult }) => {
   const { message } = AntdApp.useApp();
   const [open, setOpen] = useState(false);
   const [unitId, setUnitId] = useState<string | undefined>(undefined);
@@ -1134,6 +1167,9 @@ const GelcardTab: React.FC<{
       <DataTable<BloodStockDetailDto>
         columns={columns}
         data={rows}
+        page={page}
+        perPage={perPage}
+        onSortChange={onSortChange}
         rowKey={(u) => u.bloodBagId}
         loading={loading}
         empty={(

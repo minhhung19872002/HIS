@@ -180,7 +180,6 @@ const EquipmentV2: React.FC = () => {
     return rows;
   }, [equipment, statusFilter, riskFilter]);
 
-  const pagedEq = filteredEq.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
   const totalPages = Math.max(1, Math.ceil(filteredEq.length / PER_PAGE));
 
   const statusCounts = useMemo(() => {
@@ -631,7 +630,10 @@ const EquipmentV2: React.FC = () => {
 
             <DataTable<EquipmentDto>
               columns={equipColumns}
-              data={pagedEq}
+              data={filteredEq}
+              page={page}
+              perPage={PER_PAGE}
+              onSortChange={() => setPage(0)}
               loading={loading}
               rowKey={(r) => r.id}
               onRowClick={(r) => setDetailEq(r)}

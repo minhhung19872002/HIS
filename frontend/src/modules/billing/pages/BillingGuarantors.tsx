@@ -240,7 +240,6 @@ const BillingGuarantorsV2: React.FC = () => {
 
   // ── Paged data ─────────────────────────────────────────────────────────────
   const currentRows = tab === 'orgs' ? orgRows : guarantorRows;
-  const pagedRows = currentRows.slice(page * PER, (page + 1) * PER);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -297,7 +296,10 @@ const BillingGuarantorsV2: React.FC = () => {
         <>
           <DataTable<SponsorOrgDto>
             columns={colsOrg}
-            data={pagedRows as SponsorOrgDto[]}
+            data={currentRows as SponsorOrgDto[]}
+            page={page}
+            perPage={PER}
+            onSortChange={() => setPage(0)}
             rowKey={r => r.id}
             loading={loadingOrgs}
             onRowClick={onOrgRowClick}
@@ -316,7 +318,10 @@ const BillingGuarantorsV2: React.FC = () => {
         <>
           <DataTable<BillingGuarantorDto>
             columns={colsGuarantor}
-            data={pagedRows as BillingGuarantorDto[]}
+            data={currentRows as BillingGuarantorDto[]}
+            page={page}
+            perPage={PER}
+            onSortChange={() => setPage(0)}
             rowKey={r => r.id}
             loading={loadingGuarantors}
             onRowClick={onGuarantorRowClick}

@@ -181,7 +181,6 @@ const ReproductiveHealthV2: React.FC = () => {
 
   const prenatalCounts  = useTabCounts(prenatalRows, PRENATAL_TABS, (r) => prenatalStatusKey(r.status));
   const prenatalTotalPg = Math.ceil(prenatalFiltered.length / PAGE_SIZE);
-  const prenatalDisplay = prenatalFiltered.slice(prenatalPage * PAGE_SIZE, (prenatalPage + 1) * PAGE_SIZE);
 
   const prenatalColumns: ColumnDef<PrenatalRecord>[] = useMemo(() => [
     { key: 'code',    label: 'Mã HS',       mono: true, width: 130, render: (r) => r.recordCode },
@@ -242,7 +241,6 @@ const ReproductiveHealthV2: React.FC = () => {
 
   const fpCounts  = useTabCounts(fpRows, FP_TABS, (r) => fpStatusKey(r.status));
   const fpTotalPg = Math.ceil(fpFiltered.length / PAGE_SIZE);
-  const fpDisplay = fpFiltered.slice(fpPage * PAGE_SIZE, (fpPage + 1) * PAGE_SIZE);
 
   const fpColumns: ColumnDef<FamilyPlanningRecord>[] = useMemo(() => [
     { key: 'code',       label: 'Mã HS',       mono: true, width: 130, render: (r) => r.recordCode },
@@ -325,7 +323,10 @@ const ReproductiveHealthV2: React.FC = () => {
 
           <DataTable<PrenatalRecord>
             columns={prenatalColumns}
-            data={prenatalDisplay}
+            data={prenatalFiltered}
+            page={prenatalPage}
+            perPage={PAGE_SIZE}
+            onSortChange={() => setPrenatalPage(0)}
             loading={prenatalLoading}
             rowKey={(r) => r.id}
             onRowClick={(r) => setPrenatalSel(r)}
@@ -461,7 +462,10 @@ const ReproductiveHealthV2: React.FC = () => {
 
           <DataTable<FamilyPlanningRecord>
             columns={fpColumns}
-            data={fpDisplay}
+            data={fpFiltered}
+            page={fpPage}
+            perPage={PAGE_SIZE}
+            onSortChange={() => setFpPage(0)}
             loading={fpLoading}
             rowKey={(r) => r.id}
             onRowClick={(r) => setFpSel(r)}

@@ -133,7 +133,6 @@ const DoctorPortalV2: React.FC = () => {
     return true;
   }), [opd.rows, opdStab]);
   const opdTotalPages = Math.max(1, Math.ceil(opdFiltered.length / PER));
-  const opdPaged = opdFiltered.slice(opdPage * PER, (opdPage + 1) * PER);
   const opdTabCounts = useTabCounts(opd.rows, opdStatus.tabs, (r) => opdStatus.keyOf(r.status));
 
   // ── Inpatient ────────────────────────────────────────────────────────────
@@ -154,7 +153,6 @@ const DoctorPortalV2: React.FC = () => {
 
   const ipdFiltered = ipd.rows;
   const ipdTotalPages = Math.max(1, Math.ceil(ipdFiltered.length / PER));
-  const ipdPaged = ipdFiltered.slice(ipdPage * PER, (ipdPage + 1) * PER);
 
   // ── Digital signature ────────────────────────────────────────────────────
   const sig = useListData<PendingDocument>(
@@ -177,7 +175,6 @@ const DoctorPortalV2: React.FC = () => {
     return `${r.documentCode} ${r.title} ${r.patientName || ''}`.toLowerCase().includes(q);
   }), [sig.rows, sigSearch]);
   const sigTotalPages = Math.max(1, Math.ceil(sigFiltered.length / PER));
-  const sigPaged = sigFiltered.slice(sigPage * PER, (sigPage + 1) * PER);
 
   const selectedDocs = useMemo(() => sig.rows.filter((d) => selectedIds.has(d.id)), [sig.rows, selectedIds]);
   const selectedDocTypes = useMemo(() => Array.from(new Set(selectedDocs.map((d) => d.documentType))), [selectedDocs]);
@@ -427,7 +424,10 @@ const DoctorPortalV2: React.FC = () => {
           <StatusTabs value={opdStab} onChange={(v) => { setOpdStab(v); setOpdPage(0); }} tabs={opdStatus.tabs} counts={opdTabCounts} />
           <DataTable<ExaminationDto>
             columns={opdColumns}
-            data={opdPaged}
+            data={opdFiltered}
+            page={opdPage}
+            perPage={PER}
+            onSortChange={() => setOpdPage(0)}
             rowKey={(r) => r.id}
             onRowClick={(r) => setOpdDetail(r)}
             loading={opd.loading}
@@ -472,7 +472,10 @@ const DoctorPortalV2: React.FC = () => {
           </div>
           <DataTable<InpatientListDto>
             columns={ipdColumns}
-            data={ipdPaged}
+            data={ipdFiltered}
+            page={ipdPage}
+            perPage={PER}
+            onSortChange={() => setIpdPage(0)}
             rowKey={(r) => r.admissionId}
             onRowClick={(r) => setIpdDetail(r)}
             loading={ipd.loading}
@@ -541,7 +544,10 @@ const DoctorPortalV2: React.FC = () => {
           )}
           <DataTable<PendingDocument>
             columns={sigColumns}
-            data={sigPaged}
+            data={sigFiltered}
+            page={sigPage}
+            perPage={PER}
+            onSortChange={() => setSigPage(0)}
             rowKey={(r) => r.id}
             selected={selectedIds}
             onToggle={toggleSig}

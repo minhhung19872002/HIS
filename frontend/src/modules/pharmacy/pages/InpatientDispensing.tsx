@@ -13,6 +13,7 @@ import {
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { RefreshButton } from '../../../components/actions';
+import { SortTh, useSortableRows } from '../../../components/table';
 
 interface BatchDispenseResponse {
   receiptCode?: string;
@@ -44,6 +45,67 @@ interface PrintData {
     expiryDate?: string; quantity: number; unit?: string; unitPrice?: number; amount?: number }>;
 }
 
+
+/**
+ * Bảng đơn chờ phát của MỘT khoa.
+ *
+ * Tách thành component riêng chỉ vì `useSortableRows` là hook: bảng nằm trong `groups.map(...)` nên
+ * không gọi hook tại chỗ được. Danh sách đơn chờ phát là danh sách tra cứu (không phải dòng chứng
+ * từ) nên phải sắp xếp được — dược sĩ hay cần xem đơn cũ nhất hoặc đơn nhiều tiền nhất trước.
+ */
+const DeptPendingTable: React.FC<{
+  group: PendingGroup;
+  selected: Set<string>;
+  onToggle: (departmentId: string, prescriptionId: string) => void;
+  onToggleAll: (group: PendingGroup) => void;
+}> = ({ group, selected, onToggle, onToggleAll }) => {
+  const total = (p: PendingPrescription) => p.items.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+  const s = useSortableRows(group.prescriptions, {
+    code: (p) => p.prescriptionCode,
+    date: (p) => p.prescriptionDate,
+    ptCode: (p) => p.patientCode,
+    ptName: (p) => p.patientName,
+    mr: (p) => p.medicalRecordCode,
+    items: (p) => p.items.length,
+    amount: total,
+  });
+  return (
+    <table className="ab-tbl">
+      <thead>
+        <tr>
+          <th className="ck">
+            <input type="checkbox"
+              checked={group.prescriptions.length > 0 && group.prescriptions.every((p) => selected.has(p.id))}
+              onChange={() => onToggleAll(group)} />
+          </th>
+          <SortTh s={s} k="code">Mã đơn</SortTh>
+          <SortTh s={s} k="date">Ngày</SortTh>
+          <SortTh s={s} k="ptCode">Mã BN</SortTh>
+          <SortTh s={s} k="ptName">Họ tên</SortTh>
+          <SortTh s={s} k="mr">HSBA</SortTh>
+          <SortTh s={s} k="items">SL thuốc</SortTh>
+          <SortTh s={s} k="amount">Thành tiền</SortTh>
+        </tr>
+      </thead>
+      <tbody>
+        {s.rows.map((p) => (
+          <tr key={p.id} className={selected.has(p.id) ? 'on' : ''}>
+            <td className="ck">
+              <input type="checkbox" checked={selected.has(p.id)} onChange={() => onToggle(group.departmentId, p.id)} />
+            </td>
+            <td className="mono">{p.prescriptionCode}</td>
+            <td className="mono">{dayjs(p.prescriptionDate).format('DD/MM/YYYY')}</td>
+            <td className="mono">{p.patientCode}</td>
+            <td>{p.patientName}</td>
+            <td className="mono">{p.medicalRecordCode}</td>
+            <td className="mono">{p.items.length}</td>
+            <td className="mono">{fmt(total(p))}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};
 
 const InpatientDispensingV2: React.FC = () => {
   const [groups, setGroups] = useState<PendingGroup[]>([]);
@@ -201,37 +263,12 @@ ${(printData.items || []).map((it, i) => `<tr><td>${i + 1}</td><td>${it.medicine
                 >Xuất ({sel.size})</Btn>
               </div>
               {expanded && (
-                <table className="ab-tbl">
-                  <thead>
-                    <tr>
-                      <th className="ck">
-                        <input type="checkbox"
-                          checked={g.prescriptions.length > 0 && g.prescriptions.every((p) => sel.has(p.id))}
-                          onChange={() => toggleAll(g)} />
-                      </th>
-                      <th>Mã đơn</th><th>Ngày</th><th>Mã BN</th><th>Họ tên</th><th>HSBA</th><th>SL thuốc</th><th>Thành tiền</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {g.prescriptions.map((p) => {
-                      const total = p.items.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
-                      return (
-                        <tr key={p.id} className={sel.has(p.id) ? 'on' : ''}>
-                          <td className="ck">
-                            <input type="checkbox" checked={sel.has(p.id)} onChange={() => toggleSelect(g.departmentId, p.id)} />
-                          </td>
-                          <td className="mono">{p.prescriptionCode}</td>
-                          <td className="mono">{dayjs(p.prescriptionDate).format('DD/MM/YYYY')}</td>
-                          <td className="mono">{p.patientCode}</td>
-                          <td>{p.patientName}</td>
-                          <td className="mono">{p.medicalRecordCode}</td>
-                          <td className="mono">{p.items.length}</td>
-                          <td className="mono">{fmt(total)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                <DeptPendingTable
+                  group={g}
+                  selected={sel}
+                  onToggle={toggleSelect}
+                  onToggleAll={toggleAll}
+                />
               )}
             </div>
           );

@@ -190,6 +190,18 @@ export function sortRows<T>(
 }
 
 /**
+ * Hàm so sánh TĂNG DẦN của một cột — dùng cho những bảng có bộ máy sắp xếp riêng và chỉ nhận vào
+ * một comparator (điển hình là `sorter` của `<Table>` Antd).
+ *
+ * Khác biệt duy nhất so với `sortRows`: bảng ngoài tự đảo dấu khi sắp giảm, nên ô trống chỉ nằm
+ * cuối khi sắp tăng. Chấp nhận được, vì bù lại hai loại bảng vẫn dùng chung đúng một cách hiểu về
+ * ngày tháng, tiền và chữ tiếng Việt.
+ */
+export function compareBy<T>(col: SortableColumn<T>): (a: T, b: T) => number {
+  return (a, b) => compareKeys(cellSortKey(col, a), cellSortKey(col, b), 'asc');
+}
+
+/**
  * Vòng bấm tiêu đề cột: tăng → giảm → bỏ sắp (về thứ tự gốc).
  *
  * Có nấc "bỏ sắp" vì nhiều bảng có thứ tự mặc định mang nghĩa riêng (mới nhất lên đầu, thứ tự chờ

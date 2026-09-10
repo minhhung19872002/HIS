@@ -231,7 +231,6 @@ const EpidemiologyV2: React.FC = () => {
     });
   }, [outbreaks, obSearch, obRisk]);
   const obTotalPages = Math.max(1, Math.ceil(obFiltered.length / PER));
-  const obPaged = obFiltered.slice(obPage * PER, (obPage + 1) * PER);
 
   const obCols: ColumnDef<Outbreak>[] = [
     { key: 'name', label: 'Ổ dịch', render: (r) => (
@@ -518,7 +517,8 @@ const EpidemiologyV2: React.FC = () => {
           </div>
 
           <DataTable<Outbreak>
-            columns={obCols} data={obPaged} rowKey={(r) => r.id}
+            columns={obCols} data={obFiltered} page={obPage} perPage={PER}
+            onSortChange={() => setObPage(0)} rowKey={(r) => r.id}
             loading={outbreakLoading}
             onRowClick={setObSel} actions={obActions}
             empty="Chưa có ổ dịch"

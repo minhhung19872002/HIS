@@ -282,23 +282,28 @@ const StockReportV2: React.FC = () => {
       </div>
 
       {tab === 'detail' && (
-        <DataTable<DetailRow> columns={detailCols} data={(detail.items || []).slice(page * PER, (page + 1) * PER)} rowKey={(r) => r.id}
+        <DataTable<DetailRow> columns={detailCols} data={detail.items || []} page={page} perPage={PER}
+          onSortChange={() => setPage(0)} rowKey={(r) => r.id}
           loading={loading} empty="Không có dữ liệu" />
       )}
       {tab === 'summary' && (
-        <DataTable<SummaryRow> columns={summaryCols} data={(summary.items || []).slice(page * PER, (page + 1) * PER)} rowKey={(r) => r.itemCode}
+        <DataTable<SummaryRow> columns={summaryCols} data={summary.items || []} page={page} perPage={PER}
+          onSortChange={() => setPage(0)} rowKey={(r) => r.itemCode}
           loading={loading} empty="Không có dữ liệu" />
       )}
       {tab === 'expiring' && (
-        <DataTable<ExpiringRow> columns={expiringCols} data={(expiring.items || []).slice(page * PER, (page + 1) * PER)} rowKey={(r) => r.id}
+        <DataTable<ExpiringRow> columns={expiringCols} data={expiring.items || []} page={page} perPage={PER}
+          onSortChange={() => setPage(0)} rowKey={(r) => r.id}
           loading={loading} empty="Không có thuốc sắp hết hạn" />
       )}
       {tab === 'low-stock' && (
-        <DataTable<LowStockRow> columns={lowStockCols} data={(lowStock.items || []).slice(page * PER, (page + 1) * PER)} rowKey={(r) => r.itemCode}
+        <DataTable<LowStockRow> columns={lowStockCols} data={lowStock.items || []} page={page} perPage={PER}
+          onSortChange={() => setPage(0)} rowKey={(r) => r.itemCode}
           loading={loading} empty="Không có thuốc tồn thấp" />
       )}
       {tab === 'locks' && (
-        <DataTable<WarehouseLockStatusDto> columns={lockCols} data={locks.slice(page * PER, (page + 1) * PER)} rowKey={(r) => r.warehouseId}
+        <DataTable<WarehouseLockStatusDto> columns={lockCols} data={locks} page={page} perPage={PER}
+          onSortChange={() => setPage(0)} rowKey={(r) => r.warehouseId}
           empty={loading ? 'Đang tải…' : 'Không có kho'} />
       )}
 

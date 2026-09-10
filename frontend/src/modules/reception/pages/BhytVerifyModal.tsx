@@ -8,6 +8,10 @@ import { StatusBadge, ModalShell } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { Field } from '../../../components/form/Field';
 import { useModalForm } from '../../../hooks/useModalForm';
+import { SortTh, useSortableRows } from '../../../components/table';
+/** Ô tiêu đề của hai bảng lượt KCB — hai bảng này kẻ viền bằng style rời, không dùng lớp `ab-tbl`. */
+const TH_CELL: React.CSSProperties = { padding: '4px 8px', borderBottom: '1px solid var(--line-soft)' };
+
 export const BhytVerifyModal: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
   const { message } = AntdApp.useApp();
   const [num, setNum] = useState('');
@@ -32,6 +36,21 @@ export const BhytVerifyModal: React.FC<{ open: boolean; onClose: () => void }> =
   useEffect(() => {
     if (open) { setNum(''); setName(''); setResult(null); setHistory(null); setHistOpen(false); setAbuse(null); setAbuseDetail(false); }
   }, [open]);
+
+  // Hai bảng lượt KCB dưới đây là danh sách tra cứu — nhân viên tiếp đón hay cần xem lượt gần nhất
+  // hoặc lượt tốn nhiều tiền BHYT nhất trước, nên phải sắp xếp được.
+  const abuseSort = useSortableRows(abuse?.visits ?? [], {
+    date: (v) => v.visitDate,
+    record: (v) => v.recordCode,
+    facility: (v) => v.facilityName || v.facilityCode,
+    dx: (v) => v.diagnosisName || v.diagnosisCode,
+  });
+  const histSort = useSortableRows(history?.visits ?? [], {
+    date: (v) => v.ngayKcb,
+    facility: (v) => v.tenCsKcb,
+    icd: (v) => v.maBenhChinh,
+    amount: (v) => v.tienBhyt,
+  });
 
   const verify = async () => {
     if (!form.validate({ num })) return;
@@ -171,14 +190,14 @@ export const BhytVerifyModal: React.FC<{ open: boolean; onClose: () => void }> =
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
                   <thead>
                     <tr style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)', textAlign: 'left' }}>
-                      <th style={{ padding: '4px 8px', borderBottom: '1px solid var(--line-soft)' }}>Ngày</th>
-                      <th style={{ padding: '4px 8px', borderBottom: '1px solid var(--line-soft)' }}>Số hồ sơ</th>
-                      <th style={{ padding: '4px 8px', borderBottom: '1px solid var(--line-soft)' }}>Nơi KCB</th>
-                      <th style={{ padding: '4px 8px', borderBottom: '1px solid var(--line-soft)' }}>Chẩn đoán</th>
+                      <SortTh s={abuseSort} k="date" style={TH_CELL}>Ngày</SortTh>
+                      <SortTh s={abuseSort} k="record" style={TH_CELL}>Số hồ sơ</SortTh>
+                      <SortTh s={abuseSort} k="facility" style={TH_CELL}>Nơi KCB</SortTh>
+                      <SortTh s={abuseSort} k="dx" style={TH_CELL}>Chẩn đoán</SortTh>
                     </tr>
                   </thead>
                   <tbody>
-                    {abuse.visits.map((v, i) => (
+                    {abuseSort.rows.map((v, i) => (
                       <tr key={i}>
                         <td className="mono" style={{ padding: '4px 8px', borderBottom: '1px solid var(--line-soft)', whiteSpace: 'nowrap' }}>
                           {dayjs(v.visitDate).format('DD/MM/YYYY')}
@@ -216,14 +235,14 @@ export const BhytVerifyModal: React.FC<{ open: boolean; onClose: () => void }> =
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
                     <thead>
                       <tr style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)', textAlign: 'left' }}>
-                        <th style={{ padding: '4px 8px', borderBottom: '1px solid var(--line-soft)' }}>Ngày KCB</th>
-                        <th style={{ padding: '4px 8px', borderBottom: '1px solid var(--line-soft)' }}>Tên CSKCB</th>
-                        <th style={{ padding: '4px 8px', borderBottom: '1px solid var(--line-soft)' }}>Mã bệnh chính</th>
-                        <th style={{ padding: '4px 8px', borderBottom: '1px solid var(--line-soft)', textAlign: 'right' }}>Tiền BHYT</th>
+                        <SortTh s={histSort} k="date" style={TH_CELL}>Ngày KCB</SortTh>
+                        <SortTh s={histSort} k="facility" style={TH_CELL}>Tên CSKCB</SortTh>
+                        <SortTh s={histSort} k="icd" style={TH_CELL}>Mã bệnh chính</SortTh>
+                        <SortTh s={histSort} k="amount" style={{ ...TH_CELL, textAlign: 'right' }}>Tiền BHYT</SortTh>
                       </tr>
                     </thead>
                     <tbody>
-                      {(history.visits || []).map((v, idx) => (
+                      {histSort.rows.map((v, idx) => (
                         <tr key={idx}>
                           <td className="mono" style={{ padding: '4px 8px', borderBottom: '1px solid var(--line-soft)', whiteSpace: 'nowrap' }}>
                             {v.ngayKcb ? dayjs(v.ngayKcb).format('DD/MM/YYYY') : '-'}

@@ -83,7 +83,6 @@ const ParaclinicalCatalogsV2: React.FC = () => {
   }, [rows, search, filterMfr, filterMachine, tab]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const pageData = filtered.slice(page * PER, (page + 1) * PER);
 
   const kpis = useMemo(() => {
     if (tab === 'machines') {
@@ -290,7 +289,10 @@ const ParaclinicalCatalogsV2: React.FC = () => {
       </div>
       <DataTable
         columns={cols}
-        data={pageData}
+        data={filtered}
+        page={page}
+        perPage={PER}
+        onSortChange={() => setPage(0)}
         rowKey={(r) => r.id}
         onRowClick={(r) => openDrawer(r)}
         actions={rowAct}

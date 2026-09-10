@@ -9,6 +9,7 @@ import {
   DeleteOutlined, PlusOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
+import { withSorters } from '../../../../components/table';
 import * as emrMgmt from '../../../emr/api/emrManagement';
 import type {
   EmrShortcodeDto,
@@ -106,7 +107,7 @@ export const ShortcodesTab: React.FC = () => {
       <Table
         size="small" loading={loading} dataSource={shortcodes} rowKey="id"
         pagination={{ pageSize: 15, showSizeChanger: false }}
-        columns={[
+        columns={withSorters([
           { title: 'Ma tat', dataIndex: 'code', key: 'code', width: 120,
             render: (v: string) => <code style={{ fontWeight: 600, color: '#1677ff' }}>{v}</code> },
           { title: 'Noi dung day du', dataIndex: 'fullText', key: 'text', ellipsis: true },
@@ -124,7 +125,7 @@ export const ShortcodesTab: React.FC = () => {
               </Space>
             ),
           },
-        ]}
+        ])}
       />
 
       <Modal title={editingShortcode ? 'Chinh sua ma tat' : 'Them ma tat'} open={modalOpen}

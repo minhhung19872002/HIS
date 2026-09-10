@@ -189,7 +189,6 @@ const FoodSafetyV2: React.FC = () => {
   }, [inspItems, inspSearch, fCompliance, fFacType]);
 
   const inspTotalPages = Math.max(1, Math.ceil(inspFiltered.length / PER));
-  const inspPaged = inspFiltered.slice(inspPage * PER, (inspPage + 1) * PER);
 
   // ── Incident columns ──
   const cols: ColumnDef<FoodSafetyIncident>[] = [
@@ -396,7 +395,8 @@ const FoodSafetyV2: React.FC = () => {
           </div>
 
           <DataTable<FoodInspection>
-            columns={inspCols} data={inspPaged} rowKey={(r) => r.id}
+            columns={inspCols} data={inspFiltered} page={inspPage} perPage={PER}
+            onSortChange={() => setInspPage(0)} rowKey={(r) => r.id}
             loading={inspLoading}
             onRowClick={setInspSel} actions={inspActions}
             empty="Chưa có cuộc thanh kiểm"

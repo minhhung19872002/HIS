@@ -9,6 +9,7 @@ import apiClient from '../../../services/apiClient';
 import { storage, STORAGE_KEYS } from '../../../services/storage.service';
 import { fmtDate as fmtDateBase } from '../../../utils/format';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { SortTh, useSortableRows } from '../../../components/table';
 
 const TOKEN_KEY = 'patient_portal_token';
 const INFO_KEY = 'patient_portal_account';
@@ -260,6 +261,33 @@ const PortalWorkspace: React.FC<{ info: PortalAccountInfo; onLogout: () => void 
   const [labs, setLabs] = useState<LabRow[]>([]);
   const [rx, setRx] = useState<RxRow[]>([]);
   const [bills, setBills] = useState<InvoiceRow[]>([]);
+
+  // Bốn bảng lịch sử: người bệnh hay muốn xem lần khám gần nhất, hoặc hoá đơn còn nợ, trước tiên.
+  const visitSort = useSortableRows(visits, {
+    date: (v) => v.visitDate,
+    type: (v) => v.visitType,
+    dept: (v) => v.department,
+    doctor: (v) => v.doctorName,
+    dx: (v) => v.diagnosis || v.summary,
+  });
+  const labSort = useSortableRows(labs, {
+    code: (l) => l.orderCode,
+    ordered: (l) => l.orderDate,
+    resulted: (l) => l.resultDate ?? undefined,
+    status: (l) => l.status,
+  });
+  const rxSort = useSortableRows(rx, {
+    code: (p) => p.prescriptionCode,
+    date: (p) => p.prescriptionDate,
+    doctor: (p) => p.doctorName,
+    dx: (p) => p.diagnosis,
+  });
+  const billSort = useSortableRows(bills, {
+    code: (b) => b.invoiceCode,
+    date: (b) => b.invoiceDate,
+    amount: (b) => b.totalAmount,
+    status: (b) => b.paymentStatus,
+  });
   const [loading, setLoading] = useState(false);
   const [loadErr, setLoadErr] = useState('');
 
@@ -308,7 +336,9 @@ const PortalWorkspace: React.FC<{ info: PortalAccountInfo; onLogout: () => void 
     { key: 'bills', label: 'Hóa đơn', count: bills.length },
   ];
 
-  const thStyle: React.CSSProperties = { textAlign: 'left', padding: '8px 10px', fontSize: 11.5, color: '#64748b', borderBottom: '2px solid #e2e8f0', whiteSpace: 'nowrap' };
+  // Cổng bệnh nhân chạy NGOÀI layout chính nên không có CSS `ab-*`; con trỏ phải khai tại chỗ, nếu
+  // không người bệnh không biết là bấm được vào tiêu đề cột.
+  const thStyle: React.CSSProperties = { textAlign: 'left', padding: '8px 10px', fontSize: 11.5, color: '#64748b', borderBottom: '2px solid #e2e8f0', whiteSpace: 'nowrap', cursor: 'pointer' };
   const tdStyle: React.CSSProperties = { padding: '8px 10px', fontSize: 13, borderBottom: '1px solid #f1f5f9', verticalAlign: 'top' };
   const emptyRow = (cols: number) => (
     <tr><td colSpan={cols} style={{ ...tdStyle, textAlign: 'center', color: '#94a3b8', padding: 28 }}>
@@ -362,11 +392,14 @@ const PortalWorkspace: React.FC<{ info: PortalAccountInfo; onLogout: () => void 
           {tab === 'visits' && (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr>
-                <th style={thStyle}>Ngày khám</th><th style={thStyle}>Loại</th><th style={thStyle}>Khoa</th>
-                <th style={thStyle}>Bác sĩ</th><th style={thStyle}>Chẩn đoán</th>
+                <SortTh s={visitSort} k="date" style={thStyle}>Ngày khám</SortTh>
+                <SortTh s={visitSort} k="type" style={thStyle}>Loại</SortTh>
+                <SortTh s={visitSort} k="dept" style={thStyle}>Khoa</SortTh>
+                <SortTh s={visitSort} k="doctor" style={thStyle}>Bác sĩ</SortTh>
+                <SortTh s={visitSort} k="dx" style={thStyle}>Chẩn đoán</SortTh>
               </tr></thead>
               <tbody>
-                {visits.length === 0 ? emptyRow(5) : visits.map(v => (
+                {visits.length === 0 ? emptyRow(5) : visitSort.rows.map(v => (
                   <tr key={v.visitId}>
                     <td style={tdStyle}>{fmtDate(v.visitDate)}</td>
                     <td style={tdStyle}>{v.visitType || '—'}</td>
@@ -382,11 +415,14 @@ const PortalWorkspace: React.FC<{ info: PortalAccountInfo; onLogout: () => void 
           {tab === 'labs' && (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr>
-                <th style={thStyle}>Mã phiếu</th><th style={thStyle}>Ngày chỉ định</th><th style={thStyle}>Ngày KQ</th>
-                <th style={thStyle}>Trạng thái</th><th style={thStyle}>Chỉ số</th>
+                <SortTh s={labSort} k="code" style={thStyle}>Mã phiếu</SortTh>
+                <SortTh s={labSort} k="ordered" style={thStyle}>Ngày chỉ định</SortTh>
+                <SortTh s={labSort} k="resulted" style={thStyle}>Ngày KQ</SortTh>
+                <SortTh s={labSort} k="status" style={thStyle}>Trạng thái</SortTh>
+                <th style={{ ...thStyle, cursor: 'default' }}>Chỉ số</th>
               </tr></thead>
               <tbody>
-                {labs.length === 0 ? emptyRow(5) : labs.map(l => (
+                {labs.length === 0 ? emptyRow(5) : labSort.rows.map(l => (
                   <tr key={l.id}>
                     <td style={tdStyle}>{l.orderCode || '—'}</td>
                     <td style={tdStyle}>{fmtDate(l.orderDate)}</td>
@@ -408,11 +444,14 @@ const PortalWorkspace: React.FC<{ info: PortalAccountInfo; onLogout: () => void 
           {tab === 'rx' && (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr>
-                <th style={thStyle}>Mã đơn</th><th style={thStyle}>Ngày kê</th><th style={thStyle}>Bác sĩ</th>
-                <th style={thStyle}>Chẩn đoán</th><th style={thStyle}>Thuốc</th>
+                <SortTh s={rxSort} k="code" style={thStyle}>Mã đơn</SortTh>
+                <SortTh s={rxSort} k="date" style={thStyle}>Ngày kê</SortTh>
+                <SortTh s={rxSort} k="doctor" style={thStyle}>Bác sĩ</SortTh>
+                <SortTh s={rxSort} k="dx" style={thStyle}>Chẩn đoán</SortTh>
+                <th style={{ ...thStyle, cursor: 'default' }}>Thuốc</th>
               </tr></thead>
               <tbody>
-                {rx.length === 0 ? emptyRow(5) : rx.map(p => (
+                {rx.length === 0 ? emptyRow(5) : rxSort.rows.map(p => (
                   <tr key={p.id}>
                     <td style={tdStyle}>{p.prescriptionCode || '—'}</td>
                     <td style={tdStyle}>{fmtDate(p.prescriptionDate)}</td>
@@ -432,11 +471,13 @@ const PortalWorkspace: React.FC<{ info: PortalAccountInfo; onLogout: () => void 
           {tab === 'bills' && (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr>
-                <th style={thStyle}>Mã hóa đơn</th><th style={thStyle}>Ngày</th>
-                <th style={thStyle}>Số tiền</th><th style={thStyle}>Thanh toán</th>
+                <SortTh s={billSort} k="code" style={thStyle}>Mã hóa đơn</SortTh>
+                <SortTh s={billSort} k="date" style={thStyle}>Ngày</SortTh>
+                <SortTh s={billSort} k="amount" style={thStyle}>Số tiền</SortTh>
+                <SortTh s={billSort} k="status" style={thStyle}>Thanh toán</SortTh>
               </tr></thead>
               <tbody>
-                {bills.length === 0 ? emptyRow(4) : bills.map(b => (
+                {bills.length === 0 ? emptyRow(4) : billSort.rows.map(b => (
                   <tr key={b.id}>
                     <td style={tdStyle}>{b.invoiceCode || '—'}</td>
                     <td style={tdStyle}>{fmtDate(b.invoiceDate)}</td>

@@ -19,6 +19,7 @@ import {
 import '../../../styles/EmergencyDisaster.css';
 import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
+import { SortTh, useSortableRows } from '../../../components/table';
 
 type TriageLevel = 1 | 2 | 3 | 4 | 5;
 type EmergencyStatus = 'triage' | 'treating' | 'observing' | 'admitted' | 'discharged' | 'referred';
@@ -346,7 +347,19 @@ const EmergencyDisasterV2: React.FC = () => {
   }, [rows, search, statusFilter, triageFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
-  const pagedRows = filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  // Sắp trên TOÀN BỘ danh sách rồi mới cắt trang — sắp trong một trang 20 dòng thì điều dưỡng bấm
+  // "Triage ↑" sẽ tin dòng đầu là ca nặng nhất trong khi nó chỉ nặng nhất trong trang đang xem.
+  const caseSort = useSortableRows(filteredRows, {
+    triage: (r) => r.triage,
+    code: (r) => r.code,
+    arrival: (r) => r.arrivalTime,
+    patient: (r) => r.patientName,
+    reason: (r) => r.complaint,
+    arrivalMode: (r) => r.mode,
+    bed: (r) => r.bed,
+    status: (r) => r.status,
+  });
+  const pagedRows = caseSort.rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const metrics = useMemo(() => {
     const critical = rows.filter((row) => row.triage <= 2).length;
@@ -723,15 +736,15 @@ const EmergencyDisasterV2: React.FC = () => {
           <table className="er-v2-table">
             <thead>
               <tr>
-                <th>Triage</th>
-                <th>Mã CC</th>
-                <th>Đến</th>
-                <th>Bệnh nhân</th>
-                <th>Lý do</th>
-                <th>Đường vào</th>
+                <SortTh s={caseSort} k="triage">Triage</SortTh>
+                <SortTh s={caseSort} k="code">Mã CC</SortTh>
+                <SortTh s={caseSort} k="arrival">Đến</SortTh>
+                <SortTh s={caseSort} k="patient">Bệnh nhân</SortTh>
+                <SortTh s={caseSort} k="reason">Lý do</SortTh>
+                <SortTh s={caseSort} k="arrivalMode">Đường vào</SortTh>
                 <th>Sinh hiệu</th>
-                <th>Giường</th>
-                <th>Trạng thái</th>
+                <SortTh s={caseSort} k="bed">Giường</SortTh>
+                <SortTh s={caseSort} k="status">Trạng thái</SortTh>
                 <th />
               </tr>
             </thead>
@@ -1571,7 +1584,17 @@ function alertLevelColor(level: number): string {
   }
 }
 
-const MciHistoryPanel: React.FC<{ dashboard: MCIDashboardDto | null; events: MCIEventDto[] }> = ({ dashboard, events }) => (
+const MciHistoryPanel: React.FC<{ dashboard: MCIDashboardDto | null; events: MCIEventDto[] }> = ({ dashboard, events }) => {
+  const s = useSortableRows(events, {
+    code: (e) => e.eventCode,
+    name: (e) => e.eventName,
+    level: (e) => e.alertLevel,
+    location: (e) => e.location,
+    at: (e) => e.activatedAt,
+    victims: (e) => e.totalVictims ?? 0,
+    status: (e) => e.statusName || e.status,
+  });
+  return (
   <div>
     {dashboard && (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
@@ -1587,17 +1610,17 @@ const MciHistoryPanel: React.FC<{ dashboard: MCIDashboardDto | null; events: MCI
       <table className="er-v2-table">
         <thead>
           <tr>
-            <th>Mã</th>
-            <th>Tên sự kiện</th>
-            <th>Cấp độ</th>
-            <th>Địa điểm</th>
-            <th>Thời gian</th>
-            <th>Nạn nhân</th>
-            <th>Trạng thái</th>
+            <SortTh s={s} k="code">Mã</SortTh>
+            <SortTh s={s} k="name">Tên sự kiện</SortTh>
+            <SortTh s={s} k="level">Cấp độ</SortTh>
+            <SortTh s={s} k="location">Địa điểm</SortTh>
+            <SortTh s={s} k="at">Thời gian</SortTh>
+            <SortTh s={s} k="victims">Nạn nhân</SortTh>
+            <SortTh s={s} k="status">Trạng thái</SortTh>
           </tr>
         </thead>
         <tbody>
-          {events.map((e) => (
+          {s.rows.map((e) => (
             <tr key={e.id}>
               <td className="mono">{e.eventCode}</td>
               <td>{e.eventName}</td>
@@ -1616,7 +1639,8 @@ const MciHistoryPanel: React.FC<{ dashboard: MCIDashboardDto | null; events: MCI
       </table>
     )}
   </div>
-);
+  );
+};
 
 const HistoryKpi: React.FC<{ label: string; value: string | number }> = ({ label, value }) => (
   <div style={{ border: '1px solid #e5e7eb', borderRadius: 4, padding: '8px 10px' }}>

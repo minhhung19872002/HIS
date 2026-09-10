@@ -297,7 +297,6 @@ const TrainingResearchV2: React.FC = () => {
   }, [dirs, dirSearch]);
 
   const dirTotalPages = Math.max(1, Math.ceil(filteredDirs.length / PER));
-  const dirPaged      = filteredDirs.slice(dirPage * PER, (dirPage + 1) * PER);
 
   // ─── Derived: Research ────────────────────────────────────────────────────
 
@@ -311,7 +310,6 @@ const TrainingResearchV2: React.FC = () => {
   }, [projs, projSearch]);
 
   const projTotalPages = Math.max(1, Math.ceil(filteredProjs.length / PER));
-  const projPaged      = filteredProjs.slice(projPage * PER, (projPage + 1) * PER);
 
   // ─── Column defs ──────────────────────────────────────────────────────────
 
@@ -490,7 +488,8 @@ const TrainingResearchV2: React.FC = () => {
         </div>
 
         <DataTable<ClinicalDirectionDto>
-          columns={dirCols} data={dirPaged} rowKey={(r) => r.id}
+          columns={dirCols} data={filteredDirs} page={dirPage} perPage={PER}
+          onSortChange={() => setDirPage(0)} rowKey={(r) => r.id}
           onRowClick={setDirSel} actions={dirActions} loading={dirsLoading}
           empty={'Chưa có dữ liệu chỉ đạo tuyến'}
         />
@@ -508,7 +507,8 @@ const TrainingResearchV2: React.FC = () => {
         </div>
 
         <DataTable<ResearchProjectDto>
-          columns={projCols} data={projPaged} rowKey={(r) => r.id}
+          columns={projCols} data={filteredProjs} page={projPage} perPage={PER}
+          onSortChange={() => setProjPage(0)} rowKey={(r) => r.id}
           onRowClick={setProjSel} actions={projActions} loading={projsLoading}
           empty={'Chưa có đề tài nghiên cứu'}
         />

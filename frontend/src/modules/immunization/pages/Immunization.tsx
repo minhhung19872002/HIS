@@ -178,7 +178,6 @@ const ImmunizationV2: React.FC = () => {
     ));
   }, [aefiRows, aefiSearch]);
   const aefiPages = Math.max(1, Math.ceil(aefiFiltered.length / PER));
-  const aefiPaged = aefiFiltered.slice(aefiPage * PER, (aefiPage + 1) * PER);
   const aefiCols: ColumnDef<AefiReport>[] = [
     { key: 'pat',     label: 'Bệnh nhân', render: (r) => r.patientName },
     { key: 'vax',     label: 'Vắc-xin',  render: (r) => r.vaccineName },
@@ -336,7 +335,10 @@ const ImmunizationV2: React.FC = () => {
             </div>
             <DataTable<AefiReport>
               columns={aefiCols}
-              data={aefiPaged}
+              data={aefiFiltered}
+              page={aefiPage}
+              perPage={PER}
+              onSortChange={() => setAefiPage(0)}
               rowKey={(r) => r.id}
               onRowClick={setAefiSel}
               loading={aefiLoad}

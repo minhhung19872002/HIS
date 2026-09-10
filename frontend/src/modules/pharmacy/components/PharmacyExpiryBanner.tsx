@@ -6,6 +6,7 @@ import {
   type ExpiringMedicineDto,
 } from '../api/pharmacyApproval';
 import { fmtDate } from '../../../utils/format';
+import { withSorters } from '../../../components/table';
 
 interface Props {
   /** If true, show as a Modal once per session (first visit to Pharmacy module). */
@@ -109,7 +110,7 @@ export function PharmacyExpiryBanner({
           rowKey="inventoryItemId"
           size="small"
           dataSource={items.slice(0, 50)}
-          columns={columns}
+          columns={withSorters(columns)}
           pagination={false}
           scroll={{ y: 400 }}
         />
@@ -126,7 +127,7 @@ export function PharmacyExpiryBanner({
           rowKey="inventoryItemId"
           size="small"
           dataSource={items}
-          columns={columns}
+          columns={withSorters(columns)}
           pagination={{ pageSize: 20 }}
           scroll={{ y: 400 }}
         />

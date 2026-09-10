@@ -17,6 +17,11 @@ import {
   type ColumnDef, type CrudFieldCfg, type StatusTab,
 } from '@/_v2kit';
 import { RowActions, RefreshButton } from '../../../components/actions';
+import { SortTh, useSortableRows } from '../../../components/table';
+
+/** Ô tiêu đề bảng "Nhóm khám" — bảng này kẻ viền bằng style rời, không dùng lớp `ab-tbl`. */
+const GROUP_TH: React.CSSProperties = { textAlign: 'left', padding: '6px 8px', fontWeight: 500 };
+const GROUP_TH_C: React.CSSProperties = { textAlign: 'center', padding: '6px 8px', fontWeight: 500 };
 import { DriverCheckupPrint, VsattpCheckupPrint, StudentCheckupPrint } from '../../patient/components/HealthCheckupPrintTemplates';
 
 // ---- Static base fields (common to all KSK types) ----
@@ -146,6 +151,12 @@ const CampaignTab: React.FC = () => {
   // Groups sub-panel state
   const [groups, setGroups] = useState<CampaignGroup[]>([]);
   const [groupsLoading, setGroupsLoading] = useState(false);
+  const groupSort = useSortableRows(groups, {
+    name: (g) => g.groupName,
+    room: (g) => g.roomAssignment,
+    members: (g) => g.totalMembers,
+    done: (g) => g.completedMembers,
+  });
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupRoom, setNewGroupRoom] = useState('');
   const [addingGroup, setAddingGroup] = useState(false);
@@ -382,15 +393,15 @@ const CampaignTab: React.FC = () => {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--line)', color: 'var(--t-2)' }}>
-                      <th style={{ textAlign: 'left', padding: '6px 8px', fontWeight: 500 }}>Tên nhóm</th>
-                      <th style={{ textAlign: 'left', padding: '6px 8px', fontWeight: 500 }}>Phòng khám</th>
-                      <th style={{ textAlign: 'center', padding: '6px 8px', fontWeight: 500 }}>Thành viên</th>
-                      <th style={{ textAlign: 'center', padding: '6px 8px', fontWeight: 500 }}>Hoàn thành</th>
+                      <SortTh s={groupSort} k="name" style={GROUP_TH}>Tên nhóm</SortTh>
+                      <SortTh s={groupSort} k="room" style={GROUP_TH}>Phòng khám</SortTh>
+                      <SortTh s={groupSort} k="members" style={GROUP_TH_C}>Thành viên</SortTh>
+                      <SortTh s={groupSort} k="done" style={GROUP_TH_C}>Hoàn thành</SortTh>
                       <th style={{ width: 40 }} />
                     </tr>
                   </thead>
                   <tbody>
-                    {groups.map((g) => (
+                    {groupSort.rows.map((g) => (
                       <tr key={g.id} style={{ borderBottom: '1px solid var(--line)' }}>
                         <td style={{ padding: '6px 8px', fontWeight: 500 }}>{g.groupName}</td>
                         <td style={{ padding: '6px 8px', color: 'var(--t-2)' }}>{g.roomAssignment || '—'}</td>

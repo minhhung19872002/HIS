@@ -7,6 +7,7 @@ import {
   LoadingOutlined,
 } from '@ant-design/icons';
 import { useSigningContext } from '../../contexts/SigningContext';
+import { withSorters } from '../table';
 
 interface BatchDocument {
   id: string;
@@ -172,7 +173,7 @@ export default function BatchSigningModal({
 
       <Table
         dataSource={documents}
-        columns={columns}
+        columns={withSorters(columns)}
         rowKey="id"
         size="small"
         pagination={false}

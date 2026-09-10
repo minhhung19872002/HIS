@@ -76,7 +76,6 @@ const ReportCatalogsV2: React.FC = () => {
   }, [rows, search, filterType, tab]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const pageData = filtered.slice(page * PER, (page + 1) * PER);
 
   const kpis = useMemo(() => {
     if (tab === 'types') {
@@ -226,7 +225,10 @@ const ReportCatalogsV2: React.FC = () => {
       </div>
       <DataTable
         columns={cols}
-        data={pageData}
+        data={filtered}
+        page={page}
+        perPage={PER}
+        onSortChange={() => setPage(0)}
         loading={loading}
         rowKey={(r) => r.id}
         onRowClick={(r) => openDrawer(r)}

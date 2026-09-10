@@ -7,6 +7,7 @@ import { getEmrRecords } from '../api/examination';
 import type { EmrRecordDto } from '../api/examination';
 import { SimpleV2Page, ActBtn, Btn, tk, te, tw, type ColumnDef } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { withSorters } from '../../../components/table';
 import * as pdf from '../../../api/pdf';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
@@ -133,7 +134,7 @@ const ClinicalTemplateManager: React.FC<{ open: boolean; onClose: () => void }> 
       </div>
       <Table
         dataSource={templates}
-        columns={cols}
+        columns={withSorters(cols)}
         rowKey="id"
         size="small"
         loading={loading}
