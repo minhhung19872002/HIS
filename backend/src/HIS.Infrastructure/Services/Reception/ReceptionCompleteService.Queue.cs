@@ -101,7 +101,7 @@ public partial class ReceptionCompleteService {
     public async Task<List<DoctorScheduleDto>> GetWorkingDoctorsAsync(Guid? departmentId, DateTime date)
     {
         var query = _context.Users
-            .Where(u => u.IsActive && u.UserType == 2); // 2 = Doctor
+            .Where(u => u.IsActive && u.UserType == 1); // Type 1 = Bác sĩ (User.cs); type 2 là ĐIỀU DƯỠNG
 
         if (departmentId.HasValue)
             query = query.Where(u => u.DepartmentId == departmentId.Value);

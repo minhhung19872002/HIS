@@ -79,7 +79,7 @@ public partial class ExaminationCompleteService
     {
         var query = _context.Users
             .Include(u => u.Department)
-            .Where(u => u.IsActive && u.UserType == 2); // Doctors
+            .Where(u => u.IsActive && u.UserType == 1); // Type 1 = Bác sĩ (User.cs); type 2 là ĐIỀU DƯỠNG
 
         if (departmentId.HasValue)
             query = query.Where(u => u.DepartmentId == departmentId.Value);
