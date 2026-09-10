@@ -334,6 +334,10 @@ const PrescriptionEditorV2: React.FC = () => {
     overrideReason: overrideReason.trim() || undefined,
   });
 
+  /** Đơn chưa có thuốc → mọi thao tác lưu/in đều vô nghĩa. Dùng chung cho disabled + tooltip. */
+  const noItems = items.length === 0;
+  const EMPTY_RX_HINT = 'Chưa có thuốc trong đơn — tìm và thêm thuốc ở thanh tìm kiếm bên dưới trước';
+
   const guard = (): boolean => {
     if (!pt) { tw('Chưa chọn bệnh nhân'); return false; }
     if (!examinationId) { tw('Bệnh nhân chưa có phiếu khám — không thể lưu đơn'); return false; }
@@ -647,13 +651,25 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
             ))}
           </div>
           <span className="spacer ab-u-flex1" />
+          {/* Đơn rỗng thì các thao tác dưới đây đều bị guard() chặn và chỉ bắn toast ở ĐỈNH
+              màn hình rồi tắt sau ~3s — bác sĩ đang nhìn nút giữa màn hình nên gần như
+              không thấy, và kết luận là "nút không hoạt động". Cho nút DISABLED kèm tooltip
+              để lý do hiện thường trực thay vì chớp nhoáng. */}
           <Btn variant="ghost" onClick={() => setTplOpen(true)}><TermIcon name="folder" size={12} /> Đơn mẫu</Btn>
-          <Btn variant="ghost" onClick={() => setSaveTemplateOpen(true)}><TermIcon name="folder" size={12} /> Lưu mẫu</Btn>
-          <Btn variant="ghost" disabled={saving} onClick={saveDraft}><TermIcon name="folder" size={12} /> Lưu nháp</Btn>
-          <Btn variant="ghost" onClick={handlePrintInternalRx}><TermIcon name="print" size={12} /> In đơn</Btn>
-          <Btn variant="ghost" disabled={printingExt} onClick={printExternalRx}><TermIcon name="print" size={12} /> In toa nhà thuốc</Btn>
-          <Btn variant="ghost" onClick={() => setDisclosureOpen(true)}><TermIcon name="list" size={12} /> Phiếu công khai</Btn>
-          {rxMode === 1 && <Btn variant="primary" disabled={saving} onClick={onClickSign}><TermIcon name="check" size={12} /> Lưu · Sang ký số</Btn>}
+          <Btn variant="ghost" disabled={noItems} title={noItems ? EMPTY_RX_HINT : undefined}
+            onClick={() => setSaveTemplateOpen(true)}><TermIcon name="folder" size={12} /> Lưu mẫu</Btn>
+          <Btn variant="ghost" disabled={saving || noItems} title={noItems ? EMPTY_RX_HINT : undefined}
+            onClick={saveDraft}><TermIcon name="folder" size={12} /> Lưu nháp</Btn>
+          <Btn variant="ghost" disabled={noItems} title={noItems ? EMPTY_RX_HINT : undefined}
+            onClick={handlePrintInternalRx}><TermIcon name="print" size={12} /> In đơn</Btn>
+          <Btn variant="ghost" disabled={printingExt || noItems} title={noItems ? EMPTY_RX_HINT : undefined}
+            onClick={printExternalRx}><TermIcon name="print" size={12} /> In toa nhà thuốc</Btn>
+          <Btn variant="ghost" disabled={noItems} title={noItems ? EMPTY_RX_HINT : undefined}
+            onClick={() => setDisclosureOpen(true)}><TermIcon name="list" size={12} /> Phiếu công khai</Btn>
+          {rxMode === 1 && (
+            <Btn variant="primary" disabled={saving || noItems} title={noItems ? EMPTY_RX_HINT : undefined}
+              onClick={onClickSign}><TermIcon name="check" size={12} /> Lưu · Sang ký số</Btn>
+          )}
         </div>
 
         {/* Drug search */}
