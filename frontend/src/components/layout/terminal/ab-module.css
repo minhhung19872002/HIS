@@ -33,9 +33,11 @@
   width: 100%;
 }
 
-/* Card compact: nhãn 1 dòng, [giá trị + sub] chung 1 dòng → ~48px/hàng thay vì ~99px */
+/* Card compact: nhãn 1 dòng, [giá trị + sub] chung 1 dòng → ~38px/hàng thay vì ~99px.
+   Dải này nằm trên MỌI trang v2 mà chỉ để liếc một cái, nên mỗi pixel nó lấy là một pixel bảng
+   dữ liệu mất đi. Đợt trước hạ 99→48px; đợt này siết tiếp phần đệm và cỡ chữ giá trị. */
 .ab-kpi {
-  padding: 6px 14px;
+  padding: 3px 14px;
   border-right: 1px solid var(--line-soft);
   position: relative;
   display: flex;
@@ -52,7 +54,7 @@
 .ab-kpi .lbl {
   flex: 1 0 100%;
   font-size: 9.5px;
-  line-height: 1.4;
+  line-height: 1.25;
   font-family: var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -64,8 +66,8 @@
 }
 
 .ab-kpi .val {
-  font-size: 17px;
-  line-height: 1.3;
+  font-size: 16px;
+  line-height: 1.2;
   font-weight: 700;
   color: var(--t-0);
   letter-spacing: -0.02em;
@@ -76,7 +78,7 @@
 
 .ab-kpi .sub {
   font-size: 10.5px;
-  line-height: 1.3;
+  line-height: 1.2;
   color: var(--t-2);
   font-family: var(--font-mono);
 }
@@ -1818,7 +1820,7 @@ th.sortable:focus-visible {
   .ab-kpi {
     border-right: none !important;
     border-bottom: 1px solid var(--line);
-    padding: 5px 10px;
+    padding: 3px 10px;
   }
 
   .ab-kpi:nth-child(odd) {
