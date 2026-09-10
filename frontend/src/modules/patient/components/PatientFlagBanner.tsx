@@ -10,6 +10,7 @@ import {
 } from 'antd';
 import { PlusOutlined, WarningFilled } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { can } from '../../../services/permission.service';
 import {
   getPatientFlags,
   savePatientFlag,
@@ -33,7 +34,19 @@ const COLOR_OPTIONS = [
   { value: 'purple', label: 'Tím (VIP)' },
 ];
 
+/** Backend đã chặn ghi bằng policy perm:MedicalRecord.Update (WritePermissionMap.cs:82 —
+ *  chỉ Bác sĩ / Điều dưỡng / Quản trị có). Nhưng giao diện vẫn bày nút Thêm/Sửa/Xoá cho MỌI
+ *  người: Tiếp đón, Thu ngân, Dược sĩ, KTV bấm vào chỉ nhận 403. Ẩn đúng những nút đó đi —
+ *  ĐỌC thì vẫn cho tất cả, vì cảnh báo an toàn người bệnh ai cũng cần thấy.
+ *
+ *  Dùng can() của permission.service (nguồn quyền chuẩn, nạp từ GET /me/permissions) chứ KHÔNG
+ *  dùng AuthContext.hasPermission — hàm đó đọc user.permissions vốn không được nạp. can() cũng
+ *  tôn trọng công tắc tổng ACCESS_GATING_ENABLED (mặc định TẮT): gating tắt thì giao diện giữ
+ *  nguyên như cũ, an ninh thật vẫn do backend giữ. */
+const FLAG_WRITE_PERMISSION = 'MedicalRecord.Update';
+
 export default function PatientFlagBanner({ patientId, patientName, compact, onCountChange }: Props) {
+  const canWrite = can(FLAG_WRITE_PERMISSION);
   const [flags, setFlags] = useState<PatientFlagDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
@@ -156,12 +169,12 @@ export default function PatientFlagBanner({ patientId, patientName, compact, onC
             dataSource={flags}
             renderItem={f => (
               <List.Item
-                actions={[
+                actions={canWrite ? [
                   <Button size="small" key="edit" onClick={() => openEdit(f)}>Sửa</Button>,
                   <Popconfirm key="delete" title="Xóa cảnh báo?" onConfirm={() => handleDelete(f.id)}>
                     <Button size="small" danger>Xóa</Button>
                   </Popconfirm>,
-                ]}
+                ] : []}
               >
                 <List.Item.Meta
                   title={<Space><Tag color={f.color}>{f.flagTypeName}</Tag></Space>}
@@ -176,6 +189,7 @@ export default function PatientFlagBanner({ patientId, patientName, compact, onC
   );
 
   if (flags.length === 0 && !compact) {
+    if (!canWrite) return null;   // khong co quyen thi khong bay nut Them
     return (
       <>
         <Button size="small" type="link" icon={<PlusOutlined />} onClick={openNew}>
@@ -222,9 +236,11 @@ export default function PatientFlagBanner({ patientId, patientName, compact, onC
                           : 'không thời hạn'}
                       </div>
                     </div>
-                    <div style={{ marginTop: 10, textAlign: 'right' }}>
-                      <Button size="small" onClick={() => openEdit(f)}>Sửa</Button>
-                    </div>
+                    {canWrite && (
+                      <div style={{ marginTop: 10, textAlign: 'right' }}>
+                        <Button size="small" onClick={() => openEdit(f)}>Sửa</Button>
+                      </div>
+                    )}
                   </div>
                 }
               >
@@ -233,9 +249,11 @@ export default function PatientFlagBanner({ patientId, patientName, compact, onC
                 </Tag>
               </Popover>
             ))}
-            <Button size="small" type="link" icon={<PlusOutlined />} onClick={openNew}>
-              Thêm
-            </Button>
+            {canWrite && (
+              <Button size="small" type="link" icon={<PlusOutlined />} onClick={openNew}>
+                Thêm
+              </Button>
+            )}
           </Space>
         }
       />
