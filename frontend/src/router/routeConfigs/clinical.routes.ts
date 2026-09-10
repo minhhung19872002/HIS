@@ -2,7 +2,7 @@ import type { RouteEntry } from './index';
 import {
   ReceptionV2, OPDV2, OpdEditorV2, InpatientV2, PrescriptionV2, PrescriptionEditorV2,
   SurgeryV2, EMRV2, EmrEditorV2, EmrExtractV2, EmrDataTagsV2, TelemedicineV2, FollowUpV2,
-  BookingManagementV2, TreatmentProtocolV2, ChronicDiseaseV2, TbHivManagementV2, ConsultationV2,
+  BookingManagementV2, QueueBoardV2, TreatmentProtocolV2, ChronicDiseaseV2, TbHivManagementV2, ConsultationV2,
   ClinicalCatalogsV2, SpecialtyEMRV2, MedicalRecordArchiveV2, MedicalRecordPlanningV2,
   EmergencyDisasterV2, ConsultationRegisterV2, ObservationStayV2, ServiceRequeueV2, VideoConsultationV2,
   DoctorPortalV2,
@@ -35,6 +35,11 @@ export const clinicalV2Routes: RouteEntry[] = [
 { path: 'telemedicine',            Component: TelemedicineV2,            meta: { title: 'Khám từ xa',                group: 'clinical',        permission: 'MedicalRecord.Read',    workspace: 'clinical',     module: 'KHAMBENH' } },
 { path: 'follow-up',               Component: FollowUpV2,                meta: { title: 'Tái khám',                  group: 'clinical',        permission: 'MedicalRecord.Read',    workspace: 'clinical',     module: 'KHAMBENH' } },
 { path: 'booking-management',      Component: BookingManagementV2,       meta: { title: 'Quản lý đặt lịch',          group: 'clinical',        permission: 'Reception.Read',        workspace: 'frontoffice',  module: 'TIEPDON' } },
+// Cố ý KHÔNG khai `workspace`/`permission`: mục menu này trước đây trỏ thẳng vào bảng chiếu
+// (route ngoài v2Routes) nên luôn hiện với mọi vai trò, mọi không gian làm việc. Trang điều khiển
+// chỉ bày tên phòng và số lượt chờ — đúng thứ bảng chiếu vốn đã công khai — nên siết quyền ở đây
+// chỉ tổ làm mất lối vào của những vai trò đang dùng được.
+{ path: 'queue-board',             Component: QueueBoardV2,              meta: { title: 'Màn hình gọi số',           group: 'overview' } },
 { path: 'appointment-booking',     Component: AppointmentBookingV2,      meta: { title: 'Đặt lịch hẹn',              group: 'clinical',        permission: 'Reception.Read',        workspace: 'frontoffice',  module: 'TIEPDON' } },
 { path: 'treatment-protocols',     Component: TreatmentProtocolV2,       meta: { title: 'Phác đồ điều trị',          group: 'clinical',        permission: 'MedicalRecord.Read',    workspace: 'clinical',     module: 'KHAMBENH' } },
 { path: 'chronic-disease',         Component: ChronicDiseaseV2,          meta: { title: 'Bệnh mạn tính',             group: 'clinical',        permission: 'MedicalRecord.Read',    workspace: 'clinical',     module: 'KHAMBENH' } },

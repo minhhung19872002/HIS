@@ -22,7 +22,9 @@ export const HIS_GROUPS: NavGroup[] = [
     items: [
       { id: 'dashboard',                     path: '/v2/dashboard',                     label: 'Tổng quan' },
       { id: 'dashboard-3cap',                path: '/v2/dashboard-3cap',                label: 'Dashboard 3 Cấp' },
-      { id: 'queue-display',                 path: '/v2/queue-display',                 label: 'Màn hình xếp hàng' },
+      // Trỏ vào trang ĐIỀU KHIỂN, không vào thẳng bảng chiếu: bảng chiếu bắt buộc có
+      // `?rooms=<guid>` trên URL, vào tay không thì chỉ hiện "Chưa cấu hình phòng khám".
+      { id: 'queue-display',                 path: '/v2/queue-board',                   label: 'Màn hình gọi số' },
     ],
   },
   {
