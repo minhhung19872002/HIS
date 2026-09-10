@@ -24,6 +24,7 @@ export default function AiQueueBadge() {
   const [items, setItems] = useState<AiQueueItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [tipOpen, setTipOpen] = useState(false);
   const navigate = useNavigate();
 
   const fetchQueue = useCallback(async () => {
@@ -96,7 +97,20 @@ export default function AiQueueBadge() {
 
   const count = items.length;
   return (
-    <Tooltip title="Hàng đợi AI">
+    /*
+     * Chú giải chỉ phục vụ chuột: nó nói lại đúng thứ mà tiêu đề panel đã nói ("AI worklist").
+     * - Trên cảm ứng, một cú chạm vừa mở panel vừa kích `mouseenter`, mà `mouseleave` thì không
+     *   bao giờ tới, nên bong bóng đen nằm lì đè lên panel. Lớp `his-tip-hover-only` ẩn hẳn nó đi
+     *   khi con trỏ là loại thô (xem `terminal.css`).
+     * - Trên chuột, chú giải và panel cùng thả xuống dưới nút nên chồng lên nhau; vì vậy chỉ hiện
+     *   chú giải khi panel đang đóng.
+     */
+    <Tooltip
+      title="Hàng đợi AI"
+      open={tipOpen && !open}
+      onOpenChange={setTipOpen}
+      classNames={{ root: 'his-tip-hover-only' }}
+    >
       <Popover
         content={popoverContent}
         title={<><RobotOutlined /> AI worklist ({count})</>}

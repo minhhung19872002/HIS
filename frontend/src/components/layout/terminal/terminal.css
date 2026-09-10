@@ -2570,6 +2570,12 @@ kbd {
 
 /* Touch tweaks: bump tap targets ≥32px on coarse pointers */
 @media (pointer: coarse) {
+  /* Chú giải chỉ dành cho chuột. Trên cảm ứng, một cú chạm kích `mouseenter` nhưng `mouseleave`
+     thì không bao giờ tới, nên bong bóng đen nằm lì đè lên thứ vừa mở ra. */
+  .his-tip-hover-only {
+    display: none;
+  }
+
   .his-rail-item {
     padding: 8px 0;
   }
