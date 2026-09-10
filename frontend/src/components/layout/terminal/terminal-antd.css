@@ -615,6 +615,21 @@
 /* ============================================
    RESPONSIVE — Antd component overrides
    ============================================ */
+/* ---- Bảng chọn giờ ----
+   Chữ số vốn 13px/400 — mảnh hơn hẳn mọi chữ khác trong giao diện này (nhãn 600, tiêu đề 700),
+   nên tuy màu đã là #0F172A vẫn đọc ra như bị mờ. Đậm nét và to lên một nấc, dùng chữ số đều bề
+   ngang để dò theo cột cho thẳng hàng.
+   Không neo vào `.his-terminal`: bảng này gắn thẳng vào <body>. */
+.ant-picker-time-panel-cell-inner {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.ant-picker-time-panel-cell-selected .ant-picker-time-panel-cell-inner {
+  font-weight: 700 !important;
+}
+
 /* On phones, force Antd Drawer + Modal to fill the viewport regardless of
    width prop set in component code (Drawer width=560 etc.) */
 @media (max-width: 640px) {
@@ -638,12 +653,19 @@
     overflow-y: auto;
   }
 
-  .his-terminal .ant-picker-dropdown {
+  /* Hai bảng thả xuống này gắn thẳng vào <body>, KHÔNG nằm trong `.his-terminal` — neo vào lớp đó
+     thì luật không bao giờ khớp. Kèm bản không neo, đúng như cặp Drawer/Modal ở trên. */
+  .his-terminal .ant-picker-dropdown,
+  .ant-picker-dropdown {
     width: calc(100vw - 16px);
     max-width: 360px;
+    /* Bảng gần rộng bằng màn hình rồi, nhưng antd vẫn neo nó vào ô nhập nên ở khổ 360px mép trái
+       rơi ra -23px. Ghim vào trong màn hình, y như `his-pop-wide` bên `terminal.css`. */
+    left: 8px !important;
   }
 
-  .his-terminal .ant-select-dropdown {
+  .his-terminal .ant-select-dropdown,
+  .ant-select-dropdown {
     max-width: calc(100vw - 16px);
   }
 
