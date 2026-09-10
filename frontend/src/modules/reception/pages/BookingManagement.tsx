@@ -690,17 +690,19 @@ const BookingModal: React.FC<{
     getBookingDepartments().then((d) => setDepts(Array.isArray(d) ? d : [])).catch(() => { tw('Không tải được danh sách khoa.'); setDepts([]); });
   }, [open, isEdit, initial]);
 
-  // Tải bác sĩ theo khoa đã chọn.
+  // Tải bác sĩ theo khoa + NGÀY HẸN đã chọn: bác sĩ được phân trực sang khoa khác vẫn chọn được,
+  // và đổi ngày thì danh sách phải tải lại theo ca trực của ngày mới.
+  const apptDateKey = form.appointmentDate ? form.appointmentDate.format('YYYY-MM-DD') : '';
   useEffect(() => {
     if (!form.departmentId) { setDoctors([]); setDocLoading(false); return; }
     let alive = true;
     setDocLoading(true);
-    getBookingDoctors(form.departmentId)
+    getBookingDoctors(form.departmentId, apptDateKey || undefined)
       .then((d) => { if (alive) setDoctors(Array.isArray(d) ? d : []); })
       .catch(() => { if (alive) { tw('Không tải được danh sách bác sĩ.'); setDoctors([]); } })
       .finally(() => { if (alive) setDocLoading(false); });
     return () => { alive = false; };
-  }, [form.departmentId]);
+  }, [form.departmentId, apptDateKey]);
 
   // Lịch cũ có thể trỏ tới khoa/bác sĩ không còn trong danh mục đang hoạt động (khoa đổi
   // loại, bác sĩ nghỉ...). Antd Select gặp value không khớp option nào thì hiển thị GUID
@@ -797,7 +799,10 @@ const BookingModal: React.FC<{
               style={{ width: '100%' }}
               format="DD/MM/YYYY"
               value={form.appointmentDate}
-              onChange={(d) => setField('appointmentDate', d)}
+              // Danh sách bác sĩ phụ thuộc ngày (ca trực), nên đổi ngày thì bỏ chọn bác sĩ cũ —
+              // tránh lưu một bác sĩ không trực hôm đó. Chỉ chạy khi NGƯỜI DÙNG đổi, không đụng
+              // lúc modal nạp dữ liệu lịch cũ.
+              onChange={(d) => { setField('appointmentDate', d); setForm((s) => ({ ...s, doctorId: '' })); }}
               disabledDate={(d) => !!d && d.isBefore(dayjs().startOf('day'))}
             />
           </div>
@@ -830,15 +835,15 @@ const BookingModal: React.FC<{
             placeholder={
               !form.departmentId ? 'Chọn khoa trước'
                 : docLoading ? 'Đang tải bác sĩ…'
-                  : doctorOptions.length === 0 ? 'Khoa này chưa có bác sĩ' : 'Chọn bác sĩ'
+                  : doctorOptions.length === 0 ? 'Không có bác sĩ cho ngày này' : 'Chọn bác sĩ'
             }
             disabled={!form.departmentId}
             value={form.doctorId || undefined}
             onChange={(v) => setField('doctorId', v || '')}
             options={doctorOptions}
-            // "Trống" trần khiến người dùng tưởng chức năng hỏng; nói rõ là khoa chưa
-            // được phân bác sĩ trong danh mục nhân sự.
-            notFoundContent={docLoading ? 'Đang tải…' : 'Khoa này chưa có bác sĩ trong danh mục'}
+            // "Trống" trần khiến người dùng tưởng chức năng hỏng; nói rõ là khoa chưa có bác sĩ
+            // trực ngày đó, cũng chưa có bác sĩ cơ hữu nào.
+            notFoundContent={docLoading ? 'Đang tải…' : 'Khoa này chưa có bác sĩ trực ngày đã chọn'}
           />
         </div>
         <div>

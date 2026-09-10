@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using HIS.Infrastructure.Security;
 using HIS.Application.Services;
 using HIS.Core.Common;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
@@ -48,20 +49,37 @@ public class AppointmentBookingService : IAppointmentBookingService
                 Name = d.DepartmentName,
                 Description = d.Description,
                 AvailableRooms = _context.Rooms.Count(r => !r.IsDeleted && r.IsActive && r.DepartmentId == d.Id),
-                AvailableDoctors = _context.Users.Count(u => !u.IsDeleted && u.IsActive && u.DepartmentId == d.Id && u.UserType == 1) // Type 1 = Bác sĩ (User.cs)
+                // Đếm theo khoa CƠ HỮU (endpoint này không có ngày nên không suy ra ca trực được).
+                AvailableDoctors = _context.Users.Count(u => !u.IsDeleted && u.IsActive && u.DepartmentId == d.Id && u.UserType == UserTypes.Doctor)
             })
             .ToBoundedListAsync("AppointmentBookingService.GetBookingDepartmentsAsync");
 
         return departments;
     }
 
-    public async Task<List<BookingDoctorDto>> GetBookingDoctorsAsync(Guid? departmentId)
+    public async Task<List<BookingDoctorDto>> GetBookingDoctorsAsync(Guid? departmentId, DateTime? date = null)
     {
         var query = _context.Users
-            .Where(u => !u.IsDeleted && u.IsActive && u.UserType == 1); // Type 1 = Bác sĩ (User.cs); type 2 là ĐIỀU DƯỠNG
+            .Where(u => !u.IsDeleted && u.IsActive && u.UserType == UserTypes.Doctor);
 
         if (departmentId.HasValue)
-            query = query.Where(u => u.DepartmentId == departmentId.Value);
+        {
+            // Có NGÀY HẸN → ưu tiên bác sĩ CÓ CA TRỰC ở khoa đó đúng hôm ấy, kể cả bác sĩ khoa
+            // khác được phân trực sang. Trước đây chỉ lọc theo khoa cơ hữu (Users.DepartmentId)
+            // nên màn "Lịch bác sĩ" hoàn toàn KHÔNG ảnh hưởng dropdown: hệ thống vẫn mở khung giờ
+            // sinh ra từ ca trực của bác sĩ đó (GetWorkingShiftsAsync đọc DoctorSchedules) nhưng
+            // lại không cho chọn chính người ấy.
+            var scheduledIds = date.HasValue
+                ? await GetScheduledDoctorIdsAsync(departmentId.Value, date.Value)
+                : new List<Guid>();
+
+            // Khoa CHƯA khai ca nào cho ngày đó → rơi về bác sĩ cơ hữu. Cùng triết lý fallback với
+            // GetWorkingShiftsAsync: thà cho đặt rồi lễ tân xác nhận, còn hơn dropdown rỗng ở khoa
+            // chưa kịp khai lịch (toàn hệ thống hiện mới có rất ít bản ghi lịch làm việc).
+            query = scheduledIds.Count > 0
+                ? query.Where(u => scheduledIds.Contains(u.Id))
+                : query.Where(u => u.DepartmentId == departmentId.Value);
+        }
 
         var doctors = await query
             .Include(u => u.Department)
@@ -79,6 +97,34 @@ public class AppointmentBookingService : IAppointmentBookingService
             .ToBoundedListAsync("AppointmentBookingService.GetBookingDoctorsAsync");
 
         return doctors;
+    }
+
+    /// <summary>
+    /// Id bác sĩ có ca trực ở khoa <paramref name="departmentId"/> vào <paramref name="date"/>.
+    /// Ưu tiên ca đúng ngày; không có thì lấy ca lặp hàng tuần khớp thứ — khớp đúng thứ tự mà
+    /// <see cref="GetWorkingShiftsAsync"/> dùng để dựng khung giờ, để danh sách bác sĩ và khung
+    /// giờ luôn nói cùng một chuyện. Rỗng = khoa chưa khai ca nào cho ngày đó.
+    /// </summary>
+    private async Task<List<Guid>> GetScheduledDoctorIdsAsync(Guid departmentId, DateTime date)
+    {
+        var day = date.Date;
+        var dayOfWeek = (int)day.DayOfWeek;
+
+        var query = _context.DoctorSchedules
+            .Where(s => !s.IsDeleted && s.IsActive && s.DepartmentId == departmentId);
+
+        var ids = await query
+            .Where(s => s.ScheduleDate.Date == day)
+            .Select(s => s.DoctorId).Distinct().ToListAsync();
+
+        if (ids.Count == 0)
+        {
+            ids = await query
+                .Where(s => s.IsRecurring && s.DayOfWeek == dayOfWeek)
+                .Select(s => s.DoctorId).Distinct().ToListAsync();
+        }
+
+        return ids;
     }
 
     /// <summary>

@@ -34,9 +34,10 @@ public class AppointmentBookingController : ControllerBase
     /// Lấy danh sách bác sĩ theo khoa
     /// </summary>
     [HttpGet("doctors")]
-    public async Task<ActionResult<List<BookingDoctorDto>>> GetDoctors([FromQuery] Guid? departmentId)
+    public async Task<ActionResult<List<BookingDoctorDto>>> GetDoctors(
+        [FromQuery] Guid? departmentId, [FromQuery] DateTime? date)
     {
-        var result = await _bookingService.GetBookingDoctorsAsync(departmentId);
+        var result = await _bookingService.GetBookingDoctorsAsync(departmentId, date);
         return Ok(result);
     }
 

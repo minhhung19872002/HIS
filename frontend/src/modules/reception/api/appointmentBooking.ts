@@ -103,8 +103,10 @@ export interface BookingServiceDto {
 export const getBookingDepartments = () =>
   publicClient.get<BookingDepartmentDto[]>('/booking/departments').then(r => r.data);
 
-export const getBookingDoctors = (departmentId?: string) =>
-  publicClient.get<BookingDoctorDto[]>('/booking/doctors', { params: { departmentId } }).then(r => r.data);
+/** `date` (YYYY-MM-DD): có thì ưu tiên bác sĩ CÓ CA TRỰC ở khoa đó hôm ấy — kể cả bác sĩ khoa
+ *  khác được phân trực sang. Khoa chưa khai ca cho ngày đó thì BE rơi về bác sĩ cơ hữu. */
+export const getBookingDoctors = (departmentId?: string, date?: string) =>
+  publicClient.get<BookingDoctorDto[]>('/booking/doctors', { params: { departmentId, date } }).then(r => r.data);
 
 export const getAvailableSlots = (date: string, departmentId?: string, doctorId?: string) =>
   publicClient.get<BookingSlotResult>('/booking/slots', { params: { date, departmentId, doctorId } }).then(r => r.data);

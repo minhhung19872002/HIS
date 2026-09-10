@@ -6,7 +6,9 @@ namespace HIS.Application.Services;
 public interface IAppointmentBookingService
 {
     Task<List<BookingDepartmentDto>> GetBookingDepartmentsAsync();
-    Task<List<BookingDoctorDto>> GetBookingDoctorsAsync(Guid? departmentId);
+    /// <param name="date">Ngày hẹn — có thì ưu tiên bác sĩ CÓ CA TRỰC ở khoa đó hôm ấy
+    /// (khoa chưa khai ca cho ngày đó thì rơi về bác sĩ cơ hữu). NULL = chỉ theo khoa cơ hữu.</param>
+    Task<List<BookingDoctorDto>> GetBookingDoctorsAsync(Guid? departmentId, DateTime? date = null);
     Task<BookingSlotResult> GetAvailableSlotsAsync(DateTime date, Guid? departmentId, Guid? doctorId);
     Task<BookingResultDto> BookAppointmentAsync(OnlineBookingDto dto);
     Task<List<BookingStatusDto>> LookupAppointmentsAsync(string? code, string? phone);
