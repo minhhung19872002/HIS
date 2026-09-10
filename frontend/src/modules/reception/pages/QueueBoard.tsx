@@ -20,14 +20,19 @@ import {
 import { RefreshButton } from '../../../components/actions';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
-/** Loại hàng đợi — trùng mã của HIS (`QueueTicket.QueueType`). */
+/**
+ * Loại hàng đợi — chép NGUYÊN từ `QueueTicketDto.QueueTypeName`
+ * (`backend/src/HIS.Application/DTOs/Reception/ReceptionCompleteDTOs.Part1.cs`).
+ *
+ * Đặt tên khác backend là tự tạo ra hai ngôn ngữ cho cùng một con số: nhân viên chọn "Thu ngân" ở
+ * đây rồi mở bảng chiếu ra thấy đề "Lĩnh thuốc" thì không ai biết tin cái nào.
+ */
 const QUEUE_TYPES = [
   { v: '2', l: 'Khám bệnh' },
   { v: '1', l: 'Tiếp đón' },
-  { v: '3', l: 'Xét nghiệm' },
-  { v: '4', l: 'Chẩn đoán hình ảnh' },
-  { v: '5', l: 'Thu ngân' },
-  { v: '6', l: 'Nhà thuốc' },
+  { v: '3', l: 'Cận lâm sàng' },
+  { v: '4', l: 'Thanh toán' },
+  { v: '5', l: 'Lĩnh thuốc' },
 ];
 
 /** Nhớ lựa chọn theo máy: cái TV phòng chờ mở lại là có sẵn, khỏi chọn từ đầu mỗi sáng. */
