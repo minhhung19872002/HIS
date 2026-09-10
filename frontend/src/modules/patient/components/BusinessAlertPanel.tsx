@@ -60,8 +60,11 @@ const BusinessAlertPanel: React.FC<BusinessAlertPanelProps> = ({
   const [actionText, setActionText] = useState('');
   const [criticalCount, setCriticalCount] = useState(0);
   const [warningCount, setWarningCount] = useState(0);
+  const [checkedAt, setCheckedAt] = useState<Date | null>(null);
 
-  const fetchAlerts = useCallback(async () => {
+  /** `manual` = người dùng tự bấm "Kiểm tra" → phải có phản hồi. Lượt tự chạy lúc mở màn
+   *  thì im lặng như cũ, không bắn toast làm phiền. */
+  const fetchAlerts = useCallback(async (manual = false) => {
     if (!patientId) return;
     setLoading(true);
     try {
@@ -89,13 +92,20 @@ const BusinessAlertPanel: React.FC<BusinessAlertPanelProps> = ({
         results.push(res.data);
       }
 
-      const allAlerts = results.flatMap((r) => r.newAlerts);
+      const allAlerts = results.flatMap((r) => r.newAlerts ?? []);
       setAlerts(allAlerts);
       setCriticalCount(allAlerts.filter((a) => a.severity === 1).length);
       setWarningCount(allAlerts.filter((a) => a.severity === 2).length);
+      setCheckedAt(new Date());
+      // Bấm "Kiểm tra" mà không có cảnh báo nào thì màn hình y hệt trước đó → người dùng
+      // tưởng nút hỏng. Phải nói rõ là ĐÃ kiểm tra xong và kết quả là sạch.
+      if (manual) {
+        if (allAlerts.length === 0) message.success('Đã kiểm tra — không có cảnh báo nào');
+        else message.warning(`Đã kiểm tra — có ${allAlerts.length} cảnh báo`);
+      }
     } catch {
-      // Silent fail - alerts are supplementary
       console.warn('BusinessAlertPanel: failed to fetch alerts');
+      if (manual) message.error('Không kiểm tra được cảnh báo');
     } finally {
       setLoading(false);
     }
@@ -112,11 +122,11 @@ const BusinessAlertPanel: React.FC<BusinessAlertPanelProps> = ({
     try {
       await acknowledgeAlert(acknowledgeModal.id, actionText || undefined);
       setAlerts((prev) => prev.filter((a) => a.id !== acknowledgeModal.id));
-      message.success('Da xac nhan canh bao');
+      message.success('Đã xác nhận cảnh báo');
       setAcknowledgeModal(null);
       setActionText('');
     } catch {
-      message.warning('Khong the xac nhan canh bao');
+      message.warning('Không xác nhận được cảnh báo');
     }
   };
 
@@ -150,16 +160,16 @@ const BusinessAlertPanel: React.FC<BusinessAlertPanelProps> = ({
     if (total === 0 && !loading) return null;
 
     return (
-      <Tooltip title={`${criticalCount} nguy kich, ${warningCount} canh bao`}>
+      <Tooltip title={`${criticalCount} nguy kịch, ${warningCount} cảnh báo`}>
         <Badge count={total} size="small" offset={[-2, 0]}>
           <Button
             size="small"
             icon={<BellOutlined />}
             danger={criticalCount > 0}
-            onClick={fetchAlerts}
+            onClick={() => fetchAlerts(true)}
             loading={loading}
           >
-            {criticalCount > 0 ? `${criticalCount} nguy kich` : total > 0 ? `${total} canh bao` : ''}
+            {criticalCount > 0 ? `${criticalCount} nguy kịch` : total > 0 ? `${total} cảnh báo` : ''}
           </Button>
         </Badge>
       </Tooltip>
@@ -173,22 +183,29 @@ const BusinessAlertPanel: React.FC<BusinessAlertPanelProps> = ({
       title={
         <Space>
           <BellOutlined />
-          <span>Canh bao nghiep vu</span>
+          <span>Cảnh báo nghiệp vụ</span>
           {criticalCount > 0 && <Badge count={criticalCount} style={{ backgroundColor: '#ff4d4f' }} />}
           {warningCount > 0 && <Badge count={warningCount} style={{ backgroundColor: '#faad14' }} />}
         </Space>
       }
       extra={
-        <Button size="small" icon={<ReloadOutlined />} onClick={fetchAlerts} loading={loading}>
-          Kiem tra
-        </Button>
+        <Space size={6}>
+          {checkedAt && (
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              đã kiểm {dayjs(checkedAt).format('HH:mm')}
+            </Text>
+          )}
+          <Button size="small" icon={<ReloadOutlined />} onClick={() => fetchAlerts(true)} loading={loading}>
+            Kiểm tra
+          </Button>
+        </Space>
       }
       style={{ marginBottom: 8 }}
     >
       {loading ? (
         <Spin size="small" />
       ) : alerts.length === 0 ? (
-        <Empty description="Khong co canh bao" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        <Empty description="Không có cảnh báo" image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : (
         <Collapse
           size="small"
@@ -232,14 +249,14 @@ const BusinessAlertPanel: React.FC<BusinessAlertPanelProps> = ({
 
       <Modal
         open={!!acknowledgeModal}
-        title="Xac nhan canh bao"
+        title="Xác nhận cảnh báo"
         onOk={handleAcknowledge}
         onCancel={() => {
           setAcknowledgeModal(null);
           setActionText('');
         }}
-        okText="Xac nhan"
-        cancelText="Huy"
+        okText="Xác nhận"
+        cancelText="Huỷ"
       >
         {acknowledgeModal && (
           <div>
@@ -251,7 +268,7 @@ const BusinessAlertPanel: React.FC<BusinessAlertPanelProps> = ({
               style={{ marginBottom: 12 }}
             />
             <TextArea
-              placeholder="Hanh dong da thuc hien (tuy chon)"
+              placeholder="Hành động đã thực hiện (tuỳ chọn)"
               value={actionText}
               onChange={(e) => setActionText(e.target.value)}
               rows={3}
