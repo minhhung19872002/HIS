@@ -83,6 +83,17 @@ class DemoBackendAdapter implements HttpClientAdapter {
       );
     }
 
+    // Giấy tờ trong ví cũng trả BYTE (app mở bằng `Image.memory`), không phải JSON. Thiếu nhánh này
+    // thì tuyến `/documents/{id}/content` rơi vào bảng tuyến, nhận vỏ JSON ở chỗ đang đợi byte ảnh,
+    // và lỗi hiện ra là "không giải mã được ảnh" — chẳng liên quan gì tới thứ đang kiểm.
+    if (path.endsWith('/content')) {
+      return ResponseBody.fromBytes(
+        _pngPixels,
+        200,
+        headers: {Headers.contentTypeHeader: ['image/png']},
+      );
+    }
+
     // Bản in phiếu xét nghiệm là HTML thô (app nạp thẳng vào khung xem web).
     if (path.endsWith('/report')) {
       return ResponseBody.fromString(
@@ -124,6 +135,15 @@ class DemoBackendAdapter implements HttpClientAdapter {
 
   /// Tuyến → dữ liệu mẫu. Thứ tự khai báo không quan trọng: khớp theo khoá dài nhất.
   static final Map<String, String> _routes = {
+    // ---------------------------------------------------------------- tài khoản
+    // App đọc lại tài khoản sau mỗi thay đổi (đặt PIN, bật sinh trắc, liên kết hồ sơ). Thiếu tuyến
+    // này thì `reload()` đọc một danh sách rỗng ở chỗ đang đợi đối tượng tài khoản, và màn vừa lưu
+    // thành công lại hỏng ngay sau đó — đúng kiểu lỗi chỉ lộ ra khi đi bằng đường của người bệnh.
+    '/auth/me': '''
+      {"id":"demo-account","phoneNumber":"+84912345678","fullName":"Nguyễn Văn Test",
+       "isLinked":true,"patientCode":"BN000123","mustChangePassword":false,
+       "hasPin":true,"biometricEnabled":false}''',
+
     // ------------------------------------------------------------- lấy số thứ tự
     '/queue/departments': '''
       [{"id":"d1","name":"Khoa Khám bệnh","code":"KKB","availableDoctors":4},
@@ -352,6 +372,11 @@ class DemoBackendAdapter implements HttpClientAdapter {
        "labResults":[{"orderCode":"XN-2026-0001","serviceName":"Sinh hoá máu",
                       "resultDate":"2026-09-09T10:30:00","hasAbnormal":true}],
        "imagingResults":[],"prescriptions":[],"admissions":[]}''',
+    // ⚠️ Khoá phải DÀI HƠN `/staff/lookup/patients`, nếu không luật "khớp khoá dài nhất" trả về
+    // DANH SÁCH người bệnh cho tuyến đặt lại mật khẩu — và app ép một danh sách vào chỗ đợi đối
+    // tượng, ném `TypeError` chứ không phải `Failure`, nên màn không bắt được và bài kiểm hỏng ở
+    // một chỗ chẳng liên quan.
+    '/staff/lookup/patients/p1/reset-app-password': '{"temporaryPassword":"Tam2026@hn"}',
     '/staff/lookup/patients': '''
       [{"patientId":"p1","patientCode":"BN000123","fullName":"Nguyễn Văn Test",
         "dateOfBirth":"1975-04-12T00:00:00","gender":1,"phoneNumber":"0912345678",
