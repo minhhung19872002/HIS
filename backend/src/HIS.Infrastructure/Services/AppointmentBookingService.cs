@@ -48,7 +48,7 @@ public class AppointmentBookingService : IAppointmentBookingService
                 Name = d.DepartmentName,
                 Description = d.Description,
                 AvailableRooms = _context.Rooms.Count(r => !r.IsDeleted && r.IsActive && r.DepartmentId == d.Id),
-                AvailableDoctors = _context.Users.Count(u => !u.IsDeleted && u.IsActive && u.DepartmentId == d.Id && u.UserType == 2) // Type 2 = Bác sĩ
+                AvailableDoctors = _context.Users.Count(u => !u.IsDeleted && u.IsActive && u.DepartmentId == d.Id && u.UserType == 1) // Type 1 = Bác sĩ (User.cs)
             })
             .ToBoundedListAsync("AppointmentBookingService.GetBookingDepartmentsAsync");
 
@@ -58,7 +58,7 @@ public class AppointmentBookingService : IAppointmentBookingService
     public async Task<List<BookingDoctorDto>> GetBookingDoctorsAsync(Guid? departmentId)
     {
         var query = _context.Users
-            .Where(u => !u.IsDeleted && u.IsActive && u.UserType == 2); // Bác sĩ
+            .Where(u => !u.IsDeleted && u.IsActive && u.UserType == 1); // Type 1 = Bác sĩ (User.cs); type 2 là ĐIỀU DƯỠNG
 
         if (departmentId.HasValue)
             query = query.Where(u => u.DepartmentId == departmentId.Value);
