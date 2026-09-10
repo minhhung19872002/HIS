@@ -187,6 +187,13 @@ export default function AppointmentBookingPublic() {
   const deptName = useMemo(() => departments.find((d) => d.id === form.departmentId)?.name, [departments, form.departmentId]);
   const doctorName = useMemo(() => doctors.find((d) => d.id === form.doctorId)?.fullName, [doctors, form.doctorId]);
 
+  /** " (07:00 - 11:45)" lấy từ chính danh sách khung giờ; rỗng thì không hiện gì. */
+  const slotRange = (list: BookingTimeSlot[]) => {
+    if (!list.length) return '';
+    const hhmm = (t: string) => String(t).slice(0, 5);
+    return ` (${hhmm(list[0].startTime)} - ${hhmm(list[list.length - 1].endTime)})`;
+  };
+
   const renderSlots = (list: BookingTimeSlot[], label: string) => (
     <div style={{ marginBottom: 14 }}>
       <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)', color: 'var(--t-1)', marginBottom: 6 }}>{label}</div>
@@ -360,8 +367,10 @@ export default function AppointmentBookingPublic() {
                       <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)', margin: '10px 0' }}>
                         Khung giờ ngày {dayjs(slots.date).format('DD/MM/YYYY')} — Còn trống: <b style={{ color: 'var(--t-0)' }}>{slots.totalAvailable}</b>
                       </div>
-                      {renderSlots(slots.morningSlots, 'Buổi sáng (7:30 - 11:30)')}
-                      {renderSlots(slots.afternoonSlots, 'Buổi chiều (13:30 - 16:30)')}
+                      {/* Nhãn lấy theo khung giờ THẬT của ca trực hôm đó — ghi cứng
+                          "(7:30 - 11:30)" là sai với ca cả ngày hoặc ca ngoài giờ. */}
+                      {renderSlots(slots.morningSlots, `Buổi sáng${slotRange(slots.morningSlots)}`)}
+                      {renderSlots(slots.afternoonSlots, `Buổi chiều${slotRange(slots.afternoonSlots)}`)}
                     </div>
                   )}
 

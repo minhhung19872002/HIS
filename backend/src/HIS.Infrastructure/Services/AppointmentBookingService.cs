@@ -214,6 +214,7 @@ public class AppointmentBookingService : IAppointmentBookingService
 
         var morningSlots = new List<BookingTimeSlot>();
         var afternoonSlots = new List<BookingTimeSlot>();
+        var noon = new TimeSpan(12, 0, 0);
 
         foreach (var shift in shifts)
         {
@@ -222,9 +223,16 @@ public class AppointmentBookingService : IAppointmentBookingService
                 TimeSpan.FromMinutes(shift.SlotMinutes),
                 shift.MaxPerSlot, bookingMap, date);
 
-            // Ca kết thúc từ 12h trở về trước tính là ca sáng; còn lại xếp vào chiều.
-            if (shift.End <= new TimeSpan(12, 0, 0)) morningSlots.AddRange(slots);
-            else afternoonSlots.AddRange(slots);
+            // Phân loại TỪNG KHUNG theo giờ bắt đầu của CHÍNH NÓ.
+            //
+            // Trước đây phân theo giờ KẾT THÚC của cả ca: ca cả ngày (07:00-15:00 — loại phổ biến
+            // nhất) kết thúc sau 12h nên bị dồn TRỌN vào buổi chiều. Người bệnh mở trang đặt lịch
+            // thấy mục "Buổi chiều" chứa khung 07:00, còn "Buổi sáng" rỗng trơn.
+            foreach (var slot in slots)
+            {
+                if (slot.StartTime < noon) morningSlots.Add(slot);
+                else afternoonSlots.Add(slot);
+            }
         }
 
         morningSlots = morningSlots.OrderBy(s => s.StartTime).ToList();
