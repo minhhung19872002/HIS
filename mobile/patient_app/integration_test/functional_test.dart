@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -48,7 +49,11 @@ void main() {
 
   late _StatefulDemoBackend backend;
 
-  Future<void> launch(WidgetTester tester, {AuthState? state}) async {
+  Future<void> launch(
+    WidgetTester tester, {
+    AuthState? state,
+    DemoMode mode = DemoMode.full,
+  }) async {
     // Bật "giảm chuyển động" của hệ điều hành cho cả lượt chạy.
     //
     // Trang chủ có vòng sáng nhấp nháy quanh mã số thứ tự — một `AnimationController` lặp vô
@@ -70,7 +75,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    backend = _StatefulDemoBackend();
+    backend = _StatefulDemoBackend(mode: mode);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -251,6 +256,25 @@ void main() {
   /// trên màn.
   Finder textAnywhere(String value) => find.textContaining(value, findRichText: true);
 
+  /// Đang chạy trên máy thật / máy ảo / simulator, chứ không phải `flutter test` trên máy lập trình.
+  ///
+  /// Dùng cho đúng MỘT việc: bản in kết quả xét nghiệm hiện trong khung xem web, mà
+  /// `webview_flutter` cần bản cài đặt của nền tảng. Chạy không máy thì bài đó hỏng vì thiếu nền
+  /// tảng, không phải vì app sai — nên bỏ qua ở đó và vẫn chạy đủ ở CẢ HAI job Android và iOS, tức
+  /// vẫn là bằng chứng cho hai nền tảng nghiệm thu.
+  final onRealDevice = Platform.isAndroid || Platform.isIOS;
+
+  /// Đợi bằng `pump` CÓ THỜI LƯỢNG thay cho `pumpAndSettle`.
+  ///
+  /// Màn đăng ký và quên mật khẩu bật một bộ đếm ngược 60 giây cho nút "gửi lại mã" ngay sau khi
+  /// gửi mã xong. Bộ đếm đó dựng lại màn MỖI GIÂY, nên `pumpAndSettle` không bao giờ thấy khung
+  /// hình đứng yên và sẽ treo tới lúc hết giờ — hỏng ở chỗ chẳng liên quan gì tới thứ đang kiểm.
+  Future<void> settleWithCountdown(WidgetTester tester) async {
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+  }
+
   // ============================================================ trang chủ
   group('Trang chủ', () {
     testWidgets('hiện đủ lối tắt và mã bệnh nhân', (tester) async {
@@ -265,6 +289,25 @@ void main() {
 
       expect(find.text('Nguyễn Văn Test'), findsOneWidget);
       expect(find.textContaining('BN000123'), findsOneWidget);
+    });
+
+    testWidgets('thẻ số hôm nay mở màn theo dõi, và "Cập nhật ngay" hỏi lại máy chủ',
+        (tester) async {
+      await launch(tester);
+
+      // Mở lại app sau khi đã lấy số: người bệnh chạm thẻ ngay đầu trang chủ, KHÔNG đi lại màn lấy
+      // số. Mất đường này thì họ lấy thêm một số nữa và bị máy chủ từ chối vì đã có số trong ngày.
+      await tapScrolled(tester, find.text('Chạm để xem đang gọi tới số nào'));
+      expect(find.text('Số thứ tự của bạn'), findsOneWidget,
+          reason: 'thẻ số hôm nay phải mở đúng màn theo dõi số');
+      expect(find.text('A-042'), findsWidgets);
+
+      // Nhịp tự cập nhật 20 giây không tới nơi khi sóng yếu, nên nút bấm tay phải GỌI THẬT.
+      final before = backend.calls.where((c) => c.contains('/tickets/t1/status')).length;
+      await tapScrolled(tester, find.text('Cập nhật ngay'));
+      expect(backend.calls.where((c) => c.contains('/tickets/t1/status')).length,
+          greaterThan(before),
+          reason: 'bấm "Cập nhật ngay" mà không gọi máy chủ thì con số không bao giờ đổi');
     });
   });
 
@@ -428,6 +471,35 @@ void main() {
       await tester.pumpAndSettle(const Duration(seconds: 2));
       expect(backend.cancelled, 1);
     });
+
+    testWidgets('ĐỔI LỊCH: chọn ngày mới → chọn khung giờ còn trống → máy chủ nhận lệnh đổi',
+        (tester) async {
+      // HSMT I.2.4.2 đòi đổi lịch, không chỉ huỷ. Đổi được là người bệnh khỏi phải huỷ rồi đặt lại
+      // — hai thao tác mà giữa chúng chỗ trống có thể bị người khác lấy.
+      await launch(tester);
+      await tapShortcut(tester, 'Đặt khám');
+
+      await tapScrolled(tester, find.text('Đổi lịch'));
+      expect(find.text('Chọn ngày khám mới'), findsOneWidget,
+          reason: 'đổi lịch phải cho chọn ngày, không tự dời sang một ngày nào đó');
+
+      // Nhận ngày mặc định rồi chọn giờ — đúng thao tác ngắn nhất của người bệnh.
+      await tester.tap(find.widgetWithText(TextButton, 'OK'));
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+
+      expect(find.text('Chọn khung giờ mới'), findsOneWidget,
+          reason: 'phải hiện khung giờ CÒN TRỐNG của ngày mới, đừng để người bệnh đoán');
+      // Chạm theo dòng "còn mấy chỗ": chuỗi này chỉ có trong tờ chọn giờ, còn "08:00" thì trùng với
+      // giờ đang in trên thẻ lịch phía sau — chạm nhầm vào đó thì tờ chọn không đóng và bài kiểm
+      // hỏng ở một khẳng định xa tít phía sau.
+      await tester.tap(find.text('Còn 3 chỗ'));
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+
+      expect(backend.calls.any((c) => c.contains('/reschedule')), isTrue,
+          reason: 'phải thật sự gọi máy chủ để đổi lịch');
+      expect(find.text('Đã đổi lịch khám.'), findsOneWidget,
+          reason: 'đổi xong phải báo rõ, nếu không người bệnh không biết đã đổi được hay chưa');
+    });
   });
 
   // ========================================================= kết quả ngoại trú
@@ -553,6 +625,77 @@ void main() {
       // Dòng cách dùng là dòng người bệnh cần nhớ khi về nhà — mất nó là mất cả mục đích màn này.
       expect(find.textContaining('Uống buổi sáng sau ăn'), findsWidgets);
     });
+
+    testWidgets('XÉT NGHIỆM: mở được BẢN IN phiếu (HSMT I.2.5.8)', (tester) async {
+      if (!onRealDevice) {
+        markTestSkipped('Khung xem web cần nền tảng thật — bài này chạy ở job Android và iOS.');
+        return;
+      }
+
+      await launch(tester);
+      await tapShortcut(tester, 'Kết quả khám');
+      await tapResultTab(tester, 'Xét nghiệm');
+      await tapScrolled(tester, find.textContaining('Sinh hoá máu').first);
+
+      await tester.tap(find.byTooltip('Xem bản in'));
+      // Khung xem web nạp chuỗi HTML nên cần thêm một nhịp; `pumpAndSettle` một lần là chưa đủ.
+      await tester.pumpAndSettle(const Duration(seconds: 3));
+
+      // Bản in là thứ người bệnh gửi cho bác sĩ khác xem, nên điều đáng canh là nó KHÔNG rơi vào
+      // nhánh lỗi: khung xem web không mang token của app, nên nạp sai cách là nhận 401 và màn
+      // trắng — hỏng im lặng, vì người bệnh chỉ thấy một trang trắng chứ không thấy lỗi nào.
+      expect(find.textContaining('Không tải được'), findsNothing);
+      expect(find.textContaining('Đã có lỗi'), findsNothing);
+      expect(find.text('Sinh hoá máu'), findsWidgets,
+          reason: 'màn bản in phải mang tên phiếu để người bệnh biết đang in phiếu nào');
+    });
+
+    testWidgets('HÌNH ẢNH: chạm ảnh nhỏ → xem toàn màn hình, vuốt sang ảnh kế', (tester) async {
+      await launch(tester);
+      await tapShortcut(tester, 'Kết quả khám');
+      await tapResultTab(tester, 'Hình ảnh');
+      await tapScrolled(tester, find.textContaining('CT · Lồng ngực').first);
+
+      // Lưới ảnh PACS nằm CUỐI màn chi tiết, mà danh sách chỉ dựng phần đang thấy — nên phải kéo
+      // tới khối ảnh trước, chưa kéo thì lưới CHƯA TỒN TẠI để mà tìm ô trong đó.
+      await scrollTo(tester, find.text('Hình ảnh'));
+
+      // Tìm theo `InkWell` TRONG lưới, không theo `Image`: ảnh có thể còn đang tải (lúc đó chưa có
+      // `Image` nào) mà ô vẫn chạm được. Và truyền finder CHƯA lọc `.first` vào `scrollTo`: finder
+      // `.first` ném "Bad state: No element" khi chưa khớp gì, đúng lúc cần nó trả về rỗng.
+      final thumbnails = find.descendant(
+        of: find.byType(GridView),
+        matching: find.byType(InkWell),
+      );
+      await scrollTo(tester, thumbnails);
+      expect(thumbnails, findsWidgets, reason: 'phải có ô ảnh nhỏ để chạm vào');
+      await tester.tap(thumbnails.first);
+      await tester.pumpAndSettle(const Duration(seconds: 3));
+
+      expect(find.text('Ảnh 1/2'), findsOneWidget,
+          reason: 'phải cho biết đang xem ảnh thứ mấy trong chuỗi');
+      expect(find.text('Chest CT axial'), findsWidgets,
+          reason: 'mất tên chuỗi thì các ảnh CT trông như nhau');
+
+      await tester.drag(find.byType(PageView), const Offset(-400, 0));
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+      expect(find.text('Ảnh 2/2'), findsOneWidget,
+          reason: 'vuốt ngang phải sang được ảnh kế — một ca CT có hàng chục ảnh');
+    });
+
+    testWidgets('kéo xuống để tải lại: màn kết quả hỏi lại máy chủ', (tester) async {
+      await launch(tester);
+      await tapShortcut(tester, 'Kết quả khám');
+
+      // Kết quả trả về sau khi người bệnh đã mở màn là chuyện thường ngày (bác sĩ vừa ký phiếu).
+      // Không kéo lại được thì họ phải đóng hẳn app mới thấy.
+      final before = backend.calls.where((c) => c.contains('/results/visits')).length;
+      await tester.fling(find.textContaining('Tăng huyết áp').first, const Offset(0, 320), 1000);
+      await tester.pumpAndSettle(const Duration(seconds: 3));
+
+      expect(backend.calls.where((c) => c.contains('/results/visits')).length, greaterThan(before),
+          reason: 'kéo xuống mà không hỏi lại máy chủ thì kết quả mới không bao giờ hiện ra');
+    });
   });
 
   // ========================================================= nội trú
@@ -646,6 +789,72 @@ void main() {
       expect(backend.calls.where((c) => c.startsWith('DELETE')), isEmpty,
           reason: 'bấm "Huỷ" mà vẫn gọi gỡ là hỏng');
     });
+
+    testWidgets('QUYỀN: tắt quyền xem kết quả rồi lưu → máy chủ nhận được', (tester) async {
+      await launch(tester);
+      await tapShortcut(tester, 'Gia đình');
+
+      await tapScrolled(tester, find.widgetWithText(TextButton, 'Quyền'));
+      expect(find.text('Quyền với Nguyễn Thị Mai'), findsOneWidget);
+      for (final permission in const [
+        'Xem kết quả khám', 'Đặt lịch khám hộ', 'Lấy số thứ tự hộ',
+      ]) {
+        expect(find.text(permission), findsOneWidget, reason: 'thiếu quyền "$permission"');
+      }
+
+      await tester.tap(find.widgetWithText(SwitchListTile, 'Xem kết quả khám'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Lưu'));
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+
+      expect(backend.calls.any((c) => c.startsWith('PUT') && c.contains('/permissions')), isTrue,
+          reason: 'tắt quyền mà chỉ đổi ở máy thì người thân vẫn bị xem hồ sơ như cũ');
+    });
+
+    testWidgets('XEM HỒ SƠ người thân: lời gọi mang đúng memberId, về lại hồ sơ mình được',
+        (tester) async {
+      await launch(tester);
+      await tapShortcut(tester, 'Gia đình');
+
+      await tapScrolled(tester, find.widgetWithText(FilledButton, 'Xem hồ sơ'));
+      expectNoErrorState('Màn kết quả của người thân');
+
+      // Đây là mệnh đề đáng canh nhất của cả chức năng gia đình: thiếu `memberId` thì app đọc hồ sơ
+      // của CHÍNH MÌNH trong khi người dùng tin là đang xem hồ sơ mẹ — lệch hồ sơ bệnh án, không
+      // phải lỗi giao diện.
+      expect(
+          backend.calls.any((c) => c.contains('/results/visits') && c.contains('memberId=f1')),
+          isTrue,
+          reason: 'xem hộ mà không gửi memberId là đang đọc hồ sơ của chính mình');
+
+      await goBack(tester);
+      expect(find.textContaining('Đang xem hồ sơ của Nguyễn Thị Mai'), findsOneWidget,
+          reason: 'không có dải nhắc thì rất dễ tưởng đang xem hồ sơ của mình');
+
+      await tester.tap(find.widgetWithText(TextButton, 'Về hồ sơ của tôi'));
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+      expect(find.textContaining('Đang xem hồ sơ của'), findsNothing,
+          reason: 'phải quay về hồ sơ của mình được, nếu không người dùng bị kẹt ở hồ sơ người khác');
+    });
+
+    testWidgets('XÁC NHẬN người thân đang chờ: máy chủ mới là nơi quyết', (tester) async {
+      await launch(tester);
+      await tapShortcut(tester, 'Gia đình');
+
+      await tapScrolled(tester, find.widgetWithText(FilledButton, 'Xác nhận'));
+      expect(find.text('Xác nhận kết nối với Nguyễn Minh Khang'), findsOneWidget);
+
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Số CCCD/CMND hoặc ngày sinh'), '2015-03-02');
+      await tester.pumpAndSettle();
+      // `.last`: nút trên thẻ người thân cũng mang chữ "Xác nhận", mà hộp thoại nằm sau trong cây.
+      await tester.tap(find.widgetWithText(FilledButton, 'Xác nhận').last);
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+
+      expect(backend.calls.any((c) => c.startsWith('POST') && c.contains('/verify')), isTrue,
+          reason: 'xác minh phải do máy chủ quyết — tin phía máy thì ai cũng tự nhận là người thân');
+      expect(find.textContaining('Đã kết nối với Nguyễn Minh Khang'), findsOneWidget);
+    });
   });
 
   // ========================================================= ví giấy tờ
@@ -668,6 +877,44 @@ void main() {
 
       expect(backend.calls.where((c) => c.startsWith('DELETE')), isEmpty);
       expect(find.text('CCCD mặt trước'), findsOneWidget, reason: 'huỷ rồi mà giấy tờ vẫn mất là hỏng');
+    });
+
+    testWidgets('thêm giấy tờ: đủ ba đường chụp ảnh · chọn ảnh · chọn tệp PDF', (tester) async {
+      await launch(tester);
+      await tapShortcut(tester, 'Ví giấy tờ');
+
+      await tapScrolled(tester, find.widgetWithText(FloatingActionButton, 'Thêm giấy tờ'));
+      for (final option in const ['Chụp ảnh giấy tờ', 'Chọn ảnh có sẵn', 'Chọn tệp PDF']) {
+        expect(find.text(option), findsOneWidget, reason: 'thiếu đường "$option"');
+      }
+
+      // Đóng tờ chọn bằng cách chạm ra ngoài, KHÔNG chạm ba mục đó: chúng mở máy ảnh / bộ chọn tệp
+      // của hệ điều hành, mà hộp thoại của HĐH thì bài kiểm không điều khiển được — chạm vào là treo
+      // tới lúc hết giờ. Phần tải tệp lên do bộ smoke canh (TC-V01…TC-V08).
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+      expect(backend.calls.where((c) => c.startsWith('POST') && c.contains('/documents')), isEmpty,
+          reason: 'đóng tờ chọn mà vẫn gửi gì lên máy chủ là hỏng');
+    });
+
+    testWidgets('PDF: nói thẳng là chưa xem được trong app, không mở một màn trắng', (tester) async {
+      await launch(tester);
+      await tapShortcut(tester, 'Ví giấy tờ');
+
+      await tapScrolled(tester, find.text('Giấy ra viện 08/2026'));
+      expect(find.textContaining('Tệp PDF hiện chỉ lưu trữ'), findsOneWidget,
+          reason: 'mở màn trắng thì người bệnh tưởng app hỏng, thay vì biết tệp vẫn còn trong ví');
+    });
+
+    testWidgets('ảnh giấy tờ mở được khung xem và phóng to được', (tester) async {
+      await launch(tester);
+      await tapShortcut(tester, 'Ví giấy tờ');
+
+      await tapScrolled(tester, find.text('CCCD mặt trước'));
+      expect(find.byType(InteractiveViewer), findsOneWidget,
+          reason: 'CCCD chụp bằng điện thoại thì chữ rất nhỏ — không phóng to được là không đọc nổi');
+      expect(find.textContaining('Không mở được giấy tờ'), findsNothing,
+          reason: 'giấy tờ lưu trong ví mà mở ra lỗi thì cả chức năng ví là vô nghĩa');
     });
   });
 
@@ -751,6 +998,149 @@ void main() {
       expect(find.byType(AlertDialog), findsOneWidget,
           reason: 'đăng xuất ngay khi chạm là mất phiên vì một cú chạm nhầm');
     });
+
+    testWidgets('đặt mã PIN hợp lệ: lưu được và báo đã đặt', (tester) async {
+      await launch(tester);
+      await openAccountMenu(tester, 'Bảo mật');
+      await tapScrolled(tester, find.text('Mã PIN'));
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Mật khẩu tài khoản'), 'Admin@123');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Mã PIN mới (6 số)'), '135790');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Nhập lại mã PIN'), '135790');
+      await tester.pumpAndSettle();
+
+      await tapScrolled(tester, find.text('Lưu mã PIN'));
+      expect(backend.calls.any((c) => c.startsWith('POST') && c.contains('/auth/pin')), isTrue,
+          reason: 'phải thật sự gửi mã PIN lên máy chủ');
+      expect(find.text('Đã đặt mã PIN.'), findsOneWidget,
+          reason: 'lưu xong phải báo rõ, nếu không người bệnh không biết mã đã được nhận chưa');
+    });
+
+    testWidgets('mã PIN nhập lại không khớp: chặn ngay trên máy', (tester) async {
+      await launch(tester);
+      await openAccountMenu(tester, 'Bảo mật');
+      await tapScrolled(tester, find.text('Mã PIN'));
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Mật khẩu tài khoản'), 'Admin@123');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Mã PIN mới (6 số)'), '135790');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Nhập lại mã PIN'), '135791');
+      await tester.pumpAndSettle();
+
+      await tapScrolled(tester, find.text('Lưu mã PIN'));
+      expect(find.text('Mã PIN nhập lại không khớp'), findsOneWidget);
+      expect(backend.calls.where((c) => c.contains('/auth/pin')), isEmpty,
+          reason: 'gõ lệch mà vẫn đặt PIN thì người bệnh sẽ bị khoá ngoài bằng chính mã của mình');
+    });
+
+    testWidgets('ĐỔI MẬT KHẨU: chặn mật khẩu quá ngắn và nhập lại không khớp', (tester) async {
+      await launch(tester);
+      await openAccountMenu(tester, 'Bảo mật');
+      await tapScrolled(tester, find.text('Đổi mật khẩu'));
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Mật khẩu hiện tại'), 'Admin@123');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Mật khẩu mới'), 'abc');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Nhập lại mật khẩu mới'), 'abc');
+      await tester.pumpAndSettle();
+      await tapScrolled(tester, find.widgetWithText(FilledButton, 'Đổi mật khẩu'));
+
+      expect(find.text('Mật khẩu phải có ít nhất 8 ký tự'), findsOneWidget);
+      expect(backend.calls.where((c) => c.contains('change-password')), isEmpty,
+          reason: 'mật khẩu chưa đạt mà vẫn đi một vòng mạng là bắt người bệnh chờ vô ích');
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Mật khẩu mới'), 'MatKhau@2026');
+      await tester.enterText(
+          find.widgetWithText(TextFormField, 'Nhập lại mật khẩu mới'), 'MatKhau@2027');
+      await tester.pumpAndSettle();
+      await tapScrolled(tester, find.widgetWithText(FilledButton, 'Đổi mật khẩu'));
+
+      expect(find.text('Mật khẩu nhập lại không khớp'), findsOneWidget);
+      expect(backend.calls.where((c) => c.contains('change-password')), isEmpty);
+    });
+
+    testWidgets('sinh trắc học: nói rõ vì sao chưa dùng được, không âm thầm ẩn đi', (tester) async {
+      await launch(tester);
+      await openAccountMenu(tester, 'Bảo mật');
+
+      // Lỗi cũ trên Android: plugin ném lỗi ngay ở bước dò khả năng máy, mà app xử lý lỗi đó bằng
+      // cách ẩn hàng sinh trắc đi — tính năng chỉ đơn giản không bao giờ xuất hiện, không màn lỗi,
+      // không báo cáo sự cố nào. Máy ảo/simulator không có cảm biến, nên thứ đáng canh ở đây là
+      // HÀNG VẪN CÒN và vẫn có một dòng giải thích.
+      final tile = find.ancestor(
+        of: find.text('Đăng nhập bằng sinh trắc học'),
+        matching: find.byType(ListTile),
+      );
+      expect(tile, findsOneWidget, reason: 'hàng sinh trắc học không được mất khỏi màn bảo mật');
+
+      final subtitle = tester.widget<ListTile>(tile).subtitle;
+      expect(subtitle, isA<Text>(), reason: 'hàng sinh trắc học phải có dòng giải thích');
+      expect((subtitle! as Text).data, isNotEmpty,
+          reason: 'một hàng câm thì người bệnh không biết nên làm gì tiếp');
+    });
+
+    testWidgets('THIẾT BỊ: đăng xuất một máy khác → hỏi lại rồi mới gọi máy chủ', (tester) async {
+      await launch(tester);
+      await openAccountMenu(tester, 'Bảo mật');
+      await tapScrolled(tester, find.text('Thiết bị đăng nhập'));
+
+      await tapScrolled(tester, find.byTooltip('Đăng xuất thiết bị này'));
+      expect(find.text('Đăng xuất thiết bị?'), findsOneWidget,
+          reason: 'đăng xuất một máy phải hỏi lại — chạm nhầm là máy của người nhà bị đá ra');
+      await tester.tap(find.widgetWithText(TextButton, 'Huỷ'));
+      await tester.pumpAndSettle();
+      expect(backend.calls.where((c) => c.startsWith('DELETE')), isEmpty);
+
+      await tapScrolled(tester, find.byTooltip('Đăng xuất thiết bị này'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Đăng xuất'));
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+
+      expect(backend.calls.any((c) => c.startsWith('DELETE') && c.contains('/devices/dev-2')),
+          isTrue,
+          reason: 'thu hồi máy phải do máy chủ làm, nếu không máy kia vẫn xem được bệnh án');
+      expect(find.text('Đã đăng xuất thiết bị.'), findsOneWidget);
+    });
+
+    testWidgets('THIẾT BỊ: đăng xuất TẤT CẢ máy khác trong một lần', (tester) async {
+      await launch(tester);
+      await openAccountMenu(tester, 'Bảo mật');
+      await tapScrolled(tester, find.text('Thiết bị đăng nhập'));
+
+      // Đây là thao tác người bệnh làm khi nghi bị lộ tài khoản, nên nó phải nằm sẵn trên màn chứ
+      // không buộc đăng xuất từng máy một.
+      await tester.tap(find.byTooltip('Đăng xuất các thiết bị khác'));
+      await tester.pumpAndSettle();
+      expect(find.text('Đăng xuất các thiết bị khác?'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Đăng xuất'));
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+      expect(backend.calls.any((c) => c.startsWith('DELETE') && c.contains('/devices/others')),
+          isTrue);
+      expect(find.text('Đã đăng xuất các thiết bị khác.'), findsOneWidget);
+    });
+
+    testWidgets('BUỘC ĐỔI MẬT KHẨU lần đầu: vào thẳng màn đổi, không có đường lùi', (tester) async {
+      // Mật khẩu do bệnh viện cấp thì ai ở quầy cũng biết; chưa đổi mà đã xem được bệnh án là lỗ
+      // hổng. Server chặn độc lập bằng 403, còn đây là phần app không để người bệnh đâm vào tường.
+      await launch(
+        tester,
+        state: const AuthSignedIn(Account(
+          id: 'demo-account',
+          phoneNumber: '+84912345678',
+          fullName: 'Nguyễn Văn Test',
+          isLinked: true,
+          patientCode: 'BN000123',
+          mustChangePassword: true,
+          hasPin: false,
+          biometricEnabled: false,
+        )),
+      );
+
+      expect(find.text('Đổi mật khẩu lần đầu'), findsOneWidget);
+      expect(find.textContaining('Mật khẩu hiện tại do bệnh viện cấp'), findsOneWidget);
+      expect(find.byType(BackButton), findsNothing,
+          reason: 'còn đường lùi thì người bệnh thoát ra và gặp một màn lỗi 403 khó hiểu');
+      expect(find.text('Lấy số thứ tự'), findsNothing,
+          reason: 'trang chủ không được mở ra khi máy chủ còn buộc đổi mật khẩu');
+    });
   });
 
   // ========================================================= thông báo
@@ -773,6 +1163,21 @@ void main() {
       await tester.pumpAndSettle(const Duration(seconds: 2));
       expect(backend.calls.any((c) => c.contains('read-all')), isTrue,
           reason: '"Đọc tất cả" phải thật sự báo lên máy chủ, không chỉ đổi màu tại chỗ');
+    });
+
+    testWidgets('chạm một thông báo → đánh dấu đã đọc trên máy chủ', (tester) async {
+      await launch(tester);
+
+      await tester.tap(find.byIcon(Icons.notifications_none_rounded).first);
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+
+      await tester.tap(find.textContaining('Kết quả xét nghiệm đã có').first);
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+
+      expect(backend.calls.any((c) => c.startsWith('PUT') && c.contains('/notifications/n1/read')),
+          isTrue,
+          reason: 'đọc rồi mà máy chủ không biết thì số "chưa đọc" trên trang chủ sống mãi, '
+              'và mở app trên máy khác vẫn thấy thông báo đó là mới');
     });
   });
 
@@ -805,12 +1210,80 @@ void main() {
       expectNoErrorState('Màn quên mật khẩu');
       expect(find.byType(TextFormField), findsWidgets);
     });
+
+    testWidgets('đăng nhập: xem lại được mật khẩu vừa gõ', (tester) async {
+      await launch(tester, state: const AuthSignedOut());
+
+      expect(find.byTooltip('Hiện mật khẩu'), findsOneWidget);
+      await tester.tap(find.byTooltip('Hiện mật khẩu'));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Ẩn mật khẩu'), findsOneWidget,
+          reason: 'người cao tuổi gõ mật khẩu dài rất dễ sai — không xem lại được thì họ bị khoá '
+              'ngoài tài khoản của chính mình');
+    });
+
+    testWidgets('ĐĂNG KÝ: nhắc nhập số trước khi lấy mã, gửi mã xong mới mở bước hai',
+        (tester) async {
+      await launch(tester, state: const AuthSignedOut());
+      await tapScrolled(tester, find.text('Đăng ký tài khoản mới'));
+
+      await tapScrolled(tester, find.widgetWithText(FilledButton, 'Lấy mã xác thực'));
+      expect(find.text('Vui lòng nhập số điện thoại trước khi lấy mã.'), findsOneWidget);
+      expect(backend.calls.where((c) => c.contains('request-otp')), isEmpty,
+          reason: 'ô trống mà vẫn xin mã là gửi một tin nhắn vô nghĩa, và tốn tiền của bệnh viện');
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Số điện thoại'), '0912345678');
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Lấy mã xác thực'));
+      await settleWithCountdown(tester);
+
+      expect(backend.calls.any((c) => c.contains('request-otp')), isTrue);
+      expect(find.textContaining('Đã gửi mã xác thực tới số'), findsOneWidget);
+      for (final field in const ['Mã xác thực (6 số)', 'Họ và tên', 'Mật khẩu']) {
+        expect(find.widgetWithText(TextFormField, field), findsOneWidget,
+            reason: 'gửi mã xong phải mở ô "$field"');
+      }
+      expect(
+          tester
+              .widget<FilledButton>(find.widgetWithText(FilledButton, 'Tạo tài khoản'))
+              .onPressed,
+          isNotNull,
+          reason: 'gửi mã xong thì nút tạo tài khoản phải bấm được');
+    });
+
+    testWidgets('QUÊN MẬT KHẨU trọn vòng: lấy mã → đặt mật khẩu mới → báo thành công',
+        (tester) async {
+      await launch(tester, state: const AuthSignedOut());
+      await tapScrolled(tester, find.text('Quên mật khẩu?'));
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Số điện thoại'), '0912345678');
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Lấy mã xác thực'));
+      await settleWithCountdown(tester);
+
+      // Cố ý KHÔNG nói số này có tài khoản hay chưa: nói ra là biến màn này thành công cụ dò xem ai
+      // là bệnh nhân của bệnh viện.
+      expect(find.textContaining('Nếu số điện thoại đã đăng ký'), findsOneWidget);
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Mã xác thực (6 số)'), '123456');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Mật khẩu mới'), 'MatKhau@2026');
+      await tester.enterText(
+          find.widgetWithText(TextFormField, 'Nhập lại mật khẩu mới'), 'MatKhau@2026');
+      await settleWithCountdown(tester);
+
+      await tapScrolled(tester, find.widgetWithText(FilledButton, 'Đặt lại mật khẩu'));
+      expect(backend.calls.any((c) => c.contains('reset-password')), isTrue,
+          reason: 'phải thật sự gọi máy chủ để đặt lại mật khẩu');
+      expect(find.textContaining('Đã đặt lại mật khẩu'), findsOneWidget);
+    });
   });
 
   // ============================== tra cứu cho nhân viên bệnh viện (HSMT I.3 #2.2)
   group('Tra cứu cho nhân viên', () {
-    testWidgets('đăng nhập tài khoản HIS → tra được hồ sơ và xem tóm tắt', (tester) async {
-      // Mở từ MÀN ĐĂNG NHẬP: nhân viên CSKH không có tài khoản người bệnh, đây là đường duy nhất.
+    /// Đăng nhập bằng tài khoản HIS. Mở từ MÀN ĐĂNG NHẬP của người bệnh: nhân viên CSKH không có
+    /// tài khoản người bệnh, đây là đường duy nhất vào màn tra cứu.
+    Future<void> staffSignIn(WidgetTester tester) async {
       await launch(tester, state: const AuthSignedOut());
       await tapScrolled(tester, find.text('Dành cho nhân viên bệnh viện'));
 
@@ -819,13 +1292,20 @@ void main() {
       await tester.enterText(find.widgetWithText(TextField, 'Mật khẩu'), 'Admin@123');
       await tapScrolled(tester, find.widgetWithText(FilledButton, 'Đăng nhập'));
       expectNoErrorState('Màn tra cứu');
+    }
 
+    /// Tra một người bệnh rồi mở hồ sơ của họ.
+    Future<void> openPatient(WidgetTester tester) async {
       await tester.enterText(
           find.widgetWithText(TextField, 'Mã BN, số điện thoại hoặc CCCD'), 'BN000123');
       await tapScrolled(tester, find.widgetWithText(FilledButton, 'Tra'));
       expect(find.text('Nguyễn Văn Test'), findsWidgets, reason: 'tra xong phải ra hồ sơ');
-
       await tapScrolled(tester, find.text('Nguyễn Văn Test').last);
+    }
+
+    testWidgets('đăng nhập tài khoản HIS → tra được hồ sơ và xem tóm tắt', (tester) async {
+      await staffSignIn(tester);
+      await openPatient(tester);
       expectNoErrorState('Hồ sơ tra cứu');
       expect(find.text('Số thứ tự hôm nay'), findsOneWidget);
       expect(find.text('Lịch hẹn'), findsOneWidget);
@@ -833,6 +1313,57 @@ void main() {
       expect(textAnywhere('LH-2026-0007'), findsWidgets);
       expect(find.text('Đặt lại mật khẩu app'), findsOneWidget,
           reason: 'quên mật khẩu tại quầy là việc CSKH làm nhiều nhất');
+    });
+
+    testWidgets('dưới 3 ký tự thì KHÔNG gọi máy chủ', (tester) async {
+      await staffSignIn(tester);
+
+      await tester.enterText(find.widgetWithText(TextField, 'Mã BN, số điện thoại hoặc CCCD'), 'BN');
+      await tapScrolled(tester, find.widgetWithText(FilledButton, 'Tra'));
+
+      expect(find.text('Nhập ít nhất 3 ký tự để tra cứu.'), findsOneWidget);
+      // Mỗi lần tra là MỘT DÒNG NHẬT KÝ TRUY CẬP hồ sơ bệnh án. Tra bằng hai ký tự trả về nửa bệnh
+      // viện và ghi một dòng nhật ký sai — nên phải chặn ngay tại máy.
+      expect(backend.calls.where((c) => c.contains('/staff/lookup/patients')), isEmpty,
+          reason: 'tra cứu mờ mịt vừa lộ hồ sơ vừa làm bẩn nhật ký truy cập');
+    });
+
+    testWidgets('ĐẶT LẠI MẬT KHẨU APP: hỏi lại rồi mới hiện mật khẩu tạm', (tester) async {
+      await staffSignIn(tester);
+      await openPatient(tester);
+
+      await tapScrolled(tester, find.widgetWithText(FilledButton, 'Đặt lại mật khẩu app'));
+      expect(find.textContaining('Đặt lại mật khẩu app cho Nguyễn Văn Test'), findsOneWidget,
+          reason: 'đặt lại mật khẩu của người khác phải hỏi lại, và phải nói rõ đang làm cho ai');
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Đặt lại'));
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+
+      expect(backend.calls.any((c) => c.contains('reset-app-password')), isTrue);
+      expect(find.text('Mật khẩu tạm'), findsOneWidget);
+      expect(find.text('Tam2026@hn'), findsOneWidget,
+          reason: 'không hiện mật khẩu tạm thì nhân viên chẳng có gì để đọc cho người bệnh');
+      expect(find.textContaining('nhắc họ đổi ngay'), findsOneWidget);
+    });
+  });
+
+  // ====================================== máy chủ hỏng (trạng thái KHÔNG phải đường vui)
+  group('Khi máy chủ hỏng', () {
+    testWidgets('nói được người bệnh nên làm gì, và "Thử lại" gọi lại máy chủ thật',
+        (tester) async {
+      await launch(tester, mode: DemoMode.serverError);
+      await tapShortcut(tester, 'Kết quả khám');
+
+      // Với app y tế thì màn lỗi mới là màn đáng soi nhất: nó phải nói được nên làm gì tiếp, chứ
+      // không in ra một mã lỗi.
+      expect(find.textContaining('Vui lòng thử lại sau'), findsWidgets,
+          reason: 'màn lỗi phải là một câu đọc được, không phải mã lỗi HTTP');
+
+      final before = backend.calls.where((c) => c.contains('/results/visits')).length;
+      await tapScrolled(tester, find.text('Thử lại'));
+      expect(backend.calls.where((c) => c.contains('/results/visits')).length, greaterThan(before),
+          reason: 'nút "Thử lại" mà không gọi lại máy chủ thì chỉ là một nút trang trí — '
+              'người bệnh bấm mãi ở chỗ sóng vừa khôi phục mà màn không bao giờ đổi');
     });
   });
 }
@@ -843,7 +1374,10 @@ void main() {
 /// minh được điều quan trọng nhất ở đây — rằng sau khi đặt, danh sách có lịch mới. Với một máy chủ
 /// không trí nhớ thì bài kiểm "đặt xong có thấy không" luôn đạt hoặc luôn hỏng vì lý do khác.
 class _StatefulDemoBackend implements HttpClientAdapter {
-  final _inner = DemoBackendAdapter();
+  _StatefulDemoBackend({DemoMode mode = DemoMode.full})
+      : _inner = DemoBackendAdapter(mode: mode);
+
+  final DemoBackendAdapter _inner;
   final List<String> calls = [];
 
   int booked = 0;
@@ -858,7 +1392,10 @@ class _StatefulDemoBackend implements HttpClientAdapter {
   Future<ResponseBody> fetch(
       RequestOptions options, Stream<List<int>>? stream, Future<void>? cancelFuture) async {
     final path = options.path;
-    calls.add('${options.method} $path');
+    // Ghi cả THAM SỐ TRUY VẤN, không chỉ đường dẫn: "xem hồ sơ người thân" được thể hiện bằng
+    // `?memberId=…`, nên nếu chỉ ghi đường dẫn thì không có cách nào khẳng định app đã hỏi đúng
+    // hồ sơ của ai — mà đọc lẫn hồ sơ người khác chính là lỗi nặng nhất ở chức năng gia đình.
+    calls.add('${options.method} ${options.uri}');
 
     final isAppointmentList = path.endsWith('/appointments');
 
