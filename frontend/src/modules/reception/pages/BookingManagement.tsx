@@ -673,7 +673,12 @@ const BookingModal: React.FC<{
     patientName: { required: true, message: 'Nhập họ tên bệnh nhân' },
     phoneNumber: {
       message: 'Số điện thoại không hợp lệ',
-      validate: (v) => (!/^0\d{9,10}$/.test(String(v ?? '').trim()) ? 'Số điện thoại không hợp lệ' : undefined),
+      // Chấp nhận CẢ dạng nội địa (0xxxxxxxxx) LẪN E.164 (+84xxxxxxxxx / 84xxxxxxxxx).
+      // Regex cũ chỉ nhận số bắt đầu bằng 0, trong khi lịch đặt qua app/đặt online được
+      // CHÍNH hệ thống lưu ở dạng +84 — nên mở lịch đó ra bấm Lưu là bị chặn dù không sửa
+      // gì. Bỏ luôn dấu cách/chấm/gạch người dùng hay gõ.
+      validate: (v) => (/^(0\d{9,10}|\+?84\d{9,10})$/.test(String(v ?? '').replace(/[\s.\-()]/g, ''))
+        ? undefined : 'Số điện thoại không hợp lệ'),
     },
     appointmentDate: { required: true, message: 'Chọn ngày hẹn' },
   }, open);
@@ -783,18 +788,18 @@ const BookingModal: React.FC<{
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-          <div>
-            <div style={lblStyle}>Họ và tên <span style={{ color: 'var(--s-crit)' }}>*</span></div>
+          {/* Bọc <Field> để lỗi hiện NGAY TẠI trường. Trước đây dùng div trần nên
+              useModalForm chặn lưu mà không hiển thị gì — người dùng bấm "Lưu thay đổi"
+              thấy nút không phản ứng, tưởng hỏng. */}
+          <Field label="Họ và tên" required error={vf.errors.patientName}>
             <Input value={form.patientName} onChange={(e) => setField('patientName', e.target.value)} placeholder="Nguyễn Văn A" />
-          </div>
-          <div>
-            <div style={lblStyle}>Số điện thoại <span style={{ color: 'var(--s-crit)' }}>*</span></div>
+          </Field>
+          <Field label="Số điện thoại" required error={vf.errors.phoneNumber}>
             <Input value={form.phoneNumber} onChange={(e) => setField('phoneNumber', e.target.value)} placeholder="0912345678" />
-          </div>
+          </Field>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-          <div>
-            <div style={lblStyle}>Ngày hẹn <span style={{ color: 'var(--s-crit)' }}>*</span></div>
+          <Field label="Ngày hẹn" required error={vf.errors.appointmentDate}>
             <DatePicker
               style={{ width: '100%' }}
               format="DD/MM/YYYY"
@@ -805,7 +810,7 @@ const BookingModal: React.FC<{
               onChange={(d) => { setField('appointmentDate', d); setForm((s) => ({ ...s, doctorId: '' })); }}
               disabledDate={(d) => !!d && d.isBefore(dayjs().startOf('day'))}
             />
-          </div>
+          </Field>
           <div>
             <div style={lblStyle}>Giờ hẹn (HH:mm)</div>
             <Input value={form.appointmentTime} onChange={(e) => setField('appointmentTime', e.target.value)} placeholder="09:30" />
