@@ -121,7 +121,9 @@ public interface IReceptionCompleteService
     /// <summary>
     /// Lấy danh sách số đang gọi
     /// </summary>
-    Task<List<QueueTicketDto>> GetCallingTicketsAsync(Guid roomId, int limit = 5);
+    /// <param name="queueType">Bỏ trống = mọi loại hàng đợi. Bảng chiếu phải truyền để không hiện
+    /// nhầm vé của hàng đợi khác cùng phòng.</param>
+    Task<List<QueueTicketDto>> GetCallingTicketsAsync(Guid roomId, int limit = 5, int? queueType = null);
 
     /// <summary>
     /// Lấy phiếu số theo ID

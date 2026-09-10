@@ -743,7 +743,7 @@ public partial class ReceptionCompleteService {
             .Where(t => t.RoomId == roomId && t.QueueType == queueType && t.IssueDate >= gdFromUtc && t.IssueDate < gdToUtc && t.Status == 2)
             .FirstOrDefaultAsync();
 
-        var callingList = await GetCallingTicketsAsync(roomId, 5);
+        var callingList = await GetCallingTicketsAsync(roomId, 5, queueType);
         var waitingList = await GetWaitingListAsync(roomId, queueType, today);
 
         return new QueueDisplayDto
@@ -758,13 +758,25 @@ public partial class ReceptionCompleteService {
         };
     }
 
-    public async Task<List<QueueTicketDto>> GetCallingTicketsAsync(Guid roomId, int limit = 5)
+    /// <summary>
+    /// Những vé đang được gọi ở một phòng.
+    /// </summary>
+    /// <param name="queueType">
+    /// Lọc theo loại hàng đợi. BỎ TRỐNG là lấy mọi loại — chỉ đúng khi người gọi thật sự muốn xem
+    /// cả phòng.
+    ///
+    /// Bảng chiếu BẮT BUỘC truyền giá trị này. Trước đây nó không truyền, nên bảng mở hàng đợi
+    /// "Khám bệnh" vẫn hiện — và đọc loa — vé của hàng đợi "Tiếp đón" cùng phòng: gọi nhầm người
+    /// không nằm trong hàng đó.
+    /// </param>
+    public async Task<List<QueueTicketDto>> GetCallingTicketsAsync(Guid roomId, int limit = 5, int? queueType = null)
     {
         var (ctFromUtc, ctToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
         var tickets = await _context.QueueTickets
             .Include(t => t.Patient)
             .Include(t => t.Room)
             .Where(t => t.RoomId == roomId && t.IssueDate >= ctFromUtc && t.IssueDate < ctToUtc && t.Status == 1)
+            .Where(t => queueType == null || t.QueueType == queueType)
             .OrderByDescending(t => t.CalledTime)
             .Take(limit)
             .ToListAsync();

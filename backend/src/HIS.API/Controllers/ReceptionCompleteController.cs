@@ -267,9 +267,10 @@ public partial class ReceptionCompleteController : ControllerBase
     /// </summary>
     [HttpGet("queue/calling/{roomId}")]
     [AllowAnonymous]
-    public async Task<ActionResult<List<QueueTicketDto>>> GetCallingTickets(Guid roomId, [FromQuery] int limit = 5)
+    public async Task<ActionResult<List<QueueTicketDto>>> GetCallingTickets(
+        Guid roomId, [FromQuery] int limit = 5, [FromQuery] int? queueType = null)
     {
-        var result = await _receptionService.GetCallingTicketsAsync(roomId, limit);
+        var result = await _receptionService.GetCallingTicketsAsync(roomId, limit, queueType);
         result?.ForEach(MaskTicketPii);
         return Ok(result);
     }
