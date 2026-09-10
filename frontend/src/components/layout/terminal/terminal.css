@@ -2382,6 +2382,20 @@ kbd {
     display: none;
   }
 
+  /* Panel rộng thả xuống từ thanh đầu neo mép PHẢI vào nút bấm, mà nút thì nằm sát rìa màn hình:
+     panel rộng hơn khoảng cách từ nút tới mép trái nên thò hẳn ra ngoài (AI worklist rộng 384px,
+     nút chỉ cách rìa phải 70px → mép trái nằm ở -42px, mất một mảng chữ). Ghim vào trong khung
+     nhìn, chừa 8px hai bên. `!important` là bắt buộc vì antd đặt `left` bằng style nội tuyến; mũi
+     tên chỉ về nút phải ẩn đi, vì panel đã không còn nằm dưới nút nữa. */
+  .his-pop-wide {
+    left: 8px !important;
+    max-width: calc(100vw - 16px);
+  }
+
+  .his-pop-wide .ant-popover-arrow {
+    display: none;
+  }
+
   .his-tb-btn.opt-hide {
     display: none;
   }

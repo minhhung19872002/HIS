@@ -55,7 +55,7 @@ export default function AiQueueBadge() {
   }, [fetchQueue]);
 
   const popoverContent = (
-    <div style={{ width: 360, maxHeight: 480, overflowY: 'auto' }}>
+    <div style={{ width: 'min(360px, calc(100vw - 40px))', maxHeight: 480, overflowY: 'auto' }}>
       {loading && items.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 16 }}><Spin /></div>
       ) : items.length === 0 ? (
@@ -104,6 +104,9 @@ export default function AiQueueBadge() {
         open={open}
         onOpenChange={(v) => { setOpen(v); if (v) fetchQueue(); }}
         placement="bottomRight"
+        // Panel neo mép PHẢI vào nút, mà nút nằm sát rìa màn hình: trên điện thoại nó thò hẳn ra
+        // ngoài mép trái. Lớp này ghim panel vào trong khung nhìn (xem `terminal.css`, ≤640px).
+        classNames={{ root: 'his-pop-wide' }}
       >
         <Badge count={count} size="small" overflowCount={99} data-testid="ai-queue-badge">
           <RobotOutlined
