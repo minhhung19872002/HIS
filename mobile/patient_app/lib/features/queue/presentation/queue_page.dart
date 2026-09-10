@@ -60,6 +60,14 @@ class _QueuePageState extends ConsumerState<QueuePage> {
           );
 
       if (!mounted) return;
+
+      // Vé vừa lấy phải xuất hiện ngay ở "Số của bạn hôm nay" — danh sách đó nằm cả ở trang chính
+      // lẫn trang này. `autoDispose` KHÔNG tự nạp lại giúp: chừng nào trang chính còn trong cây
+      // widget thì provider vẫn sống, giữ nguyên kết quả cũ. Không làm mới thì người bệnh quay ra
+      // không thấy số mình vừa lấy và tưởng là hụt, rồi bấm lấy lần nữa — mà máy chủ chặn trùng
+      // trong ngày nên lần đó chỉ nhận được thông báo lỗi, càng rối.
+      ref.invalidate(myTicketsTodayProvider);
+
       // Sang thẳng màn theo dõi số: người bệnh cần biết còn bao nhiêu người, không chỉ cần con số.
       context.pushReplacement(
         '${AppRoutes.queueTicket}/${result.ticket.id}',
