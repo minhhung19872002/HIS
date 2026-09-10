@@ -42,6 +42,13 @@ import { useWorkingDepartment } from '../../../hooks/useWorkingDepartment';
  * "Màn hình gọi số", nơi người dùng chọn được phòng và loại hàng đợi.
  */
 const QUEUE_TYPE_RECEPTION = 1;
+
+/**
+ * Hàng đợi KHÁM BỆNH — mã 2. Đây là loại mà luồng đăng ký thật cấp cho người bệnh
+ * (`RegisterFeePatientAsync` / `RegisterInsurancePatientAsync`, `QueueType = 2`), nên vé cấp bù
+ * cũng phải cùng loại thì mới nằm chung một hàng đợi.
+ */
+const QUEUE_TYPE_EXAM = 2;
 const ReceptionV2: React.FC = () => {
   const { message } = AntdApp.useApp();
 
@@ -192,8 +199,19 @@ const ReceptionV2: React.FC = () => {
     }
   };
 
-  // Mutations target the QueueTicket id. Demo/seed rows can lack a linked
-  // ticket (ticketId null) — issue one on the fly so the action still works.
+  /**
+   * Mọi thao tác trên dòng đều nhắm vào QueueTicket. Dòng seed/nhập thẳng DB có thể chưa có vé
+   * (`ticketId` null) → cấp bù tại chỗ để nút vẫn chạy.
+   *
+   * Hai giá trị dưới đây từng SAI so với quy ước của backend:
+   *
+   * - `queueType` để 1 (Tiếp đón) / 3 (Cận lâm sàng), trong khi luồng đăng ký thật cấp vé loại
+   *   2 (Khám bệnh) — xem `RegisterFeePatientAsync`/`RegisterInsurancePatientAsync`. Vé cấp bù vì
+   *   thế rơi vào hàng đợi KHÁC với vé đăng ký, và bảng gọi số (mặc định loại 2) không thấy.
+   * - `priority` bị ĐẢO: cấp cứu nhận 1, còn "ưu tiên cao" nhận 2. Backend quy ước ngược lại
+   *   (`PriorityName`: 2 = Cấp cứu, 1 = Ưu tiên), mà `CallNextAsync` xếp 2 lên trước 1 — nên người
+   *   cấp cứu bị gọi SAU người ưu tiên thường. Đây là thứ tự khám, không phải chuyện hiển thị.
+   */
   const ensureTicket = async (r: RawRow): Promise<string | null> => {
     if (r.ticketId) return r.ticketId;
     if (!r.roomId) return null;
@@ -202,12 +220,26 @@ const ReceptionV2: React.FC = () => {
         patientId: r.patientId || undefined,
         patientName: r.patientName,
         roomId: r.roomId,
-        queueType: r.isEmergency ? 3 : 1,
-        priority: r.isEmergency ? 1 : (priorityKey(r) === 'high' ? 2 : 0),
+        queueType: QUEUE_TYPE_EXAM,
+        priority: r.isEmergency ? 2 : (priorityKey(r) === 'high' ? 1 : 0),
       });
       return res.data?.id || null;
     } catch {
       return null;
+    }
+  };
+
+  /** Cấp số thứ tự cho dòng chưa có vé, KHÔNG đổi trạng thái — người bệnh vẫn đang chờ. */
+  const onIssueTicket = async (r: RawRow) => {
+    if (busy) return;
+    setBusy(r.id);
+    try {
+      const tid = await ensureTicket(r);
+      if (!tid) { message.error('Không cấp được số thứ tự (bệnh nhân chưa có phòng khám)'); return; }
+      message.success(`Đã cấp số thứ tự · ${r.patientName}`);
+      loadData();
+    } finally {
+      setBusy(null);
     }
   };
 
@@ -547,6 +579,15 @@ const ReceptionV2: React.FC = () => {
                     hidden: !(sk === 'serving' || sk === 'waitresult'),
                     disabled: rowBusy,
                     onClick: () => onComplete(r),
+                  },
+                  {
+                    // Dòng chưa có vé thì không hiện trên bảng gọi số. Cho cấp số tại chỗ mà KHÔNG
+                    // phải bấm "Bắt đầu khám" — bấm nút kia là đẩy thẳng sang đang khám, mất luôn
+                    // quãng chờ, trong khi người bệnh vẫn đang ngồi ngoài.
+                    key: 'issue', icon: 'plus', label: 'Cấp số thứ tự',
+                    hidden: !!r.ticketId || sk === 'completed',
+                    disabled: rowBusy,
+                    onClick: () => onIssueTicket(r),
                   },
                   {
                     key: 'pay', icon: 'dollar', label: 'Thu phí',
