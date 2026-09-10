@@ -26,8 +26,8 @@ public partial class BusinessAlertService
             if (age >= fallRiskAge)
             {
                 alerts.Add(CreateAlert("IPD-11", "Inpatient", age >= fallRiskCriticalAge ? 1 : 2, "Inpatient",
-                    "Nguy co nga",
-                    $"BN {age} tuoi - nguy co nga cao. Can danh gia va ap dung bien phap phong nga.",
+                    "Nguy cơ ngã",
+                    $"BN {age} tuổi - nguy cơ ngã cao. Cần đánh giá và áp dụng biện pháp phòng ngã.",
                     patientId, null, null));
             }
         }
@@ -54,8 +54,8 @@ public partial class BusinessAlertService
             if (age >= AlertInt("Inpatient:PressureUlcerAge", 70) && daysAdmitted >= AlertInt("Inpatient:PressureUlcerDays", 3))
             {
                 alerts.Add(CreateAlert("IPD-12", "Inpatient", 2, "Inpatient",
-                    "Nguy co loet ti de",
-                    $"BN {age} tuoi, nam vien {daysAdmitted} ngay. Danh gia Braden Scale va thay doi tu the thuong xuyen.",
+                    "Nguy cơ loét tì đè",
+                    $"BN {age} tuổi, nằm viện {daysAdmitted} ngày. Đánh giá Braden Scale và thay đổi tư thế thường xuyên.",
                     patientId, null, admissionId));
             }
         }
@@ -78,8 +78,8 @@ public partial class BusinessAlertService
             {
                 var isHigh = screening.RiskLevel == "High";
                 alerts.Add(CreateAlert("IPD-13", "Inpatient", isHigh ? 1 : 2, "Inpatient",
-                    "Nguy co suy dinh duong",
-                    $"Ket qua sang loc dinh duong: nguy co {(isHigh ? "CAO" : "TRUNG BINH")}. Can hoi chan dinh duong.",
+                    "Nguy cơ suy dinh dưỡng",
+                    $"Kết quả sàng lọc dinh dưỡng: nguy cơ {(isHigh ? "CAO" : "TRUNG BÌNH")}. Cần hội chẩn dinh dưỡng.",
                     patientId, null, null));
             }
         }
@@ -104,8 +104,8 @@ public partial class BusinessAlertService
             if (daysAdmitted >= haiRiskDays)
             {
                 alerts.Add(CreateAlert("IPD-14", "Inpatient", daysAdmitted >= haiRiskCriticalDays ? 2 : 3, "Inpatient",
-                    "Nguy co nhiem khuan benh vien",
-                    $"BN nam vien {daysAdmitted} ngay - nguy co NKBV tang. Kiem tra cac thiet bi xam lan (catheter, ong NKQ, CVP).",
+                    "Nguy cơ nhiễm khuẩn bệnh viện",
+                    $"BN nằm viện {daysAdmitted} ngày - nguy cơ NKBV tăng. Kiểm tra các thiết bị xâm lấn (catheter, ống NKQ, CVP).",
                     patientId, null, admissionId));
             }
         }
@@ -128,8 +128,8 @@ public partial class BusinessAlertService
             if (daysAdmitted > AlertInt("Inpatient:ExtendedStayDays", 21))
             {
                 alerts.Add(CreateAlert("IPD-15", "Inpatient", 2, "Inpatient",
-                    "Thoi gian nam vien dai",
-                    $"BN da nam vien {daysAdmitted} ngay (>21 ngay). Can danh gia lai ke hoach dieu tri va xem xet xuat vien.",
+                    "Thời gian nằm viện dài",
+                    $"BN đã nằm viện {daysAdmitted} ngày (>21 ngày). Cần đánh giá lại kế hoạch điều trị và xem xét xuất viện.",
                     patientId, null, admissionId));
             }
         }
@@ -157,8 +157,8 @@ public partial class BusinessAlertService
             {
                 var hoursOverdue = (DateTime.UtcNow - order.CreatedAt).TotalHours;
                 alerts.Add(CreateAlert("IPD-16", "Inpatient", hoursOverdue > pendingCriticalHours ? 1 : 2, "Inpatient",
-                    "Y lenh chua thuc hien",
-                    $"Y lenh tao luc {order.CreatedAt:HH:mm dd/MM} chua duoc thuc hien ({hoursOverdue:F0} gio). Can xu ly ngay.",
+                    "Y lệnh chưa thực hiện",
+                    $"Y lệnh tạo lúc {order.CreatedAt:HH:mm dd/MM} chưa được thực hiện ({hoursOverdue:F0} giờ). Cần xử lý ngay.",
                     patientId, null, admissionId));
             }
         }
@@ -187,8 +187,8 @@ public partial class BusinessAlertService
             {
                 var hoursOverdue = (DateTime.UtcNow - rx.CreatedAt).TotalHours;
                 alerts.Add(CreateAlert("IPD-17", "Inpatient", hoursOverdue > undispensedCriticalHours ? 1 : 2, "Pharmacy",
-                    "Thuoc chua phat",
-                    $"Don thuoc tao luc {rx.CreatedAt:HH:mm dd/MM} chua duoc cap phat ({hoursOverdue:F0} gio).",
+                    "Thuốc chưa phát",
+                    $"Đơn thuốc tạo lúc {rx.CreatedAt:HH:mm dd/MM} chưa được cấp phát ({hoursOverdue:F0} giờ).",
                     patientId, null, admissionId));
             }
         }
@@ -222,8 +222,8 @@ public partial class BusinessAlertService
             if (!hasConsultation && daysAdmitted >= criticalNoConsultDays)
             {
                 alerts.Add(CreateAlert("IPD-18", "Inpatient", 2, "Inpatient",
-                    "BN nang chua hoi chan",
-                    $"BN nam vien {daysAdmitted} ngay chua co hoi chan trong 48h qua. Can xem xet hoi chan.",
+                    "BN nặng chưa hội chẩn",
+                    $"BN nằm viện {daysAdmitted} ngày chưa có hội chẩn trong 48h qua. Cần xem xét hội chẩn.",
                     patientId, null, admissionId));
             }
         }
@@ -258,7 +258,7 @@ public partial class BusinessAlertService
                     {
                         alerts.Add(CreateAlert("IPD-19", "Inpatient", 3, "Inpatient",
                             "Truyen dich sap het",
-                            $"Y lenh truyen dich luc {sheet.CreatedAt:HH:mm} co the sap ket thuc. Kiem tra va thay chai dich.",
+                            $"Y lệnh truyền dịch lúc {sheet.CreatedAt:HH:mm} có thể sắp kết thúc. Kiểm tra và thay chai dịch.",
                             patientId, null, admissionId));
                     }
                 }
@@ -290,8 +290,8 @@ public partial class BusinessAlertService
             foreach (var c in positiveCultures)
             {
                 alerts.Add(CreateAlert("IPD-20", "Inpatient", 1, "Lab",
-                    "Cay mau duong tinh",
-                    $"Ket qua cay mau DUONG TINH ({c.ServiceName}). {c.Result}. XU TRI NGAY.",
+                    "Cấy máu dương tính",
+                    $"Kết quả cấy máu DƯƠNG TÍNH ({c.ServiceName}). {c.Result}. XỬ TRÍ NGAY.",
                     patientId, null, null));
             }
         }
@@ -343,8 +343,8 @@ public partial class BusinessAlertService
             {
                 var riskLevel = total >= news2Critical ? "NGUY KICH" : "CAO";
                 alerts.Add(CreateAlert("IPD-21", "Inpatient", total >= news2Critical ? 1 : 2, "Inpatient",
-                    "Diem canh bao som NEWS2",
-                    $"NEWS2 = {total} ({riskLevel}). " + (total >= news2Critical ? "GOI DOI CAP CUU NGAY. Theo doi lien tuc." : "BAO BAC SI NGAY. Theo doi moi 30 phut."),
+                    "Điểm cảnh báo sớm NEWS2",
+                    $"NEWS2 = {total} ({riskLevel}). " + (total >= news2Critical ? "GỌI ĐỘI CẤP CỨU NGAY. Theo dõi liên tục." : "BÁO BÁC SĨ NGAY. Theo dõi mỗi 30 phút."),
                     patientId, null, admissionId));
             }
         }
@@ -371,8 +371,8 @@ public partial class BusinessAlertService
                 if (daysPending >= 1)
                 {
                     alerts.Add(CreateAlert("IPD-22", "Inpatient", 3, "Inpatient",
-                        "BN can xuat vien",
-                        $"Lenh xuat vien da tao {daysPending} ngay truoc nhung chua hoan tat. Kiem tra thu tuc xuat vien.",
+                        "BN cần xuất viện",
+                        $"Lệnh xuất viện đã tạo {daysPending} ngày trước nhưng chưa hoàn tất. Kiểm tra thủ tục xuất viện.",
                         patientId, null, admissionId));
                 }
             }
@@ -448,15 +448,15 @@ public partial class BusinessAlertService
                 if (daysUntilExpiry <= AlertInt("Inpatient:InsuranceExpiryWarnDays", 7) && daysUntilExpiry >= 0)
                 {
                     alerts.Add(CreateAlert("IPD-24", "Inpatient", 2, "Insurance",
-                        "Bao hiem sap het han",
-                        $"The BHYT het han sau {daysUntilExpiry} ngay ({insurance.EndDate.Value:dd/MM/yyyy}). Can thong bao BN gia han.",
+                        "Bảo hiểm sắp hết hạn",
+                        $"Thẻ BHYT hết hạn sau {daysUntilExpiry} ngày ({insurance.EndDate.Value:dd/MM/yyyy}). Cần thông báo BN gia hạn.",
                         patientId, null, null));
                 }
                 else if (daysUntilExpiry < 0)
                 {
                     alerts.Add(CreateAlert("IPD-24", "Inpatient", 1, "Insurance",
-                        "Bao hiem da het han",
-                        $"The BHYT da het han ngay {insurance.EndDate.Value:dd/MM/yyyy}. BN can gia han hoac chuyen doi tuong thanh toan.",
+                        "Bảo hiểm đã hết hạn",
+                        $"Thẻ BHYT đã hết hạn ngày {insurance.EndDate.Value:dd/MM/yyyy}. BN cần gia hạn hoặc chuyển đối tượng thanh toán.",
                         patientId, null, null));
                 }
             }
@@ -478,8 +478,8 @@ public partial class BusinessAlertService
             if (age >= 15 && age <= 49)
             {
                 alerts.Add(CreateAlert("RAD-25", "Radiology", 1, "Radiology",
-                    "Phu nu trong do tuoi mang thai",
-                    $"BN nu {age} tuoi (15-49). Can xac nhan KHONG mang thai truoc khi chup X-quang/CT. Hoi ky kinh cuoi.",
+                    "Phụ nữ trong độ tuổi mang thai",
+                    $"BN nữ {age} tuổi (15-49). Cần xác nhận KHÔNG mang thai trước khi chụp X-quang/CT. Hỏi kỳ kinh cuối.",
                     patientId, null, null));
             }
         }
@@ -503,8 +503,8 @@ public partial class BusinessAlertService
             if (contrastAllergy != null)
             {
                 alerts.Add(CreateAlert("RAD-26", "Radiology", 1, "Radiology",
-                    "Di ung thuoc can quang",
-                    $"BN co tien su di ung thuoc can quang: {contrastAllergy.AllergenName}. Phan ung: {contrastAllergy.Reaction ?? "N/A"}. KHONG SU DUNG thuoc can quang hoac can tien me phong ngua.",
+                    "Dị ứng thuốc cản quang",
+                    $"BN có tiền sử dị ứng thuốc cản quang: {contrastAllergy.AllergenName}. Phản ứng: {contrastAllergy.Reaction ?? "N/A"}. KHÔNG SỬ DỤNG thuốc cản quang hoặc cần tiền mê phòng ngừa.",
                     patientId, null, null));
             }
         }
@@ -529,7 +529,7 @@ public partial class BusinessAlertService
             {
                 alerts.Add(CreateAlert("RAD-27", "Radiology", examCount >= 20 ? 1 : 2, "Radiology",
                     "Lieu buc xa tich luy",
-                    $"BN da co {examCount} lan chup CDHA trong 12 thang qua. Can danh gia lieu buc xa tich luy va can nhac phuong phap thay the (sieu am, MRI).",
+                    $"BN đã có {examCount} lần chụp CĐHA trong 12 tháng qua. Cần đánh giá liều bức xạ tích luỹ và cân nhắc phương pháp thay thế (siêu âm, MRI).",
                     patientId, null, null));
             }
         }
@@ -557,8 +557,8 @@ public partial class BusinessAlertService
             foreach (var report in criticalReports)
             {
                 alerts.Add(CreateAlert("RAD-28", "Radiology", 1, "Radiology",
-                    "Ket qua CDHA nguy hiem",
-                    $"Ket qua CDHA khan: {report.Impression ?? "Phat hien bat thuong nghiem trong"}. Can xu tri ngay.",
+                    "Kết quả CĐHA nguy hiểm",
+                    $"Kết quả CĐHA khẩn: {report.Impression ?? "Phát hiện bất thường nghiêm trọng"}. Cần xử trí ngay.",
                     patientId, null, null));
             }
         }

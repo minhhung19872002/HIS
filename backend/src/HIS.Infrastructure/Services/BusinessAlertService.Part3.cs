@@ -30,8 +30,8 @@ public partial class BusinessAlertService
             foreach (var r in criticalRows)
             {
                 alerts.Add(CreateAlert("LAB-29", "Lab", 1, "Lab",
-                    "Gia tri nguy hiem",
-                    $"XN {r.ParameterName}: ket qua {r.Value ?? "N/A"} (GTBT: {r.ReferenceRange ?? "N/A"}). GIA TRI NGUY KICH - THONG BAO BS NGAY.",
+                    "Giá trị nguy hiểm",
+                    $"XN {r.ParameterName}: kết quả {r.Value ?? "N/A"} (GTBT: {r.ReferenceRange ?? "N/A"}). GIÁ TRỊ NGUY KỊCH - THÔNG BÁO BS NGAY.",
                     patientId, null, null));
             }
         }
@@ -61,7 +61,7 @@ public partial class BusinessAlertService
             {
                 alerts.Add(CreateAlert("LAB-30", "Lab", 2, "Lab",
                     "Mau bi tu choi",
-                    $"Mau XN {item.Service?.ServiceName ?? "N/A"} bi tu choi: {item.RejectReason ?? "Van de chat luong mau"}. Can lay mau lai.",
+                    $"Mẫu XN {item.Service?.ServiceName ?? "N/A"} bị từ chối: {item.RejectReason ?? "Vấn đề chất lượng mẫu"}. Cần lấy mẫu lại.",
                     patientId, null, null));
             }
         }
@@ -134,9 +134,9 @@ public partial class BusinessAlertService
                         foreach (var epGrp in byEpisode)
                         {
                             alerts.Add(CreateAlert("LAB-31", "Lab", 2, "Lab",
-                                "Xet nghiem trung lap (1 lan/dot)",
-                                $"XN {serviceName} da duoc chi dinh {epGrp.Count()} lan trong cung 1 dot dieu tri. " +
-                                "Cau hinh: 1 lan/dot. Kiem tra co trung khong.",
+                                "Xét nghiệm trùng lặp (1 lần/đợt)",
+                                $"XN {serviceName} đã được chỉ định {epGrp.Count()} lần trong cùng 1 đợt điều trị. " +
+                                "Cấu hình: 1 lần/đợt. Kiểm tra có trùng không.",
                                 patientId, null, null));
                         }
                     }
@@ -149,9 +149,9 @@ public partial class BusinessAlertService
                         if (countInWindow > 1)
                         {
                             alerts.Add(CreateAlert("LAB-31", "Lab", 2, "Lab",
-                                "Xet nghiem trung lap",
-                                $"XN {serviceName} da duoc chi dinh {countInWindow} lan trong {windowDays} ngay. " +
-                                $"Cau hinh: khong lap trong {windowDays} ngay. Kiem tra co trung khong.",
+                                "Xét nghiệm trùng lặp",
+                                $"XN {serviceName} đã được chỉ định {countInWindow} lần trong {windowDays} ngày. " +
+                                $"Cấu hình: không lặp trong {windowDays} ngày. Kiểm tra có trùng không.",
                                 patientId, null, null));
                         }
                     }
@@ -164,8 +164,8 @@ public partial class BusinessAlertService
                     if (countInWindow > 1)
                     {
                         alerts.Add(CreateAlert("LAB-31", "Lab", 2, "Lab",
-                            "Xet nghiem trung lap",
-                            $"XN {serviceName} da duoc chi dinh {countInWindow} lan trong 24h. Kiem tra co trung hay khong.",
+                            "Xét nghiệm trùng lặp",
+                            $"XN {serviceName} đã được chỉ định {countInWindow} lần trong 24h. Kiểm tra có trùng hay không.",
                             patientId, null, null));
                     }
                 }
@@ -190,7 +190,7 @@ public partial class BusinessAlertService
             {
                 alerts.Add(CreateAlert("PHAR-32", "Pharmacy", item.CurrentQuantity <= 0 ? 1 : 2, "Pharmacy",
                     "Ton kho thap",
-                    $"Thuoc/VT (ID: {item.MedicineId}): ton kho {item.CurrentQuantity} < nguong toi thieu {item.MinimumQuantity}. Can dat hang bo sung.",
+                    $"Thuốc/VT (ID: {item.MedicineId}): tồn kho {item.CurrentQuantity} < ngưỡng tối thiểu {item.MinimumQuantity}. Cần đặt hàng bổ sung.",
                     null, null, null));
             }
         }
@@ -220,9 +220,9 @@ public partial class BusinessAlertService
             if (totalInsurance >= annualCeiling * 0.8m)
             {
                 alerts.Add(CreateAlert("BILL-33", "Billing", totalInsurance >= annualCeiling ? 1 : 2, "Billing",
-                    "Vuot tran BHXH",
-                    $"Tong chi phi BHYT trong nam: {totalInsurance:N0} VND ({totalInsurance / annualCeiling * 100:F0}% tran). " +
-                    (totalInsurance >= annualCeiling ? "DA VUOT TRAN - phan vuot BN tu tra." : "SAP DEN TRAN - can thong bao BN."),
+                    "Vượt trần BHXH",
+                    $"Tổng chi phí BHYT trong năm: {totalInsurance:N0} VND ({totalInsurance / annualCeiling * 100:F0}% trần). " +
+                    (totalInsurance >= annualCeiling ? "ĐÃ VƯỢT TRẦN - phần vượt BN tự trả." : "SẮP ĐẾN TRẦN - cần thông báo BN."),
                     patientId, null, null));
             }
         }
@@ -251,8 +251,8 @@ public partial class BusinessAlertService
                 var maxDaysOverdue = unpaidServices.Max(r => (DateTime.UtcNow - r.CreatedAt).Days);
 
                 alerts.Add(CreateAlert("BILL-34", "Billing", maxDaysOverdue > 7 ? 1 : 2, "Billing",
-                    "Chua thanh toan",
-                    $"BN con no {totalUnpaid:N0} VND tu dich vu chua thanh toan, qua han {maxDaysOverdue} ngay. Can nhac nho thanh toan.",
+                    "Chưa thanh toán",
+                    $"BN còn nợ {totalUnpaid:N0} VND từ dịch vụ chưa thanh toán, quá hạn {maxDaysOverdue} ngày. Cần nhắc nhở thanh toán.",
                     patientId, null, null));
             }
         }
@@ -278,8 +278,8 @@ public partial class BusinessAlertService
                 if (!string.Equals(patient.BloodType, requestedBloodType, StringComparison.OrdinalIgnoreCase))
                 {
                     alerts.Add(CreateAlert("BLOOD-35", "BloodBank", 1, "BloodBank",
-                        "Khac nhom mau benh nhan",
-                        $"BN nhom mau {patient.BloodType}{(patient.RhFactor != null ? $" {patient.RhFactor}" : "")} — yeu cau nhom {requestedBloodType}{(requestedRhFactor != null ? $" {requestedRhFactor}" : "")}. XAC NHAN truoc khi thuc hien.",
+                        "Khác nhóm máu bệnh nhân",
+                        $"BN nhóm máu {patient.BloodType}{(patient.RhFactor != null ? $" {patient.RhFactor}" : "")} — yêu cầu nhóm {requestedBloodType}{(requestedRhFactor != null ? $" {requestedRhFactor}" : "")}. XÁC NHẬN trước khi thực hiện.",
                         patientId, null, null));
                 }
 
@@ -287,16 +287,16 @@ public partial class BusinessAlertService
                     && !string.Equals(patient.RhFactor, requestedRhFactor, StringComparison.OrdinalIgnoreCase))
                 {
                     alerts.Add(CreateAlert("BLOOD-35", "BloodBank", 1, "BloodBank",
-                        "Khac Rh benh nhan",
-                        $"BN Rh {patient.RhFactor} — yeu cau Rh {requestedRhFactor}. NGUY HIEM neu truyen khac Rh.",
+                        "Khác Rh bệnh nhân",
+                        $"BN Rh {patient.RhFactor} — yêu cầu Rh {requestedRhFactor}. NGUY HIỂM nếu truyền khác Rh.",
                         patientId, null, null));
                 }
             }
             else if (string.IsNullOrEmpty(patient.BloodType))
             {
                 alerts.Add(CreateAlert("BLOOD-35", "BloodBank", 2, "BloodBank",
-                    "Chua co nhom mau benh nhan",
-                    "BN chua co thong tin nhom mau trong ho so. Can xet nghiem nhom mau truoc khi truyen.",
+                    "Chưa có nhóm máu bệnh nhân",
+                    "BN chưa có thông tin nhóm máu trong hồ sơ. Cần xét nghiệm nhóm máu trước khi truyền.",
                     patientId, null, null));
             }
         }
@@ -326,8 +326,8 @@ public partial class BusinessAlertService
             if (totalAfterOrder > bhytDailyLimit)
             {
                 alerts.Add(CreateAlert("BHYT-36", "BHYT", totalAfterOrder > bhytDailyLimit + 5 ? 1 : 2, "OPD",
-                    "Vuot gioi han CLS BHYT/ngay",
-                    $"BN BHYT da co {todayClsCount} CLS hom nay, them {newOrderCount} = {totalAfterOrder} (gioi han {bhytDailyLimit}/ngay). BHXH co the tu choi thanh toan phan vuot.",
+                    "Vượt giới hạn CLS BHYT/ngày",
+                    $"BN BHYT đã có {todayClsCount} CLS hôm nay, thêm {newOrderCount} = {totalAfterOrder} (giới hạn {bhytDailyLimit}/ngày). BHXH có thể từ chối thanh toán phần vượt.",
                     patientId, null, null));
             }
         }
@@ -352,8 +352,8 @@ public partial class BusinessAlertService
             if (icdMap == null)
             {
                 alerts.Add(CreateAlert("BHYT-37", "BHYT", 2, "OPD",
-                    "Ma ICD khong trong danh muc BHYT",
-                    $"Ma benh {icdCode} khong nam trong danh muc BHYT duoc chi tra. BN phai tu chi tra.",
+                    "Mã ICD không trong danh mục BHYT",
+                    $"Mã bệnh {icdCode} không nằm trong danh mục BHYT được chi trả. BN phải tự chi trả.",
                     patientId, null, null));
                 return BuildResult(alerts);
             }
@@ -368,8 +368,8 @@ public partial class BusinessAlertService
                 if (med.InsurancePaymentRate <= 0)
                 {
                     alerts.Add(CreateAlert("BHYT-37", "BHYT", 2, "OPD",
-                        "Thuoc ngoai phac do BHYT",
-                        $"Thuoc {med.MedicineName} khong thuoc danh muc BHYT cho ma ICD {icdCode}. BN tu chi tra.",
+                        "Thuốc ngoài phác đồ BHYT",
+                        $"Thuốc {med.MedicineName} không thuộc danh mục BHYT cho mã ICD {icdCode}. BN tự chi trả.",
                         patientId, null, null));
                 }
             }
@@ -401,8 +401,8 @@ public partial class BusinessAlertService
             {
                 var rxList = string.Join(", ", unfilledRx.Select(r => $"{r.PrescriptionCode} ({r.PrescriptionDate:dd/MM})"));
                 alerts.Add(CreateAlert("REG-38", "Registration", unfilledRx.Count >= 3 ? 1 : 2, "Reception",
-                    "Don thuoc chua linh",
-                    $"BN co {unfilledRx.Count} don thuoc chua linh trong 30 ngay: {rxList}. Nhac BN linh thuoc cu truoc khi kham moi.",
+                    "Đơn thuốc chưa lĩnh",
+                    $"BN có {unfilledRx.Count} đơn thuốc chưa lĩnh trong 30 ngày: {rxList}. Nhắc BN lĩnh thuốc cũ trước khi khám mới.",
                     patientId, null, null));
             }
         }
@@ -636,8 +636,8 @@ public partial class BusinessAlertService
             {
                 alerts.Add(CreateAlert(
                     "OPD-40", "OPD", 2, "OPD",
-                    "Qua tai luot kham BS",
-                    $"Bac si da kham {doctorCount} luot trong ngay {localDate:dd/MM/yyyy} (nguong: {threshold}). De nghi dieu phoi them phong hoac gio lam viec.",
+                    "Quá tải lượt khám BS",
+                    $"Bác sĩ đã khám {doctorCount} lượt trong ngày {localDate:dd/MM/yyyy} (ngưỡng: {threshold}). Đề nghị điều phối thêm phòng hoặc giờ làm việc.",
                     null, null, null));
             }
         }
@@ -655,8 +655,8 @@ public partial class BusinessAlertService
             {
                 alerts.Add(CreateAlert(
                     "OPD-40", "OPD", 2, "OPD",
-                    "Qua tai luot kham phong",
-                    $"Phong kham da tiep nhan {roomCount} luot trong ngay {localDate:dd/MM/yyyy} (nguong: {threshold}). De nghi mo them phong hoac phan luong.",
+                    "Quá tải lượt khám phòng",
+                    $"Phòng khám đã tiếp nhận {roomCount} lượt trong ngày {localDate:dd/MM/yyyy} (ngưỡng: {threshold}). Đề nghị mở thêm phòng hoặc phân luồng.",
                     null, null, null));
             }
         }

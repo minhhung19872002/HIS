@@ -407,8 +407,8 @@ public partial class BusinessAlertService : IBusinessAlertService
                     if (!string.IsNullOrEmpty(allergen) && medicineName.Contains(allergen))
                     {
                         alerts.Add(CreateAlert("OPD-01", "OPD", 1, "OPD",
-                            "Di ung thuoc",
-                            $"BN co tien su di ung voi {allergy.AllergenName}. Don thuoc hien tai chua {rx.Medicine?.MedicineName}. Phan ung: {allergy.Reaction ?? "N/A"}",
+                            "Dị ứng thuốc",
+                            $"BN có tiền sử dị ứng với {allergy.AllergenName}. Đơn thuốc hiện tại chứa {rx.Medicine?.MedicineName}. Phản ứng: {allergy.Reaction ?? "N/A"}",
                             patientId, examinationId, null));
                     }
                 }
@@ -417,8 +417,8 @@ public partial class BusinessAlertService : IBusinessAlertService
                 if (allergy.Severity >= 3 && !recentPrescriptions.Any())
                 {
                     alerts.Add(CreateAlert("OPD-01", "OPD", 1, "OPD",
-                        "Di ung thuoc nghiem trong",
-                        $"BN co tien su di ung nghiem trong voi {allergy.AllergenName}. Can kiem tra ky truoc khi ke don.",
+                        "Dị ứng thuốc nghiêm trọng",
+                        $"BN có tiền sử dị ứng nghiêm trọng với {allergy.AllergenName}. Cần kiểm tra kỹ trước khi kê đơn.",
                         patientId, examinationId, null));
                 }
             }
@@ -454,8 +454,8 @@ public partial class BusinessAlertService : IBusinessAlertService
             foreach (var interaction in interactions)
             {
                 alerts.Add(CreateAlert("OPD-02", "OPD", interaction.Severity >= 3 ? 1 : 2, "OPD",
-                    "Tuong tac thuoc",
-                    $"Tuong tac giua {interaction.Medicine1?.MedicineName ?? "N/A"} va {interaction.Medicine2?.MedicineName ?? "N/A"}: {interaction.Description ?? "Co tuong tac"}",
+                    "Tương tác thuốc",
+                    $"Tương tác giữa {interaction.Medicine1?.MedicineName ?? "N/A"} và {interaction.Medicine2?.MedicineName ?? "N/A"}: {interaction.Description ?? "Có tương tác"}",
                     patientId, examinationId, null));
             }
         }
@@ -477,8 +477,8 @@ public partial class BusinessAlertService : IBusinessAlertService
             foreach (var ci in contraindications)
             {
                 alerts.Add(CreateAlert("OPD-03", "OPD", 2, "OPD",
-                    "Chong chi dinh",
-                    $"BN co chong chi dinh voi {ci.ItemName}: {ci.Reason ?? "Khong ro ly do"}",
+                    "Chống chỉ định",
+                    $"BN có chống chỉ định với {ci.ItemName}: {ci.Reason ?? "Không rõ lý do"}",
                     patientId, null, null));
             }
         }
@@ -510,8 +510,8 @@ public partial class BusinessAlertService : IBusinessAlertService
             foreach (var dup in duplicates)
             {
                 alerts.Add(CreateAlert("OPD-04", "OPD", 2, "OPD",
-                    "Trung don thuoc",
-                    $"Thuoc {dup.Name} da duoc ke {dup.Count} lan trong 7 ngay qua. Kiem tra trung don.",
+                    "Trùng đơn thuốc",
+                    $"Thuốc {dup.Name} đã được kê {dup.Count} lần trong 7 ngày qua. Kiểm tra trùng đơn.",
                     patientId, null, null));
             }
         }
@@ -544,8 +544,8 @@ public partial class BusinessAlertService : IBusinessAlertService
                 if (rx.Quantity > expectedTotal * 1.5m && rx.Quantity > 10)
                 {
                     alerts.Add(CreateAlert("OPD-05", "OPD", 1, "OPD",
-                        "Lieu qua cao",
-                        $"Thuoc {rx.Medicine?.MedicineName ?? "N/A"}: so luong ke {rx.Quantity} {rx.Unit ?? ""} cho {rx.Days} ngay (lieu tinh: {dailyDose}/ngay x {rx.Days} ngay = {expectedTotal}). Kiem tra lai.",
+                        "Liều quá cao",
+                        $"Thuốc {rx.Medicine?.MedicineName ?? "N/A"}: số lượng kê {rx.Quantity} {rx.Unit ?? ""} cho {rx.Days} ngày (liều tính: {dailyDose}/ngày x {rx.Days} ngày = {expectedTotal}). Kiểm tra lại.",
                         patientId, examinationId, null));
                 }
             }
@@ -578,8 +578,8 @@ public partial class BusinessAlertService : IBusinessAlertService
                 if (rx.Quantity < expectedTotal * 0.5m && rx.Quantity > 0)
                 {
                     alerts.Add(CreateAlert("OPD-06", "OPD", 3, "OPD",
-                        "Lieu qua thap",
-                        $"Thuoc {rx.Medicine?.MedicineName ?? "N/A"}: so luong ke {rx.Quantity} {rx.Unit ?? ""} cho {rx.Days} ngay (lieu tinh: {dailyDose}/ngay x {rx.Days} ngay = {expectedTotal}). Co the khong du lieu.",
+                        "Liều quá thấp",
+                        $"Thuốc {rx.Medicine?.MedicineName ?? "N/A"}: số lượng kê {rx.Quantity} {rx.Unit ?? ""} cho {rx.Days} ngày (liều tính: {dailyDose}/ngày x {rx.Days} ngày = {expectedTotal}). Có thể không đủ liều.",
                         patientId, examinationId, null));
                 }
             }
@@ -602,8 +602,8 @@ public partial class BusinessAlertService : IBusinessAlertService
             foreach (var item in expired)
             {
                 alerts.Add(CreateAlert("OPD-07", "OPD", 1, "Pharmacy",
-                    "Thuoc het han trong kho",
-                    $"Lo {item.BatchNumber} (SL: {item.Quantity}) da het han ngay {item.ExpiryDate:dd/MM/yyyy}. Khong duoc cap phat.",
+                    "Thuốc hết hạn trong kho",
+                    $"Lô {item.BatchNumber} (SL: {item.Quantity}) đã hết hạn ngày {item.ExpiryDate:dd/MM/yyyy}. Không được cấp phát.",
                     null, null, null));
             }
         }
@@ -629,8 +629,8 @@ public partial class BusinessAlertService : IBusinessAlertService
             {
                 var daysOverdue = (DateTime.UtcNow - apt.AppointmentDate).Days;
                 alerts.Add(CreateAlert("OPD-08", "OPD", daysOverdue > 30 ? 2 : 3, "OPD",
-                    "Qua hen tai kham",
-                    $"BN qua hen tai kham {daysOverdue} ngay (hen ngay {apt.AppointmentDate:dd/MM/yyyy}). Can lien he benh nhan.",
+                    "Quá hẹn tái khám",
+                    $"BN quá hẹn tái khám {daysOverdue} ngày (hẹn ngày {apt.AppointmentDate:dd/MM/yyyy}). Cần liên hệ bệnh nhân.",
                     patientId, null, null));
             }
         }
@@ -659,9 +659,9 @@ public partial class BusinessAlertService : IBusinessAlertService
             {
                 var isCritical = r.Flag == "HH" || r.Flag == "LL";
                 alerts.Add(CreateAlert("OPD-09", "OPD", isCritical ? 1 : 2, "Lab",
-                    "Ket qua xet nghiem bat thuong",
-                    $"XN {r.ParameterName}: ket qua {r.Value ?? "N/A"} (GTBT: {r.ReferenceRange ?? "N/A"})" +
-                    (isCritical ? " - GIA TRI NGUY KICH" : ""),
+                    "Kết quả xét nghiệm bất thường",
+                    $"XN {r.ParameterName}: kết quả {r.Value ?? "N/A"} (GTBT: {r.ReferenceRange ?? "N/A"})" +
+                    (isCritical ? " - GIÁ TRỊ NGUY KỊCH" : ""),
                     patientId, null, null));
             }
         }
@@ -703,19 +703,19 @@ public partial class BusinessAlertService : IBusinessAlertService
             if (exam.BloodPressureSystolic.HasValue && exam.BloodPressureSystolic < sbpLow)
                 alerts.Add(CreateAlert("OPD-10", "OPD", 1, "OPD",
                     "Sinh hieu bat thuong - Ha huyet ap",
-                    $"HA: {exam.BloodPressureSystolic}/{exam.BloodPressureDiastolic} mmHg - CAN XU TRI CAP CUU",
+                    $"HA: {exam.BloodPressureSystolic}/{exam.BloodPressureDiastolic} mmHg - CẦN XỬ TRÍ CẤP CỨU",
                     patientId, examinationId, null));
 
             if (exam.SpO2.HasValue && exam.SpO2 < spo2Warn)
                 alerts.Add(CreateAlert("OPD-10", "OPD", exam.SpO2 < spo2Crit ? 1 : 2, "OPD",
                     "Sinh hieu bat thuong - SpO2 thap",
-                    $"SpO2: {exam.SpO2}%" + (exam.SpO2 < spo2Crit ? " - CAN THO OXY NGAY" : ""),
+                    $"SpO2: {exam.SpO2}%" + (exam.SpO2 < spo2Crit ? " - CẦN THỞ OXY NGAY" : ""),
                     patientId, examinationId, null));
 
             if (exam.Pulse.HasValue && (exam.Pulse > pulseHigh || exam.Pulse < pulseLow))
                 alerts.Add(CreateAlert("OPD-10", "OPD", 1, "OPD",
                     "Sinh hieu bat thuong - Nhip tim",
-                    $"Mach: {exam.Pulse} lan/phut" + (exam.Pulse > pulseHigh ? " - NHIP TIM RAT NHANH" : " - NHIP TIM RAT CHAM"),
+                    $"Mạch: {exam.Pulse} lần/phút" + (exam.Pulse > pulseHigh ? " - NHỊP TIM RẤT NHANH" : " - NHỊP TIM RẤT CHẬM"),
                     patientId, examinationId, null));
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Rule OPD-10 error"); }
