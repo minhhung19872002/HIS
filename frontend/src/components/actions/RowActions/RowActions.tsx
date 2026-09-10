@@ -143,8 +143,12 @@ export const RowActions: React.FC<{ actions: RowAction[]; max?: number }> = ({ a
   const visible = actions.filter((a) => !a.hidden);
   if (visible.length === 0) return null;
 
+  // `.ab-iconbtn` là display:grid (block-level) nên nút anh em TỰ XẾP DỌC nếu không có
+  // container flex. Trước đây mỗi trang phải tự bọc `.ab-actions`, và 21/22 trang quên bọc
+  // -> cột Hành động xếp chồng 3 nút theo chiều dọc, kéo cao hẳn dòng. Component tự bọc
+  // để không trang nào phải nhớ nữa (trang đã bọc sẵn thì lồng thêm 1 lớp cũng vô hại).
   if (visible.length <= max) {
-    return <>{visible.map((a) => <IconBtn key={a.key} action={a} />)}</>;
+    return <span className="ab-actions">{visible.map((a) => <IconBtn key={a.key} action={a} />)}</span>;
   }
 
   // ≥3: chọn tối đa `max` action trực tiếp — primary trước, rồi theo thứ tự mảng; danger không trực tiếp
@@ -156,9 +160,9 @@ export const RowActions: React.FC<{ actions: RowAction[]; max?: number }> = ({ a
   const rest = visible.filter((a) => !direct.includes(a));
 
   return (
-    <>
+    <span className="ab-actions">
       {direct.map((a) => <IconBtn key={a.key} action={a} />)}
       <MoreMenu items={rest} />
-    </>
+    </span>
   );
 };
