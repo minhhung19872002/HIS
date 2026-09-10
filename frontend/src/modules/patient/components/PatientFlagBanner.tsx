@@ -117,11 +117,72 @@ export default function PatientFlagBanner({ patientId, patientName, compact, onC
     : mostSevere?.color === 'volcano' || mostSevere?.color === 'gold' ? 'warning'
     : 'info';
 
+  // Modal phải dùng chung cho CẢ HAI nhánh render bên dưới.
+  //
+  // ⚠️ Trước đây khi bệnh nhân CHƯA có cảnh báo nào, component return SỚM và chỉ trả về mỗi
+  // nút "+ Thêm cảnh báo BN" — <Modal> nằm ở nhánh return kia nên KHÔNG HỀ được mount. Bấm nút
+  // set manageOpen=true nhưng không có gì hiện ra: nút chết đúng trong tình huống nó sinh ra để
+  // phục vụ (thêm cảnh báo ĐẦU TIÊN). Chỉ khi BN đã có sẵn cảnh báo thì nút "Thêm" mới chạy.
+  const manageModal = (
+    <Modal
+      title={editing ? 'Sửa cảnh báo BN' : 'Thêm cảnh báo BN'}
+      open={manageOpen}
+      onOk={handleSave}
+      onCancel={() => setManageOpen(false)}
+      okText="Lưu"
+      cancelText="Huỷ"
+      width={560}
+      destroyOnHidden
+    >
+      <Form form={form} layout="vertical">
+        <Form.Item name="flagType" label="Loại cảnh báo" rules={[{ required: true }]}>
+          <Select options={Object.entries(PATIENT_FLAG_TYPES).map(([k, v]) => ({ value: Number(k), label: v }))} />
+        </Form.Item>
+        <Form.Item name="color" label="Mức độ (màu)" rules={[{ required: true }]}>
+          <Select options={COLOR_OPTIONS} />
+        </Form.Item>
+        <Form.Item name="note" label="Ghi chú" rules={[{ required: true, message: 'Nhập ghi chú' }]}>
+          <Input.TextArea rows={3} placeholder="Chi tiết cảnh báo..." />
+        </Form.Item>
+        <Form.Item name="expiresAt" label="Hết hiệu lực (tùy chọn)">
+          <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+        </Form.Item>
+      </Form>
+
+      {flags.length > 0 && (
+        <>
+          <h4 style={{ marginTop: 16 }}>Danh sách cảnh báo hiện tại</h4>
+          <List<PatientFlagDto>
+            dataSource={flags}
+            renderItem={f => (
+              <List.Item
+                actions={[
+                  <Button size="small" key="edit" onClick={() => openEdit(f)}>Sửa</Button>,
+                  <Popconfirm key="delete" title="Xóa cảnh báo?" onConfirm={() => handleDelete(f.id)}>
+                    <Button size="small" danger>Xóa</Button>
+                  </Popconfirm>,
+                ]}
+              >
+                <List.Item.Meta
+                  title={<Space><Tag color={f.color}>{f.flagTypeName}</Tag></Space>}
+                  description={f.note}
+                />
+              </List.Item>
+            )}
+          />
+        </>
+      )}
+    </Modal>
+  );
+
   if (flags.length === 0 && !compact) {
     return (
-      <Button size="small" type="link" icon={<PlusOutlined />} onClick={openNew}>
-        + Thêm cảnh báo BN
-      </Button>
+      <>
+        <Button size="small" type="link" icon={<PlusOutlined />} onClick={openNew}>
+          + Thêm cảnh báo BN
+        </Button>
+        {manageModal}
+      </>
     );
   }
   if (flags.length === 0) return null;
@@ -148,54 +209,7 @@ export default function PatientFlagBanner({ patientId, patientName, compact, onC
         }
       />
 
-      <Modal
-        title={editing ? 'Sửa cảnh báo BN' : 'Thêm cảnh báo BN'}
-        open={manageOpen}
-        onOk={handleSave}
-        onCancel={() => setManageOpen(false)}
-        okText="Lưu"
-        width={560}
-        destroyOnHidden
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item name="flagType" label="Loại cảnh báo" rules={[{ required: true }]}>
-            <Select options={Object.entries(PATIENT_FLAG_TYPES).map(([k, v]) => ({ value: Number(k), label: v }))} />
-          </Form.Item>
-          <Form.Item name="color" label="Mức độ (màu)" rules={[{ required: true }]}>
-            <Select options={COLOR_OPTIONS} />
-          </Form.Item>
-          <Form.Item name="note" label="Ghi chú" rules={[{ required: true, message: 'Nhập ghi chú' }]}>
-            <Input.TextArea rows={3} placeholder="Chi tiết cảnh báo..." />
-          </Form.Item>
-          <Form.Item name="expiresAt" label="Hết hiệu lực (tùy chọn)">
-            <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-          </Form.Item>
-        </Form>
-
-        {flags.length > 0 && (
-          <>
-            <h4 style={{ marginTop: 16 }}>Danh sách cảnh báo hiện tại</h4>
-            <List<PatientFlagDto>
-              dataSource={flags}
-              renderItem={f => (
-                <List.Item
-                  actions={[
-                    <Button size="small" key="edit" onClick={() => openEdit(f)}>Sửa</Button>,
-                    <Popconfirm key="delete" title="Xóa cảnh báo?" onConfirm={() => handleDelete(f.id)}>
-                      <Button size="small" danger>Xóa</Button>
-                    </Popconfirm>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    title={<Space><Tag color={f.color}>{f.flagTypeName}</Tag></Space>}
-                    description={f.note}
-                  />
-                </List.Item>
-              )}
-            />
-          </>
-        )}
-      </Modal>
+      {manageModal}
     </>
   );
 }

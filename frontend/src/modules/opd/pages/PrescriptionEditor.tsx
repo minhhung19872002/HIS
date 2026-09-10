@@ -334,9 +334,10 @@ const PrescriptionEditorV2: React.FC = () => {
     overrideReason: overrideReason.trim() || undefined,
   });
 
-  /** Đơn chưa có thuốc → mọi thao tác lưu/in đều vô nghĩa. Dùng chung cho disabled + tooltip. */
+  /** Đơn chưa có thuốc → mọi thao tác lưu/in đều vô nghĩa. Dùng cho tooltip + thông báo. */
   const noItems = items.length === 0;
   const EMPTY_RX_HINT = 'Chưa có thuốc trong đơn — tìm và thêm thuốc ở thanh tìm kiếm bên dưới trước';
+  const drugInputRef = useRef<HTMLInputElement>(null);
 
   const guard = (): boolean => {
     if (!pt) { tw('Chưa chọn bệnh nhân'); return false; }
@@ -345,7 +346,14 @@ const PrescriptionEditorV2: React.FC = () => {
       tw('Chỉ đơn thuốc đang chờ duyệt mới được phép chỉnh sửa');
       return false;
     }
-    if (items.length === 0) { tw('Chưa có thuốc trong đơn'); return false; }
+    if (items.length === 0) {
+      tw(EMPTY_RX_HINT);
+      // Toast ở đỉnh màn hình tắt sau ~3s, bác sĩ đang nhìn nút giữa màn nên dễ bỏ lỡ.
+      // Đưa luôn con trỏ về ô tìm thuốc: vừa báo vừa chỉ chỗ làm tiếp.
+      drugInputRef.current?.focus();
+      drugInputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return false;
+    }
     return true;
   };
 
@@ -651,23 +659,22 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
             ))}
           </div>
           <span className="spacer ab-u-flex1" />
-          {/* Đơn rỗng thì các thao tác dưới đây đều bị guard() chặn và chỉ bắn toast ở ĐỈNH
-              màn hình rồi tắt sau ~3s — bác sĩ đang nhìn nút giữa màn hình nên gần như
-              không thấy, và kết luận là "nút không hoạt động". Cho nút DISABLED kèm tooltip
-              để lý do hiện thường trực thay vì chớp nhoáng. */}
+          {/* KHÔNG disable các nút này khi đơn rỗng: bấm mờ cả loạt trông như bị ẩn/khoá, người
+              dùng còn hoang mang hơn là bấm vào rồi được báo. Giữ nút SÁNG, và khi đơn rỗng thì
+              guard() vừa báo vừa ĐƯA CON TRỎ về ô tìm thuốc — chỉ thẳng việc cần làm tiếp. */}
           <Btn variant="ghost" onClick={() => setTplOpen(true)}><TermIcon name="folder" size={12} /> Đơn mẫu</Btn>
-          <Btn variant="ghost" disabled={noItems} title={noItems ? EMPTY_RX_HINT : undefined}
+          <Btn variant="ghost" title={noItems ? EMPTY_RX_HINT : undefined}
             onClick={() => setSaveTemplateOpen(true)}><TermIcon name="folder" size={12} /> Lưu mẫu</Btn>
-          <Btn variant="ghost" disabled={saving || noItems} title={noItems ? EMPTY_RX_HINT : undefined}
+          <Btn variant="ghost" disabled={saving} title={noItems ? EMPTY_RX_HINT : undefined}
             onClick={saveDraft}><TermIcon name="folder" size={12} /> Lưu nháp</Btn>
-          <Btn variant="ghost" disabled={noItems} title={noItems ? EMPTY_RX_HINT : undefined}
+          <Btn variant="ghost" title={noItems ? EMPTY_RX_HINT : undefined}
             onClick={handlePrintInternalRx}><TermIcon name="print" size={12} /> In đơn</Btn>
-          <Btn variant="ghost" disabled={printingExt || noItems} title={noItems ? EMPTY_RX_HINT : undefined}
+          <Btn variant="ghost" disabled={printingExt} title={noItems ? EMPTY_RX_HINT : undefined}
             onClick={printExternalRx}><TermIcon name="print" size={12} /> In toa nhà thuốc</Btn>
-          <Btn variant="ghost" disabled={noItems} title={noItems ? EMPTY_RX_HINT : undefined}
+          <Btn variant="ghost" title={noItems ? EMPTY_RX_HINT : undefined}
             onClick={() => setDisclosureOpen(true)}><TermIcon name="list" size={12} /> Phiếu công khai</Btn>
           {rxMode === 1 && (
-            <Btn variant="primary" disabled={saving || noItems} title={noItems ? EMPTY_RX_HINT : undefined}
+            <Btn variant="primary" disabled={saving} title={noItems ? EMPTY_RX_HINT : undefined}
               onClick={onClickSign}><TermIcon name="check" size={12} /> Lưu · Sang ký số</Btn>
           )}
         </div>
@@ -676,7 +683,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
         <div style={{ position: 'relative' }}>
           <div className="ab-search ab-u-wfull">
             <TermIcon name="search" size={13} />
-            <input value={drugQuery} onChange={(e) => searchDrugs(e.target.value)} placeholder="Tìm thuốc theo tên thương mại / hoạt chất / mã (≥2 ký tự)…" />
+            <input ref={drugInputRef} value={drugQuery} onChange={(e) => searchDrugs(e.target.value)} placeholder="Tìm thuốc theo tên thương mại / hoạt chất / mã (≥2 ký tự)…" />
           </div>
           {drugResults.length > 0 && (
             <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginTop: 'var(--space-4)', maxHeight: 280, overflow: 'auto', zIndex: 10, boxShadow: '0 8px 20px rgba(0,0,0,.15)' }}>
