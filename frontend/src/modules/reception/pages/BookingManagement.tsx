@@ -666,6 +666,7 @@ const BookingModal: React.FC<{
   const [form, setForm] = useState<NewBookingState>(EMPTY_BOOKING);
   const [depts, setDepts] = useState<BookingDepartmentDto[]>([]);
   const [doctors, setDoctors] = useState<BookingDoctorDto[]>([]);
+  const [docLoading, setDocLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const vf = useModalForm({
     patientName: { required: true, message: 'Nhập họ tên bệnh nhân' },
@@ -690,13 +691,34 @@ const BookingModal: React.FC<{
 
   // Tải bác sĩ theo khoa đã chọn.
   useEffect(() => {
-    if (!form.departmentId) { setDoctors([]); return; }
+    if (!form.departmentId) { setDoctors([]); setDocLoading(false); return; }
     let alive = true;
+    setDocLoading(true);
     getBookingDoctors(form.departmentId)
       .then((d) => { if (alive) setDoctors(Array.isArray(d) ? d : []); })
-      .catch(() => { if (alive) { tw('Không tải được danh sách bác sĩ.'); setDoctors([]); } });
+      .catch(() => { if (alive) { tw('Không tải được danh sách bác sĩ.'); setDoctors([]); } })
+      .finally(() => { if (alive) setDocLoading(false); });
     return () => { alive = false; };
   }, [form.departmentId]);
+
+  // Lịch cũ có thể trỏ tới khoa/bác sĩ không còn trong danh mục đang hoạt động (khoa đổi
+  // loại, bác sĩ nghỉ...). Antd Select gặp value không khớp option nào thì hiển thị GUID
+  // thô — nên ghép sẵn một option cho giá trị hiện tại, lấy tên ngay từ lịch hẹn.
+  const deptOptions = useMemo(() => {
+    const opts = depts.map((d) => ({ value: d.id, label: d.name }));
+    if (form.departmentId && !opts.some((o) => o.value === form.departmentId)) {
+      opts.unshift({ value: form.departmentId, label: initial?.departmentName || 'Khoa không còn trong danh mục' });
+    }
+    return opts;
+  }, [depts, form.departmentId, initial]);
+
+  const doctorOptions = useMemo(() => {
+    const opts = doctors.map((d) => ({ value: d.id, label: d.fullName }));
+    if (form.doctorId && !opts.some((o) => o.value === form.doctorId)) {
+      opts.unshift({ value: form.doctorId, label: initial?.doctorName || 'Bác sĩ không còn trong danh mục' });
+    }
+    return opts;
+  }, [doctors, form.doctorId, initial]);
 
   const submit = async () => {
     if (!vf.validate({ patientName: form.patientName, phoneNumber: form.phoneNumber, appointmentDate: form.appointmentDate })) return;
@@ -793,7 +815,7 @@ const BookingModal: React.FC<{
             placeholder="Chọn khoa"
             value={form.departmentId || undefined}
             onChange={(v) => setForm((s) => ({ ...s, departmentId: v || '', doctorId: '' }))}
-            options={depts.map((d) => ({ value: d.id, label: d.name }))}
+            options={deptOptions}
           />
         </div>
         <div>
@@ -803,11 +825,19 @@ const BookingModal: React.FC<{
             allowClear
             showSearch
             optionFilterProp="label"
-            placeholder={form.departmentId ? 'Chọn bác sĩ' : 'Chọn khoa trước'}
+            loading={docLoading}
+            placeholder={
+              !form.departmentId ? 'Chọn khoa trước'
+                : docLoading ? 'Đang tải bác sĩ…'
+                  : doctorOptions.length === 0 ? 'Khoa này chưa có bác sĩ' : 'Chọn bác sĩ'
+            }
             disabled={!form.departmentId}
             value={form.doctorId || undefined}
             onChange={(v) => setField('doctorId', v || '')}
-            options={doctors.map((d) => ({ value: d.id, label: d.fullName }))}
+            options={doctorOptions}
+            // "Trống" trần khiến người dùng tưởng chức năng hỏng; nói rõ là khoa chưa
+            // được phân bác sĩ trong danh mục nhân sự.
+            notFoundContent={docLoading ? 'Đang tải…' : 'Khoa này chưa có bác sĩ trong danh mục'}
           />
         </div>
         <div>
