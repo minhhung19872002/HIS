@@ -275,6 +275,16 @@ void main() {
     }
   }
 
+  /// Cuộn tới rồi chạm, NHƯNG không `pumpAndSettle` sau cú chạm.
+  ///
+  /// Dùng cho hai màn có bộ đếm ngược: cuộn tới (lúc này chưa có bộ đếm nên `pumpAndSettle` bên
+  /// trong `scrollTo` vẫn an toàn) rồi chạm, và chờ bằng `pump` có thời lượng.
+  Future<void> tapThenWait(WidgetTester tester, Finder target) async {
+    await scrollTo(tester, target);
+    await tester.tap(target);
+    await settleWithCountdown(tester);
+  }
+
   // ============================================================ trang chủ
   group('Trang chủ', () {
     testWidgets('hiện đủ lối tắt và mã bệnh nhân', (tester) async {
@@ -846,8 +856,9 @@ void main() {
       await tester.enterText(find.widgetWithText(TextField, 'Mã bệnh nhân'), 'BN000456');
       await tester.enterText(find.widgetWithText(TextField, 'Quan hệ (Cha, Mẹ, Con…)'), 'Vợ');
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Tiếp tục'));
-      await tester.pumpAndSettle(const Duration(seconds: 2));
+      // `tapScrolled` chứ không `tap`: trên máy thật, bàn phím ảo trồi lên làm hộp thoại co lại và
+      // đẩy nút ra khỏi tầm — cú chạm rơi ra ngoài, mà `tap()` chỉ cảnh báo chứ không báo hỏng.
+      await tapScrolled(tester, find.widgetWithText(FilledButton, 'Tiếp tục'));
 
       expect(backend.calls.any((c) => c.startsWith('POST') && c.contains('/family/members')), isTrue,
           reason: 'phải gọi máy chủ để tạo liên kết');
@@ -862,8 +873,7 @@ void main() {
 
       await tester.enterText(find.widgetWithText(TextField, 'Mã xác nhận'), '654321');
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Xác nhận').last);
-      await tester.pumpAndSettle(const Duration(seconds: 2));
+      await tapScrolled(tester, find.widgetWithText(FilledButton, 'Xác nhận').last);
 
       expect(backend.calls.any((c) => c.contains('/members/f3/verify')), isTrue);
       expect(find.textContaining('Đã kết nối với Nguyễn Thị Hoa'), findsOneWidget);
@@ -894,8 +904,8 @@ void main() {
           find.widgetWithText(TextField, 'Số CCCD/CMND hoặc ngày sinh'), '2015-03-02');
       await tester.pumpAndSettle();
       // `.last`: nút trên thẻ người thân cũng mang chữ "Xác nhận", mà hộp thoại nằm sau trong cây.
-      await tester.tap(find.widgetWithText(FilledButton, 'Xác nhận').last);
-      await tester.pumpAndSettle(const Duration(seconds: 2));
+      // `tapScrolled`: bàn phím ảo trên máy thật co hộp thoại lại và đẩy nút ra khỏi tầm chạm.
+      await tapScrolled(tester, find.widgetWithText(FilledButton, 'Xác nhận').last);
 
       expect(backend.calls.any((c) => c.startsWith('POST') && c.contains('/verify')), isTrue,
           reason: 'xác minh phải do máy chủ quyết — tin phía máy thì ai cũng tự nhận là người thân');
@@ -1296,8 +1306,7 @@ void main() {
 
       await tester.enterText(find.widgetWithText(TextFormField, 'Số điện thoại'), '0912345678');
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Lấy mã xác thực'));
-      await settleWithCountdown(tester);
+      await tapThenWait(tester, find.widgetWithText(FilledButton, 'Lấy mã xác thực'));
 
       expect(backend.calls.any((c) => c.contains('request-otp')), isTrue);
       expect(find.textContaining('Đã gửi mã xác thực tới số'), findsOneWidget);
@@ -1320,8 +1329,7 @@ void main() {
 
       await tester.enterText(find.widgetWithText(TextFormField, 'Số điện thoại'), '0912345678');
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Lấy mã xác thực'));
-      await settleWithCountdown(tester);
+      await tapThenWait(tester, find.widgetWithText(FilledButton, 'Lấy mã xác thực'));
 
       // Cố ý KHÔNG nói số này có tài khoản hay chưa: nói ra là biến màn này thành công cụ dò xem ai
       // là bệnh nhân của bệnh viện.
@@ -1333,7 +1341,11 @@ void main() {
           find.widgetWithText(TextFormField, 'Nhập lại mật khẩu mới'), 'MatKhau@2026');
       await settleWithCountdown(tester);
 
-      await tapScrolled(tester, find.widgetWithText(FilledButton, 'Đặt lại mật khẩu'));
+      // Chạm rồi đợi bằng `pump`: bộ đếm ngược chỉ tắt khi màn này bị bỏ (sau khi đặt lại xong và
+      // quay về màn đăng nhập), nên `pumpAndSettle` ngay sau cú chạm vẫn có thể gặp nó.
+      await tapThenWait(tester, find.widgetWithText(FilledButton, 'Đặt lại mật khẩu'));
+      await tester.pumpAndSettle(const Duration(milliseconds: 500));
+
       expect(backend.calls.any((c) => c.contains('reset-password')), isTrue,
           reason: 'phải thật sự gọi máy chủ để đặt lại mật khẩu');
       expect(find.textContaining('Đã đặt lại mật khẩu'), findsOneWidget);
