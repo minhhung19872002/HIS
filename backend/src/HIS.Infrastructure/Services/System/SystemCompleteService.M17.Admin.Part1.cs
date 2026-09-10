@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs.System;
 using HIS.Application.Services;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using static HIS.Infrastructure.Services.PdfTemplateHelper;
@@ -61,6 +62,8 @@ public partial class SystemCompleteService
                 DepartmentId = u.DepartmentId,
                 DepartmentName = u.Department?.DepartmentName,
                 BranchId = u.BranchId,
+                UserType = u.UserType,
+                UserTypeName = UserTypes.Name(u.UserType),
                 Roles = u.UserRoles?.Select(ur => ur.Role?.RoleName).Where(r => r != null).ToList() ?? new List<string>(),
                 Permissions = new List<string>(),
                 IsActive = u.IsActive,
@@ -113,6 +116,8 @@ public partial class SystemCompleteService
                 DepartmentId = u.DepartmentId,
                 DepartmentName = u.Department?.DepartmentName,
                 BranchId = u.BranchId,
+                UserType = u.UserType,
+                UserTypeName = UserTypes.Name(u.UserType),
                 Roles = u.UserRoles?.Select(ur => ur.Role?.RoleName).Where(r => r != null).ToList() ?? new List<string>(),
                 Permissions = permissions,
                 IsActive = u.IsActive,
@@ -154,7 +159,8 @@ public partial class SystemCompleteService
                 MustChangePassword = true,
                 PasswordChangedAt = DateTime.UtcNow,
                 IsActive = true,
-                UserType = 5 // Default: Employee
+                // Trước đây hard-code 5 nên KHÔNG thể tạo bác sĩ qua màn quản trị.
+                UserType = dto.UserType ?? UserTypes.Employee
             };
             _context.Users.Add(user);
 
@@ -204,6 +210,8 @@ public partial class SystemCompleteService
                 DepartmentId = user.DepartmentId,
                 DepartmentName = deptName,
                 BranchId = user.BranchId,
+                UserType = user.UserType,
+                UserTypeName = UserTypes.Name(user.UserType),
                 IsActive = user.IsActive,
                 Roles = roleNames,
                 Permissions = new List<string>()
@@ -231,6 +239,8 @@ public partial class SystemCompleteService
             user.DepartmentId = dto.DepartmentId;
             user.BranchId = dto.BranchId; // R3 đa cơ sở
             user.IsActive = dto.IsActive;
+            // NULL = giữ nguyên: client cũ không gửi trường này thì không đổi loại nhân sự.
+            if (dto.UserType.HasValue) user.UserType = dto.UserType.Value;
 
             // Sync roles — AUTHZ-3: RoleAssignments có scope info; fallback RoleIds với ScopeType='ORG'
             var incomingAssignments = dto.RoleAssignments;

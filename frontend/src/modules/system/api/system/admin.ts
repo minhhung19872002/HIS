@@ -20,6 +20,9 @@ export interface SystemUserDto {
   departmentId?: string;
   departmentName?: string;
   branchId?: string; // R3 đa cơ sở — không có = toàn viện
+  /** Loại nhân sự — xem USER_TYPE_OPTIONS. Quyết định user có vào danh sách bác sĩ/điều dưỡng hay không. */
+  userType?: number;
+  userTypeName?: string;
   roles: RoleDto[];
   isActive: boolean;
   isLocked: boolean;
@@ -33,6 +36,18 @@ export interface SystemUserDto {
   modifiedDate?: string;
   modifiedBy?: string;
 }
+
+/** Loại nhân sự — PHẢI khớp HIS.Core.Constants.UserTypes (backend). Khác vai trò (role):
+ *  role quyết định QUYỀN, còn userType quyết định user có xuất hiện ở danh sách bác sĩ /
+ *  điều dưỡng / KTV hay không. */
+export const USER_TYPE_OPTIONS = [
+  { value: 1, label: 'Bác sĩ' },
+  { value: 2, label: 'Điều dưỡng' },
+  { value: 3, label: 'Kỹ thuật viên' },
+  { value: 4, label: 'Dược sĩ' },
+  { value: 5, label: 'Nhân viên' },
+  { value: 6, label: 'Quản trị hệ thống' },
+];
 
 /** AUTHZ-3 (#369): phạm vi của lượt gán role — OWN/DEPT/BRANCH/ORG. */
 export interface RoleAssignmentDto {
@@ -51,6 +66,8 @@ export interface CreateUserDto {
   employeeId?: string;
   departmentId?: string;
   branchId?: string; // R3 đa cơ sở
+  /** Không gửi = 5 (Nhân viên) như hành vi cũ. */
+  userType?: number;
   roleIds: string[];
   /** AUTHZ-3: nếu cung cấp, ghi đè roleIds với scope info */
   roleAssignments?: RoleAssignmentDto[];
@@ -64,6 +81,8 @@ export interface UpdateUserDto {
   employeeId?: string;
   departmentId?: string;
   branchId?: string; // R3 đa cơ sở
+  /** Không gửi = giữ nguyên loại nhân sự hiện tại. */
+  userType?: number;
   roleIds: string[];
   /** AUTHZ-3: nếu cung cấp, ghi đè roleIds với scope info */
   roleAssignments?: RoleAssignmentDto[];

@@ -644,6 +644,11 @@ namespace HIS.Application.Services
         public Guid? EmployeeId { get; set; }
         public Guid? DepartmentId { get; set; }
         public Guid? BranchId { get; set; } // R3 đa cơ sở — NULL = toàn viện
+        // Loại nhân sự (HIS.Core.Constants.UserTypes). NULL = 5 Nhân viên như hành vi cũ.
+        // Trước đây bị hard-code 5 nên không thể tạo BÁC SĨ qua màn quản trị — user tạo ra
+        // không bao giờ vào được dropdown bác sĩ.
+        [Range(1, 6, ErrorMessage = "Loại nhân sự không hợp lệ")]
+        public int? UserType { get; set; }
         [Required(ErrorMessage = "Chọn ít nhất 1 vai trò")]
         [MinLength(1, ErrorMessage = "Chọn ít nhất 1 vai trò")]
         public List<Guid> RoleIds { get; set; }
@@ -662,6 +667,10 @@ namespace HIS.Application.Services
         public Guid? EmployeeId { get; set; }
         public Guid? DepartmentId { get; set; }
         public Guid? BranchId { get; set; } // R3 đa cơ sở — NULL = toàn viện
+        // Loại nhân sự (HIS.Core.Constants.UserTypes). NULL = GIỮ NGUYÊN giá trị đang có —
+        // client cũ không gửi trường này thì không được vô tình đổi loại nhân sự.
+        [Range(1, 6, ErrorMessage = "Loại nhân sự không hợp lệ")]
+        public int? UserType { get; set; }
         [Required(ErrorMessage = "Chọn ít nhất 1 vai trò")]
         [MinLength(1, ErrorMessage = "Chọn ít nhất 1 vai trò")]
         public List<Guid> RoleIds { get; set; }

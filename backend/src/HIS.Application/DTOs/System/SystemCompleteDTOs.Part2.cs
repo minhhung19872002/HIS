@@ -176,6 +176,10 @@ namespace HIS.Application.DTOs.System
         public Guid? DepartmentId { get; set; }
         public string DepartmentName { get; set; }
         public Guid? BranchId { get; set; } // R3 đa cơ sở — NULL = toàn viện
+        // Loại nhân sự (HIS.Core.Constants.UserTypes): quyết định user có vào danh sách
+        // bác sĩ/điều dưỡng hay không, nên màn quản trị phải xem + sửa được.
+        public int UserType { get; set; }
+        public string UserTypeName { get; set; }
         public List<string> Roles { get; set; }
         public List<string> Permissions { get; set; }
         public bool IsActive { get; set; }

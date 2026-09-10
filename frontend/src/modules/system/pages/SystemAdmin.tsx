@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Input, Select, Switch, Form, DatePicker, Checkbox } from 'antd';
 import type { AxiosError } from 'axios';
-import { adminApi, catalogApi } from '../api/system';
+import { adminApi, catalogApi, USER_TYPE_OPTIONS } from '../api/system';
 import type {
   SystemUserDto, RoleDto, SystemConfigDto, UserSessionDto, CreateUserDto, UpdateUserDto,
   RoleAssignmentDto, SystemNotificationDto, LockedServiceDto, PermissionDto,
@@ -184,7 +184,7 @@ const SystemAdminV2: React.FC = () => {
   const branchOptions = useMemo(() => branches.map((b) => ({ value: b.id, label: b.name })), [branches]);
 
   // ─── User CRUD ───
-  const openNewUser = () => { setEditUserId(null); userF.resetFields(); userF.setFieldsValue({ isActive: true, roleIds: [] }); setUserModal('new'); };
+  const openNewUser = () => { setEditUserId(null); userF.resetFields(); userF.setFieldsValue({ isActive: true, roleIds: [], userType: 5 }); setUserModal('new'); };
   const openEditUser = (u: SystemUserDto) => {
     const ids = roleList(u).map((r) => {
       if (typeof r !== 'string') return r.id || r.code;
@@ -194,6 +194,7 @@ const SystemAdminV2: React.FC = () => {
     userF.setFieldsValue({
       username: u.username, fullName: u.fullName, email: u.email || '', phoneNumber: u.phone || u.phoneNumber || '',
       employeeId: u.employeeCode || '', departmentId: u.departmentId || undefined, branchId: u.branchId || undefined,
+      userType: u.userType ?? 5,
       roleIds: ids, isActive: u.isActive !== false,
     });
     setUserModal('edit');
@@ -217,6 +218,7 @@ const SystemAdminV2: React.FC = () => {
           email: (v.email as string) || undefined, phoneNumber: (v.phoneNumber as string) || undefined,
           employeeId: (v.employeeId as string) || undefined, departmentId: (v.departmentId as string) || undefined,
           branchId: (v.branchId as string) || undefined,
+          userType: v.userType as number | undefined,
           roleIds, roleAssignments, initialPassword: (v.initialPassword as string) || undefined,
         };
         await adminApi.createUser(dto); tk('Đã tạo người dùng');
@@ -225,6 +227,7 @@ const SystemAdminV2: React.FC = () => {
           fullName: (v.fullName as string).trim(), email: (v.email as string) || undefined,
           phoneNumber: (v.phoneNumber as string) || undefined, employeeId: (v.employeeId as string) || undefined,
           departmentId: (v.departmentId as string) || undefined, branchId: (v.branchId as string) || undefined,
+          userType: v.userType as number | undefined,
           roleIds, roleAssignments, isActive: v.isActive as boolean,
         };
         await adminApi.updateUser(editUserId!, dto); tk('Đã cập nhật người dùng');
@@ -432,6 +435,8 @@ const SystemAdminV2: React.FC = () => {
     { key: 'username', label: 'Tài khoản', mono: true, code: true, render: (u) => u.username },
     { key: 'fullName', label: 'Họ tên', render: (u) => u.fullName },
     { key: 'roles', label: 'Vai trò', render: (u) => roleNames(u) },
+    // Nhìn được ngay ai là bác sĩ — trước đây loại nhân sự hoàn toàn vô hình trên UI.
+    { key: 'userType', label: 'Loại NS', width: 120, render: (u) => u.userTypeName || '—' },
     { key: 'departmentName', label: 'Khoa', render: (u) => u.departmentName || '—' },
     { key: 'lastLoginDate', label: 'Đăng nhập gần nhất', mono: true, render: (u) => u.lastLoginDate ? dayjs(u.lastLoginDate).format('DD/MM HH:mm') : '—' },
     { key: 'twofa', label: '2FA', width: 80, render: (u) => u.isTwoFactorEnabled ? <StatusBadge tone="ok" dot>Bật</StatusBadge> : <StatusBadge tone="warn" dot>Tắt</StatusBadge> },
@@ -726,6 +731,13 @@ const SystemAdminV2: React.FC = () => {
           <Form.Item name="phoneNumber" label="SĐT" rules={[{ pattern: /^0\d{9,10}$/, message: 'SĐT 10-11 số, bắt đầu 0' }]}><Input /></Form.Item>
           <Form.Item name="employeeId" label="Mã NV"><Input /></Form.Item>
           <Form.Item name="departmentId" label="Khoa"><Select allowClear showSearch optionFilterProp="label" options={deptOptions} placeholder="Chọn khoa" /></Form.Item>
+          {/* Loại nhân sự ≠ vai trò: vai trò cấp QUYỀN, loại nhân sự quyết định user có vào
+              danh sách bác sĩ/điều dưỡng/KTV hay không. Thiếu ô này thì mọi user tạo qua đây
+              đều là "Nhân viên" và không bao giờ chọn được ở màn đặt lịch khám. */}
+          <Form.Item name="userType" label="Loại nhân sự"
+            extra="Chọn “Bác sĩ” thì người này mới xuất hiện ở danh sách bác sĩ khi đặt lịch / phân phòng khám">
+            <Select options={USER_TYPE_OPTIONS} placeholder="Chọn loại nhân sự" />
+          </Form.Item>
           <Form.Item name="branchId" label="Chi nhánh" extra="Để trống = toàn viện (không giới hạn cơ sở)"><Select allowClear showSearch optionFilterProp="label" options={branchOptions} placeholder="Chọn chi nhánh" /></Form.Item>
           <Form.Item name="roleIds" label="Vai trò" rules={[{ required: true, message: 'Chọn ít nhất 1 vai trò' }]}><Select mode="multiple" optionFilterProp="label" options={roleOptions} placeholder="Chọn vai trò" /></Form.Item>
           <Form.Item name="scopeType" label="Phạm vi quyền" initialValue="ORG" extra="Áp dụng cho tất cả vai trò được chọn">
