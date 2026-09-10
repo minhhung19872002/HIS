@@ -27,10 +27,13 @@
 > Ngoài ra `flutter analyze` sạch, `tsc -b` sạch, build APK debug và `flutter build ios --simulator`
 > (iOS 12.0) đều thành công.
 >
-> **Ảnh chụp bằng chứng — 60 ảnh, đủ CẢ HAI ngưỡng phiên bản cho từng nhóm chức năng:**
+> **Ảnh chụp bằng chứng — 62 ảnh, đủ CẢ HAI ngưỡng phiên bản cho từng nhóm chức năng:**
 > 30 màn trên **máy ảo Android 7.1.1 (API 25)** ([`screenshots/android71/`](screenshots/android71/))
-> và 30 màn tương ứng trên **iOS 12 simulator** ([`screenshots/ios12/`](screenshots/ios12/)).
+> và **32** màn trên **iOS 12 simulator** ([`screenshots/ios12/`](screenshots/ios12/)).
 > Đúng ngưỡng HSMT, không mượn một bản Android/iOS đời mới cho dễ.
+> ⚠️ Hai màn mới nhất (`TC-APP-033`, `TC-APP-034` — chi tiết thăm dò chức năng và khám sức khoẻ) hiện
+> **chỉ có bản iOS**: bộ chụp sinh chúng tự động ở CI, còn bộ Android phải chạy tay trên máy ảo API 25
+> nên lần chụp sau mới có. Không ô nghiệm thu nào dựa riêng vào hai màn đó.
 >
 > Phủ đủ từng nhóm chức năng I.2 và I.3, **cùng các trạng thái không-phải-đường-vui** mà quy ước
 > evidence §3 bắt buộc: máy chủ trả 500 · danh sách rỗng · nhập thiếu · đang chờ tải · bị chặn
@@ -41,7 +44,7 @@
 > đường duy nhất build iOS từ máy Windows). Xem có bối cảnh — task · các bước · kết quả mong đợi ·
 > gap còn lại — bằng trình xem evidence: chạy `bash scripts/collect-patient-app-evidence.sh` rồi mở
 > `docs/architecture/evidence/index.html` → phân hệ *App mobile hỗ trợ người bệnh*
-> (**60/60 ô evidence đã có ảnh**). Thư mục `evidence/**` cố ý không commit ảnh — `.gitignore:216` —
+> (**62 ảnh đã nạp, 60/60 ô evidence có ảnh**). Thư mục `evidence/**` cố ý không commit ảnh — `.gitignore:216` —
 > nên mỗi máy sinh lại từ bộ trong repo.
 >
 > **Cách đọc trạng thái:** `✅ Đạt` = đã cài đặt **và** có bằng chứng đo được (mã ca kiểm thử ghi ngay
