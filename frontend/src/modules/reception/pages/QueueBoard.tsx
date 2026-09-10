@@ -14,7 +14,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import * as receptionApi from '../api/reception';
 import type { RoomOverviewDto, QueueDisplayDto } from '../api/reception';
 import {
-  KpiStrip, SearchBox, Filter, DataTable, StatusBadge, Btn, Ico,
+  KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, Btn, Ico,
   tk, tw, type KpiItem, type ColumnDef,
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
@@ -399,6 +399,16 @@ const QueueBoard: React.FC = () => {
         }}
         loading={loading}
         empty="Không có phòng khám nào"
+      />
+
+      {/* Thiếu thanh này thì mọi phòng từ dòng 16 trở đi KHÔNG có cách nào bấm tới — bệnh viện có
+          20 phòng, tức là cả Khoa Khám bệnh biến mất khỏi danh sách. */}
+      <Pager
+        page={page}
+        setPage={setPage}
+        totalPages={Math.max(1, Math.ceil(filtered.length / PER))}
+        total={filtered.length}
+        perPage={PER}
       />
     </div>
   );
