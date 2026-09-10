@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { message, Form, Input, InputNumber, Switch, DatePicker } from 'antd';
+import { message, Form, Input, InputNumber, Switch, DatePicker, TimePicker } from 'antd';
 import dayjs from 'dayjs';
 import { ModalShell } from '../ModalShell';
 import { Btn } from '../../actions/Btn';
@@ -11,6 +11,8 @@ import { applyServerErrors } from '../../form/applyServerErrors';
 
 // ─────────────────────────── CRUD modal (validate + focus + lỗi BE) ───────────────────────────
 
+const TIME_FMT = 'HH:mm';
+
 /** Dấu * đỏ ĐỨNG SAU tên trường — khớp `components/form/Field` để modal dùng chung và
  *  modal riêng của từng chức năng trông giống hệt nhau (mặc định Antd đặt * trước nhãn). */
 const REQUIRED_MARK = (label: React.ReactNode, info: { required: boolean }) => (
@@ -19,7 +21,7 @@ const REQUIRED_MARK = (label: React.ReactNode, info: { required: boolean }) => (
 
 export interface CrudFieldCfg {
   key: string; label: string;
-  type?: 'text' | 'textarea' | 'number' | 'select' | 'multiselect' | 'radio' | 'checkbox' | 'autocomplete' | 'switch' | 'date' | 'password';
+  type?: 'text' | 'textarea' | 'number' | 'select' | 'multiselect' | 'radio' | 'checkbox' | 'autocomplete' | 'switch' | 'date' | 'time' | 'password';
   required?: boolean;
   // datasource JSON (config-driven) — phần tử {value,label,disabled,group,children} hoặc tuỳ biến qua fieldNames
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -50,20 +52,24 @@ export const CrudModal: React.FC<{
   const [saving, setSaving] = useState(false);
   const editing = !!(initial && initial.id);
   const dateKeys = useMemo(() => fields.filter((f) => f.type === 'date').map((f) => f.key), [fields]);
+  // Field giờ nhận/trả CHUỖI 'HH:mm' (khớp DTO backend), chỉ dayjs hoá ở trong form.
+  const timeKeys = useMemo(() => fields.filter((f) => f.type === 'time').map((f) => f.key), [fields]);
   useEffect(() => {
     if (!open) return;
     form.resetFields();
     if (initial && Object.keys(initial).length) {
       const v = { ...initial };
       dateKeys.forEach((k) => { if (v[k]) v[k] = dayjs(v[k]); });
+      timeKeys.forEach((k) => { if (v[k] && !dayjs.isDayjs(v[k])) v[k] = dayjs(String(v[k]).slice(0, 5), TIME_FMT); });
       form.setFieldsValue(v);
     }
-  }, [open, initial, form, dateKeys]);
+  }, [open, initial, form, dateKeys, timeKeys]);
   const submit = async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let v: Record<string, any>;
     try { v = await form.validateFields(); } catch { return; }  // client UX: hiện lỗi inline + focus field lỗi
     dateKeys.forEach((k) => { if (v[k] && dayjs.isDayjs(v[k])) v[k] = v[k].format('YYYY-MM-DD'); });
+    timeKeys.forEach((k) => { if (v[k] && dayjs.isDayjs(v[k])) v[k] = v[k].format(TIME_FMT); });
     if (initial?.id) v.id = initial.id;
     setSaving(true);
     try { await onSubmit(v, editing); onClose(); }
@@ -90,6 +96,7 @@ export const CrudModal: React.FC<{
               : f.type === 'number' ? <InputNumber style={{ width: '100%' }} placeholder={f.placeholder} />
               : f.type === 'switch' ? <Switch />
               : f.type === 'date' ? <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+              : f.type === 'time' ? <TimePicker style={{ width: '100%' }} format={TIME_FMT} minuteStep={5} needConfirm={false} placeholder={f.placeholder} />
               : f.type === 'textarea' ? <Input.TextArea rows={3} placeholder={f.placeholder} />
               : f.type === 'password' ? <Input.Password placeholder={f.placeholder} />
               : <Input disabled={editing && f.disabledOnEdit} placeholder={f.placeholder} />}
