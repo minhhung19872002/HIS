@@ -581,18 +581,24 @@ const ReceptionV2: React.FC = () => {
                     onClick: () => onComplete(r),
                   },
                   {
+                    key: 'pay', icon: 'dollar', label: 'Thu phí',
+                    hidden: sk === 'completed',
+                    onClick: () => setPayFor(r),
+                  },
+                  {
                     // Dòng chưa có vé thì không hiện trên bảng gọi số. Cho cấp số tại chỗ mà KHÔNG
                     // phải bấm "Bắt đầu khám" — bấm nút kia là đẩy thẳng sang đang khám, mất luôn
                     // quãng chờ, trong khi người bệnh vẫn đang ngồi ngoài.
+                    //
+                    // Đặt SAU "Thu phí" là có chủ ý. `RowActions` chỉ cho 2 biểu tượng ra ngoài
+                    // (ưu tiên `primary`, rồi theo thứ tự mảng); để trước thì nó chiếm mất chỗ của
+                    // "Thu phí" — một nút dùng hằng ngày — đẩy nút đó vào menu ⋯. Việc cấp số là
+                    // việc thi thoảng, nằm trong menu ⋯ là đúng chỗ, lại hiện kèm CHỮ nên dễ tìm
+                    // hơn một biểu tượng trơn.
                     key: 'issue', icon: 'plus', label: 'Cấp số thứ tự',
                     hidden: !!r.ticketId || sk === 'completed',
                     disabled: rowBusy,
                     onClick: () => onIssueTicket(r),
-                  },
-                  {
-                    key: 'pay', icon: 'dollar', label: 'Thu phí',
-                    hidden: sk === 'completed',
-                    onClick: () => setPayFor(r),
                   },
                   {
                     key: 'move', icon: 'refresh', label: 'Đổi phòng',
