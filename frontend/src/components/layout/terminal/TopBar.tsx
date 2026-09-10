@@ -97,7 +97,7 @@ const Topbar: React.FC<{
     };
 
     const notifContent = (
-      <div style={{ width: 320, maxHeight: 380, overflow: 'auto', margin: -12 }}>
+      <div style={{ width: 'min(320px, calc(100vw - 40px))', maxHeight: 380, overflow: 'auto', margin: -12 }}>
         <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)', fontSize: 12, fontWeight: 600, color: 'var(--t-0)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>Thông báo</span>
           {unreadCount > 0 ? (
@@ -216,7 +216,8 @@ const Topbar: React.FC<{
           <TermIcon name="info" size={15} />
         </button> */}
           <AiQueueBadge />
-          <Popover content={notifContent} trigger="click" placement="bottomRight" styles={{ content: { padding: 12 } }}>
+          <Popover content={notifContent} trigger="click" placement="bottomRight" styles={{ content: { padding: 12 } }}
+            classNames={{ root: 'his-pop-wide' }}>
             <button type="button" className="his-tb-btn" title={unreadCount > 0 ? `Thông báo (${unreadCount} mới)` : 'Thông báo'} aria-label="Thông báo">
               <TermIcon name="bell" size={15} />
               {unreadCount > 0 && <span className="dot-alert" />}

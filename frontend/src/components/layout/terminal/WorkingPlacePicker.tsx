@@ -38,7 +38,7 @@ const WorkingPlacePicker: React.FC = () => {
   const label = place.roomName || place.departmentName || 'Chọn khoa/phòng';
 
   const content = (
-    <div style={{ width: 280, display: 'grid', gap: 10 }}>
+    <div style={{ width: 'min(280px, calc(100vw - 40px))', display: 'grid', gap: 10 }}>
       <div style={{ fontSize: 12, color: 'var(--t-2)' }}>
         Khoa/phòng đang trực — dùng làm mặc định cho các màn nghiệp vụ.
       </div>
@@ -84,7 +84,10 @@ const WorkingPlacePicker: React.FC = () => {
 
   return (
     <Popover content={content} trigger="click" placement="bottomRight" open={open} onOpenChange={setOpen}
-      styles={{ content: { padding: 12 } }}>
+      styles={{ content: { padding: 12 } }}
+      // Panel neo mép PHẢI vào nút; nút này lại là nút TRÁI NHẤT của cụm biểu tượng nên trên điện
+      // thoại panel thò ra ngoài mép trái. `his-pop-wide` ghim nó vào khung nhìn (`terminal.css`).
+      classNames={{ root: 'his-pop-wide' }}>
       <button type="button" className="his-tb-btn" title={`Khoa/phòng làm việc: ${label}`} aria-label="Chọn khoa/phòng làm việc">
         <TermIcon name="grid" size={15} />
       </button>
