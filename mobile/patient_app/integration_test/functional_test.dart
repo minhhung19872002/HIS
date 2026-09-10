@@ -687,10 +687,23 @@ void main() {
       expect(find.text('Chest CT axial'), findsWidgets,
           reason: 'mất tên chuỗi thì các ảnh CT trông như nhau');
 
-      await tester.drag(find.byType(PageView), const Offset(-400, 0));
+      // `fling` (có lực), KHÔNG `drag`: ảnh nằm trong `InteractiveViewer` (để phóng to), nên cú
+      // kéo một ngón tranh chấp giữa "pan ảnh" và "vuốt sang trang". Trên simulator iOS cú kéo
+      // chậm vẫn sang trang, còn trên máy ảo Android thì bị ăn mất — `fling` có vận tốc nên
+      // `PageScrollPhysics` chốt sang trang kế ở cả hai nền tảng.
+      await tester.fling(find.byType(PageView), const Offset(-300, 0), 1200);
       await tester.pumpAndSettle(const Duration(seconds: 2));
       expect(find.text('Ảnh 2/2'), findsOneWidget,
           reason: 'vuốt ngang phải sang được ảnh kế — một ca CT có hàng chục ảnh');
+
+      // Và mỗi ô nhỏ phải mở ĐÚNG ảnh của nó. Mở sai là lỗi âm thầm: người bệnh bấm ảnh thứ hai,
+      // thấy ảnh thứ nhất, và tưởng hai ảnh giống nhau.
+      await goBack(tester);
+      await scrollTo(tester, thumbnails);
+      await tester.tap(thumbnails.last);
+      await tester.pumpAndSettle(const Duration(seconds: 3));
+      expect(find.text('Ảnh 2/2'), findsOneWidget,
+          reason: 'chạm ô ảnh thứ hai mà mở ra ảnh thứ nhất là mở sai ảnh');
     });
 
     testWidgets('kéo xuống để tải lại: màn kết quả hỏi lại máy chủ', (tester) async {
