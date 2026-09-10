@@ -233,12 +233,12 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage> {
         controller: _controller,
         itemCount: widget.images.length,
         onPageChanged: (i) => setState(() => _index = i),
-        itemBuilder: (context, i) => InteractiveViewer(
-          minScale: 1,
-          maxScale: 5,
+        itemBuilder: (context, i) => _ZoomableImage(
+          key: ValueKey(widget.images[i].instanceId),
           child: Center(
+            // Giữ `key` theo instanceId: mất nó thì mỗi lần widget dựng lại là tải lại ảnh CT.
             child: _PacsImage(
-              key: ValueKey(widget.images[i].instanceId),
+              key: ValueKey('pacs-${widget.images[i].instanceId}'),
               resultId: widget.resultId,
               instanceId: widget.images[i].instanceId,
               width: 1024,
@@ -249,4 +249,57 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage> {
       ),
     );
   }
+}
+
+/// Ảnh chụm-để-phóng-to, nhưng **chỉ kéo ảnh khi đã phóng to**.
+///
+/// Vì sao phải tách ra thay vì dùng `InteractiveViewer` trơn: ở mức thu gọn (scale = 1) `InteractiveViewer`
+/// vẫn nhận cú kéo ngang — mà kéo một ảnh chưa phóng to thì KHÔNG có gì để kéo, nên cú vuốt chỉ đơn
+/// giản bị ăn mất và **không sang được ảnh kế**. Bộ đi-hết-chức-năng bắt được đúng chuyện này: cùng
+/// một mã, cùng một cú vuốt, máy ảo Android không đổi ảnh còn iOS simulator thì đổi — tranh chấp cử
+/// chỉ, ai thắng tuỳ lúc. Người bệnh gặp nó dưới dạng "vuốt mãi không sang ảnh khác".
+///
+/// Tắt `panEnabled` khi chưa phóng to thì cú kéo ngang về lại `PageView` ở cả hai nền tảng; phóng to
+/// rồi mới bật kéo để soi từng vùng ảnh.
+class _ZoomableImage extends StatefulWidget {
+  const _ZoomableImage({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<_ZoomableImage> createState() => _ZoomableImageState();
+}
+
+class _ZoomableImageState extends State<_ZoomableImage> {
+  final _transform = TransformationController();
+  bool _zoomed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _transform.addListener(_onTransform);
+  }
+
+  void _onTransform() {
+    // `getMaxScaleOnAxis` là mức phóng hiện tại. Chừa một khoảng nhỏ để sai số dấu phẩy động lúc
+    // chụm-rồi-nhả không làm cờ nhảy qua nhảy lại.
+    final zoomed = _transform.value.getMaxScaleOnAxis() > 1.01;
+    if (zoomed != _zoomed) setState(() => _zoomed = zoomed);
+  }
+
+  @override
+  void dispose() {
+    _transform.removeListener(_onTransform);
+    _transform.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => InteractiveViewer(
+        transformationController: _transform,
+        minScale: 1,
+        maxScale: 5,
+        panEnabled: _zoomed,
+        child: widget.child,
+      );
 }
