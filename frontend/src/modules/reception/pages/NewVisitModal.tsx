@@ -78,6 +78,19 @@ function extractApiError(err: unknown, fallback: string): string {
   return ax?.message || fallback;
 }
 
+/**
+ * Đưa số điện thoại về dạng nội địa 0xxxxxxxxx.
+ *
+ * Tài khoản app lưu số ở dạng quốc tế ("+84399166923"). Điền thẳng vào form thì trượt luật
+ * `0\d{9,10}` và nhân viên phải sửa tay đúng cái ô vừa được điền sẵn hộ.
+ */
+const toLocalPhone = (raw?: string): string => {
+  const digits = (raw ?? '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('84') && digits.length > 9) return '0' + digits.slice(2);
+  return digits.startsWith('0') ? digits : '0' + digits;
+};
+
 export const NewVisitModal: React.FC<{
   open: boolean;
   onClose: () => void;
@@ -112,7 +125,7 @@ export const NewVisitModal: React.FC<{
       setStep(1); setErrs({}); setBhytChecked(false); setBhytValid(false); setBhytInfo(null); setBhytErr(null);
       setData({
         patientName: sourceTicket?.patientName ?? '',
-        phone: sourceTicket?.phoneNumber ?? '',
+        phone: toLocalPhone(sourceTicket?.phoneNumber),
         cccd: '', age: null, gender: 'M', address: '',
         visitType: 'kham-bhyt', bhytNo: '',
         // Vé của PHÒNG KHÁM (loại 2) thì chọn sẵn đúng phòng đó; vé quầy tiếp đón (loại 1) không

@@ -838,12 +838,18 @@ public partial class ReceptionCompleteService {
 
         // Vé còn sống trong ngày (chờ / đang gọi / đang phục vụ) mà chưa gắn hồ sơ khám.
         // Vé của lịch hẹn tự mở hồ sơ lúc gọi số nên sẽ tự rớt khỏi danh sách này.
+        //
+        // CHỈ hai hàng đợi đầu luồng: 1 Tiếp đón và 2 Khám bệnh. Xét nghiệm / CĐHA / lĩnh thuốc /
+        // thanh toán là các bước SAU khi người bệnh đã có hồ sơ, vé của chúng không phải việc của
+        // quầy tiếp đón. Không lọc thì chúng che mất đúng những vé cần xử lý — trên prod đã thấy 5
+        // vé "CC00x · Xét nghiệm" nằm lẫn giữa danh sách.
         var tickets = await _context.QueueTickets
             .Include(t => t.Patient)
             .Include(t => t.Room)
             .Where(t => !t.IsDeleted
                 && t.IssueDate >= fromUtc && t.IssueDate < toUtc
                 && t.Status < 3
+                && (t.QueueType == 1 || t.QueueType == 2)
                 && t.MedicalRecordId == null)
             .OrderBy(t => t.QueueType)
             .ThenBy(t => t.QueueNumber)
