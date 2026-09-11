@@ -609,6 +609,9 @@ public partial class ReceptionCompleteService {
         {
             // Tiếp đón từ lịch hẹn thì dùng lại số đã giữ, không cấp số mới (migration 187).
             AppointmentId = dto.AppointmentId,
+            // Quầy kéo vé đang cầm vào đăng ký thì giữ nguyên số đó.
+            SourceQueueTicketId = dto.SourceQueueTicketId,
+            MedicalRecordId = medicalRecord.Id,
             PatientId = patient.Id,
             PatientName = patient.FullName,
             RoomId = dto.RoomId,

@@ -50,6 +50,7 @@ public partial class ReceptionCompleteService {
                 RoomId = room.Id,
                 RoomCode = room.RoomCode,
                 RoomName = room.RoomName,
+                RoomType = room.RoomType,
                 DepartmentId = room.DepartmentId,
                 DepartmentName = room.Department?.DepartmentName ?? "",
                 TotalPatientsToday = stats.Total,
@@ -83,6 +84,7 @@ public partial class ReceptionCompleteService {
             RoomId = room.Id,
             RoomCode = room.RoomCode,
             RoomName = room.RoomName,
+            RoomType = room.RoomType,
             DepartmentId = room.DepartmentId,
             DepartmentName = room.Department?.DepartmentName ?? "",
             TotalPatientsToday = stats.Total,
@@ -349,6 +351,31 @@ public partial class ReceptionCompleteService {
         var today = HIS.Core.Common.VnTime.TodayVn; // Local VN date — dùng cho reset daily
         var (iqFromUtc, iqToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(today);
 
+        // Quầy kéo một vé đang cầm vào đăng ký: cùng phòng + cùng loại hàng đợi thì DÙNG LẠI chính
+        // vé đó, người bệnh giữ nguyên con số. Khác loại (vé quầy tiếp đón → đăng ký vào phòng
+        // khám) thì đóng vé cũ lại và cấp vé mới, vì hai hàng đợi đó gọi số độc lập nhau.
+        if (dto.SourceQueueTicketId.HasValue)
+        {
+            var source = await _context.QueueTickets.FirstOrDefaultAsync(
+                t => t.Id == dto.SourceQueueTicketId.Value && !t.IsDeleted);
+
+            if (source != null)
+            {
+                if (source.RoomId == dto.RoomId && source.QueueType == dto.QueueType)
+                {
+                    source.PatientId ??= dto.PatientId;
+                    source.MedicalRecordId = dto.MedicalRecordId;
+                    source.Status = 0; // về hàng chờ của phòng, chờ gọi khám
+                    await _unitOfWork.SaveChangesAsync();
+                    return (await GetQueueTicketByIdAsync(source.Id))!;
+                }
+
+                source.Status = 3; // Hoàn thành — đã xong việc ở hàng đợi cũ
+                source.CompletedTime = DateTime.UtcNow;
+                source.PatientId ??= dto.PatientId;
+            }
+        }
+
         // Vé phát ra từ một lịch hẹn: dùng lại số đã GIỮ SẴN khi đặt lịch (migration 187).
         //
         // Không làm thế thì người bệnh xem số "B007" trên app từ hôm trước, đến quầy tiếp đón lại
@@ -462,6 +489,7 @@ public partial class ReceptionCompleteService {
             PriorityVerified = dto.Priority > 0 && dto.PriorityVerified,
             Status = 0, // Waiting
             PatientId = dto.PatientId,
+            MedicalRecordId = dto.MedicalRecordId,
             RoomId = dto.RoomId,
             BranchId = ticketBranchId, // R3 đa cơ sở
             Notes = dto.Source,
@@ -802,6 +830,64 @@ public partial class ReceptionCompleteService {
             .ToListAsync();
 
         return tickets.Select(MapToQueueTicketDto).ToList();
+    }
+
+    public async Task<List<PendingCheckinTicketDto>> GetPendingCheckinTicketsAsync(DateTime date)
+    {
+        var (fromUtc, toUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
+
+        // Vé còn sống trong ngày (chờ / đang gọi / đang phục vụ) mà chưa gắn hồ sơ khám.
+        // Vé của lịch hẹn tự mở hồ sơ lúc gọi số nên sẽ tự rớt khỏi danh sách này.
+        var tickets = await _context.QueueTickets
+            .Include(t => t.Patient)
+            .Include(t => t.Room)
+            .Where(t => !t.IsDeleted
+                && t.IssueDate >= fromUtc && t.IssueDate < toUtc
+                && t.Status < 3
+                && t.MedicalRecordId == null)
+            .OrderBy(t => t.QueueType)
+            .ThenBy(t => t.QueueNumber)
+            .ToBoundedListAsync("Reception.GetPendingCheckinTickets");
+
+        // Vé sinh ra từ lịch hẹn: nêu mã hẹn để quầy biết người này đã đặt lịch từ trước.
+        var ticketIds = tickets.Select(t => t.Id).ToList();
+        var appointmentByTicket = await _context.Appointments
+            .AsNoTracking()
+            .Where(a => !a.IsDeleted && a.QueueTicketId != null && ticketIds.Contains(a.QueueTicketId!.Value))
+            .Select(a => new { TicketId = a.QueueTicketId!.Value, a.AppointmentCode })
+            .ToDictionaryAsync(x => x.TicketId, x => x.AppointmentCode);
+
+        var nowUtc = DateTime.UtcNow;
+
+        return tickets.Select(t => new PendingCheckinTicketDto
+        {
+            TicketId = t.Id,
+            TicketCode = t.TicketNumber,
+            QueueNumber = t.QueueNumber,
+            QueueType = t.QueueType,
+            QueueTypeName = t.QueueType switch
+            {
+                1 => "Tiếp đón",
+                2 => "Khám bệnh",
+                3 => "Xét nghiệm",
+                4 => "CĐHA",
+                5 => "Lĩnh thuốc",
+                _ => "Khác",
+            },
+            RoomId = t.RoomId,
+            RoomName = t.Room?.RoomName,
+            PatientId = t.PatientId,
+            PatientCode = t.Patient?.PatientCode,
+            PatientName = t.Patient?.FullName,
+            PhoneNumber = t.Patient?.PhoneNumber,
+            Priority = t.Priority,
+            PriorityVerified = t.PriorityVerified,
+            Status = t.Status,
+            StatusName = t.Status switch { 0 => "Chờ", 1 => "Đang gọi", 2 => "Đang phục vụ", _ => "Khác" },
+            IssuedAt = t.IssueDate,
+            WaitingMinutes = (int)Math.Max(0, (nowUtc - t.IssueDate).TotalMinutes),
+            AppointmentCode = appointmentByTicket.GetValueOrDefault(t.Id),
+        }).ToList();
     }
 
     public async Task<List<QueueTicketDto>> GetServingListAsync(Guid roomId, int queueType, DateTime date)

@@ -83,7 +83,14 @@ export const NewVisitModal: React.FC<{
   onClose: () => void;
   rooms: RoomOverviewDto[];
   onDone: () => void;
-}> = ({ open, onClose, rooms, onDone }) => {
+  /**
+   * Vé người bệnh ĐANG CẦM, khi quầy kéo họ từ danh sách "Vé chờ tiếp đón" vào đăng ký.
+   *
+   * Điền sẵn tên / SĐT / phòng theo vé, và gửi kèm `sourceQueueTicketId` để người bệnh giữ nguyên
+   * con số đang cầm thay vì bị cấp một số mới.
+   */
+  sourceTicket?: receptionApi.PendingCheckinTicketDto | null;
+}> = ({ open, onClose, rooms, onDone, sourceTicket }) => {
   const { message } = AntdApp.useApp();
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -103,9 +110,20 @@ export const NewVisitModal: React.FC<{
   useEffect(() => {
     if (open) {
       setStep(1); setErrs({}); setBhytChecked(false); setBhytValid(false); setBhytInfo(null); setBhytErr(null);
-      setData({ patientName: '', phone: '', cccd: '', age: null, gender: 'M', address: '', visitType: 'kham-bhyt', bhytNo: '', dept: '', extraRooms: [], priority: 'norm', reason: '' });
+      setData({
+        patientName: sourceTicket?.patientName ?? '',
+        phone: sourceTicket?.phoneNumber ?? '',
+        cccd: '', age: null, gender: 'M', address: '',
+        visitType: 'kham-bhyt', bhytNo: '',
+        // Vé của PHÒNG KHÁM (loại 2) thì chọn sẵn đúng phòng đó; vé quầy tiếp đón (loại 1) không
+        // nói lên phòng khám nào nên để nhân viên chọn.
+        dept: sourceTicket?.queueType === 2 ? (sourceTicket.roomId ?? '') : '',
+        extraRooms: [],
+        priority: (sourceTicket?.priority ?? 0) > 0 ? 'high' : 'norm',
+        reason: '',
+      });
     }
-  }, [open]);
+  }, [open, sourceTicket]);
 
   const visitType = VISIT_TYPES.find((t) => t.v === data.visitType);
 
@@ -178,6 +196,7 @@ export const NewVisitModal: React.FC<{
       const isPriority = data.priority !== 'norm';
       if (visitType?.bhyt && data.bhytNo.trim()) {
         await receptionApi.registerInsurancePatient({
+          sourceQueueTicketId: sourceTicket?.ticketId,
           insuranceNumber: data.bhytNo.trim(), roomId: data.dept,
           identityNumber: data.cccd.trim() || undefined, isPriority,
           // BN mới đăng ký BHYT lần đầu — backend tạo BN nếu chưa có trong hệ thống
@@ -192,6 +211,7 @@ export const NewVisitModal: React.FC<{
         });
       } else {
         const feeResp = await receptionApi.registerFeePatient({
+          sourceQueueTicketId: sourceTicket?.ticketId,
           newPatient: {
             fullName: data.patientName.trim(),
             gender: data.gender === 'F' ? 2 : 1,

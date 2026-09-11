@@ -2,13 +2,16 @@ import dayjs from 'dayjs';
 import type { AdmissionDto } from '../api/reception';
 import type { StatusTab, TopTab } from '@/_v2kit';
 
-export type TopKey = 'queue' | 'now' | 'stats';
+export type TopKey = 'queue' | 'pending' | 'now' | 'stats';
 // 5 trạng thái thực tế tại quầy tiếp đón BV VN:
 // Chờ tiếp đón → Đang khám → Chờ KQ CLS → Khám xong, + Vắng/bỏ qua.
 export type StatusKey = 'waiting' | 'serving' | 'waitresult' | 'completed' | 'noshow';
 
 export const TOP_TABS: TopTab<TopKey>[] = [
   { v: 'queue', l: 'Hàng đợi tiếp đón', ic: 'users' },
+  // Vé đã bốc mà chưa đăng ký khám: không nằm trong danh sách nào của phòng khám nếu quầy không
+  // kéo vào, vì màn khám đọc bảng MedicalRecords còn vé nằm ở bảng QueueTickets.
+  { v: 'pending', l: 'Vé chờ tiếp đón', ic: 'receipt' },
   { v: 'now',   l: 'Bảng gọi số',       ic: 'bell' },
   { v: 'stats', l: 'Thống kê',          ic: 'chart' },
 ];

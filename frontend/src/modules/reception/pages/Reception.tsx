@@ -22,6 +22,7 @@ import { RowActions, RefreshButton } from '../../../components/actions';
 import type { RawRow, TopKey, StatusKey } from './shared';
 import { TOP_TABS, STATUS_TABS, PRIORITY_OPTS, VISIT_TYPE_OPTS, fmtHM, statusKey, statusTone, priorityKey, priorityLabel, genderLabel, ageOf, treatmentLabel, hasValidInsurance } from './shared';
 import { NewVisitModal } from './NewVisitModal';
+import { PendingTicketsTab } from './PendingTicketsTab';
 import { NowServingTab } from './NowServingTab';
 import { StatsTab } from './StatsTab';
 import { VisitDrawerBody } from './VisitDrawerBody';
@@ -53,6 +54,9 @@ const ReceptionV2: React.FC = () => {
   const { message } = AntdApp.useApp();
 
   const [rows, setRows] = useState<RawRow[]>([]);
+  // Vé đang được kéo từ tab "Vé chờ tiếp đón" vào form đăng ký — để giữ nguyên số của người bệnh.
+  const [sourceTicket, setSourceTicket] = useState<receptionApi.PendingCheckinTicketDto | null>(null);
+  const [pendingReload, setPendingReload] = useState(0);
   const [rooms, setRooms] = useState<RoomOverviewDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useTabState<TopKey>('queue', 'tab');
@@ -655,6 +659,13 @@ const ReceptionV2: React.FC = () => {
         </div>
       )}
 
+      {tab === 'pending' && (
+        <PendingTicketsTab
+          reloadKey={pendingReload}
+          onCheckin={(t) => { setSourceTicket(t); setNewOpen(true); }}
+        />
+      )}
+
       {tab === 'now' && <NowServingTab rooms={rooms} rows={rows} />}
       {tab === 'stats' && <StatsTab rows={rows} rooms={rooms} />}
 
@@ -704,9 +715,16 @@ const ReceptionV2: React.FC = () => {
       {/* New registration modal */}
       <NewVisitModal
         open={newOpen}
-        onClose={() => setNewOpen(false)}
+        onClose={() => { setNewOpen(false); setSourceTicket(null); }}
         rooms={rooms}
-        onDone={() => { setNewOpen(false); loadData(); }}
+        sourceTicket={sourceTicket}
+        onDone={() => {
+          setNewOpen(false);
+          setSourceTicket(null);
+          // Vé vừa được tiếp đón phải biến khỏi danh sách chờ ngay, không đợi người dùng tự bấm tải lại.
+          setPendingReload((n) => n + 1);
+          loadData();
+        }}
       />
 
       {/* Tra cứu BHYT */}

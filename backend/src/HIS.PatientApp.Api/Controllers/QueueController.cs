@@ -20,6 +20,12 @@ namespace HIS.PatientApp.Api.Controllers;
 [Produces("application/json")]
 public class QueueController : ControllerBase
 {
+    /// <summary>Loại phòng "Quầy tiếp đón" trong HIS (xem Room.RoomType).</summary>
+    private const int ReceptionCounterRoomType = 7;
+
+    /// <summary>Hàng đợi quầy tiếp đón (xem QueueTicket.QueueType).</summary>
+    private const int ReceptionQueueType = 1;
+
     private readonly IHisConnector _his;
     private readonly PatientAppDbContext _db;
     private readonly ILogger<QueueController> _logger;
@@ -46,13 +52,24 @@ public class QueueController : ControllerBase
         }
     }
 
-    /// <summary>Phòng khám đang mở, kèm số người đang chờ.</summary>
+    /// <summary>
+    /// Nơi lấy số, kèm số người đang chờ.
+    ///
+    /// <para>Mặc định chỉ trả QUẦY TIẾP ĐÓN (loại phòng 7). Người bệnh lấy số để vào quầy đăng ký
+    /// — chọn dịch vụ, đối chiếu BHYT, thu phí — rồi quầy mới xếp họ vào phòng khám.</para>
+    ///
+    /// <para>Trước đây danh sách này trả về PHÒNG KHÁM và app lấy số thẳng vào hàng đợi khám. Hậu
+    /// quả có thật: phòng khám gọi "B001", người bệnh bước vào, nhưng họ chưa hề đăng ký nên không
+    /// có hồ sơ khám nào — bác sĩ mở danh sách ra không thấy ai. Truyền <c>roomType</c> để lấy loại
+    /// khác khi thật sự cần.</para>
+    /// </summary>
     [HttpGet("rooms")]
-    public async Task<IActionResult> Rooms([FromQuery] Guid? departmentId, CancellationToken ct)
+    public async Task<IActionResult> Rooms(
+        [FromQuery] Guid? departmentId, [FromQuery] int? roomType, CancellationToken ct)
     {
         try
         {
-            var items = await _his.GetRoomsAsync(departmentId, ct);
+            var items = await _his.GetRoomsAsync(departmentId, ct, roomType ?? ReceptionCounterRoomType);
             return Ok(ApiResponse<IReadOnlyList<HisRoom>>.Ok(items));
         }
         catch (HisConnectorException ex)
@@ -121,7 +138,7 @@ public class QueueController : ControllerBase
         {
             ticket = await _his.TakeQueueNumberAsync(
                 account.PhoneNumber, account.FullName, dto.RoomId,
-                dto.QueueType <= 0 ? 2 : dto.QueueType, dto.PriorityReason, ct);
+                dto.QueueType <= 0 ? ReceptionQueueType : dto.QueueType, dto.PriorityReason, ct);
         }
         catch (HisConnectorException ex) when (ex.StatusCode == StatusCodes.Status400BadRequest)
         {
@@ -242,8 +259,14 @@ public class TakeNumberDto
 {
     public Guid RoomId { get; set; }
 
-    /// <summary>1 Tiếp đón · 2 Khám bệnh · 3 Xét nghiệm · 4 CĐHA · 5 Lĩnh thuốc. Mặc định 2.</summary>
-    public int QueueType { get; set; } = 2;
+    /// <summary>
+    /// 1 Tiếp đón · 2 Khám bệnh · 3 Xét nghiệm · 4 CĐHA · 5 Lĩnh thuốc. Mặc định 1 (Tiếp đón).
+    ///
+    /// <para>Mặc định CỐ Ý là hàng đợi tiếp đón chứ không phải hàng đợi khám: lấy số qua app không
+    /// tạo ra lượt khám nào trong HIS, nên một vé khám bệnh sẽ được phòng khám gọi trong khi người
+    /// bệnh chưa đăng ký, chưa đối chiếu BHYT, chưa thu phí.</para>
+    /// </summary>
+    public int QueueType { get; set; } = 1;
 
     /// <summary>
     /// 1 Người cao tuổi · 2 Trẻ dưới 6 tuổi · 3 Phụ nữ có thai · 4 Người khuyết tật nặng ·

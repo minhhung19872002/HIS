@@ -109,6 +109,17 @@ public interface IReceptionCompleteService
     Task<List<QueueTicketDto>> GetWaitingListAsync(Guid roomId, int queueType, DateTime date);
 
     /// <summary>
+    /// Vé đã cấp trong ngày nhưng CHƯA gắn hồ sơ khám — tức người bệnh đã bốc số (tại quầy hoặc
+    /// trên app) mà chưa qua tiếp đón.
+    ///
+    /// <para>Vì sao cần: bảng gọi số đọc bảng QueueTickets, còn màn Khám bệnh đọc bảng
+    /// MedicalRecords. Một vé chưa tiếp đón thì không tồn tại trong bất kỳ danh sách nào của phòng
+    /// khám — phòng bấm gọi "B001", người bệnh đi vào, và trên màn hình bác sĩ không có ai. Danh
+    /// sách này đưa những vé đó trở lại tầm mắt của quầy tiếp đón để đăng ký cho họ.</para>
+    /// </summary>
+    Task<List<PendingCheckinTicketDto>> GetPendingCheckinTicketsAsync(DateTime date);
+
+    /// <summary>
     /// Lấy danh sách đang phục vụ
     /// </summary>
     Task<List<QueueTicketDto>> GetServingListAsync(Guid roomId, int queueType, DateTime date);

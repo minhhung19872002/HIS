@@ -44,7 +44,7 @@ class _QueuePageState extends ConsumerState<QueuePage> {
 
   Future<void> _takeNumber() async {
     if (_selectedRoom == null) {
-      setState(() => _error = 'Vui lòng chọn phòng khám.');
+      setState(() => _error = 'Vui lòng chọn quầy tiếp đón.');
       return;
     }
 
@@ -98,12 +98,12 @@ class _QueuePageState extends ConsumerState<QueuePage> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => AppErrorState(
           error: error,
-          fallbackMessage: 'Không tải được danh sách phòng khám.',
+          fallbackMessage: 'Không tải được danh sách quầy tiếp đón.',
           onRetry: () => ref.invalidate(clinicRoomsProvider),
         ),
         data: (list) => list.isEmpty
             ? const AppEmptyState(
-                message: 'Hiện chưa có phòng khám nào đang mở.',
+                message: 'Hiện chưa có quầy tiếp đón nào đang mở.',
                 icon: Icons.meeting_room_outlined,
               )
             : Column(
@@ -119,7 +119,10 @@ class _QueuePageState extends ConsumerState<QueuePage> {
                       children: [
                         _MyTicketsToday(onOpen: (id) => context.push('${AppRoutes.queueTicket}/$id')),
 
-                        const AppSectionTitle('Chọn phòng khám',
+                        // Lấy số trên app là lấy số VÀO QUẦY TIẾP ĐÓN, không phải số phòng khám: đăng ký
+                        // khám (chọn dịch vụ, đối chiếu BHYT, thu phí) diễn ra ở quầy, xong quầy mới
+                        // xếp người bệnh vào phòng khám và cấp số của phòng.
+                        const AppSectionTitle('Chọn quầy tiếp đón',
                             padding: EdgeInsets.only(bottom: 10)),
                         for (final room in list) ...[
                           _RoomOption(
@@ -226,7 +229,7 @@ class _MyTicketsToday extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        ticket.roomName ?? 'Phòng khám',
+                        ticket.roomName ?? 'Quầy tiếp đón',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -259,7 +262,7 @@ class _MyTicketsToday extends ConsumerWidget {
   }
 }
 
-/// Một phòng khám để chọn.
+/// Một quầy tiếp đón để chọn.
 ///
 /// Thay `RadioListTile` bằng cả thẻ bấm được: vùng chạm rộng bằng cả thẻ thay vì chỉ nút tròn nhỏ,
 /// và viền 2px cho thấy đang chọn cái nào từ xa — đọc được kể cả khi không phân biệt được màu.
@@ -497,7 +500,7 @@ class _BottomBar extends StatelessWidget {
               icon: Icons.confirmation_number_outlined,
               loading: busy,
               // Bấm được cả khi chưa chọn phòng: nút xám câm không nói vì sao, còn bấm vào thì
-              // nhận được câu "Vui lòng chọn phòng khám".
+              // nhận được câu "Vui lòng chọn quầy tiếp đón".
               onPressed: onTake,
               height: 56,
             ),

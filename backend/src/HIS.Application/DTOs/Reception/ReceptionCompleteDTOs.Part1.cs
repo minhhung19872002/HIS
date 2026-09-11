@@ -9,6 +9,12 @@ namespace HIS.Application.DTOs.Reception;
 /// </summary>
 public class RoomOverviewDto
 {
+    /// <summary>
+    /// Loại phòng — xem <c>Room.RoomType</c> (1 Phòng khám · 7 Quầy tiếp đón · …).
+    /// App di động cần giá trị này để chỉ hiện QUẦY TIẾP ĐÓN khi người bệnh lấy số.
+    /// </summary>
+    public int RoomType { get; set; }
+
     public Guid RoomId { get; set; }
     public string RoomCode { get; set; } = string.Empty;
     public string RoomName { get; set; } = string.Empty;
@@ -77,6 +83,18 @@ public class IssueQueueTicketDto
     /// </summary>
     public Guid? AppointmentId { get; set; }
 
+    /// <summary>
+    /// Vé người bệnh ĐANG CẦM khi được quầy tiếp đón kéo vào đăng ký.
+    ///
+    /// <para>Cùng phòng và cùng loại hàng đợi thì dùng lại chính vé đó — người bệnh giữ nguyên con
+    /// số đang cầm. Khác loại (bốc số quầy tiếp đón rồi đăng ký vào phòng khám) thì đóng vé cũ và
+    /// cấp vé mới cho phòng khám, vì đó là hai hàng đợi khác nhau.</para>
+    /// </summary>
+    public Guid? SourceQueueTicketId { get; set; }
+
+    /// <summary>Hồ sơ khám vừa mở — gắn vào vé để vé không còn nằm trong danh sách chờ tiếp đón.</summary>
+    public Guid? MedicalRecordId { get; set; }
+
     public Guid? PatientId { get; set; }
     public string? PatientName { get; set; }
     public Guid RoomId { get; set; }
@@ -98,6 +116,43 @@ public class IssueQueueTicketDto
 /// <summary>
 /// DTO phiếu số thứ tự
 /// </summary>
+/// <summary>
+/// Vé đã bốc nhưng CHƯA tiếp đón (chưa gắn hồ sơ khám). Hiển thị ở màn Tiếp đón để nhân viên kéo
+/// người bệnh vào đăng ký, giữ nguyên số họ đang cầm.
+/// </summary>
+public class PendingCheckinTicketDto
+{
+    public Guid TicketId { get; set; }
+    public string TicketCode { get; set; } = string.Empty;
+    public int QueueNumber { get; set; }
+
+    /// <summary>1-Tiếp đón, 2-Khám bệnh, 3-CLS, 4-Thanh toán, 5-Lĩnh thuốc.</summary>
+    public int QueueType { get; set; }
+    public string QueueTypeName { get; set; } = string.Empty;
+
+    public Guid? RoomId { get; set; }
+    public string? RoomName { get; set; }
+
+    /// <summary>NULL = vé vô danh (người bốc số chưa liên kết hồ sơ bệnh án).</summary>
+    public Guid? PatientId { get; set; }
+    public string? PatientCode { get; set; }
+    public string? PatientName { get; set; }
+    public string? PhoneNumber { get; set; }
+
+    public int Priority { get; set; }
+    public bool PriorityVerified { get; set; }
+
+    /// <summary>0-Chờ, 1-Đang gọi, 2-Đang phục vụ.</summary>
+    public int Status { get; set; }
+    public string StatusName { get; set; } = string.Empty;
+
+    public DateTime IssuedAt { get; set; }
+    public int WaitingMinutes { get; set; }
+
+    /// <summary>Có giá trị khi vé sinh ra từ một lịch hẹn.</summary>
+    public string? AppointmentCode { get; set; }
+}
+
 public class QueueTicketDto
 {
     public Guid Id { get; set; }
@@ -433,6 +488,9 @@ public class InsuranceRegistrationDto
     /// <summary>Lịch hẹn nguồn — để vé dùng lại số đã giữ (migration 187).</summary>
     public Guid? AppointmentId { get; set; }
 
+    /// <summary>Vé người bệnh đang cầm khi quầy kéo vào đăng ký — để giữ nguyên số.</summary>
+    public Guid? SourceQueueTicketId { get; set; }
+
     // Thông tin bệnh nhân
     public Guid? PatientId { get; set; }
     public string? PatientCode { get; set; }
@@ -467,6 +525,9 @@ public class FeeRegistrationDto
 {
     /// <summary>Lịch hẹn nguồn — để vé dùng lại số đã giữ (migration 187).</summary>
     public Guid? AppointmentId { get; set; }
+
+    /// <summary>Vé người bệnh đang cầm khi quầy kéo vào đăng ký — để giữ nguyên số.</summary>
+    public Guid? SourceQueueTicketId { get; set; }
 
     // Thông tin bệnh nhân
     public Guid? PatientId { get; set; }

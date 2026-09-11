@@ -39,7 +39,8 @@ public interface IHisConnector
     Task<IReadOnlyList<HisDoctor>> GetDoctorsAsync(Guid? departmentId, CancellationToken ct = default);
 
     /// <summary>Phòng khám đang mở, kèm số người đang chờ — app dùng để chọn nơi lấy số.</summary>
-    Task<IReadOnlyList<HisRoom>> GetRoomsAsync(Guid? departmentId, CancellationToken ct = default);
+    /// <param name="roomType">Lọc theo loại phòng của HIS (7 = Quầy tiếp đón). Bỏ trống = mọi phòng.</param>
+    Task<IReadOnlyList<HisRoom>> GetRoomsAsync(Guid? departmentId, CancellationToken ct = default, int? roomType = null);
 
     // ------------------------------------------------- số thứ tự (I.2 #3)
 

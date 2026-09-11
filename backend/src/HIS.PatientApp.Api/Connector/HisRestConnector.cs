@@ -100,15 +100,22 @@ public class HisRestConnector : IHisConnector
     }
 
     public async Task<IReadOnlyList<HisRoom>> GetRoomsAsync(
-        Guid? departmentId, CancellationToken ct = default)
+        Guid? departmentId, CancellationToken ct = default, int? roomType = null)
     {
         var rooms = await SendAsync<List<HisRoom>>(
             () => new HttpRequestMessage(HttpMethod.Get, "/api/reception/rooms/overview"), ct)
             ?? new List<HisRoom>();
 
-        return departmentId.HasValue
-            ? rooms.Where(r => r.DepartmentId == departmentId).ToList()
-            : rooms;
+        IEnumerable<HisRoom> result = rooms;
+
+        if (departmentId.HasValue)
+            result = result.Where(r => r.DepartmentId == departmentId);
+
+        // Lọc theo loại phòng: app lấy số chỉ được chọn QUẦY TIẾP ĐÓN, không chọn thẳng phòng khám.
+        if (roomType.HasValue)
+            result = result.Where(r => r.RoomType == roomType.Value);
+
+        return result.ToList();
     }
 
     // ---------------------------------------------------------- số thứ tự

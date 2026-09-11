@@ -35,6 +35,9 @@ public class HisRoom
     [JsonPropertyName("departmentName")] public string? DepartmentName { get; set; }
     [JsonPropertyName("doctorName")] public string? DoctorName { get; set; }
     [JsonPropertyName("waitingCount")] public int WaitingCount { get; set; }
+
+    /// <summary>Loại phòng theo HIS: 1 Phòng khám · 7 Quầy tiếp đón · … (xem Room.RoomType).</summary>
+    [JsonPropertyName("roomType")] public int RoomType { get; set; }
 }
 
 /// <summary>Vé xếp hàng vừa cấp.</summary>

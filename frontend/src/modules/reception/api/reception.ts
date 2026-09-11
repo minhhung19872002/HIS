@@ -382,6 +382,37 @@ export const getRoomOverview = (departmentId?: string, date?: string) =>
     params: { departmentId, date }
   });
 
+/**
+ * Vé đã bốc trong ngày nhưng CHƯA qua tiếp đón (chưa có hồ sơ khám).
+ *
+ * Bảng gọi số đọc bảng QueueTickets, còn danh sách khám đọc bảng MedicalRecords — một vé chưa
+ * tiếp đón thì không nằm trong danh sách nào của phòng khám. Danh sách này kéo chúng về lại quầy.
+ */
+export interface PendingCheckinTicketDto {
+  ticketId: string;
+  ticketCode: string;
+  queueNumber: number;
+  queueType: number;
+  queueTypeName: string;
+  roomId?: string;
+  roomName?: string;
+  /** Rỗng = vé vô danh (người bốc số chưa liên kết hồ sơ bệnh án). */
+  patientId?: string;
+  patientCode?: string;
+  patientName?: string;
+  phoneNumber?: string;
+  priority: number;
+  priorityVerified: boolean;
+  status: number;
+  statusName: string;
+  issuedAt: string;
+  waitingMinutes: number;
+  appointmentCode?: string;
+}
+
+export const getPendingCheckinTickets = (date?: string) =>
+  api.get<PendingCheckinTicketDto[]>('/reception/queue/pending-checkin', { params: { date } });
+
 export const getTodayAdmissions = (roomId?: string, date?: string) =>
   api.get<AdmissionDto[]>('/reception/admissions/today', {
     params: { roomId, date }
@@ -649,6 +680,8 @@ export const getDocumentHoldReceipt = (documentHoldId: string) =>
 // #region 1.7 Đăng ký khám BHYT
 
 export interface InsuranceRegistrationDto {
+  /** Vé người bệnh đang cầm khi quầy kéo vào đăng ký — để giữ nguyên số đó. */
+  sourceQueueTicketId?: string;
   patientId?: string;
   patientCode?: string;
   identityNumber?: string;
@@ -697,6 +730,8 @@ export const registerBySmartCard = (cardData: string, roomId: string) =>
 // #region 1.8 Đăng ký viện phí/dịch vụ
 
 export interface FeeRegistrationDto {
+  /** Vé người bệnh đang cầm khi quầy kéo vào đăng ký — để giữ nguyên số đó. */
+  sourceQueueTicketId?: string;
   patientId?: string;
   newPatient?: {
     fullName: string;

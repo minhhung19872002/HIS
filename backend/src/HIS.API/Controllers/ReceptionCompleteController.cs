@@ -233,6 +233,19 @@ public partial class ReceptionCompleteController : ControllerBase
     /// <summary>
     /// 1.2.2: Màn hình hiển thị hàng đợi (public API)
     /// </summary>
+    /// <summary>
+    /// Vé đã bốc trong ngày nhưng chưa qua tiếp đón (chưa có hồ sơ khám).
+    /// Màn Tiếp đón dùng danh sách này để kéo người bệnh vào đăng ký.
+    /// </summary>
+    [HttpGet("queue/pending-checkin")]
+    public async Task<ActionResult<List<PendingCheckinTicketDto>>> GetPendingCheckinTickets(
+        [FromQuery] DateTime? date)
+    {
+        var result = await _receptionService.GetPendingCheckinTicketsAsync(
+            date ?? HIS.Core.Common.VnTime.TodayVn);
+        return Ok(result);
+    }
+
     [HttpGet("queue/display/{roomId}")]
     [AllowAnonymous]
     public async Task<ActionResult<QueueDisplayDto>> GetDisplayData(Guid roomId, [FromQuery] int queueType)

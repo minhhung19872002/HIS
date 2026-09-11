@@ -29,9 +29,14 @@ class QueueRepository {
 
   /// Lấy số. Trả kèm thông điệp của server để app hiển thị nguyên văn — server là nơi biết vé có
   /// được ưu tiên hay không và có cần xác minh tại quầy không.
+  ///
+  /// [queueType] mặc định 1 = hàng đợi QUẦY TIẾP ĐÓN. Lấy số trên app không tạo ra lượt khám nào
+  /// trong bệnh viện, nên số này để vào quầy đăng ký (chọn dịch vụ, đối chiếu BHYT, thu phí); quầy
+  /// mới xếp người bệnh vào phòng khám. Lấy thẳng số phòng khám thì phòng sẽ gọi một người chưa
+  /// đăng ký và bác sĩ không có hồ sơ nào trên màn hình.
   Future<({QueueTicket ticket, String? message})> takeNumber({
     required String roomId,
-    int queueType = 2,
+    int queueType = 1,
     PriorityReason? priorityReason,
   }) async {
     final data = await _run(() => _client.post<Map<String, dynamic>>(
