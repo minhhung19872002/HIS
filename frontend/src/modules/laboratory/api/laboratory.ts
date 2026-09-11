@@ -222,10 +222,20 @@ export const getLabRequestById = async (id: string) => {
 };
 
 export const collectSample = async (id: string, data: CollectSampleRequest) => {
-  const response = await apiClient.post<LabRequest>('/LISComplete/sample-collection/collect', {
-    orderId: id,
-    ...data
-  });
+  // Backend khai CollectSampleDto.LabOrderId — gửi `orderId` thì KHÔNG bind được, LabOrderId
+  // ra Guid.Empty và service trả {success:false, message:"Order not found"} kèm HTTP 200.
+  // Vì là 200 nên try/catch của trang không hề nổ: bấm "Lấy mẫu" trông như thành công mà thực
+  // ra không có gì xảy ra → hàng đợi "Nhận mẫu XN" luôn rỗng, cả luồng xét nghiệm đứt tại đây.
+  const response = await apiClient.post<LabRequest & { success?: boolean; message?: string }>(
+    '/LISComplete/sample-collection/collect',
+    { labOrderId: id, ...data },
+  );
+  // Endpoint báo lỗi nghiệp vụ bằng success=false chứ không bằng mã HTTP → phải tự ném ra,
+  // nếu không lỗi lại bị nuốt im lặng như cũ.
+  const body = response.data as { success?: boolean; message?: string } | undefined;
+  if (body && body.success === false) {
+    throw new Error(body.message || 'Lấy mẫu thất bại');
+  }
   return response.data;
 };
 

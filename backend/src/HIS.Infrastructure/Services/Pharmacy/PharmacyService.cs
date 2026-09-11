@@ -36,9 +36,14 @@ public partial class PharmacyService : IPharmacyService
             .Include(p => p.Doctor)
             .Include(p => p.Department)
             .Include(p => p.Details)
+            // Đơn CŨ NHẤT lên trước: hàng đợi cấp phát phải theo thứ tự BN đến, và khi bị cắt
+            // bớt thì phải cắt đầu MỚI chứ không phải đầu cũ. Trước đây sắp giảm dần + Take(100)
+            // nên đơn cũ hơn 100 đơn gần nhất RƠI KHỎI hàng đợi vĩnh viễn — đo được: đơn cũ nhất
+            // còn thấy là 29/08 trong khi có 485+ đơn chờ duyệt, tức BN chờ lâu nhất thì dược sĩ
+            // không bao giờ với tới.
             .Where(p => !p.IsDeleted && (p.Status == 0 || p.Status == 1))
-            .OrderByDescending(p => p.CreatedAt)
-            .Take(100)
+            .OrderBy(p => p.CreatedAt)
+            .Take(500)
             .Select(p => new
             {
                 id = p.Id.ToString(),
