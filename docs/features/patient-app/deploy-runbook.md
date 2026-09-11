@@ -261,7 +261,49 @@ Cấu hình cũ sao lưu tại `sites/his-patientapp.caddy.bak-truoc-gop-ten-mie
 
 ```bash
 cd mobile/patient_app
+fvm flutter clean          # BẮT BUỘC khi đổi --dart-define, xem cảnh báo dưới
 fvm flutter build apk --debug --split-per-abi -t lib/main_dev.dart \
   --dart-define=API_BASE_URL=https://patient.bluestar.com.vn/api/v1
 # → build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk
+```
+
+> ⚠️ **Đổi `--dart-define` mà không `clean` thì bản build có thể giữ giá trị cũ.** Bản dựng tăng dần
+> dùng lại kernel đã biên dịch, và địa chỉ máy chủ là hằng số biên dịch — build ra vẫn chạy, vẫn cài
+> được, chỉ là gọi nhầm máy chủ. Không có lỗi nào để thấy.
+>
+> **Cách kiểm chắc chắn** (không cần cài máy thật): địa chỉ nằm trong `kernel_blob.bin` của APK.
+> ```bash
+> unzip -p app-arm64-v8a-debug.apk assets/flutter_assets/kernel_blob.bin \
+>   | grep -c 'patient\.bluestar\.com\.vn'
+> ```
+> Lưu ý khi đọc kết quả: bản debug mang theo **cả text mã nguồn**, nên một địa chỉ chỉ xuất hiện
+> trong *chú thích* cũng sẽ khớp — ví dụ `app_flavor.dart` có sẵn dòng ví dụ
+> `--dart-define=API_BASE_URL=http://192.168.1.7:5200/api/v1`. Muốn kết luận đúng thì phải đối chiếu:
+> địa chỉ **không** có trong `lib/` mà **có** trong kernel ⇒ đó mới là giá trị `--dart-define` thật.
+
+### Đưa APK lên đường tải cho người dùng
+
+Bản cài tới tay người thử qua một đường tải khó đoán (không có trang liệt kê, không index):
+
+| | |
+|---|---|
+| Đường tải | **https://patient.bluestar.com.vn/tai-app-29wmbsp7/nguoi-benh-arm64.apk** |
+| Tệp trên VM | `/home/hung/his-patientapp/apk/nguoi-benh-arm64.apk` |
+| Cách phục vụ | `docker-compose.yml` mount `./apk:/usr/share/nginx/html/tai-app-29wmbsp7:ro` — chỉ cần **thay tệp**, không phải dựng lại container |
+
+```bash
+# 1. Giữ bản cũ để lùi được
+ssh hung@14.225.83.93 'cd /home/hung/his-patientapp/apk \
+  && cp -a nguoi-benh-arm64.apk nguoi-benh-arm64.apk.bak-$(date +%F)'
+
+# 2. Tải lên tên tạm rồi mới đổi tên — người đang tải dở không vớ phải tệp một nửa
+scp app-arm64-v8a-debug.apk \
+  hung@14.225.83.93:/home/hung/his-patientapp/apk/nguoi-benh-arm64.apk.new
+ssh hung@14.225.83.93 'cd /home/hung/his-patientapp/apk \
+  && mv -f nguoi-benh-arm64.apk.new nguoi-benh-arm64.apk && chmod 644 nguoi-benh-arm64.apk'
+
+# 3. Kiểm bằng cách TẢI NGƯỢC VỀ, không chỉ xem Content-Length
+sha256sum app-arm64-v8a-debug.apk
+curl -s https://patient.bluestar.com.vn/tai-app-29wmbsp7/nguoi-benh-arm64.apk | sha256sum
+# hai giá trị phải trùng nhau
 ```
