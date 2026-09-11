@@ -150,6 +150,22 @@
   padding-right: 22px;
 }
 
+/* Ô số trong bảng kê đơn (SL · Ngày · liều S/T/Ch/T) chỉ rộng 44-70px. Nút tăng/giảm
+   mặc định của input[type=number] chiếm ~17px, cộng 20px padding hai bên là chữ bị
+   CẮT: "30" hiện ra thành "3C". Bỏ spinner + thu padding — vẫn tăng/giảm được bằng
+   phím mũi tên lên/xuống. */
+.ed-root .hui-inp[type="number"] {
+  padding: 0 6px;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.ed-root .hui-inp[type="number"]::-webkit-outer-spin-button,
+.ed-root .hui-inp[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 /* ── Editor form fields inside portaled modals (.ed-fld) ──
    Modals render via portal to <body> (outside .ed-root), so these need a
    global selector. Dark-theme input/textarea/select for create forms. */

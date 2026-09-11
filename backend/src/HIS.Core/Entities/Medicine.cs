@@ -14,6 +14,7 @@ public class Medicine : BaseEntity
     public string? ActiveIngredient { get; set; } // Hoạt chất
     public string? ActiveIngredientCode { get; set; } // Mã hoạt chất BYT
     public string? Concentration { get; set; } // Hàm lượng/Nồng độ
+    public string? DosageForm { get; set; } // Dạng bào chế (viên nén, dung dịch tiêm…) — migration 185
 
     // Phân loại
     public int MedicineType { get; set; } // 1-Tân dược, 2-YHCT, 3-Vắc xin, 4-Sinh phẩm
