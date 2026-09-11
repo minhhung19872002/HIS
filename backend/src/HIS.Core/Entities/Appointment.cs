@@ -33,6 +33,27 @@ public class Appointment : BaseEntity
     public bool IsReminderSent { get; set; } // Đã gửi nhắc
     public DateTime? ReminderSentAt { get; set; }
 
+    // === Số thứ tự giữ sẵn (migration 187) ===
+    //
+    // Người đặt lịch qua app phải biết số thứ tự NGAY LÚC ĐẶT, không phải đến nơi mới bốc số.
+    // Số được giữ chỗ trong dãy dùng chung của (phòng, ngày hẹn) — xem AppointmentQueueAllocator:
+    // khách bốc số tại quầy hôm đó sẽ nhận số tiếp sau, nên hai bên không bao giờ trùng số, và vì
+    // lịch hẹn đặt trước nên người đặt lịch giữ các số đầu ngày.
+    //
+    // NULL = chưa giữ được số (lịch chưa gán phòng) → người bệnh lấy số tại quầy như cũ.
+
+    /// <summary>Số thứ tự đã giữ cho ngày hẹn. NULL khi lịch chưa gán phòng.</summary>
+    public int? QueueNumber { get; set; }
+
+    /// <summary>Mã vé hiển thị của số đã giữ (VD "B007") — đúng mã sẽ hiện trên bảng gọi số.</summary>
+    public string? QueueCode { get; set; }
+
+    /// <summary>
+    /// Vé hàng đợi thật đã sinh ra từ lịch hẹn này (worker tự đưa vào hàng đợi đầu ngày khám).
+    /// NULL = chưa vào hàng đợi. Đây cũng là chốt chống tạo vé hai lần.
+    /// </summary>
+    public Guid? QueueTicketId { get; set; }
+
     // Dịch vụ đã chọn (nếu có)
     public virtual ICollection<AppointmentService> AppointmentServices { get; set; } = new List<AppointmentService>();
 }

@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { Input, Select, DatePicker } from 'antd';
 import {
   getBookings, getBookingStats, confirmBooking, checkInBooking, markNoShow, updateBooking, cancelBooking,
-  getDoctorSchedules, saveDoctorSchedule, deleteDoctorSchedule,
+  getDoctorSchedules, saveDoctorSchedule, deleteDoctorSchedule, assignQueueNumber,
 } from '../api/bookingManagement';
 import type { BookingStatsDto, DoctorScheduleListDto } from '../api/bookingManagement';
 import type { BookingStatusDto } from '../api/appointmentBooking';
@@ -44,6 +45,7 @@ type Booking = BookingStatusDto & { id: string };
 const PER = 18;
 
 const BookingManagementV2: React.FC = () => {
+  const navigate = useNavigate();
   const [items, setItems] = useState<Booking[]>([]);
   const [stats, setStats] = useState<BookingStatsDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -145,6 +147,25 @@ const BookingManagementV2: React.FC = () => {
     cf(`Đánh dấu vắng mặt lịch ${r.appointmentCode}?`, () =>
       void runAction(() => markNoShow(r.appointmentCode), `Đã đánh dấu vắng · ${r.appointmentCode}`, 'Thao tác thất bại'),
     { tone: 'warn', confirm: 'Vắng mặt' });
+  // Sau khi "BN đã đến": lịch hẹn hết việc ở màn này, nhưng người bệnh thì chưa. Lượt khám + số
+  // thứ tự đã được tạo và họ đang chờ ở màn Tiếp đón / bảng gọi số. Không có đường đi tiếp thì
+  // nhân viên nhìn dòng "Đã đến" chỉ còn cái nút xem và không biết bước kế là gì.
+  const onOpenReception = (r: Booking) => {
+    setSel(null);
+    navigate('/v2/reception');
+    tk(`${r.patientName} đã ở danh sách tiếp đón${r.queueCode ? ` · số ${r.queueCode}` : ''}`);
+  };
+
+  // Cấp số thứ tự cho lịch chưa có số (migration 187).
+  //
+  // Lịch đặt qua app từ nay được giữ số ngay lúc đặt, nhưng hai nhóm vẫn trắng số: lịch đặt TRƯỚC
+  // khi có tính năng, và lịch vào khoa chưa khai báo phòng nào. Không có nút này thì nhân viên
+  // không còn cách nào cấp số cho họ ngoài việc bắt người bệnh bốc số tại quầy.
+  const canAssignQueue = (r: Booking) => !r.queueCode && r.status < 3;
+  const onAssignQueue = (r: Booking) =>
+    runAction(() => assignQueueNumber(r.appointmentCode), `Đã cấp số thứ tự · ${r.appointmentCode}`,
+      'Cấp số thứ tự thất bại');
+
   // Mở sửa lịch — chỉ cho phép khi chưa đến khám / chưa hủy (status 0 hoặc 1).
   const onEdit = (r: Booking) => { setSel(null); setEditTarget(r); };
   const canEdit = (r: Booking) => r.status === 0 || r.status === 1;
@@ -268,6 +289,13 @@ const BookingManagementV2: React.FC = () => {
         {r.appointmentTime && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.appointmentTime}</div>}
       </div>
     ) },
+    // STT đứng ngay cạnh ngày hẹn: đây là thứ người bệnh đọc cho nhân viên qua điện thoại, và là
+    // dấu hiệu duy nhất cho biết lịch nào còn thiếu số để bấm cấp.
+    { key: 'stt', label: 'STT', mono: true, width: 84,
+      sortValue: (r) => r.queueNumber ?? null,
+      render: (r) => (r.queueCode ? (
+        <StatusBadge tone={r.isInQueue ? 'ok' : 'info'} dot={r.isInQueue}>{r.queueCode}</StatusBadge>
+      ) : <span style={{ color: 'var(--t-2)' }}>—</span>) },
     { key: 'dept', label: 'Khoa', render: (r) => r.departmentName || '—' },
     { key: 'doc', label: 'BS', render: (r) => r.doctorName || '—' },
     { key: 'reason', label: 'Lý do', render: (r) => <span style={{ fontSize: 'var(--fs-sm)' }}>{r.reason || '—'}</span> },
@@ -297,12 +325,15 @@ const BookingManagementV2: React.FC = () => {
         { key: 'view', icon: 'eye', label: 'Chi tiết', primary: true, onClick: () => setSel(r) },
         { key: 'edit', icon: 'edit', label: 'Sửa lịch', primary: true, hidden: !canEdit(r), onClick: () => onEdit(r) },
         { key: 'confirm', icon: 'check', label: 'Xác nhận', hidden: r.status !== 0, disabled: acting, onClick: () => onConfirm(r) },
+        { key: 'queue', icon: 'plus', label: 'Cấp số thứ tự', hidden: !canAssignQueue(r), disabled: acting, onClick: () => onAssignQueue(r) },
         { key: 'checkin', icon: 'arrow-right', label: 'BN đã đến', hidden: !(r.status === 0 || r.status === 1), disabled: acting, onClick: () => onCheckIn(r) },
         // onNoShow/onCancel tự mở confirm/modal riêng — confirm:false để tránh RowActions hỏi lại lần 2.
         { key: 'noshow', icon: 'alert', label: 'Vắng mặt', tone: 'danger', confirm: false,
           hidden: !(r.status === 0 || r.status === 1), disabled: acting, onClick: () => onNoShow(r) },
         { key: 'cancel', icon: 'x', label: 'Hủy lịch', tone: 'danger', confirm: false,
           hidden: !canCancel(r), onClick: () => onCancel(r) },
+        { key: 'toreception', icon: 'arrow-right', label: 'Mở màn Tiếp đón', primary: true,
+          hidden: r.status !== 2, onClick: () => onOpenReception(r) },
       ]} />
     </div>
   );
@@ -407,6 +438,11 @@ const BookingManagementV2: React.FC = () => {
               <Ico name="alert" size={12} /> Vắng mặt
             </Btn>
           )}
+          {sel && canAssignQueue(sel) && (
+            <Btn variant="ghost" disabled={acting} onClick={() => onAssignQueue(sel)}>
+              <Ico name="plus" size={12} /> Cấp số
+            </Btn>
+          )}
           {sel && sel.status === 0 && (
             <Btn variant="primary" disabled={acting} onClick={() => onConfirm(sel)}>
               <Ico name="check" size={12} /> Xác nhận
@@ -415,6 +451,11 @@ const BookingManagementV2: React.FC = () => {
           {sel && (sel.status === 0 || sel.status === 1) && (
             <Btn variant="ok" disabled={acting} onClick={() => onCheckIn(sel)}>
               <Ico name="arrow-right" size={12} /> BN đã đến
+            </Btn>
+          )}
+          {sel && sel.status === 2 && (
+            <Btn variant="ok" onClick={() => onOpenReception(sel)}>
+              <Ico name="arrow-right" size={12} /> Mở màn Tiếp đón
             </Btn>
           )}
         </>}
@@ -427,6 +468,20 @@ const BookingManagementV2: React.FC = () => {
             <DrField lbl="Ngày · Giờ">
               {dayjs(sel.appointmentDate).format('DD/MM/YYYY')}
               {sel.appointmentTime && ` · ${sel.appointmentTime}`}
+            </DrField>
+            <DrField lbl="Số thứ tự">
+              {sel.queueCode ? (
+                <StatusBadge tone={sel.isInQueue ? 'ok' : 'info'} dot={sel.isInQueue}>
+                  {sel.queueCode}
+                </StatusBadge>
+              ) : (
+                <span style={{ color: 'var(--t-2)' }}>Chưa có số</span>
+              )}
+              {sel.isInQueue && (
+                <span style={{ marginLeft: 8, fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
+                  đã vào hàng đợi
+                </span>
+              )}
             </DrField>
           </DrSec>
           <DrSec title="Phòng khám">

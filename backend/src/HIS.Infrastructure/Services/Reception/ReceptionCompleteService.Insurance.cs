@@ -607,6 +607,8 @@ public partial class ReceptionCompleteService {
         // Issue queue ticket
         var queueTicket = await IssueQueueTicketAsync(new IssueQueueTicketDto
         {
+            // Tiếp đón từ lịch hẹn thì dùng lại số đã giữ, không cấp số mới (migration 187).
+            AppointmentId = dto.AppointmentId,
             PatientId = patient.Id,
             PatientName = patient.FullName,
             RoomId = dto.RoomId,
@@ -649,14 +651,30 @@ public partial class ReceptionCompleteService {
 
     public async Task<AdmissionDto> QuickRegisterByAppointmentAsync(string appointmentCode, Guid userId)
     {
+        // Nhận lịch ở MỌI trạng thái chưa kết thúc (0 chờ xác nhận · 1 đã xác nhận · 2 đã đến),
+        // không chỉ trạng thái 1.
+        //
+        // Trước đây điều kiện là `Status == 1`, trong khi nút "BN đã đến" ở màn Quản lý đặt lịch
+        // ĐẶT Status = 2 TRƯỚC rồi mới gọi hàm này. Kết quả: hàm không tìm thấy lịch nào, ném
+        // KeyNotFound, và controller nuốt lỗi trong `catch { }` — bấm "BN đã đến" chỉ đổi được cái
+        // nhãn, KHÔNG sinh lượt khám, không sinh số thứ tự. Người bệnh "đã đến" mà không nằm trong
+        // danh sách nào của phòng khám. Lịch ở trạng thái 0 cũng vào được: người bệnh đến tận nơi
+        // là sự kiện mạnh hơn việc quầy đã kịp bấm xác nhận hay chưa.
         var appointment = await _context.Appointments
             .Include(a => a.Patient)
-            .FirstOrDefaultAsync(a => a.AppointmentCode == appointmentCode && a.Status == 1);
+            .FirstOrDefaultAsync(a => a.AppointmentCode == appointmentCode && !a.IsDeleted && a.Status < 3);
 
         if (appointment == null) throw new KeyNotFoundException("Khong tim thay lich hen hoac lich hen da su dung");
 
         var patient = appointment.Patient;
         var roomId = appointment.RoomId ?? throw new InvalidOperationException("Lich hen khong co phong kham");
+
+        // Đã có hồ sơ ngoại trú đang mở thì dừng: bấm hai lần, hoặc vé đã được gọi và tự mở hồ sơ
+        // rồi. Mở hồ sơ thứ hai cho cùng một lượt khám là làm hỏng dữ liệu, không phải tiện tay.
+        var activeRecord = await AppointmentCheckin.FindActiveRecordAsync(_context, patient.Id);
+        if (activeRecord != null)
+            throw new InvalidOperationException(
+                $"Benh nhan da co ho so kham dang mo (Ma: {activeRecord.MedicalRecordCode})");
 
         // Mark appointment as used
         appointment.Status = 2; // Used
@@ -666,6 +684,7 @@ public partial class ReceptionCompleteService {
         {
             return await RegisterInsurancePatientAsync(new InsuranceRegistrationDto
             {
+                AppointmentId = appointment.Id, // dùng lại số đã giữ cho lịch hẹn (migration 187)
                 PatientId = patient.Id,
                 InsuranceNumber = patient.InsuranceNumber,
                 RoomId = roomId
@@ -675,6 +694,7 @@ public partial class ReceptionCompleteService {
         {
             return await RegisterFeePatientAsync(new FeeRegistrationDto
             {
+                AppointmentId = appointment.Id, // dùng lại số đã giữ cho lịch hẹn (migration 187)
                 PatientId = patient.Id,
                 RoomId = roomId,
                 ServiceType = 2

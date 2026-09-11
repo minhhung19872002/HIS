@@ -257,6 +257,14 @@ class _AppointmentCard extends StatelessWidget {
                 ),
               ],
             ),
+            // Số thứ tự giữ sẵn: đặt ngay dưới mã hẹn vì đây là thứ người bệnh mở app ra để xem.
+            // Lịch chưa có số (khoa chưa khai phòng) thì nói thẳng là lấy số tại quầy, đừng để
+            // người bệnh tưởng mình có số rồi đến nơi mới biết không có.
+            if (!appointment.isCancelled) ...[
+              const SizedBox(height: 8),
+              _QueueNumberBanner(appointment: appointment),
+            ],
+
             const SizedBox(height: 8),
             _row(Icons.calendar_today_outlined, dateText),
             if (appointment.appointmentTime != null)
@@ -308,5 +316,79 @@ class _AppointmentCard extends StatelessWidget {
   static String _formatTime(String raw) {
     final parts = raw.split(':');
     return parts.length >= 2 ? '${parts[0]}:${parts[1]}' : raw;
+  }
+}
+
+/// Số thứ tự đã giữ sẵn cho ngày khám (HIS migration 187).
+///
+/// Người bệnh đặt lịch trên app được cấp số NGAY LÚC ĐẶT, và đến ngày khám vé tự vào hàng đợi —
+/// không phải bốc số lại. Dải này phải nói đủ hai ý đó, vì thói quen cũ là đến sớm xếp hàng bốc
+/// số; không nói thì tính năng có cũng như không.
+class _QueueNumberBanner extends StatelessWidget {
+  const _QueueNumberBanner({required this.appointment});
+
+  final Appointment appointment;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (!appointment.hasQueueNumber) {
+      return Row(
+        children: [
+          Icon(Icons.confirmation_number_outlined, size: 18, color: theme.colorScheme.outline),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Chưa có số thứ tự — vui lòng lấy số tại quầy khi đến.',
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.confirmation_number, color: theme.colorScheme.onPrimaryContainer),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Số thứ tự',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onPrimaryContainer,
+                ),
+              ),
+              Text(
+                appointment.queueCode!,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onPrimaryContainer,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              appointment.isInQueue
+                  ? 'Đã vào hàng chờ — mời bạn đến phòng khám và chờ gọi số.'
+                  : 'Đã giữ sẵn — đến ngày khám không phải bốc số lại.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onPrimaryContainer,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

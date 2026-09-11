@@ -349,11 +349,39 @@ public partial class ReceptionCompleteService {
         var today = HIS.Core.Common.VnTime.TodayVn; // Local VN date — dùng cho reset daily
         var (iqFromUtc, iqToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(today);
 
+        // Vé phát ra từ một lịch hẹn: dùng lại số đã GIỮ SẴN khi đặt lịch (migration 187).
+        //
+        // Không làm thế thì người bệnh xem số "B007" trên app từ hôm trước, đến quầy tiếp đón lại
+        // được phát "B031" — con số họ nhớ trở thành vô nghĩa, và số cũ vẫn nằm chiếm chỗ trong dãy.
+        Appointment? sourceAppointment = null;
+        if (dto.AppointmentId.HasValue)
+        {
+            sourceAppointment = await _context.Appointments.FirstOrDefaultAsync(
+                a => a.Id == dto.AppointmentId.Value && !a.IsDeleted);
+
+            // Worker đã phát vé đầu ngày rồi: trả về chính vé đó, không phát vé thứ hai (và cũng
+            // không vấp vào luật chống trùng vé bên dưới).
+            if (sourceAppointment?.QueueTicketId is Guid existingTicketId)
+            {
+                var existing = await GetQueueTicketByIdAsync(existingTicketId);
+                if (existing != null)
+                {
+                    // Phải lưu trước khi trả về sớm. Bên gọi (tiếp đón) vừa Add hồ sơ khám + phiên
+                    // khám và TRÔNG CHỜ hàm này lưu — mọi nhánh khác đều lưu. Trả về mà không lưu
+                    // thì ngay sau đó phiên khám chưa từng nằm trong CSDL bị đánh dấu Modified, EF
+                    // phát một câu UPDATE vào dòng không tồn tại và ném
+                    // DbUpdateConcurrencyException: lượt khám không được tạo, người bệnh "đã đến"
+                    // mà không có tên trong danh sách nào.
+                    await _unitOfWork.SaveChangesAsync();
+                    return existing;
+                }
+            }
+        }
+
         // Get or create queue config
         var config = await _context.QueueConfigurations
             .FirstOrDefaultAsync(c => c.RoomId == dto.RoomId && c.QueueType == dto.QueueType);
 
-        int nextNumber;
         if (config == null)
         {
             config = new QueueConfiguration
@@ -373,18 +401,26 @@ public partial class ReceptionCompleteService {
                 IsDeleted = false
             };
             await _context.QueueConfigurations.AddAsync(config);
-            nextNumber = 1;
         }
-        else
+        else if (config.ResetDaily && config.LastResetDate < today)
         {
-            if (config.ResetDaily && config.LastResetDate < today)
-            {
-                config.CurrentNumber = config.StartNumber;
-                config.LastResetDate = today;
-            }
-            nextNumber = config.CurrentNumber;
-            config.CurrentNumber++;
+            config.LastResetDate = today;
         }
+
+        // Số kế tiếp lấy từ dãy DÙNG CHUNG của (phòng, ngày) — migration 187.
+        //
+        // Trước đây số lấy từ bộ đếm `config.CurrentNumber`, vốn không biết gì về các số đã GIỮ SẴN
+        // cho lịch hẹn trong ngày. Giữ nguyên thì khách bốc số tại quầy sẽ nhận trúng số mà một
+        // người đặt lịch trên app đang cầm, và hai người cùng cầm "B007" đến trước một cửa phòng.
+        // Bộ đếm vẫn được cập nhật cho các màn hình đang đọc nó.
+        var nextNumber = await AppointmentQueueAllocator.NextNumberAsync(
+            _context, dto.RoomId, today, dto.QueueType);
+        config.CurrentNumber = nextNumber + 1;
+
+        // Số đã giữ cho lịch hẹn thì lấy đúng số đó, không lấy số kế tiếp.
+        var reservedNumber = sourceAppointment?.QueueNumber;
+        var reservedCode = sourceAppointment?.QueueCode;
+        if (reservedNumber.HasValue) nextNumber = reservedNumber.Value;
 
         var room = await _roomRepo.GetByIdAsync(dto.RoomId);
 
@@ -403,7 +439,7 @@ public partial class ReceptionCompleteService {
         // với cả hai vế null: EF dịch thành `PatientId IS NULL AND @p IS NULL`, nên MỘT vé vô danh
         // bất kỳ trong phòng đã chặn mọi khách vãng lai tiếp theo của cả ngày. Không có định danh thì
         // không có cơ sở nào để nói hai người là một.
-        if (dto.PatientId.HasValue)
+        if (dto.PatientId.HasValue && sourceAppointment == null)
         {
             var existingTicket = await _context.QueueTickets
                 .FirstOrDefaultAsync(t => t.PatientId == dto.PatientId
@@ -417,7 +453,7 @@ public partial class ReceptionCompleteService {
         var ticket = new QueueTicket
         {
             Id = Guid.NewGuid(),
-            TicketNumber = $"{config.Prefix}{nextNumber:D3}",
+            TicketNumber = reservedCode ?? $"{config.Prefix}{nextNumber:D3}",
             QueueNumber = nextNumber,
             IssueDate = DateTime.UtcNow, // Chuẩn hóa UTC — query dùng DayRangeUtc để so sánh đúng ngày VN
             QueueType = dto.QueueType,
@@ -434,6 +470,17 @@ public partial class ReceptionCompleteService {
         };
 
         await _context.QueueTickets.AddAsync(ticket);
+
+        if (sourceAppointment != null)
+        {
+            sourceAppointment.QueueTicketId = ticket.Id;
+            // Lịch hẹn cũ chưa có số giữ sẵn (đặt trước migration 187): ghi lại số vừa cấp để màn
+            // quản lý đặt lịch và app cùng thấy một con số.
+            sourceAppointment.QueueNumber ??= ticket.QueueNumber;
+            sourceAppointment.QueueCode ??= ticket.TicketNumber;
+            sourceAppointment.UpdatedAt = DateTime.UtcNow;
+        }
+
         await _unitOfWork.SaveChangesAsync();
 
         return new QueueTicketDto
@@ -553,6 +600,8 @@ public partial class ReceptionCompleteService {
 
         if (nextTicket == null) return null;
 
+        await EnsureAppointmentRecordAsync(nextTicket);
+
         nextTicket.Status = 1; // Calling
         nextTicket.CalledTime = DateTime.Now;
         nextTicket.CalledByUserId = userId;
@@ -567,6 +616,8 @@ public partial class ReceptionCompleteService {
     {
         var ticket = await _context.QueueTickets.FindAsync(ticketId);
         if (ticket == null) throw new KeyNotFoundException("Ticket not found");
+
+        await EnsureAppointmentRecordAsync(ticket);
 
         ticket.Status = 1; // Calling
         ticket.CalledTime = DateTime.Now;
@@ -684,6 +735,42 @@ public partial class ReceptionCompleteService {
         await _unitOfWork.SaveChangesAsync();
 
         return (await GetQueueTicketByIdAsync(ticketId))!;
+    }
+
+    /// <summary>
+    /// Mở hồ sơ khám cho vé sinh ra từ lịch hẹn, ngay lúc phòng khám gọi số (migration 187).
+    ///
+    /// <para>Người đặt lịch trên app được giữ số từ trước và vé tự vào hàng đợi đầu ngày, nên có
+    /// thể bị gọi mà chưa ai bấm tiếp đón. Không mở hồ sơ ở đây thì bệnh nhân bước vào phòng còn
+    /// bác sĩ không có gì trên màn hình.</para>
+    ///
+    /// <para>Cố ý mở hồ sơ ở bước GỌI SỐ chứ không phải lúc phát vé đầu ngày: người không đến sẽ
+    /// không bao giờ được gọi, nên không đẻ ra hồ sơ khám rỗng và không làm sai thống kê vắng mặt.</para>
+    /// </summary>
+    private async Task EnsureAppointmentRecordAsync(QueueTicket ticket)
+    {
+        if (ticket.MedicalRecordId.HasValue) return;
+
+        // Điều kiện chỉ là "lịch chưa huỷ / chưa đánh dấu vắng". CỐ Ý không đòi Status < 2: một
+        // lịch đã mang nhãn "đã đến" nhưng chưa có hồ sơ là chuyện có thật (bấm nhầm nút, hoặc lỗi
+        // tiếp đón cũ), và đó chính là ca cần cứu nhất — người bệnh đang đứng trước cửa phòng.
+        var appointment = await _context.Appointments.FirstOrDefaultAsync(
+            a => !a.IsDeleted && a.QueueTicketId == ticket.Id && a.Status < 3);
+        if (appointment == null) return;
+
+        // Lễ tân vừa tiếp đón tay cho chính người này: gắn vé vào hồ sơ đang mở, không mở hồ sơ
+        // thứ hai cho cùng một lượt khám.
+        var active = await AppointmentCheckin.FindActiveRecordAsync(_context, appointment.PatientId);
+        if (active != null)
+        {
+            ticket.MedicalRecordId = active.Id;
+            appointment.Status = 2; // Đã đến khám
+            appointment.UpdatedAt = DateTime.UtcNow;
+            return;
+        }
+
+        await AppointmentCheckin.CreateRecordAsync(
+            _context, appointment, ticket, HIS.Core.Common.VnTime.TodayVn);
     }
 
     /// <summary>

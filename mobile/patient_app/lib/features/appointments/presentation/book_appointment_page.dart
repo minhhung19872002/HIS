@@ -117,7 +117,7 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
     });
 
     try {
-      final message = await ref.read(appointmentRepositoryProvider).book(
+      final result = await ref.read(appointmentRepositoryProvider).book(
             date: _date,
             time: _slot!.startTime,
             departmentId: _department!.id,
@@ -126,9 +126,18 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
           );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message ?? 'Đã đặt lịch khám.')),
-      );
+
+      // Số thứ tự là thứ người bệnh cần nhớ nhất khi rời màn hình này — hiện bằng hộp thoại phải
+      // bấm mới tắt. SnackBar trôi sau vài giây là con số cũng trôi theo.
+      if (result.hasQueueNumber) {
+        await _showQueueNumberDialog(result);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.message ?? 'Đã đặt lịch khám.')),
+        );
+      }
+
+      if (!mounted) return;
       Navigator.of(context).pop(true);
     } on Failure catch (e) {
       setState(() => _error = e.message);
@@ -136,6 +145,50 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
       if (mounted) setState(() => _busy = false);
     }
   }
+
+  /// Báo số thứ tự vừa được giữ cho ngày khám.
+  ///
+  /// Nói rõ luôn là "không phải bốc số lại": người bệnh quen với việc đến nơi mới có số, không nói
+  /// thì họ vẫn đi sớm xếp hàng bốc số và tính năng này coi như không tồn tại.
+  Future<void> _showQueueNumberDialog(BookingResult result) => showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          final theme = Theme.of(context);
+          return AlertDialog(
+            title: const Text('Đặt lịch thành công'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Số thứ tự của bạn ngày ${DateFormat('dd/MM/yyyy').format(_date)}:'),
+                const SizedBox(height: 12),
+                Center(
+                  child: Text(
+                    result.queueCode!,
+                    style: theme.textTheme.displaySmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Số đã được giữ sẵn — đến ngày khám bạn không phải bốc số lại, chỉ cần đến '
+                  'phòng khám và chờ được gọi đúng số này.',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Đã hiểu'),
+              ),
+            ],
+          );
+        },
+      );
 
   /// Bước đang ở: 0 chưa chọn khoa · 1 đã chọn khoa · 2 đã chọn ngày · 3 đã chọn giờ.
   int get _step {

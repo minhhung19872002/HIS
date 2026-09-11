@@ -146,6 +146,8 @@ public partial class ReceptionCompleteService {
         // Issue queue ticket
         var queueTicket = await IssueQueueTicketAsync(new IssueQueueTicketDto
         {
+            // Tiếp đón từ lịch hẹn thì dùng lại số đã giữ, không cấp số mới (migration 187).
+            AppointmentId = dto.AppointmentId,
             PatientId = patient.Id,
             PatientName = patient.FullName,
             RoomId = dto.RoomId,

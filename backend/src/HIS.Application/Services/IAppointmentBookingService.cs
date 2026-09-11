@@ -125,6 +125,15 @@ public class BookingResultDto
     public string? DoctorName { get; set; }
     public string? RoomName { get; set; }
     public int EstimatedWaitMinutes { get; set; }
+
+    /// <summary>
+    /// Số thứ tự đã GIỮ SẴN cho ngày hẹn (migration 187). NULL khi lịch chưa gán phòng — khi đó
+    /// người bệnh lấy số tại quầy như cũ, và app phải nói rõ điều đó thay vì hiện số trống.
+    /// </summary>
+    public int? QueueNumber { get; set; }
+
+    /// <summary>Mã vé hiển thị của số đã giữ, VD "B007" — đúng mã sẽ hiện trên bảng gọi số.</summary>
+    public string? QueueCode { get; set; }
 }
 
 public class BookingStatusDto
@@ -153,6 +162,15 @@ public class BookingStatusDto
     /// tháng sau lại có ngày hẹn xa nhất.</para>
     /// </summary>
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>Số thứ tự đã giữ sẵn cho ngày hẹn (migration 187). NULL = lấy số tại quầy.</summary>
+    public int? QueueNumber { get; set; }
+
+    /// <summary>Mã vé hiển thị của số đã giữ, VD "B007".</summary>
+    public string? QueueCode { get; set; }
+
+    /// <summary>Đã vào hàng đợi thật của ngày khám hay chưa (worker tự đưa vào đầu ngày).</summary>
+    public bool IsInQueue { get; set; }
 }
 
 /// <summary>Yêu cầu đổi lịch của người bệnh.</summary>
@@ -208,10 +226,27 @@ public interface IBookingManagementService
     Task<BookingStatsDto> GetBookingStatsAsync(DateTime? date);
 
     // Booking → Reception
-    Task<BookingCheckinResultDto> CheckinFromBookingAsync(string appointmentCode);
+    /// <param name="auto">
+    /// Worker tự đưa lịch hẹn vào hàng đợi đầu ngày khám (migration 187) gọi với <c>true</c>.
+    /// Khác biệt duy nhất: KHÔNG bắt buộc đã phân bác sĩ — lịch đặt qua app thường chỉ chọn khoa,
+    /// và nếu chặn thì đúng nhóm người bệnh mà tính năng này phục vụ lại là nhóm không vào được
+    /// hàng đợi. Khoa và phòng thì vẫn bắt buộc vì phiên khám không tồn tại nếu thiếu.
+    /// </param>
+    Task<BookingCheckinResultDto> CheckinFromBookingAsync(string appointmentCode, bool auto = false);
 
     // Staff-side cancel (không cần xác thực SĐT như public cancel)
     Task<BookingStatusDto> CancelBookingAsync(string appointmentCode, string? reason);
+
+    /// <summary>
+    /// Cấp số thứ tự cho một lịch hẹn CHƯA có số (migration 187).
+    ///
+    /// <para>Lịch đặt từ trước khi có tính năng giữ số, hoặc lịch đặt vào khoa chưa gán được phòng,
+    /// sẽ không có số. Nhân viên bấm cấp tại màn Quản lý đặt lịch; nếu lịch chưa có phòng thì hàm
+    /// tự gán phòng của khoa (giống lúc đặt lịch) rồi mới cấp số.</para>
+    ///
+    /// <para>Lịch đã có số thì trả về nguyên trạng — bấm nhiều lần không đổi số của người bệnh.</para>
+    /// </summary>
+    Task<BookingStatusDto> AssignQueueNumberAsync(string appointmentCode);
 }
 
 /// <summary>
@@ -335,6 +370,10 @@ public class BookingCheckinResultDto
     public string? Reason { get; set; }
     public int? AppointmentType { get; set; }
     public int? QueueNumber { get; set; }
+
+    /// <summary>Mã vé hiển thị, VD "B007" — dùng lại đúng số đã giữ khi đặt lịch nếu có.</summary>
+    public string? QueueCode { get; set; }
+
     public Guid? MedicalRecordId { get; set; }
     public string? MedicalRecordCode { get; set; }
 }

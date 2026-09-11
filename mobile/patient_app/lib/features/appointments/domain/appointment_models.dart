@@ -60,6 +60,34 @@ class SlotResult {
       );
 }
 
+/// Kết quả đặt lịch — kèm số thứ tự đã giữ sẵn cho ngày khám.
+///
+/// Số được cấp NGAY LÚC ĐẶT chứ không phải đến nơi mới bốc, nên phải hiện cho người bệnh thấy
+/// ngay tại màn hình đặt lịch. [queueCode] rỗng nghĩa là lịch chưa gán được phòng — khi đó nói
+/// thẳng "lấy số tại quầy" thay vì để người bệnh đoán.
+class BookingResult {
+  const BookingResult({this.message, this.appointmentCode, this.queueNumber, this.queueCode});
+
+  final String? message;
+  final String? appointmentCode;
+  final int? queueNumber;
+
+  /// Mã vé hiển thị, VD "B007" — đúng mã sẽ hiện trên bảng gọi số tại phòng khám.
+  final String? queueCode;
+
+  bool get hasQueueNumber => queueCode != null && queueCode!.isNotEmpty;
+
+  factory BookingResult.fromJson(Map<String, dynamic> envelope) {
+    final data = envelope['data'] as Map<String, dynamic>? ?? const {};
+    return BookingResult(
+      message: asString(envelope['message']) ?? asString(data['message']),
+      appointmentCode: asString(data['appointmentCode']),
+      queueNumber: tryAsInt(data['queueNumber']),
+      queueCode: asString(data['queueCode']),
+    );
+  }
+}
+
 /// Lịch hẹn của người bệnh.
 class Appointment {
   const Appointment({
@@ -72,6 +100,9 @@ class Appointment {
     this.roomName,
     this.statusName,
     this.reason,
+    this.queueNumber,
+    this.queueCode,
+    this.isInQueue = false,
   });
 
   final String appointmentCode;
@@ -85,6 +116,17 @@ class Appointment {
   final int status;
   final String? statusName;
   final String? reason;
+
+  /// Số thứ tự đã giữ sẵn cho ngày khám. NULL = lịch chưa có số, lấy số tại quầy.
+  final int? queueNumber;
+
+  /// Mã vé hiển thị, VD "B007".
+  final String? queueCode;
+
+  /// Vé đã nằm trong hàng đợi của ngày khám hay chưa (đến ngày khám hệ thống tự đưa vào).
+  final bool isInQueue;
+
+  bool get hasQueueNumber => queueCode != null && queueCode!.isNotEmpty;
 
   /// Chỉ lịch chưa đến khám mới sửa/huỷ được — khớp đúng luật phía server.
   bool get canModify => status < 2;
@@ -124,5 +166,8 @@ class Appointment {
         statusName: asString(json['statusName']) ??
             (json['status'] is String ? json['status'] as String : null),
         reason: asString(json['reason']),
+        queueNumber: tryAsInt(json['queueNumber']),
+        queueCode: asString(json['queueCode']),
+        isInQueue: asBool(json['isInQueue']),
       );
 }

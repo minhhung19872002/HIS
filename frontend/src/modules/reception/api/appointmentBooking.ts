@@ -87,6 +87,12 @@ export interface BookingStatusDto {
   statusName: string;
   /** Thời điểm lịch được TẠO (ISO, UTC) — khác ngày hẹn; màn quản lý xếp mặc định theo mốc này. */
   createdAt?: string;
+  /** Số thứ tự GIỮ SẴN cho ngày hẹn (migration 187). Rỗng = lịch chưa có số, lấy số tại quầy. */
+  queueNumber?: number;
+  /** Mã vé hiển thị, VD "B007" — đúng mã hiện trên bảng gọi số. */
+  queueCode?: string;
+  /** Vé đã nằm trong hàng đợi của ngày khám hay chưa. */
+  isInQueue?: boolean;
 }
 
 export interface BookingServiceDto {

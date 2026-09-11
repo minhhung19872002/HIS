@@ -471,6 +471,13 @@ public class AppointmentBookingService : IAppointmentBookingService
             CreatedAt = DateTime.UtcNow
         };
 
+        // Giữ số thứ tự NGAY LÚC ĐẶT (migration 187) — người bệnh biết số của mình từ bây giờ, không
+        // phải đến nơi mới bốc. Chưa gán được phòng thì để trống và app sẽ nói "lấy số tại quầy".
+        var reserved = await AppointmentQueueAllocator.ReserveAsync(
+            _context, roomId, appointment.AppointmentDate);
+        appointment.QueueNumber = reserved?.Number;
+        appointment.QueueCode = reserved?.Code;
+
         await _context.Appointments.AddAsync(appointment);
 
         // Thêm dịch vụ nếu có
@@ -500,7 +507,7 @@ public class AppointmentBookingService : IAppointmentBookingService
             CreatedAt = DateTime.UtcNow
         });
 
-        await _unitOfWork.SaveChangesAsync();
+        await SaveWithQueueNumberRetryAsync(appointment);
 
         // Lấy tên khoa/bác sĩ
         string? deptName = null, docName = null;
@@ -526,15 +533,49 @@ public class AppointmentBookingService : IAppointmentBookingService
         return new BookingResultDto
         {
             Success = true,
-            Message = "Đặt lịch thành công! Vui lòng lưu mã hẹn để tra cứu.",
+            Message = appointment.QueueCode is null
+                ? "Đặt lịch thành công! Vui lòng lưu mã hẹn để tra cứu."
+                : $"Đặt lịch thành công! Số thứ tự của bạn ngày "
+                  + $"{appointment.AppointmentDate:dd/MM} là {appointment.QueueCode}.",
             AppointmentCode = code,
             AppointmentDate = appointment.AppointmentDate,
             AppointmentTime = appointment.AppointmentTime,
             DepartmentName = deptName,
             DoctorName = docName,
             RoomName = roomName,
-            EstimatedWaitMinutes = 15
+            EstimatedWaitMinutes = 15,
+            QueueNumber = appointment.QueueNumber,
+            QueueCode = appointment.QueueCode
         };
+    }
+
+    /// <summary>
+    /// Lưu lịch hẹn, cấp lại số thứ tự nếu số vừa giữ đã bị người khác lấy mất.
+    ///
+    /// <para>Hai người bấm đặt cùng lúc có thể cùng tính ra một số. Chỉ số duy nhất
+    /// <c>UX_Appointments_Room_Date_QueueNumber</c> (migration 187) chặn việc đó ở tầng cơ sở dữ
+    /// liệu; ở đây bắt lại, cấp số kế tiếp rồi lưu lần nữa. Thà thử vài lần còn hơn để hai người
+    /// cầm cùng một số đến trước cửa phòng khám.</para>
+    /// </summary>
+    private async Task SaveWithQueueNumberRetryAsync(Appointment appointment)
+    {
+        const int maxAttempts = 3;
+
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await _unitOfWork.SaveChangesAsync();
+                return;
+            }
+            catch (DbUpdateException) when (appointment.QueueNumber != null && attempt < maxAttempts)
+            {
+                var retry = await AppointmentQueueAllocator.ReserveAsync(
+                    _context, appointment.RoomId, appointment.AppointmentDate);
+                appointment.QueueNumber = retry?.Number;
+                appointment.QueueCode = retry?.Code;
+            }
+        }
     }
 
     public async Task<List<BookingStatusDto>> LookupAppointmentsAsync(string? code, string? phone)
@@ -618,6 +659,7 @@ public class AppointmentBookingService : IAppointmentBookingService
 
         var oldDate = appointment.AppointmentDate;
         var oldTime = appointment.AppointmentTime;
+        var oldRoomId = appointment.RoomId;
 
         appointment.AppointmentDate = dto.NewAppointmentDate.Date;
         appointment.AppointmentTime = dto.NewAppointmentTime ?? appointment.AppointmentTime;
@@ -646,7 +688,20 @@ public class AppointmentBookingService : IAppointmentBookingService
             .FirstOrDefaultAsync();
         if (newRoomId != null) appointment.RoomId = newRoomId;
 
-        await _unitOfWork.SaveChangesAsync();
+        // Đổi ngày hoặc đổi phòng là đổi sang một dãy số khác → số cũ trả lại, cấp số của ngày mới.
+        // Không đổi gì trong hai thứ đó thì GIỮ NGUYÊN số: đổi mỗi giờ trong ngày mà bị tụt xuống
+        // cuối hàng thì người bệnh mất luôn cái lợi đã đặt sớm.
+        if (appointment.QueueNumber is null
+            || appointment.AppointmentDate != oldDate.Date
+            || appointment.RoomId != oldRoomId)
+        {
+            var reserved = await AppointmentQueueAllocator.ReserveAsync(
+                _context, appointment.RoomId, appointment.AppointmentDate);
+            appointment.QueueNumber = reserved?.Number;
+            appointment.QueueCode = reserved?.Code;
+        }
+
+        await SaveWithQueueNumberRetryAsync(appointment);
 
         // Nạp lại phòng/bác sĩ để phản hồi trả đúng tên mới.
         await _context.Entry(appointment).Reference(a => a.Room).LoadAsync();
@@ -679,6 +734,21 @@ public class AppointmentBookingService : IAppointmentBookingService
             ? $"Hủy: {dto.Reason}"
             : $"{appointment.Notes}\nHủy: {dto.Reason}";
         appointment.UpdatedAt = DateTime.UtcNow;
+
+        // Vé đã nằm sẵn trong hàng đợi hôm nay phải rút ra, nếu không phòng khám vẫn gọi số của
+        // người đã huỷ. Số thì tự trả cho người sau vì bộ cấp số bỏ qua lịch Status >= 3.
+        if (appointment.QueueTicketId.HasValue)
+        {
+            var reservedTicket = await _context.QueueTickets.FirstOrDefaultAsync(
+                t => t.Id == appointment.QueueTicketId.Value && !t.IsDeleted);
+
+            // Vé đã gọi / đang phục vụ thì người bệnh đã vào phòng — không đụng vào.
+            if (reservedTicket is { Status: 0 })
+            {
+                reservedTicket.Status = 4; // Bỏ qua
+                reservedTicket.Notes = "Người bệnh huỷ lịch hẹn";
+            }
+        }
 
         await _unitOfWork.SaveChangesAsync();
 
@@ -862,7 +932,10 @@ public class AppointmentBookingService : IAppointmentBookingService
             Reason = a.Reason,
             Status = a.Status,
             StatusName = statusNames.GetValueOrDefault(a.Status, "Không xác định"),
-            CreatedAt = a.CreatedAt
+            CreatedAt = a.CreatedAt,
+            QueueNumber = a.QueueNumber,
+            QueueCode = a.QueueCode,
+            IsInQueue = a.QueueTicketId != null
         };
     }
 

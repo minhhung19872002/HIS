@@ -70,6 +70,13 @@ public class DoctorScheduleDto
 /// </summary>
 public class IssueQueueTicketDto
 {
+    /// <summary>
+    /// Lịch hẹn sinh ra vé này (migration 187). Có giá trị thì vé DÙNG LẠI số đã giữ cho người
+    /// bệnh từ lúc đặt lịch, thay vì cấp số mới — người bệnh đã nhìn thấy số đó trên app rồi.
+    /// Lịch hẹn đã có vé (worker phát đầu ngày) thì trả về chính vé đó, không phát vé thứ hai.
+    /// </summary>
+    public Guid? AppointmentId { get; set; }
+
     public Guid? PatientId { get; set; }
     public string? PatientName { get; set; }
     public Guid RoomId { get; set; }
@@ -423,6 +430,9 @@ public class DocumentHoldItemDto
 /// </summary>
 public class InsuranceRegistrationDto
 {
+    /// <summary>Lịch hẹn nguồn — để vé dùng lại số đã giữ (migration 187).</summary>
+    public Guid? AppointmentId { get; set; }
+
     // Thông tin bệnh nhân
     public Guid? PatientId { get; set; }
     public string? PatientCode { get; set; }
@@ -455,6 +465,9 @@ public class InsuranceRegistrationDto
 /// </summary>
 public class FeeRegistrationDto
 {
+    /// <summary>Lịch hẹn nguồn — để vé dùng lại số đã giữ (migration 187).</summary>
+    public Guid? AppointmentId { get; set; }
+
     // Thông tin bệnh nhân
     public Guid? PatientId { get; set; }
     public CreatePatientDto? NewPatient { get; set; }

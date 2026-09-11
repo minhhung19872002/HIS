@@ -51,8 +51,8 @@ class AppointmentRepository {
         .toList();
   }
 
-  /// Đặt lịch. Trả về thông điệp của server để hiển thị nguyên văn.
-  Future<String?> book({
+  /// Đặt lịch. Trả về thông điệp của server kèm SỐ THỨ TỰ đã giữ sẵn cho ngày khám.
+  Future<BookingResult> book({
     required DateTime date,
     String? time,
     String? departmentId,
@@ -71,7 +71,7 @@ class AppointmentRepository {
             if (reason != null && reason.isNotEmpty) 'reason': reason,
           },
         ));
-    return data['message'] as String?;
+    return BookingResult.fromJson(data);
   }
 
   Future<void> cancel(String appointmentCode, {String? reason}) =>

@@ -318,6 +318,8 @@ public static class DependencyInjection
         services.AddScoped<IDocumentSignatureStore, DocumentSignatureStore>(); // #202 tail: thin DigitalSignatureController
         services.AddHostedService<HIS.Infrastructure.Services.Workers.BackupSchedulerWorker>(); // #128
         services.AddHostedService<HIS.Infrastructure.Services.Workers.AppointmentReminderWorker>(); // #102
+        // Migration 187: đưa lịch hẹn hôm nay vào hàng đợi bằng số đã giữ sẵn khi đặt lịch.
+        services.AddHostedService<HIS.Infrastructure.Services.Workers.AppointmentQueueMaterializerWorker>();
 
         // Wave 3: kết nối HIS đa NCC (#90)
         services.AddHttpClient("MultiHisConnector", client =>

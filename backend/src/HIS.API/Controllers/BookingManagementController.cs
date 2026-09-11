@@ -15,10 +15,13 @@ namespace HIS.API.Controllers;
 public class BookingManagementController : ControllerBase
 {
     private readonly IBookingManagementService _service;
+    private readonly ILogger<BookingManagementController> _logger;
 
-    public BookingManagementController(IBookingManagementService service)
+    public BookingManagementController(
+        IBookingManagementService service, ILogger<BookingManagementController> logger)
     {
         _service = service;
+        _logger = logger;
     }
 
     // === Doctor Schedule ===
@@ -98,7 +101,16 @@ public class BookingManagementController : ControllerBase
                 ? uid : Guid.Empty;
             await reception.QuickRegisterByAppointmentAsync(code, userId);
         }
-        catch { /* check-in đã OK; tạo lượt khám có thể retry tại quầy */ }
+        catch (Exception ex)
+        {
+            // Check-in đã OK; tạo lượt khám có thể làm lại tại quầy. NHƯNG phải GHI LẠI lý do:
+            // `catch { }` trần đã giấu suốt một lỗi thật — QuickRegisterByAppointmentAsync chỉ nhận
+            // lịch Status == 1, mà dòng trên vừa đặt Status = 2, nên KHÔNG lượt khám nào được tạo
+            // và không ai biết. Nuốt lỗi không tiếng động thì lỗi sống mãi.
+            _logger.LogError(ex,
+                "Check-in {Code}: không tạo được lượt khám từ lịch hẹn — cần đăng ký lại tại quầy",
+                code);
+        }
 
         return Ok(result);
     }
@@ -132,6 +144,17 @@ public class BookingManagementController : ControllerBase
         }
 
         var result = await _service.GetBookingStatsAsync(parsedDate);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Cấp số thứ tự cho lịch hẹn chưa có số (lịch đặt trước khi có tính năng giữ số, hoặc lịch
+    /// chưa gán được phòng). Lịch đã có số thì trả nguyên trạng — bấm lại không đổi số.
+    /// </summary>
+    [HttpPost("bookings/{code}/queue-number")]
+    public async Task<IActionResult> AssignQueueNumber(string code)
+    {
+        var result = await _service.AssignQueueNumberAsync(code);
         return Ok(result);
     }
 

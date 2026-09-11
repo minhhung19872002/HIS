@@ -97,6 +97,8 @@ export interface BookingCheckinResultDto {
   reason?: string;
   appointmentType?: number;
   queueNumber?: number;
+  /** Mã vé hiển thị, VD "B007". */
+  queueCode?: string;
 }
 
 // === Doctor Schedule API ===
@@ -135,6 +137,13 @@ export const getBookingStats = (date?: string) =>
 
 export const checkinFromBooking = (code: string) =>
   client.post<BookingCheckinResultDto>(`/booking-management/bookings/${code}/reception-checkin`).then(r => r.data);
+
+/**
+ * Cấp số thứ tự cho lịch hẹn CHƯA có số (migration 187) — lịch đặt trước khi có tính năng giữ số,
+ * hoặc lịch vào khoa chưa khai báo phòng. Lịch đã có số thì trả nguyên trạng, bấm lại không đổi số.
+ */
+export const assignQueueNumber = (code: string) =>
+  client.post<BookingStatusDto>(`/booking-management/bookings/${code}/queue-number`).then(r => r.data);
 
 export const cancelBooking = (code: string, reason?: string) =>
   client.put<BookingStatusDto>(`/booking-management/bookings/${code}/cancel`, { reason }).then(r => r.data);

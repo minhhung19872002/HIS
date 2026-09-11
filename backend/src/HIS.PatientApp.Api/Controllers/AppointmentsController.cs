@@ -100,10 +100,15 @@ public class AppointmentsController : ControllerBase
             if (!result.Success)
                 return BadRequest(ApiResponse.Fail(result.Message ?? "Không đặt được lịch khám."));
 
-            await NotifyAsync(account.Id, "Đã đặt lịch khám",
-                BuildAppointmentSummary(result.AppointmentDate, result.AppointmentTime,
-                    result.DepartmentName, result.DoctorName, result.RoomName),
-                result.AppointmentCode, ct);
+            var summary = BuildAppointmentSummary(result.AppointmentDate, result.AppointmentTime,
+                result.DepartmentName, result.DoctorName, result.RoomName);
+
+            // Số thứ tự đã giữ sẵn — nhắc lại trong thông báo để người bệnh tìm lại được sau này,
+            // chứ không chỉ thấy một lần trên màn hình đặt lịch rồi thôi.
+            if (!string.IsNullOrWhiteSpace(result.QueueCode))
+                summary += $" · Số thứ tự {result.QueueCode}";
+
+            await NotifyAsync(account.Id, "Đã đặt lịch khám", summary, result.AppointmentCode, ct);
 
             return Ok(ApiResponse<HisBookingResult>.Ok(result, result.Message));
         });

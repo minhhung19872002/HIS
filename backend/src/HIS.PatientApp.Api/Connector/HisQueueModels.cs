@@ -108,6 +108,12 @@ public class HisBookingResult
     [JsonPropertyName("departmentName")] public string? DepartmentName { get; set; }
     [JsonPropertyName("doctorName")] public string? DoctorName { get; set; }
     [JsonPropertyName("roomName")] public string? RoomName { get; set; }
+
+    /// <summary>Số thứ tự giữ sẵn cho ngày hẹn. NULL = lấy số tại quầy.</summary>
+    [JsonPropertyName("queueNumber")] public int? QueueNumber { get; set; }
+
+    /// <summary>Mã vé hiển thị, VD "B007".</summary>
+    [JsonPropertyName("queueCode")] public string? QueueCode { get; set; }
 }
 
 public class HisBookingStatus
@@ -123,4 +129,13 @@ public class HisBookingStatus
     [JsonPropertyName("statusName")] public string? StatusName { get; set; }
     [JsonPropertyName("appointmentType")] public int AppointmentType { get; set; }
     [JsonPropertyName("reason")] public string? Reason { get; set; }
+
+    /// <summary>Số thứ tự giữ sẵn cho ngày hẹn. NULL = lấy số tại quầy.</summary>
+    [JsonPropertyName("queueNumber")] public int? QueueNumber { get; set; }
+
+    /// <summary>Mã vé hiển thị, VD "B007".</summary>
+    [JsonPropertyName("queueCode")] public string? QueueCode { get; set; }
+
+    /// <summary>Vé đã nằm trong hàng đợi của ngày khám hay chưa.</summary>
+    [JsonPropertyName("isInQueue")] public bool IsInQueue { get; set; }
 }
