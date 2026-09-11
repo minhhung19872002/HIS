@@ -7,6 +7,12 @@ public class IcdCode : BaseEntity
 {
     public string Code { get; set; } = string.Empty; // Mã ICD
     public string Name { get; set; } = string.Empty; // Tên bệnh
+    /// <summary>
+    /// Bản bỏ dấu của <see cref="Name"/>, phục vụ tìm kiếm không dấu (migration 192).
+    /// DB dùng collation Vietnamese_CI_AS (AS = phân biệt dấu) nên không có cột này thì
+    /// gõ "tang huyet ap" không khớp "tăng huyết áp".
+    /// </summary>
+    public string? NameNoDiacritics { get; set; }
     public string? NameEnglish { get; set; } // Tên tiếng Anh
     public string? ChapterCode { get; set; } // Mã chương
     public string? ChapterName { get; set; } // Tên chương

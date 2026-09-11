@@ -114,10 +114,56 @@ public partial class ExaminationCompleteService
         return new DiagnosisFullDto { Id = diagnosisId, IsPrimary = true };
     }
 
+    /// <summary>
+    /// Bỏ dấu tiếng Việt. PHẢI khớp đúng cách migration 192 sinh cột NameNoDiacritics:
+    /// đổi Đ/đ → D/d trước, rồi tách tổ hợp Unicode (NFD) và loại các dấu thanh/dấu mũ.
+    /// Lệch cách bỏ dấu giữa hai bên là từ khoá không bao giờ khớp dữ liệu.
+    /// </summary>
+    private static string RemoveDiacritics(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return string.Empty;
+        var normalized = s.Replace('Đ', 'D').Replace('đ', 'd')
+            .Normalize(System.Text.NormalizationForm.FormD);
+        var sb = new System.Text.StringBuilder(normalized.Length);
+        foreach (var ch in normalized)
+        {
+            if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(ch)
+                != System.Globalization.UnicodeCategory.NonSpacingMark)
+                sb.Append(ch);
+        }
+        return sb.ToString();
+    }
+
     public async Task<List<IcdCodeFullDto>> SearchIcdCodesAsync(string keyword, int? icdType = null, int limit = 20)
     {
-        var codes = await _context.IcdCodes
-            .Where(i => i.Code.Contains(keyword) || i.Name.Contains(keyword) || (i.NameEnglish != null && i.NameEnglish.Contains(keyword)))
+        // TÌM KHÔNG DẤU: DB dùng collation Vietnamese_CI_AS — CI = không phân biệt hoa/thường
+        // nhưng AS = PHÂN BIỆT DẤU, nên gõ "tang huyet ap" KHÔNG khớp "tăng huyết áp".
+        // Bác sĩ đang khám gõ nhanh không dấu là ra rỗng. So thêm trên cột NameNoDiacritics
+        // (migration 192) sau khi bỏ dấu chính từ khoá người dùng gõ.
+        var kw = (keyword ?? string.Empty).Trim();
+        var kwNoDiacritics = RemoveDiacritics(kw);
+
+        var query = _context.IcdCodes.Where(i => !i.IsDeleted && i.IsActive);
+        if (kw.Length > 0)
+        {
+            query = query.Where(i =>
+                i.Code.Contains(kw)
+                || i.Name.Contains(kw)
+                || (i.NameEnglish != null && i.NameEnglish.Contains(kw))
+                || (i.NameNoDiacritics != null && i.NameNoDiacritics.Contains(kwNoDiacritics)));
+        }
+
+        // SẮP THEO ĐỘ KHỚP: trước đây lấy nguyên thứ tự DB rồi Take(limit) → gõ "tăng huyết áp"
+        // thì "O12 Phù thai kỳ" lên trước "I10 Tăng huyết áp vô căn". Mã khớp chính xác lên đầu,
+        // rồi tới mã bắt đầu bằng từ khoá, rồi tên bắt đầu bằng từ khoá, cuối cùng mới là chứa.
+        var codes = await query
+            .OrderBy(i =>
+                i.Code == kw ? 0
+                : i.Code.StartsWith(kw) ? 1
+                : i.Name.StartsWith(kw) ? 2
+                : (i.NameNoDiacritics != null && i.NameNoDiacritics.StartsWith(kwNoDiacritics)) ? 3
+                : 4)
+            .ThenBy(i => i.Code)
             .Take(limit)
             .ToListAsync();
 
