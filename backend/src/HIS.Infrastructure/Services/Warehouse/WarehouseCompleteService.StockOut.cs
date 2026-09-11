@@ -74,9 +74,35 @@ public partial class WarehouseCompleteService {
         if (prescription == null)
             throw new KeyNotFoundException("Khong tim thay don thuoc (prescriptionId khong ton tai)");
 
-        var warehouseId = prescription.WarehouseId
-            ?? throw new InvalidOperationException("Don thuoc chua duoc gan kho xuat (WarehouseId trong)");
+        // Đơn chưa gán kho xuất → tự chọn kho cấp phát thuốc mặc định, KHÔNG chặn dược sĩ.
+        // Nhánh phát thuốc bên PharmacyService đã làm đúng như vậy từ trước (có log); đường này
+        // thì ném lỗi thẳng, mà đây LẠI là đường màn "Quầy cấp phát thuốc" thực sự gọi → 611/806
+        // đơn không phát được. Hai nhánh giờ xử lý giống nhau.
+        Guid warehouseId;
+        if (prescription.WarehouseId is Guid assigned && assigned != Guid.Empty)
+        {
+            warehouseId = assigned;
+        }
+        else
+        {
+            warehouseId = await _context.Warehouses
+                .Where(w => w.IsActive && !w.IsDeleted
+                            && HIS.Core.Constants.WarehouseType.Dispensing.Contains(w.WarehouseType))
+                .OrderBy(w => w.WarehouseName)
+                .Select(w => (Guid?)w.Id)
+                .FirstOrDefaultAsync()
+                ?? throw new InvalidOperationException(
+                    "Đơn thuốc chưa gán kho xuất và không có kho thuốc / nhà thuốc nào đang hoạt động — "
+                    + "cấu hình kho trước khi phát.");
+            prescription.WarehouseId = warehouseId; // ghi lại để phiếu xuất và đơn cùng trỏ một kho
+        }
         var warehouse = await _context.Warehouses.FindAsync(warehouseId);
+
+        // Kho vật tư / hóa chất KHÔNG được dùng để phát thuốc. 17 đơn cũ đang trỏ nhầm vào kho
+        // vật tư do combobox màn kê đơn trước đây lọc sai WarehouseType == 2.
+        if (warehouse != null && !HIS.Core.Constants.WarehouseType.IsDispensing(warehouse.WarehouseType))
+            throw new InvalidOperationException(
+                $"Kho \"{warehouse.WarehouseName}\" không phải kho cấp phát thuốc — chọn lại kho thuốc / nhà thuốc.");
 
         // NangCap26 V.33: kho đang khóa → không phát thuốc ngoại trú.
         await EnsureWarehouseNotLockedAsync(warehouseId);
