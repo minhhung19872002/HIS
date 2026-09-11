@@ -11,7 +11,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  KpiStrip, StatusBadge, ActBtn, Btn, ModalShell, DrawerShell, DrField, fmtVNDg, tk, tw, te,
+  KpiStrip, StatusBadge, ActBtn, Btn, ModalShell, DrawerShell, DrField, fmtVNDg, tk, tw, te, cf,
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import TermIcon from '../../../components/layout/terminal/Icon';
@@ -552,6 +552,23 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
     void doPrintExternalRx();
   };
 
+  /** Mở một đơn cũ của BN ngay từ khối "Đơn gần đây".
+   *  Giỏ thuốc đang soạn dở sẽ bị thay bằng nội dung đơn được mở → hỏi trước khi bỏ,
+   *  nếu không bác sĩ mất toàn bộ thuốc vừa gõ mà không hề được cảnh báo. */
+  const openExistingRx = (prescriptionId: string) => {
+    const go = () => navigate(
+      `/v2/prescription/edit?prescriptionId=${encodeURIComponent(prescriptionId)}`
+      + (examinationId ? `&examId=${encodeURIComponent(examinationId)}` : ''),
+    );
+    // Chỉ cảnh báo khi có thuốc CHƯA lưu (đơn đang mở sẵn thì items đến từ chính nó).
+    if (items.length > 0 && !editingPrescriptionId) {
+      cf(`Đơn đang soạn có ${items.length} thuốc chưa lưu. Mở đơn khác sẽ bỏ hết số thuốc này.`,
+        go, { title: 'Bỏ đơn đang soạn?', tone: 'warn', confirm: 'Bỏ và mở đơn kia' });
+      return;
+    }
+    go();
+  };
+
   // Apply a template: resolve each item's medicine (name/price) then add to cart.
   const applyTemplate = async (t: PrescriptionTemplateDto) => {
     setTplOpen(false);
@@ -649,15 +666,35 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
             {(ctx?.existingPrescriptions?.length ?? 0) > 0 && (
               <div style={{ marginTop: 'var(--space-12)' }}>
                 <div style={{ fontSize: 10.5, color: 'var(--t-2)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600, marginBottom: 'var(--space-6)' }}>Đơn gần đây</div>
-                {ctx!.existingPrescriptions.slice(0, 4).map((e, i) => (
-                  <div key={i} style={{ padding: 'var(--space-8)', marginBottom: 5, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 11.5 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span className="mono">{e.prescriptionCode}</span>
-                      <span style={{ color: 'var(--t-2)', fontSize: 10.5 }}>{e.prescriptionDate ? fmtDate(e.prescriptionDate) : ''}</span>
-                    </div>
-                    <div style={{ marginTop: 'var(--space-3)', color: 'var(--t-2)' }}>{e.itemCount} thuốc · {e.statusName}</div>
-                  </div>
-                ))}
+                {/* Bấm được: trước đây đây chỉ là div hiển thị, bác sĩ nhìn thấy đúng đơn nháp
+                    vừa lưu của mình ngay đây mà không có cách nào mở nó ra sửa. */}
+                {ctx!.existingPrescriptions.slice(0, 4).map((e) => {
+                  const isOpen = e.prescriptionId === editingPrescriptionId;
+                  const editable = e.status === 0; // chỉ đơn Chờ duyệt mới sửa được
+                  return (
+                    <button
+                      key={e.prescriptionId}
+                      type="button"
+                      onClick={() => { if (!isOpen) openExistingRx(e.prescriptionId); }}
+                      title={isOpen ? 'Đơn đang mở' : editable ? 'Mở đơn này để sửa' : 'Xem đơn (đã duyệt — không sửa được)'}
+                      style={{
+                        display: 'block', width: '100%', textAlign: 'left', font: 'inherit', fontSize: 11.5,
+                        padding: 'var(--space-8)', marginBottom: 5, borderRadius: 4, cursor: 'pointer',
+                        background: isOpen ? 'var(--a-cy-bg)' : 'var(--d-0)',
+                        border: `1px solid ${isOpen ? 'var(--a-cy)' : 'var(--line)'}`,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span className="mono">{e.prescriptionCode}</span>
+                        <span style={{ color: 'var(--t-2)', fontSize: 10.5 }}>{e.prescriptionDate ? fmtDate(e.prescriptionDate) : ''}</span>
+                      </div>
+                      <div style={{ marginTop: 'var(--space-3)', color: 'var(--t-2)' }}>
+                        {e.itemCount} thuốc · {e.statusName}
+                        {isOpen ? ' · đang mở' : editable ? ' · sửa được' : ''}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </>
