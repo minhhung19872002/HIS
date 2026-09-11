@@ -78,9 +78,23 @@ public partial class ExaminationCompleteService
             .Where(s => serviceIds.Contains(s.Id))
             .ToDictionaryAsync(s => s.Id);
 
+        // CHẶN TRÙNG: màn khám gọi endpoint này mỗi lần bác sĩ bấm "Lưu nháp"/"Hoàn tất khám",
+        // mà trước đây không hề kiểm tra dịch vụ đã được chỉ định chưa → bấm Lưu hai lần là
+        // BN bị chỉ định 2 lần cùng một xét nghiệm và bị TÍNH TIỀN 2 LẦN. Bỏ qua những dịch vụ
+        // đã có phiếu còn hiệu lực trong cùng lượt khám (chỉ đếm phiếu chưa hủy).
+        var alreadyOrdered = await _context.ServiceRequests
+            .Where(r => r.ExaminationId == examination.Id
+                        && !r.IsDeleted
+                        && r.Status != 4 // 4 = Hủy (cùng quy ước với CancelServiceOrderAsync bên dưới)
+                        && r.ServiceId != null && serviceIds.Contains(r.ServiceId.Value))
+            .Select(r => r.ServiceId!.Value)
+            .ToListAsync();
+        var skipped = new HashSet<Guid>(alreadyOrdered);
+
         foreach (var item in dto.Services)
         {
             if (!servicesMap.TryGetValue(item.ServiceId, out var service)) continue;
+            if (skipped.Contains(item.ServiceId)) continue; // đã chỉ định rồi — không tạo phiếu thứ hai
 
             var request = new ServiceRequest
             {

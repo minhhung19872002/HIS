@@ -209,8 +209,10 @@ public partial class ExaminationCompleteController : ControllerBase
     [HttpGet("service-orders/{orderId}/print")]
     public async Task<ActionResult> PrintServiceOrder(Guid orderId)
     {
+        // PrintServiceOrderAsync dung HTML (co <style> in A4), KHONG phai PDF. Khai
+        // "application/pdf" lam trinh duyet mo blob bang trinh doc PDF va hong trang.
         var result = await _examinationService.PrintServiceOrderAsync(orderId);
-        return File(result, "application/pdf", $"PhieuChiDinh_{orderId}.pdf");
+        return File(result, "text/html; charset=utf-8");
     }
 
     /// <summary>
@@ -219,7 +221,8 @@ public partial class ExaminationCompleteController : ControllerBase
     [HttpGet("{examinationId}/service-orders/print-all")]
     public async Task<ActionResult> PrintAllServiceOrders(Guid examinationId)
     {
+        // Nhu tren: noi dung la HTML in duoc, khong phai PDF.
         var result = await _examinationService.PrintAllServiceOrdersAsync(examinationId);
-        return File(result, "application/pdf", $"PhieuChiDinh_{examinationId}.pdf");
+        return File(result, "text/html; charset=utf-8");
     }
 }

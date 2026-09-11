@@ -16,6 +16,7 @@ import {
   type RoomPatientListDto, type InjuryInfoDto,
 } from '../api/examination';
 import { openPdfBlob } from './_shared';
+import { openPrintWindow } from '../../../utils/printWindow';
 import { InjurySection } from './InjurySection';
 import { ClsResultsModal } from './ClsResultsModal';
 import StockReservationModal from '../../pharmacy/components/StockReservationModal';
@@ -181,6 +182,53 @@ const OpdEditorV2: React.FC = () => {
     return true;
   };
 
+  /* ── Chỉ định CLS: gửi + in phiếu ──────────────────────────────────────────
+     Trước đây khu CLS không có nút nào — chỉ định chỉ đi kèm khi bấm "Lưu nháp"
+     của cả phiếu khám, và phiếu cho BN cầm sang phòng XN/CĐHA thì không in được
+     (endpoint backend có sẵn nhưng chưa UI nào gọi). */
+  const [savingOrders, setSavingOrders] = useState(false);
+  const [submittedCount, setSubmittedCount] = useState(0);
+
+  const refreshSubmittedOrders = useCallback(async (id: string) => {
+    try {
+      const r = await examinationApi.getServiceOrders(id);
+      setSubmittedCount(Array.isArray(r.data) ? r.data.length : 0);
+    } catch { /* chỉ là con số hiển thị, hỏng thì thôi */ }
+  }, []);
+
+  useEffect(() => { if (examId) void refreshSubmittedOrders(examId); }, [examId, refreshSubmittedOrders]);
+
+  const submitOrders = async () => {
+    if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
+    if (orders.length === 0) { tw('Chưa chọn dịch vụ nào'); return; }
+    setSavingOrders(true);
+    try {
+      await examinationApi.createServiceOrders({
+        examinationId: examId,
+        diagnosisCode: diagnoses.find((d) => d.isPrimary)?.icdCode,
+        diagnosisName: diagnoses.find((d) => d.isPrimary)?.icdName,
+        services: orders.map((o) => ({
+          serviceId: o.serviceId, quantity: o.qty, paymentType: 1,
+          isPriority: false, isEmergency: false,
+        })),
+        autoSelectRoom: true, calculateOptimalPath: true,
+      });
+      tk('Đã gửi chỉ định sang phòng thực hiện');
+      await refreshSubmittedOrders(examId);
+    } catch (e) { te(friendlyErrorMessage(e, 'Gửi chỉ định thất bại')); }
+    finally { setSavingOrders(false); }
+  };
+
+  const printOrders = async () => {
+    if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
+    try {
+      const r = await examinationApi.printAllServiceOrders(examId);
+      // Endpoint trả HTML in được (không phải PDF) → mở cửa sổ in thay vì openPdfBlob.
+      const html = typeof r.data === 'string' ? r.data : await (r.data as Blob).text();
+      openPrintWindow(html);
+    } catch (e) { te(friendlyErrorMessage(e, 'Không in được phiếu chỉ định')); }
+  };
+
   const saveDraft = async () => {
     setSaving(true);
     try { if (await persist()) tk('Đã lưu nháp phiếu khám'); }
@@ -312,6 +360,9 @@ const OpdEditorV2: React.FC = () => {
               orders={orders} updateQty={updateQty} removeSvc={removeSvc} totalSvc={totalSvc}
               orderTpls={orderTpls} onApplyOrderTpl={applyOrderTpl}
               onSaveOrderTpl={saveCurrentOrderTpl} onRemoveOrderTpl={removeOrderTpl}
+              onSubmitOrders={() => { void submitOrders(); }}
+              onPrintOrders={() => { void printOrders(); }}
+              savingOrders={savingOrders} submittedCount={submittedCount}
             />
             <InjurySection injuryInfo={injuryInfo} setInjuryInfo={setInjuryInfo} />
           </>

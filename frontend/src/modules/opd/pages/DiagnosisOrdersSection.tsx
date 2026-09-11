@@ -43,6 +43,14 @@ export interface DiagnosisOrdersSectionProps {
   onApplyOrderTpl: (name: string) => void;
   onSaveOrderTpl: () => void;
   onRemoveOrderTpl: (name: string) => void;
+
+  /** Gửi chỉ định lên hệ thống (tạo phiếu CD* → sang hàng đợi XN/CĐHA). */
+  onSubmitOrders: () => void;
+  /** In phiếu chỉ định để BN cầm sang phòng XN/CĐHA. */
+  onPrintOrders: () => void;
+  savingOrders: boolean;
+  /** Số phiếu ĐÃ gửi của lượt khám này — để bác sĩ biết đã gửi hay chưa. */
+  submittedCount: number;
 }
 
 export const DiagnosisOrdersSection: React.FC<DiagnosisOrdersSectionProps> = ({
@@ -50,6 +58,7 @@ export const DiagnosisOrdersSection: React.FC<DiagnosisOrdersSectionProps> = ({
   cdsSuggestions, cdsLoading, onRunCds, onPickSuggestion,
   svcQ, searchSvc, svcResults, addSvc, orders, updateQty, removeSvc, totalSvc,
   orderTpls, onApplyOrderTpl, onSaveOrderTpl, onRemoveOrderTpl,
+  onSubmitOrders, onPrintOrders, savingOrders, submittedCount,
 }) => {
   return (
     <>
@@ -117,7 +126,29 @@ export const DiagnosisOrdersSection: React.FC<DiagnosisOrdersSectionProps> = ({
 
       {/* Orders */}
       <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-12)' }}>
-        <h4 style={{ margin: '0 0 10px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Chỉ định CLS · Dịch vụ</h4>
+        {/* Trước đây khu này KHÔNG có nút nào: chỉ định chỉ được gửi kèm khi bấm "Lưu nháp"
+            của cả phiếu khám ở panel phải, và không có cách nào in phiếu cho BN cầm sang
+            phòng XN/CĐHA (endpoint in đã có sẵn ở backend nhưng không UI nào gọi). */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', margin: '0 0 10px', flexWrap: 'wrap' }}>
+          <h4 style={{ margin: 0, fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)', flex: '1 1 auto' }}>
+            Chỉ định CLS · Dịch vụ
+            {submittedCount > 0 && (
+              <span style={{ marginLeft: 8, color: 'var(--s-ok)', textTransform: 'none' }}>
+                · đã gửi {submittedCount} phiếu
+              </span>
+            )}
+          </h4>
+          <Btn variant="primary" disabled={savingOrders || orders.length === 0}
+            title={orders.length === 0 ? 'Chưa chọn dịch vụ nào' : 'Gửi chỉ định sang phòng XN/CĐHA'}
+            onClick={onSubmitOrders}>
+            <TermIcon name="check" size={12} /> Gửi chỉ định
+          </Btn>
+          <Btn variant="ghost" disabled={submittedCount === 0}
+            title={submittedCount === 0 ? 'Chưa có phiếu nào được gửi' : 'In phiếu cho BN cầm sang phòng thực hiện'}
+            onClick={onPrintOrders}>
+            <TermIcon name="print" size={12} /> In phiếu chỉ định
+          </Btn>
+        </div>
 
         {/* Mẫu bộ chỉ định dùng nhanh (#433) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', marginBottom: 'var(--space-10)', flexWrap: 'wrap' }}>
