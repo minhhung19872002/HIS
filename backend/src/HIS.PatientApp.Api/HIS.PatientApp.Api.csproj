@@ -31,4 +31,15 @@
     <PackageReference Include="Microsoft.Extensions.Http.Polly" Version="9.0.0" />
   </ItemGroup>
 
+  <!--
+    Mở phần `internal` cho bộ test. Cần để kiểm được logic ĐỌC CSDL của các worker nền — trước đây
+    67 phép kiểm của BFF đều chỉ chạm tới hàm thuần (chuẩn hoá SĐT, so phiên bản, ví giấy tờ…), nên
+    một lỗi nằm trong câu truy vấn của worker nhắc lịch không có gì bắt được.
+  -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>HIS.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
 </Project>

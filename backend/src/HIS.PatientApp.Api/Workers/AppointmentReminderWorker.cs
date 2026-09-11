@@ -223,7 +223,29 @@ public class AppointmentReminderWorker : BackgroundService
     private static string FormatVn(DateTime utc) =>
         (utc + TimeSpan.FromHours(7)).ToString("HH:mm 'ngày' dd/MM/yyyy");
 
-    private async Task SendDueRemindersAsync(CancellationToken ct)
+    /// <summary>Số lịch xét mỗi vòng. Đủ rộng cho một ngày làm việc của bệnh viện lớn.</summary>
+    internal const int CandidateBatchSize = 200;
+
+    /// <summary>
+    /// Những lịch có thể tới hạn nhắc ngay bây giờ.
+    ///
+    /// Tách riêng để kiểm được hai điều kiện mà thiếu một trong hai là hỏng câm (xem ghi chú trong
+    /// <see cref="SendDueRemindersAsync"/>): <b>mốc chặn trên 24 giờ</b> và <b>thứ tự xác định</b>.
+    /// Kiểm bằng cách chạy worker rồi xem kết quả thì không đủ — planner của SQLite vô tình trả đúng
+    /// thứ tự nên bài kiểm sẽ xanh cả khi lỗi còn nguyên, trong khi PostgreSQL của sản phẩm thì không.
+    /// </summary>
+    internal static IQueryable<AppointmentReminder> DueCandidates(
+        PatientAppDbContext db, DateTime now)
+    {
+        var horizon = now.AddHours(24);
+        return db.AppointmentReminders
+            .Where(r => r.Status < 2 && r.AppointmentAt > now && r.AppointmentAt <= horizon)
+            .Where(r => r.RemindedDayBeforeAt == null || r.RemindedHourBeforeAt == null)
+            .OrderBy(r => r.AppointmentAt)
+            .Take(CandidateBatchSize);
+    }
+
+    internal async Task SendDueRemindersAsync(CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PatientAppDbContext>();
@@ -231,11 +253,18 @@ public class AppointmentReminderWorker : BackgroundService
 
         var now = DateTime.UtcNow;
 
-        var candidates = await db.AppointmentReminders
-            .Where(r => r.Status < 2 && r.AppointmentAt > now)
-            .Where(r => r.RemindedDayBeforeAt == null || r.RemindedHourBeforeAt == null)
-            .Take(200)
-            .ToListAsync(ct);
+        // Chỉ lấy lịch nằm trong tầm bắn của hai mốc, và lấy lịch GẦN NHẤT trước.
+        //
+        // Trước đây câu này không có mốc chặn trên và không có ORDER BY. Hai thiếu sót đó cộng lại
+        // thành một lỗi câm: bộ lọc khớp **mọi** lịch tương lai chưa nhắc đủ hai mốc — kể cả lịch
+        // đặt trước ba tháng, vốn chẳng bắn được mốc nào — nên với bệnh viện có hơn 200 lịch phía
+        // trước, `Take(200)` cắt theo thứ tự KHÔNG XÁC ĐỊNH. Đo trên đúng PostgreSQL của sản phẩm
+        // (251 dòng: 250 lịch xa ngày + 1 lịch còn 30 phút): planner chọn Seq Scan, trả theo thứ tự
+        // heap, và lịch sắp tới giờ bị LIMIT cắt mất. Vòng sau vẫn đúng 200 dòng ấy vì không dòng
+        // nào được đánh dấu → người bệnh **không bao giờ** nhận được lời nhắc, mà không có lỗi nào
+        // để lần ra. (Trên SQLite thì không lộ: planner ở đó đi theo index nên vô tình đúng thứ tự —
+        // lý do phải đo trên đúng engine của sản phẩm.)
+        var candidates = await DueCandidates(db, now).ToListAsync(ct);
 
         foreach (var reminder in candidates)
         {
@@ -247,9 +276,14 @@ public class AppointmentReminderWorker : BackgroundService
                 && untilAppointment <= TimeSpan.FromHours(24)
                 && untilAppointment > TimeSpan.FromHours(2))
             {
+                // Mốc này bắn cho cả lịch còn 2–24 giờ, mà khoảng đó gồm cả lịch trong CÙNG NGÀY:
+                // người đặt lúc 9h sáng cho 16h chiều nhận đúng lời nhắc này. Ghi cứng "ngày mai"
+                // thì lời nhắc nói sai ngày với chính người đang cần nó nhất.
+                var sameDay = reminder.AppointmentAt.AddHours(7).Date == now.AddHours(7).Date;
+
                 await notifications.CreateAsync(
                     reminder.AccountId,
-                    "Nhắc lịch khám ngày mai",
+                    sameDay ? "Nhắc lịch khám hôm nay" : "Nhắc lịch khám ngày mai",
                     BuildBody(reminder),
                     NotificationCategory.Appointment,
                     deepLink: "/appointments",
