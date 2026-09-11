@@ -94,10 +94,20 @@ WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_ENVIRONMENT=Production
 
+# Múi giờ Việt Nam. Container mặc định chạy UTC nên `DateTime.Now` trong code ra giờ UTC,
+# và giá trị được trả về KHÔNG kèm offset → trình duyệt hiển thị nguyên si: bác sĩ kê đơn
+# lúc 13:15 thì màn quầy dược ghi "Kê lúc 06:15" (lệch đúng 7 tiếng). Cùng lỗi đó làm bộ lọc
+# "hôm nay" (fromDate = DateTime.Today) cắt nhầm sang ngày hôm trước trong khung 00:00-07:00
+# giờ VN. Đặt TZ tại ảnh để mọi lần deploy đều có, không phụ thuộc env file trên máy chủ.
+# BẮT BUỘC kèm gói tzdata: thiếu nó thì .NET im lặng bỏ qua TZ và vẫn chạy UTC.
+ENV TZ=Asia/Ho_Chi_Minh
+
 # Vietnamese-capable fonts for iText PDF generation (signed AI reports).
 # DejaVu = Unicode-complete, Liberation Serif ≈ Times New Roman.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends fonts-dejavu fonts-liberation \
+    && apt-get install -y --no-install-recommends fonts-dejavu fonts-liberation tzdata \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
+    && echo $TZ > /etc/timezone \
     && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 8080
