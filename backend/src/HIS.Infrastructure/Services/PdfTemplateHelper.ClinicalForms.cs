@@ -111,6 +111,144 @@ public static partial class PdfTemplateHelper
     }
 
     /// <summary>
+    /// PHIEU KHAM BENH (ngoai tru).
+    ///
+    /// <para>Truoc day formType "kham" khong co nhanh nao xu ly nen roi vao bieu mau rong dung
+    /// chung: tieu de "BIEU MAU EMR", phu de "KHAM" va than la 10 dong cham — in ra khong dung
+    /// nghiep vu nao.</para>
+    ///
+    /// <para>Phieu nay thuong duoc in TRUOC khi kham (nguoi benh con dang cho goi so), nen moi muc
+    /// chua co du lieu deu co dong ke san de bac si ghi tay, thay vi de trong.</para>
+    /// </summary>
+    public static string GetExamSlip(
+        string? patientCode, string? fullName, int gender, DateTime? dateOfBirth, int? yearOfBirth,
+        string? address, string? phone, string? insuranceNumber,
+        string? medicalRecordCode, string? departmentName, string? roomName,
+        string? queueCode, DateTime? examTime,
+        string? chiefComplaint, string? presentIllness,
+        decimal? temperature, int? pulse, int? bpSystolic, int? bpDiastolic, int? respiratoryRate,
+        decimal? spO2, decimal? weight, decimal? height, decimal? bmi,
+        string? physicalExamination, string? systemsReview,
+        string? mainDiagnosis, string? mainIcdCode, string? subDiagnosis,
+        int? conclusionType, string? conclusionNote, string? treatmentPlan, DateTime? followUpDate,
+        string? doctorName)
+    {
+        var body = new StringBuilder();
+        body.AppendLine(GetHospitalHeader());
+        body.AppendLine(@"<div class=""form-title"">PHIẾU KHÁM BỆNH</div>");
+        body.AppendLine(@"<div class=""form-number"">Khám bệnh ngoại trú</div>");
+
+        // Dong dau: so thu tu, phong kham, gio kham — ba thu nguoi benh va dieu duong tra cuu dau tien.
+        body.AppendLine($@"
+<div class=""meta-line"">
+    <span class=""meta-strong"">Số thứ tự: {EscapeHtml(string.IsNullOrWhiteSpace(queueCode) ? "........" : queueCode)}</span>
+    <span><b>Phòng khám:</b> {EscapeHtml(string.IsNullOrWhiteSpace(roomName) ? "........................" : roomName)}</span>
+    <span><b>Ngày khám:</b> {(examTime?.ToString("dd/MM/yyyy HH:mm") ?? "......../......../............")}</span>
+</div>");
+
+        body.AppendLine(GetPatientInfoBlock(patientCode, fullName, gender, dateOfBirth,
+            address, phone, insuranceNumber, medicalRecordCode, departmentName, yearOfBirth));
+
+        // I. Ly do kham + benh su
+        body.AppendLine(@"<div class=""section-title"">I. LÝ DO KHÁM BỆNH</div>");
+        body.AppendLine(TextOrLines(chiefComplaint, 1));
+
+        body.AppendLine(@"<div class=""section-title"">II. BỆNH SỬ</div>");
+        body.AppendLine(TextOrLines(presentIllness, 3));
+
+        // III. Sinh hieu — bang de doc nhanh, o trong van in de ghi tay.
+        body.AppendLine(@"<div class=""section-title"">III. DẤU HIỆU SINH TỒN</div>");
+        body.AppendLine($@"
+<table class=""bordered"">
+    <tr>
+        <th style=""width:12.5%"">Mạch<br/><span style=""font-weight:normal"">(l/ph)</span></th>
+        <th style=""width:12.5%"">Nhiệt độ<br/><span style=""font-weight:normal"">(°C)</span></th>
+        <th style=""width:12.5%"">Huyết áp<br/><span style=""font-weight:normal"">(mmHg)</span></th>
+        <th style=""width:12.5%"">Nhịp thở<br/><span style=""font-weight:normal"">(l/ph)</span></th>
+        <th style=""width:12.5%"">SpO2<br/><span style=""font-weight:normal"">(%)</span></th>
+        <th style=""width:12.5%"">Cân nặng<br/><span style=""font-weight:normal"">(kg)</span></th>
+        <th style=""width:12.5%"">Chiều cao<br/><span style=""font-weight:normal"">(cm)</span></th>
+        <th style=""width:12.5%"">BMI</th>
+    </tr>
+    <tr class=""text-center"" style=""height:28px"">
+        <td>{pulse?.ToString() ?? ""}</td>
+        <td>{temperature?.ToString("0.#") ?? ""}</td>
+        <td>{(bpSystolic.HasValue || bpDiastolic.HasValue ? $"{bpSystolic}/{bpDiastolic}" : "")}</td>
+        <td>{respiratoryRate?.ToString() ?? ""}</td>
+        <td>{spO2?.ToString("0.#") ?? ""}</td>
+        <td>{weight?.ToString("0.#") ?? ""}</td>
+        <td>{height?.ToString("0.#") ?? ""}</td>
+        <td>{bmi?.ToString("0.#") ?? ""}</td>
+    </tr>
+</table>");
+
+        // IV. Kham lam sang
+        body.AppendLine(@"<div class=""section-title"">IV. KHÁM LÂM SÀNG</div>");
+        body.AppendLine(@"<p><b>Toàn thân:</b></p>");
+        body.AppendLine(TextOrLines(physicalExamination, 3));
+        body.AppendLine(@"<p style=""margin-top:8px""><b>Các bộ phận:</b></p>");
+        body.AppendLine(TextOrLines(systemsReview, 4));
+
+        // V. Chan doan
+        body.AppendLine(@"<div class=""section-title"">V. CHẨN ĐOÁN</div>");
+        var mainText = string.IsNullOrWhiteSpace(mainDiagnosis)
+            ? ""
+            : EscapeHtml(mainDiagnosis) + (string.IsNullOrWhiteSpace(mainIcdCode) ? "" : $" ({EscapeHtml(mainIcdCode)})");
+        body.AppendLine($@"
+<div class=""pinfo"" style=""row-gap:8px"">
+    <div class=""pinfo-item c12""><b>Chẩn đoán chính:</b><span class=""pinfo-val"">{mainText}</span></div>
+    <div class=""pinfo-item c12""><b>Chẩn đoán kèm theo:</b><span class=""pinfo-val"">{EscapeHtml(subDiagnosis)}</span></div>
+</div>");
+
+        // VI. Xu tri
+        body.AppendLine(@"<div class=""section-title"">VI. XỬ TRÍ — KẾT LUẬN</div>");
+        var conclusionText = conclusionType switch
+        {
+            1 => "Cho về",
+            2 => "Kê đơn điều trị ngoại trú",
+            3 => "Nhập viện",
+            4 => "Chuyển viện",
+            5 => "Hẹn khám lại",
+            6 => "Tử vong",
+            _ => ""
+        };
+        body.AppendLine($@"
+<div class=""pinfo"" style=""row-gap:8px"">
+    <div class=""pinfo-item c6""><b>Hướng xử trí:</b><span class=""pinfo-val"">{EscapeHtml(conclusionText)}</span></div>
+    <div class=""pinfo-item c6""><b>Hẹn khám lại:</b><span class=""pinfo-val"">{followUpDate?.ToString("dd/MM/yyyy") ?? ""}</span></div>
+</div>");
+        var closingNote = string.Join(" — ", new[] { treatmentPlan, conclusionNote }
+            .Where(x => !string.IsNullOrWhiteSpace(x)));
+        body.AppendLine(TextOrLines(closingNote, 3));
+
+        // Chu ky: phieu kham ngoai tru chi can chu ky bac si kham.
+        body.AppendLine($@"
+<div class=""text-right text-italic"" style=""margin-top:18px"">{DateTime.Now:'Ngày' dd 'tháng' MM 'năm' yyyy}</div>
+<div class=""signature-block"" style=""justify-content:flex-end"">
+    <div class=""signature-item"">
+        <div class=""signature-title"">Bác sĩ khám bệnh</div>
+        <div class=""signature-date"">(Ký, ghi rõ họ tên)</div>
+        <div class=""signature-name"">{EscapeHtml(doctorName)}</div>
+    </div>
+</div>");
+
+        return WrapHtmlPage("Phiếu khám bệnh", body.ToString());
+    }
+
+    /// <summary>
+    /// Có dữ liệu thì in ra; chưa có thì in <paramref name="lines"/> dòng kẻ để viết tay.
+    /// </summary>
+    private static string TextOrLines(string? text, int lines)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return FillLines(lines);
+
+        // Xuống dòng của bác sĩ gõ trong bệnh án phải giữ nguyên khi in, nếu không cả đoạn khám
+        // dồn thành một khối chữ liền.
+        var html = EscapeHtml(text).Replace("\r\n", "\n").Replace("\n", "<br/>");
+        return "<p>" + html + "</p>";
+    }
+
+    /// <summary>
     /// MS. 02/BV - To dieu tri
     /// </summary>
     public static string GetTreatmentSheet(

@@ -61,6 +61,29 @@ public partial class PdfGenerationService : IPdfGenerationService
                     exam.Doctor?.FullName, null);
                 break;
 
+            // "kham" la loi vao tu man Tiep don / Kham benh ("In phieu kham"). Truoc day khong co
+            // nhanh nao nen no roi xuong default va in ra bieu mau rong "BIEU MAU EMR / KHAM".
+            case "kham":
+            case "exam":
+                html = GetExamSlip(
+                    patient?.PatientCode, patient?.FullName, patient?.Gender ?? 0,
+                    patient?.DateOfBirth, patient?.YearOfBirth,
+                    patient?.Address, patient?.PhoneNumber, patient?.InsuranceNumber,
+                    mr?.MedicalRecordCode, mr?.Department?.DepartmentName ?? exam.Room?.Department?.DepartmentName,
+                    exam.Room?.RoomName,
+                    await GetExamQueueCodeAsync(exam),
+                    exam.StartTime ?? mr?.AdmissionDate ?? exam.CreatedAt,
+                    exam.ChiefComplaint, exam.PresentIllness,
+                    exam.Temperature, exam.Pulse, exam.BloodPressureSystolic, exam.BloodPressureDiastolic,
+                    exam.RespiratoryRate, exam.SpO2, exam.Weight, exam.Height, exam.BMI,
+                    exam.PhysicalExamination, exam.SystemsReview,
+                    exam.MainDiagnosis ?? exam.InitialDiagnosis ?? mr?.MainDiagnosis,
+                    exam.MainIcdCode ?? mr?.MainIcdCode,
+                    exam.SubDiagnosis,
+                    exam.ConclusionType, exam.ConclusionNote, exam.TreatmentPlan, exam.FollowUpDate,
+                    exam.Doctor?.FullName);
+                break;
+
             case "treatment":
                 var sheets = await _db.TreatmentSheets
                     .AsNoTracking()
@@ -189,6 +212,28 @@ public partial class PdfGenerationService : IPdfGenerationService
         }
 
         return Encoding.UTF8.GetBytes(html);
+    }
+
+    /// <summary>
+    /// Mã vé số thứ tự của lượt khám, VD "B007".
+    ///
+    /// <para><c>Examination.QueueNumber</c> chỉ lưu phần SỐ; phần tiền tố nằm trên vé
+    /// (<c>QueueTicket.TicketNumber</c>) — thứ người bệnh nhìn thấy trên app và trên bảng gọi số.
+    /// Không tra lại vé thì phiếu in ra ghi "7" trong khi bảng gọi số đọc "B007".</para>
+    /// </summary>
+    private async Task<string?> GetExamQueueCodeAsync(HIS.Core.Entities.Examination exam)
+    {
+        if (exam.MedicalRecordId == Guid.Empty) return exam.QueueNumber > 0 ? exam.QueueNumber.ToString() : null;
+
+        var ticketCode = await _db.QueueTickets
+            .AsNoTracking()
+            .Where(t => !t.IsDeleted && t.MedicalRecordId == exam.MedicalRecordId)
+            .OrderByDescending(t => t.IssueDate)
+            .Select(t => t.TicketNumber)
+            .FirstOrDefaultAsync();
+
+        if (!string.IsNullOrWhiteSpace(ticketCode)) return ticketCode;
+        return exam.QueueNumber > 0 ? exam.QueueNumber.ToString() : null;
     }
 
     /// <summary>

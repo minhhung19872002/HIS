@@ -121,6 +121,40 @@ public static partial class PdfTemplateHelper
             padding: 8px 12px;
             margin-bottom: 12px;
         }}
+        /* Khoi thong tin benh nhan xep theo LUOI 12 cot.
+           Truoc day block nay dung .field (flex) voi .field-value co flex bang 1: o truong nao cung
+           an het be ngang con lai, day cac o phu Gioi / Tuoi / So the BHYT dinh sat mep phai to
+           giay va bo lai mot khoang trong menh mong o giua. Luoi thi moi o co be ngang co dinh. */
+        .pinfo {{
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            column-gap: 12px;
+            row-gap: 5px;
+        }}
+        .pinfo-item {{ display: flex; align-items: baseline; gap: 6px; min-width: 0; }}
+        .pinfo-item > b {{ white-space: nowrap; }}
+        .pinfo-val {{
+            flex: 1;
+            min-width: 0;
+            border-bottom: 1px dotted #555;
+            min-height: 17px;
+            padding: 0 2px;
+            overflow-wrap: anywhere;
+        }}
+        .c3 {{ grid-column: span 3; }}
+        .c4 {{ grid-column: span 4; }}
+        .c6 {{ grid-column: span 6; }}
+        .c12 {{ grid-column: span 12; }}
+        /* Dong ke de bac si viet tay — phieu thuong duoc in TRUOC khi kham nen phan lon muc con trong. */
+        .fill-line {{ border-bottom: 1px dotted #555; height: 20px; margin-top: 7px; }}
+        .meta-line {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 24px;
+            margin-bottom: 10px;
+            font-size: 13px;
+        }}
+        .meta-strong {{ font-size: 15px; font-weight: bold; }}
         table {{
             width: 100%;
             border-collapse: collapse;
@@ -188,27 +222,47 @@ public static partial class PdfTemplateHelper
         }}
         @media screen {{
             body {{ background: #eee; }}
-            .page {{ box-shadow: 0 2px 8px rgba(0,0,0,0.15); margin: 20px auto; }}
+            /* Gioi han be ngang bang dung kho giay A4. Khong gioi han thi tren man hinh rong to
+               phieu keo dai het man, chu be xiu va moi duong ke de dien tay dai menh mong — nhin
+               khong ra to giay se in ra. */
+            .page {{
+                box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                width: 210mm;
+                max-width: 100%;
+                margin: 16px auto 24px;
+                padding: 14mm 16mm;
+            }}
+            /* Thanh cong cu dinh tren cung thay vi nut noi de len header.
+               Nut cu la position fixed goc phai tren — no nam DE len khoi quoc hieu CONG HOA XA
+               HOI CHU NGHIA VIET NAM cua to phieu. */
+            .print-bar {{
+                position: sticky;
+                top: 0;
+                z-index: 1000;
+                display: flex;
+                justify-content: flex-end;
+                padding: 8px 16px;
+                background: #fff;
+                border-bottom: 1px solid #d9d9d9;
+            }}
             .print-btn {{
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                padding: 10px 24px;
+                padding: 8px 22px;
                 background: #1677ff;
                 color: #fff;
                 border: none;
                 border-radius: 6px;
                 font-size: 14px;
                 cursor: pointer;
-                z-index: 1000;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+                box-shadow: 0 1px 3px rgba(0,0,0,0.2);
             }}
             .print-btn:hover {{ background: #0958d9; }}
         }}
     </style>
 </head>
 <body>
-    <button class=""print-btn no-print"" onclick=""window.print()"">In biểu mẫu</button>
+    <div class=""print-bar no-print"">
+        <button class=""print-btn"" onclick=""window.print()"">In biểu mẫu</button>
+    </div>
     <div class=""page"">
         {bodyContent}
     </div>
@@ -244,40 +298,64 @@ public static partial class PdfTemplateHelper
     public static string GetPatientInfoBlock(
         string? patientCode, string? fullName, int gender, DateTime? dateOfBirth,
         string? address, string? phone, string? insuranceNumber,
-        string? medicalRecordCode = null, string? departmentName = null)
+        string? medicalRecordCode = null, string? departmentName = null,
+        int? yearOfBirth = null)
     {
-        var genderText = gender switch { 1 => "Nam", 2 => "Nữ", _ => "Khác" };
-        var age = dateOfBirth.HasValue ? (DateTime.Now.Year - dateOfBirth.Value.Year).ToString() : "";
-        var dobText = dateOfBirth?.ToString("dd/MM/yyyy") ?? "";
+        var genderText = gender switch { 1 => "Nam", 2 => "Nữ", 3 => "Khác", _ => "" };
+        var dobText = dateOfBirth?.ToString("dd/MM/yyyy")
+            ?? (yearOfBirth.HasValue ? yearOfBirth.Value.ToString() : "");
 
         return $@"
 <div class=""patient-info"">
-    <div class=""field"">
-        <span class=""field-label"">Họ và tên:</span>
-        <span class=""field-value text-bold"">{EscapeHtml(fullName)}</span>
-        <span style=""margin-left:20px""><b>Giới:</b> {genderText}</span>
-        <span style=""margin-left:20px""><b>Tuổi:</b> {age}</span>
+    <div class=""pinfo"">
+        <div class=""pinfo-item c6""><b>Họ và tên:</b><span class=""pinfo-val text-bold"">{EscapeHtml(fullName)}</span></div>
+        <div class=""pinfo-item c3""><b>Giới:</b><span class=""pinfo-val"">{genderText}</span></div>
+        <div class=""pinfo-item c3""><b>Tuổi:</b><span class=""pinfo-val"">{FormatAge(dateOfBirth, yearOfBirth)}</span></div>
+
+        <div class=""pinfo-item c4""><b>Ngày sinh:</b><span class=""pinfo-val"">{dobText}</span></div>
+        <div class=""pinfo-item c4""><b>Mã BN:</b><span class=""pinfo-val"">{EscapeHtml(patientCode)}</span></div>
+        <div class=""pinfo-item c4""><b>SĐT:</b><span class=""pinfo-val"">{EscapeHtml(phone)}</span></div>
+
+        <div class=""pinfo-item c12""><b>Địa chỉ:</b><span class=""pinfo-val"">{EscapeHtml(address)}</span></div>
+
+        <div class=""pinfo-item c4""><b>Số thẻ BHYT:</b><span class=""pinfo-val"">{EscapeHtml(insuranceNumber)}</span></div>
+        <div class=""pinfo-item c4""><b>Khoa:</b><span class=""pinfo-val"">{EscapeHtml(departmentName)}</span></div>
+        <div class=""pinfo-item c4""><b>Số hồ sơ:</b><span class=""pinfo-val"">{EscapeHtml(medicalRecordCode)}</span></div>
     </div>
-    <div class=""field"">
-        <span class=""field-label"">Ngày sinh:</span>
-        <span class=""field-value"">{dobText}</span>
-    </div>
-    <div class=""field"">
-        <span class=""field-label"">Địa chỉ:</span>
-        <span class=""field-value"">{EscapeHtml(address)}</span>
-    </div>
-    <div class=""field"">
-        <span class=""field-label"">SĐT:</span>
-        <span class=""field-value"">{EscapeHtml(phone)}</span>
-        <span style=""margin-left:20px""><b>Số thẻ BHYT:</b> {EscapeHtml(insuranceNumber)}</span>
-    </div>
-    {(medicalRecordCode != null ? $@"
-    <div class=""field"">
-        <span class=""field-label"">Số hồ sơ:</span>
-        <span class=""field-value"">{EscapeHtml(medicalRecordCode)}</span>
-        {(departmentName != null ? $@"<span style=""margin-left:20px""><b>Khoa:</b> {EscapeHtml(departmentName)}</span>" : "")}
-    </div>" : "")}
 </div>";
+    }
+
+    /// <summary>
+    /// Tuổi tính theo ngày sinh (đã trừ sinh nhật chưa tới trong năm); hồ sơ chỉ có năm sinh thì
+    /// lấy hiệu số năm. Không có gì để tính thì trả chuỗi rỗng — ô trống để điền tay còn hơn một
+    /// con số bịa.
+    /// </summary>
+    private static string FormatAge(DateTime? dateOfBirth, int? yearOfBirth)
+    {
+        var today = DateTime.Now;
+
+        if (dateOfBirth.HasValue)
+        {
+            var age = today.Year - dateOfBirth.Value.Year;
+            if (dateOfBirth.Value.Date > today.Date.AddYears(-age)) age--;
+            return age >= 0 ? age.ToString() : "";
+        }
+
+        if (yearOfBirth is > 1900 && yearOfBirth <= today.Year)
+            return (today.Year - yearOfBirth.Value).ToString();
+
+        return "";
+    }
+
+    /// <summary>
+    /// Dòng kẻ chấm để viết tay. Phiếu khám thường được in TRƯỚC khi khám (bệnh nhân còn đang chờ
+    /// gọi số), nên mục nào chưa có dữ liệu phải có chỗ cho bác sĩ ghi, không phải một khoảng trắng.
+    /// </summary>
+    public static string FillLines(int count)
+    {
+        var sb = new StringBuilder();
+        for (var i = 0; i < count; i++) sb.AppendLine(@"<div class=""fill-line""></div>");
+        return sb.ToString();
     }
 
     /// <summary>
