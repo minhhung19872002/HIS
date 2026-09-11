@@ -26,6 +26,48 @@ giả bật sẵn ở môi trường phát triển (quyết định [D8](decisio
 - Brandname đã đăng ký (ví dụ `BVXYZ`), địa chỉ API, và API key hoặc `client_id`/`client_secret`.
 - Hạn mức tin/ngày và chi phí mỗi tin — ảnh hưởng tới việc đặt trần chống lạm dụng.
 
+### Không có SMS miễn phí cho chạy thật — khảo giá 2026-09-11
+
+Đây là câu hay được hỏi, nên ghi lại để khỏi tra lại: **SMS A2P tới thuê bao Việt Nam không có gói
+miễn phí cho môi trường thật.** Cái "miễn phí" mà các nhà cung cấp quảng cáo đều là tin dùng thử.
+
+| Lựa chọn | Miễn phí được gì | Giá thật | Ghi chú quan trọng |
+|---|---|---|---|
+| **SpeedSMS** | 5 tin khi đăng ký | không công bố, phải hỏi | **Không cần đăng ký brandname với nhà mạng** — dùng brandname dựng sẵn `Verify` / `Notify`. Đây là điểm đáng giá nhất: thủ tục brandname riêng mới là khâu lâu và tốn. Nhận mã < 10 giây |
+| **eSMS.vn** | có nút dùng thử, không nói rõ số tin | **~520đ/tin** brandname · ~450đ/tin đầu số cố định | Trên 5.000 tin thì thương lượng giá |
+| **Firebase Phone Auth** | **10 SMS/ngày** cho kiểm thử | ~0,01–0,06 USD/lần xác minh | Từ 9/2024 **bắt buộc gắn thẻ thanh toán (gói Blaze)** dù chỉ dùng phần miễn phí. Và nó thay luôn cả luồng OTP hiện có — không cắm vào `HttpOtpSender` được |
+
+Ước lượng cho bệnh viện: mỗi lần đăng ký/quên mật khẩu tốn 1 tin. 1.000 lượt/tháng ≈ **520.000đ/tháng**
+theo giá eSMS.
+
+### Cấu hình sẵn dùng: SpeedSMS
+
+Chọn mẫu này vì nó bỏ được khâu đăng ký brandname. Lấy `API access token` ở trang quản trị SpeedSMS
+rồi tính header xác thực — cổng này dùng **HTTP Basic**, token là *tên đăng nhập*, mật khẩu là chữ `x`:
+
+```bash
+printf '%s:x' '<API_ACCESS_TOKEN>' | base64 -w0   # → dán vào Authorization bên dưới
+```
+
+```jsonc
+"OtpSender": {
+  "Provider": "http",
+  "Url": "https://api.speedsms.vn/index.php/sms/send",
+  "Method": "POST",
+  "ContentType": "application/json",
+  "Headers": { "Authorization": "Basic <chuoi-base64-o-tren>" },
+  // `to` của SpeedSMS là MẢNG, không phải chuỗi. sms_type 4 = brandname dựng sẵn.
+  "BodyTemplate": "{\"to\":[\"{phone}\"],\"content\":\"{message}\",\"sms_type\":4,\"sender\":\"Verify\"}",
+  // SpeedSMS trả HTTP 200 kèm status trong thân, nên phải xét chuỗi này mới biết gửi được thật.
+  "SuccessContains": "\"status\":\"success\"",
+  "PhoneFormat": "Local",
+  "MessageTemplate": "Ma xac minh cua ban la {code}, het han sau {minutes} phut. Khong chia se ma nay cho bat ky ai."
+}
+```
+
+> ⚠️ Nội dung OTP phải **không dấu**: tin có dấu chỉ còn 70 ký tự mỗi SMS thay vì 160, vượt ngưỡng là
+> bị tính thành nhiều tin.
+
 ### Cắm cổng SMS vào — chỉ sửa cấu hình
 
 `HttpOtpSender` gọi cổng SMS theo một **khuôn mẫu khai trong cấu hình**, cố ý không viết cứng cho
