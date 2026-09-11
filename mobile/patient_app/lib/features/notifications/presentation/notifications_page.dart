@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/error/failure.dart';
 import '../../../core/providers.dart';
 import '../data/notification_repository.dart';
+import '../data/push_registration.dart';
 import '../domain/app_notification.dart';
 
 final notificationRepositoryProvider = Provider<NotificationRepository>(
@@ -84,11 +86,19 @@ class NotificationsPage extends ConsumerWidget {
                   itemBuilder: (context, index) => _NotificationTile(
                     item: items[index],
                     onTap: () async {
+                      final item = items[index];
                       await ref
                           .read(notificationRepositoryProvider)
-                          .markRead(items[index].id);
+                          .markRead(item.id);
                       ref.invalidate(inboxProvider);
                       ref.invalidate(unreadCountProvider);
+
+                      // Thông báo nào cũng nói về một thứ cụ thể — kết quả vừa có, lịch vừa đổi.
+                      // Đọc xong mà vẫn phải tự đi tìm thứ đó trong menu thì thông báo mới chỉ làm
+                      // được một nửa việc.
+                      final deepLink = item.deepLink;
+                      if (deepLink == null || !PushRegistration.isInAppRoute(deepLink)) return;
+                      if (context.mounted) context.push(deepLink);
                     },
                   ),
                 ),

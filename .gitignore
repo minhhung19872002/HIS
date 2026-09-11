@@ -262,6 +262,10 @@ deploy/patient-app-vps/secrets/*
 mobile/patient_app/android/key.properties
 mobile/patient_app/android/*.jks
 mobile/patient_app/android/*.keystore
+# Cấu hình Firebase của bệnh viện — do bên A cấp, không nằm trong repo.
+# Xem docs/features/patient-app/external-services-setup.md §2.
+mobile/patient_app/android/app/google-services.json
+mobile/patient_app/ios/Runner/GoogleService-Info.plist
 
 # Bo nho dem cua `tsc -b` cho admin-web — sinh ra moi lan build, khong phai ma nguon.
 admin-web/tsconfig.tsbuildinfo

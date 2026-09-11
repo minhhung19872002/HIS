@@ -11,14 +11,20 @@
 > chúng được đánh dấu 🔑 ngay trong ô bằng chứng và liệt kê đầy đủ ở mục *Điều kiện tại chỗ*
 > bên dưới. Trộn hai loại vào một cột thì không đọc được cột đó nói gì: một dòng "chưa đạt"
 > sẽ vừa có nghĩa "phần mềm còn thiếu" vừa có nghĩa "chờ bệnh viện mở tài khoản".
-> Cập nhật cuối: **2026-09-09** — kết thúc **Phase 1 → 7**.
+> Cập nhật cuối: **2026-09-11** — đợt **rà soát lại toàn bộ bảng này đối chiếu với mã nguồn thật**.
+> Kết quả: 46/47 dòng khớp, **1 dòng không khớp** — I.2.2.2 (thông báo đẩy) từng ghi ✅ trong khi nửa
+> đường ống phía app chưa bao giờ được nối. Đã vá và đã có phép kiểm canh; xem ô của dòng đó.
+> Bài học ghi lại để không lặp: **một ô chỉ được ghi ✅ khi phép kiểm đi hết đường của người dùng**.
+> Chèn tay dữ liệu vào giữa đường ống rồi đo nửa còn lại thì chứng minh được nửa đó chạy, *không*
+> chứng minh được có ai đưa dữ liệu vào đầu đường hay không. Trước đó: **2026-09-09**, kết thúc
+> **Phase 1 → 7**.
 > **Bằng chứng đo được — năm tầng, tất cả đều chạy thật, 0 FAIL:**
 >
 > | Tầng | Số ca | Chạy trên |
 > |---|---|---|
 > | Smoke đầu-cuối (8 bộ) | **290** | HIS Core + BFF + PostgreSQL + SQL Server thật |
 > | Unit backend (`dotnet test`) | **303** (67 của app) | CI gate `deploy-backend.yml` |
-> | Unit + widget Flutter | **165** | `flutter test` |
+> | Unit + widget Flutter | **189** | `flutter test` (đo lại 2026-09-11; +15 bài cho đường token FCM) |
 > | Đi hết chức năng bằng cách BẤM | **58** | `flutter drive` trên máy ảo Android **và** iOS simulator |
 > | E2E web quản trị (Playwright) | **7** | Chromium + Vite dev + BFF thật |
 >
@@ -80,7 +86,7 @@ bệnh viện cần một thứ mà chỉ bên A cấp được. Chúng được
 | Dòng | Đã đo được gì | 🔑 Bên A cần cấp | Chạy gì khi đã có |
 |---|---|---|---|
 | I.2.1.1 | Chặn bản quá cũ (`phase7` TC-P01…P05); `flutter build appbundle --release` PASS; AAB không mang chữ ký nào; CI chặn việc ký bằng khoá debug | Tài khoản developer Apple + Google | [`store-release-checklist.md`](store-release-checklist.md) |
-| I.2.2.2 | **Trọn đường ống** `push_outbox` → worker → relay thật → `sent`; token bị che trong log | Khoá Firebase + chứng chỉ APNs | [`external-services-setup.md`](external-services-setup.md) §2, rồi `curl /health` → `"mode":"fcm"` |
+| I.2.2.2 | **Trọn đường ống** `push_outbox` → worker → relay thật → `sent`; token bị che trong log. **Và từ 2026-09-11, cả nửa đường phía app**: đăng nhập xong app gửi token FCM lên `PUT /patient/devices/push-token`, theo cả token xoay vòng, và mở đúng màn khi chạm thông báo — 15 phép kiểm, 2 trong số đó dựng app thật | Khoá Firebase (`google-services.json` + `GoogleService-Info.plist`) · chứng chỉ APNs · capability *Push Notifications* trên App ID · một máy thật để nhận | [`external-services-setup.md`](external-services-setup.md) §2, rồi `curl /health` → `"mode":"fcm"`; trên máy thật: đăng nhập → kiểm cột `PushToken` của thiết bị đó khác NULL → gửi một thông báo từ `/v2/patient-app/notifications` |
 | I.2.9.3 | Server: `auth` TC-07…TC-10. Client: đã vá lỗi làm sinh trắc chết hẳn trên Android; plugin nay chạy tới nơi | Một máy có cảm biến vân tay/Face ID thật | Kịch bản ghi trong ô của dòng đó |
 | I.4.1 | ✅ **ĐÃ XONG** — bản UAT https://patientapp.14-225-83-93.nip.io có chứng chỉ **Let's Encrypt** thật, hạn 08/12/2026, tự gia hạn; TLS 1.0/1.1 bị từ chối, đủ 4 header | *(không còn chờ gì)* | Chỉ còn đính ảnh SSL Labs vào hồ sơ |
 | II.2 | Stack dùng **34 MiB / 2048 MiB** RAM và **248 MB / 15 GB** đĩa | Bản kê cấu hình máy thuê | `df -h /` · `free -m` · `nproc` trên VPS đó |
@@ -117,7 +123,7 @@ bệnh viện cần một thứ mà chỉ bên A cấp được. Chúng được
 | # | Yêu cầu HSMT | Màn hình / API | Cách kiểm thử | Phase | TT |
 |---|---|---|---|---|---|
 | I.2.2.1 | Đăng nhập / **giữ đăng nhập** trên app | Màn Đăng nhập (`login_page.dart`); `POST /api/v1/patient/auth/login`, `.../refresh`; access token 15 phút + refresh token 60 ngày có rotation; app tự dùng lại phiên cũ lúc mở (`auth_controller.dart`) | ✅ Đạt: `auth` TC-01, TC-07, TC-08 (47/47) — làm mới token có xoay vòng, phát hiện dùng lại refresh token cũ thì thu hồi cả chuỗi. Ảnh chụp màn hình trên Android 7.1 và iOS 12 trong [`screenshots/`](screenshots/) | 1 | ✅ |
-| I.2.2.2 | **Chạy ngầm** để nhận các thông báo từ máy chủ | `push_outbox` + `PushDispatcherWorker` → relay trên VPS → FCM. App: `firebaseBackgroundHandler` + `flutter_local_notifications` | ✅ Đạt — **đã đo trọn đường ống bằng relay thật**: chèn một bản ghi vào `push_outbox` → `PushDispatcherWorker` tự lấy → `RelayPushSender` gọi HTTP sang relay đang chạy trong Docker → bản ghi chuyển `sent` kèm `SentAt`, `AttemptCount=1`, và relay ghi nhận đúng nội dung **với token thiết bị đã được che**. Ngoài ra `phase6` TC-S10 chứng minh thông báo thực sự vào hộp thư trong app. Relay có **bản thật + bản giả**: thiếu khoá Firebase thì tự chạy bản giả (ghi log) nên cả tầng VPS vẫn dựng và nghiệm thu được — `curl /health` trả `"mode":"fake"` hay `"fcm"` để người vận hành biết ngay đang ở bản nào. 🔑 **Điều kiện còn lại: dự án Firebase của bệnh viện** (`google-services.json`, khoá FCM) — xem [`external-services-setup.md`](external-services-setup.md) §2. Chỉ chặng cuối relay → máy người bệnh là cần khoá thật | 1 | ✅ |
+| I.2.2.2 | **Chạy ngầm** để nhận các thông báo từ máy chủ | `push_outbox` + `PushDispatcherWorker` → relay trên VPS → FCM. App: `PushRegistration` (gửi token FCM lên máy chủ, theo token xoay vòng, mở màn theo deep-link) + `firebaseBackgroundHandler` + `flutter_local_notifications` | ⚠️ **2026-09-11 — đợt rà soát lại phát hiện nửa đường ống phía app CHƯA BAO GIỜ NỐI, nay đã vá.** Cũ: `PushTokenRegistrar` có nhưng **không một nơi nào trong app gọi tới**, `PushService.token()` không ai đọc, `tokenRefreshes`/`deepLinks` không ai nghe, plugin Gradle `com.google.gms.google-services` **không được apply**, iOS thiếu `UIBackgroundModes` và entitlement `aps-environment`. Hệ quả: `Devices.PushToken` luôn NULL → `NotificationService.CreateAsync` lọc `d.PushToken != null` nên xếp **0 dòng outbox** → toàn bộ đường ống phía máy chủ chạy đúng trên **một hàng đợi vĩnh viễn rỗng**, không lỗi, không dấu vết. Ô này trước đây ghi "đã đo trọn đường ống" là **đo đoạn sau bằng cách chèn tay một dòng vào `push_outbox`** — đoạn trước không có phép kiểm nào (grep `pushToken` trong toàn bộ test + smoke = 0 kết quả). Nay đã nối đủ 5 mắt xích và có **15 phép kiểm mới** canh đúng chỗ đó, trong đó 2 bài dựng app thật qua `pushBinderProvider` nên **gỡ dòng nối ở `app.dart` là đỏ ngay** (đã kiểm bằng phép thử đột biến). Phần máy chủ giữ nguyên bằng chứng cũ: <br>**đã đo trọn đường ống bằng relay thật**: chèn một bản ghi vào `push_outbox` → `PushDispatcherWorker` tự lấy → `RelayPushSender` gọi HTTP sang relay đang chạy trong Docker → bản ghi chuyển `sent` kèm `SentAt`, `AttemptCount=1`, và relay ghi nhận đúng nội dung **với token thiết bị đã được che**. Ngoài ra `phase6` TC-S10 chứng minh thông báo thực sự vào hộp thư trong app. Relay có **bản thật + bản giả**: thiếu khoá Firebase thì tự chạy bản giả (ghi log) nên cả tầng VPS vẫn dựng và nghiệm thu được — `curl /health` trả `"mode":"fake"` hay `"fcm"` để người vận hành biết ngay đang ở bản nào. 🔑 **Điều kiện còn lại: dự án Firebase của bệnh viện** (`google-services.json`, khoá FCM) — xem [`external-services-setup.md`](external-services-setup.md) §2. Chỉ chặng cuối relay → máy người bệnh là cần khoá thật | 1 | ✅ |
 | I.2.2.3 | *(bổ trợ)* Hộp thư thông báo trong app | `GET /api/v1/patient/notifications`, `/unread-count`, `PUT .../{id}/read`, `PUT .../read-all`; màn `notifications_page.dart` | ✅ Đạt: `auth` TC-16, TC-17 — **thông báo của người này không lọt sang tài khoản khác** (trả 404, và không đánh dấu đọc hộ được) | 1 | ✅ |
 
 ### 3. Lấy số thứ tự

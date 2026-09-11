@@ -23,6 +23,11 @@ plugins {
     // compileSdk 36. Gradle 8.12 trong wrapper da du cho AGP 8.9.x.
     id("com.android.application") version "8.9.1" apply false
     id("org.jetbrains.kotlin.android") version "2.1.0" apply false
+    // Bat buoc de firebase_messaging doc duoc google-services.json. Thieu plugin nay thi file cau
+    // hinh Firebase co nam dung cho cung khong duoc doc: Gradle khong sinh ra values.xml chua
+    // google_app_id, Firebase.initializeApp() nem loi, va app tat thong bao day trong im lang.
+    // Apply that su o app/build.gradle.kts, va chi khi co google-services.json.
+    id("com.google.gms.google-services") version "4.4.2" apply false
 }
 
 include(":app")

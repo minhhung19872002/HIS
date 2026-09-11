@@ -85,14 +85,24 @@ bản thật.
 
 *Android*
 - Dự án Firebase (Console → Add project) cho bệnh viện.
-- `google-services.json` → đặt vào `mobile/patient_app/android/app/`.
+- `google-services.json` → đặt vào `mobile/patient_app/android/app/`. **Chỉ cần thả đúng chỗ là xong**:
+  `android/app/build.gradle.kts` tự phát hiện file và apply plugin `com.google.gms.google-services`.
+  Thiếu file thì bản build vẫn chạy nhưng **tắt thông báo đẩy** và in cảnh báo to lúc build.
 - Service account JSON có quyền *Firebase Cloud Messaging API* → đặt trên VPS relay, đường dẫn khai ở
   `Fcm:CredentialsPath`.
 
 *iOS*
 - Tài khoản Apple Developer Program của bệnh viện (99 USD/năm — **cần cho cả việc phát hành App Store**).
 - APNs Auth Key (.p8) + Key ID + Team ID → nạp vào Firebase Console để FCM đẩy hộ sang APNs.
-- `GoogleService-Info.plist` → đặt vào `mobile/patient_app/ios/Runner/`.
+- Bật capability **Push Notifications** cho App ID `vn.com.bluestar.his.patientApp` trong tài khoản
+  Apple Developer. Entitlement `aps-environment` đã khai sẵn ở `ios/Runner/Runner.entitlements` và đã
+  nối vào cả ba cấu hình build của target Runner; thiếu capability trên portal thì bản ký cho máy
+  thật bị từ chối.
+- `GoogleService-Info.plist` → đặt vào `mobile/patient_app/ios/Runner/`, rồi **kéo file vào target
+  Runner trong Xcode**. Thả vào thư mục thôi là **chưa đủ**: file không nằm trong "Copy Bundle
+  Resources" thì không được đóng gói, `FirebaseApp.configure()` không thấy cấu hình, và app tắt thông
+  báo đẩy trong im lặng. (Cố ý **không** khai sẵn trong `project.pbxproj`: khai một file chưa tồn tại
+  làm hỏng luôn bản build trên máy chưa có cấu hình Firebase, kể cả ở CI.)
 
 **Kiến trúc đã chọn:** máy chủ HIS trong mạng nội bộ bệnh viện **không** gọi thẳng ra Internet. Bảng
 `push_outbox` được `PushDispatcherWorker` đẩy sang relay trên VPS; chỉ relay cần ra Internet. Xem

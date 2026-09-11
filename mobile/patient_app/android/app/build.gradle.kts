@@ -18,6 +18,28 @@ val keystoreProperties = Properties().apply {
 }
 val hasReleaseKeystore = keystoreProperties.getProperty("storeFile") != null
 
+// Cau hinh Firebase cua benh vien. File nay KHONG nam trong repo (chua khoa du an cua ben A).
+//
+// Apply co dieu kien chu khong apply thang: plugin google-services BAT BUOC phai co file, thieu no
+// la moi lenh gradle chet - ke ca `flutter build apk --debug` tren may chua cau hinh Firebase.
+val googleServicesFile = file("google-services.json")
+val hasFirebaseConfig = googleServicesFile.exists()
+if (hasFirebaseConfig) {
+    apply(plugin = "com.google.gms.google-services")
+} else {
+    // Bao that to, giong khoa ky ban phat hanh o duoi. Truoc day khong co canh bao nao va cung
+    // khong co plugin nao: thong bao day chi don gian khong bao gio chay, khong loi, khong dau vet.
+    logger.warn(
+        "\n" +
+        "===================================================================\n" +
+        "  CANH BAO: chua co android/app/google-services.json nen THONG BAO\n" +
+        "  DAY (FCM) BI TAT tren ban Android nay. App van chay binh thuong,\n" +
+        "  nhung nguoi benh se KHONG nhan duoc thong bao nao.\n" +
+        "  Xem docs/features/patient-app/external-services-setup.md muc 2.\n" +
+        "==================================================================="
+    )
+}
+
 android {
     namespace = "vn.com.bluestar.his.patient_app"
     // androidx.core 1.18.0 (do cac plugin keo vao) yeu cau compile voi API 36.

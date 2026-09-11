@@ -19,12 +19,32 @@ Future<void> firebaseBackgroundHandler(RemoteMessage message) async {
   debugPrint('[push] nhận thông báo nền: ${message.messageId}');
 }
 
+/// Những gì phần nối-với-máy-chủ cần biết về thông báo đẩy.
+///
+/// Tách ra thành giao diện riêng để bộ kiểm dựng được bản giả: `PushService` thật đụng tới Firebase,
+/// mà Firebase không khởi tạo được trong `flutter test`. Không có lớp tách này thì đường "token có
+/// thật sự lên tới máy chủ không" là đường không kiểm được — và đó đúng là đường đã hỏng suốt một
+/// thời gian mà 749 phép kiểm không ai thấy.
+abstract class PushTokenSource {
+  /// Khởi tạo đúng một lần, gọi bao nhiêu lần cũng được.
+  Future<void> ensureInitialized();
+
+  /// Token FCM của máy này, null nếu chưa cấu hình Firebase hoặc người dùng từ chối quyền.
+  Future<String?> token();
+
+  /// FCM xoay token định kỳ.
+  Stream<String> get tokenRefreshes;
+
+  /// Deep-link phát ra khi người dùng chạm vào thông báo.
+  Stream<String> get deepLinks;
+}
+
 /// Bọc Firebase Messaging.
 ///
 /// Toàn bộ được viết để **app vẫn chạy bình thường khi chưa cấu hình Firebase**: trên máy phát triển
 /// chưa có `google-services.json` / `GoogleService-Info.plist`, và một app y tế không được phép chết
 /// ở màn khởi động chỉ vì thiếu tệp cấu hình thông báo.
-class PushService {
+class PushService implements PushTokenSource {
   PushService({FirebaseMessaging? messaging, FlutterLocalNotificationsPlugin? localNotifications})
       : _localNotifications = localNotifications ?? FlutterLocalNotificationsPlugin();
 
@@ -38,7 +58,17 @@ class PushService {
 
   /// Phát ra deep-link khi người dùng chạm vào thông báo.
   final _deepLinks = StreamController<String>.broadcast();
+  @override
   Stream<String> get deepLinks => _deepLinks.stream;
+
+  Future<void>? _initialization;
+
+  /// Khởi tạo một lần duy nhất dù bị gọi từ nhiều nơi.
+  ///
+  /// `bootstrap` gọi lúc mở app, còn phần đăng ký token gọi lại lúc đăng nhập xong — nếu mỗi lần gọi
+  /// lại dựng lại Firebase thì trình nghe `onMessage` bị gắn chồng và một thông báo hiện hai lần.
+  @override
+  Future<void> ensureInitialized() => _initialization ??= initialize();
 
   static const _androidChannel = AndroidNotificationChannel(
     'his_patient_app_default',
@@ -122,6 +152,7 @@ class PushService {
   }
 
   /// Token FCM của máy này, null nếu Firebase chưa sẵn sàng hoặc người dùng từ chối quyền.
+  @override
   Future<String?> token() async {
     if (!_available) return null;
     try {
@@ -133,6 +164,7 @@ class PushService {
   }
 
   /// FCM xoay token định kỳ; không cập nhật lên server thì người bệnh im lặng ngừng nhận thông báo.
+  @override
   Stream<String> get tokenRefreshes =>
       _available ? _messaging!.onTokenRefresh : const Stream<String>.empty();
 

@@ -55,5 +55,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- HSMT I.2 #2 "chạy ngầm để nhận các thông báo từ máy chủ". Thiếu khoá này thì iOS không đánh
+	     thức app khi có thông báo đẩy tới, và firebase_messaging không nhận được gì khi app ở nền. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>

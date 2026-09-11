@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/providers.dart';
+import 'core/push_providers.dart';
 import 'core/router/app_router.dart';
 import 'core/security/lock_gate.dart';
 import 'features/home/presentation/update_gate.dart';
@@ -16,6 +17,12 @@ class PatientApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(appConfigProvider);
+
+    // Nối thông báo đẩy vào vòng đời app: gửi token FCM lên máy chủ khi đăng nhập xong, và mở đúng
+    // màn khi người dùng chạm vào thông báo. Đọc ở gốc app để nó sống suốt vòng đời, không phụ
+    // thuộc màn nào đang mở.
+    ref.watch(pushBinderProvider);
+
     return MaterialApp.router(
       title: config.appName,
       debugShowCheckedModeBanner: !config.isProd,

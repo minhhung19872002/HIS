@@ -28,7 +28,7 @@ Future<void> bootstrap(AppConfig rawConfig) async {
   //
   // Cố ý không await trong khối chặn giao diện: máy chưa cấu hình Firebase vẫn phải vào được app.
   // Một ứng dụng y tế không được phép chết ở màn khởi động chỉ vì thiếu tệp cấu hình thông báo.
-  unawaited(container.read(pushServiceProvider).initialize());
+  unawaited(container.read(pushServiceProvider).ensureInitialized());
 
   runApp(
     UncontrolledProviderScope(

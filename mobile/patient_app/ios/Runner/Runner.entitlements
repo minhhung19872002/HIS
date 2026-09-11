@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Quyền nhận thông báo đẩy qua APNs (HSMT I.2 #2). Thiếu quyền này thì máy iOS thật không
+	     đăng ký được với APNs, nên firebase_messaging không lấy được token và người bệnh không nhận
+	     được thông báo nào — dù mọi thứ khác đã đúng.
+
+	     Để "development": Xcode tự đổi sang "production" khi đóng gói bản phát hành. Bản chạy trên
+	     máy ảo không ký chữ ký số nên khoá này không ảnh hưởng tới `flutter build ios --simulator`.
+
+	     🔑 Cần bên A: bật capability "Push Notifications" cho App ID trong tài khoản Apple
+	     Developer của bệnh viện, nếu không thì bản ký cho máy thật sẽ bị từ chối. Xem
+	     docs/features/patient-app/external-services-setup.md mục 2. -->
+	<key>aps-environment</key>
+	<string>development</string>
+</dict>
+</plist>
