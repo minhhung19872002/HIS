@@ -743,21 +743,6 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
 
       {/* Main editor */}
       <main style={{ overflow: 'auto', padding: 'var(--space-14)', display: 'flex', flexDirection: 'column', gap: 'var(--space-14)' }}>
-        {/* Đơn đã phát hành = chỉ xem. Nói thẳng lý do + chỉ đúng đường đi tiếp, thay vì để
-            bác sĩ sửa một hồi rồi mới bị chặn lúc bấm Lưu. */}
-        {isIssued && (
-          <div style={{ padding: 'var(--space-12)', background: 'var(--s-warn-bg)', border: '1px solid var(--s-warn-bd)', borderRadius: 'var(--r-3)' }}>
-            <div style={{ fontWeight: 700, color: 'var(--s-warn-tx)', fontSize: 'var(--fs-sm)' }}>
-              <TermIcon name="alert" size={12} /> Đơn đã phát hành — chỉ xem
-            </div>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--s-warn-tx)', marginTop: 'var(--space-6)' }}>
-              Đơn đã chuyển sang quầy dược nên không sửa trực tiếp được. Theo Thông tư 26/2025/TT-BYT
-              (Điều 6 khoản 9), muốn đổi thuốc thì <b>kê đơn mới thay thế đơn cũ</b> — bấm nút
-              "Kê đơn mới thay thế" ở thanh trên.
-            </div>
-          </div>
-        )}
-
         {/* Toolbar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-10)', padding: '10px 14px', background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', flexWrap: 'wrap' }}>
           <div style={{ display: 'inline-flex', background: 'var(--d-1)', borderRadius: 4, padding: 'var(--space-2)' }}>

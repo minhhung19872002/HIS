@@ -124,7 +124,11 @@ const DispensingCounterV2: React.FC = () => {
     setDispensing(true);
     try {
       for (const id of ids) {
-        await apiClient.post(`/warehousecomplete/issues/dispense-outpatient/${id}`);
+        // Tien to route cua WarehouseCompleteController la [Route("api/warehouse")], KHONG phai
+        // "warehousecomplete" -> ba cho goi cu deu 404 va nut phat thuoc chua bao gio chay duoc
+        // (toast chi bao "Phat thuoc that bai" nen loi bi chim). Cung lop loi da tung sua o dong
+        // huy phat ben duoi nhung bo sot cac cho nay.
+        await apiClient.post(`/warehouse/issues/dispense-outpatient/${id}`);
       }
       tk(`Đã phát ${ids.length} đơn`);
       setPrintCount((c) => c + ids.length);
@@ -149,7 +153,7 @@ const DispensingCounterV2: React.FC = () => {
     if (isBusy(r.prescriptionId)) return; // chặn double-click
     setBusy(r.prescriptionId, true);
     try {
-      await apiClient.post(`/warehousecomplete/issues/dispense-outpatient/${r.prescriptionId}`);
+      await apiClient.post(`/warehouse/issues/dispense-outpatient/${r.prescriptionId}`);
       tk(`Đã phát đơn ${r.prescriptionCode}`);
       setPrintCount((c) => c + 1);
       printLabels(r); // in ngay, không để dược sĩ phải tự nhớ
@@ -350,7 +354,7 @@ ${targets.map((row) => row.items.map((it) => `<div class="label"><h3>${it.medici
                 if (isBusy(detail.prescriptionId)) return;
                 setBusy(detail.prescriptionId, true);
                 try {
-                  await apiClient.post(`/warehousecomplete/issues/dispense-outpatient/${detail.prescriptionId}`);
+                  await apiClient.post(`/warehouse/issues/dispense-outpatient/${detail.prescriptionId}`);
                   tk('Đã phát'); setDetail(null); load();
                 } catch { tw('Phát thất bại'); }
                 finally { setBusy(detail.prescriptionId, false); }
