@@ -88,6 +88,15 @@ jobs:
       # Deploy = SSM chạy script trên EC2: pull image mới → thay container his-api.
       # ghcr login trên EC2 dùng credential đã lưu sẵn từ lần `docker login` đầu
       # (root của EC2 giữ ~/.docker/config.json) — KHÔNG truyền GHCR_TOKEN qua SSM.
+      #
+      # DỌN ĐĨA TRƯỚC KHI PULL (2026-09-11): deploy hỏng với
+      #   "write /var/lib/docker/tmp/GetImageBlob…: no space left on device"
+      # Trước đây prune chạy SAU khi pull — mà pull mới là bước chết vì hết đĩa — và
+      # còn lọc `--filter until=72h`, nên các image của chính những lần deploy trong
+      # ngày (hôm đó 8 lần) không cái nào bị dọn, đĩa cứ phình tới khi đầy.
+      # `docker image prune -af` CHỈ xoá image không có container nào dùng, nên image
+      # đang chạy của his-api và caddy vẫn an toàn. In `df -h` trước/sau để lần sau
+      # nhìn log là biết ngay còn bao nhiêu chỗ.
       - name: Deploy to EC2 via SSM
         run: |
           CMD_ID=$(aws ssm send-command \
@@ -96,10 +105,15 @@ jobs:
             --comment "deploy ${{ steps.img.outputs.tag }}" \
             --parameters "commands=[
               \"set -e\",
+              \"df -h / | tail -1\",
+              \"docker image prune -af || true\",
+              \"docker builder prune -af || true\",
+              \"docker container prune -f || true\",
+              \"df -h / | tail -1\",
               \"docker pull ${{ steps.img.outputs.tag }}\",
               \"docker rm -f his-api || true\",
               \"docker run -d --name his-api --restart unless-stopped --network his-net --env-file /home/ec2-user/his-app.env ${{ steps.img.outputs.tag }}\",
-              \"docker image prune -af --filter until=72h || true\"
+              \"docker image prune -af || true\"
             ]" \
             --query "Command.CommandId" --output text)
           echo "command: $CMD_ID"
