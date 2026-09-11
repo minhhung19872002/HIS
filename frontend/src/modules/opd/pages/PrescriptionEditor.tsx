@@ -709,8 +709,11 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
         </div>
 
         {/* Drug table */}
-        <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', overflow: 'hidden' }}>
-          <table className="ab-tbl" style={{ fontSize: 'var(--fs-sm)' }}>
+        {/* overflowX:auto — bảng có 10 cột (654px cố định + 2 cột co giãn); cột giữa của grid
+            3-cột co lại dưới ~1500px là "Thành tiền" + nút xoá bị CẮT MẤT, trước đây
+            overflow:hidden nên không cuộn tới được. minWidth khoá bề rộng thật để cuộn ổn định. */}
+        <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', overflowX: 'auto' }}>
+          <table className="ab-tbl" style={{ fontSize: 'var(--fs-sm)', minWidth: 1020 }}>
             <thead>
               <tr>
                 <th style={{ width: 32 }}>#</th>
