@@ -28,6 +28,9 @@ import { HOSPITAL_NAME, HOSPITAL_ADDRESS } from '../../../constants/hospital';
 
 const RX_ROUTE = ['Uống', 'Tiêm bắp', 'Tiêm tĩnh mạch', 'Bôi ngoài da', 'Khí dung', 'Ngậm dưới lưỡi'];
 
+/** PrescriptionStatus.Draft ở backend. Đơn nháp: chưa có hiệu lực, dược KHÔNG thấy, sửa tự do. */
+const RX_DRAFT = 5;
+
 interface RxItem {
   medicineId: string; code: string; name: string;
   // Dose schedule S/T/Ch/T (patient-safety — serialised via formatDosage for DTO)
@@ -134,7 +137,7 @@ const PrescriptionEditorV2: React.FC = () => {
   const [savingTpl, setSavingTpl] = useState(false);
   const tplForm = useModalForm({ templateName: { required: true, message: 'Vui lòng nhập tên mẫu' } }, saveTemplateOpen);
   // Interaction gate: tracks which save action was blocked by interactions
-  const [pendingAction, setPendingAction] = useState<'draft' | 'sign' | 'printExt' | null>(null);
+  const [pendingAction, setPendingAction] = useState<'draft' | 'sign' | 'issue' | 'printExt' | null>(null);
   // Override reason for HIGH-severity drug interactions (severity>=3) — required by PrescriptionSafetyGuard
   const [overrideReason, setOverrideReason] = useState('');
   // interForm: chỉ hiện lỗi khi user bấm nút proceed mà chưa nhập lý do (không viền đỏ ngay khi mở drawer)
@@ -361,11 +364,14 @@ const PrescriptionEditorV2: React.FC = () => {
     return false;
   };
 
+  /** Đơn đã PHÁT HÀNH (không còn là nháp) → khoá sửa, chỉ đi đường đơn-thay-thế. */
+  const isIssued = editingPrescriptionStatus != null && editingPrescriptionStatus !== RX_DRAFT;
+
   const guard = (): boolean => {
     if (!pt) { tw('Chưa chọn bệnh nhân'); return false; }
     if (!examinationId) { tw('Bệnh nhân chưa có phiếu khám — không thể lưu đơn'); return false; }
-    if (editingPrescriptionStatus != null && editingPrescriptionStatus !== 0) {
-      tw('Chỉ đơn thuốc đang chờ duyệt mới được phép chỉnh sửa');
+    if (isIssued) {
+      tw('Đơn đã phát hành không sửa trực tiếp được — dùng "Kê đơn mới thay thế"');
       return false;
     }
     // Toast ở đỉnh màn hình tắt sau ~3s, bác sĩ đang nhìn nút giữa màn nên dễ bỏ lỡ.
@@ -387,7 +393,7 @@ const PrescriptionEditorV2: React.FC = () => {
 
   const doSaveDraft = async () => {
     setSaving(true);
-    try { await persistPrescription(); tk('Đã lưu nháp đơn thuốc'); }
+    try { await persistPrescription(); tk('Đã lưu nháp — đơn chưa gửi sang dược'); }
     catch (e) { te(friendlyErrorMessage(e, 'Lưu nháp thất bại')); }
     finally { setSaving(false); }
   };
@@ -398,21 +404,55 @@ const PrescriptionEditorV2: React.FC = () => {
     await doSaveDraft();
   };
 
-  const completeWithSign = async () => {
+  /** Lưu nháp rồi PHÁT HÀNH. `andSign` = đi tiếp sang luồng ký số sau khi phát hành. */
+  const doIssue = async (andSign: boolean) => {
     setSaving(true);
     try {
-      const response = await persistPrescription();
+      const saved = await persistPrescription();
+      const issued = await examinationApi.issuePrescription(saved.data.id, overrideReason.trim() || undefined);
+      if (issued.data) setEditingPrescriptionStatus(issued.data.status);
       setSignOpen(false);
-      tk('Đã lưu đơn thuốc — vui lòng hoàn tất ký số ở luồng trình ký');
-      navigate(`/v2/signing-workflow?documentType=Prescription&documentId=${response.data.id}`);
-    } catch (e) { te(friendlyErrorMessage(e, 'Hoàn tất đơn thất bại')); }
+      if (andSign) {
+        tk('Đã phát hành đơn — tiếp tục ký số ở luồng trình ký');
+        navigate(`/v2/signing-workflow?documentType=Prescription&documentId=${saved.data.id}`);
+      } else {
+        tk(`Đã phát hành đơn ${issued.data?.prescriptionCode || ''} — đã chuyển sang quầy dược`);
+      }
+    } catch (e) { te(friendlyErrorMessage(e, 'Phát hành đơn thất bại')); }
     finally { setSaving(false); }
+  };
+
+  const onClickIssue = () => {
+    if (!guard()) return;
+    if (interactions.length > 0) { setPendingAction('issue'); setInterOpen(true); return; }
+    cf('Sau khi phát hành, đơn sẽ chuyển sang quầy dược và KHÔNG sửa trực tiếp được nữa. '
+      + 'Muốn đổi thuốc phải kê đơn mới thay thế.',
+      () => { void doIssue(false); },
+      { title: 'Phát hành đơn thuốc?', confirm: 'Phát hành' });
   };
 
   const onClickSign = () => {
     if (!guard()) return;
     if (interactions.length > 0) { setPendingAction('sign'); setInterOpen(true); return; }
     setSignOpen(true);
+  };
+
+  /** Đơn đã phát hành cần đổi thuốc → tạo đơn NHÁP mới nhân bản từ đơn cũ (TT 26/2025 Đ.6 k.9). */
+  const onClickReplace = () => {
+    if (!editingPrescriptionId) return;
+    cf('Hệ thống sẽ tạo một đơn NHÁP mới sao chép toàn bộ thuốc của đơn này để anh/chị sửa. '
+      + 'Đơn hiện tại chỉ bị hủy khi đơn mới được phát hành.',
+      async () => {
+        setSaving(true);
+        try {
+          const res = await examinationApi.replacePrescription(editingPrescriptionId);
+          tk(`Đã tạo đơn thay thế ${res.data?.prescriptionCode || ''}`);
+          navigate(`/v2/prescription/edit?prescriptionId=${encodeURIComponent(res.data.id)}`
+            + (examinationId ? `&examId=${encodeURIComponent(examinationId)}` : ''));
+        } catch (e) { te(friendlyErrorMessage(e, 'Không tạo được đơn thay thế')); }
+        finally { setSaving(false); }
+      },
+      { title: 'Kê đơn mới thay thế?', confirm: 'Tạo đơn thay thế' });
   };
 
   // ── In đơn thuốc nội viện ─────────────────────────────────────────
@@ -703,6 +743,21 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
 
       {/* Main editor */}
       <main style={{ overflow: 'auto', padding: 'var(--space-14)', display: 'flex', flexDirection: 'column', gap: 'var(--space-14)' }}>
+        {/* Đơn đã phát hành = chỉ xem. Nói thẳng lý do + chỉ đúng đường đi tiếp, thay vì để
+            bác sĩ sửa một hồi rồi mới bị chặn lúc bấm Lưu. */}
+        {isIssued && (
+          <div style={{ padding: 'var(--space-12)', background: 'var(--s-warn-bg)', border: '1px solid var(--s-warn-bd)', borderRadius: 'var(--r-3)' }}>
+            <div style={{ fontWeight: 700, color: 'var(--s-warn-tx)', fontSize: 'var(--fs-sm)' }}>
+              <TermIcon name="alert" size={12} /> Đơn đã phát hành — chỉ xem
+            </div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--s-warn-tx)', marginTop: 'var(--space-6)' }}>
+              Đơn đã chuyển sang quầy dược nên không sửa trực tiếp được. Theo Thông tư 26/2025/TT-BYT
+              (Điều 6 khoản 9), muốn đổi thuốc thì <b>kê đơn mới thay thế đơn cũ</b> — bấm nút
+              "Kê đơn mới thay thế" ở thanh trên.
+            </div>
+          </div>
+        )}
+
         {/* Toolbar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-10)', padding: '10px 14px', background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', flexWrap: 'wrap' }}>
           <div style={{ display: 'inline-flex', background: 'var(--d-1)', borderRadius: 4, padding: 'var(--space-2)' }}>
@@ -735,9 +790,18 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
             onClick={printExternalRx}><TermIcon name="print" size={12} /> In toa nhà thuốc</Btn>
           <Btn variant="ghost" title={noItems ? EMPTY_RX_HINT : undefined}
             onClick={() => { if (requireItems()) setDisclosureOpen(true); }}><TermIcon name="list" size={12} /> Phiếu công khai</Btn>
-          {rxMode === 1 && (
-            <Btn variant="primary" disabled={saving} title={noItems ? EMPTY_RX_HINT : undefined}
-              onClick={onClickSign}><TermIcon name="check" size={12} /> Lưu · Sang ký số</Btn>
+          {/* Đơn đã PHÁT HÀNH: không còn nút lưu/phát hành — chỉ còn đường kê đơn thay thế. */}
+          {isIssued ? (
+            <Btn variant="primary" disabled={saving} onClick={onClickReplace}>
+              <TermIcon name="edit" size={12} /> Kê đơn mới thay thế
+            </Btn>
+          ) : rxMode === 1 && (
+            <>
+              <Btn variant="primary" disabled={saving} title={noItems ? EMPTY_RX_HINT : undefined}
+                onClick={onClickIssue}><TermIcon name="check" size={12} /> Phát hành đơn</Btn>
+              <Btn variant="ghost" disabled={saving} title={noItems ? EMPTY_RX_HINT : 'Phát hành rồi chuyển sang ký số'}
+                onClick={onClickSign}><TermIcon name="check" size={12} /> Phát hành · Ký số</Btn>
+            </>
           )}
         </div>
 
@@ -1022,11 +1086,13 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
               setInterOpen(false);
               if (pendingAction === 'draft') { await doSaveDraft(); }
               else if (pendingAction === 'printExt') { await doPrintExternalRx(); }
+              else if (pendingAction === 'issue') { await doIssue(false); }
               else { setSignOpen(true); }
               setPendingAction(null);
             }}>
               {pendingAction === 'draft' ? 'Lưu nháp dù có cảnh báo'
                 : pendingAction === 'printExt' ? 'In toa dù có cảnh báo'
+                : pendingAction === 'issue' ? 'Phát hành dù có cảnh báo'
                 : 'Tiếp tục ký dù có cảnh báo'}
             </Btn>
           </div>
@@ -1053,7 +1119,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
       <ModalShell open={signOpen} onClose={() => setSignOpen(false)} title="Lưu đơn & chuyển sang ký số" sub="USB Token · VNPT-CA" size="sm"
         footer={<>
           <Btn variant="ghost" onClick={() => setSignOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" disabled={saving} onClick={completeWithSign}><TermIcon name="check" size={12} /> Xác nhận</Btn>
+          <Btn variant="primary" disabled={saving} onClick={() => void doIssue(true)}><TermIcon name="check" size={12} /> Xác nhận</Btn>
         </>}>
         <div style={{ padding: 'var(--space-18)' }}>
           <div style={{ padding: 'var(--space-12)', background: 'var(--d-1)', borderRadius: 'var(--r-2)', marginBottom: 'var(--space-14)', fontSize: 'var(--fs-sm)' }}>

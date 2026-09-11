@@ -296,6 +296,7 @@ public partial class ExaminationCompleteService : IExaminationCompleteService
         return new PrescriptionFullDto
         {
             Id = prescription.Id,
+            PrescriptionCode = prescription.PrescriptionCode,
             ExaminationId = prescription.ExaminationId ?? Guid.Empty,
             PrescribedById = prescription.DoctorId,
             PrescribedByName = prescription.Doctor?.FullName,

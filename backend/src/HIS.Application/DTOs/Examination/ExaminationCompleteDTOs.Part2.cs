@@ -196,6 +196,8 @@ public class ServiceOrderWarningDto
 public class PrescriptionFullDto
 {
     public Guid Id { get; set; }
+    /// <summary>Mã đơn (DTyyyyMMddHHmmss) — bác sĩ cần thấy mã sau khi phát hành.</summary>
+    public string? PrescriptionCode { get; set; }
     public Guid ExaminationId { get; set; }
     public DateTime PrescriptionDate { get; set; }
     public int PrescriptionType { get; set; } // 1-Ngoại trú, 2-Nội trú, 3-YHCT, 4-Mua ngoài

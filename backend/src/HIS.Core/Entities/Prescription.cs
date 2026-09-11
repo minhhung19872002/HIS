@@ -14,6 +14,12 @@ public class Prescription : BaseEntity
     public Guid? ExaminationId { get; set; }
     public virtual Examination? Examination { get; set; }
 
+    /// <summary>Đơn CŨ mà đơn này thay thế (TT 26/2025/TT-BYT Điều 6 khoản 9).</summary>
+    public Guid? ReplacesPrescriptionId { get; set; }
+
+    /// <summary>Đơn MỚI đã thay thế đơn này — set khi đơn thay thế được phát hành.</summary>
+    public Guid? ReplacedByPrescriptionId { get; set; }
+
     // Bác sĩ kê đơn
     public Guid DoctorId { get; set; }
     public virtual User Doctor { get; set; } = null!;

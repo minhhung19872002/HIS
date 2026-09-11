@@ -490,6 +490,7 @@ export interface ServiceOrderWarningDto {
 // 2.7 Kê đơn thuốc
 export interface PrescriptionFullDto {
   id: string;
+  prescriptionCode?: string;
   examinationId: string;
   prescriptionDate: string;
   prescriptionType: number;
@@ -1305,6 +1306,14 @@ export const createPrescription = (dto: CreatePrescriptionDto) =>
 export const updatePrescription = (id: string, dto: CreatePrescriptionDto) =>
   request.put<PrescriptionFullDto>(`/examination/prescriptions/${id}`, dto);
 
+/** PHÁT HÀNH đơn: Nháp → Chờ duyệt. Mốc đơn có hiệu lực + sang quầy dược; sau đó không sửa tại chỗ. */
+export const issuePrescription = (id: string, overrideReason?: string) =>
+  request.post<PrescriptionFullDto>(`/examination/prescriptions/${id}/issue`, { overrideReason });
+
+/** Kê đơn NHÁP mới thay thế đơn đã phát hành (TT 26/2025/TT-BYT Điều 6 khoản 9). */
+export const replacePrescription = (id: string) =>
+  request.post<PrescriptionFullDto>(`/examination/prescriptions/${id}/replace`, {});
+
 export const deletePrescription = (id: string) =>
   request.delete<boolean>(`/examination/prescriptions/${id}`);
 
@@ -1692,6 +1701,8 @@ export const examinationApi = {
   getPrescriptionById,
   createPrescription,
   updatePrescription,
+  issuePrescription,
+  replacePrescription,
   deletePrescription,
   searchMedicines,
   getMedicineWithStock,

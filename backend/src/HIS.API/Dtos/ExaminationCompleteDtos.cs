@@ -10,6 +10,12 @@ public class SaveAsTemplateRequest
     public string TemplateName { get; set; } = string.Empty;
 }
 
+/// <summary>Lý do bác sĩ bỏ qua cảnh báo dị ứng / tương tác khi phát hành đơn (nếu có).</summary>
+public class IssuePrescriptionRequest
+{
+    public string? OverrideReason { get; set; }
+}
+
 public class CancelReasonRequest
 {
     public string Reason { get; set; } = string.Empty;

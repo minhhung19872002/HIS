@@ -82,7 +82,9 @@ const DispensingCounterV2: React.FC = () => {
           keyword: search || undefined,
         },
       });
-      const mapped: DispenseRow[] = (data || []).map((p) => ({
+      // Đơn NHÁP (status 5) chưa phát hành → quầy dược KHÔNG được thấy. Endpoint /recent trả
+      // mọi trạng thái vì màn danh sách của bác sĩ cần xem nháp của chính mình.
+      const mapped: DispenseRow[] = (data || []).filter((p) => Number(p.status) !== 5).map((p) => ({
         prescriptionId: (p.id || p.prescriptionId) as string,
         prescriptionCode: (p.prescriptionCode || p.code || '') as string,
         patientCode: (p.patientCode || '') as string,

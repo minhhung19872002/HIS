@@ -116,7 +116,10 @@ public partial class ExaminationCompleteService
             WarehouseId = dto.WarehouseId,
             TotalDays = dto.TotalDays,
             Instructions = dto.Instructions,
-            Status = 0, // Draft
+            // NHÁP: đơn mới KHÔNG vào hàng đợi dược cho tới khi bác sĩ bấm "Phát hành đơn".
+            // Trước đây tạo thẳng Status 0 (= Chờ duyệt) nên "Lưu nháp" thực chất đã gửi đơn
+            // sang quầy dược ngay lập tức (PharmacyService lọc Status == 0 || 1).
+            Status = HIS.Core.Constants.PrescriptionStatus.Draft,
             Details = new List<PrescriptionDetail>()
         };
 
@@ -168,8 +171,11 @@ public partial class ExaminationCompleteService
 
         if (prescription == null) throw new KeyNotFoundException("Prescription not found");
         await EmrLockGuard.EnsureEditableByRecordAsync(_context, prescription.MedicalRecordId); // TT46
-        if (prescription.Status != HIS.Core.Constants.PrescriptionStatus.PendingApproval)
-            throw new InvalidOperationException("Chỉ đơn thuốc đang ở trạng thái nháp mới được phép chỉnh sửa.");
+        // TT 26/2025/TT-BYT Điều 6 khoản 9: đơn ĐÃ PHÁT HÀNH không sửa tại chỗ — muốn đổi thuốc
+        // thì kê đơn MỚI thay thế đơn cũ (ReplacePrescriptionAsync).
+        if (!HIS.Core.Constants.PrescriptionStatus.IsEditable(prescription.Status))
+            throw new InvalidOperationException(
+                "Đơn thuốc đã phát hành không được sửa trực tiếp. Hãy dùng chức năng \"Kê đơn mới thay thế\".");
 
         var examination = await _context.Examinations.FirstOrDefaultAsync(e => e.Id == prescription.ExaminationId);
         if (examination == null)
@@ -261,10 +267,134 @@ public partial class ExaminationCompleteService
         return medicines;
     }
 
+    /// <summary>
+    /// PHÁT HÀNH đơn: Nháp → Chờ duyệt. Đây là mốc đơn có hiệu lực — từ đây quầy dược mới nhìn
+    /// thấy đơn, và đơn KHÔNG còn sửa tại chỗ được nữa (TT 26/2025/TT-BYT Điều 6 khoản 9).
+    ///
+    /// Chạy lại chốt an toàn dị-ứng/tương-tác NGAY TẠI ĐÂY chứ không chỉ lúc tạo: giữa lúc lưu
+    /// nháp và lúc phát hành, đơn có thể đã được sửa thêm thuốc, hoặc BN mới được ghi nhận dị ứng.
+    /// </summary>
+    public async Task<PrescriptionFullDto> IssuePrescriptionAsync(Guid id, string? overrideReason = null)
+    {
+        var prescription = await _context.Prescriptions
+            .Include(p => p.Details).ThenInclude(d => d.Medicine)
+            .Include(p => p.MedicalRecord)
+            .FirstOrDefaultAsync(p => p.Id == id)
+            ?? throw new KeyNotFoundException("Prescription not found");
+
+        await EmrLockGuard.EnsureEditableByRecordAsync(_context, prescription.MedicalRecordId); // TT46
+        HIS.Core.Constants.PrescriptionStatus.EnsureCanTransition(
+            prescription.Status, HIS.Core.Constants.PrescriptionStatus.PendingApproval);
+
+        if (prescription.Details.Count == 0)
+            throw new InvalidOperationException("Đơn thuốc chưa có thuốc nào — không thể phát hành.");
+
+        await EnforcePrescriptionSafetyAsync(
+            prescription.MedicalRecord.PatientId,
+            prescription.Details.Select(d => d.MedicineId).ToList(),
+            overrideReason);
+        if (!string.IsNullOrWhiteSpace(overrideReason))
+            prescription.Instructions =
+                $"{prescription.Instructions} [BS bỏ qua cảnh báo an toàn: {overrideReason}]".Trim();
+
+        prescription.Status = HIS.Core.Constants.PrescriptionStatus.PendingApproval;
+        prescription.PrescriptionDate = DateTime.Now; // ngày kê = ngày PHÁT HÀNH, không phải ngày mở nháp
+        prescription.UpdatedAt = DateTime.UtcNow;
+
+        // Đơn này được kê để THAY THẾ một đơn cũ → tới lúc phát hành mới hủy đơn cũ. Hủy sớm hơn
+        // (ngay khi bấm "kê đơn thay thế") thì bác sĩ bỏ dở giữa chừng là BN mất luôn đơn đang có.
+        if (prescription.ReplacesPrescriptionId.HasValue)
+        {
+            var old = await _context.Prescriptions
+                .FirstOrDefaultAsync(p => p.Id == prescription.ReplacesPrescriptionId.Value);
+            if (old != null && old.Status != HIS.Core.Constants.PrescriptionStatus.Cancelled)
+            {
+                HIS.Core.Constants.PrescriptionStatus.EnsureCanTransition(
+                    old.Status, HIS.Core.Constants.PrescriptionStatus.Cancelled);
+                old.Status = HIS.Core.Constants.PrescriptionStatus.Cancelled;
+                old.ReplacedByPrescriptionId = prescription.Id;
+                old.Instructions = $"{old.Instructions} [Được thay thế bởi đơn {prescription.PrescriptionCode}]".Trim();
+                old.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
+        await _unitOfWork.SaveChangesAsync();
+        return MapToPrescriptionFullDto(prescription);
+    }
+
+    /// <summary>
+    /// Kê đơn MỚI thay thế đơn đã phát hành (TT 26/2025/TT-BYT Điều 6 khoản 9). Nhân bản toàn bộ
+    /// dòng thuốc của đơn cũ sang một đơn NHÁP mới để bác sĩ sửa, gắn ReplacesPrescriptionId.
+    /// Đơn cũ CHƯA bị hủy ở bước này — chỉ bị hủy khi đơn mới thực sự được phát hành.
+    /// </summary>
+    public async Task<PrescriptionFullDto> ReplacePrescriptionAsync(Guid id)
+    {
+        var old = await _context.Prescriptions
+            .Include(p => p.Details)
+            .FirstOrDefaultAsync(p => p.Id == id)
+            ?? throw new KeyNotFoundException("Prescription not found");
+
+        await EmrLockGuard.EnsureEditableByRecordAsync(_context, old.MedicalRecordId); // TT46
+        if (old.Status == HIS.Core.Constants.PrescriptionStatus.Draft)
+            throw new InvalidOperationException("Đơn còn là nháp — sửa trực tiếp, không cần đơn thay thế.");
+        if (old.Status is HIS.Core.Constants.PrescriptionStatus.Cancelled
+            or HIS.Core.Constants.PrescriptionStatus.Returned)
+            throw new InvalidOperationException("Đơn đã hủy/hoàn trả — không thể kê đơn thay thế.");
+        if (old.ReplacedByPrescriptionId.HasValue)
+            throw new InvalidOperationException("Đơn này đã được thay thế bởi một đơn khác.");
+
+        var draft = new Prescription
+        {
+            Id = Guid.NewGuid(),
+            MedicalRecordId = old.MedicalRecordId,
+            ExaminationId = old.ExaminationId,
+            DoctorId = old.DoctorId,
+            DepartmentId = old.DepartmentId,
+            PrescriptionCode = $"DT{DateTime.Now:yyyyMMddHHmmss}",
+            PrescriptionDate = DateTime.Now,
+            PrescriptionType = old.PrescriptionType,
+            PaymentCategory = old.PaymentCategory,
+            DiagnosisCode = old.DiagnosisCode,
+            DiagnosisName = old.DiagnosisName,
+            WarehouseId = old.WarehouseId,
+            TotalDays = old.TotalDays,
+            Status = HIS.Core.Constants.PrescriptionStatus.Draft,
+            ReplacesPrescriptionId = old.Id,
+            Instructions = $"[Thay thế đơn {old.PrescriptionCode}]",
+            Details = old.Details.Select(d => new PrescriptionDetail
+            {
+                Id = Guid.NewGuid(),
+                MedicineId = d.MedicineId,
+                WarehouseId = d.WarehouseId,
+                PatientType = d.PatientType,
+                Quantity = d.Quantity,
+                Unit = d.Unit,
+                Days = d.Days,
+                Dosage = d.Dosage,
+                Route = d.Route,
+                Frequency = d.Frequency,
+                UsageInstructions = d.UsageInstructions,
+                UnitPrice = d.UnitPrice,
+                TotalPrice = d.TotalPrice,
+            }).ToList(),
+        };
+        draft.TotalAmount = draft.Details.Sum(d => d.TotalPrice);
+
+        await _context.Prescriptions.AddAsync(draft);
+        await _unitOfWork.SaveChangesAsync();
+
+        var saved = await _context.Prescriptions
+            .Include(p => p.Details).ThenInclude(d => d.Medicine)
+            .FirstAsync(p => p.Id == draft.Id);
+        return MapToPrescriptionFullDto(saved);
+    }
+
     public async Task<bool> DeletePrescriptionAsync(Guid id)
     {
+        // Chỉ xoá được đơn còn NHÁP. Đơn đã phát hành phải đi đường hủy có kiểm soát
+        // (state-machine + trả thuốc về kho nếu đã cấp phát), không xoá cứng khỏi hồ sơ.
         var prescription = await _context.Prescriptions.FindAsync(id);
-        if (prescription == null || prescription.Status != 0) return false;
+        if (prescription == null || !HIS.Core.Constants.PrescriptionStatus.IsEditable(prescription.Status)) return false;
         await EmrLockGuard.EnsureEditableByRecordAsync(_context, prescription.MedicalRecordId); // TT46
 
         _context.Prescriptions.Remove(prescription);

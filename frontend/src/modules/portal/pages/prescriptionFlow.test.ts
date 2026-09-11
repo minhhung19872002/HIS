@@ -12,12 +12,12 @@ describe('prescription list flow', () => {
       .toBe('/v2/prescription/edit?prescriptionId=rx-1&patientId=patient-1');
   });
 
-  it.each([[0, 'pending'], [1, 'active'], [2, 'dispensed'], [3, 'returned'], [4, 'cancelled'], [6, 'dispensed']] as const)(
+  it.each([[5, 'draft'], [0, 'pending'], [1, 'active'], [2, 'dispensed'], [3, 'returned'], [4, 'cancelled'], [6, 'dispensed']] as const)(
     'maps backend status %s to %s',
     (status, expected) => expect(prescriptionStatusKey(status)).toBe(expected),
   );
 
-  it.each([['Chờ duyệt', 'pending'], ['Đã cấp phát', 'dispensed'], ['Đã hủy', 'cancelled']] as const)(
+  it.each([['Nháp', 'draft'], ['Chờ duyệt', 'pending'], ['Đã cấp phát', 'dispensed'], ['Đã hủy', 'cancelled']] as const)(
     'maps backend status name %s to %s',
     (status, expected) => expect(prescriptionStatusKey(status)).toBe(expected),
   );

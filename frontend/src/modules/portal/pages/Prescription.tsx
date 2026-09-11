@@ -13,6 +13,7 @@ import { prescriptionEditorLink, prescriptionStatusKey, type PrescriptionStatusK
 
 type StatusKey = PrescriptionStatusKey;
 const STATUS_TABS: StatusTab<StatusKey>[] = [
+  { v: 'draft',     l: 'Nháp',          tone: 'info' },
   { v: 'pending',   l: 'Chờ duyệt',     tone: 'warn' },
   { v: 'active',    l: 'Đã duyệt',      tone: 'ok' },
   { v: 'dispensed', l: 'Đã cấp phát',   tone: 'ok' },
@@ -102,11 +103,13 @@ const PrescriptionV2: React.FC = () => {
         const returned = rows.filter((r) => prescriptionStatusKey(r.status) === 'returned').length;
         const expired = rows.filter((r) => prescriptionStatusKey(r.status) === 'expired').length;
         const totalItems = rows.reduce((s, r) => s + (r.items?.length || 0), 0);
+        const draft = rows.filter((r) => prescriptionStatusKey(r.status) === 'draft').length;
         const pending = rows.filter((r) => prescriptionStatusKey(r.status) === 'pending').length;
         return [
           { lbl: 'Tổng đơn', val: rows.length, sub: RANGES.find((x) => x.v === range)?.l },
           { lbl: 'Hôm nay', val: todayCount, sub: 'mới kê', tone: 'info' },
-          { lbl: 'Chờ duyệt', val: pending, tone: 'warn', sub: 'còn sửa được' },
+          { lbl: 'Nháp', val: draft, tone: 'info', sub: 'chưa phát hành' },
+          { lbl: 'Chờ duyệt', val: pending, tone: 'warn', sub: 'đã sang dược' },
           { lbl: 'Đã duyệt', val: active, tone: 'ok' },
           { lbl: 'Đã cấp phát', val: dispensed, tone: 'ok' },
           { lbl: 'Hoàn trả', val: returned, tone: 'warn' },

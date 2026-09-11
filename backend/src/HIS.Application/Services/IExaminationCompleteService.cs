@@ -503,6 +503,12 @@ public interface IExaminationCompleteService
     /// <summary>
     /// Xóa đơn thuốc
     /// </summary>
+    /// <summary>Phát hành đơn: Nháp → Chờ duyệt (mốc đơn có hiệu lực, dược mới thấy).</summary>
+    Task<PrescriptionFullDto> IssuePrescriptionAsync(Guid id, string? overrideReason = null);
+
+    /// <summary>Kê đơn nháp MỚI thay thế đơn đã phát hành (TT 26/2025/TT-BYT Điều 6 khoản 9).</summary>
+    Task<PrescriptionFullDto> ReplacePrescriptionAsync(Guid id);
+
     Task<bool> DeletePrescriptionAsync(Guid id);
 
     /// <summary>

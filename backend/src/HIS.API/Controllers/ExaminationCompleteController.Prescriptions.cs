@@ -73,6 +73,27 @@ public partial class ExaminationCompleteController : ControllerBase
     }
 
     /// <summary>
+    /// PHÁT HÀNH đơn thuốc: Nháp → Chờ duyệt. Đây là mốc đơn có hiệu lực và sang quầy dược;
+    /// sau bước này đơn KHÔNG sửa tại chỗ được nữa (TT 26/2025/TT-BYT Điều 6 khoản 9).
+    /// </summary>
+    [HttpPost("prescriptions/{id}/issue")]
+    public async Task<ActionResult<PrescriptionFullDto>> IssuePrescription(Guid id, [FromBody] IssuePrescriptionRequest? request = null)
+    {
+        var result = await _examinationService.IssuePrescriptionAsync(id, request?.OverrideReason);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Kê đơn NHÁP mới thay thế một đơn đã phát hành. Đơn cũ chỉ bị hủy khi đơn mới được phát hành.
+    /// </summary>
+    [HttpPost("prescriptions/{id}/replace")]
+    public async Task<ActionResult<PrescriptionFullDto>> ReplacePrescription(Guid id)
+    {
+        var result = await _examinationService.ReplacePrescriptionAsync(id);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Xóa đơn thuốc
     /// </summary>
     [HttpDelete("prescriptions/{id}")]

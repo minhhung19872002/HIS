@@ -110,9 +110,27 @@ public static class PrescriptionStatus
     public const int Dispensed = 2;        // Đã cấp phát (đủ)
     public const int Returned = 3;         // Hoàn trả
     public const int Cancelled = 4;        // Hủy
+    /// <summary>
+    /// Nháp — bác sĩ đang soạn, CHƯA phát hành. Chưa có giá trị pháp lý, KHÔNG hiện ở quầy dược,
+    /// sửa/xoá tự do. TT 26/2025/TT-BYT Điều 10: đơn điện tử chỉ có giá trị pháp lý như đơn giấy
+    /// khi đã được lập + ký số + lưu trữ đúng quy định.
+    ///
+    /// Vì sao là 5 chứ không phải -1 hay chèn trước 0: mọi bộ lọc sẵn có trong hệ thống
+    /// (hàng đợi dược `Status == 0 || Status == 1`, billing, cổng liên thông quốc gia) đều liệt kê
+    /// giá trị CỤ THỂ, nên một giá trị MỚI chưa ai dùng sẽ tự động bị loại khỏi mọi luồng cũ —
+    /// an toàn hơn nhiều so với đổi ý nghĩa của 0 (đang có 485 đơn).
+    /// </summary>
+    public const int Draft = 5;
     // 6 = Cấp một phần (conformance state-machine tài liệu). KHÔNG chèn vào value 3 để tránh dịch literal
     // Status==3/4 đang dùng khắp billing/data-inheritance/insurance. Set khi còn dòng thuốc chưa cấp đủ.
     public const int PartialDispensed = 6;
+
+    /// <summary>
+    /// Đơn còn được SỬA TẠI CHỖ hay không. TT 26/2025/TT-BYT Điều 6 khoản 9: "Trường hợp cần sửa
+    /// chữa, điều chỉnh thuốc trong đơn, người kê đơn thực hiện kê đơn thuốc mới thay thế đơn thuốc
+    /// cũ" → đơn ĐÃ PHÁT HÀNH không sửa tại chỗ, phải đi đường đơn-thay-thế.
+    /// </summary>
+    public static bool IsEditable(int status) => status == Draft;
 
     /// <summary>
     /// #218/T3: luật chuyển trạng thái đơn thuốc. Trước đây KHÔNG có luật nào — đo bằng API thật
@@ -122,6 +140,7 @@ public static class PrescriptionStatus
     /// </summary>
     private static readonly Dictionary<int, int[]> ValidTransitions = new()
     {
+        { Draft,            [PendingApproval, Cancelled] },       // nháp → PHÁT HÀNH | bỏ nháp
         { PendingApproval,  [Approved, Cancelled] },              // chờ duyệt → duyệt | hủy
         { Approved,         [Dispensed, PartialDispensed, Cancelled] },
         { PartialDispensed, [Dispensed, Returned, Cancelled] },   // cấp nốt | hoàn trả | hủy phần còn lại
@@ -148,6 +167,7 @@ public static class PrescriptionStatus
 
     public static string GetName(int status) => status switch
     {
+        Draft => "Nháp",
         PendingApproval => "Chờ duyệt",
         Approved => "Đã duyệt",
         Dispensed => "Đã cấp phát",

@@ -1,14 +1,15 @@
 import type { RecentPrescriptionDto } from '../../opd/api/examination';
 
-export type PrescriptionStatusKey = 'pending' | 'active' | 'dispensed' | 'returned' | 'expired' | 'cancelled';
+export type PrescriptionStatusKey = 'draft' | 'pending' | 'active' | 'dispensed' | 'returned' | 'expired' | 'cancelled';
 
-/** Backend PrescriptionStatus: 0-Chờ duyệt · 1-Đã duyệt · 2-Đã cấp phát · 3-Hoàn trả ·
- *  4-Hủy · 6-Cấp một phần.
+/** Backend PrescriptionStatus: 5-Nháp · 0-Chờ duyệt · 1-Đã duyệt · 2-Đã cấp phát ·
+ *  3-Hoàn trả · 4-Hủy · 6-Cấp một phần.
  *  Trạng thái 0 trước đây bị gộp chung với 1 vào 'active' → đơn vừa "Lưu nháp" nằm lẫn
  *  trong tab "Đang hiệu lực" cùng đơn đã duyệt, bác sĩ không tìm ra đơn nháp của mình.
  *  Tách riêng 'pending' vì đây là trạng thái DUY NHẤT còn sửa/xoá được. */
 export const prescriptionStatusKey = (status: number | string): PrescriptionStatusKey => {
   if (typeof status === 'number') {
+    if (status === 5) return 'draft';   // chưa phát hành — dược KHÔNG thấy
     if (status === 0) return 'pending';
     if (status === 2 || status === 6) return 'dispensed';
     if (status === 3) return 'returned';
@@ -24,6 +25,7 @@ export const prescriptionStatusKey = (status: number | string): PrescriptionStat
   if (normalized.includes('expired') || normalized.includes('hết hạn')) return 'expired';
   if (normalized.includes('cancel') || normalized.includes('hủy')) return 'cancelled';
   if (normalized.includes('pending') || normalized.includes('chờ duyệt')) return 'pending';
+  if (normalized.includes('draft') || normalized.includes('nháp')) return 'draft';
   return 'active';
 };
 
