@@ -70,6 +70,21 @@ public class QueueController : ControllerBase
         try
         {
             var items = await _his.GetRoomsAsync(departmentId, ct, roomType ?? ReceptionCounterRoomType);
+
+            // Cơ sở chưa khai báo phòng nào là quầy tiếp đón thì danh sách rỗng, và người bệnh mất
+            // luôn khả năng lấy số. Thà trả về danh sách chưa lọc còn hơn chặn họ — vé vẫn thuộc
+            // hàng đợi TIẾP ĐÓN nên phòng khám không gọi nhầm, và quầy vẫn thấy nó ở mục
+            // "Vé chờ tiếp đón". Ghi log để còn biết mà khai lại loại phòng.
+            if (items.Count == 0 && roomType == null)
+            {
+                _logger.LogWarning(
+                    "Không có phòng nào thuộc loại Quầy tiếp đón ({RoomType}) — trả về toàn bộ phòng "
+                    + "để người bệnh vẫn lấy được số. Cần khai báo lại loại phòng trong HIS.",
+                    ReceptionCounterRoomType);
+
+                items = await _his.GetRoomsAsync(departmentId, ct);
+            }
+
             return Ok(ApiResponse<IReadOnlyList<HisRoom>>.Ok(items));
         }
         catch (HisConnectorException ex)

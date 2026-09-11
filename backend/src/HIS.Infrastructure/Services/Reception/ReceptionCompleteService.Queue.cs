@@ -849,6 +849,41 @@ public partial class ReceptionCompleteService {
             .ThenBy(t => t.QueueNumber)
             .ToBoundedListAsync("Reception.GetPendingCheckinTickets");
 
+        // Loại những vé mà người bệnh THỰC TẾ đã được tiếp đón hôm nay.
+        //
+        // `MedicalRecordId` trên vé chỉ mới được ghi từ khi luồng đăng ký gắn nó vào; mọi vé cấp
+        // trước đó đều để trống. Chỉ dựa vào cột đó thì danh sách này sẽ bày ra cả những người đã
+        // tiếp đón xong từ sáng — nhiễu tới mức không ai dùng được. Đối chiếu thêm bằng hồ sơ khám
+        // trong ngày của chính bệnh nhân đó.
+        //
+        // Vé vô danh (PatientId null) không có gì để đối chiếu nên vẫn giữ lại — và đó đúng là
+        // nhóm cần quầy xử lý nhất.
+        var ticketPatientIds = tickets
+            .Where(t => t.PatientId.HasValue)
+            .Select(t => t.PatientId!.Value)
+            .Distinct()
+            .ToList();
+
+        if (ticketPatientIds.Count > 0)
+        {
+            var checkedInPatientIds = await _context.MedicalRecords
+                .AsNoTracking()
+                .Where(m => !m.IsDeleted
+                    && m.CreatedAt >= fromUtc && m.CreatedAt < toUtc
+                    && ticketPatientIds.Contains(m.PatientId))
+                .Select(m => m.PatientId)
+                .Distinct()
+                .ToListAsync();
+
+            if (checkedInPatientIds.Count > 0)
+            {
+                var checkedIn = checkedInPatientIds.ToHashSet();
+                tickets = tickets
+                    .Where(t => !t.PatientId.HasValue || !checkedIn.Contains(t.PatientId.Value))
+                    .ToList();
+            }
+        }
+
         // Vé sinh ra từ lịch hẹn: nêu mã hẹn để quầy biết người này đã đặt lịch từ trước.
         var ticketIds = tickets.Select(t => t.Id).ToList();
         var appointmentByTicket = await _context.Appointments
