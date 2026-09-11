@@ -393,10 +393,17 @@ public partial class ExaminationCompleteService
     {
         // Chỉ xoá được đơn còn NHÁP. Đơn đã phát hành phải đi đường hủy có kiểm soát
         // (state-machine + trả thuốc về kho nếu đã cấp phát), không xoá cứng khỏi hồ sơ.
-        var prescription = await _context.Prescriptions.FindAsync(id);
+        // Nạp kèm Details: FindAsync chỉ lấy dòng cha, EF không có gì trong change-tracker để
+        // xoá con, mà FK PrescriptionDetails -> Prescriptions không cascade ở DB → SaveChanges
+        // ném FK violation và endpoint trả 500. Trước đây trạng thái Nháp chưa tồn tại nên đường
+        // này gần như không ai đi; từ khi có "Lưu nháp" thật thì xoá nháp là thao tác thường xuyên.
+        var prescription = await _context.Prescriptions
+            .Include(p => p.Details)
+            .FirstOrDefaultAsync(p => p.Id == id);
         if (prescription == null || !HIS.Core.Constants.PrescriptionStatus.IsEditable(prescription.Status)) return false;
         await EmrLockGuard.EnsureEditableByRecordAsync(_context, prescription.MedicalRecordId); // TT46
 
+        _context.PrescriptionDetails.RemoveRange(prescription.Details);
         _context.Prescriptions.Remove(prescription);
         await _unitOfWork.SaveChangesAsync();
 
