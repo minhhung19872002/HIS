@@ -97,7 +97,14 @@ const DispensingCounterV2: React.FC = () => {
         totalAmount: (p.totalAmount || 0) as number,
         insuranceType: (p.insuranceType || p.diagnosis || 'Thu phí') as string,
         isDispensed: Boolean(p.isDispensed),
-        items: ((p.items as unknown[]) || []) as DispenseRow['items'],
+        // Endpoint /prescriptions/recent trả tên thuốc ở `drugName`, KHÔNG phải `medicineName`
+        // (ExaminationCompleteService.PrescriptionsLib.cs — `drugName = i.Medicine.MedicineName`).
+        // Đổ thẳng vào state thì `it.medicineName` luôn undefined → cột THUỐC trong ô chi tiết
+        // trống trơn, và TEM THUỐC in ra cũng không có tên thuốc. Chuẩn hoá tại đây, nhận cả hai.
+        items: (((p.items as Array<Record<string, unknown>>) || []).map((it) => ({
+          ...it,
+          medicineName: (it.medicineName ?? it.drugName ?? '') as string,
+        }))) as DispenseRow['items'],
       }));
       setRows(mapped);
     } catch { ti('Không tải được danh sách đơn thuốc'); setRows([]); }
