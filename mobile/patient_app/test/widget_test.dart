@@ -1,11 +1,11 @@
-import 'dart:ui' show Size;
-
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:patient_app/app.dart';
 import 'package:patient_app/core/config/app_flavor.dart';
 import 'package:patient_app/core/providers.dart';
 import 'package:patient_app/core/push_providers.dart';
+import 'package:patient_app/core/security/app_lock.dart';
 import 'package:patient_app/features/auth/domain/account.dart';
 import 'package:patient_app/features/auth/presentation/auth_controller.dart';
 import 'package:patient_app/features/notifications/data/push_registration.dart';
@@ -22,6 +22,12 @@ class _FakeAuthController extends AuthController {
 
   @override
   Future<AuthState> build() async => _state;
+}
+
+/// App đang ở trạng thái tự khoá, không phải chờ hai phút thật.
+class _LockedAppLock extends AppLock {
+  @override
+  bool build() => true;
 }
 
 const _account = Account(
@@ -147,6 +153,54 @@ void main() {
     expect(sent, ['token-fcm-1'],
         reason: 'máy chủ chỉ đẩy thông báo tới thiết bị có PushToken; không gửi lên thì '
             'toàn bộ đường ống outbox → relay → FCM chạy trên một hàng đợi rỗng');
+  });
+
+  /// Màn tự khoá phải mở lại được mà KHÔNG mất phiên.
+  ///
+  /// Trước đây nó chỉ mời sinh trắc và, nếu không dùng được, lối ra duy nhất là "Đăng xuất và đăng
+  /// nhập lại" — dù mã PIN đã có đủ cả ba phần: màn đặt PIN, `AuthRepository.verifyPin`, và endpoint
+  /// `/auth/pin/verify`. Không nơi nào gọi `verifyPin`. Hệ quả với người bệnh không dùng sinh trắc:
+  /// cứ rời app quá hai phút là bị bắt đăng nhập lại.
+  testWidgets('Tự khoá: có PIN thì mở khoá được bằng PIN, không phải đăng xuất', (tester) async {
+    await _pumpApp(
+      tester,
+      const AuthSignedIn(Account(
+        id: 'test-account',
+        phoneNumber: '+84912345678',
+        fullName: 'Nguyễn Văn Test',
+        isLinked: true,
+        patientCode: 'BN000123',
+        mustChangePassword: false,
+        hasPin: true,
+        biometricEnabled: false,
+      )),
+      overrides: [appLockProvider.overrideWith(_LockedAppLock.new)],
+    );
+
+    expect(find.text('Ứng dụng đã tự khoá'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Mã PIN'), findsOneWidget,
+        reason: 'thiếu ô PIN thì người không dùng sinh trắc chỉ còn đường đăng xuất');
+    expect(find.widgetWithText(FilledButton, 'Mở khoá'), findsOneWidget);
+  });
+
+  testWidgets('Tự khoá: không có PIN lẫn sinh trắc thì KHÔNG che màn', (tester) async {
+    await _pumpApp(
+      tester,
+      const AuthSignedIn(Account(
+        id: 'test-account',
+        phoneNumber: '+84912345678',
+        fullName: 'Phạm Thị Test',
+        isLinked: true,
+        mustChangePassword: false,
+        hasPin: false,
+        biometricEnabled: false,
+      )),
+      overrides: [appLockProvider.overrideWith(_LockedAppLock.new)],
+    );
+
+    // Che mà không có chìa thì lối ra duy nhất là đăng xuất — đúng thứ người bệnh đang than phiền.
+    expect(find.text('Ứng dụng đã tự khoá'), findsNothing);
+    expect(find.text('Lấy số thứ tự'), findsOneWidget);
   });
 
   testWidgets('Chưa đăng nhập: KHÔNG gửi token FCM lên máy chủ', (tester) async {

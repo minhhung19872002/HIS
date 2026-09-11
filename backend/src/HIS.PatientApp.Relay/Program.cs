@@ -143,29 +143,7 @@ app.MapPost("/push", async (
     var accessToken = await googleCredential!.UnderlyingCredential
         .GetAccessTokenForRequestAsync(cancellationToken: ct);
 
-    // Gui KEM ca notification lan data: notification de he dieu hanh hien duoc khi app dang tat,
-    // data de app mo dung man khi nguoi dung cham vao.
-    var message = new
-    {
-        message = new
-        {
-            token = request.Token,
-            notification = new { title, body },
-            data = new
-            {
-                notificationId,
-                category,
-                deepLink,
-            },
-            android = new { priority = "HIGH" },
-            apns = new
-            {
-                headers = new Dictionary<string, string> { ["apns-priority"] = "10" },
-                // content-available de iOS danh thuc app chay ngam (HSMT I.2 #2).
-                payload = new { aps = new { contentAvailable = 1 } },
-            },
-        },
-    };
+    var message = FcmMessage.Build(request.Token, title, body, notificationId, category, deepLink);
 
     var client = httpFactory.CreateClient("fcm");
     using var fcmRequest = new HttpRequestMessage(
@@ -225,6 +203,51 @@ static string? ReadString(JsonElement element, string property) =>
     value.ValueKind == JsonValueKind.String
         ? value.GetString()
         : null;
+
+/// <summary>
+/// Dung than thong diep gui sang FCM HTTP v1.
+///
+/// Tach ra khoi handler de kiem duoc bang test: doan nay chi chay that khi da co khoa Firebase cua
+/// benh vien, nen neu khong co phep kiem thi no la mot doan "viet ra roi khong ai chay" — dung loai
+/// da hai lan lot luoi trong goi nay.
+/// </summary>
+public static class FcmMessage
+{
+    public static object Build(
+        string token, string title, string body,
+        string notificationId, string category, string deepLink) => new
+    {
+        message = new
+        {
+            token,
+            // Gui KEM ca notification lan data: notification de he dieu hanh hien duoc khi app dang
+            // tat, data de app mo dung man khi nguoi dung cham vao.
+            notification = new { title, body },
+            // FCM v1 doi `data` la map<string,string>. Moi gia tri deu da duoc chuan hoa ve chuoi
+            // rong o handler, khong duoc de lot null: FCM tra 400 cho ca thong diep.
+            data = new Dictionary<string, string>
+            {
+                ["notificationId"] = notificationId,
+                ["category"] = category,
+                ["deepLink"] = deepLink,
+            },
+            android = new { priority = "HIGH" },
+            apns = new
+            {
+                headers = new Dictionary<string, string> { ["apns-priority"] = "10" },
+                // APNs chi hieu khoa `content-available` (CO GACH NOI). Truoc day cho nay ghi
+                // `contentAvailable`, ma `JsonContent.Create` giu nguyen ten thuoc tinh, nen len day
+                // van la "contentAvailable" — APNs khong biet khoa do va bo qua. Hau qua: iOS KHONG
+                // danh thuc app chay ngam, dung thu ma chinh dong chu thich o day noi la minh lam.
+                // Khong co loi nao: FCM van tra 200, banner van hien, chi phan chay ngam la cam.
+                payload = new Dictionary<string, object>
+                {
+                    ["aps"] = new Dictionary<string, object> { ["content-available"] = 1 },
+                },
+            },
+        },
+    };
+}
 
 /// <summary>Yeu cau day mot thong bao toi mot thiet bi.</summary>
 record PushRequest(string Token, JsonElement Payload);

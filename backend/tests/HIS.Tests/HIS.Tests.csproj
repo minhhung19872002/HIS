@@ -33,6 +33,11 @@
       và phải tham chiếu, nếu không thì logic của BFF chỉ kiểm được bằng cách dựng cả máy chủ lên.
     -->
     <ProjectReference Include="..\..\src\HIS.PatientApp.Api\HIS.PatientApp.Api.csproj" />
+    <!--
+      Relay đẩy thông báo (đặt trên VPS). Chỉ chạy thật khi đã có khoá Firebase của bệnh viện, nên
+      không có test thì thân thông điệp gửi sang FCM là đoạn "viết ra rồi không ai chạy".
+    -->
+    <ProjectReference Include="..\..\src\HIS.PatientApp.Relay\HIS.PatientApp.Relay.csproj" />
   </ItemGroup>
 
 </Project>

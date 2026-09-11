@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/auth/presentation/auth_controller.dart';
 import '../../features/security/presentation/security_page.dart';
+import '../error/failure.dart';
 import 'app_lock.dart';
 import 'device_integrity.dart';
 
@@ -28,14 +29,23 @@ class LockGate extends ConsumerWidget {
     // `valueOrNull` chứ KHÔNG `value`: trên `AsyncError`, `.value` NÉM LẠI lỗi. `LockGate` bọc
     // TOÀN BỘ app, nên một lần mất mạng lúc mở app là màn trắng — không phải màn lỗi có nút thử
     // lại, mà trắng hẳn.
-    final signedIn = ref.watch(authControllerProvider).valueOrNull is AuthSignedIn;
+    final auth = ref.watch(authControllerProvider).valueOrNull;
+    final signedIn = auth is AuthSignedIn;
+
+    // Chỉ khoá khi người dùng CÓ ĐƯỜNG MỞ LẠI.
+    //
+    // Không có PIN lẫn sinh trắc thì màn khoá chỉ còn đúng một lối thoát là đăng xuất — và người
+    // bệnh gặp nó mỗi lần rời app quá hai phút. Đó không phải bảo mật, đó là bắt đăng nhập lại suốt
+    // ngày, và nó đã xảy ra thật. Ở trường hợp đó thà không che: dữ liệu vẫn được màn khoá của hệ
+    // điều hành và bước đăng nhập của app bảo vệ, còn màn Bảo mật thì vẫn mời đặt PIN.
+    final canUnlock = signedIn && (auth.account.hasPin || auth.account.biometricEnabled);
 
     return Stack(
       children: [
         child,
 
         // Chưa đăng nhập thì không có gì để che: màn đăng nhập vốn đã không hiện dữ liệu y tế.
-        if (locked && signedIn) const _LockScreen(),
+        if (locked && signedIn && canUnlock) const _LockScreen(),
       ],
     );
   }
@@ -51,8 +61,60 @@ class _LockScreen extends ConsumerStatefulWidget {
 class _LockScreenState extends ConsumerState<_LockScreen> {
   bool _busy = false;
   String? _error;
+  final _pin = TextEditingController();
 
-  Future<void> _unlockWithBiometrics() async {
+  @override
+  void initState() {
+    super.initState();
+    // Máy có sinh trắc thì hỏi luôn: người bệnh đang cầm máy trong tay, bắt họ bấm thêm một nút
+    // trước khi chạm vân tay là thừa một nhịp ở đúng lúc họ chỉ muốn xem tiếp kết quả.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (ref.read(authControllerProvider).valueOrNull case AuthSignedIn(:final account)
+          when account.biometricEnabled) {
+        _unlockWithBiometrics(silentOnFailure: true);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _pin.dispose();
+    super.dispose();
+  }
+
+  /// Mở khoá bằng mã PIN.
+  ///
+  /// Đường này từng KHÔNG được nối: `AuthRepository.verifyPin` có sẵn, endpoint `/auth/pin/verify`
+  /// có sẵn, màn đặt PIN có sẵn — nhưng màn khoá chỉ mời sinh trắc, nên ai không dùng được sinh
+  /// trắc thì mỗi lần tự khoá chỉ còn cách đăng xuất rồi đăng nhập lại.
+  Future<void> _unlockWithPin() async {
+    final pin = _pin.text.trim();
+    if (pin.length < 4) {
+      setState(() => _error = 'Vui lòng nhập mã PIN.');
+      return;
+    }
+
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+
+    try {
+      await ref.read(authRepositoryProvider).verifyPin(pin);
+      if (!mounted) return;
+      ref.read(appLockProvider.notifier).unlock();
+    } on Failure catch (e) {
+      // Máy chủ khoá sau 5 lần sai; thông điệp của nó nói rõ điều đó nên đưa nguyên ra.
+      setState(() => _error = e.message);
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+        _pin.clear();
+      }
+    }
+  }
+
+  Future<void> _unlockWithBiometrics({bool silentOnFailure = false}) async {
     setState(() {
       _busy = true;
       _error = null;
@@ -60,13 +122,20 @@ class _LockScreenState extends ConsumerState<_LockScreen> {
 
     try {
       final ok = await ref.read(biometricServiceProvider).verifyPresence();
+      if (!mounted) return;
       if (ok) {
         ref.read(appLockProvider.notifier).unlock();
         return;
       }
-      setState(() => _error = 'Chưa xác thực được. Vui lòng thử lại.');
+      // Lần hỏi tự động lúc mở màn: người dùng huỷ hộp thoại vân tay là chuyện bình thường, đừng
+      // chào họ bằng một dòng chữ đỏ — họ vẫn còn ô nhập PIN ngay bên dưới.
+      if (!silentOnFailure) {
+        setState(() => _error = 'Chưa xác thực được. Vui lòng thử lại.');
+      }
     } on Exception {
-      setState(() => _error = 'Thiết bị chưa bật vân tay hoặc khuôn mặt.');
+      if (mounted && !silentOnFailure) {
+        setState(() => _error = 'Thiết bị chưa bật vân tay hoặc khuôn mặt.');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -75,6 +144,8 @@ class _LockScreenState extends ConsumerState<_LockScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final auth = ref.watch(authControllerProvider).valueOrNull;
+    final account = auth is AuthSignedIn ? auth.account : null;
 
     return Positioned.fill(
       child: Material(
@@ -101,14 +172,42 @@ class _LockScreenState extends ConsumerState<_LockScreen> {
                 ],
 
                 const SizedBox(height: 24),
-                FilledButton.icon(
-                  onPressed: _busy ? null : _unlockWithBiometrics,
-                  icon: const Icon(Icons.fingerprint),
-                  label: const Text('Mở khoá'),
-                ),
-                const SizedBox(height: 8),
-                // Đường lui khi máy không có sinh trắc hoặc cảm biến hỏng: đăng xuất rồi đăng nhập
-                // lại. Không có nó thì người bệnh bị kẹt hẳn ngoài app của chính mình.
+
+                if (account?.hasPin == true) ...[
+                  TextField(
+                    controller: _pin,
+                    obscureText: true,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    autofocus: account?.biometricEnabled != true,
+                    textAlign: TextAlign.center,
+                    onSubmitted: (_) => _busy ? null : _unlockWithPin(),
+                    decoration: const InputDecoration(
+                      labelText: 'Mã PIN',
+                      counterText: '',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: _busy ? null : _unlockWithPin,
+                    child: const Text('Mở khoá'),
+                  ),
+                ],
+
+                if (account?.biometricEnabled == true) ...[
+                  const SizedBox(height: 8),
+                  (account?.hasPin == true ? OutlinedButton.icon : FilledButton.icon)(
+                    onPressed: _busy ? null : () => _unlockWithBiometrics(),
+                    icon: const Icon(Icons.fingerprint),
+                    label: const Text('Dùng vân tay / khuôn mặt'),
+                  ),
+                ],
+
+                const SizedBox(height: 16),
+                // Lối cuối, cố ý để nhạt: đăng xuất là mất phiên và phải nhập lại số điện thoại với
+                // mật khẩu. Trước đây đây là lối DUY NHẤT, nên người bệnh nào không dùng được sinh
+                // trắc thì cứ rời app quá hai phút là bị đá ra đăng nhập lại.
                 TextButton(
                   onPressed: _busy
                       ? null
@@ -116,7 +215,10 @@ class _LockScreenState extends ConsumerState<_LockScreen> {
                           await ref.read(authControllerProvider.notifier).logout();
                           ref.read(appLockProvider.notifier).unlock();
                         },
-                  child: const Text('Đăng xuất và đăng nhập lại'),
+                  child: Text(
+                    'Đăng xuất',
+                    style: TextStyle(color: theme.colorScheme.outline),
+                  ),
                 ),
               ],
             ),
