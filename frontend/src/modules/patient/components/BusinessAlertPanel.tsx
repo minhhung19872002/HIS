@@ -180,25 +180,29 @@ const BusinessAlertPanel: React.FC<BusinessAlertPanelProps> = ({
   return (
     <Card
       size="small"
+      /* title và extra chia nhau MỘT hàng header hẹp: trước đây "Cảnh báo nghiệp vụ" bị cắt
+         cụt còn "Cảnh" rồi chồng lên "đã kiểm HH:mm". Cho title co được (minWidth:0 + ellipsis)
+         và dồn giờ đã-kiểm vào tooltip của nút thay vì chiếm chỗ trên header. */
       title={
-        <Space>
-          <BellOutlined />
-          <span>Cảnh báo nghiệp vụ</span>
-          {criticalCount > 0 && <Badge count={criticalCount} style={{ backgroundColor: '#ff4d4f' }} />}
-          {warningCount > 0 && <Badge count={warningCount} style={{ backgroundColor: '#faad14' }} />}
-        </Space>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <BellOutlined style={{ flexShrink: 0 }} />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            Cảnh báo nghiệp vụ
+          </span>
+          {criticalCount > 0 && <Badge count={criticalCount} style={{ backgroundColor: '#ff4d4f', flexShrink: 0 }} />}
+          {warningCount > 0 && <Badge count={warningCount} style={{ backgroundColor: '#faad14', flexShrink: 0 }} />}
+        </div>
       }
       extra={
-        <Space size={6}>
-          {checkedAt && (
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              đã kiểm {dayjs(checkedAt).format('HH:mm')}
-            </Text>
-          )}
-          <Button size="small" icon={<ReloadOutlined />} onClick={() => fetchAlerts(true)} loading={loading}>
-            Kiểm tra
-          </Button>
-        </Space>
+        <Button
+          size="small"
+          icon={<ReloadOutlined />}
+          onClick={() => fetchAlerts(true)}
+          loading={loading}
+          title={checkedAt ? `Đã kiểm lúc ${dayjs(checkedAt).format('HH:mm')}` : 'Kiểm tra cảnh báo'}
+        >
+          Kiểm tra
+        </Button>
       }
       style={{ marginBottom: 8 }}
     >
@@ -211,15 +215,21 @@ const BusinessAlertPanel: React.FC<BusinessAlertPanelProps> = ({
           size="small"
           items={alerts.map((alert) => ({
             key: alert.id,
+            /* KHÔNG dùng <Space>: nó xếp 1 hàng và không cho xuống dòng, nên trong panel hẹp
+               (cột trái màn kê đơn chỉ 280px) mọi phần tử bị ép co xuống dưới min-content →
+               giờ "13:15" vỡ dọc thành "1 3 :1 5". Đổi sang flex có wrap, và khoá nowrap +
+               flexShrink:0 cho mã cảnh báo & giờ để chúng không bao giờ bị bẻ giữa chừng. */
             label: (
-              <Space>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, minWidth: 0 }}>
                 {getSeverityIcon(alert.severity)}
-                <Text strong={alert.severity === 1}>{alert.title}</Text>
-                <Tag color={alert.severityColor}>{alert.alertCode}</Tag>
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <Text strong={alert.severity === 1} style={{ flex: '1 1 auto', minWidth: 0 }}>{alert.title}</Text>
+                <Tag color={alert.severityColor} style={{ marginInlineEnd: 0, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                  {alert.alertCode}
+                </Tag>
+                <Text type="secondary" style={{ fontSize: 12, flexShrink: 0, whiteSpace: 'nowrap' }}>
                   {dayjs(alert.createdAt).format('HH:mm')}
                 </Text>
-              </Space>
+              </div>
             ),
             children: (
               <div>

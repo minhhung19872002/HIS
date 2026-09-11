@@ -15,6 +15,7 @@ import { RowActions, RefreshButton } from '../../../components/actions';
 import { Field } from '../../../components/form/Field';
 import { useModalForm } from '../../../hooks/useModalForm';
 import { useTabState } from '../../../hooks/useTabState';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 interface DispenseRow {
   prescriptionId: string;
@@ -135,7 +136,7 @@ const DispensingCounterV2: React.FC = () => {
       setSelected(new Set());
       if (dispensedRows.length > 0) printLabels(dispensedRows); // 1 tài liệu gộp, không mở N cửa sổ
       load();
-    } catch { tw('Phát thuốc thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Phát thuốc thất bại')); }
     finally { setDispensing(false); }
   };
 
@@ -159,7 +160,7 @@ const DispensingCounterV2: React.FC = () => {
       printLabels(r); // in ngay, không để dược sĩ phải tự nhớ
       setSelected((prev) => { const n = new Set(prev); n.delete(r.prescriptionId); return n; });
       load();
-    } catch { tw('Phát thuốc thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Phát thuốc thất bại')); }
     finally { setBusy(r.prescriptionId, false); }
   };
 
@@ -356,7 +357,7 @@ ${targets.map((row) => row.items.map((it) => `<div class="label"><h3>${it.medici
                 try {
                   await apiClient.post(`/warehouse/issues/dispense-outpatient/${detail.prescriptionId}`);
                   tk('Đã phát'); setDetail(null); load();
-                } catch { tw('Phát thất bại'); }
+                } catch (e) { tw(friendlyErrorMessage(e, 'Phát thất bại')); }
                 finally { setBusy(detail.prescriptionId, false); }
               }}>
                 <Ico name="check" size={12} /> {isBusy(detail.prescriptionId) ? 'Đang phát…' : 'Phát đơn này'}
