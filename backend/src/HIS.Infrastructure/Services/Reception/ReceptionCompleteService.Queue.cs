@@ -872,20 +872,32 @@ public partial class ReceptionCompleteService {
 
         if (ticketPatientIds.Count > 0)
         {
-            var checkedInPatientIds = await _context.MedicalRecords
+            // Đối chiếu theo CẶP (bệnh nhân, phòng), không phải chỉ theo bệnh nhân.
+            //
+            // Một người khám hai chuyên khoa trong cùng ngày là chuyện bình thường: mỗi phòng là
+            // một lượt khám riêng, cần tiếp đón riêng. Lọc theo mỗi bệnh nhân thì vừa đăng ký xong
+            // ở phòng Tim mạch là mọi vé của người đó ở phòng khác biến mất — đã thấy thật trên
+            // prod: hai vé B001 (Phòng Nội 101 và Phòng khám Sản) bị ẩn oan vì người bệnh có hồ sơ
+            // ở Phòng khám 104.
+            var checkedIn = await _context.MedicalRecords
                 .AsNoTracking()
                 .Where(m => !m.IsDeleted
                     && m.CreatedAt >= fromUtc && m.CreatedAt < toUtc
+                    && m.RoomId != null
                     && ticketPatientIds.Contains(m.PatientId))
-                .Select(m => m.PatientId)
+                .Select(m => new { m.PatientId, m.RoomId })
                 .Distinct()
                 .ToListAsync();
 
-            if (checkedInPatientIds.Count > 0)
+            if (checkedIn.Count > 0)
             {
-                var checkedIn = checkedInPatientIds.ToHashSet();
+                var checkedInPairs = checkedIn
+                    .Select(x => (x.PatientId, RoomId: x.RoomId!.Value))
+                    .ToHashSet();
+
                 tickets = tickets
-                    .Where(t => !t.PatientId.HasValue || !checkedIn.Contains(t.PatientId.Value))
+                    .Where(t => !(t.PatientId.HasValue && t.RoomId.HasValue
+                        && checkedInPairs.Contains((t.PatientId.Value, t.RoomId.Value))))
                     .ToList();
             }
         }
