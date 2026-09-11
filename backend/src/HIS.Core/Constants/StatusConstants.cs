@@ -82,6 +82,27 @@ public static class PaymentCategory
     public const int External = 3; // Thuốc ngoài (mua ngoài BV)
 }
 
+/// <summary>
+/// Loại kho (khớp comment trên <c>Warehouse.WarehouseType</c>).
+/// Trước đây 3 chỗ hard-code <c>WarehouseType == 2</c> kèm chú thích "Dispensary type" /
+/// "kho lẻ ngoại trú" — SAI: 2 là KHO VẬT TƯ. Hậu quả: combobox kho ở màn kê đơn chỉ hiện
+/// "Kho vật tư y tế", tồn kho thuốc cộng từ kho vật tư, và phát thuốc không gán kho thì
+/// resolve nhầm sang kho vật tư để trừ tồn. Gom về một chỗ để không lệch lại.
+/// </summary>
+public static class WarehouseType
+{
+    public const int Medicine = 1;  // Kho thuốc
+    public const int Supply = 2;    // Kho vật tư
+    public const int Chemical = 3;  // Kho hóa chất
+    public const int Pharmacy = 4;  // Nhà thuốc bệnh viện
+    public const int WardCabinet = 5; // Tủ trực khoa
+
+    /// <summary>Kho được phép cấp phát THUỐC cho đơn ngoại trú.</summary>
+    public static readonly int[] Dispensing = [Medicine, Pharmacy];
+
+    public static bool IsDispensing(int type) => type == Medicine || type == Pharmacy;
+}
+
 public static class PrescriptionStatus
 {
     public const int PendingApproval = 0;  // Chờ duyệt

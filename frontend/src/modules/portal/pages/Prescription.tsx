@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { getRecentPrescriptions, printExternalPrescription, type RecentPrescriptionDto } from '../../opd/api/examination';
-import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from '@/_v2kit';
+import { SimpleV2Page, StatusBadge, ActBtn, Btn, Filter, type ColumnDef, type StatusTab } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { prescriptionEditorLink, prescriptionStatusKey, type PrescriptionStatusKey } from './prescriptionFlow';
 
@@ -13,13 +13,24 @@ import { prescriptionEditorLink, prescriptionStatusKey, type PrescriptionStatusK
 
 type StatusKey = PrescriptionStatusKey;
 const STATUS_TABS: StatusTab<StatusKey>[] = [
-  { v: 'active',    l: 'Đang hiệu lực', tone: 'ok' },
+  { v: 'pending',   l: 'Chờ duyệt',     tone: 'warn' },
+  { v: 'active',    l: 'Đã duyệt',      tone: 'ok' },
   { v: 'dispensed', l: 'Đã cấp phát',   tone: 'ok' },
   { v: 'returned',  l: 'Hoàn trả',       tone: 'warn' },
   { v: 'expired',   l: 'Hết hạn',       tone: 'warn' },
   { v: 'cancelled', l: 'Đã hủy',        tone: 'crit' },
 ];
 const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
+
+/* API mặc định CHỈ trả đơn của hôm nay (fromDate = DateTime.Today ở controller), mà trang
+   lại không có chỗ nới khoảng ngày → đơn từ hôm qua trở về trước coi như biến mất. */
+const RANGES = [
+  { v: '1',  l: 'Hôm nay' },
+  { v: '7',  l: '7 ngày qua' },
+  { v: '30', l: '30 ngày qua' },
+  { v: '90', l: '90 ngày qua' },
+] as const;
+type RangeKey = typeof RANGES[number]['v'];
 
 type Row = RecentPrescriptionDto;
 
@@ -34,6 +45,19 @@ const openPdfBlob = (blob: Blob): void => {
 const PrescriptionV2: React.FC = () => {
   const { message } = AntdApp.useApp();
   const navigate = useNavigate();
+  const [range, setRange] = React.useState<RangeKey>('1');
+
+  // useCallback: SimpleV2Page nạp lại theo IDENTITY của `load` — giữ ổn định để chỉ đổi
+  // khoảng ngày mới gọi lại API, không nạp lại mỗi lần render.
+  const load = React.useCallback(async () => {
+    const days = Number(range);
+    const r = await getRecentPrescriptions({
+      pageSize: 200,
+      fromDate: dayjs().subtract(days - 1, 'day').startOf('day').toISOString(),
+      toDate: dayjs().endOf('day').toISOString(),
+    });
+    return Array.isArray(r.data) ? (r.data as Row[]) : [];
+  }, [range]);
 
   const columns: ColumnDef<Row>[] = [
     { key: 'code', label: 'Mã đơn', mono: true, width: 150, render: (r) => r.prescriptionCode },
@@ -63,10 +87,7 @@ const PrescriptionV2: React.FC = () => {
   return (
     <SimpleV2Page<Row>
       title="Đơn thuốc"
-      load={async () => {
-        const r = await getRecentPrescriptions({ pageSize: 100 });
-        return Array.isArray(r.data) ? (r.data as Row[]) : [];
-      }}
+      load={load}
       rowKey={(r) => r.id}
       columns={columns}
       searchPlaceholder="Tìm mã đơn / BN / BS / chẩn đoán…"
@@ -81,10 +102,12 @@ const PrescriptionV2: React.FC = () => {
         const returned = rows.filter((r) => prescriptionStatusKey(r.status) === 'returned').length;
         const expired = rows.filter((r) => prescriptionStatusKey(r.status) === 'expired').length;
         const totalItems = rows.reduce((s, r) => s + (r.items?.length || 0), 0);
+        const pending = rows.filter((r) => prescriptionStatusKey(r.status) === 'pending').length;
         return [
-          { lbl: 'Tổng đơn', val: rows.length, sub: 'gần đây' },
+          { lbl: 'Tổng đơn', val: rows.length, sub: RANGES.find((x) => x.v === range)?.l },
           { lbl: 'Hôm nay', val: todayCount, sub: 'mới kê', tone: 'info' },
-          { lbl: 'Đang hiệu lực', val: active, tone: 'ok' },
+          { lbl: 'Chờ duyệt', val: pending, tone: 'warn', sub: 'còn sửa được' },
+          { lbl: 'Đã duyệt', val: active, tone: 'ok' },
           { lbl: 'Đã cấp phát', val: dispensed, tone: 'ok' },
           { lbl: 'Hoàn trả', val: returned, tone: 'warn' },
           { lbl: 'Hết hạn', val: expired, tone: 'warn' },
@@ -165,9 +188,16 @@ const PrescriptionV2: React.FC = () => {
       )}
       drawerSub={(r) => `${r.doctorName || '—'} · ${fmtDMY(r.prescriptionDate)}`}
       toolbarRight={
-        <Btn variant="primary" onClick={() => navigate('/v2/prescription/edit')}>
-          <TermIcon name="plus" size={12} /> Kê đơn mới
-        </Btn>
+        <>
+          <Filter
+            value={range}
+            onChange={(v) => setRange(v as RangeKey)}
+            options={RANGES.map((r) => ({ v: r.v, l: r.l }))}
+          />
+          <Btn variant="primary" onClick={() => navigate('/v2/prescription/edit')}>
+            <TermIcon name="plus" size={12} /> Kê đơn mới
+          </Btn>
+        </>
       }
     />
   );

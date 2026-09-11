@@ -217,8 +217,10 @@ public partial class ExaminationCompleteService
 
     public async Task<List<ExamWarehouseDto>> GetDispensaryWarehousesAsync()
     {
+        // Kho CẤP PHÁT THUỐC = kho thuốc (1) + nhà thuốc (4). Trước đây lọc WarehouseType == 2
+        // ("Dispensary type") nhưng 2 là KHO VẬT TƯ → màn kê đơn chỉ hiện "Kho vật tư y tế".
         var warehouses = await _context.Warehouses
-            .Where(w => w.IsActive && w.WarehouseType == 2) // Dispensary type
+            .Where(w => w.IsActive && HIS.Core.Constants.WarehouseType.Dispensing.Contains(w.WarehouseType))
             .ToBoundedListAsync("ExaminationCompleteService.GetDispensaryWarehousesAsync");
 
         return warehouses.Select(w => new ExamWarehouseDto

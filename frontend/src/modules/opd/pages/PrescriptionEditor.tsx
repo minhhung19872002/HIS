@@ -134,7 +134,7 @@ const PrescriptionEditorV2: React.FC = () => {
   const [savingTpl, setSavingTpl] = useState(false);
   const tplForm = useModalForm({ templateName: { required: true, message: 'Vui lòng nhập tên mẫu' } }, saveTemplateOpen);
   // Interaction gate: tracks which save action was blocked by interactions
-  const [pendingAction, setPendingAction] = useState<'draft' | 'sign' | null>(null);
+  const [pendingAction, setPendingAction] = useState<'draft' | 'sign' | 'printExt' | null>(null);
   // Override reason for HIGH-severity drug interactions (severity>=3) — required by PrescriptionSafetyGuard
   const [overrideReason, setOverrideReason] = useState('');
   // interForm: chỉ hiện lỗi khi user bấm nút proceed mà chưa nhập lý do (không viền đỏ ngay khi mở drawer)
@@ -148,6 +148,17 @@ const PrescriptionEditorV2: React.FC = () => {
   const allergyNames = (ctx?.allergies || []).map((a) => a.allergenName);
   const total = items.reduce((s, x) => s + x.price * x.qty, 0);
   const intCount = interactions.length;
+
+  /* Phần BHYT chi trả — MỘT nguồn duy nhất cho panel tóm tắt, bản xem trước và bản in
+     Phiếu công khai. Trước đây 3 chỗ tự tính rời nhau và LỆCH nhau: panel phải lấy
+     `total * 0.8` (bỏ qua cờ bhyt từng dòng), drawer xem trước tính theo dòng nhưng cũng
+     bỏ cờ, chỉ bản in là đúng → đơn có thuốc tự chi thì 3 nơi ra 3 số khác nhau. */
+  const BHYT_RATE = 0.8;
+  const isBhytPatient = !!pt?.insuranceNumber;
+  const bhytPayOf = (it: RxItem): number =>
+    isBhytPatient && it.bhyt ? Math.round(it.price * it.qty * BHYT_RATE) : 0;
+  const bhytTotal = items.reduce((s, x) => s + bhytPayOf(x), 0);
+  const patientTotal = total - bhytTotal;
 
   // ── Patient: select + derive examination context ────────────────
   // Guard chống race khi đổi BN nhanh: response cũ đến muộn không được ghi đè context BN đang chọn (#416 patient-safety, cùng pattern #374)
@@ -440,10 +451,8 @@ ${pt ? `<div class="info">Họ tên: <strong>${pt.fullName}</strong> — Mã BN:
     if (items.length === 0) { tw('Chưa có thuốc trong đơn'); return; }
     const pw = window.open('', '_blank');
     if (!pw) { tw('Không thể mở cửa sổ in — vui lòng cho phép popup'); return; }
-    const isBHYT = !!pt?.insuranceNumber;
-    // bhyt-only subtotal: only count items flagged bhyt=true
-    const bhytTotal = isBHYT ? items.reduce((s, x) => s + (x.bhyt ? Math.round(x.price * x.qty * 0.8) : 0), 0) : 0;
-    const ptTotal   = total - bhytTotal;
+    const isBHYT = isBhytPatient;
+    const ptTotal = patientTotal;
     const now = new Date();
     const dd = String(now.getDate()).padStart(2, '0');
     const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -467,7 +476,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
 <th>SL</th><th>Đơn giá</th><th>Thành tiền</th><th>BHYT chi trả</th><th>BN chi trả</th><th>Ghi chú</th></tr></thead>
 <tbody>${items.map((it, i) => {
   const itTot = it.price * it.qty;
-  const bhytPay = (isBHYT && it.bhyt) ? Math.round(itTot * 0.8) : 0;
+  const bhytPay = bhytPayOf(it);
   return `<tr><td class="tc">${i + 1}</td><td><strong>${it.name}</strong></td>
 <td class="tc">${it.strength || ''}</td><td class="tc">${it.dosageForm || 'Viên'}</td>
 <td class="tc">${it.qty}</td><td class="tr">${it.price.toLocaleString('vi-VN')}</td>
@@ -498,7 +507,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
     setSavingTpl(true);
     try {
       await examinationApi.createPrescriptionTemplate({
-        id: '', templateName: templateName.trim(),
+        templateName: templateName.trim(),
         description: templateDiagnosis.trim(),
         templateType: 1,
         items: items.map((it) => ({
@@ -515,22 +524,32 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
     finally { setSavingTpl(false); }
   };
 
-  // In toa nhà thuốc (mua ngoài): tạo đơn rồi in qua endpoint print-external.
+  // In toa nhà thuốc (mua ngoài): lưu đơn rồi in qua endpoint print-external.
   // DTO tạo đơn không có cờ phân loại toa-ngoài nên không set field — chỉ in bản nhà thuốc.
-  const printExternalRx = async () => {
-    if (!guard()) return;
+  // persistPrescription (KHÔNG phải createPrescription): bấm nút lần 2 phải CẬP NHẬT đơn vừa
+  // tạo, trước đây mỗi lần bấm đẻ thêm một đơn mới trùng nội dung trong DB.
+  const doPrintExternalRx = async () => {
     setPrintingExt(true);
     try {
-      const created = await examinationApi.createPrescription(buildDto());
-      const rxId = created.data?.id;
+      const saved = await persistPrescription();
+      const rxId = saved.data?.id;
       if (!rxId) { te('Không lấy được mã đơn vừa tạo'); return; }
       const blob = await printExternalPrescription(rxId);
       const url = URL.createObjectURL(blob.data as Blob);
       window.open(url, '_blank');
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      tk('Đã tạo & in toa nhà thuốc');
-    } catch { te('In toa nhà thuốc thất bại'); }
+      tk('Đã lưu & in toa nhà thuốc');
+    } catch (e) { te(friendlyErrorMessage(e, 'In toa nhà thuốc thất bại')); }
     finally { setPrintingExt(false); }
+  };
+
+  /* Nút này LƯU đơn vào DB nên phải qua đúng cổng chặn như "Lưu nháp" / "Sang ký số":
+     trước đây nó gọi thẳng createPrescription, bỏ qua cả guard() lẫn drawer cảnh báo
+     tương tác — bác sĩ in được toa mà không hề thấy cảnh báo nào. */
+  const printExternalRx = () => {
+    if (!guard()) return;
+    if (interactions.length > 0) { setPendingAction('printExt'); setInterOpen(true); return; }
+    void doPrintExternalRx();
   };
 
   // Apply a template: resolve each item's medicine (name/price) then add to cart.
@@ -805,8 +824,8 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
             <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="ab-u-muted">Số dòng</span><b>{items.length}</b></div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="ab-u-muted">Tổng viên/gói</span><b className="mono">{items.reduce((s, x) => s + x.qty, 0)}</b></div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="ab-u-muted">Ngày dùng dài nhất</span><b className="mono">{Math.max(0, ...items.map((x) => x.days))} ngày</b></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--space-4)', paddingTop: 'var(--space-6)', borderTop: '1px solid var(--line)' }}><span className="ab-u-muted">BHYT chi trả (≈80%)</span><b className="mono" style={{ color: 'var(--s-ok)' }}>{fmtVNDg(Math.round(total * 0.8))}</b></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="ab-u-muted">BN đồng chi trả</span><b className="mono">{fmtVNDg(Math.round(total * 0.2))}</b></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--space-4)', paddingTop: 'var(--space-6)', borderTop: '1px solid var(--line)' }}><span className="ab-u-muted">{isBhytPatient ? 'BHYT chi trả (≈80%)' : 'BHYT chi trả'}</span><b className="mono" style={{ color: 'var(--s-ok)' }}>{fmtVNDg(bhytTotal)}</b></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="ab-u-muted">BN đồng chi trả</span><b className="mono">{fmtVNDg(patientTotal)}</b></div>
           </div>
         </div>
 
@@ -888,7 +907,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
                 <tbody>
                   {items.map((it, i) => {
                     const itTot = it.price * it.qty;
-                    const bhytPay = pt?.insuranceNumber ? Math.round(itTot * 0.8) : 0;
+                    const bhytPay = bhytPayOf(it); // tôn trọng cờ BHYT từng dòng, khớp bản in
                     return (
                       <tr key={i}>
                         <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{i + 1}</td>
@@ -907,8 +926,8 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
                   <tr style={{ fontWeight: 700, background: '#fafafa' }}>
                     <td colSpan={6} style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Tổng cộng</td>
                     <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'right' }}>{total.toLocaleString('vi-VN')}</td>
-                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'right' }}>{pt?.insuranceNumber ? Math.round(total * 0.8).toLocaleString('vi-VN') : '-'}</td>
-                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'right' }}>{(pt?.insuranceNumber ? Math.round(total * 0.2) : total).toLocaleString('vi-VN')}</td>
+                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'right' }}>{bhytTotal > 0 ? bhytTotal.toLocaleString('vi-VN') : '-'}</td>
+                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'right' }}>{patientTotal.toLocaleString('vi-VN')}</td>
                     <td style={{ border: '1px solid #000', padding: '4px 6px' }}></td>
                   </tr>
                 </tbody>
@@ -965,10 +984,13 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
               if (interactions.some((i) => i.severity >= 3) && !interForm.validate({ overrideReason })) return;
               setInterOpen(false);
               if (pendingAction === 'draft') { await doSaveDraft(); }
+              else if (pendingAction === 'printExt') { await doPrintExternalRx(); }
               else { setSignOpen(true); }
               setPendingAction(null);
             }}>
-              {pendingAction === 'draft' ? 'Lưu nháp dù có cảnh báo' : 'Tiếp tục ký dù có cảnh báo'}
+              {pendingAction === 'draft' ? 'Lưu nháp dù có cảnh báo'
+                : pendingAction === 'printExt' ? 'In toa dù có cảnh báo'
+                : 'Tiếp tục ký dù có cảnh báo'}
             </Btn>
           </div>
         )}

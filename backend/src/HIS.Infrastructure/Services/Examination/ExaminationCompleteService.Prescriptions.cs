@@ -280,6 +280,33 @@ public partial class ExaminationCompleteService
             .Take(limit)
             .ToListAsync();
 
+        // AvailableQuantity trước đây KHÔNG được set ở đây → ô tìm thuốc của màn kê đơn luôn
+        // hiện "Tồn: 0" dù kho có hàng, bác sĩ không phân biệt được thuốc hết với thuốc còn.
+        // Cộng tồn một lượt cho cả trang kết quả (1 query), không N+1 theo từng thuốc.
+        // Lọc theo MedicineId (KHÔNG phải ItemId): nơi nhập kho (WarehouseCompleteService.StockIn)
+        // chỉ ghi MedicineId và để ItemId NULL, nên lọc theo ItemId luôn ra 0 dòng dù kho có hàng.
+        // Mọi service kho khác (InpatientDispensing, HospitalPharmacy, PharmacyService) đều dùng
+        // MedicineId — đây là cột chuẩn.
+        var medicineIds = medicines.Select(m => m.Id).ToList();
+        var stockQuery = _context.InventoryItems
+            .Where(i => i.MedicineId != null && medicineIds.Contains(i.MedicineId.Value) && !i.IsDeleted);
+
+        if (warehouseId.HasValue)
+            stockQuery = stockQuery.Where(i => i.WarehouseId == warehouseId.Value);
+        else
+        {
+            var dispensaryIds = await _context.Warehouses
+                .Where(w => w.IsActive && HIS.Core.Constants.WarehouseType.Dispensing.Contains(w.WarehouseType))
+                .Select(w => w.Id)
+                .ToListAsync();
+            stockQuery = stockQuery.Where(i => dispensaryIds.Contains(i.WarehouseId));
+        }
+
+        var stockByMedicine = await stockQuery
+            .GroupBy(i => i.MedicineId!.Value)
+            .Select(g => new { MedicineId = g.Key, Qty = g.Sum(i => i.Quantity) })
+            .ToDictionaryAsync(x => x.MedicineId, x => x.Qty);
+
         return medicines.Select(m => new MedicineDto
         {
             Id = m.Id,
@@ -291,6 +318,7 @@ public partial class ExaminationCompleteService
             Unit = m.Unit,
             UnitPrice = m.UnitPrice,
             InsurancePrice = m.InsurancePrice,
+            AvailableQuantity = stockByMedicine.TryGetValue(m.Id, out var qty) ? qty : 0,
             IsActive = m.IsActive
         }).ToList();
     }
@@ -300,17 +328,17 @@ public partial class ExaminationCompleteService
         var medicine = await _context.Medicines.FindAsync(medicineId);
         if (medicine == null) return null;
 
-        // Get actual stock from inventory
+        // Get actual stock from inventory — theo MedicineId, xem ghi chú ở SearchMedicinesAsync
         var stockQuery = _context.InventoryItems
-            .Where(i => i.ItemId == medicineId && i.ItemType == "Medicine");
+            .Where(i => i.MedicineId == medicineId && !i.IsDeleted);
 
         if (warehouseId.HasValue)
             stockQuery = stockQuery.Where(i => i.WarehouseId == warehouseId.Value);
         else
         {
-            // Get from dispensary warehouses
+            // Get from dispensary warehouses — kho thuốc (1) + nhà thuốc (4), KHÔNG phải kho vật tư (2)
             var dispensaryIds = await _context.Warehouses
-                .Where(w => w.IsActive && w.WarehouseType == 2)
+                .Where(w => w.IsActive && HIS.Core.Constants.WarehouseType.Dispensing.Contains(w.WarehouseType))
                 .Select(w => w.Id)
                 .ToListAsync();
             stockQuery = stockQuery.Where(i => dispensaryIds.Contains(i.WarehouseId));

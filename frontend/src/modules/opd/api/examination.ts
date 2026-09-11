@@ -595,7 +595,10 @@ export interface CreatePrescriptionItemDto {
 }
 
 export interface PrescriptionTemplateDto {
-  id: string;
+  /** BỎ TRỐNG khi tạo mới — server tự sinh. Backend khai `Guid Id` (không nullable), gửi
+   *  `id: ''` thì System.Text.Json không parse nổi chuỗi rỗng thành Guid → cả dto bind ra
+   *  null → 400 "The dto field is required." (lỗi nút "Lưu mẫu"). */
+  id?: string;
   templateName: string;
   description?: string;
   templateType: number;

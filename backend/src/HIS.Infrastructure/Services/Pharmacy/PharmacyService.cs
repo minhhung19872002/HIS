@@ -167,12 +167,13 @@ public partial class PharmacyService : IPharmacyService
         // WarehouseComplete (tạo phiếu xuất + trừ tồn + set trạng thái đơn trong transaction).
         // Test e2e prod 2026-06-13: fallback cũ "đơn chưa gán kho → chỉ đánh dấu đã phát" làm
         // thất thoát kho (không phiếu xuất → cancel-dispensed cũng không hoàn được). Nay đơn chưa
-        // gán kho → resolve kho lẻ ngoại trú mặc định (WarehouseType=2); không có kho → 400 rõ ràng,
-        // TUYỆT ĐỐI không phát mà không trừ tồn.
+        // gán kho → resolve kho cấp phát thuốc mặc định (kho thuốc / nhà thuốc); không có kho →
+        // 400 rõ ràng, TUYỆT ĐỐI không phát mà không trừ tồn.
         if (!prescription.WarehouseId.HasValue || prescription.WarehouseId.Value == Guid.Empty)
         {
             var defaultDispensaryId = await _context.Warehouses
-                .Where(w => w.IsActive && !w.IsDeleted && w.WarehouseType == 2)
+                .Where(w => w.IsActive && !w.IsDeleted
+                            && HIS.Core.Constants.WarehouseType.Dispensing.Contains(w.WarehouseType))
                 .OrderBy(w => w.WarehouseName)
                 .Select(w => (Guid?)w.Id)
                 .FirstOrDefaultAsync();
@@ -180,7 +181,7 @@ public partial class PharmacyService : IPharmacyService
                 return new PharmacyDispenseResultDto
                 {
                     NoWarehouse = true,
-                    Message = "Đơn thuốc chưa gán kho xuất và không có kho lẻ ngoại trú (WarehouseType=2) đang hoạt động — chọn kho trước khi phát"
+                    Message = "Đơn thuốc chưa gán kho xuất và không có kho thuốc / nhà thuốc đang hoạt động — chọn kho trước khi phát"
                 };
 
             _logger.LogInformation(

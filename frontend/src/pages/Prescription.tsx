@@ -242,7 +242,7 @@ const Prescription: React.FC = () => {
         const apiTemplates = response.data;
         if (apiTemplates && Array.isArray(apiTemplates)) {
           const mapped: PrescriptionTemplate[] = apiTemplates.map((t: PrescriptionTemplateDto) => ({
-            id: t.id,
+            id: t.id ?? '', // id nay do server tra ve nen luon co; `?? ''` chi de thoa kieu optional khi TAO moi
             name: t.templateName,
             diagnosis: t.description || '',
             items: [],
@@ -1728,7 +1728,6 @@ const Prescription: React.FC = () => {
           }
           try {
             const dto: PrescriptionTemplateDto = {
-              id: '',
               templateName: templateName,
               description: templateDiagnosis,
               templateType: 1,
