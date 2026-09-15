@@ -71,6 +71,39 @@ public sealed class PatientAppServiceAccountTests
         Assert.Equal(StatusCodes.Status403Forbidden, await InvokeAsync(path, RoleNames.PatientAppService));
     }
 
+    /// <summary>
+    /// Rào route chưa đủ: cổng quyền ghi (<c>WritePermissionConvention</c>) còn gate mọi POST/PUT theo
+    /// permission. Ban đầu role dịch vụ để 0 quyền và bài test rào route vẫn xanh — trong khi tra cứu bệnh
+    /// nhân theo SĐT ở màn nhân viên của app trả 503 vì <c>POST /api/patients/search</c> đòi Patient.Read.
+    /// Bài này tính quyền đúng như convention cho từng route ghi mà HisRestConnector gọi.
+    /// </summary>
+    [Theory]
+    [InlineData(typeof(HIS.API.Controllers.PatientsController), "Search")]
+    [InlineData(typeof(HIS.API.Controllers.PatientsController), "LookupMergeSuccessors")]
+    [InlineData(typeof(HIS.API.Controllers.ReceptionCompleteController), "IssueQueueTicketMobile")]
+    [InlineData(typeof(HIS.API.Controllers.AppointmentBookingController), "BookAppointment")]
+    [InlineData(typeof(HIS.API.Controllers.AppointmentBookingController), "CancelAppointment")]
+    [InlineData(typeof(HIS.API.Controllers.AppointmentBookingController), "Reschedule")]
+    public void Route_ghi_BFF_goi_khong_bi_cong_quyen_chan(Type controller, string action)
+    {
+        var method = controller.GetMethod(action)!;
+        bool Anonymous(System.Reflection.MemberInfo m) =>
+            m.GetCustomAttributes(true).OfType<Microsoft.AspNetCore.Authorization.IAllowAnonymous>().Any();
+        bool ExplicitGate(System.Reflection.MemberInfo m) =>
+            m.GetCustomAttributes(true).OfType<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>()
+                .Any(a => !string.IsNullOrWhiteSpace(a.Roles) || !string.IsNullOrWhiteSpace(a.Policy));
+
+        if (Anonymous(controller) || Anonymous(method) || ExplicitGate(controller) || ExplicitGate(method))
+            return;   // convention không gắn permission cho các action này
+
+        var required = HIS.API.Authorization.WritePermissionMap.Resolve(
+            controller.Name[..^"Controller".Length], action);
+        if (required is null) return;
+
+        var granted = HIS.Infrastructure.Data.PermissionCatalogSeeder.ServiceRoleMatrix[RoleNames.PatientAppServiceCode];
+        Assert.Contains(required, granted);
+    }
+
     [Fact]
     public async Task Nhan_vien_khong_bi_anh_huong()
     {

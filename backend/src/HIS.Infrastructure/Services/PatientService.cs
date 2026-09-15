@@ -19,6 +19,45 @@ public class PatientService : IPatientService
         _mapper = mapper;
     }
 
+    public async Task<List<PatientMergeSuccessorDto>> GetMergeSuccessorsAsync(IReadOnlyCollection<Guid> patientIds)
+    {
+        var result = new List<PatientMergeSuccessorDto>();
+        var ids = patientIds.Distinct().Take(1000).ToList();
+        if (ids.Count == 0) return result;
+
+        var merged = await _context.Patients.IgnoreQueryFilters().AsNoTracking()
+            .Where(p => ids.Contains(p.Id) && p.MergedIntoPatientId != null)
+            .Select(p => new { p.Id, Next = p.MergedIntoPatientId!.Value })
+            .ToListAsync();
+
+        foreach (var m in merged)
+        {
+            // Đi theo chuỗi ghép (ghép nén chuỗi nên thường chỉ một bước; giới hạn để dữ liệu hỏng tạo
+            // vòng lặp cũng không treo request).
+            var current = m.Next;
+            Patient? survivor = null;
+            for (var hop = 0; hop < 10; hop++)
+            {
+                var p = await _context.Patients.IgnoreQueryFilters().AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == current);
+                if (p == null) break;
+                if (!p.IsDeleted) { survivor = p; break; }
+                if (p.MergedIntoPatientId is not Guid next) break;
+                current = next;
+            }
+
+            if (survivor != null)
+                result.Add(new PatientMergeSuccessorDto
+                {
+                    PatientId = m.Id,
+                    CurrentPatientId = survivor.Id,
+                    CurrentPatientCode = survivor.PatientCode,
+                    CurrentFullName = survivor.FullName,
+                });
+        }
+        return result;
+    }
+
     public async Task<PatientDto?> GetByIdAsync(Guid id)
     {
         var patient = await _context.Patients.FindAsync(id);

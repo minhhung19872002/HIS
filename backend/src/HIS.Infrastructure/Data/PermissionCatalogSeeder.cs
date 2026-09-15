@@ -28,6 +28,20 @@ public static class PermissionCatalogSeeder
         PermissionCatalog.Integration.Read,
     };
 
+    /// <summary>
+    /// Role tài khoản dịch vụ: đúng những quyền máy gọi cần, KHÔNG cộng <see cref="Baseline"/> (không có
+    /// người ngồi sau để báo sự cố hay nộp đơn nghỉ phép).
+    ///
+    /// <para>PATIENT_APP_SERVICE (BFF app người bệnh): <c>Patient.Read</c> vì <c>POST /api/patients/search</c>
+    /// và <c>merge-successors</c> là POST "đọc" bị cổng quyền ghi gate bằng quyền Read. Ban đầu role này để 0
+    /// quyền → tra cứu bệnh nhân theo SĐT/họ tên ở màn nhân viên của app trả 503 (đo 15/09).</para>
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, string[]> ServiceRoleMatrix =
+        new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            [RoleNames.PatientAppServiceCode] = new[] { PermissionCatalog.Patient.Read },
+        };
+
     /// <summary>Ma trận Role×Permission baseline cho 8 role LIVE (behavior-preserve với role-gate hiện hành:
     /// CASHIER phát cả English roles Cashier+Accountant nên giữ Billing.Approve/Refund/Void).</summary>
     private static readonly Dictionary<string, string[]> RoleMatrix = new(StringComparer.OrdinalIgnoreCase)
@@ -186,6 +200,7 @@ public static class PermissionCatalogSeeder
             // ADMIN = full catalog; role khác theo matrix; role ngoài matrix (custom) → bỏ qua.
             string[] codes = role.RoleCode.Equals("ADMIN", StringComparison.OrdinalIgnoreCase)
                 ? PermissionCatalog.All.Select(d => d.Code).ToArray()
+                : ServiceRoleMatrix.TryGetValue(role.RoleCode, out var s) ? s
                 : RoleMatrix.TryGetValue(role.RoleCode, out var m) ? Baseline.Concat(m).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
                 : Array.Empty<string>();
 

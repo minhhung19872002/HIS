@@ -596,6 +596,14 @@ public partial class ReceptionCompleteService {
         sourcePatient.IsDeleted = true;
         sourcePatient.UpdatedAt = DateTime.UtcNow;
         sourcePatient.UpdatedBy = userId.ToString();
+        // Ghi lại đã ghép vào ai — app hỗ trợ người bệnh giữ id hồ sơ nguồn và cần đi theo người sang hồ sơ
+        // còn lại, nếu không người bệnh thấy lịch sử khám trống (đo trên prod 15/09).
+        sourcePatient.MergedIntoPatientId = dto.TargetPatientId;
+        // Nén chuỗi: hồ sơ trước đó đã ghép vào nguồn giờ trỏ thẳng tới đích, tra một bước là tới.
+        var earlierMerged = await _context.Patients.IgnoreQueryFilters()
+            .Where(p => p.MergedIntoPatientId == dto.SourcePatientId)
+            .ToListAsync();
+        foreach (var p in earlierMerged) p.MergedIntoPatientId = dto.TargetPatientId;
 
         // Một SaveChanges duy nhất: hoặc ghép trọn, hoặc không đổi gì.
         await _unitOfWork.SaveChangesAsync();

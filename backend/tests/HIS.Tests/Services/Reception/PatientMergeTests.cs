@@ -83,6 +83,37 @@ public sealed class PatientMergeTests
         Assert.False((await ctx.Patients.IgnoreQueryFilters().SingleAsync(p => p.Id == target.Id)).IsDeleted);
     }
 
+    /// <summary>
+    /// Ghép phải để lại dấu "đã ghép vào ai" — app người bệnh giữ id hồ sơ nguồn và cần đi theo người.
+    /// Ghép lần hai (A→B rồi B→C) thì A trỏ thẳng C, và tra hồ sơ còn lại của A/B đều ra C.
+    /// </summary>
+    [Fact]
+    public async Task Ghep_ghi_lai_ho_so_dich_va_nen_chuoi_ghep()
+    {
+        using var ctx = TestDb.NewInMemory();
+        var a = NewPatient("BN-A");
+        var b = NewPatient("BN-B");
+        var c = NewPatient("BN-C");
+        ctx.Patients.AddRange(a, b, c);
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        await Build(ctx).MergePatientsAsync(new MergePatientDto { SourcePatientId = a.Id, TargetPatientId = b.Id }, Guid.NewGuid());
+        ctx.ChangeTracker.Clear();
+        await Build(ctx).MergePatientsAsync(new MergePatientDto { SourcePatientId = b.Id, TargetPatientId = c.Id }, Guid.NewGuid());
+        ctx.ChangeTracker.Clear();
+
+        var all = await ctx.Patients.IgnoreQueryFilters().ToDictionaryAsync(p => p.PatientCode);
+        Assert.Equal(c.Id, all["BN-A"].MergedIntoPatientId);   // nén chuỗi
+        Assert.Equal(c.Id, all["BN-B"].MergedIntoPatientId);
+        Assert.Null(all["BN-C"].MergedIntoPatientId);
+
+        var successors = await new PatientService(ctx, new Mock<AutoMapper.IMapper>().Object)
+            .GetMergeSuccessorsAsync(new[] { a.Id, b.Id, c.Id });
+        Assert.Equal(2, successors.Count);
+        Assert.All(successors, s => Assert.Equal("BN-C", s.CurrentPatientCode));
+    }
+
     [Fact]
     public async Task Ghep_vao_ho_so_dich_khong_ton_tai_thi_tu_choi_va_KHONG_doi_gi()
     {

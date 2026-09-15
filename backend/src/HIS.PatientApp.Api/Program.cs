@@ -137,6 +137,12 @@ builder.Services.AddHostedService<AppointmentReminderWorker>();
 // Gửi các đợt thông báo đã hẹn giờ của bệnh viện (HSMT I.3 #1.4).
 builder.Services.AddHostedService<CampaignDispatcherWorker>();
 
+// Quầy ghép hồ sơ trùng bên HIS → tài khoản app + liên kết người thân đi theo sang hồ sơ còn lại.
+builder.Services.Configure<PatientMergeReconcileOptions>(
+    builder.Configuration.GetSection(PatientMergeReconcileOptions.SectionName));
+builder.Services.AddScoped<PatientMergeReconciler>();
+builder.Services.AddHostedService<PatientMergeReconcileWorker>();
+
 // Kênh gửi OTP: bản THẬT (gọi cổng SMS của bệnh viện) và bản GIẢ (in ra log) chọn bằng cấu hình.
 //
 // Bản in-log chỉ được phép ở môi trường phát triển: in mã OTP ra log ở môi trường thật đồng nghĩa

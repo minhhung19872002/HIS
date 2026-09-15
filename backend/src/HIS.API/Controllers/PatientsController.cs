@@ -58,6 +58,23 @@ public class PatientsController : ControllerBase
         return Ok(ApiResponse<PatientDto>.Ok(patient));
     }
 
+    /// <summary>
+    /// Hồ sơ còn lại của những bệnh nhân đã bị ghép (1.10.5). Hệ thống ngoài giữ id bệnh nhân — app hỗ
+    /// trợ người bệnh — gọi định kỳ để đi theo người sang hồ sơ còn lại sau khi quầy ghép hồ sơ trùng.
+    /// </summary>
+    [HttpPost("merge-successors")]
+    public async Task<ActionResult<ApiResponse<List<PatientMergeSuccessorDto>>>> LookupMergeSuccessors(
+        [FromBody] PatientMergeSuccessorsRequest request)
+    {
+        var result = await _patientService.GetMergeSuccessorsAsync(request.PatientIds ?? new List<Guid>());
+        return Ok(ApiResponse<List<PatientMergeSuccessorDto>>.Ok(result));
+    }
+
+    public sealed class PatientMergeSuccessorsRequest
+    {
+        public List<Guid>? PatientIds { get; set; }
+    }
+
     [HttpPost("search")]
     public async Task<ActionResult<ApiResponse<PagedResultDto<PatientDto>>>> Search([FromBody] PatientSearchDto dto)
     {

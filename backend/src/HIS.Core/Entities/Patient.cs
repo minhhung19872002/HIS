@@ -75,6 +75,15 @@ public class Patient : BaseEntity
     public Guid? BranchId { get; set; }
     public virtual HospitalBranch? Branch { get; set; }
 
+    /// <summary>
+    /// Hồ sơ này đã được GHÉP vào hồ sơ nào (migration 199). Chỉ có giá trị trên hồ sơ nguồn đã xoá mềm.
+    /// Hệ thống bên ngoài giữ id bệnh nhân (app hỗ trợ người bệnh) dùng nó để đi theo người sang hồ sơ
+    /// còn lại — không có nó, app của người bệnh thấy lịch sử khám trống sau khi quầy ghép hồ sơ trùng.
+    /// Cố ý KHÔNG khai báo khoá ngoại và không đặt tên đuôi "PatientId" thuần để bộ chuyển tham chiếu
+    /// khi ghép không đụng tới nó.
+    /// </summary>
+    public Guid? MergedIntoPatientId { get; set; }
+
     // Navigation properties
     public virtual ICollection<MedicalRecord> MedicalRecords { get; set; } = new List<MedicalRecord>();
     public virtual ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();

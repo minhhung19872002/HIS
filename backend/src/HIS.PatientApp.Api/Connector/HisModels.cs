@@ -13,6 +13,17 @@ public class HisEnvelope<T>
 }
 
 /// <summary>
+/// Một hồ sơ đã bị HIS ghép vào hồ sơ khác, kèm hồ sơ còn lại (<c>POST /api/patients/merge-successors</c>).
+/// </summary>
+public class HisMergeSuccessor
+{
+    [JsonPropertyName("patientId")] public Guid PatientId { get; set; }
+    [JsonPropertyName("currentPatientId")] public Guid CurrentPatientId { get; set; }
+    [JsonPropertyName("currentPatientCode")] public string CurrentPatientCode { get; set; } = string.Empty;
+    [JsonPropertyName("currentFullName")] public string CurrentFullName { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// Bệnh nhân theo góc nhìn của app. CỐ Ý hẹp hơn <c>PatientDto</c> của HIS: BFF chỉ lấy những trường
 /// app thật sự hiển thị, để không vô tình mang dữ liệu thừa ra Internet.
 /// </summary>

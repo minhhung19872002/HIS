@@ -28,6 +28,13 @@ public interface IHisConnector
     /// </summary>
     Task<IReadOnlyList<HisPatient>> FindPatientsByPhoneAsync(string phoneNumber, CancellationToken ct = default);
 
+    /// <summary>
+    /// Những id đã bị HIS ghép vào hồ sơ khác, kèm hồ sơ còn lại. Id chưa từng ghép không có trong kết
+    /// quả. Tối đa 1000 id mỗi lần.
+    /// </summary>
+    Task<IReadOnlyList<HisMergeSuccessor>> GetMergeSuccessorsAsync(
+        IReadOnlyCollection<Guid> patientIds, CancellationToken ct = default);
+
     /// <summary>HIS có sống không — dùng cho endpoint /health của BFF.</summary>
     Task<bool> PingAsync(CancellationToken ct = default);
 

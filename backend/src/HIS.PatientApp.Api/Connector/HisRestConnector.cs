@@ -64,6 +64,15 @@ public class HisRestConnector : IHisConnector
             .ToList();
     }
 
+    public async Task<IReadOnlyList<HisMergeSuccessor>> GetMergeSuccessorsAsync(
+        IReadOnlyCollection<Guid> patientIds, CancellationToken ct = default)
+        => await SendAsync<List<HisMergeSuccessor>>(
+            () => new HttpRequestMessage(HttpMethod.Post, "/api/patients/merge-successors")
+            {
+                Content = JsonContent.Create(new { patientIds }),
+            }, ct)
+            ?? new List<HisMergeSuccessor>();
+
     public async Task<bool> PingAsync(CancellationToken ct = default)
     {
         try
