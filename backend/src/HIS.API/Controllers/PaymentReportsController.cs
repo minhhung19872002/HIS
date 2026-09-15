@@ -1,5 +1,7 @@
 using HIS.Application.Interfaces;
+using HIS.API.Authorization;
 using HIS.API.Extensions;
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,6 +13,7 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/payment-reports")]
 [Authorize]
+[RequirePermission(PermissionCatalog.Report.Read)] // receipts with patient names/amounts: was readable by any logged-in role (lab tech → 200)
 public class PaymentReportsController : ControllerBase
 {
     private readonly IPaymentReportsService _svc;

@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using HIS.Core.Constants;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Billing;
 using HIS.Application.Services;
@@ -15,6 +16,15 @@ namespace HIS.Infrastructure.Services;
 public partial class BillingCompleteService {
     #region 10.3 Cashier Management
 
+    // QA-R2 cash book basis (physical till): money in = collected receipts (Status 1); money out = refund slips
+    // actually paid out (RefundStatus.Paid 4). Refund slips use their own lifecycle (0 pending · 1 approved ·
+    // 2 rejected · 4 paid · 5 cancelled) — the old `Status == 1` filter subtracted approved-but-unpaid refunds
+    // and ignored paid ones, so CloseCashBook WROTE a wrong ClosingBalance. Deposit refunds are left out on
+    // both sides: deposit collections live in Deposits, not Receipts, so they never entered TotalReceipt.
+    private static readonly System.Linq.Expressions.Expression<Func<Receipt, bool>> TillReceipt = r =>
+        (r.ReceiptType != 3 && r.Status == 1)
+        || (r.ReceiptType == 3 && r.Status == RefundStatus.Paid && r.OriginalDepositId == null);
+
     public async Task<CashierReportDto> GetCashierReportAsync(CashierReportRequestDto dto)
     {
         try
@@ -25,11 +35,13 @@ public partial class BillingCompleteService {
                 .FirstOrDefaultAsync(cb => cb.CashierId == dto.CashierId
                     && cb.StartDate >= dto.FromDate && (cb.EndDate == null || cb.EndDate <= dto.ToDate));
 
+            var toEnd = ReportPeriod.EndExclusive(dto.ToDate); // date-only toDate used to drop the whole last day
             var receipts = await _context.Receipts
                 .Where(r => r.CashierId == dto.CashierId
                     && r.ReceiptDate >= dto.FromDate
-                    && r.ReceiptDate <= dto.ToDate
-                    && r.Status == 1)
+                    && r.ReceiptDate < toEnd
+                    && !r.IsDeleted)
+                .Where(TillReceipt)
                 .ToListAsync();
 
             var totalCash = receipts.Where(r => r.PaymentMethod == 1 && r.ReceiptType != 3).Sum(r => r.FinalAmount);
@@ -73,7 +85,8 @@ public partial class BillingCompleteService {
         var receipts = await _context.Receipts
             .Where(r => r.CashierId == dto.CashierId
                 && r.ReceiptDate >= cashBook.StartDate
-                && r.Status == 1)
+                && !r.IsDeleted)
+            .Where(TillReceipt)
             .ToListAsync();
 
         var totalCash = receipts.Where(r => r.PaymentMethod == 1 && r.ReceiptType != 3).Sum(r => r.FinalAmount);
@@ -115,10 +128,14 @@ public partial class BillingCompleteService {
     {
         try
         {
+            // QA-R2: was `Status == 1` for refunds too (approved only, paid-out refunds ignored, deposit refunds
+            // subtracted from receipt revenue) — use the shared net-revenue rule.
+            var toEnd = ReportPeriod.EndExclusive(dto.ToDate);
             var receipts = await _context.Receipts
                 .Include(r => r.MedicalRecord)
-                .Where(r => r.ReceiptDate >= dto.FromDate && r.ReceiptDate <= dto.ToDate
-                    && r.Status == 1 && r.MedicalRecord != null && r.MedicalRecord.TreatmentType == 1)
+                .Where(r => r.ReceiptDate >= dto.FromDate && r.ReceiptDate < toEnd && !r.IsDeleted
+                    && r.MedicalRecord != null && r.MedicalRecord.TreatmentType == 1)
+                .Where(ReportPeriod.CashReceipt)
                 .ToListAsync();
 
             var dailyDetails = receipts
@@ -159,14 +176,18 @@ public partial class BillingCompleteService {
     {
         try
         {
+            var toEnd = ReportPeriod.EndExclusive(dto.ToDate);
             var receipts = await _context.Receipts
                 .Include(r => r.MedicalRecord).ThenInclude(mr => mr!.Department)
-                .Where(r => r.ReceiptDate >= dto.FromDate && r.ReceiptDate <= dto.ToDate
-                    && r.Status == 1 && r.MedicalRecord != null && r.MedicalRecord.TreatmentType == 2)
+                .Where(r => r.ReceiptDate >= dto.FromDate && r.ReceiptDate < toEnd && !r.IsDeleted
+                    && r.MedicalRecord != null && r.MedicalRecord.TreatmentType == 2)
+                .Where(ReportPeriod.CashReceipt)
                 .ToListAsync();
 
+            // DepositStatus 3 = fully used (money was received), 5 = cancelled — the old `!= 3` did the opposite.
             var deposits = await _context.Deposits
-                .Where(d => d.ReceiptDate >= dto.FromDate && d.ReceiptDate <= dto.ToDate && d.Status != 3)
+                .Where(d => d.ReceiptDate >= dto.FromDate && d.ReceiptDate < toEnd && !d.IsDeleted
+                    && d.Status != DepositStatus.Cancelled)
                 .SumAsync(d => d.Amount);
 
             var deptDetails = receipts
@@ -208,25 +229,36 @@ public partial class BillingCompleteService {
     {
         try
         {
+            var toEnd = ReportPeriod.EndExclusive(dto.ToDate);
             var deposits = await _context.Deposits
-                .Where(d => d.ReceiptDate >= dto.FromDate && d.ReceiptDate <= dto.ToDate)
+                .Where(d => d.ReceiptDate >= dto.FromDate && d.ReceiptDate < toEnd && !d.IsDeleted)
                 .ToListAsync();
 
-            var dailyDetails = deposits
+            // QA-R2: DepositStatus 3 is "fully used", not "refunded" — the report counted every spent deposit as
+            // a refund and kept cancelled (5) deposits as active money. Refunds are refund slips (ReceiptType 3)
+            // raised on the deposit and actually paid out (RefundStatus.Paid).
+            var depositIds = deposits.Select(d => d.Id).ToList();
+            var paidRefunds = await _context.Receipts
+                .Where(r => r.ReceiptType == 3 && r.Status == RefundStatus.Paid && !r.IsDeleted
+                    && r.OriginalDepositId != null && depositIds.Contains(r.OriginalDepositId.Value))
+                .Select(r => new { DepositId = r.OriginalDepositId!.Value, r.FinalAmount })
+                .ToListAsync();
+            var refundByDeposit = paidRefunds.GroupBy(r => r.DepositId).ToDictionary(g => g.Key, g => g.Sum(r => r.FinalAmount));
+
+            var activeDeposits = deposits.Where(d => d.Status != DepositStatus.Cancelled).ToList();
+
+            var dailyDetails = activeDeposits
                 .GroupBy(d => d.ReceiptDate.Date)
                 .Select(g => new DailyDepositItemDto
                 {
                     Date = g.Key,
-                    DepositCount = g.Count(d => d.Status != 3),
-                    DepositAmount = g.Where(d => d.Status != 3).Sum(d => d.Amount),
-                    RefundCount = g.Count(d => d.Status == 3),
-                    RefundAmount = g.Where(d => d.Status == 3).Sum(d => d.Amount)
+                    DepositCount = g.Count(),
+                    DepositAmount = g.Sum(d => d.Amount),
+                    RefundCount = g.Count(d => refundByDeposit.ContainsKey(d.Id)),
+                    RefundAmount = g.Sum(d => refundByDeposit.GetValueOrDefault(d.Id))
                 })
                 .OrderBy(d => d.Date)
                 .ToList();
-
-            var activeDeposits = deposits.Where(d => d.Status != 3).ToList();
-            var refundedDeposits = deposits.Where(d => d.Status == 3).ToList();
 
             return new DepositRevenueReportDto
             {
@@ -235,7 +267,7 @@ public partial class BillingCompleteService {
                 TotalDeposits = activeDeposits.Count,
                 TotalDepositAmount = activeDeposits.Sum(d => d.Amount),
                 TotalUsedAmount = activeDeposits.Sum(d => d.UsedAmount),
-                TotalRefundAmount = refundedDeposits.Sum(d => d.Amount),
+                TotalRefundAmount = activeDeposits.Sum(d => refundByDeposit.GetValueOrDefault(d.Id)),
                 RemainingAmount = activeDeposits.Sum(d => d.RemainingAmount),
                 DailyDetails = dailyDetails
             };
@@ -254,13 +286,17 @@ public partial class BillingCompleteService {
             var cashBook = await _context.CashBooks.FindAsync(cashBookId);
             if (cashBook == null) return new CashBookUsageReportDto();
 
+            var toEnd = ReportPeriod.EndExclusive(toDate);
             var receipts = await _context.Receipts
                 .Include(r => r.Cashier)
-                .Where(r => r.CashBookId == cashBookId
-                    && r.ReceiptDate >= fromDate && r.ReceiptDate <= toDate)
+                .Where(r => r.CashBookId == cashBookId && !r.IsDeleted
+                    && r.ReceiptDate >= fromDate && r.ReceiptDate < toEnd)
                 .ToListAsync();
+            // Money that moved through the book (same till basis as CloseCashBook); the per-user totals used to
+            // include cancelled receipts and unpaid/rejected refund slips.
+            var tillReceipts = receipts.AsQueryable().Where(TillReceipt).ToList();
 
-            var userUsages = receipts
+            var userUsages = tillReceipts
                 .GroupBy(r => new { r.CashierId, CashierName = r.Cashier?.FullName ?? "" })
                 .Select(g => new UserCashBookUsageDto
                 {
@@ -272,8 +308,8 @@ public partial class BillingCompleteService {
                 })
                 .ToList();
 
-            var totalReceipt = receipts.Where(r => r.ReceiptType != 3 && r.Status == 1).Sum(r => r.FinalAmount);
-            var totalPayment = receipts.Where(r => r.ReceiptType == 3 && r.Status == 1).Sum(r => r.FinalAmount);
+            var totalReceipt = tillReceipts.Where(r => r.ReceiptType != 3).Sum(r => r.FinalAmount);
+            var totalPayment = tillReceipts.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount);
 
             return new CashBookUsageReportDto
             {

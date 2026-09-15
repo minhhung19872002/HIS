@@ -22,17 +22,19 @@ import { useModalForm } from '../../../hooks/useModalForm';
    Trạng thái (BillingCompleteService.Refunds.cs): 0-Chờ duyệt · 1-Đã duyệt · 2-Từ chối · 4-Đã chi.
    ──────────────────────────────────────────────────────────── */
 
-type SKey = 'pending' | 'approved' | 'rejected' | 'done';
+type SKey = 'pending' | 'approved' | 'rejected' | 'done' | 'cancelled';
 
 const STATUS_TABS: StatusTab<SKey>[] = [
   { v: 'pending',  l: 'Chờ duyệt', tone: 'warn' },
   { v: 'approved', l: 'Đã duyệt',  tone: 'info' },
   { v: 'done',     l: 'Đã chi',    tone: 'ok'   },
   { v: 'rejected', l: 'Từ chối',   tone: 'crit' },
+  { v: 'cancelled', l: 'Đã hủy',   tone: 'crit' },
 ];
 
+// RefundStatus.Cancelled = 5 — it used to fall through to 'done' and sit in the "Đã chi" tab.
 const statusKey = (s: number): SKey =>
-  s === 0 ? 'pending' : s === 1 ? 'approved' : s === 2 ? 'rejected' : 'done';
+  s === 0 ? 'pending' : s === 1 ? 'approved' : s === 2 ? 'rejected' : s === 5 ? 'cancelled' : 'done';
 
 const REFUND_TYPE: Record<number, string> = { 1: 'Hoàn tạm ứng', 2: 'Hoàn thanh toán', 3: 'Hoàn BHYT' };
 

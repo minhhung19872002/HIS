@@ -136,12 +136,18 @@ export const cancelRetailSale = async (id: string, reason = 'Hủy hóa đơn t�
   return response.data;
 };
 
-export const searchMedicines = async (keyword: string) => {
+// QA-R2: the route is GET /hospital-pharmacy/medicines (".../search" 404'd, so POS search was always
+// empty) and MedicineForSaleDto names price/stock retailPrice/availableStock — map to the FE shape.
+export const searchMedicines = async (keyword: string): Promise<MedicineSearchResultDto[]> => {
   try {
-    const response = await apiClient.get<MedicineSearchResultDto[]>('/hospital-pharmacy/medicines/search', {
-      params: { keyword },
-    });
-    return response.data || [];
+    const response = await apiClient.get<Array<MedicineSearchResultDto & { retailPrice?: number; availableStock?: number }>>(
+      '/hospital-pharmacy/medicines', { params: { keyword } },
+    );
+    return (response.data || []).map((m) => ({
+      ...m,
+      unitPrice: m.unitPrice ?? m.retailPrice ?? 0,
+      stockQuantity: m.stockQuantity ?? m.availableStock ?? 0,
+    }));
   } catch {
     console.warn('Failed to search medicines');
     return [];

@@ -372,10 +372,10 @@ const FinanceV2: React.FC = () => {
             content={rpInsurance ? (
               <div style={{ fontSize: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--line)' }}>
-                  <span style={{ color: 'var(--t-2)' }}>Tổng BN</span><span style={{ fontFamily: 'var(--font-mono)' }}>{(rpInsurance.totalPatients || 0).toLocaleString('vi-VN')}</span>
+                  <span style={{ color: 'var(--t-2)' }}>Tổng BN</span><span style={{ fontFamily: 'var(--font-mono)' }}>{rpInsurance.totalPatients != null ? rpInsurance.totalPatients.toLocaleString('vi-VN') : '—'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--line)' }}>
-                  <span style={{ color: 'var(--t-2)' }}>Tổng lượt khám</span><span style={{ fontFamily: 'var(--font-mono)' }}>{(rpInsurance.totalVisits || 0).toLocaleString('vi-VN')}</span>
+                  <span style={{ color: 'var(--t-2)' }}>Tổng lượt khám</span><span style={{ fontFamily: 'var(--font-mono)' }}>{rpInsurance.totalVisits != null ? rpInsurance.totalVisits.toLocaleString('vi-VN') : '—'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--line)' }}>
                   <span style={{ color: 'var(--t-2)' }}>BV tính</span><span style={{ fontFamily: 'var(--font-mono)' }}>{fmtVNDg(rpInsurance.hospitalCalculation)}</span>
@@ -423,11 +423,12 @@ const FinanceV2: React.FC = () => {
               <div style={{ fontSize: 12 }}>
                 {[
                   { l: 'Tổng doanh thu', v: fmtVNDg(rpSummary.totalRevenue), tone: 'info' },
-                  { l: '  BHYT', v: fmtVNDg(rpSummary.insuranceRevenue) },
-                  { l: '  Bệnh nhân', v: fmtVNDg(rpSummary.patientRevenue) },
+                  // fmtVNDg(undefined) prints "Miễn phí" — breakdown lines the BE does not return show "—"
+                  { l: '  BHYT', v: rpSummary.insuranceRevenue != null ? fmtVNDg(rpSummary.insuranceRevenue) : '—' },
+                  { l: '  Bệnh nhân', v: rpSummary.patientRevenue != null ? fmtVNDg(rpSummary.patientRevenue) : '—' },
                   { l: 'Tổng chi phí', v: fmtVNDg(rpSummary.totalCost), tone: 'warn' },
-                  { l: '  Thuốc', v: fmtVNDg(rpSummary.medicineCost) },
-                  { l: '  Nhân sự', v: fmtVNDg(rpSummary.personnelCost) },
+                  { l: '  Thuốc', v: rpSummary.medicineCost != null ? fmtVNDg(rpSummary.medicineCost) : '—' },
+                  { l: '  Nhân sự', v: rpSummary.personnelCost != null ? fmtVNDg(rpSummary.personnelCost) : '—' },
                   { l: 'Lợi nhuận gộp', v: fmtVNDg(rpSummary.grossProfit), tone: rpSummary.grossProfit >= 0 ? 'ok' : 'crit' },
                   { l: 'Lợi nhuận ròng', v: `${fmtVNDg(rpSummary.netProfit)} (${fmtPct(rpSummary.profitMargin)})`, tone: rpSummary.netProfit >= 0 ? 'ok' : 'crit', bold: true },
                 ].map(({ l, v, tone, bold }) => (

@@ -112,12 +112,17 @@ public partial class BillingCompleteService {
         if (dto.RefundAmount != Math.Round(dto.RefundAmount, 0))
             throw new InvalidOperationException("Số tiền hoàn phải là số nguyên đồng (VND không có số lẻ)");
 
+        // The refund belongs to the same visit as its source receipt/deposit. Without this link the
+        // refund receipt had MedicalRecordId = null and per-visit paid totals never saw the money going out.
+        Guid? sourceMedicalRecordId = null;
+
         // Verify original payment/deposit exists and has sufficient amount
         if (dto.RefundType == 1 && dto.OriginalDepositId.HasValue)
         {
             var originalDeposit = await _context.Deposits.FindAsync(dto.OriginalDepositId.Value);
             if (originalDeposit == null)
                 throw new KeyNotFoundException("Phiếu tạm ứng gốc không tồn tại");
+            sourceMedicalRecordId = originalDeposit.MedicalRecordId;
             // QA0915: the source deposit must belong to the patient being refunded.
             if (originalDeposit.PatientId.HasValue && originalDeposit.PatientId.Value != dto.PatientId)
                 throw new InvalidOperationException("Phiếu tạm ứng gốc không thuộc bệnh nhân này");
@@ -161,6 +166,7 @@ public partial class BillingCompleteService {
                 throw new InvalidOperationException("Phiếu thanh toán gốc không thuộc bệnh nhân này");
             if (originalPayment.Status == 2)
                 throw new InvalidOperationException("Phiếu thanh toán gốc đã bị hủy");
+            sourceMedicalRecordId = originalPayment.MedicalRecordId;
 
             // QA0915: same rule as the deposit branch above (#218/T3) — earlier refunds on this payment
             // (pending/approved/paid) must be deducted, otherwise one 200.000đ payment could be refunded
@@ -240,6 +246,7 @@ public partial class BillingCompleteService {
             ReceiptCode = $"HT{DateTime.Now:yyyyMMddHHmmssfff}",
             ReceiptDate = DateTime.Now,
             PatientId = dto.PatientId,
+            MedicalRecordId = sourceMedicalRecordId,
             ReceiptType = 3, // Hoàn trả
             PaymentMethod = dto.RefundMethod,
             Amount = dto.RefundAmount,

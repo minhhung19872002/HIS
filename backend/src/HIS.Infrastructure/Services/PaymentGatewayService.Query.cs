@@ -69,7 +69,7 @@ public partial class PaymentGatewayService
 
         var items = await q
             .OrderByDescending(t => t.CreatedAt)
-            .Skip((dto.PageIndex - 1) * dto.PageSize)
+            .Skip((Math.Max(1, dto.PageIndex) - 1) * Math.Max(1, dto.PageSize)) // pageIndex=0 gave a negative Skip → 500
             .Take(dto.PageSize)
             .ToListAsync();
 

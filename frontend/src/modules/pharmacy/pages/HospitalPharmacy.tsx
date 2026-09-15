@@ -258,7 +258,7 @@ const HospitalPharmacyV2: React.FC = () => {
       setCart([]); setPosCustName(''); setPosCustPhone(''); setPosDiscount(0);
       setMedSearch(''); setMedResults([]);
       void loadRetail();
-    } catch { te('Lỗi tạo hóa đơn'); }
+    } catch (e) { te(friendlyErrorMessage(e, 'Lỗi tạo hóa đơn')); } // e.g. "Không đủ tồn kho cho thuốc X"
     finally   { setPosLoading(false); }
   };
 

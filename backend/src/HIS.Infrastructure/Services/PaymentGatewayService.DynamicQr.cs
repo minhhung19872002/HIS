@@ -417,7 +417,10 @@ public partial class PaymentGatewayService
         if (!string.IsNullOrWhiteSpace(bankCode))
         {
             var bank = bankCode.ToLowerInvariant();
-            q = q.Where(t => t.Provider == bank);
+            // Dynamic QR stores "vietcombank", NangCap24 VietQR stores "vcb" — filtering "vcb" hid every paid
+            // dynamic-QR transaction (reconciliation showed 0 paid for Vietcombank).
+            var providers = bank is "vcb" or "vietcombank" ? new[] { "vcb", "vietcombank" } : new[] { bank };
+            q = q.Where(t => providers.Contains(t.Provider));
         }
         var txns = await q.OrderByDescending(t => t.CreatedAt).ToListAsync();
 
@@ -478,7 +481,8 @@ public partial class PaymentGatewayService
     {
         var creator = t.CreatedBy switch
         {
-            null or "" => "Hệ thống",
+            // QR raised by background/service flows carry Guid.Empty — show it as system, not a raw GUID.
+            null or "" or "00000000-0000-0000-0000-000000000000" => "Hệ thống",
             RefKiosk => "Kiosk tự phục vụ",
             _ => creatorNames.TryGetValue(t.CreatedBy, out var name) ? name : t.CreatedBy
         };

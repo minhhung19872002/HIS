@@ -28,7 +28,7 @@ import {
   getUnpaidServices, type UnpaidServiceItemDto,
   getUnpaidMedicines, type UnpaidMedicineItemDto,
   getDepositBalance, type DepositBalanceDto,
-  getPatientInvoice, createPayment,
+  getPatientInvoice, createPayment, useDepositForPayment as spendDepositForPayment,
   getPatientDeposits, createDeposit, type DepositDto,
   searchRefunds, createRefund, type RefundDto,
   getCashBooks, type CashBookDto,
@@ -199,15 +199,35 @@ const BillingEditorV2: React.FC = () => {
         setBusy(false);
         return;
       }
-      const payRes = await createPayment({
-        invoiceId,
-        paymentMethod: method,
-        amount: finalAmount,
-        receivedAmount: finalAmount,
-        depositUsedAmount: advUsed || undefined,
-        notes: `Thu ${selectedItems.length} mục qua editor v2`,
-      });
-      const newPaymentId: string | undefined = payRes?.data?.id;
+      // "Trừ tạm ứng": the backend payment DTO has no depositUsedAmount — it was silently dropped, so the
+      // deposit was never consumed and the invoice kept owing the advance part. Spend deposits explicitly.
+      const deposits = balance?.activeDeposits ?? [];
+      const spendable = deposits.reduce((s, d) => s + (d.remainingAmount || 0), 0);
+      if (advUsed > spendable) {
+        tw(`Tạm ứng khả dụng (${fmtVNDg(spendable)}) không đủ để trừ ${fmtVNDg(advUsed)} — bỏ chọn trừ tạm ứng hoặc tải lại.`);
+        setBusy(false);
+        return;
+      }
+      let newPaymentId: string | undefined;
+      let advLeft = advUsed;
+      for (const d of deposits) {
+        if (advLeft <= 0) break;
+        const take = Math.min(advLeft, d.remainingAmount || 0);
+        if (take <= 0) continue;
+        const depRes = await spendDepositForPayment({ invoiceId, depositId: d.id, amount: take });
+        newPaymentId = depRes?.data?.id ?? newPaymentId;
+        advLeft -= take;
+      }
+      if (finalAmount > 0) {
+        const payRes = await createPayment({
+          invoiceId,
+          paymentMethod: method,
+          amount: finalAmount,
+          receivedAmount: finalAmount,
+          notes: `Thu ${selectedItems.length} mục qua editor v2`,
+        });
+        newPaymentId = payRes?.data?.id ?? newPaymentId;
+      }
       if (newPaymentId) setLastPaymentId(newPaymentId);
       setConfirmOpen(false);
       tk(`✓ Đã thu ${fmtVNDg(finalAmount)} · ${METHODS.find((m) => m.v === method)?.l}`);
@@ -247,9 +267,22 @@ const BillingEditorV2: React.FC = () => {
         }
         tk(`Đã tạo tạm ứng ${fmtVNDg(amt)}`);
       } else if (createModal === 'refund') {
-        await createRefund({ patientId: pt.patientId, refundType: 1, refundAmount: amt, refundMethod: cform.method, reason: cform.reason });
-        const r = await searchRefunds({ patientId: pt.patientId, page: 1, pageSize: 50 });
-        if (selectReqRef.current === createSnapId) setRefunds(r.data?.items || []);
+        // Backend requires the source deposit for a deposit refund (refundType 1) — without it every
+        // refund from this tab was rejected ("Cần chỉ định phiếu tạm ứng hoặc phiếu thanh toán gốc").
+        const srcDeposit = (balance?.activeDeposits ?? []).find((d) => (d.remainingAmount || 0) >= amt);
+        if (!srcDeposit) {
+          tw('Không có phiếu tạm ứng nào còn đủ số dư để hoàn số tiền này. Hoàn theo phiếu thu: dùng màn Viện phí → Hoàn trả.');
+          return;
+        }
+        await createRefund({ patientId: pt.patientId, refundType: 1, originalDepositId: srcDeposit.id, refundAmount: amt, refundMethod: cform.method, reason: cform.reason });
+        const [r, b] = await Promise.all([
+          searchRefunds({ patientId: pt.patientId, page: 1, pageSize: 50 }),
+          getDepositBalance(pt.patientId).catch(() => null),
+        ]);
+        if (selectReqRef.current === createSnapId) {
+          setRefunds(r.data?.items || []);
+          if (b?.data) setBalance(b.data); // refunded advance is no longer spendable
+        }
         tk(`Đã lập phiếu hoàn tiền ${fmtVNDg(amt)}`);
       }
       setCreateModal(null);
@@ -333,7 +366,8 @@ const BillingEditorV2: React.FC = () => {
     { key: 'type', label: 'Loại', width: 140, render: (r) => r.refundTypeName },
     { key: 'amount', label: 'Số tiền', mono: true, width: 130, render: (r) => fmtVNDg(r.refundAmount) },
     { key: 'reason', label: 'Lý do', render: (r) => r.reason },
-    { key: 'status', label: 'TT', width: 120, render: (r) => <StatusBadge tone={r.status === 2 ? 'ok' : 'warn'} dot>{r.status === 2 ? 'Đã hoàn' : 'Chờ duyệt'}</StatusBadge> },
+    // RefundStatus: 0-Chờ duyệt · 1-Đã duyệt · 2-Từ chối · 4-Đã chi · 5-Đã hủy (2 used to render as a green "Đã hoàn")
+    { key: 'status', label: 'TT', width: 120, render: (r) => <StatusBadge tone={r.status === 4 ? 'ok' : r.status === 2 || r.status === 5 ? 'crit' : r.status === 1 ? 'info' : 'warn'} dot>{r.statusName || (r.status === 4 ? 'Đã chi hoàn' : r.status === 1 ? 'Đã duyệt' : r.status === 2 ? 'Từ chối' : r.status === 5 ? 'Đã hủy' : 'Chờ duyệt')}</StatusBadge> },
   ];
   const cashbookCols: ColumnDef<CashBookDto>[] = [
     { key: 'code', label: 'Mã sổ', mono: true, code: true, width: 130, render: (r) => r.code },

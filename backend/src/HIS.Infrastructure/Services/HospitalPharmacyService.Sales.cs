@@ -34,10 +34,19 @@ public partial class HospitalPharmacyService
                 query = query.Where(s => s.PaymentMethod == filter.PaymentMethod);
             if (filter.CashierId.HasValue)
                 query = query.Where(s => s.CashierId == filter.CashierId.Value);
+            // QA-R2: CreatedAt is UTC (CreateSaleAsync) but the filter compared it with VN calendar
+            // dates — sales rung up 00:00–07:00 VN fell out of "today", and `<= to + 1 day` also pulled
+            // in 00:00 of the next day. Compare against the VN-day UTC range (same as GetSalesStatisticsAsync).
             if (!string.IsNullOrEmpty(filter.FromDate) && DateTime.TryParse(filter.FromDate, out var from))
-                query = query.Where(s => s.CreatedAt >= from);
+            {
+                var fromUtc = HIS.Core.Common.VnTime.DayRangeUtc(from).FromUtc;
+                query = query.Where(s => s.CreatedAt >= fromUtc);
+            }
             if (!string.IsNullOrEmpty(filter.ToDate) && DateTime.TryParse(filter.ToDate, out var to))
-                query = query.Where(s => s.CreatedAt <= to.AddDays(1));
+            {
+                var toUtc = HIS.Core.Common.VnTime.DayRangeUtc(to).ToUtc;
+                query = query.Where(s => s.CreatedAt < toUtc);
+            }
 
             var skip = filter.PageIndex * filter.PageSize;
 
@@ -82,7 +91,7 @@ public partial class HospitalPharmacyService
                 Status = s.Status,
                 CashierName = s.CashierName,
                 ItemCount = s.ItemCount,
-                CreatedAt = s.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss"),
+                CreatedAt = s.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss") + "Z", // UTC — marked so the browser shows VN time
             }).ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
@@ -123,7 +132,7 @@ public partial class HospitalPharmacyService
                 CancellationReason = s.CancellationReason,
                 CancelledAt = s.CancelledAt?.ToString("yyyy-MM-ddTHH:mm:ss"),
                 ItemCount = s.Items.Count,
-                CreatedAt = s.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss"),
+                CreatedAt = s.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss") + "Z", // UTC — marked so the browser shows VN time
                 Items = s.Items.Select(i => new RetailSaleItemDto
                 {
                     Id = i.Id,

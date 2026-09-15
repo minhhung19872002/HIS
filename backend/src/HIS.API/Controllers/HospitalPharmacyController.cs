@@ -58,6 +58,13 @@ public class HospitalPharmacyController : ControllerBase
     {
         if (dto == null || dto.Items == null || dto.Items.Count == 0)
             return BadRequest(new { error = "VALIDATION_FAILED", message = "Phiếu bán lẻ phải có ít nhất 1 mặt hàng" });
+        // QA-R2: the v2 POS never sends cashierId and nothing filled it from the token, so every
+        // counter sale was saved with CashierId = Guid.Empty. SearchSales/GetSaleById join the required
+        // Cashier navigation → those sales vanished from "Lịch sử bán" / "Hóa đơn hôm nay" (and could not
+        // be opened or cancelled) although stock had been deducted. The cashier is the signed-in user
+        // (not a client-supplied id, which would let a caller book a sale to someone else's till).
+        if (Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var cashierId))
+            dto.CashierId = cashierId;
         var result = await _hospitalPharmacyService.CreateSaleAsync(dto);
         return Ok(result);
     }

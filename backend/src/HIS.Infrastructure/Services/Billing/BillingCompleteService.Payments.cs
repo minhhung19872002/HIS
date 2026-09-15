@@ -28,6 +28,28 @@ public partial class BillingCompleteService {
         // N7: VND has no sub-unit — reject fractional amounts (a 0,50đ receipt surfaced on the dashboard).
         if (dto.Amount != Math.Round(dto.Amount, 0))
             throw new InvalidOperationException("Số tiền tạm ứng phải là số nguyên đồng (VND không có số lẻ)");
+        // QA-R2: the record was stored as sent — a deposit could be booked on another patient's record, on a
+        // cancelled record, or after discharge / billing lock (money nobody would ever settle against).
+        if (dto.MedicalRecordId.HasValue && dto.MedicalRecordId.Value != Guid.Empty)
+        {
+            var record = await _context.MedicalRecords
+                .Where(m => m.Id == dto.MedicalRecordId.Value && !m.IsDeleted)
+                .Select(m => new { m.PatientId, m.Status, m.IsClosed, m.DischargeDate })
+                .FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ bệnh án");
+            if (record.PatientId != dto.PatientId)
+                throw new InvalidOperationException("Hồ sơ bệnh án không thuộc bệnh nhân này");
+            if (record.Status == MedicalRecordStatus.Cancelled)
+                throw new InvalidOperationException("Hồ sơ bệnh án đã hủy — không thu tạm ứng được");
+            if (record.IsClosed)
+                throw new InvalidOperationException("Hồ sơ bệnh án đã khóa viện phí — không thu tạm ứng được");
+            if (record.DischargeDate.HasValue)
+                throw new InvalidOperationException("Bệnh nhân đã ra viện trên hồ sơ này — không thu tạm ứng được");
+        }
+        else
+        {
+            dto.MedicalRecordId = null; // Guid.Empty would violate the FK
+        }
 
         var deposit = new Deposit
         {
@@ -40,6 +62,7 @@ public partial class BillingCompleteService {
             UsedAmount = 0,
             RemainingAmount = dto.Amount,
             PaymentMethod = dto.PaymentMethod,
+            TransactionReference = dto.TransactionNumber, // bank/card ref was sent by the cashier form but dropped
             Status = 2, // Đã xác nhận
             ReceivedByUserId = userId,
             Notes = dto.Notes,
@@ -224,6 +247,22 @@ public partial class BillingCompleteService {
         var totalDeposit = deposits.Sum(d => d.Amount);
         var usedAmount = deposits.Sum(d => d.UsedAmount);
 
+        // Refunds raised on a deposit never touch UsedAmount/RemainingAmount, so a fully refunded
+        // deposit still showed as available advance at the cashier (measured: 500.000đ refunded and
+        // paid out, balance still 500.000đ). Same rule as UseDepositForPaymentAsync.
+        var depositIds = deposits.Select(d => d.Id).ToList();
+        var refundedByDeposit = depositIds.Count == 0 ? new Dictionary<Guid, decimal>()
+            : await _context.Receipts
+                .Where(r => r.ReceiptType == 3 && !r.IsDeleted && r.OriginalDepositId != null
+                            && depositIds.Contains(r.OriginalDepositId.Value)
+                            && r.Status != RefundStatus.Rejected
+                            && r.Status != RefundStatus.Cancelled)
+                .GroupBy(r => r.OriginalDepositId!.Value)
+                .Select(g => new { g.Key, Sum = g.Sum(r => r.FinalAmount) })
+                .ToDictionaryAsync(x => x.Key, x => x.Sum);
+        decimal Refunded(Guid id) => refundedByDeposit.TryGetValue(id, out var v) ? v : 0m;
+        var totalRefunded = deposits.Sum(d => Refunded(d.Id));
+
         return new DepositBalanceDto
         {
             PatientId = patientId,
@@ -231,9 +270,9 @@ public partial class BillingCompleteService {
             PatientName = patient?.FullName ?? string.Empty,
             TotalDeposit = totalDeposit,
             UsedAmount = usedAmount,
-            RemainingBalance = totalDeposit - usedAmount,
+            RemainingBalance = Math.Max(0, totalDeposit - usedAmount - totalRefunded),
             ActiveDeposits = deposits
-                .Where(d => d.RemainingAmount > 0 && d.Status == 2)
+                .Where(d => d.RemainingAmount - Refunded(d.Id) > 0 && d.Status == 2)
                 .Select(d => new DepositDto
                 {
                     Id = d.Id,
@@ -241,7 +280,7 @@ public partial class BillingCompleteService {
                     PatientId = d.PatientId ?? Guid.Empty,
                     Amount = d.Amount,
                     UsedAmount = d.UsedAmount,
-                    RemainingAmount = d.RemainingAmount,
+                    RemainingAmount = d.RemainingAmount - Refunded(d.Id),
                     Status = d.Status,
                     StatusName = "Đã xác nhận",
                     CreatedAt = d.CreatedAt
@@ -384,6 +423,13 @@ public partial class BillingCompleteService {
             TransactionNumber = d.TransactionReference,
             CashierId = d.ReceivedByUserId,
             CashierName = d.ReceivedBy?.FullName ?? "",
+            // QA-R2: Status/StatusName/CreatedAt were never mapped → every deposit came back status 0 ("—"),
+            // dated 01/01/0001, the v2 "Hủy phiếu" action (gated on status 1|2) never showed and cancelled
+            // deposits looked live in the cashier's "Còn lại" total.
+            Status = d.Status,
+            StatusName = DepositStatus.Label(d.Status),
+            Notes = d.Notes,
+            CreatedAt = d.CreatedAt,
         }).ToList();
     }
 
@@ -720,7 +766,11 @@ public partial class BillingCompleteService {
                 .SumAsync(sr => sr.PatientAmount);
 
             var paidAmount = await _context.Receipts
-                .Where(r => r.MedicalRecordId == medicalRecordId && r.Status == 1)
+                // Refund receipts use RefundStatus: money has left the till only at Paid (4); status 1 there
+                // means "approved", not "collected".
+                .Where(r => r.MedicalRecordId == medicalRecordId && !r.IsDeleted
+                            && ((r.ReceiptType != 3 && r.Status == 1)
+                                || (r.ReceiptType == 3 && r.Status == RefundStatus.Paid)))
                 .SumAsync(r => r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount);
 
             var remaining = totalAmount - paidAmount;

@@ -26,9 +26,11 @@ public class PaymentReportsService : IPaymentReportsService
     public async Task<ServiceOutcome> DepositGatewayAsync(DateTime? fromDate, DateTime? toDate, string? provider)
     {
         var (from, to) = NormalizeRange(fromDate, toDate);
+        // PaymentTransactions.CreatedAt is UTC (SaveChangesAsync) — compare with UTC bounds of the VN days.
+        var (fromUtc, toUtc) = (ReportPeriod.ToUtc(from), ReportPeriod.ToUtc(to));
         var q = _db.PaymentTransactions
             .Include(t => t.Patient)
-            .Where(t => t.OrderType == "deposit" && t.Status == 1 && t.CreatedAt >= from && t.CreatedAt < to);
+            .Where(t => t.OrderType == "deposit" && t.Status == 1 && t.CreatedAt >= fromUtc && t.CreatedAt < toUtc);
         if (!string.IsNullOrWhiteSpace(provider)) q = q.Where(t => t.Provider == provider);
         var list = await q.OrderBy(t => t.CreatedAt).ToListAsync();
         var total = list.Sum(t => t.Amount);
@@ -57,9 +59,13 @@ public class PaymentReportsService : IPaymentReportsService
     public async Task<ServiceOutcome> DailySummaryAsync(DateTime? fromDate, DateTime? toDate)
     {
         var (from, to) = NormalizeRange(fromDate, toDate);
+        // Refund slips move to Paid (RefundStatus 4) once the cash is handed out; `Status == 1` alone
+        // kept approved-but-unpaid refunds and dropped every paid one. Per-method totals are net of refunds.
         var receipts = await _db.Receipts
-            .Where(r => r.Status == 1 && r.ReceiptDate >= from && r.ReceiptDate < to)
+            .Where(r => r.ReceiptDate >= from && r.ReceiptDate < to)
+            .Where(ReportPeriod.CashReceipt)
             .ToListAsync();
+        static decimal Signed(HIS.Core.Entities.Receipt r) => r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount;
         var grouped = receipts
             .GroupBy(r => r.ReceiptDate.Date)
             .OrderBy(g => g.Key)
@@ -70,12 +76,11 @@ public class PaymentReportsService : IPaymentReportsService
                 deposit = g.Where(r => r.ReceiptType == 1).Sum(r => r.FinalAmount),
                 payment = g.Where(r => r.ReceiptType == 2).Sum(r => r.FinalAmount),
                 refund = g.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount),
-                net = g.Where(r => r.ReceiptType != 3).Sum(r => r.FinalAmount)
-                    - g.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount),
-                cash = g.Where(r => r.PaymentMethod == 1).Sum(r => r.FinalAmount),
-                transfer = g.Where(r => r.PaymentMethod == 2).Sum(r => r.FinalAmount),
-                card = g.Where(r => r.PaymentMethod == 3).Sum(r => r.FinalAmount),
-                eWallet = g.Where(r => r.PaymentMethod == 4).Sum(r => r.FinalAmount),
+                net = g.Sum(Signed),
+                cash = g.Where(r => r.PaymentMethod == 1).Sum(Signed),
+                transfer = g.Where(r => r.PaymentMethod == 2).Sum(Signed),
+                card = g.Where(r => r.PaymentMethod == 3).Sum(Signed),
+                eWallet = g.Where(r => r.PaymentMethod == 4).Sum(Signed),
             })
             .ToList();
         return ServiceOutcome.Ok(new
@@ -95,7 +100,8 @@ public class PaymentReportsService : IPaymentReportsService
         var q = _db.Receipts
             .Include(r => r.Patient)
             .Include(r => r.Cashier)
-            .Where(r => r.Status == 1 && r.ReceiptDate >= from && r.ReceiptDate < to);
+            .Where(r => r.ReceiptDate >= from && r.ReceiptDate < to)
+            .Where(ReportPeriod.CashReceipt); // paid-out refunds (4) were missing
         if (cashierId.HasValue) q = q.Where(r => r.CashierId == cashierId.Value);
         if (paymentMethod.HasValue) q = q.Where(r => r.PaymentMethod == paymentMethod.Value);
         var list = await q.OrderBy(r => r.ReceiptDate).ToListAsync();
@@ -170,6 +176,8 @@ public class PaymentReportsService : IPaymentReportsService
                 e.InvoiceDate,
                 e.PatientName,
                 e.PaymentMethod,
+                e.SubTotal,
+                e.VatAmount,
                 e.TotalAmount,
             })
         });
@@ -205,11 +213,12 @@ public class PaymentReportsService : IPaymentReportsService
     public async Task<ServiceOutcome> RefundGatewayAsync(DateTime? fromDate, DateTime? toDate)
     {
         var (from, to) = NormalizeRange(fromDate, toDate);
+        var (fromUtc, toUtc) = (ReportPeriod.ToUtc(from), ReportPeriod.ToUtc(to)); // RefundedAt = DateTime.UtcNow
         var list = await _db.PaymentTransactions
             .Include(t => t.Patient)
             .Where(t => t.RefundedAmount > 0
                 && t.RefundedAt != null
-                && t.RefundedAt >= from && t.RefundedAt < to)
+                && t.RefundedAt >= fromUtc && t.RefundedAt < toUtc)
             .OrderBy(t => t.RefundedAt)
             .ToListAsync();
         return ServiceOutcome.Ok(new
@@ -233,12 +242,13 @@ public class PaymentReportsService : IPaymentReportsService
     public async Task<ServiceOutcome> PharmacyRetailAsync(DateTime? fromDate, DateTime? toDate, string? paymentMethod)
     {
         var (from, to) = NormalizeRange(fromDate, toDate);
+        var (fromUtc, toUtc) = (ReportPeriod.ToUtc(from), ReportPeriod.ToUtc(to)); // RetailSale.CreatedAt is UTC
         var q = _db.RetailSales
             .Include(s => s.Patient)
             .Include(s => s.Cashier)
             .Include(s => s.Items)
             .Where(s => s.Status == "Completed"
-                && s.CreatedAt >= from && s.CreatedAt < to);
+                && s.CreatedAt >= fromUtc && s.CreatedAt < toUtc);
         if (!string.IsNullOrWhiteSpace(paymentMethod))
             q = q.Where(s => s.PaymentMethod == paymentMethod);
         var list = await q.OrderBy(s => s.CreatedAt).ToListAsync();

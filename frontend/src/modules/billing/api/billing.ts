@@ -180,7 +180,7 @@ export interface InvoiceDto {
   totalAmount: number;
   paidAmount: number;
   remainingAmount: number;
-  paymentStatus: number; // 0-Chưa TT, 1-Một phần, 2-Đã TT, 3-Đã hủy
+  paymentStatus: number; // 0-Chưa TT, 1-Một phần, 2-Đã TT, 3-Đã hủy (mapped from BE status in searchInvoices/getInvoiceById)
   paymentStatusName: string;
   approvalStatus: number; // 0-Chưa duyệt, 1-Đã duyệt KT, 2-Tạm khóa
   approvalStatusName: string;
@@ -1322,14 +1322,34 @@ export const calculateInvoice = (medicalRecordId: string) =>
 export const createOrUpdateInvoice = (dto: CreateInvoiceDto) =>
   apiClient.post<InvoiceDto>(`${BASE_URL}/invoices`, dto);
 
+// BE InvoiceSummary.Status is 0-Chưa thanh toán (also while partially paid) · 1-Đã thanh toán · 2-Đã quyết toán,
+// but pages use 0-Chưa TT · 1-Một phần · 2-Đã TT · 3-Đã hủy. Without this map a fully paid invoice landed in the
+// "Một phần" tab with "Thu tiền" still offered, partial payments showed as "Chưa thu", and the e-invoice picker
+// (paymentStatus=2 → BE "quyết toán") was always empty.
+const normalizeInvoice = (inv: InvoiceDto): InvoiceDto => {
+  if (!inv) return inv;
+  const paymentStatus = inv.paymentStatus === 1 || inv.paymentStatus === 2 ? 2 : (inv.paidAmount > 0 ? 1 : 0);
+  return {
+    ...inv,
+    paymentStatus,
+    paymentStatusName: paymentStatus === 1 ? 'Thanh toán một phần' : inv.paymentStatusName,
+  };
+};
+// FE → BE filter value (partial invoices are BE status 0).
+const toBeInvoiceStatus = (s?: number) => (s === undefined ? undefined : s === 2 ? 1 : s === 3 ? undefined : 0);
+
 export const getInvoiceById = (id: string) =>
-  apiClient.get<InvoiceDto>(`${BASE_URL}/invoices/${id}`);
+  apiClient.get<InvoiceDto>(`${BASE_URL}/invoices/${id}`)
+    .then((r) => ({ ...r, data: normalizeInvoice(r.data) }));
 
 export const getPatientInvoice = (medicalRecordId: string) =>
-  apiClient.get<InvoiceDto>(`${BASE_URL}/invoices/medical-record/${medicalRecordId}`);
+  apiClient.get<InvoiceDto>(`${BASE_URL}/invoices/medical-record/${medicalRecordId}`)
+    .then((r) => ({ ...r, data: normalizeInvoice(r.data) }));
 
 export const searchInvoices = (dto: InvoiceSearchDto) =>
-  apiClient.get<PagedResultDto<InvoiceDto>>(`${BASE_URL}/invoices/search`, { params: dto });
+  apiClient.get<PagedResultDto<InvoiceDto>>(`${BASE_URL}/invoices/search`, {
+    params: { ...dto, paymentStatus: toBeInvoiceStatus(dto.paymentStatus) },
+  }).then((r) => (r.data?.items ? { ...r, data: { ...r.data, items: r.data.items.map(normalizeInvoice) } } : r));
 
 export const getUnpaidServices = (patientId: string) =>
   apiClient.get<UnpaidServiceItemDto[]>(`${BASE_URL}/invoices/unpaid-services/${patientId}`);

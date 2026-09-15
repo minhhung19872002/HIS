@@ -103,8 +103,11 @@ const BankPayments: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // NangCap25 dynamic QR stores provider "vietcombank" while /payment/bank/list returns "vcb" — without the
+  // alias every VCB QR (incl. the pending ones waiting for manual confirmation) was hidden from this screen.
+  const bankKey = (p: string) => (p === 'vietcombank' ? 'vcb' : p);
   const bankCodes = new Set(banks.map(b => b.code));
-  const onlyBank = rows.filter(r => bankCodes.has(r.provider));
+  const onlyBank = rows.filter(r => bankCodes.has(bankKey(r.provider)));
 
   const counts: Record<string, number> = { all: onlyBank.length };
   BP_STATUS.forEach(s => {
@@ -113,7 +116,7 @@ const BankPayments: React.FC = () => {
 
   const filtered = onlyBank.filter(r => {
     if (stab !== 'all' && statusToKey(r.status) !== stab) return false;
-    if (fBank && r.provider !== fBank) return false;
+    if (fBank && bankKey(r.provider) !== fBank) return false;
     if (search) {
       const s = search.toLowerCase();
       const hay = [r.txnRef, r.patientName, r.patientCode, r.gatewayTxnRef].filter(Boolean).join(' ').toLowerCase();

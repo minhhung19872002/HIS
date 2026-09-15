@@ -509,8 +509,10 @@ const DepositsPanel: React.FC = () => {
     } catch { te('In phiếu tạm ứng thất bại'); }
   };
 
-  const totalAmount = rows.reduce((s, d) => s + d.amount, 0);
-  const totalRemain = rows.reduce((s, d) => s + d.remainingAmount, 0);
+  // Cancelled deposits (status 5) keep their RemainingAmount — they are not money on hand.
+  const liveRows = rows.filter((d) => d.status !== 5);
+  const totalAmount = liveRows.reduce((s, d) => s + d.amount, 0);
+  const totalRemain = liveRows.reduce((s, d) => s + d.remainingAmount, 0);
 
   const columns: ColumnDef<DepositDto>[] = [
     { key: 'code', label: 'Mã phiếu', mono: true, width: 130, render: (r) => r.receiptCode },
