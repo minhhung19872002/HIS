@@ -254,6 +254,11 @@ Cấu hình cũ sao lưu tại `sites/his-patientapp.caddy.bak-truoc-gop-ten-mie
    `/health`) — route khác trả 403. Miễn hạn mật khẩu 90 ngày (không có người ngồi đổi). Mật khẩu chỉ
    nằm trong `.env` trên VM.
    - **Thêm route mới vào `HisRestConnector`** → phải thêm tiền tố vào middleware, không thì màn đó 403.
+   - **Route POST/PUT mới** còn bị cổng quyền ghi (`WritePermissionMap`) gate theo permission: role chỉ có đúng
+     `Patient.Read` (`PermissionCatalogSeeder.ServiceRoleMatrix`). Test `Route_ghi_BFF_goi_khong_bi_cong_quyen_chan`
+     phải có dòng cho route mới — thiếu quyền là màn đó 503 "chưa kết nối được" (đã xảy ra với tra cứu theo SĐT).
+   - **HIS ghép hồ sơ trùng** → worker `PatientMergeReconcile` (15 phút, `appsettings`) hỏi
+     `POST /api/patients/merge-successors` và trỏ tài khoản + liên kết người thân sang hồ sơ còn lại.
    - **Xoay khoá:** admin HIS gọi `POST /api/admin/users/{id}/change-password` (mật khẩu cũ + mới) → sửa
      `HIS_SERVICE_PASSWORD` trong `.env` → `docker compose up -d patientapp-api` → `curl /health/ready`
      phải `"hisCore":true`. Bản `.env` trước khi đổi: `.env.bak-truoc-svc-20260915`.
