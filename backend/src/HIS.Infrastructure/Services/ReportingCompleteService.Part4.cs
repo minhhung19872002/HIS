@@ -18,12 +18,15 @@ public partial class ReportingCompleteService
     {
         try
         {
+            // CreatedAt / AuditLogs.Timestamp are UTC; toDate is date-only "through that day".
+            var fromUtc = ReportPeriod.ToUtc(fromDate);
+            var toUtc = ReportPeriod.ToUtc(ReportPeriod.EndExclusive(toDate));
             var users = await _context.Users.Where(u => !u.IsDeleted).ToListAsync();
 
             var totalUsers = users.Count;
             var activeUsers = users.Count(u => u.IsActive);
             var inactiveUsers = totalUsers - activeUsers;
-            var newThisMonth = users.Count(u => u.CreatedAt >= fromDate && u.CreatedAt < toDate);
+            var newThisMonth = users.Count(u => u.CreatedAt >= fromUtc && u.CreatedAt < toUtc);
 
             var byDept = await _context.Users
                 .Where(u => !u.IsDeleted && u.DepartmentId != null)
@@ -41,7 +44,7 @@ public partial class ReportingCompleteService
 
             // Top active users from audit logs
             var topActive = await _context.AuditLogs
-                .Where(a => a.Timestamp >= fromDate && a.Timestamp < toDate && a.Username != null)
+                .Where(a => a.Timestamp >= fromUtc && a.Timestamp < toUtc && a.Username != null)
                 .GroupBy(a => new { a.Username, a.UserFullName })
                 .Select(g => new UserActivityDto
                 {
@@ -84,8 +87,10 @@ public partial class ReportingCompleteService
     {
         try
         {
+            var fromUtc = ReportPeriod.ToUtc(fromDate);
+            var toUtc = ReportPeriod.ToUtc(ReportPeriod.EndExclusive(toDate));
             var query = _context.AuditLogs
-                .Where(a => a.Timestamp >= fromDate && a.Timestamp < toDate);
+                .Where(a => a.Timestamp >= fromUtc && a.Timestamp < toUtc);
 
             if (!string.IsNullOrEmpty(module))
                 query = query.Where(a => a.Module == module);
@@ -152,9 +157,13 @@ public partial class ReportingCompleteService
         try
         {
             // API response times from audit logs (count per hour as proxy for load)
+            // AuditLogs.Timestamp is UTC: filter on UTC bounds and bucket by VN hour.
+            var fromUtc = ReportPeriod.ToUtc(fromDate);
+            var toUtc = ReportPeriod.ToUtc(ReportPeriod.EndExclusive(toDate));
+            var offsetHours = (int)Math.Round((fromDate - fromUtc).TotalHours);
             var hourlyLoad = await _context.AuditLogs
-                .Where(a => a.Timestamp >= fromDate && a.Timestamp < toDate)
-                .GroupBy(a => a.Timestamp.Hour)
+                .Where(a => a.Timestamp >= fromUtc && a.Timestamp < toUtc)
+                .GroupBy(a => (a.Timestamp.Hour + offsetHours + 24) % 24)
                 .Select(g => new { Hour = g.Key, RequestCount = g.Count() })
                 .OrderBy(h => h.Hour)
                 .ToListAsync();
@@ -164,7 +173,7 @@ public partial class ReportingCompleteService
 
             // Error rate from audit logs with non-200 status
             var errorCount = await _context.AuditLogs
-                .CountAsync(a => a.Timestamp >= fromDate && a.Timestamp < toDate && a.ResponseStatusCode != null && a.ResponseStatusCode >= 500);
+                .CountAsync(a => a.Timestamp >= fromUtc && a.Timestamp < toUtc && a.ResponseStatusCode != null && a.ResponseStatusCode >= 500);
 
             return new
             {
@@ -232,34 +241,43 @@ public partial class ReportingCompleteService
 
     public async Task<byte[]> ExportToExcelAsync(string reportCode, DateTime fromDate, DateTime toDate, object? parameters = null)
     {
-        try
+        // The controller serves this as .xlsx (OOXML). It used to be CSV text, which Excel refuses
+        // to open under an .xlsx name; failures returned an empty 200 file instead of an error.
+        var rows = await GetReportRowsAsync(reportCode, fromDate, toDate);
+        var sheetRows = rows
+            .Select((r, i) => (IReadOnlyList<object?>)new object?[] { i + 1, r.Code, r.Name, r.Value, r.Date, r.Note })
+            .ToList();
+        return HIS.Infrastructure.Services.Export.SimpleXlsxWriter.Build(new[]
         {
-            // Generate CSV with UTF-8 BOM for Vietnamese character support
-            var rows = await GetReportRowsAsync(reportCode, fromDate, toDate);
-            var sb = new System.Text.StringBuilder();
-            // CSV header
-            sb.AppendLine("STT,Ma,Ten,Gia tri,Ngay,Ghi chu");
-            for (int i = 0; i < rows.Count; i++)
-            {
-                var r = rows[i];
-                sb.AppendLine($"{i + 1},\"{EscCsv(r.Code)}\",\"{EscCsv(r.Name)}\",\"{EscCsv(r.Value)}\",\"{EscCsv(r.Date)}\",\"{EscCsv(r.Note)}\"");
-            }
-            // UTF-8 BOM + content
-            var bom = new byte[] { 0xEF, 0xBB, 0xBF };
-            var content = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
-            var result = new byte[bom.Length + content.Length];
-            bom.CopyTo(result, 0);
-            content.CopyTo(result, bom.Length);
-            return result;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "ExportToExcelAsync failed for {ReportCode}", reportCode);
-            return Array.Empty<byte>();
-        }
+            new HIS.Infrastructure.Services.Export.XlsxSheet(reportCode,
+                new[] { "STT", "Ma", "Ten", "Gia tri", "Ngay", "Ghi chu" }, sheetRows)
+        });
     }
 
-    private static string EscCsv(string? val) => (val ?? "").Replace("\"", "\"\"");
+    /// <summary>Render report HTML to a real PDF (was HTML bytes served as application/pdf).</summary>
+    private static byte[] RenderHtmlToPdf(string html)
+    {
+        using var htmlStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(html));
+        using var outputStream = new MemoryStream();
+        var fontProvider = new iText.Layout.Font.FontProvider();
+        fontProvider.AddStandardPdfFonts();
+        foreach (var font in new[]
+        {
+            @"C:\Windows\Fonts\times.ttf", @"C:\Windows\Fonts\timesbd.ttf", @"C:\Windows\Fonts\timesi.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSerif-Italic.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
+        })
+        {
+            if (File.Exists(font)) fontProvider.AddFont(font);
+        }
+        var properties = new iText.Html2pdf.ConverterProperties();
+        properties.SetFontProvider(fontProvider);
+        iText.Html2pdf.HtmlConverter.ConvertToPdf(htmlStream, outputStream, properties);
+        return outputStream.ToArray(); // ToArray works on the stream ConvertToPdf has closed
+    }
 
     public async Task<byte[]> ExportToPdfAsync(string reportCode, DateTime fromDate, DateTime toDate, object? parameters = null)
     {
@@ -276,7 +294,7 @@ public partial class ReportingCompleteService
             var html = $@"<!DOCTYPE html>
 <html><head><meta charset=""utf-8""><title>Bao cao {System.Net.WebUtility.HtmlEncode(reportCode)}</title>
 <style>
-body {{ font-family: 'Times New Roman', serif; font-size: 13px; margin: 20px; }}
+body {{ font-family: 'Times New Roman', 'Liberation Serif', 'DejaVu Serif', serif; font-size: 13px; margin: 20px; }}
 h1 {{ text-align: center; font-size: 16px; text-transform: uppercase; }}
 p.subtitle {{ text-align: center; font-style: italic; }}
 table {{ width: 100%; border-collapse: collapse; margin: 10px 0; }}
@@ -293,12 +311,13 @@ th {{ background: #f0f0f0; text-align: center; }}
 <p style=""text-align:right""><b>Nguoi lap bao cao</b></p>
 </body></html>";
 
-            return System.Text.Encoding.UTF8.GetBytes(html);
+            return RenderHtmlToPdf(html);
         }
         catch (Exception ex)
         {
+            // Surface the failure (controller → 500) instead of downloading an empty "PDF".
             _logger.LogWarning(ex, "ExportToPdfAsync failed for {ReportCode}", reportCode);
-            return Array.Empty<byte>();
+            throw;
         }
     }
 
@@ -307,6 +326,19 @@ th {{ background: #f0f0f0; text-align: center; }}
         try
         {
             var query = _context.GeneratedReports.Where(r => !r.IsDeleted).AsQueryable();
+            // reportCode/fromDate/toDate were accepted but ignored (always the latest N of every report).
+            if (!string.IsNullOrEmpty(reportCode))
+                query = query.Where(r => r.ReportCode == reportCode);
+            if (fromDate.HasValue)
+            {
+                var fromUtc = ReportPeriod.ToUtc(fromDate.Value);
+                query = query.Where(r => r.CreatedAt >= fromUtc);
+            }
+            if (toDate.HasValue)
+            {
+                var toUtc = ReportPeriod.ToUtc(ReportPeriod.EndExclusive(toDate.Value));
+                query = query.Where(r => r.CreatedAt < toUtc);
+            }
 
             var results = await query
                 .OrderByDescending(r => r.CreatedAt)
@@ -535,22 +567,39 @@ h1 {{ text-align: center; font-size: 16px; }}
         var inpatient = await mrQuery.CountAsync(m => m.TreatmentType == 2);
         var emergency = await mrQuery.CountAsync(m => m.TreatmentType == 3);
 
-        var examQuery = _context.Examinations.Where(e => e.CreatedAt >= from && e.CreatedAt < to && !e.IsDeleted);
+        // CreatedAt is UTC (HISDbContext.SaveChangesAsync); cancelled examinations (5) are not visits.
+        var fromUtc = ReportPeriod.ToUtc(from);
+        var toUtc = ReportPeriod.ToUtc(to);
+        var examQuery = _context.Examinations.Where(e => e.CreatedAt >= fromUtc && e.CreatedAt < toUtc && e.Status != 5 && !e.IsDeleted);
         if (departmentId.HasValue)
             examQuery = examQuery.Where(e => e.DepartmentId == departmentId.Value);
         var totalExams = await examQuery.CountAsync();
 
-        var receiptQuery = _context.Receipts.Where(r => r.ReceiptDate >= from && r.ReceiptDate < to && r.Status == 1 && !r.IsDeleted);
-        var totalRevenue = await receiptQuery.SumAsync(r => (decimal?)r.FinalAmount) ?? 0;
+        // Net cash: refund slips were added as revenue when approved (1) and ignored once paid out (4).
+        var receiptQuery = _context.Receipts.Where(r => r.ReceiptDate >= from && r.ReceiptDate < to && !r.IsDeleted).Where(ReportPeriod.CashReceipt);
+        if (departmentId.HasValue)
+            receiptQuery = receiptQuery.Where(r => r.MedicalRecord != null && r.MedicalRecord.DepartmentId == departmentId.Value);
+        var totalRevenue = await receiptQuery.SumAsync(r => (decimal?)(r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount)) ?? 0;
 
         // #14b: model 1 (SRD RequestType=1, loại hủy) thay LabRequestItems (model 2 chết)
-        var labTests = await _context.ServiceRequestDetails.CountAsync(d => d.CreatedAt >= from && d.CreatedAt < to && !d.IsDeleted
+        // Department dashboard: labs/surgeries/beds were hospital-wide even when departmentId was given.
+        var labQuery = _context.ServiceRequestDetails.Where(d => d.CreatedAt >= fromUtc && d.CreatedAt < toUtc && !d.IsDeleted
             && d.ServiceRequest.RequestType == 1 && d.Status != 3);
+        if (departmentId.HasValue)
+            labQuery = labQuery.Where(d => d.ServiceRequest.DepartmentId == departmentId.Value);
+        var labTests = await labQuery.CountAsync();
 
-        var surgeries = await _context.SurgeryRequests.CountAsync(s => s.RequestDate >= from && s.RequestDate < to && !s.IsDeleted);
+        // SurgeryRequest.Status 4 = cancelled
+        var surgeryQuery = _context.SurgeryRequests.Where(s => s.RequestDate >= from && s.RequestDate < to && s.Status != 4 && !s.IsDeleted);
+        if (departmentId.HasValue)
+            surgeryQuery = surgeryQuery.Where(s => s.MedicalRecord != null && s.MedicalRecord.DepartmentId == departmentId.Value);
+        var surgeries = await surgeryQuery.CountAsync();
 
-        var totalBeds = await _context.Beds.CountAsync(b => b.IsActive && !b.IsDeleted);
-        var availableBeds = await _context.Beds.CountAsync(b => b.Status == 0 && b.IsActive && !b.IsDeleted);
+        var bedQuery = _context.Beds.Where(b => b.IsActive && !b.IsDeleted);
+        if (departmentId.HasValue)
+            bedQuery = bedQuery.Where(b => b.Room.DepartmentId == departmentId.Value);
+        var totalBeds = await bedQuery.CountAsync();
+        var availableBeds = await bedQuery.CountAsync(b => b.Status == 0);
         var occupancyRate = totalBeds > 0 ? Math.Round((totalBeds - availableBeds) * 100m / totalBeds, 1) : 0;
 
         return new DashboardSummaryDto
@@ -589,9 +638,12 @@ h1 {{ text-align: center; font-size: 16px; }}
     {
         try
         {
+            var toEnd = ReportPeriod.EndExclusive(toDate);
+            // Cancelled (4) and draft/unissued (5) prescriptions dispensed nothing.
             var query = _context.PrescriptionDetails
                 .Where(pd => pd.Prescription.PrescriptionDate >= fromDate
-                    && pd.Prescription.PrescriptionDate < toDate
+                    && pd.Prescription.PrescriptionDate < toEnd
+                    && pd.Prescription.Status != 4 && pd.Prescription.Status != 5
                     && !pd.IsDeleted
                     && (isNarcotic ? pd.Medicine.IsNarcotic : pd.Medicine.IsPsychotropic));
 

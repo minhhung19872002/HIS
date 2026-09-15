@@ -81,6 +81,39 @@ public class AdrReportService : IAdrReportService
             throw new InvalidOperationException("Tên thuốc nghi ngờ (DrugName) là bắt buộc.");
         if (string.IsNullOrWhiteSpace(dto.ReactionDescription))
             throw new InvalidOperationException("Mô tả phản ứng (ReactionDescription) là bắt buộc.");
+        if (string.IsNullOrWhiteSpace(dto.PatientName))
+            throw new InvalidOperationException("Tên bệnh nhân là bắt buộc.");
+        // Severity outside 1-4 was stored and then silently dropped from every bucket of the summary report.
+        if (dto.Severity < 1 || dto.Severity > 4)
+            throw new InvalidOperationException("Mức độ nghiêm trọng phải từ 1 đến 4.");
+
+        // The v2 form sends toISOString() (UTC 'Z'); the rest of HIS stores VN local time and the from/to filters
+        // compare local calendar days, so a report made at 06:30 on the 15th landed on the 14th.
+        static DateTime ToLocal(DateTime d) => d.Kind == DateTimeKind.Utc ? d.ToLocalTime() : d;
+        dto.ReactionStartDate = ToLocal(dto.ReactionStartDate);
+        dto.ReportDate = dto.ReportDate == default ? DateTime.Now : ToLocal(dto.ReportDate);
+        if (dto.ReactionStartDate > DateTime.Now.AddMinutes(5))
+            throw new InvalidOperationException("Ngày khởi phát phản ứng không được ở tương lai.");
+
+        // Guard against linking the report to the wrong patient: a PatientCode that exists in HIS must belong
+        // to the entered patient name, and a PrescriptionId must be a prescription of that same patient.
+        if (!string.IsNullOrWhiteSpace(dto.PatientCode))
+        {
+            var code = dto.PatientCode.Trim();
+            var patient = await _db.Patients.AsNoTracking()
+                .Where(p => p.PatientCode == code)
+                .Select(p => new { p.Id, p.FullName })
+                .FirstOrDefaultAsync();
+            if (patient != null && !string.Equals(patient.FullName?.Trim(), dto.PatientName.Trim(), StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"Mã BN {code} thuộc bệnh nhân khác ({patient.FullName}) — kiểm tra lại mã/tên bệnh nhân.");
+            if (patient != null && dto.PrescriptionId.HasValue)
+            {
+                var rxOfPatient = await _db.Prescriptions.AsNoTracking()
+                    .AnyAsync(rx => rx.Id == dto.PrescriptionId.Value && rx.MedicalRecord != null && rx.MedicalRecord.PatientId == patient.Id);
+                if (!rxOfPatient)
+                    throw new InvalidOperationException("Đơn thuốc không thuộc bệnh nhân này.");
+            }
+        }
 
         AdrReport entity;
 
@@ -95,7 +128,8 @@ public class AdrReportService : IAdrReportService
         }
         else
         {
-            entity = await _db.AdrReports.FirstAsync(r => r.Id == dto.Id && !r.IsDeleted);
+            entity = await _db.AdrReports.FirstOrDefaultAsync(r => r.Id == dto.Id && !r.IsDeleted)
+                ?? throw new KeyNotFoundException("Không tìm thấy phiếu ADR");
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }
@@ -117,7 +151,7 @@ public class AdrReportService : IAdrReportService
         entity.ManagementTaken     = dto.ManagementTaken;
         entity.Causality           = dto.Causality;
         entity.ReporterName        = dto.ReporterName;
-        entity.ReportDate          = dto.ReportDate == default ? DateTime.UtcNow : dto.ReportDate;
+        entity.ReportDate          = dto.ReportDate;
         entity.Notes               = dto.Notes;
 
         await _db.SaveChangesAsync();

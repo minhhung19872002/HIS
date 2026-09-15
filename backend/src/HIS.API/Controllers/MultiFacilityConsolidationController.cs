@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using HIS.API.Authorization;
+using HIS.Core.Constants;
 using HIS.Core.DTOs;
 using HIS.Infrastructure.Services;
 
@@ -11,6 +13,7 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/multi-facility")]
 [Authorize]
+[RequirePermission(PermissionCatalog.Report.Read)] // hospital-wide revenue/census: was open to any logged-in role
 public class MultiFacilityConsolidationController : ControllerBase
 {
     private readonly IMultiFacilityConsolidationService _service;

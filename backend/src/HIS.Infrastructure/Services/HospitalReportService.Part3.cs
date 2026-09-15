@@ -23,7 +23,7 @@ public partial class HospitalReportService
         // only once approved/paid (1/4) — pending (0), rejected (2), cancelled (5) never left the till.
         var query = _context.Receipts.AsNoTracking()
             .Where(r => r.ReceiptDate >= from && r.ReceiptDate < to && !r.IsDeleted)
-            .Where(r => (r.ReceiptType != 3 && r.Status == 1) || (r.ReceiptType == 3 && (r.Status == 1 || r.Status == 4)));
+            .Where(ReportPeriod.CashReceipt); // + excludes refunds of deposits (never counted as revenue here)
 
         var data = await query
             .GroupBy(r => r.ReceiptDate.Date)
@@ -65,8 +65,9 @@ public partial class HospitalReportService
         // CashBooks query
         try
         {
+            var (fromUtc, toUtc, _) = UtcRange(from, to);
             var data = await _context.Set<CashBook>().AsNoTracking()
-                .Where(c => c.CreatedAt >= from && c.CreatedAt < to && !c.IsDeleted)
+                .Where(c => c.CreatedAt >= fromUtc && c.CreatedAt < toUtc && !c.IsDeleted)
                 .OrderByDescending(c => c.CreatedAt)
                 .Take(500)
                 .ToListAsync();
@@ -131,8 +132,9 @@ public partial class HospitalReportService
 
     private async Task FillOtherPayerPatients(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        var (fromUtc, toUtc, _) = UtcRange(from, to);
         var query = _context.Examinations.AsNoTracking()
-            .Where(e => e.CreatedAt >= from && e.CreatedAt < to && !e.IsDeleted)
+            .Where(e => e.CreatedAt >= fromUtc && e.CreatedAt < toUtc && e.Status != 5 && !e.IsDeleted)
             .Where(e => e.MedicalRecord.PatientType == 3); // Other payer
         if (deptId.HasValue)
             query = query.Where(e => e.DepartmentId == deptId);
@@ -178,8 +180,9 @@ public partial class HospitalReportService
 
     private async Task FillSurgeryFinance(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        var (fromUtc, toUtc, _) = UtcRange(from, to);
         var query = _context.SurgeryRequests.AsNoTracking()
-            .Where(s => s.CreatedAt >= from && s.CreatedAt < to && !s.IsDeleted);
+            .Where(s => s.CreatedAt >= fromUtc && s.CreatedAt < toUtc && s.Status != 4 && !s.IsDeleted); // 4 = cancelled
         if (deptId.HasValue)
             query = query.Where(s => s.Examination != null && s.Examination.DepartmentId == deptId);
 
@@ -237,10 +240,12 @@ public partial class HospitalReportService
 
     private async Task FillStockMovement(HospitalReportResult result, DateTime from, DateTime to, Guid? warehouseId)
     {
+        // Only posted movements: ImportReceipt.Status 1 = approved, ExportReceipt.Status 1 = issued.
+        // Pending (0) and cancelled (2) receipts were summed into import/export totals.
         var importQuery = _context.ImportReceipts.AsNoTracking()
-            .Where(i => i.ReceiptDate >= from && i.ReceiptDate < to && !i.IsDeleted);
+            .Where(i => i.ReceiptDate >= from && i.ReceiptDate < to && !i.IsDeleted && i.Status == 1);
         var exportQuery = _context.ExportReceipts.AsNoTracking()
-            .Where(e => e.ReceiptDate >= from && e.ReceiptDate < to && !e.IsDeleted);
+            .Where(e => e.ReceiptDate >= from && e.ReceiptDate < to && !e.IsDeleted && e.Status == 1);
         if (warehouseId.HasValue)
         {
             importQuery = importQuery.Where(i => i.WarehouseId == warehouseId);
@@ -270,7 +275,7 @@ public partial class HospitalReportService
     private async Task FillPharmacyProfit(HospitalReportResult result, DateTime from, DateTime to, Guid? warehouseId)
     {
         var exports = _context.ExportReceipts.AsNoTracking()
-            .Where(e => e.ReceiptDate >= from && e.ReceiptDate < to && !e.IsDeleted && e.ExportType == 6); // RetailSale
+            .Where(e => e.ReceiptDate >= from && e.ReceiptDate < to && !e.IsDeleted && e.Status == 1 && e.ExportType == 6); // RetailSale, issued only
         if (warehouseId.HasValue)
             exports = exports.Where(e => e.WarehouseId == warehouseId);
 
@@ -293,9 +298,11 @@ public partial class HospitalReportService
     private async Task FillIssueToDept(HospitalReportResult result, DateTime from, DateTime to, Guid? warehouseId, Guid? deptId)
     {
         var query = _context.ExportReceipts.AsNoTracking()
-            .Where(e => e.ReceiptDate >= from && e.ReceiptDate < to && !e.IsDeleted);
+            .Where(e => e.ReceiptDate >= from && e.ReceiptDate < to && !e.IsDeleted && e.Status == 1); // issued only (2 = cancelled)
         if (warehouseId.HasValue)
             query = query.Where(e => e.WarehouseId == warehouseId);
+        if (deptId.HasValue)
+            query = query.Where(e => e.ToDepartmentId == deptId); // department filter was accepted but ignored
 
         var data = await query
             .Include(e => e.Warehouse)
@@ -332,7 +339,7 @@ public partial class HospitalReportService
     private async Task FillProcurementImport(HospitalReportResult result, DateTime from, DateTime to, Guid? warehouseId)
     {
         var query = _context.ImportReceipts.AsNoTracking()
-            .Where(i => i.ReceiptDate >= from && i.ReceiptDate < to && !i.IsDeleted);
+            .Where(i => i.ReceiptDate >= from && i.ReceiptDate < to && !i.IsDeleted && i.Status != 2); // 2 = cancelled
         if (warehouseId.HasValue)
             query = query.Where(i => i.WarehouseId == warehouseId);
 
@@ -364,13 +371,17 @@ public partial class HospitalReportService
             });
         }
         result.Summary["totalImports"] = data.Count;
-        result.Summary["totalAmount"] = data.Sum(d => d.TotalAmount);
+        result.Summary["totalAmount"] = data.Where(d => d.Status == 1).Sum(d => d.TotalAmount); // approved imports only
     }
 
     private async Task FillPrescriptionByDoctor(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        // CreatedAt is UTC; cancelled (4) and draft/unissued (5) prescriptions are not prescribing activity.
+        var (fromUtc, toUtc, _) = UtcRange(from, to);
         var query = _context.Prescriptions.AsNoTracking()
-            .Where(p => p.CreatedAt >= from && p.CreatedAt < to && !p.IsDeleted);
+            .Where(p => p.CreatedAt >= fromUtc && p.CreatedAt < toUtc && p.Status != 4 && p.Status != 5 && !p.IsDeleted);
+        if (deptId.HasValue)
+            query = query.Where(p => p.DepartmentId == deptId); // was accepted but ignored
 
         var data = await query
             .Include(p => p.Doctor)
@@ -405,8 +416,9 @@ public partial class HospitalReportService
 
     private async Task FillIssueByPatientType(HospitalReportResult result, DateTime from, DateTime to, Guid? warehouseId)
     {
+        var (fromUtc, toUtc, _) = UtcRange(from, to);
         var query = _context.Prescriptions.AsNoTracking()
-            .Where(p => p.CreatedAt >= from && p.CreatedAt < to && !p.IsDeleted);
+            .Where(p => p.CreatedAt >= fromUtc && p.CreatedAt < toUtc && p.Status != 4 && p.Status != 5 && !p.IsDeleted);
 
         var data = await query
             .Include(p => p.MedicalRecord)
@@ -438,11 +450,12 @@ public partial class HospitalReportService
     {
         // #14b: đếm phiếu/chỉ định XN từ model 1 (ServiceRequest/Detail RequestType=1) — bảng
         // LabRequest(Item) (model 2) chết trong luồng thật nên báo cáo trước đây đếm = 0.
+        var (fromUtc, toUtc, _) = UtcRange(from, to);
         var labCount = await _context.ServiceRequests.AsNoTracking()
-            .Where(r => r.RequestType == 1 && r.CreatedAt >= from && r.CreatedAt < to && !r.IsDeleted && r.Status != 4)
+            .Where(r => r.RequestType == 1 && r.CreatedAt >= fromUtc && r.CreatedAt < toUtc && !r.IsDeleted && r.Status != 4)
             .CountAsync();
         var labItemCount = await _context.ServiceRequestDetails.AsNoTracking()
-            .Where(d => d.ServiceRequest.RequestType == 1 && d.CreatedAt >= from && d.CreatedAt < to && !d.IsDeleted && d.Status != 3)
+            .Where(d => d.ServiceRequest.RequestType == 1 && d.CreatedAt >= fromUtc && d.CreatedAt < toUtc && !d.IsDeleted && d.Status != 3)
             .CountAsync();
 
         result.Data.Add(new Dictionary<string, object>
@@ -453,7 +466,7 @@ public partial class HospitalReportService
         });
 
         var srQuery = _context.ServiceRequests.AsNoTracking()
-            .Where(sr => sr.CreatedAt >= from && sr.CreatedAt < to && !sr.IsDeleted && sr.RequestType == 2); // Imaging
+            .Where(sr => sr.CreatedAt >= fromUtc && sr.CreatedAt < toUtc && !sr.IsDeleted && sr.RequestType == 2 && sr.Status != 4); // Imaging, not cancelled (as lab above)
         var imgCount = await srQuery.CountAsync();
         result.Data.Add(new Dictionary<string, object>
         {
@@ -470,8 +483,9 @@ public partial class HospitalReportService
     private async Task FillMicrobiologyRegister(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
         // #14b: model 1 — SRD XN thuộc nhóm dịch vụ vi sinh (LabRequests model 2 chết; filter PatientType==2 cũ là hack)
+        var (fromUtc, toUtc, _) = UtcRange(from, to);
         var query = _context.ServiceRequestDetails.AsNoTracking()
-            .Where(d => d.CreatedAt >= from && d.CreatedAt < to && !d.IsDeleted
+            .Where(d => d.CreatedAt >= fromUtc && d.CreatedAt < toUtc && !d.IsDeleted
                 && d.ServiceRequest.RequestType == 1 && d.Status != 3
                 && d.Service.ServiceGroup.GroupName.Contains("Vi sinh"));
         var count = await query.CountAsync();
@@ -482,8 +496,9 @@ public partial class HospitalReportService
     private async Task FillLabRegister(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
         // #14b: model 1 ServiceRequests (RequestType=1 XN, loại hủy) thay LabRequests (model 2 chết)
+        var (fromUtc, toUtc, offsetHours) = UtcRange(from, to);
         var query = _context.ServiceRequests.AsNoTracking()
-            .Where(l => l.CreatedAt >= from && l.CreatedAt < to && !l.IsDeleted && l.RequestType == 1 && l.Status != 4);
+            .Where(l => l.CreatedAt >= fromUtc && l.CreatedAt < toUtc && !l.IsDeleted && l.RequestType == 1 && l.Status != 4);
 
         var data = await query
             .OrderBy(l => l.CreatedAt)
@@ -502,7 +517,7 @@ public partial class HospitalReportService
         {
             result.Data.Add(new Dictionary<string, object>
             {
-                ["date"] = d.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+                ["date"] = d.CreatedAt.AddHours(offsetHours).ToString("dd/MM/yyyy HH:mm"),
                 ["requestCode"] = d.RequestCode ?? "",
                 ["sampleCode"] = d.SampleCode ?? "",
                 ["status"] = d.Status,
@@ -515,8 +530,9 @@ public partial class HospitalReportService
 
     private async Task FillUltrasoundRegister(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        var (fromUtc, toUtc, _) = UtcRange(from, to);
         var query = _context.ServiceRequests.AsNoTracking()
-            .Where(sr => sr.CreatedAt >= from && sr.CreatedAt < to && !sr.IsDeleted && sr.RequestType == 2);
+            .Where(sr => sr.CreatedAt >= fromUtc && sr.CreatedAt < toUtc && !sr.IsDeleted && sr.RequestType == 2 && sr.Status != 4);
         var count = await query.CountAsync();
         result.Data.Add(new Dictionary<string, object> { ["type"] = "Sieu am", ["count"] = count });
         result.Summary["totalUltrasound"] = count;
@@ -524,8 +540,11 @@ public partial class HospitalReportService
 
     private async Task FillEndoscopyRegister(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        // Endoscopy / functional tests = RequestType 3 (TDCN); was RequestType 2 (imaging), so this
+        // register just repeated the imaging count.
+        var (fromUtc, toUtc, _) = UtcRange(from, to);
         var query = _context.ServiceRequests.AsNoTracking()
-            .Where(sr => sr.CreatedAt >= from && sr.CreatedAt < to && !sr.IsDeleted && sr.RequestType == 2);
+            .Where(sr => sr.CreatedAt >= fromUtc && sr.CreatedAt < toUtc && !sr.IsDeleted && sr.RequestType == 3 && sr.Status != 4);
         var count = await query.CountAsync();
         result.Data.Add(new Dictionary<string, object> { ["type"] = "Noi soi / TDCN", ["count"] = count });
         result.Summary["totalEndoscopy"] = count;
@@ -533,8 +552,9 @@ public partial class HospitalReportService
 
     private async Task FillImagingRegister(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        var (fromUtc, toUtc, _) = UtcRange(from, to);
         var query = _context.ServiceRequests.AsNoTracking()
-            .Where(sr => sr.CreatedAt >= from && sr.CreatedAt < to && !sr.IsDeleted && sr.RequestType == 2);
+            .Where(sr => sr.CreatedAt >= fromUtc && sr.CreatedAt < toUtc && !sr.IsDeleted && sr.RequestType == 2 && sr.Status != 4);
         var count = await query.CountAsync();
         result.Data.Add(new Dictionary<string, object> { ["type"] = "CDHA", ["count"] = count });
         result.Summary["totalImaging"] = count;
@@ -542,11 +562,13 @@ public partial class HospitalReportService
 
     private async Task FillImagingRevenue(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        // Collected payment receipts on their business date (was Receipt.CreatedAt UTC, cancelled included).
         var query = _context.ReceiptDetails.AsNoTracking()
-            .Where(rd => rd.Receipt.CreatedAt >= from && rd.Receipt.CreatedAt < to && !rd.IsDeleted)
+            .Where(rd => rd.Receipt.ReceiptDate >= from && rd.Receipt.ReceiptDate < to && !rd.IsDeleted
+                && rd.Receipt.Status == 1 && rd.Receipt.ReceiptType != 3)
             .Where(rd => rd.ItemType == 1); // Services related to imaging
 
-        var total = await query.SumAsync(rd => rd.Amount);
+        var total = await query.SumAsync(rd => rd.FinalAmount); // after discount, like every other revenue report
         var count = await query.CountAsync();
         result.Data.Add(new Dictionary<string, object>
         {
@@ -565,11 +587,14 @@ public partial class HospitalReportService
 
     private async Task FillOrderedVsPerformedCLS(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        // ServiceRequest.Status: 2 in progress · 3 has result · 4 cancelled. Cancelled orders were
+        // counted both as ordered AND as performed (Status >= 2).
+        var (fromUtc, toUtc, _) = UtcRange(from, to);
         var ordered = await _context.ServiceRequests.AsNoTracking()
-            .Where(sr => sr.CreatedAt >= from && sr.CreatedAt < to && !sr.IsDeleted)
+            .Where(sr => sr.CreatedAt >= fromUtc && sr.CreatedAt < toUtc && !sr.IsDeleted && sr.Status != 4)
             .CountAsync();
         var performed = await _context.ServiceRequests.AsNoTracking()
-            .Where(sr => sr.CreatedAt >= from && sr.CreatedAt < to && !sr.IsDeleted && sr.Status >= 2)
+            .Where(sr => sr.CreatedAt >= fromUtc && sr.CreatedAt < toUtc && !sr.IsDeleted && (sr.Status == 2 || sr.Status == 3))
             .CountAsync();
 
         result.Data.Add(new Dictionary<string, object>
@@ -587,8 +612,9 @@ public partial class HospitalReportService
 
     private async Task FillProcedureRegister(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        var (fromUtc, toUtc, offsetHours) = UtcRange(from, to);
         var query = _context.SurgeryRequests.AsNoTracking()
-            .Where(s => s.CreatedAt >= from && s.CreatedAt < to && !s.IsDeleted);
+            .Where(s => s.CreatedAt >= fromUtc && s.CreatedAt < toUtc && !s.IsDeleted);
         if (deptId.HasValue)
             query = query.Where(s => s.Examination != null && s.Examination.DepartmentId == deptId);
 
@@ -613,7 +639,7 @@ public partial class HospitalReportService
         {
             result.Data.Add(new Dictionary<string, object>
             {
-                ["date"] = d.CreatedAt.ToString("dd/MM/yyyy"),
+                ["date"] = d.CreatedAt.AddHours(offsetHours).ToString("dd/MM/yyyy"),
                 ["patientCode"] = d.PatientCode ?? "",
                 ["patientName"] = d.FullName ?? "",
                 ["departmentName"] = d.DeptName ?? "",
@@ -622,7 +648,7 @@ public partial class HospitalReportService
                 ["status"] = d.Status
             });
         }
-        result.Summary["totalProcedures"] = data.Count;
+        result.Summary["totalProcedures"] = data.Count(d => d.Status != 4); // register lists cancelled rows, total excludes them
     }
 
     private async Task FillSurgeryRegister(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
@@ -632,8 +658,9 @@ public partial class HospitalReportService
 
     private async Task FillORCost(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        var (fromUtc, toUtc, _) = UtcRange(from, to);
         var query = _context.SurgeryRequests.AsNoTracking()
-            .Where(s => s.CreatedAt >= from && s.CreatedAt < to && !s.IsDeleted);
+            .Where(s => s.CreatedAt >= fromUtc && s.CreatedAt < toUtc && s.Status != 4 && !s.IsDeleted); // 4 = cancelled
         if (deptId.HasValue)
             query = query.Where(s => s.Examination != null && s.Examination.DepartmentId == deptId);
 
@@ -648,8 +675,9 @@ public partial class HospitalReportService
 
     private async Task FillProcedureByDept(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        var (fromUtc, toUtc, _) = UtcRange(from, to);
         var query = _context.SurgeryRequests.AsNoTracking()
-            .Where(s => s.CreatedAt >= from && s.CreatedAt < to && !s.IsDeleted);
+            .Where(s => s.CreatedAt >= fromUtc && s.CreatedAt < toUtc && s.Status != 4 && !s.IsDeleted); // 4 = cancelled
         if (deptId.HasValue)
             query = query.Where(s => s.Examination != null && s.Examination.DepartmentId == deptId);
 

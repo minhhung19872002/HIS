@@ -18,8 +18,10 @@ public partial class ReportingCompleteService
     {
         try
         {
+            var toEnd = ReportPeriod.EndExclusive(toDate);
+            // MedicalRecord.Status 6 = cancelled visit
             var query = _context.MedicalRecords
-                .Where(m => m.AdmissionDate >= fromDate && m.AdmissionDate < toDate && !m.IsDeleted);
+                .Where(m => m.AdmissionDate >= fromDate && m.AdmissionDate < toEnd && m.Status != 6 && !m.IsDeleted);
 
             if (departmentId.HasValue)
                 query = query.Where(m => m.DepartmentId == departmentId.Value);
@@ -60,8 +62,11 @@ public partial class ReportingCompleteService
     {
         try
         {
+            // CreatedAt is UTC; cancelled examinations (5) carry no diagnosis episode.
+            var fromUtc = ReportPeriod.ToUtc(fromDate);
+            var toUtc = ReportPeriod.ToUtc(ReportPeriod.EndExclusive(toDate));
             var query = _context.Examinations
-                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt < toDate && e.MainIcdCode != null && !e.IsDeleted);
+                .Where(e => e.CreatedAt >= fromUtc && e.CreatedAt < toUtc && e.MainIcdCode != null && e.Status != 5 && !e.IsDeleted);
 
             if (!string.IsNullOrEmpty(patientType))
             {
@@ -115,8 +120,9 @@ public partial class ReportingCompleteService
     {
         try
         {
+            var toEnd = ReportPeriod.EndExclusive(toDate);
             var dischargeQuery = _context.Discharges
-                .Where(d => d.DischargeDate >= fromDate && d.DischargeDate < toDate && !d.IsDeleted);
+                .Where(d => d.DischargeDate >= fromDate && d.DischargeDate < toEnd && !d.IsDeleted);
 
             if (departmentId.HasValue)
                 dischargeQuery = dischargeQuery.Where(d => d.Admission.DepartmentId == departmentId.Value);
@@ -175,8 +181,13 @@ public partial class ReportingCompleteService
     {
         try
         {
+            var toEnd = ReportPeriod.EndExclusive(toDate);
+            // SurgeryRequest.Status 4 = cancelled (not a surgery performed/planned). departmentId was
+            // accepted but silently ignored.
             var query = _context.SurgeryRequests
-                .Where(s => s.RequestDate >= fromDate && s.RequestDate < toDate && !s.IsDeleted);
+                .Where(s => s.RequestDate >= fromDate && s.RequestDate < toEnd && s.Status != 4 && !s.IsDeleted);
+            if (departmentId.HasValue)
+                query = query.Where(s => s.MedicalRecord != null && s.MedicalRecord.DepartmentId == departmentId.Value);
 
             var total = await query.CountAsync();
             var emergencyCount = await query.CountAsync(s => s.Priority == 3);
@@ -205,7 +216,7 @@ public partial class ReportingCompleteService
                 .ToListAsync();
 
             var avgDuration = await _context.SurgeryRecords
-                .Where(r => r.ActualDuration != null && r.CreatedAt >= fromDate && r.CreatedAt < toDate && !r.IsDeleted)
+                .Where(r => r.ActualDuration != null && r.CreatedAt >= ReportPeriod.ToUtc(fromDate) && r.CreatedAt < ReportPeriod.ToUtc(toEnd) && !r.IsDeleted)
                 .AverageAsync(r => (decimal?)r.ActualDuration) ?? 0;
 
             return new SurgeryStatisticsReportDto
@@ -234,8 +245,10 @@ public partial class ReportingCompleteService
         {
             // #14b: đọc model 1 (SRD RequestType=1); nhóm theo nhóm dịch vụ thay SampleType (model 2 chết).
             // Status SRD: 0/1 chờ-đang xử lý · 2 có KQ · 3 hủy.
+            var fromUtc = ReportPeriod.ToUtc(fromDate);
+            var toUtc = ReportPeriod.ToUtc(ReportPeriod.EndExclusive(toDate));
             var query = _context.ServiceRequestDetails
-                .Where(d => d.CreatedAt >= fromDate && d.CreatedAt < toDate && !d.IsDeleted
+                .Where(d => d.CreatedAt >= fromUtc && d.CreatedAt < toUtc && !d.IsDeleted
                     && d.ServiceRequest.RequestType == 1 && d.Status != 3);
 
             if (!string.IsNullOrEmpty(testType))
@@ -278,11 +291,16 @@ public partial class ReportingCompleteService
     {
         try
         {
+            // Was every service line of any kind (lab, drugs, exams…) and "completed" = Status >= 3,
+            // which on ServiceRequestDetail is CANCELLED (0/1 pending · 2 has result · 3 cancelled).
+            var fromUtc = ReportPeriod.ToUtc(fromDate);
+            var toUtc = ReportPeriod.ToUtc(ReportPeriod.EndExclusive(toDate));
             var query = _context.ServiceRequestDetails
-                .Where(s => s.CreatedAt >= fromDate && s.CreatedAt < toDate && !s.IsDeleted);
+                .Where(s => s.CreatedAt >= fromUtc && s.CreatedAt < toUtc && !s.IsDeleted
+                    && s.ServiceRequest.RequestType == 2 && s.Status != 3);
 
             var total = await query.CountAsync();
-            var completed = await query.CountAsync(s => s.Status >= 3);
+            var completed = await query.CountAsync(s => s.Status == 2);
 
             var byStatus = await query
                 .GroupBy(s => s.Status)
@@ -309,8 +327,9 @@ public partial class ReportingCompleteService
     {
         try
         {
+            var toEnd = ReportPeriod.EndExclusive(toDate);
             var query = _context.Examinations
-                .Where(e => e.FollowUpDate != null && e.FollowUpDate >= fromDate && e.FollowUpDate < toDate && !e.IsDeleted);
+                .Where(e => e.FollowUpDate != null && e.FollowUpDate >= fromDate && e.FollowUpDate < toEnd && !e.IsDeleted);
 
             if (departmentId.HasValue)
                 query = query.Where(e => e.DepartmentId == departmentId.Value);
@@ -345,15 +364,16 @@ public partial class ReportingCompleteService
         try
         {
             // Query admissions with discharge condition indicating complications
+            var toEnd = ReportPeriod.EndExclusive(toDate);
             var totalAdmissions = await _context.Admissions
-                .CountAsync(a => a.AdmissionDate >= fromDate && a.AdmissionDate < toDate && !a.IsDeleted);
+                .CountAsync(a => a.AdmissionDate >= fromDate && a.AdmissionDate < toEnd && !a.IsDeleted);
 
             var totalDischarges = await _context.Discharges
-                .CountAsync(d => d.DischargeDate >= fromDate && d.DischargeDate < toDate && !d.IsDeleted);
+                .CountAsync(d => d.DischargeDate >= fromDate && d.DischargeDate < toEnd && !d.IsDeleted);
 
             // Approximate: admissions with worsened condition (DischargeCondition == 4)
             var worsened = await _context.Discharges
-                .CountAsync(d => d.DischargeDate >= fromDate && d.DischargeDate < toDate && d.DischargeCondition == 4 && !d.IsDeleted);
+                .CountAsync(d => d.DischargeDate >= fromDate && d.DischargeDate < toEnd && d.DischargeCondition == 4 && !d.IsDeleted);
 
             return new
             {

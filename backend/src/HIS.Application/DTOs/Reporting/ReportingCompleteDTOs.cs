@@ -660,12 +660,13 @@ namespace HIS.Application.DTOs.Reporting
     {
         public Guid? Id { get; set; }
         public string ReportCode { get; set; }
-        public string Schedule { get; set; }
-        public string CronExpression { get; set; }
-        public string Format { get; set; }
-        public string Recipients { get; set; }
+        // Optional (service defaults them): non-nullable made each one implicitly [Required] → 400 when omitted.
+        public string? Schedule { get; set; }
+        public string? CronExpression { get; set; }
+        public string? Format { get; set; }
+        public string? Recipients { get; set; }
         public bool IsActive { get; set; }
-        public string Parameters { get; set; }
+        public string? Parameters { get; set; }
     }
 
     #endregion

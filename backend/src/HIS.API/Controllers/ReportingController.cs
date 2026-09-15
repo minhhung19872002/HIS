@@ -549,6 +549,9 @@ namespace HIS.API.Controllers
             try
             {
                 var fileContent = await _reportingService.DownloadReportFromHistoryAsync(reportHistoryId);
+                // Unknown id used to download an empty 0-byte "report" with 200.
+                if (fileContent == null || fileContent.Length == 0)
+                    return NotFound(ApiResponse<bool>.ErrorResponse("Không tìm thấy báo cáo trong lịch sử"));
                 return File(fileContent, "application/octet-stream", $"report_{reportHistoryId}.xlsx");
             }
             catch (Exception ex)
@@ -605,6 +608,8 @@ namespace HIS.API.Controllers
             try
             {
                 var result = await _reportingService.DeleteScheduledReportAsync(id);
+                if (!result)
+                    return NotFound(ApiResponse<bool>.ErrorResponse("Không tìm thấy cấu hình báo cáo")); // was 200 "Xóa thành công"
                 return Ok(ApiResponse<bool>.SuccessResponse(result, "Xóa thành công"));
             }
             catch (Exception ex)
@@ -622,6 +627,8 @@ namespace HIS.API.Controllers
             try
             {
                 var result = await _reportingService.RunScheduledReportNowAsync(id);
+                if (!result)
+                    return NotFound(ApiResponse<bool>.ErrorResponse("Không tìm thấy cấu hình báo cáo")); // was 200 "Chạy báo cáo thành công"
                 return Ok(ApiResponse<bool>.SuccessResponse(result, "Chạy báo cáo thành công"));
             }
             catch (Exception ex)

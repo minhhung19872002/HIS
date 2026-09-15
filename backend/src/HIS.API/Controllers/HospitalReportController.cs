@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using HIS.API.Authorization;
+using HIS.Core.Constants;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Reporting;
 using HIS.Application.Services;
@@ -18,6 +20,7 @@ namespace HIS.API.Controllers
     [ApiController]
     [Route("api/reports/hospital")]
     [Authorize]
+    [RequirePermission(PermissionCatalog.Report.Read)] // 140 registers with patient lists + cashier totals: was open to any logged-in role
     public class HospitalReportController : ControllerBase
     {
         private readonly IHospitalReportService _service;
@@ -61,6 +64,7 @@ namespace HIS.API.Controllers
         /// Body: { toEmail, from?, to? }
         /// </summary>
         [HttpPost("{reportCode}/send-email")]
+        [RequirePermission(PermissionCatalog.Report.Export)] // class-level Read gate disables the write convention
         public async Task<IActionResult> SendReportEmail(
             string reportCode,
             [FromBody] SendReportEmailDto dto,
@@ -101,6 +105,7 @@ namespace HIS.API.Controllers
         /// Returns HTML content for browser printing
         /// </summary>
         [HttpPost("print/birth-certificate")]
+        [RequirePermission(PermissionCatalog.Report.Export)]
         public async Task<IActionResult> PrintBirthCertificate([FromBody] BirthCertificateDto dto)
         {
             try

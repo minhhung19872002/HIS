@@ -57,23 +57,33 @@ public partial class HospitalReportService
         result.Summary["grandTotal"] = totalOp + totalIp;
     }
 
+    /// <summary>UTC bounds for columns written with DateTime.UtcNow (CreatedAt); `from`/`to` are VN-local.</summary>
+    private static (DateTime FromUtc, DateTime ToUtc, double OffsetHours) UtcRange(DateTime from, DateTime to)
+    {
+        var fromUtc = ReportPeriod.ToUtc(from);
+        return (fromUtc, ReportPeriod.ToUtc(to), (from - fromUtc).TotalHours);
+    }
+
     private async Task FillExaminationActivity(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        // CreatedAt is UTC: filter on UTC bounds and bucket by VN day. Status: 4 completed, 5 cancelled
+        // (was completed = Status >= 3, i.e. "waiting for conclusion" + cancelled counted as done).
+        var (fromUtc, toUtc, offsetHours) = UtcRange(from, to);
         var query = _context.Examinations.AsNoTracking()
-            .Where(e => e.CreatedAt >= from && e.CreatedAt < to && !e.IsDeleted);
+            .Where(e => e.CreatedAt >= fromUtc && e.CreatedAt < toUtc && e.Status != 5 && !e.IsDeleted);
         if (deptId.HasValue)
             query = query.Where(e => e.DepartmentId == deptId);
 
         var data = await query
             .Include(e => e.Department)
-            .GroupBy(e => new { e.CreatedAt.Date, e.DepartmentId, DeptName = e.Department.DepartmentName })
+            .GroupBy(e => new { e.CreatedAt.AddHours(offsetHours).Date, e.DepartmentId, DeptName = e.Department.DepartmentName })
             .Select(g => new
             {
                 Date = g.Key.Date,
                 g.Key.DeptName,
                 TotalExams = g.Count(),
-                Completed = g.Count(e => e.Status >= 3),
-                Pending = g.Count(e => e.Status < 3),
+                Completed = g.Count(e => e.Status == 4),
+                Pending = g.Count(e => e.Status < 4),
                 BhytCount = g.Count(e => e.MedicalRecord.PatientType == 1),
                 FeeCount = g.Count(e => e.MedicalRecord.PatientType != 1)
             })
@@ -99,13 +109,14 @@ public partial class HospitalReportService
 
     private async Task FillDailyPatientCount(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        var (fromUtc, toUtc, offsetHours) = UtcRange(from, to);
         var query = _context.Examinations.AsNoTracking()
-            .Where(e => e.CreatedAt >= from && e.CreatedAt < to && !e.IsDeleted);
+            .Where(e => e.CreatedAt >= fromUtc && e.CreatedAt < toUtc && e.Status != 5 && !e.IsDeleted);
         if (deptId.HasValue)
             query = query.Where(e => e.DepartmentId == deptId);
 
         var data = await query
-            .GroupBy(e => e.CreatedAt.Date)
+            .GroupBy(e => e.CreatedAt.AddHours(offsetHours).Date)
             .Select(g => new { Date = g.Key, Count = g.Count() })
             .OrderBy(x => x.Date)
             .ToListAsync();
@@ -125,8 +136,9 @@ public partial class HospitalReportService
 
     private async Task FillExaminationRegister(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        var (fromUtc, toUtc, offsetHours) = UtcRange(from, to);
         var query = _context.Examinations.AsNoTracking()
-            .Where(e => e.CreatedAt >= from && e.CreatedAt < to && !e.IsDeleted);
+            .Where(e => e.CreatedAt >= fromUtc && e.CreatedAt < toUtc && !e.IsDeleted);
         if (deptId.HasValue)
             query = query.Where(e => e.DepartmentId == deptId);
 
@@ -153,7 +165,7 @@ public partial class HospitalReportService
         {
             result.Data.Add(new Dictionary<string, object>
             {
-                ["date"] = d.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+                ["date"] = d.CreatedAt.AddHours(offsetHours).ToString("dd/MM/yyyy HH:mm"),
                 ["patientCode"] = d.PatientCode ?? "",
                 ["patientName"] = d.PatientName ?? "",
                 ["departmentName"] = d.DeptName ?? "",
@@ -168,11 +180,14 @@ public partial class HospitalReportService
 
     private async Task FillServiceTimeAndWait(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        var (fromUtc, toUtc, offsetHours) = UtcRange(from, to);
         var query = _context.QueueTickets.AsNoTracking()
-            .Where(q => q.CreatedAt >= from && q.CreatedAt < to && !q.IsDeleted);
+            .Where(q => q.CreatedAt >= fromUtc && q.CreatedAt < toUtc && !q.IsDeleted);
         if (deptId.HasValue)
             query = query.Where(q => q.Room != null && q.Room.DepartmentId == deptId);
 
+        // CreatedAt is UTC but CalledTime is written with DateTime.Now (ReceptionCompleteService.Queue):
+        // shift CreatedAt to local first, otherwise every wait was inflated by the UTC offset (+420 min).
         var data = await query
             .Include(q => q.Room).ThenInclude(r => r.Department)
             .Where(q => q.CalledTime.HasValue && q.CompletedTime.HasValue)
@@ -181,9 +196,9 @@ public partial class HospitalReportService
             {
                 g.Key.DeptName,
                 TicketCount = g.Count(),
-                AvgWaitMinutes = g.Average(q => EF.Functions.DateDiffMinute(q.CreatedAt, q.CalledTime!.Value)),
+                AvgWaitMinutes = g.Average(q => EF.Functions.DateDiffMinute(q.CreatedAt.AddHours(offsetHours), q.CalledTime!.Value)),
                 AvgServiceMinutes = g.Average(q => EF.Functions.DateDiffMinute(q.CalledTime!.Value, q.CompletedTime!.Value)),
-                MaxWaitMinutes = g.Max(q => EF.Functions.DateDiffMinute(q.CreatedAt, q.CalledTime!.Value))
+                MaxWaitMinutes = g.Max(q => EF.Functions.DateDiffMinute(q.CreatedAt.AddHours(offsetHours), q.CalledTime!.Value))
             })
             .ToListAsync();
 
@@ -203,8 +218,11 @@ public partial class HospitalReportService
 
     private async Task FillServiceRevenueDetail(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        // Lines of collected payment receipts on their business date. Was Receipt.CreatedAt (UTC) with
+        // no status filter — cancelled receipts' lines were summed as revenue.
         var query = _context.ReceiptDetails.AsNoTracking()
-            .Where(rd => rd.Receipt.CreatedAt >= from && rd.Receipt.CreatedAt < to && !rd.IsDeleted);
+            .Where(rd => rd.Receipt.ReceiptDate >= from && rd.Receipt.ReceiptDate < to && !rd.IsDeleted
+                && rd.Receipt.Status == 1 && rd.Receipt.ReceiptType != 3);
         if (deptId.HasValue)
             query = query.Where(rd => rd.Receipt.MedicalRecord != null && rd.Receipt.MedicalRecord.DepartmentId == deptId);
 
@@ -241,8 +259,9 @@ public partial class HospitalReportService
 
     private async Task FillReceptionByRoom(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        var (fromUtc, toUtc, _) = UtcRange(from, to);
         var query = _context.QueueTickets.AsNoTracking()
-            .Where(q => q.CreatedAt >= from && q.CreatedAt < to && !q.IsDeleted);
+            .Where(q => q.CreatedAt >= fromUtc && q.CreatedAt < toUtc && !q.IsDeleted);
         if (deptId.HasValue)
             query = query.Where(q => q.Room != null && q.Room.DepartmentId == deptId);
 
@@ -253,7 +272,7 @@ public partial class HospitalReportService
             {
                 g.Key.RoomName,
                 TotalTickets = g.Count(),
-                CompletedTickets = g.Count(q => q.Status >= 3),
+                CompletedTickets = g.Count(q => q.Status == 3), // 4 = skipped, was counted as completed too
                 CancelledTickets = g.Count(q => q.Status == 4)
             })
             .OrderByDescending(x => x.TotalTickets)
@@ -276,8 +295,9 @@ public partial class HospitalReportService
 
     private async Task FillVisitAndAdmissionCount(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        var (fromUtc, toUtc, _) = UtcRange(from, to);
         var examQuery = _context.Examinations.AsNoTracking()
-            .Where(e => e.CreatedAt >= from && e.CreatedAt < to && !e.IsDeleted);
+            .Where(e => e.CreatedAt >= fromUtc && e.CreatedAt < toUtc && e.Status != 5 && !e.IsDeleted);
         var admQuery = _context.Admissions.AsNoTracking()
             .Where(a => a.AdmissionDate >= from && a.AdmissionDate < to && !a.IsDeleted);
         if (deptId.HasValue)
@@ -316,7 +336,7 @@ public partial class HospitalReportService
     {
         var query = _context.Beds.AsNoTracking()
             .Include(b => b.Room).ThenInclude(r => r.Department)
-            .Where(b => !b.IsDeleted);
+            .Where(b => !b.IsDeleted && b.IsActive); // deactivated beds are not capacity
         if (deptId.HasValue)
             query = query.Where(b => b.Room.DepartmentId == deptId);
 
@@ -327,7 +347,7 @@ public partial class HospitalReportService
         {
             var total = g.Count();
             var occupied = g.Count(b => b.Status == 1); // 1 = Occupied
-            var available = total - occupied;
+            var available = g.Count(b => b.Status == 0); // 2 = maintenance is neither occupied nor available
 
             result.Data.Add(new Dictionary<string, object>
             {
@@ -340,7 +360,7 @@ public partial class HospitalReportService
         }
         result.Summary["totalBeds"] = beds.Count;
         result.Summary["totalOccupied"] = beds.Count(b => b.Status == 1);
-        result.Summary["totalAvailable"] = beds.Count - beds.Count(b => b.Status == 1);
+        result.Summary["totalAvailable"] = beds.Count(b => b.Status == 0);
     }
 
     private async Task FillCareLevelClassification(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
@@ -454,8 +474,9 @@ public partial class HospitalReportService
 
     private async Task FillPatientsByRoom(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        var (fromUtc, toUtc, _) = UtcRange(from, to);
         var query = _context.BedAssignments.AsNoTracking()
-            .Where(ba => ba.CreatedAt >= from && ba.CreatedAt < to && !ba.IsDeleted && ba.Status == 0);
+            .Where(ba => ba.CreatedAt >= fromUtc && ba.CreatedAt < toUtc && !ba.IsDeleted && ba.Status == 0);
         if (deptId.HasValue)
             query = query.Where(ba => ba.Bed.Room.DepartmentId == deptId);
 

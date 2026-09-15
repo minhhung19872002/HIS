@@ -48,7 +48,8 @@ public class AdrReportController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(ex.Message);
+            // {error,message} shape so the v2 form can show the reason (a bare string was dropped by friendlyErrorMessage).
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
     }
 

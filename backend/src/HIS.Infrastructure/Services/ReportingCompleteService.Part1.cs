@@ -38,11 +38,13 @@ public partial class ReportingCompleteService : IReportingCompleteService
     {
         try
         {
-            // Query examinations as default report data source
+            // Query examinations as default report data source (CreatedAt is UTC)
+            var fromUtc = ReportPeriod.ToUtc(fromDate);
+            var toUtc = ReportPeriod.ToUtc(ReportPeriod.EndExclusive(toDate));
             var exams = await _context.Examinations
                 .Include(e => e.Doctor)
                 .Include(e => e.Department)
-                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt < toDate.AddDays(1) && !e.IsDeleted)
+                .Where(e => e.CreatedAt >= fromUtc && e.CreatedAt < toUtc && !e.IsDeleted)
                 .OrderByDescending(e => e.StartTime)
                 .Take(500)
                 .ToListAsync();
@@ -84,9 +86,11 @@ public partial class ReportingCompleteService : IReportingCompleteService
                 .Select(m => m.AdmissionDate)
                 .ToListAsync();
 
+            // Net cash: approved refund slips were ADDED as revenue (Status 1) and paid-out ones (4) ignored.
             var receiptAmounts = await _context.Receipts
-                .Where(r => r.ReceiptDate >= trendStart && r.ReceiptDate < trendEnd && r.Status == 1 && !r.IsDeleted)
-                .Select(r => new { r.ReceiptDate, r.FinalAmount })
+                .Where(r => r.ReceiptDate >= trendStart && r.ReceiptDate < trendEnd && !r.IsDeleted)
+                .Where(ReportPeriod.CashReceipt)
+                .Select(r => new { r.ReceiptDate, FinalAmount = r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount })
                 .ToListAsync();
 
             // 7-day patient trend
@@ -118,8 +122,10 @@ public partial class ReportingCompleteService : IReportingCompleteService
             }
 
             // Top departments
+            var monthStartUtc = ReportPeriod.ToUtc(monthStart);
+            var monthEndUtc = ReportPeriod.ToUtc(monthEnd);
             var topDepts = await _context.Examinations
-                .Where(e => e.CreatedAt >= monthStart && e.CreatedAt < monthEnd && !e.IsDeleted)
+                .Where(e => e.CreatedAt >= monthStartUtc && e.CreatedAt < monthEndUtc && e.Status != 5 && !e.IsDeleted)
                 .GroupBy(e => new { e.DepartmentId, e.Department.DepartmentName, e.Department.DepartmentCode })
                 .Select(g => new DepartmentStatDto
                 {
@@ -211,16 +217,21 @@ public partial class ReportingCompleteService : IReportingCompleteService
     {
         try
         {
-            var totalDays = Math.Max((toDate - fromDate).Days, 1);
+            var toEnd = ReportPeriod.EndExclusive(toDate);
+            var totalDays = Math.Max((toEnd - fromDate).Days, 1);
             var prevFrom = fromDate.AddDays(-totalDays);
             var prevTo = fromDate;
+            // Examination.CreatedAt is UTC (HISDbContext.SaveChangesAsync) — compare against UTC bounds.
+            var fromUtc = ReportPeriod.ToUtc(fromDate);
+            var toUtc = ReportPeriod.ToUtc(toEnd);
+            var prevFromUtc = ReportPeriod.ToUtc(prevFrom);
 
-            // Clinical KPIs
-            var totalExams = await _context.Examinations.CountAsync(e => e.CreatedAt >= fromDate && e.CreatedAt < toDate && !e.IsDeleted);
-            var prevExams = await _context.Examinations.CountAsync(e => e.CreatedAt >= prevFrom && e.CreatedAt < prevTo && !e.IsDeleted);
-            var completedExams = await _context.Examinations.CountAsync(e => e.CreatedAt >= fromDate && e.CreatedAt < toDate && e.Status == 4 && !e.IsDeleted);
+            // Clinical KPIs (cancelled examinations are not visits)
+            var totalExams = await _context.Examinations.CountAsync(e => e.CreatedAt >= fromUtc && e.CreatedAt < toUtc && e.Status != 5 && !e.IsDeleted);
+            var prevExams = await _context.Examinations.CountAsync(e => e.CreatedAt >= prevFromUtc && e.CreatedAt < fromUtc && e.Status != 5 && !e.IsDeleted);
+            var completedExams = await _context.Examinations.CountAsync(e => e.CreatedAt >= fromUtc && e.CreatedAt < toUtc && e.Status == 4 && !e.IsDeleted);
 
-            var totalAdmissions = await _context.Admissions.CountAsync(a => a.AdmissionDate >= fromDate && a.AdmissionDate < toDate && !a.IsDeleted);
+            var totalAdmissions = await _context.Admissions.CountAsync(a => a.AdmissionDate >= fromDate && a.AdmissionDate < toEnd && !a.IsDeleted);
             var totalBeds = await _context.Beds.CountAsync(b => b.IsActive && !b.IsDeleted);
             var occupiedBeds = await _context.Beds.CountAsync(b => b.Status == 1 && b.IsActive && !b.IsDeleted);
             var occupancyRate = totalBeds > 0 ? Math.Round(occupiedBeds * 100m / totalBeds, 1) : 0;
@@ -234,8 +245,10 @@ public partial class ReportingCompleteService : IReportingCompleteService
             };
 
             // Financial KPIs
-            var totalRevenue = await _context.Receipts.Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate < toDate && r.Status == 1 && !r.IsDeleted).SumAsync(r => (decimal?)r.FinalAmount) ?? 0;
-            var prevRevenue = await _context.Receipts.Where(r => r.ReceiptDate >= prevFrom && r.ReceiptDate < prevTo && r.Status == 1 && !r.IsDeleted).SumAsync(r => (decimal?)r.FinalAmount) ?? 0;
+            var totalRevenue = await _context.Receipts.Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate < toEnd && !r.IsDeleted).Where(ReportPeriod.CashReceipt)
+                .SumAsync(r => (decimal?)(r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount)) ?? 0;
+            var prevRevenue = await _context.Receipts.Where(r => r.ReceiptDate >= prevFrom && r.ReceiptDate < prevTo && !r.IsDeleted).Where(ReportPeriod.CashReceipt)
+                .SumAsync(r => (decimal?)(r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount)) ?? 0;
             var avgRevPerPatient = totalExams > 0 ? Math.Round(totalRevenue / totalExams, 0) : 0;
 
             var financialKPIs = new List<KPIItemDto>
@@ -245,9 +258,9 @@ public partial class ReportingCompleteService : IReportingCompleteService
             };
 
             // Operational KPIs — #14b: đọc model 1 ServiceRequestDetail (RequestType=1 XN), model 2 LabRequestItems chỉ seed ghi (rỗng/sai)
-            var totalLabTests = await _context.ServiceRequestDetails.CountAsync(d => d.CreatedAt >= fromDate && d.CreatedAt < toDate && !d.IsDeleted
+            var totalLabTests = await _context.ServiceRequestDetails.CountAsync(d => d.CreatedAt >= fromUtc && d.CreatedAt < toUtc && !d.IsDeleted
                 && d.ServiceRequest.RequestType == 1 && d.Status != 3);
-            var completedLabs = await _context.ServiceRequestDetails.CountAsync(d => d.CreatedAt >= fromDate && d.CreatedAt < toDate && !d.IsDeleted
+            var completedLabs = await _context.ServiceRequestDetails.CountAsync(d => d.CreatedAt >= fromUtc && d.CreatedAt < toUtc && !d.IsDeleted
                 && d.ServiceRequest.RequestType == 1 && d.Status == 2);
 
             var operationalKPIs = new List<KPIItemDto>
@@ -284,8 +297,10 @@ public partial class ReportingCompleteService : IReportingCompleteService
     {
         try
         {
-            var totalExams = await _context.Examinations.CountAsync(e => e.DepartmentId == departmentId && e.CreatedAt >= fromDate && e.CreatedAt < toDate && !e.IsDeleted);
-            var completedExams = await _context.Examinations.CountAsync(e => e.DepartmentId == departmentId && e.CreatedAt >= fromDate && e.CreatedAt < toDate && e.Status == 4 && !e.IsDeleted);
+            var fromUtc = ReportPeriod.ToUtc(fromDate);
+            var toUtc = ReportPeriod.ToUtc(ReportPeriod.EndExclusive(toDate));
+            var totalExams = await _context.Examinations.CountAsync(e => e.DepartmentId == departmentId && e.CreatedAt >= fromUtc && e.CreatedAt < toUtc && e.Status != 5 && !e.IsDeleted);
+            var completedExams = await _context.Examinations.CountAsync(e => e.DepartmentId == departmentId && e.CreatedAt >= fromUtc && e.CreatedAt < toUtc && e.Status == 4 && !e.IsDeleted);
 
             var clinicalKPIs = new List<KPIItemDto>
             {
@@ -320,8 +335,8 @@ public partial class ReportingCompleteService : IReportingCompleteService
     {
         try
         {
-            var today = DateTime.Today;
-            var tomorrow = today.AddDays(1);
+            // QueueTicket.IssueDate is written as UTC (ReceptionCompleteService.Queue) — VN day in UTC.
+            var (today, tomorrow) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
 
             var waiting = await _context.QueueTickets
                 .Where(q => q.IssueDate >= today && q.IssueDate < tomorrow && q.Status == 0 && !q.IsDeleted)

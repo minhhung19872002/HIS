@@ -263,8 +263,16 @@ export const statisticsApi = {
   // Dashboard
   getHospitalDashboard: (date?: string) =>
     apiClient.get<HospitalDashboardDto>('/statistics/dashboard', { params: { date } }),
+  // BE DepartmentStatisticsDto sends `revenue`; the dashboard reads `totalRevenue` (revenue-by-department was always empty).
   getDepartmentStatistics: (fromDate: string, toDate: string) =>
-    apiClient.get<DepartmentStatisticsDto[]>('/statistics/departments', { params: { fromDate, toDate } }),
+    apiClient.get<DepartmentStatisticsDto[]>('/statistics/departments', { params: { fromDate, toDate } })
+      .then((r) => ({
+        ...r,
+        data: (Array.isArray(r.data) ? r.data : []).map((d) => {
+          const raw = d as DepartmentStatisticsDto & { revenue?: number };
+          return { ...raw, totalRevenue: raw.totalRevenue ?? raw.revenue ?? 0 };
+        }),
+      })),
 
   // Báo cáo khám bệnh
   getExaminationStatistics: (fromDate: string, toDate: string, departmentId?: string, doctorId?: string) =>

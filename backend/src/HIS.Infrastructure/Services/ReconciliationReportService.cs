@@ -23,10 +23,11 @@ public class ReconciliationReportService : IReconciliationReportService
     public async Task<SupplierProcurementReportDto> GetSupplierProcurementAsync(
         DateTime fromDate, DateTime toDate, Guid? supplierId = null)
     {
+        var toEnd = ReportPeriod.EndExclusive(toDate); // was `<= toDate` (midnight): last day dropped
         try
         {
             var query = _context.ImportReceipts
-                .Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate <= toDate && r.Status == 1); // Approved only
+                .Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate < toEnd && r.Status == 1); // Approved only
 
             // Group by supplier code/name from ImportReceipt
             var receipts = await query
@@ -98,12 +99,16 @@ public class ReconciliationReportService : IReconciliationReportService
     public async Task<RevenueByRecordReportDto> GetRevenueByRecordAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null)
     {
+        var toEnd = ReportPeriod.EndExclusive(toDate); // was `<= toDate` (midnight): last day dropped
         try
         {
             // Get medical records in date range
+            // CreatedAt is UTC; cancelled visits (Status 6) have no revenue/cost.
+            var mrFromUtc = ReportPeriod.ToUtc(fromDate);
+            var mrToUtc = ReportPeriod.ToUtc(toEnd);
             var mrQuery = _context.MedicalRecords
                 .Include(mr => mr.Patient)
-                .Where(mr => mr.CreatedAt >= fromDate && mr.CreatedAt <= toDate);
+                .Where(mr => mr.CreatedAt >= mrFromUtc && mr.CreatedAt < mrToUtc && mr.Status != 6);
 
             var medicalRecords = await mrQuery.ToListAsync();
 
@@ -112,7 +117,7 @@ public class ReconciliationReportService : IReconciliationReportService
 
             // Get service request totals per medical record
             var serviceRevenues = await _context.ServiceRequests
-                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate <= toDate && sr.Status != 4)
+                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate < toEnd && sr.Status != 4)
                 .GroupBy(sr => sr.MedicalRecordId)
                 .Select(g => new
                 {
@@ -125,7 +130,7 @@ public class ReconciliationReportService : IReconciliationReportService
             // Get prescription costs per medical record
             var prescriptionCosts = await _context.Prescriptions
                 .Include(p => p.Details)
-                .Where(p => p.PrescriptionDate >= fromDate && p.PrescriptionDate <= toDate && p.Status != 4)
+                .Where(p => p.PrescriptionDate >= fromDate && p.PrescriptionDate < toEnd && p.Status != 4 && p.Status != 5) // 4 cancelled, 5 draft (not issued)
                 .GroupBy(p => p.MedicalRecordId)
                 .Select(g => new
                 {
@@ -136,7 +141,7 @@ public class ReconciliationReportService : IReconciliationReportService
 
             // Get receipt totals per medical record
             var receiptTotals = await _context.Receipts
-                .Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate <= toDate && r.Status == 1)
+                .Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate < toEnd && r.Status == 1)
                 .GroupBy(r => r.MedicalRecordId)
                 .Select(g => new
                 {
@@ -206,13 +211,14 @@ public class ReconciliationReportService : IReconciliationReportService
     public async Task<DeptCostVsFeesReportDto> GetDeptCostVsFeesAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null)
     {
+        var toEnd = ReportPeriod.EndExclusive(toDate); // was `<= toDate` (midnight): last day dropped
         try
         {
             var departments = await _context.Departments.Where(d => d.IsActive).ToListAsync();
 
             // Service costs by department (from ServiceRequests)
             var serviceCosts = await _context.ServiceRequests
-                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate <= toDate && sr.Status != 4)
+                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate < toEnd && sr.Status != 4)
                 .GroupBy(sr => sr.DepartmentId)
                 .Select(g => new
                 {
@@ -224,7 +230,7 @@ public class ReconciliationReportService : IReconciliationReportService
             // Medicine costs by department (from Prescriptions)
             var medicineCosts = await _context.Prescriptions
                 .Include(p => p.Details)
-                .Where(p => p.PrescriptionDate >= fromDate && p.PrescriptionDate <= toDate && p.Status != 4)
+                .Where(p => p.PrescriptionDate >= fromDate && p.PrescriptionDate < toEnd && p.Status != 4 && p.Status != 5) // 4 cancelled, 5 draft (not issued)
                 .GroupBy(p => p.DepartmentId)
                 .Select(g => new
                 {
@@ -233,14 +239,18 @@ public class ReconciliationReportService : IReconciliationReportService
                 })
                 .ToListAsync();
 
-            // Billed fees by department (from Receipts → MedicalRecord → ServiceRequests)
+            // Billed fees by department: line items of collected payment receipts, per the visit's
+            // department and item type (1 service · 2 medicine · 3 supply). This was queried and then
+            // discarded — every "fee" was cost × 1.05, so the difference was always exactly +5%.
             var billedFees = await _context.ReceiptDetails
-                .Include(rd => rd.Receipt)
-                .Where(rd => rd.Receipt.ReceiptDate >= fromDate && rd.Receipt.ReceiptDate <= toDate && rd.Receipt.Status == 1)
-                .GroupBy(rd => rd.ItemType)
+                .Where(rd => rd.Receipt.ReceiptDate >= fromDate && rd.Receipt.ReceiptDate < toEnd
+                    && rd.Receipt.Status == 1 && rd.Receipt.ReceiptType == 2
+                    && rd.Receipt.MedicalRecord != null && rd.Receipt.MedicalRecord.DepartmentId != null)
+                .GroupBy(rd => new { DepartmentId = rd.Receipt.MedicalRecord!.DepartmentId!.Value, rd.ItemType })
                 .Select(g => new
                 {
-                    ItemType = g.Key,
+                    g.Key.DepartmentId,
+                    g.Key.ItemType,
                     TotalBilled = g.Sum(rd => rd.FinalAmount)
                 })
                 .ToListAsync();
@@ -253,8 +263,12 @@ public class ReconciliationReportService : IReconciliationReportService
                     var mc = medicineCosts.FirstOrDefault(m => m.DepartmentId == dept.Id);
 
                     var totalDeptCost = (sc?.ServiceCost ?? 0) + (mc?.MedicineCost ?? 0);
-                    // Fees = costs + margin (estimated)
-                    var totalFees = totalDeptCost * 1.05m;
+                    decimal Billed(int itemType) => billedFees
+                        .Where(b => b.DepartmentId == dept.Id && b.ItemType == itemType).Sum(b => b.TotalBilled);
+                    var serviceFees = Billed(1);
+                    var medicineFees = Billed(2);
+                    var supplyFees = Billed(3);
+                    var totalFees = billedFees.Where(b => b.DepartmentId == dept.Id).Sum(b => b.TotalBilled);
 
                     return new DeptCostVsFeesItemDto
                     {
@@ -265,9 +279,9 @@ public class ReconciliationReportService : IReconciliationReportService
                         MedicineCost = mc?.MedicineCost ?? 0,
                         SupplyCost = 0,
                         TotalDeptCost = totalDeptCost,
-                        ServiceFees = (sc?.ServiceCost ?? 0) * 1.05m,
-                        MedicineFees = (mc?.MedicineCost ?? 0) * 1.05m,
-                        SupplyFees = 0,
+                        ServiceFees = serviceFees,
+                        MedicineFees = medicineFees,
+                        SupplyFees = supplyFees,
                         TotalHospitalFees = totalFees,
                         Difference = totalFees - totalDeptCost,
                         DifferencePercent = totalDeptCost > 0 ? (totalFees - totalDeptCost) / totalDeptCost * 100 : 0
@@ -299,13 +313,14 @@ public class ReconciliationReportService : IReconciliationReportService
     public async Task<RecordCostSummaryReportDto> GetRecordCostSummaryAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null)
     {
+        var toEnd = ReportPeriod.EndExclusive(toDate); // was `<= toDate` (midnight): last day dropped
         try
         {
             var departments = await _context.Departments.ToListAsync();
 
             // Services used per medical record
             var servicesUsed = await _context.ServiceRequests
-                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate <= toDate && sr.Status != 4)
+                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate < toEnd && sr.Status != 4)
                 .GroupBy(sr => sr.MedicalRecordId)
                 .Select(g => new
                 {
@@ -318,7 +333,7 @@ public class ReconciliationReportService : IReconciliationReportService
             // Medicines used per medical record
             var medicinesUsed = await _context.Prescriptions
                 .Include(p => p.Details)
-                .Where(p => p.PrescriptionDate >= fromDate && p.PrescriptionDate <= toDate && p.Status != 4)
+                .Where(p => p.PrescriptionDate >= fromDate && p.PrescriptionDate < toEnd && p.Status != 4 && p.Status != 5) // 4 cancelled, 5 draft (not issued)
                 .GroupBy(p => p.MedicalRecordId)
                 .Select(g => new
                 {
@@ -327,15 +342,26 @@ public class ReconciliationReportService : IReconciliationReportService
                 })
                 .ToListAsync();
 
-            // Amount collected per medical record
+            // Amount collected per medical record, net of approved/paid refunds (were ignored, so a
+            // refunded record still showed as "Overcharged").
             var collected = await _context.Receipts
-                .Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate <= toDate && r.Status == 1 && r.ReceiptType == 2)
+                .Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate < toEnd && r.ReceiptType != 1)
+                .Where(ReportPeriod.CashReceipt)
                 .GroupBy(r => r.MedicalRecordId)
                 .Select(g => new
                 {
                     MedicalRecordId = g.Key,
-                    TotalCollected = g.Sum(r => r.FinalAmount)
+                    TotalCollected = g.Sum(r => r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount)
                 })
+                .ToListAsync();
+
+            // Collected split by item type from the receipt lines (1 service · 2 medicine · 3 supply)
+            // instead of a fixed 70/30 guess.
+            var collectedByType = await _context.ReceiptDetails
+                .Where(rd => rd.Receipt.ReceiptDate >= fromDate && rd.Receipt.ReceiptDate < toEnd
+                    && rd.Receipt.Status == 1 && rd.Receipt.ReceiptType == 2)
+                .GroupBy(rd => new { rd.Receipt.MedicalRecordId, rd.ItemType })
+                .Select(g => new { g.Key.MedicalRecordId, g.Key.ItemType, Amount = g.Sum(rd => rd.FinalAmount) })
                 .ToListAsync();
 
             // Get patient info
@@ -373,9 +399,9 @@ public class ReconciliationReportService : IReconciliationReportService
                     MedicineUsed = mu?.MedicineUsed ?? 0,
                     SupplyUsed = 0,
                     TotalUsed = totalUsed,
-                    ServiceCollected = totalCollected * 0.7m, // Estimated split
-                    MedicineCollected = totalCollected * 0.3m,
-                    SupplyCollected = 0,
+                    ServiceCollected = collectedByType.Where(c => c.MedicalRecordId == mrId && c.ItemType == 1).Sum(c => c.Amount),
+                    MedicineCollected = collectedByType.Where(c => c.MedicalRecordId == mrId && c.ItemType == 2).Sum(c => c.Amount),
+                    SupplyCollected = collectedByType.Where(c => c.MedicalRecordId == mrId && c.ItemType == 3).Sum(c => c.Amount),
                     TotalCollected = totalCollected,
                     Difference = diff,
                     Status = Math.Abs(diff) < 1 ? "Match" : diff > 0 ? "Overcharged" : "Undercharged"
@@ -408,6 +434,7 @@ public class ReconciliationReportService : IReconciliationReportService
     public async Task<FeesVsStandardsReportDto> GetFeesVsStandardsAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null)
     {
+        var toEnd = ReportPeriod.EndExclusive(toDate); // was `<= toDate` (midnight): last day dropped
         try
         {
             // Get standard prices
@@ -426,7 +453,7 @@ public class ReconciliationReportService : IReconciliationReportService
                 .Include(srd => srd.ServiceRequest)
                 .Include(srd => srd.Service)
                 .Where(srd => srd.ServiceRequest.RequestDate >= fromDate
-                    && srd.ServiceRequest.RequestDate <= toDate
+                    && srd.ServiceRequest.RequestDate < toEnd
                     && srd.ServiceRequest.Status != 4)
                 .GroupBy(srd => srd.ServiceId)
                 .Select(g => new
@@ -493,6 +520,7 @@ public class ReconciliationReportService : IReconciliationReportService
     public async Task<ServiceOrderDoctorsReportDto> GetServiceOrderDoctorsAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null)
     {
+        var toEnd = ReportPeriod.EndExclusive(toDate); // was `<= toDate` (midnight): last day dropped
         try
         {
             var query = _context.ServiceRequests
@@ -501,7 +529,7 @@ public class ReconciliationReportService : IReconciliationReportService
                 .Include(sr => sr.ExecuteDepartment)
                 .Include(sr => sr.MedicalRecord).ThenInclude(mr => mr.Patient)
                 .Include(sr => sr.Service)
-                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate <= toDate && sr.Status != 4);
+                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate < toEnd && sr.Status != 4);
 
             if (departmentId.HasValue)
                 query = query.Where(sr => sr.DepartmentId == departmentId.Value);
@@ -512,7 +540,7 @@ public class ReconciliationReportService : IReconciliationReportService
             var resultUserIds = await _context.ServiceRequestDetails
                 .Where(srd => srd.ResultUserId.HasValue
                     && srd.ServiceRequest.RequestDate >= fromDate
-                    && srd.ServiceRequest.RequestDate <= toDate)
+                    && srd.ServiceRequest.RequestDate < toEnd)
                 .Select(srd => new { srd.ServiceRequestId, srd.ResultUserId })
                 .ToListAsync();
 
@@ -575,6 +603,7 @@ public class ReconciliationReportService : IReconciliationReportService
     public async Task<DispensingVsBillingReportDto> GetDispensingVsBillingAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null)
     {
+        var toEnd = ReportPeriod.EndExclusive(toDate); // was `<= toDate` (midnight): last day dropped
         try
         {
             var departments = await _context.Departments.Where(d => d.IsActive).ToListAsync();
@@ -582,7 +611,7 @@ public class ReconciliationReportService : IReconciliationReportService
             // Dispensed amounts from ExportReceipts (type 1=outpatient, 2=inpatient)
             var dispensed = await _context.ExportReceipts
                 .Include(er => er.Details)
-                .Where(er => er.ReceiptDate >= fromDate && er.ReceiptDate <= toDate
+                .Where(er => er.ReceiptDate >= fromDate && er.ReceiptDate < toEnd
                     && er.Status == 1 && (er.ExportType == 1 || er.ExportType == 2))
                 .ToListAsync();
 
@@ -605,7 +634,7 @@ public class ReconciliationReportService : IReconciliationReportService
             // Billed amounts from ReceiptDetails by item type
             var billed = await _context.ReceiptDetails
                 .Include(rd => rd.Receipt)
-                .Where(rd => rd.Receipt.ReceiptDate >= fromDate && rd.Receipt.ReceiptDate <= toDate
+                .Where(rd => rd.Receipt.ReceiptDate >= fromDate && rd.Receipt.ReceiptDate < toEnd
                     && rd.Receipt.Status == 1 && rd.Receipt.ReceiptType == 2)
                 .ToListAsync();
 
@@ -680,13 +709,14 @@ public class ReconciliationReportService : IReconciliationReportService
     public async Task<DispensingVsStandardsReportDto> GetDispensingVsStandardsAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null)
     {
+        var toEnd = ReportPeriod.EndExclusive(toDate); // was `<= toDate` (midnight): last day dropped
         try
         {
             var departments = await _context.Departments.Where(d => d.IsActive).ToListAsync();
 
             // Patient counts per department (from ServiceRequests)
             var patientCounts = await _context.ServiceRequests
-                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate <= toDate && sr.Status != 4)
+                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate < toEnd && sr.Status != 4)
                 .GroupBy(sr => sr.DepartmentId)
                 .Select(g => new
                 {
@@ -698,7 +728,7 @@ public class ReconciliationReportService : IReconciliationReportService
             // Dispensed amounts by department
             var dispensed = await _context.ExportReceipts
                 .Include(er => er.Details)
-                .Where(er => er.ReceiptDate >= fromDate && er.ReceiptDate <= toDate
+                .Where(er => er.ReceiptDate >= fromDate && er.ReceiptDate < toEnd
                     && er.Status == 1 && (er.ExportType == 1 || er.ExportType == 2))
                 .GroupBy(er => er.ToDepartmentId ?? Guid.Empty)
                 .Select(g => new

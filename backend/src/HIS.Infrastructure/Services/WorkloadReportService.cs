@@ -22,22 +22,27 @@ public class WorkloadReportService : IWorkloadReportService
     {
         var from = fromDate?.Date ?? DateTime.Today.AddDays(-30);
         var to = (toDate?.Date ?? DateTime.Today).AddDays(1).AddSeconds(-1);
+        // Half-open bounds (`<= 23:59:59` missed the last second's fractions). CreatedAt is written as UTC
+        // (HISDbContext.SaveChangesAsync) — compare it with the UTC bounds of the VN days.
+        var toEnd = (toDate?.Date ?? DateTime.Today).AddDays(1);
+        var fromUtc = ReportPeriod.ToUtc(from);
+        var toUtc = ReportPeriod.ToUtc(toEnd);
 
-        // ===== Doctor workload =====
+        // ===== Doctor workload ===== (cancelled examinations 5 / prescriptions 4, drafts 5 / orders 4 are not work done)
         var examCounts = await _db.Examinations
-            .Where(e => e.CreatedAt >= from && e.CreatedAt <= to && e.DoctorId != null)
+            .Where(e => e.CreatedAt >= fromUtc && e.CreatedAt < toUtc && e.DoctorId != null && e.Status != 5)
             .GroupBy(e => e.DoctorId!.Value)
             .Select(g => new { UserId = g.Key, Count = g.Count() })
             .ToListAsync();
 
         var prescCounts = await _db.Prescriptions
-            .Where(p => p.CreatedAt >= from && p.CreatedAt <= to && p.DoctorId != Guid.Empty)
+            .Where(p => p.CreatedAt >= fromUtc && p.CreatedAt < toUtc && p.DoctorId != Guid.Empty && p.Status != 4 && p.Status != 5)
             .GroupBy(p => p.DoctorId)
             .Select(g => new { UserId = g.Key, Count = g.Count() })
             .ToListAsync();
 
         var srCounts = await _db.ServiceRequests
-            .Where(s => s.CreatedAt >= from && s.CreatedAt <= to && s.DoctorId != Guid.Empty)
+            .Where(s => s.CreatedAt >= fromUtc && s.CreatedAt < toUtc && s.DoctorId != Guid.Empty && s.Status != 4)
             .GroupBy(s => s.DoctorId)
             .Select(g => new { UserId = g.Key, Count = g.Count() })
             .ToListAsync();
@@ -65,19 +70,19 @@ public class WorkloadReportService : IWorkloadReportService
 
         // ===== Radiologist workload =====
         var radioRequestedCounts = await _db.RadiologyRequests
-            .Where(r => r.CreatedAt >= from && r.CreatedAt <= to && r.RequestingDoctorId != Guid.Empty)
+            .Where(r => r.CreatedAt >= fromUtc && r.CreatedAt < toUtc && r.RequestingDoctorId != Guid.Empty)
             .GroupBy(r => r.RequestingDoctorId)
             .Select(g => new { UserId = g.Key, Count = g.Count() })
             .ToListAsync();
 
         var radioExamCounts = await _db.RadiologyExams
-            .Where(r => r.CreatedAt >= from && r.CreatedAt <= to && r.TechnicianId != null)
+            .Where(r => r.CreatedAt >= fromUtc && r.CreatedAt < toUtc && r.TechnicianId != null)
             .GroupBy(r => r.TechnicianId!.Value)
             .Select(g => new { UserId = g.Key, Count = g.Count() })
             .ToListAsync();
 
         var radioApprovedCounts = await _db.RadiologyReports
-            .Where(r => r.ApprovedAt != null && r.ApprovedAt >= from && r.ApprovedAt <= to && r.ApprovedBy != null)
+            .Where(r => r.ApprovedAt != null && r.ApprovedAt >= from && r.ApprovedAt < toEnd && r.ApprovedBy != null) // ApprovedAt = DateTime.Now (local)
             .GroupBy(r => r.ApprovedBy!.Value)
             .Select(g => new { UserId = g.Key, Count = g.Count() })
             .ToListAsync();
@@ -106,7 +111,7 @@ public class WorkloadReportService : IWorkloadReportService
         // ===== Lab requesting doctors =====
         // #14e: model 1 ServiceRequests (RequestType=1) — model 2 LabRequests đã gỡ
         var labReqCounts = await _db.ServiceRequests
-            .Where(l => l.CreatedAt >= from && l.CreatedAt <= to && l.RequestType == 1 && !l.IsDeleted && l.DoctorId != Guid.Empty)
+            .Where(l => l.CreatedAt >= fromUtc && l.CreatedAt < toUtc && l.RequestType == 1 && l.Status != 4 && !l.IsDeleted && l.DoctorId != Guid.Empty)
             .GroupBy(l => l.DoctorId)
             .Select(g => new { UserId = g.Key, Count = g.Count() })
             .ToListAsync();

@@ -17,18 +17,20 @@ public class StockLedgerReportService : IStockLedgerReportService
 
     public async Task<ServiceOutcome> GetAsync(Guid warehouseId, DateTime fromDate, DateTime toDate)
     {
-        var to = toDate.Date.AddDays(1).AddSeconds(-1);
+        // Half-open [from, next midnight): `<= 23:59:59` dropped receipts stamped in the last second
+        // (ReceiptDate carries 100ns precision, e.g. 23:59:59.5).
+        var toEnd = toDate.Date.AddDays(1);
         var from = fromDate.Date;
 
         var imports = await _db.ImportReceiptDetails.AsNoTracking()
             .Where(d => d.ImportReceipt.WarehouseId == warehouseId && d.ImportReceipt.Status == 1
-                        && d.ImportReceipt.ReceiptDate >= from && d.ImportReceipt.ReceiptDate <= to)
+                        && d.ImportReceipt.ReceiptDate >= from && d.ImportReceipt.ReceiptDate < toEnd)
             .Select(d => new { d.ImportReceipt.ReceiptDate, d.ImportReceipt.ReceiptCode, d.MedicineId, d.SupplyId, Qty = d.Quantity, d.UnitPrice, d.Unit })
             .ToListAsync();
 
         var exports = await _db.ExportReceiptDetails.AsNoTracking()
             .Where(d => d.ExportReceipt.WarehouseId == warehouseId && d.ExportReceipt.Status == 1
-                        && d.ExportReceipt.ReceiptDate >= from && d.ExportReceipt.ReceiptDate <= to)
+                        && d.ExportReceipt.ReceiptDate >= from && d.ExportReceipt.ReceiptDate < toEnd)
             .Select(d => new { d.ExportReceipt.ReceiptDate, d.ExportReceipt.ReceiptCode, d.MedicineId, d.SupplyId, Qty = d.Quantity, d.UnitPrice, d.Unit })
             .ToListAsync();
 

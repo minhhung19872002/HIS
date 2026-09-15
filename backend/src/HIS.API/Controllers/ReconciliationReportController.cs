@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using HIS.API.Authorization;
 using HIS.Application.Services;
 using HIS.Application.DTOs.Reporting;
+using HIS.Core.Constants;
 
 namespace HIS.API.Controllers
 {
@@ -13,6 +15,7 @@ namespace HIS.API.Controllers
     [ApiController]
     [Route("api/reports/reconciliation")]
     [Authorize]
+    [RequirePermission(PermissionCatalog.Report.Read)] // revenue/cost per patient record: was open to any logged-in role
     public class ReconciliationReportController : ControllerBase
     {
         private readonly IReconciliationReportService _service;

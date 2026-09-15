@@ -21,11 +21,12 @@ public class ServiceVolumeReportService : IServiceVolumeReportService
     public async Task<ServiceOutcome> GetAsync(DateTime? fromDate, DateTime? toDate)
     {
         var from = fromDate?.Date ?? DateTime.Today.AddDays(-30);
-        var to = (toDate?.Date ?? DateTime.Today).AddDays(1).AddSeconds(-1);
+        var toEnd = (toDate?.Date ?? DateTime.Today).AddDays(1); // half-open: `<= 23:59:59` missed fractional seconds
 
+        // Status 4 = cancelled order — never performed, so not service volume.
         var grouped = await _db.ServiceRequests
-            .Where(s => !s.IsDeleted && s.ExecuteRoomId != null
-                        && s.RequestDate >= from && s.RequestDate <= to)
+            .Where(s => !s.IsDeleted && s.ExecuteRoomId != null && s.Status != 4
+                        && s.RequestDate >= from && s.RequestDate < toEnd)
             .GroupBy(s => s.ExecuteRoomId!.Value)
             .Select(g => new { RoomId = g.Key, Count = g.Count() })
             .ToListAsync();

@@ -296,7 +296,8 @@ public partial class SystemCompleteService
             // receipts and refund slips were both ADDED to revenue.
             var revenueSums = await _context.Receipts.AsNoTracking()
                 .Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate < toEnd)
-                .Where(r => (r.ReceiptType != 3 && r.Status == 1) || (r.ReceiptType == 3 && (r.Status == 1 || r.Status == 4)))
+                // Shared rule: also drops DEPOSIT refunds, which never entered receipt revenue (negative dept revenue).
+                .Where(ReportPeriod.CashReceipt)
                 .Include(r => r.MedicalRecord)
                 .Where(r => r.MedicalRecord.DepartmentId != null)
                 .GroupBy(r => r.MedicalRecord.DepartmentId)

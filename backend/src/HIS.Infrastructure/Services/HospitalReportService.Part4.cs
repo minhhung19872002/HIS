@@ -81,7 +81,7 @@ public partial class HospitalReportService
     private async Task FillReferralPatients(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
         var query = _context.Examinations.AsNoTracking()
-            .Where(e => e.CreatedAt >= from && e.CreatedAt < to && !e.IsDeleted && e.MedicalRecord.PatientType == 1);
+            .Where(e => e.CreatedAt >= ReportPeriod.ToUtc(from) && e.CreatedAt < ReportPeriod.ToUtc(to) && !e.IsDeleted && e.MedicalRecord.PatientType == 1);
 
         var count = await query.CountAsync();
         result.Data.Add(new Dictionary<string, object> { ["type"] = "BN chuyen tuyen", ["count"] = count });
@@ -97,7 +97,7 @@ public partial class HospitalReportService
     private async Task FillDiseaseAndDeathICD10(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
         var query = _context.Examinations.AsNoTracking()
-            .Where(e => e.CreatedAt >= from && e.CreatedAt < to && !e.IsDeleted && e.MainIcdCode != null);
+            .Where(e => e.CreatedAt >= ReportPeriod.ToUtc(from) && e.CreatedAt < ReportPeriod.ToUtc(to) && e.Status != 5 && !e.IsDeleted && e.MainIcdCode != null); // CreatedAt UTC; 5 = cancelled
         if (deptId.HasValue)
             query = query.Where(e => e.DepartmentId == deptId);
 
@@ -134,7 +134,7 @@ public partial class HospitalReportService
     private async Task FillForeignNationalPatients(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
         var query = _context.Examinations.AsNoTracking()
-            .Where(e => e.CreatedAt >= from && e.CreatedAt < to && !e.IsDeleted)
+            .Where(e => e.CreatedAt >= ReportPeriod.ToUtc(from) && e.CreatedAt < ReportPeriod.ToUtc(to) && !e.IsDeleted)
             .Where(e => e.MedicalRecord.Patient.NationalityCode != null && e.MedicalRecord.Patient.NationalityCode != "VN");
 
         var count = await query.CountAsync();
@@ -147,7 +147,7 @@ public partial class HospitalReportService
         try
         {
             var query = _context.MedicalRecordArchives.AsNoTracking()
-                .Where(a => a.CreatedAt >= from && a.CreatedAt < to && !a.IsDeleted);
+                .Where(a => a.CreatedAt >= ReportPeriod.ToUtc(from) && a.CreatedAt < ReportPeriod.ToUtc(to) && !a.IsDeleted);
             if (deptId.HasValue)
                 query = query.Where(a => a.DepartmentId == deptId);
 

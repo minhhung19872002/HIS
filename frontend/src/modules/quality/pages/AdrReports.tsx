@@ -20,6 +20,7 @@ import {
   ActBtn, Btn, DrawerShell, DrSec, DrField, tk, te, cf,
   type ColumnDef,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -278,8 +279,8 @@ const AdrReportsV2: React.FC = () => {
       setEdit(null);
       void reload();
       void reloadSummary();
-    } catch {
-      te('Lưu thất bại');
+    } catch (e) {
+      te(friendlyErrorMessage(e, 'Lưu thất bại'));
     } finally {
       setSaving(false);
     }

@@ -18,14 +18,21 @@ public partial class ReportingCompleteService
     {
         try
         {
+            // Net cash on the business date through the last day. Was `Status == 1` for every type:
+            // an approved refund slip was ADDED as revenue and a paid-out one (4) ignored; departmentId
+            // was accepted but ignored; a date-only toDate dropped the last day.
+            var toEnd = ReportPeriod.EndExclusive(toDate);
             var query = _context.Receipts
-                .Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate < toDate && r.Status == 1 && !r.IsDeleted);
+                .Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate < toEnd && !r.IsDeleted)
+                .Where(ReportPeriod.CashReceipt);
+            if (departmentId.HasValue)
+                query = query.Where(r => r.MedicalRecord != null && r.MedicalRecord.DepartmentId == departmentId.Value);
 
             var receipts = await query
                 .Select(r => new
                 {
                     r.ReceiptDate,
-                    r.FinalAmount,
+                    FinalAmount = r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount,
                     r.Amount,
                     r.MedicalRecordId,
                     PatientType = r.MedicalRecord != null ? r.MedicalRecord.PatientType : 0,
@@ -113,15 +120,17 @@ public partial class ReportingCompleteService
     {
         try
         {
+            var toEnd = ReportPeriod.EndExclusive(toDate);
             var data = await _context.Receipts
-                .Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate < toDate && r.Status == 1 && !r.IsDeleted)
+                .Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate < toEnd && !r.IsDeleted)
+                .Where(ReportPeriod.CashReceipt)
                 .GroupBy(r => r.ReceiptDate.Date)
                 .Select(g => new RevenueByDayDto
                 {
                     Date = g.Key,
-                    TotalRevenue = g.Sum(r => r.FinalAmount),
-                    InsuranceRevenue = g.Where(r => r.MedicalRecord != null && r.MedicalRecord.PatientType == 1).Sum(r => r.FinalAmount),
-                    PatientRevenue = g.Where(r => r.MedicalRecord == null || r.MedicalRecord.PatientType != 1).Sum(r => r.FinalAmount),
+                    TotalRevenue = g.Sum(r => r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount),
+                    InsuranceRevenue = g.Where(r => r.MedicalRecord != null && r.MedicalRecord.PatientType == 1).Sum(r => r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount),
+                    PatientRevenue = g.Where(r => r.MedicalRecord == null || r.MedicalRecord.PatientType != 1).Sum(r => r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount),
                     TransactionCount = g.Count()
                 })
                 .OrderBy(d => d.Date)
@@ -214,8 +223,9 @@ public partial class ReportingCompleteService
     {
         try
         {
+            var toEnd = ReportPeriod.EndExclusive(toDate);
             var claims = await _context.InsuranceClaims
-                .Where(c => c.ServiceDate >= fromDate && c.ServiceDate < toDate && !c.IsDeleted)
+                .Where(c => c.ServiceDate >= fromDate && c.ServiceDate < toEnd && !c.IsDeleted)
                 .ToListAsync();
 
             var total = claims.Count;
@@ -242,7 +252,7 @@ public partial class ReportingCompleteService
 
             // Top rejection reasons
             var rejections = await _context.InsuranceRejections
-                .Where(r => r.Claim.ServiceDate >= fromDate && r.Claim.ServiceDate < toDate && !r.IsDeleted)
+                .Where(r => r.Claim.ServiceDate >= fromDate && r.Claim.ServiceDate < toEnd && !r.IsDeleted)
                 .GroupBy(r => new { r.RejectionCode, r.RejectionReason })
                 .Select(g => new RejectionReasonDto
                 {
@@ -292,15 +302,17 @@ public partial class ReportingCompleteService
         try
         {
             // Revenue per department from receipts
+            var toEnd = ReportPeriod.EndExclusive(toDate);
             var revenueByDept = await _context.Receipts
-                .Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate < toDate && r.Status == 1 && !r.IsDeleted && r.MedicalRecord != null)
+                .Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate < toEnd && !r.IsDeleted && r.MedicalRecord != null)
+                .Where(ReportPeriod.CashReceipt)
                 .GroupBy(r => r.MedicalRecord!.Department!.DepartmentName ?? "Khong xac dinh")
-                .Select(g => new { Dept = g.Key, Revenue = g.Sum(r => r.FinalAmount) })
+                .Select(g => new { Dept = g.Key, Revenue = g.Sum(r => r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount) })
                 .ToListAsync();
 
-            // Cost from prescriptions (drug cost as proxy for department cost)
+            // Cost from prescriptions (drug cost as proxy for department cost); cancelled (4) / draft (5) cost nothing
             var costByDept = await _context.Prescriptions
-                .Where(p => p.PrescriptionDate >= fromDate && p.PrescriptionDate < toDate && !p.IsDeleted)
+                .Where(p => p.PrescriptionDate >= fromDate && p.PrescriptionDate < toEnd && p.Status != 4 && p.Status != 5 && !p.IsDeleted)
                 .GroupBy(p => p.Department.DepartmentName)
                 .Select(g => new { Dept = g.Key, Cost = g.Sum(p => p.TotalAmount) })
                 .ToListAsync();
@@ -346,12 +358,15 @@ public partial class ReportingCompleteService
     {
         try
         {
+            var toEnd = ReportPeriod.EndExclusive(toDate);
             var query = _context.Receipts
-                .Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate < toDate && r.Status == 1 && !r.IsDeleted);
+                .Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate < toEnd && !r.IsDeleted)
+                .Where(ReportPeriod.CashReceipt);
 
             if (cashierId.HasValue)
                 query = query.Where(r => r.CashierId == cashierId.Value);
 
+            // Refund slips are cash out of the till: subtract them instead of adding.
             var byCashier = await query
                 .GroupBy(r => new { r.CashierId, r.Cashier.FullName })
                 .Select(g => new
@@ -359,10 +374,10 @@ public partial class ReportingCompleteService
                     CashierId = g.Key.CashierId,
                     CashierName = g.Key.FullName,
                     TransactionCount = g.Count(),
-                    TotalAmount = g.Sum(r => r.FinalAmount),
-                    CashAmount = g.Where(r => r.PaymentMethod == 1).Sum(r => r.FinalAmount),
-                    TransferAmount = g.Where(r => r.PaymentMethod == 2).Sum(r => r.FinalAmount),
-                    CardAmount = g.Where(r => r.PaymentMethod == 3).Sum(r => r.FinalAmount)
+                    TotalAmount = g.Sum(r => r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount),
+                    CashAmount = g.Where(r => r.PaymentMethod == 1).Sum(r => r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount),
+                    TransferAmount = g.Where(r => r.PaymentMethod == 2).Sum(r => r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount),
+                    CardAmount = g.Where(r => r.PaymentMethod == 3).Sum(r => r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount)
                 })
                 .OrderByDescending(c => c.TotalAmount)
                 .ToListAsync();
@@ -386,8 +401,9 @@ public partial class ReportingCompleteService
     {
         try
         {
+            var toEnd = ReportPeriod.EndExclusive(toDate);
             var invoices = await _context.ElectronicInvoices
-                .Where(i => i.InvoiceDate >= fromDate && i.InvoiceDate < toDate && !i.IsDeleted)
+                .Where(i => i.InvoiceDate >= fromDate && i.InvoiceDate < toEnd && !i.IsDeleted)
                 .Select(i => new
                 {
                     i.InvoiceNumber,
@@ -503,28 +519,39 @@ public partial class ReportingCompleteService
     {
         try
         {
-            // Imports
-            var importQuery = _context.ImportReceiptDetails
-                .Where(d => d.ImportReceipt.ReceiptDate >= fromDate && d.ImportReceipt.ReceiptDate < toDate && d.ImportReceipt.Status == 1 && !d.IsDeleted);
-            if (warehouseId.HasValue)
-                importQuery = importQuery.Where(d => d.ImportReceipt.WarehouseId == warehouseId.Value);
+            var toEnd = ReportPeriod.EndExclusive(toDate);
 
-            var importValue = await importQuery.SumAsync(d => (decimal?)d.Amount) ?? 0;
+            // Imports
+            var allImports = _context.ImportReceiptDetails
+                .Where(d => d.ImportReceipt.Status == 1 && !d.IsDeleted);
+            if (warehouseId.HasValue)
+                allImports = allImports.Where(d => d.ImportReceipt.WarehouseId == warehouseId.Value);
+
+            var importValue = await allImports
+                .Where(d => d.ImportReceipt.ReceiptDate >= fromDate && d.ImportReceipt.ReceiptDate < toEnd)
+                .SumAsync(d => (decimal?)d.Amount) ?? 0;
 
             // Exports
-            var exportQuery = _context.ExportReceiptDetails
-                .Where(d => d.ExportReceipt.ReceiptDate >= fromDate && d.ExportReceipt.ReceiptDate < toDate && d.ExportReceipt.Status == 1 && !d.IsDeleted);
+            var allExports = _context.ExportReceiptDetails
+                .Where(d => d.ExportReceipt.Status == 1 && !d.IsDeleted);
             if (warehouseId.HasValue)
-                exportQuery = exportQuery.Where(d => d.ExportReceipt.WarehouseId == warehouseId.Value);
+                allExports = allExports.Where(d => d.ExportReceipt.WarehouseId == warehouseId.Value);
 
-            var exportValue = await exportQuery.SumAsync(d => (decimal?)d.Amount) ?? 0;
+            var exportValue = await allExports
+                .Where(d => d.ExportReceipt.ReceiptDate >= fromDate && d.ExportReceipt.ReceiptDate < toEnd)
+                .SumAsync(d => (decimal?)d.Amount) ?? 0;
 
-            // Opening/closing stock (approximate: current stock + exports - imports in period)
+            // Closing = stock on hand now rolled back over movements AFTER the period; opening = closing
+            // − period imports + period exports, so opening + import − export = closing always holds.
+            // Was closing = stock on hand today whatever toDate was, so any past period was wrong.
             var currentStockQuery = _context.InventoryItems.Where(i => !i.IsDeleted);
             if (warehouseId.HasValue)
                 currentStockQuery = currentStockQuery.Where(i => i.WarehouseId == warehouseId.Value);
 
-            var closingStockValue = await currentStockQuery.SumAsync(i => (decimal?)(i.Quantity * i.ImportPrice)) ?? 0;
+            var currentStockValue = await currentStockQuery.SumAsync(i => (decimal?)(i.Quantity * i.ImportPrice)) ?? 0;
+            var importsAfter = await allImports.Where(d => d.ImportReceipt.ReceiptDate >= toEnd).SumAsync(d => (decimal?)d.Amount) ?? 0;
+            var exportsAfter = await allExports.Where(d => d.ExportReceipt.ReceiptDate >= toEnd).SumAsync(d => (decimal?)d.Amount) ?? 0;
+            var closingStockValue = currentStockValue - importsAfter + exportsAfter;
             var openingStockValue = closingStockValue - importValue + exportValue;
 
             var warehouseName = "";
@@ -613,8 +640,11 @@ public partial class ReportingCompleteService
     {
         try
         {
+            var toEnd = ReportPeriod.EndExclusive(toDate);
+            // Cancelled (4) and draft/unissued (5) prescriptions consumed no drugs.
             var query = _context.PrescriptionDetails
-                .Where(pd => pd.Prescription.PrescriptionDate >= fromDate && pd.Prescription.PrescriptionDate < toDate && !pd.IsDeleted);
+                .Where(pd => pd.Prescription.PrescriptionDate >= fromDate && pd.Prescription.PrescriptionDate < toEnd
+                    && pd.Prescription.Status != 4 && pd.Prescription.Status != 5 && !pd.IsDeleted);
 
             if (departmentId.HasValue)
                 query = query.Where(pd => pd.Prescription.DepartmentId == departmentId.Value);
@@ -649,8 +679,10 @@ public partial class ReportingCompleteService
     {
         try
         {
+            var toEnd = ReportPeriod.EndExclusive(toDate);
             var usage = await _context.PrescriptionDetails
-                .Where(pd => pd.Prescription.PrescriptionDate >= fromDate && pd.Prescription.PrescriptionDate < toDate && !pd.IsDeleted)
+                .Where(pd => pd.Prescription.PrescriptionDate >= fromDate && pd.Prescription.PrescriptionDate < toEnd
+                    && pd.Prescription.Status != 4 && pd.Prescription.Status != 5 && !pd.IsDeleted)
                 .GroupBy(pd => new { pd.MedicineId, pd.Medicine.MedicineCode, pd.Medicine.MedicineName })
                 .Select(g => new
                 {

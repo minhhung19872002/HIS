@@ -82,6 +82,10 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
         // Today's date range
         var todayStart = reportDate.Date;
         var todayEnd = reportDate.Date.AddDays(1);
+        // QueueTicket.IssueDate is written as UTC (ReceptionCompleteService.Queue) — use UTC bounds for it.
+        var todayStartUtc = ReportPeriod.ToUtc(todayStart);
+        var todayEndUtc = ReportPeriod.ToUtc(todayEnd);
+        var vnOffsetHours = (todayStart - todayStartUtc).TotalHours;
 
         // 7-day trend
         var weekStart = reportDate.AddDays(-6).Date;
@@ -100,7 +104,7 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
         {
             // === Patient type breakdown ===
             var queueQuery = _context.QueueTickets
-                .Where(q => q.IssueDate >= todayStart && q.IssueDate < todayEnd && !q.IsDeleted);
+                .Where(q => q.IssueDate >= todayStartUtc && q.IssueDate < todayEndUtc && !q.IsDeleted);
 
             if (!includeAll && branchIdsToInclude.Count > 0)
                 queueQuery = queueQuery.Where(q => q.BranchId.HasValue && branchIdsToInclude.Contains(q.BranchId.Value));
@@ -127,8 +131,10 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
             var weekFrom = weekStart.Date;
             var weekTo = reportDate.Date.AddDays(1);
 
+            var weekFromUtc = ReportPeriod.ToUtc(weekFrom);
+            var weekToUtc = ReportPeriod.ToUtc(weekTo);
             var weekQueueQuery = _context.QueueTickets
-                .Where(q => q.IssueDate >= weekFrom && q.IssueDate < weekTo && !q.IsDeleted);
+                .Where(q => q.IssueDate >= weekFromUtc && q.IssueDate < weekToUtc && !q.IsDeleted);
             if (!includeAll && branchIdsToInclude.Count > 0)
                 weekQueueQuery = weekQueueQuery.Where(q => q.BranchId.HasValue && branchIdsToInclude.Contains(q.BranchId.Value));
             else if (!includeAll && branchId.HasValue)
@@ -136,7 +142,7 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
 
             var outpatientsByDay = (await weekQueueQuery
                     .Where(q => q.QueueType == 2)
-                    .GroupBy(q => q.IssueDate.Date)
+                    .GroupBy(q => q.IssueDate.AddHours(vnOffsetHours).Date) // VN-day bucket of a UTC timestamp
                     .Select(g => new { Day = g.Key, Count = g.Count() })
                     .ToListAsync())
                 .ToDictionary(x => x.Day, x => x.Count);
@@ -161,8 +167,10 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
                     .ToListAsync())
                 .ToDictionary(x => x.Day, x => x.Count);
 
+            // Revenue = net cash (was every receipt row: cancelled receipts and refund slips added).
             var revenueByDay = (await _context.Receipts
                     .Where(p => p.ReceiptDate >= weekFrom && p.ReceiptDate < weekTo && !p.IsDeleted)
+                    .Where(ReportPeriod.CashReceipt)
                     .Where(p => !includeAll
                         ? (branchIdsToInclude.Count > 0
                             ? (p.MedicalRecord != null && p.MedicalRecord.Patient != null &&
@@ -170,7 +178,7 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
                             : (p.MedicalRecord != null && p.MedicalRecord.Patient != null && p.MedicalRecord.Patient.BranchId == branchId))
                         : true)
                     .GroupBy(p => p.ReceiptDate.Date)
-                    .Select(g => new { Day = g.Key, Total = g.Sum(p => p.FinalAmount) })
+                    .Select(g => new { Day = g.Key, Total = g.Sum(p => p.ReceiptType == 3 ? -p.FinalAmount : p.FinalAmount) })
                     .ToListAsync())
                 .ToDictionary(x => x.Day, x => x.Total);
 
@@ -220,7 +228,7 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
             var allRoomIds = roomIdsByDept.SelectMany(kv => kv.Value).Distinct().ToList();
 
             var deptTodayQuery = _context.QueueTickets
-                .Where(q => q.IssueDate >= todayStart && q.IssueDate < todayEnd && !q.IsDeleted);
+                .Where(q => q.IssueDate >= todayStartUtc && q.IssueDate < todayEndUtc && !q.IsDeleted);
             if (!includeAll && branchIdsToInclude.Count > 0)
                 deptTodayQuery = deptTodayQuery.Where(q => q.BranchId.HasValue && branchIdsToInclude.Contains(q.BranchId.Value));
             else if (!includeAll && branchId.HasValue)
@@ -246,10 +254,11 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
 
             var revenueByDept = (await _context.Receipts
                     .Where(p => p.ReceiptDate >= todayStart && p.ReceiptDate < todayEnd && !p.IsDeleted)
+                    .Where(ReportPeriod.CashReceipt)
                     .Where(p => p.MedicalRecord != null && p.MedicalRecord.DepartmentId != null
                         && topDeptIds.Contains(p.MedicalRecord.DepartmentId.Value))
                     .GroupBy(p => p.MedicalRecord!.DepartmentId!.Value)
-                    .Select(g => new { DeptId = g.Key, Total = g.Sum(p => p.FinalAmount) })
+                    .Select(g => new { DeptId = g.Key, Total = g.Sum(p => p.ReceiptType == 3 ? -p.FinalAmount : p.FinalAmount) })
                     .ToListAsync())
                 .ToDictionary(x => x.DeptId, x => x.Total);
 
@@ -284,7 +293,7 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
                 brSubIds.AddRange(subIds);
 
                 var brQueueQuery = _context.QueueTickets
-                    .Where(q => q.IssueDate >= todayStart && q.IssueDate < todayEnd && !q.IsDeleted)
+                    .Where(q => q.IssueDate >= todayStartUtc && q.IssueDate < todayEndUtc && !q.IsDeleted)
                     .Where(q => q.BranchId.HasValue && brSubIds.Contains(q.BranchId.Value));
 
                 var brAdmCount = await _context.Admissions
@@ -295,9 +304,10 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
 
                 var brRevenue = await _context.Receipts
                     .Where(p => p.ReceiptDate >= todayStart && p.ReceiptDate < todayEnd && !p.IsDeleted)
+                    .Where(ReportPeriod.CashReceipt)
                     .Where(p => p.MedicalRecord != null && p.MedicalRecord.Patient != null &&
                                brSubIds.Contains(p.MedicalRecord.Patient.BranchId ?? Guid.Empty))
-                    .SumAsync(p => p.FinalAmount);
+                    .SumAsync(p => p.ReceiptType == 3 ? -p.FinalAmount : p.FinalAmount);
 
                 subBranches.Add(new BranchSummary
                 {
@@ -327,7 +337,7 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
 
         // KPIs
         var todayQueueQuery = _context.QueueTickets
-            .Where(q => q.IssueDate >= todayStart && q.IssueDate < todayEnd && !q.IsDeleted);
+            .Where(q => q.IssueDate >= todayStartUtc && q.IssueDate < todayEndUtc && !q.IsDeleted);
 
         if (!includeAll && branchIdsToInclude.Count > 0)
             todayQueueQuery = todayQueueQuery.Where(q => q.BranchId.HasValue && branchIdsToInclude.Contains(q.BranchId.Value));
@@ -336,13 +346,15 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
 
         var todayOutpatients = await todayQueueQuery.CountAsync(q => q.QueueType == 2);
         var todayEmergency = await todayQueueQuery.CountAsync(q => q.Priority == 2);
+        // SurgerySchedule.Status 2 preparing · 3 operating · 4 done; 5 cancelled and 6 postponed were counted.
         var todaySurg = await _context.SurgerySchedules
-            .Where(s => s.ScheduledDate.Date == reportDate.Date && s.Status >= 2 && !s.IsDeleted)
+            .Where(s => s.ScheduledDate.Date == reportDate.Date && s.Status >= 2 && s.Status <= 4 && !s.IsDeleted)
             .CountAsync();
 
-        // Current inpatients
+        // Current inpatients — AdmissionStatus.InTreatment (0). Was Status == 1 = DISCHARGED, so
+        // "current inpatients" counted discharged patients and AvailableBeds = total beds − discharged.
         var currentIpd = await _context.Admissions
-            .Where(a => a.Status == 1 && !a.IsDeleted)
+            .Where(a => a.Status == HIS.Core.Constants.AdmissionStatus.InTreatment && !a.IsDeleted)
             .Where(a => !includeAll
                 ? (branchIdsToInclude.Count > 0
                     ? (a.MedicalRecord != null && a.MedicalRecord.Patient != null &&
@@ -357,7 +369,8 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
 
         // Today's revenue
         var todayRevQuery = _context.Receipts
-            .Where(p => p.ReceiptDate >= todayStart && p.ReceiptDate < todayEnd && !p.IsDeleted);
+            .Where(p => p.ReceiptDate >= todayStart && p.ReceiptDate < todayEnd && !p.IsDeleted)
+            .Where(ReportPeriod.CashReceipt);
 
         if (!includeAll && branchIdsToInclude.Count > 0)
             todayRevQuery = todayRevQuery.Where(p => p.MedicalRecord != null && p.MedicalRecord.Patient != null &&
@@ -365,7 +378,7 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
         else if (!includeAll && branchId.HasValue)
             todayRevQuery = todayRevQuery.Where(p => p.MedicalRecord != null && p.MedicalRecord.Patient != null && p.MedicalRecord.Patient.BranchId == branchId);
 
-        var todayRevenue = await todayRevQuery.SumAsync(p => p.FinalAmount);
+        var todayRevenue = await todayRevQuery.SumAsync(p => p.ReceiptType == 3 ? -p.FinalAmount : p.FinalAmount);
 
         // Today's admissions/discharges
         var todayAdmissions = await _context.Admissions
@@ -453,11 +466,13 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
                 .Where(u => u.IsActive && !u.IsDeleted && u.Department != null &&
                            allIds.Contains(u.Department.BranchId ?? Guid.Empty))
                 .Count(),
+            // Net cash after discount (was gross Amount of every receipt incl. cancelled and refunds).
             TodayRevenue = _context.Receipts
                 .Where(p => p.ReceiptDate >= todayStart && p.ReceiptDate < todayEnd && !p.IsDeleted)
+                .Where(ReportPeriod.CashReceipt)
                 .Where(p => p.MedicalRecord != null && p.MedicalRecord.Patient != null &&
                            allIds.Contains(p.MedicalRecord.Patient.BranchId ?? Guid.Empty))
-                .Sum(p => p.Amount),
+                .Sum(p => p.ReceiptType == 3 ? -p.FinalAmount : p.FinalAmount),
             Children = allBranches
                 .Where(b => b.ParentBranchId == branch.Id && !b.IsDeleted)
                 .Select(b => BuildBranchTree(b, allBranches))
@@ -581,22 +596,27 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
             .Where(p => !p.IsDeleted && p.BranchId.HasValue && branchIds.Contains(p.BranchId.Value))
             .CountAsync();
 
+        // `<= toDate` against a date-only toDate dropped the last day; IssueDate is UTC.
+        var toEnd = ReportPeriod.EndExclusive(toDate);
+        var fromUtc = ReportPeriod.ToUtc(fromDate);
+        var toUtc = ReportPeriod.ToUtc(toEnd);
         var visitCount = await _context.QueueTickets
-            .Where(q => q.IssueDate >= fromDate && q.IssueDate <= toDate && !q.IsDeleted)
+            .Where(q => q.IssueDate >= fromUtc && q.IssueDate < toUtc && !q.IsDeleted)
             .Where(q => q.BranchId.HasValue && branchIds.Contains(q.BranchId.Value))
             .CountAsync(q => q.QueueType == 2);
 
         var admCount = await _context.Admissions
-            .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate <= toDate && !a.IsDeleted)
+            .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate < toEnd && !a.IsDeleted)
             .Where(a => a.MedicalRecord != null && a.MedicalRecord.Patient != null &&
                        branchIds.Contains(a.MedicalRecord.Patient.BranchId ?? Guid.Empty))
             .CountAsync();
 
         var revenue = await _context.Receipts
-            .Where(p => p.ReceiptDate >= fromDate && p.ReceiptDate <= toDate && !p.IsDeleted)
+            .Where(p => p.ReceiptDate >= fromDate && p.ReceiptDate < toEnd && !p.IsDeleted)
+            .Where(ReportPeriod.CashReceipt)
             .Where(p => p.MedicalRecord != null && p.MedicalRecord.Patient != null &&
                        branchIds.Contains(p.MedicalRecord.Patient.BranchId ?? Guid.Empty))
-            .SumAsync(p => p.FinalAmount);
+            .SumAsync(p => p.ReceiptType == 3 ? -p.FinalAmount : p.FinalAmount);
 
         var subBranchCount = await _context.HospitalBranches
             .IgnoreQueryFilters()
