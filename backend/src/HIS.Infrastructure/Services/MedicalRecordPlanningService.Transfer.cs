@@ -78,8 +78,8 @@ public partial class MedicalRecordPlanningService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error querying transfers, returning stub data");
-            return GetStubTransfers(search);
+            _logger.LogWarning(ex, "Error querying transfers");
+            throw;
         }
     }
 

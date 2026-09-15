@@ -32,10 +32,18 @@ public partial class MedicalRecordPlanningService
                     e.MedicalRecord.MedicalRecordCode.ToLower().Contains(kw));
             }
 
+            // QA-R2: lọc trên đúng ngày khám hiển thị (StartTime ?? CreatedAt). Điều kiện OR cũ để lọt
+            // lượt khám có StartTime ngoài khoảng nhưng CreatedAt trong khoảng (và ngược lại).
             if (search.FromDate.HasValue)
-                query = query.Where(e => (e.StartTime != null && e.StartTime >= search.FromDate.Value) || e.CreatedAt >= search.FromDate.Value);
+            {
+                var from = search.FromDate.Value.Date;
+                query = query.Where(e => (e.StartTime ?? e.CreatedAt) >= from);
+            }
             if (search.ToDate.HasValue)
-                query = query.Where(e => (e.StartTime != null && e.StartTime <= search.ToDate.Value.AddDays(1)) || e.CreatedAt <= search.ToDate.Value.AddDays(1));
+            {
+                var toExclusive = search.ToDate.Value.Date.AddDays(1);
+                query = query.Where(e => (e.StartTime ?? e.CreatedAt) < toExclusive);
+            }
             if (search.DepartmentId.HasValue)
                 query = query.Where(e => e.DepartmentId == search.DepartmentId.Value);
             if (search.Status.HasValue)
@@ -71,7 +79,8 @@ public partial class MedicalRecordPlanningService
                 RecordCode = e.RecordCode,
                 PatientCode = e.PatientCode,
                 PatientName = e.PatientName,
-                Gender = e.Gender == 0 ? "Nam" : (e.Gender == 1 ? "Nu" : "Khac"),
+                // Patient.Gender: 1 Nam · 2 Nữ · 3 Khác (mã cũ đọc 0 = Nam, 1 = Nữ ⇒ đảo giới tính).
+                Gender = e.Gender == 1 ? "Nam" : (e.Gender == 2 ? "Nu" : "Khac"),
                 DateOfBirth = e.DateOfBirth,
                 DepartmentName = e.DepartmentName,
                 DoctorName = e.DoctorName,
@@ -88,8 +97,8 @@ public partial class MedicalRecordPlanningService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error querying outpatient records, returning stub data");
-            return GetStubOutpatientRecords(search);
+            _logger.LogWarning(ex, "Error querying outpatient records");
+            throw;
         }
     }
 }

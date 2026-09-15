@@ -149,15 +149,16 @@ const TABS: TopTab<TabKey>[] = [
 ];
 
 const TR_TONE: Record<number, 'ok' | 'warn' | 'crit' | 'info'> = { 0: 'warn', 1: 'ok', 2: 'crit', 3: 'info' };
-const BR_TONE: Record<number, 'ok' | 'warn' | 'crit' | 'info'> = { 0: 'info', 1: 'ok', 2: 'crit', 3: 'warn' };
+// Borrow status = MedicalRecordBorrowRequest.Status: 0 chờ duyệt · 1 đã duyệt · 2 từ chối · 3 đang mượn · 4 đã trả
+const BR_TONE: Record<number, 'ok' | 'warn' | 'crit' | 'info'> = { 0: 'info', 1: 'info', 2: 'crit', 3: 'warn', 4: 'ok' };
 const HO_TONE: Record<number, 'ok' | 'warn' | 'crit' | 'info'> = { 0: 'info', 1: 'warn', 2: 'ok', 3: 'crit' };
 
 const BR_STATUS_OPTS = [
   { v: '', l: 'Tất cả trạng thái' },
-  { v: '0', l: 'Đang mượn' },
-  { v: '1', l: 'Đã trả' },
+  { v: '3', l: 'Đang mượn' },
+  { v: '4', l: 'Đã trả' },
+  { v: '0', l: 'Chờ duyệt' },
   { v: '2', l: 'Từ chối' },
-  { v: '3', l: 'Quá hạn' },
 ];
 
 const HO_STATUS_OPTS = [
@@ -419,12 +420,27 @@ const MedicalRecordPlanningV2: React.FC = () => {
 
   // ─────────────────────────── Transfers tab handlers ───────────────────────
 
-  const handleApproveTransfer = async (r: TransferRecord, approve: boolean) => {
+  // Backend requires a reject reason for both transfer and handover rejection (400 otherwise),
+  // so rejection goes through a reason modal instead of a bare confirm.
+  const [rejectTarget, setRejectTarget] = useState<{ kind: 'transfer'; rec: TransferRecord } | { kind: 'handover'; rec: HandoverRecord } | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+
+  const handleApproveTransfer = async (r: TransferRecord, approve: boolean, rejectReasonText?: string) => {
     try {
-      await approveTransfer({ transferId: r.id, approve });
+      await approveTransfer({ transferId: r.id, approve, rejectReason: rejectReasonText });
       tk(approve ? 'Đã duyệt chuyển viện' : 'Đã từ chối chuyển viện');
       loadTransfers(trPage);
-    } catch { tw(approve ? 'Duyệt thất bại' : 'Từ chối thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, approve ? 'Duyệt thất bại' : 'Từ chối thất bại')); }
+  };
+
+  const submitReject = async () => {
+    if (!rejectTarget) return;
+    const reason = rejectReason.trim();
+    if (!reason) { tw('Nhập lý do từ chối'); return; }
+    if (rejectTarget.kind === 'transfer') await handleApproveTransfer(rejectTarget.rec, false, reason);
+    else await handleApproveHandover(rejectTarget.rec, false, reason);
+    setRejectTarget(null);
+    setRejectReason('');
   };
 
   // ─────────────────────────── Borrowing tab handlers ──────────────────────
@@ -485,12 +501,12 @@ const MedicalRecordPlanningV2: React.FC = () => {
 
   // ─────────────────────────── Handover tab handlers ───────────────────────
 
-  const handleApproveHandover = async (r: HandoverRecord, approve: boolean) => {
+  const handleApproveHandover = async (r: HandoverRecord, approve: boolean, rejectReasonText?: string) => {
     try {
-      await approveHandover({ handoverId: r.id, approve });
+      await approveHandover({ handoverId: r.id, approve, rejectReason: rejectReasonText });
       tk(approve ? 'Đã duyệt bàn giao' : 'Đã từ chối bàn giao');
       loadHandover(hoPage);
-    } catch { tw(approve ? 'Duyệt thất bại' : 'Từ chối thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, approve ? 'Duyệt thất bại' : 'Từ chối thất bại')); }
   };
 
   // ─────────────────────────── Attendance tab handlers ─────────────────────
@@ -572,7 +588,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
   const trActions = (r: TransferRecord) => r.status === 0 ? (
     <div className="ab-actions">
       <ActBtn ic="check" title="Duyệt" onClick={() => cf('Duyệt chuyển viện?', () => handleApproveTransfer(r, true))} />
-      <ActBtn ic="x" title="Từ chối" onClick={() => cf('Từ chối chuyển viện?', () => handleApproveTransfer(r, false), { tone: 'crit' })} />
+      <ActBtn ic="x" title="Từ chối" onClick={() => { setRejectReason(''); setRejectTarget({ kind: 'transfer', rec: r }); }} />
     </div>
   ) : null;
 
@@ -599,10 +615,10 @@ const MedicalRecordPlanningV2: React.FC = () => {
 
   const brActions = (r: BorrowRecord) => (
     <div className="ab-actions">
-      {(r.status === 0 || r.status === 3) && (
+      {r.status === 3 && (
         <ActBtn ic="corner-down-left" title="Trả" onClick={() => { setReturnTarget(r); returnForm.resetFields(); }} />
       )}
-      {r.status === 0 && (
+      {r.status === 3 && (
         <ActBtn ic="clock" title="Gia hạn" onClick={() => { setExtendTarget(r); extendForm.resetFields(); }} />
       )}
     </div>
@@ -629,7 +645,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
   const hoActions = (r: HandoverRecord) => r.status === 1 ? (
     <div className="ab-actions">
       <ActBtn ic="check" title="Duyệt" onClick={() => cf('Duyệt bàn giao?', () => handleApproveHandover(r, true))} />
-      <ActBtn ic="x" title="Từ chối" onClick={() => cf('Từ chối bàn giao?', () => handleApproveHandover(r, false), { tone: 'crit' })} />
+      <ActBtn ic="x" title="Từ chối" onClick={() => { setRejectReason(''); setRejectTarget({ kind: 'handover', rec: r }); }} />
     </div>
   ) : null;
 
@@ -1099,6 +1115,29 @@ const MedicalRecordPlanningV2: React.FC = () => {
                 <Input.TextArea rows={3} placeholder="Lý do gia hạn" />
               </Form.Item>
             </Form>
+          </div>
+        )}
+      </ModalShell>
+
+      {/* Modal Từ chối (chuyển viện / bàn giao) — backend bắt buộc lý do */}
+      <ModalShell
+        open={!!rejectTarget}
+        onClose={() => { setRejectTarget(null); setRejectReason(''); }}
+        title={rejectTarget?.kind === 'transfer' ? 'Từ chối chuyển viện' : 'Từ chối bàn giao'}
+        size="md"
+        footer={<>
+          <Btn variant="ghost" onClick={() => { setRejectTarget(null); setRejectReason(''); }}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitReject}>
+            <Ico name="x" size={12} /> Từ chối
+          </Btn>
+        </>}
+      >
+        {rejectTarget && (
+          <div style={{ padding: '8px 0' }}>
+            <div style={{ marginBottom: 'var(--space-10)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
+              Bệnh nhân: <b style={{ color: 'var(--t-0)' }}>{rejectTarget.rec.patientName || '—'}</b>
+            </div>
+            <Input.TextArea rows={3} value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Lý do từ chối" />
           </div>
         )}
       </ModalShell>

@@ -52,6 +52,11 @@ public class ClinicalGuidanceController : ControllerBase
     [HttpPost("batches")]
     public async Task<ActionResult<ClinicalGuidanceBatchDetailDto>> CreateBatch([FromBody] CreateClinicalGuidanceBatchDto dto)
     {
+        // QA-R2: the v2 form has no lead-doctor picker. LeadDoctorId = Guid.Empty made the required
+        // Include(LeadDoctor) an inner join, so the new batch vanished from the list and create returned 204.
+        if (dto.LeadDoctorId == Guid.Empty
+            && Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var userId))
+            dto.LeadDoctorId = userId;
         var result = await _clinicalGuidanceService.CreateBatchAsync(dto);
         return Ok(result);
     }

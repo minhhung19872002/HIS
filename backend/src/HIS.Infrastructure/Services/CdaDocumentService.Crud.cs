@@ -14,6 +14,20 @@ public partial class CdaDocumentService
         var patient = await _db.Patients.AsNoTracking().FirstOrDefaultAsync(p => p.Id == request.PatientId)
             ?? throw new InvalidOperationException($"Patient {request.PatientId} not found");
 
+        // QA-R2 (patient safety): the builders pull clinical content from MedicalRecordId while the
+        // header (recordTarget) comes from PatientId. Without this check a CDA for patient A could
+        // carry patient B's diagnoses/prescriptions.
+        if (request.MedicalRecordId.HasValue)
+        {
+            var recordPatientId = await _db.MedicalRecords.AsNoTracking()
+                .Where(m => m.Id == request.MedicalRecordId.Value)
+                .Select(m => (Guid?)m.PatientId)
+                .FirstOrDefaultAsync()
+                ?? throw new InvalidOperationException($"Medical record {request.MedicalRecordId} not found");
+            if (recordPatientId != request.PatientId)
+                throw new InvalidOperationException("Medical record does not belong to the selected patient");
+        }
+
         var author = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id.ToString() == userId);
 
         var cdaXml = request.DocumentType switch

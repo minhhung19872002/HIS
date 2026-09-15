@@ -640,9 +640,14 @@ public partial class SystemCompleteService
             var revenueByDept = (await _context.Receipts
                     .Where(r => r.MedicalRecord != null && r.MedicalRecord.DepartmentId != null
                         && deptIds.Contains(r.MedicalRecord.DepartmentId.Value)
-                        && r.CreatedAt >= from && r.CreatedAt < to && r.Status == 1)
+                        && r.CreatedAt >= from && r.CreatedAt < to
+                        // QA-R2: same revenue rule as the dashboard total — confirmed payments minus approved/paid
+                        // refunds, after discount. Was Status==1 of ANY type at gross Amount, so deposits (type 1)
+                        // and approved refunds (type 3, Status 1) were added as revenue.
+                        && (r.ReceiptType == 2 && r.Status == 1
+                            || r.ReceiptType == 3 && (r.Status == RefundStatus.Approved || r.Status == RefundStatus.Paid)))
                     .GroupBy(r => r.MedicalRecord!.DepartmentId!.Value)
-                    .Select(g => new { DeptId = g.Key, Total = g.Sum(r => (decimal?)r.Amount) })
+                    .Select(g => new { DeptId = g.Key, Total = g.Sum(r => (decimal?)(r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount)) })
                     .ToListAsync())
                 .ToDictionary(x => x.DeptId, x => x.Total ?? 0);
 

@@ -50,10 +50,13 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
         }
 
         var total = await query.CountAsync();
+        // QA-R2: page=0 / pageSize<=0 trước đây ra Skip/Take âm ⇒ SQL lỗi ⇒ HTTP 500.
+        var page = Math.Max(1, search.Page);
+        var pageSize = search.PageSize > 0 ? Math.Min(search.PageSize, 200) : 20;
         var items = await query
             .OrderByDescending(a => a.ArchivedDate ?? a.CreatedAt)
-            .Skip((search.Page - 1) * search.PageSize)
-            .Take(search.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
         return new PagedArchiveResult
@@ -169,7 +172,10 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
     {
         var archive = await _context.MedicalRecordArchives.FindAsync(dto.MedicalRecordArchiveId);
         if (archive == null) throw new KeyNotFoundException("Không tìm thấy hồ sơ lưu trữ");
-        if (archive.Status == 2) throw new InvalidOperationException("Hồ sơ đang được mượn");
+        if (archive.Status == 2 || archive.IsOnLoan) throw new InvalidOperationException("Hồ sơ đang được mượn");
+        if (archive.Status == 3) throw new InvalidOperationException("Hồ sơ lưu trữ đã hủy, không cho mượn được");
+        if (dto.ExpectedReturnDate.HasValue && dto.ExpectedReturnDate.Value.Date < DateTime.Today)
+            throw new InvalidOperationException("Hạn trả không được trước ngày hôm nay");
 
         var request = new MedicalRecordBorrowRequest
         {
@@ -195,6 +201,13 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
     {
         var request = await _context.MedicalRecordBorrowRequests.FindAsync(requestId);
         if (request == null) throw new KeyNotFoundException("Không tìm thấy phiếu mượn");
+        // QA-R2: trước đây duyệt/từ chối được ở MỌI trạng thái — từ chối một phiếu đang mượn (3→2)
+        // làm hồ sơ kẹt "đang mượn" trong kho mà không còn phiếu nào để trả; duyệt lại phiếu đã trả
+        // (4→1) cho giao hồ sơ lần nữa trên phiếu cũ.
+        if (request.Status != 0)
+            throw new InvalidOperationException("Chỉ duyệt/từ chối được phiếu đang chờ duyệt");
+        if (!approve && string.IsNullOrWhiteSpace(rejectReason))
+            throw new InvalidOperationException("Từ chối phiếu mượn thì phải ghi lý do");
 
         request.Status = approve ? 1 : 2; // 1=Đã duyệt, 2=Từ chối
         request.ApprovedById = userId;
@@ -213,6 +226,10 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
             .FirstOrDefaultAsync(r => r.Id == requestId);
         if (request == null) throw new KeyNotFoundException("Không tìm thấy phiếu mượn");
         if (request.Status != 1) throw new InvalidOperationException("Phiếu mượn chưa được duyệt");
+        // QA-R2: hai phiếu cùng hồ sơ cùng được duyệt thì trước đây giao được cả hai ⇒ một tập hồ sơ
+        // giấy "đang mượn" ở hai người.
+        if (request.MedicalRecordArchive.Status == 2 || request.MedicalRecordArchive.IsOnLoan)
+            throw new InvalidOperationException("Hồ sơ đang được người khác mượn, chưa trả về kho");
 
         request.Status = 3; // Đang mượn
         request.BorrowedDate = DateTime.UtcNow;
@@ -350,6 +367,8 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
         // we accept the parameter for API compatibility but don't filter on it.
 
         var total = await query.CountAsync();
+        pageIndex = Math.Max(0, pageIndex);
+        pageSize = pageSize > 0 ? Math.Min(pageSize, 200) : 20;
         var items = await query
             .OrderByDescending(a => a.ArchivedDate ?? a.CreatedAt)
             .Skip(pageIndex * pageSize)
@@ -427,18 +446,20 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
         var record = archive.MedicalRecord;
         var patient = archive.Patient ?? record?.Patient;
 
-        // Build XML representation of the archived record
+        // Build XML representation of the archived record.
+        // QA-R2: escape free text — a diagnosis like "U < 2cm & ..." produced malformed XML.
+        static string X(string? s) => System.Security.SecurityElement.Escape(s ?? string.Empty) ?? string.Empty;
         var sb = new StringBuilder();
         sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
         sb.AppendLine("<MedicalRecordArchive>");
-        sb.AppendLine($"  <ArchiveCode>{archive.ArchiveCode}</ArchiveCode>");
-        sb.AppendLine($"  <PatientName>{patient?.FullName}</PatientName>");
-        sb.AppendLine($"  <PatientCode>{patient?.PatientCode}</PatientCode>");
-        sb.AppendLine($"  <MedicalRecordCode>{record?.MedicalRecordCode}</MedicalRecordCode>");
-        sb.AppendLine($"  <Diagnosis>{archive.Diagnosis}</Diagnosis>");
+        sb.AppendLine($"  <ArchiveCode>{X(archive.ArchiveCode)}</ArchiveCode>");
+        sb.AppendLine($"  <PatientName>{X(patient?.FullName)}</PatientName>");
+        sb.AppendLine($"  <PatientCode>{X(patient?.PatientCode)}</PatientCode>");
+        sb.AppendLine($"  <MedicalRecordCode>{X(record?.MedicalRecordCode)}</MedicalRecordCode>");
+        sb.AppendLine($"  <Diagnosis>{X(archive.Diagnosis)}</Diagnosis>");
         sb.AppendLine($"  <AdmissionDate>{archive.AdmissionDate:yyyy-MM-dd}</AdmissionDate>");
         sb.AppendLine($"  <DischargeDate>{archive.DischargeDate:yyyy-MM-dd}</DischargeDate>");
-        sb.AppendLine($"  <Department>{archive.Department?.DepartmentName}</Department>");
+        sb.AppendLine($"  <Department>{X(archive.Department?.DepartmentName)}</Department>");
         sb.AppendLine($"  <ArchivedDate>{archive.ArchivedDate:yyyy-MM-dd}</ArchivedDate>");
         sb.AppendLine("</MedicalRecordArchive>");
 

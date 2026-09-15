@@ -107,14 +107,17 @@ public class EmrCloudSyncService : IEmrCloudSyncService
             using var sha = SHA256.Create();
             log.FileHash = Convert.ToHexString(sha.ComputeHash(content));
 
-            // Demo upload — production wire R2 S3 client
+            // QA-R2: there is no R2/S3 client wired in this codebase, so nothing is uploaded. This
+            // used to set Status = "done" anyway — the screen reported HSBA backups (incl. the DR
+            // copy) as completed while no byte left the server. Record the truth instead.
             var bucket = _config[$"EmrCloud:{destination}:Bucket"] ?? "his-emr-archive";
             log.RemotePath = $"emr/{DateTime.UtcNow:yyyy/MM/dd}/{record.MedicalRecordCode}/{log.FileName}";
-            log.Status = "done";
+            log.Status = "failed";
+            log.ErrorMessage = "Chưa kết nối kho lưu trữ đám mây (R2/S3) — file chưa được tải lên.";
             log.CompletedAt = DateTime.UtcNow;
 
-            _logger.LogInformation("EMR sync done: record={Record} type={Type} dest={Dest} bucket={Bucket} path={Path} bytes={Bytes}",
-                record.MedicalRecordCode, fileType, destination, bucket, log.RemotePath, log.FileSizeBytes);
+            _logger.LogWarning("EMR sync not performed (no cloud storage client): record={Record} type={Type} dest={Dest} bucket={Bucket} bytes={Bytes}",
+                record.MedicalRecordCode, fileType, destination, bucket, log.FileSizeBytes);
         }
         catch (Exception ex)
         {
@@ -132,6 +135,8 @@ public class EmrCloudSyncService : IEmrCloudSyncService
         var q = _db.EmrCloudSyncLogs.AsQueryable();
         if (medicalRecordId.HasValue) q = q.Where(l => l.MedicalRecordId == medicalRecordId.Value);
         if (!string.IsNullOrWhiteSpace(status)) q = q.Where(l => l.Status == status);
+        pageIndex = Math.Max(1, pageIndex); // pageIndex=0 gave a negative Skip → 500
+        pageSize = pageSize > 0 ? Math.Min(pageSize, 500) : 30;
         var logs = await q
             .OrderByDescending(l => l.CreatedAt)
             .Skip((pageIndex - 1) * pageSize)
@@ -170,24 +175,16 @@ public class EmrCloudSyncService : IEmrCloudSyncService
             .Where(l => l.Status == "failed" && l.RetryCount < 3)
             .ToListAsync();
 
+        // QA-R2: "retry" used to flip every failed row to "done" without re-uploading anything.
+        // Until a storage client exists a retry can only be recorded as attempted-and-still-failed.
         var count = 0;
         foreach (var f in failed)
         {
-            try
-            {
-                f.Status = "uploading";
-                f.RetryCount++;
-                f.LastRetryAt = DateTime.UtcNow;
-                f.Status = "done";
-                f.CompletedAt = DateTime.UtcNow;
-                f.ErrorMessage = null;
-                count++;
-            }
-            catch (Exception ex)
-            {
-                f.Status = "failed";
-                f.ErrorMessage = ex.Message;
-            }
+            f.RetryCount++;
+            f.LastRetryAt = DateTime.UtcNow;
+            f.Status = "failed";
+            f.ErrorMessage = "Chưa kết nối kho lưu trữ đám mây (R2/S3) — thử lại không tải lên được.";
+            count++;
         }
         await _db.SaveChangesAsync();
         return count;

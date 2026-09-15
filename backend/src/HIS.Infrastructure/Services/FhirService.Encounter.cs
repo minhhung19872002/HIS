@@ -64,7 +64,11 @@ public partial class FhirService
                 admQuery = FilterAdmissionByFhirStatus(admQuery, status);
 
             var admTotal = await admQuery.CountAsync();
-            var admissions = await admQuery.OrderByDescending(a => a.AdmissionDate).Take(Math.Max(0, count - exams.Count)).ToListAsync();
+            // QA-R2: admissions are paged after examinations — skip the part of the offset that
+            // already went past all exams (before, every page repeated the first admissions).
+            var admissions = await admQuery.OrderByDescending(a => a.AdmissionDate)
+                .Skip(Math.Max(0, offset - examTotal))
+                .Take(Math.Max(0, count - exams.Count)).ToListAsync();
             entries.AddRange(admissions.Select(a => new FhirBundleEntry
             {
                 FullUrl = $"{baseUrl}/api/fhir/Encounter/adm-{a.Id}",

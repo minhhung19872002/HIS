@@ -148,8 +148,11 @@ public class PublicEmrLookupService : IPublicEmrLookupService
 
         if (patientIds.Count == 0)
         {
+            // Never persist the typed CCCD in clear text (Patients.IdentityNumber is encrypted at rest; the audit
+            // row stored every attempted number verbatim). Keep only the last 4 digits for correlation.
+            var maskedId = idNumber.Length > 4 ? new string('*', idNumber.Length - 4) + idNumber[^4..] : "****";
             await _audit.LogAsync("public", "public-emr", "PublicEmrLookupNoMatch",
-                "Patient", idNumber, "Không khớp CCCD + ngày sinh", ip, userAgent,
+                "Patient", maskedId, "Không khớp CCCD + ngày sinh", ip, userAgent,
                 "PublicEmr", requestPath, "POST", 200);
             return notFound;
         }

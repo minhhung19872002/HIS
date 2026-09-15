@@ -107,14 +107,7 @@ public partial class MedicalRecordPlanningService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Error getting attendance");
-            return new AttendanceSummaryDto
-            {
-                Date = search.Date ?? DateTime.Today,
-                TotalDepartments = 5,
-                CheckedInCount = 3,
-                PendingCount = 2,
-                Departments = new List<DepartmentAttendanceDto>(),
-            };
+            throw;
         }
     }
 
@@ -203,21 +196,9 @@ public partial class MedicalRecordPlanningService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error getting stats, returning stub data");
-            return new PlanningStatsDto
-            {
-                TotalRecords = 1250,
-                AssignedCodes = 1180,
-                PendingCodes = 70,
-                TotalTransfers = 45,
-                PendingTransfers = 8,
-                ActiveBorrows = 12,
-                OverdueBorrows = 3,
-                PendingHandovers = 25,
-                CompletedHandovers = 180,
-                OutpatientRecords = 980,
-                RecordCopyRequests = 15,
-            };
+            // QA-R2: trước đây trả bộ số bịa (1250 hồ sơ, 12 đang mượn...) như KPI thật.
+            _logger.LogWarning(ex, "Error getting stats");
+            throw;
         }
     }
 

@@ -83,8 +83,8 @@ public partial class MedicalRecordPlanningService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error querying handovers, returning stub data");
-            return GetStubHandovers(search);
+            _logger.LogWarning(ex, "Error querying handovers");
+            throw;
         }
     }
 

@@ -97,9 +97,23 @@ public partial class EmrManagementService
 
     public async Task<bool> ReopenEmrAsync(Guid examinationId, string? note = null)
     {
+        // TT46 (QA-R2): cửa mở lại này trước đây không bắt lý do, không ghi EmrAmendments, và với
+        // examinationId không tồn tại vẫn trả 200 + ghi một dòng close-log mồ côi. Cửa song song
+        // POST emr-admin/records/{id}/reopen đã bắt buộc lý do + lưu vết — hai cửa phải cùng luật.
+        if (string.IsNullOrWhiteSpace(note))
+            throw new InvalidOperationException("Phải nhập lý do mở lại hồ sơ (TT46).");
+
         try
         {
             var userId = GetCurrentUserId() ?? "system";
+
+            var targetExam = await _context.Examinations.AsNoTracking()
+                .Where(e => e.Id == examinationId && !e.IsDeleted)
+                .Select(e => new { e.MedicalRecordId, e.MedicalRecord.EmrFinalizedAt })
+                .FirstOrDefaultAsync();
+            if (targetExam == null) return false;
+            if (targetExam.EmrFinalizedAt == null)
+                throw new InvalidOperationException("Hồ sơ chưa kết thúc — không cần mở lại.");
 
             // Log the reopen action
             var reopenLog = new EmrCloseLog
@@ -134,6 +148,25 @@ public partial class EmrManagementService
                     record.EmrFinalizedBy = null;
                     record.UpdatedAt = DateTime.UtcNow;
                     record.UpdatedBy = userId;
+
+                    // Same audit trail as EmrAdminService.ReopenRecordAsync (Action 2 = Reopen).
+                    var currentVersion = (await _context.EmrAmendments
+                        .Where(a => a.MedicalRecordId == record.Id && a.Action == 1 && !a.IsDeleted)
+                        .MaxAsync(a => (int?)a.VersionNo)) ?? 1;
+                    Guid.TryParse(userId, out var performedBy);
+                    _context.EmrAmendments.Add(new EmrAmendment
+                    {
+                        Id = Guid.NewGuid(),
+                        MedicalRecordId = record.Id,
+                        Action = 2,
+                        VersionNo = currentVersion,
+                        Reason = note!.Trim(),
+                        PerformedBy = performedBy,
+                        PerformedByName = GetCurrentUserName(),
+                        PerformedAt = DateTime.UtcNow,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = userId,
+                    });
                 }
             }
 
@@ -229,6 +262,29 @@ public partial class EmrManagementService
     {
         try
         {
+            // TT46 (QA-R2): khôi phục một tờ điều trị / biên bản hội chẩn / phiếu chăm sóc / đơn thuốc
+            // đã xoá là SỬA nội dung HSBA — trước đây làm được cả khi hồ sơ đã kết thúc và khoá.
+            switch (dto.EntityType.ToLowerInvariant())
+            {
+                case "treatmentsheet":
+                    await EnsureRestorableByExaminationAsync(_context.Set<TreatmentSheet>().IgnoreQueryFilters()
+                        .Where(x => x.Id == dto.RecordId).Select(x => (Guid?)x.ExaminationId));
+                    break;
+                case "consultationrecord":
+                    await EnsureRestorableByExaminationAsync(_context.Set<ConsultationRecord>().IgnoreQueryFilters()
+                        .Where(x => x.Id == dto.RecordId).Select(x => (Guid?)x.ExaminationId));
+                    break;
+                case "nursingcaresheet":
+                    await EnsureRestorableByExaminationAsync(_context.Set<NursingCareSheet>().IgnoreQueryFilters()
+                        .Where(x => x.Id == dto.RecordId).Select(x => (Guid?)x.ExaminationId));
+                    break;
+                case "prescription":
+                    var mrId = await _context.Set<Prescription>().IgnoreQueryFilters()
+                        .Where(x => x.Id == dto.RecordId).Select(x => (Guid?)x.MedicalRecordId).FirstOrDefaultAsync();
+                    if (mrId.HasValue) await EmrLockGuard.EnsureEditableByRecordAsync(_context, mrId.Value);
+                    break;
+            }
+
             return dto.EntityType.ToLowerInvariant() switch
             {
                 "treatmentsheet" => await RestoreEntityAsync<TreatmentSheet>(dto.RecordId),
@@ -242,6 +298,12 @@ public partial class EmrManagementService
         {
             return false;
         }
+    }
+
+    private async Task EnsureRestorableByExaminationAsync(IQueryable<Guid?> examinationIdQuery)
+    {
+        var examId = await examinationIdQuery.FirstOrDefaultAsync();
+        if (examId.HasValue) await EmrLockGuard.EnsureEditableByExaminationAsync(_context, examId.Value);
     }
 
     private async Task<bool> RestoreEntityAsync<T>(Guid id) where T : BaseEntity

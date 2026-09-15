@@ -143,6 +143,9 @@ public class ClinicalGuidanceService : IClinicalGuidanceService
             .Where(b => b.Code.StartsWith($"CDT-{monthStr}"))
             .CountAsync();
         var code = $"CDT-{monthStr}-{(monthCount + 1):D4}";
+        if (DateTime.TryParse(dto.StartDate, out var startCheck) && DateTime.TryParse(dto.EndDate, out var endCheck)
+            && endCheck.Date < startCheck.Date)
+            throw new InvalidOperationException("Ngày kết thúc đợt chỉ đạo không được trước ngày bắt đầu.");
 
         var batch = new ClinicalGuidanceBatch
         {
@@ -217,7 +220,8 @@ public class ClinicalGuidanceService : IClinicalGuidanceService
     public async Task<bool> CancelBatchAsync(Guid id)
     {
         var batch = await _context.ClinicalGuidanceBatches.FindAsync(id);
-        if (batch == null || batch.IsDeleted) return false;
+        // QA-R2: a completed (or already cancelled) batch must not flip to Cancelled.
+        if (batch == null || batch.IsDeleted || batch.Status is "Completed" or "Cancelled") return false;
 
         batch.Status = "Cancelled";
         batch.UpdatedAt = DateTime.UtcNow;
@@ -258,6 +262,8 @@ public class ClinicalGuidanceService : IClinicalGuidanceService
     {
         var batch = await _context.ClinicalGuidanceBatches.FindAsync(batchId)
             ?? throw new InvalidOperationException("Batch not found");
+        if (batch.IsDeleted || batch.Status is "Completed" or "Cancelled")
+            throw new InvalidOperationException("Đợt chỉ đạo đã kết thúc hoặc đã hủy — không thêm hoạt động.");
 
         // Auto-set status to InProgress if still Planning
         if (batch.Status == "Planning")

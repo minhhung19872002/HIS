@@ -26,6 +26,11 @@ public class FhirController : ControllerBase
 
     private string GetBaseUrl() => $"{Request.Scheme}://{Request.Host}";
 
+    // QA-R2: only Patient search clamped paging; _count=-1 → SQL "FETCH must be > 0" → 500, and
+    // _count=100000 dumped whole PHI tables in one call. Clamp once here for every search.
+    private static int PageCount(int count) => Math.Clamp(count, 1, 200);
+    private static int PageOffset(int offset) => Math.Max(0, offset);
+
     // ==================== Capability Statement ====================
 
     /// <summary>
@@ -54,7 +59,7 @@ public class FhirController : ControllerBase
         [FromQuery(Name = "_count")] int count = 20,
         [FromQuery(Name = "_offset")] int offset = 0)
     {
-        var bundle = await _fhirService.SearchPatientsAsync(GetBaseUrl(), name, identifier, phone, count, offset);
+        var bundle = await _fhirService.SearchPatientsAsync(GetBaseUrl(), name, identifier, phone, PageCount(count), PageOffset(offset));
         return FhirResult(bundle);
     }
 
@@ -94,7 +99,7 @@ public class FhirController : ControllerBase
             else { dateFrom = date; dateTo = date; }
         }
 
-        var bundle = await _fhirService.SearchEncountersAsync(GetBaseUrl(), patient, status, dateFrom, dateTo, count, offset);
+        var bundle = await _fhirService.SearchEncountersAsync(GetBaseUrl(), patient, status, dateFrom, dateTo, PageCount(count), PageOffset(offset));
         return FhirResult(bundle);
     }
 
@@ -154,7 +159,7 @@ public class FhirController : ControllerBase
             else { dateFrom = date; dateTo = date; }
         }
 
-        var bundle = await _fhirService.SearchObservationsAsync(GetBaseUrl(), patient, category, code, dateFrom, dateTo, count, offset);
+        var bundle = await _fhirService.SearchObservationsAsync(GetBaseUrl(), patient, category, code, dateFrom, dateTo, PageCount(count), PageOffset(offset));
         return FhirResult(bundle);
     }
 
@@ -193,7 +198,7 @@ public class FhirController : ControllerBase
             else { dateFrom = authoredon; dateTo = authoredon; }
         }
 
-        var bundle = await _fhirService.SearchMedicationRequestsAsync(GetBaseUrl(), patient, status, dateFrom, dateTo, count, offset);
+        var bundle = await _fhirService.SearchMedicationRequestsAsync(GetBaseUrl(), patient, status, dateFrom, dateTo, PageCount(count), PageOffset(offset));
         return FhirResult(bundle);
     }
 
@@ -231,7 +236,7 @@ public class FhirController : ControllerBase
             else { dateFrom = date; dateTo = date; }
         }
 
-        var bundle = await _fhirService.SearchDiagnosticReportsAsync(GetBaseUrl(), patient, category, dateFrom, dateTo, count, offset);
+        var bundle = await _fhirService.SearchDiagnosticReportsAsync(GetBaseUrl(), patient, category, dateFrom, dateTo, PageCount(count), PageOffset(offset));
         return FhirResult(bundle);
     }
 
@@ -280,7 +285,7 @@ public class FhirController : ControllerBase
         [FromQuery(Name = "_count")] int count = 20,
         [FromQuery(Name = "_offset")] int offset = 0)
     {
-        var bundle = await _fhirService.SearchConditionsAsync(GetBaseUrl(), patient, code, count, offset);
+        var bundle = await _fhirService.SearchConditionsAsync(GetBaseUrl(), patient, code, PageCount(count), PageOffset(offset));
         return FhirResult(bundle);
     }
 
@@ -309,7 +314,7 @@ public class FhirController : ControllerBase
         [FromQuery(Name = "_count")] int count = 20,
         [FromQuery(Name = "_offset")] int offset = 0)
     {
-        var bundle = await _fhirService.SearchAllergyIntolerancesAsync(GetBaseUrl(), patient, count, offset);
+        var bundle = await _fhirService.SearchAllergyIntolerancesAsync(GetBaseUrl(), patient, PageCount(count), PageOffset(offset));
         return FhirResult(bundle);
     }
 
@@ -346,7 +351,7 @@ public class FhirController : ControllerBase
             else { dateFrom = date; dateTo = date; }
         }
 
-        var bundle = await _fhirService.SearchProceduresAsync(GetBaseUrl(), patient, dateFrom, dateTo, count, offset);
+        var bundle = await _fhirService.SearchProceduresAsync(GetBaseUrl(), patient, dateFrom, dateTo, PageCount(count), PageOffset(offset));
         return FhirResult(bundle);
     }
 

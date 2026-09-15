@@ -74,15 +74,15 @@ public partial class MedicalRecordPlanningService
                 ActualReturnDate = b.ReturnedDate,
                 Status = b.Status,
                 StatusName = GetBorrowStatusName(b.Status),
-                IsOverdue = b.ExpectedReturnDate.HasValue && b.ReturnedDate == null && b.ExpectedReturnDate.Value < DateTime.UtcNow,
+                IsOverdue = b.Status == 3 && b.ExpectedReturnDate.HasValue && b.ExpectedReturnDate.Value < DateTime.UtcNow,
             }).ToList();
 
             return new PagedBorrowResult { TotalCount = total, Items = items };
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error querying borrows, returning stub data");
-            return GetStubBorrows(search);
+            _logger.LogWarning(ex, "Error querying borrows");
+            throw;
         }
     }
 
@@ -112,9 +112,20 @@ public partial class MedicalRecordPlanningService
         // 2 = đang cho mượn. Không cho hai người cầm cùng một tập hồ sơ giấy.
         if (archive.Status == 2 || archive.IsOnLoan)
             throw new InvalidOperationException("Hồ sơ đang có người mượn, chưa trả về kho.");
+        if (archive.Status == 3)
+            throw new InvalidOperationException("Hồ sơ lưu trữ đã hủy, không cho mượn được.");
+        // QA-R2: phiếu cũ chưa xong (chờ duyệt / đã duyệt / đang mượn) cũng là đang giữ hồ sơ.
+        // Trước đây phiếu tạo ở đây để Status=0 và không đổi trạng thái kho ⇒ bấm "Mượn" hai lần
+        // trên cùng một hồ sơ ra hai phiếu "Đang mượn" song song.
+        if (await _context.MedicalRecordBorrowRequests.AnyAsync(b =>
+                b.MedicalRecordArchiveId == archive.Id && !b.IsDeleted && (b.Status == 0 || b.Status == 1 || b.Status == 3)))
+            throw new InvalidOperationException("Hồ sơ đang có phiếu mượn chưa trả, không tạo thêm phiếu được.");
 
         var borrowDays = dto.BorrowDays > 0 ? dto.BorrowDays : 7;
         var now = DateTime.UtcNow;
+        // Phòng KHTH lập phiếu tại quầy = giao hồ sơ luôn (màn này không có bước duyệt riêng),
+        // nên ghi thẳng trạng thái 3 "Đang mượn" theo bộ mã dùng chung với MedicalRecordArchiveService
+        // (0 chờ duyệt · 1 đã duyệt · 2 từ chối · 3 đang mượn · 4 đã trả) và khoá hồ sơ trong kho.
         var request = new MedicalRecordBorrowRequest
         {
             Id = Guid.NewGuid(),
@@ -124,10 +135,15 @@ public partial class MedicalRecordPlanningService
             RequestDate = now,
             Purpose = dto.Purpose,
             ExpectedReturnDate = now.AddDays(borrowDays),
-            Status = 0, // Chờ duyệt
+            Status = 3, // Đang mượn
+            ApprovedById = userId,
+            ApprovedDate = now,
+            BorrowedDate = now,
             CreatedAt = now,
             CreatedBy = userId.ToString(),
         };
+        archive.Status = 2; // Đang mượn
+        archive.UpdatedAt = now;
         await _context.MedicalRecordBorrowRequests.AddAsync(request);
         await _context.SaveChangesAsync();
 
@@ -143,79 +159,87 @@ public partial class MedicalRecordPlanningService
             Purpose = request.Purpose,
             BorrowDate = request.RequestDate,
             ExpectedReturnDate = request.ExpectedReturnDate,
-            Status = 0,
-            StatusName = "Đang mượn",
+            Status = request.Status,
+            StatusName = GetBorrowStatusName(request.Status),
         };
     }
 
+    /// <summary>
+    /// Trả hồ sơ. QA-R2: trước đây không tìm thấy phiếu vẫn trả "Da tra", trả hai lần vẫn thành
+    /// công (ghi đè ngày trả), lỗi bị nuốt trong catch rồi cũng báo "Da tra", và hồ sơ trong kho
+    /// không được mở khoá lại.
+    /// </summary>
     public async Task<RecordBorrowDto> ReturnRecordAsync(ReturnRecordDto dto, Guid userId)
     {
-        try
-        {
-            var borrow = await _context.Set<MedicalRecordBorrowRequest>()
-                .FirstOrDefaultAsync(b => b.Id == dto.BorrowId && !b.IsDeleted);
+        var borrow = await _context.MedicalRecordBorrowRequests
+            .Include(b => b.MedicalRecordArchive)
+            .FirstOrDefaultAsync(b => b.Id == dto.BorrowId && !b.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu mượn");
+        if (borrow.Status == 4)
+            throw new InvalidOperationException("Phiếu mượn này đã trả hồ sơ trước đó.");
+        if (borrow.Status != 3)
+            throw new InvalidOperationException("Phiếu mượn chưa giao hồ sơ, không có gì để trả.");
 
-            if (borrow != null)
-            {
-                borrow.ReturnedDate = DateTime.UtcNow;
-                borrow.Status = 4; // Returned
-                borrow.Note = dto.Note;
-                await _context.SaveChangesAsync();
-            }
-
-            return new RecordBorrowDto
-            {
-                Id = dto.BorrowId,
-                ActualReturnDate = DateTime.UtcNow,
-                Status = 1,
-                StatusName = "Da tra",
-            };
-        }
-        catch (Exception ex)
+        var now = DateTime.UtcNow;
+        borrow.ReturnedDate = now;
+        borrow.Status = 4; // Đã trả
+        if (!string.IsNullOrWhiteSpace(dto.Note))
+            borrow.Note = string.IsNullOrWhiteSpace(borrow.Note) ? dto.Note : $"{borrow.Note}\n{dto.Note}";
+        borrow.UpdatedAt = now;
+        borrow.UpdatedBy = userId.ToString();
+        if (borrow.MedicalRecordArchive != null && borrow.MedicalRecordArchive.Status == 2)
         {
-            _logger.LogWarning(ex, "Error returning record");
-            return new RecordBorrowDto
-            {
-                Id = dto.BorrowId,
-                ActualReturnDate = DateTime.UtcNow,
-                Status = 1,
-                StatusName = "Da tra",
-            };
+            borrow.MedicalRecordArchive.Status = 1; // Đã lưu (trả về kho)
+            borrow.MedicalRecordArchive.UpdatedAt = now;
         }
+        await _context.SaveChangesAsync();
+
+        return new RecordBorrowDto
+        {
+            Id = borrow.Id,
+            BorrowCode = borrow.RequestCode,
+            Purpose = borrow.Purpose,
+            BorrowDate = borrow.RequestDate,
+            ExpectedReturnDate = borrow.ExpectedReturnDate,
+            ActualReturnDate = now,
+            Status = borrow.Status,
+            StatusName = GetBorrowStatusName(borrow.Status),
+        };
     }
 
+    /// <summary>
+    /// Gia hạn mượn. QA-R2: trước đây nhận số ngày âm (lùi hạn trả), gia hạn được cả phiếu đã trả,
+    /// trả về hạn bịa (<c>now + ngày</c>) thay vì hạn thật, và không tìm thấy phiếu vẫn báo thành công.
+    /// </summary>
     public async Task<RecordBorrowDto> ExtendBorrowAsync(ExtendBorrowDto dto, Guid userId)
     {
-        try
-        {
-            var borrow = await _context.Set<MedicalRecordBorrowRequest>()
-                .FirstOrDefaultAsync(b => b.Id == dto.BorrowId && !b.IsDeleted);
+        if (dto.ExtendDays <= 0)
+            throw new InvalidOperationException("Số ngày gia hạn phải lớn hơn 0.");
 
-            if (borrow != null && borrow.ExpectedReturnDate.HasValue)
-            {
-                borrow.ExpectedReturnDate = borrow.ExpectedReturnDate.Value.AddDays(dto.ExtendDays);
-                borrow.Note = $"Gia han {dto.ExtendDays} ngay. Ly do: {dto.Reason}";
-                await _context.SaveChangesAsync();
-            }
+        var borrow = await _context.MedicalRecordBorrowRequests
+            .FirstOrDefaultAsync(b => b.Id == dto.BorrowId && !b.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu mượn");
+        if (borrow.Status != 3)
+            throw new InvalidOperationException("Chỉ gia hạn được phiếu đang mượn.");
 
-            return new RecordBorrowDto
-            {
-                Id = dto.BorrowId,
-                ExpectedReturnDate = DateTime.UtcNow.AddDays(dto.ExtendDays),
-                Status = 3,
-                StatusName = "Gia han",
-                ExtensionCount = 1,
-            };
-        }
-        catch (Exception ex)
+        var now = DateTime.UtcNow;
+        borrow.ExpectedReturnDate = (borrow.ExpectedReturnDate ?? now).AddDays(dto.ExtendDays);
+        var extendNote = $"Gia han {dto.ExtendDays} ngay. Ly do: {dto.Reason}";
+        borrow.Note = string.IsNullOrWhiteSpace(borrow.Note) ? extendNote : $"{borrow.Note}\n{extendNote}";
+        borrow.UpdatedAt = now;
+        borrow.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
+
+        return new RecordBorrowDto
         {
-            _logger.LogWarning(ex, "Error extending borrow");
-            return new RecordBorrowDto
-            {
-                Id = dto.BorrowId,
-                Status = 3,
-                StatusName = "Gia han",
-            };
-        }
+            Id = borrow.Id,
+            BorrowCode = borrow.RequestCode,
+            Purpose = borrow.Purpose,
+            BorrowDate = borrow.RequestDate,
+            ExpectedReturnDate = borrow.ExpectedReturnDate,
+            Status = borrow.Status,
+            StatusName = GetBorrowStatusName(borrow.Status),
+            IsOverdue = borrow.ExpectedReturnDate < now,
+        };
     }
 }

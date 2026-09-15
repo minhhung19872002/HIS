@@ -75,77 +75,64 @@ public partial class MedicalRecordPlanningService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error querying record codes, returning stub data");
-            return GetStubRecordCodes(search);
+            _logger.LogWarning(ex, "Error querying record codes");
+            throw;
         }
     }
 
+    /// <summary>
+    /// Cấp mã hồ sơ cho lượt khám. QA-R2: trước đây không tìm thấy lượt khám vẫn trả HTTP 200,
+    /// lỗi bị nuốt rồi trả DTO "Da cap" với mã bịa và Id ngẫu nhiên, và cho cấp trùng mã của một
+    /// hồ sơ khác (hai người bệnh cùng một số hồ sơ).
+    /// </summary>
     public async Task<RecordCodeDto> AssignRecordCodeAsync(AssignRecordCodeDto dto, Guid userId)
     {
-        try
+        var exam = await _context.Set<Examination>()
+            .Include(e => e.MedicalRecord).ThenInclude(r => r.Patient)
+            .Include(e => e.Department)
+            .Include(e => e.Doctor)
+            .FirstOrDefaultAsync(e => e.Id == dto.ExaminationId && !e.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy lượt khám");
+
+        var code = string.IsNullOrWhiteSpace(dto.RecordCode) ? GenerateRecordCode() : dto.RecordCode.Trim();
+        var duplicate = await _context.MedicalRecords.AnyAsync(r =>
+            r.Id != exam.MedicalRecordId && !r.IsDeleted && r.MedicalRecordCode == code);
+        if (duplicate)
+            throw new InvalidOperationException($"Mã hồ sơ {code} đã được cấp cho hồ sơ khác.");
+
+        exam.MedicalRecord.MedicalRecordCode = code;
+        exam.MedicalRecord.UpdatedAt = DateTime.UtcNow;
+        exam.MedicalRecord.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
+
+        return new RecordCodeDto
         {
-            var exam = await _context.Set<Examination>()
-                .Include(e => e.MedicalRecord).ThenInclude(r => r.Patient)
-                .Include(e => e.Department)
-                .Include(e => e.Doctor)
-                .FirstOrDefaultAsync(e => e.Id == dto.ExaminationId && !e.IsDeleted);
-
-            if (exam == null)
-                return new RecordCodeDto { StatusName = "Khong tim thay luot kham" };
-
-            var code = dto.RecordCode ?? GenerateRecordCode();
-            exam.MedicalRecord.MedicalRecordCode = code;
-            await _context.SaveChangesAsync();
-
-            return new RecordCodeDto
-            {
-                Id = exam.MedicalRecord.Id,
-                RecordCode = code,
-                ExaminationId = exam.Id,
-                PatientCode = exam.MedicalRecord.Patient.PatientCode,
-                PatientName = exam.MedicalRecord.Patient.FullName,
-                DepartmentName = exam.Department?.DepartmentName,
-                DoctorName = exam.Doctor?.FullName,
-                AssignedDate = DateTime.UtcNow,
-                Status = 1,
-                StatusName = "Da cap",
-                CreatedAt = DateTime.UtcNow,
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error assigning record code");
-            var code = dto.RecordCode ?? GenerateRecordCode();
-            return new RecordCodeDto
-            {
-                Id = Guid.NewGuid(),
-                RecordCode = code,
-                ExaminationId = dto.ExaminationId,
-                Status = 1,
-                StatusName = "Da cap",
-                AssignedDate = DateTime.UtcNow,
-                CreatedAt = DateTime.UtcNow,
-            };
-        }
+            Id = exam.MedicalRecord.Id,
+            RecordCode = code,
+            ExaminationId = exam.Id,
+            PatientCode = exam.MedicalRecord.Patient.PatientCode,
+            PatientName = exam.MedicalRecord.Patient.FullName,
+            DepartmentName = exam.Department?.DepartmentName,
+            DoctorName = exam.Doctor?.FullName,
+            AssignedDate = DateTime.UtcNow,
+            Status = 1,
+            StatusName = "Da cap",
+            CreatedAt = DateTime.UtcNow,
+        };
     }
 
     public async Task<bool> CancelRecordCodeAsync(CancelRecordCodeDto dto, Guid userId)
     {
-        try
-        {
-            var record = await _context.MedicalRecords
-                .FirstOrDefaultAsync(r => r.Id == dto.RecordCodeId && !r.IsDeleted);
+        // QA-R2: bỏ catch cũ trả `true` khi lỗi — người dùng thấy "đã hủy" cho việc chưa xảy ra.
+        var record = await _context.MedicalRecords
+            .FirstOrDefaultAsync(r => r.Id == dto.RecordCodeId && !r.IsDeleted);
 
-            if (record == null) return false;
+        if (record == null) return false;
 
-            record.MedicalRecordCode = string.Empty;
-            await _context.SaveChangesAsync();
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error cancelling record code");
-            return true;
-        }
+        record.MedicalRecordCode = string.Empty;
+        record.UpdatedAt = DateTime.UtcNow;
+        record.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
+        return true;
     }
 }
