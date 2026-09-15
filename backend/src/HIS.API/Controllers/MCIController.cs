@@ -64,18 +64,59 @@ namespace HIS.API.Controllers
 
         [HttpPost("events/{id}/deactivate")]
         public async Task<ActionResult<bool>> DeactivateEvent(Guid id, [FromBody] string reason)
-            => Ok(await _service.DeactivateEventAsync(id, reason));
+            => await _service.DeactivateEventAsync(id, reason)
+                ? Ok(true)
+                : BadRequest(new { message = "Sự kiện không tồn tại hoặc đã kết thúc." });
 
+        // QA-R2: both filters are optional — they were non-nullable (400 when omitted) and the v2 page sends
+        // triageCategory=all&status=0, which filtered on the literal values and always returned an empty list.
         [HttpGet("events/{eventId}/victims")]
         public async Task<ActionResult<List<MCIVictimDto>>> GetVictims(
             Guid eventId,
-            [FromQuery] string triageCategory,
-            [FromQuery] string status)
-            => Ok(await _service.GetVictimsAsync(eventId, triageCategory, status));
+            [FromQuery] string? triageCategory,
+            [FromQuery] string? status)
+            => Ok(await _service.GetVictimsAsync(
+                eventId,
+                string.Equals(triageCategory, "all", StringComparison.OrdinalIgnoreCase) ? null : triageCategory,
+                status is null or "0" || string.Equals(status, "all", StringComparison.OrdinalIgnoreCase) ? null : status));
 
         [HttpGet("victims/{id}")]
         public async Task<ActionResult<MCIVictimDto>> GetVictim(Guid id)
             => Ok(await _service.GetVictimAsync(id));
+
+        [HttpPut("victims/{id}")]
+        public async Task<ActionResult<MCIVictimDto>> UpdateVictim(Guid id, [FromBody] UpdateMCIVictimRequest req)
+        {
+            var result = await _service.UpdateVictimAsync(id, new MCIVictimDto
+            {
+                Name = req.Name!,
+                CurrentLocation = req.CurrentLocation!,
+                Status = req.Status!,
+                TreatmentNotes = req.TreatmentNotes,
+            });
+            return result == null ? NotFound() : Ok(result);
+        }
+
+        [HttpPost("family/notify")]
+        public async Task<ActionResult<FamilyNotificationDto>> NotifyFamily([FromBody] NotifyMCIFamilyRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req.ContactPhone))
+                return BadRequest(new { message = "Cần số điện thoại người thân để thông báo." });
+            var result = await _service.NotifyFamilyAsync(req.VictimId, new FamilyNotificationDto
+            {
+                VictimId = req.VictimId,
+                ContactName = req.ContactName!,
+                ContactPhone = req.ContactPhone,
+                Relationship = req.Relationship!,
+                NotificationMethod = req.NotificationMethod!,
+                Notes = req.Notes!,
+            });
+            return result == null ? NotFound() : Ok(result);
+        }
+
+        [HttpGet("events/{eventId}/activity-log")]
+        public async Task<ActionResult<List<MCIUpdateDto>>> GetActivityLog(Guid eventId)
+            => Ok(await _service.GetEventUpdatesAsync(eventId));
 
         [HttpPost("victims")]
         public async Task<ActionResult<MCIVictimDto>> RegisterVictim([FromBody] RegisterMCIVictimDto dto)

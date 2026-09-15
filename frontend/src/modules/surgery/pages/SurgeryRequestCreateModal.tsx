@@ -109,7 +109,8 @@ export const SurgeryRequestCreateModal: React.FC<SurgeryRequestCreateModalProps>
     }
     setSearchingSurgeryServices(true);
     try {
-      const response = await searchServices(keyword, 1);
+      // Service.ServiceType 5 = PTTT (1 = Khám): type 1 offered only consultation services as the "surgery service".
+      const response = await searchServices(keyword, 5);
       if (response.data) {
         setSurgeryServiceOptions(response.data.map((svc: ServiceDto) => ({
           value: svc.id,
@@ -161,7 +162,11 @@ export const SurgeryRequestCreateModal: React.FC<SurgeryRequestCreateModalProps>
     try {
       // Build API request DTO — VERBATIM v1 handleRequestSubmit
       const dto: CreateSurgeryRequestDto = {
-        medicalRecordId: form.medicalRecordId,
+        // The picker's value is an EXAMINATION id (searchExaminations). Sent as medicalRecordId, the BE looked it up
+        // in MedicalRecords → 400 "Khong tim thay ho so benh an" on every request. Send it as examinationId; the BE
+        // resolves the patient/record from the examination when medicalRecordId is Guid.Empty.
+        medicalRecordId: '00000000-0000-0000-0000-000000000000',
+        examinationId: form.medicalRecordId,
         surgeryServiceId: form.surgeryServiceId,
         surgeryType: form.surgeryType || 1,
         surgeryClass: 2, // Loại 1

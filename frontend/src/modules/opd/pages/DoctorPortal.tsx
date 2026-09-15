@@ -17,6 +17,7 @@ import {
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
 import { useTabState } from '../../../hooks/useTabState';
+import { utcToLocal } from '../../../utils/format';
 
 // ============================================================================
 // Local types (ported 1:1 from v1 pages/DoctorPortal.tsx)
@@ -62,19 +63,37 @@ const PER = 16;
 // status codes; see v1 getOpdStatusTag/getIpdStatusTag for the source mapping)
 // ============================================================================
 
-const opdStatus = makeStatus<'waiting' | 'inProgress' | 'waitingResult' | 'completed' | 'locked'>([
+// ExaminationStatus (BE StatusConstants): 0 chờ · 1 đang khám · 2 chờ CLS · 3 chờ kết luận · 4 hoàn thành · 5 hủy
+const opdStatus = makeStatus<'waiting' | 'inProgress' | 'waitingResult' | 'waitingConclusion' | 'completed' | 'cancelled'>([
   { value: 0, key: 'waiting', tab: 'Chờ khám', tone: 'info' },
   { value: 1, key: 'inProgress', tab: 'Đang khám', tone: 'warn' },
   { value: 2, key: 'waitingResult', tab: 'Chờ KQ CLS', tone: 'warn' },
-  { value: 3, key: 'completed', tab: 'Hoàn thành', tone: 'ok' },
-  { value: 4, key: 'locked', tab: 'Đã khóa', tone: 'crit' },
+  { value: 3, key: 'waitingConclusion', tab: 'Chờ kết luận', tone: 'warn' },
+  { value: 4, key: 'completed', tab: 'Hoàn thành', tone: 'ok' },
+  { value: 5, key: 'cancelled', tab: 'Đã hủy', tone: 'crit' },
 ]);
 
+const OPD_STATUS_BY_NAME: Record<string, number> = {
+  Waiting: 0, InProgress: 1, WaitingLab: 2, PendingCLS: 2, WaitingConclusion: 3, Completed: 4, Cancelled: 5, Unknown: 5,
+};
+type RawExamRow = Omit<ExaminationDto, 'status'> & { status: number | string; diagnosis?: string; icdCode?: string };
+const normalizeOpdRow = (raw: ExaminationDto): ExaminationDto => {
+  const r = raw as unknown as RawExamRow;
+  return {
+    ...raw,
+    status: typeof r.status === 'number' ? r.status : (OPD_STATUS_BY_NAME[r.status] ?? 0),
+    diagnosisName: raw.diagnosisName || r.diagnosis || undefined,
+    diagnosisCode: raw.diagnosisCode || r.icdCode || undefined,
+    examinationDate: raw.examinationDate ? utcToLocal(raw.examinationDate).toISOString() : raw.examinationDate,
+  };
+};
+
+// InpatientListDto.status = Admissions.Status (BE AdmissionStatus) — the list is loaded with status 0 (in treatment).
 const ipdStatus = makeStatus<'active' | 'pendingDischarge' | 'discharged' | 'transferred'>([
-  { value: 1, key: 'active', tab: 'Đang điều trị', tone: 'info' },
-  { value: 2, key: 'pendingDischarge', tab: 'Chờ xuất viện', tone: 'warn' },
-  { value: 3, key: 'discharged', tab: 'Đã xuất viện', tone: 'ok' },
-  { value: 4, key: 'transferred', tab: 'Chuyển viện', tone: 'crit' },
+  { value: 0, key: 'active', tab: 'Đang điều trị', tone: 'info' },
+  { value: 6, key: 'pendingDischarge', tab: 'Chờ xuất viện', tone: 'warn' },
+  { value: 1, key: 'discharged', tab: 'Đã xuất viện', tone: 'ok' },
+  { value: 2, key: 'transferred', tab: 'Chuyển viện', tone: 'crit' },
 ]);
 
 const DOC_TYPE_LABEL: Record<string, string> = {
@@ -121,7 +140,11 @@ const DoctorPortalV2: React.FC = () => {
         pageIndex: 1, pageSize: 200,
         keyword: opdSearch || undefined,
       });
-      const items = r.data?.items || [];
+      // POST /examination/search returns `status` as a string ("Waiting"/"InProgress"/"WaitingLab"/
+      // "WaitingConclusion"/"Completed"/"Unknown"=cancelled), `diagnosis`/`icdCode` instead of diagnosisName/Code,
+      // and a UTC examinationDate without "Z". Unnormalized, every badge showed "—", all status tabs/KPIs were 0
+      // and the diagnosis column always said "Chưa có".
+      const items = (r.data?.items || []).map(normalizeOpdRow);
       setOpdTotal(r.data?.totalCount ?? items.length);
       return items;
     }, [opdSearch]),
@@ -143,7 +166,8 @@ const DoctorPortalV2: React.FC = () => {
 
   const ipd = useListData<InpatientListDto>(
     useCallback(async () => {
-      const r = await inpatientApi.getInpatientList({ status: 1, page: 1, pageSize: 200, keyword: ipdSearch || undefined });
+      // status 0 = AdmissionStatus.InTreatment (BE now filters on the stay, not MedicalRecords.Status)
+      const r = await inpatientApi.getInpatientList({ status: 0, page: 1, pageSize: 200, keyword: ipdSearch || undefined });
       const items = r.data?.items || [];
       setIpdTotal(r.data?.totalCount ?? items.length);
       return items;
@@ -293,7 +317,7 @@ const DoctorPortalV2: React.FC = () => {
         { lbl: 'Hôm nay', val: opd.rows.filter((r) => dayjs(r.examinationDate).isSame(today, 'day')).length, sub: 'lượt khám', tone: 'info' as const },
         { lbl: 'Đang khám', val: opd.rows.filter((r) => r.status === 1).length, tone: 'warn' as const },
         { lbl: 'Chờ KQ CLS', val: opd.rows.filter((r) => r.status === 2).length, tone: 'warn' as const },
-        { lbl: 'Hoàn thành', val: opd.rows.filter((r) => r.status === 3).length, tone: 'ok' as const },
+        { lbl: 'Hoàn thành', val: opd.rows.filter((r) => r.status === 4).length, tone: 'ok' as const },
         { lbl: 'Tổng cộng', val: opdTotal || opd.rows.length, sub: '7 ngày', tone: undefined },
       ];
     }
@@ -301,7 +325,7 @@ const DoctorPortalV2: React.FC = () => {
       const alerts = ipd.rows.filter((r) => r.hasPendingOrders || r.hasPendingLabResults || r.hasUnclaimedMedicine || r.isDebtWarning).length;
       return [
         { lbl: 'Đang điều trị', val: ipdTotal || ipd.rows.length, tone: 'info' as const },
-        { lbl: 'Chờ xuất viện', val: ipd.rows.filter((r) => r.status === 2).length, tone: 'warn' as const },
+        { lbl: 'Chờ xuất viện', val: ipd.rows.filter((r) => r.status === 6).length, tone: 'warn' as const },
         { lbl: 'Có cảnh báo', val: alerts, tone: alerts > 0 ? 'crit' as const : 'ok' as const },
         { lbl: 'Nợ viện phí', val: ipd.rows.filter((r) => r.isDebtWarning).length, tone: 'crit' as const },
       ];

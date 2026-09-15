@@ -143,7 +143,11 @@ public partial class ExaminationCompleteService
                 Frequency = item.Frequency,
                 UsageInstructions = item.UsageInstructions,
                 UnitPrice = medicine.UnitPrice,
-                TotalPrice = medicine.UnitPrice * item.Quantity
+                TotalPrice = medicine.UnitPrice * item.Quantity,
+                // Cashier (unpaid-medicines), refunds and statements read Amount/PatientAmount, which stayed 0.
+                // Insurance share is not split at order time (same as service orders).
+                Amount = medicine.UnitPrice * item.Quantity,
+                PatientAmount = medicine.UnitPrice * item.Quantity
             });
         }
 
@@ -221,7 +225,9 @@ public partial class ExaminationCompleteService
                 Frequency = item.Frequency,
                 UsageInstructions = item.UsageInstructions,
                 UnitPrice = medicine.UnitPrice,
-                TotalPrice = medicine.UnitPrice * item.Quantity
+                TotalPrice = medicine.UnitPrice * item.Quantity,
+                Amount = medicine.UnitPrice * item.Quantity,
+                PatientAmount = medicine.UnitPrice * item.Quantity
             });
         }
 
@@ -376,6 +382,8 @@ public partial class ExaminationCompleteService
                 UsageInstructions = d.UsageInstructions,
                 UnitPrice = d.UnitPrice,
                 TotalPrice = d.TotalPrice,
+                Amount = d.TotalPrice,
+                PatientAmount = d.TotalPrice,
             }).ToList(),
         };
         draft.TotalAmount = draft.Details.Sum(d => d.TotalPrice);

@@ -46,8 +46,15 @@ public partial class InpatientCompleteService {
         if (searchDto.RoomId.HasValue)
             query = query.Where(m => m.RoomId == searchDto.RoomId.Value);
 
+        // Filter on the current stay's Admissions.Status (same pick as AdmissionId/Status below), not
+        // MedicalRecords.Status (0-3 exam vocabulary): DoctorPortal's "đang điều trị" filter returned 2 of 33 patients.
         if (searchDto.Status.HasValue)
-            query = query.Where(m => m.Status == searchDto.Status.Value);
+            query = query.Where(m => _context.Set<Admission>()
+                .Where(a => a.MedicalRecordId == m.Id && !a.IsDeleted)
+                .OrderByDescending(a => a.Status == 0 || a.Status == 6)
+                .ThenByDescending(a => a.AdmissionDate)
+                .Select(a => a.Status)
+                .FirstOrDefault() == searchDto.Status.Value);
 
         if (searchDto.IsInsurance.HasValue)
         {
@@ -123,7 +130,12 @@ public partial class InpatientCompleteService {
                 DaysOfStay = (int)(DateTime.Now - m.AdmissionDate).TotalDays,
                 MainDiagnosis = m.MainDiagnosis,
                 AttendingDoctorName = m.Doctor != null ? m.Doctor.FullName : null,
-                Status = m.Status,
+                Status = _context.Set<Admission>()
+                    .Where(a => a.MedicalRecordId == m.Id && !a.IsDeleted)
+                    .OrderByDescending(a => a.Status == 0 || a.Status == 6)
+                    .ThenByDescending(a => a.AdmissionDate)
+                    .Select(a => a.Status)
+                    .FirstOrDefault(),
                 HasPendingOrders = _context.ServiceRequests
                     .Any(sr => sr.MedicalRecordId == m.Id && !sr.IsDeleted && sr.Status < 2),
                 HasPendingLabResults = _context.ServiceRequestDetails

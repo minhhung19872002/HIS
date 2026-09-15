@@ -62,13 +62,23 @@ export const getById = async (id: string) => {
   return response.data;
 };
 
+// BE CreateTraumaCaseDto uses injurySeverityScore / revisedTraumaScore / glasgowComaScale — the FE names
+// (issScore/rtsScore/gcsScore) were silently dropped, so scores entered on the form were never saved.
+// GCS 0 is the page's "empty" placeholder (valid range 3-15) → send undefined.
+const toCasePayload = (data: Partial<TraumaCase>) => ({
+  ...data,
+  injurySeverityScore: data.issScore,
+  revisedTraumaScore: data.rtsScore,
+  glasgowComaScale: data.gcsScore || undefined,
+});
+
 export const createCase = async (data: Partial<TraumaCase>) => {
-  const response = await apiClient.post<TraumaCase>('/trauma-registry/cases', data);
+  const response = await apiClient.post<TraumaCase>('/trauma-registry/cases', toCasePayload(data));
   return response.data;
 };
 
 export const updateCase = async (id: string, data: Partial<TraumaCase>) => {
-  const response = await apiClient.put<TraumaCase>(`/trauma-registry/cases/${id}`, data);
+  const response = await apiClient.put<TraumaCase>(`/trauma-registry/cases/${id}`, toCasePayload(data));
   return response.data;
 };
 

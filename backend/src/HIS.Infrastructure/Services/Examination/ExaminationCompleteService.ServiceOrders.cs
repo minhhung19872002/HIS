@@ -206,6 +206,10 @@ public partial class ExaminationCompleteService
     {
         var request = await _context.ServiceRequests.FindAsync(orderId);
         if (request == null || request.Status != 0) return false;
+        // MONEY: cancelling (Status 4) drops the line from every statement/invoice (they filter Status != 4) and from
+        // GetRefundableItemsAsync — a paid order cancelled here vanished with no refund voucher. Paid → cashier refund.
+        if (request.IsPaid)
+            throw new InvalidOperationException("Dịch vụ đã thu tiền — không hủy chỉ định trực tiếp, hãy làm phiếu hoàn tiền tại quầy thu ngân.");
 
         // #218/T3: trước đây ghi 3. Nhưng với `ServiceRequests` thì **4 = đã hủy**, và cả phần còn
         // lại của hệ thống đồng thuận chuyện đó: `BillingCompleteService.Printing` (3 chỗ) và

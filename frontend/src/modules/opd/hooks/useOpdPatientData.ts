@@ -95,7 +95,9 @@ export function useOpdPatientData({ setLeftOpen, setSelPt, setAutoSavedTs }: Par
       setDx((dx.value.data as DiagnosisFullDto[]).map((x) => ({ icdCode: x.icdCode, icdName: x.icdName, isPrimary: x.isPrimary })));
     }
     if (so.status === 'fulfilled' && Array.isArray(so.value.data)) {
-      setOrd((so.value.data as ServiceOrderFullDto[]).map((x) => ({ serviceId: x.serviceId, code: x.serviceCode, name: x.serviceName, qty: x.quantity, unitPrice: x.unitPrice })));
+      // Status 4 = cancelled. Loading cancelled orders into the form made the next "Lưu nháp"/"Hoàn tất"
+      // re-POST them (BE dedup only skips non-cancelled) → a cancelled test was re-ordered and re-billed.
+      setOrd((so.value.data as ServiceOrderFullDto[]).filter((x) => x.status !== 4).map((x) => ({ serviceId: x.serviceId, code: x.serviceCode, name: x.serviceName, qty: x.quantity, unitPrice: x.unitPrice })));
     }
     if (inj.status === 'fulfilled' && inj.value.data) {
       setInjuryInfo(inj.value.data as InjuryInfoDto);

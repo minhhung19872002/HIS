@@ -108,7 +108,11 @@ ${row('Trạng thái', d.statusName || '—')}</table></div>
 }
 
 type IpStatusKey = 'admitted' | 'transferred' | 'discharged';
-const ipStatusKey = (s: number): IpStatusKey => (s === 1 ? 'transferred' : s === 2 ? 'discharged' : 'admitted');
+// InpatientListDto.status = Admissions.Status (AdmissionStatus): 0 in treatment · 6 pending discharge ·
+// 2 transferred out · 5 transferred dept · 1 discharged · 3 died · 4 left. The old map (1 transferred, 2 discharged)
+// put in-treatment patients in the "Đã xuất viện" tab and discharged ones in the active list.
+const ipStatusKey = (s: number): IpStatusKey =>
+  (s === 0 || s === 6 ? 'admitted' : s === 2 || s === 5 ? 'transferred' : 'discharged');
 const IP_STATUS_LABEL: Record<IpStatusKey, string> = { admitted: 'Đang điều trị', transferred: 'Đã chuyển', discharged: 'Đã xuất viện' };
 
 const InpatientV2: React.FC = () => {
@@ -198,7 +202,8 @@ const InpatientV2: React.FC = () => {
     try {
       const today = dayjs().format('YYYY-MM-DD');
       const res = await getServiceOrders(p.admissionId, today, today);
-      setSupplyOrders(Array.isArray(res) ? res as InpatientServiceOrderDto[] : []);
+      // getServiceOrders returns the axios response — `Array.isArray(res)` was always false, so the drawer was always empty.
+      setSupplyOrders(Array.isArray(res.data) ? res.data as InpatientServiceOrderDto[] : []);
     } catch (e) {
       te(friendlyErrorMessage(e, 'Không tải được chỉ định vật tư / dịch vụ của bệnh nhân.'));
       setSupplyOrders([]);
@@ -241,8 +246,9 @@ const InpatientV2: React.FC = () => {
     const occupied = allBeds.filter((b) => b.status === 2).length;
     const empty = allBeds.filter((b) => b.status === 1).length;
     const occupancy = total > 0 ? Math.round(occupied / total * 100) : 0;
-    const alerts = inpatients.filter((r) => r.hasPendingOrders || r.hasPendingLabResults || r.hasUnclaimedMedicine || r.isDebtWarning).length;
-    const avgLos = inpatients.length > 0 ? Math.round(inpatients.reduce((s, r) => s + (r.daysOfStay || 0), 0) / inpatients.length * 10) / 10 : 0;
+    const active = inpatients.filter((r) => ipStatusKey(r.status) === 'admitted');
+    const alerts = active.filter((r) => r.hasPendingOrders || r.hasPendingLabResults || r.hasUnclaimedMedicine || r.isDebtWarning).length;
+    const avgLos = active.length > 0 ? Math.round(active.reduce((s, r) => s + (r.daysOfStay || 0), 0) / active.length * 10) / 10 : 0;
     return [
       { lbl: 'Tổng giường', val: total, sub: `${wards.length} khoa` },
       { lbl: 'Có BN', val: occupied, sub: `${occupancy}% công suất`, tone: 'info' as const },
@@ -255,6 +261,7 @@ const InpatientV2: React.FC = () => {
 
   // ─── List tab data (filtered inpatients) ───
   const listFiltered = useMemo(() => inpatients.filter((r) => {
+    if (ipStatusKey(r.status) !== 'admitted') return false; // discharged patients live in the "Đã xuất viện" tab
     if (fWard) {
       const w = wards.find((x) => x.departmentId === fWard);
       if (w && r.departmentName !== w.departmentName) return false;
@@ -263,11 +270,11 @@ const InpatientV2: React.FC = () => {
   }), [inpatients, fWard, wards]);
   const listTotalPages = Math.max(1, Math.ceil(listFiltered.length / LIST_PAGE));
 
-  const ordersList = useMemo(() => inpatients.filter((r) => r.hasPendingOrders || r.hasUnclaimedMedicine || r.hasPendingLabResults), [inpatients]);
+  const ordersList = useMemo(() => inpatients.filter((r) => ipStatusKey(r.status) === 'admitted' && (r.hasPendingOrders || r.hasUnclaimedMedicine || r.hasPendingLabResults)), [inpatients]);
 
   // Tab "Đã xuất viện" — filter status=2 + optional date range + search
   const dischargeList = useMemo(() => inpatients.filter((r) => {
-    if (r.status !== 2) return false;
+    if (ipStatusKey(r.status) === 'admitted') return false; // discharged / transferred out / died / left
     if (dischargeFrom && r.admissionDate && dayjs(r.admissionDate).isBefore(dischargeFrom, 'day')) return false;
     if (dischargeTo && r.admissionDate && dayjs(r.admissionDate).isAfter(dischargeTo, 'day')) return false;
     return true;
@@ -498,8 +505,9 @@ const InpatientV2: React.FC = () => {
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                         Y lệnh #{i + 1} · {order.orderingDoctorName || ''}
                       </span>
-                      <StatusBadge tone={(order.status === 2 ? 'ok' : order.status === 3 ? 'crit' : 'warn')}>
-                        {order.status === 0 ? 'Chờ' : order.status === 1 ? 'Đang thực hiện' : order.status === 2 ? 'Hoàn thành' : 'Hủy'}
+                      {/* ServiceRequest.Status: 0 chờ · 1 đã thu · 2 đang thực hiện · 3 có kết quả · 4 hủy (3 used to show "Hủy") */}
+                      <StatusBadge tone={(order.status === 3 ? 'ok' : order.status === 4 ? 'crit' : 'warn')}>
+                        {order.status === 0 ? 'Chờ' : order.status === 1 ? 'Đã thu phí' : order.status === 2 ? 'Đang thực hiện' : order.status === 3 ? 'Có kết quả' : 'Hủy'}
                       </StatusBadge>
                     </div>
                     {(order.services || []).map((item, j) => (
@@ -810,7 +818,7 @@ const InpatientV2: React.FC = () => {
           open={assignBedOpen}
           bedId={bed.bedId}
           bedName={bed.bedName || bed.bedCode}
-          inpatients={inpatients.filter((r) => !r.bedName && r.status !== 2)}
+          inpatients={inpatients.filter((r) => !r.bedName && ipStatusKey(r.status) === 'admitted')}
           onClose={() => setAssignBedOpen(false)}
           onDone={() => { setAssignBedOpen(false); setBed(null); loadData(); }}
         />

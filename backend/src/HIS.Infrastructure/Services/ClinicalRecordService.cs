@@ -77,6 +77,8 @@ public class ClinicalRecordService : IClinicalRecordService
             // Update existing
             record = await _context.PartographRecords.FindAsync(dto.Id.Value)
                 ?? throw new InvalidOperationException("Partograph record not found");
+            // TT46 (QA-R2): biểu đồ chuyển dạ là nội dung HSBA — trước đây ghi được vào hồ sơ đã khoá.
+            await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, record.AdmissionId);
 
             record.RecordTime = dto.RecordTime;
             record.CervicalDilation = dto.CervicalDilation;
@@ -99,6 +101,7 @@ public class ClinicalRecordService : IClinicalRecordService
         else
         {
             // Create new
+            await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, dto.AdmissionId); // TT46
             record = new PartographRecord
             {
                 Id = Guid.NewGuid(),
@@ -159,6 +162,7 @@ public class ClinicalRecordService : IClinicalRecordService
     {
         var record = await _context.PartographRecords.FindAsync(id);
         if (record == null) return false;
+        await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, record.AdmissionId); // TT46
 
         record.IsDeleted = true;
         record.UpdatedAt = DateTime.UtcNow;
@@ -260,6 +264,7 @@ public class ClinicalRecordService : IClinicalRecordService
             // Update existing record
             record = await _context.AnesthesiaRecords.FindAsync(dto.Id.Value)
                 ?? throw new InvalidOperationException("Anesthesia record not found");
+            await EnsureAnesthesiaEditableAsync(record.SurgeryId); // TT46
 
             record.AsaClass = dto.AsaClass;
             record.MallampatiScore = dto.MallampatiScore;
@@ -279,6 +284,7 @@ public class ClinicalRecordService : IClinicalRecordService
         else
         {
             // Create new record
+            await EnsureAnesthesiaEditableAsync(dto.SurgeryId); // TT46
             record = new AnesthesiaRecord
             {
                 Id = Guid.NewGuid(),
@@ -314,6 +320,7 @@ public class ClinicalRecordService : IClinicalRecordService
     {
         var record = await _context.AnesthesiaRecords.FindAsync(id);
         if (record == null) return false;
+        await EnsureAnesthesiaEditableAsync(record.SurgeryId); // TT46
 
         record.IsDeleted = true;
         record.UpdatedAt = DateTime.UtcNow;
@@ -339,6 +346,39 @@ public class ClinicalRecordService : IClinicalRecordService
     }
 
     // ========== Private helpers ==========
+
+    /// <summary>
+    /// TT46 (QA-R2): anesthesia records only carry <c>SurgeryId</c>, which callers fill with a
+    /// SurgeryRecord / SurgerySchedule / SurgeryRequest id — or, from EmrEditor, the MedicalRecordId
+    /// itself. Resolve whichever it is to the owning medical record and apply the EMR lock.
+    /// </summary>
+    private async Task EnsureAnesthesiaEditableAsync(Guid surgeryId)
+    {
+        if (surgeryId == Guid.Empty) return;
+
+        if (await _context.MedicalRecords.AnyAsync(m => m.Id == surgeryId))
+        {
+            await EmrLockGuard.EnsureEditableByRecordAsync(_context, surgeryId);
+            return;
+        }
+
+        var requestId = await _context.SurgeryRecords.Where(r => r.Id == surgeryId)
+            .Join(_context.SurgerySchedules, r => r.SurgeryScheduleId, s => s.Id, (r, s) => (Guid?)s.SurgeryRequestId)
+            .FirstOrDefaultAsync()
+            ?? await _context.SurgerySchedules.Where(s => s.Id == surgeryId)
+                .Select(s => (Guid?)s.SurgeryRequestId).FirstOrDefaultAsync()
+            ?? surgeryId;
+
+        var request = await _context.SurgeryRequests.AsNoTracking()
+            .Where(r => r.Id == requestId)
+            .Select(r => new { r.MedicalRecordId, r.ExaminationId })
+            .FirstOrDefaultAsync();
+        if (request == null) return;
+        if (request.MedicalRecordId.HasValue)
+            await EmrLockGuard.EnsureEditableByRecordAsync(_context, request.MedicalRecordId.Value);
+        else if (request.ExaminationId.HasValue)
+            await EmrLockGuard.EnsureEditableByExaminationAsync(_context, request.ExaminationId.Value);
+    }
 
     private async Task ReplaceAnesthesiaChildrenAsync(Guid recordId, AnesthesiaSaveDto dto)
     {

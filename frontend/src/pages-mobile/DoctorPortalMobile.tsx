@@ -134,7 +134,7 @@ const DoctorPortalMobile: React.FC = () => {
     (async () => {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const r = await getInpatientList({ status: 1, pageSize: 100 } as any);
+        const r = await getInpatientList({ status: 0, pageSize: 100 } as any); // 0 = in treatment (Admissions.Status)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         if (!cancelled) setInpatients(((r as any)?.items ?? (r as any)?.data?.items ?? r ?? []) as InpatientListDto[]);
       } catch { if (!cancelled) setInpatients([]); }

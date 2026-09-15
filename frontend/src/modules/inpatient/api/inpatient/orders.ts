@@ -178,11 +178,45 @@ export const getDiagnosisFromRecord = (admissionId: string) =>
 export const saveInpatientDiagnosis = (admissionId: string, dto: SaveInpatientDiagnosisDto) =>
   apiClient.post<InpatientDiagnosisDto>(`${BASE_URL}/diagnosis/${admissionId}`, dto);
 
-export const getServiceTree = (parentId?: string) =>
-  apiClient.get<ServiceTreeNodeDto[]>(`${BASE_URL}/service-tree`, { params: { parentId } });
+// BE service rows are `{ id, serviceCode, serviceName, serviceType, unitPrice }` — the modal read `code`/`name`,
+// so the picker listed "[—] undefined" and ordered lines had no name.
+type RawServiceRow = { id: string; serviceCode?: string; serviceName?: string; unitPrice?: number; serviceType?: number };
+const toServiceRow = (s: RawServiceRow & Partial<ServiceSearchResultDto>) => ({
+  ...s, id: s.id, code: s.code ?? s.serviceCode, name: s.name ?? s.serviceName ?? '', unitPrice: s.unitPrice,
+});
 
-export const searchServices = (keyword: string, serviceType?: string) =>
-  apiClient.get<ServiceSearchResultDto[]>(`${BASE_URL}/search-services`, { params: { keyword, serviceType } });
+// Service.ServiceType labels (BE StatusConstants #217/T2: 1 Khám · 2 XN · 3 CĐHA · 4 TDCN · 5 PTTT)
+const SERVICE_TYPE_LABEL: Record<number, string> = { 1: 'Khám bệnh', 2: 'Xét nghiệm', 3: 'Chẩn đoán hình ảnh', 4: 'Thăm dò chức năng', 5: 'Phẫu thuật - thủ thuật' };
+const TREE_GROUP_PREFIX = 'type:';
+
+// BE ignores `parentId` and always returns `[{ serviceType, children: [service rows] }]` (no id/name on groups), so
+// the lazy tree rendered nodes with undefined keys/titles. Adapt it to the lazy node contract the modal uses:
+// root → one group node per serviceType; `type:N` → that group's services as leaves.
+export const getServiceTree = async (parentId?: string) => {
+  const res = await apiClient.get<Array<{ serviceType: number; children?: RawServiceRow[] }>>(`${BASE_URL}/service-tree`);
+  const groups = Array.isArray(res.data) ? res.data : [];
+  let nodes: ServiceTreeNodeDto[];
+  if (parentId?.startsWith(TREE_GROUP_PREFIX)) {
+    const type = Number(parentId.slice(TREE_GROUP_PREFIX.length));
+    nodes = (groups.find((g) => g.serviceType === type)?.children ?? [])
+      .map((s) => ({
+        ...toServiceRow(s), parentId, hasChildren: false,
+        serviceType: s.serviceType != null ? String(s.serviceType) : undefined,
+      }));
+  } else {
+    nodes = groups.map((g) => ({
+      id: `${TREE_GROUP_PREFIX}${g.serviceType}`,
+      name: SERVICE_TYPE_LABEL[g.serviceType] ?? `Loại ${g.serviceType}`,
+      hasChildren: true,
+    }));
+  }
+  return { ...res, data: nodes };
+};
+
+export const searchServices = async (keyword: string, serviceType?: string) => {
+  const res = await apiClient.get<RawServiceRow[]>(`${BASE_URL}/search-services`, { params: { keyword, serviceType } });
+  return { ...res, data: (Array.isArray(res.data) ? res.data : []).map(toServiceRow) as ServiceSearchResultDto[] };
+};
 
 export const createServiceOrder = (dto: CreateInpatientServiceOrderDto) =>
   apiClient.post<InpatientServiceOrderDto>(`${BASE_URL}/service-orders`, dto);
@@ -214,8 +248,15 @@ export const orderByPackage = (admissionId: string, packageId: string) =>
 export const markServiceAsUrgent = (itemId: string, isUrgent: boolean) =>
   apiClient.post(`${BASE_URL}/service-item/${itemId}/urgent`, isUrgent);
 
+// BE property `TT35Warnings` serializes as `tT35Warnings` (camelCase lowers only the first letter), so
+// `tt35Warnings` was always undefined: the TT35 gate fired but the panel listed no reason.
 export const checkServiceOrderWarnings = (admissionId: string, items: CreateInpatientServiceItemDto[]) =>
-  apiClient.post<ServiceOrderWarningDto>(`${BASE_URL}/service-order-warnings`, { admissionId, items });
+  apiClient.post<ServiceOrderWarningDto>(`${BASE_URL}/service-order-warnings`, { admissionId, items })
+    .then((res) => {
+      const d = res.data as (ServiceOrderWarningDto & { tT35Warnings?: string[] }) | undefined;
+      if (d && !d.tt35Warnings && d.tT35Warnings) d.tt35Warnings = d.tT35Warnings;
+      return res;
+    });
 
 export const printServiceOrder = (orderId: string) =>
   apiClient.get(`${BASE_URL}/print-service-order/${orderId}`, { responseType: 'blob' });

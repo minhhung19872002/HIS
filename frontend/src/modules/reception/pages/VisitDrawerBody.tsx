@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { Modal, Form, Input, Select, message } from 'antd';
+import { Modal, Form, Input, message } from 'antd';
 import { StatusBadge } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import type { RawRow } from './shared';
-import { STATUS_TABS, PRIORITY_OPTS, VISIT_TYPE_OPTS, fmtHM, statusKey, statusTone, priorityKey, priorityLabel, genderLabel, ageOf, treatmentLabel, hasValidInsurance } from './shared';
+import { STATUS_TABS, fmtHM, statusKey, statusTone, priorityKey, priorityLabel, genderLabel, ageOf, treatmentLabel, hasValidInsurance } from './shared';
 import { TempInsuranceModal, DocumentHoldModal, PhotoModal, ServiceOrderModal } from './VisitActionsModals';
 import { getReceptionWarnings, updateAdmission } from '../api/reception';
-import { fmtTime } from '../../../utils/format';
+import { fmtTime, utcToLocal } from '../../../utils/format';
 import type { ReceptionWarningDto } from '../api/reception';
 import { PatientFlagsSection } from './PatientFlagsSection';
 type DrawerTab = 'info' | 'audit' | 'related';
@@ -354,16 +354,7 @@ const EditAdmissionModal: React.FC<EditAdmissionProps> = ({ open, onClose, admis
 
   useEffect(() => {
     if (open) {
-      form.setFieldsValue({
-        chiefComplaint: admission.chiefComplaint ?? '',
-        priority: String(priorityKey(admission) === 'crit' ? 3 : priorityKey(admission) === 'high' ? 2 : 1),
-        treatmentType: String(
-          admission.treatmentTypeName?.includes('BHYT') ? 1 :
-          admission.treatmentTypeName?.includes('dịch vụ') ? 2 :
-          admission.treatmentTypeName?.includes('cấp cứu') || admission.isEmergency ? 3 : 2
-        ),
-        notes: (admission as RawRow & { notes?: string }).notes ?? '',
-      });
+      form.setFieldsValue({ chiefComplaint: admission.chiefComplaint ?? '' });
     }
   }, [open, admission, form]);
 
@@ -371,12 +362,10 @@ const EditAdmissionModal: React.FC<EditAdmissionProps> = ({ open, onClose, admis
     try {
       const values = await form.validateFields();
       setSaving(true);
-      await updateAdmission(admission.id, {
-        chiefComplaint: values.chiefComplaint || undefined,
-        priority: values.priority ? Number(values.priority) : undefined,
-        treatmentType: values.treatmentType ? Number(values.treatmentType) : undefined,
-        notes: values.notes || undefined,
-      });
+      // PUT /reception/admissions/{id} (UpdateAdmissionDto) persists only department/room/doctor/InitialDiagnosis
+      // (= chiefComplaint). The old priority/treatmentType/notes fields were silently dropped by the BE while the
+      // modal toasted "Đã cập nhật" — they are removed until the BE supports them.
+      await updateAdmission(admission.id, { chiefComplaint: values.chiefComplaint || undefined });
       void message.success('Đã cập nhật thông tin hành chính');
       onClose();
     } catch (err) {
@@ -407,15 +396,6 @@ const EditAdmissionModal: React.FC<EditAdmissionProps> = ({ open, onClose, admis
         <Form.Item name="chiefComplaint" label="Lý do khám">
           <Input.TextArea rows={2} placeholder="Nhập lý do / triệu chứng chính" />
         </Form.Item>
-        <Form.Item name="priority" label="Mức ưu tiên">
-          <Select options={PRIORITY_OPTS.map((o) => ({ value: o.v, label: o.l }))} />
-        </Form.Item>
-        <Form.Item name="treatmentType" label="Hình thức khám">
-          <Select options={VISIT_TYPE_OPTS.map((o) => ({ value: o.v, label: o.l }))} />
-        </Form.Item>
-        <Form.Item name="notes" label="Ghi chú">
-          <Input.TextArea rows={2} placeholder="Ghi chú thêm (không bắt buộc)" />
-        </Form.Item>
       </Form>
     </Modal>
   );
@@ -433,7 +413,7 @@ interface AuditEvent {
 // events from current status + admission/called/started/completed timestamps.
 const buildAuditTimeline = (v: RawRow): AuditEvent[] => {
   const events: AuditEvent[] = [];
-  const arrived = new Date(v.admissionDate);
+  const arrived = utcToLocal(v.admissionDate); // UTC without "Z"
   events.push({ t: arrived, action: 'Đến tiếp đón', by: 'Hệ thống', tone: 'info' });
   events.push({
     t: new Date(arrived.getTime() + 2 * 60_000),

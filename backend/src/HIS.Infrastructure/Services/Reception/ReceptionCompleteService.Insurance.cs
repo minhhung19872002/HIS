@@ -163,7 +163,9 @@ public partial class ReceptionCompleteService {
             FacilityCode = facilityCodeFromCard ?? facilityCode,
             FacilityName = facilityCodeFromCard != null ? "Nơi KKCB (mock)" : "Nơi KKCB cùng cơ sở",
             RightRoute = rightRoute,
-            PaymentRate = 80,
+            // The benefit level is printed on the card itself (3rd character, QD 1351/QD-BHXH): a TE1
+            // child card is 100%, not the flat 80% the mock used to return for every card.
+            PaymentRate = ParsePaymentRate(coreCardNumber.Substring(2, 1)),
             IsBlacklisted = blocked != null,
             BlacklistReason = blocked?.ReasonDetail,
             DataSource = "MOCK",
@@ -176,6 +178,8 @@ public partial class ReceptionCompleteService {
         if (string.IsNullOrWhiteSpace(mucHuong)) return 0;
         if (int.TryParse(new string(mucHuong.Where(char.IsDigit).ToArray()), out var code))
         {
+            // The real BHXH gateway returns the percent itself ("80"/"95"/"100"), the mock card path a 1-5 code.
+            if (code > 5) return Math.Min(code, 100);
             return code switch
             {
                 1 => 100,
@@ -602,6 +606,8 @@ public partial class ReceptionCompleteService {
             InsuranceExpireDate = insuranceResult.EndDate,
             InsuranceFacilityCode = insuranceResult.FacilityCode,
             InsuranceRightRoute = insuranceResult.RightRoute,
+            // Benefit level (80/95/100) was never stored → reassign-object / XML MUC_HUONG fell back to 80.
+            InsuranceCoverageRate = insuranceResult.PaymentRate > 0 ? (int)insuranceResult.PaymentRate : null,
             RoomId = dto.RoomId,
             DepartmentId = room.DepartmentId, // fee path already sets it; BHYT records were missing it
             DoctorId = dto.DoctorId,

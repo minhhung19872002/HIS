@@ -150,7 +150,9 @@ export const SurgeryCabinetIssueModal: React.FC<SurgeryCabinetIssueModalProps> =
 
   const loadCabinets = useCallback(async () => {
     try {
-      const res = await wh.getWarehouses(4); // WarehouseType=4 → Tủ trực
+      // WarehouseType 4 = nhà thuốc bệnh viện, 5 = tủ trực khoa: getWarehouses(4) listed/auto-selected the
+      // pharmacy and deducted pharmacy stock. getCabinetWarehouses: type 5 first, fallback 4 (same as CabinetIssueModal).
+      const res = await wh.getCabinetWarehouses();
       const list = (res.data as WarehouseDto[]) || [];
       setCabinets(list);
       if (list.length === 1) setCabinetId(list[0].id);
@@ -185,7 +187,8 @@ export const SurgeryCabinetIssueModal: React.FC<SurgeryCabinetIssueModalProps> =
     setSaving(true);
     try {
       const dto: wh.CreateCabinetIssueDto = {
-        issueDate: dayjs().toISOString(),
+        // Local wall-clock time: toISOString() stored the issue 7h early (a 00:30 issue landed on the previous day).
+        issueDate: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
         warehouseId: cabinetId,
         surgeryId,
         patientId: undefined,
@@ -199,6 +202,11 @@ export const SurgeryCabinetIssueModal: React.FC<SurgeryCabinetIssueModalProps> =
       const res = await wh.createCabinetIssue(dto);
       const issue = res.data as StockIssueDto;
       setLastIssue(issue);
+      // The modal stays open to print — clear the lines so a second "Xuất kho" click cannot issue the same
+      // items again (second stock deduction).
+      setLines([emptyLine()]);
+      setLineLabels({});
+      setNotes('');
       tk(`Đã xuất phòng mổ · ${issue.issueCode}`);
       onSaved?.();
     } catch (e) {

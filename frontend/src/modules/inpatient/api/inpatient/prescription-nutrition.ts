@@ -238,8 +238,17 @@ export interface NutritionSummaryDto {
 
 // #endregion
 
-export const searchMedicines = (keyword: string, warehouseId: string) =>
-  apiClient.get<MedicineSearchItemDto[]>(`${BASE_URL}/search-medicines`, { params: { keyword, warehouseId } });
+// PATIENT SAFETY: BE rows are `{ id, medicineCode, medicineName, unit, unitPrice, ... }` while the ward prescription
+// modal reads `code`/`name` — the picker listed "[—] undefined" and the chosen line showed no drug name.
+export const searchMedicines = async (keyword: string, warehouseId: string) => {
+  const res = await apiClient.get<MedicineSearchItemDto[]>(`${BASE_URL}/search-medicines`, { params: { keyword, warehouseId } });
+  const data = (Array.isArray(res.data) ? res.data : []).map((m) => ({
+    ...m,
+    code: m.code ?? (m.medicineCode as string | undefined),
+    name: m.name ?? (m.medicineName as string | undefined) ?? '',
+  }));
+  return { ...res, data };
+};
 
 export const getMedicineContraindications = (medicineId: string, admissionId: string) =>
   apiClient.get<MedicineContraindicationDto>(`${BASE_URL}/medicine-contraindications/${medicineId}`, { params: { admissionId } });

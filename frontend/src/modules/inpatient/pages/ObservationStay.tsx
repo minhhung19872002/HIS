@@ -29,7 +29,7 @@ interface Vital {
 }
 interface Department { id: string; departmentName: string; departmentCode?: string }
 interface Room { id: string; roomCode: string; roomName: string; departmentId?: string }
-interface PatientSearchResult { id: string; patientCode: string; fullName: string }
+interface PatientSearchResult { id: string; patientId?: string; patientCode: string; patientName?: string; fullName?: string }
 interface PatientOption { label: string; value: string }
 interface StayCreateResponse { stayCode: string; id?: string }
 interface VitalCreateResponse { ewsScore?: number }
@@ -94,8 +94,16 @@ const ObservationStayV2: React.FC = () => {
   const searchPatient = async (kw: string) => {
     if (!kw) return;
     try {
-      const { data } = await apiClient.get<{ items?: PatientSearchResult[] }>('/reception/patients/search', { params: { keyword: kw, pageSize: 10 } });
-      setPatientOptions((data.items || []).map((p) => ({ label: `${p.patientCode} — ${p.fullName}`, value: p.id })));
+      // /reception/patients/search returns a plain array of AdmissionDto (`id` = medical record id, `patientId`,
+      // `patientName`) — reading `data.items` left the picker always empty, so no stay could be created; `p.id`
+      // would also have posted a medical-record id as patientId. One option per patient.
+      const { data } = await apiClient.get<PatientSearchResult[] | { items?: PatientSearchResult[] }>('/reception/patients/search', { params: { keyword: kw, pageSize: 10 } });
+      const rows = Array.isArray(data) ? data : (data?.items || []);
+      const seen = new Set<string>();
+      setPatientOptions(rows
+        .map((p) => ({ id: p.patientId || p.id, code: p.patientCode, name: p.patientName || p.fullName || '' }))
+        .filter((p) => p.id && !seen.has(p.id) && seen.add(p.id))
+        .map((p) => ({ label: `${p.code} — ${p.name}`, value: p.id })));
     } catch { setPatientOptions([]); }
   };
 

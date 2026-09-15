@@ -197,9 +197,15 @@ const PrescriptionEditorV2: React.FC = () => {
       const list = Array.isArray(data) ? data : data?.items;
       const exId = list && list.length > 0 ? list[0].id : null;
       if (exId) {
-        setExamId(exId);
         const ctxRes = await getPrescriptionContext(exId);
         if (selectReqRef.current !== reqId) return;
+        // PATIENT SAFETY: the lookup used to ignore patientCode and return another patient's latest exam, so the
+        // prescription (and allergy context) was attached to the wrong patient. Never accept a foreign exam.
+        if (ctxRes.data && ctxRes.data.patientId !== p.id) {
+          tw('Không tìm thấy phiếu khám của bệnh nhân này — không thể kê đơn.');
+          return;
+        }
+        setExamId(exId);
         if (ctxRes.data) setCtx(ctxRes.data);
       }
     } catch (e) {

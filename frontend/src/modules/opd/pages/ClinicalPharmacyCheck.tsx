@@ -83,17 +83,14 @@ const ClinicalPharmacyCheckV2: React.FC = () => {
     if (!keyword) return;
     setLoading(true);
     try {
-      const patientRes = await apiClient.get<{ items?: Array<{ id: string }> }>('/admin/patients/search', {
-        params: { keyword, pageSize: 1 },
-      }).catch(async () => {
-        const r = await apiClient.get<{ items?: Array<{ id: string }> }>('/reception/patients/search', {
-          params: { keyword, pageSize: 1 },
-        });
-        return r;
+      // QA-R2: '/admin/patients/search' does not exist, and the reception fallback returns a plain array of
+      // AdmissionDto (id = MedicalRecordId) — reading `.items` always gave "not found". Use patientId.
+      const patientRes = await apiClient.get<Array<{ id: string; patientId: string }>>('/reception/patients/search', {
+        params: { keyword },
       });
-      const items = patientRes.data?.items ?? [];
+      const items = Array.isArray(patientRes.data) ? patientRes.data : [];
       if (items.length === 0) { tw('Không tìm thấy bệnh nhân'); return; }
-      const patientId = items[0].id;
+      const patientId = items[0].patientId;
       const { data: detail } = await apiClient.get<PharmacyCheckData>(`/clinical-pharmacy/patient-summary/${patientId}`);
       setData(detail); tk('Đã tải hồ sơ bệnh nhân');
     } catch { ti('Tải dữ liệu thất bại'); }

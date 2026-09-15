@@ -586,7 +586,7 @@ const ReceptionV2: React.FC = () => {
                   },
                   {
                     key: 'pay', icon: 'dollar', label: 'Thu phí',
-                    hidden: sk === 'completed',
+                    hidden: sk === 'completed' || sk === 'cancelled',
                     onClick: () => setPayFor(r),
                   },
                   {
@@ -600,13 +600,13 @@ const ReceptionV2: React.FC = () => {
                     // việc thi thoảng, nằm trong menu ⋯ là đúng chỗ, lại hiện kèm CHỮ nên dễ tìm
                     // hơn một biểu tượng trơn.
                     key: 'issue', icon: 'plus', label: 'Cấp số thứ tự',
-                    hidden: !!r.ticketId || sk === 'completed',
+                    hidden: !!r.ticketId || sk === 'completed' || sk === 'cancelled',
                     disabled: rowBusy,
                     onClick: () => onIssueTicket(r),
                   },
                   {
                     key: 'move', icon: 'refresh', label: 'Đổi phòng',
-                    hidden: sk === 'completed',
+                    hidden: sk === 'completed' || sk === 'cancelled',
                     onClick: () => setMoveFor(r),
                   },
                   {

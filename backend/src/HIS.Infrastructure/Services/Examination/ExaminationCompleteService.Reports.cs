@@ -40,6 +40,12 @@ public partial class ExaminationCompleteService
                 e.MedicalRecord.MedicalRecordCode.Contains(dto.Keyword));
         }
 
+        if (!string.IsNullOrWhiteSpace(dto.PatientCode))
+        {
+            var patientCode = dto.PatientCode.Trim();
+            query = query.Where(e => e.MedicalRecord.Patient.PatientCode == patientCode);
+        }
+
         if (dto.FromDate.HasValue)
             query = query.Where(e => e.MedicalRecord.AdmissionDate >= dto.FromDate.Value);
 
@@ -58,6 +64,7 @@ public partial class ExaminationCompleteService
 
         var items = await query
             .OrderByDescending(e => e.MedicalRecord.AdmissionDate)
+            .ThenByDescending(e => e.CreatedAt) // several exams per record (khám thêm) → newest first, deterministic
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();

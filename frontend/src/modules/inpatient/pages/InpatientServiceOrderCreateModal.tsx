@@ -184,7 +184,7 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
     let added = 0;
     treeChecked.forEach((id) => {
       const n = nodeMap.current.get(id);
-      if (n && n.hasChildren !== true) { addService(n.id, n.name, n.code ?? ''); added++; }
+      if (n && n.hasChildren !== true) { addService(n.id, n.name, n.code ?? '', Number(n.unitPrice) || 0); added++; }
     });
     if (added === 0) { tw('Chưa tick dịch vụ nào'); return; }
     tk(`Đã thêm ${added} dịch vụ từ cây danh mục`);

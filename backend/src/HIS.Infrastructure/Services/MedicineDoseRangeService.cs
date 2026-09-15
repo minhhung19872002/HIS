@@ -122,7 +122,26 @@ public class MedicineDoseRangeService : IMedicineDoseRangeService
 
             // Chọn range phù hợp nhất: khớp đường dùng > khớp nhóm tuổi > renal (khi BN suy thận) > mặc định
             var range = PickBestRange(candidates, item.RouteCode, ageGroup, request.IsRenalImpaired);
-            if (range == null) continue;
+            if (range == null)
+            {
+                // Thresholds exist for this drug but none applies to this patient (e.g. only an adult row for a
+                // child, or age unknown). Silently returning "no warning" read as "dose checked and OK".
+                warnings.Add(new DoseWarningDto
+                {
+                    MedicineId = item.MedicineId,
+                    MedicineName = candidates[0].Medicine?.MedicineName ?? "",
+                    WarningType = "DoseRangeNotApplicable",
+                    Severity = 1,
+                    Message = ageGroup switch
+                    {
+                        0 => "Chưa có tuổi người bệnh — không chọn được ngưỡng liều theo nhóm tuổi, liều CHƯA được kiểm tra",
+                        1 => "Chưa cấu hình ngưỡng liều cho trẻ em — liều CHƯA được kiểm tra",
+                        _ => "Không có ngưỡng liều phù hợp (nhóm tuổi / đường dùng) — liều CHƯA được kiểm tra"
+                    },
+                    Recommendation = "Tự kiểm tra liều theo cân nặng/tuổi trước khi kê"
+                });
+                continue;
+            }
 
             var dailyDose = item.DailyDose
                 ?? SumNullable(item.MorningDose, item.NoonDose, item.EveningDose, item.NightDose);
@@ -159,7 +178,18 @@ public class MedicineDoseRangeService : IMedicineDoseRangeService
     private static MedicineDoseRange? PickBestRange(List<MedicineDoseRange> candidates,
         string? route, int ageGroup, bool renal)
     {
-        return candidates
+        // Filter out ranges that do NOT apply to this patient before ranking. Ranking alone used to pick a
+        // non-matching row: an adult-only threshold was applied to a child (paediatric overdose passed silently)
+        // and a renal-adjusted threshold was applied to a patient without renal impairment (false "severe overdose").
+        var applicable = candidates
+            .Where(r => renal || !r.IsRenalAdjusted)
+            .Where(r => string.IsNullOrEmpty(r.RouteCode) || string.IsNullOrEmpty(route) || r.RouteCode == route)
+            .Where(r => r.AgeGroup == 0
+                || (ageGroup != 0 && r.AgeGroup == ageGroup)
+                || (ageGroup == 3 && r.AgeGroup == 2)) // elderly may fall back to the adult threshold; children may not
+            .ToList();
+
+        return applicable
             .OrderByDescending(r => renal && r.IsRenalAdjusted)                              // ưu tiên renal khi BN suy thận
             .ThenByDescending(r => !string.IsNullOrEmpty(route) && r.RouteCode == route)     // khớp đường dùng
             .ThenByDescending(r => r.AgeGroup == ageGroup)                                   // khớp nhóm tuổi

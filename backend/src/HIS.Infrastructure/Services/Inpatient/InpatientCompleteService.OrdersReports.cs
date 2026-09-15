@@ -363,6 +363,11 @@ public partial class InpatientCompleteService {
                 $"Lượt nội trú đã kết thúc ({HIS.Core.Constants.AdmissionStatus.Label(admission.Status)}), không chỉ định dịch vụ được.");
         await EmrLockGuard.EnsureEditableByRecordAsync(_context, admission.MedicalRecordId); // TT46
         await CheckDepositEnforceBlockAsync(admission.PatientId); // F3.3
+        // MONEY: same guard as the OPD path — quantity -3 was stored as a negative charge (-105.000đ).
+        if (dto.Services == null || dto.Services.Count == 0)
+            throw new ArgumentException("Chưa chọn dịch vụ nào", nameof(dto.Services));
+        if (dto.Services.Any(s => s.Quantity <= 0))
+            throw new ArgumentException("Số lượng dịch vụ phải lớn hơn 0", nameof(dto.Services));
 
         var doctor = await _context.Users.FindAsync(userId);
 
@@ -538,8 +543,19 @@ public partial class InpatientCompleteService {
             .Where(r => r.MedicalRecordId == admission.MedicalRecordId
                      && r.RequestCode.StartsWith("CDNT")
                      && r.Status != 4);
-        if (fromDate.HasValue) query = query.Where(r => r.RequestDate >= fromDate.Value);
-        if (toDate.HasValue) query = query.Where(r => r.RequestDate <= toDate.Value);
+        // RequestDate is written as UTC (dot16) and the FE sends date-only bounds (fromDate=toDate=today): the old
+        // `<= toDate` (= 00:00) dropped every order of the requested day → the ward's "Y lệnh hôm nay" was always empty.
+        // Use inclusive VN-day ranges.
+        if (fromDate.HasValue)
+        {
+            var fromUtc = HIS.Core.Common.VnTime.DayRangeUtc(fromDate.Value.Date).FromUtc;
+            query = query.Where(r => r.RequestDate >= fromUtc);
+        }
+        if (toDate.HasValue)
+        {
+            var toUtc = HIS.Core.Common.VnTime.DayRangeUtc(toDate.Value.Date).ToUtc;
+            query = query.Where(r => r.RequestDate < toUtc);
+        }
 
         var requests = await query.OrderByDescending(r => r.RequestDate).ToBoundedListAsync("InpatientCompleteService.GetServiceOrdersAsync");
         return requests.Select(r => MapToInpatientOrder(r, admissionId)).ToList();

@@ -111,9 +111,13 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
             .FirstOrDefaultAsync(e => e.Id == dto.ParentExaminationId)
             ?? throw new KeyNotFoundException("Không tìm thấy phiên khám gốc");
 
-        if (parent.Status == 4 && parent.IsBillPrinted)
+        if (parent.Status == 5)
+            throw new InvalidOperationException("Phiên khám gốc đã hủy — không thêm khám CK khác được.");
+        // The BHYT summary bill is printed on the LAST exam of the chain, not necessarily the parent:
+        // checking only parent.IsBillPrinted let a new exam join a chain whose bill was already printed.
+        if (await _db.Examinations.AnyAsync(e => e.MedicalRecordId == parent.MedicalRecordId && e.IsBillPrinted))
             throw new InvalidOperationException(
-                "Phiên khám gốc đã in chi phí. Không thể thêm khám CK khác. Hãy hủy in chi phí trước.");
+                "Chuỗi khám của hồ sơ này đã in chi phí. Không thể thêm khám CK khác. Hãy hủy in chi phí trước.");
 
         var room = await _db.Rooms.FindAsync(dto.RoomId)
             ?? throw new KeyNotFoundException("Phòng khám không tồn tại");
@@ -192,8 +196,9 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
             ?? throw new KeyNotFoundException("Phiên khám không tồn tại");
 
         // Chain = tất cả examinations cùng MedicalRecord (same day)
+        // Cancelled exams (Status 5) are not part of the chain — they used to block the BHYT bill forever.
         var chain = await _db.Examinations
-            .Where(e => e.MedicalRecordId == exam.MedicalRecordId)
+            .Where(e => e.MedicalRecordId == exam.MedicalRecordId && (e.Status != 5 || e.Id == exam.Id))
             .ToListAsync();
 
         var completedCount = chain.Count(e => e.Status == 4);
@@ -262,8 +267,8 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
             ?? throw new KeyNotFoundException("Phiên khám không tồn tại");
         if (exam.Status != 4)
             throw new InvalidOperationException("Phiên khám chưa hoàn tất");
-        if (exam.IsBillPrinted)
-            throw new InvalidOperationException("Phải hủy in chi phí trước khi hủy hoàn tất");
+        if (await _db.Examinations.AnyAsync(e => e.MedicalRecordId == exam.MedicalRecordId && e.IsBillPrinted))
+            throw new InvalidOperationException("Phải hủy in chi phí (của chuỗi khám) trước khi hủy hoàn tất");
 
         exam.Status = 1;
         exam.UpdatedAt = DateTime.UtcNow;

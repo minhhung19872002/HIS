@@ -73,6 +73,11 @@ public class ObservationStayService : IObservationStayService
         // QA0915: a patient could be opened into two concurrent observation stays.
         if (await _db.ObservationStays.AnyAsync(s => s.PatientId == dto.PatientId && s.Status == 1))
             return ServiceOutcome.Bad("Bệnh nhân đang có phiên lưu theo dõi chưa kết thúc");
+        if (dto.TriageLevel.HasValue && (dto.TriageLevel < 1 || dto.TriageLevel > 5))
+            return ServiceOutcome.Bad("Mức triage phải từ 1 đến 5");
+        // Two patients could be placed on the same observation bed.
+        if (dto.BedId.HasValue && await _db.ObservationStays.AnyAsync(s => s.BedId == dto.BedId && s.Status == 1))
+            return ServiceOutcome.Bad("Giường này đang có bệnh nhân lưu theo dõi");
 
         var now = DateTime.Now;
         var stay = new ObservationStay
@@ -128,18 +133,30 @@ public class ObservationStayService : IObservationStayService
         };
         _db.ObservationVitals.Add(vital);
 
-        // Simple MEWS calculation
+        // MEWS (Subbe). Previously HR 130 and RR 30 scored one point too low, and systolic BP + level of
+        // consciousness were never scored — a shocked (SBP 60) or unresponsive (GCS 3) patient scored 0 for those.
         var mews = 0;
         if (dto.HeartRate.HasValue)
         {
             var hr = dto.HeartRate.Value;
-            if (hr < 40) mews += 2; else if (hr < 51) mews += 1;
-            else if (hr > 130) mews += 3; else if (hr > 110) mews += 2; else if (hr > 100) mews += 1;
+            if (hr < 40) mews += 2; else if (hr <= 50) mews += 1;
+            else if (hr >= 130) mews += 3; else if (hr >= 111) mews += 2; else if (hr >= 101) mews += 1;
         }
         if (dto.RespirationRate.HasValue)
         {
             var rr = dto.RespirationRate.Value;
-            if (rr < 9) mews += 2; else if (rr > 30) mews += 3; else if (rr > 20) mews += 2; else if (rr > 14) mews += 1;
+            if (rr < 9) mews += 2; else if (rr >= 30) mews += 3; else if (rr >= 21) mews += 2; else if (rr >= 15) mews += 1;
+        }
+        if (!string.IsNullOrWhiteSpace(dto.BloodPressure)
+            && int.TryParse(dto.BloodPressure.Split('/')[0].Trim(), out var sbp) && sbp > 0)
+        {
+            if (sbp <= 70) mews += 3; else if (sbp <= 80) mews += 2; else if (sbp <= 100) mews += 1; else if (sbp >= 200) mews += 2;
+        }
+        if (dto.Consciousness.HasValue && dto.Consciousness.Value >= 3 && dto.Consciousness.Value <= 15)
+        {
+            // Consciousness is captured as GCS (3-15) on the v2 page → AVPU: 15=A, 13-14=V, 9-12=P, <=8=U.
+            var gcs = dto.Consciousness.Value;
+            if (gcs <= 8) mews += 3; else if (gcs <= 12) mews += 2; else if (gcs <= 14) mews += 1;
         }
         if (dto.Temperature.HasValue)
         {
@@ -226,6 +243,7 @@ public class ObservationStayService : IObservationStayService
             return ServiceOutcome.Bad("Mức triage phải từ 1 đến 5");
         var stay = await _db.ObservationStays.FindAsync(id);
         if (stay == null) return ServiceOutcome.NotFound();
+        if (stay.Status != 1) return ServiceOutcome.Bad("Phiên lưu đã kết thúc — không đổi mức triage được");
         stay.TriageLevel = dto.TriageLevel;
         stay.UpdatedAt = DateTime.Now;
         stay.UpdatedBy = userId.ToString();

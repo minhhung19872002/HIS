@@ -744,21 +744,63 @@ export const escalateAlert = (dto: EscalateAlertDto) =>
 export const updateEventPhase = (eventId: string, phase: string, notes?: string) =>
   apiClient.post<MCIEventDto>(`${BASE_URL}/events/${eventId}/phase`, { phase, notes });
 
+// QA-R2: BE route is POST events/{id}/deactivate with a JSON string body (the reason); "events/deactivate" 404'd.
 export const deactivateMCI = (dto: DeactivateMCIDto) =>
-  apiClient.post<MCIDeactivationResultDto>(`${BASE_URL}/events/deactivate`, dto);
+  apiClient.post<MCIDeactivationResultDto>(
+    `${BASE_URL}/events/${dto.eventId}/deactivate`,
+    JSON.stringify(dto.finalNotes ? `${dto.reason}\n${dto.finalNotes}` : dto.reason),
+    { headers: { 'Content-Type': 'application/json' } },
+  );
 
 // #endregion
 
 // #region Victims
 
+// QA-R2: BE MCIVictimDto (HIS.Application.DTOs.MassCasualty) uses name/triageTag/arrivedAt, a colour triage
+// category (Red/Yellow/Green/Black) and a string status. Without this mapping the page showed no names and
+// every victim at triage level 3. Map to the FE shape here so pages keep one contract.
+const TRIAGE_COLOURS = ['red', 'yellow', 'green', 'black'];
+const DISPOSED_STATUSES = ['Admitted', 'Discharged', 'Transferred', 'Deceased'];
+const normalizeVictim = (raw: unknown): MCIVictimDto => {
+  const v = (raw ?? {}) as MCIVictimDto & Record<string, unknown>;
+  const category = String(v.triageCategory ?? '');
+  const beStatus = typeof v.status === 'string' ? (v.status as string) : undefined;
+  return {
+    ...v,
+    victimCode: v.victimCode ?? (v.triageTag as string | undefined) ?? '',
+    fullName: v.fullName ?? (v.name as string | undefined),
+    triageColor: v.triageColor ?? (TRIAGE_COLOURS.includes(category.toLowerCase()) ? category.toLowerCase() : ''),
+    treatmentStatus: v.treatmentStatus ?? beStatus ?? '',
+    disposition: v.disposition ?? (beStatus && DISPOSED_STATUSES.includes(beStatus) ? beStatus : undefined),
+    arrivalTime: v.arrivalTime ?? (v.arrivedAt as string | undefined) ?? v.createdAt,
+    ambulatory: v.ambulatory ?? Boolean(v.canWalk),
+  };
+};
+
+// 'all' / 0 mean "no filter" on the page; never send them as literal filter values.
 export const getVictims = (eventId: string, triageCategory?: string, status?: number) =>
-  apiClient.get<MCIVictimDto[]>(`${BASE_URL}/events/${eventId}/victims`, { params: { triageCategory, status } });
+  apiClient.get<MCIVictimDto[]>(`${BASE_URL}/events/${eventId}/victims`, {
+    params: {
+      triageCategory: triageCategory && triageCategory !== 'all' ? triageCategory : undefined,
+      status: status ? status : undefined,
+    },
+  }).then((res) => ({ ...res, data: (Array.isArray(res.data) ? res.data : []).map(normalizeVictim) }));
 
 export const getVictim = (id: string) =>
-  apiClient.get<MCIVictimDto>(`${BASE_URL}/victims/${id}`);
+  apiClient.get<MCIVictimDto>(`${BASE_URL}/victims/${id}`)
+    .then((res) => ({ ...res, data: res.data ? normalizeVictim(res.data) : res.data }));
 
 export const registerVictim = (dto: RegisterVictimDto) =>
-  apiClient.post<MCIVictimDto>(`${BASE_URL}/victims`, dto);
+  apiClient.post<MCIVictimDto>(`${BASE_URL}/victims`, {
+    eventId: dto.eventId,
+    name: dto.fullName,
+    estimatedAge: dto.estimatedAge,
+    gender: dto.gender,
+    chiefComplaint: dto.chiefComplaint,
+    mechanismOfInjury: dto.injuryMechanism,
+    description: dto.injuries?.join('; '),
+    canWalk: dto.ambulatory,
+  });
 
 export const triageVictim = (dto: TriageVictimDto) =>
   apiClient.post<TriageResultDto>(`${BASE_URL}/victims/triage`, dto);
@@ -825,8 +867,22 @@ export const assignCommand = (dto: AssignCommandDto) =>
 export const logActivity = (dto: LogActivityDto) =>
   apiClient.post<ActivityLogDto>(`${BASE_URL}/command/log`, dto);
 
+// BE returns MCIUpdateDto { time, category, message, postedBy }.
 export const getActivityLog = (eventId: string, fromTime?: string) =>
-  apiClient.get<ActivityLogDto[]>(`${BASE_URL}/events/${eventId}/activity-log`, { params: { fromTime } });
+  apiClient.get<ActivityLogDto[]>(`${BASE_URL}/events/${eventId}/activity-log`, { params: { fromTime } })
+    .then((res) => ({
+      ...res,
+      data: (Array.isArray(res.data) ? res.data : []).map((raw) => {
+        const u = raw as ActivityLogDto & { time?: string; category?: string; message?: string; postedBy?: string };
+        return {
+          ...u,
+          timestamp: u.timestamp ?? u.time ?? '',
+          activityType: u.activityType ?? u.category ?? '',
+          description: u.description ?? u.message ?? '',
+          performedBy: u.performedBy ?? u.postedBy ?? '',
+        };
+      }),
+    }));
 
 export const getAlerts = (eventId: string, acknowledged?: boolean) =>
   apiClient.get<MCIAlertDto[]>(`${BASE_URL}/events/${eventId}/alerts`, { params: { acknowledged } });
@@ -844,8 +900,16 @@ export const broadcastMessage = (eventId: string, message: string, recipients: s
 export const getNotifications = (victimId: string) =>
   apiClient.get<FamilyNotificationDto[]>(`${BASE_URL}/victims/${victimId}/notifications`);
 
+// BE FamilyNotificationDto names the phone contactPhone.
 export const notifyFamily = (dto: NotifyFamilyDto) =>
-  apiClient.post<FamilyNotificationDto>(`${BASE_URL}/family/notify`, dto);
+  apiClient.post<FamilyNotificationDto>(`${BASE_URL}/family/notify`, {
+    victimId: dto.victimId,
+    contactName: dto.contactName,
+    contactPhone: dto.phone,
+    relationship: dto.relationship,
+    notificationMethod: dto.notificationMethod,
+    notes: dto.message,
+  });
 
 export const getInquiries = (eventId: string, status?: string) =>
   apiClient.get<FamilyInquiryDto[]>(`${BASE_URL}/events/${eventId}/inquiries`, { params: { status } });

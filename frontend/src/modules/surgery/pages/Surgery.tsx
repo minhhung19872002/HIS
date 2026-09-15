@@ -180,7 +180,9 @@ const SurgeryV2: React.FC = () => {
         const r = await surgeryApi.getSurgeries({
           fromDate: dayjs().subtract(7, 'day').format('YYYY-MM-DD'),
           toDate:   dayjs().add(7, 'day').format('YYYY-MM-DD'),
-          page: 0, pageSize: 200,
+          // SurgerySearchDto.Page is 1-based: page 0 → Skip(-200) threw inside GetSurgeriesAsync, which swallows
+          // the error and returns an empty page → the OR list was always empty.
+          page: 1, pageSize: 200,
         });
         return r.data?.items || [];
       }}

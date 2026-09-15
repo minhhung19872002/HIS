@@ -234,8 +234,10 @@ namespace HIS.Application.DTOs
         public Guid? DepartmentId { get; set; }
         public Guid? RoomId { get; set; }
         public Guid? BedId { get; set; }
-        public string ChiefComplaint { get; set; }
-        public string InitialDiagnosis { get; set; }
+        // Optional (partial update): non-nullable made both implicitly [Required] → every edit from the reception
+        // drawer returned 400 "The InitialDiagnosis field is required."
+        public string? ChiefComplaint { get; set; }
+        public string? InitialDiagnosis { get; set; }
         public Guid? AttendingDoctorId { get; set; }
     }
 
@@ -402,6 +404,9 @@ namespace HIS.Application.DTOs
     public class ExaminationSearchDto
     {
         public string? Keyword { get; set; }
+        // Exact patient filter used by the v2 prescription editor. It was not bound at all, so the editor's
+        // "latest exam of this patient" lookup returned the latest exam of ANY patient.
+        public string? PatientCode { get; set; }
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
         public Guid? DepartmentId { get; set; }

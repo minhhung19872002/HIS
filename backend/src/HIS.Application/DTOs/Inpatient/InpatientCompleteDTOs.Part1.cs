@@ -214,15 +214,11 @@ public class InpatientListDto
     public string? MainDiagnosis { get; set; }
     public string? AttendingDoctorName { get; set; }
 
+    // Admissions.Status of the current stay (HIS.Core.Constants.AdmissionStatus: 0 in treatment, 1 discharged,
+    // 2 transferred out, 3 died, 4 left, 5 transferred dept, 6 pending discharge). It used to carry
+    // MedicalRecords.Status with made-up labels, so every discharged patient (MR status 3) showed "Chờ phẫu thuật".
     public int Status { get; set; }
-    public string StatusName => Status switch
-    {
-        0 => "Đang điều trị",
-        1 => "Chờ chuyển khoa",
-        2 => "Chờ xuất viện",
-        3 => "Chờ phẫu thuật",
-        _ => ""
-    };
+    public string StatusName => HIS.Core.Constants.AdmissionStatus.Label(Status);
 
     // Trạng thái y lệnh
     public bool HasPendingOrders { get; set; }

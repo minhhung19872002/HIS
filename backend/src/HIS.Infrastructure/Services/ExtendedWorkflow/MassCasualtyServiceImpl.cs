@@ -17,7 +17,11 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
 
     public async Task<MCIEventDto> GetActiveEventAsync()
     {
-        var e = await _context.MCIEvents.Include(x => x.Victims).FirstOrDefaultAsync(x => x.Status == "Active");
+        // QA-R2: several events can be Active at once; without an order the "active event" was arbitrary.
+        var e = await _context.MCIEvents.Include(x => x.Victims)
+            .Where(x => x.Status == "Active")
+            .OrderByDescending(x => x.ActivatedAt)
+            .FirstOrDefaultAsync();
         if (e == null) return null!;
         return MapToEventDto(e);
     }
@@ -118,7 +122,8 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
     public async Task<bool> DeactivateEventAsync(Guid eventId, string reason)
     {
         var e = await _context.MCIEvents.FindAsync(eventId);
-        if (e == null) return false;
+        // QA-R2: ending an already-ended event overwrote DeactivatedAt and the after-action report.
+        if (e == null || e.Status != "Active") return false;
         e.Status = "Deactivated";
         e.DeactivatedAt = DateTime.Now;
         e.AfterActionReport = reason;
@@ -144,6 +149,8 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
 
     public async Task<MCIVictimDto> RegisterVictimAsync(RegisterMCIVictimDto dto)
     {
+        if (!await _context.MCIEvents.AnyAsync(x => x.Id == dto.EventId && x.Status == "Active"))
+            throw new InvalidOperationException("Sự kiện MCI không tồn tại hoặc đã kết thúc — không tiếp nhận nạn nhân vào sự kiện này.");
         var victimCount = await _context.MCIVictims.CountAsync(x => x.MCIEventId == dto.EventId) + 1;
         var entity = new MCIVictim
         {
@@ -154,7 +161,7 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
             EstimatedAge = dto.EstimatedAge,
             Gender = dto.Gender,
             IdentifyingFeatures = dto.Description,
-            TriageCategory = dto.TriageCategory,
+            TriageCategory = dto.TriageCategory ?? string.Empty, // not yet triaged; entity column is read as non-null
             TriageTime = DateTime.Now,
             RespiratoryRate = dto.RespiratoryRate,
             HasRadialPulse = dto.Pulse?.ToLower() == "present",
@@ -180,9 +187,11 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
     {
         var e = await _context.MCIVictims.FindAsync(id);
         if (e == null) return null!;
-        e.Name = dto.Name;
-        e.CurrentLocation = dto.CurrentLocation;
-        e.Status = dto.Status;
+        // QA-R2: partial update — a notes-only PUT used to null out Name/CurrentLocation/Status.
+        if (dto.Name != null) e.Name = dto.Name;
+        if (dto.CurrentLocation != null) e.CurrentLocation = dto.CurrentLocation;
+        if (dto.Status != null) e.Status = dto.Status;
+        if (dto.TreatmentNotes != null) e.InitialTreatment = dto.TreatmentNotes;
         await _context.SaveChangesAsync();
         return MapToVictimDto(e);
     }
@@ -360,14 +369,13 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
     public async Task<FamilyNotificationDto> NotifyFamilyAsync(Guid victimId, FamilyNotificationDto dto)
     {
         var v = await _context.MCIVictims.FindAsync(victimId);
-        if (v != null)
-        {
-            v.FamilyNotified = true;
-            v.FamilyContactName = dto.ContactName;
-            v.FamilyContactPhone = dto.ContactPhone;
-            v.FamilyNotifiedAt = DateTime.Now;
-            await _context.SaveChangesAsync();
-        }
+        // QA-R2: an unknown victim used to come back as "Notified" without writing anything.
+        if (v == null) return null!;
+        v.FamilyNotified = true;
+        v.FamilyContactName = dto.ContactName;
+        v.FamilyContactPhone = dto.ContactPhone;
+        v.FamilyNotifiedAt = DateTime.Now;
+        await _context.SaveChangesAsync();
         dto.NotifiedAt = DateTime.Now;
         dto.NotificationStatus = "Notified";
         return dto;
@@ -541,7 +549,8 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
             ArrivedAt = e.ArrivalTime,
             FamilyNotified = e.FamilyNotified,
             FamilyContactName = e.FamilyContactName,
-            FamilyContactPhone = e.FamilyContactPhone
+            FamilyContactPhone = e.FamilyContactPhone,
+            TreatmentNotes = e.InitialTreatment
         };
     }
 }

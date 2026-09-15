@@ -1,11 +1,12 @@
 import dayjs from 'dayjs';
 import type { AdmissionDto } from '../api/reception';
+import { utcToLocal } from '../../../utils/format';
 import type { StatusTab, TopTab } from '@/_v2kit';
 
 export type TopKey = 'queue' | 'pending' | 'now' | 'stats';
 // 5 trạng thái thực tế tại quầy tiếp đón BV VN:
 // Chờ tiếp đón → Đang khám → Chờ KQ CLS → Khám xong, + Vắng/bỏ qua.
-export type StatusKey = 'waiting' | 'serving' | 'waitresult' | 'completed' | 'noshow';
+export type StatusKey = 'waiting' | 'serving' | 'waitresult' | 'completed' | 'noshow' | 'cancelled';
 
 export const TOP_TABS: TopTab<TopKey>[] = [
   { v: 'queue', l: 'Hàng đợi tiếp đón', ic: 'users' },
@@ -22,6 +23,7 @@ export const STATUS_TABS: StatusTab<StatusKey>[] = [
   { v: 'waitresult', l: 'Chờ KQ CLS',   tone: 'warn' },
   { v: 'completed',  l: 'Khám xong',    tone: 'ok' },
   { v: 'noshow',     l: 'Vắng / bỏ qua', tone: 'crit' },
+  { v: 'cancelled',  l: 'Đã hủy',       tone: 'crit' },
 ];
 
 export const PRIORITY_OPTS = [
@@ -37,8 +39,10 @@ export const VISIT_TYPE_OPTS = [
   { v: '4', l: 'Khám theo yêu cầu' },
 ];
 
+// admissionDate is written as DateTime.UtcNow and serialized without "Z" — parsing it as local time
+// showed the arrival time 7 hours early (13:33 instead of 20:33).
 export const fmtHM = (iso: string) => {
-  const d = new Date(iso);
+  const d = utcToLocal(iso);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
@@ -67,11 +71,14 @@ export const statusKey = (row: RawRow): StatusKey => {
   // về Waiting khi skip nên phải ưu tiên kiểm tra ticketStatus trước.
   if (row.ticketStatus === 4) return 'noshow';
   const s = row.status;
-  // String form (backend): "Waiting" | "InProgress" | "WaitingResult" | "Completed"
+  // String form (backend GetTodayAdmissions): "Waiting" | "InProgress" | "WaitingResult" | "Completed", and when an
+  // examination exists: "PendingCLS" | "WaitingConclusion" | "Cancelled". Those three used to fall through to
+  // 'completed' → patients waiting for lab results / cancelled visits showed as "Khám xong".
   if (typeof s === 'string') {
     if (s === 'Waiting') return 'waiting';
     if (s === 'InProgress') return 'serving';
-    if (s === 'WaitingResult') return 'waitresult';
+    if (s === 'WaitingResult' || s === 'PendingCLS' || s === 'WaitingConclusion') return 'waitresult';
+    if (s === 'Cancelled') return 'cancelled';
     return 'completed';
   }
   // Numeric form: 0 chờ · 1 đang khám · 2 chờ KQ CLS · 3 khám xong

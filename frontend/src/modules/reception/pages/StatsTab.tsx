@@ -2,12 +2,13 @@ import React, { useMemo } from 'react';
 import type { RoomOverviewDto } from '../api/reception';
 import type { RawRow } from './shared';
 import { treatmentLabel } from './shared';
+import { utcToLocal } from '../../../utils/format';
 export const StatsTab: React.FC<{ rows: RawRow[]; rooms: RoomOverviewDto[] }> = ({ rows, rooms }) => {
   const byHour = useMemo(() => {
     const m: Record<number, number> = {};
     for (let h = 7; h <= 18; h++) m[h] = 0;
     rows.forEach((r) => {
-      const h = new Date(r.admissionDate).getHours();
+      const h = utcToLocal(r.admissionDate).getHours(); // admissionDate is UTC without "Z"
       if (m[h] !== undefined) m[h] = (m[h] || 0) + 1;
     });
     return m;

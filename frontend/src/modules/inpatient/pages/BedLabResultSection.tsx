@@ -422,10 +422,11 @@ const BedLabResultSection: React.FC<BedLabResultSectionProps> = ({ admissionId }
   };
 
   // Determine available actions per order
+  // status (LIS order vocab): 0-2 chưa đủ KQ · 3 chờ duyệt · 4 sơ duyệt · 5 duyệt chính thức · 6 đã hủy
   const canEnter = (o: BedLabOrder) => o.status < 4; // chưa duyệt chính thức → còn nhập được
   const canPreliminaryApprove = (o: BedLabOrder) => o.status === 3; // Chờ duyệt → duyệt sơ bộ
   const canFinalApprove = (o: BedLabOrder) => o.status === 4; // Đã duyệt sơ bộ → duyệt chính thức
-  const canPrint = (o: BedLabOrder) => o.status >= 4; // chỉ in khi đã duyệt sơ bộ/chính thức
+  const canPrint = (o: BedLabOrder) => o.status === 4 || o.status === 5; // never a cancelled order (6)
 
   return (
     <div className="rec-section">

@@ -205,6 +205,9 @@ public partial class InpatientCompleteService {
         {
             medRecord.Status = 3; // Đã xuất viện
             medRecord.MainDiagnosis = dto.DischargeDiagnosis;
+            // Length-of-stay, XML/4210 export and archive deadlines read MedicalRecords.DischargeDate,
+            // which no discharge ever filled (every discharged record had it NULL).
+            medRecord.DischargeDate = dto.DischargeDate;
         }
 
         await _context.SaveChangesAsync();
@@ -301,6 +304,7 @@ public partial class InpatientCompleteService {
         if (medRecord != null)
         {
             medRecord.Status = 2; // Đang điều trị
+            medRecord.DischargeDate = null; // stay is open again
             if (admission != null) medRecord.BedId = admission.BedId; // QA0915: keep in sync with the restored/cleared bed
         }
 

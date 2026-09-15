@@ -180,6 +180,8 @@ public partial class InpatientCompleteService {
                 Unit = medicine.Unit,
                 UnitPrice = medicine.UnitPrice,
                 Amount = amount,
+                // Header PatientAmount was set but the lines stayed 0 — refunds/statements read the lines.
+                PatientAmount = amount,
                 Dosage = item.Dosage,
                 UsageInstructions = item.UsageInstructions,
                 PatientType = item.PaymentSource,
@@ -282,6 +284,7 @@ public partial class InpatientCompleteService {
                 Unit = medicine.Unit,
                 UnitPrice = medicine.UnitPrice,
                 Amount = amount,
+                PatientAmount = amount,
                 Dosage = item.Dosage,
                 UsageInstructions = item.UsageInstructions,
                 PatientType = item.PaymentSource,

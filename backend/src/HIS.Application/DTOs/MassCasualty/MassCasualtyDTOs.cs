@@ -71,11 +71,11 @@ namespace HIS.Application.DTOs.MassCasualty
     {
         public string EventName { get; set; }
         public string EventType { get; set; }
-        public string Description { get; set; }
+        public string? Description { get; set; }
         public string Location { get; set; }
-        public string Address { get; set; }
+        public string? Address { get; set; }
         public DateTime EventDateTime { get; set; }
-        public string AlertLevel { get; set; }
+        public string? AlertLevel { get; set; }
         public int EstimatedCasualties { get; set; }
     }
 
@@ -151,6 +151,7 @@ namespace HIS.Application.DTOs.MassCasualty
         public string CurrentArea { get; set; } // Red Zone, Yellow Zone, Green Zone
         public string AssignedTo { get; set; }
         public List<MCITreatmentDto> Treatments { get; set; }
+        public string? TreatmentNotes { get; set; }
 
         // Disposition
         public string Disposition { get; set; } // Admitted, Discharged, Transferred, Deceased, DAMA
@@ -204,18 +205,40 @@ namespace HIS.Application.DTOs.MassCasualty
     /// </summary>
     public class RegisterMCIVictimDto
     {
+        // QA-R2: nullable — an unidentified victim has no name/triage yet; with <Nullable>enable</Nullable>
+        // MVC treated every non-nullable string as [Required] and rejected every intake with 400.
         public Guid EventId { get; set; }
-        public string Name { get; set; }
+        public string? Name { get; set; }
         public int? EstimatedAge { get; set; }
-        public string Gender { get; set; }
-        public string Description { get; set; }
-        public string TriageCategory { get; set; }
-        public string ChiefComplaint { get; set; }
-        public string MechanismOfInjury { get; set; }
+        public string? Gender { get; set; }
+        public string? Description { get; set; }
+        public string? TriageCategory { get; set; }
+        public string? ChiefComplaint { get; set; }
+        public string? MechanismOfInjury { get; set; }
         public int? RespiratoryRate { get; set; }
-        public string Pulse { get; set; }
-        public string MentalStatus { get; set; }
+        public string? Pulse { get; set; }
+        public string? MentalStatus { get; set; }
         public bool? CanWalk { get; set; }
+    }
+
+    /// <summary>Partial victim update from the ER/MCI board (QA-R2).</summary>
+    public class UpdateMCIVictimRequest
+    {
+        public string? Name { get; set; }
+        public string? CurrentLocation { get; set; }
+        public string? Status { get; set; }
+        public string? TreatmentNotes { get; set; }
+    }
+
+    /// <summary>Family notification request from the ER/MCI board (QA-R2).</summary>
+    public class NotifyMCIFamilyRequest
+    {
+        public Guid VictimId { get; set; }
+        public string? ContactName { get; set; }
+        public string? ContactPhone { get; set; }
+        public string? Relationship { get; set; }
+        public string? NotificationMethod { get; set; }
+        public string? Notes { get; set; }
     }
 
     /// <summary>

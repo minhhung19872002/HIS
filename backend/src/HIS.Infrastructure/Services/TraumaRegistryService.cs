@@ -64,6 +64,11 @@ public class TraumaRegistryService : ITraumaRegistryService
 
     public async Task<TraumaCaseDto> CreateCaseAsync(CreateTraumaCaseDto dto)
     {
+        // TraumaCases.PatientId is a NOT NULL FK to Patients: a name-only case was written with Guid.Empty → FK 500.
+        if (!dto.PatientId.HasValue || dto.PatientId == Guid.Empty || !await _context.Patients.AnyAsync(p => p.Id == dto.PatientId))
+            throw new ArgumentException("Phải chọn người bệnh đã có hồ sơ trong hệ thống", nameof(dto.PatientId));
+        ValidateScores(dto);
+
         var year = DateTime.UtcNow.Year;
         var count = await _context.TraumaCases.CountAsync(c => c.CreatedAt.Year == year) + 1;
 
@@ -103,7 +108,8 @@ public class TraumaRegistryService : ITraumaRegistryService
     public async Task<TraumaCaseDto> UpdateCaseAsync(Guid id, CreateTraumaCaseDto dto)
     {
         var entity = await _context.TraumaCases.FindAsync(id)
-            ?? throw new InvalidOperationException("Trauma case not found");
+            ?? throw new KeyNotFoundException("Trauma case not found");
+        ValidateScores(dto);
 
         if (dto.InjuryType != null) entity.InjuryType = dto.InjuryType;
         if (dto.InjuryMechanism != null) entity.InjuryMechanism = dto.InjuryMechanism;
@@ -171,6 +177,17 @@ public class TraumaRegistryService : ITraumaRegistryService
             };
         }
         catch { return new TraumaOutcomeReportDto(); }
+    }
+
+    // Clinical score ranges: GCS 3-15, ISS 0-75, RTS 0-7.8408. Out-of-range values corrupted AvgGcs/AvgIss reports.
+    private static void ValidateScores(CreateTraumaCaseDto dto)
+    {
+        if (dto.GlasgowComaScale is < 3 or > 15)
+            throw new ArgumentException("GCS phải trong khoảng 3 – 15", nameof(dto.GlasgowComaScale));
+        if (dto.InjurySeverityScore is < 0 or > 75)
+            throw new ArgumentException("ISS phải trong khoảng 0 – 75", nameof(dto.InjurySeverityScore));
+        if (dto.RevisedTraumaScore.HasValue && (dto.RevisedTraumaScore < 0 || dto.RevisedTraumaScore > 7.8408m))
+            throw new ArgumentException("RTS phải trong khoảng 0 – 7.84", nameof(dto.RevisedTraumaScore));
     }
 
     private static TraumaCaseDto MapToDto(TraumaCase c) => new()

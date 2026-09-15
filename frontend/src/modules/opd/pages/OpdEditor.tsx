@@ -203,7 +203,7 @@ const OpdEditorV2: React.FC = () => {
   const refreshSubmittedOrders = useCallback(async (id: string) => {
     try {
       const r = await examinationApi.getServiceOrders(id);
-      setSubmittedCount(Array.isArray(r.data) ? r.data.length : 0);
+      setSubmittedCount(Array.isArray(r.data) ? r.data.filter((o) => o.status !== 4).length : 0); // 4 = cancelled
     } catch { /* chỉ là con số hiển thị, hỏng thì thôi */ }
   }, []);
 

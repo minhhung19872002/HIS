@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
-import { searchCases, createCase, updateCase, getOutcomeReport } from '../api/traumaRegistry';
+import { searchCases, createCase, updateCase, getOutcomeReport, getStats } from '../api/traumaRegistry';
 import type { TraumaCase, TraumaOutcomeReport } from '../api/traumaRegistry';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import {
@@ -67,12 +67,26 @@ const TraumaRegistryV2: React.FC = () => {
     try {
       const r = await searchCases({ keyword: search });
       // BE TraumaCaseDto: injurySeverityScore / revisedTraumaScore / glasgowComaScale
-      type BeCase = TraumaCase & { injurySeverityScore?: number; revisedTraumaScore?: number; glasgowComaScale?: number };
+      type BeCase = TraumaCase & {
+        injurySeverityScore?: number; revisedTraumaScore?: number; glasgowComaScale?: number;
+        icuAdmission?: boolean; dischargeDate?: string | null;
+      };
+      // BE TraumaCaseDto has no `status` — only outcome ("died"/"discharged"/"transferred"/"absconded"),
+      // dischargeDate and icuAdmission. sKey(undefined) fell through to 'deceased', so every case (22 of 25
+      // discharged alive) showed "Tử vong".
+      const deriveStatus = (x: BeCase): number => {
+        if (typeof x.status === 'number') return x.status;
+        const outcome = String(x.outcome ?? '');
+        if (outcome === 'died' || outcome === 'deceased') return 4;
+        if (x.dischargeDate || ['discharged', 'transferred', 'absconded'].includes(outcome)) return 3;
+        return x.icuAdmission ? 1 : 0;
+      };
       setItems(normalizeArrayResponse<BeCase>(r).map((x) => ({
         ...x,
         issScore: x.issScore ?? x.injurySeverityScore ?? 0,
         rtsScore: x.rtsScore ?? x.revisedTraumaScore ?? 0,
         gcsScore: x.gcsScore ?? x.glasgowComaScale ?? 0,
+        status: deriveStatus(x),
       })));
     } catch { ti('Không tải được ca chấn thương'); }
     finally { setLoading(false); }
@@ -142,8 +156,34 @@ const TraumaRegistryV2: React.FC = () => {
     setReportLoading(true);
     setReportOpen(true);
     try {
-      const r = await getOutcomeReport();
-      setReportData(r);
+      // BE outcome-report returns flat counts (dischargedCount/transferredCount/diedCount/abscondedCount) and
+      // no breakdown arrays; the drawer called `.map` on undefined and crashed the page. Breakdowns by triage /
+      // injury type come from /stats (triageCategoryBreakdown / injuryTypeBreakdown).
+      type BeReport = Partial<TraumaOutcomeReport> & {
+        dischargedCount?: number; transferredCount?: number; diedCount?: number; abscondedCount?: number;
+      };
+      type BeStats = {
+        triageCategoryBreakdown?: { category: string; count: number }[];
+        injuryTypeBreakdown?: { injuryType: string; count: number }[];
+      };
+      const [rep, stats] = await Promise.all([
+        getOutcomeReport() as Promise<BeReport>,
+        getStats() as unknown as Promise<BeStats>,
+      ]);
+      const total = rep.totalCases ?? 0;
+      const pct = (n: number) => (total > 0 ? (n / total) * 100 : 0);
+      setReportData({
+        totalCases: total,
+        outcomeBreakdown: rep.outcomeBreakdown ?? [
+          { outcome: 'Ra viện', count: rep.dischargedCount ?? 0 },
+          { outcome: 'Chuyển viện', count: rep.transferredCount ?? 0 },
+          { outcome: 'Tử vong', count: rep.diedCount ?? 0 },
+          { outcome: 'Bỏ về', count: rep.abscondedCount ?? 0 },
+        ].map((o) => ({ ...o, percentage: pct(o.count) })),
+        triageBreakdown: rep.triageBreakdown ?? stats?.triageCategoryBreakdown ?? [],
+        injuryTypeBreakdown: rep.injuryTypeBreakdown
+          ?? (stats?.injuryTypeBreakdown ?? []).map((i) => ({ type: i.injuryType, count: i.count })),
+      });
     } catch { ti('Không tải được báo cáo kết cục'); setReportOpen(false); }
     finally { setReportLoading(false); }
   };
