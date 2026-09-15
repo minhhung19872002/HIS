@@ -88,14 +88,20 @@ public class EmailService : IEmailService
         }
     }
 
+    /// <summary>HTML-encode a value interpolated into an HTML body (patient/test/doctor names come from user input:
+    /// a name like "&lt;a href=…&gt;" was rendered as a live link in the patient's mailbox).</summary>
+    private static string H(string? value) => WebUtility.HtmlEncode(value ?? string.Empty);
+
     public async Task<bool> SendResultNotificationAsync(string toEmail, string patientName, string resultType, string testName, string approvedBy, DateTime approvedAt)
     {
         var subject = $"Kết quả {resultType} đã sẵn sàng - HIS";
+        var resultTypeLower = H(resultType?.ToLower());
+        patientName = H(patientName); resultType = H(resultType); testName = H(testName); approvedBy = H(approvedBy);
         var body = $@"
             <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
                 <h2 style='color: #1890ff;'>Thông báo kết quả {resultType}</h2>
                 <p>Kính gửi <strong>{patientName}</strong>,</p>
-                <p>Kết quả {resultType.ToLower()} của bạn đã được duyệt:</p>
+                <p>Kết quả {resultTypeLower} của bạn đã được duyệt:</p>
                 <table style='width: 100%; border-collapse: collapse; margin: 16px 0;'>
                     <tr><td style='padding: 8px; border: 1px solid #eee; color: #666;'>Loại</td><td style='padding: 8px; border: 1px solid #eee; font-weight: bold;'>{resultType}</td></tr>
                     <tr><td style='padding: 8px; border: 1px solid #eee; color: #666;'>Tên</td><td style='padding: 8px; border: 1px solid #eee;'>{testName}</td></tr>
@@ -113,6 +119,7 @@ public class EmailService : IEmailService
     public async Task<bool> SendCriticalValueNotificationAsync(string toEmail, string patientName, string testName, string value, string normalRange)
     {
         var subject = $"[KHẨN] Kết quả xét nghiệm bất thường - HIS";
+        patientName = H(patientName); testName = H(testName); value = H(value); normalRange = H(normalRange);
         var body = $@"
             <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
                 <h2 style='color: #ff4d4f;'>Thông báo kết quả bất thường</h2>
@@ -135,6 +142,10 @@ public class EmailService : IEmailService
     {
         var timeStr = appointmentTime.HasValue ? $"{appointmentTime.Value:hh\\:mm}" : "Chưa xác định";
         var subject = $"Xác nhận đặt lịch khám - {appointmentCode}";
+        patientName = H(patientName); appointmentCode = H(appointmentCode);
+        if (departmentName != null) departmentName = H(departmentName);
+        if (doctorName != null) doctorName = H(doctorName);
+        if (roomName != null) roomName = H(roomName);
         var body = $@"
             <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
                 <h2 style='color: #1890ff;'>Xác nhận đặt lịch khám thành công</h2>
@@ -166,6 +177,7 @@ public class EmailService : IEmailService
     public async Task<bool> SendBookingCancellationAsync(string toEmail, string patientName, string appointmentCode, DateTime appointmentDate)
     {
         var subject = $"Hủy lịch hẹn - {appointmentCode}";
+        patientName = H(patientName); appointmentCode = H(appointmentCode);
         var body = $@"
             <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
                 <h2 style='color: #ff4d4f;'>Lịch hẹn đã được hủy</h2>
@@ -183,6 +195,8 @@ public class EmailService : IEmailService
     {
         var timeStr = appointmentTime.HasValue ? $" lúc {appointmentTime.Value:hh\\:mm}" : "";
         var subject = $"Nhắc lịch hẹn khám ngày mai - {appointmentCode}";
+        patientName = H(patientName); appointmentCode = H(appointmentCode);
+        if (departmentName != null) departmentName = H(departmentName);
         var body = $@"
             <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
                 <h2 style='color: #faad14;'>Nhắc nhở lịch hẹn khám</h2>

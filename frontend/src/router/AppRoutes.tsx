@@ -107,6 +107,8 @@ const MedicalSupply = lazy(() => import('../pages/MedicalSupply'));
 const FollowUp = lazy(() => import('../pages/FollowUp'));
 // #456: /dat-lich port v1 Antd → v2kit standalone (public, không auth)
 const AppointmentBookingPublic = lazy(() => import('../modules/reception/pages/AppointmentBookingPublic'));
+// QA-R3: đích của link SMS kết quả XN (NotificationService.SendLabResultLinkAsync → /lab-result?token=) — public
+const PublicLabResult = lazy(() => import('../modules/laboratory/pages/PublicLabResult'));
 const BookingManagement = lazy(() => import('../pages/BookingManagement'));
 const SmsManagement = lazy(() => import('../pages/SmsManagement'));
 const LabQC = lazy(() => import('../pages/LabQC'));
@@ -175,6 +177,7 @@ const AppRoutes: React.FC = () => {
         <Route path="/dat-lich" element={<AppointmentBookingPublic />} />
         <Route path="/shared/:token" element={<PublicStudyViewer />} />
         <Route path="/tra-cuu-benh-an" element={<PublicEmrLookup />} />
+        <Route path="/lab-result" element={<PublicLabResult />} />
         <Route
           path="/login"
           element={isAuthenticated ? <Navigate to="/" replace /> : <Login />}

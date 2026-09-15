@@ -38,6 +38,7 @@ public class StudyShareController : ControllerBase
     /// </summary>
     [HttpPost("access/{token}")]
     [AllowAnonymous]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("public-lookup")] // + per-link lockout in the service
     public async Task<IActionResult> Access(string token, [FromBody] AccessDto dto)
         => (await _svc.AccessAsync(token, dto, HttpContext.Connection.RemoteIpAddress?.ToString())).ToActionResult();
 

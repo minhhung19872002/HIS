@@ -208,10 +208,29 @@ public partial class EmrManagementService
         }
     }
 
+    /// <summary>Roles allowed to break ANOTHER user's editing lock — same set as reopening a finalized EMR.</summary>
+    private static readonly string[] LockOverrideRoles =
+    {
+        RoleNames.Admin, RoleNames.Director, RoleNames.Manager, RoleNames.QuanTriHeThong, RoleNames.MedicalRecordManager,
+    };
+
     public async Task<bool> ForceReleaseLockAsync(Guid lockId)
     {
         try
         {
+            // QA-R3: any Doctor/Nurse could force-release a colleague's lock and overwrite the document they were
+            // editing. Own lock → always allowed; someone else's → only Admin / records manager.
+            var owner = await _context.Set<DocumentLock>()
+                .Where(l => l.Id == lockId && !l.IsDeleted)
+                .Select(l => new { l.LockedByUserId })
+                .FirstOrDefaultAsync();
+            if (owner == null) return false;
+            if (owner.LockedByUserId != GetCurrentUserId()
+                && !_currentUser.Roles.Any(r => LockOverrideRoles.Contains(r, StringComparer.OrdinalIgnoreCase)))
+                throw new UnauthorizedAccessException(
+                    "Chỉ Quản trị hoặc cán bộ quản lý hồ sơ bệnh án được gỡ khóa tài liệu người khác đang sửa. " +
+                    "Liên hệ người đang sửa để họ đóng tài liệu, hoặc chờ khóa tự hết hạn.");
+
             var affected = await _context.Set<DocumentLock>()
                 .Where(l => l.Id == lockId && !l.IsDeleted)
                 .ExecuteUpdateAsync(setters => setters

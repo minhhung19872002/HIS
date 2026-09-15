@@ -77,8 +77,20 @@ public class Notification : BaseEntity
     public virtual User? TargetUser { get; set; }
     public Guid? TargetRoleId { get; set; } // Vai trò nhận (nếu gửi cho vai trò)
     public virtual Role? TargetRole { get; set; }
-    public bool IsRead { get; set; } = false; // Đã đọc chưa
+    public bool IsRead { get; set; } = false; // Đã đọc chưa (chỉ dùng cho thông báo gửi 1 người)
     public DateTime? ReadAt { get; set; } // Thời gian đọc
+}
+
+/// <summary>
+/// Trạng thái đã đọc THEO TỪNG NGƯỜI của thông báo broadcast (TargetUserId NULL) — migration 201.
+/// Trước đây 1 người mở thông báo chung là cả viện thấy "đã đọc" vì chung cờ Notifications.IsRead.
+/// </summary>
+public class NotificationRead
+{
+    public Guid Id { get; set; }
+    public Guid NotificationId { get; set; }
+    public Guid UserId { get; set; }
+    public DateTime ReadAt { get; set; }
 }
 
 /// <summary>
@@ -140,6 +152,7 @@ public class SatisfactionSurveyResult : BaseEntity
     public double OverallScore { get; set; }
     public string? Answers { get; set; } // JSON
     public string? Comment { get; set; }
+    public Guid? CampaignId { get; set; } // migration 202 — export filter by campaign
 }
 
 /// <summary>

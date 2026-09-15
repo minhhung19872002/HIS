@@ -20,11 +20,31 @@ public class StudyShareService : IStudyShareService
     private readonly HISDbContext _db;
     public StudyShareService(HISDbContext db) { _db = db; }
 
-    private static string Sha256Hash(string input)
+    /// <summary>Wrong passwords allowed before the link locks (anonymous endpoint → brute-force guard).</summary>
+    private const int MaxFailedAttempts = 5;
+    private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
+
+    /// <summary>Legacy format (before r3-security): unsalted SHA-256 hex. Only used to verify old links once.</summary>
+    private static string LegacySha256Hash(string input)
     {
         using var sha = SHA256.Create();
         var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(input));
         return Convert.ToHexString(bytes);
+    }
+
+    private static bool IsBcryptHash(string hash) => hash.StartsWith("$2", StringComparison.Ordinal);
+
+    /// <summary>Salted BCrypt (same helper as user/portal passwords); legacy SHA-256 compared in constant time.</summary>
+    private static bool VerifySharePassword(string password, string storedHash)
+    {
+        if (IsBcryptHash(storedHash))
+        {
+            try { return BCrypt.Net.BCrypt.Verify(password, storedHash); }
+            catch (Exception) { return false; } // malformed hash → treat as wrong password, never 500
+        }
+        return CryptographicOperations.FixedTimeEquals(
+            Encoding.ASCII.GetBytes(LegacySha256Hash(password)),
+            Encoding.ASCII.GetBytes(storedHash.ToUpperInvariant()));
     }
 
     private static string GenerateToken()
@@ -61,7 +81,7 @@ public class StudyShareService : IStudyShareService
             StudyInstanceUID = dto.StudyInstanceUID,
             OrthancStudyId = dto.OrthancStudyId,
             PatientId = dto.PatientId,
-            PasswordHash = !string.IsNullOrWhiteSpace(dto.Password) ? Sha256Hash(dto.Password) : null,
+            PasswordHash = !string.IsNullOrWhiteSpace(dto.Password) ? BCrypt.Net.BCrypt.HashPassword(dto.Password) : null,
             HideDemographics = false, // luôn false cho đến khi implement Orthanc anonymize at share-time
             ExpiresAt = dto.ExpiresInMinutes.HasValue
                 ? DateTime.UtcNow.AddMinutes(dto.ExpiresInMinutes.Value)
@@ -131,10 +151,33 @@ public class StudyShareService : IStudyShareService
 
         if (link.PasswordHash != null)
         {
+            var nowUtc = DateTime.UtcNow;
+            if (link.LockedUntil.HasValue && link.LockedUntil.Value > nowUtc)
+                return ServiceOutcome.Status(429, new { message = LockedMessage(link.LockedUntil.Value) });
             if (string.IsNullOrWhiteSpace(dto.Password))
                 return ServiceOutcome.Ok(new AccessResultDto("", null, false, null, null, link.ExpiresAt, true));
-            if (Sha256Hash(dto.Password) != link.PasswordHash)
-                return ServiceOutcome.Unauthorized(new { message = "Sai mật khẩu" });
+            if (!VerifySharePassword(dto.Password, link.PasswordHash))
+            {
+                link.FailedAttemptCount++;
+                if (link.FailedAttemptCount >= MaxFailedAttempts)
+                {
+                    link.LockedUntil = nowUtc.Add(LockoutDuration);
+                    link.FailedAttemptCount = 0;
+                    await _db.SaveChangesAsync();
+                    return ServiceOutcome.Status(429, new { message = LockedMessage(link.LockedUntil.Value) });
+                }
+                await _db.SaveChangesAsync();
+                return ServiceOutcome.Unauthorized(new
+                {
+                    message = $"Sai mật khẩu (còn {MaxFailedAttempts - link.FailedAttemptCount} lần thử trước khi link bị tạm khóa)"
+                });
+            }
+
+            // Correct password: reset the counter and upgrade a legacy unsalted hash in place.
+            link.FailedAttemptCount = 0;
+            link.LockedUntil = null;
+            if (!IsBcryptHash(link.PasswordHash))
+                link.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
         }
 
         link.ViewCount++;
@@ -151,6 +194,10 @@ public class StudyShareService : IStudyShareService
             link.ExpiresAt,
             false));
     }
+
+    private static string LockedMessage(DateTime lockedUntilUtc)
+        => $"Nhập sai mật khẩu quá {MaxFailedAttempts} lần — link tạm khóa đến {lockedUntilUtc.AddHours(7):HH:mm} (giờ VN). " +
+           "Người tạo link có thể tạo link mới nếu cần gấp.";
 
     /// <summary>Peek metadata — không tăng view count, dùng để render UI trước khi hỏi password.</summary>
     public async Task<ServiceOutcome> PeekAsync(string token)

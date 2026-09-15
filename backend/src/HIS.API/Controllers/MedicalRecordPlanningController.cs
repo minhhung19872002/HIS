@@ -2,12 +2,17 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.Services;
 using System.Security.Claims;
+using HIS.API.Authorization;
+using HIS.Core.Constants;
 
 namespace HIS.API.Controllers;
 
 [ApiController]
 [Route("api/medical-record-planning")]
 [Authorize]
+// QA-R3 (PHI RBAC): GETs below list patients' record codes/transfers/loans → MedicalRecord.Read (doctors,
+// nurses, admin). Writes are gated by WritePermissionMap (MedicalRecord.Update / Lock / Export). Do NOT move the
+// permission to class level: that would make WritePermissionConvention skip the stricter write gates.
 // #218/T3: các cửa ghi ở đây nay có gác nghiệp vụ thật (chưa gửi mà đòi duyệt, từ chối mà không
 // ghi lý do, trùng số chuyển tuyến...) ⇒ InvalidOperationException phải ra 400 kèm message, chứ
 // không phải 500. Trước đây các hàm này không ghi gì nên cũng chẳng bao giờ từ chối được việc gì.
@@ -30,6 +35,7 @@ public class MedicalRecordPlanningController : ControllerBase
     /// <summary>
     /// Danh sach ma ho so benh an
     /// </summary>
+    [RequirePermission(PermissionCatalog.MedicalRecord.Read)]
     [HttpGet("record-codes")]
     public async Task<ActionResult<PagedRecordCodeResult>> GetRecordCodes([FromQuery] RecordCodeSearchDto search)
     {
@@ -64,6 +70,7 @@ public class MedicalRecordPlanningController : ControllerBase
     /// <summary>
     /// Danh sach chuyen vien
     /// </summary>
+    [RequirePermission(PermissionCatalog.MedicalRecord.Read)]
     [HttpGet("transfers")]
     public async Task<ActionResult<PagedTransferResult>> GetTransfers([FromQuery] TransferSearchDto search)
     {
@@ -98,6 +105,7 @@ public class MedicalRecordPlanningController : ControllerBase
     /// <summary>
     /// Danh sach muon tra ho so
     /// </summary>
+    [RequirePermission(PermissionCatalog.MedicalRecord.Read)]
     [HttpGet("borrowing")]
     public async Task<ActionResult<PagedBorrowResult>> GetBorrowing([FromQuery] BorrowSearchDto search)
     {
@@ -142,6 +150,7 @@ public class MedicalRecordPlanningController : ControllerBase
     /// <summary>
     /// Danh sach ban giao ho so
     /// </summary>
+    [RequirePermission(PermissionCatalog.MedicalRecord.Read)]
     [HttpGet("handover")]
     public async Task<ActionResult<PagedHandoverResult>> GetHandover([FromQuery] HandoverSearchDto search)
     {
@@ -176,6 +185,7 @@ public class MedicalRecordPlanningController : ControllerBase
     /// <summary>
     /// Danh sach ho so ngoai tru
     /// </summary>
+    [RequirePermission(PermissionCatalog.MedicalRecord.Read)]
     [HttpGet("outpatient-records")]
     public async Task<ActionResult<PagedOutpatientRecordResult>> GetOutpatientRecords([FromQuery] OutpatientRecordSearchDto search)
     {
@@ -204,6 +214,7 @@ public class MedicalRecordPlanningController : ControllerBase
     /// <summary>
     /// Thong ke cham cong khoa
     /// </summary>
+    [RequirePermission(PermissionCatalog.MedicalRecord.Read)]
     [HttpGet("attendance")]
     public async Task<ActionResult<AttendanceSummaryDto>> GetAttendance([FromQuery] AttendanceSearchDto search)
     {
@@ -228,6 +239,7 @@ public class MedicalRecordPlanningController : ControllerBase
     /// <summary>
     /// Thong ke ke hoach tong hop
     /// </summary>
+    [RequirePermission(PermissionCatalog.MedicalRecord.Read)]
     [HttpGet("stats")]
     public async Task<ActionResult<PlanningStatsDto>> GetStats()
     {

@@ -13,6 +13,7 @@ public class EmrShareDto
     public string? SharedToDepartmentName { get; set; }
     public int ShareType { get; set; } // 1=WholeRecord, 2=IndividualForm
     public string? FormType { get; set; }
+    [global::System.Text.Json.Serialization.JsonConverter(typeof(global::HIS.Application.Common.NullableUtcDateTimeJsonConverter))] // UTC: compared with DateTime.UtcNow
     public DateTime? ExpiresAt { get; set; }
     public int AccessCount { get; set; }
     public bool IsRevoked { get; set; }
@@ -27,6 +28,7 @@ public class CreateEmrShareDto
     public Guid? SharedToDepartmentId { get; set; }
     public int ShareType { get; set; } = 1;
     public string? FormType { get; set; }
+    [global::System.Text.Json.Serialization.JsonConverter(typeof(global::HIS.Application.Common.NullableUtcDateTimeJsonConverter))] // UTC: compared with DateTime.UtcNow
     public DateTime? ExpiresAt { get; set; }
     public string? Note { get; set; }
 }
@@ -54,6 +56,7 @@ public class EmrExtractDto
     public string? FormTypes { get; set; }
     public string WatermarkText { get; set; } = string.Empty;
     public string AccessCode { get; set; } = string.Empty;
+    [global::System.Text.Json.Serialization.JsonConverter(typeof(global::HIS.Application.Common.NullableUtcDateTimeJsonConverter))] // UTC: compared with DateTime.UtcNow
     public DateTime? ExpiresAt { get; set; }
     public int AccessCount { get; set; }
     public int MaxAccessCount { get; set; }
@@ -68,6 +71,7 @@ public class CreateEmrExtractDto
     public int ExtractType { get; set; } = 1;
     public string? FormTypes { get; set; }
     public int MaxAccessCount { get; set; } = 5;
+    [global::System.Text.Json.Serialization.JsonConverter(typeof(global::HIS.Application.Common.NullableUtcDateTimeJsonConverter))] // UTC: compared with DateTime.UtcNow
     public DateTime? ExpiresAt { get; set; }
     public string? Note { get; set; }
 }

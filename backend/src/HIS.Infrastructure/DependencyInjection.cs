@@ -228,7 +228,10 @@ public static class DependencyInjection
 
         // HL7 FHIR R4 Server & Client (Level 6 interoperability)
         services.AddScoped<IFhirService, FhirService>();
-        services.AddHttpClient<IFhirClientService, FhirClientService>();
+        // QA-R3 (SSRF): FhirClientService validates serverUrl's host, but HttpClient followed 3xx by default, so
+        // an allowed external server could redirect the call to 127.0.0.1 / 169.254.169.254. Never follow redirects.
+        services.AddHttpClient<IFhirClientService, FhirClientService>()
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 
         // PDF Generation (EMR forms - HTML for browser printing)
         services.AddScoped<IPdfGenerationService, PdfGenerationService>();

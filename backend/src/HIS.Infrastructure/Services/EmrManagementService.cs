@@ -162,9 +162,27 @@ public partial class EmrManagementService : IEmrManagementService
             if (share.ExpiresAt.HasValue && DateTime.UtcNow > share.ExpiresAt.Value)
                 return false;
 
-            // Check user/department access
-            bool hasAccess = share.SharedToUserId == userId
-                || share.SharedToUserId == null; // shared to department or all
+            // Check user/department access.
+            // QA-R3: a department share (SharedToUserId NULL, SharedToDepartmentId set) used to open for EVERY user.
+            // Now: sharer always; user share → that user; department share → members of that department
+            // (Users.DepartmentId, falling back to the departmentId claim); no target at all → everyone.
+            bool hasAccess;
+            if (share.SharedByUserId == userId || share.SharedToUserId == userId)
+                hasAccess = true;
+            else if (share.SharedToUserId != null)
+                hasAccess = false;
+            else if (share.SharedToDepartmentId.HasValue)
+            {
+                Guid? userDepartmentId = _currentUser.DepartmentId;
+                if (Guid.TryParse(userId, out var userGuid))
+                    userDepartmentId = await _context.Users.AsNoTracking()
+                        .Where(u => u.Id == userGuid)
+                        .Select(u => u.DepartmentId)
+                        .FirstOrDefaultAsync() ?? userDepartmentId;
+                hasAccess = userDepartmentId == share.SharedToDepartmentId;
+            }
+            else
+                hasAccess = true;
 
             if (!hasAccess) return false;
 

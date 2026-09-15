@@ -16,7 +16,7 @@ public class StudyShareLink : BaseEntity
     public Guid? PatientId { get; set; }
     public virtual Patient? Patient { get; set; }
 
-    /// <summary>SHA-256 hash của password. Null = không cần password.</summary>
+    /// <summary>BCrypt hash (salted) của password; bản cũ là SHA-256 hex không salt — verify 1 lần rồi re-hash. Null = không cần password.</summary>
     public string? PasswordHash { get; set; }
 
     /// <summary>Ẩn thông tin demographics khi render viewer (tên BN, DOB, CCCD)</summary>
@@ -38,4 +38,10 @@ public class StudyShareLink : BaseEntity
 
     public string? LastViewerIp { get; set; }
     public DateTime? LastViewedAt { get; set; }
+
+    /// <summary>Wrong passwords since the last successful access (migration 201).</summary>
+    public int FailedAttemptCount { get; set; }
+
+    /// <summary>UTC time until which password attempts are refused after too many failures.</summary>
+    public DateTime? LockedUntil { get; set; }
 }

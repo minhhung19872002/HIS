@@ -109,7 +109,17 @@ public class EmrManagementController : ControllerBase
 
     [HttpPost("locks/force-release")]
     public async Task<IActionResult> ForceReleaseLock([FromBody] ForceReleaseLockRequestDto dto)
-        => await _service.ForceReleaseLockAsync(dto.LockId) ? Ok() : NotFound();
+    {
+        try
+        {
+            return await _service.ForceReleaseLockAsync(dto.LockId) ? Ok() : NotFound();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            // Another user's lock and the caller is not Admin / records manager.
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+        }
+    }
 
     // ============ Data Tags (B.1.13) ============
 

@@ -20,4 +20,6 @@ public interface INotificationService
     Task<ServiceOutcome> MarkAllAsReadAsync(Guid userId);
     Task<HIS.Core.Entities.Notification> CreateTestNotificationAsync(Guid userId);
     Task<ServiceOutcome> SendLabResultLinkAsync(SendLabResultLinkDto dto, string baseUrl, Guid? userId);
+    /// <summary>Anonymous reader for the SMS link: approved results of the ONE lab request the token was issued for.</summary>
+    Task<ServiceOutcome> GetLabResultByTokenAsync(string? token);
 }

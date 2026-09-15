@@ -115,7 +115,22 @@ public class KioskService : IKioskService
         };
 
         _context.Set<KioskTicket>().Add(ticket);
-        await _unitOfWork.SaveChangesAsync();
+        // QA-R3: max+1 raced — two kiosks pressing at the same moment printed the same number. Migration 201 adds
+        // UX_KioskTickets_Day_Dept_Number; on a clash take the next number and try again.
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await _unitOfWork.SaveChangesAsync();
+                break;
+            }
+            catch (DbUpdateException ex) when (NangCap23ServiceHelpers.IsUniqueViolation(ex) && attempt < 5)
+            {
+                seq = await NextSequenceAsync(todayVn, dto.DepartmentId, prefix);
+                ticket.SequenceNumber = seq;
+                ticket.TicketNumber   = FormatTicketNumber(prefix, seq);
+            }
+        }
 
         // Load navigation props
         if (ticket.DepartmentId.HasValue)
@@ -238,24 +253,36 @@ public class KioskService : IKioskService
     {
         var (fromUtc, toUtc) = VnTime.DayRangeUtc(VnTime.TodayVn);
 
-        var next = await _context.Set<KioskTicket>()
-            .Where(t => !t.IsDeleted
-                     && t.IssuedAt >= fromUtc && t.IssuedAt < toUtc
-                     && t.Status == 0)
-            .If(dto.DepartmentId.HasValue, q => q.Where(t => t.DepartmentId == dto.DepartmentId))
-            .If(dto.RoomId.HasValue,       q => q.Where(t => t.RoomId == dto.RoomId))
-            .OrderBy(t => t.SequenceNumber)
-            .FirstOrDefaultAsync();
+        // QA-R3: two counters pressing "gọi số" together both read the same waiting ticket and both called it.
+        // Claim atomically (UPDATE … WHERE Status = 0); if another counter won, move on to the next ticket.
+        KioskTicket? next = null;
+        for (var attempt = 0; attempt < 5 && next == null; attempt++)
+        {
+            var candidateId = await _context.Set<KioskTicket>()
+                .Where(t => !t.IsDeleted
+                         && t.IssuedAt >= fromUtc && t.IssuedAt < toUtc
+                         && t.Status == 0)
+                .If(dto.DepartmentId.HasValue, q => q.Where(t => t.DepartmentId == dto.DepartmentId))
+                .If(dto.RoomId.HasValue,       q => q.Where(t => t.RoomId == dto.RoomId))
+                .OrderBy(t => t.SequenceNumber)
+                .Select(t => (Guid?)t.Id)
+                .FirstOrDefaultAsync();
+            if (candidateId == null) return null;
+
+            var now = DateTime.UtcNow;
+            var claimed = await _context.Set<KioskTicket>()
+                .Where(t => t.Id == candidateId.Value && t.Status == 0)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(t => t.Status, 1)
+                    .SetProperty(t => t.CalledAt, now)
+                    .SetProperty(t => t.UpdatedAt, now));
+            if (claimed == 1)
+                next = await _context.Set<KioskTicket>().AsNoTracking()
+                    .Include(t => t.Department).Include(t => t.Room)
+                    .FirstAsync(t => t.Id == candidateId.Value);
+        }
 
         if (next == null) return null;
-
-        next.Status   = 1;
-        next.CalledAt = DateTime.UtcNow;
-        next.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
-
-        await _context.Entry(next).Reference(t => t.Department).LoadAsync();
-        await _context.Entry(next).Reference(t => t.Room).LoadAsync();
 
         _logger.LogInformation("KioskTicket called: {TicketNumber}", next.TicketNumber);
         return ToDto(next);

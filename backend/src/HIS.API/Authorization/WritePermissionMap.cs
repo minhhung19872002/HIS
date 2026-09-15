@@ -129,7 +129,9 @@ public static class WritePermissionMap
         ["DicomAutoSend"] = new(PermissionCatalog.Radiology.Create, PermissionCatalog.Radiology.Read),
         ["DicomStudyActivity"] = new(PermissionCatalog.Radiology.Create, PermissionCatalog.Radiology.Read),
         ["AiLabeling"] = new(PermissionCatalog.Radiology.Create, PermissionCatalog.Radiology.Read),
-        ["StudyShare"] = new(PermissionCatalog.MedicalRecord.Export, PermissionCatalog.Radiology.Read),
+        // QA-R3: MedicalRecord.Export is seeded to ADMIN only, so doctors/imaging techs could not share a study.
+        // A share only discloses a study the caller can already view (expiring, password + lockout, owner-only revoke).
+        ["StudyShare"] = new(PermissionCatalog.Radiology.Read, PermissionCatalog.Radiology.Read),
         ["RisCatalog"] = new(PermissionCatalog.Catalog.Manage, PermissionCatalog.Catalog.Read),
 
         // ── Xét nghiệm / LIS ──

@@ -78,10 +78,32 @@ public partial class EmrManagementService
                 if (record != null && record.EmrFinalizedAt == null)
                 {
                     Guid.TryParse(userId, out var uid);
-                    record.EmrFinalizedAt = DateTime.UtcNow;
+                    var now = DateTime.UtcNow;
+                    record.EmrFinalizedAt = now;
                     record.EmrFinalizedBy = uid == Guid.Empty ? null : uid;
-                    record.UpdatedAt = DateTime.UtcNow;
+                    record.UpdatedAt = now;
                     record.UpdatedBy = userId;
+
+                    // QA-R3: this door locked the record without the TT46 version row that
+                    // EmrAdminService.FinalizeRecordAsync writes — no "bản cũ" snapshot, no version number, and the
+                    // amendment history showed a reopen (Action 2) with no preceding lock. Same row now.
+                    var versionNo = ((await _context.EmrAmendments
+                        .Where(a => a.MedicalRecordId == record.Id && a.Action == 1 && !a.IsDeleted)
+                        .MaxAsync(a => (int?)a.VersionNo)) ?? 0) + 1;
+                    _context.EmrAmendments.Add(new EmrAmendment
+                    {
+                        Id = Guid.NewGuid(),
+                        MedicalRecordId = record.Id,
+                        Action = 1, // Finalize
+                        VersionNo = versionNo,
+                        Reason = string.IsNullOrWhiteSpace(dto.Note) ? "Đóng hồ sơ (B.2.5)" : dto.Note.Trim(),
+                        SnapshotJson = await EmrSnapshotBuilder.BuildJsonAsync(_context, record),
+                        PerformedBy = uid,
+                        PerformedByName = GetCurrentUserName(),
+                        PerformedAt = now,
+                        CreatedAt = now,
+                        CreatedBy = userId,
+                    });
                 }
             }
 

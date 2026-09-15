@@ -1,5 +1,7 @@
+using HIS.Application.Common;
 using HIS.Application.DTOs.Clinical;
 using HIS.Application.Services;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +11,30 @@ namespace HIS.Infrastructure.Services;
 public class ClinicalTemplateService : IClinicalTemplateService
 {
     private readonly HISDbContext _db;
-    public ClinicalTemplateService(HISDbContext db) { _db = db; }
+    private readonly ICurrentUserAccessor _currentUser;
+    public ClinicalTemplateService(HISDbContext db, ICurrentUserAccessor currentUser) { _db = db; _currentUser = currentUser; }
+
+    private static readonly string[] AdminRoles = { RoleNames.Admin, RoleNames.QuanTriHeThong };
+
+    private bool IsAdmin => _currentUser.Roles.Any(r => AdminRoles.Contains(r, StringComparer.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// QA-R3: a private template (IsPublic=false) is the doctor's own wording — before, every user could list,
+    /// open, overwrite and delete anyone's. Visible/editable only by its owner (+Admin). Templates without an
+    /// owner (seeded/legacy) stay shared so nobody loses access to them.
+    /// </summary>
+    private IQueryable<ClinicalTemplate> Visible(IQueryable<ClinicalTemplate> q)
+    {
+        if (IsAdmin) return q;
+        var me = _currentUser.UserGuid;
+        return q.Where(t => t.IsPublic || t.OwnerUserId == null || t.OwnerUserId == me);
+    }
+
+    private void EnsureCanModify(ClinicalTemplate t)
+    {
+        if (t.IsPublic || t.OwnerUserId == null || IsAdmin || t.OwnerUserId == _currentUser.UserGuid) return;
+        throw new UnauthorizedAccessException("Mẫu cá nhân của người khác — chỉ người tạo hoặc Quản trị được sửa/xóa.");
+    }
 
     public async Task<ClinicalTemplateDto> SaveAsync(SaveClinicalTemplateDto dto, Guid userId)
     {
@@ -18,6 +43,7 @@ public class ClinicalTemplateService : IClinicalTemplateService
         {
             entity = await _db.ClinicalTemplates.FirstOrDefaultAsync(t => t.Id == dto.Id.Value)
                 ?? throw new KeyNotFoundException("Template không tồn tại");
+            EnsureCanModify(entity);
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId.ToString();
         }
@@ -54,6 +80,7 @@ public class ClinicalTemplateService : IClinicalTemplateService
     {
         var entity = await _db.ClinicalTemplates.FirstOrDefaultAsync(t => t.Id == id)
             ?? throw new KeyNotFoundException();
+        EnsureCanModify(entity);
         entity.IsDeleted = true;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = userId.ToString();
@@ -63,7 +90,7 @@ public class ClinicalTemplateService : IClinicalTemplateService
 
     public async Task<ClinicalTemplateDto?> GetByIdAsync(Guid id)
     {
-        var t = await _db.ClinicalTemplates
+        var t = await Visible(_db.ClinicalTemplates)
             .Include(x => x.Department)
             .Include(x => x.OwnerUser)
             .FirstOrDefaultAsync(x => x.Id == id);
@@ -72,7 +99,7 @@ public class ClinicalTemplateService : IClinicalTemplateService
 
     public async Task<List<ClinicalTemplateDto>> SearchAsync(ClinicalTemplateSearchDto dto)
     {
-        var q = _db.ClinicalTemplates
+        var q = Visible(_db.ClinicalTemplates)
             .Include(t => t.Department)
             .Include(t => t.OwnerUser)
             .AsQueryable();
@@ -109,7 +136,7 @@ public class ClinicalTemplateService : IClinicalTemplateService
 
     public async Task<ClinicalTemplateDto> IncrementUsageAsync(Guid id)
     {
-        var t = await _db.ClinicalTemplates.FirstOrDefaultAsync(x => x.Id == id)
+        var t = await Visible(_db.ClinicalTemplates).FirstOrDefaultAsync(x => x.Id == id)
             ?? throw new KeyNotFoundException();
         t.UsageCount++;
         await _db.SaveChangesAsync();

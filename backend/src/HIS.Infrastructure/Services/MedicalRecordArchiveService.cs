@@ -83,7 +83,8 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
         var archive = new MedicalRecordArchive
         {
             Id = Guid.NewGuid(),
-            ArchiveCode = $"LT{DateTime.Now:yyyyMMdd}{new Random().Next(1000, 9999)}",
+            // QA-R3: was LT{date}{Random 1000-9999} → duplicate codes; sequential + unique index (mig 201) + retry.
+            ArchiveCode = (await RecordCodeGenerator.NextArchiveCodesAsync(_context))[0],
             MedicalRecordId = dto.MedicalRecordId,
             PatientId = record.PatientId,
             DepartmentId = record.DepartmentId,
@@ -92,7 +93,7 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
             ShelfNumber = dto.ShelfNumber,
             BoxNumber = dto.BoxNumber,
             Status = 1, // Đã lưu
-            ArchivedDate = DateTime.UtcNow,
+            ArchivedDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
             ArchivedById = userId,
             ArchiveYear = DateTime.Now.Year,
             CreatedAt = DateTime.UtcNow,
@@ -100,9 +101,24 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
         };
 
         await _context.MedicalRecordArchives.AddAsync(archive);
-        await _unitOfWork.SaveChangesAsync();
+        await SaveArchivesWithUniqueCodesAsync(new[] { archive });
 
         return await GetArchiveByIdAsync(archive.Id);
+    }
+
+    /// <summary>Save new archives; if another user took one of the codes meanwhile (UX_MedicalRecordArchives_ArchiveCode),
+    /// renumber the whole batch from the current max and save again.</summary>
+    private async Task SaveArchivesWithUniqueCodesAsync(IReadOnlyList<MedicalRecordArchive> added)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try { await _unitOfWork.SaveChangesAsync(); return; }
+            catch (DbUpdateException ex) when (NangCap23ServiceHelpers.IsUniqueViolation(ex) && attempt < RecordCodeGenerator.MaxAttempts)
+            {
+                var codes = await RecordCodeGenerator.NextArchiveCodesAsync(_context, added.Count);
+                for (var i = 0; i < added.Count; i++) added[i].ArchiveCode = codes[i];
+            }
+        }
     }
 
     public async Task<ArchiveDto> UpdateArchiveLocationAsync(Guid archiveId, UpdateArchiveLocationDto dto, Guid userId)
@@ -135,12 +151,13 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
 
         var archived = new List<ArchiveDto>();
         var createdArchives = new List<MedicalRecordArchive>();
+        var codes = await RecordCodeGenerator.NextArchiveCodesAsync(_context, records.Count);
         foreach (var record in records)
         {
             var archive = new MedicalRecordArchive
             {
                 Id = Guid.NewGuid(),
-                ArchiveCode = $"LT{DateTime.Now:yyyyMMdd}{new Random().Next(1000, 9999)}",
+                ArchiveCode = codes[createdArchives.Count],
                 MedicalRecordId = record.Id,
                 PatientId = record.PatientId,
                 DepartmentId = record.DepartmentId,
@@ -156,7 +173,7 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
 
         if (records.Any())
         {
-            await _unitOfWork.SaveChangesAsync();
+            await SaveArchivesWithUniqueCodesAsync(createdArchives);
             // #195: dùng luôn bản ghi vừa tạo thay vì hỏi lại DB id của từng hồ sơ. Danh sách
             // `records` đã loại hồ sơ có phiếu lưu trữ nên trước đó cũng chỉ tra đúng bản này.
             foreach (var archive in createdArchives)
@@ -183,7 +200,7 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
             RequestCode = $"PM{DateTime.Now:yyyyMMddHHmmss}",
             MedicalRecordArchiveId = dto.MedicalRecordArchiveId,
             RequestedById = userId,
-            RequestDate = DateTime.UtcNow,
+            RequestDate = HIS.Core.Common.VnTime.NowVn,
             Purpose = dto.Purpose,
             ExpectedReturnDate = dto.ExpectedReturnDate,
             Status = 0, // Chờ duyệt
@@ -211,7 +228,7 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
 
         request.Status = approve ? 1 : 2; // 1=Đã duyệt, 2=Từ chối
         request.ApprovedById = userId;
-        request.ApprovedDate = DateTime.UtcNow;
+        request.ApprovedDate = HIS.Core.Common.VnTime.NowVn;
         request.RejectReason = approve ? null : rejectReason;
         request.UpdatedAt = DateTime.UtcNow;
 
@@ -232,7 +249,7 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
             throw new InvalidOperationException("Hồ sơ đang được người khác mượn, chưa trả về kho");
 
         request.Status = 3; // Đang mượn
-        request.BorrowedDate = DateTime.UtcNow;
+        request.BorrowedDate = HIS.Core.Common.VnTime.NowVn;
         request.MedicalRecordArchive.Status = 2; // Đang mượn
         request.UpdatedAt = DateTime.UtcNow;
 
@@ -249,7 +266,7 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
         if (request.Status != 3) throw new InvalidOperationException("Phiếu mượn chưa được giao");
 
         request.Status = 4; // Đã trả
-        request.ReturnedDate = DateTime.UtcNow;
+        request.ReturnedDate = HIS.Core.Common.VnTime.NowVn;
         request.MedicalRecordArchive.Status = 1; // Đã lưu (trả về kho)
         request.UpdatedAt = DateTime.UtcNow;
 
@@ -405,7 +422,7 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
         var archive = new MedicalRecordArchive
         {
             Id = Guid.NewGuid(),
-            ArchiveCode = $"LT{DateTime.Now:yyyyMMdd}{new Random().Next(1000, 9999)}",
+            ArchiveCode = (await RecordCodeGenerator.NextArchiveCodesAsync(_context))[0],
             MedicalRecordId = record.Id,
             PatientId = record.PatientId,
             DepartmentId = record.DepartmentId,
@@ -414,7 +431,7 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
             AdmissionDate = record.AdmissionDate,
             DischargeDate = record.DischargeDate,
             Status = 1, // Đã lưu
-            ArchivedDate = DateTime.UtcNow,
+            ArchivedDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
             ArchivedById = userId,
             ArchiveYear = DateTime.Now.Year,
             CreatedAt = DateTime.UtcNow,
@@ -422,7 +439,7 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
         };
 
         await _context.MedicalRecordArchives.AddAsync(archive);
-        await _unitOfWork.SaveChangesAsync();
+        await SaveArchivesWithUniqueCodesAsync(new[] { archive });
 
         _logger.LogInformation("Generated {Format} archive {ArchiveCode} for examination {ExamId}",
             dto.Format, archive.ArchiveCode, dto.ExaminationId);

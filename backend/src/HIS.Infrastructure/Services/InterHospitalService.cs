@@ -41,6 +41,8 @@ public class InterHospitalService : IInterHospitalService
                     query = query.Where(r => r.Status == filter.Status.Value);
                 if (!string.IsNullOrEmpty(filter.Urgency))
                     query = query.Where(r => r.Urgency == filter.Urgency);
+                if (NormalizeDirection(filter.Direction) is { } dir && !string.IsNullOrEmpty(filter.Direction))
+                    query = query.Where(r => r.Direction == dir);
                 if (!string.IsNullOrEmpty(filter.FromDate) && DateTime.TryParse(filter.FromDate, out var from))
                     query = query.Where(r => r.RequestDate >= from);
                 if (!string.IsNullOrEmpty(filter.ToDate) && DateTime.TryParse(filter.ToDate, out var to))
@@ -69,9 +71,16 @@ public class InterHospitalService : IInterHospitalService
 
     public async Task<InterHospitalRequestDto> CreateRequestAsync(CreateInterHospitalRequestDto dto)
     {
+        // QA-R3: direction was not stored, so every request looked outgoing and incoming ones could never be answered.
+        var direction = NormalizeDirection(dto.Direction);
+        if (direction == null)
+            throw new ArgumentException("Chiều yêu cầu không hợp lệ (outgoing / incoming)", nameof(dto.Direction));
         // A request without a destination facility cannot be routed (was saved silently with nulls).
-        if (string.IsNullOrWhiteSpace(dto.ReceivingFacility))
+        // An incoming request is addressed to us — then the sending facility is what must be known.
+        if (direction == "outgoing" && string.IsNullOrWhiteSpace(dto.ReceivingFacility))
             throw new ArgumentException("Bệnh viện nhận là bắt buộc", nameof(dto.ReceivingFacility));
+        if (direction == "incoming" && string.IsNullOrWhiteSpace(dto.RequestingFacility))
+            throw new ArgumentException("Bệnh viện gửi yêu cầu là bắt buộc", nameof(dto.RequestingFacility));
         var requestType = dto.RequestType ?? "consultation";
         // Duplicate referral: same patient → same facility → same request type while one is still open.
         if (dto.PatientId.HasValue && await _context.InterHospitalRequests.AnyAsync(r => !r.IsDeleted
@@ -79,14 +88,13 @@ public class InterHospitalService : IInterHospitalService
                 && r.RequestType == requestType && (r.Status == 0 || r.Status == 1 || r.Status == 2)))
             throw new InvalidOperationException("Người bệnh đã có yêu cầu liên viện cùng loại tới bệnh viện này đang xử lý.");
 
-        var year = DateTime.UtcNow.Year;
-        var count = await _context.InterHospitalRequests.CountAsync(r => r.CreatedAt.Year == year) + 1;
-
         var entity = new InterHospitalRequest
         {
             Id = Guid.NewGuid(),
-            RequestCode = $"LV-{year}-{count:D4}",
+            // QA-R3: was Count()+1 → concurrent creates (and any deleted row) produced duplicate codes.
+            RequestCode = await RecordCodeGenerator.NextInterHospitalCodeAsync(_context),
             RequestType = requestType,
+            Direction = direction,
             RequestingFacility = dto.RequestingFacility,
             ReceivingFacility = dto.ReceivingFacility,
             PatientId = dto.PatientId,
@@ -102,7 +110,14 @@ public class InterHospitalService : IInterHospitalService
         };
 
         _context.InterHospitalRequests.Add(entity);
-        await _context.SaveChangesAsync();
+        for (var attempt = 1; ; attempt++)
+        {
+            try { await _context.SaveChangesAsync(); break; }
+            catch (DbUpdateException ex) when (NangCap23ServiceHelpers.IsUniqueViolation(ex) && attempt < RecordCodeGenerator.MaxAttempts)
+            {
+                entity.RequestCode = await RecordCodeGenerator.NextInterHospitalCodeAsync(_context);
+            }
+        }
 
         return MapToDto(entity);
     }
@@ -174,11 +189,19 @@ public class InterHospitalService : IInterHospitalService
         catch (Exception ex) { _logger.LogWarning(ex, "InterHospitalService thao tác thất bại, trả giá trị mặc định"); return new InterHospitalStatsDto(); }
     }
 
+    /// <summary>null/empty → "outgoing"; "incoming"/"outgoing" (any case) → itself; anything else → null (invalid).</summary>
+    private static string? NormalizeDirection(string? direction)
+    {
+        var d = direction?.Trim().ToLowerInvariant();
+        return string.IsNullOrEmpty(d) ? "outgoing" : d is "incoming" or "outgoing" ? d : null;
+    }
+
     private static InterHospitalRequestDto MapToDto(InterHospitalRequest r) => new()
     {
         Id = r.Id,
         RequestCode = r.RequestCode,
         RequestType = r.RequestType,
+        Direction = r.Direction,
         RequestingFacility = r.RequestingFacility,
         ReceivingFacility = r.ReceivingFacility,
         PatientId = r.PatientId,
