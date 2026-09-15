@@ -59,6 +59,8 @@ export interface CreateInpatientPrescriptionDto {
   // G-07: 1-Thuong qui(default), 2-Xuat tu truc, 3-Hoan tra, 4-Don xuat vien (toa ve)
   drugOrderType?: number;
   items: CreateInpatientMedicineItemDto[];
+  /** Lý do bác sĩ bỏ qua chặn an toàn (dị ứng / tương tác nặng) — BE PrescriptionSafetyGuard */
+  overrideReason?: string;
 }
 
 export interface CreateInpatientMedicineItemDto {

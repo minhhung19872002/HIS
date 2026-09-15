@@ -9,6 +9,7 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/clinical-template")]
 [Authorize]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // QA0915: KeyNotFoundException on unknown id → 404 (was 500)
 public class ClinicalTemplateController : ControllerBase
 {
     private readonly IClinicalTemplateService _service;

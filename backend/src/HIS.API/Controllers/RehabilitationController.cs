@@ -23,6 +23,7 @@ namespace HIS.API.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
+    [TypeFilter(typeof(Filters.DomainExceptionFilter))] // not-found/state guards → 404/400 instead of a bare 500
     public class RehabilitationController : ControllerBase
     {
         private readonly IRehabilitationService _service;

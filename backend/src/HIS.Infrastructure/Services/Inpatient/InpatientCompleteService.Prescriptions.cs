@@ -123,6 +123,11 @@ public partial class InpatientCompleteService {
         var admission = await _context.Set<Admission>().FindAsync(dto.AdmissionId);
         if (admission == null)
             throw new KeyNotFoundException("Admission not found");
+        // QA0915: no ward drug orders on a finished stay — they reached the dispensing queue after
+        // discharge. The discharge take-home prescription (G-07 DrugOrderType 4) stays allowed.
+        if (!HIS.Core.Constants.AdmissionStatus.IsActive(admission.Status) && dto.DrugOrderType != 4)
+            throw new InvalidOperationException(
+                $"Lượt nội trú đã kết thúc ({HIS.Core.Constants.AdmissionStatus.Label(admission.Status)}), không kê y lệnh thuốc được.");
         await EmrLockGuard.EnsureEditableByRecordAsync(_context, admission.MedicalRecordId); // TT46
         await CheckDepositEnforceBlockAsync(admission.PatientId); // F3.3
 
@@ -239,6 +244,7 @@ public partial class InpatientCompleteService {
         if (prescription == null)
             throw new KeyNotFoundException("Prescription not found");
         await EmrLockGuard.EnsureEditableByRecordAsync(_context, prescription.MedicalRecordId); // TT46
+        EnsureInpatientPrescriptionMutable(prescription, "sửa");
 
         prescription.PrescriptionDate = dto.PrescriptionDate;
         prescription.DiagnosisCode = dto.MainDiagnosisCode;
@@ -342,10 +348,29 @@ public partial class InpatientCompleteService {
             .FirstOrDefaultAsync(p => p.Id == id);
         if (prescription != null)
         {
+            await EmrLockGuard.EnsureEditableByRecordAsync(_context, prescription.MedicalRecordId); // TT46
+            EnsureInpatientPrescriptionMutable(prescription, "xóa");
             _context.PrescriptionDetails.RemoveRange(prescription.Details);
             _context.Prescriptions.Remove(prescription);
             await _context.SaveChangesAsync();
         }
+    }
+
+    /// <summary>
+    /// QA0915 (P0): update/delete used to work on ANY status — a dispensed ward order (drugs already
+    /// out of the warehouse) could be rewritten to another drug/quantity or hard-deleted, leaving the
+    /// export receipt without its prescription and the bill short. Only orders the pharmacy has not
+    /// acted on (pending approval / draft) and nothing dispensed are mutable.
+    /// </summary>
+    private static void EnsureInpatientPrescriptionMutable(Prescription prescription, string action)
+    {
+        var status = prescription.Status;
+        if (prescription.IsDispensed
+            || (status != HIS.Core.Constants.PrescriptionStatus.PendingApproval
+                && status != HIS.Core.Constants.PrescriptionStatus.Draft))
+            throw new InvalidOperationException(
+                $"Đơn thuốc đang ở trạng thái \"{HIS.Core.Constants.PrescriptionStatus.GetName(status)}\"{(prescription.IsDispensed ? " (đã cấp phát)" : "")} — không {action} được. "
+                + "Dùng hoàn trả / đơn thay thế.");
     }
 
     public async Task<List<InpatientPrescriptionDto>> GetPrescriptionsAsync(Guid admissionId, DateTime? fromDate, DateTime? toDate)
@@ -377,6 +402,7 @@ public partial class InpatientCompleteService {
             MainDiagnosisCode = p.DiagnosisCode,
             MainDiagnosis = p.DiagnosisName,
             WarehouseId = p.WarehouseId ?? Guid.Empty,
+            DrugOrderType = p.DrugOrderType, // QA0915: list returned 0 while create returned the stored type (G-07)
             Items = p.Details.Select(d => new InpatientMedicineItemDto
             {
                 Id = d.Id,

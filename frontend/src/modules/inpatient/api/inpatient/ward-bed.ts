@@ -115,14 +115,27 @@ export interface BedStatusDto {
 
 // #endregion
 
+// Backend BedLayoutDto.Status is 0 = empty, 1 = occupied, 2 = shared (nằm ghép), 3 = maintenance,
+// while every v2 screen reads 1 = empty, 2 = occupied, 3 = maintenance. Without this mapping
+// occupied beds rendered as "Trống" and empty beds as occupied on the ward map + dashboard.
+const BED_STATUS_NAMES: Record<number, string> = { 1: 'Trống', 2: 'Có bệnh nhân', 3: 'Bảo trì' };
+const normalizeBed = (b: BedLayoutDto): BedLayoutDto => {
+  const status = b.patientName || b.currentAdmissionId || b.status === 1 || b.status === 2 ? 2 : b.status === 3 ? 3 : 1;
+  return { ...b, status, statusName: BED_STATUS_NAMES[status] };
+};
+const normalizeRoom = (r: RoomLayoutDto): RoomLayoutDto => ({ ...r, beds: (r.beds || []).map(normalizeBed) });
+
 export const getWardLayout = (departmentId: string) =>
-  apiClient.get<WardLayoutDto>(`${BASE_URL}/ward-layout/${departmentId}`);
+  apiClient.get<WardLayoutDto>(`${BASE_URL}/ward-layout/${departmentId}`)
+    .then((r) => (r.data ? { ...r, data: { ...r.data, rooms: (r.data.rooms || []).map(normalizeRoom) } } : r));
 
 export const getRoomLayouts = (departmentId: string) =>
-  apiClient.get<RoomLayoutDto[]>(`${BASE_URL}/room-layouts/${departmentId}`);
+  apiClient.get<RoomLayoutDto[]>(`${BASE_URL}/room-layouts/${departmentId}`)
+    .then((r) => (Array.isArray(r.data) ? { ...r, data: r.data.map(normalizeRoom) } : r));
 
 export const getBedLayouts = (roomId: string) =>
-  apiClient.get<BedLayoutDto[]>(`${BASE_URL}/bed-layouts/${roomId}`);
+  apiClient.get<BedLayoutDto[]>(`${BASE_URL}/bed-layouts/${roomId}`)
+    .then((r) => (Array.isArray(r.data) ? { ...r, data: r.data.map(normalizeBed) } : r));
 
 export const getSharedBedPatients = (bedId: string) =>
   apiClient.get<SharedBedPatientDto[]>(`${BASE_URL}/shared-bed/${bedId}`);

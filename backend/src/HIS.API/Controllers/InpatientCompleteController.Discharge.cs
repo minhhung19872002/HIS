@@ -51,6 +51,7 @@ public partial class InpatientCompleteController
     public async Task<ActionResult> PrintDischargeCertificate(Guid admissionId)
     {
         var pdfBytes = await _inpatientService.PrintDischargeCertificateAsync(admissionId);
+        if (pdfBytes.Length == 0) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy lượt nội trú." }); // QA0915: was 200 + empty file
         return File(pdfBytes, "application/pdf", "discharge-certificate.pdf");
     }
 
@@ -61,6 +62,7 @@ public partial class InpatientCompleteController
     public async Task<ActionResult> PrintReferralCertificate(Guid admissionId, [FromBody] ReferralCertificateDto data)
     {
         var pdfBytes = await _inpatientService.PrintReferralCertificateAsync(admissionId, data);
+        if (pdfBytes.Length == 0) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy lượt nội trú." }); // QA0915: was 200 + empty file
         return File(pdfBytes, "application/pdf", "referral-certificate.pdf");
     }
 
@@ -71,6 +73,7 @@ public partial class InpatientCompleteController
     public async Task<ActionResult> PrintServiceDisclosure(Guid admissionId)
     {
         var pdfBytes = await _inpatientService.PrintServiceDisclosureAsync(admissionId);
+        if (pdfBytes.Length == 0) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy lượt nội trú." }); // QA0915: was 200 + empty file
         return File(pdfBytes, "application/pdf", "service-disclosure.pdf");
     }
 
@@ -81,6 +84,7 @@ public partial class InpatientCompleteController
     public async Task<ActionResult> PrintMedicineDisclosure(Guid admissionId)
     {
         var pdfBytes = await _inpatientService.PrintMedicineDisclosureAsync(admissionId);
+        if (pdfBytes.Length == 0) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy lượt nội trú." }); // QA0915: was 200 + empty file
         return File(pdfBytes, "application/pdf", "medicine-disclosure.pdf");
     }
 
@@ -101,6 +105,7 @@ public partial class InpatientCompleteController
     public async Task<ActionResult> PrintBillingStatement6556(Guid admissionId)
     {
         var pdfBytes = await _inpatientService.PrintBillingStatement6556Async(admissionId);
+        if (pdfBytes.Length == 0) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy lượt nội trú." }); // QA0915: was 200 + empty file
         return File(pdfBytes, "application/pdf", "billing-statement.pdf");
     }
 

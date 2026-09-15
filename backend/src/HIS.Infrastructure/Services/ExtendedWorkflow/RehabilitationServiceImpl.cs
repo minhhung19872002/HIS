@@ -14,7 +14,12 @@ namespace HIS.Infrastructure.Services;
 public class RehabilitationServiceImpl : IRehabilitationService
 {
     private readonly HISDbContext _context;
-    public RehabilitationServiceImpl(HISDbContext context) => _context = context;
+    private readonly HIS.Application.Common.ICurrentUserAccessor? _currentUser;
+    public RehabilitationServiceImpl(HISDbContext context, HIS.Application.Common.ICurrentUserAccessor? currentUser = null)
+    {
+        _context = context;
+        _currentUser = currentUser;
+    }
 
     public async Task<List<RehabReferralDto>> GetPendingReferralsAsync()
     {
@@ -80,6 +85,14 @@ public class RehabilitationServiceImpl : IRehabilitationService
     public async Task<RehabReferralDto> CreateReferralAsync(CreateRehabReferralDto dto)
     {
         var entity = new RehabReferral { Id = Guid.NewGuid(), ReferralCode = CodeGenerator.Timestamp("REH"), PatientId = dto.PatientId, RehabType = dto.RehabType ?? "PT", Diagnosis = dto.PrimaryDiagnosis ?? "", Reason = dto.RehabGoals ?? "", Status = "Pending", CreatedAt = DateTime.Now };
+        // QA0915: ReferredById stayed Guid.Empty → the required ReferredBy include turned into an INNER JOIN,
+        // so the saved referral was invisible to every read (POST returned 204, list never showed it).
+        // AdmissionId / ExaminationId / ICD from the request were also dropped.
+        entity.ReferredById = _currentUser?.UserGuid
+            ?? throw new InvalidOperationException("Không xác định được bác sĩ chỉ định (chưa đăng nhập).");
+        entity.AdmissionId = dto.AdmissionId;
+        entity.ExaminationId = dto.VisitId;
+        entity.IcdCode = dto.DiagnosisICD;
         _context.RehabReferrals.Add(entity);
         await _context.SaveChangesAsync();
         return await GetReferralAsync(entity.Id);
@@ -113,7 +126,17 @@ public class RehabilitationServiceImpl : IRehabilitationService
     public async Task<FunctionalAssessmentDto> SaveAssessmentAsync(SaveFunctionalAssessmentDto dto)
     {
         var entity = dto.Id.HasValue ? await _context.FunctionalAssessments.FindAsync(dto.Id.Value) : null;
-        if (entity == null) { entity = new FunctionalAssessment { Id = Guid.NewGuid(), ReferralId = dto.ReferralId, AssessmentDate = DateTime.Now, CreatedAt = DateTime.Now }; _context.FunctionalAssessments.Add(entity); }
+        if (entity == null)
+        {
+            // QA0915: AssessedById was never set (Guid.Empty) → FK_FunctionalAssessments_AssessedBy failed (500);
+            // the table had 0 rows. Unknown referral → 404 instead of an FK 500.
+            if (!await _context.RehabReferrals.AnyAsync(r => r.Id == dto.ReferralId))
+                throw new KeyNotFoundException("Không tìm thấy giấy giới thiệu PHCN");
+            var assessorId = _currentUser?.UserGuid
+                ?? throw new InvalidOperationException("Không xác định được người đánh giá (chưa đăng nhập).");
+            entity = new FunctionalAssessment { Id = Guid.NewGuid(), ReferralId = dto.ReferralId, AssessedById = assessorId, AssessmentDate = DateTime.Now, CreatedAt = DateTime.Now };
+            _context.FunctionalAssessments.Add(entity);
+        }
         entity.BarthelIndex = dto.BarthelIndex; entity.FIMScore = dto.FIMScore; entity.MoCAScore = dto.MoCAScore; entity.BergBalanceScale = dto.BergBalanceScore;
         await _context.SaveChangesAsync();
         return await GetAssessmentAsync(entity.Id);

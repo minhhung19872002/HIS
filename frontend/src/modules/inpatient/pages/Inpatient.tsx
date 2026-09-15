@@ -64,6 +64,10 @@ const bedTone = (s: number): { bg: string; line: string } => {
 
 const fmtDMY = (iso?: string) => (iso ? dayjs(iso).format('DD/MM/YYYY') : '—');
 const genderLabel = (g?: number) => (g === 1 ? 'Nam' : g === 2 ? 'Nữ' : '—');
+// BE returns Guid.Empty admissionId for inpatient MedicalRecords that have no Admission row → duplicate
+// React keys; fall back to the (unique) medical record code for those rows.
+const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
+const ipRowKey = (r: InpatientListDto) => (r.admissionId && r.admissionId !== EMPTY_GUID ? r.admissionId : `mr:${r.medicalRecordCode}`);
 
 function buildInpatientRecordHtml(d: InpatientListDto): string {
   const row = (label: string, value: string) =>
@@ -397,7 +401,7 @@ const InpatientV2: React.FC = () => {
             page={page}
             perPage={LIST_PAGE}
             onSortChange={() => setPage(0)}
-            rowKey={(r) => r.admissionId}
+            rowKey={ipRowKey}
             onRowClick={setDetail}
             actions={(r) => (
               <div className="ab-actions">
@@ -469,7 +473,7 @@ const InpatientV2: React.FC = () => {
                   ) },
               ]}
               data={listFiltered.filter((r) => r.hasPendingOrders || r.hasUnclaimedMedicine)}
-              rowKey={(r) => r.admissionId}
+              rowKey={ipRowKey}
               onRowClick={(r) => void loadSupplyOrders(r)}
               loading={loading}
               empty={<div className="ab-empty"><TermIcon name="package" size={20} /><div>Không có BN cần xử lý vật tư / dịch vụ</div></div>}
@@ -569,7 +573,7 @@ const InpatientV2: React.FC = () => {
               page={page}
               perPage={LIST_PAGE}
               onSortChange={() => setPage(0)}
-              rowKey={(r) => r.admissionId}
+              rowKey={ipRowKey}
               onRowClick={setDetail}
               actions={(r) => (
                 <div className="ab-actions">

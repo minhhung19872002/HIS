@@ -35,9 +35,11 @@ public partial class InpatientCompleteService {
         var totalServiceAmount = await _context.ServiceRequests
             .Where(sr => sr.MedicalRecordId == admission.MedicalRecordId && sr.Status != 4)
             .SumAsync(sr => sr.PatientAmount);
-        var totalPaid = await _context.Receipts
-            .Where(r => r.PatientId == admission.PatientId && r.ReceiptType == 2 && r.Status == 1)
-            .SumAsync(r => r.FinalAmount);
+        // QA0915 (M6): payments = receipts of this stay (see GetStayPaymentsAsync) + the deposit balance
+        // still available. Filtering receipts strictly by MedicalRecordId dropped QR payments (MR null)
+        // and blocked discharge of patients who had already paid.
+        var (receiptsPaid, depositBalance) = await GetStayPaymentsAsync(admission);
+        var totalPaid = receiptsPaid + depositBalance;
         var remainingAmount = totalServiceAmount - totalPaid;
         var hasUnpaidBalance = remainingAmount > 0;
 
@@ -69,6 +71,56 @@ public partial class InpatientCompleteService {
         };
     }
 
+    /// <summary>
+    /// QA0915 (M6/M7): money already taken for one inpatient stay.
+    /// <para>Receipts (type 2, status 1): those on this medical record, PLUS those with no medical record
+    /// for the same patient dated within the stay — QR/gateway payments are written with
+    /// MedicalRecordId = null. Receipts on another record are not counted (other visits).</para>
+    /// <para>Deposit balance: deposits of this record (or record-less deposits of the patient within the
+    /// stay), not cancelled, RemainingAmount (= Amount − used) minus refunds raised on the deposit that
+    /// are not rejected/cancelled — same rule as BillingCompleteService.UseDepositForPaymentAsync.
+    /// Used deposit money is already inside the receipts, so it is not counted twice.</para>
+    /// </summary>
+    private async Task<(decimal ReceiptsPaid, decimal DepositBalance)> GetStayPaymentsAsync(Admission admission)
+    {
+        var mrId = admission.MedicalRecordId;
+        var patientId = admission.PatientId;
+        // AdmissionDate is UTC on new rows / local on old ones — a day of slack for record-less items.
+        var stayStart = admission.AdmissionDate.Date.AddDays(-1);
+        var stayEnd = await _context.Set<Discharge>().AsNoTracking()
+            .Where(d => d.AdmissionId == admission.Id)
+            .Select(d => (DateTime?)d.DischargeDate)
+            .FirstOrDefaultAsync() ?? DateTime.Now;
+        stayEnd = stayEnd.Date.AddDays(2);
+
+        var receiptsPaid = await _context.Receipts.AsNoTracking()
+            .Where(r => !r.IsDeleted && r.ReceiptType == 2 && r.Status == 1
+                        && (r.MedicalRecordId == mrId
+                            || (r.MedicalRecordId == null && r.PatientId == patientId
+                                && r.ReceiptDate >= stayStart && r.ReceiptDate < stayEnd)))
+            .SumAsync(r => (decimal?)r.FinalAmount) ?? 0m;
+
+        var deposits = await _context.Deposits.AsNoTracking()
+            .Where(d => !d.IsDeleted && d.Status != HIS.Core.Constants.DepositStatus.Cancelled
+                        && (d.MedicalRecordId == mrId
+                            || (d.MedicalRecordId == null && d.PatientId == patientId
+                                && d.ReceiptDate >= stayStart && d.ReceiptDate < stayEnd)))
+            .Select(d => new { d.Id, d.RemainingAmount })
+            .ToListAsync();
+        var depositIds = deposits.Select(d => d.Id).ToList();
+        var refunds = depositIds.Count == 0 ? new Dictionary<Guid, decimal>()
+            : await _context.Receipts.AsNoTracking()
+                .Where(r => r.ReceiptType == 3 && !r.IsDeleted && r.OriginalDepositId != null
+                            && depositIds.Contains(r.OriginalDepositId.Value)
+                            && r.Status != HIS.Core.Constants.RefundStatus.Rejected
+                            && r.Status != HIS.Core.Constants.RefundStatus.Cancelled)
+                .GroupBy(r => r.OriginalDepositId!.Value)
+                .Select(g => new { g.Key, Sum = g.Sum(r => r.FinalAmount) })
+                .ToDictionaryAsync(x => x.Key, x => x.Sum);
+        var depositBalance = deposits.Sum(d => Math.Max(0m, d.RemainingAmount - (refunds.TryGetValue(d.Id, out var rf) ? rf : 0m)));
+        return (receiptsPaid, depositBalance);
+    }
+
     public async Task<DischargeDto> DischargePatientAsync(CompleteDischargeDto dto, Guid userId)
     {
         var admission = await _context.Set<Admission>()
@@ -80,6 +132,14 @@ public partial class InpatientCompleteService {
             // Business guard → InvalidOperationException để DomainExceptionFilter trả 400 (INVALID_STATE) thay vì 500.
             throw new InvalidOperationException("Bệnh nhân không trong trạng thái đang điều trị, không thể xuất viện");
 
+        // QA0915: a discharge date before the admission date was accepted (negative length of stay on
+        // the 6556 statement). AdmissionDate is stored UTC while clients may send local time, so
+        // compare in UTC and allow the +7h offset as tolerance.
+        var dischargeUtc = dto.DischargeDate.Kind == DateTimeKind.Local ? dto.DischargeDate.ToUniversalTime() : dto.DischargeDate;
+        if (dischargeUtc < admission.AdmissionDate.AddHours(-7))
+            throw new InvalidOperationException(
+                $"Ngày ra viện ({dto.DischargeDate:dd/MM/yyyy}) không được trước ngày vào viện ({admission.AdmissionDate:dd/MM/yyyy}).");
+
         // Enforce pre-discharge checks
         var preCheck = await CheckPreDischargeAsync(dto.AdmissionId);
         if (!preCheck.CanDischarge)
@@ -89,23 +149,36 @@ public partial class InpatientCompleteService {
             throw new InvalidOperationException($"Không thể xuất viện: {issues}");
         }
 
-        // Create discharge record
-        var discharge = new Discharge
+        // QA0915 (P1): Discharges.AdmissionId carries a UNIQUE constraint, while CancelDischargeAsync
+        // soft-deletes (#218). Re-discharging after a cancel therefore hit the constraint (409 DUPLICATE)
+        // and the patient could never be discharged again. Reuse the cancelled row; its previous content
+        // was written to AuditLogs by CancelDischargeAsync. Proper fix = filtered unique index (see report).
+        var discharge = await _context.Set<Discharge>().IgnoreQueryFilters()
+            .FirstOrDefaultAsync(d => d.AdmissionId == dto.AdmissionId && d.IsDeleted);
+        if (discharge == null)
         {
-            Id = Guid.NewGuid(),
-            AdmissionId = dto.AdmissionId,
-            DischargeDate = dto.DischargeDate,
-            DischargeType = dto.DischargeType,
-            DischargeCondition = dto.DischargeCondition,
-            DischargeDiagnosis = dto.DischargeDiagnosis,
-            DischargeInstructions = dto.DischargeInstructions,
-            FollowUpDate = dto.FollowUpDate,
-            DischargedBy = userId,
-            CreatedAt = DateTime.Now,
-            CreatedBy = null
-        };
-
-        _context.Set<Discharge>().Add(discharge);
+            discharge = new Discharge
+            {
+                Id = Guid.NewGuid(),
+                AdmissionId = dto.AdmissionId,
+                CreatedAt = DateTime.Now,
+                CreatedBy = null
+            };
+            _context.Set<Discharge>().Add(discharge);
+        }
+        else
+        {
+            discharge.IsDeleted = false;
+            discharge.UpdatedAt = DateTime.UtcNow;
+            discharge.UpdatedBy = userId.ToString();
+        }
+        discharge.DischargeDate = dto.DischargeDate;
+        discharge.DischargeType = dto.DischargeType;
+        discharge.DischargeCondition = dto.DischargeCondition;
+        discharge.DischargeDiagnosis = dto.DischargeDiagnosis;
+        discharge.DischargeInstructions = dto.DischargeInstructions;
+        discharge.FollowUpDate = dto.FollowUpDate;
+        discharge.DischargedBy = userId;
 
         // Update admission status
         admission.Status = dto.DischargeType switch
@@ -190,10 +263,46 @@ public partial class InpatientCompleteService {
         if (admission != null)
             admission.Status = AdmissionStatus.InTreatment;
 
+        // QA0915 wave-2: discharge released the bed (assignment Status 1) but cancelling left the stay
+        // "in treatment" with Admission.BedId pointing to a bed it no longer holds. Re-occupy the last
+        // bed if it is still free; otherwise clear the pointer so the ward can assign a new bed.
+        if (admission != null)
+        {
+            var lastBed = await _context.Set<BedAssignment>()
+                .Where(ba => ba.AdmissionId == admissionId && ba.Status == 1)
+                .OrderByDescending(ba => ba.ReleasedAt)
+                .FirstOrDefaultAsync();
+            var bedStillFree = lastBed != null && !await _context.Set<BedAssignment>()
+                .AnyAsync(ba => ba.BedId == lastBed.BedId && ba.Status == 0);
+            var alreadyHoldsBed = await _context.Set<BedAssignment>()
+                .AnyAsync(ba => ba.AdmissionId == admissionId && ba.Status == 0);
+            if (!alreadyHoldsBed && bedStillFree)
+            {
+                _context.Set<BedAssignment>().Add(new BedAssignment
+                {
+                    Id = Guid.NewGuid(),
+                    AdmissionId = admissionId,
+                    BedId = lastBed!.BedId,
+                    AssignedAt = DateTime.Now,
+                    Status = 0,
+                    CreatedAt = DateTime.Now,
+                    CreatedBy = userId.ToString()
+                });
+                admission.BedId = lastBed.BedId;
+            }
+            else if (!alreadyHoldsBed)
+            {
+                admission.BedId = null;
+            }
+        }
+
         // Update medical record
         var medRecord = await _context.MedicalRecords.FindAsync(admission?.MedicalRecordId);
         if (medRecord != null)
+        {
             medRecord.Status = 2; // Đang điều trị
+            if (admission != null) medRecord.BedId = admission.BedId; // QA0915: keep in sync with the restored/cleared bed
+        }
 
         // #218/T3: LÝ DO trước đây nhận rồi vứt — hủy một quyết định ra viện là việc phải giải trình
         // được. `Discharge` không có ô nào để ghi, nên ghi vào nhật ký kiểm toán: đó mới là chỗ đúng
@@ -216,6 +325,12 @@ public partial class InpatientCompleteService {
                 reason,
                 dischargeType = discharge.DischargeType,
                 dischargeDate = discharge.DischargeDate,
+                // QA0915: the row is reused on re-discharge (unique AdmissionId) — keep its clinical content here.
+                dischargeCondition = discharge.DischargeCondition,
+                dischargeDiagnosis = discharge.DischargeDiagnosis,
+                dischargeInstructions = discharge.DischargeInstructions,
+                followUpDate = discharge.FollowUpDate,
+                dischargedBy = discharge.DischargedBy,
             }),
             CreatedAt = DateTime.UtcNow,
         });
@@ -378,15 +493,108 @@ public partial class InpatientCompleteService {
         return Encoding.UTF8.GetBytes(html);
     }
 
-    public Task<BillingStatement6556Dto> GetBillingStatement6556Async(Guid admissionId)
+    public async Task<BillingStatement6556Dto> GetBillingStatement6556Async(Guid admissionId)
     {
-        return Task.FromResult(new BillingStatement6556Dto
+        // QA0915 wave-2: was a stub (admission = today-7, 7 days, no lines) shown on the v2 6556 modal.
+        // Built from the real stay, discharge, service lines and inpatient drug lines (cancelled / draft
+        // lines excluded), plus the deposits taken on this medical record.
+        var admission = await _context.Set<Admission>().AsNoTracking()
+            .Include(a => a.Patient)
+            .Include(a => a.MedicalRecord)
+            .FirstOrDefaultAsync(a => a.Id == admissionId)
+            ?? throw new KeyNotFoundException("Admission not found");
+        var patient = admission.Patient;
+        var medRecord = admission.MedicalRecord;
+        var discharge = await _context.Set<Discharge>().AsNoTracking()
+            .FirstOrDefaultAsync(d => d.AdmissionId == admissionId);
+
+        var endDate = discharge?.DischargeDate ?? DateTime.Now;
+        // Calendar days between admission and discharge (min 1). Whether BHYT's "+1 day" rule applies is a
+        // billing-policy decision — see QA report.
+        var days = Math.Max(1, (endDate.Date - admission.AdmissionDate.Date).Days);
+
+        var serviceLines = await _context.ServiceRequestDetails.AsNoTracking()
+            .Include(d => d.Service)
+            .Where(d => d.ServiceRequest.MedicalRecordId == medRecord.Id && !d.IsDeleted && d.Status != 3
+                        && d.ServiceRequest.Status != 4)
+            .ToListAsync();
+        var drugLines = await _context.PrescriptionDetails.AsNoTracking()
+            .Include(d => d.Medicine)
+            .Where(d => d.Prescription.MedicalRecordId == medRecord.Id && d.Prescription.PrescriptionType == 2
+                        && !d.Prescription.IsDeleted
+                        && d.Prescription.Status != HIS.Core.Constants.PrescriptionStatus.Cancelled
+                        && d.Prescription.Status != HIS.Core.Constants.PrescriptionStatus.Draft)
+            .ToListAsync();
+
+        static string ServiceGroup(int serviceType) => serviceType switch
+        {
+            2 => "XN", 3 => "CĐHA", 4 => "TDCN", 5 => "PTTT", 1 => "Khám", _ => "DV"
+        };
+
+        var items = new List<HIS.Application.DTOs.Inpatient.BillingItemDto>();
+        foreach (var d in serviceLines)
+            items.Add(new HIS.Application.DTOs.Inpatient.BillingItemDto
+            {
+                ItemCode = d.Service?.ServiceCode ?? string.Empty,
+                ItemName = d.Service?.ServiceName ?? string.Empty,
+                Unit = d.Service?.Unit ?? string.Empty,
+                Quantity = d.Quantity,
+                UnitPrice = d.UnitPrice,
+                Amount = d.Amount,
+                InsuranceAmount = d.InsuranceAmount,
+                PatientAmount = d.PatientAmount,
+                InsuranceRatio = d.Amount > 0 ? Math.Round(d.InsuranceAmount * 100 / d.Amount, 0) : 0,
+                ItemType = ServiceGroup(d.Service?.ServiceType ?? 0),
+            });
+        foreach (var d in drugLines)
+            items.Add(new HIS.Application.DTOs.Inpatient.BillingItemDto
+            {
+                ItemCode = d.Medicine?.MedicineCode ?? string.Empty,
+                ItemName = d.Medicine?.MedicineName ?? string.Empty,
+                Unit = d.Unit ?? string.Empty,
+                Quantity = d.Quantity,
+                UnitPrice = d.UnitPrice,
+                Amount = d.Amount,
+                InsuranceAmount = d.InsuranceAmount,
+                PatientAmount = d.PatientAmount,
+                InsuranceRatio = d.Amount > 0 ? Math.Round(d.InsuranceAmount * 100 / d.Amount, 0) : 0,
+                ItemType = "Thuốc",
+            });
+        for (var i = 0; i < items.Count; i++) items[i].OrderNo = i + 1;
+
+        // QA0915 (M7): deposit = balance still available (net of usage and refunds), and receipts already
+        // paid for this stay are subtracted too — summing raw deposit Amount inflated AmountDue/RefundAmount.
+        var (receiptsPaid, deposit) = await GetStayPaymentsAsync(admission);
+
+        var total = items.Sum(x => x.Amount);
+        var insurance = items.Sum(x => x.InsuranceAmount);
+        var patientPay = items.Sum(x => x.PatientAmount);
+        var coPay = serviceLines.Where(d => d.PatientType == 1).Sum(d => d.PatientAmount)
+                    + drugLines.Where(d => d.PatientType == 1).Sum(d => d.PatientAmount);
+
+        return new BillingStatement6556Dto
         {
             AdmissionId = admissionId,
-            AdmissionDate = DateTime.Now.AddDays(-7),
-            DischargeDate = DateTime.Now,
-            DaysOfStay = 7
-        });
+            PatientName = patient?.FullName ?? string.Empty,
+            PatientCode = patient?.PatientCode ?? string.Empty,
+            InsuranceNumber = medRecord.InsuranceNumber,
+            Gender = patient?.Gender ?? 0,
+            DateOfBirth = patient?.DateOfBirth,
+            Address = patient?.Address,
+            AdmissionDate = admission.AdmissionDate,
+            DischargeDate = endDate,
+            DaysOfStay = days,
+            Diagnosis = discharge?.DischargeDiagnosis ?? medRecord.MainDiagnosis ?? admission.DiagnosisOnAdmission,
+            DiagnosisCode = medRecord.MainIcdCode,
+            Items = items,
+            TotalAmount = total,
+            InsuranceAmount = insurance,
+            PatientCoPayAmount = coPay,
+            OutOfPocketAmount = patientPay - coPay,
+            DepositAmount = deposit,
+            RefundAmount = Math.Max(0, deposit - Math.Max(0, patientPay - receiptsPaid)),
+            AmountDue = Math.Max(0, patientPay - receiptsPaid - deposit),
+        };
     }
 
     public async Task<byte[]> PrintBillingStatement6556Async(Guid admissionId)

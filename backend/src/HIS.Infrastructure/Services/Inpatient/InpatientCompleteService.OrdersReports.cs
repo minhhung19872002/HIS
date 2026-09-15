@@ -15,6 +15,21 @@ namespace HIS.Infrastructure.Services;
 public partial class InpatientCompleteService {
     #region 3.1 Waiting Room Display
 
+    // The ward map rendered "—T" for every patient: Age was never filled.
+    private static int? BedPatientAge(Patient? patient)
+    {
+        if (patient == null) return null;
+        var today = DateTime.Today;
+        if (patient.DateOfBirth.HasValue)
+        {
+            var dob = patient.DateOfBirth.Value.Date;
+            var age = today.Year - dob.Year;
+            if (dob > today.AddYears(-age)) age--;
+            return Math.Max(0, age);
+        }
+        return patient.YearOfBirth.HasValue ? Math.Max(0, today.Year - patient.YearOfBirth.Value) : null;
+    }
+
     public async Task<WardLayoutDto> GetWardLayoutAsync(Guid departmentId)
     {
         var department = await _context.Departments.FindAsync(departmentId);
@@ -75,6 +90,7 @@ public partial class InpatientCompleteService {
                     PatientName = patient?.FullName,
                     PatientCode = patient?.PatientCode,
                     Gender = patient?.Gender,
+                    Age = BedPatientAge(patient),
                     AdmissionDate = assignment?.AssignedAt,
                     DaysOfStay = assignment != null ? (int)(DateTime.Now - assignment.AssignedAt).TotalDays : null
                 };
@@ -150,6 +166,7 @@ public partial class InpatientCompleteService {
                 PatientName = patient?.FullName,
                 PatientCode = patient?.PatientCode,
                 Gender = patient?.Gender,
+                Age = BedPatientAge(patient),
                 AdmissionDate = assignment?.AssignedAt,
                 DaysOfStay = assignment != null ? (int)(DateTime.Now - assignment.AssignedAt).TotalDays : null
             };
@@ -339,25 +356,45 @@ public partial class InpatientCompleteService {
         var admission = await _context.Set<Admission>()
             .FirstOrDefaultAsync(a => a.Id == dto.AdmissionId);
         if (admission == null) throw new KeyNotFoundException("Admission not found");
+        // QA0915: no new orders on a finished stay (discharged / transferred out / died) — they were
+        // accepted with 200 and billed after discharge. Locked EMR (TT46) is refused like prescriptions.
+        if (!HIS.Core.Constants.AdmissionStatus.IsActive(admission.Status))
+            throw new InvalidOperationException(
+                $"Lượt nội trú đã kết thúc ({HIS.Core.Constants.AdmissionStatus.Label(admission.Status)}), không chỉ định dịch vụ được.");
+        await EmrLockGuard.EnsureEditableByRecordAsync(_context, admission.MedicalRecordId); // TT46
         await CheckDepositEnforceBlockAsync(admission.PatientId); // F3.3
 
         var doctor = await _context.Users.FindAsync(userId);
 
-        var request = new ServiceRequest
+        // QA0915 (P0): the header used to be RequestType = 0 ("mixed"), but LIS/RIS worklists, the
+        // inpatient lab-result tab and every lab report filter on RequestType == 1/2 — a lab test
+        // ordered at the bedside never reached the lab. Split into one request per request type,
+        // same vocabulary mapping as the OPD path (#217/T2).
+        var requestCode = $"CDNT{DateTime.Now:yyyyMMddHHmmss}";
+        var requestsByType = new Dictionary<int, ServiceRequest>();
+        ServiceRequest RequestFor(int requestType)
         {
-            Id = Guid.NewGuid(),
-            RequestCode = $"CDNT{DateTime.Now:yyyyMMddHHmmss}",
-            RequestDate = DateTime.UtcNow, // dot16: chuẩn UTC
-            MedicalRecordId = admission.MedicalRecordId,
-            DoctorId = userId,
-            DepartmentId = admission.DepartmentId,
-            RequestType = 0, // hỗn hợp — phân loại theo từng dịch vụ ở Detail
-            Diagnosis = dto.MainDiagnosis,
-            IcdCode = dto.MainDiagnosisCode,
-            RequestedByUserId = userId,
-            RequestedDate = DateTime.Now,
-            Status = 0,
-        };
+            if (!requestsByType.TryGetValue(requestType, out var r))
+            {
+                r = new ServiceRequest
+                {
+                    Id = Guid.NewGuid(),
+                    RequestCode = requestCode,
+                    RequestDate = DateTime.UtcNow, // dot16: chuẩn UTC
+                    MedicalRecordId = admission.MedicalRecordId,
+                    DoctorId = userId,
+                    DepartmentId = admission.DepartmentId,
+                    RequestType = requestType,
+                    Diagnosis = dto.MainDiagnosis,
+                    IcdCode = dto.MainDiagnosisCode,
+                    RequestedByUserId = userId,
+                    RequestedDate = DateTime.Now,
+                    Status = 0,
+                };
+                requestsByType[requestType] = r;
+            }
+            return r;
+        }
 
         var serviceItems = new List<InpatientServiceItemDto>();
         decimal totalAmount = 0;
@@ -375,9 +412,11 @@ public partial class InpatientCompleteService {
             var amount = service.UnitPrice * item.Quantity;
             totalAmount += amount;
 
+            var request = RequestFor(HIS.Core.Constants.ServiceRequestType.FromServiceType(service.ServiceType));
+            var detailId = Guid.NewGuid();
             request.Details.Add(new ServiceRequestDetail
             {
-                Id = Guid.NewGuid(),
+                Id = detailId,
                 ServiceRequestId = request.Id,
                 ServiceId = item.ServiceId,
                 Quantity = item.Quantity,
@@ -392,7 +431,7 @@ public partial class InpatientCompleteService {
 
             serviceItems.Add(new InpatientServiceItemDto
             {
-                Id = Guid.NewGuid(),
+                Id = detailId, // QA0915: real detail id (was a random Guid the FE could not act on)
                 ServiceId = item.ServiceId,
                 ServiceCode = service.ServiceCode,
                 ServiceName = service.ServiceName,
@@ -406,22 +445,30 @@ public partial class InpatientCompleteService {
             });
         }
 
-        request.Quantity = dto.Services.Sum(s => s.Quantity);
-        request.ServiceId = dto.Services.FirstOrDefault()?.ServiceId;
-        request.UnitPrice = serviceItems.Count > 0 ? serviceItems[0].UnitPrice : 0;
-        request.TotalPrice = totalAmount;
-        request.TotalAmount = totalAmount;
-        request.InsuranceAmount = 0;
-        request.PatientAmount = totalAmount;
+        if (requestsByType.Count == 0)
+            throw new InvalidOperationException("Không có dịch vụ hợp lệ để chỉ định.");
 
-        await _context.ServiceRequests.AddAsync(request);
+        foreach (var sr in requestsByType.Values)
+        {
+            var groupTotal = sr.Details.Sum(d => d.Amount);
+            var first = sr.Details.First();
+            sr.Quantity = sr.Details.Sum(d => d.Quantity);
+            sr.ServiceId = first.ServiceId;
+            sr.UnitPrice = first.UnitPrice;
+            sr.TotalPrice = groupTotal;
+            sr.TotalAmount = groupTotal;
+            sr.InsuranceAmount = 0;
+            sr.PatientAmount = groupTotal;
+            await _context.ServiceRequests.AddAsync(sr);
+        }
         await _context.SaveChangesAsync();
 
+        var firstRequest = requestsByType.Values.First();
         return new InpatientServiceOrderDto
         {
-            Id = request.Id,
+            Id = firstRequest.Id,
             AdmissionId = dto.AdmissionId,
-            OrderDate = request.RequestDate,
+            OrderDate = firstRequest.RequestDate,
             OrderingDoctorId = userId,
             OrderingDoctorName = doctor?.FullName ?? string.Empty,
             MainDiagnosisCode = dto.MainDiagnosisCode,
@@ -440,6 +487,14 @@ public partial class InpatientCompleteService {
     {
         // Cập nhật = huỷ phiếu cũ (chưa thực hiện) rồi tạo phiếu mới — tránh nhân đôi phiếu khi
         // phiếu đã persist. Chỉ huỷ được khi còn ở trạng thái Chờ (0), không đụng phiếu đã làm.
+        // QA0915: validate the stay BEFORE cancelling the old order — CreateServiceOrderAsync now refuses
+        // finished stays, and the cancel below is saved first (old order lost, no new one).
+        var targetAdmission = await _context.Set<Admission>().AsNoTracking().FirstOrDefaultAsync(a => a.Id == dto.AdmissionId)
+            ?? throw new KeyNotFoundException("Admission not found");
+        if (!HIS.Core.Constants.AdmissionStatus.IsActive(targetAdmission.Status))
+            throw new InvalidOperationException(
+                $"Lượt nội trú đã kết thúc ({HIS.Core.Constants.AdmissionStatus.Label(targetAdmission.Status)}), không sửa chỉ định được.");
+
         var existing = await _context.ServiceRequests
             .Include(r => r.Details)
             .FirstOrDefaultAsync(r => r.Id == id);
@@ -592,16 +647,43 @@ public partial class InpatientCompleteService {
         return Task.CompletedTask;
     }
 
-    public Task<ServiceOrderWarningDto> CheckServiceOrderWarningsAsync(Guid admissionId, List<CreateInpatientServiceItemDto> items)
+    public async Task<ServiceOrderWarningDto> CheckServiceOrderWarningsAsync(Guid admissionId, List<CreateInpatientServiceItemDto> items)
     {
-        return Task.FromResult(new ServiceOrderWarningDto
-        {
-            HasDuplicateToday = false,
-            ExceedsDeposit = false,
-            HasTT35Warnings = false,
-            ExceedsPackageLimit = false,
-            IsOutsideProtocol = false
-        });
+        // QA0915 wave-2: was a stub that always answered "no warning". Two real, advisory checks:
+        // (1) same service already ordered (not cancelled) for this stay today (VN day);
+        // (2) order amount above the patient's remaining deposit balance.
+        var result = new ServiceOrderWarningDto();
+        var admission = await _context.Set<Admission>().AsNoTracking().FirstOrDefaultAsync(a => a.Id == admissionId)
+            ?? throw new KeyNotFoundException("Admission not found");
+        items ??= new List<CreateInpatientServiceItemDto>();
+        var serviceIds = items.Select(i => i.ServiceId).Distinct().ToList();
+        if (serviceIds.Count == 0) return result;
+
+        var services = await _context.Services.AsNoTracking()
+            .Where(s => serviceIds.Contains(s.Id))
+            .ToDictionaryAsync(s => s.Id);
+
+        var (dayFrom, dayTo) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.NowVn.Date);
+        var orderedToday = await _context.ServiceRequestDetails.AsNoTracking()
+            .Where(d => !d.IsDeleted && d.Status != 3
+                        && serviceIds.Contains(d.ServiceId)
+                        && d.ServiceRequest.MedicalRecordId == admission.MedicalRecordId
+                        && d.ServiceRequest.Status != 4
+                        && d.ServiceRequest.RequestDate >= dayFrom && d.ServiceRequest.RequestDate < dayTo)
+            .Select(d => d.ServiceId)
+            .Distinct()
+            .ToListAsync();
+        result.DuplicateServices = orderedToday
+            .Select(id => services.TryGetValue(id, out var s) ? s.ServiceName : id.ToString())
+            .ToList();
+        result.HasDuplicateToday = result.DuplicateServices.Count > 0;
+
+        result.OrderAmount = items.Sum(i => services.TryGetValue(i.ServiceId, out var s) ? s.UnitPrice * i.Quantity : 0m);
+        result.DepositRemaining = await _context.Deposits.AsNoTracking()
+            .Where(d => d.PatientId == admission.PatientId && d.Status != HIS.Core.Constants.DepositStatus.Cancelled && !d.IsDeleted)
+            .SumAsync(d => (decimal?)d.RemainingAmount) ?? 0m;
+        result.ExceedsDeposit = result.OrderAmount > result.DepositRemaining;
+        return result;
     }
 
     public async Task<byte[]> PrintServiceOrderAsync(Guid orderId)

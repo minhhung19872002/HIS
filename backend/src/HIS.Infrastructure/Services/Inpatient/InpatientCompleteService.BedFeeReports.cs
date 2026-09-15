@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Inpatient;
 using HIS.Application.Services;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
@@ -22,12 +23,27 @@ public partial class InpatientCompleteService {
         if (admission == null)
             throw new KeyNotFoundException("Admission not found");
 
+        // QA0915: a discharged / transferred stay must not take a bed (it stayed occupied forever).
+        if (!AdmissionStatus.IsActive(admission.Status))
+            throw new InvalidOperationException(
+                $"Lượt nội trú đã kết thúc ({AdmissionStatus.Label(admission.Status)}), không phân giường được.");
+
         var bed = await _context.Beds
             .Include(b => b.Room)
             .ThenInclude(r => r.Department)
             .FirstOrDefaultAsync(b => b.Id == dto.BedId);
         if (bed == null)
             throw new KeyNotFoundException("Bed not found");
+
+        // QA0915: assigning a second bed without releasing the first left one admission holding two
+        // active beds. Changing bed must go through transfer-bed (which releases the old one).
+        var otherActiveBed = await _context.Set<BedAssignment>()
+            .Where(ba => ba.AdmissionId == dto.AdmissionId && ba.Status == 0 && ba.BedId != dto.BedId)
+            .Select(ba => ba.Bed.BedName)
+            .FirstOrDefaultAsync();
+        if (otherActiveBed != null)
+            throw new InvalidOperationException(
+                $"Bệnh nhân đang nằm giường {otherActiveBed} — dùng Chuyển giường thay vì phân thêm giường.");
 
         // E2E fix (prod-e2e 2026-06-17): idempotent. Nếu giường đã gán ACTIVE cho CHÍNH admission này
         // (vd admit-from-opd đã tự gán giường đầu trống trong phòng) → trả assignment hiện có thay vì ném
@@ -96,9 +112,19 @@ public partial class InpatientCompleteService {
 
     public async Task<BedAssignmentDto> TransferBedAsync(TransferBedDto dto, Guid userId)
     {
+        // QA0915: unknown admission used to reach SaveChanges and fail on the FK (500); a finished
+        // stay must not take a bed.
+        var admissionToMove = await _context.Set<Admission>().FindAsync(dto.AdmissionId)
+            ?? throw new KeyNotFoundException("Admission not found");
+        if (!AdmissionStatus.IsActive(admissionToMove.Status))
+            throw new InvalidOperationException(
+                $"Lượt nội trú đã kết thúc ({AdmissionStatus.Label(admissionToMove.Status)}), không chuyển giường được.");
+
         // Release current bed
         var currentAssignment = await _context.Set<BedAssignment>()
             .FirstOrDefaultAsync(ba => ba.AdmissionId == dto.AdmissionId && ba.Status == 0);
+        if (currentAssignment != null && currentAssignment.BedId == dto.NewBedId)
+            throw new InvalidOperationException("Bệnh nhân đang nằm chính giường này.");
         if (currentAssignment != null)
         {
             currentAssignment.Status = 2; // Chuyển giường
@@ -157,6 +183,20 @@ public partial class InpatientCompleteService {
             Status = "Đang sử dụng",
             AssignedBy = userId.ToString()
         };
+    }
+
+    /// <summary>
+    /// QA0915: bed must exist and have no active assignment held by another admission.
+    /// </summary>
+    private async Task EnsureBedAvailableAsync(Guid bedId, Guid? ownAdmissionId)
+    {
+        var bed = await _context.Beds.AsNoTracking().FirstOrDefaultAsync(b => b.Id == bedId)
+            ?? throw new KeyNotFoundException("Không tìm thấy giường.");
+        var occupied = await _context.Set<BedAssignment>()
+            .AnyAsync(ba => ba.BedId == bedId && ba.Status == 0
+                            && (!ownAdmissionId.HasValue || ba.AdmissionId != ownAdmissionId.Value));
+        if (occupied)
+            throw new InvalidOperationException($"Giường {bed.BedName} đã có bệnh nhân, vui lòng chọn giường khác");
     }
 
     public Task<bool> RegisterSharedBedAsync(Guid admissionId, Guid bedId, Guid userId)
@@ -479,23 +519,89 @@ public partial class InpatientCompleteService {
         });
     }
 
-    public Task<DepositRequestDto> CreateDepositRequestAsync(CreateDepositRequestDto dto, Guid userId)
+    // QA0915 wave-2: deposit requests were in-memory stubs (Inpatient v2 said "sent", list always empty).
+    // Persisted to InpatientDepositRequests — NOT to Deposits, whose rows are collected money read by
+    // billing reports. "Collected" (1) is derived from a non-cancelled Deposit on the same medical record
+    // received at/after the request time.
+    public async Task<DepositRequestDto> CreateDepositRequestAsync(CreateDepositRequestDto dto, Guid userId)
     {
-        return Task.FromResult(new DepositRequestDto
+        if (dto.RequestedAmount <= 0)
+            throw new InvalidOperationException("Số tiền tạm ứng yêu cầu phải lớn hơn 0.");
+        var admission = await _context.Admissions.AsNoTracking().FirstOrDefaultAsync(a => a.Id == dto.AdmissionId)
+            ?? throw new KeyNotFoundException("Admission not found");
+        if (!AdmissionStatus.IsActive(admission.Status))
+            throw new InvalidOperationException(
+                $"Lượt nội trú đã kết thúc ({AdmissionStatus.Label(admission.Status)}), không gửi yêu cầu tạm ứng được.");
+
+        var entity = new InpatientDepositRequest
         {
             Id = Guid.NewGuid(),
-            AdmissionId = dto.AdmissionId,
+            AdmissionId = admission.Id,
+            MedicalRecordId = admission.MedicalRecordId,
+            PatientId = admission.PatientId,
+            DepartmentId = admission.DepartmentId,
             RequestedAmount = dto.RequestedAmount,
             Reason = dto.Reason,
-            RequestedBy = userId,
+            RequestedById = userId,
             RequestDate = DateTime.Now,
-            Status = 0
-        });
+            Status = 0,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = userId.ToString(),
+        };
+        _context.Set<InpatientDepositRequest>().Add(entity);
+        await _context.SaveChangesAsync();
+        return (await MapDepositRequestsAsync(new List<InpatientDepositRequest> { entity }))[0];
     }
 
-    public Task<List<DepositRequestDto>> GetDepositRequestsAsync(Guid? departmentId, int? status)
+    public async Task<List<DepositRequestDto>> GetDepositRequestsAsync(Guid? departmentId, int? status)
     {
-        return Task.FromResult(new List<DepositRequestDto>());
+        var q = _context.Set<InpatientDepositRequest>().AsNoTracking().AsQueryable();
+        if (departmentId.HasValue && departmentId.Value != Guid.Empty)
+            q = q.Where(r => r.DepartmentId == departmentId.Value);
+        var rows = await q.OrderByDescending(r => r.RequestDate).Take(500).ToListAsync();
+        var list = await MapDepositRequestsAsync(rows);
+        return status.HasValue ? list.Where(r => r.Status == status.Value).ToList() : list;
+    }
+
+    private async Task<List<DepositRequestDto>> MapDepositRequestsAsync(List<InpatientDepositRequest> rows)
+    {
+        if (rows.Count == 0) return new List<DepositRequestDto>();
+        var patientIds = rows.Select(r => r.PatientId).Distinct().ToList();
+        var mrIds = rows.Select(r => r.MedicalRecordId).Distinct().ToList();
+        var patients = await _context.Patients.AsNoTracking().Where(p => patientIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => new { p.FullName, p.PatientCode });
+        var deposits = await _context.Deposits.AsNoTracking()
+            .Where(d => d.MedicalRecordId != null && mrIds.Contains(d.MedicalRecordId.Value)
+                        && !d.IsDeleted && d.Status != DepositStatus.Cancelled)
+            .Select(d => new { d.MedicalRecordId, d.ReceiptDate, d.ReceivedByUserId })
+            .ToListAsync();
+        var userIds = rows.Select(r => r.RequestedById).Concat(deposits.Select(d => d.ReceivedByUserId)).Distinct().ToList();
+        var users = await _context.Users.AsNoTracking().Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.FullName);
+
+        return rows.Select(r =>
+        {
+            var collected = r.Status == 0
+                ? deposits.Where(d => d.MedicalRecordId == r.MedicalRecordId && d.ReceiptDate >= r.RequestDate)
+                          .OrderBy(d => d.ReceiptDate).FirstOrDefault()
+                : null;
+            patients.TryGetValue(r.PatientId, out var p);
+            return new DepositRequestDto
+            {
+                Id = r.Id,
+                AdmissionId = r.AdmissionId,
+                PatientName = p?.FullName ?? string.Empty,
+                PatientCode = p?.PatientCode ?? string.Empty,
+                RequestedAmount = r.RequestedAmount,
+                Reason = r.Reason,
+                RequestedBy = r.RequestedById,
+                RequestedByName = users.TryGetValue(r.RequestedById, out var rn) ? rn : string.Empty,
+                RequestDate = r.RequestDate,
+                Status = collected != null ? 1 : r.Status,
+                CollectedDate = collected?.ReceiptDate,
+                CollectedByName = collected != null && users.TryGetValue(collected.ReceivedByUserId, out var cn) ? cn : null,
+            };
+        }).ToList();
     }
 
     public async Task<TransferWarningDto> CheckTransferWarningsAsync(Guid admissionId)

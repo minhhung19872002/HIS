@@ -316,6 +316,7 @@ public partial class InpatientCompleteService {
         if (dto.AdmissionId == Guid.Empty
             || !await _context.Admissions.AnyAsync(a => a.Id == dto.AdmissionId && !a.IsDeleted))
             throw new InvalidOperationException("AdmissionId khong hop le hoac khong ton tai");
+        await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, dto.AdmissionId); // TT46 — QA0915: was writable on a finalized EMR
         if (dto.Temperature == null && dto.Pulse == null && dto.RespiratoryRate == null
             && dto.SystolicBP == null && dto.DiastolicBP == null && dto.SpO2 == null
             && dto.Weight == null && dto.Height == null)

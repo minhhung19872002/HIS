@@ -197,12 +197,30 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
             var request = await _context.Set<SurgeryRequest>().FindAsync(dto.SurgeryId);
             if (request == null) throw new KeyNotFoundException("Surgery request not found");
 
+            // QA0915: approve/reject wrote the status blindly — "reject" flipped a COMPLETED surgery to
+            // cancelled and "approve" revived a cancelled one (bypassing the #218/T3 cancel guard).
+            if (dto.IsApproved)
+            {
+                if (request.Status == SurgeryStatus.RequestCancelled)
+                    throw new InvalidOperationException("Ca mổ đã hủy, không duyệt lại được. Hãy tạo yêu cầu mới.");
+                if (request.Status == SurgeryStatus.RequestInProgress || request.Status == SurgeryStatus.RequestCompleted)
+                    throw new InvalidOperationException($"Ca mổ đang ở trạng thái \"{SurgeryStatus.RequestLabel(request.Status)}\", không duyệt lại được.");
+            }
+            else
+            {
+                SurgeryStatus.EnsureCanCancelRequest(request.Status, "từ chối duyệt");
+            }
+
             request.Status = dto.IsApproved ? 1 : 4;
             request.UpdatedAt = DateTime.Now;
             request.UpdatedBy = userId.ToString();
 
             await _context.SaveChangesAsync();
             return await GetSurgeryByIdAsync(dto.SurgeryId) ?? new SurgeryDto();
+        }
+        catch (Exception ex) when (ex is KeyNotFoundException or InvalidOperationException)
+        {
+            throw; // QA0915: not-found / business guard → 404/400, was swallowed into a 200 empty DTO
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
@@ -243,24 +261,51 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
                 || !await _context.Set<SurgeryRequest>().AnyAsync(r => r.Id == dto.SurgeryId))
                 throw new InvalidOperationException("Khong tim thay yeu cau PTTT (surgeryId khong hop le)");
 
-            var schedule = new SurgerySchedule
-            {
-                Id = Guid.NewGuid(),
-                SurgeryRequestId = dto.SurgeryId,
-                OperatingRoomId = dto.OperatingRoomId,
-                ScheduledDate = dto.ScheduledDate.Date,
-                ScheduledTime = dto.ScheduledDate.TimeOfDay,
-                ScheduledDateTime = dto.ScheduledDate,
-                EstimatedDuration = dto.EstimatedDurationMinutes,
-                SurgeonId = userId,
-                Status = 0,
-                CreatedAt = DateTime.Now,
-                CreatedBy = userId.ToString()
-            };
-
-            _context.Set<SurgerySchedule>().Add(schedule);
-
             var request = await _context.Set<SurgeryRequest>().FindAsync(dto.SurgeryId);
+
+            // QA0915: scheduling reset ANY status to 1 — a cancelled surgery came back to life and a
+            // completed one lost its "completed" status. Only not-yet-started requests are schedulable.
+            if (request != null)
+            {
+                if (request.Status == SurgeryStatus.RequestCancelled)
+                    throw new InvalidOperationException("Ca mổ đã hủy, không lên lịch được. Hãy tạo yêu cầu mới.");
+                if (request.Status == SurgeryStatus.RequestInProgress || request.Status == SurgeryStatus.RequestCompleted)
+                    throw new InvalidOperationException($"Ca mổ đang ở trạng thái \"{SurgeryStatus.RequestLabel(request.Status)}\", không lên lịch lại được.");
+            }
+
+            // QA0915: scheduling twice created a second schedule row; start/complete then picked an
+            // arbitrary row (FirstOrDefault without order). Re-scheduling now moves the existing row.
+            var schedule = await _context.Set<SurgerySchedule>()
+                .FirstOrDefaultAsync(s => s.SurgeryRequestId == dto.SurgeryId);
+            if (schedule != null)
+            {
+                schedule.OperatingRoomId = dto.OperatingRoomId;
+                schedule.ScheduledDate = dto.ScheduledDate.Date;
+                schedule.ScheduledTime = dto.ScheduledDate.TimeOfDay;
+                schedule.ScheduledDateTime = dto.ScheduledDate;
+                schedule.EstimatedDuration = dto.EstimatedDurationMinutes;
+                schedule.UpdatedAt = DateTime.Now;
+                schedule.UpdatedBy = userId.ToString();
+            }
+            else
+            {
+                schedule = new SurgerySchedule
+                {
+                    Id = Guid.NewGuid(),
+                    SurgeryRequestId = dto.SurgeryId,
+                    OperatingRoomId = dto.OperatingRoomId,
+                    ScheduledDate = dto.ScheduledDate.Date,
+                    ScheduledTime = dto.ScheduledDate.TimeOfDay,
+                    ScheduledDateTime = dto.ScheduledDate,
+                    EstimatedDuration = dto.EstimatedDurationMinutes,
+                    SurgeonId = userId,
+                    Status = 0,
+                    CreatedAt = DateTime.Now,
+                    CreatedBy = userId.ToString()
+                };
+                _context.Set<SurgerySchedule>().Add(schedule);
+            }
+
             if (request != null)
             {
                 request.Status = 1; // Đã lên lịch
@@ -346,6 +391,15 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
             var schedule = await _context.Set<SurgerySchedule>()
                 .FirstOrDefaultAsync(s => s.SurgeryRequestId == dto.SurgeryId);
 
+            // QA0915: unknown / unscheduled id returned 200 with an empty DTO.
+            if (schedule == null)
+                throw new InvalidOperationException("Khong tim thay lich mo cua ca nay (surgeryId khong hop le hoac chua len lich)");
+
+            // QA0915 (P1): check-in wrote 2 over an IN-PROGRESS schedule (3), which re-opened
+            // EnsureCanStart → a second "start" created a second surgery record for the same case.
+            var checkInRequest = await _context.Set<SurgeryRequest>().FindAsync(dto.SurgeryId);
+            SurgeryStatus.EnsureCanStart(checkInRequest?.Status ?? SurgeryStatus.RequestScheduled, schedule.Status);
+
             if (schedule != null)
             {
                 schedule.Status = 2; // Đang chuẩn bị
@@ -355,6 +409,10 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
             }
 
             return await GetSurgeryByIdAsync(dto.SurgeryId) ?? new SurgeryDto();
+        }
+        catch (InvalidOperationException)
+        {
+            throw; // QA0915: business guard → 400 (was swallowed into 200)
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {

@@ -35,6 +35,9 @@ public class ObstetricRegisterService : IObstetricRegisterService
     {
         if (string.IsNullOrWhiteSpace(dto.MotherName))
             throw new InvalidOperationException("Chua nhap ten san phu.");
+        // QA0915: a missing delivery date was saved as 01/01/0001 into the legal birth register.
+        if (dto.DeliveryDate == default)
+            throw new InvalidOperationException("Chua nhap ngay sinh (ngay de).");
 
         BirthRegister entity;
         if (dto.Id == Guid.Empty)
@@ -44,7 +47,8 @@ public class ObstetricRegisterService : IObstetricRegisterService
         }
         else
         {
-            entity = await _db.BirthRegisters.FirstAsync(b => b.Id == dto.Id);
+            entity = await _db.BirthRegisters.FirstOrDefaultAsync(b => b.Id == dto.Id && !b.IsDeleted)
+                ?? throw new KeyNotFoundException("Khong tim thay ban ghi so sinh."); // QA0915: was FirstAsync → 500
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }
@@ -99,6 +103,9 @@ public class ObstetricRegisterService : IObstetricRegisterService
     {
         if (string.IsNullOrWhiteSpace(dto.PatientName))
             throw new InvalidOperationException("Chua nhap ten nguoi benh.");
+        // QA0915: same default-date hole as the birth register.
+        if (dto.ProcedureDate == default)
+            throw new InvalidOperationException("Chua nhap ngay thuc hien thu thuat.");
 
         AbortionRegister entity;
         if (dto.Id == Guid.Empty)
@@ -108,7 +115,8 @@ public class ObstetricRegisterService : IObstetricRegisterService
         }
         else
         {
-            entity = await _db.AbortionRegisters.FirstAsync(a => a.Id == dto.Id);
+            entity = await _db.AbortionRegisters.FirstOrDefaultAsync(a => a.Id == dto.Id && !a.IsDeleted)
+                ?? throw new KeyNotFoundException("Khong tim thay ban ghi so nao pha thai."); // QA0915: was FirstAsync → 500
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }

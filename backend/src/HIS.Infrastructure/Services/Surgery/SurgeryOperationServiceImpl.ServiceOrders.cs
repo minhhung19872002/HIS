@@ -26,24 +26,23 @@ public partial class SurgeryOperationServiceImpl
         return !string.IsNullOrWhiteSpace(mr.InitialDiagnosis) ? mr.InitialDiagnosis : mr.MainIcdCode;
     }
 
-    public Task<List<IcdCodeDto>> SearchIcdCodesAsync(string keyword, bool byCode)
+    public async Task<List<IcdCodeDto>> SearchIcdCodesAsync(string keyword, bool byCode)
     {
-        var codes = new List<IcdCodeDto>
-        {
-            new() { Code = "K35.9", Name = "Viêm ruột thừa cấp" },
-            new() { Code = "K80.0", Name = "Sỏi túi mật có viêm túi mật cấp" },
-            new() { Code = "I21.0", Name = "Nhồi máu cơ tim cấp thành trước" },
-            new() { Code = "J18.9", Name = "Viêm phổi không xác định" }
-        };
+        // QA0915: was a hard-coded list of 4 codes — the surgery request modal could not find any other
+        // pre-op diagnosis. Read the real ICD-10 catalogue (same table the OPD search uses).
+        var kw = (keyword ?? string.Empty).Trim();
+        var query = _context.IcdCodes.AsNoTracking().Where(i => !i.IsDeleted && i.IsActive);
+        if (kw.Length > 0)
+            query = byCode
+                ? query.Where(i => i.Code.StartsWith(kw))
+                : query.Where(i => i.Code.StartsWith(kw) || i.Name.Contains(kw)
+                                   || (i.NameNoDiacritics != null && i.NameNoDiacritics.Contains(kw)));
 
-        if (!string.IsNullOrEmpty(keyword))
-        {
-            codes = codes.Where(c =>
-                c.Code.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
-                c.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase)).ToList();
-        }
-
-        return Task.FromResult(codes);
+        return await query
+            .OrderBy(i => i.Code)
+            .Take(50)
+            .Select(i => new IcdCodeDto { Code = i.Code, Name = i.Name, NameEnglish = i.NameEnglish, Chapter = i.ChapterName })
+            .ToListAsync();
     }
 
     public async Task<List<SurgeryServiceDto>> SearchServicesAsync(string? keyword, int? serviceType)

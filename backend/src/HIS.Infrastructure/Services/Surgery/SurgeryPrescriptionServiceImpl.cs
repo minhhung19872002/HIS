@@ -405,12 +405,18 @@ public class SurgeryPrescriptionServiceImpl : ISurgeryPrescriptionService
 
         if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
         {
-            await _context.Database.ExecuteSqlRawAsync(
+            // QA0915 (P1): the content (planned procedure, risks...) could be rewritten AFTER the
+            // patient/family signed, so the signature no longer matched what was explained.
+            // Only unsigned consents are editable; a signed one needs a new consent form.
+            var updated = await _context.Database.ExecuteSqlRawAsync(
                 @"UPDATE SurgeryConsents SET Diagnosis = {0}, PlannedProcedure = {1}, Risks = {2},
                   Alternatives = {3}, DoctorExplanation = {4}, UpdatedAt = GETDATE(), UpdatedBy = {5}
-                  WHERE Id = {6}",
+                  WHERE Id = {6} AND SurgeryId = {7} AND IsDeleted = 0 AND IsSigned = 0",
                 dto.Diagnosis ?? "", dto.PlannedProcedure ?? "", dto.Risks ?? "",
-                dto.Alternatives ?? "", dto.DoctorExplanation ?? "", userId.ToString(), dto.Id.Value);
+                dto.Alternatives ?? "", dto.DoctorExplanation ?? "", userId.ToString(), dto.Id.Value, dto.SurgeryId);
+            if (updated == 0)
+                throw new InvalidOperationException(
+                    "Không sửa được cam kết: không tìm thấy phiếu của ca mổ này, hoặc phiếu đã được ký. Hãy lập phiếu cam kết mới.");
         }
         else
         {
@@ -430,11 +436,14 @@ public class SurgeryPrescriptionServiceImpl : ISurgeryPrescriptionService
 
     public async Task<SurgeryConsentDto> SignConsentAsync(Guid consentId, string signerName, string relationship, Guid userId)
     {
-        await _context.Database.ExecuteSqlRawAsync(
+        // QA0915: unknown id returned 200 "IsSigned = true"; re-signing overwrote the original signer/time.
+        var signed = await _context.Database.ExecuteSqlRawAsync(
             @"UPDATE SurgeryConsents SET SignerName = {0}, SignerRelationship = {1},
               SignedAt = GETDATE(), IsSigned = 1, UpdatedAt = GETDATE(), UpdatedBy = {2}
-              WHERE Id = {3}",
+              WHERE Id = {3} AND IsDeleted = 0 AND IsSigned = 0",
             signerName, relationship, userId.ToString(), consentId);
+        if (signed == 0)
+            throw new InvalidOperationException("Không ký được: không tìm thấy phiếu cam kết hoặc phiếu đã được ký trước đó.");
 
         return new SurgeryConsentDto
         {

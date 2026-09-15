@@ -26,7 +26,7 @@ namespace HIS.Application.DTOs.Rehabilitation
 
         // Clinical Info
         public string PrimaryDiagnosis { get; set; }
-        public string DiagnosisICD { get; set; }
+        public string? DiagnosisICD { get; set; } // QA0915: optional in FE contract
         public List<string> SecondaryDiagnoses { get; set; }
         public DateTime OnsetDate { get; set; }
         public string MedicalHistory { get; set; }
@@ -55,15 +55,15 @@ namespace HIS.Application.DTOs.Rehabilitation
         public Guid? AdmissionId { get; set; }
         public Guid? VisitId { get; set; }
         public string PrimaryDiagnosis { get; set; }
-        public string DiagnosisICD { get; set; }
+        public string? DiagnosisICD { get; set; } // QA0915: optional in FE contract
         public DateTime OnsetDate { get; set; }
-        public string MedicalHistory { get; set; }
-        public string CurrentMedications { get; set; }
-        public string Precautions { get; set; }
+        public string? MedicalHistory { get; set; } // QA0915: optional in FE contract (implicit [Required] → 400)
+        public string? CurrentMedications { get; set; }
+        public string? Precautions { get; set; }
         public string RehabType { get; set; }
-        public string RehabGoals { get; set; }
-        public string SpecificRequests { get; set; }
-        public string Urgency { get; set; }
+        public string? RehabGoals { get; set; }
+        public string? SpecificRequests { get; set; }
+        public string? Urgency { get; set; }
     }
 
     #endregion
@@ -142,19 +142,21 @@ namespace HIS.Application.DTOs.Rehabilitation
     {
         public Guid? Id { get; set; }
         public Guid ReferralId { get; set; }
-        public string AssessmentType { get; set; }
+        // QA0915: optional fields made nullable — non-nullable reference types are implicitly [Required]
+        // under <Nullable>enable</Nullable>, so the v2 assessment form (no gait/transfers/MMT/ROM) got 400.
+        public string? AssessmentType { get; set; }
         public int? BarthelIndex { get; set; }
         public int? FIMScore { get; set; }
         public int? MoCAScore { get; set; }
         public int? BergBalanceScore { get; set; }
-        public Dictionary<string, int> ManualMuscleTest { get; set; }
-        public Dictionary<string, string> RangeOfMotion { get; set; }
-        public string Gait { get; set; }
-        public string Transfers { get; set; }
-        public string ADLNotes { get; set; }
-        public string ProblemList { get; set; }
-        public string Prognosis { get; set; }
-        public string RecommendedInterventions { get; set; }
+        public Dictionary<string, int>? ManualMuscleTest { get; set; }
+        public Dictionary<string, string>? RangeOfMotion { get; set; }
+        public string? Gait { get; set; }
+        public string? Transfers { get; set; }
+        public string? ADLNotes { get; set; }
+        public string? ProblemList { get; set; }
+        public string? Prognosis { get; set; }
+        public string? RecommendedInterventions { get; set; }
     }
 
     #endregion

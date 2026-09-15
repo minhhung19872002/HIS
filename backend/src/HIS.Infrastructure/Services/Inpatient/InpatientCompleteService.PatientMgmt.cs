@@ -27,7 +27,11 @@ public partial class InpatientCompleteService {
             .Include(m => m.Room)
             .Include(m => m.Bed)
             .Include(m => m.Doctor)
-            .Where(m => m.TreatmentType == 2); // 2 = Inpatient
+            .Where(m => m.TreatmentType == 2) // 2 = Inpatient
+            // QA0915 wave-2: records flagged inpatient but without any Admission (seed / half-finished
+            // flows) came back with AdmissionId = Guid.Empty and every row action failed. Every inpatient
+            // endpoint is keyed by admissionId, so only list records that actually have a stay.
+            .Where(m => _context.Set<Admission>().Any(a => a.MedicalRecordId == m.Id && !a.IsDeleted));
 
         // Apply filters
         if (searchDto.FromDate.HasValue)
@@ -95,7 +99,9 @@ public partial class InpatientCompleteService {
             {
                 AdmissionId = _context.Set<Admission>()
                     .Where(a => a.MedicalRecordId == m.Id && !a.IsDeleted)
-                    .OrderByDescending(a => a.AdmissionDate)
+                    // QA0915: prefer the stay still in treatment (0/6) over an older closed one (e.g. 5 = transferred dept)
+                    .OrderByDescending(a => a.Status == 0 || a.Status == 6)
+                    .ThenByDescending(a => a.AdmissionDate)
                     .Select(a => a.Id)
                     .FirstOrDefault(),
                 MedicalRecordCode = m.MedicalRecordCode,
@@ -264,6 +270,19 @@ public partial class InpatientCompleteService {
         if (medicalRecord == null)
             throw new KeyNotFoundException("Medical record not found");
 
+        // QA0915: one active inpatient stay per medical record. Without this guard a double-click /
+        // retry created 2-3 concurrent Admissions on the same record, each holding its own bed
+        // (ward map showed one patient on several beds).
+        var hasActiveAdmission = await _context.Set<Admission>()
+            .AnyAsync(a => a.MedicalRecordId == dto.MedicalRecordId
+                           && (a.Status == AdmissionStatus.InTreatment || a.Status == AdmissionStatus.PendingDischarge));
+        if (hasActiveAdmission)
+            throw new InvalidOperationException("Hồ sơ này đã có lượt nội trú đang điều trị, không nhập viện lần nữa được.");
+
+        // QA0915: target bed must exist and be free (same rule as TransferBedAsync).
+        if (dto.BedId.HasValue)
+            await EnsureBedAvailableAsync(dto.BedId.Value, null);
+
         // Update medical record to IPD type
         medicalRecord.TreatmentType = 2; // Inpatient
         medicalRecord.DepartmentId = dto.DepartmentId;
@@ -352,6 +371,14 @@ public partial class InpatientCompleteService {
             .FirstOrDefaultAsync(a => a.Id == dto.SourceAdmissionId);
         if (sourceAdmission == null)
             throw new KeyNotFoundException("Source admission not found");
+
+        // QA0915: same guards as TransferDepartmentAsync — a finished stay cannot be moved, and the
+        // target bed must be free.
+        if (!AdmissionStatus.IsActive(sourceAdmission.Status))
+            throw new InvalidOperationException(
+                $"Lượt nội trú đã kết thúc ({AdmissionStatus.Label(sourceAdmission.Status)}), không tiếp nhận chuyển khoa được.");
+        if (dto.TargetBedId.HasValue)
+            await EnsureBedAvailableAsync(dto.TargetBedId.Value, dto.SourceAdmissionId);
 
         var medicalRecord = sourceAdmission.MedicalRecord;
         medicalRecord.DepartmentId = dto.TargetDepartmentId;
@@ -486,6 +513,19 @@ public partial class InpatientCompleteService {
             throw new InvalidOperationException(
                 $"Lượt nội trú đã kết thúc ({AdmissionStatus.Label(admission.Status)}), không chuyển khoa được.");
 
+        // QA0915: "transfer" to the department the patient is already in released the bed and wrote a
+        // bogus A→A handover row. Moving inside a department goes through transfer-bed.
+        if (dto.TargetDepartmentId == admission.DepartmentId)
+            throw new InvalidOperationException(
+                "Bệnh nhân đang ở chính khoa này — dùng chức năng Chuyển giường để đổi phòng/giường trong khoa.");
+
+        // QA0915: the target room must belong to the target department (a room of another department
+        // was accepted, leaving the admission in dept B but room of dept A).
+        var targetRoom = await _context.Rooms.AsNoTracking().FirstOrDefaultAsync(r => r.Id == dto.TargetRoomId)
+            ?? throw new KeyNotFoundException("Không tìm thấy phòng đích.");
+        if (targetRoom.DepartmentId != dto.TargetDepartmentId)
+            throw new InvalidOperationException("Phòng đích không thuộc khoa chuyển đến.");
+
         // T3/#218: giường đích phải còn trống. Đây là cùng một luật mà `TransferBedAsync` đã thi
         // hành (và câu báo lỗi lấy nguyên của nó cho nhất quán) — chỉ riêng đường chuyển khoa là bỏ
         // trống, nên hai bệnh nhân nằm chung một giường.
@@ -494,6 +534,8 @@ public partial class InpatientCompleteService {
             var targetBed = await _context.Beds.FirstOrDefaultAsync(b => b.Id == dto.TargetBedId.Value);
             if (targetBed == null)
                 throw new KeyNotFoundException("Không tìm thấy giường đích.");
+            if (targetBed.RoomId != dto.TargetRoomId)
+                throw new InvalidOperationException("Giường đích không thuộc phòng đích.");
 
             var bedOccupied = await _context.Set<BedAssignment>()
                 .AnyAsync(ba => ba.BedId == dto.TargetBedId.Value

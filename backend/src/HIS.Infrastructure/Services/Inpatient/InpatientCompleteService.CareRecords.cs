@@ -18,6 +18,7 @@ public partial class InpatientCompleteService {
     // FE báo "Đã ghi nhận truyền dịch" nhưng KHÔNG lưu gì (patient-safety).
     public async Task<InfusionRecordDto> CreateInfusionRecordAsync(CreateInfusionRecordDto dto, Guid userId)
     {
+        await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, dto.AdmissionId); // TT46 — QA0915: was writable on a finalized EMR
         var entity = new InfusionRecord
         {
             Id = Guid.NewGuid(),
@@ -189,63 +190,180 @@ public partial class InpatientCompleteService {
         return Encoding.UTF8.GetBytes(html);
     }
 
-    public Task<BloodTransfusionDto> CreateBloodTransfusionAsync(CreateBloodTransfusionDto dto, Guid userId)
+    // ── QA0915 wave-2: blood transfusion at the bedside ───────────────────────────────────────────
+    // Was an in-memory stub: TreatmentMonitorSection said "Đã ghi nhận truyền máu" and nothing was stored,
+    // and the reaction endpoint recorded nothing either. Now persisted to BloodTransfusions (the blood
+    // bank's table). That table requires a real blood unit and blood request, so the bag number must be
+    // an issued unit (BloodUnits.UnitCode) and the patient must have a live blood request. ABO/Rh is
+    // checked with the shared BloodCompatibility rule. The stay id is kept in Note ("[ADM:{id}]") because
+    // the table has no AdmissionId column.
+    private const int TransfusionInProgress = 1, TransfusionCompleted = 2, TransfusionStoppedReaction = 3, TransfusionCancelled = 4;
+
+    private static string? MapBloodProductCode(string? productName) => (productName ?? string.Empty).Trim().ToLowerInvariant() switch
     {
-        return Task.FromResult(new BloodTransfusionDto
+        "hồng cầu khối" or "rbc" => "RBC",
+        "máu toàn phần" or "wb" => "WB",
+        "huyết tương tươi đông lạnh" or "ffp" => "FFP",
+        "khối tiểu cầu" or "plt" => "PLT",
+        "tủa lạnh" or "cryo" => "CRYO",
+        _ => null,
+    };
+
+    public async Task<BloodTransfusionDto> CreateBloodTransfusionAsync(CreateBloodTransfusionDto dto, Guid userId)
+    {
+        var admission = await _context.Admissions.AsNoTracking().Include(a => a.Patient)
+            .FirstOrDefaultAsync(a => a.Id == dto.AdmissionId)
+            ?? throw new KeyNotFoundException("Admission not found");
+        if (!HIS.Core.Constants.AdmissionStatus.IsActive(admission.Status))
+            throw new InvalidOperationException("Lượt nội trú đã kết thúc, không ghi nhận truyền máu được.");
+        await EmrLockGuard.EnsureEditableByRecordAsync(_context, admission.MedicalRecordId); // TT46
+        if (dto.Volume <= 0) throw new InvalidOperationException("Thể tích truyền phải lớn hơn 0.");
+        if (dto.TransfusionStart == default) throw new InvalidOperationException("Chưa nhập giờ bắt đầu truyền.");
+
+        var bag = (dto.BagNumber ?? string.Empty).Trim();
+        var unit = await _context.BloodUnits.FirstOrDefaultAsync(u => u.UnitCode == bag)
+            ?? throw new InvalidOperationException($"Không tìm thấy túi máu mã \"{bag}\" trong ngân hàng máu.");
+        // BloodUnits.Status: 0-Chờ xét nghiệm, 1-Đủ điều kiện, 2-Không đủ điều kiện, 3-Đã sử dụng (cấp phát), 4-Hủy.
+        // An untested (0) unit must never reach a patient.
+        if (unit.Status != 1 && unit.Status != 3)
+            throw new InvalidOperationException($"Túi máu {bag} chưa xét nghiệm, không đủ điều kiện hoặc đã hủy — không được truyền.");
+        if (unit.ExpiryDate < DateTime.Now)
+            throw new InvalidOperationException($"Túi máu {bag} đã hết hạn ({unit.ExpiryDate:dd/MM/yyyy HH:mm}).");
+        if (HIS.Core.Constants.BloodCompatibility.NormalizeAbo(dto.BloodType) != HIS.Core.Constants.BloodCompatibility.NormalizeAbo(unit.BloodType)
+            || HIS.Core.Constants.BloodCompatibility.NormalizeRh(dto.RhFactor) != HIS.Core.Constants.BloodCompatibility.NormalizeRh(unit.RhFactor))
+            throw new InvalidOperationException(
+                $"Nhóm máu nhập ({dto.BloodType}{dto.RhFactor}) không khớp nhãn túi {bag} ({unit.BloodType}{unit.RhFactor}). Kiểm tra lại túi máu.");
+        var productCode = MapBloodProductCode(dto.BloodProductType);
+        var match = HIS.Core.Constants.BloodCompatibility.Check(productCode,
+            admission.Patient.BloodType, admission.Patient.RhFactor, unit.BloodType, unit.RhFactor);
+        if (match == HIS.Core.Constants.BloodCompatibility.BloodMatch.Incompatible)
+            throw new InvalidOperationException("KHÔNG TƯƠNG THÍCH: " + HIS.Core.Constants.BloodCompatibility.Describe(
+                admission.Patient.BloodType, admission.Patient.RhFactor, unit.BloodType, unit.RhFactor));
+        if (await _context.BloodTransfusions.AnyAsync(t => t.BloodUnitId == unit.Id && t.Status != TransfusionCancelled))
+            throw new InvalidOperationException($"Túi máu {bag} đã được ghi nhận truyền trước đó.");
+
+        var request = await _context.BloodRequests.AsNoTracking()
+            .Where(r => r.PatientId == admission.PatientId && r.Status != 4 && r.Status != 5)
+            .OrderByDescending(r => r.MedicalRecordId == admission.MedicalRecordId)
+            .ThenByDescending(r => r.RequestDate)
+            .FirstOrDefaultAsync()
+            ?? throw new InvalidOperationException("Bệnh nhân chưa có phiếu dự trù/yêu cầu máu còn hiệu lực — lập phiếu yêu cầu máu trước khi truyền.");
+
+        var entity = new BloodTransfusion
         {
             Id = Guid.NewGuid(),
-            AdmissionId = dto.AdmissionId,
-            BloodType = dto.BloodType,
-            RhFactor = dto.RhFactor,
-            BloodProductType = dto.BloodProductType,
-            BagNumber = dto.BagNumber,
+            TransfusionCode = $"TM{DateTime.Now:yyyyMMddHHmmssfff}",
+            BloodRequestId = request.Id,
+            BloodUnitId = unit.Id,
+            PatientId = admission.PatientId,
+            TransfusionDate = dto.TransfusionStart,
+            StartTime = dto.TransfusionStart.TimeOfDay,
             Volume = dto.Volume,
-            TransfusionStart = dto.TransfusionStart,
-            DoctorOrderId = userId,
-            ExecutedBy = userId,
-            Status = 0 // Đang truyền
-        });
+            NurseId = userId,
+            Status = TransfusionInProgress,
+            Note = $"[ADM:{admission.Id}] {dto.BloodProductType}",
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = userId.ToString(),
+        };
+        _context.BloodTransfusions.Add(entity);
+        await _context.SaveChangesAsync();
+        return await MapBloodTransfusionAsync(entity.Id);
     }
 
-    public Task<BloodTransfusionDto> UpdateBloodTransfusionMonitoringAsync(Guid id, string preVitals, string duringVitals, string postVitals, Guid userId)
+    public async Task<BloodTransfusionDto> UpdateBloodTransfusionMonitoringAsync(Guid id, string preVitals, string duringVitals, string postVitals, Guid userId)
     {
-        return Task.FromResult(new BloodTransfusionDto
+        var e = await _context.BloodTransfusions.FirstOrDefaultAsync(t => t.Id == id)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu truyền máu");
+        if (!string.IsNullOrWhiteSpace(preVitals)) e.VitalSignsBefore = preVitals;
+        if (!string.IsNullOrWhiteSpace(postVitals)) e.VitalSignsAfter = postVitals;
+        if (!string.IsNullOrWhiteSpace(duringVitals))
+            e.Note = $"{e.Note}\n[Trong truyền {DateTime.Now:HH:mm dd/MM}] {duringVitals}".Trim();
+        e.UpdatedAt = DateTime.UtcNow;
+        e.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
+        return await MapBloodTransfusionAsync(id);
+    }
+
+    public async Task<BloodTransfusionDto> RecordTransfusionReactionAsync(Guid id, string reactionDetails, Guid userId)
+    {
+        var e = await _context.BloodTransfusions.FirstOrDefaultAsync(t => t.Id == id)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu truyền máu");
+        if (string.IsNullOrWhiteSpace(reactionDetails))
+            throw new InvalidOperationException("Chưa mô tả phản ứng truyền máu.");
+        if (e.Status == TransfusionCancelled)
+            throw new InvalidOperationException("Phiếu truyền máu đã hủy.");
+        e.HasReaction = true;
+        // Append rather than overwrite: a second reaction must not erase the first one.
+        e.ReactionDescription = string.IsNullOrWhiteSpace(e.ReactionDescription)
+            ? reactionDetails
+            : $"{e.ReactionDescription}\n[{DateTime.Now:HH:mm dd/MM}] {reactionDetails}";
+        if (e.Status == TransfusionInProgress) e.Status = TransfusionStoppedReaction;
+        e.UpdatedAt = DateTime.UtcNow;
+        e.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
+        return await MapBloodTransfusionAsync(id);
+    }
+
+    public async Task<BloodTransfusionDto> CompleteBloodTransfusionAsync(Guid id, DateTime endTime, Guid userId)
+    {
+        var e = await _context.BloodTransfusions.FirstOrDefaultAsync(t => t.Id == id)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu truyền máu");
+        if (e.Status == TransfusionCompleted || e.Status == TransfusionCancelled)
+            throw new InvalidOperationException("Phiếu truyền máu đã kết thúc hoặc đã hủy.");
+        if (endTime < e.TransfusionDate)
+            throw new InvalidOperationException("Giờ kết thúc sớm hơn giờ bắt đầu truyền.");
+        e.EndTime = endTime.TimeOfDay;
+        if (e.Status == TransfusionInProgress) e.Status = TransfusionCompleted;
+        e.UpdatedAt = DateTime.UtcNow;
+        e.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
+        return await MapBloodTransfusionAsync(id);
+    }
+
+    public async Task<List<BloodTransfusionDto>> GetBloodTransfusionsAsync(Guid admissionId)
+    {
+        var tag = $"[ADM:{admissionId}]";
+        var ids = await _context.BloodTransfusions.AsNoTracking()
+            .Where(t => t.Note != null && t.Note.StartsWith(tag))
+            .OrderByDescending(t => t.TransfusionDate)
+            .Select(t => t.Id)
+            .ToListAsync();
+        var list = new List<BloodTransfusionDto>();
+        foreach (var id in ids) list.Add(await MapBloodTransfusionAsync(id));
+        return list;
+    }
+
+    private async Task<BloodTransfusionDto> MapBloodTransfusionAsync(Guid id)
+    {
+        var t = await _context.BloodTransfusions.AsNoTracking()
+            .Include(x => x.BloodUnit)
+            .Include(x => x.Nurse)
+            .FirstAsync(x => x.Id == id);
+        var note = t.Note ?? string.Empty;
+        Guid admissionId = Guid.Empty;
+        if (note.StartsWith("[ADM:") && note.Length >= 42) Guid.TryParse(note.Substring(5, 36), out admissionId);
+        var firstLine = note.Split('\n')[0];
+        var product = firstLine.Length > 43 ? firstLine.Substring(43).Trim() : string.Empty;
+        return new BloodTransfusionDto
         {
-            Id = id,
-            PreTransfusionVitals = preVitals,
-            DuringTransfusionVitals = duringVitals,
-            PostTransfusionVitals = postVitals,
-            ExecutedBy = userId,
-            Status = 0 // Đang truyền
-        });
-    }
-
-    public Task<BloodTransfusionDto> RecordTransfusionReactionAsync(Guid id, string reactionDetails, Guid userId)
-    {
-        return Task.FromResult(new BloodTransfusionDto
-        {
-            Id = id,
-            HasReaction = true,
-            ReactionDetails = reactionDetails,
-            ExecutedBy = userId,
-            Status = 0
-        });
-    }
-
-    public Task<BloodTransfusionDto> CompleteBloodTransfusionAsync(Guid id, DateTime endTime, Guid userId)
-    {
-        return Task.FromResult(new BloodTransfusionDto
-        {
-            Id = id,
-            TransfusionEnd = endTime,
-            ExecutedBy = userId,
-            Status = 2 // Hoàn thành
-        });
-    }
-
-    public Task<List<BloodTransfusionDto>> GetBloodTransfusionsAsync(Guid admissionId)
-    {
-        return Task.FromResult(new List<BloodTransfusionDto>());
+            Id = t.Id,
+            AdmissionId = admissionId,
+            BloodType = t.BloodUnit?.BloodType ?? string.Empty,
+            RhFactor = t.BloodUnit?.RhFactor ?? string.Empty,
+            BloodProductType = product,
+            BagNumber = t.BloodUnit?.UnitCode ?? string.Empty,
+            Volume = (int)t.Volume,
+            TransfusionStart = t.TransfusionDate,
+            TransfusionEnd = t.EndTime.HasValue ? t.TransfusionDate.Date + t.EndTime.Value : null,
+            DoctorOrderId = t.DoctorId ?? Guid.Empty,
+            ExecutedBy = t.NurseId,
+            ExecutedByName = t.Nurse?.FullName,
+            PreTransfusionVitals = t.VitalSignsBefore,
+            PostTransfusionVitals = t.VitalSignsAfter,
+            HasReaction = t.HasReaction,
+            ReactionDetails = t.ReactionDescription,
+            Status = t.Status,
+        };
     }
 
     public async Task<byte[]> PrintBloodTransfusionAsync(Guid id)
@@ -450,6 +568,9 @@ public partial class InpatientCompleteService {
     public async Task<HemodialysisSessionDto> CreateHemodialysisSessionAsync(Guid admissionId, HemodialysisSessionDto dto, Guid userId)
     {
         ValidateHemodialysis(dto);
+        // QA0915: unknown admission failed on the FK at SaveChanges → 500; answer 404 instead.
+        if (!await _context.Admissions.AnyAsync(a => a.Id == admissionId))
+            throw new KeyNotFoundException("Admission not found");
 
         var entity = new HemodialysisSession
         {

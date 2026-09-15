@@ -297,14 +297,15 @@ namespace HIS.Application.DTOs
     {
         public Guid AdmissionId { get; set; }
         public Guid BedId { get; set; }
-        public string Note { get; set; }
+        // QA0915: optional — non-nullable made MVC treat it as [Required]; v2 FE never sends it (400 on every assign).
+        public string? Note { get; set; }
     }
 
     public class TransferBedDto
     {
         public Guid AdmissionId { get; set; }
         public Guid NewBedId { get; set; }
-        public string Reason { get; set; }
+        public string? Reason { get; set; } // QA0915: optional in v2 FE (implicit [Required] → 400)
     }
 
     public class BedStatusDto

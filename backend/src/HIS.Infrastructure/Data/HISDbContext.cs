@@ -381,6 +381,8 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<Admission> Admissions => Set<Admission>();
     public DbSet<BedAssignment> BedAssignments => Set<BedAssignment>();
     public DbSet<InpatientVitalSign> InpatientVitalSigns => Set<InpatientVitalSign>();
+    public DbSet<InpatientNursingCareSheet> InpatientNursingCareSheets => Set<InpatientNursingCareSheet>();
+    public DbSet<InpatientDepositRequest> InpatientDepositRequests => Set<InpatientDepositRequest>();
     public DbSet<DailyProgress> DailyProgresses => Set<DailyProgress>();
     public DbSet<NursingCare> NursingCares => Set<NursingCare>();
     public DbSet<Discharge> Discharges => Set<Discharge>();

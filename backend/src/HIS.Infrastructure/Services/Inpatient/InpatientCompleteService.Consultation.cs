@@ -17,6 +17,7 @@ public partial class InpatientCompleteService {
     // #16: Hội chẩn nội trú — persist thật (trước đây stub in-memory, biên bản mất ngay sau khi tạo).
     public async Task<ConsultationDto> CreateConsultationAsync(CreateConsultationDto dto, Guid userId)
     {
+        await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, dto.AdmissionId); // TT46 — QA0915: was writable on a finalized EMR
         var now = DateTime.Now;
         var entity = new InpatientConsultation
         {
@@ -261,53 +262,104 @@ public partial class InpatientCompleteService {
         return Encoding.UTF8.GetBytes(html);
     }
 
-    public Task<NursingCareSheetDto> CreateNursingCareSheetAsync(CreateNursingCareSheetDto dto, Guid userId)
+    // QA0915 wave-2: the three methods below were in-memory stubs (NursingSection v2 said "saved",
+    // nothing persisted, list always empty). Persisted to InpatientNursingCareSheets (per-admission,
+    // per-shift); requires the proposed migration + DbSet (see QA report).
+    public async Task<NursingCareSheetDto> CreateNursingCareSheetAsync(CreateNursingCareSheetDto dto, Guid userId)
     {
-        return Task.FromResult(new NursingCareSheetDto
+        var admission = await _context.Admissions.AsNoTracking().FirstOrDefaultAsync(a => a.Id == dto.AdmissionId)
+            ?? throw new KeyNotFoundException("Admission not found");
+        ValidateNursingCareSheet(dto);
+        await EmrLockGuard.EnsureEditableByRecordAsync(_context, admission.MedicalRecordId); // TT46
+
+        var entity = new InpatientNursingCareSheet
         {
             Id = Guid.NewGuid(),
-            AdmissionId = dto.AdmissionId,
-            CareDate = dto.CareDate,
+            AdmissionId = admission.Id,
+            MedicalRecordId = admission.MedicalRecordId,
             NurseId = userId,
-            Shift = dto.Shift,
-            PatientCondition = dto.PatientCondition,
-            Consciousness = dto.Consciousness,
-            HygieneActivities = dto.HygieneActivities,
-            MedicationActivities = dto.MedicationActivities,
-            NutritionActivities = dto.NutritionActivities,
-            MovementActivities = dto.MovementActivities,
-            SpecialMonitoring = dto.SpecialMonitoring,
-            IssuesAndActions = dto.IssuesAndActions,
-            Notes = dto.Notes,
-            CreatedAt = DateTime.Now
-        });
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = userId.ToString(),
+        };
+        ApplyNursingCareSheet(entity, dto);
+        _context.Set<InpatientNursingCareSheet>().Add(entity);
+        await _context.SaveChangesAsync();
+        return (await MapNursingCareSheetsAsync(new List<InpatientNursingCareSheet> { entity }))[0];
     }
 
-    public Task<NursingCareSheetDto> UpdateNursingCareSheetAsync(Guid id, CreateNursingCareSheetDto dto, Guid userId)
+    public async Task<NursingCareSheetDto> UpdateNursingCareSheetAsync(Guid id, CreateNursingCareSheetDto dto, Guid userId)
     {
-        return Task.FromResult(new NursingCareSheetDto
+        var entity = await _context.Set<InpatientNursingCareSheet>().FirstOrDefaultAsync(s => s.Id == id)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu chăm sóc");
+        ValidateNursingCareSheet(dto);
+        await EmrLockGuard.EnsureEditableByRecordAsync(_context, entity.MedicalRecordId); // TT46
+        ApplyNursingCareSheet(entity, dto); // AdmissionId / NurseId (author) are not re-assigned on edit
+        entity.UpdatedAt = DateTime.UtcNow;
+        entity.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
+        return (await MapNursingCareSheetsAsync(new List<InpatientNursingCareSheet> { entity }))[0];
+    }
+
+    public async Task<List<NursingCareSheetDto>> GetNursingCareSheetsAsync(Guid admissionId, DateTime? fromDate, DateTime? toDate)
+    {
+        var q = _context.Set<InpatientNursingCareSheet>().AsNoTracking().Where(s => s.AdmissionId == admissionId);
+        if (fromDate.HasValue) q = q.Where(s => s.CareDate >= fromDate.Value);
+        if (toDate.HasValue) q = q.Where(s => s.CareDate <= toDate.Value);
+        var rows = await q.OrderByDescending(s => s.CareDate).ThenByDescending(s => s.Shift).Take(500).ToListAsync();
+        return await MapNursingCareSheetsAsync(rows);
+    }
+
+    private static void ValidateNursingCareSheet(CreateNursingCareSheetDto dto)
+    {
+        if (dto.CareDate == default)
+            throw new InvalidOperationException("Chưa nhập ngày chăm sóc.");
+        if (dto.Shift < 1 || dto.Shift > 3)
+            throw new InvalidOperationException("Ca chăm sóc phải là 1 (sáng), 2 (chiều) hoặc 3 (đêm).");
+        if (dto.CareLevel.HasValue && dto.CareLevel is < 1 or > 3)
+            throw new InvalidOperationException("Cấp chăm sóc không hợp lệ.");
+    }
+
+    private static void ApplyNursingCareSheet(InpatientNursingCareSheet e, CreateNursingCareSheetDto dto)
+    {
+        e.CareDate = dto.CareDate;
+        e.Shift = dto.Shift;
+        e.PatientCondition = dto.PatientCondition;
+        e.Consciousness = dto.Consciousness;
+        e.HygieneActivities = dto.HygieneActivities;
+        e.MedicationActivities = dto.MedicationActivities;
+        e.NutritionActivities = dto.NutritionActivities;
+        e.MovementActivities = dto.MovementActivities;
+        e.SpecialMonitoring = dto.SpecialMonitoring;
+        e.IssuesAndActions = dto.IssuesAndActions;
+        e.Notes = dto.Notes;
+        e.CareLevel = dto.CareLevel;
+    }
+
+    private async Task<List<NursingCareSheetDto>> MapNursingCareSheetsAsync(List<InpatientNursingCareSheet> rows)
+    {
+        var nurseIds = rows.Select(r => r.NurseId).Distinct().ToList();
+        var names = nurseIds.Count == 0 ? new Dictionary<Guid, string>()
+            : await _context.Users.AsNoTracking().Where(u => nurseIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.FullName);
+        return rows.Select(r => new NursingCareSheetDto
         {
-            Id = id,
-            AdmissionId = dto.AdmissionId,
-            CareDate = dto.CareDate,
-            NurseId = userId,
-            Shift = dto.Shift,
-            PatientCondition = dto.PatientCondition,
-            Consciousness = dto.Consciousness,
-            HygieneActivities = dto.HygieneActivities,
-            MedicationActivities = dto.MedicationActivities,
-            NutritionActivities = dto.NutritionActivities,
-            MovementActivities = dto.MovementActivities,
-            SpecialMonitoring = dto.SpecialMonitoring,
-            IssuesAndActions = dto.IssuesAndActions,
-            Notes = dto.Notes,
-            CreatedAt = DateTime.Now
-        });
-    }
-
-    public Task<List<NursingCareSheetDto>> GetNursingCareSheetsAsync(Guid admissionId, DateTime? fromDate, DateTime? toDate)
-    {
-        return Task.FromResult(new List<NursingCareSheetDto>());
+            Id = r.Id,
+            AdmissionId = r.AdmissionId,
+            CareDate = r.CareDate,
+            NurseId = r.NurseId,
+            NurseName = names.TryGetValue(r.NurseId, out var n) ? n : string.Empty,
+            Shift = r.Shift,
+            PatientCondition = r.PatientCondition,
+            Consciousness = r.Consciousness,
+            HygieneActivities = r.HygieneActivities,
+            MedicationActivities = r.MedicationActivities,
+            NutritionActivities = r.NutritionActivities,
+            MovementActivities = r.MovementActivities,
+            SpecialMonitoring = r.SpecialMonitoring,
+            IssuesAndActions = r.IssuesAndActions,
+            Notes = r.Notes,
+            CareLevel = r.CareLevel,
+            CreatedAt = r.CreatedAt,
+        }).ToList();
     }
 
     public async Task<byte[]> PrintNursingCareSheetAsync(Guid id)
@@ -385,6 +437,22 @@ public partial class InpatientCompleteService {
                 Interventions = sheet.NursingInterventions,
                 PatientResponse = sheet.PatientResponse,
                 NurseName = nurse?.FullName
+            });
+        }
+
+        // QA0915 wave-2: include the per-shift inpatient sheets (InpatientNursingCareSheets) of this stay.
+        var wardSheets = await GetNursingCareSheetsAsync(admissionId, fromDate, toDate);
+        foreach (var s in wardSheets.OrderBy(s => s.CareDate).ThenBy(s => s.Shift))
+        {
+            rows.Add(new NursingCareRow
+            {
+                Date = s.CareDate,
+                Shift = s.Shift,
+                PatientCondition = string.Join("; ", new[] { s.PatientCondition, s.Consciousness }.Where(x => !string.IsNullOrWhiteSpace(x))),
+                Interventions = string.Join("; ", new[] { s.HygieneActivities, s.MedicationActivities, s.NutritionActivities, s.MovementActivities, s.SpecialMonitoring }
+                    .Where(x => !string.IsNullOrWhiteSpace(x))),
+                PatientResponse = s.IssuesAndActions,
+                NurseName = s.NurseName
             });
         }
 

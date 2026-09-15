@@ -12,6 +12,7 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/obstetric-register")]
 [Authorize]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // QA0915: validation / not-found → 400/404 (was 500)
 public class ObstetricRegisterController : ControllerBase
 {
     private readonly IObstetricRegisterService _svc;

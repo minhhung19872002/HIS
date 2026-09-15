@@ -69,6 +69,8 @@ function emptyLine(): RxLine {
   };
 }
 
+const SAFETY_BLOCK_MARKER = 'bị chặn vì lý do an toàn';
+
 const lineQuantity = (l: RxLine): number =>
   Math.max(1, Math.round((l.days || 0) * (l.timesPerDay || 0) * (l.qtyPerTime || 0)) || 1);
 
@@ -150,6 +152,11 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
   const [templateId, setTemplateId] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
   const [tplBusy, setTplBusy] = useState(false);
+  // Server-side safety block (PrescriptionSafetyGuard: allergy / severe interaction). Without an override
+  // field the block was a hard stop on the ward — same flow as the OPD PrescriptionEditor.
+  const [safetyBlock, setSafetyBlock] = useState<string | null>(null);
+  const [overrideReason, setOverrideReason] = useState('');
+  const [overrideError, setOverrideError] = useState<string | undefined>();
 
   const loadInit = useCallback(async () => {
     // Kho thuốc (type 1) — đúng pattern InpatientDispensing
@@ -179,6 +186,7 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
     setMainDiagnosisCode(''); setMainDiagnosis('');
     setLines([emptyLine()]); setLineLabels({});
     setTemplateId(undefined);
+    setSafetyBlock(null); setOverrideReason(''); setOverrideError(undefined);
     void loadInit();
   }, [open, loadInit]);
 
@@ -227,6 +235,7 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
   const submit = async () => {
     const valid = lines.filter((l) => l.medicineId);
     if (!valid.length) { tw('Chưa chọn thuốc nào'); return; }
+    if (safetyBlock && !overrideReason.trim()) { setOverrideError('Cần nhập lý do bỏ qua cảnh báo an toàn'); return; }
     const dto: CreateInpatientPrescriptionDto = {
       admissionId,
       prescriptionDate: prescriptionDate.toISOString(),
@@ -242,6 +251,7 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
         paymentSource: l.paymentSource,
         note: `${l.qtyPerTime} x ${l.timesPerDay} lần/ngày x ${l.days} ngày`,
       })),
+      overrideReason: overrideReason.trim() || undefined,
     };
     setSaving(true);
     try {
@@ -249,7 +259,16 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
       tk(isDischargeRx ? 'Đã lưu đơn thuốc xuất viện' : 'Đã lưu y lệnh thuốc');
       onDone();
     } catch (e) {
-      te(friendlyErrorMessage(e, 'Lưu y lệnh thuốc thất bại'));
+      // Read the raw server message: friendlyErrorMessage drops long messages and a block listing
+      // several drugs easily exceeds that.
+      const raw = (e as { response?: { data?: { message?: unknown } } })?.response?.data?.message;
+      const msg = typeof raw === 'string' ? raw : '';
+      if (msg.includes(SAFETY_BLOCK_MARKER) && !overrideReason.trim()) {
+        setSafetyBlock(msg);
+        tw('Đơn bị chặn vì lý do an toàn — xem chi tiết, nhập lý do bỏ qua rồi Lưu lại');
+      } else {
+        te(friendlyErrorMessage(e, 'Lưu y lệnh thuốc thất bại'));
+      }
     } finally {
       setSaving(false);
     }
@@ -283,6 +302,22 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
         </div>
       }
     >
+      {safetyBlock && (
+        <DrSec title="Cảnh báo an toàn thuốc">
+          <div style={{ color: 'var(--s-crit)', fontSize: 'var(--fs-sm)', whiteSpace: 'pre-wrap', marginBottom: 'var(--space-8)' }}>
+            {safetyBlock}
+          </div>
+          <Field label="Lý do bỏ qua cảnh báo" required error={overrideError}>
+            <Input.TextArea
+              rows={2}
+              value={overrideReason}
+              onChange={(e) => { setOverrideReason(e.target.value); setOverrideError(undefined); }}
+              placeholder="VD: Đã hội chẩn, lợi ích vượt nguy cơ, theo dõi sát phản ứng…"
+            />
+          </Field>
+        </DrSec>
+      )}
+
       {/* Thông tin chung */}
       <DrSec title="Thông tin đơn">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 16px' }}>

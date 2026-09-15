@@ -70,11 +70,17 @@ public class ObservationStayService : IObservationStayService
         var patient = await _db.Patients.FindAsync(dto.PatientId);
         if (patient == null) return ServiceOutcome.Bad("Bệnh nhân không tồn tại");
 
+        // QA0915: a patient could be opened into two concurrent observation stays.
+        if (await _db.ObservationStays.AnyAsync(s => s.PatientId == dto.PatientId && s.Status == 1))
+            return ServiceOutcome.Bad("Bệnh nhân đang có phiên lưu theo dõi chưa kết thúc");
+
         var now = DateTime.Now;
         var stay = new ObservationStay
         {
             Id = Guid.NewGuid(),
-            StayCode = $"OBS{now:yyyyMMddHHmmss}",
+            // QA0915: second-precision code hit the unique index (500) when two stays opened in the same
+            // second; add milliseconds + 2 random digits (22 chars, column is NVARCHAR(30)).
+            StayCode = $"OBS{now:yyyyMMddHHmmssfff}{Random.Shared.Next(100):D2}",
             PatientId = dto.PatientId,
             MedicalRecordId = dto.MedicalRecordId,
             DepartmentId = dto.DepartmentId,
