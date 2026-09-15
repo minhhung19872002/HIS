@@ -20,8 +20,10 @@ public partial class HospitalReportService
     {
         try
         {
+            // Period = date of service (ServiceDate), the date BHYT settles on — not the row's
+            // CreatedAt, which put claims into the month they were typed in.
             var query = _context.InsuranceClaims.AsNoTracking()
-                .Where(ic => ic.CreatedAt >= from && ic.CreatedAt < to && !ic.IsDeleted);
+                .Where(ic => ic.ServiceDate >= from && ic.ServiceDate < to && !ic.IsDeleted);
             if (deptId.HasValue)
                 query = query.Where(ic => ic.DepartmentId == deptId);
 
@@ -36,12 +38,14 @@ public partial class HospitalReportService
                 })
                 .ToListAsync();
 
-            var statusNames = new Dictionary<int, string> { { 0, "Cho duyet" }, { 1, "Da duyet" }, { 2, "Tu choi" }, { 3, "Da thanh toan" } };
+            // Labels from the canonical InsuranceClaimStatus (0 chờ, 1 khóa, 2 duyệt, 3 từ chối một
+            // phần, 4 từ chối toàn bộ, 5 đã thanh toán). The local map said 1 "đã duyệt", 2 "từ chối",
+            // 3 "đã thanh toán" — a partially rejected claim was shown as paid.
             foreach (var d in data)
             {
                 result.Data.Add(new Dictionary<string, object>
                 {
-                    ["status"] = statusNames.TryGetValue(d.Status, out var s) ? s : $"Trang thai {d.Status}",
+                    ["status"] = HIS.Core.Constants.InsuranceClaimStatus.Label(d.Status),
                     ["claimCount"] = d.Count,
                     ["totalAmount"] = d.TotalAmount,
                     ["approvedAmount"] = d.ApprovedAmount
@@ -169,11 +173,10 @@ public partial class HospitalReportService
     {
         // #148: dem so buoi chay than thuc tu HemodialysisSessions (thay stub count=0)
         var fromDate = from.Date;
-        var toDate = to.Date;
 
         var query = from s in _context.HemodialysisSessions.AsNoTracking()
                     join a in _context.Admissions.AsNoTracking() on s.AdmissionId equals a.Id
-                    where !s.IsDeleted && s.SessionDate >= fromDate && s.SessionDate <= toDate
+                    where !s.IsDeleted && s.SessionDate >= fromDate && s.SessionDate < to // `to` is exclusive (normalized in GetReportDataAsync)
                     select new { s.AdmissionId, a.DepartmentId };
 
         if (deptId.HasValue)

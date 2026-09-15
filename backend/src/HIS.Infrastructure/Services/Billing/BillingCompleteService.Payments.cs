@@ -25,6 +25,9 @@ public partial class BillingCompleteService {
         // #189: chặn số tiền <= 0 (chống bản ghi tài chính rác/âm)
         if (dto.Amount <= 0)
             throw new InvalidOperationException("Số tiền tạm ứng phải lớn hơn 0");
+        // N7: VND has no sub-unit — reject fractional amounts (a 0,50đ receipt surfaced on the dashboard).
+        if (dto.Amount != Math.Round(dto.Amount, 0))
+            throw new InvalidOperationException("Số tiền tạm ứng phải là số nguyên đồng (VND không có số lẻ)");
 
         var deposit = new Deposit
         {
@@ -258,8 +261,47 @@ public partial class BillingCompleteService {
         // #189: chặn số tiền <= 0 trước khi so số dư
         if (dto.Amount <= 0)
             throw new InvalidOperationException("Số tiền sử dụng phải lớn hơn 0");
-        if (deposit.RemainingAmount < dto.Amount)
+        // N7: VND has no sub-unit — reject fractional amounts (a 0,50đ receipt surfaced on the dashboard).
+        if (dto.Amount != Math.Round(dto.Amount, 0))
+            throw new InvalidOperationException("Số tiền sử dụng tạm ứng phải là số nguyên đồng (VND không có số lẻ)");
+        // QA0915: refunds already raised on this deposit (pending/approved/paid) never touch
+        // RemainingAmount, so they must be deducted here too — otherwise the same money is both spent
+        // and refunded (measured: 1.000.000đ deposit fully spent while a 6.000đ refund stayed payable).
+        var refundedFromDeposit = await _context.Receipts
+            .Where(r => r.ReceiptType == 3
+                        && r.OriginalDepositId == deposit.Id
+                        && !r.IsDeleted
+                        && r.Status != RefundStatus.Rejected
+                        && r.Status != RefundStatus.Cancelled)
+            .SumAsync(r => (decimal?)r.FinalAmount) ?? 0m;
+        if (deposit.RemainingAmount - refundedFromDeposit < dto.Amount)
             throw new InvalidOperationException("Số dư tạm ứng không đủ"); // #462: 400, không phải 500
+
+        // QA0915: the invoice passed in was ignored — deposit got consumed (990.000đ against an invoice
+        // owing 4.199đ) while the invoice debt never went down. Settle it atomically with the receipt.
+        InvoiceSummary? invoice = null;
+        if (dto.InvoiceId != Guid.Empty)
+        {
+            invoice = await _context.InvoiceSummaries.FirstOrDefaultAsync(i => i.Id == dto.InvoiceId && !i.IsDeleted)
+                ?? throw new KeyNotFoundException("Không tìm thấy hóa đơn");
+            var invoiceRecordId = invoice.MedicalRecordId;
+            var invoicePatientId = await _context.MedicalRecords
+                .Where(m => m.Id == invoiceRecordId)
+                .Select(m => m.PatientId)
+                .FirstOrDefaultAsync();
+            if (deposit.PatientId.HasValue && invoicePatientId != deposit.PatientId.Value)
+                throw new InvalidOperationException("Phiếu tạm ứng và hóa đơn không cùng một bệnh nhân");
+            if (dto.Amount > invoice.RemainingAmount)
+                throw new InvalidOperationException(
+                    $"Số tiền dùng tạm ứng ({dto.Amount:N0}đ) vượt quá số tiền hóa đơn còn nợ ({invoice.RemainingAmount:N0}đ)");
+
+            invoice.PaidAmount += dto.Amount;
+            invoice.RemainingAmount = Math.Max(0, invoice.TotalAmount - invoice.DiscountAmount - invoice.PaidAmount);
+            if (invoice.RemainingAmount == 0)
+                invoice.Status = 1;
+            invoice.UpdatedAt = DateTime.Now;
+            invoice.UpdatedBy = userId.ToString();
+        }
 
         deposit.UsedAmount += dto.Amount;
         deposit.RemainingAmount -= dto.Amount;
@@ -273,6 +315,10 @@ public partial class BillingCompleteService {
             ReceiptCode = $"PT{DateTime.Now:yyyyMMddHHmmssfff}",
             ReceiptDate = DateTime.Now,
             PatientId = deposit.PatientId ?? Guid.Empty,
+            // QA0915: link to the medical record (per-record paid totals ignored this receipt) and to the
+            // source deposit, so cancelling the receipt can give the money back to the deposit.
+            MedicalRecordId = invoice?.MedicalRecordId ?? deposit.MedicalRecordId,
+            OriginalDepositId = deposit.Id,
             ReceiptType = 2,
             PaymentMethod = 5, // Tạm ứng
             Amount = dto.Amount,
@@ -346,8 +392,19 @@ public partial class BillingCompleteService {
         var deposit = await _context.Deposits.FindAsync(depositId);
         if (deposit == null)
             throw new KeyNotFoundException("Deposit not found");
+        if (deposit.Status == DepositStatus.Cancelled)
+            throw new InvalidOperationException("Phiếu tạm ứng đã hủy trước đó");
         if (deposit.UsedAmount > 0)
             throw new InvalidOperationException("Cannot cancel deposit that has been partially used");
+        // QA0915: a deposit whose money was already refunded (or is being refunded) must not be
+        // cancelled — measured: 500.000đ refunded AND the deposit cancelled, cash counted out twice.
+        var hasActiveRefund = await _context.Receipts.AnyAsync(r => r.ReceiptType == 3
+            && r.OriginalDepositId == depositId
+            && !r.IsDeleted
+            && r.Status != RefundStatus.Rejected
+            && r.Status != RefundStatus.Cancelled);
+        if (hasActiveRefund)
+            throw new InvalidOperationException("Phiếu tạm ứng đã có phiếu hoàn tiền — hủy/từ chối phiếu hoàn trước");
 
         deposit.Status = 5; // Đã hủy
         deposit.Notes = $"{deposit.Notes} | Hủy: {reason}";
@@ -367,6 +424,9 @@ public partial class BillingCompleteService {
         // #189: chặn số tiền <= 0 (chống phiếu thu rác/âm làm hỏng PaidAmount hóa đơn)
         if (dto.Amount <= 0)
             throw new InvalidOperationException("Số tiền thanh toán phải lớn hơn 0");
+        // N7: VND has no sub-unit — reject fractional amounts (a 0,50đ receipt surfaced on the dashboard).
+        if (dto.Amount != Math.Round(dto.Amount, 0))
+            throw new InvalidOperationException("Số tiền thanh toán phải là số nguyên đồng (VND không có số lẻ)");
         decimal totalOwed;
         Guid? medicalRecordId = null;
         var patientId = dto.PatientId;
@@ -408,6 +468,38 @@ public partial class BillingCompleteService {
 
             totalOwed = unpaidServiceRequests.Sum(sr => sr.PatientAmount);
             medicalRecordId = unpaidServiceRequests.Select(sr => (Guid?)sr.MedicalRecordId).FirstOrDefault();
+
+            // QA0915: this path never marks ServiceRequests paid, so without deducting what was already
+            // collected the same debt could be collected again after the 30s idempotency window
+            // (measured: 200.000đ owed, two 200.000đ receipts accepted). Deduct payments on these
+            // records that did NOT go to an invoice (invoice payments are tracked in PaidAmount).
+            //
+            // Gateway (QR/VNPay/kiosk) receipts are EXCLUDED: they either flag their service lines
+            // IsPaid (already out of totalOwed), pay an invoice, or record a deposit — subtracting them
+            // again blocked legit collection (QR 500k lab, then 200k X-ray → "còn nợ 0đ").
+            var owedRecordIds = unpaidServiceRequests.Select(sr => sr.MedicalRecordId).Distinct().ToList();
+            var gatewayReceiptIds = _context.PaymentTransactions
+                .Where(t => t.ReceiptId != null)
+                .Select(t => t.ReceiptId!.Value);
+            var collectedOnRecords = await _context.Receipts
+                .Where(r => r.ReceiptType == 2 && r.Status == 1 && !r.IsDeleted
+                            && r.MedicalRecordId != null && owedRecordIds.Contains(r.MedicalRecordId.Value)
+                            && !gatewayReceiptIds.Contains(r.Id))
+                .SumAsync(r => (decimal?)r.FinalAmount) ?? 0m;
+            var owedInvoiceIds = _context.InvoiceSummaries
+                .Where(i => !i.IsDeleted && owedRecordIds.Contains(i.MedicalRecordId))
+                .Select(i => i.Id);
+            var paidViaInvoices = await _context.InvoiceSummaries
+                .Where(i => !i.IsDeleted && owedRecordIds.Contains(i.MedicalRecordId))
+                .SumAsync(i => (decimal?)i.PaidAmount) ?? 0m;
+            // Invoice PaidAmount also contains gateway payments (LinkReceiptAsync) whose receipts were
+            // excluded above — take them out so both sides count the same receipts.
+            var paidViaInvoicesByGateway = await _context.PaymentTransactions
+                .Where(t => t.ReceiptId != null && t.InvoiceSummaryId != null
+                            && owedInvoiceIds.Contains(t.InvoiceSummaryId.Value))
+                .SumAsync(t => (decimal?)t.Amount) ?? 0m;
+            var paidViaInvoicesCashier = Math.Max(0, paidViaInvoices - paidViaInvoicesByGateway);
+            totalOwed = Math.Max(0, totalOwed - Math.Max(0, collectedOnRecords - paidViaInvoicesCashier));
         }
 
         // IDEMPOTENCY chống thu trùng — PHẢI check TRƯỚC over-payment: client retry
@@ -516,10 +608,39 @@ public partial class BillingCompleteService {
         if (receipt == null)
             // Không tìm thấy là 404, không phải lỗi quy tắc nghiệp vụ (400).
             throw new KeyNotFoundException("Khong tim thay phieu thu");
+        // QA0915: refund receipts have their own state machine (RefundStatus, where 2 = Rejected) —
+        // cancelling one here silently turned an approved refund into "rejected".
+        if (receipt.ReceiptType == 3)
+            throw new InvalidOperationException("Phiếu hoàn tiền phải hủy qua chức năng hủy phiếu hoàn");
         if (receipt.Status == 2)
             throw new InvalidOperationException("Phieu thu da huy truoc do");
+        // QA0915: a payment that already has a live refund cannot be voided — measured: payment voided,
+        // then its 200.000đ refund still approved and paid out (money out twice).
+        var hasActiveRefund = await _context.Receipts.AnyAsync(r => r.ReceiptType == 3
+            && r.OriginalPaymentId == paymentId
+            && !r.IsDeleted
+            && r.Status != RefundStatus.Rejected
+            && r.Status != RefundStatus.Cancelled);
+        if (hasActiveRefund)
+            throw new InvalidOperationException("Phiếu thu đã có phiếu hoàn tiền — hủy/từ chối phiếu hoàn trước");
 
         receipt.Status = 2; // Đã hủy
+
+        // QA0915: a receipt paid from a deposit must give the money back to that deposit
+        // (measured: receipt cancelled, deposit stayed consumed). Only receipts linked via
+        // OriginalDepositId can be restored; legacy deposit-use receipts carry no link.
+        if (receipt.ReceiptType == 2 && receipt.OriginalDepositId.HasValue)
+        {
+            var deposit = await _context.Deposits.FindAsync(receipt.OriginalDepositId.Value);
+            if (deposit != null)
+            {
+                deposit.UsedAmount = Math.Max(0, deposit.UsedAmount - receipt.FinalAmount);
+                deposit.RemainingAmount += receipt.FinalAmount;
+                if (deposit.Status == DepositStatus.FullyUsed && deposit.RemainingAmount > 0)
+                    deposit.Status = DepositStatus.Confirmed;
+                deposit.UpdatedAt = DateTime.Now;
+            }
+        }
         receipt.Note = $"{receipt.Note} | Hủy: {reason}";
 
         // Hoàn nợ hóa đơn (2026-06-12): trước đây hủy phiếu KHÔNG trả lại PaidAmount/RemainingAmount
@@ -528,7 +649,10 @@ public partial class BillingCompleteService {
         {
             var invoice = await _context.InvoiceSummaries
                 .FirstOrDefaultAsync(i => i.MedicalRecordId == receipt.MedicalRecordId.Value);
-            if (invoice != null)
+            // QA0915: the receipt→invoice link is only a guess by medical record. A receipt larger than what
+            // the invoice has recorded as paid cannot have been (only) an invoice payment — measured:
+            // cancelling a 200.000đ service receipt wiped the invoice's 3.000đ PaidAmount to 0 (debt re-opened).
+            if (invoice != null && receipt.FinalAmount <= invoice.PaidAmount)
             {
                 invoice.PaidAmount = Math.Max(0, invoice.PaidAmount - receipt.FinalAmount);
                 invoice.RemainingAmount = Math.Max(0, invoice.TotalAmount - invoice.DiscountAmount - invoice.PaidAmount);

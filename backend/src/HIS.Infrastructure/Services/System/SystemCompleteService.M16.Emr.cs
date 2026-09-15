@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs.System;
 using HIS.Application.Services;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using static HIS.Infrastructure.Services.PdfTemplateHelper;
@@ -432,6 +433,11 @@ public partial class SystemCompleteService
                 .CountAsync(a => a.Status == 0); // 0 = Dang dieu tri
 
             var totalBeds = await _context.Beds.CountAsync(b => b.IsActive);
+            // Occupied = beds holding an active assignment (same rule as the ward layout). Using the
+            // inpatient count instead showed 0 free beds whenever patients outnumbered beds.
+            var occupiedBeds = await _context.BedAssignments
+                .Where(ba => ba.Status == 0 && ba.Bed.IsActive)
+                .Select(ba => ba.BedId).Distinct().CountAsync();
 
             var todayDischarges = await _context.Discharges
                 .CountAsync(d => d.DischargeDate >= todayStart && d.DischargeDate < todayEnd);
@@ -443,9 +449,12 @@ public partial class SystemCompleteService
             var todayEmergencies = await _context.QueueTickets
                 .CountAsync(q => q.QueueType == 3 && q.CreatedAt >= todayStart && q.CreatedAt < todayEnd);
 
+            // Revenue = confirmed payments (type 2) minus approved/paid-out refunds (type 3), after discount.
+            // Previously every confirmed receipt's gross Amount was added, so refunds raised revenue.
             var todayRevenue = await _context.Receipts
-                .Where(r => r.CreatedAt >= todayStart && r.CreatedAt < todayEnd && r.Status == 1)
-                .SumAsync(r => (decimal?)r.Amount) ?? 0;
+                .Where(r => r.CreatedAt >= todayStart && r.CreatedAt < todayEnd && (r.ReceiptType == 2 && r.Status == 1
+                        || r.ReceiptType == 3 && (r.Status == RefundStatus.Approved || r.Status == RefundStatus.Paid)))
+                .SumAsync(r => (decimal?)(r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount)) ?? 0;
 
             // Service status breakdown - OPD examinations
             var serviceOpdDone = await _context.Examinations
@@ -491,13 +500,15 @@ public partial class SystemCompleteService
 
             // Revenue breakdown by patient type (via MedicalRecord.PatientType)
             var revenueBHYT = await _context.Receipts
-                .Where(r => r.CreatedAt >= todayStart && r.CreatedAt < todayEnd && r.Status == 1
+                .Where(r => r.CreatedAt >= todayStart && r.CreatedAt < todayEnd && (r.ReceiptType == 2 && r.Status == 1
+                        || r.ReceiptType == 3 && (r.Status == RefundStatus.Approved || r.Status == RefundStatus.Paid))
                     && r.MedicalRecord != null && r.MedicalRecord.PatientType == 1)
-                .SumAsync(r => (decimal?)r.Amount) ?? 0;
+                .SumAsync(r => (decimal?)(r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount)) ?? 0;
             var revenueSelfPay = await _context.Receipts
-                .Where(r => r.CreatedAt >= todayStart && r.CreatedAt < todayEnd && r.Status == 1
+                .Where(r => r.CreatedAt >= todayStart && r.CreatedAt < todayEnd && (r.ReceiptType == 2 && r.Status == 1
+                        || r.ReceiptType == 3 && (r.Status == RefundStatus.Approved || r.Status == RefundStatus.Paid))
                     && (r.MedicalRecord == null || r.MedicalRecord.PatientType != 1))
-                .SumAsync(r => (decimal?)r.Amount) ?? 0;
+                .SumAsync(r => (decimal?)(r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount)) ?? 0;
 
             // 7-day trends
             var trendStart = todayStart.AddDays(-6);
@@ -519,9 +530,10 @@ public partial class SystemCompleteService
                 .ToDictionary(x => x.Day, x => x.Count);
 
             var revenueByDay = (await _context.Receipts
-                    .Where(r => r.CreatedAt >= trendStart && r.CreatedAt < todayEnd && r.Status == 1)
+                    .Where(r => r.CreatedAt >= trendStart && r.CreatedAt < todayEnd && (r.ReceiptType == 2 && r.Status == 1
+                        || r.ReceiptType == 3 && (r.Status == RefundStatus.Approved || r.Status == RefundStatus.Paid)))
                     .GroupBy(r => r.CreatedAt.Date)
-                    .Select(g => new { Day = g.Key, Total = g.Sum(r => (decimal?)r.Amount) })
+                    .Select(g => new { Day = g.Key, Total = g.Sum(r => (decimal?)(r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount)) })
                     .ToListAsync())
                 .ToDictionary(x => x.Day, x => x.Total ?? 0);
 
@@ -543,7 +555,7 @@ public partial class SystemCompleteService
                 TodayOutpatients = todayExams,
                 TodayAdmissions = todayAdmissions,
                 CurrentInpatients = currentInpatients,
-                AvailableBeds = Math.Max(0, totalBeds - currentInpatients),
+                AvailableBeds = Math.Max(0, totalBeds - occupiedBeds),
                 TodayDischarges = todayDischarges,
                 TodaySurgeries = todaySurgeries,
                 TodayEmergencies = todayEmergencies,

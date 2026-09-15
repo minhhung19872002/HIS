@@ -7,10 +7,12 @@ import { Field } from '../../../components/form/Field';
 import { useModalForm } from '../../../hooks/useModalForm';
 import type { RawRow } from './shared';
 import { treatmentLabel } from './shared';
+// Codes MUST match backend Receipt.PaymentMethod (1-Tiền mặt, 2-Chuyển khoản, 3-Thẻ) — the old
+// 2=Thẻ/3=Chuyển khoản order booked card money as transfer in cashier/revenue reports and vice versa.
 const PAY_METHOD_OPTS = [
   { value: 1, label: 'Tiền mặt' },
-  { value: 2, label: 'Thẻ' },
-  { value: 3, label: 'Chuyển khoản' },
+  { value: 2, label: 'Chuyển khoản' },
+  { value: 3, label: 'Thẻ' },
 ];
 
 export const ReceptionPayModal: React.FC<{

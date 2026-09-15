@@ -18,11 +18,15 @@ public partial class HospitalReportService
 
     private async Task FillCashierSummary(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        // ReceiptDate = business (local) date; CreatedAt is UTC and shifted receipts made before
+        // 07:00 onto the previous day. Cancelled receipts (Status 2) are not revenue; refunds count
+        // only once approved/paid (1/4) — pending (0), rejected (2), cancelled (5) never left the till.
         var query = _context.Receipts.AsNoTracking()
-            .Where(r => r.CreatedAt >= from && r.CreatedAt < to && !r.IsDeleted);
+            .Where(r => r.ReceiptDate >= from && r.ReceiptDate < to && !r.IsDeleted)
+            .Where(r => (r.ReceiptType != 3 && r.Status == 1) || (r.ReceiptType == 3 && (r.Status == 1 || r.Status == 4)));
 
         var data = await query
-            .GroupBy(r => r.CreatedAt.Date)
+            .GroupBy(r => r.ReceiptDate.Date)
             .Select(g => new
             {
                 Date = g.Key,
@@ -90,8 +94,9 @@ public partial class HospitalReportService
 
     private async Task FillHospitalFeeSummary(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        // Business date + collected receipts only (cancelled Status 2 was summed as revenue).
         var query = _context.Receipts.AsNoTracking()
-            .Where(r => r.CreatedAt >= from && r.CreatedAt < to && !r.IsDeleted && r.ReceiptType != 3);
+            .Where(r => r.ReceiptDate >= from && r.ReceiptDate < to && !r.IsDeleted && r.ReceiptType != 3 && r.Status == 1);
         if (deptId.HasValue)
             query = query.Where(r => r.MedicalRecord != null && r.MedicalRecord.DepartmentId == deptId);
 
@@ -144,8 +149,12 @@ public partial class HospitalReportService
 
     private async Task FillCancelledTransactions(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        // 9.68/9.117 "giao dịch thanh toán bị hủy": cancelled payment receipts (Status 2) and
+        // cancelled refund slips (RefundStatus.Cancelled = 5). Was every refund slip of any status,
+        // so real cancellations never appeared and approved refunds were listed as "cancelled".
         var query = _context.Receipts.AsNoTracking()
-            .Where(r => r.CreatedAt >= from && r.CreatedAt < to && !r.IsDeleted && r.ReceiptType == 3);
+            .Where(r => r.ReceiptDate >= from && r.ReceiptDate < to && !r.IsDeleted
+                && ((r.ReceiptType != 3 && r.Status == 2) || (r.ReceiptType == 3 && r.Status == 5)));
 
         var count = await query.CountAsync();
         var total = await query.SumAsync(r => r.FinalAmount);

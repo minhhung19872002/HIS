@@ -23,10 +23,10 @@ public partial class InsuranceXmlService
         if (month <= 0 || month > 12) month = DateTime.Now.Month;
         if (year <= 0 || year > 9999) year = DateTime.Now.Year;
         var startDate = new DateTime(year, month, 1);
-        var endDate = startDate.AddMonths(1).AddDays(-1);
+        var endDate = startDate.AddMonths(1); // EXCLUSIVE: `<= last day 00:00` dropped last-day claims
 
         var claims = await _context.InsuranceClaims
-            .Where(c => c.ServiceDate >= startDate && c.ServiceDate <= endDate)
+            .Where(c => c.ServiceDate >= startDate && c.ServiceDate < endDate)
             .ToListAsync();
 
         return new MonthlyInsuranceReportDto
@@ -45,31 +45,120 @@ public partial class InsuranceXmlService
         };
     }
 
+    /// <summary>Facility code from BhxhGateway config; legacy placeholder only when not configured.</summary>
+    private string ReportFacilityCode() =>
+        !string.IsNullOrWhiteSpace(_gatewayOptions.FacilityCode) ? _gatewayOptions.FacilityCode : "01001";
+
+    /// <summary>
+    /// Claims of the period with their settled BHYT amount (quyết toán). Settled = requested minus
+    /// BHXH rejections (same rule as CalculateReconciliationDifferenceAsync), and only for claims BHXH
+    /// has actually processed (2 approved, 3 partially rejected, 5 paid); fully rejected (4) → 0.
+    /// </summary>
+    private async Task<List<(InsuranceClaim Claim, decimal Settled)>> LoadClaimsWithSettledAsync(
+        int month, int year, Func<InsuranceClaim, bool> filter)
+    {
+        var (from, to) = MonthRange(month, year);
+        var claims = (await _context.InsuranceClaims
+                .AsNoTracking()
+                .Where(c => !c.IsDeleted && c.ServiceDate >= @from && c.ServiceDate < to)
+                .ToListAsync())
+            .Where(filter)
+            .ToList();
+        var ids = claims.Select(c => c.Id).ToList();
+        var rejectedByClaim = ids.Count == 0
+            ? new Dictionary<Guid, decimal>()
+            : (await _context.InsuranceRejections
+                    .AsNoTracking()
+                    .Where(r => !r.IsDeleted && ids.Contains(r.ClaimId))
+                    .ToListAsync())
+                .GroupBy(r => r.ClaimId)
+                .ToDictionary(g => g.Key, g => g.Sum(r => r.RejectedAmount));
+
+        return claims.Select(c =>
+        {
+            decimal settled = c.ClaimStatus switch
+            {
+                2 or 3 or 5 => Math.Max(0, c.InsuranceAmount - (rejectedByClaim.TryGetValue(c.Id, out var rj) ? rj : 0)),
+                _ => 0m,
+            };
+            return (c, settled);
+        }).ToList();
+    }
+
     public async Task<ReportC79aDto> GetReportC79aAsync(int month, int year)
     {
+        // C79a-HD: outpatient (incl. emergency not admitted) claims requested for payment, by route.
+        // Was a stub returning no lines and 0 totals although the Insurance page calls it.
+        var rows = await LoadClaimsWithSettledAsync(month, year, c => c.TreatmentType != 2);
+
+        static (int Order, string Name) RouteOf(int insuranceType) => insuranceType switch
+        {
+            1 or 4 => (1, "Người bệnh KCB đúng tuyến"),
+            2 => (2, "Người bệnh chuyển tuyến đến (có giấy chuyển)"),
+            3 => (3, "Người bệnh trái tuyến (không giấy chuyển)"),
+            5 => (4, "Người bệnh thông tuyến"),
+            _ => (9, "Khác"),
+        };
+
+        var lines = rows
+            .GroupBy(r => RouteOf(r.Claim.InsuranceType))
+            .OrderBy(g => g.Key.Order)
+            .Select((g, i) => new ReportC79aLineDto
+            {
+                Stt = i + 1,
+                TenChiTieu = g.Key.Name,
+                SoLuot = g.Count(),
+                TienTamUng = 0, // no BHXH advance data is stored
+                TienDeNghi = g.Sum(r => r.Claim.InsuranceAmount),
+                TienQuyetToan = g.Sum(r => r.Settled),
+            })
+            .ToList();
+
         return new ReportC79aDto
         {
-            MaCsKcb = "01001",
+            MaCsKcb = ReportFacilityCode(),
             TenCsKcb = "Benh vien Da khoa",
             Month = month,
             Year = year,
-            Lines = new List<ReportC79aLineDto>(),
-            TotalAmount = 0,
-            TotalInsuranceAmount = 0
+            Lines = lines,
+            TotalAmount = rows.Sum(r => r.Claim.TotalAmount),
+            TotalInsuranceAmount = lines.Sum(l => l.TienDeNghi)
         };
     }
 
     public async Task<Report80aDto> GetReport80aAsync(int month, int year)
     {
+        // 80a-HD: inpatient claims requested for payment, grouped by card type (first 3 chars of the
+        // BHYT card: object code + benefit level, e.g. DN4, TE1). Was a stub returning 0.
+        var rows = await LoadClaimsWithSettledAsync(month, year, c => c.TreatmentType == 2);
+
+        var details = rows
+            .GroupBy(r =>
+            {
+                var card = r.Claim.InsuranceNumber?.Trim() ?? "";
+                return card.Length >= 3 ? card.Substring(0, 3).ToUpperInvariant() : "Khác";
+            })
+            .OrderBy(g => g.Key)
+            .Select((g, i) => new Report80aDetailDto
+            {
+                Stt = i + 1,
+                LoaiThe = g.Key,
+                SoLuotKcb = g.Count(),
+                SoNguoi = g.Select(r => r.Claim.PatientId).Distinct().Count(),
+                TienDeNghi = g.Sum(r => r.Claim.InsuranceAmount),
+                TienQuyetToan = g.Sum(r => r.Settled),
+            })
+            .ToList();
+
         return new Report80aDto
         {
-            MaCsKcb = "01001",
+            MaCsKcb = ReportFacilityCode(),
             TenCsKcb = "Benh vien Da khoa",
             Month = month,
             Year = year,
-            Details = new List<Report80aDetailDto>(),
-            TotalPatients = 0,
-            TotalInsuranceAmount = 0
+            Details = details,
+            TotalPatients = rows.Select(r => r.Claim.PatientId).Distinct().Count(),
+            TotalInsuranceAmount = details.Sum(d => d.TienDeNghi)
         };
     }
 
@@ -653,7 +742,7 @@ public partial class InsuranceXmlService
 
         return new ReportC79bDto
         {
-            MaCsKcb = "01001",
+            MaCsKcb = ReportFacilityCode(),
             TenCsKcb = "Benh vien Da khoa",
             Month = month,
             Year = year,

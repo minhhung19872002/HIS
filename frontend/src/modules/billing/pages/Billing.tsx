@@ -237,10 +237,12 @@ const InvoicesPanel: React.FC = () => {
    Payment modal — collect cash/card/transfer, calls createPayment.
    ────────────────────────────────────────────────────────── */
 
+// Codes MUST match backend Receipt.PaymentMethod (1-Tiền mặt, 2-Chuyển khoản, 3-Thẻ): reports bucket
+// by these codes, so the old 2=Thẻ/3=Chuyển khoản order booked card money as transfer and vice versa.
 const PAY_METHODS = [
   { value: 1, label: 'Tiền mặt' },
-  { value: 2, label: 'Thẻ' },
-  { value: 3, label: 'Chuyển khoản' },
+  { value: 2, label: 'Chuyển khoản' },
+  { value: 3, label: 'Thẻ' },
 ];
 
 const PayModal: React.FC<{

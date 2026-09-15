@@ -382,8 +382,10 @@ const ReportsV2: React.FC = () => {
     averageStayTrend: averageStayDays !== null ? -Math.max(0.1, Number((averageStayDays * 0.06).toFixed(2))) : FALLBACK_KPI.averageStayTrend,
     mortality: FALLBACK_KPI.mortality,
     mortalityTrend: FALLBACK_KPI.mortalityTrend,
-    bhytClaim: bhytRevenue ?? (totalRevenue !== null ? totalRevenue * 0.65 : FALLBACK_KPI.bhytClaim),
-    bhytClaimTrend: revenueChange !== null ? Number((revenueChange * 0.8).toFixed(1)) : FALLBACK_KPI.bhytClaimTrend,
+    // Live payload: show the real BHYT revenue (0 when absent). Was `totalRevenue * 0.65` and a
+    // trend of `revenueChange * 0.8` — invented figures presented as settled BHYT money.
+    bhytClaim: bhytRevenue ?? (dashboard ? 0 : FALLBACK_KPI.bhytClaim),
+    bhytClaimTrend: dashboard ? 0 : FALLBACK_KPI.bhytClaimTrend,
   };
 
   const stripCards = [
@@ -398,11 +400,13 @@ const ReportsV2: React.FC = () => {
     { label: 'Lượt khám', value: formatMetricValue('count', derivedKpis.visits), trend: derivedKpis.visitsTrend, sub: 'vs kỳ trước' },
     { label: 'Doanh thu', value: formatMetricValue('currency', derivedKpis.revenue), trend: derivedKpis.revenueTrend, sub: 'vs kỳ trước' },
     { label: 'Lấp đầy giường', value: formatMetricValue('percent', derivedKpis.occupancy), trend: derivedKpis.occupancyTrend, sub: 'vs kỳ trước' },
-    { label: 'Chờ khám TB', value: formatMetricValue('minutes', derivedKpis.avgWait), trend: derivedKpis.avgWaitTrend, sub: 'vs kỳ trước', inverse: true },
+    // The dashboard payload has no wait-time or mortality figure: with live data these cards used to
+    // show a number derived from the visit trend / a hard-coded 0.42% — now an explicit "no data".
+    { label: 'Chờ khám TB', value: dashboard ? '—' : formatMetricValue('minutes', derivedKpis.avgWait), trend: dashboard ? 0 : derivedKpis.avgWaitTrend, sub: dashboard ? 'chưa có số liệu' : 'vs kỳ trước', inverse: true },
     { label: 'Phẫu thuật', value: formatMetricValue('count', derivedKpis.surgeries), trend: derivedKpis.surgeriesTrend, sub: 'ca thực hiện' },
     { label: 'LOS nội trú', value: formatMetricValue('duration', derivedKpis.averageStay), trend: derivedKpis.averageStayTrend, sub: 'trung bình', inverse: true },
-    { label: 'Tỷ lệ tử vong', value: formatMetricValue('rate', derivedKpis.mortality), trend: derivedKpis.mortalityTrend, sub: 'trong viện', inverse: true },
-    { label: 'Thanh quyết toán BHYT', value: formatMetricValue('currency', derivedKpis.bhytClaim), trend: derivedKpis.bhytClaimTrend, sub: 'đã duyệt' },
+    { label: 'Tỷ lệ tử vong', value: dashboard ? '—' : formatMetricValue('rate', derivedKpis.mortality), trend: dashboard ? 0 : derivedKpis.mortalityTrend, sub: dashboard ? 'chưa có số liệu' : 'trong viện', inverse: true },
+    { label: 'Doanh thu BN BHYT', value: formatMetricValue('currency', derivedKpis.bhytClaim), trend: derivedKpis.bhytClaimTrend, sub: 'hôm nay' },
   ];
 
   const selectedCategory = REPORT_CATEGORIES.find((category) => category.id === activeCategory) ?? REPORT_CATEGORIES[0];

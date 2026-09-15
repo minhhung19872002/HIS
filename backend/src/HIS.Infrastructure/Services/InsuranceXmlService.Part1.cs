@@ -31,6 +31,7 @@ public partial class InsuranceXmlService : IInsuranceXmlService
     private readonly XmlSchemaValidator _schemaValidator;
     private readonly BhxhGatewayOptions _gatewayOptions;
     private readonly ILogger<InsuranceXmlService> _logger;
+    private readonly IBhxhGatewaySettingsProvider _gatewaySettings;
 
     public InsuranceXmlService(
         HISDbContext context,
@@ -38,7 +39,8 @@ public partial class InsuranceXmlService : IInsuranceXmlService
         XmlExportService xmlExportService,
         XmlSchemaValidator schemaValidator,
         IOptions<BhxhGatewayOptions> gatewayOptions,
-        ILogger<InsuranceXmlService> logger)
+        ILogger<InsuranceXmlService> logger,
+        IBhxhGatewaySettingsProvider gatewaySettings)
     {
         _context = context;
         _gatewayClient = gatewayClient;
@@ -46,6 +48,25 @@ public partial class InsuranceXmlService : IInsuranceXmlService
         _schemaValidator = schemaValidator;
         _gatewayOptions = gatewayOptions.Value;
         _logger = logger;
+        _gatewaySettings = gatewaySettings;
+    }
+
+    /// <summary>
+    /// Ma CSKCB in force: the "Cấu hình BHXH" admin screen value first, appsettings second.
+    /// Empty when neither is configured (caller decides the fallback).
+    /// </summary>
+    private async Task<string> ResolveFacilityCodeAsync()
+    {
+        try
+        {
+            var settings = await _gatewaySettings.GetAsync();
+            if (!string.IsNullOrWhiteSpace(settings.FacilityCode)) return settings.FacilityCode.Trim();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not read BHXH settings; falling back to appsettings FacilityCode");
+        }
+        return _gatewayOptions.FacilityCode?.Trim() ?? "";
     }
 
 

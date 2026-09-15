@@ -56,8 +56,10 @@ public partial class InsuranceXmlService
                 Stt = i + 1,
                 NhomDoiTuong = InsuranceTypeLabel(g.Key),
                 SoBenhNhan = g.Count(),
+                // Not-yet-discharged stays are counted up to the end of the report period, not up
+                // to "now" (a Feb report run in Sep counted ~200 days for one open stay).
                 SoNgayDieuTri = g.Sum(x =>
-                    (int)((x.NgayRa ?? DateTime.UtcNow).Date - x.NgayVao.Date).TotalDays),
+                    Math.Max(0, (int)((x.NgayRa.HasValue && x.NgayRa.Value < to ? x.NgayRa.Value : to).Date - x.NgayVao.Date).TotalDays)),
                 TienDeNghi = g.Sum(x => x.TotalAmount),
                 TienQuyetToan = g.Sum(x => x.InsuranceAmount),
             })
@@ -65,7 +67,7 @@ public partial class InsuranceXmlService
 
         return new ReportC80bDto
         {
-            MaCsKcb = "01001",
+            MaCsKcb = ReportFacilityCode(),
             TenCsKcb = "Benh vien Da khoa",
             Month = month,
             Year = year,

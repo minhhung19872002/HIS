@@ -18,8 +18,11 @@ public partial class HospitalReportService
 
     private async Task FillOpdIpdCostByFee(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
+        // Collected payment receipts on their business date. Was: CreatedAt (UTC), cancelled and
+        // refund slips summed as revenue, and OPD/IPD split on PatientType (1 BHYT/2 viện phí/3 dịch
+        // vụ) — so inpatient revenue was always 0 and all of it landed in "ngoại trú".
         var query = _context.Receipts.AsNoTracking()
-            .Where(r => r.CreatedAt >= from && r.CreatedAt < to && !r.IsDeleted);
+            .Where(r => r.ReceiptDate >= from && r.ReceiptDate < to && !r.IsDeleted && r.ReceiptType != 3 && r.Status == 1);
         if (deptId.HasValue)
             query = query.Where(r => r.MedicalRecord != null && r.MedicalRecord.DepartmentId == deptId);
 
@@ -30,8 +33,8 @@ public partial class HospitalReportService
             .Select(g => new
             {
                 g.Key.DeptName,
-                OutpatientRevenue = g.Where(r => r.MedicalRecord.PatientType <= 2).Sum(r => r.FinalAmount),
-                InpatientRevenue = g.Where(r => r.MedicalRecord.PatientType > 2).Sum(r => r.FinalAmount),
+                OutpatientRevenue = g.Where(r => r.MedicalRecord.TreatmentType != 2).Sum(r => r.FinalAmount),
+                InpatientRevenue = g.Where(r => r.MedicalRecord.TreatmentType == 2).Sum(r => r.FinalAmount),
                 TransactionCount = g.Count()
             }).ToListAsync();
 

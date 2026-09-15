@@ -58,7 +58,7 @@ public class XmlExportService
 
     #region XML1 - Thong tin chung ho so KCB
 
-    public async Task<byte[]> GenerateXml1FileAsync(List<Xml1MedicalRecordDto> records)
+    public async Task<byte[]> GenerateXml1FileAsync(List<Xml1MedicalRecordDto> records, string? maCsKcb = null)
     {
         using var stream = new MemoryStream();
         await using var writer = XmlWriter.Create(stream, CreateSettings());
@@ -91,7 +91,8 @@ public class XmlExportService
             WriteElement(writer, "MA_DOI_TUONG", r.MaDoiTuong ?? "");
             WriteElement(writer, "MA_LOAI_KCB", r.MaLoaiKcb);
             WriteElement(writer, "MA_KHOA", r.MaKhoa);
-            WriteElement(writer, "MA_CSKCB", ""); // Will be set at export level from BhxhGatewayOptions
+            // Facility code resolved by the caller (BHXH settings). Was always written empty.
+            WriteElement(writer, "MA_CSKCB", maCsKcb ?? "");
             WriteElement(writer, "MA_KHUVUC", r.MaKhuvuc ?? "");
             WriteElement(writer, "MA_PHONG", r.MaPhong);
             WriteElement(writer, "CAN_NANG", r.CanNang ?? "");
@@ -100,7 +101,9 @@ public class XmlExportService
             WriteElement(writer, "SO_NGAY_DTRI", ToInt(r.SoNgayDt));
             WriteElement(writer, "KET_QUA_DTRI", r.KetQuaDt);
             WriteElement(writer, "TINH_TRANG_RV", ToInt(r.TinhTrangRv));
-            WriteElement(writer, "T_TONGCHI", ToDecimal(r.TienKham + r.TienGiuong + r.TienNgoaitruth + r.TienBhyt + r.TienBnCct + r.TienNguoibenh));
+            // Total = payer split (BHYT + co-pay + patient). TienKham/TienGiuong/TienNgoaitruth are
+            // components already inside that total; adding them again double-counted T_TONGCHI.
+            WriteElement(writer, "T_TONGCHI", ToDecimal(r.TienBhyt + r.TienBnCct + r.TienNguoibenh));
             WriteElement(writer, "T_BHYT_TT", ToDecimal(r.TienBhyt));
             WriteElement(writer, "T_BN_CCT", ToDecimal(r.TienBnCct));
             WriteElement(writer, "T_NGUOI_BENH", ToDecimal(r.TienNguoibenh));

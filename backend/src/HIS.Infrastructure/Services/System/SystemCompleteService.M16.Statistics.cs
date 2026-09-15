@@ -16,15 +16,24 @@ public partial class SystemCompleteService
 {
     #region Module 16b: Thong ke & Bao cao HSBA (16.4-16.12)
 
+    /// <summary>
+    /// Exclusive upper bound for a report's toDate. Callers send a date-only toDate (YYYY-MM-DD)
+    /// meaning "through that day"; the old inclusive compare against midnight dropped the whole last
+    /// day (a report for today returned 0). A toDate carrying a time is used as-is.
+    /// </summary>
+    private static DateTime StatisticsEndExclusive(DateTime toDate) =>
+        toDate.TimeOfDay == TimeSpan.Zero ? toDate.Date.AddDays(1) : toDate;
+
     // 16.4 Bao cao kham benh
     public async Task<List<ExaminationStatisticsDto>> GetExaminationStatisticsAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null, Guid? doctorId = null)
     {
+        var toEnd = StatisticsEndExclusive(toDate);
         try
         {
             var query = _context.Examinations.AsNoTracking()
                 .Include(e => e.Department)
-                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt <= toDate);
+                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt < toEnd);
             if (departmentId.HasValue)
                 query = query.Where(e => e.DepartmentId == departmentId.Value);
             if (doctorId.HasValue)
@@ -56,11 +65,12 @@ public partial class SystemCompleteService
     public async Task<List<AdmissionStatisticsDto>> GetAdmissionStatisticsAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null, string admissionSource = null)
     {
+        var toEnd = StatisticsEndExclusive(toDate);
         try
         {
             var query = _context.Admissions.AsNoTracking()
                 .Include(a => a.Department)
-                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate <= toDate);
+                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate < toEnd);
             if (departmentId.HasValue)
                 query = query.Where(a => a.DepartmentId == departmentId.Value);
             if (!string.IsNullOrWhiteSpace(admissionSource))
@@ -92,11 +102,12 @@ public partial class SystemCompleteService
     public async Task<List<DischargeStatisticsDto>> GetDischargeStatisticsAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null, string dischargeType = null)
     {
+        var toEnd = StatisticsEndExclusive(toDate);
         try
         {
             var query = _context.Discharges.AsNoTracking()
                 .Include(d => d.Admission).ThenInclude(a => a.Department)
-                .Where(d => d.DischargeDate >= fromDate && d.DischargeDate <= toDate);
+                .Where(d => d.DischargeDate >= fromDate && d.DischargeDate < toEnd);
             if (departmentId.HasValue)
                 query = query.Where(d => d.Admission.DepartmentId == departmentId.Value);
             if (!string.IsNullOrWhiteSpace(dischargeType) && int.TryParse(dischargeType, out var dt))
@@ -129,17 +140,18 @@ public partial class SystemCompleteService
     public async Task<List<MortalityStatisticsDto>> GetMortalityStatisticsAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null)
     {
+        var toEnd = StatisticsEndExclusive(toDate);
         try
         {
             var deathDischarges = _context.Discharges.AsNoTracking()
                 .Include(d => d.Admission).ThenInclude(a => a.Department)
-                .Where(d => d.DischargeDate >= fromDate && d.DischargeDate <= toDate)
+                .Where(d => d.DischargeDate >= fromDate && d.DischargeDate < toEnd)
                 .Where(d => d.DischargeType == 4 || d.DischargeCondition == 5);
             if (departmentId.HasValue)
                 deathDischarges = deathDischarges.Where(d => d.Admission.DepartmentId == departmentId.Value);
 
             var totalAdmissions = await _context.Admissions.AsNoTracking()
-                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate <= toDate)
+                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate < toEnd)
                 .Where(a => !departmentId.HasValue || a.DepartmentId == departmentId.Value)
                 .CountAsync();
 
@@ -177,10 +189,11 @@ public partial class SystemCompleteService
     public async Task<List<DiseaseStatisticsDto>> GetDiseaseStatisticsAsync(
         DateTime fromDate, DateTime toDate, string icdChapter = null, Guid? departmentId = null)
     {
+        var toEnd = StatisticsEndExclusive(toDate);
         try
         {
             var examQuery = _context.Examinations.AsNoTracking()
-                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt <= toDate)
+                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt < toEnd)
                 .Where(e => e.MainIcdCode != null && e.MainIcdCode != "");
             if (departmentId.HasValue)
                 examQuery = examQuery.Where(e => e.DepartmentId == departmentId.Value);
@@ -194,7 +207,7 @@ public partial class SystemCompleteService
 
             var admissionQuery = _context.Admissions.AsNoTracking()
                 .Include(a => a.MedicalRecord)
-                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate <= toDate)
+                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate < toEnd)
                 .Where(a => a.MedicalRecord.MainIcdCode != null && a.MedicalRecord.MainIcdCode != "");
             if (departmentId.HasValue)
                 admissionQuery = admissionQuery.Where(a => a.DepartmentId == departmentId.Value);
@@ -240,6 +253,7 @@ public partial class SystemCompleteService
     public async Task<List<DepartmentActivityReportDto>> GetDepartmentActivityReportAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null)
     {
+        var toEnd = StatisticsEndExclusive(toDate);
         try
         {
             var deptQuery = _context.Departments.AsNoTracking()
@@ -250,20 +264,20 @@ public partial class SystemCompleteService
             var departments = await deptQuery.Select(d => new { d.Id, d.DepartmentName }).ToListAsync();
 
             var examCounts = await _context.Examinations.AsNoTracking()
-                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt <= toDate)
+                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt < toEnd)
                 .GroupBy(e => e.DepartmentId)
                 .Select(g => new { DeptId = g.Key, Count = g.Count() })
                 .ToListAsync();
 
             var admissionCounts = await _context.Admissions.AsNoTracking()
-                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate <= toDate)
+                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate < toEnd)
                 .GroupBy(a => a.DepartmentId)
                 .Select(g => new { DeptId = g.Key, Count = g.Count() })
                 .ToListAsync();
 
             var surgeryCounts = await _context.SurgeryRequests.AsNoTracking()
                 .Include(s => s.MedicalRecord)
-                .Where(s => s.CreatedAt >= fromDate && s.CreatedAt <= toDate)
+                .Where(s => s.CreatedAt >= fromDate && s.CreatedAt < toEnd)
                 .Where(s => s.Status == 3)
                 .Where(s => s.MedicalRecord != null && s.MedicalRecord.DepartmentId != null)
                 .GroupBy(s => s.MedicalRecord.DepartmentId)
@@ -272,17 +286,21 @@ public partial class SystemCompleteService
 
             // #14b: model 1 ServiceRequests (RequestType=1 XN, loại hủy) thay LabRequests (model 2 chết)
             var labCounts = await _context.ServiceRequests.AsNoTracking()
-                .Where(l => l.CreatedAt >= fromDate && l.CreatedAt <= toDate && l.RequestType == 1 && l.Status != 4)
+                .Where(l => l.CreatedAt >= fromDate && l.CreatedAt < toEnd && l.RequestType == 1 && l.Status != 4)
                 .GroupBy(l => (Guid?)l.DepartmentId)
                 .Select(g => new { DeptId = g.Key, Count = g.Count() })
                 .ToListAsync();
 
+            // Net collected revenue on the business date: collected payments (Status 1) minus
+            // approved/paid refunds (1/4). Was every receipt row by UTC CreatedAt — cancelled
+            // receipts and refund slips were both ADDED to revenue.
             var revenueSums = await _context.Receipts.AsNoTracking()
-                .Where(r => r.CreatedAt >= fromDate && r.CreatedAt <= toDate)
+                .Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate < toEnd)
+                .Where(r => (r.ReceiptType != 3 && r.Status == 1) || (r.ReceiptType == 3 && (r.Status == 1 || r.Status == 4)))
                 .Include(r => r.MedicalRecord)
                 .Where(r => r.MedicalRecord.DepartmentId != null)
                 .GroupBy(r => r.MedicalRecord.DepartmentId)
-                .Select(g => new { DeptId = g.Key, Sum = g.Sum(r => r.FinalAmount) })
+                .Select(g => new { DeptId = g.Key, Sum = g.Sum(r => r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount) })
                 .ToListAsync();
 
             var result = departments.Select(d => new DepartmentActivityReportDto
@@ -355,6 +373,7 @@ public partial class SystemCompleteService
     // 16.11 Bao cao A1-A2-A3 (BYT)
     public async Task<BYTReportDto> GetBYTReportAsync(DateTime fromDate, DateTime toDate)
     {
+        var toEnd = StatisticsEndExclusive(toDate);
         try
         {
             var hospitalConfig = await _context.SystemConfigs.AsNoTracking()
@@ -362,11 +381,11 @@ public partial class SystemCompleteService
                 .ToListAsync();
 
             var totalOutpatients = await _context.Examinations.AsNoTracking()
-                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt <= toDate)
+                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt < toEnd)
                 .CountAsync();
 
             var totalInpatients = await _context.Admissions.AsNoTracking()
-                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate <= toDate)
+                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate < toEnd)
                 .CountAsync();
 
             var totalBeds = await _context.Beds.AsNoTracking()
@@ -403,17 +422,18 @@ public partial class SystemCompleteService
     // 16.12 KPI benh vien
     public async Task<List<HospitalKPIDto>> GetHospitalKPIsAsync(DateTime fromDate, DateTime toDate)
     {
+        var toEnd = StatisticsEndExclusive(toDate);
         try
         {
             var totalExams = await _context.Examinations.AsNoTracking()
-                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt <= toDate).CountAsync();
+                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt < toEnd).CountAsync();
             var completedExams = await _context.Examinations.AsNoTracking()
-                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt <= toDate && e.Status == 4).CountAsync();
+                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt < toEnd && e.Status == 4).CountAsync();
 
             var totalAdmissions = await _context.Admissions.AsNoTracking()
-                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate <= toDate).CountAsync();
+                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate < toEnd).CountAsync();
             var discharges = await _context.Discharges.AsNoTracking()
-                .Where(d => d.DischargeDate >= fromDate && d.DischargeDate <= toDate).ToListAsync();
+                .Where(d => d.DischargeDate >= fromDate && d.DischargeDate < toEnd).ToListAsync();
             var deaths = discharges.Count(d => d.DischargeType == 4 || d.DischargeCondition == 5);
 
             var totalBeds = await _context.Beds.AsNoTracking().Where(b => b.IsActive).CountAsync();
@@ -422,7 +442,7 @@ public partial class SystemCompleteService
 
             var avgLos = totalAdmissions > 0
                 ? await _context.Discharges.AsNoTracking()
-                    .Where(d => d.DischargeDate >= fromDate && d.DischargeDate <= toDate)
+                    .Where(d => d.DischargeDate >= fromDate && d.DischargeDate < toEnd)
                     .Select(d => EF.Functions.DateDiffDay(d.Admission.AdmissionDate, d.DischargeDate))
                     .DefaultIfEmpty(0)
                     .AverageAsync()

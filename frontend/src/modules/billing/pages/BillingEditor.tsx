@@ -51,6 +51,11 @@ const METHODS: { v: number; l: string; ic: string }[] = [
   { v: 3, l: 'VietQR', ic: 'qr' },
 ];
 
+// BE returns an unsaved preview with the empty Guid when the record has no invoice yet — treat it as
+// "no invoice" so the editor shows the proper warning instead of paying against a non-existent id.
+const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
+const toInvoiceId = (id?: string | null): string | undefined => (id && id !== EMPTY_GUID ? id : undefined);
+
 interface PayRow { id: string; kind: 'service' | 'med'; code: string; name: string; qty: number; unitPrice: number; amount: number; patientAmount: number; }
 
 const BillingEditorV2: React.FC = () => {
@@ -183,7 +188,7 @@ const BillingEditorV2: React.FC = () => {
     const paySnapId = selectReqRef.current;
     try {
       const inv = await getPatientInvoice(pt.medicalRecordId);
-      const invoiceId = inv.data?.id;
+      const invoiceId = toInvoiceId(inv.data?.id);
       if (!invoiceId) { tw('Bệnh nhân chưa có hoá đơn — tạo hoá đơn ở bản v1 (P2)'); setBusy(false); return; }
       if (method === 3) {
         // VietQR: mở modal QR động — backend tự tạo Receipt + HĐĐT khi giao dịch paid,
@@ -304,7 +309,7 @@ const BillingEditorV2: React.FC = () => {
     setSavingEinv(true);
     try {
       const inv = await getPatientInvoice(pt.medicalRecordId);
-      const invoiceId = inv.data?.id;
+      const invoiceId = toInvoiceId(inv.data?.id);
       if (!invoiceId) { tw('Bệnh nhân chưa có hoá đơn để phát hành'); setSavingEinv(false); return; }
       await issueElectronicInvoice({ invoiceId, buyerName: einvForm.buyerName || undefined, buyerEmail: einvForm.buyerEmail || undefined, sendEmail: einvForm.sendEmail });
       const r = await getElectronicInvoices();

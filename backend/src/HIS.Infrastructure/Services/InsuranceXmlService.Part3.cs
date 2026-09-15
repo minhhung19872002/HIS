@@ -56,8 +56,9 @@ public partial class InsuranceXmlService
             new() { TableName = "XML15", Description = "Dieu tri lao", RecordCount = xml15Data.Count },
         };
 
-        // Calculate cost totals from XML1 records
-        var totalCost = xml1Data.Sum(r => r.TienKham + r.TienGiuong + r.TienNgoaitruth + r.TienBhyt + r.TienBnCct + r.TienNguoibenh);
+        // Calculate cost totals from XML1 records (same rule as T_TONGCHI: payer split only —
+        // exam/bed amounts are components of it, adding them double-counted the total)
+        var totalCost = xml1Data.Sum(r => r.TienBhyt + r.TienBnCct + r.TienNguoibenh);
         var totalInsurance = xml1Data.Sum(r => r.TienBhyt);
         var totalPatient = xml1Data.Sum(r => r.TienNguoibenh + r.TienBnCct);
 
@@ -140,7 +141,8 @@ public partial class InsuranceXmlService
         var xml15Data = await GenerateXml15DataAsync(config);
 
         // Step 3: Generate XML bytes using XmlExportService
-        var xml1Bytes = await _xmlExportService.GenerateXml1FileAsync(xml1Data);
+        var configuredFacilityCode = await ResolveFacilityCodeAsync();
+        var xml1Bytes = await _xmlExportService.GenerateXml1FileAsync(xml1Data, configuredFacilityCode);
         var xml2Bytes = await _xmlExportService.GenerateXml2FileAsync(xml2Data);
         var xml3Bytes = await _xmlExportService.GenerateXml3FileAsync(xml3Data);
         var xml4Bytes = await _xmlExportService.GenerateXml4FileAsync(xml4Data);
@@ -191,7 +193,7 @@ public partial class InsuranceXmlService
         }
 
         // Step 5: Write files to disk with BHXH naming convention
-        var facilityCode = !string.IsNullOrEmpty(_gatewayOptions.FacilityCode) ? _gatewayOptions.FacilityCode : "00000";
+        var facilityCode = !string.IsNullOrEmpty(configuredFacilityCode) ? configuredFacilityCode : "00000";
         var period = $"{config.Year}{config.Month:D2}";
         var batchCode = $"XML-{period}-{DateTime.Now:HHmmss}";
         var outputPath = Path.Combine("exports", "xml", batchCode);

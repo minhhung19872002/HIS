@@ -263,10 +263,10 @@ public partial class InsuranceXmlService
         if (month <= 0 || month > 12) month = DateTime.Now.Month;
         if (year <= 0 || year > 9999) year = DateTime.Now.Year;
         var startDate = new DateTime(year, month, 1);
-        var endDate = startDate.AddMonths(1).AddDays(-1);
+        var endDate = startDate.AddMonths(1); // EXCLUSIVE: `<= last day 00:00` dropped last-day claims
 
         var claims = await _context.InsuranceClaims
-            .Where(c => c.ServiceDate >= startDate && c.ServiceDate <= endDate)
+            .Where(c => c.ServiceDate >= startDate && c.ServiceDate < endDate)
             .ToListAsync();
 
         // Id deterministic theo (year, month) — đợt quyết toán sinh on-the-fly nhưng cần Id ổn định
@@ -294,9 +294,9 @@ public partial class InsuranceXmlService
         if (period == null) return null;
         var (year, month) = period.Value;
         var startDate = new DateTime(year, month, 1);
-        var endDate = startDate.AddMonths(1).AddDays(-1);
+        var endDate = startDate.AddMonths(1); // EXCLUSIVE: `<= last day 00:00` dropped last-day claims
         var claims = await _context.InsuranceClaims
-            .Where(c => c.ServiceDate >= startDate && c.ServiceDate <= endDate)
+            .Where(c => c.ServiceDate >= startDate && c.ServiceDate < endDate)
             .ToListAsync();
         return new InsuranceSettlementBatchDto
         {
@@ -321,24 +321,24 @@ public partial class InsuranceXmlService
 
         // #195: 1 query cho cả năm thay vì 12 query/tháng, và chỉ lấy 4 cột cần dùng thay vì
         // nạp nguyên entity. Chia ngăn vẫn dùng đúng biểu thức [đầu tháng, cuối tháng] cũ —
-        // kể cả nét lệch sẵn có là endDate rơi vào 00:00 ngày cuối tháng.
+        // (nét lệch cũ endDate = 00:00 ngày cuối tháng đã sửa: nay mốc trên là đầu tháng sau, loại trừ).
         var yearStart = new DateTime(year, 1, 1);
-        var yearEnd = new DateTime(year, 12, 1).AddMonths(1).AddDays(-1);
+        var yearEnd = yearStart.AddYears(1);
         var yearClaims = await _context.InsuranceClaims
-            .Where(c => c.ServiceDate >= yearStart && c.ServiceDate <= yearEnd)
+            .Where(c => c.ServiceDate >= yearStart && c.ServiceDate < yearEnd)
             .Select(c => new { c.ServiceDate, c.TotalAmount, c.InsuranceAmount, c.PatientAmount })
             .ToListAsync();
 
         for (int month = 1; month <= 12; month++)
         {
             var startDate = new DateTime(year, month, 1);
-            var endDate = startDate.AddMonths(1).AddDays(-1);
+            var endDate = startDate.AddMonths(1); // EXCLUSIVE: `<= last day 00:00` dropped last-day claims
 
             // Only include months that have passed or are current
             if (startDate > DateTime.Today) break;
 
             var claims = yearClaims
-                .Where(c => c.ServiceDate >= startDate && c.ServiceDate <= endDate)
+                .Where(c => c.ServiceDate >= startDate && c.ServiceDate < endDate)
                 .ToList();
 
             batches.Add(new InsuranceSettlementBatchDto
@@ -380,7 +380,7 @@ public partial class InsuranceXmlService
 
         var (year, month) = period.Value;
         var startDate = new DateTime(year, month, 1);
-        var endDate = startDate.AddMonths(1).AddDays(-1);
+        var endDate = startDate.AddMonths(1); // EXCLUSIVE: `<= last day 00:00` dropped last-day claims
 
         var rows = ParseReconciliationFile(fileContent);
         if (rows.Count == 0)
@@ -388,7 +388,7 @@ public partial class InsuranceXmlService
 
         var claims = await _context.InsuranceClaims
             .Include(c => c.Patient)
-            .Where(c => c.ServiceDate >= startDate && c.ServiceDate <= endDate)
+            .Where(c => c.ServiceDate >= startDate && c.ServiceDate < endDate)
             .ToListAsync();
         var byCode = claims
             .Where(c => !string.IsNullOrEmpty(c.ClaimCode))
@@ -485,12 +485,12 @@ public partial class InsuranceXmlService
         if (period == null) return new List<RejectedClaimDto>();
         var (year, month) = period.Value;
         var startDate = new DateTime(year, month, 1);
-        var endDate = startDate.AddMonths(1).AddDays(-1);
+        var endDate = startDate.AddMonths(1); // EXCLUSIVE: `<= last day 00:00` dropped last-day claims
 
         var query =
             from rej in _context.InsuranceRejections.Where(x => !x.IsDeleted)
             join claim in _context.InsuranceClaims on rej.ClaimId equals claim.Id
-            where claim.ServiceDate >= startDate && claim.ServiceDate <= endDate
+            where claim.ServiceDate >= startDate && claim.ServiceDate < endDate
             select new { rej, claim, claim.Patient };
         var list = await query.OrderByDescending(x => x.rej.RejectedAt).Take(500).ToListAsync();
         return list.Select(x => new RejectedClaimDto
@@ -533,10 +533,10 @@ public partial class InsuranceXmlService
         if (period == null) return result;
         var (year, month) = period.Value;
         var startDate = new DateTime(year, month, 1);
-        var endDate = startDate.AddMonths(1).AddDays(-1);
+        var endDate = startDate.AddMonths(1); // EXCLUSIVE: `<= last day 00:00` dropped last-day claims
 
         var claims = await _context.InsuranceClaims
-            .Where(c => c.ServiceDate >= startDate && c.ServiceDate <= endDate)
+            .Where(c => c.ServiceDate >= startDate && c.ServiceDate < endDate)
             .ToListAsync();
         var claimIds = claims.Select(c => c.Id).ToList();
         var rejections = await _context.InsuranceRejections

@@ -146,11 +146,11 @@ public partial class BillingCompleteService {
             Code = cashBook.BookCode,
             Name = cashBook.BookName,
             BookType = cashBook.BookType,
-            BookTypeName = cashBook.BookType == 1 ? "Thu tiá»n" : "Táº¡m á»©ng",
+            BookTypeName = cashBook.BookType == 1 ? "Thu tiền" : "Tạm ứng",
             OpeningBalance = cashBook.OpeningBalance,
             CurrentBalance = cashBook.ClosingBalance,
             Status = cashBook.IsClosed ? 2 : 1,
-            StatusName = cashBook.IsClosed ? "ÄÃ£ khÃ³a" : "Äang má»Ÿ",
+            StatusName = cashBook.IsClosed ? "Đã khóa" : "Đang mở",
             CreatedAt = cashBook.CreatedAt
         };
     }
@@ -229,12 +229,70 @@ public partial class BillingCompleteService {
 
     public async Task<PagedResultDto<PatientBillingStatusDto>> SearchPatientsAsync(PatientStatusSearchDto dto)
     {
+        // QA0915: was a stub returning an empty page → /v2/billing/edit (cashier editor) and the
+        // "Tạm ứng" tab / "Tạo tạm ứng mới" could never find a patient, so nothing could be collected.
+        // Returns one row per patient with their latest medical record (the editor pays against it).
+        // Amount fields are intentionally NOT computed here — use billing-status for money figures.
+        var page = dto.Page > 0 ? dto.Page : 1;
+        var pageSize = dto.PageSize > 0 ? Math.Min(dto.PageSize, 200) : 20;
+
+        var query = _context.MedicalRecords
+            .Include(m => m.Patient)
+            .Where(m => !m.IsDeleted && m.Patient != null && !m.Patient.IsDeleted);
+
+        if (!string.IsNullOrWhiteSpace(dto.Keyword))
+        {
+            var k = dto.Keyword.Trim();
+            query = query.Where(m => m.Patient.PatientCode.Contains(k)
+                || m.Patient.FullName.Contains(k)
+                || m.MedicalRecordCode.Contains(k));
+        }
+        if (dto.DepartmentId.HasValue)
+            query = query.Where(m => m.DepartmentId == dto.DepartmentId.Value);
+        if (dto.RecordStatus.HasValue)
+            query = query.Where(m => m.Status == dto.RecordStatus.Value);
+        if (dto.FromDate.HasValue)
+            query = query.Where(m => m.AdmissionDate >= dto.FromDate.Value);
+        if (dto.ToDate.HasValue)
+            query = query.Where(m => m.AdmissionDate < dto.ToDate.Value.Date.AddDays(1));
+
+        // Latest record per patient — picked in memory from a bounded, flat projection so the SQL
+        // stays a plain filtered SELECT (no GroupBy/First translation).
+        var candidates = await query
+            .OrderByDescending(m => m.AdmissionDate)
+            .Select(m => new { m.Id, m.PatientId })
+            .Take(2000)
+            .ToListAsync();
+        var latestIds = candidates
+            .GroupBy(c => c.PatientId)
+            .Select(g => g.First().Id) // already ordered newest first
+            .ToList();
+
+        var totalCount = latestIds.Count;
+        var pageIds = latestIds.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        var rows = await _context.MedicalRecords
+            .Include(m => m.Patient)
+            .Where(m => pageIds.Contains(m.Id))
+            .OrderByDescending(m => m.AdmissionDate)
+            .ToListAsync();
+
         return new PagedResultDto<PatientBillingStatusDto>
         {
-            Items = new List<PatientBillingStatusDto>(),
-            TotalCount = 0,
-            Page = 1,
-            PageSize = 50
+            Items = rows.Select(m => new PatientBillingStatusDto
+            {
+                PatientId = m.PatientId,
+                PatientCode = m.Patient?.PatientCode ?? string.Empty,
+                PatientName = m.Patient?.FullName ?? string.Empty,
+                MedicalRecordId = m.Id,
+                MedicalRecordCode = m.MedicalRecordCode,
+                RecordStatus = m.Status,
+                AccountingStatus = m.IsClosed ? 2 : 1,
+                AccountingStatusName = m.IsClosed ? "Da duyet" : "Chua duyet",
+                IsLocked = m.Status >= 4,
+            }).ToList(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
         };
     }
 
@@ -356,6 +414,20 @@ public partial class BillingCompleteService {
         }
     }
 
+    /// <summary>Benefit level (mức hưởng, %) from the 3rd character of a 15-char BHYT card; null if unknown.</summary>
+    private static int? CoverageFromCardLevel(string? cardNumber)
+    {
+        var card = cardNumber?.Trim();
+        if (string.IsNullOrEmpty(card) || card.Length < 3) return null;
+        return card[2] switch
+        {
+            '1' or '2' or '5' => 100,
+            '3' => 95,
+            '4' => 80,
+            _ => null
+        };
+    }
+
     public async Task<InsuranceCheckDto> CheckInsuranceCardAsync(InsuranceCheckRequestDto dto)
     {
         try
@@ -390,7 +462,10 @@ public partial class BillingCompleteService {
                 .OrderByDescending(m => m.AdmissionDate)
                 .Select(m => m.InsuranceCoverageRate)
                 .FirstOrDefaultAsync();
-            result.InsuranceRate  = (coveragePercent ?? 80) / 100m;
+            // QA0915: fallback was a flat 80% for every card (TE1/CC1 showed 80%). Without a stored rate,
+            // use the statutory benefit level encoded in the 3rd character of the card (QĐ 1351/QĐ-BHXH):
+            // 1,2,5 → 100% · 3 → 95% · 4 → 80%. Route (đúng/trái tuyến) is NOT applied here.
+            result.InsuranceRate  = (coveragePercent ?? CoverageFromCardLevel(dto.InsuranceCardNumber) ?? 80) / 100m;
             result.CoPaymentRate  = 1m - result.InsuranceRate;
 
             if (!result.IsValid)

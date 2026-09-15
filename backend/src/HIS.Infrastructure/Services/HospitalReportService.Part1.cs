@@ -407,7 +407,12 @@ public partial class HospitalReportService : IHospitalReportService
         };
 
         var fromDate = from ?? DateTime.Today.AddMonths(-1);
-        var toDate = to ?? DateTime.Today.AddDays(1);
+        // Handlers filter `< to` (exclusive). The FE sends a date-only `to` (YYYY-MM-DD) meaning
+        // "through that day", so a midnight value is moved to the next day — otherwise the whole
+        // last day (by default: today) was missing from every report.
+        var toDate = to.HasValue
+            ? (to.Value.TimeOfDay == TimeSpan.Zero ? to.Value.Date.AddDays(1) : to.Value)
+            : DateTime.Today.AddDays(1);
 
         try
         {

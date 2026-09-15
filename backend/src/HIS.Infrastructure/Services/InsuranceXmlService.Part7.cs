@@ -164,12 +164,18 @@ public partial class InsuranceXmlService
             query = query.Where(c => c.ServiceDate >= startDate);
         }
 
+        // Upper bound is EXCLUSIVE. Was `<= lastDay 00:00` (month) / `<= ToDate` (date-only), which
+        // dropped every claim served after midnight of the last day from the BHYT submission.
         if (config.ToDate.HasValue)
-            query = query.Where(c => c.ServiceDate <= config.ToDate.Value);
+        {
+            var toDate = config.ToDate.Value;
+            var toExclusive = toDate.TimeOfDay == TimeSpan.Zero ? toDate.Date.AddDays(1) : toDate;
+            query = query.Where(c => c.ServiceDate < toExclusive);
+        }
         else if (hasValidPeriod)
         {
-            var endDate = new DateTime(config.Year, config.Month, 1).AddMonths(1).AddDays(-1);
-            query = query.Where(c => c.ServiceDate <= endDate);
+            var endExclusive = new DateTime(config.Year, config.Month, 1).AddMonths(1);
+            query = query.Where(c => c.ServiceDate < endExclusive);
         }
 
         if (config.TreatmentType.HasValue)

@@ -220,8 +220,12 @@ public partial class BillingCompleteService {
                     "Giảm giá từ 5,000,000đ trở lên phải chọn lý do 'Giám đốc duyệt miễn'");
         }
 
+        EnsureDiscountFits(invoice, discountAmount);
         invoice.DiscountAmount = discountAmount;
         invoice.DiscountReason = dto.DiscountReason;
+        // QA0915: RemainingAmount was left stale, so the payment guard (which reads RemainingAmount)
+        // let the cashier collect the full pre-discount amount (measured: 3.000đ discount, 7.200đ collected).
+        RecomputeInvoiceRemaining(invoice);
         invoice.UpdatedAt = DateTime.Now;
         await _context.SaveChangesAsync();
 
@@ -262,8 +266,10 @@ public partial class BillingCompleteService {
             }
         }
 
+        EnsureDiscountFits(invoice, totalDiscount);
         invoice.DiscountAmount = totalDiscount;
         invoice.DiscountReason = dto.DiscountReason;
+        RecomputeInvoiceRemaining(invoice); // QA0915: same stale-RemainingAmount bug as invoice discount
         invoice.UpdatedAt = DateTime.Now;
         await _context.SaveChangesAsync();
 
@@ -277,6 +283,27 @@ public partial class BillingCompleteService {
         invoiceDto.RemainingAmount -= totalDiscount;
 
         return invoiceDto;
+    }
+
+    /// <summary>QA0915: a discount may only cover what is still unpaid (was unbounded — 9.000đ accepted on a paid 7.200đ invoice).</summary>
+    private static void EnsureDiscountFits(InvoiceSummary invoice, decimal discountAmount)
+    {
+        if (discountAmount < 0)
+            throw new InvalidOperationException("Số tiền miễn giảm không được âm");
+        var unpaid = invoice.TotalAmount - invoice.PaidAmount;
+        if (discountAmount > unpaid)
+            throw new InvalidOperationException(
+                $"Số tiền miễn giảm ({discountAmount:N0}đ) vượt quá số tiền hóa đơn chưa thanh toán ({Math.Max(0, unpaid):N0}đ)");
+    }
+
+    /// <summary>Same formula as CreatePaymentAsync/CancelPaymentAsync.</summary>
+    private static void RecomputeInvoiceRemaining(InvoiceSummary invoice)
+    {
+        invoice.RemainingAmount = Math.Max(0, invoice.TotalAmount - invoice.DiscountAmount - invoice.PaidAmount);
+        if (invoice.RemainingAmount > 0 && invoice.Status == 1)
+            invoice.Status = 0;
+        else if (invoice.RemainingAmount == 0 && invoice.Status == 0)
+            invoice.Status = 1;
     }
 
     public async Task<List<DiscountHistoryDto>> GetDiscountHistoryAsync(Guid invoiceId)
@@ -316,7 +343,9 @@ public partial class BillingCompleteService {
 
         invoice.DiscountAmount = 0;
         invoice.DiscountReason = $"Hủy miễn giảm: {reason}";
-        invoice.RemainingAmount = invoice.TotalAmount - invoice.PaidAmount - invoice.InsuranceAmount;
+        // QA0915: TotalAmount is already the patient share (same formula as CreatePaymentAsync); subtracting
+        // InsuranceAmount again under-stated the debt and could go negative.
+        RecomputeInvoiceRemaining(invoice);
         invoice.UpdatedAt = DateTime.Now;
         await _context.SaveChangesAsync();
         return true;

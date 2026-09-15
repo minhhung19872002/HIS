@@ -108,6 +108,9 @@ public partial class BillingCompleteService {
         // #189: chặn số tiền hoàn <= 0 (chống "hoàn âm" = rút tiền bệnh nhân)
         if (dto.RefundAmount <= 0)
             throw new InvalidOperationException("Số tiền hoàn phải lớn hơn 0");
+        // N7: VND has no sub-unit — reject fractional amounts (a 0,50đ receipt surfaced on the dashboard).
+        if (dto.RefundAmount != Math.Round(dto.RefundAmount, 0))
+            throw new InvalidOperationException("Số tiền hoàn phải là số nguyên đồng (VND không có số lẻ)");
 
         // Verify original payment/deposit exists and has sufficient amount
         if (dto.RefundType == 1 && dto.OriginalDepositId.HasValue)
@@ -115,6 +118,9 @@ public partial class BillingCompleteService {
             var originalDeposit = await _context.Deposits.FindAsync(dto.OriginalDepositId.Value);
             if (originalDeposit == null)
                 throw new KeyNotFoundException("Phiếu tạm ứng gốc không tồn tại");
+            // QA0915: the source deposit must belong to the patient being refunded.
+            if (originalDeposit.PatientId.HasValue && originalDeposit.PatientId.Value != dto.PatientId)
+                throw new InvalidOperationException("Phiếu tạm ứng gốc không thuộc bệnh nhân này");
 
             // #218/T3 (2026-09-04): nhánh "phiếu thanh toán" ngay bên dưới vẫn luôn kiểm
             // `Status == 2` (đã hủy) và chặn; nhánh tạm ứng này thì không kiểm gì. Cùng một luật,
@@ -147,10 +153,31 @@ public partial class BillingCompleteService {
             var originalPayment = await _context.Receipts.FindAsync(dto.OriginalPaymentId.Value);
             if (originalPayment == null)
                 throw new KeyNotFoundException("Phiếu thanh toán gốc không tồn tại");
+            // QA0915: only a PAYMENT receipt (type 2) of this same patient can be the refund source —
+            // previously a refund receipt or another patient's payment was accepted.
+            if (originalPayment.ReceiptType != 2)
+                throw new InvalidOperationException("Phiếu gốc không phải phiếu thanh toán");
+            if (originalPayment.PatientId != dto.PatientId)
+                throw new InvalidOperationException("Phiếu thanh toán gốc không thuộc bệnh nhân này");
             if (originalPayment.Status == 2)
                 throw new InvalidOperationException("Phiếu thanh toán gốc đã bị hủy");
-            if (dto.RefundAmount > originalPayment.FinalAmount)
-                throw new InvalidOperationException($"Số tiền hoàn ({dto.RefundAmount:N0}đ) vượt quá số tiền đã thanh toán ({originalPayment.FinalAmount:N0}đ)");
+
+            // QA0915: same rule as the deposit branch above (#218/T3) — earlier refunds on this payment
+            // (pending/approved/paid) must be deducted, otherwise one 200.000đ payment could be refunded
+            // twice (measured: two 200.000đ refunds both created and approved).
+            var alreadyRefundedPayment = await _context.Receipts
+                .Where(r => r.ReceiptType == 3
+                            && r.OriginalPaymentId == dto.OriginalPaymentId.Value
+                            && !r.IsDeleted
+                            && r.Status != RefundStatus.Rejected
+                            && r.Status != RefundStatus.Cancelled)
+                .SumAsync(r => (decimal?)r.FinalAmount) ?? 0m;
+            var refundablePayment = originalPayment.FinalAmount - alreadyRefundedPayment;
+            if (dto.RefundAmount > refundablePayment)
+                throw new InvalidOperationException(
+                    alreadyRefundedPayment > 0
+                        ? $"Số tiền hoàn ({dto.RefundAmount:N0}đ) vượt quá số còn hoàn được ({refundablePayment:N0}đ; phiếu này đã hoàn {alreadyRefundedPayment:N0}đ)"
+                        : $"Số tiền hoàn ({dto.RefundAmount:N0}đ) vượt quá số tiền đã thanh toán ({originalPayment.FinalAmount:N0}đ)");
         }
         else
         {
@@ -291,8 +318,8 @@ public partial class BillingCompleteService {
             PatientName = receipt.Patient?.FullName ?? string.Empty,
             RefundAmount = receipt.FinalAmount,
             Reason = receipt.Note ?? string.Empty,
-            Status = dto.IsApproved ? 1 : 3,
-            StatusName = dto.IsApproved ? "Đã duyệt" : "Từ chối",
+            Status = receipt.Status, // QA0915: was 3 on reject, but the stored value is RefundStatus.Rejected (2)
+            StatusName = RefundStatus.GetName(receipt.Status),
             ApprovedBy = userId,
             ApprovedAt = DateTime.Now,
             CreatedAt = receipt.CreatedAt
@@ -336,12 +363,74 @@ public partial class BillingCompleteService {
 
     public async Task<PagedResultDto<RefundDto>> SearchRefundsAsync(RefundSearchDto dto)
     {
+        // QA0915: was a stub returning an empty page → /v2/refund-approval and the "Hoàn trả" tabs were
+        // always empty, so every refund created stayed "Chờ duyệt" forever (nobody could approve/pay it).
+        var page = dto.Page > 0 ? dto.Page : 1;
+        var pageSize = dto.PageSize > 0 ? Math.Min(dto.PageSize, 1000) : 20;
+
+        var query = _context.Receipts
+            .Include(r => r.Patient)
+            .Include(r => r.Cashier)
+            .Where(r => r.ReceiptType == 3 && !r.IsDeleted);
+
+        if (dto.PatientId.HasValue)
+            query = query.Where(r => r.PatientId == dto.PatientId.Value);
+        if (dto.Status.HasValue)
+            query = query.Where(r => r.Status == dto.Status.Value);
+        if (dto.RefundType == 1)
+            query = query.Where(r => r.OriginalDepositId != null);
+        else if (dto.RefundType == 2)
+            query = query.Where(r => r.OriginalPaymentId != null);
+        if (dto.FromDate.HasValue)
+            query = query.Where(r => r.ReceiptDate >= dto.FromDate.Value);
+        if (dto.ToDate.HasValue)
+            query = query.Where(r => r.ReceiptDate < dto.ToDate.Value.Date.AddDays(1));
+        if (!string.IsNullOrWhiteSpace(dto.Keyword))
+        {
+            var k = dto.Keyword.Trim();
+            query = query.Where(r => r.ReceiptCode.Contains(k)
+                || (r.Patient != null && (r.Patient.FullName.Contains(k) || r.Patient.PatientCode.Contains(k))));
+        }
+
+        var totalCount = await query.CountAsync();
+        var rows = await query
+            .OrderByDescending(r => r.ReceiptDate)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var items = rows.Select(r =>
+        {
+            var refundType = r.OriginalDepositId.HasValue ? 1 : r.OriginalPaymentId.HasValue ? 2 : 0;
+            return new RefundDto
+            {
+                Id = r.Id,
+                RefundCode = r.ReceiptCode,
+                PatientId = r.PatientId,
+                PatientCode = r.Patient?.PatientCode ?? string.Empty,
+                PatientName = r.Patient?.FullName ?? string.Empty,
+                RefundType = refundType,
+                RefundTypeName = refundType switch { 1 => "Hoàn tạm ứng", 2 => "Hoàn thanh toán", _ => "Khác" },
+                OriginalDepositId = r.OriginalDepositId,
+                OriginalPaymentId = r.OriginalPaymentId,
+                RefundAmount = r.FinalAmount,
+                RefundMethod = r.PaymentMethod,
+                RefundMethodName = GetPaymentMethodName(r.PaymentMethod),
+                Reason = r.Note ?? string.Empty,
+                CashierId = r.CashierId,
+                CashierName = r.Cashier?.FullName ?? string.Empty,
+                Status = r.Status,
+                StatusName = RefundStatus.GetName(r.Status),
+                CreatedAt = r.CreatedAt
+            };
+        }).ToList();
+
         return new PagedResultDto<RefundDto>
         {
-            Items = new List<RefundDto>(),
-            TotalCount = 0,
-            Page = 1,
-            PageSize = 50
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
         };
     }
 

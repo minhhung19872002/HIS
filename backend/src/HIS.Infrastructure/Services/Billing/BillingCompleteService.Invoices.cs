@@ -192,7 +192,22 @@ public partial class BillingCompleteService {
 
     public async Task<InvoiceDto?> GetPatientInvoiceAsync(Guid medicalRecordId)
     {
-        return await CalculateInvoiceAsync(medicalRecordId);
+        // QA0915: this used to return CalculateInvoiceAsync's preview, whose Id is a fresh Guid.NewGuid()
+        // that exists nowhere — the v2 cashier editor then paid against that id and ALWAYS got
+        // "Khong tim thay hoa don". Return the persisted invoice of the record when there is one.
+        var summary = await _context.InvoiceSummaries
+            .Include(x => x.MedicalRecord).ThenInclude(m => m.Patient)
+            .Include(x => x.MedicalRecord).ThenInclude(m => m.Department)
+            .Where(x => x.MedicalRecordId == medicalRecordId && !x.IsDeleted)
+            .OrderByDescending(x => x.InvoiceDate)
+            .FirstOrDefaultAsync();
+        if (summary != null)
+            return MapSummaryToInvoiceDto(summary);
+
+        // No invoice yet: keep returning the preview, but without a fake identity.
+        var preview = await CalculateInvoiceAsync(medicalRecordId);
+        preview.Id = Guid.Empty;
+        return preview;
     }
 
     public async Task<PagedResultDto<InvoiceDto>> SearchInvoicesAsync(InvoiceSearchDto dto)
