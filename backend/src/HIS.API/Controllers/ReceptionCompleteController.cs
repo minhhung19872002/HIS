@@ -148,6 +148,9 @@ public partial class ReceptionCompleteController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<QueueTicketDto>> IssueQueueTicketMobile([FromBody] MobileQueueTicketDto dto)
     {
+        // Endpoint vô danh: id hồ sơ chỉ tin khi người gọi có danh tính (BFF), nếu không ai cũng
+        // lấy được số đứng tên hồ sơ của người khác.
+        if (User.Identity?.IsAuthenticated != true) dto.PatientId = null;
         var result = await _receptionService.IssueQueueTicketMobileAsync(dto);
         return Ok(result);
     }

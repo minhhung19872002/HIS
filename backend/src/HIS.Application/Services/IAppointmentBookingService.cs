@@ -13,7 +13,9 @@ public interface IAppointmentBookingService
     Task<List<BookingDoctorDto>> GetBookingDoctorsAsync(Guid? departmentId, DateTime? date = null);
     Task<BookingSlotResult> GetAvailableSlotsAsync(DateTime date, Guid? departmentId, Guid? doctorId);
     Task<BookingResultDto> BookAppointmentAsync(OnlineBookingDto dto);
-    Task<List<BookingStatusDto>> LookupAppointmentsAsync(string? code, string? phone);
+    /// <param name="patientId">Tra đúng lịch của một hồ sơ. Ưu tiên hơn <paramref name="phone"/>;
+    /// controller chỉ chuyển giá trị này khi người gọi đã xác thực.</param>
+    Task<List<BookingStatusDto>> LookupAppointmentsAsync(string? code, string? phone, Guid? patientId = null);
     Task<BookingStatusDto> CancelAppointmentAsync(string appointmentCode, CancelBookingDto dto);
 
     /// <summary>
@@ -112,6 +114,16 @@ public class OnlineBookingDto
     /// sách chặn theo IP cũng giữ, vì đó là thao tác quản trị viên đặt tay.</para>
     /// </summary>
     public bool IsAuthenticatedCaller { get; set; }
+
+    /// <summary>
+    /// Hồ sơ bệnh nhân đã biết chắc (app hỗ trợ người bệnh gửi id hồ sơ đã liên kết qua OTP).
+    ///
+    /// <para>Có giá trị thì lịch hẹn gắn THẲNG vào hồ sơ này, không dò theo số điện thoại — dò theo
+    /// số thì gia đình dùng chung một số sẽ bị gắn nhầm người. Chỉ được dùng khi
+    /// <see cref="IsAuthenticatedCaller"/>: controller xoá trường này với lời gọi vô danh, nếu không
+    /// biểu mẫu công khai đặt được lịch lên hồ sơ của bất kỳ ai.</para>
+    /// </summary>
+    public Guid? PatientId { get; set; }
 }
 
 public class BookingResultDto
@@ -186,12 +198,18 @@ public class RescheduleBookingDto
     public Guid? NewDoctorId { get; set; }
 
     public string? Reason { get; set; }
+
+    /// <summary>Xác thực chủ lịch bằng hồ sơ thay vì SĐT — chỉ nhận từ người gọi đã xác thực.</summary>
+    public Guid? PatientId { get; set; }
 }
 
 public class CancelBookingDto
 {
     public string PhoneNumber { get; set; } = string.Empty; // Xác thực bằng SĐT
     public string? Reason { get; set; }
+
+    /// <summary>Xác thực chủ lịch bằng hồ sơ thay vì SĐT — chỉ nhận từ người gọi đã xác thực.</summary>
+    public Guid? PatientId { get; set; }
 }
 
 public class BookingServiceDto

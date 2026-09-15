@@ -531,10 +531,13 @@ public partial class ReceptionCompleteService {
 
     public async Task<QueueTicketDto> IssueQueueTicketMobileAsync(MobileQueueTicketDto dto)
     {
-        // Find patient by phone
-        var patient = await _context.Patients
-            .Where(p => !p.IsDeleted)
-            .FindByPhoneNumberDecryptedAsync(dto.PatientPhone);
+        // Hồ sơ đã biết chắc (controller chỉ để lọt id từ người gọi đã xác thực) thì dùng thẳng;
+        // không thì dò theo SĐT như cũ. Dò theo số là gắn nhầm người khi cả nhà dùng chung một số.
+        var patient = dto.PatientId.HasValue
+            ? await _context.Patients.FirstOrDefaultAsync(p => p.Id == dto.PatientId.Value && !p.IsDeleted)
+            : await _context.Patients
+                .Where(p => !p.IsDeleted)
+                .FindByPhoneNumberDecryptedAsync(dto.PatientPhone);
 
         var (priority, reason, verified) = ResolveMobilePriority(dto.PriorityReason, patient);
 

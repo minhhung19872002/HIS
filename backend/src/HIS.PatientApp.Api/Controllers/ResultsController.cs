@@ -69,7 +69,9 @@ public class ResultsController : ControllerBase
     /// Bản in phiếu xét nghiệm, để người bệnh in ra hoặc gửi cho bác sĩ khác (HSMT I.2 #5).
     /// </summary>
     [HttpGet("lab/{resultId:guid}/report")]
-    [Produces("text/html")]
+    // KHÔNG dùng [Produces("text/html")]: nó ép cả phản hồi lỗi JSON phải định dạng thành text/html,
+    // không formatter nào làm được nên 404 biến thành 406 rỗng. File() tự mang kiểu nội dung.
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK, "text/html")]
     public async Task<IActionResult> LabResultReport(
         Guid resultId, [FromQuery] Guid? memberId, CancellationToken ct)
     {
@@ -123,7 +125,9 @@ public class ResultsController : ControllerBase
     /// khỏi máy chủ, và app không cần biết bệnh viện đang dùng PACS nào.
     /// </summary>
     [HttpGet("imaging/{resultId:guid}/images/{instanceId}")]
-    [Produces("image/png", "image/jpeg")]
+    // Như bản in XN: [Produces("image/…")] biến 404 "Không tìm thấy hình ảnh" thành 406 rỗng (đo
+    // trên UAT 15/09), app chỉ còn biết báo lỗi chung chung.
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK, "image/png", "image/jpeg")]
     public async Task<IActionResult> ImagingInstanceImage(
         Guid resultId, string instanceId, [FromQuery] int width, [FromQuery] Guid? memberId,
         CancellationToken ct)

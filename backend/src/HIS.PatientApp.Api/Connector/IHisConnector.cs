@@ -47,10 +47,12 @@ public interface IHisConnector
     /// <summary>
     /// Lấy số thứ tự ngoại trú. <paramref name="priorityReason"/> bỏ trống = số thường; HIS tự đối
     /// chiếu tuổi từ hồ sơ nên người cao tuổi vẫn được ưu tiên dù không khai.
+    /// <paramref name="patientId"/> = hồ sơ đã liên kết: có thì vé gắn thẳng vào hồ sơ đó, không
+    /// dò theo số điện thoại (gia đình dùng chung số sẽ bị gắn nhầm người).
     /// </summary>
     Task<HisQueueTicket> TakeQueueNumberAsync(
         string phoneNumber, string? patientName, Guid roomId, int queueType,
-        int? priorityReason, CancellationToken ct = default);
+        int? priorityReason, Guid? patientId = null, CancellationToken ct = default);
 
     /// <summary>Trạng thái vé: đang gọi số nào, còn bao nhiêu người, ước tính bao nhiêu phút.</summary>
     Task<HisQueueTicketStatus?> GetQueueTicketStatusAsync(Guid ticketId, CancellationToken ct = default);
@@ -62,16 +64,21 @@ public interface IHisConnector
 
     Task<HisBookingResult> BookAppointmentAsync(object payload, CancellationToken ct = default);
 
-    /// <summary>Tra lịch hẹn theo số điện thoại của người bệnh.</summary>
+    /// <summary>
+    /// Tra lịch hẹn. Có <paramref name="patientId"/> (tài khoản đã liên kết hồ sơ) thì tra đúng lịch
+    /// của hồ sơ đó — tra theo số điện thoại sẽ kéo cả lịch của người khác dùng chung số. Chưa liên
+    /// kết thì mới tra theo số.
+    /// </summary>
     Task<IReadOnlyList<HisBookingStatus>> LookupAppointmentsAsync(
-        string phoneNumber, CancellationToken ct = default);
+        string phoneNumber, Guid? patientId = null, CancellationToken ct = default);
 
     Task<HisBookingStatus> CancelAppointmentAsync(
-        string appointmentCode, string phoneNumber, string? reason, CancellationToken ct = default);
+        string appointmentCode, string phoneNumber, string? reason, Guid? patientId = null,
+        CancellationToken ct = default);
 
     Task<HisBookingStatus> RescheduleAppointmentAsync(
         string appointmentCode, string phoneNumber, DateTime newDate, TimeSpan? newTime,
-        Guid? newDoctorId, string? reason, CancellationToken ct = default);
+        Guid? newDoctorId, string? reason, Guid? patientId = null, CancellationToken ct = default);
 
     // -------------------------------------- kết quả khám ngoại trú (I.2 #5)
     //

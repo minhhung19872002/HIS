@@ -69,6 +69,9 @@ public class AppointmentBookingController : ControllerBase
         // danh tính không phải là kẻ vô danh nện biểu mẫu, nên nó không chịu hạn mức theo IP
         // (xem `OnlineBookingDto.IsAuthenticatedCaller`). Hạn mức theo số điện thoại vẫn áp.
         dto.IsAuthenticatedCaller = User.Identity?.IsAuthenticated == true;
+        // Id hồ sơ chỉ tin từ người gọi có danh tính (BFF). Biểu mẫu công khai mà gửi được id thì
+        // đặt được lịch lên hồ sơ của bất kỳ ai.
+        if (!dto.IsAuthenticatedCaller) dto.PatientId = null;
         var result = await _bookingService.BookAppointmentAsync(dto);
         return Ok(result);
     }
@@ -79,9 +82,13 @@ public class AppointmentBookingController : ControllerBase
     [HttpGet("lookup")]
     public async Task<ActionResult<List<BookingStatusDto>>> LookupAppointment(
         [FromQuery] string? code,
-        [FromQuery] string? phone)
+        [FromQuery] string? phone,
+        [FromQuery] Guid? patientId)
     {
-        var result = await _bookingService.LookupAppointmentsAsync(code, phone);
+        // Tra theo id hồ sơ chỉ dành cho người gọi đã xác thực: id là Guid nên khó đoán, nhưng khó
+        // đoán chưa bao giờ là phân quyền.
+        if (User.Identity?.IsAuthenticated != true) patientId = null;
+        var result = await _bookingService.LookupAppointmentsAsync(code, phone, patientId);
         return Ok(result);
     }
 
@@ -98,6 +105,7 @@ public class AppointmentBookingController : ControllerBase
     public async Task<ActionResult<BookingStatusDto>> Reschedule(
         string appointmentCode, [FromBody] RescheduleBookingDto dto)
     {
+        if (User.Identity?.IsAuthenticated != true) dto.PatientId = null;
         try
         {
             return Ok(await _bookingService.RescheduleAppointmentAsync(appointmentCode, dto));
@@ -117,6 +125,7 @@ public class AppointmentBookingController : ControllerBase
         string appointmentCode,
         [FromBody] CancelBookingDto dto)
     {
+        if (User.Identity?.IsAuthenticated != true) dto.PatientId = null;
         var result = await _bookingService.CancelAppointmentAsync(appointmentCode, dto);
         return Ok(result);
     }

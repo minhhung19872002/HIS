@@ -260,6 +260,12 @@ public class MobileQueueTicketDto
     /// còn lý do không kiểm được thì vé vẫn ưu tiên nhưng bị đánh dấu chờ xác minh tại quầy.
     /// </summary>
     public int? PriorityReason { get; set; }
+
+    /// <summary>
+    /// Hồ sơ bệnh nhân đã biết chắc (app hỗ trợ người bệnh gửi hồ sơ đã liên kết). Có thì vé gắn
+    /// thẳng vào hồ sơ này thay vì dò theo SĐT. Controller xoá trường này với lời gọi vô danh.
+    /// </summary>
+    public Guid? PatientId { get; set; }
 }
 
 

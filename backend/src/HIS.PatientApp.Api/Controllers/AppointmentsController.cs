@@ -71,7 +71,7 @@ public class AppointmentsController : ControllerBase
 
         return await Guarded(async () =>
             Ok(ApiResponse<IReadOnlyList<HisBookingStatus>>.Ok(
-                await _his.LookupAppointmentsAsync(account.PhoneNumber, ct))));
+                await _his.LookupAppointmentsAsync(account.PhoneNumber, account.HisPatientId, ct))));
     }
 
     [HttpPost]
@@ -88,7 +88,10 @@ public class AppointmentsController : ControllerBase
             var result = await _his.BookAppointmentAsync(new
             {
                 patientName = account.FullName,
-                phoneNumber = account.PhoneNumber,
+                phoneNumber = PhoneNumbers.ToLocal(account.PhoneNumber),
+                // Hồ sơ đã liên kết qua OTP: lịch gắn thẳng vào hồ sơ này. Thiếu nó HIS dò theo SĐT
+                // và tạo hồ sơ trùng (đo trên prod 15/09: BN20260915144044102).
+                patientId = account.HisPatientId,
                 appointmentDate = dto.AppointmentDate,
                 appointmentTime = dto.AppointmentTime,
                 departmentId = dto.DepartmentId,
@@ -124,7 +127,7 @@ public class AppointmentsController : ControllerBase
         return await Guarded(async () =>
         {
             var result = await _his.CancelAppointmentAsync(
-                appointmentCode, account.PhoneNumber, dto.Reason, ct);
+                appointmentCode, account.PhoneNumber, dto.Reason, account.HisPatientId, ct);
 
             await NotifyAsync(account.Id, "Đã huỷ lịch khám",
                 $"Lịch hẹn {appointmentCode} ngày {result.AppointmentDate:dd/MM/yyyy} đã được huỷ.",
@@ -148,7 +151,7 @@ public class AppointmentsController : ControllerBase
         {
             var result = await _his.RescheduleAppointmentAsync(
                 appointmentCode, account.PhoneNumber, dto.NewAppointmentDate,
-                dto.NewAppointmentTime, dto.NewDoctorId, dto.Reason, ct);
+                dto.NewAppointmentTime, dto.NewDoctorId, dto.Reason, account.HisPatientId, ct);
 
             await NotifyAsync(account.Id, "Đã đổi lịch khám",
                 BuildAppointmentSummary(result.AppointmentDate, result.AppointmentTime,

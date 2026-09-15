@@ -153,7 +153,8 @@ public class QueueController : ControllerBase
         {
             ticket = await _his.TakeQueueNumberAsync(
                 account.PhoneNumber, account.FullName, dto.RoomId,
-                dto.QueueType <= 0 ? ReceptionQueueType : dto.QueueType, dto.PriorityReason, ct);
+                dto.QueueType <= 0 ? ReceptionQueueType : dto.QueueType, dto.PriorityReason,
+                account.HisPatientId, ct);
         }
         catch (HisConnectorException ex) when (ex.StatusCode == StatusCodes.Status400BadRequest)
         {

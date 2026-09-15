@@ -147,9 +147,10 @@ public class StaffLookupController : ControllerBase
                     AppMustChangePassword = account?.MustChangePassword ?? false,
                     AppLastLoginAt = account?.LastLoginAt,
                 },
-                Appointments = string.IsNullOrWhiteSpace(patient.PhoneNumber)
-                    ? new List<HisBookingStatus>()
-                    : (await _his.LookupAppointmentsAsync(patient.PhoneNumber, ct)).ToList(),
+                // Theo hồ sơ, không theo SĐT: tra theo số thì lịch của người khác dùng chung số (cả
+                // nhà một số) hiện lên như lịch của người bệnh này.
+                Appointments = (await _his.LookupAppointmentsAsync(
+                    patient.PhoneNumber ?? "", patientId, ct)).ToList(),
                 LabResults = (await _his.GetLabResultsAsync(patientId, ct: ct)).Take(5).ToList(),
                 ImagingResults = (await _his.GetImagingResultsAsync(patientId, ct: ct)).Take(5).ToList(),
                 Prescriptions = (await _his.GetPrescriptionsAsync(patientId, false, ct)).Take(5).ToList(),

@@ -1,3 +1,4 @@
+using HIS.Core.Common;
 using HIS.Core.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,7 +22,7 @@ public static class PatientPiiLookup
         this IQueryable<Patient> query,
         string value,
         CancellationToken cancellationToken = default)
-        => FindAsync(query, p => p.PhoneNumber, value, cancellationToken);
+        => FindPhoneAsync(query, value, cancellationToken);
 
     public static Task<Patient?> FindByInsuranceNumberDecryptedAsync(
         this IQueryable<Patient> query,
@@ -50,5 +51,18 @@ public static class PatientPiiLookup
         var candidates = await query.ToListAsync(cancellationToken);
         return candidates.FirstOrDefault(p => string.Equals(
             selector(p)?.Trim(), expected, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Số điện thoại so theo <see cref="PhoneNumberKey"/>, không so chuỗi thô: quầy lưu "09…" còn
+    /// app hỗ trợ người bệnh gửi "+84…". So chuỗi thô thì luồng đặt lịch từ app không nhận ra
+    /// bệnh nhân cũ và tạo hồ sơ trùng.
+    /// </summary>
+    private static async Task<Patient?> FindPhoneAsync(
+        IQueryable<Patient> query, string value, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var candidates = await query.ToListAsync(cancellationToken);
+        return candidates.FirstOrDefault(p => PhoneNumberKey.Same(p.PhoneNumber, value));
     }
 }

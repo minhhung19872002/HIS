@@ -33,6 +33,17 @@ public static class PhoneNumbers
     }
 
     /// <summary>
+    /// Dạng nội địa <c>0XXXXXXXXX</c> để gửi sang HIS — đúng cách quầy tiếp đón lưu số. Gửi dạng
+    /// <c>+84…</c> thì hồ sơ HIS tạo mới từ app sẽ mang một kiểu số mà nhân viên không gõ ra được.
+    /// Số không nhận dạng được thì trả nguyên dạng chuẩn hoá.
+    /// </summary>
+    public static string ToLocal(string? input)
+    {
+        var normalized = Normalize(input);
+        return normalized.StartsWith("+84") ? "0" + normalized[3..] : normalized;
+    }
+
+    /// <summary>
     /// Có phải số di động Việt Nam hợp lệ không: +84 rồi 9 chữ số, bắt đầu bằng 3/5/7/8/9 theo
     /// quy hoạch đầu số hiện hành.
     /// </summary>

@@ -249,8 +249,43 @@ public partial class PatientPortalServiceImpl : IPatientPortalService
 
     public async Task<List<VisitSummaryDto>> GetVisitHistoryAsync(Guid patientId, int limit = 20)
     {
-        var exams = await _context.Examinations.Include(x => x.Room).ThenInclude(x => x!.Department).Include(x => x.Doctor).Include(x => x.MedicalRecord).Where(x => x.MedicalRecord!.PatientId == patientId).OrderByDescending(x => x.StartTime).Take(limit).ToListAsync();
-        return exams.Select(e => new VisitSummaryDto { VisitId = e.Id, VisitDate = e.StartTime ?? DateTime.MinValue, Department = e.Room?.Department?.DepartmentName ?? "", DoctorName = e.Doctor?.FullName ?? "", Diagnosis = e.MainDiagnosis }).ToList();
+        // Ngày khám = giờ bắt đầu khám, chưa bắt đầu thì lấy lúc đăng ký — đúng như màn lịch sử khám
+        // của HIS (GetPatientMedicalHistoryAsync). Trước đây lượt chưa bấm "bắt đầu khám" ra
+        // DateTime.MinValue và người bệnh thấy ngày khám 01/01/0001.
+        var exams = await _context.Examinations.Include(x => x.Room).ThenInclude(x => x!.Department).Include(x => x.Doctor).Include(x => x.MedicalRecord)
+            .Where(x => x.MedicalRecord!.PatientId == patientId && !x.IsDeleted)
+            .OrderByDescending(x => x.StartTime ?? x.CreatedAt)
+            .Take(limit).ToListAsync();
+        var icdNames = await LoadIcdNamesAsync(exams);
+        return exams.Select(e => new VisitSummaryDto { VisitId = e.Id, VisitDate = e.StartTime ?? e.CreatedAt, Department = e.Room?.Department?.DepartmentName ?? "", DoctorName = e.Doctor?.FullName ?? "", Diagnosis = DescribeDiagnosis(e, icdNames) }).ToList();
+    }
+
+    /// <summary>
+    /// Chẩn đoán hiển thị cho người bệnh. Bác sĩ chọn mã ICD mà chưa ghi tên chẩn đoán thì vẫn phải
+    /// có gì đó để đọc — trước đây ô này trống trong khi màn khám của HIS hiện mã J00.
+    /// </summary>
+    private static string? DescribeDiagnosis(Examination exam, IReadOnlyDictionary<string, string> icdNames)
+    {
+        if (!string.IsNullOrWhiteSpace(exam.MainDiagnosis)) return exam.MainDiagnosis;
+        var code = exam.MainIcdCode?.Trim();
+        if (string.IsNullOrEmpty(code)) return null;
+        return icdNames.TryGetValue(code, out var name) ? $"{code} - {name}" : code;
+    }
+
+    private async Task<IReadOnlyDictionary<string, string>> LoadIcdNamesAsync(IEnumerable<Examination> exams)
+    {
+        var codes = exams
+            .Where(e => string.IsNullOrWhiteSpace(e.MainDiagnosis) && !string.IsNullOrWhiteSpace(e.MainIcdCode))
+            .Select(e => e.MainIcdCode!.Trim())
+            .Distinct()
+            .ToList();
+        if (codes.Count == 0) return new Dictionary<string, string>();
+
+        var rows = await _context.IcdCodes.AsNoTracking()
+            .Where(i => codes.Contains(i.Code) && !i.IsDeleted)
+            .Select(i => new { i.Code, i.Name })
+            .ToListAsync();
+        return rows.GroupBy(r => r.Code).ToDictionary(g => g.Key, g => g.First().Name);
     }
 
     // G-39: Full visit detail for portal — security: verifies exam belongs to patientId before returning
@@ -284,7 +319,7 @@ public partial class PatientPortalServiceImpl : IPatientPortalService
         return new PortalVisitDetailDto
         {
             VisitId = exam.Id,
-            VisitDate = exam.StartTime ?? DateTime.MinValue,
+            VisitDate = exam.StartTime ?? exam.CreatedAt,
             Department = exam.Room?.Department?.DepartmentName ?? "",
             DoctorName = exam.Doctor?.FullName ?? "",
             ChiefComplaint = exam.ChiefComplaint ?? "",
@@ -430,8 +465,10 @@ th {{ background: #f0f0f0; text-align: center; }}
             // GAP 26: lọc theo lượt khám để trả lời được câu "kết quả của lần khám này".
             if (visitId.HasValue) query = query.Where(d => d.ServiceRequest.ExaminationId == visitId);
             // Nội trú (GAP 33): kết quả gắn với hồ sơ bệnh án của đợt nằm viện, không gắn lượt khám.
-            var recordId = await ResolveAdmissionRecordAsync(patientId, admissionId);
-            if (recordId.HasValue) query = query.Where(d => d.ServiceRequest.MedicalRecordId == recordId);
+            var scope = await ResolveAdmissionScopeAsync(patientId, admissionId);
+            if (scope is not null)
+                query = query.Where(d => d.ServiceRequest.MedicalRecordId == scope.MedicalRecordId
+                    && !(d.ServiceRequest.ExaminationId != null && d.ServiceRequest.RequestDate < scope.AdmittedAt));
             else if (admissionId.HasValue) return new List<PortalLabResultDto>();
 
             var list = await query.OrderByDescending(d => d.ResultDate).Take(30).ToListAsync();
@@ -511,9 +548,11 @@ th {{ background: #f0f0f0; text-align: center; }}
         if (toDate.HasValue) query = query.Where(x => x.RadiologyExam!.ExamDate <= toDate);
         if (visitId.HasValue) query = query.Where(x => x.RadiologyExam!.RadiologyRequest!.ExaminationId == visitId);
 
-        var recordId = await ResolveAdmissionRecordAsync(patientId, admissionId);
-        if (recordId.HasValue)
-            query = query.Where(x => x.RadiologyExam!.RadiologyRequest!.MedicalRecordId == recordId);
+        var scope = await ResolveAdmissionScopeAsync(patientId, admissionId);
+        if (scope is not null)
+            query = query.Where(x => x.RadiologyExam!.RadiologyRequest!.MedicalRecordId == scope.MedicalRecordId
+                && !(x.RadiologyExam!.RadiologyRequest!.ExaminationId != null
+                     && x.RadiologyExam!.RadiologyRequest!.RequestDate < scope.AdmittedAt));
         else if (admissionId.HasValue) return new List<PortalImagingResultDto>();
 
         var list = await query.OrderByDescending(x => x.ReportDate).Take(30).ToListAsync();

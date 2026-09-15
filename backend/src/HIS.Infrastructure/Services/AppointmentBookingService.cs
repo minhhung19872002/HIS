@@ -373,10 +373,23 @@ public class AppointmentBookingService : IAppointmentBookingService
             }
         }
 
-        // Kiểm tra trùng lịch hẹn (cùng SĐT, cùng ngày)
-        var existingPatient = await _context.Patients
-            .Where(p => !p.IsDeleted)
-            .FindByPhoneNumberDecryptedAsync(phone);
+        // Kiểm tra trùng lịch hẹn (cùng SĐT, cùng ngày).
+        // Người gọi đã biết chắc hồ sơ (app hỗ trợ người bệnh, controller chỉ để lọt id khi đã xác
+        // thực) thì gắn thẳng vào hồ sơ đó — dò theo SĐT sẽ gắn nhầm khi cả nhà dùng chung một số.
+        Patient? existingPatient;
+        if (dto.PatientId.HasValue)
+        {
+            existingPatient = await _context.Patients
+                .FirstOrDefaultAsync(p => p.Id == dto.PatientId.Value && !p.IsDeleted);
+            if (existingPatient == null)
+                return new BookingResultDto { Success = false, Message = "Không tìm thấy hồ sơ bệnh nhân. Vui lòng liên hệ quầy tiếp đón." };
+        }
+        else
+        {
+            existingPatient = await _context.Patients
+                .Where(p => !p.IsDeleted)
+                .FindByPhoneNumberDecryptedAsync(phone);
+        }
 
         if (existingPatient != null)
         {
@@ -578,7 +591,7 @@ public class AppointmentBookingService : IAppointmentBookingService
         }
     }
 
-    public async Task<List<BookingStatusDto>> LookupAppointmentsAsync(string? code, string? phone)
+    public async Task<List<BookingStatusDto>> LookupAppointmentsAsync(string? code, string? phone, Guid? patientId = null)
     {
         var query = _context.Appointments
             .Include(a => a.Patient)
@@ -590,6 +603,9 @@ public class AppointmentBookingService : IAppointmentBookingService
 
         if (!string.IsNullOrWhiteSpace(code))
             query = query.Where(a => a.AppointmentCode == code.Trim());
+        else if (patientId.HasValue)
+            // Đúng lịch của một hồ sơ: SĐT dùng chung trong gia đình sẽ kéo cả lịch của người khác.
+            query = query.Where(a => a.PatientId == patientId.Value);
         else if (string.IsNullOrWhiteSpace(phone))
             return new List<BookingStatusDto>();
 
@@ -597,12 +613,10 @@ public class AppointmentBookingService : IAppointmentBookingService
             .OrderByDescending(a => a.AppointmentDate)
             .ToListAsync();
 
-        if (string.IsNullOrWhiteSpace(code))
+        if (string.IsNullOrWhiteSpace(code) && !patientId.HasValue)
         {
-            var expectedPhone = phone!.Trim();
             appointments = appointments
-                .Where(a => string.Equals(a.Patient?.PhoneNumber?.Trim(), expectedPhone,
-                    StringComparison.OrdinalIgnoreCase))
+                .Where(a => PhoneNumberKey.Same(a.Patient?.PhoneNumber, phone))
                 .Take(20)
                 .ToList();
         }
@@ -613,6 +627,16 @@ public class AppointmentBookingService : IAppointmentBookingService
 
         return appointments.Select(a => MapToBookingStatus(a)).ToList();
     }
+
+    /// <summary>
+    /// Người gọi có phải chủ lịch hẹn không: theo hồ sơ nếu có id (chỉ lọt tới đây khi đã xác
+    /// thực), còn không thì theo SĐT — so bằng <see cref="PhoneNumberKey"/> vì quầy lưu "09…" mà
+    /// app gửi "+84…".
+    /// </summary>
+    private static bool IsOwner(Appointment appointment, Guid? patientId, string? phone) =>
+        patientId.HasValue
+            ? appointment.PatientId == patientId.Value
+            : PhoneNumberKey.Same(appointment.Patient?.PhoneNumber, phone);
 
     public async Task<BookingStatusDto> RescheduleAppointmentAsync(
         string appointmentCode, RescheduleBookingDto dto)
@@ -627,8 +651,8 @@ public class AppointmentBookingService : IAppointmentBookingService
         if (appointment == null)
             throw new KeyNotFoundException("Không tìm thấy lịch hẹn");
 
-        // Xác thực chủ lịch hẹn bằng SĐT, giống hệt luồng huỷ.
-        if (appointment.Patient?.PhoneNumber != dto.PhoneNumber?.Trim())
+        // Xác thực chủ lịch hẹn, giống hệt luồng huỷ.
+        if (!IsOwner(appointment, dto.PatientId, dto.PhoneNumber))
             throw new InvalidOperationException("Số điện thoại không khớp");
 
         if (appointment.Status >= 2)
@@ -722,8 +746,8 @@ public class AppointmentBookingService : IAppointmentBookingService
         if (appointment == null)
             throw new KeyNotFoundException("Không tìm thấy lịch hẹn");
 
-        // Xác thực bằng SĐT
-        if (appointment.Patient.PhoneNumber != dto.PhoneNumber?.Trim())
+        // Xác thực chủ lịch hẹn
+        if (!IsOwner(appointment, dto.PatientId, dto.PhoneNumber))
             throw new InvalidOperationException("Số điện thoại không khớp");
 
         if (appointment.Status >= 2)

@@ -104,7 +104,7 @@ public class AppointmentReminderWorker : BackgroundService
                 .Where(r => r.AccountId == a.Id)
                 .Max(r => (DateTime?)r.SyncedAt) ?? DateTime.MinValue)
             .Take(Math.Clamp(_options.SyncBatchSize, 1, 500))
-            .Select(a => new { a.Id, a.PhoneNumber })
+            .Select(a => new { a.Id, a.PhoneNumber, a.HisPatientId })
             .ToListAsync(ct);
 
         var now = DateTime.UtcNow;
@@ -114,7 +114,8 @@ public class AppointmentReminderWorker : BackgroundService
             IReadOnlyList<HisBookingStatus> appointments;
             try
             {
-                appointments = await his.LookupAppointmentsAsync(account.PhoneNumber, ct);
+                // Theo hồ sơ nếu đã liên kết — không thì nhắc cả lịch của người khác dùng chung số.
+                appointments = await his.LookupAppointmentsAsync(account.PhoneNumber, account.HisPatientId, ct);
             }
             catch (HisConnectorException ex)
             {

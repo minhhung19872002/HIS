@@ -29,8 +29,10 @@ public partial class PatientPortalServiceImpl
         if (visitId.HasValue) query = query.Where(t => t.ExaminationId == visitId);
 
         // Nội trú (GAP 33): lọc theo hồ sơ bệnh án của đợt nằm viện.
-        var recordId = await ResolveAdmissionRecordAsync(patientId, admissionId);
-        if (recordId.HasValue) query = query.Where(t => t.MedicalRecordId == recordId);
+        var scope = await ResolveAdmissionScopeAsync(patientId, admissionId);
+        if (scope is not null)
+            query = query.Where(t => t.MedicalRecordId == scope.MedicalRecordId
+                && !(t.ExaminationId != null && (t.PerformedAt ?? t.CreatedAt) < scope.AdmittedAt));
         else if (admissionId.HasValue) return new List<PortalFunctionalResultDto>();
 
         var list = await query.OrderByDescending(t => t.PerformedAt).Take(30).ToListAsync();
@@ -197,6 +199,12 @@ public partial class PatientPortalServiceImpl
             foreach (var image in await _ris.GetImagesAsync(s.SeriesInstanceUID))
             {
                 if (string.IsNullOrWhiteSpace(image.OrthancInstanceId)) continue;
+
+                // PACS không trả được series thì RIS rơi về đường dự phòng và dựng ảnh "giả" với id là
+                // GUID nội bộ của DicomStudy. Id thật của Orthanc là 5 khối 8 ký tự hex, không bao giờ
+                // parse được thành GUID. Đưa id giả cho người bệnh thì app hiện "1 ảnh" mà mở ra lỗi
+                // (đo trên prod 15/09: RIS-2026-0001, series không tồn tại trong Orthanc).
+                if (Guid.TryParse(image.OrthancInstanceId, out _)) continue;
 
                 result.Add(new PortalImagingInstanceDto
                 {

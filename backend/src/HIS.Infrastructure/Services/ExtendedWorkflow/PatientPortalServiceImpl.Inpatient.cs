@@ -117,14 +117,16 @@ public partial class PatientPortalServiceImpl
 
     public async Task<List<PortalServiceOrderDto>> GetServiceOrdersAsync(Guid patientId, Guid admissionId)
     {
-        var medicalRecordId = await ResolveAdmissionRecordAsync(patientId, admissionId);
-        if (medicalRecordId is null) return new List<PortalServiceOrderDto>();
+        var scope = await ResolveAdmissionScopeAsync(patientId, admissionId);
+        if (scope is null) return new List<PortalServiceOrderDto>();
 
         var details = await _context.ServiceRequestDetails.AsNoTracking()
             .Include(d => d.Service)
             .Include(d => d.ServiceRequest).ThenInclude(r => r.Doctor)
             .Include(d => d.ServiceRequest).ThenInclude(r => r.ExecuteRoom)
-            .Where(d => d.ServiceRequest.MedicalRecordId == medicalRecordId && !d.IsDeleted)
+            .Where(d => d.ServiceRequest.MedicalRecordId == scope.MedicalRecordId && !d.IsDeleted)
+            // Chỉ định của lượt khám ngoại trú trước khi nhập viện (cùng hồ sơ) không thuộc đợt này.
+            .Where(d => !(d.ServiceRequest.ExaminationId != null && d.ServiceRequest.RequestDate < scope.AdmittedAt))
             .OrderByDescending(d => d.ServiceRequest.RequestDate)
             .Take(100)
             .ToListAsync();
@@ -229,12 +231,29 @@ public partial class PatientPortalServiceImpl
     /// chính là cách người ngoài dò ra ai từng nằm viện.
     /// </summary>
     private async Task<Guid?> ResolveAdmissionRecordAsync(Guid patientId, Guid? admissionId)
+        => (await ResolveAdmissionScopeAsync(patientId, admissionId))?.MedicalRecordId;
+
+    /// <summary>
+    /// Phạm vi của một đợt nội trú: hồ sơ bệnh án + thời điểm nhập viện, kèm phép kiểm chủ sở hữu
+    /// như <see cref="ResolveAdmissionRecordAsync"/>.
+    ///
+    /// <para>Chỉ hồ sơ bệnh án thôi thì KHÔNG đủ: nhập viện từ phòng khám
+    /// (<c>AdmitFromOpdAsync</c>) dùng lại chính hồ sơ ngoại trú, nên chỉ định và kết quả của lượt
+    /// khám trước khi nhập viện cũng mang cùng mã hồ sơ và bị liệt kê như của đợt nằm viện.</para>
+    ///
+    /// <para>Quy tắc loại: gắn với một lượt khám ngoại trú (<c>ExaminationId != null</c>) VÀ chỉ định
+    /// trước lúc nhập viện. Cố ý không lọc thuần theo ngày: chỉ định tại giường không có
+    /// <c>ExaminationId</c> nên không bao giờ bị giấu, kể cả khi dữ liệu cũ lẫn giờ UTC với giờ VN.</para>
+    /// </summary>
+    private async Task<AdmissionScope?> ResolveAdmissionScopeAsync(Guid patientId, Guid? admissionId)
     {
         if (admissionId is null) return null;
 
         return await _context.Admissions.AsNoTracking()
             .Where(a => a.Id == admissionId && a.PatientId == patientId && !a.IsDeleted)
-            .Select(a => (Guid?)a.MedicalRecordId)
+            .Select(a => new AdmissionScope(a.MedicalRecordId, a.AdmissionDate))
             .FirstOrDefaultAsync();
     }
+
+    private sealed record AdmissionScope(Guid MedicalRecordId, DateTime AdmittedAt);
 }

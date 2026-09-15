@@ -122,18 +122,19 @@ public class HisRestConnector : IHisConnector
 
     public async Task<HisQueueTicket> TakeQueueNumberAsync(
         string phoneNumber, string? patientName, Guid roomId, int queueType,
-        int? priorityReason, CancellationToken ct = default)
+        int? priorityReason, Guid? patientId = null, CancellationToken ct = default)
     {
         var ticket = await SendAsync<HisQueueTicket>(
             () => new HttpRequestMessage(HttpMethod.Post, "/api/reception/queue/issue-mobile")
             {
                 Content = JsonContent.Create(new
                 {
-                    patientPhone = phoneNumber,
+                    patientPhone = PhoneNumbers.ToLocal(phoneNumber),
                     patientName,
                     roomId,
                     queueType,
                     priorityReason,
+                    patientId,
                 }),
             }, ct);
 
@@ -173,20 +174,31 @@ public class HisRestConnector : IHisConnector
     }
 
     public async Task<IReadOnlyList<HisBookingStatus>> LookupAppointmentsAsync(
-        string phoneNumber, CancellationToken ct = default)
-        => await SendAsync<List<HisBookingStatus>>(
-            () => new HttpRequestMessage(
-                HttpMethod.Get, $"/api/booking/lookup?phone={Uri.EscapeDataString(phoneNumber)}"), ct)
+        string phoneNumber, Guid? patientId = null, CancellationToken ct = default)
+    {
+        var query = patientId.HasValue
+            ? $"patientId={patientId.Value}"
+            : $"phone={Uri.EscapeDataString(PhoneNumbers.ToLocal(phoneNumber))}";
+
+        return await SendAsync<List<HisBookingStatus>>(
+            () => new HttpRequestMessage(HttpMethod.Get, $"/api/booking/lookup?{query}"), ct)
             ?? new List<HisBookingStatus>();
+    }
 
     public async Task<HisBookingStatus> CancelAppointmentAsync(
-        string appointmentCode, string phoneNumber, string? reason, CancellationToken ct = default)
+        string appointmentCode, string phoneNumber, string? reason, Guid? patientId = null,
+        CancellationToken ct = default)
     {
         var result = await SendAsync<HisBookingStatus>(
             () => new HttpRequestMessage(
                 HttpMethod.Put, $"/api/booking/{Uri.EscapeDataString(appointmentCode)}/cancel")
             {
-                Content = JsonContent.Create(new { phoneNumber, reason }),
+                Content = JsonContent.Create(new
+                {
+                    phoneNumber = PhoneNumbers.ToLocal(phoneNumber),
+                    reason,
+                    patientId,
+                }),
             }, ct);
 
         return result ?? throw new HisConnectorException("HIS không trả về kết quả huỷ lịch.");
@@ -194,7 +206,7 @@ public class HisRestConnector : IHisConnector
 
     public async Task<HisBookingStatus> RescheduleAppointmentAsync(
         string appointmentCode, string phoneNumber, DateTime newDate, TimeSpan? newTime,
-        Guid? newDoctorId, string? reason, CancellationToken ct = default)
+        Guid? newDoctorId, string? reason, Guid? patientId = null, CancellationToken ct = default)
     {
         var result = await SendAsync<HisBookingStatus>(
             () => new HttpRequestMessage(
@@ -202,7 +214,8 @@ public class HisRestConnector : IHisConnector
             {
                 Content = JsonContent.Create(new
                 {
-                    phoneNumber,
+                    phoneNumber = PhoneNumbers.ToLocal(phoneNumber),
+                    patientId,
                     newAppointmentDate = newDate,
                     newAppointmentTime = newTime,
                     newDoctorId,

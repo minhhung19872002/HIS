@@ -25,6 +25,20 @@ public class PhoneNumbersTests
         Assert.Equal("+84912345678", PhoneNumbers.Normalize(input));
     }
 
+    /// <summary>
+    /// Gửi sang HIS dạng nội địa — đúng cách quầy lưu. Trước đây gửi "+84…" và HIS so chuỗi thô,
+    /// nên đặt lịch từ app tạo hồ sơ bệnh nhân trùng (đo trên prod 15/09).
+    /// </summary>
+    [Theory]
+    [InlineData("+84901234567", "0901234567")]
+    [InlineData("0901234567", "0901234567")]
+    [InlineData("84 901 234 567", "0901234567")]
+    [InlineData("", "")]
+    public void Dang_noi_dia_gui_sang_HIS(string input, string expected)
+    {
+        Assert.Equal(expected, PhoneNumbers.ToLocal(input));
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
