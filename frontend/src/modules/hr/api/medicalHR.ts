@@ -90,7 +90,7 @@ export interface CreateStaffProfileDto {
   phone?: string;
   email?: string;
   address?: string;
-  departmentId: string;
+  departmentId?: string;
   positionId?: string;
   staffType: string;
   specialty?: string;
@@ -610,7 +610,7 @@ export const printRoster = (rosterId: string) =>
   apiClient.get(`${BASE_URL}/rosters/${rosterId}/print`, { responseType: 'blob' });
 
 export const copyWeekRoster = (dto: {
-  departmentId: string;
+  departmentId?: string; // omit = whole hospital
   sourceWeekStart: string; // ISO date string e.g. "2026-06-02"
   targetWeekStart: string;
   overwriteExisting?: boolean;

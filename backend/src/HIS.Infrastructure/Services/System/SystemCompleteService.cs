@@ -163,6 +163,7 @@ public partial class SystemCompleteService : ISystemCompleteService
             RegistrationNumber = m.RegistrationNumber,
             ActiveIngredientName = m.ActiveIngredient,
             Concentration = m.Concentration,
+            DosageForm = m.DosageForm,
             Unit = m.Unit,
             PackageUnit = m.PackageUnit,
             PackageQuantity = m.ConversionRate,

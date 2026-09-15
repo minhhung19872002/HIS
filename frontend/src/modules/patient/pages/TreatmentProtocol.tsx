@@ -21,27 +21,26 @@ const PROTO_FIELDS: CrudFieldCfg[] = [
   { key: 'version', label: 'Phiên bản', type: 'number', placeholder: '1' },
   { key: 'effectiveDate', label: 'Hiệu lực từ', type: 'date' },
   { key: 'expiryDate', label: 'Hết hạn', type: 'date' },
-  { key: 'status', label: 'Trạng thái', type: 'select', options: [
-    { value: 0, label: 'Nháp' }, { value: 1, label: 'Đang duyệt' }, { value: 2, label: 'Đã duyệt' },
-    { value: 3, label: 'Sửa đổi' }, { value: 4, label: 'Hết hiệu lực' }] },
   { key: 'description', label: 'Mô tả', type: 'textarea' },
 ];
 
+// BE TreatmentProtocolService: 0=Draft, 1=Active (approved), 2=Superseded, 3=Discontinued.
+// The old FE enum (1=reviewing, 2=approved) put "Duyệt" on already-approved protocols and
+// "Phiên bản mới" on superseded ones; status was also a form field the BE never saved.
 const STATUS_LABEL: Record<number, string> = {
-  0: 'Nháp', 1: 'Đang duyệt', 2: 'Đã duyệt', 3: 'Sửa đổi', 4: 'Hết hiệu lực',
+  0: 'Nháp', 1: 'Đang áp dụng', 2: 'Đã thay thế', 3: 'Ngừng sử dụng',
 };
 
-type SKey = 'draft' | 'reviewing' | 'approved' | 'revising' | 'expired';
+type SKey = 'draft' | 'active' | 'superseded' | 'discontinued';
 const STATUS_TABS = [
-  { v: 'draft' as SKey,     l: 'Nháp',       tone: 'warn' as const },
-  { v: 'reviewing' as SKey, l: 'Đang duyệt', tone: 'info' as const },
-  { v: 'approved' as SKey,  l: 'Đã duyệt',   tone: 'ok' as const },
-  { v: 'revising' as SKey,  l: 'Sửa đổi',    tone: 'warn' as const },
-  { v: 'expired' as SKey,   l: 'Hết hiệu lực', tone: 'crit' as const },
+  { v: 'draft' as SKey,        l: 'Nháp',          tone: 'warn' as const },
+  { v: 'active' as SKey,       l: 'Đang áp dụng',  tone: 'ok' as const },
+  { v: 'superseded' as SKey,   l: 'Đã thay thế',   tone: 'info' as const },
+  { v: 'discontinued' as SKey, l: 'Ngừng sử dụng', tone: 'crit' as const },
 ];
 
 const sKey = (n: number): SKey =>
-  n === 0 ? 'draft' : n === 1 ? 'reviewing' : n === 2 ? 'approved' : n === 3 ? 'revising' : 'expired';
+  n === 0 ? 'draft' : n === 1 ? 'active' : n === 2 ? 'superseded' : 'discontinued';
 
 const PER = 18;
 
@@ -199,9 +198,9 @@ const TreatmentProtocolV2: React.FC = () => {
   const actions = (r: TreatmentProtocolDto) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-      {r.status === 1 && <ActBtn ic="check" title="Duyệt phác đồ" onClick={() => approve(r)} />}
-      {r.status === 2 && <ActBtn ic="copy" title="Phiên bản mới" onClick={() => doNewVersion(r)} />}
+      {r.status === 0 && <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />}
+      {r.status === 0 && <ActBtn ic="check" title="Duyệt phác đồ" onClick={() => approve(r)} />}
+      {r.status === 1 && <ActBtn ic="copy" title="Phiên bản mới" onClick={() => doNewVersion(r)} />}
       <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => del(r)} />
     </div>
   );
@@ -250,8 +249,10 @@ const TreatmentProtocolV2: React.FC = () => {
               : '<tr><td colspan="5" style="text-align:center;color:#666">Chưa có bước</td></tr>';
             openPrintWindow(`<h2 style="margin:0 0 8px">Phác đồ: ${sel.name}</h2><p style="margin:0 0 4px;color:#555">${sel.code} · v${sel.version} · ${STATUS_LABEL[sel.status]}</p>${sel.department ? `<p style="margin:0 0 12px;color:#555">Khoa: ${sel.department}</p>` : ''}<table border="1" cellpadding="6" cellspacing="0" width="100%" style="border-collapse:collapse;font-size:13px"><thead><tr><th>STT</th><th>Tên bước</th><th>Loại</th><th>Thời gian</th><th>Ghi chú</th></tr></thead><tbody>${rows}</tbody></table>`, { print: { delayMs: 300 } });
           }}>In phác đồ</Btn>
-          <Btn icon="list" onClick={() => { if (sel) { openStepEditor(sel); setSel(null); } }}>Chỉnh sửa bước</Btn>
-          <Btn variant="primary" icon="edit" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>Chỉnh sửa</Btn>
+          {sel?.status === 0 && <>
+            <Btn icon="list" onClick={() => { if (sel) { openStepEditor(sel); setSel(null); } }}>Chỉnh sửa bước</Btn>
+            <Btn variant="primary" icon="edit" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>Chỉnh sửa</Btn>
+          </>}
         </>}
       >
         {sel && <>

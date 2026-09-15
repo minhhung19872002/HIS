@@ -159,7 +159,9 @@ const SmsManagementV2: React.FC = () => {
 
   const handleSend = async (v: Record<string, unknown>) => {
     try {
-      await sendTestSms(String(v.phoneNumber ?? ''), v.message ? String(v.message) : undefined);
+      const res = await sendTestSms(String(v.phoneNumber ?? ''), v.message ? String(v.message) : undefined);
+      // BE answers 200 + false when the number is invalid or the gateway rejects it.
+      if (res.data === false) throw new Error('not sent');
       tk('Đã gửi SMS thử nghiệm');
     } catch {
       te('Gửi SMS thất bại');

@@ -46,7 +46,10 @@ public class OccupationalHealthService : IOccupationalHealthService
             query = query.Where(o => o.ExamDate >= filter.FromDate.Value.Date);
 
         if (filter.ToDate.HasValue)
-            query = query.Where(o => o.ExamDate <= filter.ToDate.Value.Date);
+        {
+            var end = filter.ToDate.Value.Date.AddDays(1); // inclusive end day (ExamDate carries a time)
+            query = query.Where(o => o.ExamDate < end);
+        }
 
         var totalCount = await query.CountAsync();
 
@@ -138,13 +141,21 @@ public class OccupationalHealthService : IOccupationalHealthService
             { "Hạn chế", "FitWithRestriction" }
         };
 
+        // QA-R2: stored labels are "Đủ sức khỏe" / "Không đủ" (seed) or the v2 form codes pass/restricted/fail —
+        // none matched, so FitCount/UnfitCount were always 0.
+        static bool IsClass(string? c, params string[] names) =>
+            c != null && names.Any(n => string.Equals(c.Trim(), n, StringComparison.OrdinalIgnoreCase));
+        static bool IsFit(string? c) => IsClass(c, "Fit", "Đủ SK", "Đủ sức khỏe", "pass");
+        static bool IsRestricted(string? c) => IsClass(c, "FitWithRestriction", "Hạn chế", "restricted");
+        static bool IsUnfit(string? c) => IsClass(c, "Unfit", "Không đủ SK", "Không đủ", "Không đủ sức khỏe", "fail");
+
         var byCompany = all
             .GroupBy(o => o.CompanyName)
             .Select(g => new CompanyBreakdownDto2
             {
                 CompanyName = g.Key,
                 EmployeeCount = g.Count(),
-                FitCount = g.Count(o => o.Classification == "Fit" || o.Classification == "Đủ SK"),
+                FitCount = g.Count(o => IsFit(o.Classification)),
                 DiseaseCount = g.Count(o => !string.IsNullOrWhiteSpace(o.OccupationalDisease))
             })
             .OrderByDescending(c => c.EmployeeCount)
@@ -155,9 +166,9 @@ public class OccupationalHealthService : IOccupationalHealthService
             TotalRecords = all.Count,
             TotalCompanies = all.Select(o => o.CompanyName).Distinct().Count(),
             TotalEmployees = all.Select(o => o.EmployeeCode ?? o.EmployeeName).Distinct().Count(),
-            FitCount = all.Count(o => o.Classification == "Fit" || o.Classification == "Đủ SK"),
-            FitWithRestrictionCount = all.Count(o => o.Classification == "FitWithRestriction" || o.Classification == "Hạn chế"),
-            UnfitCount = all.Count(o => o.Classification == "Unfit" || o.Classification == "Không đủ SK"),
+            FitCount = all.Count(o => IsFit(o.Classification)),
+            FitWithRestrictionCount = all.Count(o => IsRestricted(o.Classification)),
+            UnfitCount = all.Count(o => IsUnfit(o.Classification)),
             TemporarilyUnfitCount = all.Count(o => o.Classification == "TemporarilyUnfit"),
             DiseaseDetectedCount = all.Count(o => !string.IsNullOrWhiteSpace(o.OccupationalDisease)),
             ByCompany = byCompany

@@ -75,9 +75,10 @@ public class KioskService : IKioskService
     {
         if (string.IsNullOrWhiteSpace(name)) return "";
         var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length <= 2) return name;
-        // Che các từ đệm (ở giữa)
-        for (int i = 1; i < parts.Length - 1; i++)
+        if (parts.Length <= 1) return name.Trim();
+        // Che họ + từ đệm, giữ tên gọi. Before: 2-word names were returned unmasked and the surname was always
+        // shown, so typing any CCCD at the anonymous kiosk revealed the owner's (almost) full name.
+        for (int i = 0; i < parts.Length - 1; i++)
             parts[i] = parts[i][0] + "**";
         return string.Join(' ', parts);
     }
@@ -86,6 +87,12 @@ public class KioskService : IKioskService
 
     public async Task<KioskTicketDto> IssueTicketAsync(IssueTicketDto dto)
     {
+        // Anonymous endpoint: an unknown department/room hit the FK and returned a 500 (with stack trace in Development).
+        if (dto.DepartmentId.HasValue && !await _context.Departments.AnyAsync(d => d.Id == dto.DepartmentId.Value))
+            throw new ArgumentException("Khoa không tồn tại.");
+        if (dto.RoomId.HasValue && !await _context.Rooms.AnyAsync(r => r.Id == dto.RoomId.Value))
+            throw new ArgumentException("Phòng không tồn tại.");
+
         var todayVn  = VnTime.TodayVn;
         var nowUtc   = DateTime.UtcNow;
         var prefix   = ServiceTypePrefix(dto.ServiceType);
@@ -120,6 +127,7 @@ public class KioskService : IKioskService
         int ahead = await _context.Set<KioskTicket>()
             .CountAsync(t => t.IssuedAt >= fromUtc && t.IssuedAt < toUtc
                           && t.DepartmentId == dto.DepartmentId
+                          && t.TicketNumber.StartsWith(prefix) // sequences are per prefix (A/L/I/P)
                           && t.Status == 0
                           && t.SequenceNumber < seq);
 
@@ -260,6 +268,9 @@ public class KioskService : IKioskService
             .FirstOrDefaultAsync(t => t.Id == ticketId)
             ?? throw new KeyNotFoundException($"Không tìm thấy phiếu {ticketId}.");
 
+        // Status: 0=chờ, 1=đã gọi, 2=hoàn tất, 3=hủy — a cancelled/completed ticket is terminal.
+        if (ticket.Status == 2 || ticket.Status == 3)
+            throw new InvalidOperationException("Phiếu đã hoàn tất hoặc đã hủy.");
         ticket.Status    = 2;
         ticket.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();
@@ -273,6 +284,8 @@ public class KioskService : IKioskService
             .FirstOrDefaultAsync(t => t.Id == ticketId)
             ?? throw new KeyNotFoundException($"Không tìm thấy phiếu {ticketId}.");
 
+        if (ticket.Status == 2 || ticket.Status == 3)
+            throw new InvalidOperationException("Phiếu đã hoàn tất hoặc đã hủy.");
         ticket.Status    = 3;
         ticket.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();
@@ -284,7 +297,11 @@ public class KioskService : IKioskService
         var t = await _context.Set<KioskTicket>()
             .Include(x => x.Department).Include(x => x.Room)
             .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
-        return t == null ? null : ToDto(t);
+        if (t == null) return null;
+        // Served by the anonymous /kiosk/ticket/{id} endpoint — mask like check-in / queue board do.
+        var dto = ToDto(t);
+        dto.PatientName = MaskName(dto.PatientName);
+        return dto;
     }
 }
 

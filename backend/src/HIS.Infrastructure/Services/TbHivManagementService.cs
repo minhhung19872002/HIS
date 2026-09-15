@@ -163,6 +163,9 @@ public class TbHivManagementService : ITbHivManagementService
 
     public async Task<TbHivRecordDetailDto> CreateRecordAsync(CreateTbHivRecordDto dto)
     {
+        // QA-R2: an unknown PatientId was saved as an orphan and the create returned 204 (no body).
+        if (!await _context.Patients.AnyAsync(p => p.Id == dto.PatientId && !p.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy bệnh nhân.");
         // Auto-generate registration code: TB-YYYY-NNNN or HIV-YYYY-NNNN
         var prefix = dto.RecordType == "HIV" ? "HIV" : "TB";
         var yearStr = DateTime.UtcNow.Year.ToString();

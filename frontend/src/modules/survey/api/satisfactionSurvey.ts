@@ -92,16 +92,45 @@ export const createCampaign = (dto: CreateCampaignDto) =>
 
 // Templates (mẫu khảo sát + question builder)
 
+// BE SurveyTemplateDto: { name, description, category, questions: JSON string, sortOrder } and the list returns
+// { category, isActive, questions: string }. Sending `questions` as an array made every create/update a 400, and
+// the list showed the JSON string length as the question count.
+interface BeSurveyTemplate {
+  id: string; name: string; description?: string; category?: string; isActive?: boolean;
+  questions?: string | SurveyQuestion[]; createdAt: string;
+}
+
+const parseQuestions = (q: BeSurveyTemplate['questions']): SurveyQuestion[] => {
+  if (Array.isArray(q)) return q;
+  if (!q) return [];
+  try { const v = JSON.parse(q); return Array.isArray(v) ? v : []; } catch { return []; }
+};
+
+const toBeTemplate = (p: Partial<SurveyTemplate>) => ({
+  name: p.name,
+  description: p.description,
+  category: p.targetGroup,
+  questions: JSON.stringify(p.questions ?? []),
+});
+
 /** Danh sách mẫu khảo sát. */
-export const getTemplates = () => apiClient.get<SurveyTemplate[]>('/satisfaction-survey/templates');
+export const getTemplates = async () => {
+  const res = await apiClient.get<BeSurveyTemplate[]>('/satisfaction-survey/templates');
+  const list = Array.isArray(res.data) ? res.data : [];
+  const data: SurveyTemplate[] = list.map((t) => ({
+    id: t.id, name: t.name, description: t.description ?? '', targetGroup: t.category ?? '',
+    questions: parseQuestions(t.questions), status: t.isActive === false ? 'inactive' : 'active', createdAt: t.createdAt,
+  }));
+  return { ...res, data };
+};
 
 /** Tạo mẫu khảo sát mới. */
 export const createTemplate = (payload: Partial<SurveyTemplate>) =>
-  apiClient.post('/satisfaction-survey/templates', payload);
+  apiClient.post('/satisfaction-survey/templates', toBeTemplate(payload));
 
 /** Cập nhật mẫu khảo sát. */
 export const updateTemplate = (id: string, payload: Partial<SurveyTemplate>) =>
-  apiClient.put(`/satisfaction-survey/templates/${id}`, payload);
+  apiClient.put(`/satisfaction-survey/templates/${id}`, toBeTemplate(payload));
 
 /** Xóa mẫu khảo sát. */
 export const deleteTemplate = (id: string) =>

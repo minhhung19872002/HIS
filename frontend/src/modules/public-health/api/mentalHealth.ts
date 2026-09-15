@@ -63,13 +63,20 @@ export const getById = async (id: string) => {
   return response.data;
 };
 
+// CreateMentalHealthCaseDto names: diagnosisName / medicationRegimen / treatingDoctor — the page's
+// diagnosis, medications and psychiatrist were silently dropped on save.
+const toCaseWire = (data: Partial<MentalHealthCase>) => {
+  const { diagnosis, medications, psychiatristName, ...rest } = data;
+  return { ...rest, diagnosisName: diagnosis, medicationRegimen: medications, treatingDoctor: psychiatristName };
+};
+
 export const createCase = async (data: Partial<MentalHealthCase>) => {
-  const response = await apiClient.post<MentalHealthCase>('/mental-health/cases', data);
+  const response = await apiClient.post<MentalHealthCase>('/mental-health/cases', toCaseWire(data));
   return response.data;
 };
 
 export const updateCase = async (id: string, data: Partial<MentalHealthCase>) => {
-  const response = await apiClient.put<MentalHealthCase>(`/mental-health/cases/${id}`, data);
+  const response = await apiClient.put<MentalHealthCase>(`/mental-health/cases/${id}`, toCaseWire(data));
   return response.data;
 };
 
@@ -127,9 +134,11 @@ export const getOverdueFollowUps = async () => {
 
 export const screenDepression = async (data: { patientId: string; answers: number[] }) => {
   const phq9Score = data.answers.reduce((sum, value) => sum + value, 0);
+  // caseId is a Guid query param — a typed patient code made model binding fail (400).
+  const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.patientId.trim());
   const response = await apiClient.post('/mental-health/screen-depression', null, {
     params: {
-      caseId: data.patientId,
+      caseId: isGuid ? data.patientId.trim() : '00000000-0000-0000-0000-000000000000',
       phq9Score,
     },
   });

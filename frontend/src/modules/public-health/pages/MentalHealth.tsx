@@ -346,8 +346,15 @@ const MentalHealthV2: React.FC = () => {
         size="lg"
         onSubmit={async (v) => {
           const answers = PHQ9_QUESTIONS.map((_, i) => Number(v[`q${i + 1}`] ?? 0));
-          await screenDepression({ patientId: String(v.patientId || ''), answers });
-          tk('Đã hoàn thành sàng lọc PHQ-9');
+          // BE is a stateless scorer (nothing is saved) — the old toast "done" hid the result entirely.
+          const res = await screenDepression({ patientId: String(v.patientId || ''), answers }) as
+            { score?: number; interpretation?: string; recommendation?: string } | undefined;
+          const total = answers.reduce((s, x) => s + x, 0);
+          // PHQ-9 item 9 (self-harm thoughts) > 0 needs a suicide-risk assessment regardless of the total score.
+          if (answers[8] > 0) {
+            tw(`PHQ-9 = ${res?.score ?? total}: câu 9 dương tính — ĐÁNH GIÁ NGUY CƠ TỰ SÁT NGAY`);
+          }
+          tk(`PHQ-9 = ${res?.score ?? total} · ${res?.interpretation ?? ''}${res?.recommendation ? ` · ${res.recommendation}` : ''} (kết quả không được lưu vào hồ sơ)`);
         }}
       />
     </div>

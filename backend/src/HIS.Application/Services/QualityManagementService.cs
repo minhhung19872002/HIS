@@ -74,6 +74,10 @@ namespace HIS.Application.Services
             return true;
         }
 
+        // Legacy stub (not registered in DI — QualityManagementServiceImpl is the real implementation).
+        public Task<IncidentReportDto> InvestigateIncidentAsync(InvestigateIncidentDto dto)
+            => throw new NotSupportedException();
+
         public async Task<bool> AddCorrectiveActionAsync(Guid incidentId, CorrectiveActionDto action)
         {
             _logger.LogInformation("Adding corrective action to incident {IncidentId}", incidentId);

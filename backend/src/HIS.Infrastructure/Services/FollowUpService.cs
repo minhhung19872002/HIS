@@ -13,11 +13,13 @@ public class FollowUpService : IFollowUpService
 {
     private readonly HISDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ISmsService? _smsService;
 
-    public FollowUpService(HISDbContext context, IUnitOfWork unitOfWork)
+    public FollowUpService(HISDbContext context, IUnitOfWork unitOfWork, ISmsService? smsService = null)
     {
         _context = context;
         _unitOfWork = unitOfWork;
+        _smsService = smsService;
     }
 
     private static readonly Dictionary<int, string> StatusNames = new()
@@ -50,7 +52,7 @@ public class FollowUpService : IFollowUpService
             query = query.Where(f => f.ScheduledDate >= dateFrom);
 
         if (!string.IsNullOrWhiteSpace(filter.DateTo) && DateTime.TryParse(filter.DateTo, out var dateTo))
-            query = query.Where(f => f.ScheduledDate <= dateTo.AddDays(1));
+            query = query.Where(f => f.ScheduledDate < dateTo.Date.AddDays(1));
 
         if (filter.DoctorId.HasValue)
             query = query.Where(f => f.DoctorId == filter.DoctorId.Value);
@@ -107,6 +109,18 @@ public class FollowUpService : IFollowUpService
 
     public async Task<FollowUpListDto> CreateFollowUpAsync(CreateFollowUpDto dto)
     {
+        if (dto.ScheduledDate == default)
+            throw new ArgumentException("Ngày tái khám là bắt buộc", nameof(dto.ScheduledDate));
+        if (dto.ScheduledDate.Date < HIS.Core.Common.VnTime.TodayVn)
+            throw new ArgumentException("Ngày tái khám không được ở quá khứ", nameof(dto.ScheduledDate));
+        // Unknown patient → FK violation (500).
+        if (!await _context.Patients.AnyAsync(p => p.Id == dto.PatientId && !p.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy người bệnh");
+        var dayStart = dto.ScheduledDate.Date;
+        if (await _context.FollowUpAppointments.AnyAsync(f => !f.IsDeleted && f.PatientId == dto.PatientId && f.Status == 0
+                && f.ScheduledDate >= dayStart && f.ScheduledDate < dayStart.AddDays(1)))
+            throw new InvalidOperationException("Người bệnh đã có lịch tái khám trong ngày này.");
+
         var entity = new FollowUpAppointment
         {
             Id = Guid.NewGuid(),
@@ -146,8 +160,15 @@ public class FollowUpService : IFollowUpService
             .FirstOrDefaultAsync(f => f.Id == id && !f.IsDeleted)
             ?? throw new KeyNotFoundException("Không tìm thấy lịch tái khám");
 
+        if (!StatusNames.ContainsKey(dto.Status))
+            throw new ArgumentException("Trạng thái lịch tái khám không hợp lệ", nameof(dto.Status));
+        // Completed / cancelled are terminal (a cancelled visit could be flipped to "completed" and vice versa).
+        if ((entity.Status == 1 || entity.Status == 3) && dto.Status != entity.Status)
+            throw new InvalidOperationException($"Lịch tái khám đang ở trạng thái \"{StatusNames[entity.Status]}\", không đổi được.");
+
         entity.Status = dto.Status;
-        entity.ActualDate = dto.ActualDate;
+        // Keep the recorded visit date unless a new one is given; default it when completing.
+        entity.ActualDate = dto.ActualDate ?? entity.ActualDate ?? (dto.Status == 1 ? DateTime.Now : null);
         if (!string.IsNullOrWhiteSpace(dto.Notes))
             entity.Notes = dto.Notes;
         entity.UpdatedAt = DateTime.UtcNow;
@@ -159,13 +180,27 @@ public class FollowUpService : IFollowUpService
     public async Task SendReminderAsync(Guid id)
     {
         var entity = await _context.FollowUpAppointments
+            .Include(f => f.Patient)
             .FirstOrDefaultAsync(f => f.Id == id && !f.IsDeleted)
             ?? throw new KeyNotFoundException("Không tìm thấy lịch tái khám");
+
+        if (entity.Status != 0)
+            throw new InvalidOperationException("Chỉ gửi nhắc cho lịch tái khám đang chờ.");
+        var phone = entity.Patient?.PhoneNumber;
+        if (string.IsNullOrWhiteSpace(phone))
+            throw new InvalidOperationException("Người bệnh chưa có số điện thoại để gửi nhắc.");
+
+        // Previously only flagged ReminderSent=true and answered "Đã gửi nhắc nhở thành công" — nothing was sent.
+        var sent = _smsService != null && await _smsService.SendSmsAsync(
+            phone,
+            $"Nhac lich tai kham ngay {entity.ScheduledDate:dd/MM/yyyy}. Vui long mang theo giay to tuy than va the BHYT. HIS",
+            "Reminder", entity.Patient?.FullName, "FollowUpAppointment", entity.Id);
+        if (!sent)
+            throw new InvalidOperationException("Gửi SMS nhắc tái khám thất bại (số điện thoại không hợp lệ hoặc cổng SMS lỗi).");
 
         entity.ReminderSent = true;
         entity.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();
-        // In production: send SMS/email via IEmailService/ISmsService
     }
 
     private static FollowUpListDto MapToListDto(FollowUpAppointment f) => new()

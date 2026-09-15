@@ -55,6 +55,11 @@ public class InfectionControlServiceImpl : IInfectionControlService
             ?? throw new KeyNotFoundException("Không tìm thấy lượt nhập viện");
         if (dto.OnsetDate == default)
             throw new ArgumentException("Ngày khởi phát là bắt buộc", nameof(dto.OnsetDate));
+        // An onset in the future or before the admission cannot be a hospital-acquired infection.
+        if (dto.OnsetDate.Date > DateTime.Today)
+            throw new ArgumentException("Ngày khởi phát không được ở tương lai", nameof(dto.OnsetDate));
+        if (dto.OnsetDate.Date < admission.AdmissionDate.Date)
+            throw new ArgumentException("Ngày khởi phát không được trước ngày nhập viện", nameof(dto.OnsetDate));
         // PatientId / reporter / organism / MDRO flag / notes used to be dropped; a Guid.Empty reporter also made
         // the case invisible (INNER JOIN on the required ReportedBy nav) and GET returned 204.
         var notes = string.Join(" | ", new[] { dto.CriteriaUsed, dto.InitialNotes }.Where(x => !string.IsNullOrWhiteSpace(x)));
@@ -101,15 +106,48 @@ public class InfectionControlServiceImpl : IInfectionControlService
 
     public async Task<List<IsolationOrderDto>> GetActiveIsolationsAsync(Guid? departmentId = null)
     {
-        var list = await _context.IsolationOrders.Include(x => x.Admission).ThenInclude(x => x!.Patient).Where(x => x.Status == "Active").ToBoundedListAsync("InfectionControl.ActiveIsolations");
-        return list.Select(e => new IsolationOrderDto { Id = e.Id, PatientName = e.Admission?.Patient?.FullName ?? "", IsolationType = e.IsolationType, Status = e.Status }).ToList();
+        var query = _context.IsolationOrders
+            .Include(x => x.Admission).ThenInclude(x => x!.Patient)
+            .Include(x => x.Admission).ThenInclude(x => x!.Department)
+            .Include(x => x.Admission).ThenInclude(x => x!.Bed)
+            .Where(x => x.Status == "Active");
+        // departmentId was accepted but ignored.
+        if (departmentId.HasValue) query = query.Where(x => x.Admission!.DepartmentId == departmentId.Value);
+        var list = await query.OrderByDescending(x => x.StartDate).ToBoundedListAsync("InfectionControl.ActiveIsolations");
+        return list.Select(MapToIsolationDto).ToList();
+    }
+
+    // The list used to return only Id/PatientName/Type/Status: the v2 "Cách ly" tab showed no order code, no reason,
+    // and "Bắt đầu" rendered today's date (dayjs of 0001-01-01 → invalid) for every order.
+    private static IsolationOrderDto MapToIsolationDto(IsolationOrder e)
+    {
+        List<string>? precautions = null;
+        if (!string.IsNullOrWhiteSpace(e.Precautions))
+        {
+            try { precautions = global::System.Text.Json.JsonSerializer.Deserialize<List<string>>(e.Precautions); }
+            catch (global::System.Text.Json.JsonException) { precautions = new List<string> { e.Precautions }; }
+        }
+        return new IsolationOrderDto
+        {
+            Id = e.Id, OrderCode = e.OrderCode, AdmissionId = e.AdmissionId, PatientId = e.PatientId,
+            PatientName = e.Admission?.Patient?.FullName ?? "",
+            DepartmentName = e.Admission?.Department?.DepartmentName ?? "",
+            BedNumber = e.Admission?.Bed?.BedName ?? e.Admission?.Bed?.BedCode ?? "",
+            IsolationType = e.IsolationType, Precautions = precautions ?? new List<string>(), Reason = e.Reason,
+            RelatedHAIId = e.HAICaseId, RequiresNegativePressure = e.RequiresNegativePressure,
+            Status = e.Status, StartDate = e.StartDate, EndDate = e.EndDate, DiscontinuedReason = e.DiscontinuationReason
+        };
     }
 
     public async Task<IsolationOrderDto> GetIsolationOrderAsync(Guid id)
     {
-        var e = await _context.IsolationOrders.Include(x => x.Admission).ThenInclude(x => x!.Patient).FirstOrDefaultAsync(x => x.Id == id);
+        var e = await _context.IsolationOrders
+            .Include(x => x.Admission).ThenInclude(x => x!.Patient)
+            .Include(x => x.Admission).ThenInclude(x => x!.Department)
+            .Include(x => x.Admission).ThenInclude(x => x!.Bed)
+            .FirstOrDefaultAsync(x => x.Id == id);
         if (e == null) return null!;
-        return new IsolationOrderDto { Id = e.Id, PatientName = e.Admission?.Patient?.FullName ?? "", IsolationType = e.IsolationType, Reason = e.Reason, Status = e.Status };
+        return MapToIsolationDto(e);
     }
 
     public async Task<IsolationOrderDto> CreateIsolationOrderAsync(CreateIsolationOrderDto dto)
@@ -151,8 +189,27 @@ public class InfectionControlServiceImpl : IInfectionControlService
 
     public async Task<List<HandHygieneObservationDto>> GetHandHygieneObservationsAsync(DateTime fromDate, DateTime toDate, Guid? departmentId = null)
     {
-        var list = await _context.HandHygieneObservations.Where(x => x.ObservationDate >= fromDate && x.ObservationDate <= toDate).ToBoundedListAsync("InfectionControl.HandHygieneObservations");
-        return list.Select(e => new HandHygieneObservationDto { Id = e.Id, ObservationDate = e.ObservationDate, TotalOpportunities = e.TotalOpportunities, CompliantActions = e.ComplianceCount, ComplianceRate = e.ComplianceRate }).ToList();
+        // departmentId was ignored and the v2 table's "Khoa" / "Người quan sát" columns were always blank
+        // (DepartmentName/ObserverName never mapped). A date-only toDate now includes that whole day.
+        var toInclusive = toDate.TimeOfDay == TimeSpan.Zero ? toDate.Date.AddDays(1) : toDate;
+        var query = _context.HandHygieneObservations.AsNoTracking()
+            .Where(x => x.ObservationDate >= fromDate && x.ObservationDate < toInclusive);
+        if (departmentId.HasValue) query = query.Where(x => x.DepartmentId == departmentId.Value);
+        var list = await query
+            .OrderByDescending(x => x.ObservationDate)
+            .Select(e => new
+            {
+                e.Id, e.ObservationDate, e.TotalOpportunities, e.ComplianceCount, e.ComplianceRate, e.Notes,
+                DepartmentName = e.Department != null ? e.Department.DepartmentName : null,
+                ObserverName = e.ObservedBy != null ? e.ObservedBy.FullName : null,
+            })
+            .ToBoundedListAsync("InfectionControl.HandHygieneObservations");
+        return list.Select(e => new HandHygieneObservationDto
+        {
+            Id = e.Id, ObservationDate = e.ObservationDate, TotalOpportunities = e.TotalOpportunities,
+            CompliantActions = e.ComplianceCount, ComplianceRate = e.ComplianceRate,
+            DepartmentName = e.DepartmentName ?? "", ObserverName = e.ObserverName ?? "", Notes = e.Notes ?? ""
+        }).ToList();
     }
 
     public async Task<HandHygieneObservationDto> RecordHandHygieneObservationAsync(RecordHandHygieneDto dto)
@@ -168,6 +225,8 @@ public class InfectionControlServiceImpl : IInfectionControlService
         if (compliant < 0 || compliant > total)
             throw new ArgumentException("Số lần tuân thủ phải trong khoảng 0 – tổng số cơ hội");
         var observedAt = dto.ObservationDate != default ? dto.ObservationDate : dto.AuditDate ?? DateTime.Today;
+        if (observedAt.Date > DateTime.Today)
+            throw new ArgumentException("Ngày quan sát không được ở tương lai");
         var entity = new HandHygieneObservation
         {
             Id = Guid.NewGuid(), ObservationDate = observedAt, TotalOpportunities = total, ComplianceCount = compliant, ComplianceRate = (decimal)compliant / total * 100, CreatedAt = DateTime.Now,
@@ -176,7 +235,7 @@ public class InfectionControlServiceImpl : IInfectionControlService
         };
         _context.HandHygieneObservations.Add(entity);
         await _context.SaveChangesAsync();
-        return new HandHygieneObservationDto { Id = entity.Id, ObservationDate = entity.ObservationDate, TotalOpportunities = total, CompliantActions = compliant };
+        return new HandHygieneObservationDto { Id = entity.Id, ObservationDate = entity.ObservationDate, TotalOpportunities = total, CompliantActions = compliant, ComplianceRate = entity.ComplianceRate };
     }
 
     public async Task<decimal> GetHandHygieneComplianceRateAsync(DateTime fromDate, DateTime toDate, Guid? departmentId = null)
@@ -191,8 +250,8 @@ public class InfectionControlServiceImpl : IInfectionControlService
     {
         try
         {
-            var list = await _context.Outbreaks.Where(x => x.Status != "Closed").ToBoundedListAsync("InfectionControl.ActiveOutbreaks");
-            return list.Select(e => new OutbreakDto { Id = e.Id, OutbreakCode = e.OutbreakCode, Name = e.OutbreakCode, Status = e.Status, TotalCases = e.TotalCases }).ToList();
+            var list = await _context.Outbreaks.Where(x => x.Status != "Closed").OrderByDescending(x => x.DetectionDate).ToBoundedListAsync("InfectionControl.ActiveOutbreaks");
+            return list.Select(MapToOutbreakDto).ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
@@ -204,8 +263,20 @@ public class InfectionControlServiceImpl : IInfectionControlService
     {
         var e = await _context.Outbreaks.FindAsync(id);
         if (e == null) return null!;
-        return new OutbreakDto { Id = e.Id, OutbreakCode = e.OutbreakCode, Name = e.OutbreakCode, Organism = e.Organism, Status = e.Status, TotalCases = e.TotalCases };
+        return MapToOutbreakDto(e);
     }
+
+    // Detection date / organism / end date / departments were never mapped: the v2 "Ổ dịch" tab showed
+    // "Bệnh" blank and "Bắt đầu" = 01/01/0001 for every outbreak.
+    private static OutbreakDto MapToOutbreakDto(Outbreak e) => new()
+    {
+        Id = e.Id, OutbreakCode = e.OutbreakCode, Name = e.OutbreakCode, Organism = e.Organism,
+        IdentifiedDate = e.DetectionDate, ContainedDate = e.ContainedDate, EndDate = e.ResolvedDate,
+        AffectedDepartments = (e.AffectedAreas ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
+        TotalCases = e.TotalCases, Deaths = e.Deaths, ProbableSource = e.SourceSuspected ?? "",
+        ReportedToAuthority = e.ReportedToAuthority, ReportedDate = e.ReportedDate,
+        Status = e.Status, CreatedAt = e.CreatedAt
+    };
 
     public async Task<OutbreakDto> DeclareOutbreakAsync(DeclareOutbreakDto dto)
     {
@@ -213,7 +284,7 @@ public class InfectionControlServiceImpl : IInfectionControlService
         {
             Id = Guid.NewGuid(), OutbreakCode = CodeGenerator.Timestamp("OB"),
             Organism = dto.Organism ?? "", AffectedAreas = string.Join(",", dto.AffectedDepartments ?? new List<string>()),
-            DetectionDate = dto.IdentifiedDate, Status = "Active", TotalCases = dto.InitialCases?.Count ?? 0, CreatedAt = DateTime.Now
+            DetectionDate = dto.IdentifiedDate == default ? DateTime.Now : dto.IdentifiedDate, Status = "Active", TotalCases = dto.InitialCases?.Count ?? 0, CreatedAt = DateTime.Now
         };
         _context.Outbreaks.Add(entity);
         await _context.SaveChangesAsync();
@@ -334,6 +405,9 @@ public class InfectionControlServiceImpl : IInfectionControlService
         Organism = e.Organism ?? "",
         IsMDRO = e.IsMDRO,
         ResistancePattern = e.ResistancePattern ?? "",
+        CriteriaUsed = e.Notes ?? "",
+        // Investigation saved via PUT /api/write-gap/hai/hai-reports/{id}/investigate was never shown back.
+        InvestigationNotes = string.Join(" | ", new[] { e.RootCause, e.ContributingFactors, e.PreventiveMeasures }.Where(x => !string.IsNullOrWhiteSpace(x))),
         IsOutbreakRelated = e.OutbreakId.HasValue,
         OutbreakId = e.OutbreakId,
         Status = e.Status,

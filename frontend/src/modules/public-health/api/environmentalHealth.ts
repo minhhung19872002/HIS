@@ -69,13 +69,21 @@ export const searchWasteRecords = async (params?: {
   }
 };
 
+// BE CreateWasteRecordDto has no source/handlerName: map them onto departmentName/collectorName (the
+// columns the list reads them back from) — they were silently dropped before.
+const toWastePayload = (data: Partial<WasteRecord>) => ({
+  ...data,
+  departmentName: data.source,
+  collectorName: data.handlerName,
+});
+
 export const createWasteRecord = async (data: Partial<WasteRecord>) => {
-  const response = await apiClient.post<WasteRecord>('/environmental-health/waste', data);
+  const response = await apiClient.post<WasteRecord>('/environmental-health/waste', toWastePayload(data));
   return response.data;
 };
 
 export const updateWasteRecord = async (id: string, data: Partial<WasteRecord>) => {
-  const response = await apiClient.put<WasteRecord>(`/environmental-health/waste/${id}`, data);
+  const response = await apiClient.put<WasteRecord>(`/environmental-health/waste/${id}`, toWastePayload(data));
   return response.data;
 };
 
@@ -87,8 +95,14 @@ export const searchMonitoring = async (params?: {
   toDate?: string;
 }) => {
   try {
-    const response = await apiClient.get<MonitoringRecord[]>('/environmental-health/monitoring', { params });
-    return response.data || [];
+    const response = await apiClient.get<(MonitoringRecord & { monitoringCode?: string; measuredValue?: number })[]>(
+      '/environmental-health/monitoring', { params });
+    // BE EnvironmentalMonitoringDto: monitoringCode / measuredValue
+    return (response.data || []).map((m) => ({
+      ...m,
+      recordCode: m.recordCode ?? m.monitoringCode ?? '',
+      value: m.value ?? m.measuredValue ?? 0,
+    }));
   } catch {
     console.warn('Failed to fetch monitoring records');
     return [];
@@ -96,7 +110,14 @@ export const searchMonitoring = async (params?: {
 };
 
 export const createMonitoring = async (data: Partial<MonitoringRecord>) => {
-  const response = await apiClient.post<MonitoringRecord>('/environmental-health/monitoring', data);
+  // BE expects measuredValue: `value` was dropped, stored as 0 and therefore always "compliant".
+  // There is no parameter column — keep it in notes so it is not lost.
+  const notes = [data.parameter ? `Thông số: ${data.parameter}` : '', data.notes ?? ''].filter(Boolean).join('\n');
+  const response = await apiClient.post<MonitoringRecord>('/environmental-health/monitoring', {
+    ...data,
+    measuredValue: data.value,
+    notes: notes || undefined,
+  });
   return response.data;
 };
 
@@ -122,8 +143,10 @@ export const getMonitoringStats = async (): Promise<MonitoringStats> => {
 
 export const getBiosafetyStatus = async (): Promise<BiosafetyStatus> => {
   try {
-    const response = await apiClient.get<BiosafetyStatus>('/environmental-health/biosafety-status');
-    return response.data;
+    const response = await apiClient.get<BiosafetyStatus & { overallStatus?: string }>('/environmental-health/biosafety-status');
+    // BE BiosafetyStatusDto has overallStatus (good|warning|critical), no isCompliant → KPI always showed "Chưa đạt".
+    const d = response.data;
+    return { ...d, isCompliant: d?.isCompliant ?? d?.overallStatus === 'good' };
   } catch {
     console.warn('Failed to fetch biosafety status');
     return { level: 0, isCompliant: true };

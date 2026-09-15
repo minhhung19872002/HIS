@@ -30,6 +30,11 @@ namespace HIS.Application.DTOs.Telemedicine
         public string PaymentMethod { get; set; }
         public string PaymentTransactionId { get; set; }
         public DateTime CreatedAt { get; set; }
+
+        // Latest video session of the appointment (the v2 page needs it to end the visit / prescribe).
+        public Guid? SessionId { get; set; }
+        public string? VideoRoomUrl { get; set; }
+        public string? PatientCode { get; set; }
     }
 
     /// <summary>
@@ -114,8 +119,9 @@ namespace HIS.Application.DTOs.Telemedicine
     public class StartVideoCallDto
     {
         public Guid AppointmentId { get; set; }
-        public string ParticipantType { get; set; } // Doctor, Patient
-        public string DeviceInfo { get; set; }
+        // Optional: implicit [Required] made the v2 "start session" call ({ appointmentId }) a 400.
+        public string? ParticipantType { get; set; } // Doctor, Patient
+        public string? DeviceInfo { get; set; }
     }
 
     #endregion

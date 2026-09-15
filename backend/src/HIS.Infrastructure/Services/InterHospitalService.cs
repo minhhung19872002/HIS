@@ -44,7 +44,7 @@ public class InterHospitalService : IInterHospitalService
                 if (!string.IsNullOrEmpty(filter.FromDate) && DateTime.TryParse(filter.FromDate, out var from))
                     query = query.Where(r => r.RequestDate >= from);
                 if (!string.IsNullOrEmpty(filter.ToDate) && DateTime.TryParse(filter.ToDate, out var to))
-                    query = query.Where(r => r.RequestDate <= to.AddDays(1));
+                    query = query.Where(r => r.RequestDate < to.Date.AddDays(1));
             }
 
             return await query
@@ -69,6 +69,16 @@ public class InterHospitalService : IInterHospitalService
 
     public async Task<InterHospitalRequestDto> CreateRequestAsync(CreateInterHospitalRequestDto dto)
     {
+        // A request without a destination facility cannot be routed (was saved silently with nulls).
+        if (string.IsNullOrWhiteSpace(dto.ReceivingFacility))
+            throw new ArgumentException("Bệnh viện nhận là bắt buộc", nameof(dto.ReceivingFacility));
+        var requestType = dto.RequestType ?? "consultation";
+        // Duplicate referral: same patient → same facility → same request type while one is still open.
+        if (dto.PatientId.HasValue && await _context.InterHospitalRequests.AnyAsync(r => !r.IsDeleted
+                && r.PatientId == dto.PatientId && r.ReceivingFacility == dto.ReceivingFacility
+                && r.RequestType == requestType && (r.Status == 0 || r.Status == 1 || r.Status == 2)))
+            throw new InvalidOperationException("Người bệnh đã có yêu cầu liên viện cùng loại tới bệnh viện này đang xử lý.");
+
         var year = DateTime.UtcNow.Year;
         var count = await _context.InterHospitalRequests.CountAsync(r => r.CreatedAt.Year == year) + 1;
 
@@ -76,13 +86,14 @@ public class InterHospitalService : IInterHospitalService
         {
             Id = Guid.NewGuid(),
             RequestCode = $"LV-{year}-{count:D4}",
-            RequestType = dto.RequestType ?? "consultation",
+            RequestType = requestType,
             RequestingFacility = dto.RequestingFacility,
             ReceivingFacility = dto.ReceivingFacility,
             PatientId = dto.PatientId,
             PatientName = dto.PatientName,
             Urgency = dto.Urgency ?? "routine",
-            RequestDate = DateTime.UtcNow,
+            // Local VN time like the seeded rows: the DTO serialises it without offset, so UTC showed 7h early.
+            RequestDate = DateTime.Now,
             Status = 0,
             RequestDetails = dto.RequestDetails,
             RequestedBy = dto.RequestedBy,
@@ -98,14 +109,21 @@ public class InterHospitalService : IInterHospitalService
 
     public async Task<InterHospitalRequestDto> RespondToRequestAsync(Guid id, RespondInterHospitalRequestDto dto)
     {
-        var entity = await _context.InterHospitalRequests.FindAsync(id)
-            ?? throw new InvalidOperationException("Inter-hospital request not found");
+        var entity = await _context.InterHospitalRequests.FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy yêu cầu liên viện");
+
+        // Status: 0=pending, 1=accepted, 2=in progress, 3=completed, 4=rejected (v2 page scheme).
+        // Previously any int was stored (e.g. 99) and a completed/rejected request could be re-opened.
+        if (entity.Status == 3 || entity.Status == 4)
+            throw new InvalidOperationException("Yêu cầu liên viện đã hoàn thành hoặc đã bị từ chối, không phản hồi lại được.");
+        if (dto.Status.HasValue && (dto.Status.Value < 1 || dto.Status.Value > 4))
+            throw new ArgumentException("Trạng thái phản hồi không hợp lệ", nameof(dto.Status));
 
         if (dto.Status.HasValue) entity.Status = dto.Status.Value;
         if (dto.ResponseDetails != null) entity.ResponseDetails = dto.ResponseDetails;
         if (dto.RespondedBy != null) entity.RespondedBy = dto.RespondedBy;
         if (dto.Notes != null) entity.Notes = dto.Notes;
-        entity.ResponseDate = DateTime.UtcNow;
+        entity.ResponseDate = DateTime.Now;
         entity.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
@@ -118,7 +136,7 @@ public class InterHospitalService : IInterHospitalService
         try
         {
             return await _context.InterHospitalRequests
-                .Where(r => !r.IsDeleted && (r.Status == 0 || r.Status == 1))
+                .Where(r => !r.IsDeleted && (r.Status == 0 || r.Status == 1 || r.Status == 2))
                 .OrderByDescending(r => r.RequestDate)
                 .Take(100)
                 .Select(r => MapToDto(r))
@@ -138,7 +156,13 @@ public class InterHospitalService : IInterHospitalService
                 PendingCount = requests.Count(r => r.Status == 0),
                 AcceptedCount = requests.Count(r => r.Status == 1),
                 CompletedCount = requests.Count(r => r.Status == 3),
-                RejectedCount = requests.Count(r => r.Status == 2),
+                // 4 = rejected (the v2 page sends 4; counting 2 always reported 0 rejections).
+                RejectedCount = requests.Count(r => r.Status == 4),
+                InProgressCount = requests.Count(r => r.Status == 2),
+                CompletedToday = requests.Count(r => r.Status == 3 && r.ResponseDate.HasValue && r.ResponseDate.Value.Date == DateTime.Today),
+                AvgResponseTimeMinutes = requests.Where(r => r.RequestDate.HasValue && r.ResponseDate.HasValue && r.ResponseDate >= r.RequestDate)
+                    .Select(r => (r.ResponseDate!.Value - r.RequestDate!.Value).TotalMinutes)
+                    .DefaultIfEmpty(0).Average(),
                 RequestTypeBreakdown = requests.GroupBy(r => r.RequestType)
                     .Select(g => new InterHospitalRequestTypeBreakdownDto { RequestType = g.Key, Count = g.Count() })
                     .ToList(),

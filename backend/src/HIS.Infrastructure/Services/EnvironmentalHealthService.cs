@@ -70,6 +70,7 @@ public class EnvironmentalHealthService : IEnvironmentalHealthService
 
     public async Task<WasteRecordDto> CreateWasteRecordAsync(CreateWasteRecordDto dto)
     {
+        if (dto.Quantity is null or < 0) throw new ArgumentException("Khối lượng chất thải phải ≥ 0");
         var year = DateTime.UtcNow.Year;
         var count = await _context.WasteRecords.CountAsync(r => r.CreatedAt.Year == year) + 1;
 
@@ -101,10 +102,15 @@ public class EnvironmentalHealthService : IEnvironmentalHealthService
         var entity = await _context.WasteRecords.FindAsync(id)
             ?? throw new InvalidOperationException("Waste record not found");
 
+        if (dto.Quantity < 0) throw new ArgumentException("Khối lượng chất thải phải ≥ 0");
         if (dto.WasteType != null) entity.WasteType = dto.WasteType;
         if (dto.Quantity.HasValue) entity.Quantity = dto.Quantity.Value;
         if (dto.DisposalMethod != null) entity.DisposalMethod = dto.DisposalMethod;
         if (dto.CollectorName != null) entity.CollectorName = dto.CollectorName;
+        // QA-R2: the v2 edit form's date and source (DepartmentName) were silently dropped on update.
+        if (!string.IsNullOrEmpty(dto.RecordDate) && DateTime.TryParse(dto.RecordDate, out var rd)) entity.RecordDate = rd;
+        if (dto.DepartmentName != null) entity.DepartmentName = dto.DepartmentName;
+        if (dto.CollectorLicense != null) entity.CollectorLicense = dto.CollectorLicense;
         if (dto.Notes != null) entity.Notes = dto.Notes;
         entity.UpdatedAt = DateTime.UtcNow;
 
@@ -166,7 +172,9 @@ public class EnvironmentalHealthService : IEnvironmentalHealthService
         var year = DateTime.UtcNow.Year;
         var count = await _context.EnvironmentalMonitorings.CountAsync(m => m.CreatedAt.Year == year) + 1;
 
-        var measuredValue = dto.MeasuredValue ?? 0;
+        // QA-R2: a missing value was stored as 0 and therefore always "compliant" (the v2 form sent `value`).
+        if (!dto.MeasuredValue.HasValue) throw new ArgumentException("Giá trị đo là bắt buộc");
+        var measuredValue = dto.MeasuredValue.Value;
         var standardLimit = dto.StandardLimit;
         var isCompliant = standardLimit.HasValue ? measuredValue <= standardLimit.Value : true;
 

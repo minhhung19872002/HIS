@@ -313,8 +313,15 @@ public class BhxhAuditController : ControllerBase
     [HttpPost("session")]
     public async Task<ActionResult<BhxhAuditDetailDto>> CreateSession([FromBody] CreateAuditSessionDto dto)
     {
-        var result = await _service.CreateSessionAsync(dto);
-        return Ok(result);
+        try
+        {
+            var result = await _service.CreateSessionAsync(dto);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
+        }
     }
 
     /// <summary>
@@ -328,9 +335,13 @@ public class BhxhAuditController : ControllerBase
             var result = await _service.RunAuditAsync(id);
             return Ok(result);
         }
-        catch (InvalidOperationException ex)
+        catch (KeyNotFoundException ex)
         {
             return NotFound(new { error = "NOT_FOUND", message = ex.Message });
+        }
+        catch (InvalidOperationException ex) // state guard (already submitted/approved)
+        {
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
     }
 
@@ -355,9 +366,13 @@ public class BhxhAuditController : ControllerBase
             var result = await _service.FixErrorAsync(id, dto);
             return Ok(result);
         }
-        catch (InvalidOperationException ex)
+        catch (KeyNotFoundException ex)
         {
             return NotFound(new { error = "NOT_FOUND", message = ex.Message });
+        }
+        catch (InvalidOperationException ex) // amount range / locked session
+        {
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
     }
 

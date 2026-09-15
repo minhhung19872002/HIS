@@ -29,10 +29,19 @@ public interface IFrontendCompatService
     Task<ServiceOutcome> SHExamsAsync(int pageSize);
 
     // ---- Epidemiology ----
-    Task<ServiceOutcome> EpiReportsAsync(int pageSize);
+    /// <summary>QA-R2: keyword / fromDate / toDate (ReportDate, inclusive end day) were accepted by the FE but ignored.</summary>
+    Task<ServiceOutcome> EpiReportsAsync(string? keyword, DateTime? fromDate, DateTime? toDate, int pageSize);
     Task<ServiceOutcome> EpiStatisticsAsync();
     /// <summary>Dữ liệu tĩnh — đồng bộ, không cần DB.</summary>
     ServiceOutcome EpiNotifiable();
+    /// <summary>v2 Epidemiology.tsx create/update disease report (DiseaseReports) — was 405/404.</summary>
+    Task<ServiceOutcome> EpiSaveReportAsync(Guid? id, EpiReportSaveDto dto, string? userId);
+    /// <summary>v2 Epidemiology.tsx outbreak list (OutbreakEvents, FE Outbreak shape).</summary>
+    Task<ServiceOutcome> EpiOutbreaksAsync();
+    /// <summary>v2 Epidemiology.tsx create/update outbreak (OutbreakEvents) — was 405/404.</summary>
+    Task<ServiceOutcome> EpiSaveOutbreakAsync(Guid? id, EpiOutbreakSaveDto dto, string? userId);
+    /// <summary>v2 OccupationalHealth.tsx create/update exam (OccupationalHealthExams) — was 405/404.</summary>
+    Task<ServiceOutcome> OHSaveExamAsync(Guid? id, OccExamSaveDto dto, string? userId);
 
     // ---- RIS admin (v2 RisAdmin.tsx): areas / folders / hospital-config / dispatch stats ----
     /// <summary>Khu vực / chi nhánh RIS — backed by HospitalBranches.</summary>
@@ -86,6 +95,76 @@ public class SchoolExamSaveDto
     public string? Recommendations { get; set; }
     public string? ExamDoctor { get; set; }
     public int? Status { get; set; }
+}
+
+/// <summary>Payload of v2 Epidemiology.tsx disease-report form (POST/PUT /api/epidemiology/reports).</summary>
+public class EpiReportSaveDto
+{
+    public string? PatientName { get; set; }
+    public string? PatientCode { get; set; }
+    /// <summary>1=Nam, 2=Nữ</summary>
+    public int? Gender { get; set; }
+    public int? Age { get; set; }
+    public string? Address { get; set; }
+    public string? DiseaseName { get; set; }
+    public string? DiseaseCode { get; set; }
+    public string? DiseaseGroup { get; set; }
+    public DateTime? ReportDate { get; set; }
+    public DateTime? OnsetDate { get; set; }
+    public DateTime? DiagnosisDate { get; set; }
+    public string? ReportingDoctor { get; set; }
+    public bool? LabConfirmed { get; set; }
+    /// <summary>0=Nháp, 1=Đã gửi, 2=Xác nhận, 3=Đóng</summary>
+    public int? Status { get; set; }
+    public string? Outcome { get; set; }
+    public string? Notes { get; set; }
+}
+
+/// <summary>Payload of v2 Epidemiology.tsx outbreak form (POST/PUT /api/epidemiology/outbreaks).</summary>
+public class EpiOutbreakSaveDto
+{
+    public string? Name { get; set; }
+    public string? DiseaseName { get; set; }
+    public string? DiseaseCode { get; set; }
+    public string? Location { get; set; }
+    public DateTime? StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public int? CaseCount { get; set; }
+    public int? DeathCount { get; set; }
+    /// <summary>1=Thấp, 2=Trung bình, 3=Cao, 4=Nguy cấp</summary>
+    public int? RiskLevel { get; set; }
+    /// <summary>0=Nghi ngờ, 1=Xác nhận, 2=Kiểm soát, 3=Đã giải quyết</summary>
+    public int? Status { get; set; }
+    public string? Description { get; set; }
+    public string? ResponseActions { get; set; }
+}
+
+/// <summary>Payload of v2 OccupationalHealth.tsx exam form (POST/PUT /api/occupational-health/exams).</summary>
+public class OccExamSaveDto
+{
+    public string? PatientName { get; set; }
+    public string? PatientCode { get; set; }
+    public DateTime? ExamDate { get; set; }
+    public string? CompanyName { get; set; }
+    public string? CompanyCode { get; set; }
+    public string? Department { get; set; }
+    public string? Occupation { get; set; }
+    public int? YearsOfExposure { get; set; }
+    public string? ExamType { get; set; }
+    public string? ExamDoctor { get; set; }
+    public List<string>? HazardTypes { get; set; }
+    public string? SpirometryResult { get; set; }
+    public string? AudiometryResult { get; set; }
+    public decimal? BloodLeadLevel { get; set; }
+    public string? VisionResult { get; set; }
+    public string? XrayResult { get; set; }
+    public string? LabResults { get; set; }
+    public string? Classification { get; set; }
+    public string? OccupationalDisease { get; set; }
+    /// <summary>0=Chờ khám, 1=Đang khám, 2=Hoàn thành, 3=Đã cấp GCN</summary>
+    public int? Status { get; set; }
+    public string? Conclusion { get; set; }
+    public string? Recommendations { get; set; }
 }
 
 public class RisAreaSaveDto

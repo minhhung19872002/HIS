@@ -100,17 +100,23 @@ public class RehabilitationServiceImpl : IRehabilitationService
 
     public async Task<RehabReferralDto> AcceptReferralAsync(Guid id)
     {
-        var e = await _context.RehabReferrals.FindAsync(id);
-        if (e == null) return null!;
+        // QA-R2: unknown id returned 204 (v2 toasted "Đã chấp nhận"); a Declined referral could be re-accepted.
+        var e = await _context.RehabReferrals.FindAsync(id)
+            ?? throw new KeyNotFoundException("Không tìm thấy giấy giới thiệu PHCN");
+        if (e.Status != "Pending")
+            throw new InvalidOperationException($"Chỉ chấp nhận được giấy giới thiệu đang chờ (hiện tại: {e.Status})");
         e.Status = "Accepted"; e.AcceptedDate = DateTime.Now;
+        e.AcceptedById = _currentUser?.UserGuid ?? e.AcceptedById;
         await _context.SaveChangesAsync();
         return await GetReferralAsync(id);
     }
 
     public async Task<bool> RejectReferralAsync(Guid id, string reason)
     {
-        var e = await _context.RehabReferrals.FindAsync(id);
-        if (e == null) return false;
+        var e = await _context.RehabReferrals.FindAsync(id)
+            ?? throw new KeyNotFoundException("Không tìm thấy giấy giới thiệu PHCN");
+        if (e.Status != "Pending")
+            throw new InvalidOperationException($"Chỉ từ chối được giấy giới thiệu đang chờ (hiện tại: {e.Status})");
         e.Status = "Declined"; e.DeclineReason = reason;
         await _context.SaveChangesAsync();
         return true;
@@ -173,7 +179,18 @@ public class RehabilitationServiceImpl : IRehabilitationService
 
     public async Task<RehabTreatmentPlanDto> CreateTreatmentPlanAsync(CreateTreatmentPlanDto dto)
     {
-        var entity = new RehabTreatmentPlan { Id = Guid.NewGuid(), PlanCode = CodeGenerator.Timestamp("RTP"), ReferralId = dto.ReferralId, RehabType = "PT", PlannedSessions = dto.PlannedTotalSessions, Frequency = $"{dto.SessionsPerWeek}x/week", DurationMinutesPerSession = dto.MinutesPerSession, StartDate = dto.StartDate, Status = "Active", CreatedAt = DateTime.Now };
+        // QA-R2: unknown referral created an orphan plan (no FK); a Pending/Declined referral or a second Active plan
+        // for the same referral was accepted (v2 re-opens "Lập KH" freely → duplicate plans, sessions split);
+        // RehabType was hard-coded "PT" so OT/ST sessions were billed as PT.
+        var referral = await _context.RehabReferrals.FindAsync(dto.ReferralId)
+            ?? throw new KeyNotFoundException("Không tìm thấy giấy giới thiệu PHCN");
+        if (referral.Status != "Accepted")
+            throw new InvalidOperationException($"Chỉ lập kế hoạch cho giấy giới thiệu đã chấp nhận (hiện tại: {referral.Status})");
+        if (await _context.RehabTreatmentPlans.AnyAsync(p => p.ReferralId == dto.ReferralId && p.Status == "Active"))
+            throw new InvalidOperationException("Giấy giới thiệu này đã có kế hoạch điều trị đang thực hiện");
+        ValidatePlanSchedule(dto);
+        var entity = new RehabTreatmentPlan { Id = Guid.NewGuid(), PlanCode = CodeGenerator.Timestamp("RTP"), ReferralId = dto.ReferralId, RehabType = string.IsNullOrWhiteSpace(referral.RehabType) ? "PT" : referral.RehabType, PlannedSessions = dto.PlannedTotalSessions, Frequency = $"{dto.SessionsPerWeek}x/week", DurationMinutesPerSession = dto.MinutesPerSession, StartDate = dto.StartDate, Status = "Active", CreatedAt = DateTime.Now };
+        entity.CreatedById = _currentUser?.UserGuid ?? Guid.Empty;
         _context.RehabTreatmentPlans.Add(entity);
         await _context.SaveChangesAsync();
         return await GetTreatmentPlanAsync(entity.Id);
@@ -181,11 +198,24 @@ public class RehabilitationServiceImpl : IRehabilitationService
 
     public async Task<RehabTreatmentPlanDto> UpdateTreatmentPlanAsync(Guid id, CreateTreatmentPlanDto dto)
     {
-        var e = await _context.RehabTreatmentPlans.FindAsync(id);
-        if (e == null) return null!;
+        var e = await _context.RehabTreatmentPlans.FindAsync(id)
+            ?? throw new KeyNotFoundException("Không tìm thấy kế hoạch điều trị");
+        if (e.Status != "Active")
+            throw new InvalidOperationException("Chỉ sửa được kế hoạch đang thực hiện");
+        ValidatePlanSchedule(dto);
         e.PlannedSessions = dto.PlannedTotalSessions; e.Frequency = $"{dto.SessionsPerWeek}x/week"; e.DurationMinutesPerSession = dto.MinutesPerSession;
         await _context.SaveChangesAsync();
         return await GetTreatmentPlanAsync(id);
+    }
+
+    private static void ValidatePlanSchedule(CreateTreatmentPlanDto dto)
+    {
+        if (dto.PlannedTotalSessions <= 0)
+            throw new ArgumentException("Số buổi dự kiến phải lớn hơn 0");
+        if (dto.SessionsPerWeek < 0 || dto.MinutesPerSession < 0)
+            throw new ArgumentException("Tần suất / thời lượng buổi tập không được âm");
+        if (dto.StartDate == default)
+            throw new ArgumentException("Thiếu ngày bắt đầu kế hoạch");
     }
 
     public async Task<bool> UpdateGoalProgressAsync(Guid planId, int goalNumber, decimal progressPercent, string notes)
@@ -199,31 +229,57 @@ public class RehabilitationServiceImpl : IRehabilitationService
 
     public async Task<List<RehabSessionDto>> GetSessionsAsync(DateTime fromDate, DateTime toDate, Guid? therapistId = null)
     {
-        var query = _context.RehabSessions.Include(x => x.TreatmentPlan).ThenInclude(x => x!.Referral).ThenInclude(x => x!.Patient).Include(x => x.Therapist).Where(x => x.SessionDate >= fromDate && x.SessionDate <= toDate);
+        // QA-R2: no Include(Therapist) — the relationship is required (Guid TherapistId) so EF emitted an INNER JOIN
+        // and every session without a therapist (all sessions scheduled from v2) was invisible. Names looked up below.
+        var query = _context.RehabSessions.Include(x => x.TreatmentPlan).ThenInclude(x => x!.Referral).ThenInclude(x => x!.Patient).Where(x => x.SessionDate >= fromDate && x.SessionDate <= toDate);
         if (therapistId.HasValue) query = query.Where(x => x.TherapistId == therapistId);
         var list = await query.ToBoundedListAsync("Rehabilitation.GetSessions");
-        return list.Select(MapToRehabSessionDto).ToList();
+        return await MapSessionsAsync(list);
     }
 
     public async Task<List<RehabSessionDto>> GetPatientSessionsAsync(Guid referralId)
     {
         var plan = await _context.RehabTreatmentPlans.FirstOrDefaultAsync(x => x.ReferralId == referralId);
         if (plan == null) return new List<RehabSessionDto>();
-        var list = await _context.RehabSessions.Include(x => x.Therapist).Where(x => x.TreatmentPlanId == plan.Id).OrderByDescending(x => x.SessionDate).ToBoundedListAsync("Rehabilitation.PatientSessions");
-        return list.Select(MapToRehabSessionDto).ToList();
+        var list = await _context.RehabSessions.Where(x => x.TreatmentPlanId == plan.Id).OrderByDescending(x => x.SessionDate).ToBoundedListAsync("Rehabilitation.PatientSessions");
+        return await MapSessionsAsync(list);
     }
 
     public async Task<RehabSessionDto> GetSessionAsync(Guid id)
     {
-        var e = await _context.RehabSessions.Include(x => x.TreatmentPlan).ThenInclude(x => x!.Referral).ThenInclude(x => x!.Patient).Include(x => x.Therapist).FirstOrDefaultAsync(x => x.Id == id);
-        return e == null ? null! : MapToRehabSessionDto(e);
+        var e = await _context.RehabSessions.Include(x => x.TreatmentPlan).ThenInclude(x => x!.Referral).ThenInclude(x => x!.Patient).FirstOrDefaultAsync(x => x.Id == id);
+        return e == null ? null! : (await MapSessionsAsync(new List<RehabSession> { e }))[0];
+    }
+
+    private async Task<List<RehabSessionDto>> MapSessionsAsync(List<RehabSession> list)
+    {
+        var ids = list.Select(s => s.TherapistId).Where(g => g != Guid.Empty).Distinct().ToList();
+        var names = ids.Count == 0 ? new Dictionary<Guid, string>()
+            : await _context.Users.Where(u => ids.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.FullName ?? "");
+        return list.Select(s =>
+        {
+            var dto = MapToRehabSessionDto(s);
+            dto.TherapistName = names.TryGetValue(s.TherapistId, out var n) ? n : "";
+            return dto;
+        }).ToList();
     }
 
     public async Task<RehabSessionDto> ScheduleSessionAsync(Guid planId, DateTime date, TimeSpan time, string location)
     {
-        var plan = await _context.RehabTreatmentPlans.FindAsync(planId);
+        // QA-R2: unknown planId created an orphan session (no FK); sessions could be booked on a Completed/Discontinued
+        // plan; double-submit created duplicate slots.
+        var plan = await _context.RehabTreatmentPlans.FindAsync(planId)
+            ?? throw new KeyNotFoundException("Không tìm thấy kế hoạch điều trị");
+        if (plan.Status != "Active")
+            throw new InvalidOperationException("Chỉ lên lịch buổi tập cho kế hoạch đang thực hiện");
+        if (date == default)
+            throw new ArgumentException("Thiếu ngày buổi tập");
+        if (await _context.RehabSessions.AnyAsync(x => x.TreatmentPlanId == planId && x.SessionDate.Date == date.Date
+                && x.StartTime == time && (x.Status == "Scheduled" || x.Status == "InProgress")))
+            throw new InvalidOperationException("Đã có buổi tập của kế hoạch này vào đúng giờ đó");
         var sessionNum = await _context.RehabSessions.CountAsync(x => x.TreatmentPlanId == planId) + 1;
         var entity = new RehabSession { Id = Guid.NewGuid(), TreatmentPlanId = planId, SessionNumber = sessionNum, SessionDate = date, StartTime = time, Status = "Scheduled", CreatedAt = DateTime.Now };
+        entity.TherapistId = _currentUser?.UserGuid ?? Guid.Empty;
         _context.RehabSessions.Add(entity);
         await _context.SaveChangesAsync();
         return await GetSessionAsync(entity.Id);
@@ -231,10 +287,20 @@ public class RehabilitationServiceImpl : IRehabilitationService
 
     public async Task<RehabSessionDto> DocumentSessionAsync(DocumentSessionDto dto)
     {
-        var e = await _context.RehabSessions.FindAsync(dto.SessionId);
-        if (e == null) return null!;
-        e.Status = "Completed"; e.EndTime = TimeSpan.FromHours(DateTime.Now.Hour).Add(TimeSpan.FromMinutes(DateTime.Now.Minute)); e.ProgressNotes = dto.ProgressNotes;
+        // QA-R2: re-documenting a Completed session incremented CompletedSessions again and wiped ProgressNotes;
+        // a Cancelled/NoShow session could be turned into Completed and billed; unknown id returned 204.
+        var e = await _context.RehabSessions.FindAsync(dto.SessionId)
+            ?? throw new KeyNotFoundException("Không tìm thấy buổi tập");
+        if (e.Status != "Scheduled" && e.Status != "InProgress")
+            throw new InvalidOperationException($"Buổi tập đã ở trạng thái {e.Status}, không ghi nhận lại được");
+        if (!string.IsNullOrWhiteSpace(dto.PainLevel)
+            && (!int.TryParse(dto.PainLevel.Trim(), out var pain) || pain < 0 || pain > 10))
+            throw new ArgumentException("Mức độ đau phải từ 0 đến 10");
         var plan = await _context.RehabTreatmentPlans.FindAsync(e.TreatmentPlanId);
+        if (plan != null && plan.Status != "Active")
+            throw new InvalidOperationException("Kế hoạch điều trị đã kết thúc, không ghi nhận buổi tập được");
+        e.Status = "Completed"; e.EndTime = TimeSpan.FromHours(DateTime.Now.Hour).Add(TimeSpan.FromMinutes(DateTime.Now.Minute)); e.ProgressNotes = dto.ProgressNotes;
+        e.PatientResponse = dto.PatientResponse;
         if (plan != null) plan.CompletedSessions++;
         // F7 (audit FLOW-FINAL 2026-06-06): mỗi buổi trị liệu hoàn thành → sinh 1 dịch vụ tính phí
         // (ServiceRequest + Detail). Trước đây buổi PHCN không phát sinh viện phí (thất thu).
@@ -374,8 +440,12 @@ public class RehabilitationServiceImpl : IRehabilitationService
 
     public async Task<bool> CancelSessionAsync(Guid id, string reason)
     {
-        var e = await _context.RehabSessions.FindAsync(id);
-        if (e == null) return false;
+        // QA-R2: unknown id returned 200 false (v2 toasted success); a Completed (already billed/counted) session
+        // could be flipped to Cancelled/NoShow.
+        var e = await _context.RehabSessions.FindAsync(id)
+            ?? throw new KeyNotFoundException("Không tìm thấy buổi tập");
+        if (e.Status != "Scheduled" && e.Status != "InProgress")
+            throw new InvalidOperationException($"Buổi tập đã ở trạng thái {e.Status}, không huỷ được");
         e.Status = "Cancelled"; e.CancellationReason = reason;
         await _context.SaveChangesAsync();
         return true;
@@ -383,8 +453,10 @@ public class RehabilitationServiceImpl : IRehabilitationService
 
     public async Task<bool> MarkNoShowAsync(Guid id)
     {
-        var e = await _context.RehabSessions.FindAsync(id);
-        if (e == null) return false;
+        var e = await _context.RehabSessions.FindAsync(id)
+            ?? throw new KeyNotFoundException("Không tìm thấy buổi tập");
+        if (e.Status != "Scheduled" && e.Status != "InProgress")
+            throw new InvalidOperationException($"Buổi tập đã ở trạng thái {e.Status}, không đánh dấu vắng được");
         e.Status = "NoShow";
         await _context.SaveChangesAsync();
         return true;
@@ -406,8 +478,10 @@ public class RehabilitationServiceImpl : IRehabilitationService
 
     public async Task<RehabOutcomeDto> DischargePatientAsync(Guid planId, RehabOutcomeDto outcomeData)
     {
-        var e = await _context.RehabTreatmentPlans.FindAsync(planId);
-        if (e == null) return null!;
+        var e = await _context.RehabTreatmentPlans.FindAsync(planId)
+            ?? throw new KeyNotFoundException("Không tìm thấy kế hoạch điều trị");
+        if (e.Status != "Active" && e.Status != "OnHold")
+            throw new InvalidOperationException($"Kế hoạch đã ở trạng thái {e.Status}");
         e.Status = "Completed"; e.ActualEndDate = DateTime.Now; e.DischargeSummary = outcomeData.FunctionalStatus;
         await _context.SaveChangesAsync();
         return await GetOutcomeAsync(planId);

@@ -44,6 +44,14 @@ public class PatientFlagService : IPatientFlagService
 
     public async Task<ServiceOutcome> SaveAsync(SavePatientFlagDto dto, Guid userId)
     {
+        // PatientFlags has no FK to Patients: a flag for an unknown patient id was silently stored (orphan),
+        // unknown flag types became "Cảnh báo khác", and an already-past expiry created a flag nobody ever sees.
+        if (dto.FlagType < 1 || dto.FlagType > 7)
+            throw new ArgumentException("Loại cờ cảnh báo không hợp lệ (1-7)", nameof(dto.FlagType));
+        if (dto.ExpiresAt.HasValue && dto.ExpiresAt.Value <= DateTime.UtcNow) // same clock as ByPatientAsync (FE sends ISO UTC)
+            throw new ArgumentException("Ngày hết hiệu lực phải sau thời điểm hiện tại", nameof(dto.ExpiresAt));
+        if (!dto.Id.HasValue && !await _db.Patients.AnyAsync(p => p.Id == dto.PatientId))
+            throw new KeyNotFoundException("Không tìm thấy bệnh nhân");
         PatientFlag entity;
         if (dto.Id.HasValue)
         {

@@ -5,6 +5,8 @@ import {
 } from '../api/immunization';
 import type { Vaccination, Campaign, AefiReport, CampaignStats } from '../api/immunization';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { normalizeArrayResponse } from '../../../utils/apiNormalize';
+import { apiClient } from '../../../services/apiClient';
 import {
   TopTabs, KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
   StatusBadge, Btn, DrawerShell, DrSec, DrField, CrudModal,
@@ -43,21 +45,20 @@ const ROUTE_OPTS = [
   { value: 'ID', label: 'Tiêm trong da (ID)' },
   { value: 'Oral', label: 'Uống' },
 ];
-const VAX_FIELDS: CrudFieldCfg[] = [
-  { key: 'patientName',    label: 'Họ tên bệnh nhân', required: true },
-  { key: 'patientCode',    label: 'Mã bệnh nhân' },
+// POST /immunization/administer needs the HIS PatientId (old form only had a free-text name →
+// PatientId = Guid.Empty orphan row + 400). Fields BE does not store (total doses, vaccinator) removed.
+const VAX_FIELDS_REST: CrudFieldCfg[] = [
   { key: 'vaccineName',    label: 'Tên vắc-xin', required: true },
   { key: 'vaccineCode',    label: 'Mã vắc-xin' },
   { key: 'lotNumber',      label: 'Số lô', required: true },
   { key: 'doseNumber',     label: 'Mũi thứ', type: 'number', required: true },
-  { key: 'totalDoses',     label: 'Tổng số mũi', type: 'number', required: true },
   { key: 'site',           label: 'Vị trí tiêm', type: 'select', required: true, options: SITE_OPTS },
   { key: 'route',          label: 'Đường tiêm',  type: 'select', required: true, options: ROUTE_OPTS },
   { key: 'vaccinationDate', label: 'Ngày tiêm',  type: 'date', required: true },
   { key: 'nextDueDate',    label: 'Ngày mũi tiếp', type: 'date' },
-  { key: 'administeredBy', label: 'Người tiêm' },
   { key: 'notes',          label: 'Ghi chú', type: 'textarea' },
 ];
+interface PatientOption { id: string; patientCode: string; fullName: string }
 
 const SEV_LABEL: Record<number, string> = { 1: 'Nhẹ', 2: 'Trung bình', 3: 'Nặng', 4: 'Nghiêm trọng' };
 const SEV_TONE: Record<number, 'ok' | 'info' | 'warn' | 'crit'> = { 1: 'ok', 2: 'info', 3: 'warn', 4: 'crit' };
@@ -124,20 +125,31 @@ const ImmunizationV2: React.FC = () => {
     if ((tab === 'campaigns' || tab === 'statistics') && !campLoaded) loadCamp();
   }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [patientOpts, setPatientOpts] = useState<PatientOption[]>([]);
+  const searchPatients = useCallback((kw: string) => {
+    if (!kw || kw.trim().length < 2) return;
+    apiClient.post<unknown>('/patients/search', { keyword: kw.trim(), page: 1, pageSize: 20 })
+      .then((r) => setPatientOpts(normalizeArrayResponse<PatientOption>(r.data)))
+      .catch(() => { /* đang gõ dở — không toast */ });
+  }, []);
+  const vaxFields = useMemo<CrudFieldCfg[]>(() => [
+    { key: 'patientId', label: 'Bệnh nhân', type: 'autocomplete', required: true,
+      options: patientOpts.map((p) => ({ value: p.id, label: `${p.patientCode} — ${p.fullName}` })),
+      onSearch: searchPatients, debounce: 300, placeholder: 'Gõ mã BN hoặc họ tên (≥ 2 ký tự)…' },
+    ...VAX_FIELDS_REST,
+  ], [patientOpts, searchPatients]);
+
   const handleVaxSubmit = async (v: Record<string, unknown>) => {
     await recordVaccination({
-      patientName: String(v.patientName ?? ''),
-      patientCode: String(v.patientCode ?? '') || undefined,
+      patientId: String(v.patientId ?? ''),
       vaccineName: String(v.vaccineName ?? ''),
       vaccineCode: String(v.vaccineCode ?? '') || undefined,
       lotNumber: String(v.lotNumber ?? ''),
       doseNumber: Number(v.doseNumber) || 1,
-      totalDoses: Number(v.totalDoses) || 1,
       site: String(v.site ?? ''),
       route: String(v.route ?? ''),
       vaccinationDate: String(v.vaccinationDate ?? ''),
       nextDueDate: v.nextDueDate ? String(v.nextDueDate) : undefined,
-      administeredBy: String(v.administeredBy ?? '') || undefined,
       notes: String(v.notes ?? '') || undefined,
     } as Partial<Vaccination>);
     tk('Đã ghi nhận tiêm chủng');
@@ -149,7 +161,7 @@ const ImmunizationV2: React.FC = () => {
     { key: 'patient', label: 'Bệnh nhân', render: (r) => (
       <div className="cell-2l">
         <b>{r.patientName}</b>
-        <i className="mono">{r.patientCode} · {r.gender === 1 ? 'Nam' : 'Nữ'}</i>
+        <i className="mono">{r.patientCode}{r.patientAge != null ? ` · ${r.patientAge} tuổi` : ''}</i>
       </div>
     )},
     { key: 'vaccine', label: 'Vắc-xin', render: (r) => (
@@ -271,7 +283,7 @@ const ImmunizationV2: React.FC = () => {
                   <DrSec title="Bệnh nhân">
                     <DrField lbl="Họ tên">{r.patientName}</DrField>
                     <DrField lbl="Mã BN"><span className="mono">{r.patientCode}</span></DrField>
-                    <DrField lbl="Giới tính">{r.gender === 1 ? 'Nam' : 'Nữ'}</DrField>
+                    <DrField lbl="Tuổi">{r.patientAge != null ? `${r.patientAge} tuổi` : '—'}</DrField>
                   </DrSec>
                   <DrSec title="Vắc-xin">
                     <DrField lbl="Tên">{r.vaccineName}</DrField>
@@ -301,8 +313,8 @@ const ImmunizationV2: React.FC = () => {
               open={vaxCreate}
               onClose={() => setVaxCreate(false)}
               title="Ghi nhận tiêm chủng"
-              fields={VAX_FIELDS}
-              initial={{ doseNumber: 1, totalDoses: 3 }}
+              fields={vaxFields}
+              initial={{ doseNumber: 1 }}
               size="lg"
               onSubmit={handleVaxSubmit}
             />

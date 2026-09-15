@@ -238,14 +238,18 @@ public class QualityDashboardService : IQualityDashboardService
                 .Select(m => new { m.Id, MedicalRecordType = m.TreatmentType })
                 .ToListAsync();
 
+            // Refund receipts (ReceiptType 3 - Hoàn trả) reduce revenue — same convention as the billing reports
+            // (non-refund − refund). They used to be ADDED, overstating the dashboard's daily revenue.
+            static decimal Signed(Receipt r) => r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount;
+
             foreach (var r in receipts)
             {
                 var t = r.MedicalRecordId.HasValue
                     ? mrTypes.FirstOrDefault(m => m.Id == r.MedicalRecordId.Value)?.MedicalRecordType
                     : null;
                 // type 1=Outpatient, 2=Inpatient (per most existing usage)
-                if (t == 2) view.InpatientTotal += r.FinalAmount;
-                else view.OutpatientTotal += r.FinalAmount;
+                if (t == 2) view.InpatientTotal += Signed(r);
+                else view.OutpatientTotal += Signed(r);
             }
 
             // Group by cashier
@@ -268,7 +272,7 @@ public class QualityDashboardService : IQualityDashboardService
                     var t = r.MedicalRecordId.HasValue
                         ? mrTypes.FirstOrDefault(m => m.Id == r.MedicalRecordId.Value)?.MedicalRecordType
                         : null;
-                    if (t == 2) ipTotal += r.FinalAmount; else opTotal += r.FinalAmount;
+                    if (t == 2) ipTotal += Signed(r); else opTotal += Signed(r);
                 }
                 view.ByCashier.Add(new CashierRevenueDto
                 {
@@ -351,7 +355,8 @@ public class QualityDashboardService : IQualityDashboardService
             var details = await _db.ServiceRequestDetails.AsNoTracking()
                 .Include(d => d.ServiceRequest).ThenInclude(sr => sr!.MedicalRecord)
                 .Include(d => d.Service).ThenInclude(s => s!.ServiceGroup)
-                .Where(d => d.CreatedAt >= date && d.CreatedAt < nextDay && d.ServiceRequest != null && d.ServiceRequest.Status != 4)
+                // d.Status 3 = cancelled detail line: must not count as CLS cost (lab tile already excludes it)
+                .Where(d => d.CreatedAt >= date && d.CreatedAt < nextDay && d.Status != 3 && d.ServiceRequest != null && d.ServiceRequest.Status != 4)
                 .Select(d => new
                 {
                     GroupName = d.Service != null && d.Service.ServiceGroup != null ? d.Service.ServiceGroup.GroupName : "Khác",

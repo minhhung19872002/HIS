@@ -192,6 +192,18 @@ public class SatisfactionSurveyService : ISatisfactionSurveyService
         {
             var config = await _db.Set<HIS.Core.Entities.SystemConfig>()
                 .FirstOrDefaultAsync(c => c.ConfigKey == "SatisfactionSurvey");
+            // Return what was saved: previously any existing row answered a hard-coded {autoSend:true,...},
+            // so the settings screen never reflected the values the user stored with PUT.
+            if (!string.IsNullOrWhiteSpace(config?.ConfigValue))
+            {
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(config.ConfigValue);
+                    if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object)
+                        return ServiceOutcome.Ok(doc.RootElement.Clone());
+                }
+                catch (System.Text.Json.JsonException) { /* legacy non-JSON value → defaults below */ }
+            }
             return ServiceOutcome.Ok(config != null
                 ? new { autoSend = true, sendAfterDischarge = true, sendAfterOPD = false, reminderDays = 3, configValue = config.ConfigValue }
                 : new { autoSend = false, sendAfterDischarge = false, sendAfterOPD = false, reminderDays = 0, configValue = (string?)null });
@@ -229,9 +241,10 @@ public class SatisfactionSurveyService : ISatisfactionSurveyService
             await _db.SaveChangesAsync();
             return ServiceOutcome.OkEmpty();
         }
-        catch
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return ServiceOutcome.OkEmpty();
+            // Was OkEmpty(): a failed save told the user "Đã lưu cấu hình".
+            return ServiceOutcome.Status(500, new { error = "SAVE_FAILED", message = "Lưu cấu hình khảo sát thất bại" });
         }
     }
 
@@ -259,6 +272,11 @@ public class SatisfactionSurveyService : ISatisfactionSurveyService
     /// </summary>
     public async Task<ServiceOutcome> CreateCampaignAsync(CreateSurveyCampaignDto dto, string? userId)
     {
+        if (dto.EndDate.Date < dto.StartDate.Date)
+            throw new ArgumentException("Ngày kết thúc chiến dịch phải sau hoặc bằng ngày bắt đầu", nameof(dto.EndDate));
+        if (dto.TargetCount < 0)
+            throw new ArgumentException("Số lượng mục tiêu không được âm", nameof(dto.TargetCount));
+
         var now = DateTime.UtcNow;
 
         // Sinh CampaignCode: SURVEY-YYYYMM-XXX

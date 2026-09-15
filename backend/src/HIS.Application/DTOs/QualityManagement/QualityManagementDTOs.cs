@@ -54,6 +54,7 @@ namespace HIS.Application.DTOs.QualityManagement
         public string RCAFindings { get; set; }
         public List<string> ContributingFactors { get; set; }
         public string RootCause { get; set; }
+        public string RCAMethod { get; set; }
 
         // Corrective Actions
         public List<CorrectiveActionDto> CorrectiveActions { get; set; }
@@ -66,14 +67,16 @@ namespace HIS.Application.DTOs.QualityManagement
 
     public class CorrectiveActionDto
     {
+        // Nullable: bound from the body of POST incidents/{id}/corrective-actions — implicit [Required] made
+        // every call without all five strings a 400.
         public Guid Id { get; set; }
-        public string Description { get; set; }
-        public string ActionType { get; set; } // Immediate, ShortTerm, LongTerm, Systemic
-        public string AssignedTo { get; set; }
+        public string? Description { get; set; }
+        public string? ActionType { get; set; } // Immediate, ShortTerm, LongTerm, Systemic
+        public string? AssignedTo { get; set; }
         public DateTime DueDate { get; set; }
-        public string Status { get; set; } // Pending, InProgress, Completed, Overdue
+        public string? Status { get; set; } // Pending, InProgress, Completed, Overdue
         public DateTime? CompletedDate { get; set; }
-        public string VerifiedBy { get; set; }
+        public string? VerifiedBy { get; set; }
         public bool IsEffective { get; set; }
     }
 
@@ -91,6 +94,7 @@ namespace HIS.Application.DTOs.QualityManagement
         public string? Location { get; set; }
         public string? LocationDescription { get; set; } // alias sent by v2 Quality.tsx
         public Guid? PatientId { get; set; }
+        public string? PatientCode { get; set; } // v2 form "Mã bệnh nhân" (BN code, not a Guid)
         public List<string>? InvolvedStaff { get; set; }
         public string? IncidentType { get; set; }
         public string? IncidentCategory { get; set; }
@@ -107,6 +111,21 @@ namespace HIS.Application.DTOs.QualityManagement
         /// <summary>Set by the controller from the JWT; never bound from the request body.</summary>
         [global::System.Text.Json.Serialization.JsonIgnore]
         public Guid ReportedById { get; set; }
+    }
+
+    /// <summary>v2 Quality.tsx "Lưu kết quả điều tra" payload (POST /api/quality/incidents/investigate).</summary>
+    public class InvestigateIncidentDto
+    {
+        public Guid IncidentId { get; set; }
+        public string? InvestigationFindings { get; set; }
+        public string? RootCauseAnalysis { get; set; }
+        public string? RcaMethod { get; set; }
+        public string? PreventiveMeasures { get; set; }
+        public string? LessonLearned { get; set; }
+
+        /// <summary>Set by the controller from the JWT; never bound from the request body.</summary>
+        [global::System.Text.Json.Serialization.JsonIgnore]
+        public Guid InvestigatorId { get; set; }
     }
 
     #endregion
@@ -198,6 +217,35 @@ namespace HIS.Application.DTOs.QualityManagement
         public string Status { get; set; } // Draft, Approved, InProgress, Completed
         public string ApprovedBy { get; set; }
         public DateTime? ApprovedAt { get; set; }
+
+        // v2 Quality.tsx audit table/create-form fields (InternalAuditDto / CreateAuditDto on the FE).
+        public string? AuditCode { get; set; }
+        public string? Title { get; set; }
+        public string? Scope { get; set; }
+        public string? Objective { get; set; }
+        public string? Criteria { get; set; }
+        public string? DepartmentId { get; set; }
+        public string? DepartmentName { get; set; }
+        public DateTime? ScheduledDate { get; set; }
+        public string? LeadAuditorId { get; set; }
+        public string? LeadAuditorName { get; set; }
+        public int? TotalFindings { get; set; }
+        public string? StatusName { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    /// <summary>v2 Quality.tsx "Lên lịch audit" payload (POST /api/quality/audits). All optional at bind time.</summary>
+    public class CreateAuditPlanRequest
+    {
+        public string? AuditType { get; set; }
+        public string? Title { get; set; }
+        public string? Scope { get; set; }
+        public string? Objective { get; set; }
+        public string? Criteria { get; set; }
+        public string? DepartmentId { get; set; }
+        public DateTime? ScheduledDate { get; set; }
+        public string? LeadAuditorId { get; set; }
+        public string? Notes { get; set; }
     }
 
     public class AuditScheduleDto

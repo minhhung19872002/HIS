@@ -56,6 +56,10 @@ public class ChronicDiseaseController : ControllerBase
     [HttpPost("records")]
     public async Task<ActionResult<ChronicDiseaseDetailDto>> CreateRecord([FromBody] CreateChronicDiseaseDto dto)
     {
+        // No doctor picked → the signed-in user owns the record (Guid.Empty made it invisible in lists).
+        if (dto.DoctorId == Guid.Empty
+            && Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var uid))
+            dto.DoctorId = uid;
         var result = await _chronicDiseaseService.CreateRecordAsync(dto);
         return Ok(result);
     }

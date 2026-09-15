@@ -1,4 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { apiClient } from '../../../services/apiClient';
+import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { DatePicker } from 'antd';
@@ -40,6 +42,7 @@ const FU_META: Record<number, { l: string; tone: 'ok' | 'info' | 'warn' | 'crit'
   0: { l: 'Đã hẹn', tone: 'info' },
   1: { l: 'Đã khám', tone: 'ok' },
   2: { l: 'Bỏ lỡ', tone: 'crit' },
+  3: { l: 'Đã hủy hẹn', tone: 'info' },
 };
 
 const fmtDMY = (iso?: string) => (iso ? dayjs(iso).format('DD/MM/YYYY') : '—');
@@ -51,9 +54,10 @@ const INP: React.CSSProperties = {
   border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)',
 };
 
-const CRUD_FIELDS: CrudFieldCfg[] = [
-  { key: 'patientId', label: 'Mã bệnh nhân', required: true, placeholder: 'Nhập mã bệnh nhân' },
+// BE needs the patient GUID + ICD name; a typed patient code / doctor code failed model binding (400).
+const CRUD_FIELDS_REST: CrudFieldCfg[] = [
   { key: 'icdCode', label: 'Mã ICD', required: true, placeholder: 'VD: E11, I10, J45' },
+  { key: 'icdName', label: 'Tên bệnh', required: true, placeholder: 'VD: Đái tháo đường type 2' },
   { key: 'diagnosisDate', label: 'Ngày chẩn đoán', required: true, type: 'date' },
   {
     key: 'followUpIntervalDays', label: 'Chu kỳ tái khám (ngày)', type: 'number', placeholder: '30',
@@ -62,9 +66,9 @@ const CRUD_FIELDS: CrudFieldCfg[] = [
       { type: 'number', min: 1, max: 365, message: 'Chu kỳ từ 1 đến 365 ngày' },
     ],
   },
-  { key: 'doctorId', label: 'Mã bác sĩ phụ trách', placeholder: 'Mã bác sĩ (tùy chọn)' },
   { key: 'notes', label: 'Ghi chú', type: 'textarea', placeholder: 'Ghi chú thêm về tình trạng bệnh…' },
 ];
+interface PatientOption { id: string; patientCode: string; fullName: string }
 
 const ChronicDiseaseV2: React.FC = () => {
   const [rows, setRows] = useState<ChronicRecordDto[]>([]);
@@ -85,6 +89,19 @@ const ChronicDiseaseV2: React.FC = () => {
 
   const [crudOpen, setCrudOpen] = useState(false);
   const [editRec, setEditRec] = useState<ChronicRecordDto | null>(null);
+  const [patientOpts, setPatientOpts] = useState<PatientOption[]>([]);
+  const searchPatients = useCallback((kw: string) => {
+    if (!kw || kw.trim().length < 2) return;
+    apiClient.post<unknown>('/patients/search', { keyword: kw.trim(), page: 1, pageSize: 20 })
+      .then((r) => setPatientOpts(normalizeArrayResponse<PatientOption>(r.data)))
+      .catch(() => { /* đang gõ dở — không toast */ });
+  }, []);
+  const crudFields = useMemo<CrudFieldCfg[]>(() => [
+    { key: 'patientId', label: 'Bệnh nhân', type: 'autocomplete', required: true, disabledOnEdit: true,
+      options: patientOpts.map((p) => ({ value: p.id, label: `${p.patientCode} — ${p.fullName}` })),
+      onSearch: searchPatients, debounce: 300, placeholder: 'Gõ mã BN hoặc họ tên (≥ 2 ký tự)…' },
+    ...CRUD_FIELDS_REST,
+  ], [patientOpts, searchPatients]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -410,23 +427,23 @@ const ChronicDiseaseV2: React.FC = () => {
         open={crudOpen}
         onClose={() => { setCrudOpen(false); setEditRec(null); }}
         title={editRec ? 'Chỉnh sửa hồ sơ bệnh mạn tính' : 'Thêm hồ sơ bệnh mạn tính'}
-        fields={CRUD_FIELDS}
+        fields={crudFields}
         initial={editRec ? {
           id: editRec.id,
           patientId: editRec.patientId,
           icdCode: editRec.icdCode,
+          icdName: editRec.icdName,
           diagnosisDate: editRec.diagnosisDate,
           followUpIntervalDays: editRec.followUpIntervalDays,
-          doctorId: editRec.doctorId,
           notes: editRec.notes,
         } : null}
         onSubmit={async (v, editing) => {
           const payload: CreateChronicRecordDto = {
             patientId: String(v.patientId || '').trim(),
             icdCode: String(v.icdCode || '').trim(),
+            icdName: String(v.icdName || '').trim(),
             diagnosisDate: String(v.diagnosisDate || ''),
             followUpIntervalDays: Number(v.followUpIntervalDays) || 0,
-            doctorId: v.doctorId ? String(v.doctorId) : undefined,
             notes: v.notes ? String(v.notes) : undefined,
           };
           if (editing && editRec) {

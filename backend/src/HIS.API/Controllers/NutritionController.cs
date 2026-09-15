@@ -60,6 +60,16 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<DietOrderDto>> CreateDietOrder([FromBody] CreateDietOrderDto dto)
             => Ok(await _service.CreateDietOrderAsync(dto));
 
+        // QA-R2: v2 "Sửa đơn" / "Ngưng đơn" called these routes but they were never exposed (405/404)
+        // although the service methods already existed.
+        [HttpPut("diet-orders/{id}")]
+        public async Task<ActionResult<DietOrderDto>> UpdateDietOrder(Guid id, [FromBody] CreateDietOrderDto dto)
+            => Ok(await _service.UpdateDietOrderAsync(id, dto));
+
+        [HttpPost("diet-orders/{id}/cancel")]
+        public async Task<ActionResult<bool>> CancelDietOrder(Guid id, [FromBody] CancelDietOrderRequest req)
+            => Ok(await _service.DiscontinueDietOrderAsync(id, string.IsNullOrWhiteSpace(req?.Reason) ? "Ngưng theo chỉ định" : req!.Reason!.Trim()));
+
         [HttpGet("screenings")]
         public async Task<ActionResult<List<NutritionScreeningDto>>> GetScreenings(
             [FromQuery] Guid? departmentId,
@@ -116,6 +126,7 @@ namespace HIS.API.Controllers
             => Ok(await _service.MarkMealPlanDistributedAsync(id, CurrentUserId()));
 
         public class RejectMealPlanRequest { public string Reason { get; set; } = string.Empty; }
+        public class CancelDietOrderRequest { public string? Reason { get; set; } }
 
         private Guid CurrentUserId()
         {

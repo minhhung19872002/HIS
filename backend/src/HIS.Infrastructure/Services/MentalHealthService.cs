@@ -297,6 +297,9 @@ public class MentalHealthService : IMentalHealthService
 
     public Task<ScreeningResultDto> ScreenDepressionAsync(Guid caseId, int phq9Score)
     {
+        // 9 items × 0..3 — out-of-range scores (e.g. -5 → "no depression") must not produce an interpretation.
+        if (phq9Score < 0 || phq9Score > 27)
+            throw new ArgumentException("Điểm PHQ-9 phải trong khoảng 0-27.");
         var (interpretation, severity) = phq9Score switch
         {
             <= 4 => ("Không có triệu chứng trầm cảm", "none"),

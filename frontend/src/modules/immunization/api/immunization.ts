@@ -9,6 +9,8 @@ export interface Vaccination {
   patientCode: string;
   dateOfBirth: string;
   gender: number;
+  /** Age in years from BE (ImmunizationListDto.PatientAge) — gender is not returned by the BE. */
+  patientAge?: number;
   vaccineName: string;
   vaccineCode: string;
   lotNumber: string;
@@ -112,6 +114,7 @@ const mapVaccination = (dto: ImmunizationRecordDto): Vaccination => ({
   patientCode: dto.patientCode || '',
   dateOfBirth: '',
   gender: 0,
+  patientAge: dto.patientAge ?? undefined,
   vaccineName: dto.vaccineName,
   vaccineCode: dto.vaccineCode || '',
   lotNumber: dto.lotNumber || '',

@@ -109,6 +109,7 @@ export interface CreateIncidentReportDto {
   incidentType: string;
   severity: number;
   patientId?: string;
+  patientCode?: string;
   admissionId?: string;
   description: string;
   immediateActions?: string;
@@ -716,8 +717,57 @@ const BASE_URL = '/quality';
 
 // #region Incident Reporting
 
+// BE IncidentReportDto returns string enums (status "Reported", severityLevel "Moderate") and other key names
+// (reportedAt, reporterName, immediateAction, rootCause, rcaMethod…). Without this mapping every incident
+// landed in the "Mới" tab, closed ones never counted as closed, severity chips were blank and the
+// "Sự cố nặng" / "Đang điều tra" KPIs were always 0.
+const INCIDENT_STATUS: Record<string, [number, string]> = {
+  Reported: [1, 'Đã báo cáo'], UnderInvestigation: [2, 'Đang điều tra'], RCAComplete: [3, 'Đã điều tra'],
+  ActionPlan: [4, 'Chờ xử lý'], Closed: [5, 'Đã đóng'],
+};
+const INCIDENT_SEVERITY: Record<string, [number, string]> = {
+  NearMiss: [1, 'Suýt xảy ra'], NoHarm: [2, 'Không tổn hại'], Minor: [3, 'Nhẹ'],
+  Moderate: [4, 'Trung bình'], Major: [5, 'Nghiêm trọng'], Catastrophic: [6, 'Thảm họa / Tử vong'],
+};
+const INCIDENT_TYPE_NAME: Record<string, string> = {
+  MedicationError: 'Sai sót thuốc', Fall: 'Té ngã', HAI: 'Nhiễm khuẩn', PatientSafety: 'Sai định danh',
+  Equipment: 'Thiết bị hỏng', Other: 'Khác',
+};
+
+type IncidentReportBe = Omit<Partial<IncidentReportDto>, 'status'> & {
+  status?: number | string; severity?: number; severityLevel?: string; reportedAt?: string; reporterName?: string;
+  location?: string; immediateAction?: string; rootCause?: string; rcaFindings?: string; investigationEndDate?: string;
+};
+
+export const normalizeIncident = (raw: IncidentReportBe): IncidentReportDto => {
+  const st = typeof raw.status === 'string' ? INCIDENT_STATUS[raw.status] : undefined;
+  const sev = raw.severityLevel ? INCIDENT_SEVERITY[raw.severityLevel] : undefined;
+  return {
+    ...raw,
+    status: st ? st[0] : (typeof raw.status === 'number' ? raw.status : 1),
+    statusName: raw.statusName || st?.[1] || String(raw.status ?? ''),
+    severity: raw.severity ?? sev?.[0] ?? 0,
+    severityName: raw.severityName || sev?.[1] || raw.severityLevel || '',
+    incidentTypeName: raw.incidentTypeName || INCIDENT_TYPE_NAME[raw.incidentType ?? ''] || raw.incidentType || '',
+    reportedDate: raw.reportedDate || raw.reportedAt || '',
+    reportedByName: raw.reportedByName || raw.reporterName || '',
+    locationDescription: raw.locationDescription || raw.location || '',
+    immediateActions: raw.immediateActions || raw.immediateAction || undefined,
+    rootCauseAnalysis: raw.rootCauseAnalysis || raw.rootCause || undefined,
+    investigationCompletedDate: raw.investigationCompletedDate || raw.investigationEndDate || undefined,
+    investigationRequired: raw.investigationRequired ?? !!(raw.rootCause || raw.investigationStartDate),
+    notes: raw.notes || raw.rcaFindings || undefined,
+    correctiveActions: raw.correctiveActions || [],
+  } as IncidentReportDto;
+};
+
 export const getIncidents = (params: IncidentSearchDto) =>
-  apiClient.get<PagedResultDto<IncidentReportDto>>(`${BASE_URL}/incidents`, { params });
+  apiClient.get<PagedResultDto<IncidentReportDto>>(`${BASE_URL}/incidents`, { params }).then((r) => {
+    if (r.data && Array.isArray(r.data.items)) {
+      r.data.items = (r.data.items as unknown as IncidentReportBe[]).map(normalizeIncident);
+    }
+    return r;
+  });
 
 export const getIncidentById = (id: string) =>
   apiClient.get<IncidentReportDto>(`${BASE_URL}/incidents/${id}`);
@@ -790,8 +840,19 @@ export const getIndicatorDashboard = (departmentId?: string) =>
 
 // #region Internal Audits
 
+// BE AuditPlanDto.status is a string (Planned/InProgress/Completed/Cancelled); the page counts status === 1.
+const AUDIT_STATUS_NUM: Record<string, number> = { Planned: 1, Approved: 1, InProgress: 2, Completed: 3, Cancelled: 5 };
+
 export const getAudits = (departmentId?: string, status?: number, fromDate?: string, toDate?: string) =>
-  apiClient.get<InternalAuditDto[]>(`${BASE_URL}/audits`, { params: { departmentId, status, fromDate, toDate } });
+  apiClient.get<InternalAuditDto[]>(`${BASE_URL}/audits`, { params: { departmentId, status, fromDate, toDate } }).then((r) => {
+    if (Array.isArray(r.data)) {
+      r.data = r.data.map((a) => {
+        const s = (a as unknown as { status?: number | string }).status;
+        return { ...a, status: typeof s === 'string' ? (AUDIT_STATUS_NUM[s] ?? 1) : (s ?? 1) };
+      });
+    }
+    return r;
+  });
 
 export const getAudit = (id: string) =>
   apiClient.get<InternalAuditDto>(`${BASE_URL}/audits/${id}`);

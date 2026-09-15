@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { message } from 'antd';
@@ -7,6 +7,8 @@ import {
 } from '../api/methadone';
 import type { MethadonePatient, DoseRecord } from '../api/methadone';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { apiClient } from '../../../services/apiClient';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, Btn,
   DrawerShell, ModalShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, Ico,
@@ -15,36 +17,22 @@ import {
 import { RowActions, RefreshButton } from '../../../components/actions';
 import { SortTh, useSortableRows } from '../../../components/table';
 
-// Đăng ký BN mới vào chương trình Methadone (enrollPatient). Liều khởi đầu 5-200mg — port verbatim từ v1 (InputNumber min={5} max={200}).
-const ENROLL_FIELDS: CrudFieldCfg[] = [
-  { key: 'patientName', label: 'Họ tên', required: true, placeholder: 'Họ và tên bệnh nhân' },
-  { key: 'gender', label: 'Giới tính', type: 'select', options: [
-    { value: 1, label: 'Nam' }, { value: 2, label: 'Nữ' }] },
-  { key: 'dateOfBirth', label: 'Ngày sinh', type: 'date' },
-  { key: 'address', label: 'Địa chỉ' },
-  { key: 'phone', label: 'Số điện thoại' },
-  { key: 'enrollmentDate', label: 'Ngày đăng ký', type: 'date', required: true },
-  { key: 'currentDose', label: 'Liều khởi đầu (mg)', type: 'number', required: true, placeholder: 'mg', rules: [
-    { required: true, message: 'Nhập liều khởi đầu' },
-    { validator: (_: unknown, value: number) => (value === undefined || value === null || (value >= 5 && value <= 200))
-        ? Promise.resolve() : Promise.reject(new Error('Liều khởi đầu hợp lệ: 5-200mg')) },
-  ] },
-  { key: 'doseType', label: 'Hình thức uống', type: 'select', required: true, options: [
-    { value: 'witnessed', label: 'Uống tại chỗ' }, { value: 'takeHome', label: 'Mang về' }] },
-  { key: 'notes', label: 'Ghi chú', type: 'textarea', placeholder: 'Tiền sử, ghi chú...' },
+const DOSE_RULES = [
+  { required: true, message: 'Nhập liều' },
+  { validator: (_: unknown, value: number) => (value === undefined || value === null || (value > 0 && value <= 300))
+      ? Promise.resolve() : Promise.reject(new Error('Liều hợp lệ: > 0 và ≤ 300 mg')) },
 ];
 
-// Edit thông tin điều trị (updatePatient). Tránh field 'phase' do drift int/string ở DB.
+// Edit thông tin điều trị (PUT /public-health/methadone/patients/{id}) — chỉ các trường BE lưu thật.
 const MTD_FIELDS: CrudFieldCfg[] = [
-  { key: 'currentDose', label: 'Liều hiện tại (mg)', type: 'number', required: true },
-  { key: 'doseType', label: 'Hình thức cấp', type: 'select', options: [
-    { value: 'witnessed', label: 'Uống có giám sát' }, { value: 'takeHome', label: 'Mang về' }] },
-  { key: 'attendingDoctor', label: 'BS điều trị' },
-  { key: 'missedDoses', label: 'Số lần bỏ liều', type: 'number' },
+  { key: 'currentDose', label: 'Liều hiện tại (mg)', type: 'number', required: true, rules: DOSE_RULES },
   { key: 'status', label: 'Trạng thái', type: 'select', options: [
-    { value: 0, label: 'Đang điều trị' }, { value: 1, label: 'Tạm ngưng' }, { value: 2, label: 'Ra khỏi CT' }, { value: 3, label: 'Chuyển đi' }] },
+    { value: 0, label: 'Đang điều trị' }, { value: 1, label: 'Tạm ngưng' }, { value: 2, label: 'Hoàn thành' },
+    { value: 3, label: 'Chuyển cơ sở' }, { value: 4, label: 'Bỏ trị' }] },
   { key: 'notes', label: 'Ghi chú', type: 'textarea' },
 ];
+
+interface PatientOption { id: string; patientCode: string; fullName: string }
 
 const PHASE_LABEL: Record<string, string> = {
   induction: 'Khởi liều', stabilization: 'Ổn định', maintenance: 'Duy trì', tapering: 'Giảm liều',
@@ -57,16 +45,18 @@ const PHASE_TONE: Record<string, 'ok' | 'info' | 'warn'> = {
   tapering: 'info', '4': 'info',
 };
 
-type SKey = 'active' | 'suspended' | 'discharged' | 'transferred';
+type SKey = 'active' | 'suspended' | 'discharged' | 'transferred' | 'dropped';
 const STATUS_TABS = [
   { v: 'active' as SKey,      l: 'Đang điều trị', tone: 'ok' as const },
   { v: 'suspended' as SKey,   l: 'Tạm dừng',      tone: 'warn' as const },
-  { v: 'discharged' as SKey,  l: 'Ra điều trị',   tone: 'info' as const },
+  { v: 'discharged' as SKey,  l: 'Hoàn thành',    tone: 'info' as const },
   { v: 'transferred' as SKey, l: 'Chuyển',        tone: 'info' as const },
+  { v: 'dropped' as SKey,     l: 'Bỏ trị',        tone: 'warn' as const },
 ];
 
 const sKey = (n: number): SKey =>
-  n === 0 ? 'active' : n === 1 ? 'suspended' : n === 2 ? 'discharged' : 'transferred';
+  n === 0 ? 'active' : n === 1 ? 'suspended' : n === 2 ? 'discharged' : n === 3 ? 'transferred' : 'dropped';
+const phaseKey = (p?: string) => (p || '').toLowerCase();
 
 const PER = 18;
 
@@ -91,7 +81,7 @@ const MethadoneTreatmentV2: React.FC = () => {
 
   const phases = useMemo(() => {
     const set = new Set(items.map((r) => r.phase).filter(Boolean));
-    return Array.from(set).map((v) => ({ v, l: PHASE_LABEL[v] || v }));
+    return Array.from(set).map((v) => ({ v, l: PHASE_LABEL[phaseKey(v)] || v }));
   }, [items]);
 
   const counts = useTabCounts(items, STATUS_TABS, (r) => sKey(r.status));
@@ -114,17 +104,16 @@ const MethadoneTreatmentV2: React.FC = () => {
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</div>
         <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
-          {r.patientCode} · {r.gender === 1 ? 'Nam' : 'Nữ'}
+          {r.patientCode}
         </div>
       </div>
     ) },
     { key: 'enroll', label: 'Đăng ký', mono: true, render: (r) => dayjs(r.enrollmentDate).format('DD/MM/YYYY') },
     { key: 'phase', label: 'Pha', render: (r) => (
-      <StatusBadge tone={PHASE_TONE[r.phase] || 'info'}>{PHASE_LABEL[r.phase] || r.phase}</StatusBadge>
+      <StatusBadge tone={PHASE_TONE[phaseKey(r.phase)] || 'info'}>{PHASE_LABEL[phaseKey(r.phase)] || r.phase}</StatusBadge>
     ) },
     { key: 'dose', label: 'Liều', mono: true, render: (r) => <b>{r.currentDose} mg</b> },
-    { key: 'type', label: 'PP', render: (r) => r.doseType === 'witnessed' ? 'Uống tại CS' : 'Mang về' },
-    { key: 'last', label: 'Liều cuối', mono: true, render: (r) => r.lastDoseDate ? dayjs(r.lastDoseDate).format('DD/MM HH:mm') : '—' },
+    { key: 'last', label: 'Liều cuối', mono: true, render: (r) => r.lastDoseDate ? dayjs(r.lastDoseDate).format('DD/MM/YYYY') : '—' },
     { key: 'miss', label: 'Bỏ liều', mono: true, render: (r) => r.missedDoses > 0
       ? <span style={{ color: 'var(--a-or-text)', fontWeight: 600 }}>{r.missedDoses}</span>
       : <span style={{ color: 'var(--t-2)' }}>0</span>
@@ -140,7 +129,23 @@ const MethadoneTreatmentV2: React.FC = () => {
   const openEdit = (r: MethadonePatient) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
 
   // ── Đăng ký BN mới ───────────────────────────────────────────────────────
+  // BE enroll cần PatientId của BN đã có trong HIS (form cũ chỉ nhập họ tên → không thể lưu).
   const [enrollOpen, setEnrollOpen] = useState(false);
+  const [patientOpts, setPatientOpts] = useState<PatientOption[]>([]);
+  const searchPatients = useCallback((kw: string) => {
+    if (!kw || kw.trim().length < 2) return;
+    apiClient.post<unknown>('/patients/search', { keyword: kw.trim(), page: 1, pageSize: 20 })
+      .then((r) => setPatientOpts(normalizeArrayResponse<PatientOption>(r.data)))
+      .catch(() => { /* đang gõ dở — không toast */ });
+  }, []);
+  const enrollFields = useMemo<CrudFieldCfg[]>(() => [
+    { key: 'patientId', label: 'Bệnh nhân', type: 'autocomplete', required: true,
+      options: patientOpts.map((p) => ({ value: p.id, label: `${p.patientCode} — ${p.fullName}` })),
+      onSearch: searchPatients, debounce: 300, placeholder: 'Gõ mã BN hoặc họ tên (≥ 2 ký tự)…' },
+    { key: 'enrollmentDate', label: 'Ngày đăng ký', type: 'date', required: true },
+    { key: 'currentDose', label: 'Liều khởi đầu (mg)', type: 'number', required: true, placeholder: 'mg', rules: DOSE_RULES },
+    { key: 'notes', label: 'Ghi chú', type: 'textarea', placeholder: 'Tiền sử, ghi chú...' },
+  ], [patientOpts, searchPatients]);
 
   // ── Cấp liều ──────────────────────────────────────────────────────────────
   const [doseTarget, setDoseTarget] = useState<MethadonePatient | null>(null);
@@ -158,18 +163,22 @@ const MethadoneTreatmentV2: React.FC = () => {
     if (!doseTarget) return;
     const amt = parseFloat(doseAmt);
     if (!amt || amt <= 0) { message.error('Vui lòng nhập liều hợp lệ'); return; }
+    if (doseTarget.currentDose > 0 && amt > doseTarget.currentDose) {
+      message.error(`Liều cấp vượt liều chỉ định (${doseTarget.currentDose} mg) — cập nhật liều điều trị trước`);
+      return;
+    }
     setDoseSubmitting(true);
     try {
+      // doseDate omitted → API client sends VN wall-clock (BE blocks a 2nd dose on the same VN day).
       await recordDose({
         patientId: doseTarget.id,
-        doseDate: new Date().toISOString(),
         doseAmount: amt,
         doseType,
       });
       tk(`Đã cấp liều ${amt} mg cho ${doseTarget.patientName}`);
       setDoseTarget(null);
       load();
-    } catch { message.error('Cấp liều thất bại'); }
+    } catch (e) { message.error(friendlyErrorMessage(e, 'Cấp liều thất bại')); }
     finally { setDoseSubmitting(false); }
   };
 
@@ -194,7 +203,6 @@ const MethadoneTreatmentV2: React.FC = () => {
     try {
       await recordUrineTest({
         patientId: urineTarget.id,
-        testDate: new Date().toISOString(),
         morphine, amphetamine, thc,
         methadone: methadoneResult,
         benzodiazepine,
@@ -202,7 +210,7 @@ const MethadoneTreatmentV2: React.FC = () => {
       tk(`Đã ghi XN nước tiểu cho ${urineTarget.patientName}`);
       setUrineTarget(null);
       load();
-    } catch { message.error('Ghi XN nước tiểu thất bại'); }
+    } catch (e) { message.error(friendlyErrorMessage(e, 'Ghi XN nước tiểu thất bại')); }
     finally { setUrineSubmitting(false); }
   };
 
@@ -230,7 +238,8 @@ const MethadoneTreatmentV2: React.FC = () => {
     finally { setHistLoading(false); }
   };
 
-  const DOSE_STATUS: Record<number, string> = { 0: 'Đã lên lịch', 1: 'Đã cấp', 2: 'Bỏ liều', 3: 'Từ chối' };
+  // BE CreateMethadoneDosingDto.Status: 0=Given, 1=Missed, 2=Refused, 3=Holiday
+  const DOSE_STATUS: Record<number, string> = { 0: 'Đã cấp', 1: 'Bỏ liều', 2: 'Từ chối', 3: 'Nghỉ lễ' };
 
   const actions = (r: MethadonePatient) => (
     <div className="ab-actions">
@@ -317,19 +326,13 @@ const MethadoneTreatmentV2: React.FC = () => {
         {sel && <>
           <DrSec title="Bệnh nhân">
             <DrField lbl="Họ tên">{sel.patientName} · {sel.patientCode}</DrField>
-            <DrField lbl="Giới tính">{sel.gender === 1 ? 'Nam' : 'Nữ'}</DrField>
-            <DrField lbl="Ngày sinh">{dayjs(sel.dateOfBirth).format('DD/MM/YYYY')}</DrField>
-            <DrField lbl="SĐT"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.phone}</span></DrField>
-            <DrField lbl="Địa chỉ">{sel.address}</DrField>
           </DrSec>
           <DrSec title="Điều trị">
             <DrField lbl="Đăng ký">{dayjs(sel.enrollmentDate).format('DD/MM/YYYY')}</DrField>
             <DrField lbl="Pha điều trị">
-              <StatusBadge tone={PHASE_TONE[sel.phase] || 'info'} dot>{PHASE_LABEL[sel.phase] || sel.phase}</StatusBadge>
+              <StatusBadge tone={PHASE_TONE[phaseKey(sel.phase)] || 'info'} dot>{PHASE_LABEL[phaseKey(sel.phase)] || sel.phase}</StatusBadge>
             </DrField>
             <DrField lbl="Liều hiện tại"><b style={{ fontFamily: 'var(--font-mono)', fontSize: 14 }}>{sel.currentDose} mg/ngày</b></DrField>
-            <DrField lbl="PP cấp">{sel.doseType === 'witnessed' ? 'Uống tại cơ sở' : 'Mang về'}</DrField>
-            <DrField lbl="BS phụ trách">{sel.attendingDoctor}</DrField>
             <DrField lbl="Trạng thái">
               <StatusBadge tone={STATUS_TABS.find((x) => x.v === sKey(sel.status))?.tone || 'info'} dot>
                 {STATUS_TABS.find((x) => x.v === sKey(sel.status))?.l || '—'}
@@ -337,7 +340,7 @@ const MethadoneTreatmentV2: React.FC = () => {
             </DrField>
           </DrSec>
           <DrSec title="Theo dõi">
-            <DrField lbl="Liều cuối">{sel.lastDoseDate ? dayjs(sel.lastDoseDate).format('DD/MM/YYYY HH:mm') : '—'}</DrField>
+            <DrField lbl="Liều cuối">{sel.lastDoseDate ? dayjs(sel.lastDoseDate).format('DD/MM/YYYY') : '—'}</DrField>
             <DrField lbl="Bỏ liều">
               <span style={{ color: sel.missedDoses > 0 ? 'var(--a-or-text)' : undefined, fontWeight: sel.missedDoses > 0 ? 600 : 400 }}>
                 {sel.missedDoses}
@@ -369,11 +372,16 @@ const MethadoneTreatmentV2: React.FC = () => {
         open={enrollOpen}
         onClose={() => setEnrollOpen(false)}
         title="Đăng ký bệnh nhân Methadone"
-        fields={ENROLL_FIELDS}
+        fields={enrollFields}
         initial={null}
         size="lg"
         onSubmit={async (v) => {
-          await enrollPatient(v);
+          await enrollPatient({
+            patientId: String(v.patientId || ''),
+            enrollmentDate: v.enrollmentDate ? String(v.enrollmentDate) : undefined,
+            currentDose: Number(v.currentDose),
+            notes: v.notes ? String(v.notes) : undefined,
+          });
           tk('Đã đăng ký bệnh nhân Methadone');
           load();
         }}
@@ -479,7 +487,7 @@ const MethadoneTreatmentV2: React.FC = () => {
             <tbody>
               {histSort.rows.map((row) => (
                 <tr key={row.id}>
-                  <td className="mono">{dayjs(row.doseDate).format('DD/MM/YYYY HH:mm')}</td>
+                  <td className="mono">{dayjs(row.doseDate).format('DD/MM/YYYY')}</td>
                   <td className="mono"><b>{row.doseAmount}</b></td>
                   <td>{row.doseType === 'witnessed' ? 'Có giám sát' : 'Mang về'}</td>
                   <td>{row.administeredBy || '—'}</td>

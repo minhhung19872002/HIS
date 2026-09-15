@@ -70,7 +70,10 @@ public class DoctorLicenseService : IDoctorLicenseService
                 Message: "Bạn chưa có CCHN — không được phép khám bệnh theo quy định."));
         }
 
-        if (!staff.LicenseActive)
+        // A suspended/resigned staff kept "Valid" as long as the licence row itself was active.
+        if (!staff.LicenseActive
+            || string.Equals(staff.Status, "Suspended", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(staff.Status, "Resigned", StringComparison.OrdinalIgnoreCase))
         {
             return ServiceOutcome.Ok(new LicenseStatusDto(
                 HasProfile: true,
@@ -87,7 +90,8 @@ public class DoctorLicenseService : IDoctorLicenseService
         int? daysUntilExpiry = null;
         if (staff.LicenseExpiryDate.HasValue)
         {
-            var today = DateTime.UtcNow.Date;
+            // Local (VN) calendar day: UtcNow.Date kept a licence that expired yesterday valid until 07:00.
+            var today = DateTime.Today;
             daysUntilExpiry = (int)(staff.LicenseExpiryDate.Value.Date - today).TotalDays;
             if (daysUntilExpiry < 0)
             {

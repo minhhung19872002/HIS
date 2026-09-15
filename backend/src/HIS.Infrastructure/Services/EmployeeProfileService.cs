@@ -16,19 +16,44 @@ public class EmployeeProfileService : IEmployeeProfileService
     private readonly HISDbContext _db;
     public EmployeeProfileService(HISDbContext db) { _db = db; }
 
+    /// <summary>
+    /// Upsert shared by the 8 profile tabs. The old <c>Update(dto)</c> replaced the whole row with the body:
+    /// CreatedAt/CreatedBy were wiped on every edit, and posting another employee's record id under a
+    /// different userId silently moved that record to the other employee.
+    /// </summary>
+    private async Task<ServiceOutcome> UpsertAsync<T>(DbSet<T> set, Guid userId, T dto) where T : BaseEntity
+    {
+        var existing = dto.Id == Guid.Empty ? null : await set.FirstOrDefaultAsync(e => e.Id == dto.Id);
+        if (existing == null)
+        {
+            dto.Id = Guid.NewGuid();
+            dto.IsDeleted = false;
+            dto.UpdatedAt = null; dto.UpdatedBy = null;
+            set.Add(dto);
+            await _db.SaveChangesAsync();
+            return ServiceOutcome.Ok(dto);
+        }
+        if (!Equals(_db.Entry(existing).Property("UserId").CurrentValue, userId))
+            return ServiceOutcome.NotFound("Không tìm thấy bản ghi của nhân viên này");
+
+        var entry = _db.Entry(existing);
+        var createdAt = existing.CreatedAt; var createdBy = existing.CreatedBy;
+        entry.CurrentValues.SetValues(dto);
+        existing.Id = dto.Id; existing.CreatedAt = createdAt; existing.CreatedBy = createdBy;
+        existing.IsDeleted = false;
+        entry.Property("UserId").CurrentValue = userId;
+        await _db.SaveChangesAsync();
+        return ServiceOutcome.Ok(existing);
+    }
+
     // ===== Assets =====
     public async Task<ServiceOutcome> ListAssetsAsync(Guid userId)
         => ServiceOutcome.Ok(await _db.EmployeeAssets.Where(a => a.UserId == userId).ToListAsync());
 
     public async Task<ServiceOutcome> SaveAssetAsync(Guid userId, EmployeeAsset dto)
     {
-        if (dto.Id == Guid.Empty) dto.Id = Guid.NewGuid();
         dto.UserId = userId;
-        if (await _db.EmployeeAssets.AnyAsync(a => a.Id == dto.Id))
-            _db.EmployeeAssets.Update(dto);
-        else { dto.Id = Guid.NewGuid(); dto.IsDeleted = false; _db.EmployeeAssets.Add(dto); }
-        await _db.SaveChangesAsync();
-        return ServiceOutcome.Ok(dto);
+        return await UpsertAsync(_db.EmployeeAssets, userId, dto);
     }
     public async Task<ServiceOutcome> DeleteAssetAsync(Guid id)
     {
@@ -43,13 +68,8 @@ public class EmployeeProfileService : IEmployeeProfileService
 
     public async Task<ServiceOutcome> SaveAllowanceAsync(Guid userId, EmployeeAllowance dto)
     {
-        if (dto.Id == Guid.Empty) dto.Id = Guid.NewGuid();
         dto.UserId = userId;
-        if (await _db.EmployeeAllowances.AnyAsync(a => a.Id == dto.Id))
-            _db.EmployeeAllowances.Update(dto);
-        else { dto.Id = Guid.NewGuid(); dto.IsDeleted = false; _db.EmployeeAllowances.Add(dto); }
-        await _db.SaveChangesAsync();
-        return ServiceOutcome.Ok(dto);
+        return await UpsertAsync(_db.EmployeeAllowances, userId, dto);
     }
     public async Task<ServiceOutcome> DeleteAllowanceAsync(Guid id)
     {
@@ -66,13 +86,8 @@ public class EmployeeProfileService : IEmployeeProfileService
 
     public async Task<ServiceOutcome> SaveCareerAsync(Guid userId, EmployeeCareerHistory dto)
     {
-        if (dto.Id == Guid.Empty) dto.Id = Guid.NewGuid();
         dto.UserId = userId;
-        if (await _db.EmployeeCareerHistories.AnyAsync(a => a.Id == dto.Id))
-            _db.EmployeeCareerHistories.Update(dto);
-        else { dto.Id = Guid.NewGuid(); dto.IsDeleted = false; _db.EmployeeCareerHistories.Add(dto); }
-        await _db.SaveChangesAsync();
-        return ServiceOutcome.Ok(dto);
+        return await UpsertAsync(_db.EmployeeCareerHistories, userId, dto);
     }
     public async Task<ServiceOutcome> DeleteCareerAsync(Guid id)
     {
@@ -87,13 +102,8 @@ public class EmployeeProfileService : IEmployeeProfileService
 
     public async Task<ServiceOutcome> SaveEducationAsync(Guid userId, EmployeeEducation dto)
     {
-        if (dto.Id == Guid.Empty) dto.Id = Guid.NewGuid();
         dto.UserId = userId;
-        if (await _db.EmployeeEducations.AnyAsync(a => a.Id == dto.Id))
-            _db.EmployeeEducations.Update(dto);
-        else { dto.Id = Guid.NewGuid(); dto.IsDeleted = false; _db.EmployeeEducations.Add(dto); }
-        await _db.SaveChangesAsync();
-        return ServiceOutcome.Ok(dto);
+        return await UpsertAsync(_db.EmployeeEducations, userId, dto);
     }
     public async Task<ServiceOutcome> DeleteEducationAsync(Guid id)
     {
@@ -108,13 +118,8 @@ public class EmployeeProfileService : IEmployeeProfileService
 
     public async Task<ServiceOutcome> SaveFamilyAsync(Guid userId, EmployeeFamily dto)
     {
-        if (dto.Id == Guid.Empty) dto.Id = Guid.NewGuid();
         dto.UserId = userId;
-        if (await _db.EmployeeFamilies.AnyAsync(a => a.Id == dto.Id))
-            _db.EmployeeFamilies.Update(dto);
-        else { dto.Id = Guid.NewGuid(); dto.IsDeleted = false; _db.EmployeeFamilies.Add(dto); }
-        await _db.SaveChangesAsync();
-        return ServiceOutcome.Ok(dto);
+        return await UpsertAsync(_db.EmployeeFamilies, userId, dto);
     }
     public async Task<ServiceOutcome> DeleteFamilyAsync(Guid id)
     {
@@ -131,13 +136,8 @@ public class EmployeeProfileService : IEmployeeProfileService
 
     public async Task<ServiceOutcome> SaveRewardAsync(Guid userId, EmployeeRewardDiscipline dto)
     {
-        if (dto.Id == Guid.Empty) dto.Id = Guid.NewGuid();
         dto.UserId = userId;
-        if (await _db.EmployeeRewardDisciplines.AnyAsync(a => a.Id == dto.Id))
-            _db.EmployeeRewardDisciplines.Update(dto);
-        else { dto.Id = Guid.NewGuid(); dto.IsDeleted = false; _db.EmployeeRewardDisciplines.Add(dto); }
-        await _db.SaveChangesAsync();
-        return ServiceOutcome.Ok(dto);
+        return await UpsertAsync(_db.EmployeeRewardDisciplines, userId, dto);
     }
     public async Task<ServiceOutcome> DeleteRewardAsync(Guid id)
     {
@@ -152,13 +152,8 @@ public class EmployeeProfileService : IEmployeeProfileService
 
     public async Task<ServiceOutcome> SaveBankAsync(Guid userId, EmployeeBankAccount dto)
     {
-        if (dto.Id == Guid.Empty) dto.Id = Guid.NewGuid();
         dto.UserId = userId;
-        if (await _db.EmployeeBankAccounts.AnyAsync(a => a.Id == dto.Id))
-            _db.EmployeeBankAccounts.Update(dto);
-        else { dto.Id = Guid.NewGuid(); dto.IsDeleted = false; _db.EmployeeBankAccounts.Add(dto); }
-        await _db.SaveChangesAsync();
-        return ServiceOutcome.Ok(dto);
+        return await UpsertAsync(_db.EmployeeBankAccounts, userId, dto);
     }
     public async Task<ServiceOutcome> DeleteBankAsync(Guid id)
     {
@@ -175,13 +170,8 @@ public class EmployeeProfileService : IEmployeeProfileService
 
     public async Task<ServiceOutcome> SaveContractAsync(Guid userId, EmployeeContract dto)
     {
-        if (dto.Id == Guid.Empty) dto.Id = Guid.NewGuid();
         dto.UserId = userId;
-        if (await _db.EmployeeContracts.AnyAsync(a => a.Id == dto.Id))
-            _db.EmployeeContracts.Update(dto);
-        else { dto.Id = Guid.NewGuid(); dto.IsDeleted = false; _db.EmployeeContracts.Add(dto); }
-        await _db.SaveChangesAsync();
-        return ServiceOutcome.Ok(dto);
+        return await UpsertAsync(_db.EmployeeContracts, userId, dto);
     }
     public async Task<ServiceOutcome> DeleteContractAsync(Guid id)
     {
@@ -196,13 +186,8 @@ public class EmployeeProfileService : IEmployeeProfileService
 
     public async Task<ServiceOutcome> SaveUnionAsync(Guid userId, EmployeeUnionMembership dto)
     {
-        if (dto.Id == Guid.Empty) dto.Id = Guid.NewGuid();
         dto.UserId = userId;
-        if (await _db.EmployeeUnionMemberships.AnyAsync(a => a.Id == dto.Id))
-            _db.EmployeeUnionMemberships.Update(dto);
-        else { dto.Id = Guid.NewGuid(); dto.IsDeleted = false; _db.EmployeeUnionMemberships.Add(dto); }
-        await _db.SaveChangesAsync();
-        return ServiceOutcome.Ok(dto);
+        return await UpsertAsync(_db.EmployeeUnionMemberships, userId, dto);
     }
 
     public async Task<ServiceOutcome> DeleteUnionAsync(Guid id)

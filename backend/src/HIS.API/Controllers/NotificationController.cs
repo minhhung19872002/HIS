@@ -61,7 +61,7 @@ public class NotificationController : ControllerBase
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
 
-        return (await _svc.MarkAsReadAsync(id)).ToActionResult();
+        return (await _svc.MarkAsReadAsync(id, userId.Value)).ToActionResult();
     }
 
     /// <summary>

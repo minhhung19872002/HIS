@@ -50,13 +50,29 @@ export const searchRecords = async (params?: {
   }
 };
 
+// CreatePopulationRecordDto has patientName / ward / facilityName / serviceDate and no family-code or
+// insurance columns — the page's fullName, address, managing unit were dropped (records saved nameless).
+const toRecordWire = (data: Partial<PopulationRecord>) => {
+  const { fullName, address, managingUnit, lastVisitDate, familyCode, healthInsuranceNumber, notes, ...rest } = data;
+  const extra = [familyCode ? `Mã hộ: ${familyCode}` : '', healthInsuranceNumber ? `Số BHYT: ${healthInsuranceNumber}` : '']
+    .filter(Boolean).join(' · ');
+  return {
+    ...rest,
+    patientName: fullName,
+    ward: address,
+    facilityName: managingUnit,
+    serviceDate: lastVisitDate,
+    notes: [notes, extra].filter(Boolean).join('\n') || undefined,
+  };
+};
+
 export const createRecord = async (data: Partial<PopulationRecord>) => {
-  const response = await apiClient.post<PopulationRecord>('/population-health/records', data);
+  const response = await apiClient.post<PopulationRecord>('/population-health/records', toRecordWire(data));
   return response.data;
 };
 
 export const updateRecord = async (id: string, data: Partial<PopulationRecord>) => {
-  const response = await apiClient.put<PopulationRecord>(`/population-health/records/${id}`, data);
+  const response = await apiClient.put<PopulationRecord>(`/population-health/records/${id}`, toRecordWire(data));
   return response.data;
 };
 

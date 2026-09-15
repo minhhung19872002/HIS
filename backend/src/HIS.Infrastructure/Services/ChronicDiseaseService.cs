@@ -144,7 +144,17 @@ public class ChronicDiseaseService : IChronicDiseaseService
 
     public async Task<ChronicDiseaseDetailDto> CreateRecordAsync(CreateChronicDiseaseDto dto)
     {
+        // QA-R2: unknown PatientId/DoctorId were saved as orphans (no FK) and the create returned 204 empty.
+        if (!await _context.Patients.AnyAsync(p => p.Id == dto.PatientId && !p.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy bệnh nhân.");
+        if (!await _context.Users.AnyAsync(u => u.Id == dto.DoctorId))
+            throw new ArgumentException("Bác sĩ phụ trách không hợp lệ.");
         var diagnosisDate = DateTime.TryParse(dto.DiagnosisDate, out var dd) ? dd : DateTime.UtcNow;
+        if (diagnosisDate.Date > DateTime.UtcNow.Date.AddDays(1))
+            throw new ArgumentException("Ngày chẩn đoán không được ở tương lai.");
+        if (await _context.ChronicDiseaseRecords.AnyAsync(r => r.PatientId == dto.PatientId && r.IcdCode == dto.IcdCode
+                && !r.IsDeleted && (r.Status == "Active" || r.Status == "Remission")))
+            throw new InvalidOperationException($"Bệnh nhân đã có hồ sơ bệnh mạn tính {dto.IcdCode} đang theo dõi.");
         var record = new ChronicDiseaseRecord
         {
             Id = Guid.NewGuid(),
@@ -209,6 +219,8 @@ public class ChronicDiseaseService : IChronicDiseaseService
     {
         var record = await _context.ChronicDiseaseRecords.FindAsync(id);
         if (record == null || record.IsDeleted) return false;
+        if (record.Status == "Closed" || record.Status == "Removed")
+            throw new InvalidOperationException("Hồ sơ đã đóng/loại bỏ.");
 
         record.Status = "Closed";
         record.ClosedDate = DateTime.UtcNow;
@@ -233,6 +245,8 @@ public class ChronicDiseaseService : IChronicDiseaseService
     {
         var record = await _context.ChronicDiseaseRecords.FindAsync(id);
         if (record == null || record.IsDeleted) return false;
+        if (record.Status == "Removed")
+            throw new InvalidOperationException("Hồ sơ đã được loại bỏ.");
 
         record.Status = "Removed";
         record.RemovedDate = DateTime.UtcNow;
@@ -303,6 +317,8 @@ public class ChronicDiseaseService : IChronicDiseaseService
     {
         var record = await _context.ChronicDiseaseRecords.FindAsync(recordId)
             ?? throw new InvalidOperationException("Record not found");
+        if (record.IsDeleted || record.Status == "Closed" || record.Status == "Removed")
+            throw new InvalidOperationException("Hồ sơ đã đóng/loại bỏ — mở lại hồ sơ trước khi ghi nhận tái khám.");
 
         var followUpDate = DateTime.TryParse(dto.FollowUpDate, out var fd) ? fd : DateTime.UtcNow;
 
@@ -327,6 +343,16 @@ public class ChronicDiseaseService : IChronicDiseaseService
         {
             record.NextFollowUpDate = followUpDate.AddDays(record.FollowUpIntervalDays);
             record.UpdatedAt = DateTime.UtcNow;
+
+            // The visit fulfils the pending appointment(s) — otherwise every visit left a stale "Scheduled" row behind.
+            var pending = await _context.ChronicDiseaseFollowUps
+                .Where(f => f.ChronicDiseaseRecordId == recordId && f.Status == "Scheduled" && !f.IsDeleted)
+                .ToListAsync();
+            foreach (var p in pending)
+            {
+                p.Status = "Cancelled";
+                p.UpdatedAt = DateTime.UtcNow;
+            }
 
             // Auto-schedule next follow-up
             var nextFollowUp = new ChronicDiseaseFollowUp

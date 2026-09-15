@@ -8,6 +8,7 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/training")]
 [Authorize]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // not-found/validation/state guards → 404/400 instead of 500
 public class TrainingResearchController : ControllerBase
 {
     private readonly ITrainingResearchService _service;

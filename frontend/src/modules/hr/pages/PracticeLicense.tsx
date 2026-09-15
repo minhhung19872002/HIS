@@ -13,7 +13,8 @@ import {
 import { useTabState } from '../../../hooks/useTabState';
 
 const LICENSE_FIELDS: CrudFieldCfg[] = [
-  { key: 'licenseCode', label: 'Mã CCHN', required: true, disabledOnEdit: true },
+  // The BE always generates the code (CCHN-yyyy-nnnn) — a typed value was silently replaced.
+  { key: 'licenseCode', label: 'Mã CCHN', disabledOnEdit: true, placeholder: 'Hệ thống tự sinh' },
   { key: 'staffName', label: 'Họ tên NV', required: true },
   { key: 'staffCode', label: 'Mã NV' },
   { key: 'licenseType', label: 'Loại CCHN', type: 'select', required: true, options: [
@@ -27,9 +28,10 @@ const LICENSE_FIELDS: CrudFieldCfg[] = [
   { key: 'issuingAuthority', label: 'Nơi cấp' },
   { key: 'specialty', label: 'Chuyên khoa' },
   { key: 'practiceScope', label: 'Phạm vi hành nghề', type: 'textarea' },
+  // Values follow the BE enum (0 active, 1 expired, 2 suspended, 3 revoked). "Hết hạn" is derived from the
+  // expiry date and "Sắp hết" from the 30-day window, so neither is selectable here.
   { key: 'status', label: 'Trạng thái', type: 'select', options: [
-    { value: 0, label: 'Hợp lệ' }, { value: 1, label: 'Sắp hết hạn' }, { value: 2, label: 'Hết hạn' },
-    { value: 3, label: 'Thu hồi' }, { value: 4, label: 'Đình chỉ' }] },
+    { value: 0, label: 'Hợp lệ' }, { value: 2, label: 'Đình chỉ' }, { value: 3, label: 'Thu hồi' }] },
   { key: 'renewalDate', label: 'Ngày gia hạn', type: 'date' },
   { key: 'notes', label: 'Ghi chú', type: 'textarea' },
 ];
@@ -39,8 +41,8 @@ const TYPE_LABEL: Record<string, string> = {
   technician: 'KTV', dentist: 'Nha sĩ', traditional_medicine: 'YHCT',
 };
 
-const STATUS_LABEL: Record<number, string> = {
-  0: 'Hợp lệ', 1: 'Sắp hết', 2: 'Hết hạn', 3: 'Thu hồi', 4: 'Tạm dừng',
+const STATUS_LABEL: Record<SKey, string> = {
+  valid: 'Hợp lệ', expiring: 'Sắp hết', expired: 'Hết hạn', revoked: 'Thu hồi', suspended: 'Tạm dừng',
 };
 
 type SKey = 'valid' | 'expiring' | 'expired' | 'revoked' | 'suspended';
@@ -52,8 +54,15 @@ const STATUS_TABS = [
   { v: 'suspended' as SKey, l: 'Tạm dừng', tone: 'warn' as const },
 ];
 
-const sKey = (n: number): SKey =>
-  n === 0 ? 'valid' : n === 1 ? 'expiring' : n === 2 ? 'expired' : n === 3 ? 'revoked' : 'suspended';
+// BE status: 0=active, 1=expired, 2=suspended, 3=revoked. The old mapping read 1 as "Sắp hết" and 2 as
+// "Hết hạn", so an expired licence showed as expiring and a suspended one as expired.
+const sKey = (r: Pick<PracticeLicense, 'status' | 'expiryDate'>): SKey => {
+  if (r.status === 3) return 'revoked';
+  if (r.status === 2) return 'suspended';
+  const days = r.expiryDate ? dayjs(r.expiryDate).startOf('day').diff(dayjs().startOf('day'), 'day') : null;
+  if (r.status === 1 || (days !== null && days < 0)) return 'expired';
+  return days !== null && days < 30 ? 'expiring' : 'valid';
+};
 
 const PER = 18;
 
@@ -82,7 +91,7 @@ const PracticeLicenseV2: React.FC = () => {
       // BE PracticeLicenseDto: licenseCode / holderName / cccd — FE columns read licenseNumber / staffName / staffCode
       setItems(normalizeArrayResponse<PracticeLicense & { holderName?: string; cccd?: string }>(r).map((x) => ({
         ...x,
-        licenseNumber: x.licenseNumber ?? x.licenseCode,
+        licenseNumber: x.licenseNumber ?? (x as { certificateNumber?: string }).certificateNumber ?? x.licenseCode,
         staffName: x.staffName ?? x.holderName ?? '',
         staffCode: x.staffCode ?? x.cccd ?? '',
       })));
@@ -94,10 +103,10 @@ const PracticeLicenseV2: React.FC = () => {
   const today = dayjs();
   const types = useMemo(() => Object.entries(TYPE_LABEL).map(([v, l]) => ({ v, l })), []);
 
-  const counts = useTabCounts(items, STATUS_TABS, (r) => sKey(r.status));
+  const counts = useTabCounts(items, STATUS_TABS, (r) => sKey(r));
 
   const filtered = useMemo(() =>
-    items.filter((r) => stab === 'all' || sKey(r.status) === stab),
+    items.filter((r) => stab === 'all' || sKey(r) === stab),
   [items, stab]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
@@ -129,8 +138,8 @@ const PracticeLicenseV2: React.FC = () => {
       );
     } },
     { key: 'st', label: 'Trạng thái', render: (r) => {
-      const t = STATUS_TABS.find((x) => x.v === sKey(r.status));
-      return <StatusBadge tone={t?.tone || 'info'} dot>{STATUS_LABEL[r.status] || '—'}</StatusBadge>;
+      const t = STATUS_TABS.find((x) => x.v === sKey(r));
+      return <StatusBadge tone={t?.tone || 'info'} dot>{STATUS_LABEL[sKey(r)] || '—'}</StatusBadge>;
     } },
   ];
 
@@ -289,8 +298,8 @@ const PracticeLicenseV2: React.FC = () => {
             </DrField>
             {sel.renewalDate && <DrField lbl="Gia hạn">{dayjs(sel.renewalDate).format('DD/MM/YYYY')}</DrField>}
             <DrField lbl="Trạng thái">
-              <StatusBadge tone={STATUS_TABS.find((x) => x.v === sKey(sel.status))?.tone || 'info'} dot>
-                {STATUS_LABEL[sel.status] || '—'}
+              <StatusBadge tone={STATUS_TABS.find((x) => x.v === sKey(sel))?.tone || 'info'} dot>
+                {STATUS_LABEL[sKey(sel)] || '—'}
               </StatusBadge>
             </DrField>
             {sel.notes && <DrField lbl="Ghi chú">{sel.notes}</DrField>}

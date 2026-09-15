@@ -549,7 +549,9 @@ const NutritionV2: React.FC = () => {
     const total = mealList.length;
     const delivered = mealList.filter((m) => m.deliveryStatus >= 2).length;
     const eaten = mealList.filter((m) => m.deliveryStatus === 3).length;
-    const avgConsumption = total ? Math.round(mealList.reduce((s, m) => s + (m.consumptionPct || 0), 0) / total) : 0;
+    // chỉ tính trên suất đã ghi tỉ lệ ăn — không có dữ liệu thì null (hiện "—", không báo 0% giả)
+    const recorded = mealList.filter((m) => m.consumptionPct != null);
+    const avgConsumption = recorded.length ? Math.round(recorded.reduce((s, m) => s + (m.consumptionPct || 0), 0) / recorded.length) : null;
     return { total, delivered, eaten, avgConsumption };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mealPlan]);
@@ -659,7 +661,7 @@ const NutritionV2: React.FC = () => {
     ) },
     { key: 'type', label: 'Bữa ăn', render: (m) => MEAL_TYPE_LABEL[m.mealType] || m.mealType },
     { key: 'time', label: 'Giờ giao', mono: true, render: (m) => m.mealTime || '—' },
-    { key: 'kp', label: 'kcal · Pro', mono: true, render: (m) => `${m.energyKcal} · ${m.proteinGrams}g` },
+    { key: 'kp', label: 'kcal · Pro', mono: true, render: (m) => m.energyKcal != null ? `${m.energyKcal} · ${m.proteinGrams ?? '—'}g` : '—' },
     { key: 'cons', label: 'Tiêu thụ', render: (m) => m.consumptionPct != null
       ? <StatusBadge tone={m.consumptionPct >= 75 ? 'ok' : m.consumptionPct >= 50 ? 'warn' : 'crit'}>{m.consumptionPct}%</StatusBadge>
       : <span style={{ color: 'var(--t-2)' }}>—</span> },
@@ -909,7 +911,7 @@ const NutritionV2: React.FC = () => {
             { lbl: 'Tổng bữa ăn', val: mealPlan?.totalPatients ?? mealKpis.total, sub: dayjs(mealDate).format('DD/MM/YYYY'), tone: 'info' },
             { lbl: 'Đã giao', val: mealKpis.delivered, sub: 'suất ăn', tone: 'warn' },
             { lbl: 'Đã ăn', val: mealKpis.eaten, sub: 'suất ăn', tone: 'ok' },
-            { lbl: 'Tỉ lệ ăn TB', val: `${mealKpis.avgConsumption}%`, sub: 'tiêu thụ', tone: mealKpis.avgConsumption >= 75 ? 'ok' : mealKpis.avgConsumption >= 50 ? 'warn' : 'crit' },
+            { lbl: 'Tỉ lệ ăn TB', val: mealKpis.avgConsumption == null ? '—' : `${mealKpis.avgConsumption}%`, sub: 'tiêu thụ', tone: mealKpis.avgConsumption == null ? 'info' : mealKpis.avgConsumption >= 75 ? 'ok' : mealKpis.avgConsumption >= 50 ? 'warn' : 'crit' },
           ]} />
 
           <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
@@ -945,10 +947,10 @@ const NutritionV2: React.FC = () => {
               </DrSec>
               <DrSec title="Dinh dưỡng bữa ăn">
                 <div style={{ padding: 'var(--space-14)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
-                  <Line label="Năng lượng" value={`${mealSel.energyKcal} kcal`} />
-                  <Line label="Protein" value={`${mealSel.proteinGrams} g`} />
-                  <Line label="Carb" value={`${mealSel.carbGrams} g`} />
-                  <Line label="Fat" value={`${mealSel.fatGrams} g`} />
+                  <Line label="Năng lượng" value={`${mealSel.energyKcal ?? '—'} kcal`} />
+                  <Line label="Protein" value={`${mealSel.proteinGrams ?? '—'} g`} />
+                  <Line label="Carb" value={`${mealSel.carbGrams ?? '—'} g`} />
+                  <Line label="Fat" value={`${mealSel.fatGrams ?? '—'} g`} />
                 </div>
               </DrSec>
               {mealSel.menuItems.length > 0 && (

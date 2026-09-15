@@ -289,6 +289,18 @@ export interface LockedServiceDto {
   unlockedAt?: string;
 }
 
+type RawNotification = SystemNotificationDto & { message?: string; startTime?: string; endTime?: string; createdAt?: string };
+const normalizeNotification = (n: SystemNotificationDto): SystemNotificationDto => {
+  const raw = n as RawNotification;
+  return {
+    ...raw,
+    content: raw.content ?? raw.message ?? '',
+    startDate: raw.startDate ?? raw.startTime ?? '',
+    endDate: raw.endDate ?? raw.endTime ?? undefined,
+    createdDate: raw.createdDate ?? raw.createdAt,
+  };
+};
+
 // ============================================================================
 // API Object
 // ============================================================================
@@ -363,12 +375,19 @@ export const adminApi = {
     apiClient.delete<boolean>(`/admin/users/${userId}/sessions`),
 
   // Thông báo hệ thống
+  // BE SystemNotificationDto = { title, message, startTime, endTime, createdAt, targetUsers: Guid[] }.
+  // Map to the FE contract (content/startDate/endDate/createdDate) both ways — the v2 list showed no
+  // content/time and every "Gửi thông báo" was a 400 (Message required).
   getSystemNotifications: (isActive?: boolean) =>
-    apiClient.get<SystemNotificationDto[]>('/admin/notifications', { params: { isActive } }),
+    apiClient.get<SystemNotificationDto[]>('/admin/notifications', { params: { isActive } })
+      .then((r) => ({ ...r, data: (Array.isArray(r.data) ? r.data : []).map(normalizeNotification) })),
   getSystemNotification: (notificationId: string) =>
-    apiClient.get<SystemNotificationDto>(`/admin/notifications/${notificationId}`),
+    apiClient.get<SystemNotificationDto>(`/admin/notifications/${notificationId}`)
+      .then((r) => ({ ...r, data: r.data ? normalizeNotification(r.data) : r.data })),
   saveSystemNotification: (dto: SystemNotificationDto) =>
-    apiClient.post<SystemNotificationDto>('/admin/notifications', dto),
+    apiClient.post<SystemNotificationDto>('/admin/notifications', {
+      ...dto, message: dto.content, startTime: dto.startDate, endTime: dto.endDate,
+    }),
   deleteSystemNotification: (notificationId: string) =>
     apiClient.delete<boolean>(`/admin/notifications/${notificationId}`),
 

@@ -135,6 +135,9 @@ public class VideoConsultationService : IVideoConsultationService
             ?? throw new KeyNotFoundException();
         if (r.HostUserId != userId)
             return ServiceOutcome.Forbidden(new { message = "Chỉ host mới kết thúc được phòng" });
+        // Only a running room can end: ending a cancelled/ended room overwrote EndedAt + conclusion, and ending a
+        // never-started room produced EndedAt without StartedAt.
+        if (r.Status != 1) return ServiceOutcome.Bad("Phòng không ở trạng thái đang diễn ra");
         r.Status = 2;
         r.EndedAt = DateTime.UtcNow;
         r.ConclusionNote = dto.ConclusionNote;
@@ -192,6 +195,8 @@ public class VideoConsultationService : IVideoConsultationService
             ?? throw new KeyNotFoundException();
         if (r.HostUserId != userId)
             return ServiceOutcome.Forbidden(new { message = "Chỉ host mới hủy được phòng" });
+        // Cancelling an ended room turned a finished consultation into "cancelled" and replaced its conclusion.
+        if (r.Status == 2 || r.Status == 3) return ServiceOutcome.Bad("Phòng đã kết thúc hoặc đã hủy");
         r.Status = 3;
         r.UpdatedAt = DateTime.UtcNow;
         r.ConclusionNote = dto.Reason;

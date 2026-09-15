@@ -78,7 +78,9 @@ const SystemAdminV2: React.FC = () => {
   const [roles, setRoles] = useState<RoleDto[]>([]);
   const [audit, setAudit] = useState<AuditLogDto[]>([]);
   const [auditTotal, setAuditTotal] = useState(0);
-  const [auditPage, setAuditPage] = useState(1);
+  // 0-based: the shared Pager is 0-based — starting at 1 showed "51–100", made page 1 unreachable
+  // ("«"/"‹" sent pageIndex -1) and the last page unreachable.
+  const [auditPage, setAuditPage] = useState(0);
   const [auditFilters, setAuditFilters] = useState<Pick<AuditLogSearchDto, 'module' | 'action' | 'entityType' | 'fromDate' | 'toDate'>>({
     fromDate: dayjs().subtract(7, 'day').format('YYYY-MM-DD'),
     toDate: dayjs().format('YYYY-MM-DD'),
@@ -185,7 +187,7 @@ const SystemAdminV2: React.FC = () => {
         })));
       }
       else if (tab === 'audit') {
-        const r = await getAuditLogs({ ...auditFilters, keyword: keyword || undefined, pageIndex: auditPage - 1, pageSize: 50 });
+        const r = await getAuditLogs({ ...auditFilters, keyword: keyword || undefined, pageIndex: auditPage, pageSize: 50 });
         setAudit(Array.isArray(r.data?.items) ? r.data.items : []);
         setAuditTotal(r.data?.totalCount ?? 0);
       }
@@ -359,13 +361,23 @@ const SystemAdminV2: React.FC = () => {
   const submitNotif = async () => {
     let v: Record<string, unknown>;
     try { v = await notifF.validateFields(); } catch { return; }
+    // BE notifications only target users (no role target): a role-only pick used to be dropped silently and
+    // the notice went to EVERYONE. Expand the role to its members here (users carry role names).
+    let targetUsers: string[] | undefined = v.targetUserId ? [v.targetUserId as string] : undefined;
+    if (!targetUsers && v.targetRoleId) {
+      const role = roles.find((r) => (r.id || r.code) === v.targetRoleId);
+      targetUsers = users
+        .filter((u) => u.id && roleList(u).some((x) => (typeof x === 'string' ? x : x?.name) === role?.name))
+        .map((u) => u.id as string);
+      if (targetUsers.length === 0) { tw(`Vai trò "${role?.name ?? ''}" chưa có người dùng nào — chưa gửi thông báo`); return; }
+    }
     setSaving(true);
     try {
       await adminApi.saveSystemNotification({
         title: v.title as string, content: v.content as string,
         notificationType: (v.notificationType as string) || 'Info',
         priority: 'Normal', isActive: true,
-        targetUsers: v.targetUserId ? [v.targetUserId as string] : undefined,
+        targetUsers,
         targetRoles: v.targetRoleId ? [v.targetRoleId as string] : undefined,
         startDate: new Date().toISOString(),
       } as SystemNotificationDto);
@@ -495,7 +507,8 @@ const SystemAdminV2: React.FC = () => {
   ];
   type SessionRow = UserSessionDto & { id: string };
   const sessionColumns: ColumnDef<SessionRow>[] = [
-    { key: 'user', label: 'Người dùng', render: (s) => `${s.fullName || ''} (@${s.username || ''})` },
+    // BE UserSessionDto has no fullName; its username is already "user (Full Name)".
+    { key: 'user', label: 'Người dùng', render: (s) => s.fullName ? `${s.fullName} (@${s.username || ''})` : (s.username || '—') },
     { key: 'status', label: 'Trạng thái', width: 100, render: (s) => s.isActive ? <StatusBadge tone="ok" dot>Online</StatusBadge> : <StatusBadge dot>Offline</StatusBadge> },
     { key: 'ip', label: 'IP', mono: true, width: 130, render: (s) => (s as unknown as Record<string, string>).ipAddress || '—' },
     { key: 'device', label: 'Thiết bị', width: 100, render: (s) => (s as unknown as Record<string, string>).deviceType || '—' },
@@ -591,47 +604,51 @@ const SystemAdminV2: React.FC = () => {
         <>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '8px 16px', alignItems: 'center', borderBottom: '1px solid var(--ab-border)' }}>
             <Select allowClear placeholder="Phân hệ" style={{ width: 150 }} value={auditFilters.module || undefined}
-              onChange={(v) => { setAuditPage(1); setAuditFilters(f => ({ ...f, module: v ?? undefined })); }}
+              onChange={(v) => { setAuditPage(0); setAuditFilters(f => ({ ...f, module: v ?? undefined })); }}
+              // Values must equal AuditLogMiddleware.RouteModuleMap (exact-match filter): 'Examination'/'System' matched nothing.
               options={[
                 { value: 'Reception', label: 'Tiếp đón' },
-                { value: 'Examination', label: 'Khám bệnh' },
+                { value: 'OPD', label: 'Khám bệnh' },
                 { value: 'Inpatient', label: 'Nội trú' },
                 { value: 'Pharmacy', label: 'Dược' },
                 { value: 'Laboratory', label: 'Xét nghiệm' },
                 { value: 'Radiology', label: 'CĐHA' },
                 { value: 'Billing', label: 'Viện phí' },
                 { value: 'Insurance', label: 'BHYT' },
-                { value: 'System', label: 'Hệ thống' },
+                { value: 'SystemAdmin', label: 'Hệ thống' },
+                { value: 'MasterData', label: 'Danh mục' },
                 { value: 'Auth', label: 'Xác thực' },
               ]} />
             <Select allowClear placeholder="Hành động" style={{ width: 140 }} value={auditFilters.action || undefined}
-              onChange={(v) => { setAuditPage(1); setAuditFilters(f => ({ ...f, action: v ?? undefined })); }}
+              onChange={(v) => { setAuditPage(0); setAuditFilters(f => ({ ...f, action: v ?? undefined })); }}
               options={[
                 { value: 'Create', label: 'Tạo mới' },
                 { value: 'Update', label: 'Cập nhật' },
                 { value: 'Delete', label: 'Xóa' },
                 { value: 'Read', label: 'Đọc' },
-                { value: 'Login', label: 'Đăng nhập' },
-                { value: 'Logout', label: 'Đăng xuất' },
+                // Middleware logs login/verify as action 'Auth' (no 'Login'/'Logout' values exist).
+                { value: 'Auth', label: 'Đăng nhập / xác thực' },
                 { value: 'Export', label: 'Xuất dữ liệu' },
+                { value: 'Print', label: 'In' },
                 { value: 'Approve', label: 'Duyệt' },
+                { value: 'Cancel', label: 'Huỷ / từ chối' },
               ]} />
             <Select allowClear placeholder="Loại đối tượng" style={{ width: 160 }} value={auditFilters.entityType || undefined}
-              onChange={(v) => { setAuditPage(1); setAuditFilters(f => ({ ...f, entityType: v ?? undefined })); }}
+              onChange={(v) => { setAuditPage(0); setAuditFilters(f => ({ ...f, entityType: v ?? undefined })); }}
               options={[
-                { value: 'Patient', label: 'Bệnh nhân' },
+                // Values as stored: EF change-tracking table names or the first route segment after /api.
+                { value: 'Patients', label: 'Bệnh nhân' },
                 { value: 'MedicalRecord', label: 'Hồ sơ bệnh án' },
                 { value: 'Prescription', label: 'Đơn thuốc' },
-                { value: 'User', label: 'Người dùng' },
-                { value: 'Role', label: 'Vai trò' },
-                { value: 'SystemConfig', label: 'Cấu hình' },
+                { value: 'admin', label: 'Quản trị (người dùng / vai trò / cấu hình)' },
+                { value: 'catalog', label: 'Danh mục' },
               ]} />
             <DatePicker format="DD/MM/YYYY" placeholder="Từ ngày" style={{ width: 130 }}
               value={auditFilters.fromDate ? dayjs(auditFilters.fromDate) : null}
-              onChange={(d) => { setAuditPage(1); setAuditFilters(f => ({ ...f, fromDate: d ? d.format('YYYY-MM-DD') : undefined })); }} />
+              onChange={(d) => { setAuditPage(0); setAuditFilters(f => ({ ...f, fromDate: d ? d.format('YYYY-MM-DD') : undefined })); }} />
             <DatePicker format="DD/MM/YYYY" placeholder="Đến ngày" style={{ width: 130 }}
               value={auditFilters.toDate ? dayjs(auditFilters.toDate) : null}
-              onChange={(d) => { setAuditPage(1); setAuditFilters(f => ({ ...f, toDate: d ? d.format('YYYY-MM-DD') : undefined })); }} />
+              onChange={(d) => { setAuditPage(0); setAuditFilters(f => ({ ...f, toDate: d ? d.format('YYYY-MM-DD') : undefined })); }} />
             <span style={{ flex: 1 }} />
             <Btn variant="ghost" onClick={() => exportAuditLogs({ ...auditFilters, keyword: keyword || undefined })}>
               Xuất Excel

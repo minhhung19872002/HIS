@@ -59,7 +59,7 @@ type EditDirective = {
 };
 
 const EMPTY_DIRECTIVE: EditDirective = {
-  title: '', directiveNo: '', content: '', issueDate: dayjs().toISOString(),
+  title: '', directiveNo: '', content: '', issueDate: dayjs().format('YYYY-MM-DD'),
   fromLevel: '', toLevel: '', status: 0, notes: '',
 };
 
@@ -314,7 +314,8 @@ const ProvincialHealthV2: React.FC = () => {
                 <DatePicker
                   style={{ width: '100%' }}
                   value={editDir.issueDate ? dayjs(editDir.issueDate) : null}
-                  onChange={d => setEditDir({ ...editDir, issueDate: d ? d.toISOString() : dayjs().toISOString() })}
+                  // Date-only: toISOString() shifted to UTC, so a date picked before 07:00 (VN) was stored as the previous day.
+                  onChange={d => setEditDir({ ...editDir, issueDate: (d ?? dayjs()).format('YYYY-MM-DD') })}
                   format="DD/MM/YYYY"
                 />
               </DrField>

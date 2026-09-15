@@ -183,6 +183,9 @@ namespace HIS.Application.DTOs.System
         public List<string> Roles { get; set; }
         public List<string> Permissions { get; set; }
         public bool IsActive { get; set; }
+        // QA-R2: admin "Khoá" sets IsActive=false; brute-force lockout sets LockoutEndAt. The v2 users tab
+        // reads isLocked to show the badge and offer "Mở khoá" — without it a locked user could never be unlocked there.
+        public bool IsLocked { get; set; }
         public bool IsTwoFactorEnabled { get; set; }
         public DateTime? LastLoginDate { get; set; }
         public string LastLoginIP { get; set; }
@@ -263,10 +266,11 @@ namespace HIS.Application.DTOs.System
         public string NotificationType { get; set; } // Info, Warning, Error, Maintenance
         public DateTime StartTime { get; set; }
         public DateTime? EndTime { get; set; }
-        public List<Guid> TargetWorkstations { get; set; }
-        public List<Guid> TargetUsers { get; set; }
+        // QA-R2: optional on input (implicit [Required] made every "Gửi thông báo" a 400).
+        public List<Guid>? TargetWorkstations { get; set; }
+        public List<Guid>? TargetUsers { get; set; }
         public bool IsActive { get; set; }
-        public string CreatedBy { get; set; }
+        public string? CreatedBy { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 
@@ -427,7 +431,7 @@ namespace HIS.Application.DTOs.System
         public string Name { get; set; }
         public string ServiceType { get; set; }
         public Guid? DepartmentId { get; set; }
-        public string DepartmentName { get; set; }
+        public string? DepartmentName { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal? InsurancePrice { get; set; }
         public bool IsActive { get; set; }

@@ -591,8 +591,9 @@ namespace HIS.Application.Services
         public DateTime FromDate { get; set; }
         public DateTime ToDate { get; set; }
         public Guid? DepartmentId { get; set; }
-        public string GroupBy { get; set; }
-        public string OutputFormat { get; set; }
+        // QA-R2: optional — the v2 report tab never sends groupBy, so every print/export was a 400.
+        public string? GroupBy { get; set; }
+        public string? OutputFormat { get; set; }
     }
 
     // Create Borrow Request

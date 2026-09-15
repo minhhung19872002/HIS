@@ -174,8 +174,8 @@ export interface DietOrderDto {
   dietTypeName: string;
   texture: string; // Regular, Soft, Pureed, Liquid
   consistencyLevel?: number;
-  energyKcal: number;
-  proteinGrams: number;
+  energyKcal?: number;
+  proteinGrams?: number;
   fluidMl?: number;
   sodiumMg?: number;
   potassiumMg?: number;
@@ -189,14 +189,17 @@ export interface DietOrderDto {
   specialInstructions?: string;
   startDate: string;
   endDate?: string;
-  status: number;
+  /** backend trả chuỗi "Active" | "Discontinued" */
+  status: number | string;
   statusName: string;
 }
 
 export interface CreateDietOrderDto {
   assessmentId?: string;
   admissionId: string;
+  /** Mã (code) hoặc id chế độ ăn — adapter tự resolve sang dietTypeId backend */
   dietType: string;
+  dietTypeId?: string;
   texture: string;
   consistencyLevel?: number;
   energyKcal: number;
@@ -217,6 +220,7 @@ export interface CreateDietOrderDto {
 }
 
 export interface DietTypeDto {
+  id?: string;
   code: string;
   name: string;
   description?: string;
@@ -255,10 +259,11 @@ export interface PlannedMealDto {
   mealType: string; // Breakfast, Lunch, Dinner, Snack
   mealTime: string;
   menuItems: MenuItemDto[];
-  energyKcal: number;
-  proteinGrams: number;
-  carbGrams: number;
-  fatGrams: number;
+  /** undefined = backend chưa tính định lượng suất ăn (không hiển thị số giả) */
+  energyKcal?: number;
+  proteinGrams?: number;
+  carbGrams?: number;
+  fatGrams?: number;
   specialInstructions?: string;
   deliveryStatus: number;
   deliveredAt?: string;
@@ -494,25 +499,120 @@ export interface ScreeningSearchDto {
 
 const BASE_URL = '/nutrition';
 
+// #region Backend adapters (QA-R2)
+// Backend NutritionController trả DTO khác shape FE (NutritionDTOs.cs): screening `totalScore/nutritionScore/
+// requiresIntervention`, KHÔNG có `status`, dòng "chờ sàng lọc" có id = Guid rỗng; diet order `dietTypeId/
+// calorieLevel/proteinLevel`; meal-plans trả MẢNG plan có `items`. Adapter map về shape FE để trang v2 hiển thị
+// đúng và gửi đúng request DTO backend (trước đây create screening/diet order luôn 400).
+
+const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
+const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+type Raw = Record<string, unknown>;
+const str = (v: unknown): string | undefined => (typeof v === 'string' && v !== '' ? v : undefined);
+const num = (v: unknown): number | undefined => (typeof v === 'number' ? v : undefined);
+const realDate = (v: unknown): string | undefined => { const s = str(v); return s && !s.startsWith('0001-') ? s : undefined; };
+
+const mapScreening = (raw: unknown): NutritionScreeningDto => {
+  const r = (raw || {}) as Raw;
+  const admissionId = str(r.admissionId) || '';
+  const id = str(r.id);
+  const pending = r.riskLevel === 'Pending' || !id || id === EMPTY_GUID;
+  return {
+    ...(r as unknown as NutritionScreeningDto),
+    // dòng chờ sàng lọc chưa có bản ghi → id ổn định theo admission (trước đây mọi dòng cùng Guid rỗng → dedupe còn 1)
+    id: pending ? `pending-${admissionId}` : (id as string),
+    admissionId,
+    medicalRecordCode: str(r.medicalRecordCode) || str(r.patientCode) || '',
+    screeningTool: str(r.screeningTool) || (pending ? '' : 'NRS-2002'),
+    screeningDate: realDate(r.screeningDate) || '',
+    nrsNutritionalScore: num(r.nrsNutritionalScore) ?? num(r.nutritionScore),
+    nrsSeverityScore: num(r.nrsSeverityScore) ?? num(r.diseaseScore),
+    nrsTotalScore: num(r.nrsTotalScore) ?? num(r.totalScore),
+    riskLevel: pending ? '' : (str(r.riskLevel) || ''),
+    requiresAssessment: Boolean(r.requiresAssessment ?? r.requiresIntervention),
+    status: typeof r.status === 'number' ? r.status : (pending ? 0 : 1),
+  };
+};
+
+const mapScreeningList = (raw: unknown): NutritionScreeningDto[] => {
+  const list = Array.isArray(raw) ? raw : ((raw as { items?: unknown[] } | null)?.items || []);
+  return list.map(mapScreening);
+};
+
+const mapDietOrder = (raw: unknown): DietOrderDto => {
+  const r = (raw || {}) as Raw;
+  return {
+    ...(r as unknown as DietOrderDto),
+    // select "Chế độ ăn" của form dùng code làm value
+    dietType: str(r.dietTypeCode) || str(r.dietType) || '',
+    energyKcal: num(r.energyKcal) ?? num(r.calorieLevel),
+    proteinGrams: num(r.proteinGrams) ?? num(r.proteinLevel),
+    fluidMl: num(r.fluidMl) ?? num(r.fluidRestriction),
+    sodiumMg: num(r.sodiumMg) ?? num(r.sodiumRestriction),
+    orderedByName: str(r.orderedByName) || str(r.orderedBy) || '',
+    orderedDate: str(r.orderedDate) || str(r.orderedAt) || '',
+    statusName: str(r.statusName) || (r.status === 'Active' ? 'Đang dùng' : r.status === 'Discontinued' ? 'Đã ngưng' : ''),
+  };
+};
+
+let dietTypeCache: DietTypeDto[] | null = null;
+const resolveDietTypeId = async (dto: CreateDietOrderDto): Promise<string | undefined> => {
+  const v = dto.dietTypeId || dto.dietType;
+  if (!v) return undefined;
+  if (GUID_RE.test(v)) return v;
+  if (!dietTypeCache) dietTypeCache = (await apiClient.get<DietTypeDto[]>(`${BASE_URL}/diet-types`)).data || [];
+  return dietTypeCache.find((t) => t.code === v)?.id;
+};
+
+/** FE form → backend CreateDietOrderDto (dietTypeId, calorieLevel, proteinLevel, …) */
+const toBackendDietOrder = async (dto: CreateDietOrderDto) => ({
+  admissionId: dto.admissionId,
+  dietTypeId: await resolveDietTypeId(dto),
+  texture: dto.texture || undefined,
+  calorieLevel: dto.energyKcal,
+  proteinLevel: dto.proteinGrams,
+  fluidRestriction: dto.fluidMl,
+  sodiumRestriction: dto.sodiumMg,
+  allergies: dto.allergies,
+  restrictions: dto.restrictions,
+  specialInstructions: dto.specialInstructions || undefined,
+  feedingRoute: dto.feedingRoute || undefined,
+  startDate: dto.startDate,
+  endDate: dto.endDate || undefined,
+});
+
+// #endregion
+
 // #region Screening
 
+/** ⚠️ backend GET /screenings hiện trả CÙNG danh sách chờ sàng lọc (chưa có endpoint liệt kê đã sàng lọc) */
 export const getScreenings = (params: ScreeningSearchDto) =>
-  apiClient.get<PagedResultDto<NutritionScreeningDto>>(`${BASE_URL}/screenings`, { params });
+  apiClient.get<NutritionScreeningDto[]>(`${BASE_URL}/screenings`, { params })
+    .then((res) => ({ ...res, data: mapScreeningList(res.data) as NutritionScreeningDto[] & { items?: NutritionScreeningDto[] } }));
 
 export const getScreeningById = (id: string) =>
   apiClient.get<NutritionScreeningDto>(`${BASE_URL}/screenings/${id}`);
 
+/** backend: GET /screenings/admission/{admissionId} (204 khi chưa sàng lọc → data null) */
 export const getScreeningByAdmission = (admissionId: string) =>
-  apiClient.get<NutritionScreeningDto>(`${BASE_URL}/admissions/${admissionId}/screening`);
+  apiClient.get<NutritionScreeningDto>(`${BASE_URL}/screenings/admission/${admissionId}`)
+    .then((res) => ({ ...res, data: res.data ? mapScreening(res.data) : null }));
 
+/** POST /screenings — adapter sang PerformNutritionScreeningDto backend {admissionId, nutritionScore, diseaseScore, …} */
 export const createScreening = (dto: CreateNutritionScreeningDto) =>
-  apiClient.post<NutritionScreeningDto>(`${BASE_URL}/screenings`, dto);
+  apiClient.post<NutritionScreeningDto>(`${BASE_URL}/screenings`, {
+    admissionId: dto.admissionId,
+    nutritionScore: dto.nrsNutritionalScore ?? 0,
+    diseaseScore: dto.nrsSeverityScore ?? 0,
+    notes: dto.notes || undefined,
+  }).then((res) => ({ ...res, data: res.data ? mapScreening(res.data) : res.data }));
 
 export const updateScreening = (id: string, dto: CreateNutritionScreeningDto) =>
   apiClient.put<NutritionScreeningDto>(`${BASE_URL}/screenings/${id}`, dto);
 
 export const getPendingScreenings = (departmentId?: string) =>
-  apiClient.get<NutritionScreeningDto[]>(`${BASE_URL}/screenings/pending`, { params: { departmentId } });
+  apiClient.get<NutritionScreeningDto[]>(`${BASE_URL}/screenings/pending`, { params: { departmentId } })
+    .then((res) => ({ ...res, data: mapScreeningList(res.data) }));
 
 export const getHighRiskPatients = (departmentId?: string) =>
   apiClient.get<NutritionScreeningDto[]>(`${BASE_URL}/screenings/high-risk`, { params: { departmentId } });
@@ -543,20 +643,29 @@ export const calculateRequirements = (weight: number, height: number, age: numbe
 
 // #region Diet Orders
 
+/** ⚠️ backend GET /diet-orders chỉ trả đơn ĐANG HIỆU LỰC (Active, tối đa 200) và bỏ qua keyword */
 export const getDietOrders = (params: ScreeningSearchDto) =>
-  apiClient.get<PagedResultDto<DietOrderDto>>(`${BASE_URL}/diet-orders`, { params });
+  apiClient.get<DietOrderDto[]>(`${BASE_URL}/diet-orders`, { params })
+    // `items?` chỉ để trang v1 legacy (đọc data.items) còn compile — backend trả mảng
+    .then((res) => ({ ...res, data: (Array.isArray(res.data) ? res.data : []).map(mapDietOrder) as DietOrderDto[] & { items?: DietOrderDto[] } }));
 
 export const getDietOrderById = (id: string) =>
-  apiClient.get<DietOrderDto>(`${BASE_URL}/diet-orders/${id}`);
+  apiClient.get<DietOrderDto>(`${BASE_URL}/diet-orders/${id}`)
+    .then((res) => ({ ...res, data: res.data ? mapDietOrder(res.data) : res.data }));
 
+/** Backend không có route theo admission → lọc từ danh sách đơn đang hiệu lực (data null khi chưa có). */
 export const getActiveDietOrder = (admissionId: string) =>
-  apiClient.get<DietOrderDto>(`${BASE_URL}/admissions/${admissionId}/diet-order`);
+  apiClient.get<DietOrderDto[]>(`${BASE_URL}/diet-orders`)
+    .then((res) => {
+      const found = (Array.isArray(res.data) ? res.data : []).find((o) => o.admissionId === admissionId);
+      return { ...res, data: found ? mapDietOrder(found) : null };
+    });
 
-export const createDietOrder = (dto: CreateDietOrderDto) =>
-  apiClient.post<DietOrderDto>(`${BASE_URL}/diet-orders`, dto);
+export const createDietOrder = async (dto: CreateDietOrderDto) =>
+  apiClient.post<DietOrderDto>(`${BASE_URL}/diet-orders`, await toBackendDietOrder(dto));
 
-export const updateDietOrder = (id: string, dto: CreateDietOrderDto) =>
-  apiClient.put<DietOrderDto>(`${BASE_URL}/diet-orders/${id}`, dto);
+export const updateDietOrder = async (id: string, dto: CreateDietOrderDto) =>
+  apiClient.put<DietOrderDto>(`${BASE_URL}/diet-orders/${id}`, await toBackendDietOrder(dto));
 
 export const cancelDietOrder = (id: string, reason: string) =>
   apiClient.post<boolean>(`${BASE_URL}/diet-orders/${id}/cancel`, { reason });
@@ -568,8 +677,37 @@ export const getDietTypes = () =>
 
 // #region Meal Planning
 
+/**
+ * backend GET /meal-plans trả MẢNG plan theo (bữa, khoa) với `items` — gộp thành 1 MealPlanDto có `meals`
+ * (trước đây trang đọc `.meals` trên mảng → luôn rỗng). Backend chưa có định lượng/menu/tỉ lệ ăn cho từng suất.
+ */
 export const getMealPlan = (date: string, departmentId?: string) =>
-  apiClient.get<MealPlanDto>(`${BASE_URL}/meal-plans`, { params: { date, departmentId } });
+  apiClient.get<unknown>(`${BASE_URL}/meal-plans`, { params: { date, departmentId } })
+    .then((res) => {
+      const plans = (Array.isArray(res.data) ? res.data : []) as Raw[];
+      if (plans.length === 0) return { ...res, data: null as MealPlanDto | null };
+      const meals: PlannedMealDto[] = plans.flatMap((p) => ((p.items as Raw[] | undefined) || []).map((i) => ({
+        id: `${String(p.id)}-${String(i.dietOrderId)}`,
+        mealPlanId: String(p.id),
+        admissionId: '',
+        patientId: '',
+        patientName: str(i.patientName) || '',
+        bedNumber: str(i.bedNumber),
+        dietOrderId: String(i.dietOrderId),
+        mealType: str(p.mealType) || '',
+        mealTime: '',
+        menuItems: [],
+        specialInstructions: str(i.specialNotes),
+        deliveryStatus: i.isDelivered ? 2 : 0,
+      })));
+      const data: MealPlanDto = {
+        id: String(plans[0].id), planCode: '', planDate: date,
+        generatedBy: '', generatedByName: '', generatedAt: '',
+        totalPatients: plans.reduce((s, p) => s + (num(p.totalPatients) ?? 0), 0),
+        meals, status: 0, statusName: str(plans[0].status) || '',
+      };
+      return { ...res, data };
+    });
 
 export const generateMealPlan = (dto: GenerateMealPlanDto) =>
   apiClient.post<MealPlanDto>(`${BASE_URL}/meal-plans/generate`, dto);
@@ -684,8 +822,21 @@ export const printTPNLabel = (id: string) =>
 
 // #region Dashboard & Reports
 
+/** backend NutritionDashboardDto dùng `highRiskCount` — map sang `highRiskPatients`; field backend không tính để undefined (KPI tự fallback). */
 export const getDashboard = (date: string, departmentId?: string) =>
-  apiClient.get<NutritionDashboardDto>(`${BASE_URL}/dashboard`, { params: { date, departmentId } });
+  apiClient.get<NutritionDashboardDto>(`${BASE_URL}/dashboard`, { params: { date, departmentId } })
+    .then((res) => {
+      const r = (res.data || {}) as unknown as Raw;
+      return {
+        ...res,
+        data: res.data ? ({
+          ...res.data,
+          highRiskPatients: num(r.highRiskPatients) ?? num(r.highRiskCount),
+          totalPatients: num(r.totalPatients),
+          activeAssessments: num(r.activeAssessments),
+        } as NutritionDashboardDto) : res.data,
+      };
+    });
 
 export const getNutritionStatistics = (fromDate: string, toDate: string, departmentId?: string) =>
   apiClient.get(`${BASE_URL}/statistics`, { params: { fromDate, toDate, departmentId } });

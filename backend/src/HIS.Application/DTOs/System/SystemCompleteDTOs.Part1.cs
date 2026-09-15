@@ -231,13 +231,14 @@ namespace HIS.Application.DTOs.System
         public Guid Id { get; set; }
         public string Code { get; set; }
         public string Name { get; set; }
-        public string EquivalentCode { get; set; }
+        // QA-R2: optional on input — non-nullable strings were implicitly [Required] (400 on every catalog save).
+        public string? EquivalentCode { get; set; }
         public decimal Price { get; set; }
         public decimal InsurancePrice { get; set; }
-        public string TT37Code { get; set; }
-        public string TT15Code { get; set; }
+        public string? TT37Code { get; set; }
+        public string? TT15Code { get; set; }
         public Guid? DepartmentId { get; set; }
-        public string DepartmentName { get; set; }
+        public string? DepartmentName { get; set; }
         public bool IsActive { get; set; }
     }
 
@@ -269,11 +270,13 @@ namespace HIS.Application.DTOs.System
         public Guid Id { get; set; }
         public string Code { get; set; }
         public string Name { get; set; }
-        public string DepartmentType { get; set; } // Clinical, Paraclinical, Administrative, Warehouse
-        public string BYTDeptCode { get; set; }
-        public string BYTRoomCode { get; set; }
+        public string DepartmentType { get; set; } // int as string: 0-Hành chính, 1-Lâm sàng, 2-Cận lâm sàng, 3-Dược (DatabaseSeeder)
+        public string? BYTDeptCode { get; set; }
+        public string? BYTRoomCode { get; set; }
         public Guid? ParentId { get; set; }
-        public string ParentName { get; set; }
+        public string? ParentName { get; set; }
+        public string? Phone { get; set; }
+        public string? Location { get; set; }
         public bool IsActive { get; set; }
     }
 
@@ -310,24 +313,25 @@ namespace HIS.Application.DTOs.System
         public Guid Id { get; set; }
         public string Code { get; set; }
         public string Name { get; set; }
-        public string EquivalentCode { get; set; }
-        public string RegistrationNumber { get; set; }
+        public string? EquivalentCode { get; set; }
+        public string? RegistrationNumber { get; set; }
         public Guid? ActiveIngredientId { get; set; }
-        public string ActiveIngredientName { get; set; }
-        public string Concentration { get; set; }
-        public string Unit { get; set; }
-        public string PackageUnit { get; set; }
+        public string? ActiveIngredientName { get; set; }
+        public string? Concentration { get; set; }
+        public string? DosageForm { get; set; }
+        public string? Unit { get; set; }
+        public string? PackageUnit { get; set; }
         public decimal PackageQuantity { get; set; }
-        public string Manufacturer { get; set; }
-        public string Country { get; set; }
+        public string? Manufacturer { get; set; }
+        public string? Country { get; set; }
         public decimal Price { get; set; }
         public decimal InsurancePrice { get; set; }
-        public string BidCode { get; set; }
-        public string BidGroup { get; set; }
-        public string BidPackage { get; set; }
+        public string? BidCode { get; set; }
+        public string? BidGroup { get; set; }
+        public string? BidPackage { get; set; }
         public DateTime? BidDate { get; set; }
         public Guid? RouteId { get; set; }
-        public string RouteName { get; set; }
+        public string? RouteName { get; set; }
         public bool IsNarcotic { get; set; }
         public bool IsPsychotropic { get; set; }
         public bool IsPrecursor { get; set; }
@@ -342,16 +346,16 @@ namespace HIS.Application.DTOs.System
         public Guid Id { get; set; }
         public string Code { get; set; }
         public string Name { get; set; }
-        public string EquivalentCode { get; set; }
-        public string RegistrationNumber { get; set; }
-        public string Specification { get; set; }
-        public string Unit { get; set; }
-        public string Manufacturer { get; set; }
-        public string Country { get; set; }
+        public string? EquivalentCode { get; set; }
+        public string? RegistrationNumber { get; set; }
+        public string? Specification { get; set; }
+        public string? Unit { get; set; }
+        public string? Manufacturer { get; set; }
+        public string? Country { get; set; }
         public decimal Price { get; set; }
         public decimal InsurancePrice { get; set; }
-        public string BidCode { get; set; }
-        public string BidGroup { get; set; }
+        public string? BidCode { get; set; }
+        public string? BidGroup { get; set; }
         public bool IsActive { get; set; }
     }
 
@@ -382,11 +386,11 @@ namespace HIS.Application.DTOs.System
         public Guid Id { get; set; }
         public string Code { get; set; }
         public string Name { get; set; }
-        public string EnglishName { get; set; }
-        public string ChapterCode { get; set; }
-        public string ChapterName { get; set; }
-        public string GroupCode { get; set; }
-        public string GroupName { get; set; }
+        public string? EnglishName { get; set; }
+        public string? ChapterCode { get; set; }
+        public string? ChapterName { get; set; }
+        public string? GroupCode { get; set; }
+        public string? GroupName { get; set; }
         public bool IsActive { get; set; }
     }
 
@@ -430,10 +434,10 @@ namespace HIS.Application.DTOs.System
         public Guid Id { get; set; }
         public string Code { get; set; }
         public string Name { get; set; }
-        public string NameEnglish { get; set; }
+        public string? NameEnglish { get; set; }
         public string Category { get; set; } // Symptom, Sign, Examination, ReviewOfSystems, Procedure, Other
-        public string BodySystem { get; set; } // Cardiovascular, Respiratory, GI, Neuro, MSK, Skin, General
-        public string Description { get; set; }
+        public string? BodySystem { get; set; } // Cardiovascular, Respiratory, GI, Neuro, MSK, Skin, General
+        public string? Description { get; set; }
         public string? SnomedCtCode { get; set; }
         public string? SnomedCtDisplay { get; set; }
         public int SortOrder { get; set; }

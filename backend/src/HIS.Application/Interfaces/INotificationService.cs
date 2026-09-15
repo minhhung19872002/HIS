@@ -16,7 +16,7 @@ public interface INotificationService
 {
     Task<ServiceOutcome> GetMyNotificationsAsync(int limit, Guid userId);
     Task<ServiceOutcome> GetUnreadCountAsync(Guid userId);
-    Task<ServiceOutcome> MarkAsReadAsync(Guid id);
+    Task<ServiceOutcome> MarkAsReadAsync(Guid id, Guid userId);
     Task<ServiceOutcome> MarkAllAsReadAsync(Guid userId);
     Task<HIS.Core.Entities.Notification> CreateTestNotificationAsync(Guid userId);
     Task<ServiceOutcome> SendLabResultLinkAsync(SendLabResultLinkDto dto, string baseUrl, Guid? userId);

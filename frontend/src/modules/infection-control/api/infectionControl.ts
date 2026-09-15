@@ -598,8 +598,13 @@ export const createHAICase = (dto: CreateHAISurveillanceDto) =>
 export const updateHAICase = (id: string, dto: CreateHAISurveillanceDto) =>
   apiClient.put<HAISurveillanceDto>(`${BASE_URL}/hai-cases/${id}`, dto);
 
+// `${BASE_URL}/hai-cases/{id}/investigate` never existed (404). The persisted investigate endpoint is
+// PUT /write-gap/hai/hai-reports/{id}/investigate (InvestigateHaiDto: rootCause/contributingFactors/preventiveMeasures).
 export const investigateHAICase = (id: string, findings: string, actions: string[]) =>
-  apiClient.post<HAISurveillanceDto>(`${BASE_URL}/hai-cases/${id}/investigate`, { findings, actions });
+  apiClient.put(`/write-gap/hai/hai-reports/${id}/investigate`, {
+    rootCause: findings,
+    preventiveMeasures: actions.length ? actions.join('; ') : undefined,
+  });
 
 export const closeHAICase = (id: string, outcome: string, notes?: string) =>
   apiClient.post<HAISurveillanceDto>(`${BASE_URL}/hai-cases/${id}/close`, { outcome, notes });

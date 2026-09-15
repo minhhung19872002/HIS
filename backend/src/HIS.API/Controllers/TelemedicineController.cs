@@ -62,6 +62,14 @@ namespace HIS.API.Controllers
             return ok ? Ok(true) : NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy lịch hẹn" });
         }
 
+        // The v2 page calls this to confirm a Pending booking; the service method existed but had no route (404).
+        [HttpPost("appointments/{id}/confirm")]
+        public async Task<ActionResult<bool>> ConfirmAppointment(Guid id)
+        {
+            var ok = await _service.ConfirmAppointmentAsync(id);
+            return ok ? Ok(true) : NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy lịch hẹn" });
+        }
+
         [HttpGet("available-slots")]
         public async Task<ActionResult<List<DoctorAvailableSlotDto>>> GetAvailableSlots(
             [FromQuery] Guid? doctorId,
@@ -75,6 +83,7 @@ namespace HIS.API.Controllers
             => Ok(new List<TeleSessionDto>());
 
         [HttpPost("sessions/start")]
+        [HttpPost("sessions")] // v2 page posts { appointmentId } to /sessions (was 405)
         public async Task<ActionResult<TeleSessionDto>> StartSession([FromBody] StartVideoCallDto dto)
             => Ok(await _service.StartSessionAsync(dto));
 

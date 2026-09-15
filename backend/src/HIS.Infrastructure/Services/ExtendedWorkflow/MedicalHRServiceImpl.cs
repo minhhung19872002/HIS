@@ -46,8 +46,18 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
             entity = await _context.MedicalStaffs.FindAsync(dto.Id.Value)
                 ?? throw new KeyNotFoundException("Không tìm thấy nhân viên");
         }
-        if (entity == null) { entity = new MedicalStaff { Id = Guid.NewGuid(), StaffCode = CodeGenerator.Timestamp("STF"), Status = "Active", CreatedAt = DateTime.Now }; _context.MedicalStaffs.Add(entity); }
-        entity.FullName = dto.FullName; entity.StaffType = dto.StaffType ?? "Other"; entity.PrimaryDepartmentId = dto.DepartmentId; entity.LicenseNumber = dto.PracticeLicenseNumber; entity.Specialty = dto.Specialty;
+        if (dto.DepartmentId is Guid deptId && deptId != Guid.Empty && !await _context.Departments.AnyAsync(d => d.Id == deptId))
+            throw new KeyNotFoundException("Không tìm thấy khoa/phòng");
+        // The staff code typed in the v2 form was discarded (always replaced by a generated STF-… code).
+        var requestedCode = (dto.StaffCode ?? dto.EmployeeCode)?.Trim();
+        if (!string.IsNullOrEmpty(requestedCode)
+            && await _context.MedicalStaffs.AnyAsync(s => s.StaffCode == requestedCode && s.Id != (dto.Id ?? Guid.Empty)))
+            throw new InvalidOperationException($"Mã nhân viên {requestedCode} đã tồn tại");
+        if (entity == null) { entity = new MedicalStaff { Id = Guid.NewGuid(), StaffCode = string.IsNullOrEmpty(requestedCode) ? CodeGenerator.Timestamp("STF") : requestedCode, Status = "Active", CreatedAt = DateTime.Now }; _context.MedicalStaffs.Add(entity); }
+        else if (!string.IsNullOrEmpty(requestedCode)) entity.StaffCode = requestedCode;
+        entity.FullName = dto.FullName; entity.StaffType = dto.StaffType ?? "Other";
+        if (dto.DepartmentId is Guid newDept && newDept != Guid.Empty) entity.PrimaryDepartmentId = newDept;
+        entity.LicenseNumber = dto.PracticeLicenseNumber ?? entity.LicenseNumber; entity.Specialty = dto.Specialty;
         // Previously accepted but never persisted (license expiry drives the expiring-license alerts).
         entity.LicenseIssueDate = dto.LicenseIssueDate; entity.LicenseExpiryDate = dto.LicenseExpiryDate;
         entity.LicenseIssuedBy = dto.IssuingAuthority ?? entity.LicenseIssuedBy;
@@ -166,6 +176,11 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
         }).ToList();
     }
 
+    // A shift whose end time is not after its start time runs past midnight into the next day.
+    private static DateTime ShiftStart(DateTime date, TimeSpan start) => date.Date + start;
+    private static DateTime ShiftEnd(DateTime date, TimeSpan start, TimeSpan end)
+        => date.Date + end + (end <= start ? TimeSpan.FromDays(1) : TimeSpan.Zero);
+
     private static string LocalizeShiftName(string shiftType) => shiftType switch
     {
         "Morning" => "Ca sáng",
@@ -200,12 +215,35 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
             if (unknown.Count > 0)
                 throw new KeyNotFoundException($"Không tìm thấy nhân viên: {string.Join(", ", unknown)}");
         }
+        // Same person on two overlapping shifts (inside this payload, or already rostered in another
+        // department's roster) used to be accepted.
+        var planned = new List<(Guid StaffId, DateTime Start, DateTime End)>();
+        if (staffIds.Count > 0)
+        {
+            var monthStart = new DateTime(dto.Year, dto.Month, 1);
+            var existing = await _context.DutyShifts.AsNoTracking()
+                .Where(x => staffIds.Contains(x.StaffId) && x.Status != "Cancelled"
+                    && x.ShiftDate >= monthStart.AddDays(-1) && x.ShiftDate < monthStart.AddMonths(1).AddDays(1))
+                .Select(x => new { x.StaffId, x.ShiftDate, x.StartTime, x.EndTime })
+                .ToListAsync();
+            planned.AddRange(existing.Select(x => (x.StaffId, ShiftStart(x.ShiftDate, x.StartTime), ShiftEnd(x.ShiftDate, x.StartTime, x.EndTime))));
+        }
         foreach (var s in shifts)
         {
             if (s.ShiftDate.Year != dto.Year || s.ShiftDate.Month != dto.Month)
                 throw new ArgumentException($"Ca trực ngày {s.ShiftDate:dd/MM/yyyy} không thuộc tháng {dto.Month}/{dto.Year}.");
+            if (string.IsNullOrWhiteSpace(s.ShiftType))
+                throw new ArgumentException("Loại ca trực là bắt buộc.");
+            if (s.StartTime == s.EndTime || s.StartTime < TimeSpan.Zero || s.StartTime >= TimeSpan.FromDays(1)
+                || s.EndTime < TimeSpan.Zero || s.EndTime >= TimeSpan.FromDays(1))
+                throw new ArgumentException($"Giờ ca trực ngày {s.ShiftDate:dd/MM/yyyy} không hợp lệ.");
+            var start = ShiftStart(s.ShiftDate, s.StartTime);
+            var end = ShiftEnd(s.ShiftDate, s.StartTime, s.EndTime);
             foreach (var staffId in (s.AssignedStaffIds ?? new List<Guid>()).Distinct())
             {
+                if (planned.Any(p => p.StaffId == staffId && p.Start < end && start < p.End))
+                    throw new InvalidOperationException($"Nhân viên {staffId} đã có ca trực trùng giờ ngày {s.ShiftDate:dd/MM/yyyy}.");
+                planned.Add((staffId, start, end));
                 _context.DutyShifts.Add(new DutyShift
                 {
                     Id = Guid.NewGuid(), DutyRosterId = entity.Id, StaffId = staffId, ShiftDate = s.ShiftDate.Date,
@@ -220,8 +258,11 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
 
     public async Task<DutyRosterDto> PublishDutyRosterAsync(Guid rosterId)
     {
-        var e = await _context.DutyRosters.FindAsync(rosterId);
-        if (e == null) return null!;
+        var e = await _context.DutyRosters.FindAsync(rosterId)
+            ?? throw new KeyNotFoundException("Không tìm thấy lịch trực");
+        // Only a Draft roster can be published (re-publishing overwrote PublishedAt; a Locked roster was reopened).
+        if (!string.Equals(e.Status, "Draft", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"Lịch trực đang ở trạng thái {e.Status} — chỉ lịch nháp mới được công bố.");
         e.Status = "Published"; e.PublishedAt = DateTime.Now;
         await _context.SaveChangesAsync();
         return await GetDutyRosterAsync(e.DepartmentId, e.Year, e.Month);
@@ -239,69 +280,98 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
     public async Task<CopyRosterResultDto> CopyRosterWeekAsync(CopyRosterWeekDto dto, Guid userId)
     {
         var sourceStart = dto.SourceWeekStart.Date;
-        var sourceEnd = sourceStart.AddDays(6);
+        var sourceEndExcl = sourceStart.AddDays(7);
         var targetStart = dto.TargetWeekStart.Date;
         var diff = (targetStart - sourceStart).Days;
+        // Overlapping source/target weeks would copy shifts onto themselves (and overwrite could delete sources).
+        if (Math.Abs(diff) < 7)
+            throw new ArgumentException("Tuần đích phải cách tuần nguồn ít nhất 7 ngày.");
+        // The v2 HR page sends no department (whole hospital); a Guid DepartmentId made that a 400 on every call.
+        Guid? departmentId = dto.DepartmentId is Guid d && d != Guid.Empty ? d : null;
 
-        // Lấy ca trực của khoa trong tuần nguồn
-        var sourceRosters = await _context.DutyRosters
-            .Where(r => r.DepartmentId == dto.DepartmentId
-                     && !r.IsDeleted
-                     && ((r.Year == sourceStart.Year && r.Month == sourceStart.Month)
-                      || (r.Year == sourceEnd.Year && r.Month == sourceEnd.Month)))
-            .ToListAsync();
-
-        var rosterIds = sourceRosters.Select(r => r.Id).ToList();
-        var sourceShifts = await _context.DutyShifts
-            .Where(s => rosterIds.Contains(s.DutyRosterId)
-                     && s.ShiftDate >= sourceStart && s.ShiftDate <= sourceEnd
-                     && !s.IsDeleted)
+        // Ca trực trong tuần nguồn (1 khoa, hoặc toàn viện khi không truyền khoa)
+        var sourceShifts = await _context.DutyShifts.AsNoTracking()
+            .Include(s => s.DutyRoster)
+            .Where(s => s.ShiftDate >= sourceStart && s.ShiftDate < sourceEndExcl
+                     && s.Status != "Cancelled"
+                     && s.DutyRoster != null
+                     && (departmentId == null || s.DutyRoster.DepartmentId == departmentId))
+            .OrderBy(s => s.ShiftDate).ThenBy(s => s.StartTime)
             .ToListAsync();
 
         if (!sourceShifts.Any())
             return new CopyRosterResultDto { TotalShifts = 0, CopiedShifts = 0, SkippedShifts = 0, Message = "Không có ca trực trong tuần nguồn" };
 
-        // Lấy hoặc tạo DutyRoster cho tuần đích
-        var targetRoster = await _context.DutyRosters
-            .FirstOrDefaultAsync(r => r.DepartmentId == dto.DepartmentId
-                                   && r.Year == targetStart.Year
-                                   && r.Month == targetStart.Month
-                                   && !r.IsDeleted);
-        if (targetRoster == null)
-        {
-            targetRoster = new DutyRoster
-            {
-                Id = Guid.NewGuid(),
-                DepartmentId = dto.DepartmentId,
-                Year = targetStart.Year,
-                Month = targetStart.Month,
-                Status = "Draft",
-                CreatedById = userId,
-                CreatedAt = DateTime.UtcNow
-            };
-            _context.DutyRosters.Add(targetRoster);
-        }
-
-        // #195: nạp 1 lần các ca đã có của bảng đích thay vì 1 query/ca nguồn. ShiftType là
-        // nvarchar nên SQL so CI_AS (không phân biệt hoa/thường) — chuẩn hoá khoá để so trong bộ
-        // nhớ y như vậy, không thì 'morning' và 'Morning' bị coi là 2 ca khác nhau.
+        // #195: nạp 1 lần các ca đã có của các nhân viên quanh tuần đích (mọi khoa) thay vì 1 query/ca nguồn.
+        // ShiftType là nvarchar nên SQL so CI_AS — chuẩn hoá khoá để so trong bộ nhớ y như vậy.
         static string ShiftKey(string? shiftType) => (shiftType ?? string.Empty).Trim().ToUpperInvariant();
-        var existingShiftKeys = (await _context.DutyShifts
-                .Where(s => s.DutyRosterId == targetRoster.Id && !s.IsDeleted)
-                .Select(s => new { s.StaffId, s.ShiftDate, s.ShiftType })
-                .ToListAsync())
-            .Select(s => (s.StaffId, s.ShiftDate.Date, ShiftKey(s.ShiftType)))
-            .ToHashSet();
+        var staffIds = sourceShifts.Select(s => s.StaffId).Distinct().ToList();
+        var targetEndExcl = targetStart.AddDays(7);
+        var existingTarget = await _context.DutyShifts
+            .Include(s => s.DutyRoster)
+            .Where(s => staffIds.Contains(s.StaffId) && s.Status != "Cancelled"
+                     && s.ShiftDate >= targetStart.AddDays(-1) && s.ShiftDate < targetEndExcl.AddDays(1))
+            .ToListAsync();
+
+        // Each copied shift goes into its own month's roster (a week spanning two months used to put every
+        // shift into the roster of the target week's first day).
+        var rosterCache = new Dictionary<(Guid DepartmentId, int Year, int Month), DutyRoster>();
+        async Task<DutyRoster> GetOrCreateRosterAsync(Guid deptId, DateTime date)
+        {
+            var key = (deptId, date.Year, date.Month);
+            if (rosterCache.TryGetValue(key, out var cached)) return cached;
+            var roster = await _context.DutyRosters
+                .FirstOrDefaultAsync(r => r.DepartmentId == deptId && r.Year == date.Year && r.Month == date.Month && !r.IsDeleted);
+            if (roster == null)
+            {
+                roster = new DutyRoster
+                {
+                    Id = Guid.NewGuid(),
+                    DepartmentId = deptId,
+                    Year = date.Year,
+                    Month = date.Month,
+                    Status = "Draft",
+                    CreatedById = userId,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.DutyRosters.Add(roster);
+            }
+            rosterCache[key] = roster;
+            return roster;
+        }
 
         int copied = 0, skipped = 0;
         foreach (var shift in sourceShifts)
         {
-            var newDate = shift.ShiftDate.AddDays(diff);
+            var newDate = shift.ShiftDate.Date.AddDays(diff);
+            var roster = await GetOrCreateRosterAsync(shift.DutyRoster!.DepartmentId, newDate);
+            if (string.Equals(roster.Status, "Locked", StringComparison.OrdinalIgnoreCase))
+            {
+                skipped++;
+                continue;
+            }
 
             // Kiểm tra trùng (cùng staff + ngày + loại ca)
-            var exists = existingShiftKeys.Contains((shift.StaffId, newDate.Date, ShiftKey(shift.ShiftType)));
+            var same = existingTarget
+                .Where(e => e.StaffId == shift.StaffId && e.ShiftDate.Date == newDate && ShiftKey(e.ShiftType) == ShiftKey(shift.ShiftType))
+                .ToList();
+            if (same.Count > 0 && (!dto.OverwriteExisting || same.Any(e => string.Equals(e.DutyRoster?.Status, "Locked", StringComparison.OrdinalIgnoreCase))))
+            {
+                skipped++;
+                continue;
+            }
+            // Overwrite = replace the matching shift (it used to add a second identical shift next to it).
+            foreach (var old in same)
+            {
+                old.IsDeleted = true;
+                existingTarget.Remove(old);
+            }
 
-            if (exists && !dto.OverwriteExisting)
+            // Same person already on another overlapping shift that day (any department) → do not double-book.
+            var start = ShiftStart(newDate, shift.StartTime);
+            var end = ShiftEnd(newDate, shift.StartTime, shift.EndTime);
+            if (existingTarget.Any(e => e.StaffId == shift.StaffId
+                    && ShiftStart(e.ShiftDate, e.StartTime) < end && start < ShiftEnd(e.ShiftDate, e.StartTime, e.EndTime)))
             {
                 skipped++;
                 continue;
@@ -310,7 +380,7 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
             var newShift = new DutyShift
             {
                 Id = Guid.NewGuid(),
-                DutyRosterId = targetRoster.Id,
+                DutyRosterId = roster.Id,
                 StaffId = shift.StaffId,
                 ShiftDate = newDate,
                 ShiftType = shift.ShiftType,
@@ -320,6 +390,7 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
                 CreatedAt = DateTime.UtcNow
             };
             _context.DutyShifts.Add(newShift);
+            existingTarget.Add(newShift);
             copied++;
         }
 
@@ -331,6 +402,7 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
             CopiedShifts = copied,
             SkippedShifts = skipped,
             Message = $"Đã sao chép {copied}/{sourceShifts.Count} ca trực sang tuần {targetStart:dd/MM/yyyy}"
+                + (skipped > 0 ? $" (bỏ qua {skipped} ca trùng/khóa)" : string.Empty)
         };
     }
 
@@ -387,6 +459,37 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
         _context.CMERecords.Add(entity);
         await _context.SaveChangesAsync();
         return new CMERecordDto { Id = entity.Id, StaffId = staffId, CreditsEarned = creditsEarned, CertificateNumber = certificateNumber };
+    }
+
+    public async Task<CMERecordDto> CreateCMERecordAsync(CreateCMERecordDto dto)
+    {
+        // The v2 HR "Đăng ký đào tạo" modal posted to /medicalhr/cme, which did not exist (404 on every save).
+        if (string.IsNullOrWhiteSpace(dto.ActivityName))
+            throw new ArgumentException("Tên hoạt động đào tạo là bắt buộc", nameof(dto.ActivityName));
+        if (dto.Credits < 0 || dto.Credits > 1000)
+            throw new ArgumentException("Số tiết CME không hợp lệ", nameof(dto.Credits));
+        if (dto.StartDate == default || dto.StartDate.Date > DateTime.Today.AddYears(1))
+            throw new ArgumentException("Ngày đào tạo không hợp lệ", nameof(dto.StartDate));
+        var staff = await _context.MedicalStaffs.AsNoTracking().FirstOrDefaultAsync(s => s.Id == dto.StaffId)
+            ?? throw new KeyNotFoundException("Không tìm thấy nhân viên");
+        var credits = (int)Math.Round(dto.Credits, MidpointRounding.AwayFromZero);
+        var entity = new CMERecord
+        {
+            Id = Guid.NewGuid(), StaffId = staff.Id,
+            ActivityName = dto.ActivityName.Trim(),
+            ActivityType = string.IsNullOrWhiteSpace(dto.ActivityType) ? "Workshop" : dto.ActivityType,
+            ActivityDate = dto.StartDate.Date, CreditHours = credits,
+            Provider = dto.Provider, CertificateNumber = dto.CertificateNumber,
+            IsVerified = false, CreatedAt = DateTime.Now
+        };
+        _context.CMERecords.Add(entity);
+        await _context.SaveChangesAsync();
+        return new CMERecordDto
+        {
+            Id = entity.Id, StaffId = staff.Id, StaffName = staff.FullName, CourseName = entity.ActivityName,
+            CompletionDate = entity.ActivityDate, CompletedAt = entity.ActivityDate, CreditsEarned = credits,
+            CertificateNumber = entity.CertificateNumber, IsVerified = false
+        };
     }
 
     public async Task<List<CMESummaryDto>> GetCMENonCompliantStaffAsync()
@@ -451,12 +554,44 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
     {
         try
         {
+            // HR v2 KPI strip + system ShiftBoard read activeStaff/doctors/nurses/technicians/onLeave/
+            // cmeNonCompliant/onDutyToday — those were never filled, so every KPI showed 0 (e.g. "CME chưa đạt: 0"
+            // while the CME tab listed non-compliant staff).
+            var today = DateTime.Today;
+            var byTypeStatus = await _context.MedicalStaffs.AsNoTracking()
+                .GroupBy(x => new { x.StaffType, x.Status })
+                .Select(g => new { g.Key.StaffType, g.Key.Status, Count = g.Count() })
+                .ToListAsync();
+            int Active(string type) => byTypeStatus.Where(x => x.Status == "Active" && x.StaffType == type).Sum(x => x.Count);
+            var activeStaff = byTypeStatus.Where(x => x.Status == "Active").Sum(x => x.Count);
+            var activeDoctors = Active("Doctor");
+            var activeNurses = Active("Nurse");
+            var activeTechs = Active("Technician");
+            var activePharm = Active("Pharmacist");
+            var activeLicensed = _context.MedicalStaffs.Where(x => x.Status == "Active" && x.LicenseExpiryDate != null);
+            var expired = await activeLicensed.CountAsync(x => x.LicenseExpiryDate < today);
+            var expiringSoon = await activeLicensed.CountAsync(x => x.LicenseExpiryDate >= today && x.LicenseExpiryDate <= today.AddDays(30));
+            var cmeNonCompliant = (await GetCMENonCompliantStaffAsync()).Count;
+            var onDutyToday = await _context.DutyShifts.AsNoTracking()
+                .Where(s => s.ShiftDate >= today && s.ShiftDate < today.AddDays(1) && s.Status != "Cancelled")
+                .Select(s => s.StaffId).Distinct().CountAsync();
             return new MedicalHRDashboardDto
             {
-                TotalStaff = await _context.MedicalStaffs.CountAsync(),
-                ActiveDoctors = await _context.MedicalStaffs.CountAsync(x => x.StaffType == "Doctor" && x.Status == "Active"),
-                ActiveNurses = await _context.MedicalStaffs.CountAsync(x => x.StaffType == "Nurse" && x.Status == "Active"),
-                ExpiringLicenses30Days = await _context.MedicalStaffs.CountAsync(x => x.LicenseExpiryDate != null && x.LicenseExpiryDate <= DateTime.Today.AddDays(30))
+                Date = today,
+                TotalStaff = byTypeStatus.Sum(x => x.Count),
+                ActiveStaff = activeStaff,
+                Doctors = activeDoctors, Nurses = activeNurses, Technicians = activeTechs, Pharmacists = activePharm,
+                OtherStaff = activeStaff - activeDoctors - activeNurses - activeTechs - activePharm,
+                ActiveDoctors = activeDoctors,
+                ActiveNurses = activeNurses,
+                OnLeave = byTypeStatus.Where(x => x.Status == "OnLeave").Sum(x => x.Count),
+                // Label is "sắp hết hạn CCHN (30 ngày)": already-expired licences are counted too — they are the urgent ones.
+                ExpiringLicenses30Days = expiringSoon + expired,
+                ExpiringSoon = expiringSoon,
+                Expired = expired,
+                CMENonCompliant = cmeNonCompliant,
+                CMENotCompliant = cmeNonCompliant,
+                OnDutyToday = onDutyToday,
             };
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingTable(ex))

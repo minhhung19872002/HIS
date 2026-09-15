@@ -117,13 +117,53 @@ public class ImmunizationService : IImmunizationService
         };
     }
 
+    /// <summary>
+    /// Shared guard for recording an administered dose (also used by PublicHealthService):
+    /// real patient, dose number ≥ 1, not in the future, next-dose date after this dose,
+    /// no second record of the same dose, and dose N strictly after dose N-1.
+    /// </summary>
+    internal static async Task ValidateAdministeredDoseAsync(HISDbContext context, Guid patientId, string? vaccineName,
+        int doseNumber, DateTime vaccinationDate, DateTime? nextDoseDate)
+    {
+        if (patientId == Guid.Empty || !await context.Patients.AnyAsync(p => p.Id == patientId && !p.IsDeleted))
+            throw new ArgumentException("Chưa chọn bệnh nhân hợp lệ.");
+        if (string.IsNullOrWhiteSpace(vaccineName))
+            throw new ArgumentException("Chưa nhập tên vắc-xin.");
+        if (doseNumber < 1)
+            throw new ArgumentException("Mũi tiêm phải từ 1 trở lên.");
+        if (vaccinationDate == default)
+            throw new ArgumentException("Chưa nhập ngày tiêm.");
+        if (vaccinationDate.Date > HIS.Core.Common.VnTime.TodayVn)
+            throw new ArgumentException("Ngày tiêm không được ở tương lai (mũi đã tiêm).");
+        if (nextDoseDate.HasValue && nextDoseDate.Value.Date <= vaccinationDate.Date)
+            throw new ArgumentException("Ngày hẹn mũi tiếp phải sau ngày tiêm.");
+
+        var name = vaccineName.Trim();
+        var sameVaccine = await context.VaccinationRecords
+            .Where(v => v.PatientId == patientId && !v.IsDeleted && v.Status == 1 && v.VaccineName == name)
+            .Select(v => new { v.DoseNumber, v.VaccinationDate })
+            .ToListAsync();
+        if (sameVaccine.Any(v => v.DoseNumber == doseNumber))
+            throw new InvalidOperationException($"Bệnh nhân đã được ghi nhận tiêm mũi {doseNumber} vắc-xin {name}.");
+        var prev = sameVaccine.Where(v => v.DoseNumber < doseNumber).OrderByDescending(v => v.DoseNumber).FirstOrDefault();
+        if (prev != null && vaccinationDate.Date <= prev.VaccinationDate.Date)
+            throw new InvalidOperationException($"Mũi {doseNumber} phải tiêm sau mũi {prev.DoseNumber} ({prev.VaccinationDate:dd/MM/yyyy}).");
+        var later = sameVaccine.Where(v => v.DoseNumber > doseNumber).OrderBy(v => v.DoseNumber).FirstOrDefault();
+        if (later != null && vaccinationDate.Date >= later.VaccinationDate.Date)
+            throw new InvalidOperationException($"Mũi {doseNumber} phải tiêm trước mũi {later.DoseNumber} ({later.VaccinationDate:dd/MM/yyyy}).");
+    }
+
     public async Task<ImmunizationListDto> AdministerAsync(CreateImmunizationDto dto)
     {
+        await ValidateAdministeredDoseAsync(_context, dto.PatientId, dto.VaccineName, dto.DoseNumber, dto.VaccinationDate, dto.NextDoseDate);
+        if (dto.DoseMl.HasValue && dto.DoseMl.Value <= 0)
+            throw new ArgumentException("Liều (ml) phải lớn hơn 0.");
+
         var entity = new VaccinationRecord
         {
             Id = Guid.NewGuid(),
             PatientId = dto.PatientId,
-            VaccineName = dto.VaccineName,
+            VaccineName = dto.VaccineName.Trim(),
             VaccineCode = dto.VaccineCode,
             LotNumber = dto.LotNumber,
             Manufacturer = dto.Manufacturer,

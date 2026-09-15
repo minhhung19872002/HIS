@@ -12,7 +12,12 @@ namespace HIS.Infrastructure.Services;
 public partial class ClinicalNutritionServiceImpl : IClinicalNutritionService
 {
     private readonly HISDbContext _context;
-    public ClinicalNutritionServiceImpl(HISDbContext context) => _context = context;
+    private readonly HIS.Application.Common.ICurrentUserAccessor? _currentUser;
+    public ClinicalNutritionServiceImpl(HISDbContext context, HIS.Application.Common.ICurrentUserAccessor? currentUser = null)
+    {
+        _context = context;
+        _currentUser = currentUser;
+    }
 
     public async Task<List<NutritionScreeningDto>> GetPendingScreeningsAsync(Guid? departmentId = null)
     {
@@ -26,18 +31,31 @@ public partial class ClinicalNutritionServiceImpl : IClinicalNutritionService
 
     public async Task<NutritionScreeningDto> GetScreeningByAdmissionAsync(Guid admissionId)
     {
-        var e = await _context.NutritionScreenings.Include(x => x.Admission).ThenInclude(x => x!.Patient).FirstOrDefaultAsync(x => x.AdmissionId == admissionId);
+        // QA-R2: latest screening first (re-screening used to return an arbitrary older row).
+        var e = await _context.NutritionScreenings.Include(x => x.Admission).ThenInclude(x => x!.Patient)
+            .Where(x => x.AdmissionId == admissionId).OrderByDescending(x => x.ScreeningDate).FirstOrDefaultAsync();
         if (e == null) return null!;
         return MapToNutritionScreeningDto(e);
     }
 
     public async Task<NutritionScreeningDto> PerformScreeningAsync(PerformNutritionScreeningDto dto)
     {
+        // QA-R2: unknown admission → 404 (was an orphan row); Height=0 (form has no anthropometrics) → BMI 0
+        // instead of DivideByZeroException 500; PatientId/ScreenedBy/SGA/Notes were silently dropped.
+        var admission = await _context.Admissions.AsNoTracking().FirstOrDefaultAsync(a => a.Id == dto.AdmissionId)
+            ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ nhập viện");
+        if (dto.NutritionScore < 0 || dto.DiseaseScore < 0 || dto.Weight < 0 || dto.Height < 0)
+            throw new ArgumentException("Điểm sàng lọc / cân nặng / chiều cao không được âm");
+        var total = dto.NutritionScore + dto.DiseaseScore;
         var entity = new NutritionScreening
         {
-            Id = Guid.NewGuid(), AdmissionId = dto.AdmissionId, Weight = dto.Weight, Height = dto.Height,
-            BMI = dto.Weight / (dto.Height * dto.Height / 10000), NutritionScore = dto.NutritionScore, DiseaseScore = dto.DiseaseScore,
-            TotalScore = dto.NutritionScore + dto.DiseaseScore, RiskLevel = (dto.NutritionScore + dto.DiseaseScore) >= 3 ? "High" : "Low",
+            Id = Guid.NewGuid(), AdmissionId = dto.AdmissionId, PatientId = admission.PatientId,
+            ScreenedById = _currentUser?.UserGuid ?? Guid.Empty,
+            Weight = dto.Weight, Height = dto.Height,
+            BMI = dto.Height > 0 ? Math.Round(dto.Weight / (dto.Height * dto.Height / 10000), 2) : 0,
+            NutritionScore = dto.NutritionScore, DiseaseScore = dto.DiseaseScore,
+            TotalScore = total, RiskLevel = total >= 3 ? "High" : total == 2 ? "Medium" : "Low",
+            RequiresIntervention = total >= 3, SGACategory = dto.SGACategory, Notes = dto.Notes,
             ScreeningDate = DateTime.Now, CreatedAt = DateTime.Now
         };
         _context.NutritionScreenings.Add(entity);
@@ -131,6 +149,7 @@ public partial class ClinicalNutritionServiceImpl : IClinicalNutritionService
         ProteinLevel = e.TargetProtein,
         Allergies = SplitCsv(e.Allergies),
         Dislikes = SplitCsv(e.FoodPreferences),
+        Restrictions = SplitCsv(e.Restrictions),
         SpecialInstructions = e.SpecialInstructions ?? "",
         FeedingRoute = "Oral",
         Status = e.Status ?? "",
@@ -143,12 +162,45 @@ public partial class ClinicalNutritionServiceImpl : IClinicalNutritionService
     private static List<string> SplitCsv(string? s)
         => string.IsNullOrWhiteSpace(s) ? new List<string>() : s.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).ToList();
 
+    private static string? JoinCsv(List<string>? items)
+    {
+        var parts = (items ?? new List<string>()).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).ToList();
+        return parts.Count == 0 ? null : string.Join(", ", parts);
+    }
+
+    /// <summary>QA-R2: shared input guards for create/update diet order.</summary>
+    private async Task ValidateDietOrderAsync(CreateDietOrderDto dto)
+    {
+        if (dto.DietTypeId == Guid.Empty || !await _context.DietTypes.AnyAsync(d => d.Id == dto.DietTypeId))
+            throw new ArgumentException("Chế độ ăn không hợp lệ");
+        if (dto.StartDate == default)
+            throw new ArgumentException("Thiếu ngày bắt đầu");
+        if (dto.EndDate.HasValue && dto.EndDate.Value.Date < dto.StartDate.Date)
+            throw new ArgumentException("Ngày kết thúc không được trước ngày bắt đầu");
+        if (dto.CalorieLevel < 0 || dto.ProteinLevel < 0 || dto.FluidRestriction < 0 || dto.SodiumRestriction < 0)
+            throw new ArgumentException("Năng lượng / protein / dịch không được âm");
+    }
+
     public async Task<DietOrderDto> CreateDietOrderAsync(CreateDietOrderDto dto)
     {
+        // QA-R2: PatientId/OrderedById stayed Guid.Empty → the required OrderedBy/DietType includes became INNER
+        // JOINs so the new order was invisible (POST 204, list never showed it) and meal-plan generation hit the
+        // MealPlanItems.PatientId FK. Texture/allergies/instructions were silently dropped; no admission check.
+        var admission = await _context.Admissions.AsNoTracking().FirstOrDefaultAsync(a => a.Id == dto.AdmissionId)
+            ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ nhập viện");
+        await ValidateDietOrderAsync(dto);
+        // A second Active order for the same admission would double every generated meal (and its charge).
+        if (await _context.DietOrders.AnyAsync(o => o.AdmissionId == dto.AdmissionId && o.Status == "Active"))
+            throw new InvalidOperationException("Bệnh nhân đã có chế độ ăn đang hiệu lực — hãy sửa hoặc ngưng đơn hiện tại");
+        var orderedById = _currentUser?.UserGuid
+            ?? throw new InvalidOperationException("Không xác định được người chỉ định (chưa đăng nhập).");
         var entity = new DietOrder
         {
-            Id = Guid.NewGuid(), OrderCode = CodeGenerator.Timestamp("DIET"), AdmissionId = dto.AdmissionId, DietTypeId = dto.DietTypeId,
-            TargetCalories = dto.CalorieLevel, TargetProtein = dto.ProteinLevel, Status = "Active", StartDate = dto.StartDate, CreatedAt = DateTime.Now
+            Id = Guid.NewGuid(), OrderCode = CodeGenerator.Timestamp("DIET"), AdmissionId = dto.AdmissionId, PatientId = admission.PatientId,
+            DietTypeId = dto.DietTypeId, OrderedById = orderedById,
+            TargetCalories = dto.CalorieLevel, TargetProtein = dto.ProteinLevel, Status = "Active", StartDate = dto.StartDate, EndDate = dto.EndDate,
+            TextureModification = dto.Texture, Allergies = JoinCsv(dto.Allergies), FoodPreferences = JoinCsv(dto.Dislikes),
+            Restrictions = JoinCsv(dto.Restrictions), SpecialInstructions = dto.SpecialInstructions, CreatedAt = DateTime.Now
         };
         _context.DietOrders.Add(entity);
         await _context.SaveChangesAsync();
@@ -157,17 +209,25 @@ public partial class ClinicalNutritionServiceImpl : IClinicalNutritionService
 
     public async Task<DietOrderDto> UpdateDietOrderAsync(Guid id, CreateDietOrderDto dto)
     {
-        var e = await _context.DietOrders.FindAsync(id);
-        if (e == null) return null!;
+        var e = await _context.DietOrders.FindAsync(id)
+            ?? throw new KeyNotFoundException("Không tìm thấy đơn dinh dưỡng");
+        if (e.Status != "Active")
+            throw new InvalidOperationException("Chỉ sửa được đơn dinh dưỡng đang hiệu lực");
+        await ValidateDietOrderAsync(dto);
         e.DietTypeId = dto.DietTypeId; e.TargetCalories = dto.CalorieLevel; e.TargetProtein = dto.ProteinLevel;
+        e.StartDate = dto.StartDate; e.EndDate = dto.EndDate; e.TextureModification = dto.Texture;
+        e.Allergies = JoinCsv(dto.Allergies); e.FoodPreferences = JoinCsv(dto.Dislikes); e.Restrictions = JoinCsv(dto.Restrictions);
+        e.SpecialInstructions = dto.SpecialInstructions; e.UpdatedAt = DateTime.Now;
         await _context.SaveChangesAsync();
         return await GetDietOrderAsync(id);
     }
 
     public async Task<bool> DiscontinueDietOrderAsync(Guid id, string reason)
     {
-        var e = await _context.DietOrders.FindAsync(id);
-        if (e == null) return false;
+        var e = await _context.DietOrders.FindAsync(id)
+            ?? throw new KeyNotFoundException("Không tìm thấy đơn dinh dưỡng");
+        if (e.Status != "Active")
+            throw new InvalidOperationException("Đơn dinh dưỡng đã ngưng/kết thúc");
         e.Status = "Discontinued"; e.EndDate = DateTime.Now; e.DiscontinuationReason = reason;
         await _context.SaveChangesAsync();
         return true;
@@ -313,6 +373,9 @@ public partial class ClinicalNutritionServiceImpl : IClinicalNutritionService
             return new NutritionDashboardDto
             {
                 Date = d,
+                // QA-R2: was never computed → v2 KPI "Chờ sàng lọc" always showed 0 (dashboard value wins over the local count).
+                PendingScreening = await _context.Admissions.CountAsync(a => a.Status == 0
+                    && !_context.NutritionScreenings.Any(s => s.AdmissionId == a.Id)),
                 HighRiskCount = await _context.NutritionScreenings.CountAsync(x => x.RiskLevel == "High"),
                 ActiveDietOrders = await _context.DietOrders.CountAsync(x => x.Status == "Active")
             };
@@ -327,6 +390,7 @@ public partial class ClinicalNutritionServiceImpl : IClinicalNutritionService
     {
         Id = e.Id, AdmissionId = e.AdmissionId, PatientId = e.Admission?.PatientId ?? Guid.Empty,
         PatientName = e.Admission?.Patient?.FullName ?? "", Weight = e.Weight, Height = e.Height, BMI = e.BMI,
-        NutritionScore = e.NutritionScore, DiseaseScore = e.DiseaseScore, TotalScore = e.TotalScore, RiskLevel = e.RiskLevel
+        NutritionScore = e.NutritionScore, DiseaseScore = e.DiseaseScore, TotalScore = e.TotalScore, RiskLevel = e.RiskLevel,
+        RequiresIntervention = e.RequiresIntervention, SGACategory = e.SGACategory ?? "", ScreeningDate = e.ScreeningDate
     };
 }

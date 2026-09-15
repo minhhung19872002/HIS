@@ -27,6 +27,49 @@ public class MethadoneTreatmentService : IMethadoneTreatmentService
         { 4, "Bỏ trị" }
     };
 
+    /// <summary>Sanity ceiling against keying errors (e.g. 5000 instead of 50). Not a clinical titration limit.</summary>
+    internal const double MaxDoseMg = 300;
+
+    internal static void ValidateDoseMg(double doseMg, string label)
+    {
+        if (double.IsNaN(doseMg) || doseMg <= 0 || doseMg > MaxDoseMg)
+            throw new ArgumentException($"{label} phải lớn hơn 0 và không vượt quá {MaxDoseMg} mg.");
+    }
+
+    private Task ValidateDosingAsync(MethadonePatient mp, DateTime dosingDate, double doseMg, bool missed)
+        => ValidateDosingAsync(_context, mp, dosingDate, doseMg, missed);
+
+    /// <summary>
+    /// Shared dispensing guard (also used by PublicHealthService): only active patients, a real dose,
+    /// no future/pre-enrollment date, and never a second dispensed dose on the same day (overdose risk).
+    /// </summary>
+    internal static async Task ValidateDosingAsync(HISDbContext context, MethadonePatient mp, DateTime dosingDate, double doseMg, bool missed, bool advanceAllowed = false)
+    {
+        if (mp.Status != 0)
+            throw new InvalidOperationException("Bệnh nhân không ở trạng thái đang điều trị — không thể ghi nhận liều.");
+        if (dosingDate == default)
+            throw new ArgumentException("Chưa nhập ngày cấp liều.");
+        var day = dosingDate.Date;
+        // Take-home / holiday doses are recorded ahead of the day they are taken.
+        if (day > HIS.Core.Common.VnTime.TodayVn && !advanceAllowed)
+            throw new ArgumentException("Ngày cấp liều không được ở tương lai.");
+        if (day < mp.EnrollmentDate.Date)
+            throw new ArgumentException("Ngày cấp liều trước ngày đăng ký điều trị.");
+        if (!missed)
+            ValidateDoseMg(doseMg, "Liều cấp");
+
+        var nextDay = day.AddDays(1);
+        var sameDay = await context.MethadoneDosingRecords
+            .Where(d => d.MethadonePatientId == mp.Id && !d.IsDeleted && d.DosingDate >= day && d.DosingDate < nextDay)
+            .Select(d => d.Status)
+            .ToListAsync();
+        // Only a second DISPENSED dose is blocked; recording refused/holiday after a dose stays possible.
+        if (!missed && sameDay.Contains(0))
+            throw new InvalidOperationException("Bệnh nhân đã được cấp liều trong ngày này — không cấp liều lần 2.");
+        if (missed && sameDay.Contains(1))
+            throw new InvalidOperationException("Đã ghi nhận bỏ liều cho ngày này.");
+    }
+
     public async Task<MethadonePagedResult> GetPatientsAsync(MethadoneSearchDto2 filter)
     {
         var query = _context.MethadonePatients
@@ -94,6 +137,15 @@ public class MethadoneTreatmentService : IMethadoneTreatmentService
         var patient = await _context.Patients.FirstOrDefaultAsync(p => p.Id == dto.PatientId && !p.IsDeleted)
             ?? throw new InvalidOperationException("Patient not found");
 
+        if (dto.EnrollmentDate == default)
+            throw new InvalidOperationException("Chưa nhập ngày đăng ký điều trị.");
+        if (dto.EnrollmentDate.Date > HIS.Core.Common.VnTime.TodayVn)
+            throw new InvalidOperationException("Ngày đăng ký không được ở tương lai.");
+        ValidateDoseMg(dto.CurrentDose, "Liều khởi đầu");
+        // A patient may only have one open (active/suspended) enrollment — a second one splits the dosing history.
+        if (await _context.MethadonePatients.AnyAsync(m => m.PatientId == dto.PatientId && !m.IsDeleted && (m.Status == 0 || m.Status == 1)))
+            throw new InvalidOperationException("Bệnh nhân đang có hồ sơ điều trị Methadone chưa kết thúc.");
+
         // Generate Methadone patient code
         var count = await _context.MethadonePatients.CountAsync() + 1;
         var code = $"MTD-{DateTime.Now:yyyy}-{count:D4}";
@@ -137,8 +189,10 @@ public class MethadoneTreatmentService : IMethadoneTreatmentService
 
     public async Task<DoseRecordDto2> RecordDoseAsync(CreateDoseRecordDto dto)
     {
-        var mp = await _context.MethadonePatients.FindAsync(dto.MethadonePatientId)
+        var mp = await _context.MethadonePatients.FirstOrDefaultAsync(m => m.Id == dto.MethadonePatientId && !m.IsDeleted)
             ?? throw new InvalidOperationException("Methadone patient not found");
+
+        await ValidateDosingAsync(mp, dto.DoseDate, dto.DoseMg, dto.MissedDose);
 
         var entity = new MethadoneDosingRecord
         {
@@ -160,7 +214,9 @@ public class MethadoneTreatmentService : IMethadoneTreatmentService
         // Update patient last dosing date and missed count
         if (!dto.MissedDose)
         {
-            mp.LastDosingDate = dto.DoseDate;
+            // A back-dated entry must not move "last dose" backwards.
+            if (!mp.LastDosingDate.HasValue || dto.DoseDate > mp.LastDosingDate.Value)
+                mp.LastDosingDate = dto.DoseDate;
         }
         else
         {
@@ -186,8 +242,12 @@ public class MethadoneTreatmentService : IMethadoneTreatmentService
 
     public async Task<ScreeningDto2> RecordUrineScreeningAsync(CreateScreeningDto dto)
     {
-        _ = await _context.MethadonePatients.FindAsync(dto.MethadonePatientId)
+        var mpUrine = await _context.MethadonePatients.FirstOrDefaultAsync(m => m.Id == dto.MethadonePatientId && !m.IsDeleted)
             ?? throw new InvalidOperationException("Methadone patient not found");
+        if (dto.ScreeningDate == default)
+            throw new ArgumentException("Chưa nhập ngày xét nghiệm.");
+        if (dto.ScreeningDate.Date > HIS.Core.Common.VnTime.TodayVn || dto.ScreeningDate.Date < mpUrine.EnrollmentDate.Date)
+            throw new ArgumentException("Ngày xét nghiệm không hợp lệ (tương lai hoặc trước ngày đăng ký).");
 
         // Determine overall result
         var results = new[] { dto.Morphine, dto.Amphetamine, dto.Methamphetamine, dto.THC, dto.Benzodiazepine };
@@ -276,6 +336,9 @@ public class MethadoneTreatmentService : IMethadoneTreatmentService
             .Include(m => m.Patient)
             .FirstOrDefaultAsync(m => m.Id == methadonePatientId && !m.IsDeleted)
             ?? throw new InvalidOperationException("Methadone patient not found");
+
+        if (!StatusNames.ContainsKey(dto.Status))
+            throw new ArgumentException("Trạng thái điều trị không hợp lệ (0-4).", nameof(dto.Status));
 
         mp.Status = dto.Status;
         if (!string.IsNullOrWhiteSpace(dto.Notes))

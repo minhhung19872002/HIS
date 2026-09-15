@@ -105,8 +105,19 @@ public class FoodSafetyService : IFoodSafetyService
         };
     }
 
+    // QA-R2: negative counts, hospitalized/deaths above the affected count and unknown severity were accepted.
+    private static void ValidateIncidentCounts(int exposed, int affected, int hospitalized, int deaths, int severity)
+    {
+        if (exposed < 0 || affected < 0 || hospitalized < 0 || deaths < 0)
+            throw new ArgumentException("Số người phơi nhiễm / ảnh hưởng / nhập viện / tử vong không được âm");
+        if (hospitalized > affected || deaths > affected)
+            throw new ArgumentException("Số nhập viện và tử vong không được lớn hơn số người bị ảnh hưởng");
+        if (severity is < 1 or > 4) throw new ArgumentException("Mức độ nghiêm trọng phải từ 1 đến 4");
+    }
+
     public async Task<FoodIncidentListDto> CreateIncidentAsync(FoodIncidentCreateDto dto)
     {
+        ValidateIncidentCounts(dto.EstimatedExposed, dto.AffectedCount, dto.HospitalizedCount, dto.DeathCount, dto.SeverityLevel);
         var reportNumber = dto.ReportNumber;
         if (string.IsNullOrEmpty(reportNumber))
         {
@@ -186,6 +197,8 @@ public class FoodSafetyService : IFoodSafetyService
         if (dto.Conclusion != null) entity.Conclusion = dto.Conclusion;
         if (dto.CorrectiveActions != null) entity.CorrectiveActions = dto.CorrectiveActions;
         if (dto.NotifiedAuthorities.HasValue) entity.NotifiedAuthorities = dto.NotifiedAuthorities.Value;
+        if (dto.InvestigationStatus is < 0 or > 3) throw new ArgumentException("Trạng thái điều tra không hợp lệ");
+        ValidateIncidentCounts(entity.EstimatedExposed, entity.AffectedCount, entity.HospitalizedCount, entity.DeathCount, entity.SeverityLevel);
 
         entity.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
@@ -385,6 +398,8 @@ public class FoodSafetyService : IFoodSafetyService
 
     public async Task<FoodInspectionListDto> CreateInspectionAsync(FoodInspectionCreateDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.EstablishmentName)) throw new ArgumentException("Tên cơ sở là bắt buộc");
+        if (dto.OverallScore is < 0 or > 100) throw new ArgumentException("Điểm tổng thể phải từ 0 đến 100");
         var entity = new FoodEstablishmentInspection
         {
             Id = Guid.NewGuid(),
@@ -427,6 +442,7 @@ public class FoodSafetyService : IFoodSafetyService
         var entity = await _context.FoodEstablishmentInspections.FindAsync(id)
             ?? throw new InvalidOperationException("Inspection not found");
 
+        if (dto.OverallScore is < 0 or > 100) throw new ArgumentException("Điểm tổng thể phải từ 0 đến 100");
         if (dto.EstablishmentName != null) entity.EstablishmentName = dto.EstablishmentName;
         if (dto.Address != null) entity.Address = dto.Address;
         if (dto.LicenseNumber != null) entity.LicenseNumber = dto.LicenseNumber;
@@ -478,7 +494,8 @@ public class FoodSafetyService : IFoodSafetyService
                 ScheduledCount = inspections.Count(i => i.Status == 0),
                 CompletedCount = inspections.Count(i => i.Status == 2),
                 FollowUpNeededCount = inspections.Count(i => i.Status == 3),
-                AverageScore = inspections.Count > 0 ? Math.Round(inspections.Average(i => i.OverallScore), 1) : 0,
+                // QA-R2: scheduled inspections (score 0, not yet graded) dragged the average down — average graded ones only.
+                AverageScore = inspections.Any(i => i.OverallScore > 0) ? Math.Round(inspections.Where(i => i.OverallScore > 0).Average(i => i.OverallScore), 1) : 0,
                 ByCompliance = byCompliance,
             };
         }

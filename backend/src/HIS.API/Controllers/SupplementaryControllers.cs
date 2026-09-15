@@ -129,23 +129,29 @@ public class ProcurementController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ProcurementDetailDto>> Create([FromBody] CreateProcurementDto dto)
     {
-        var result = await _service.CreateAsync(dto);
+        var result = await _service.CreateAsync(dto, CurrentUserId());
         return Ok(result);
     }
+
+    private Guid? CurrentUserId() =>
+        Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var id) ? id : null;
 
     /// <summary>
     /// Duyệt phiếu dự trù
     /// </summary>
+    // Any authenticated user could approve/reject a purchase request (asset-procurement already restricts this).
+    [Authorize(Roles = HIS.Core.Constants.RoleNames.Admin + "," + HIS.Core.Constants.RoleNames.Director + "," + HIS.Core.Constants.RoleNames.WarehouseManager)]
     [HttpPut("approve/{id}")]
     public async Task<ActionResult<ProcurementListDto>> Approve(Guid id)
     {
-        var result = await _service.ApproveAsync(id);
+        var result = await _service.ApproveAsync(id, CurrentUserId());
         return Ok(result);
     }
 
     /// <summary>
     /// Từ chối phiếu dự trù
     /// </summary>
+    [Authorize(Roles = HIS.Core.Constants.RoleNames.Admin + "," + HIS.Core.Constants.RoleNames.Director + "," + HIS.Core.Constants.RoleNames.WarehouseManager)]
     [HttpPut("reject/{id}")]
     public async Task<ActionResult<ProcurementListDto>> Reject(Guid id, [FromBody] RejectProcurementRequest request)
     {
@@ -587,13 +593,6 @@ public class EpidemiologyController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>
-    /// Lấy danh sách ổ dịch
-    /// </summary>
-    [HttpGet("outbreaks")]
-    public async Task<ActionResult<List<OutbreakSummaryDto>>> GetOutbreaks()
-    {
-        var result = await _service.GetOutbreaksAsync();
-        return Ok(result);
-    }
+    // QA-R2: GET api/epidemiology/outbreaks moved to FrontendCompatController (OutbreakEvents, v2 Outbreak shape).
+    // This action returned DiseaseCases groupings, so outbreaks declared from the v2 page never appeared.
 }

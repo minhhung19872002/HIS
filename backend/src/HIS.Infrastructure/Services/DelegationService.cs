@@ -99,6 +99,22 @@ public class DelegationService : IDelegationService
     {
         if (dto.ValidFrom >= dto.ValidTo)
             throw new ArgumentException("ValidFrom phải trước ValidTo.");
+        // Guards: grants to non-existent users/roles, self-delegation, already-expired windows and duplicate
+        // overlapping grants were all stored as "Đang hoạt động".
+        var nowUtc = DateTime.UtcNow;
+        if (dto.ValidTo.ToUniversalTime() <= nowUtc)
+            throw new ArgumentException("Thời hạn ủy quyền đã kết thúc trong quá khứ.");
+        if (dto.GranteeId == grantorId)
+            throw new ArgumentException("Không thể tự ủy quyền cho chính mình.");
+        if (!await _context.Users.AnyAsync(u => u.Id == dto.GranteeId && u.IsActive))
+            throw new ArgumentException("Người được ủy quyền không tồn tại hoặc đã bị khoá.");
+        if (!await _context.Roles.AnyAsync(r => r.Id == dto.RoleId))
+            throw new ArgumentException("Vai trò ủy quyền không tồn tại.");
+        if (await _context.UserRoles.AnyAsync(ur => ur.UserId == dto.GranteeId && ur.RoleId == dto.RoleId))
+            throw new ArgumentException("Người được ủy quyền đã có sẵn vai trò này.");
+        if (await _context.DelegationGrants.AnyAsync(d => d.GranteeId == dto.GranteeId && d.RoleId == dto.RoleId
+                && d.Status == 0 && d.ValidFrom < dto.ValidTo && d.ValidTo > dto.ValidFrom))
+            throw new ArgumentException("Đã có ủy quyền vai trò này cho người dùng trong khoảng thời gian trùng lặp.");
 
         var grant = new DelegationGrant
         {

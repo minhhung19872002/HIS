@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.API.Authorization;
 using HIS.API.Extensions;
 using HIS.Application.Interfaces;
 using HIS.Core.Constants;
@@ -41,9 +42,21 @@ public class FrontendCompatController : ControllerBase
         => (await _svc.InsuranceXmlClaimsAsync(pageSize)).ToActionResult();
 
     // ---- Occupational Health: /exams /hazard-types ----
+    // QA-R2: default 50 silently truncated the v2 list (it filters client-side and never pages).
     [HttpGet("api/occupational-health/exams")]
-    public async Task<IActionResult> OHExams([FromQuery] int pageSize = 50)
+    public async Task<IActionResult> OHExams([FromQuery] int pageSize = 500)
         => (await _svc.OHExamsAsync(pageSize)).ToActionResult();
+
+    // QA-R2: v2 OccupationalHealth.tsx create/update were 405/404.
+    [HttpPost("api/occupational-health/exams")]
+    [RequirePermission(PermissionCatalog.PublicHealth.Update)]
+    public async Task<IActionResult> OHCreateExam([FromBody] OccExamSaveDto dto)
+        => (await _svc.OHSaveExamAsync(null, dto, User.FindFirstValue(ClaimTypes.NameIdentifier))).ToActionResult();
+
+    [HttpPut("api/occupational-health/exams/{id:guid}")]
+    [RequirePermission(PermissionCatalog.PublicHealth.Update)]
+    public async Task<IActionResult> OHUpdateExam(Guid id, [FromBody] OccExamSaveDto dto)
+        => (await _svc.OHSaveExamAsync(id, dto, User.FindFirstValue(ClaimTypes.NameIdentifier))).ToActionResult();
 
     [HttpGet("api/occupational-health/hazard-types")]
     public IActionResult OHHazardTypes()
@@ -70,8 +83,35 @@ public class FrontendCompatController : ControllerBase
 
     // ---- Epidemiology: /reports /statistics /notifiable-diseases ----
     [HttpGet("api/epidemiology/reports")]
-    public async Task<IActionResult> EpiReports([FromQuery] int pageSize = 50)
-        => (await _svc.EpiReportsAsync(pageSize)).ToActionResult();
+    public async Task<IActionResult> EpiReports([FromQuery] string? keyword = null, [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null, [FromQuery] int pageSize = 500)
+        => (await _svc.EpiReportsAsync(keyword, fromDate, toDate, pageSize)).ToActionResult();
+
+    // QA-R2: v2 Epidemiology.tsx create/update disease report + outbreak were 405/404; the outbreak list
+    // read DiseaseCases groupings (EpidemiologyController) instead of OutbreakEvents, so a declared outbreak never showed.
+    [HttpPost("api/epidemiology/reports")]
+    [RequirePermission(PermissionCatalog.PublicHealth.Update)]
+    public async Task<IActionResult> EpiCreateReport([FromBody] EpiReportSaveDto dto)
+        => (await _svc.EpiSaveReportAsync(null, dto, User.FindFirstValue(ClaimTypes.NameIdentifier))).ToActionResult();
+
+    [HttpPut("api/epidemiology/reports/{id:guid}")]
+    [RequirePermission(PermissionCatalog.PublicHealth.Update)]
+    public async Task<IActionResult> EpiUpdateReport(Guid id, [FromBody] EpiReportSaveDto dto)
+        => (await _svc.EpiSaveReportAsync(id, dto, User.FindFirstValue(ClaimTypes.NameIdentifier))).ToActionResult();
+
+    [HttpGet("api/epidemiology/outbreaks")]
+    public async Task<IActionResult> EpiOutbreaks()
+        => (await _svc.EpiOutbreaksAsync()).ToActionResult();
+
+    [HttpPost("api/epidemiology/outbreaks")]
+    [RequirePermission(PermissionCatalog.PublicHealth.Update)]
+    public async Task<IActionResult> EpiCreateOutbreak([FromBody] EpiOutbreakSaveDto dto)
+        => (await _svc.EpiSaveOutbreakAsync(null, dto, User.FindFirstValue(ClaimTypes.NameIdentifier))).ToActionResult();
+
+    [HttpPut("api/epidemiology/outbreaks/{id:guid}")]
+    [RequirePermission(PermissionCatalog.PublicHealth.Update)]
+    public async Task<IActionResult> EpiUpdateOutbreak(Guid id, [FromBody] EpiOutbreakSaveDto dto)
+        => (await _svc.EpiSaveOutbreakAsync(id, dto, User.FindFirstValue(ClaimTypes.NameIdentifier))).ToActionResult();
 
     [HttpGet("api/epidemiology/statistics")]
     public async Task<IActionResult> EpiStatistics()

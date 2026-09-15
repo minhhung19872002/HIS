@@ -45,6 +45,19 @@ const CATALOGS: { v: CatalogKey; l: string; ic: string }[] = [
 // Nhãn cấp đơn vị hành chính (verbatim v1 MasterData)
 const DIVISION_LEVELS: Record<number, string> = { 1: 'Tỉnh/TP', 2: 'Quận/Huyện', 3: 'Phường/Xã' };
 
+// Numeric codes stored in BE (sent/returned as strings).
+// Services.ServiceType: 1-Khám (own catalog), 2-XN, 3-CĐHA, 4-TDCN, 5-PTTT.
+const SERVICE_TYPE_OPTIONS = [
+  { value: '2', label: 'Xét nghiệm' }, { value: '3', label: 'Chẩn đoán hình ảnh' },
+  { value: '4', label: 'Thăm dò chức năng' }, { value: '5', label: 'Phẫu thuật / thủ thuật' },
+];
+// Departments.DepartmentType (DatabaseSeeder): 0-Hành chính, 1-Lâm sàng, 2-Cận lâm sàng, 3-Dược.
+const DEPARTMENT_TYPE_OPTIONS = [
+  { value: '1', label: 'Lâm sàng' }, { value: '2', label: 'Cận lâm sàng' },
+  { value: '3', label: 'Dược' }, { value: '0', label: 'Hành chính' },
+];
+const optLabel = (opts: { value: string; label: string }[], v?: string) => opts.find((o) => o.value === String(v ?? ''))?.label ?? v;
+
 interface CatalogRow { id?: string; code: string; name: string; meta?: string; isActive?: boolean; raw?: CatalogRowRaw; }
 
 type FieldType = 'text' | 'number' | 'select' | 'switch';
@@ -53,29 +66,24 @@ const FORM_FIELDS: Record<string, FieldCfg[]> = {
   services: [
     { key: 'code', label: 'Mã dịch vụ', required: true },
     { key: 'name', label: 'Tên dịch vụ', required: true },
-    { key: 'serviceType', label: 'Loại dịch vụ', required: true, type: 'select' as const, options: [
-      { value: 'Xray', label: 'X-quang' }, { value: 'Ultrasound', label: 'Siêu âm' },
-      { value: 'Lab', label: 'Xét nghiệm' }, { value: 'Endoscopy', label: 'Nội soi' },
-      { value: 'Other', label: 'Khác' }] },
-    { key: 'departmentId', label: 'ID Khoa (GUID)', required: true },
+    // BE Service.ServiceType is an int sent as string ("2".."5"); text values like 'Xray' were saved as 2 (XN).
+    // departmentId / nameEnglish removed: the Service table has no such columns, the BE silently dropped them.
+    { key: 'serviceType', label: 'Loại dịch vụ', required: true, type: 'select' as const, options: SERVICE_TYPE_OPTIONS },
     { key: 'unitPrice', label: 'Đơn giá (VNĐ)', required: true, type: 'number' as const },
-    { key: 'nameEnglish', label: 'Tên tiếng Anh' },
     { key: 'isActive', label: 'Trạng thái', type: 'switch' as const },
   ],
   icd: [
     { key: 'code', label: 'Mã ICD-10', required: true },
     { key: 'name', label: 'Tên bệnh (tiếng Việt)', required: true },
-    { key: 'nameEnglish', label: 'Tên bệnh (tiếng Anh)' },
+    { key: 'englishName', label: 'Tên bệnh (tiếng Anh)' }, // BE ICD10CatalogDto.EnglishName
     { key: 'chapterCode', label: 'Mã chương', required: true },
     { key: 'isActive', label: 'Trạng thái', type: 'switch' as const },
   ],
   departments: [
     { key: 'code', label: 'Mã', required: true },
     { key: 'name', label: 'Tên khoa/phòng', required: true },
-    { key: 'departmentType', label: 'Loại', required: true, type: 'select', options: [
-      { value: 'Clinical', label: 'Lâm sàng' }, { value: 'Paraclinical', label: 'Cận lâm sàng' },
-      { value: 'Pharmacy', label: 'Dược' }, { value: 'Administrative', label: 'Hành chính' }] },
-    { key: 'nameEnglish', label: 'Tên tiếng Anh' },
+    // BE Department.DepartmentType is an int sent as string; text values were never parsed (create → 1, edit → unchanged).
+    { key: 'departmentType', label: 'Loại', required: true, type: 'select', options: DEPARTMENT_TYPE_OPTIONS },
     { key: 'phone', label: 'Điện thoại' },
     { key: 'location', label: 'Vị trí' },
     { key: 'isActive', label: 'Trạng thái', type: 'switch' },
@@ -83,8 +91,8 @@ const FORM_FIELDS: Record<string, FieldCfg[]> = {
   medicines: [
     { key: 'code', label: 'Mã thuốc', required: true },
     { key: 'name', label: 'Tên thuốc', required: true },
-    { key: 'genericName', label: 'Tên gốc (generic)', required: true },
-    { key: 'activeIngredient', label: 'Hoạt chất', required: true },
+    // BE MedicineCatalogDto uses activeIngredientName; genericName has no column (was required yet discarded).
+    { key: 'activeIngredientName', label: 'Hoạt chất', required: true },
     { key: 'dosageForm', label: 'Dạng bào chế', required: true },
     { key: 'unit', label: 'Đơn vị', required: true },
     { key: 'concentration', label: 'Hàm lượng' },
@@ -164,24 +172,27 @@ async function loadCatalog(cat: CatalogKey, keyword?: string, divFilter?: Divisi
       isActive: d.isActive, raw: d as unknown as CatalogRowRaw,
     }));
   }
+  // Admin catalog lists include inactive rows (no isActive filter): with isActive=true a row switched
+  // to "Tạm dừng" vanished from this screen and could never be re-activated.
   if (cat === 'departments') {
-    const r = await systemApi.catalog.getDepartments(keyword || undefined, undefined, true);
-    return (r.data || []).map((d) => ({ id: d.id, code: d.code, name: d.name, meta: d.departmentType, isActive: true, raw: d as unknown as CatalogRowRaw }));
+    const r = await systemApi.catalog.getDepartments(keyword || undefined, undefined, undefined);
+    return (r.data || []).map((d) => ({ id: d.id, code: d.code, name: d.name, meta: optLabel(DEPARTMENT_TYPE_OPTIONS, d.departmentType), isActive: d.isActive, raw: d as unknown as CatalogRowRaw }));
   }
   if (cat === 'services') {
-    const r = await systemApi.catalog.getParaclinicalServices(keyword || undefined, undefined, true);
+    const r = await systemApi.catalog.getParaclinicalServices(keyword || undefined, undefined, undefined);
     const items: RawCatalogItem[] = Array.isArray(r.data) ? r.data : [];
-    return items.map((s) => ({ id: s.id, code: s.code || '', name: s.name || '', meta: s.serviceType, isActive: s.isActive, raw: s as CatalogRowRaw }));
+    return items.map((s) => ({ id: s.id, code: s.code || '', name: s.name || '', meta: optLabel(SERVICE_TYPE_OPTIONS, s.serviceType), isActive: s.isActive, raw: s as CatalogRowRaw }));
   }
   if (cat === 'medicines') {
-    const r = await systemApi.catalog.getMedicines({ keyword: keyword || undefined, isActive: true } as Parameters<typeof systemApi.catalog.getMedicines>[0]);
+    const r = await systemApi.catalog.getMedicines({ keyword: keyword || undefined } as Parameters<typeof systemApi.catalog.getMedicines>[0]);
     const items = Array.isArray(r.data) ? r.data : [];
-    return items.map((m) => ({ id: m.id, code: m.code, name: m.name, meta: `${m.activeIngredient || ''} · ${m.unit || ''}`, isActive: m.isActive, raw: m as unknown as CatalogRowRaw }));
+    // BE field is activeIngredientName (activeIngredient was always blank).
+    return items.map((m) => ({ id: m.id, code: m.code, name: m.name, meta: `${(m as unknown as { activeIngredientName?: string }).activeIngredientName || ''} · ${m.unit || ''}`, isActive: m.isActive, raw: m as unknown as CatalogRowRaw }));
   }
   if (cat === 'icd') {
-    const r = await systemApi.catalog.getICD10Codes(keyword || undefined, undefined, true);
+    const r = await systemApi.catalog.getICD10Codes(keyword || undefined, undefined, undefined);
     const items: RawCatalogItem[] = Array.isArray(r.data) ? r.data : [];
-    return items.map((i) => ({ id: i.id, code: i.code || '', name: i.name || '', meta: i.chapterCode, raw: i as CatalogRowRaw }));
+    return items.map((i) => ({ id: i.id, code: i.code || '', name: i.name || '', meta: i.chapterCode, isActive: i.isActive, raw: i as CatalogRowRaw }));
   }
   if (cat === 'countries') {
     const r = await administrativeCatalogApi.getCountries(keyword || undefined);
@@ -193,9 +204,9 @@ async function loadCatalog(cat: CatalogKey, keyword?: string, divFilter?: Divisi
     const items = Array.isArray(r.data) ? r.data : [];
     return items.map((f) => ({ id: f.id, code: f.code, name: f.name, meta: `${f.level || ''} · ${f.address || ''}`, isActive: f.isActive, raw: f as unknown as CatalogRowRaw }));
   }
-  const r = await systemApi.catalog.getClinicalTerms(keyword || undefined, undefined, undefined, true);
+  const r = await systemApi.catalog.getClinicalTerms(keyword || undefined, undefined, undefined, undefined);
   const items: RawCatalogItem[] = Array.isArray(r.data) ? r.data : [];
-  return items.map((c) => ({ id: c.id, code: c.code || '', name: c.name || '', meta: `${c.category || ''} · ${c.bodySystem || ''}`, raw: c as CatalogRowRaw }));
+  return items.map((c) => ({ id: c.id, code: c.code || '', name: c.name || '', meta: `${c.category || ''} · ${c.bodySystem || ''}`, isActive: c.isActive, raw: c as CatalogRowRaw }));
 }
 
 const MasterDataV2: React.FC = () => {
@@ -236,11 +247,15 @@ const MasterDataV2: React.FC = () => {
   const writable = WRITABLE.includes(active);
 
   // ─── CRUD (Antd Form: validate UX + focus; BACKEND authoritative) ───
-  const openNew = () => { mF.resetFields(); setEditId(null); setModal('new'); };
+  const openNew = () => { mF.resetFields(); mF.setFieldsValue({ isActive: true }); setEditId(null); setModal('new'); };
   const openEdit = (r: CatalogRow) => { mF.resetFields(); mF.setFieldsValue(r.raw || { code: r.code, name: r.name }); setEditId(r.id || null); setModal('edit'); };
   const submit = async () => {
     let v: Record<string, unknown>;
     try { v = await mF.validateFields(); } catch { return; } // client UX: focus field lỗi
+    // validateFields() only returns the fields rendered in the form. The BE save endpoints overwrite every
+    // column (BHYT code, prices, registration no., parent…), so an edit must start from the loaded row.
+    const editedRaw = editId ? (rows.find((x) => x.id === editId)?.raw ?? {}) : {};
+    v = { ...editedRaw, ...v };
     if (editId) v.id = editId;
     setSaving(true);
     try {
@@ -343,14 +358,16 @@ const MasterDataV2: React.FC = () => {
             <RefreshButton onRefresh={loadAll} loading={loading} />
             <span className="spacer" />
             {(active === 'medicines' || active === 'icd') && (
+              // BE import parses tab-separated text (header row + code, name, …); there is no .xlsx parser,
+              // so a binary .xlsx imported 0 rows. Excel: "Lưu thành → Text (Tab delimited)".
               <Upload
-                accept=".xlsx,.xls"
+                accept=".txt,.tsv"
                 showUploadList={false}
                 disabled={importing}
                 beforeUpload={(f) => handleImportExcel(f, active === 'medicines' ? 'medicines' : 'icd')}
               >
-                <Btn variant="ghost" disabled={importing}>
-                  <TermIcon name="upload" size={12} /> {importing ? 'Đang nhập…' : 'Nhập Excel'}
+                <Btn variant="ghost" disabled={importing} title="Tệp văn bản phân tách Tab (Excel: Lưu thành → Text (Tab delimited))">
+                  <TermIcon name="upload" size={12} /> {importing ? 'Đang nhập…' : 'Nhập tệp (TSV)'}
                 </Btn>
               </Upload>
             )}
@@ -372,12 +389,16 @@ const MasterDataV2: React.FC = () => {
         <Form form={mF} layout="vertical" scrollToFirstError requiredMark>
           {(FORM_FIELDS[active] || []).map((f) => (
             <Form.Item key={f.key} name={f.key} label={f.label}
+              valuePropName={f.type === 'switch' ? 'checked' : undefined}
               rules={f.required ? [{ required: true, message: `Nhập ${f.label}` }] : undefined}>
               {f.type === 'select'
                 ? <Select allowClear showSearch optionFilterProp="label" options={f.options} />
                 : f.type === 'number'
                   ? <InputNumber style={{ width: '100%' }} />
-                  : <Input disabled={modal === 'edit' && f.key === 'code'} />}
+                  : f.type === 'switch'
+                    // Was rendered as a text Input: new rows were sent with isActive undefined → saved INACTIVE.
+                    ? <Switch checkedChildren="Hoạt động" unCheckedChildren="Tạm dừng" />
+                    : <Input disabled={modal === 'edit' && f.key === 'code'} />}
             </Form.Item>
           ))}
         </Form>

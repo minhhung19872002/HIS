@@ -44,18 +44,23 @@ public partial class BusinessAlertService
 
         try
         {
-            // Avoid duplicate alerts: check if same alert code + patient already exists today
+            // Avoid duplicate alerts: check if same alert code + patient already exists today.
+            // Dedup on each alert's OWN PatientId: hospital-wide alerts (OPD-07 expired stock, IPD-23 beds,
+            // PHAR-32) carry PatientId = null, so filtering on the caller's patientId never matched them and
+            // every patient check re-inserted them (BusinessAlerts flooded with identical rows).
             var today = DateTime.UtcNow.Date;
-            var existingCodes = await _context.BusinessAlerts
-                .Where(a => a.PatientId == patientId
+            var existingCodes = (await _context.BusinessAlerts
+                .Where(a => (a.PatientId == patientId || a.PatientId == null)
                     && a.CreatedAt >= today
                     && a.Status < 2) // Not resolved
-                .Select(a => a.AlertCode + "|" + a.Title)
-                .ToListAsync();
+                .Select(a => new { a.PatientId, a.AlertCode, a.Title })
+                .ToListAsync())
+                .Select(a => a.PatientId + "|" + a.AlertCode + "|" + a.Title)
+                .ToList();
 
             foreach (var alertDto in alerts)
             {
-                var key = alertDto.AlertCode + "|" + alertDto.Title;
+                var key = alertDto.PatientId + "|" + alertDto.AlertCode + "|" + alertDto.Title;
                 if (existingCodes.Contains(key)) continue;
 
                 var entity = new BusinessAlert

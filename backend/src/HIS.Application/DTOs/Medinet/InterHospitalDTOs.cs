@@ -52,7 +52,7 @@ public class CreateInterHospitalRequestDto
 
 public class RespondInterHospitalRequestDto
 {
-    public int? Status { get; set; } // 1=accepted, 2=rejected, 3=completed
+    public int? Status { get; set; } // 1=accepted, 2=in progress, 3=completed, 4=rejected
     public string? ResponseDetails { get; set; }
     public string? RespondedBy { get; set; }
     public string? Notes { get; set; }
@@ -65,6 +65,9 @@ public class InterHospitalStatsDto
     public int AcceptedCount { get; set; }
     public int CompletedCount { get; set; }
     public int RejectedCount { get; set; }
+    public int InProgressCount { get; set; }
+    public int CompletedToday { get; set; }
+    public double AvgResponseTimeMinutes { get; set; }
     public List<InterHospitalRequestTypeBreakdownDto> RequestTypeBreakdown { get; set; } = new();
     public List<InterHospitalUrgencyBreakdownDto> UrgencyBreakdown { get; set; } = new();
 }

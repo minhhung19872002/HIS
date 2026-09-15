@@ -184,6 +184,7 @@ const TelemedicineV2: React.FC = () => {
 
       await completeConsultation({
         consultationId,
+        sessionId: endTarget.sessionId,
         assessment: endForm.assessment.trim() || 'Hoàn tất qua khám từ xa',
         diagnosisMain: endForm.diagnosisMain.trim(),
         diagnosisMainIcd: endForm.diagnosisMainIcd.trim(),
@@ -729,7 +730,8 @@ const TeleBookingModal: React.FC<{
       const dto: CreateTelemedicineAppointmentDto = {
         patientId: draft.patientId.trim(),
         doctorId: draft.doctorId.trim(),
-        departmentId: draft.departmentId.trim(),
+        // '' is not a Guid → the whole body failed to bind (400) whenever the optional department was left blank.
+        departmentId: draft.departmentId.trim() || undefined,
         appointmentType: draft.appointmentType,
         scheduledDate: draft.scheduledDate,
         scheduledTime: draft.scheduledTime || '08:00',

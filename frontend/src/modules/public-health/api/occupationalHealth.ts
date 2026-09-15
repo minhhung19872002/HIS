@@ -81,8 +81,19 @@ export const updateOccExam = async (id: string, data: Partial<OccExam>) => {
 
 export const getOccStats = async (): Promise<OccStats> => {
   try {
-    const response = await apiClient.get<OccStats>('/occupational-health/statistics');
-    return response.data;
+    // BE OccHealthStatisticsDto2 uses totalRecords / diseaseDetectedCount / totalCompanies / *Count —
+    // without this mapping every KPI rendered 0.
+    const response = await apiClient.get<Partial<OccStats> & {
+      totalRecords?: number; diseaseDetectedCount?: number; totalCompanies?: number;
+      fitWithRestrictionCount?: number; temporarilyUnfitCount?: number;
+    }>('/occupational-health/statistics');
+    const d = response.data ?? {};
+    return {
+      totalExams: d.totalExams ?? d.totalRecords ?? 0,
+      diseaseDetected: d.diseaseDetected ?? d.diseaseDetectedCount ?? 0,
+      needsFollowUp: d.needsFollowUp ?? ((d.fitWithRestrictionCount ?? 0) + (d.temporarilyUnfitCount ?? 0)),
+      companies: d.companies ?? d.totalCompanies ?? 0,
+    };
   } catch {
     console.warn('Failed to fetch occupational health statistics');
     return { totalExams: 0, diseaseDetected: 0, needsFollowUp: 0, companies: 0 };

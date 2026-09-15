@@ -105,6 +105,11 @@ namespace HIS.API.Controllers
             return Ok(await _service.CreateDutyRosterAsync(dto));
         }
 
+        // v2 HR.tsx "Chốt tuần" → publishRoster(); the route did not exist (404).
+        [HttpPost("rosters/{id:guid}/publish")]
+        public async Task<ActionResult<DutyRosterDto>> PublishRoster(Guid id)
+            => Ok(await _service.PublishDutyRosterAsync(id));
+
         [HttpPost("rosters/copy-week")]
         public async Task<ActionResult<CopyRosterResultDto>> CopyRosterWeek([FromBody] CopyRosterWeekDto dto)
         {
@@ -122,6 +127,11 @@ namespace HIS.API.Controllers
         [HttpGet("cme/summary/{staffId}")]
         public async Task<ActionResult<CMESummaryDto>> GetCMESummary(Guid staffId)
             => Ok(await _service.GetStaffCMESummaryAsync(staffId));
+
+        // v2 HR.tsx "Đăng ký đào tạo" → createCMERecord(); the route did not exist (404).
+        [HttpPost("cme")]
+        public async Task<ActionResult<CMERecordDto>> CreateCMERecord([FromBody] CreateCMERecordDto dto)
+            => Ok(await _service.CreateCMERecordAsync(dto));
 
         [HttpGet("cme/non-compliant")]
         public async Task<ActionResult<List<CMESummaryDto>>> GetCMENonCompliantStaff()
@@ -162,7 +172,9 @@ namespace HIS.API.Controllers
 
         // ========== Salary History ==========
 
+        // Salary data was readable by ANY logged-in role (GETs are not covered by WritePermissionMap).
         [HttpGet("salary-history/{staffId}")]
+        [HIS.API.Authorization.RequirePermission(PermissionCatalog.Hr.Manage)]
         public async Task<ActionResult<List<SalaryRecordDto>>> GetSalaryHistory(Guid staffId)
             => Ok(await _service.GetSalaryHistoryAsync(staffId));
 

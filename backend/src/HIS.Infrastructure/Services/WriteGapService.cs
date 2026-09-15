@@ -74,6 +74,11 @@ public class WriteGapService : IWriteGapService
 
     public async Task<ServiceOutcome> CreateDiseaseReportAsync(DiseaseReport dto, Guid userId)
     {
+        // QA-R2: an empty body created blank reports (19 rows with no patient/disease in dev DB) that inflate
+        // the epidemiology totals; the entity is bound directly, so also reset server-owned fields.
+        if (string.IsNullOrWhiteSpace(dto.PatientName) || string.IsNullOrWhiteSpace(dto.DiseaseName))
+            return ServiceOutcome.Status(400, ApiResponse.Fail("Họ tên bệnh nhân và tên bệnh là bắt buộc"));
+        dto.UpdatedAt = null; dto.UpdatedBy = null;
         dto.Id = Guid.NewGuid();
         dto.IsDeleted = false;
         dto.ReportDate = DateTime.Now;

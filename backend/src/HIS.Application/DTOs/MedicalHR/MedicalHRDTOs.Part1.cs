@@ -110,7 +110,8 @@ namespace HIS.Application.DTOs.MedicalHR
         public string? StaffType { get; set; }
         public string? Position { get; set; }
         public string? Title { get; set; }
-        public Guid DepartmentId { get; set; }
+        /// <summary>Optional — the v2 "Thêm nhân viên" form has no department field (a Guid made every save a 400).</summary>
+        public Guid? DepartmentId { get; set; }
         public string? Specialty { get; set; }
         public DateTime? JoinDate { get; set; }
         public DateTime? HireDate { get; set; } // alias sent by v2 HR.tsx

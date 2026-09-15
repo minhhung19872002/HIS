@@ -65,9 +65,11 @@ public class NotificationService : INotificationService
     /// <summary>
     /// Mark a notification as read
     /// </summary>
-    public async Task<ServiceOutcome> MarkAsReadAsync(Guid id)
+    public async Task<ServiceOutcome> MarkAsReadAsync(Guid id, Guid userId)
     {
-        var notification = await _context.Notifications.FindAsync(id);
+        // Scope to the caller: any user could mark another user's (or a deleted) notification as read by id.
+        var notification = await _context.Notifications
+            .FirstOrDefaultAsync(n => n.Id == id && !n.IsDeleted && (n.TargetUserId == userId || n.TargetUserId == null));
         if (notification == null) return ServiceOutcome.NotFound();
 
         notification.IsRead = true;

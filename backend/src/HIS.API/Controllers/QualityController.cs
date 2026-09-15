@@ -63,6 +63,14 @@ namespace HIS.API.Controllers
             return Ok(await _service.CreateIncidentReportAsync(dto));
         }
 
+        // v2 Quality.tsx "Lưu kết quả điều tra" (RCA) — route was missing (405).
+        [HttpPost("incidents/investigate")]
+        public async Task<ActionResult<IncidentReportDto>> InvestigateIncident([FromBody] InvestigateIncidentDto dto)
+        {
+            dto.InvestigatorId = Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var uid) ? uid : Guid.Empty;
+            return Ok(await _service.InvestigateIncidentAsync(dto));
+        }
+
         [HttpGet("indicators")]
         public async Task<ActionResult<List<QualityIndicatorDto>>> GetIndicators(
             [FromQuery] string category = null,
@@ -80,9 +88,25 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<List<QualityIndicatorValueDto>>> GetCriticalIndicators()
             => Ok(await _service.GetCriticalIndicatorsAsync());
 
+        // v2 page calls GET /audits without ?year → year bound to 0 → always an empty list.
         [HttpGet("audits")]
-        public async Task<ActionResult<List<AuditPlanDto>>> GetAuditPlans([FromQuery] int year)
-            => Ok(await _service.GetAuditPlansAsync(year));
+        public async Task<ActionResult<List<AuditPlanDto>>> GetAuditPlans([FromQuery] int? year)
+            => Ok(await _service.GetAuditPlansAsync(year is > 0 ? year.Value : DateTime.Today.Year));
+
+        // v2 Quality.tsx "Lên lịch audit" — route was missing (405).
+        [HttpPost("audits")]
+        public async Task<ActionResult<AuditPlanDto>> CreateAuditPlan([FromBody] CreateAuditPlanRequest req)
+        {
+            var currentUser = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            return Ok(await _service.CreateAuditPlanAsync(new AuditPlanDto
+            {
+                AuditType = req.AuditType, Title = req.Title, Scope = req.Scope, Objective = req.Objective,
+                Criteria = req.Criteria, DepartmentId = req.DepartmentId, ScheduledDate = req.ScheduledDate,
+                // The form's "Trưởng đoàn" box is a free-text id; default to the signed-in user when left blank.
+                LeadAuditorId = string.IsNullOrWhiteSpace(req.LeadAuditorId) ? currentUser : req.LeadAuditorId.Trim(),
+                Notes = req.Notes,
+            }));
+        }
 
         [HttpGet("satisfaction")]
         public async Task<ActionResult<SatisfactionReportDto>> GetSatisfactionReport(

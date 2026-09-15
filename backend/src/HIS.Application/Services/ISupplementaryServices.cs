@@ -24,8 +24,8 @@ public interface IProcurementService
 {
     Task<ProcurementPagedResult> GetRequestsAsync(ProcurementSearchDto filter);
     Task<ProcurementDetailDto?> GetByIdAsync(Guid id);
-    Task<ProcurementDetailDto> CreateAsync(CreateProcurementDto dto);
-    Task<ProcurementListDto> ApproveAsync(Guid id);
+    Task<ProcurementDetailDto> CreateAsync(CreateProcurementDto dto, Guid? userId = null);
+    Task<ProcurementListDto> ApproveAsync(Guid id, Guid? userId = null);
     Task<ProcurementListDto> RejectAsync(Guid id, string? reason);
     Task<List<AutoSuggestionDto>> GetAutoSuggestionsAsync();
     Task<ProcurementStatisticsDto> GetStatisticsAsync();

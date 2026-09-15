@@ -59,6 +59,8 @@ public class CreatePracticeLicenseDto
     public string? TrainingInstitution { get; set; }
     public int? GraduationYear { get; set; }
     public string? Notes { get; set; }
+    /// <summary>Update only: 0=active, 2=suspended, 3=revoked (1=expired is derived from ExpiryDate). Ignored on create.</summary>
+    public int? Status { get; set; }
 }
 
 public class PracticeLicenseStatsDto

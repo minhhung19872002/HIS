@@ -696,10 +696,9 @@ const HRV2: React.FC = () => {
       validate: (v) => (v && v === copySource ? 'Tuần đích không được trùng tuần nguồn' : undefined),
     },
   }, copyWeekOpen);
-  const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([
-    { id: 'CH001', from: 'BS003', to: 'BS002', date: '2026-10-23', shift: 'night', reason: 'Việc gia đình', status: 'pending' },
-    { id: 'CH002', from: 'DD002', to: 'DD005', date: '2026-10-25', shift: 'evening', reason: 'Khám sức khoẻ', status: 'pending' },
-  ]);
+  // No hard-coded demo requests: they were shown as real pending swaps (blank names in Live mode) and
+  // "Duyệt" always failed because they do not exist server-side.
+  const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([]);
 
   const departments = useMemo(
     () => [...new Set(staffList.map((member) => member.department))],
@@ -818,7 +817,8 @@ const HRV2: React.FC = () => {
     setSwapRequests((currentRequests) => [...currentRequests, request]);
     setSwapModalOpen(false);
     setSwapForm({ from: '', to: '', date: '', shift: 'morning', reason: '' });
-    message.success('Đã gửi yêu cầu đổi ca');
+    // Not persisted: the backend has no shift-swap endpoint yet — do not report a fake "sent" success.
+    message.warning('Yêu cầu đổi ca chỉ hiển thị tạm trên màn hình — hệ thống chưa lưu được yêu cầu đổi ca');
   };
 
   // ─── Handlers ported verbatim từ v1 ───────────────────────────────────────
@@ -886,7 +886,8 @@ const HRV2: React.FC = () => {
         gender: values.gender as string,
         phone: values.phone as string,
         email: values.email as string,
-        departmentId: (values.departmentId as string) || '',
+        // No department field in this form: send undefined, not '' (an empty string is not a Guid → BE 400).
+        departmentId: (values.departmentId as string) || undefined,
         staffType: (values.staffType as string) || 'Doctor',
         specialty: values.specialty as string,
         hireDate: values.hireDate ? dayjs(values.hireDate as string).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
@@ -1370,8 +1371,9 @@ const HRV2: React.FC = () => {
     ...(dashboard ? [
       { lbl: 'Bác sĩ', val: dashboard.doctors },
       { lbl: 'Điều dưỡng', val: dashboard.nurses },
-      { lbl: 'Ca trực hôm nay', val: dashboard.todayShifts },
-      { lbl: 'Nghỉ phép', val: dashboard.onLeaveStaff },
+      // BE field names are onDutyToday / onLeave (todayShifts / onLeaveStaff are never sent → blank KPI).
+      { lbl: 'Ca trực hôm nay', val: dashboard.onDutyToday ?? dashboard.todayShifts ?? 0 },
+      { lbl: 'Nghỉ phép', val: dashboard.onLeave ?? dashboard.onLeaveStaff ?? 0 },
     ] as KpiItem[] : []),
   ];
 
@@ -2047,13 +2049,14 @@ const HRV2: React.FC = () => {
           if (!copyWeekForm.validate({ source: copySource, target: copyTarget })) return;
           setCopyWeekLoading(true);
           try {
-            await copyWeekRoster({
-              departmentId: '', // truyền rỗng = toàn viện; backend hỗ trợ
+            // departmentId omitted = toàn viện (an empty string is not a Guid → BE 400).
+            const res = await copyWeekRoster({
               sourceWeekStart: copySource,
               targetWeekStart: copyTarget,
               overwriteExisting: true,
             });
-            message.success(`Đã sao chép lịch từ tuần ${dayjs(copySource).format('DD/MM')} → ${dayjs(copyTarget).format('DD/MM')}`);
+            const result = res?.data as { message?: string; copiedShifts?: number } | undefined;
+            message.success(result?.message || `Đã sao chép lịch từ tuần ${dayjs(copySource).format('DD/MM')} → ${dayjs(copyTarget).format('DD/MM')}`);
             setCopyWeekOpen(false);
           } catch {
             message.error('Sao chép lịch tuần thất bại');

@@ -81,9 +81,10 @@ public class EmailService : IEmailService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to send OTP email to {Email}. OTP: {OtpCode}", toEmail, otpCode);
-            // Still return true in development so 2FA flow works without SMTP
-            return true;
+            // Never write the OTP itself to the logs (it was logged on every SMTP failure, incl. production),
+            // and report the failure — the unconfigured-SMTP dev path above still returns true.
+            _logger.LogWarning(ex, "Failed to send OTP email to {Email}", toEmail);
+            return false;
         }
     }
 
@@ -251,7 +252,8 @@ public class EmailService : IEmailService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to send report email to {Email}: {ReportName}", toEmail, reportName);
-            return true; // MockMode: không chặn flow
+            // SMTP is configured but sending failed → report it (HospitalReportController showed "Đã gửi" regardless).
+            return false;
         }
     }
 
@@ -295,7 +297,7 @@ public class EmailService : IEmailService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to send email to {Email}: {Subject}", toEmail, subject);
-            return true;
+            return false; // real SMTP failure (the not-configured dev path returns true above)
         }
     }
 }

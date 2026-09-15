@@ -12,6 +12,7 @@ import type {
   IsolationOrderDto,
 } from '../api/infectionControl';
 import { getInpatientList } from '../../inpatient/api/inpatient';
+import { catalogApi } from '../../system/api/system';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, CrudModal, Btn,
@@ -91,9 +92,10 @@ const TOP_TABS: TopTab<TabKey>[] = [
   { v: 'isolation', l: 'Cách ly' },
 ];
 
-// ─── Hand Hygiene form fields (static, no deps) ───────────────────────────
-const hhFields: CrudFieldCfg[] = [
-  { key: 'departmentId', label: 'Khoa', required: true },
+// ─── Hand Hygiene form fields ──────────────────────────────────────────────
+// "Khoa" was a free-text box but the BE needs a department GUID → every save 404'd "Không tìm thấy khoa/phòng".
+const buildHhFields = (deptOpts: { value: string; label: string }[]): CrudFieldCfg[] => [
+  { key: 'departmentId', label: 'Khoa', type: 'select', required: true, options: deptOpts, showSearch: true },
   { key: 'auditDate', label: 'Ngày quan sát', type: 'date', required: true },
   { key: 'shift', label: 'Ca', type: 'select', options: [
     { value: 'Morning',   label: 'Sáng' },
@@ -208,6 +210,14 @@ const InfectionControlV2: React.FC = () => {
   const [hhLoaded, setHhLoaded] = useState(false);
   const [hhCrudOpen, setHhCrudOpen] = useState(false);
   const [hhCrudInit, setHhCrudInit] = useState<Record<string, unknown> | null>(null);
+  const [deptOpts, setDeptOpts] = useState<{ value: string; label: string }[]>([]);
+  const hhFields = useMemo(() => buildHhFields(deptOpts), [deptOpts]);
+  useEffect(() => {
+    if (!hhCrudOpen || deptOpts.length) return;
+    catalogApi.getDepartments(undefined, undefined, true)
+      .then((r) => setDeptOpts((r.data || []).filter((d) => d.id).map((d) => ({ value: d.id!, label: d.name }))))
+      .catch((e) => tw(friendlyErrorMessage(e, 'Không tải được danh sách khoa/phòng.')));
+  }, [hhCrudOpen, deptOpts.length]);
 
   const loadHh = async () => {
     setHhLoading(true);

@@ -110,6 +110,13 @@ public class HivManagementService : IHivManagementService
 
     public async Task<HivPatientListDto> CreatePatientAsync(HivPatientCreateDto dto)
     {
+        // QA-R2: unknown PatientId hit the FK and surfaced as a 500 with the SQL stack trace.
+        if (!await _context.Patients.AnyAsync(p => p.Id == dto.PatientId && !p.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy bệnh nhân.");
+        if (await _context.HivPatients.AnyAsync(h => h.PatientId == dto.PatientId && !h.IsDeleted))
+            throw new InvalidOperationException("Bệnh nhân đã có hồ sơ quản lý HIV.");
+        if (dto.WHOStage < 1 || dto.WHOStage > 4)
+            throw new ArgumentException("Giai đoạn WHO phải từ 1 đến 4.");
         var hivCode = dto.HivCode;
         if (string.IsNullOrEmpty(hivCode))
         {
@@ -283,6 +290,11 @@ public class HivManagementService : IHivManagementService
 
     public async Task<HivLabResultListDto> CreateLabResultAsync(HivLabResultCreateDto dto)
     {
+        if (!await _context.HivPatients.AnyAsync(h => h.Id == dto.HivPatientId && !h.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy hồ sơ HIV.");
+        // CD4 / viral load cannot be negative (a "-50" CD4 would drive the suppression/alert logic).
+        if (decimal.TryParse(dto.Result, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var numeric) && numeric < 0)
+            throw new ArgumentException("Kết quả xét nghiệm không được âm.");
         var entity = new HivLabResult
         {
             Id = Guid.NewGuid(),
@@ -361,6 +373,10 @@ public class HivManagementService : IHivManagementService
 
     public async Task<PmtctRecordListDto> CreatePmtctRecordAsync(PmtctRecordCreateDto dto)
     {
+        if (!await _context.HivPatients.AnyAsync(h => h.Id == dto.HivPatientId && !h.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy hồ sơ HIV.");
+        if (dto.GestationalAgeAtDiagnosis is < 0 or > 45)
+            throw new ArgumentException("Tuổi thai không hợp lệ (0-45 tuần).");
         var entity = new PmtctRecord
         {
             Id = Guid.NewGuid(),

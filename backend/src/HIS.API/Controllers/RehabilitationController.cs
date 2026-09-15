@@ -97,8 +97,11 @@ namespace HIS.API.Controllers
                 therapistId));
 
         [HttpPost("sessions/{id}/document")]
-        public async Task<ActionResult<RehabSessionDto>> DocumentSession([FromBody] DocumentSessionDto dto)
-            => Ok(await _service.DocumentSessionAsync(dto));
+        public async Task<ActionResult<RehabSessionDto>> DocumentSession(Guid id, [FromBody] DocumentSessionDto dto)
+        {
+            dto.SessionId = id; // QA-R2: the route id was ignored — the body sessionId decided which session got completed
+            return Ok(await _service.DocumentSessionAsync(dto));
+        }
 
         [HttpGet("progress/{planId}")]
         public async Task<ActionResult<RehabProgressReportDto>> GetProgressReport(Guid planId)

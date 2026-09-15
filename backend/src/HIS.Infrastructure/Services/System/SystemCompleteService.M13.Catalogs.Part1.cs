@@ -214,6 +214,9 @@ public partial class SystemCompleteService
                 if (entity == null) return null;
                 entity.ServiceCode = dto.Code ?? entity.ServiceCode;
                 entity.ServiceName = dto.Name ?? entity.ServiceName;
+                // QA-R2: the edit form lets the user change the service type, but it was never persisted.
+                if (int.TryParse(dto.ServiceType, out var st2) && st2 >= 2 && st2 <= 5)
+                    entity.ServiceType = st2;
                 entity.UnitPrice = dto.UnitPrice;
                 entity.InsurancePrice = dto.InsurancePrice ?? entity.InsurancePrice;
                 entity.IsActive = dto.IsActive;
@@ -256,7 +259,8 @@ public partial class SystemCompleteService
             if (search?.MedicineGroupId.HasValue == true)
                 query = query.Where(m => m.MedicineGroupId == search.MedicineGroupId.Value);
 
-            // Paging
+            // Paging — order first: Skip/Take on an unordered query returned an arbitrary page/500-row subset.
+            query = query.OrderBy(m => m.MedicineCode);
             if (search?.PageIndex.HasValue == true && search?.PageSize.HasValue == true)
             {
                 var skip = (search.PageIndex.Value) * search.PageSize.Value;
@@ -267,7 +271,7 @@ public partial class SystemCompleteService
                 query = query.Take(500); // default limit
             }
 
-            var items = await query.OrderBy(m => m.MedicineCode).ToListAsync();
+            var items = await query.ToListAsync();
             return items.Select(m => MapMedicineToDto(m)).ToList();
         }
         catch (Exception ex)
@@ -306,6 +310,7 @@ public partial class SystemCompleteService
                     RegistrationNumber = dto.RegistrationNumber,
                     ActiveIngredient = dto.ActiveIngredientName,
                     Concentration = dto.Concentration,
+                    DosageForm = dto.DosageForm,
                     Unit = dto.Unit,
                     PackageUnit = dto.PackageUnit,
                     Manufacturer = dto.Manufacturer,
@@ -330,6 +335,7 @@ public partial class SystemCompleteService
                 entity.RegistrationNumber = dto.RegistrationNumber;
                 entity.ActiveIngredient = dto.ActiveIngredientName;
                 entity.Concentration = dto.Concentration;
+                entity.DosageForm = dto.DosageForm;
                 entity.Unit = dto.Unit;
                 entity.PackageUnit = dto.PackageUnit;
                 entity.Manufacturer = dto.Manufacturer;
@@ -427,7 +433,8 @@ public partial class SystemCompleteService
                 await _context.SaveChangesAsync();
 
             _logger.LogInformation("ImportMedicinesFromExcelAsync: Imported {Count} medicines from {TotalLines} data rows", imported, lines.Length - 1);
-            return true;
+            // QA-R2: false when nothing was imported so the UI can warn instead of reporting success.
+            return imported > 0;
         }
         catch (Exception ex)
         {

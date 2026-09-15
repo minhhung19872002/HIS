@@ -49,10 +49,44 @@ public class ExpiryAlertWorker : BackgroundService
             .Take(500)
             .ToListAsync(ct);
 
-        var existingAlertKeys = await db.ExpiryAlerts
+        // Open alerts are re-evaluated every scan. Before, AlertLevel was frozen at creation: a batch first seen at
+        // "3-6 months" (level 3) stayed level 3 until it expired, and the login popup only shows level <= 2, so it
+        // never warned. Alerts whose batch was used up / deleted also stayed open forever with a stale quantity.
+        var openAlerts = await db.ExpiryAlerts
             .Where(a => a.Status < 2)
-            .Select(a => a.InventoryItemId)
-            .ToHashSetAsync(ct);
+            .ToListAsync(ct);
+        var existingAlertKeys = openAlerts.Select(a => a.InventoryItemId).ToHashSet();
+
+        var openItemIds = existingAlertKeys.ToList();
+        var liveItems = openItemIds.Count == 0
+            ? new Dictionary<Guid, (decimal Quantity, DateTime? ExpiryDate)>()
+            : (await db.InventoryItems
+                .Where(i => openItemIds.Contains(i.Id) && !i.IsDeleted && i.Quantity > 0)
+                .Select(i => new { i.Id, i.Quantity, i.ExpiryDate })
+                .ToListAsync(ct))
+                .ToDictionary(i => i.Id, i => (i.Quantity, i.ExpiryDate));
+
+        var updatedAlerts = 0;
+        foreach (var alert in openAlerts)
+        {
+            if (!liveItems.TryGetValue(alert.InventoryItemId, out var live))
+            {
+                alert.Status = 2; // Resolved: batch no longer in stock
+                alert.Notes = string.IsNullOrWhiteSpace(alert.Notes) ? "Tự đóng: lô đã hết tồn/xóa" : alert.Notes;
+                alert.UpdatedAt = DateTime.UtcNow;
+                updatedAlerts++;
+                continue;
+            }
+            var level = LevelFor(live.ExpiryDate ?? alert.ExpiryDate, cutoff1m, cutoff3m);
+            if (level < alert.AlertLevel || live.Quantity != alert.Quantity)
+            {
+                if (level < alert.AlertLevel && alert.Status == 1) alert.Status = 0; // escalated → notify again
+                alert.AlertLevel = Math.Min(level, alert.AlertLevel);
+                alert.Quantity = live.Quantity;
+                alert.UpdatedAt = DateTime.UtcNow;
+                updatedAlerts++;
+            }
+        }
 
         var newAlerts = 0;
         foreach (var item in expiringItems)
@@ -60,7 +94,7 @@ public class ExpiryAlertWorker : BackgroundService
             if (existingAlertKeys.Contains(item.Id)) continue;
             if (!item.MedicineId.HasValue || !item.ExpiryDate.HasValue) continue;
 
-            var alertLevel = item.ExpiryDate <= cutoff1m ? 1 : item.ExpiryDate <= cutoff3m ? 2 : 3;
+            var alertLevel = LevelFor(item.ExpiryDate.Value, cutoff1m, cutoff3m);
 
             db.ExpiryAlerts.Add(new ExpiryAlert
             {
@@ -78,10 +112,13 @@ public class ExpiryAlertWorker : BackgroundService
             newAlerts++;
         }
 
-        if (newAlerts > 0)
+        if (newAlerts > 0 || updatedAlerts > 0)
         {
             await db.SaveChangesAsync(ct);
-            _logger.LogInformation("ExpiryAlertWorker: created {Count} new expiry alerts", newAlerts);
+            _logger.LogInformation("ExpiryAlertWorker: created {Count} new expiry alerts, updated {Updated}", newAlerts, updatedAlerts);
         }
     }
+
+    private static int LevelFor(DateTime expiryDate, DateTime cutoff1m, DateTime cutoff3m)
+        => expiryDate <= cutoff1m ? 1 : expiryDate <= cutoff3m ? 2 : 3;
 }

@@ -67,6 +67,7 @@ public partial class SystemCompleteService
                 Roles = u.UserRoles?.Select(ur => ur.Role?.RoleName).Where(r => r != null).ToList() ?? new List<string>(),
                 Permissions = new List<string>(),
                 IsActive = u.IsActive,
+                IsLocked = !u.IsActive || (u.LockoutEndAt.HasValue && u.LockoutEndAt.Value > DateTime.UtcNow),
                 IsTwoFactorEnabled = u.IsTwoFactorEnabled,
                 LastLoginDate = u.LastLoginAt,
                 LastLoginIP = ipLookup.TryGetValue(u.Id, out var ip) ? ip : null
@@ -121,6 +122,7 @@ public partial class SystemCompleteService
                 Roles = u.UserRoles?.Select(ur => ur.Role?.RoleName).Where(r => r != null).ToList() ?? new List<string>(),
                 Permissions = permissions,
                 IsActive = u.IsActive,
+                IsLocked = !u.IsActive || (u.LockoutEndAt.HasValue && u.LockoutEndAt.Value > DateTime.UtcNow),
                 IsTwoFactorEnabled = u.IsTwoFactorEnabled,
                 LastLoginDate = u.LastLoginAt,
                 LastLoginIP = lastSession?.IPAddress

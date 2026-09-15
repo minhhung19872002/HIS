@@ -233,7 +233,7 @@ const InterHospitalSharingV2: React.FC = () => {
         onClose={() => setRespondOpen(false)}
         title={respondTarget ? `Phản hồi: ${respondTarget.requestCode}` : 'Phản hồi yêu cầu liên viện'}
         fields={RESPOND_FIELDS}
-        initial={{ statusDecision: 'approve', responseNotes: '' }}
+        initial={{ statusDecision: 'accept', responseNotes: '' }}
         size="md"
         onSubmit={async (v) => {
           if (!respondTarget) return;

@@ -159,6 +159,10 @@ public class TreatmentProtocolService : ITreatmentProtocolService
                 .Include(p => p.Steps)
                 .FirstOrDefaultAsync(p => p.Id == dto.Id.Value && !p.IsDeleted)
                 ?? throw new InvalidOperationException($"Protocol {dto.Id} not found");
+            // QA-R2: an approved (1) or superseded (2) protocol was edited in place, silently changing
+            // clinical steps without re-approval. Only drafts are editable — use "new version".
+            if (entity.Status != 0)
+                throw new InvalidOperationException("Phác đồ đã duyệt/đã thay thế không được sửa trực tiếp — hãy tạo phiên bản mới.");
 
             entity.Code = dto.Code;
             entity.Name = dto.Name;
@@ -251,6 +255,8 @@ public class TreatmentProtocolService : ITreatmentProtocolService
             .Include(p => p.Steps)
             .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted)
             ?? throw new InvalidOperationException($"Protocol {id} not found");
+        if (entity.Status != 0)
+            throw new InvalidOperationException("Chỉ duyệt được phác đồ đang ở trạng thái nháp.");
 
         entity.Status = 1; // Active
         entity.ApprovedBy = approvedBy;
@@ -268,6 +274,8 @@ public class TreatmentProtocolService : ITreatmentProtocolService
             .Include(p => p.Steps)
             .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted)
             ?? throw new InvalidOperationException($"Protocol {id} not found");
+        if (original.Status != 1)
+            throw new InvalidOperationException("Chỉ tạo phiên bản mới từ phác đồ đang áp dụng.");
 
         // Mark old version as superseded
         original.Status = 2; // Superseded

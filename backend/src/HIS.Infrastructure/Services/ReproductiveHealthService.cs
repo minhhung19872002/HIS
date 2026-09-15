@@ -113,8 +113,21 @@ public class ReproductiveHealthService : IReproductiveHealthService
         catch (Exception ex) { _logger.LogWarning(ex, "ReproductiveHealthService thao tác thất bại, trả giá trị mặc định"); return null; }
     }
 
+    private static void ValidatePrenatal(CreatePrenatalRecordDto dto)
+    {
+        if (dto.GestationalAge is < 0 or > 45)
+            throw new ArgumentException("Tuổi thai không hợp lệ (0-45 tuần).");
+        if (dto.Gravida is < 0 || dto.Para is < 0)
+            throw new ArgumentException("Số lần mang thai / sinh không hợp lệ.");
+        if (dto.Gravida.HasValue && dto.Para.HasValue && dto.Para.Value > dto.Gravida.Value)
+            throw new ArgumentException("Số lần sinh (P) không thể lớn hơn số lần mang thai (G).");
+        if (dto.FetalHeartRate is < 0 or > 250)
+            throw new ArgumentException("Nhịp tim thai không hợp lệ.");
+    }
+
     public async Task<PrenatalRecordDto> CreatePrenatalAsync(CreatePrenatalRecordDto dto)
     {
+        ValidatePrenatal(dto);
         var year = DateTime.UtcNow.Year;
         var count = await _context.PrenatalRecords.CountAsync(r => r.CreatedAt.Year == year) + 1;
 
@@ -156,8 +169,13 @@ public class ReproductiveHealthService : IReproductiveHealthService
     {
         var entity = await _context.PrenatalRecords.FindAsync(id)
             ?? throw new InvalidOperationException("Prenatal record not found");
+        ValidatePrenatal(dto);
 
         if (dto.GestationalAge.HasValue) entity.GestationalAge = dto.GestationalAge.Value;
+        if (DateTime.TryParse(dto.ExpectedDeliveryDate, out var eddUpd)) entity.ExpectedDeliveryDate = eddUpd;
+        if (dto.BloodType != null) entity.BloodType = dto.BloodType;
+        if (dto.Gravida.HasValue) entity.Gravida = dto.Gravida.Value;
+        if (dto.Para.HasValue) entity.Para = dto.Para.Value;
         if (dto.CurrentWeight.HasValue) entity.CurrentWeight = dto.CurrentWeight.Value;
         if (dto.BloodPressureSystolic.HasValue) entity.BloodPressureSystolic = dto.BloodPressureSystolic.Value;
         if (dto.BloodPressureDiastolic.HasValue) entity.BloodPressureDiastolic = dto.BloodPressureDiastolic.Value;
@@ -277,7 +295,7 @@ public class ReproductiveHealthService : IReproductiveHealthService
             {
                 TotalPrenatal = prenatal.Count,
                 ActivePrenatal = prenatal.Count(r => r.Status == 0),
-                HighRiskPrenatal = prenatal.Count(r => r.RiskLevel == "high"),
+                HighRiskPrenatal = prenatal.Count(r => r.Status == 0 && (r.RiskLevel == "high" || r.RiskLevel == "very_high")),
                 TotalFamilyPlanning = fp.Count,
                 ActiveFamilyPlanning = fp.Count(r => r.Status == 0),
                 MethodBreakdown = fp.GroupBy(r => r.Method)
@@ -293,7 +311,8 @@ public class ReproductiveHealthService : IReproductiveHealthService
         try
         {
             return await _context.PrenatalRecords
-                .Where(r => !r.IsDeleted && r.Status == 0 && r.RiskLevel == "high")
+                // "very_high" is the top risk tier on the v2 form — it was silently excluded from the high-risk list.
+                .Where(r => !r.IsDeleted && r.Status == 0 && (r.RiskLevel == "high" || r.RiskLevel == "very_high"))
                 .OrderByDescending(r => r.CreatedAt)
                 .Take(100)
                 .Select(r => new PrenatalRecordDto

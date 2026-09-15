@@ -49,21 +49,28 @@ export const searchCampaigns = async (params?: {
   toDate?: string;
 }) => {
   try {
-    const response = await apiClient.get<HealthCampaign[]>('/health-education/campaigns', { params });
-    return response.data || [];
+    const response = await apiClient.get<Array<HealthCampaign & { organizer?: string }>>('/health-education/campaigns', { params });
+    return (response.data || []).map((c) => ({ ...c, organizerName: c.organizerName ?? c.organizer ?? '' }));
   } catch {
     console.warn('Failed to fetch health campaigns');
     return [];
   }
 };
 
+// CreateHealthCampaignDto.Organizer / CreateHealthEducationMaterialDto.FilePath — the page's
+// organizerName / fileUrl were dropped on save.
+const toCampaignWire = (data: Partial<HealthCampaign>) => {
+  const { organizerName, ...rest } = data;
+  return { ...rest, organizer: organizerName };
+};
+
 export const createCampaign = async (data: Partial<HealthCampaign>) => {
-  const response = await apiClient.post<HealthCampaign>('/health-education/campaigns', data);
+  const response = await apiClient.post<HealthCampaign>('/health-education/campaigns', toCampaignWire(data));
   return response.data;
 };
 
 export const updateCampaign = async (id: string, data: Partial<HealthCampaign>) => {
-  const response = await apiClient.put<HealthCampaign>(`/health-education/campaigns/${id}`, data);
+  const response = await apiClient.put<HealthCampaign>(`/health-education/campaigns/${id}`, toCampaignWire(data));
   return response.data;
 };
 
@@ -73,8 +80,12 @@ export const searchMaterials = async (params?: {
   status?: number;
 }) => {
   try {
-    const response = await apiClient.get<HealthMaterial[]>('/health-education/materials', { params });
-    return response.data || [];
+    const response = await apiClient.get<Array<HealthMaterial & { filePath?: string; downloads?: number }>>('/health-education/materials', { params });
+    return (response.data || []).map((m) => ({
+      ...m,
+      fileUrl: m.fileUrl ?? m.filePath,
+      downloadCount: m.downloadCount ?? m.downloads ?? 0,
+    }));
   } catch {
     console.warn('Failed to fetch health materials');
     return [];
@@ -82,7 +93,8 @@ export const searchMaterials = async (params?: {
 };
 
 export const createMaterial = async (data: Partial<HealthMaterial>) => {
-  const response = await apiClient.post<HealthMaterial>('/health-education/materials', data);
+  const { fileUrl, ...rest } = data;
+  const response = await apiClient.post<HealthMaterial>('/health-education/materials', { ...rest, filePath: fileUrl });
   return response.data;
 };
 

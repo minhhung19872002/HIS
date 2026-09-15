@@ -304,6 +304,7 @@ namespace HIS.Application.Services
         Task<List<CMECourseDto>> GetAvailableCoursesAsync(string category = null);
         Task<CMESummaryDto> GetStaffCMESummaryAsync(Guid staffId);
         Task<CMERecordDto> RecordCMECompletionAsync(Guid staffId, Guid courseId, int creditsEarned, string certificateNumber);
+        Task<CMERecordDto> CreateCMERecordAsync(CreateCMERecordDto dto);
         Task<List<CMESummaryDto>> GetCMENonCompliantStaffAsync();
 
         // Competency Assessment
@@ -374,6 +375,7 @@ namespace HIS.Application.Services
         Task<IncidentReportDto> UpdateIncidentReportAsync(Guid id, IncidentReportDto dto);
         Task<bool> AssignInvestigatorAsync(Guid id, string investigator);
         Task<bool> CloseIncidentAsync(Guid id, string closureNotes);
+        Task<IncidentReportDto> InvestigateIncidentAsync(InvestigateIncidentDto dto);
         Task<bool> AddCorrectiveActionAsync(Guid incidentId, CorrectiveActionDto action);
         Task<bool> UpdateCorrectiveActionStatusAsync(Guid actionId, string status, string notes);
 

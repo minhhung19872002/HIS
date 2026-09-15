@@ -326,6 +326,13 @@ public class CommunityHealthService : ICommunityHealthService
 
     public async Task<NcdScreeningListDto> CreateNcdScreeningAsync(NcdScreeningCreateDto dto, string? userId)
     {
+        // QA-R2: a screening without a real patient was saved with PatientId = Guid.Empty (orphan, no name).
+        if (dto.PatientId == Guid.Empty || !await _context.Patients.AnyAsync(p => p.Id == dto.PatientId && !p.IsDeleted))
+            throw new ArgumentException("Chưa chọn bệnh nhân hợp lệ cho phiếu sàng lọc.");
+        if (dto.SystolicBP is < 40 or > 300 || dto.DiastolicBP is < 20 or > 200
+            || (dto.SystolicBP.HasValue && dto.DiastolicBP.HasValue && dto.DiastolicBP >= dto.SystolicBP))
+            throw new ArgumentException("Huyết áp không hợp lệ.");
+
         // Calculate CVD risk score based on WHO/ISH risk charts (simplified)
         var riskScore = CalculateCVDRiskScore(dto);
         var riskLevel = riskScore < 10 ? 0 : riskScore < 20 ? 1 : riskScore < 30 ? 2 : 3;

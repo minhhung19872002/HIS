@@ -122,8 +122,9 @@ public partial class PublicHealthService
             DiseaseCode = dto.DiseaseCode,
             DiseaseName = dto.DiseaseName,
             DiseaseGroup = dto.DiseaseGroup,
-            OnsetDate = !string.IsNullOrEmpty(dto.OnsetDate) && DateTime.TryParse(dto.OnsetDate, out var od) ? od : DateTime.UtcNow,
-            ReportDate = DateTime.UtcNow,
+            // Business dates are VN local (list shows/filters them by calendar day); UtcNow put 00:00-06:59 reports on the previous day.
+            OnsetDate = !string.IsNullOrEmpty(dto.OnsetDate) && DateTime.TryParse(dto.OnsetDate, out var od) ? od : DateTime.Now,
+            ReportDate = DateTime.Now,
             IsNotifiable = dto.IsNotifiable,
             ReportedBy = dto.ReportedBy,
             FacilityName = dto.FacilityName,
@@ -154,7 +155,12 @@ public partial class PublicHealthService
     {
         var d = await _context.DiseaseReports.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted)
             ?? throw new InvalidOperationException("Disease report not found");
-        if (dto.Status.HasValue) d.Status = dto.Status.Value;
+        if (dto.Status.HasValue)
+        {
+            if (dto.Status.Value is < 0 or > 4) throw new ArgumentException("Trạng thái báo cáo không hợp lệ");
+            d.Status = dto.Status.Value;
+        }
+        if (dto.ContactCount < 0) throw new ArgumentException("Số người tiếp xúc không được âm");
         if (dto.Outcome != null) d.Outcome = dto.Outcome;
         if (dto.QuarantineStatus != null) d.QuarantineStatus = dto.QuarantineStatus;
         if (dto.ContactTracingNotes != null) d.ContactTracingNotes = dto.ContactTracingNotes;
@@ -225,7 +231,7 @@ public partial class PublicHealthService
             OutbreakCode = dto.OutbreakCode,
             DiseaseName = dto.DiseaseName,
             DiseaseCode = dto.DiseaseCode,
-            DetectedDate = !string.IsNullOrEmpty(dto.DetectedDate) && DateTime.TryParse(dto.DetectedDate, out var dd) ? dd : DateTime.UtcNow,
+            DetectedDate = !string.IsNullOrEmpty(dto.DetectedDate) && DateTime.TryParse(dto.DetectedDate, out var dd) ? dd : DateTime.Now,
             Location = dto.Location,
             AffectedArea = dto.AffectedArea,
             RiskLevel = dto.RiskLevel,
@@ -262,6 +268,12 @@ public partial class PublicHealthService
         if (!string.IsNullOrEmpty(dto.ResolvedDate) && DateTime.TryParse(dto.ResolvedDate, out var rd))
             o.ResolvedDate = rd;
         if (dto.Notes != null) o.Notes = dto.Notes;
+        // QA-R2: negative counts, deaths > cases, unknown status and an end date before detection were all accepted.
+        if (o.CaseCount < 0 || o.DeathCount < 0) throw new ArgumentException("Số ca / tử vong không được âm");
+        if (o.DeathCount > o.CaseCount) throw new ArgumentException("Số tử vong không được lớn hơn số ca");
+        if (o.Status is < 0 or > 3) throw new ArgumentException("Trạng thái ổ dịch không hợp lệ");
+        if (o.ResolvedDate.HasValue && o.ResolvedDate.Value.Date < o.DetectedDate.Date)
+            throw new ArgumentException("Ngày kết thúc không được trước ngày phát hiện");
         o.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 

@@ -205,7 +205,7 @@ public class FrontendCompatService : IFrontendCompatService
                 e.Department, e.JobTitle, e.HazardExposure, e.ExposureYears,
                 e.ExamType, e.ExamDate, e.OccupationalDisease, e.Classification,
                 e.DoctorName, e.Status, e.RespiratoryResult, e.HearingResult, e.VisionResult,
-                e.XrayResult, e.LabResults, e.Recommendations, e.Notes
+                e.XrayResult, e.LabResults, e.Recommendations, e.Notes, e.GeneralHealth
             })
             .ToListAsync();
         // QA0915 wave 2: add the v2 OccupationalHealth.tsx (OccExam) field names next to the legacy keys.
@@ -230,8 +230,72 @@ public class FrontendCompatService : IFrontendCompatService
             labResults = e.LabResults,
             status = e.Status,
             recommendations = e.Recommendations,
+            conclusion = e.GeneralHealth,
             notes = e.Notes,
         }).ToList());
+    }
+
+    public async Task<ServiceOutcome> OHSaveExamAsync(Guid? id, OccExamSaveDto dto, string? userId)
+    {
+        if ((!id.HasValue && (string.IsNullOrWhiteSpace(dto.PatientName) || string.IsNullOrWhiteSpace(dto.CompanyName) || string.IsNullOrWhiteSpace(dto.ExamType)))
+            || (dto.PatientName != null && dto.PatientName.Trim().Length == 0)
+            || (dto.CompanyName != null && dto.CompanyName.Trim().Length == 0)
+            || (dto.ExamType != null && dto.ExamType.Trim().Length == 0))
+            return ServiceOutcome.Bad("Họ tên, công ty và loại khám là bắt buộc");
+        if (dto.YearsOfExposure < 0) return ServiceOutcome.Bad("Thâm niên phơi nhiễm không được âm");
+        if (dto.BloodLeadLevel < 0) return ServiceOutcome.Bad("Chì máu không được âm");
+        if (dto.Status is < 0 or > 3) return ServiceOutcome.Bad("Trạng thái phiếu khám không hợp lệ");
+        var now = DateTime.Now;
+        if (dto.ExamDate?.Date > now.Date) return ServiceOutcome.Bad("Ngày khám không được ở tương lai");
+        HIS.Core.Entities.OccupationalHealthExam? e;
+        if (id.HasValue)
+        {
+            e = await _db.OccupationalHealthExams.FirstOrDefaultAsync(x => x.Id == id.Value);
+            if (e == null) return ServiceOutcome.NotFound("Không tìm thấy phiếu khám");
+            e.UpdatedAt = now; e.UpdatedBy = userId;
+        }
+        else
+        {
+            e = new HIS.Core.Entities.OccupationalHealthExam { Id = Guid.NewGuid(), CreatedAt = now, CreatedBy = userId, Status = 0 };
+            _db.OccupationalHealthExams.Add(e);
+        }
+        if (dto.PatientName != null) e.EmployeeName = dto.PatientName.Trim();
+        e.EmployeeCode = dto.PatientCode ?? e.EmployeeCode;
+        if (dto.CompanyName != null) e.CompanyName = dto.CompanyName.Trim();
+        e.CompanyTaxCode = dto.CompanyCode ?? e.CompanyTaxCode;
+        e.Department = dto.Department ?? e.Department;
+        e.JobTitle = dto.Occupation ?? e.JobTitle;
+        e.ExposureYears = dto.YearsOfExposure ?? e.ExposureYears;
+        if (dto.ExamType != null) e.ExamType = dto.ExamType.Trim();
+        e.ExamDate = dto.ExamDate ?? (e.ExamDate == default ? now : e.ExamDate);
+        e.DoctorName = dto.ExamDoctor ?? e.DoctorName;
+        if (dto.HazardTypes != null)
+            e.HazardExposure = string.Join(", ", dto.HazardTypes.Where(h => !string.IsNullOrWhiteSpace(h)).Select(h => h.Trim()));
+        e.RespiratoryResult = dto.SpirometryResult ?? e.RespiratoryResult;
+        e.HearingResult = dto.AudiometryResult ?? e.HearingResult;
+        e.VisionResult = dto.VisionResult ?? e.VisionResult;
+        e.XrayResult = dto.XrayResult ?? e.XrayResult;
+        e.LabResults = dto.LabResults ?? e.LabResults;
+        if (dto.BloodLeadLevel.HasValue)
+        {
+            // No dedicated column: kept inside LabResults (entity comment: "blood lead, urine cotinine, ...").
+            var lead = $"Chì máu: {dto.BloodLeadLevel.Value} µg/dL";
+            if (e.LabResults == null || !e.LabResults.Contains("Chì máu:"))
+                e.LabResults = string.IsNullOrWhiteSpace(e.LabResults) ? lead : e.LabResults + "\n" + lead;
+        }
+        e.Classification = dto.Classification ?? e.Classification;
+        e.OccupationalDisease = dto.OccupationalDisease ?? e.OccupationalDisease;
+        e.GeneralHealth = dto.Conclusion ?? e.GeneralHealth;
+        e.Recommendations = dto.Recommendations ?? e.Recommendations;
+        if (dto.Status.HasValue) e.Status = dto.Status.Value;
+        await _db.SaveChangesAsync();
+        return ServiceOutcome.Ok(new
+        {
+            e.Id,
+            examCode = "KNN-" + e.ExamDate.ToString("yyMMdd") + "-" + e.Id.ToString("N")[..4].ToUpperInvariant(),
+            patientName = e.EmployeeName, patientCode = e.EmployeeCode, companyName = e.CompanyName,
+            examDate = e.ExamDate, examType = e.ExamType, classification = e.Classification, status = e.Status,
+        });
     }
 
     public ServiceOutcome OHHazardTypes() => ServiceOutcome.Ok(new object[]
@@ -281,10 +345,20 @@ public class FrontendCompatService : IFrontendCompatService
 
     // ---- Epidemiology: /reports /statistics /notifiable-diseases ----
 
-    public async Task<ServiceOutcome> EpiReportsAsync(int pageSize)
+    public async Task<ServiceOutcome> EpiReportsAsync(string? keyword, DateTime? fromDate, DateTime? toDate, int pageSize)
     {
-        var items = await _db.DiseaseReports
-            .OrderByDescending(d => d.OnsetDate)
+        if (pageSize <= 0 || pageSize > 1000) pageSize = 500;
+        var q = _db.DiseaseReports.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var k = keyword.Trim();
+            q = q.Where(d => d.PatientName.Contains(k) || d.DiseaseName.Contains(k) || d.DiseaseCode.Contains(k));
+        }
+        if (fromDate.HasValue) q = q.Where(d => d.ReportDate >= fromDate.Value.Date);
+        if (toDate.HasValue) { var end = toDate.Value.Date.AddDays(1); q = q.Where(d => d.ReportDate < end); }
+        // Ordered by ReportDate (the column the list shows and filters on); OnsetDate is optional (0001-01-01).
+        var items = await q
+            .OrderByDescending(d => d.ReportDate)
             .Take(pageSize)
             .Select(d => new
             {
@@ -350,6 +424,135 @@ public class FrontendCompatService : IFrontendCompatService
         new { code = "J09", name = "Cúm A/H1N1, A/H5N1", group = "A" },
         new { code = "U07.1", name = "COVID-19", group = "A" },
     });
+
+    public async Task<ServiceOutcome> EpiSaveReportAsync(Guid? id, EpiReportSaveDto dto, string? userId)
+    {
+        // Create needs patient + disease; an update is partial (the page's "Gửi báo cáo" sends only {status}),
+        // but a field that IS sent must not be blank.
+        if ((!id.HasValue && (string.IsNullOrWhiteSpace(dto.PatientName) || string.IsNullOrWhiteSpace(dto.DiseaseName)))
+            || (dto.PatientName != null && dto.PatientName.Trim().Length == 0)
+            || (dto.DiseaseName != null && dto.DiseaseName.Trim().Length == 0))
+            return ServiceOutcome.Bad("Họ tên bệnh nhân và tên bệnh là bắt buộc");
+        if (dto.Age is < 0 or > 150) return ServiceOutcome.Bad("Tuổi không hợp lệ");
+        if (dto.Status is < 0 or > 3) return ServiceOutcome.Bad("Trạng thái báo cáo không hợp lệ");
+        var now = DateTime.Now;
+        if (dto.OnsetDate?.Date > now.Date || dto.DiagnosisDate?.Date > now.Date)
+            return ServiceOutcome.Bad("Ngày khởi phát / chẩn đoán không được ở tương lai");
+        if (dto.OnsetDate.HasValue && dto.DiagnosisDate.HasValue && dto.DiagnosisDate.Value.Date < dto.OnsetDate.Value.Date)
+            return ServiceOutcome.Bad("Ngày chẩn đoán không được trước ngày khởi phát");
+        HIS.Core.Entities.DiseaseReport? d;
+        if (id.HasValue)
+        {
+            d = await _db.DiseaseReports.FirstOrDefaultAsync(x => x.Id == id.Value);
+            if (d == null) return ServiceOutcome.NotFound("Không tìm thấy báo cáo ca bệnh");
+            d.UpdatedAt = now; d.UpdatedBy = userId;
+        }
+        else
+        {
+            d = new HIS.Core.Entities.DiseaseReport
+            {
+                Id = Guid.NewGuid(), CreatedAt = now, CreatedBy = userId, IsNotifiable = true,
+                ReportDate = dto.ReportDate ?? now,
+            };
+            _db.DiseaseReports.Add(d);
+        }
+        if (dto.PatientName != null) d.PatientName = dto.PatientName.Trim();
+        if (dto.DiseaseName != null) d.DiseaseName = dto.DiseaseName.Trim();
+        d.DiseaseCode = dto.DiseaseCode?.Trim() ?? d.DiseaseCode ?? string.Empty;
+        d.DiseaseGroup = dto.DiseaseGroup ?? d.DiseaseGroup;
+        if (dto.Gender.HasValue) d.PatientGender = dto.Gender.Value == 1 ? "1" : "2";
+        if (dto.Age.HasValue) d.PatientAge = dto.Age.Value.ToString();
+        d.PatientAddress = dto.Address ?? d.PatientAddress;
+        if (dto.OnsetDate.HasValue) d.OnsetDate = dto.OnsetDate.Value;
+        if (dto.DiagnosisDate.HasValue) d.DiagnosisDate = dto.DiagnosisDate.Value;
+        d.ReportedBy = dto.ReportingDoctor ?? d.ReportedBy;
+        if (dto.LabConfirmed.HasValue)
+            d.LabConfirmation = dto.LabConfirmed.Value ? (string.IsNullOrWhiteSpace(d.LabConfirmation) ? "Có" : d.LabConfirmation) : null;
+        if (dto.Status.HasValue) d.Status = dto.Status.Value;
+        d.Outcome = dto.Outcome ?? d.Outcome;
+        d.Notes = dto.Notes ?? d.Notes;
+        await _db.SaveChangesAsync();
+        return ServiceOutcome.Ok(new
+        {
+            d.Id, d.PatientName, d.DiseaseName, d.DiseaseCode, d.DiseaseGroup, d.ReportDate, d.OnsetDate, d.Status,
+            reportCode = "BC-" + d.ReportDate.ToString("yyMMdd") + "-" + d.Id.ToString("N")[..4].ToUpperInvariant(),
+        });
+    }
+
+    // OutbreakEvent.RiskLevel is stored as text (Low/Medium/High/Critical); the v2 page uses 1..4.
+    private static readonly string[] OutbreakRiskNames = { "Low", "Medium", "High", "Critical" };
+    private static int OutbreakRiskToInt(string? risk)
+    {
+        var i = Array.FindIndex(OutbreakRiskNames, r => string.Equals(r, risk, StringComparison.OrdinalIgnoreCase));
+        return i >= 0 ? i + 1 : (int.TryParse(risk, out var n) && n is >= 1 and <= 4 ? n : 1);
+    }
+
+    public async Task<ServiceOutcome> EpiOutbreaksAsync()
+    {
+        var rows = await _db.OutbreakEvents.AsNoTracking().OrderByDescending(o => o.DetectedDate).Take(500).ToListAsync();
+        return ServiceOutcome.Ok(rows.Select(o => new
+        {
+            o.Id,
+            // No Name column: the outbreak code is the identifying label; description lives in Notes.
+            name = o.OutbreakCode,
+            o.OutbreakCode, o.DiseaseName, o.DiseaseCode,
+            location = o.Location ?? o.AffectedArea,
+            startDate = o.DetectedDate, endDate = o.ResolvedDate,
+            o.CaseCount, o.DeathCount,
+            riskLevel = OutbreakRiskToInt(o.RiskLevel),
+            o.Status, o.ResponseActions,
+            description = o.Notes,
+        }).ToList());
+    }
+
+    public async Task<ServiceOutcome> EpiSaveOutbreakAsync(Guid? id, EpiOutbreakSaveDto dto, string? userId)
+    {
+        if ((!id.HasValue && (string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.DiseaseName)))
+            || (dto.Name != null && dto.Name.Trim().Length == 0)
+            || (dto.DiseaseName != null && dto.DiseaseName.Trim().Length == 0))
+            return ServiceOutcome.Bad("Tên ổ dịch và tên bệnh là bắt buộc");
+        if (dto.CaseCount < 0 || dto.DeathCount < 0) return ServiceOutcome.Bad("Số ca / tử vong không được âm");
+        if (dto.RiskLevel is < 1 or > 4) return ServiceOutcome.Bad("Mức nguy cơ không hợp lệ");
+        if (dto.Status is < 0 or > 3) return ServiceOutcome.Bad("Trạng thái ổ dịch không hợp lệ");
+        var now = DateTime.Now;
+        if (dto.StartDate?.Date > now.Date) return ServiceOutcome.Bad("Ngày phát hiện không được ở tương lai");
+        HIS.Core.Entities.OutbreakEvent? o;
+        if (id.HasValue)
+        {
+            o = await _db.OutbreakEvents.FirstOrDefaultAsync(x => x.Id == id.Value);
+            if (o == null) return ServiceOutcome.NotFound("Không tìm thấy ổ dịch");
+            o.UpdatedAt = now; o.UpdatedBy = userId;
+        }
+        else
+        {
+            o = new HIS.Core.Entities.OutbreakEvent { Id = Guid.NewGuid(), CreatedAt = now, CreatedBy = userId, Status = 0 };
+            _db.OutbreakEvents.Add(o);
+        }
+        if (dto.Name != null) o.OutbreakCode = dto.Name.Trim();
+        if (dto.DiseaseName != null) o.DiseaseName = dto.DiseaseName.Trim();
+        o.DiseaseCode = dto.DiseaseCode ?? o.DiseaseCode;
+        o.Location = dto.Location ?? o.Location;
+        o.DetectedDate = dto.StartDate ?? (o.DetectedDate == default ? now : o.DetectedDate);
+        if (dto.EndDate.HasValue) o.ResolvedDate = dto.EndDate.Value;
+        if (dto.CaseCount.HasValue) o.CaseCount = dto.CaseCount.Value;
+        if (dto.DeathCount.HasValue) o.DeathCount = dto.DeathCount.Value;
+        if (dto.RiskLevel.HasValue) o.RiskLevel = OutbreakRiskNames[dto.RiskLevel.Value - 1];
+        if (dto.Status.HasValue) o.Status = dto.Status.Value;
+        o.ResponseActions = dto.ResponseActions ?? o.ResponseActions;
+        o.Notes = dto.Description ?? o.Notes;
+        // Cross-field rules on the merged state (a partial update must not break them either).
+        if (o.DeathCount > o.CaseCount) return ServiceOutcome.Bad("Số tử vong không được lớn hơn số ca");
+        if (o.ResolvedDate.HasValue && o.ResolvedDate.Value.Date < o.DetectedDate.Date)
+            return ServiceOutcome.Bad("Ngày kết thúc không được trước ngày phát hiện");
+        if (o.Status == 3 && !o.ResolvedDate.HasValue) o.ResolvedDate = now; // resolved outbreak must carry an end date
+        await _db.SaveChangesAsync();
+        return ServiceOutcome.Ok(new
+        {
+            o.Id, name = o.OutbreakCode, o.DiseaseName, o.DiseaseCode, o.Location,
+            startDate = o.DetectedDate, endDate = o.ResolvedDate, o.CaseCount, o.DeathCount,
+            riskLevel = OutbreakRiskToInt(o.RiskLevel), o.Status, o.ResponseActions, description = o.Notes,
+        });
+    }
 
     // ---- RIS admin: areas / folders / hospital-config / dispatch stats ----
 

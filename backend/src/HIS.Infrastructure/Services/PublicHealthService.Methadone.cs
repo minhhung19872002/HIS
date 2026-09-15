@@ -105,6 +105,14 @@ public partial class PublicHealthService
 
     public async Task<MethadonePatientDto> CreateMethadonePatientAsync(CreateMethadonePatientDto dto, string? userId)
     {
+        if (!await _context.Patients.AnyAsync(p => p.Id == dto.PatientId && !p.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy bệnh nhân.");
+        if (string.IsNullOrWhiteSpace(dto.PatientCode))
+            throw new ArgumentException("Chưa nhập mã bệnh nhân Methadone.");
+        MethadoneTreatmentService.ValidateDoseMg(dto.CurrentDoseMg, "Liều khởi đầu");
+        if (await _context.MethadonePatients.AnyAsync(m => m.PatientId == dto.PatientId && !m.IsDeleted && (m.Status == 0 || m.Status == 1)))
+            throw new InvalidOperationException("Bệnh nhân đang có hồ sơ điều trị Methadone chưa kết thúc.");
+
         var entity = new MethadonePatient
         {
             Id = Guid.NewGuid(),
@@ -138,6 +146,10 @@ public partial class PublicHealthService
     {
         var m = await _context.MethadonePatients.Include(x => x.Patient).FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted)
             ?? throw new InvalidOperationException("Methadone patient not found");
+        if (dto.Status.HasValue && (dto.Status.Value < 0 || dto.Status.Value > 4))
+            throw new ArgumentException("Trạng thái điều trị không hợp lệ (0-4).");
+        if (dto.CurrentDoseMg.HasValue)
+            MethadoneTreatmentService.ValidateDoseMg(dto.CurrentDoseMg.Value, "Liều hiện tại");
         if (dto.Status.HasValue) m.Status = dto.Status.Value;
         if (dto.CurrentDoseMg.HasValue) m.CurrentDoseMg = dto.CurrentDoseMg.Value;
         if (dto.Phase != null) m.Phase = dto.Phase;
@@ -185,14 +197,21 @@ public partial class PublicHealthService
 
     public async Task<MethadoneDosingRecordDto> RecordDoseAsync(CreateMethadoneDosingDto dto, string? userId)
     {
-        var patient = await _context.MethadonePatients.FindAsync(dto.MethadonePatientId)
+        var patient = await _context.MethadonePatients.FirstOrDefaultAsync(m => m.Id == dto.MethadonePatientId && !m.IsDeleted)
             ?? throw new InvalidOperationException("Methadone patient not found");
+        if (dto.Status < 0 || dto.Status > 3)
+            throw new ArgumentException("Trạng thái liều không hợp lệ (0-3).");
+
+        // Default = VN wall-clock (dashboard/"today" logic reads DosingDate as VN time, not UTC).
+        var dosingDate = !string.IsNullOrEmpty(dto.DosingDate) && DateTime.TryParse(dto.DosingDate, out var dd) ? dd : HIS.Core.Common.VnTime.NowVn;
+        await MethadoneTreatmentService.ValidateDosingAsync(_context, patient, dosingDate, dto.DoseMg, missed: dto.Status != 0,
+            advanceAllowed: dto.TakeHome || dto.Status == 3);
 
         var entity = new MethadoneDosingRecord
         {
             Id = Guid.NewGuid(),
             MethadonePatientId = dto.MethadonePatientId,
-            DosingDate = !string.IsNullOrEmpty(dto.DosingDate) && DateTime.TryParse(dto.DosingDate, out var dd) ? dd : DateTime.UtcNow,
+            DosingDate = dosingDate,
             DoseMg = dto.DoseMg,
             Witnessed = dto.Witnessed,
             TakeHome = dto.TakeHome,
@@ -205,7 +224,9 @@ public partial class PublicHealthService
         _context.MethadoneDosingRecords.Add(entity);
 
         // Update patient's last dosing date and missed count
-        patient.LastDosingDate = entity.DosingDate;
+        // Only a dispensed dose (Status 0) counts as "last dose"; never move it backwards.
+        if (dto.Status == 0 && (!patient.LastDosingDate.HasValue || entity.DosingDate > patient.LastDosingDate.Value))
+            patient.LastDosingDate = entity.DosingDate;
         if (dto.Status == 1) // Missed
             patient.MissedDoseCount++;
         patient.UpdatedAt = DateTime.UtcNow;
@@ -267,7 +288,10 @@ public partial class PublicHealthService
             THC = dto.THC,
             Benzodiazepine = dto.Benzodiazepine,
             Methadone = dto.Methadone,
-            OverallResult = dto.OverallResult,
+            // Client may omit the overall result — derive it like MethadoneTreatmentService so stats don't miss positives.
+            OverallResult = !string.IsNullOrWhiteSpace(dto.OverallResult) ? dto.OverallResult
+                : new[] { dto.Morphine, dto.Amphetamine, dto.Methamphetamine, dto.THC, dto.Benzodiazepine }
+                    .Any(r => string.Equals(r, "positive", StringComparison.OrdinalIgnoreCase)) ? "Positive" : "Negative",
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = userId,

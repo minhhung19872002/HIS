@@ -18,6 +18,8 @@ import {
 } from '@/_v2kit';
 import { RowActions, RefreshButton } from '../../../components/actions';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { apiClient } from '../../../services/apiClient';
+import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 
 // ─────────────────────────── Trạng thái hồ sơ (0..5, phòng thủ cả enum-name chuỗi từ BE) ───────────────────────────
 
@@ -82,8 +84,8 @@ const ADHERENCE_OPTIONS = [
 ];
 
 // Khối Lao/HIV hiện theo loại hồ sơ đang chọn trong modal (parity v1) — ghép trong recFields useMemo
+// patientId must be the HIS patient GUID — a typed patient code failed model binding (400) on every create.
 const RECORD_BASE_FIELDS: CrudFieldCfg[] = [
-  { key: 'patientId', label: 'Mã bệnh nhân', required: true, placeholder: 'Mã bệnh nhân' },
   { key: 'recordType', label: 'Loại hồ sơ', type: 'select', required: true, options: TYPE_OPTIONS },
   { key: 'treatmentCategory', label: 'Phân loại điều trị', type: 'select', required: true, options: CATEGORY_OPTIONS },
   { key: 'regimen', label: 'Phác đồ điều trị', required: true, placeholder: 'VD: 2RHZE/4RH, TDF/3TC/DTG' },
@@ -180,12 +182,23 @@ const TbHivManagementV2: React.FC = () => {
   const openCreate = () => { setEditRecord(null); setFormRecordType(null); setCrudOpen(true); };
   const openEdit = (r: TbHivRecordDto) => { setEditRecord(r); setFormRecordType(r.recordType); setCrudOpen(true); };
 
+  const [patientOpts, setPatientOpts] = useState<Array<{ id: string; patientCode: string; fullName: string }>>([]);
+  const searchPatients = useCallback((kw: string) => {
+    if (!kw || kw.trim().length < 2) return;
+    apiClient.post<unknown>('/patients/search', { keyword: kw.trim(), page: 1, pageSize: 20 })
+      .then((r) => setPatientOpts(normalizeArrayResponse<{ id: string; patientCode: string; fullName: string }>(r.data)))
+      .catch(() => { /* đang gõ dở — không toast */ });
+  }, []);
+
   const recFields = useMemo<CrudFieldCfg[]>(() => [
+    { key: 'patientId', label: 'Bệnh nhân', type: 'autocomplete', required: true, disabledOnEdit: true,
+      options: patientOpts.map((p) => ({ value: p.id, label: `${p.patientCode} — ${p.fullName}` })),
+      onSearch: searchPatients, debounce: 300, placeholder: 'Gõ mã BN hoặc họ tên (≥ 2 ký tự)…' },
     ...RECORD_BASE_FIELDS,
     ...(formRecordType === 0 || formRecordType === 2 ? RECORD_TB_FIELDS : []),
     ...(formRecordType === 1 || formRecordType === 2 ? RECORD_HIV_FIELDS : []),
     RECORD_NOTES_FIELD,
-  ], [formRecordType]);
+  ], [formRecordType, patientOpts, searchPatients]);
 
   // BE không có endpoint in phiếu → dựng phiếu điều trị client-side từ detail + follow-ups
   const handlePrint = async (r: TbHivRecordDto) => {

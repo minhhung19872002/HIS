@@ -179,6 +179,17 @@ public class TraditionalMedicineService : ITraditionalMedicineService
 
     public async Task<HerbalPrescriptionDto> CreateHerbalPrescriptionAsync(CreateHerbalPrescriptionDto dto)
     {
+        // QA-R2: a missing/finished treatment still created (and billed) a herbal Rx with TreatmentId = Guid.Empty.
+        var treatment = dto.TreatmentId.HasValue
+            ? await _context.TraditionalMedicineTreatments.FirstOrDefaultAsync(t => t.Id == dto.TreatmentId.Value && !t.IsDeleted)
+            : null;
+        if (treatment == null)
+            throw new KeyNotFoundException("Không tìm thấy đợt điều trị YHCT.");
+        if (treatment.Status != 0)
+            throw new InvalidOperationException("Đợt điều trị đã kết thúc/hủy — không thể kê thêm đơn thuốc bắc.");
+        if (dto.Quantity is <= 0 || dto.Duration is <= 0)
+            throw new ArgumentException("Số thang và thời gian dùng phải lớn hơn 0.");
+
         var year = DateTime.UtcNow.Year;
         var count = await _context.HerbalPrescriptions.CountAsync(h => h.CreatedAt.Year == year) + 1;
 
@@ -404,6 +415,8 @@ public class TraditionalMedicineService : ITraditionalMedicineService
     {
         var entity = await _context.TraditionalMedicineTreatments.FindAsync(id)
             ?? throw new InvalidOperationException("Treatment not found");
+        if (entity.Status != 0)
+            throw new InvalidOperationException("Chỉ kết thúc được đợt điều trị đang hoạt động.");
 
         entity.Status = 1; // completed
         entity.EndDate = DateTime.UtcNow;

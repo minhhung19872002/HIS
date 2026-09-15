@@ -13,7 +13,7 @@ export interface PracticeLicense {
   expiryDate: string;
   issuingAuthority: string;
   specialty?: string;
-  status: number; // 0=active, 1=expiring, 2=expired, 3=revoked, 4=suspended
+  status: number; // BE: 0=active, 1=expired, 2=suspended, 3=revoked ("expiring" is derived from expiryDate)
   renewalDate?: string;
   practiceScope?: string;
   notes?: string;
@@ -49,13 +49,20 @@ export const getById = async (id: string) => {
   return response.data;
 };
 
+// BE CreatePracticeLicenseDto names: holderName (required) / certificateNumber. The form uses staffName /
+// licenseNumber, so posting it as-is was a 400 "HolderName is required" on every create and dropped the number.
+const toBePayload = (data: Partial<PracticeLicense>) => {
+  const d = data as Partial<PracticeLicense> & { holderName?: string; certificateNumber?: string };
+  return { ...data, holderName: d.holderName ?? data.staffName, certificateNumber: d.certificateNumber ?? data.licenseNumber };
+};
+
 export const createLicense = async (data: Partial<PracticeLicense>) => {
-  const response = await apiClient.post<PracticeLicense>('/practice-license/licenses', data);
+  const response = await apiClient.post<PracticeLicense>('/practice-license/licenses', toBePayload(data));
   return response.data;
 };
 
 export const updateLicense = async (id: string, data: Partial<PracticeLicense>) => {
-  const response = await apiClient.put<PracticeLicense>(`/practice-license/licenses/${id}`, data);
+  const response = await apiClient.put<PracticeLicense>(`/practice-license/licenses/${id}`, toBePayload(data));
   return response.data;
 };
 

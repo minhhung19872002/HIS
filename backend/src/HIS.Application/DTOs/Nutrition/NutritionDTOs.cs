@@ -53,8 +53,9 @@ namespace HIS.Application.DTOs.Nutrition
         public decimal? WeightLoss6Months { get; set; }
         public int NutritionScore { get; set; }
         public int DiseaseScore { get; set; }
-        public string SGACategory { get; set; }
-        public string Notes { get; set; }
+        // QA-R2: optional — non-nullable reference types are implicitly [Required] (v2 NRS form got 400).
+        public string? SGACategory { get; set; }
+        public string? Notes { get; set; }
     }
 
     #endregion
@@ -170,6 +171,7 @@ namespace HIS.Application.DTOs.Nutrition
         public decimal? FluidRestriction { get; set; }
         public List<string> Allergies { get; set; }
         public List<string> Dislikes { get; set; }
+        public List<string>? Restrictions { get; set; }
         public string SpecialInstructions { get; set; }
 
         // Schedule
@@ -192,17 +194,20 @@ namespace HIS.Application.DTOs.Nutrition
     {
         public Guid AdmissionId { get; set; }
         public Guid DietTypeId { get; set; }
-        public string Texture { get; set; }
+        // QA-R2: optional fields nullable — implicit [Required] made the v2 diet-order form always 400.
+        public string? Texture { get; set; }
         public decimal? CalorieLevel { get; set; }
         public decimal? ProteinLevel { get; set; }
         public decimal? SodiumRestriction { get; set; }
         public decimal? FluidRestriction { get; set; }
-        public List<string> Allergies { get; set; }
-        public List<string> Dislikes { get; set; }
-        public string SpecialInstructions { get; set; }
-        public List<string> MealTimes { get; set; }
-        public string FeedingRoute { get; set; }
+        public List<string>? Allergies { get; set; }
+        public List<string>? Dislikes { get; set; }
+        public List<string>? Restrictions { get; set; }
+        public string? SpecialInstructions { get; set; }
+        public List<string>? MealTimes { get; set; }
+        public string? FeedingRoute { get; set; }
         public DateTime StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
     }
 
     /// <summary>

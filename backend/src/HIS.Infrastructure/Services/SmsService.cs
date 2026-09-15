@@ -119,6 +119,14 @@ public class SmsService : ISmsService
 
         var normalizedPhone = NormalizePhone(phoneNumber);
 
+        // "abc" became "84abc" and was logged/returned as sent. Reject anything that is not a VN number 84 + 9-10 digits.
+        if (!System.Text.RegularExpressions.Regex.IsMatch(normalizedPhone.TrimStart('+'), @"^84\d{9,10}$"))
+        {
+            _logger.LogWarning("SMS rejected — invalid phone number {Phone} (type {Type})", normalizedPhone, messageType);
+            await LogSmsAsync(normalizedPhone, message, messageType, Provider.ToLower(), 1, "Số điện thoại không hợp lệ", null, patientName, relatedEntityType, relatedEntityId);
+            return false;
+        }
+
         if (!IsEnabled || string.IsNullOrEmpty(ApiKey))
         {
             _logger.LogWarning("[SMS-DEV] To: {Phone} | Type: {Type} | Message: {Message}", normalizedPhone, messageType, message);
@@ -239,10 +247,17 @@ public class SmsService : ISmsService
             query = query.Where(l => l.MessageType == search.MessageType);
         if (search.Status.HasValue)
             query = query.Where(l => l.Status == search.Status.Value);
+        // CreatedAt is UTC (HISDbContext stamp) — filter by VN calendar days, end day inclusive.
         if (search.FromDate.HasValue)
-            query = query.Where(l => l.CreatedAt >= search.FromDate.Value);
+        {
+            var fromUtc = HIS.Core.Common.VnTime.DayRangeUtc(search.FromDate.Value).FromUtc;
+            query = query.Where(l => l.CreatedAt >= fromUtc);
+        }
         if (search.ToDate.HasValue)
-            query = query.Where(l => l.CreatedAt <= search.ToDate.Value.AddDays(1));
+        {
+            var toUtc = HIS.Core.Common.VnTime.DayRangeUtc(search.ToDate.Value).ToUtc;
+            query = query.Where(l => l.CreatedAt < toUtc);
+        }
         if (!string.IsNullOrEmpty(search.Keyword))
             query = query.Where(l => l.PhoneNumber.Contains(search.Keyword) || l.PatientName != null && l.PatientName.Contains(search.Keyword));
 
@@ -280,11 +295,13 @@ public class SmsService : ISmsService
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<HISDbContext>();
 
-        var from = fromDate ?? DateTime.Today.AddDays(-30);
-        var to = toDate ?? DateTime.Today.AddDays(1);
+        // Inclusive end day: toDate=2026-09-15 used to compare against 00:00 and dropped that whole day.
+        // CreatedAt is stamped UTC by HISDbContext → convert the VN calendar days to a UTC range.
+        var from = HIS.Core.Common.VnTime.DayRangeUtc(fromDate ?? HIS.Core.Common.VnTime.TodayVn.AddDays(-30)).FromUtc;
+        var to = HIS.Core.Common.VnTime.DayRangeUtc(toDate ?? HIS.Core.Common.VnTime.TodayVn).ToUtc;
 
         var logs = await context.SmsLogs.AsNoTracking()
-            .Where(l => !l.IsDeleted && l.CreatedAt >= from && l.CreatedAt <= to)
+            .Where(l => !l.IsDeleted && l.CreatedAt >= from && l.CreatedAt < to)
             .ToListAsync();
 
         var totalSent = logs.Count(l => l.Status == 0);

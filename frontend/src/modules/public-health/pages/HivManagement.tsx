@@ -1,4 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { apiClient } from '../../../services/apiClient';
+import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import {
@@ -139,6 +141,13 @@ const HivManagementV2: React.FC = () => {
   const [labOpen, setLabOpen] = useState(false);
   const [labInitial, setLabInitial] = useState<Record<string, unknown> | null>(null);
   const [pmtctOpen, setPmtctOpen] = useState(false);
+  const [hisPatientOpts, setHisPatientOpts] = useState<Array<{ id: string; patientCode: string; fullName: string }>>([]);
+  const searchHisPatients = useCallback((kw: string) => {
+    if (!kw || kw.trim().length < 2) return;
+    apiClient.post<unknown>('/patients/search', { keyword: kw.trim(), page: 1, pageSize: 20 })
+      .then((r) => setHisPatientOpts(normalizeArrayResponse<{ id: string; patientCode: string; fullName: string }>(r.data)))
+      .catch(() => { /* đang gõ dở — không toast */ });
+  }, []);
 
   const load = async () => {
     setLoading(true);
@@ -290,10 +299,12 @@ const HivManagementV2: React.FC = () => {
   ];
 
   // ── cấu hình form (CrudModal) ──
+  // BE needs Patients.Id (GUID); typing a code/ID by hand failed binding or hit the FK (500).
   const enrollFields: CrudFieldCfg[] = [
     {
-      key: 'patientId', label: 'Bệnh nhân hệ thống (ID)', required: true,
-      placeholder: 'ID bệnh nhân đã có trong hệ thống (bắt buộc)',
+      key: 'patientId', label: 'Bệnh nhân', type: 'autocomplete', required: true,
+      options: hisPatientOpts.map((p) => ({ value: p.id, label: `${p.patientCode} — ${p.fullName}` })),
+      onSearch: searchHisPatients, debounce: 300, placeholder: 'Gõ mã BN hoặc họ tên (≥ 2 ký tự)…',
     },
     { key: 'hivCode', label: 'Mã HIV', placeholder: 'Mã số chương trình HIV' },
     { key: 'diagnosisDate', label: 'Ngày chẩn đoán', type: 'date', required: true },

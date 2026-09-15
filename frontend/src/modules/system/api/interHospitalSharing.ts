@@ -55,13 +55,29 @@ export const getById = async (id: string) => {
   return response.data;
 };
 
+// BE CreateInterHospitalRequestDto has receivingFacility/requestingFacility/requestDetails — the FE names
+// (respondingHospital/subject/details) were silently dropped, saving requests with no destination or content.
 export const createRequest = async (data: Partial<InterHospitalRequest>) => {
-  const response = await apiClient.post<InterHospitalRequest>('/inter-hospital/requests', data);
+  const requestDetails = [data.subject, data.details].filter(Boolean).join('\n');
+  const response = await apiClient.post<InterHospitalRequest>('/inter-hospital/requests', {
+    requestType: data.requestType,
+    urgency: data.urgency,
+    requestingFacility: data.requestingHospital,
+    receivingFacility: data.respondingHospital,
+    requestDetails: requestDetails || undefined,
+    patientName: data.patientName,
+    requestedBy: data.requestedBy,
+    notes: data.patientCode ? `Mã BN: ${data.patientCode}` : undefined,
+  });
   return response.data;
 };
 
+// BE RespondInterHospitalRequestDto reads responseDetails (responseNotes was dropped).
 export const respondToRequest = async (id: string, data: { status: number; responseNotes: string }) => {
-  const response = await apiClient.put(`/inter-hospital/requests/${id}/respond`, data);
+  const response = await apiClient.put(`/inter-hospital/requests/${id}/respond`, {
+    status: data.status,
+    responseDetails: data.responseNotes,
+  });
   return response.data;
 };
 
@@ -77,8 +93,16 @@ export const getActiveRequests = async () => {
 
 export const getStats = async (): Promise<InterHospitalStats> => {
   try {
-    const response = await apiClient.get<InterHospitalStats>('/inter-hospital/stats');
-    return response.data;
+    // BE InterHospitalStatsDto: pendingCount / completedToday / avgResponseTimeMinutes (pendingRequests was
+    // undefined and Math.round(undefined) rendered "NaNp").
+    const response = await apiClient.get<InterHospitalStats & { pendingCount?: number }>('/inter-hospital/stats');
+    const s = response.data;
+    return {
+      totalRequests: s?.totalRequests ?? 0,
+      pendingRequests: s?.pendingRequests ?? s?.pendingCount ?? 0,
+      completedToday: s?.completedToday ?? 0,
+      avgResponseTimeMinutes: s?.avgResponseTimeMinutes ?? 0,
+    };
   } catch {
     console.warn('Failed to fetch inter-hospital statistics');
     return { totalRequests: 0, pendingRequests: 0, completedToday: 0, avgResponseTimeMinutes: 0 };

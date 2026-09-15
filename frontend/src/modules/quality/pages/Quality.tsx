@@ -647,7 +647,8 @@ const IncidentReportModal: React.FC<{
         locationDescription: location.trim(),
         incidentType,
         severity,
-        patientId: patientId.trim() || undefined,
+        // The box holds a patient CODE (BN…); sending it as patientId (Guid) made every report with a patient a 400.
+        patientCode: patientId.trim() || undefined,
         description: description.trim(),
         immediateActions: immediate.trim() || undefined,
         isReportable: reportable,
@@ -655,8 +656,8 @@ const IncidentReportModal: React.FC<{
       });
       message.success('Đã ghi nhận báo cáo sự cố');
       onDone();
-    } catch {
-      message.error('Báo cáo sự cố thất bại');
+    } catch (e) {
+      message.error(friendlyErrorMessage(e, 'Báo cáo sự cố thất bại'));
     } finally {
       setBusy(false);
     }
@@ -773,8 +774,8 @@ const AuditCreateModal: React.FC<{
       });
       tk('Đã lên lịch audit');
       onDone();
-    } catch {
-      tw('Không thể tạo audit');
+    } catch (e) {
+      tw(friendlyErrorMessage(e, 'Không thể tạo audit'));
     } finally {
       setBusy(false);
     }
@@ -1137,8 +1138,8 @@ const IncidentDrawerBody: React.FC<{ r: IncidentReportDto; onDone: () => void }>
       });
       tk('Đã cập nhật kết quả điều tra');
       onDone();
-    } catch {
-      tw('Không thể cập nhật điều tra');
+    } catch (e) {
+      tw(friendlyErrorMessage(e, 'Không thể cập nhật điều tra'));
     } finally {
       setBusy(false);
     }

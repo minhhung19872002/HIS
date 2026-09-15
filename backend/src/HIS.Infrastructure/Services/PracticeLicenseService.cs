@@ -38,13 +38,24 @@ public class PracticeLicenseService : IPracticeLicenseService
                 if (!string.IsNullOrEmpty(filter.LicenseType))
                     query = query.Where(l => l.LicenseType == filter.LicenseType);
                 if (filter.Status.HasValue)
-                    query = query.Where(l => l.Status == filter.Status.Value);
+                {
+                    // Status 1 (expired) is derived from ExpiryDate — nothing ever flips the stored value.
+                    var st = filter.Status.Value;
+                    var todayF = DateTime.Today;
+                    query = st switch
+                    {
+                        0 => query.Where(l => l.Status == 0 && !(l.ExpiryDate.HasValue && l.ExpiryDate.Value < todayF)),
+                        1 => query.Where(l => l.Status == 1 || (l.Status == 0 && l.ExpiryDate.HasValue && l.ExpiryDate.Value < todayF)),
+                        _ => query.Where(l => l.Status == st),
+                    };
+                }
                 if (!string.IsNullOrEmpty(filter.FromDate) && DateTime.TryParse(filter.FromDate, out var from))
                     query = query.Where(l => l.IssueDate >= from);
                 if (!string.IsNullOrEmpty(filter.ToDate) && DateTime.TryParse(filter.ToDate, out var to))
                     query = query.Where(l => l.IssueDate <= to.AddDays(1));
             }
 
+            var today = DateTime.Today;
             return await query
                 .OrderByDescending(l => l.CreatedAt)
                 .Take(200)
@@ -60,7 +71,7 @@ public class PracticeLicenseService : IPracticeLicenseService
                     IssuingAuthority = l.IssuingAuthority,
                     IssueDate = l.IssueDate.HasValue ? l.IssueDate.Value.ToString("yyyy-MM-dd") : null,
                     ExpiryDate = l.ExpiryDate.HasValue ? l.ExpiryDate.Value.ToString("yyyy-MM-dd") : null,
-                    Status = l.Status,
+                    Status = l.Status == 0 && l.ExpiryDate.HasValue && l.ExpiryDate.Value < today ? 1 : l.Status,
                     FacilityName = l.FacilityName,
                     CertificateNumber = l.CertificateNumber,
                     TrainingInstitution = l.TrainingInstitution,
@@ -79,8 +90,8 @@ public class PracticeLicenseService : IPracticeLicenseService
             var l = await _context.PracticeLicenses.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
             if (l == null) return null;
 
-            var now = DateTime.UtcNow;
-            int? daysUntilExpiry = l.ExpiryDate.HasValue ? (int)(l.ExpiryDate.Value - now).TotalDays : null;
+            var today = DateTime.Today;
+            int? daysUntilExpiry = l.ExpiryDate.HasValue ? (int)(l.ExpiryDate.Value.Date - today).TotalDays : null;
 
             return new PracticeLicenseDetailDto
             {
@@ -94,7 +105,7 @@ public class PracticeLicenseService : IPracticeLicenseService
                 IssuingAuthority = l.IssuingAuthority,
                 IssueDate = l.IssueDate?.ToString("yyyy-MM-dd"),
                 ExpiryDate = l.ExpiryDate?.ToString("yyyy-MM-dd"),
-                Status = l.Status,
+                Status = EffectiveStatus(l, today),
                 FacilityId = l.FacilityId,
                 FacilityName = l.FacilityName,
                 CertificateNumber = l.CertificateNumber,
@@ -109,8 +120,18 @@ public class PracticeLicenseService : IPracticeLicenseService
 
     public async Task<PracticeLicenseDto> CreateLicenseAsync(CreatePracticeLicenseDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.HolderName))
+            throw new ArgumentException("Họ tên người được cấp CCHN là bắt buộc", nameof(dto.HolderName));
+        if (DateTime.TryParse(dto.IssueDate, out var newIssue) && DateTime.TryParse(dto.ExpiryDate, out var newExpiry)
+            && newExpiry.Date < newIssue.Date)
+            throw new ArgumentException("Ngày hết hạn CCHN phải sau ngày cấp", nameof(dto.ExpiryDate));
+
         var year = DateTime.UtcNow.Year;
-        var count = await _context.PracticeLicenses.CountAsync(l => l.CreatedAt.Year == year) + 1;
+        // Count soft-deleted rows too (the global filter hid them, so a code was re-issued after a delete),
+        // then skip forward past any code that is still taken.
+        var count = await _context.PracticeLicenses.IgnoreQueryFilters().CountAsync(l => l.CreatedAt.Year == year) + 1;
+        while (await _context.PracticeLicenses.IgnoreQueryFilters().AnyAsync(l => l.LicenseCode == $"CCHN-{year}-{count:D4}"))
+            count++;
 
         var entity = new PracticeLicense
         {
@@ -144,14 +165,33 @@ public class PracticeLicenseService : IPracticeLicenseService
     {
         var entity = await _context.PracticeLicenses.FindAsync(id)
             ?? throw new KeyNotFoundException("Không tìm thấy chứng chỉ hành nghề");
-        if (DateTime.TryParse(dto.ExpiryDate, out var newExpiry) && entity.IssueDate.HasValue && newExpiry.Date < entity.IssueDate.Value.Date)
+        var effectiveIssue = DateTime.TryParse(dto.IssueDate, out var newIssue) ? newIssue : entity.IssueDate;
+        var effectiveExpiry = DateTime.TryParse(dto.ExpiryDate, out var newExpiry) ? newExpiry : entity.ExpiryDate;
+        if (effectiveIssue.HasValue && effectiveExpiry.HasValue && effectiveExpiry.Value.Date < effectiveIssue.Value.Date)
             throw new ArgumentException("Ngày hết hạn CCHN phải sau ngày cấp", nameof(dto.ExpiryDate));
+        if (dto.HolderName != null && string.IsNullOrWhiteSpace(dto.HolderName))
+            throw new ArgumentException("Họ tên người được cấp CCHN là bắt buộc", nameof(dto.HolderName));
+        // Status edits from the form were silently dropped. Revoked (3) is terminal; 1 (expired) is derived.
+        if (dto.Status.HasValue && dto.Status.Value != EffectiveStatus(entity, DateTime.Today))
+        {
+            if (dto.Status.Value is not (0 or 2 or 3))
+                throw new ArgumentException("Trạng thái CCHN không hợp lệ", nameof(dto.Status));
+            if (entity.Status == 3)
+                throw new InvalidOperationException("CCHN đã bị thu hồi — không thể đổi trạng thái.");
+            if (entity.Status == 2 && dto.Status.Value == 0 && effectiveExpiry.HasValue && effectiveExpiry.Value.Date < DateTime.Today)
+                throw new InvalidOperationException("CCHN đã hết hạn — cần gia hạn thay vì kích hoạt lại.");
+            entity.Status = dto.Status.Value;
+        }
 
         if (dto.LicenseType != null) entity.LicenseType = dto.LicenseType;
         if (dto.HolderName != null) entity.HolderName = dto.HolderName;
         if (dto.Specialty != null) entity.Specialty = dto.Specialty;
         if (dto.IssuingAuthority != null) entity.IssuingAuthority = dto.IssuingAuthority;
-        if (DateTime.TryParse(dto.ExpiryDate, out var exd)) entity.ExpiryDate = exd;
+        if (effectiveIssue.HasValue) entity.IssueDate = effectiveIssue;
+        if (effectiveExpiry.HasValue) entity.ExpiryDate = effectiveExpiry;
+        if (dto.CertificateNumber != null) entity.CertificateNumber = dto.CertificateNumber;
+        if (dto.Cccd != null) entity.Cccd = dto.Cccd;
+        if (DateTime.TryParse(dto.DateOfBirth, out var dob)) entity.DateOfBirth = dob;
         if (dto.FacilityName != null) entity.FacilityName = dto.FacilityName;
         if (dto.Notes != null) entity.Notes = dto.Notes;
         entity.UpdatedAt = DateTime.UtcNow;
@@ -165,11 +205,13 @@ public class PracticeLicenseService : IPracticeLicenseService
     {
         try
         {
-            var deadline = DateTime.UtcNow.AddDays(withinDays);
-            var now = DateTime.UtcNow;
+            var today = DateTime.Today;
+            var deadline = today.AddDays(withinDays);
 
+            // Already-expired active licences are the most urgent ones — they used to be excluded (>= now),
+            // so the "Cảnh báo" drawer never listed them.
             return await _context.PracticeLicenses
-                .Where(l => !l.IsDeleted && l.Status == 0 && l.ExpiryDate.HasValue && l.ExpiryDate.Value <= deadline && l.ExpiryDate.Value >= now)
+                .Where(l => !l.IsDeleted && l.Status == 0 && l.ExpiryDate.HasValue && l.ExpiryDate.Value <= deadline)
                 .OrderBy(l => l.ExpiryDate)
                 .Take(100)
                 .Select(l => new PracticeLicenseDto
@@ -180,7 +222,7 @@ public class PracticeLicenseService : IPracticeLicenseService
                     HolderName = l.HolderName,
                     Specialty = l.Specialty,
                     ExpiryDate = l.ExpiryDate!.Value.ToString("yyyy-MM-dd"),
-                    Status = l.Status,
+                    Status = l.ExpiryDate!.Value < today ? 1 : l.Status,
                 })
                 .ToListAsync();
         }
@@ -192,15 +234,16 @@ public class PracticeLicenseService : IPracticeLicenseService
         try
         {
             var licenses = await _context.PracticeLicenses.Where(l => !l.IsDeleted).ToListAsync();
-            var now = DateTime.UtcNow;
+            var now = DateTime.Today;
             var expiryThreshold = now.AddDays(90);
 
             return new PracticeLicenseStatsDto
             {
                 TotalLicenses = licenses.Count,
-                ActiveCount = licenses.Count(l => l.Status == 0),
-                ExpiredCount = licenses.Count(l => l.Status == 1),
-                ExpiringSoon = licenses.Count(l => l.Status == 0 && l.ExpiryDate.HasValue && l.ExpiryDate.Value <= expiryThreshold && l.ExpiryDate.Value >= now),
+                // Expired-by-date licences were counted as active (stored Status never flips to 1).
+                ActiveCount = licenses.Count(l => EffectiveStatus(l, now) == 0),
+                ExpiredCount = licenses.Count(l => EffectiveStatus(l, now) == 1),
+                ExpiringSoon = licenses.Count(l => EffectiveStatus(l, now) == 0 && l.ExpiryDate.HasValue && l.ExpiryDate.Value <= expiryThreshold),
                 SuspendedCount = licenses.Count(l => l.Status == 2),
                 LicenseTypeBreakdown = licenses.GroupBy(l => l.LicenseType)
                     .Select(g => new LicenseTypeBreakdownDto { LicenseType = g.Key, Count = g.Count() })
@@ -209,6 +252,10 @@ public class PracticeLicenseService : IPracticeLicenseService
         }
         catch (Exception ex) { _logger.LogWarning(ex, "PracticeLicenseService thao tác thất bại, trả giá trị mặc định"); return new PracticeLicenseStatsDto(); }
     }
+
+    /// <summary>Stored status with date-based expiry applied (0=active, 1=expired, 2=suspended, 3=revoked).</summary>
+    private static int EffectiveStatus(PracticeLicense l, DateTime today)
+        => l.Status == 0 && l.ExpiryDate.HasValue && l.ExpiryDate.Value.Date < today ? 1 : l.Status;
 
     public async Task<PracticeLicenseDto> RenewLicenseAsync(Guid id, string? newExpiryDate)
     {

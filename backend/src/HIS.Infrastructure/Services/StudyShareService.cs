@@ -37,6 +37,11 @@ public class StudyShareService : IStudyShareService
     {
         if (string.IsNullOrWhiteSpace(dto.StudyInstanceUID))
             return ServiceOutcome.Status(400, "StudyInstanceUID required");
+        // A non-positive expiry/limit produced a link that was dead on arrival (or already expired).
+        if (dto.ExpiresInMinutes.HasValue && dto.ExpiresInMinutes.Value <= 0)
+            return ServiceOutcome.Bad("Thời hạn link phải lớn hơn 0 phút");
+        if (dto.MaxViews.HasValue && dto.MaxViews.Value <= 0)
+            return ServiceOutcome.Bad("Số lượt xem tối đa phải lớn hơn 0");
 
         // HideDemographics chưa được hỗ trợ ở mức DICOM tag.
         // Hiện tại chỉ null PatientName/PatientCode trong response metadata — không ẩn PHI trong tag (0010,xxxx).
@@ -94,6 +99,11 @@ public class StudyShareService : IStudyShareService
     {
         var link = await _db.StudyShareLinks.FirstOrDefaultAsync(l => l.Id == id)
             ?? throw new KeyNotFoundException();
+        // Any signed-in user could revoke anyone's share link by id (MyLinks is already scoped to the creator).
+        if (link.CreatedByUserId != userId)
+            return ServiceOutcome.Forbidden(new { message = "Chỉ người tạo link mới thu hồi được" });
+        if (link.IsRevoked)
+            return ServiceOutcome.Bad("Link đã được thu hồi trước đó");
         link.IsRevoked = true;
         link.RevokedAt = DateTime.UtcNow;
         link.RevokeReason = dto.Reason;

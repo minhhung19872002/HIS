@@ -375,14 +375,27 @@ namespace HIS.Application.DTOs.MedicalHR
 
     public class CopyRosterWeekDto
     {
-        /// <summary>Khoa/Phòng cần sao chép lịch trực</summary>
-        public Guid DepartmentId { get; set; }
+        /// <summary>Khoa/Phòng cần sao chép lịch trực (null/rỗng = toàn viện)</summary>
+        public Guid? DepartmentId { get; set; }
         /// <summary>Ngày bắt đầu tuần nguồn (ISO date, Monday preferred)</summary>
         public DateTime SourceWeekStart { get; set; }
         /// <summary>Ngày bắt đầu tuần đích</summary>
         public DateTime TargetWeekStart { get; set; }
         /// <summary>Ghi đè nếu đã có lịch trực ở tuần đích? (false = bỏ qua trùng)</summary>
         public bool OverwriteExisting { get; set; } = false;
+    }
+
+    /// <summary>Ghi nhận 1 hoạt động đào tạo liên tục (CME) — body of POST /api/medicalhr/cme (v2 HR.tsx).</summary>
+    public class CreateCMERecordDto
+    {
+        public Guid StaffId { get; set; }
+        public string? ActivityType { get; set; }
+        public string ActivityName { get; set; } = string.Empty;
+        public string? Provider { get; set; }
+        public DateTime StartDate { get; set; }
+        public decimal Credits { get; set; }
+        public string? CertificateNumber { get; set; }
+        public string? Notes { get; set; }
     }
 
     public class CopyRosterResultDto

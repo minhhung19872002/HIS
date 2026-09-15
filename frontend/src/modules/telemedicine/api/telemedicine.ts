@@ -48,7 +48,7 @@ export interface TelemedicineAppointmentDto {
 export interface CreateTelemedicineAppointmentDto {
   patientId: string;
   doctorId: string;
-  departmentId: string;
+  departmentId?: string;
   appointmentType: number;
   scheduledDate: string;
   scheduledTime: string;
@@ -207,6 +207,8 @@ export interface UpdateConsultationDto {
 
 export interface CompleteConsultationDto {
   consultationId: string;
+  /** Required by the BE upsert (records are keyed by session). */
+  sessionId?: string;
   assessment: string;
   diagnosisMain: string;
   diagnosisMainIcd: string;
@@ -346,13 +348,61 @@ export type { PagedResultDto } from '../../../types/pagination';
 
 const BASE_URL = '/telemedicine';
 
+// #region BE contract adapters
+// BE (TelemedicineController) returns TeleAppointmentDto[] with string status + appointmentDate/startTime,
+// not the paged numeric-status shape this module was written against → the v2 list was always empty.
+
+/** Raw BE TeleAppointmentDto (camelCase). */
+interface BeTeleAppointment {
+  id: string; appointmentCode: string; patientId: string; patientName?: string; patientCode?: string;
+  patientPhone?: string; doctorId: string; doctorName?: string; specialityId?: string; specialityName?: string;
+  appointmentDate: string; startTime?: string; endTime?: string; status: string; appointmentType?: string;
+  chiefComplaint?: string; fee?: number; paymentStatus?: string; createdAt: string;
+  sessionId?: string; videoRoomUrl?: string;
+}
+
+const TELE_STATUS: Record<string, number> = { Pending: 0, Confirmed: 1, InProgress: 2, Completed: 3, Cancelled: 4, NoShow: 5 };
+const TELE_STATUS_NAME: Record<number, string> = { 0: 'Đã đặt', 1: 'Đã xác nhận', 2: 'Đang khám', 3: 'Hoàn tất', 4: 'Đã huỷ', 5: 'Không tham gia' };
+
+const minutesBetween = (start?: string, end?: string) => {
+  const toMin = (t?: string) => { const [h, m] = (t || '').split(':').map(Number); return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : NaN; };
+  const d = toMin(end) - toMin(start);
+  return Number.isFinite(d) && d > 0 ? d : 30;
+};
+
+const mapTeleAppointment = (a: BeTeleAppointment): TelemedicineAppointmentDto => {
+  const status = TELE_STATUS[a.status] ?? 0;
+  const time = (a.startTime || '').slice(0, 5);
+  return {
+    id: a.id, appointmentCode: a.appointmentCode, patientId: a.patientId, patientCode: a.patientCode || '',
+    patientName: a.patientName || '', phone: a.patientPhone || '', doctorId: a.doctorId, doctorCode: '',
+    doctorName: a.doctorName || '', departmentId: a.specialityId || '', departmentName: a.specialityName || '',
+    appointmentType: 1, appointmentTypeName: a.appointmentType || '',
+    scheduledDate: time ? `${(a.appointmentDate || '').slice(0, 10)}T${time}:00` : a.appointmentDate,
+    scheduledTime: time, durationMinutes: minutesBetween(a.startTime, a.endTime),
+    chiefComplaint: a.chiefComplaint, status, statusName: TELE_STATUS_NAME[status],
+    videoRoomUrl: a.videoRoomUrl || undefined, sessionId: a.sessionId || undefined,
+    fee: a.fee || 0, paymentStatus: a.paymentStatus === 'Paid' ? 1 : 0, paymentStatusName: '',
+    createdAt: a.createdAt,
+  };
+};
+
+// #endregion
+
 // #region Appointments
 
-export const getAppointments = (params: AppointmentSearchDto) =>
-  apiClient.get<PagedResultDto<TelemedicineAppointmentDto>>(`${BASE_URL}/appointments`, { params });
+export const getAppointments = async (params: AppointmentSearchDto) => {
+  const res = await apiClient.get<BeTeleAppointment[] | PagedResultDto<TelemedicineAppointmentDto>>(`${BASE_URL}/appointments`, { params });
+  const raw = res.data;
+  const items = Array.isArray(raw) ? raw.map(mapTeleAppointment) : (raw?.items ?? []);
+  const data: PagedResultDto<TelemedicineAppointmentDto> = { items, totalCount: items.length, pageNumber: 1, pageSize: items.length, totalPages: 1 };
+  return { ...res, data };
+};
 
-export const getAppointmentById = (id: string) =>
-  apiClient.get<TelemedicineAppointmentDto>(`${BASE_URL}/appointments/${id}`);
+export const getAppointmentById = async (id: string) => {
+  const res = await apiClient.get<BeTeleAppointment>(`${BASE_URL}/appointments/${id}`);
+  return { ...res, data: res.data ? mapTeleAppointment(res.data) : (res.data as unknown as TelemedicineAppointmentDto) };
+};
 
 export const getPatientAppointments = (patientId: string, status?: number) =>
   apiClient.get<TelemedicineAppointmentDto[]>(`${BASE_URL}/patients/${patientId}/appointments`, { params: { status } });
@@ -379,8 +429,12 @@ export const getDoctorAvailability = (doctorId: string, fromDate: string, toDate
 
 // #region Video Sessions
 
-export const createVideoSession = (dto: CreateVideoSessionDto) =>
-  apiClient.post<VideoSessionDto>(`${BASE_URL}/sessions`, dto);
+/** BE TeleSessionDto → roomUrl comes from doctorJoinUrl (Jitsi). */
+export const createVideoSession = async (dto: CreateVideoSessionDto) => {
+  const res = await apiClient.post<VideoSessionDto & { doctorJoinUrl?: string }>(`${BASE_URL}/sessions/start`, { appointmentId: dto.appointmentId });
+  const s = res.data;
+  return { ...res, data: s ? { ...s, roomUrl: s.roomUrl || s.doctorJoinUrl || '' } : s };
+};
 
 export const getVideoSession = (id: string) =>
   apiClient.get<VideoSessionDto>(`${BASE_URL}/sessions/${id}`);
@@ -413,8 +467,18 @@ export const getConsultationByAppointment = (appointmentId: string) =>
 export const updateConsultation = (dto: UpdateConsultationDto) =>
   apiClient.put<TeleconsultationDto>(`${BASE_URL}/consultations/${dto.consultationId}`, dto);
 
+/** BE has no /consultations/complete: the record is an upsert keyed by sessionId (SaveTeleConsultationDto). */
 export const completeConsultation = (dto: CompleteConsultationDto) =>
-  apiClient.post<TeleconsultationDto>(`${BASE_URL}/consultations/complete`, dto);
+  apiClient.post<TeleconsultationDto>(`${BASE_URL}/consultations`, {
+    id: dto.consultationId || undefined,
+    sessionId: dto.sessionId,
+    assessment: dto.assessment,
+    primaryDiagnosis: dto.diagnosisMain,
+    primaryDiagnosisICD: dto.diagnosisMainIcd || undefined,
+    plan: dto.treatmentPlan,
+    followUpDate: dto.followUpDate,
+    followUpInstructions: dto.followUpInstructions,
+  });
 
 export const getPatientConsultationHistory = (patientId: string, page?: number, pageSize?: number) =>
   apiClient.get<PagedResultDto<TeleconsultationDto>>(`${BASE_URL}/patients/${patientId}/consultations`, { params: { page, pageSize } });
@@ -455,8 +519,31 @@ export const removePatientDevice = (patientId: string, deviceId: string) =>
 
 // #region Dashboard & Reports
 
-export const getDashboard = (date: string, departmentId?: string) =>
-  apiClient.get<TelemedicineDashboardDto>(`${BASE_URL}/dashboard`, { params: { date, departmentId } });
+/** BE TelemedicineDashboardDto uses todayX / averageX names — map onto the FE shape (stats tab showed blanks). */
+export const getDashboard = async (date: string, departmentId?: string) => {
+  type BeDash = Partial<TelemedicineDashboardDto> & {
+    todayAppointments?: number; todayCompleted?: number; todayCancelled?: number; todayNoShow?: number;
+    todayRevenue?: number; averageWaitMinutes?: number; averageSessionMinutes?: number; averageRating?: number;
+  };
+  const res = await apiClient.get<BeDash>(`${BASE_URL}/dashboard`, { params: { date, departmentId } });
+  const d = res.data;
+  const data: TelemedicineDashboardDto | undefined = d ? {
+    date: String(d.date ?? date),
+    totalAppointments: d.totalAppointments ?? d.todayAppointments ?? 0,
+    completedAppointments: d.completedAppointments ?? d.todayCompleted ?? 0,
+    cancelledAppointments: d.cancelledAppointments ?? d.todayCancelled ?? 0,
+    noShowAppointments: d.noShowAppointments ?? d.todayNoShow ?? 0,
+    averageWaitTimeMinutes: d.averageWaitTimeMinutes ?? d.averageWaitMinutes ?? 0,
+    averageConsultationDurationMinutes: d.averageConsultationDurationMinutes ?? d.averageSessionMinutes ?? 0,
+    totalRevenue: d.totalRevenue ?? d.todayRevenue ?? 0,
+    prescriptionsSent: d.prescriptionsSent ?? 0,
+    patientSatisfactionScore: d.patientSatisfactionScore ?? d.averageRating,
+    upcomingAppointments: d.upcomingAppointments ?? [],
+    byDoctor: d.byDoctor ?? [],
+    byDepartment: d.byDepartment ?? [],
+  } : undefined;
+  return { ...res, data };
+};
 
 export const getTelemedicineStatistics = (fromDate: string, toDate: string, departmentId?: string) =>
   apiClient.get(`${BASE_URL}/statistics`, { params: { fromDate, toDate, departmentId } });

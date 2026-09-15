@@ -32,6 +32,9 @@ namespace HIS.Application.Services
         }
 
         // Note: legacy stub implementation. Live class is MedicalHRServiceImpl (Infrastructure), wired in DI.
+        public Task<CMERecordDto> CreateCMERecordAsync(CreateCMERecordDto dto)
+            => throw new NotSupportedException("Legacy stub — use MedicalHRServiceImpl");
+
         public async Task<CopyRosterResultDto> CopyRosterWeekAsync(CopyRosterWeekDto dto, Guid userId)
         {
             _logger.LogInformation("CopyRosterWeekAsync (stub)");

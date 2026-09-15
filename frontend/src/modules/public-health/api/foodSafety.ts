@@ -130,13 +130,26 @@ export const getIncidentById = async (id: string) => {
   return response.data;
 };
 
+// BE FoodIncidentCreate/UpdateDto use reportNumber / foodSource / affectedCount / hospitalizedCount / deathCount /
+// severityLevel / symptoms: the FE names were ignored, so every saved incident had 0 affected, 0 deaths, severity 1.
+const toIncidentPayload = (data: Partial<FoodSafetyIncident>) => ({
+  ...data,
+  reportNumber: data.incidentCode,
+  foodSource: data.suspectedFood,
+  affectedCount: data.totalAffected,
+  hospitalizedCount: data.hospitalized,
+  deathCount: data.deaths,
+  severityLevel: data.severity,
+  symptoms: data.description,
+});
+
 export const createIncident = async (data: Partial<FoodSafetyIncident>) => {
-  const response = await apiClient.post<FoodSafetyIncident>('/food-safety/incidents', data);
+  const response = await apiClient.post<FoodSafetyIncident>('/food-safety/incidents', toIncidentPayload(data));
   return response.data;
 };
 
 export const updateIncident = async (id: string, data: Partial<FoodSafetyIncident>) => {
-  const response = await apiClient.put<FoodSafetyIncident>(`/food-safety/incidents/${id}`, data);
+  const response = await apiClient.put<FoodSafetyIncident>(`/food-safety/incidents/${id}`, toIncidentPayload(data));
   return response.data;
 };
 
@@ -200,13 +213,23 @@ export const searchInspections = async (params?: {
   }
 };
 
+// BE FoodInspectionCreate/UpdateDto: establishmentName / address / licenseNumber (the list maps inspectionCode
+// back from licenseNumber). Before, facility name/address were dropped → inspections saved with an empty name.
+const toInspectionPayload = (data: Partial<FoodInspection>) => ({
+  ...data,
+  establishmentName: data.facilityName,
+  address: data.facilityAddress,
+  licenseNumber: data.inspectionCode,
+});
+
 export const createInspection = async (data: Partial<FoodInspection>) => {
-  const response = await apiClient.post<FoodInspection>('/food-safety/inspections', data);
+  const response = await apiClient.post<FoodInspection>('/food-safety/inspections', toInspectionPayload(data));
   return response.data;
 };
 
 export const updateInspection = async (id: string, data: Partial<FoodInspection>) => {
-  const response = await apiClient.put<FoodInspection>(`/food-safety/inspections/${id}`, data);
+  // inspectionCode is read-only on edit (and may be a TK-xxxx placeholder) — never write it back as licenseNumber.
+  const response = await apiClient.put<FoodInspection>(`/food-safety/inspections/${id}`, { ...toInspectionPayload(data), licenseNumber: undefined });
   return response.data;
 };
 

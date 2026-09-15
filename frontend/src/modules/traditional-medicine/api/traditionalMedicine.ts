@@ -58,6 +58,24 @@ export interface TraditionalMedicineStats {
   herbalPrescriptions: number;
 }
 
+// ---- Wire mapping ----
+// BE TraditionalMedicineDTOs.cs names: diagnosisTCM / practitioner / sessionNumber (treatment) and
+// instructions (herbal Rx). The page's diagnosis, doctor and total sessions were dropped on save and
+// rendered blank on read.
+type TreatmentWire = TraditionalTreatment & { diagnosisTCM?: string; diagnosisWestern?: string; practitioner?: string; sessionNumber?: number };
+const fromTreatmentWire = (r: TreatmentWire): TraditionalTreatment => ({
+  ...r,
+  diagnosis: r.diagnosis ?? r.diagnosisTCM ?? r.diagnosisWestern ?? '',
+  doctorName: r.doctorName ?? r.practitioner ?? '',
+  totalSessions: r.totalSessions ?? r.sessionNumber,
+});
+const toTreatmentWire = (d: Partial<TraditionalTreatment>) => {
+  const { diagnosis, doctorName, totalSessions, ...rest } = d;
+  return { ...rest, diagnosisTCM: diagnosis, practitioner: doctorName, sessionNumber: totalSessions };
+};
+type RxWire = HerbalPrescription & { instructions?: string };
+const fromRxWire = (r: RxWire): HerbalPrescription => ({ ...r, preparation: r.preparation ?? r.instructions ?? '' });
+
 // ---- API Functions ----
 
 export const searchTreatments = async (params?: {
@@ -68,8 +86,8 @@ export const searchTreatments = async (params?: {
   toDate?: string;
 }) => {
   try {
-    const response = await apiClient.get<TraditionalTreatment[]>('/traditional-medicine/treatments', { params });
-    return response.data || [];
+    const response = await apiClient.get<TreatmentWire[]>('/traditional-medicine/treatments', { params });
+    return (response.data || []).map(fromTreatmentWire);
   } catch {
     console.warn('Failed to fetch traditional medicine treatments');
     return [];
@@ -77,24 +95,28 @@ export const searchTreatments = async (params?: {
 };
 
 export const getById = async (id: string) => {
-  const response = await apiClient.get<TraditionalTreatment>(`/traditional-medicine/treatments/${id}`);
-  return response.data;
+  const response = await apiClient.get<TreatmentWire>(`/traditional-medicine/treatments/${id}`);
+  return fromTreatmentWire(response.data);
 };
 
 export const createTreatment = async (data: Partial<TraditionalTreatment>) => {
-  const response = await apiClient.post<TraditionalTreatment>('/traditional-medicine/treatments', data);
+  const response = await apiClient.post<TraditionalTreatment>('/traditional-medicine/treatments', toTreatmentWire(data));
   return response.data;
 };
 
 export const updateTreatment = async (id: string, data: Partial<TraditionalTreatment>) => {
-  const response = await apiClient.put<TraditionalTreatment>(`/traditional-medicine/treatments/${id}`, data);
+  const response = await apiClient.put<TraditionalTreatment>(`/traditional-medicine/treatments/${id}`, toTreatmentWire(data));
   return response.data;
 };
 
 export const createHerbalPrescription = async (treatmentId: string, data: Partial<HerbalPrescription>) => {
+  const { preparation, durationUnit, prescriptionDate: _date, doctorName: _doc, ...rest } = data;
+  void _date; void _doc; // not stored by CreateHerbalPrescriptionDto
   const response = await apiClient.post<HerbalPrescription>('/traditional-medicine/herbal-prescriptions', {
     treatmentId,
-    ...data,
+    ...rest,
+    instructions: [preparation, durationUnit && durationUnit !== 'ngày' ? `Thời gian tính theo: ${durationUnit}` : '']
+      .filter(Boolean).join(' · ') || undefined,
   });
   return response.data;
 };
@@ -111,8 +133,8 @@ export const getHerbs = async (keyword?: string): Promise<HerbItem[]> => {
 
 export const getHerbalPrescriptions = async (treatmentId: string) => {
   try {
-    const response = await apiClient.get<HerbalPrescription[]>(`/traditional-medicine/treatments/${treatmentId}/herbal-prescriptions`);
-    return response.data || [];
+    const response = await apiClient.get<RxWire[]>(`/traditional-medicine/treatments/${treatmentId}/herbal-prescriptions`);
+    return (response.data || []).map(fromRxWire);
   } catch {
     console.warn('Failed to fetch herbal prescriptions');
     return [];

@@ -191,7 +191,8 @@ public partial class SystemCompleteService
                 await _context.SaveChangesAsync();
 
             _logger.LogInformation("ImportICD10FromExcelAsync: Imported {Count} ICD codes from {TotalLines} data rows", imported, lines.Length - 1);
-            return true;
+            // QA-R2: false when nothing was imported so the UI can warn instead of reporting success.
+            return imported > 0;
         }
         catch (Exception ex)
         {
@@ -244,6 +245,8 @@ public partial class SystemCompleteService
                 DepartmentType = d.DepartmentType.ToString(),
                 BYTDeptCode = d.DepartmentCodeBYT,
                 ParentId = d.ParentId,
+                Phone = d.PhoneNumber,
+                Location = d.Location,
                 IsActive = d.IsActive
             }).ToList();
         }
@@ -271,6 +274,8 @@ public partial class SystemCompleteService
                 BYTDeptCode = d.DepartmentCodeBYT,
                 ParentId = d.ParentId,
                 ParentName = d.Parent?.DepartmentName,
+                Phone = d.PhoneNumber,
+                Location = d.Location,
                 IsActive = d.IsActive
             };
         }
@@ -295,6 +300,8 @@ public partial class SystemCompleteService
                     DepartmentCodeBYT = dto.BYTDeptCode,
                     DepartmentType = int.TryParse(dto.DepartmentType, out var dt) ? dt : 1,
                     ParentId = dto.ParentId,
+                    PhoneNumber = dto.Phone,
+                    Location = dto.Location,
                     IsActive = dto.IsActive
                 };
                 _context.Departments.Add(entity);
@@ -308,6 +315,8 @@ public partial class SystemCompleteService
                 entity.DepartmentCodeBYT = dto.BYTDeptCode;
                 entity.DepartmentType = int.TryParse(dto.DepartmentType, out var dt2) ? dt2 : entity.DepartmentType;
                 entity.ParentId = dto.ParentId;
+                entity.PhoneNumber = dto.Phone;
+                entity.Location = dto.Location;
                 entity.IsActive = dto.IsActive;
             }
             await _context.SaveChangesAsync();

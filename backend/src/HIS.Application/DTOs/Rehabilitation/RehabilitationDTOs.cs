@@ -231,14 +231,15 @@ namespace HIS.Application.DTOs.Rehabilitation
     {
         public Guid ReferralId { get; set; }
         public Guid AssessmentId { get; set; }
-        public List<RehabGoalDto> ShortTermGoals { get; set; }
-        public List<RehabGoalDto> LongTermGoals { get; set; }
-        public List<RehabInterventionDto> Interventions { get; set; }
+        // QA-R2: optional lists nullable (implicit [Required] → 400 when omitted).
+        public List<RehabGoalDto>? ShortTermGoals { get; set; }
+        public List<RehabGoalDto>? LongTermGoals { get; set; }
+        public List<RehabInterventionDto>? Interventions { get; set; }
         public int SessionsPerWeek { get; set; }
         public int MinutesPerSession { get; set; }
         public int PlannedTotalSessions { get; set; }
         public DateTime StartDate { get; set; }
-        public List<string> Precautions { get; set; }
+        public List<string>? Precautions { get; set; }
     }
 
     #endregion
@@ -305,14 +306,15 @@ namespace HIS.Application.DTOs.Rehabilitation
         public Guid SessionId { get; set; }
         public DateTime ActualStartTime { get; set; }
         public DateTime ActualEndTime { get; set; }
-        public List<SessionActivityDto> Activities { get; set; }
-        public string PatientResponse { get; set; }
-        public string ToleranceLevel { get; set; }
-        public string PainLevel { get; set; }
-        public string VitalSigns { get; set; }
-        public string ClinicalObservations { get; set; }
-        public string ProgressNotes { get; set; }
-        public string HomeExercises { get; set; }
+        // QA-R2: optional documentation fields nullable (implicit [Required] → 400 when a client omits them).
+        public List<SessionActivityDto>? Activities { get; set; }
+        public string? PatientResponse { get; set; }
+        public string? ToleranceLevel { get; set; }
+        public string? PainLevel { get; set; }
+        public string? VitalSigns { get; set; }
+        public string? ClinicalObservations { get; set; }
+        public string? ProgressNotes { get; set; }
+        public string? HomeExercises { get; set; }
     }
 
     #endregion
@@ -374,7 +376,7 @@ namespace HIS.Application.DTOs.Rehabilitation
         public Guid Id { get; set; }
         public Guid TreatmentPlanId { get; set; }
         public Guid PatientId { get; set; }
-        public string PatientName { get; set; }
+        public string? PatientName { get; set; }
 
         // Admission vs Discharge Scores
         public int? AdmissionBarthel { get; set; }
@@ -393,19 +395,20 @@ namespace HIS.Application.DTOs.Rehabilitation
         public decimal GoalAchievementRate { get; set; }
 
         // Discharge Status
-        public string DischargeStatus { get; set; } // Completed, Discharged, Transferred, Discontinued
-        public string DischargeDestination { get; set; } // Home, SNF, LTAC, Outpatient
-        public string FunctionalStatus { get; set; }
-        public string AssistanceLevel { get; set; }
+        // QA-R2: also the POST /discharge body — optional strings nullable (implicit [Required] → 400).
+        public string? DischargeStatus { get; set; } // Completed, Discharged, Transferred, Discontinued
+        public string? DischargeDestination { get; set; } // Home, SNF, LTAC, Outpatient
+        public string? FunctionalStatus { get; set; }
+        public string? AssistanceLevel { get; set; }
 
         // Recommendations
         public bool ContinueOutpatient { get; set; }
-        public string HomeProgram { get; set; }
-        public string EquipmentNeeded { get; set; }
-        public string FollowUpInstructions { get; set; }
+        public string? HomeProgram { get; set; }
+        public string? EquipmentNeeded { get; set; }
+        public string? FollowUpInstructions { get; set; }
 
         public DateTime DischargeDate { get; set; }
-        public string DischargedBy { get; set; }
+        public string? DischargedBy { get; set; }
     }
 
     #endregion

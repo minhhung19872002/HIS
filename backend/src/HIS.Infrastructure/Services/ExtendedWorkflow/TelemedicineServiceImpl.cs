@@ -12,11 +12,23 @@ namespace HIS.Infrastructure.Services;
 public class TelemedicineServiceImpl : ITelemedicineService
 {
     private readonly HISDbContext _context;
-    public TelemedicineServiceImpl(HISDbContext context) => _context = context;
+    private readonly Microsoft.Extensions.Configuration.IConfiguration? _config;
+    public TelemedicineServiceImpl(HISDbContext context, Microsoft.Extensions.Configuration.IConfiguration? config = null)
+    {
+        _context = context;
+        _config = config;
+    }
+
+    // Same Jitsi host as VideoConsultationService (Jitsi:BaseUrl / JITSI_BASE_URL).
+    private string BuildRoomUrl(string roomId)
+    {
+        var baseUrl = (_config?["Jitsi:BaseUrl"] ?? Environment.GetEnvironmentVariable("JITSI_BASE_URL") ?? "https://meet.jit.si").TrimEnd('/');
+        return $"{baseUrl}/his-tele-{roomId}";
+    }
 
     public async Task<List<TeleAppointmentDto>> GetAppointmentsAsync(DateTime? fromDate, DateTime? toDate, string? status = null)
     {
-        var query = _context.TeleAppointments.Include(x => x.Patient).Include(x => x.Doctor).AsQueryable();
+        var query = _context.TeleAppointments.Include(x => x.Patient).Include(x => x.Doctor).Include(x => x.Sessions).AsQueryable();
         if (fromDate.HasValue) query = query.Where(x => x.AppointmentDate >= fromDate.Value);
         if (toDate.HasValue) query = query.Where(x => x.AppointmentDate <= toDate.Value);
         if (!string.IsNullOrEmpty(status)) query = query.Where(x => x.Status == status);
@@ -26,7 +38,7 @@ public class TelemedicineServiceImpl : ITelemedicineService
 
     public async Task<TeleAppointmentDto> GetAppointmentByIdAsync(Guid id)
     {
-        var e = await _context.TeleAppointments.Include(x => x.Patient).Include(x => x.Doctor).Include(x => x.Speciality).FirstOrDefaultAsync(x => x.Id == id);
+        var e = await _context.TeleAppointments.Include(x => x.Patient).Include(x => x.Doctor).Include(x => x.Speciality).Include(x => x.Sessions).FirstOrDefaultAsync(x => x.Id == id);
         return e == null ? null! : MapToTeleAppointmentDto(e);
     }
 
@@ -44,6 +56,12 @@ public class TelemedicineServiceImpl : ITelemedicineService
             throw new KeyNotFoundException("Không tìm thấy người bệnh");
         if (!await _context.Users.AnyAsync(u => u.Id == dto.DoctorId))
             throw new KeyNotFoundException("Không tìm thấy bác sĩ");
+        if (date.Date < HIS.Core.Common.VnTime.TodayVn)
+            throw new ArgumentException("Không đặt được lịch khám từ xa vào ngày đã qua", nameof(dto.AppointmentDate));
+        // Same doctor, same day, same start time, still active → double booking.
+        if (await _context.TeleAppointments.AnyAsync(a => a.DoctorId == dto.DoctorId && a.AppointmentDate == date.Date
+                && a.StartTime == start && a.Status != "Cancelled"))
+            throw new InvalidOperationException("Bác sĩ đã có lịch khám từ xa vào khung giờ này.");
         var entity = new TeleAppointment
         {
             Id = Guid.NewGuid(), AppointmentCode = CodeGenerator.Timestamp("TELE"),
@@ -71,6 +89,9 @@ public class TelemedicineServiceImpl : ITelemedicineService
     {
         var e = await _context.TeleAppointments.FindAsync(id);
         if (e == null) return false;
+        // Only a Pending booking can be confirmed (was: any status, e.g. Cancelled/Completed flipped back to Confirmed).
+        if (e.Status != "Pending")
+            throw new InvalidOperationException($"Lịch hẹn đang ở trạng thái \"{e.Status}\", không xác nhận được.");
         e.Status = "Confirmed"; e.ConfirmedAt = DateTime.Now;
         await _context.SaveChangesAsync();
         return true;
@@ -94,16 +115,25 @@ public class TelemedicineServiceImpl : ITelemedicineService
             ?? throw new KeyNotFoundException("Không tìm thấy lịch hẹn khám từ xa");
         if (appointment.Status is "Cancelled" or "Completed")
             throw new InvalidOperationException($"Lịch hẹn đang ở trạng thái \"{appointment.Status}\", không mở phiên khám được.");
+        // A second start (double click / two tabs) used to open a parallel InProgress session for the same visit.
+        if (appointment.Status == "InProgress"
+            || await _context.TeleSessions.AnyAsync(s => s.AppointmentId == dto.AppointmentId && s.Status == "InProgress"))
+            throw new InvalidOperationException("Lịch hẹn đã có phiên khám đang diễn ra.");
         var entity = new TeleSession
         {
             Id = Guid.NewGuid(), AppointmentId = dto.AppointmentId, SessionCode = CodeGenerator.Timestamp("SES"),
             StartTime = DateTime.Now, Status = "InProgress", RoomId = Guid.NewGuid().ToString()
         };
         _context.TeleSessions.Add(entity);
-        var appt = await _context.TeleAppointments.FindAsync(dto.AppointmentId);
-        if (appt != null) appt.Status = "InProgress";
+        appointment.Status = "InProgress";
         await _context.SaveChangesAsync();
-        return new TeleSessionDto { Id = entity.Id, SessionCode = entity.SessionCode, Status = entity.Status, StartTime = entity.StartTime ?? DateTime.Now };
+        var roomUrl = BuildRoomUrl(entity.RoomId);
+        return new TeleSessionDto
+        {
+            Id = entity.Id, SessionCode = entity.SessionCode, AppointmentId = entity.AppointmentId, RoomId = entity.RoomId,
+            Status = entity.Status, StartTime = entity.StartTime ?? DateTime.Now,
+            DoctorJoinUrl = roomUrl, PatientJoinUrl = roomUrl
+        };
     }
 
     public async Task<TeleSessionDto> GetSessionAsync(Guid sessionId)
@@ -126,6 +156,10 @@ public class TelemedicineServiceImpl : ITelemedicineService
         if (e.Status == "Completed")
             throw new InvalidOperationException("Phiên khám đã kết thúc.");
         e.Status = "Completed"; e.EndTime = DateTime.Now;
+        if (e.StartTime.HasValue) e.DurationMinutes = (int)Math.Max(0, (e.EndTime.Value - e.StartTime.Value).TotalMinutes);
+        // The appointment stayed "InProgress" forever after its session ended (could then be neither cancelled nor restarted).
+        var appt = await _context.TeleAppointments.FindAsync(e.AppointmentId);
+        if (appt != null && appt.Status == "InProgress") appt.Status = "Completed";
         await _context.SaveChangesAsync();
         return true;
     }
@@ -145,15 +179,29 @@ public class TelemedicineServiceImpl : ITelemedicineService
 
     public async Task<TeleConsultationRecordDto> SaveConsultationRecordAsync(SaveTeleConsultationDto dto)
     {
+        // Unknown session → FK violation surfaced as a 500.
+        if (!await _context.TeleSessions.AnyAsync(s => s.Id == dto.SessionId))
+            throw new KeyNotFoundException("Không tìm thấy phiên khám từ xa");
+        if (dto.FollowUpDate.HasValue && dto.FollowUpDate.Value.Date < HIS.Core.Common.VnTime.TodayVn)
+            throw new ArgumentException("Ngày tái khám không được ở quá khứ", nameof(dto.FollowUpDate));
         var entity = await _context.TeleConsultations.FirstOrDefaultAsync(x => x.SessionId == dto.SessionId);
         if (entity == null)
         {
             entity = new TeleConsultation { Id = Guid.NewGuid(), SessionId = dto.SessionId, CreatedAt = DateTime.Now };
             _context.TeleConsultations.Add(entity);
         }
-        entity.Symptoms = dto.ChiefComplaint; entity.Diagnosis = dto.PrimaryDiagnosis; entity.TreatmentPlan = dto.Plan;
+        // Upsert: a partial save (e.g. the first call with only sessionId) must not wipe fields written earlier.
+        // ICD / assessment / follow-up were previously accepted by the DTO but never persisted.
+        entity.Symptoms = dto.ChiefComplaint ?? entity.Symptoms;
+        entity.Diagnosis = dto.PrimaryDiagnosis ?? entity.Diagnosis;
+        entity.IcdCode = dto.PrimaryDiagnosisICD ?? entity.IcdCode;
+        entity.TreatmentPlan = dto.Plan ?? entity.TreatmentPlan;
+        var notes = string.Join("\n", new[] { dto.Assessment, dto.FollowUpInstructions }.Where(s => !string.IsNullOrWhiteSpace(s)));
+        if (notes.Length > 0) entity.Notes = notes;
+        if (dto.FollowUpDate.HasValue) { entity.FollowUpDate = dto.FollowUpDate; entity.RequiresFollowUp = true; }
+        if (dto.RequiresInPersonVisit) { entity.RequiresInPerson = true; entity.InPersonReason = dto.InPersonVisitReason; }
         await _context.SaveChangesAsync();
-        return new TeleConsultationRecordDto { Id = entity.Id, SessionId = entity.SessionId, ChiefComplaint = entity.Symptoms ?? "", PrimaryDiagnosis = entity.Diagnosis ?? "", Plan = entity.TreatmentPlan ?? "" };
+        return new TeleConsultationRecordDto { Id = entity.Id, SessionId = entity.SessionId, ChiefComplaint = entity.Symptoms ?? "", PrimaryDiagnosis = entity.Diagnosis ?? "", PrimaryDiagnosisICD = entity.IcdCode ?? "", Plan = entity.TreatmentPlan ?? "", FollowUpDate = entity.FollowUpDate };
     }
 
     public async Task<TelePrescriptionDto> CreatePrescriptionAsync(Guid sessionId, List<TelePrescriptionItemDto> items, string note)
@@ -332,11 +380,18 @@ public class TelemedicineServiceImpl : ITelemedicineService
         }
     }
 
-    private static TeleAppointmentDto MapToTeleAppointmentDto(TeleAppointment e) => new()
+    private TeleAppointmentDto MapToTeleAppointmentDto(TeleAppointment e)
     {
-        Id = e.Id, AppointmentCode = e.AppointmentCode, PatientId = e.PatientId, PatientName = e.Patient?.FullName ?? "",
-        DoctorId = e.DoctorId, DoctorName = e.Doctor?.FullName ?? "", SpecialityId = e.SpecialityId ?? Guid.Empty,
-        SpecialityName = e.Speciality?.DepartmentName ?? "", AppointmentDate = e.AppointmentDate, StartTime = e.StartTime,
-        EndTime = e.EndTime ?? e.StartTime.Add(TimeSpan.FromMinutes(e.DurationMinutes)), Status = e.Status, ChiefComplaint = e.ChiefComplaint ?? ""
-    };
+        var session = e.Sessions?.OrderByDescending(s => s.StartTime).FirstOrDefault();
+        return new()
+        {
+            Id = e.Id, AppointmentCode = e.AppointmentCode, PatientId = e.PatientId, PatientName = e.Patient?.FullName ?? "",
+            PatientCode = e.Patient?.PatientCode, PatientPhone = e.Patient?.PhoneNumber ?? "",
+            DoctorId = e.DoctorId, DoctorName = e.Doctor?.FullName ?? "", SpecialityId = e.SpecialityId ?? Guid.Empty,
+            SpecialityName = e.Speciality?.DepartmentName ?? "", AppointmentDate = e.AppointmentDate, StartTime = e.StartTime,
+            EndTime = e.EndTime ?? e.StartTime.Add(TimeSpan.FromMinutes(e.DurationMinutes)), Status = e.Status, ChiefComplaint = e.ChiefComplaint ?? "",
+            SessionId = session?.Id,
+            VideoRoomUrl = session != null && session.Status == "InProgress" && !string.IsNullOrEmpty(session.RoomId) ? BuildRoomUrl(session.RoomId) : null
+        };
+    }
 }

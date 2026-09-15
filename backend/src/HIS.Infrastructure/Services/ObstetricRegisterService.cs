@@ -38,6 +38,17 @@ public class ObstetricRegisterService : IObstetricRegisterService
         // QA0915: a missing delivery date was saved as 01/01/0001 into the legal birth register.
         if (dto.DeliveryDate == default)
             throw new InvalidOperationException("Chua nhap ngay sinh (ngay de).");
+        // QA-R2: legal register accepted future births, negative age/weight, 99-week gestation, gender 7.
+        ValidateRegisterDate(dto.DeliveryDate, "Ngay de");
+        ValidateGestationalWeeks(dto.GestationalWeeks);
+        if (dto.MotherAge < 0 || dto.MotherAge > 70)
+            throw new ArgumentException("Tuoi san phu khong hop le (0-70).");
+        if (dto.BabyWeight < 0 || dto.BabyWeight > 7000)
+            throw new ArgumentException("Can nang tre khong hop le (0-7000 g).");
+        if (dto.BabyGender is < 0 or > 3)
+            throw new ArgumentException("Gioi tinh tre khong hop le.");
+        if (dto.BabyCount > 8)
+            throw new ArgumentException("So tre sinh khong hop le.");
 
         BirthRegister entity;
         if (dto.Id == Guid.Empty)
@@ -106,6 +117,10 @@ public class ObstetricRegisterService : IObstetricRegisterService
         // QA0915: same default-date hole as the birth register.
         if (dto.ProcedureDate == default)
             throw new InvalidOperationException("Chua nhap ngay thuc hien thu thuat.");
+        ValidateRegisterDate(dto.ProcedureDate, "Ngay thuc hien");
+        ValidateGestationalWeeks(dto.GestationalWeeks);
+        if (dto.PatientAge < 0 || dto.PatientAge > 70)
+            throw new ArgumentException("Tuoi nguoi benh khong hop le (0-70).");
 
         AbortionRegister entity;
         if (dto.Id == Guid.Empty)
@@ -182,6 +197,22 @@ public class ObstetricRegisterService : IObstetricRegisterService
         };
 
         return report;
+    }
+
+    // ─── Validation ────────────────────────────────────────────────────────────
+
+    private static void ValidateRegisterDate(DateTime date, string label)
+    {
+        // Allow one day of slack for UTC/VN offset in client-sent ISO timestamps.
+        if (date.Date > DateTime.UtcNow.Date.AddDays(1))
+            throw new ArgumentException($"{label} khong duoc o tuong lai.");
+    }
+
+    private static void ValidateGestationalWeeks(int weeks)
+    {
+        // 0 = not recorded (FE default); otherwise a real gestational age.
+        if (weeks < 0 || weeks > 45)
+            throw new ArgumentException("Tuoi thai khong hop le (0-45 tuan).");
     }
 
     // ─── Mappers ───────────────────────────────────────────────────────────────

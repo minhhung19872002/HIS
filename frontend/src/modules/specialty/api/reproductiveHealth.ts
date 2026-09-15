@@ -53,6 +53,29 @@ const normalizePatientFields = <T extends { recordCode: string; patientName: str
   patientCode: record.patientCode ?? '',
 });
 
+// BE contract (ReproductiveHealthDTOs.cs): gestational age is `gestationalAge`, family-planning
+// follow-up is `followUpDate`, prescriber is `provider`. The v2 page used other names, so the
+// gestational age column rendered "undefinedt" and edits/creates silently dropped these fields.
+type PrenatalWire = Omit<PrenatalRecord, 'gestationalWeeks'> & { gestationalAge?: number; gestationalWeeks?: number };
+const fromPrenatalWire = (r: PrenatalWire): PrenatalRecord => ({
+  ...normalizePatientFields(r as PrenatalRecord),
+  gestationalWeeks: r.gestationalWeeks ?? r.gestationalAge ?? 0,
+});
+const toPrenatalWire = (d: Partial<PrenatalRecord>) => {
+  const { gestationalWeeks, ...rest } = d;
+  return { ...rest, gestationalAge: gestationalWeeks };
+};
+type FpWire = FamilyPlanningRecord & { followUpDate?: string; provider?: string };
+const fromFpWire = (r: FpWire): FamilyPlanningRecord => ({
+  ...normalizePatientFields(r),
+  nextVisitDate: r.nextVisitDate ?? r.followUpDate,
+  doctorName: r.doctorName ?? r.provider ?? '',
+});
+const toFpWire = (d: Partial<FamilyPlanningRecord>) => {
+  const { nextVisitDate, doctorName, ...rest } = d;
+  return { ...rest, followUpDate: nextVisitDate, provider: doctorName };
+};
+
 export const searchPrenatal = async (params?: {
   keyword?: string;
   riskLevel?: string;
@@ -61,8 +84,8 @@ export const searchPrenatal = async (params?: {
   toDate?: string;
 }) => {
   try {
-    const response = await apiClient.get<PrenatalRecord[]>('/reproductive-health/prenatal', { params });
-    return (response.data || []).map(normalizePatientFields);
+    const response = await apiClient.get<PrenatalWire[]>('/reproductive-health/prenatal', { params });
+    return (response.data || []).map(fromPrenatalWire);
   } catch {
     console.warn('Failed to fetch prenatal records');
     return [];
@@ -70,17 +93,17 @@ export const searchPrenatal = async (params?: {
 };
 
 export const getPrenatalById = async (id: string) => {
-  const response = await apiClient.get<PrenatalRecord>(`/reproductive-health/prenatal/${id}`);
-  return response.data;
+  const response = await apiClient.get<PrenatalWire>(`/reproductive-health/prenatal/${id}`);
+  return fromPrenatalWire(response.data);
 };
 
 export const createPrenatal = async (data: Partial<PrenatalRecord>) => {
-  const response = await apiClient.post<PrenatalRecord>('/reproductive-health/prenatal', data);
+  const response = await apiClient.post<PrenatalRecord>('/reproductive-health/prenatal', toPrenatalWire(data));
   return response.data;
 };
 
 export const updatePrenatal = async (id: string, data: Partial<PrenatalRecord>) => {
-  const response = await apiClient.put<PrenatalRecord>(`/reproductive-health/prenatal/${id}`, data);
+  const response = await apiClient.put<PrenatalRecord>(`/reproductive-health/prenatal/${id}`, toPrenatalWire(data));
   return response.data;
 };
 
@@ -90,8 +113,8 @@ export const searchFamilyPlanning = async (params?: {
   status?: number;
 }) => {
   try {
-    const response = await apiClient.get<FamilyPlanningRecord[]>('/reproductive-health/family-planning', { params });
-    return (response.data || []).map(normalizePatientFields);
+    const response = await apiClient.get<FpWire[]>('/reproductive-health/family-planning', { params });
+    return (response.data || []).map(fromFpWire);
   } catch {
     console.warn('Failed to fetch family planning records');
     return [];
@@ -99,12 +122,12 @@ export const searchFamilyPlanning = async (params?: {
 };
 
 export const createFamilyPlanning = async (data: Partial<FamilyPlanningRecord>) => {
-  const response = await apiClient.post<FamilyPlanningRecord>('/reproductive-health/family-planning', data);
+  const response = await apiClient.post<FamilyPlanningRecord>('/reproductive-health/family-planning', toFpWire(data));
   return response.data;
 };
 
 export const updateFamilyPlanning = async (id: string, data: Partial<FamilyPlanningRecord>) => {
-  const response = await apiClient.put<FamilyPlanningRecord>(`/reproductive-health/family-planning/${id}`, data);
+  const response = await apiClient.put<FamilyPlanningRecord>(`/reproductive-health/family-planning/${id}`, toFpWire(data));
   return response.data;
 };
 
@@ -120,8 +143,8 @@ export const getStats = async (): Promise<ReproductiveHealthStats> => {
 
 export const getHighRiskPregnancies = async () => {
   try {
-    const response = await apiClient.get<PrenatalRecord[]>('/reproductive-health/high-risk');
-    return (response.data || []).map(normalizePatientFields);
+    const response = await apiClient.get<PrenatalWire[]>('/reproductive-health/high-risk');
+    return (response.data || []).map(fromPrenatalWire);
   } catch {
     console.warn('Failed to fetch high risk pregnancies');
     return [];

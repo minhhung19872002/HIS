@@ -309,6 +309,8 @@ public partial class BusinessAlertService : IBusinessAlertService
         {
             var alert = await _context.BusinessAlerts.FindAsync(alertId);
             if (alert == null) return null;
+            // A resolved/ignored alert must not be re-opened by a late "acknowledge" click (status 2/3 → 1).
+            if (alert.Status >= 2) return MapToDto(alert);
 
             alert.Status = 1; // Acknowledged
             alert.AcknowledgedAt = DateTime.UtcNow;

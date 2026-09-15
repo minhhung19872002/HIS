@@ -7,6 +7,15 @@ import { apiClient } from '../../../../services/apiClient';
 
 type BranchPayload = Record<string, unknown>;
 
+// POST .../import binds `[FromBody] byte[]`, i.e. a JSON base64 string. Posting the raw ArrayBuffer with the
+// client's JSON content-type was rejected with 400 on every import.
+const toBase64Json = (buf: ArrayBuffer): string => {
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return JSON.stringify(btoa(bin));
+};
+
 // ============================================================================
 // DTOs
 // ============================================================================
@@ -370,7 +379,7 @@ export const catalogApi = {
   deleteMedicine: (medicineId: string) =>
     apiClient.delete<boolean>(`/catalog/medicines/${medicineId}`),
   importMedicines: (fileData: ArrayBuffer) =>
-    apiClient.post<boolean>('/catalog/medicines/import', fileData),
+    apiClient.post<boolean>('/catalog/medicines/import', toBase64Json(fileData)),
   exportMedicines: (search: MedicineCatalogSearchDto) =>
     apiClient.post<Blob>('/catalog/medicines/export', search, { responseType: 'blob' }),
 
@@ -394,7 +403,7 @@ export const catalogApi = {
   deleteICD10Code: (icd10Id: string) =>
     apiClient.delete<boolean>(`/catalog/icd10/${icd10Id}`),
   importICD10: (fileData: ArrayBuffer) =>
-    apiClient.post<boolean>('/catalog/icd10/import', fileData),
+    apiClient.post<boolean>('/catalog/icd10/import', toBase64Json(fileData)),
   exportICD10: (chapterCode?: string) =>
     apiClient.get<Blob>('/catalog/icd10/export', { params: { chapterCode }, responseType: 'blob' }),
 

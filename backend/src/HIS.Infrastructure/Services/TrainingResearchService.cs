@@ -170,10 +170,26 @@ public class TrainingResearchService : ITrainingResearchService
 
     public async Task<TrainingClassDetailDto> SaveClassAsync(Guid? id, SaveTrainingClassDto dto)
     {
+        // Validation: blank name, negative capacity/credits and end-before-start used to be saved as-is.
+        if (string.IsNullOrWhiteSpace(dto.ClassName))
+            throw new ArgumentException("Tên lớp đào tạo là bắt buộc", nameof(dto.ClassName));
+        if (dto.MaxStudents <= 0)
+            throw new ArgumentException("Sĩ số tối đa phải lớn hơn 0", nameof(dto.MaxStudents));
+        if (dto.CreditHours < 0 || dto.Fee < 0)
+            throw new ArgumentException("Số tiết/học phí không được âm", nameof(dto.CreditHours));
+        if (dto.Status is < 1 or > 4)
+            throw new ArgumentException("Trạng thái lớp không hợp lệ", nameof(dto.Status));
+        var hasStart = DateTime.TryParse(dto.StartDate, out var startDate);
+        if (!id.HasValue && !hasStart)
+            throw new ArgumentException("Ngày bắt đầu lớp là bắt buộc", nameof(dto.StartDate));
+        if (hasStart && DateTime.TryParse(dto.EndDate, out var endDate) && endDate.Date < startDate.Date)
+            throw new ArgumentException("Ngày kết thúc phải sau hoặc bằng ngày bắt đầu", nameof(dto.EndDate));
+
         TrainingClass entity;
         if (id.HasValue)
         {
-            entity = await _context.TrainingClasses.FirstAsync(c => c.Id == id.Value && !c.IsDeleted);
+            entity = await _context.TrainingClasses.FirstOrDefaultAsync(c => c.Id == id.Value && !c.IsDeleted)
+                ?? throw new KeyNotFoundException("Không tìm thấy lớp đào tạo");
             entity.UpdatedAt = DateTime.UtcNow;
         }
         else
@@ -221,6 +237,22 @@ public class TrainingResearchService : ITrainingResearchService
 
     public async Task<TrainingStudentDto> EnrollStudentAsync(EnrollStudentDto dto)
     {
+        // Guards: missing class was a FK 500; cancelled/completed or full classes, duplicate enrolment of
+        // the same staff and anonymous students were all accepted.
+        if (!dto.StaffId.HasValue && string.IsNullOrWhiteSpace(dto.ExternalName))
+            throw new ArgumentException("Cần chọn nhân viên hoặc nhập tên học viên ngoài", nameof(dto.StaffId));
+        var cls = await _context.TrainingClasses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == dto.ClassId && !c.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy lớp đào tạo");
+        if (cls.Status is 3 or 4)
+            throw new InvalidOperationException("Lớp đã kết thúc hoặc đã huỷ — không thể ghi danh");
+        if (dto.StaffId.HasValue && !await _context.Users.AnyAsync(u => u.Id == dto.StaffId.Value))
+            throw new KeyNotFoundException("Không tìm thấy nhân viên");
+        var activeStudents = _context.TrainingStudents.Where(s => s.ClassId == dto.ClassId && !s.IsDeleted && s.AttendanceStatus != 4);
+        if (dto.StaffId.HasValue && await activeStudents.AnyAsync(s => s.StaffId == dto.StaffId))
+            throw new InvalidOperationException("Nhân viên đã được ghi danh vào lớp này");
+        if (await activeStudents.CountAsync() >= cls.MaxStudents)
+            throw new InvalidOperationException($"Lớp đã đủ sĩ số tối đa ({cls.MaxStudents})");
+
         var entity = new TrainingStudent
         {
             Id = Guid.NewGuid(),
@@ -241,7 +273,13 @@ public class TrainingResearchService : ITrainingResearchService
 
     public async Task<TrainingStudentDto> UpdateStudentStatusAsync(Guid studentId, UpdateStudentStatusDto dto)
     {
-        var entity = await _context.TrainingStudents.Include(s => s.Staff).FirstAsync(s => s.Id == studentId && !s.IsDeleted);
+        if (dto.AttendanceStatus is < 1 or > 4)
+            throw new ArgumentException("Trạng thái học viên không hợp lệ", nameof(dto.AttendanceStatus));
+        var entity = await _context.TrainingStudents.Include(s => s.Staff).FirstOrDefaultAsync(s => s.Id == studentId && !s.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy học viên");
+        // A certified student cannot be moved back / marked dropped while the certificate stays on record.
+        if (!string.IsNullOrEmpty(entity.CertificateNumber) && dto.AttendanceStatus != 3)
+            throw new InvalidOperationException("Học viên đã được cấp chứng chỉ — không thể đổi trạng thái");
         entity.AttendanceStatus = dto.AttendanceStatus;
         if (dto.Score.HasValue) entity.Score = dto.Score;
         if (dto.Notes != null) entity.Notes = dto.Notes;
@@ -252,8 +290,16 @@ public class TrainingResearchService : ITrainingResearchService
 
     public async Task<TrainingStudentDto> IssueCertificateAsync(Guid studentId, IssueCertificateDto dto)
     {
-        var entity = await _context.TrainingStudents.Include(s => s.Staff).FirstAsync(s => s.Id == studentId && !s.IsDeleted);
-        entity.CertificateNumber = dto.CertificateNumber;
+        if (string.IsNullOrWhiteSpace(dto.CertificateNumber))
+            throw new ArgumentException("Số chứng chỉ là bắt buộc", nameof(dto.CertificateNumber));
+        var entity = await _context.TrainingStudents.Include(s => s.Staff).FirstOrDefaultAsync(s => s.Id == studentId && !s.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy học viên");
+        // Dropped students were certified (and flipped to Completed); re-issuing silently overwrote the number.
+        if (entity.AttendanceStatus == 4)
+            throw new InvalidOperationException("Học viên đã bỏ học — không thể cấp chứng chỉ");
+        if (!string.IsNullOrEmpty(entity.CertificateNumber))
+            throw new InvalidOperationException("Học viên đã được cấp chứng chỉ");
+        entity.CertificateNumber = dto.CertificateNumber.Trim();
         entity.CertificateDate = DateTime.TryParse(dto.CertificateDate, out var cd) ? cd : DateTime.UtcNow;
         entity.AttendanceStatus = 3; // Completed
         entity.UpdatedAt = DateTime.UtcNow;
@@ -348,10 +394,15 @@ public class TrainingResearchService : ITrainingResearchService
 
     public async Task<ClinicalDirectionDetailDto> SaveDirectionAsync(Guid? id, SaveClinicalDirectionDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.PartnerHospital))
+            throw new ArgumentException("Bệnh viện đối tác là bắt buộc", nameof(dto.PartnerHospital));
+        if (DateTime.TryParse(dto.StartDate, out var dStart) && DateTime.TryParse(dto.EndDate, out var dEnd) && dEnd.Date < dStart.Date)
+            throw new ArgumentException("Ngày kết thúc phải sau hoặc bằng ngày bắt đầu", nameof(dto.EndDate));
         ClinicalDirection entity;
         if (id.HasValue)
         {
-            entity = await _context.ClinicalDirections.FirstAsync(d => d.Id == id.Value && !d.IsDeleted);
+            entity = await _context.ClinicalDirections.FirstOrDefaultAsync(d => d.Id == id.Value && !d.IsDeleted)
+                ?? throw new KeyNotFoundException("Không tìm thấy hoạt động chỉ đạo tuyến");
             entity.UpdatedAt = DateTime.UtcNow;
         }
         else
@@ -465,10 +516,17 @@ public class TrainingResearchService : ITrainingResearchService
 
     public async Task<ResearchProjectDetailDto> SaveProjectAsync(Guid? id, SaveResearchProjectDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.Title))
+            throw new ArgumentException("Tên đề tài là bắt buộc", nameof(dto.Title));
+        if (dto.Budget < 0)
+            throw new ArgumentException("Kinh phí không được âm", nameof(dto.Budget));
+        if (DateTime.TryParse(dto.StartDate, out var pStart) && DateTime.TryParse(dto.EndDate, out var pEnd) && pEnd.Date < pStart.Date)
+            throw new ArgumentException("Ngày kết thúc phải sau hoặc bằng ngày bắt đầu", nameof(dto.EndDate));
         ResearchProject entity;
         if (id.HasValue)
         {
-            entity = await _context.ResearchProjects.FirstAsync(p => p.Id == id.Value && !p.IsDeleted);
+            entity = await _context.ResearchProjects.FirstOrDefaultAsync(p => p.Id == id.Value && !p.IsDeleted)
+                ?? throw new KeyNotFoundException("Không tìm thấy đề tài nghiên cứu");
             entity.UpdatedAt = DateTime.UtcNow;
         }
         else

@@ -65,15 +65,19 @@ public partial class PublicHealthService
 
     public async Task<VaccinationRecordDto> RecordVaccinationAsync(CreateVaccinationRecordDto dto, string? userId)
     {
+        var vaccinationDate = !string.IsNullOrEmpty(dto.VaccinationDate) && DateTime.TryParse(dto.VaccinationDate, out var vd) ? vd : HIS.Core.Common.VnTime.NowVn;
+        DateTime? nextDoseDate = !string.IsNullOrEmpty(dto.NextDoseDate) && DateTime.TryParse(dto.NextDoseDate, out var ndParsed) ? ndParsed : null;
+        await ImmunizationService.ValidateAdministeredDoseAsync(_context, dto.PatientId, dto.VaccineName, dto.DoseNumber, vaccinationDate, nextDoseDate);
+
         var entity = new VaccinationRecord
         {
             Id = Guid.NewGuid(),
             PatientId = dto.PatientId,
-            VaccineName = dto.VaccineName,
+            VaccineName = dto.VaccineName.Trim(),
             VaccineCode = dto.VaccineCode,
             LotNumber = dto.LotNumber,
             Manufacturer = dto.Manufacturer,
-            VaccinationDate = !string.IsNullOrEmpty(dto.VaccinationDate) && DateTime.TryParse(dto.VaccinationDate, out var vd) ? vd : DateTime.UtcNow,
+            VaccinationDate = vaccinationDate,
             DoseNumber = dto.DoseNumber,
             InjectionSite = dto.InjectionSite,
             Route = dto.Route,
@@ -81,7 +85,7 @@ public partial class PublicHealthService
             AdministeredBy = dto.AdministeredBy,
             FacilityName = dto.FacilityName,
             Status = 1, // Completed
-            NextDoseDate = !string.IsNullOrEmpty(dto.NextDoseDate) && DateTime.TryParse(dto.NextDoseDate, out var nd) ? nd : null,
+            NextDoseDate = nextDoseDate,
             CampaignCode = dto.CampaignCode,
             IsEPI = dto.IsEPI,
             Notes = dto.Notes,

@@ -137,6 +137,35 @@ const getNcdStatsRaw = async (): Promise<NcdStatsResponse> => {
 
 // ---- API Functions ----
 
+// BE HouseholdCreateDto/HouseholdListDto: headOfHousehold / wardName / districtName / phoneNumber and
+// riskLevel as int (0..3). The page sent headName/ward/... and "High" → JSON bind failure (400) on every save.
+const RISK_TO_INT: Record<string, number> = { Low: 0, Medium: 1, High: 2, VeryHigh: 3 };
+const RISK_FROM_INT = ['Low', 'Medium', 'High', 'VeryHigh'];
+type HouseholdWire = Omit<Household, 'riskLevel'> & {
+  riskLevel: string | number; headOfHousehold?: string; wardName?: string; districtName?: string; phoneNumber?: string;
+};
+const fromHouseholdWire = (h: HouseholdWire): Household => ({
+  ...h,
+  headName: h.headName ?? h.headOfHousehold ?? '',
+  ward: h.ward ?? h.wardName ?? '',
+  district: h.district ?? h.districtName ?? '',
+  phone: h.phone ?? h.phoneNumber,
+  riskLevel: typeof h.riskLevel === 'number' ? (RISK_FROM_INT[h.riskLevel] ?? 'Low') : h.riskLevel,
+});
+const toHouseholdWire = (d: Partial<Household>) => {
+  const { headName, ward, district, province, phone, riskLevel, ...rest } = d;
+  return {
+    ...rest,
+    headOfHousehold: headName,
+    wardName: ward,
+    // no province column in HouseholdCreateDto — keep it in the address text instead of dropping it
+    address: [rest.address, province].filter(Boolean).join(', ') || undefined,
+    districtName: district,
+    phoneNumber: phone,
+    riskLevel: riskLevel != null ? (RISK_TO_INT[riskLevel] ?? 0) : undefined,
+  };
+};
+
 export const searchHouseholds = async (params?: {
   keyword?: string;
   ward?: string;
@@ -145,8 +174,16 @@ export const searchHouseholds = async (params?: {
   status?: number;
 }) => {
   try {
-    const response = await apiClient.get<Household[]>('/community-health/households', { params });
-    return response.data || [];
+    const { ward, riskLevel, teamId, ...rest } = params || {};
+    const response = await apiClient.get<HouseholdWire[]>('/community-health/households', {
+      params: {
+        ...rest,
+        wardName: ward,
+        assignedTeamId: teamId,
+        riskLevel: riskLevel != null ? RISK_TO_INT[riskLevel] : undefined,
+      },
+    });
+    return (response.data || []).map(fromHouseholdWire);
   } catch {
     console.warn('Failed to fetch households');
     return [];
@@ -154,18 +191,28 @@ export const searchHouseholds = async (params?: {
 };
 
 export const getHouseholdById = async (id: string) => {
-  const response = await apiClient.get<Household>(`/community-health/households/${id}`);
-  return response.data;
+  const response = await apiClient.get<HouseholdWire>(`/community-health/households/${id}`);
+  return fromHouseholdWire(response.data);
 };
 
 export const createHousehold = async (data: Partial<Household>) => {
-  const response = await apiClient.post<Household>('/community-health/households', data);
+  const response = await apiClient.post<Household>('/community-health/households', {
+    // [Required] HouseholdCode — the form has no code field
+    householdCode: data.householdCode || `HGD-${dayjsLikeStamp()}`,
+    ...toHouseholdWire(data),
+  });
   return response.data;
 };
 
 export const updateHousehold = async (id: string, data: Partial<Household>) => {
-  const response = await apiClient.put<Household>(`/community-health/households/${id}`, data);
+  const response = await apiClient.put<Household>(`/community-health/households/${id}`, toHouseholdWire(data));
   return response.data;
+};
+
+const dayjsLikeStamp = () => {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
 };
 
 export const getHouseholdMembers = async (householdId: string) => {
@@ -211,21 +258,31 @@ export const searchTeams = async (params?: {
   status?: number;
 }) => {
   try {
-    const response = await apiClient.get<CommunityTeam[]>('/community-health/teams', { params });
-    return response.data || [];
+    const { ward, ...rest } = params || {};
+    const response = await apiClient.get<Array<CommunityTeam & { assignedWard?: string }>>('/community-health/teams', {
+      params: { ...rest, assignedWard: ward },
+    });
+    return (response.data || []).map((t) => ({ ...t, wardAssigned: t.wardAssigned ?? t.assignedWard ?? '' }));
   } catch {
     console.warn('Failed to fetch community health teams');
     return [];
   }
 };
 
+// TeamCreateDto: [Required] teamCode + assignedWard (page sent wardAssigned and no code → 400).
 export const createTeam = async (data: Partial<CommunityTeam>) => {
-  const response = await apiClient.post<CommunityTeam>('/community-health/teams', data);
+  const { wardAssigned, ...rest } = data;
+  const response = await apiClient.post<CommunityTeam>('/community-health/teams', {
+    ...rest,
+    teamCode: data.teamCode || `TEAM-${dayjsLikeStamp()}`,
+    assignedWard: wardAssigned,
+  });
   return response.data;
 };
 
 export const updateTeam = async (id: string, data: Partial<CommunityTeam>) => {
-  const response = await apiClient.put<CommunityTeam>(`/community-health/teams/${id}`, data);
+  const { wardAssigned, ...rest } = data;
+  const response = await apiClient.put<CommunityTeam>(`/community-health/teams/${id}`, { ...rest, assignedWard: wardAssigned });
   return response.data;
 };
 
