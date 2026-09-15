@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using HIS.Application.Common;
+using System.Text.Json.Serialization;
 
 namespace HIS.Application.DTOs.Payment;
 
@@ -132,6 +133,7 @@ public class BankConfirmDto
 {
     public Guid TransactionId { get; set; }
     public string? BankReference { get; set; }     // Số ref từ sao kê bank
+    [JsonConverter(typeof(NullableUtcDateTimeJsonConverter))] // → PaymentTransactions.PayDate (UTC column)
     public DateTime? PaidAt { get; set; }
     public string? Note { get; set; }
 }

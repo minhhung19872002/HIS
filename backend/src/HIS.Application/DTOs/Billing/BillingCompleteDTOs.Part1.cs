@@ -268,6 +268,8 @@ public class InvoiceDto
     public decimal MedicineTotal { get; set; }
     public decimal SupplyTotal { get; set; }
     public decimal BedTotal { get; set; }
+    /// <summary>QA-R3: bed-day money (patient share) not yet collected — the cashier's "Tiền giường" row.</summary>
+    public decimal UnpaidBedAmount { get; set; }
     public decimal SubTotal { get; set; }
 
     // BHYT chi trả

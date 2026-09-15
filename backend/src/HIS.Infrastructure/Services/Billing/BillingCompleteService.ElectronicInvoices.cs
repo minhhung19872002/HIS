@@ -103,7 +103,8 @@ public partial class BillingCompleteService {
         try
         {
             var receiptDetails = await _context.ReceiptDetails
-                .Where(rd => rd.Receipt.MedicalRecordId == invoice.MedicalRecordId && rd.Receipt.Status == 1)
+                // QA-R3: refund receipts (type 3) now carry item lines too — keep them out of the sold items.
+                .Where(rd => rd.Receipt.MedicalRecordId == invoice.MedicalRecordId && rd.Receipt.Status == 1 && rd.Receipt.ReceiptType != 3)
                 .Select(rd => new { rd.ItemName, Unit = "Lần", Qty = rd.Quantity, Price = rd.UnitPrice, Amount = rd.FinalAmount })
                 .ToListAsync();
 

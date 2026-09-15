@@ -217,8 +217,49 @@ public partial class BillingCompleteService {
                     .Where(d => refundMedicineIds.Contains(d.Id))
                     .ToDictionaryAsync(d => d.Id);
 
+            // QA-R3: the refunded lines are now stored (ReceiptDetails on the refund receipt) and un-flagged when the
+            // money is paid out — so each line must belong to this patient and cannot be refunded beyond its patient share.
+            var itemRecordIds = refundServiceDetails.Values.Select(d => d.ServiceRequest.MedicalRecordId)
+                .Concat(refundPrescriptionDetails.Values.Select(d => d.Prescription.MedicalRecordId)).Distinct().ToList();
+            var itemOwners = await _context.MedicalRecords.Where(m => itemRecordIds.Contains(m.Id))
+                .ToDictionaryAsync(m => m.Id, m => m.PatientId);
+            var refundDetailIds = refundServiceIds.Concat(refundMedicineIds).ToList();
+            var alreadyRefundedByLine = (await _context.ReceiptDetails
+                    .Where(rd => rd.Receipt.ReceiptType == 3 && !rd.Receipt.IsDeleted
+                                 && rd.Receipt.Status != RefundStatus.Rejected && rd.Receipt.Status != RefundStatus.Cancelled
+                                 && ((rd.ServiceRequestDetailId != null && refundDetailIds.Contains(rd.ServiceRequestDetailId.Value))
+                                     || (rd.PrescriptionDetailId != null && refundDetailIds.Contains(rd.PrescriptionDetailId.Value))))
+                    .Select(rd => new { Id = rd.ServiceRequestDetailId ?? rd.PrescriptionDetailId, rd.FinalAmount })
+                    .ToListAsync())
+                .GroupBy(x => x.Id!.Value)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.FinalAmount));
+            if (dto.Items.GroupBy(i => i.ItemId).Any(g => g.Count() > 1))
+                throw new InvalidOperationException("Một dòng dịch vụ/thuốc chỉ được hoàn một lần trong một phiếu hoàn");
+
             foreach (var item in dto.Items)
             {
+                if (item.RefundAmount <= 0)
+                    throw new InvalidOperationException("Số tiền hoàn từng dòng phải lớn hơn 0");
+                if (item.ItemType is not ("service" or "medicine" or "receipt-detail"))
+                    throw new InvalidOperationException($"Loại dòng hoàn không hợp lệ: {item.ItemType}");
+                decimal lineShare = 0;
+                if (item.ItemType == "service" && refundServiceDetails.TryGetValue(item.ItemId, out var srLine))
+                {
+                    if (itemOwners.GetValueOrDefault(srLine.ServiceRequest.MedicalRecordId) != dto.PatientId)
+                        throw new InvalidOperationException("Dòng dịch vụ hoàn không thuộc bệnh nhân này");
+                    lineShare = InvoiceLedger.PatientShare(srLine.Amount, srLine.InsuranceAmount, srLine.PatientAmount);
+                }
+                else if (item.ItemType == "medicine" && refundPrescriptionDetails.TryGetValue(item.ItemId, out var pdLine))
+                {
+                    if (itemOwners.GetValueOrDefault(pdLine.Prescription.MedicalRecordId) != dto.PatientId)
+                        throw new InvalidOperationException("Dòng thuốc hoàn không thuộc bệnh nhân này");
+                    lineShare = InvoiceLedger.PatientShare(pdLine.Amount, pdLine.InsuranceAmount, pdLine.PatientAmount);
+                }
+                var lineLeft = lineShare - alreadyRefundedByLine.GetValueOrDefault(item.ItemId);
+                if (lineShare > 0 && item.RefundAmount > lineLeft)
+                    throw new InvalidOperationException(
+                        $"Số tiền hoàn dòng ({item.RefundAmount:N0}đ) vượt quá phần bệnh nhân trả còn hoàn được ({Math.Max(0, lineLeft):N0}đ)");
+
                 if (item.ItemType == "service")
                 {
                     refundServiceDetails.TryGetValue(item.ItemId, out var sr);
@@ -266,6 +307,38 @@ public partial class BillingCompleteService {
         };
 
         _context.Receipts.Add(receipt);
+
+        // QA-R3: keep WHICH lines are refunded (they only survived as "Hoàn chi tiết N mục" in the note), so paying the
+        // refund out can un-flag exactly those lines. Existing table: ReceiptDetails of the refund receipt (type 3).
+        if (dto.Items is { Count: > 0 })
+        {
+            var now = DateTime.Now;
+            var svcIds = dto.Items.Where(i => i.ItemType == "service").Select(i => i.ItemId).ToList();
+            var medIds = dto.Items.Where(i => i.ItemType == "medicine").Select(i => i.ItemId).ToList();
+            var svcLines = await _context.ServiceRequestDetails.Include(d => d.Service)
+                .Where(d => svcIds.Contains(d.Id))
+                .ToDictionaryAsync(d => d.Id);
+            var medLines = await _context.PrescriptionDetails.Include(d => d.Medicine)
+                .Where(d => medIds.Contains(d.Id))
+                .ToDictionaryAsync(d => d.Id);
+            foreach (var item in dto.Items)
+            {
+                if (item.ItemType == "service" && svcLines.TryGetValue(item.ItemId, out var s))
+                    _context.ReceiptDetails.Add(new ReceiptDetail
+                    {
+                        Id = Guid.NewGuid(), ReceiptId = receipt.Id, ItemType = InvoiceLedger.ItemService, ServiceRequestDetailId = s.Id,
+                        ItemCode = s.Service?.ServiceCode, ItemName = s.Service?.ServiceName, Quantity = s.Quantity, UnitPrice = s.UnitPrice,
+                        Amount = s.Amount, Discount = 0, FinalAmount = item.RefundAmount, CreatedAt = now, CreatedBy = userId.ToString(),
+                    });
+                else if (item.ItemType == "medicine" && medLines.TryGetValue(item.ItemId, out var m))
+                    _context.ReceiptDetails.Add(new ReceiptDetail
+                    {
+                        Id = Guid.NewGuid(), ReceiptId = receipt.Id, ItemType = InvoiceLedger.ItemMedicine, PrescriptionDetailId = m.Id,
+                        ItemCode = m.Medicine?.MedicineCode, ItemName = m.Medicine?.MedicineName, Quantity = m.Quantity, UnitPrice = m.UnitPrice,
+                        Amount = m.Amount, Discount = 0, FinalAmount = item.RefundAmount, CreatedAt = now, CreatedBy = userId.ToString(),
+                    });
+            }
+        }
         await _context.SaveChangesAsync();
 
         return new RefundDto
@@ -348,7 +421,50 @@ public partial class BillingCompleteService {
         receipt.Note = $"{receipt.Note} | Xác nhận: {dto.Notes} | Mã GD: {dto.TransactionNumber}";
         receipt.UpdatedAt = DateTime.Now;
         receipt.UpdatedBy = userId.ToString();
+
+        // QA-R3: money of a payment went back to the patient. When the WHOLE payment is refunded, the lines it
+        // paid are unpaid again; either way the record's invoice is recomputed (paid = receipts − paid refunds).
+        var refundLines = await _context.ReceiptDetails.AsNoTracking()
+            .Where(rd => rd.ReceiptId == receipt.Id)
+            .Select(rd => new { rd.ServiceRequestDetailId, rd.PrescriptionDetailId, rd.FinalAmount })
+            .ToListAsync();
+        if (refundLines.Count > 0 && receipt.OriginalPaymentId.HasValue)
+        {
+            // Item refund of a payment: un-flag exactly the refunded lines once fully refunded (review S4).
+            // (A deposit refund returns deposit money, not payment money — nothing was paid for those lines by it.)
+            var refundedNow = refundLines
+                .Where(l => (l.ServiceRequestDetailId ?? l.PrescriptionDetailId) != null)
+                .GroupBy(l => (l.ServiceRequestDetailId ?? l.PrescriptionDetailId)!.Value)
+                .ToDictionary(g => g.Key, g => g.Sum(l => l.FinalAmount));
+            await InvoiceLedger.ReverseLineItemsAsync(_context, receipt.Id, refundedNow);
+        }
+        else if (refundLines.Count == 0 && receipt.OriginalPaymentId.HasValue)
+        {
+            var original = await _context.Receipts.AsNoTracking()
+                .FirstOrDefaultAsync(r => r.Id == receipt.OriginalPaymentId.Value);
+            if (original != null)
+            {
+                var refundedBefore = await _context.Receipts
+                    .Where(r => r.ReceiptType == 3 && r.OriginalPaymentId == original.Id && r.Id != receipt.Id
+                                && !r.IsDeleted && r.Status == RefundStatus.Paid)
+                    .SumAsync(r => (decimal?)r.FinalAmount) ?? 0m;
+                if (refundedBefore + receipt.FinalAmount >= original.FinalAmount)
+                    await InvoiceLedger.ReverseReceiptItemsAsync(_context, original.Id);
+            }
+        }
         await _context.SaveChangesAsync();
+        if ((receipt.OriginalPaymentId.HasValue || refundLines.Count > 0) && receipt.MedicalRecordId.HasValue)
+        {
+            var invoice = await _context.InvoiceSummaries
+                .Where(i => i.MedicalRecordId == receipt.MedicalRecordId.Value && !i.IsDeleted)
+                .OrderByDescending(i => i.InvoiceDate)
+                .FirstOrDefaultAsync();
+            if (invoice != null)
+            {
+                await InvoiceLedger.RefreshAsync(_context, invoice);
+                await _context.SaveChangesAsync();
+            }
+        }
 
         return new RefundDto
         {

@@ -7,6 +7,8 @@ import { Field } from '../../../components/form/Field';
 import { useModalForm } from '../../../hooks/useModalForm';
 import type { RawRow } from './shared';
 import { treatmentLabel } from './shared';
+import { calculateInvoice } from '../../billing/api/billing';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 // Codes MUST match backend Receipt.PaymentMethod (1-Tiền mặt, 2-Chuyển khoản, 3-Thẻ) — the old
 // 2=Thẻ/3=Chuyển khoản order booked card money as transfer in cashier/revenue reports and vice versa.
 const PAY_METHOD_OPTS = [
@@ -30,8 +32,22 @@ export const ReceptionPayModal: React.FC<{
     amount: { validate: (v) => (typeof v !== 'number' || v <= 0 ? 'Nhập số tiền thu' : undefined) },
   }, !!row);
 
+  // QA-R3: the backend only accepts up to what the record still owes (services + medicines + bed) — show it
+  // and pre-fill it instead of letting the clerk type any amount.
+  const [owed, setOwed] = useState<number | null>(null);
   useEffect(() => {
-    if (row) { setAmount(0); setReceived(0); setMethod(1); setRef(''); }
+    if (row) { setAmount(0); setReceived(0); setMethod(1); setRef(''); setOwed(null); }
+    if (!row) return;
+    let alive = true;
+    calculateInvoice(row.id)
+      .then((r) => {
+        if (!alive) return;
+        const remaining = Number(r.data?.remainingAmount ?? 0);
+        setOwed(remaining);
+        setAmount(remaining);
+      })
+      .catch(() => { if (alive) setOwed(null); });
+    return () => { alive = false; };
   }, [row]);
 
   const submit = async () => {
@@ -49,8 +65,8 @@ export const ReceptionPayModal: React.FC<{
       });
       message.success(`Đã thu ${amount.toLocaleString('vi-VN')} ₫ · ${row.patientName}`);
       onDone();
-    } catch {
-      message.error('Thu phí thất bại');
+    } catch (e) {
+      message.error(friendlyErrorMessage(e, 'Thu phí thất bại'));
     } finally {
       setBusy(false);
     }
@@ -83,6 +99,8 @@ export const ReceptionPayModal: React.FC<{
             <span className="mono" style={{ fontSize: 'var(--fs-sm)' }}>{row.queueCode || `#${row.queueNumber}`}</span>
             <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Hình thức</span>
             <span>{treatmentLabel(row)}</span>
+            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Còn phải thu</span>
+            <span className="mono">{owed === null ? '—' : `${owed.toLocaleString('vi-VN')} ₫`}</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
             <Field label="Số tiền thu" required error={form.errors.amount}>

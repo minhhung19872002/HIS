@@ -178,7 +178,7 @@ namespace HIS.Infrastructure.Services
                 P("@p0", receiptId), P("@p1", receiptCode), P("@p2", dto.ReceiptDate), P("@p3", dto.SupplierId),
                 P("@p4", dto.DeliveryPerson), P("@p5", "System"),
                 P("@p6", "Draft"), P("@p7", totalBags), P("@p8", totalAmount),
-                P("@p9", dto.Note), P("@p10", DateTime.Now), P("@p11", "System"));
+                P("@p9", dto.Note), P("@p10", DateTime.UtcNow), P("@p11", "System")); // CreatedAt UTC
 
             if (dto.Items != null)
             {
@@ -226,7 +226,7 @@ namespace HIS.Infrastructure.Services
                 P("@p10", item.DonorCode), P("@p11", null),
                 P("@p12", supplierId), P("@p13", "Available"), P("@p14", "Kho mau"),
                 P("@p15", null), P("@p16", item.TestResults),
-                P("@p17", true), P("@p18", null), P("@p19", DateTime.Now), P("@p20", "System"));
+                P("@p17", true), P("@p18", null), P("@p19", DateTime.UtcNow), P("@p20", "System")); // CreatedAt UTC
         }
 
         /// <summary>

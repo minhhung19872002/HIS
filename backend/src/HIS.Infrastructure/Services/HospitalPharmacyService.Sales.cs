@@ -192,6 +192,42 @@ public partial class HospitalPharmacyService
         if (dto.Items.Any(i => i.UnitPrice < 0 || i.DiscountAmount < 0) || dto.DiscountAmount < 0)
             throw new InvalidOperationException("Đơn giá / chiết khấu không được âm.");
 
+        // QA-R3: the SERVER decides the unit price — the POS accepted any client UnitPrice ≥ 0 (a 1đ box of
+        // medicine was a valid sale). Selling a prescription: the prescribed line price; otherwise the catalog
+        // retail price (Medicine.UnitPrice, the price the POS search shows). The client value is ignored.
+        var saleMedicineIds = dto.Items.Select(i => i.MedicineId).Distinct().ToList();
+        var catalogPrices = await _context.Medicines
+            .Where(m => saleMedicineIds.Contains(m.Id))
+            .Select(m => new { m.Id, m.UnitPrice })
+            .ToDictionaryAsync(m => m.Id, m => m.UnitPrice);
+        var prescribedPrices = new Dictionary<Guid, decimal>();
+        if (dto.PrescriptionId.HasValue && dto.PrescriptionId.Value != Guid.Empty)
+        {
+            var saleRxId = dto.PrescriptionId.Value;
+            prescribedPrices = (await _context.PrescriptionDetails
+                    .Where(d => d.PrescriptionId == saleRxId && !d.IsDeleted && d.UnitPrice > 0)
+                    .Select(d => new { d.MedicineId, d.UnitPrice })
+                    .ToListAsync())
+                .GroupBy(d => d.MedicineId)
+                .ToDictionary(g => g.Key, g => g.Max(d => d.UnitPrice));
+        }
+        foreach (var item in dto.Items)
+        {
+            if (prescribedPrices.TryGetValue(item.MedicineId, out var rxPrice))
+                item.UnitPrice = rxPrice;
+            else if (catalogPrices.TryGetValue(item.MedicineId, out var catalogPrice))
+                item.UnitPrice = catalogPrice;
+            else
+                throw new InvalidOperationException($"Thuốc {item.MedicineName} không có trong danh mục thuốc — không bán được.");
+            // QA-R3 review S1: a catalog price of 0 sold the medicine for free.
+            if (item.UnitPrice <= 0)
+                throw new InvalidOperationException($"Thuốc {item.MedicineName} chưa có giá bán — cập nhật giá trong danh mục trước khi bán.");
+            if (item.DiscountAmount > item.Quantity * item.UnitPrice)
+                throw new InvalidOperationException($"Chiết khấu dòng {item.MedicineName} vượt quá thành tiền của dòng.");
+        }
+        if (dto.DiscountAmount > dto.Items.Sum(i => i.Quantity * i.UnitPrice - i.DiscountAmount))
+            throw new InvalidOperationException("Chiết khấu phiếu vượt quá tổng tiền.");
+
         // QA0915: dòng không có kho thì trước đây KHÔNG trừ tồn (bán xong tồn nguyên) — mà màn POS v2 và
         // bán theo đơn (dòng đơn chưa gán kho) đều không gửi kho. Rơi về nhà thuốc bệnh viện đang hoạt động,
         // rồi tới kho thuốc; không có kho nào thì từ chối bán thay vì bán "chui" ngoài sổ kho.
@@ -446,29 +482,36 @@ public partial class HospitalPharmacyService
             // không đủ để chỉ ra một dòng: bản cũ để SQL TOP 1 tự chọn, bản gom-1-query lại
             // giữ thứ tự DB trả về, nên số tồn hiển thị đổi lô. Phá hoà tường minh — nhiều
             // hàng trước, rồi Id — để kết quả không còn phụ thuộc bên nào sắp xếp.
+            // QA-R3: the stock shown used to be ONE lot from ANY warehouse (main store / ward cabinet),
+            // while the sale deducts from the default sale warehouse — the POS showed 129 but sold from
+            // a 300-unit pharmacy (or the reverse: showed stock the pharmacy did not have). Show the
+            // sellable stock of the SAME warehouse CreateSaleAsync deducts from, using the same lot
+            // filter (not expired, not locked, quantity minus reserved), summed over its lots.
             var listedMedicineIds = medicines.Select(m => m.Id).Distinct().ToList();
-            var stockByMedicine = listedMedicineIds.Count == 0
-                ? new Dictionary<Guid?, InventoryItem>()
+            var saleWarehouseId = await ResolveDefaultSaleWarehouseIdAsync();
+            var lotsByMedicine = listedMedicineIds.Count == 0 || saleWarehouseId == null
+                ? new Dictionary<Guid?, List<InventoryItem>>()
                 : (await _context.InventoryItems
-                        .Where(i => listedMedicineIds.Contains(i.MedicineId!.Value) && !i.IsDeleted && i.Quantity > 0)
+                        .Where(i => listedMedicineIds.Contains(i.MedicineId!.Value)
+                            && i.WarehouseId == saleWarehouseId.Value
+                            && i.ExpiryDate >= DateTime.Today
+                            && !i.IsLocked && !i.IsDeleted)
                         .ToListAsync())
+                    .Where(i => i.Quantity - i.ReservedQuantity > 0)
                     .GroupBy(i => i.MedicineId)
                     .ToDictionary(g => g.Key, g => g
                         .OrderBy(i => i.ExpiryDate)
-                        .ThenByDescending(i => i.Quantity)
                         .ThenBy(i => i.Id)
-                        .First());
+                        .ToList());
 
-            // Get stock for each medicine
             foreach (var med in medicines)
             {
-                stockByMedicine.TryGetValue(med.Id, out var stock);
-
-                if (stock != null)
+                if (lotsByMedicine.TryGetValue(med.Id, out var lots) && lots.Count > 0)
                 {
-                    med.AvailableStock = stock.Quantity;
-                    med.BatchNumber = stock.BatchNumber;
-                    med.ExpiryDate = stock.ExpiryDate?.ToString("yyyy-MM-dd");
+                    med.AvailableStock = lots.Sum(l => l.Quantity - l.ReservedQuantity);
+                    // First lot the sale will take from (FEFO).
+                    med.BatchNumber = lots[0].BatchNumber;
+                    med.ExpiryDate = lots[0].ExpiryDate?.ToString("yyyy-MM-dd");
                 }
             }
 

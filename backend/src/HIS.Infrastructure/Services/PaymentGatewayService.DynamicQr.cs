@@ -121,15 +121,21 @@ public partial class PaymentGatewayService
                 var admission = await _db.Set<Admission>()
                     .FirstOrDefaultAsync(a => a.Id == dto.ReferenceId)
                     ?? throw new InvalidOperationException("Đợt điều trị nội trú không tồn tại");
-                var totalService = await _db.ServiceRequests
-                    .Where(s => s.MedicalRecordId == admission.MedicalRecordId && s.Status != 4)
-                    .SumAsync(s => (decimal?)s.PatientAmount) ?? 0;
-                var totalPaid = await _db.Receipts
-                    .Where(r => r.PatientId == admission.PatientId && r.ReceiptType == 2 && r.Status == 1)
-                    .SumAsync(r => (decimal?)r.FinalAmount) ?? 0;
-                amount = totalService - totalPaid;
+                // QA-R3: scoped to THIS stay's record (the old sum subtracted every receipt of the patient, all visits)
+                // and computed by the invoice ledger: charges (services + medicines + bed) − discount − money collected
+                // on the record − the record's unspent deposit (spent at the cashier, "Trừ tạm ứng"), so the QR plus
+                // the deposit settle the invoice exactly.
+                var totalService = (await InvoiceLedger.LoadAsync(_db, admission.MedicalRecordId)).PatientTotal;
+                var discount = await _db.InvoiceSummaries
+                    .Where(i => i.MedicalRecordId == admission.MedicalRecordId && !i.IsDeleted)
+                    .SumAsync(i => (decimal?)i.DiscountAmount) ?? 0;
+                var (collected, refunded) = await InvoiceLedger.PaidOnRecordAsync(_db, admission.MedicalRecordId);
+                var depositBalance = await InvoiceLedger.DepositBalanceOnRecordAsync(_db, admission.MedicalRecordId);
+                amount = totalService - discount - (collected - refunded) - depositBalance;
                 if (amount <= 0)
-                    throw new InvalidOperationException("Bệnh nhân không còn nợ viện phí");
+                    throw new InvalidOperationException(depositBalance > 0
+                        ? "Bệnh nhân không còn nợ ngoài số tạm ứng — trừ tạm ứng tại quầy thu ngân"
+                        : "Bệnh nhân không còn nợ viện phí");
                 patientId = admission.PatientId;
                 medicalRecordId = admission.MedicalRecordId;
                 orderType = "discharge";
@@ -310,7 +316,7 @@ public partial class PaymentGatewayService
                     {
                         Id = Guid.NewGuid(),
                         ReceiptNumber = $"TU{DateTime.Now:yyyyMMddHHmmssfff}",
-                        ReceiptDate = DateTime.UtcNow,
+                        ReceiptDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
                         PatientId = txn.PatientId,
                         MedicalRecordId = txn.ReferenceId,
                         Amount = txn.Amount,
@@ -340,8 +346,19 @@ public partial class PaymentGatewayService
                     }
                     break;
                 }
-                // prescription / discharge: Receipt (type 2) đã ghi nhận tiền —
-                // pre-discharge check + cấp phát thuốc đối chiếu qua Receipt, không đổi trạng thái nguồn.
+                case RefPrescription:
+                {
+                    // QA-R3: flag the prescription paid so the cashier no longer lists its medicines
+                    // (InvoiceLedger leaves the prescription and this receipt out of the invoice).
+                    var rx = await _db.Prescriptions.FirstOrDefaultAsync(p => p.Id == txn.ReferenceId);
+                    if (rx != null && !rx.IsPaid)
+                    {
+                        rx.IsPaid = true;
+                        rx.UpdatedAt = DateTime.UtcNow;
+                    }
+                    break;
+                }
+                // discharge: Receipt (type 2) đã ghi nhận tiền — pre-discharge check đối chiếu qua Receipt.
             }
         }
         catch (Exception ex)

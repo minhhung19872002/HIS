@@ -191,6 +191,20 @@ public class InpatientDispensingService : IInpatientDispensingService
 
         await _db.SaveChangesAsync();
 
+        // QA-R3: inpatient medicines are charges of the record from the moment they are ordered (InvoiceLedger) —
+        // the cashier collects them at settlement from the record's single invoice. Keep an existing invoice current
+        // (no second invoice is created here).
+        var recordIds = prescriptions.Select(p => p.MedicalRecordId).Distinct().ToList();
+        var invoices = await _db.InvoiceSummaries
+            .Where(i => recordIds.Contains(i.MedicalRecordId) && !i.IsDeleted && i.Status != 2)
+            .ToListAsync();
+        if (invoices.Count > 0)
+        {
+            foreach (var invoice in invoices)
+                await InvoiceLedger.RefreshAsync(_db, invoice);
+            await _db.SaveChangesAsync();
+        }
+
         return ServiceOutcome.Ok(new
         {
             exportReceiptId = export.Id,

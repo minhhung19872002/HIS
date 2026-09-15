@@ -170,6 +170,8 @@ export interface InvoiceDto {
   medicineTotal: number;
   supplyTotal: number;
   bedTotal: number;
+  /** Bed-day money (patient share) not yet collected — the cashier's "Tiền giường" row. */
+  unpaidBedAmount?: number;
   subTotal: number;
   insuranceAmount: number;
   discountAmount: number;
@@ -342,6 +344,10 @@ export interface CreatePaymentDto {
   depositId?: string;
   depositUsedAmount?: number;
   notes?: string;
+  /** Lines being collected — flagged paid when the money on the invoice covers them. */
+  serviceItemIds?: string[];
+  medicineItemIds?: string[];
+  includeBedCharges?: boolean;
 }
 
 export interface PaymentHistoryDto {
@@ -373,6 +379,9 @@ export interface UseDepositForPaymentDto {
   invoiceId: string;
   depositId: string;
   amount: number;
+  serviceItemIds?: string[];
+  medicineItemIds?: string[];
+  includeBedCharges?: boolean;
 }
 
 // #endregion
@@ -1351,11 +1360,12 @@ export const searchInvoices = (dto: InvoiceSearchDto) =>
     params: { ...dto, paymentStatus: toBeInvoiceStatus(dto.paymentStatus) },
   }).then((r) => (r.data?.items ? { ...r, data: { ...r.data, items: r.data.items.map(normalizeInvoice) } } : r));
 
-export const getUnpaidServices = (patientId: string) =>
-  apiClient.get<UnpaidServiceItemDto[]>(`${BASE_URL}/invoices/unpaid-services/${patientId}`);
+// medicalRecordId scopes the lines to the record being collected (the payment goes to that record's invoice).
+export const getUnpaidServices = (patientId: string, medicalRecordId?: string) =>
+  apiClient.get<UnpaidServiceItemDto[]>(`${BASE_URL}/invoices/unpaid-services/${patientId}`, { params: { medicalRecordId } });
 
-export const getUnpaidMedicines = (patientId: string) =>
-  apiClient.get<UnpaidMedicineItemDto[]>(`${BASE_URL}/invoices/unpaid-medicines/${patientId}`);
+export const getUnpaidMedicines = (patientId: string, medicalRecordId?: string) =>
+  apiClient.get<UnpaidMedicineItemDto[]>(`${BASE_URL}/invoices/unpaid-medicines/${patientId}`, { params: { medicalRecordId } });
 
 // #endregion
 

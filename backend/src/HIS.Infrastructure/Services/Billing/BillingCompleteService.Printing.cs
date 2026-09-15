@@ -477,7 +477,8 @@ public partial class BillingCompleteService {
             // Get receipt details associated with this medical record
             var receiptDetails = await _context.ReceiptDetails.AsNoTracking()
                 .Include(d => d.Receipt)
-                .Where(d => d.Receipt.MedicalRecordId == invoice.MedicalRecordId && d.Receipt.Status == 1)
+                // QA-R3: refund receipts (type 3, status 1 = approved) now carry item lines too — not billed items.
+                .Where(d => d.Receipt.MedicalRecordId == invoice.MedicalRecordId && d.Receipt.Status == 1 && d.Receipt.ReceiptType != 3)
                 .ToListAsync();
 
             var sb = new StringBuilder();

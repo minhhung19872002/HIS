@@ -488,19 +488,9 @@ public partial class WarehouseCompleteService {
             // QA0915: phát xong đã tự cộng tiền thuốc vào InvoiceSummary (IsBilled) nhưng hủy phát KHÔNG trừ lại
             // — đo được TotalMedicineAmount giữ nguyên 40.000 sau khi thuốc đã về kho. Đảo lại khi hóa đơn
             // chưa thanh toán. Hóa đơn đã thu tiền thì cần luồng hoàn tiền — không tự sửa số ở đây.
-            if (exportReceipt.IsBilled && exportReceipt.MedicalRecordId.HasValue)
-            {
-                var billed = exportReceipt.Details.Sum(d => d.Quantity * d.UnitPrice);
-                var invoice = await _context.Set<InvoiceSummary>()
-                    .FirstOrDefaultAsync(i => i.MedicalRecordId == exportReceipt.MedicalRecordId.Value);
-                if (invoice != null && invoice.Status == 0)
-                {
-                    invoice.TotalMedicineAmount = Math.Max(0, invoice.TotalMedicineAmount - billed);
-                    invoice.TotalAmount = Math.Max(0, invoice.TotalAmount - billed);
-                    invoice.UpdatedAt = DateTime.Now;
-                    exportReceipt.IsBilled = false;
-                }
-            }
+            // QA-R3: the invoice is recomputed from the ledger below (the cancelled prescription drops out).
+            if (exportReceipt.IsBilled)
+                exportReceipt.IsBilled = false;
 
         }
 
@@ -516,6 +506,21 @@ public partial class WarehouseCompleteService {
         }
 
         await _context.SaveChangesAsync();
+
+        // QA-R3: invoice total = ledger (a paid invoice becomes over-paid → refund flow, never silently edited).
+        var cancelledRecordId = prescription?.MedicalRecordId ?? exportReceipts[0].MedicalRecordId;
+        if (cancelledRecordId.HasValue)
+        {
+            var invoice = await _context.Set<InvoiceSummary>()
+                .Where(i => i.MedicalRecordId == cancelledRecordId.Value && !i.IsDeleted)
+                .OrderByDescending(i => i.InvoiceDate)
+                .FirstOrDefaultAsync();
+            if (invoice != null)
+            {
+                await InvoiceLedger.RefreshAsync(_context, invoice);
+                await _context.SaveChangesAsync();
+            }
+        }
 
         return new StockReceiptDto
         {
@@ -563,38 +568,11 @@ public partial class WarehouseCompleteService {
             itemCount++;
         }
 
-        // Tạo/cập nhật InvoiceSummary
-        var invoice = await _context.Set<InvoiceSummary>()
-            .FirstOrDefaultAsync(i => i.MedicalRecordId == medicalRecordId.Value);
-
-        if (invoice == null)
-        {
-            invoice = new InvoiceSummary
-            {
-                Id = Guid.NewGuid(),
-                InvoiceCode = CodeGenerator.Timestamp("INV"),
-                InvoiceDate = DateTime.Now,
-                MedicalRecordId = medicalRecordId.Value,
-                TotalMedicineAmount = total,
-                TotalAmount = total,
-                // The debt must be collectable: payments check RemainingAmount, which stayed 0 here
-                // ("vuot qua so tien con no (0d)" on every pharmacy invoice).
-                RemainingAmount = total,
-                Status = 0,
-                CreatedAt = DateTime.Now,
-                CreatedBy = userId.ToString()
-            };
-            _context.Set<InvoiceSummary>().Add(invoice);
-        }
-        else
-        {
-            invoice.TotalMedicineAmount += total;
-            invoice.TotalAmount += total;
-            invoice.RemainingAmount = Math.Max(0, invoice.TotalAmount - invoice.DiscountAmount - invoice.PaidAmount);
-            if (invoice.RemainingAmount > 0 && invoice.Status == 1)
-                invoice.Status = 0; // new medicine charge re-opens a fully paid invoice
-            invoice.UpdatedAt = DateTime.Now;
-        }
+        // Tạo/cập nhật InvoiceSummary.
+        // QA-R3: the prescription is already a charge of the record from the moment it was ordered (InvoiceLedger) —
+        // adding its gross price again here double-billed a medicine the cashier had collected before dispensing.
+        // Dispensing only guarantees the invoice exists and is up to date.
+        var (invoice, _) = await InvoiceLedger.EnsureAsync(_context, medicalRecordId.Value, userId.ToString());
 
         exportReceipt.IsBilled = true; // đánh dấu đã tạo billing — guard double-bill
         await _context.SaveChangesAsync();

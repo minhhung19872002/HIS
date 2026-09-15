@@ -27,6 +27,8 @@ public partial class BillingCompleteService {
         medicalRecord.IsClosed = true;
         medicalRecord.UpdatedAt = DateTime.Now;
         medicalRecord.UpdatedBy = userId.ToString();
+        // R3 BHYT: locking a BHYT record for billing produces its claim (refreshes a not-yet-submitted one).
+        await new BhytClaimBuilder(_context).UpsertOnLockAsync(medicalRecord.Id, userId.ToString());
         await _context.SaveChangesAsync();
 
         var user = await _context.Users.FindAsync(userId);
@@ -63,6 +65,7 @@ public partial class BillingCompleteService {
         medicalRecord.IsClosed = false;
         medicalRecord.UpdatedAt = DateTime.Now;
         medicalRecord.UpdatedBy = userId.ToString();
+        await new BhytClaimBuilder(_context).ReopenOnUnlockAsync(medicalRecord.Id); // R3 BHYT
         await _context.SaveChangesAsync();
 
         var user = await _context.Users.FindAsync(userId);
@@ -237,7 +240,7 @@ public partial class BillingCompleteService {
         invoiceDto.DiscountType = dto.DiscountType;
         invoiceDto.DiscountPercent = dto.DiscountPercent;
         invoiceDto.TotalAmount -= discountAmount;
-        invoiceDto.RemainingAmount -= discountAmount;
+        // QA-R3: CalculateInvoiceAsync already nets the saved discount out of RemainingAmount.
 
         return invoiceDto;
     }
@@ -280,7 +283,7 @@ public partial class BillingCompleteService {
         invoiceDto.DiscountReason = dto.DiscountReason;
         invoiceDto.DiscountType = 2; // Theo dịch vụ
         invoiceDto.TotalAmount -= totalDiscount;
-        invoiceDto.RemainingAmount -= totalDiscount;
+        // QA-R3: CalculateInvoiceAsync already nets the saved discount out of RemainingAmount.
 
         return invoiceDto;
     }

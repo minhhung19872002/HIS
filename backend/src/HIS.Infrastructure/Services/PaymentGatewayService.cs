@@ -159,9 +159,14 @@ public partial class PaymentGatewayService : IPaymentGatewayService
             var invoice = await _db.InvoiceSummaries.FirstOrDefaultAsync(i => i.Id == txn.InvoiceSummaryId.Value);
             if (invoice != null)
             {
+                // QA-R3: recompute from the record's ledger first (services + medicines + bed), then add this payment
+                // and flag the lines it completes paid — same as a cashier payment on the invoice.
+                var charges = await InvoiceLedger.RefreshAsync(_db, invoice);
                 invoice.PaidAmount += txn.Amount;
                 invoice.RemainingAmount = Math.Max(0, invoice.RemainingAmount - txn.Amount);
                 if (invoice.RemainingAmount <= 0) invoice.Status = 1;
+                if (invoice.Status != 2)
+                    await InvoiceLedger.MarkCoveredAsync(_db, invoice, charges, receipt, null, null, false, validCashierId.ToString());
             }
         }
 

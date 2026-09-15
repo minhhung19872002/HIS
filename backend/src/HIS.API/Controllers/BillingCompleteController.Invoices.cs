@@ -70,9 +70,9 @@ public partial class BillingCompleteController
     /// Lấy danh sách dịch vụ chưa thanh toán
     /// </summary>
     [HttpGet("invoices/unpaid-services/{patientId}")]
-    public async Task<ActionResult<List<UnpaidServiceItemDto>>> GetUnpaidServices(Guid patientId)
+    public async Task<ActionResult<List<UnpaidServiceItemDto>>> GetUnpaidServices(Guid patientId, [FromQuery] Guid? medicalRecordId)
     {
-        var result = await _billingService.GetUnpaidServicesAsync(patientId);
+        var result = await _billingService.GetUnpaidServicesAsync(patientId, medicalRecordId);
         return Ok(result);
     }
 
@@ -80,9 +80,9 @@ public partial class BillingCompleteController
     /// Lấy danh sách thuốc chưa thanh toán
     /// </summary>
     [HttpGet("invoices/unpaid-medicines/{patientId}")]
-    public async Task<ActionResult<List<UnpaidMedicineItemDto>>> GetUnpaidMedicines(Guid patientId)
+    public async Task<ActionResult<List<UnpaidMedicineItemDto>>> GetUnpaidMedicines(Guid patientId, [FromQuery] Guid? medicalRecordId)
     {
-        var result = await _billingService.GetUnpaidMedicinesAsync(patientId);
+        var result = await _billingService.GetUnpaidMedicinesAsync(patientId, medicalRecordId);
         return Ok(result);
     }
 

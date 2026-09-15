@@ -189,7 +189,8 @@ public class PaymentReportsService : IPaymentReportsService
         var (from, to) = NormalizeRange(fromDate, toDate);
         var q = _db.ReceiptDetails
             .Include(d => d.Receipt).ThenInclude(r => r.Patient)
-            .Where(d => d.Receipt.Status == 1
+            // QA-R3: refund receipts (type 3) now carry item lines too — BC6 lists collected lines only.
+            .Where(d => d.Receipt.Status == 1 && d.Receipt.ReceiptType != 3
                 && d.Receipt.ReceiptDate >= from && d.Receipt.ReceiptDate < to);
         if (patientId.HasValue) q = q.Where(d => d.Receipt.PatientId == patientId.Value);
         var list = await q.OrderBy(d => d.Receipt.ReceiptDate).Take(500).ToListAsync();

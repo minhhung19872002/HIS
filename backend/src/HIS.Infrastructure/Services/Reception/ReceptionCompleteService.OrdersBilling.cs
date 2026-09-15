@@ -231,7 +231,7 @@ public partial class ReceptionCompleteService {
         {
             Id = Guid.NewGuid(),
             RequestCode = $"CDTD{DateTime.Now:yyyyMMddHHmmssfff}",
-            RequestDate = DateTime.UtcNow,
+            RequestDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
             MedicalRecordId = ctx.MedicalRecordId,
             ExaminationId = ctx.ExaminationId,
             DoctorId = ctx.DoctorId,
@@ -518,20 +518,37 @@ public partial class ReceptionCompleteService {
         var medicalRecord = await _context.MedicalRecords.FindAsync(dto.MedicalRecordId)
             ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ bệnh án (medicalRecordId không tồn tại)");
 
+        // QA-R3: same rules as the cashier deposit (BillingCompleteService.CreateDepositAsync) — the reception path
+        // accepted 0đ / fractional amounts and deposits on a cancelled, billing-locked or discharged record.
+        if (dto.Amount <= 0)
+            throw new InvalidOperationException("Số tiền tạm ứng phải lớn hơn 0");
+        if (dto.Amount != Math.Round(dto.Amount, 0))
+            throw new InvalidOperationException("Số tiền tạm ứng phải là số nguyên đồng (VND không có số lẻ)");
+        if (medicalRecord.IsDeleted)
+            throw new KeyNotFoundException("Không tìm thấy hồ sơ bệnh án");
+        if (medicalRecord.Status == HIS.Core.Constants.MedicalRecordStatus.Cancelled)
+            throw new InvalidOperationException("Hồ sơ bệnh án đã hủy — không thu tạm ứng được");
+        if (medicalRecord.IsClosed)
+            throw new InvalidOperationException("Hồ sơ bệnh án đã khóa viện phí — không thu tạm ứng được");
+        if (medicalRecord.DischargeDate.HasValue)
+            throw new InvalidOperationException("Bệnh nhân đã ra viện trên hồ sơ này — không thu tạm ứng được");
+
         var receiptNumber = await GenerateDepositReceiptNumberAsync();
 
         var deposit = new Deposit
         {
             Id = Guid.NewGuid(),
             ReceiptNumber = receiptNumber,
-            ReceiptDate = DateTime.UtcNow, // dot16: chuẩn UTC — Deposits/Payments bị query DayRangeUtc
+            ReceiptDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local (query via VnTime.DayRangeVn)
             MedicalRecordId = dto.MedicalRecordId,
             Amount = dto.Amount,
             PaymentMethod = dto.PaymentMethod,
             TransactionReference = dto.TransactionReference,
             Notes = dto.Notes,
             ReceivedByUserId = userId,
-            Status = 1, // Active
+            // QA-R3: was 1 ("Active"), a value the deposit lifecycle does not know — the cashier's balance only lists
+            // Confirmed (2) deposits as spendable, so money taken at reception could never be used at settlement.
+            Status = HIS.Core.Constants.DepositStatus.Confirmed,
             UsedAmount = 0,
             RemainingAmount = dto.Amount,
             PatientId = medicalRecord.PatientId
@@ -575,10 +592,36 @@ public partial class ReceptionCompleteService {
                 && r.FinalAmount == finalAmount
                 && r.ReceiptType == 2
                 && r.Status == 1
+                && r.PaymentMethod == dto.PaymentMethod // QA-R3 review S8
+                && r.OriginalDepositId == null
                 && r.ReceiptDate >= dupWindow)
             .OrderByDescending(r => r.ReceiptDate)
             .FirstOrDefaultAsync();
         if (duplicate != null) return BuildReceiptDto(duplicate, dto.PaidAmount);
+
+        // QA-R3: "Thu phí khám" took ANY amount — the same services were then collected again at the cashier and the
+        // invoice ended over-paid. Collect against the record's ledger: never more than what is still owed (for the
+        // selected lines when the caller names them), and flag the covered lines paid on this receipt.
+        if (finalAmount != Math.Round(finalAmount, 0))
+            throw new InvalidOperationException("Số tiền thu phải là số nguyên đồng (VND không có số lẻ)");
+        if (dto.DiscountAmount != 0)
+            throw new InvalidOperationException("Miễn giảm phải lập tại quầy thu ngân (có người duyệt) — tiếp đón không giảm trừ trực tiếp.");
+        var (invoice, charges) = await InvoiceLedger.EnsureAsync(_context, dto.MedicalRecordId, userId.ToString());
+        var selectedIds = dto.ServiceIds?.Where(id => id != Guid.Empty).ToHashSet() ?? new HashSet<Guid>();
+        var selectedLines = selectedIds.Count == 0
+            ? new List<InvoiceLedger.ChargeLine>()
+            : charges.Services.Where(l => !l.IsPaid
+                    && (selectedIds.Contains(l.Id) || selectedIds.Contains(l.ParentId) || selectedIds.Contains(l.ItemRefId)))
+                .ToList();
+        var owed = selectedIds.Count == 0
+            ? invoice.RemainingAmount
+            : Math.Min(invoice.RemainingAmount, selectedLines.Sum(l => l.PatientAmount));
+        if (owed <= 0)
+            throw new InvalidOperationException(selectedIds.Count == 0
+                ? "Hồ sơ không còn khoản nào phải thu (đã thu đủ)."
+                : "Các dịch vụ đã chọn không còn khoản nào phải thu (đã thu hoặc đã hủy).");
+        if (finalAmount > owed)
+            throw new InvalidOperationException($"Số tiền thu ({finalAmount:N0}đ) vượt quá số còn phải thu ({owed:N0}đ).");
 
         var receiptNumber = await GeneratePaymentReceiptNumberAsync();
 
@@ -608,7 +651,17 @@ public partial class ReceptionCompleteService {
         };
 
         await _context.Receipts.AddAsync(receipt);
-        await _unitOfWork.SaveChangesAsync();
+
+        // Same invoice arithmetic as a cashier payment, in the same save.
+        if (invoice.Status != 2)
+        {
+            invoice.PaidAmount += finalAmount;
+            invoice.RemainingAmount = Math.Max(0, invoice.TotalAmount - invoice.DiscountAmount - invoice.PaidAmount);
+            invoice.Status = invoice.RemainingAmount == 0 && invoice.TotalAmount > 0 ? 1 : 0;
+            await InvoiceLedger.MarkCoveredAsync(_context, invoice, charges, receipt,
+                selectedLines.Select(l => l.Id).ToList(), null, false, userId.ToString());
+        }
+        await _context.SaveChangesAsync();
 
         return BuildReceiptDto(receipt, dto.PaidAmount);
     }
@@ -664,7 +717,9 @@ public partial class ReceptionCompleteService {
 
         // Get deposits
         var depositAmount = await _context.Deposits
-            .Where(d => d.MedicalRecordId == medicalRecordId && d.Status == 1)
+            // QA-R3: reception deposits are now Confirmed (2) like cashier deposits; legacy rows kept 1.
+            .Where(d => d.MedicalRecordId == medicalRecordId && !d.IsDeleted
+                        && d.Status != HIS.Core.Constants.DepositStatus.Cancelled && d.Status != HIS.Core.Constants.DepositStatus.FullyUsed)
             .SumAsync(d => d.RemainingAmount);
 
         // Đã thu — đọc từ sổ phiếu thu chung (Receipts), cùng nguồn với quầy viện phí và sổ quỹ.

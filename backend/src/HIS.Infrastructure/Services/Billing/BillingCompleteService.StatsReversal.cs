@@ -457,25 +457,23 @@ public partial class BillingCompleteService {
             // Table may not exist - return stub
         }
 
-        // Cập nhật hóa đơn (giảm tổng)
-        var invoice = await _context.Set<InvoiceSummary>()
-            .FirstOrDefaultAsync(i => i.MedicalRecordId == dto.MedicalRecordId);
-
-        if (invoice != null)
-        {
-            invoice.TotalServiceAmount -= amount;
-            invoice.TotalAmount -= amount;
-            if (invoice.TotalServiceAmount < 0) invoice.TotalServiceAmount = 0;
-            if (invoice.TotalAmount < 0) invoice.TotalAmount = 0;
-            invoice.UpdatedAt = DateTime.Now;
-            // #187: KHÔNG SaveChanges riêng — gộp với cập nhật ServiceRequest bên dưới (1 transaction atomic)
-        }
-
         // Hủy ServiceRequest
         serviceRequest.Status = 4; // Cancelled
         serviceRequest.UpdatedAt = DateTime.Now;
         serviceRequest.UpdatedBy = userId.ToString();
-        await _context.SaveChangesAsync(); // #187: invoice + serviceRequest atomic trong 1 SaveChanges
+        await _context.SaveChangesAsync();
+
+        // Cập nhật hóa đơn (giảm tổng). QA-R3: recompute from the ledger (the cancelled request drops out) instead
+        // of subtracting the gross price — the invoice total is the patient share since the ledger owns it.
+        var invoice = await _context.Set<InvoiceSummary>()
+            .Where(i => i.MedicalRecordId == serviceRequest.MedicalRecordId && !i.IsDeleted)
+            .OrderByDescending(i => i.InvoiceDate)
+            .FirstOrDefaultAsync();
+        if (invoice != null)
+        {
+            await InvoiceLedger.RefreshAsync(_context, invoice);
+            await _context.SaveChangesAsync();
+        }
 
         var user = await _context.Users.FindAsync(userId);
 

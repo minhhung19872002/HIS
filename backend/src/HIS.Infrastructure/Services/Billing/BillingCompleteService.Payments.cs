@@ -55,7 +55,7 @@ public partial class BillingCompleteService {
         {
             Id = Guid.NewGuid(),
             ReceiptNumber = $"TU{DateTime.Now:yyyyMMddHHmmssfff}",
-            ReceiptDate = DateTime.UtcNow, // dot16: chuẩn UTC — Deposits bị query DayRangeUtc (Reception:298)
+            ReceiptDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local (query via VnTime.DayRangeVn)
             PatientId = dto.PatientId,
             MedicalRecordId = dto.MedicalRecordId,
             Amount = dto.Amount,
@@ -319,10 +319,13 @@ public partial class BillingCompleteService {
         // QA0915: the invoice passed in was ignored — deposit got consumed (990.000đ against an invoice
         // owing 4.199đ) while the invoice debt never went down. Settle it atomically with the receipt.
         InvoiceSummary? invoice = null;
+        InvoiceLedger.ChargeSet? charges = null;
         if (dto.InvoiceId != Guid.Empty)
         {
             invoice = await _context.InvoiceSummaries.FirstOrDefaultAsync(i => i.Id == dto.InvoiceId && !i.IsDeleted)
                 ?? throw new KeyNotFoundException("Không tìm thấy hóa đơn");
+            // QA-R3: owe what the record really owes now (services + medicines + bed − money on the record).
+            charges = await InvoiceLedger.RefreshAsync(_context, invoice);
             var invoiceRecordId = invoice.MedicalRecordId;
             var invoicePatientId = await _context.MedicalRecords
                 .Where(m => m.Id == invoiceRecordId)
@@ -371,6 +374,9 @@ public partial class BillingCompleteService {
         };
 
         _context.Receipts.Add(receipt);
+        if (invoice != null && charges != null)
+            await InvoiceLedger.MarkCoveredAsync(_context, invoice, charges, receipt,
+                dto.ServiceItemIds, dto.MedicineItemIds, dto.IncludeBedCharges, userId.ToString());
         await _context.SaveChangesAsync();
 
         var patient = await _context.Patients.FindAsync(deposit.PatientId);
@@ -477,6 +483,7 @@ public partial class BillingCompleteService {
         Guid? medicalRecordId = null;
         var patientId = dto.PatientId;
         InvoiceSummary? invoice = null;
+        InvoiceLedger.ChargeSet? charges = null;
 
         if (dto.InvoiceId.HasValue && dto.InvoiceId.Value != Guid.Empty)
         {
@@ -486,6 +493,9 @@ public partial class BillingCompleteService {
             if (invoice == null)
                 throw new InvalidOperationException("Khong tim thay hoa don (invoiceId khong ton tai)");
 
+            // QA-R3: the invoice total used to be whatever dispensing had pushed in (medicines only) — refresh it
+            // from the ledger so services, inpatient medicines and bed days are owed and collectable.
+            charges = await InvoiceLedger.RefreshAsync(_context, invoice);
             totalOwed = invoice.RemainingAmount;
             medicalRecordId = invoice.MedicalRecordId;
 
@@ -552,6 +562,13 @@ public partial class BillingCompleteService {
         // (timeout/503 edge/double-click) sau khi phiếu đầu đã trừ hết nợ thì remaining=0,
         // nếu check over-payment trước sẽ trả 400 thay vì trả lại phiếu đã tạo.
         // Cửa sổ 30s, cùng HSBA + số tiền + thu ngân → trả CHÍNH phiếu cũ, không tạo mới.
+        // QA-R3 review S8: same payment method too, and never a deposit-use receipt (PaymentMethod 5) — a cash
+        // collection right after "trừ tạm ứng" of the same amount was returned as that deposit receipt (money lost).
+        int paymentMethod = 1;
+        if (int.TryParse(dto.PaymentMethod, out int pm))
+        {
+            paymentMethod = pm;
+        }
         var dupWindow = DateTime.Now.AddSeconds(-30);
         var duplicate = await _context.Receipts
             .Where(r => r.MedicalRecordId == medicalRecordId
@@ -559,6 +576,8 @@ public partial class BillingCompleteService {
                 && r.FinalAmount == dto.Amount
                 && r.ReceiptType == 2
                 && r.Status == 1
+                && r.PaymentMethod == paymentMethod
+                && r.OriginalDepositId == null
                 && r.ReceiptDate >= dupWindow)
             .OrderByDescending(r => r.ReceiptDate)
             .FirstOrDefaultAsync();
@@ -571,12 +590,6 @@ public partial class BillingCompleteService {
 
         if (patientId == Guid.Empty)
             throw new InvalidOperationException("Thieu thong tin benh nhan (patientId) — khong the tao phieu thu");
-
-        int paymentMethod = 1;
-        if (int.TryParse(dto.PaymentMethod, out int pm))
-        {
-            paymentMethod = pm;
-        }
 
         var receipt = new Receipt
         {
@@ -608,6 +621,10 @@ public partial class BillingCompleteService {
                 invoice.Status = 1;
             invoice.UpdatedAt = DateTime.Now;
             invoice.UpdatedBy = userId.ToString();
+            // QA-R3: flag the collected lines paid (ServiceRequests.IsPaid gates LIS/PACS; Prescriptions.IsPaid).
+            if (charges != null)
+                await InvoiceLedger.MarkCoveredAsync(_context, invoice, charges, receipt,
+                    dto.ServiceItemIds, dto.MedicineItemIds, dto.IncludeBedCharges, userId.ToString());
         }
 
         await _context.SaveChangesAsync();
@@ -690,22 +707,23 @@ public partial class BillingCompleteService {
         receipt.Note = $"{receipt.Note} | Hủy: {reason}";
 
         // Hoàn nợ hóa đơn (2026-06-12): trước đây hủy phiếu KHÔNG trả lại PaidAmount/RemainingAmount
-        // → hóa đơn vẫn "đã thu" dù phiếu hủy. Receipt không có link InvoiceId → tìm theo HSBA (best-effort).
-        if (receipt.ReceiptType == 2 && receipt.MedicalRecordId.HasValue)
+        // → hóa đơn vẫn "đã thu" dù phiếu hủy.
+        // QA-R3: every payment receipt on the record is invoice money now (InvoiceLedger), so recompute the
+        // invoice without this receipt instead of guessing, and give the lines it paid back to "unpaid".
+        if (receipt.ReceiptType == 2)
         {
-            var invoice = await _context.InvoiceSummaries
-                .FirstOrDefaultAsync(i => i.MedicalRecordId == receipt.MedicalRecordId.Value);
-            // QA0915: the receipt→invoice link is only a guess by medical record. A receipt larger than what
-            // the invoice has recorded as paid cannot have been (only) an invoice payment — measured:
-            // cancelling a 200.000đ service receipt wiped the invoice's 3.000đ PaidAmount to 0 (debt re-opened).
-            if (invoice != null && receipt.FinalAmount <= invoice.PaidAmount)
+            await InvoiceLedger.ReverseReceiptItemsAsync(_context, receipt.Id);
+            if (receipt.MedicalRecordId.HasValue)
             {
-                invoice.PaidAmount = Math.Max(0, invoice.PaidAmount - receipt.FinalAmount);
-                invoice.RemainingAmount = Math.Max(0, invoice.TotalAmount - invoice.DiscountAmount - invoice.PaidAmount);
-                if (invoice.RemainingAmount > 0 && invoice.Status == 1)
-                    invoice.Status = 0; // còn nợ → bỏ cờ "đã thanh toán đủ"
-                invoice.UpdatedAt = DateTime.Now;
-                invoice.UpdatedBy = userId.ToString();
+                var invoice = await _context.InvoiceSummaries
+                    .Where(i => i.MedicalRecordId == receipt.MedicalRecordId.Value && !i.IsDeleted)
+                    .OrderByDescending(i => i.InvoiceDate)
+                    .FirstOrDefaultAsync();
+                if (invoice != null)
+                {
+                    await InvoiceLedger.RefreshAsync(_context, invoice, excludeReceiptId: receipt.Id);
+                    invoice.UpdatedBy = userId.ToString();
+                }
             }
         }
 
@@ -720,11 +738,14 @@ public partial class BillingCompleteService {
             var receipts = await _context.Receipts
                 .Include(r => r.Cashier)
                 .Include(r => r.MedicalRecord)
-                .Where(r => r.PatientId == patientId)
+                .Where(r => r.PatientId == patientId && !r.IsDeleted)
                 .OrderByDescending(r => r.ReceiptDate)
                 .ToListAsync();
+            var totalDeposit = await _context.Deposits
+                .Where(d => d.PatientId == patientId && !d.IsDeleted && d.Status != DepositStatus.Cancelled)
+                .SumAsync(d => (decimal?)d.Amount) ?? 0m;
 
-            if (!receipts.Any()) return new PaymentHistoryDto { PaymentId = patientId };
+            if (!receipts.Any()) return new PaymentHistoryDto { PaymentId = patientId, PatientId = patientId, TotalDeposit = totalDeposit };
 
             var latest = receipts.First();
             return new PaymentHistoryDto
@@ -742,7 +763,30 @@ public partial class BillingCompleteService {
                 NewStatus = latest.Status == 1 ? "Da thu" : "Da huy",
                 ActionDate = latest.ReceiptDate,
                 ActionBy = latest.Cashier?.FullName ?? string.Empty,
-                Note = $"Tong {receipts.Count} phieu. So tien: {latest.FinalAmount:N0} VND. {latest.Note}"
+                Note = $"Tong {receipts.Count} phieu. So tien: {latest.FinalAmount:N0} VND. {latest.Note}",
+                // QA-R3: PatientTimeline reads `payments` (one event per receipt) — it used to get a single record.
+                PatientId = patientId,
+                TotalPaid = receipts.Where(r => r.ReceiptType == 2 && r.Status == 1).Sum(r => r.FinalAmount),
+                TotalDeposit = totalDeposit,
+                TotalRefund = receipts.Where(r => r.ReceiptType == 3 && r.Status == RefundStatus.Paid).Sum(r => r.FinalAmount),
+                Payments = receipts.Select(r => new PaymentHistoryItemDto
+                {
+                    Id = r.Id,
+                    PaymentCode = r.ReceiptCode,
+                    MedicalRecordId = r.MedicalRecordId,
+                    MedicalRecordCode = r.MedicalRecord?.MedicalRecordCode,
+                    ReceiptType = r.ReceiptType,
+                    ReceiptTypeName = r.ReceiptType switch { 1 => "Tạm ứng", 2 => "Thanh toán", 3 => "Hoàn trả", _ => "Khác" },
+                    Amount = r.FinalAmount,
+                    PaymentMethod = r.PaymentMethod == 5 ? "Tạm ứng" : GetPaymentMethodName(r.PaymentMethod),
+                    Status = r.Status,
+                    StatusName = r.ReceiptType == 3
+                        ? RefundStatus.GetName(r.Status)
+                        : (r.Status == 1 ? "Đã thanh toán" : r.Status == 2 ? "Đã hủy" : "Khác"),
+                    PaymentDate = r.ReceiptDate,
+                    CashierName = r.Cashier?.FullName,
+                    Note = r.Note,
+                }).ToList(),
             };
         }
         catch (Exception ex)
@@ -761,17 +805,11 @@ public partial class BillingCompleteService {
                 .FirstOrDefaultAsync(r => r.Id == medicalRecordId);
             if (record == null) return new PaymentStatusDto();
 
-            var totalAmount = await _context.ServiceRequests
-                .Where(sr => sr.MedicalRecordId == medicalRecordId && sr.Status != 4)
-                .SumAsync(sr => sr.PatientAmount);
-
-            var paidAmount = await _context.Receipts
-                // Refund receipts use RefundStatus: money has left the till only at Paid (4); status 1 there
-                // means "approved", not "collected".
-                .Where(r => r.MedicalRecordId == medicalRecordId && !r.IsDeleted
-                            && ((r.ReceiptType != 3 && r.Status == 1)
-                                || (r.ReceiptType == 3 && r.Status == RefundStatus.Paid)))
-                .SumAsync(r => r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount);
+            // QA-R3: services only (medicines/bed days missing) → same ledger as the invoice and pre-discharge.
+            // Refund receipts use RefundStatus: money has left the till only at Paid (4) — see PaidOnRecordAsync.
+            var totalAmount = (await InvoiceLedger.LoadAsync(_context, medicalRecordId)).PatientTotal;
+            var (collected, refunded) = await InvoiceLedger.PaidOnRecordAsync(_context, medicalRecordId);
+            var paidAmount = collected - refunded;
 
             var remaining = totalAmount - paidAmount;
             var status = remaining <= 0 ? "Paid" : (paidAmount > 0 ? "Partial" : "Unpaid");

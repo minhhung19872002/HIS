@@ -121,7 +121,8 @@ const PatientTimeline: React.FC<PatientTimelineProps> = ({ patientId, onExaminat
               date: (p.paymentDate as string) ?? (p.createdAt as string) ?? '',
               module: 'Billing',
               type: 'payment',
-              title: `Thanh toán: ${Number(p.amount ?? 0).toLocaleString('vi-VN')} đ`,
+              // BE sends one entry per receipt: payment / refund (receiptTypeName) — refunds must not read as "Thanh toán".
+              title: `${(p.receiptTypeName as string) ?? 'Thanh toán'}: ${Number(p.amount ?? 0).toLocaleString('vi-VN')} đ`,
               description: (p.paymentMethod as string) ?? undefined,
               status: (p.statusName as string) ?? 'Đã thanh toán',
               extra: p,

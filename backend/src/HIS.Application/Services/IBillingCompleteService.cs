@@ -271,12 +271,12 @@ public interface IBillingCompleteService
     /// <summary>
     /// Lấy danh sách dịch vụ chưa thanh toán
     /// </summary>
-    Task<List<UnpaidServiceItemDto>> GetUnpaidServicesAsync(Guid patientId);
+    Task<List<UnpaidServiceItemDto>> GetUnpaidServicesAsync(Guid patientId, Guid? medicalRecordId = null);
 
     /// <summary>
     /// Lấy danh sách thuốc chưa thanh toán
     /// </summary>
-    Task<List<UnpaidMedicineItemDto>> GetUnpaidMedicinesAsync(Guid patientId);
+    Task<List<UnpaidMedicineItemDto>> GetUnpaidMedicinesAsync(Guid patientId, Guid? medicalRecordId = null);
 
     /// <summary>
     /// Đảo bút toán (reversal) khi hủy dịch vụ đã thu tiền
@@ -480,6 +480,10 @@ public class UseDepositForPaymentDto
     public Guid InvoiceId { get; set; }
     public Guid DepositId { get; set; }
     public decimal Amount { get; set; }
+    // QA-R3: same optional line selection as CreatePaymentDto (flag paid when covered).
+    public List<Guid>? ServiceItemIds { get; set; }
+    public List<Guid>? MedicineItemIds { get; set; }
+    public bool IncludeBedCharges { get; set; }
 }
 
 /// <summary>

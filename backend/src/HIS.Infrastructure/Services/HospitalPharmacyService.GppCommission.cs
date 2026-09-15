@@ -203,7 +203,7 @@ public partial class HospitalPharmacyService
         foreach (var c in commissions)
         {
             c.Status = 2; // Paid
-            c.PaidDate = DateTime.UtcNow;
+            c.PaidDate = HIS.Core.Common.VnTime.NowVn; // business timestamp = VN local
             c.UpdatedAt = DateTime.UtcNow;
         }
 

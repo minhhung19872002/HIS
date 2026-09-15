@@ -29,6 +29,7 @@ import {
   getUnpaidMedicines, type UnpaidMedicineItemDto,
   getDepositBalance, type DepositBalanceDto,
   getPatientInvoice, createPayment, useDepositForPayment as spendDepositForPayment,
+  calculateInvoice, createOrUpdateInvoice,
   getPatientDeposits, createDeposit, type DepositDto,
   searchRefunds, createRefund, type RefundDto,
   getCashBooks, type CashBookDto,
@@ -56,7 +57,8 @@ const METHODS: { v: number; l: string; ic: string }[] = [
 const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
 const toInvoiceId = (id?: string | null): string | undefined => (id && id !== EMPTY_GUID ? id : undefined);
 
-interface PayRow { id: string; kind: 'service' | 'med'; code: string; name: string; qty: number; unitPrice: number; amount: number; patientAmount: number; }
+// srcId = UnpaidServiceItemDto.id / UnpaidMedicineItemDto.id (sent back so the backend flags exactly these lines paid).
+interface PayRow { id: string; srcId: string; kind: 'service' | 'med' | 'bed'; code: string; name: string; qty: number; unitPrice: number; amount: number; patientAmount: number; }
 
 const BillingEditorV2: React.FC = () => {
   const [leftOpen, setLeftOpen] = useState(false);
@@ -117,25 +119,37 @@ const BillingEditorV2: React.FC = () => {
     setDeposits([]); setRefunds([]); setEinvoices([]);
     setDepositsLoading(true);
     setLastPaymentId(null);
-    const [svc, med, bal] = await Promise.allSettled([
-      getUnpaidServices(p.patientId),
-      getUnpaidMedicines(p.patientId),
+    // QA-R3: lines of the SELECTED record (the payment goes to that record's invoice) — services, medicines
+    // (OPD + inpatient, dispensed or not) and bed days, from the same backend ledger as the invoice.
+    const [svc, med, bal, calc] = await Promise.allSettled([
+      getUnpaidServices(p.patientId, p.medicalRecordId),
+      getUnpaidMedicines(p.patientId, p.medicalRecordId),
       getDepositBalance(p.patientId),
+      calculateInvoice(p.medicalRecordId),
     ]);
     if (selectReqRef.current !== reqId) return; // BN khác đã được chọn trong lúc chờ — bỏ response cũ
     // #467: nhánh reject của allSettled trước đây im lặng → thu ngân tưởng BN không còn khoản phải thu.
     // Báo rõ có phần dữ liệu chưa tải được (KHÔNG đổi luồng: vẫn dựng bảng từ các nhánh thành công).
-    const firstRejected = [svc, med, bal].find((x): x is PromiseRejectedResult => x.status === 'rejected');
+    const firstRejected = [svc, med, bal, calc].find((x): x is PromiseRejectedResult => x.status === 'rejected');
     if (firstRejected) {
       tw(friendlyErrorMessage(firstRejected.reason,
-        'Chưa tải đủ dữ liệu viện phí (dịch vụ / thuốc / số dư tạm ứng) — kiểm tra lại trước khi thu tiền.'));
+        'Chưa tải đủ dữ liệu viện phí (dịch vụ / thuốc / tiền giường / số dư tạm ứng) — kiểm tra lại trước khi thu tiền.'));
     }
     const rows: PayRow[] = [];
     if (svc.status === 'fulfilled' && Array.isArray(svc.value.data)) {
-      (svc.value.data as UnpaidServiceItemDto[]).forEach((s) => rows.push({ id: `S-${s.id}`, kind: 'service', code: s.serviceCode, name: s.serviceName, qty: s.quantity, unitPrice: s.unitPrice, amount: s.amount, patientAmount: s.patientAmount ?? s.amount }));
+      (svc.value.data as UnpaidServiceItemDto[]).forEach((s) => rows.push({ id: `S-${s.id}`, srcId: s.id, kind: 'service', code: s.serviceCode, name: s.serviceName, qty: s.quantity, unitPrice: s.unitPrice, amount: s.amount, patientAmount: s.patientAmount ?? s.amount }));
     }
     if (med.status === 'fulfilled' && Array.isArray(med.value.data)) {
-      (med.value.data as UnpaidMedicineItemDto[]).forEach((m) => rows.push({ id: `M-${m.id}`, kind: 'med', code: m.medicineCode, name: m.medicineName, qty: m.quantity, unitPrice: m.unitPrice, amount: m.amount, patientAmount: m.amount }));
+      // patientAmount (not amount): an insured medicine line is only partly the patient's to pay.
+      (med.value.data as UnpaidMedicineItemDto[]).forEach((m) => rows.push({ id: `M-${m.id}`, srcId: m.id, kind: 'med', code: m.medicineCode, name: m.medicineName, qty: m.quantity, unitPrice: m.unitPrice, amount: m.amount, patientAmount: m.patientAmount ?? m.amount }));
+    }
+    if (calc.status === 'fulfilled' && calc.value.data) {
+      const inv = calc.value.data;
+      const bedDue = inv.unpaidBedAmount ?? 0;
+      if (bedDue > 0) {
+        const days = (inv.bedItems ?? []).reduce((s, b) => s + (b.days || 0), 0);
+        rows.push({ id: `B-${p.medicalRecordId}`, srcId: p.medicalRecordId, kind: 'bed', code: 'GIUONG', name: 'Tiền giường', qty: days, unitPrice: days > 0 ? Math.round(bedDue / days) : bedDue, amount: bedDue, patientAmount: bedDue });
+      }
     }
     setItems(rows);
     setSel(new Set(rows.map((r) => r.id)));
@@ -187,9 +201,25 @@ const BillingEditorV2: React.FC = () => {
     // Snapshot counter: nếu user đổi BN trong lúc payment in-flight → bỏ refresh tail (#416)
     const paySnapId = selectReqRef.current;
     try {
-      const inv = await getPatientInvoice(pt.medicalRecordId);
+      // QA-R3: create/refresh the record's invoice here (services + medicines + bed days) — the old flow required
+      // an invoice made elsewhere ("tạo hoá đơn ở bản v1"), so OPD service fees and inpatient stays were uncollectable.
+      const serviceItemIds = selectedItems.filter((r) => r.kind === 'service').map((r) => r.srcId);
+      const medicineItemIds = selectedItems.filter((r) => r.kind === 'med').map((r) => r.srcId);
+      const includeBedCharges = selectedItems.some((r) => r.kind === 'bed');
+      const inv = await createOrUpdateInvoice({ medicalRecordId: pt.medicalRecordId, serviceItemIds, medicineItemIds });
       const invoiceId = toInvoiceId(inv.data?.id);
-      if (!invoiceId) { tw('Bệnh nhân chưa có hoá đơn — tạo hoá đơn ở bản v1 (P2)'); setBusy(false); return; }
+      if (!invoiceId) { tw('Không tạo được hoá đơn cho hồ sơ này — tải lại bệnh nhân rồi thử lại.'); setBusy(false); return; }
+      const remaining = inv.data?.remainingAmount ?? 0;
+      if (coPay > remaining) {
+        // Part of the selected lines was already paid elsewhere (reception, QR, earlier receipt): reload so the
+        // cashier sees what is really still owed instead of hitting "vượt quá số tiền còn nợ".
+        tw(`Hồ sơ chỉ còn nợ ${fmtVNDg(remaining)} (đã thu một phần ở nơi khác) — đã tải lại danh sách chờ thu.`);
+        setConfirmOpen(false);
+        if (selectReqRef.current === paySnapId) selectPatient(pt);
+        setBusy(false);
+        return;
+      }
+      const lineSelection = { serviceItemIds, medicineItemIds, includeBedCharges };
       if (method === 3) {
         // VietQR: mở modal QR động — backend tự tạo Receipt + HĐĐT khi giao dịch paid,
         // KHÔNG gọi createPayment (tránh ghi nhận tiền 2 lần)
@@ -214,9 +244,11 @@ const BillingEditorV2: React.FC = () => {
         if (advLeft <= 0) break;
         const take = Math.min(advLeft, d.remainingAmount || 0);
         if (take <= 0) continue;
-        const depRes = await spendDepositForPayment({ invoiceId, depositId: d.id, amount: take });
-        newPaymentId = depRes?.data?.id ?? newPaymentId;
         advLeft -= take;
+        // The line selection rides on the LAST money call, once everything selected is covered.
+        const isLast = advLeft <= 0 && finalAmount <= 0;
+        const depRes = await spendDepositForPayment({ invoiceId, depositId: d.id, amount: take, ...(isLast ? lineSelection : {}) });
+        newPaymentId = depRes?.data?.id ?? newPaymentId;
       }
       if (finalAmount > 0) {
         const payRes = await createPayment({
@@ -225,6 +257,7 @@ const BillingEditorV2: React.FC = () => {
           amount: finalAmount,
           receivedAmount: finalAmount,
           notes: `Thu ${selectedItems.length} mục qua editor v2`,
+          ...lineSelection,
         });
         newPaymentId = payRes?.data?.id ?? newPaymentId;
       }
@@ -233,7 +266,7 @@ const BillingEditorV2: React.FC = () => {
       tk(`✓ Đã thu ${fmtVNDg(finalAmount)} · ${METHODS.find((m) => m.v === method)?.l}`);
       // refresh unpaid items — chỉ nếu user chưa đổi BN trong lúc chờ (#416)
       if (selectReqRef.current === paySnapId) selectPatient(pt);
-    } catch { te('Thu tiền thất bại'); }
+    } catch (e) { te(friendlyErrorMessage(e, 'Thu tiền thất bại')); }
     finally { setBusy(false); }
   };
 
@@ -460,7 +493,7 @@ const BillingEditorV2: React.FC = () => {
                   {items.map((it) => (
                     <tr key={it.id} className={sel.has(it.id) ? 'on' : ''}>
                       <td><input type="checkbox" checked={sel.has(it.id)} onChange={() => toggle(it.id)} /></td>
-                      <td>{it.kind === 'service' ? <StatusBadge tone="info">Dịch vụ</StatusBadge> : <StatusBadge tone="ok">Thuốc</StatusBadge>}</td>
+                      <td>{it.kind === 'service' ? <StatusBadge tone="info">Dịch vụ</StatusBadge> : it.kind === 'bed' ? <StatusBadge tone="warn">Giường</StatusBadge> : <StatusBadge tone="ok">Thuốc</StatusBadge>}</td>
                       <td><div style={{ fontWeight: 600 }}>{it.name}</div><div style={{ fontSize: 10.5, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{it.code}</div></td>
                       <td className="mono">{it.qty}</td>
                       <td className="mono" style={{ textAlign: 'right' }}>{fmtVNDg(it.unitPrice)}</td>

@@ -42,12 +42,16 @@ public partial class BillingCompleteService {
                     && r.ReceiptDate < toEnd
                     && !r.IsDeleted)
                 .Where(TillReceipt)
+                // QA-R3 review S5: a QR deposit writes a payment receipt AND a Deposit — the Deposit side counts it.
+                .Where(r => !_context.PaymentTransactions.Any(t => t.ReceiptId == r.Id && t.ReferenceType == "deposit"))
                 .ToListAsync();
 
             var totalCash = receipts.Where(r => r.PaymentMethod == 1 && r.ReceiptType != 3).Sum(r => r.FinalAmount);
             var totalCard = receipts.Where(r => r.PaymentMethod == 3 && r.ReceiptType != 3).Sum(r => r.FinalAmount);
             var totalTransfer = receipts.Where(r => r.PaymentMethod == 2 && r.ReceiptType != 3).Sum(r => r.FinalAmount);
             var totalRefund = receipts.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount);
+            var (depositIn, depositCount, depositOut, depositOutCount) =
+                await GetTillDepositFlowsAsync(dto.CashierId, dto.FromDate, toEnd);
 
             return new CashierReportDto
             {
@@ -61,8 +65,12 @@ public partial class BillingCompleteService {
                 TotalCardReceived = totalCard,
                 TotalTransferReceived = totalTransfer,
                 TotalRefunded = totalRefund,
-                ClosingBalance = (cashBook?.OpeningBalance ?? 0) + totalCash + totalCard + totalTransfer - totalRefund,
-                TransactionCount = receipts.Count,
+                DepositAmount = depositIn,
+                DepositCount = depositCount,
+                DepositRefundAmount = depositOut,
+                DepositRefundCount = depositOutCount,
+                ClosingBalance = (cashBook?.OpeningBalance ?? 0) + totalCash + totalCard + totalTransfer - totalRefund + depositIn - depositOut,
+                TransactionCount = receipts.Count + depositCount + depositOutCount,
                 IsClosed = cashBook?.IsClosed ?? false
             };
         }
@@ -87,15 +95,20 @@ public partial class BillingCompleteService {
                 && r.ReceiptDate >= cashBook.StartDate
                 && !r.IsDeleted)
             .Where(TillReceipt)
+            // QA-R3 review S5: a QR deposit writes a payment receipt AND a Deposit — the Deposit side counts it.
+            .Where(r => !_context.PaymentTransactions.Any(t => t.ReceiptId == r.Id && t.ReferenceType == "deposit"))
             .ToListAsync();
 
         var totalCash = receipts.Where(r => r.PaymentMethod == 1 && r.ReceiptType != 3).Sum(r => r.FinalAmount);
         var totalCard = receipts.Where(r => r.PaymentMethod == 3 && r.ReceiptType != 3).Sum(r => r.FinalAmount);
         var totalTransfer = receipts.Where(r => r.PaymentMethod == 2 && r.ReceiptType != 3).Sum(r => r.FinalAmount);
         var totalRefund = receipts.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount);
+        var (depositIn, depositCount, depositOut, depositOutCount) =
+            await GetTillDepositFlowsAsync(dto.CashierId, cashBook.StartDate, DateTime.MaxValue);
 
-        cashBook.TotalReceipt = totalCash + totalCard + totalTransfer;
-        cashBook.TotalRefund = totalRefund;
+        // QA-R3: the till also received deposits (tạm ứng) and paid out deposit refunds.
+        cashBook.TotalReceipt = totalCash + totalCard + totalTransfer + depositIn;
+        cashBook.TotalRefund = totalRefund + depositOut;
         cashBook.ClosingBalance = cashBook.OpeningBalance + cashBook.TotalReceipt - cashBook.TotalRefund;
         cashBook.IsClosed = true;
         cashBook.ClosedAt = DateTime.Now;
@@ -118,10 +131,34 @@ public partial class BillingCompleteService {
             TotalCardReceived = totalCard,
             TotalTransferReceived = totalTransfer,
             TotalRefunded = totalRefund,
+            DepositAmount = depositIn,
+            DepositCount = depositCount,
+            DepositRefundAmount = depositOut,
+            DepositRefundCount = depositOutCount,
             ClosingBalance = cashBook.ClosingBalance,
-            TransactionCount = receipts.Count,
+            TransactionCount = receipts.Count + depositCount + depositOutCount,
             IsClosed = true
         };
+    }
+
+    /// <summary>
+    /// QA-R3: deposits (tạm ứng) the cashier collected (not cancelled) and deposit refunds paid out (RefundStatus.Paid)
+    /// in [from, toExclusive). Both are real cash through the till but live outside TillReceipt.
+    /// </summary>
+    private async Task<(decimal DepositIn, int DepositCount, decimal DepositOut, int DepositOutCount)> GetTillDepositFlowsAsync(
+        Guid cashierId, DateTime from, DateTime toExclusive)
+    {
+        var deposits = await _context.Deposits
+            .Where(d => d.ReceivedByUserId == cashierId && d.ReceiptDate >= from && d.ReceiptDate < toExclusive
+                && !d.IsDeleted && d.Status != DepositStatus.Cancelled)
+            .Select(d => d.Amount)
+            .ToListAsync();
+        var depositRefunds = await _context.Receipts
+            .Where(r => r.CashierId == cashierId && r.ReceiptDate >= from && r.ReceiptDate < toExclusive && !r.IsDeleted
+                && r.ReceiptType == 3 && r.OriginalDepositId != null && r.Status == RefundStatus.Paid)
+            .Select(r => r.FinalAmount)
+            .ToListAsync();
+        return (deposits.Sum(), deposits.Count, depositRefunds.Sum(), depositRefunds.Count);
     }
 
     public async Task<OutpatientRevenueReportDto> GetOutpatientRevenueReportAsync(RevenueReportRequestDto dto)
