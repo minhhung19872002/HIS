@@ -6,6 +6,7 @@ import {
   type ServiceOrderFullDto, type DiagnosisFullDto, type AllergyDto, type InjuryInfoDto,
 } from '../api/examination';
 import { useAbbrExpansion } from '../../../utils/abbrExpand';
+import { tw } from '@/_v2kit';
 import { type Vitals, type DxRow, type OrderRow, OPD_ABBR_SCOPES } from '../pages/_shared';
 
 interface Params {
@@ -27,6 +28,9 @@ export function useOpdPatientData({ setLeftOpen, setSelPt, setAutoSavedTs }: Par
   const [conclusion, setConclusion] = useState('');
   const [diagnoses, setDx] = useState<DxRow[]>([]);
   const [orders, setOrd] = useState<OrderRow[]>([]);
+  // Sections whose GET failed for the selected patient. Saving them would post '' / [] over real
+  // data (allergy history, secondary ICDs) — callers must skip or block those sections.
+  const [loadFailed, setLoadFailed] = useState<string[]>([]);
   const expandAbbr = useAbbrExpansion(OPD_ABBR_SCOPES);
 
   const [icdQ, setIcdQ] = useState('');
@@ -45,6 +49,7 @@ export function useOpdPatientData({ setLeftOpen, setSelPt, setAutoSavedTs }: Par
     // #439: reset luôn ô tìm ICD/dịch vụ — trước đây từ khoá của BN trước còn sót lại khi đổi BN
     setIcdQ(''); setIcdResults([]); setSvcQ(''); setSvcResults([]);
     setAutoSavedTs(null);
+    setLoadFailed([]);
     const id = q.examinationId;
     const [v, mi, pe, dx, so, al, inj] = await Promise.allSettled([
       examinationApi.getVitalSigns(id),
@@ -56,6 +61,13 @@ export function useOpdPatientData({ setLeftOpen, setSelPt, setAutoSavedTs }: Par
       getInjuryInfo(id),
     ]);
     if (selectReqRef.current !== reqId) return;
+    // #467-style patient safety: a silently failed load looks like an empty chart.
+    const failed = ([['vitals', v], ['interview', mi], ['exam', pe], ['diagnoses', dx], ['orders', so], ['allergies', al]] as const)
+      .filter(([, r]) => r.status === 'rejected').map(([k]) => k as string);
+    setLoadFailed(failed);
+    if (failed.length > 0) {
+      tw(`Không tải được: ${failed.join(', ')} — dữ liệu hiển thị có thể thiếu (gồm dị ứng/chẩn đoán). Chọn lại bệnh nhân trước khi lưu.`);
+    }
     if (v.status === 'fulfilled' && v.value.data) {
       const d = v.value.data;
       setVitals({ pulse: d.pulse, temperature: d.temperature, systolicBP: d.systolicBP, diastolicBP: d.diastolicBP, respiratoryRate: d.respiratoryRate, spO2: d.spO2, weight: d.weight, height: d.height });
@@ -127,6 +139,6 @@ export function useOpdPatientData({ setLeftOpen, setSelPt, setAutoSavedTs }: Par
     diagnoses, setDx, orders, setOrd, expandAbbr,
     icdQ, searchIcd, icdResults, addIcd, setPrimary, removeIcd,
     svcQ, searchSvc, svcResults, addSvc, updateQty, removeSvc,
-    selectPatient,
+    selectPatient, loadFailed,
   };
 }

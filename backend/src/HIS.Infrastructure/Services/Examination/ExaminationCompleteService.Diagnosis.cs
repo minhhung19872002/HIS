@@ -44,6 +44,28 @@ public partial class ExaminationCompleteService
             });
         }
 
+        // Secondary diagnoses (ICD kèm theo) are stored as "I10,E11" + "name1; name2" but were never
+        // returned, so the OPD screen reloaded with only the primary ICD and the doctor could not
+        // see — or remove — the secondary ones that still went onto the record.
+        if (!string.IsNullOrWhiteSpace(examination.SubIcdCodes))
+        {
+            var codes = examination.SubIcdCodes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var names = (examination.SubDiagnosis ?? string.Empty).Split("; ");
+            for (var i = 0; i < codes.Length; i++)
+            {
+                diagnoses.Add(new DiagnosisFullDto
+                {
+                    Id = Guid.NewGuid(),
+                    ExaminationId = examinationId,
+                    IcdCode = codes[i],
+                    IcdName = i < names.Length ? names[i] : "",
+                    IsPrimary = false,
+                    DiagnosisType = 2,
+                    Order = i + 1
+                });
+            }
+        }
+
         return diagnoses;
     }
 
@@ -68,7 +90,7 @@ public partial class ExaminationCompleteService
                 : $"{examination.SubDiagnosis}; {dto.IcdName}";
         }
 
-        await _examinationRepo.UpdateAsync(examination);
+        // Entity is already tracked: no repo.UpdateAsync (it marks ALL columns modified, so parallel OPD saves overwrote each other).
         await _unitOfWork.SaveChangesAsync();
 
         dto.Id = Guid.NewGuid();
@@ -93,17 +115,30 @@ public partial class ExaminationCompleteService
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
         if (examination == null) throw new KeyNotFoundException("Examination not found");
 
-        examination.InitialDiagnosis = dto.PreliminaryDiagnosis;
-        examination.MainIcdCode = dto.PrimaryIcdCode;
-        examination.MainDiagnosis = dto.PrimaryDiagnosis;
+        // The OPD screen does not send PreliminaryDiagnosis; a missing field must not wipe it.
+        if (dto.PreliminaryDiagnosis != null)
+            examination.InitialDiagnosis = dto.PreliminaryDiagnosis;
+        // This is a full-list replace (both callers send the whole current list). Previously an empty
+        // list left the old secondary ICDs in place, so a diagnosis the doctor removed stayed on the
+        // record (and on the BHYT claim).
+        var secondaries = (dto.SecondaryDiagnoses ?? new List<SecondaryDiagnosisDto>())
+            .Where(d => !string.IsNullOrWhiteSpace(d.IcdCode))
+            .ToList();
 
-        if (dto.SecondaryDiagnoses?.Any() == true)
+        // Guard against an UNLOADED form: no primary AND no secondary sent while the exam already has
+        // diagnoses means the screen never received them (e.g. GET diagnoses failed) — a doctor cannot
+        // conclude without a primary ICD anyway. Keep what is stored instead of erasing everything.
+        var looksUnloaded = string.IsNullOrWhiteSpace(dto.PrimaryIcdCode) && secondaries.Count == 0
+            && (!string.IsNullOrWhiteSpace(examination.MainIcdCode) || !string.IsNullOrWhiteSpace(examination.SubIcdCodes));
+        if (!looksUnloaded)
         {
-            examination.SubIcdCodes = string.Join(",", dto.SecondaryDiagnoses.Select(d => d.IcdCode));
-            examination.SubDiagnosis = string.Join("; ", dto.SecondaryDiagnoses.Select(d => d.DiagnosisName));
+            examination.MainIcdCode = dto.PrimaryIcdCode;
+            examination.MainDiagnosis = dto.PrimaryDiagnosis;
+            examination.SubIcdCodes = secondaries.Count > 0 ? string.Join(",", secondaries.Select(d => d.IcdCode.Trim())) : null;
+            examination.SubDiagnosis = secondaries.Count > 0 ? string.Join("; ", secondaries.Select(d => d.DiagnosisName)) : null;
         }
 
-        await _examinationRepo.UpdateAsync(examination);
+        // Entity is already tracked: no repo.UpdateAsync (it marks ALL columns modified, so parallel OPD saves overwrote each other).
         await _unitOfWork.SaveChangesAsync();
 
         return await GetDiagnosesAsync(examinationId);
@@ -336,7 +371,7 @@ public partial class ExaminationCompleteService
         if (dto.NewDoctorId.HasValue)
             examination.DoctorId = dto.NewDoctorId;
 
-        await _examinationRepo.UpdateAsync(examination);
+        // Entity is already tracked: no repo.UpdateAsync (it marks ALL columns modified, so parallel OPD saves overwrote each other).
         await _unitOfWork.SaveChangesAsync();
 
         return MapToExaminationDto(examination);
@@ -372,9 +407,11 @@ public partial class ExaminationCompleteService
         if (examination == null) return false;
 
         examination.Status = 5; // Cancelled
-        examination.ConclusionNote = reason;
+        // Same fix as CancelExaminationAsync (#218/T3): the reason goes to CancelReason, not over the
+        // doctor's conclusion.
+        examination.CancelReason = reason;
 
-        await _examinationRepo.UpdateAsync(examination);
+        // Entity is already tracked: no repo.UpdateAsync (it marks ALL columns modified, so parallel OPD saves overwrote each other).
         await _unitOfWork.SaveChangesAsync();
 
         return true;
@@ -392,7 +429,7 @@ public partial class ExaminationCompleteService
         examination.Status = 4; // Completed
         examination.EndTime = DateTime.Now;
 
-        await _examinationRepo.UpdateAsync(examination);
+        // Entity is already tracked: no repo.UpdateAsync (it marks ALL columns modified, so parallel OPD saves overwrote each other).
         await _unitOfWork.SaveChangesAsync();
 
         return MapToExaminationDto(examination);

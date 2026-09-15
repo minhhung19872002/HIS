@@ -28,11 +28,19 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
             throw new InvalidOperationException(
                 "Bệnh nhân BHYT không được đăng ký nhiều phòng cùng lúc. Chỉ áp dụng cho thu phí/dịch vụ.");
 
-        var rooms = await _db.Rooms
-            .Where(r => dto.RoomIds.Contains(r.Id))
-            .ToListAsync();
-        if (rooms.Count != dto.RoomIds.Count)
+        // Unknown patient used to surface as an FK violation (HTTP 500).
+        if (!await _db.Patients.AnyAsync(p => p.Id == dto.PatientId))
+            throw new KeyNotFoundException("Không tìm thấy bệnh nhân");
+
+        var roomIds = dto.RoomIds.Distinct().ToList();
+        var roomsById = await _db.Rooms
+            .Where(r => roomIds.Contains(r.Id))
+            .ToDictionaryAsync(r => r.Id);
+        if (roomsById.Count != roomIds.Count)
             throw new ArgumentException("Một hoặc nhiều phòng không tồn tại");
+        // Keep the caller's order: the first selected room is the primary exam (ExaminationType 1).
+        // SQL returned rooms in arbitrary order, so a secondary room could become the primary.
+        var rooms = roomIds.Select(id => roomsById[id]).ToList();
 
         var record = new MedicalRecord
         {

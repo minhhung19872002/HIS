@@ -59,7 +59,8 @@ const TYPE_OPTS = [
   { v: '3', l: 'Khám sức khỏe' },
 ];
 
-const fmtHM = (iso?: string) => iso ? dayjs(iso).format('HH:mm') : '—';
+// appointmentTime comes back as a TimeSpan string ("08:30:00") which dayjs() cannot parse → "Invalid Date"
+const fmtHM = (iso?: string) => !iso ? '—' : /^\d{1,2}:\d{2}/.test(iso) ? iso.slice(0, 5) : dayjs(iso).format('HH:mm');
 const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 const fmtDT = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY HH:mm') : '—';
 

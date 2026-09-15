@@ -126,6 +126,8 @@ public partial class ExaminationCompleteService
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
         if (examination == null) throw new KeyNotFoundException("Examination not found");
 
+        ValidateVitalSigns(dto);
+
         examination.Temperature = dto.Temperature;
         examination.Pulse = dto.Pulse;
         examination.BloodPressureSystolic = dto.SystolicBP;
@@ -141,15 +143,44 @@ public partial class ExaminationCompleteService
             examination.BMI = dto.Weight.Value / (heightInM * heightInM);
         }
 
-        await _examinationRepo.UpdateAsync(examination);
+        // Entity is already tracked: no repo.UpdateAsync (it marks ALL columns modified, so parallel OPD saves overwrote each other).
         await _unitOfWork.SaveChangesAsync();
 
         dto.BMI = examination.BMI;
         dto.BMIClassification = ClassifyBMI(examination.BMI);
-        dto.BPClassification = await ClassifyBloodPressureAsync(dto.SystolicBP ?? 0, dto.DiastolicBP ?? 0);
+        // Unmeasured BP used to be classified as 0/0 → "Ha huyet ap" (hypotension).
+        dto.BPClassification = dto.SystolicBP.HasValue && dto.DiastolicBP.HasValue
+            ? await ClassifyBloodPressureAsync(dto.SystolicBP.Value, dto.DiastolicBP.Value)
+            : null;
         dto.MeasuredAt = DateTime.Now;
 
         return dto;
+    }
+
+    /// <summary>
+    /// Reject physically impossible vital signs (negative values, SpO2 &gt; 100 %, 80 °C...).
+    /// These feed CDS/early-warning scores and the printed record, so garbage must not be stored.
+    /// Bounds are deliberately wide (not clinical alert thresholds); 0 is tolerated as "not measured"
+    /// because legacy rows and cleared inputs carry it.
+    /// </summary>
+    private static void ValidateVitalSigns(VitalSignsFullDto dto)
+    {
+        static void CheckRange(decimal? v, decimal max, string name)
+        {
+            if (v.HasValue && (v.Value < 0 || v.Value > max))
+                throw new ArgumentException($"{name} không hợp lệ ({v.Value})", name);
+        }
+
+        CheckRange(dto.Pulse, 300, "Mạch");
+        CheckRange(dto.SystolicBP, 300, "Huyết áp tâm thu");
+        CheckRange(dto.DiastolicBP, 250, "Huyết áp tâm trương");
+        CheckRange(dto.RespiratoryRate, 150, "Nhịp thở");
+        CheckRange(dto.SpO2, 100, "SpO2");
+        CheckRange(dto.Weight, 500, "Cân nặng");
+        CheckRange(dto.Height, 300, "Chiều cao");
+        if (dto.Temperature.HasValue && dto.Temperature.Value != 0
+            && (dto.Temperature.Value < 25 || dto.Temperature.Value > 45))
+            throw new ArgumentException($"Nhiệt độ không hợp lệ ({dto.Temperature.Value} °C)", "Nhiệt độ");
     }
 
     public async Task<VitalSignsFullDto?> GetVitalSignsAsync(Guid examinationId)
@@ -202,13 +233,41 @@ public partial class ExaminationCompleteService
 
     public async Task<MedicalInterviewDto> UpdateMedicalInterviewAsync(Guid examinationId, MedicalInterviewDto dto)
     {
+        await EmrLockGuard.EnsureEditableByExaminationAsync(_context, examinationId); // TT46 — same as vital signs
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
         if (examination == null) throw new KeyNotFoundException("Examination not found");
 
-        examination.ChiefComplaint = dto.ChiefComplaint;
-        examination.PresentIllness = dto.HistoryOfPresentIllness;
+        // The OPD screen never sends ChiefComplaint (it is captured at reception); treating the
+        // missing field as "clear it" wiped the reception reason on every 30s auto-save.
+        if (dto.ChiefComplaint != null)
+            examination.ChiefComplaint = dto.ChiefComplaint;
+        // Blank must not erase recorded text (failed form load posts ''), same rule as the history fields.
+        if (!string.IsNullOrWhiteSpace(dto.HistoryOfPresentIllness) || string.IsNullOrWhiteSpace(examination.PresentIllness))
+            examination.PresentIllness = dto.HistoryOfPresentIllness;
 
-        await _examinationRepo.UpdateAsync(examination);
+        // Past/family/allergy history were echoed back as "saved" but never persisted, so the
+        // doctor's allergy note vanished on reload. They are patient-level facts and the printed
+        // medical record (Reports) + prescription context already read them from Patient.
+        // MedicationHistory has no column yet.
+        // PATIENT SAFETY: blank = "not sent". The OPD screen always posts every field, '' included, so a
+        // form whose load failed (or a second room editing the same patient) would otherwise wipe the
+        // patient-level allergy note. Clearing these shared facts is not possible from this endpoint.
+        if (!string.IsNullOrWhiteSpace(dto.PastMedicalHistory) || !string.IsNullOrWhiteSpace(dto.FamilyHistory)
+            || !string.IsNullOrWhiteSpace(dto.AllergyHistory))
+        {
+            var medicalRecordId = examination.MedicalRecordId;
+            var patient = await _context.Patients
+                .FirstOrDefaultAsync(p => _context.MedicalRecords
+                    .Any(m => m.Id == medicalRecordId && m.PatientId == p.Id));
+            if (patient != null)
+            {
+                if (!string.IsNullOrWhiteSpace(dto.PastMedicalHistory)) patient.MedicalHistory = dto.PastMedicalHistory;
+                if (!string.IsNullOrWhiteSpace(dto.FamilyHistory)) patient.FamilyHistory = dto.FamilyHistory;
+                if (!string.IsNullOrWhiteSpace(dto.AllergyHistory)) patient.AllergyHistory = dto.AllergyHistory;
+            }
+        }
+
+        // Entity is already tracked: no repo.UpdateAsync (it marks ALL columns modified, so parallel OPD saves overwrote each other).
         await _unitOfWork.SaveChangesAsync();
 
         return dto;
@@ -219,22 +278,36 @@ public partial class ExaminationCompleteService
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
         if (examination == null) return null;
 
+        var medicalRecordId = examination.MedicalRecordId;
+        var patient = await _context.Patients.AsNoTracking()
+            .Where(p => _context.MedicalRecords.Any(m => m.Id == medicalRecordId && m.PatientId == p.Id))
+            .Select(p => new { p.MedicalHistory, p.FamilyHistory, p.AllergyHistory })
+            .FirstOrDefaultAsync();
+
         return new MedicalInterviewDto
         {
             ChiefComplaint = examination.ChiefComplaint,
-            HistoryOfPresentIllness = examination.PresentIllness
+            HistoryOfPresentIllness = examination.PresentIllness,
+            PastMedicalHistory = patient?.MedicalHistory,
+            FamilyHistory = patient?.FamilyHistory,
+            AllergyHistory = patient?.AllergyHistory,
         };
     }
 
     public async Task<PhysicalExaminationDto> UpdatePhysicalExaminationAsync(Guid examinationId, PhysicalExaminationDto dto)
     {
+        await EmrLockGuard.EnsureEditableByExaminationAsync(_context, examinationId); // TT46 — same as vital signs
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
         if (examination == null) throw new KeyNotFoundException("Examination not found");
 
-        examination.PhysicalExamination = dto.GeneralAppearance;
-        examination.SystemsReview = dto.OtherFindings;
+        // The OPD screen sends only GeneralAppearance: a missing OtherFindings wiped "Khám bộ phận" on
+        // every save, and a failed form load posted '' over recorded text. Blank never erases content.
+        if (!string.IsNullOrWhiteSpace(dto.GeneralAppearance) || string.IsNullOrWhiteSpace(examination.PhysicalExamination))
+            examination.PhysicalExamination = dto.GeneralAppearance;
+        if (!string.IsNullOrWhiteSpace(dto.OtherFindings))
+            examination.SystemsReview = dto.OtherFindings;
 
-        await _examinationRepo.UpdateAsync(examination);
+        // Entity is already tracked: no repo.UpdateAsync (it marks ALL columns modified, so parallel OPD saves overwrote each other).
         await _unitOfWork.SaveChangesAsync();
 
         return dto;
@@ -348,7 +421,7 @@ public partial class ExaminationCompleteService
         examination.PhysicalExamination = template.PhysicalExamTemplate;
         examination.SystemsReview = template.SystemsReviewTemplate;
 
-        await _examinationRepo.UpdateAsync(examination);
+        // Entity is already tracked: no repo.UpdateAsync (it marks ALL columns modified, so parallel OPD saves overwrote each other).
         await _unitOfWork.SaveChangesAsync();
 
         return new PhysicalExaminationDto
@@ -406,13 +479,19 @@ public partial class ExaminationCompleteService
                 AllergenCode = a.AllergenCode,
                 Reaction = a.Reaction,
                 Severity = a.Severity,
-                Notes = a.Notes
+                Notes = a.Notes,
+                // PATIENT SAFETY: IsActive was never projected, so every allergy came back as
+                // isActive=false and the OPD screen (filters isActive !== false) hid ALL allergies.
+                IsActive = a.IsActive
             })
             .ToListAsync();
     }
 
     public async Task<AllergyDto> AddPatientAllergyAsync(Guid patientId, AllergyDto dto)
     {
+        if (!await _context.Patients.AnyAsync(p => p.Id == patientId))
+            throw new KeyNotFoundException("Patient not found");
+
         var allergy = new Allergy
         {
             Id = Guid.NewGuid(),
@@ -431,6 +510,7 @@ public partial class ExaminationCompleteService
 
         dto.Id = allergy.Id;
         dto.PatientId = patientId;
+        dto.IsActive = true;
         return dto;
     }
 
@@ -482,6 +562,10 @@ public partial class ExaminationCompleteService
 
     public async Task<ContraindicationDto> AddPatientContraindicationAsync(Guid patientId, ContraindicationDto dto)
     {
+        // No FK on Contraindications.PatientId: an unknown id was stored as an orphan row with HTTP 200.
+        if (!await _context.Patients.AnyAsync(p => p.Id == patientId))
+            throw new KeyNotFoundException("Patient not found");
+
         var contraindication = new Contraindication
         {
             Id = Guid.NewGuid(),

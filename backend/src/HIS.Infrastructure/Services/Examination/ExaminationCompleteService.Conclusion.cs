@@ -49,6 +49,7 @@ public partial class ExaminationCompleteService
         if (examination == null) throw new KeyNotFoundException("Examination not found");
         // InvalidOperationException → DomainExceptionFilter trả 400 INVALID_STATE message rõ (không 500 mask)
         if (examination.Status == 4) throw new InvalidOperationException("Đã hoàn thành, cần mở khóa trước");
+        EnsureCanConclude(examination);
 
         examination.ConclusionType = dto.ConclusionType;
         examination.ConclusionNote = dto.ConclusionNotes;
@@ -67,6 +68,7 @@ public partial class ExaminationCompleteService
 
         examination.Status = 4; // Completed
         examination.EndTime = DateTime.Now;
+        await CloseQueueTicketsAsync(examination);
 
         // Update medical record
         examination.MedicalRecord.MainIcdCode = examination.MainIcdCode;
@@ -85,6 +87,38 @@ public partial class ExaminationCompleteService
             SickLeaveDays = dto.SickLeaveDays,
             ConcludedAt = DateTime.Now
         };
+    }
+
+    /// <summary>
+    /// A conclusion (discharge / admission / transfer) needs an exam that was actually started and
+    /// is not cancelled. Previously a never-started exam (no doctor, CCHN gate at Start bypassed)
+    /// could be completed, and a CANCELLED exam was revived to "Completed" by request-hospitalization.
+    /// </summary>
+    /// <summary>
+    /// Concluding an exam left its room ticket in "waiting": the patient stayed on the room queue and
+    /// call-next could call an already-finished patient again. Close the exam-room tickets of this visit.
+    /// </summary>
+    private async Task CloseQueueTicketsAsync(Examination examination)
+    {
+        var tickets = await _context.QueueTickets
+            .Where(t => t.MedicalRecordId == examination.MedicalRecordId
+                        && t.RoomId == examination.RoomId
+                        && t.Status < QueueTicketStatus.Completed
+                        && !t.IsDeleted)
+            .ToListAsync();
+        foreach (var t in tickets)
+        {
+            t.Status = QueueTicketStatus.Completed;
+            t.CompletedTime ??= DateTime.UtcNow;
+        }
+    }
+
+    private static void EnsureCanConclude(Examination examination)
+    {
+        if (examination.Status == ExaminationStatus.Cancelled)
+            throw new InvalidOperationException("Lượt khám đã hủy, không thể kết luận.");
+        if (examination.Status == ExaminationStatus.Waiting)
+            throw new InvalidOperationException("Bệnh nhân chưa bắt đầu khám. Vui lòng bắt đầu khám trước khi kết luận.");
     }
 
     public async Task<ExaminationConclusionDto> UpdateConclusionAsync(Guid examinationId, CompleteExaminationDto dto)
@@ -134,11 +168,17 @@ public partial class ExaminationCompleteService
             .FirstOrDefaultAsync(e => e.Id == examinationId);
 
         if (examination == null) throw new KeyNotFoundException("Examination not found");
+        if (examination.MedicalRecord?.EmrFinalizedAt != null)
+            throw new InvalidOperationException(EmrLockGuard.LockedMessage); // TT46
+        if (examination.Status == ExaminationStatus.Completed)
+            throw new InvalidOperationException("Lượt khám đã có kết luận. Mở lại kết luận trước khi chuyển nhập viện.");
+        EnsureCanConclude(examination);
 
         examination.ConclusionType = 3; // Hospitalization
         examination.ConclusionNote = dto.Reason;
         examination.Status = 4;
         examination.EndTime = DateTime.Now;
+        await CloseQueueTicketsAsync(examination);
 
         // Persist thông tin yêu cầu nhập viện đầy đủ
         examination.HospitalizationDepartmentId = dto.DepartmentId == Guid.Empty ? null : dto.DepartmentId;
@@ -159,6 +199,11 @@ public partial class ExaminationCompleteService
             .FirstOrDefaultAsync(e => e.Id == examinationId);
 
         if (examination == null) throw new KeyNotFoundException("Examination not found");
+        if (examination.MedicalRecord?.EmrFinalizedAt != null)
+            throw new InvalidOperationException(EmrLockGuard.LockedMessage); // TT46
+        if (examination.Status == ExaminationStatus.Completed)
+            throw new InvalidOperationException("Lượt khám đã có kết luận. Mở lại kết luận trước khi chuyển viện.");
+        EnsureCanConclude(examination);
 
         examination.ConclusionType = 4; // Transfer
         // Persist từng trường riêng thay vì gộp chuỗi vào ConclusionNote
@@ -171,6 +216,7 @@ public partial class ExaminationCompleteService
         examination.ConclusionNote = $"Chuyển viện: {dto.FacilityName}";
         examination.Status = 4;
         examination.EndTime = DateTime.Now;
+        await CloseQueueTicketsAsync(examination);
 
         await _unitOfWork.SaveChangesAsync();
 
@@ -184,6 +230,15 @@ public partial class ExaminationCompleteService
             .FirstOrDefaultAsync(e => e.Id == examinationId);
 
         if (examination == null) throw new KeyNotFoundException("Examination not found");
+        // A follow-up dated in the past was accepted and immediately showed up as "overdue".
+        // Compare with a 1-day margin: the v2 screen sends local midnight as UTC ISO ("...T17:00:00Z"
+        // of the previous day), so a same-day follow-up must not be rejected by a timezone shift.
+        if (dto.AppointmentDate.ToUniversalTime() < DateTime.UtcNow.AddDays(-1))
+            throw new ArgumentException("Ngày hẹn tái khám không được ở quá khứ", nameof(dto.AppointmentDate));
+
+        var roomId = dto.RoomId ?? examination.RoomId;
+        var departmentId = await _context.Rooms.Where(r => r.Id == roomId)
+            .Select(r => (Guid?)r.DepartmentId).FirstOrDefaultAsync();
 
         var appointment = new Appointment
         {
@@ -191,7 +246,12 @@ public partial class ExaminationCompleteService
             AppointmentCode = $"HK{DateTime.Now:yyyyMMddHHmmss}",
             PatientId = examination.MedicalRecord.PatientId,
             AppointmentDate = dto.AppointmentDate,
-            RoomId = dto.RoomId ?? examination.RoomId,
+            RoomId = roomId,
+            // DepartmentId is required by AppointmentCheckin.CreateRecordAsync (auto check-in when the
+            // room calls the reserved number) — without it the follow-up never opened a record.
+            DepartmentId = departmentId,
+            AppointmentType = 1, // Tái khám (was 0 → listed as "Khác")
+            PreviousMedicalRecordId = examination.MedicalRecordId, // feeds "PreviousDiagnosis" in follow-up lists
             DoctorId = dto.DoctorId,
             Notes = dto.Notes,
             Status = 1 // Scheduled
@@ -641,7 +701,7 @@ public partial class ExaminationCompleteService
         if (examination.Status < 4)
         {
             examination.Status = 4;
-            await _examinationRepo.UpdateAsync(examination);
+            // Entity is already tracked: no repo.UpdateAsync (it marks ALL columns modified, so parallel OPD saves overwrote each other).
             await _unitOfWork.SaveChangesAsync();
         }
         return true;
@@ -656,7 +716,7 @@ public partial class ExaminationCompleteService
         if (examination.Status == 4)
         {
             examination.Status = 3;
-            await _examinationRepo.UpdateAsync(examination);
+            // Entity is already tracked: no repo.UpdateAsync (it marks ALL columns modified, so parallel OPD saves overwrote each other).
             await _unitOfWork.SaveChangesAsync();
         }
         return true;
@@ -712,7 +772,25 @@ public partial class ExaminationCompleteService
         // làm phần diễn biến lâm sàng cho tài liệu CDA gửi hồ sơ sức khỏe quốc gia.
         examination.CancelReason = reason;
 
-        await _examinationRepo.UpdateAsync(examination);
+        // The medical record stayed "Chờ khám" (0) after its only exam was cancelled, and reception
+        // treats any outpatient record with Status < 3 as an open visit — the patient could never be
+        // registered again ("đã có hồ sơ khám đang hoạt động"). Close the record when no other
+        // non-cancelled exam remains on it (multi-specialty chains keep it open).
+        var hasOtherActiveExam = await _context.Examinations.AnyAsync(e =>
+            e.MedicalRecordId == examination.MedicalRecordId && e.Id != examination.Id
+            && !e.IsDeleted && e.Status != ExaminationStatus.Cancelled);
+        if (!hasOtherActiveExam)
+        {
+            var record = await _context.MedicalRecords.FirstOrDefaultAsync(m => m.Id == examination.MedicalRecordId);
+            if (record != null && record.TreatmentType == 1
+                && MedicalRecordStatus.CanTransition(record.Status, MedicalRecordStatus.Cancelled))
+            {
+                record.Status = MedicalRecordStatus.Cancelled;
+                record.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
+        // Entity is already tracked: no repo.UpdateAsync (it marks ALL columns modified, so parallel OPD saves overwrote each other).
         await _unitOfWork.SaveChangesAsync();
 
         return true;

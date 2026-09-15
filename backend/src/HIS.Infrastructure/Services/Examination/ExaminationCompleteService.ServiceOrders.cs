@@ -64,6 +64,14 @@ public partial class ExaminationCompleteService
     {
         var examination = await _examinationRepo.GetByIdAsync(dto.ExaminationId);
         if (examination == null) throw new KeyNotFoundException("Examination not found");
+        if (examination.Status == HIS.Core.Constants.ExaminationStatus.Cancelled)
+            throw new InvalidOperationException("Phiên khám đã hủy, không thể chỉ định dịch vụ.");
+        // MONEY: quantity was never validated — quantity -3 was stored as a -240,000 VND charge
+        // (and 0 as a free line). Reject before anything is written.
+        if (dto.Services == null || dto.Services.Count == 0)
+            throw new ArgumentException("Chưa chọn dịch vụ nào", nameof(dto.Services));
+        if (dto.Services.Any(s => s.Quantity <= 0))
+            throw new ArgumentException("Số lượng dịch vụ phải lớn hơn 0", nameof(dto.Services));
         var effectiveDoctorId = examination.DoctorId ?? GetCurrentUserId();
         if (!effectiveDoctorId.HasValue)
         {
@@ -210,6 +218,13 @@ public partial class ExaminationCompleteService
         // Đo được ở evidence/cross/t3/t3_service_order_cancel.json.
         request.Status = 4; // Cancelled
         request.Notes = reason;
+
+        // Cancel the lines too (SRD.Status 3 = hủy). Only the header used to change, so LIS/RIS kept
+        // listing the lines as pending and a cancelled test could still be collected, run and approved.
+        var details = await _context.ServiceRequestDetails
+            .Where(d => d.ServiceRequestId == orderId && d.Status != 3)
+            .ToListAsync();
+        foreach (var d in details) d.Status = 3;
 
         await _unitOfWork.SaveChangesAsync();
         return true;

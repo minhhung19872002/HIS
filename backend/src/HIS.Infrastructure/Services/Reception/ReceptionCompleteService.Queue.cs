@@ -440,6 +440,7 @@ public partial class ReceptionCompleteService {
         // cho lịch hẹn trong ngày. Giữ nguyên thì khách bốc số tại quầy sẽ nhận trúng số mà một
         // người đặt lịch trên app đang cầm, và hai người cùng cầm "B007" đến trước một cửa phòng.
         // Bộ đếm vẫn được cập nhật cho các màn hình đang đọc nó.
+        await EnsureRegistrationLockAsync(); // no-op outside a registration (standalone ticket issue)
         var nextNumber = await AppointmentQueueAllocator.NextNumberAsync(
             _context, dto.RoomId, today, dto.QueueType);
         config.CurrentNumber = nextNumber + 1;
@@ -814,7 +815,14 @@ public partial class ReceptionCompleteService {
         if (ticket.MedicalRecordId.HasValue)
         {
             var mr = await _context.MedicalRecords.FindAsync(ticket.MedicalRecordId.Value);
-            if (mr != null) mr.Status = mrStatus;
+            // Never regress a finished record: calling/skipping a stale ticket of a visit whose exam is
+            // already concluded (Completed), paid or cancelled used to flip the record back to
+            // 1/0 — the reception list showed the patient as waiting again and a paid visit lost "Paid".
+            if (mr != null
+                && mr.Status != HIS.Core.Constants.MedicalRecordStatus.Completed
+                && mr.Status != HIS.Core.Constants.MedicalRecordStatus.Paid
+                && mr.Status != HIS.Core.Constants.MedicalRecordStatus.Cancelled)
+                mr.Status = mrStatus;
         }
     }
 

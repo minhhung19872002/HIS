@@ -623,6 +623,8 @@ export interface DrugInteractionDto {
 }
 
 export interface PrescriptionWarningDto {
+  medicineId?: string;
+  medicineName?: string;
   warningType: number;
   warningTypeName: string;
   message: string;

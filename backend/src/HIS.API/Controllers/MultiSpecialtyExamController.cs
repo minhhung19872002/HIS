@@ -9,6 +9,7 @@ namespace HIS.API.Controllers;
 
 [ApiController]
 [Route("api/multi-specialty-exam")]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // not-found/state guards → 404/400 instead of a bare 500
 [Authorize]
 public class MultiSpecialtyExamController : ControllerBase
 {

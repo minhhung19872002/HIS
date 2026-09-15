@@ -38,9 +38,16 @@ internal static class AppointmentCheckin
     /// Hồ sơ ngoại trú đang mở của người bệnh, nếu có. Tiếp đón tại quầy coi đây là lỗi (không mở
     /// hai hồ sơ cho một người); luồng tự động thì gắn vé vào hồ sơ đó thay vì tạo thêm.
     /// </summary>
-    public static Task<MedicalRecord?> FindActiveRecordAsync(HISDbContext db, Guid patientId) =>
-        db.MedicalRecords.FirstOrDefaultAsync(
-            m => m.PatientId == patientId && m.Status < 3 && m.TreatmentType == 1 && !m.IsDeleted);
+    public static Task<MedicalRecord?> FindActiveRecordAsync(HISDbContext db, Guid patientId)
+    {
+        // Only records opened TODAY (VN time): outpatient records from previous days that nobody closed
+        // (thousands in the DB) made appointment check-in fail forever with "đã có hồ sơ đang mở", or
+        // attached today's ticket to an old visit. Same rule as RegisterFee/RegisterInsurance.
+        var (fromUtc, toUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
+        return db.MedicalRecords.FirstOrDefaultAsync(
+            m => m.PatientId == patientId && m.Status < 3 && m.TreatmentType == 1 && !m.IsDeleted
+                 && m.AdmissionDate >= fromUtc && m.AdmissionDate < toUtc);
+    }
 
     /// <summary>
     /// Tạo hồ sơ khám + phiên khám cho lịch hẹn và gắn vé hàng đợi vào đó.

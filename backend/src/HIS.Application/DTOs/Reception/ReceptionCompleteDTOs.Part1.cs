@@ -513,6 +513,9 @@ public class InsuranceRegistrationDto
     public Guid RoomId { get; set; }
     public Guid? DoctorId { get; set; }
 
+    /// <summary>Lý do khám nhập ở quầy tiếp đón — lưu vào Examination.ChiefComplaint.</summary>
+    public string? ChiefComplaint { get; set; }
+
     // Ưu tiên
     public bool IsPriority { get; set; }
     public int PriorityReason { get; set; } // 1-Người cao tuổi, 2-Trẻ em, 3-Phụ nữ có thai, 4-Người khuyết tật, 5-Khác
@@ -553,6 +556,9 @@ public class FeeRegistrationDto
     public Guid RoomId { get; set; }
     public Guid? DoctorId { get; set; }
     public bool SelectSpecificDoctor { get; set; } // Chọn đích danh bác sĩ
+
+    /// <summary>Lý do khám nhập ở quầy tiếp đón — lưu vào Examination.ChiefComplaint.</summary>
+    public string? ChiefComplaint { get; set; }
 
     // Ưu tiên
     public bool IsPriority { get; set; }

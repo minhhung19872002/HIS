@@ -14,13 +14,15 @@ interface Params {
   vitals: Vitals;
   setAutoSavedTs: (ts: number) => void;
   setStockOpen: (v: boolean) => void;
+  /** Sections whose data failed to load — never auto-saved (their empty form would overwrite real data). */
+  loadFailed?: string[];
 }
 
 /** Chu kỳ auto-save lên server (ms) — parity v1 OPD. */
 const SERVER_AUTOSAVE_MS = 30_000;
 
 export function useOpdAutoSave({
-  examId, history, pastHist, familyHist, allergyHist, medHist, exam, conclusion, vitals,
+  examId, history, pastHist, familyHist, allergyHist, medHist, exam, conclusion, vitals, loadFailed = [],
   setAutoSavedTs, setStockOpen,
 }: Params) {
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -40,8 +42,8 @@ export function useOpdAutoSave({
   // ── Auto-save lên SERVER mỗi 30s (#433) ──────────────────────────────────
   // Chỉ ghi phần đã có dữ liệu, im lặng khi lỗi (không chặn khám). Ref giữ
   // dữ liệu mới nhất để interval không phải tạo lại mỗi lần gõ phím.
-  const latest = useRef({ examId, history, pastHist, familyHist, allergyHist, medHist, exam, vitals });
-  latest.current = { examId, history, pastHist, familyHist, allergyHist, medHist, exam, vitals };
+  const latest = useRef({ examId, history, pastHist, familyHist, allergyHist, medHist, exam, vitals, loadFailed });
+  latest.current = { examId, history, pastHist, familyHist, allergyHist, medHist, exam, vitals, loadFailed };
 
   useEffect(() => {
     if (!examId) return;
@@ -51,16 +53,16 @@ export function useOpdAutoSave({
       if (!id) return;
       void (async () => {
         try {
-          if (Object.values(s.vitals).some((v) => v !== undefined && v !== null)) {
+          if (!s.loadFailed.includes('vitals') && Object.values(s.vitals).some((v) => v !== undefined && v !== null)) {
             await examinationApi.updateVitalSigns(id, { ...s.vitals, measuredAt: new Date().toISOString() });
           }
-          if (s.history || s.pastHist || s.familyHist || s.allergyHist || s.medHist) {
+          if (!s.loadFailed.includes('interview') && (s.history || s.pastHist || s.familyHist || s.allergyHist || s.medHist)) {
             await examinationApi.updateMedicalInterview(id, {
               historyOfPresentIllness: s.history, pastMedicalHistory: s.pastHist,
               familyHistory: s.familyHist, allergyHistory: s.allergyHist, medicationHistory: s.medHist,
             });
           }
-          if (s.exam) {
+          if (!s.loadFailed.includes('exam') && s.exam) {
             await examinationApi.updatePhysicalExamination(id, { generalAppearance: s.exam });
           }
           setAutoSavedTs(Date.now());

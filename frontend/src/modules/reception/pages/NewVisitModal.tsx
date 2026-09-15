@@ -140,15 +140,18 @@ export const NewVisitModal: React.FC<{
 
   const visitType = VISIT_TYPES.find((t) => t.v === data.visitType);
 
+  const cccdRequired = data.age == null || data.age >= 14;
   const validate1 = (): Record<string, string> => {
     const e: Record<string, string> = {};
     if (!data.patientName.trim()) e.patientName = 'Bắt buộc';
     if (!data.phone || !/^0\d{9,10}$/.test(data.phone)) e.phone = 'SĐT 10 số';
-    if (!data.age || data.age < 0 || data.age > 130) e.age = 'Tuổi không hợp lệ';
-    // CCCD: bắt buộc 12 số (hành vi v2 trước port — v1 optional). Mã tỉnh KHÔNG chặn:
-    // 3 số đầu có thể là mã QUỐC GIA (công dân sinh/ĐKKS ở nước ngoài, NĐ 137/2015 +
-    // TT 07/2016/TT-BCA) — validateCccd chỉ dùng làm gợi ý/cảnh báo mềm dưới ô nhập.
-    if (!data.cccd || !/^\d{12}$/.test(data.cccd.replace(/\s/g, ''))) {
+    // Age 0 is valid (infants under 1 year) — `!data.age` used to reject every newborn.
+    if (data.age == null || data.age < 0 || data.age > 130) e.age = 'Tuổi không hợp lệ';
+    // CCCD: 12 số. Mã tỉnh KHÔNG chặn: 3 số đầu có thể là mã QUỐC GIA (công dân sinh/ĐKKS ở
+    // nước ngoài, NĐ 137/2015 + TT 07/2016/TT-BCA) — validateCccd chỉ là cảnh báo mềm.
+    // Only required from age 14 (the age CCCD is issued); children are identified by BHYT/birth cert.
+    const cccdDigits = data.cccd.replace(/\s/g, '');
+    if (cccdRequired ? !/^\d{12}$/.test(cccdDigits) : (cccdDigits !== '' && !/^\d{12}$/.test(cccdDigits))) {
       e.cccd = 'CCCD 12 số';
     }
     setErrs(e); return e;
@@ -205,12 +208,14 @@ export const NewVisitModal: React.FC<{
     if (!data.dept) { message.warning('Chọn khoa / phòng'); return; }
     setSubmitting(true);
     try {
-      const yearOfBirth = data.age ? new Date().getFullYear() - data.age : undefined;
+      // data.age can be 0 (infant) — a truthiness check dropped the birth year for every newborn.
+      const yearOfBirth = data.age != null ? new Date().getFullYear() - data.age : undefined;
+      const chiefComplaint = data.reason.trim() || undefined;
       const isPriority = data.priority !== 'norm';
       if (visitType?.bhyt && data.bhytNo.trim()) {
         await receptionApi.registerInsurancePatient({
           sourceQueueTicketId: sourceTicket?.ticketId,
-          insuranceNumber: data.bhytNo.trim(), roomId: data.dept,
+          insuranceNumber: data.bhytNo.trim(), roomId: data.dept, chiefComplaint,
           identityNumber: data.cccd.trim() || undefined, isPriority,
           // BN mới đăng ký BHYT lần đầu — backend tạo BN nếu chưa có trong hệ thống
           newPatient: {
@@ -234,7 +239,7 @@ export const NewVisitModal: React.FC<{
             identityNumber: data.cccd.trim() || undefined,
           },
           serviceType: visitType?.serviceType ?? 3,
-          roomId: data.dept, isPriority,
+          roomId: data.dept, isPriority, chiefComplaint,
         });
         // Đa chuyên khoa: đăng ký BN vào các phòng khám thêm (chỉ thu phí/dịch vụ).
         const createdPatientId = feeResp.data?.patientId;
@@ -316,7 +321,7 @@ export const NewVisitModal: React.FC<{
               <Lbl label="Giới tính">
                 <Radio.Group value={data.gender} onChange={(e) => set('gender', e.target.value)} optionType="button" options={[{ value: 'M', label: 'Nam' }, { value: 'F', label: 'Nữ' }]} />
               </Lbl>
-              <Lbl label="CCCD/CMND" required error={errs.cccd}>
+              <Lbl label="CCCD/CMND" required={cccdRequired} error={errs.cccd}>
                 <Input value={data.cccd} onChange={(e) => set('cccd', e.target.value)} placeholder="012345678901" maxLength={12} />
                 {(() => {
                   // Gợi ý nơi cấp theo mã tỉnh (3 số đầu) — port v1 help "Nơi cấp: <tỉnh>".

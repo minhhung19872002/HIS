@@ -220,12 +220,16 @@ public partial class ExaminationCompleteService : IExaminationCompleteService
             },
             Age = CalculateAge(patient?.DateOfBirth, patient?.YearOfBirth),
             PatientType = patientType,
+            // Vocabulary of MedicalRecord.PatientType: 1-BHYT, 2-Viện phí, 3-Dịch vụ, 4-Khám sức khỏe.
+            // The old map was shifted by one (2 → "Dịch vụ", 3 → "Miễn phí"): paying service patients
+            // showed as free on the doctor's queue.
             PatientTypeName = patientType switch
             {
                 0 => "Viện phí",
                 1 => "BHYT",
-                2 => "Dịch vụ",
-                3 => "Miễn phí",
+                2 => "Viện phí",
+                3 => "Dịch vụ",
+                4 => "Khám sức khỏe",
                 _ => "Khác"
             },
             InsuranceNumber = examination.MedicalRecord?.InsuranceNumber,

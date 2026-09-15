@@ -297,7 +297,9 @@ public partial class ExaminationCompleteService
             .Where(d => d.ServiceRequest.MedicalRecordId == examination.MedicalRecordId
                      && d.ServiceRequest.RequestType == 2
                      && d.Status != 3
-                     && (d.Status == 2 || d.Result != null || d.ResultDescription != null || d.ResultDate != null))
+                     && (d.Status == 2 || d.Result != null || d.ResultDescription != null || d.ResultDate != null)
+                     // Lines dispatched to RIS are reported below from RadiologyReports.
+                     && !_context.RadiologyRequests.Any(rr => rr.SourceServiceRequestDetailId == d.Id))
             .OrderByDescending(d => d.ResultDate)
             .Select(d => new ImagingResultSummaryDto
             {
@@ -318,8 +320,9 @@ public partial class ExaminationCompleteService
         var imagingFromRis = await _context.RadiologyReports
             .Include(r => r.RadiologyExam)
             .ThenInclude(e => e.RadiologyRequest)
-            .Include(r => r.RadiologyExam.Modality)
-            .Where(r => r.RadiologyExam.RadiologyRequest.MedicalRecordId == examination.MedicalRecordId)
+            // Only signed-off reports reach the doctor; drafts are not results.
+            .Where(r => r.RadiologyExam.RadiologyRequest.MedicalRecordId == examination.MedicalRecordId
+                     && r.Status == HIS.Core.Constants.RadiologyReportStatus.FinalApproved)
             .OrderByDescending(r => r.ReportDate)
             .Select(r => new ImagingResultSummaryDto
             {
@@ -329,7 +332,10 @@ public partial class ExaminationCompleteService
                 ExamName = r.RadiologyExam.ExamName,
                 ServiceCode = r.RadiologyExam.ExamCode,
                 ServiceName = r.RadiologyExam.ExamName,
-                Modality = r.RadiologyExam.Modality.ModalityName,
+                // Subquery, not the required navigation: exams created by the dispatch flow carry
+                // ModalityId = Guid.Empty, and the INNER JOIN silently dropped every such report.
+                Modality = _context.RadiologyModalities.Where(m => m.Id == r.RadiologyExam.ModalityId)
+                    .Select(m => m.ModalityName).FirstOrDefault(),
                 Findings = r.Findings,
                 Conclusion = r.Impression ?? string.Empty,
                 ResultDate = r.ReportDate,
@@ -416,7 +422,8 @@ public partial class ExaminationCompleteService
         var photoBytes = Convert.FromBase64String(photoBase64);
         await File.WriteAllBytesAsync(filePath, photoBytes);
         patient.PhotoPath = $"/photos/{patientId}/{fileName}";
-        await _patientRepo.UpdateAsync(patient);
+        // Tracked entity: no repo.UpdateAsync (marks every column modified → can overwrite a concurrent
+        // allergy/medical-history save on the same patient).
         await _unitOfWork.SaveChangesAsync();
 
         return true;

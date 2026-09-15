@@ -30,9 +30,13 @@ namespace HIS.Infrastructure.Services;
 public partial class ReceptionCompleteService {
     #region 1.8 Fee Registration
 
-    public async Task<AdmissionDto> RegisterFeePatientAsync(FeeRegistrationDto dto, Guid userId)
+    public Task<AdmissionDto> RegisterFeePatientAsync(FeeRegistrationDto dto, Guid userId)
+        => WithRegistrationLockAsync(() => RegisterFeePatientCoreAsync(dto, userId));
+
+    private async Task<AdmissionDto> RegisterFeePatientCoreAsync(FeeRegistrationDto dto, Guid userId)
     {
         Patient? patient = null;
+        var useNewPatient = false;
 
         // Find or create patient
         if (dto.PatientId.HasValue)
@@ -56,6 +60,25 @@ public partial class ReceptionCompleteService {
                 .FindByPhoneNumberDecryptedAsync(dto.PhoneNumber);
         }
         else if (dto.NewPatient != null)
+        {
+            useNewPatient = true;
+            ValidateNewPatient(dto.NewPatient);
+
+            // The v2 reception wizard always sends CCCD inside NewPatient (never top-level), so the
+            // lookup above never ran and every re-registration created a second patient record with
+            // the same CCCD. Reuse the existing patient first, mirroring RegisterInsurancePatientAsync.
+            if (!string.IsNullOrWhiteSpace(dto.NewPatient.IdentityNumber))
+            {
+                patient = await _context.Patients
+                    .Where(p => !p.IsDeleted)
+                    .FindByIdentityNumberDecryptedAsync(dto.NewPatient.IdentityNumber.Trim());
+                // A mistyped CCCD matching another person must not silently open the visit on that
+                // person's record (their allergies/history) — make reception confirm.
+                if (patient != null) EnsureSamePerson(patient, dto.NewPatient);
+            }
+        }
+
+        if (patient == null && useNewPatient && dto.NewPatient != null)
         {
             patient = new Patient
             {
@@ -98,14 +121,17 @@ public partial class ReceptionCompleteService {
             throw new KeyNotFoundException("Khong tim thay benh nhan. Vui long nhap thong tin moi.");
         }
 
-        // Check existing active medical record for this patient
-        var existingActiveRecord = await _context.MedicalRecords
-            .FirstOrDefaultAsync(m => m.PatientId == patient.Id && m.Status < 3 && m.TreatmentType == 1);
-        if (existingActiveRecord != null)
-            throw new InvalidOperationException($"Bệnh nhân đã có hồ sơ khám đang hoạt động (Mã: {existingActiveRecord.MedicalRecordCode})");
+        // Check existing active medical record for this patient — TODAY only (VN day). Outpatient
+        // records that were never closed on previous days (thousands in the DB) otherwise block a
+        // returning patient forever; the v2 wizard only "worked" because it created a duplicate patient.
+        // Slow lookups are done by now: take the registration lock here so a double-submit cannot race
+        // past this check (no-op outside WithRegistrationLockAsync).
+        await EnsureRegistrationLockAsync();
+        await EnsureNoActiveOutpatientRecordTodayAsync(patient.Id);
 
-        // Create medical record
-        var room = await _context.Rooms.Include(r => r.Department).FirstOrDefaultAsync(r => r.Id == dto.RoomId);
+        // Create medical record. Unknown room used to surface as an FK violation (HTTP 500).
+        var room = await _context.Rooms.Include(r => r.Department).FirstOrDefaultAsync(r => r.Id == dto.RoomId)
+            ?? throw new KeyNotFoundException("Khong tim thay phong kham");
 
         var medicalRecord = new MedicalRecord
         {
@@ -135,6 +161,8 @@ public partial class ReceptionCompleteService {
             DepartmentId = room?.DepartmentId ?? Guid.Empty,
             RoomId = dto.RoomId,
             DoctorId = dto.DoctorId,
+            // Reception collects "Lý do khám" as a required field; it used to be dropped here.
+            ChiefComplaint = string.IsNullOrWhiteSpace(dto.ChiefComplaint) ? null : dto.ChiefComplaint.Trim(),
             Status = 0, // Waiting
             CreatedAt = DateTime.UtcNow, // dot16: chuẩn UTC — màn tiếp đón "hôm nay" query CreatedAt qua DayRangeUtc
             CreatedBy = userId.ToString(),
@@ -405,7 +433,10 @@ public partial class ReceptionCompleteService {
 
     #region 1.10 Emergency Registration
 
-    public async Task<AdmissionDto> RegisterEmergencyPatientAsync(EmergencyRegistrationDto dto, Guid userId)
+    public Task<AdmissionDto> RegisterEmergencyPatientAsync(EmergencyRegistrationDto dto, Guid userId)
+        => WithRegistrationLockAsync(() => RegisterEmergencyPatientCoreAsync(dto, userId));
+
+    private async Task<AdmissionDto> RegisterEmergencyPatientCoreAsync(EmergencyRegistrationDto dto, Guid userId)
     {
         Patient patient;
 
@@ -495,6 +526,9 @@ public partial class ReceptionCompleteService {
         // Issue emergency queue ticket
         var queueTicket = await IssueQueueTicketAsync(new IssueQueueTicketDto
         {
+            // Link the ticket to the record like the fee/BHYT paths do; without it calling/serving the
+            // emergency ticket never synced the record status and the ticket was orphaned from the visit.
+            MedicalRecordId = medicalRecord.Id,
             PatientId = patient.Id,
             PatientName = patient.FullName,
             RoomId = emergencyRoom?.Id ?? Guid.Empty,

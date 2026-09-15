@@ -476,7 +476,8 @@ const DoctorPortalV2: React.FC = () => {
             page={ipdPage}
             perPage={PER}
             onSortChange={() => setIpdPage(0)}
-            rowKey={(r) => r.admissionId}
+            // BE may return Guid.Empty admissionId (MedicalRecord without Admission row) → fall back to record code
+            rowKey={(r) => (r.admissionId && r.admissionId !== '00000000-0000-0000-0000-000000000000' ? r.admissionId : `mr:${r.medicalRecordCode}`)}
             onRowClick={(r) => setIpdDetail(r)}
             loading={ipd.loading}
             empty={ipd.error ? 'Không tải được dữ liệu' : 'Không có bệnh nhân nội trú nào'}

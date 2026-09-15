@@ -187,8 +187,116 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
             .FirstOrDefaultAsync();
     }
 
+    /// <summary>
+    /// Serializes patient/record/queue-number allocation across ALL registration counters (and app
+    /// instances) with a SQL Server application lock held for the transaction.
+    ///
+    /// <para>Codes are allocated as max+1 (<see cref="GeneratePatientCodeAsync"/>,
+    /// <see cref="GenerateMedicalRecordCodeAsync"/>, queue numbers): measured 5 of 6 parallel
+    /// registrations failing with 409 on the unique index. The lock makes read-max → insert atomic
+    /// without a schema change.</para>
+    ///
+    /// <para>The lock is taken LAZILY by <see cref="EnsureRegistrationLockAsync"/> at the first code
+    /// allocation, so slow work done before it (BHXH card verification, CCCD lookup that decrypts the
+    /// Patients table) never holds up other counters. No-op for non-relational providers (unit tests)
+    /// or when the caller already runs inside its own transaction.</para>
+    /// </summary>
+    private async Task<T> WithRegistrationLockAsync<T>(Func<Task<T>> body)
+    {
+        if (_registrationScopeActive || !_context.Database.IsRelational() || _context.Database.CurrentTransaction != null)
+            return await body();
+
+        _registrationScopeActive = true;
+        try
+        {
+            var result = await body();
+            if (_registrationTx != null) await _registrationTx.CommitAsync();
+            return result;
+        }
+        finally
+        {
+            if (_registrationTx != null) await _registrationTx.DisposeAsync(); // rolls back if not committed
+            _registrationTx = null;
+            _registrationScopeActive = false;
+        }
+    }
+
+    private bool _registrationScopeActive;
+    private Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? _registrationTx;
+
+    /// <summary>
+    /// One open outpatient visit per patient per VN day. Records from previous days that nobody closed
+    /// do not block. Call again after <see cref="EnsureRegistrationLockAsync"/> so a double-submit racing
+    /// past the first check is caught under the lock.
+    /// </summary>
+    private async Task EnsureNoActiveOutpatientRecordTodayAsync(Guid patientId)
+    {
+        var (fromUtc, toUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
+        var existing = await _context.MedicalRecords
+            .Where(m => m.PatientId == patientId && m.Status < 3 && m.TreatmentType == 1 && !m.IsDeleted
+                        && m.AdmissionDate >= fromUtc && m.AdmissionDate < toUtc)
+            .Select(m => m.MedicalRecordCode)
+            .FirstOrDefaultAsync();
+        if (existing != null)
+            throw new InvalidOperationException($"Bệnh nhân đã có hồ sơ khám đang hoạt động (Mã: {existing})");
+    }
+
+    /// <summary>Acquire the registration applock (once per registration) right before allocating a code.</summary>
+    private async Task EnsureRegistrationLockAsync()
+    {
+        if (!_registrationScopeActive || _registrationTx != null) return;
+
+        _registrationTx = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            await _context.Database.ExecuteSqlRawAsync(
+                "DECLARE @r int; " +
+                "EXEC @r = sp_getapplock @Resource = N'HIS.Reception.RegistrationCodes', @LockMode = N'Exclusive', " +
+                "@LockOwner = N'Transaction', @LockTimeout = 10000; " +
+                "IF @r < 0 THROW 50001, N'registration lock timeout', 1;");
+        }
+        catch (Microsoft.Data.SqlClient.SqlException ex) when (ex.Number == 50001)
+        {
+            // Surface a clear, retryable business message instead of the generic 500.
+            throw new InvalidOperationException(
+                "Các quầy tiếp đón khác đang cấp mã cùng lúc, hệ thống chưa cấp được số. Vui lòng bấm Đăng ký lại.");
+        }
+    }
+
+    /// <summary>
+    /// The patient found by CCCD / card number must be the person at the counter. Name compared
+    /// accent- and case-insensitively; birth year tolerates ±1 because the v2 wizard derives it from age.
+    /// </summary>
+    private static void EnsureSamePerson(Patient existing, CreatePatientDto entered)
+    {
+        static string Norm(string? s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return string.Empty;
+            var d = s.Trim().Replace('Đ', 'D').Replace('đ', 'd').Normalize(System.Text.NormalizationForm.FormD);
+            var sb = new System.Text.StringBuilder(d.Length);
+            foreach (var ch in d)
+                if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(ch) != System.Globalization.UnicodeCategory.NonSpacingMark)
+                    sb.Append(char.ToUpperInvariant(ch));
+            return string.Join(' ', sb.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+        }
+
+        var nameMismatch = !string.IsNullOrEmpty(Norm(entered.FullName))
+                           && Norm(entered.FullName) != Norm(existing.FullName);
+        var existingYear = existing.YearOfBirth ?? existing.DateOfBirth?.Year;
+        var enteredYear = entered.YearOfBirth ?? entered.DateOfBirth?.Year;
+        var yearMismatch = existingYear.HasValue && enteredYear.HasValue
+                           && Math.Abs(existingYear.Value - enteredYear.Value) > 1;
+
+        if (nameMismatch || yearMismatch)
+            throw new InvalidOperationException(
+                $"Số CCCD/thẻ đã thuộc bệnh nhân {existing.PatientCode} - {existing.FullName}"
+                + (existingYear.HasValue ? $" (sinh {existingYear})" : "")
+                + ", không khớp thông tin vừa nhập. Kiểm tra lại số giấy tờ, hoặc tìm và chọn đúng bệnh nhân cũ để đăng ký.");
+    }
+
     private async Task<string> GeneratePatientCodeAsync()
     {
+        await EnsureRegistrationLockAsync();
         var today = DateTime.Today;
         var prefix = $"BN{today:yyyyMMdd}";
 
@@ -211,6 +319,7 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
 
     private async Task<string> GenerateMedicalRecordCodeAsync()
     {
+        await EnsureRegistrationLockAsync();
         var today = DateTime.Today;
         var prefix = $"MR{today:yyyyMMdd}";
 
@@ -306,6 +415,25 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
             Status = hold.Status == 1 ? "Holding" : "Returned",
             Note = hold.Notes ?? ""
         };
+    }
+
+    /// <summary>
+    /// Minimal identity sanity checks before a NEW patient record is created at reception.
+    /// Without them the API accepted an empty name, a date of birth in the future and a birth year
+    /// of 1800 — records that cannot be matched to a real person later.
+    /// </summary>
+    private static void ValidateNewPatient(CreatePatientDto p)
+    {
+        if (string.IsNullOrWhiteSpace(p.FullName))
+            throw new ArgumentException("Chưa nhập họ tên bệnh nhân", nameof(p.FullName));
+
+        var todayVn = HIS.Core.Common.VnTime.TodayVn;
+        if (p.DateOfBirth.HasValue && p.DateOfBirth.Value.Date > todayVn)
+            throw new ArgumentException("Ngày sinh không được ở tương lai", nameof(p.DateOfBirth));
+        if (p.YearOfBirth.HasValue && (p.YearOfBirth.Value < 1900 || p.YearOfBirth.Value > todayVn.Year))
+            throw new ArgumentException($"Năm sinh không hợp lệ ({p.YearOfBirth.Value})", nameof(p.YearOfBirth));
+        if (p.Gender < 0 || p.Gender > 3)
+            throw new ArgumentException($"Giới tính không hợp lệ ({p.Gender})", nameof(p.Gender));
     }
 
     private AdmissionDto MapToAdmissionDto(MedicalRecord record, Patient patient, Room? room, QueueTicketDto? ticket)

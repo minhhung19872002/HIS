@@ -463,10 +463,12 @@ public partial class ReceptionCompleteService {
     #endregion
     #region 1.7 Insurance Registration (BHYT)
 
-    public async Task<AdmissionDto> RegisterInsurancePatientAsync(InsuranceRegistrationDto dto, Guid userId)
+    public Task<AdmissionDto> RegisterInsurancePatientAsync(InsuranceRegistrationDto dto, Guid userId)
+        => WithRegistrationLockAsync(() => RegisterInsurancePatientCoreAsync(dto, userId));
+
+    private async Task<AdmissionDto> RegisterInsurancePatientCoreAsync(InsuranceRegistrationDto dto, Guid userId)
     {
         Patient? patient = null;
-        bool isNewPatient = false;
 
         // Find existing patient
         if (dto.PatientId.HasValue)
@@ -489,6 +491,57 @@ public partial class ReceptionCompleteService {
                 .Where(p => !p.IsDeleted)
                 .FindByInsuranceNumberDecryptedAsync(dto.InsuranceNumber);
         }
+
+        // A lookup by CCCD / card number must belong to the person at the counter: a mistyped number
+        // that matches someone else would open the visit on THAT patient's record (allergies, history).
+        if (patient != null && dto.NewPatient != null && !dto.PatientId.HasValue && string.IsNullOrEmpty(dto.PatientCode))
+            EnsureSamePerson(patient, dto.NewPatient);
+
+        if (patient == null && dto.NewPatient == null)
+        {
+            throw new KeyNotFoundException("Khong tim thay benh nhan. Vui long dang ky moi.");
+        }
+        var isNewPatient = patient == null;
+        if (isNewPatient) ValidateNewPatient(dto.NewPatient!);
+
+        // Same guard as RegisterFeePatientAsync: the BHYT path had none, so registering the same card
+        // into a second room created a second open outpatient record (two BHYT exam fees for one visit).
+        // Additional specialties belong to the multi-specialty flow, not a new record.
+        // Scoped to TODAY (VN): many old outpatient records were never closed, and blocking a BHYT
+        // patient forever on a stale record from a previous day would be worse than the bug.
+        // Fail fast here (before the slow card verification), re-checked under the lock below.
+        if (patient != null)
+            await EnsureNoActiveOutpatientRecordTodayAsync(patient.Id);
+
+        // Unknown room used to surface as an FK violation (HTTP 500).
+        var room = await _context.Rooms.Include(r => r.Department).FirstOrDefaultAsync(r => r.Id == dto.RoomId)
+            ?? throw new KeyNotFoundException("Khong tim thay phong kham");
+
+        // Verify insurance BEFORE any code is allocated: allocation takes the global registration lock
+        // (WithRegistrationLockAsync) and the BHXH gateway call can take up to 30 s.
+        var insuranceResult = await VerifyInsuranceAsync(new InsuranceVerificationRequestDto
+        {
+            InsuranceNumber = dto.InsuranceNumber,
+            PatientName = patient?.FullName ?? dto.NewPatient!.FullName,
+            DateOfBirth = patient != null ? patient.DateOfBirth : dto.NewPatient!.DateOfBirth
+        });
+
+        if (!insuranceResult.IsValid)
+        {
+            throw new InvalidOperationException($"The BHYT khong hop le: {insuranceResult.ErrorMessage}");
+        }
+
+        // Check insurance card expiry date
+        if (insuranceResult.EndDate.HasValue && insuranceResult.EndDate.Value.Date < DateTime.Today)
+        {
+            throw new InvalidOperationException($"Thẻ BHYT đã hết hạn ngày {insuranceResult.EndDate.Value:dd/MM/yyyy}");
+        }
+
+        // From here on codes are allocated: take the registration lock and repeat the open-visit check
+        // so a double-submit that raced past the first check is rejected.
+        await EnsureRegistrationLockAsync();
+        if (patient != null)
+            await EnsureNoActiveOutpatientRecordTodayAsync(patient.Id);
 
         // BN chưa có trong hệ thống (đăng ký BHYT lần đầu) → tạo mới từ NewPatient
         if (patient == null && dto.NewPatient != null)
@@ -524,37 +577,12 @@ public partial class ReceptionCompleteService {
                 IsDeleted = false
             };
             await _patientRepo.AddAsync(patient);
-            isNewPatient = true;
-        }
-
-        if (patient == null)
-        {
-            throw new KeyNotFoundException("Khong tim thay benh nhan. Vui long dang ky moi.");
-        }
-
-        // Verify insurance
-        var insuranceResult = await VerifyInsuranceAsync(new InsuranceVerificationRequestDto
-        {
-            InsuranceNumber = dto.InsuranceNumber,
-            PatientName = patient.FullName,
-            DateOfBirth = patient.DateOfBirth
-        });
-
-        if (!insuranceResult.IsValid)
-        {
-            throw new InvalidOperationException($"The BHYT khong hop le: {insuranceResult.ErrorMessage}");
-        }
-
-        // Check insurance card expiry date
-        if (insuranceResult.EndDate.HasValue && insuranceResult.EndDate.Value.Date < DateTime.Today)
-        {
-            throw new InvalidOperationException($"Thẻ BHYT đã hết hạn ngày {insuranceResult.EndDate.Value:dd/MM/yyyy}");
         }
 
         // Update patient insurance info.
         // BN mới đang ở state Added → KHÔNG gọi UpdateAsync (sẽ chuyển Added→Modified
         // khiến EF ra lệnh UPDATE thay vì INSERT → FK conflict); set field là đủ, SaveChanges sẽ INSERT.
-        patient.InsuranceNumber = dto.InsuranceNumber;
+        patient!.InsuranceNumber = dto.InsuranceNumber;
         patient.InsuranceExpireDate = insuranceResult.EndDate;
         if (!isNewPatient)
         {
@@ -575,6 +603,7 @@ public partial class ReceptionCompleteService {
             InsuranceFacilityCode = insuranceResult.FacilityCode,
             InsuranceRightRoute = insuranceResult.RightRoute,
             RoomId = dto.RoomId,
+            DepartmentId = room.DepartmentId, // fee path already sets it; BHYT records were missing it
             DoctorId = dto.DoctorId,
             Status = 0, // Waiting
             CreatedAt = DateTime.UtcNow, // dot16: chuẩn UTC — query DayRangeUtc
@@ -583,9 +612,6 @@ public partial class ReceptionCompleteService {
         };
 
         await _medicalRecordRepo.AddAsync(medicalRecord);
-
-        // Get room info
-        var room = await _context.Rooms.Include(r => r.Department).FirstOrDefaultAsync(r => r.Id == dto.RoomId);
 
         // Create examination
         var examination = new Examination
@@ -596,6 +622,8 @@ public partial class ReceptionCompleteService {
             DepartmentId = room?.DepartmentId ?? Guid.Empty,
             RoomId = dto.RoomId,
             DoctorId = dto.DoctorId,
+            // Reception collects "Lý do khám" as a required field; it used to be dropped here.
+            ChiefComplaint = string.IsNullOrWhiteSpace(dto.ChiefComplaint) ? null : dto.ChiefComplaint.Trim(),
             Status = 0, // Waiting
             CreatedAt = DateTime.UtcNow, // dot16: chuẩn UTC — query DayRangeUtc
             CreatedBy = userId.ToString(),

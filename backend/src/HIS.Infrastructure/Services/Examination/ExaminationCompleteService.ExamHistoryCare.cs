@@ -124,6 +124,7 @@ public partial class ExaminationCompleteService
     public async Task<TreatmentSheetDto> CreateTreatmentSheetAsync(TreatmentSheetDto dto)
     {
         await EmrLockGuard.EnsureEditableByExaminationAsync(_context, dto.ExaminationId); // TT46
+        await EnsureExaminationExistsAsync(dto.ExaminationId);
         var sheet = new TreatmentSheet
         {
             Id = Guid.NewGuid(),
@@ -198,6 +199,7 @@ public partial class ExaminationCompleteService
     public async Task<ConsultationRecordDto> CreateConsultationRecordAsync(ConsultationRecordDto dto)
     {
         await EmrLockGuard.EnsureEditableByExaminationAsync(_context, dto.ExaminationId); // TT46
+        await EnsureExaminationExistsAsync(dto.ExaminationId);
         var record = new ConsultationRecord
         {
             Id = Guid.NewGuid(),
@@ -271,6 +273,7 @@ public partial class ExaminationCompleteService
     public async Task<NursingCareSheetDto> CreateNursingCareSheetAsync(NursingCareSheetDto dto)
     {
         await EmrLockGuard.EnsureEditableByExaminationAsync(_context, dto.ExaminationId); // TT46
+        await EnsureExaminationExistsAsync(dto.ExaminationId);
         var sheet = new NursingCareSheet
         {
             Id = Guid.NewGuid(),
@@ -358,8 +361,19 @@ public partial class ExaminationCompleteService
             .ToListAsync();
     }
 
+    /// <summary>
+    /// These child tables have no usable FK error path: an unknown examination id surfaced as an
+    /// FK violation (HTTP 500). Fail with 404 instead.
+    /// </summary>
+    private async Task EnsureExaminationExistsAsync(Guid examinationId)
+    {
+        if (!await _context.Examinations.AnyAsync(e => e.Id == examinationId))
+            throw new KeyNotFoundException("Examination not found");
+    }
+
     public async Task<InjuryInfoDto> UpdateInjuryInfoAsync(Guid examinationId, InjuryInfoDto dto)
     {
+        await EnsureExaminationExistsAsync(examinationId);
         var existing = await _context.InjuryInfos.FirstOrDefaultAsync(i => i.ExaminationId == examinationId);
 
         if (existing == null)

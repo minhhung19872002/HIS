@@ -66,7 +66,7 @@ const OpdEditorV2: React.FC = () => {
     allergies, injuryInfo, setInjuryInfo, exam, setExam, conclusion, setConclusion,
     diagnoses, setDx, orders, setOrd, expandAbbr,
     icdQ, searchIcd, icdResults, addIcd, setPrimary, removeIcd,
-    svcQ, searchSvc, svcResults, addSvc, updateQty, removeSvc, selectPatient,
+    svcQ, searchSvc, svcResults, addSvc, updateQty, removeSvc, selectPatient, loadFailed,
   } = useOpdPatientData({ setLeftOpen, setSelPt, setAutoSavedTs });
 
   const openPatient = useCallback(async (patient: RoomPatientListDto) => {
@@ -105,7 +105,7 @@ const OpdEditorV2: React.FC = () => {
 
   useOpdAutoSave({
     examId, history, pastHist, familyHist, allergyHist, medHist, exam, conclusion, vitals,
-    setAutoSavedTs, setStockOpen,
+    setAutoSavedTs, setStockOpen, loadFailed,
   });
 
   const { suggestions: cdsSuggestions, alerts: cdsAlerts, ews: cdsEws, cdsLoading, hasActiveMeds, runCds } =
@@ -148,18 +148,29 @@ const OpdEditorV2: React.FC = () => {
   const persist = async (): Promise<boolean> => {
     if (!examId) { tw('Chưa chọn bệnh nhân từ hàng đợi'); return false; }
     const primary = diagnoses.find((d) => d.isPrimary);
-    const coreResults = await Promise.allSettled([
-      examinationApi.updateVitalSigns(examId, { ...vitals, measuredAt: new Date().toISOString() }),
-      examinationApi.updateMedicalInterview(examId, {
+    // Sequential, not Promise.all: all four PUTs write the same Examination row, and running them in
+    // parallel let one request's stale copy overwrite another's columns (diagnosis saved → NULL again).
+    // A section whose data failed to load must not be saved: its empty form would overwrite real data.
+    const coreCalls: Array<() => Promise<unknown>> = ([
+      ['vitals', () => examinationApi.updateVitalSigns(examId, { ...vitals, measuredAt: new Date().toISOString() })],
+      ['interview', () => examinationApi.updateMedicalInterview(examId, {
         historyOfPresentIllness: history, pastMedicalHistory: pastHist,
         familyHistory: familyHist, allergyHistory: allergyHist, medicationHistory: medHist,
-      }),
-      examinationApi.updatePhysicalExamination(examId, { generalAppearance: exam }),
-      examinationApi.updateDiagnosisList(examId, {
+      })],
+      ['exam', () => examinationApi.updatePhysicalExamination(examId, { generalAppearance: exam })],
+      ['diagnoses', () => examinationApi.updateDiagnosisList(examId, {
         primaryIcdCode: primary?.icdCode, primaryDiagnosis: primary?.icdName,
         secondaryDiagnoses: diagnoses.filter((d) => !d.isPrimary).map((d) => ({ icdCode: d.icdCode, diagnosisName: d.icdName })),
-      }),
-    ]);
+      })],
+    ] as Array<[string, () => Promise<unknown>]>)
+      .filter(([section]) => !loadFailed.includes(section))
+      .map(([, call]) => call);
+    if (loadFailed.length > 0) tw(`Bỏ qua lưu phần chưa tải được: ${loadFailed.join(', ')} — hãy chọn lại bệnh nhân.`);
+    const coreResults: PromiseSettledResult<unknown>[] = [];
+    for (const call of coreCalls) {
+      try { coreResults.push({ status: 'fulfilled', value: await call() }); }
+      catch (reason) { coreResults.push({ status: 'rejected', reason }); }
+    }
     if (orders.length > 0) {
       await examinationApi.createServiceOrders({
         examinationId: examId, diagnosisCode: primary?.icdCode, diagnosisName: primary?.icdName,

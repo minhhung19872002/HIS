@@ -701,6 +701,8 @@ export interface InsuranceRegistrationDto {
   qrCodeData?: string;
   roomId: string;
   doctorId?: string;
+  /** Lý do khám — lưu vào Examination.ChiefComplaint. */
+  chiefComplaint?: string;
   isPriority?: boolean;
   priorityReason?: number;
   useSmartCard?: boolean;
@@ -751,6 +753,8 @@ export interface FeeRegistrationDto {
   roomId: string;
   doctorId?: string;
   selectSpecificDoctor?: boolean;
+  /** Lý do khám — lưu vào Examination.ChiefComplaint. */
+  chiefComplaint?: string;
   isPriority?: boolean;
 }
 

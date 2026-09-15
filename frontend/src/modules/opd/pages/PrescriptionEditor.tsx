@@ -17,7 +17,7 @@ import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { Field } from '../../../components/form/Field';
 import { useModalForm } from '../../../hooks/useModalForm';
-import { examinationApi, printExternalPrescription, type MedicineDto, type DrugInteractionDto, type CreatePrescriptionDto, type PrescriptionItemFullDto, type PrescriptionTemplateDto, type WarehouseDto } from '../api/examination';
+import { examinationApi, printExternalPrescription, type MedicineDto, type DrugInteractionDto, type PrescriptionWarningDto, type CreatePrescriptionDto, type PrescriptionItemFullDto, type PrescriptionTemplateDto, type WarehouseDto } from '../api/examination';
 import { patientApi, type Patient } from '../../patient/api/patient';
 import { getPrescriptionContext, type PrescriptionContextDto } from '../../patient/api/dataInheritance';
 import PatientFlagBanner from '../../patient/components/PatientFlagBanner';
@@ -140,11 +140,27 @@ const PrescriptionEditorV2: React.FC = () => {
   const [pendingAction, setPendingAction] = useState<'draft' | 'sign' | 'issue' | 'printExt' | null>(null);
   // Override reason for HIGH-severity drug interactions (severity>=3) — required by PrescriptionSafetyGuard
   const [overrideReason, setOverrideReason] = useState('');
+  // Server-side safety block (PrescriptionSafetyGuard: allergy / severe interaction). The allergy part had
+  // no UI path at all: the doctor only saw an error toast and could neither see the reason in context nor
+  // enter the override reason the backend asks for.
+  const [safetyBlock, setSafetyBlock] = useState<string | null>(null);
+  const needsOverride = !!safetyBlock || interactions.some((i) => i.severity >= 3);
   // interForm: chỉ hiện lỗi khi user bấm nút proceed mà chưa nhập lý do (không viền đỏ ngay khi mở drawer)
   const interForm = useModalForm(
     { overrideReason: { required: true, message: 'Cần nhập lý do bỏ qua' } },
-    interOpen && interactions.some((i) => i.severity >= 3),
+    interOpen && needsOverride,
   );
+  const SAFETY_BLOCK_MARKER = 'bị chặn vì lý do an toàn';
+  /** Returns true when the error was a safety block and the override drawer was opened instead. */
+  const openSafetyBlock = (e: unknown, action: 'draft' | 'issue'): boolean => {
+    // Read the raw server message: friendlyErrorMessage drops messages over 300 chars and a block
+    // listing several drugs easily exceeds that.
+    const raw = (e as { response?: { data?: { message?: unknown } } })?.response?.data?.message;
+    const msg = typeof raw === 'string' ? raw : '';
+    if (!msg.includes(SAFETY_BLOCK_MARKER) || overrideReason.trim()) return false;
+    setSafetyBlock(msg); setPendingAction(action); setInterOpen(true);
+    return true;
+  };
   // Phiếu công khai thuốc MSS-01
   const [disclosureOpen, setDisclosureOpen] = useState(false);
 
@@ -279,6 +295,21 @@ const PrescriptionEditorV2: React.FC = () => {
       .catch(() => { /* warehouses optional */ });
   }, []);
 
+  // ── Drug allergies: re-check when cart changes (structured allergies + free-text history) ──
+  const [allergyWarnings, setAllergyWarnings] = useState<PrescriptionWarningDto[]>([]);
+  useEffect(() => {
+    if (!pt?.id || items.length === 0) { setAllergyWarnings([]); return; }
+    let cancelled = false;
+    examinationApi.checkDrugAllergies(pt.id, items.map((x) => x.medicineId))
+      .then((r) => { if (!cancelled) setAllergyWarnings(Array.isArray(r.data) ? r.data : []); })
+      .catch((e) => {
+        if (cancelled) return;
+        setAllergyWarnings([]);
+        tw(friendlyErrorMessage(e, 'CHƯA kiểm tra được dị ứng thuốc — hãy tự đối chiếu tiền sử dị ứng trước khi kê.'));
+      });
+    return () => { cancelled = true; };
+  }, [items, pt?.id]);
+
   // ── Drug interactions: re-check when cart changes ────────────────
   useEffect(() => {
     if (items.length < 2) { setInteractions([]); setIntCheckFailed(false); return; }
@@ -393,14 +424,14 @@ const PrescriptionEditorV2: React.FC = () => {
 
   const doSaveDraft = async () => {
     setSaving(true);
-    try { await persistPrescription(); tk('Đã lưu nháp — đơn chưa gửi sang dược'); }
-    catch (e) { te(friendlyErrorMessage(e, 'Lưu nháp thất bại')); }
+    try { await persistPrescription(); tk('Đã lưu nháp — đơn chưa gửi sang dược'); setSafetyBlock(null); }
+    catch (e) { if (!openSafetyBlock(e, 'draft')) te(friendlyErrorMessage(e, 'Lưu nháp thất bại')); }
     finally { setSaving(false); }
   };
 
   const saveDraft = async () => {
     if (!guard()) return;
-    if (interactions.length > 0) { setPendingAction('draft'); setInterOpen(true); return; }
+    if (interactions.length > 0 || allergyWarnings.length > 0) { setPendingAction('draft'); setInterOpen(true); return; }
     await doSaveDraft();
   };
 
@@ -418,13 +449,13 @@ const PrescriptionEditorV2: React.FC = () => {
       } else {
         tk(`Đã phát hành đơn ${issued.data?.prescriptionCode || ''} — đã chuyển sang quầy dược`);
       }
-    } catch (e) { te(friendlyErrorMessage(e, 'Phát hành đơn thất bại')); }
+    } catch (e) { if (!openSafetyBlock(e, 'issue')) te(friendlyErrorMessage(e, 'Phát hành đơn thất bại')); }
     finally { setSaving(false); }
   };
 
   const onClickIssue = () => {
     if (!guard()) return;
-    if (interactions.length > 0) { setPendingAction('issue'); setInterOpen(true); return; }
+    if (interactions.length > 0 || allergyWarnings.length > 0) { setPendingAction('issue'); setInterOpen(true); return; }
     cf('Sau khi phát hành, đơn sẽ chuyển sang quầy dược và KHÔNG sửa trực tiếp được nữa. '
       + 'Muốn đổi thuốc phải kê đơn mới thay thế.',
       () => { void doIssue(false); },
@@ -433,7 +464,7 @@ const PrescriptionEditorV2: React.FC = () => {
 
   const onClickSign = () => {
     if (!guard()) return;
-    if (interactions.length > 0) { setPendingAction('sign'); setInterOpen(true); return; }
+    if (interactions.length > 0 || allergyWarnings.length > 0) { setPendingAction('sign'); setInterOpen(true); return; }
     setSignOpen(true);
   };
 
@@ -651,7 +682,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
           { lbl: 'BN đang kê', val: pt ? pt.fullName : '—', sub: pt ? `${pt.patientCode} · ${ageOf(pt)}T · ${pt.gender === 1 ? 'Nam' : 'Nữ'}` : 'Chưa chọn' },
           { lbl: 'Loại đơn', val: rxMode === 2 ? 'Toa ngoài (F5)' : (type === 1 ? 'Ngoại trú (F3)' : 'YHCT (F3)'), tone: rxMode === 2 ? 'warn' : 'info', sub: rxMode === 2 ? 'Mua ngoài / nhà thuốc' : 'Theo kho nội viện' },
           { lbl: 'Số thuốc', val: items.length, sub: items.length ? `${items.reduce((s, x) => s + x.qty, 0)} viên/gói` : '—' },
-          { lbl: 'Cảnh báo', val: intCount + allergyNames.length, tone: 'warn', sub: `${intCount} tương tác · ${allergyNames.length} dị ứng` },
+          { lbl: 'Cảnh báo', val: intCount + allergyWarnings.length, tone: 'warn', sub: `${intCount} tương tác · ${allergyWarnings.length} dị ứng` },
           { lbl: 'Tổng tiền', val: fmtVNDg(total), tone: 'ok' },
         ]} />
       </div>
@@ -1035,7 +1066,44 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
       </DrawerShell>
 
       {/* Interactions drawer */}
-      <DrawerShell open={interOpen} onClose={() => { setInterOpen(false); setPendingAction(null); setOverrideReason(''); }} title="Tương tác thuốc" sub={`${intCount} cảnh báo`} size="lg">
+      <DrawerShell open={interOpen} onClose={() => { setInterOpen(false); setPendingAction(null); setOverrideReason(''); setSafetyBlock(null); }} title={safetyBlock || allergyWarnings.length > 0 ? 'Cảnh báo an toàn đơn thuốc' : 'Tương tác thuốc'} sub={`${intCount + allergyWarnings.length + (safetyBlock ? 1 : 0)} cảnh báo`} size="lg">
+        {safetyBlock && (
+          <div style={{ margin: 'var(--space-14)', padding: 'var(--space-14)', background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)', borderRadius: 'var(--r-3)' }}>
+            <div style={{ fontWeight: 700, fontSize: 'var(--fs-md)', marginBottom: 'var(--space-8)' }}>Hệ thống chặn đơn</div>
+            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)', marginBottom: 'var(--space-10)', whiteSpace: 'pre-wrap' }}>{safetyBlock}</div>
+            {!interactions.some((i) => i.severity >= 3) && (
+              <DrField lbl="Lý do bỏ qua" required error={interForm.errors.overrideReason}>
+                <textarea
+                  placeholder="Lý do vẫn kê thuốc này (bắt buộc, được lưu để kiểm tra)…"
+                  value={overrideReason}
+                  onChange={(e) => { setOverrideReason(e.target.value); interForm.clear('overrideReason'); }}
+                  style={{ width: '100%', minHeight: 60, padding: 'var(--space-8)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 11.5 }}
+                />
+              </DrField>
+            )}
+          </div>
+        )}
+        {allergyWarnings.some((w) => w.severity >= 2) && !safetyBlock && !interactions.some((i) => i.severity >= 3) && (
+          <div style={{ margin: 'var(--space-14)' }}>
+            <DrField lbl="Lý do bỏ qua cảnh báo dị ứng" required error={interForm.errors.overrideReason}>
+              <textarea
+                placeholder="Lý do vẫn kê thuốc này (bắt buộc, được lưu để kiểm tra)…"
+                value={overrideReason}
+                onChange={(e) => { setOverrideReason(e.target.value); interForm.clear('overrideReason'); }}
+                style={{ width: '100%', minHeight: 60, padding: 'var(--space-8)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 11.5 }}
+              />
+            </DrField>
+          </div>
+        )}
+        {allergyWarnings.map((w, i) => (
+          <div key={`al-${i}`} style={{ margin: 'var(--space-14)', padding: 'var(--space-14)', background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)', borderRadius: 'var(--r-3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-8)' }}>
+              <span style={{ fontWeight: 700, fontSize: 'var(--fs-md)' }}>Dị ứng · {w.medicineName}</span>
+              <StatusBadge tone="crit">Dị ứng</StatusBadge>
+            </div>
+            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>{w.message}</div>
+          </div>
+        ))}
         {interactions.map((it, i) => {
           const tone = it.severity >= 3 ? 'crit' : it.severity === 2 ? 'warn' : 'info';
           const bg = it.severity >= 3 ? 'var(--s-crit-bg)' : it.severity === 2 ? 'var(--a-or-bg)' : '#fefce8';
@@ -1063,11 +1131,11 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
         })}
         {pendingAction && (
           <div style={{ margin: 'var(--space-14)', padding: 'var(--space-14)', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-10)' }}>
-            <Btn variant="ghost" onClick={() => { setInterOpen(false); setPendingAction(null); setOverrideReason(''); }}>Hủy</Btn>
+            <Btn variant="ghost" onClick={() => { setInterOpen(false); setPendingAction(null); setOverrideReason(''); setSafetyBlock(null); }}>Hủy</Btn>
             <Btn variant="primary"
               disabled={saving}
               onClick={async () => {
-              if (interactions.some((i) => i.severity >= 3) && !interForm.validate({ overrideReason })) return;
+              if ((needsOverride || allergyWarnings.some((w) => w.severity >= 2)) && !interForm.validate({ overrideReason })) return;
               setInterOpen(false);
               if (pendingAction === 'draft') { await doSaveDraft(); }
               else if (pendingAction === 'printExt') { await doPrintExternalRx(); }

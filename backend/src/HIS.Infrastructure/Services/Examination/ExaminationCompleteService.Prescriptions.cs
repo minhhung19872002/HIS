@@ -580,7 +580,9 @@ public partial class ExaminationCompleteService
             .Where(a => a.PatientId == patientId && a.IsActive && a.AllergyType == 1) // Drug allergy
             .ToListAsync();
 
-        if (!allergies.Any()) return warnings;
+        // Free-text allergy history typed in the exam (Patient.AllergyHistory) — same rule as the save guard.
+        var allergyText = await _context.Patients.Where(p => p.Id == patientId).Select(p => p.AllergyHistory).FirstOrDefaultAsync();
+        if (!allergies.Any() && string.IsNullOrWhiteSpace(allergyText)) return warnings;
 
         // Get medicines
         var medicines = await _context.Medicines
@@ -589,13 +591,24 @@ public partial class ExaminationCompleteService
 
         foreach (var medicine in medicines)
         {
+            if (PrescriptionSafetyGuard.FreeTextAllergyHit(allergyText, medicine.MedicineName, medicine.ActiveIngredient) != null)
+            {
+                warnings.Add(new PrescriptionWarningDto
+                {
+                    MedicineId = medicine.Id,
+                    MedicineName = medicine.MedicineName,
+                    WarningType = "Allergy",
+                    Severity = 3,
+                    Message = $"Tiền sử dị ứng ghi trong hồ sơ: {allergyText!.Trim()}",
+                    Recommendation = "Không kê thuốc này trừ khi có lý do lâm sàng rõ ràng"
+                });
+            }
             foreach (var allergy in allergies)
             {
-                // Check if medicine matches allergy (by name or active ingredient)
+                // Check if medicine matches allergy (by code, or by name / active ingredient normalized)
                 if ((allergy.AllergenCode != null && medicine.MedicineCode == allergy.AllergenCode) ||
                     (allergy.AllergenName != null &&
-                     (medicine.MedicineName.Contains(allergy.AllergenName, StringComparison.OrdinalIgnoreCase) ||
-                      (medicine.ActiveIngredient != null && medicine.ActiveIngredient.Contains(allergy.AllergenName, StringComparison.OrdinalIgnoreCase)))))
+                     PrescriptionSafetyGuard.MentionsAllergen(medicine.MedicineName, medicine.ActiveIngredient, allergy.AllergenName)))
                 {
                     warnings.Add(new PrescriptionWarningDto
                     {
