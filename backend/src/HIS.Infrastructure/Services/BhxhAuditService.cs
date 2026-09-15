@@ -24,7 +24,8 @@ public partial class BhxhAuditService : IBhxhAuditService
         { 0, "Bản nháp" },
         { 1, "Đang kiểm tra" },
         { 2, "Hoàn thành" },
-        { 3, "Đã gửi" }
+        { 3, "Đã gửi" },
+        { 4, "Đã duyệt" } // was missing → approved sessions listed as "Không xác định"
     };
 
     private static readonly Dictionary<string, string> ErrorTypeNames = new()
@@ -99,6 +100,12 @@ public partial class BhxhAuditService : IBhxhAuditService
 
     public async Task<BhxhAuditDetailDto> CreateSessionAsync(CreateAuditSessionDto dto)
     {
+        // Month 13 used to be accepted and then crashed "run" with ArgumentOutOfRange (500).
+        if (dto.PeriodMonth < 1 || dto.PeriodMonth > 12)
+            throw new ArgumentException("Tháng giám định phải từ 1 đến 12.", nameof(dto.PeriodMonth));
+        if (dto.PeriodYear < 2000 || dto.PeriodYear > DateTime.Now.Year + 1)
+            throw new ArgumentException("Năm giám định không hợp lệ.", nameof(dto.PeriodYear));
+
         var count = await _context.Set<BhxhAuditSession>().CountAsync() + 1;
         var code = $"BHXH-{dto.PeriodYear}-{dto.PeriodMonth:D2}-{count:D4}";
 
@@ -143,22 +150,28 @@ public partial class BhxhAuditService : IBhxhAuditService
         var session = await _context.Set<BhxhAuditSession>()
             .Include(s => s.Auditor)
             .FirstOrDefaultAsync(s => s.Id == sessionId && !s.IsDeleted)
-            ?? throw new InvalidOperationException("Audit session not found");
+            ?? throw new KeyNotFoundException("Audit session not found");
+
+        // Re-running an approved (4) or submitted (3) session reset it to "Completed" and wiped its
+        // errors — the approval/submission trail disappeared and it could be submitted again.
+        if (session.Status >= 3)
+            throw new InvalidOperationException(
+                $"Phiên giám định đã {StatusNames.GetValueOrDefault(session.Status, "chốt")}, không chạy lại được.");
+        if (session.PeriodMonth < 1 || session.PeriodMonth > 12 || session.PeriodYear < 2000)
+            throw new InvalidOperationException("Kỳ giám định của phiên không hợp lệ.");
 
         session.Status = 1; // InProgress
 
-        // Get medical records for the audit period with insurance claims
+        // Period is the SERVICE date of the claim, end EXCLUSIVE. Was CreatedAt (UTC row time) with an
+        // inclusive "last day 00:00" bound → claims of the last day of the month were never audited.
         var periodStart = new DateTime(session.PeriodYear, session.PeriodMonth, 1);
-        var periodEnd = periodStart.AddMonths(1).AddDays(-1);
-
-        var records = await _context.MedicalRecords
-            .Include(r => r.Patient)
-            .Where(r => !r.IsDeleted && r.CreatedAt >= periodStart && r.CreatedAt <= periodEnd)
-            .ToListAsync();
+        var periodEnd = periodStart.AddMonths(1);
 
         var claims = await _context.InsuranceClaims
             .Include(c => c.ClaimDetails)
-            .Where(c => !c.IsDeleted && c.CreatedAt >= periodStart && c.CreatedAt <= periodEnd)
+            .Include(c => c.Patient)
+            .Include(c => c.MedicalRecord)
+            .Where(c => !c.IsDeleted && c.ServiceDate >= periodStart && c.ServiceDate < periodEnd)
             .ToListAsync();
 
         var errors = new List<BhxhAuditError>();
@@ -168,13 +181,15 @@ public partial class BhxhAuditService : IBhxhAuditService
         foreach (var claim in claims)
         {
             totalAmount += claim.TotalAmount;
-            var patient = records.FirstOrDefault(r => r.PatientId == claim.PatientId)?.Patient;
+            var patient = claim.Patient;
 
-            // Check 1: Duplicate claims (same patient, same date, same service)
+            // Check 1: Duplicate claims (same patient, same SERVICE day, same treatment type).
+            // Was CreatedAt.Date: all claims generated on one day for different visits were flagged.
             var duplicates = claims.Where(c =>
                 c.Id != claim.Id &&
                 c.PatientId == claim.PatientId &&
-                c.CreatedAt.Date == claim.CreatedAt.Date).ToList();
+                c.TreatmentType == claim.TreatmentType &&
+                c.ServiceDate.Date == claim.ServiceDate.Date).ToList();
 
             if (duplicates.Any())
             {
@@ -186,7 +201,7 @@ public partial class BhxhAuditService : IBhxhAuditService
                     PatientName = patient?.FullName,
                     InsuranceNumber = claim.InsuranceNumber,
                     ErrorType = "DuplicateClaim",
-                    ErrorDescription = $"Trùng thanh toán ngày {claim.CreatedAt:dd/MM/yyyy}",
+                    ErrorDescription = $"Trùng thanh toán ngày {claim.ServiceDate:dd/MM/yyyy}",
                     OriginalAmount = claim.TotalAmount,
                     AdjustedAmount = 0,
                     CreatedAt = DateTime.UtcNow
@@ -212,9 +227,9 @@ public partial class BhxhAuditService : IBhxhAuditService
                 });
             }
 
-            // Check 3: Missing or invalid ICD code
-            var record = records.FirstOrDefault(r => r.Id == claim.MedicalRecordId);
-            if (record != null && string.IsNullOrWhiteSpace(record.MainDiagnosis))
+            // Check 3: Missing ICD code. Was checking the diagnosis NAME of the medical record, so a
+            // claim carrying MainDiagnosisCode "I50" was flagged "thiếu mã ICD" when the name was empty.
+            if (string.IsNullOrWhiteSpace(claim.MainDiagnosisCode) && string.IsNullOrWhiteSpace(claim.MedicalRecord?.MainIcdCode))
             {
                 errors.Add(new BhxhAuditError
                 {
@@ -285,7 +300,17 @@ public partial class BhxhAuditService : IBhxhAuditService
     {
         var error = await _context.Set<BhxhAuditError>()
             .FirstOrDefaultAsync(e => e.Id == errorId && !e.IsDeleted)
-            ?? throw new InvalidOperationException("Audit error not found");
+            ?? throw new KeyNotFoundException("Audit error not found");
+
+        // Adjusted amount is what remains payable of the original: 0..OriginalAmount. A negative or
+        // larger value turned ErrorAmount (Original − Adjusted) negative/inflated on the session.
+        if (dto.AdjustedAmount < 0 || dto.AdjustedAmount > error.OriginalAmount)
+            throw new InvalidOperationException(
+                $"Số tiền điều chỉnh phải từ 0 đến {error.OriginalAmount:N0}.");
+        var owner = await _context.Set<BhxhAuditSession>().AsNoTracking()
+            .Where(s => s.Id == error.AuditSessionId).Select(s => (int?)s.Status).FirstOrDefaultAsync();
+        if (owner >= 3)
+            throw new InvalidOperationException("Phiên giám định đã gửi/duyệt, không sửa lỗi được nữa.");
 
         error.AdjustedAmount = dto.AdjustedAmount;
         error.IsFixed = true;
@@ -411,6 +436,12 @@ public partial class BhxhAuditService : IBhxhAuditService
 
         if (session.Status < 2)
             throw new InvalidOperationException("Phiên giám định chưa hoàn thành, không thể duyệt");
+        // Approve was repeatable (overwriting ApprovedBy/At) and also applied to an already
+        // SUBMITTED session, moving it 3 → 4 so it could be submitted to the portal again.
+        if (session.Status == 4)
+            throw new InvalidOperationException("Phiên giám định đã được duyệt.");
+        if (session.Status == 3 || session.SubmittedAt != null)
+            throw new InvalidOperationException("Phiên giám định đã gửi cổng, không duyệt lại được.");
 
         // Use new audit columns added by migration 75
         session.Status = 4; // Approved
@@ -449,6 +480,10 @@ public partial class BhxhAuditService : IBhxhAuditService
 
         if (session.Status < 2)
             throw new InvalidOperationException("Phiên giám định chưa hoàn thành, không thể gửi cổng");
+        // Double submit used to succeed and overwrite SubmittedAt/PortalTransactionId.
+        if (session.Status == 3 || session.SubmittedAt != null)
+            throw new InvalidOperationException(
+                $"Phiên giám định đã gửi cổng lúc {session.SubmittedAt:dd/MM/yyyy HH:mm} (mã {session.PortalTransactionId}), không gửi lại.");
 
         // MockMode: update status + log, not calling real BHXH portal (gateway not integrated yet)
         var mockTxId = $"MOCK-{DateTime.UtcNow:yyyyMMddHHmmss}-{sessionId.ToString("N")[..8].ToUpper()}";

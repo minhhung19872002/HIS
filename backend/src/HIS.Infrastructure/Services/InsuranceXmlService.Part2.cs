@@ -32,9 +32,11 @@ public partial class InsuranceXmlService
             var totalBhyt = details.Sum(d => d.InsuranceAmount);
             var totalCopay = details.Sum(d => d.PatientAmount);
 
-            // Calculate treatment days
+            // Treatment days = discharge date − admission date + 1, by CALENDAR day (TT 22/2023/TT-BYT,
+            // previously TT 39/2018). Was the truncated hour difference: admitted 20/02 08:00,
+            // discharged 22/02 07:00 → 1 day instead of 3.
             var daysOfTreatment = c.DischargeDate.HasValue
-                ? Math.Max(1, (int)(c.DischargeDate.Value - c.ServiceDate).TotalDays)
+                ? Math.Max(1, (c.DischargeDate.Value.Date - c.ServiceDate.Date).Days + 1)
                 : 1;
 
             result.Add(new Xml1MedicalRecordDto
@@ -124,9 +126,11 @@ public partial class InsuranceXmlService
 
         foreach (var claim in claims)
         {
-            // Get service claim details (ItemType=1 for services)
+            // XML3 = DVKT + VTYT + giường + other non-medicine costs (ItemType 1, 3, 4, 5).
+            // Was ItemType==1 only: supplies/bed days were counted in the XML1 totals but listed in
+            // no detail table, so XML1 ≠ Σ(XML2 + XML3) and BHXH rejects the whole record.
             var serviceDetails = (claim.ClaimDetails ?? new List<InsuranceClaimDetail>())
-                .Where(d => d.ItemType == 1)
+                .Where(d => d.ItemType != 2)
                 .ToList();
 
             var stt = 1;

@@ -240,20 +240,45 @@ public partial class BhxhAuditService
                 continue;
             }
 
-            // Parse so tien
-            decimal ParseMoney(string s) =>
-                decimal.TryParse(s.Replace(".", "").Replace(",", ""), out var v) ? v : 0;
+            // Parse so tien. Was "strip every '.' and ','": "1500000.00" became 150,000,000 (x100).
+            // A separator followed by exactly 1-2 trailing digits is the decimal mark (thousand groups
+            // always have 3 digits); every other '.'/',' is a thousand separator.
+            decimal ParseMoney(string s)
+            {
+                s = (s ?? "").Trim().Trim('"');
+                if (s.Length == 0) return 0;
+                var lastSep = s.LastIndexOfAny(new[] { '.', ',' });
+                string intPart = s, fracPart = "";
+                if (lastSep >= 0 && s.Length - lastSep - 1 is 1 or 2)
+                {
+                    intPart = s[..lastSep];
+                    fracPart = s[(lastSep + 1)..];
+                }
+                var normalized = intPart.Replace(".", "").Replace(",", "") + (fracPart.Length > 0 ? "." + fracPart : "");
+                return decimal.TryParse(normalized, System.Globalization.NumberStyles.Number,
+                    System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : 0;
+            }
 
-            // Parse trang thai: 0/1/2 hoac text
+            // Parse trang thai: 0/1/2 hoac text. "Chua duyet" contains "duyet" and was read as
+            // 1 (Da duyet) — the very label this module prints for status 0.
             int trangThai = 0;
             var ttStr = val(cols, iTrangThai);
             if (!int.TryParse(ttStr, out trangThai))
-                trangThai = ttStr.Contains("duyet", StringComparison.OrdinalIgnoreCase) ? 1 :
-                            ttStr.Contains("choi", StringComparison.OrdinalIgnoreCase)   ? 2 : 0;
+                trangThai = ttStr.Contains("chua", StringComparison.OrdinalIgnoreCase) || ttStr.Contains("chưa", StringComparison.OrdinalIgnoreCase) ? 0 :
+                            ttStr.Contains("choi", StringComparison.OrdinalIgnoreCase) || ttStr.Contains("chối", StringComparison.OrdinalIgnoreCase) ? 2 :
+                            ttStr.Contains("duyet", StringComparison.OrdinalIgnoreCase) || ttStr.Contains("duyệt", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
 
-            // Parse ngay
-            DateTime? ParseDate(string s) =>
-                DateTime.TryParse(s, out var d) ? (DateTime?)d : null;
+            // Parse ngay: Vietnamese files use dd/MM/yyyy. Culture-dependent TryParse read 05/03/2026
+            // as 3 May on an invariant/en-US server.
+            DateTime? ParseDate(string s)
+            {
+                s = (s ?? "").Trim().Trim('"');
+                if (s.Length == 0) return null;
+                var formats = new[] { "dd/MM/yyyy", "d/M/yyyy", "dd/MM/yyyy HH:mm", "dd/MM/yyyy HH:mm:ss", "d/M/yyyy H:mm",
+                                      "yyyy-MM-dd", "yyyy-MM-dd HH:mm", "yyyy-MM-ddTHH:mm:ss", "yyyyMMdd", "yyyyMMddHHmm" };
+                return DateTime.TryParseExact(s, formats, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var d) ? d : null;
+            }
 
             rows.Add(new BhxhAuditImport
             {

@@ -237,7 +237,7 @@ public partial class DqgvnService : IDqgvnService
         if (patient == null)
             return new DqgvnSubmitResult { Success = false, ErrorMessage = "Khong tim thay benh nhan" };
 
-        var config = GetConfig();
+        var config = await LoadConfigAsync();
 
         // Build DQGVN patient demographics payload per Vietnamese standard
         var payload = new Dictionary<string, object?>
@@ -294,6 +294,10 @@ public partial class DqgvnService : IDqgvnService
 
             if (submission.Status == 2) // Already accepted
                 return new DqgvnSubmitResult { Success = false, ErrorMessage = "Ban ghi da duoc tiep nhan" };
+            // Status 1 = really sent, awaiting the gateway's answer: resending creates a duplicate.
+            // Legacy offline rows (LOCAL-… id, never actually sent) stay retryable.
+            if (submission.Status == 1 && !(submission.TransactionId ?? "").StartsWith("LOCAL-"))
+                return new DqgvnSubmitResult { Success = false, ErrorMessage = "Ban ghi da gui, dang cho cong DQGVN phan hoi" };
 
             submission.RetryCount++;
             submission.Status = 0; // Reset to pending
@@ -303,7 +307,7 @@ public partial class DqgvnService : IDqgvnService
 
             await _context.SaveChangesAsync();
 
-            var config = GetConfig();
+            var config = await LoadConfigAsync();
             return await SendSubmissionAsync(submission, config);
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
@@ -319,7 +323,7 @@ public partial class DqgvnService : IDqgvnService
     {
         try
         {
-            var config = GetConfig();
+            var config = await LoadConfigAsync();
             if (!config.IsEnabled)
             {
                 _logger.LogInformation("DQGVN is disabled, skipping batch submit");
@@ -351,15 +355,26 @@ public partial class DqgvnService : IDqgvnService
 
     // ==================== Config ====================
 
-    public Task<DqgvnConfigDto> GetConfigAsync()
+    private const string SecretMask = "********";
+
+    public async Task<DqgvnConfigDto> GetConfigAsync()
     {
-        return Task.FromResult(GetConfig());
+        var cfg = await LoadConfigAsync();
+        // Never hand the gateway credentials back to the browser.
+        if (!string.IsNullOrEmpty(cfg.ApiKey)) cfg.ApiKey = SecretMask;
+        if (!string.IsNullOrEmpty(cfg.SecretKey)) cfg.SecretKey = SecretMask;
+        return cfg;
     }
 
     public async Task SaveConfigAsync(DqgvnConfigDto config, string userId)
     {
+        if (config.TimeoutSeconds < 1 || config.TimeoutSeconds > 600)
+            throw new ArgumentException("TimeoutSeconds phải từ 1 đến 600.", nameof(config.TimeoutSeconds));
+        if (config.RetryCount < 0 || config.RetryCount > 20)
+            throw new ArgumentException("RetryCount phải từ 0 đến 20.", nameof(config.RetryCount));
+
         // Store config values in SystemConfigs table (key-value store)
-        var configEntries = new Dictionary<string, string>
+        var configEntries = new Dictionary<string, string?>
         {
             ["DQGVN:ApiBaseUrl"] = config.ApiBaseUrl,
             ["DQGVN:FacilityCode"] = config.FacilityCode,
@@ -373,6 +388,12 @@ public partial class DqgvnService : IDqgvnService
             ["DQGVN:RetryCount"] = config.RetryCount.ToString(),
             ["DQGVN:TimeoutSeconds"] = config.TimeoutSeconds.ToString()
         };
+        // Blank or masked secret = "keep the stored one" (GET returns them masked).
+        foreach (var secretKey in new[] { "DQGVN:ApiKey", "DQGVN:SecretKey" })
+            if (string.IsNullOrEmpty(configEntries[secretKey]) || configEntries[secretKey] == SecretMask)
+                configEntries.Remove(secretKey);
+        foreach (var nullKey in configEntries.Where(e => e.Value == null).Select(e => e.Key).ToList())
+            configEntries.Remove(nullKey);
 
         // #195: nạp 1 lần các khoá cấu hình thay vì 1 query/khoá.
         var configKeys = configEntries.Keys.ToList();
@@ -412,6 +433,48 @@ public partial class DqgvnService : IDqgvnService
     }
 
     // ==================== Private Helpers ====================
+
+    /// <summary>
+    /// Config in force: values saved by PUT /api/dqgvn/config (SystemConfigs "DQGVN:*") over the
+    /// appsettings "DQGVN" section. SaveConfigAsync used to write SystemConfigs that nothing ever read,
+    /// so saving the config was a silent no-op.
+    /// </summary>
+    private async Task<DqgvnConfigDto> LoadConfigAsync()
+    {
+        var cfg = GetConfig();
+        Dictionary<string, string> stored;
+        try
+        {
+            stored = (await _context.SystemConfigs.AsNoTracking()
+                    .Where(c => c.ConfigKey.StartsWith("DQGVN:"))
+                    .Select(c => new { c.ConfigKey, c.ConfigValue })
+                    .ToListAsync())
+                .Where(c => c.ConfigValue != null)
+                .GroupBy(c => c.ConfigKey)
+                .ToDictionary(g => g.Key, g => g.First().ConfigValue!);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "DQGVN: cannot read stored config, using appsettings");
+            return cfg;
+        }
+
+        string Pick(string key, string fallback) =>
+            stored.TryGetValue(key, out var v) && !string.IsNullOrWhiteSpace(v) ? v.Trim() : fallback;
+
+        cfg.ApiBaseUrl = Pick("DQGVN:ApiBaseUrl", cfg.ApiBaseUrl);
+        cfg.FacilityCode = Pick("DQGVN:FacilityCode", cfg.FacilityCode);
+        cfg.FacilityName = Pick("DQGVN:FacilityName", cfg.FacilityName);
+        cfg.ProvinceCode = Pick("DQGVN:ProvinceCode", cfg.ProvinceCode);
+        cfg.DistrictCode = Pick("DQGVN:DistrictCode", cfg.DistrictCode);
+        cfg.ApiKey = Pick("DQGVN:ApiKey", cfg.ApiKey);
+        cfg.SecretKey = Pick("DQGVN:SecretKey", cfg.SecretKey);
+        if (bool.TryParse(Pick("DQGVN:IsEnabled", ""), out var enabled)) cfg.IsEnabled = enabled;
+        if (bool.TryParse(Pick("DQGVN:AutoSubmit", ""), out var auto)) cfg.AutoSubmit = auto;
+        if (int.TryParse(Pick("DQGVN:RetryCount", ""), out var retry) && retry >= 0) cfg.RetryCount = retry;
+        if (int.TryParse(Pick("DQGVN:TimeoutSeconds", ""), out var timeout) && timeout > 0) cfg.TimeoutSeconds = timeout;
+        return cfg;
+    }
 
     private DqgvnConfigDto GetConfig()
     {
@@ -468,15 +531,16 @@ public partial class DqgvnService : IDqgvnService
         // If DQGVN is not configured/enabled, operate in offline mode
         if (!config.IsEnabled || string.IsNullOrWhiteSpace(config.ApiBaseUrl))
         {
-            _logger.LogInformation("DQGVN offline mode - submission {Id} stored locally", submission.Id);
-            result.Success = true;
-            result.TransactionId = $"LOCAL-{submission.Id:N}".Substring(0, 20);
-
-            submission.Status = 1; // Submitted (locally)
-            submission.TransactionId = result.TransactionId;
-            submission.SubmittedAt = DateTime.UtcNow;
+            // Was: Success=true + Status=1 "Submitted" + a LOCAL-… transaction id although nothing
+            // left the hospital — and the batch sender only picks Status 0, so these records were
+            // never sent even after the gateway was enabled. Keep it PENDING and say so.
+            _logger.LogInformation("DQGVN offline mode - submission {Id} kept pending (not sent)", submission.Id);
+            result.Success = false;
+            result.ErrorMessage = "Cổng DQGVN chưa bật/chưa cấu hình — hồ sơ đã lưu ở trạng thái chờ gửi, CHƯA gửi đi.";
+            submission.Status = 0;
+            submission.ErrorMessage = null;
+            if ((submission.TransactionId ?? "").StartsWith("LOCAL-")) submission.TransactionId = null;
             await _context.SaveChangesAsync();
-
             return result;
         }
 

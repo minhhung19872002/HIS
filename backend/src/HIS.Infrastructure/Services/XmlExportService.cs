@@ -34,7 +34,18 @@ public class XmlExportService
     /// Format DateTime to BHXH convention: yyyyMMddHHmm (per research pitfall #2)
     /// </summary>
     private static string ToBhxhDate(DateTime? dt) =>
-        dt?.ToString("yyyyMMddHHmm", CultureInfo.InvariantCulture) ?? "";
+        dt.HasValue && dt.Value != DateTime.MinValue
+            ? dt.Value.ToString("yyyyMMddHHmm", CultureInfo.InvariantCulture)
+            : ""; // unknown date → empty, not "000101010000" (DateTime.MinValue placeholder)
+
+    /// <summary>
+    /// Date-only BHXH fields (GT_THE_TU, GT_THE_DEN, NGAY_MIEN_CCT): yyyyMMdd (8 chars) per QĐ 4210/130.
+    /// They were written as 12-char yyyyMMddHHmm, which fails the field format check.
+    /// </summary>
+    private static string ToBhxhDateOnly(DateTime? dt) =>
+        dt.HasValue && dt.Value != DateTime.MinValue
+            ? dt.Value.ToString("yyyyMMdd", CultureInfo.InvariantCulture)
+            : "";
 
     /// <summary>
     /// Format decimal with 2 decimal places using invariant culture (per research pitfall #5)
@@ -81,8 +92,8 @@ public class XmlExportService
             WriteElement(writer, "MA_THE", r.MaThe);
             WriteElement(writer, "MA_CCCD", r.SoCccd ?? ""); // QĐ 3716/2024
             WriteElement(writer, "MA_DKBD", r.MaDkbd);
-            WriteElement(writer, "GT_THE_TU", ToBhxhDate(r.GtTheTu));
-            WriteElement(writer, "GT_THE_DEN", ToBhxhDate(r.GtTheDen));
+            WriteElement(writer, "GT_THE_TU", ToBhxhDateOnly(r.GtTheTu));
+            WriteElement(writer, "GT_THE_DEN", ToBhxhDateOnly(r.GtTheDen));
             WriteElement(writer, "MIEN_CUNG_CT", r.MienCungCt ?? "");
             WriteElement(writer, "MA_BENH_CHINH", r.MaBenhChinh);
             WriteElement(writer, "MA_BENH_KT", r.MaBenhKt ?? "");
@@ -115,7 +126,7 @@ public class XmlExportService
             WriteElement(writer, "MA_NOI_CHUYEN", r.MaNoiChuyen ?? "");
             WriteElement(writer, "MA_TTPT", r.MaTtpt ?? "");
             WriteElement(writer, "NAM_QT_NHO_HAT", r.NamQtNhoHat ?? "");
-            WriteElement(writer, "NGAY_MIEN", ToBhxhDate(r.NgayMien));
+            WriteElement(writer, "NGAY_MIEN", ToBhxhDateOnly(r.NgayMien));
             writer.WriteEndElement(); // THONG_TIN
         }
 

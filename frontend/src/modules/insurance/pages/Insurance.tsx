@@ -59,7 +59,7 @@ function escapeCsvCell(v: unknown): string {
 }
 
 type PageTab = 'claims' | 'card' | 'reports' | 'xml' | 'batch';
-type StatusKey = 'draft' | 'pending' | 'submitted' | 'approved' | 'rejected' | 'locked';
+type StatusKey = 'pending' | 'locked' | 'approved' | 'partial' | 'rejected' | 'paid';
 
 const TOP_TABS: TopTab<PageTab>[] = [
   { v: 'claims',  l: 'Danh sách hồ sơ', ic: 'list' },
@@ -69,22 +69,25 @@ const TOP_TABS: TopTab<PageTab>[] = [
   { v: 'batch',   l: 'Đợt quyết toán',  ic: 'archive' },
 ];
 
+// Must match BE InsuranceClaimStatus (HIS.Core/Constants/StatusConstants.cs):
+// 0 Pending · 1 Locked · 2 Approved · 3 PartiallyRejected · 4 FullyRejected · 5 Paid.
+// Was shifted (3 PartiallyRejected shown green "Đã duyệt", 5 Paid shown "Đã khóa").
 const STATUS_TABS: StatusTab<StatusKey>[] = [
-  { v: 'draft',     l: 'Nháp',     tone: 'info' },
-  { v: 'pending',   l: 'Chờ gửi',  tone: 'warn' },
-  { v: 'submitted', l: 'Đã gửi',   tone: 'warn' },
-  { v: 'approved',  l: 'Đã duyệt', tone: 'ok' },
-  { v: 'rejected',  l: 'Từ chối',  tone: 'crit' },
-  { v: 'locked',    l: 'Đã khóa',  tone: 'info' },
+  { v: 'pending',  l: 'Chờ',              tone: 'info' },
+  { v: 'locked',   l: 'Đã khóa',          tone: 'warn' },
+  { v: 'approved', l: 'Đã duyệt',         tone: 'ok' },
+  { v: 'partial',  l: 'Từ chối một phần', tone: 'crit' },
+  { v: 'rejected', l: 'Từ chối toàn bộ',  tone: 'crit' },
+  { v: 'paid',     l: 'Đã thanh toán',    tone: 'ok' },
 ];
 
 const statusKey = (s: number): StatusKey => {
-  if (s === 5) return 'locked';
+  if (s === 5) return 'paid';
   if (s === 4) return 'rejected';
-  if (s === 3) return 'approved';
-  if (s === 2) return 'submitted';
-  if (s === 1) return 'pending';
-  return 'draft';
+  if (s === 3) return 'partial';
+  if (s === 2) return 'approved';
+  if (s === 1) return 'locked';
+  return 'pending';
 };
 const statusTone = (s: StatusKey) => STATUS_TABS.find((t) => t.v === s)?.tone || 'info';
 const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
@@ -188,7 +191,7 @@ function printClaimSheet(r: InsuranceClaimSummaryDto): void {
           <tr class="total-row"><td>Tổng cộng chi phí</td><td class="text-right">${nf(r.totalAmount)}</td></tr>
         </tbody>
       </table>
-      ${r.status === 4 && r.rejectReason ? `<div class="reject-box"><strong>Lý do từ chối:</strong> ${escapeHtml(r.rejectReason)}</div>` : ''}
+      ${(r.status === 3 || r.status === 4) && r.rejectReason ? `<div class="reject-box"><strong>Lý do từ chối:</strong> ${escapeHtml(r.rejectReason)}</div>` : ''}
       ${r.submitDate ? `<div class="info-row">Ngày gửi BHXH: <span class="field">${d(r.submitDate)}</span></div>` : ''}
       <div class="signature-row">
         <div class="signature-col"><div><strong>NGƯỜI LẬP BẢNG KÊ</strong></div><div>(Ký, ghi rõ họ tên)</div></div>
@@ -295,13 +298,13 @@ const InsuranceV2: React.FC = () => {
     const totalAmount = rows.reduce((s, r) => s + (r.totalAmount || 0), 0);
     const insuranceAmount = rows.reduce((s, r) => s + (r.insuranceAmount || 0), 0);
     const approvalRate = rows.length > 0
-      ? Math.round(rows.filter((r) => r.status === 3).length / rows.length * 100)
+      ? Math.round(rows.filter((r) => r.status === 2 || r.status === 5).length / rows.length * 100)
       : 0;
     return {
       total: rows.length,
-      pending: (counts.pending || 0) + (counts.submitted || 0),
-      approved: counts.approved || 0,
-      rejected: counts.rejected || 0,
+      pending: (counts.pending || 0) + (counts.locked || 0),
+      approved: (counts.approved || 0) + (counts.paid || 0),
+      rejected: (counts.partial || 0) + (counts.rejected || 0),
       totalAmount,
       insuranceAmount,
       approvalRate,
@@ -333,7 +336,9 @@ const InsuranceV2: React.FC = () => {
     setSyncLoading(true);
     try {
       const res = await testPortalConnection();
-      const data = res as unknown as PortalConnectionTestResult;
+      // `request` wraps the payload as { success, data } — the result is in .data (was read from
+      // the wrapper itself, so isConnected was always undefined → "Không kết nối được").
+      const data = (res.data ?? res) as unknown as PortalConnectionTestResult;
       if (data?.isConnected) {
         message.success(`Đồng bộ thành công (${data.responseTimeMs ?? 0}ms)`);
         reload();
@@ -356,7 +361,8 @@ const InsuranceV2: React.FC = () => {
       const r = await verifyInsuranceCard({
         insuranceNumber: cardNumber.trim(),
         patientName: cardName.trim(),
-        dateOfBirth: cardDob ? cardDob.format('YYYY-MM-DD') : '',
+        // DOB is optional: "" is not a valid DateTime for the API (400 on every lookup without DOB).
+        dateOfBirth: cardDob ? cardDob.format('YYYY-MM-DD') : undefined,
       });
       const data = r.data;
       setCardResult(data);
@@ -659,7 +665,7 @@ const InsuranceV2: React.FC = () => {
 
   /* ── Render ── */
 
-  const firstRejected = useMemo(() => rows.find((r) => r.status === 4), [rows]);
+  const firstRejected = useMemo(() => rows.find((r) => r.status === 3 || r.status === 4), [rows]);
 
   return (
     <div className="ab">

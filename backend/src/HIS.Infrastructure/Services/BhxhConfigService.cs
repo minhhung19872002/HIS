@@ -67,6 +67,12 @@ public class BhxhConfigService : IBhxhConfigService
 
     public async Task<ServiceOutcome> SaveAsync(BhxhConfigDto dto, Guid userId)
     {
+        // Timeout 0/negative was stored as-is; the test endpoints then set HttpClient.Timeout = 0s,
+        // which throws ArgumentOutOfRange outside their try → 500.
+        var timeoutSeconds = dto.Timeout ?? 30;
+        if (timeoutSeconds < 1 || timeoutSeconds > 600)
+            return ServiceOutcome.Bad("Timeout phải từ 1 đến 600 giây");
+
         var now = DateTime.Now;
         var uid = userId.ToString();
 
@@ -104,7 +110,7 @@ public class BhxhConfigService : IBhxhConfigService
         if (!string.IsNullOrEmpty(dto.Password)) await Upsert("BHXH.Password", _secret.Protect(dto.Password));
         await Upsert("BHXH.MaCSKCB", dto.MaCSKCB);
         await Upsert("BHXH.MaDVI", dto.MaDVI);
-        await Upsert("BHXH.Timeout", dto.Timeout.ToString());
+        await Upsert("BHXH.Timeout", timeoutSeconds.ToString());
         await Upsert("BHXH.Environment", dto.Environment ?? "sandbox");
 
         await _db.SaveChangesAsync();
@@ -120,7 +126,7 @@ public class BhxhConfigService : IBhxhConfigService
             return ServiceOutcome.Bad("Chưa cấu hình GatewayUrl");
 
         var client = _httpFactory.CreateClient();
-        client.Timeout = TimeSpan.FromSeconds(int.TryParse(cfg.GetValueOrDefault("BHXH.Timeout"), out var t) ? t : 30);
+        client.Timeout = TimeSpan.FromSeconds(int.TryParse(cfg.GetValueOrDefault("BHXH.Timeout"), out var t) && t > 0 ? t : 30);
 
         try
         {
@@ -152,7 +158,7 @@ public class BhxhConfigService : IBhxhConfigService
             return ServiceOutcome.Bad("Chưa cấu hình đầy đủ TokenUrl / Username / Password");
 
         var client = _httpFactory.CreateClient();
-        client.Timeout = TimeSpan.FromSeconds(int.TryParse(cfg.GetValueOrDefault("BHXH.Timeout"), out var t) ? t : 30);
+        client.Timeout = TimeSpan.FromSeconds(int.TryParse(cfg.GetValueOrDefault("BHXH.Timeout"), out var t) && t > 0 ? t : 30);
 
         try
         {
@@ -204,7 +210,7 @@ public class BhxhConfigService : IBhxhConfigService
         var url = string.IsNullOrWhiteSpace(dto.Endpoint) ? baseUrl : baseUrl.TrimEnd('/') + "/" + dto.Endpoint.TrimStart('/');
 
         var client = _httpFactory.CreateClient();
-        client.Timeout = TimeSpan.FromSeconds(int.TryParse(cfg.GetValueOrDefault("BHXH.Timeout"), out var t) ? t : 30);
+        client.Timeout = TimeSpan.FromSeconds(int.TryParse(cfg.GetValueOrDefault("BHXH.Timeout"), out var t) && t > 0 ? t : 30);
 
         try
         {

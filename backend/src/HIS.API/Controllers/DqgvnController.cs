@@ -94,7 +94,10 @@ namespace HIS.API.Controllers
         /// <summary>
         /// Lay cau hinh DQGVN hien tai
         /// </summary>
+        // Admin only: the config holds the gateway API key and the URL patient data is POSTed to.
+        // Was open to any authenticated user (read secrets / redirect PHI).
         [HttpGet("config")]
+        [Authorize(Roles = HIS.Core.Constants.RoleNames.Admin)]
         public async Task<ActionResult<DqgvnConfigDto>> GetConfig()
             => Ok(await _service.GetConfigAsync());
 
@@ -102,9 +105,17 @@ namespace HIS.API.Controllers
         /// Cap nhat cau hinh DQGVN
         /// </summary>
         [HttpPut("config")]
+        [Authorize(Roles = HIS.Core.Constants.RoleNames.Admin)]
         public async Task<IActionResult> UpdateConfig([FromBody] DqgvnConfigDto config)
         {
-            await _service.SaveConfigAsync(config, GetUserId());
+            try
+            {
+                await _service.SaveConfigAsync(config, GetUserId());
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
+            }
             return Ok(new { message = "Cau hinh DQGVN da duoc cap nhat" });
         }
     }

@@ -209,10 +209,13 @@ public partial class InsuranceXmlService
     {
         try
         {
-            // Re-generate XML for rejected claims and submit via gateway
-            var claims = await _context.InsuranceClaims
-                .Where(c => maLkList.Contains(c.ClaimCode) && !c.IsDeleted)
-                .ToListAsync();
+            var codes = (maLkList ?? new List<string>())
+                .Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).Distinct().ToList();
+            var claims = codes.Count == 0
+                ? new List<InsuranceClaim>()
+                : await _context.InsuranceClaims
+                    .Where(c => codes.Contains(c.ClaimCode) && !c.IsDeleted)
+                    .ToListAsync();
 
             if (!claims.Any())
             {
@@ -224,23 +227,58 @@ public partial class InsuranceXmlService
                 };
             }
 
-            var xmlContent = $"<resubmit><count>{claims.Count}</count></resubmit>";
-            var request = new BhxhSubmitRequest
+            // Only claims BHXH actually rejected may be resubmitted (otherwise it is a duplicate claim).
+            var notRejected = claims
+                .Where(c => c.ClaimStatus != InsuranceClaimStatus.PartiallyRejected && c.ClaimStatus != InsuranceClaimStatus.FullyRejected)
+                .Select(c => $"{c.ClaimCode} ({InsuranceClaimStatus.Label(c.ClaimStatus)})")
+                .ToList();
+            if (notRejected.Count > 0)
             {
-                XmlBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(xmlContent)),
-                BatchCode = CodeGenerator.Timestamp("RESUB"),
-                FacilityCode = ""
-            };
+                return new SubmitResultDto
+                {
+                    Success = false,
+                    Message = "Chỉ gửi lại được hồ sơ bị từ chối. Không hợp lệ: " + string.Join(", ", notRejected),
+                    SubmitTime = DateTime.Now
+                };
+            }
 
-            var response = await _gatewayClient.SubmitCostDataAsync(request);
-
-            return new SubmitResultDto
+            // Was a fake payload `<resubmit><count>N</count></resubmit>` sent to the gateway and
+            // reported as success. Now: export the REAL XML of exactly these claims as a batch, then
+            // submit that batch through the normal (duplicate-guarded) submit path.
+            var from = claims.Min(c => c.ServiceDate);
+            var to = claims.Max(c => c.ServiceDate);
+            var export = await ExportXmlAsync(new XmlExportConfigDto
             {
-                Success = response.Status != 3,
-                TransactionId = response.TransactionId,
-                Message = response.Message ?? $"Da gui lai {claims.Count} ho so",
-                SubmitTime = DateTime.Now
-            };
+                Month = from.Month,
+                Year = from.Year,
+                FromDate = from.Date,
+                ToDate = to.Date, // date-only → exclusive next-day bound in GetClaimsForExport
+                MaLkList = claims.Select(c => c.ClaimCode).ToList(),
+                ValidateBeforeExport = true,
+            });
+            if (export.BatchId == Guid.Empty)
+            {
+                return new SubmitResultDto
+                {
+                    Success = false,
+                    Message = "Không tạo được file XML để gửi lại: "
+                              + string.Join("; ", export.Errors.Select(e => $"{e.MaLk} {e.ErrorMessage}".Trim()).Take(10)),
+                    SubmitTime = DateTime.Now
+                };
+            }
+
+            var result = await SubmitToInsurancePortalAsync(new SubmitToInsurancePortalDto { BatchId = export.BatchId });
+            if (result.Success)
+            {
+                var now = DateTime.Now;
+                foreach (var c in claims)
+                {
+                    c.ClaimStatus = InsuranceClaimStatus.Locked; // re-submitted → locked until BHXH answers
+                    c.SubmittedAt = now;
+                }
+                await _context.SaveChangesAsync();
+            }
+            return result;
         }
         catch (Exception ex)
         {
@@ -509,6 +547,18 @@ public partial class InsuranceXmlService
     {
         var claim = await _context.InsuranceClaims.FirstOrDefaultAsync(c => c.ClaimCode == maLk);
         if (claim == null) return false;
+
+        // Only a claim BHXH rejected can be processed here. "Fix and resubmit" used to reset an
+        // approved/paid claim to Pending, and "accept rejection" marked an approved claim rejected.
+        if (claim.ClaimStatus != InsuranceClaimStatus.PartiallyRejected && claim.ClaimStatus != InsuranceClaimStatus.FullyRejected)
+            throw new InvalidOperationException(
+                $"Hồ sơ ở trạng thái \"{InsuranceClaimStatus.Label(claim.ClaimStatus)}\", không phải hồ sơ bị từ chối.");
+        if (dto.Action == 3) // Appeal: was a silent no-op returning true
+            throw new NotSupportedException("Khiếu nại kết quả giám định chưa được hỗ trợ trên hệ thống.");
+        if (dto.Action != 1 && dto.Action != 2)
+            throw new ArgumentException("Action phải là 1 (sửa và gửi lại) hoặc 2 (chấp nhận từ chối).", nameof(dto));
+        if (dto.Action == 1 && dto.UpdateData == null)
+            throw new ArgumentException("Thiếu dữ liệu sửa (UpdateData) cho hồ sơ gửi lại.", nameof(dto));
 
         if (dto.Action == 2) // Accept rejection
         {

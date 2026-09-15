@@ -239,7 +239,9 @@ public class BhxhGatewayMockClient : IBhxhGatewayClient
             AcceptedRecords = acceptedRecords,
             RejectedRecords = rejectedRecords,
             Items = items,
-            Message = "Giam dinh hoan tat"
+            // Fabricated 50-record result: label it, like SubmitCostDataAsync, so the feedback screen
+            // is not read as a real BHXH assessment.
+            Message = "[MOCK] Ket qua giam dinh GIA LAP (BhxhGateway:UseMock=true — khong phai ket qua that cua BHXH)"
         };
     }
 

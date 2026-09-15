@@ -44,6 +44,11 @@ public class HealthExchangeServiceImpl : IHealthExchangeService
 
     public async Task<HIEConnectionConfigDto> SaveConnectionConfigAsync(HIEConnectionConfigDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.ConnectionName) || string.IsNullOrWhiteSpace(dto.ConnectionType))
+            throw new ArgumentException("Tên và loại kết nối là bắt buộc");
+        // SyncAll issues an HTTP GET to this URL — accept only absolute http(s) endpoints.
+        if (!Uri.TryCreate(dto.Endpoint, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            throw new ArgumentException("Endpoint phải là URL http(s) hợp lệ");
         var entity = dto.Id != Guid.Empty ? await _context.HIEConnections.FindAsync(dto.Id) : null;
         if (entity == null)
         {
@@ -53,9 +58,10 @@ public class HealthExchangeServiceImpl : IHealthExchangeService
         entity.ConnectionName = dto.ConnectionName;
         entity.ConnectionType = dto.ConnectionType;
         entity.EndpointUrl = dto.Endpoint;
-        entity.AuthType = dto.AuthMethod;
-        entity.ClientId = dto.ClientId;
-        entity.CertificatePath = dto.CertificatePath;
+        entity.AuthType = string.IsNullOrWhiteSpace(dto.AuthMethod) ? entity.AuthType : dto.AuthMethod;
+        // Partial updates (activate/deactivate, v2 edit form) do not carry these — keep the stored values.
+        entity.ClientId = dto.ClientId ?? entity.ClientId;
+        entity.CertificatePath = dto.CertificatePath ?? entity.CertificatePath;
         entity.IsActive = dto.IsActive;
         await _context.SaveChangesAsync();
         dto.Id = entity.Id;
@@ -223,6 +229,20 @@ public class HealthExchangeServiceImpl : IHealthExchangeService
 
     public async Task<ElectronicReferralDto> CreateReferralAsync(CreateElectronicReferralDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.DestinationFacilityCode))
+            throw new ArgumentException("Cơ sở tiếp nhận là bắt buộc", nameof(dto.DestinationFacilityCode));
+        if (string.IsNullOrWhiteSpace(dto.PrimaryDiagnosis))
+            throw new ArgumentException("Chẩn đoán là bắt buộc", nameof(dto.PrimaryDiagnosis));
+        if (string.IsNullOrWhiteSpace(dto.ReasonForReferral))
+            throw new ArgumentException("Lý do chuyển viện là bắt buộc", nameof(dto.ReasonForReferral));
+        // Unknown patient → FK violation (500).
+        if (!await _context.Patients.AnyAsync(p => p.Id == dto.PatientId && !p.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy người bệnh");
+        // Duplicate referral: same patient to the same facility while one is still open.
+        if (await _context.ElectronicReferrals.AnyAsync(r => !r.IsDeleted && r.PatientId == dto.PatientId
+                && r.ToFacilityCode == dto.DestinationFacilityCode && (r.Status == "Draft" || r.Status == "Sent" || r.Status == "Received")))
+            throw new InvalidOperationException("Người bệnh đã có phiếu chuyển viện tới cơ sở này đang xử lý.");
+
         var entity = new ElectronicReferral
         {
             Id = Guid.NewGuid(),
@@ -252,6 +272,8 @@ public class HealthExchangeServiceImpl : IHealthExchangeService
     {
         var e = await _context.ElectronicReferrals.FindAsync(id);
         if (e == null) return null!;
+        if (e.Status != "Draft")
+            throw new InvalidOperationException($"Phiếu chuyển viện đang ở trạng thái \"{e.Status}\", không gửi lại được.");
         e.Status = "Sent";
         e.SentAt = DateTime.Now;
         await _context.SaveChangesAsync();
@@ -301,6 +323,7 @@ public class HealthExchangeServiceImpl : IHealthExchangeService
             Urgency = e.Urgency,
             Status = e.Status,
             ScheduledTime = e.ScheduledDateTime,
+            VideoRoomUrl = e.SessionUrl,
             CreatedAt = e.CreatedAt
         }).ToList();
     }
@@ -334,6 +357,13 @@ public class HealthExchangeServiceImpl : IHealthExchangeService
 
     public async Task<TeleconsultationRequestDto> CreateTeleconsultationAsync(CreateTeleconsultationDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.ConsultingFacilityCode))
+            throw new ArgumentException("Cơ sở hội chẩn là bắt buộc", nameof(dto.ConsultingFacilityCode));
+        if (!await _context.Patients.AnyAsync(p => p.Id == dto.PatientId && !p.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy người bệnh");
+        if (dto.PreferredTime.HasValue && dto.PreferredTime.Value.Date < DateTime.Today)
+            throw new ArgumentException("Thời gian mong muốn không được ở quá khứ", nameof(dto.PreferredTime));
+
         var entity = new TeleconsultationRequest
         {
             Id = Guid.NewGuid(),
@@ -347,7 +377,7 @@ public class HealthExchangeServiceImpl : IHealthExchangeService
             ConsultingSpecialty = dto.ConsultingSpecialty,
             CaseDescription = dto.PatientHistory ?? "",
             Diagnosis = dto.PrimaryDiagnosis,
-            ConsultationQuestion = dto.ClinicalQuestion,
+            ConsultationQuestion = dto.ClinicalQuestion ?? "",
             Urgency = dto.Urgency ?? "Routine",
             Status = "Requested",
             ScheduledDateTime = dto.PreferredTime,

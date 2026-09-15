@@ -93,6 +93,24 @@ public static class BhytCardNumber
     public static string CoreOf(string normalized) =>
         normalized.Length >= CoreLength ? normalized.Substring(0, CoreLength) : normalized;
 
+    /// <summary>
+    /// Statutory benefit level (muc huong, %) encoded in the 3rd character of the card
+    /// (Luat BHYT art. 22, QD 1351/QD-BHXH): 1, 2, 5 → 100 · 3 → 95 · 4 → 80. Null when the card
+    /// is too short or the level digit is unknown. Route (dung/trai tuyen) is NOT applied here.
+    /// </summary>
+    public static int? BenefitPercentOf(string? raw)
+    {
+        var card = Normalize(raw);
+        if (card.Length < 3) return null;
+        return card[2] switch
+        {
+            '1' or '2' or '5' => 100,
+            '3' => 95,
+            '4' => 80,
+            _ => null
+        };
+    }
+
     /// <summary>The 5-digit ma CSKCB appended by a 20-character scan, or null for a plain card.</summary>
     public static string? FacilityCodeOf(string normalized) =>
         normalized.Length >= ScannedLength ? normalized.Substring(CoreLength, 5) : null;

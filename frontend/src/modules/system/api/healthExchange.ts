@@ -635,11 +635,19 @@ export const getConnections = (status?: number) =>
 export const getConnection = (id: string) =>
   apiClient.get<HIEConnectionDto>(`${BASE_URL}/connections/${id}`);
 
+// BE HIEConnectionConfigDto: { connectionName, connectionType, endpoint, authMethod } (authType was not bound).
+const toBeConnection = (dto: CreateConnectionDto) => ({
+  connectionName: dto.connectionName,
+  connectionType: dto.connectionType,
+  endpoint: dto.endpoint,
+  authMethod: dto.authType,
+});
+
 export const createConnection = (dto: CreateConnectionDto) =>
-  apiClient.post<HIEConnectionDto>(`${BASE_URL}/connections`, dto);
+  apiClient.post<HIEConnectionDto>(`${BASE_URL}/connections`, toBeConnection(dto));
 
 export const updateConnection = (id: string, dto: CreateConnectionDto) =>
-  apiClient.put<HIEConnectionDto>(`${BASE_URL}/connections/${id}`, dto);
+  apiClient.put<HIEConnectionDto>(`${BASE_URL}/connections/${id}`, toBeConnection(dto));
 
 export const testConnection = (id: string) =>
   apiClient.post<ConnectionTestResultDto>(`${BASE_URL}/connections/${id}/test`);
@@ -654,20 +662,86 @@ export const deactivateConnection = (id: string) =>
 
 // #region Insurance
 
+// BE HIEController returns InsuranceXMLSubmissionDto (xmlType/fromDate/toDate/recordCount/totalAmount,
+// status as a STRING). The page reads InsuranceSubmissionDto (numeric status 1..6) — adapt here so the
+// page stays unchanged. Routes: GET insurance/submissions · POST insurance/xml/generate (query params) ·
+// POST insurance/xml/{id}/submit. The old generate-xml / submit routes did not exist (404).
+interface HieXmlSubmissionRaw {
+  id: string; submissionCode?: string; xmlType?: string;
+  fromDate?: string; toDate?: string; submissionDate?: string; generatedAt?: string;
+  recordCount?: number; totalAmount?: number; insuranceClaimAmount?: number;
+  status?: string; bhxhTransactionId?: string; isValid?: boolean; errorCount?: number; warningCount?: number;
+  errors?: { recordId?: string; patientName?: string; fieldName?: string; errorCode?: string; errorMessage?: string; severity?: string }[];
+  approvedAmount?: number; rejectedAmount?: number;
+}
+const HIE_STATUS: Record<string, [number, string]> = {
+  draft: [1, 'Nháp'], generated: [1, 'Đã tạo XML'], validated: [2, 'Đã kiểm tra'], submitted: [3, 'Đã gửi'],
+  accepted: [4, 'BHXH chấp nhận'], partiallyaccepted: [5, 'Từ chối một phần'], rejected: [6, 'Bị từ chối'],
+};
+const HIE_STATUS_BY_NUM: Record<number, string> = { 1: 'Draft', 2: 'Validated', 3: 'Submitted', 4: 'Accepted', 5: 'PartiallyAccepted', 6: 'Rejected' };
+const realDate = (d?: string) => (d && !d.startsWith('0001-') ? d : '');
+const mapHieSubmission = (r: HieXmlSubmissionRaw): InsuranceSubmissionDto => {
+  const [status, statusName] = HIE_STATUS[(r.status || '').toLowerCase()] ?? [1, r.status || ''];
+  return {
+    id: r.id,
+    submissionCode: r.submissionCode || '',
+    submissionType: r.xmlType || '',
+    submissionTypeName: r.xmlType ? `XML ${r.xmlType}` : '',
+    periodFrom: realDate(r.fromDate).slice(0, 10),
+    periodTo: realDate(r.toDate).slice(0, 10),
+    totalRecords: r.recordCount ?? 0,
+    totalClaimAmount: r.insuranceClaimAmount || r.totalAmount || 0,
+    submittedBy: '',
+    submittedByName: '',
+    submittedAt: status >= 3 ? realDate(r.submissionDate) : '',
+    validRecords: Math.max(0, (r.recordCount ?? 0) - (r.errorCount ?? 0)),
+    invalidRecords: r.errorCount ?? 0,
+    warningRecords: r.warningCount ?? 0,
+    validationErrors: (r.errors ?? []).map((e) => ({
+      recordId: e.recordId || '', patientName: e.patientName, field: e.fieldName || '',
+      errorCode: e.errorCode || '', errorMessage: e.errorMessage || '', severity: e.severity || 'Error',
+    })),
+    bhxhTransactionId: r.bhxhTransactionId,
+    bhxhApprovedAmount: r.approvedAmount,
+    bhxhRejectedAmount: r.rejectedAmount,
+    status,
+    statusName,
+    createdAt: realDate(r.generatedAt),
+  };
+};
+
 export const getInsuranceSubmissions = (status?: number, fromDate?: string, toDate?: string) =>
-  apiClient.get<InsuranceSubmissionDto[]>(`${BASE_URL}/insurance/submissions`, { params: { status, fromDate, toDate } });
+  apiClient.get<HieXmlSubmissionRaw[]>(`${BASE_URL}/insurance/submissions`, {
+    params: { status: status != null ? HIE_STATUS_BY_NUM[status] : undefined, fromDate, toDate },
+  }).then((r) => ({ ...r, data: (Array.isArray(r.data) ? r.data : []).map(mapHieSubmission) }));
 
 export const getInsuranceSubmission = (id: string) =>
   apiClient.get<InsuranceSubmissionDto>(`${BASE_URL}/insurance/submissions/${id}`);
 
 export const generateXML = (dto: GenerateXMLDto) =>
-  apiClient.post<XMLGenerationResultDto>(`${BASE_URL}/insurance/generate-xml`, dto);
+  apiClient.post<HieXmlSubmissionRaw>(`${BASE_URL}/insurance/xml/generate`, null, {
+    params: { xmlType: dto.xmlType, fromDate: dto.periodFrom, toDate: dto.periodTo, departmentId: dto.departmentId },
+  }).then((r) => {
+    const s = mapHieSubmission(r.data);
+    const data: XMLGenerationResultDto = {
+      success: !!r.data?.id,
+      submissionId: s.id,
+      xmlType: s.submissionType,
+      totalRecords: s.totalRecords,
+      totalAmount: r.data?.totalAmount ?? 0,
+      validRecords: s.validRecords,
+      invalidRecords: s.invalidRecords,
+      validationErrors: s.validationErrors,
+    };
+    return { ...r, data };
+  });
 
 export const validateSubmission = (submissionId: string) =>
   apiClient.post<InsuranceSubmissionDto>(`${BASE_URL}/insurance/submissions/${submissionId}/validate`);
 
 export const submitToInsurance = (dto: SubmitToInsuranceDto) =>
-  apiClient.post<InsuranceSubmissionDto>(`${BASE_URL}/insurance/submit`, dto);
+  apiClient.post<HieXmlSubmissionRaw>(`${BASE_URL}/insurance/xml/${dto.submissionId}/submit`)
+    .then((r) => ({ ...r, data: mapHieSubmission(r.data) }));
 
 export const checkInsuranceStatus = (submissionId: string) =>
   apiClient.get<InsuranceSubmissionDto>(`${BASE_URL}/insurance/submissions/${submissionId}/check-status`);
@@ -704,14 +778,59 @@ export const getPatientExternalRecords = (patientId: string, connectionId: strin
 
 // #region Referrals
 
-export const getReferrals = (referralType?: string, status?: number, fromDate?: string, toDate?: string) =>
-  apiClient.get<ElectronicReferralDto[]>(`${BASE_URL}/referrals`, { params: { referralType, status, fromDate, toDate } });
+// BE ElectronicReferralDto: string status (Draft/Sent/Received/Accepted/Declined/Completed), primaryDiagnosis,
+// diagnosisICD, treatmentProvided — the table rendered blank columns and the "Gửi" action (status === 1) never showed.
+const REFERRAL_STATUS: Record<string, number> = { Draft: 1, Sent: 2, Received: 3, Accepted: 4, Declined: 5, Rejected: 5, Completed: 6 };
+const REFERRAL_STATUS_NAME: Record<number, string> = { 1: 'Nháp', 2: 'Đã gửi', 3: 'Đã nhận', 4: 'Chấp nhận', 5: 'Từ chối', 6: 'Hoàn tất' };
+type BeReferral = Partial<ElectronicReferralDto> & {
+  status?: number | string; primaryDiagnosis?: string; diagnosisICD?: string; treatmentProvided?: string;
+  referringDoctor?: string; referralDate?: string;
+};
+const mapReferral = (r: BeReferral): ElectronicReferralDto => {
+  const status = typeof r.status === 'number' ? r.status : (REFERRAL_STATUS[r.status ?? ''] ?? 1);
+  return {
+    ...(r as ElectronicReferralDto),
+    referralType: r.referralType ?? 'Outbound',
+    diagnosis: r.diagnosis ?? r.primaryDiagnosis ?? '',
+    diagnosisIcd: r.diagnosisIcd ?? r.diagnosisICD ?? '',
+    treatmentHistory: r.treatmentHistory ?? r.treatmentProvided,
+    sourceDoctorName: r.sourceDoctorName ?? r.referringDoctor ?? '',
+    urgency: r.urgency ?? 1,
+    status,
+    statusName: REFERRAL_STATUS_NAME[status] ?? String(r.status ?? ''),
+    createdAt: r.createdAt ?? r.referralDate ?? '',
+    attachments: r.attachments ?? [],
+  };
+};
+
+export const getReferrals = async (referralType?: string, status?: number, fromDate?: string, toDate?: string) => {
+  const res = await apiClient.get<BeReferral[]>(`${BASE_URL}/referrals`, { params: { referralType, status, fromDate, toDate } });
+  return { ...res, data: (Array.isArray(res.data) ? res.data : []).map(mapReferral) };
+};
 
 export const getReferral = (id: string) =>
   apiClient.get<ElectronicReferralDto>(`${BASE_URL}/referrals/${id}`);
 
-export const createReferral = (dto: CreateReferralDto) =>
-  apiClient.post<ElectronicReferralDto>(`${BASE_URL}/referrals`, dto);
+// BE CreateElectronicReferralDto names: primaryDiagnosis / diagnosisICD / treatmentProvided. Fields with no BE
+// column (medications, allergies, special instructions) are kept in the clinical summary instead of being dropped.
+export const createReferral = (dto: CreateReferralDto) => {
+  const summary = [
+    dto.clinicalSummary,
+    dto.currentMedications ? `Thuốc đang dùng: ${dto.currentMedications}` : '',
+    dto.allergies ? `Dị ứng: ${dto.allergies}` : '',
+    dto.specialInstructions ? `Chỉ dẫn: ${dto.specialInstructions}` : '',
+  ].filter(Boolean).join('\n');
+  return apiClient.post<ElectronicReferralDto>(`${BASE_URL}/referrals`, {
+    patientId: dto.patientId,
+    destinationFacilityCode: dto.destinationFacilityCode,
+    destinationDepartment: dto.destinationDepartment,
+    primaryDiagnosis: dto.diagnosis,
+    diagnosisICD: dto.diagnosisIcd || undefined,
+    reasonForReferral: dto.reasonForReferral,
+    clinicalSummary: summary || undefined,
+    treatmentProvided: dto.treatmentHistory,
+  });
+};
 
 export const sendReferral = (referralId: string) =>
   apiClient.post<ElectronicReferralDto>(`${BASE_URL}/referrals/${referralId}/send`);
@@ -740,14 +859,55 @@ export const printReferralLetter = (referralId: string) =>
 
 // #region Teleconsultation
 
-export const getTeleconsultRequests = (status?: number, fromDate?: string, toDate?: string) =>
-  apiClient.get<TeleconsultationRequestDto[]>(`${BASE_URL}/teleconsults`, { params: { status, fromDate, toDate } });
+// BE TeleconsultationRequestDto: string status (Requested/Scheduled/InProgress/Completed/Cancelled), string urgency,
+// scheduledTime (DateTime), requestingDoctor.
+const TC_STATUS: Record<string, number> = { Requested: 1, Pending: 1, Scheduled: 2, InProgress: 3, Completed: 4, Cancelled: 5 };
+const TC_STATUS_NAME: Record<number, string> = { 1: 'Chờ phản hồi', 2: 'Đã lên lịch', 3: 'Đang hội chẩn', 4: 'Hoàn tất', 5: 'Đã hủy' };
+const TC_URGENCY: Record<string, number> = { Routine: 1, Urgent: 2, Emergency: 3 };
+type BeTeleconsult = Partial<TeleconsultationRequestDto> & {
+  status?: number | string; urgency?: number | string; scheduledTime?: string; requestingDoctor?: string;
+};
+const mapTeleconsult = (t: BeTeleconsult): TeleconsultationRequestDto => {
+  const status = typeof t.status === 'number' ? t.status : (TC_STATUS[t.status ?? ''] ?? 1);
+  const sched = t.scheduledTime && t.scheduledTime.length > 10 ? t.scheduledTime : undefined;
+  return {
+    ...(t as TeleconsultationRequestDto),
+    requestingDoctorName: t.requestingDoctorName ?? t.requestingDoctor ?? '',
+    urgency: typeof t.urgency === 'number' ? t.urgency : (TC_URGENCY[t.urgency ?? ''] ?? 1),
+    scheduledDate: t.scheduledDate ?? sched?.slice(0, 10),
+    scheduledTime: sched ? sched.slice(11, 16) : t.scheduledTime,
+    status,
+    statusName: TC_STATUS_NAME[status] ?? String(t.status ?? ''),
+    attachments: t.attachments ?? [],
+  };
+};
+
+export const getTeleconsultRequests = async (status?: number, fromDate?: string, toDate?: string) => {
+  const res = await apiClient.get<BeTeleconsult[]>(`${BASE_URL}/teleconsults`, { params: { status, fromDate, toDate } });
+  return { ...res, data: (Array.isArray(res.data) ? res.data : []).map(mapTeleconsult) };
+};
 
 export const getTeleconsultRequest = (id: string) =>
   apiClient.get<TeleconsultationRequestDto>(`${BASE_URL}/teleconsults/${id}`);
 
-export const createTeleconsultRequest = (dto: CreateTeleconsultRequestDto) =>
-  apiClient.post<TeleconsultationRequestDto>(`${BASE_URL}/teleconsults`, dto);
+// BE route is POST /HIE/teleconsultation (POST /teleconsults was 405) with CreateTeleconsultationDto names.
+export const createTeleconsultRequest = (dto: CreateTeleconsultRequestDto) => {
+  const urgency = ({ 1: 'Routine', 2: 'Urgent', 3: 'Emergency' } as Record<number, string>)[dto.urgency] ?? 'Routine';
+  const history = [dto.chiefComplaint ? `Lý do: ${dto.chiefComplaint}` : '', dto.relevantHistory].filter(Boolean).join('\n');
+  const preferredTime = dto.preferredDate ? `${dto.preferredDate}T${dto.preferredTime || '08:00'}:00` : undefined;
+  return apiClient.post<TeleconsultationRequestDto>(`${BASE_URL}/teleconsultation`, {
+    patientId: dto.patientId,
+    consultingFacilityCode: dto.consultingFacilityCode,
+    consultingSpecialty: dto.consultingSpecialty,
+    urgency,
+    consultationType: dto.requestType,
+    primaryDiagnosis: dto.chiefComplaint || undefined,
+    clinicalQuestion: dto.clinicalQuestion,
+    patientHistory: history || undefined,
+    currentTreatment: dto.currentFindings || undefined,
+    preferredTime,
+  });
+};
 
 export const respondToTeleconsult = (dto: RespondToTeleconsultDto) =>
   apiClient.post<TeleconsultationRequestDto>(`${BASE_URL}/teleconsults/respond`, dto);
@@ -781,8 +941,12 @@ export const reportNotifiableDisease = (dto: NotifiableDiseaseReportDto) =>
 
 // #region Dashboard
 
-export const getDashboard = () =>
-  apiClient.get<HIEDashboardDto>(`${BASE_URL}/dashboard`);
+// BE HIEDashboardDto has pendingReferrals (no outboundReferralsPending) — map the field the page reads.
+export const getDashboard = async () => {
+  const res = await apiClient.get<HIEDashboardDto & { pendingReferrals?: number }>(`${BASE_URL}/dashboard`);
+  const d = res.data;
+  return { ...res, data: d ? { ...d, outboundReferralsPending: d.outboundReferralsPending ?? d.pendingReferrals } as HIEDashboardDto : d };
+};
 
 /** Sync tất cả HIE connection đang active — ping endpoint, cập nhật trạng thái kết nối. */
 export const syncAll = () =>

@@ -12,7 +12,9 @@ public class VerifyCardRequest
 {
     public string InsuranceNumber { get; set; } = string.Empty;
     public string PatientName { get; set; } = string.Empty;
-    public DateTime DateOfBirth { get; set; }
+    // Optional on the v2 card-lookup form, which sends "" when no DOB is picked → a non-nullable
+    // DateTime made every lookup without DOB a 400 "The request field is required".
+    public DateTime? DateOfBirth { get; set; }
 }
 
 public class UnlockRequest

@@ -145,7 +145,11 @@ public class BhytFullCoverageService : IBhytFullCoverageService
 
     public async Task<bool> IsFullCoverageActiveAsync(Guid patientId, DateTime? asOf = null)
     {
-        var today = (asOf ?? DateTime.UtcNow).Date;
+        // Effective dates are local (VN) calendar dates. Comparing against the UTC date made a coverage
+        // starting today inactive until 07:00 and one that ended yesterday still active until 07:00.
+        var at = asOf ?? DateTime.Now;
+        if (at.Kind == DateTimeKind.Utc) at = at.ToLocalTime();
+        var today = at.Date;
         return await _db.BhytFullCoveragePatients
             .AnyAsync(x =>
                 x.PatientId == patientId

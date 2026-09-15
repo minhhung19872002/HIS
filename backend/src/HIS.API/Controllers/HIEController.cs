@@ -40,6 +40,43 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<HIEConnectionDto>> TestConnection(Guid id)
             => Ok(await _service.TestConnectionAsync(id));
 
+        // Connection CRUD for the v2 page (POST/PUT/activate/deactivate were 405/404). Backed by the existing
+        // SaveConnectionConfigAsync (HIEConnections table).
+        [HttpPost("connections")]
+        public async Task<ActionResult<HIEConnectionConfigDto>> CreateConnection([FromBody] HIEConnectionConfigDto dto)
+        {
+            dto.Id = Guid.Empty;
+            dto.IsActive = true;
+            return Ok(await _service.SaveConnectionConfigAsync(dto));
+        }
+
+        [HttpPut("connections/{id}")]
+        public async Task<ActionResult<HIEConnectionConfigDto>> UpdateConnection(Guid id, [FromBody] HIEConnectionConfigDto dto)
+        {
+            var existing = (await _service.GetConnectionsAsync()).FirstOrDefault(c => c.Id == id);
+            if (existing == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy kết nối" });
+            dto.Id = id;
+            dto.IsActive = existing.IsActive; // the edit form does not carry the active flag
+            return Ok(await _service.SaveConnectionConfigAsync(dto));
+        }
+
+        [HttpPost("connections/{id}/activate")]
+        public Task<ActionResult<HIEConnectionConfigDto>> ActivateConnection(Guid id) => SetConnectionActive(id, true);
+
+        [HttpPost("connections/{id}/deactivate")]
+        public Task<ActionResult<HIEConnectionConfigDto>> DeactivateConnection(Guid id) => SetConnectionActive(id, false);
+
+        private async Task<ActionResult<HIEConnectionConfigDto>> SetConnectionActive(Guid id, bool active)
+        {
+            var c = (await _service.GetConnectionsAsync()).FirstOrDefault(x => x.Id == id);
+            if (c == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy kết nối" });
+            return Ok(await _service.SaveConnectionConfigAsync(new HIEConnectionConfigDto
+            {
+                Id = id, ConnectionName = c.ConnectionName, ConnectionType = c.ConnectionType,
+                Endpoint = c.Endpoint, AuthMethod = c.AuthMethod, IsActive = active,
+            }));
+        }
+
         [HttpGet("insurance/lookup")]
         public async Task<ActionResult<InsuranceCardLookupResultDto>> LookupInsuranceCard([FromQuery] string cardNumber)
             => Ok(await _service.LookupInsuranceCardAsync(cardNumber));
@@ -99,6 +136,14 @@ namespace HIS.API.Controllers
         [HttpPost("referrals")]
         public async Task<ActionResult<ElectronicReferralDto>> CreateReferral([FromBody] CreateElectronicReferralDto dto)
             => Ok(await _service.CreateReferralAsync(dto));
+
+        // Service method existed without a route (v2 "Gửi" → 404).
+        [HttpPost("referrals/{id}/send")]
+        public async Task<ActionResult<ElectronicReferralDto>> SendReferral(Guid id)
+        {
+            var r = await _service.SendReferralAsync(id);
+            return r == null ? NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy phiếu chuyển viện" }) : Ok(r);
+        }
 
         [HttpGet("teleconsultation")]
         public async Task<ActionResult<List<TeleconsultationRequestDto>>> GetTeleconsultations([FromQuery] string status = null)

@@ -85,7 +85,11 @@ public class Cv365XmlService : ICv365XmlService
             Async = true
         };
 
-        using var writer = XmlWriter.Create(sb, settings);
+        // QA-R2: XmlWriter over a bare StringBuilder ignores settings.Encoding and declares
+        // encoding="utf-16", but the controller ships UTF-8 bytes (no BOM) → strict XML parsers at the
+        // receiving facility reject the file. A StringWriter reporting UTF-8 makes the declaration match.
+        using var stringWriter = new Utf8StringWriter(sb);
+        using var writer = XmlWriter.Create(stringWriter, settings);
         await writer.WriteStartDocumentAsync();
 
         writer.WriteStartElement("HSBA", Cv365Ns);
@@ -364,6 +368,12 @@ public class Cv365XmlService : ICv365XmlService
         {
             p?.Address, p?.WardName, p?.DistrictName, p?.ProvinceName
         }.Where(s => !string.IsNullOrWhiteSpace(s)));
+
+    private sealed class Utf8StringWriter : StringWriter
+    {
+        public Utf8StringWriter(StringBuilder sb) : base(sb, CultureInfo.InvariantCulture) { }
+        public override Encoding Encoding => new UTF8Encoding(false);
+    }
 
     private static string GenderName(int g) => g switch
     {

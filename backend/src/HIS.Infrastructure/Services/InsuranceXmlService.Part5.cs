@@ -45,9 +45,16 @@ public partial class InsuranceXmlService
         };
     }
 
-    /// <summary>Facility code from BhxhGateway config; legacy placeholder only when not configured.</summary>
-    private string ReportFacilityCode() =>
-        !string.IsNullOrWhiteSpace(_gatewayOptions.FacilityCode) ? _gatewayOptions.FacilityCode : "01001";
+    /// <summary>
+    /// Facility code in force (the "Cấu hình BHXH" screen first, appsettings second — same source as the
+    /// XML export); legacy placeholder only when not configured. Was appsettings only, so a code saved
+    /// in the admin screen printed on the XML but not on the C79/80 reports.
+    /// </summary>
+    private async Task<string> ReportFacilityCodeAsync()
+    {
+        var code = await ResolveFacilityCodeAsync();
+        return !string.IsNullOrWhiteSpace(code) ? code : "01001";
+    }
 
     /// <summary>
     /// Claims of the period with their settled BHYT amount (quyết toán). Settled = requested minus
@@ -116,7 +123,7 @@ public partial class InsuranceXmlService
 
         return new ReportC79aDto
         {
-            MaCsKcb = ReportFacilityCode(),
+            MaCsKcb = await ReportFacilityCodeAsync(),
             TenCsKcb = "Benh vien Da khoa",
             Month = month,
             Year = year,
@@ -152,7 +159,7 @@ public partial class InsuranceXmlService
 
         return new Report80aDto
         {
-            MaCsKcb = ReportFacilityCode(),
+            MaCsKcb = await ReportFacilityCodeAsync(),
             TenCsKcb = "Benh vien Da khoa",
             Month = month,
             Year = year,
@@ -742,7 +749,7 @@ public partial class InsuranceXmlService
 
         return new ReportC79bDto
         {
-            MaCsKcb = ReportFacilityCode(),
+            MaCsKcb = await ReportFacilityCodeAsync(),
             TenCsKcb = "Benh vien Da khoa",
             Month = month,
             Year = year,

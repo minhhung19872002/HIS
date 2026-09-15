@@ -57,7 +57,7 @@ public partial class InsuranceXmlController : ControllerBase
         var result = await _insuranceService.VerifyInsuranceCardAsync(
             request.InsuranceNumber,
             request.PatientName,
-            request.DateOfBirth);
+            request.DateOfBirth ?? default);
         return Ok(result);
     }
 

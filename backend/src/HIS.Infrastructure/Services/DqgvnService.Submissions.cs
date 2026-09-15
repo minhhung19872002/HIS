@@ -18,7 +18,7 @@ public partial class DqgvnService
         if (patient == null)
             return new DqgvnSubmitResult { Success = false, ErrorMessage = "Khong tim thay benh nhan" };
 
-        var config = GetConfig();
+        var config = await LoadConfigAsync();
         Guid? sourceEntityId = null;
 
         var payload = new Dictionary<string, object?>
@@ -142,7 +142,7 @@ public partial class DqgvnService
         if (labRequest == null)
             return new DqgvnSubmitResult { Success = false, ErrorMessage = "Khong tim thay phieu xet nghiem" };
 
-        var config = GetConfig();
+        var config = await LoadConfigAsync();
 
         // Chỉ số con per-parameter (R1) — gom 1 query, group in-memory
         var detailIds = labRequest.Details.Select(d => d.Id).ToList();

@@ -8,6 +8,7 @@ using HIS.Application.DTOs;
 using HIS.Application.DTOs.Insurance;
 using HIS.Application.Services;
 using HIS.Core.Common;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Configuration;
 using HIS.Infrastructure.Data;
@@ -17,6 +18,10 @@ namespace HIS.Infrastructure.Services;
 
 public partial class InsuranceXmlService
 {
+    /// <summary>ICD-10 code: letter + 2 digits, optional "." + 1-4 alphanumerics (e.g. I10, K29.7, S72.00).</summary>
+    private static readonly System.Text.RegularExpressions.Regex IcdCodePattern =
+        new(@"^[A-Z][0-9]{2}(\.?[0-9A-Z]{1,4})?$", System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
     public async Task<XmlExportPreviewDto> PreviewExportAsync(XmlExportConfigDto config)
     {
         _logger.LogInformation("Generating export preview for {Month}/{Year}", config.Month, config.Year);
@@ -393,10 +398,45 @@ public partial class InsuranceXmlService
         }
         else
         {
+            // QA-R2 review: the format/validity rules below are WARNINGS for now — as blocking errors one legacy claim
+            // (old card format / free-text ICD) aborted the whole monthly export and every resubmit. Promote after a
+            // prod dry-run of POST insurance-xml/validate shows existing claims pass.
             if (string.IsNullOrEmpty(claim.InsuranceNumber))
                 errors.Add(new InsuranceValidationError { ErrorCode = "MISSING_INSURANCE", Field = "InsuranceNumber", Message = "Missing insurance number", TableName = "XML1" });
+            else if (!BhytCardNumber.TryValidate(claim.InsuranceNumber, out _, out var cardError))
+                warnings.Add(new InsuranceValidationWarning { WarningCode = "INVALID_CARD", Field = "InsuranceNumber", Message = $"Số thẻ BHYT không hợp lệ: {cardError}" });
+
             if (string.IsNullOrEmpty(claim.MainDiagnosisCode))
                 warnings.Add(new InsuranceValidationWarning { WarningCode = "MISSING_DIAG", Field = "MainDiagnosisCode", Message = "Missing main diagnosis code" });
+            else if (!IcdCodePattern.IsMatch(claim.MainDiagnosisCode.Trim()))
+                warnings.Add(new InsuranceValidationWarning { WarningCode = "INVALID_ICD", Field = "MainDiagnosisCode", Message = $"Mã bệnh chính '{claim.MainDiagnosisCode}' không đúng định dạng ICD-10" });
+
+            // Card validity vs visit date: BHXH rejects a visit outside GT_THE_TU..GT_THE_DEN.
+            // Previously nothing checked it and missing dates were exported as 0001-01-01.
+            if (claim.InsuranceStartDate == null || claim.InsuranceEndDate == null)
+                warnings.Add(new InsuranceValidationWarning { WarningCode = "MISSING_CARD_DATES", Field = "InsuranceStartDate", Message = "Thiếu hạn thẻ BHYT (GT_THE_TU/GT_THE_DEN)" });
+            else if (claim.ServiceDate.Date < claim.InsuranceStartDate.Value.Date || claim.ServiceDate.Date > claim.InsuranceEndDate.Value.Date)
+                warnings.Add(new InsuranceValidationWarning
+                {
+                    WarningCode = "CARD_EXPIRED_AT_VISIT",
+                    Field = "InsuranceEndDate",
+                    Message = $"Ngày khám {claim.ServiceDate:dd/MM/yyyy} ngoài hạn thẻ {claim.InsuranceStartDate:dd/MM/yyyy} - {claim.InsuranceEndDate:dd/MM/yyyy}"
+                });
+
+            if (claim.DischargeDate.HasValue && claim.DischargeDate.Value < claim.ServiceDate)
+                warnings.Add(new InsuranceValidationWarning { WarningCode = "DISCHARGE_BEFORE_ADMISSION", Field = "DischargeDate", Message = "Ngày ra trước ngày vào" });
+
+            // Same patient, same treatment type, same day in another live claim → likely duplicate.
+            var dayStart = claim.ServiceDate.Date;
+            var dayEnd = dayStart.AddDays(1);
+            var duplicate = await _context.InsuranceClaims.AsNoTracking()
+                .Where(c => c.Id != claim.Id && c.PatientId == claim.PatientId && c.TreatmentType == claim.TreatmentType
+                            && c.ServiceDate >= dayStart && c.ServiceDate < dayEnd
+                            && c.ClaimStatus != InsuranceClaimStatus.FullyRejected)
+                .Select(c => c.ClaimCode)
+                .FirstOrDefaultAsync();
+            if (duplicate != null)
+                warnings.Add(new InsuranceValidationWarning { WarningCode = "POSSIBLE_DUPLICATE", Field = "MaLk", Message = $"Trùng hồ sơ {duplicate} (cùng BN, cùng ngày, cùng loại KCB)" });
         }
 
         return new InsuranceValidationResultDto

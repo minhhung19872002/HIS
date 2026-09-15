@@ -33,8 +33,8 @@ namespace HIS.Application.DTOs.HealthExchange
         public string ConnectionType { get; set; }
         public string Endpoint { get; set; }
         public string AuthMethod { get; set; }
-        public string ClientId { get; set; }
-        public string CertificatePath { get; set; }
+        public string? ClientId { get; set; }
+        public string? CertificatePath { get; set; }
         public int TimeoutSeconds { get; set; }
         public int RetryAttempts { get; set; }
         public bool EnableLogging { get; set; }
@@ -330,19 +330,21 @@ namespace HIS.Application.DTOs.HealthExchange
     /// </summary>
     public class CreateElectronicReferralDto
     {
+        // Nullable: implicit [Required] (Nullable enable) made every v2 create a 400 ("AttachmentIds field is required").
+        // Required fields are validated in the service.
         public Guid PatientId { get; set; }
         public Guid? AdmissionId { get; set; }
-        public string DestinationFacilityCode { get; set; }
-        public string DestinationDepartment { get; set; }
-        public string PrimaryDiagnosis { get; set; }
-        public string DiagnosisICD { get; set; }
-        public string ClinicalSummary { get; set; }
-        public string TreatmentProvided { get; set; }
-        public string ReasonForReferral { get; set; }
-        public string RequestedService { get; set; }
-        public string TransportType { get; set; }
+        public string? DestinationFacilityCode { get; set; }
+        public string? DestinationDepartment { get; set; }
+        public string? PrimaryDiagnosis { get; set; }
+        public string? DiagnosisICD { get; set; }
+        public string? ClinicalSummary { get; set; }
+        public string? TreatmentProvided { get; set; }
+        public string? ReasonForReferral { get; set; }
+        public string? RequestedService { get; set; }
+        public string? TransportType { get; set; }
         public bool RequiresEscort { get; set; }
-        public List<Guid> AttachmentIds { get; set; }
+        public List<Guid>? AttachmentIds { get; set; }
     }
 
     #endregion
@@ -408,18 +410,19 @@ namespace HIS.Application.DTOs.HealthExchange
     /// </summary>
     public class CreateTeleconsultationDto
     {
+        // Nullable: implicit [Required] made every v2 teleconsult request a 400 ("The Urgency field is required").
         public Guid PatientId { get; set; }
-        public string ConsultingFacilityCode { get; set; }
-        public string ConsultingSpecialty { get; set; }
-        public string Urgency { get; set; }
-        public string ConsultationType { get; set; }
-        public string PrimaryDiagnosis { get; set; }
-        public string ClinicalQuestion { get; set; }
-        public string PatientHistory { get; set; }
-        public string CurrentTreatment { get; set; }
-        public string SessionType { get; set; }
+        public string? ConsultingFacilityCode { get; set; }
+        public string? ConsultingSpecialty { get; set; }
+        public string? Urgency { get; set; }
+        public string? ConsultationType { get; set; }
+        public string? PrimaryDiagnosis { get; set; }
+        public string? ClinicalQuestion { get; set; }
+        public string? PatientHistory { get; set; }
+        public string? CurrentTreatment { get; set; }
+        public string? SessionType { get; set; }
         public DateTime? PreferredTime { get; set; }
-        public List<Guid> AttachmentIds { get; set; }
+        public List<Guid>? AttachmentIds { get; set; }
     }
 
     #endregion

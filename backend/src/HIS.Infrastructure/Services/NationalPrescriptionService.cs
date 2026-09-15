@@ -8,19 +8,27 @@ namespace HIS.Infrastructure.Services;
 public class NationalPrescriptionService : INationalPrescriptionService
 {
     private readonly HISDbContext _db;
+    private readonly INationalPrescriptionGatewayClient _gatewayClient;
 
-    public NationalPrescriptionService(HISDbContext db)
+    public NationalPrescriptionService(HISDbContext db, INationalPrescriptionGatewayClient gatewayClient)
     {
         _db = db;
+        _gatewayClient = gatewayClient;
     }
 
-    public async Task<NationalPrescriptionPagedResult> SearchAsync(NationalPrescriptionSearchDto search)
+    public Task<NationalPrescriptionPagedResult> SearchAsync(NationalPrescriptionSearchDto search)
+        => SearchCoreAsync(search, null);
+
+    private async Task<NationalPrescriptionPagedResult> SearchCoreAsync(NationalPrescriptionSearchDto search, Guid? onlyId)
     {
         var query = _db.Prescriptions
             .Include(p => p.Details).ThenInclude(d => d.Medicine)
             .Include(p => p.MedicalRecord).ThenInclude(mr => mr.Patient)
             .Include(p => p.Doctor)
             .AsNoTracking();
+
+        if (onlyId.HasValue)
+            query = query.Where(p => p.Id == onlyId.Value);
 
         // #218/T3: màn hình này là Cổng ĐTQG nên bộ lọc trạng thái phải soi trạng thái GỬI,
         // không phải trạng thái duyệt/cấp phát thuốc. Đơn chưa gửi có NationalPortalStatus NULL.
@@ -99,8 +107,9 @@ public class NationalPrescriptionService : INationalPrescriptionService
 
     public async Task<NationalPrescriptionDto?> GetByIdAsync(Guid id)
     {
-        var result = await SearchAsync(new NationalPrescriptionSearchDto { PageIndex = 0, PageSize = int.MaxValue });
-        return result.Items.FirstOrDefault(i => i.Id == id);
+        // Was: project EVERY prescription in the database (PageSize = int.MaxValue) then pick one in memory.
+        var result = await SearchCoreAsync(new NationalPrescriptionSearchDto { PageIndex = 0, PageSize = 1 }, id);
+        return result.Items.FirstOrDefault();
     }
 
     /// <summary>
@@ -226,14 +235,23 @@ public class NationalPrescriptionService : INationalPrescriptionService
         };
     }
 
-    public Task<object> TestConnectionAsync()
+    public async Task<object> TestConnectionAsync()
     {
-        return Task.FromResult<object>(new
+        // Was hard-coded `connected = true` with a Random() latency — the screen always reported a
+        // healthy connection. Now pings the configured national prescription gateway client.
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        bool connected;
+        try { connected = await _gatewayClient.PingAsync(); }
+        catch { connected = false; }
+        sw.Stop();
+        return new
         {
-            connected = true,
-            message = "Kết nối Cổng đơn thuốc quốc gia thành công",
-            latencyMs = new Random().Next(50, 200)
-        });
+            connected,
+            message = connected
+                ? "Kết nối Cổng đơn thuốc quốc gia thành công"
+                : "Không kết nối được Cổng đơn thuốc quốc gia",
+            latencyMs = (int)sw.ElapsedMilliseconds
+        };
     }
 
     public async Task<object> RetrySubmissionAsync(Guid id, string userId)

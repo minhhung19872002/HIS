@@ -580,7 +580,7 @@ export interface PagedResult<T> {
 
 // #region 12.1 Tra cứu và xác minh thẻ BHYT
 
-export const verifyInsuranceCard = (data: { insuranceNumber: string; patientName: string; dateOfBirth: string }) =>
+export const verifyInsuranceCard = (data: { insuranceNumber: string; patientName: string; dateOfBirth?: string }) =>
   request.post<InsuranceCardVerificationDto>('/insurance/verify-card', data);
 
 export const getInsuranceHistory = (insuranceNumber: string) =>

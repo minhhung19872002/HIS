@@ -388,7 +388,13 @@ public partial class InsuranceXmlService : IInsuranceXmlService
     {
         var claim = await _context.InsuranceClaims.FirstOrDefaultAsync(c => c.ClaimCode == maLk);
         if (claim == null) return false;
-        claim.ClaimStatus = 1; // Locked/Approved
+        // Only a claim whose content is still editable can be locked. Locking an approved/paid claim
+        // used to overwrite its status with 1, and the unlock below then turned it into a deletable
+        // Pending claim — a settled claim could be wiped in two clicks.
+        if (claim.ClaimStatus == InsuranceClaimStatus.Locked)
+            throw new InvalidOperationException("Hồ sơ đã khóa.");
+        InsuranceClaimStatus.EnsureEditable(claim.ClaimStatus);
+        claim.ClaimStatus = InsuranceClaimStatus.Locked;
         await _context.SaveChangesAsync();
         return true;
     }
@@ -397,7 +403,12 @@ public partial class InsuranceXmlService : IInsuranceXmlService
     {
         var claim = await _context.InsuranceClaims.FirstOrDefaultAsync(c => c.ClaimCode == maLk);
         if (claim == null) return false;
-        claim.ClaimStatus = 0; // Back to pending
+        // Unlock is only the inverse of lock. It used to reset ANY status to Pending, including
+        // approved, rejected and paid claims (losing the BHXH result and making them deletable).
+        if (claim.ClaimStatus != InsuranceClaimStatus.Locked)
+            throw new InvalidOperationException(
+                $"Hồ sơ ở trạng thái \"{InsuranceClaimStatus.Label(claim.ClaimStatus)}\", không phải \"Đã khóa\" — không mở khóa được.");
+        claim.ClaimStatus = InsuranceClaimStatus.Pending;
         claim.Note = reason;
         await _context.SaveChangesAsync();
         return true;

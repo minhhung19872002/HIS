@@ -331,16 +331,10 @@ public class InsuranceClaimSummaryDto
     public decimal CoPayAmount { get; set; }
     public decimal PatientAmount { get; set; }
 
-    public int Status { get; set; } // 0-Chờ duyệt, 1-Đã duyệt, 2-Đã gửi BHXH, 3-Đã thanh toán, 4-Từ chối
-    public string StatusName => Status switch
-    {
-        0 => "Chờ duyệt",
-        1 => "Đã duyệt",
-        2 => "Đã gửi BHXH",
-        3 => "Đã thanh toán",
-        4 => "Từ chối",
-        _ => ""
-    };
+    public int Status { get; set; } // InsuranceClaimStatus: 0-Chờ, 1-Đã khóa, 2-Đã duyệt, 3-Từ chối một phần, 4-Từ chối toàn bộ, 5-Đã thanh toán
+    // Was a private label table that disagreed with InsuranceClaimStatus (3 PartiallyRejected shown
+    // as "Đã thanh toán", 1 Locked as "Đã duyệt", 5 Paid as "").
+    public string StatusName => HIS.Core.Constants.InsuranceClaimStatus.Label(Status);
 
     public string? RejectReason { get; set; }
     public DateTime? SubmitDate { get; set; }

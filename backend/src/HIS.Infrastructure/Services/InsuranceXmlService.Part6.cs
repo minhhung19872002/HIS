@@ -67,7 +67,7 @@ public partial class InsuranceXmlService
 
         return new ReportC80bDto
         {
-            MaCsKcb = ReportFacilityCode(),
+            MaCsKcb = await ReportFacilityCodeAsync(),
             TenCsKcb = "Benh vien Da khoa",
             Month = month,
             Year = year,
@@ -542,20 +542,24 @@ public partial class InsuranceXmlService
 
     public async Task<InsurancePortalConfigDto> GetPortalConfigAsync()
     {
+        // Was a hard-coded object (TestMode=true, empty user) unrelated to the settings actually used
+        // by the gateway. Now reflects the resolved runtime settings (never the password).
+        var s = await _gatewaySettings.GetAsync();
         return new InsurancePortalConfigDto
         {
-            PortalUrl = "https://gdbhyt.baohiemxahoi.gov.vn",
-            Username = "",
+            PortalUrl = string.IsNullOrWhiteSpace(s.BaseUrl) ? "https://gdbhyt.baohiemxahoi.gov.vn" : s.BaseUrl,
+            Username = s.Username ?? "",
             CertificatePath = "",
-            TimeoutSeconds = 60,
-            TestMode = true
+            TimeoutSeconds = s.TimeoutSeconds,
+            TestMode = s.UseMock
         };
     }
 
-    public async Task<InsurancePortalConfigDto> UpdatePortalConfigAsync(InsurancePortalConfigDto config)
-    {
-        return config;
-    }
+    public Task<InsurancePortalConfigDto> UpdatePortalConfigAsync(InsurancePortalConfigDto config)
+        // Was `return config;` — reported "saved" while persisting nothing. The single place that
+        // persists the BHXH portal settings is the "Cấu hình BHXH" screen (POST /api/bhxh-config).
+        => throw new InvalidOperationException(
+            "Cấu hình cổng BHXH được lưu tại màn hình \"Cấu hình BHXH\" (/api/bhxh-config); endpoint này không lưu dữ liệu.");
 
     public async Task<PortalConnectionTestResult> TestPortalConnectionAsync()
     {
@@ -590,9 +594,11 @@ public partial class InsuranceXmlService
 
     public async Task<FacilityInfoDto> GetFacilityInfoAsync()
     {
+        // MaCsKcb was hard-coded "01001" regardless of the configured facility code.
+        var facilityCode = await ResolveFacilityCodeAsync();
         return new FacilityInfoDto
         {
-            MaCsKcb = "01001",
+            MaCsKcb = string.IsNullOrWhiteSpace(facilityCode) ? "01001" : facilityCode,
             TenCsKcb = "Benh vien Da khoa",
             DiaChi = "",
             MaTinh = "01",
@@ -602,10 +608,11 @@ public partial class InsuranceXmlService
         };
     }
 
-    public async Task<FacilityInfoDto> UpdateFacilityInfoAsync(FacilityInfoDto dto)
-    {
-        return dto;
-    }
+    public Task<FacilityInfoDto> UpdateFacilityInfoAsync(FacilityInfoDto dto)
+        // Was `return dto;` — a silent no-op reported as saved. Facility code is persisted via
+        // the "Cấu hình BHXH" screen (BHXH.MaCSKCB).
+        => throw new InvalidOperationException(
+            "Mã cơ sở KCB được lưu tại màn hình \"Cấu hình BHXH\" (/api/bhxh-config); endpoint này không lưu dữ liệu.");
 
 
 }
