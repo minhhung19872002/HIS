@@ -72,9 +72,13 @@ public partial class PharmacyController
     {
         try
         {
-            if (!await _pharmacyService.ApproveTransferAsync(transferId))
+            if (!await _pharmacyService.ApproveTransferAsync(transferId, CurrentUserId()))
                 return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy phiếu điều chuyển" });
             return Ok(new { id = transferId.ToString(), status = "approved" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = "INVALID_STATE", message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -92,6 +96,10 @@ public partial class PharmacyController
                 return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy phiếu điều chuyển" });
             return Ok(new { id = transferId.ToString(), status = "rejected" });
         }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = "INVALID_STATE", message = ex.Message });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error rejecting transfer {Id}", transferId);
@@ -104,9 +112,18 @@ public partial class PharmacyController
     {
         try
         {
-            if (!await _pharmacyService.ReceiveTransferAsync(transferId))
+            if (!await _pharmacyService.ReceiveTransferAsync(transferId, CurrentUserId()))
                 return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy phiếu điều chuyển" });
             return Ok(new { id = transferId.ToString(), status = "received" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Wrong state, insufficient / expired / locked stock in the source warehouse → 400, rolled back.
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
         catch (Exception ex)
         {

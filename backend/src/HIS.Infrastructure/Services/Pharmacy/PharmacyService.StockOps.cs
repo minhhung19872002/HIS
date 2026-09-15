@@ -21,7 +21,9 @@ public partial class PharmacyService
         var expiryQuery = _context.ExpiryAlerts
             .AsNoTracking()
             .Include(a => a.Medicine)
-            .Where(a => !a.IsDeleted);
+            // QA-R2: resolved (2) / ignored (3) alerts stayed in the "Đã xác nhận" tab forever, so the
+            // "Giải quyết" button looked like a no-op. The list is the work queue → open alerts only.
+            .Where(a => !a.IsDeleted && a.Status < 2);
 
         if (acknowledged.HasValue)
             expiryQuery = acknowledged.Value
@@ -52,7 +54,7 @@ public partial class PharmacyService
         var lowStockQuery = _context.LowStockAlerts
             .AsNoTracking()
             .Include(a => a.Medicine)
-            .Where(a => !a.IsDeleted);
+            .Where(a => !a.IsDeleted && a.Status < 3); // 3 = Resolved
 
         if (acknowledged.HasValue)
             lowStockQuery = acknowledged.Value
@@ -153,7 +155,11 @@ public partial class PharmacyService
         if (!string.IsNullOrEmpty(warehouseId) && Guid.TryParse(warehouseId, out var wId))
             query = query.Where(i => i.WarehouseId == wId);
 
-        var items = await query.Take(500).ToListAsync();
+        // QA-R2: was `.Take(500)` on LOT rows with no ordering, before grouping — with 1567 lots the tab
+        // showed ~500 of 1550 medicine×warehouse rows (a searched medicine looked "not in stock", the
+        // transfer picker missed 2/3 of the source warehouse) and a medicine whose lots straddled the cut
+        // showed a partial Tồn kho. Load every lot (stock rows only) so totals are complete.
+        var items = await query.ToListAsync();
 
         if (!items.Any())
             return Array.Empty<object>();
@@ -278,7 +284,9 @@ public partial class PharmacyService
             Id = Guid.NewGuid(),
             RecordType = 1,
             RecordDate = DateTime.TryParse(onsetDate, out var parsedOnset) ? parsedOnset : DateTime.UtcNow,
-            Description = description ?? reactionType,
+            // QA-R2: was `description ?? reactionType` — entering both dropped the reaction itself.
+            Description = string.Join(" — ", new[] { reactionType, description }
+                .Where(s => !string.IsNullOrWhiteSpace(s))) is { Length: > 0 } joined ? joined : null,
             MedicineName = medicationName,
             ActionTaken = outcome,
             RecordedById = userId,
@@ -556,14 +564,19 @@ public partial class PharmacyService
         return (transfer.Id, transfer.TransferCode);
     }
 
-    public async Task<bool> ApproveTransferAsync(Guid transferId)
+    public async Task<bool> ApproveTransferAsync(Guid transferId, Guid userId)
     {
         var transfer = await _context.WarehouseTransfers
             .FirstOrDefaultAsync(t => t.Id == transferId && !t.IsDeleted);
         if (transfer == null) return false;
 
+        // QA-R2: no state check before — a received/rejected transfer could be approved again.
+        if (transfer.Status != 0)
+            throw new InvalidOperationException("Chỉ duyệt được phiếu điều chuyển đang chờ duyệt.");
+
         transfer.Status = 1;
         transfer.ApprovedAt = DateTime.UtcNow;
+        transfer.ApprovedBy = userId == Guid.Empty ? null : userId;
         transfer.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         return true;
@@ -575,6 +588,10 @@ public partial class PharmacyService
             .FirstOrDefaultAsync(t => t.Id == transferId && !t.IsDeleted);
         if (transfer == null) return false;
 
+        // QA-R2: rejecting a RECEIVED transfer marked it cancelled while the goods had already moved.
+        if (transfer.Status is 3 or 4)
+            throw new InvalidOperationException("Phiếu điều chuyển đã nhận hoặc đã từ chối — không từ chối được.");
+
         transfer.Status = 4;
         transfer.CancellationReason = reason;
         transfer.UpdatedAt = DateTime.UtcNow;
@@ -582,16 +599,73 @@ public partial class PharmacyService
         return true;
     }
 
-    public async Task<bool> ReceiveTransferAsync(Guid transferId)
+    public async Task<bool> ReceiveTransferAsync(Guid transferId, Guid userId)
     {
-        var transfer = await _context.WarehouseTransfers
-            .FirstOrDefaultAsync(t => t.Id == transferId && !t.IsDeleted);
-        if (transfer == null) return false;
+        var exists = await _context.WarehouseTransfers
+            .AnyAsync(t => t.Id == transferId && !t.IsDeleted);
+        if (!exists) return false;
 
-        transfer.Status = 3;
-        transfer.ReceivedAt = DateTime.UtcNow;
-        transfer.UpdatedAt = DateTime.UtcNow;
-        await _context.SaveChangesAsync();
+        // QA-R2: "Đã nhận" used to only flip Status=3 — no stock left the source warehouse and none
+        // arrived at the destination (measured: KT01 stays 500 after receiving a 7-unit transfer), and
+        // a PENDING transfer could be received. Now: claim approved→received atomically (a double click
+        // cannot move stock twice), then post a real transfer stock issue (FEFO, source −, destination +)
+        // through the standard warehouse path, all in one transaction.
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        var claimed = await _context.WarehouseTransfers
+            .Where(t => t.Id == transferId && !t.IsDeleted && (t.Status == 1 || t.Status == 2))
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(t => t.Status, 3)
+                .SetProperty(t => t.ReceivedAt, DateTime.UtcNow)
+                .SetProperty(t => t.ReceivedBy, userId == Guid.Empty ? (Guid?)null : userId)
+                .SetProperty(t => t.UpdatedAt, DateTime.UtcNow));
+        if (claimed == 0)
+            throw new InvalidOperationException("Chỉ nhận được phiếu điều chuyển đã duyệt (chưa nhận, chưa từ chối).");
+
+        var transfer = await _context.WarehouseTransfers
+            .Include(t => t.Items)
+            .FirstAsync(t => t.Id == transferId);
+        var lines = transfer.Items.Where(i => !i.IsDeleted && i.RequestedQuantity > 0).ToList();
+
+        if (lines.Count > 0)
+        {
+            var items = new List<HIS.Application.DTOs.Warehouse.CreateStockIssueItemDto>();
+            foreach (var line in lines)
+            {
+                // A line pinned to a batch issues from that lot; otherwise FEFO picks lots.
+                Guid? stockId = line.InventoryItemId;
+                if (stockId == null && !string.IsNullOrWhiteSpace(line.BatchNumber))
+                    stockId = await _context.InventoryItems.AsNoTracking()
+                        .Where(i => !i.IsDeleted && i.WarehouseId == transfer.FromWarehouseId
+                            && i.MedicineId == line.MedicineId && i.BatchNumber == line.BatchNumber)
+                        .Select(i => (Guid?)i.Id).FirstOrDefaultAsync();
+                items.Add(new HIS.Application.DTOs.Warehouse.CreateStockIssueItemDto
+                {
+                    ItemId = line.MedicineId,
+                    StockId = stockId,
+                    Quantity = line.RequestedQuantity,
+                });
+            }
+
+            await _warehouseService.CreateTransferIssueAsync(new HIS.Application.DTOs.Warehouse.CreateStockIssueDto
+            {
+                IssueDate = DateTime.Now,
+                WarehouseId = transfer.FromWarehouseId,
+                TargetWarehouseId = transfer.ToWarehouseId,
+                IssueType = 4,
+                Notes = $"[DIEU_CHUYEN:{transfer.TransferCode}] {transfer.Notes}".Trim(),
+                Items = items,
+            }, userId);
+
+            foreach (var line in lines)
+            {
+                line.DeliveredQuantity = line.RequestedQuantity;
+                line.ReceivedQuantity = line.RequestedQuantity;
+                line.UpdatedAt = DateTime.UtcNow;
+            }
+            await _context.SaveChangesAsync();
+        }
+
+        await transaction.CommitAsync();
         return true;
     }
 }

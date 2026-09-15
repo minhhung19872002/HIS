@@ -59,11 +59,11 @@ public partial class AssetManagementService
             CreatedBy = userId,
         };
 
-        // Populate items — if none provided, auto-fill from department assets
+        // Populate items — if none provided, auto-fill from department assets (disposed assets are off the books)
         var itemsToAdd = dto.Items.Count > 0
             ? dto.Items
             : (await _context.FixedAssets
-                .Where(a => !a.IsDeleted && (!dto.DepartmentId.HasValue || a.DepartmentId == dto.DepartmentId))
+                .Where(a => !a.IsDeleted && a.Status != 5 && (!dto.DepartmentId.HasValue || a.DepartmentId == dto.DepartmentId))
                 .Take(500)
                 .Select(a => new CreateAssetStocktakeItemDto { FixedAssetId = a.Id, IsFound = true, ConditionStatus = 1 })
                 .ToListAsync());
@@ -74,6 +74,13 @@ public partial class AssetManagementService
             .Where(a => assetIds.Contains(a.Id))
             .Select(a => new { a.Id, a.AssetCode, a.AssetName, a.SerialNumber, a.LocationDescription })
             .ToDictionaryAsync(a => a.Id);
+        // Unknown asset ids used to hit the FK and return 500.
+        if (assetIds.Distinct().Any(id => !assetMap.ContainsKey(id)))
+            throw new KeyNotFoundException("Có tài sản trong phiếu kiểm kê không tồn tại");
+        if (assetIds.Count != assetIds.Distinct().Count())
+            throw new ArgumentException("Một tài sản bị lặp trong phiếu kiểm kê.");
+        if (itemsToAdd.Any(i => i.ConditionStatus < 1 || i.ConditionStatus > 3))
+            throw new ArgumentException("Tình trạng tài sản không hợp lệ (1-3).");
 
         foreach (var it in itemsToAdd)
         {
@@ -140,6 +147,8 @@ public partial class AssetManagementService
 
         if (stocktake.Status == 4)
             throw new InvalidOperationException("Phiếu đã duyệt, không thể cập nhật");
+        if (dto.ConditionStatus < 1 || dto.ConditionStatus > 3)
+            throw new InvalidOperationException("Tình trạng tài sản không hợp lệ (1-3).");
 
         var item = stocktake.Items.FirstOrDefault(i => i.Id == itemId)
             ?? throw new KeyNotFoundException("Không tìm thấy dòng tài sản trong phiếu");

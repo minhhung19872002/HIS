@@ -29,6 +29,7 @@ import {
   type ColumnDef, type StatusTab, type TopTab,
 } from '@/_v2kit';
 import { RowActions } from '../../../components/actions';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { useTabState } from '../../../hooks/useTabState';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -254,7 +255,7 @@ const ProcurementRequestsV2: React.FC = () => {
       tk('Lưu thành công');
       setEditOpen(false);
       void reload();
-    } catch { te('Lưu thất bại');
+    } catch (e) { te(friendlyErrorMessage(e, 'Lưu thất bại'));
     } finally { setSaving(false); }
   };
 
@@ -271,7 +272,7 @@ const ProcurementRequestsV2: React.FC = () => {
         await submitAssetProcurementRequest(r.id);
         tk('Đã trình duyệt'); void reload();
         if (detail?.id === r.id) setDetail(prev => prev ? { ...prev, status: 1, statusName: 'Chờ xét duyệt' } : prev);
-      } catch { te('Trình duyệt thất bại'); }
+      } catch (e) { te(friendlyErrorMessage(e, 'Trình duyệt thất bại')); }
     });
   };
 
@@ -281,7 +282,7 @@ const ProcurementRequestsV2: React.FC = () => {
         await approveAssetProcurementRequest({ requestId: r.id });
         tk('Đã duyệt'); void reload();
         if (detail?.id === r.id) setDetail(prev => prev ? { ...prev, status: 2, statusName: 'Đã duyệt' } : prev);
-      } catch { te('Duyệt thất bại'); }
+      } catch (e) { te(friendlyErrorMessage(e, 'Duyệt thất bại')); }
     });
   };
 
@@ -311,8 +312,7 @@ const ProcurementRequestsV2: React.FC = () => {
       tk(`Đã cấp phát ${issuePicked.length} tài sản — phiếu bàn giao chờ khoa nhận xác nhận`);
       setIssueTarget(null); setDetail(null); void reload();
     } catch (e) {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      te(msg || 'Cấp phát thất bại');
+      te(friendlyErrorMessage(e, 'Cấp phát thất bại'));
     } finally { setIssueBusy(false); }
   };
 

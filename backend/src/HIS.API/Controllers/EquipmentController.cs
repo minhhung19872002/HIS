@@ -41,7 +41,12 @@ namespace HIS.API.Controllers
 
         [HttpGet("{id:guid}")]
         public async Task<ActionResult<MedicalEquipmentDto>> GetEquipment(Guid id)
-            => Ok(await _service.GetEquipmentAsync(id));
+        {
+            // Unknown id returned 204 (Ok(null)) instead of 404.
+            var result = await _service.GetEquipmentAsync(id);
+            if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy thiết bị." });
+            return Ok(result);
+        }
 
         [HttpPost]
         public async Task<ActionResult<MedicalEquipmentDto>> RegisterEquipment([FromBody] RegisterEquipmentDto dto)

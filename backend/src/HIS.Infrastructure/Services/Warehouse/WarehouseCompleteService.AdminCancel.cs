@@ -577,6 +577,9 @@ public partial class WarehouseCompleteService {
                 MedicalRecordId = medicalRecordId.Value,
                 TotalMedicineAmount = total,
                 TotalAmount = total,
+                // The debt must be collectable: payments check RemainingAmount, which stayed 0 here
+                // ("vuot qua so tien con no (0d)" on every pharmacy invoice).
+                RemainingAmount = total,
                 Status = 0,
                 CreatedAt = DateTime.Now,
                 CreatedBy = userId.ToString()
@@ -587,6 +590,9 @@ public partial class WarehouseCompleteService {
         {
             invoice.TotalMedicineAmount += total;
             invoice.TotalAmount += total;
+            invoice.RemainingAmount = Math.Max(0, invoice.TotalAmount - invoice.DiscountAmount - invoice.PaidAmount);
+            if (invoice.RemainingAmount > 0 && invoice.Status == 1)
+                invoice.Status = 0; // new medicine charge re-opens a fully paid invoice
             invoice.UpdatedAt = DateTime.Now;
         }
 

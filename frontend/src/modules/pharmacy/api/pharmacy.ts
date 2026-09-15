@@ -269,11 +269,29 @@ export const printDrugLabel = (prescriptionId: string) =>
 export const getClinicalReviews = () =>
   apiClient.get(`${BASE_URL}/clinical-reviews`);
 
+// BE (PharmacyController.CreateAdrReport / GetAdrReports) speaks reactionType/onsetDate/patientCode;
+// the page speaks reaction/reportDate/patientId. Normalize here so the reaction is not dropped on save
+// and the "Phản ứng"/"Ngày BC" columns are not blank.
 export const getAdrReports = () =>
-  apiClient.get(`${BASE_URL}/adr-reports`);
+  apiClient.get(`${BASE_URL}/adr-reports`).then((res) => ({
+    ...res,
+    data: Array.isArray(res.data)
+      ? (res.data as Record<string, unknown>[]).map((r) => ({
+          ...r,
+          reaction: r.reaction ?? (r.reactionType || r.description || undefined),
+          reportDate: r.reportDate ?? r.onsetDate,
+        }))
+      : res.data,
+  }));
 
 export const submitAdrReport = (data: Record<string, unknown>) =>
-  apiClient.post(`${BASE_URL}/adr-reports`, data);
+  apiClient.post(`${BASE_URL}/adr-reports`, {
+    ...data,
+    patientCode: data.patientCode ?? data.patientId,
+    reactionType: data.reactionType ?? data.reaction,
+    // BE stores Description = description ?? reactionType — an empty string would drop the reaction.
+    description: data.description || undefined,
+  });
 
 // Default export
 export default {

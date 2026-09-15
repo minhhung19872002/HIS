@@ -579,8 +579,22 @@ export const printEquipmentReport = (id: string) =>
 
 // #region Maintenance
 
+// BE MaintenanceRecord.Status is a string (Scheduled/InProgress/Completed/Overdue); the page reads numbers.
+const MAINT_STATUS_NUM: Record<string, number> = { Scheduled: 1, InProgress: 2, Completed: 3, Overdue: 4, Skipped: 4 };
+const MAINT_STATUS_NAME: Record<number, string> = { 1: 'Đã lên lịch', 2: 'Đang thực hiện', 3: 'Hoàn thành', 4: 'Quá hạn' };
+
 export const getMaintenanceSchedules = (equipmentId?: string, dueWithinDays?: number) =>
-  apiClient.get<MaintenanceScheduleDto[]>(`${BASE_URL}/maintenance/schedules`, { params: { equipmentId, dueWithinDays } });
+  apiClient.get<MaintenanceScheduleDto[]>(`${BASE_URL}/maintenance/schedules`, { params: { equipmentId, dueWithinDays } })
+    .then((res) => ({
+      ...res,
+      data: Array.isArray(res.data)
+        ? res.data.map((m) => {
+          if (typeof m.status === 'number') return m;
+          const status = MAINT_STATUS_NUM[String(m.status ?? '')] ?? 1;
+          return { ...m, status, statusName: m.statusName || MAINT_STATUS_NAME[status] };
+        })
+        : res.data,
+    }));
 
 export const getMaintenanceSchedule = (id: string) =>
   apiClient.get<MaintenanceScheduleDto>(`${BASE_URL}/maintenance/schedules/${id}`);
@@ -650,8 +664,33 @@ export const printCalibrationCertificate = (id: string) =>
 
 // #region Repairs
 
+// BE (RepairRequest entity) uses strings: Priority Low/Normal/High/Urgent, Status Pending/Assigned/InProgress/
+// Completed/Cancelled, and returns `severity` / `requestedAt`. The v2 page reads the numeric fields below, and
+// posting a numeric `priority` into the BE string property failed JSON binding (400) — "Báo hỏng" never worked.
+const REPAIR_PRIORITY_CODE: Record<number, string> = { 1: 'Low', 2: 'Normal', 3: 'High', 4: 'Urgent' };
+const REPAIR_PRIORITY_NUM: Record<string, number> = { Low: 1, Normal: 2, Medium: 2, High: 3, Urgent: 4, Critical: 4 };
+const REPAIR_PRIORITY_NAME: Record<number, string> = { 1: 'Thấp', 2: 'Trung bình', 3: 'Cao', 4: 'Khẩn cấp' };
+const REPAIR_STATUS_NUM: Record<string, number> = { Pending: 1, Assigned: 2, InProgress: 3, Completed: 4, Cancelled: 5 };
+const REPAIR_STATUS_NAME: Record<number, string> = { 1: 'Chờ xử lý', 2: 'Đã phân công', 3: 'Đang sửa', 4: 'Hoàn thành', 5: 'Đã hủy' };
+
+const normalizeRepair = (r: RepairRequestDto): RepairRequestDto => {
+  const raw = r as unknown as Record<string, unknown>;
+  const priority = typeof r.priority === 'number' ? r.priority
+    : REPAIR_PRIORITY_NUM[String(raw.severity ?? raw.priority ?? '')] ?? 2;
+  const status = typeof r.status === 'number' ? r.status : REPAIR_STATUS_NUM[String(raw.status ?? '')] ?? 1;
+  return {
+    ...r,
+    priority,
+    priorityName: r.priorityName || REPAIR_PRIORITY_NAME[priority],
+    status,
+    statusName: r.statusName || REPAIR_STATUS_NAME[status] || String(raw.status ?? ''),
+    requestedDate: r.requestedDate || (raw.requestedAt as string) || (raw.reportedDate as string),
+  };
+};
+
 export const getRepairRequests = (departmentId?: string, status?: number, priority?: number) =>
-  apiClient.get<RepairRequestDto[]>(`${BASE_URL}/repairs`, { params: { departmentId, status, priority } });
+  apiClient.get<RepairRequestDto[]>(`${BASE_URL}/repairs`, { params: { departmentId, status, priority } })
+    .then((res) => ({ ...res, data: Array.isArray(res.data) ? res.data.map(normalizeRepair) : res.data }));
 
 export const getRepairRequest = (id: string) =>
   apiClient.get<RepairRequestDto>(`${BASE_URL}/repairs/${id}`);
@@ -660,7 +699,10 @@ export const getEquipmentRepairHistory = (equipmentId: string) =>
   apiClient.get<RepairRequestDto[]>(`${BASE_URL}/${equipmentId}/repairs`);
 
 export const createRepairRequest = (dto: CreateRepairRequestDto) =>
-  apiClient.post<RepairRequestDto>(`${BASE_URL}/repairs`, dto);
+  apiClient.post<RepairRequestDto>(`${BASE_URL}/repairs`, {
+    ...dto,
+    priority: REPAIR_PRIORITY_CODE[dto.priority] ?? 'Normal',
+  });
 
 export const assignRepair = (dto: AssignRepairDto) =>
   apiClient.post<RepairRequestDto>(`${BASE_URL}/repairs/assign`, dto);

@@ -33,6 +33,13 @@ public partial class WarehouseCompleteService {
         }
     }
 
+    private static void EnsureValidReceiptRates(CreateStockReceiptDto dto)
+    {
+        foreach (var item in dto.Items)
+            if (item.VatRate < 0 || item.VatRate > 100 || item.DiscountRate < 0 || item.DiscountRate > 100)
+                throw new InvalidOperationException("VAT% và chiết khấu% mỗi dòng phải trong khoảng 0–100.");
+    }
+
     public async Task<StockReceiptDto> CreateSupplierReceiptAsync(CreateStockReceiptDto dto, Guid userId)
     {
         var warehouse = await _context.Warehouses.FindAsync(dto.WarehouseId);
@@ -61,7 +68,7 @@ public partial class WarehouseCompleteService {
             CreatedBy = userId.ToString()
         };
 
-        decimal totalAmount = 0;
+        decimal totalAmount = 0, vatTotal = 0, discountTotal = 0;
         var items = new List<StockReceiptItemDto>();
 
         // perf(#195): batch-load medicines used in this receipt instead of FindAsync per item (N+1)
@@ -70,12 +77,17 @@ public partial class WarehouseCompleteService {
             .Where(m => medicineIds.Contains(m.Id))
             .ToDictionaryAsync(m => m.Id);
         EnsureValidReceiptItems(dto, medicinesMap);
+        EnsureValidReceiptRates(dto);
 
         foreach (var item in dto.Items)
         {
             medicinesMap.TryGetValue(item.ItemId, out var medicine);
             var amount = item.Quantity * item.UnitPrice;
             totalAmount += amount;
+            // QA-R2: VAT% / CK% typed on the v2 "Nhập từ NCC" form were silently dropped (Vat = 0,
+            // FinalAmount = qty × price) → supplier payable and "Thực trả" disagreed with the invoice.
+            vatTotal += Math.Round(amount * item.VatRate / 100, 2);
+            discountTotal += Math.Round(amount * item.DiscountRate / 100, 2);
 
             var detail = new ImportReceiptDetail
             {
@@ -89,7 +101,7 @@ public partial class WarehouseCompleteService {
                 Unit = medicine?.Unit,
                 UnitPrice = item.UnitPrice,
                 Amount = amount,
-                Vat = 0,
+                Vat = item.VatRate, // line VAT rate (%); Amount stays pre-tax goods value
                 CreatedAt = DateTime.Now,
                 CreatedBy = userId.ToString()
             };
@@ -110,12 +122,16 @@ public partial class WarehouseCompleteService {
                 ExpiryDate = item.ExpiryDate,
                 Quantity = item.Quantity,
                 UnitPrice = item.UnitPrice,
+                VatRate = item.VatRate,
+                DiscountRate = item.DiscountRate,
                 Amount = amount
             });
         }
 
         importReceipt.TotalAmount = totalAmount;
-        importReceipt.FinalAmount = totalAmount;
+        importReceipt.Vat = vatTotal;
+        importReceipt.Discount = discountTotal;
+        importReceipt.FinalAmount = totalAmount + vatTotal - discountTotal;
         _context.ImportReceipts.Add(importReceipt);
         await _context.SaveChangesAsync();
 
@@ -133,7 +149,9 @@ public partial class WarehouseCompleteService {
             InvoiceDate = dto.InvoiceDate,
             Items = items,
             TotalAmount = totalAmount,
-            FinalAmount = totalAmount,
+            VatAmount = vatTotal,
+            DiscountAmount = discountTotal,
+            FinalAmount = importReceipt.FinalAmount,
             Status = 0,
             CreatedBy = userId,
             CreatedByName = user?.FullName ?? string.Empty,
@@ -660,6 +678,7 @@ public partial class WarehouseCompleteService {
                 ExpiryDate = d.ExpiryDate,
                 Quantity = d.Quantity,
                 UnitPrice = d.UnitPrice,
+                VatRate = d.Vat,
                 Amount = d.Amount
             };
         }).ToList();

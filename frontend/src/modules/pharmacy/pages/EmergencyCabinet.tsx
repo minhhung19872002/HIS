@@ -3,7 +3,7 @@ import { Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import { fmtNum as fmt } from '../../../utils/format';
 import {
-  getWarehouses, getStock, getStockWarnings, createCabinetIssue, getStockIssues,
+  getCabinetWarehouses, getStock, getStockWarnings, createCabinetIssue, getStockIssues,
 } from '../api/warehouse';
 import type { WarehouseDto, StockDto, StockIssueDto, CreateCabinetIssueDto } from '../api/warehouse';
 import { openPrintWindow } from '../../../utils/printWindow';
@@ -72,7 +72,7 @@ const EmergencyCabinetV2: React.FC = () => {
   const loadCabinets = useCallback(async () => {
     setCabLoading(true);
     try {
-      const r = await getWarehouses(4);
+      const r = await getCabinetWarehouses();
       const list: WarehouseDto[] = Array.isArray(r.data) ? r.data : [];
       setCabinets(list);
       // fetch low-stock warnings for all cabinets in parallel

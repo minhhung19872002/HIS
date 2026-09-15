@@ -60,10 +60,29 @@ public partial class AssetManagementService
 
     public async Task<FixedAssetDto> SaveAssetAsync(SaveFixedAssetDto dto, string userId)
     {
+        // Negative cost / useful life, unknown status codes and duplicate asset codes were all accepted.
+        if (dto.OriginalValue < 0 || dto.CurrentValue < 0)
+            throw new ArgumentException("Nguyên giá / giá trị còn lại không được âm.");
+        if (dto.CurrentValue > dto.OriginalValue)
+            throw new ArgumentException("Giá trị còn lại không được lớn hơn nguyên giá.");
+        if (dto.UsefulLifeMonths < 0)
+            throw new ArgumentException("Thời gian khấu hao không được âm.");
+        if (dto.Status < 1 || dto.Status > 6)
+            throw new ArgumentException("Trạng thái tài sản không hợp lệ (1-6).");
+        if (dto.DepreciationMethod != 1 && dto.DepreciationMethod != 2)
+            throw new ArgumentException("Phương pháp khấu hao không hợp lệ.");
+        var isUpdate = dto.Id.HasValue && dto.Id.Value != Guid.Empty;
+        var code = dto.AssetCode?.Trim() ?? string.Empty;
+        if (await _context.FixedAssets.AnyAsync(a => !a.IsDeleted && a.AssetCode == code && (!isUpdate || a.Id != dto.Id!.Value)))
+            throw new InvalidOperationException($"Mã tài sản {code} đã tồn tại.");
+
         FixedAsset entity;
-        if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
+        if (isUpdate)
         {
-            entity = await _context.FixedAssets.FindAsync(dto.Id.Value) ?? throw new KeyNotFoundException("Asset not found");
+            entity = await _context.FixedAssets.FirstOrDefaultAsync(a => a.Id == dto.Id!.Value && !a.IsDeleted) ?? throw new KeyNotFoundException("Asset not found");
+            // Disposed (5) is reached only through the disposal workflow and is final.
+            if (entity.Status == 5 && dto.Status != 5)
+                throw new InvalidOperationException("Tài sản đã thanh lý, không thể đổi trạng thái.");
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }
@@ -72,12 +91,16 @@ public partial class AssetManagementService
             entity = new FixedAsset { Id = Guid.NewGuid(), CreatedAt = DateTime.UtcNow, CreatedBy = userId };
             _context.FixedAssets.Add(entity);
         }
+        if (dto.Status == 5 && entity.Status != 5)
+            throw new InvalidOperationException("Trạng thái Đã thanh lý chỉ được ghi qua phiếu thanh lý.");
 
-        entity.AssetCode = dto.AssetCode;
+        entity.AssetCode = code;
         entity.AssetName = dto.AssetName;
         entity.AssetGroupId = dto.AssetGroupId;
         entity.OriginalValue = dto.OriginalValue;
-        entity.CurrentValue = dto.CurrentValue > 0 ? dto.CurrentValue : dto.OriginalValue;
+        // Blank/0 means "same as original" only for a NEW asset: editing a fully depreciated asset
+        // (CurrentValue 0) used to reset its residual value back to the original cost.
+        entity.CurrentValue = dto.CurrentValue > 0 ? dto.CurrentValue : (isUpdate ? entity.CurrentValue : dto.OriginalValue);
         entity.PurchaseDate = dto.PurchaseDate;
         entity.DepreciationMethod = dto.DepreciationMethod;
         entity.UsefulLifeMonths = dto.UsefulLifeMonths;
@@ -95,6 +118,7 @@ public partial class AssetManagementService
                 entity.MonthlyDepreciation = entity.OriginalValue / entity.UsefulLifeMonths;
             else // Declining balance
                 entity.MonthlyDepreciation = (entity.CurrentValue * 2) / entity.UsefulLifeMonths;
+            entity.MonthlyDepreciation = Math.Round(entity.MonthlyDepreciation, 0, MidpointRounding.AwayFromZero);
         }
 
         await _context.SaveChangesAsync();
@@ -233,10 +257,21 @@ public partial class AssetManagementService
 
     public async Task<AssetHandoverDto> SaveHandoverAsync(SaveHandoverDto dto, string userId)
     {
+        // Unknown asset → FK violation 500; a disposed / pending-disposal asset could be handed over and
+        // its confirmation flipped it back to InUse.
+        var asset = await _context.FixedAssets.FirstOrDefaultAsync(a => a.Id == dto.FixedAssetId && !a.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy tài sản");
+        if (asset.Status == 4 || asset.Status == 5)
+            throw new InvalidOperationException("Tài sản đang chờ thanh lý hoặc đã thanh lý, không thể bàn giao.");
+        if (dto.HandoverType < 1 || dto.HandoverType > 4)
+            throw new ArgumentException("Loại bàn giao không hợp lệ (1-4).");
+
         AssetHandover entity;
         if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
         {
             entity = await _context.AssetHandovers.FindAsync(dto.Id.Value) ?? throw new KeyNotFoundException("Handover not found");
+            if (entity.Status == 2)
+                throw new InvalidOperationException("Phiếu bàn giao đã xác nhận, không thể sửa.");
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }
@@ -250,7 +285,8 @@ public partial class AssetManagementService
         entity.HandoverType = dto.HandoverType;
         entity.FromDepartmentId = dto.FromDepartmentId;
         entity.ToDepartmentId = dto.ToDepartmentId;
-        entity.HandoverDate = dto.HandoverDate;
+        // v2 form may omit the date → it was stored as 0001-01-01.
+        entity.HandoverDate = dto.HandoverDate == default ? DateTime.Now : dto.HandoverDate;
         entity.HandoverById = dto.HandoverById ?? userId;
         entity.ReceivedById = dto.ReceivedById;
         entity.Notes = dto.Notes;
@@ -271,6 +307,11 @@ public partial class AssetManagementService
         var entity = await _context.AssetHandovers.Include(h => h.FixedAsset).FirstOrDefaultAsync(h => h.Id == handoverId)
             ?? throw new KeyNotFoundException("Handover not found");
 
+        if (entity.Status != 1)
+            throw new InvalidOperationException("Phiếu bàn giao đã được xác nhận.");
+        if (entity.FixedAsset != null && (entity.FixedAsset.Status == 4 || entity.FixedAsset.Status == 5))
+            throw new InvalidOperationException("Tài sản đang chờ thanh lý hoặc đã thanh lý, không thể xác nhận bàn giao.");
+
         entity.Status = 2; // Confirmed
         entity.ReceivedById = userId;
         entity.UpdatedAt = DateTime.UtcNow;
@@ -280,7 +321,9 @@ public partial class AssetManagementService
         if (entity.HandoverType == 2 && entity.FixedAsset != null && entity.ToDepartmentId.HasValue)
         {
             entity.FixedAsset.DepartmentId = entity.ToDepartmentId;
-            entity.FixedAsset.Status = 1; // InUse
+            // Only a "Transferred" (6) asset becomes InUse again; Broken/UnderRepair must keep their status.
+            if (entity.FixedAsset.Status == 6)
+                entity.FixedAsset.Status = 1; // InUse
             entity.FixedAsset.UpdatedAt = DateTime.UtcNow;
         }
 

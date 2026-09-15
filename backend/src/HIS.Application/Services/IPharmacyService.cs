@@ -55,9 +55,11 @@ namespace HIS.Application.Services
         /// <summary>Tạo phiếu điều chuyển kho (kèm dòng thuốc nếu có — #436). Trả về (id, transferCode) đã lưu.
         /// Lỗi nghiệp vụ (kho trùng / thuốc không có trong kho gửi / vượt tồn) → InvalidOperationException.</summary>
         Task<(Guid Id, string TransferCode)> CreateTransferAsync(Guid fromWarehouseId, Guid toWarehouseId, string? note, string? requestedBy, IReadOnlyList<TransferItemInput>? items = null);
-        Task<bool> ApproveTransferAsync(Guid transferId);
+        /// <summary>false = not found; wrong state → InvalidOperationException.</summary>
+        Task<bool> ApproveTransferAsync(Guid transferId, Guid userId);
         Task<bool> RejectTransferAsync(Guid transferId, string? reason);
-        Task<bool> ReceiveTransferAsync(Guid transferId);
+        /// <summary>Receiving moves the stock (source −, destination +) via a transfer stock issue.</summary>
+        Task<bool> ReceiveTransferAsync(Guid transferId, Guid userId);
 
         // Medication reconciliation (#438) — READ-ONLY, phase 1 chỉ báo cáo
         /// <summary>Đối chiếu y lệnh thuốc nội trú vs cấp phát thực tế theo ĐỢT ĐIỀU TRỊ

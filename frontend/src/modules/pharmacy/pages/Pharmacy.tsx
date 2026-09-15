@@ -314,7 +314,7 @@ const PharmacyV2: React.FC = () => {
       okText: 'Cấp phát', cancelText: 'Hủy',
       onOk: async () => {
         try { await pharmacyApi.completeDispensing(r.id); message.success('Đã cấp phát'); loadRx(); }
-        catch { message.error('Cấp phát thất bại'); }
+        catch (e) { message.error(friendlyErrorMessage(e, 'Cấp phát thất bại')); }
       },
     });
   };
@@ -415,7 +415,7 @@ const PharmacyV2: React.FC = () => {
     if (rowBusy) return;
     setRowBusy(r.id);
     try { await pharmacyApi.approveTransfer(r.id);  tk(`Đã duyệt · ${r.transferCode}`); loadTr(); }
-    catch { te('Duyệt thất bại'); }
+    catch (e) { te(friendlyErrorMessage(e, 'Duyệt thất bại')); }
     finally { setRowBusy(null); }
   };
   const onRejectTr = async (r: TransferRequest) => {
@@ -429,7 +429,7 @@ const PharmacyV2: React.FC = () => {
     if (rowBusy) return;
     setRowBusy(r.id);
     try { await pharmacyApi.receiveTransfer(r.id); tk(`Đã nhận · ${r.transferCode}`); loadTr(); }
-    catch { te('Nhận hàng thất bại'); }
+    catch (e) { te(friendlyErrorMessage(e, 'Nhận hàng thất bại')); }
     finally { setRowBusy(null); }
   };
 
@@ -924,7 +924,7 @@ const RxDrawerBody: React.FC<{ r: PendingPrescription }> = ({ r }) => {
     try {
       await pharmacyApi.updateDispensedQuantity(it.id, qty);
       message.success(`Đã lưu: ${it.medicationName} → ${qty} ${it.unit}`);
-    } catch { message.error('Lưu số lượng thất bại'); }
+    } catch (e) { message.error(friendlyErrorMessage(e, 'Lưu số lượng thất bại')); }
     finally { setSavingId(null); }
   };
 

@@ -21,7 +21,19 @@ import { RefreshButton } from '../../../components/actions';
 interface WarehouseDto { id: string; warehouseName: string; warehouseCode: string; }
 interface StockDto {
   itemId: string; supplyCode: string; supplyName: string; unit: string;
-  currentStock: number; minStock: number; maxStock: number;
+  currentStock: number; minStock?: number; maxStock?: number; belowMin: boolean;
+}
+/** Raw row of GET /warehouse/stock (paged, one row per LOT — WarehouseComplete StockDto). */
+interface StockLotRow {
+  itemId: string; itemCode: string; itemName: string; unit: string;
+  quantity: number; isBelowMinimum?: boolean;
+}
+/** Raw GET /warehouse/stock-card (WarehouseComplete StockCardDto). */
+interface StockCardRaw {
+  itemName: string; unit: string; warehouseName: string;
+  openingQuantity: number; closingQuantity: number;
+  entries: { transactionDate: string; documentCode: string; transactionType?: string; description?: string;
+    receivedQuantity: number; issuedQuantity: number; balance: number }[];
 }
 interface StockCardEntry {
   date: string; description: string; receiptQty: number; issueQty: number;
@@ -61,10 +73,23 @@ const VppStockCardV2: React.FC = () => {
     if (!selectedWarehouse) return;
     setStockLoading(true);
     try {
-      const { data } = await apiClient.get<StockDto[]>('/warehouse/stock', {
-        params: { warehouseId: selectedWarehouse },
+      // QA-R2: the endpoint returns a PAGED result of LOT rows (itemCode/itemName/quantity), not an
+      // array of {supplyCode, supplyName, currentStock} — `stock.filter` threw as soon as a warehouse
+      // was picked. Read `.items` and sum lots per item.
+      const { data } = await apiClient.get<{ items?: StockLotRow[] } | StockLotRow[]>('/warehouse/stock', {
+        params: { warehouseId: selectedWarehouse, page: 1, pageSize: 5000 },
       });
-      setStock(data || []);
+      const lots = Array.isArray(data) ? data : (data?.items ?? []);
+      const byItem = new Map<string, StockDto>();
+      for (const l of lots) {
+        const cur = byItem.get(l.itemId);
+        if (cur) { cur.currentStock += l.quantity || 0; cur.belowMin = cur.belowMin || !!l.isBelowMinimum; }
+        else byItem.set(l.itemId, {
+          itemId: l.itemId, supplyCode: l.itemCode, supplyName: l.itemName, unit: l.unit,
+          currentStock: l.quantity || 0, belowMin: !!l.isBelowMinimum,
+        });
+      }
+      setStock([...byItem.values()]);
     } catch { tw('Tải tồn kho thất bại'); }
     finally { setStockLoading(false); }
   }, [selectedWarehouse]);
@@ -75,14 +100,27 @@ const VppStockCardV2: React.FC = () => {
     if (!selectedWarehouse) { tw('Chọn kho trước'); return; }
     setCardLoading(true); setCard(null); setCardOpen(true);
     try {
-      const { data } = await apiClient.get<StockCardDto>('/warehouse/stock-card', {
+      const { data } = await apiClient.get<StockCardRaw>('/warehouse/stock-card', {
         params: {
           warehouseId: selectedWarehouse, itemId,
-          fromDate: dateRange[0].toISOString(),
-          toDate: dateRange[1].toISOString(),
+          // Calendar dates, not toISOString(): 01/09 00:00 +07 is 31/08 17:00Z, and a UTC server's
+          // `.Date` then opens the card one day early.
+          fromDate: dateRange[0].format('YYYY-MM-DD'),
+          toDate: dateRange[1].format('YYYY-MM-DD'),
         },
       });
-      setCard(data);
+      // QA-R2: map the BE field names (openingQuantity / receivedQuantity / documentCode…) —
+      // the card showed blank name, NaN opening/closing and empty Nhập/Xuất/Chứng từ columns.
+      setCard({
+        supplyName: data.itemName, unit: data.unit, warehouseName: data.warehouseName,
+        openingBalance: data.openingQuantity, closingBalance: data.closingQuantity,
+        entries: (data.entries ?? []).map((e) => ({
+          date: e.transactionDate,
+          description: e.description || e.transactionType || '',
+          receiptQty: e.receivedQuantity, issueQty: e.issuedQuantity,
+          balance: e.balance, reference: e.documentCode,
+        })),
+      });
     } catch { tw('Tải thẻ kho thất bại'); setCardOpen(false); }
     finally { setCardLoading(false); }
   };
@@ -99,10 +137,10 @@ const VppStockCardV2: React.FC = () => {
     { key: 'name',  label: 'Tên VPP',               render: (r) => r.supplyName },
     { key: 'unit',  label: 'ĐVT',       mono: true, render: (r) => r.unit },
     { key: 'stock', label: 'Tồn kho',   mono: true, render: (r) => {
-      const tone = r.currentStock <= r.minStock ? 'var(--a-rd-text)' : undefined;
+      const tone = r.belowMin ? 'var(--a-rd-text)' : undefined;
       return <strong style={{ color: tone }}>{fmt(r.currentStock)}</strong>;
     } },
-    { key: 'min',   label: 'Tối thiểu', mono: true, render: (r) => fmt(r.minStock) },
+    { key: 'min',   label: 'Tối thiểu', mono: true, render: (r) => (r.minStock != null ? fmt(r.minStock) : '—') },
   ];
 
   const cardCols: ColumnDef<StockCardEntry>[] = [
@@ -120,7 +158,7 @@ const VppStockCardV2: React.FC = () => {
     <div className="ab">
       <KpiStrip items={[
         { lbl: 'Mặt hàng VPP', val: stock.length, sub: 'đang quản lý' },
-        { lbl: 'Dưới mức tối thiểu', val: stock.filter((r) => r.currentStock <= r.minStock).length,
+        { lbl: 'Dưới mức tối thiểu', val: stock.filter((r) => r.belowMin).length,
           sub: 'cần nhập thêm', tone: 'crit' },
         { lbl: 'Kho đang chọn',
           val: warehouses.find((w) => w.id === selectedWarehouse)?.warehouseName || '—',

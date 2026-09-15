@@ -39,7 +39,11 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
             throw new ArgumentException("Tên thiết bị là bắt buộc", nameof(dto.Name));
         if (dto.PurchasePrice is < 0m)
             throw new ArgumentException("Giá mua không hợp lệ", nameof(dto.PurchasePrice));
-        var entity = new MedicalEquipment { Id = Guid.NewGuid(), EquipmentCode = CodeGenerator.Timestamp("EQ"), EquipmentName = name, Category = dto.Category ?? "General", SerialNumber = dto.SerialNumber, Manufacturer = dto.Manufacturer, DepartmentId = dto.DepartmentId, Status = "Active", PurchaseDate = dto.PurchaseDate, CreatedAt = DateTime.Now,
+        // The code typed on the form was discarded (always a generated EQ-timestamp).
+        var code = dto.EquipmentCode?.Trim();
+        if (!string.IsNullOrEmpty(code) && await _context.MedicalEquipments.AnyAsync(x => x.EquipmentCode == code))
+            throw new InvalidOperationException($"Mã thiết bị {code} đã tồn tại");
+        var entity = new MedicalEquipment { Id = Guid.NewGuid(), EquipmentCode = string.IsNullOrEmpty(code) ? CodeGenerator.Timestamp("EQ") : code, EquipmentName = name, Category = dto.Category ?? "General", SerialNumber = dto.SerialNumber, Manufacturer = dto.Manufacturer, DepartmentId = dto.DepartmentId, Status = "Active", PurchaseDate = dto.PurchaseDate, CreatedAt = DateTime.Now,
             // Previously accepted but never persisted.
             Model = dto.Model, RiskClass = dto.RiskClass, CountryOfOrigin = dto.CountryOfOrigin, PurchasePrice = dto.PurchasePrice,
             PurchaseSource = dto.Supplier, WarrantyExpiry = dto.WarrantyEndDate ?? dto.WarrantyExpiry, ExpectedLifeYears = dto.ExpectedLifeYears, Location = dto.RoomNumber };
@@ -190,6 +194,8 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
 
     public async Task<MaintenanceRecordDto> RecordMaintenanceAsync(CreateMaintenanceRecordDto dto)
     {
+        if (dto.PartsCost is < 0m || dto.LaborCost is < 0m)
+            throw new ArgumentException("Chi phí bảo trì không được âm");
         if (!await _context.MedicalEquipments.AnyAsync(x => x.Id == dto.EquipmentId))
             throw new KeyNotFoundException("Không tìm thấy thiết bị");
         var entity = new MaintenanceRecord { Id = Guid.NewGuid(), ScheduleCode = await NextMaintenanceCodeAsync(dto.MaintenanceDate), EquipmentId = dto.EquipmentId, MaintenanceType = dto.MaintenanceType ?? "Corrective", ScheduledDate = dto.MaintenanceDate, PerformedDate = DateTime.Now, Status = "Completed", WorkDescription = dto.Description, PartsReplaced = dto.PartsReplaced, PartsCost = dto.PartsCost, LaborCost = dto.LaborCost, TotalCost = (dto.PartsCost ?? 0) + (dto.LaborCost ?? 0), CreatedAt = DateTime.Now };
@@ -218,19 +224,34 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
     {
         if (dto.NextCalibrationDate.Date <= dto.CalibrationDate.Date)
             throw new ArgumentException("Ngày hiệu chuẩn tiếp theo phải sau ngày hiệu chuẩn", nameof(dto.NextCalibrationDate));
+        // Any value other than the exact "Pass" (e.g. "pass", "Đạt") silently recorded a FAIL.
+        var result = dto.Result?.Trim();
+        if (!string.Equals(result, "Pass", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(result, "Fail", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(result, "Conditional", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("Kết quả hiệu chuẩn phải là Pass, Fail hoặc Conditional", nameof(dto.Result));
         if (!await _context.MedicalEquipments.AnyAsync(x => x.Id == dto.EquipmentId))
             throw new KeyNotFoundException("Không tìm thấy thiết bị");
-        var entity = new CalibrationRecord { Id = Guid.NewGuid(), EquipmentId = dto.EquipmentId, ScheduledDate = dto.CalibrationDate, PerformedDate = dto.CalibrationDate, PerformedBy = dto.CalibratedBy, Status = "Completed", CertificateNumber = dto.CertificateNumber, CalibrationStandard = dto.CalibrationStandard, PassedCalibration = dto.Result == "Pass", CalibrationCost = dto.CalibrationCost, ValidFrom = dto.CalibrationDate, ValidUntil = dto.NextCalibrationDate, NextCalibrationDate = dto.NextCalibrationDate, CreatedAt = DateTime.Now };
+        var entity = new CalibrationRecord { Id = Guid.NewGuid(), EquipmentId = dto.EquipmentId, ScheduledDate = dto.CalibrationDate, PerformedDate = dto.CalibrationDate, PerformedBy = dto.CalibratedBy, Status = "Completed", CertificateNumber = dto.CertificateNumber, CalibrationStandard = dto.CalibrationStandard, PassedCalibration = string.Equals(result, "Pass", StringComparison.OrdinalIgnoreCase), CalibrationCost = dto.CalibrationCost, ValidFrom = dto.CalibrationDate, ValidUntil = dto.NextCalibrationDate, NextCalibrationDate = dto.NextCalibrationDate, CreatedAt = DateTime.Now };
         _context.CalibrationRecords.Add(entity);
         var eq = await _context.MedicalEquipments.FindAsync(dto.EquipmentId);
         if (eq != null)
         {
             eq.LastCalibrationDate = DateTime.Now; eq.NextCalibrationDate = entity.ValidUntil;
-            // A device that FAILED calibration must not stay "Active" (usable on patients).
-            if (!entity.PassedCalibration && eq.Status == "Active")
+            // A device that FAILED calibration must not stay usable on patients. Previously only "Active" was
+            // blocked, so a device "InMaintenance" at that moment went back to Active when its repair completed.
+            if (!entity.PassedCalibration && eq.Status != "Decommissioned")
             {
                 eq.Status = "OutOfService";
                 eq.StatusReason = $"Không đạt hiệu chuẩn ngày {dto.CalibrationDate:dd/MM/yyyy}";
+            }
+            // ...and a later PASS must release that calibration lock (no status endpoint exists, so the device
+            // stayed OutOfService forever). Other OutOfService reasons are left untouched.
+            else if (entity.PassedCalibration && eq.Status == "OutOfService"
+                     && eq.StatusReason != null && eq.StatusReason.StartsWith("Không đạt hiệu chuẩn"))
+            {
+                eq.Status = "Active";
+                eq.StatusReason = null;
             }
         }
         await _context.SaveChangesAsync();
@@ -339,10 +360,20 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
         return new EquipmentReportDto { FromDate = fromDate, ToDate = toDate, MaintenanceEventsTotal = await _context.MaintenanceRecords.CountAsync(x => x.PerformedDate >= fromDate && x.PerformedDate <= toDate), RepairRequests = await _context.RepairRequests.CountAsync(x => x.RequestDate >= fromDate && x.RequestDate <= toDate) };
     }
 
+    // The list/detail DTO dropped every field the v2 page reads (risk class, model, purchase, warranty,
+    // maintenance/calibration dates, numeric status) — risk/status tabs and the calibration tab were always empty.
     private static MedicalEquipmentDto MapToEquipmentDto(MedicalEquipment e) => new()
     {
         Id = e.Id, EquipmentCode = e.EquipmentCode, Name = e.EquipmentName, Category = e.Category, SerialNumber = e.SerialNumber,
-        Manufacturer = e.Manufacturer, DepartmentName = e.Department?.DepartmentName ?? "", Status = e.Status, Location = e.Location
+        Manufacturer = e.Manufacturer, DepartmentName = e.Department?.DepartmentName ?? "", Status = e.Status, Location = e.Location,
+        DepartmentId = e.DepartmentId, Model = e.Model, RiskClass = e.RiskClass, CountryOfOrigin = e.CountryOfOrigin,
+        PurchaseDate = e.PurchaseDate, PurchasePrice = e.PurchasePrice, Supplier = e.PurchaseSource,
+        WarrantyEndDate = e.WarrantyExpiry, WarrantyExpiry = e.WarrantyExpiry,
+        IsUnderWarranty = e.WarrantyExpiry.HasValue && e.WarrantyExpiry.Value.Date >= DateTime.Today,
+        ExpectedLifeYears = e.ExpectedLifeYears,
+        LastMaintenanceDate = e.LastMaintenanceDate, NextMaintenanceDate = e.NextMaintenanceDate,
+        LastCalibrationDate = e.LastCalibrationDate, NextCalibrationDate = e.NextCalibrationDate,
+        StatusReason = e.StatusReason, CreatedAt = e.CreatedAt,
     };
 }
 #endregion

@@ -448,8 +448,13 @@ public partial class SystemCompleteService
     {
         try
         {
+            // QA-R2: `ReceiptDate <= ToDate` (a date at 00:00) dropped every issue of the last day
+            // (measured 1,168 vs 1,688 units for 01–15/09), and cancelled issues (Status 2, stock already
+            // returned) were still counted as issued. Inclusive calendar end + exclude cancelled.
+            var fromDay = request.FromDate.Date;
+            var toExclusive = request.ToDate.Date.AddDays(1);
             var exports = await _context.ExportReceipts.AsNoTracking()
-                .Where(e => e.ReceiptDate >= request.FromDate && e.ReceiptDate <= request.ToDate && !e.IsDeleted)
+                .Where(e => e.ReceiptDate >= fromDay && e.ReceiptDate < toExclusive && e.Status != 2 && !e.IsDeleted)
                 .Include(e => e.Warehouse).Include(e => e.Details).ThenInclude(d => d.Medicine)
                 .ToListAsync();
 

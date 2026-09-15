@@ -823,6 +823,18 @@ export const getDepartmentUsageReport = (warehouseId: string, fromDate: string, 
 export const getWarehouses = (warehouseType?: number) =>
   apiClient.get<WarehouseDto[]>(`${BASE_URL}/warehouses`, { params: { warehouseType } });
 
+/**
+ * Emergency/ward cabinets (tủ trực). HIS.Core `WarehouseType`: 4 = Nhà thuốc bệnh viện, 5 = Tủ trực khoa.
+ * Pages used to ask for type 4 → they listed (and auto-selected) the RETAIL PHARMACY and never the
+ * real ward cabinet, so cabinet issues deducted pharmacy stock. Type 5 first; legacy DBs whose only
+ * cabinets were seeded as type 4 (migration 51) fall back to type 4.
+ */
+export const getCabinetWarehouses = async () => {
+  const r5 = await getWarehouses(5);
+  if (Array.isArray(r5.data) && r5.data.length > 0) return r5;
+  return getWarehouses(4);
+};
+
 export const getWarehouseById = (id: string) =>
   apiClient.get<WarehouseDto>(`${BASE_URL}/warehouses/${id}`);
 

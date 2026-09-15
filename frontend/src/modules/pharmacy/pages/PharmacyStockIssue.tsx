@@ -112,7 +112,9 @@ const fmtDate = (iso?: string | null) =>
 // ─── Resolve receiver display name ───────────────────────────────────────────
 
 function receiverName(r: StockIssueDto): string {
-  return r.departmentName ?? r.targetWarehouseName ?? r.supplierName ?? '—';
+  // BE sends "" (not null) for the unused receiver names → `??` stopped at departmentName and the
+  // "Nơi nhận" column was blank for every transfer / supplier-return issue.
+  return r.departmentName || r.targetWarehouseName || r.supplierName || '—';
 }
 
 // ─── Line-item row state (local — not the DTO shape) ─────────────────────────

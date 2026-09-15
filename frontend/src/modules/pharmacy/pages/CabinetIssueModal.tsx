@@ -153,8 +153,7 @@ export const CabinetIssueModal: React.FC<CabinetIssueModalProps> = ({
 
   const loadCabinets = useCallback(async () => {
     try {
-      // WarehouseType=4 → Tủ trực
-      const res = await wh.getWarehouses(4);
+      const res = await wh.getCabinetWarehouses();
       const list = (res.data as WarehouseDto[]) || [];
       setCabinets(list);
       if (list.length === 1) setCabinetId(list[0].id);
@@ -189,7 +188,8 @@ export const CabinetIssueModal: React.FC<CabinetIssueModalProps> = ({
     setSaving(true);
     try {
       const dto: wh.CreateCabinetIssueDto = {
-        issueDate: dayjs().toISOString(),
+        // Local wall-clock time: toISOString() stored the issue 7h early (a 00:30 issue landed on the previous day).
+        issueDate: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
         warehouseId: cabinetId,
         examinationId: examinationId ?? undefined,
         admissionId: admissionId ?? undefined,
@@ -205,6 +205,11 @@ export const CabinetIssueModal: React.FC<CabinetIssueModalProps> = ({
       const res = await wh.createCabinetIssue(dto);
       const issue = res.data as StockIssueDto;
       setLastIssue(issue);
+      // The modal stays open to print — clear the lines so a second "Xuất kho" click cannot post
+      // the same items again (it did: a second issue + a second stock deduction).
+      setLines([emptyLine()]);
+      setLineLabels({});
+      setNotes('');
       tk(`Đã xuất tủ trực · ${issue.issueCode}`);
       onSaved?.();
     } catch (e) {

@@ -44,7 +44,17 @@ public partial class AssetManagementService
 
     public async Task<AssetDisposalDto> ProposeDisposalAsync(ProposeDisposalDto dto, string userId)
     {
-        var asset = await _context.FixedAssets.FindAsync(dto.FixedAssetId) ?? throw new KeyNotFoundException("Asset not found");
+        var asset = await _context.FixedAssets.FirstOrDefaultAsync(a => a.Id == dto.FixedAssetId && !a.IsDeleted)
+            ?? throw new KeyNotFoundException("Asset not found");
+
+        // A disposed asset was flipped back to PendingDisposal (4) by a second proposal; an asset with an
+        // open proposal got duplicate disposals.
+        if (asset.Status == 5)
+            throw new InvalidOperationException("Tài sản đã thanh lý, không thể đề xuất thanh lý lại.");
+        if (await _context.AssetDisposals.AnyAsync(d => d.FixedAssetId == asset.Id && !d.IsDeleted && (d.Status == 1 || d.Status == 2)))
+            throw new InvalidOperationException("Tài sản đang có phiếu thanh lý chưa hoàn thành.");
+        if (dto.DisposalValue < 0 || dto.ResidualValue < 0)
+            throw new ArgumentException("Giá trị thanh lý / giá trị còn lại không được âm.");
 
         var entity = new AssetDisposal
         {
@@ -80,6 +90,10 @@ public partial class AssetManagementService
         var entity = await _context.AssetDisposals.Include(d => d.FixedAsset).FirstOrDefaultAsync(d => d.Id == disposalId)
             ?? throw new KeyNotFoundException("Disposal not found");
 
+        // Approving a Completed disposal used to move it back to Approved.
+        if (entity.Status != 1)
+            throw new InvalidOperationException("Chỉ duyệt được phiếu thanh lý ở trạng thái Đề xuất.");
+
         entity.Status = 2; // Approved
         entity.ApprovalDate = DateTime.UtcNow;
         entity.ApprovedById = userId;
@@ -104,6 +118,10 @@ public partial class AssetManagementService
     {
         var entity = await _context.AssetDisposals.Include(d => d.FixedAsset).FirstOrDefaultAsync(d => d.Id == disposalId)
             ?? throw new KeyNotFoundException("Disposal not found");
+
+        // A proposal could be completed (asset written off) without ever being approved.
+        if (entity.Status != 2)
+            throw new InvalidOperationException("Chỉ hoàn thành được phiếu thanh lý đã duyệt.");
 
         entity.Status = 3; // Completed
         entity.DisposalDate = DateTime.UtcNow;
@@ -135,9 +153,21 @@ public partial class AssetManagementService
 
     public async Task<int> CalculateMonthlyDepreciationAsync(int month, int year, string userId)
     {
-        // Get all active assets that need depreciation
+        // month=13 / year=0 / a future period were accepted and wrote depreciation rows (reducing asset values).
+        if (month < 1 || month > 12)
+            throw new ArgumentException("Tháng khấu hao phải từ 1 đến 12.", nameof(month));
+        if (year < 2000 || year > 2100)
+            throw new ArgumentException("Năm khấu hao không hợp lệ.", nameof(year));
+        var periodStart = new DateTime(year, month, 1);
+        if (periodStart > DateTime.Today)
+            throw new ArgumentException("Không tính khấu hao cho kỳ tương lai.", nameof(month));
+        var periodEnd = periodStart.AddMonths(1);
+        var periodKey = year * 12 + month;
+
+        // Get all active assets that need depreciation (not purchased after the period)
         var assets = await _context.FixedAssets
-            .Where(a => !a.IsDeleted && a.Status == 1 && a.UsefulLifeMonths > 0 && a.CurrentValue > 0)
+            .Where(a => !a.IsDeleted && a.Status == 1 && a.UsefulLifeMonths > 0 && a.CurrentValue > 0
+                        && a.PurchaseDate < periodEnd)
             .ToListAsync();
 
         // #195: 1 query lấy các tài sản đã tính khấu hao tháng này, thay vì 1 query/tài sản.
@@ -147,18 +177,26 @@ public partial class AssetManagementService
                 .Select(d => d.FixedAssetId)
                 .ToListAsync())
             .ToHashSet();
+        // Running an earlier period after a later one deducted again with a wrong opening value.
+        var laterPeriodCalculated = (await _context.AssetDepreciations
+                .Where(d => assetIds.Contains(d.FixedAssetId) && !d.IsDeleted && (d.Year * 12 + d.Month) > periodKey)
+                .Select(d => d.FixedAssetId)
+                .ToListAsync())
+            .ToHashSet();
 
         var count = 0;
         foreach (var asset in assets)
         {
             // Check if already calculated for this month
-            if (alreadyCalculated.Contains(asset.Id)) continue;
+            if (alreadyCalculated.Contains(asset.Id) || laterPeriodCalculated.Contains(asset.Id)) continue;
 
             decimal depAmount;
             if (asset.DepreciationMethod == 1) // Straight line
                 depAmount = asset.OriginalValue / asset.UsefulLifeMonths;
             else // Declining balance
                 depAmount = (asset.CurrentValue * 2) / asset.UsefulLifeMonths;
+            // VND has no minor unit: round to whole dong (the cap below absorbs the last-month remainder).
+            depAmount = Math.Round(depAmount, 0, MidpointRounding.AwayFromZero);
 
             // Cap at current value
             depAmount = Math.Min(depAmount, asset.CurrentValue);

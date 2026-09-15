@@ -11,6 +11,8 @@ import {
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
+import { catalogApi } from '../../system/api/system/catalog';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { Field } from '../../../components/form/Field';
 import { useModalForm } from '../../../hooks/useModalForm';
 import { useTabState } from '../../../hooks/useTabState';
@@ -27,14 +29,17 @@ const ASSET_FIELDS: CrudFieldCfg[] = [
   { key: 'depreciationMethod', label: 'Phương pháp khấu hao', type: 'select', options: [
     { value: 1, label: 'Đường thẳng' }, { value: 2, label: 'Số dư giảm dần' }] },
   { key: 'locationDescription', label: 'Vị trí' },
+  // Status codes must match FixedAsset.Status on the BE (1=InUse … 6=Transferred). The page used 0-5, so
+  // every in-use asset showed as "Hỏng" and assets created here (status 0) were never depreciated.
+  // "Đã thanh lý" (5) is not offered: it is only reachable through the disposal workflow.
   { key: 'status', label: 'Trạng thái', type: 'select', options: [
-    { value: 0, label: 'Đang dùng' }, { value: 1, label: 'Hỏng' }, { value: 2, label: 'Sửa chữa' },
-    { value: 3, label: 'Chờ thanh lý' }, { value: 4, label: 'Đã thanh lý' }, { value: 5, label: 'Đã chuyển' }] },
+    { value: 1, label: 'Đang dùng' }, { value: 2, label: 'Hỏng' }, { value: 3, label: 'Sửa chữa' },
+    { value: 4, label: 'Chờ thanh lý' }, { value: 6, label: 'Đã chuyển' }] },
   { key: 'notes', label: 'Ghi chú', type: 'textarea' },
 ];
 
 const STATUS_LABEL: Record<number, string> = {
-  0: 'Đang dùng', 1: 'Hỏng', 2: 'Sửa chữa', 3: 'Chờ thanh lý', 4: 'Đã thanh lý', 5: 'Đã chuyển',
+  1: 'Đang dùng', 2: 'Hỏng', 3: 'Sửa chữa', 4: 'Chờ thanh lý', 5: 'Đã thanh lý', 6: 'Đã chuyển',
 };
 
 type SKey = 'inuse' | 'broken' | 'repair' | 'pending' | 'disposed';
@@ -46,8 +51,9 @@ const STATUS_TABS = [
   { v: 'disposed' as SKey, l: 'Đã thanh lý',   tone: 'info' as const },
 ];
 
+// 6 (Đã chuyển) is grouped with in-use: the asset still exists on the books.
 const sKey = (n: number): SKey =>
-  n === 0 ? 'inuse' : n === 1 ? 'broken' : n === 2 ? 'repair' : n === 3 ? 'pending' : 'disposed';
+  n === 2 ? 'broken' : n === 3 ? 'repair' : n === 4 ? 'pending' : n === 5 ? 'disposed' : 'inuse';
 
 const PER = 18;
 
@@ -76,8 +82,10 @@ const TENDER_FIELDS: CrudFieldCfg[] = [
 
 // #352 port từ v1 (pages/AssetManagement.tsx:308-453) — 2 tab Bàn giao + Thanh lý.
 // Sạch hơn v1: v1 bắt gõ tay GUID tài sản vào ô text; v2 chọn từ danh sách tài sản đã nạp.
-const HANDOVER_TYPE: Record<number, string> = { 1: 'Điều chuyển', 2: 'Cấp mới', 3: 'Thu hồi' };
-const DISPOSAL_TYPE: Record<number, string> = { 1: 'Thanh lý', 2: 'Nhượng bán', 3: 'Tiêu hủy', 4: 'Mất/Hỏng' };
+// Codes follow AssetHandover.HandoverType / AssetDisposal.DisposalType on the BE. The old labels were shifted
+// ("Điều chuyển" sent 1 = Receive, so confirming it never moved the asset to the new department).
+const HANDOVER_TYPE: Record<number, string> = { 1: 'Tiếp nhận', 2: 'Điều chuyển', 3: 'Cho mượn', 4: 'Trả lại' };
+const DISPOSAL_TYPE: Record<number, string> = { 1: 'Thanh lý', 2: 'Đấu giá', 3: 'Xóa sổ' };
 const DISPOSAL_STATUS: Record<number, { label: string; tone?: 'ok' | 'warn' | 'info' | 'crit' }> = {
   1: { label: 'Đề xuất', tone: 'warn' },
   2: { label: 'Đã duyệt', tone: 'info' },
@@ -145,8 +153,17 @@ const AssetManagementV2: React.FC = () => {
   const [handovers, setHandovers] = useState<AssetHandoverDto[]>([]);
   const [disposals, setDisposals] = useState<AssetDisposalDto[]>([]);
   const [hoOpen, setHoOpen] = useState(false);
-  const [hoForm, setHoForm] = useState<{ fixedAssetId?: string; handoverType: number; handoverDate?: string; notes?: string }>({ handoverType: 1 });
-  const hoModalForm = useModalForm({ fixedAssetId: { required: true, message: 'Vui lòng chọn tài sản cần bàn giao' } }, hoOpen);
+  const [hoForm, setHoForm] = useState<{ fixedAssetId?: string; handoverType: number; handoverDate?: string; notes?: string; fromDepartmentId?: string; toDepartmentId?: string }>({ handoverType: 1 });
+  const hoModalForm = useModalForm({
+    fixedAssetId: { required: true, message: 'Vui lòng chọn tài sản cần bàn giao' },
+    toDepartmentId: { validate: (v) => (hoForm.handoverType === 2 && !v) ? 'Điều chuyển phải chọn khoa nhận' : undefined },
+  }, hoOpen);
+  // Departments for the transfer target; suppliers for awarding a tender (both lazy-loaded).
+  const [deptOptions, setDeptOptions] = useState<{ value: string; label: string }[]>([]);
+  const [awardTarget, setAwardTarget] = useState<TenderDto | null>(null);
+  const [awardSupplierId, setAwardSupplierId] = useState<string | undefined>();
+  const [awardContract, setAwardContract] = useState('');
+  const [supplierOptions, setSupplierOptions] = useState<{ value: string; label: string }[]>([]);
   const [dpOpen, setDpOpen] = useState(false);
   const [dpForm, setDpForm] = useState<{ fixedAssetId?: string; disposalType: number; disposalValue?: number; residualValue?: number; reason?: string }>({ disposalType: 1 });
   const dpModalForm = useModalForm({
@@ -165,7 +182,7 @@ const AssetManagementV2: React.FC = () => {
   const [repLoading, setRepLoading] = useState(false);
   const [chartView, setChartView] = useState<'status' | 'trend'>('status');
 
-  const openCreate = () => { setCrudInit({ status: 0, depreciationMethod: 1, originalValue: 0, currentValue: 0, usefulLifeMonths: 60 }); setCrudOpen(true); };
+  const openCreate = () => { setCrudInit({ status: 1, depreciationMethod: 1, originalValue: 0, currentValue: 0, usefulLifeMonths: 60 }); setCrudOpen(true); };
   const openEdit = (r: FixedAssetDto) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
   const showQr = async (r: FixedAssetDto) => {
     try { const d = await getAssetQrCode(r.id); if (d) setQrData(d); else te('Không lấy được mã QR'); }
@@ -240,20 +257,33 @@ const AssetManagementV2: React.FC = () => {
     catch { te('Không tải được danh sách thanh lý'); }
   };
 
+  const openHandover = async () => {
+    setHoForm({ handoverType: 1 });
+    setHoOpen(true);
+    if (deptOptions.length === 0) {
+      try {
+        const r = await catalogApi.getDepartments(undefined, undefined, true);
+        setDeptOptions((r.data || []).filter((d) => d.id).map((d) => ({ value: d.id as string, label: d.name })));
+      } catch { /* department picker optional for non-transfer handovers */ }
+    }
+  };
+
   const submitHandover = async () => {
     try {
-      await saveHandover({ ...hoForm });
+      // From-department = where the asset currently is (the form never sent it).
+      const fromDepartmentId = items.find((a) => a.id === hoForm.fixedAssetId)?.departmentId || undefined;
+      await saveHandover({ ...hoForm, fromDepartmentId, toDepartmentId: hoForm.toDepartmentId || undefined });
       tk('Đã tạo phiếu bàn giao');
       setHoOpen(false);
       setHoForm({ handoverType: 1 });
       void reloadHandovers();
-    } catch { te('Lỗi tạo phiếu bàn giao'); }
+    } catch (e) { te(friendlyErrorMessage(e, 'Lỗi tạo phiếu bàn giao')); }
   };
 
   const doConfirmHandover = (r: AssetHandoverDto) =>
     cf(`Xác nhận bàn giao "${r.assetName || r.assetCode}"?`, async () => {
-      try { await confirmHandover(r.id); tk('Đã xác nhận bàn giao'); void reloadHandovers(); }
-      catch { te('Lỗi xác nhận bàn giao'); }
+      try { await confirmHandover(r.id); tk('Đã xác nhận bàn giao'); void reloadHandovers(); void load(); }
+      catch (e) { te(friendlyErrorMessage(e, 'Lỗi xác nhận bàn giao')); }
     }, { tone: 'info', confirm: 'Xác nhận' });
 
   // ── #352: Thanh lý tài sản (tiền) ─────────────────────────────────────────
@@ -264,19 +294,20 @@ const AssetManagementV2: React.FC = () => {
       setDpOpen(false);
       setDpForm({ disposalType: 1 });
       void reloadDisposals();
-    } catch { te('Lỗi đề xuất thanh lý'); }
+      void load();
+    } catch (e) { te(friendlyErrorMessage(e, 'Lỗi đề xuất thanh lý')); }
   };
 
   const doApproveDisposal = (r: AssetDisposalDto) =>
     cf(`Duyệt thanh lý "${r.assetName || r.assetCode}" (giá ${fmt(r.disposalValue)}đ)?`, async () => {
       try { await approveDisposal(r.id); tk('Đã duyệt thanh lý'); void reloadDisposals(); }
-      catch { te('Lỗi duyệt thanh lý'); }
+      catch (e) { te(friendlyErrorMessage(e, 'Lỗi duyệt thanh lý')); }
     }, { tone: 'warn', confirm: 'Duyệt' });
 
   const doCompleteDisposal = (r: AssetDisposalDto) =>
     cf(`Hoàn thành thanh lý "${r.assetName || r.assetCode}"? Tài sản sẽ chuyển trạng thái đã thanh lý.`, async () => {
       try { await completeDisposal(r.id); tk('Đã hoàn thành thanh lý'); void reloadDisposals(); void load(); }
-      catch { te('Lỗi hoàn thành thanh lý'); }
+      catch (e) { te(friendlyErrorMessage(e, 'Lỗi hoàn thành thanh lý')); }
     }, { tone: 'crit', confirm: 'Hoàn thành' });
 
   const hoCols: ColumnDef<AssetHandoverDto>[] = [
@@ -310,12 +341,28 @@ const AssetManagementV2: React.FC = () => {
     catch { te('Không tải được hạng mục gói thầu'); }
   };
 
-  const handleAwardTender = async (id: string) => {
+  // The award used to send an empty GUID as the winner — every tender was "awarded" to nobody.
+  const openAward = async (r: TenderDto) => {
+    setAwardTarget(r);
+    setAwardSupplierId(undefined);
+    setAwardContract(r.contractNumber || '');
+    if (supplierOptions.length === 0) {
+      try {
+        const res = await catalogApi.getSuppliers(undefined, undefined, true);
+        setSupplierOptions((res.data || []).filter((s) => s.id).map((s) => ({ value: s.id as string, label: `${s.code} — ${s.name}` })));
+      } catch { te('Không tải được danh sách nhà cung cấp'); }
+    }
+  };
+
+  const handleAwardTender = async () => {
+    if (!awardTarget) return;
+    if (!awardSupplierId) { ti('Chọn nhà thầu trúng thầu'); return; }
     try {
-      await awardTender({ tenderId: id, winnerSupplierId: '00000000-0000-0000-0000-000000000000' });
+      await awardTender({ tenderId: awardTarget.id, winnerSupplierId: awardSupplierId, contractNumber: awardContract.trim() || undefined });
       tk('Đã trao thầu');
+      setAwardTarget(null);
       reloadTenders();
-    } catch { te('Không thể trao thầu'); }
+    } catch (e) { te(friendlyErrorMessage(e, 'Không thể trao thầu')); }
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load(); }, [search]);
@@ -420,7 +467,7 @@ const AssetManagementV2: React.FC = () => {
           <Btn variant="primary" icon="plus" onClick={openTenderCreate}>Thêm gói thầu</Btn>
         )}
         {moduleTab === 'handovers' && (
-          <Btn variant="primary" icon="plus" onClick={() => { setHoForm({ handoverType: 1 }); setHoOpen(true); }}>Tạo bàn giao</Btn>
+          <Btn variant="primary" icon="plus" onClick={() => { void openHandover(); }}>Tạo bàn giao</Btn>
         )}
         {moduleTab === 'disposals' && (
           <Btn variant="primary" icon="plus" onClick={() => { setDpForm({ disposalType: 1 }); setDpOpen(true); }}>Đề xuất thanh lý</Btn>
@@ -503,7 +550,7 @@ const AssetManagementV2: React.FC = () => {
           actions={(r) => (
             <div className="ab-actions">
               <ActBtn ic="eye" title="Hạng mục" onClick={() => viewTenderItems(r)} />
-              {r.status < 4 && <ActBtn ic="check" title="Trao thầu" onClick={() => cf('Xác nhận trao thầu?', () => handleAwardTender(r.id))} />}
+              {r.status < 4 && <ActBtn ic="check" title="Trao thầu" onClick={() => { void openAward(r); }} />}
             </div>
           )}
           loading={loading}
@@ -626,7 +673,7 @@ const AssetManagementV2: React.FC = () => {
       <ModalShell open={hoOpen} onClose={() => setHoOpen(false)} title="Tạo phiếu bàn giao tài sản" size="md"
         footer={<>
           <Btn variant="ghost" onClick={() => setHoOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" onClick={() => { if (hoModalForm.validate({ fixedAssetId: hoForm.fixedAssetId })) submitHandover(); }}>Lưu</Btn>
+          <Btn variant="primary" onClick={() => { if (hoModalForm.validate({ fixedAssetId: hoForm.fixedAssetId, toDepartmentId: hoForm.toDepartmentId })) submitHandover(); }}>Lưu</Btn>
         </>}
       >
         <Form layout="vertical" style={{ padding: '4px 0' }}>
@@ -638,8 +685,13 @@ const AssetManagementV2: React.FC = () => {
           <Form.Item label="Loại bàn giao">
             <Select value={hoForm.handoverType} style={{ width: '100%' }}
               options={Object.entries(HANDOVER_TYPE).map(([k, l]) => ({ value: Number(k), label: l }))}
-              onChange={(v) => setHoForm((p) => ({ ...p, handoverType: v }))} />
+              onChange={(v) => { setHoForm((p) => ({ ...p, handoverType: v })); hoModalForm.clear('toDepartmentId'); }} />
           </Form.Item>
+          <Field label="Khoa nhận" required={hoForm.handoverType === 2} error={hoModalForm.errors.toDepartmentId}>
+            <Select showSearch allowClear optionFilterProp="label" placeholder="Chọn khoa/phòng nhận…"
+              value={hoForm.toDepartmentId} options={deptOptions} style={{ width: '100%' }}
+              onChange={(v) => { setHoForm((p) => ({ ...p, toDepartmentId: v })); hoModalForm.clear('toDepartmentId'); }} />
+          </Field>
           <Form.Item label="Ngày bàn giao">
             <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY"
               value={hoForm.handoverDate ? dayjs(hoForm.handoverDate) : null}
@@ -648,6 +700,25 @@ const AssetManagementV2: React.FC = () => {
           <Form.Item label="Ghi chú">
             <Input.TextArea rows={2} value={hoForm.notes ?? ''}
               onChange={(e) => setHoForm((p) => ({ ...p, notes: e.target.value || undefined }))} />
+          </Form.Item>
+        </Form>
+      </ModalShell>
+
+      <ModalShell open={!!awardTarget} onClose={() => setAwardTarget(null)} title="Trao thầu"
+        sub={awardTarget ? `${awardTarget.tenderCode} · ${awardTarget.tenderName}` : ''} size="sm"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setAwardTarget(null)}>Hủy</Btn>
+          <Btn variant="primary" onClick={() => { void handleAwardTender(); }}>Trao thầu</Btn>
+        </>}
+      >
+        <Form layout="vertical" style={{ padding: '4px 0' }}>
+          <Field label="Nhà thầu trúng thầu" required>
+            <Select showSearch optionFilterProp="label" placeholder="Chọn nhà cung cấp…"
+              value={awardSupplierId} options={supplierOptions} style={{ width: '100%' }}
+              onChange={setAwardSupplierId} />
+          </Field>
+          <Form.Item label="Số hợp đồng">
+            <Input value={awardContract} onChange={(e) => setAwardContract(e.target.value)} />
           </Form.Item>
         </Form>
       </ModalShell>
@@ -1003,7 +1074,7 @@ const AssetManagementV2: React.FC = () => {
         footer={<>
           <Btn variant="ghost" onClick={() => setTenderDetail(null)}>Đóng</Btn>
           {tenderDetail && tenderDetail.status < 4 && (
-            <Btn variant="primary" icon="check" onClick={() => cf('Xác nhận trao thầu?', () => { handleAwardTender(tenderDetail.id); setTenderDetail(null); })}>Trao thầu</Btn>
+            <Btn variant="primary" icon="check" onClick={() => { const t = tenderDetail; setTenderDetail(null); void openAward(t); }}>Trao thầu</Btn>
           )}
         </>}
       >

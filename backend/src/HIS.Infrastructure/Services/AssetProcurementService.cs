@@ -131,6 +131,14 @@ public class AssetProcurementService : IAssetProcurementService
 
     public async Task<AssetProcurementRequestDto> SaveAsync(SaveAssetProcurementRequestDto dto, string? userId)
     {
+        // Negative quantity / unit price were saved (amount silently nulled).
+        if (string.IsNullOrWhiteSpace(dto.Title))
+            throw new ArgumentException("Tiêu đề phiếu là bắt buộc.");
+        if (dto.Items.Any(i => i.Quantity <= 0))
+            throw new ArgumentException("Số lượng phải lớn hơn 0.");
+        if (dto.Items.Any(i => i.UnitPrice is < 0))
+            throw new ArgumentException("Đơn giá không được âm.");
+
         AssetProcurementRequest entity;
 
         if (dto.Id == null || dto.Id == Guid.Empty)
@@ -146,9 +154,11 @@ public class AssetProcurementService : IAssetProcurementService
         }
         else
         {
+            // FirstAsync threw "Sequence contains no elements" (400 with a raw message) and deleted rows were editable.
             entity = await _db.AssetProcurementRequests
                 .Include(r => r.Items)
-                .FirstAsync(r => r.Id == dto.Id.Value);
+                .FirstOrDefaultAsync(r => r.Id == dto.Id.Value && !r.IsDeleted)
+                ?? throw new KeyNotFoundException("Không tìm thấy phiếu đề xuất");
 
             if (entity.Status != 0)
                 throw new InvalidOperationException("Chỉ có thể sửa phiếu ở trạng thái Dự thảo.");
@@ -211,9 +221,11 @@ public class AssetProcurementService : IAssetProcurementService
     public async Task<AssetProcurementRequestDto> SubmitAsync(Guid id, string? userId)
     {
         var e = await _db.AssetProcurementRequests.Include(r => r.Items)
-            .FirstAsync(r => r.Id == id && !r.IsDeleted);
+            .FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted) ?? throw new KeyNotFoundException("Không tìm thấy phiếu đề xuất");
         if (e.Status != 0)
             throw new InvalidOperationException("Chỉ trình duyệt phiếu ở trạng thái Dự thảo.");
+        if (e.Items.Count == 0)
+            throw new InvalidOperationException("Phiếu chưa có dòng hàng nào, không thể trình duyệt.");
         e.Status    = 1; // ChoXetDuyet
         e.UpdatedAt = DateTime.UtcNow;
         e.UpdatedBy = userId;
@@ -224,13 +236,16 @@ public class AssetProcurementService : IAssetProcurementService
     public async Task<AssetProcurementRequestDto> ApproveAsync(ApproveRejectAssetProcurementDto dto, string? userId)
     {
         var e = await _db.AssetProcurementRequests.Include(r => r.Items)
-            .FirstAsync(r => r.Id == dto.RequestId && !r.IsDeleted);
+            .FirstOrDefaultAsync(r => r.Id == dto.RequestId && !r.IsDeleted) ?? throw new KeyNotFoundException("Không tìm thấy phiếu đề xuất");
         if (e.Status != 1)
             throw new InvalidOperationException("Chỉ duyệt phiếu ở trạng thái Chờ xét duyệt.");
         // #156: role duyệt (Admin/Director/WarehouseManager) enforce ở controller [Authorize(Roles)] AssetProcurementController.Approve
         e.Status      = 2; // DaDuyet
         e.ApproverId  = userId != null && Guid.TryParse(userId, out var uid) ? uid : null;
-        e.ApproverName = userId;
+        // ApproverName stored the raw user-id GUID.
+        e.ApproverName = e.ApproverId.HasValue
+            ? await _db.Users.Where(u => u.Id == e.ApproverId.Value).Select(u => u.FullName).FirstOrDefaultAsync() ?? userId
+            : userId;
         e.ApprovedAt  = DateTime.UtcNow;
         e.Note        = dto.Note ?? e.Note;
         e.UpdatedAt   = DateTime.UtcNow;
@@ -242,7 +257,7 @@ public class AssetProcurementService : IAssetProcurementService
     public async Task<AssetProcurementRequestDto> RejectAsync(ApproveRejectAssetProcurementDto dto, string? userId)
     {
         var e = await _db.AssetProcurementRequests.Include(r => r.Items)
-            .FirstAsync(r => r.Id == dto.RequestId && !r.IsDeleted);
+            .FirstOrDefaultAsync(r => r.Id == dto.RequestId && !r.IsDeleted) ?? throw new KeyNotFoundException("Không tìm thấy phiếu đề xuất");
         if (e.Status != 1)
             throw new InvalidOperationException("Chỉ từ chối phiếu ở trạng thái Chờ xét duyệt.");
         e.Status    = 3; // TuChoi
@@ -256,7 +271,7 @@ public class AssetProcurementService : IAssetProcurementService
     public async Task<AssetProcurementRequestDto> CompleteAsync(Guid id, string? userId)
     {
         var e = await _db.AssetProcurementRequests.Include(r => r.Items)
-            .FirstAsync(r => r.Id == id && !r.IsDeleted);
+            .FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted) ?? throw new KeyNotFoundException("Không tìm thấy phiếu đề xuất");
         if (e.Status != 2)
             throw new InvalidOperationException("Chỉ hoàn tất phiếu ở trạng thái Đã duyệt.");
         e.Status    = 4; // HoanTat
@@ -274,7 +289,7 @@ public class AssetProcurementService : IAssetProcurementService
     public async Task<AssetProcurementRequestDto> IssueAssetsAsync(Guid id, List<Guid> fixedAssetIds, string? userId)
     {
         var e = await _db.AssetProcurementRequests.Include(r => r.Items)
-            .FirstAsync(r => r.Id == id && !r.IsDeleted);
+            .FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted) ?? throw new KeyNotFoundException("Không tìm thấy phiếu đề xuất");
 
         if (e.RequestType != 4)
             throw new InvalidOperationException("Chỉ cấp phát được phiếu loại Trang cấp.");
@@ -291,6 +306,16 @@ public class AssetProcurementService : IAssetProcurementService
         var missing = fixedAssetIds.Except(assets.Select(a => a.Id)).ToList();
         if (missing.Count > 0)
             throw new InvalidOperationException($"Không tìm thấy {missing.Count} tài sản được chọn.");
+        // Disposed / pending-disposal assets were issued; an asset with an unconfirmed handover got a second one.
+        var unusable = assets.Where(a => a.Status == 4 || a.Status == 5).Select(a => a.AssetCode).ToList();
+        if (unusable.Count > 0)
+            throw new InvalidOperationException($"Tài sản đang chờ thanh lý / đã thanh lý: {string.Join(", ", unusable)}.");
+        var assetIdList = assets.Select(a => a.Id).ToList();
+        var pendingCodes = await _db.AssetHandovers
+            .Where(h => assetIdList.Contains(h.FixedAssetId) && !h.IsDeleted && h.Status == 1)
+            .Select(h => h.FixedAsset!.AssetCode).Distinct().ToListAsync();
+        if (pendingCodes.Count > 0)
+            throw new InvalidOperationException($"Tài sản đang có phiếu bàn giao chờ xác nhận: {string.Join(", ", pendingCodes)}.");
 
         var now = DateTime.Now;
         Guid.TryParse(userId, out var uid);

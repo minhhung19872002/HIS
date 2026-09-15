@@ -228,7 +228,7 @@ const PharmacyApprovalV2: React.FC = () => {
       const updated = await getApprovalById(detail.id);
       setDetail(updated);
       refresh();
-    } catch { tw('Duyệt thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Duyệt thất bại')); }
     finally { setActing(false); }
   };
 
@@ -239,7 +239,7 @@ const PharmacyApprovalV2: React.FC = () => {
       const v = await revokeForm.validateFields();
       await revokeApproval(detail.id, v.reason);
       tk('Đã thu hồi'); setRevokeOpen(false); refresh();
-    } catch { tw('Thu hồi thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Thu hồi thất bại')); }
     finally { setActing(false); }
   };
 

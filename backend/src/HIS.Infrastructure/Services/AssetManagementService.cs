@@ -77,10 +77,18 @@ public partial class AssetManagementService : IAssetManagementService
 
     public async Task<TenderDto> SaveTenderAsync(SaveTenderDto dto, string userId)
     {
+        if (dto.BudgetAmount < 0)
+            throw new ArgumentException("Ngân sách gói thầu không được âm.");
+        if (dto.Status < 1 || dto.Status > 5)
+            throw new ArgumentException("Trạng thái gói thầu không hợp lệ (1-5).");
+        var isUpdate = dto.Id.HasValue && dto.Id.Value != Guid.Empty;
+        if (await _context.Tenders.AnyAsync(t => !t.IsDeleted && t.TenderCode == dto.TenderCode && (!isUpdate || t.Id != dto.Id!.Value)))
+            throw new InvalidOperationException($"Mã gói thầu {dto.TenderCode} đã tồn tại.");
+
         Tender entity;
-        if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
+        if (isUpdate)
         {
-            entity = await _context.Tenders.FindAsync(dto.Id.Value) ?? throw new KeyNotFoundException("Tender not found");
+            entity = await _context.Tenders.FindAsync(dto.Id!.Value) ?? throw new KeyNotFoundException("Tender not found");
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }
@@ -154,6 +162,14 @@ public partial class AssetManagementService : IAssetManagementService
 
     public async Task<TenderItemDto> SaveTenderItemAsync(SaveTenderItemDto dto, string userId)
     {
+        // Unknown tender → FK violation 500; negative quantity / price inflated or reduced tender totals.
+        if (!await _context.Tenders.AnyAsync(t => t.Id == dto.TenderId && !t.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy gói thầu");
+        if (dto.Quantity <= 0)
+            throw new ArgumentException("Số lượng hạng mục phải lớn hơn 0.");
+        if (dto.UnitPrice < 0)
+            throw new ArgumentException("Đơn giá không được âm.");
+
         TenderItem entity;
         if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
         {
@@ -187,6 +203,14 @@ public partial class AssetManagementService : IAssetManagementService
     public async Task<TenderDto> AwardTenderAsync(AwardTenderDto dto, string userId)
     {
         var entity = await _context.Tenders.FindAsync(dto.TenderId) ?? throw new KeyNotFoundException("Tender not found");
+        // A cancelled tender could be awarded, an awarded one re-awarded, and the winner was never checked
+        // (the v2 page sends Guid.Empty).
+        if (entity.Status == 5)
+            throw new InvalidOperationException("Gói thầu đã hủy, không thể trao thầu.");
+        if (entity.Status == 4)
+            throw new InvalidOperationException("Gói thầu đã được trao thầu.");
+        if (dto.WinnerSupplierId == Guid.Empty || !await _context.Suppliers.AnyAsync(s => s.Id == dto.WinnerSupplierId))
+            throw new ArgumentException("Chưa chọn nhà thầu trúng thầu hợp lệ.");
         entity.Status = 4; // Awarded
         entity.WinnerSupplierId = dto.WinnerSupplierId;
         entity.ContractNumber = dto.ContractNumber;

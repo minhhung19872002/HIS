@@ -549,8 +549,21 @@ public partial class WarehouseCompleteService {
 
     public async Task<StockIssueDto> CreateSupplierReturnAsync(CreateStockIssueDto dto, Guid userId)
     {
+        // QA-R2: ExportReceipt has no supplier column, so the NCC picked on "Xuất trả NCC" was thrown
+        // away (list/detail showed no supplier, nobody could tell which vendor the goods went back to).
+        // Keep it as a note tag — same convention as CreateCabinetIssueAsync — and read it back in
+        // MapExportReceiptAsync. A real SupplierId column needs a migration (see QA-R2 report).
+        if (dto.SupplierId is Guid supplierId && supplierId != Guid.Empty)
+        {
+            if (!await _context.Suppliers.AsNoTracking().AnyAsync(s => s.Id == supplierId))
+                throw new KeyNotFoundException("Nhà cung cấp không tồn tại");
+            var tag = $"{SupplierReturnTagPrefix}{supplierId}]";
+            dto.Notes = string.IsNullOrEmpty(dto.Notes) ? tag : $"{tag} {dto.Notes}";
+        }
         return await CreateStockIssueByTypeAsync(dto, userId, 5, "TN");
     }
+
+    private const string SupplierReturnTagPrefix = "[NCC:";
 
     public async Task<StockIssueDto> CreateExternalIssueAsync(CreateStockIssueDto dto, Guid userId)
     {
@@ -1184,6 +1197,19 @@ public partial class WarehouseCompleteService {
             Notes = e.Note,
             Items = new List<StockIssueItemDto>()
         };
+
+        // Supplier of a "Xuất trả NCC" issue is carried as a note tag (see CreateSupplierReturnAsync).
+        if (e.ExportType == 5 && e.Note != null)
+        {
+            var start = e.Note.IndexOf(SupplierReturnTagPrefix, StringComparison.Ordinal);
+            var end = start >= 0 ? e.Note.IndexOf(']', start) : -1;
+            if (end > start && Guid.TryParse(e.Note.AsSpan(start + SupplierReturnTagPrefix.Length, end - start - SupplierReturnTagPrefix.Length), out var supplierId))
+            {
+                dto.SupplierId = supplierId;
+                dto.SupplierName = await _context.Suppliers.AsNoTracking()
+                    .Where(s => s.Id == supplierId).Select(s => s.SupplierName).FirstOrDefaultAsync();
+            }
+        }
 
         if (Guid.TryParse(e.CreatedBy, out var creatorId))
         {

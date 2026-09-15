@@ -137,9 +137,20 @@ public class ProcurementService : IProcurementService
         };
     }
 
-    public async Task<ProcurementDetailDto> CreateAsync(CreateProcurementDto dto)
+    public async Task<ProcurementDetailDto> CreateAsync(CreateProcurementDto dto, Guid? userId = null)
     {
+        // Empty requests and negative quantities / prices (negative TotalAmount) were accepted.
+        if (dto.Items.Count == 0)
+            throw new ArgumentException("Phiếu dự trù phải có ít nhất 1 mặt hàng.");
+        if (dto.Items.Any(i => i.RequestedQuantity <= 0))
+            throw new ArgumentException("Số lượng dự trù phải lớn hơn 0.");
+        if (dto.Items.Any(i => i.EstimatedPrice < 0))
+            throw new ArgumentException("Đơn giá dự kiến không được âm.");
+        if (dto.Items.Any(i => string.IsNullOrWhiteSpace(i.ItemName)))
+            throw new ArgumentException("Tên mặt hàng là bắt buộc.");
+
         var code = $"DT{DateTime.Now:yyyyMMdd}{new Random().Next(1000, 9999)}";
+        var validUser = userId.HasValue && userId.Value != Guid.Empty ? userId : null;
 
         var entity = new ProcurementRequest
         {
@@ -147,10 +158,13 @@ public class ProcurementService : IProcurementService
             RequestCode = code,
             RequestDate = DateTime.UtcNow,
             DepartmentId = dto.DepartmentId,
+            // Requester was never recorded (RequestedById/CreatedBy null → "Người lập" blank).
+            RequestedById = validUser,
             Status = 1, // Pending
             Notes = dto.Notes,
             TotalAmount = dto.Items.Sum(i => i.RequestedQuantity * i.EstimatedPrice),
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = validUser?.ToString()
         };
 
         // #195: 1 query tra tồn cho cả phiếu thay vì 1 sum/dòng.
@@ -207,7 +221,7 @@ public class ProcurementService : IProcurementService
         return (await GetByIdAsync(entity.Id))!;
     }
 
-    public async Task<ProcurementListDto> ApproveAsync(Guid id)
+    public async Task<ProcurementListDto> ApproveAsync(Guid id, Guid? userId = null)
     {
         var entity = await _context.ProcurementRequests
             .Include(p => p.Department)
@@ -219,6 +233,12 @@ public class ProcurementService : IProcurementService
             throw new InvalidOperationException("Chỉ có thể duyệt phiếu đang chờ duyệt");
 
         entity.Status = 2; // Approved
+        // Approver was never recorded — a money approval with no audit of who approved it.
+        if (userId.HasValue && userId.Value != Guid.Empty)
+        {
+            entity.ApprovedById = userId;
+            entity.UpdatedBy = userId.Value.ToString();
+        }
         entity.ApprovedDate = DateTime.UtcNow;
         entity.UpdatedAt = DateTime.UtcNow;
 

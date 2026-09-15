@@ -50,6 +50,25 @@ namespace HIS.Application.DTOs.Equipment
         public int? ExpectedLifeYears { get; set; }
         public DateTime? ExpectedEndOfLife { get; set; }
         public string Status { get; set; } // Active, Inactive, UnderRepair, Decommissioned
+        public string? StatusReason { get; set; }
+        /// <summary>Numeric status for the v2 page: 1 Hoạt động · 2 Bảo trì · 3 Hỏng/ngừng · 4 Thanh lý.</summary>
+        public int OperationalStatus => Status switch
+        {
+            "Active" => 1,
+            "InMaintenance" or "UnderRepair" => 2,
+            "OutOfService" or "Inactive" => 3,
+            "Decommissioned" or "PendingDisposal" or "ApprovedForDisposal" => 4,
+            _ => 1,
+        };
+        public string OperationalStatusName => OperationalStatus switch
+        {
+            1 => "Hoạt động", 2 => "Bảo trì", 3 => "Ngừng sử dụng", _ => "Thanh lý",
+        };
+        public DateTime? WarrantyExpiry { get; set; } // alias of WarrantyEndDate read by v2 Equipment.tsx
+        public DateTime? LastMaintenanceDate { get; set; }
+        public DateTime? NextMaintenanceDate { get; set; }
+        public DateTime? LastCalibrationDate { get; set; }
+        public DateTime? NextCalibrationDate { get; set; }
         public string Condition { get; set; } // Excellent, Good, Fair, Poor
 
         // Depreciation
@@ -228,21 +247,23 @@ namespace HIS.Application.DTOs.Equipment
     /// </summary>
     public class CreateMaintenanceRecordDto
     {
+        // Optional fields are nullable: non-nullable strings/lists are implicit [Required] under
+        // <Nullable>enable</Nullable>, so omitting any of them returned 400. The service null-coalesces them.
         public Guid EquipmentId { get; set; }
         public Guid? ScheduleId { get; set; }
-        public string MaintenanceType { get; set; }
+        public string? MaintenanceType { get; set; }
         public DateTime MaintenanceDate { get; set; }
-        public string Description { get; set; }
-        public List<MaintenanceTaskRecordDto> TasksPerformed { get; set; }
-        public string PartsReplaced { get; set; }
+        public string? Description { get; set; }
+        public List<MaintenanceTaskRecordDto>? TasksPerformed { get; set; }
+        public string? PartsReplaced { get; set; }
         public decimal? PartsCost { get; set; }
         public decimal? LaborCost { get; set; }
-        public string PerformedBy { get; set; }
-        public string TechnicianName { get; set; }
-        public string Result { get; set; }
-        public string EquipmentConditionAfter { get; set; }
+        public string? PerformedBy { get; set; }
+        public string? TechnicianName { get; set; }
+        public string? Result { get; set; }
+        public string? EquipmentConditionAfter { get; set; }
         public bool RequiresFollowUp { get; set; }
-        public string FollowUpNotes { get; set; }
+        public string? FollowUpNotes { get; set; }
     }
 
     #endregion
@@ -305,17 +326,19 @@ namespace HIS.Application.DTOs.Equipment
     /// </summary>
     public class RecordCalibrationDto
     {
+        // Only Result stays required (it decides whether the device may be used). The rest were implicit
+        // [Required] under nullable context — omitting e.g. CalibrationLab returned 400.
         public Guid EquipmentId { get; set; }
         public DateTime CalibrationDate { get; set; }
         public DateTime NextCalibrationDate { get; set; }
-        public string CalibrationType { get; set; }
-        public string CalibrationStandard { get; set; }
-        public string CalibratedBy { get; set; }
-        public string CalibrationLab { get; set; }
-        public string TechnicianName { get; set; }
+        public string? CalibrationType { get; set; }
+        public string? CalibrationStandard { get; set; }
+        public string? CalibratedBy { get; set; }
+        public string? CalibrationLab { get; set; }
+        public string? TechnicianName { get; set; }
         public string Result { get; set; }
-        public List<CalibrationMeasurementDto> Measurements { get; set; }
-        public string CertificateNumber { get; set; }
+        public List<CalibrationMeasurementDto>? Measurements { get; set; }
+        public string? CertificateNumber { get; set; }
         public decimal? CalibrationCost { get; set; }
     }
 

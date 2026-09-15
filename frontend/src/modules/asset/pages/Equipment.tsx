@@ -14,6 +14,8 @@ import {
   type ColumnDef, type StatusTab, type KpiItem, type TopTab,
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
+import { catalogApi } from '../../system/api/system/catalog';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { Field } from '../../../components/form/Field';
 import { useModalForm } from '../../../hooks/useModalForm';
 import { useTabState } from '../../../hooks/useTabState';
@@ -123,6 +125,7 @@ const EquipmentV2: React.FC = () => {
   const [repairTarget, setRepairTarget] = useState<EquipmentDto | null>(null);
   const [showAddEq, setShowAddEq] = useState(false);
   const [categories, setCategories] = useState<EquipmentCategoryDto[]>([]);
+  const [deptOptions, setDeptOptions] = useState<{ value: string; label: string }[]>([]);
   const [addLoading, setAddLoading] = useState(false);
   // NangCap26 XVII.7 — duyệt kế hoạch bảo dưỡng
   const [maintBusy, setMaintBusy] = useState<string | null>(null);
@@ -238,6 +241,12 @@ const EquipmentV2: React.FC = () => {
         setCategories(res.data || []);
       } catch { /* categories optional — form still works with manual input */ }
     }
+    if (deptOptions.length === 0) {
+      try {
+        const res = await catalogApi.getDepartments(undefined, undefined, true);
+        setDeptOptions((res.data || []).filter((d) => d.id).map((d) => ({ value: d.id as string, label: d.name })));
+      } catch { /* picker stays empty — user sees no options */ }
+    }
   };
 
   // Create equipment (verbatim from v1)
@@ -268,7 +277,7 @@ const EquipmentV2: React.FC = () => {
     } catch (err) {
       // AntD validation rejects with { errorFields } — don't show error toast in that case
       if (err && typeof err === 'object' && 'errorFields' in err) return;
-      message.error('Thêm thiết bị thất bại — vui lòng thử lại');
+      message.error(friendlyErrorMessage(err, 'Thêm thiết bị thất bại — vui lòng thử lại'));
     } finally {
       setAddLoading(false);
     }
@@ -348,7 +357,7 @@ const EquipmentV2: React.FC = () => {
       void reload();
     } catch (err) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
-      message.warning('Không thể gửi yêu cầu sửa chữa');
+      message.warning(friendlyErrorMessage(err, 'Không thể gửi yêu cầu sửa chữa'));
     }
   };
 
@@ -933,8 +942,9 @@ const EquipmentV2: React.FC = () => {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="departmentId" label="Khoa/Phòng" rules={[{ required: true, message: 'Nhập ID khoa' }]}>
-                <Input placeholder="ID khoa/phòng sử dụng" />
+              {/* Was a free-text "ID khoa" input: anything but a GUID made the whole create request fail (400). */}
+              <Form.Item name="departmentId" label="Khoa/Phòng" rules={[{ required: true, message: 'Chọn khoa/phòng' }]}>
+                <Select showSearch optionFilterProp="label" placeholder="Chọn khoa/phòng sử dụng" options={deptOptions} />
               </Form.Item>
             </Col>
             <Col span={12}>

@@ -336,6 +336,9 @@ public class PharmacyApprovalService : IPharmacyApprovalService
             .Include(a => a.Patient)
             .Include(a => a.FromDepartment)
             .Include(a => a.ToWarehouse)
+            // QA-R2: FromWarehouse was not included → "Kho/Khoa nguồn" of every dự trù row was blank
+            // unless the same warehouse happened to be loaded as another row's ToWarehouse on that page.
+            .Include(a => a.FromWarehouse)
             .Include(a => a.Items)
             .AsQueryable();
 

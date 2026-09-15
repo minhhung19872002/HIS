@@ -35,39 +35,105 @@ public partial class WarehouseCompleteService {
             .Select(g => new { MedicineId = g.Key, Total = g.Sum(x => x.Quantity - x.ReservedQuantity) })
             .ToDictionaryAsync(x => x.MedicineId, x => x.Total);
 
+        // QA-R2: this used to build a DTO with a fresh Guid and return it WITHOUT saving — the v2
+        // "Tạo dự trù" page reported success while nothing reached ProcurementRequests.
+        if (dto.Items.Count == 0)
+            throw new ArgumentException("Phiếu dự trù phải có ít nhất 1 mặt hàng.");
+        if (dto.Items.Any(i => i.RequestedQuantity <= 0))
+            throw new ArgumentException("Số lượng dự trù phải lớn hơn 0.");
+        var unknown = medicineIds.Where(id => !medicinesMap.ContainsKey(id)).ToList();
+        if (unknown.Count > 0)
+            throw new KeyNotFoundException("Có mặt hàng không tồn tại trong danh mục thuốc.");
+        var priceMap = await _context.InventoryItems
+            .Where(i => i.WarehouseId == dto.WarehouseId && i.MedicineId.HasValue && medicineIds.Contains(i.MedicineId.Value))
+            .GroupBy(i => i.MedicineId!.Value)
+            .Select(g => new { MedicineId = g.Key, Price = g.Max(x => x.UnitPrice) })
+            .ToDictionaryAsync(x => x.MedicineId, x => x.Price);
+
+        var now = DateTime.Now;
+        var entity = new ProcurementRequest
+        {
+            Id = Guid.NewGuid(),
+            RequestCode = $"DT{now:yyyyMMddHHmmss}",
+            RequestDate = now,
+            DepartmentId = warehouse.DepartmentId,
+            RequestedById = userId == Guid.Empty ? null : userId,
+            Status = 1, // entity: 1 = Pending (shown as "Mới" on the warehouse page)
+            Notes = dto.Description,
+            CreatedAt = now,
+            CreatedBy = userId == Guid.Empty ? null : userId.ToString(),
+        };
+
         foreach (var item in dto.Items)
         {
             medicinesMap.TryGetValue(item.ItemId, out var medicine);
             var currentStock = stockMap.TryGetValue(item.ItemId, out var stockTotal) ? stockTotal : 0;
+            var price = priceMap.TryGetValue(item.ItemId, out var p) ? p : 0m;
+            var qty = (int)Math.Ceiling(item.RequestedQuantity);
+
+            entity.Items.Add(new ProcurementRequestItem
+            {
+                Id = Guid.NewGuid(),
+                ProcurementRequestId = entity.Id,
+                ItemId = item.ItemId,
+                ItemCode = medicine?.MedicineCode,
+                ItemName = medicine?.MedicineName ?? string.Empty,
+                Unit = medicine?.Unit,
+                RequestedQuantity = qty,
+                CurrentStock = (int)currentStock,
+                EstimatedPrice = price,
+                Notes = item.Notes,
+                CreatedAt = now,
+                CreatedBy = entity.CreatedBy,
+            });
 
             items.Add(new ProcurementItemDto
             {
-                Id = Guid.NewGuid(),
+                Id = entity.Items.Last().Id,
                 ItemId = item.ItemId,
                 ItemCode = medicine?.MedicineCode ?? string.Empty,
                 ItemName = medicine?.MedicineName ?? string.Empty,
                 Unit = medicine?.Unit ?? string.Empty,
                 CurrentStock = currentStock,
-                RequestedQuantity = item.RequestedQuantity,
+                RequestedQuantity = qty,
                 Notes = item.Notes
             });
         }
+        entity.TotalAmount = entity.Items.Sum(i => i.RequestedQuantity * i.EstimatedPrice);
+
+        _context.ProcurementRequests.Add(entity);
+        await _context.SaveChangesAsync();
 
         return new ProcurementRequestDto
         {
-            Id = Guid.NewGuid(),
-            RequestCode = $"DT{DateTime.Now:yyyyMMddHHmmss}",
-            RequestDate = DateTime.Now,
+            Id = entity.Id,
+            RequestCode = entity.RequestCode,
+            RequestDate = entity.RequestDate,
             WarehouseId = dto.WarehouseId,
             WarehouseName = warehouse.WarehouseName,
             Description = dto.Description,
             Items = items,
-            Status = 0,
+            Status = ToWarehouseProcurementStatus(entity.Status),
             CreatedBy = userId,
             CreatedByName = user?.FullName ?? string.Empty,
-            CreatedAt = DateTime.Now
+            CreatedAt = entity.CreatedAt
         };
     }
+
+    /// <summary>
+    /// ProcurementRequests.Status uses the entity codes (0 Draft, 1 Pending, 2 Approved, 3 Rejected, 4 Completed)
+    /// shared with /api/procurement, while ProcurementRequestDto / the v2 warehouse page use
+    /// 0 Mới, 1 Đã duyệt, 2 Đã mua, 3 Đã hủy. Without this mapping an approved request (2) showed as "Đã mua"
+    /// and a pending one (1) as "Đã duyệt" with no approve button.
+    /// </summary>
+    private static int ToWarehouseProcurementStatus(int entityStatus) => entityStatus switch
+    {
+        0 or 1 => 0,
+        2 => 1,
+        4 => 2,
+        3 => 3,
+        _ => entityStatus,
+    };
 
     public async Task<List<AutoProcurementSuggestionDto>> GetAutoProcurementSuggestionsAsync(Guid warehouseId)
     {
@@ -150,6 +216,9 @@ public partial class WarehouseCompleteService {
             throw new InvalidOperationException("Đề nghị mua sắm này đã được duyệt trước đó.");
         if (request.Status == 3)
             throw new InvalidOperationException("Đề nghị mua sắm đã bị từ chối, không duyệt được.");
+        // A Completed (4) request was moved back to Approved.
+        if (request.Status != 0 && request.Status != 1)
+            throw new InvalidOperationException("Chỉ duyệt được đề nghị mua sắm đang chờ duyệt.");
 
         request.Status = 2;
         request.ApprovedById = userId;
@@ -163,7 +232,7 @@ public partial class WarehouseCompleteService {
             Id = request.Id,
             RequestCode = request.RequestCode,
             RequestDate = request.RequestDate,
-            Status = request.Status,
+            Status = ToWarehouseProcurementStatus(request.Status),
             Items = new List<ProcurementItemDto>(),
             CreatedBy = userId,
             CreatedByName = user?.FullName ?? string.Empty,
@@ -175,14 +244,24 @@ public partial class WarehouseCompleteService {
     {
         var query = _context.ProcurementRequests
             .Include(p => p.Department)
+            .Include(p => p.RequestedBy)
             .Include(p => p.Items)
+            .Where(p => !p.IsDeleted)
             .AsQueryable();
+        // status is in the warehouse-DTO code set (see ToWarehouseProcurementStatus)
         if (status.HasValue)
-            query = query.Where(p => p.Status == status.Value);
+            query = status.Value switch
+            {
+                0 => query.Where(p => p.Status == 0 || p.Status == 1),
+                1 => query.Where(p => p.Status == 2),
+                2 => query.Where(p => p.Status == 4),
+                _ => query.Where(p => p.Status == status.Value),
+            };
         if (fromDate.HasValue)
             query = query.Where(p => p.RequestDate >= fromDate.Value);
+        // toDate is a calendar day: include the whole day (it cut off everything after 00:00).
         if (toDate.HasValue)
-            query = query.Where(p => p.RequestDate <= toDate.Value);
+            query = query.Where(p => p.RequestDate < toDate.Value.Date.AddDays(1));
         var rows = await query.OrderByDescending(p => p.RequestDate).Take(200).ToListAsync();
         return rows.Select(p => new ProcurementRequestDto
         {
@@ -192,7 +271,10 @@ public partial class WarehouseCompleteService {
             WarehouseName = p.Department?.DepartmentName ?? string.Empty,
             RequestDate = p.RequestDate,
             Description = p.Notes,
-            Status = p.Status,
+            Status = ToWarehouseProcurementStatus(p.Status),
+            CreatedBy = p.RequestedById ?? Guid.Empty,
+            CreatedByName = p.RequestedBy?.FullName ?? string.Empty,
+            CreatedAt = p.CreatedAt,
             Items = p.Items?.Select(i => new ProcurementItemDto
             {
                 Id = i.Id,
