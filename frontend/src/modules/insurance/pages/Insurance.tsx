@@ -43,6 +43,7 @@ import { RefreshButton } from '../../../components/actions';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { fmtVND } from '../../../utils/format';
 import { openPrintWindow, escapeHtml } from '../../../utils/printWindow';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 
 /* BHYT v2 — claims management */
@@ -537,18 +538,20 @@ const InsuranceV2: React.FC = () => {
     setXmlSigning(true);
     setXmlSignMsg(null);
     try {
-      const r = await signXmlBatch(batchId);
-      const res = (r.data ?? r) as unknown as { success: boolean; message: string };
+      // R3: 2 bước sign-payload → plugin USB-token → signature; không có plugin thì báo rõ, không gọi BE.
+      const res = await signXmlBatch(batchId);
       if (res.success) {
-        setXmlSignMsg({ ok: true, text: 'Ký XML thành công' });
+        setXmlSignMsg({ ok: true, text: res.message || 'Ký XML thành công' });
         message.success('Đã ký XML điện tử');
+        void loadXmlHistory();
       } else {
         setXmlSignMsg({ ok: false, text: res.message || 'Ký XML thất bại' });
         message.warning(res.message || 'Ký XML thất bại');
       }
-    } catch {
-      setXmlSignMsg({ ok: false, text: 'Lỗi khi ký XML — kiểm tra kết nối USB-token' });
-      message.warning('Lỗi khi ký XML');
+    } catch (err) {
+      const text = friendlyErrorMessage(err, 'Lỗi khi ký XML — kiểm tra kết nối USB-token');
+      setXmlSignMsg({ ok: false, text });
+      message.warning(text);
     } finally {
       setXmlSigning(false);
     }

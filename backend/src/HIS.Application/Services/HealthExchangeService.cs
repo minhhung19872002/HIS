@@ -227,6 +227,12 @@ namespace HIS.Application.Services
             return null;
         }
 
+        public Task<TeleconsultationRequestDto?> StartTeleconsultationAsync(Guid id, string roomUrl)
+            => Task.FromResult<TeleconsultationRequestDto?>(null);
+
+        public Task<string?> BuildReferralLetterHtmlAsync(Guid referralId)
+            => Task.FromResult<string?>(null);
+
         // Authority Reporting
         public async Task<HealthAuthorityReportDto> GenerateAuthorityReportAsync(string reportType, DateTime fromDate, DateTime toDate)
         {

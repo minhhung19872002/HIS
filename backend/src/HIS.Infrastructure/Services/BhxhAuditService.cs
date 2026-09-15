@@ -176,6 +176,8 @@ public partial class BhxhAuditService : IBhxhAuditService
 
         var errors = new List<BhxhAuditError>();
         decimal totalAmount = 0;
+        // R3: ceiling from config (BHYT.CostCeiling, else 40 × lương cơ sở) instead of a hard-coded 7,920,000.
+        var ceiling = await new BhytVisitPricing(_context).CostCeilingAsync();
 
         // Check each claim for common errors
         foreach (var claim in claims)
@@ -208,10 +210,11 @@ public partial class BhxhAuditService : IBhxhAuditService
                 });
             }
 
-            // Check 2: Over ceiling (claim > 40x base salary = 7,920,000 VND for outpatient)
-            var ceiling = 7_920_000m;
-            if (claim.TotalAmount > ceiling)
+            // Check 2: a technical service above the per-service payment ceiling (same rule as CheckCostCeilingAsync).
+            var overCeiling = BhytVisitPricing.LinesOverCeiling(claim.ClaimDetails, ceiling);
+            if (overCeiling.Count > 0)
             {
+                var excess = Math.Min(claim.TotalAmount, overCeiling.Sum(o => o.Excess));
                 errors.Add(new BhxhAuditError
                 {
                     Id = Guid.NewGuid(),
@@ -220,9 +223,9 @@ public partial class BhxhAuditService : IBhxhAuditService
                     PatientName = patient?.FullName,
                     InsuranceNumber = claim.InsuranceNumber,
                     ErrorType = "OverCeiling",
-                    ErrorDescription = $"Chi phí {claim.TotalAmount:N0} vượt trần {ceiling:N0}",
+                    ErrorDescription = $"{string.Join(", ", overCeiling.Select(o => o.Line.ItemName))} vượt trần {ceiling:N0}/DVKT",
                     OriginalAmount = claim.TotalAmount,
-                    AdjustedAmount = ceiling,
+                    AdjustedAmount = claim.TotalAmount - excess,
                     CreatedAt = DateTime.UtcNow
                 });
             }
@@ -261,7 +264,7 @@ public partial class BhxhAuditService : IBhxhAuditService
         session.TotalRecords = claims.Count;
         session.TotalAmount = totalAmount;
         session.ErrorCount = errors.Count;
-        session.ErrorAmount = errors.Sum(e => e.OriginalAmount - e.AdjustedAmount);
+        session.ErrorAmount = CappedErrorAmount(errors);
         session.Status = 2; // Completed
         session.UpdatedAt = DateTime.UtcNow;
 
@@ -326,7 +329,7 @@ public partial class BhxhAuditService : IBhxhAuditService
                 .Where(e => e.AuditSessionId == session.Id && !e.IsDeleted)
                 .ToListAsync();
 
-            session.ErrorAmount = allErrors.Sum(e => e.OriginalAmount - e.AdjustedAmount);
+            session.ErrorAmount = CappedErrorAmount(allErrors);
             session.UpdatedAt = DateTime.UtcNow;
         }
 
@@ -538,6 +541,16 @@ public partial class BhxhAuditService : IBhxhAuditService
 
         return result;
     }
+
+    /// <summary>
+    /// R3: several errors on one claim (duplicate + missing ICD + ceiling) each carried the full claim total, so the
+    /// session ErrorAmount could be a multiple of what was claimed. Per claim (same record/card/original amount) the
+    /// error amount is capped at that claim's total.
+    /// </summary>
+    internal static decimal CappedErrorAmount(IEnumerable<BhxhAuditError> errors)
+        => errors.Where(e => !e.IsDeleted)
+            .GroupBy(e => new { e.RecordId, e.InsuranceNumber, e.OriginalAmount })
+            .Sum(g => Math.Min(g.Key.OriginalAmount, g.Sum(e => Math.Max(0, e.OriginalAmount - e.AdjustedAmount))));
 
     private static AuditErrorDto MapErrorDto(BhxhAuditError e) => new()
     {

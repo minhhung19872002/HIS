@@ -78,7 +78,7 @@ public partial class InsuranceXmlController
     /// Gửi XML lên cổng BHXH
     /// </summary>
     [HttpPost("submit")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.InsuranceManager)]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)] // R3 RBAC: was Admin+InsuranceManager (no live role) → cashier/accountant 403
     public async Task<ActionResult<SubmitResultDto>> SubmitToInsurancePortal([FromBody] SubmitToInsurancePortalDto dto)
     {
         // Sweep 2026-06-12: body rỗng từng trả TXN giả + "tiep nhan thanh cong" (mock) — chặn khi thiếu hồ sơ.
@@ -112,7 +112,7 @@ public partial class InsuranceXmlController
     /// Tái gửi hồ sơ bị từ chối
     /// </summary>
     [HttpPost("resubmit")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.InsuranceManager)]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)]
     public async Task<ActionResult<SubmitResultDto>> ResubmitRejectedClaims([FromBody] List<string> maLkList)
     {
         var result = await _insuranceService.ResubmitRejectedClaimsAsync(maLkList);

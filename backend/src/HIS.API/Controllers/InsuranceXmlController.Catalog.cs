@@ -26,6 +26,7 @@ public partial class InsuranceXmlController
     /// Cập nhật mapping dịch vụ - mã BHYT
     /// </summary>
     [HttpPut("catalog/service-mappings/{id}")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Approve)] // R3 RBAC: price mapping = insurance/accountant/admin
     public async Task<ActionResult<ServiceInsuranceMapDto>> UpdateServiceMapping(Guid id, [FromBody] ServiceInsuranceMapDto dto)
     {
         var result = await _insuranceService.UpdateServiceMappingAsync(id, dto);
@@ -46,6 +47,7 @@ public partial class InsuranceXmlController
     /// Cập nhật mapping thuốc - mã BHYT
     /// </summary>
     [HttpPut("catalog/medicine-mappings/{id}")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Approve)]
     public async Task<ActionResult<MedicineInsuranceMapDto>> UpdateMedicineMapping(Guid id, [FromBody] MedicineInsuranceMapDto dto)
     {
         var result = await _insuranceService.UpdateMedicineMappingAsync(id, dto);
@@ -56,7 +58,7 @@ public partial class InsuranceXmlController
     /// Import danh mục thuốc BHYT từ file
     /// </summary>
     [HttpPost("catalog/import-medicines")]
-    [Authorize(Roles = RoleNames.Admin)]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Approve)] // R3 RBAC: was Admin-only → 403 for the accountant on the v2 page
     public async Task<ActionResult<ImportResultDto>> ImportMedicineCatalog(IFormFile file)
     {
         using var stream = new MemoryStream();
@@ -69,7 +71,7 @@ public partial class InsuranceXmlController
     /// Import danh mục dịch vụ BHYT từ file
     /// </summary>
     [HttpPost("catalog/import-services")]
-    [Authorize(Roles = RoleNames.Admin)]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Approve)]
     public async Task<ActionResult<ImportResultDto>> ImportServiceCatalog(IFormFile file)
     {
         using var stream = new MemoryStream();
@@ -82,7 +84,7 @@ public partial class InsuranceXmlController
     /// Cập nhật giá BHYT theo đợt
     /// </summary>
     [HttpPost("catalog/update-prices")]
-    [Authorize(Roles = RoleNames.Admin)]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Approve)]
     public async Task<ActionResult<InsurancePriceUpdateBatchDto>> UpdateInsurancePrices([FromBody] InsurancePriceUpdateBatchDto dto)
     {
         var result = await _insuranceService.UpdateInsurancePricesAsync(dto);

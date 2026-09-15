@@ -23,10 +23,71 @@ export interface BhxhAuditBatchSubmitResult {
   results: BhxhAuditPortalSubmitResult[];
 }
 
+/** Phiên giám định (BhxhAuditListDto). Status: 0 nháp · 1 đang kiểm tra · 2 hoàn thành · 3 đã gửi cổng · 4 đã duyệt. */
+export interface BhxhAuditSession {
+  id: string;
+  sessionCode: string;
+  periodMonth: number;
+  periodYear: number;
+  totalRecords: number;
+  totalAmount: number;
+  errorCount: number;
+  errorAmount: number;
+  status: number;
+  statusName?: string;
+  auditorName?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface BhxhAuditSessionPage {
+  items: BhxhAuditSession[];
+  totalCount: number;
+  pageIndex: number;
+  pageSize: number;
+}
+
+/** Lỗi giám định của 1 hồ sơ trong phiên (AuditErrorDto). */
+export interface BhxhAuditError {
+  id: string;
+  auditSessionId: string;
+  recordId?: string;
+  patientName?: string;
+  insuranceNumber?: string;
+  errorType: string;
+  errorTypeName?: string;
+  errorDescription?: string;
+  originalAmount: number;
+  adjustedAmount: number;
+  isFixed: boolean;
+  fixedDate?: string;
+  notes?: string;
+}
+
 // ==================== API FUNCTIONS ====================
 
-/** Danh sách phiên giám định BHXH. */
-export const getAuditSessions = () => apiClient.get('/bhxh-audit/sessions');
+/**
+ * Danh sách phiên giám định BHXH — BE trả trang `{ items, totalCount, pageIndex, pageSize }` (BhxhAuditPagedResult).
+ * R3: trang v2 trước đây đọc kết quả này như danh sách HỒ SƠ (maLk/patientName…) nên mọi dòng trống.
+ */
+export const getAuditSessions = (params: { periodYear?: number; periodMonth?: number; status?: number; pageSize?: number } = {}) =>
+  apiClient.get<BhxhAuditSessionPage>('/bhxh-audit/sessions', { params: { pageSize: 500, ...params } });
+
+/** Tạo phiên giám định cho kỳ tháng/năm. */
+export const createAuditSession = (dto: { periodMonth: number; periodYear: number; notes?: string }) =>
+  apiClient.post<BhxhAuditSession>('/bhxh-audit/session', dto);
+
+/** Chạy kiểm tra tự động trên hồ sơ BHYT của kỳ (trùng, vượt trần DVKT, thiếu ICD). */
+export const runAuditSession = (sessionId: string) =>
+  apiClient.post<BhxhAuditSession & { errors: BhxhAuditError[] }>(`/bhxh-audit/session/${sessionId}/run`);
+
+/** Lỗi của phiên. */
+export const getAuditErrors = (sessionId: string) =>
+  apiClient.get<BhxhAuditError[]>(`/bhxh-audit/session/${sessionId}/errors`);
+
+/** Ghi nhận xử lý lỗi (số tiền còn được thanh toán 0..gốc). */
+export const fixAuditError = (errorId: string, dto: { adjustedAmount: number; notes?: string }) =>
+  apiClient.put<BhxhAuditError>(`/bhxh-audit/error/${errorId}/fix`, dto);
 
 /** Duyệt hồ sơ giám định (Completed → Approved). */
 export const approveAuditSession = (sessionId: string, notes?: string) =>
@@ -131,6 +192,10 @@ export const getImportedRows = (params: {
 
 export default {
   getAuditSessions,
+  createAuditSession,
+  runAuditSession,
+  getAuditErrors,
+  fixAuditError,
   approveAuditSession,
   submitToPortal,
   submitBatch,

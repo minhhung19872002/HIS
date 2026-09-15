@@ -30,6 +30,7 @@ import {
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
 import { RowActions } from '@/components/actions';
+import { PatientSearchPicker } from '../../patient/components/PatientSearchPicker';
 
 // ─────────────────────── Form value types (port từ v1 pages/health-exchange/types.ts) ───────────────────────
 
@@ -744,7 +745,8 @@ const ReferralsPanel: React.FC<{ dashboard: HIEDashboardDto | null }> = ({ dashb
     setBusyId(record.id);
     try {
       const res = await printReferralLetter(record.id);
-      const blob = new Blob([res.data], { type: 'application/pdf' });
+      // BE returns an HTML letter (text/html) — opened in a new tab for printing.
+      const blob = new Blob([res.data], { type: 'text/html;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
     } catch (err) {
@@ -933,8 +935,8 @@ const ReferralsPanel: React.FC<{ dashboard: HIEDashboardDto | null }> = ({ dashb
       >
         <Form form={referralForm} layout="vertical" onFinish={handleCreateReferral}>
           <div style={{ display: 'flex', gap: 12 }}>
-            <Form.Item name="patientId" label="Mã bệnh nhân" rules={[{ required: true }]} style={{ flex: 1 }}>
-              <Input placeholder="Nhập mã bệnh nhân" />
+            <Form.Item name="patientId" label="Bệnh nhân" rules={[{ required: true, message: 'Chọn bệnh nhân' }]} style={{ flex: 1 }}>
+              <PatientSearchPicker placeholder="Gõ mã BN hoặc họ tên (≥ 2 ký tự)…" />
             </Form.Item>
             <Form.Item name="destinationFacilityCode" label="Mã BV tiếp nhận" rules={[{ required: true }]} style={{ flex: 1 }}>
               <Input placeholder="Mã cơ sở tiếp nhận" />
@@ -1163,8 +1165,8 @@ const ConsultationsPanel: React.FC = () => {
       >
         <Form form={consultationForm} layout="vertical" onFinish={handleCreateConsultation}>
           <div style={{ display: 'flex', gap: 12 }}>
-            <Form.Item name="patientId" label="Mã bệnh nhân" rules={[{ required: true }]} style={{ flex: 1 }}>
-              <Input placeholder="Nhập mã bệnh nhân" />
+            <Form.Item name="patientId" label="Bệnh nhân" rules={[{ required: true, message: 'Chọn bệnh nhân' }]} style={{ flex: 1 }}>
+              <PatientSearchPicker placeholder="Gõ mã BN hoặc họ tên (≥ 2 ký tự)…" />
             </Form.Item>
             <Form.Item name="requestType" label="Loại yêu cầu" rules={[{ required: true }]} style={{ flex: 1 }}>
               <Select placeholder="Chọn loại" options={[

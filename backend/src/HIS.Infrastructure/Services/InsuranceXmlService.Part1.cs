@@ -272,18 +272,9 @@ public partial class InsuranceXmlService : IInsuranceXmlService
 
         var patient = exam.MedicalRecord?.Patient;
 
-        var claim = new InsuranceClaim
-        {
-            Id = Guid.NewGuid(),
-            ClaimCode = CodeGenerator.Timestamp("BHYT"),
-            PatientId = exam.MedicalRecord?.PatientId ?? Guid.Empty,
-            ServiceDate = exam.StartTime ?? exam.CreatedAt,
-            TreatmentType = 1, // Outpatient
-            ClaimStatus = 0, // Pending
-            CreatedAt = DateTime.UtcNow
-        };
-
-        _context.InsuranceClaims.Add(claim);
+        // R3: was an empty shell (no MR link, card, ICD, amounts or lines) with a per-second ClaimCode that
+        // collided on double-click. Now the same full claim the billing lock produces, one per medical record.
+        var claim = await new BhytClaimBuilder(_context).CreateManualAsync(exam.MedicalRecordId, null);
         await _context.SaveChangesAsync();
 
         return MapToClaimSummary(claim, patient);

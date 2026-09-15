@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using HIS.Core.Constants;
 using HIS.Application.DTOs.Insurance;
 
 namespace HIS.API.Controllers;
@@ -20,6 +21,7 @@ public partial class InsuranceXmlController
 
     /// <summary>Nhận chữ ký từ plugin. BE verify chữ ký khớp nội dung đợt rồi mới ghi nhận.</summary>
     [HttpPost("xml/{batchId}/signature")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)]
     [Consumes("application/json")]
     public async Task<ActionResult<XmlSignatureResultDto>> SubmitXmlSignature(
         Guid batchId, [FromBody] SubmitXmlSignatureDto dto)

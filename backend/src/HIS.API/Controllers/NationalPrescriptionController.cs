@@ -12,6 +12,7 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/national-prescription")]
 [Authorize]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // R3: gateway refusal → 400 with the portal message
 public class NationalPrescriptionController : ControllerBase
 {
     private readonly INationalPrescriptionService _service;

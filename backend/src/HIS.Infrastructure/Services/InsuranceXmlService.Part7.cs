@@ -27,55 +27,63 @@ public partial class InsuranceXmlService
     }
 
     /// <summary>
-    /// BHYT split for an amount already priced at the BHYT price:
-    ///   base (thanh tien BH) = amount × service payment rate (TY_LE_TT)
-    ///   T_BHTT = base × muc huong (card benefit level) · T_BNCCT = base − T_BHTT · T_BNTT = amount − base.
-    /// Was: insurance = amount × TY_LE_TT only (card level ignored — a TE1 card got 80%) and a hard-coded
-    /// 20% co-pay regardless of the card.
+    /// R3: single-item BHYT estimate through the SAME formula as orders/claims (<see cref="BhytCoverageCalculator.SplitLine"/>):
+    /// BHYT price = the price version in force today (InsurancePriceConfigs) else the catalog's InsurancePrice,
+    /// TY_LE_TT from the same source, mức hưởng from the card. Route (tuyến) and the 15%-of-base-salary rule are
+    /// properties of a whole visit, so an estimate without a visit applies neither — the order-time split does.
+    /// Was: its own copy of the maths on the BHYT price only (the hospital-price difference was never shown).
     /// </summary>
-    private static InsuranceCostCalculationDto SplitInsuranceCost(
-        decimal unitPrice, decimal amount, decimal paymentRate, string? insuranceNumber)
+    private static InsuranceCostCalculationDto EstimateInsuranceCost(
+        decimal hospitalUnitPrice, decimal bhytUnitPrice, decimal quantity, decimal paymentRate, bool covered, string? insuranceNumber)
     {
         var level = BhytCardNumber.BenefitPercentOf(insuranceNumber);
-        var mucHuong = level ?? 80;
-        var baseAmount = Math.Round(amount * paymentRate / 100m, 2);
-        var insuranceAmount = Math.Round(baseAmount * mucHuong / 100m, 2);
+        var mucHuong = level ?? BhytCoverageCalculator.DefaultBenefitPercent;
+        var unitPrice = hospitalUnitPrice > 0 ? hospitalUnitPrice : bhytUnitPrice;
+        var line = new BhytLineInput
+        {
+            UnitPrice = unitPrice, Quantity = quantity, InsurancePrice = bhytUnitPrice,
+            IsCovered = covered, ItemPaymentRatePercent = paymentRate,
+        };
+        var r = BhytCoverageCalculator.SplitLine(line, mucHuong, 100);
         return new InsuranceCostCalculationDto
         {
             UnitPrice = unitPrice,
-            InsurancePrice = amount,
-            PaymentRatio = mucHuong,
-            InsuranceAmount = insuranceAmount,
-            CoPayAmount = baseAmount - insuranceAmount,
-            PatientAmount = amount - insuranceAmount,
-            Notes = level == null
-                ? "Không xác định được mức hưởng từ số thẻ BHYT — tạm tính 80%; chưa áp dụng tuyến/15% lương cơ sở"
-                : "Chưa áp dụng tuyến KCB và ngưỡng 15% lương cơ sở"
+            InsurancePrice = bhytUnitPrice,
+            PaymentRatio = r.AppliedPercent,
+            InsuranceAmount = r.InsuranceAmount,
+            CoPayAmount = r.InsuredBase - r.InsuranceAmount,
+            PatientAmount = r.PatientAmount,
+            Notes = !covered ? "Không thuộc danh mục BHYT chi trả"
+                : level == null ? $"Không xác định được mức hưởng từ số thẻ BHYT — tạm tính {mucHuong}%. Tuyến KCB và ngưỡng 15% lương cơ sở áp dụng theo cả lượt khám khi chỉ định."
+                : "Ước tính cho 1 mục; tuyến KCB và ngưỡng 15% lương cơ sở áp dụng theo cả lượt khám khi chỉ định."
         };
+    }
+
+    private Task<InsurancePriceConfig?> PriceConfigInForceAsync(Guid? serviceId, Guid? medicineId)
+    {
+        var today = DateTime.Today;
+        return _context.InsurancePriceConfigs.AsNoTracking()
+            .Where(c => !c.IsDeleted && c.IsActive
+                        && (serviceId != null ? c.ServiceId == serviceId : c.MedicineId == medicineId)
+                        && c.EffectiveFrom <= today && (c.EffectiveTo == null || c.EffectiveTo >= today))
+            .OrderByDescending(c => c.EffectiveFrom)
+            .FirstOrDefaultAsync();
     }
 
     public async Task<InsuranceCostCalculationDto> CalculateServiceInsuranceCostAsync(Guid serviceId, string insuranceNumber)
     {
-        var priceConfig = await _context.InsurancePriceConfigs
-            .Where(c => c.ServiceId == serviceId && c.IsActive)
-            .OrderByDescending(c => c.EffectiveFrom)
-            .FirstOrDefaultAsync();
+        var service = await _context.Services.AsNoTracking().FirstOrDefaultAsync(s => s.Id == serviceId && !s.IsDeleted);
+        var priceConfig = await PriceConfigInForceAsync(serviceId, null);
+        if (service == null && priceConfig == null)
+            return new InsuranceCostCalculationDto { Notes = "Service not found in insurance catalog" };
 
-        if (priceConfig == null)
-        {
-            return new InsuranceCostCalculationDto
-            {
-                UnitPrice = 0,
-                InsurancePrice = 0,
-                PaymentRatio = 0,
-                InsuranceAmount = 0,
-                CoPayAmount = 0,
-                PatientAmount = 0,
-                Notes = "Service not found in insurance catalog"
-            };
-        }
-
-        return SplitInsuranceCost(priceConfig.InsurancePrice, priceConfig.InsurancePrice, priceConfig.PaymentRate, insuranceNumber);
+        return EstimateInsuranceCost(
+            service?.UnitPrice ?? 0,
+            priceConfig?.InsurancePrice ?? service!.InsurancePrice,
+            1,
+            priceConfig?.PaymentRate ?? service!.InsurancePaymentRate,
+            priceConfig != null || service!.IsInsuranceCovered,
+            insuranceNumber);
     }
 
     public async Task<InsuranceCostCalculationDto> CalculateMedicineInsuranceCostAsync(Guid medicineId, decimal quantity, string insuranceNumber)
@@ -83,27 +91,18 @@ public partial class InsuranceXmlService
         if (quantity <= 0)
             throw new ArgumentException("Số lượng phải lớn hơn 0.", nameof(quantity));
 
-        var priceConfig = await _context.InsurancePriceConfigs
-            .Where(c => c.MedicineId == medicineId && c.IsActive)
-            .OrderByDescending(c => c.EffectiveFrom)
-            .FirstOrDefaultAsync();
+        var medicine = await _context.Medicines.AsNoTracking().FirstOrDefaultAsync(m => m.Id == medicineId && !m.IsDeleted);
+        var priceConfig = await PriceConfigInForceAsync(null, medicineId);
+        if (medicine == null && priceConfig == null)
+            return new InsuranceCostCalculationDto { Notes = "Medicine not found in insurance catalog" };
 
-        if (priceConfig == null)
-        {
-            return new InsuranceCostCalculationDto
-            {
-                UnitPrice = 0,
-                InsurancePrice = 0,
-                PaymentRatio = 0,
-                InsuranceAmount = 0,
-                CoPayAmount = 0,
-                PatientAmount = 0,
-                Notes = "Medicine not found in insurance catalog"
-            };
-        }
-
-        var totalPrice = priceConfig.InsurancePrice * quantity;
-        return SplitInsuranceCost(priceConfig.InsurancePrice, totalPrice, priceConfig.PaymentRate, insuranceNumber);
+        return EstimateInsuranceCost(
+            medicine?.UnitPrice ?? 0,
+            priceConfig?.InsurancePrice ?? medicine!.InsurancePrice,
+            quantity,
+            priceConfig?.PaymentRate ?? medicine!.InsurancePaymentRate,
+            priceConfig != null || medicine!.IsInsuranceCovered,
+            insuranceNumber);
     }
 
     public Task<int> GetInsurancePaymentRatioAsync(string insuranceNumber, int treatmentType)
@@ -116,12 +115,49 @@ public partial class InsuranceXmlService
 
     public async Task<ReferralCheckResult> CheckReferralStatusAsync(string insuranceNumber, string facilityCode)
     {
+        // R3: was a constant "Đúng tuyến / 100%". Now: registered facility vs this facility, the latest BHYT record's
+        // route flag + referral letter, and the configured hospital level — same rules as the order-time split.
+        var card = BhytCardNumber.CoreOf(BhytCardNumber.Normalize(insuranceNumber));
+        var ownCode = await ResolveFacilityCodeAsync();
+        var mr = string.IsNullOrEmpty(card) ? null : await _context.MedicalRecords.AsNoTracking()
+            .Where(m => !m.IsDeleted && m.PatientType == 1 && m.InsuranceNumber != null && m.InsuranceNumber.StartsWith(card))
+            .OrderByDescending(m => m.AdmissionDate)
+            .FirstOrDefaultAsync();
+
+        var registered = !string.IsNullOrWhiteSpace(facilityCode) ? facilityCode.Trim() : mr?.InsuranceFacilityCode;
+        var isOwnFacility = !string.IsNullOrWhiteSpace(ownCode) && !string.IsNullOrWhiteSpace(registered)
+                            && registered.Equals(ownCode, StringComparison.OrdinalIgnoreCase);
+        var basis = mr ?? new MedicalRecord { InsuranceNumber = card, PatientType = 1, TreatmentType = 1 };
+        var ctx = await new BhytVisitPricing(_context).BuildContextAsync(basis);
+        ctx = new BhytVisitContext
+        {
+            BenefitPercent = ctx.BenefitPercent,
+            Route = isOwnFacility ? 1 : (mr?.InsuranceRightRoute is 1 or 2 or 3 ? mr.InsuranceRightRoute : 2),
+            HasReferral = ctx.HasReferral,
+            IsEmergency = ctx.IsEmergency,
+            IsInpatient = ctx.IsInpatient,
+            HospitalLevel = ctx.HospitalLevel,
+            BaseSalary = ctx.BaseSalary,
+        };
+        var factor = BhytCoverageCalculator.RouteFactorPercent(ctx, out var warning);
+        var benefit = ctx.BenefitPercent ?? BhytCoverageCalculator.DefaultBenefitPercent;
+        var correct = ctx.Route == 1 || ctx.HasReferral || ctx.IsEmergency;
+
+        var reason = isOwnFacility ? "Đúng tuyến (đăng ký KCB ban đầu tại cơ sở)"
+            : ctx.IsEmergency ? "Cấp cứu — không xét tuyến"
+            : ctx.HasReferral ? $"Có giấy chuyển tuyến từ {mr!.ReferralFromFacilityName ?? mr.ReferralFromFacilityCode}"
+            : ctx.Route == 1 ? "Đúng tuyến theo hồ sơ tiếp đón"
+            : factor == 100 ? "Trái tuyến — hưởng như đúng tuyến theo quy định thông tuyến"
+            : factor == 0 ? "Trái tuyến ngoại trú tại cơ sở tuyến tỉnh/trung ương — BHYT không chi trả"
+            : $"Trái tuyến — BHYT chi trả {factor}% mức hưởng";
+        if (warning != null) reason += ". " + warning;
+
         return new ReferralCheckResult
         {
-            IsCorrectReferral = true,
-            PaymentRatio = 100,
-            Reason = "Dung tuyen",
-            RequiresReferralLetter = false
+            IsCorrectReferral = correct,
+            PaymentRatio = benefit * factor / 100,
+            Reason = reason,
+            RequiresReferralLetter = !correct && factor < 100
         };
     }
 
@@ -195,8 +231,14 @@ public partial class InsuranceXmlService
         if (config.DepartmentId.HasValue)
             query = query.Where(c => c.DepartmentId == config.DepartmentId.Value);
 
+        // R3: only claims that are ready for BHXH — Locked, Approved, PartiallyRejected, Paid. A Pending draft is still
+        // being edited; a FullyRejected claim goes out again only when named explicitly (ResubmitRejectedClaimsAsync).
         if (config.MaLkList != null && config.MaLkList.Count > 0)
-            query = query.Where(c => config.MaLkList.Contains(c.ClaimCode));
+            query = query.Where(c => config.MaLkList.Contains(c.ClaimCode)
+                                     && c.ClaimStatus != HIS.Core.Constants.InsuranceClaimStatus.Pending);
+        else
+            query = query.Where(c => c.ClaimStatus != HIS.Core.Constants.InsuranceClaimStatus.Pending
+                                     && c.ClaimStatus != HIS.Core.Constants.InsuranceClaimStatus.FullyRejected);
 
         return await query.ToListAsync();
     }

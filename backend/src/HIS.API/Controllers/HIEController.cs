@@ -82,6 +82,8 @@ namespace HIS.API.Controllers
             => Ok(await _service.LookupInsuranceCardAsync(cardNumber));
 
         [HttpPost("insurance/xml/generate")]
+        [TypeFilter(typeof(HIS.API.Filters.DomainExceptionFilter))] // R3: delegated export errors → 400
+        [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)]
         public async Task<ActionResult<InsuranceXMLSubmissionDto>> GenerateXML(
             [FromQuery] string xmlType,
             [FromQuery] DateTime fromDate,
@@ -90,6 +92,8 @@ namespace HIS.API.Controllers
             => Ok(await _service.GenerateXMLAsync(xmlType, fromDate, toDate, departmentId));
 
         [HttpPost("insurance/xml/{id}/submit")]
+        [TypeFilter(typeof(HIS.API.Filters.DomainExceptionFilter))] // R3: portal refusal → 400
+        [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)]
         public async Task<ActionResult<InsuranceXMLSubmissionDto>> SubmitXML(Guid id)
             => Ok(await _service.SubmitXMLAsync(id));
 
@@ -143,6 +147,25 @@ namespace HIS.API.Controllers
         {
             var r = await _service.SendReferralAsync(id);
             return r == null ? NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy phiếu chuyển viện" }) : Ok(r);
+        }
+
+        // QA-R3: printable referral letter (v2 "In giấy chuyển tuyến" → 404 before).
+        [HttpGet("referrals/{id:guid}/print")]
+        public async Task<IActionResult> PrintReferralLetter(Guid id)
+        {
+            var html = await _service.BuildReferralLetterHtmlAsync(id);
+            if (html == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy phiếu chuyển viện" });
+            return File(System.Text.Encoding.UTF8.GetBytes(html), "text/html; charset=utf-8");
+        }
+
+        // QA-R3: open the video room (Jitsi, same host config as telemedicine) — v2 "Tham gia" → 404 before.
+        [HttpPost("teleconsults/{id:guid}/start")]
+        public async Task<IActionResult> StartTeleconsult(Guid id, [FromServices] Microsoft.Extensions.Configuration.IConfiguration config)
+        {
+            var baseUrl = (config["Jitsi:BaseUrl"] ?? Environment.GetEnvironmentVariable("JITSI_BASE_URL") ?? "https://meet.jit.si").TrimEnd('/');
+            var r = await _service.StartTeleconsultationAsync(id, $"{baseUrl}/his-hie-{id:N}");
+            if (r == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy yêu cầu hội chẩn" });
+            return Ok(new { roomUrl = r.VideoRoomUrl, token = "", status = r.Status });
         }
 
         [HttpGet("teleconsultation")]

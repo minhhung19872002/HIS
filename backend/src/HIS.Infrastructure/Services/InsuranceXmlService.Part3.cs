@@ -582,15 +582,31 @@ public partial class InsuranceXmlService
 
     public async Task<CostCeilingCheckResult> CheckCostCeilingAsync(string maLk)
     {
-        var claim = await _context.InsuranceClaims.FirstOrDefaultAsync(c => c.ClaimCode == maLk);
+        // R3: was a constant 50M ceiling that never reported anything. Now the per-DVKT ceiling from config
+        // (BHYT.CostCeiling, else 40 × lương cơ sở) checked against the claim's real lines.
+        var pricing = new BhytVisitPricing(_context);
+        var ceiling = await pricing.CostCeilingAsync();
+        var claim = await _context.InsuranceClaims.AsNoTracking()
+            .Include(c => c.ClaimDetails)
+            .FirstOrDefaultAsync(c => c.ClaimCode == maLk && !c.IsDeleted);
+        if (claim == null)
+            return new CostCeilingCheckResult
+            {
+                MaLk = maLk,
+                CeilingAmount = ceiling,
+                ViolatedRules = new List<string> { $"Không tìm thấy hồ sơ {maLk}" }
+            };
+
+        var over = BhytVisitPricing.LinesOverCeiling(claim.ClaimDetails, ceiling);
         return new CostCeilingCheckResult
         {
             MaLk = maLk,
-            TotalCost = claim?.TotalAmount ?? 0,
-            CeilingAmount = 50000000, // 50M VND default ceiling
-            IsExceeded = false,
-            ExceededAmount = 0,
-            ViolatedRules = new List<string>()
+            TotalCost = claim.TotalAmount,
+            CeilingAmount = ceiling,
+            IsExceeded = over.Count > 0,
+            ExceededAmount = over.Sum(o => o.Excess),
+            ViolatedRules = over.Select(o =>
+                $"{o.Line.ItemCode} {o.Line.ItemName}: {o.Line.Amount:N0} vượt trần {ceiling:N0} (vượt {o.Excess:N0})").ToList()
         };
     }
 

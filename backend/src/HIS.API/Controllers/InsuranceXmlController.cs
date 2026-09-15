@@ -115,6 +115,8 @@ public partial class InsuranceXmlController : ControllerBase
     /// Tạo hồ sơ BHYT từ lượt khám
     /// </summary>
     [HttpPost("claims/create/{examinationId}")]
+    // R3 RBAC: insurance back-office only (receptionist kept read/verify access via the class-level roles)
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)]
     public async Task<ActionResult<InsuranceClaimSummaryDto>> CreateInsuranceClaim(Guid examinationId)
     {
         var result = await _insuranceService.CreateInsuranceClaimAsync(examinationId);
@@ -145,6 +147,7 @@ public partial class InsuranceXmlController : ControllerBase
     /// Cập nhật hồ sơ BHYT
     /// </summary>
     [HttpPut("claims/{maLk}")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)]
     public async Task<ActionResult<InsuranceClaimSummaryDto>> UpdateInsuranceClaim(string maLk, [FromBody] UpdateInsuranceClaimDto dto)
     {
         var result = await _insuranceService.UpdateInsuranceClaimAsync(maLk, dto);
@@ -155,6 +158,7 @@ public partial class InsuranceXmlController : ControllerBase
     /// Xóa hồ sơ BHYT
     /// </summary>
     [HttpDelete("claims/{maLk}")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)]
     public async Task<ActionResult<bool>> DeleteInsuranceClaim(string maLk)
     {
         var result = await _insuranceService.DeleteInsuranceClaimAsync(maLk);
@@ -165,6 +169,7 @@ public partial class InsuranceXmlController : ControllerBase
     /// Khóa hồ sơ BHYT
     /// </summary>
     [HttpPost("claims/{maLk}/lock")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)]
     public async Task<ActionResult<bool>> LockInsuranceClaim(string maLk)
     {
         var result = await _insuranceService.LockInsuranceClaimAsync(maLk);
@@ -344,6 +349,7 @@ public partial class InsuranceXmlController : ControllerBase
     /// Xuất file XML tổng hợp
     /// </summary>
     [HttpPost("xml/export")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)]
     public async Task<ActionResult<XmlExportResultDto>> ExportXml([FromBody] XmlExportConfigDto config)
     {
         var result = await _insuranceService.ExportXmlAsync(config);

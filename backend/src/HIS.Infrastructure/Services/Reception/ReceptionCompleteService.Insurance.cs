@@ -142,13 +142,23 @@ public partial class ReceptionCompleteService {
         string facilityCode,
         BlockedInsurance? blocked)
     {
-        var rightRoute = facilityCodeFromCard == null ? 3
-            : facilityCodeFromCard.Equals(facilityCode, StringComparison.OrdinalIgnoreCase) ? 1
-            : 2;
+        // R3: the mock reported route 3 (thông tuyến) for EVERY 15-character card, although it also reports the
+        // registered facility as this hospital (FacilityCode = own code, "Nơi KKCB cùng cơ sở"). Route is now
+        // derived from the only facility evidence the mock has: a scanned 20-char card whose registered facility
+        // code differs from the hospital's configured code → 2 trái tuyến (the order-time BHYT split then applies
+        // the thông-tuyến level rules); same code, or no code on the card → 1 đúng tuyến. Hospital code not
+        // configured → cannot prove a difference → đúng tuyến + warning (never cut benefits on missing data).
+        var ownCodeKnown = !string.IsNullOrWhiteSpace(facilityCode);
+        var rightRoute = facilityCodeFromCard != null && ownCodeKnown
+                         && !facilityCodeFromCard.Equals(facilityCode, StringComparison.OrdinalIgnoreCase)
+            ? 2
+            : 1;
         var warnings = new List<string>
         {
             "Chưa kết nối cổng BHXH — dữ liệu thẻ là mô phỏng, chưa đối chiếu quyền lợi thật"
         };
+        if (facilityCodeFromCard != null && !ownCodeKnown)
+            warnings.Add("Chưa cấu hình mã CSKCB của bệnh viện — tạm tính đúng tuyến");
         if (blocked != null)
             warnings.Add("Bệnh nhân nằm trong danh sách chặn BHYT");
 
@@ -599,7 +609,7 @@ public partial class ReceptionCompleteService {
             Id = Guid.NewGuid(),
             MedicalRecordCode = await GenerateMedicalRecordCodeAsync(),
             PatientId = patient.Id,
-            AdmissionDate = DateTime.UtcNow, // dot16: chuẩn UTC
+            AdmissionDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
             PatientType = 1, // BHYT
             TreatmentType = 1, // Ngoai tru
             InsuranceNumber = dto.InsuranceNumber,

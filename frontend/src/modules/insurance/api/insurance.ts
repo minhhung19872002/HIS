@@ -648,9 +648,43 @@ export interface XmlTablePreview {
 export const previewExport = (config: XmlExportConfigDto) =>
   request.post<XmlExportPreviewDto>('/insurance/xml/preview', config);
 
-// Sign XML batch with digital signature
-export const signXmlBatch = (batchId: string) =>
-  request.post<{ success: boolean; message: string }>(`/insurance/xml/sign/${batchId}`);
+/**
+ * Plugin ký số USB-token cài trên máy kế toán (#441, mô hình client-side). Backend verify chữ ký
+ * RSA/ECDSA-SHA256 TÁCH RỜI trên đúng nội dung ZIP của đợt, nên plugin phải ký dữ liệu thô (không phải XAdES
+ * từng file như SDK VGCA ký tài liệu). Plugin expose `window.HisTokenSigner.signDetached`.
+ */
+export interface HisTokenSigner {
+  signDetached(req: { contentBase64: string; digestBase64: string; hashAlgorithm: string; fileName: string }):
+    Promise<{ signatureBase64: string; certificateBase64: string; caProvider?: string; tokenSerial?: string }>;
+}
+export const getTokenSigner = (): HisTokenSigner | null => {
+  const s = (window as unknown as { HisTokenSigner?: Partial<HisTokenSigner> }).HisTokenSigner;
+  return s && typeof s.signDetached === 'function' ? (s as HisTokenSigner) : null;
+};
+export const XML_SIGN_PLUGIN_MISSING =
+  'Máy này chưa có plugin ký số USB-token (HisTokenSigner) — không ký được đợt XML tại đây. '
+  + 'Cài plugin của nhà cung cấp chữ ký số rồi tải lại trang, hoặc ký trên máy kế toán đã cài.';
+
+/**
+ * Ký đợt XML — luồng 2 bước có sẵn ở BE: GET sign-payload (ZIP + SHA-256) → plugin ký bằng khóa trong token
+ * → POST signature (BE verify bằng chứng thư rồi mới ghi nhận). R3: trước đây gọi `/insurance/xml/sign/{id}`
+ * không tồn tại → luôn lỗi 404.
+ */
+export const signXmlBatch = async (batchId: string): Promise<{ success: boolean; message: string; pluginMissing?: boolean }> => {
+  const signer = getTokenSigner();
+  if (!signer) return { success: false, message: XML_SIGN_PLUGIN_MISSING, pluginMissing: true };
+  const payload = (await request.get<{ contentBase64: string; digestBase64: string; hashAlgorithm: string; fileName: string }>(
+    `/insurance/xml/${batchId}/sign-payload`)).data;
+  const signed = await signer.signDetached(payload);
+  const res = (await request.post<{ success: boolean; message?: string }>(`/insurance/xml/${batchId}/signature`, {
+    signatureValue: signed.signatureBase64,
+    certificateBase64: signed.certificateBase64,
+    caProvider: signed.caProvider,
+    tokenSerial: signed.tokenSerial,
+    hashAlgorithm: payload.hashAlgorithm || 'SHA-256',
+  })).data;
+  return { success: !!res?.success, message: res?.message ?? '' };
+};
 
 export const generateXml1Data = (config: XmlExportConfigDto) =>
   request.post<Xml1MedicalRecordDto[]>('/insurance/xml/generate/xml1', config);

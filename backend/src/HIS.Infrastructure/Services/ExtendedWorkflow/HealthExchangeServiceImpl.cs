@@ -13,7 +13,12 @@ namespace HIS.Infrastructure.Services;
 public class HealthExchangeServiceImpl : IHealthExchangeService
 {
     private readonly HISDbContext _context;
-    public HealthExchangeServiceImpl(HISDbContext context) => _context = context;
+    private readonly IInsuranceXmlService _insuranceXml;
+    public HealthExchangeServiceImpl(HISDbContext context, IInsuranceXmlService insuranceXml)
+    {
+        _context = context;
+        _insuranceXml = insuranceXml;
+    }
 
     public async Task<List<HIEConnectionDto>> GetConnectionsAsync()
     {
@@ -76,21 +81,55 @@ public class HealthExchangeServiceImpl : IHealthExchangeService
 
     public async Task<InsuranceXMLSubmissionDto> GenerateXMLAsync(string xmlType, DateTime fromDate, DateTime toDate, Guid? departmentId = null)
     {
+        // R3: was a row saying "Generated" with no file behind it. Delegates to the real BHYT XML export
+        // (InsuranceXmlService: validate → XML1..15 → XSD → files + InsuranceXmlBatch); SubmissionCode = batch code.
+        if (toDate.Date < fromDate.Date)
+            throw new ArgumentException("Đến ngày phải sau từ ngày.");
+        var config = new HIS.Application.DTOs.Insurance.XmlExportConfigDto
+        {
+            Month = fromDate.Month,
+            Year = fromDate.Year,
+            FromDate = fromDate.Date,
+            ToDate = toDate.Date,
+            DepartmentId = departmentId,
+            ValidateBeforeExport = true,
+        };
+        var preview = await _insuranceXml.PreviewExportAsync(new HIS.Application.DTOs.Insurance.XmlExportConfigDto
+        {
+            Month = config.Month, Year = config.Year, FromDate = config.FromDate, ToDate = config.ToDate,
+            DepartmentId = departmentId, ValidateBeforeExport = false,
+        });
+        var export = await _insuranceXml.ExportXmlAsync(config);
+        var ok = export.BatchId != Guid.Empty;
+
         var entity = new InsuranceXMLSubmission
         {
             Id = Guid.NewGuid(),
-            SubmissionCode = $"XML{DateTime.Now:yyyyMMddHHmmss}",
+            SubmissionCode = ok ? export.BatchCode : $"XML{DateTime.Now:yyyyMMddHHmmss}",
             XMLType = xmlType,
             PeriodFrom = fromDate,
             PeriodTo = toDate,
             DepartmentId = departmentId,
             GeneratedAt = DateTime.Now,
-            Status = "Generated"
+            TotalRecords = export.TotalRecords,
+            TotalAmount = preview.TotalCostAmount,
+            FilePath = export.FilePath,
+            Status = ok ? "Generated" : "Rejected",
+            RejectedRecords = ok ? null : export.FailedRecords,
+            RejectionReasons = ok ? null : Truncate(string.Join("; ", export.Errors.Select(e => $"{e.MaLk} {e.ErrorMessage}".Trim())), 2000),
         };
         _context.InsuranceXMLSubmissions.Add(entity);
         await _context.SaveChangesAsync();
-        return new InsuranceXMLSubmissionDto { Id = entity.Id, SubmissionCode = entity.SubmissionCode, XMLType = xmlType, FromDate = fromDate, ToDate = toDate, Status = "Generated", GeneratedAt = entity.GeneratedAt };
+        return new InsuranceXMLSubmissionDto
+        {
+            Id = entity.Id, SubmissionCode = entity.SubmissionCode, XMLType = xmlType, FromDate = fromDate, ToDate = toDate,
+            Status = entity.Status, GeneratedAt = entity.GeneratedAt, RecordCount = entity.TotalRecords,
+            TotalAmount = entity.TotalAmount, InsuranceClaimAmount = preview.TotalInsuranceAmount,
+            IsValid = ok, ErrorCount = export.Errors.Count,
+        };
     }
+
+    private static string? Truncate(string? s, int max) => s == null || s.Length <= max ? s : s[..max];
 
     public async Task<InsuranceXMLSubmissionDto> ValidateXMLAsync(Guid submissionId)
     {
@@ -105,10 +144,29 @@ public class HealthExchangeServiceImpl : IHealthExchangeService
     {
         var e = await _context.InsuranceXMLSubmissions.FindAsync(submissionId);
         if (e == null) return null!;
-        e.Status = "Submitted";
-        e.SubmittedAt = DateTime.Now;
+        // R3: was a status flip with nothing sent. Submit the export batch behind this row through the BHXH portal
+        // path (duplicate-guarded, gateway mock-mode respected).
+        var batchId = await _context.Set<InsuranceXmlBatch>().AsNoTracking()
+            .Where(b => b.BatchCode == e.SubmissionCode && !b.IsDeleted)
+            .Select(b => (Guid?)b.Id)
+            .FirstOrDefaultAsync();
+        if (batchId == null)
+            throw new InvalidOperationException(
+                $"Lượt {e.SubmissionCode} không có đợt XML đã xuất (trạng thái {e.Status}) — tạo lại XML trước khi gửi.");
+
+        var result = await _insuranceXml.SubmitToInsurancePortalAsync(
+            new HIS.Application.DTOs.Insurance.SubmitToInsurancePortalDto { BatchId = batchId.Value });
+        e.PortalTransactionId = result.TransactionId;
+        e.PortalResponse = Truncate(result.Message, 2000);
+        if (result.Success)
+        {
+            e.Status = "Submitted";
+            e.SubmittedAt = DateTime.Now;
+        }
         await _context.SaveChangesAsync();
-        return new InsuranceXMLSubmissionDto { Id = e.Id, SubmissionCode = e.SubmissionCode, XMLType = e.XMLType, Status = "Submitted", SubmissionDate = e.SubmittedAt ?? DateTime.Now };
+        if (!result.Success)
+            throw new InvalidOperationException(result.Message ?? "Gửi cổng BHXH thất bại.");
+        return new InsuranceXMLSubmissionDto { Id = e.Id, SubmissionCode = e.SubmissionCode, XMLType = e.XMLType, Status = e.Status, SubmissionDate = e.SubmittedAt ?? DateTime.Now, BHXHTransactionId = result.TransactionId ?? string.Empty };
     }
 
     public async Task<InsuranceXMLSubmissionDto> GetSubmissionStatusAsync(Guid submissionId)
@@ -398,6 +456,60 @@ public class HealthExchangeServiceImpl : IHealthExchangeService
         e.EndedAt = DateTime.Now;
         await _context.SaveChangesAsync();
         return new TeleconsultationRequestDto { Id = e.Id, RequestCode = e.RequestCode, Status = "Completed", ConsultationNotes = notes, Recommendations = recommendations };
+    }
+
+    // QA-R3: v2 "Tham gia" called POST teleconsults/{id}/start which did not exist (404) — no room was ever opened.
+    // Same idea as telemedicine: a Jitsi room per request, persisted so both sides re-join the same URL.
+    public async Task<TeleconsultationRequestDto?> StartTeleconsultationAsync(Guid id, string roomUrl)
+    {
+        var e = await _context.TeleconsultationRequests.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+        if (e == null) return null;
+        if (e.Status is "Completed" or "Cancelled")
+            throw new InvalidOperationException($"Yêu cầu hội chẩn đã {(e.Status == "Completed" ? "hoàn thành" : "hủy")} — không mở phòng họp được");
+        if (string.IsNullOrEmpty(e.SessionUrl)) e.SessionUrl = roomUrl;
+        if (e.Status != "InProgress")
+        {
+            e.Status = "InProgress";
+            e.StartedAt ??= DateTime.Now;
+        }
+        e.UpdatedAt = DateTime.Now;
+        await _context.SaveChangesAsync();
+        return new TeleconsultationRequestDto
+        {
+            Id = e.Id, RequestCode = e.RequestCode, PatientId = e.PatientId, Status = e.Status,
+            VideoRoomUrl = e.SessionUrl, ScheduledTime = e.ScheduledDateTime, CreatedAt = e.CreatedAt,
+        };
+    }
+
+    // QA-R3: v2 "In giấy chuyển tuyến" called GET referrals/{id}/print which did not exist (404).
+    public async Task<string?> BuildReferralLetterHtmlAsync(Guid referralId)
+    {
+        var e = await _context.ElectronicReferrals.AsNoTracking().Include(x => x.Patient)
+            .FirstOrDefaultAsync(x => x.Id == referralId && !x.IsDeleted);
+        if (e == null) return null;
+        static string H(string? s) => System.Net.WebUtility.HtmlEncode(s ?? "");
+        static string Multi(string? s) => H(s).Replace("\n", "<br/>");
+        var p = e.Patient;
+        var dob = p?.DateOfBirth?.ToString("dd/MM/yyyy") ?? p?.YearOfBirth?.ToString() ?? "";
+        var gender = p?.Gender == 1 ? "Nam" : p?.Gender == 2 ? "Nữ" : "";
+        var date = e.SentAt == default ? DateTime.Now : e.SentAt;
+        return $@"<!DOCTYPE html><html lang=""vi""><head><meta charset=""utf-8""/><title>Giấy chuyển tuyến {H(e.ReferralCode)}</title>
+<style>body{{font-family:'Times New Roman',serif;font-size:13pt;margin:24px 40px;color:#000}}h2{{text-align:center;margin:8px 0}}
+.hd{{display:flex;justify-content:space-between}}.row{{margin:6px 0}}.lbl{{font-weight:bold}}.sign{{display:flex;justify-content:space-between;margin-top:40px;text-align:center}}
+@media print{{body{{margin:10mm}}}}</style></head><body>
+<div class=""hd""><div>{H(e.FromFacilityName)}<br/>Số: {H(e.ReferralCode)}</div><div style=""text-align:center""><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br/>Độc lập - Tự do - Hạnh phúc</div></div>
+<h2>GIẤY CHUYỂN TUYẾN KHÁM BỆNH, CHỮA BỆNH</h2>
+<div class=""row"">Kính gửi: <b>{H(e.ToFacilityName)}</b>{(string.IsNullOrWhiteSpace(e.ToDepartment) ? "" : " — " + H(e.ToDepartment))}</div>
+<div class=""row""><span class=""lbl"">Họ và tên người bệnh:</span> {H(p?.FullName)} &nbsp; <span class=""lbl"">Giới:</span> {gender} &nbsp; <span class=""lbl"">Ngày sinh:</span> {H(dob)}</div>
+<div class=""row""><span class=""lbl"">Mã người bệnh:</span> {H(p?.PatientCode)} &nbsp; <span class=""lbl"">Số thẻ BHYT:</span> {H(p?.InsuranceNumber)}</div>
+<div class=""row""><span class=""lbl"">Địa chỉ:</span> {H(p?.Address)}</div>
+<div class=""row""><span class=""lbl"">Chẩn đoán:</span> {H(e.Diagnosis)}{(string.IsNullOrWhiteSpace(e.IcdCodes) ? "" : " (ICD-10: " + H(e.IcdCodes) + ")")}</div>
+<div class=""row""><span class=""lbl"">Tóm tắt dấu hiệu lâm sàng, kết quả cận lâm sàng:</span><br/>{Multi(e.ClinicalSummary)}</div>
+<div class=""row""><span class=""lbl"">Phương pháp, thủ thuật, thuốc đã điều trị:</span><br/>{Multi(e.TreatmentGiven)}</div>
+<div class=""row""><span class=""lbl"">Lý do chuyển tuyến:</span> {Multi(e.ReferralReason)}</div>
+<div class=""sign""><div><b>Người bệnh / người nhà</b><br/><i>(Ký, ghi rõ họ tên)</i></div>
+<div>Ngày {date:dd} tháng {date:MM} năm {date:yyyy}<br/><b>Người đề nghị chuyển tuyến</b><br/><i>(Ký, ghi rõ họ tên)</i></div></div>
+</body></html>";
     }
 
     public Task<HealthAuthorityReportDto> GenerateAuthorityReportAsync(string reportType, DateTime fromDate, DateTime toDate)

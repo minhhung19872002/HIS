@@ -105,6 +105,25 @@ public partial class InsuranceXmlService
             batch.SubmittedAt = DateTime.Now;
             batch.SubmitTransactionId = response.TransactionId;
             batch.UpdatedAt = DateTime.UtcNow;
+            if (ok)
+            {
+                // R3 review B5: stamp every claim this batch carried (MA_LK of its XML1). Only the batch was stamped, so
+                // locking/unlocking the medical record later rebuilt or reopened claims BHXH had already received.
+                // A claim still Pending/Locked becomes Locked-awaiting-BHXH; processed claims keep their status.
+                var codes = BhytXmlBatchMembership.ClaimCodesOf(batch).ToList();
+                if (codes.Count > 0)
+                {
+                    var sent = await _context.InsuranceClaims
+                        .Where(c => !c.IsDeleted && codes.Contains(c.ClaimCode))
+                        .ToListAsync();
+                    foreach (var c in sent)
+                    {
+                        c.SubmittedAt = batch.SubmittedAt;
+                        if (c.ClaimStatus == InsuranceClaimStatus.Pending) c.ClaimStatus = InsuranceClaimStatus.Locked;
+                        c.UpdatedAt = DateTime.UtcNow;
+                    }
+                }
+            }
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Submitted batch {BatchCode} ({Files} files, {Size} bytes) → status={Status} txn={Txn}",

@@ -121,34 +121,95 @@ public class NationalPrescriptionService : INationalPrescriptionService
     private const int PortalFailed = 2;
     private const int PortalCancelled = 3;
 
+    /// <summary>
+    /// R3: every send goes through <see cref="INationalPrescriptionGatewayClient"/> (InMemory client in MockMode,
+    /// HTTP client otherwise). Before, submit/batch/retry wrote "sent" with a made-up CQLKCB-… id and never called
+    /// the portal. Writes only the portal columns (#218/T3), never <c>Prescriptions.Status</c>.
+    /// </summary>
+    private async Task<(bool Ok, string? TransactionId, string Message)> SendToGatewayAsync(HIS.Core.Entities.Prescription rx)
+    {
+        if (rx.Status is HIS.Core.Constants.PrescriptionStatus.Draft or HIS.Core.Constants.PrescriptionStatus.Cancelled)
+            return (false, null, "Đơn nháp/đã hủy không gửi lên Cổng ĐTQG.");
+        if (rx.Details.Count == 0)
+            return (false, null, "Đơn thuốc trống — không gửi được.");
+
+        var facilityCode = await _db.SystemConfigs.AsNoTracking()
+            .Where(c => (c.ConfigKey == "NangCap23.NationalGateway.FacilityCode" || c.ConfigKey == "DQGVN:FacilityCode")
+                        && c.IsActive && !c.IsDeleted)
+            .OrderBy(c => c.ConfigKey == "NangCap23.NationalGateway.FacilityCode" ? 0 : 1)
+            .Select(c => c.ConfigValue)
+            .FirstOrDefaultAsync() ?? string.Empty;
+        var patient = rx.MedicalRecord?.Patient;
+        var code = $"DTQG-{DateTime.Now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
+        var payload = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            submissionCode = code,
+            facilityCode,
+            prescriptionCode = rx.PrescriptionCode,
+            issuedAt = rx.PrescriptionDate.ToString("yyyy-MM-ddTHH:mm:ss"),
+            patient = new
+            {
+                idNumber = patient?.IdentityNumber ?? "",
+                fullName = patient?.FullName ?? "",
+                gender = patient?.Gender,
+                dob = patient?.DateOfBirth?.ToString("yyyy-MM-dd"),
+                insuranceNumber = rx.MedicalRecord?.InsuranceNumber,
+            },
+            diagnosisCode = rx.DiagnosisCode ?? rx.IcdCode,
+            diagnosis = rx.DiagnosisName ?? rx.Diagnosis,
+            items = rx.Details.Where(d => !d.IsDeleted).Select(d => new
+            {
+                medicineCode = d.Medicine?.MedicineCode,
+                medicineName = d.Medicine?.MedicineName,
+                quantity = d.Quantity,
+                unit = d.Unit ?? d.Medicine?.Unit,
+                dosage = d.Dosage,
+                usage = d.Usage ?? d.UsageInstructions,
+                durationDays = d.Days
+            })
+        });
+
+        GatewaySubmissionResult result;
+        try { result = await _gatewayClient.SubmitAsync(payload); }
+        catch (Exception ex) { result = new GatewaySubmissionResult { Acknowledged = false, ErrorCode = "NETWORK_ERROR", ErrorMessage = ex.Message }; }
+
+        rx.NationalPortalSubmittedAt = DateTime.UtcNow;
+        if (result.Acknowledged)
+        {
+            rx.NationalPortalStatus = PortalSent;
+            rx.NationalPortalTransactionId = result.TransactionId ?? code;
+            return (true, rx.NationalPortalTransactionId, "Đã gửi đơn thuốc lên Cổng đơn thuốc quốc gia");
+        }
+        rx.NationalPortalStatus = PortalFailed;
+        return (false, null, $"Cổng ĐTQG từ chối/không phản hồi: {result.ErrorCode} {result.ErrorMessage}".Trim());
+    }
+
+    private Task<HIS.Core.Entities.Prescription?> LoadForSendAsync(Guid id)
+        => _db.Prescriptions
+            .Include(p => p.Details).ThenInclude(d => d.Medicine)
+            .Include(p => p.MedicalRecord).ThenInclude(m => m.Patient)
+            .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+
     public async Task<object> SubmitAsync(Guid prescriptionId, string userId)
     {
-        var prescription = await _db.Prescriptions.FindAsync(prescriptionId);
+        var prescription = await LoadForSendAsync(prescriptionId);
         if (prescription == null)
-            return new { transactionId = "", message = "Không tìm thấy đơn thuốc" };
+            return new { success = false, transactionId = "", message = "Không tìm thấy đơn thuốc" };
 
         // #218/T3: chặn gửi lại một đơn ĐÃ gửi. Trước đây không kiểm gì, gọi bao nhiêu lần cũng được.
         if (prescription.NationalPortalStatus == PortalSent)
             return new
             {
+                success = true,
                 transactionId = prescription.NationalPortalTransactionId ?? "",
                 message = "Đơn thuốc này đã được gửi lên Cổng ĐTQG trước đó."
             };
 
-        // #218/T3: ghi vào ô RIÊNG của cổng, KHÔNG đụng `prescription.Status`.
-        // `Status` là trạng thái duyệt/cấp phát thuốc (0-Chờ duyệt … 4-Hủy); gán 1 vào đó nghĩa là
-        // "đã duyệt", nên gửi lên cổng hoá ra tự duyệt đơn thay dược sĩ.
-        var transactionId = $"CQLKCB-{DateTime.Now:yyyyMMddHHmmss}-{prescriptionId.ToString()[..8].ToUpper()}";
-        prescription.NationalPortalStatus = PortalSent;
-        prescription.NationalPortalTransactionId = transactionId;
-        prescription.NationalPortalSubmittedAt = DateTime.UtcNow;
+        var (ok, transactionId, message) = await SendToGatewayAsync(prescription);
         await _db.SaveChangesAsync();
-
-        return new
-        {
-            transactionId,
-            message = "Đã gửi đơn thuốc lên Cổng đơn thuốc quốc gia thành công"
-        };
+        // A refused/failed send is an error for the caller (400 via DomainExceptionFilter), not a success toast.
+        if (!ok) throw new InvalidOperationException(message);
+        return new { success = true, transactionId = transactionId ?? "", message };
     }
 
     public async Task<SubmitBatchResult> SubmitBatchAsync(List<string> prescriptionIds, string userId)
@@ -164,7 +225,9 @@ public class NationalPrescriptionService : INationalPrescriptionService
             .Distinct()
             .ToList();
         var prescriptionsById = await _db.Prescriptions
-            .Where(p => parsedIds.Contains(p.Id))
+            .Include(p => p.Details).ThenInclude(d => d.Medicine)
+            .Include(p => p.MedicalRecord).ThenInclude(m => m.Patient)
+            .Where(p => parsedIds.Contains(p.Id) && !p.IsDeleted)
             .ToDictionaryAsync(p => p.Id);
 
         foreach (var idStr in prescriptionIds)
@@ -184,15 +247,17 @@ public class NationalPrescriptionService : INationalPrescriptionService
                 continue;
             }
 
-            // #218/T3: cùng bản vá với SubmitAsync — ghi vào ô riêng của cổng, không đụng
-            // `Status` (trạng thái duyệt/cấp phát thuốc). Gửi lô mà bỏ sót chỗ này thì vá
-            // một cửa còn cửa kia vẫn hỏng, đúng cái hình dạng cả đợt đang gỡ.
-            prescription.NationalPortalStatus = PortalSent;
-            prescription.NationalPortalTransactionId =
-                $"CQLKCB-{DateTime.Now:yyyyMMddHHmmss}-{id.ToString()[..8].ToUpper()}";
-            prescription.NationalPortalSubmittedAt = DateTime.UtcNow;
-            success++;
-            results.Add(new BatchItemResult { Id = idStr, Success = true, Message = "Gửi thành công" });
+            if (prescription.NationalPortalStatus == PortalSent)
+            {
+                fail++;
+                results.Add(new BatchItemResult { Id = idStr, Success = false, Message = "Đã gửi trước đó" });
+                continue;
+            }
+
+            // R3: real gateway call per prescription (same path as SubmitAsync), portal columns only.
+            var (ok, _, message) = await SendToGatewayAsync(prescription);
+            if (ok) success++; else fail++;
+            results.Add(new BatchItemResult { Id = idStr, Success = ok, Message = message });
         }
 
         await _db.SaveChangesAsync();
@@ -231,8 +296,15 @@ public class NationalPrescriptionService : INationalPrescriptionService
             TotalPending = pending,
             TotalAmountSubmitted = totalAmount,
             LastSubmittedAt = lastSubmitted,
-            ConnectionStatus = "Connected"
+            // R3: was hard-coded "Connected"; same gateway ping as TestConnectionAsync (InMemory client in MockMode).
+            ConnectionStatus = await PingGatewaySafeAsync() ? "Connected" : "Disconnected"
         };
+    }
+
+    private async Task<bool> PingGatewaySafeAsync()
+    {
+        try { return await _gatewayClient.PingAsync(); }
+        catch { return false; }
     }
 
     public async Task<object> TestConnectionAsync()
@@ -240,9 +312,7 @@ public class NationalPrescriptionService : INationalPrescriptionService
         // Was hard-coded `connected = true` with a Random() latency — the screen always reported a
         // healthy connection. Now pings the configured national prescription gateway client.
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        bool connected;
-        try { connected = await _gatewayClient.PingAsync(); }
-        catch { connected = false; }
+        var connected = await PingGatewaySafeAsync();
         sw.Stop();
         return new
         {
@@ -256,19 +326,19 @@ public class NationalPrescriptionService : INationalPrescriptionService
 
     public async Task<object> RetrySubmissionAsync(Guid id, string userId)
     {
-        var prescription = await _db.Prescriptions.FindAsync(id);
+        var prescription = await LoadForSendAsync(id);
         if (prescription == null)
             return new { success = false, message = "Không tìm thấy đơn thuốc" };
+        // Retry is for a failed or cancelled send only — an accepted one would be sent twice.
+        if (prescription.NationalPortalStatus == PortalSent)
+            return new { success = false, message = "Đơn thuốc đã được Cổng ĐTQG ghi nhận — không gửi lại." };
 
-        // #218/T3: cũng ghi vào ô riêng của cổng. Trước đây `Status = 1` kéo cả đơn ĐÃ CẤP PHÁT (2)
-        // lùi về "đã duyệt" — thuốc đã ra khỏi quầy mà hệ thống lại bảo chưa phát.
-        prescription.NationalPortalStatus = PortalSent;
-        prescription.NationalPortalTransactionId =
-            $"CQLKCB-{DateTime.Now:yyyyMMddHHmmss}-{id.ToString()[..8].ToUpper()}";
-        prescription.NationalPortalSubmittedAt = DateTime.UtcNow;
+        // #218/T3: cũng ghi vào ô riêng của cổng (không đụng Status). R3: gọi cổng thật qua gateway client.
+        var (ok, transactionId, message) = await SendToGatewayAsync(prescription);
         await _db.SaveChangesAsync();
+        if (!ok) throw new InvalidOperationException(message);
 
-        return new { success = true, message = "Đã gửi lại thành công" };
+        return new { success = true, transactionId = transactionId ?? "", message };
     }
 
     public async Task<object> CancelSubmissionAsync(Guid id, string userId)
