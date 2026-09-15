@@ -173,7 +173,12 @@ export const getCompletenessCheck = async (recordId: string): Promise<EmrComplet
 // ============ Finalization ============
 export const finalizeRecord = async (recordId: string, notes?: string): Promise<{ success: boolean; message?: string; versionNo?: number } | null> => {
   try { const resp = await apiClient.post(`/emr-admin/finalize/${recordId}`, { notes }); return resp.data; }
-  catch { console.warn('Failed to finalize record'); return null; }
+  catch (err: unknown) {
+    // BE now answers 400/404 with {success:false,message} (was 200) — surface the reason like reopenRecord.
+    console.warn('Failed to finalize record');
+    const data = (err as { response?: { data?: { message?: string } } })?.response?.data;
+    return data && typeof data === 'object' ? { success: false, message: data.message } : null;
+  }
 };
 
 // ============ F8.5: Duyệt lưu trữ 2 cấp (buồng bệnh → KHTH) ============
@@ -302,7 +307,12 @@ export const getArchiveBarcode = async (archiveId: string): Promise<ArchiveBarco
 // ============ HL7 Import/Export ============
 export const importHl7 = async (hl7Content: string, sourceFacilityCode?: string): Promise<{ success: boolean; message?: string; importedRecords?: number } | null> => {
   try { const resp = await apiClient.post('/emr-admin/import-hl7', { hl7Content, sourceFacilityCode }); return resp.data; }
-  catch { console.warn('Failed to import HL7'); return null; }
+  catch (err: unknown) {
+    // 400 invalid message / 501 import not supported — keep the server's explanation.
+    console.warn('Failed to import HL7');
+    const data = (err as { response?: { data?: { message?: string } } })?.response?.data;
+    return data && typeof data === 'object' ? { success: false, message: data.message } : null;
+  }
 };
 
 export const exportHl7 = async (recordId: string): Promise<{ hl7Content: string; authenticatorInfo?: string } | null> => {

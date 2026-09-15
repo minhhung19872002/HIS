@@ -41,6 +41,11 @@ namespace HIS.API.Dtos.ExtendedWorkflow;
 
     public class UpdateCorrectiveActionRequest { public string? Status { get; set; } public string? Notes { get; set; } }
 
+    // QA-R3: HAI confirm / resolve / exclude and incident close.
+    public class ConfirmHaiRequest { public string? Organism { get; set; } public bool IsMDRO { get; set; } }
+    public class ResolveHaiRequest { public string? Outcome { get; set; } }
+    public class CloseIncidentRequest { public string? Notes { get; set; } }
+
         public class LinkPatientRecordRequestDto
         {
             public Guid AccountId { get; set; }

@@ -30,6 +30,11 @@ public class SampleCollectionService : ISampleCollectionService
         var detail = await _db.ServiceRequestDetails.FirstOrDefaultAsync(d => d.Id == dto.ServiceRequestDetailId)
             ?? throw new KeyNotFoundException("ServiceRequestDetail không tồn tại");
 
+        // QA-R3: a tube rejected at reception gets a NEW sequence (the old barcode was returned as-is and the tube
+        // never re-entered the reception queue). The rejected barcode stays reserved — never re-issued.
+        var rejectedBarcode = detail.ReceiveStatus == LisModel1Map.RejectedReceiveStatus ? detail.SampleBarcode : null;
+        LisModel1Map.ResetRejectedTubeForRecollection(detail, VnTime.NowVn);
+
         if (!string.IsNullOrWhiteSpace(detail.SampleBarcode))
         {
             return ServiceOutcome.Ok(new AssignSequenceResultDto(detail.SampleBarcode, 0));
@@ -39,8 +44,8 @@ public class SampleCollectionService : ISampleCollectionService
         var todayVn = VnTime.TodayVn;
         var dateStr = todayVn.ToString("yyMMdd");
 
-        // SampleCollectedAt lưu UTC — dùng DayRangeUtc để so sánh sargable (tránh .Date trên cột).
-        var (fromUtc, toUtc) = VnTime.DayRangeUtc(todayVn);
+        // SampleCollectedAt = VN local time — VN day range, sargable (no .Date on the column).
+        var (fromUtc, toUtc) = VnTime.DayRangeVn(todayVn);
         var todayCount = await _db.ServiceRequestDetails
             .CountAsync(d => d.SampleCollectedAt != null
                 && d.SampleCollectedAt.Value >= fromUtc && d.SampleCollectedAt.Value < toUtc);
@@ -53,6 +58,7 @@ public class SampleCollectionService : ISampleCollectionService
             .Where(d => d.SampleBarcode != null && d.SampleBarcode.StartsWith(codePrefix))
             .Select(d => d.SampleBarcode!)
             .ToListAsync();
+        if (rejectedBarcode != null && rejectedBarcode.StartsWith(codePrefix)) usedCodes.Add(rejectedBarcode);
         var maxUsed = usedCodes
             .Select(c => int.TryParse(c.Substring(codePrefix.Length), out var n) ? n : 0)
             .DefaultIfEmpty(0).Max();
@@ -61,7 +67,7 @@ public class SampleCollectionService : ISampleCollectionService
         var barcode = $"{prefix}-{dateStr}-{seq:D4}";
 
         detail.SampleBarcode = barcode;
-        detail.SampleCollectedAt = DateTime.UtcNow;
+        detail.SampleCollectedAt = VnTime.NowVn; // business timestamp = VN local (same as LIS CollectSample)
         detail.IsSampleCollected = true;
         detail.UpdatedAt = DateTime.UtcNow;
         detail.UpdatedBy = userId.ToString();

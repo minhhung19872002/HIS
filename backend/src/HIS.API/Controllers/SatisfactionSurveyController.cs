@@ -44,6 +44,11 @@ public class SatisfactionSurveyController : ControllerBase
     public async Task<IActionResult> GetResults()
         => (await _svc.GetResultsAsync()).ToActionResult();
 
+    // QA-R3: no endpoint recorded a completed survey (GET-only), so stats/export could never grow.
+    [HttpPost("results")]
+    public async Task<IActionResult> SubmitResult([FromBody] SubmitSurveyResultDto dto)
+        => (await _svc.SubmitResultAsync(dto, User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value)).ToActionResult();
+
     [HttpGet("analysis")]
     public async Task<IActionResult> GetAnalysis()
         => (await _svc.GetAnalysisAsync()).ToActionResult();
@@ -73,6 +78,11 @@ public class SatisfactionSurveyController : ControllerBase
     [HttpPost("campaigns")]
     public async Task<IActionResult> CreateCampaign([FromBody] CreateSurveyCampaignDto dto)
         => (await _svc.CreateCampaignAsync(dto, User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value)).ToActionResult();
+
+    /// <summary>QA-R3: kích hoạt / đóng / lưu trữ chiến dịch (có kiểm tra chuyển trạng thái).</summary>
+    [HttpPut("campaigns/{id:guid}/status")]
+    public async Task<IActionResult> UpdateCampaignStatus(Guid id, [FromBody] UpdateCampaignStatusDto dto)
+        => (await _svc.UpdateCampaignStatusAsync(id, dto?.Status ?? -1, User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value)).ToActionResult();
 
     // ========================================================================
     // Feedback Callbacks

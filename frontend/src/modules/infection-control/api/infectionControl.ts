@@ -606,8 +606,17 @@ export const investigateHAICase = (id: string, findings: string, actions: string
     preventiveMeasures: actions.length ? actions.join('; ') : undefined,
   });
 
+// QA-R3: `/hai-cases/{id}/close` never existed. Lifecycle routes: Suspected → confirm → resolve, or Suspected → exclude.
 export const closeHAICase = (id: string, outcome: string, notes?: string) =>
-  apiClient.post<HAISurveillanceDto>(`${BASE_URL}/hai-cases/${id}/close`, { outcome, notes });
+  apiClient.post<HAISurveillanceDto>(`${BASE_URL}/hai-cases/${id}/resolve`, {
+    outcome: [outcome, notes].filter((s) => s && s.trim()).join(' — '),
+  });
+
+export const confirmHAICase = (id: string, organism?: string, isMDRO?: boolean) =>
+  apiClient.post<HAISurveillanceDto>(`${BASE_URL}/hai-cases/${id}/confirm`, { organism, isMDRO: !!isMDRO });
+
+export const excludeHAICase = (id: string, reason: string) =>
+  apiClient.post<HAISurveillanceDto>(`${BASE_URL}/hai-cases/${id}/exclude`, { outcome: reason });
 
 export const getActiveHAICases = (departmentId?: string) =>
   apiClient.get<HAISurveillanceDto[]>(`${BASE_URL}/hai-cases/active`, { params: { departmentId } });

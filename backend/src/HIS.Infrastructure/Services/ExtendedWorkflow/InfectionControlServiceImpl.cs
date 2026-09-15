@@ -14,7 +14,17 @@ public class InfectionControlServiceImpl : IInfectionControlService
     private readonly HISDbContext _context;
     public InfectionControlServiceImpl(HISDbContext context) => _context = context;
 
-    public async Task<List<HAIDto>> GetActiveHAICasesAsync(string? infectionType = null, Guid? departmentId = null)
+    // HAI lifecycle: Suspected → Confirmed → Resolved, or Suspected → Excluded (not an HAI).
+    // Terminal states are the only ones that leave the active list / dashboard count.
+    private static readonly string[] HaiTerminalStatuses = { "Resolved", "Excluded" };
+
+    public Task<List<HAIDto>> GetActiveHAICasesAsync(string? infectionType = null, Guid? departmentId = null)
+        => QueryHAICasesAsync(infectionType, departmentId, activeOnly: true);
+
+    public Task<List<HAIDto>> GetHAICasesAsync(string? infectionType = null, Guid? departmentId = null)
+        => QueryHAICasesAsync(infectionType, departmentId, activeOnly: false);
+
+    private async Task<List<HAIDto>> QueryHAICasesAsync(string? infectionType, Guid? departmentId, bool activeOnly)
     {
         try
         {
@@ -23,7 +33,8 @@ public class InfectionControlServiceImpl : IInfectionControlService
                 .Include(x => x.Admission).ThenInclude(x => x!.Department)
                 .Include(x => x.Admission).ThenInclude(x => x!.Bed)
                 .Include(x => x.ReportedBy)
-                .Where(x => x.Status != "Resolved");
+                .AsQueryable();
+            if (activeOnly) query = query.Where(x => !HaiTerminalStatuses.Contains(x.Status));
             if (!string.IsNullOrEmpty(infectionType)) query = query.Where(x => x.InfectionType == infectionType);
             if (departmentId.HasValue) query = query.Where(x => x.Admission!.DepartmentId == departmentId.Value);
             var list = await query.OrderByDescending(x => x.OnsetDate).Take(200).ToListAsync();
@@ -86,20 +97,42 @@ public class InfectionControlServiceImpl : IInfectionControlService
         return await GetHAICaseAsync(id);
     }
 
+    // Confirm/resolve existed without any route (the v2 case could never leave "Nghi ngờ") and had no state guard.
     public async Task<HAIDto> ConfirmHAICaseAsync(Guid id, string organism, bool isMDRO)
     {
-        var e = await _context.HAICases.FindAsync(id);
-        if (e == null) return null!;
-        e.Organism = organism; e.IsMDRO = isMDRO; e.Status = "Confirmed"; e.ConfirmedDate = DateTime.Now;
+        var e = await _context.HAICases.FindAsync(id)
+            ?? throw new KeyNotFoundException("Không tìm thấy ca nhiễm khuẩn bệnh viện");
+        if (e.Status != "Suspected")
+            throw new InvalidOperationException($"Chỉ xác định được ca đang nghi ngờ (hiện tại: {e.Status})");
+        if (!string.IsNullOrWhiteSpace(organism)) e.Organism = organism.Trim();
+        e.IsMDRO = isMDRO || e.IsMDRO;
+        e.Status = "Confirmed"; e.ConfirmedDate = DateTime.Now; e.UpdatedAt = DateTime.Now;
         await _context.SaveChangesAsync();
         return await GetHAICaseAsync(id);
     }
 
     public async Task<HAIDto> ResolveHAICaseAsync(Guid id, string outcome)
     {
-        var e = await _context.HAICases.FindAsync(id);
-        if (e == null) return null!;
-        e.Outcome = outcome; e.Status = "Resolved"; e.ResolvedDate = DateTime.Now;
+        var e = await _context.HAICases.FindAsync(id)
+            ?? throw new KeyNotFoundException("Không tìm thấy ca nhiễm khuẩn bệnh viện");
+        if (HaiTerminalStatuses.Contains(e.Status))
+            throw new InvalidOperationException("Ca nhiễm khuẩn đã kết thúc trước đó");
+        if (string.IsNullOrWhiteSpace(outcome))
+            throw new ArgumentException("Phải nhập kết cục của ca nhiễm khuẩn", nameof(outcome));
+        e.Outcome = outcome.Trim(); e.Status = "Resolved"; e.ResolvedDate = DateTime.Now; e.UpdatedAt = DateTime.Now;
+        await _context.SaveChangesAsync();
+        return await GetHAICaseAsync(id);
+    }
+
+    public async Task<HAIDto> ExcludeHAICaseAsync(Guid id, string reason)
+    {
+        var e = await _context.HAICases.FindAsync(id)
+            ?? throw new KeyNotFoundException("Không tìm thấy ca nhiễm khuẩn bệnh viện");
+        if (e.Status != "Suspected")
+            throw new InvalidOperationException($"Chỉ loại trừ được ca đang nghi ngờ (hiện tại: {e.Status})");
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new ArgumentException("Phải nhập lý do loại trừ", nameof(reason));
+        e.Outcome = reason.Trim(); e.Status = "Excluded"; e.ResolvedDate = DateTime.Now; e.UpdatedAt = DateTime.Now;
         await _context.SaveChangesAsync();
         return await GetHAICaseAsync(id);
     }
@@ -370,7 +403,7 @@ public class InfectionControlServiceImpl : IInfectionControlService
             return new ICDashboardDto
             {
                 Date = d,
-                ActiveHAICases = await _context.HAICases.CountAsync(x => x.Status != "Resolved"),
+                ActiveHAICases = await _context.HAICases.CountAsync(x => !HaiTerminalStatuses.Contains(x.Status)),
                 ActiveIsolations = await _context.IsolationOrders.CountAsync(x => x.Status == "Active"),
                 ActiveOutbreaks = await _context.Outbreaks.CountAsync(x => x.Status == "Active")
             };

@@ -137,7 +137,7 @@ public partial class BusinessAlertService
                                 "Xét nghiệm trùng lặp (1 lần/đợt)",
                                 $"XN {serviceName} đã được chỉ định {epGrp.Count()} lần trong cùng 1 đợt điều trị. " +
                                 "Cấu hình: 1 lần/đợt. Kiểm tra có trùng không.",
-                                patientId, null, null));
+                                patientId, null, null, "Service", serviceId));
                         }
                     }
                     else
@@ -152,7 +152,7 @@ public partial class BusinessAlertService
                                 "Xét nghiệm trùng lặp",
                                 $"XN {serviceName} đã được chỉ định {countInWindow} lần trong {windowDays} ngày. " +
                                 $"Cấu hình: không lặp trong {windowDays} ngày. Kiểm tra có trùng không.",
-                                patientId, null, null));
+                                patientId, null, null, "Service", serviceId));
                         }
                     }
                 }
@@ -166,7 +166,7 @@ public partial class BusinessAlertService
                         alerts.Add(CreateAlert("LAB-31", "Lab", 2, "Lab",
                             "Xét nghiệm trùng lặp",
                             $"XN {serviceName} đã được chỉ định {countInWindow} lần trong 24h. Kiểm tra có trùng hay không.",
-                            patientId, null, null));
+                            patientId, null, null, "Service", serviceId));
                     }
                 }
             }
@@ -191,7 +191,7 @@ public partial class BusinessAlertService
                 alerts.Add(CreateAlert("PHAR-32", "Pharmacy", item.CurrentQuantity <= 0 ? 1 : 2, "Pharmacy",
                     "Ton kho thap",
                     $"Thuốc/VT (ID: {item.MedicineId}): tồn kho {item.CurrentQuantity} < ngưỡng tối thiểu {item.MinimumQuantity}. Cần đặt hàng bổ sung.",
-                    null, null, null));
+                    null, null, null, "LowStockAlert", item.Id));
             }
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Rule PHAR-32 error"); }
@@ -638,7 +638,7 @@ public partial class BusinessAlertService
                     "OPD-40", "OPD", 2, "OPD",
                     "Quá tải lượt khám BS",
                     $"Bác sĩ đã khám {doctorCount} lượt trong ngày {localDate:dd/MM/yyyy} (ngưỡng: {threshold}). Đề nghị điều phối thêm phòng hoặc giờ làm việc.",
-                    null, null, null));
+                    null, null, null, "Doctor", doctorId.Value));
             }
         }
 
@@ -657,7 +657,7 @@ public partial class BusinessAlertService
                     "OPD-40", "OPD", 2, "OPD",
                     "Quá tải lượt khám phòng",
                     $"Phòng khám đã tiếp nhận {roomCount} lượt trong ngày {localDate:dd/MM/yyyy} (ngưỡng: {threshold}). Đề nghị mở thêm phòng hoặc phân luồng.",
-                    null, null, null));
+                    null, null, null, "Room", roomId.Value));
             }
         }
 

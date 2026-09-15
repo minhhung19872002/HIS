@@ -57,6 +57,7 @@ const InterHospitalSharingV2: React.FC = () => {
   const [createOpen, setCreateOpen] = useState(false);
 
   const openRespond = (r: InterHospitalRequest) => { setRespondTarget(r); setRespondOpen(true); };
+  const createInit = useMemo(() => ({ direction: 'outgoing', requestType: 'consultation', urgency: 'normal' }), []);
 
   const RESPOND_FIELDS: CrudFieldCfg[] = [
     {
@@ -68,8 +69,12 @@ const InterHospitalSharingV2: React.FC = () => {
   ];
 
   const CREATE_FIELDS: CrudFieldCfg[] = [
+    { key: 'direction', label: 'Chiều yêu cầu', type: 'select', required: true, options: [
+      { value: 'outgoing', label: '→ Gửi đi (BV mình yêu cầu BV khác)' },
+      { value: 'incoming', label: '← Tiếp nhận (BV khác yêu cầu BV mình)' }] },
     { key: 'requestType', label: 'Loại yêu cầu', type: 'select', required: true, options: Object.entries(TYPE_LABEL).map(([v, l]) => ({ value: v, label: l })) },
-    { key: 'respondingHospital', label: 'Bệnh viện nhận', required: true },
+    { key: 'requestingHospital', label: 'Bệnh viện gửi (khi tiếp nhận)' },
+    { key: 'respondingHospital', label: 'Bệnh viện nhận (khi gửi đi)' },
     { key: 'subject', label: 'Chủ đề', required: true },
     { key: 'details', label: 'Chi tiết', type: 'textarea', required: true },
     { key: 'urgency', label: 'Mức độ ưu tiên', type: 'select', required: true, options: Object.entries(URGENCY_LABEL).map(([v, l]) => ({ value: v, label: l })) },
@@ -253,13 +258,16 @@ const InterHospitalSharingV2: React.FC = () => {
         onClose={() => setCreateOpen(false)}
         title="Yêu cầu liên viện mới"
         fields={CREATE_FIELDS}
-        initial={{ requestType: 'consultation', urgency: 'normal' }}
+        initial={createInit}
         size="lg"
         onSubmit={async (v) => {
+          // BE requires the sending facility for incoming / the receiving facility for outgoing (message shown by CrudModal).
+          const direction = (v.direction as InterHospitalRequest['direction']) || 'outgoing';
           await createRequest({
             requestType: v.requestType as InterHospitalRequest['requestType'],
-            direction: 'outgoing',
+            direction,
             urgency: v.urgency as InterHospitalRequest['urgency'],
+            requestingHospital: (v.requestingHospital as string) || undefined,
             respondingHospital: v.respondingHospital as string,
             subject: v.subject as string,
             details: v.details as string,

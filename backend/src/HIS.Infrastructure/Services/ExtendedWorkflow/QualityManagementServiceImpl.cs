@@ -150,11 +150,24 @@ public class QualityManagementServiceImpl : IQualityManagementService
         return true;
     }
 
+    // QA-R3: there was no close route at all, and the service closed any incident — even one never investigated.
+    // An incident may only be closed once its root-cause analysis is recorded (RCAComplete / ActionPlan).
     public async Task<bool> CloseIncidentAsync(Guid id, string closureNotes)
     {
-        var e = await _context.IncidentReports.FindAsync(id);
-        if (e == null) return false;
-        e.Status = "Closed"; e.InvestigationEndDate = DateTime.Now;
+        var e = await _context.IncidentReports.FindAsync(id)
+            ?? throw new KeyNotFoundException("Không tìm thấy sự cố");
+        if (e.Status == "Closed")
+            throw new InvalidOperationException("Sự cố đã đóng trước đó");
+        if (string.IsNullOrWhiteSpace(e.RootCause) || (e.Status != "RCAComplete" && e.Status != "ActionPlan"))
+            throw new InvalidOperationException("Chưa có kết quả phân tích nguyên nhân gốc (RCA) — hãy lưu kết quả điều tra trước khi đóng sự cố");
+        if (string.IsNullOrWhiteSpace(closureNotes))
+            throw new ArgumentException("Phải nhập ghi chú đóng sự cố", nameof(closureNotes));
+        const string marker = "[Đóng sự cố]";
+        var baseNotes = e.ContributingFactors ?? "";
+        e.ContributingFactors = baseNotes.Length == 0
+            ? $"{marker} {closureNotes.Trim()}"
+            : $"{baseNotes}\n{marker} {closureNotes.Trim()}";
+        e.Status = "Closed"; e.InvestigationEndDate ??= DateTime.Now; e.UpdatedAt = DateTime.Now;
         await _context.SaveChangesAsync();
         return true;
     }

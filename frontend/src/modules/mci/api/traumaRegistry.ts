@@ -2,6 +2,19 @@ import { apiClient } from '../../../services/apiClient';
 
 // ---- Types ----
 
+export type TraumaOutcome = 'discharged' | 'transferred' | 'died' | 'absconded';
+export const TRAUMA_OUTCOME_LABEL: Record<TraumaOutcome, string> = {
+  discharged: 'Ra viện', transferred: 'Chuyển viện', died: 'Tử vong', absconded: 'Bỏ về',
+};
+
+export interface TraumaOutcomePayload {
+  outcome: TraumaOutcome;
+  dischargeDate: string;
+  lengthOfStay?: number;
+  ventilatorDays?: number;
+  notes?: string;
+}
+
 export interface TraumaCase {
   id: string;
   caseCode: string;
@@ -16,7 +29,9 @@ export interface TraumaCase {
   rtsScore: number;
   gcsScore: number;
   status: number; // 0=admitted, 1=icu, 2=ward, 3=discharged, 4=deceased
-  outcome: 'recovered' | 'improved' | 'unchanged' | 'worsened' | 'deceased' | 'pending';
+  // BE TraumaCase.Outcome vocabulary; '' until the outcome is recorded (v2 page normalises BE null → '')
+  outcome: TraumaOutcome | '';
+  dischargeDate?: string | null;
   lengthOfStay?: number;
   surgeryRequired: boolean;
   icuDays?: number;
@@ -82,6 +97,12 @@ export const updateCase = async (id: string, data: Partial<TraumaCase>) => {
   return response.data;
 };
 
+// QA-R3: outcome / discharge date / LOS — PUT /trauma-registry/cases/{id}/outcome
+export const updateOutcome = async (id: string, data: TraumaOutcomePayload) => {
+  const response = await apiClient.put<TraumaCase>(`/trauma-registry/cases/${id}/outcome`, data);
+  return response.data;
+};
+
 export const getStats = async (): Promise<TraumaStats> => {
   try {
     const response = await apiClient.get<TraumaStats>('/trauma-registry/stats');
@@ -110,6 +131,7 @@ export default {
   getById,
   createCase,
   updateCase,
+  updateOutcome,
   getStats,
   getOutcomeReport,
 };

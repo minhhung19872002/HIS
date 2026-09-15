@@ -606,7 +606,7 @@ public partial class BusinessAlertService : IBusinessAlertService
                 alerts.Add(CreateAlert("OPD-07", "OPD", 1, "Pharmacy",
                     "Thuốc hết hạn trong kho",
                     $"Lô {item.BatchNumber} (SL: {item.Quantity}) đã hết hạn ngày {item.ExpiryDate:dd/MM/yyyy}. Không được cấp phát.",
-                    null, null, null));
+                    null, null, null, "InventoryItem", item.Id));
             }
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Rule OPD-07 error"); }

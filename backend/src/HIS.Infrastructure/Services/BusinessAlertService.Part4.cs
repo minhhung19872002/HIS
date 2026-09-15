@@ -16,7 +16,8 @@ public partial class BusinessAlertService
     // =====================================================================
 
     private BusinessAlertDto CreateAlert(string alertCode, string category, int severity, string module,
-        string title, string message, Guid? patientId, Guid? examinationId, Guid? admissionId)
+        string title, string message, Guid? patientId, Guid? examinationId, Guid? admissionId,
+        string? entityType = null, Guid? entityId = null)
     {
         return new BusinessAlertDto
         {
@@ -32,6 +33,8 @@ public partial class BusinessAlertService
             PatientId = patientId,
             ExaminationId = examinationId,
             AdmissionId = admissionId,
+            EntityType = entityType,
+            EntityId = entityId,
             Status = 0,
             StatusLabel = "New",
             CreatedAt = DateTime.UtcNow,
@@ -49,18 +52,21 @@ public partial class BusinessAlertService
             // PHAR-32) carry PatientId = null, so filtering on the caller's patientId never matched them and
             // every patient check re-inserted them (BusinessAlerts flooded with identical rows).
             var today = DateTime.UtcNow.Date;
+            // QA-R3: the key also carries the alert's subject entity (department / stock lot / doctor / room).
+            // Hospital-wide rules raise one alert per entity with the same title, so a key of code+title kept only
+            // the first department's "Giường sắp đầy" / the first expired lot and silently dropped the rest.
             var existingCodes = (await _context.BusinessAlerts
                 .Where(a => (a.PatientId == patientId || a.PatientId == null)
                     && a.CreatedAt >= today
                     && a.Status < 2) // Not resolved
-                .Select(a => new { a.PatientId, a.AlertCode, a.Title })
+                .Select(a => new { a.PatientId, a.AlertCode, a.Title, a.EntityType, a.EntityId })
                 .ToListAsync())
-                .Select(a => a.PatientId + "|" + a.AlertCode + "|" + a.Title)
+                .Select(a => a.PatientId + "|" + a.AlertCode + "|" + a.Title + "|" + a.EntityType + "|" + a.EntityId)
                 .ToList();
 
             foreach (var alertDto in alerts)
             {
-                var key = alertDto.PatientId + "|" + alertDto.AlertCode + "|" + alertDto.Title;
+                var key = alertDto.PatientId + "|" + alertDto.AlertCode + "|" + alertDto.Title + "|" + alertDto.EntityType + "|" + alertDto.EntityId;
                 if (existingCodes.Contains(key)) continue;
 
                 var entity = new BusinessAlert
@@ -75,6 +81,8 @@ public partial class BusinessAlertService
                     PatientId = alertDto.PatientId,
                     ExaminationId = alertDto.ExaminationId,
                     AdmissionId = alertDto.AdmissionId,
+                    EntityType = alertDto.EntityType,
+                    EntityId = alertDto.EntityId,
                     Status = 0,
                     CreatedAt = DateTime.UtcNow,
                 };

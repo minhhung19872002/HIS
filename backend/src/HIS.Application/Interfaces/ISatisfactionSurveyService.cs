@@ -18,11 +18,13 @@ public interface ISatisfactionSurveyService
     Task<ServiceOutcome> UpdateTemplateAsync(Guid id, SurveyTemplateDto dto);
     Task<ServiceOutcome> DeleteTemplateAsync(Guid id);
     Task<ServiceOutcome> GetResultsAsync();
+    Task<ServiceOutcome> SubmitResultAsync(SubmitSurveyResultDto dto, string? userId);
     Task<ServiceOutcome> GetAnalysisAsync();
     Task<ServiceOutcome> GetConfigAsync();
     Task<ServiceOutcome> UpdateConfigAsync(object config);
     Task<ServiceOutcome> GetCampaignsAsync(int? status);
     Task<ServiceOutcome> CreateCampaignAsync(CreateSurveyCampaignDto dto, string? userId);
+    Task<ServiceOutcome> UpdateCampaignStatusAsync(Guid id, int status, string? userId);
     Task<ServiceOutcome> GetCallbacksAsync(int? status);
     Task<ServiceOutcome> ContactCallbackAsync(ContactCallbackDto dto, string? userId);
     Task<ServiceOutcome> AcknowledgeFeedbackAsync(Guid id, AcknowledgeDto dto, string? userId);

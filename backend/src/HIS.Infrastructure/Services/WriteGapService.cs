@@ -109,7 +109,11 @@ public class WriteGapService : IWriteGapService
     {
         var hai = await _db.HAICases.FirstOrDefaultAsync(h => h.Id == id);
         if (hai == null) return ServiceOutcome.NotFound();
-        hai.Status = "Closed";
+        // QA-R3: wrote "Closed", a status no reader knows — the case stayed in the active list/dashboard.
+        // Same terminal state as InfectionControl resolve.
+        if (hai.Status is "Resolved" or "Excluded" or "Closed")
+            return ServiceOutcome.Status(400, ApiResponse.Fail("Ca nhiễm khuẩn đã kết thúc trước đó"));
+        hai.Status = "Resolved";
         hai.Outcome = dto.Outcome;
         hai.ResolvedDate = DateTime.Now;
         hai.Notes = dto.Notes;
@@ -138,7 +142,8 @@ public class WriteGapService : IWriteGapService
             var archive = new MedicalRecordArchive
             {
                 Id = Guid.NewGuid(),
-                ArchiveCode = $"HS{DateTime.Now:yyyyMMddHHmmss}",
+                // QA-R3: was HS{timestamp} (same-second clash); unified with the LT{date}{NNNN} archive generator.
+                ArchiveCode = (await RecordCodeGenerator.NextArchiveCodesAsync(_db))[0],
                 MedicalRecordId = dto.MedicalRecordId,
                 PatientId = dto.PatientId,
                 StorageLocation = dto.StorageLocation,
@@ -151,6 +156,15 @@ public class WriteGapService : IWriteGapService
                 CreatedBy = userId.ToString(),
             };
             _db.MedicalRecordArchives.Add(archive);
+            for (var attempt = 1; ; attempt++)
+            {
+                try { await _db.SaveChangesAsync(); break; }
+                catch (DbUpdateException ex) when (NangCap23ServiceHelpers.IsUniqueViolation(ex) && attempt < RecordCodeGenerator.MaxAttempts)
+                {
+                    archive.ArchiveCode = (await RecordCodeGenerator.NextArchiveCodesAsync(_db))[0];
+                }
+            }
+            return ServiceOutcome.OkEmpty();
         }
         await _db.SaveChangesAsync();
         return ServiceOutcome.OkEmpty();
@@ -163,7 +177,8 @@ public class WriteGapService : IWriteGapService
         var entity = new InterHospitalRequest
         {
             Id = Guid.NewGuid(),
-            RequestCode = $"LV{DateTime.Now:yyyyMMddHHmmss}",
+            // QA-R3: was LV{timestamp} → two requests in the same second clashed (unique index, migration 201).
+            RequestCode = await RecordCodeGenerator.NextInterHospitalCodeAsync(_db),
             RequestType = dto.RequestType ?? "Consultation",
             RequestingFacility = dto.RequestingFacility ?? "",
             ReceivingFacility = dto.ReceivingFacility ?? "",
@@ -175,7 +190,14 @@ public class WriteGapService : IWriteGapService
             CreatedBy = userId.ToString(),
         };
         _db.InterHospitalRequests.Add(entity);
-        await _db.SaveChangesAsync();
+        for (var attempt = 1; ; attempt++)
+        {
+            try { await _db.SaveChangesAsync(); break; }
+            catch (DbUpdateException ex) when (NangCap23ServiceHelpers.IsUniqueViolation(ex) && attempt < RecordCodeGenerator.MaxAttempts)
+            {
+                entity.RequestCode = await RecordCodeGenerator.NextInterHospitalCodeAsync(_db);
+            }
+        }
         return ServiceOutcome.Ok(new { entity.Id });
     }
 

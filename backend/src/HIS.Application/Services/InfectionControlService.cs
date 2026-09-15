@@ -79,6 +79,12 @@ namespace HIS.Application.Services
             return null;
         }
 
+        public Task<List<HAIDto>> GetHAICasesAsync(string infectionType = null, Guid? departmentId = null)
+            => Task.FromResult(new List<HAIDto>());
+
+        public Task<HAIDto> ExcludeHAICaseAsync(Guid id, string reason)
+            => Task.FromResult<HAIDto>(null);
+
         // Isolation
         public async Task<List<IsolationOrderDto>> GetActiveIsolationsAsync(Guid? departmentId = null)
         {

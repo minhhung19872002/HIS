@@ -21,9 +21,10 @@ public class InterHospitalController : ControllerBase
     public async Task<ActionResult<List<InterHospitalRequestDto>>> SearchRequests(
         [FromQuery] string? keyword = null, [FromQuery] string? requestType = null,
         [FromQuery] int? status = null, [FromQuery] string? urgency = null,
-        [FromQuery] string? fromDate = null, [FromQuery] string? toDate = null)
+        [FromQuery] string? fromDate = null, [FromQuery] string? toDate = null,
+        [FromQuery] string? direction = null)
     {
-        var filter = new InterHospitalRequestSearchDto { Keyword = keyword, RequestType = requestType, Status = status, Urgency = urgency, FromDate = fromDate, ToDate = toDate };
+        var filter = new InterHospitalRequestSearchDto { Keyword = keyword, RequestType = requestType, Status = status, Urgency = urgency, FromDate = fromDate, ToDate = toDate, Direction = direction };
         return Ok(await _service.SearchRequestsAsync(filter));
     }
 

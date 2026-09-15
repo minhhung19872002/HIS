@@ -38,11 +38,25 @@ namespace HIS.API.Controllers
             [FromQuery] Guid? departmentId = null)
             => Ok(await _service.GetActiveHAICasesAsync(infectionType, departmentId));
 
+        // v2 list has "Đã giải quyết" / "Loại trừ" tabs: it needs every status, not only active cases.
         [HttpGet("hai-cases")]
         public async Task<ActionResult<List<HAIDto>>> GetHAICasesList(
             [FromQuery] string infectionType = null,
             [FromQuery] Guid? departmentId = null)
-            => Ok(await _service.GetActiveHAICasesAsync(infectionType, departmentId));
+            => Ok(await _service.GetHAICasesAsync(infectionType, departmentId));
+
+        // QA-R3: the service had confirm/resolve but no route, so a case could never leave "Nghi ngờ".
+        [HttpPost("hai-cases/{id:guid}/confirm")]
+        public async Task<ActionResult<HAIDto>> ConfirmHAICase(Guid id, [FromBody] ConfirmHaiRequest req)
+            => Ok(await _service.ConfirmHAICaseAsync(id, req?.Organism ?? "", req?.IsMDRO ?? false));
+
+        [HttpPost("hai-cases/{id:guid}/resolve")]
+        public async Task<ActionResult<HAIDto>> ResolveHAICase(Guid id, [FromBody] ResolveHaiRequest req)
+            => Ok(await _service.ResolveHAICaseAsync(id, req?.Outcome ?? ""));
+
+        [HttpPost("hai-cases/{id:guid}/exclude")]
+        public async Task<ActionResult<HAIDto>> ExcludeHAICase(Guid id, [FromBody] ResolveHaiRequest req)
+            => Ok(await _service.ExcludeHAICaseAsync(id, req?.Outcome ?? ""));
 
         [HttpGet("hai-cases/active")]
         public async Task<ActionResult<List<HAIDto>>> GetActiveHAICasesAlias(

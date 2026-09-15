@@ -274,11 +274,15 @@ public class RehabilitationServiceImpl : IRehabilitationService
             throw new InvalidOperationException("Chỉ lên lịch buổi tập cho kế hoạch đang thực hiện");
         if (date == default)
             throw new ArgumentException("Thiếu ngày buổi tập");
+        if (location?.Trim().Length > 200)
+            throw new ArgumentException("Địa điểm buổi tập tối đa 200 ký tự");
         if (await _context.RehabSessions.AnyAsync(x => x.TreatmentPlanId == planId && x.SessionDate.Date == date.Date
                 && x.StartTime == time && (x.Status == "Scheduled" || x.Status == "InProgress")))
             throw new InvalidOperationException("Đã có buổi tập của kế hoạch này vào đúng giờ đó");
         var sessionNum = await _context.RehabSessions.CountAsync(x => x.TreatmentPlanId == planId) + 1;
-        var entity = new RehabSession { Id = Guid.NewGuid(), TreatmentPlanId = planId, SessionNumber = sessionNum, SessionDate = date, StartTime = time, Status = "Scheduled", CreatedAt = DateTime.Now };
+        // QA-R3: the session location ("Địa điểm") was accepted but dropped — stored since migration 202.
+        var entity = new RehabSession { Id = Guid.NewGuid(), TreatmentPlanId = planId, SessionNumber = sessionNum, SessionDate = date, StartTime = time, Status = "Scheduled", CreatedAt = DateTime.Now,
+            Location = string.IsNullOrWhiteSpace(location) ? null : location.Trim() };
         entity.TherapistId = _currentUser?.UserGuid ?? Guid.Empty;
         _context.RehabSessions.Add(entity);
         await _context.SaveChangesAsync();
@@ -571,7 +575,7 @@ public class RehabilitationServiceImpl : IRehabilitationService
     private static RehabSessionDto MapToRehabSessionDto(RehabSession e) => new()
     {
         Id = e.Id, TreatmentPlanId = e.TreatmentPlanId, SessionNumber = e.SessionNumber, ScheduledDate = e.SessionDate,
-        ScheduledTime = e.StartTime, ScheduledDuration = e.DurationMinutes ?? 0,
+        ScheduledTime = e.StartTime, ScheduledDuration = e.DurationMinutes ?? 0, Location = e.Location ?? "",
         TherapistName = e.Therapist?.FullName ?? "", Status = e.Status, ProgressNotes = e.ProgressNotes,
         PatientId = e.TreatmentPlan?.Referral?.PatientId ?? Guid.Empty,
         PatientName = e.TreatmentPlan?.Referral?.Patient?.FullName ?? "",

@@ -63,6 +63,8 @@ namespace HIS.Application.Services
     {
         // Screening
         Task<List<NutritionScreeningDto>> GetPendingScreeningsAsync(Guid? departmentId = null);
+        /// <summary>Latest completed screening per admission (v2 "Đã sàng lọc" tab).</summary>
+        Task<List<NutritionScreeningDto>> GetCompletedScreeningsAsync(Guid? departmentId = null);
         Task<NutritionScreeningDto> GetScreeningByAdmissionAsync(Guid admissionId);
         Task<NutritionScreeningDto> PerformScreeningAsync(PerformNutritionScreeningDto dto);
         Task<List<NutritionScreeningDto>> GetHighRiskPatientsAsync(Guid? departmentId = null);
@@ -123,6 +125,10 @@ namespace HIS.Application.Services
         Task<HAIDto> UpdateHAICaseAsync(Guid id, HAIDto dto);
         Task<HAIDto> ConfirmHAICaseAsync(Guid id, string organism, bool isMDRO);
         Task<HAIDto> ResolveHAICaseAsync(Guid id, string outcome);
+        /// <summary>All HAI cases incl. resolved/excluded (v2 list has status tabs for them).</summary>
+        Task<List<HAIDto>> GetHAICasesAsync(string? infectionType = null, Guid? departmentId = null);
+        /// <summary>Suspected case ruled out as not hospital-acquired.</summary>
+        Task<HAIDto> ExcludeHAICaseAsync(Guid id, string reason);
 
         // Isolation
         Task<List<IsolationOrderDto>> GetActiveIsolationsAsync(Guid? departmentId = null);
@@ -292,6 +298,10 @@ namespace HIS.Application.Services
         // Shift Swaps
         Task<List<ShiftSwapRequestDto>> GetPendingSwapRequestsAsync(Guid? departmentId = null);
         Task<ShiftSwapRequestDto> RequestShiftSwapAsync(Guid assignmentId, Guid targetAssignmentId, string reason);
+        /// <summary>QA-R3: swap (exchange with target's shift) or cover (target takes the shift) — stored on DutyShifts swap columns.</summary>
+        Task<ShiftSwapRequestDto> CreateShiftSwapAsync(CreateShiftSwapRequestDto dto);
+        /// <summary>QA-R3: real shift assignments in [fromDate, toDate] (all departments when departmentId is null).</summary>
+        Task<List<StaffRosterAssignmentDto>> GetRosterAssignmentsAsync(Guid? departmentId, DateTime fromDate, DateTime toDate);
         Task<bool> ApproveSwapAsTargetAsync(Guid requestId, bool approve);
         Task<bool> ApproveSwapAsManagerAsync(Guid requestId, bool approve, string notes);
 
@@ -590,6 +600,10 @@ namespace HIS.Application.Services
         Task<TeleconsultationRequestDto> GetTeleconsultationAsync(Guid id);
         Task<TeleconsultationRequestDto> CreateTeleconsultationAsync(CreateTeleconsultationDto dto);
         Task<TeleconsultationRequestDto> RespondToTeleconsultationAsync(Guid id, string notes, string recommendations);
+        /// <summary>Opens (or re-joins) the video room of a teleconsultation; null when not found.</summary>
+        Task<TeleconsultationRequestDto?> StartTeleconsultationAsync(Guid id, string roomUrl);
+        /// <summary>Printable referral letter (giấy chuyển tuyến) as HTML; null when not found.</summary>
+        Task<string?> BuildReferralLetterHtmlAsync(Guid referralId);
 
         // Authority Reporting
         Task<HealthAuthorityReportDto> GenerateAuthorityReportAsync(string reportType, DateTime fromDate, DateTime toDate);

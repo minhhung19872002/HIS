@@ -5,6 +5,7 @@ import {
   getHandHygieneObservations, createHandHygieneObservation,
   getOutbreaks, investigateHAICase,
   getIsolationOrders, discontinueIsolation,
+  confirmHAICase, closeHAICase, excludeHAICase,
 } from '../api/infectionControl';
 import type {
   CreateHAISurveillanceDto, CreateIsolationOrderDto,
@@ -290,6 +291,39 @@ const InfectionControlV2: React.FC = () => {
       .finally(() => setOutbreakLoading(false));
   }, [tab, outbreakLoaded]);
 
+  // ─── HAI lifecycle (QA-R3: confirm / resolve / exclude had no UI and no route) ─
+  type LifeAction = 'confirm' | 'resolve' | 'exclude';
+  const [lifeAction, setLifeAction] = useState<LifeAction | null>(null);
+  const [lifeText, setLifeText] = useState('');
+  const [lifeMdro, setLifeMdro] = useState(false);
+  const [lifeSaving, setLifeSaving] = useState(false);
+  const LIFE_CFG: Record<LifeAction, { title: string; label: string; ok: string; required: boolean }> = {
+    confirm: { title: 'Xác định ca NKBV', label: 'Mầm bệnh xác định (nếu có)', ok: 'Đã xác định ca NKBV', required: false },
+    resolve: { title: 'Kết thúc ca NKBV', label: 'Kết cục *', ok: 'Đã kết thúc ca NKBV', required: true },
+    exclude: { title: 'Loại trừ ca nghi ngờ', label: 'Lý do loại trừ *', ok: 'Đã loại trừ ca', required: true },
+  };
+  const openLife = (a: LifeAction) => {
+    setLifeAction(a);
+    setLifeText(a === 'confirm' ? (sel?.organism || '') : '');
+    setLifeMdro(!!sel?.isMDRO);
+  };
+  const doLife = async () => {
+    if (!sel || !lifeAction || lifeSaving) return;
+    const cfg = LIFE_CFG[lifeAction];
+    if (cfg.required && !lifeText.trim()) { ti(`Nhập ${cfg.label.replace(' *', '').toLowerCase()}`); return; }
+    setLifeSaving(true);
+    try {
+      if (lifeAction === 'confirm') await confirmHAICase(sel.id, lifeText.trim() || undefined, lifeMdro);
+      else if (lifeAction === 'resolve') await closeHAICase(sel.id, lifeText.trim());
+      else await excludeHAICase(sel.id, lifeText.trim());
+      tk(cfg.ok);
+      setLifeAction(null);
+      setSel(null);
+      load();
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không cập nhật được trạng thái ca NKBV')); }
+    finally { setLifeSaving(false); }
+  };
+
   // ─── Investigate state ──────────────────────────────────────────────────
   const [invOpen, setInvOpen] = useState(false);
   const [invFindings, setInvFindings] = useState('');
@@ -514,6 +548,13 @@ const InfectionControlV2: React.FC = () => {
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
           <Btn variant="ghost" icon="search" onClick={() => { setInvFindings(''); setInvActions(''); setInvOpen(true); }}>Điều tra</Btn>
+          {sel && sKey(sel.status) === 'suspected' && <>
+            <Btn variant="ghost" icon="x" onClick={() => openLife('exclude')}>Loại trừ</Btn>
+            <Btn variant="primary" icon="check" onClick={() => openLife('confirm')}>Xác định</Btn>
+          </>}
+          {sel && (sKey(sel.status) === 'suspected' || sKey(sel.status) === 'confirmed') && (
+            <Btn icon="check" onClick={() => openLife('resolve')}>Kết thúc ca</Btn>
+          )}
           <Btn icon="print" onClick={() => window.print()}>In báo cáo</Btn>
         </>}
       >
@@ -679,6 +720,38 @@ const InfectionControlV2: React.FC = () => {
             />
           </div>
         </div>
+      </ModalShell>
+
+      {/* ── ModalShell: xác định / kết thúc / loại trừ ca HAI ───────────── */}
+      <ModalShell
+        open={!!lifeAction}
+        onClose={() => setLifeAction(null)}
+        title={lifeAction ? LIFE_CFG[lifeAction].title : ''}
+        sub={sel ? `Ca ${sel.caseCode || '—'} · ${sel.patientName || '—'}` : undefined}
+        size="sm"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setLifeAction(null)}>Hủy</Btn>
+          <Btn variant="primary" disabled={lifeSaving} onClick={doLife}>{lifeSaving ? 'Đang lưu…' : 'Xác nhận'}</Btn>
+        </>}
+      >
+        {lifeAction && <>
+          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4 }}>{LIFE_CFG[lifeAction].label}</div>
+          <textarea
+            value={lifeText}
+            onChange={(e) => setLifeText(e.target.value)}
+            rows={3}
+            style={{
+              width: '100%', resize: 'vertical',
+              background: 'var(--bg-1)', border: '1px solid var(--line)', borderRadius: 4,
+              padding: 8, color: 'var(--t-0)', fontSize: 'var(--fs-sm)', boxSizing: 'border-box',
+            }}
+          />
+          {lifeAction === 'confirm' && (
+            <label style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 8, fontSize: 'var(--fs-sm)' }}>
+              <input type="checkbox" checked={lifeMdro} onChange={(e) => setLifeMdro(e.target.checked)} /> Kháng đa thuốc (MDRO)
+            </label>
+          )}
+        </>}
       </ModalShell>
 
       {/* ── Drawer: chi tiết y lệnh cách ly ─────────────────────────────── */}

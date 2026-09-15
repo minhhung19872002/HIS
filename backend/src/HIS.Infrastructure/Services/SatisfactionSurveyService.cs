@@ -137,7 +137,7 @@ public class SatisfactionSurveyService : ISatisfactionSurveyService
                 .Select(r => new
                 {
                     r.Id, r.PatientName, r.PatientCode, r.DepartmentName,
-                    r.OverallScore, r.Comment, r.TemplateName, r.CreatedAt
+                    r.OverallScore, r.Comment, r.TemplateName, r.CreatedAt, r.CampaignId
                 })
                 .ToListAsync();
             return ServiceOutcome.Ok(results);
@@ -146,6 +146,80 @@ public class SatisfactionSurveyService : ISatisfactionSurveyService
         {
             return ServiceOutcome.Ok(Array.Empty<object>());
         }
+    }
+
+    /// <summary>
+    /// QA-R3: there was no endpoint that records a completed survey into SatisfactionSurveyResults (the source every
+    /// stats / analysis / export reads), and results had no campaign link so export by campaign returned everything.
+    /// </summary>
+    public async Task<ServiceOutcome> SubmitResultAsync(SubmitSurveyResultDto dto, string? userId)
+    {
+        if (double.IsNaN(dto.OverallScore) || dto.OverallScore < 1 || dto.OverallScore > 5)
+            throw new ArgumentException("Điểm hài lòng tổng thể phải từ 1 đến 5", nameof(dto.OverallScore));
+        if (!string.IsNullOrWhiteSpace(dto.Answers))
+        {
+            try { using var _ = System.Text.Json.JsonDocument.Parse(dto.Answers); }
+            catch (System.Text.Json.JsonException) { throw new ArgumentException("Câu trả lời (answers) phải là JSON hợp lệ", nameof(dto.Answers)); }
+        }
+
+        SatisfactionSurveyCampaign? campaign = null;
+        if (dto.CampaignId.HasValue)
+        {
+            campaign = await _db.SatisfactionSurveyCampaigns.FirstOrDefaultAsync(c => c.Id == dto.CampaignId.Value && !c.IsDeleted)
+                ?? throw new KeyNotFoundException("Không tìm thấy chiến dịch khảo sát");
+            if (campaign.Status is 2 or 3)
+                throw new InvalidOperationException("Chiến dịch khảo sát đã đóng — không ghi nhận thêm phiếu");
+        }
+
+        var templateId = dto.TemplateId ?? campaign?.TemplateId;
+        string? templateName = campaign?.TemplateName;
+        if (templateId.HasValue)
+        {
+            var tpl = await _db.Set<SatisfactionSurveyTemplate>().AsNoTracking()
+                .Where(t => t.Id == templateId.Value && !t.IsDeleted).Select(t => new { t.Name }).FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException("Không tìm thấy mẫu khảo sát");
+            templateName = tpl.Name;
+        }
+
+        Guid? patientId = dto.PatientId;
+        string? patientName = dto.PatientName, patientCode = dto.PatientCode;
+        if (patientId.HasValue || !string.IsNullOrWhiteSpace(patientCode))
+        {
+            var code = patientCode?.Trim();
+            var p = await _db.Patients.AsNoTracking()
+                .Where(x => !x.IsDeleted && (patientId.HasValue ? x.Id == patientId.Value : x.PatientCode == code))
+                .Select(x => new { x.Id, x.FullName, x.PatientCode }).FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException("Không tìm thấy người bệnh");
+            patientId = p.Id; patientName = p.FullName; patientCode = p.PatientCode;
+        }
+
+        var departmentName = dto.DepartmentName;
+        if (dto.DepartmentId.HasValue)
+            departmentName = await _db.Departments.AsNoTracking().Where(d => d.Id == dto.DepartmentId.Value)
+                .Select(d => d.DepartmentName).FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException("Không tìm thấy khoa/phòng");
+
+        var result = new SatisfactionSurveyResult
+        {
+            Id = Guid.NewGuid(),
+            CampaignId = campaign?.Id,
+            TemplateId = templateId,
+            TemplateName = templateName,
+            PatientId = patientId,
+            PatientName = patientName,
+            PatientCode = patientCode,
+            DepartmentId = dto.DepartmentId,
+            DepartmentName = departmentName,
+            OverallScore = Math.Round(dto.OverallScore, 1),
+            Answers = string.IsNullOrWhiteSpace(dto.Answers) ? null : dto.Answers,
+            Comment = string.IsNullOrWhiteSpace(dto.Comment) ? null : dto.Comment.Trim(),
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = userId,
+        };
+        _db.SatisfactionSurveyResults.Add(result);
+        if (campaign != null) campaign.ActualCount++;
+        await _db.SaveChangesAsync();
+        return ServiceOutcome.Ok(new { result.Id, result.CampaignId, result.OverallScore, result.CreatedAt });
     }
 
     public async Task<ServiceOutcome> GetAnalysisAsync()
@@ -312,6 +386,30 @@ public class SatisfactionSurveyService : ISatisfactionSurveyService
         return ServiceOutcome.Ok(new { campaign.Id, campaign.CampaignCode, campaign.Name });
     }
 
+    /// <summary>
+    /// QA-R3: campaigns were created as Draft with no way to move them on. Transitions:
+    /// 0 Draft → 1 Active / 3 Archived · 1 Active → 2 Closed · 2 Closed → 1 Active (reopen) / 3 Archived.
+    /// </summary>
+    public async Task<ServiceOutcome> UpdateCampaignStatusAsync(Guid id, int status, string? userId)
+    {
+        var campaign = await _db.SatisfactionSurveyCampaigns.FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy chiến dịch khảo sát");
+        var allowed = campaign.Status switch
+        {
+            0 => new[] { 1, 3 },
+            1 => new[] { 2 },
+            2 => new[] { 1, 3 },
+            _ => Array.Empty<int>(),
+        };
+        if (!allowed.Contains(status))
+            throw new InvalidOperationException($"Không chuyển được chiến dịch từ trạng thái {campaign.Status} sang {status}");
+        campaign.Status = status;
+        campaign.UpdatedAt = DateTime.UtcNow;
+        campaign.UpdatedBy = userId;
+        await _db.SaveChangesAsync();
+        return ServiceOutcome.Ok(new { campaign.Id, campaign.Status });
+    }
+
     // ========================================================================
     // Feedback Callbacks
     // ========================================================================
@@ -386,8 +484,12 @@ public class SatisfactionSurveyService : ISatisfactionSurveyService
         var fromDate = from ?? DateTime.UtcNow.AddDays(-30);
         var toDate = to ?? DateTime.UtcNow;
 
-        var results = await _db.SatisfactionSurveyResults
-            .Where(r => r.CreatedAt >= fromDate && r.CreatedAt <= toDate.AddDays(1))
+        var query = _db.SatisfactionSurveyResults
+            .Where(r => r.CreatedAt >= fromDate && r.CreatedAt <= toDate.AddDays(1));
+        // QA-R3: campaignId was accepted and ignored — "export this campaign" returned every result.
+        if (campaignId.HasValue)
+            query = query.Where(r => r.CampaignId == campaignId.Value);
+        var results = await query
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
 

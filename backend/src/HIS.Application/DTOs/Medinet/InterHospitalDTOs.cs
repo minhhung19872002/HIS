@@ -14,6 +14,7 @@ public class InterHospitalRequestSearchDto
     public string? Urgency { get; set; }
     public string? FromDate { get; set; }
     public string? ToDate { get; set; }
+    public string? Direction { get; set; }
 }
 
 public class InterHospitalRequestDto
@@ -21,6 +22,8 @@ public class InterHospitalRequestDto
     public Guid Id { get; set; }
     public string RequestCode { get; set; } = string.Empty;
     public string RequestType { get; set; } = string.Empty;
+    /// <summary>"outgoing" | "incoming"</summary>
+    public string Direction { get; set; } = "outgoing";
     public string? RequestingFacility { get; set; }
     public string? ReceivingFacility { get; set; }
     public Guid? PatientId { get; set; }
@@ -40,6 +43,8 @@ public class CreateInterHospitalRequestDto
 {
     [Required]
     public string? RequestType { get; set; }
+    /// <summary>"outgoing" (default) | "incoming" — an incoming request received from another facility.</summary>
+    public string? Direction { get; set; }
     public string? RequestingFacility { get; set; }
     public string? ReceivingFacility { get; set; }
     public Guid? PatientId { get; set; }

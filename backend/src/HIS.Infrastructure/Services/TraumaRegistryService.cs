@@ -42,11 +42,18 @@ public class TraumaRegistryService : ITraumaRegistryService
                     query = query.Where(c => c.InjuryDate <= to.AddDays(1));
             }
 
-            return await query
+            var rows = await query
+                .AsNoTracking()
                 .OrderByDescending(c => c.CreatedAt)
                 .Take(200)
-                .Select(c => MapToDto(c))
                 .ToListAsync();
+            // QA-R3: patient code/name for the v2 "Mã BN" column (lookup, not Include: a required nav would
+            // INNER JOIN away cases whose patient row is soft-deleted).
+            var ids = rows.Select(r => r.PatientId).Distinct().ToList();
+            var patients = await _context.Patients.IgnoreQueryFilters().AsNoTracking()
+                .Where(p => ids.Contains(p.Id)).ToDictionaryAsync(p => p.Id);
+            foreach (var r in rows) if (patients.TryGetValue(r.PatientId, out var p)) r.Patient = p;
+            return rows.Select(MapToDto).ToList();
         }
         catch { return new List<TraumaCaseDto>(); }
     }
@@ -55,7 +62,9 @@ public class TraumaRegistryService : ITraumaRegistryService
     {
         try
         {
-            var c = await _context.TraumaCases.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+            var c = await _context.TraumaCases.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+            if (c != null)
+                c.Patient = await _context.Patients.IgnoreQueryFilters().AsNoTracking().FirstOrDefaultAsync(p => p.Id == c.PatientId);
             if (c == null) return null;
             return MapToDto(c);
         }
@@ -64,10 +73,21 @@ public class TraumaRegistryService : ITraumaRegistryService
 
     public async Task<TraumaCaseDto> CreateCaseAsync(CreateTraumaCaseDto dto)
     {
+        // QA-R3: the v2 form sends "Mã BN" (patient code) and no id, so every registration was rejected below.
+        if ((!dto.PatientId.HasValue || dto.PatientId == Guid.Empty) && !string.IsNullOrWhiteSpace(dto.PatientCode))
+        {
+            var code = dto.PatientCode.Trim();
+            var found = await _context.Patients.AsNoTracking().Where(p => p.PatientCode == code && !p.IsDeleted)
+                .Select(p => new { p.Id, p.FullName }).FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException($"Không tìm thấy người bệnh mã {code}");
+            dto.PatientId = found.Id;
+            if (string.IsNullOrWhiteSpace(dto.PatientName)) dto.PatientName = found.FullName;
+        }
         // TraumaCases.PatientId is a NOT NULL FK to Patients: a name-only case was written with Guid.Empty → FK 500.
         if (!dto.PatientId.HasValue || dto.PatientId == Guid.Empty || !await _context.Patients.AnyAsync(p => p.Id == dto.PatientId))
-            throw new ArgumentException("Phải chọn người bệnh đã có hồ sơ trong hệ thống", nameof(dto.PatientId));
+            throw new ArgumentException("Phải chọn người bệnh đã có hồ sơ trong hệ thống (nhập đúng mã BN)", nameof(dto.PatientId));
         ValidateScores(dto);
+        ValidateStatus(dto.Status);
 
         var year = DateTime.UtcNow.Year;
         var count = await _context.TraumaCases.CountAsync(c => c.CreatedAt.Year == year) + 1;
@@ -80,8 +100,8 @@ public class TraumaRegistryService : ITraumaRegistryService
             PatientName = dto.PatientName ?? "",
             DateOfBirth = DateTime.TryParse(dto.DateOfBirth, out var dob) ? dob : null,
             Gender = dto.Gender,
-            AdmissionDate = DateTime.TryParse(dto.AdmissionDate, out var ad) ? ad : DateTime.UtcNow,
-            InjuryDate = DateTime.TryParse(dto.InjuryDate, out var id2) ? id2 : DateTime.UtcNow,
+            AdmissionDate = DateTime.TryParse(dto.AdmissionDate, out var ad) ? ad : HIS.Core.Common.VnTime.NowVn, // VN local
+            InjuryDate = DateTime.TryParse(dto.InjuryDate, out var id2) ? id2 : HIS.Core.Common.VnTime.NowVn,
             InjuryType = dto.InjuryType ?? "other",
             InjuryMechanism = dto.InjuryMechanism,
             InjuryLocation = dto.InjuryLocation,
@@ -94,8 +114,11 @@ public class TraumaRegistryService : ITraumaRegistryService
             TransportMode = dto.TransportMode,
             PreHospitalTime = dto.PreHospitalTime,
             SurgeryRequired = dto.SurgeryRequired ?? false,
-            IcuAdmission = dto.IcuAdmission ?? false,
+            IcuAdmission = dto.IcuAdmission ?? dto.Status == 1,
             Notes = dto.Notes,
+            // QA-R3: the form's status and attending doctor were silently dropped.
+            Status = dto.Status ?? 0,
+            AttendingDoctor = string.IsNullOrWhiteSpace(dto.AttendingDoctor) ? null : dto.AttendingDoctor.Trim(),
             CreatedAt = DateTime.UtcNow,
         };
 
@@ -121,11 +144,64 @@ public class TraumaRegistryService : ITraumaRegistryService
         if (dto.SurgeryRequired.HasValue) entity.SurgeryRequired = dto.SurgeryRequired.Value;
         if (dto.IcuAdmission.HasValue) entity.IcuAdmission = dto.IcuAdmission.Value;
         if (dto.Notes != null) entity.Notes = dto.Notes;
+        if (dto.AttendingDoctor != null) entity.AttendingDoctor = dto.AttendingDoctor.Trim();
+        if (dto.Status.HasValue)
+        {
+            ValidateStatus(dto.Status);
+            // A recorded outcome owns the terminal status (PUT cases/{id}/outcome); the form cannot contradict it.
+            if (!string.IsNullOrEmpty(entity.Outcome) && dto.Status < 3)
+                throw new InvalidOperationException("Ca đã ghi nhận kết cục ra viện/tử vong — không chuyển về trạng thái đang điều trị");
+            entity.Status = dto.Status.Value;
+            if (dto.Status == 1) entity.IcuAdmission = true;
+        }
         entity.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
 
         return MapToDto(entity);
+    }
+
+    private static readonly string[] TraumaOutcomes = { "discharged", "transferred", "died", "absconded" };
+
+    // QA-R3: outcome / discharge date / LOS had no write path, so the outcome report and mortality/LOS stats could
+    // only ever show seeded data.
+    public async Task<TraumaCaseDto> UpdateOutcomeAsync(Guid id, UpdateTraumaOutcomeDto dto)
+    {
+        var entity = await _context.TraumaCases.FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy ca chấn thương");
+        var outcome = dto.Outcome?.Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(outcome) || !TraumaOutcomes.Contains(outcome))
+            throw new ArgumentException("Kết cục không hợp lệ (discharged / transferred / died / absconded)", nameof(dto.Outcome));
+        if (string.IsNullOrWhiteSpace(dto.DischargeDate) || !DateTime.TryParse(dto.DischargeDate, out var dischargeDate))
+            throw new ArgumentException("Phải nhập ngày ra viện / tử vong hợp lệ", nameof(dto.DischargeDate));
+        if (dischargeDate.Date > HIS.Core.Common.VnTime.TodayVn)
+            throw new ArgumentException("Ngày ra viện không được ở tương lai", nameof(dto.DischargeDate));
+        if (entity.AdmissionDate.HasValue && dischargeDate.Date < entity.AdmissionDate.Value.Date)
+            throw new ArgumentException("Ngày ra viện không được trước ngày nhập viện", nameof(dto.DischargeDate));
+        // Treatment days = discharge day − admission day + 1 (a same-day stay counts as one day).
+        var computedLos = entity.AdmissionDate.HasValue ? (dischargeDate.Date - entity.AdmissionDate.Value.Date).Days + 1 : (int?)null;
+        var los = dto.LengthOfStay ?? computedLos;
+        if (los is < 0)
+            throw new ArgumentException("Số ngày nằm viện không được âm", nameof(dto.LengthOfStay));
+        if (dto.VentilatorDays is < 0 || (dto.VentilatorDays.HasValue && los.HasValue && dto.VentilatorDays > los))
+            throw new ArgumentException("Số ngày thở máy phải từ 0 và không vượt số ngày nằm viện", nameof(dto.VentilatorDays));
+
+        entity.Outcome = outcome;
+        entity.DischargeDate = dischargeDate;
+        entity.LengthOfStay = los;
+        if (dto.VentilatorDays.HasValue) entity.VentilatorDays = dto.VentilatorDays;
+        if (!string.IsNullOrWhiteSpace(dto.Notes))
+            entity.Notes = string.IsNullOrWhiteSpace(entity.Notes) ? dto.Notes.Trim() : $"{entity.Notes}\n{dto.Notes.Trim()}";
+        entity.Status = outcome == "died" ? 4 : 3;
+        entity.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return MapToDto(entity);
+    }
+
+    private static void ValidateStatus(int? status)
+    {
+        if (status is < 0 or > 4)
+            throw new ArgumentException("Trạng thái ca chấn thương không hợp lệ (0-4)", nameof(status));
     }
 
     public async Task<TraumaStatsDto> GetStatsAsync()
@@ -195,7 +271,8 @@ public class TraumaRegistryService : ITraumaRegistryService
         Id = c.Id,
         CaseCode = c.CaseCode,
         PatientId = c.PatientId,
-        PatientName = c.PatientName,
+        PatientName = string.IsNullOrWhiteSpace(c.PatientName) ? c.Patient?.FullName ?? "" : c.PatientName,
+        PatientCode = c.Patient?.PatientCode,
         DateOfBirth = c.DateOfBirth?.ToString("yyyy-MM-dd"),
         Gender = c.Gender,
         AdmissionDate = c.AdmissionDate?.ToString("yyyy-MM-ddTHH:mm:ss"),
@@ -218,5 +295,7 @@ public class TraumaRegistryService : ITraumaRegistryService
         Outcome = c.Outcome,
         DischargeDate = c.DischargeDate?.ToString("yyyy-MM-dd"),
         Notes = c.Notes,
+        Status = c.Status ?? (c.Outcome == "died" ? 4 : c.DischargeDate != null || c.Outcome != null ? 3 : c.IcuAdmission ? 1 : 0),
+        AttendingDoctor = c.AttendingDoctor,
     };
 }

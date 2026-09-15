@@ -322,6 +322,8 @@ namespace HIS.Application.DTOs.EmrAdmin
 
     public class Hl7ImportResultDto
     {
+        /// <summary>Error code: the HL7 message is well-formed but importing it into the EMR is not supported (→ 501).</summary>
+        public const string NotSupportedCode = "HL7_IMPORT_NOT_SUPPORTED";
         public bool Success { get; set; }
         public string? Message { get; set; }
         public int ImportedRecords { get; set; }

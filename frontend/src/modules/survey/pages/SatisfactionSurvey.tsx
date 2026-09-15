@@ -6,11 +6,13 @@ import {
   getSurveyResults, contactCallback, createCampaign, exportSurveys,
   getTemplates, createTemplate, updateTemplate, deleteTemplate,
   getConfig, updateConfig,
+  getCampaigns, updateCampaignStatus, submitSurveyResult,
 } from '../api/satisfactionSurvey';
 import type {
   CreateCampaignDto, ContactCallbackDto,
-  SurveyTemplate, SurveyQuestion, SurveyConfig,
+  SurveyTemplate, SurveyQuestion, SurveyConfig, Campaign,
 } from '../api/satisfactionSurvey';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import { downloadCsv, escapeCsvCell } from '../../../utils/csvExport';
 import {
@@ -69,6 +71,19 @@ const CHANNEL_OPTIONS = [
   { label: 'Email', value: 'email' },
   { label: 'Ứng dụng', value: 'app' },
 ];
+
+const CAMPAIGN_STATUS: Record<number, { l: string; tone: 'ok' | 'warn' | 'info' | 'crit' }> = {
+  0: { l: 'Nháp', tone: 'info' }, 1: { l: 'Đang chạy', tone: 'ok' }, 2: { l: 'Đã đóng', tone: 'warn' }, 3: { l: 'Lưu trữ', tone: 'info' },
+};
+/** Allowed next statuses — mirrors BE SatisfactionSurveyService.UpdateCampaignStatusAsync. */
+const CAMPAIGN_NEXT: Record<number, { to: number; l: string }[]> = {
+  0: [{ to: 1, l: 'Kích hoạt' }, { to: 3, l: 'Lưu trữ' }],
+  1: [{ to: 2, l: 'Đóng' }],
+  2: [{ to: 1, l: 'Mở lại' }, { to: 3, l: 'Lưu trữ' }],
+  3: [],
+};
+
+type AnswerValue = string | number | string[] | undefined;
 
 const DEFAULT_SURVEY_CONFIG: SurveyConfig = {
   autoSend: false, sendDelayHours: 24, channels: ['email'], reminderEnabled: false, reminderAfterHours: 48,
@@ -130,13 +145,77 @@ const SatisfactionSurveyV2: React.FC = () => {
     finally { setCallbackSubmitting(false); }
   };
 
+  // --- Chiến dịch: danh sách + chuyển trạng thái (QA-R3) ---
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaignListOpen, setCampaignListOpen] = useState(false);
+  const [campaignBusy, setCampaignBusy] = useState<string | null>(null);
+  const loadCampaigns = async () => {
+    try { setCampaigns(normalizeArrayResponse<Campaign>((await getCampaigns()).data)); }
+    catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh sách chiến dịch')); }
+  };
+  useEffect(() => { loadCampaigns(); }, []);
+  const changeCampaignStatus = async (c: Campaign, to: number) => {
+    setCampaignBusy(c.id);
+    try { await updateCampaignStatus(c.id, to); tk(`Đã chuyển "${c.name}" sang ${CAMPAIGN_STATUS[to]?.l}`); await loadCampaigns(); }
+    catch (e) { tw(friendlyErrorMessage(e, 'Không chuyển được trạng thái chiến dịch')); }
+    finally { setCampaignBusy(null); }
+  };
+  const campaignOpts = useMemo(() => campaigns.map((c) => ({ v: c.id, l: `${c.name} (${CAMPAIGN_STATUS[c.status]?.l ?? c.status})` })), [campaigns]);
+
+  // --- Nhập phiếu khảo sát (QA-R3: POST /satisfaction-survey/results); entryQuestions is derived after the template state ---
+  const [entryOpen, setEntryOpen] = useState(false);
+  const [entrySaving, setEntrySaving] = useState(false);
+  const [entryCampaign, setEntryCampaign] = useState<string | undefined>();
+  const [entryTemplate, setEntryTemplate] = useState<string | undefined>();
+  const [entryPatientCode, setEntryPatientCode] = useState('');
+  const [entryScore, setEntryScore] = useState<number | null>(null);
+  const [entryComment, setEntryComment] = useState('');
+  const [entryAnswers, setEntryAnswers] = useState<Record<string, AnswerValue>>({});
+  const openEntry = () => {
+    setEntryCampaign(undefined); setEntryTemplate(undefined); setEntryPatientCode('');
+    setEntryScore(null); setEntryComment(''); setEntryAnswers({});
+    if (!surveyTemplates.length) loadTemplates();
+    setEntryOpen(true);
+  };
+  const pickEntryCampaign = (id?: string) => {
+    setEntryCampaign(id);
+    const c = campaigns.find((x) => x.id === id);
+    if (c?.templateId) { setEntryTemplate(c.templateId); setEntryAnswers({}); }
+  };
+  const submitEntry = async () => {
+    const missing = entryQuestions.find((q) => q.required && (entryAnswers[q.id] === undefined || entryAnswers[q.id] === ''
+      || (Array.isArray(entryAnswers[q.id]) && (entryAnswers[q.id] as string[]).length === 0)));
+    if (missing) { tw(`Chưa trả lời câu bắt buộc: ${missing.text}`); return; }
+    // Overall score: entered, else the mean of the rating questions.
+    const ratings = entryQuestions.filter((q) => q.type === 'rating').map((q) => Number(entryAnswers[q.id])).filter((n) => n >= 1 && n <= 5);
+    const overall = entryScore ?? (ratings.length ? Math.round((ratings.reduce((s, n) => s + n, 0) / ratings.length) * 10) / 10 : null);
+    if (overall == null || overall < 1 || overall > 5) { tw('Nhập điểm hài lòng tổng thể (1–5)'); return; }
+    setEntrySaving(true);
+    try {
+      await submitSurveyResult({
+        campaignId: entryCampaign,
+        templateId: entryTemplate,
+        patientCode: entryPatientCode.trim() || undefined,
+        overallScore: overall,
+        answers: entryQuestions.length ? JSON.stringify(entryAnswers) : undefined,
+        comment: entryComment.trim() || undefined,
+      });
+      tk('Đã ghi nhận phiếu khảo sát');
+      setEntryOpen(false);
+      load(); loadCampaigns();
+    } catch (e) { tw(friendlyErrorMessage(e, 'Ghi nhận phiếu khảo sát thất bại')); }
+    finally { setEntrySaving(false); }
+  };
+
   // --- Xuất CSV ---
   const [csvLoading, setCsvLoading] = useState(false);
+  const [exportCampaign, setExportCampaign] = useState('');
 
   const handleExportCsv = async () => {
     setCsvLoading(true);
     try {
-      const res = await exportSurveys();
+      // QA-R3: BE now filters by campaign
+      const res = await exportSurveys(exportCampaign ? { campaignId: exportCampaign, from: '2000-01-01' } : undefined);
       // interceptor không unwrap blob → res.data là Blob
       const blob: Blob = (res as unknown as { data: Blob }).data;
       if (blob instanceof Blob) {
@@ -173,6 +252,11 @@ const SatisfactionSurveyV2: React.FC = () => {
     } catch { setSurveyTemplates([]); ti('Không tải được mẫu khảo sát'); }
     finally { setTplLoading(false); }
   };
+
+  const entryQuestions = useMemo(
+    () => (surveyTemplates.find((t) => t.id === entryTemplate)?.questions || []).filter((q) => q.text.trim()),
+    [surveyTemplates, entryTemplate],
+  );
 
   const openTplModal = (t?: SurveyTemplate) => {
     if (t) {
@@ -258,7 +342,7 @@ const SatisfactionSurveyV2: React.FC = () => {
       // BE có thể trả mảng thô hoặc { items: [] } — chuẩn hoá. Field name alias do BE evolve.
       interface RawSurveyRow {
         id?: string; patientCode?: string; patientName?: string;
-        templateName?: string; score?: number;
+        templateName?: string; score?: number; overallScore?: number;
         date?: string; createdAt?: string;
         status?: string;
         department?: string; departmentName?: string;
@@ -269,7 +353,8 @@ const SatisfactionSurveyV2: React.FC = () => {
         patientCode: r.patientCode || '',
         patientName: r.patientName || '',
         templateName: r.templateName || '',
-        score: r.score || 0,
+        // BE GET /results returns overallScore (score was always 0 → every row "—" and KPIs 0)
+        score: r.score ?? r.overallScore ?? 0,
         date: r.date || r.createdAt || '',
         status: r.status || '',
         department: r.department || r.departmentName,
@@ -391,11 +476,18 @@ const SatisfactionSurveyV2: React.FC = () => {
         </Btn>
         <span className="spacer" />
         <RefreshButton onRefresh={async () => { await load() }} />
+        <Filter value={exportCampaign} onChange={setExportCampaign} options={campaignOpts} placeholder="▾ Xuất theo chiến dịch" />
         <Btn variant="ghost" onClick={handleExportCsv} disabled={csvLoading}>
           <Ico name="download" size={12} /> {csvLoading ? 'Đang xuất…' : 'Xuất CSV'}
         </Btn>
-        <Btn variant="primary" onClick={() => { campaignForm.resetFields(); setCampaignOpen(true); }}>
+        <Btn variant="ghost" onClick={() => { loadCampaigns(); setCampaignListOpen(true); }}>
+          <Ico name="list" size={12} /> Chiến dịch
+        </Btn>
+        <Btn variant="ghost" onClick={() => { campaignForm.resetFields(); setCampaignOpen(true); }}>
           <Ico name="plus" size={12} /> Chiến dịch mới
+        </Btn>
+        <Btn variant="primary" onClick={openEntry}>
+          <Ico name="edit" size={12} /> Nhập phiếu khảo sát
         </Btn>
       </div>
 
@@ -585,6 +677,95 @@ const SatisfactionSurveyV2: React.FC = () => {
           </Form.Item>
           <Form.Item name="notes" label="Ghi chú">
             <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </ModalShell>
+
+      {/* QA-R3: danh sách chiến dịch + chuyển trạng thái */}
+      <ModalShell
+        open={campaignListOpen}
+        onClose={() => setCampaignListOpen(false)}
+        size="lg"
+        title="Chiến dịch khảo sát"
+        footer={<Btn variant="ghost" onClick={() => setCampaignListOpen(false)}>Đóng</Btn>}
+      >
+        <DataTable<Campaign>
+          columns={[
+            { key: 'name', label: 'Chiến dịch', render: (c) => (
+              <div><div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{c.name}</div>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{c.campaignCode}</div></div>
+            ) },
+            { key: 'time', label: 'Thời gian', mono: true, render: (c) => `${dayjs(c.startDate).format('DD/MM')} – ${dayjs(c.endDate).format('DD/MM/YYYY')}` },
+            { key: 'count', label: 'Phiếu', mono: true, render: (c) => `${c.actualCount}/${c.targetCount || '—'}` },
+            { key: 'st', label: 'Trạng thái', render: (c) => (
+              <StatusBadge tone={CAMPAIGN_STATUS[c.status]?.tone || 'info'} dot>{CAMPAIGN_STATUS[c.status]?.l ?? c.status}</StatusBadge>
+            ) },
+            { key: 'act', label: '', render: (c) => (
+              <span style={{ display: 'inline-flex', gap: 'var(--space-6)' }}>
+                {(CAMPAIGN_NEXT[c.status] || []).map((n) => (
+                  <Btn key={n.to} variant={n.to === 1 ? 'primary' : 'ghost'} disabled={campaignBusy === c.id}
+                    onClick={() => changeCampaignStatus(c, n.to)}>{n.l}</Btn>
+                ))}
+              </span>
+            ) },
+          ]}
+          data={campaigns} rowKey={(c) => c.id}
+          empty="Chưa có chiến dịch khảo sát"
+        />
+      </ModalShell>
+
+      {/* QA-R3: nhập phiếu khảo sát */}
+      <ModalShell
+        open={entryOpen}
+        onClose={() => setEntryOpen(false)}
+        size="lg"
+        title="Nhập phiếu khảo sát hài lòng"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setEntryOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitEntry} disabled={entrySaving}>
+            <Ico name="check" size={12} /> {entrySaving ? 'Đang lưu…' : 'Lưu phiếu'}
+          </Btn>
+        </>}
+      >
+        <Form layout="vertical">
+          <Form.Item label="Chiến dịch (đang chạy)">
+            <Select allowClear placeholder="Không thuộc chiến dịch" value={entryCampaign} onChange={pickEntryCampaign}
+              options={campaigns.filter((c) => c.status === 1).map((c) => ({ value: c.id, label: c.name }))} />
+          </Form.Item>
+          <Form.Item label="Mẫu khảo sát">
+            <Select allowClear placeholder="Chọn mẫu để hiện câu hỏi" value={entryTemplate}
+              onChange={(v) => { setEntryTemplate(v); setEntryAnswers({}); }}
+              options={surveyTemplates.map((t) => ({ value: t.id, label: t.name }))} />
+          </Form.Item>
+          <Form.Item label="Mã bệnh nhân (nếu có)">
+            <Input value={entryPatientCode} onChange={(e) => setEntryPatientCode(e.target.value)} placeholder="VD: BN2026…" />
+          </Form.Item>
+          {entryQuestions.map((q, i) => (
+            <Form.Item key={q.id} label={`${i + 1}. ${q.text}`} required={q.required}>
+              {q.type === 'rating' ? (
+                <Select placeholder="1–5" value={entryAnswers[q.id] as number | undefined}
+                  onChange={(v) => setEntryAnswers((a) => ({ ...a, [q.id]: v }))}
+                  options={[1, 2, 3, 4, 5].map((n) => ({ value: n, label: `${n} ★` }))} style={{ width: 140 }} />
+              ) : q.type === 'yesno' ? (
+                <Select placeholder="Chọn" value={entryAnswers[q.id] as string | undefined}
+                  onChange={(v) => setEntryAnswers((a) => ({ ...a, [q.id]: v }))}
+                  options={[{ value: 'yes', label: 'Có' }, { value: 'no', label: 'Không' }]} style={{ width: 140 }} />
+              ) : q.type === 'multiple_choice' ? (
+                <Select mode="multiple" placeholder="Chọn" value={(entryAnswers[q.id] as string[] | undefined) || []}
+                  onChange={(v) => setEntryAnswers((a) => ({ ...a, [q.id]: v }))}
+                  options={(q.options || []).map((o) => ({ value: o, label: o }))} />
+              ) : (
+                <Input.TextArea rows={2} value={(entryAnswers[q.id] as string | undefined) || ''}
+                  onChange={(e) => setEntryAnswers((a) => ({ ...a, [q.id]: e.target.value }))} />
+              )}
+            </Form.Item>
+          ))}
+          <Form.Item label="Điểm hài lòng tổng thể (1–5)" extra={entryQuestions.some((q) => q.type === 'rating') ? 'Để trống = trung bình các câu đánh giá' : undefined}>
+            <Select allowClear placeholder="1–5" value={entryScore ?? undefined} onChange={(v) => setEntryScore(v ?? null)}
+              options={[1, 2, 3, 4, 5].map((n) => ({ value: n, label: `${n} ★` }))} style={{ width: 140 }} />
+          </Form.Item>
+          <Form.Item label="Góp ý">
+            <Input.TextArea rows={2} value={entryComment} onChange={(e) => setEntryComment(e.target.value)} />
           </Form.Item>
         </Form>
       </ModalShell>

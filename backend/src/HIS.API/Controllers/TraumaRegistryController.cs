@@ -38,8 +38,8 @@ public class TraumaRegistryController : ControllerBase
     [HttpPost("cases")]
     public async Task<ActionResult<TraumaCaseDto>> CreateCase([FromBody] CreateTraumaCaseDto dto)
     {
-        if (dto == null || ((dto.PatientId == null || dto.PatientId == Guid.Empty) && string.IsNullOrWhiteSpace(dto.PatientName)))
-            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu thông tin bệnh nhân (PatientId hoặc PatientName)" });
+        if (dto == null || ((dto.PatientId == null || dto.PatientId == Guid.Empty) && string.IsNullOrWhiteSpace(dto.PatientName) && string.IsNullOrWhiteSpace(dto.PatientCode)))
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu thông tin bệnh nhân (mã BN)" });
         return Ok(await _service.CreateCaseAsync(dto));
     }
 
@@ -48,6 +48,11 @@ public class TraumaRegistryController : ControllerBase
     {
         return Ok(await _service.UpdateCaseAsync(id, dto));
     }
+
+    // QA-R3: outcome / discharge date / LOS had no write endpoint.
+    [HttpPut("cases/{id:guid}/outcome")]
+    public async Task<ActionResult<TraumaCaseDto>> UpdateOutcome(Guid id, [FromBody] UpdateTraumaOutcomeDto dto)
+        => Ok(await _service.UpdateOutcomeAsync(id, dto ?? new UpdateTraumaOutcomeDto()));
 
     [HttpGet("stats")]
     public async Task<ActionResult<TraumaStatsDto>> GetStats()

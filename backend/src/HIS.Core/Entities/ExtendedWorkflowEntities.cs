@@ -233,6 +233,11 @@ public class DietOrder : BaseEntity
     public string? SpecialInstructions { get; set; }
     public string? DiscontinuationReason { get; set; }
 
+    // Feeding schedule (migration 202)
+    public string? FeedingRoute { get; set; } // Oral, NG, PEG, TPN
+    public int? MealFrequency { get; set; }
+    public bool? IncludeSnacks { get; set; }
+
     // Navigation
     public virtual Admission? Admission { get; set; }
     public virtual Patient? Patient { get; set; }
@@ -707,6 +712,7 @@ public class RehabSession : BaseEntity
     public TimeSpan? EndTime { get; set; }
     public int? DurationMinutes { get; set; }
     public Guid TherapistId { get; set; }
+    public string? Location { get; set; } // migration 202
 
     public string Status { get; set; } = "Scheduled"; // Scheduled, InProgress, Completed, Cancelled, NoShow
 

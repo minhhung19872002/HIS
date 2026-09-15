@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
-import { searchCases, createCase, updateCase, getOutcomeReport, getStats } from '../api/traumaRegistry';
-import type { TraumaCase, TraumaOutcomeReport } from '../api/traumaRegistry';
+import { searchCases, createCase, updateCase, updateOutcome, getOutcomeReport, getStats, TRAUMA_OUTCOME_LABEL } from '../api/traumaRegistry';
+import type { TraumaCase, TraumaOutcomeReport, TraumaOutcome } from '../api/traumaRegistry';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
@@ -29,6 +29,15 @@ const TRAUMA_FIELDS: CrudFieldCfg[] = [
     { value: 0, label: 'Nhập viện' }, { value: 1, label: 'ICU' }, { value: 2, label: 'Khoa' },
     { value: 3, label: 'Xuất viện' }, { value: 4, label: 'Tử vong' }] },
   { key: 'attendingDoctor', label: 'BS điều trị' },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
+
+// QA-R3: outcome / discharge date / LOS (BE PUT cases/{id}/outcome). Values = BE TraumaCase.Outcome vocabulary.
+const OUTCOME_FIELDS: CrudFieldCfg[] = [
+  { key: 'outcome', label: 'Kết cục', type: 'select', required: true,
+    options: Object.entries(TRAUMA_OUTCOME_LABEL).map(([value, label]) => ({ value, label })) },
+  { key: 'dischargeDate', label: 'Ngày ra viện / tử vong', type: 'date', required: true },
+  { key: 'ventilatorDays', label: 'Số ngày thở máy', type: 'number' },
   { key: 'notes', label: 'Ghi chú', type: 'textarea' },
 ];
 
@@ -86,6 +95,7 @@ const TraumaRegistryV2: React.FC = () => {
         issScore: x.issScore ?? x.injurySeverityScore ?? 0,
         rtsScore: x.rtsScore ?? x.revisedTraumaScore ?? 0,
         gcsScore: x.gcsScore ?? x.glasgowComaScale ?? 0,
+        outcome: x.outcome ?? '',
         status: deriveStatus(x),
       })));
     } catch { ti('Không tải được ca chấn thương'); }
@@ -192,6 +202,13 @@ const TraumaRegistryV2: React.FC = () => {
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
   const openCreate = () => { setCrudInit({ status: 0, triageCategory: 'yellow' }); setCrudOpen(true); };
   const openEdit = (r: TraumaCase) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
+  const [outcomeTarget, setOutcomeTarget] = useState<TraumaCase | null>(null);
+  // memoised: CrudModal resets its form whenever `initial` changes identity
+  const outcomeInit = useMemo(() => (outcomeTarget ? {
+    outcome: outcomeTarget.outcome || 'discharged',
+    dischargeDate: outcomeTarget.dischargeDate ?? dayjs().format('YYYY-MM-DD'),
+    ventilatorDays: outcomeTarget.ventilatorDays,
+  } : null), [outcomeTarget]);
 
   const actions = (r: TraumaCase) => (
     <div className="ab-actions">
@@ -246,6 +263,9 @@ const TraumaRegistryV2: React.FC = () => {
           <Btn onClick={() => { setSel(null); openReport(); }}>
             <Ico name="print" size={12} /> In báo cáo
           </Btn>
+          <Btn onClick={() => { if (sel) setOutcomeTarget(sel); setSel(null); }}>
+            <Ico name="check" size={12} /> Kết cục / Ra viện
+          </Btn>
           <Btn variant="primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
             <Ico name="edit" size={12} /> Cập nhật
           </Btn>
@@ -285,7 +305,8 @@ const TraumaRegistryV2: React.FC = () => {
             {sel.ventilatorDays !== undefined && <DrField lbl="Ngày thở máy"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.ventilatorDays}</span></DrField>}
             {sel.lengthOfStay !== undefined && <DrField lbl="Tổng ngày NV"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.lengthOfStay}</span></DrField>}
             <DrField lbl="BS phụ trách">{sel.attendingDoctor}</DrField>
-            <DrField lbl="Kết quả">{sel.outcome}</DrField>
+            <DrField lbl="Kết quả">{sel.outcome ? (TRAUMA_OUTCOME_LABEL[sel.outcome] ?? sel.outcome) : 'Chưa ghi nhận'}</DrField>
+            {sel.dischargeDate && <DrField lbl="Ngày ra viện">{dayjs(sel.dischargeDate).format('DD/MM/YYYY')}</DrField>}
             {sel.notes && <DrField lbl="Ghi chú">{sel.notes}</DrField>}
           </DrSec>
         </>}
@@ -344,6 +365,26 @@ const TraumaRegistryV2: React.FC = () => {
           if (editing && crudInit?.id) await updateCase(String(crudInit.id), v);
           else await createCase(v);
           tk(editing ? 'Đã cập nhật ca' : 'Đã đăng ký ca');
+          load();
+        }}
+      />
+
+      <CrudModal
+        open={!!outcomeTarget}
+        onClose={() => setOutcomeTarget(null)}
+        title={outcomeTarget ? `Kết cục điều trị · ${outcomeTarget.caseCode}` : 'Kết cục điều trị'}
+        fields={OUTCOME_FIELDS}
+        initial={outcomeInit}
+        onSubmit={async (v) => {
+          if (!outcomeTarget) return;
+          await updateOutcome(outcomeTarget.id, {
+            outcome: v.outcome as TraumaOutcome,
+            dischargeDate: String(v.dischargeDate),
+            ventilatorDays: typeof v.ventilatorDays === 'number' ? v.ventilatorDays : undefined,
+            notes: (v.notes as string) || undefined,
+          });
+          tk('Đã ghi nhận kết cục');
+          setOutcomeTarget(null);
           load();
         }}
       />

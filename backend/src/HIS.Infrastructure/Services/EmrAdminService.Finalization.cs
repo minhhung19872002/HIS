@@ -181,7 +181,7 @@ namespace HIS.Infrastructure.Services
             else if (record.DischargeDate.HasValue && !finalized && dept == null)
             {
                 // chưa nộp duyệt: đếm ngày đã trôi qua tới hiện tại để cảnh báo quá hạn
-                daysSince = (int)(DateTime.UtcNow.Date - record.DischargeDate.Value.Date).TotalDays;
+                daysSince = (int)(HIS.Core.Common.VnTime.TodayVn - record.DischargeDate.Value.Date).TotalDays; // DischargeDate = VN local
                 lateDays = Math.Max(0, daysSince.Value - EmrArchiveDeadlineDays);
             }
 
@@ -268,53 +268,7 @@ namespace HIS.Infrastructure.Services
         /// Snapshot "bản cũ" mức hồ sơ tại thời điểm finalize: nội dung chính + thống kê tài liệu
         /// + danh sách chữ ký số hiệu lực — đủ đối chiếu khi tu chỉnh (per-document snapshot = phase sau).
         /// </summary>
-        private async Task<string> BuildEmrSnapshotJsonAsync(MedicalRecord record)
-        {
-            var examIds = await _db.Examinations.AsNoTracking()
-                .Where(e => e.MedicalRecordId == record.Id && !e.IsDeleted)
-                .Select(e => e.Id).ToListAsync();
-            var prescriptionIds = await _db.Prescriptions.AsNoTracking()
-                .Where(p => p.MedicalRecordId == record.Id && !p.IsDeleted)
-                .Select(p => p.Id).ToListAsync();
-            var serviceRequestCount = await _db.ServiceRequests.AsNoTracking()
-                .CountAsync(s => s.MedicalRecordId == record.Id && !s.IsDeleted);
-            var progressCount = await _db.DailyProgresses.AsNoTracking()
-                .CountAsync(d => !d.IsDeleted && _db.Admissions
-                    .Any(ad => ad.Id == d.AdmissionId && ad.MedicalRecordId == record.Id));
-
-            var docIds = examIds.Concat(prescriptionIds).Append(record.Id).ToList();
-            var signatures = await _db.DocumentSignatures.AsNoTracking()
-                .Where(ds => ds.Status == 0 && docIds.Contains(ds.DocumentId))
-                .Select(ds => new
-                {
-                    ds.DocumentId,
-                    ds.DocumentType,
-                    ds.DocumentCode,
-                    SignerName = ds.SignedByUser != null ? ds.SignedByUser.FullName : null,
-                    ds.SignedAt,
-                })
-                .ToListAsync();
-
-            return System.Text.Json.JsonSerializer.Serialize(new
-            {
-                snapshotAt = DateTime.UtcNow,
-                record.MedicalRecordCode,
-                record.MainDiagnosis,
-                record.MainIcdCode,
-                record.SubDiagnosis,
-                record.TreatmentResult,
-                record.DischargeType,
-                record.AdmissionDate,
-                record.DischargeDate,
-                counts = new
-                {
-                    examinations = examIds.Count,
-                    prescriptions = prescriptionIds.Count,
-                    serviceRequests = serviceRequestCount,
-                    dailyProgresses = progressCount,
-                },
-                activeSignatures = signatures,
-            });
-        }
+        private Task<string> BuildEmrSnapshotJsonAsync(MedicalRecord record)
+            => EmrSnapshotBuilder.BuildJsonAsync(_db, record); // QA-R3: shared with EmrManagementService.CloseEmrAsync
     }
 }

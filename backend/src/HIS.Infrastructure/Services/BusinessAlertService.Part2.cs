@@ -11,6 +11,14 @@ namespace HIS.Infrastructure.Services;
 
 public partial class BusinessAlertService
 {
+    /// <summary>
+    /// QA-R3: stay-length / discharge alerts only make sense while the patient is still admitted
+    /// (in treatment or pending discharge). A discharged admission kept raising "nằm viện 204 ngày".
+    /// </summary>
+    private static bool IsAdmissionOpen(Admission admission)
+        => admission.Status == HIS.Core.Constants.AdmissionStatus.InTreatment
+        || admission.Status == HIS.Core.Constants.AdmissionStatus.PendingDischarge;
+
     // Rule 11: Fall risk (age >65)
     private async Task<List<BusinessAlertDto>> CheckFallRiskAsync(Guid patientId)
     {
@@ -48,7 +56,7 @@ public partial class BusinessAlertService
 
             var patient = await _context.Patients.FirstOrDefaultAsync(p => p.Id == patientId);
             var age = patient?.DateOfBirth.HasValue == true ? (DateTime.UtcNow - patient.DateOfBirth.Value).Days / 365 : 0;
-            var daysAdmitted = (DateTime.UtcNow - admission.AdmissionDate).Days;
+            var daysAdmitted = (HIS.Core.Common.VnTime.NowVn - admission.AdmissionDate).Days; // AdmissionDate = VN local
 
             // High risk if elderly + long stay
             if (age >= AlertInt("Inpatient:PressureUlcerAge", 70) && daysAdmitted >= AlertInt("Inpatient:PressureUlcerDays", 3))
@@ -98,7 +106,8 @@ public partial class BusinessAlertService
             var admission = await _context.Admissions.FirstOrDefaultAsync(a => a.Id == admissionId.Value);
             if (admission == null) return alerts;
 
-            var daysAdmitted = (DateTime.UtcNow - admission.AdmissionDate).Days;
+            if (!IsAdmissionOpen(admission)) return alerts; // QA-R3: no stay-length alerts after discharge
+            var daysAdmitted = (HIS.Core.Common.VnTime.NowVn - admission.AdmissionDate).Days; // AdmissionDate = VN local
             var haiRiskDays = AlertInt("Inpatient:HaiRiskDays", 7);
             var haiRiskCriticalDays = AlertInt("Inpatient:HaiRiskCriticalDays", 14);
             if (daysAdmitted >= haiRiskDays)
@@ -124,7 +133,8 @@ public partial class BusinessAlertService
             var admission = await _context.Admissions.FirstOrDefaultAsync(a => a.Id == admissionId.Value);
             if (admission == null) return alerts;
 
-            var daysAdmitted = (DateTime.UtcNow - admission.AdmissionDate).Days;
+            if (!IsAdmissionOpen(admission)) return alerts; // QA-R3: no stay-length alerts after discharge
+            var daysAdmitted = (HIS.Core.Common.VnTime.NowVn - admission.AdmissionDate).Days; // AdmissionDate = VN local
             if (daysAdmitted > AlertInt("Inpatient:ExtendedStayDays", 21))
             {
                 alerts.Add(CreateAlert("IPD-15", "Inpatient", 2, "Inpatient",
@@ -209,8 +219,9 @@ public partial class BusinessAlertService
 
             // Ở đây "số ngày" vừa là ngưỡng nằm-viện vừa là cửa sổ tra hội chẩn — CÙNG một khái niệm
             // "48h nguy kịch" nên cố ý dùng chung 1 config (override dịch cả hai cùng nhau), khác lookback-window độc lập.
+            if (!IsAdmissionOpen(admission)) return alerts; // QA-R3: no "chưa hội chẩn" alert after discharge
             var criticalNoConsultDays = AlertInt("Inpatient:CriticalNoConsultDays", 2);
-            var daysAdmitted = (DateTime.UtcNow - admission.AdmissionDate).Days;
+            var daysAdmitted = (HIS.Core.Common.VnTime.NowVn - admission.AdmissionDate).Days; // AdmissionDate = VN local
             if (daysAdmitted < criticalNoConsultDays) return alerts;
 
             // Check if patient has had a consultation (ConsultationRecord -> Examination -> MedicalRecordId)
@@ -305,35 +316,67 @@ public partial class BusinessAlertService
         var alerts = new List<BusinessAlertDto>();
         try
         {
-            // Check the most recent examination for this patient (Examination -> MedicalRecord -> PatientId)
-            var exam = await _context.Examinations
-                .Include(e => e.MedicalRecord)
-                .Where(e => e.MedicalRecord != null && e.MedicalRecord.PatientId == patientId)
-                .OrderByDescending(e => e.CreatedAt)
+            // QA-R3: NEWS2 was scored from the patient's newest *OPD examination* — for an inpatient that is the
+            // admission-day exam (or months old), while the ward charts vitals in InpatientVitalSigns. A patient
+            // deteriorating on the ward never raised IPD-21, and a stale abnormal exam kept raising it.
+            // Use the most recent vital-sign charting of the (given or current) admission; fall back to the
+            // newest examination only when the admission has no charted vitals.
+            var vitalsAdmissionId = admissionId ?? await _context.Admissions
+                .Where(a => a.PatientId == patientId && a.Status == HIS.Core.Constants.AdmissionStatus.InTreatment)
+                .OrderByDescending(a => a.AdmissionDate)
+                .Select(a => (Guid?)a.Id)
                 .FirstOrDefaultAsync();
 
-            if (exam == null) return alerts;
+            int? pulse, systolic, respiratoryRate = null;
+            decimal? temperature, spo2Value;
+            var vital = vitalsAdmissionId.HasValue
+                ? await _context.InpatientVitalSigns.AsNoTracking()
+                    .Where(v => v.AdmissionId == vitalsAdmissionId.Value && !v.IsDeleted)
+                    .OrderByDescending(v => v.RecordTime)
+                    .FirstOrDefaultAsync()
+                : null;
+            if (vital != null)
+            {
+                pulse = vital.Pulse; systolic = vital.SystolicBP; respiratoryRate = vital.RespiratoryRate;
+                temperature = vital.Temperature; spo2Value = vital.SpO2;
+            }
+            else
+            {
+                var exam = await _context.Examinations
+                    .Include(e => e.MedicalRecord)
+                    .Where(e => e.MedicalRecord != null && e.MedicalRecord.PatientId == patientId)
+                    .OrderByDescending(e => e.CreatedAt)
+                    .FirstOrDefaultAsync();
+                if (exam == null) return alerts;
+                pulse = exam.Pulse; systolic = exam.BloodPressureSystolic;
+                temperature = exam.Temperature; spo2Value = exam.SpO2;
+            }
 
             // Calculate NEWS2
             int total = 0;
-            if (exam.Pulse.HasValue)
+            if (respiratoryRate.HasValue)
             {
-                int hr = exam.Pulse.Value;
+                int rr = respiratoryRate.Value;
+                total += rr <= 8 ? 3 : rr <= 11 ? 1 : rr <= 20 ? 0 : rr <= 24 ? 2 : 3;
+            }
+            if (pulse.HasValue)
+            {
+                int hr = pulse.Value;
                 total += hr <= 40 ? 3 : hr <= 50 ? 1 : hr <= 90 ? 0 : hr <= 110 ? 1 : hr <= 130 ? 2 : 3;
             }
-            if (exam.BloodPressureSystolic.HasValue)
+            if (systolic.HasValue)
             {
-                int sbp = exam.BloodPressureSystolic.Value;
+                int sbp = systolic.Value;
                 total += sbp <= 90 ? 3 : sbp <= 100 ? 2 : sbp <= 110 ? 1 : sbp <= 219 ? 0 : 3;
             }
-            if (exam.Temperature.HasValue)
+            if (temperature.HasValue)
             {
-                decimal temp = exam.Temperature.Value;
+                decimal temp = temperature.Value;
                 total += temp <= 35.0m ? 3 : temp <= 36.0m ? 1 : temp <= 38.0m ? 0 : temp <= 39.0m ? 1 : 2;
             }
-            if (exam.SpO2.HasValue)
+            if (spo2Value.HasValue)
             {
-                decimal spo2 = exam.SpO2.Value;
+                decimal spo2 = spo2Value.Value;
                 total += spo2 <= 91 ? 3 : spo2 <= 93 ? 2 : spo2 <= 95 ? 1 : 0;
             }
 
@@ -360,7 +403,16 @@ public partial class BusinessAlertService
         {
             if (!admissionId.HasValue) return alerts;
 
-            // Check if discharge has been created but patient still in hospital
+            // Check if discharge has been created but patient still in hospital.
+            // QA-R3: DischargeAsync writes the Discharge row AND closes the admission in the same step, so the old
+            // "Discharge exists" test fired "chưa hoàn tất thủ tục xuất viện" for every patient already discharged.
+            // Only an admission still open (in treatment / pending discharge) can be "waiting to leave".
+            var admissionOpen = await _context.Admissions
+                .AnyAsync(a => a.Id == admissionId.Value
+                    && (a.Status == HIS.Core.Constants.AdmissionStatus.InTreatment
+                        || a.Status == HIS.Core.Constants.AdmissionStatus.PendingDischarge));
+            if (!admissionOpen) return alerts;
+
             var discharge = await _context.Discharges
                 .Where(d => d.AdmissionId == admissionId.Value)
                 .FirstOrDefaultAsync();
@@ -423,7 +475,7 @@ public partial class BusinessAlertService
                         "Giuong sap day",
                         $"Khoa {dept.DepartmentName}: {occupiedBeds}/{totalBeds} giuong ({occupancyRate:F0}%). " +
                         (occupancyRate > bedCapacityCriticalPct ? "GAN HET GIUONG - can dieu phoi." : "Can chuan bi ke hoach."),
-                        null, null, null));
+                        null, null, null, "Department", dept.Id));
                 }
             }
         }

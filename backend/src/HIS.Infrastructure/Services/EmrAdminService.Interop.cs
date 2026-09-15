@@ -53,33 +53,23 @@ namespace HIS.Infrastructure.Services
                 return new Hl7ImportResultDto { Success = false, Message = "Khong tim thay MSH segment", Errors = new List<string> { "Missing MSH segment" } };
 
             var fields = msh.Split('|');
-            var sendingFacility = fields.Length > 3 ? fields[3] : dto.SourceFacilityCode ?? "UNKNOWN";
-            var pidSegments = segments.Where(s => s.StartsWith("PID")).ToList();
-            var imported = 0;
+            var sendingFacility = fields.Length > 3 && !string.IsNullOrWhiteSpace(fields[3]) ? fields[3] : dto.SourceFacilityCode ?? "UNKNOWN";
+            var messageType = fields.Length > 8 ? fields[8] : "";
+            var pidCount = segments.Count(s => s.StartsWith("PID"));
+            if (pidCount == 0)
+                return new Hl7ImportResultDto { Success = false, Message = "Thông điệp HL7 không có segment PID (người bệnh)", Errors = new List<string> { "Missing PID segment" } };
 
-            var auditEntries = new List<AuditLog>();
-            foreach (var pid in pidSegments)
+            // QA-R3: this used to write one audit row per PID and answer "Da import N ban ghi" while nothing reached
+            // the medical record (no patient match, no ADT/ORU mapping). Importing external demographics / results
+            // into a patient's EMR needs matching + review rules that do not exist yet, so say so honestly (501)
+            // instead of a false success. Lab results from analyzers arrive through the LIS HL7 receiver, not here.
+            return new Hl7ImportResultDto
             {
-                var pidFields = pid.Split('|');
-                // Basic patient data extraction from PID segment
-                var patientName = pidFields.Length > 5 ? pidFields[5].Replace("^", " ") : "Unknown";
-                var patientDob = pidFields.Length > 7 ? pidFields[7] : null;
-                var gender = pidFields.Length > 8 ? pidFields[8] : null;
-
-                // Log import as audit (#350: gom qua write canonical, giữ NGUYÊN field + batch-save 1 lần)
-                auditEntries.Add(new AuditLog
-                {
-                    TableName = "HL7Import", RecordId = Guid.NewGuid(),
-                    Action = "Import", Module = "EMR",
-                    Details = $"HL7 import from {sendingFacility}: {patientName}",
-                    Timestamp = DateTime.UtcNow, UserId = Guid.TryParse(GetCurrentUserId(), out var uid) ? uid : null,
-                    Username = GetCurrentUserName()
-                });
-                imported++;
-            }
-
-            await _auditLog.WriteManyAsync(auditEntries);
-            return new Hl7ImportResultDto { Success = true, Message = $"Da import {imported} ban ghi tu {sendingFacility}", ImportedRecords = imported };
+                Success = false,
+                Message = $"Chưa hỗ trợ nhập thông điệp HL7 {messageType} vào hồ sơ bệnh án (nguồn {sendingFacility}, {pidCount} người bệnh) — không có dữ liệu nào được ghi.",
+                ImportedRecords = 0,
+                Errors = new List<string> { Hl7ImportResultDto.NotSupportedCode },
+            };
         }
 
         public async Task<Hl7ExportResultDto?> ExportHl7Async(Guid medicalRecordId)

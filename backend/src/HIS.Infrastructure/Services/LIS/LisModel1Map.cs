@@ -27,8 +27,30 @@ public static class LisModel1Map
             return 3;
         }
         if (withResult.Count > 0) return 2;
-        if (act.Any(d => d.IsSampleCollected)) return 1;
+        // QA-R3: a tube rejected at reception (ReceiveStatus 2) is not a usable sample — the order goes back to
+        // "chờ lấy mẫu" so the collection screen offers "Lấy mẫu" again (it used to sit at "đã lấy mẫu" forever
+        // while the reception queue, which only lists ReceiveStatus 0, never showed it either).
+        if (act.Any(d => d.IsSampleCollected && d.ReceiveStatus != RejectedReceiveStatus)) return 1;
         return 0;
+    }
+
+    public const int RejectedReceiveStatus = 2;
+
+    /// <summary>
+    /// QA-R3: re-collecting a tube rejected at reception. The rejection moves into the tube note (history), and the
+    /// tube re-enters the reception queue (ReceiveStatus 0) with a fresh barcode. Returns false if not rejected.
+    /// </summary>
+    public static bool ResetRejectedTubeForRecollection(ServiceRequestDetail d, DateTime nowVn)
+    {
+        if (d.ReceiveStatus != RejectedReceiveStatus) return false;
+        var note = $"[Lấy lại mẫu {nowVn:dd/MM HH:mm} — mẫu cũ {d.SampleBarcode} bị từ chối: {d.RejectReason}]";
+        d.Note = string.IsNullOrEmpty(d.Note) ? note : $"{d.Note}\n{note}";
+        d.ReceiveStatus = 0;
+        d.RejectReason = null;
+        d.ReceivedAt = null;
+        d.ReceivedByUserId = null;
+        d.SampleBarcode = null;
+        return true;
     }
 
     /// <summary>

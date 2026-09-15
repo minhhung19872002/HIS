@@ -108,7 +108,11 @@ public class EmrAdminController : ControllerBase
     {
         var request = dto ?? new FinalizeRecordDto();
         request.MedicalRecordId = recordId;
-        return Ok(await _service.FinalizeRecordAsync(request));
+        var result = await _service.FinalizeRecordAsync(request);
+        // QA-R3: failures ("không tìm thấy" / "đã kết thúc") returned 200 + success:false, so callers checking the HTTP
+        // status treated them as locked. Same convention as reopen.
+        if (result.Success) return Ok(result);
+        return result.Message == "Khong tim thay ho so benh an" ? NotFound(result) : BadRequest(result);
     }
 
     // ============ F8.5: Duyệt lưu trữ 2 cấp (buồng bệnh → KHTH) ============
@@ -201,7 +205,14 @@ public class EmrAdminController : ControllerBase
     // ============ HL7 Import/Export ============
     [HttpPost("import-hl7")]
     public async Task<IActionResult> ImportHl7([FromBody] Hl7ImportDto dto)
-        => Ok(await _service.ImportHl7Async(dto));
+    {
+        var result = await _service.ImportHl7Async(dto);
+        if (result.Success) return Ok(result);
+        // QA-R3: nothing is imported into the record yet — say so with 501 instead of "Da import N ban ghi".
+        return result.Errors.Contains(Hl7ImportResultDto.NotSupportedCode)
+            ? StatusCode(StatusCodes.Status501NotImplemented, result)
+            : BadRequest(result);
+    }
 
     [HttpGet("export-hl7/{recordId}")]
     public async Task<IActionResult> ExportHl7(Guid recordId)

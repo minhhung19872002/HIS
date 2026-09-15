@@ -61,6 +61,8 @@ export const createRequest = async (data: Partial<InterHospitalRequest>) => {
   const requestDetails = [data.subject, data.details].filter(Boolean).join('\n');
   const response = await apiClient.post<InterHospitalRequest>('/inter-hospital/requests', {
     requestType: data.requestType,
+    // QA-R3: BE now stores the direction (was always shown as outgoing → incoming requests had no "Xử lý")
+    direction: data.direction ?? 'outgoing',
     urgency: data.urgency,
     requestingFacility: data.requestingHospital,
     receivingFacility: data.respondingHospital,

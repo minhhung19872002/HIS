@@ -315,7 +315,8 @@ public partial class LISCompleteService {
         {
             var details = r.Details?.ToList() ?? new List<ServiceRequestDetail>();
             var received = details.Count > 0 && details.All(d => d.ReceiveStatus == 1);
-            var collected = details.Count > 0 && details.All(d => d.IsSampleCollected);
+            // QA-R3: a rejected tube must be collected again → not "đã lấy mẫu".
+            var collected = details.Count > 0 && details.All(d => d.IsSampleCollected && d.ReceiveStatus != LisModel1Map.RejectedReceiveStatus);
             var patient = r.MedicalRecord?.Patient;
             result.Add(new SampleCollectionItemDto
             {
@@ -372,6 +373,21 @@ public partial class LISCompleteService {
                 return new CollectSampleResultDto { Success = false, Message = "Phiếu chỉ định đã hủy, không lấy mẫu" };
 
             var activeDetails = sr.Details.Where(d => !d.IsDeleted && d.Status != 3).ToList();
+
+            // QA-R3: tubes rejected at reception go back into the reception queue with a NEW barcode. The base code
+            // is per order+day, so a same-day recollection would re-print the rejected label → add a suffix until
+            // the code is used neither by the rejected tube nor by any other order.
+            var rejectedCodes = activeDetails
+                .Where(d => d.ReceiveStatus == LisModel1Map.RejectedReceiveStatus && !string.IsNullOrEmpty(d.SampleBarcode))
+                .Select(d => d.SampleBarcode!).ToHashSet();
+            var recollected = activeDetails.Count(d => LisModel1Map.ResetRejectedTubeForRecollection(d, HIS.Core.Common.VnTime.NowVn));
+            if (recollected > 0)
+            {
+                var baseCode = barcode;
+                for (var n = 2; rejectedCodes.Contains(barcode) || await _context.ServiceRequestDetails
+                         .AnyAsync(x => x.SampleBarcode == barcode && x.ServiceRequestId != sr.Id); n++)
+                    barcode = $"{baseCode}-{n}";
+            }
 
             foreach (var d in activeDetails)
             {

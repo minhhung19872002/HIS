@@ -9,11 +9,17 @@ namespace HIS.Infrastructure.Services;
 public class CultureStockService : ICultureStockService
 {
     private readonly HISDbContext _context;
+    private readonly HIS.Application.Common.ICurrentUserAccessor? _currentUser;
 
-    public CultureStockService(HISDbContext context)
+    public CultureStockService(HISDbContext context, HIS.Application.Common.ICurrentUserAccessor? currentUser = null)
     {
         _context = context;
+        _currentUser = currentUser;
     }
+
+    // QA-R3: every log row had PerformedBy = null (store copied stock.CreatedBy before it was set; retrieve /
+    // viability / subculture / discard never set it) — the freezer audit trail could not say who took a vial.
+    private string? Actor => string.IsNullOrWhiteSpace(_currentUser?.UserName) ? _currentUser?.UserId : _currentUser!.UserName;
 
     public async Task<List<CultureStockDto>> GetCultureStocksAsync(CultureStockSearchDto? filter = null)
     {
@@ -130,6 +136,7 @@ public class CultureStockService : ICultureStockService
             ExpiryDate = !string.IsNullOrEmpty(dto.ExpiryDate) && DateTime.TryParse(dto.ExpiryDate, out var ed) ? ed : (DateTime?)null,
             Status = 0, // Active
             Notes = dto.Notes,
+            PreservedBy = Actor,
             CreatedAt = DateTime.UtcNow,
         };
 
@@ -144,7 +151,7 @@ public class CultureStockService : ICultureStockService
             AliquotsTaken = null,
             Purpose = "Lưu chủng mới",
             Result = $"{stock.AliquotCount} ống",
-            PerformedBy = stock.CreatedBy,
+            PerformedBy = Actor,
             PerformedAt = DateTime.UtcNow,
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
@@ -196,6 +203,7 @@ public class CultureStockService : ICultureStockService
             Action = "retrieve",
             AliquotsTaken = dto.AliquotCount,
             Purpose = dto.Purpose,
+            PerformedBy = Actor,
             PerformedAt = DateTime.UtcNow,
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
@@ -221,6 +229,7 @@ public class CultureStockService : ICultureStockService
             Action = "viability_check",
             Result = dto.IsViable ? "Viable" : "Not viable",
             Purpose = dto.Method,
+            PerformedBy = Actor,
             PerformedAt = DateTime.UtcNow,
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
@@ -279,6 +288,7 @@ public class CultureStockService : ICultureStockService
                 : null,
             Status = 0,
             Notes = dto.Notes,
+            PreservedBy = Actor,
             CreatedAt = DateTime.UtcNow,
         };
 
@@ -291,6 +301,7 @@ public class CultureStockService : ICultureStockService
             CultureStockId = id,
             Action = "subculture",
             Result = $"→ {newStock.StockCode} (P{newStock.PassageNumber})",
+            PerformedBy = Actor,
             PerformedAt = DateTime.UtcNow,
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
@@ -304,6 +315,7 @@ public class CultureStockService : ICultureStockService
             Action = "store",
             Purpose = $"Subculture from {parent.StockCode}",
             Result = $"{newStock.AliquotCount} ống",
+            PerformedBy = Actor,
             PerformedAt = DateTime.UtcNow,
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
@@ -330,6 +342,7 @@ public class CultureStockService : ICultureStockService
             CultureStockId = id,
             Action = "discard",
             Result = "Đã hủy",
+            PerformedBy = Actor,
             PerformedAt = DateTime.UtcNow,
             Notes = reason,
             CreatedAt = DateTime.UtcNow,

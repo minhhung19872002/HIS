@@ -20,6 +20,7 @@ public class TraumaCaseDto
     public string CaseCode { get; set; } = string.Empty;
     public Guid PatientId { get; set; }
     public string PatientName { get; set; } = string.Empty;
+    public string? PatientCode { get; set; }
     public string? DateOfBirth { get; set; }
     public int? Gender { get; set; }
     public string? AdmissionDate { get; set; }
@@ -42,11 +43,18 @@ public class TraumaCaseDto
     public string? Outcome { get; set; }
     public string? DischargeDate { get; set; }
     public string? Notes { get; set; }
+    /// <summary>0 admitted · 1 ICU · 2 ward · 3 discharged · 4 deceased (same scale as the v2 registry page).</summary>
+    public int Status { get; set; }
+    public string? AttendingDoctor { get; set; }
 }
 
 public class CreateTraumaCaseDto
 {
     public Guid? PatientId { get; set; }
+    /// <summary>QA-R3: the v2 form has "Mã BN" (patient code), not a patient id — resolved server-side.</summary>
+    public string? PatientCode { get; set; }
+    public int? Status { get; set; }
+    public string? AttendingDoctor { get; set; }
     public string? PatientName { get; set; }
     public string? DateOfBirth { get; set; }
     public int? Gender { get; set; }
@@ -65,6 +73,18 @@ public class CreateTraumaCaseDto
     public int? PreHospitalTime { get; set; }
     public bool? SurgeryRequired { get; set; }
     public bool? IcuAdmission { get; set; }
+    public string? Notes { get; set; }
+}
+
+/// <summary>QA-R3: record the end of the stay (outcome / discharge date / LOS / ventilator days).</summary>
+public class UpdateTraumaOutcomeDto
+{
+    /// <summary>discharged | transferred | died | absconded</summary>
+    public string? Outcome { get; set; }
+    public string? DischargeDate { get; set; }
+    /// <summary>Optional override; computed from admission → discharge date when omitted.</summary>
+    public int? LengthOfStay { get; set; }
+    public int? VentilatorDays { get; set; }
     public string? Notes { get; set; }
 }
 

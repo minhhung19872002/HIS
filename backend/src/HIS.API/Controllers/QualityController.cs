@@ -71,6 +71,14 @@ namespace HIS.API.Controllers
             return Ok(await _service.InvestigateIncidentAsync(dto));
         }
 
+        // QA-R3: close route was missing; closing now requires a recorded RCA (service guard).
+        [HttpPost("incidents/{id:guid}/close")]
+        public async Task<ActionResult<IncidentReportDto>> CloseIncident(Guid id, [FromBody] CloseIncidentRequest req)
+        {
+            await _service.CloseIncidentAsync(id, req?.Notes ?? "");
+            return Ok(await _service.GetIncidentReportAsync(id));
+        }
+
         [HttpGet("indicators")]
         public async Task<ActionResult<List<QualityIndicatorDto>>> GetIndicators(
             [FromQuery] string category = null,

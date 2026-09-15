@@ -8,6 +8,7 @@ public interface ITraumaRegistryService
     Task<TraumaCaseDto?> GetByIdAsync(Guid id);
     Task<TraumaCaseDto> CreateCaseAsync(CreateTraumaCaseDto dto);
     Task<TraumaCaseDto> UpdateCaseAsync(Guid id, CreateTraumaCaseDto dto);
+    Task<TraumaCaseDto> UpdateOutcomeAsync(Guid id, UpdateTraumaOutcomeDto dto);
     Task<TraumaStatsDto> GetStatsAsync();
     Task<TraumaOutcomeReportDto> GetOutcomeReportAsync();
 }

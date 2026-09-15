@@ -3,7 +3,7 @@ import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { App as AntdApp, Input, Select, DatePicker, Checkbox, Rate, Progress } from 'antd';
 import {
-  getIncidents, getQualityIndicators, createIncident, investigateIncident,
+  getIncidents, getQualityIndicators, createIncident, investigateIncident, closeIncident,
   getAudits, createAudit, getDashboard, getCAPAs, getSatisfactionStatistics,
 } from '../api/quality';
 import type {
@@ -1147,6 +1147,24 @@ const IncidentDrawerBody: React.FC<{ r: IncidentReportDto; onDone: () => void }>
 
   const incStatus = INC_STATUS_TEXT[r.status];
 
+  // QA-R3: close an incident — BE requires a recorded RCA (status 3 "Đã điều tra" / 4 "Chờ xử lý").
+  const [closeNotes, setCloseNotes] = useState('');
+  const [closing, setClosing] = useState(false);
+  const canClose = r.status === 3 || r.status === 4;
+  const submitClose = async () => {
+    if (!closeNotes.trim()) { tw('Nhập ghi chú đóng sự cố'); return; }
+    setClosing(true);
+    try {
+      await closeIncident(r.id, closeNotes.trim());
+      tk('Đã đóng sự cố');
+      onDone();
+    } catch (e) {
+      tw(friendlyErrorMessage(e, 'Không đóng được sự cố'));
+    } finally {
+      setClosing(false);
+    }
+  };
+
   return (
     <>
       <div className="rec-section">
@@ -1256,6 +1274,26 @@ const IncidentDrawerBody: React.FC<{ r: IncidentReportDto; onDone: () => void }>
             data={r.correctiveActions}
             rowKey={(a) => a.id}
           />
+        </div>
+      )}
+
+      {r.status !== 5 && (
+        <div className="rec-section">
+          <h5><TermIcon name="check" size={11} /> ĐÓNG SỰ CỐ</h5>
+          {canClose ? (
+            <div style={{ display: 'grid', gap: 'var(--space-8)' }}>
+              <Fld label="Ghi chú đóng sự cố">
+                <Input.TextArea rows={2} value={closeNotes} onChange={(e) => setCloseNotes(e.target.value)} placeholder="Kết quả khắc phục, xác nhận hiệu quả…" />
+              </Fld>
+              <div>
+                <Btn variant="primary" disabled={closing} onClick={submitClose}>
+                  <TermIcon name="check" size={12} /> {closing ? 'Đang đóng…' : 'Đóng sự cố'}
+                </Btn>
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 12.5, color: 'var(--t-2)' }}>Chỉ đóng được sự cố sau khi đã lưu kết quả điều tra / nguyên nhân gốc (RCA).</div>
+          )}
         </div>
       )}
 

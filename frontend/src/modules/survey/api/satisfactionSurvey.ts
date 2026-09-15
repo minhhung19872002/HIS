@@ -74,6 +74,25 @@ export interface ContactCallbackDto {
 /** Kết quả khảo sát hài lòng. */
 export const getSurveyResults = () => apiClient.get('/satisfaction-survey/results');
 
+export interface SubmitSurveyResultDto {
+  campaignId?: string;
+  templateId?: string;
+  patientId?: string;
+  patientCode?: string;
+  patientName?: string;
+  departmentId?: string;
+  departmentName?: string;
+  /** 1–5 */
+  overallScore: number;
+  /** JSON string of per-question answers */
+  answers?: string;
+  comment?: string;
+}
+
+/** Ghi nhận 1 phiếu khảo sát đã hoàn thành (QA-R3: BE POST /results). */
+export const submitSurveyResult = (dto: SubmitSurveyResultDto) =>
+  apiClient.post<{ id: string; campaignId?: string }>('/satisfaction-survey/results', dto);
+
 /** Thống kê tổng hợp khảo sát. */
 export const getSurveyStats = () => apiClient.get('/satisfaction-survey/stats');
 
@@ -89,6 +108,10 @@ export const getCampaigns = (status?: number) =>
 /** Tạo chiến dịch khảo sát mới. */
 export const createCampaign = (dto: CreateCampaignDto) =>
   apiClient.post('/satisfaction-survey/campaigns', dto);
+
+/** QA-R3: chuyển trạng thái chiến dịch (0 Nháp → 1 Đang chạy → 2 Đã đóng → 3 Lưu trữ; BE kiểm tra chuyển hợp lệ). */
+export const updateCampaignStatus = (id: string, status: number) =>
+  apiClient.put<{ id: string; status: number }>(`/satisfaction-survey/campaigns/${id}/status`, { status });
 
 // Templates (mẫu khảo sát + question builder)
 
