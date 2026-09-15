@@ -46,4 +46,32 @@ public sealed class DeletedPatientReferenceAuditTests
         Assert.Equal(keeper.Id, row.SuggestedTargetPatientId);
         Assert.Equal("BN-KEEPER", row.SuggestedTargetPatientCode);
     }
+
+    /// <summary>Tách bệnh án cũ: hồ sơ đã sang người đích, vé của hồ sơ vẫn đứng tên người nguồn.</summary>
+    [Fact]
+    public async Task Tim_dong_lech_chu_voi_ho_so_benh_an_no_tro_toi()
+    {
+        using var ctx = TestDb.NewInMemory();
+        var source = new Patient { Id = Guid.NewGuid(), PatientCode = "BN-SRC", FullName = "Nguồn" };
+        var target = new Patient { Id = Guid.NewGuid(), PatientCode = "BN-DST", FullName = "Đích" };
+        ctx.Patients.AddRange(source, target);
+        var splitRecord = Guid.NewGuid();
+        var ownRecord = Guid.NewGuid();
+        ctx.MedicalRecords.AddRange(
+            new MedicalRecord { Id = splitRecord, PatientId = target.Id, PatientType = 2 },
+            new MedicalRecord { Id = ownRecord, PatientId = source.Id, PatientType = 2 });
+        var stale = new QueueTicket { Id = Guid.NewGuid(), TicketNumber = "A1", PatientId = source.Id, MedicalRecordId = splitRecord, IssueDate = DateTime.Today };
+        ctx.QueueTickets.AddRange(
+            stale,
+            new QueueTicket { Id = Guid.NewGuid(), TicketNumber = "A2", PatientId = source.Id, MedicalRecordId = ownRecord, IssueDate = DateTime.Today },
+            new QueueTicket { Id = Guid.NewGuid(), TicketNumber = "A3", PatientId = source.Id, MedicalRecordId = null, IssueDate = DateTime.Today });
+        await ctx.SaveChangesAsync();
+
+        var result = await DeletedPatientReferenceAudit.FindRecordOwnerMismatchesAsync(ctx);
+
+        var row = Assert.Single(result);
+        Assert.Equal("QueueTicket.PatientId vs MedicalRecordId", row.Table);
+        Assert.Equal(1, row.Rows);
+        Assert.Equal(stale.Id, Assert.Single(row.SampleRowIds));
+    }
 }

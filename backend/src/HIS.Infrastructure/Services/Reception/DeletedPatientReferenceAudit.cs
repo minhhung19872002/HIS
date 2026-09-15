@@ -85,6 +85,79 @@ public static class DeletedPatientReferenceAudit
             .ToList();
     }
 
+    public sealed record RecordOwnerMismatch(string Table, int Rows, List<Guid> SampleRowIds);
+
+    /// <summary>
+    /// Dòng mà bệnh nhân KHÁC chủ của hồ sơ bệnh án nó trỏ tới — dấu vết của tách bệnh án trước bản sửa
+    /// 15/09 (hồ sơ sang người đích, dòng của hồ sơ thì ở lại người nguồn). Chỉ đọc.
+    ///
+    /// <para>Có bảng lệch là HỢP LỆ theo nghiệp vụ (vd. giấy chứng sinh: <c>MotherPatientId</c> là mẹ còn
+    /// hồ sơ có thể của trẻ), nên kết quả chia theo bảng để người đọc tự phân định.</para>
+    /// </summary>
+    public static async Task<List<RecordOwnerMismatch>> FindRecordOwnerMismatchesAsync(
+        HISDbContext context, CancellationToken ct = default)
+    {
+        var owners = await context.MedicalRecords.IgnoreQueryFilters().AsNoTracking()
+            .Select(m => new { m.Id, m.PatientId })
+            .ToDictionaryAsync(m => m.Id, m => m.PatientId, ct);
+        var recordType = context.Model.FindEntityType(typeof(MedicalRecord));
+        var result = new List<RecordOwnerMismatch>();
+
+        foreach (var (entity, property) in PatientReferenceReassigner.PatientReferences(context.Model))
+        {
+            if (entity == recordType) continue;
+            var links = entity.GetProperties()
+                .Where(p => p.GetContainingForeignKeys().Any(f => f.PrincipalEntityType == recordType)
+                            || (p.Name == "MedicalRecordId" && !p.IsForeignKey()))
+                .Where(p => p.ClrType == typeof(Guid) || p.ClrType == typeof(Guid?))
+                .ToList();
+
+            foreach (var link in links)
+            {
+                if (entity.FindProperty("Id")?.ClrType != typeof(Guid)) continue;
+                var method = MismatchMethod.MakeGenericMethod(entity.ClrType, property.ClrType, link.ClrType);
+                List<(Guid RowId, Guid Patient, Guid Record)> rows;
+                try
+                {
+                    rows = await (Task<List<(Guid, Guid, Guid)>>)method.Invoke(null,
+                        new object[] { context, property.Name, link.Name, ct })!;
+                }
+                catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
+                {
+                    continue;
+                }
+
+                var bad = rows.Where(r => owners.TryGetValue(r.Record, out var owner) && owner != r.Patient).ToList();
+                if (bad.Count > 0)
+                    result.Add(new RecordOwnerMismatch(
+                        $"{entity.ClrType.Name}.{property.Name} vs {link.Name}", bad.Count,
+                        bad.Take(10).Select(b => b.RowId).ToList()));
+            }
+        }
+        return result.OrderByDescending(r => r.Rows).ToList();
+    }
+
+    private static readonly MethodInfo MismatchMethod = typeof(DeletedPatientReferenceAudit)
+        .GetMethod(nameof(PatientRecordPairsAsync), BindingFlags.NonPublic | BindingFlags.Static)!;
+
+    private static async Task<List<(Guid, Guid, Guid)>> PatientRecordPairsAsync<T, TPatient, TRecord>(
+        HISDbContext context, string patientProperty, string recordProperty, CancellationToken ct) where T : class
+    {
+        // Kiểu cột (Guid / Guid?) truyền qua tham số generic để EF dịch được sang SQL.
+        var rows = await context.Set<T>().IgnoreQueryFilters().AsNoTracking()
+            .Select(e => new
+            {
+                Id = EF.Property<Guid>(e, "Id"),
+                Patient = EF.Property<TPatient>(e, patientProperty),
+                Record = EF.Property<TRecord>(e, recordProperty),
+            })
+            .ToListAsync(ct);
+        return rows
+            .Where(r => r.Patient is Guid && r.Record is Guid)
+            .Select(r => (r.Id, (Guid)(object)r.Patient!, (Guid)(object)r.Record!))
+            .ToList();
+    }
+
     /// <summary>Nguồn → đích, suy từ diff <c>MedicalRecord.PatientId</c> của các lần ghép cũ.</summary>
     private static async Task<Dictionary<Guid, Guid>> SuggestTargetsAsync(
         HISDbContext context, HashSet<Guid> sources, CancellationToken ct)

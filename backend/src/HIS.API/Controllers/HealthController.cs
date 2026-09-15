@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -156,7 +156,13 @@ public class HealthController : ControllerBase
         [FromServices] HIS.Infrastructure.Data.HISDbContext context, CancellationToken ct)
     {
         var rows = await HIS.Infrastructure.Services.DeletedPatientReferenceAudit.FindAsync(context, ct);
-        return Ok(new { affectedPatients = rows.Count, totalRows = rows.Sum(r => r.TotalRows), patients = rows });
+        // Tách bệnh án cũ không xoá ai, nên dấu vết của nó là dòng lệch chủ với hồ sơ bệnh án nó trỏ tới.
+        var mismatches = await HIS.Infrastructure.Services.DeletedPatientReferenceAudit.FindRecordOwnerMismatchesAsync(context, ct);
+        return Ok(new
+        {
+            affectedPatients = rows.Count, totalRows = rows.Sum(r => r.TotalRows), patients = rows,
+            recordOwnerMismatchRows = mismatches.Sum(m => m.Rows), recordOwnerMismatches = mismatches,
+        });
     }
 
     /// <summary>
