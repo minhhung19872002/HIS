@@ -425,8 +425,8 @@ public partial class RISCompleteService
 
     public async Task<RoomAssignmentDto> AssignRoomAsync(AssignRoomRequestDto request)
     {
-        // AssignedAt ghi bằng DateTime.Now — dùng DayRangeUtc để tránh lệch UTC 00h-07h VN.
-        var (asgnFromUtc, asgnToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
+        // AssignedAt = VN local time (business timestamp convention) → VN day range.
+        var (asgnFromUtc, asgnToUtc) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.TodayVn);
         var queueNumber = await _context.Set<RadiologyRoomAssignment>()
             .Where(a => a.RoomId == request.RoomId && a.AssignedAt >= asgnFromUtc && a.AssignedAt < asgnToUtc)
             .CountAsync() + 1;
@@ -439,7 +439,7 @@ public partial class RISCompleteService
             ModalityId = request.ModalityId,
             QueueNumber = queueNumber,
             Status = 0, // Waiting
-            AssignedAt = DateTime.UtcNow, // dot16: chuẩn UTC — query DayRangeUtc (:924/:988/:1063)
+            AssignedAt = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local (same clock as CalledAt)
             Notes = request.Notes,
             CreatedAt = DateTime.Now
         };
@@ -483,8 +483,8 @@ public partial class RISCompleteService
 
     public async Task<List<RoomAssignmentDto>> GetRoomQueueAsync(Guid roomId, DateTime date)
     {
-        // AssignedAt ghi bằng DateTime.Now — dùng DayRangeUtc để tránh lệch UTC 00h-07h VN.
-        var (rqFromUtc, rqToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
+        // AssignedAt = VN local time → VN day range.
+        var (rqFromUtc, rqToUtc) = HIS.Core.Common.VnTime.DayRangeVn(date);
         var assignments = await _context.Set<RadiologyRoomAssignment>()
             .Include(a => a.RadiologyRequest)
                 .ThenInclude(r => r.Patient)
@@ -559,8 +559,8 @@ public partial class RISCompleteService
 
     public async Task<List<RoomStatisticsDto>> GetRoomStatisticsAsync(DateTime date)
     {
-        // AssignedAt ghi bằng DateTime.Now — dùng DayRangeUtc để tránh lệch UTC 00h-07h VN.
-        var (rsFromUtc, rsToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
+        // AssignedAt = VN local time → VN day range.
+        var (rsFromUtc, rsToUtc) = HIS.Core.Common.VnTime.DayRangeVn(date);
         var rooms = await _context.Rooms.Where(r => r.RoomType >= 10 && r.RoomType < 20 && r.IsActive).ToListAsync();
         var result = new List<RoomStatisticsDto>();
 

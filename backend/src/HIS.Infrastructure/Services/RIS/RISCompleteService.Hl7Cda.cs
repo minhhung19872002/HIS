@@ -495,10 +495,17 @@ public partial class RISCompleteService
     {
         var query = _context.Set<RadiologyHL7Message>().AsQueryable();
 
+        // Filter dates arrive as VN local (JSON converter / model binding); CreatedAt is UTC.
         if (searchDto.FromDate.HasValue)
-            query = query.Where(m => m.CreatedAt >= searchDto.FromDate);
+        {
+            var fromUtc = ReportPeriod.ToUtc(searchDto.FromDate.Value);
+            query = query.Where(m => m.CreatedAt >= fromUtc);
+        }
         if (searchDto.ToDate.HasValue)
-            query = query.Where(m => m.CreatedAt <= searchDto.ToDate);
+        {
+            var toUtc = ReportPeriod.ToUtc(ReportPeriod.EndExclusive(searchDto.ToDate.Value));
+            query = query.Where(m => m.CreatedAt < toUtc);
+        }
         if (!string.IsNullOrEmpty(searchDto.Direction))
             query = query.Where(m => m.Direction == searchDto.Direction);
         if (!string.IsNullOrEmpty(searchDto.MessageType))

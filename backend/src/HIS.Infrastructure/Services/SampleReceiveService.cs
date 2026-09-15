@@ -65,7 +65,7 @@ public class SampleReceiveService : ISampleReceiveService
             .Where(d => dto.DetailIds.Contains(d.Id) && d.ReceiveStatus == 0 && d.Status != 3 && !d.IsDeleted
                 && d.ServiceRequest.Status != 4)
             .ToListAsync();
-        var now = DateTime.UtcNow; // dot16: chuẩn UTC — ReceivedAt bị query DayRangeUtc (:264)
+        var now = VnTime.NowVn; // business timestamp = VN local (AcceptedAsync queries VnTime.DayRangeVn)
         var uid = userId;
         foreach (var d in items)
         {
@@ -73,7 +73,7 @@ public class SampleReceiveService : ISampleReceiveService
             d.ReceivedByUserId = uid;
             d.ReceivedAt = now;
             d.Status = 1; // Đang thực hiện
-            d.UpdatedAt = now;
+            d.UpdatedAt = DateTime.UtcNow;
             d.UpdatedBy = uid.ToString();
         }
         await _db.SaveChangesAsync();
@@ -97,7 +97,7 @@ public class SampleReceiveService : ISampleReceiveService
         d.ReceiveStatus = 2;
         d.RejectReason = dto.Reason;
         d.ReceivedByUserId = userId;
-        d.ReceivedAt = DateTime.UtcNow; // dot16: chuẩn UTC
+        d.ReceivedAt = VnTime.NowVn; // business timestamp = VN local
         d.UpdatedAt = DateTime.UtcNow;
         d.UpdatedBy = userId.ToString();
         await _db.SaveChangesAsync();
@@ -227,12 +227,12 @@ public class SampleReceiveService : ISampleReceiveService
 
     /// <summary>
     /// Danh sách mẫu đã nhận hôm nay (ReceiveStatus=1, trong ngày VN).
-    /// Dùng VnTime.DayRangeUtc để tránh lệch bucket UTC trong khung 00h–07h.
+    /// ReceivedAt = VN local time → VN day range.
     /// </summary>
     public async Task<ServiceOutcome> AcceptedAsync(string? keyword)
     {
         var today = VnTime.TodayVn;
-        var (fromUtc, toUtc) = VnTime.DayRangeUtc(today);
+        var (fromUtc, toUtc) = VnTime.DayRangeVn(today);
 
         var q = _db.ServiceRequestDetails
             .Include(d => d.Service)

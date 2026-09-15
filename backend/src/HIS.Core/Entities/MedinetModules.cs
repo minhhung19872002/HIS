@@ -254,6 +254,9 @@ public class TraumaCase : BaseEntity
     public string? Outcome { get; set; } // discharged/transferred/died/absconded
     public DateTime? DischargeDate { get; set; }
     public string? Notes { get; set; }
+    // migration 202: registry status (0 admitted, 1 ICU, 2 ward, 3 discharged, 4 deceased) + attending doctor
+    public int? Status { get; set; }
+    public string? AttendingDoctor { get; set; }
 
     // Navigation
     public virtual Patient? Patient { get; set; }
@@ -365,6 +368,8 @@ public class InterHospitalRequest : BaseEntity
     public string? RequestedBy { get; set; }
     public string? RespondedBy { get; set; }
     public string? Notes { get; set; }
+    /// <summary>"outgoing" (we ask another facility) | "incoming" (another facility asks us). Migration 202.</summary>
+    public string Direction { get; set; } = "outgoing";
 
     // Navigation
     public virtual Patient? Patient { get; set; }

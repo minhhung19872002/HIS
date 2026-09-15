@@ -42,8 +42,8 @@ public class DataInheritanceService : IDataInheritanceService
             var mr = exam.MedicalRecord;
 
             // Get queue ticket for this examination
-            // IssueDate chuẩn hóa UTC — dùng DayRangeUtc để tránh lệch UTC 00h-07h VN.
-            var (diFromUtc, diToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
+            // IssueDate = VN local time (business timestamp convention).
+            var (diFromUtc, diToUtc) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.TodayVn);
             var queueTicket = await _context.QueueTickets.AsNoTracking()
                 .Where(qt => qt.PatientId == patient.Id
                     && qt.RoomId == exam.RoomId

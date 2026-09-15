@@ -66,7 +66,7 @@ public class VideoConsultationService : IVideoConsultationService
             PatientId = dto.PatientId,
             MedicalRecordId = dto.MedicalRecordId,
             HostUserId = userId,
-            ScheduledAt = dto.ScheduledAt ?? DateTime.UtcNow,
+            ScheduledAt = dto.ScheduledAt ?? HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
             Status = 0,
             IsRecorded = dto.IsRecorded,
             Password = dto.Password,
@@ -123,7 +123,7 @@ public class VideoConsultationService : IVideoConsultationService
             ?? throw new KeyNotFoundException();
         if (r.Status != 0) return ServiceOutcome.Bad("Phòng không ở trạng thái chờ");
         r.Status = 1;
-        r.StartedAt = DateTime.UtcNow;
+        r.StartedAt = HIS.Core.Common.VnTime.NowVn; // business timestamps = VN local (same clock as ScheduledAt)
         r.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         return ServiceOutcome.Ok(ToDto(r));
@@ -139,7 +139,7 @@ public class VideoConsultationService : IVideoConsultationService
         // never-started room produced EndedAt without StartedAt.
         if (r.Status != 1) return ServiceOutcome.Bad("Phòng không ở trạng thái đang diễn ra");
         r.Status = 2;
-        r.EndedAt = DateTime.UtcNow;
+        r.EndedAt = HIS.Core.Common.VnTime.NowVn;
         r.ConclusionNote = dto.ConclusionNote;
         r.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
@@ -162,7 +162,7 @@ public class VideoConsultationService : IVideoConsultationService
             DisplayName = dto.DisplayName,
             Email = dto.Email,
             Role = dto.Role,
-            JoinedAt = DateTime.UtcNow,
+            JoinedAt = HIS.Core.Common.VnTime.NowVn,
             JoinIp = joinIp,
             CreatedAt = DateTime.UtcNow
         });

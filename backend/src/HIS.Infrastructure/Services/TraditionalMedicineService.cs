@@ -419,7 +419,7 @@ public class TraditionalMedicineService : ITraditionalMedicineService
             throw new InvalidOperationException("Chỉ kết thúc được đợt điều trị đang hoạt động.");
 
         entity.Status = 1; // completed
-        entity.EndDate = DateTime.UtcNow;
+        entity.EndDate = HIS.Core.Common.VnTime.NowVn; // business timestamp = VN local
         entity.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();

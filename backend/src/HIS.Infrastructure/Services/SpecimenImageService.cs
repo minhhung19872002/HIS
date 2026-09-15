@@ -70,7 +70,7 @@ public class SpecimenImageService : ISpecimenImageService
             Caption = caption,
             Magnification = magnification,
             Source = source,
-            CapturedAt = DateTime.UtcNow,
+            CapturedAt = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
             SortOrder = 0,
             IncludeInReport = true,
             CreatedAt = DateTime.UtcNow,

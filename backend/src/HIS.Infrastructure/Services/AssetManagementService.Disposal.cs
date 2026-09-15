@@ -61,7 +61,7 @@ public partial class AssetManagementService
             Id = Guid.NewGuid(),
             FixedAssetId = dto.FixedAssetId,
             DisposalType = dto.DisposalType,
-            ProposalDate = DateTime.UtcNow,
+            ProposalDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
             DisposalValue = dto.DisposalValue,
             ResidualValue = dto.ResidualValue,
             Reason = dto.Reason,
@@ -95,7 +95,7 @@ public partial class AssetManagementService
             throw new InvalidOperationException("Chỉ duyệt được phiếu thanh lý ở trạng thái Đề xuất.");
 
         entity.Status = 2; // Approved
-        entity.ApprovalDate = DateTime.UtcNow;
+        entity.ApprovalDate = HIS.Core.Common.VnTime.NowVn;
         entity.ApprovedById = userId;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = userId;
@@ -124,7 +124,7 @@ public partial class AssetManagementService
             throw new InvalidOperationException("Chỉ hoàn thành được phiếu thanh lý đã duyệt.");
 
         entity.Status = 3; // Completed
-        entity.DisposalDate = DateTime.UtcNow;
+        entity.DisposalDate = HIS.Core.Common.VnTime.NowVn;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = userId;
 

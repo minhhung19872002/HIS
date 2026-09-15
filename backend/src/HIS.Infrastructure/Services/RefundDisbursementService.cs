@@ -91,7 +91,7 @@ public class RefundDisbursementService : IRefundDisbursementService
         {
             entity.Status = 2; // Đã chi
             entity.TransferRef = $"MOCK-{DateTime.UtcNow:yyyyMMddHHmmss}";
-            entity.TransferredAt = DateTime.UtcNow;
+            entity.TransferredAt = HIS.Core.Common.VnTime.NowVn; // business timestamp = VN local
             entity.ResponseRaw = "{\"mock\":true,\"result\":\"success\"}";
         }
         else

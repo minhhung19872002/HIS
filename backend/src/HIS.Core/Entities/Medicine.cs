@@ -92,6 +92,12 @@ public class MedicineDoseRange : BaseEntity
     /// <summary>Liều tối đa mỗi ngày (theo Unit)</summary>
     public decimal? MaxDailyDose { get; set; }
 
+    /// <summary>Liều tối thiểu mỗi ngày theo cân nặng (Unit/kg/ngày) — migration 200. Dưới ngưỡng → cảnh báo dưới liều.</summary>
+    public decimal? MinDosePerKg { get; set; }
+
+    /// <summary>Liều tối đa mỗi ngày theo cân nặng (Unit/kg/ngày) — migration 200. Nhân với cân nặng mới nhất của BN.</summary>
+    public decimal? MaxDosePerKg { get; set; }
+
     public string? Unit { get; set; }
 
     /// <summary>Hệ số vượt ngưỡng để coi là quá liều NẶNG (mặc định 1.5× → severity cao)</summary>

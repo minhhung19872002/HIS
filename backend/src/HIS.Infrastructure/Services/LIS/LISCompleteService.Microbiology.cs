@@ -110,7 +110,7 @@ public partial class LISCompleteService
             SampleType = dto.SampleType ?? string.Empty,
             SampleBarcode = string.IsNullOrWhiteSpace(dto.SampleBarcode) ? null : dto.SampleBarcode.Trim(),
             CultureType = dto.CultureType ?? string.Empty,
-            CultureDate = DateTime.UtcNow,
+            CultureDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
             Status = 0, // Pending
             Notes = string.IsNullOrWhiteSpace(dto.Notes) ? null : dto.Notes.Trim(),
             CreatedAt = DateTime.UtcNow,
@@ -134,11 +134,11 @@ public partial class LISCompleteService
 
         // Auto-set date fields based on status transition
         if (dto.Status == 1 && culture.IncubationStart == null)
-            culture.IncubationStart = DateTime.UtcNow;
+            culture.IncubationStart = HIS.Core.Common.VnTime.NowVn;
         if (dto.Status >= 2 && culture.IncubationEnd == null)
-            culture.IncubationEnd = DateTime.UtcNow;
+            culture.IncubationEnd = HIS.Core.Common.VnTime.NowVn;
         if (dto.Status >= 2 && culture.ResultDate == null)
-            culture.ResultDate = DateTime.UtcNow;
+            culture.ResultDate = HIS.Core.Common.VnTime.NowVn;
 
         culture.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();

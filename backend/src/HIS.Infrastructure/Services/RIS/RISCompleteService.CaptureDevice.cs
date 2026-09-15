@@ -278,7 +278,7 @@ public partial class RISCompleteService
             RadiologyRequestId = dto.RadiologyRequestId,
             DeviceId = dto.DeviceId,
             WorkstationId = dto.WorkstationId,
-            StartTime = DateTime.UtcNow, // dot16: chuẩn UTC — query DayRangeUtc (ClsExtended:288)
+            StartTime = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local (same clock as EndTime)
             Status = 0, // Active
             CreatedAt = DateTime.Now
         };

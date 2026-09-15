@@ -163,8 +163,8 @@ public partial class ReceptionCompleteService {
         var records = await query.OrderByDescending(m => m.CreatedAt).ToBoundedListAsync("Reception.GetTodayAdmissions");
 
         // Load today's queue tickets to map actual queue numbers
-        // IssueDate chuẩn hóa UTC — dùng DayRangeUtc để so sánh đúng ngày VN.
-        var (qtFromUtc164, qtToUtc164) = HIS.Core.Common.VnTime.DayRangeUtc(date);
+        // IssueDate = VN local time (business timestamp convention).
+        var (qtFromUtc164, qtToUtc164) = HIS.Core.Common.VnTime.DayRangeVn(date);
         var patientIds = records.Where(r => r.PatientId != Guid.Empty).Select(r => r.PatientId).Distinct().ToList();
         var todayTickets = await _context.QueueTickets
             .Where(t => t.IssueDate >= qtFromUtc164 && t.IssueDate < qtToUtc164 && t.PatientId.HasValue && patientIds.Contains(t.PatientId.Value))
@@ -298,7 +298,7 @@ public partial class ReceptionCompleteService {
 
         var kw = keyword.Trim();
         var today = HIS.Core.Common.VnTime.TodayVn;
-        var (todayFromUtc, todayToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(today);
+        var (todayFromUtc, todayToUtc) = HIS.Core.Common.VnTime.DayRangeVn(today); // IssueDate = VN local
 
         // Search across all recent medical records (not just today) so the
         // reception search bar can find historical patients. The
@@ -349,7 +349,7 @@ public partial class ReceptionCompleteService {
     public async Task<QueueTicketDto> IssueQueueTicketAsync(IssueQueueTicketDto dto)
     {
         var today = HIS.Core.Common.VnTime.TodayVn; // Local VN date — dùng cho reset daily
-        var (iqFromUtc, iqToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(today);
+        var (iqFromUtc, iqToUtc) = HIS.Core.Common.VnTime.DayRangeVn(today); // IssueDate = VN local
 
         // Quầy kéo một vé đang cầm vào đăng ký: cùng phòng + cùng loại hàng đợi thì DÙNG LẠI chính
         // vé đó, người bệnh giữ nguyên con số. Khác loại (vé quầy tiếp đón → đăng ký vào phòng
@@ -371,7 +371,7 @@ public partial class ReceptionCompleteService {
                 }
 
                 source.Status = 3; // Hoàn thành — đã xong việc ở hàng đợi cũ
-                source.CompletedTime = DateTime.UtcNow;
+                source.CompletedTime = HIS.Core.Common.VnTime.NowVn;
                 source.PatientId ??= dto.PatientId;
             }
         }
@@ -461,7 +461,7 @@ public partial class ReceptionCompleteService {
                 .FirstOrDefaultAsync();
 
         // Check duplicate ticket: same patient, same room, same day
-        // IssueDate chuẩn hóa UTC — dùng DayRangeUtc để so sánh đúng ngày VN.
+        // IssueDate = VN local time — compared against the VN day range.
         //
         // CHỈ chặn khi biết đích danh bệnh nhân. Trước đây điều kiện là `t.PatientId == dto.PatientId`
         // với cả hai vế null: EF dịch thành `PatientId IS NULL AND @p IS NULL`, nên MỘT vé vô danh
@@ -483,7 +483,7 @@ public partial class ReceptionCompleteService {
             Id = Guid.NewGuid(),
             TicketNumber = reservedCode ?? $"{config.Prefix}{nextNumber:D3}",
             QueueNumber = nextNumber,
-            IssueDate = DateTime.UtcNow, // Chuẩn hóa UTC — query dùng DayRangeUtc để so sánh đúng ngày VN
+            IssueDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local (query via VnTime.DayRangeVn)
             QueueType = dto.QueueType,
             Priority = dto.Priority,
             PriorityReason = dto.PriorityReason,
@@ -619,7 +619,7 @@ public partial class ReceptionCompleteService {
 
     public async Task<QueueTicketDto?> CallNextAsync(Guid roomId, int queueType, Guid userId)
     {
-        var (cnFromUtc, cnToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
+        var (cnFromUtc, cnToUtc) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.TodayVn);
 
         var nextTicket = await _context.QueueTickets
             .Where(t => t.RoomId == roomId &&
@@ -669,7 +669,7 @@ public partial class ReceptionCompleteService {
 
         if (ticket == null) return null;
 
-        var (fromUtc, toUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
+        var (fromUtc, toUtc) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.TodayVn); // IssueDate = VN local
 
         // Đếm số người đứng TRƯỚC vé này theo đúng thứ tự mà CallNextAsync sẽ gọi: ưu tiên cao hơn
         // đi trước, cùng mức ưu tiên thì số nhỏ đi trước. Đếm kiểu khác sẽ ra một con số không khớp
@@ -828,7 +828,7 @@ public partial class ReceptionCompleteService {
 
     public async Task<List<QueueTicketDto>> GetWaitingListAsync(Guid roomId, int queueType, DateTime date)
     {
-        var (wlFromUtc, wlToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
+        var (wlFromUtc, wlToUtc) = HIS.Core.Common.VnTime.DayRangeVn(date);
         var tickets = await _context.QueueTickets
             .Include(t => t.Patient)
             .Include(t => t.Room)
@@ -846,6 +846,7 @@ public partial class ReceptionCompleteService {
     public async Task<List<PendingCheckinTicketDto>> GetPendingCheckinTicketsAsync(DateTime date)
     {
         var (fromUtc, toUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
+        var (issueFrom, issueTo) = HIS.Core.Common.VnTime.DayRangeVn(date); // IssueDate = VN local
 
         // Vé còn sống trong ngày (chờ / đang gọi / đang phục vụ) mà chưa gắn hồ sơ khám.
         // Vé của lịch hẹn tự mở hồ sơ lúc gọi số nên sẽ tự rớt khỏi danh sách này.
@@ -858,7 +859,7 @@ public partial class ReceptionCompleteService {
             .Include(t => t.Patient)
             .Include(t => t.Room)
             .Where(t => !t.IsDeleted
-                && t.IssueDate >= fromUtc && t.IssueDate < toUtc
+                && t.IssueDate >= issueFrom && t.IssueDate < issueTo
                 && t.Status < 3
                 && (t.QueueType == 1 || t.QueueType == 2)
                 && t.MedicalRecordId == null)
@@ -921,7 +922,7 @@ public partial class ReceptionCompleteService {
             .Select(a => new { TicketId = a.QueueTicketId!.Value, a.AppointmentCode })
             .ToDictionaryAsync(x => x.TicketId, x => x.AppointmentCode);
 
-        var nowUtc = DateTime.UtcNow;
+        var nowUtc = HIS.Core.Common.VnTime.NowVn; // IssueDate is VN local
 
         return tickets.Select(t => new PendingCheckinTicketDto
         {
@@ -956,7 +957,7 @@ public partial class ReceptionCompleteService {
 
     public async Task<List<QueueTicketDto>> GetServingListAsync(Guid roomId, int queueType, DateTime date)
     {
-        var (slFromUtc, slToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
+        var (slFromUtc, slToUtc) = HIS.Core.Common.VnTime.DayRangeVn(date);
         var tickets = await _context.QueueTickets
             .Include(t => t.Patient)
             .Include(t => t.Room)
@@ -973,7 +974,7 @@ public partial class ReceptionCompleteService {
     {
         var room = await _roomRepo.GetByIdAsync(roomId);
         var today = HIS.Core.Common.VnTime.TodayVn;
-        var (gdFromUtc, gdToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(today);
+        var (gdFromUtc, gdToUtc) = HIS.Core.Common.VnTime.DayRangeVn(today);
 
         var currentServing = await _context.QueueTickets
             .Include(t => t.Patient)
@@ -1008,7 +1009,7 @@ public partial class ReceptionCompleteService {
     /// </param>
     public async Task<List<QueueTicketDto>> GetCallingTicketsAsync(Guid roomId, int limit = 5, int? queueType = null)
     {
-        var (ctFromUtc, ctToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
+        var (ctFromUtc, ctToUtc) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.TodayVn);
         var tickets = await _context.QueueTickets
             .Include(t => t.Patient)
             .Include(t => t.Room)

@@ -408,7 +408,7 @@ public class ClinicalRecordService : IClinicalRecordService
         foreach (var m in dto.Monitors)
         {
             if (!DateTime.TryParse(m.MonitorTime, out var monitorTime))
-                monitorTime = DateTime.UtcNow;
+                monitorTime = HIS.Core.Common.VnTime.NowVn; // business timestamp = VN local (parsed values are local too)
 
             _context.AnesthesiaMonitors.Add(new AnesthesiaMonitor
             {
@@ -430,7 +430,7 @@ public class ClinicalRecordService : IClinicalRecordService
         foreach (var d in dto.Drugs)
         {
             if (!DateTime.TryParse(d.GivenTime, out var givenTime))
-                givenTime = DateTime.UtcNow;
+                givenTime = HIS.Core.Common.VnTime.NowVn;
 
             _context.AnesthesiaDrugs.Add(new AnesthesiaDrug
             {

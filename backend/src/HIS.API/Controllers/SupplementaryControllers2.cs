@@ -288,6 +288,7 @@ public class MethadoneController : ControllerBase
 [ApiController]
 [Route("api/bhxh-audit")]
 [Authorize]
+[HIS.API.Authorization.RequirePermission(HIS.Core.Constants.PermissionCatalog.Insurance.Read)] // R3 RBAC: BHYT audit = insurance back-office (was any logged-in user)
 public class BhxhAuditController : ControllerBase
 {
     private readonly IBhxhAuditService _service;
@@ -311,6 +312,7 @@ public class BhxhAuditController : ControllerBase
     /// Tạo phiên kiểm tra mới
     /// </summary>
     [HttpPost("session")]
+    [HIS.API.Authorization.RequirePermission(HIS.Core.Constants.PermissionCatalog.Insurance.Submit)]
     public async Task<ActionResult<BhxhAuditDetailDto>> CreateSession([FromBody] CreateAuditSessionDto dto)
     {
         try
@@ -328,6 +330,7 @@ public class BhxhAuditController : ControllerBase
     /// Chạy kiểm tra tự động (so sánh hồ sơ vs XML130)
     /// </summary>
     [HttpPost("session/{id}/run")]
+    [HIS.API.Authorization.RequirePermission(HIS.Core.Constants.PermissionCatalog.Insurance.Submit)]
     public async Task<ActionResult<BhxhAuditDetailDto>> RunAudit(Guid id)
     {
         try
@@ -359,6 +362,7 @@ public class BhxhAuditController : ControllerBase
     /// Sửa lỗi kiểm tra BHXH
     /// </summary>
     [HttpPut("error/{id}/fix")]
+    [HIS.API.Authorization.RequirePermission(HIS.Core.Constants.PermissionCatalog.Insurance.Submit)]
     public async Task<ActionResult<AuditErrorDto>> FixError(Guid id, [FromBody] FixAuditErrorDto dto)
     {
         try
@@ -417,6 +421,7 @@ public class BhxhAuditController : ControllerBase
     /// Duyệt hồ sơ giám định (Completed → Approved)
     /// </summary>
     [HttpPost("session/{id}/approve")]
+    [HIS.API.Authorization.RequirePermission(HIS.Core.Constants.PermissionCatalog.Insurance.Approve)]
     public async Task<ActionResult<BhxhAuditDetailDto>> ApproveSession(Guid id, [FromBody] ApproveAuditSessionDto dto)
     {
         try
@@ -435,6 +440,7 @@ public class BhxhAuditController : ControllerBase
     /// Gửi 1 phiên giám định lên cổng BHXH (MockMode)
     /// </summary>
     [HttpPost("session/{id}/submit-portal")]
+    [HIS.API.Authorization.RequirePermission(HIS.Core.Constants.PermissionCatalog.Insurance.Submit)]
     public async Task<ActionResult<BhxhAuditPortalSubmitResultDto>> SubmitToPortal(Guid id)
     {
         try
@@ -453,6 +459,7 @@ public class BhxhAuditController : ControllerBase
     /// Gửi hàng loạt phiên giám định lên cổng BHXH (MockMode)
     /// </summary>
     [HttpPost("sessions/submit-batch")]
+    [HIS.API.Authorization.RequirePermission(HIS.Core.Constants.PermissionCatalog.Insurance.Submit)]
     public async Task<ActionResult<BhxhAuditBatchSubmitResultDto>> SubmitBatch([FromBody] BatchSubmitAuditDto dto)
     {
         if (dto?.SessionIds == null || !dto.SessionIds.Any())
@@ -535,6 +542,7 @@ public class BhxhAuditController : ControllerBase
     /// TrangThaiGiamDinh: 0=ChuaDuyet 1=DaDuyet 2=TuChoi
     /// </summary>
     [HttpPost("import-csv")]
+    [HIS.API.Authorization.RequirePermission(HIS.Core.Constants.PermissionCatalog.Insurance.Submit)]
     public async Task<ActionResult<BhxhAuditImportResultDto>> ImportAuditCsv(IFormFile file)
     {
         if (file == null || file.Length == 0)

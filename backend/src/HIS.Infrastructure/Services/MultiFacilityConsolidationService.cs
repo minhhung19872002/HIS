@@ -82,10 +82,9 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
         // Today's date range
         var todayStart = reportDate.Date;
         var todayEnd = reportDate.Date.AddDays(1);
-        // QueueTicket.IssueDate is written as UTC (ReceptionCompleteService.Queue) — use UTC bounds for it.
-        var todayStartUtc = ReportPeriod.ToUtc(todayStart);
-        var todayEndUtc = ReportPeriod.ToUtc(todayEnd);
-        var vnOffsetHours = (todayStart - todayStartUtc).TotalHours;
+        // QueueTicket.IssueDate is VN local time (business timestamp convention) — same bounds as the other tables.
+        var todayStartUtc = todayStart;
+        var todayEndUtc = todayEnd;
 
         // 7-day trend
         var weekStart = reportDate.AddDays(-6).Date;
@@ -131,8 +130,8 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
             var weekFrom = weekStart.Date;
             var weekTo = reportDate.Date.AddDays(1);
 
-            var weekFromUtc = ReportPeriod.ToUtc(weekFrom);
-            var weekToUtc = ReportPeriod.ToUtc(weekTo);
+            var weekFromUtc = weekFrom; // IssueDate = VN local
+            var weekToUtc = weekTo;
             var weekQueueQuery = _context.QueueTickets
                 .Where(q => q.IssueDate >= weekFromUtc && q.IssueDate < weekToUtc && !q.IsDeleted);
             if (!includeAll && branchIdsToInclude.Count > 0)
@@ -142,7 +141,7 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
 
             var outpatientsByDay = (await weekQueueQuery
                     .Where(q => q.QueueType == 2)
-                    .GroupBy(q => q.IssueDate.AddHours(vnOffsetHours).Date) // VN-day bucket of a UTC timestamp
+                    .GroupBy(q => q.IssueDate.Date) // IssueDate is already VN local
                     .Select(g => new { Day = g.Key, Count = g.Count() })
                     .ToListAsync())
                 .ToDictionary(x => x.Day, x => x.Count);
@@ -596,10 +595,10 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
             .Where(p => !p.IsDeleted && p.BranchId.HasValue && branchIds.Contains(p.BranchId.Value))
             .CountAsync();
 
-        // `<= toDate` against a date-only toDate dropped the last day; IssueDate is UTC.
+        // `<= toDate` against a date-only toDate dropped the last day; IssueDate is VN local.
         var toEnd = ReportPeriod.EndExclusive(toDate);
-        var fromUtc = ReportPeriod.ToUtc(fromDate);
-        var toUtc = ReportPeriod.ToUtc(toEnd);
+        var fromUtc = fromDate;
+        var toUtc = toEnd;
         var visitCount = await _context.QueueTickets
             .Where(q => q.IssueDate >= fromUtc && q.IssueDate < toUtc && !q.IsDeleted)
             .Where(q => q.BranchId.HasValue && branchIds.Contains(q.BranchId.Value))

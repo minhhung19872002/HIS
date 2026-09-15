@@ -156,7 +156,7 @@ public class ProcurementService : IProcurementService
         {
             Id = Guid.NewGuid(),
             RequestCode = code,
-            RequestDate = DateTime.UtcNow,
+            RequestDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
             DepartmentId = dto.DepartmentId,
             // Requester was never recorded (RequestedById/CreatedBy null → "Người lập" blank).
             RequestedById = validUser,
@@ -239,7 +239,7 @@ public class ProcurementService : IProcurementService
             entity.ApprovedById = userId;
             entity.UpdatedBy = userId.Value.ToString();
         }
-        entity.ApprovedDate = DateTime.UtcNow;
+        entity.ApprovedDate = HIS.Core.Common.VnTime.NowVn;
         entity.UpdatedAt = DateTime.UtcNow;
 
         await _unitOfWork.SaveChangesAsync();

@@ -43,6 +43,7 @@ public class SensitiveDataAccessReportDto
 
 public class SensitiveAccessEntry
 {
+    [global::System.Text.Json.Serialization.JsonConverter(typeof(HIS.Application.Common.UtcDateTimeJsonConverter))] // AuditLogs.Timestamp is UTC
     public DateTime Timestamp { get; set; }
     public string EntityType { get; set; } = string.Empty;
     public string? EntityId { get; set; }

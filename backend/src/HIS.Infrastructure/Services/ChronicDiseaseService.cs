@@ -149,8 +149,8 @@ public class ChronicDiseaseService : IChronicDiseaseService
             throw new KeyNotFoundException("Không tìm thấy bệnh nhân.");
         if (!await _context.Users.AnyAsync(u => u.Id == dto.DoctorId))
             throw new ArgumentException("Bác sĩ phụ trách không hợp lệ.");
-        var diagnosisDate = DateTime.TryParse(dto.DiagnosisDate, out var dd) ? dd : DateTime.UtcNow;
-        if (diagnosisDate.Date > DateTime.UtcNow.Date.AddDays(1))
+        var diagnosisDate = DateTime.TryParse(dto.DiagnosisDate, out var dd) ? dd : HIS.Core.Common.VnTime.NowVn;
+        if (diagnosisDate.Date > HIS.Core.Common.VnTime.TodayVn.AddDays(1))
             throw new ArgumentException("Ngày chẩn đoán không được ở tương lai.");
         if (await _context.ChronicDiseaseRecords.AnyAsync(r => r.PatientId == dto.PatientId && r.IcdCode == dto.IcdCode
                 && !r.IsDeleted && (r.Status == "Active" || r.Status == "Remission")))
@@ -206,7 +206,7 @@ public class ChronicDiseaseService : IChronicDiseaseService
                 .Where(f => f.ChronicDiseaseRecordId == id && f.Status == "Completed" && !f.IsDeleted)
                 .OrderByDescending(f => f.FollowUpDate)
                 .FirstOrDefaultAsync();
-            var baseDate = lastCompleted?.FollowUpDate ?? DateTime.UtcNow;
+            var baseDate = lastCompleted?.FollowUpDate ?? HIS.Core.Common.VnTime.NowVn; // business dates = VN local
             record.NextFollowUpDate = baseDate.AddDays(dto.FollowUpIntervalDays.Value);
         }
         record.UpdatedAt = DateTime.UtcNow;
@@ -223,7 +223,7 @@ public class ChronicDiseaseService : IChronicDiseaseService
             throw new InvalidOperationException("Hồ sơ đã đóng/loại bỏ.");
 
         record.Status = "Closed";
-        record.ClosedDate = DateTime.UtcNow;
+        record.ClosedDate = HIS.Core.Common.VnTime.NowVn; // business timestamp = VN local
         record.ClosedReason = dto.Reason;
         record.UpdatedAt = DateTime.UtcNow;
 
@@ -249,7 +249,7 @@ public class ChronicDiseaseService : IChronicDiseaseService
             throw new InvalidOperationException("Hồ sơ đã được loại bỏ.");
 
         record.Status = "Removed";
-        record.RemovedDate = DateTime.UtcNow;
+        record.RemovedDate = HIS.Core.Common.VnTime.NowVn;
         record.RemovedReason = dto.Reason;
         record.UpdatedAt = DateTime.UtcNow;
 
@@ -268,7 +268,7 @@ public class ChronicDiseaseService : IChronicDiseaseService
         record.ClosedReason = null;
         record.RemovedDate = null;
         record.RemovedReason = null;
-        record.NextFollowUpDate = DateTime.UtcNow.AddDays(record.FollowUpIntervalDays);
+        record.NextFollowUpDate = HIS.Core.Common.VnTime.NowVn.AddDays(record.FollowUpIntervalDays);
         record.UpdatedAt = DateTime.UtcNow;
 
         // Schedule a new follow-up
@@ -320,7 +320,7 @@ public class ChronicDiseaseService : IChronicDiseaseService
         if (record.IsDeleted || record.Status == "Closed" || record.Status == "Removed")
             throw new InvalidOperationException("Hồ sơ đã đóng/loại bỏ — mở lại hồ sơ trước khi ghi nhận tái khám.");
 
-        var followUpDate = DateTime.TryParse(dto.FollowUpDate, out var fd) ? fd : DateTime.UtcNow;
+        var followUpDate = DateTime.TryParse(dto.FollowUpDate, out var fd) ? fd : HIS.Core.Common.VnTime.NowVn;
 
         var followUp = new ChronicDiseaseFollowUp
         {
@@ -390,7 +390,7 @@ public class ChronicDiseaseService : IChronicDiseaseService
                 .Where(r => !r.IsDeleted)
                 .ToListAsync();
 
-            var now = DateTime.UtcNow;
+            var now = HIS.Core.Common.VnTime.NowVn; // NextFollowUpDate = VN local
 
             var overdue = records.Count(r => r.Status == "Active" && r.NextFollowUpDate.HasValue && r.NextFollowUpDate.Value < now);
             var upcoming = records.Count(r => r.Status == "Active" && r.NextFollowUpDate.HasValue && r.NextFollowUpDate.Value >= now && r.NextFollowUpDate.Value <= now.AddDays(7));

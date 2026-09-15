@@ -57,9 +57,9 @@ internal static class AppointmentQueueAllocator
         HISDbContext db, Guid roomId, DateTime dateVn, int queueType)
     {
         var day = dateVn.Date;
-        var (fromUtc, toUtc) = VnTime.DayRangeUtc(day);
+        var (fromUtc, toUtc) = VnTime.DayRangeVn(day);
 
-        // IssueDate lưu UTC → so theo khoảng UTC của trọn ngày VN (xem HIS.Core.Common.VnTime).
+        // IssueDate = VN local time (business timestamp convention, see HIS.Core.Common.VnTime).
         var maxIssued = await db.QueueTickets
             .Where(t => !t.IsDeleted
                 && t.RoomId == roomId

@@ -15,6 +15,7 @@ public class AuditLogDto
     public string? Details { get; set; }
     public string? IpAddress { get; set; }
     public string? UserAgent { get; set; }
+    [global::System.Text.Json.Serialization.JsonConverter(typeof(HIS.Application.Common.UtcDateTimeJsonConverter))] // AuditLogs.Timestamp is UTC
     public DateTime Timestamp { get; set; }
     public string? Module { get; set; }
     public string? RequestPath { get; set; }

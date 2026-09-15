@@ -260,8 +260,8 @@ public class TreatmentProtocolService : ITreatmentProtocolService
 
         entity.Status = 1; // Active
         entity.ApprovedBy = approvedBy;
-        entity.ApprovedDate = DateTime.UtcNow;
-        entity.EffectiveDate = DateTime.UtcNow;
+        entity.ApprovedDate = HIS.Core.Common.VnTime.NowVn; // business timestamps = VN local
+        entity.EffectiveDate = HIS.Core.Common.VnTime.NowVn;
         entity.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();

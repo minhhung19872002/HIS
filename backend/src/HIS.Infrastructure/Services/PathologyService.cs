@@ -338,7 +338,7 @@ td, th {{ border: 1px solid #000; padding: 5px; }}
 
         request.Status = 5; // Cancelled
         request.CancelledBy = cancelledBy;
-        request.CancelledAt = DateTime.UtcNow;
+        request.CancelledAt = HIS.Core.Common.VnTime.NowVn; // business timestamp = VN local
         request.CancellationReason = reason;
         request.UpdatedAt = DateTime.UtcNow;
 
@@ -370,7 +370,7 @@ td, th {{ border: 1px solid #000; padding: 5px; }}
 
         result.VerifiedBy = verifiedById;
         result.VerifiedByName = verifiedByName;
-        result.VerifiedAt = DateTime.UtcNow;
+        result.VerifiedAt = HIS.Core.Common.VnTime.NowVn;
         result.UpdatedAt = DateTime.UtcNow;
 
         result.Request.Status = 4; // Verified

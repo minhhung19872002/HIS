@@ -243,7 +243,7 @@ public class TbHivManagementService : ITbHivManagementService
         if (record == null || record.IsDeleted) return false;
 
         record.Status = dto.Status;
-        record.OutcomeDate = DateTime.UtcNow;
+        record.OutcomeDate = HIS.Core.Common.VnTime.NowVn; // business timestamp = VN local
         record.OutcomeNotes = dto.OutcomeNotes;
         record.UpdatedAt = DateTime.UtcNow;
 

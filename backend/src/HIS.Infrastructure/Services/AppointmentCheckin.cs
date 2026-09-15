@@ -43,7 +43,7 @@ internal static class AppointmentCheckin
         // Only records opened TODAY (VN time): outpatient records from previous days that nobody closed
         // (thousands in the DB) made appointment check-in fail forever with "đã có hồ sơ đang mở", or
         // attached today's ticket to an old visit. Same rule as RegisterFee/RegisterInsurance.
-        var (fromUtc, toUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
+        var (fromUtc, toUtc) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.TodayVn); // AdmissionDate = VN local
         return db.MedicalRecords.FirstOrDefaultAsync(
             m => m.PatientId == patientId && m.Status < 3 && m.TreatmentType == 1 && !m.IsDeleted
                  && m.AdmissionDate >= fromUtc && m.AdmissionDate < toUtc);
@@ -68,7 +68,7 @@ internal static class AppointmentCheckin
             Id = Guid.NewGuid(),
             MedicalRecordCode = await NextRecordCodeAsync(db, todayVn),
             PatientId = appointment.PatientId,
-            AdmissionDate = nowUtc,
+            AdmissionDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
             PatientType = 2,   // Viện phí
             TreatmentType = 1, // Ngoại trú
             RoomId = appointment.RoomId,

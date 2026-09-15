@@ -246,7 +246,7 @@ public class AssetProcurementService : IAssetProcurementService
         e.ApproverName = e.ApproverId.HasValue
             ? await _db.Users.Where(u => u.Id == e.ApproverId.Value).Select(u => u.FullName).FirstOrDefaultAsync() ?? userId
             : userId;
-        e.ApprovedAt  = DateTime.UtcNow;
+        e.ApprovedAt  = HIS.Core.Common.VnTime.NowVn; // business timestamp = VN local
         e.Note        = dto.Note ?? e.Note;
         e.UpdatedAt   = DateTime.UtcNow;
         e.UpdatedBy   = userId;

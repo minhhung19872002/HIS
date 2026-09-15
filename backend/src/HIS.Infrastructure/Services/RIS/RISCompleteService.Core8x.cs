@@ -33,7 +33,7 @@ public partial class RISCompleteService
         string examGroupName = null)
     {
         // RequestDate ghi báº±ng DateTime.Now â€" dÃ¹ng DayRangeUtc Ä'á»ƒ trÃ¡nh lá»‡ch UTC 00h-07h VN.
-        var (rdFromUtc, rdToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
+        var (rdFromUtc, rdToUtc) = HIS.Core.Common.VnTime.DayRangeVn(date); // RequestDate = VN local
         var query = _context.RadiologyRequests
             .Include(r => r.Patient)
             .Include(r => r.Service)
@@ -94,9 +94,8 @@ public partial class RISCompleteService
 
         var result = requests.Select((r, index) =>
         {
-            // Mốc TAT: RequestDate lưu UTC, VnTime.NowVn = UTC+7 local.
-            // Đơn giản: diff = nowVn - (requestDate_utc + 7h) đều là local VN.
-            var orderTimeVn = DateTime.SpecifyKind(r.RequestDate, DateTimeKind.Utc).AddHours(7);
+            // Mốc TAT: RequestDate = VN local time, VnTime.NowVn = VN local → diff trực tiếp.
+            var orderTimeVn = r.RequestDate;
             var tatMinutes = (int)(nowVn - orderTimeVn).TotalMinutes;
             if (tatMinutes < 0) tatMinutes = 0;
             var isOverdue = tatMinutes > tatThresholdMinutes;
@@ -251,7 +250,7 @@ public partial class RISCompleteService
 
     public async Task<int> UpdateAllRequestDatesToTodayAsync()
     {
-        var today = DateTime.UtcNow.Date; // dot16: chuẩn UTC (00:00Z = 07:00 VN — vẫn trong cửa sổ DayRangeUtc hôm nay)
+        var today = HIS.Core.Common.VnTime.TodayVn; // RequestDate = VN local
         // #356: write-bulk (dev/test util, không cần audit từng dòng) → ExecuteUpdate set-based,
         // KHÔNG bound thiếu record, không load nguyên bảng. Query-filter (soft-delete) vẫn áp dụng.
         return await _context.RadiologyRequests.ExecuteUpdateAsync(

@@ -66,7 +66,7 @@ public class SampleReceiveController : ControllerBase
 
     /// <summary>
     /// Danh sách mẫu đã nhận hôm nay (ReceiveStatus=1, trong ngày VN).
-    /// Dùng VnTime.DayRangeUtc để tránh lệch bucket UTC trong khung 00h–07h.
+    /// ReceivedAt = VN local time → VnTime.DayRangeVn.
     /// </summary>
     [HttpGet("accepted")]
     public async Task<IActionResult> Accepted([FromQuery] string? keyword)

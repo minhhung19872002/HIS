@@ -130,7 +130,7 @@ public class AdminModulesService : IAdminModulesService
             throw new InvalidOperationException("Kỳ lương chưa có dòng lương nào, không thể duyệt.");
         period.Status = 1;
         period.ApprovedBy = approvedBy;
-        period.ApprovedAt = DateTime.UtcNow;
+        period.ApprovedAt = HIS.Core.Common.VnTime.NowVn; // business timestamp = VN local
         period.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         return MapPeriod(period);

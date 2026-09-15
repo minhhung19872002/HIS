@@ -1,4 +1,4 @@
--- QA round 2/3 (2026-09-15): repair rows written by bugs fixed in commits 52b8ea64..43743a03.
+-- (renumbered 199 → 207: prefix 199 is taken by 199_patient_merged_into.sql) QA round 2/3 (2026-09-15): repair rows written by bugs fixed in commits 52b8ea64..43743a03.
 -- Runs on every startup ⇒ each statement only matches rows still in the broken state (re-run = no-op).
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;

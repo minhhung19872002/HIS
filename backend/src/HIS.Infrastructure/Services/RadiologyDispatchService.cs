@@ -48,7 +48,7 @@ public class RadiologyDispatchService : IRadiologyDispatchService
             PatientId = detail.ServiceRequest.MedicalRecord.PatientId,
             RoomId = dto.RoomId,
             DispatchedByUserId = userId,
-            DispatchedAt = DateTime.UtcNow,
+            DispatchedAt = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
             Priority = dto.Priority ?? 1,
             Note = dto.Note,
             CreatedAt = DateTime.UtcNow
@@ -74,7 +74,7 @@ public class RadiologyDispatchService : IRadiologyDispatchService
         var d = await _db.RadiologyDispatches.FirstOrDefaultAsync(x => x.Id == id)
             ?? throw new KeyNotFoundException();
         d.IsArrived = true;
-        d.ArrivedAt = DateTime.UtcNow;
+        d.ArrivedAt = HIS.Core.Common.VnTime.NowVn;
         await _db.SaveChangesAsync();
     }
 
@@ -83,7 +83,7 @@ public class RadiologyDispatchService : IRadiologyDispatchService
         var d = await _db.RadiologyDispatches.FirstOrDefaultAsync(x => x.Id == id)
             ?? throw new KeyNotFoundException();
         d.IsPerformed = true;
-        d.PerformedAt = DateTime.UtcNow;
+        d.PerformedAt = HIS.Core.Common.VnTime.NowVn;
 
         // #8 + #14d (audit luồng nghiệp vụ 2026-06-06): cập nhật ServiceRequestDetail (model 1)
         // sang "Đang thực hiện" + BRIDGE sang model 4 (RadiologyRequest) để radiologist tường trình.
@@ -111,7 +111,7 @@ public class RadiologyDispatchService : IRadiologyDispatchService
                     PatientId = d.PatientId,
                     ExaminationId = sr?.ExaminationId,
                     MedicalRecordId = sr?.MedicalRecordId,
-                    RequestDate = sr?.RequestDate ?? DateTime.UtcNow, // dot16: chuẩn UTC
+                    RequestDate = sr?.RequestDate ?? HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
                     ServiceId = srd.ServiceId,
                     RequestingDoctorId = sr?.DoctorId ?? Guid.Empty,
                     Priority = d.Priority,

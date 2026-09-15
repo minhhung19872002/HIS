@@ -129,7 +129,7 @@ public class FoodSafetyService : IFoodSafetyService
         {
             Id = Guid.NewGuid(),
             ReportNumber = reportNumber,
-            IncidentDate = DateTime.TryParse(dto.IncidentDate, out var d) ? d : DateTime.UtcNow,
+            IncidentDate = DateTime.TryParse(dto.IncidentDate, out var d) ? d : HIS.Core.Common.VnTime.NowVn, // VN local
             Location = dto.Location,
             FoodSource = dto.FoodSource,
             FoodType = dto.FoodType,
@@ -142,7 +142,7 @@ public class FoodSafetyService : IFoodSafetyService
             InvestigationStatus = 0, // Reported
             SeverityLevel = dto.SeverityLevel,
             ReportedBy = dto.ReportedBy,
-            ReportedAt = DateTime.UtcNow,
+            ReportedAt = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
             NotifiedAuthorities = false,
         };
 
@@ -188,9 +188,9 @@ public class FoodSafetyService : IFoodSafetyService
         {
             entity.InvestigationStatus = dto.InvestigationStatus.Value;
             if (dto.InvestigationStatus.Value == 1 && !entity.InvestigationStartedAt.HasValue)
-                entity.InvestigationStartedAt = DateTime.UtcNow;
+                entity.InvestigationStartedAt = HIS.Core.Common.VnTime.NowVn;
             if (dto.InvestigationStatus.Value >= 3 && !entity.InvestigationCompletedAt.HasValue)
-                entity.InvestigationCompletedAt = DateTime.UtcNow;
+                entity.InvestigationCompletedAt = HIS.Core.Common.VnTime.NowVn;
         }
         if (dto.SeverityLevel.HasValue) entity.SeverityLevel = dto.SeverityLevel.Value;
         if (dto.InvestigatorId.HasValue) entity.InvestigatorId = dto.InvestigatorId.Value;
@@ -281,7 +281,7 @@ public class FoodSafetyService : IFoodSafetyService
             IncidentId = dto.IncidentId,
             SampleType = dto.SampleType,
             SampleCode = sampleCode,
-            CollectedAt = DateTime.TryParse(dto.CollectedAt, out var ca) ? ca : DateTime.UtcNow,
+            CollectedAt = DateTime.TryParse(dto.CollectedAt, out var ca) ? ca : HIS.Core.Common.VnTime.NowVn, // VN local
             CollectedBy = dto.CollectedBy,
         };
 
@@ -406,7 +406,7 @@ public class FoodSafetyService : IFoodSafetyService
             EstablishmentName = dto.EstablishmentName,
             Address = dto.Address,
             LicenseNumber = dto.LicenseNumber,
-            InspectionDate = DateTime.TryParse(dto.InspectionDate, out var d) ? d : DateTime.UtcNow,
+            InspectionDate = DateTime.TryParse(dto.InspectionDate, out var d) ? d : HIS.Core.Common.VnTime.NowVn,
             InspectorId = dto.InspectorId,
             InspectorName = dto.InspectorName,
             OverallScore = dto.OverallScore,

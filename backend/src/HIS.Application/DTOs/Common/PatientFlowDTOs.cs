@@ -63,6 +63,11 @@ namespace HIS.Application.DTOs
         [global::System.Text.Json.Serialization.JsonConverter(typeof(HIS.Application.Common.FlexibleStringJsonConverter))]
         public string? PaymentMethod { get; set; }
         public string? Note { get; set; }
+        // QA-R3: lines the cashier selected (UnpaidServiceItemDto.Id / UnpaidMedicineItemDto.Id) — flagged paid
+        // when the money on the invoice covers them. Optional: a fully paid invoice flags every line anyway.
+        public List<Guid>? ServiceItemIds { get; set; }
+        public List<Guid>? MedicineItemIds { get; set; }
+        public bool IncludeBedCharges { get; set; }
     }
 
     public class CancelPaymentDto
@@ -83,6 +88,30 @@ namespace HIS.Application.DTOs
         public DateTime ActionDate { get; set; }
         public string ActionBy { get; set; }
         public string Note { get; set; }
+
+        // QA-R3: the patient timeline reads a list of receipts (`payments`), the DTO only carried the latest one.
+        public Guid PatientId { get; set; }
+        public decimal TotalPaid { get; set; }
+        public decimal TotalDeposit { get; set; }
+        public decimal TotalRefund { get; set; }
+        public List<PaymentHistoryItemDto> Payments { get; set; } = new();
+    }
+
+    public class PaymentHistoryItemDto
+    {
+        public Guid Id { get; set; }
+        public string PaymentCode { get; set; } = string.Empty;
+        public Guid? MedicalRecordId { get; set; }
+        public string? MedicalRecordCode { get; set; }
+        public int ReceiptType { get; set; } // 1-Tạm ứng, 2-Thanh toán, 3-Hoàn trả
+        public string ReceiptTypeName { get; set; } = string.Empty;
+        public decimal Amount { get; set; }
+        public string PaymentMethod { get; set; } = string.Empty;
+        public int Status { get; set; }
+        public string StatusName { get; set; } = string.Empty;
+        public DateTime PaymentDate { get; set; }
+        public string? CashierName { get; set; }
+        public string? Note { get; set; }
     }
 
     public class PaymentStatusDto
@@ -102,7 +131,7 @@ namespace HIS.Application.DTOs
         public Guid CashierId { get; set; }
         public DateTime FromDate { get; set; }
         public DateTime ToDate { get; set; }
-        public string ShiftCode { get; set; }
+        public string? ShiftCode { get; set; } // QA-R3: optional — implicit [Required] made every report call a 400
     }
 
     public class CashierReportDto
@@ -119,6 +148,11 @@ namespace HIS.Application.DTOs
         public decimal TotalCardReceived { get; set; }
         public decimal TotalTransferReceived { get; set; }
         public decimal TotalRefunded { get; set; }
+        // QA-R3: deposits (tạm ứng) collected by this cashier are cash in; paid-out deposit refunds are cash out.
+        public decimal DepositAmount { get; set; }
+        public int DepositCount { get; set; }
+        public decimal DepositRefundAmount { get; set; }
+        public int DepositRefundCount { get; set; }
         public decimal ClosingBalance { get; set; }
         public int TransactionCount { get; set; }
         public bool IsClosed { get; set; }
@@ -127,9 +161,9 @@ namespace HIS.Application.DTOs
     public class CloseCashBookDto
     {
         public Guid CashierId { get; set; }
-        public string ShiftCode { get; set; }
+        public string? ShiftCode { get; set; } // QA-R3: optional (implicit [Required] → 400)
         public decimal ActualCashAmount { get; set; }
-        public string Note { get; set; }
+        public string? Note { get; set; }
     }
 
     public class DepartmentRevenueDto

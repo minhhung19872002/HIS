@@ -47,7 +47,7 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
             Id = Guid.NewGuid(),
             MedicalRecordCode = $"HS{DateTime.Now:yyyyMMddHHmmss}",
             PatientId = dto.PatientId,
-            AdmissionDate = DateTime.UtcNow, // dot16: chuẩn UTC
+            AdmissionDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
             PatientType = dto.PatientType,
             TreatmentType = 1,
             InsuranceNumber = dto.InsuranceNumber,
@@ -237,7 +237,7 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
 
         var exam = await _db.Examinations.FirstAsync(e => e.Id == examinationId);
         exam.IsBillPrinted = true;
-        exam.BillPrintedAt = DateTime.UtcNow;
+        exam.BillPrintedAt = HIS.Core.Common.VnTime.NowVn;
         exam.BillPrintedBy = userId;
         exam.UpdatedAt = DateTime.UtcNow;
         exam.UpdatedBy = userId.ToString();

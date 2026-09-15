@@ -97,8 +97,8 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
         // Status mapping aligns with MedicalRecord.Status:
         //   0=Waiting (chờ tiếp đón) | 1=InProgress (đang khám)
         //   2=WaitingResult (chờ kết quả CLS) | 3=Completed (hoàn thành)
-        // AdmissionDate ghi bằng DateTime.Now — DayRangeUtc tránh lệch UTC 00h-07h VN.
-        var (admFromUtc, admToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
+        // AdmissionDate = VN local time (business timestamp convention).
+        var (admFromUtc, admToUtc) = HIS.Core.Common.VnTime.DayRangeVn(date);
         var records = await _context.MedicalRecords
             .Where(m => m.RoomId == roomId && m.AdmissionDate >= admFromUtc && m.AdmissionDate < admToUtc)
             .Select(m => new { m.Status, m.PatientType })
@@ -117,8 +117,8 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
 
     private async Task<int> CalculateEstimatedWaitAsync(Guid roomId, int queueType)
     {
-        // IssueDate chuẩn hóa UTC — dùng DayRangeUtc để tránh lệch UTC 00h-07h VN.
-        var (ewFromUtc, ewToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
+        // IssueDate = VN local time (business timestamp convention).
+        var (ewFromUtc, ewToUtc) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.TodayVn);
 
         // Get waiting tickets ahead (status 0=waiting), ordered by priority then queue number
         var waitingTickets = await _context.QueueTickets
@@ -231,7 +231,7 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
     /// </summary>
     private async Task EnsureNoActiveOutpatientRecordTodayAsync(Guid patientId)
     {
-        var (fromUtc, toUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
+        var (fromUtc, toUtc) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.TodayVn); // AdmissionDate = VN local
         var existing = await _context.MedicalRecords
             .Where(m => m.PatientId == patientId && m.Status < 3 && m.TreatmentType == 1 && !m.IsDeleted
                         && m.AdmissionDate >= fromUtc && m.AdmissionDate < toUtc)
@@ -343,9 +343,9 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
 
     private async Task<string> GenerateDepositReceiptNumberAsync()
     {
-        // ReceiptDate ghi bằng DateTime.Now — DayRangeUtc tránh lệch UTC 00h-07h VN.
+        // Deposits.ReceiptDate = VN local time (business timestamp convention).
         var todayVn = HIS.Core.Common.VnTime.TodayVn;
-        var (depFromUtc, depToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(todayVn);
+        var (depFromUtc, depToUtc) = HIS.Core.Common.VnTime.DayRangeVn(todayVn);
         var count = await _context.Deposits.CountAsync(d => d.ReceiptDate >= depFromUtc && d.ReceiptDate < depToUtc);
         return $"TU{todayVn:yyyyMMdd}{(count + 1):D4}";
     }
@@ -463,7 +463,15 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
             Priority = ticket?.Priority ?? 0,
             IsEmergency = record.TreatmentType == 3,
             IsPriority = (ticket?.Priority ?? 0) > 0,
-            CreatedDate = record.CreatedAt
+            CreatedDate = record.CreatedAt,
+            // QA-R3: registration responses returned patientType/treatmentType 0 and no examinationId.
+            PatientType = record.PatientType,
+            TreatmentType = record.TreatmentType,
+            ExaminationId = record.Examinations?
+                .Where(e => !e.IsDeleted)
+                .OrderByDescending(e => e.CreatedAt)
+                .Select(e => (Guid?)e.Id)
+                .FirstOrDefault(),
         };
     }
 

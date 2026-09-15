@@ -206,7 +206,7 @@ public class PatientTransportSlipService : IPatientTransportSlipService
 
         entity.Status = 1;
         entity.ApprovedByUserId = userId == Guid.Empty ? null : userId;
-        entity.ApprovedAt = DateTime.UtcNow;
+        entity.ApprovedAt = HIS.Core.Common.VnTime.NowVn; // business timestamp = VN local
         entity.UpdatedBy = userId == Guid.Empty ? null : userId.ToString();
         entity.UpdatedAt = DateTime.UtcNow;
 

@@ -32,7 +32,7 @@ public class RadiologyOperationsService : IRadiologyOperationsService
             .ToListAsync();
         if (services.Count == 0) return ServiceOutcome.Bad("Dịch vụ không tồn tại");
 
-        var now = DateTime.UtcNow; // dot16: chuẩn UTC — RequestDate bị query DayRangeUtc (RIS Core8x:40)
+        var now = HIS.Core.Common.VnTime.NowVn; // business timestamps (RequestDate/ScheduledDate) = VN local
         var created = new List<object>();
 
         foreach (var svc in services)

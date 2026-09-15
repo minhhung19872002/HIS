@@ -282,8 +282,8 @@ public partial class RISCompleteService
 
     public async Task<object> GetDeviceDailyStatisticsAsync(Guid deviceId, DateTime date)
     {
-        // StartTime ghi bằng DateTime.Now — dùng DayRangeUtc để tránh lệch UTC 00h-07h VN.
-        var (stFromUtc, stToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
+        // StartTime = VN local time → VN day range.
+        var (stFromUtc, stToUtc) = HIS.Core.Common.VnTime.DayRangeVn(date);
         var count = await _context.Set<RadiologyCaptureSession>()
             .Where(s => s.DeviceId == deviceId && s.StartTime >= stFromUtc && s.StartTime < stToUtc)
             .CountAsync();

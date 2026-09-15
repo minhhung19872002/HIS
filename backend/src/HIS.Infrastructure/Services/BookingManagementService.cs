@@ -617,7 +617,7 @@ public class BookingManagementService : IBookingManagementService
                 Id = Guid.NewGuid(),
                 TicketNumber = appointment.QueueCode!,
                 QueueNumber = appointment.QueueNumber.Value,
-                IssueDate = nowUtc,
+                IssueDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
                 QueueType = AppointmentQueueAllocator.ExamQueueType,
                 Priority = 0,
                 Status = 0, // Chờ
@@ -738,7 +738,7 @@ public class BookingManagementService : IBookingManagementService
                 Id = Guid.NewGuid(),
                 TicketNumber = code,
                 QueueNumber = number,
-                IssueDate = DateTime.UtcNow, // Chuẩn hóa UTC — đồng bộ với Queue.cs
+                IssueDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local (same as Queue.cs)
                 PatientId = appointment.PatientId,
                 RoomId = appointment.RoomId,
                 QueueType = AppointmentQueueAllocator.ExamQueueType,

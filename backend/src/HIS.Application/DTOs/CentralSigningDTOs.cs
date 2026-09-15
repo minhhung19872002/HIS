@@ -200,7 +200,10 @@ public class SaveManagedCertificateRequest
     public string SubjectName { get; set; } = string.Empty;
     public string IssuerName { get; set; } = string.Empty;
     public string CaProvider { get; set; } = string.Empty;
+    // Certificate validity is UTC (CentralSigning stats compare with DateTime.UtcNow) → opt out of the VN-local converter.
+    [global::System.Text.Json.Serialization.JsonConverter(typeof(global::HIS.Application.Common.UtcDateTimeJsonConverter))]
     public DateTime ValidFrom { get; set; }
+    [global::System.Text.Json.Serialization.JsonConverter(typeof(global::HIS.Application.Common.UtcDateTimeJsonConverter))]
     public DateTime ValidTo { get; set; }
     public bool IsActive { get; set; } = true;
     public string? OwnerUserId { get; set; }
@@ -224,6 +227,7 @@ public class SigningTransactionDto
     public long DataSizeBytes { get; set; }
     public int DurationMs { get; set; }
     public string? IpAddress { get; set; }
+    [global::System.Text.Json.Serialization.JsonConverter(typeof(HIS.Application.Common.UtcDateTimeJsonConverter))] // SigningTransactions.Timestamp is UTC
     public DateTime Timestamp { get; set; }
 }
 

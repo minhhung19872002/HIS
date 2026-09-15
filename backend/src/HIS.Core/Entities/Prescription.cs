@@ -61,6 +61,9 @@ public class Prescription : BaseEntity
     public DateTime? DispensedAt { get; set; }
     public Guid? DispensedBy { get; set; }
 
+    /// <summary>QA-R3 (migration 204): all billable lines paid — at the cashier (ReceiptDetails) or by prescription QR.</summary>
+    public bool IsPaid { get; set; }
+
     // Gửi Cổng đơn thuốc quốc gia — TÁCH HẲN khỏi Status ở trên (#218/T3, migration 175).
     // Trước đây NationalPrescriptionService ghi trạng thái gửi vào chính `Status`, nên gửi lên cổng
     // là tự duyệt đơn (0→1, bỏ qua dược sĩ), gửi lại là kéo đơn đã cấp phát lùi về "đã duyệt", và

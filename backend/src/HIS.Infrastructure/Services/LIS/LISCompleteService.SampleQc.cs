@@ -68,10 +68,10 @@ public partial class LISCompleteService
     }
 
     /// <summary>
-    /// UpdatedAt / ReceivedAt / CreatedAt are stored UTC (HISDbContext, SampleReceiveService) while
-    /// SampleCollectedAt / ReviewedAt are local VN — the FE reads naive timestamps as local, so the
-    /// UTC ones showed "Lưu lúc"/"TC lúc"/received 7 h early and sorted wrongly in the timeline.
-    /// VN has no DST → fixed +7.
+    /// UpdatedAt / CreatedAt are audit columns stored UTC (HISDbContext) while business timestamps
+    /// (SampleCollectedAt / ReceivedAt / ReviewedAt) are VN local — the FE reads these projected naive
+    /// timestamps as local, so the UTC ones showed "Lưu lúc" 7 h early and sorted wrongly in the timeline.
+    /// Apply ONLY to UpdatedAt/CreatedAt. VN has no DST → fixed +7.
     /// </summary>
     private static DateTime? UtcToVn(DateTime? utc) => utc?.AddHours(7);
 
@@ -163,9 +163,9 @@ public partial class LISCompleteService
 
     public async Task<List<object>> GetSampleRejectionsAsync(DateTime? fromDate, DateTime? toDate, string? keyword)
     {
-        // Rejection time is a UTC column → compare against the UTC window of the VN local days
-        var from = HIS.Core.Common.VnTime.DayRangeUtc(fromDate ?? HIS.Core.Common.VnTime.TodayVn.AddDays(-30)).FromUtc;
-        var to = HIS.Core.Common.VnTime.DayRangeUtc(toDate ?? HIS.Core.Common.VnTime.TodayVn).ToUtc;
+        // Rejection time = ReceivedAt, a VN-local business timestamp (the reject writer always sets it)
+        var from = HIS.Core.Common.VnTime.DayRangeVn(fromDate ?? HIS.Core.Common.VnTime.TodayVn.AddDays(-30)).From;
+        var to = HIS.Core.Common.VnTime.DayRangeVn(toDate ?? HIS.Core.Common.VnTime.TodayVn).To;
         var q = _context.ServiceRequestDetails.Where(d => !d.IsDeleted && d.ReceiveStatus == 2
             && (d.ReceivedAt ?? d.UpdatedAt ?? d.CreatedAt) >= from && (d.ReceivedAt ?? d.UpdatedAt ?? d.CreatedAt) < to);
         if (!string.IsNullOrWhiteSpace(keyword))
@@ -181,7 +181,7 @@ public partial class LISCompleteService
             d.Id, d.SampleBarcode, d.ServiceRequestId, d.ServiceRequest.RequestCode,
             PatientName = d.ServiceRequest.MedicalRecord.Patient.FullName,
             PatientCode = d.ServiceRequest.MedicalRecord.Patient.PatientCode,
-            d.RejectReason, RejectedAt = d.ReceivedAt ?? d.UpdatedAt ?? d.CreatedAt, d.ReceivedByUserId, d.UpdatedBy,
+            d.RejectReason, d.ReceivedAt, AuditAt = d.UpdatedAt ?? d.CreatedAt, d.ReceivedByUserId, d.UpdatedBy,
         }).ToListAsync();
         var byId = await UserNamesAsync(rows.Select(r => r.ReceivedByUserId));
         var byStr = await UserNamesAsync(rows.Select(r => r.UpdatedBy));
@@ -194,7 +194,7 @@ public partial class LISCompleteService
             {
                 id = r.Id, sampleBarcode = r.SampleBarcode ?? "", labRequestId = r.ServiceRequestId, requestCode = r.RequestCode,
                 patientName = r.PatientName, patientCode = r.PatientCode,
-                rejectionReason = reason, rejectionCode = code, rejectedAt = UtcToVn(r.RejectedAt), rejectedBy = by,
+                rejectionReason = reason, rejectionCode = code, rejectedAt = r.ReceivedAt ?? UtcToVn(r.AuditAt), rejectedBy = by,
                 // An undone/recollected rejection leaves ReceiveStatus 2 → it disappears from this list (no history table)
                 isUndone = false, reCollected = false,
             };
@@ -260,8 +260,8 @@ public partial class LISCompleteService
         // Tube-level events once (shared by every test on the tube); test-level events per SRD
         var tube = rows.OrderBy(r => r.SampleCollectedAt).First();
         Add(tube.Id, "collected", tube.SampleCollectedAt, tube.CollectedByUserId);
-        if (tube.ReceiveStatus == 2) Add(tube.Id, "rejected", UtcToVn(tube.ReceivedAt ?? tube.UpdatedAt), tube.ReceivedByUserId, SplitRejectReason(tube.RejectReason).reason);
-        else Add(tube.Id, "received", UtcToVn(tube.ReceivedAt), tube.ReceivedByUserId);
+        if (tube.ReceiveStatus == 2) Add(tube.Id, "rejected", tube.ReceivedAt ?? UtcToVn(tube.UpdatedAt), tube.ReceivedByUserId, SplitRejectReason(tube.RejectReason).reason);
+        else Add(tube.Id, "received", tube.ReceivedAt, tube.ReceivedByUserId); // ReceivedAt = VN local
         foreach (var r in rows)
         {
             Add(r.Id, "processing", r.TechnicianRunAt, r.TechnicianUserId, notes: r.ServiceName);

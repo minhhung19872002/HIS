@@ -175,7 +175,7 @@ public class FunctionalDiagnosticsService : IFunctionalDiagnosticsService
         var entity = await _db.FunctionalDiagnosticTests.FirstOrDefaultAsync(x => x.Id == id);
         if (entity == null) return null;
         entity.Status = 2;
-        if (!entity.PerformedAt.HasValue) entity.PerformedAt = DateTime.UtcNow;
+        if (!entity.PerformedAt.HasValue) entity.PerformedAt = HIS.Core.Common.VnTime.NowVn; // business timestamp = VN local
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = userId;
         await _db.SaveChangesAsync();
@@ -189,7 +189,7 @@ public class FunctionalDiagnosticsService : IFunctionalDiagnosticsService
         // STATE GUARD: chỉ verify được khi đã Completed (status=2)
         Nangcap23StateMachine.EnsureCanVerifyDiagnostic(entity.Status);
         entity.Status = 3;
-        entity.VerifiedAt = DateTime.UtcNow;
+        entity.VerifiedAt = HIS.Core.Common.VnTime.NowVn;
         if (Guid.TryParse(userId, out var g)) entity.VerifiedById = g;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = userId;

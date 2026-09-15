@@ -32,9 +32,8 @@ public partial class LISCompleteService {
             date = DateTime.Today;
         }
 
-        // dot16: RequestDate lưu UTC — date là ngày local VN từ FE → so theo cửa sổ UTC của trọn ngày VN
-        // (trước so raw [date, date+1) → lệch biên 7h, worklist rỗng khung 00h-07h sáng VN).
-        var (dateFrom, dateTo) = HIS.Core.Common.VnTime.DayRangeUtc(date);
+        // RequestDate = VN local time (business timestamp convention); date is a VN local day from the FE.
+        var (dateFrom, dateTo) = HIS.Core.Common.VnTime.DayRangeVn(date);
 
         var query = _context.ServiceRequests
             .Where(r => r.RequestType == 1 && !r.IsDeleted

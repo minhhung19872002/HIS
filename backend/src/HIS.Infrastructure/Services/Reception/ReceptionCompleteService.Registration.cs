@@ -138,7 +138,7 @@ public partial class ReceptionCompleteService {
             Id = Guid.NewGuid(),
             MedicalRecordCode = await GenerateMedicalRecordCodeAsync(),
             PatientId = patient.Id,
-            AdmissionDate = DateTime.UtcNow, // dot16: chuẩn UTC — query DayRangeUtc (prod no-op, dev hết lệch +7h)
+            AdmissionDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local (query via VnTime.DayRangeVn)
             PatientType = dto.ServiceType, // 2-Vien phi, 3-Dich vu
             TreatmentType = 1, // Ngoai tru
             RoomId = dto.RoomId,
@@ -491,7 +491,7 @@ public partial class ReceptionCompleteService {
             Id = Guid.NewGuid(),
             MedicalRecordCode = await GenerateMedicalRecordCodeAsync(),
             PatientId = patient.Id,
-            AdmissionDate = DateTime.UtcNow, // dot16: chuẩn UTC
+            AdmissionDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
             PatientType = dto.PatientType,
             TreatmentType = 3, // Emergency
             InsuranceNumber = dto.InsuranceNumber,
@@ -686,8 +686,8 @@ public partial class ReceptionCompleteService {
             });
         }
 
-        // Check recent visit — AdmissionDate ghi DateTime.Now → DayRangeUtc tránh lệch UTC 00h-07h VN.
-        var (rvFromUtc, rvToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
+        // Check recent visit — AdmissionDate = VN local time → VN day range.
+        var (rvFromUtc, rvToUtc) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.TodayVn);
         var recentVisit = await _context.MedicalRecords
             .Where(m => m.PatientId == patientId && m.AdmissionDate >= rvFromUtc && m.AdmissionDate < rvToUtc)
             .AnyAsync();

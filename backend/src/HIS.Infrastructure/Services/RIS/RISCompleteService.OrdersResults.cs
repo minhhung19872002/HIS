@@ -32,12 +32,12 @@ public partial class RISCompleteService
         string status = null,
         string keyword = null)
     {
-        // E2E #2: thiếu fromDate/toDate → mặc định lấy ca trong NGÀY HÔM NAY (giờ VN; RequestDate lưu UTC)
+        // E2E #2: thiếu fromDate/toDate → mặc định lấy ca trong NGÀY HÔM NAY (giờ VN; RequestDate = VN local)
         // thay vì trả rỗng. Có truyền date thì giữ hành vi cũ (toDate bao trọn ngày qua khoảng nửa-mở).
         DateTime fromUtc, toUtc;
         if (fromDate is null && toDate is null)
         {
-            (fromUtc, toUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.NowVn);
+            (fromUtc, toUtc) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.NowVn);
         }
         else
         {
