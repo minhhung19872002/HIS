@@ -1,3 +1,3 @@
 # Memory Index — his-quality-reviewer
 
-_(empty — add pointers as memories are saved)_
+- [Migration runner pitfalls](project_migration-runner-pitfalls.md) — ordinal order, SET leakage across scripts, DATEDIFF overflow, local 0-row data fixes prove nothing
