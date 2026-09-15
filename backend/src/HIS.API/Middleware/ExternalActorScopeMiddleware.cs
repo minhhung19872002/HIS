@@ -36,6 +36,20 @@ public sealed class ExternalActorScopeMiddleware
     {
         (RoleNames.BhxhInspector, new[] { "/api/inspector-portal" }),
         (RoleNames.PortalPatient, new[] { "/api/portal" }),
+
+        // Tài khoản dịch vụ của BFF app người bệnh: không phải người ngoài, nhưng là một mật khẩu nằm
+        // trên máy chủ khác, nên lộ nó không được mở ra cả HIS. Chỉ đúng những route mà
+        // HIS.PatientApp.Api/Connector gọi — thêm route mới vào connector thì phải thêm ở đây.
+        (RoleNames.PatientAppService, new[]
+        {
+            "/api/portal/",
+            "/api/patients/",
+            "/api/booking/",
+            "/api/reception/rooms/overview",
+            "/api/reception/queue/issue-mobile",
+            "/api/reception/queue/ticket/",
+            "/health",
+        }),
     };
 
     public ExternalActorScopeMiddleware(RequestDelegate next, ILogger<ExternalActorScopeMiddleware> logger)

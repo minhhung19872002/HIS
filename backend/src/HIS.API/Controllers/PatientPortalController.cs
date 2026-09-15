@@ -25,7 +25,7 @@ namespace HIS.API.Controllers
     // cho BN TỰ đăng nhập (POST /portal/login). Token PortalPatient: patientId/accountId LUÔN derive từ
     // claim (ResolvePatientId/ResolveAccountId — query param ≠ claim → 403, đóng IDOR lõi); token nhân
     // viên giữ hành vi query param cũ. (Register/login vẫn [AllowAnonymous].)
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Director + "," + RoleNames.Manager + "," + RoleNames.Receptionist + "," + RoleNames.Doctor + "," + RoleNames.Nurse + "," + RoleNames.Midwife + "," + RoleNames.DepartmentHead + "," + RoleNames.MedicalRecordManager + "," + RoleNames.Accountant + "," + RoleNames.Cashier + "," + RoleNames.InsuranceOfficer + "," + RoleNames.PortalPatient)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Director + "," + RoleNames.Manager + "," + RoleNames.Receptionist + "," + RoleNames.Doctor + "," + RoleNames.Nurse + "," + RoleNames.Midwife + "," + RoleNames.DepartmentHead + "," + RoleNames.MedicalRecordManager + "," + RoleNames.Accountant + "," + RoleNames.Cashier + "," + RoleNames.InsuranceOfficer + "," + RoleNames.PortalPatient + "," + RoleNames.PatientAppService)]
     public class PatientPortalController : ControllerBase
     {
         private readonly IPatientPortalService _service;

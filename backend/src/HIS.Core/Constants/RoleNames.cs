@@ -65,4 +65,13 @@ public static class RoleNames
     public const string InfectionControl = "InfectionControl";
     public const string HRManager = "HRManager";
     public const string AssetManager = "AssetManager";
+
+    /// <summary>
+    /// Tài khoản dịch vụ của BFF app hỗ trợ người bệnh (HIS.PatientApp.Api). Sinh từ RoleCode
+    /// <see cref="PatientAppServiceCode"/> (migration 195). Role này KHÔNG có permission nào, chỉ
+    /// được gọi đúng các route BFF cần (<c>ExternalActorScopeMiddleware</c>) — thay cho việc cấu hình
+    /// BFF bằng tài khoản <c>admin</c>.
+    /// </summary>
+    public const string PatientAppService = "PatientAppService";
+    public const string PatientAppServiceCode = "PATIENT_APP_SERVICE";
 }
