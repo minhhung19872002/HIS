@@ -247,9 +247,16 @@ Cấu hình cũ sao lưu tại `sites/his-patientapp.caddy.bak-truoc-gop-ten-mie
 
 ### ⚠️ Hai điều kiện chưa xong ở bản UAT này
 
-1. **`HIS_SERVICE_USERNAME/PASSWORD` để trống** → mọi màn cần dữ liệu bệnh viện sẽ báo "chưa kết nối
-   được hệ thống". Cần một tài khoản HIS **quyền tối thiểu**; cố ý không dùng `admin` vì tài khoản đó
-   nhìn được hồ sơ mọi bệnh nhân, mà `.env` nằm trên một VM dùng chung nhiều dự án.
+1. ~~Tài khoản dịch vụ HIS~~ **Đã xong 2026-09-15.** BFF gọi HIS bằng `svc-patientapp`, role
+   `PATIENT_APP_SERVICE` (migration 195): **0 permission**, bị `ExternalActorScopeMiddleware` nhốt trong
+   đúng các route connector gọi (`/api/portal/`, `/api/patients/`, `/api/booking/`,
+   `/api/reception/rooms/overview`, `/api/reception/queue/issue-mobile`, `/api/reception/queue/ticket/`,
+   `/health`) — route khác trả 403. Miễn hạn mật khẩu 90 ngày (không có người ngồi đổi). Mật khẩu chỉ
+   nằm trong `.env` trên VM.
+   - **Thêm route mới vào `HisRestConnector`** → phải thêm tiền tố vào middleware, không thì màn đó 403.
+   - **Xoay khoá:** admin HIS gọi `POST /api/admin/users/{id}/change-password` (mật khẩu cũ + mới) → sửa
+     `HIS_SERVICE_PASSWORD` trong `.env` → `docker compose up -d patientapp-api` → `curl /health/ready`
+     phải `"hisCore":true`. Bản `.env` trước khi đổi: `.env.bak-truoc-svc-20260915`.
 2. **`PATIENTAPP_ENV=Development`** để bản gửi OTP in mã ra log (chưa có cổng SMS). **Không được để
    người bệnh thật dùng ở trạng thái này** — ai đọc được log là đăng nhập được vào tài khoản bất kỳ.
    Có cổng SMS rồi thì đổi sang `Production` và khai `OtpSender` theo
