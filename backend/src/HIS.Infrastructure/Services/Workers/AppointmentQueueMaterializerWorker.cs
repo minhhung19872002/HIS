@@ -120,7 +120,7 @@ public sealed class AppointmentQueueMaterializerWorker : BackgroundService
                     TicketNumber = appointment.QueueCode
                         ?? AppointmentQueueAllocator.FormatCode("B", appointment.QueueNumber!.Value),
                     QueueNumber = appointment.QueueNumber!.Value,
-                    IssueDate = nowUtc, // Chuẩn hoá UTC — query dùng DayRangeUtc để so đúng ngày VN
+                    IssueDate = VnTime.NowVn, // business timestamp = VN local (query via VnTime.DayRangeVn)
                     QueueType = AppointmentQueueAllocator.ExamQueueType,
                     Priority = 0,
                     Status = 0, // Chờ

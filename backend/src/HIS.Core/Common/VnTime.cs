@@ -29,15 +29,34 @@ public static class VnTime
         }
     }
 
-    /// <summary>Thời điểm hiện tại theo giờ VN.</summary>
-    public static DateTime NowVn => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Tz);
+    /// <summary>Thời điểm hiện tại theo giờ VN (Kind=Unspecified). Convention for business timestamps.</summary>
+    public static DateTime NowVn => DateTime.SpecifyKind(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Tz), DateTimeKind.Unspecified);
+
+    /// <summary>
+    /// A UTC audit value (CreatedAt/UpdatedAt) expressed in VN local time — for arithmetic against
+    /// business timestamps (StartTime, PrescriptionDate, ...) which are stored VN local.
+    /// </summary>
+    public static DateTime UtcToVn(DateTime utc) =>
+        DateTime.SpecifyKind(TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), Tz), DateTimeKind.Unspecified);
 
     /// <summary>Ngày hôm nay theo giờ VN (00:00 local).</summary>
     public static DateTime TodayVn => NowVn.Date;
 
     /// <summary>
+    /// Half-open local range [from, to) of one VN day, for BUSINESS timestamp columns
+    /// (AdmissionDate, RequestDate, ReceiptDate, QueueTickets.IssueDate, SampleCollectedAt, ...)
+    /// which are stored as VN local time (<see cref="NowVn"/>). Audit columns
+    /// (CreatedAt/UpdatedAt/AuditLogs.Timestamp) stay UTC — use <see cref="DayRangeUtc"/> for those.
+    /// </summary>
+    public static (DateTime From, DateTime To) DayRangeVn(DateTime localDate)
+    {
+        var start = DateTime.SpecifyKind(localDate.Date, DateTimeKind.Unspecified);
+        return (start, start.AddDays(1));
+    }
+
+    /// <summary>
     /// Khoảng UTC nửa mở [fromUtc, toUtc) tương ứng trọn 1 ngày local VN.
-    /// Dùng để so với cột lưu bằng <c>DateTime.UtcNow</c>.
+    /// Dùng CHỈ cho cột audit lưu bằng <c>DateTime.UtcNow</c> (CreatedAt/UpdatedAt/AuditLogs.Timestamp).
     /// </summary>
     public static (DateTime FromUtc, DateTime ToUtc) DayRangeUtc(DateTime localDate)
     {

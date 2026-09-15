@@ -114,7 +114,7 @@ public partial class FhirService
             },
             Subject = patient != null ? new FhirReference { Reference = $"Patient/{patient.Id}", Display = patient.FullName } : null,
             Encounter = prescription?.ExaminationId != null ? new FhirReference { Reference = $"Encounter/exam-{prescription.ExaminationId}" } : null,
-            AuthoredOn = prescription?.PrescriptionDate.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            AuthoredOn = prescription?.PrescriptionDate.ToString("yyyy-MM-ddTHH:mm:ss'+07:00'"), // VN local
             Requester = prescription?.Doctor != null ? new FhirReference { Reference = $"Practitioner/{prescription.DoctorId}", Display = prescription.Doctor.FullName } : null,
             ReasonCode = !string.IsNullOrEmpty(prescription?.Diagnosis) ? new List<FhirCodeableConcept>
             {

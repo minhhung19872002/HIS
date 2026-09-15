@@ -172,8 +172,9 @@ public partial class FhirService
             } : null,
             Period = new FhirPeriod
             {
-                Start = (e.StartTime ?? e.CreatedAt).ToString("yyyy-MM-ddTHH:mm:ssZ"),
-                End = e.EndTime?.ToString("yyyy-MM-ddTHH:mm:ssZ")
+                // StartTime/EndTime are VN local (+07:00); the CreatedAt fallback is UTC (Z).
+                Start = e.StartTime?.ToString("yyyy-MM-ddTHH:mm:ss'+07:00'") ?? e.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                End = e.EndTime?.ToString("yyyy-MM-ddTHH:mm:ss'+07:00'")
             },
             ReasonCode = !string.IsNullOrEmpty(e.ChiefComplaint) ? new List<FhirCodeableConcept>
             {
@@ -249,7 +250,7 @@ public partial class FhirService
             } : null,
             Period = new FhirPeriod
             {
-                Start = a.AdmissionDate.ToString("yyyy-MM-ddTHH:mm:ssZ")
+                Start = a.AdmissionDate.ToString("yyyy-MM-ddTHH:mm:ss'+07:00'") // VN local
             },
             ReasonCode = !string.IsNullOrEmpty(a.ReasonForAdmission) ? new List<FhirCodeableConcept>
             {

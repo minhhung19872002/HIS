@@ -142,12 +142,16 @@ public class AuditLogService : IAuditLogService
             if (!string.IsNullOrWhiteSpace(dto.Module))
                 query = query.Where(l => l.Module == dto.Module);
 
+            // Filter dates are VN local days; Timestamp/CreatedAt are UTC → compare against the UTC window.
             if (dto.FromDate.HasValue)
-                query = query.Where(l => l.Timestamp >= dto.FromDate.Value || l.CreatedAt >= dto.FromDate.Value);
+            {
+                var fromUtc = ReportPeriod.ToUtc(dto.FromDate.Value);
+                query = query.Where(l => l.Timestamp >= fromUtc || l.CreatedAt >= fromUtc);
+            }
 
             if (dto.ToDate.HasValue)
             {
-                var toDateEnd = dto.ToDate.Value.Date.AddDays(1);
+                var toDateEnd = ReportPeriod.ToUtc(dto.ToDate.Value.Date.AddDays(1));
                 query = query.Where(l => l.Timestamp < toDateEnd || l.CreatedAt < toDateEnd);
             }
 

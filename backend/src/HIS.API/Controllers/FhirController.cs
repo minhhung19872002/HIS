@@ -13,6 +13,10 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/fhir")]
 [Produces("application/fhir+json")]
+// QA-R3 (PHI RBAC): every resource here is patient data (Patient/Encounter/Observation/…), and the external
+// endpoints pull another hospital's patient record — any signed-in role (cashier, lab tech) could read it all.
+// Only GET/metadata exist, so a class-level gate does not bypass WritePermissionMap. metadata stays anonymous.
+[HIS.API.Authorization.RequirePermission(HIS.Core.Constants.PermissionCatalog.MedicalRecord.Read)]
 public class FhirController : ControllerBase
 {
     private readonly IFhirService _fhirService;

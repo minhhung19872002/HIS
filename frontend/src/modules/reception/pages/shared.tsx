@@ -1,6 +1,5 @@
 import dayjs from 'dayjs';
 import type { AdmissionDto } from '../api/reception';
-import { utcToLocal } from '../../../utils/format';
 import type { StatusTab, TopTab } from '@/_v2kit';
 
 export type TopKey = 'queue' | 'pending' | 'now' | 'stats';
@@ -39,10 +38,10 @@ export const VISIT_TYPE_OPTS = [
   { v: '4', l: 'Khám theo yêu cầu' },
 ];
 
-// admissionDate is written as DateTime.UtcNow and serialized without "Z" — parsing it as local time
-// showed the arrival time 7 hours early (13:33 instead of 20:33).
+// admissionDate is a business timestamp stored in VN local time and serialized without an offset —
+// parse it as local (no UTC shift).
 export const fmtHM = (iso: string) => {
-  const d = utcToLocal(iso);
+  const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 

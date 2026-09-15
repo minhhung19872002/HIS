@@ -7,7 +7,7 @@ import type { RawRow } from './shared';
 import { STATUS_TABS, fmtHM, statusKey, statusTone, priorityKey, priorityLabel, genderLabel, ageOf, treatmentLabel, hasValidInsurance } from './shared';
 import { TempInsuranceModal, DocumentHoldModal, PhotoModal, ServiceOrderModal } from './VisitActionsModals';
 import { getReceptionWarnings, updateAdmission } from '../api/reception';
-import { fmtTime, utcToLocal } from '../../../utils/format';
+import { fmtTime } from '../../../utils/format';
 import type { ReceptionWarningDto } from '../api/reception';
 import { PatientFlagsSection } from './PatientFlagsSection';
 type DrawerTab = 'info' | 'audit' | 'related';
@@ -413,7 +413,7 @@ interface AuditEvent {
 // events from current status + admission/called/started/completed timestamps.
 const buildAuditTimeline = (v: RawRow): AuditEvent[] => {
   const events: AuditEvent[] = [];
-  const arrived = utcToLocal(v.admissionDate); // UTC without "Z"
+  const arrived = new Date(v.admissionDate); // VN local time, no offset
   events.push({ t: arrived, action: 'Đến tiếp đón', by: 'Hệ thống', tone: 'info' });
   events.push({
     t: new Date(arrived.getTime() + 2 * 60_000),

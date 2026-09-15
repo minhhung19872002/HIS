@@ -17,7 +17,6 @@ import {
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
 import { useTabState } from '../../../hooks/useTabState';
-import { utcToLocal } from '../../../utils/format';
 
 // ============================================================================
 // Local types (ported 1:1 from v1 pages/DoctorPortal.tsx)
@@ -84,7 +83,6 @@ const normalizeOpdRow = (raw: ExaminationDto): ExaminationDto => {
     status: typeof r.status === 'number' ? r.status : (OPD_STATUS_BY_NAME[r.status] ?? 0),
     diagnosisName: raw.diagnosisName || r.diagnosis || undefined,
     diagnosisCode: raw.diagnosisCode || r.icdCode || undefined,
-    examinationDate: raw.examinationDate ? utcToLocal(raw.examinationDate).toISOString() : raw.examinationDate,
   };
 };
 
@@ -142,7 +140,7 @@ const DoctorPortalV2: React.FC = () => {
       });
       // POST /examination/search returns `status` as a string ("Waiting"/"InProgress"/"WaitingLab"/
       // "WaitingConclusion"/"Completed"/"Unknown"=cancelled), `diagnosis`/`icdCode` instead of diagnosisName/Code,
-      // and a UTC examinationDate without "Z". Unnormalized, every badge showed "—", all status tabs/KPIs were 0
+      // (examinationDate = AdmissionDate, VN local time). Unnormalized, every badge showed "—", all status tabs/KPIs were 0
       // and the diagnosis column always said "Chưa có".
       const items = (r.data?.items || []).map(normalizeOpdRow);
       setOpdTotal(r.data?.totalCount ?? items.length);

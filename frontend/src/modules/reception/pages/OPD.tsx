@@ -9,7 +9,6 @@ import TermIcon from '../../../components/layout/terminal/Icon';
 import * as pdf from '../../../api/pdf';
 import { RowActions } from '../../../components/actions';
 import { canPrescribeFromOpd, opdLinks, opdStatusKey, type OpdStatusKey } from './opdFlow';
-import { utcToLocal } from '../../../utils/format';
 
 /* Khám bệnh OPD v2 — list shell.
    Form khám đầy đủ (vital signs, history, exam, CĐ, CLS) là native v2 tại
@@ -22,8 +21,8 @@ const STATUS_TABS: StatusTab<StatusKey>[] = [
   { v: 'waitingResult', l: 'Chờ kết quả CLS', tone: 'warn' },
   { v: 'completed',     l: 'Đã kết luận',    tone: 'ok' },
 ];
-// Only used for admissionDate, which BE writes as UTC and serializes without "Z" (was shown 7h early).
-const fmtHM = (iso?: string) => iso ? dayjs(utcToLocal(iso)).format('HH:mm') : '—';
+// admissionDate is a business timestamp stored in VN local time (no offset) — parse as local.
+const fmtHM = (iso?: string) => iso ? dayjs(iso).format('HH:mm') : '—';
 const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 
 type Row = AdmissionDto & {

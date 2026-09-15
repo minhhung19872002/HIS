@@ -21,9 +21,6 @@ interface UtilWarehouseStock {
 }
 const UTIL_CABINET_TYPE = 5; // WarehouseType=5 = Tủ trực
 
-// ReceivedAt is stored UTC (SampleReceiveService "dot16") but serialized without "Z" → dayjs read it
-// as local and "Nhận lúc" showed 7 h early (10:11 for a tube received 17:11). Mark naive values as UTC.
-const utcIso = (s?: string) => (s && !/(Z|[+-]\d\d:?\d\d)$/i.test(s) ? `${s}Z` : s);
 
 interface PendingSample {
   id: string; sampleBarcode?: string; serviceRequestId: string;
@@ -218,7 +215,7 @@ const SampleReceiveV2: React.FC = () => {
       </div>
     ) },
     { key: 'svc', label: 'Dịch vụ XN', render: (r) => r.serviceName },
-    { key: 'recv', label: 'Nhận lúc', mono: true, render: (r) => r.receivedAt ? dayjs(utcIso(r.receivedAt)).format('HH:mm') : '—' },
+    { key: 'recv', label: 'Nhận lúc', mono: true, render: (r) => r.receivedAt ? dayjs(r.receivedAt).format('HH:mm') : '—' }, // ReceivedAt = VN local time
   ];
 
   return (
@@ -329,7 +326,7 @@ const SampleReceiveV2: React.FC = () => {
               { ok: detail.isSampleCollected, label: 'Lấy mẫu',
                 time: detail.sampleCollectedAt, by: detail.collectedByUserId },
               { ok: detail.receiveStatus === 1, fail: detail.receiveStatus === 2, label: 'LIS nhận mẫu',
-                time: utcIso(detail.receivedAt), by: detail.receivedByUserId,
+                time: detail.receivedAt, by: detail.receivedByUserId,
                 extra: detail.rejectReason ? `Lý do từ chối: ${detail.rejectReason}` : undefined },
               { ok: !!detail.technicianUserId, label: 'KTV ghi KQ',
                 time: detail.technicianRunAt, by: detail.technicianUserId,

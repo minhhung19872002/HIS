@@ -74,6 +74,14 @@ builder.Services.AddControllers(options =>
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
+        // QA-R3 time convention: UTC audit columns (CreatedAt/UpdatedAt) are written with "Z" so the browser
+        // stops showing them 7h early; business timestamps (VN local) keep the default offset-less format.
+        options.JsonSerializerOptions.TypeInfoResolver = System.Text.Json.Serialization.Metadata.JsonTypeInfoResolver.WithAddedModifier(
+            options.JsonSerializerOptions.TypeInfoResolver ?? new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver(),
+            HIS.Application.Common.UtcAuditJson.Modifier);
+        // Incoming ISO values with Z/offset (SPA toISOString) → VN wall clock; see VnLocalDateTimeJsonConverter.
+        options.JsonSerializerOptions.Converters.Add(new HIS.Application.Common.VnLocalDateTimeJsonConverter());
+        options.JsonSerializerOptions.Converters.Add(new HIS.Application.Common.NullableVnLocalDateTimeJsonConverter());
     })
     .ConfigureApiBehaviorOptions(options =>
     {
@@ -301,8 +309,23 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
         ForwardedHeaders.XForwardedFor |
         ForwardedHeaders.XForwardedProto |
         ForwardedHeaders.XForwardedHost;
+    // QA-R3 (security): clearing KnownProxies/KnownNetworks made the API trust X-Forwarded-For from ANY peer,
+    // so a client could send its own header and get a fresh "IP" per request → the per-IP rate limits
+    // (login, public-lookup, refresh) and audit IPs were bypassable. Trust only proxies on loopback or a
+    // private network: prod Caddy reaches his-api over the docker bridge "his-net" (172.16.0.0/12 or
+    // 192.168.0.0/16 pools) and local dev proxies over loopback. ForwardLimit stays 1 → only the entry the
+    // nearest trusted proxy appended is used. IPv4-mapped IPv6 variants cover dual-stack Kestrel sockets.
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
+    foreach (var (prefix, length) in new[]
+             {
+                 ("127.0.0.0", 8), ("10.0.0.0", 8), ("172.16.0.0", 12), ("192.168.0.0", 16),
+                 ("::1", 128), ("fc00::", 7),
+                 ("::ffff:127.0.0.0", 104), ("::ffff:10.0.0.0", 104), ("::ffff:172.16.0.0", 108), ("::ffff:192.168.0.0", 112),
+             })
+    {
+        options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(System.Net.IPAddress.Parse(prefix), length));
+    }
 });
 
 // SignalR for real-time notifications

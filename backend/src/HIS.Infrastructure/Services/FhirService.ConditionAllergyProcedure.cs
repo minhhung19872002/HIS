@@ -321,8 +321,8 @@ public partial class FhirService
                 : null,
             PerformedPeriod = new FhirPeriod
             {
-                Start = sr.ActualStartTime?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-                End = sr.ActualEndTime?.ToString("yyyy-MM-ddTHH:mm:ssZ")
+                Start = sr.ActualStartTime?.ToString("yyyy-MM-ddTHH:mm:ss'+07:00'"), // VN local
+                End = sr.ActualEndTime?.ToString("yyyy-MM-ddTHH:mm:ss'+07:00'")
             },
             Performer = performers.Count > 0 ? performers : null,
             ReasonCode = !string.IsNullOrEmpty(request?.PreOpDiagnosis) ? new List<FhirCodeableConcept>

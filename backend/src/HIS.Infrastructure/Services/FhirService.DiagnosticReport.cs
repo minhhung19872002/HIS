@@ -155,8 +155,9 @@ public partial class FhirService
             },
             Subject = new FhirReference { Reference = $"Patient/{lr.MedicalRecord?.PatientId}", Display = patient?.FullName },
             Encounter = lr.ExaminationId.HasValue ? new FhirReference { Reference = $"Encounter/exam-{lr.ExaminationId}" } : null,
-            EffectiveDateTime = lr.RequestDate.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            Issued = issued?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            // Business timestamps are VN local → +07:00 (the literal "Z" claimed UTC, 7h off)
+            EffectiveDateTime = lr.RequestDate.ToString("yyyy-MM-ddTHH:mm:ss'+07:00'"),
+            Issued = issued?.ToString("yyyy-MM-ddTHH:mm:ss'+07:00'"),
             Performer = lr.Doctor != null ? new List<FhirReference>
             {
                 new() { Reference = $"Practitioner/{lr.DoctorId}", Display = lr.Doctor.FullName }
@@ -195,7 +196,7 @@ public partial class FhirService
             },
             Subject = new FhirReference { Reference = $"Patient/{rr.PatientId}", Display = rr.Patient?.FullName },
             Encounter = rr.ExaminationId.HasValue ? new FhirReference { Reference = $"Encounter/exam-{rr.ExaminationId}" } : null,
-            EffectiveDateTime = rr.RequestDate.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            EffectiveDateTime = rr.RequestDate.ToString("yyyy-MM-ddTHH:mm:ss'+07:00'"), // VN local
             Performer = rr.RequestingDoctor != null ? new List<FhirReference>
             {
                 new() { Reference = $"Practitioner/{rr.RequestingDoctorId}", Display = rr.RequestingDoctor.FullName }

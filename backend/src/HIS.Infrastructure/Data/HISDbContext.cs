@@ -432,6 +432,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<TwoFactorOtp> TwoFactorOtps => Set<TwoFactorOtp>();
     public DbSet<SystemLog> SystemLogs => Set<SystemLog>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<NotificationRead> NotificationReads => Set<NotificationRead>(); // r3-security mig 201: broadcast read state per user
     public DbSet<ScheduledTask> ScheduledTasks => Set<ScheduledTask>();
     public DbSet<SmsLog> SmsLogs => Set<SmsLog>();
 
@@ -1413,6 +1414,9 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
                 case EntityState.Added:
                     entry.Entity.Id = entry.Entity.Id == Guid.Empty ? Guid.NewGuid() : entry.Entity.Id;
                     entry.Entity.CreatedAt = DateTime.UtcNow;
+                    // Audit columns are UTC (serialized with "Z"): a writer setting UpdatedAt = DateTime.Now on a
+                    // NEW row left a VN-local value that the next update would overwrite with UTC.
+                    if (entry.Entity.UpdatedAt.HasValue) entry.Entity.UpdatedAt = DateTime.UtcNow;
                     break;
                 case EntityState.Modified:
                     entry.Entity.UpdatedAt = DateTime.UtcNow;
