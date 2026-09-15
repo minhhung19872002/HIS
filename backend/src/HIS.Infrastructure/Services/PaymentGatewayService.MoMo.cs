@@ -78,7 +78,12 @@ public partial class PaymentGatewayService
     {
         var cfg = _config.GetSection("PaymentGateway:MoMo");
         var accessKey = cfg["AccessKey"] ?? "F8BBA842ECF85";
-        var secretKey = cfg["SecretKey"] ?? "K951B6PE1waDMi640xX08PD3vg6EkVlz";
+        var secretKey = CallbackSecret(cfg, "SecretKey", "K951B6PE1waDMi640xX08PD3vg6EkVlz");
+        if (secretKey == null)
+        {
+            _logger.LogWarning("MoMo IPN rejected: SecretKey is not configured");
+            return new VnPayIpnResultDto { RspCode = "97", Message = "Gateway not configured" };
+        }
 
         var orderId = body.GetValueOrDefault("orderId")?.ToString();
         var signature = body.GetValueOrDefault("signature")?.ToString();

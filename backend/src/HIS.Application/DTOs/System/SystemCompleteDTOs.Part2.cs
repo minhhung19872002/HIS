@@ -212,8 +212,10 @@ namespace HIS.Application.DTOs.System
         public Guid Id { get; set; }
         public string Code { get; set; }
         public string Name { get; set; }
-        public string Description { get; set; }
-        public List<string> Permissions { get; set; }
+        // QA0915: optional on input — with <Nullable>enable</Nullable> [ApiController] treated both as
+        // [Required], so the v2 role editor (sends description '' and no permissions) got 400 on every save.
+        public string? Description { get; set; }
+        public List<string> Permissions { get; set; } = new();
         public int UserCount { get; set; }
         public bool IsActive { get; set; }
     }
@@ -223,6 +225,9 @@ namespace HIS.Application.DTOs.System
     /// </summary>
     public class PermissionDto
     {
+        // PUT roles/{id}/permissions takes permission Ids; without Id the role editor saved an empty list
+        // and wiped the role's permissions.
+        public Guid Id { get; set; }
         public string Code { get; set; }
         public string Name { get; set; }
         public string Module { get; set; }

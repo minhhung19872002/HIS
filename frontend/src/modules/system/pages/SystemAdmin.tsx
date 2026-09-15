@@ -163,11 +163,27 @@ const SystemAdminV2: React.FC = () => {
     try {
       if (tab === 'users') { const r = await adminApi.getUsers(); setUsers(Array.isArray(r.data) ? r.data : []); }
       else if (tab === 'roles') { const r = await adminApi.getRoles(true); setRoles(Array.isArray(r.data) ? r.data : []); }
-      else if (tab === 'config') { const r = await adminApi.getSystemConfigs(); setConfigs(Array.isArray(r.data) ? r.data : []); }
+      else if (tab === 'config') {
+        const r = await adminApi.getSystemConfigs();
+        // BE SystemConfigDto is { key, value, ... } — FE type uses configKey/configValue
+        const raw = (Array.isArray(r.data) ? r.data : []) as Array<SystemConfigDto & { key?: string; value?: string }>;
+        setConfigs(raw.map((c) => ({ ...c, configKey: c.configKey ?? c.key ?? '', configValue: c.configValue ?? c.value ?? '' })));
+      }
       else if (tab === 'sessions') { const r = await adminApi.getActiveSessions(); setSessions(Array.isArray(r.data) ? r.data : []); }
       else if (tab === 'notifications') { const r = await adminApi.getSystemNotifications(); setNotifications(Array.isArray(r.data) ? r.data : []); }
       else if (tab === 'locked-services') { const r = await adminApi.getLockedServices(); setLockedServices(Array.isArray(r.data) ? r.data : []); }
-      else if (tab === 'branches') { const r = await catalogApi.getBranches(); setBranchFull((Array.isArray(r.data) ? r.data : []) as BranchRecord[]); }
+      else if (tab === 'branches') {
+        const r = await catalogApi.getBranches();
+        // BE HospitalBranchDto: branchCode/branchName/phoneNumber/isHeadquarters → FE BranchRecord shape
+        const raw = (Array.isArray(r.data) ? r.data : []) as Array<BranchRecord & { branchCode?: string; branchName?: string; phoneNumber?: string; isHeadquarters?: boolean }>;
+        setBranchFull(raw.map((b) => ({
+          ...b,
+          code: b.code ?? b.branchCode,
+          name: b.name ?? b.branchName ?? '',
+          phone: b.phone ?? b.phoneNumber,
+          isHeadquarter: b.isHeadquarter ?? b.isHeadquarters,
+        })));
+      }
       else if (tab === 'audit') {
         const r = await getAuditLogs({ ...auditFilters, keyword: keyword || undefined, pageIndex: auditPage - 1, pageSize: 50 });
         setAudit(Array.isArray(r.data?.items) ? r.data.items : []);
@@ -270,7 +286,16 @@ const SystemAdminV2: React.FC = () => {
     roleF.setFieldsValue({ code: r.code, name: r.name, description: r.description || '', isSystemRole: r.isSystemRole, isActive: r.isActive });
     if (r.id) adminApi.getRolePermissions(r.id).then((raw) => {
       const ps: PermissionDto[] = Array.isArray(raw) ? raw : (raw as { data?: PermissionDto[] })?.data ?? [];
-      setRolePermIds(ps.map(p => p.id!).filter(Boolean));
+      const ids = ps.map(p => p.id!).filter(Boolean);
+      // BE PermissionDto currently has NO id (only code/name/module) while PUT expects List<Guid>.
+      // Treat "role has permissions but none carry an id" as NOT loaded — otherwise saving the role
+      // would PUT [] and wipe every permission of that role (same data-loss class as #467).
+      if (ps.length > 0 && ids.length === 0) {
+        tw('Danh sách quyền của vai trò không có mã định danh — tạm khoá chỉnh quyền để tránh xoá nhầm.');
+        setRolePermsLoaded(false);
+        return;
+      }
+      setRolePermIds(ids);
       setRolePermsLoaded(true);
     }).catch((e) => {
       // #467: KHÔNG được coi là "vai trò không có quyền nào" — nếu nuốt lỗi ở đây thì
@@ -317,7 +342,8 @@ const SystemAdminV2: React.FC = () => {
     let v: Record<string, unknown>;
     try { v = await cfgF.validateFields(); } catch { return; }
     setSaving(true);
-    try { await adminApi.saveSystemConfig({ ...cfgModal, configValue: v.configValue as string }); tk('Đã lưu cấu hình'); setCfgModal(null); load(); }
+    // POST /admin/configs binds BE SystemConfigDto { key, value } — send both spellings
+    try { await adminApi.saveSystemConfig({ ...cfgModal, configValue: v.configValue as string, key: cfgModal.configKey, value: v.configValue as string } as SystemConfigDto); tk('Đã lưu cấu hình'); setCfgModal(null); load(); }
     catch (e: unknown) {
       if (!applyServerErrors(cfgF, e)) te(friendlyErrorMessage(e, 'Lưu thất bại'));
     }
@@ -384,7 +410,9 @@ const SystemAdminV2: React.FC = () => {
     try { v = await branchF.validateFields(); } catch { return; }
     setSaving(true);
     try {
-      const data = editingBranch ? { ...v, id: editingBranch.id } : v;
+      // POST /catalog/branches binds HospitalBranchDto (branchCode/branchName/phoneNumber/isHeadquarters)
+      const mapped = { ...v, branchCode: v.code, branchName: v.name, phoneNumber: v.phone, isHeadquarters: v.isHeadquarter };
+      const data = editingBranch ? { ...mapped, id: editingBranch.id } : mapped;
       await catalogApi.saveBranch(data); tk(editingBranch ? 'Đã cập nhật chi nhánh' : 'Đã thêm chi nhánh');
       setBranchModal(null); setEditingBranch(null); branchF.resetFields(); load();
     } catch { te('Lưu thất bại'); }
@@ -413,7 +441,7 @@ const SystemAdminV2: React.FC = () => {
   const filteredBranches = useMemo(() => {
     if (!keyword.trim()) return branchFull;
     const q = keyword.toLowerCase();
-    return branchFull.filter((b) => (b.code || '').toLowerCase().includes(q) || b.name.toLowerCase().includes(q) || (b.address || '').toLowerCase().includes(q));
+    return branchFull.filter((b) => (b.code || '').toLowerCase().includes(q) || (b.name || '').toLowerCase().includes(q) || (b.address || '').toLowerCase().includes(q));
   }, [branchFull, keyword]);
 
   const permsByModule = useMemo(() => {
@@ -795,7 +823,7 @@ const SystemAdminV2: React.FC = () => {
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, padding: '4px 12px 8px 36px' }}>
                           {filtered.map(p => (
                             <Checkbox
-                              key={p.id}
+                              key={p.id ?? p.code}
                               checked={rolePermIds.includes(p.id!)}
                               onChange={(e) => {
                                 if (e.target.checked) setRolePermIds(prev => [...new Set([...prev, p.id!])]);

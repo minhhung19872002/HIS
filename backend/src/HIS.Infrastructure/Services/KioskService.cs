@@ -181,6 +181,8 @@ public class KioskService : IKioskService
             }
         }
 
+        // Anonymous kiosk endpoint: never echo the full name back (typing any CCCD revealed who owns it).
+        ticket.PatientName = patient != null ? MaskName(patient.FullName) : null;
         return new CheckinResultDto
         {
             Ticket            = ticket,
@@ -219,7 +221,8 @@ public class KioskService : IKioskService
             DepartmentName       = deptName,
             WaitingCount         = waiting.Count,
             CurrentCalledTicket  = calledNow?.TicketNumber,
-            WaitingTickets       = waiting.Select(t => ToDto(t)).ToList(),
+            // Public queue board (anonymous): mask names like the check-in result does.
+            WaitingTickets       = waiting.Select(t => { var d = ToDto(t); d.PatientName = MaskName(d.PatientName); return d; }).ToList(),
         };
     }
 

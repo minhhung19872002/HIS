@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
@@ -18,12 +19,17 @@ public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
     private readonly IConfiguration _config;
+    private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _cache;
 
-    public AuthController(IAuthService authService, IConfiguration config)
+    public AuthController(IAuthService authService, IConfiguration config,
+        Microsoft.Extensions.Caching.Memory.IMemoryCache cache)
     {
         _authService = authService;
         _config = config;
+        _cache = cache;
     }
+
+    private static string WebAuthnChallengeKey(Guid userId) => $"webauthn:auth-challenge:{userId}";
 
     // ─── #422 [AUTHZ-2b]: refresh token qua httpOnly cookie (DORMANT — kill-switch) ──────────
     // Gated Auth:RefreshCookieEnabled (MẶC ĐỊNH false). Khi TẮT: mọi helper dưới là no-op →
@@ -288,17 +294,45 @@ public class AuthController : ControllerBase
             RpId = Request.Host.Host,
             AllowCredentials = credentials.Select(c => new WebAuthnAllowCredentialDto { Id = c.CredentialId }).ToList()
         };
+        // QA0915: remember the issued challenge (one-time, short-lived) so /authenticate can reject replays.
+        _cache.Set(WebAuthnChallengeKey(userId), options.Challenge, TimeSpan.FromMilliseconds(options.Timeout + 30000));
         return Ok(ApiResponse<WebAuthnAuthOptionsDto>.Ok(options));
     }
 
     [AllowAnonymous] // B3-global: đăng nhập sinh trắc (WebAuthn) — chưa có token
+    [EnableRateLimiting("login")]
     [HttpPost("webauthn/authenticate")]
     public async Task<ActionResult<ApiResponse<LoginResponseDto>>> WebAuthnAuthenticate([FromBody] WebAuthnAuthenticateDto dto)
     {
+        // QA0915 (P0): clientDataJSON.challenge must equal the challenge issued by authenticate-options
+        // for this user (consumed on first use). Signature verification happens in the service.
+        if (!ConsumeWebAuthnChallenge(dto))
+            return Unauthorized(ApiResponse<LoginResponseDto>.Fail("Biometric authentication failed"));
+
         var result = await _authService.AuthenticateWebAuthnAsync(dto);
         if (result == null) return Unauthorized(ApiResponse<LoginResponseDto>.Fail("Biometric authentication failed"));
         IssueRefreshCookie(result); // #422: đăng nhập sinh trắc cũng cấp refresh token thật → cookie mode set httpOnly + strip body
         return Ok(ApiResponse<LoginResponseDto>.Ok(result, "Biometric login successful"));
+    }
+
+    private bool ConsumeWebAuthnChallenge(WebAuthnAuthenticateDto dto)
+    {
+        var key = WebAuthnChallengeKey(dto.UserId);
+        if (!_cache.TryGetValue(key, out string? issued) || string.IsNullOrEmpty(issued)) return false;
+        _cache.Remove(key); // one-time
+        try
+        {
+            var clientData = Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlDecode(
+                (dto.ClientDataJSON ?? string.Empty).TrimEnd('=').Replace('+', '-').Replace('/', '_'));
+            using var doc = System.Text.Json.JsonDocument.Parse(clientData);
+            var got = doc.RootElement.GetProperty("challenge").GetString() ?? string.Empty;
+            var gotBytes = Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlDecode(got);
+            return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(gotBytes, Convert.FromBase64String(issued));
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     [Authorize]

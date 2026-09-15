@@ -54,7 +54,12 @@ public partial class PaymentGatewayService
     public async Task<VnPayIpnResultDto> HandleVnPayIpnAsync(Dictionary<string, string> queryParams)
     {
         var cfg = _config.GetSection("PaymentGateway:VnPay");
-        var hashSecret = cfg["HashSecret"] ?? "SANDBOXSECRET00000000000000000000";
+        var hashSecret = CallbackSecret(cfg, "HashSecret", "SANDBOXSECRET00000000000000000000");
+        if (hashSecret == null)
+        {
+            _logger.LogWarning("VNPay IPN rejected: HashSecret is not configured");
+            return new VnPayIpnResultDto { RspCode = "97", Message = "Gateway not configured" };
+        }
 
         if (!queryParams.TryGetValue("vnp_TxnRef", out var txnRef) ||
             !queryParams.TryGetValue("vnp_SecureHash", out var secureHash))

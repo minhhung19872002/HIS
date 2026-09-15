@@ -162,7 +162,8 @@ export default function AppointmentBookingPublic() {
   };
 
   const handleLookup = async () => {
-    if (!lookupCode && !lookupPhone) { tw('Nhập mã hẹn hoặc số điện thoại'); return; }
+    // Backend requires the booking phone for public lookups (a code alone is guessable).
+    if (!lookupPhone) { tw('Nhập số điện thoại đã dùng khi đặt lịch'); return; }
     setLoading(true);
     try {
       const rs = await lookupAppointment(lookupCode || undefined, lookupPhone || undefined);

@@ -472,8 +472,11 @@ public partial class SystemCompleteService
             // Query SQL Server backup history from msdb system database
             var results = new List<BackupHistoryDto>();
 
-            using var connection = _context.Database.GetDbConnection();
-            await connection.OpenAsync();
+            // Do NOT dispose: this connection is owned by the DbContext (disposing it breaks later queries in the same scope).
+
+            var connection = _context.Database.GetDbConnection();
+
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
 
             using var command = connection.CreateCommand();
             command.CommandText = @"
@@ -533,6 +536,17 @@ public partial class SystemCompleteService
         var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
         var backupName = string.IsNullOrEmpty(dto.BackupName)
             ? $"HIS_Backup_{timestamp}" : dto.BackupName;
+        // backupName is interpolated into BACKUP ... TO DISK = N'...' (T-SQL cannot parameterize it
+        // safely via ExecuteSqlRaw here) — allow only [A-Za-z0-9_-] to block SQL injection / path traversal.
+        if (backupName.Length > 100 || !backupName.All(c => char.IsAsciiLetterOrDigit(c) || c == '_' || c == '-'))
+            return new BackupHistoryDto
+            {
+                Id = Guid.NewGuid(),
+                BackupName = string.Empty,
+                BackupType = dto.BackupType ?? "Full",
+                BackupDate = DateTime.UtcNow,
+                Status = "Failed: Tên bản sao lưu chỉ được chứa chữ, số, '_' hoặc '-' (tối đa 100 ký tự)."
+            };
         // Docker volume mapping: ./backup:/var/opt/mssql/backup (see docker-compose.yml)
         var backupPath = $"/var/opt/mssql/backup/{backupName}.bak";
 
@@ -600,7 +614,7 @@ public partial class SystemCompleteService
             // WARNING: This is a dangerous operation and should only be done by admin.
             var sql = $@"
                 ALTER DATABASE [HIS] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-                RESTORE DATABASE [HIS] FROM DISK = N'{backup.FilePath}' WITH REPLACE;
+                RESTORE DATABASE [HIS] FROM DISK = N'{backup.FilePath.Replace("'", "''")}' WITH REPLACE;
                 ALTER DATABASE [HIS] SET MULTI_USER;";
 
             await _context.Database.ExecuteSqlRawAsync(sql);

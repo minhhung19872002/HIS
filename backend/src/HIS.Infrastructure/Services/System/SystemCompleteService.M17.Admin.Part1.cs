@@ -274,6 +274,18 @@ public partial class SystemCompleteService
 
                 // #371 inc-2: record permission change history (who changed which roles)
                 await RecordRoleChangeHistoryAsync(userId, oldRoleIds, newRoleIds);
+
+                // QA0915: role names live in the JWT ([Authorize(Roles=...)] on ~71 controllers), so a
+                // REMOVED role kept working until the access token expired (Jwt:ExpireMinutes). Rotate the
+                // SecurityStamp only when something was taken away (or a time-bound grant was set) — pure
+                // additions don't need to kick the user; they pick the new role up on next refresh/login.
+                // Refresh tokens are kept: /auth/refresh re-reads roles from DB.
+                var hasTimeBound = incomingAssignments?.Any(a => a.ValidTo.HasValue) == true;
+                if (oldRoleIds.Except(newRoleIds).Any() || hasTimeBound)
+                {
+                    user.SecurityStamp = Guid.NewGuid().ToString("N");
+                    user.UpdatedAt = DateTime.UtcNow;
+                }
             }
 
             await _context.SaveChangesAsync();
@@ -302,6 +314,9 @@ public partial class SystemCompleteService
             user.MustChangePassword = true;
             user.PasswordChangedAt = DateTime.UtcNow;
             user.UpdatedAt = DateTime.UtcNow;
+            // QA0915: reset is the incident-response path for a compromised account — without this the
+            // attacker's access token + refresh token kept working (refresh even rotated forever).
+            await RevokeAllUserSessionsTrackedAsync(user, "admin_reset_password");
             await _context.SaveChangesAsync();
             return true;
         }
@@ -337,8 +352,16 @@ public partial class SystemCompleteService
             user.MustChangePassword = false;
             user.PasswordChangedAt = DateTime.UtcNow;
             user.UpdatedAt = DateTime.UtcNow;
+            // QA0915: same revocation as AuthService.ChangePasswordAsync (AUTHZ-2 #368).
+            await RevokeAllUserSessionsTrackedAsync(user, "password_changed");
             await _context.SaveChangesAsync();
             return true;
+        }
+        catch (InvalidOperationException)
+        {
+            // QA0915: the Vietnamese validation messages above must reach the UI (global
+            // DomainGuardExceptionFilter → 400) instead of collapsing into a silent 200 {data:false}.
+            throw;
         }
         catch (Exception ex)
         {
@@ -371,6 +394,11 @@ public partial class SystemCompleteService
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null) return false;
             user.IsActive = true;
+            // QA0915: "Mở khóa" must also clear the brute-force lockout, otherwise a user locked by
+            // failed logins stays locked (login keeps returning 401) after the admin unlocks them.
+            user.FailedLoginCount = 0;
+            user.LockoutEndAt = null;
+            user.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return true;
         }
@@ -489,6 +517,7 @@ public partial class SystemCompleteService
             var items = await query.OrderBy(p => p.Module).ThenBy(p => p.PermissionCode).ToListAsync();
             return items.Select(p => new PermissionDto
             {
+                Id = p.Id,
                 Code = p.PermissionCode,
                 Name = p.PermissionName,
                 Module = p.Module,
@@ -513,6 +542,7 @@ public partial class SystemCompleteService
 
             return rolePerms.Select(rp => new PermissionDto
             {
+                Id = rp.PermissionId,
                 Code = rp.Permission?.PermissionCode,
                 Name = rp.Permission?.PermissionName,
                 Module = rp.Permission?.Module,
@@ -571,6 +601,7 @@ public partial class SystemCompleteService
                 .DistinctBy(p => p.Id)
                 .Select(p => new PermissionDto
                 {
+                    Id = p.Id,
                     Code = p.PermissionCode,
                     Name = p.PermissionName,
                     Module = p.Module,
@@ -589,6 +620,22 @@ public partial class SystemCompleteService
         // User permissions are managed through roles in this system
         _logger.LogWarning("UpdateUserPermissionsAsync: Permissions are managed through roles");
         return false;
+    }
+
+    /// <summary>
+    /// QA0915: revoke every live refresh token of the user and rotate the SecurityStamp (all access tokens
+    /// die within the stamp-cache TTL). Tracked changes only — caller saves. Same effect as
+    /// <see cref="TerminateAllSessionsAsync"/> minus the UserSessions bookkeeping.
+    /// </summary>
+    private async Task RevokeAllUserSessionsTrackedAsync(User user, string reason)
+    {
+        var now = DateTime.UtcNow;
+        var tokens = await _context.RefreshTokens
+            .Where(t => t.UserId == user.Id && t.RevokedAt == null && !t.IsDeleted)
+            .ToListAsync();
+        foreach (var t in tokens) { t.RevokedAt = now; t.ReasonRevoked = reason; t.UpdatedAt = now; }
+        user.SecurityStamp = Guid.NewGuid().ToString("N");
+        user.UpdatedAt = now;
     }
 
 }

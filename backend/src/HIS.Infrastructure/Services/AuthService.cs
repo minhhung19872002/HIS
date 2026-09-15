@@ -39,14 +39,27 @@ public class AuthService : IAuthService
         _realtime = realtime;
     }
 
-    public async Task<LoginResponseDto?> LoginAsync(LoginDto dto)
+    /// <summary>
+    /// Users + Department + role/permission graph used to build UserDto/JWT.
+    /// QA0915: only role assignments that are currently valid (ValidFrom/ValidTo, same rule as
+    /// PermissionService) — an EXPIRED temporary grant used to still land in the JWT role claims and
+    /// pass [Authorize(Roles=...)] forever.
+    /// </summary>
+    private IQueryable<User> UsersWithAuthGraph()
     {
-        var user = await _context.Users
+        var now = DateTime.UtcNow;
+        return _context.Users
             .Include(u => u.Department)
-            .Include(u => u.UserRoles)
+            .Include(u => u.UserRoles.Where(ur => (ur.ValidFrom == null || ur.ValidFrom <= now)
+                                               && (ur.ValidTo == null || ur.ValidTo >= now)))
                 .ThenInclude(ur => ur.Role)
                     .ThenInclude(r => r.RolePermissions)
-                        .ThenInclude(rp => rp.Permission)
+                        .ThenInclude(rp => rp.Permission);
+    }
+
+    public async Task<LoginResponseDto?> LoginAsync(LoginDto dto)
+    {
+        var user = await UsersWithAuthGraph()
             .FirstOrDefaultAsync(u => u.Username == dto.Username && u.IsActive && !u.IsDeleted);
 
         if (user == null)
@@ -140,15 +153,12 @@ public class AuthService : IAuthService
         await _context.SaveChangesAsync();
 
         // Load user with all navigation properties for JWT
-        var user = await _context.Users
-            .Include(u => u.Department)
-            .Include(u => u.UserRoles)
-                .ThenInclude(ur => ur.Role)
-                    .ThenInclude(r => r.RolePermissions)
-                        .ThenInclude(rp => rp.Permission)
+        var user = await UsersWithAuthGraph()
             .FirstOrDefaultAsync(u => u.Id == dto.UserId && u.IsActive && !u.IsDeleted);
 
-        if (user == null)
+        // QA0915: OTP is a SECOND factor — never a login on its own for users without 2FA, nor for locked accounts.
+        if (user == null || !user.IsTwoFactorEnabled
+            || (user.LockoutEndAt.HasValue && user.LockoutEndAt.Value > DateTime.UtcNow))
             return null;
 
         // #384: last-wins đá phiên cũ (luồng OTP)
@@ -179,8 +189,21 @@ public class AuthService : IAuthService
         if (lastOtp != null && (DateTime.UtcNow - lastOtp.CreatedAt).TotalSeconds < resendDelay)
             return false; // Too soon
 
+        // QA0915 (P0): this endpoint is anonymous and keyed only by userId. It used to mint an OTP for ANY
+        // user (2FA or not) — together with verify-otp that is a password-less login by guessing 6 digits.
+        // Resend only continues a login that already passed the password step (a pending, unexpired OTP).
+        if (lastOtp == null || lastOtp.IsUsed || lastOtp.ExpiresAt <= DateTime.UtcNow)
+            return false;
+        // Cap the resend chain (each resend = a fresh OTP with fresh attempts) — otherwise resend-every-30s
+        // gives unlimited guesses: at most 5 OTPs per user per 15 minutes.
+        var windowStart = DateTime.UtcNow.AddMinutes(-15);
+        var issuedRecently = await _context.TwoFactorOtps.IgnoreQueryFilters()
+            .CountAsync(o => o.UserId == userId && o.CreatedAt >= windowStart);
+        if (issuedRecently >= 5)
+            return false;
+
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && u.IsActive && !u.IsDeleted);
-        if (user == null || string.IsNullOrEmpty(user.Email))
+        if (user == null || string.IsNullOrEmpty(user.Email) || !user.IsTwoFactorEnabled)
             return false;
 
         await GenerateAndSendOtp(user);
@@ -275,12 +298,7 @@ public class AuthService : IAuthService
             return null;
         }
 
-        var user = await _context.Users
-            .Include(u => u.Department)
-            .Include(u => u.UserRoles)
-                .ThenInclude(ur => ur.Role)
-                    .ThenInclude(r => r.RolePermissions)
-                        .ThenInclude(rp => rp.Permission)
+        var user = await UsersWithAuthGraph()
             .FirstOrDefaultAsync(u => u.Id == result.UserId && u.IsActive && !u.IsDeleted);
 
         if (user == null)
@@ -325,12 +343,7 @@ public class AuthService : IAuthService
 
     public async Task<UserDto?> GetCurrentUserAsync(Guid userId)
     {
-        var user = await _context.Users
-            .Include(u => u.Department)
-            .Include(u => u.UserRoles)
-                .ThenInclude(ur => ur.Role)
-                    .ThenInclude(r => r.RolePermissions)
-                        .ThenInclude(rp => rp.Permission)
+        var user = await UsersWithAuthGraph()
             .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
 
         return user == null ? null : MapUserDto(user);
@@ -509,19 +522,22 @@ public class AuthService : IAuthService
             return null;
         }
 
-        // In production, verify the signature against the stored public key.
-        // For now, trust the browser's WebAuthn API verification and update sign count.
+        // QA0915 (P0): this used to "trust the browser" and issue a JWT for any {userId, credentialId} —
+        // and authenticate-options hands out the credentialId anonymously. Now the assertion signature
+        // MUST verify against the stored public key (SPKI from AuthenticatorAttestationResponse.getPublicKey()).
+        // Challenge freshness is checked by AuthController before calling here.
+        if (!VerifyWebAuthnAssertion(credential.PublicKey, dto.AuthenticatorData, dto.ClientDataJSON, dto.Signature))
+        {
+            _logger.LogWarning("WebAuthn authentication failed: bad signature for user {UserId}", dto.UserId);
+            return null;
+        }
+
         credential.SignCount++;
         credential.LastUsedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
         // Load user with navigation properties for JWT generation
-        var user = await _context.Users
-            .Include(u => u.Department)
-            .Include(u => u.UserRoles)
-                .ThenInclude(ur => ur.Role)
-                    .ThenInclude(r => r.RolePermissions)
-                        .ThenInclude(rp => rp.Permission)
+        var user = await UsersWithAuthGraph()
             .FirstOrDefaultAsync(u => u.Id == dto.UserId && u.IsActive && !u.IsDeleted);
 
         if (user == null) return null;
@@ -544,6 +560,59 @@ public class AuthService : IAuthService
             ExpiresAt = DateTime.UtcNow.AddMinutes(expireMinutes),
             User = userDto
         };
+    }
+
+    /// <summary>
+    /// Verifies a WebAuthn assertion: signature over authenticatorData || SHA-256(clientDataJSON) with the
+    /// stored SPKI public key (ES256 DER signature or RS256 PKCS#1), clientData.type == "webauthn.get" and
+    /// the User-Present flag. Inputs are base64url (standard base64 tolerated). Any parse error → false.
+    /// </summary>
+    internal static bool VerifyWebAuthnAssertion(string? publicKeySpki, string? authenticatorData, string? clientDataJson, string? signature)
+    {
+        try
+        {
+            var keyBytes = FromBase64Url(publicKeySpki);
+            var authData = FromBase64Url(authenticatorData);
+            var clientData = FromBase64Url(clientDataJson);
+            var sig = FromBase64Url(signature);
+            if (keyBytes.Length == 0 || authData.Length < 37 || clientData.Length == 0 || sig.Length == 0) return false;
+            if ((authData[32] & 0x01) == 0) return false; // UP flag
+
+            using (var doc = System.Text.Json.JsonDocument.Parse(clientData))
+            {
+                if (!doc.RootElement.TryGetProperty("type", out var type) || type.GetString() != "webauthn.get")
+                    return false;
+            }
+
+            var signed = new byte[authData.Length + 32];
+            Buffer.BlockCopy(authData, 0, signed, 0, authData.Length);
+            Buffer.BlockCopy(SHA256.HashData(clientData), 0, signed, authData.Length, 32);
+
+            try
+            {
+                using var ec = ECDsa.Create();
+                ec.ImportSubjectPublicKeyInfo(keyBytes, out _);
+                return ec.VerifyData(signed, sig, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence);
+            }
+            catch (CryptographicException)
+            {
+                using var rsa = RSA.Create();
+                rsa.ImportSubjectPublicKeyInfo(keyBytes, out _);
+                return rsa.VerifyData(signed, sig, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            }
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    internal static byte[] FromBase64Url(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return Array.Empty<byte>();
+        var s = value.Trim().Replace('-', '+').Replace('_', '/');
+        switch (s.Length % 4) { case 2: s += "=="; break; case 3: s += "="; break; }
+        return Convert.FromBase64String(s);
     }
 
     public async Task<bool> DeleteWebAuthnCredentialAsync(Guid userId, Guid credentialId)
@@ -732,12 +801,32 @@ public class AuthService : IAuthService
 
     public async Task<bool> VerifyPasswordAsync(Guid userId, string password)
     {
+        // QA0915: this endpoint takes ANY userId from any logged-in user, so it was an unlimited
+        // password-guessing oracle that bypassed the login lockout. Apply the same counter/lockout as LoginAsync.
         var user = await _context.Users
-            .Where(u => u.Id == userId && u.IsActive && !u.IsDeleted)
-            .Select(u => new { u.PasswordHash })
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(u => u.Id == userId && u.IsActive && !u.IsDeleted);
 
         if (user == null) return false;
-        return BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
+        if (user.LockoutEndAt.HasValue && user.LockoutEndAt.Value > DateTime.UtcNow)
+        {
+            _logger.LogWarning("VerifyPassword on locked account user={UserId}", userId);
+            return false;
+        }
+
+        if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
+        {
+            user.FailedLoginCount++;
+            user.LockoutEndAt = ComputeLockoutEndAt(user.FailedLoginCount);
+            await _context.SaveChangesAsync();
+            _logger.LogWarning("FailedVerifyPassword user={UserId} count={Count}", userId, user.FailedLoginCount);
+            return false;
+        }
+
+        if (user.FailedLoginCount != 0)
+        {
+            user.FailedLoginCount = 0;
+            await _context.SaveChangesAsync();
+        }
+        return true;
     }
 }

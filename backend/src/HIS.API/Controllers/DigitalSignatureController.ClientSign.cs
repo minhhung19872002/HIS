@@ -76,8 +76,26 @@ public partial class DigitalSignatureController
         try { signedBytes = Convert.FromBase64String(request.SignedBase64); }
         catch { return Ok(new SignDocumentResponse { Success = false, Message = "Dữ liệu đã ký không hợp lệ (base64)" }); }
 
+        // DocumentType becomes a directory name below — reject path separators / ".." (path traversal).
+        if (!IsSafeDocumentTypeSegment(request.DocumentType))
+            return Ok(new SignDocumentResponse { Success = false, Message = "Loại tài liệu không hợp lệ" });
+
         var userId = GetCurrentUserId();
         var ext = string.Equals(request.FileType, "xml", StringComparison.OrdinalIgnoreCase) ? "xml" : "pdf";
+
+        // QA0915 (P0): the backend used to store ANY base64 blob + client-claimed certificate fields as an
+        // active signature (forgeable "đã ký"). Require a cryptographically valid embedded signature.
+        var invalidReason = ext == "pdf" ? VerifySubmittedPdf(signedBytes) : VerifySubmittedXml(signedBytes);
+        if (invalidReason != null)
+        {
+            _logger.LogWarning("submit-signed rejected for {Type} {Id} by {UserId}: {Reason}", request.DocumentType, request.DocumentId, userId, invalidReason);
+            return Ok(new SignDocumentResponse { Success = false, Message = invalidReason });
+        }
+
+        // QA0915: must not silently revoke another user's active signature (RevokeSignature rule).
+        var resignBlock = await GetResignBlockReasonAsync(request.DocumentId, request.DocumentType, userId);
+        if (resignBlock != null)
+            return Ok(new SignDocumentResponse { Success = false, Message = resignBlock });
 
         var outputDir = Path.Combine(Directory.GetCurrentDirectory(), "Reports", "Signed", request.DocumentType);
         Directory.CreateDirectory(outputDir);
@@ -113,5 +131,38 @@ public partial class DigitalSignatureController
             CaProvider = signature.CaProvider,
             SignedDocumentUrl = $"/api/digital-signature/download/{signature.Id}",
         });
+    }
+
+    /// <summary>PAdES: at least one embedded signature and every signature verifies (integrity + authenticity).</summary>
+    private string? VerifySubmittedPdf(byte[] pdfBytes)
+    {
+        var v = _pdfService.VerifyPdfSignatures(pdfBytes);
+        if (v.SignatureCount == 0) return "Tệp PDF không chứa chữ ký số.";
+        return v.Valid ? null : "Chữ ký số trong tệp PDF không hợp lệ.";
+    }
+
+    /// <summary>XAdES/XMLDSig: every ds:Signature element verifies with the key/certificate in its KeyInfo.</summary>
+    private static string? VerifySubmittedXml(byte[] xmlBytes)
+    {
+        try
+        {
+            var xml = new System.Xml.XmlDocument { PreserveWhitespace = true, XmlResolver = null };
+            using (var ms = new MemoryStream(xmlBytes))
+            using (var reader = System.Xml.XmlReader.Create(ms, new System.Xml.XmlReaderSettings { DtdProcessing = System.Xml.DtdProcessing.Prohibit, XmlResolver = null }))
+                xml.Load(reader);
+            var nodes = xml.GetElementsByTagName("Signature", System.Security.Cryptography.Xml.SignedXml.XmlDsigNamespaceUrl);
+            if (nodes.Count == 0) return "Tệp XML không chứa chữ ký số.";
+            foreach (System.Xml.XmlElement node in nodes)
+            {
+                var signedXml = new System.Security.Cryptography.Xml.SignedXml(xml);
+                signedXml.LoadXml(node);
+                if (!signedXml.CheckSignature()) return "Chữ ký số trong tệp XML không hợp lệ.";
+            }
+            return null;
+        }
+        catch (Exception)
+        {
+            return "Tệp XML đã ký không đọc/xác thực được.";
+        }
     }
 }

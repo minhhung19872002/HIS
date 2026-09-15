@@ -77,7 +77,12 @@ public partial class PaymentGatewayService
     public async Task<VnPayIpnResultDto> HandleZaloPayCallbackAsync(Dictionary<string, object> body)
     {
         var cfg = _config.GetSection("PaymentGateway:ZaloPay");
-        var key2 = cfg["Key2"] ?? "kLtgPl8HHhfvMuDHPwKfgfsY4Ydm9eIz";
+        var key2 = CallbackSecret(cfg, "Key2", "kLtgPl8HHhfvMuDHPwKfgfsY4Ydm9eIz");
+        if (key2 == null)
+        {
+            _logger.LogWarning("ZaloPay callback rejected: Key2 is not configured");
+            return new VnPayIpnResultDto { RspCode = "97", Message = "Gateway not configured" };
+        }
 
         var data = body.GetValueOrDefault("data")?.ToString();
         var mac = body.GetValueOrDefault("mac")?.ToString();

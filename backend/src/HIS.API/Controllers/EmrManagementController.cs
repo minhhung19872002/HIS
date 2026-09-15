@@ -185,6 +185,9 @@ public class EmrManagementController : ControllerBase
         => Ok(await _service.CloseEmrAsync(dto));
 
     [HttpPost("reopen")]
+    // QA0915 (TT46): this clears MedicalRecords.EmrFinalizedAt, so it must be as restricted as
+    // POST emr-admin/records/{id}/reopen — before, any Doctor/Nurse could unlock a finalized EMR here.
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Director + "," + RoleNames.Manager + "," + RoleNames.MedicalRecordManager)]
     public async Task<IActionResult> ReopenEmr([FromBody] ReopenEmrRequestDto dto)
         => await _service.ReopenEmrAsync(dto.ExaminationId, dto.Note) ? Ok() : NotFound();
 

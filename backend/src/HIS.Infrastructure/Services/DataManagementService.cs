@@ -175,7 +175,10 @@ public class DataManagementService : IDataManagementService
 
         var localPath = await GetSystemConfigValueAsync("Backup.LocalPath") ?? GetDefaultBackupPath();
         var now = DateTime.UtcNow;
-        var fileName = $"HIS_{request.BackupLabel}_{now:yyyyMMdd_HHmmss}.bak";
+        // BackupLabel is user input joined into a file path — keep only [A-Za-z0-9_-] (no "../", separators).
+        var safeLabel = new string((request.BackupLabel ?? string.Empty)
+            .Where(c => char.IsAsciiLetterOrDigit(c) || c == '_' || c == '-').Take(60).ToArray());
+        var fileName = $"HIS_{safeLabel}_{now:yyyyMMdd_HHmmss}.bak";
         var filePath = Path.Combine(localPath, fileName);
 
         // BackupType: 0=Manual, 1=Scheduled (khi được gọi bởi worker)
@@ -335,7 +338,8 @@ public class DataManagementService : IDataManagementService
         var restoreScript =
             $"-- CẢNH BÁO: Lệnh dưới đây SẼ GHI ĐÈ toàn bộ dữ liệu DB [{dbName}]!\n" +
             $"-- Chỉ chạy khi đã ngắt toàn bộ kết nối và có sự đồng ý của quản trị viên.\n" +
-            $"-- Lý do yêu cầu: {request.Reason}\n" +
+            // Strip CR/LF: a newline in Reason would escape the "--" comment and inject T-SQL into the script.
+            $"-- Lý do yêu cầu: {request.Reason.Replace('\r', ' ').Replace('\n', ' ')}\n" +
             $"-- Người yêu cầu: {userId} lúc {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC\n\n" +
             $"ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;\n" +
             $"RESTORE DATABASE [{dbName}] FROM DISK = N'{filePath.Replace("'", "''")}'\n" +

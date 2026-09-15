@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using HIS.Application.Services;
 using HIS.Application.DTOs.Telemedicine;
 using HIS.Application.DTOs.Nutrition;
@@ -126,6 +127,7 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpPost("account/link-record")]
         [AllowAnonymous]
+        [EnableRateLimiting("public-lookup")]
         public async Task<ActionResult> LinkRecord([FromBody] LinkPatientRecordRequestDto dto)
         {
             var ok = await _service.LinkPatientRecordAsync(dto.AccountId, dto.PatientCode, dto.VerificationData);

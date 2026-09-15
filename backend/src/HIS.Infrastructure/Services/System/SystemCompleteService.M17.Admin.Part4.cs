@@ -21,7 +21,8 @@ public partial class SystemCompleteService
             var conditions = new List<string>();
             if (search.Status.HasValue) conditions.Add($"Status = {search.Status.Value}");
             if (search.Priority.HasValue) conditions.Add($"Priority = {search.Priority.Value}");
-            if (!string.IsNullOrEmpty(search.Keyword)) conditions.Add($"(Title LIKE '%{search.Keyword}%' OR Description LIKE '%{search.Keyword}%')");
+            // Keyword is bound as a parameter (was string-concatenated → SQL injection).
+            if (!string.IsNullOrEmpty(search.Keyword)) conditions.Add("(Title LIKE @Keyword OR Description LIKE @Keyword)");
             if (conditions.Any()) sql += " AND " + string.Join(" AND ", conditions);
             sql += " ORDER BY CreatedAt DESC";
 
@@ -31,6 +32,10 @@ public partial class SystemCompleteService
 
             using var command = connection.CreateCommand();
             command.CommandText = sql;
+            if (!string.IsNullOrEmpty(search.Keyword))
+            {
+                var kw = command.CreateParameter(); kw.ParameterName = "@Keyword"; kw.Value = $"%{search.Keyword}%"; command.Parameters.Add(kw);
+            }
             using var reader = await command.ExecuteReaderAsync();
 
             var results = new List<ItTicketDto>();
@@ -99,19 +104,9 @@ public partial class SystemCompleteService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to create IT ticket (table may not exist)");
-            // Return a stub response so the API doesn't break
-            return new ItTicketDto
-            {
-                Id = Guid.NewGuid(),
-                Title = dto.Title,
-                Description = dto.Description,
-                DepartmentName = departmentName,
-                RequestedByName = userName,
-                Priority = dto.Priority,
-                Status = 0,
-                CreatedAt = DateTime.UtcNow,
-            };
+            // Surface the failure: a fake "created" ticket made users believe the request was saved.
+            _logger.LogWarning(ex, "Failed to create IT ticket");
+            throw;
         }
     }
 
@@ -145,7 +140,7 @@ public partial class SystemCompleteService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to respond to IT ticket {TicketId}", ticketId);
-            return new ItTicketDto { Id = ticketId, Response = dto.Response, AssignedToName = respondedByName, Status = 1 };
+            throw;
         }
     }
 

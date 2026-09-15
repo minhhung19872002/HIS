@@ -4,6 +4,7 @@ using HIS.Application.DTOs.Payment;
 using HIS.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace HIS.API.Controllers;
 
@@ -170,6 +171,7 @@ public class PaymentGatewayController : ControllerBase
     /// AllowAnonymous vì kiosk không đăng nhập (như KioskController); không lộ chi tiết dịch vụ.
     /// </summary>
     [HttpPost("kiosk/qr")]
+    [EnableRateLimiting("public-lookup")]
     [AllowAnonymous]
     public async Task<ActionResult<KioskQrResponseDto>> CreateKioskQr([FromBody] KioskQrRequestDto dto)
     {

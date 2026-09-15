@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using HIS.Application.Services;
 
 namespace HIS.API.Controllers;
@@ -80,6 +81,7 @@ public class AppointmentBookingController : ControllerBase
     /// Tra cứu lịch hẹn theo mã hoặc SĐT
     /// </summary>
     [HttpGet("lookup")]
+    [EnableRateLimiting("public-lookup")]
     public async Task<ActionResult<List<BookingStatusDto>>> LookupAppointment(
         [FromQuery] string? code,
         [FromQuery] string? phone,
@@ -87,7 +89,15 @@ public class AppointmentBookingController : ControllerBase
     {
         // Tra theo id hồ sơ chỉ dành cho người gọi đã xác thực: id là Guid nên khó đoán, nhưng khó
         // đoán chưa bao giờ là phân quyền.
-        if (User.Identity?.IsAuthenticated != true) patientId = null;
+        if (User.Identity?.IsAuthenticated != true)
+        {
+            patientId = null;
+            // Appointment codes are short (DK{date}{4 digits}) and enumerable: an anonymous caller
+            // must also prove the phone number the booking was made with, or any code leaked name,
+            // phone and reason for visit.
+            if (string.IsNullOrWhiteSpace(phone))
+                return BadRequest(new { error = "VALIDATION_FAILED", message = "Vui lòng nhập số điện thoại đã dùng khi đặt lịch." });
+        }
         var result = await _bookingService.LookupAppointmentsAsync(code, phone, patientId);
         return Ok(result);
     }

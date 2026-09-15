@@ -33,6 +33,23 @@ public partial class PaymentGatewayService : IPaymentGatewayService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Secret used to VERIFY an inbound gateway callback. A key configured as "" used to fall through
+    /// (`?? fallback` only catches null) and the HMAC was computed with an empty key, which anyone can
+    /// reproduce — a forged callback then marked the order paid. The public sandbox fallback is only
+    /// allowed in Development; elsewhere a missing/blank key means "gateway not configured".
+    /// </summary>
+    private string? CallbackSecret(IConfigurationSection cfg, string key, string sandboxFallback)
+    {
+        var value = cfg[key];
+        if (value == null && IsDevelopmentEnvironment()) return sandboxFallback;
+        return string.IsNullOrWhiteSpace(value) ? null : value;
+    }
+
+    private bool IsDevelopmentEnvironment() =>
+        string.Equals(_config["ASPNETCORE_ENVIRONMENT"] ?? _config["DOTNET_ENVIRONMENT"], "Development",
+            StringComparison.OrdinalIgnoreCase);
+
     public async Task<PaymentUrlResponseDto> CreatePaymentUrlAsync(
         CreatePaymentUrlDto dto,
         string ipAddress,

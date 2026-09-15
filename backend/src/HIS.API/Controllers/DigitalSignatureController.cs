@@ -166,6 +166,12 @@ public partial class DigitalSignatureController : ControllerBase
             });
         }
 
+        // QA0915: re-signing auto-revokes the active signature — must not let a user wipe SOMEONE ELSE's
+        // signature (explicit revoke is signer/Admin only, see RevokeSignature).
+        var resignBlock = await GetResignBlockReasonAsync(request.DocumentId, request.DocumentType, userId);
+        if (resignBlock != null)
+            return Ok(new SignDocumentResponse { Success = false, Message = resignBlock });
+
         // Auto-revoke existing signature if document already signed
         var revokedSignatureId = await _signatureStore.RevokeActiveSignatureAsync(request.DocumentId, request.DocumentType, userId);
         if (revokedSignatureId != null)
@@ -332,9 +338,28 @@ public partial class DigitalSignatureController : ControllerBase
         return Ok(response);
     }
 
+    /// <summary>
+    /// QA0915: returns a user-facing reason when the caller may not replace the document's active signature
+    /// (it belongs to another user and the caller is not Admin); null when re-signing is allowed.
+    /// Same rule as <see cref="RevokeSignature"/>.
+    /// </summary>
+    private async Task<string?> GetResignBlockReasonAsync(Guid documentId, string documentType, Guid userId)
+    {
+        if (User.IsInRole(RoleNames.Admin)) return null;
+        var active = await _signatureStore.GetActiveSignaturesForDocumentAsync(documentId);
+        var other = active.FirstOrDefault(s => s.DocumentType == documentType && s.SignedByUserId != userId);
+        return other == null
+            ? null
+            : $"Tài liệu đã được ký bởi {other.SignedByUser?.FullName ?? "người khác"}. Người ký hoặc quản trị phải thu hồi chữ ký trước khi ký lại.";
+    }
+
     private async Task<SignDocumentResponse> SignDocumentInternal(
         Guid userId, Pkcs11SessionEntry session, SignDocumentRequest request)
     {
+        // DocumentType becomes a directory name when saving — reject path separators / ".." (path traversal).
+        if (!IsSafeDocumentTypeSegment(request.DocumentType))
+            return new SignDocumentResponse { Success = false, Message = "Loại tài liệu không hợp lệ" };
+
         // Generate HTML from document
         byte[] htmlBytes;
         try
@@ -451,6 +476,12 @@ public partial class DigitalSignatureController : ControllerBase
             _ => await _pdfGeneration.GenerateEmrPdfAsync(documentId, "summary")
         };
     }
+
+    /// <summary>DocumentType is used as a folder name under Reports/Signed — allow only [A-Za-z0-9_-].</summary>
+    private static bool IsSafeDocumentTypeSegment(string? documentType) =>
+        !string.IsNullOrWhiteSpace(documentType)
+        && documentType.Length <= 64
+        && documentType.All(c => char.IsAsciiLetterOrDigit(c) || c == '_' || c == '-');
 
     private Guid GetCurrentUserId()
     {

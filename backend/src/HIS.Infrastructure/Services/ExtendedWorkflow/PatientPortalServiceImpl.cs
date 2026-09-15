@@ -71,10 +71,14 @@ public partial class PatientPortalServiceImpl : IPatientPortalService
 
     public async Task<bool> LinkPatientRecordAsync(Guid accountId, string patientCode, string verificationData)
     {
-        var patient = await _context.Patients.FirstOrDefaultAsync(x => x.PatientCode == patientCode);
-        if (patient == null) return false;
         var account = await _context.PortalAccounts.FindAsync(accountId);
         if (account == null) return false;
+        // Anonymous endpoint + guessable verification (a birth date is ~36k values): cap attempts per
+        // account and never re-point an account that is already linked to someone else.
+        if (account.LockedUntil.HasValue && account.LockedUntil.Value > DateTime.UtcNow) return false;
+        var patient = await _context.Patients.FirstOrDefaultAsync(x => x.PatientCode == patientCode);
+        if (patient == null) { await RegisterFailedLinkAttemptAsync(account); return false; }
+        if (account.PatientId.HasValue && account.PatientId.Value != patient.Id) return false;
 
         // R2: BẮT BUỘC verify — verificationData phải khớp SĐT / CCCD / ngày sinh (yyyy-MM-dd) của BN.
         // Trước đây không kiểm tra gì → ai có account đều link được bất kỳ patientCode (IDOR).
@@ -84,11 +88,23 @@ public partial class PatientPortalServiceImpl : IPatientPortalService
             (!string.IsNullOrWhiteSpace(patient.PhoneNumber) && string.Equals(patient.PhoneNumber.Trim(), v, StringComparison.Ordinal)) ||
             (!string.IsNullOrWhiteSpace(patient.IdentityNumber) && string.Equals(patient.IdentityNumber.Trim(), v, StringComparison.Ordinal)) ||
             (patient.DateOfBirth.HasValue && patient.DateOfBirth.Value.ToString("yyyy-MM-dd") == v);
-        if (!matches) return false;
+        if (!matches) { await RegisterFailedLinkAttemptAsync(account); return false; }
 
         account.PatientId = patient.Id; account.Status = "Active";
+        account.FailedLoginAttempts = 0; account.LockedUntil = null;
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    private async Task RegisterFailedLinkAttemptAsync(PortalAccount account)
+    {
+        account.FailedLoginAttempts++;
+        if (account.FailedLoginAttempts >= 5)
+        {
+            account.LockedUntil = DateTime.UtcNow.AddMinutes(30);
+            account.FailedLoginAttempts = 0;
+        }
+        await _context.SaveChangesAsync();
     }
 
     // eKYC = DEFER (F9): lưu base64 ảnh CCCD/selfie sinh trắc là quyết định PII/biometric nhạy cảm

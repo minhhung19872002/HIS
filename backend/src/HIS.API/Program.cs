@@ -67,6 +67,9 @@ builder.Services.AddControllers(options =>
         options.Filters.Add<HIS.API.Filters.ApiResponseWrapperFilter>();
         // #369: UnauthorizedAccessException → 403 (trước đây rơi vào catch-all → 500).
         options.Filters.Add<HIS.API.Filters.ForbiddenExceptionFilter>();
+        // QA sweep 2026-09-15: business guards (not-found / invalid state / validation) from services
+        // behind controllers without DomainExceptionFilter → 404/400 with the reason, not a bare 500.
+        options.Filters.Add<HIS.API.Filters.DomainGuardExceptionFilter>();
     })
     .AddJsonOptions(options =>
     {
@@ -276,6 +279,17 @@ builder.Services.AddRateLimiter(options =>
             {
                 Window = TimeSpan.FromMinutes(1),
                 PermitLimit = 120,
+                QueueLimit = 0
+            }));
+    // Anonymous endpoints that confirm identity data (portal record linking, booking lookup, kiosk QR by
+    // patient code + birth date): tight per-IP bucket so they cannot be used to enumerate patients.
+    options.AddPolicy("public-lookup", httpContext =>
+        System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 20,
                 QueueLimit = 0
             }));
     options.RejectionStatusCode = 429;

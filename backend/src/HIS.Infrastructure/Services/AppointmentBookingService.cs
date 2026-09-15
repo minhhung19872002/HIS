@@ -608,12 +608,21 @@ public class AppointmentBookingService : IAppointmentBookingService
             query = query.Where(a => a.PatientId == patientId.Value);
         else if (string.IsNullOrWhiteSpace(phone))
             return new List<BookingStatusDto>();
+        else
+        {
+            // Phone-only lookup filters in memory (encrypted column): bound the rows loaded instead of
+            // pulling the whole Appointments table on every anonymous request.
+            var since = DateTime.Today.AddDays(-365);
+            query = query.Where(a => a.AppointmentDate >= since);
+        }
 
         var appointments = await query
             .OrderByDescending(a => a.AppointmentDate)
             .ToListAsync();
 
-        if (string.IsNullOrWhiteSpace(code) && !patientId.HasValue)
+        // Phone is compared in memory (the column is encrypted), so a code lookup that also carries a
+        // phone must match it too — otherwise the phone check above is decorative.
+        if (!patientId.HasValue && !string.IsNullOrWhiteSpace(phone))
         {
             appointments = appointments
                 .Where(a => PhoneNumberKey.Same(a.Patient?.PhoneNumber, phone))
