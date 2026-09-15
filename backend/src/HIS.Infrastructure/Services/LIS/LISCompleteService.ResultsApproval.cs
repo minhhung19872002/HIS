@@ -137,7 +137,14 @@ public partial class LISCompleteService {
 
         var details = await detailQuery.ToListAsync();
 
-        foreach (var d in details.Where(x => !string.IsNullOrEmpty(x.Result)))
+        // QA-R2: same rule as final-approve — re-approving overwrote the approver/time and re-notified.
+        var toApprove = details.Where(x => !string.IsNullOrEmpty(x.Result) && x.ReviewedAt == null).ToList();
+        if (toApprove.Count == 0)
+            throw new InvalidOperationException(details.Any(x => !string.IsNullOrEmpty(x.Result))
+                ? "Kết quả đã được duyệt — hủy duyệt trước nếu cần duyệt lại"
+                : "Phiếu không có kết quả nào để duyệt");
+
+        foreach (var d in toApprove)
         {
             d.ReviewedAt = DateTime.Now;
             d.ReviewerUserId = dto.ApprovedByUserId;
@@ -185,7 +192,13 @@ public partial class LISCompleteService {
         // Nothing to approve (unknown order / no result yet) → report it instead of a silent "approved"
         if (!details.Any(x => !string.IsNullOrEmpty(x.Result))) return false;
 
-        foreach (var d in details.Where(x => !string.IsNullOrEmpty(x.Result)))
+        // Second final-approve used to return 200, overwrite approver/time of an already released result
+        // and re-send the "BS duyệt" notification. Only unreviewed results are approved; none left → refuse.
+        var toApprove = details.Where(x => !string.IsNullOrEmpty(x.Result) && x.ReviewedAt == null).ToList();
+        if (toApprove.Count == 0)
+            throw new InvalidOperationException("Phiếu đã được duyệt chính thức — hủy duyệt trước nếu cần duyệt lại");
+
+        foreach (var d in toApprove)
         {
             d.ReviewedAt = DateTime.Now;
             d.ReviewerUserId = approvedByUserId;

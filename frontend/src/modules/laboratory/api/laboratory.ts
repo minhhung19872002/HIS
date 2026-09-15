@@ -130,6 +130,7 @@ interface RawLabTestItem {
   criticalHigh?: number;
   resultStatus?: number | null;
   status?: number;
+  parameters?: LabResultParameter[] | null;
 }
 
 interface RawLabRequest {
@@ -183,7 +184,9 @@ export const getLabRequests = async (params?: {
     patientId: item.patientId,
     patientCode: item.patientCode,
     patientName: item.patientName,
-    gender: item.gender === 'Nam' ? 1 : item.gender === 'Nu' ? 0 : 2,
+    // BE sends "Nam" | "Nữ" | null → 1 | 2 | 0 (drawer renders 1=Nam, 2=Nữ, else "—");
+    // the old fallback `: 2` labelled every patient without a gender as female.
+    gender: item.gender === 'Nam' ? 1 : (item.gender === 'Nữ' || item.gender === 'Nu') ? 2 : 0,
     dateOfBirth: item.dateOfBirth,
     requestedTests: item.tests?.map((t) => t.testName) || [],
     tests: item.tests?.map((t) => ({
@@ -199,7 +202,10 @@ export const getLabRequests = async (params?: {
       criticalLow: t.criticalLow,
       criticalHigh: t.criticalHigh,
       resultStatus: t.resultStatus,
-      status: t.status || 0
+      status: t.status || 0,
+      // R1 per-parameter rows (panel tests like CBC): dropping them hid every parameter
+      // value + its H/L/HH/LL flag in the v2 drawer and abnormal counters.
+      parameters: t.parameters ?? null,
     })) || [],
     priority: item.isEmergency ? 2 : item.isPriority ? 1 : 0,
     requestDate: item.orderedAt,

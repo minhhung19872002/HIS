@@ -46,6 +46,7 @@ namespace HIS.Infrastructure.Services
                 PatientId = reader.IsDBNull(reader.GetOrdinal("PatientId")) ? null : (Guid?)reader.GetGuid(reader.GetOrdinal("PatientId")),
                 PatientCode = reader["PatientCode"]?.ToString(),
                 PatientName = reader["PatientName"]?.ToString(),
+                DepartmentName = reader["DepartmentName"]?.ToString(),
                 BloodType = reader["BloodType"]?.ToString(),
                 RhFactor = reader["RhFactor"]?.ToString(),
                 ProductTypeId = reader.GetGuid(reader.GetOrdinal("ProductTypeId")),

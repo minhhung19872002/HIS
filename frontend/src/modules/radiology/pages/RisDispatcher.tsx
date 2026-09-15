@@ -73,7 +73,10 @@ const RisDispatcherV2: React.FC = () => {
             return { data: [] as Room[] };
           }),
       ]);
-      setPending(p.data); setRooms(r.data);
+      setPending(p.data);
+      // /RISComplete/rooms returns `name` (RadiologyRoomDto), not `roomName` — every room label in the
+      // filter, the dispatch select and the printed ticket ("Phòng: undefined") was blank.
+      setRooms((r.data || []).map((rm) => ({ ...rm, roomName: rm.roomName ?? (rm as Room & { name?: string }).name ?? '' })));
       if (selectedRoom) {
         const q = await apiClient.get<QueueItem[]>(`/radiology-dispatch/queue/${selectedRoom}`);
         setQueue(q.data);

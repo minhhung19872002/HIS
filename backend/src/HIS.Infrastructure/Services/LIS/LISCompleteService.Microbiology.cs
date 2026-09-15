@@ -93,6 +93,12 @@ public partial class LISCompleteService
             }
         }
 
+        // A mistyped / unknown request code used to create a culture with no request and no patient
+        // (LabRequestId null or dangling, PatientName "") — a microbiology result nobody can attribute.
+        if (patientId == null)
+            throw new InvalidOperationException(
+                $"Không tìm thấy phiếu chỉ định xét nghiệm \"{requestCode}\" — kiểm tra lại mã YC");
+
         var culture = new MicrobiologyCulture
         {
             Id = Guid.NewGuid(),
@@ -102,11 +108,11 @@ public partial class LISCompleteService
             PatientName = patientName,
             PatientCode = patientCode,
             SampleType = dto.SampleType ?? string.Empty,
-            SampleBarcode = dto.SampleBarcode?.Trim(),
+            SampleBarcode = string.IsNullOrWhiteSpace(dto.SampleBarcode) ? null : dto.SampleBarcode.Trim(),
             CultureType = dto.CultureType ?? string.Empty,
             CultureDate = DateTime.UtcNow,
             Status = 0, // Pending
-            Notes = dto.Notes?.Trim(),
+            Notes = string.IsNullOrWhiteSpace(dto.Notes) ? null : dto.Notes.Trim(),
             CreatedAt = DateTime.UtcNow,
         };
 

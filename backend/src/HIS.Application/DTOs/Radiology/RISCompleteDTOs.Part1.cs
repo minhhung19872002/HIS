@@ -318,10 +318,12 @@ namespace HIS.Application.DTOs.Radiology
     {
         public Guid OrderItemId { get; set; }
         public Guid? TemplateId { get; set; }
-        public string Description { get; set; }
-        public string Conclusion { get; set; }
+        // Nullable: the v2 form requires description OR conclusion and omits the empty one — implicit
+        // [Required] 400'd every save with only a conclusion. "At least one" is checked in the controller.
+        public string? Description { get; set; }
+        public string? Conclusion { get; set; }
         // E2E #1: KQ CĐHA text-only — 3 field này KHÔNG bắt buộc (nullable) để KTV nhập KQ chữ (không ảnh)
-        // không bị NRT-validation chặn 400. Chỉ Description/Conclusion là bắt buộc theo nghiệp vụ.
+        // không bị NRT-validation chặn 400.
         public string? Note { get; set; }
         public List<AttachedImageDto>? AttachedImages { get; set; }
         public string? TechnicianNote { get; set; }
@@ -379,7 +381,8 @@ namespace HIS.Application.DTOs.Radiology
     public class ApproveRadiologyResultDto
     {
         public Guid ResultId { get; set; }
-        public string Note { get; set; }
+        // Optional: v2 "Lưu & Duyệt" sends no note → implicit [Required] made every final-approve 400.
+        public string? Note { get; set; }
         public bool IsFinalApproval { get; set; }
         /// <summary>G-36: ID user đang duyệt (do controller điền từ JWT claim). Null = bỏ qua check quyền.</summary>
         public Guid? ApprovingUserId { get; set; }

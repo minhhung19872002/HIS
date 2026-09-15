@@ -259,7 +259,8 @@ const AnalyzerSection: React.FC = () => {
         initial={crudInit}
         size="md"
         onSubmit={async (v, editing) => {
-          const dto = v as unknown as CreateAnalyzerDto;
+          // PUT replaces every column: keep fields the form doesn't show (comPort…) instead of nulling them.
+          const dto = (editing ? { ...crudInit, ...v } : v) as unknown as CreateAnalyzerDto;
           if (editing && crudInit?.id) await updateAnalyzer(crudInit.id as string, dto);
           else await createAnalyzer(dto);
           tk(editing ? 'Đã cập nhật máy XN' : 'Đã thêm máy XN');
@@ -377,7 +378,10 @@ const TestParamsSection: React.FC = () => {
         initial={crudInit}
         size="md"
         onSubmit={async (v, editing) => {
-          const dto = v as unknown as CreateTestParameterDto;
+          // PUT overwrites every column and the form has no inputs for normalMin/MaxMale/Female, serviceId,
+          // hl7Code, groupId, sampleTypeId… → any edit (e.g. renaming) wiped the gender reference ranges and
+          // the service link the result flags are resolved from. Merge the loaded row under the form values.
+          const dto = (editing ? { ...crudInit, ...v } : v) as unknown as CreateTestParameterDto;
           if (editing && crudInit?.id) await updateTestParameter(crudInit.id as string, dto);
           else await createTestParameter(dto);
           tk(editing ? 'Cập nhật chỉ số thành công' : 'Thêm chỉ số thành công');

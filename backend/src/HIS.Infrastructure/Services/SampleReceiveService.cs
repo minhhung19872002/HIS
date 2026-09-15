@@ -88,6 +88,12 @@ public class SampleReceiveService : ISampleReceiveService
             return ServiceOutcome.Bad("Phải nhập lý do từ chối");
         var d = await _db.ServiceRequestDetails.FindAsync(dto.DetailId);
         if (d == null) return ServiceOutcome.NotFound();
+        // Rejecting a sample whose result is already entered/approved left the approved result in place while the
+        // tube was marked "rejected" (ReceiveStatus=2) — contradictory record; cancelled orders were also rejectable.
+        if (d.Status == 3) return ServiceOutcome.Bad("Chỉ định đã hủy");
+        if (d.Status == 2 || d.ReviewedAt != null)
+            return ServiceOutcome.Bad("Mẫu đã có kết quả — không từ chối mẫu được. Dùng hủy ngược chuỗi.");
+        if (d.ReceiveStatus == 2) return ServiceOutcome.Bad("Mẫu đã bị từ chối trước đó");
         d.ReceiveStatus = 2;
         d.RejectReason = dto.Reason;
         d.ReceivedByUserId = userId;
@@ -176,8 +182,11 @@ public class SampleReceiveService : ISampleReceiveService
         var d = await _db.ServiceRequestDetails.FindAsync(dto.DetailId);
         if (d == null) return ServiceOutcome.NotFound();
         if (d.Status != 2) return ServiceOutcome.Bad("Mẫu chưa có kết quả để duyệt");
+        // Re-review silently replaced the original reviewer + time of an already-approved result.
+        if (d.ReviewedAt != null) return ServiceOutcome.Bad("Kết quả đã được duyệt trước đó");
         var uid = userId;
-        if (d.TechnicianUserId.HasValue && d.TechnicianUserId.Value == uid)
+        // 4-eyes: results entered via the LIS/analyzer path set ResultUserId but not TechnicianUserId.
+        if ((d.TechnicianUserId ?? d.ResultUserId) == uid)
             return ServiceOutcome.Bad("Reviewer phải khác KTV (4-eyes principle)");
         d.ReviewerUserId = uid;
         d.ReviewedAt = DateTime.Now;
@@ -194,7 +203,8 @@ public class SampleReceiveService : ISampleReceiveService
     {
         if (dto.DetailIds.Count == 0) return ServiceOutcome.Bad("Chưa chọn mẫu cần hủy nhận");
         var items = await _db.ServiceRequestDetails
-            .Where(d => dto.DetailIds.Contains(d.Id) && d.ReceiveStatus == 1)
+            // Status != 3: cancel-receive reset Status to 0 and revived a cancelled order.
+            .Where(d => dto.DetailIds.Contains(d.Id) && d.ReceiveStatus == 1 && d.Status != 3)
             .ToListAsync();
         if (items.Count == 0) return ServiceOutcome.Bad("Không có mẫu nào đang ở trạng thái đã nhận");
         var now = DateTime.Now;

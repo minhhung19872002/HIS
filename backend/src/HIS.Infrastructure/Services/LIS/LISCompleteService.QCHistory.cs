@@ -494,14 +494,20 @@ public partial class LISCompleteService {
             Diagnosis = r.Diagnosis,
             IcdCode = r.IcdCode,
             Notes = r.Notes ?? r.Note,
-            Status = r.Status,
-            StatusName = r.Status switch
+            // The only caller (inpatient BedLabResultSection) drives approve/print buttons with the LIS order vocabulary
+            // (LisModel1Map.ComputeOrderStatus: 3 chờ duyệt · 4 sơ duyệt · 5 duyệt chính thức). Raw ServiceRequest.Status
+            // (4 = HỦY) made a cancelled order offer "Duyệt chính thức" + "In KQ", and approved results never became
+            // printable. Cancelled orders get 6.
+            Status = r.Status == 4 ? 6 : LisModel1Map.ComputeOrderStatus(r.Details),
+            StatusName = r.Status == 4 ? "Đã hủy" : LisModel1Map.ComputeOrderStatus(r.Details) switch
             {
-                0 => "Chờ thanh toán",
-                1 => "Đã thanh toán",
-                2 => "Đang thực hiện",
-                3 => "Có kết quả",
-                _ => "Đã hủy"
+                0 => "Chờ lấy mẫu",
+                1 => "Đã lấy mẫu",
+                2 => "Đang xử lý",
+                3 => "Chờ duyệt",
+                4 => "Sơ duyệt",
+                5 => "Hoàn thành",
+                _ => "Không rõ"
             },
             IsPriority = r.IsPriority || r.IsEmergency,
             IsEmergency = r.IsEmergency,

@@ -51,6 +51,20 @@ const STATUS_LABEL: Record<string, { l: string; tone: 'ok' | 'warn' | 'info' | '
 };
 
 const fmtVol = (n: number) => `${n.toLocaleString('vi-VN')} mL`;
+
+/**
+ * BE stores Rh as BOTH "Positive"/"Negative" (seed/import) and "+"/"-" (v2 forms). The page keys
+ * every group as `${bloodType}${rh}` with '+'/'-' → "APositive" never matched: group chips and
+ * "O- khả dụng" showed 0, the group filter hid all bags and "Xuất máu" found no matching bag.
+ */
+const normRh = (rh?: string | null): string => {
+  const s = (rh ?? '').trim().toUpperCase();
+  if (s === '-' || s === '−' || s.startsWith('NEG')) return '-';
+  if (s === '+' || s.startsWith('POS')) return '+';
+  return rh ?? '';
+};
+const withRh = <T extends { rhFactor: string }>(rows: T[]): T[] =>
+  rows.map((r) => ({ ...r, rhFactor: normRh(r.rhFactor) }));
 const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 
 const buildBloodLabelHtml = (u: BloodStockDetailDto): string => `<!DOCTYPE html>
@@ -149,11 +163,11 @@ const BloodBankV2: React.FC = () => {
       getIssueRequests(dayjs().subtract(60, 'day').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')),
       getExpiredBloodBags(),
     ]).then(([s, u, e, r, x]) => {
-      if (s.status === 'fulfilled') setStock((s.value.data || []) as BloodStockDto[]);
-      if (u.status === 'fulfilled') setUnits((u.value.data || []) as BloodStockDetailDto[]);
-      if (e.status === 'fulfilled') setExpiring((e.value.data || []) as BloodStockDetailDto[]);
-      if (r.status === 'fulfilled') setRequests((r.value.data || []) as BloodIssueRequestDto[]);
-      if (x.status === 'fulfilled') setExpired((x.value.data || []) as BloodStockDetailDto[]);
+      if (s.status === 'fulfilled') setStock(withRh((s.value.data || []) as BloodStockDto[]));
+      if (u.status === 'fulfilled') setUnits(withRh((u.value.data || []) as BloodStockDetailDto[]));
+      if (e.status === 'fulfilled') setExpiring(withRh((e.value.data || []) as BloodStockDetailDto[]));
+      if (r.status === 'fulfilled') setRequests(withRh((r.value.data || []) as BloodIssueRequestDto[]));
+      if (x.status === 'fulfilled') setExpired(withRh((x.value.data || []) as BloodStockDetailDto[]));
       // Patient-safety: nhánh reject trước đây im lặng → tồn kho hiển thị thiếu trông như "hết máu".
       const failed = ([
         [s, 'tồn kho máu'],
@@ -881,6 +895,7 @@ const RequestsTab: React.FC<{
     if (!issueFor) return [];
     return units.filter((u) =>
       u.status === 'Available'
+      && !(u.daysUntilExpiry < 0) // BE refuses expired bags — don't offer them
       && u.bloodType === issueFor.bloodType
       && u.rhFactor === issueFor.rhFactor
       && (!issueFor.productTypeName || u.productTypeName === issueFor.productTypeName));
@@ -991,7 +1006,7 @@ const RequestsTab: React.FC<{
           <DrField lbl="Lý do / Chỉ định">{sel.clinicalIndication || sel.indication || sel.reason || '—'}</DrField>
           <DrField lbl="Mức độ">{sel.urgency || 'Thường'}</DrField>
           <DrField lbl="Trạng thái">
-            <StatusBadge tone={sel.status === 'approved' || sel.status === 'issued' ? 'ok' : 'warn'} dot>{sel.statusName || sel.status || '—'}</StatusBadge>
+            <StatusBadge tone={['approved', 'fullyissued', 'partiallyissued'].includes(stKey(sel.status)) ? 'ok' : 'warn'} dot>{sel.statusName || sel.status || '—'}</StatusBadge>
           </DrField>
           <DrField lbl="Ngày YC">{fmtDMY(sel.requestDate || sel.createdAt)}</DrField>
           <DrField lbl="Số lượng">
@@ -1393,7 +1408,7 @@ const BloodReceiveModal: React.FC<{
           />
         </BbFld>
         <BbFld label="Thể tích (mL)">
-          <InputNumber value={volume} onChange={(v) => setVolume(Number(v) || 0)} min={100} max={500} step={50} style={{ width: '100%' }} />
+          <InputNumber value={volume} onChange={(v) => setVolume(Number(v) || 0)} min={1} max={1000} step={50} style={{ width: '100%' }} />
         </BbFld>
         <BbFld label="Ngày nhập / lấy máu *">
           <DatePicker value={receiveDate} onChange={setReceiveDate} format="DD/MM/YYYY" style={{ width: '100%' }} />

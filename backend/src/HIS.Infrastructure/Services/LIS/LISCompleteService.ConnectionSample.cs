@@ -535,7 +535,9 @@ public partial class LISCompleteService {
     {
         var item = await _context.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == sampleId && !i.IsDeleted);
         if (item == null) return false;
-        item.ReceiveStatus = 1; // về trạng thái đã nhận mẫu
+        // Back to "received" only if it really was received — a tube rejected at the tracking screen before
+        // reception used to come back as "đã nhận" with no receiver/time and skip the receive step.
+        item.ReceiveStatus = item.ReceivedAt.HasValue ? 1 : 0;
         item.RejectReason = null;
         item.UpdatedAt = DateTime.Now;
         item.UpdatedBy = userId.ToString(); // Nullable<Guid>.ToString(): "" khi null (giữ hành vi cũ)

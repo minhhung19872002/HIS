@@ -35,6 +35,8 @@ public class FunctionalDiagnosticCatalogService : IFunctionalDiagnosticCatalogSe
     public async Task<FunctionalDiagnosticTestTypeDto> SaveTestTypeAsync(
         SaveFunctionalDiagnosticTestTypeDto dto, string? userId)
     {
+        if (string.IsNullOrWhiteSpace(dto.Code) || string.IsNullOrWhiteSpace(dto.Name))
+            throw new ArgumentException("Mã và tên loại thăm dò chức năng là bắt buộc");
         FunctionalDiagnosticTestType entity;
         if (dto.Id == Guid.Empty)
         {
@@ -47,7 +49,8 @@ public class FunctionalDiagnosticCatalogService : IFunctionalDiagnosticCatalogSe
         else
         {
             entity = await _db.Set<FunctionalDiagnosticTestType>()
-                .FirstAsync(t => t.Id == dto.Id);
+                .FirstOrDefaultAsync(t => t.Id == dto.Id)
+                ?? throw new KeyNotFoundException("Không tìm thấy loại thăm dò chức năng");
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }
@@ -99,6 +102,11 @@ public class FunctionalDiagnosticCatalogService : IFunctionalDiagnosticCatalogSe
     public async Task<FunctionalDiagnosticTemplateDto> SaveTemplateAsync(
         SaveFunctionalDiagnosticTemplateDto dto, string? userId)
     {
+        if (string.IsNullOrWhiteSpace(dto.Code) || string.IsNullOrWhiteSpace(dto.Name))
+            throw new ArgumentException("Mã và tên mẫu kết quả là bắt buộc");
+        // Unknown TestTypeId used to surface as a raw FK 500.
+        if (!await _db.Set<FunctionalDiagnosticTestType>().AnyAsync(t => t.Id == dto.TestTypeId && !t.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy loại thăm dò chức năng của mẫu");
         FunctionalDiagnosticTemplate entity;
         if (dto.Id == Guid.Empty)
         {
@@ -111,7 +119,8 @@ public class FunctionalDiagnosticCatalogService : IFunctionalDiagnosticCatalogSe
         else
         {
             entity = await _db.Set<FunctionalDiagnosticTemplate>()
-                .FirstAsync(t => t.Id == dto.Id);
+                .FirstOrDefaultAsync(t => t.Id == dto.Id)
+                ?? throw new KeyNotFoundException("Không tìm thấy mẫu kết quả");
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }

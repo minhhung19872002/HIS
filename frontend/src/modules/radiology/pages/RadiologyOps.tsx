@@ -27,7 +27,8 @@ interface RawRequest {
   patientCode?: string; patientName?: string;
   patient?: { patientCode?: string; fullName?: string };
   service?: { serviceName?: string }; serviceName?: string;
-  bodyPart?: string; requestDate?: string; createdAt?: string;
+  bodyPart?: string; requestDate?: string; createdAt?: string; orderDate?: string;
+  items?: { serviceName?: string }[];
   medicalRecordId?: string; contrast?: boolean; priority?: number;
 }
 interface AddOnResponse { created?: { id: string }[] }
@@ -65,20 +66,20 @@ const RadiologyOpsV2: React.FC = () => {
     if (!keyword) return;
     setLoading(true);
     try {
-      const { data } = await apiClient.get('/radiology/requests/search', { params: { keyword, pageSize: 20 } })
-        .catch(async () => {
-          const { data } = await apiClient.get('/radiology/orders', { params: { keyword, pageSize: 20 } });
-          return { data };
-        });
+      // QA-R2: '/radiology/requests/search' and '/radiology/orders' do not exist (search always failed).
+      // RIS order list: id = RadiologyRequest.Id, which /radiology-ops/add-on expects as parentRequestId.
+      const { data } = await apiClient.get('/RISComplete/orders', {
+        params: { keyword, fromDate: new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10) },
+      });
       const items = unwrapList<RawRequest>(data as MaybePaged<RawRequest>);
       setRequests(items.map((r) => ({
         id: r.id,
         requestCode: r.requestCode || r.orderCode || r.code || '',
         patientCode: r.patientCode || r.patient?.patientCode || '',
         patientName: r.patientName || r.patient?.fullName || '',
-        serviceName: r.serviceName || r.service?.serviceName || '',
+        serviceName: r.serviceName || r.service?.serviceName || r.items?.[0]?.serviceName || '',
         bodyPart: r.bodyPart, status: r.status,
-        requestDate: r.requestDate || r.createdAt || '',
+        requestDate: r.requestDate || r.orderDate || r.createdAt || '',
         medicalRecordId: r.medicalRecordId, patientId: r.patientId,
         contrast: r.contrast, priority: r.priority,
       })));

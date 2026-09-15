@@ -102,6 +102,10 @@ public partial class HealthCheckupService
 
     public async Task<HealthCheckupDetailDto> CreateCheckupAsync(CreateHealthCheckupDto dto, string userId)
     {
+        // HealthCheckups.PatientId is a NOT NULL FK: a missing/unknown patient used to surface as a raw FK 500.
+        if (dto.PatientId == Guid.Empty || !await _context.Patients.AnyAsync(p => p.Id == dto.PatientId && !p.IsDeleted))
+            throw new ArgumentException("Phải chọn người được khám sức khỏe đã có hồ sơ trong hệ thống", nameof(dto.PatientId));
+
         var bmi = (dto.Height.HasValue && dto.Weight.HasValue && dto.Height.Value > 0)
             ? (float?)(dto.Weight.Value / (dto.Height.Value / 100f * (dto.Height.Value / 100f)))
             : null;
@@ -176,7 +180,21 @@ public partial class HealthCheckupService
         var entity = await _context.HealthCheckups
             .Where(x => x.Id == id && !x.IsDeleted)
             .FirstOrDefaultAsync()
-            ?? throw new InvalidOperationException($"HealthCheckup {id} khong ton tai");
+            ?? throw new KeyNotFoundException($"HealthCheckup {id} khong ton tai");
+
+        // State guards: 0=Pending 1=InProgress 2=Completed 3=Cancelled.
+        if (dto.Status.HasValue && (dto.Status.Value < 0 || dto.Status.Value > 3))
+            throw new ArgumentException($"Trạng thái KSK không hợp lệ: {dto.Status.Value}");
+        if (entity.Status == 3)
+            throw new InvalidOperationException("Phiếu KSK đã hủy — không sửa được");
+        // A checkup could be marked Completed with no conclusion at all (classification / general conclusion /
+        // exam result all empty) — i.e. "done" before any result was recorded.
+        var nextStatus = dto.Status ?? entity.Status;
+        if (nextStatus == 2
+            && string.IsNullOrWhiteSpace(dto.Classification ?? entity.Classification)
+            && string.IsNullOrWhiteSpace(dto.GeneralConclusion ?? entity.GeneralConclusion)
+            && string.IsNullOrWhiteSpace(dto.ExamResult ?? entity.ExamResult))
+            throw new InvalidOperationException("Chưa có kết luận / phân loại sức khỏe — không hoàn thành phiếu KSK được");
 
         if (dto.Status.HasValue) entity.Status = dto.Status.Value;
         if (dto.ExamResult != null) entity.ExamResult = dto.ExamResult;

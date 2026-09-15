@@ -261,7 +261,7 @@ const SampleStorageV2: React.FC = () => {
     { key: 'loc', label: 'Vị trí', code: true, render: (r) => r.storageLocation },
     { key: 'cond', label: 'Bảo quản', render: (r) => (
       <span>{r.storageCondition}
-        {r.temperature !== undefined && <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}> ({r.temperature}°C)</span>}
+        {r.temperature != null && <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}> ({r.temperature}°C)</span>}
       </span>
     ) },
     { key: 'stored', label: 'Lưu lúc', mono: true, render: (r) => dayjs(r.storedAt).format('DD/MM HH:mm') },
@@ -384,7 +384,7 @@ const SampleStorageV2: React.FC = () => {
             {sel.box && <DrField lbl="Hộp">{sel.box}</DrField>}
             {sel.position && <DrField lbl="Ô">{sel.position}</DrField>}
             <DrField lbl="Điều kiện">{sel.storageCondition}</DrField>
-            {sel.temperature !== undefined && <DrField lbl="Nhiệt độ"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.temperature}°C</span></DrField>}
+            {sel.temperature != null && <DrField lbl="Nhiệt độ"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.temperature}°C</span></DrField>}
           </DrSec>
           <DrSec title="Lịch sử">
             <DrField lbl="Lưu lúc">{dayjs(sel.storedAt).format('DD/MM/YYYY HH:mm')}</DrField>

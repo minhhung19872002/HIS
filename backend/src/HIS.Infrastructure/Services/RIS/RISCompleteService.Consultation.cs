@@ -140,8 +140,8 @@ public partial class RISCompleteService
         session.Description = dto.Description;
         session.ScheduledStartTime = dto.ScheduledStartTime;
         session.ScheduledEndTime = dto.ScheduledEndTime;
-        
-        
+        if (dto.MeetingUrl != null) session.MeetingUrl = dto.MeetingUrl; // was silently dropped from the v2 form
+
         session.UpdatedAt = DateTime.Now;
 
         await _unitOfWork.SaveChangesAsync();

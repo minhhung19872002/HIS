@@ -33,21 +33,20 @@ const ServiceRequeueV2: React.FC = () => {
     if (!keyword) return;
     setLoading(true);
     try {
-      interface SearchedRecord {
-        id: string; medicalRecordCode?: string;
-        patientName?: string; patient?: { fullName?: string };
-      }
+      // QA-R2: '/examination/medical-records/search' does not exist (every lookup 404'd). Reception search
+      // matches HSBA code / patient code / name / phone and returns AdmissionDto whose id is the MedicalRecordId.
+      interface SearchedRecord { id: string; admissionCode?: string; patientName?: string }
       let lookupFailed = false;
-      const { data: r } = await apiClient.get<{ items?: SearchedRecord[] }>('/examination/medical-records/search', {
-        params: { keyword, pageSize: 1 },
+      const { data: r } = await apiClient.get<SearchedRecord[]>('/reception/patients/search', {
+        params: { keyword },
       }).catch((e) => {
         lookupFailed = true;
         tw(friendlyErrorMessage(e, 'Không tra cứu được hồ sơ. Vui lòng thử lại.'));
-        return { data: { items: [] } };
+        return { data: [] as SearchedRecord[] };
       });
-      const item = (r?.items || [])[0];
+      const item = (Array.isArray(r) ? r : [])[0];
       if (!item) { if (!lookupFailed) tw('Không tìm thấy hồ sơ'); setServices([]); setMr(null); return; }
-      setMr({ id: item.id, code: item.medicalRecordCode || '', patientName: item.patientName || item.patient?.fullName || '' });
+      setMr({ id: item.id, code: item.admissionCode || '', patientName: item.patientName || '' });
       const { data } = await apiClient.get<CancelledService[]>(`/service-refund/cancelled-services/${item.id}`);
       setServices(data || []);
       setSelected(new Set());

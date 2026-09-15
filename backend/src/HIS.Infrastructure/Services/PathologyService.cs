@@ -49,7 +49,7 @@ public class PathologyService : IPathologyService
             }
             if (!string.IsNullOrEmpty(filter.ToDate) && DateTime.TryParse(filter.ToDate, out var to))
             {
-                query = query.Where(r => r.RequestDate <= to.AddDays(1));
+                query = query.Where(r => r.RequestDate < to.Date.AddDays(1));
             }
         }
 
@@ -119,6 +119,18 @@ public class PathologyService : IPathologyService
 
     public async Task<PathologyResultDto> CreatePathologyResultAsync(CreatePathologyResultDto dto)
     {
+        // Guard: the request must exist and still be open. Creating a new result on a VERIFIED request
+        // used to add an unverified result, flip Status 4 -> 3 and replace the displayed diagnosis —
+        // bypassing the "no edit after sign-off" guard in UpdatePathologyResultAsync. A CANCELLED
+        // request was likewise silently re-opened as Completed.
+        var request = await _context.PathologyRequests
+            .FirstOrDefaultAsync(r => r.Id == dto.RequestId && !r.IsDeleted)
+            ?? throw new InvalidOperationException("Không tìm thấy phiếu GPB");
+        if (request.Status == 4)
+            throw new InvalidOperationException("Phiếu GPB đã duyệt kết quả — không nhập thêm kết quả mới được");
+        if (request.Status == 5)
+            throw new InvalidOperationException("Phiếu GPB đã hủy — không nhập kết quả được");
+
         var result = new PathologyResult
         {
             Id = Guid.NewGuid(),
@@ -140,12 +152,8 @@ public class PathologyService : IPathologyService
         _context.PathologyResults.Add(result);
 
         // Update request status to Completed
-        var request = await _context.PathologyRequests.FindAsync(dto.RequestId);
-        if (request != null)
-        {
-            request.Status = 3; // Completed
-            request.UpdatedAt = DateTime.UtcNow;
-        }
+        request.Status = 3; // Completed
+        request.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
         return MapResultDto(result);
@@ -202,10 +210,11 @@ public class PathologyService : IPathologyService
 
         var total = requests.Count;
         var pending = requests.Count(r => r.Status <= 1);
-        var completed = requests.Count(r => r.Status >= 3);
+        // Status 5 = Cancelled must not count as a returned result.
+        var completed = requests.Count(r => r.Status == 3 || r.Status == 4);
 
         var completedWithResults = requests
-            .Where(r => r.Status >= 3 && r.UpdatedAt.HasValue)
+            .Where(r => (r.Status == 3 || r.Status == 4) && r.UpdatedAt.HasValue)
             .Select(r => (r.UpdatedAt!.Value - r.RequestDate).TotalDays)
             .ToList();
         var avgTat = completedWithResults.Count > 0 ? completedWithResults.Average() : 0;
@@ -248,11 +257,26 @@ public class PathologyService : IPathologyService
                 .ThenInclude(req => req!.Department)
             .FirstOrDefaultAsync(r => r.Id == resultId);
 
+        // The v2 page only knows the REQUEST id (list rows carry no result id) and calls
+        // results/{requestId}/print — fall back to the latest result of that request.
+        result ??= await _context.PathologyResults
+            .Include(r => r.Request)
+                .ThenInclude(req => req!.Patient)
+            .Include(r => r.Request)
+                .ThenInclude(req => req!.RequestingDoctor)
+            .Include(r => r.Request)
+                .ThenInclude(req => req!.Department)
+            .Where(r => r.RequestId == resultId)
+            .OrderByDescending(r => r.CreatedAt)
+            .FirstOrDefaultAsync();
+
         if (result?.Request == null)
             return System.Text.Encoding.UTF8.GetBytes("<html><body><p>Không tìm thấy kết quả</p></body></html>");
 
         var req = result.Request;
         var patient = req.Patient;
+        // Free-text fields are user input rendered into an HTML page opened in the app origin — encode them.
+        static string E(string? s) => System.Net.WebUtility.HtmlEncode(s ?? "");
         var html = $@"<!DOCTYPE html>
 <html><head><meta charset='utf-8'/>
 <style>
@@ -268,32 +292,32 @@ td, th {{ border: 1px solid #000; padding: 5px; }}
 <body>
 <div class='header'>
 <p><strong>BỆNH VIỆN ĐA KHOA</strong></p>
-<p>Khoa: {req.Department?.DepartmentName ?? ""}</p>
+<p>Khoa: {E(req.Department?.DepartmentName)}</p>
 <h2>PHIẾU KẾT QUẢ GIẢI PHẪU BỆNH</h2>
-<p>Mã phiếu: {req.RequestCode}</p>
+<p>Mã phiếu: {E(req.RequestCode)}</p>
 </div>
 <table>
-<tr><td class='label'>Họ tên bệnh nhân</td><td>{patient?.FullName ?? ""}</td><td class='label'>Mã BN</td><td>{patient?.PatientCode ?? ""}</td></tr>
-<tr><td class='label'>Ngày yêu cầu</td><td>{req.RequestDate:dd/MM/yyyy HH:mm}</td><td class='label'>BS yêu cầu</td><td>{req.RequestingDoctor?.FullName ?? ""}</td></tr>
-<tr><td class='label'>Loại mẫu</td><td>{req.SpecimenType}</td><td class='label'>Vị trí lấy mẫu</td><td>{req.SpecimenSite ?? ""}</td></tr>
-<tr><td class='label'>Chẩn đoán LS</td><td colspan='3'>{req.ClinicalDiagnosis ?? ""}</td></tr>
+<tr><td class='label'>Họ tên bệnh nhân</td><td>{E(patient?.FullName)}</td><td class='label'>Mã BN</td><td>{E(patient?.PatientCode)}</td></tr>
+<tr><td class='label'>Ngày yêu cầu</td><td>{req.RequestDate:dd/MM/yyyy HH:mm}</td><td class='label'>BS yêu cầu</td><td>{E(req.RequestingDoctor?.FullName)}</td></tr>
+<tr><td class='label'>Loại mẫu</td><td>{E(req.SpecimenType)}</td><td class='label'>Vị trí lấy mẫu</td><td>{E(req.SpecimenSite)}</td></tr>
+<tr><td class='label'>Chẩn đoán LS</td><td colspan='3'>{E(req.ClinicalDiagnosis)}</td></tr>
 </table>
 <h3>I. MÔ TẢ ĐẠI THỂ</h3>
-<p>{result.GrossDescription ?? ""}</p>
+<p>{E(result.GrossDescription)}</p>
 <p>Số block: {result.BlockCount} &nbsp; Số lam kính: {result.SlideCount}</p>
 <h3>II. MÔ TẢ VI THỂ</h3>
-<p>{result.MicroscopicDescription ?? ""}</p>
+<p>{E(result.MicroscopicDescription)}</p>
 <h3>III. PHƯƠNG PHÁP NHUỘM</h3>
-<p>{result.StainingMethods ?? ""}</p>
-{(string.IsNullOrEmpty(result.SpecialStains) ? "" : $"<h3>IV. NHUỘM ĐẶC BIỆT</h3><p>{result.SpecialStains}</p>")}
-{(string.IsNullOrEmpty(result.Immunohistochemistry) ? "" : $"<h3>V. HÓA MÔ MIỄN DỊCH (IHC)</h3><p>{result.Immunohistochemistry}</p>")}
-{(string.IsNullOrEmpty(result.MolecularTests) ? "" : $"<h3>VI. XÉT NGHIỆM PHÂN TỬ</h3><p>{result.MolecularTests}</p>")}
+<p>{E(result.StainingMethods)}</p>
+{(string.IsNullOrEmpty(result.SpecialStains) ? "" : $"<h3>IV. NHUỘM ĐẶC BIỆT</h3><p>{E(result.SpecialStains)}</p>")}
+{(string.IsNullOrEmpty(result.Immunohistochemistry) ? "" : $"<h3>V. HÓA MÔ MIỄN DỊCH (IHC)</h3><p>{E(result.Immunohistochemistry)}</p>")}
+{(string.IsNullOrEmpty(result.MolecularTests) ? "" : $"<h3>VI. XÉT NGHIỆM PHÂN TỬ</h3><p>{E(result.MolecularTests)}</p>")}
 <h3>KẾT LUẬN</h3>
-<p><strong>{result.Diagnosis ?? ""}</strong></p>
-{(string.IsNullOrEmpty(result.IcdCode) ? "" : $"<p>Mã ICD: {result.IcdCode}</p>")}
+<p><strong>{E(result.Diagnosis)}</strong></p>
+{(string.IsNullOrEmpty(result.IcdCode) ? "" : $"<p>Mã ICD: {E(result.IcdCode)}</p>")}
 <div class='signature'>
-<div><p>BS Giải phẫu bệnh</p><br/><br/><p>{result.Pathologist ?? ""}</p></div>
-<div><p>Ngày ký: {(result.CompletedAt ?? DateTime.UtcNow):dd/MM/yyyy}</p></div>
+<div><p>BS Giải phẫu bệnh</p><br/><br/><p>{E(result.Pathologist)}</p></div>
+<div><p>{(result.VerifiedAt.HasValue ? $"Ngày duyệt: {result.VerifiedAt:dd/MM/yyyy} — {E(result.VerifiedByName)}" : "<strong>KẾT QUẢ CHƯA DUYỆT</strong>")}</p></div>
 </div>
 </body></html>";
 

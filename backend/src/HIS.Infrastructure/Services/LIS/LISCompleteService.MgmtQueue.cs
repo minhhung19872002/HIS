@@ -248,8 +248,56 @@ public partial class LISCompleteService {
         }
     }
 
+    /// <summary>
+    /// QA-R2: was an empty stub returning <c>true</c> (nothing saved) although <c>LabReferenceRanges</c>
+    /// exists and <see cref="GetReferenceRangesAsync"/> reads it. Now replaces the test's range set:
+    /// rows in the payload are updated/added, active rows missing from it are soft-deleted.
+    /// </summary>
     public async Task<bool> UpdateReferenceRangesAsync(Guid testId, List<UpdateReferenceRangeDto> ranges)
     {
+        var service = await _context.Services.AsNoTracking().FirstOrDefaultAsync(s => s.Id == testId)
+            ?? throw new KeyNotFoundException("Không tìm thấy xét nghiệm");
+
+        var existing = await _context.LabReferenceRanges
+            .Where(r => r.ServiceId == testId && !r.IsDeleted)
+            .ToListAsync();
+        var keepIds = new HashSet<Guid>();
+        var now = DateTime.UtcNow;
+
+        foreach (var dto in ranges ?? new List<UpdateReferenceRangeDto>())
+        {
+            if (dto.AgeFromDays.HasValue && dto.AgeToDays.HasValue && dto.AgeFromDays > dto.AgeToDays)
+                throw new InvalidOperationException("Tuổi bắt đầu không được lớn hơn tuổi kết thúc.");
+            if (dto.LowValue.HasValue && dto.HighValue.HasValue && dto.LowValue > dto.HighValue)
+                throw new InvalidOperationException("Giá trị thấp không được lớn hơn giá trị cao.");
+
+            var entity = dto.Id.HasValue ? existing.FirstOrDefault(e => e.Id == dto.Id.Value) : null;
+            if (entity == null)
+            {
+                entity = new LabReferenceRange { Id = Guid.NewGuid(), ServiceId = testId, CreatedAt = now };
+                _context.LabReferenceRanges.Add(entity);
+            }
+            entity.TestCode = service.ServiceCode ?? string.Empty;
+            entity.Gender = dto.Gender;
+            entity.AgeFromDays = dto.AgeFromDays;
+            entity.AgeToDays = dto.AgeToDays;
+            entity.LowValue = dto.LowValue;
+            entity.HighValue = dto.HighValue;
+            entity.TextRange = dto.TextRange;
+            entity.Description = dto.Description;
+            entity.IsActive = true;
+            entity.UpdatedAt = now;
+            keepIds.Add(entity.Id);
+        }
+
+        foreach (var stale in existing.Where(e => !keepIds.Contains(e.Id)))
+        {
+            stale.IsDeleted = true;
+            stale.IsActive = false;
+            stale.UpdatedAt = now;
+        }
+
+        await _context.SaveChangesAsync();
         return true;
     }
 
@@ -285,8 +333,39 @@ public partial class LISCompleteService {
         }
     }
 
+    /// <summary>
+    /// QA-R2: was an empty stub returning <c>true</c> — critical/panic thresholds were never stored
+    /// although <c>LabCriticalValueConfigs</c> exists and <see cref="GetCriticalValueConfigAsync"/> reads it.
+    /// </summary>
     public async Task<bool> UpdateCriticalValueConfigAsync(Guid testId, UpdateCriticalValueConfigDto dto)
     {
+        var service = await _context.Services.AsNoTracking().FirstOrDefaultAsync(s => s.Id == testId)
+            ?? throw new KeyNotFoundException("Không tìm thấy xét nghiệm");
+        if (dto.CriticalLow.HasValue && dto.CriticalHigh.HasValue && dto.CriticalLow > dto.CriticalHigh)
+            throw new InvalidOperationException("Ngưỡng nguy hiểm thấp không được lớn hơn ngưỡng cao.");
+        if (dto.PanicLow.HasValue && dto.PanicHigh.HasValue && dto.PanicLow > dto.PanicHigh)
+            throw new InvalidOperationException("Ngưỡng báo động thấp không được lớn hơn ngưỡng cao.");
+
+        var now = DateTime.UtcNow;
+        var config = await _context.LabCriticalValueConfigs
+            .FirstOrDefaultAsync(c => c.ServiceId == testId && !c.IsDeleted && c.IsActive);
+        if (config == null)
+        {
+            config = new LabCriticalValueConfig { Id = Guid.NewGuid(), ServiceId = testId, CreatedAt = now };
+            _context.LabCriticalValueConfigs.Add(config);
+        }
+        config.TestCode = service.ServiceCode ?? string.Empty;
+        config.CriticalLow = dto.CriticalLow;
+        config.CriticalHigh = dto.CriticalHigh;
+        config.PanicLow = dto.PanicLow;
+        config.PanicHigh = dto.PanicHigh;
+        config.RequireAcknowledgment = dto.RequireAcknowledgment;
+        config.AcknowledgmentTimeoutMinutes = dto.AcknowledgmentTimeoutMinutes;
+        config.NotificationMethod = dto.NotificationMethod;
+        config.IsActive = true;
+        config.UpdatedAt = now;
+
+        await _context.SaveChangesAsync();
         return true;
     }
 

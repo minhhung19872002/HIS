@@ -123,6 +123,18 @@ public class SampleCollectionService : ISampleCollectionService
     {
         var detail = await _db.ServiceRequestDetails.FirstOrDefaultAsync(d => d.Id == dto.ServiceRequestDetailId)
             ?? throw new KeyNotFoundException();
+        if (dto.NewSequenceNumber <= 0) throw new ArgumentException("STT phải ≥ 1");
+        if (string.IsNullOrWhiteSpace(detail.SampleBarcode))
+            throw new InvalidOperationException("Mẫu chưa được cấp STT — dùng cấp STT trước");
+        var oldBarcode = detail.SampleBarcode;
+        // The barcode is what the analyzer / LIS worklist matches on. Once the tube was received or resulted,
+        // renumbering orphaned the analyzer result; and only this detail was renamed while the other tests sharing
+        // the same tube ("thêm XN cùng mẫu") kept the old code → one physical tube with two barcodes.
+        var tube = await _db.ServiceRequestDetails
+            .Where(d => d.SampleBarcode == oldBarcode && !d.IsDeleted)
+            .ToListAsync();
+        if (tube.Any(d => d.ReceiveStatus == 1 || d.Status == 2 || d.ReviewedAt != null))
+            throw new InvalidOperationException("Mẫu đã được LIS nhận / đã có kết quả — không sửa STT được");
 
         // Keep the date segment of the issued barcode: SampleCollectedAt is UTC, so re-deriving it gave the
         // previous day for samples taken 00h-07h VN.
@@ -132,11 +144,14 @@ public class SampleCollectionService : ISampleCollectionService
         var newBarcode = $"{prefix}-{dateStr}-{dto.NewSequenceNumber:D4}";
 
         var clash = await _db.ServiceRequestDetails
-            .AnyAsync(d => d.Id != detail.Id && d.SampleBarcode == newBarcode);
+            .AnyAsync(d => d.SampleBarcode == newBarcode && d.SampleBarcode != oldBarcode);
         if (clash) throw new InvalidOperationException($"STT {newBarcode} đã bị sử dụng");
 
-        detail.SampleBarcode = newBarcode;
-        detail.UpdatedAt = DateTime.UtcNow;
+        foreach (var d in tube)
+        {
+            d.SampleBarcode = newBarcode;
+            d.UpdatedAt = DateTime.UtcNow;
+        }
         await _db.SaveChangesAsync();
         return ServiceOutcome.Ok(new AssignSequenceResultDto(newBarcode, dto.NewSequenceNumber));
     }
@@ -213,6 +228,11 @@ public class SampleCollectionService : ISampleCollectionService
     {
         var appt = await _db.SampleAppointments.FindAsync(id);
         if (appt == null) return ServiceOutcome.NotFound();
+        if (dto.Status is not ("Scheduled" or "Completed" or "Cancelled"))
+            return ServiceOutcome.Bad("Trạng thái hẹn không hợp lệ (Scheduled / Completed / Cancelled)");
+        // A cancelled chain could be "completed" afterwards and spawn the next recurring appointment again.
+        if (appt.Status is "Completed" or "Cancelled" && dto.Status != appt.Status)
+            return ServiceOutcome.Bad($"Hẹn đã {(appt.Status == "Completed" ? "hoàn thành" : "hủy")} — không đổi trạng thái được");
         var becameCompleted = dto.Status == "Completed" && appt.Status != "Completed";
         appt.Status = dto.Status;
         appt.Note = dto.Note ?? appt.Note;

@@ -87,6 +87,10 @@ public class CultureStockService : ICultureStockService
 
     public async Task<CultureStockDto> CreateCultureStockAsync(CreateCultureStockDto dto)
     {
+        // A stock with no organism was accepted (blank OrganismName/Code) — an unidentifiable vial in the freezer.
+        if (string.IsNullOrWhiteSpace(dto.OrganismName))
+            throw new ArgumentException("Phải nhập tên vi sinh vật", nameof(dto.OrganismName));
+
         // Generate stock code: VS-{year}-{sequence}
         var year = DateTime.UtcNow.Year;
         var lastCode = await _context.CultureStocks
@@ -230,6 +234,9 @@ public class CultureStockService : ICultureStockService
     {
         var parent = await _context.CultureStocks.FindAsync(id)
             ?? throw new InvalidOperationException("Culture stock not found");
+        // A discarded / depleted stock has no material left: subculturing it fabricated a new passage out of nothing.
+        if (parent.Status == 3 || parent.Status == 4 || parent.RemainingAliquots <= 0)
+            throw new InvalidOperationException($"Chủng {parent.StockCode} đã hết / đã hủy — không cấy chuyển được");
 
         // Create new stock from subculture
         var year = DateTime.UtcNow.Year;
@@ -310,6 +317,8 @@ public class CultureStockService : ICultureStockService
     {
         var stock = await _context.CultureStocks.FindAsync(id)
             ?? throw new InvalidOperationException("Culture stock not found");
+        if (stock.Status == 4)
+            throw new InvalidOperationException($"Chủng {stock.StockCode} đã hủy trước đó");
 
         stock.Status = 4; // Discarded
         stock.RemainingAliquots = 0;

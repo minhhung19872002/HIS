@@ -114,7 +114,9 @@ const SampleTrackingV2: React.FC = () => {
   const loadBatches = async () => {
     setBatchLoading(true);
     try {
-      const r = await getSampleBatches(batchDate.toISOString());
+      // Local calendar day, not toISOString(): the UTC date is the previous day from 00:00–07:00 VN
+      // (BE takes date.Date) → the "Theo đợt" tab showed yesterday's batches.
+      const r = await getSampleBatches(batchDate.format('YYYY-MM-DD'));
       setBatches(r?.batches || []);
       setBatchTotal(r?.total || 0);
     } catch { setBatches([]); setBatchTotal(0); ti('Không tải được mẫu theo đợt'); }

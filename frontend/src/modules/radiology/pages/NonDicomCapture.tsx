@@ -102,8 +102,9 @@ const NonDicomCaptureV2: React.FC = () => {
     try {
       const v = await createForm.validateFields();
       const { data } = await apiClient.post<{ id: string }>('/non-dicom/studies', {
-        serviceRequestDetailId: v.serviceRequestDetailId || crypto.randomUUID(),
-        patientId: v.patientId || crypto.randomUUID(),
+        // Never substitute a random UUID: that stored images against a patient/order that does not exist.
+        serviceRequestDetailId: v.serviceRequestDetailId,
+        patientId: v.patientId,
         deviceType: v.deviceType, deviceName: v.deviceName, description: v.description,
       });
       setStudyId(data.id); setCaptures([]);
@@ -262,8 +263,8 @@ const NonDicomCaptureV2: React.FC = () => {
           <Form.Item name="patientName" label="Tên BN" rules={[{ required: true }]}>
             <Input placeholder="Họ tên bệnh nhân" />
           </Form.Item>
-          <Form.Item name="patientId" label="Mã BN (tùy chọn)"><Input placeholder="Guid BN trong HIS" /></Form.Item>
-          <Form.Item name="serviceRequestDetailId" label="Mã chỉ định (tùy chọn)"><Input placeholder="Guid ServiceRequestDetail" /></Form.Item>
+          <Form.Item name="patientId" label="Mã BN" rules={[{ required: true }]}><Input placeholder="Guid BN trong HIS" /></Form.Item>
+          <Form.Item name="serviceRequestDetailId" label="Mã chỉ định" rules={[{ required: true }]}><Input placeholder="Guid ServiceRequestDetail" /></Form.Item>
           <Form.Item name="deviceType" label="Loại thiết bị" rules={[{ required: true }]}>
             <Select options={DEVICE_TYPES.map((t) => ({ value: t.v, label: t.l }))} />
           </Form.Item>

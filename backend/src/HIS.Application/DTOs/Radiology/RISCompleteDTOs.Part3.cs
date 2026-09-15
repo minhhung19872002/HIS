@@ -444,14 +444,16 @@ public class SkipPatientRequest
     {
         public Guid? Id { get; set; }
         public string Title { get; set; }
-        public string Description { get; set; }
+        // Optional fields nullable: implicit [Required] 400'd every v2 "Tạo phiên hội chẩn" (no notes/cases/participants).
+        public string? Description { get; set; }
         public DateTime ScheduledStartTime { get; set; }
         public DateTime ScheduledEndTime { get; set; }
         public Guid? LeaderId { get; set; }
         public Guid? SecretaryId { get; set; }
-        public string Notes { get; set; }
-        public List<Guid> CaseRequestIds { get; set; }
-        public List<Guid> ParticipantUserIds { get; set; }
+        public string? Notes { get; set; }
+        public string? MeetingUrl { get; set; }
+        public List<Guid>? CaseRequestIds { get; set; }
+        public List<Guid>? ParticipantUserIds { get; set; }
     }
 
     /// <summary>
@@ -702,10 +704,11 @@ public class SkipPatientRequest
     public class SaveConsultationMinutesDto
     {
         public Guid SessionId { get; set; }
-        public string TemplateUsed { get; set; }
+        // Nullable to match the entity (TemplateUsed/Conclusions/Recommendations are string?) — v2 sends no template.
+        public string? TemplateUsed { get; set; }
         public string Content { get; set; }
-        public string Conclusions { get; set; }
-        public string Recommendations { get; set; }
+        public string? Conclusions { get; set; }
+        public string? Recommendations { get; set; }
     }
 
     /// <summary>

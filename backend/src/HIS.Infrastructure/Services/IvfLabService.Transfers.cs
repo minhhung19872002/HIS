@@ -17,11 +17,20 @@ public partial class IvfLabService
     {
         try
         {
+            if (dto.EmbryoCount < 1)
+                throw new ArgumentException("Số phôi chuyển phải ≥ 1");
+            if (!TransferTypeNames.ContainsKey(dto.TransferType))
+                throw new ArgumentException($"Loại chuyển phôi không hợp lệ: {dto.TransferType}");
+            if (!await _context.Set<IvfCycle>().AnyAsync(c => c.Id == dto.CycleId && !c.IsDeleted))
+                throw new KeyNotFoundException("Không tìm thấy chu kỳ IVF");
+
             IvfEmbryoTransfer entity;
             if (dto.Id.HasValue && dto.Id != Guid.Empty)
             {
                 entity = await _context.Set<IvfEmbryoTransfer>().FindAsync(dto.Id.Value)
                     ?? throw new KeyNotFoundException("Transfer not found");
+                if (entity.CycleId != dto.CycleId)
+                    throw new InvalidOperationException("Không được chuyển lần chuyển phôi sang chu kỳ khác");
                 entity.UpdatedAt = DateTime.UtcNow;
             }
             else
@@ -87,6 +96,8 @@ public partial class IvfLabService
         {
             var entity = await _context.Set<IvfEmbryoTransfer>().FindAsync(id);
             if (entity == null || entity.IsDeleted) return false;
+            if (!ResultStatusNames.ContainsKey(resultStatus))
+                throw new ArgumentException($"Kết quả chuyển phôi không hợp lệ: {resultStatus}");
             entity.ResultStatus = resultStatus;
             entity.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
@@ -145,11 +156,19 @@ public partial class IvfLabService
     {
         try
         {
+            if (dto.StrawCount < 0)
+                throw new ArgumentException("Số ống không được âm");
+            if (!await _context.Patients.AnyAsync(p => p.Id == dto.PatientId && !p.IsDeleted))
+                throw new KeyNotFoundException("Không tìm thấy người bệnh của mẫu tinh trùng");
+
             IvfSpermBank entity;
             if (dto.Id.HasValue && dto.Id != Guid.Empty)
             {
                 entity = await _context.Set<IvfSpermBank>().FindAsync(dto.Id.Value)
                     ?? throw new KeyNotFoundException("Sperm sample not found");
+                // Re-assigning a stored sample to another person breaks the donor chain of custody.
+                if (entity.PatientId != dto.PatientId)
+                    throw new InvalidOperationException("Không được đổi người sở hữu của mẫu tinh trùng đã lưu");
                 entity.UpdatedAt = DateTime.UtcNow;
             }
             else
@@ -194,6 +213,11 @@ public partial class IvfLabService
         {
             var entity = await _context.Set<IvfSpermBank>().FindAsync(id);
             if (entity == null || entity.IsDeleted) return false;
+            if (!SpermStatusNames.ContainsKey(status))
+                throw new ArgumentException($"Trạng thái mẫu tinh trùng không hợp lệ: {status}");
+            // 2=Used / 3=Disposed are terminal: a used or disposed straw must not re-appear as stored.
+            if (entity.Status != 1 && status != entity.Status)
+                throw new InvalidOperationException($"Mẫu tinh trùng đã {SpermStatusNames.GetValueOrDefault(entity.Status, "")?.ToLower()} — không đổi trạng thái được");
             entity.Status = status;
             entity.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
@@ -260,6 +284,15 @@ public partial class IvfLabService
     {
         try
         {
+            var couple = await _context.Set<IvfCycle>()
+                .Where(c => c.Id == dto.CycleId && !c.IsDeleted)
+                .Select(c => new { c.Couple!.WifePatientId, c.Couple.HusbandPatientId })
+                .FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException("Không tìm thấy chu kỳ IVF");
+            // Wrong-couple linkage: a biopsy of this cycle can only belong to the wife or husband of that cycle's couple.
+            if (dto.PatientId.HasValue && dto.PatientId != couple.WifePatientId && dto.PatientId != couple.HusbandPatientId)
+                throw new InvalidOperationException("Người bệnh của mẫu sinh thiết không thuộc cặp đôi của chu kỳ này");
+
             IvfBiopsy entity;
             if (dto.Id.HasValue && dto.Id != Guid.Empty)
             {

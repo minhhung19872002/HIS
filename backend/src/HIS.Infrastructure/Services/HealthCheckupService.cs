@@ -90,7 +90,9 @@ public partial class HealthCheckupService : IHealthCheckupService
     {
         if (string.IsNullOrWhiteSpace(dto.CampaignName))
             throw new ArgumentException("Tên đợt khám là bắt buộc", nameof(dto.CampaignName));
-        var code = $"KSK{DateTime.Now:yyyyMMdd}{new Random().Next(100, 999)}";
+        if (dto.EndDate != default && dto.EndDate.Date < dto.StartDate.Date)
+            throw new ArgumentException("Ngày kết thúc đợt khám không được trước ngày bắt đầu", nameof(dto.EndDate));
+        var code =$"KSK{DateTime.Now:yyyyMMdd}{new Random().Next(100, 999)}";
 
         var entity = new HealthCheckupCampaign
         {
@@ -231,6 +233,9 @@ public partial class HealthCheckupService : IHealthCheckupService
 
         if (entity.CertificateIssued)
             throw new InvalidOperationException("Giấy chứng nhận đã được cấp");
+        // A health certificate was issuable on a record with no result and no classification.
+        if (string.IsNullOrWhiteSpace(entity.Classification) && string.IsNullOrWhiteSpace(entity.ResultSummary))
+            throw new InvalidOperationException("Phiếu khám chưa có kết quả / phân loại sức khỏe — không cấp giấy chứng nhận được");
 
         entity.CertificateIssued = true;
         entity.CertificateNumber = $"GCN{DateTime.Now:yyyyMMdd}{new Random().Next(1000, 9999)}";
@@ -321,6 +326,8 @@ public partial class HealthCheckupService : IHealthCheckupService
             ?? throw new KeyNotFoundException("Không tìm thấy đợt khám");
         if (string.IsNullOrWhiteSpace(dto.CampaignName))
             throw new ArgumentException("Tên đợt khám là bắt buộc", nameof(dto.CampaignName));
+        if (dto.EndDate != default && dto.EndDate.Date < dto.StartDate.Date)
+            throw new ArgumentException("Ngày kết thúc đợt khám không được trước ngày bắt đầu", nameof(dto.EndDate));
         campaign.CampaignName = dto.CampaignName;
         campaign.OrganizationName = dto.OrganizationName ?? dto.CompanyName;
         campaign.ContactPerson = dto.ContactPerson;

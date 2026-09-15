@@ -147,8 +147,28 @@ export interface PdfSignatureResult {
 export const signResult = (data: SignResultRequestDto) =>
   apiClient.post<SignResultResponseDto>('/RISComplete/results/sign', data);
 
+// BE SignatureHistoryDto uses radiologyReportId/signedByUserId/signedByUserName/signedAt/status(1=active);
+// without mapping every signer rendered blank, with no time and flagged "không hợp lệ".
+type RawSignatureHistory = Partial<SignatureHistoryDto> & {
+  radiologyReportId?: string; signedByUserId?: string; signedByUserName?: string;
+  signedAt?: string; status?: number;
+};
 export const getSignatureHistory = (reportId: string) =>
-  apiClient.get<SignatureHistoryDto[]>(`/RISComplete/reports/${reportId}/signature-history`);
+  apiClient.get<RawSignatureHistory[]>(`/RISComplete/reports/${reportId}/signature-history`)
+    .then((res) => ({
+      ...res,
+      data: (Array.isArray(res.data) ? res.data : []).map((h): SignatureHistoryDto => ({
+        id: h.id ?? '',
+        reportId: h.reportId ?? h.radiologyReportId ?? reportId,
+        signedTime: h.signedTime ?? h.signedAt ?? '',
+        signedById: h.signedById ?? h.signedByUserId ?? '',
+        signedByName: h.signedByName ?? h.signedByUserName ?? '',
+        signatureType: h.signatureType ?? '',
+        certificateSubject: h.certificateSubject,
+        certificateIssuer: h.certificateIssuer,
+        isValid: h.isValid ?? h.status === 1,
+      })),
+    }));
 
 export const verifySignature = (reportId: string) =>
   apiClient.get<SignResultResponseDto>(`/RISComplete/reports/${reportId}/verify-signature`);

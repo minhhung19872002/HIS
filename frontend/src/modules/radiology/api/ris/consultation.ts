@@ -153,14 +153,39 @@ export interface AddConsultationAttachmentDto {
 
 // #region V. Consultation APIs
 
+// BE ConsultationSessionDto names: scheduledStartTime / actualStartTime / actualEndTime / organizerName.
+// Unmapped, the v2 list showed no schedule time, "hôm nay" KPI = 0, and a blank creator.
+type RawConsultationSession = Partial<ConsultationSessionDto> & {
+  scheduledStartTime?: string; actualStartTime?: string | null; actualEndTime?: string | null; organizerName?: string;
+};
+const normalizeSession = (s: RawConsultationSession): ConsultationSessionDto => ({
+  ...(s as ConsultationSessionDto),
+  scheduledTime: s.scheduledTime ?? s.scheduledStartTime ?? '',
+  startTime: s.startTime ?? s.actualStartTime ?? undefined,
+  endTime: s.endTime ?? s.actualEndTime ?? undefined,
+  createdByUserName: s.createdByUserName ?? s.organizerName ?? '',
+});
+
 export const searchConsultations = (data: SearchConsultationDto) =>
-  apiClient.post<ConsultationSearchResultDto>('/RISComplete/consultations/search', data);
+  apiClient.post<ConsultationSearchResultDto>('/RISComplete/consultations/search', data)
+    .then((res) => ({
+      ...res,
+      data: res.data ? { ...res.data, items: (res.data.items || []).map(normalizeSession) } : res.data,
+    }));
 
 export const getConsultationSession = (sessionId: string) =>
-  apiClient.get<ConsultationSessionDto>(`/RISComplete/consultations/${sessionId}`);
+  apiClient.get<RawConsultationSession>(`/RISComplete/consultations/${sessionId}`)
+    .then((res) => ({ ...res, data: res.data ? normalizeSession(res.data) : res.data as unknown as ConsultationSessionDto }));
 
-export const saveConsultationSession = (data: SaveConsultationSessionDto) =>
-  apiClient.post<ConsultationSessionDto>('/RISComplete/consultations', data);
+// BE SaveConsultationSessionDto takes scheduledStartTime/scheduledEndTime — `scheduledTime` alone bound to
+// 0001-01-01. Default the end to start + 1h (the form has a single time field).
+export const saveConsultationSession = (data: SaveConsultationSessionDto) => {
+  const startMs = new Date(data.scheduledTime).getTime();
+  const scheduledEndTime = Number.isNaN(startMs) ? data.scheduledTime : new Date(startMs + 3_600_000).toISOString();
+  return apiClient.post<ConsultationSessionDto>('/RISComplete/consultations', {
+    ...data, scheduledStartTime: data.scheduledTime, scheduledEndTime,
+  });
+};
 
 export const deleteConsultationSession = (sessionId: string) =>
   apiClient.delete(`/RISComplete/consultations/${sessionId}`);
@@ -201,11 +226,29 @@ export const addConsultationImageNote = (data: AddConsultationImageNoteDto) =>
 export const getConsultationImageNotes = (caseId: string) =>
   apiClient.get<ConsultationImageNoteDto[]>(`/RISComplete/consultations/cases/${caseId}/image-notes`);
 
+// BE minutes DTO uses sessionId + conclusions (plural): the old payload bound SessionId = Guid.Empty and
+// dropped the conclusion, and the saved conclusion never rendered back.
+type RawConsultationMinutes = Partial<ConsultationMinutesDto> & { sessionId?: string; conclusions?: string | null };
+const normalizeMinutes = (m: RawConsultationMinutes | null | undefined): ConsultationMinutesDto | null =>
+  m && typeof m === 'object'
+    ? {
+      ...(m as ConsultationMinutesDto),
+      consultationSessionId: m.consultationSessionId ?? m.sessionId ?? '',
+      conclusion: m.conclusion ?? m.conclusions ?? undefined,
+    }
+    : null;
+
 export const saveConsultationMinutes = (data: SaveConsultationMinutesDto) =>
-  apiClient.post<ConsultationMinutesDto>('/RISComplete/consultations/minutes', data);
+  apiClient.post<RawConsultationMinutes>('/RISComplete/consultations/minutes', {
+    sessionId: data.consultationSessionId,
+    content: data.content ?? '',
+    conclusions: data.conclusion,
+    recommendations: data.recommendations,
+  }).then((res) => ({ ...res, data: normalizeMinutes(res.data) }));
 
 export const getConsultationMinutes = (sessionId: string) =>
-  apiClient.get<ConsultationMinutesDto>(`/RISComplete/consultations/${sessionId}/minutes`);
+  apiClient.get<RawConsultationMinutes>(`/RISComplete/consultations/${sessionId}/minutes`)
+    .then((res) => ({ ...res, data: normalizeMinutes(res.data) }));
 
 export const approveConsultationMinutes = (minutesId: string) =>
   apiClient.post<ConsultationMinutesDto>(`/RISComplete/consultations/minutes/${minutesId}/approve`);

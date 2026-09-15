@@ -60,23 +60,52 @@ export const getCultureById = async (id: string) => {
   return resp.data;
 };
 
+// The BE DTOs (ILISCompleteService.cs) declare every optional text field as non-nullable `string`,
+// which is implicitly [Required]: an omitted key (`x || undefined`) → 400 "The Notes/GramStain/Method
+// field is required." on EVERY create/update/add/antibiogram save. The service treats "" as empty.
+const s = (v?: string | null) => v ?? '';
+
 export const createCulture = async (data: Partial<MicrobiologyCulture>) => {
-  const resp = await apiClient.post('/LISComplete/microbiology/cultures', data);
+  const resp = await apiClient.post('/LISComplete/microbiology/cultures', {
+    ...data,
+    labRequestId: s(data.labRequestId),
+    sampleType: s(data.sampleType),
+    cultureType: s(data.cultureType),
+    sampleBarcode: s(data.sampleBarcode),
+    notes: s(data.notes),
+  });
   return resp.data;
 };
 
 export const updateCultureStatus = async (id: string, data: { status: number; notes?: string }) => {
-  const resp = await apiClient.put(`/LISComplete/microbiology/cultures/${id}/status`, data);
+  const resp = await apiClient.put(`/LISComplete/microbiology/cultures/${id}/status`, { ...data, notes: s(data.notes) });
   return resp.data;
 };
 
 export const addOrganism = async (cultureId: string, data: Partial<MicrobiologyOrganism>) => {
-  const resp = await apiClient.post(`/LISComplete/microbiology/cultures/${cultureId}/organisms`, data);
+  const resp = await apiClient.post(`/LISComplete/microbiology/cultures/${cultureId}/organisms`, {
+    ...data,
+    organismCode: s(data.organismCode),
+    organismName: s(data.organismName),
+    colonyCount: s(data.colonyCount),
+    morphology: s(data.morphology),
+    gramStain: s(data.gramStain),
+    identificationMethod: s(data.identificationMethod),
+  });
   return resp.data;
 };
 
 export const saveAntibiogram = async (organismId: string, data: AntibioticSensitivity[]) => {
-  const resp = await apiClient.post(`/LISComplete/microbiology/organisms/${organismId}/antibiogram`, data);
+  const resp = await apiClient.post(
+    `/LISComplete/microbiology/organisms/${organismId}/antibiogram`,
+    data.map((r) => ({
+      ...r,
+      antibioticCode: s(r.antibioticCode),
+      antibioticName: s(r.antibioticName),
+      interpretation: s(r.interpretation),
+      method: s(r.method),
+    })),
+  );
   return resp.data;
 };
 

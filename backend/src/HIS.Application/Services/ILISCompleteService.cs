@@ -904,14 +904,15 @@ namespace HIS.Application.Services
 
     public class UpdateReferenceRangeDto
     {
+        // QA-R2: optional fields made nullable — non-nullable `string` is implicitly [Required].
         public Guid? Id { get; set; }
-        public string Gender { get; set; }
+        public string? Gender { get; set; }
         public int? AgeFromDays { get; set; }
         public int? AgeToDays { get; set; }
         public decimal? LowValue { get; set; }
         public decimal? HighValue { get; set; }
-        public string TextRange { get; set; }
-        public string Description { get; set; }
+        public string? TextRange { get; set; }
+        public string? Description { get; set; }
     }
 
     public class CriticalValueConfigDto
@@ -936,7 +937,7 @@ namespace HIS.Application.Services
         public decimal? PanicHigh { get; set; }
         public bool RequireAcknowledgment { get; set; }
         public int? AcknowledgmentTimeoutMinutes { get; set; }
-        public string NotificationMethod { get; set; }
+        public string? NotificationMethod { get; set; } // QA-R2: optional → nullable (was implicitly required)
     }
 
     public class UpdateLabTestNormDto

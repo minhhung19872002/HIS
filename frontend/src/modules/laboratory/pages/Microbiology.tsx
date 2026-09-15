@@ -87,6 +87,9 @@ const MicrobiologyV2: React.FC = () => {
     finally { setLoading(false); }
   }, [search]);
   useEffect(() => { load(); }, [load]);
+  // Keep the open drawer in sync after a reload: "Thêm vi khuẩn" / antibiogram saves reloaded the list but the
+  // drawer kept the stale culture → the organism just added never appeared, so its antibiogram couldn't be entered.
+  useEffect(() => { setSel((s) => (s ? items.find((x) => x.id === s.id) ?? s : s)); }, [items]);
 
   const types = useMemo(() => {
     const set = new Set(items.map((c) => c.cultureType).filter(Boolean));

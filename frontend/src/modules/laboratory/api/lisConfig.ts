@@ -129,8 +129,12 @@ export interface LabconnectSyncHistoryDto {
 // ===========================
 
 // Analyzers
+// BE LisAnalyzerDto names it `lastConnectionTime` → "Lần cuối" column/drawer were always blank.
 export const getAnalyzers = () =>
-  apiClient.get<AnalyzerDto[]>('/lis/analyzers');
+  apiClient.get<(AnalyzerDto & { lastConnectionTime?: string })[]>('/lis/analyzers').then((res) => ({
+    ...res,
+    data: (res.data || []).map((a) => ({ ...a, lastConnectedAt: a.lastConnectedAt ?? a.lastConnectionTime })) as AnalyzerDto[],
+  }));
 
 export const createAnalyzer = (data: CreateAnalyzerDto) =>
   apiClient.post<AnalyzerDto>('/lis/analyzers', data);

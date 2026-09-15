@@ -20,6 +20,15 @@ public class NonDicomService : INonDicomService
 
     public async Task<ServiceOutcome> CreateStudyAsync(CreateStudyDto dto, Guid userId)
     {
+        // NonDicomStudies has no FK to Patients / ServiceRequestDetails, and the v2 capture page substituted a
+        // random UUID when the ids were left blank → endoscopy/derm images stored against a patient that does not exist.
+        if (dto.PatientId == Guid.Empty || !await _db.Patients.AnyAsync(p => p.Id == dto.PatientId))
+            return ServiceOutcome.Bad("Không tìm thấy bệnh nhân của ca chụp");
+        if (dto.ServiceRequestDetailId == Guid.Empty
+            || !await _db.ServiceRequestDetails.AnyAsync(d => d.Id == dto.ServiceRequestDetailId
+                && d.ServiceRequest.MedicalRecord.PatientId == dto.PatientId))
+            return ServiceOutcome.Bad("Không tìm thấy chỉ định của bệnh nhân này cho ca chụp");
+
         var study = new NonDicomStudy
         {
             Id = Guid.NewGuid(),

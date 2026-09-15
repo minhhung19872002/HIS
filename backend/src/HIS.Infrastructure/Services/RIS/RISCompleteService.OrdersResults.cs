@@ -49,6 +49,10 @@ public partial class RISCompleteService
             .Include(r => r.Patient)
             .Include(r => r.Service)
             .Include(r => r.RequestingDoctor)
+            // Report must be loaded: HasResult below reads e.Report, which was always null here →
+            // every order came back hasResult=false and the v2 RIS list/drawer never showed/printed a result.
+            .Include(r => r.Exams)
+                .ThenInclude(e => e.Report)
             .Include(r => r.Exams)
                 .ThenInclude(e => e.DicomStudies)
             .Where(r => r.RequestDate >= fromUtc && r.RequestDate < toUtc);

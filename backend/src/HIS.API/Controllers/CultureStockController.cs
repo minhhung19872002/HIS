@@ -96,9 +96,13 @@ public class CultureStockController : ControllerBase
             var result = await _service.SubcultureAsync(id, dto);
             return Ok(result);
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException ex) when (ex.Message == "Culture stock not found")
         {
             return NotFound(new { error = "NOT_FOUND", message = ex.Message });
+        }
+        catch (InvalidOperationException ex) // state guard (discarded / depleted stock)
+        {
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
     }
 
@@ -110,9 +114,13 @@ public class CultureStockController : ControllerBase
             await _service.DiscardStockAsync(id, reason);
             return Ok();
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException ex) when (ex.Message == "Culture stock not found")
         {
             return NotFound(new { error = "NOT_FOUND", message = ex.Message });
+        }
+        catch (InvalidOperationException ex) // state guard (discarded / depleted stock)
+        {
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
         }
     }
 

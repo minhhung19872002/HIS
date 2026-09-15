@@ -35,7 +35,7 @@ const BASE_FIELDS: CrudFieldCfg[] = [
   { key: 'conclusion', label: 'Kết luận', type: 'select', options: [
     { value: 'pass', label: 'Đạt' }, { value: 'conditional', label: 'Có điều kiện' }, { value: 'fail', label: 'Không đạt' }] },
   { key: 'status', label: 'Trạng thái', type: 'select', options: [
-    { value: 0, label: 'Chờ' }, { value: 1, label: 'Đang khám' }, { value: 2, label: 'Hoàn thành' }, { value: 3, label: 'Đã chứng nhận' }] },
+    { value: 0, label: 'Chờ' }, { value: 1, label: 'Đang khám' }, { value: 2, label: 'Hoàn thành' }, { value: 3, label: 'Đã hủy' }] },
   { key: 'notes', label: 'Ghi chú', type: 'textarea' },
 ];
 
@@ -58,7 +58,7 @@ const CHILD_FIELDS: CrudFieldCfg[] = [
 ];
 
 const STATUS_LABEL: Record<number, string> = {
-  0: 'Chờ', 1: 'Đang khám', 2: 'Hoàn thành', 3: 'Đã chứng nhận',
+  0: 'Chờ', 1: 'Đang khám', 2: 'Hoàn thành', 3: 'Đã hủy', // BE HealthCheckup.Status 3 = Cancelled
 };
 
 type SKey = 'pending' | 'progress' | 'done' | 'certified';
@@ -66,7 +66,7 @@ const STATUS_TABS = [
   { v: 'pending' as SKey,   l: 'Chờ',          tone: 'warn' as const },
   { v: 'progress' as SKey,  l: 'Đang khám',    tone: 'info' as const },
   { v: 'done' as SKey,      l: 'Hoàn thành',   tone: 'info' as const },
-  { v: 'certified' as SKey, l: 'Đã chứng nhận', tone: 'ok' as const },
+  { v: 'certified' as SKey, l: 'Đã hủy', tone: 'crit' as const },
 ];
 
 const sKey = (n: number): SKey => n === 0 ? 'pending' : n === 1 ? 'progress' : n === 2 ? 'done' : 'certified';

@@ -409,7 +409,14 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> ApproveLabResult([FromBody] ApproveLabResultDto dto)
         {
             dto.ApprovedByUserId ??= GetUserId();
-            await _lisService.ApproveLabResultAsync(dto);
+            try
+            {
+                await _lisService.ApproveLabResultAsync(dto);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse.Fail(ex.Message));
+            }
             return Ok();
         }
 
@@ -435,8 +442,15 @@ namespace HIS.API.Controllers
             Guid orderId,
             [FromBody] FinalApproveRequest request)
         {
-            if (!await _lisService.FinalApproveLabResultAsync(orderId, request.DoctorNote, GetUserId()))
-                return BadRequest(ApiResponse.Fail("Phiếu không có kết quả nào để duyệt"));
+            try
+            {
+                if (!await _lisService.FinalApproveLabResultAsync(orderId, request.DoctorNote, GetUserId()))
+                    return BadRequest(ApiResponse.Fail("Phiếu không có kết quả nào để duyệt"));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse.Fail(ex.Message)); // already final-approved
+            }
             return Ok();
         }
 

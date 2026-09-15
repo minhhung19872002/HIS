@@ -20,6 +20,16 @@ public class SpecimenImageService : ISpecimenImageService
     private readonly HISDbContext _db;
     public SpecimenImageService(HISDbContext db) { _db = db; }
 
+    // Same rule as PathologyService.UpdatePathologyResultAsync: a signed-off (verified) pathology report is
+    // immutable. Images attached to it could still be added, deleted or dropped from the report after sign-off.
+    private const string VerifiedResultMessage =
+        "Kết quả giải phẫu bệnh đã được duyệt — không thêm / sửa / xóa ảnh được nữa";
+
+    private Task<bool> IsVerifiedPathologyResultAsync(Guid? pathologyResultId) =>
+        pathologyResultId.HasValue
+            ? _db.PathologyResults.AnyAsync(r => r.Id == pathologyResultId.Value && r.VerifiedAt != null)
+            : Task.FromResult(false);
+
     // ─── Create (dùng chung cho Upload + UploadBase64, file đã ghi ở controller) ───
 
     public async Task<ServiceOutcome> CreateImageAsync(
@@ -36,6 +46,17 @@ public class SpecimenImageService : ISpecimenImageService
         string source,
         Guid userId)
     {
+        if (pathologyResultId.HasValue)
+        {
+            var result = await _db.PathologyResults.AsNoTracking()
+                .Where(r => r.Id == pathologyResultId.Value)
+                .Select(r => new { r.VerifiedAt })
+                .FirstOrDefaultAsync();
+            // No FK on SpecimenImages.PathologyResultId: an unknown id silently created an orphan image.
+            if (result == null) return ServiceOutcome.Bad("Không tìm thấy kết quả giải phẫu bệnh");
+            if (result.VerifiedAt.HasValue) return ServiceOutcome.Bad(VerifiedResultMessage);
+        }
+
         var entity = new SpecimenImage
         {
             Id = newId,
@@ -157,6 +178,7 @@ public class SpecimenImageService : ISpecimenImageService
     {
         var img = await _db.SpecimenImages.FirstOrDefaultAsync(i => i.Id == id && !i.IsDeleted);
         if (img == null) return ServiceOutcome.NotFound();
+        if (await IsVerifiedPathologyResultAsync(img.PathologyResultId)) return ServiceOutcome.Bad(VerifiedResultMessage);
 
         if (dto.Caption != null) img.Caption = dto.Caption;
         if (dto.Magnification != null) img.Magnification = dto.Magnification;
@@ -175,6 +197,7 @@ public class SpecimenImageService : ISpecimenImageService
     {
         var img = await _db.SpecimenImages.FirstOrDefaultAsync(i => i.Id == id && !i.IsDeleted);
         if (img == null) return ServiceOutcome.NotFound();
+        if (await IsVerifiedPathologyResultAsync(img.PathologyResultId)) return ServiceOutcome.Bad(VerifiedResultMessage);
 
         img.IsDeleted = true;
         img.UpdatedAt = DateTime.UtcNow;

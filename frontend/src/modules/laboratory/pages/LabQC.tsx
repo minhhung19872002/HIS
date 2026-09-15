@@ -182,7 +182,9 @@ const RunQCModal: React.FC<{
       const r = await runQC({
         analyzerId, testId, qcLevel: level,
         qcLotNumber: lotNumber.trim(), qcValue: value,
-        runTime: runTime.toISOString(),
+        // Local wall time: toISOString() stored the UTC clock (17:00 VN run saved/shown as 10:00) and
+        // pushed runs made 00:00–07:00 VN into the previous day's Levey-Jennings / results window.
+        runTime: runTime.format('YYYY-MM-DDTHH:mm:ss'),
       });
       setResult(r.data);
       if (r.data.isAccepted) tk('QC đạt'); else ti('QC vi phạm quy tắc Westgard');

@@ -29,6 +29,10 @@ namespace HIS.Infrastructure.Services
             if (fromDate < sqlMin) fromDate = sqlMin;
             if (toDate < sqlMin) toDate = sqlMax;
             else if (toDate > sqlMax) toDate = sqlMax;
+            // Date-only upper bound (FE sends "YYYY-MM-DD") = whole day inclusive: `<= 00:00` hid
+            // every request created today, including the one the user had just submitted.
+            if (toDate.TimeOfDay == TimeSpan.Zero && toDate < sqlMax.AddDays(-1))
+                toDate = toDate.AddDays(1).AddMilliseconds(-3); // datetime precision: 23:59:59.997
 
             var results = new List<BloodIssueRequestDto>();
             // #218/T3 (2026-09-04): KHÔNG `using` kết nối này — nó thuộc về DbContext.
@@ -40,12 +44,17 @@ namespace HIS.Infrastructure.Services
             using var command = connection.CreateCommand();
 
             var sql = @"SELECT r.Id, r.RequestCode, r.RequestDate, r.DepartmentId,
-                r.RequestedById, r.PatientId, r.PatientCode, r.PatientName,
+                r.RequestedById, r.PatientId,
+                COALESCE(NULLIF(r.PatientCode, ''), p.PatientCode COLLATE DATABASE_DEFAULT) AS PatientCode,
+                COALESCE(NULLIF(r.PatientName, ''), p.FullName COLLATE DATABASE_DEFAULT) AS PatientName,
+                d.DepartmentName,
                 r.BloodType, r.RhFactor, r.ProductTypeId, pt.Name AS ProductTypeName,
                 r.RequestedQuantity, r.IssuedQuantity, r.Urgency, r.Status,
                 r.ClinicalIndication, r.Note, r.CreatedAt
                 FROM BloodIssueRequests r
                 LEFT JOIN BloodProductTypes pt ON r.ProductTypeId = pt.Id
+                LEFT JOIN Patients p ON p.Id = r.PatientId
+                LEFT JOIN Departments d ON d.Id = r.DepartmentId
                 WHERE r.RequestDate >= @fromDate AND r.RequestDate <= @toDate";
 
             if (departmentId.HasValue)
@@ -81,12 +90,17 @@ namespace HIS.Infrastructure.Services
             using var command = connection.CreateCommand();
 
             command.CommandText = @"SELECT r.Id, r.RequestCode, r.RequestDate, r.DepartmentId,
-                r.RequestedById, r.PatientId, r.PatientCode, r.PatientName,
+                r.RequestedById, r.PatientId,
+                COALESCE(NULLIF(r.PatientCode, ''), p.PatientCode COLLATE DATABASE_DEFAULT) AS PatientCode,
+                COALESCE(NULLIF(r.PatientName, ''), p.FullName COLLATE DATABASE_DEFAULT) AS PatientName,
+                d.DepartmentName,
                 r.BloodType, r.RhFactor, r.ProductTypeId, pt.Name AS ProductTypeName,
                 r.RequestedQuantity, r.IssuedQuantity, r.Urgency, r.Status,
                 r.ClinicalIndication, r.Note, r.CreatedAt
                 FROM BloodIssueRequests r
                 LEFT JOIN BloodProductTypes pt ON r.ProductTypeId = pt.Id
+                LEFT JOIN Patients p ON p.Id = r.PatientId
+                LEFT JOIN Departments d ON d.Id = r.DepartmentId
                 WHERE r.Id = @requestId";
             command.Parameters.Add(new SqlParameter("@requestId", requestId));
 

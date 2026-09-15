@@ -252,8 +252,9 @@ const LaboratoryV2: React.FC = () => {
 
   // KPIs
   const kpis = useMemo(() => {
-    const verified = rows.filter((r) => r.status >= 3).length;
-    const pending  = rows.filter((r) => r.status >= 0 && r.status <= 2).length;
+    // 3 = all results entered but not approved yet → still pending, not "Đã duyệt"
+    const verified = rows.filter((r) => r.status >= 4).length;
+    const pending  = rows.filter((r) => r.status >= 0 && r.status <= 3).length;
     const stat     = rows.filter((r) => r.priority === 2).length;
     const totalAbnormal = rows.reduce((a, r) => a + abnormalCount(r.tests), 0);
     const tatTimes = rows
@@ -524,7 +525,7 @@ const LaboratoryV2: React.FC = () => {
                 { key: 'collect', icon: 'check', label: 'Đánh dấu đã lấy mẫu', primary: true,
                   hidden: sk !== 'ordered', disabled: !!acting, onClick: () => onCollect(r) },
                 { key: 'approve', icon: 'check', label: 'Duyệt kết quả', primary: true,
-                  hidden: sk !== 'running', disabled: !!acting, onClick: () => onApprove(r) },
+                  hidden: r.status !== 2, disabled: !!acting, onClick: () => onApprove(r) },
                 { key: 'prelim', icon: 'check', label: 'Duyệt sơ bộ (KTV)', primary: true,
                   hidden: r.status !== 3, disabled: !!acting, onClick: () => onPreliminary(r) },
                 { key: 'final', icon: 'check', label: 'Duyệt chính thức (BS)', primary: true,
@@ -617,7 +618,7 @@ const LaboratoryV2: React.FC = () => {
             <Btn onClick={() => onPrintRow(detail)}>
               <TermIcon name="print" size={12} /> In phiếu
             </Btn>
-            {statusKey(detail.status) === 'running' && (
+            {detail.status === 2 && (
               <Btn variant="primary" disabled={!!acting} onClick={() => { onApprove(detail); setDetail(null); }}>
                 <TermIcon name="check" size={12} /> {acting === detail.id ? 'Đang duyệt…' : 'Duyệt KQ'}
               </Btn>

@@ -106,19 +106,45 @@ export const getHelpCategories = (parentId?: string) =>
 export const saveHelpCategory = (data: SaveHelpCategoryDto) =>
   apiClient.post<HelpCategoryDto>('/RISComplete/help/categories', data);
 
+// BE HelpArticleDto exposes `isPublished`, not `isActive` → every article showed "Ẩn" and KPI "0 hiển thị".
+type RawHelpArticle = HelpArticleDto & { isPublished?: boolean };
+const normalizeArticle = (a: RawHelpArticle): HelpArticleDto => ({ ...a, isActive: a.isActive ?? a.isPublished ?? false });
+
 export const searchHelpArticles = (data: SearchHelpDto) =>
-  apiClient.post<HelpSearchResultDto>('/RISComplete/help/articles/search', data);
+  apiClient.post<HelpSearchResultDto>('/RISComplete/help/articles/search', data)
+    .then((res) => ({
+      ...res,
+      data: res.data ? { ...res.data, items: (res.data.items || []).map(normalizeArticle) } : res.data,
+    }));
 
 export const getHelpArticle = (articleId: string) =>
-  apiClient.get<HelpArticleDto>(`/RISComplete/help/articles/${articleId}`);
+  apiClient.get<RawHelpArticle>(`/RISComplete/help/articles/${articleId}`)
+    .then((res) => ({ ...res, data: res.data ? normalizeArticle(res.data) : res.data }));
 
 export const saveHelpArticle = (data: SaveHelpArticleDto) =>
   apiClient.post<HelpArticleDto>('/RISComplete/help/articles', data);
 
+// BE TroubleshootingDto: errorCode / errorTitle / relatedModule / causes — the v2 Help tab rendered
+// blank code, category and problem for every entry.
+type RawTroubleshooting = Partial<TroubleshootingDto> & {
+  errorCode?: string; errorTitle?: string; relatedModule?: string; causes?: string;
+};
 export const getTroubleshootingList = (category?: string, keyword?: string) =>
-  apiClient.get<TroubleshootingDto[]>('/RISComplete/help/troubleshooting', {
+  apiClient.get<RawTroubleshooting[]>('/RISComplete/help/troubleshooting', {
     params: { category, keyword }
-  });
+  }).then((res) => ({
+    ...res,
+    data: (Array.isArray(res.data) ? res.data : []).map((t): TroubleshootingDto => ({
+      id: t.id ?? '',
+      code: t.code ?? t.errorCode ?? '',
+      category: t.category ?? t.relatedModule ?? '',
+      problem: t.problem ?? t.errorTitle ?? '',
+      solution: t.solution ?? '',
+      steps: t.steps ?? t.causes,
+      sortOrder: t.sortOrder ?? 0,
+      isActive: t.isActive ?? true,
+    })),
+  }));
 
 export const saveTroubleshooting = (data: SaveTroubleshootingDto) =>
   apiClient.post<TroubleshootingDto>('/RISComplete/help/troubleshooting', data);

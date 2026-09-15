@@ -36,13 +36,15 @@ export const STATUS_TABS: StatusTab<StatusKey>[] = [
   { v: 'rejected',  l: 'Từ chối mẫu', tone: 'crit' },
 ];
 
-// Backend Status mapping:
-// 0 Pending(ordered) | 1 Collected | 2 Processing | 3 Completed | 4 Approved | 5 Verified
+// Backend Status mapping (LisModel1Map.ComputeOrderStatus):
+// 0 Pending(ordered) | 1 Collected | 2 Partial results | 3 All results, NOT approved yet
+// | 4 Preliminary approved (KTV) | 5 Final approved (BS)
+// Status 3 used to fall into 'verified' → unapproved results showed a green "Đã duyệt" badge.
 export const statusKey = (s: number): StatusKey => {
   if (s === 0) return 'ordered';
   if (s === 1) return 'collected';
-  if (s === 2) return 'running';
-  if (s >= 3) return 'verified';
+  if (s === 2 || s === 3) return 'running';
+  if (s >= 4) return 'verified';
   return 'ordered';
 };
 export const statusTone = (s: StatusKey) => STATUS_TABS.find((t) => t.v === s)?.tone || 'info';
@@ -50,9 +52,21 @@ export const statusTone = (s: StatusKey) => STATUS_TABS.find((t) => t.v === s)?.
 export const PRIO_LABEL: Record<number, string> = { 0: 'ROUTINE', 1: 'URGENT', 2: 'STAT' };
 export const PRIO_TONE: Record<number, 'ok' | 'warn' | 'crit'> = { 0: 'ok', 1: 'warn', 2: 'crit' };
 
+const FLAG_SEVERITY: Record<string, number> = { HH: 4, LL: 3, H: 2, L: 1 };
+
 export const flagFor = (test: LabTestItem): '' | 'H' | 'L' | 'HH' | 'LL' => {
+  // Panel tests (CBC…): result is a summary string ("HGB 155; PLT 45") that never parses —
+  // the backend already flags each parameter, so surface the worst parameter flag.
+  if (test.parameters && test.parameters.length > 0) {
+    let worst: '' | 'H' | 'L' | 'HH' | 'LL' = '';
+    for (const p of test.parameters) {
+      const f = (p.flag ?? '').toUpperCase();
+      if ((FLAG_SEVERITY[f] ?? 0) > (FLAG_SEVERITY[worst] ?? 0)) worst = f as 'H' | 'L' | 'HH' | 'LL';
+    }
+    return worst;
+  }
   if (!test.result) return '';
-  const v = parseFloat(test.result);
+  const v = parseFloat(test.result.replace(',', '.')); // VN decimal comma "5,6"
   if (Number.isNaN(v)) return '';
   if (typeof test.criticalHigh === 'number' && v >= test.criticalHigh) return 'HH';
   if (typeof test.criticalLow === 'number' && v <= test.criticalLow) return 'LL';

@@ -32,6 +32,13 @@ public partial class IvfLabService : IIvfLabService
         { 4, "Rã đông" }, { 5, "Đã chuyển" }, { 6, "Hủy bỏ" }
     };
 
+    // Manual embryo status changes (freeze/thaw have their own endpoints). 5=Transferred and 6=Discarded are terminal.
+    private static readonly Dictionary<int, HashSet<int>> EmbryoStatusTransitions = new()
+    {
+        { 1, new() { 2, 5, 6 } }, { 2, new() { 1, 5, 6 } }, { 3, new() { 6 } },
+        { 4, new() { 5, 6 } }, { 5, new() }, { 6, new() }
+    };
+
     private static readonly Dictionary<int, string> SpermStatusNames = new()
     {
         { 1, "Lưu trữ" }, { 2, "Đã sử dụng" }, { 3, "Đã hủy" }
@@ -148,11 +155,22 @@ public partial class IvfLabService : IIvfLabService
     {
         try
         {
+            if (dto.WifePatientId == dto.HusbandPatientId)
+                throw new ArgumentException("Vợ và chồng không thể là cùng một người bệnh");
+            var patientCount = await _context.Patients.CountAsync(p => (p.Id == dto.WifePatientId || p.Id == dto.HusbandPatientId) && !p.IsDeleted);
+            if (patientCount < 2)
+                throw new KeyNotFoundException("Không tìm thấy hồ sơ người bệnh của vợ hoặc chồng");
+
             IvfPatientCouple entity;
             if (dto.Id.HasValue && dto.Id != Guid.Empty)
             {
                 entity = await _context.Set<IvfPatientCouple>().FindAsync(dto.Id.Value)
                     ?? throw new KeyNotFoundException("Couple not found");
+                // Chain of custody: once a couple has cycles (oocytes/embryos/straws), swapping the wife or
+                // husband re-assigns every embryo of that couple to different people (wrong-couple linkage).
+                if ((entity.WifePatientId != dto.WifePatientId || entity.HusbandPatientId != dto.HusbandPatientId)
+                    && await _context.Set<IvfCycle>().AnyAsync(c => c.CoupleId == entity.Id && !c.IsDeleted))
+                    throw new InvalidOperationException("Cặp đôi đã có chu kỳ IVF — không được đổi người vợ/chồng. Hãy đăng ký cặp đôi mới.");
                 entity.UpdatedAt = DateTime.UtcNow;
             }
             else
@@ -290,11 +308,17 @@ public partial class IvfLabService : IIvfLabService
     {
         try
         {
+            if (!await _context.Set<IvfPatientCouple>().AnyAsync(c => c.Id == dto.CoupleId && !c.IsDeleted))
+                throw new KeyNotFoundException("Không tìm thấy cặp đôi IVF");
+
             IvfCycle entity;
             if (dto.Id.HasValue && dto.Id != Guid.Empty)
             {
                 entity = await _context.Set<IvfCycle>().FindAsync(dto.Id.Value)
                     ?? throw new KeyNotFoundException("Cycle not found");
+                // Moving a cycle to another couple would carry its oocytes/embryos to the wrong couple.
+                if (entity.CoupleId != dto.CoupleId)
+                    throw new InvalidOperationException("Không được chuyển chu kỳ IVF sang cặp đôi khác");
                 entity.UpdatedAt = DateTime.UtcNow;
             }
             else
@@ -328,6 +352,10 @@ public partial class IvfLabService : IIvfLabService
         {
             var entity = await _context.Set<IvfCycle>().FindAsync(id);
             if (entity == null || entity.IsDeleted) return false;
+            if (!CycleStatusNames.ContainsKey(status))
+                throw new ArgumentException($"Trạng thái chu kỳ không hợp lệ: {status}");
+            if ((entity.Status == 6 || entity.Status == 7) && status != entity.Status)
+                throw new InvalidOperationException($"Chu kỳ đã {CycleStatusNames[entity.Status].ToLower()} — không đổi trạng thái được nữa");
             entity.Status = status;
             entity.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
@@ -342,11 +370,20 @@ public partial class IvfLabService : IIvfLabService
     {
         try
         {
+            if (dto.TotalOvums < 0 || dto.MatureOvums < 0 || dto.ImmatureOvums < 0 || dto.DegeneratedOvums < 0)
+                throw new ArgumentException("Số noãn không được âm");
+            if (dto.MatureOvums + dto.ImmatureOvums + dto.DegeneratedOvums > dto.TotalOvums)
+                throw new ArgumentException("Tổng noãn trưởng thành + chưa trưởng thành + thoái hóa vượt quá tổng số noãn chọc được");
+            if (!await _context.Set<IvfCycle>().AnyAsync(c => c.Id == dto.CycleId && !c.IsDeleted))
+                throw new KeyNotFoundException("Không tìm thấy chu kỳ IVF");
+
             IvfOvumPickup entity;
             if (dto.Id.HasValue && dto.Id != Guid.Empty)
             {
                 entity = await _context.Set<IvfOvumPickup>().FindAsync(dto.Id.Value)
                     ?? throw new KeyNotFoundException("OvumPickup not found");
+                if (entity.CycleId != dto.CycleId)
+                    throw new InvalidOperationException("Không được chuyển kết quả chọc noãn sang chu kỳ khác");
                 entity.UpdatedAt = DateTime.UtcNow;
             }
             else
@@ -431,15 +468,25 @@ public partial class IvfLabService : IIvfLabService
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(dto.EmbryoCode))
+                throw new ArgumentException("Phải nhập mã phôi");
+            var cycle = await _context.Set<IvfCycle>().FirstOrDefaultAsync(c => c.Id == dto.CycleId && !c.IsDeleted)
+                ?? throw new KeyNotFoundException("Không tìm thấy chu kỳ IVF");
+
             IvfEmbryo entity;
             if (dto.Id.HasValue && dto.Id != Guid.Empty)
             {
                 entity = await _context.Set<IvfEmbryo>().FindAsync(dto.Id.Value)
                     ?? throw new KeyNotFoundException("Embryo not found");
+                // Chain of custody: re-pointing an existing embryo to another cycle hands it to another couple.
+                if (entity.CycleId != dto.CycleId)
+                    throw new InvalidOperationException("Không được chuyển phôi sang chu kỳ/cặp đôi khác");
                 entity.UpdatedAt = DateTime.UtcNow;
             }
             else
             {
+                if (cycle.Status == 7)
+                    throw new InvalidOperationException("Chu kỳ IVF đã hủy — không thêm phôi được");
                 entity = new IvfEmbryo { Id = Guid.NewGuid(), CreatedAt = DateTime.UtcNow, Status = 1 };
                 _context.Set<IvfEmbryo>().Add(entity);
             }
@@ -473,6 +520,14 @@ public partial class IvfLabService : IIvfLabService
         {
             var entity = await _context.Set<IvfEmbryo>().FindAsync(id);
             if (entity == null || entity.IsDeleted) return false;
+            if (!EmbryoStatusNames.ContainsKey(status))
+                throw new ArgumentException($"Trạng thái phôi không hợp lệ: {status}");
+            if (status == 3 || status == 4)
+                throw new InvalidOperationException("Trữ đông / rã đông phôi phải dùng thao tác Đông lạnh / Rã đông (ghi vị trí ống, ngày)");
+            if (status != entity.Status
+                && !(EmbryoStatusTransitions.TryGetValue(entity.Status, out var nextStatuses) && nextStatuses.Contains(status)))
+                throw new InvalidOperationException(
+                    $"Không chuyển phôi từ '{EmbryoStatusNames.GetValueOrDefault(entity.Status, entity.Status.ToString())}' sang '{EmbryoStatusNames[status]}'");
             entity.Status = status;
             entity.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
@@ -487,9 +542,21 @@ public partial class IvfLabService : IIvfLabService
         {
             var entity = await _context.Set<IvfEmbryo>().FindAsync(id);
             if (entity == null || entity.IsDeleted) return false;
+            // Only an embryo still in the lab (culture / selected-fresh / thawed) can be vitrified. Re-freezing a
+            // frozen embryo overwrote its straw location; freezing a transferred/discarded one resurrected it.
+            if (entity.Status != 1 && entity.Status != 2 && entity.Status != 4)
+                throw new InvalidOperationException(
+                    $"Phôi đang ở trạng thái '{EmbryoStatusNames.GetValueOrDefault(entity.Status, entity.Status.ToString())}' — không đông lạnh được");
+            if (string.IsNullOrWhiteSpace(dto.StrawCode))
+                throw new ArgumentException("Phải nhập mã ống (straw) khi đông lạnh phôi");
+            var strawCode = dto.StrawCode.Trim();
+            // Same straw (in the same tank) already holding a frozen embryo of ANOTHER cycle = two couples in one straw.
+            if (await _context.Set<IvfEmbryo>().AnyAsync(e => e.Id != id && !e.IsDeleted && e.Status == 3
+                    && e.CycleId != entity.CycleId && e.StrawCode == strawCode && e.TankCode == dto.TankCode))
+                throw new InvalidOperationException($"Ống '{strawCode}' đang chứa phôi đông lạnh của chu kỳ/cặp đôi khác");
             entity.Status = 3; // Frozen
             entity.FreezeDate = string.IsNullOrEmpty(dto.FreezeDate) ? DateTime.UtcNow : DateTime.Parse(dto.FreezeDate);
-            entity.StrawCode = dto.StrawCode;
+            entity.StrawCode = strawCode;
             entity.StrawColor = dto.StrawColor;
             entity.BoxCode = dto.BoxCode;
             entity.TankCode = dto.TankCode;
@@ -507,8 +574,16 @@ public partial class IvfLabService : IIvfLabService
         {
             var entity = await _context.Set<IvfEmbryo>().FindAsync(id);
             if (entity == null || entity.IsDeleted) return false;
+            // Only a FROZEN straw can be thawed: thawing an already-thawed / transferred / discarded embryo
+            // made a used straw look available again.
+            if (entity.Status != 3)
+                throw new InvalidOperationException(
+                    $"Phôi đang ở trạng thái '{EmbryoStatusNames.GetValueOrDefault(entity.Status, entity.Status.ToString())}' — chỉ rã đông được phôi đang đông lạnh");
+            var thawDate = string.IsNullOrEmpty(dto.ThawDate) ? DateTime.UtcNow : DateTime.Parse(dto.ThawDate);
+            if (entity.FreezeDate.HasValue && thawDate.Date < entity.FreezeDate.Value.Date)
+                throw new ArgumentException("Ngày rã đông không được trước ngày đông lạnh");
             entity.Status = 4; // Thawed
-            entity.ThawDate = string.IsNullOrEmpty(dto.ThawDate) ? DateTime.UtcNow : DateTime.Parse(dto.ThawDate);
+            entity.ThawDate = thawDate;
             entity.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return true;

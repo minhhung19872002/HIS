@@ -100,13 +100,26 @@ export const getHealthCheckupById = async (id: string) => {
   return response.data;
 };
 
+// BE Create/UpdateHealthCheckupDto names differ from this FE model (examDate / doctorName / classification /
+// organizationName / ent / dental / xrayResult) — without the aliases those fields were silently dropped on save.
+const toCheckupPayload = (data: Partial<HealthCheckup>) => ({
+  ...data,
+  examDate: data.checkupDate,
+  doctorName: data.examDoctor,
+  classification: data.conclusion,
+  organizationName: data.companyName,
+  ent: data.entExam,
+  dental: data.dentalExam,
+  xrayResult: data.xrayResults,
+});
+
 export const createHealthCheckup = async (data: Partial<HealthCheckup>) => {
-  const response = await apiClient.post<HealthCheckup>('/health-checkup', data);
+  const response = await apiClient.post<HealthCheckup>('/health-checkup', toCheckupPayload(data));
   return response.data;
 };
 
 export const updateHealthCheckup = async (id: string, data: Partial<HealthCheckup>) => {
-  const response = await apiClient.put<HealthCheckup>(`/health-checkup/${id}`, data);
+  const response = await apiClient.put<HealthCheckup>(`/health-checkup/${id}`, toCheckupPayload(data));
   return response.data;
 };
 

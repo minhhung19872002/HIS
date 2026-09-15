@@ -54,8 +54,15 @@ public class PathologyController : ControllerBase
     {
         if (dto == null || dto.RequestId == null || dto.RequestId == Guid.Empty)
             return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu RequestId (phiếu GPB)" });
-        var result = await _pathologyService.CreatePathologyResultAsync(dto);
-        return Ok(result);
+        try
+        {
+            var result = await _pathologyService.CreatePathologyResultAsync(dto);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
+        }
     }
 
     [HttpPut("results/{id}")]

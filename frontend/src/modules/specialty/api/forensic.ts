@@ -48,8 +48,9 @@ export const searchCases = async (params?: {
   toDate?: string;
 }) => {
   try {
-    const response = await apiClient.get<ForensicCase[]>('/forensic/cases', { params });
-    return response.data || [];
+    const response = await apiClient.get<Array<ForensicCase & { disabilityPercentage?: number }>>('/forensic/cases', { params });
+    // BE ForensicCaseDto names the field disabilityPercentage; the page reads disabilityPercent (column was always "—").
+    return (response.data || []).map((c) => ({ ...c, disabilityPercent: c.disabilityPercent ?? c.disabilityPercentage }));
   } catch {
     console.warn('Failed to fetch forensic cases');
     return [];

@@ -145,6 +145,8 @@ namespace HIS.API.Controllers
         [Authorize(Roles = RoleNames.Admin + "," + RoleNames.QuanTriHeThong + "," + RoleNames.RadiologistManager + "," + RoleNames.Radiologist + "," + RoleNames.Technician)]
         public async Task<ActionResult<RadiologyResultDto>> EnterRadiologyResult([FromBody] EnterRadiologyResultDto dto)
         {
+            if (string.IsNullOrWhiteSpace(dto.Description) && string.IsNullOrWhiteSpace(dto.Conclusion))
+                return BadRequest(ApiResponse<object>.Fail("Cần nhập mô tả hoặc kết luận"));
             var result = await _risService.EnterRadiologyResultAsync(dto);
             return Ok(result);
         }

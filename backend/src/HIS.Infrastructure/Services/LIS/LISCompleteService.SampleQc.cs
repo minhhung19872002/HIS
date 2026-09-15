@@ -67,6 +67,14 @@ public partial class LISCompleteService
         return await _context.Users.Where(u => guids.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.FullName);
     }
 
+    /// <summary>
+    /// UpdatedAt / ReceivedAt / CreatedAt are stored UTC (HISDbContext, SampleReceiveService) while
+    /// SampleCollectedAt / ReviewedAt are local VN — the FE reads naive timestamps as local, so the
+    /// UTC ones showed "Lưu lúc"/"TC lúc"/received 7 h early and sorted wrongly in the timeline.
+    /// VN has no DST → fixed +7.
+    /// </summary>
+    private static DateTime? UtcToVn(DateTime? utc) => utc?.AddHours(7);
+
     private static object ToStorageRecord(IGrouping<string, SampleRow> g, Dictionary<string, string> names)
     {
         var first = g.OrderByDescending(r => r.UpdatedAt).First();
@@ -87,7 +95,7 @@ public partial class LISCompleteService
             freezer = Part(0), rack = Part(1), box = Part(2), position = Part(3),
             temperature = (decimal?)null, // not recorded (proposed column)
             storageCondition = "",        // not recorded (proposed column)
-            storedAt = first.UpdatedAt,
+            storedAt = UtcToVn(first.UpdatedAt),
             storedBy = first.UpdatedBy != null && names.TryGetValue(first.UpdatedBy, out var n) ? n : first.UpdatedBy ?? "",
             expiryDate = (DateTime?)null,
             isExpired = false,
@@ -155,8 +163,9 @@ public partial class LISCompleteService
 
     public async Task<List<object>> GetSampleRejectionsAsync(DateTime? fromDate, DateTime? toDate, string? keyword)
     {
-        var from = fromDate ?? DateTime.Today.AddDays(-30);
-        var to = (toDate ?? DateTime.Today).Date.AddDays(1);
+        // Rejection time is a UTC column → compare against the UTC window of the VN local days
+        var from = HIS.Core.Common.VnTime.DayRangeUtc(fromDate ?? HIS.Core.Common.VnTime.TodayVn.AddDays(-30)).FromUtc;
+        var to = HIS.Core.Common.VnTime.DayRangeUtc(toDate ?? HIS.Core.Common.VnTime.TodayVn).ToUtc;
         var q = _context.ServiceRequestDetails.Where(d => !d.IsDeleted && d.ReceiveStatus == 2
             && (d.ReceivedAt ?? d.UpdatedAt ?? d.CreatedAt) >= from && (d.ReceivedAt ?? d.UpdatedAt ?? d.CreatedAt) < to);
         if (!string.IsNullOrWhiteSpace(keyword))
@@ -185,7 +194,7 @@ public partial class LISCompleteService
             {
                 id = r.Id, sampleBarcode = r.SampleBarcode ?? "", labRequestId = r.ServiceRequestId, requestCode = r.RequestCode,
                 patientName = r.PatientName, patientCode = r.PatientCode,
-                rejectionReason = reason, rejectionCode = code, rejectedAt = r.RejectedAt, rejectedBy = by,
+                rejectionReason = reason, rejectionCode = code, rejectedAt = UtcToVn(r.RejectedAt), rejectedBy = by,
                 // An undone/recollected rejection leaves ReceiveStatus 2 → it disappears from this list (no history table)
                 isUndone = false, reCollected = false,
             };
@@ -251,14 +260,14 @@ public partial class LISCompleteService
         // Tube-level events once (shared by every test on the tube); test-level events per SRD
         var tube = rows.OrderBy(r => r.SampleCollectedAt).First();
         Add(tube.Id, "collected", tube.SampleCollectedAt, tube.CollectedByUserId);
-        if (tube.ReceiveStatus == 2) Add(tube.Id, "rejected", tube.ReceivedAt ?? tube.UpdatedAt, tube.ReceivedByUserId, SplitRejectReason(tube.RejectReason).reason);
-        else Add(tube.Id, "received", tube.ReceivedAt, tube.ReceivedByUserId);
+        if (tube.ReceiveStatus == 2) Add(tube.Id, "rejected", UtcToVn(tube.ReceivedAt ?? tube.UpdatedAt), tube.ReceivedByUserId, SplitRejectReason(tube.RejectReason).reason);
+        else Add(tube.Id, "received", UtcToVn(tube.ReceivedAt), tube.ReceivedByUserId);
         foreach (var r in rows)
         {
             Add(r.Id, "processing", r.TechnicianRunAt, r.TechnicianUserId, notes: r.ServiceName);
             Add(r.Id, "completed", r.ReviewedAt ?? r.ResultDate, r.ReviewerUserId, notes: r.ServiceName);
         }
-        if (!string.IsNullOrEmpty(tube.SampleLocation)) Add(tube.Id, "stored", tube.UpdatedAt, null, location: tube.SampleLocation);
+        if (!string.IsNullOrEmpty(tube.SampleLocation)) Add(tube.Id, "stored", UtcToVn(tube.UpdatedAt), null, location: tube.SampleLocation);
         return events.OrderBy(e => e.at).Select(e => e.ev).ToList();
     }
 
