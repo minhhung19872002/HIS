@@ -597,7 +597,18 @@ public partial class ReceptionCompleteService {
             r.UpdatedBy = userId.ToString();
         }
 
+        // Trước đây chỉ đổi MedicalRecords.PatientId: đợt nhập viện, phiếu CĐHA, hoá đơn, vé… của chính
+        // các hồ sơ đó (50 bảng gắn PatientId kèm hồ sơ/đợt/lượt khám) vẫn nằm ở bệnh nhân nguồn — hồ sơ
+        // đã sang người đích mà đợt nằm viện của nó thì không. Xem PatientReferenceReassigner.
+        var moved = await PatientReferenceReassigner.ReassignForRecordsAsync(
+            _context, dto.SourcePatientId, target.Id, records.Select(r => r.Id).ToList());
+
         await _unitOfWork.SaveChangesAsync();
+
+        _receptionLogger?.LogInformation(
+            "Tách {Count} hồ sơ từ bệnh nhân {Source} sang {Target} bởi {User}. Đã chuyển kèm: {Moved}",
+            records.Count, dto.SourcePatientId, target.Id, userId,
+            string.Join(", ", moved.Select(kv => $"{kv.Key}={kv.Value}")));
     }
 
     public async Task<DepositReceiptDto> CreateEmergencyDepositAsync(Guid medicalRecordId, decimal amount, Guid userId)
