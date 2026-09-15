@@ -190,7 +190,7 @@ When generating/refactoring code, apply rules by tier. **P0 = absolutely never v
 | BE/DB | `his-be-module-scaffold`, `his-db-migration`, `his-be-payment-gateway`, `his-be-external-gateway`, `his-be-background-worker`, `his-be-scalability` | `skill-routes/be.md` |
 | TEST | `his-test-api-powershell`, `his-test-e2e` | `skill-routes/test.md` |
 | OPS/DOC | `his-ops-deploy`, `his-doc-feature` | `skill-routes/ops-doc.md` |
-| Orchestration / Guardrail | `his-flow-nangcap-package` (the NangCapNN package), `his-flow-multi-agent-orchestration` (ensure quality when orchestrating many agents/subagents/Workflow), `his-qa-anti-pattern` (with **every** code-gen) | see (2) below |
+| Orchestration / Guardrail | `his-flow-nangcap-package` (the NangCapNN package), `his-flow-multi-agent-orchestration` (ensure quality when orchestrating many agents/subagents/Workflow), `his-qa-deep-sweep` (whole-app QA sweep: scans → domain agents → integrate → risk review → deploy), `his-qa-anti-pattern` (with **every** code-gen) | see (2) below |
 | BIZ (Business Domain) | `his-biz-reviewer` (protocol — Phase 3-5 + Self-Critic + 80% gate), `his-biz-opd`, `his-biz-billing`, `his-biz-emr`, `his-biz-laboratory`, `his-biz-inpatient` | `skill-routes/biz.md` |
 
 ---
