@@ -27,10 +27,13 @@ namespace HIS.API.Controllers
     public partial class LISCompleteController : ControllerBase
     {
         private readonly ILISCompleteService _lisService;
+        // Wave-2: "lấy lại mẫu" after a rejection = step 3 of the existing cancel chain (already registered in DI)
+        private readonly HIS.Application.Interfaces.ILabCancelChainService _cancelChain;
 
-        public LISCompleteController(ILISCompleteService lisService)
+        public LISCompleteController(ILISCompleteService lisService, HIS.Application.Interfaces.ILabCancelChainService cancelChain)
         {
             _lisService = lisService;
+            _cancelChain = cancelChain;
         }
 
         private Guid? GetUserId()
@@ -391,7 +394,9 @@ namespace HIS.API.Controllers
                 return BadRequest(ApiResponse.Fail("Thiếu LabTestItemId"));
             if (string.IsNullOrWhiteSpace(dto.Result) && (dto.Parameters == null || dto.Parameters.Count == 0))
                 return BadRequest(ApiResponse.Fail("Cần nhập kết quả (Result hoặc Parameters)"));
-            await _lisService.EnterLabResultAsync(dto);
+            // false = detail not found — used to return 200 so the UI reported "saved" for nothing
+            if (!await _lisService.EnterLabResultAsync(dto))
+                return NotFound(ApiResponse.Fail("Không tìm thấy chỉ định xét nghiệm"));
             return Ok();
         }
 
@@ -430,7 +435,8 @@ namespace HIS.API.Controllers
             Guid orderId,
             [FromBody] FinalApproveRequest request)
         {
-            await _lisService.FinalApproveLabResultAsync(orderId, request.DoctorNote, GetUserId());
+            if (!await _lisService.FinalApproveLabResultAsync(orderId, request.DoctorNote, GetUserId()))
+                return BadRequest(ApiResponse.Fail("Phiếu không có kết quả nào để duyệt"));
             return Ok();
         }
 

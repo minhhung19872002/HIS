@@ -31,14 +31,15 @@ namespace HIS.Infrastructure.Services
 
             var sql = @"SELECT b.BloodType, b.RhFactor, b.ProductTypeId, pt.Name AS ProductTypeName,
                 COUNT(*) AS TotalBags,
-                SUM(CASE WHEN b.Status='Available' THEN 1 ELSE 0 END) AS AvailableBags,
+                -- expired bags are not usable stock (issue guard rejects them) — they were counted as available
+                SUM(CASE WHEN b.Status='Available' AND CAST(b.ExpiryDate AS date) >= CAST(GETDATE() AS date) THEN 1 ELSE 0 END) AS AvailableBags,
                 SUM(CASE WHEN b.Status='Reserved' THEN 1 ELSE 0 END) AS ReservedBags,
                 SUM(CASE WHEN b.Status='Available' AND b.ExpiryDate <= DATEADD(day,7,GETDATE()) AND b.ExpiryDate > GETDATE() THEN 1 ELSE 0 END) AS ExpiringWithin7Days,
-                SUM(CASE WHEN b.ExpiryDate <= GETDATE() AND b.Status NOT IN ('Destroyed','Expired') THEN 1 ELSE 0 END) AS ExpiredBags,
+                SUM(CASE WHEN CAST(b.ExpiryDate AS date) < CAST(GETDATE() AS date) AND b.Status NOT IN ('Destroyed','Expired') THEN 1 ELSE 0 END) AS ExpiredBags,
                 SUM(b.Volume) AS TotalVolume
                 FROM BloodBags b
                 LEFT JOIN BloodProductTypes pt ON b.ProductTypeId = pt.Id
-                WHERE b.Status NOT IN ('Destroyed','Transfused')";
+                WHERE b.Status NOT IN ('Destroyed','Transfused','Cancelled')";
 
             if (!string.IsNullOrEmpty(bloodType))
                 sql += " AND b.BloodType = @bloodType";
@@ -106,9 +107,24 @@ namespace HIS.Infrastructure.Services
 
         public async Task<bool> UpdateBloodBagStatusAsync(Guid bloodBagId, string status, string reason = null)
         {
+            // Patient safety: this free-form setter is what the v2 "cấp phát từ kho sắp hết hạn" button calls.
+            // It used to put an EXPIRED bag into 'Issued', and could revive Transfused/Destroyed bags.
+            var bag = await GetBloodBagAsync(bloodBagId);
+            if (bag == null) return false;
+            var usableTargets = new[] { "Available", "Reserved", "Issued", "Transfusing" };
+            if (usableTargets.Contains(status, StringComparer.OrdinalIgnoreCase))
+            {
+                if (bag.ExpiryDate != default && bag.ExpiryDate.Date < DateTime.Now.Date)
+                    throw new InvalidOperationException(
+                        $"Túi máu {bag.BagCode} đã hết hạn ngày {bag.ExpiryDate:dd/MM/yyyy}, không chuyển sang \"{status}\" được.");
+                if (new[] { "Transfused", "Destroyed" }.Contains(bag.Status, StringComparer.OrdinalIgnoreCase))
+                    throw new InvalidOperationException(
+                        $"Túi máu {bag.BagCode} đã \"{bag.Status}\", không chuyển trạng thái được.");
+            }
+
             var rows = await _context.Database.ExecuteSqlRawAsync(
                 "UPDATE BloodBags SET Status=@p0, Note=@p1 WHERE Id=@p2",
-                status, reason ?? (object)DBNull.Value, bloodBagId);
+                P("@p0", status), P("@p1", reason), P("@p2", bloodBagId));
             return rows > 0;
         }
 

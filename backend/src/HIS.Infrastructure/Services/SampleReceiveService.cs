@@ -28,7 +28,8 @@ public class SampleReceiveService : ISampleReceiveService
             .Include(d => d.ServiceRequest).ThenInclude(r => r.MedicalRecord).ThenInclude(m => m.Patient)
             .Where(d => d.IsSampleCollected
                 && d.ReceiveStatus == 0
-                && d.Status != 3);
+                && d.Status != 3
+                && d.ServiceRequest.Status != 4 && !d.IsDeleted); // header 4 = order cancelled from OPD
         if (!string.IsNullOrWhiteSpace(keyword))
         {
             var kw = keyword.Trim();
@@ -60,7 +61,9 @@ public class SampleReceiveService : ISampleReceiveService
     {
         if (dto.DetailIds.Count == 0) return ServiceOutcome.Bad("Chưa chọn mẫu");
         var items = await _db.ServiceRequestDetails
-            .Where(d => dto.DetailIds.Contains(d.Id) && d.ReceiveStatus == 0)
+            // Status != 3: accepting a cancelled order used to set Status=1 and revive it
+            .Where(d => dto.DetailIds.Contains(d.Id) && d.ReceiveStatus == 0 && d.Status != 3 && !d.IsDeleted
+                && d.ServiceRequest.Status != 4)
             .ToListAsync();
         var now = DateTime.UtcNow; // dot16: chuẩn UTC — ReceivedAt bị query DayRangeUtc (:264)
         var uid = userId;
@@ -102,6 +105,12 @@ public class SampleReceiveService : ISampleReceiveService
         var d = await _db.ServiceRequestDetails.FindAsync(dto.DetailId);
         if (d == null) return ServiceOutcome.NotFound();
         if (d.ReceiveStatus != 1) return ServiceOutcome.Bad("Mẫu chưa được nhận");
+        // Same forward guard as EnterLabResult/analyzer (T3/#218): this path used to overwrite a doctor-approved
+        // result (ReviewedAt kept → EMR showed the new value as approved) and revive cancelled orders.
+        var refusal = HIS.Core.Constants.LabDetailStatus.WriteResultRefusal(d.Status, d.ReviewedAt != null);
+        if (refusal != null) return ServiceOutcome.Bad(refusal);
+        if (await _db.ServiceRequests.AnyAsync(r => r.Id == d.ServiceRequestId && r.Status == 4))
+            return ServiceOutcome.Bad("Phiếu chỉ định đã hủy, không ghi được kết quả.");
         var uid = userId;
         d.TechnicianUserId = uid;
         d.TechnicianRunAt = DateTime.Now;
@@ -123,12 +132,15 @@ public class SampleReceiveService : ISampleReceiveService
 
             var catalog = await _db.LisTestParameters
                 .Where(p => p.ServiceId == d.ServiceId && p.IsActive && !p.IsDeleted).ToListAsync();
+            var gender = await _db.ServiceRequests.Where(r => r.Id == d.ServiceRequestId)
+                .Select(r => (int?)r.MedicalRecord.Patient.Gender).FirstOrDefaultAsync();
             int seq = 0;
             foreach (var p in dto.Parameters)
             {
                 var cat = catalog.FirstOrDefault(c => c.Code == p.ParameterCode || c.Hl7Code == p.ParameterCode);
-                var min = p.ReferenceMin ?? cat?.ReferenceLow ?? cat?.NormalMinMale;
-                var max = p.ReferenceMax ?? cat?.ReferenceHigh ?? cat?.NormalMaxMale;
+                var range = LabFlagEvaluator.ResolveRange(cat, gender);
+                var min = p.ReferenceMin ?? range.Min;
+                var max = p.ReferenceMax ?? range.Max;
                 var num = LabFlagEvaluator.TryParse(p.Value);
                 var flag = LabFlagEvaluator.EvaluateFlag(num, min, max, cat?.CriticalLow, cat?.CriticalHigh);
                 _db.ServiceRequestDetailParameters.Add(new ServiceRequestDetailParameter

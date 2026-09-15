@@ -367,6 +367,9 @@ public partial class LISCompleteService {
 
             if (sr == null)
                 return new CollectSampleResultDto { Success = false, Message = "Order not found" };
+            // Header Status 4 = cancelled from OPD (details are not flagged) — never collect a tube for it
+            if (sr.Status == 4)
+                return new CollectSampleResultDto { Success = false, Message = "Phiếu chỉ định đã hủy, không lấy mẫu" };
 
             var activeDetails = sr.Details.Where(d => !d.IsDeleted && d.Status != 3).ToList();
 

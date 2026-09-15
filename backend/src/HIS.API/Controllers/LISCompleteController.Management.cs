@@ -23,6 +23,7 @@ namespace HIS.API.Controllers
         // Authorize removed for testing
         public async Task<ActionResult<QCResultDto>> RunQC([FromBody] RunQCDto dto)
         {
+            dto.PerformedBy = GetUserId();
             var result = await _lisService.RunQCAsync(dto);
             return Ok(result);
         }

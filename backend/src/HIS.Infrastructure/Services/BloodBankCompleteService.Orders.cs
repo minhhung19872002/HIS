@@ -191,7 +191,9 @@ namespace HIS.Infrastructure.Services
 
             await _context.Database.ExecuteSqlRawAsync(
                 @"INSERT INTO BloodOrders (Id, OrderCode, OrderDate, PatientId, PatientCode, PatientName, PatientBloodType, PatientRhFactor, VisitId, DepartmentId, DepartmentName, OrderDoctorName, Diagnosis, ClinicalIndication, Status, CreatedAt)
-                VALUES (@p0, @p1, @p2, @p3, '', '', '', '', @p4, @p5, '', '', @p6, @p7, 'Pending', @p8)",
+                SELECT @p0, @p1, @p2, @p3, ISNULL(p.PatientCode, ''), ISNULL(p.FullName, ''),
+                       ISNULL(p.BloodType, ''), ISNULL(p.RhFactor, ''), @p4, @p5, '', '', @p6, @p7, 'Pending', @p8
+                FROM (SELECT 1 AS x) one LEFT JOIN Patients p ON p.Id = @p3",
                 orderId, orderCode, DateTime.Now, dto.PatientId,
                 dto.VisitId, Guid.Empty,
                 dto.Diagnosis ?? (object)DBNull.Value,
@@ -246,12 +248,16 @@ namespace HIS.Infrastructure.Services
             using var cmd = connection.CreateCommand();
             cmd.CommandText = @"
                 SELECT b.Status, b.ExpiryDate, b.BloodType, b.RhFactor, pt.Code,
-                       o.PatientBloodType, o.PatientRhFactor,
+                       COALESCE(NULLIF(o.PatientBloodType, ''), p.BloodType),
+                       COALESCE(NULLIF(o.PatientRhFactor, ''), p.RhFactor),
                        CASE WHEN oi.Id IS NULL THEN 0 ELSE 1 END AS ItemExists
                 FROM BloodBags b
                 LEFT JOIN BloodProductTypes pt ON pt.Id = b.ProductTypeId
                 LEFT JOIN BloodOrderItems oi ON oi.Id = @itemId
                 LEFT JOIN BloodOrders o ON o.Id = oi.OrderId
+                -- CreateBloodOrderAsync stores PatientBloodType = '' → the ABO guard saw 'Unknown' and never
+                -- blocked (B+ RBC was transfused to an A+ patient). Fall back to the patient's recorded group.
+                LEFT JOIN Patients p ON p.Id = o.PatientId
                 WHERE b.Id = @bagId";
             cmd.Parameters.Add(new SqlParameter("@itemId", orderItemId));
             cmd.Parameters.Add(new SqlParameter("@bagId", bloodBagId));
@@ -317,13 +323,17 @@ namespace HIS.Infrastructure.Services
 
         public async Task<bool> UnassignBloodBagAsync(Guid orderItemId, Guid bloodBagId, string reason)
         {
-            await _context.Database.ExecuteSqlRawAsync(
-                "DELETE FROM BloodBagAssignments WHERE OrderItemId=@p0 AND BloodBagId=@p1",
+            // Only a still-reserved assignment can be undone — unassigning used to delete a Transfusing/Completed
+            // assignment and put that bag back to 'Available' stock.
+            var deleted = await _context.Database.ExecuteSqlRawAsync(
+                "DELETE FROM BloodBagAssignments WHERE OrderItemId=@p0 AND BloodBagId=@p1 AND TransfusionStatus='Reserved'",
                 orderItemId, bloodBagId);
+            if (deleted == 0)
+                throw new InvalidOperationException("Không có túi máu đang giữ (chưa truyền) cho dòng chỉ định này để hủy gán.");
 
             await _context.Database.ExecuteSqlRawAsync(
-                "UPDATE BloodBags SET Status='Available', Note=@p0 WHERE Id=@p1",
-                reason ?? (object)DBNull.Value, bloodBagId);
+                "UPDATE BloodBags SET Status='Available', Note=@p0 WHERE Id=@p1 AND Status='Reserved'",
+                P("@p0", reason), P("@p1", bloodBagId));
 
             await _context.Database.ExecuteSqlRawAsync(
                 "UPDATE BloodOrderItems SET IssuedQuantity = CASE WHEN IssuedQuantity > 0 THEN IssuedQuantity - 1 ELSE 0 END WHERE Id=@p0",
@@ -337,7 +347,7 @@ namespace HIS.Infrastructure.Services
             var rows = await _context.Database.ExecuteSqlRawAsync(
                 @"UPDATE BloodBagAssignments SET CrossMatchResult=@p0, CrossMatchDate=@p1, TransfusionNote=@p2
                 WHERE OrderItemId=@p3 AND BloodBagId=@p4",
-                result, DateTime.Now, note ?? (object)DBNull.Value, orderItemId, bloodBagId);
+                P("@p0", result), P("@p1", DateTime.Now), P("@p2", note), P("@p3", orderItemId), P("@p4", bloodBagId));
             return rows > 0;
         }
 
@@ -402,8 +412,13 @@ namespace HIS.Infrastructure.Services
         {
             var rows = await _context.Database.ExecuteSqlRawAsync(
                 @"UPDATE BloodBagAssignments SET TransfusionStatus='Completed', TransfusionEndTime=@p0, TransfusionNote=@p1
-                WHERE OrderItemId=@p2 AND BloodBagId=@p3",
-                DateTime.Now, note ?? (object)DBNull.Value, orderItemId, bloodBagId);
+                WHERE OrderItemId=@p2 AND BloodBagId=@p3 AND TransfusionStatus='Transfusing'",
+                P("@p0", DateTime.Now), P("@p1", note), P("@p2", orderItemId), P("@p3", bloodBagId));
+
+            // Same hole #218/T3 closed in StartTransfusion: the bag/counter updates ran even when no assignment
+            // matched → any bag could be marked 'Transfused' and TransfusedQuantity bumped on repeat calls.
+            if (rows == 0)
+                throw new InvalidOperationException("Túi máu này không ở trạng thái đang truyền cho dòng chỉ định, không kết thúc được.");
 
             await _context.Database.ExecuteSqlRawAsync(
                 "UPDATE BloodBags SET Status='Transfused' WHERE Id=@p0", bloodBagId);

@@ -154,7 +154,8 @@ public partial class LISCompleteService
                         && d.SampleBarcode == result.SampleId
                         && d.Service.ServiceCode == result.TestCode
                         && d.ServiceRequest.RequestType == 1
-                        && !d.ServiceRequest.IsDeleted);
+                        && !d.ServiceRequest.IsDeleted
+                        && d.ServiceRequest.Status != 4); // header 4 = cancelled from OPD
 
                 // T3/#218 (2026-09-04): kết quả đã được bác sĩ duyệt thì máy KHÔNG được đè lên.
                 // Trước đây dòng khớp bị ghi đè lặng lẽ, ReviewedAt vẫn còn nguyên nên bệnh án hiện
@@ -194,8 +195,9 @@ public partial class LISCompleteService
                         .OrderBy(p => p.SortOrder)
                         .FirstOrDefaultAsync();
 
-                    decimal? normalMin = cat?.ReferenceLow ?? cat?.NormalMinMale;
-                    decimal? normalMax = cat?.ReferenceHigh ?? cat?.NormalMaxMale;
+                    var gender = await _context.MedicalRecords.Where(m => m.Id == srd.ServiceRequest.MedicalRecordId)
+                        .Select(m => (int?)m.Patient.Gender).FirstOrDefaultAsync();
+                    var (normalMin, normalMax) = LabFlagEvaluator.ResolveRange(cat, gender);
                     decimal? criticalLow = cat?.CriticalLow;
                     decimal? criticalHigh = cat?.CriticalHigh;
 

@@ -113,8 +113,10 @@ namespace HIS.Application.DTOs.BloodBank
     {
         public DateTime ReceiptDate { get; set; }
         public Guid SupplierId { get; set; }
-        public string DeliveryPerson { get; set; }
-        public string Note { get; set; }
+        // Optional fields must be nullable: under <Nullable>enable</Nullable> a plain `string` is implicitly
+        // [Required] → the v2 "Nhận máu vào kho" payload (no note/donor/test) got 400 every time.
+        public string? DeliveryPerson { get; set; }
+        public string? Note { get; set; }
         public List<CreateBloodImportItemDto> Items { get; set; }
     }
 
@@ -124,16 +126,16 @@ namespace HIS.Application.DTOs.BloodBank
     public class CreateBloodImportItemDto
     {
         public string BagCode { get; set; }
-        public string Barcode { get; set; }
+        public string? Barcode { get; set; } // service generates one when missing
         public string BloodType { get; set; }
         public string RhFactor { get; set; }
         public Guid ProductTypeId { get; set; }
         public decimal Volume { get; set; }
         public DateTime CollectionDate { get; set; }
         public DateTime ExpiryDate { get; set; }
-        public string DonorCode { get; set; }
+        public string? DonorCode { get; set; }
         public decimal Price { get; set; }
-        public string TestResults { get; set; }
+        public string? TestResults { get; set; }
     }
 
     #endregion
@@ -216,9 +218,9 @@ namespace HIS.Application.DTOs.BloodBank
         public string RhFactor { get; set; }
         public Guid ProductTypeId { get; set; }
         public int RequestedQuantity { get; set; }
-        public string Urgency { get; set; }
-        public string ClinicalIndication { get; set; }
-        public string Note { get; set; }
+        public string? Urgency { get; set; }
+        public string? ClinicalIndication { get; set; }
+        public string? Note { get; set; } // optional — v2 create-issue-request sends none (was 400)
     }
 
     /// <summary>
@@ -228,7 +230,7 @@ namespace HIS.Application.DTOs.BloodBank
     {
         public Guid RequestId { get; set; }
         public List<Guid> BloodBagIds { get; set; }
-        public string Note { get; set; }
+        public string? Note { get; set; }
     }
 
     #endregion

@@ -91,6 +91,9 @@ public class RadiologyDispatchService : IRadiologyDispatchService
         var srd = await _db.ServiceRequestDetails
             .Include(s => s.ServiceRequest)
             .FirstOrDefaultAsync(s => s.Id == d.ServiceRequestDetailId);
+        // Cancelled line/order (SRD 3 or header 4): never revive it nor bridge it into the RIS worklist
+        if (srd != null && (srd.Status == 3 || srd.ServiceRequest?.Status == 4))
+            srd = null;
         if (srd != null)
         {
             if (srd.Status < 1) srd.Status = 1; // Đang TH
@@ -173,6 +176,7 @@ public class RadiologyDispatchService : IRadiologyDispatchService
             .Include(d => d.ServiceRequest).ThenInclude(r => r.MedicalRecord).ThenInclude(m => m.Patient)
             .Where(d => d.Service.ServiceType == 3
                 && d.Status < 2
+                && !d.IsDeleted && d.ServiceRequest.Status != 4 // header 4 = order cancelled from OPD
                 && !_db.RadiologyDispatches.Any(x => x.ServiceRequestDetailId == d.Id && !x.IsPerformed))
             .OrderBy(d => d.CreatedAt)
             .Take(200)

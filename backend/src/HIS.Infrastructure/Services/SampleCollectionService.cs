@@ -45,7 +45,19 @@ public class SampleCollectionService : ISampleCollectionService
             .CountAsync(d => d.SampleCollectedAt != null
                 && d.SampleCollectedAt.Value >= fromUtc && d.SampleCollectedAt.Value < toUtc);
 
-        var seq = todayCount + 1;
+        // count+1 alone re-issued a barcode already in use once a number was moved via update-sequence
+        // (or a collection was undone) → two samples with one barcode → analyzer result on the wrong row.
+        // Never go below the highest number already issued today for this prefix.
+        var codePrefix = $"{prefix}-{dateStr}-";
+        var usedCodes = await _db.ServiceRequestDetails
+            .Where(d => d.SampleBarcode != null && d.SampleBarcode.StartsWith(codePrefix))
+            .Select(d => d.SampleBarcode!)
+            .ToListAsync();
+        var maxUsed = usedCodes
+            .Select(c => int.TryParse(c.Substring(codePrefix.Length), out var n) ? n : 0)
+            .DefaultIfEmpty(0).Max();
+
+        var seq = Math.Max(todayCount, maxUsed) + 1;
         var barcode = $"{prefix}-{dateStr}-{seq:D4}";
 
         detail.SampleBarcode = barcode;
@@ -70,12 +82,22 @@ public class SampleCollectionService : ISampleCollectionService
 
         // Lấy mẫu gốc để copy SampleCollectedAt
         var origin = await _db.ServiceRequestDetails
-            .FirstOrDefaultAsync(d => d.SampleBarcode == dto.ExistingBarcode)
+            .Where(d => d.SampleBarcode == dto.ExistingBarcode && !d.IsDeleted)
+            .Select(d => new { d.SampleCollectedAt, d.ServiceRequest.MedicalRecord.PatientId })
+            .FirstOrDefaultAsync()
             ?? throw new KeyNotFoundException($"Không tìm thấy mẫu với barcode {dto.ExistingBarcode}");
 
         var details = await _db.ServiceRequestDetails
-            .Where(d => dto.AdditionalDetailIds.Contains(d.Id))
+            .Where(d => dto.AdditionalDetailIds.Contains(d.Id) && !d.IsDeleted && d.Status != 3)
             .ToListAsync();
+
+        // Patient safety: one physical tube belongs to ONE patient. Sharing a barcode across patients let the
+        // analyzer write a result onto whichever patient's row matched first.
+        var detailIds = details.Select(d => d.Id).ToList();
+        var foreignCount = await _db.ServiceRequestDetails
+            .CountAsync(d => detailIds.Contains(d.Id) && d.ServiceRequest.MedicalRecord.PatientId != origin.PatientId);
+        if (foreignCount > 0)
+            return ServiceOutcome.Bad("Có xét nghiệm thuộc bệnh nhân khác — không được dùng chung mẫu/barcode");
 
         var uid = userId.ToString();
         int added = 0;
@@ -102,7 +124,10 @@ public class SampleCollectionService : ISampleCollectionService
         var detail = await _db.ServiceRequestDetails.FirstOrDefaultAsync(d => d.Id == dto.ServiceRequestDetailId)
             ?? throw new KeyNotFoundException();
 
-        var dateStr = (detail.SampleCollectedAt ?? DateTime.Today).ToString("yyMMdd");
+        // Keep the date segment of the issued barcode: SampleCollectedAt is UTC, so re-deriving it gave the
+        // previous day for samples taken 00h-07h VN.
+        var parts = detail.SampleBarcode?.Split('-');
+        var dateStr = parts is { Length: 3 } ? parts[1] : (detail.SampleCollectedAt ?? DateTime.Today).ToString("yyMMdd");
         var prefix = dto.Prefix ?? detail.SampleBarcode?.Split('-').FirstOrDefault() ?? "XN";
         var newBarcode = $"{prefix}-{dateStr}-{dto.NewSequenceNumber:D4}";
 

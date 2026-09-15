@@ -497,7 +497,7 @@ public partial class LISCompleteService {
                     .Include(d => d.Service)
                     .FirstOrDefaultAsync(d => d.SampleBarcode == result.SampleId
                                            && d.Service.ServiceCode == result.TestCode
-                                           && d.Status != 3);
+                                           && d.Status != 3 && d.ServiceRequest.Status != 4);
                 bool directMatch = detail != null;
 
                 // R1 (2a): Match 2 — OBX TestCode = mã CHỈ SỐ con (WBC/HGB… của dịch vụ nhiều chỉ số):
@@ -505,19 +505,31 @@ public partial class LISCompleteService {
                 LisTestParameter cat = null;
                 if (detail == null)
                 {
-                    cat = await db.LisTestParameters
-                        .FirstOrDefaultAsync(p => (p.Code == result.TestCode || p.Hl7Code == result.TestCode)
-                                               && p.ServiceId != null && p.IsActive && !p.IsDeleted);
-                    if (cat != null)
+                    // The same parameter code lives in several services (GLU/CRE/NA/K in both the single test
+                    // and the "Sinh hóa máu" panel). Taking the first catalog row dropped results whenever the
+                    // patient had ordered the other service → match against every service carrying the code.
+                    var catServiceIds = await db.LisTestParameters
+                        .Where(p => (p.Code == result.TestCode || p.Hl7Code == result.TestCode)
+                                    && p.ServiceId != null && p.IsActive && !p.IsDeleted)
+                        .Select(p => p.ServiceId!.Value)
+                        .ToListAsync();
+                    if (catServiceIds.Count > 0)
                         detail = await db.ServiceRequestDetails
                             .FirstOrDefaultAsync(d => d.SampleBarcode == result.SampleId
-                                                   && d.ServiceId == cat.ServiceId
-                                                   && d.Status != 3);
+                                                   && catServiceIds.Contains(d.ServiceId)
+                                                   && d.Status != 3 && d.ServiceRequest.Status != 4);
                 }
                 if (detail == null)
                 {
                     _logger.LogWarning("No ServiceRequestDetail for SampleId={SampleId}, TestCode={TestCode}",
                         result.SampleId, result.TestCode);
+                    continue;
+                }
+                // T3/#218 guard (already in Worklist.cs): the live analyzer must not overwrite a doctor-approved result
+                if (detail.ReviewedAt != null)
+                {
+                    _logger.LogWarning("Refusing to overwrite reviewed result on {SrdId} (barcode {Barcode}, test {TestCode})",
+                        detail.Id, result.SampleId, result.TestCode);
                     continue;
                 }
                 cat ??= await db.LisTestParameters
@@ -528,8 +540,9 @@ public partial class LISCompleteService {
                 // R1 (2a): upsert chỉ số con per-OBX (idempotent theo ParameterCode khi analyzer gửi lại).
                 // Cờ: ưu tiên cờ HL7 OBX-8 (N/H/L/HH/LL), thiếu/khác chuẩn → tính từ catalog.
                 var num = LabFlagEvaluator.TryParse(result.Value);
-                var min = cat?.ReferenceLow ?? cat?.NormalMinMale;
-                var max = cat?.ReferenceHigh ?? cat?.NormalMaxMale;
+                var gender = await db.ServiceRequests.Where(r => r.Id == detail.ServiceRequestId)
+                    .Select(r => (int?)r.MedicalRecord.Patient.Gender).FirstOrDefaultAsync();
+                var (min, max) = LabFlagEvaluator.ResolveRange(cat, gender);
                 var flag = LabFlagEvaluator.NormalizeHl7Flag(result.AbnormalFlag)
                            ?? LabFlagEvaluator.EvaluateFlag(num, min, max, cat?.CriticalLow, cat?.CriticalHigh);
                 var row = await db.ServiceRequestDetailParameters

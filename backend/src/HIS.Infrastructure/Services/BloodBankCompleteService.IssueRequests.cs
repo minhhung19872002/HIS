@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using HIS.Application.DTOs.BloodBank;
 using HIS.Application.Services;
+using HIS.Core.Constants;
 using HIS.Infrastructure.Data;
 
 namespace HIS.Infrastructure.Services
@@ -151,11 +152,14 @@ namespace HIS.Infrastructure.Services
             var receiptId = Guid.NewGuid();
             var receiptCode = $"ISS{DateTime.Now:yyyyMMddHHmmss}";
 
+            // One unit of work: a failure mid-loop used to leave a receipt with half its bags issued
+            await using (var tx = await _context.Database.BeginTransactionAsync())
+            {
             await _context.Database.ExecuteSqlRawAsync(
                 @"INSERT INTO BloodIssueReceipts (Id, ReceiptCode, IssueDate, DepartmentId, RequestedBy, IssuedBy, Status, TotalBags, Note, CreatedAt)
                 VALUES (@p0, @p1, @p2, (SELECT DepartmentId FROM BloodIssueRequests WHERE Id=@p3), 'System', 'System', 'Issued', @p4, @p5, @p6)",
-                receiptId, receiptCode, DateTime.Now, dto.RequestId,
-                dto.BloodBagIds?.Count ?? 0, dto.Note ?? (object)DBNull.Value, DateTime.Now);
+                P("@p0", receiptId), P("@p1", receiptCode), P("@p2", DateTime.Now), P("@p3", dto.RequestId),
+                P("@p4", dto.BloodBagIds?.Count ?? 0), P("@p5", dto.Note), P("@p6", DateTime.Now));
 
             if (dto.BloodBagIds != null)
             {
@@ -174,8 +178,11 @@ namespace HIS.Infrastructure.Services
                         WHERE b.Id = @p2",
                         itemId, receiptId, bagId, dto.RequestId);
 
-                    await _context.Database.ExecuteSqlRawAsync(
-                        "UPDATE BloodBags SET Status='Issued' WHERE Id=@p0", bagId);
+                    // Conditional update: a concurrent issue of the same bag (both passed the pre-check) must fail
+                    var bagRows = await _context.Database.ExecuteSqlRawAsync(
+                        "UPDATE BloodBags SET Status='Issued' WHERE Id=@p0 AND Status='Available'", bagId);
+                    if (bagRows == 0)
+                        throw new InvalidOperationException("Túi máu vừa được xuất/giữ bởi thao tác khác, không xuất được.");
                 }
             }
 
@@ -184,6 +191,8 @@ namespace HIS.Infrastructure.Services
                 Status = CASE WHEN IssuedQuantity + @p0 >= RequestedQuantity THEN 'FullyIssued' ELSE 'PartiallyIssued' END
                 WHERE Id=@p1",
                 dto.BloodBagIds?.Count ?? 0, dto.RequestId);
+            await tx.CommitAsync();
+            }
 
             return await GetIssueReceiptByIdAsync(receiptId);
         }
@@ -197,14 +206,26 @@ namespace HIS.Infrastructure.Services
             var connection = _context.Database.GetDbConnection();
             if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
 
+            string? recipientAbo = null, recipientRh = null;
+            Guid? requestedProductTypeId = null;
+            int remaining = int.MaxValue;
             using (var cmd = connection.CreateCommand())
             {
-                cmd.CommandText = "SELECT Status FROM BloodIssueRequests WHERE Id=@id";
+                // Recipient group: the patient's recorded group first, the group written on the request as fallback
+                cmd.CommandText = @"SELECT r.Status, COALESCE(NULLIF(p.BloodType, ''), r.BloodType),
+                        COALESCE(NULLIF(p.RhFactor, ''), r.RhFactor), r.ProductTypeId,
+                        r.RequestedQuantity - r.IssuedQuantity
+                    FROM BloodIssueRequests r LEFT JOIN Patients p ON p.Id = r.PatientId
+                    WHERE r.Id=@id";
                 cmd.Parameters.Add(new SqlParameter("@id", requestId));
-                var v = await cmd.ExecuteScalarAsync();
-                if (v == null || v == DBNull.Value)
+                using var rr = await cmd.ExecuteReaderAsync();
+                if (!await rr.ReadAsync())
                     throw new KeyNotFoundException("Không tìm thấy phiếu lĩnh máu.");
-                var status = v.ToString() ?? "";
+                var status = rr.IsDBNull(0) ? "" : rr.GetValue(0).ToString() ?? "";
+                recipientAbo = rr.IsDBNull(1) ? null : rr.GetValue(1).ToString();
+                recipientRh = rr.IsDBNull(2) ? null : rr.GetValue(2).ToString();
+                requestedProductTypeId = rr.IsDBNull(3) ? null : rr.GetGuid(3);
+                if (!rr.IsDBNull(4)) remaining = Convert.ToInt32(rr.GetValue(4));
                 // 'Approved' và 'PartiallyIssued' là hai trạng thái còn phát tiếp được.
                 // 'Pending' chưa duyệt, 'Cancelled' đã từ chối, 'FullyIssued' đã phát đủ.
                 if (!string.Equals(status, "Approved", StringComparison.OrdinalIgnoreCase)
@@ -213,10 +234,18 @@ namespace HIS.Infrastructure.Services
                         $"Phiếu lĩnh máu đang ở trạng thái \"{status}\", chưa xuất máu được.");
             }
 
-            foreach (var bagId in bagIds ?? new List<Guid>())
+            var distinctBags = (bagIds ?? new List<Guid>()).Distinct().ToList();
+            if (distinctBags.Count != (bagIds?.Count ?? 0))
+                throw new InvalidOperationException("Danh sách túi máu bị trùng.");
+            if (distinctBags.Count > remaining)
+                throw new InvalidOperationException(
+                    $"Số túi xuất ({distinctBags.Count}) vượt số lượng còn lại của phiếu lĩnh ({Math.Max(remaining, 0)}).");
+
+            foreach (var bagId in distinctBags)
             {
                 using var cmd = connection.CreateCommand();
-                cmd.CommandText = "SELECT BagCode, Status, ExpiryDate FROM BloodBags WHERE Id=@id";
+                cmd.CommandText = @"SELECT b.BagCode, b.Status, b.ExpiryDate, b.BloodType, b.RhFactor, pt.Code, b.ProductTypeId
+                    FROM BloodBags b LEFT JOIN BloodProductTypes pt ON pt.Id = b.ProductTypeId WHERE b.Id=@id";
                 cmd.Parameters.Add(new SqlParameter("@id", bagId));
                 using var r = await cmd.ExecuteReaderAsync();
                 if (!await r.ReadAsync())
@@ -230,6 +259,22 @@ namespace HIS.Infrastructure.Services
                 if (!string.Equals(st, "Available", StringComparison.OrdinalIgnoreCase))
                     throw new InvalidOperationException(
                         $"Túi máu {code} đang ở trạng thái \"{st}\", không xuất được.");
+
+                // Patient safety: this path issued a B+ red-cell bag against an A+ patient's request — the
+                // #218/T3 ABO guard only covered assign/start-transfusion. Same rule, same "unknown → allow".
+                var bagAbo = r.IsDBNull(3) ? null : r.GetString(3);
+                var bagRh = r.IsDBNull(4) ? null : r.GetString(4);
+                var productCode = r.IsDBNull(5) ? null : r.GetString(5);
+                var bagProductTypeId = r.IsDBNull(6) ? (Guid?)null : r.GetGuid(6);
+                if (requestedProductTypeId.HasValue && requestedProductTypeId.Value != Guid.Empty
+                    && bagProductTypeId.HasValue && bagProductTypeId.Value != requestedProductTypeId.Value)
+                    throw new InvalidOperationException(
+                        $"Túi máu {code} không đúng loại chế phẩm của phiếu lĩnh, không xuất được.");
+                if (BloodCompatibility.Check(productCode, recipientAbo, recipientRh, bagAbo, bagRh)
+                    == BloodCompatibility.BloodMatch.Incompatible)
+                    throw new InvalidOperationException(
+                        $"KHÔNG TƯƠNG THÍCH NHÓM MÁU (túi {code}). "
+                        + BloodCompatibility.Describe(recipientAbo, recipientRh, bagAbo, bagRh));
             }
         }
 

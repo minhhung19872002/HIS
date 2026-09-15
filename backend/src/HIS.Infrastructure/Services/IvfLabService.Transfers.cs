@@ -50,13 +50,16 @@ public partial class IvfLabService
                 ResultStatusName = ResultStatusNames.GetValueOrDefault(entity.ResultStatus, "")
             };
         }
-        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new IvfTransferDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService write failed"); throw; }
     }
 
     public async Task<List<IvfTransferDto>> GetTransfersAsync(Guid cycleId)
     {
         try
         {
+            // Local copies: EF Core rejects static Dictionary constants inside a server projection.
+            var transferTypeNames = TransferTypeNames;
+            var resultStatusNames = ResultStatusNames;
             return await _context.Set<IvfEmbryoTransfer>()
                 .Where(t => t.CycleId == cycleId && !t.IsDeleted)
                 .Include(t => t.Doctor)
@@ -67,12 +70,12 @@ public partial class IvfLabService
                     Id = t.Id, CycleId = t.CycleId,
                     TransferDate = t.TransferDate.ToString("yyyy-MM-dd"),
                     TransferType = t.TransferType,
-                    TransferTypeName = TransferTypeNames.GetValueOrDefault(t.TransferType, ""),
+                    TransferTypeName = transferTypeNames.GetValueOrDefault(t.TransferType, ""),
                     EmbryoCount = t.EmbryoCount,
                     DoctorId = t.DoctorId, DoctorName = t.Doctor != null ? t.Doctor.FullName : null,
                     EmbryologistId = t.EmbryologistId, EmbryologistName = t.Embryologist != null ? t.Embryologist.FullName : null,
                     Notes = t.Notes, ResultStatus = t.ResultStatus,
-                    ResultStatusName = ResultStatusNames.GetValueOrDefault(t.ResultStatus, "")
+                    ResultStatusName = resultStatusNames.GetValueOrDefault(t.ResultStatus, "")
                 }).ToBoundedListAsync("IvfLab.GetTransfers");
         }
         catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new List<IvfTransferDto>(); }
@@ -89,7 +92,7 @@ public partial class IvfLabService
             await _context.SaveChangesAsync();
             return true;
         }
-        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return false; }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService write failed"); throw; }
     }
 
     // ---- SpermBank ----
@@ -115,6 +118,7 @@ public partial class IvfLabService
 
             var pageIndex = filter?.PageIndex ?? 0;
             var pageSize = filter?.PageSize ?? 20;
+            var spermStatusNames = SpermStatusNames;
 
             return await query.OrderByDescending(s => s.CollectionDate)
                 .Skip(pageIndex * pageSize).Take(pageSize)
@@ -129,7 +133,7 @@ public partial class IvfLabService
                     Motility = s.Motility, Morphology = s.Morphology,
                     StrawCount = s.StrawCount,
                     TankCode = s.TankCode, RackPosition = s.RackPosition, BoxCode = s.BoxCode,
-                    Status = s.Status, StatusName = SpermStatusNames.GetValueOrDefault(s.Status, ""),
+                    Status = s.Status, StatusName = spermStatusNames.GetValueOrDefault(s.Status, ""),
                     ExpiryDate = s.ExpiryDate.HasValue ? s.ExpiryDate.Value.ToString("yyyy-MM-dd") : null,
                     StorageFee = s.StorageFee, Notes = s.Notes
                 }).ToListAsync();
@@ -181,7 +185,7 @@ public partial class IvfLabService
                 StorageFee = entity.StorageFee, Notes = entity.Notes
             };
         }
-        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new IvfSpermSampleDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService write failed"); throw; }
     }
 
     public async Task<bool> UpdateSpermStatusAsync(Guid id, int status)
@@ -195,7 +199,7 @@ public partial class IvfLabService
             await _context.SaveChangesAsync();
             return true;
         }
-        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return false; }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService write failed"); throw; }
     }
 
     public async Task<List<IvfSpermSampleDto>> GetExpiringStorageAsync(int daysAhead = 30)
@@ -203,6 +207,7 @@ public partial class IvfLabService
         try
         {
             var cutoff = DateTime.UtcNow.AddDays(daysAhead);
+            var spermStatusNames = SpermStatusNames;
             return await _context.Set<IvfSpermBank>()
                 .Where(s => !s.IsDeleted && s.Status == 1 && s.ExpiryDate.HasValue && s.ExpiryDate <= cutoff)
                 .Include(s => s.Patient)
@@ -215,7 +220,7 @@ public partial class IvfLabService
                     SampleCode = s.SampleCode,
                     CollectionDate = s.CollectionDate.ToString("yyyy-MM-dd"),
                     StrawCount = s.StrawCount, Status = s.Status,
-                    StatusName = SpermStatusNames.GetValueOrDefault(s.Status, ""),
+                    StatusName = spermStatusNames.GetValueOrDefault(s.Status, ""),
                     ExpiryDate = s.ExpiryDate.HasValue ? s.ExpiryDate.Value.ToString("yyyy-MM-dd") : null,
                     StorageFee = s.StorageFee
                 }).ToBoundedListAsync("IvfLab.GetExpiringStorage");
@@ -286,7 +291,7 @@ public partial class IvfLabService
                 Result = entity.Result, Notes = entity.Notes
             };
         }
-        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new IvfBiopsyDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService write failed"); throw; }
     }
 
     // ---- Dashboard & Reports ----

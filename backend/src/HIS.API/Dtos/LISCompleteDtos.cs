@@ -44,13 +44,43 @@ namespace HIS.API.Dtos.LISComplete;
         public string RawData { get; set; }
     }
 
-public record StoreSampleRequest(Guid SampleId, string Location);
+// Wave-2: accept both the legacy {sampleId, location/reason} body and the v2 FE body
+// ({sampleBarcode, storageLocation, ...} / {sampleBarcode, labRequestId, rejectionCode, rejectionReason, notes}).
+// The old positional records made every v2 call a 400 (SampleId required / Location required).
+public class StoreSampleRequest
+{
+    public Guid? SampleId { get; set; }
+    public string? SampleBarcode { get; set; }
+    public string? Location { get; set; }
+    public string? StorageLocation { get; set; }
+    public string? StorageCondition { get; set; }
+    public decimal? Temperature { get; set; }
+    public string? Notes { get; set; }
+}
 
-public record RetrieveSampleRequest(Guid SampleId);
+public class RetrieveSampleRequest
+{
+    public Guid? SampleId { get; set; }
+    public string? Reason { get; set; }
+}
 
-public record RejectSampleRequest(Guid SampleId, string Reason);
+public class RejectSampleRequest
+{
+    public Guid? SampleId { get; set; }
+    public string? SampleBarcode { get; set; }
+    /// <summary>ServiceRequest id OR request code (the v2 form field is free text "Mã yêu cầu XN").</summary>
+    public string? LabRequestId { get; set; }
+    public string? RejectionCode { get; set; }
+    public string? RejectionReason { get; set; }
+    public string? Reason { get; set; }
+    public string? Notes { get; set; }
+}
 
-public record UndoRejectRequest(Guid SampleId);
+public class UndoRejectRequest
+{
+    public Guid? SampleId { get; set; }
+    public string? Reason { get; set; }
+}
 
 public record RejectInboxRequest(string? Reason);
 

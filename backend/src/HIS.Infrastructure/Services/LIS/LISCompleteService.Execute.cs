@@ -109,13 +109,14 @@ public partial class LISCompleteService {
                         TestName = d.Service?.ServiceName ?? "",
                         TestGroup = d.Service?.ServiceGroup?.GroupName,
                         Unit = cat?.Unit,
-                        NormalMin = cat?.NormalMinMale ?? cat?.ReferenceLow,
-                        NormalMax = cat?.NormalMaxMale ?? cat?.ReferenceHigh,
+                        // gender-aware range (was male-first for every patient → FE flagged women on male limits)
+                        NormalMin = LabFlagEvaluator.ResolveRange(cat, patient?.Gender).Min,
+                        NormalMax = LabFlagEvaluator.ResolveRange(cat, patient?.Gender).Max,
                         CriticalLow = cat?.CriticalLow,
                         CriticalHigh = cat?.CriticalHigh,
                         ReferenceRange = LabFlagEvaluator.BuildReferenceRange(
-                            cat?.NormalMinMale ?? cat?.ReferenceLow,
-                            cat?.NormalMaxMale ?? cat?.ReferenceHigh),
+                            LabFlagEvaluator.ResolveRange(cat, patient?.Gender).Min,
+                            LabFlagEvaluator.ResolveRange(cat, patient?.Gender).Max),
                         Result = d.Result,
                         ResultStatus = LisModel1Map.ComputeItemResultStatus(d, dParams),
                         // R1: per-parameter details
@@ -181,13 +182,14 @@ public partial class LISCompleteService {
                 TestName = d.Service?.ServiceName ?? "",
                 TestGroup = d.Service?.ServiceGroup?.GroupName,
                 Unit = cat?.Unit,
-                NormalMin = cat?.NormalMinMale ?? cat?.ReferenceLow,
-                NormalMax = cat?.NormalMaxMale ?? cat?.ReferenceHigh,
+                // gender-aware range (was male-first for every patient)
+                NormalMin = LabFlagEvaluator.ResolveRange(cat, patient?.Gender).Min,
+                NormalMax = LabFlagEvaluator.ResolveRange(cat, patient?.Gender).Max,
                 CriticalLow = cat?.CriticalLow,
                 CriticalHigh = cat?.CriticalHigh,
                 ReferenceRange = LabFlagEvaluator.BuildReferenceRange(
-                    cat?.NormalMinMale ?? cat?.ReferenceLow,
-                    cat?.NormalMaxMale ?? cat?.ReferenceHigh),
+                    LabFlagEvaluator.ResolveRange(cat, patient?.Gender).Min,
+                    LabFlagEvaluator.ResolveRange(cat, patient?.Gender).Max),
                 Result = d.Result,
                 ResultStatus = resultStatusVal,
                 AbnormalFlag = resultStatusVal,

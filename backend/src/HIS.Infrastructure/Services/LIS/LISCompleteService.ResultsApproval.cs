@@ -36,6 +36,9 @@ public partial class LISCompleteService {
         // chỉ định đã hủy, và đè được lên kết quả bác sĩ đã duyệt mà không để lại dấu vết.
         // Đường máy phân tích (Worklist.cs) vốn đã lọc Status != 3 — đây là vế còn thiếu.
         LabDetailStatus.EnsureCanWriteResult(d.Status, d.ReviewedAt != null);
+        // OPD cancel marks only the header (ServiceRequests.Status=4), details keep Status 0 → guard the header too
+        if (await _context.ServiceRequests.AnyAsync(r => r.Id == d.ServiceRequestId && (r.Status == 4 || r.IsDeleted)))
+            throw new InvalidOperationException("Phiếu chỉ định đã hủy, không ghi được kết quả.");
 
         // Write result directly onto SRD (model 1 is the source of truth now)
         d.Result = dto.Result;
@@ -58,13 +61,17 @@ public partial class LISCompleteService {
             // For single-param fallback: load first catalog entry ranges
             decimal? singleCatCritLow = single ? catalog.FirstOrDefault()?.CriticalLow : null;
             decimal? singleCatCritHigh = single ? catalog.FirstOrDefault()?.CriticalHigh : null;
+            // Gender-specific reference ranges (catalog NormalMin/MaxFemale were never applied before)
+            var gender = await _context.ServiceRequests.Where(r => r.Id == d.ServiceRequestId)
+                .Select(r => (int?)r.MedicalRecord.Patient.Gender).FirstOrDefaultAsync();
 
             int seq = 0;
             foreach (var p in dto.Parameters)
             {
                 var cat = catalog.FirstOrDefault(c => c.Code == p.ParameterCode || c.Hl7Code == p.ParameterCode);
-                var min = p.ReferenceMin ?? cat?.ReferenceLow ?? cat?.NormalMinMale ?? (single ? (decimal?)null : null);
-                var max = p.ReferenceMax ?? cat?.ReferenceHigh ?? cat?.NormalMaxMale ?? (single ? (decimal?)null : null);
+                var range = LabFlagEvaluator.ResolveRange(cat, gender);
+                var min = p.ReferenceMin ?? range.Min;
+                var max = p.ReferenceMax ?? range.Max;
                 var num = LabFlagEvaluator.TryParse(p.Value);
                 var flag = LabFlagEvaluator.EvaluateFlag(num, min, max,
                     cat?.CriticalLow ?? singleCatCritLow,
@@ -174,6 +181,9 @@ public partial class LISCompleteService {
         var details = await _context.ServiceRequestDetails
             .Where(d => d.ServiceRequestId == orderId && !d.IsDeleted && d.Status != 3)
             .ToListAsync();
+
+        // Nothing to approve (unknown order / no result yet) → report it instead of a silent "approved"
+        if (!details.Any(x => !string.IsNullOrEmpty(x.Result))) return false;
 
         foreach (var d in details.Where(x => !string.IsNullOrEmpty(x.Result)))
         {
@@ -326,8 +336,9 @@ public partial class LISCompleteService {
         }
         catch (Exception ex)
         {
+            // Patient safety: a failed save must not report "critical value handled".
             _logger.LogWarning(ex, "Error processing critical value alert {AlertId}", dto.AlertId);
-            return true;
+            throw;
         }
     }
 
@@ -381,8 +392,9 @@ public partial class LISCompleteService {
         }
         catch (Exception ex)
         {
+            // Patient safety: a failed save must not report the critical value as acknowledged.
             _logger.LogWarning(ex, "Error acknowledging critical value {AlertId}", alertId);
-            return true;
+            throw;
         }
     }
 }

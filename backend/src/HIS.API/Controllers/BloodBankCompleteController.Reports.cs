@@ -14,6 +14,20 @@ namespace HIS.API.Controllers
     public partial class BloodBankCompleteController : ControllerBase
     {
         /// <summary>
+        /// Report ranges arrive as bare dates. A missing date bound to DateTime.MinValue (SqlDateTime
+        /// overflow → 500), and "toDate=2026-09-15" meant 00:00, so the queries' `<= @to` dropped the
+        /// whole last day. Default to the current month and make toDate inclusive of its day.
+        /// </summary>
+        private static (DateTime from, DateTime to) NormalizeReportRange(DateTime fromDate, DateTime toDate)
+        {
+            var today = DateTime.Today;
+            if (fromDate == default) fromDate = new DateTime(today.Year, today.Month, 1);
+            if (toDate == default) toDate = today;
+            if (toDate.TimeOfDay == TimeSpan.Zero) toDate = toDate.Date.AddDays(1).AddSeconds(-1);
+            return (fromDate, toDate);
+        }
+
+        /// <summary>
         /// 6. Thẻ kho máu
         /// </summary>
         [HttpGet("reports/stock-card")]
@@ -25,6 +39,7 @@ namespace HIS.API.Controllers
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate)
         {
+            (fromDate, toDate) = NormalizeReportRange(fromDate, toDate);
             var result = await _bloodBankService.GetStockCardAsync(bloodType, rhFactor, productTypeId, fromDate, toDate);
             return Ok(result);
         }
@@ -38,6 +53,7 @@ namespace HIS.API.Controllers
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate)
         {
+            (fromDate, toDate) = NormalizeReportRange(fromDate, toDate);
             var result = await _bloodBankService.GetInventoryReportAsync(fromDate, toDate);
             return Ok(result);
         }
@@ -52,6 +68,7 @@ namespace HIS.API.Controllers
             [FromQuery] DateTime toDate,
             [FromQuery] Guid? supplierId = null)
         {
+            (fromDate, toDate) = NormalizeReportRange(fromDate, toDate);
             var result = await _bloodBankService.PrintImportReportAsync(fromDate, toDate, supplierId);
             return File(result, "application/pdf", "blood_import_report.pdf");
         }
@@ -66,6 +83,7 @@ namespace HIS.API.Controllers
             [FromQuery] DateTime toDate,
             [FromQuery] Guid? departmentId = null)
         {
+            (fromDate, toDate) = NormalizeReportRange(fromDate, toDate);
             var result = await _bloodBankService.PrintExportReportAsync(fromDate, toDate, departmentId);
             return File(result, "application/pdf", "blood_export_report.pdf");
         }
@@ -90,6 +108,7 @@ namespace HIS.API.Controllers
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate)
         {
+            (fromDate, toDate) = NormalizeReportRange(fromDate, toDate);
             var result = await _bloodBankService.PrintStockReportAsync(fromDate, toDate);
             return File(result, "application/pdf", "blood_stock_report.pdf");
         }
@@ -104,6 +123,7 @@ namespace HIS.API.Controllers
             [FromQuery] DateTime toDate,
             [FromQuery] Guid? departmentId = null)
         {
+            (fromDate, toDate) = NormalizeReportRange(fromDate, toDate);
             var result = await _bloodBankService.PrintBloodIssueSummaryAsync(fromDate, toDate, departmentId);
             return File(result, "application/pdf", "blood_issue_summary.pdf");
         }
@@ -118,6 +138,7 @@ namespace HIS.API.Controllers
             [FromQuery] DateTime toDate,
             [FromQuery] Guid? departmentId = null)
         {
+            (fromDate, toDate) = NormalizeReportRange(fromDate, toDate);
             var result = await _bloodBankService.GetBloodIssueSummaryAsync(fromDate, toDate, departmentId);
             return Ok(result);
         }
@@ -132,6 +153,7 @@ namespace HIS.API.Controllers
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate)
         {
+            (fromDate, toDate) = NormalizeReportRange(fromDate, toDate);
             var result = await _bloodBankService.PrintBloodIssueByPatientAsync(patientId, fromDate, toDate);
             return File(result, "application/pdf", $"blood_issue_patient_{patientId}.pdf");
         }
@@ -146,6 +168,7 @@ namespace HIS.API.Controllers
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate)
         {
+            (fromDate, toDate) = NormalizeReportRange(fromDate, toDate);
             var result = await _bloodBankService.GetBloodIssueByPatientAsync(patientId, fromDate, toDate);
             return Ok(result);
         }

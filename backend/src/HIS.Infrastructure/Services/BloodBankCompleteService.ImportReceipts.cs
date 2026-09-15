@@ -161,6 +161,7 @@ namespace HIS.Infrastructure.Services
 
         public async Task<BloodImportReceiptDto> CreateImportReceiptAsync(CreateBloodImportDto dto)
         {
+            ValidateImportItems(dto.ReceiptDate, dto.Items); // before any insert → no half-written receipt
             var receiptId = Guid.NewGuid();
             var receiptCode = $"IMP{DateTime.Now:yyyyMMddHHmmss}";
             var totalBags = dto.Items?.Count ?? 0;
@@ -182,34 +183,68 @@ namespace HIS.Infrastructure.Services
             if (dto.Items != null)
             {
                 foreach (var item in dto.Items)
-                {
-                    var itemId = Guid.NewGuid();
-                    var bagId = Guid.NewGuid();
-                    var barcode = item.Barcode ?? $"BB{DateTime.Now:yyyyMMddHHmmss}{Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper()}";
-                    var amount = item.Price * item.Volume;
-
-                    await _context.Database.ExecuteSqlRawAsync(
-                        @"INSERT INTO BloodImportItems (Id, ReceiptId, BloodBagId, BagCode, Barcode, BloodType, RhFactor, ProductTypeId, Volume, Unit, CollectionDate, ExpiryDate, DonorCode, Price, Amount, TestResults)
-                        VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15)",
-                        P("@p0", itemId), P("@p1", receiptId), P("@p2", bagId), P("@p3", item.BagCode), P("@p4", barcode),
-                        P("@p5", item.BloodType), P("@p6", item.RhFactor), P("@p7", item.ProductTypeId),
-                        P("@p8", item.Volume), P("@p9", "mL"), P("@p10", item.CollectionDate), P("@p11", item.ExpiryDate),
-                        P("@p12", item.DonorCode), P("@p13", item.Price), P("@p14", amount),
-                        P("@p15", item.TestResults));
-
-                    await _context.Database.ExecuteSqlRawAsync(
-                        @"INSERT INTO BloodBags (Id, BagCode, Barcode, BloodType, RhFactor, ProductTypeId, Volume, Unit, CollectionDate, ExpiryDate, DonorCode, DonorName, SupplierId, Status, StorageLocation, Temperature, TestResults, IsTestPassed, Note, CreatedAt, CreatedBy)
-                        VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20)",
-                        P("@p0", bagId), P("@p1", item.BagCode), P("@p2", barcode), P("@p3", item.BloodType), P("@p4", item.RhFactor),
-                        P("@p5", item.ProductTypeId), P("@p6", item.Volume), P("@p7", "mL"),
-                        P("@p8", item.CollectionDate), P("@p9", item.ExpiryDate),
-                        P("@p10", item.DonorCode), P("@p11", null),
-                        P("@p12", dto.SupplierId), P("@p13", "Available"), P("@p14", "Kho mau"),
-                        P("@p15", null), P("@p16", item.TestResults),
-                        P("@p17", true), P("@p18", null), P("@p19", DateTime.Now), P("@p20", "System"));
-                }
+                    await InsertImportItemWithBagAsync(receiptId, dto.SupplierId, item);
             }
             return await GetImportReceiptAsync(receiptId);
+        }
+
+        /// <summary>One import line + its physical bag (shared by create and update so both keep them in sync).</summary>
+        /// <summary>
+        /// A unit that was already expired when received (or expires before it was collected) is invalid data and
+        /// must not enter stock as 'Available'. Measured against the receipt date so back-dated entry still works.
+        /// </summary>
+        private static void ValidateImportItems(DateTime receiptDate, IEnumerable<CreateBloodImportItemDto>? items)
+        {
+            foreach (var item in items ?? Enumerable.Empty<CreateBloodImportItemDto>())
+                if (item.ExpiryDate.Date < receiptDate.Date || item.ExpiryDate < item.CollectionDate)
+                    throw new InvalidOperationException(
+                        $"Túi máu {item.BagCode} có hạn dùng {item.ExpiryDate:dd/MM/yyyy} không hợp lệ (hết hạn trước ngày nhập hoặc trước ngày thu), không nhập kho được.");
+        }
+
+        private async Task InsertImportItemWithBagAsync(Guid receiptId, Guid supplierId, CreateBloodImportItemDto item)
+        {
+            var itemId = Guid.NewGuid();
+            var bagId = Guid.NewGuid();
+            var barcode = item.Barcode ?? $"BB{DateTime.Now:yyyyMMddHHmmss}{Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper()}";
+            var amount = item.Price * item.Volume;
+
+            await _context.Database.ExecuteSqlRawAsync(
+                @"INSERT INTO BloodImportItems (Id, ReceiptId, BloodBagId, BagCode, Barcode, BloodType, RhFactor, ProductTypeId, Volume, Unit, CollectionDate, ExpiryDate, DonorCode, Price, Amount, TestResults)
+                VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15)",
+                P("@p0", itemId), P("@p1", receiptId), P("@p2", bagId), P("@p3", item.BagCode), P("@p4", barcode),
+                P("@p5", item.BloodType), P("@p6", item.RhFactor), P("@p7", item.ProductTypeId),
+                P("@p8", item.Volume), P("@p9", "mL"), P("@p10", item.CollectionDate), P("@p11", item.ExpiryDate),
+                P("@p12", item.DonorCode), P("@p13", item.Price), P("@p14", amount),
+                P("@p15", item.TestResults));
+
+            await _context.Database.ExecuteSqlRawAsync(
+                @"INSERT INTO BloodBags (Id, BagCode, Barcode, BloodType, RhFactor, ProductTypeId, Volume, Unit, CollectionDate, ExpiryDate, DonorCode, DonorName, SupplierId, Status, StorageLocation, Temperature, TestResults, IsTestPassed, Note, CreatedAt, CreatedBy)
+                VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20)",
+                P("@p0", bagId), P("@p1", item.BagCode), P("@p2", barcode), P("@p3", item.BloodType), P("@p4", item.RhFactor),
+                P("@p5", item.ProductTypeId), P("@p6", item.Volume), P("@p7", "mL"),
+                P("@p8", item.CollectionDate), P("@p9", item.ExpiryDate),
+                P("@p10", item.DonorCode), P("@p11", null),
+                P("@p12", supplierId), P("@p13", "Available"), P("@p14", "Kho mau"),
+                P("@p15", null), P("@p16", item.TestResults),
+                P("@p17", true), P("@p18", null), P("@p19", DateTime.Now), P("@p20", "System"));
+        }
+
+        /// <summary>
+        /// Bags created by a receipt that are still untouched in stock. Update/cancel may only proceed when every
+        /// bag of the receipt is still 'Available' (none issued/reserved/transfused yet).
+        /// </summary>
+        private async Task EnsureReceiptBagsUntouchedAsync(Guid receiptId)
+        {
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = @"SELECT COUNT(*) FROM BloodImportItems i JOIN BloodBags b ON b.Id = i.BloodBagId
+                WHERE i.ReceiptId = @id AND b.Status NOT IN ('Available', 'Cancelled')";
+            cmd.Parameters.Add(new SqlParameter("@id", receiptId));
+            var used = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+            if (used > 0)
+                throw new InvalidOperationException(
+                    $"Phiếu nhập có {used} túi máu đã được xuất/giữ/truyền — không sửa/hủy phiếu được.");
         }
 
         public async Task<BloodImportReceiptDto> UpdateImportReceiptAsync(Guid receiptId, CreateBloodImportDto dto)
@@ -217,34 +252,33 @@ namespace HIS.Infrastructure.Services
             var totalBags = dto.Items?.Count ?? 0;
             var totalAmount = dto.Items?.Sum(i => i.Price * i.Volume) ?? 0;
 
-            await _context.Database.ExecuteSqlRawAsync(
+            ValidateImportItems(dto.ReceiptDate, dto.Items);
+            await EnsureReceiptBagsUntouchedAsync(receiptId);
+
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            var headerRows = await _context.Database.ExecuteSqlRawAsync(
                 @"UPDATE BloodImportReceipts SET ReceiptDate=@p0, SupplierId=@p1, DeliveryPerson=@p2, Note=@p3, TotalBags=@p4, TotalAmount=@p5
                 WHERE Id=@p6 AND Status='Draft'",
-                dto.ReceiptDate, dto.SupplierId, dto.DeliveryPerson ?? (object)DBNull.Value,
-                dto.Note ?? (object)DBNull.Value, totalBags, totalAmount, receiptId);
+                P("@p0", dto.ReceiptDate), P("@p1", dto.SupplierId), P("@p2", dto.DeliveryPerson),
+                P("@p3", dto.Note), P("@p4", totalBags), P("@p5", totalAmount), P("@p6", receiptId));
+            // The item wipe below used to run even for a Confirmed/Cancelled receipt (header update matched 0 rows)
+            if (headerRows == 0)
+                throw new InvalidOperationException("Chỉ sửa được phiếu nhập máu ở trạng thái nháp.");
 
+            // Old lines' bags left stock as orphans and new lines got NO bag at all (stock drift both ways).
+            await _context.Database.ExecuteSqlRawAsync(
+                @"UPDATE BloodBags SET Status='Cancelled', Note=N'Phiếu nhập đã sửa'
+                WHERE Id IN (SELECT BloodBagId FROM BloodImportItems WHERE ReceiptId=@p0) AND Status='Available'",
+                receiptId);
             await _context.Database.ExecuteSqlRawAsync(
                 "DELETE FROM BloodImportItems WHERE ReceiptId=@p0", receiptId);
 
             if (dto.Items != null)
             {
                 foreach (var item in dto.Items)
-                {
-                    var itemId = Guid.NewGuid();
-                    var bagId = Guid.NewGuid();
-                    var barcode = item.Barcode ?? $"BB{DateTime.Now:yyyyMMddHHmmss}{Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper()}";
-                    var amount = item.Price * item.Volume;
-
-                    await _context.Database.ExecuteSqlRawAsync(
-                        @"INSERT INTO BloodImportItems (Id, ReceiptId, BloodBagId, BagCode, Barcode, BloodType, RhFactor, ProductTypeId, Volume, Unit, CollectionDate, ExpiryDate, DonorCode, Price, Amount, TestResults)
-                        VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15)",
-                        itemId, receiptId, bagId, item.BagCode, barcode,
-                        item.BloodType, item.RhFactor, item.ProductTypeId,
-                        item.Volume, "mL", item.CollectionDate, item.ExpiryDate,
-                        item.DonorCode ?? (object)DBNull.Value, item.Price, amount,
-                        item.TestResults ?? (object)DBNull.Value);
-                }
+                    await InsertImportItemWithBagAsync(receiptId, dto.SupplierId, item);
             }
+            await tx.CommitAsync();
             return await GetImportReceiptAsync(receiptId);
         }
 
@@ -258,9 +292,16 @@ namespace HIS.Infrastructure.Services
 
         public async Task<bool> CancelImportReceiptAsync(Guid receiptId, string reason)
         {
+            await EnsureReceiptBagsUntouchedAsync(receiptId);
             var rows = await _context.Database.ExecuteSqlRawAsync(
                 "UPDATE BloodImportReceipts SET Status='Cancelled', Note=@p0 WHERE Id=@p1 AND Status='Draft'",
                 reason ?? "", receiptId);
+            // Bags are created 'Available' with the draft; cancelling the receipt left them issuable (phantom stock)
+            if (rows > 0)
+                await _context.Database.ExecuteSqlRawAsync(
+                    @"UPDATE BloodBags SET Status='Cancelled', Note=N'Phiếu nhập đã hủy'
+                    WHERE Id IN (SELECT BloodBagId FROM BloodImportItems WHERE ReceiptId=@p0) AND Status='Available'",
+                    receiptId);
             return rows > 0;
         }
 

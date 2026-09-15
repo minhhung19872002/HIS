@@ -44,7 +44,8 @@ public class LabCancelChainService : ILabCancelChainService
     /// <summary>Resolve target details: id là ServiceRequestDetail → 1 dòng; nếu là ServiceRequest → mọi dòng chưa hủy.</summary>
     private async Task<List<ServiceRequestDetail>> ResolveDetailsAsync(Guid id)
     {
-        var one = await _db.ServiceRequestDetails.FirstOrDefaultAsync(d => d.Id == id);
+        // Status != 3: rolling back a cancelled line used to set Status 1/0 and silently revive the order
+        var one = await _db.ServiceRequestDetails.FirstOrDefaultAsync(d => d.Id == id && d.Status != 3);
         if (one != null) return new List<ServiceRequestDetail> { one };
         return await _db.ServiceRequestDetails
             .Where(d => d.ServiceRequestId == id && d.Status != 3)

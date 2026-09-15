@@ -92,14 +92,16 @@ namespace HIS.Infrastructure.Services
             // By department
             using (var cmd2 = connection.CreateCommand())
             {
-                var sql2 = @"SELECT ISNULL(r.DepartmentId, '00000000-0000-0000-0000-000000000000') AS DeptId,
+                // Report the department NAME (the GUID used to be shown as the name).
+                var sql2 = @"SELECT ISNULL(d.DepartmentName, N'Không rõ khoa') AS DeptName,
                     COUNT(*) AS Quantity, SUM(i.Volume) AS Volume
                     FROM BloodIssueItems i
                     INNER JOIN BloodIssueReceipts r ON i.ReceiptId = r.Id
+                    LEFT JOIN Departments d ON d.Id = r.DepartmentId
                     WHERE r.IssueDate >= @from AND r.IssueDate <= @to";
                 if (departmentId.HasValue)
                     sql2 += " AND r.DepartmentId = @deptId";
-                sql2 += " GROUP BY r.DepartmentId";
+                sql2 += " GROUP BY d.DepartmentName";
 
                 cmd2.CommandText = sql2;
                 cmd2.Parameters.Add(new SqlParameter("@from", fromDate));
@@ -112,7 +114,7 @@ namespace HIS.Infrastructure.Services
                 {
                     result.ByDepartment.Add(new BloodIssueSummaryByDeptDto
                     {
-                        DepartmentName = reader2["DeptId"]?.ToString(),
+                        DepartmentName = reader2["DeptName"]?.ToString(),
                         Quantity = reader2.GetInt32(reader2.GetOrdinal("Quantity")),
                         Volume = reader2.GetDecimal(reader2.GetOrdinal("Volume"))
                     });

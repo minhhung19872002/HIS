@@ -646,6 +646,25 @@ public partial class RISCompleteService
         return true;
     }
 
+    /// <summary>
+    /// The clinical order line (ServiceRequestDetail) a dispatched RIS request came from stayed
+    /// "in progress" with no result forever, so billing/dashboard/EMR that read the order line never
+    /// saw the imaging done. Mirror the signed-off report onto it (the OPD result view skips linked
+    /// lines to avoid showing the report twice).
+    /// </summary>
+    private async Task SyncApprovedReportToSourceOrderAsync(RadiologyRequest request, RadiologyReport report)
+    {
+        if (!request.SourceServiceRequestDetailId.HasValue) return;
+        var srd = await _context.ServiceRequestDetails.FindAsync(request.SourceServiceRequestDetailId.Value);
+        if (srd == null || srd.Status == 3) return;
+        srd.Status = 2;
+        srd.ResultDescription = report.Findings;
+        srd.Conclusion = report.Impression;
+        srd.Result = report.Impression ?? report.Findings;
+        srd.ResultDate = report.ApprovedAt ?? DateTime.Now;
+        srd.ReviewedAt = report.ApprovedAt ?? DateTime.Now;
+    }
+
     public async Task<bool> FinalApproveResultAsync(ApproveRadiologyResultDto dto)
     {
         var report = await _context.RadiologyReports.FindAsync(dto.ResultId);
@@ -693,6 +712,7 @@ public partial class RISCompleteService
         if (exam?.RadiologyRequest != null)
         {
             exam.RadiologyRequest.Status = 5; // Approved
+            await SyncApprovedReportToSourceOrderAsync(exam.RadiologyRequest, report);
         }
 
         await _unitOfWork.SaveChangesAsync();

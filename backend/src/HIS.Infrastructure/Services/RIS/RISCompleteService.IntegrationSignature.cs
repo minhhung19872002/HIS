@@ -312,6 +312,12 @@ public partial class RISCompleteService
         report.Status = 2; // Approved
         report.ApprovedAt = DateTime.Now;
 
+        var signedExam = await _context.RadiologyExams
+            .Include(e => e.RadiologyRequest)
+            .FirstOrDefaultAsync(e => e.Id == report.RadiologyExamId);
+        if (signedExam?.RadiologyRequest != null)
+            await SyncApprovedReportToSourceOrderAsync(signedExam.RadiologyRequest, report);
+
         await _unitOfWork.SaveChangesAsync();
 
         return new SignResultResponseDto

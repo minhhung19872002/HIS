@@ -19,7 +19,7 @@ namespace HIS.API.Dtos.BloodBankComplete;
     public class BloodBankUpdateStatusRequest
     {
         public string Status { get; set; }
-        public string Reason { get; set; }
+        public string? Reason { get; set; } // optional in FE (updateBloodBagStatus reason?) — was implicit [Required] → 400
     }
 
     public class DestroyBloodBagsRequest
@@ -43,7 +43,7 @@ namespace HIS.API.Dtos.BloodBankComplete;
     {
         public Guid BloodBagId { get; set; }
         public string Result { get; set; }
-        public string Note { get; set; }
+        public string? Note { get; set; }
     }
 
     public class TransfusionRequest
@@ -54,7 +54,7 @@ namespace HIS.API.Dtos.BloodBankComplete;
     public class CompleteTransfusionRequest
     {
         public Guid BloodBagId { get; set; }
-        public string Note { get; set; }
+        public string? Note { get; set; } // FE completeTransfusion(note?) — was implicit [Required] → 400
     }
 
     public class TransfusionReactionRequest

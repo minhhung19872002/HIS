@@ -476,54 +476,44 @@ public partial class LISCompleteService {
 
     public async Task<QCReportDto> GetQCReportAsync(DateTime fromDate, DateTime toDate, Guid? analyzerId = null)
     {
+        // Wave-2: aggregate LabQCResults (old raw SQL joined a non-existent QCResults table and a
+        // non-existent LabAnalyzers.AnalyzerName column → the SqlException was swallowed, report always empty).
         var result = new QCReportDto { FromDate = fromDate, ToDate = toDate, ByAnalyzer = new List<QCReportByAnalyzerDto>() };
-
-        // Query QC results from QCResults table (created by LabQC module)
-        var sql = @"
-            SELECT a.Id AS AnalyzerId, a.AnalyzerName,
-                   COUNT(qr.Id) AS TotalRuns,
-                   SUM(CASE WHEN qr.IsAccepted = 1 THEN 1 ELSE 0 END) AS AcceptedRuns,
-                   SUM(CASE WHEN qr.IsAccepted = 0 THEN 1 ELSE 0 END) AS RejectedRuns
-            FROM LabAnalyzers a
-            LEFT JOIN QCResults qr ON qr.AnalyzerId = a.Id
-                AND qr.RunDate >= @FromDate AND qr.RunDate < @ToDate
-            WHERE a.IsDeleted = 0";
-
-        if (analyzerId.HasValue) sql += " AND a.Id = @AnalyzerId";
-        sql += " GROUP BY a.Id, a.AnalyzerName ORDER BY TotalRuns DESC";
-
-        try
+        var q = _context.LabQCResults.Where(r => !r.IsDeleted && r.RunTime >= fromDate && r.RunTime < toDate.Date.AddDays(1));
+        if (analyzerId.HasValue) q = q.Where(r => r.AnalyzerId == analyzerId.Value);
+        var rows = await q.Select(r => new
         {
-            using var connection = new SqlConnection(_context.Database.GetConnectionString());
-            await connection.OpenAsync();
-            using var cmd = new SqlCommand(sql, connection);
-            cmd.Parameters.AddWithValue("@FromDate", fromDate);
-            cmd.Parameters.AddWithValue("@ToDate", toDate.AddDays(1));
-            if (analyzerId.HasValue) cmd.Parameters.AddWithValue("@AnalyzerId", analyzerId.Value);
+            r.AnalyzerId, r.ServiceId, r.TestCode, r.IsAccepted, r.CV, r.ZScore, r.RunTime,
+            AnalyzerName = _context.LabAnalyzers.Where(a => a.Id == r.AnalyzerId).Select(a => a.Name).FirstOrDefault(),
+            ServiceName = _context.Services.Where(s => s.Id == r.ServiceId).Select(s => s.ServiceName).FirstOrDefault(),
+        }).ToListAsync();
 
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+        foreach (var a in rows.GroupBy(r => r.AnalyzerId))
+        {
+            var total = a.Count();
+            var accepted = a.Count(r => r.IsAccepted);
+            result.ByAnalyzer.Add(new QCReportByAnalyzerDto
             {
-                var total = reader.GetInt32(2);
-                var accepted = reader.GetInt32(3);
-                result.ByAnalyzer.Add(new QCReportByAnalyzerDto
+                AnalyzerId = a.Key,
+                AnalyzerName = a.First().AnalyzerName ?? "",
+                TotalQCRuns = total,
+                AcceptedRuns = accepted,
+                RejectedRuns = total - accepted,
+                AcceptanceRate = total > 0 ? Math.Round((decimal)accepted / total * 100, 1) : 0,
+                ByTest = a.GroupBy(r => r.ServiceId).Select(t => new QCReportByTestDto
                 {
-                    AnalyzerId = reader.GetGuid(0),
-                    AnalyzerName = reader.GetString(1),
-                    TotalQCRuns = total,
-                    AcceptedRuns = accepted,
-                    RejectedRuns = reader.GetInt32(4),
-                    AcceptanceRate = total > 0 ? Math.Round((decimal)accepted / total * 100, 1) : 0,
-                    ByTest = new List<QCReportByTestDto>()
-                });
-            }
+                    TestCode = t.First().TestCode,
+                    TestName = t.First().ServiceName ?? t.First().TestCode,
+                    TotalRuns = t.Count(),
+                    Accepted = t.Count(r => r.IsAccepted),
+                    Rejected = t.Count(r => !r.IsAccepted),
+                    CV = Math.Round(t.Average(r => r.CV), 2),
+                    Bias = Math.Round(t.Average(r => r.ZScore), 3), // mean z-score = systematic shift in SD units
+                    LastRunDate = t.Max(r => r.RunTime),
+                }).OrderBy(t => t.TestCode).ToList(),
+            });
         }
-        catch (SqlException ex) when (ex.Message.Contains("Invalid object name") || ex.Message.Contains("Invalid column"))
-        {
-            // QCResults table may not exist yet
-            _logger.LogWarning("QCResults table not found for QC report: {Message}", ex.Message);
-        }
-
+        result.ByAnalyzer = result.ByAnalyzer.OrderByDescending(x => x.TotalQCRuns).ToList();
         return result;
     }
 

@@ -160,6 +160,27 @@ namespace HIS.Application.Services
         /// <summary>#14b: hoàn tác từ chối mẫu (ReceiveStatus=1). false = mẫu không tồn tại.</summary>
         Task<bool> UndoRejectSampleAsync(Guid sampleId, Guid? userId);
 
+        // Wave-2 (2026-09-15): real data for sample-storage / sample-tracking / IQC lots+results —
+        // replaces hard-coded fake rows in LISCompleteController.SubModules.cs. Rows are plain projections.
+        /// <summary>SRD ids sharing one physical tube (barcode); optionally restricted to one request.</summary>
+        Task<List<Guid>> GetDetailIdsByBarcodeAsync(string barcode, Guid? serviceRequestId = null);
+        /// <summary>The SRD itself plus every SRD sharing its barcode; empty when the SRD does not exist.</summary>
+        Task<List<Guid>> GetTubeDetailIdsAsync(Guid detailId);
+        /// <summary>Tubes currently stored (SampleLocation set), one row per barcode.</summary>
+        Task<List<object>> GetStoredSamplesAsync(string? keyword);
+        Task<object?> GetSampleByBarcodeAsync(string barcode);
+        /// <summary>Occupancy per freezer/rack/box derived from stored SampleLocation strings.</summary>
+        Task<List<object>> GetStorageLocationsAsync();
+        Task<List<object>> GetSampleRejectionsAsync(DateTime? fromDate, DateTime? toDate, string? keyword);
+        Task<object> GetSampleTrackingSummaryAsync(DateTime? fromDate, DateTime? toDate);
+        Task<List<object>> GetSampleTimelineAsync(string barcode);
+        /// <summary>IQC lots: LabQCLots table when migrated, otherwise derived (read-only) from LabQCResults.</summary>
+        Task<List<object>> GetQCLotsAsync(string? testCode, bool? isActive);
+        /// <summary>Create/update a QC lot. Throws NotSupportedException when LabQCLots is not migrated yet.</summary>
+        Task<object> SaveQCLotAsync(Guid? id, SaveQCLotDto dto, Guid? userId);
+        Task<bool> DeleteQCLotAsync(Guid id);
+        Task<List<object>> GetQCResultsAsync(string? testCode, string? lotNumber, DateTime? fromDate, DateTime? toDate);
+
         /// <summary>
         /// 7.3.2 Chi tiết xét nghiệm của bệnh nhân
         /// </summary>
@@ -746,6 +767,25 @@ namespace HIS.Application.Services
         public string QCLotNumber { get; set; }
         public decimal QCValue { get; set; }
         public DateTime RunTime { get; set; }
+        public string? Notes { get; set; }
+        /// <summary>Set by the controller from the JWT — not bound from the body.</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public Guid? PerformedBy { get; set; }
+    }
+
+    /// <summary>IQC lot (nội kiểm) — shape matches FE LabQC "Thêm lô QC" form.</summary>
+    public class SaveQCLotDto
+    {
+        public string LotNumber { get; set; } = string.Empty;
+        public string TestCode { get; set; } = string.Empty;
+        public string? TestName { get; set; }
+        public int Level { get; set; } = 2; // 1=Low, 2=Normal, 3=High
+        public string? Manufacturer { get; set; }
+        public decimal TargetMean { get; set; }
+        public decimal TargetSD { get; set; }
+        public string? Unit { get; set; }
+        public DateTime? ExpiryDate { get; set; }
+        public bool IsActive { get; set; } = true;
     }
 
     public class QCResultDto
@@ -1056,6 +1096,7 @@ namespace HIS.Application.Services
         public int Rejected { get; set; }
         public decimal CV { get; set; }
         public decimal Bias { get; set; }
+        public DateTime? LastRunDate { get; set; }
     }
 
     public class CreateWorklistDto

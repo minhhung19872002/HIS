@@ -90,9 +90,29 @@ export const getLeveyJenningsData = async (params: { testCode: string; level: nu
   return resp.data;
 };
 
-export const getQCReport = async (params?: { fromDate?: string; toDate?: string }) => {
-  const resp = await apiClient.get('/LISComplete/reports/qc', { params });
-  return resp.data;
+interface QCReportApiDto {
+  byAnalyzer?: {
+    analyzerName?: string;
+    byTest?: { testCode: string; testName: string; totalRuns: number; rejected: number; lastRunDate?: string }[];
+  }[];
+}
+
+// Backend returns QCReportDto { byAnalyzer[].byTest[] } (aggregated from LabQCResults) — flatten it into the
+// per-test rows the "Báo cáo" tab renders. Previously the page read `items`/array from an object → always empty.
+export const getQCReport = async (params?: { fromDate?: string; toDate?: string }): Promise<QCReport[]> => {
+  const resp = await apiClient.get<QCReportApiDto>('/LISComplete/reports/qc', { params });
+  return (resp.data?.byAnalyzer ?? []).flatMap((a) => (a.byTest ?? []).map((t) => {
+    const violationRate = t.totalRuns > 0 ? Math.round((t.rejected / t.totalRuns) * 1000) / 10 : 0;
+    return {
+      testCode: t.testCode,
+      testName: a.analyzerName ? `${t.testName} · ${a.analyzerName}` : t.testName,
+      totalRuns: t.totalRuns,
+      violations: t.rejected,
+      violationRate,
+      lastRunDate: t.lastRunDate ?? '',
+      status: violationRate >= 10 ? 'error' : violationRate > 0 ? 'warning' : 'ok',
+    };
+  }));
 };
 
 // ─── NangCap26 LIS #29: Ngoại kiểm (EQA) — khác nội kiểm (IQC) ở trên ───────

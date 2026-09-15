@@ -365,8 +365,7 @@ const LabQCV2: React.FC = () => {
           fromDate: dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
           toDate: dayjs().format('YYYY-MM-DD'),
         });
-        const list = (r?.items || (Array.isArray(r) ? r : [])) as QCReport[];
-        setReports(list);
+        setReports(r);
       }
     } catch { ti('Không tải được dữ liệu QC'); }
     finally { setLoading(false); }
@@ -401,8 +400,10 @@ const LabQCV2: React.FC = () => {
 
   const lotKpis = useMemo(() => {
     const today = dayjs();
-    const expired = lots.filter((l) => dayjs(l.expiryDate).isBefore(today)).length;
+    // Lots derived from existing QC runs have no expiry date — don't count them as expired/expiring.
+    const expired = lots.filter((l) => l.expiryDate && dayjs(l.expiryDate).isBefore(today)).length;
     const soon = lots.filter((l) => {
+      if (!l.expiryDate) return false;
       const d = dayjs(l.expiryDate);
       return d.isAfter(today) && d.diff(today, 'day') < 30;
     }).length;
@@ -452,6 +453,7 @@ const LabQCV2: React.FC = () => {
     { key: 'mean', label: 'Mean ± SD', mono: true, render: (r) => `${r.targetMean} ± ${r.targetSD}` },
     { key: 'unit', label: 'Đơn vị', mono: true, render: (r) => r.unit || '—' },
     { key: 'exp', label: 'HSD', mono: true, render: (r) => {
+      if (!r.expiryDate) return '—';
       const d = dayjs(r.expiryDate);
       const expired = d.isBefore(dayjs());
       const soon = !expired && d.diff(dayjs(), 'day') < 30;
@@ -672,7 +674,7 @@ const LabQCV2: React.FC = () => {
             <DrField lbl="Xét nghiệm">{selLot.testCode} · {selLot.testName}</DrField>
             <DrField lbl="Mức QC">{LEVEL_LABEL[selLot.level] || '—'}</DrField>
             <DrField lbl="Nhà sản xuất">{selLot.manufacturer || '—'}</DrField>
-            <DrField lbl="Hạn dùng">{dayjs(selLot.expiryDate).format('DD/MM/YYYY')}</DrField>
+            <DrField lbl="Hạn dùng">{selLot.expiryDate ? dayjs(selLot.expiryDate).format('DD/MM/YYYY') : '—'}</DrField>
             <DrField lbl="Hoạt động">
               <StatusBadge tone={selLot.isActive ? 'ok' : 'warn'} dot>
                 {selLot.isActive ? 'Đang dùng' : 'Tạm ngưng'}
@@ -1055,7 +1057,7 @@ const EqaPanel: React.FC = () => {
         <div style={{ display: 'grid', gap: 'var(--space-12)' }}>
           <Field label="Xét nghiệm ngoại kiểm" required error={resValidator.errors.eqaTestId}>
             <AbSelect value={String(resForm.eqaTestId || '')} onChange={(v) => { setResForm((f) => ({ ...f, eqaTestId: v })); resValidator.clear('eqaTestId'); }}
-              options={tests.map((t) => ({ v: t.id, l: `${t.code} — ${t.name}` }))} placeholder="Chọn chỉ tiêu" />
+              options={tests.map((t) => ({ value: t.id, label: `${t.code} — ${t.name}` }))} placeholder="Chọn chỉ tiêu" />
           </Field>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-12)' }}>
             <EqaLabeledInput label="Mã mẫu" value={String(resForm.sampleCode || '')} onChange={(v) => setResForm((f) => ({ ...f, sampleCode: v }))} />
@@ -1068,7 +1070,7 @@ const EqaPanel: React.FC = () => {
             <label style={{ display: 'grid', gap: 'var(--space-4)', fontSize: 'var(--fs-sm)' }}>
               Đánh giá
               <AbSelect value={String(resForm.evaluation || '')} onChange={(v) => setResForm((f) => ({ ...f, evaluation: v }))}
-                options={[{ v: 'Satisfactory', l: 'Đạt' }, { v: 'Questionable', l: 'Nghi ngờ' }, { v: 'Unsatisfactory', l: 'Không đạt' }]}
+                options={[{ value: 'Satisfactory', label: 'Đạt' }, { value: 'Questionable', label: 'Nghi ngờ' }, { value: 'Unsatisfactory', label: 'Không đạt' }]}
                 placeholder="Chưa đánh giá" />
             </label>
           </div>

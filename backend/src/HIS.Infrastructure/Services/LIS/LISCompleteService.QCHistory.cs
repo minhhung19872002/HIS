@@ -275,137 +275,126 @@ public partial class LISCompleteService {
 
     public async Task<QCResultDto> RunQCAsync(RunQCDto dto)
     {
-        // Validate QC result against Westgard rules
+        // Wave-2: persist into LabQCResults (the EF table that exists). The old code read/wrote QCLots/QCResults,
+        // tables that never existed — the SqlException was swallowed, nothing was saved and every run "passed"
+        // against Mean=0/SD=1.
+        if (string.IsNullOrWhiteSpace(dto.QCLotNumber)) throw new ArgumentException("Chưa nhập số lô QC", nameof(dto.QCLotNumber));
+        var service = await _context.Services.Where(s => s.Id == dto.TestId).Select(s => new { s.Id, s.ServiceCode }).FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Không tìm thấy xét nghiệm");
+        if (!await _context.LabAnalyzers.AnyAsync(a => a.Id == dto.AnalyzerId))
+            throw new KeyNotFoundException("Không tìm thấy máy xét nghiệm");
+
+        var lotNumber = dto.QCLotNumber.Trim();
+        var levelNo = ParseQcLevel(dto.QCLevel);
+        var level = levelNo > 0 ? $"Level{levelNo}" : (dto.QCLevel ?? "Level2");
+
+        // Target Mean/SD: declared lot (LabQCLots) first, else the lot's last recorded run
+        decimal mean, sd;
+        var declared = (await TryLoadLotTableAsync(lotNumber: lotNumber, testCode: service.ServiceCode, level: levelNo))?.FirstOrDefault();
+        if (declared != null) { mean = declared.TargetMean; sd = declared.TargetSD; }
+        else
+        {
+            var last = await _context.LabQCResults
+                .Where(r => !r.IsDeleted && r.ServiceId == service.Id && r.QCLevel == level && r.QCLotNumber == lotNumber && r.SD > 0)
+                .OrderByDescending(r => r.RunTime).Select(r => new { r.Mean, r.SD }).FirstOrDefaultAsync()
+                ?? throw new InvalidOperationException(
+                    $"Lô QC {lotNumber} ({level}) chưa có giá trị đích Mean/SD — khai báo lô QC trước khi chạy nội kiểm.");
+            mean = last.Mean; sd = last.SD;
+        }
+
+        var z = Math.Round((dto.QCValue - mean) / sd, 3);
+        // Previous runs of the same analyzer/test/level/lot, newest first — for multi-run Westgard rules
+        var prev = await _context.LabQCResults
+            .Where(r => !r.IsDeleted && r.AnalyzerId == dto.AnalyzerId && r.ServiceId == service.Id
+                && r.QCLevel == level && r.QCLotNumber == lotNumber && r.RunTime < dto.RunTime)
+            .OrderByDescending(r => r.RunTime).Take(9).Select(r => r.ZScore).ToListAsync();
+
         var violations = new List<string>();
-        bool isAccepted = true;
-        decimal mean = 0, sd = 1, zScore = 0;
+        var rejected = false;
+        if (Math.Abs(z) > 3) { violations.Add("1-3s: vượt 3SD"); rejected = true; }
+        if (prev.Count >= 1 && Math.Abs(z) > 2 && Math.Abs(prev[0]) > 2 && Math.Sign(z) == Math.Sign(prev[0]))
+        { violations.Add("2-2s: 2 lần liên tiếp vượt 2SD cùng phía"); rejected = true; }
+        if (prev.Count >= 1 && ((z > 2 && prev[0] < -2) || (z < -2 && prev[0] > 2)))
+        { violations.Add("R-4s: chênh lệch vượt 4SD"); rejected = true; }
+        if (prev.Count >= 3 && Math.Abs(z) > 1 && prev.Take(3).All(p => Math.Abs(p) > 1 && Math.Sign(p) == Math.Sign(z)))
+        { violations.Add("4-1s: 4 lần liên tiếp vượt 1SD cùng phía"); rejected = true; }
+        if (prev.Count >= 9 && z != 0 && prev.All(p => p != 0 && Math.Sign(p) == Math.Sign(z)))
+        { violations.Add("10x: 10 lần liên tiếp cùng phía trung bình"); rejected = true; }
+        if (!rejected && Math.Abs(z) > 2) violations.Add("1-2s: cảnh báo vượt 2SD");
 
-        try
+        var cv = mean != 0 ? Math.Round(sd / mean * 100, 2) : 0;
+        var entity = new LabQCResult
         {
-            using var connection = new Microsoft.Data.SqlClient.SqlConnection(_context.Database.GetConnectionString());
-            await connection.OpenAsync();
-
-            // Find QC lot by lot number
-            var lotSql = @"SELECT Id, Mean, SD FROM QCLots WHERE LotNumber = @LotNumber AND IsActive = 1";
-            Guid? lotId = null;
-            using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(lotSql, connection))
-            {
-                cmd.Parameters.AddWithValue("@LotNumber", dto.QCLotNumber ?? "");
-                using var reader = await cmd.ExecuteReaderAsync();
-                if (await reader.ReadAsync())
-                {
-                    lotId = reader.GetGuid(0);
-                    mean = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
-                    sd = reader.IsDBNull(2) ? 1 : reader.GetDecimal(2);
-                }
-            }
-
-            if (sd > 0)
-            {
-                zScore = Math.Round((dto.QCValue - mean) / sd, 2);
-                var absZ = Math.Abs(zScore);
-                if (absZ > 3) { violations.Add("1-3s: Vượt 3SD"); isAccepted = false; }
-                else if (absZ > 2) { violations.Add("1-2s: Cảnh báo vượt 2SD"); }
-            }
-
-            // Save QC result
-            if (lotId.HasValue)
-            {
-                var insertSql = @"INSERT INTO QCResults (Id, QCLotId, AnalyzerId, TestCode, Value, IsAccepted, Violations, RunDate, CreatedAt)
-                                  VALUES (NEWID(), @LotId, @AnalyzerId, @TestCode, @Value, @IsAccepted, @Violations, @RunTime, GETDATE())";
-                using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(insertSql, connection))
-                {
-                    cmd.Parameters.AddWithValue("@LotId", lotId.Value);
-                    cmd.Parameters.AddWithValue("@AnalyzerId", dto.AnalyzerId);
-                    cmd.Parameters.AddWithValue("@TestCode", "");
-                    cmd.Parameters.AddWithValue("@Value", dto.QCValue);
-                    cmd.Parameters.AddWithValue("@IsAccepted", isAccepted);
-                    cmd.Parameters.AddWithValue("@Violations", string.Join("; ", violations));
-                    cmd.Parameters.AddWithValue("@RunTime", dto.RunTime);
-                    await cmd.ExecuteNonQueryAsync();
-                }
-            }
-        }
-        catch (Microsoft.Data.SqlClient.SqlException ex) when (ex.Message.Contains("Invalid object name"))
-        {
-            _logger.LogWarning("QC tables not found: {Message}", ex.Message);
-        }
+            Id = Guid.NewGuid(),
+            AnalyzerId = dto.AnalyzerId,
+            ServiceId = service.Id,
+            TestCode = service.ServiceCode,
+            QCLevel = level,
+            QCLotNumber = lotNumber,
+            RunTime = dto.RunTime == default ? DateTime.Now : dto.RunTime,
+            Value = dto.QCValue,
+            Mean = mean,
+            SD = sd,
+            CV = cv,
+            ZScore = z,
+            IsAccepted = !rejected,
+            WestgardRule = violations.FirstOrDefault(),
+            Violations = violations.Count > 0 ? string.Join("; ", violations) : null,
+            Notes = dto.Notes,
+            PerformedBy = dto.PerformedBy,
+            CreatedAt = DateTime.Now,
+            CreatedBy = dto.PerformedBy?.ToString(),
+        };
+        _context.LabQCResults.Add(entity);
+        await _context.SaveChangesAsync();
 
         return new QCResultDto
         {
-            IsAccepted = isAccepted,
+            Id = entity.Id,
+            IsAccepted = !rejected,
             Violations = violations,
             Value = dto.QCValue,
             Mean = mean,
             SD = sd,
-            ZScore = zScore,
-            CV = mean != 0 ? Math.Round(sd / mean * 100, 2) : 0,
-            QCLevel = dto.QCLevel,
-            WestgardRule = violations.Any() ? violations.First() : "Pass"
+            ZScore = z,
+            CV = cv,
+            QCLevel = level,
+            WestgardRule = violations.FirstOrDefault() ?? "Pass"
         };
     }
 
     public async Task<LeveyJenningsChartDto> GetLeveyJenningsChartAsync(Guid testId, Guid analyzerId, DateTime fromDate, DateTime toDate)
     {
+        // Wave-2: read LabQCResults (old code queried the non-existent QCLots/QCResults → always an empty chart)
         var result = new LeveyJenningsChartDto { DataPoints = new List<QCDataPointDto>() };
+        var q = _context.LabQCResults.Where(r => !r.IsDeleted && r.ServiceId == testId && r.AnalyzerId == analyzerId
+            && r.RunTime >= fromDate && r.RunTime < toDate.Date.AddDays(1));
+        var latest = await q.OrderByDescending(r => r.RunTime)
+            .Select(r => new { r.QCLevel, r.QCLotNumber, r.Mean, r.SD }).FirstOrDefaultAsync();
+        result.TestName = await _context.Services.Where(s => s.Id == testId).Select(s => s.ServiceName).FirstOrDefaultAsync();
+        result.AnalyzerName = await _context.LabAnalyzers.Where(a => a.Id == analyzerId).Select(a => a.Name).FirstOrDefaultAsync();
+        if (latest == null) return result;
 
-        try
-        {
-            using var connection = new Microsoft.Data.SqlClient.SqlConnection(_context.Database.GetConnectionString());
-            await connection.OpenAsync();
+        // One chart = one control level + lot (mixing levels makes the SD lines meaningless)
+        result.Mean = latest.Mean;
+        result.SD = latest.SD;
+        result.Plus1SD = result.Mean + result.SD;
+        result.Plus2SD = result.Mean + 2 * result.SD;
+        result.Plus3SD = result.Mean + 3 * result.SD;
+        result.Minus1SD = result.Mean - result.SD;
+        result.Minus2SD = result.Mean - 2 * result.SD;
+        result.Minus3SD = result.Mean - 3 * result.SD;
 
-            // Get QC lot mean/SD for chart reference lines
-            var lotSql = @"SELECT TOP 1 Mean, SD FROM QCLots
-                           WHERE AnalyzerId = @AnalyzerId AND IsActive = 1
-                           ORDER BY CreatedAt DESC";
-            using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(lotSql, connection))
+        result.DataPoints = await q.Where(r => r.QCLevel == latest.QCLevel && r.QCLotNumber == latest.QCLotNumber)
+            .OrderBy(r => r.RunTime)
+            .Select(r => new QCDataPointDto
             {
-                cmd.Parameters.AddWithValue("@AnalyzerId", analyzerId);
-                using var reader = await cmd.ExecuteReaderAsync();
-                if (await reader.ReadAsync())
-                {
-                    result.Mean = reader.IsDBNull(0) ? 0 : reader.GetDecimal(0);
-                    result.SD = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
-                }
-            }
-
-            // Calculate SD lines
-            result.Plus1SD = result.Mean + result.SD;
-            result.Plus2SD = result.Mean + 2 * result.SD;
-            result.Plus3SD = result.Mean + 3 * result.SD;
-            result.Minus1SD = result.Mean - result.SD;
-            result.Minus2SD = result.Mean - 2 * result.SD;
-            result.Minus3SD = result.Mean - 3 * result.SD;
-
-            // Get QC data points
-            var dataSql = @"SELECT RunDate, Value, IsAccepted, Violations
-                           FROM QCResults
-                           WHERE AnalyzerId = @AnalyzerId
-                             AND RunDate >= @FromDate AND RunDate < @ToDate
-                           ORDER BY RunDate";
-            using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(dataSql, connection))
-            {
-                cmd.Parameters.AddWithValue("@AnalyzerId", analyzerId);
-                cmd.Parameters.AddWithValue("@FromDate", fromDate);
-                cmd.Parameters.AddWithValue("@ToDate", toDate.AddDays(1));
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    result.DataPoints.Add(new QCDataPointDto
-                    {
-                        Date = reader.GetDateTime(0),
-                        Value = reader.GetDecimal(1),
-                        IsRejected = !reader.GetBoolean(2),
-                        Violations = reader.IsDBNull(3) ? null : reader.GetString(3)
-                    });
-                }
-            }
-        }
-        catch (Microsoft.Data.SqlClient.SqlException ex) when (ex.Message.Contains("Invalid object name"))
-        {
-            _logger.LogWarning("QC tables not found for Levey-Jennings chart: {Message}", ex.Message);
-        }
-
+                Date = r.RunTime,
+                Value = r.Value,
+                Level = r.QCLevel,
+                IsRejected = !r.IsAccepted,
+                Violations = r.Violations
+            }).ToListAsync();
         return result;
     }
 

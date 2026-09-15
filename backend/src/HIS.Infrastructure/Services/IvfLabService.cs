@@ -171,7 +171,7 @@ public partial class IvfLabService : IIvfLabService
             await _context.SaveChangesAsync();
             return new IvfCoupleDto { Id = entity.Id, WifePatientId = entity.WifePatientId, HusbandPatientId = entity.HusbandPatientId, InfertilityDurationMonths = entity.InfertilityDurationMonths, InfertilityCause = entity.InfertilityCause, Notes = entity.Notes };
         }
-        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new IvfCoupleDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService write failed"); throw; }
     }
 
     // ---- Cycles ----
@@ -180,6 +180,8 @@ public partial class IvfLabService : IIvfLabService
     {
         try
         {
+            // Local copy: EF Core rejects a static Dictionary constant inside a server projection.
+            var cycleStatusNames = CycleStatusNames;
             return await _context.Set<IvfCycle>()
                 .Where(c => c.CoupleId == coupleId && !c.IsDeleted)
                 .Include(c => c.Doctor)
@@ -191,7 +193,7 @@ public partial class IvfLabService : IIvfLabService
                     CycleNumber = c.CycleNumber,
                     StartDate = c.StartDate.ToString("yyyy-MM-dd"),
                     Status = c.Status,
-                    StatusName = CycleStatusNames.GetValueOrDefault(c.Status, ""),
+                    StatusName = cycleStatusNames.GetValueOrDefault(c.Status, ""),
                     Protocol = c.Protocol,
                     DoctorId = c.DoctorId,
                     DoctorName = c.Doctor != null ? c.Doctor.FullName : null,
@@ -317,7 +319,7 @@ public partial class IvfLabService : IIvfLabService
                 Protocol = entity.Protocol, Notes = entity.Notes
             };
         }
-        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new IvfCycleDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService write failed"); throw; }
     }
 
     public async Task<bool> UpdateCycleStatusAsync(Guid id, int status)
@@ -331,7 +333,7 @@ public partial class IvfLabService : IIvfLabService
             await _context.SaveChangesAsync();
             return true;
         }
-        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return false; }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService write failed"); throw; }
     }
 
     // ---- OvumPickup ----
@@ -372,7 +374,7 @@ public partial class IvfLabService : IIvfLabService
                 PerformedById = entity.PerformedById, Notes = entity.Notes
             };
         }
-        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new IvfOvumPickupDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService write failed"); throw; }
     }
 
     public async Task<IvfOvumPickupDto?> GetOvumPickupAsync(Guid cycleId)
@@ -405,6 +407,7 @@ public partial class IvfLabService : IIvfLabService
     {
         try
         {
+            var embryoStatusNames = EmbryoStatusNames;
             return await _context.Set<IvfEmbryo>()
                 .Where(e => e.CycleId == cycleId && !e.IsDeleted)
                 .OrderBy(e => e.EmbryoCode)
@@ -413,7 +416,7 @@ public partial class IvfLabService : IIvfLabService
                     Id = e.Id, CycleId = e.CycleId, EmbryoCode = e.EmbryoCode,
                     Day2Grade = e.Day2Grade, Day3Grade = e.Day3Grade, Day5Grade = e.Day5Grade,
                     Day6Grade = e.Day6Grade, Day7Grade = e.Day7Grade,
-                    Status = e.Status, StatusName = EmbryoStatusNames.GetValueOrDefault(e.Status, ""),
+                    Status = e.Status, StatusName = embryoStatusNames.GetValueOrDefault(e.Status, ""),
                     FreezeDate = e.FreezeDate != null ? e.FreezeDate.Value.ToString("yyyy-MM-dd") : null,
                     ThawDate = e.ThawDate != null ? e.ThawDate.Value.ToString("yyyy-MM-dd") : null,
                     StrawCode = e.StrawCode, StrawColor = e.StrawColor,
@@ -461,7 +464,7 @@ public partial class IvfLabService : IIvfLabService
                 Notes = entity.Notes, ImageUrl = entity.ImageUrl
             };
         }
-        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new IvfEmbryoDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService write failed"); throw; }
     }
 
     public async Task<bool> UpdateEmbryoStatusAsync(Guid id, int status)
@@ -475,7 +478,7 @@ public partial class IvfLabService : IIvfLabService
             await _context.SaveChangesAsync();
             return true;
         }
-        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return false; }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService write failed"); throw; }
     }
 
     public async Task<bool> FreezeEmbryoAsync(Guid id, FreezeIvfEmbryoDto dto)
@@ -495,7 +498,7 @@ public partial class IvfLabService : IIvfLabService
             await _context.SaveChangesAsync();
             return true;
         }
-        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return false; }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService write failed"); throw; }
     }
 
     public async Task<bool> ThawEmbryoAsync(Guid id, ThawIvfEmbryoDto dto)
@@ -510,6 +513,6 @@ public partial class IvfLabService : IIvfLabService
             await _context.SaveChangesAsync();
             return true;
         }
-        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return false; }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService write failed"); throw; }
     }
 }
