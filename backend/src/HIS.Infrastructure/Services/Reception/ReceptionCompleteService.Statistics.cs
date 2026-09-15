@@ -87,8 +87,8 @@ public partial class ReceptionCompleteService {
 
     public async Task<QueueDailyStatisticsDto> GetDailyStatisticsAsync(DateTime date, Guid? departmentId)
     {
-        // IssueDate chuẩn hóa UTC — dùng DayRangeUtc để tránh lệch UTC 00h-07h VN.
-        var (dsFromUtc, dsToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
+        // IssueDate = VN local time (business timestamp convention).
+        var (dsFromUtc, dsToUtc) = HIS.Core.Common.VnTime.DayRangeVn(date);
         var query = _context.QueueTickets.Where(t => t.IssueDate >= dsFromUtc && t.IssueDate < dsToUtc);
 
         if (departmentId.HasValue)
@@ -130,7 +130,7 @@ public partial class ReceptionCompleteService {
     /// F9.4 — Phân tích thời gian chờ theo từng khâu thực.
     ///
     /// Mốc timestamp dùng:
-    ///   Đăng ký      = MedicalRecord.AdmissionDate (lưu UTC, dùng DayRangeUtc)
+    ///   Đăng ký      = MedicalRecord.AdmissionDate (VN local, DayRangeVn)
     ///   Bắt đầu khám = Examination.StartTime (nullable; bỏ qua nếu null)
     ///   Kết thúc khám= Examination.EndTime   (nullable; bỏ qua nếu null)
     ///   Chỉ định CLS  = ServiceRequest.CreatedAt (không phải RequestDate — dùng audit CreatedAt)
@@ -146,9 +146,9 @@ public partial class ReceptionCompleteService {
     public async Task<WaitingPhaseAnalysisDto> GetWaitingPhaseAnalysisAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId)
     {
-        // Chuẩn hóa range về UTC — AdmissionDate lưu UTC (HISDbContext dùng UtcNow).
-        var (fromUtc, _) = HIS.Core.Common.VnTime.DayRangeUtc(fromDate);
-        var (_, toUtc)   = HIS.Core.Common.VnTime.DayRangeUtc(toDate);
+        // AdmissionDate = VN local time (business timestamp convention) → VN day range.
+        var (fromUtc, _) = HIS.Core.Common.VnTime.DayRangeVn(fromDate);
+        var (_, toUtc)   = HIS.Core.Common.VnTime.DayRangeVn(toDate);
 
         // Lấy hồ sơ OPD (ngoại trú), trong khoảng ngày.
         // Áp filter departmentId trước Include để EF Core sinh SQL hiệu quả hơn.
@@ -197,7 +197,7 @@ public partial class ReceptionCompleteService {
         foreach (var mr in records)
         {
             var pType = mr.PatientType; // 1/2/3; nếu khác chuẩn thì bỏ qua bucket
-            var admDate = mr.AdmissionDate; // UTC
+            var admDate = mr.AdmissionDate; // VN local, same clock as Examination.StartTime/EndTime
 
             // Lấy lượt khám chính (ExaminationType=1 hoặc lượt đầu nếu không có)
             var exam = mr.Examinations
@@ -230,7 +230,7 @@ public partial class ReceptionCompleteService {
             {
                 // Khám → Chỉ định CLS đầu tiên
                 var firstCls = clsReqs.First();
-                var examToCls = SafeMinutes(exam.StartTime, firstCls.CreatedAt);
+                var examToCls = SafeMinutes(exam.StartTime, HIS.Core.Common.VnTime.UtcToVn(firstCls.CreatedAt)); // CreatedAt is UTC
                 if (examToCls >= 0) allExamToCls.Add(examToCls);
 
                 // CLS → Có KQ (UpdatedAt khi Status=3 — GIẢ ĐỊNH, xem comment class)
@@ -245,7 +245,7 @@ public partial class ReceptionCompleteService {
                     var firstRx = mr.Prescriptions.OrderBy(p => p.PrescriptionDate).FirstOrDefault();
                     if (firstRx != null)
                     {
-                        var resultToRx = SafeMinutes(lastResultAt, firstRx.PrescriptionDate);
+                        var resultToRx = SafeMinutes(HIS.Core.Common.VnTime.UtcToVn(lastResultAt), firstRx.PrescriptionDate); // UpdatedAt UTC vs VN local
                         if (resultToRx >= 0) allResultToRx.Add(resultToRx);
                     }
                 }

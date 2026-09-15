@@ -446,44 +446,51 @@ public partial class SystemCompleteService
 
     public async Task<byte[]> PrintPharmacyReportAsync(PharmacyReportRequest request)
     {
-        try
-        {
-            // QA-R2: `ReceiptDate <= ToDate` (a date at 00:00) dropped every issue of the last day
-            // (measured 1,168 vs 1,688 units for 01–15/09), and cancelled issues (Status 2, stock already
-            // returned) were still counted as issued. Inclusive calendar end + exclude cancelled.
-            var fromDay = request.FromDate.Date;
-            var toExclusive = request.ToDate.Date.AddDays(1);
-            var exports = await _context.ExportReceipts.AsNoTracking()
-                .Where(e => e.ReceiptDate >= fromDay && e.ReceiptDate < toExclusive && e.Status != 2 && !e.IsDeleted)
-                .Include(e => e.Warehouse).Include(e => e.Details).ThenInclude(d => d.Medicine)
-                .ToListAsync();
-
-            if (request.WarehouseId.HasValue)
-                exports = exports.Where(e => e.WarehouseId == request.WarehouseId).ToList();
-
-            var grouped = exports.SelectMany(e => e.Details)
-                .Where(d => d.Medicine != null)
-                .GroupBy(d => new { d.MedicineId, d.Medicine?.MedicineName, d.Medicine?.MedicineCode })
-                .Select(g => new string[] {
-                    g.Key.MedicineCode ?? "", g.Key.MedicineName ?? "",
-                    g.First().Unit ?? "", g.Sum(d => d.Quantity).ToString("N0"),
-                    g.Sum(d => d.Amount).ToString("N0")
-                }).ToList();
-
-            var html = BuildTableReport(
-                $"BAO CAO DUOC - {request.ReportType?.ToUpper() ?? "TONG HOP"}",
-                $"Tu {request.FromDate:dd/MM/yyyy} den {request.ToDate:dd/MM/yyyy}",
-                DateTime.Now,
-                new[] { "Ma thuoc", "Ten thuoc", "DVT", "So luong", "Thanh tien" },
-                grouped);
-            return Encoding.UTF8.GetBytes(html);
-        }
-        catch { return Array.Empty<byte>(); }
+        // QA-R3: every one of the 24 pharmacy report types printed the SAME "issued medicines" table (and the
+        // HTML was served as application/pdf; export returned that HTML as .xlsx). Each type now reads its own
+        // data source (HospitalReportService handler or the controlled-drug registers); the output format
+        // follows request.OutputFormat (pdf → real PDF, otherwise printable HTML). Unknown type → ArgumentException (400).
+        var table = await BuildPharmacyReportTableAsync(request);
+        return Export.ReportFileRenderer.Render(table, request.OutputFormat).Content;
     }
 
     public async Task<byte[]> ExportPharmacyReportToExcelAsync(PharmacyReportRequest request)
     {
-        return await PrintPharmacyReportAsync(request);
+        var table = await BuildPharmacyReportTableAsync(request);
+        return Export.ReportFileRenderer.ToXlsx(table);
+    }
+
+    private async Task<Export.ReportTable> BuildPharmacyReportTableAsync(PharmacyReportRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.ReportType))
+            throw new ArgumentException("Thiếu loại báo cáo dược (reportType).");
+        if (request.ToDate < request.FromDate)
+            throw new ArgumentException("Đến ngày phải sau hoặc bằng từ ngày.");
+        var subtitle = $"Từ {request.FromDate:dd/MM/yyyy} đến {request.ToDate:dd/MM/yyyy}";
+
+        switch (request.ReportType.Trim().ToLowerInvariant())
+        {
+            case "narcoticdrugregister":
+            case "narcotic-drugs":
+            {
+                var reg = await GetNarcoticDrugRegisterAsync(request.FromDate, request.ToDate, request.WarehouseId);
+                return Export.ReportFileRenderer.FromItems("SỔ THEO DÕI THUỐC GÂY NGHIỆN", subtitle, reg.SelectMany(r => r.Items).ToList());
+            }
+            case "psychotropicdrugregister":
+            case "psychotropic-drugs":
+                return Export.ReportFileRenderer.FromItems("SỔ THEO DÕI THUỐC HƯỚNG THẦN", subtitle,
+                    await GetPsychotropicDrugRegisterAsync(request.FromDate, request.ToDate, request.WarehouseId));
+            case "precursordrugregister":
+            case "precursor-drugs":
+                return Export.ReportFileRenderer.FromItems("SỔ THEO DÕI THUỐC TIỀN CHẤT", subtitle,
+                    await GetPrecursorDrugRegisterAsync(request.FromDate, request.ToDate, request.WarehouseId));
+        }
+
+        if (!HospitalReportService.IsKnownReport(request.ReportType))
+            throw new ArgumentException($"Loại báo cáo dược '{request.ReportType}' không được hỗ trợ.");
+        var result = await _hospitalReports.GetReportDataAsync(
+            request.ReportType, request.FromDate, request.ToDate, request.DepartmentId, request.WarehouseId);
+        return Export.ReportFileRenderer.FromHospitalReport(result, subtitle);
     }
 
     #endregion

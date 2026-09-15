@@ -98,6 +98,8 @@ namespace HIS.Application.DTOs.MedicalHR
         // Optional fields are nullable: under <Nullable>enable</Nullable> a non-nullable string is an implicit
         // [Required], so the v2 HR "add employee" form (no email/idNumber/address...) always got 400.
         public Guid? Id { get; set; }
+        /// <summary>Login account chosen in the HR form — links MedicalStaffs.UserId (used by the CCHN prescribing gate).</summary>
+        public Guid? UserId { get; set; }
         public string? EmployeeCode { get; set; }
         public string? StaffCode { get; set; } // alias sent by v2 HR.tsx
         public string FullName { get; set; } = string.Empty;
@@ -148,6 +150,8 @@ namespace HIS.Application.DTOs.MedicalHR
         public int FilledShifts { get; set; }
         public int OpenShifts { get; set; }
         public List<DutyShiftDto> Shifts { get; set; }
+        /// <summary>QA-R3: the roster's real shift assignments (the v2 weekly roster tab showed demo data).</summary>
+        public List<StaffRosterAssignmentDto> StaffAssignments { get; set; } = new();
 
         public string CreatedBy { get; set; }
         public DateTime CreatedAt { get; set; }
@@ -205,6 +209,28 @@ namespace HIS.Application.DTOs.MedicalHR
         public bool IsOvertime { get; set; }
         public decimal? OvertimeHours { get; set; }
         public int Status { get; set; }
+        // QA-R3: shift swap state (DutyShifts.SwappedWithId / SwapReason / SwapApproved).
+        public Guid? DepartmentId { get; set; }
+        public string? DepartmentName { get; set; }
+        public Guid? SwappedWithId { get; set; }
+        public string? SwappedWithName { get; set; }
+        public string? SwapReason { get; set; }
+        public bool SwapPending { get; set; }
+    }
+
+    /// <summary>QA-R3: request a shift swap (exchange with the target's shift) or a cover (target takes the shift).</summary>
+    public class CreateShiftSwapRequestDto
+    {
+        public Guid OriginalAssignmentId { get; set; }
+        public Guid? TargetStaffId { get; set; }
+        public Guid? TargetAssignmentId { get; set; }
+        public string? Reason { get; set; }
+    }
+
+    public class ShiftSwapApprovalDto
+    {
+        public bool IsApproved { get; set; }
+        public string? Notes { get; set; }
     }
 
     public class ShiftAssignmentDto

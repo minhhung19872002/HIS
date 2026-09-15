@@ -253,8 +253,19 @@ namespace HIS.API.Controllers
         [Authorize(Roles = RoleNames.Admin + "," + RoleNames.PharmacyManager + "," + RoleNames.Pharmacist)]
         public async Task<IActionResult> PrintPharmacyReport([FromBody] PharmacyReportRequest request)
         {
-            var result = await _service.PrintPharmacyReportAsync(request);
-            return File(result, "application/pdf", $"PharmacyReport_{DateTime.Now:yyyyMMdd}.pdf");
+            // QA-R3: MIME/extension follow the real content (pdf only when a PDF was asked for, else HTML to print).
+            try
+            {
+                var result = await _service.PrintPharmacyReportAsync(request);
+                var isPdf = HIS.Infrastructure.Services.Export.ReportFileRenderer.NormalizeFormat(request.OutputFormat) == "pdf";
+                return isPdf
+                    ? File(result, "application/pdf", $"PharmacyReport_{DateTime.Now:yyyyMMdd}.pdf")
+                    : File(result, "text/html; charset=utf-8");
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
+            }
         }
 
         /// <summary>
@@ -264,8 +275,15 @@ namespace HIS.API.Controllers
         [Authorize(Roles = RoleNames.Admin + "," + RoleNames.PharmacyManager + "," + RoleNames.Pharmacist)]
         public async Task<IActionResult> ExportPharmacyReport([FromBody] PharmacyReportRequest request)
         {
-            var result = await _service.ExportPharmacyReportToExcelAsync(request);
-            return File(result, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"PharmacyReport_{DateTime.Now:yyyyMMdd}.xlsx");
+            try
+            {
+                var result = await _service.ExportPharmacyReportToExcelAsync(request);
+                return File(result, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"PharmacyReport_{DateTime.Now:yyyyMMdd}.xlsx");
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
+            }
         }
     }
 }

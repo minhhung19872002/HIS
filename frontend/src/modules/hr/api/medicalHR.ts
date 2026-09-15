@@ -82,6 +82,8 @@ export interface CertificationDto {
 
 export interface CreateStaffProfileDto {
   staffCode: string;
+  /** Login account to link (MedicalStaffs.UserId) — used by the CCHN prescribing gate. */
+  userId?: string;
   employeeNumber?: string;
   fullName: string;
   dateOfBirth?: string;
@@ -157,6 +159,12 @@ export interface RosterAssignmentDto {
   overtimeHours?: number;
   swappedWith?: string;
   swappedDate?: string;
+  swappedWithId?: string | null;
+  swappedWithName?: string | null;
+  swapReason?: string | null;
+  swapPending?: boolean;
+  departmentId?: string | null;
+  departmentName?: string | null;
   status: number; // 1-Scheduled, 2-Confirmed, 3-Completed, 4-Absent, 5-Swapped
   statusName: string;
   notes?: string;
@@ -196,32 +204,29 @@ export interface UpdateRosterAssignmentDto {
   notes?: string;
 }
 
+/** BE ShiftSwapRequestDto (MedicalHRServiceImpl.Swaps.cs) — id = the requester's DutyShift id. */
 export interface ShiftSwapRequestDto {
   id: string;
-  requestCode: string;
+  originalAssignmentId: string;
   requesterId: string;
   requesterName: string;
-  requestDate: string;
-  originalAssignmentId: string;
-  originalDate: string;
-  originalShift: string;
-  targetStaffId: string;
+  originalShiftDate: string;
+  originalShiftType: string;
+  targetAssignmentId?: string | null;
+  targetStaffId?: string | null;
   targetStaffName: string;
-  targetDate: string;
-  targetShift: string;
+  targetShiftDate?: string | null;
+  targetShiftType: string;
   reason: string;
-  status: number; // 1-Pending, 2-Approved, 3-Rejected
-  statusName: string;
-  approvedBy?: string;
-  approvedByName?: string;
-  approvedAt?: string;
-  notes?: string;
+  status: string; // Pending | ManagerApproved
+  createdAt: string;
 }
 
+/** Swap = exchange with the target's shift (targetAssignmentId); cover = target takes the shift (targetStaffId only). */
 export interface CreateShiftSwapDto {
   originalAssignmentId: string;
-  targetStaffId: string;
-  targetAssignmentId: string;
+  targetStaffId?: string;
+  targetAssignmentId?: string;
   reason: string;
 }
 
@@ -616,9 +621,13 @@ export const copyWeekRoster = (dto: {
   overwriteExisting?: boolean;
 }) => apiClient.post(`${BASE_URL}/rosters/copy-week`, dto);
 
-// Shift Swaps
-export const getSwapRequests = (departmentId?: string, status?: number) =>
-  apiClient.get<ShiftSwapRequestDto[]>(`${BASE_URL}/shift-swaps`, { params: { departmentId, status } });
+/** QA-R3: real shift assignments of a date range (all departments when departmentId is omitted). */
+export const getRosterAssignments = (fromDate: string, toDate: string, departmentId?: string) =>
+  apiClient.get<RosterAssignmentDto[]>(`${BASE_URL}/rosters/assignments`, { params: { fromDate, toDate, departmentId } });
+
+// Shift Swaps (pending requests)
+export const getSwapRequests = (departmentId?: string) =>
+  apiClient.get<ShiftSwapRequestDto[]>(`${BASE_URL}/shift-swaps`, { params: { departmentId } });
 
 export const createSwapRequest = (dto: CreateShiftSwapDto) =>
   apiClient.post<ShiftSwapRequestDto>(`${BASE_URL}/shift-swaps`, dto);

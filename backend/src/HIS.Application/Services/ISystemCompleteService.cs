@@ -553,8 +553,9 @@ namespace HIS.Application.Services
         public DateTime ToDate { get; set; }
         public Guid? DepartmentId { get; set; }
         public Guid? ServiceId { get; set; }
-        public string GroupBy { get; set; } // Day, Week, Month, Quarter, Year
-        public string OutputFormat { get; set; } // PDF, Excel
+        // QA-R3: optional — the v2 report tab never sends groupBy, so every finance print/export was a 400.
+        public string? GroupBy { get; set; } // Day, Week, Month, Quarter, Year
+        public string? OutputFormat { get; set; } // PDF, Excel
     }
 
     // Medicine Catalog Search
@@ -626,6 +627,9 @@ namespace HIS.Application.Services
         public Guid RoleId { get; set; }
         public string ScopeType { get; set; } = "ORG"; // OWN | DEPT | BRANCH | ORG
         public Guid? ScopeId { get; set; } // DepartmentId khi DEPT, BranchId khi BRANCH
+        // UserRoles.ValidTo is UTC (compared with DateTime.UtcNow in PermissionService/AuthService) → opt out of
+        // the global VN-local request converter.
+        [global::System.Text.Json.Serialization.JsonConverter(typeof(global::HIS.Application.Common.NullableUtcDateTimeJsonConverter))]
         public DateTime? ValidTo { get; set; } // null = vĩnh viễn
         public string? GrantReason { get; set; }
     }

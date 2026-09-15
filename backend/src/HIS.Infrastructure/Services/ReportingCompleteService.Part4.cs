@@ -241,79 +241,24 @@ public partial class ReportingCompleteService
 
     public async Task<byte[]> ExportToExcelAsync(string reportCode, DateTime fromDate, DateTime toDate, object? parameters = null)
     {
-        // The controller serves this as .xlsx (OOXML). It used to be CSV text, which Excel refuses
-        // to open under an .xlsx name; failures returned an empty 200 file instead of an error.
-        var rows = await GetReportRowsAsync(reportCode, fromDate, toDate);
-        var sheetRows = rows
-            .Select((r, i) => (IReadOnlyList<object?>)new object?[] { i + 1, r.Code, r.Name, r.Value, r.Date, r.Note })
-            .ToList();
-        return HIS.Infrastructure.Services.Export.SimpleXlsxWriter.Build(new[]
-        {
-            new HIS.Infrastructure.Services.Export.XlsxSheet(reportCode,
-                new[] { "STT", "Ma", "Ten", "Gia tri", "Ngay", "Ghi chu" }, sheetRows)
-        });
-    }
-
-    /// <summary>Render report HTML to a real PDF (was HTML bytes served as application/pdf).</summary>
-    private static byte[] RenderHtmlToPdf(string html)
-    {
-        using var htmlStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(html));
-        using var outputStream = new MemoryStream();
-        var fontProvider = new iText.Layout.Font.FontProvider();
-        fontProvider.AddStandardPdfFonts();
-        foreach (var font in new[]
-        {
-            @"C:\Windows\Fonts\times.ttf", @"C:\Windows\Fonts\timesbd.ttf", @"C:\Windows\Fonts\timesi.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationSerif-Italic.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
-        })
-        {
-            if (File.Exists(font)) fontProvider.AddFont(font);
-        }
-        var properties = new iText.Html2pdf.ConverterProperties();
-        properties.SetFontProvider(fontProvider);
-        iText.Html2pdf.HtmlConverter.ConvertToPdf(htmlStream, outputStream, properties);
-        return outputStream.ToArray(); // ToArray works on the stream ConvertToPdf has closed
+        // QA-R3: honours reportCode (every code used to export the same examination list). Unknown code → ArgumentException (400).
+        var table = await BuildReportTableAsync(reportCode, fromDate, toDate);
+        var file = HIS.Infrastructure.Services.Export.ReportFileRenderer.Render(table, "xlsx");
+        await SaveReportHistoryAsync(reportCode, table.Title, file, fromDate, toDate, null);
+        return file.Content;
     }
 
     public async Task<byte[]> ExportToPdfAsync(string reportCode, DateTime fromDate, DateTime toDate, object? parameters = null)
     {
         try
         {
-            var rows = await GetReportRowsAsync(reportCode, fromDate, toDate);
-            var tableRows = new System.Text.StringBuilder();
-            for (int i = 0; i < rows.Count; i++)
-            {
-                var r = rows[i];
-                tableRows.AppendLine($@"<tr><td style=""text-align:center"">{i + 1}</td><td>{System.Net.WebUtility.HtmlEncode(r.Code)}</td><td>{System.Net.WebUtility.HtmlEncode(r.Name)}</td><td style=""text-align:right"">{System.Net.WebUtility.HtmlEncode(r.Value)}</td><td>{System.Net.WebUtility.HtmlEncode(r.Date)}</td><td>{System.Net.WebUtility.HtmlEncode(r.Note)}</td></tr>");
-            }
-
-            var html = $@"<!DOCTYPE html>
-<html><head><meta charset=""utf-8""><title>Bao cao {System.Net.WebUtility.HtmlEncode(reportCode)}</title>
-<style>
-body {{ font-family: 'Times New Roman', 'Liberation Serif', 'DejaVu Serif', serif; font-size: 13px; margin: 20px; }}
-h1 {{ text-align: center; font-size: 16px; text-transform: uppercase; }}
-p.subtitle {{ text-align: center; font-style: italic; }}
-table {{ width: 100%; border-collapse: collapse; margin: 10px 0; }}
-th, td {{ border: 1px solid #333; padding: 4px 6px; font-size: 12px; }}
-th {{ background: #f0f0f0; text-align: center; }}
-</style></head><body>
-<h1>BAO CAO {System.Net.WebUtility.HtmlEncode(reportCode.ToUpper())}</h1>
-<p class=""subtitle"">Tu ngay {fromDate:dd/MM/yyyy} den ngay {toDate:dd/MM/yyyy}</p>
-<p class=""subtitle"">Ngay xuat: {DateTime.Now:dd/MM/yyyy HH:mm}</p>
-<table><thead><tr><th>STT</th><th>Ma</th><th>Ten</th><th>Gia tri</th><th>Ngay</th><th>Ghi chu</th></tr></thead><tbody>
-{tableRows}
-</tbody></table>
-<p style=""text-align:right;margin-top:30px""><i>Ngay {DateTime.Now:dd} thang {DateTime.Now:MM} nam {DateTime.Now:yyyy}</i></p>
-<p style=""text-align:right""><b>Nguoi lap bao cao</b></p>
-</body></html>";
-
-            return RenderHtmlToPdf(html);
+            // QA-R3: honours reportCode (was the same examination list for every code).
+            var table = await BuildReportTableAsync(reportCode, fromDate, toDate);
+            var file = HIS.Infrastructure.Services.Export.ReportFileRenderer.Render(table, "pdf");
+            await SaveReportHistoryAsync(reportCode, table.Title, file, fromDate, toDate, null);
+            return file.Content;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not ArgumentException)
         {
             // Surface the failure (controller → 500) instead of downloading an empty "PDF".
             _logger.LogWarning(ex, "ExportToPdfAsync failed for {ReportCode}", reportCode);
@@ -346,6 +291,12 @@ th {{ background: #f0f0f0; text-align: center; }}
                 .Select(r => new ReportHistoryDto
                 {
                     Id = r.Id,
+                    // QA-R3: history rows showed only id/date — code, name, format and size were never returned.
+                    ReportCode = r.ReportCode,
+                    ReportName = r.ReportName,
+                    Format = r.FileFormat ?? "",
+                    FilePath = r.FileName ?? "",
+                    FileSize = r.FileSize,
                     CreatedAt = r.CreatedAt,
                     CreatedBy = r.CreatedBy ?? ""
                 })
@@ -367,7 +318,16 @@ th {{ background: #f0f0f0; text-align: center; }}
             var report = await _context.GeneratedReports.FirstOrDefaultAsync(r => r.Id == reportHistoryId && !r.IsDeleted);
             if (report == null) return Array.Empty<byte>();
 
-            // If file exists on disk, return it
+            // QA-R3: the generated bytes are kept in the history row (survives container rebuilds).
+            if (report.FileContent is { Length: > 0 })
+            {
+                report.IsDownloaded = true;
+                report.DownloadCount++;
+                await _context.SaveChangesAsync();
+                return report.FileContent;
+            }
+
+            // Legacy rows: file on disk, if it still exists
             if (!string.IsNullOrEmpty(report.OutputPath) && System.IO.File.Exists(report.OutputPath))
             {
                 return await System.IO.File.ReadAllBytesAsync(report.OutputPath);
@@ -522,13 +482,46 @@ h1 {{ text-align: center; font-size: 16px; }}
             var dto = JsonSerializer.Deserialize<ScheduledReportConfigDto>(config.ConfigValue);
             if (dto == null) return false;
 
-            // Update last run time
+            // QA-R3: "Chạy ngay" only stamped LastRunTime — no report was produced and nobody received anything.
+            // Generate the report for the schedule's current period, keep it in report history, and e-mail it to
+            // the configured recipients. Unknown report code → ArgumentException (400).
+            var today = DateTime.Today;
+            var (fromDate, toDate) = (dto.Schedule ?? "").Trim().ToLowerInvariant() switch
+            {
+                "weekly" => (today.AddDays(-6), today),
+                "monthly" => (new DateTime(today.Year, today.Month, 1), today),
+                "quarterly" => (new DateTime(today.Year, (today.Month - 1) / 3 * 3 + 1, 1), today),
+                "yearly" => (new DateTime(today.Year, 1, 1), today),
+                _ => (today, today),
+            };
+            var table = await BuildReportTableAsync(dto.ReportCode, fromDate, toDate);
+            var file = HIS.Infrastructure.Services.Export.ReportFileRenderer.Render(table,
+                string.Equals(dto.Format, "pdf", StringComparison.OrdinalIgnoreCase) ? "pdf" : "xlsx");
+
+            var recipients = (dto.Recipients ?? "")
+                .Split(new[] { ',', ';', ' ', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(e => e.Contains('@'))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var attachmentName = $"{dto.ReportCode}_{fromDate:yyyyMMdd}_{toDate:yyyyMMdd}.{file.Extension}";
+            var failed = new List<string>();
+            foreach (var to in recipients)
+                if (!await _email.SendReportAsync(to, table.Title, file.Content, attachmentName))
+                    failed.Add(to);
+
             dto.LastRunTime = DateTime.Now;
             config.ConfigValue = JsonSerializer.Serialize(dto);
             config.UpdatedAt = DateTime.Now;
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Scheduled report {ReportCode} triggered manually", dto.ReportCode);
+            await SaveReportHistoryAsync(dto.ReportCode, table.Title, file, fromDate, toDate,
+                recipients.Count == 0 ? "Chạy thủ công — không có người nhận"
+                    : $"Gửi {recipients.Count - failed.Count}/{recipients.Count} email" + (failed.Count > 0 ? $" (lỗi: {string.Join(", ", failed)})" : ""));
+
+            _logger.LogInformation("Scheduled report {ReportCode} run manually: {Rows} rows, {Sent}/{Total} emails",
+                dto.ReportCode, table.Rows.Count, recipients.Count - failed.Count, recipients.Count);
+            if (failed.Count > 0)
+                throw new InvalidOperationException($"Đã tạo báo cáo nhưng gửi email thất bại tới: {string.Join(", ", failed)}");
             return true;
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))

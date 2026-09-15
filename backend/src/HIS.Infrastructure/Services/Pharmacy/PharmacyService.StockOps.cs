@@ -478,7 +478,7 @@ public partial class PharmacyService
             TransferCode = $"DC-{DateTime.Now:yyyyMMdd}-{DateTime.Now:HHmmss}",
             FromWarehouseId = fromWarehouseId,
             ToWarehouseId = toWarehouseId,
-            TransferDate = DateTime.UtcNow,
+            TransferDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
             Status = 0,
             RequestedBy = requestedBy,
             Notes = note,
@@ -575,7 +575,7 @@ public partial class PharmacyService
             throw new InvalidOperationException("Chỉ duyệt được phiếu điều chuyển đang chờ duyệt.");
 
         transfer.Status = 1;
-        transfer.ApprovedAt = DateTime.UtcNow;
+        transfer.ApprovedAt = HIS.Core.Common.VnTime.NowVn;
         transfer.ApprovedBy = userId == Guid.Empty ? null : userId;
         transfer.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
@@ -615,7 +615,7 @@ public partial class PharmacyService
             .Where(t => t.Id == transferId && !t.IsDeleted && (t.Status == 1 || t.Status == 2))
             .ExecuteUpdateAsync(s => s
                 .SetProperty(t => t.Status, 3)
-                .SetProperty(t => t.ReceivedAt, DateTime.UtcNow)
+                .SetProperty(t => t.ReceivedAt, HIS.Core.Common.VnTime.NowVn)
                 .SetProperty(t => t.ReceivedBy, userId == Guid.Empty ? (Guid?)null : userId)
                 .SetProperty(t => t.UpdatedAt, DateTime.UtcNow));
         if (claimed == 0)

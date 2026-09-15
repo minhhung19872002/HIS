@@ -37,6 +37,7 @@ const TOP_TABS: TopTab<TopKey>[] = [
 
 const fmtPct = (n: number) => `${(n || 0).toFixed(1)}%`;
 const PER = 18;
+const NO_DATA = 'chưa có dữ liệu';
 // Verbatim v1 (pages/Finance.tsx) — tránh NaN khi mẫu số = 0
 const safePercent = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
 
@@ -71,7 +72,8 @@ const FinanceV2: React.FC = () => {
     medicine: (r) => r.medicineCost,
     supply: (r) => r.supplyCost,
     personnel: (r) => r.personnelCost,
-    total: (r) => r.totalCost,
+    total: (r) => r.totalCost ?? -1,
+    service: (r) => r.serviceRevenue,
   });
   const surgerySort = useSortableRows(rpSurgery ?? [], {
     name: (r) => r.surgeryName,
@@ -342,10 +344,11 @@ const FinanceV2: React.FC = () => {
 
       {tab === 'reports' && (
         <div style={{ padding: 'var(--space-14)', display: 'grid', gap: 'var(--space-12)', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
-          <RptCard title="Chi phí theo khoa" desc="Thuốc · Vật tư · Nhân sự · Tiện ích" loading={rpLoading === 'cost'}
+          <RptCard title="Chi phí theo khoa" desc="Giá vốn thuốc · vật tư (theo giá nhập lô) · Doanh thu DV" loading={rpLoading === 'cost'}
             onLoad={async () => { setRpLoading('cost'); try { const r = await financeApi.getCostByDepartment(reportFrom, reportTo); setRpCost((r.data || []) as CostByDepartmentDto[]); } catch (e) { te(friendlyErrorMessage(e, 'Không tải được báo cáo chi phí theo khoa')); } finally { setRpLoading(null); } }}
             hasData={!!rpCost}
             content={rpCost ? (
+              <>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead><tr style={{ borderBottom: '1px solid var(--line)' }}>
                   <SortTh s={costSort} k="dept" style={RPT_TH}>Khoa</SortTh>
@@ -353,17 +356,27 @@ const FinanceV2: React.FC = () => {
                   <SortTh s={costSort} k="supply" style={RPT_TH}>Vật tư</SortTh>
                   <SortTh s={costSort} k="personnel" style={RPT_TH}>Nhân sự</SortTh>
                   <SortTh s={costSort} k="total" style={RPT_TH}>Tổng CP</SortTh>
+                  <SortTh s={costSort} k="service" style={RPT_TH}>Doanh thu DV</SortTh>
                 </tr></thead>
                 <tbody>{costSort.rows.map((r) => (
-                  <tr key={r.departmentId} style={{ borderBottom: '1px solid var(--line)' }}>
+                  <tr key={`${r.departmentId}-${r.departmentCode}`} style={{ borderBottom: '1px solid var(--line)' }} title={(r.missingData ?? []).join('\n')}>
                     <td style={{ padding: '4px 6px' }}>{r.departmentName || r.departmentCode}</td>
-                    <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)' }}>{fmtVNDg(r.medicineCost)}</td>
-                    <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)' }}>{fmtVNDg(r.supplyCost)}</td>
-                    <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)' }}>{fmtVNDg(r.personnelCost)}</td>
-                    <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{fmtVNDg(r.totalCost)}</td>
+                    <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)' }}>{r.medicineCost != null ? fmtVNDg(r.medicineCost) : NO_DATA}</td>
+                    <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)' }}>{r.supplyCost != null ? fmtVNDg(r.supplyCost) : NO_DATA}</td>
+                    <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)' }}>{r.personnelCost != null ? fmtVNDg(r.personnelCost) : NO_DATA}</td>
+                    <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{r.totalCost != null ? fmtVNDg(r.totalCost) : NO_DATA}</td>
+                    <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)' }}>{fmtVNDg(r.serviceRevenue)}</td>
                   </tr>
                 ))}</tbody>
               </table>
+              {/* Rows carry their own notes (tooltip); totals of missing data summarised here. */}
+              <div style={{ marginTop: 6, color: 'var(--t-2)', fontSize: 11.5 }}>
+                {rpCost.some((r) => r.uncostedLines > 0) && (
+                  <div>• {rpCost.reduce((s, r) => s + (r.uncostedLines || 0), 0)} dòng xuất kho chưa có giá nhập — không tính vào giá vốn</div>
+                )}
+                <div>• Nhân sự / thiết bị / chi phí chung: chưa có nguồn dữ liệu theo khoa</div>
+              </div>
+              </>
             ) : null}
           />
           <RptCard title="Đối soát BHYT" desc="QĐ 6556/BYT · Chênh lệch quyết toán" loading={rpLoading === 'ins'}
@@ -426,16 +439,25 @@ const FinanceV2: React.FC = () => {
                   // fmtVNDg(undefined) prints "Miễn phí" — breakdown lines the BE does not return show "—"
                   { l: '  BHYT', v: rpSummary.insuranceRevenue != null ? fmtVNDg(rpSummary.insuranceRevenue) : '—' },
                   { l: '  Bệnh nhân', v: rpSummary.patientRevenue != null ? fmtVNDg(rpSummary.patientRevenue) : '—' },
-                  { l: 'Tổng chi phí', v: fmtVNDg(rpSummary.totalCost), tone: 'warn' },
-                  { l: '  Thuốc', v: rpSummary.medicineCost != null ? fmtVNDg(rpSummary.medicineCost) : '—' },
-                  { l: '  Nhân sự', v: rpSummary.personnelCost != null ? fmtVNDg(rpSummary.personnelCost) : '—' },
-                  { l: 'Lợi nhuận gộp', v: fmtVNDg(rpSummary.grossProfit), tone: rpSummary.grossProfit >= 0 ? 'ok' : 'crit' },
-                  { l: 'Lợi nhuận ròng', v: `${fmtVNDg(rpSummary.netProfit)} (${fmtPct(rpSummary.profitMargin)})`, tone: rpSummary.netProfit >= 0 ? 'ok' : 'crit', bold: true },
+                  // QA-R3: null = HIS has no data source for that line → "chưa có dữ liệu" (never an estimate).
+                  { l: 'Tổng chi phí (các khoản có dữ liệu)', v: rpSummary.totalCost != null ? fmtVNDg(rpSummary.totalCost) : NO_DATA, tone: 'warn' },
+                  { l: '  Giá vốn thuốc', v: rpSummary.medicineCost != null ? fmtVNDg(rpSummary.medicineCost) : NO_DATA },
+                  { l: '  Giá vốn vật tư', v: rpSummary.supplyCost != null ? fmtVNDg(rpSummary.supplyCost) : NO_DATA },
+                  { l: '  Nhân sự', v: rpSummary.personnelCost != null ? fmtVNDg(rpSummary.personnelCost) : NO_DATA },
+                  { l: '  Khấu hao', v: rpSummary.depreciation != null ? fmtVNDg(rpSummary.depreciation) : NO_DATA },
+                  { l: '  Vận hành', v: rpSummary.operatingCost != null ? fmtVNDg(rpSummary.operatingCost) : NO_DATA },
+                  { l: 'Lợi nhuận gộp', v: rpSummary.grossProfit != null ? `${fmtVNDg(rpSummary.grossProfit)}${rpSummary.profitMargin != null ? ` (${fmtPct(rpSummary.profitMargin)})` : ''}` : NO_DATA, tone: rpSummary.grossProfit == null ? undefined : rpSummary.grossProfit >= 0 ? 'ok' : 'crit' },
+                  { l: 'Lợi nhuận ròng', v: rpSummary.netProfit != null ? fmtVNDg(rpSummary.netProfit) : NO_DATA, tone: rpSummary.netProfit == null ? undefined : rpSummary.netProfit >= 0 ? 'ok' : 'crit', bold: true },
                 ].map(({ l, v, tone, bold }) => (
                   <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid var(--line)', fontWeight: bold ? 700 : 400, color: tone === 'ok' ? 'var(--a-em-text)' : tone === 'crit' ? 'var(--a-rd-text)' : tone === 'info' ? 'var(--a-cy-text)' : tone === 'warn' ? 'var(--a-or-text)' : 'var(--t-0)' }}>
                     <span>{l}</span><span style={{ fontFamily: 'var(--font-mono)' }}>{v}</span>
                   </div>
                 ))}
+                {(rpSummary.missingData ?? []).length > 0 && (
+                  <div style={{ marginTop: 6, color: 'var(--t-2)', fontSize: 11.5 }}>
+                    {(rpSummary.missingData ?? []).map((m) => <div key={m}>• {m}</div>)}
+                  </div>
+                )}
               </div>
             ) : null}
           />

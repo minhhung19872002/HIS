@@ -71,9 +71,49 @@ namespace HIS.API.Controllers
             [FromQuery] int? year = null,
             [FromQuery] int? month = null)
         {
-            if (departmentId == null || year == null || month == null)
+            if (year == null || month == null || month < 1 || month > 12 || year < 2000 || year > 2100)
                 return Ok(new { items = new List<object>() });
-            return Ok(await _service.GetDutyRosterAsync(departmentId.Value, year.Value, month.Value));
+            if (departmentId != null && departmentId != Guid.Empty)
+                return Ok(await _service.GetDutyRosterAsync(departmentId.Value, year.Value, month.Value));
+            // QA-R3: the v2 weekly roster tab asks for the whole hospital (no department) — that returned an empty
+            // list, so the tab fell back to a demo rota. Return every department's real assignments for the month.
+            var monthStart = new DateTime(year.Value, month.Value, 1);
+            var assignments = await _service.GetRosterAssignmentsAsync(null, monthStart, monthStart.AddMonths(1).AddDays(-1));
+            var rosterIds = assignments.Select(a => a.RosterId).Distinct().ToList();
+            return Ok(new DutyRosterDto
+            {
+                Id = rosterIds.Count == 1 ? rosterIds[0] : Guid.Empty, // single roster → "Chốt tuần" can publish it
+                Year = year.Value, Month = month.Value, DepartmentName = "Toàn viện",
+                Status = rosterIds.Count == 1 ? "Draft" : "Mixed",
+                TotalShifts = assignments.Count, FilledShifts = assignments.Count,
+                StaffAssignments = assignments,
+            });
+        }
+
+        /// <summary>QA-R3: real shift assignments of a date range (weekly roster tab).</summary>
+        [HttpGet("rosters/assignments")]
+        public async Task<ActionResult<List<StaffRosterAssignmentDto>>> GetRosterAssignments(
+            [FromQuery] DateTime fromDate, [FromQuery] DateTime toDate, [FromQuery] Guid? departmentId = null)
+        {
+            if (toDate < fromDate || (toDate - fromDate).TotalDays > 62)
+                return BadRequest(new { error = "VALIDATION_FAILED", message = "Khoảng ngày lịch trực không hợp lệ (tối đa 62 ngày)." });
+            return Ok(await _service.GetRosterAssignmentsAsync(departmentId, fromDate, toDate));
+        }
+
+        // QA-R3: shift swaps on DutyShifts swap columns (the page's calls hit routes that did not exist).
+        [HttpGet("shift-swaps")]
+        public async Task<ActionResult<List<ShiftSwapRequestDto>>> GetSwapRequests([FromQuery] Guid? departmentId = null)
+            => Ok(await _service.GetPendingSwapRequestsAsync(departmentId));
+
+        [HttpPost("shift-swaps")]
+        public async Task<ActionResult<ShiftSwapRequestDto>> CreateSwapRequest([FromBody] CreateShiftSwapRequestDto dto)
+            => Ok(await _service.CreateShiftSwapAsync(dto));
+
+        [HttpPost("shift-swaps/{id:guid}/approve")]
+        public async Task<ActionResult<bool>> ApproveSwapRequest(Guid id, [FromBody] ShiftSwapApprovalDto dto)
+        {
+            var ok = await _service.ApproveSwapAsManagerAsync(id, dto.IsApproved, dto.Notes ?? string.Empty);
+            return ok ? Ok(true) : NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy yêu cầu đổi ca" });
         }
 
         [HttpGet("duty-roster")]

@@ -318,90 +318,7 @@ public partial class SystemCompleteService
         }
     }
 
-    // 11.5 Hach toan chi phi theo khoa phong
-    public async Task<List<CostByDepartmentDto>> GetCostByDepartmentAsync(
-        DateTime fromDate, DateTime toDate, Guid? departmentId = null, string costType = null)
-    {
-        try
-        {
-            // Medicine cost from PrescriptionDetails grouped by department
-            var medicineCostQuery = _context.PrescriptionDetails.AsNoTracking()
-                .Include(pd => pd.Prescription)
-                .Where(pd => pd.Prescription.PrescriptionDate >= fromDate
-                          && pd.Prescription.PrescriptionDate <= toDate
-                          && pd.Prescription.Status != 4);
-
-            if (departmentId.HasValue)
-                medicineCostQuery = medicineCostQuery.Where(pd => pd.Prescription.DepartmentId == departmentId.Value);
-
-            var medicineCostByDept = await medicineCostQuery
-                .GroupBy(pd => pd.Prescription.DepartmentId)
-                .Select(g => new { DeptId = g.Key, Cost = g.Sum(pd => pd.Amount) })
-                .ToDictionaryAsync(x => x.DeptId, x => x.Cost);
-
-            // Supply cost from ReceiptDetails where ItemType == 3 (Vat tu)
-            var supplyCostQuery = _context.ReceiptDetails.AsNoTracking()
-                .Include(rd => rd.Receipt)
-                .Where(rd => rd.Receipt.ReceiptDate >= fromDate
-                          && rd.Receipt.ReceiptDate <= toDate
-                          && rd.Receipt.Status == 1 // Da thu
-                          && rd.ItemType == 3); // Vat tu
-
-            // Service cost from ServiceRequests
-            var serviceCostQuery = _context.ServiceRequests.AsNoTracking()
-                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate <= toDate && sr.Status != 4);
-
-            if (departmentId.HasValue)
-                serviceCostQuery = serviceCostQuery.Where(sr => sr.DepartmentId == departmentId.Value);
-
-            var serviceCostByDept = await serviceCostQuery
-                .GroupBy(sr => sr.DepartmentId)
-                .Select(g => new { DeptId = g.Key, Cost = g.Sum(sr => sr.TotalAmount) })
-                .ToDictionaryAsync(x => x.DeptId, x => x.Cost);
-
-            // Get all relevant department IDs
-            var allDeptIds = medicineCostByDept.Keys
-                .Union(serviceCostByDept.Keys)
-                .Distinct().ToList();
-
-            if (departmentId.HasValue && !allDeptIds.Contains(departmentId.Value))
-                allDeptIds.Add(departmentId.Value);
-
-            var departments = await _context.Departments.AsNoTracking()
-                .Where(d => allDeptIds.Contains(d.Id))
-                .ToDictionaryAsync(d => d.Id, d => new { d.DepartmentCode, d.DepartmentName });
-
-            var result = allDeptIds.Select(deptId =>
-            {
-                departments.TryGetValue(deptId, out var dept);
-                medicineCostByDept.TryGetValue(deptId, out var medCost);
-                serviceCostByDept.TryGetValue(deptId, out var svcCost);
-                var totalCost = medCost + svcCost;
-                return new CostByDepartmentDto
-                {
-                    DepartmentId = deptId,
-                    DepartmentCode = dept?.DepartmentCode ?? "",
-                    DepartmentName = dept?.DepartmentName ?? "",
-                    TotalCost = totalCost,
-                    MedicineCost = medCost,
-                    SupplyCost = 0, // Separate supply tracking not available from current schema
-                    EquipmentCost = 0,
-                    PersonnelCost = 0,
-                    OverheadCost = 0
-                };
-            })
-            .Where(c => costType == null || c.TotalCost > 0)
-            .OrderByDescending(c => c.TotalCost)
-            .ToList();
-
-            return result;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error in GetCostByDepartmentAsync");
-            return new List<CostByDepartmentDto>();
-        }
-    }
+    // 11.5 Hach toan chi phi theo khoa phong → SystemCompleteService.M11.CostByDepartment.cs (QA-R3)
 
     // 11.6 Bao cao tong hop tai chinh
     public async Task<FinancialSummaryReportDto> GetFinancialSummaryReportAsync(
@@ -409,29 +326,16 @@ public partial class SystemCompleteService
     {
         try
         {
-            // Total revenue from Receipts (ReceiptType == 2 = Thanh toan, Status == 1 = Da thu)
-            var receiptRevenue = await _context.Receipts.AsNoTracking()
-                .Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate <= toDate
-                         && r.ReceiptType == 2 && r.Status == 1)
-                .SumAsync(r => (decimal?)r.FinalAmount) ?? 0;
+            // QA-R3: revenue = net money collected (shared rule: collected receipts, minus approved/paid refunds
+            // that are not deposit refunds), inclusive last day. It used to take the larger of "receipts" and
+            // "paid service requests" and dropped the whole last day.
+            var toEnd = ReportPeriod.EndExclusive(toDate);
+            var totalRevenue = await _context.Receipts.AsNoTracking()
+                .Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate < toEnd && !r.IsDeleted)
+                .Where(ReportPeriod.CashReceipt)
+                .SumAsync(r => (decimal?)(r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount)) ?? 0;
 
-            // Total revenue from ServiceRequests (paid)
-            var serviceRevenue = await _context.ServiceRequests.AsNoTracking()
-                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate <= toDate
-                          && sr.Status != 4 && sr.IsPaid)
-                .SumAsync(sr => (decimal?)sr.TotalAmount) ?? 0;
-
-            // Use the larger of the two as total revenue (avoid double counting)
-            var totalRevenue = Math.Max(receiptRevenue, serviceRevenue);
-            if (totalRevenue == 0) totalRevenue = receiptRevenue + serviceRevenue;
-
-            // Total cost from PrescriptionDetails (medicine dispensed)
-            var medicineCost = await _context.PrescriptionDetails.AsNoTracking()
-                .Include(pd => pd.Prescription)
-                .Where(pd => pd.Prescription.PrescriptionDate >= fromDate
-                          && pd.Prescription.PrescriptionDate <= toDate
-                          && pd.Prescription.Status != 4)
-                .SumAsync(pd => (decimal?)pd.Amount) ?? 0;
+            var cost = await ComputeFinancialCostsAsync(fromDate, toEnd);
 
             // Revenue by department
             var revenueByDeptData = await _context.ServiceRequests.AsNoTracking()
@@ -473,8 +377,20 @@ public partial class SystemCompleteService
             // Cost by department (from GetCostByDepartmentAsync)
             var costByDepartment = await GetCostByDepartmentAsync(fromDate, toDate);
 
-            var totalCost = medicineCost; // Primary cost driver
-            var grossProfit = totalRevenue - totalCost;
+            var missing = new List<string>();
+            if (cost.MedicineCost == null) missing.Add("Giá vốn thuốc: lô xuất không có giá nhập");
+            if (cost.UncostedLines > 0) missing.Add($"{cost.UncostedLines} dòng xuất kho chưa có giá nhập — không tính vào giá vốn");
+            if (cost.PersonnelCost == null) missing.Add("Chi phí nhân sự: chưa có bảng lương đã duyệt cho các tháng trọn vẹn trong kỳ");
+            if (cost.Depreciation == null) missing.Add("Khấu hao: chưa chạy khấu hao cho các tháng trọn vẹn trong kỳ");
+            missing.Add("Chi phí vận hành (điện, nước, dịch vụ mua ngoài): chưa có nguồn dữ liệu");
+
+            var cogs = cost.MedicineCost.HasValue || cost.SupplyCost.HasValue
+                ? (cost.MedicineCost ?? 0) + (cost.SupplyCost ?? 0) : (decimal?)null;
+            decimal? grossProfit = cogs.HasValue ? totalRevenue - cogs.Value : null;
+            var parts = new[] { cost.MedicineCost, cost.SupplyCost, cost.PersonnelCost, cost.Depreciation };
+            decimal? totalCost = parts.Any(p => p.HasValue) ? parts.Sum(p => p ?? 0) : null;
+            // Operating cost has no source in HIS, so a true net profit cannot be computed.
+            decimal? netProfit = null;
 
             return new FinancialSummaryReportDto
             {
@@ -482,27 +398,102 @@ public partial class SystemCompleteService
                 ToDate = toDate,
                 TotalRevenue = totalRevenue,
                 TotalCost = totalCost,
+                MedicineCost = cost.MedicineCost,
+                SupplyCost = cost.SupplyCost,
+                PersonnelCost = cost.PersonnelCost,
+                Depreciation = cost.Depreciation,
+                OperatingCost = null,
                 GrossProfit = grossProfit,
-                NetProfit = grossProfit * 0.8m, // Estimate 80% of gross after overheads
+                NetProfit = netProfit,
+                ProfitMargin = grossProfit.HasValue && totalRevenue > 0 ? Math.Round(grossProfit.Value / totalRevenue * 100, 2) : null,
+                UncostedDispensedLines = cost.UncostedLines,
+                MissingData = missing,
                 RevenueByDepartment = revenueByDepartment,
                 CostByDepartment = costByDepartment
             };
         }
         catch (Exception ex)
         {
+            // Surface the failure instead of a report of zeros that looks real.
             _logger.LogError(ex, "Error in GetFinancialSummaryReportAsync");
-            return new FinancialSummaryReportDto
-            {
-                FromDate = fromDate,
-                ToDate = toDate,
-                TotalRevenue = 0,
-                TotalCost = 0,
-                GrossProfit = 0,
-                NetProfit = 0,
-                RevenueByDepartment = new List<DeptRevenueItemDto>(),
-                CostByDepartment = new List<CostByDepartmentDto>()
-            };
+            throw;
         }
+    }
+
+    /// <summary>
+    /// QA-R3: real cost components for [fromDate, toEnd).
+    /// Medicine/supply = quantity dispensed to patients (non-cancelled OPD/IPD export receipts + completed retail
+    /// sales) × import price of the lot it came from; lines whose lot has no import price are counted, not guessed.
+    /// Personnel = approved payroll (base + allowance + other income) and depreciation = AssetDepreciations, both only
+    /// for calendar months FULLY inside the period (a partial month cannot be apportioned honestly) — null otherwise.
+    /// </summary>
+    private async Task<(decimal? MedicineCost, decimal? SupplyCost, decimal? PersonnelCost, decimal? Depreciation, int UncostedLines)>
+        ComputeFinancialCostsAsync(DateTime fromDate, DateTime toEnd)
+    {
+        var exportLines = await _context.ExportReceiptDetails.AsNoTracking()
+            .Where(d => !d.IsDeleted && !d.ExportReceipt.IsDeleted && d.ExportReceipt.Status != 2
+                && (d.ExportReceipt.ExportType == 1 || d.ExportReceipt.ExportType == 2)
+                && d.ExportReceipt.ReceiptDate >= fromDate && d.ExportReceipt.ReceiptDate < toEnd)
+            .Select(d => new
+            {
+                IsSupply = d.MedicineId == null && d.SupplyId != null,
+                d.Quantity,
+                ImportPrice = d.InventoryItem != null ? d.InventoryItem.ImportPrice : 0m,
+            })
+            .ToListAsync();
+
+        // Retail sales: CreatedAt is UTC; the sale line keeps warehouse + batch → match the lot.
+        var fromUtc = ReportPeriod.ToUtc(fromDate);
+        var toUtc = ReportPeriod.ToUtc(toEnd);
+        var saleLines = await _context.RetailSaleItems.AsNoTracking()
+            .Where(i => !i.IsDeleted && !i.RetailSale!.IsDeleted && i.RetailSale!.Status == "Completed"
+                && i.RetailSale!.CreatedAt >= fromUtc && i.RetailSale!.CreatedAt < toUtc)
+            .Select(i => new
+            {
+                i.Quantity,
+                ImportPrice = _context.InventoryItems
+                    .Where(l => l.WarehouseId == i.WarehouseId && l.MedicineId == i.MedicineId && l.BatchNumber == i.BatchNumber)
+                    .Select(l => (decimal?)l.ImportPrice).FirstOrDefault() ?? 0m,
+            })
+            .ToListAsync();
+
+        var medLines = exportLines.Where(l => !l.IsSupply).Select(l => (l.Quantity, l.ImportPrice))
+            .Concat(saleLines.Select(l => (l.Quantity, l.ImportPrice))).ToList();
+        var supplyLines = exportLines.Where(l => l.IsSupply).Select(l => (l.Quantity, l.ImportPrice)).ToList();
+        var uncosted = medLines.Count(l => l.ImportPrice <= 0) + supplyLines.Count(l => l.ImportPrice <= 0);
+
+        static decimal? CostOf(List<(decimal Quantity, decimal ImportPrice)> lines) =>
+            lines.Count == 0 ? 0m
+            : lines.Any(l => l.ImportPrice > 0) ? lines.Where(l => l.ImportPrice > 0).Sum(l => l.Quantity * l.ImportPrice)
+            : null;
+
+        // Calendar months fully inside [fromDate, toEnd).
+        var months = new List<(int Year, int Month)>();
+        var m = new DateTime(fromDate.Year, fromDate.Month, 1);
+        if (m < fromDate.Date) m = m.AddMonths(1);
+        for (; m.AddMonths(1) <= toEnd.Date; m = m.AddMonths(1)) months.Add((m.Year, m.Month));
+
+        decimal? personnel = null, depreciation = null;
+        if (months.Count > 0)
+        {
+            var keys = months.Select(x => x.Year * 100 + x.Month).ToList();
+            var payroll = await _context.PayrollPeriods.AsNoTracking()
+                .Where(p => p.Status == 1 && keys.Contains(p.Year * 100 + p.Month))
+                .Select(p => new { Key = p.Year * 100 + p.Month, Total = p.Items.Sum(i => (decimal?)(i.BaseSalary + i.Allowance + i.OtherIncome)) ?? 0m })
+                .ToListAsync();
+            // Only when EVERY month of the period has an approved payroll — otherwise the figure would be partial.
+            if (keys.All(k => payroll.Any(p => p.Key == k)))
+                personnel = payroll.Sum(p => p.Total);
+
+            var dep = await _context.AssetDepreciations.AsNoTracking()
+                .Where(d => !d.IsDeleted && keys.Contains(d.Year * 100 + d.Month))
+                .Select(d => new { Key = d.Year * 100 + d.Month, d.DepreciationAmount })
+                .ToListAsync();
+            if (keys.All(k => dep.Any(d => d.Key == k)))
+                depreciation = dep.Sum(d => d.DepreciationAmount);
+        }
+
+        return (CostOf(medLines), CostOf(supplyLines), personnel, depreciation, uncosted);
     }
 
     // 11.7 Bao cao cong no benh nhan
@@ -675,45 +666,104 @@ public partial class SystemCompleteService
     // 11.10 In bao cao tai chinh
     public async Task<byte[]> PrintFinancialReportAsync(FinancialReportRequest request)
     {
-        try
-        {
-            var query = _context.Set<Receipt>().AsNoTracking()
-                .Where(r => r.CreatedAt >= request.FromDate && r.CreatedAt <= request.ToDate && !r.IsDeleted);
-            if (request.DepartmentId.HasValue)
-                query = query.Where(r => r.MedicalRecord != null && r.MedicalRecord.DepartmentId == request.DepartmentId);
-
-            var receipts = await query.Include(r => r.MedicalRecord).ThenInclude(m => m.Patient).ToListAsync();
-
-            var totalRevenue = receipts.Where(r => r.ReceiptType != 3).Sum(r => r.FinalAmount);
-            var totalRefund = receipts.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount);
-            var net = totalRevenue - totalRefund;
-
-            var grouped = receipts.GroupBy(r => r.CreatedAt.Date).OrderBy(g => g.Key)
-                .Select(g => new string[] {
-                    g.Key.ToString("dd/MM/yyyy"),
-                    g.Count(r => r.ReceiptType != 3).ToString(),
-                    g.Where(r => r.ReceiptType != 3).Sum(r => r.FinalAmount).ToString("N0"),
-                    g.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount).ToString("N0"),
-                    (g.Where(r => r.ReceiptType != 3).Sum(r => r.FinalAmount) - g.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount)).ToString("N0")
-                }).ToList();
-
-            grouped.Add(new[] { "TONG CONG", receipts.Count(r => r.ReceiptType != 3).ToString(), totalRevenue.ToString("N0"), totalRefund.ToString("N0"), net.ToString("N0") });
-
-            var html = BuildTableReport(
-                $"BAO CAO TAI CHINH - {request.ReportType?.ToUpper() ?? "TONG HOP"}",
-                $"Tu {request.FromDate:dd/MM/yyyy} den {request.ToDate:dd/MM/yyyy}",
-                DateTime.Now,
-                new[] { "Ngay", "So phieu", "Doanh thu", "Hoan tra", "Thuc thu" },
-                grouped);
-            return Encoding.UTF8.GetBytes(html);
-        }
-        catch { return Array.Empty<byte>(); }
+        // QA-R3: every report type used to print one receipts-by-day table (UTC CreatedAt, cancelled receipts and
+        // refunds of any status counted, last day dropped) as HTML served under application/pdf. Each type now
+        // reads its own data; format follows request.OutputFormat; unknown type → ArgumentException (400).
+        var table = await BuildFinancialReportTableAsync(request);
+        return Export.ReportFileRenderer.Render(table, request.OutputFormat).Content;
     }
 
     // 11.11 Xuat bao cao tai chinh Excel
     public async Task<byte[]> ExportFinancialReportToExcelAsync(FinancialReportRequest request)
     {
-        return await PrintFinancialReportAsync(request);
+        // QA-R3: was the print HTML served as .xlsx (Excel refused to open it).
+        var table = await BuildFinancialReportTableAsync(request);
+        return Export.ReportFileRenderer.ToXlsx(table);
+    }
+
+    private async Task<Export.ReportTable> BuildFinancialReportTableAsync(FinancialReportRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.ReportType))
+            throw new ArgumentException("Thiếu loại báo cáo tài chính (reportType).");
+        if (request.ToDate.Date < request.FromDate.Date)
+            throw new ArgumentException("Đến ngày phải sau hoặc bằng từ ngày.");
+        var subtitle = $"Từ {request.FromDate:dd/MM/yyyy} đến {request.ToDate:dd/MM/yyyy}";
+
+        if (HospitalReportService.IsKnownReport(request.ReportType))
+        {
+            var result = await _hospitalReports.GetReportDataAsync(request.ReportType, request.FromDate, request.ToDate, request.DepartmentId, null);
+            return Export.ReportFileRenderer.FromHospitalReport(result, subtitle);
+        }
+
+        switch (request.ReportType.Trim().ToLowerInvariant())
+        {
+            case "revenue":
+            {
+                // Net money collected per business day (same rule as the other revenue reports).
+                var toEnd = ReportPeriod.EndExclusive(request.ToDate);
+                var query = _context.Receipts.AsNoTracking()
+                    .Where(r => r.ReceiptDate >= request.FromDate && r.ReceiptDate < toEnd && !r.IsDeleted)
+                    .Where(ReportPeriod.CashReceipt);
+                if (request.DepartmentId.HasValue)
+                    query = query.Where(r => r.MedicalRecord != null && r.MedicalRecord.DepartmentId == request.DepartmentId);
+                var days = await query
+                    .GroupBy(r => r.ReceiptDate.Date)
+                    .Select(g => new
+                    {
+                        Date = g.Key,
+                        Count = g.Count(r => r.ReceiptType != 3),
+                        Revenue = g.Where(r => r.ReceiptType != 3).Sum(r => r.FinalAmount),
+                        Refund = g.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount),
+                    })
+                    .OrderBy(x => x.Date)
+                    .ToListAsync();
+                var rows = days.Select(d => (IReadOnlyList<object?>)new object?[] { d.Date, d.Count, d.Revenue, d.Refund, d.Revenue - d.Refund }).ToList();
+                if (rows.Count > 0)
+                    rows.Add(new object?[] { "TỔNG CỘNG", days.Sum(d => d.Count), days.Sum(d => d.Revenue), days.Sum(d => d.Refund), days.Sum(d => d.Revenue - d.Refund) });
+                return new Export.ReportTable("BÁO CÁO DOANH THU", subtitle,
+                    new[] { "Ngày", "Số phiếu thu", "Doanh thu", "Hoàn trả", "Thực thu" }, rows);
+            }
+            case "summary":
+            case "expense":
+            case "cost":
+            {
+                var s = await GetFinancialSummaryReportAsync(request.FromDate, request.ToDate);
+                object? V(decimal? v) => v.HasValue ? v.Value : Export.ReportFileRenderer.NoData;
+                var lines = new List<(string, object?)>();
+                if (request.ReportType.Trim().ToLowerInvariant() == "summary")
+                    lines.Add(("Tổng doanh thu (thực thu)", s.TotalRevenue));
+                lines.AddRange(new (string, object?)[]
+                {
+                    ("Giá vốn thuốc", V(s.MedicineCost)), ("Giá vốn vật tư", V(s.SupplyCost)),
+                    ("Chi phí nhân sự", V(s.PersonnelCost)), ("Khấu hao tài sản", V(s.Depreciation)),
+                    ("Chi phí vận hành", V(s.OperatingCost)), ("Tổng chi phí (các khoản có dữ liệu)", V(s.TotalCost)),
+                });
+                if (request.ReportType.Trim().ToLowerInvariant() == "summary")
+                    lines.AddRange(new (string, object?)[] { ("Lợi nhuận gộp", V(s.GrossProfit)), ("Lợi nhuận ròng", V(s.NetProfit)) });
+                lines.AddRange(s.MissingData.Select(m => ("Ghi chú", (object?)m)));
+                return new Export.ReportTable(
+                    request.ReportType.Trim().ToLowerInvariant() == "summary" ? "BÁO CÁO TỔNG HỢP TÀI CHÍNH" : "BÁO CÁO CHI PHÍ",
+                    subtitle, new[] { "Khoản mục", "Giá trị" },
+                    lines.Select(l => (IReadOnlyList<object?>)new object?[] { l.Item1, l.Item2 }).ToList());
+            }
+            case "revenue_dept":
+                return Export.ReportFileRenderer.FromItems("DOANH THU THEO KHOA CHỈ ĐỊNH", subtitle,
+                    await GetRevenueByOrderingDeptAsync(request.FromDate, request.ToDate, request.DepartmentId));
+            case "revenue_service":
+                return Export.ReportFileRenderer.FromItems("DOANH THU THEO DỊCH VỤ", subtitle,
+                    await GetRevenueByServiceAsync(request.FromDate, request.ToDate, null, request.ServiceId));
+            case "surgery_profit":
+                return Export.ReportFileRenderer.FromItems("LỢI NHUẬN PHẪU THUẬT", subtitle,
+                    await GetSurgeryProfitReportAsync(request.FromDate, request.ToDate, request.DepartmentId));
+            case "debt":
+                return Export.ReportFileRenderer.FromItems("CÔNG NỢ BỆNH NHÂN", subtitle,
+                    await GetPatientDebtReportAsync(request.FromDate, request.ToDate));
+            case "insurance":
+                return Export.ReportFileRenderer.FromItems("CÔNG NỢ BHYT", subtitle,
+                    await GetInsuranceDebtReportAsync(request.FromDate, request.ToDate));
+            default:
+                throw new ArgumentException($"Loại báo cáo tài chính '{request.ReportType}' không được hỗ trợ.");
+        }
     }
 
     #endregion

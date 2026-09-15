@@ -171,6 +171,13 @@ namespace HIS.Application.Services
             };
         }
 
+        // Not registered in DI (MedicalHRServiceImpl is) — interface completeness only.
+        public Task<ShiftSwapRequestDto> CreateShiftSwapAsync(CreateShiftSwapRequestDto dto)
+            => throw new NotSupportedException("Use MedicalHRServiceImpl");
+
+        public Task<List<StaffRosterAssignmentDto>> GetRosterAssignmentsAsync(Guid? departmentId, DateTime fromDate, DateTime toDate)
+            => throw new NotSupportedException("Use MedicalHRServiceImpl");
+
         public async Task<bool> ApproveSwapAsTargetAsync(Guid requestId, bool approve)
         {
             _logger.LogInformation("Target {Approval} swap request {RequestId}", approve ? "approving" : "rejecting", requestId);
@@ -219,7 +226,7 @@ namespace HIS.Application.Services
             return new CMESummaryDto
             {
                 StaffId = staffId,
-                RequiredCredits = 48,
+                RequiredCredits = HIS.Core.Constants.CmeRequirement.HoursPerYear,
                 EarnedCredits = 36
             };
         }

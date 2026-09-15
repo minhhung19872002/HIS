@@ -20,7 +20,9 @@ internal static class ReportPeriod
 
     /// <summary>
     /// Local (VN) boundary → UTC, for columns written with <c>DateTime.UtcNow</c> (CreatedAt via
-    /// HISDbContext.SaveChangesAsync, PaymentTransactions, AuditLogs.Timestamp).
+    /// HISDbContext.SaveChangesAsync, PaymentTransactions, AuditLogs.Timestamp). NEVER for business
+    /// timestamps (AdmissionDate, RequestDate, ReceiptDate, QueueTickets.IssueDate, ...): those are
+    /// stored VN local (VnTime.NowVn) and compare directly against the local boundary.
     /// </summary>
     public static DateTime ToUtc(DateTime local) =>
         VnTime.DayRangeUtc(local.Date).FromUtc + local.TimeOfDay;

@@ -243,16 +243,34 @@ namespace HIS.API.Controllers
         [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.StatisticsOfficer)]
         public async Task<IActionResult> PrintStatisticsReport([FromBody] StatisticsReportRequest request)
         {
-            var result = await _service.PrintStatisticsReportAsync(request);
-            return File(result, "application/pdf", $"StatisticsReport_{DateTime.Now:yyyyMMdd}.pdf");
+            // QA-R3: unknown report type → 400; MIME follows the real content (PDF only when asked, else HTML).
+            try
+            {
+                var result = await _service.PrintStatisticsReportAsync(request);
+                var isPdf = HIS.Infrastructure.Services.Export.ReportFileRenderer.NormalizeFormat(request.OutputFormat) == "pdf";
+                return isPdf
+                    ? File(result, "application/pdf", $"StatisticsReport_{DateTime.Now:yyyyMMdd}.pdf")
+                    : File(result, "text/html; charset=utf-8");
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
+            }
         }
 
         [HttpPost("api/statistics/reports/export")]
         [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.StatisticsOfficer)]
         public async Task<IActionResult> ExportStatisticsReport([FromBody] StatisticsReportRequest request)
         {
-            var result = await _service.ExportStatisticsReportToExcelAsync(request);
-            return File(result, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"StatisticsReport_{DateTime.Now:yyyyMMdd}.xlsx");
+            try
+            {
+                var result = await _service.ExportStatisticsReportToExcelAsync(request);
+                return File(result, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"StatisticsReport_{DateTime.Now:yyyyMMdd}.xlsx");
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
+            }
         }
     }
 }

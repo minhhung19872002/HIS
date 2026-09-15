@@ -489,6 +489,11 @@ namespace HIS.API.Controllers
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     $"{reportCode}_{fromDate:yyyyMMdd}_{toDate:yyyyMMdd}.xlsx");
             }
+            catch (ArgumentException ex)
+            {
+                // QA-R3: unknown report code / no data source → 400 with the reason (was a file of unrelated rows).
+                return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error exporting to Excel");
@@ -511,6 +516,10 @@ namespace HIS.API.Controllers
                 return File(fileContent,
                     "application/pdf",
                     $"{reportCode}_{fromDate:yyyyMMdd}_{toDate:yyyyMMdd}.pdf");
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -552,7 +561,10 @@ namespace HIS.API.Controllers
                 // Unknown id used to download an empty 0-byte "report" with 200.
                 if (fileContent == null || fileContent.Length == 0)
                     return NotFound(ApiResponse<bool>.ErrorResponse("Không tìm thấy báo cáo trong lịch sử"));
-                return File(fileContent, "application/octet-stream", $"report_{reportHistoryId}.xlsx");
+                // QA-R3: history now holds PDFs too — name the download after its real content.
+                var ext = fileContent.Length > 4 && fileContent[0] == (byte)'%' && fileContent[1] == (byte)'P' ? "pdf"
+                    : fileContent.Length > 2 && fileContent[0] == (byte)'P' && fileContent[1] == (byte)'K' ? "xlsx" : "html";
+                return File(fileContent, "application/octet-stream", $"report_{reportHistoryId}.{ext}");
             }
             catch (Exception ex)
             {
@@ -630,6 +642,15 @@ namespace HIS.API.Controllers
                 if (!result)
                     return NotFound(ApiResponse<bool>.ErrorResponse("Không tìm thấy cấu hình báo cáo")); // was 200 "Chạy báo cáo thành công"
                 return Ok(ApiResponse<bool>.SuccessResponse(result, "Chạy báo cáo thành công"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<bool>.ErrorResponse(ex.Message));
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Report produced + stored, but some e-mails failed — tell the user who did not get it.
+                return StatusCode(502, ApiResponse<bool>.ErrorResponse(ex.Message));
             }
             catch (Exception ex)
             {

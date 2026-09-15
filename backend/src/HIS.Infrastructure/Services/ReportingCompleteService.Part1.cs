@@ -16,15 +16,25 @@ public partial class ReportingCompleteService : IReportingCompleteService
     private readonly HISDbContext _context;
     private readonly ICurrentUserAccessor _currentUser;
     private readonly ILogger<ReportingCompleteService> _logger;
+    // QA-R3: real data + delivery for /reporting/export/* and scheduled "run now" (see ReportingCompleteService.Export.cs).
+    private readonly IHospitalReportService _hospitalReports;
+    private readonly IReconciliationReportService _reconciliation;
+    private readonly IEmailService _email;
 
     public ReportingCompleteService(
         HISDbContext context,
         ICurrentUserAccessor currentUser,
-        ILogger<ReportingCompleteService> logger)
+        ILogger<ReportingCompleteService> logger,
+        IHospitalReportService hospitalReports,
+        IReconciliationReportService reconciliation,
+        IEmailService email)
     {
         _context = context;
         _currentUser = currentUser;
         _logger = logger;
+        _hospitalReports = hospitalReports;
+        _reconciliation = reconciliation;
+        _email = email;
     }
 
     // Đọc người dùng hiện tại qua ICurrentUserAccessor (canonical claim) — #200 REFAC-1.
@@ -335,8 +345,8 @@ public partial class ReportingCompleteService : IReportingCompleteService
     {
         try
         {
-            // QueueTicket.IssueDate is written as UTC (ReceptionCompleteService.Queue) — VN day in UTC.
-            var (today, tomorrow) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
+            // QueueTicket.IssueDate is VN local time (business timestamp convention) — VN day range.
+            var (today, tomorrow) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.TodayVn);
 
             var waiting = await _context.QueueTickets
                 .Where(q => q.IssueDate >= today && q.IssueDate < tomorrow && q.Status == 0 && !q.IsDeleted)

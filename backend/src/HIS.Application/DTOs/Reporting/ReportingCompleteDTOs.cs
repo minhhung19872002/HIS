@@ -608,6 +608,7 @@ namespace HIS.Application.DTOs.Reporting
     public class AuditLogItemDto
     {
         public Guid Id { get; set; }
+        [global::System.Text.Json.Serialization.JsonConverter(typeof(HIS.Application.Common.UtcDateTimeJsonConverter))] // AuditLogs.Timestamp is UTC
         public DateTime Timestamp { get; set; }
         public string UserName { get; set; }
         public string Action { get; set; }

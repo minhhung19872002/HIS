@@ -478,6 +478,9 @@ const callReportApi = async (
   const resolvedWarehouseId = isGuid(warehouseId) ? warehouseId : undefined;
 
   const { apiCategory, reportType } = mapping;
+  // QA-R3: callers pass 'html' (print/preview), 'pdf' or 'excel' — the old `=== 'print'` test never matched,
+  // so preview/print/PDF all hit the Excel export endpoint. Only Excel goes to /export; the rest to /print.
+  const usePrintEndpoint = outputFormat !== 'excel';
 
   // Different export endpoints (finance/pharmacy/statistics) return different
   // wrapper shapes — some return AxiosResponse<Blob>, some return Blob directly.
@@ -493,7 +496,7 @@ const callReportApi = async (
         departmentId: departmentId,
         outputFormat,
       };
-      if (outputFormat === 'print') {
+      if (usePrintEndpoint) {
         response = await financeApi.printFinancialReport(request);
       } else {
         response = await financeApi.exportFinancialReport(request);
@@ -509,7 +512,7 @@ const callReportApi = async (
         warehouseId: resolvedWarehouseId,
         outputFormat,
       };
-      if (outputFormat === 'print') {
+      if (usePrintEndpoint) {
         response = await pharmacyReportApi.printPharmacyReport(request);
       } else {
         response = await pharmacyReportApi.exportPharmacyReport(request);
@@ -524,7 +527,7 @@ const callReportApi = async (
         departmentId: departmentId,
         outputFormat,
       };
-      if (outputFormat === 'print') {
+      if (usePrintEndpoint) {
         response = await statisticsApi.printStatisticsReport(request);
       } else {
         response = await statisticsApi.exportStatisticsReport(request);

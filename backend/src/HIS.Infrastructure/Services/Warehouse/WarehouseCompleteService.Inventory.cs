@@ -222,7 +222,7 @@ public partial class WarehouseCompleteService {
 
         request.Status = 2;
         request.ApprovedById = userId;
-        request.ApprovedDate = DateTime.UtcNow;
+        request.ApprovedDate = HIS.Core.Common.VnTime.NowVn; // business timestamp = VN local (RequestDate uses local now)
         request.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 

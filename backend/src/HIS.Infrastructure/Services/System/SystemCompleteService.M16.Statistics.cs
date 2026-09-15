@@ -518,7 +518,32 @@ public partial class SystemCompleteService
 
     public async Task<byte[]> PrintStatisticsReportAsync(StatisticsReportRequest request)
     {
-        try
+        // QA-R3: ~40 report types (every code the v2 "140 báo cáo" tab sends) fell into `default` and printed the
+        // same department-activity table, as HTML served under application/pdf. Real handler per type now,
+        // unknown type → ArgumentException (400); format follows request.OutputFormat.
+        var table = await BuildStatisticsReportTableAsync(request);
+        return Export.ReportFileRenderer.Render(table, request.OutputFormat).Content;
+    }
+
+    private async Task<Export.ReportTable> BuildStatisticsReportTableAsync(StatisticsReportRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.ReportType))
+            throw new ArgumentException("Thiếu loại báo cáo thống kê (reportType).");
+        var subtitle = $"Từ {request.FromDate:dd/MM/yyyy} đến {request.ToDate:dd/MM/yyyy}";
+        var legacy = await BuildLegacyStatisticsTableAsync(request);
+        if (legacy != null)
+            return new Export.ReportTable(legacy.Value.Title, subtitle, legacy.Value.Headers,
+                legacy.Value.Rows.Select(r => (IReadOnlyList<object?>)r.Cast<object?>().ToArray()).ToList());
+
+        if (!HospitalReportService.IsKnownReport(request.ReportType))
+            throw new ArgumentException($"Loại báo cáo thống kê '{request.ReportType}' không được hỗ trợ.");
+        var result = await _hospitalReports.GetReportDataAsync(request.ReportType, request.FromDate, request.ToDate, request.DepartmentId, null);
+        return Export.ReportFileRenderer.FromHospitalReport(result, subtitle);
+    }
+
+    /// <summary>The 5 statistics reports this module computes itself; null for any other type.</summary>
+    private async Task<(string Title, string[] Headers, List<string[]> Rows)?> BuildLegacyStatisticsTableAsync(StatisticsReportRequest request)
+    {
         {
             string[] headers;
             var rows = new List<string[]>();
@@ -554,31 +579,27 @@ public partial class SystemCompleteService
                     foreach (var b in beds)
                         rows.Add(new[] { b.DepartmentName ?? "", b.TotalBeds.ToString(), b.OccupiedBeds.ToString(), b.AvailableBeds.ToString(), b.OccupancyRate.ToString("0.0") });
                     break;
-                default:
+                case "department":
+                case "departmentactivity":
                     title = "BÁO CÁO HOẠT ĐỘNG KHOA";
                     headers = new[] { "Khoa", "Ngoại trú", "Nội trú", "Phẫu thuật", "Xét nghiệm", "Doanh thu" };
                     var acts = await GetDepartmentActivityReportAsync(request.FromDate, request.ToDate, request.DepartmentId);
                     foreach (var a in acts)
                         rows.Add(new[] { a.DepartmentName ?? "", a.OutpatientVisits.ToString(), a.InpatientAdmissions.ToString(), a.Surgeries.ToString(), a.LabTests.ToString(), a.TotalRevenue.ToString("#,##0") });
                     break;
+                default:
+                    return null;
             }
 
-            var subtitle = $"Từ {request.FromDate:dd/MM/yyyy} đến {request.ToDate:dd/MM/yyyy}";
-            var html = PdfTemplateHelper.BuildTableReport(title, subtitle, DateTime.Now, headers, rows);
-            return System.Text.Encoding.UTF8.GetBytes(html);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error in PrintStatisticsReportAsync");
-            return Array.Empty<byte>();
+            return (title, headers, rows);
         }
     }
 
     public async Task<byte[]> ExportStatisticsReportToExcelAsync(StatisticsReportRequest request)
     {
-        // Export as HTML table that can be opened in Excel
-        var bytes = await PrintStatisticsReportAsync(request);
-        return bytes;
+        // QA-R3: was the print HTML served as .xlsx (Excel refused to open it).
+        var table = await BuildStatisticsReportTableAsync(request);
+        return Export.ReportFileRenderer.ToXlsx(table);
     }
 
     #endregion

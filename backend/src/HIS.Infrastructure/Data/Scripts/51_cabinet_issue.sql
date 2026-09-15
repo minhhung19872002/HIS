@@ -16,11 +16,14 @@ BEGIN
 END
 
 -- ---------------------------------------------------------------
--- 2. Back-fill: any warehouse with WarehouseType=4 is a cabinet
+-- 2. Back-fill: any warehouse with WarehouseType=5 is a cabinet
+--    (HIS.Core WarehouseType: 4 = Nhà thuốc bệnh viện, 5 = Tủ trực khoa.
+--     QA-R3: this used to flag type 4 — the hospital pharmacy — as a cabinet on every startup;
+--     migration 206 clears that wrong flag.)
 -- ---------------------------------------------------------------
 UPDATE Warehouses
     SET IsCabinet = 1
-WHERE WarehouseType = 4
+WHERE WarehouseType = 5
   AND IsCabinet = 0;
 
 -- ---------------------------------------------------------------
@@ -53,7 +56,7 @@ BEGIN
         NEWID(),
         N'TT001',
         N'Tủ trực khoa (mẫu)',
-        4,           -- WarehouseType = 4 Tủ trực
+        5,           -- WarehouseType = 5 Tủ trực khoa (HIS.Core)
         N'Khoa Nội tổng hợp',
         0,           -- Not a pharmacy
         1,           -- IsCabinet = true

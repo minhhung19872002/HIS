@@ -549,20 +549,21 @@ public partial class WarehouseCompleteService {
 
     public async Task<StockIssueDto> CreateSupplierReturnAsync(CreateStockIssueDto dto, Guid userId)
     {
-        // QA-R2: ExportReceipt has no supplier column, so the NCC picked on "Xuất trả NCC" was thrown
-        // away (list/detail showed no supplier, nobody could tell which vendor the goods went back to).
-        // Keep it as a note tag — same convention as CreateCabinetIssueAsync — and read it back in
-        // MapExportReceiptAsync. A real SupplierId column needs a migration (see QA-R2 report).
+        // QA-R3: the supplier is stored in ExportReceipts.SupplierId (migration 206) — it used to be a
+        // "[NCC:<id>]" note tag; MapExportReceiptAsync still reads that tag for rows written before.
         if (dto.SupplierId is Guid supplierId && supplierId != Guid.Empty)
         {
             if (!await _context.Suppliers.AsNoTracking().AnyAsync(s => s.Id == supplierId))
                 throw new KeyNotFoundException("Nhà cung cấp không tồn tại");
-            var tag = $"{SupplierReturnTagPrefix}{supplierId}]";
-            dto.Notes = string.IsNullOrEmpty(dto.Notes) ? tag : $"{tag} {dto.Notes}";
+        }
+        else
+        {
+            dto.SupplierId = null;
         }
         return await CreateStockIssueByTypeAsync(dto, userId, 5, "TN");
     }
 
+    // Legacy note tag for the supplier of a "Xuất trả NCC" issue (before ExportReceipts.SupplierId existed).
     private const string SupplierReturnTagPrefix = "[NCC:";
 
     public async Task<StockIssueDto> CreateExternalIssueAsync(CreateStockIssueDto dto, Guid userId)
@@ -608,12 +609,13 @@ public partial class WarehouseCompleteService {
         if (!string.IsNullOrEmpty(contextTag))
             dto.Notes = string.IsNullOrEmpty(dto.Notes) ? contextTag : $"{contextTag} {dto.Notes}";
 
-        // Validate cabinet warehouse (must be WarehouseType=4 or IsCabinet=true)
+        // Validate cabinet warehouse (HIS.Core WarehouseType 5 = ward cabinet, or IsCabinet=true).
+        // QA-R3: was "type 4" = the hospital pharmacy, so a cabinet issue could deduct pharmacy stock.
         var warehouse = await _context.Warehouses.FindAsync(dto.WarehouseId);
         if (warehouse == null)
             throw new KeyNotFoundException("Warehouse not found");
-        if (warehouse.WarehouseType != 4 && !warehouse.IsCabinet)
-            throw new InvalidOperationException("Selected warehouse is not an emergency cabinet (WarehouseType must be 4 or IsCabinet=true)");
+        if (warehouse.WarehouseType != HIS.Core.Constants.WarehouseType.WardCabinet && !warehouse.IsCabinet)
+            throw new InvalidOperationException("Kho đã chọn không phải tủ trực (loại kho 5 hoặc đánh dấu tủ trực).");
 
         return await CreateStockIssueByTypeAsync(dto, userId, 12, "TT");
     }
@@ -982,6 +984,7 @@ public partial class WarehouseCompleteService {
             ExportType = exportType,
             ToDepartmentId = dto.DepartmentId,
             ToWarehouseId = dto.TargetWarehouseId,
+            SupplierId = exportType == 5 ? dto.SupplierId : null, // xuất trả NCC
             TotalAmount = 0,
             Note = dto.Notes,
             Status = 1, // Đã xuất
@@ -1198,17 +1201,21 @@ public partial class WarehouseCompleteService {
             Items = new List<StockIssueItemDto>()
         };
 
-        // Supplier of a "Xuất trả NCC" issue is carried as a note tag (see CreateSupplierReturnAsync).
-        if (e.ExportType == 5 && e.Note != null)
+        // Supplier of a "Xuất trả NCC" issue: SupplierId column (migration 206); rows written before it
+        // carry a "[NCC:<id>]" note tag instead.
+        Guid? returnSupplierId = e.SupplierId;
+        if (returnSupplierId == null && e.ExportType == 5 && e.Note != null)
         {
             var start = e.Note.IndexOf(SupplierReturnTagPrefix, StringComparison.Ordinal);
             var end = start >= 0 ? e.Note.IndexOf(']', start) : -1;
-            if (end > start && Guid.TryParse(e.Note.AsSpan(start + SupplierReturnTagPrefix.Length, end - start - SupplierReturnTagPrefix.Length), out var supplierId))
-            {
-                dto.SupplierId = supplierId;
-                dto.SupplierName = await _context.Suppliers.AsNoTracking()
-                    .Where(s => s.Id == supplierId).Select(s => s.SupplierName).FirstOrDefaultAsync();
-            }
+            if (end > start && Guid.TryParse(e.Note.AsSpan(start + SupplierReturnTagPrefix.Length, end - start - SupplierReturnTagPrefix.Length), out var taggedId))
+                returnSupplierId = taggedId;
+        }
+        if (returnSupplierId is Guid supplierId)
+        {
+            dto.SupplierId = supplierId;
+            dto.SupplierName = await _context.Suppliers.AsNoTracking()
+                .Where(s => s.Id == supplierId).Select(s => s.SupplierName).FirstOrDefaultAsync();
         }
 
         if (Guid.TryParse(e.CreatedBy, out var creatorId))

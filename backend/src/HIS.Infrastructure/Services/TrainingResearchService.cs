@@ -611,10 +611,15 @@ public class TrainingResearchService : ITrainingResearchService
     {
         try
         {
+            // QA-R3: the requirement is per year (24 tiết/năm, NĐ 96/2023 — same value as MedicalHR), so only this
+            // year's completed classes count; all-time credits against a 48-credit default contradicted the HR tab.
+            var yearStart = new DateTime(DateTime.Now.Year, 1, 1);
             var completedStudents = await _context.TrainingStudents
                 .Include(s => s.Staff)
                 .Include(s => s.TrainingClass)
-                .Where(s => !s.IsDeleted && s.AttendanceStatus == 3 && s.StaffId.HasValue && s.TrainingClass != null)
+                .Where(s => !s.IsDeleted && s.AttendanceStatus == 3 && s.StaffId.HasValue && s.TrainingClass != null
+                    && (s.TrainingClass.EndDate ?? s.TrainingClass.StartDate) >= yearStart
+                    && (s.TrainingClass.EndDate ?? s.TrainingClass.StartDate) < yearStart.AddYears(1))
                 .ToListAsync();
 
             var staffCredits = completedStudents

@@ -208,6 +208,10 @@ public partial class HospitalReportService : IHospitalReportService
     private static string GetReportName(string reportType) =>
         ReportNames.TryGetValue(reportType, out var name) ? name : reportType;
 
+    /// <summary>True when <paramref name="reportCode"/> has a real data handler (print/export callers reject the rest with 400).</summary>
+    public static bool IsKnownReport(string? reportCode) =>
+        !string.IsNullOrWhiteSpace(reportCode) && ReportHandlers.ContainsKey(reportCode);
+
     // #363 [REFAC-2b]: dispatch registry thay cho switch 151-case (control-flow refactor, behavior-preserving).
     // Mỗi report-code map tới đúng Fill* handler + đúng bộ tham số như switch cũ
     // (chú ý: nhóm Pharmacy/Warehouse dùng warehouseId (w); IssueToDept dùng cả w + d; còn lại dùng departmentId (d)).

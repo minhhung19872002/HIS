@@ -264,7 +264,7 @@ public class WarehouseCompleteController : ControllerBase
 
     /// <summary>
     /// Xuất tủ trực — cabinet dispensing for patient (OPD/Inpatient/Surgery context)
-    /// IssueType forced to 12 server-side. Warehouse must have WarehouseType=4 or IsCabinet=true.
+    /// IssueType forced to 12 server-side. Warehouse must have WarehouseType=5 (ward cabinet) or IsCabinet=true.
     /// </summary>
     [HttpPost("issues/cabinet-issue")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.WarehouseStaff + "," + RoleNames.Pharmacist + "," + RoleNames.Doctor + "," + RoleNames.Nurse)]

@@ -230,7 +230,7 @@ public class CreditSummaryDto
     public string StaffName { get; set; } = string.Empty;
     public string? DepartmentName { get; set; }
     public decimal TotalCredits { get; set; }
-    public decimal RequiredCredits { get; set; } = 48; // Default CME requirement
+    public decimal RequiredCredits { get; set; } = HIS.Core.Constants.CmeRequirement.HoursPerYear; // QA-R3: 24 tiết/năm (NĐ 96/2023), was 48
     public decimal CompliancePercent => RequiredCredits > 0 ? Math.Min(100, TotalCredits / RequiredCredits * 100) : 0;
     public bool IsCompliant => TotalCredits >= RequiredCredits;
 }

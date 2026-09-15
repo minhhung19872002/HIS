@@ -327,13 +327,15 @@ public class WarehouseDto
     public string WarehouseName { get; set; } = string.Empty;
 
     public int WarehouseType { get; set; }
+    // QA-R3: names follow HIS.Core.Constants.WarehouseType (the values every service filters on) —
+    // the old list labelled the hospital pharmacy (4) "Tủ trực" and ward cabinets (5) "Kho ký gửi".
     public string WarehouseTypeName => WarehouseType switch
     {
-        1 => "Kho chính",
-        2 => "Kho lẻ",
-        3 => "Nhà thuốc",
-        4 => "Tủ trực",
-        5 => "Kho ký gửi",
+        HIS.Core.Constants.WarehouseType.Medicine => "Kho thuốc",
+        HIS.Core.Constants.WarehouseType.Supply => "Kho vật tư",
+        HIS.Core.Constants.WarehouseType.Chemical => "Kho hóa chất",
+        HIS.Core.Constants.WarehouseType.Pharmacy => "Nhà thuốc",
+        HIS.Core.Constants.WarehouseType.WardCabinet => "Tủ trực",
         _ => ""
     };
 

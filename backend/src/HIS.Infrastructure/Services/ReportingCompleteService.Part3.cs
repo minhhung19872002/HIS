@@ -382,12 +382,81 @@ public partial class ReportingCompleteService
                 .OrderByDescending(c => c.TotalAmount)
                 .ToListAsync();
 
+            // QA-R3: the till report ignored deposits — tạm ứng collected at the counter never appeared and the
+            // cash paid back on a deposit refund (Receipts type 3 with OriginalDepositId, excluded above) vanished.
+            // Deposits collected (not cancelled) are cash IN, deposit refunds approved/paid are cash OUT; receipts
+            // paid FROM a deposit (PaymentMethod 5) are revenue but not new cash.
+            var depositQuery = _context.Deposits
+                .Where(d => d.ReceiptDate >= fromDate && d.ReceiptDate < toEnd && !d.IsDeleted && d.Status != 5);
+            if (cashierId.HasValue)
+                depositQuery = depositQuery.Where(d => d.ReceivedByUserId == cashierId.Value);
+            var depositsIn = await depositQuery
+                .GroupBy(d => d.ReceivedByUserId)
+                .Select(g => new { CashierId = g.Key, Count = g.Count(), Amount = g.Sum(d => d.Amount) })
+                .ToListAsync();
+
+            var depositRefundQuery = _context.Receipts
+                .Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate < toEnd && !r.IsDeleted
+                    && r.ReceiptType == 3 && r.OriginalDepositId != null && (r.Status == 1 || r.Status == 4));
+            if (cashierId.HasValue)
+                depositRefundQuery = depositRefundQuery.Where(r => r.CashierId == cashierId.Value);
+            var depositRefunds = await depositRefundQuery
+                .GroupBy(r => r.CashierId)
+                .Select(g => new { CashierId = g.Key, Count = g.Count(), Amount = g.Sum(r => r.FinalAmount) })
+                .ToListAsync();
+
+            var paidFromDepositQuery = _context.Receipts
+                .Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate < toEnd && !r.IsDeleted
+                    && r.ReceiptType != 3 && r.Status == 1 && r.PaymentMethod == 5);
+            if (cashierId.HasValue)
+                paidFromDepositQuery = paidFromDepositQuery.Where(r => r.CashierId == cashierId.Value);
+            var paidFromDeposit = await paidFromDepositQuery
+                .GroupBy(r => r.CashierId)
+                .Select(g => new { CashierId = g.Key, Amount = g.Sum(r => r.FinalAmount) })
+                .ToListAsync();
+
+            var cashierIds = byCashier.Select(c => c.CashierId)
+                .Concat(depositsIn.Select(d => d.CashierId))
+                .Concat(depositRefunds.Select(d => d.CashierId))
+                .Distinct().ToList();
+            var names = await _context.Users.Where(u => cashierIds.Contains(u.Id))
+                .Select(u => new { u.Id, u.FullName }).ToDictionaryAsync(u => u.Id, u => u.FullName);
+
+            var cashiers = cashierIds.Select(id =>
+            {
+                var rc = byCashier.FirstOrDefault(c => c.CashierId == id);
+                var din = depositsIn.FirstOrDefault(d => d.CashierId == id);
+                var dout = depositRefunds.FirstOrDefault(d => d.CashierId == id);
+                var fromDep = paidFromDeposit.FirstOrDefault(d => d.CashierId == id)?.Amount ?? 0;
+                var total = rc?.TotalAmount ?? 0;
+                return new
+                {
+                    CashierId = id,
+                    CashierName = rc?.CashierName ?? names.GetValueOrDefault(id),
+                    TransactionCount = rc?.TransactionCount ?? 0,
+                    TotalAmount = total,
+                    CashAmount = rc?.CashAmount ?? 0,
+                    TransferAmount = rc?.TransferAmount ?? 0,
+                    CardAmount = rc?.CardAmount ?? 0,
+                    PaidFromDepositAmount = fromDep,
+                    DepositCount = din?.Count ?? 0,
+                    DepositAmount = din?.Amount ?? 0,
+                    DepositRefundCount = dout?.Count ?? 0,
+                    DepositRefundAmount = dout?.Amount ?? 0,
+                    NetCashFlow = total - fromDep + (din?.Amount ?? 0) - (dout?.Amount ?? 0),
+                };
+            }).OrderByDescending(c => c.NetCashFlow).ToList();
+
             return new
             {
                 FromDate = fromDate, ToDate = toDate,
-                TotalTransactions = byCashier.Sum(c => c.TransactionCount),
-                TotalAmount = byCashier.Sum(c => c.TotalAmount),
-                Cashiers = byCashier
+                TotalTransactions = cashiers.Sum(c => c.TransactionCount),
+                TotalAmount = cashiers.Sum(c => c.TotalAmount),
+                TotalDepositAmount = cashiers.Sum(c => c.DepositAmount),
+                TotalDepositRefundAmount = cashiers.Sum(c => c.DepositRefundAmount),
+                TotalPaidFromDepositAmount = cashiers.Sum(c => c.PaidFromDepositAmount),
+                NetCashFlow = cashiers.Sum(c => c.NetCashFlow),
+                Cashiers = cashiers
             };
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))

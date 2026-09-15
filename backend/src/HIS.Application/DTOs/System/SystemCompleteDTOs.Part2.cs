@@ -359,12 +359,16 @@ namespace HIS.Application.DTOs.System
         public Guid DepartmentId { get; set; }
         public string DepartmentCode { get; set; }
         public string DepartmentName { get; set; }
-        public decimal TotalCost { get; set; }
-        public decimal MedicineCost { get; set; }
-        public decimal SupplyCost { get; set; }
-        public decimal EquipmentCost { get; set; }
-        public decimal PersonnelCost { get; set; }
-        public decimal OverheadCost { get; set; }
+        // QA-R3: real cost (dispensed qty × lot import price) or null ("chưa có dữ liệu"). Services are revenue.
+        public decimal? TotalCost { get; set; }
+        public decimal? MedicineCost { get; set; }
+        public decimal? SupplyCost { get; set; }
+        public decimal? EquipmentCost { get; set; }
+        public decimal? PersonnelCost { get; set; }
+        public decimal? OverheadCost { get; set; }
+        public decimal ServiceRevenue { get; set; }
+        public int UncostedLines { get; set; }
+        public List<string> MissingData { get; set; } = new();
     }
 
     public class FinancialSummaryReportDto
@@ -372,9 +376,19 @@ namespace HIS.Application.DTOs.System
         public DateTime FromDate { get; set; }
         public DateTime ToDate { get; set; }
         public decimal TotalRevenue { get; set; }
-        public decimal TotalCost { get; set; }
-        public decimal GrossProfit { get; set; }
-        public decimal NetProfit { get; set; }
+        // QA-R3: every cost/profit field is computed from a real source or is null ("chưa có dữ liệu").
+        // NetProfit used to be GrossProfit × 0.8 and "cost" was the medicines' SELLING amount.
+        public decimal? TotalCost { get; set; }          // sum of the cost fields that have data
+        public decimal? MedicineCost { get; set; }       // dispensed qty × lot import price
+        public decimal? SupplyCost { get; set; }         // dispensed supplies qty × lot import price
+        public decimal? PersonnelCost { get; set; }      // approved payroll of months fully inside the period
+        public decimal? Depreciation { get; set; }       // AssetDepreciations of months fully inside the period
+        public decimal? OperatingCost { get; set; }      // no data source → always null
+        public decimal? GrossProfit { get; set; }        // revenue − (medicine + supply cost)
+        public decimal? NetProfit { get; set; }          // null unless every cost component has data
+        public decimal? ProfitMargin { get; set; }
+        public int UncostedDispensedLines { get; set; }  // dispensed lines whose lot has no import price
+        public List<string> MissingData { get; set; } = new();
         public List<DeptRevenueItemDto> RevenueByDepartment { get; set; }
         public List<CostByDepartmentDto> CostByDepartment { get; set; }
     }

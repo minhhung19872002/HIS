@@ -20,10 +20,13 @@ public record DelegationGrantDto(
     DateTime CreatedAt
 );
 
+// ValidFrom/ValidTo are UTC (DelegationService compares with DateTime.UtcNow) → opt out of the global VN-local converter.
 public record CreateDelegationGrantDto(
     Guid GranteeId,
     Guid RoleId,
+    [property: global::System.Text.Json.Serialization.JsonConverter(typeof(global::HIS.Application.Common.UtcDateTimeJsonConverter))]
     DateTime ValidFrom,
+    [property: global::System.Text.Json.Serialization.JsonConverter(typeof(global::HIS.Application.Common.UtcDateTimeJsonConverter))]
     DateTime ValidTo,
     string? Reason
 );

@@ -45,6 +45,21 @@ public class ReconciliationReportService : IReconciliationReportService
             // Match with supplier catalog if supplierId filter
             var suppliers = await _context.Suppliers.Where(s => s.IsActive).ToListAsync();
 
+            // QA-R3: contract value = value of the tenders AWARDED to the supplier (Tender.Status 4 +
+            // WinnerSupplierId; items qty × price, else the budget). It used to be delivered value × 1.1, which made
+            // every supplier look 91% fulfilled. No awarded tender → null ("chưa có dữ liệu"), not an invented number.
+            var awardedTenders = await _context.Tenders.AsNoTracking()
+                .Where(t => t.Status == 4 && t.WinnerSupplierId != null && !t.IsDeleted)
+                .Select(t => new
+                {
+                    SupplierId = t.WinnerSupplierId!.Value,
+                    Value = t.Items.Where(i => !i.IsDeleted).Sum(i => (decimal?)(i.Quantity * i.UnitPrice)) ?? t.BudgetAmount
+                })
+                .ToListAsync();
+            var contractBySupplier = awardedTenders
+                .GroupBy(t => t.SupplierId)
+                .ToDictionary(g => g.Key, g => g.Sum(t => t.Value));
+
             var grouped = receipts
                 .GroupBy(r => r.SupplierCode ?? "UNKNOWN")
                 .Select(g =>
@@ -53,6 +68,8 @@ public class ReconciliationReportService : IReconciliationReportService
                     if (supplierId.HasValue && supplier?.Id != supplierId.Value)
                         return null;
 
+                    decimal? contract = supplier != null && contractBySupplier.TryGetValue(supplier.Id, out var cv) && cv > 0 ? cv : null;
+                    var delivered = g.Sum(r => r.FinalAmount);
                     return new SupplierProcurementItemDto
                     {
                         SupplierId = supplier?.Id ?? Guid.Empty,
@@ -60,10 +77,10 @@ public class ReconciliationReportService : IReconciliationReportService
                         SupplierName = g.First().SupplierName ?? supplier?.SupplierName ?? g.Key,
                         ItemCount = g.Sum(r => r.DetailCount),
                         ReceiptCount = g.Count(),
-                        ContractValue = g.Sum(r => r.FinalAmount) * 1.1m, // Estimated contract value
-                        DeliveredValue = g.Sum(r => r.FinalAmount),
+                        ContractValue = contract,
+                        DeliveredValue = delivered,
                         DeliveredQuantity = g.Sum(r => r.DetailCount),
-                        FulfillmentRate = 100m, // Actual = delivered since we only count approved
+                        FulfillmentRate = contract.HasValue ? Math.Round(delivered / contract.Value * 100, 2) : null,
                         AverageDeliveryDays = 0,
                         LastDeliveryDate = g.Max(r => r.ReceiptDate).ToString("yyyy-MM-dd")
                     };
@@ -77,11 +94,13 @@ public class ReconciliationReportService : IReconciliationReportService
                 ToDate = toDate,
                 TotalSuppliers = grouped.Count,
                 TotalItems = grouped.Sum(x => x!.ItemCount),
-                TotalContractValue = grouped.Sum(x => x!.ContractValue),
+                TotalContractValue = grouped.Any(x => x!.ContractValue.HasValue) ? grouped.Sum(x => x!.ContractValue ?? 0) : null,
                 TotalDeliveredValue = grouped.Sum(x => x!.DeliveredValue),
-                FulfillmentRate = grouped.Count > 0
-                    ? grouped.Sum(x => x!.DeliveredValue) / Math.Max(grouped.Sum(x => x!.ContractValue), 1) * 100
-                    : 0,
+                // Only suppliers that HAVE a contract value enter the rate.
+                FulfillmentRate = grouped.Any(x => x!.ContractValue > 0)
+                    ? Math.Round(grouped.Where(x => x!.ContractValue > 0).Sum(x => x!.DeliveredValue)
+                        / grouped.Where(x => x!.ContractValue > 0).Sum(x => x!.ContractValue!.Value) * 100, 2)
+                    : null,
                 Items = grouped!
             };
             return result;
@@ -150,6 +169,19 @@ public class ReconciliationReportService : IReconciliationReportService
                 })
                 .ToListAsync();
 
+            // QA-R3: real medicine cost = quantity dispensed to the record (non-cancelled OPD/IPD export receipts)
+            // × import price of the lot it came from. It used to be "70% of revenue". A record with medicine
+            // revenue but no costed dispensing gets null ("chưa có dữ liệu") instead of an invented figure.
+            var mrIds = medicalRecords.Select(m => m.Id).ToList();
+            var dispensedCost = await _context.ExportReceiptDetails.AsNoTracking()
+                .Where(d => d.ExportReceipt.MedicalRecordId != null && mrIds.Contains(d.ExportReceipt.MedicalRecordId.Value)
+                    && (d.ExportReceipt.ExportType == 1 || d.ExportReceipt.ExportType == 2)
+                    && d.ExportReceipt.Status != 2 && !d.ExportReceipt.IsDeleted && !d.IsDeleted
+                    && d.InventoryItem != null && d.InventoryItem.ImportPrice > 0)
+                .GroupBy(d => d.ExportReceipt.MedicalRecordId!.Value)
+                .Select(g => new { MedicalRecordId = g.Key, Cost = g.Sum(d => d.Quantity * d.InventoryItem!.ImportPrice) })
+                .ToDictionaryAsync(x => x.MedicalRecordId, x => x.Cost);
+
             var items = medicalRecords.Select(mr =>
             {
                 var srData = serviceRevenues.FirstOrDefault(s => s.MedicalRecordId == mr.Id);
@@ -162,7 +194,8 @@ public class ReconciliationReportService : IReconciliationReportService
                 var serviceRev = srData?.TotalAmount ?? 0;
                 var medicineRev = rxData?.MedicineCost ?? 0;
                 var totalRev = serviceRev + medicineRev;
-                var medicineCost = medicineRev * 0.7m; // Estimated cost = 70% of revenue
+                decimal? medicineCost = dispensedCost.TryGetValue(mr.Id, out var cost) ? cost
+                    : medicineRev == 0 ? 0m : null;
                 var totalCost = medicineCost;
 
                 return new RevenueByRecordItemDto
@@ -182,19 +215,20 @@ public class ReconciliationReportService : IReconciliationReportService
                     SupplyCost = 0,
                     TotalCost = totalCost,
                     Profit = totalRev - totalCost,
-                    ProfitMargin = totalRev > 0 ? (totalRev - totalCost) / totalRev * 100 : 0
+                    ProfitMargin = totalCost == null ? null : totalRev > 0 ? (totalRev - totalCost) / totalRev * 100 : 0
                 };
             }).Where(x => x != null).ToList();
 
+            var costed = items.Where(x => x!.TotalCost.HasValue).ToList();
             return new RevenueByRecordReportDto
             {
                 FromDate = fromDate,
                 ToDate = toDate,
                 TotalRecords = items.Count,
                 TotalRevenue = items.Sum(x => x!.TotalRevenue),
-                TotalCost = items.Sum(x => x!.TotalCost),
-                TotalProfit = items.Sum(x => x!.Profit),
-                AverageProfitMargin = items.Count > 0 ? items.Average(x => x!.ProfitMargin) : 0,
+                TotalCost = costed.Sum(x => x!.TotalCost!.Value),
+                TotalProfit = costed.Sum(x => x!.Profit!.Value),
+                AverageProfitMargin = costed.Count > 0 ? costed.Average(x => x!.ProfitMargin!.Value) : 0,
                 Items = items!
             };
         }

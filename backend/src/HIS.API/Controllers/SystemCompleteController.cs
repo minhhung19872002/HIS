@@ -163,8 +163,19 @@ namespace HIS.API.Controllers
         [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant + "," + RoleNames.Manager)]
         public async Task<IActionResult> PrintFinancialReport([FromBody] FinancialReportRequest request)
         {
-            var result = await _service.PrintFinancialReportAsync(request);
-            return File(result, "application/pdf", $"FinancialReport_{DateTime.Now:yyyyMMdd}.pdf");
+            try
+            {
+                var result = await _service.PrintFinancialReportAsync(request);
+                // QA-R3: only a real PDF is served as PDF ("html"/print requests are HTML); unknown type → 400.
+                var isPdf = result.Length > 4 && result[0] == (byte)'%' && result[1] == (byte)'P' && result[2] == (byte)'D' && result[3] == (byte)'F';
+                return isPdf
+                    ? File(result, "application/pdf", $"FinancialReport_{DateTime.Now:yyyyMMdd}.pdf")
+                    : File(result, "text/html; charset=utf-8");
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
+            }
         }
 
         /// <summary>
@@ -174,8 +185,15 @@ namespace HIS.API.Controllers
         [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant + "," + RoleNames.Manager)]
         public async Task<IActionResult> ExportFinancialReport([FromBody] FinancialReportRequest request)
         {
-            var result = await _service.ExportFinancialReportToExcelAsync(request);
-            return File(result, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"FinancialReport_{DateTime.Now:yyyyMMdd}.xlsx");
+            try
+            {
+                var result = await _service.ExportFinancialReportToExcelAsync(request);
+                return File(result, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"FinancialReport_{DateTime.Now:yyyyMMdd}.xlsx");
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
+            }
         }
 
         #endregion

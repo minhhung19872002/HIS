@@ -33,17 +33,20 @@ public partial class SystemCompleteService : ISystemCompleteService
     private readonly ILogger<SystemCompleteService> _logger;
     private readonly HIS.Application.Services.ISoDService _sodService; // AUTHZ-4 #370 (grant-time SoD, OFF)
     private readonly IHttpContextAccessor _httpCtx;
+    private readonly IHospitalReportService _hospitalReports; // QA-R3: real data for pharmacy/statistics print & export
 
     public SystemCompleteService(
         HISDbContext context,
         ILogger<SystemCompleteService> logger,
         HIS.Application.Services.ISoDService sodService,
-        IHttpContextAccessor httpContextAccessor)
+        IHttpContextAccessor httpContextAccessor,
+        IHospitalReportService hospitalReports)
     {
         _context = context;
         _logger = logger;
         _sodService = sodService;
         _httpCtx = httpContextAccessor;
+        _hospitalReports = hospitalReports;
     }
 
 

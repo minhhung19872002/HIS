@@ -34,9 +34,10 @@ namespace HIS.Application.DTOs.Reporting
         public DateTime ToDate { get; set; }
         public int TotalSuppliers { get; set; }
         public int TotalItems { get; set; }
-        public decimal TotalContractValue { get; set; }
+        // QA-R3: null = no awarded tender for these suppliers ("chưa có dữ liệu"); was delivered value × 1.1.
+        public decimal? TotalContractValue { get; set; }
         public decimal TotalDeliveredValue { get; set; }
-        public decimal FulfillmentRate { get; set; }
+        public decimal? FulfillmentRate { get; set; }
         public List<SupplierProcurementItemDto> Items { get; set; } = new();
     }
 
@@ -47,10 +48,10 @@ namespace HIS.Application.DTOs.Reporting
         public string SupplierName { get; set; } = string.Empty;
         public int ItemCount { get; set; }
         public int ReceiptCount { get; set; }
-        public decimal ContractValue { get; set; }
+        public decimal? ContractValue { get; set; } // awarded tender value; null = chưa có dữ liệu
         public decimal DeliveredValue { get; set; }
         public decimal DeliveredQuantity { get; set; }
-        public decimal FulfillmentRate { get; set; }
+        public decimal? FulfillmentRate { get; set; }
         public decimal AverageDeliveryDays { get; set; }
         public string? LastDeliveryDate { get; set; }
     }
@@ -68,8 +69,8 @@ namespace HIS.Application.DTOs.Reporting
         public DateTime ToDate { get; set; }
         public int TotalRecords { get; set; }
         public decimal TotalRevenue { get; set; }
-        public decimal TotalCost { get; set; }
-        public decimal TotalProfit { get; set; }
+        public decimal TotalCost { get; set; }   // records with known cost only
+        public decimal TotalProfit { get; set; } // records with known cost only
         public decimal AverageProfitMargin { get; set; }
         public List<RevenueByRecordItemDto> Items { get; set; } = new();
     }
@@ -87,11 +88,12 @@ namespace HIS.Application.DTOs.Reporting
         public decimal SupplyRevenue { get; set; }
         public decimal BedRevenue { get; set; }
         public decimal TotalRevenue { get; set; }
-        public decimal MedicineCost { get; set; }
+        // QA-R3: real cost = dispensed quantity × lot import price; null = chưa có dữ liệu (was revenue × 70%).
+        public decimal? MedicineCost { get; set; }
         public decimal SupplyCost { get; set; }
-        public decimal TotalCost { get; set; }
-        public decimal Profit { get; set; }
-        public decimal ProfitMargin { get; set; }
+        public decimal? TotalCost { get; set; }
+        public decimal? Profit { get; set; }
+        public decimal? ProfitMargin { get; set; }
     }
 
     #endregion

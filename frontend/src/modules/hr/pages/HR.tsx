@@ -18,6 +18,9 @@ import {
 import {
   getStaff,
   getRoster,
+  getRosterAssignments,
+  getSwapRequests,
+  createSwapRequest,
   approveSwapRequest,
   publishRoster,
   copyWeekRoster,
@@ -108,6 +111,7 @@ import {
   type TopTab,
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
+import { adminApi } from '../../system/api/system';
 import { SortTh, useSortableRows } from '../../../components/table';
 import { Field } from '../../../components/form/Field';
 import { useModalForm } from '../../../hooks/useModalForm';
@@ -128,20 +132,23 @@ type ShiftMeta = {
 
 type StaffMember = {
   id: string;
+  /** MedicalStaffs.Id (GUID) — needed by the shift-swap API; `id` is the staff code shown on screen. */
+  staffId?: string;
   name: string;
   role: string;
   department: string;
   quota: number;
 };
 
+/** Pending shift-swap request as returned by GET /medicalhr/shift-swaps. */
 type SwapRequest = {
   id: string;
-  from: string;
-  to: string;
+  fromName: string;
+  toName: string;
   date: string;
-  shift: ShiftType;
+  shiftLabel: string;
   reason: string;
-  status: 'pending' | 'approved';
+  isExchange: boolean;
 };
 
 const SHIFT_TYPES: ShiftMeta[] = [
@@ -152,21 +159,6 @@ const SHIFT_TYPES: ShiftMeta[] = [
 ];
 
 const DAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-
-const STAFF: StaffMember[] = [
-  { id: 'BS001', name: 'BS. Nguyễn Văn Hùng', role: 'Trưởng khoa', department: 'Tim mạch', quota: 6 },
-  { id: 'BS002', name: 'BS. Trần Thị Lan', role: 'Bác sĩ chính', department: 'Tim mạch', quota: 6 },
-  { id: 'BS003', name: 'BS. Lê Quốc Anh', role: 'Bác sĩ', department: 'Nội', quota: 7 },
-  { id: 'BS004', name: 'BS. Phạm Hữu Nam', role: 'Bác sĩ', department: 'Cấp cứu', quota: 8 },
-  { id: 'BS005', name: 'BS. Đỗ Thanh Hà', role: 'Bác sĩ', department: 'Sản', quota: 6 },
-  { id: 'DD001', name: 'ĐD. Vũ Thuỳ Linh', role: 'Trưởng ĐD', department: 'Tim mạch', quota: 7 },
-  { id: 'DD002', name: 'ĐD. Bùi Mai Hương', role: 'Điều dưỡng', department: 'Nội', quota: 8 },
-  { id: 'DD003', name: 'ĐD. Trần Văn Thái', role: 'Điều dưỡng', department: 'Cấp cứu', quota: 8 },
-  { id: 'DD004', name: 'ĐD. Lý Thuý Vy', role: 'Điều dưỡng', department: 'Sản', quota: 7 },
-  { id: 'DD005', name: 'ĐD. Hoàng Thị Bích', role: 'Điều dưỡng', department: 'Hồi sức', quota: 8 },
-  { id: 'KTV01', name: 'KTV. Phan Đăng Khoa', role: 'KTV xét nghiệm', department: 'LIS', quota: 6 },
-  { id: 'KTV02', name: 'KTV. Tô Anh Đức', role: 'KTV chẩn đoán hình ảnh', department: 'RIS', quota: 6 },
-];
 
 // ─── Constants ported từ v1 (pages/hr/constants.ts — KHÔNG import từ pages/) ──
 
@@ -267,26 +259,19 @@ function buildStaffProfileCardHtml(emp: StaffProfileDto): string {
     </body></html>`;
 }
 
-function seededValue(seed: number): number {
-  const value = Math.sin(seed * 123.456) * 10000;
-  return value - Math.floor(value);
+// QA-R3: the weekly roster tab used to render a pseudo-random demo rota (12 invented staff, fixed week
+// "T43/2026" anchored on 20/10/2026). It now shows the real week's DutyShifts and real staff only.
+
+/** Monday (00:00) of the week containing `d`. */
+function mondayOf(d: dayjs.Dayjs): dayjs.Dayjs {
+  return d.subtract((d.day() + 6) % 7, 'day').startOf('day');
 }
 
-function buildRotaSeed(staffList: StaffMember[] = STAFF): Record<string, ShiftType[]> {
-  return staffList.reduce<Record<string, ShiftType[]>>((accumulator, staff, staffIndex) => {
-    accumulator[staff.id] = DAYS.map((_, dayIndex) => {
-      if (staff.role === 'Trưởng khoa' || staff.role === 'Trưởng ĐD') {
-        return dayIndex === 6 ? 'off' : 'morning';
-      }
-
-      const value = seededValue(staffIndex * 11 + dayIndex + 3);
-      if (value < 0.46) return 'morning';
-      if (value < 0.72) return 'evening';
-      if (value < 0.87) return 'night';
-      return 'off';
-    });
-    return accumulator;
-  }, {});
+/** ISO-8601 week number of the week starting on `monday`. */
+function isoWeekNumber(monday: dayjs.Dayjs): number {
+  const thursday = monday.add(3, 'day');
+  const firstThursday = mondayOf(thursday.startOf('year').add(3, 'day')).add(3, 'day');
+  return 1 + Math.round(thursday.diff(firstThursday, 'day') / 7);
 }
 
 // ─── API DTO mapper ──────────────────────────────────────────────────────────
@@ -308,6 +293,7 @@ function staffTypeToRole(t?: string): string {
 function mapProfileToStaff(p: StaffProfileDto): StaffMember {
   return {
     id: p.staffCode || p.id,
+    staffId: p.id,
     name: p.fullName || p.staffCode,
     role: staffTypeToRole(p.staffType),
     department: p.departmentName || '—',
@@ -320,7 +306,15 @@ function shiftFromName(name?: string): ShiftType {
   if (v.includes('sáng') || v.includes('sang') || v.includes('morning')) return 'morning';
   if (v.includes('chiều') || v.includes('chieu') || v.includes('evening') || v.includes('afternoon')) return 'evening';
   if (v.includes('đêm') || v.includes('dem') || v.includes('night')) return 'night';
+  // "Trực" / "Trực 24 giờ" (OnCall / 24h) are overnight duty — they were shown as "Nghỉ".
+  if (v.includes('trực') || v.includes('oncall') || v.includes('24')) return 'night';
   return 'off';
+}
+
+/** The real assignment behind a rota cell (staff code/id + date). */
+function assignmentAt(assignments: RosterAssignmentDto[], member: StaffMember, date: string): RosterAssignmentDto | undefined {
+  return assignments.find((x) => (x.staffCode === member.id || x.staffId === member.id || (!!member.staffId && x.staffId === member.staffId))
+    && x.date.startsWith(date));
 }
 
 function buildRotaFromAssignments(
@@ -352,10 +346,12 @@ const HRV2: React.FC = () => {
   const { message } = AntdApp.useApp();
   const navigate = useNavigate();
   const [tab, setTab] = useTabState<HrTab>('roster');
-  const [week, setWeek] = useState(43);
-  const [staffList, setStaffList] = useState<StaffMember[]>(STAFF);
-  const [rota, setRota] = useState<Record<string, ShiftType[]>>(() => buildRotaSeed());
-  const [usingMock, setUsingMock] = useState(true);
+  const [weekStart, setWeekStart] = useState<dayjs.Dayjs>(() => mondayOf(dayjs()));
+  const week = isoWeekNumber(weekStart);
+  const [staffList, setStaffList] = useState<StaffMember[]>([]);
+  const [rota, setRota] = useState<Record<string, ShiftType[]>>({});
+  const [weekAssignments, setWeekAssignments] = useState<RosterAssignmentDto[]>([]);
+  const [rotaLoaded, setRotaLoaded] = useState(false);
   const [rosterId, setRosterId] = useState<string | null>(null);
   const [commitLoading, setCommitLoading] = useState(false);
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
@@ -381,6 +377,17 @@ const HRV2: React.FC = () => {
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [isTrainingModalOpen, setIsTrainingModalOpen] = useState(false);
   const [isAddEmployeeModalOpen, setIsAddEmployeeModalOpen] = useState(false);
+  // Login accounts for linking MedicalStaffs.UserId (the CCHN prescribing gate looks the doctor up by account).
+  // /admin/users is Admin-only: other HR users get no picker and the BE auto-links by matching employee code.
+  const [userOptions, setUserOptions] = useState<{ value: string; label: string }[] | null>(null);
+  useEffect(() => {
+    if (!isAddEmployeeModalOpen || userOptions !== null) return;
+    adminApi.getUsers(undefined, undefined, true)
+      .then((r) => setUserOptions((Array.isArray(r.data) ? r.data : [])
+        .filter((u) => !!u.id)
+        .map((u) => ({ value: u.id as string, label: `${u.fullName} (${u.username}${u.employeeCode ? ` · ${u.employeeCode}` : ''})` }))))
+      .catch(() => setUserOptions([]));
+  }, [isAddEmployeeModalOpen, userOptions]);
   const [shiftForm] = Form.useForm();
   const [trainingForm] = Form.useForm();
   const [employeeForm] = Form.useForm();
@@ -619,56 +626,61 @@ const HRV2: React.FC = () => {
     }
   }, [message]);
 
-  // Try real HR API: load staff + current month roster, fall back to seed.
+  // QA-R3: real staff (once) + the real shifts of the displayed week (reloaded when the week changes).
   useEffect(() => {
-    (async () => {
-      try {
-        const now = dayjs();
-        const [staffRes, rosterRes] = await Promise.allSettled([
-          getStaff({ page: 1, pageSize: 50 }),
-          getRoster('', now.year(), now.month() + 1),
-        ]);
-
-        let realStaff: StaffMember[] = [];
-        if (staffRes.status === 'fulfilled') {
-          // Backend may return list directly OR wrapped {items: []}; handle both.
-          const body = staffRes.value?.data as unknown;
-          const items: StaffProfileDto[] = Array.isArray(body)
-            ? body as StaffProfileDto[]
-            : ((body as { items?: StaffProfileDto[] })?.items || []);
-          if (items.length >= 8) realStaff = items.map(mapProfileToStaff);
-        }
-        if (realStaff.length === 0) return; // not enough real staff — keep seed
-
-        setStaffList(realStaff);
-
-        // Compute Monday-of-this-week as the rota's reference start
-        const weekStart = now.startOf('week').add(1, 'day'); // dayjs week starts Sunday by default
-        const rosterBody = rosterRes.status === 'fulfilled'
-          ? rosterRes.value?.data as unknown : null;
-        // Capture roster id for chốt lịch action
-        if (rosterBody && !Array.isArray(rosterBody)) {
-          const dto = rosterBody as DutyRosterDto;
-          if (dto.id) setRosterId(dto.id);
-        }
-        const assignments: RosterAssignmentDto[] = (() => {
-          if (!rosterBody) return [];
-          if (Array.isArray(rosterBody)) return rosterBody as RosterAssignmentDto[];
-          const r = rosterBody as { staffAssignments?: RosterAssignmentDto[]; items?: RosterAssignmentDto[] };
-          return r.staffAssignments || r.items || [];
-        })();
-        const rotaMap = assignments.length > 0
-          ? buildRotaFromAssignments(realStaff, assignments, weekStart)
-          : buildRotaSeed(realStaff);
-        setRota(rotaMap);
-        setUsingMock(false);
-        message.success(`Hiển thị nhân sự thật: ${realStaff.length} người${assignments.length > 0 ? `, ${assignments.length} ca` : ' (lịch trực mẫu)'}`);
-      } catch {
-        // Silent fallback — keep seed
-      }
-    })();
+    getStaff({ page: 1, pageSize: 500 })
+      .then((staffRes) => {
+        // Backend may return list directly OR wrapped {items: []}; handle both.
+        const body = staffRes?.data as unknown;
+        const items: StaffProfileDto[] = Array.isArray(body)
+          ? body as StaffProfileDto[]
+          : ((body as { items?: StaffProfileDto[] })?.items || []);
+        setStaffList(items.map(mapProfileToStaff));
+      })
+      .catch((e) => message.warning(friendlyErrorMessage(e, 'Không tải được danh sách nhân sự')));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadWeek = useCallback(async () => {
+    try {
+      const res = await getRosterAssignments(weekStart.format('YYYY-MM-DD'), weekStart.add(6, 'day').format('YYYY-MM-DD'));
+      const assignments = Array.isArray(res.data) ? res.data : [];
+      setWeekAssignments(assignments);
+      // "Chốt tuần" publishes a roster — only unambiguous when the week's shifts belong to one roster.
+      const rosterIds = [...new Set(assignments.map((a) => a.rosterId))];
+      setRosterId(rosterIds.length === 1 ? rosterIds[0] : null);
+    } catch (e) {
+      setWeekAssignments([]);
+      setRosterId(null);
+      message.warning(friendlyErrorMessage(e, 'Không tải được lịch trực tuần'));
+    } finally {
+      setRotaLoaded(true);
+    }
+  }, [weekStart, message]);
+
+  const loadSwaps = useCallback(async () => {
+    try {
+      const res = await getSwapRequests();
+      const list = Array.isArray(res.data) ? res.data : [];
+      setSwapRequests(list.map((r) => ({
+        id: r.id,
+        fromName: r.requesterName,
+        toName: r.targetStaffName,
+        date: r.originalShiftDate,
+        shiftLabel: SHIFT_TYPES.find((t) => t.value === shiftFromName(r.originalShiftType))?.label ?? r.originalShiftType,
+        reason: r.reason,
+        isExchange: !!r.targetAssignmentId,
+      })));
+    } catch {
+      setSwapRequests([]);
+    }
+  }, []);
+
+  useEffect(() => { void loadWeek(); }, [loadWeek]);
+  useEffect(() => { void loadSwaps(); }, [loadSwaps]);
+  useEffect(() => {
+    setRota(buildRotaFromAssignments(staffList, weekAssignments, weekStart));
+  }, [staffList, weekAssignments, weekStart]);
   const [swapModalOpen, setSwapModalOpen] = useState(false);
   const [swapForm, setSwapForm] = useState({
     from: '',
@@ -749,13 +761,11 @@ const HRV2: React.FC = () => {
     });
   }, [rota, visibleStaff]);
 
-  const weekStart = dayjs('2026-10-20').add(week - 43, 'week');
-
   const metrics = useMemo(() => {
     const totalShifts = visibleStaff.reduce((sum, member) => sum + shiftCount(member.id), 0);
     const totalQuota = visibleStaff.reduce((sum, member) => sum + member.quota, 0);
     const totalOT = visibleStaff.reduce((sum, member) => sum + overtimeCount(member.id), 0);
-    const pending = swapRequests.filter((request) => request.status === 'pending').length;
+    const pending = swapRequests.length;
     const understaffed = dayStats.filter((stat) => stat.morning + stat.evening + stat.night < 6).length;
 
     return {
@@ -768,13 +778,16 @@ const HRV2: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayStats, swapRequests, visibleStaff]);
 
-  const cycleShift = (staffId: string, dayIndex: number): void => {
-    setRota((currentRota) => {
-      const current = [...(currentRota[staffId] ?? [])];
-      const currentIndex = SHIFT_TYPES.findIndex((item) => item.value === current[dayIndex]);
-      current[dayIndex] = SHIFT_TYPES[(currentIndex + 1) % SHIFT_TYPES.length].value;
-      return { ...currentRota, [staffId]: current };
-    });
+  // QA-R3: clicking a cell used to cycle the shift locally (never saved). A real shift opens a swap request for it.
+  const openSwapForCell = (member: StaffMember, dayIndex: number): void => {
+    const date = weekStart.add(dayIndex, 'day').format('YYYY-MM-DD');
+    const assignment = assignmentAt(weekAssignments, member, date);
+    if (!assignment) {
+      message.info(`${member.name} không có ca trực ngày ${dayjs(date).format('DD/MM')} — xếp ca bằng "Copy tuần trước" hoặc tab Lịch trực.`);
+      return;
+    }
+    setSwapForm({ from: member.id, to: '', date, shift: shiftFromName(assignment.shiftName), reason: '' });
+    setSwapModalOpen(true);
   };
 
   const approveSwap = async (requestId: string): Promise<void> => {
@@ -782,12 +795,10 @@ const HRV2: React.FC = () => {
     setActing(`swap:${requestId}`);
     try {
       await approveSwapRequest(requestId, true);
-      setSwapRequests((currentRequests) =>
-        currentRequests.map((request) => (request.id === requestId ? { ...request, status: 'approved' } : request)),
-      );
       message.success('Đã duyệt yêu cầu đổi ca');
-    } catch {
-      message.error('Duyệt đổi ca thất bại');
+      await Promise.all([loadSwaps(), loadWeek()]);
+    } catch (e) {
+      message.error(friendlyErrorMessage(e, 'Duyệt đổi ca thất bại'));
     } finally {
       setActing(null);
     }
@@ -798,27 +809,47 @@ const HRV2: React.FC = () => {
     setActing(`swap:${requestId}`);
     try {
       await approveSwapRequest(requestId, false);
-      setSwapRequests((currentRequests) => currentRequests.filter((request) => request.id !== requestId));
       message.warning('Đã từ chối yêu cầu đổi ca');
-    } catch {
-      message.error('Từ chối đổi ca thất bại');
+      await loadSwaps();
+    } catch (e) {
+      message.error(friendlyErrorMessage(e, 'Từ chối đổi ca thất bại'));
     } finally {
       setActing(null);
     }
   };
 
-  const submitSwapRequest = (): void => {
-    const request: SwapRequest = {
-      id: `CH${String(Date.now()).slice(-4)}`,
-      ...swapForm,
-      status: 'pending',
-    };
-
-    setSwapRequests((currentRequests) => [...currentRequests, request]);
-    setSwapModalOpen(false);
-    setSwapForm({ from: '', to: '', date: '', shift: 'morning', reason: '' });
-    // Not persisted: the backend has no shift-swap endpoint yet — do not report a fake "sent" success.
-    message.warning('Yêu cầu đổi ca chỉ hiển thị tạm trên màn hình — hệ thống chưa lưu được yêu cầu đổi ca');
+  const submitSwapRequest = async (): Promise<void> => {
+    if (acting) return;
+    const fromMember = staffList.find((m) => m.id === swapForm.from);
+    const toMember = staffList.find((m) => m.id === swapForm.to);
+    const original = fromMember ? assignmentAt(weekAssignments, fromMember, swapForm.date) : undefined;
+    if (!fromMember || !original) {
+      message.warning('Người trực không có ca trực vào ngày đã chọn (trong tuần đang xem).');
+      return;
+    }
+    if (!toMember?.staffId) {
+      message.warning('Không xác định được hồ sơ nhân viên của người thay.');
+      return;
+    }
+    // Target already on a shift that day → exchange the two shifts; otherwise the target covers the shift.
+    const targetShift = assignmentAt(weekAssignments, toMember, swapForm.date);
+    setActing('swap:new');
+    try {
+      await createSwapRequest({
+        originalAssignmentId: original.id,
+        targetStaffId: toMember.staffId,
+        targetAssignmentId: targetShift?.id,
+        reason: swapForm.reason,
+      });
+      setSwapModalOpen(false);
+      setSwapForm({ from: '', to: '', date: '', shift: 'morning', reason: '' });
+      message.success(targetShift ? 'Đã gửi yêu cầu đổi ca (hoán đổi ca) — chờ duyệt' : 'Đã gửi yêu cầu nhờ trực thay — chờ duyệt');
+      await loadSwaps();
+    } catch (e) {
+      message.error(friendlyErrorMessage(e, 'Gửi yêu cầu đổi ca thất bại'));
+    } finally {
+      setActing(null);
+    }
   };
 
   // ─── Handlers ported verbatim từ v1 ───────────────────────────────────────
@@ -891,13 +922,14 @@ const HRV2: React.FC = () => {
         staffType: (values.staffType as string) || 'Doctor',
         specialty: values.specialty as string,
         hireDate: values.hireDate ? dayjs(values.hireDate as string).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
+        userId: (values.userId as string) || undefined,
       });
       message.success('Đã thêm nhân viên mới');
       setIsAddEmployeeModalOpen(false);
       employeeForm.resetFields();
       fetchData();
-    } catch {
-      message.warning('Không thể thêm nhân viên');
+    } catch (e) {
+      message.warning(friendlyErrorMessage(e, 'Không thể thêm nhân viên'));
     } finally {
       setSubmitting(false);
     }
@@ -1430,7 +1462,7 @@ const HRV2: React.FC = () => {
             <RotaStatCard label="Ngày OT" value={metrics.totalOT} meta="vượt quota" tone={metrics.totalOT > 5 ? 'warn' : 'ok'} />
             <RotaStatCard label="Yêu cầu đổi" value={metrics.pending} meta="chờ duyệt" tone="warn" />
             <RotaStatCard label="Ca thiếu" value={metrics.understaffed} meta="<6 NS/ngày" tone={metrics.understaffed > 0 ? 'critical' : 'ok'} />
-            <RotaStatCard label="Tuần" value={`T${week}/2026`} meta={`${weekStart.format('DD/MM')} - ${weekStart.add(6, 'day').format('DD/MM')}`} />
+            <RotaStatCard label="Tuần" value={`T${week}/${weekStart.add(3, 'day').year()}`} meta={`${weekStart.format('DD/MM')} - ${weekStart.add(6, 'day').format('DD/MM')}`} />
           </div>
 
           <div className="hr-v2-shell">
@@ -1452,11 +1484,11 @@ const HRV2: React.FC = () => {
                   onChange={(value) => setDepartmentFilter(value ?? '')}
                   options={departments.map((department) => ({ value: department, label: department }))}
                 />
-                <button type="button" className="hr-v2-btn" onClick={() => setWeek((current) => current - 1)}>
+                <button type="button" className="hr-v2-btn" onClick={() => setWeekStart((current) => current.subtract(7, 'day'))}>
                   <LeftOutlined />
                   Tuần trước
                 </button>
-                <button type="button" className="hr-v2-btn" onClick={() => setWeek((current) => current + 1)}>
+                <button type="button" className="hr-v2-btn" onClick={() => setWeekStart((current) => current.add(7, 'day'))}>
                   Tuần sau
                   <RightOutlined />
                 </button>
@@ -1465,14 +1497,10 @@ const HRV2: React.FC = () => {
               <div className="hr-v2-toolbar-right">
                 <span
                   className={'hr-v2-btn'}
-                  style={{
-                    cursor: 'default',
-                    background: usingMock ? 'var(--a-or-bg)' : 'var(--a-cy-bg)',
-                    color:      usingMock ? 'var(--a-or-text)' : 'var(--a-cy-text)',
-                  }}
-                  title={usingMock ? 'Backend HR rỗng — đang dùng dữ liệu mẫu' : 'Đang hiển thị nhân sự thật từ backend'}
+                  style={{ cursor: 'default', background: 'var(--a-cy-bg)', color: 'var(--a-cy-text)' }}
+                  title="Số ca trực thật trong tuần đang xem"
                 >
-                  {usingMock ? 'Demo' : 'Live'}
+                  {rotaLoaded ? `${weekAssignments.length} ca` : 'Đang tải…'}
                 </span>
                 <button type="button" className="hr-v2-btn" onClick={() => setSwapModalOpen(true)}>
                   <SwapOutlined />
@@ -1519,15 +1547,17 @@ const HRV2: React.FC = () => {
                   disabled={commitLoading}
                   onClick={async () => {
                     if (!rosterId) {
-                      message.warning('Không có lịch trực đang hoạt động để chốt (đang dùng dữ liệu mẫu)');
+                      message.warning(weekAssignments.length === 0
+                        ? 'Tuần này chưa có ca trực nào để chốt'
+                        : 'Ca trực tuần này thuộc nhiều lịch trực (nhiều khoa/tháng) — chốt từng lịch trong tab Lịch trực');
                       return;
                     }
                     setCommitLoading(true);
                     try {
                       await publishRoster(rosterId);
                       message.success('Đã chốt (publish) lịch trực tuần thành công');
-                    } catch {
-                      message.error('Chốt lịch trực thất bại');
+                    } catch (e) {
+                      message.error(friendlyErrorMessage(e, 'Chốt lịch trực thất bại'));
                     } finally {
                       setCommitLoading(false);
                     }
@@ -1539,28 +1569,25 @@ const HRV2: React.FC = () => {
               </div>
             </div>
 
-            {swapRequests.some((request) => request.status === 'pending') && (
+            {swapRequests.length > 0 && (
               <div className="hr-v2-alerts">
                 <div className="hr-v2-alert-title">Yêu cầu đổi ca chờ duyệt</div>
                 <div className="hr-v2-alert-list">
-                  {swapRequests.filter((request) => request.status === 'pending').map((request) => {
-                    const fromStaff = staffList.find((member) => member.id === request.from);
-                    const toStaff = staffList.find((member) => member.id === request.to);
-                    const shift = SHIFT_TYPES.find((item) => item.value === request.shift)!;
+                  {swapRequests.map((request) => {
                     return (
                       <div key={request.id} className="hr-v2-alert-row">
-                        <span className="mono">{request.id}</span>
-                        <strong>{fromStaff?.name}</strong>
+                        <span className="mono">{request.isExchange ? 'Hoán đổi' : 'Trực thay'}</span>
+                        <strong>{request.fromName}</strong>
                         <span>→</span>
-                        <strong>{toStaff?.name}</strong>
-                        <span className="muted">· Ca {shift.label} · {dayjs(request.date).format('DD/MM/YYYY')} · "{request.reason}"</span>
+                        <strong>{request.toName}</strong>
+                        <span className="muted">· Ca {request.shiftLabel} · {dayjs(request.date).format('DD/MM/YYYY')} · "{request.reason}"</span>
                         <div className="hr-v2-alert-actions">
                           <button
                             type="button"
                             className="hr-v2-btn"
                             disabled={acting === `swap:${request.id}`}
                             onClick={() => cf(
-                              `Từ chối yêu cầu đổi ca ${request.id} (${fromStaff?.name ?? request.from} → ${toStaff?.name ?? request.to})? Yêu cầu sẽ bị xoá khỏi danh sách.`,
+                              `Từ chối yêu cầu đổi ca ${request.fromName} → ${request.toName} ngày ${dayjs(request.date).format('DD/MM/YYYY')}?`,
                               () => { void rejectSwap(request.id); },
                               { tone: 'crit', confirm: 'Từ chối' },
                             )}
@@ -1618,7 +1645,7 @@ const HRV2: React.FC = () => {
                                 type="button"
                                 className="hr-v2-shift"
                                 style={{ background: shift.soft, borderColor: shift.border, color: shift.text }}
-                                onClick={() => cycleShift(member.id, dayIndex)}
+                                onClick={() => openSwapForCell(member, dayIndex)}
                               >
                                 <strong>{shift.label}</strong>
                                 <span>{shift.time}</span>
@@ -1660,7 +1687,7 @@ const HRV2: React.FC = () => {
                   {shift.time !== '—' && <small>{shift.time}</small>}
                 </span>
               ))}
-              <span className="hint">Click ô để đổi ca · Click tên để xem chi tiết</span>
+              <span className="hint">Click ô ca để gửi yêu cầu đổi ca · Click tên để xem chi tiết</span>
             </div>
           </div>
         </>
@@ -2092,7 +2119,8 @@ const HRV2: React.FC = () => {
         open={swapModalOpen}
         title="Yêu cầu đổi ca"
         onCancel={() => setSwapModalOpen(false)}
-        onOk={() => { if (swapModalForm.validate(swapForm)) submitSwapRequest(); }}
+        onOk={() => { if (swapModalForm.validate(swapForm)) void submitSwapRequest(); }}
+        confirmLoading={acting === 'swap:new'}
         okText="Gửi yêu cầu"
         cancelText="Huỷ"
       >
@@ -2343,6 +2371,11 @@ const HRV2: React.FC = () => {
             <Form.Item name="email" label="Email"><Input /></Form.Item>
           </div>
           <Form.Item name="hireDate" label="Ngày vào làm"><DatePicker style={{ width: '100%' }} /></Form.Item>
+          {userOptions && userOptions.length > 0 && (
+            <Form.Item name="userId" label="Tài khoản đăng nhập" extra="Gắn tài khoản để hệ thống kiểm tra CCHN khi bác sĩ kê đơn/chỉ định. Bỏ trống: tự gắn theo mã nhân viên nếu trùng.">
+              <Select showSearch allowClear optionFilterProp="label" options={userOptions} placeholder="Chọn tài khoản của nhân viên" />
+            </Form.Item>
+          )}
         </Form>
       </Modal>
     </div>

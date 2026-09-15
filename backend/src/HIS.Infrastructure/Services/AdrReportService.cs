@@ -81,8 +81,26 @@ public class AdrReportService : IAdrReportService
             throw new InvalidOperationException("Tên thuốc nghi ngờ (DrugName) là bắt buộc.");
         if (string.IsNullOrWhiteSpace(dto.ReactionDescription))
             throw new InvalidOperationException("Mô tả phản ứng (ReactionDescription) là bắt buộc.");
+        // QA-R3: the pharmacy ADR tab only asks for the patient code — take name/age/gender from the
+        // patient record when the code matches one (never overrides what the user typed).
+        if (string.IsNullOrWhiteSpace(dto.PatientName) && !string.IsNullOrWhiteSpace(dto.PatientCode))
+        {
+            var code = dto.PatientCode.Trim();
+            var p = await _db.Patients.AsNoTracking()
+                .Where(x => x.PatientCode == code && !x.IsDeleted)
+                .Select(x => new { x.FullName, x.DateOfBirth, x.YearOfBirth, x.Gender })
+                .FirstOrDefaultAsync();
+            if (p != null)
+            {
+                dto.PatientName = p.FullName;
+                var birthYear = p.DateOfBirth?.Year ?? p.YearOfBirth;
+                if (string.IsNullOrWhiteSpace(dto.PatientAge) && birthYear.HasValue)
+                    dto.PatientAge = (DateTime.Now.Year - birthYear.Value).ToString();
+                if (dto.Gender == 0 && (p.Gender == 1 || p.Gender == 2)) dto.Gender = p.Gender;
+            }
+        }
         if (string.IsNullOrWhiteSpace(dto.PatientName))
-            throw new InvalidOperationException("Tên bệnh nhân là bắt buộc.");
+            throw new InvalidOperationException("Tên bệnh nhân là bắt buộc (hoặc nhập đúng mã bệnh nhân có trong hệ thống).");
         // Severity outside 1-4 was stored and then silently dropped from every bucket of the summary report.
         if (dto.Severity < 1 || dto.Severity > 4)
             throw new InvalidOperationException("Mức độ nghiêm trọng phải từ 1 đến 4.");

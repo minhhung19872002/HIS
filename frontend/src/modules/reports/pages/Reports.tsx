@@ -18,6 +18,8 @@ import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { statisticsApi } from '../../system/api/system';
 import type { DepartmentRevenueDto, HospitalDashboardDto } from '../../system/api/system';
 import apiClient from '../../../services/apiClient';
+import { getReportHistory, getScheduledReports } from '../api/reporting';
+import type { ReportHistoryDto, ScheduledReportConfigDto } from '../api/reporting';
 import ReportsHospitalTab from './ReportsHospitalTab';
 import ReportBuilderTab from './ReportBuilderTab';
 import '../../../styles/reports-v2.css';
@@ -38,6 +40,7 @@ type ReportDefinition = {
   category: ReportCategoryId;
   name: string;
   periodLabel: string;
+  /** Legacy catalog text — NOT shown (real last run / schedule come from report history + scheduled configs). */
   lastRun: string;
   schedule: string;
   scope: string;
@@ -122,39 +125,12 @@ const REPORTS: ReportDefinition[] = [
   { id: 'pharma-tieu-hao-bdm',   category: 'pharmacy', name: 'Tiêu hao theo danh mục thuốc BĐM',   periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Hàng tháng', scope: 'Toàn viện', owner: 'TK Dược' },
 ];
 
-const FALLBACK_TOP_DEPARTMENTS: Array<{ name: string; value: number; color: string }> = [
-  { name: 'Khoa Nội', value: 284, color: '#7dd3c0' },
-  { name: 'Khoa Cấp cứu', value: 218, color: '#e89999' },
-  { name: 'Khoa Sản', value: 176, color: '#c8b8e0' },
-  { name: 'Khoa Tim mạch', value: 148, color: '#ffb99b' },
-  { name: 'Khoa Ngoại', value: 112, color: '#94c9d6' },
-];
-
 const PERIOD_OPTIONS: Array<{ value: ReportPeriodId; label: string }> = [
   { value: 'day', label: 'Ngày' },
   { value: 'week', label: 'Tuần' },
   { value: 'month', label: 'Tháng' },
   { value: 'year', label: 'Năm' },
 ];
-
-const FALLBACK_KPI = {
-  visits: 1284,
-  visitsTrend: 8.4,
-  revenue: 2_840_000_000,
-  revenueTrend: 5.2,
-  occupancy: 87,
-  occupancyTrend: 2.1,
-  avgWait: 24,
-  avgWaitTrend: -3.5,
-  surgeries: 47,
-  surgeriesTrend: 12,
-  averageStay: 4.8,
-  averageStayTrend: -0.3,
-  mortality: 0.42,
-  mortalityTrend: -0.05,
-  bhytClaim: 1_850_000_000,
-  bhytClaimTrend: 6.8,
-};
 
 function parseNumber(value: unknown): number | null {
   if (typeof value === 'number') {
@@ -272,17 +248,25 @@ function downloadCsv(filename: string, lines: string[]): void {
   file.downloadBlob(blob, filename);
 }
 
-function buildSeries(seedKey: string): number[] {
-  let seed = Array.from(seedKey).reduce((sum, char) => sum + char.charCodeAt(0), 0) + 97;
-  return Array.from({ length: 30 }, () => {
-    seed = (seed * 1664525 + 1013904223) % 4294967296;
-    return 760 + Math.round((seed / 4294967296) * 720);
-  });
+/** Reads the error message out of a blob (responseType 'blob') error body; falls back to `fallback`. */
+async function blobErrorMessage(error: unknown, fallback: string): Promise<string> {
+  const data = (error as { response?: { data?: unknown } })?.response?.data;
+  if (data instanceof Blob) {
+    try {
+      const parsed = JSON.parse(await data.text()) as { message?: string };
+      if (parsed?.message) return parsed.message;
+    } catch { /* not JSON */ }
+  }
+  return friendlyErrorMessage(error, fallback);
 }
 
+/** History timestamps are UTC (CreatedAt) — parse as UTC so the VN time is shown. */
+const utcDay = (s: string) => dayjs(/Z$|[+-]\d\d:?\d\d$/.test(s) ? s : `${s}Z`);
+
 function mapTopDepartments(revenueByDepartment: DepartmentRevenueDto[] | undefined): Array<{ name: string; value: number; color: string }> {
+  // QA-R3: no live data → empty list ("chưa có dữ liệu"), not five invented departments.
   if (!revenueByDepartment || revenueByDepartment.length === 0) {
-    return FALLBACK_TOP_DEPARTMENTS;
+    return [];
   }
 
   const palette = ['#7dd3c0', '#e89999', '#c8b8e0', '#ffb99b', '#94c9d6'];
@@ -323,15 +307,37 @@ const ReportsV2: React.FC = () => {
   const [createModalOpen, setCreateModalOpen] = React.useState(false);
   const [runningReport, setRunningReport] = React.useState<string | null>(null);
   const [form] = Form.useForm<NewReportForm>();
+  // QA-R3: real run history + schedules (the strip, "Lần chạy" and "Lịch" used to be hard-coded text).
+  const [history, setHistory] = React.useState<ReportHistoryDto[]>([]);
+  const [schedules, setSchedules] = React.useState<ScheduledReportConfigDto[]>([]);
+
+  const loadRunInfo = React.useCallback(() => {
+    getReportHistory(undefined, undefined, undefined, 200)
+      .then((r) => setHistory(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setHistory([]));
+    getScheduledReports()
+      .then((r) => setSchedules(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setSchedules([]));
+  }, []);
 
   React.useEffect(() => {
     statisticsApi.getHospitalDashboard(dayjs().format('YYYY-MM-DD'))
       .then((response) => setDashboard(response.data))
       .catch((error) => {
-        message.warning(friendlyErrorMessage(error, 'Không tải được dữ liệu dashboard, đang hiển thị số liệu mẫu'));
+        message.warning(friendlyErrorMessage(error, 'Không tải được dữ liệu dashboard'));
         setDashboard(null);
       });
-  }, []);
+    loadRunInfo();
+  }, [loadRunInfo]);
+
+  const lastRunOf = (code: string): string => {
+    const last = history.find((h) => h.reportCode?.toLowerCase() === code.toLowerCase());
+    return last ? utcDay(last.createdAt).format('DD/MM/YYYY HH:mm') : 'Chưa chạy';
+  };
+  const scheduleOf = (code: string): string => {
+    const sch = schedules.find((x) => x.isActive && x.reportCode?.toLowerCase() === code.toLowerCase());
+    return sch ? (sch.schedule || 'Tự động') : 'Thủ công';
+  };
 
   const categoryCounts = REPORT_CATEGORIES.reduce<Record<ReportCategoryId, number>>((counts, category) => {
     counts[category.id] = REPORTS.filter((report) => report.category === category.id).length;
@@ -367,46 +373,31 @@ const ReportsV2: React.FC = () => {
   const visitTotal = [outpatientCount ?? 0, emergencyCount ?? 0].reduce((sum, value) => sum + value, 0);
   const hasLiveVisitData = outpatientCount !== null || emergencyCount !== null;
 
-  const derivedKpis = {
-    visits: hasLiveVisitData ? visitTotal : FALLBACK_KPI.visits,
-    visitsTrend: outpatientChange ?? FALLBACK_KPI.visitsTrend,
-    revenue: totalRevenue ?? FALLBACK_KPI.revenue,
-    revenueTrend: revenueChange ?? FALLBACK_KPI.revenueTrend,
-    occupancy: bedOccupancyRate ?? FALLBACK_KPI.occupancy,
-    occupancyTrend: inpatientChange ?? FALLBACK_KPI.occupancyTrend,
-    avgWait: dashboard ? Math.max(10, 24 - Math.round((outpatientChange ?? 0) / 2)) : FALLBACK_KPI.avgWait,
-    avgWaitTrend: dashboard ? Math.max(-6, -Math.abs((outpatientChange ?? 0) / 2)) : FALLBACK_KPI.avgWaitTrend,
-    surgeries: surgeryCount ?? FALLBACK_KPI.surgeries,
-    surgeriesTrend: surgeryChange ?? FALLBACK_KPI.surgeriesTrend,
-    averageStay: averageStayDays ?? FALLBACK_KPI.averageStay,
-    averageStayTrend: averageStayDays !== null ? -Math.max(0.1, Number((averageStayDays * 0.06).toFixed(2))) : FALLBACK_KPI.averageStayTrend,
-    mortality: FALLBACK_KPI.mortality,
-    mortalityTrend: FALLBACK_KPI.mortalityTrend,
-    // Live payload: show the real BHYT revenue (0 when absent). Was `totalRevenue * 0.65` and a
-    // trend of `revenueChange * 0.8` — invented figures presented as settled BHYT money.
-    bhytClaim: bhytRevenue ?? (dashboard ? 0 : FALLBACK_KPI.bhytClaim),
-    bhytClaimTrend: dashboard ? 0 : FALLBACK_KPI.bhytClaimTrend,
-  };
+  // QA-R3: every KPI comes from the live dashboard payload; a value it does not carry shows "—" / "chưa có
+  // số liệu" (the page used to fall back to invented numbers — 1.284 lượt khám, 2,84 tỷ — or derived trends).
+  const NO_DATA = '—';
+  const metricText = (kind: string, value: number | null) => (value === null ? NO_DATA : formatMetricValue(kind, value));
+  const subText = (value: number | null, text: string) => (value === null ? 'chưa có số liệu' : text);
+  const visits = hasLiveVisitData ? visitTotal : null;
 
+  const todayRuns = history.filter((h) => utcDay(h.createdAt).isSame(dayjs(), 'day')).length;
+  const activeSchedules = schedules.filter((x) => x.isActive).length;
   const stripCards = [
     { label: 'Báo cáo có sẵn', value: REPORTS.length.toString(), sub: `${REPORT_CATEGORIES.length} nhóm` },
-    { label: 'Đã chạy hôm nay', value: '7', sub: 'tự động', tone: 'ok' },
-    { label: 'Lịch chạy', value: '4', sub: 'trong 24h tới', tone: 'info' },
+    { label: 'Đã chạy hôm nay', value: todayRuns.toString(), sub: 'theo lịch sử xuất', tone: 'ok' },
+    { label: 'Lịch chạy', value: activeSchedules.toString(), sub: 'lịch tự động đang bật', tone: 'info' },
     { label: 'Báo cáo BYT', value: categoryCounts.regulatory.toString(), sub: 'định kỳ', tone: 'info' },
-    { label: 'Cảnh báo dữ liệu', value: '0', sub: 'không có', tone: 'ok' },
   ];
 
   const boardMetrics = [
-    { label: 'Lượt khám', value: formatMetricValue('count', derivedKpis.visits), trend: derivedKpis.visitsTrend, sub: 'vs kỳ trước' },
-    { label: 'Doanh thu', value: formatMetricValue('currency', derivedKpis.revenue), trend: derivedKpis.revenueTrend, sub: 'vs kỳ trước' },
-    { label: 'Lấp đầy giường', value: formatMetricValue('percent', derivedKpis.occupancy), trend: derivedKpis.occupancyTrend, sub: 'vs kỳ trước' },
-    // The dashboard payload has no wait-time or mortality figure: with live data these cards used to
-    // show a number derived from the visit trend / a hard-coded 0.42% — now an explicit "no data".
-    { label: 'Chờ khám TB', value: dashboard ? '—' : formatMetricValue('minutes', derivedKpis.avgWait), trend: dashboard ? 0 : derivedKpis.avgWaitTrend, sub: dashboard ? 'chưa có số liệu' : 'vs kỳ trước', inverse: true },
-    { label: 'Phẫu thuật', value: formatMetricValue('count', derivedKpis.surgeries), trend: derivedKpis.surgeriesTrend, sub: 'ca thực hiện' },
-    { label: 'LOS nội trú', value: formatMetricValue('duration', derivedKpis.averageStay), trend: derivedKpis.averageStayTrend, sub: 'trung bình', inverse: true },
-    { label: 'Tỷ lệ tử vong', value: dashboard ? '—' : formatMetricValue('rate', derivedKpis.mortality), trend: dashboard ? 0 : derivedKpis.mortalityTrend, sub: dashboard ? 'chưa có số liệu' : 'trong viện', inverse: true },
-    { label: 'Doanh thu BN BHYT', value: formatMetricValue('currency', derivedKpis.bhytClaim), trend: derivedKpis.bhytClaimTrend, sub: 'hôm nay' },
+    { label: 'Lượt khám', value: metricText('count', visits), trend: outpatientChange ?? 0, sub: subText(visits, 'vs kỳ trước') },
+    { label: 'Doanh thu', value: metricText('currency', totalRevenue), trend: revenueChange ?? 0, sub: subText(totalRevenue, 'vs kỳ trước') },
+    { label: 'Lấp đầy giường', value: metricText('percent', bedOccupancyRate), trend: inpatientChange ?? 0, sub: subText(bedOccupancyRate, 'vs kỳ trước') },
+    { label: 'Chờ khám TB', value: NO_DATA, trend: 0, sub: 'chưa có số liệu', inverse: true },
+    { label: 'Phẫu thuật', value: metricText('count', surgeryCount), trend: surgeryChange ?? 0, sub: subText(surgeryCount, 'ca thực hiện') },
+    { label: 'LOS nội trú', value: metricText('duration', averageStayDays), trend: 0, sub: subText(averageStayDays, 'trung bình'), inverse: true },
+    { label: 'Tỷ lệ tử vong', value: NO_DATA, trend: 0, sub: 'chưa có số liệu', inverse: true },
+    { label: 'Doanh thu BN BHYT', value: metricText('currency', bhytRevenue), trend: 0, sub: subText(bhytRevenue, 'hôm nay') },
   ];
 
   const selectedCategory = REPORT_CATEGORIES.find((category) => category.id === activeCategory) ?? REPORT_CATEGORIES[0];
@@ -414,19 +405,6 @@ const ReportsV2: React.FC = () => {
     ? dashboardData.revenueByDepartment as DepartmentRevenueDto[]
     : undefined);
 
-  const reportSeries = selectedReport ? buildSeries(selectedReport.id) : [];
-  const reportSeriesMax = reportSeries.length ? Math.max(...reportSeries) : 1;
-  const reportSeriesAverage = reportSeries.length
-    ? Math.round(reportSeries.reduce((sum, value) => sum + value, 0) / reportSeries.length)
-    : 0;
-  const reportSeriesTotal = reportSeries.reduce((sum, value) => sum + value, 0);
-  const reportSeriesMin = reportSeries.length ? Math.min(...reportSeries) : 0;
-  const reportChartPoints = reportSeries.map((value, index) => {
-    const x = index * (600 / 30) + (600 / 30) / 2;
-    const y = 190 - (value / reportSeriesMax) * 170;
-    return `${x},${y}`;
-  }).join(' ');
-  const reportRecordCount = 1180 + (selectedReport ? selectedReport.id.charCodeAt(selectedReport.id.length - 1) * 3 : 0);
 
   const handleExportList = () => {
     const header = ['Mã báo cáo', 'Nhóm', 'Tên báo cáo', 'Chu kỳ', 'Lần chạy gần nhất', 'Lịch chạy', 'Phạm vi', 'Sở hữu'];
@@ -437,8 +415,8 @@ const ReportsV2: React.FC = () => {
         category,
         report.name,
         report.periodLabel,
-        report.lastRun,
-        report.schedule,
+        lastRunOf(report.id),
+        scheduleOf(report.id),
         report.scope,
         report.owner,
       ];
@@ -484,8 +462,9 @@ const ReportsV2: React.FC = () => {
         `${report.id}_${dayjs().format('YYYYMMDD')}.pdf`,
       );
       message.success(`Đã tải PDF báo cáo: ${report.name}`);
-    } catch {
-      message.error('Chạy báo cáo thất bại — thử lại sau');
+      loadRunInfo();
+    } catch (error) {
+      message.error(await blobErrorMessage(error, 'Chạy báo cáo thất bại — thử lại sau'));
     } finally {
       setRunningReport(null);
     }
@@ -501,8 +480,9 @@ const ReportsV2: React.FC = () => {
         `${report.id}_${dayjs().format('YYYYMMDD')}.xlsx`,
       );
       message.success(`Đã tải Excel: ${report.name}`);
-    } catch {
-      message.error('Tải Excel thất bại — thử lại sau');
+      loadRunInfo();
+    } catch (error) {
+      message.error(await blobErrorMessage(error, 'Tải Excel thất bại — thử lại sau'));
     } finally {
       setRunningReport(null);
     }
@@ -525,8 +505,8 @@ const ReportsV2: React.FC = () => {
       if (!win) {
         message.warning('Trình duyệt chặn cửa sổ pop-up — vui lòng cho phép và thử lại');
       }
-    } catch {
-      message.error('Tải dữ liệu in thất bại — thử lại sau');
+    } catch (error) {
+      message.error(await blobErrorMessage(error, 'Tải dữ liệu in thất bại — thử lại sau'));
     } finally {
       setRunningReport(null);
     }
@@ -688,8 +668,8 @@ const ReportsV2: React.FC = () => {
             <div className="reports-v2-card-facts">
               <div><span>Phạm vi:</span> {report.scope}</div>
               <div><span>Sở hữu:</span> {report.owner}</div>
-              <div><span>Lần chạy:</span> {report.lastRun}</div>
-              <div><span>Lịch:</span> {report.schedule}</div>
+              <div><span>Lần chạy:</span> {lastRunOf(report.id)}</div>
+              <div><span>Lịch:</span> {scheduleOf(report.id)}</div>
             </div>
 
             <div className="reports-v2-card-actions">
@@ -818,59 +798,15 @@ const ReportsV2: React.FC = () => {
                 <div><span>Phạm vi</span><strong>{selectedReport.scope}</strong></div>
                 <div><span>Sở hữu</span><strong>{selectedReport.owner}</strong></div>
                 <div><span>Chu kỳ</span><strong>{selectedReport.periodLabel}</strong></div>
-                <div><span>Lịch chạy</span><strong>{selectedReport.schedule}</strong></div>
-                <div><span>Lần chạy gần nhất</span><strong>{selectedReport.lastRun}</strong></div>
-                <div><span>Số bản ghi</span><strong>{reportRecordCount.toLocaleString('vi-VN')} dòng dữ liệu</strong></div>
-              </div>
-            </section>
-
-            <section className="reports-v2-drawer-section">
-              <div className="reports-v2-section-label">Biểu đồ xu hướng (30 ngày qua)</div>
-              <div className="reports-v2-chart-shell">
-                <svg viewBox="0 0 600 200" preserveAspectRatio="none" className="reports-v2-chart">
-                  {[0, 1, 2, 3, 4].map((index) => (
-                    <line key={index} x1="0" y1={index * 45 + 10} x2="600" y2={index * 45 + 10} className="reports-v2-grid-line" />
-                  ))}
-                  {reportSeries.map((value, index) => {
-                    const height = (value / reportSeriesMax) * 170;
-                    const x = index * (600 / 30) + 2;
-                    const width = (600 / 30) - 4;
-                    return (
-                      <rect
-                        key={`${selectedReport.id}-${index}`}
-                        x={x}
-                        y={190 - height}
-                        width={width}
-                        height={height}
-                        className="reports-v2-chart-bar"
-                      />
-                    );
-                  })}
-                  <polyline
-                    points={reportChartPoints}
-                    fill="none"
-                    stroke="var(--s-ok)"
-                    strokeWidth="1.8"
-                  />
-                </svg>
-                <div className="reports-v2-chart-axis">
-                  <span>{dayjs().subtract(29, 'day').format('DD/MM')}</span>
-                  <span>{dayjs().subtract(14, 'day').format('DD/MM')}</span>
-                  <span>{dayjs().format('DD/MM')}</span>
-                </div>
-              </div>
-
-              <div className="reports-v2-chart-stats">
-                <div><span>Trung bình</span><strong>{reportSeriesAverage.toLocaleString('vi-VN')}</strong></div>
-                <div><span>Cao nhất</span><strong>{Math.max(...reportSeries).toLocaleString('vi-VN')}</strong></div>
-                <div><span>Thấp nhất</span><strong>{reportSeriesMin.toLocaleString('vi-VN')}</strong></div>
-                <div><span>Tổng</span><strong>{reportSeriesTotal.toLocaleString('vi-VN')}</strong></div>
+                <div><span>Lịch chạy</span><strong>{scheduleOf(selectedReport.id)}</strong></div>
+                <div><span>Lần chạy gần nhất</span><strong>{lastRunOf(selectedReport.id)}</strong></div>
               </div>
             </section>
 
             <section className="reports-v2-drawer-section">
               <div className="reports-v2-section-label">Top 5 khoa/phòng</div>
               <div className="reports-v2-ranking">
+                {topDepartments.length === 0 && <div className="reports-v2-empty">Chưa có dữ liệu doanh thu theo khoa</div>}
                 {topDepartments.map((department, index) => {
                   const width = (department.value / Math.max(topDepartments[0]?.value ?? 1, 1)) * 100;
                   return (

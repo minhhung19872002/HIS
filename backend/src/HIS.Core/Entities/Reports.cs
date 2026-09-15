@@ -56,6 +56,9 @@ public class GeneratedReport : BaseEntity
     public string? FileName { get; set; } // Tên file
     public string? FileFormat { get; set; } // Định dạng file
     public long FileSize { get; set; } // Kích thước file (bytes)
+    /// <summary>QA-R3 (migration 206): the generated file itself — prod runs one container without volumes, so a
+    /// file on local disk is lost on every deploy. Downloads read this first.</summary>
+    public byte[]? FileContent { get; set; }
 
     public int Status { get; set; } // 0-Đang tạo, 1-Hoàn thành, 2-Lỗi
     public string? ErrorMessage { get; set; } // Thông báo lỗi nếu có

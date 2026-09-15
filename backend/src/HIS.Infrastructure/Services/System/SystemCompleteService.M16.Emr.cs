@@ -124,7 +124,8 @@ public partial class SystemCompleteService
                 entity = new MedicalRecordArchive
                 {
                     Id = Guid.NewGuid(),
-                    ArchiveCode = $"LT-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}",
+                    // QA-R3: was LT-{date}-{Random} (duplicates) → shared sequential generator + unique index (mig 201).
+                    ArchiveCode = (await RecordCodeGenerator.NextArchiveCodesAsync(_context))[0],
                     MedicalRecordId = dto.PatientId != Guid.Empty
                         ? (await _context.MedicalRecords.FirstOrDefaultAsync(m => m.PatientId == dto.PatientId))?.Id ?? Guid.Empty
                         : Guid.Empty,
@@ -151,11 +152,19 @@ public partial class SystemCompleteService
                 if (dto.Status == "Đã lưu" && entity.Status == 0)
                 {
                     entity.Status = 1;
-                    entity.ArchivedDate = DateTime.UtcNow;
+                    entity.ArchivedDate = HIS.Core.Common.VnTime.NowVn; // business timestamp = VN local
                 }
                 entity.UpdatedAt = DateTime.UtcNow;
             }
-            await _context.SaveChangesAsync();
+            for (var attempt = 1; ; attempt++)
+            {
+                try { await _context.SaveChangesAsync(); break; }
+                catch (DbUpdateException ex) when (dto.Id == Guid.Empty && NangCap23ServiceHelpers.IsUniqueViolation(ex)
+                                                   && attempt < RecordCodeGenerator.MaxAttempts)
+                {
+                    entity.ArchiveCode = (await RecordCodeGenerator.NextArchiveCodesAsync(_context))[0];
+                }
+            }
             dto.Id = entity.Id;
             dto.ArchiveCode = entity.ArchiveCode;
             return dto;
@@ -286,7 +295,7 @@ public partial class SystemCompleteService
                 RequestCode = $"MT-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}",
                 MedicalRecordArchiveId = dto.MedicalRecordArchiveId,
                 RequestedById = Guid.Empty,
-                RequestDate = DateTime.UtcNow,
+                RequestDate = HIS.Core.Common.VnTime.NowVn,
                 Purpose = dto.Purpose,
                 ExpectedReturnDate = dto.ExpectedReturnDate,
                 Status = 0,
@@ -325,7 +334,7 @@ public partial class SystemCompleteService
             var request = await _context.MedicalRecordBorrowRequests.FindAsync(requestId);
             if (request == null || request.Status != 0) return false;
             request.Status = 1;
-            request.ApprovedDate = DateTime.UtcNow;
+            request.ApprovedDate = HIS.Core.Common.VnTime.NowVn;
             request.ApprovedById = (Guid?)null;
             request.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
@@ -346,7 +355,7 @@ public partial class SystemCompleteService
             if (request == null || request.Status != 0) return false;
             request.Status = 2;
             request.RejectReason = reason;
-            request.ApprovedDate = DateTime.UtcNow;
+            request.ApprovedDate = HIS.Core.Common.VnTime.NowVn;
             request.ApprovedById = (Guid?)null;
             request.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
@@ -368,7 +377,7 @@ public partial class SystemCompleteService
                 .FirstOrDefaultAsync(r => r.Id == requestId);
             if (request == null || request.Status != 1) return false;
             request.Status = 3;
-            request.BorrowedDate = DateTime.UtcNow;
+            request.BorrowedDate = HIS.Core.Common.VnTime.NowVn;
             request.UpdatedAt = DateTime.UtcNow;
             // Update archive status to "Đang mượn"
             if (request.MedicalRecordArchive != null)
@@ -395,7 +404,7 @@ public partial class SystemCompleteService
                 .FirstOrDefaultAsync(r => r.Id == requestId);
             if (request == null || request.Status != 3) return false;
             request.Status = 4;
-            request.ReturnedDate = DateTime.UtcNow;
+            request.ReturnedDate = HIS.Core.Common.VnTime.NowVn;
             request.Note = string.IsNullOrWhiteSpace(note) ? request.Note : (request.Note + "\n" + note).Trim();
             request.UpdatedAt = DateTime.UtcNow;
             // Update archive status back to "Đã lưu"

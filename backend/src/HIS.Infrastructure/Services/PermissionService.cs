@@ -15,12 +15,15 @@ public class PermissionService : IPermissionService
     private readonly HISDbContext _context;
     private readonly IMemoryCache _cache;
     private readonly IConfiguration _configuration;
+    private readonly IDelegationService? _delegation;
 
-    public PermissionService(HISDbContext context, IMemoryCache cache, IConfiguration configuration)
+    public PermissionService(HISDbContext context, IMemoryCache cache, IConfiguration configuration,
+        IDelegationService? delegation = null)
     {
         _context = context;
         _cache = cache;
         _configuration = configuration;
+        _delegation = delegation;
     }
 
     private int CacheSeconds => int.Parse(_configuration["Auth:PermissionCacheSeconds"] ?? "30");
@@ -45,6 +48,23 @@ public class PermissionService : IPermissionService
                 .Select(rp => rp.Permission.PermissionCode)
                 .Distinct()
                 .ToListAsync();
+
+            // QA-R3 (AUTHZ-4 #370): active delegation grants (ủy quyền tạm) were stored and listed but never applied —
+            // the resolver had no caller. Add the delegated roles' permissions. The resolver itself honours the
+            // Auth:DelegationEnabled kill-switch (OFF → empty → behaviour unchanged).
+            if (_delegation != null)
+            {
+                var delegatedRoleIds = await _delegation.ResolveActiveDelegatedRoleIdsAsync(userId);
+                if (delegatedRoleIds.Count > 0)
+                {
+                    var delegatedCodes = await _context.RolePermissions
+                        .Where(rp => delegatedRoleIds.Contains(rp.RoleId) && !rp.IsDeleted && !rp.Permission.IsDeleted)
+                        .Select(rp => rp.Permission.PermissionCode)
+                        .Distinct()
+                        .ToListAsync();
+                    codes.AddRange(delegatedCodes);
+                }
+            }
 
             return new HashSet<string>(codes, StringComparer.OrdinalIgnoreCase);
         });

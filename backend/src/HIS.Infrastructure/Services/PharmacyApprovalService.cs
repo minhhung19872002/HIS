@@ -41,7 +41,7 @@ public class PharmacyApprovalService : IPharmacyApprovalService
             RequestDate = DateTime.Now,
             Status = 0,
             RequestedBy = userId,
-            RequestedAt = DateTime.UtcNow,
+            RequestedAt = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local (same clock as RequestDate)
             Note = dto.Note,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = userId.ToString()
@@ -144,7 +144,7 @@ public class PharmacyApprovalService : IPharmacyApprovalService
         var oldStatus = approval.Status;
         approval.Status = 2;
         approval.SubmittedBy = userId;
-        approval.SubmittedAt = DateTime.UtcNow;
+        approval.SubmittedAt = HIS.Core.Common.VnTime.NowVn;
         approval.UpdatedAt = DateTime.UtcNow;
         approval.UpdatedBy = userId.ToString();
 
@@ -212,7 +212,7 @@ public class PharmacyApprovalService : IPharmacyApprovalService
 
         approval.Status = 3;
         approval.ApprovedBy = userId;
-        approval.ApprovedAt = DateTime.UtcNow;
+        approval.ApprovedAt = HIS.Core.Common.VnTime.NowVn;
         approval.UpdatedAt = DateTime.UtcNow;
         approval.UpdatedBy = userId.ToString();
 
@@ -314,7 +314,7 @@ public class PharmacyApprovalService : IPharmacyApprovalService
 
         approval.Status = 4;
         approval.RevokedBy = userId;
-        approval.RevokedAt = DateTime.UtcNow;
+        approval.RevokedAt = HIS.Core.Common.VnTime.NowVn;
         approval.RevokeReason = dto.Reason;
         approval.UpdatedAt = DateTime.UtcNow;
         approval.UpdatedBy = userId.ToString();
@@ -436,7 +436,7 @@ public class PharmacyApprovalService : IPharmacyApprovalService
             ToStatus = to,
             Action = action,
             ActorId = actor,
-            ActedAt = DateTime.UtcNow,
+            ActedAt = HIS.Core.Common.VnTime.NowVn,
             Note = note,
             CreatedAt = DateTime.UtcNow
         });

@@ -72,13 +72,16 @@ export interface CostByDepartmentDto {
   departmentId: string;
   departmentCode: string;
   departmentName: string;
-  medicineCost: number;
-  supplyCost: number;
-  equipmentCost: number;
-  personnelCost: number;
-  utilityCost: number;
-  otherCost: number;
-  totalCost: number;
+  // QA-R3: null = no data source ("chưa có dữ liệu"). Services are revenue, not cost.
+  medicineCost: number | null;
+  supplyCost: number | null;
+  equipmentCost: number | null;
+  personnelCost: number | null;
+  overheadCost: number | null;
+  totalCost: number | null;
+  serviceRevenue: number;
+  uncostedLines: number;
+  missingData: string[];
 }
 
 export interface FinancialSummaryReportDto {
@@ -88,15 +91,18 @@ export interface FinancialSummaryReportDto {
   insuranceRevenue: number;
   patientRevenue: number;
   otherRevenue: number;
-  totalCost: number;
-  medicineCost: number;
-  supplyCost: number;
-  personnelCost: number;
-  operatingCost: number;
-  depreciation: number;
-  grossProfit: number;
-  netProfit: number;
-  profitMargin: number;
+  // QA-R3: cost/profit fields are null when HIS has no data source for them ("chưa có dữ liệu").
+  totalCost: number | null;
+  medicineCost: number | null;
+  supplyCost: number | null;
+  personnelCost: number | null;
+  operatingCost: number | null;
+  depreciation: number | null;
+  grossProfit: number | null;
+  netProfit: number | null;
+  profitMargin: number | null;
+  uncostedDispensedLines?: number;
+  missingData?: string[];
   revenueByDepartment: RevenueByExecutingDeptDto[];
   costByDepartment: CostByDepartmentDto[];
 }
@@ -228,19 +234,23 @@ const toSurgeryProfit = (r: Raw): SurgeryProfitReportDto => {
 
 const toFinancialSummary = (r: Raw): FinancialSummaryReportDto => {
   const totalRevenue = num(r.totalRevenue);
-  const netProfit = num(r.netProfit);
+  const nullable = (v: unknown): number | null => (v == null ? null : num(v));
   return {
     ...(r as unknown as FinancialSummaryReportDto),
     totalRevenue,
-    totalCost: num(r.totalCost),
-    grossProfit: num(r.grossProfit),
-    netProfit,
+    // QA-R3: null (no data source) must stay null — num() turned it into a real-looking 0.
+    totalCost: nullable(r.totalCost),
+    grossProfit: nullable(r.grossProfit),
+    netProfit: nullable(r.netProfit),
     // Breakdown lines the BE summary does not return stay undefined (page renders "—"), never a made-up 0.
     insuranceRevenue: optNum(r.insuranceRevenue),
     patientRevenue: optNum(r.patientRevenue),
-    medicineCost: optNum(r.medicineCost),
-    personnelCost: optNum(r.personnelCost),
-    profitMargin: r.profitMargin != null ? num(r.profitMargin) : (totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0),
+    medicineCost: nullable(r.medicineCost),
+    supplyCost: nullable(r.supplyCost),
+    personnelCost: nullable(r.personnelCost),
+    depreciation: nullable(r.depreciation),
+    operatingCost: nullable(r.operatingCost),
+    profitMargin: nullable(r.profitMargin),
     revenueByDepartment: (r.revenueByDepartment ?? []) as RevenueByExecutingDeptDto[],
     costByDepartment: (r.costByDepartment ?? []) as CostByDepartmentDto[],
   };

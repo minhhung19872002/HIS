@@ -248,7 +248,7 @@ const EmergencyCabinetV2: React.FC = () => {
 
           {filteredCabinets.length === 0 && !cabLoading && (
             <div style={{ padding: 80, textAlign: 'center', color: 'var(--t-2)' }}>
-              Chưa có tủ trực nào được cấu hình (WarehouseType=4)
+              Chưa có tủ trực nào được cấu hình (WarehouseType=5)
             </div>
           )}
 

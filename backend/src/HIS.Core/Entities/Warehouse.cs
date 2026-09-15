@@ -153,6 +153,7 @@ public class ExportReceipt : BaseEntity
     public Guid? PrescriptionId { get; set; }
     public Guid? ToDepartmentId { get; set; } // Khoa nhận
     public Guid? ToWarehouseId { get; set; } // Kho nhận
+    public Guid? SupplierId { get; set; } // NCC nhận hàng trả (xuất trả NCC) — migration 206
 
     public decimal TotalAmount { get; set; }
     public string? Note { get; set; }

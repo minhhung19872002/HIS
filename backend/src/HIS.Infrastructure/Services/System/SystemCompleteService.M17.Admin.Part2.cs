@@ -18,10 +18,17 @@ public partial class SystemCompleteService
         {
             var query = _context.AuditLogs.AsNoTracking().AsQueryable();
 
+            // Filter dates are VN local (JSON converter / model binding); AuditLogs.CreatedAt is UTC.
             if (search?.FromDate.HasValue == true)
-                query = query.Where(l => l.CreatedAt >= search.FromDate.Value);
+            {
+                var fromUtc = ReportPeriod.ToUtc(search.FromDate.Value);
+                query = query.Where(l => l.CreatedAt >= fromUtc);
+            }
             if (search?.ToDate.HasValue == true)
-                query = query.Where(l => l.CreatedAt <= search.ToDate.Value);
+            {
+                var toUtc = ReportPeriod.ToUtc(ReportPeriod.EndExclusive(search.ToDate.Value));
+                query = query.Where(l => l.CreatedAt < toUtc);
+            }
             if (search?.UserId.HasValue == true)
                 query = query.Where(l => l.UserId == search.UserId.Value);
             if (!string.IsNullOrWhiteSpace(search?.Action))
@@ -113,8 +120,17 @@ public partial class SystemCompleteService
         try
         {
             var query = _context.Set<AuditLog>().AsNoTracking().AsQueryable();
-            if (search?.FromDate.HasValue == true) query = query.Where(a => a.Timestamp >= search.FromDate);
-            if (search?.ToDate.HasValue == true) query = query.Where(a => a.Timestamp <= search.ToDate);
+            // VN-local filter dates vs UTC AuditLogs.Timestamp.
+            if (search?.FromDate.HasValue == true)
+            {
+                var fromUtc = ReportPeriod.ToUtc(search.FromDate.Value);
+                query = query.Where(a => a.Timestamp >= fromUtc);
+            }
+            if (search?.ToDate.HasValue == true)
+            {
+                var toUtc = ReportPeriod.ToUtc(ReportPeriod.EndExclusive(search.ToDate.Value));
+                query = query.Where(a => a.Timestamp < toUtc);
+            }
             if (!string.IsNullOrWhiteSpace(search?.Action)) query = query.Where(a => a.Action == search.Action);
             if (!string.IsNullOrWhiteSpace(search?.EntityType)) query = query.Where(a => a.EntityType == search.EntityType);
 

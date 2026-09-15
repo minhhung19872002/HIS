@@ -269,29 +269,43 @@ export const printDrugLabel = (prescriptionId: string) =>
 export const getClinicalReviews = () =>
   apiClient.get(`${BASE_URL}/clinical-reviews`);
 
-// BE (PharmacyController.CreateAdrReport / GetAdrReports) speaks reactionType/onsetDate/patientCode;
-// the page speaks reaction/reportDate/patientId. Normalize here so the reaction is not dropped on save
-// and the "Phản ứng"/"Ngày BC" columns are not blank.
+// QA-R3: the pharmacy ADR tab used /pharmacy/adr-reports, which stores a GPP record with no patient and
+// no severity (every report came back "moderate", patient blank). It now reads/writes the ADR module
+// (/adr-report, AdrReports table — the same reports the "Báo cáo ADR" page shows). The page keeps its
+// own shape (patientId = patient code, severity mild|moderate|severe), mapped here.
+const ADR_SEVERITY_TO_NUM: Record<string, number> = { mild: 1, moderate: 2, severe: 3, critical: 4 };
+const ADR_SEVERITY_FROM_NUM: Record<number, string> = { 1: 'mild', 2: 'moderate', 3: 'severe', 4: 'critical' };
+
 export const getAdrReports = () =>
-  apiClient.get(`${BASE_URL}/adr-reports`).then((res) => ({
+  apiClient.get('/adr-report').then((res) => ({
     ...res,
     data: Array.isArray(res.data)
       ? (res.data as Record<string, unknown>[]).map((r) => ({
-          ...r,
-          reaction: r.reaction ?? (r.reactionType || r.description || undefined),
-          reportDate: r.reportDate ?? r.onsetDate,
+          id: r.id as string,
+          patientName: (r.patientName as string) || (r.patientCode as string) || undefined,
+          patientCode: r.patientCode as string | undefined,
+          medicationName: r.drugName as string | undefined,
+          reaction: r.reactionDescription as string | undefined,
+          severity: ADR_SEVERITY_FROM_NUM[r.severity as number] ?? undefined,
+          reportDate: r.reportDate as string | undefined,
         }))
       : res.data,
   }));
 
-export const submitAdrReport = (data: Record<string, unknown>) =>
-  apiClient.post(`${BASE_URL}/adr-reports`, {
-    ...data,
-    patientCode: data.patientCode ?? data.patientId,
-    reactionType: data.reactionType ?? data.reaction,
-    // BE stores Description = description ?? reactionType — an empty string would drop the reaction.
-    description: data.description || undefined,
+export const submitAdrReport = (data: Record<string, unknown>) => {
+  const reaction = (data.reaction as string | undefined)?.trim();
+  const description = (data.description as string | undefined)?.trim();
+  return apiClient.post('/adr-report', {
+    // BE fills the patient name/age/gender from the patient code when it matches a patient.
+    patientCode: ((data.patientCode ?? data.patientId) as string | undefined)?.trim() || undefined,
+    patientName: (data.patientName as string | undefined) ?? '',
+    drugName: data.medicationName ?? '',
+    reactionDescription: reaction || description || '',
+    notes: reaction && description ? description : undefined,
+    severity: ADR_SEVERITY_TO_NUM[String(data.severity)] ?? 1,
+    reactionStartDate: new Date().toISOString(),
   });
+};
 
 // Default export
 export default {

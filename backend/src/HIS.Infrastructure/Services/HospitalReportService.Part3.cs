@@ -38,21 +38,56 @@ public partial class HospitalReportService
             .OrderBy(x => x.Date)
             .ToListAsync();
 
-        foreach (var d in data)
+        // QA-R3: cash-flow view — deposits collected (tạm ứng, not cancelled) are cash in and deposit refunds
+        // (approved/paid) are cash out; receipts paid from a deposit (PaymentMethod 5) moved no new cash.
+        var depositsIn = await _context.Deposits.AsNoTracking()
+            .Where(d => d.ReceiptDate >= from && d.ReceiptDate < to && !d.IsDeleted && d.Status != 5)
+            .GroupBy(d => d.ReceiptDate.Date)
+            .Select(g => new { Date = g.Key, Amount = g.Sum(d => d.Amount) })
+            .ToDictionaryAsync(x => x.Date, x => x.Amount);
+        var depositRefunds = await _context.Receipts.AsNoTracking()
+            .Where(r => r.ReceiptDate >= from && r.ReceiptDate < to && !r.IsDeleted
+                && r.ReceiptType == 3 && r.OriginalDepositId != null && (r.Status == 1 || r.Status == 4))
+            .GroupBy(r => r.ReceiptDate.Date)
+            .Select(g => new { Date = g.Key, Amount = g.Sum(r => r.FinalAmount) })
+            .ToDictionaryAsync(x => x.Date, x => x.Amount);
+        var paidFromDeposit = await _context.Receipts.AsNoTracking()
+            .Where(r => r.ReceiptDate >= from && r.ReceiptDate < to && !r.IsDeleted
+                && r.ReceiptType != 3 && r.Status == 1 && r.PaymentMethod == 5)
+            .GroupBy(r => r.ReceiptDate.Date)
+            .Select(g => new { Date = g.Key, Amount = g.Sum(r => r.FinalAmount) })
+            .ToDictionaryAsync(x => x.Date, x => x.Amount);
+
+        var days = data.Select(d => d.Date).Concat(depositsIn.Keys).Concat(depositRefunds.Keys).Distinct().OrderBy(d => d);
+        decimal sumDepIn = 0, sumDepOut = 0, sumNetCash = 0;
+        foreach (var day in days)
         {
+            var d = data.FirstOrDefault(x => x.Date == day);
+            var revenue = d?.TotalRevenue ?? 0;
+            var refund = d?.TotalRefund ?? 0;
+            var depIn = depositsIn.GetValueOrDefault(day);
+            var depOut = depositRefunds.GetValueOrDefault(day);
+            var netCash = revenue - refund - paidFromDeposit.GetValueOrDefault(day) + depIn - depOut;
+            sumDepIn += depIn; sumDepOut += depOut; sumNetCash += netCash;
             result.Data.Add(new Dictionary<string, object>
             {
-                ["date"] = d.Date.ToString("dd/MM/yyyy"),
-                ["receiptCount"] = d.ReceiptCount,
-                ["refundCount"] = d.RefundCount,
-                ["totalRevenue"] = d.TotalRevenue,
-                ["totalRefund"] = d.TotalRefund,
-                ["netRevenue"] = d.TotalRevenue - d.TotalRefund
+                ["date"] = day.ToString("dd/MM/yyyy"),
+                ["receiptCount"] = d?.ReceiptCount ?? 0,
+                ["refundCount"] = d?.RefundCount ?? 0,
+                ["totalRevenue"] = revenue,
+                ["totalRefund"] = refund,
+                ["netRevenue"] = revenue - refund,
+                ["depositIn"] = depIn,
+                ["depositRefund"] = depOut,
+                ["netCashFlow"] = netCash
             });
         }
         result.Summary["totalRevenue"] = data.Sum(d => d.TotalRevenue);
         result.Summary["totalRefund"] = data.Sum(d => d.TotalRefund);
         result.Summary["netRevenue"] = data.Sum(d => d.TotalRevenue - d.TotalRefund);
+        result.Summary["totalDepositIn"] = sumDepIn;
+        result.Summary["totalDepositRefund"] = sumDepOut;
+        result.Summary["netCashFlow"] = sumNetCash;
     }
 
     private async Task FillRevenueByService(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)

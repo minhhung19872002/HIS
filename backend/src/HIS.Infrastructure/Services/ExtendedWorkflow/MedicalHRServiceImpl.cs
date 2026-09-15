@@ -17,6 +17,8 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
     private readonly HISDbContext _context;
     public MedicalHRServiceImpl(HISDbContext context) => _context = context;
 
+    private const int CmeRequiredHoursPerYear = HIS.Core.Constants.CmeRequirement.HoursPerYear;
+
     public async Task<List<MedicalStaffDto>> GetStaffListAsync(Guid? departmentId = null, string? staffType = null, string? status = null)
     {
         var query = _context.MedicalStaffs.Include(x => x.PrimaryDepartment).AsQueryable();
@@ -64,8 +66,42 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
         entity.JoinDate = dto.JoinDate ?? dto.HireDate ?? entity.JoinDate;
         entity.PersonalPhone = dto.Phone ?? entity.PersonalPhone; entity.PersonalEmail = dto.Email ?? entity.PersonalEmail;
         // Status is NOT reset on update (a resigned/suspended staff used to flip back to Active on every save).
+        await LinkStaffUserAsync(entity, dto.UserId, requestedCode);
         await _context.SaveChangesAsync();
         return await GetStaffAsync(entity.Id);
+    }
+
+    /// <summary>
+    /// Links MedicalStaffs.UserId so the CCHN prescribing gate can find the doctor's licence. Staff created from the
+    /// v2 HR form were never linked (UserId = Guid.Empty) → the gate could only warn "no data" for them.
+    /// Explicit choice wins; otherwise, when still unlinked, auto-link a unique account with the same employee code.
+    /// </summary>
+    private async Task LinkStaffUserAsync(MedicalStaff entity, Guid? chosenUserId, string? staffCode)
+    {
+        Guid? target = null;
+        if (chosenUserId is Guid chosen && chosen != Guid.Empty)
+        {
+            if (!await _context.Users.AnyAsync(u => u.Id == chosen))
+                throw new KeyNotFoundException("Không tìm thấy tài khoản người dùng được chọn");
+            target = chosen;
+        }
+        else if (entity.UserId == Guid.Empty && !string.IsNullOrEmpty(staffCode))
+        {
+            var matches = await _context.Users.Where(u => u.EmployeeCode == staffCode).Select(u => u.Id).Take(2).ToListAsync();
+            if (matches.Count == 1) target = matches[0];
+        }
+        if (target is not Guid userId || entity.UserId == userId) return;
+
+        var other = await _context.MedicalStaffs
+            .Where(s => s.UserId == userId && s.Id != entity.Id)
+            .Select(s => s.StaffCode).FirstOrDefaultAsync();
+        if (other != null)
+        {
+            if (chosenUserId.HasValue)
+                throw new InvalidOperationException($"Tài khoản này đã gắn với hồ sơ nhân viên {other}");
+            return; // auto-link is best effort only
+        }
+        entity.UserId = userId;
     }
 
     public async Task<bool> UpdateStaffStatusAsync(Guid id, string status, string reason)
@@ -115,9 +151,19 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
 
     public async Task<DutyRosterDto> GetDutyRosterAsync(Guid departmentId, int year, int month)
     {
-        var roster = await _context.DutyRosters.Include(x => x.Shifts).FirstOrDefaultAsync(x => x.DepartmentId == departmentId && x.Year == year && x.Month == month);
+        var roster = await _context.DutyRosters.Include(x => x.Department).FirstOrDefaultAsync(x => x.DepartmentId == departmentId && x.Year == year && x.Month == month && !x.IsDeleted);
         if (roster == null) return null!;
-        return new DutyRosterDto { Id = roster.Id, DepartmentId = roster.DepartmentId, Year = roster.Year, Month = roster.Month, Status = roster.Status };
+        // QA-R3: return the roster's real assignments (DTO carried only id/status, so the weekly tab had nothing to show).
+        var monthStart = new DateTime(year, month, 1);
+        var assignments = (await GetRosterAssignmentsAsync(departmentId, monthStart, monthStart.AddMonths(1).AddDays(-1)))
+            .Where(a => a.RosterId == roster.Id).ToList();
+        return new DutyRosterDto
+        {
+            Id = roster.Id, DepartmentId = roster.DepartmentId, DepartmentName = roster.Department?.DepartmentName ?? "",
+            Year = roster.Year, Month = roster.Month, Status = roster.Status, PublishedAt = roster.PublishedAt,
+            CreatedAt = roster.CreatedAt, TotalShifts = assignments.Count, FilledShifts = assignments.Count,
+            StaffAssignments = assignments,
+        };
     }
 
     public async Task<List<StaffRosterAssignmentDto>> GetStaffRosterAsync(Guid userOrStaffId, int year, int month)
@@ -415,10 +461,7 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
         return true;
     }
 
-    public Task<List<ShiftSwapRequestDto>> GetPendingSwapRequestsAsync(Guid? departmentId = null) => Task.FromResult(new List<ShiftSwapRequestDto>());
-    public Task<ShiftSwapRequestDto> RequestShiftSwapAsync(Guid assignmentId, Guid targetAssignmentId, string reason) => Task.FromResult(new ShiftSwapRequestDto { Id = Guid.NewGuid() });
-    public Task<bool> ApproveSwapAsTargetAsync(Guid requestId, bool approve) => Task.FromResult(true);
-    public Task<bool> ApproveSwapAsManagerAsync(Guid requestId, bool approve, string notes) => Task.FromResult(true);
+    // Shift swaps (were stubs returning success without writing) → MedicalHRServiceImpl.Swaps.cs (QA-R3).
 
     public async Task<List<ClinicAssignmentDto>> GetClinicAssignmentsAsync(DateTime date, Guid? departmentId = null)
     {
@@ -450,7 +493,15 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
     public async Task<CMESummaryDto> GetStaffCMESummaryAsync(Guid staffId)
     {
         var records = await _context.CMERecords.Where(x => x.StaffId == staffId).ToListAsync();
-        return new CMESummaryDto { StaffId = staffId, EarnedCredits = records.Sum(x => x.CreditHours), CurrentYearCredits = records.Where(x => x.ActivityDate.Year == DateTime.Now.Year).Sum(x => x.CreditHours) };
+        var currentYear = records.Where(x => x.ActivityDate.Year == DateTime.Now.Year).Sum(x => x.CreditHours);
+        // QA-R3: requirement per year is 24 tiết (Nghị định 96/2023: 120 tiết / 5 năm) — was never filled here.
+        return new CMESummaryDto
+        {
+            StaffId = staffId, EarnedCredits = records.Sum(x => x.CreditHours), CurrentYearCredits = currentYear,
+            RequiredCredits = CmeRequiredHoursPerYear, RequiredCreditsPerYear = CmeRequiredHoursPerYear,
+            IsCompliant = currentYear >= CmeRequiredHoursPerYear,
+            CreditsShortfall = Math.Max(0, CmeRequiredHoursPerYear - currentYear), Shortfall = Math.Max(0, CmeRequiredHoursPerYear - currentYear),
+        };
     }
 
     public async Task<CMERecordDto> RecordCMECompletionAsync(Guid staffId, Guid courseId, int creditsEarned, string certificateNumber)
@@ -495,15 +546,19 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
     public async Task<List<CMESummaryDto>> GetCMENonCompliantStaffAsync()
     {
         // Returns CMESummaryDto (the v2 HR page contract) instead of the staff profile.
-        // Active staff with < RequiredCredits total CME credits — INCLUDING staff with no CME record at all
-        // (previous query only looked at staff that already had records).
-        const int RequiredCredits = 24;
+        // Active staff with < RequiredCredits CME credits THIS YEAR — INCLUDING staff with no CME record at all
+        // (previous query only looked at staff that already had records). QA-R3: the requirement is per year
+        // (24 tiết/năm, NĐ 96/2023), so credits are counted for the current calendar year, not all-time.
+        const int RequiredCredits = CmeRequiredHoursPerYear;
+        var currentYear = DateTime.Now.Year;
         // Category 1 = formal training (conference/workshop/course); category 2 = online / self-study.
         var category2Types = new[] { "Online", "Self-study", "SelfStudy" };
         try
         {
             // Grouped in memory: CME records are a small table and this avoids EF GroupBy translation limits.
+            var yearStart = new DateTime(currentYear, 1, 1);
             var rows = await _context.CMERecords.AsNoTracking()
+                .Where(x => x.ActivityDate >= yearStart && x.ActivityDate < yearStart.AddYears(1))
                 .Select(x => new { x.StaffId, x.ActivityType, x.CreditHours })
                 .ToListAsync();
             var credits = rows
@@ -532,6 +587,7 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
                 {
                     StaffId = s.Id, StaffName = s.FullName, StaffType = s.StaffType,
                     RequiredCredits = RequiredCredits, RequiredCreditsPerYear = RequiredCredits,
+                    CurrentYearRequired = RequiredCredits, CurrentYearCredits = earned,
                     EarnedCredits = earned,
                     Category1Credits = earned - cat2, Category2Credits = cat2,
                     ActivitiesCount = c?.Count ?? 0,
@@ -602,7 +658,7 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
 
     private static MedicalStaffDto MapToStaffDto(MedicalStaff e) => new()
     {
-        Id = e.Id, StaffCode = e.StaffCode, FullName = e.FullName, StaffType = e.StaffType, Specialty = e.Specialty,
+        Id = e.Id, UserId = e.UserId == Guid.Empty ? null : e.UserId, StaffCode = e.StaffCode, FullName = e.FullName, StaffType = e.StaffType, Specialty = e.Specialty,
         DepartmentName = e.PrimaryDepartment?.DepartmentName ?? "", DepartmentId = e.PrimaryDepartmentId ?? Guid.Empty,
         PracticeLicenseNumber = e.LicenseNumber, LicenseExpiryDate = e.LicenseExpiryDate, Status = e.Status,
         JoinDate = e.JoinDate ?? DateTime.MinValue

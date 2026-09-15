@@ -89,7 +89,7 @@ const PER = 18;
 const fmtHM  = (s?: string) => s ? dayjs(s).format('HH:mm')       : '—';
 const fmtDT  = (s?: string) => s ? dayjs(s).format('DD/MM HH:mm') : '—';
 const sevTone = (s?: string): 'crit' | 'warn' | 'info' =>
-  s === 'high' || s === 'severe' ? 'crit' : s === 'medium' || s === 'moderate' ? 'warn' : 'info';
+  s === 'high' || s === 'severe' || s === 'critical' ? 'crit' : s === 'medium' || s === 'moderate' ? 'warn' : 'info';
 
 /* ────────────────────────── Main Component ────────────────────────── */
 
@@ -552,7 +552,7 @@ const PharmacyV2: React.FC = () => {
       tk('Đã gửi báo cáo ADR'); setAdrModal(false);
       setAdrPatient(''); setAdrMed(''); setAdrReact(''); setAdrSev('mild'); setAdrDesc('');
       loadCl();
-    } catch { te('Gửi báo cáo ADR thất bại'); }
+    } catch (e) { te(friendlyErrorMessage(e, 'Gửi báo cáo ADR thất bại')); }
     finally { setAdrSubmitting(false); }
   };
 
