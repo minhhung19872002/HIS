@@ -251,7 +251,7 @@ const HospitalPharmacyV2: React.FC = () => {
         customerPhone:  posCustPhone || undefined,
         paymentMethod:  posPayMethod,
         discountAmount: posDiscount  || 0,
-        items: cart.map((i) => ({ medicineId: i.medicineId, quantity: i.quantity, unitPrice: i.unitPrice })),
+        items: cart.map((i) => ({ medicineId: i.medicineId, medicineName: i.medicineName, unit: i.unit, quantity: i.quantity, unitPrice: i.unitPrice })),
       });
       tk('Đã tạo hóa đơn');
       setPosOpen(false);
@@ -321,7 +321,19 @@ const HospitalPharmacyV2: React.FC = () => {
 
   const loadRevenue = useCallback(async () => {
     setRevLoading(true);
-    try { const r = await getPharmacyRevenue(revFrom, revTo); setRevData(Array.isArray(r) ? r : []); }
+    try {
+      const r = await getPharmacyRevenue(revFrom, revTo);
+      // BE /hospital-pharmacy/revenue currently returns only { date, total } per day — map it so the report
+      // shows the real revenue instead of 0đ/NaN (sale count + discount are not provided by BE yet → 0).
+      const raw = (Array.isArray(r) ? r : []) as Array<Partial<PharmacyRevenueDto> & { date: string; total?: number }>;
+      setRevData(raw.map((x) => ({
+        date: x.date,
+        totalSales: x.totalSales ?? 0,
+        totalAmount: x.totalAmount ?? x.total ?? 0,
+        totalDiscount: x.totalDiscount ?? 0,
+        netRevenue: x.netRevenue ?? x.total ?? 0,
+      })));
+    }
     catch (e) { tw(friendlyErrorMessage(e, 'Không tải được báo cáo doanh thu.')); setRevData([]); }
     finally { setRevLoading(false); }
   }, [revFrom, revTo]);

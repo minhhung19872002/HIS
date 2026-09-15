@@ -48,10 +48,34 @@ export interface RetailSaleCreateDto {
   discountAmount?: number;
   items: {
     medicineId: string;
+    medicineName?: string;
+    unit?: string;
     quantity: number;
     unitPrice: number;
   }[];
 }
+
+// QA0915: backend (HospitalPharmacyController / RetailSale*Dto) uses patientName/phoneNumber,
+// a STRING paymentMethod ("Cash"...), a STRING status ("Completed"/"Cancelled") and paidAmount.
+// Sending the numeric paymentMethod made every POS sale fail with 400, and the list rendered
+// blank customer / 0đ / "—" status. Map both directions here so the page keeps its own shape.
+const PAYMENT_METHODS = ['Cash', 'Card', 'Transfer'] as const;
+const SALE_STATUS: Record<string, number> = { Pending: 0, Completed: 1, Cancelled: 2 };
+
+const normalizeSale = (raw: Record<string, unknown>): RetailSaleDto => {
+  if (typeof raw.status === 'number') return raw as unknown as RetailSaleDto;
+  const pm = PAYMENT_METHODS.indexOf(String(raw.paymentMethod ?? 'Cash') as (typeof PAYMENT_METHODS)[number]);
+  return {
+    ...(raw as unknown as RetailSaleDto),
+    customerName: (raw.customerName ?? raw.patientName) as string | undefined,
+    customerPhone: (raw.customerPhone ?? raw.phoneNumber) as string | undefined,
+    finalAmount: Number(raw.finalAmount ?? raw.paidAmount ?? raw.totalAmount ?? 0),
+    paymentMethod: pm >= 0 ? pm : 0,
+    status: SALE_STATUS[String(raw.status)] ?? 0,
+    saleDate: String(raw.saleDate ?? raw.createdAt ?? ''),
+    items: (raw.items as RetailSaleItemDto[] | undefined) ?? [],
+  };
+};
 
 export interface PharmacyRevenueDto {
   date: string;
@@ -80,8 +104,9 @@ export const getRetailSales = async (params?: {
   try {
     const response = await apiClient.get<RetailSaleDto[] | { items: RetailSaleDto[]; totalCount: number }>('/hospital-pharmacy/sales', { params });
     const d = response.data;
-    if (Array.isArray(d)) return { items: d, totalCount: d.length };
-    return d || { items: [], totalCount: 0 };
+    const norm = (rows: RetailSaleDto[]) => rows.map((r) => normalizeSale(r as unknown as Record<string, unknown>));
+    if (Array.isArray(d)) return { items: norm(d), totalCount: d.length };
+    return d ? { items: norm(d.items || []), totalCount: d.totalCount } : { items: [], totalCount: 0 };
   } catch {
     console.warn('Failed to fetch retail sales');
     return { items: [], totalCount: 0 };
@@ -89,12 +114,25 @@ export const getRetailSales = async (params?: {
 };
 
 export const createRetailSale = async (data: RetailSaleCreateDto) => {
-  const response = await apiClient.post<RetailSaleDto>('/hospital-pharmacy/sales', data);
-  return response.data;
+  const response = await apiClient.post<RetailSaleDto>('/hospital-pharmacy/sales', {
+    patientName: data.customerName,
+    phoneNumber: data.customerPhone,
+    paymentMethod: PAYMENT_METHODS[data.paymentMethod] ?? 'Cash',
+    discountAmount: data.discountAmount ?? 0,
+    items: data.items.map((i) => ({
+      medicineId: i.medicineId,
+      medicineName: i.medicineName ?? '',
+      unit: i.unit,
+      quantity: i.quantity,
+      unitPrice: i.unitPrice,
+    })),
+  });
+  return normalizeSale(response.data as unknown as Record<string, unknown>);
 };
 
-export const cancelRetailSale = async (id: string) => {
-  const response = await apiClient.put(`/hospital-pharmacy/sales/${id}/cancel`);
+// QA0915: the endpoint binds a required [FromBody] CancelSaleDto — a PUT with no body returned 415.
+export const cancelRetailSale = async (id: string, reason = 'Hủy hóa đơn tại quầy') => {
+  const response = await apiClient.put(`/hospital-pharmacy/sales/${id}/cancel`, { reason });
   return response.data;
 };
 

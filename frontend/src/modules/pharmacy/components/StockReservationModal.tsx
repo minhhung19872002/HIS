@@ -67,7 +67,9 @@ export default function StockReservationModal({
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!open) { setRows([]); form.resetFields(); return; }
+    // Closed: the <Form> is not mounted (Modal destroyOnHidden) — calling form.resetFields() here logged
+    // "Instance created by useForm is not connected". <Form preserve={false}> clears values on unmount instead.
+    if (!open) { setRows([]); return; }
     form.setFieldsValue({ approvalType: defaultType, lockedObject: 'HaoPhi' });
     loadExisting();
   }, [open, defaultType]);
@@ -176,7 +178,7 @@ export default function StockReservationModal({
       }
       destroyOnHidden
     >
-      <Form form={form} layout="inline" style={{ marginBottom: 12 }}>
+      <Form form={form} layout="inline" style={{ marginBottom: 12 }} preserve={false}>
         <Form.Item name="approvalType" label="Loại phiếu" rules={[{ required: true }]}>
           <Select
             style={{ width: 200 }}

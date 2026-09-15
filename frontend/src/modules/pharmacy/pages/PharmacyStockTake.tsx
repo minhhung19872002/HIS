@@ -338,7 +338,8 @@ const PharmacyStockTake: React.FC = () => {
     },
   ];
 
-  const warehouseOpts = warehouses.map((w) => ({ v: w.id, l: w.warehouseName }));
+  // AbSelect reads { value, label } (normalizeOptions default) — { v, l } rendered blank, un-selectable options
+  const warehouseOpts = warehouses.map((w) => ({ value: w.id, label: w.warehouseName }));
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (

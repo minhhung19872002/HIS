@@ -144,6 +144,11 @@ public partial class PharmacyController : ControllerBase
                 return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy chi tiết đơn thuốc" });
             return Ok(new { id = itemId.ToString(), dispensedQuantity = dispensed.Value });
         }
+        catch (InvalidOperationException ex)
+        {
+            // QA0915: invalid dispensed quantity is a caller error → 400, not 500.
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating dispensed quantity for item {Id}", itemId);

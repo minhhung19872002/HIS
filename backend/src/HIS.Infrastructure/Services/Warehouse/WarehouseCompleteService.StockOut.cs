@@ -74,6 +74,17 @@ public partial class WarehouseCompleteService {
         if (prescription == null)
             throw new KeyNotFoundException("Khong tim thay don thuoc (prescriptionId khong ton tai)");
 
+        // QA0915: đây là đường màn "Quầy cấp phát thuốc" gọi, nhưng khác PharmacyService.CompleteDispensingAsync
+        // nó KHÔNG xét trạng thái đơn — đo được đơn Hủy (4) và đơn Nháp (5) vẫn phát 200 + trừ kho.
+        // Chặn các trạng thái chắc chắn không được phát. Đơn "Chờ duyệt" (0) vẫn cho qua như cũ:
+        // có bắt buộc bước duyệt dược trước khi phát tại quầy hay không là quyết định nghiệp vụ.
+        if (prescription.IsDeleted
+            || prescription.Status == HIS.Core.Constants.PrescriptionStatus.Cancelled
+            || prescription.Status == HIS.Core.Constants.PrescriptionStatus.Draft
+            || prescription.Status == HIS.Core.Constants.PrescriptionStatus.Returned)
+            throw new InvalidOperationException(
+                $"Đơn thuốc đang ở trạng thái \"{HIS.Core.Constants.PrescriptionStatus.GetName(prescription.Status)}\" — không phát được.");
+
         // Đơn chưa gán kho xuất → tự chọn kho cấp phát thuốc mặc định, KHÔNG chặn dược sĩ.
         // Nhánh phát thuốc bên PharmacyService đã làm đúng như vậy từ trước (có log); đường này
         // thì ném lỗi thẳng, mà đây LẠI là đường màn "Quầy cấp phát thuốc" thực sự gọi → 611/806
@@ -116,6 +127,7 @@ public partial class WarehouseCompleteService {
         if (!prescription.Details.Any(d => !d.IsDeleted && d.Status == 0))
             throw new InvalidOperationException(
                 "Đơn thuốc này đã phát hết, không phát lại được.");
+        await EnsureNotSoldAtPharmacyAsync(prescriptionId);
 
         await using var transaction = await _context.Database.BeginTransactionAsync();
         try
@@ -143,7 +155,8 @@ public partial class WarehouseCompleteService {
 
         // #218/T3: chỉ những dòng CHƯA phát, giống hệt hàm anh em bên nội trú. Thiếu mệnh đề này là
         // gọi lại sẽ phát lại cả những dòng đã phát rồi.
-        foreach (var detail in prescription.Details.Where(d => d.Status == 0))
+        // QA0915: bỏ dòng thuốc đã xoá mềm (bác sĩ gỡ khỏi đơn) — trước đây vẫn bị phát + trừ kho.
+        foreach (var detail in prescription.Details.Where(d => !d.IsDeleted && d.Status == 0))
         {
             // FEFO gộp NHIỀU lô (audit luồng nghiệp vụ 2026-06-06 #12): chọn các lô còn hạn theo
             // hạn dùng tăng dần đến khi đủ số lượng. Tổng tồn không đủ → THROW (transaction rollback),
@@ -276,6 +289,16 @@ public partial class WarehouseCompleteService {
             .FirstOrDefaultAsync(p => p.Id == orderSummaryId && p.PrescriptionType == 2);
         if (prescription == null)
             throw new KeyNotFoundException("Inpatient prescription not found");
+        // QA0915: same status gate as the outpatient path.
+        if (prescription.IsDeleted
+            || prescription.Status == HIS.Core.Constants.PrescriptionStatus.Cancelled
+            || prescription.Status == HIS.Core.Constants.PrescriptionStatus.Draft
+            || prescription.Status == HIS.Core.Constants.PrescriptionStatus.Returned)
+            throw new InvalidOperationException(
+                $"Đơn thuốc đang ở trạng thái \"{HIS.Core.Constants.PrescriptionStatus.GetName(prescription.Status)}\" — không phát được.");
+        if (!prescription.Details.Any(d => !d.IsDeleted && d.Status == 0))
+            throw new InvalidOperationException("Đơn thuốc này đã phát hết, không phát lại được.");
+        await EnsureNotSoldAtPharmacyAsync(orderSummaryId);
 
         var warehouseId = prescription.WarehouseId ?? throw new InvalidOperationException("No warehouse assigned");
         var warehouse = await _context.Warehouses.FindAsync(warehouseId);
@@ -302,22 +325,41 @@ public partial class WarehouseCompleteService {
         decimal totalAmount = 0;
         var issueItems = new List<StockIssueItemDto>();
 
-        foreach (var detail in prescription.Details.Where(d => d.Status == 0))
+        foreach (var detail in prescription.Details.Where(d => !d.IsDeleted && d.Status == 0))
         {
-            // NangCap26 V.31: loại lô đang khóa khỏi FEFO (trước đây nội trú không lọc IsLocked
-            // trong khi ngoại trú đã lọc → lô thu hồi vẫn phát được cho BN nội trú).
-            var stock = await _context.InventoryItems
-                .Where(i => i.WarehouseId == warehouseId
-                    && i.MedicineId == detail.MedicineId
-                    && (i.Quantity - i.ReservedQuantity) >= detail.Quantity
-                    && !i.IsLocked && !i.IsDeleted)
+            // QA0915 (đo trên API): bản cũ chỉ tìm MỘT lô đủ cả số lượng; không có lô nào đủ thì
+            // `stock == null` → bỏ qua trừ kho nhưng VẪN đánh dấu dòng "đã cấp" và đơn "Đã cấp phát"
+            // (phiếu xuất rỗng, tồn không đổi). Bản cũ cũng không lọc hạn dùng → lô HẾT HẠN được phát
+            // cho BN nội trú. Nay làm y hệt nhánh ngoại trú: FEFO gộp nhiều lô còn hạn, thiếu thì THROW.
+            // Lọc số lượng khả dụng trên giá trị trong bộ nhớ (thực thể đang theo dõi), nên hai dòng
+            // cùng thuốc trong một đơn không cùng "thấy" số tồn trước khi trừ.
+            // NangCap26 V.31: loại lô đang khóa khỏi FEFO.
+            var batches = (await _context.InventoryItems
+                    .Where(i => i.WarehouseId == warehouseId
+                        && i.MedicineId == detail.MedicineId
+                        && i.ExpiryDate >= DateTime.Today
+                        && !i.IsLocked && !i.IsDeleted)
+                    .ToListAsync())
+                .Where(i => i.Quantity - i.ReservedQuantity > 0)
                 .OrderBy(i => i.ExpiryDate)
-                .FirstOrDefaultAsync();
+                .ToList();
 
-            if (stock != null)
+            var totalAvailable = batches.Sum(b => b.Quantity - b.ReservedQuantity);
+            if (totalAvailable < detail.Quantity)
+                throw new InvalidOperationException(
+                    $"Không đủ tồn kho để phát thuốc {detail.Medicine?.MedicineName ?? detail.MedicineId.ToString()} " +
+                    $"(cần {detail.Quantity}, còn {totalAvailable} trong các lô còn hạn)");
+
+            var remaining = detail.Quantity;
+            foreach (var stock in batches)
             {
-                stock.Quantity -= detail.Quantity;
-                var amount = detail.Quantity * detail.UnitPrice;
+                if (remaining <= 0) break;
+                var take = Math.Min(stock.Quantity - stock.ReservedQuantity, remaining);
+                if (take <= 0) continue;
+
+                stock.Quantity -= take;
+                remaining -= take;
+                var amount = take * detail.UnitPrice;
                 totalAmount += amount;
 
                 var exportDetail = new ExportReceiptDetail
@@ -328,7 +370,7 @@ public partial class WarehouseCompleteService {
                     InventoryItemId = stock.Id,
                     BatchNumber = stock.BatchNumber,
                     ExpiryDate = stock.ExpiryDate,
-                    Quantity = detail.Quantity,
+                    Quantity = take,
                     Unit = detail.Unit,
                     UnitPrice = detail.UnitPrice,
                     Amount = amount,
@@ -349,7 +391,7 @@ public partial class WarehouseCompleteService {
                     StockId = stock.Id,
                     BatchNumber = stock.BatchNumber,
                     ExpiryDate = stock.ExpiryDate,
-                    Quantity = detail.Quantity,
+                    Quantity = take,
                     UnitPrice = detail.UnitPrice,
                     Amount = amount
                 });
@@ -429,61 +471,52 @@ public partial class WarehouseCompleteService {
             .Where(m => medicineIds.Contains(m.Id))
             .ToDictionaryAsync(m => m.Id);
 
+        if (dto.Items == null || dto.Items.Count == 0)
+            throw new InvalidOperationException("Phiếu xuất phải có ít nhất 1 dòng thuốc.");
+
         foreach (var item in dto.Items)
         {
-            var stock = item.StockId.HasValue
-                ? await _context.InventoryItems.FindAsync(item.StockId.Value)
-                : await _context.InventoryItems
-                    .Where(i => i.WarehouseId == dto.WarehouseId && i.MedicineId == item.ItemId && (i.Quantity - i.ReservedQuantity) >= item.Quantity
-                        && !i.IsLocked && !i.IsDeleted)
-                    .OrderBy(i => i.ExpiryDate)
-                    .FirstOrDefaultAsync();
-
-            if (stock == null)
-                throw new InvalidOperationException($"Insufficient stock for item {item.ItemId}");
-
-            // NangCap26 V.31: chọn đích danh lô cũng không được nếu lô đang khóa.
-            EnsureBatchNotLocked(stock);
-
-            stock.Quantity -= item.Quantity;
-
             medicinesMap.TryGetValue(item.ItemId, out var medicine);
-            var amount = item.Quantity * stock.UnitPrice;
-            totalAmount += amount;
-
-            var exportDetail = new ExportReceiptDetail
+            foreach (var (stock, take) in await PickIssueLotsAsync(dto.WarehouseId, item, exportType: 3))
             {
-                Id = Guid.NewGuid(),
-                ExportReceiptId = exportReceipt.Id,
-                MedicineId = item.ItemId,
-                InventoryItemId = stock.Id,
-                BatchNumber = stock.BatchNumber,
-                ExpiryDate = stock.ExpiryDate,
-                Quantity = item.Quantity,
-                Unit = medicine?.Unit,
-                UnitPrice = stock.UnitPrice,
-                Amount = amount,
-                CreatedAt = DateTime.Now,
-                CreatedBy = userId.ToString()
-            };
-            _context.ExportReceiptDetails.Add(exportDetail);
+                stock.Quantity -= take;
+                var amount = take * stock.UnitPrice;
+                totalAmount += amount;
 
-            issueItems.Add(new StockIssueItemDto
-            {
-                Id = exportDetail.Id,
-                StockIssueId = exportReceipt.Id,
-                ItemId = item.ItemId,
-                ItemCode = medicine?.MedicineCode ?? string.Empty,
-                ItemName = medicine?.MedicineName ?? string.Empty,
-                ItemType = 1, // Thuốc
-                Unit = medicine?.Unit ?? string.Empty,
-                StockId = stock.Id,
-                BatchNumber = stock.BatchNumber,
-                ExpiryDate = stock.ExpiryDate,
-                Quantity = item.Quantity,
-                UnitPrice = stock.UnitPrice,
-                Amount = amount
-            });
+                var exportDetail = new ExportReceiptDetail
+                {
+                    Id = Guid.NewGuid(),
+                    ExportReceiptId = exportReceipt.Id,
+                    MedicineId = item.ItemId,
+                    InventoryItemId = stock.Id,
+                    BatchNumber = stock.BatchNumber,
+                    ExpiryDate = stock.ExpiryDate,
+                    Quantity = take,
+                    Unit = medicine?.Unit,
+                    UnitPrice = stock.UnitPrice,
+                    Amount = amount,
+                    CreatedAt = DateTime.Now,
+                    CreatedBy = userId.ToString()
+                };
+                _context.ExportReceiptDetails.Add(exportDetail);
+
+                issueItems.Add(new StockIssueItemDto
+                {
+                    Id = exportDetail.Id,
+                    StockIssueId = exportReceipt.Id,
+                    ItemId = item.ItemId,
+                    ItemCode = medicine?.MedicineCode ?? string.Empty,
+                    ItemName = medicine?.MedicineName ?? string.Empty,
+                    ItemType = 1, // Thuốc
+                    Unit = medicine?.Unit ?? string.Empty,
+                    StockId = stock.Id,
+                    BatchNumber = stock.BatchNumber,
+                    ExpiryDate = stock.ExpiryDate,
+                    Quantity = take,
+                    UnitPrice = stock.UnitPrice,
+                    Amount = amount
+                });
+            }
         }
 
         exportReceipt.TotalAmount = totalAmount;
@@ -700,6 +733,32 @@ public partial class WarehouseCompleteService {
         // If already issued, reverse inventory
         if (receipt.Status == 1)
         {
+            // QA0915: phiếu chuyển kho nay có phiếu nhập đối ứng ở kho nhận → đảo cả hai. Kho nhận đã
+            // dùng mất hàng thì chặn hủy (không để lô kho nhận âm).
+            if (receipt.ExportType == 4)
+            {
+                var tag = TransferTag(receipt.Id);
+                var transferIns = await _context.ImportReceipts
+                    .Include(r => r.Details)
+                    .Where(r => r.Status == 1 && r.ImportType == 3 && r.Note != null && r.Note.StartsWith(tag))
+                    .ToListAsync();
+                foreach (var transferIn in transferIns)
+                {
+                    foreach (var d in transferIn.Details)
+                    {
+                        var lot = await FindLotAsync(transferIn.WarehouseId, d.MedicineId, d.BatchNumber);
+                        var available = lot == null ? 0 : lot.Quantity - lot.ReservedQuantity;
+                        if (available < d.Quantity)
+                            throw new InvalidOperationException(
+                                $"Không hủy được phiếu chuyển kho: kho nhận đã xuất dùng lô {d.BatchNumber ?? "(không số lô)"} "
+                                + $"(cần trả lại {d.Quantity:0.##}, tồn khả dụng {available:0.##}).");
+                        lot!.Quantity -= d.Quantity;
+                    }
+                    transferIn.Status = 2;
+                    transferIn.Note = $"{transferIn.Note} | Hủy theo phiếu xuất: {reason}";
+                }
+            }
+
             foreach (var detail in receipt.Details)
             {
                 var stock = await _context.InventoryItems
@@ -715,6 +774,155 @@ public partial class WarehouseCompleteService {
         receipt.Note = $"{receipt.Note} | Hủy: {reason}";
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    /// <summary>
+    /// QA0915 (review M8): đơn đã được BÁN tại nhà thuốc (RetailSale theo đơn, chưa hủy) thì không phát tại
+    /// quầy nữa — hai đường cùng trừ kho cho một đơn sẽ trừ hai lần. Chiều ngược lại chặn ở
+    /// HospitalPharmacyService.CreateSaleAsync.
+    /// </summary>
+    private async Task EnsureNotSoldAtPharmacyAsync(Guid prescriptionId)
+    {
+        var sold = await _context.RetailSales.AnyAsync(s =>
+            s.PrescriptionId == prescriptionId && s.Status != "Cancelled" && !s.IsDeleted);
+        if (sold)
+            throw new InvalidOperationException(
+                "Đơn thuốc này đã được bán tại nhà thuốc bệnh viện — không cấp phát tại quầy được. "
+                + "Muốn phát tại quầy thì hủy phiếu bán trước.");
+    }
+
+    /// <summary>Tag trong ImportReceipt.Note liên kết phiếu nhập đối ứng với phiếu xuất chuyển kho (không có cột FK).</summary>
+    private static string TransferTag(Guid exportReceiptId) => $"[CK:{exportReceiptId}]";
+
+    /// <summary>Lô đang theo dõi (kể cả lô vừa Add chưa SaveChanges) theo kho + thuốc + số lô.</summary>
+    private async Task<InventoryItem?> FindLotAsync(Guid warehouseId, Guid? medicineId, string? batchNumber)
+    {
+        var local = _context.InventoryItems.Local.FirstOrDefault(i =>
+            i.WarehouseId == warehouseId && i.MedicineId == medicineId && i.BatchNumber == batchNumber && !i.IsDeleted);
+        return local ?? await _context.InventoryItems.FirstOrDefaultAsync(i =>
+            i.WarehouseId == warehouseId && i.MedicineId == medicineId && i.BatchNumber == batchNumber && !i.IsDeleted);
+    }
+
+    /// <summary>Cộng lượng chuyển vào lô tương ứng ở kho nhận (tạo lô mới nếu chưa có) + dòng phiếu nhập đối ứng.</summary>
+    private async Task CreditTransferTargetAsync(
+        ImportReceipt transferIn, InventoryItem sourceLot, decimal quantity, string? unit, Guid userId,
+        Dictionary<(Guid?, string?), InventoryItem> targetLots)
+    {
+        var key = (sourceLot.MedicineId, sourceLot.BatchNumber);
+        if (!targetLots.TryGetValue(key, out var targetLot))
+        {
+            targetLot = await FindLotAsync(transferIn.WarehouseId, sourceLot.MedicineId, sourceLot.BatchNumber);
+            if (targetLot == null)
+            {
+                targetLot = new InventoryItem
+                {
+                    Id = Guid.NewGuid(),
+                    WarehouseId = transferIn.WarehouseId,
+                    ItemType = sourceLot.ItemType,
+                    MedicineId = sourceLot.MedicineId,
+                    SupplyId = sourceLot.SupplyId,
+                    BatchNumber = sourceLot.BatchNumber,
+                    ExpiryDate = sourceLot.ExpiryDate,
+                    ManufactureDate = sourceLot.ManufactureDate,
+                    Quantity = 0,
+                    ReservedQuantity = 0,
+                    ImportPrice = sourceLot.ImportPrice,
+                    UnitPrice = sourceLot.UnitPrice,
+                    CreatedAt = DateTime.Now,
+                    CreatedBy = userId.ToString()
+                };
+                _context.InventoryItems.Add(targetLot);
+            }
+            targetLots[key] = targetLot;
+        }
+        targetLot.Quantity += quantity;
+
+        _context.ImportReceiptDetails.Add(new ImportReceiptDetail
+        {
+            Id = Guid.NewGuid(),
+            ImportReceiptId = transferIn.Id,
+            MedicineId = sourceLot.MedicineId,
+            SupplyId = sourceLot.SupplyId,
+            BatchNumber = sourceLot.BatchNumber,
+            ExpiryDate = sourceLot.ExpiryDate,
+            ManufactureDate = sourceLot.ManufactureDate,
+            Quantity = quantity,
+            Unit = unit,
+            UnitPrice = sourceLot.UnitPrice,
+            Amount = quantity * sourceLot.UnitPrice,
+            CreatedAt = DateTime.Now,
+            CreatedBy = userId.ToString()
+        });
+    }
+
+    /// <summary>
+    /// Chọn lô cho một dòng phiếu xuất kho. QA0915 — các lỗi đo được trên API trước khi sửa:
+    /// <list type="bullet">
+    /// <item>truyền StockId: không kiểm kho / thuốc / số lượng → lô xuống −970; qty âm (−7) còn CỘNG kho;</item>
+    /// <item>FEFO tự chọn: điều kiện tồn lọc trong SQL trên giá trị DB, nên 2 dòng cùng thuốc đều "đủ"
+    /// theo số tồn trước khi trừ → lô −35; lô HẾT HẠN được chọn trước cho xuất khoa;
+    /// và bắt buộc một lô phải đủ cả dòng.</item>
+    /// </list>
+    /// Lô hết hạn chỉ được xuất ở các loại phiếu sinh ra để đẩy hàng hết hạn đi (trả NCC, hủy, kiểm kê giảm, thanh lý).
+    /// </summary>
+    private async Task<List<(InventoryItem Stock, decimal Take)>> PickIssueLotsAsync(
+        Guid warehouseId, CreateStockIssueItemDto item, int exportType)
+    {
+        if (item.Quantity <= 0)
+            throw new InvalidOperationException("Số lượng xuất mỗi dòng phải lớn hơn 0.");
+
+        var allowExpired = exportType is 5 or 7 or 9 or 10;
+        var today = DateTime.Today;
+
+        if (item.StockId.HasValue)
+        {
+            var stock = await _context.InventoryItems.FindAsync(item.StockId.Value);
+            if (stock == null || stock.IsDeleted || stock.WarehouseId != warehouseId
+                || (stock.MedicineId != item.ItemId && stock.SupplyId != item.ItemId))
+                throw new InvalidOperationException(
+                    $"Lô {item.StockId} không thuộc kho xuất hoặc không đúng thuốc đã chọn.");
+
+            // NangCap26 V.31: chọn đích danh lô cũng không được nếu lô đang khóa.
+            EnsureBatchNotLocked(stock);
+
+            if (!allowExpired && stock.ExpiryDate.HasValue && stock.ExpiryDate.Value < today)
+                throw new InvalidOperationException(
+                    $"Lô {stock.BatchNumber} đã hết hạn ({stock.ExpiryDate:dd/MM/yyyy}), không xuất sử dụng được.");
+
+            var available = stock.Quantity - stock.ReservedQuantity;
+            if (available < item.Quantity)
+                throw new InvalidOperationException(
+                    $"Lô {stock.BatchNumber} không đủ tồn (cần {item.Quantity:0.##}, còn {available:0.##}).");
+            return new List<(InventoryItem, decimal)> { (stock, item.Quantity) };
+        }
+
+        // Thực thể đang theo dõi: EF trả lại đúng instance đã bị các dòng trước trừ trong bộ nhớ,
+        // nên lọc/tính tồn khả dụng ở phía C# chứ không trong SQL.
+        var lots = (await _context.InventoryItems
+                .Where(i => i.WarehouseId == warehouseId && i.MedicineId == item.ItemId
+                    && !i.IsLocked && !i.IsDeleted
+                    && (allowExpired || i.ExpiryDate == null || i.ExpiryDate >= today))
+                .ToListAsync())
+            .Where(i => i.Quantity - i.ReservedQuantity > 0)
+            .OrderBy(i => i.ExpiryDate ?? DateTime.MaxValue).ThenBy(i => i.Id)
+            .ToList();
+
+        var totalAvailable = lots.Sum(l => l.Quantity - l.ReservedQuantity);
+        if (totalAvailable < item.Quantity)
+            throw new InvalidOperationException(
+                $"Insufficient stock for item {item.ItemId}: cần {item.Quantity:0.##}, còn {totalAvailable:0.##}"
+                + (allowExpired ? "" : " (không tính lô hết hạn)"));
+
+        var picks = new List<(InventoryItem, decimal)>();
+        var remaining = item.Quantity;
+        foreach (var lot in lots)
+        {
+            if (remaining <= 0) break;
+            var take = Math.Min(lot.Quantity - lot.ReservedQuantity, remaining);
+            picks.Add((lot, take));
+            remaining -= take;
+        }
+        return picks;
     }
 
     /// <summary>
@@ -736,6 +944,21 @@ public partial class WarehouseCompleteService {
         var targetWarehouse = dto.TargetWarehouseId.HasValue
             ? await _context.Warehouses.FindAsync(dto.TargetWarehouseId.Value)
             : null;
+
+        if (dto.Items == null || dto.Items.Count == 0)
+            throw new InvalidOperationException("Phiếu xuất phải có ít nhất 1 dòng thuốc.");
+
+        // QA0915: chuyển kho trước đây không kiểm kho nhận (chuyển A→A vẫn 200 và tồn mất 5) và
+        // kho nhận KHÔNG bao giờ được cộng (đo được: kho nguồn −10, tủ trực +0).
+        if (exportType == 4)
+        {
+            if (!dto.TargetWarehouseId.HasValue || dto.TargetWarehouseId.Value == Guid.Empty)
+                throw new InvalidOperationException("Phiếu chuyển kho phải chọn kho nhận.");
+            if (dto.TargetWarehouseId.Value == dto.WarehouseId)
+                throw new InvalidOperationException("Kho nhận phải khác kho xuất.");
+            if (targetWarehouse == null || targetWarehouse.IsDeleted)
+                throw new KeyNotFoundException("Kho nhận không tồn tại");
+        }
 
         var exportReceipt = new ExportReceipt
         {
@@ -765,65 +988,83 @@ public partial class WarehouseCompleteService {
             .Where(m => medicineIds.Contains(m.Id))
             .ToDictionaryAsync(m => m.Id);
 
-        foreach (var item in dto.Items)
+        // Chuyển kho: phiếu nhập đối ứng ở kho nhận, tự duyệt, gắn tag để CancelStockIssueAsync đảo lại.
+        ImportReceipt? transferIn = null;
+        var targetLots = new Dictionary<(Guid?, string?), InventoryItem>();
+        if (exportType == 4)
         {
-            var stock = item.StockId.HasValue
-                ? await _context.InventoryItems.FindAsync(item.StockId.Value)
-                : await _context.InventoryItems
-                    .Where(i => i.WarehouseId == dto.WarehouseId && i.MedicineId == item.ItemId && (i.Quantity - i.ReservedQuantity) >= item.Quantity
-                        && !i.IsLocked && !i.IsDeleted)
-                    .OrderBy(i => i.ExpiryDate)
-                    .FirstOrDefaultAsync();
-
-            if (stock == null)
-                throw new InvalidOperationException($"Insufficient stock for item {item.ItemId}");
-
-            // NangCap26 V.31: chọn đích danh lô cũng không được nếu lô đang khóa.
-            EnsureBatchNotLocked(stock);
-
-            stock.Quantity -= item.Quantity;
-
-            medicinesMap.TryGetValue(item.ItemId, out var medicine);
-            var amount = item.Quantity * stock.UnitPrice;
-            totalAmount += amount;
-
-            var exportDetail = new ExportReceiptDetail
+            transferIn = new ImportReceipt
             {
                 Id = Guid.NewGuid(),
-                ExportReceiptId = exportReceipt.Id,
-                MedicineId = item.ItemId,
-                InventoryItemId = stock.Id,
-                BatchNumber = stock.BatchNumber,
-                ExpiryDate = stock.ExpiryDate,
-                Quantity = item.Quantity,
-                Unit = medicine?.Unit,
-                UnitPrice = stock.UnitPrice,
-                Amount = amount,
+                ReceiptCode = $"NC{DateTime.Now:yyyyMMddHHmmss}",
+                ReceiptDate = dto.IssueDate,
+                WarehouseId = dto.TargetWarehouseId!.Value,
+                ImportType = 3, // Nhập chuyển kho
+                Status = 1,
+                ApprovedBy = userId,
+                ApprovedAt = DateTime.Now,
+                Note = $"{TransferTag(exportReceipt.Id)} Nhận chuyển kho từ {warehouse.WarehouseName} — phiếu xuất {exportReceipt.ReceiptCode}",
                 CreatedAt = DateTime.Now,
                 CreatedBy = userId.ToString()
             };
-            _context.ExportReceiptDetails.Add(exportDetail);
+        }
 
-            issueItems.Add(new StockIssueItemDto
+        foreach (var item in dto.Items)
+        {
+            medicinesMap.TryGetValue(item.ItemId, out var medicine);
+            foreach (var (stock, take) in await PickIssueLotsAsync(dto.WarehouseId, item, exportType))
             {
-                Id = exportDetail.Id,
-                StockIssueId = exportReceipt.Id,
-                ItemId = item.ItemId,
-                ItemCode = medicine?.MedicineCode ?? string.Empty,
-                ItemName = medicine?.MedicineName ?? string.Empty,
-                ItemType = 1, // Thuốc
-                Unit = medicine?.Unit ?? string.Empty,
-                StockId = stock.Id,
-                BatchNumber = stock.BatchNumber,
-                ExpiryDate = stock.ExpiryDate,
-                Quantity = item.Quantity,
-                UnitPrice = stock.UnitPrice,
-                Amount = amount
-            });
+                stock.Quantity -= take;
+                var amount = take * stock.UnitPrice;
+                totalAmount += amount;
+
+                var exportDetail = new ExportReceiptDetail
+                {
+                    Id = Guid.NewGuid(),
+                    ExportReceiptId = exportReceipt.Id,
+                    MedicineId = item.ItemId,
+                    InventoryItemId = stock.Id,
+                    BatchNumber = stock.BatchNumber,
+                    ExpiryDate = stock.ExpiryDate,
+                    Quantity = take,
+                    Unit = medicine?.Unit,
+                    UnitPrice = stock.UnitPrice,
+                    Amount = amount,
+                    CreatedAt = DateTime.Now,
+                    CreatedBy = userId.ToString()
+                };
+                _context.ExportReceiptDetails.Add(exportDetail);
+
+                issueItems.Add(new StockIssueItemDto
+                {
+                    Id = exportDetail.Id,
+                    StockIssueId = exportReceipt.Id,
+                    ItemId = item.ItemId,
+                    ItemCode = medicine?.MedicineCode ?? string.Empty,
+                    ItemName = medicine?.MedicineName ?? string.Empty,
+                    ItemType = 1, // Thuốc
+                    Unit = medicine?.Unit ?? string.Empty,
+                    StockId = stock.Id,
+                    BatchNumber = stock.BatchNumber,
+                    ExpiryDate = stock.ExpiryDate,
+                    Quantity = take,
+                    UnitPrice = stock.UnitPrice,
+                    Amount = amount
+                });
+
+                if (transferIn != null)
+                    await CreditTransferTargetAsync(transferIn, stock, take, medicine?.Unit, userId, targetLots);
+            }
         }
 
         exportReceipt.TotalAmount = totalAmount;
         _context.ExportReceipts.Add(exportReceipt);
+        if (transferIn != null)
+        {
+            transferIn.TotalAmount = totalAmount;
+            transferIn.FinalAmount = totalAmount;
+            _context.ImportReceipts.Add(transferIn);
+        }
         await _context.SaveChangesAsync();
 
         return new StockIssueDto

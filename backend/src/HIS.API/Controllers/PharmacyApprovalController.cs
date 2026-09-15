@@ -14,6 +14,7 @@ namespace HIS.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/pharmacy-approval")]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // not-found/state guards → 404/400 instead of a bare 500
 [Authorize]
 public class PharmacyApprovalController : ControllerBase
 {

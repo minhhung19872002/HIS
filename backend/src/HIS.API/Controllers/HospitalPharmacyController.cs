@@ -8,6 +8,7 @@ namespace HIS.API.Controllers;
 
 [ApiController]
 [Route("api/hospital-pharmacy")]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // stock/state guards → 400 with the reason instead of a bare 500
 [Authorize]
 public class HospitalPharmacyController : ControllerBase
 {

@@ -166,18 +166,27 @@ public class PharmacyApprovalService : IPharmacyApprovalService
         {
             var item = approval.Items.FirstOrDefault(x => x.Id == patch.ItemId);
             if (item == null) continue;
+            if (!patch.IsExcluded && patch.ApprovedQuantity < 0)
+                throw new InvalidOperationException("Số lượng duyệt không được âm.");
             item.ApprovedQuantity = patch.IsExcluded ? 0 : patch.ApprovedQuantity;
             item.IsExcluded = patch.IsExcluded;
             item.Amount = item.UnitPrice * item.ApprovedQuantity;
             item.UpdatedAt = DateTime.UtcNow;
         }
 
+        // QA0915 (đo trên API): phiếu dự trù loại 1 duyệt 10 → kho nguồn bị trừ 20 (trừ tay ở vòng dưới
+        // RỒI phiếu xuất chuyển kho tự sinh trừ thêm lần nữa), thu hồi chỉ cộng lại 10. Loại 1 có kho
+        // nguồn nay CHỈ trừ qua phiếu xuất (một lần, cùng transaction với việc duyệt); phiếu xuất lỗi
+        // (thiếu tồn…) thì việc duyệt rollback thay vì "đã duyệt" mà kho không đổi.
+        var viaStockIssue = approval.ApprovalType == 1 && approval.FromWarehouseId.HasValue;
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+
         // Khi duyệt: trừ tồn từ InventoryItem theo ApprovedQuantity
         // perf(#195): batch-load InventoryItems instead of FirstOrDefaultAsync per item (N+1).
         // Safe: entities are tracked, so repeated InventoryItemId across lines still resolve to the
         // same in-memory instance (EF identity resolution) exactly like the previous per-iteration
         // FirstOrDefaultAsync did — cumulative decrement/oversell-guard behavior is unchanged.
-        var approveInvIds = approval.Items
+        var approveInvIds = viaStockIssue ? new List<Guid>() : approval.Items
             .Where(i => !i.IsExcluded && i.ApprovedQuantity > 0 && i.InventoryItemId.HasValue)
             .Select(i => i.InventoryItemId!.Value)
             .Distinct()
@@ -186,7 +195,7 @@ public class PharmacyApprovalService : IPharmacyApprovalService
             .Where(x => approveInvIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id);
 
-        foreach (var item in approval.Items.Where(i => !i.IsExcluded && i.ApprovedQuantity > 0))
+        foreach (var item in approval.Items.Where(i => !viaStockIssue && !i.IsExcluded && i.ApprovedQuantity > 0))
         {
             if (item.InventoryItemId.HasValue)
             {
@@ -212,51 +221,45 @@ public class PharmacyApprovalService : IPharmacyApprovalService
 
         // ApprovalType=1: auto-generate transfer stock issue (ExportType=4)
         // from FromWarehouse to ToWarehouse for all approved items.
-        if (approval.ApprovalType == 1 && approval.FromWarehouseId.HasValue)
+        if (viaStockIssue)
         {
-            try
+            var issueDto = new CreateStockIssueDto
             {
-                var issueDto = new CreateStockIssueDto
-                {
-                    IssueDate = DateTime.Now,
-                    WarehouseId = approval.FromWarehouseId.Value,
-                    TargetWarehouseId = approval.ToWarehouseId,
-                    DepartmentId = approval.FromDepartmentId,
-                    IssueType = 4, // Transfer
-                    Notes = $"[DU_TRU:{approval.ApprovalCode}] {approval.Note}",
-                    Items = approval.Items
-                        .Where(i => !i.IsExcluded && i.ApprovedQuantity > 0)
-                        .Select(i => new CreateStockIssueItemDto
-                        {
-                            ItemId = (i.MedicineId ?? i.SupplyId) ?? Guid.Empty,
-                            StockId = i.InventoryItemId,
-                            Quantity = i.ApprovedQuantity,
-                            PaymentSource = 0,
-                        })
-                        .Where(i => i.ItemId != Guid.Empty)
-                        .ToList()
-                };
+                IssueDate = DateTime.Now,
+                WarehouseId = approval.FromWarehouseId!.Value,
+                TargetWarehouseId = approval.ToWarehouseId,
+                DepartmentId = approval.FromDepartmentId,
+                IssueType = approval.ToWarehouseId.HasValue ? 4 : 3, // Transfer | issue to department
+                Notes = $"[DU_TRU:{approval.ApprovalCode}] {approval.Note}",
+                Items = approval.Items
+                    .Where(i => !i.IsExcluded && i.ApprovedQuantity > 0)
+                    .Select(i => new CreateStockIssueItemDto
+                    {
+                        ItemId = (i.MedicineId ?? i.SupplyId) ?? Guid.Empty,
+                        StockId = i.InventoryItemId,
+                        Quantity = i.ApprovedQuantity,
+                        PaymentSource = 0,
+                    })
+                    .Where(i => i.ItemId != Guid.Empty)
+                    .ToList()
+            };
 
-                if (issueDto.Items.Count > 0)
-                {
-                    var issued = await _warehouseService.CreateTransferIssueAsync(issueDto, userId);
-                    // Store link so FE can print the transfer issue
-                    approval.LinkedExportReceiptId = issued.Id;
-                    await _db.SaveChangesAsync();
-                    _logger.LogInformation(
-                        "Auto-created transfer issue {IssueId} for PharmacyApproval {ApprovalId}",
-                        issued.Id, approval.Id);
-                }
-            }
-            catch (Exception ex)
+            if (issueDto.Items.Count > 0)
             {
-                // Log warning but do NOT rollback the approval — transfer issue
-                // can be created manually if stock is insufficient.
-                _logger.LogWarning(ex,
-                    "Failed to auto-create transfer issue for PharmacyApproval {Id}. Approval remains approved.",
-                    approval.Id);
+                // Shares this scoped DbContext → runs inside the transaction above; any failure
+                // (insufficient stock, locked lot…) propagates and rolls the approval back.
+                var issued = approval.ToWarehouseId.HasValue
+                    ? await _warehouseService.CreateTransferIssueAsync(issueDto, userId)
+                    : await _warehouseService.IssueToDepartmentAsync(issueDto, userId);
+                // Store link so FE can print the transfer issue
+                approval.LinkedExportReceiptId = issued.Id;
+                await _db.SaveChangesAsync();
+                _logger.LogInformation(
+                    "Auto-created transfer issue {IssueId} for PharmacyApproval {ApprovalId}",
+                    issued.Id, approval.Id);
             }
         }
+        await transaction.CommitAsync();
 
         _logger.LogInformation(
             "User {UserId} approved PharmacyApproval {Id} type={Type}",
@@ -275,11 +278,20 @@ public class PharmacyApprovalService : IPharmacyApprovalService
         if (string.IsNullOrWhiteSpace(dto.Reason))
             throw new ArgumentException("Lý do thu hồi bắt buộc");
 
+        // QA0915: loại 1 có kho nguồn chỉ trừ kho qua phiếu xuất tự sinh → thu hồi = hủy đúng phiếu xuất đó
+        // (hoàn kho nguồn + đảo phiếu nhập ở kho nhận), KHÔNG cộng tay thêm lần nữa.
+        var viaStockIssue = approval.ApprovalType == 1 && approval.FromWarehouseId.HasValue
+            && approval.LinkedExportReceiptId.HasValue;
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+        if (viaStockIssue)
+            await _warehouseService.CancelStockIssueAsync(
+                approval.LinkedExportReceiptId!.Value, $"Thu hồi duyệt {approval.ApprovalCode}: {dto.Reason}", userId);
+
         // Hoàn lại tồn kho
         // perf(#195): batch-load InventoryItems instead of FirstOrDefaultAsync per item (N+1).
         // Safe for the same reason as ApproveAsync — tracked entities, identity resolution keeps
         // cumulative-across-duplicate-lines behavior identical.
-        var revokeInvIds = approval.Items
+        var revokeInvIds = viaStockIssue ? new List<Guid>() : approval.Items
             .Where(i => !i.IsExcluded && i.ApprovedQuantity > 0 && i.InventoryItemId.HasValue)
             .Select(i => i.InventoryItemId!.Value)
             .Distinct()
@@ -288,7 +300,7 @@ public class PharmacyApprovalService : IPharmacyApprovalService
             .Where(x => revokeInvIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id);
 
-        foreach (var item in approval.Items.Where(i => !i.IsExcluded && i.ApprovedQuantity > 0))
+        foreach (var item in approval.Items.Where(i => !viaStockIssue && !i.IsExcluded && i.ApprovedQuantity > 0))
         {
             if (item.InventoryItemId.HasValue)
             {
@@ -309,6 +321,7 @@ public class PharmacyApprovalService : IPharmacyApprovalService
 
         LogTransition(approval.Id, 3, 4, "Revoke", userId, dto.Reason);
         await _db.SaveChangesAsync();
+        await transaction.CommitAsync();
         _logger.LogWarning(
             "User {UserId} revoked PharmacyApproval {Id}: {Reason}",
             userId, approval.Id, dto.Reason);

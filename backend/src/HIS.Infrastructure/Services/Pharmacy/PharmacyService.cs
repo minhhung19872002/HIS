@@ -206,6 +206,21 @@ public partial class PharmacyService : IPharmacyService
             .FirstOrDefaultAsync(d => d.Id == itemId && !d.IsDeleted);
         if (detail == null) return null;
 
+        // QA0915 wave 2: nhận bất kỳ số nào (âm, vượt số kê). Cột này quyết định "cấp đủ / cấp một phần"
+        // của đơn, còn việc trừ kho thật đi qua phiếu xuất — nên chỉ cho sửa trong [0, SL kê] và chỉ khi
+        // dòng CHƯA xuất kho (đã xuất thì số cấp phải khớp phiếu xuất, muốn đổi thì hủy phát).
+        if (quantity < 0)
+            throw new InvalidOperationException("Số lượng cấp phát không được âm.");
+        if (quantity > detail.Quantity)
+            throw new InvalidOperationException(
+                $"Số lượng cấp phát ({quantity:0.##}) vượt số lượng kê đơn ({detail.Quantity:0.##}).");
+        if (detail.Status != 0)
+            throw new InvalidOperationException("Dòng thuốc đã xuất kho, không sửa số lượng cấp phát được — hủy phát rồi phát lại.");
+        var prescriptionStatus = await _context.Prescriptions
+            .Where(p => p.Id == detail.PrescriptionId).Select(p => (int?)p.Status).FirstOrDefaultAsync();
+        if (prescriptionStatus is PrescriptionStatus.Cancelled or PrescriptionStatus.Returned or PrescriptionStatus.Draft)
+            throw new InvalidOperationException("Đơn thuốc đã hủy / hoàn trả / còn nháp — không cập nhật cấp phát được.");
+
         detail.DispensedQuantity = quantity;
         if (!string.IsNullOrEmpty(batchNumber))
             detail.BatchNumber = batchNumber;

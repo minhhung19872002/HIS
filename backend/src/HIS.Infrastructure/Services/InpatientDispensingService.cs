@@ -83,6 +83,11 @@ public class InpatientDispensingService : IInpatientDispensingService
             .Where(p => dto.PrescriptionIds.Contains(p.Id)
                 && p.PrescriptionType == 2
                 && !p.IsDispensed
+                && !p.IsDeleted
+                // QA0915: đơn Hủy/Nháp/Hoàn trả không được lĩnh (danh sách chờ đã loại Status 4, lệnh phát thì chưa).
+                && p.Status != 3 && p.Status != 4 && p.Status != 5
+                // review M8: đơn đã bán tại nhà thuốc thì không lĩnh nữa (tránh trừ kho hai lần)
+                && !_db.RetailSales.Any(s => s.PrescriptionId == p.Id && s.Status != "Cancelled" && !s.IsDeleted)
                 && p.DepartmentId == dto.DepartmentId)
             .ToListAsync();
 
@@ -109,7 +114,7 @@ public class InpatientDispensingService : IInpatientDispensingService
 
         decimal total = 0;
         var byMedicine = prescriptions
-            .SelectMany(p => p.Details.Where(d => d.Status == 0).Select(d => new { Prescription = p, Detail = d }))
+            .SelectMany(p => p.Details.Where(d => !d.IsDeleted && d.Status == 0).Select(d => new { Prescription = p, Detail = d }))
             .GroupBy(x => x.Detail.MedicineId);
 
         foreach (var grp in byMedicine)
@@ -121,9 +126,13 @@ public class InpatientDispensingService : IInpatientDispensingService
             var medicine = grp.First().Detail.Medicine;
 
             var remainingQty = totalQty;
+            // QA0915: trước đây không lọc hạn dùng / lô khóa / lô xóa → phiếu lĩnh nội trú lấy cả lô HẾT HẠN
+            // và lô đang thu hồi (nhánh phát ngoại trú đã lọc từ lâu).
             var stocks = await _db.InventoryItems
                 .Where(i => i.WarehouseId == dto.WarehouseId && i.MedicineId == medicineId
-                    && (i.Quantity - i.ReservedQuantity) > 0)
+                    && (i.Quantity - i.ReservedQuantity) > 0
+                    && i.ExpiryDate >= DateTime.Today
+                    && !i.IsLocked && !i.IsDeleted)
                 .OrderBy(i => i.ExpiryDate)
                 .ToListAsync();
 

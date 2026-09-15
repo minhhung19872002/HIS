@@ -543,13 +543,50 @@ public partial class WarehouseCompleteService {
             });
         }
 
-        var user = await _context.Users.FindAsync(userId);
-
-        return new StockTakeDto
+        // QA0915: phiếu kiểm kê trước đây KHÔNG được ghi (trả Id ngẫu nhiên) → mọi bước sau
+        // (lưu kết quả / hoàn thành) đều 404 "Không tìm thấy phiếu kiểm kê". Ghi phiếu + dòng sổ sách.
+        var stockTake = new StockTake
         {
             Id = Guid.NewGuid(),
             StockTakeCode = $"KK{DateTime.Now:yyyyMMddHHmmss}",
             StockTakeDate = DateTime.Now,
+            WarehouseId = warehouseId,
+            PeriodFrom = periodFrom,
+            PeriodTo = periodTo,
+            Status = 0,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = userId.ToString()
+        };
+        _context.StockTakes.Add(stockTake);
+        foreach (var it in items)
+        {
+            it.StockTakeId = stockTake.Id;
+            _context.StockTakeItems.Add(new StockTakeItem
+            {
+                Id = it.Id,
+                StockTakeId = stockTake.Id,
+                InventoryItemId = it.StockId,
+                ItemId = it.ItemId,
+                ItemCode = it.ItemCode,
+                ItemName = it.ItemName,
+                Unit = it.Unit,
+                BatchNumber = it.BatchNumber,
+                ExpiryDate = it.ExpiryDate,
+                BookQuantity = it.BookQuantity,
+                ActualQuantity = it.ActualQuantity,
+                UnitPrice = it.UnitPrice,
+                CreatedAt = DateTime.UtcNow,
+            });
+        }
+        await _context.SaveChangesAsync();
+
+        var user = await _context.Users.FindAsync(userId);
+
+        return new StockTakeDto
+        {
+            Id = stockTake.Id,
+            StockTakeCode = stockTake.StockTakeCode,
+            StockTakeDate = stockTake.StockTakeDate,
             WarehouseId = warehouseId,
             WarehouseName = warehouse.WarehouseName,
             PeriodFrom = periodFrom,
@@ -596,6 +633,7 @@ public partial class WarehouseCompleteService {
                 ExpiryDate = item.ExpiryDate,
                 BookQuantity = item.BookQuantity,
                 ActualQuantity = item.ActualQuantity,
+                UnitPrice = item.UnitPrice,
                 CreatedAt = now,
             });
         }
@@ -653,11 +691,125 @@ public partial class WarehouseCompleteService {
         };
     }
 
+    /// <summary>
+    /// Điều chỉnh tồn theo kết quả kiểm kê. QA0915: trước đây là vỏ rỗng trả <c>true</c> — nút "Điều chỉnh
+    /// tồn" báo thành công mà tồn không đổi. Áp CHÊNH LỆCH (thực đếm − sổ sách lúc tạo phiếu) lên tồn
+    /// hiện tại của đúng lô, không ghi đè bằng số thực đếm (hàng có thể đã nhập/xuất sau lúc đếm).
+    /// Mỗi phía chênh lệch sinh một phiếu đã duyệt (nhập kiểm kê KT / xuất kiểm kê KG) để sổ kho khớp.
+    /// </summary>
     public async Task<bool> AdjustStockAfterTakeAsync(Guid stockTakeId, Guid userId)
     {
-        // Stock take adjustment is handled in-memory (no StockTake table yet)
-        // In a full implementation, this would read stock take items and adjust InventoryItem quantities
-        await Task.CompletedTask;
+        var stockTake = await _context.StockTakes
+            .Include(s => s.Items)
+            .FirstOrDefaultAsync(s => s.Id == stockTakeId && !s.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu kiểm kê");
+        if (stockTake.Status == 3)
+            throw new InvalidOperationException("Phiếu kiểm kê đã được điều chỉnh tồn trước đó.");
+        if (stockTake.Status != 2)
+            throw new InvalidOperationException("Phải hoàn thành phiếu kiểm kê trước khi điều chỉnh tồn.");
+
+        await EnsureWarehouseNotLockedAsync(stockTake.WarehouseId);
+
+        var lines = stockTake.Items.Where(i => !i.IsDeleted && i.ActualQuantity != i.BookQuantity).ToList();
+        var lotIds = lines.Select(i => i.InventoryItemId).Distinct().ToList();
+        var lots = await _context.InventoryItems
+            .Where(i => lotIds.Contains(i.Id))
+            .ToDictionaryAsync(i => i.Id);
+
+        var now = DateTime.Now;
+        ImportReceipt? increase = null;
+        ExportReceipt? decrease = null;
+
+        foreach (var line in lines)
+        {
+            if (line.ActualQuantity < 0)
+                throw new InvalidOperationException($"Số thực đếm của {line.ItemName} không được âm.");
+            if (!lots.TryGetValue(line.InventoryItemId, out var lot) || lot.WarehouseId != stockTake.WarehouseId)
+                throw new InvalidOperationException($"Lô {line.BatchNumber} của {line.ItemName} không còn trong kho kiểm kê.");
+
+            var delta = line.ActualQuantity - line.BookQuantity;
+            if (lot.Quantity + delta < 0)
+                throw new InvalidOperationException(
+                    $"Điều chỉnh làm lô {line.BatchNumber} của {line.ItemName} âm tồn (hiện {lot.Quantity:0.##}, chênh lệch {delta:0.##}).");
+            lot.Quantity += delta;
+            lot.UpdatedAt = now;
+
+            if (delta > 0)
+            {
+                increase ??= new ImportReceipt
+                {
+                    Id = Guid.NewGuid(),
+                    ReceiptCode = $"KT{now:yyyyMMddHHmmss}",
+                    ReceiptDate = now,
+                    WarehouseId = stockTake.WarehouseId,
+                    ImportType = 6, // Nhập kiểm kê
+                    Status = 1,
+                    ApprovedBy = userId,
+                    ApprovedAt = now,
+                    Note = $"Điều chỉnh tăng theo phiếu kiểm kê {stockTake.StockTakeCode}",
+                    CreatedAt = now,
+                    CreatedBy = userId.ToString()
+                };
+                _context.ImportReceiptDetails.Add(new ImportReceiptDetail
+                {
+                    Id = Guid.NewGuid(),
+                    ImportReceiptId = increase.Id,
+                    MedicineId = lot.MedicineId,
+                    SupplyId = lot.SupplyId,
+                    BatchNumber = lot.BatchNumber,
+                    ExpiryDate = lot.ExpiryDate,
+                    ManufactureDate = lot.ManufactureDate,
+                    Quantity = delta,
+                    Unit = line.Unit,
+                    UnitPrice = lot.UnitPrice,
+                    Amount = delta * lot.UnitPrice,
+                    CreatedAt = now,
+                    CreatedBy = userId.ToString()
+                });
+                increase.TotalAmount += delta * lot.UnitPrice;
+                increase.FinalAmount = increase.TotalAmount;
+            }
+            else
+            {
+                decrease ??= new ExportReceipt
+                {
+                    Id = Guid.NewGuid(),
+                    ReceiptCode = $"KG{now:yyyyMMddHHmmss}",
+                    ReceiptDate = now,
+                    WarehouseId = stockTake.WarehouseId,
+                    ExportType = 9, // Xuất kiểm kê
+                    Status = 1,
+                    Note = $"Điều chỉnh giảm theo phiếu kiểm kê {stockTake.StockTakeCode}",
+                    CreatedAt = now,
+                    CreatedBy = userId.ToString()
+                };
+                _context.ExportReceiptDetails.Add(new ExportReceiptDetail
+                {
+                    Id = Guid.NewGuid(),
+                    ExportReceiptId = decrease.Id,
+                    MedicineId = lot.MedicineId,
+                    SupplyId = lot.SupplyId,
+                    InventoryItemId = lot.Id,
+                    BatchNumber = lot.BatchNumber,
+                    ExpiryDate = lot.ExpiryDate,
+                    Quantity = -delta,
+                    Unit = line.Unit,
+                    UnitPrice = lot.UnitPrice,
+                    Amount = -delta * lot.UnitPrice,
+                    CreatedAt = now,
+                    CreatedBy = userId.ToString()
+                });
+                decrease.TotalAmount += -delta * lot.UnitPrice;
+            }
+        }
+
+        if (increase != null) _context.ImportReceipts.Add(increase);
+        if (decrease != null) _context.ExportReceipts.Add(decrease);
+
+        stockTake.Status = 3; // Đã điều chỉnh
+        stockTake.UpdatedAt = DateTime.UtcNow;
+        stockTake.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
         return true;
     }
 

@@ -396,12 +396,16 @@ public partial class WarehouseCompleteService {
 
     public async Task<StockReceiptDto> CancelDispensedPrescriptionAsync(Guid prescriptionId, string reason, Guid userId)
     {
-        // Tìm phiếu xuất theo đơn thuốc
-        var exportReceipt = await _context.ExportReceipts
+        // Tìm phiếu xuất theo đơn thuốc. QA0915 wave 2: đơn cấp nhiều lần (cấp một phần rồi cấp nốt) có
+        // NHIỀU phiếu xuất — bản cũ FirstOrDefault chỉ đảo phiếu đầu, phần đã cấp ở các phiếu sau mất khỏi kho
+        // trong khi đơn vẫn bị đặt "Hủy". Nay đảo toàn bộ.
+        var exportReceipts = await _context.ExportReceipts
             .Include(e => e.Details)
-            .FirstOrDefaultAsync(e => e.PrescriptionId == prescriptionId && e.Status != 2);
+            .Where(e => e.PrescriptionId == prescriptionId && e.Status != 2)
+            .OrderBy(e => e.CreatedAt)
+            .ToListAsync();
 
-        if (exportReceipt == null)
+        if (exportReceipts.Count == 0)
         {
             // Legacy (trước fix 2026-06-13): fallback CompleteDispensing cũ flip status "đã phát"
             // mà KHÔNG tạo phiếu xuất/không trừ kho → không có gì để hoàn kho. Cho hoàn TRẠNG THÁI
@@ -430,19 +434,15 @@ public partial class WarehouseCompleteService {
             throw new InvalidOperationException("Không tìm thấy phiếu xuất cho đơn thuốc này");
         }
 
-        // Hủy phiếu xuất
-        exportReceipt.Status = 2; // Cancelled
-        exportReceipt.Note = (exportReceipt.Note ?? "") + $" [HỦY: {reason}]";
-        exportReceipt.UpdatedAt = DateTime.Now;
-        exportReceipt.UpdatedBy = userId.ToString();
-
         // Tạo phiếu nhập hoàn trả
         var importReceipt = new ImportReceipt
         {
             Id = Guid.NewGuid(),
             ReceiptCode = CodeGenerator.Timestamp("HT"),
-            ImportType = 3, // Hoàn trả khoa
-            WarehouseId = exportReceipt.WarehouseId,
+            // QA0915 review: was 3, which StockReceiptDto / CreateTransferReceiptAsync define as "Nhập chuyển kho"
+            // (and the auto transfer counter-receipt uses). 4 = "Nhập hoàn trả khoa", same as CreateDepartmentReturnReceiptAsync.
+            ImportType = 4, // Hoàn trả khoa
+            WarehouseId = exportReceipts[0].WarehouseId,
             Note = $"Hoàn trả từ hủy đơn thuốc: {reason}",
             Status = 1, // Auto-approved
             ReceiptDate = DateTime.Now,
@@ -450,23 +450,33 @@ public partial class WarehouseCompleteService {
             CreatedBy = userId.ToString()
         };
 
-        // #195: nạp 1 lần các dòng tồn của kho này thay vì 1 query/dòng phiếu. Vẫn tra đúng
-        // theo MedicineId như cũ (kể cả khi null), và hai dòng cùng thuốc vẫn cộng dồn vào
-        // cùng một bản ghi tồn — trước đây query lặp cũng trả về chính bản đang được theo dõi.
-        var returnedMedicineIds = exportReceipt.Details.Select(d => d.MedicineId).Distinct().ToList();
-        var inventoryByMedicine = (await _context.Set<InventoryItem>()
-                .Where(i => i.WarehouseId == exportReceipt.WarehouseId && returnedMedicineIds.Contains(i.MedicineId))
-                .ToListAsync())
-            .GroupBy(i => i.MedicineId)
-            .ToDictionary(g => g.Key, g => g.First());
-
-        // Hoàn trả từng item về tồn kho
-        foreach (var detail in exportReceipt.Details)
+        foreach (var exportReceipt in exportReceipts)
         {
-            var itemId = detail.MedicineId ?? detail.SupplyId ?? detail.InventoryItemId;
-            if (itemId.HasValue)
+            // Hủy phiếu xuất
+            exportReceipt.Status = 2; // Cancelled
+            exportReceipt.Note = (exportReceipt.Note ?? "") + $" [HỦY: {reason}]";
+            exportReceipt.UpdatedAt = DateTime.Now;
+            exportReceipt.UpdatedBy = userId.ToString();
+
+            // QA0915 (đo trên API): bản cũ hoàn về "dòng tồn ĐẦU TIÊN của thuốc trong kho" — phát 30 lô
+            // EARLY + 10 lô LATE rồi hủy thì cả 40 bị cộng vào lô HẾT HẠN, hai lô đúng vẫn trống. Tổng
+            // tồn đúng nhưng sổ lô sai (FEFO sau đó báo thiếu, lô hết hạn phình). Hoàn đúng lô đã trừ
+            // (ExportReceiptDetail.InventoryItemId); chỉ khi lô gốc không còn mới rơi về tra theo thuốc + số lô.
+            var lotIds = exportReceipt.Details.Where(d => d.InventoryItemId.HasValue)
+                .Select(d => d.InventoryItemId!.Value).Distinct().ToList();
+            var lotsById = await _context.Set<InventoryItem>()
+                .Where(i => lotIds.Contains(i.Id))
+                .ToDictionaryAsync(i => i.Id);
+
+            // Hoàn trả từng item về tồn kho
+            foreach (var detail in exportReceipt.Details)
             {
-                inventoryByMedicine.TryGetValue(detail.MedicineId, out var inventoryItem);
+                InventoryItem? inventoryItem = null;
+                if (detail.InventoryItemId.HasValue)
+                    lotsById.TryGetValue(detail.InventoryItemId.Value, out inventoryItem);
+                inventoryItem ??= await _context.Set<InventoryItem>()
+                    .FirstOrDefaultAsync(i => i.WarehouseId == exportReceipt.WarehouseId
+                        && i.MedicineId == detail.MedicineId && i.BatchNumber == detail.BatchNumber);
 
                 if (inventoryItem != null)
                 {
@@ -474,6 +484,24 @@ public partial class WarehouseCompleteService {
                     inventoryItem.UpdatedAt = DateTime.Now;
                 }
             }
+
+            // QA0915: phát xong đã tự cộng tiền thuốc vào InvoiceSummary (IsBilled) nhưng hủy phát KHÔNG trừ lại
+            // — đo được TotalMedicineAmount giữ nguyên 40.000 sau khi thuốc đã về kho. Đảo lại khi hóa đơn
+            // chưa thanh toán. Hóa đơn đã thu tiền thì cần luồng hoàn tiền — không tự sửa số ở đây.
+            if (exportReceipt.IsBilled && exportReceipt.MedicalRecordId.HasValue)
+            {
+                var billed = exportReceipt.Details.Sum(d => d.Quantity * d.UnitPrice);
+                var invoice = await _context.Set<InvoiceSummary>()
+                    .FirstOrDefaultAsync(i => i.MedicalRecordId == exportReceipt.MedicalRecordId.Value);
+                if (invoice != null && invoice.Status == 0)
+                {
+                    invoice.TotalMedicineAmount = Math.Max(0, invoice.TotalMedicineAmount - billed);
+                    invoice.TotalAmount = Math.Max(0, invoice.TotalAmount - billed);
+                    invoice.UpdatedAt = DateTime.Now;
+                    exportReceipt.IsBilled = false;
+                }
+            }
+
         }
 
         _context.ImportReceipts.Add(importReceipt);

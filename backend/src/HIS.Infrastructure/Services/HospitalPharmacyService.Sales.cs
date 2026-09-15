@@ -164,6 +164,40 @@ public partial class HospitalPharmacyService
             if (daBan)
                 throw new InvalidOperationException(
                     "Đơn thuốc này đã được bán trước đó. Muốn bán lại thì phải hủy phiếu bán cũ.");
+
+            // QA0915 (review M8): quầy cấp phát (phiếu xuất) và nhà thuốc (phiếu bán) là hai đường trừ kho
+            // cho CÙNG một đơn — phát tại quầy rồi "bán theo đơn" ở POS là trừ kho hai lần. Chặn chéo:
+            // đơn đã phát / còn phiếu xuất chưa hủy thì không bán theo đơn nữa.
+            var rxId = dto.PrescriptionId.Value;
+            var daPhat = await _context.Prescriptions.AnyAsync(p => p.Id == rxId && p.IsDispensed)
+                || await _context.ExportReceipts.AnyAsync(e => e.PrescriptionId == rxId && e.Status != 2 && !e.IsDeleted);
+            if (daPhat)
+                throw new InvalidOperationException(
+                    "Đơn thuốc này đã được cấp phát tại quầy (có phiếu xuất kho) — không bán theo đơn được. "
+                    + "Muốn chuyển sang bán thì hủy phát trước.");
+        }
+
+        // QA0915: qty âm (−10) từng CỘNG tồn kho qua phiếu bán; qty 0 tạo dòng rỗng.
+        if (dto.Items.Any(i => i.Quantity <= 0))
+            throw new InvalidOperationException("Số lượng bán mỗi dòng phải lớn hơn 0.");
+        if (dto.Items.Any(i => i.UnitPrice < 0 || i.DiscountAmount < 0) || dto.DiscountAmount < 0)
+            throw new InvalidOperationException("Đơn giá / chiết khấu không được âm.");
+
+        // QA0915: dòng không có kho thì trước đây KHÔNG trừ tồn (bán xong tồn nguyên) — mà màn POS v2 và
+        // bán theo đơn (dòng đơn chưa gán kho) đều không gửi kho. Rơi về nhà thuốc bệnh viện đang hoạt động,
+        // rồi tới kho thuốc; không có kho nào thì từ chối bán thay vì bán "chui" ngoài sổ kho.
+        Guid? defaultWarehouseId = null;
+        if (dto.Items.Any(i => !i.WarehouseId.HasValue || i.WarehouseId.Value == Guid.Empty))
+        {
+            defaultWarehouseId = await _context.Warehouses
+                .Where(w => w.IsActive && !w.IsDeleted
+                    && HIS.Core.Constants.WarehouseType.Dispensing.Contains(w.WarehouseType))
+                .OrderBy(w => w.WarehouseType == HIS.Core.Constants.WarehouseType.Pharmacy ? 0 : 1)
+                .ThenBy(w => w.WarehouseName)
+                .Select(w => (Guid?)w.Id)
+                .FirstOrDefaultAsync()
+                ?? throw new InvalidOperationException(
+                    "Không có nhà thuốc / kho thuốc nào đang hoạt động để trừ tồn — cấu hình kho trước khi bán.");
         }
 
         var totalAmount = dto.Items.Sum(i => i.Quantity * i.UnitPrice - i.DiscountAmount);
@@ -195,43 +229,57 @@ public partial class HospitalPharmacyService
 
             foreach (var item in dto.Items)
             {
-                // Trừ tồn kho FEFO khi có kho (audit luồng nghiệp vụ 2026-06-06 #6) — trước đây bán
-                // lẻ KHÔNG đụng tồn kho. Lô hết hạn gần nhất + đủ số lượng được trừ trước.
-                string? usedBatch = item.BatchNumber;
-                DateTime? usedExpiry = DateTime.TryParse(item.ExpiryDate, out var ed) ? ed : null;
-                if (item.WarehouseId.HasValue && item.WarehouseId.Value != Guid.Empty)
-                {
-                    var stock = await _context.InventoryItems
-                        .Where(i => i.WarehouseId == item.WarehouseId.Value
+                // Trừ tồn kho FEFO (audit luồng nghiệp vụ 2026-06-06 #6). QA0915: bản cũ tìm MỘT lô đủ cả
+                // dòng bằng điều kiện SQL trên số tồn DB → hai dòng cùng thuốc đều "đủ" theo tồn trước khi
+                // trừ (đo được lô xuống −10), không lọc lô khóa/xóa, và thiếu một lô đủ thì từ chối dù tổng
+                // các lô còn hạn đủ. Nay gộp nhiều lô còn hạn, tính tồn khả dụng trên giá trị trong bộ nhớ,
+                // mỗi lô một dòng bán (để hủy phiếu hoàn đúng lô).
+                var warehouseId = item.WarehouseId.HasValue && item.WarehouseId.Value != Guid.Empty
+                    ? item.WarehouseId.Value
+                    : defaultWarehouseId!.Value;
+                var lots = (await _context.InventoryItems
+                        .Where(i => i.WarehouseId == warehouseId
                             && i.MedicineId == item.MedicineId
-                            && (i.Quantity - i.ReservedQuantity) >= item.Quantity
-                            && i.ExpiryDate >= DateTime.Today)
-                        .OrderBy(i => i.ExpiryDate)
-                        .FirstOrDefaultAsync();
-                    if (stock == null)
-                        throw new InvalidOperationException($"Không đủ tồn kho cho thuốc {item.MedicineName}");
-                    stock.Quantity -= item.Quantity;
-                    usedBatch = stock.BatchNumber;
-                    usedExpiry = stock.ExpiryDate;
-                }
+                            && i.ExpiryDate >= DateTime.Today
+                            && !i.IsLocked && !i.IsDeleted)
+                        .ToListAsync())
+                    .Where(i => i.Quantity - i.ReservedQuantity > 0)
+                    .OrderBy(i => i.ExpiryDate).ThenBy(i => i.Id)
+                    .ToList();
+                var available = lots.Sum(l => l.Quantity - l.ReservedQuantity);
+                if (available < item.Quantity)
+                    throw new InvalidOperationException(
+                        $"Không đủ tồn kho cho thuốc {item.MedicineName} (cần {item.Quantity:0.##}, còn {available:0.##})");
 
-                var saleItem = new RetailSaleItem
+                var remaining = item.Quantity;
+                var discountLeft = item.DiscountAmount;
+                foreach (var stock in lots)
                 {
-                    Id = Guid.NewGuid(),
-                    RetailSaleId = sale.Id,
-                    MedicineId = item.MedicineId,
-                    MedicineName = item.MedicineName,
-                    Unit = item.Unit,
-                    Quantity = item.Quantity,
-                    UnitPrice = item.UnitPrice,
-                    Amount = item.Quantity * item.UnitPrice,
-                    DiscountAmount = item.DiscountAmount,
-                    BatchNumber = usedBatch,
-                    ExpiryDate = usedExpiry,
-                    WarehouseId = item.WarehouseId,
-                    CreatedAt = DateTime.UtcNow,
-                };
-                _context.RetailSaleItems.Add(saleItem);
+                    if (remaining <= 0) break;
+                    var take = Math.Min(stock.Quantity - stock.ReservedQuantity, remaining);
+                    stock.Quantity -= take;
+                    remaining -= take;
+                    // Line discount stays on the first split line so the sale total is unchanged.
+                    var lineDiscount = discountLeft;
+                    discountLeft = 0;
+
+                    _context.RetailSaleItems.Add(new RetailSaleItem
+                    {
+                        Id = Guid.NewGuid(),
+                        RetailSaleId = sale.Id,
+                        MedicineId = item.MedicineId,
+                        MedicineName = item.MedicineName,
+                        Unit = item.Unit,
+                        Quantity = take,
+                        UnitPrice = item.UnitPrice,
+                        Amount = take * item.UnitPrice,
+                        DiscountAmount = lineDiscount,
+                        BatchNumber = stock.BatchNumber,
+                        ExpiryDate = stock.ExpiryDate,
+                        WarehouseId = warehouseId,
+                        CreatedAt = DateTime.UtcNow,
+                    });
+                }
             }
 
             await _context.SaveChangesAsync();
@@ -277,6 +325,29 @@ public partial class HospitalPharmacyService
     {
         var sale = await _context.RetailSales.FindAsync(id);
         if (sale == null || sale.IsDeleted || sale.Status == "Cancelled") return false;
+
+        // QA0915: hủy phiếu bán trước đây chỉ đổi trạng thái — thuốc đã trừ kho KHÔNG được hoàn (đo được
+        // bán 10 → hủy → tồn vẫn 90). Hoàn về đúng lô (kho + thuốc + số lô) đã ghi trên từng dòng bán.
+        var saleItems = await _context.RetailSaleItems
+            .Where(i => i.RetailSaleId == id && !i.IsDeleted && i.WarehouseId != null)
+            .ToListAsync();
+        foreach (var line in saleItems)
+        {
+            // Prefer the live lot; if the lot row was soft-deleted meanwhile, revive it rather than
+            // blocking the cancel (review minor) — the returned units must land somewhere visible.
+            var lot = await _context.InventoryItems
+                .IgnoreQueryFilters() // global soft-delete filter would hide the deleted lot
+                .Where(i => i.WarehouseId == line.WarehouseId && i.MedicineId == line.MedicineId
+                    && i.BatchNumber == line.BatchNumber)
+                .OrderBy(i => i.IsDeleted)
+                .FirstOrDefaultAsync();
+            if (lot == null)
+                throw new InvalidOperationException(
+                    $"Không tìm thấy lô {line.BatchNumber ?? "(không số lô)"} của {line.MedicineName} để hoàn kho — không hủy được phiếu.");
+            if (lot.IsDeleted) lot.IsDeleted = false;
+            lot.Quantity += line.Quantity;
+            lot.UpdatedAt = DateTime.UtcNow;
+        }
 
         sale.Status = "Cancelled";
         sale.CancelledAt = DateTime.UtcNow;

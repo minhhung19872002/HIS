@@ -14,85 +14,111 @@ namespace HIS.Infrastructure.Services;
 public partial class WarehouseCompleteService {
     #region 5.3 Ton kho - Bao cao
 
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // QA0915 wave 2: thẻ kho + báo cáo NXT trước đây đọc bảng `StockMovements` — bảng mà KHÔNG đường
+    // ghi nào trong hệ thống từng ghi (0 dòng), nên thẻ kho / NXT luôn rỗng; bản in NXT còn lấy tồn HIỆN
+    // TẠI làm "tồn đầu kỳ" với nhập = xuất = 0. Thay vì rải ghi StockMovements vào mọi đường nhập/xuất
+    // (nhiều module khác nhau), dựng lại từ đúng các chứng từ đang là nguồn sự thật — cùng nguồn với
+    // StockLedgerReportService: phiếu nhập đã duyệt, phiếu xuất đã xuất (không tính phiếu hủy / phiếu
+    // gốc đã gộp), dòng bán lẻ đã hoàn tất. Tồn đầu kỳ = tồn hiện tại − phát sinh ròng từ đầu kỳ tới nay,
+    // nên neo vào số tồn thật; mọi kỳ và tồn cuối kỳ tự khớp: đầu + nhập − xuất = cuối.
+    // Giới hạn đã biết: module trừ kho trực tiếp không qua chứng từ (vật tư VP, CĐHA, YHCT, PTTT, dự trù
+    // loại ≠ 1) không hiện dòng phát sinh — phần đó dồn vào tồn đầu kỳ.
+    // ════════════════════════════════════════════════════════════════════════════════════════
+
+    private sealed record StockDocLine(
+        DateTime Date, string DocumentCode, Guid ItemId, bool IsSupply, string TransactionType,
+        decimal Received, decimal Issued, decimal UnitPrice, string? Note);
+
+    private static string ImportTypeLabel(int t) => t switch
+    {
+        1 => "Nhap NCC", 2 => "Nhap khac", 3 => "Nhap chuyen kho", 4 => "Hoan tra khoa",
+        5 => "Hoan tra kho", 6 => "Kiem ke tang", _ => "Nhap kho"
+    };
+
+    private static string ExportTypeLabel(int t) => t switch
+    {
+        1 => "Xuat BN ngoai tru", 2 => "Xuat BN noi tru", 3 => "Xuat khoa phong", 4 => "Xuat chuyen kho",
+        5 => "Tra NCC", 6 => "Xuat ngoai", 7 => "Xuat huy", 8 => "Xuat mau", 9 => "Kiem ke giam",
+        10 => "Thanh ly", 12 => "Xuat tu truc", _ => "Xuat kho"
+    };
+
+    /// <summary>Mọi dòng chứng từ làm đổi tồn của kho (tuỳ chọn: một mặt hàng) từ <paramref name="from"/> tới nay.</summary>
+    private async Task<List<StockDocLine>> LoadStockDocLinesAsync(Guid warehouseId, Guid? itemId, DateTime from)
+    {
+        var imports = await _context.ImportReceiptDetails.AsNoTracking()
+            .Where(d => !d.IsDeleted && !d.ImportReceipt.IsDeleted
+                && d.ImportReceipt.WarehouseId == warehouseId && d.ImportReceipt.Status == 1
+                && d.ImportReceipt.ReceiptDate >= from
+                && (itemId == null || d.MedicineId == itemId || d.SupplyId == itemId))
+            .Select(d => new { d.ImportReceipt.ReceiptDate, d.ImportReceipt.ReceiptCode, d.ImportReceipt.ImportType, d.MedicineId, d.SupplyId, d.Quantity, d.UnitPrice, d.ImportReceipt.Note })
+            .ToListAsync();
+
+        var exports = await _context.ExportReceiptDetails.AsNoTracking()
+            .Where(d => !d.IsDeleted && !d.ExportReceipt.IsDeleted
+                && d.ExportReceipt.WarehouseId == warehouseId && d.ExportReceipt.Status == 1
+                && d.ExportReceipt.ReceiptDate >= from
+                && (itemId == null || d.MedicineId == itemId || d.SupplyId == itemId))
+            .Select(d => new { d.ExportReceipt.ReceiptDate, d.ExportReceipt.ReceiptCode, d.ExportReceipt.ExportType, d.MedicineId, d.SupplyId, d.Quantity, d.UnitPrice, d.ExportReceipt.Note })
+            .ToListAsync();
+
+        // RetailSale.CreatedAt is UTC while receipt dates are local (UTC+7).
+        var fromUtc = from.AddHours(-7);
+        var sales = await _context.RetailSaleItems.AsNoTracking()
+            .Where(i => !i.IsDeleted && i.WarehouseId == warehouseId
+                && i.RetailSale != null && !i.RetailSale.IsDeleted && i.RetailSale.Status == "Completed"
+                && i.RetailSale.CreatedAt >= fromUtc
+                && (itemId == null || i.MedicineId == itemId))
+            .Select(i => new { i.RetailSale!.CreatedAt, i.RetailSale.SaleCode, i.MedicineId, i.Quantity, i.UnitPrice })
+            .ToListAsync();
+
+        var lines = new List<StockDocLine>(imports.Count + exports.Count + sales.Count);
+        lines.AddRange(imports.Where(x => x.MedicineId.HasValue || x.SupplyId.HasValue).Select(x => new StockDocLine(
+            x.ReceiptDate, x.ReceiptCode, (x.MedicineId ?? x.SupplyId)!.Value, !x.MedicineId.HasValue,
+            ImportTypeLabel(x.ImportType), x.Quantity, 0, x.UnitPrice, x.Note)));
+        lines.AddRange(exports.Where(x => x.MedicineId.HasValue || x.SupplyId.HasValue).Select(x => new StockDocLine(
+            x.ReceiptDate, x.ReceiptCode, (x.MedicineId ?? x.SupplyId)!.Value, !x.MedicineId.HasValue,
+            ExportTypeLabel(x.ExportType), 0, x.Quantity, x.UnitPrice, x.Note)));
+        lines.AddRange(sales.Select(x => new StockDocLine(
+            x.CreatedAt.AddHours(7), x.SaleCode, x.MedicineId, false, "Ban le", 0, x.Quantity, x.UnitPrice, null)));
+        return lines.OrderBy(l => l.Date).ThenBy(l => l.DocumentCode).ToList();
+    }
+
     public async Task<byte[]> PrintStockCardAsync(Guid warehouseId, Guid itemId, DateTime fromDate, DateTime toDate)
     {
         try
         {
-            var warehouse = await _context.Warehouses.FindAsync(warehouseId);
-            var medicine = await _context.Medicines.FindAsync(itemId);
-            var supply = medicine == null ? await _context.MedicalSupplies.FindAsync(itemId) : null;
-            var itemName = medicine?.MedicineName ?? supply?.SupplyName ?? "";
-            var itemCode = medicine?.MedicineCode ?? supply?.SupplyCode ?? "";
-            var unit = medicine?.Unit ?? supply?.Unit ?? "";
-
-            // Get import transactions in the date range
-            var importEntries = await _context.ImportReceiptDetails
-                .Include(d => d.ImportReceipt)
-                .Where(d => d.ImportReceipt.WarehouseId == warehouseId
-                    && (d.MedicineId == itemId || d.SupplyId == itemId)
-                    && d.ImportReceipt.ReceiptDate >= fromDate
-                    && d.ImportReceipt.ReceiptDate <= toDate
-                    && d.ImportReceipt.Status == 1)
-                .OrderBy(d => d.ImportReceipt.ReceiptDate)
-                .Select(d => new { d.ImportReceipt.ReceiptDate, d.ImportReceipt.ReceiptCode, d.Quantity, Type = "Nhap" })
-                .ToListAsync();
-
-            // Get export transactions in the date range
-            var exportEntries = await _context.ExportReceiptDetails
-                .Include(d => d.ExportReceipt)
-                .Where(d => d.ExportReceipt.WarehouseId == warehouseId
-                    && (d.MedicineId == itemId || d.SupplyId == itemId)
-                    && d.ExportReceipt.ReceiptDate >= fromDate
-                    && d.ExportReceipt.ReceiptDate <= toDate
-                    && d.ExportReceipt.Status == 1)
-                .OrderBy(d => d.ExportReceipt.ReceiptDate)
-                .Select(d => new { d.ExportReceipt.ReceiptDate, d.ExportReceipt.ReceiptCode, d.Quantity, Type = "Xuat" })
-                .ToListAsync();
-
-            var allEntries = importEntries
-                .Select(e => new { e.ReceiptDate, e.ReceiptCode, Import = e.Quantity, Export = 0m })
-                .Concat(exportEntries.Select(e => new { e.ReceiptDate, e.ReceiptCode, Import = 0m, Export = e.Quantity }))
-                .OrderBy(e => e.ReceiptDate)
-                .ToList();
+            var card = await GetStockCardAsync(warehouseId, itemId, fromDate, toDate);
 
             var body = new StringBuilder();
             body.AppendLine(GetHospitalHeader());
             body.AppendLine(@"<div class=""form-title"">THE KHO</div>");
             body.AppendLine($@"<div style=""text-align:center;font-style:italic;margin-bottom:10px"">Tu {fromDate:dd/MM/yyyy} den {toDate:dd/MM/yyyy}</div>");
 
-            body.AppendLine($@"<div class=""field""><span class=""field-label"">Kho:</span><span class=""field-value"">{Esc(warehouse?.WarehouseName)}</span></div>");
-            body.AppendLine($@"<div class=""field""><span class=""field-label"">Ten hang:</span><span class=""field-value"">{Esc(itemName)} ({Esc(itemCode)})</span></div>");
-            body.AppendLine($@"<div class=""field""><span class=""field-label"">DVT:</span><span class=""field-value"">{Esc(unit)}</span></div>");
+            body.AppendLine($@"<div class=""field""><span class=""field-label"">Kho:</span><span class=""field-value"">{Esc(card.WarehouseName)}</span></div>");
+            body.AppendLine($@"<div class=""field""><span class=""field-label"">Ten hang:</span><span class=""field-value"">{Esc(card.ItemName)} ({Esc(card.ItemCode)})</span></div>");
+            body.AppendLine($@"<div class=""field""><span class=""field-label"">DVT:</span><span class=""field-value"">{Esc(card.Unit)}</span></div>");
 
             body.AppendLine(@"<table class=""bordered"" style=""margin-top:10px""><thead><tr>
-                <th>Ngay</th><th>So chung tu</th><th>Nhap</th><th>Xuat</th><th>Ton</th>
+                <th>Ngay</th><th>So chung tu</th><th>Dien giai</th><th>Nhap</th><th>Xuat</th><th>Ton</th>
             </tr></thead><tbody>");
+            body.AppendLine($@"<tr><td>{fromDate:dd/MM/yyyy}</td><td>Ton dau ky</td><td></td><td></td><td></td><td class=""text-right"">{card.OpeningQuantity:#,##0.##}</td></tr>");
 
-            decimal balance = 0;
-            // Calculate opening balance from inventory
-            var currentStock = await _context.InventoryItems
-                .Where(i => i.WarehouseId == warehouseId && (i.MedicineId == itemId || i.SupplyId == itemId))
-                .SumAsync(i => i.Quantity);
-            // rough opening = current - net movements in period
-            var totalImport = allEntries.Sum(e => e.Import);
-            var totalExport = allEntries.Sum(e => e.Export);
-            balance = currentStock - totalImport + totalExport;
-
-            body.AppendLine($@"<tr><td>{fromDate:dd/MM/yyyy}</td><td>Ton dau ky</td><td></td><td></td><td class=""text-right"">{balance:#,##0}</td></tr>");
-
-            foreach (var entry in allEntries)
+            foreach (var entry in card.Entries)
             {
-                balance += entry.Import - entry.Export;
                 body.AppendLine($@"<tr>
-                    <td>{entry.ReceiptDate:dd/MM/yyyy}</td>
-                    <td>{Esc(entry.ReceiptCode)}</td>
-                    <td class=""text-right"">{(entry.Import > 0 ? entry.Import.ToString("#,##0") : "")}</td>
-                    <td class=""text-right"">{(entry.Export > 0 ? entry.Export.ToString("#,##0") : "")}</td>
-                    <td class=""text-right"">{balance:#,##0}</td>
+                    <td>{entry.TransactionDate:dd/MM/yyyy}</td>
+                    <td>{Esc(entry.DocumentCode)}</td>
+                    <td>{Esc(entry.TransactionType)}</td>
+                    <td class=""text-right"">{(entry.ReceivedQuantity > 0 ? entry.ReceivedQuantity.ToString("#,##0.##") : "")}</td>
+                    <td class=""text-right"">{(entry.IssuedQuantity > 0 ? entry.IssuedQuantity.ToString("#,##0.##") : "")}</td>
+                    <td class=""text-right"">{entry.Balance:#,##0.##}</td>
                 </tr>");
             }
 
-            body.AppendLine($@"<tr><td colspan=""2"" class=""text-right""><b>Tong:</b></td><td class=""text-right""><b>{totalImport:#,##0}</b></td><td class=""text-right""><b>{totalExport:#,##0}</b></td><td class=""text-right""><b>{balance:#,##0}</b></td></tr>");
+            var totalImport = card.Entries.Sum(e => e.ReceivedQuantity);
+            var totalExport = card.Entries.Sum(e => e.IssuedQuantity);
+            body.AppendLine($@"<tr><td colspan=""3"" class=""text-right""><b>Tong:</b></td><td class=""text-right""><b>{totalImport:#,##0.##}</b></td><td class=""text-right""><b>{totalExport:#,##0.##}</b></td><td class=""text-right""><b>{card.ClosingQuantity:#,##0.##}</b></td></tr>");
             body.AppendLine("</tbody></table>");
 
             body.AppendLine(GetSignatureBlock(null, null, null, false));
@@ -108,125 +134,124 @@ public partial class WarehouseCompleteService {
 
     public async Task<StockCardDto> GetStockCardAsync(Guid warehouseId, Guid itemId, DateTime fromDate, DateTime toDate)
     {
-        try
+        var from = fromDate.Date;
+        var toExclusive = toDate.Date.AddDays(1);
+
+        var warehouse = await _context.Warehouses.AsNoTracking().FirstOrDefaultAsync(w => w.Id == warehouseId);
+        var medicine = await _context.Medicines.AsNoTracking().FirstOrDefaultAsync(m => m.Id == itemId);
+        var supply = medicine == null
+            ? await _context.MedicalSupplies.AsNoTracking()
+                .Where(s => s.Id == itemId).Select(s => new { s.SupplyCode, s.SupplyName, s.Unit }).FirstOrDefaultAsync()
+            : null;
+
+        var currentStock = await _context.InventoryItems.AsNoTracking()
+            .Where(i => i.WarehouseId == warehouseId && !i.IsDeleted && (i.MedicineId == itemId || i.SupplyId == itemId))
+            .SumAsync(i => (decimal?)i.Quantity) ?? 0;
+
+        var lines = await LoadStockDocLinesAsync(warehouseId, itemId, from);
+        var opening = currentStock - lines.Sum(l => l.Received - l.Issued);
+
+        var balance = opening;
+        var entries = new List<StockCardEntryDto>();
+        foreach (var l in lines.Where(l => l.Date < toExclusive))
         {
-            var warehouse = await _context.Warehouses.FindAsync(warehouseId);
-            var medicine = await _context.Medicines.FindAsync(itemId);
-
-            // Get stock movements for this item in this warehouse within date range
-            var movements = await _context.StockMovements
-                .Where(sm => sm.WarehouseId == warehouseId && sm.MedicineId == itemId)
-                .OrderBy(sm => sm.MovementDate)
-                .ToListAsync();
-
-            // Calculate opening balance: sum of movements before fromDate
-            var priorMovements = movements.Where(m => m.MovementDate < fromDate).ToList();
-            var openingQty = priorMovements.Any() ? priorMovements.Last().BalanceAfter : 0;
-
-            // Movements within the period
-            var periodMovements = movements
-                .Where(m => m.MovementDate >= fromDate && m.MovementDate <= toDate)
-                .ToList();
-
-            var closingQty = periodMovements.Any() ? periodMovements.Last().BalanceAfter : openingQty;
-
-            var entries = periodMovements.Select(m => new StockCardEntryDto
+            balance += l.Received - l.Issued;
+            entries.Add(new StockCardEntryDto
             {
-                TransactionDate = m.MovementDate,
-                DocumentCode = m.ReferenceCode ?? string.Empty,
-                TransactionType = m.MovementType switch
-                {
-                    1 => "Nhap kho",
-                    2 => "Xuat kho",
-                    3 => "Chuyen kho",
-                    4 => "Dieu chinh",
-                    5 => "Tra NCC",
-                    _ => "Khac"
-                },
-                Description = m.Notes,
-                ReceivedQuantity = m.MovementType == 1 || (m.MovementType == 4 && m.Quantity > 0) ? m.Quantity : 0,
-                IssuedQuantity = m.MovementType == 2 || m.MovementType == 5 || (m.MovementType == 4 && m.Quantity < 0) ? Math.Abs(m.Quantity) : 0,
-                Balance = m.BalanceAfter
-            }).ToList();
-
-            return new StockCardDto
-            {
-                ItemId = itemId,
-                ItemCode = medicine?.MedicineCode ?? string.Empty,
-                ItemName = medicine?.MedicineName ?? string.Empty,
-                Unit = medicine?.Unit ?? string.Empty,
-                WarehouseId = warehouseId,
-                WarehouseName = warehouse?.WarehouseName ?? string.Empty,
-                FromDate = fromDate,
-                ToDate = toDate,
-                OpeningQuantity = openingQty,
-                ClosingQuantity = closingQty,
-                Entries = entries
-            };
+                TransactionDate = l.Date,
+                DocumentCode = l.DocumentCode,
+                TransactionType = l.TransactionType,
+                Description = l.Note,
+                ReceivedQuantity = l.Received,
+                IssuedQuantity = l.Issued,
+                Balance = balance
+            });
         }
-        catch { return new StockCardDto { WarehouseId = warehouseId, ItemId = itemId, FromDate = fromDate, ToDate = toDate }; }
+
+        return new StockCardDto
+        {
+            ItemId = itemId,
+            ItemCode = medicine?.MedicineCode ?? supply?.SupplyCode ?? string.Empty,
+            ItemName = medicine?.MedicineName ?? supply?.SupplyName ?? string.Empty,
+            Unit = medicine?.Unit ?? supply?.Unit ?? string.Empty,
+            WarehouseId = warehouseId,
+            WarehouseName = warehouse?.WarehouseName ?? string.Empty,
+            FromDate = fromDate,
+            ToDate = toDate,
+            OpeningQuantity = opening,
+            ClosingQuantity = balance,
+            Entries = entries
+        };
     }
 
     public async Task<List<StockMovementReportDto>> GetStockMovementReportAsync(Guid warehouseId, DateTime fromDate, DateTime toDate, int? itemType)
     {
-        // Aggregate StockMovements per medicine within the date window:
-        //   Opening = balance at fromDate (last balance-after of any movement
-        //             dated < fromDate), Receipts = sum of imports/returns,
-        //   Issues = sum of exports, Closing = Opening + Receipts − Issues.
-        // itemType filter (1=Medicine) is applied implicitly — StockMovements
-        // entity tracks medicines only.
-        var movements = await _context.StockMovements
-            .Where(m => m.WarehouseId == warehouseId
-                        && m.MovementDate >= fromDate
-                        && m.MovementDate < toDate.AddDays(1))
+        var from = fromDate.Date;
+        var toExclusive = toDate.Date.AddDays(1);
+
+        // Current stock + average cost per item (itemType: 1 = thuốc, 2 = vật tư).
+        var lots = await _context.InventoryItems.AsNoTracking()
+            .Where(i => i.WarehouseId == warehouseId && !i.IsDeleted && (i.MedicineId != null || i.SupplyId != null)
+                && (itemType == null || (itemType == 1 ? i.MedicineId != null : i.MedicineId == null)))
+            .Select(i => new { ItemId = (i.MedicineId ?? i.SupplyId)!.Value, i.Quantity, i.ImportPrice })
             .ToListAsync();
+        var stockByItem = lots.GroupBy(l => l.ItemId).ToDictionary(g => g.Key, g => new
+        {
+            Quantity = g.Sum(x => x.Quantity),
+            Price = g.Where(x => x.Quantity > 0).Select(x => x.ImportPrice).DefaultIfEmpty(g.Average(x => x.ImportPrice)).Average()
+        });
 
-        if (movements.Count == 0) return new List<StockMovementReportDto>();
-
-        var medIds = movements.Select(m => m.MedicineId).Distinct().ToList();
-
-        // Opening balance per medicine = sum(balance after) of latest movement strictly before fromDate
-        var openingMovements = await _context.StockMovements
-            .Where(m => m.WarehouseId == warehouseId
-                        && medIds.Contains(m.MedicineId)
-                        && m.MovementDate < fromDate)
-            .GroupBy(m => m.MedicineId)
-            .Select(g => g.OrderByDescending(x => x.MovementDate).FirstOrDefault())
-            .ToListAsync();
-
-        var medicines = await _context.Medicines
-            .Where(m => medIds.Contains(m.Id))
-            .ToListAsync();
-
-        return movements
-            .GroupBy(m => m.MedicineId)
-            .Select(g =>
-            {
-                var med = medicines.FirstOrDefault(x => x.Id == g.Key);
-                var opening = openingMovements.FirstOrDefault(o => o!.MedicineId == g.Key);
-                var openQty = opening?.BalanceAfter ?? 0;
-                var openVal = openQty * (g.First().UnitPrice);
-                var received = g.Where(x => x.MovementType == 1 || x.MovementType == 5).ToList();
-                var issued = g.Where(x => x.MovementType == 2).ToList();
-
-                return new StockMovementReportDto
-                {
-                    ItemId = g.Key,
-                    ItemCode = med?.MedicineCode ?? "",
-                    ItemName = med?.MedicineName ?? "",
-                    Unit = med?.Unit ?? "",
-                    OpeningQuantity = openQty,
-                    OpeningValue = openVal,
-                    TotalReceived = received.Sum(x => x.Quantity),
-                    TotalReceivedValue = received.Sum(x => x.Amount),
-                    TotalIssued = issued.Sum(x => x.Quantity),
-                    TotalIssuedValue = issued.Sum(x => x.Amount),
-                    ClosingQuantity = openQty + received.Sum(x => x.Quantity) - issued.Sum(x => x.Quantity),
-                    ClosingValue = openVal + received.Sum(x => x.Amount) - issued.Sum(x => x.Amount),
-                };
-            })
-            .OrderByDescending(d => d.TotalReceivedValue + d.TotalIssuedValue)
+        var lines = (await LoadStockDocLinesAsync(warehouseId, null, from))
+            .Where(l => itemType == null || (itemType == 1 ? !l.IsSupply : l.IsSupply))
             .ToList();
+        var linesByItem = lines.GroupBy(l => l.ItemId).ToDictionary(g => g.Key, g => g.ToList());
+
+        var itemIds = stockByItem.Keys.Union(linesByItem.Keys).ToList();
+        var medicines = await _context.Medicines.AsNoTracking()
+            .Where(m => itemIds.Contains(m.Id))
+            .Select(m => new { m.Id, m.MedicineCode, m.MedicineName, m.Unit })
+            .ToDictionaryAsync(m => m.Id);
+        var supplies = await _context.MedicalSupplies.AsNoTracking()
+            .Where(s => itemIds.Contains(s.Id))
+            .Select(s => new { s.Id, s.SupplyCode, s.SupplyName, s.Unit })
+            .ToDictionaryAsync(s => s.Id);
+
+        var result = new List<StockMovementReportDto>();
+        foreach (var id in itemIds)
+        {
+            stockByItem.TryGetValue(id, out var stock);
+            var itemLines = linesByItem.TryGetValue(id, out var ls) ? ls : new List<StockDocLine>();
+            var current = stock?.Quantity ?? 0;
+            var opening = current - itemLines.Sum(l => l.Received - l.Issued);
+            var period = itemLines.Where(l => l.Date < toExclusive).ToList();
+            var received = period.Sum(l => l.Received);
+            var issued = period.Sum(l => l.Issued);
+            if (opening == 0 && received == 0 && issued == 0) continue;
+
+            var price = stock?.Price ?? period.Select(l => l.UnitPrice).DefaultIfEmpty(0).Average();
+            var receivedValue = period.Sum(l => l.Received * l.UnitPrice);
+            var issuedValue = period.Sum(l => l.Issued * l.UnitPrice);
+            medicines.TryGetValue(id, out var med);
+            supplies.TryGetValue(id, out var sup);
+
+            result.Add(new StockMovementReportDto
+            {
+                ItemId = id,
+                ItemCode = med?.MedicineCode ?? sup?.SupplyCode ?? string.Empty,
+                ItemName = med?.MedicineName ?? sup?.SupplyName ?? string.Empty,
+                Unit = med?.Unit ?? sup?.Unit ?? string.Empty,
+                OpeningQuantity = opening,
+                OpeningValue = opening * price,
+                TotalReceived = received,
+                TotalReceivedValue = receivedValue,
+                TotalIssued = issued,
+                TotalIssuedValue = issuedValue,
+                ClosingQuantity = opening + received - issued,
+                ClosingValue = opening * price + receivedValue - issuedValue,
+            });
+        }
+
+        return result.OrderBy(r => r.ItemName).ToList();
     }
 
     public async Task<byte[]> PrintStockMovementReportAsync(Guid warehouseId, DateTime fromDate, DateTime toDate, int? itemType)
@@ -234,47 +259,24 @@ public partial class WarehouseCompleteService {
         try
         {
             var warehouse = await _context.Warehouses.FindAsync(warehouseId);
-
-            // Query all inventory items in this warehouse
-            var inventoryQuery = _context.InventoryItems
-                .Include(i => i.Medicine)
-                .Include(i => i.Supply)
-                .Where(i => i.WarehouseId == warehouseId);
-            if (itemType.HasValue)
-                inventoryQuery = inventoryQuery.Where(i => i.ItemType == (itemType.Value == 1 ? "Medicine" : "Supply"));
-
-            var inventoryItems = await inventoryQuery.ToListAsync();
-
-            // Group by item
-            var grouped = inventoryItems
-                .GroupBy(i => i.MedicineId ?? i.SupplyId ?? i.Id)
-                .Select(g =>
-                {
-                    var first = g.First();
-                    var name = first.Medicine?.MedicineName ?? first.Supply?.SupplyName ?? "";
-                    var unit = first.Medicine?.Unit ?? first.Supply?.Unit ?? "";
-                    var currentQty = g.Sum(i => i.Quantity);
-                    return new { Name = name, Unit = unit, CurrentQty = currentQty };
-                })
-                .OrderBy(x => x.Name)
-                .ToList();
+            var rows = await GetStockMovementReportAsync(warehouseId, fromDate, toDate, itemType);
 
             var headers = new[] { "Ten hang", "DVT", "Ton dau ky", "Nhap trong ky", "Xuat trong ky", "Ton cuoi ky" };
-            var rows = grouped.Select(item => new[]
+            var tableRows = rows.Select(r => new[]
             {
-                item.Name,
-                item.Unit,
-                item.CurrentQty.ToString("#,##0"),
-                "0",
-                "0",
-                item.CurrentQty.ToString("#,##0")
+                r.ItemName,
+                r.Unit,
+                r.OpeningQuantity.ToString("#,##0.##"),
+                r.TotalReceived.ToString("#,##0.##"),
+                r.TotalIssued.ToString("#,##0.##"),
+                r.ClosingQuantity.ToString("#,##0.##")
             }).ToList();
 
             var html = BuildTableReport(
                 "BAO CAO NHAP XUAT TON",
                 $"Kho: {warehouse?.WarehouseName} - Tu {fromDate:dd/MM/yyyy} den {toDate:dd/MM/yyyy}",
                 DateTime.Now,
-                headers, rows,
+                headers, tableRows,
                 null, "Thu kho");
 
             return Encoding.UTF8.GetBytes(html);

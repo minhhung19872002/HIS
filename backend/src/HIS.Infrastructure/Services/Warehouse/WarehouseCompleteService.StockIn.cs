@@ -14,11 +14,32 @@ namespace HIS.Infrastructure.Services;
 public partial class WarehouseCompleteService {
     #region 5.1 Nhập kho
 
+    /// <summary>
+    /// QA0915: receipt lines were never validated — qty 0/negative or an unknown medicine id was
+    /// accepted (negative qty then REDUCED stock on approve; unknown id failed later as FK 500).
+    /// </summary>
+    private static void EnsureValidReceiptItems(CreateStockReceiptDto dto, IReadOnlyDictionary<Guid, Medicine> medicinesMap)
+    {
+        if (dto.Items == null || dto.Items.Count == 0)
+            throw new InvalidOperationException("Phiếu nhập phải có ít nhất 1 dòng thuốc.");
+        foreach (var item in dto.Items)
+        {
+            if (item.Quantity <= 0)
+                throw new InvalidOperationException("Số lượng nhập mỗi dòng phải lớn hơn 0.");
+            if (item.UnitPrice < 0)
+                throw new InvalidOperationException("Đơn giá nhập không được âm.");
+            if (!medicinesMap.ContainsKey(item.ItemId))
+                throw new InvalidOperationException($"Thuốc {item.ItemId} không tồn tại trong danh mục.");
+        }
+    }
+
     public async Task<StockReceiptDto> CreateSupplierReceiptAsync(CreateStockReceiptDto dto, Guid userId)
     {
         var warehouse = await _context.Warehouses.FindAsync(dto.WarehouseId);
         if (warehouse == null)
             throw new KeyNotFoundException("Warehouse not found");
+        if (dto.Items == null || dto.Items.Count == 0)
+            throw new InvalidOperationException("Phiếu nhập phải có ít nhất 1 dòng thuốc.");
 
         var importReceipt = new ImportReceipt
         {
@@ -48,6 +69,7 @@ public partial class WarehouseCompleteService {
         var medicinesMap = await _context.Medicines
             .Where(m => medicineIds.Contains(m.Id))
             .ToDictionaryAsync(m => m.Id);
+        EnsureValidReceiptItems(dto, medicinesMap);
 
         foreach (var item in dto.Items)
         {
@@ -176,6 +198,7 @@ public partial class WarehouseCompleteService {
         var medicinesMap = await _context.Medicines
             .Where(m => medicineIds.Contains(m.Id))
             .ToDictionaryAsync(m => m.Id);
+        EnsureValidReceiptItems(dto, medicinesMap);
 
         foreach (var item in dto.Items)
         {
@@ -286,6 +309,7 @@ public partial class WarehouseCompleteService {
         var medicinesMap = await _context.Medicines
             .Where(m => medicineIds.Contains(m.Id))
             .ToDictionaryAsync(m => m.Id);
+        EnsureValidReceiptItems(dto, medicinesMap);
 
         foreach (var item in dto.Items)
         {
@@ -372,6 +396,16 @@ public partial class WarehouseCompleteService {
         if (receipt.Status != 0)
             throw new InvalidOperationException("Receipt is not in pending status");
 
+        // QA0915: the Status check above is read-then-write — measured 4 concurrent approves of a
+        // 10-unit receipt → 3 succeeded and created 3 lot rows (stock 30). Claim the receipt
+        // atomically (UPDATE ... WHERE Status = 0) inside a transaction; losers get 400.
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        var claimed = await _context.ImportReceipts
+            .Where(r => r.Id == id && r.Status == 0)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(r => r.Status, 1));
+        if (claimed == 0)
+            throw new InvalidOperationException("Receipt is not in pending status");
+
         receipt.Status = 1; // Đã duyệt
         receipt.ApprovedBy = userId;
         receipt.ApprovedAt = DateTime.Now;
@@ -423,6 +457,7 @@ public partial class WarehouseCompleteService {
         }
 
         await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         var user = await _context.Users.FindAsync(userId);
 
@@ -451,6 +486,8 @@ public partial class WarehouseCompleteService {
             .FirstOrDefaultAsync(r => r.Id == id);
         if (receipt == null)
             throw new KeyNotFoundException("Stock receipt not found");
+        if (receipt.Status == 2)
+            throw new InvalidOperationException("Phiếu nhập đã bị hủy trước đó.");
 
         // If already approved, reverse inventory
         if (receipt.Status == 1)
@@ -469,10 +506,14 @@ public partial class WarehouseCompleteService {
             foreach (var detail in receipt.Details)
             {
                 reverseStockByKey.TryGetValue((detail.MedicineId, detail.BatchNumber), out var stock);
-                if (stock != null)
-                {
-                    stock.Quantity -= detail.Quantity;
-                }
+                // QA0915: cancelling an approved receipt whose lot was already issued drove the lot
+                // negative (measured -10). Block instead — the consumed quantity must be returned first.
+                var available = stock == null ? 0 : stock.Quantity - stock.ReservedQuantity;
+                if (available < detail.Quantity)
+                    throw new InvalidOperationException(
+                        $"Không hủy được phiếu nhập: lô {detail.BatchNumber ?? "(không số lô)"} đã xuất dùng "
+                        + $"(cần trừ lại {detail.Quantity:0.##}, tồn khả dụng {available:0.##}).");
+                stock!.Quantity -= detail.Quantity;
             }
         }
 
@@ -482,20 +523,148 @@ public partial class WarehouseCompleteService {
         return true;
     }
 
+    /// <summary>
+    /// Danh sách phiếu nhập. QA0915: trước đây trả rỗng cứng (và by-id trả null → 404), nên màn
+    /// "Nhập kho NCC" không bao giờ thấy phiếu vừa tạo và KHÔNG có cách nào bấm Duyệt từ giao diện.
+    /// Read-only, cùng khuôn với GetStockIssuesAsync.
+    /// </summary>
     public async Task<PagedResultDto<StockReceiptDto>> GetStockReceiptsAsync(StockReceiptSearchDto searchDto)
     {
+        var page = searchDto.Page <= 0 ? 1 : searchDto.Page;
+        var pageSize = searchDto.PageSize <= 0 ? 50 : searchDto.PageSize;
+
+        var query = _context.ImportReceipts.AsNoTracking().Where(r => !r.IsDeleted);
+        if (searchDto.FromDate.HasValue)
+            query = query.Where(r => r.ReceiptDate >= searchDto.FromDate.Value.Date);
+        if (searchDto.ToDate.HasValue)
+        {
+            var toExclusive = searchDto.ToDate.Value.Date.AddDays(1);
+            query = query.Where(r => r.ReceiptDate < toExclusive);
+        }
+        if (searchDto.WarehouseId.HasValue)
+            query = query.Where(r => r.WarehouseId == searchDto.WarehouseId.Value);
+        if (searchDto.ReceiptType.HasValue)
+            query = query.Where(r => r.ImportType == searchDto.ReceiptType.Value);
+        if (searchDto.SupplierId.HasValue)
+        {
+            var supplierIdText = searchDto.SupplierId.Value.ToString();
+            query = query.Where(r => r.SupplierCode == supplierIdText);
+        }
+        if (searchDto.Status.HasValue)
+            query = query.Where(r => r.Status == searchDto.Status.Value);
+        if (!string.IsNullOrWhiteSpace(searchDto.Keyword))
+        {
+            var kw = searchDto.Keyword.Trim();
+            query = query.Where(r => r.ReceiptCode.Contains(kw)
+                || (r.InvoiceNumber != null && r.InvoiceNumber.Contains(kw))
+                || (r.SupplierName != null && r.SupplierName.Contains(kw))
+                || (r.Note != null && r.Note.Contains(kw)));
+        }
+
+        var total = await query.CountAsync();
+        var receipts = await query
+            .OrderByDescending(r => r.ReceiptDate).ThenByDescending(r => r.CreatedAt)
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .ToListAsync();
+
+        var items = new List<StockReceiptDto>();
+        foreach (var r in receipts)
+            items.Add(await MapImportReceiptAsync(r, includeItems: false));
+
         return new PagedResultDto<StockReceiptDto>
         {
-            Items = new List<StockReceiptDto>(),
-            TotalCount = 0,
-            Page = 1,
-            PageSize = 50
+            Items = items,
+            TotalCount = total,
+            Page = page,
+            PageSize = pageSize
         };
     }
 
     public async Task<StockReceiptDto?> GetStockReceiptByIdAsync(Guid id)
     {
-        return null;
+        var receipt = await _context.ImportReceipts.AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted);
+        return receipt == null ? null : await MapImportReceiptAsync(receipt, includeItems: true);
+    }
+
+    /// <summary>ImportReceipt → StockReceiptDto. SupplierCode lưu SupplierId dạng chuỗi (xem CreateSupplierReceiptAsync).</summary>
+    private async Task<StockReceiptDto> MapImportReceiptAsync(ImportReceipt r, bool includeItems)
+    {
+        var warehouseName = await _context.Warehouses.AsNoTracking()
+            .Where(w => w.Id == r.WarehouseId).Select(w => w.WarehouseName).FirstOrDefaultAsync();
+
+        Guid? supplierId = Guid.TryParse(r.SupplierCode, out var sid) ? sid : null;
+        var supplierName = r.SupplierName;
+        if (supplierName == null && !string.IsNullOrEmpty(r.SupplierCode))
+            supplierName = await _context.Suppliers.AsNoTracking()
+                .Where(s => (supplierId.HasValue && s.Id == supplierId.Value) || s.SupplierCode == r.SupplierCode)
+                .Select(s => s.SupplierName).FirstOrDefaultAsync();
+
+        var dto = new StockReceiptDto
+        {
+            Id = r.Id,
+            ReceiptCode = r.ReceiptCode,
+            ReceiptDate = r.ReceiptDate,
+            WarehouseId = r.WarehouseId,
+            WarehouseName = warehouseName ?? string.Empty,
+            ReceiptType = r.ImportType,
+            SupplierId = supplierId,
+            SupplierName = supplierName,
+            InvoiceNumber = r.InvoiceNumber,
+            InvoiceDate = r.InvoiceDate,
+            TotalAmount = r.TotalAmount,
+            VatAmount = r.Vat,
+            DiscountAmount = r.Discount,
+            FinalAmount = r.FinalAmount,
+            Status = r.Status,
+            ApprovedBy = r.ApprovedBy,
+            ApprovedAt = r.ApprovedAt,
+            CreatedAt = r.CreatedAt,
+            Notes = r.Note,
+        };
+
+        if (Guid.TryParse(r.CreatedBy, out var creatorId))
+        {
+            dto.CreatedBy = creatorId;
+            dto.CreatedByName = await _context.Users.AsNoTracking()
+                .Where(u => u.Id == creatorId).Select(u => u.FullName).FirstOrDefaultAsync() ?? string.Empty;
+        }
+        if (r.ApprovedBy.HasValue)
+            dto.ApprovedByName = await _context.Users.AsNoTracking()
+                .Where(u => u.Id == r.ApprovedBy.Value).Select(u => u.FullName).FirstOrDefaultAsync();
+
+        if (!includeItems) return dto;
+
+        var details = await _context.ImportReceiptDetails.AsNoTracking()
+            .Where(d => d.ImportReceiptId == r.Id && !d.IsDeleted).ToListAsync();
+        var medicineIds = details.Where(d => d.MedicineId.HasValue).Select(d => d.MedicineId!.Value).Distinct().ToList();
+        var medicines = await _context.Medicines.AsNoTracking()
+            .Where(m => medicineIds.Contains(m.Id))
+            .Select(m => new { m.Id, m.MedicineCode, m.MedicineName, m.Unit })
+            .ToListAsync();
+
+        dto.Items = details.Select(d =>
+        {
+            var med = medicines.FirstOrDefault(m => m.Id == d.MedicineId);
+            return new StockReceiptItemDto
+            {
+                Id = d.Id,
+                StockReceiptId = r.Id,
+                ItemId = d.MedicineId ?? d.SupplyId ?? Guid.Empty,
+                ItemCode = med?.MedicineCode ?? string.Empty,
+                ItemName = med?.MedicineName ?? string.Empty,
+                ItemType = d.MedicineId.HasValue ? 1 : 2,
+                Unit = d.Unit ?? med?.Unit ?? string.Empty,
+                BatchNumber = d.BatchNumber,
+                ManufactureDate = d.ManufactureDate,
+                ExpiryDate = d.ExpiryDate,
+                Quantity = d.Quantity,
+                UnitPrice = d.UnitPrice,
+                Amount = d.Amount
+            };
+        }).ToList();
+
+        return dto;
     }
 
     public async Task<List<SupplierPayableDto>> GetSupplierPayablesAsync(Guid? supplierId)
@@ -518,7 +687,10 @@ public partial class WarehouseCompleteService {
                     .Where(s => s.Id == supplierId.Value)
                     .Select(s => s.SupplierCode)
                     .FirstOrDefaultAsync();
-                if (filterCode != null) receiptsQuery = receiptsQuery.Where(r => r.SupplierCode == filterCode);
+                // QA0915: CreateSupplierReceiptAsync stores the supplier GUID (string) in SupplierCode, so
+                // matching only the catalog code filtered every receipt out. Accept both forms.
+                var idText = supplierId.Value.ToString();
+                receiptsQuery = receiptsQuery.Where(r => r.SupplierCode == idText || (filterCode != null && r.SupplierCode == filterCode));
             }
 
             var receipts = await receiptsQuery
@@ -534,7 +706,7 @@ public partial class WarehouseCompleteService {
                 .GroupBy(r => r.SupplierCode!)
                 .Select(g =>
                 {
-                    var sup = supplierMap.FirstOrDefault(s => s.SupplierCode == g.Key);
+                    var sup = supplierMap.FirstOrDefault(s => s.SupplierCode == g.Key || s.Id.ToString() == g.Key);
                     var total = g.Sum(x => x.FinalAmount);
                     return new SupplierPayableDto
                     {
