@@ -146,6 +146,20 @@ public class HealthController : ControllerBase
     }
 
     /// <summary>
+    /// Dữ liệu còn trỏ tới bệnh nhân đã xoá mềm (chỉ đọc). Dùng để rà hậu quả của ghép hồ sơ trước
+    /// bản sửa 15/09 — khi đó chỉ MedicalRecords được chuyển, phần còn lại nằm lại trên hồ sơ bị xoá.
+    /// Kèm đích ghép gợi ý suy từ nhật ký diff. Admin-only.
+    /// </summary>
+    [HttpGet("/health/deleted-patient-references")]
+    [Authorize(Roles = RoleNames.Admin)]
+    public async Task<IActionResult> GetDeletedPatientReferences(
+        [FromServices] HIS.Infrastructure.Data.HISDbContext context, CancellationToken ct)
+    {
+        var rows = await HIS.Infrastructure.Services.DeletedPatientReferenceAudit.FindAsync(context, ct);
+        return Ok(new { affectedPatients = rows.Count, totalRows = rows.Sum(r => r.TotalRows), patients = rows });
+    }
+
+    /// <summary>
     /// Schema drift check: reports DbSet types whose backing table is missing in the
     /// current database, plus any table names the runtime model expects. Admin-only.
     /// Used for post-deploy verification when endpoints silently return empty data
