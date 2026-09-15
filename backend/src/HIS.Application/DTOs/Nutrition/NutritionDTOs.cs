@@ -53,6 +53,10 @@ namespace HIS.Application.DTOs.Nutrition
         public decimal? WeightLoss6Months { get; set; }
         public int NutritionScore { get; set; }
         public int DiseaseScore { get; set; }
+        // QA-R3: NRS-2002 item scores (0-3). When sent, the nutrition score = the WORST item (not their sum).
+        public int? BmiScore { get; set; }
+        public int? WeightLossScore { get; set; }
+        public int? IntakeScore { get; set; }
         // QA-R2: optional — non-nullable reference types are implicitly [Required] (v2 NRS form got 400).
         public string? SGACategory { get; set; }
         public string? Notes { get; set; }
@@ -177,6 +181,7 @@ namespace HIS.Application.DTOs.Nutrition
         // Schedule
         public List<string> MealTimes { get; set; } // Breakfast, Lunch, Dinner, Snacks
         public bool IncludeSnacks { get; set; }
+        public int? MealFrequency { get; set; }
         public string FeedingRoute { get; set; } // Oral, NGT, PEG, TPN
 
         // Status
@@ -206,6 +211,8 @@ namespace HIS.Application.DTOs.Nutrition
         public string? SpecialInstructions { get; set; }
         public List<string>? MealTimes { get; set; }
         public string? FeedingRoute { get; set; }
+        public int? MealFrequency { get; set; }
+        public bool? IncludeSnacks { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime? EndDate { get; set; }
     }

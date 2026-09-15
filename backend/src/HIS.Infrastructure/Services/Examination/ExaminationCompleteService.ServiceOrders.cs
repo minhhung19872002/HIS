@@ -108,7 +108,7 @@ public partial class ExaminationCompleteService
             {
                 Id = Guid.NewGuid(),
                 RequestCode = $"CD{DateTime.Now:yyyyMMddHHmmss}",
-                RequestDate = DateTime.UtcNow, // dot16: chuẩn UTC — nguồn copy sang RadiologyRequest.RequestDate (DayRangeUtc)
+                RequestDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local (copied to RadiologyRequest.RequestDate)
                 MedicalRecordId = examination.MedicalRecordId,
                 ExaminationId = examination.Id,
                 ServiceId = item.ServiceId,
@@ -184,6 +184,9 @@ public partial class ExaminationCompleteService
         }
 
         await _unitOfWork.SaveChangesAsync();
+        // R3 BHYT: split InsuranceAmount/PatientAmount at order time (whole visit — the 15% rule depends on the total).
+        if (results.Count > 0 && await new BhytVisitPricing(_context).RecalculateAsync(examination.MedicalRecordId) != null)
+            await _unitOfWork.SaveChangesAsync();
         return results;
     }
 
@@ -231,6 +234,9 @@ public partial class ExaminationCompleteService
         foreach (var d in details) d.Status = 3;
 
         await _unitOfWork.SaveChangesAsync();
+        // R3 BHYT: the visit total dropped — the 15% threshold may flip the remaining lines.
+        if (await new BhytVisitPricing(_context).RecalculateAsync(request.MedicalRecordId) != null)
+            await _unitOfWork.SaveChangesAsync();
         return true;
     }
 
@@ -441,7 +447,7 @@ public partial class ExaminationCompleteService
             .FirstOrDefaultAsync(e => e.Id == examinationId && !e.IsDeleted);
         if (exam == null) return new List<ServiceOrderWarningDto>();
 
-        var today = DateTime.UtcNow.Date;
+        var today = HIS.Core.Common.VnTime.TodayVn; // RequestDate = VN local
         var existing = await _context.ServiceRequests
             .Include(r => r.Details).ThenInclude(d => d.Service)
             .Where(r => r.MedicalRecordId == exam.MedicalRecordId

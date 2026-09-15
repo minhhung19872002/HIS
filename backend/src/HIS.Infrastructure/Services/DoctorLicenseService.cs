@@ -121,4 +121,38 @@ public class DoctorLicenseService : IDoctorLicenseService
                 ? $"CCHN còn {daysUntilExpiry} ngày. Nhớ gia hạn."
                 : "CCHN hợp lệ"));
     }
+
+    public async Task<PracticeLicenseGateDto> EvaluatePrescribingGateAsync(Guid userId)
+    {
+        HIS.Core.Common.PracticeLicenseGate.StaffEvidence? staffEvidence = null;
+        var numbers = new List<string>();
+        if (userId != Guid.Empty)
+        {
+            var staff = await _db.MedicalStaffs.AsNoTracking()
+                .Where(s => s.UserId == userId && !s.IsDeleted)
+                .OrderByDescending(s => s.LicenseExpiryDate)
+                .Select(s => new { s.LicenseNumber, s.LicenseExpiryDate, s.LicenseActive, s.Status })
+                .FirstOrDefaultAsync();
+            if (staff != null)
+            {
+                staffEvidence = new(staff.LicenseNumber, staff.LicenseExpiryDate, staff.LicenseActive, staff.Status);
+                if (!string.IsNullOrWhiteSpace(staff.LicenseNumber)) numbers.Add(staff.LicenseNumber.Trim());
+            }
+            var userLicence = await _db.Users.AsNoTracking().Where(u => u.Id == userId)
+                .Select(u => u.LicenseNumber).FirstOrDefaultAsync();
+            if (!string.IsNullOrWhiteSpace(userLicence)) numbers.Add(userLicence.Trim());
+        }
+
+        // Registry rows are linked ONLY by licence number: a holder-name match is not a positive link (namesakes),
+        // and no CCCD of the user exists anywhere to match PracticeLicenses.Cccd against.
+        var registry = numbers.Count == 0
+            ? new List<HIS.Core.Common.PracticeLicenseGate.RegistryEvidence>()
+            : await _db.PracticeLicenses.AsNoTracking()
+                .Where(l => !l.IsDeleted && numbers.Contains(l.LicenseCode))
+                .Select(l => new HIS.Core.Common.PracticeLicenseGate.RegistryEvidence(l.LicenseCode, l.Status, l.IssueDate, l.ExpiryDate))
+                .ToListAsync();
+
+        var r = HIS.Core.Common.PracticeLicenseGate.Evaluate(staffEvidence, registry, HIS.Core.Common.VnTime.TodayVn);
+        return new PracticeLicenseGateDto(r.Level, r.Blocked, r.Status, r.Message, r.LicenseNumber, r.ExpiryDate);
+    }
 }

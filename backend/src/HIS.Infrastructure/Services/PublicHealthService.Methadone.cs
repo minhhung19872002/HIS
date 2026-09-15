@@ -231,7 +231,7 @@ public partial class PublicHealthService
             patient.MissedDoseCount++;
         patient.UpdatedAt = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync();
+        await MethadoneTreatmentService.SaveDoseAsync(() => _context.SaveChangesAsync(), dosingDate);
 
         return new MethadoneDosingRecordDto
         {

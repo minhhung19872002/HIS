@@ -1,6 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
+import { apiClient } from '../../../services/apiClient';
+import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import {
   searchHealthCheckups, getHealthCheckupStats, createHealthCheckup, updateHealthCheckup, getCheckupTypes,
   getCampaigns, createCampaign, updateCampaign, deleteCampaign,
@@ -24,10 +26,13 @@ const GROUP_TH: React.CSSProperties = { textAlign: 'left', padding: '6px 8px', f
 const GROUP_TH_C: React.CSSProperties = { textAlign: 'center', padding: '6px 8px', fontWeight: 500 };
 import { DriverCheckupPrint, VsattpCheckupPrint, StudentCheckupPrint } from '../../patient/components/HealthCheckupPrintTemplates';
 
+interface PatientOption { id: string; patientCode: string; fullName: string }
+
 // ---- Static base fields (common to all KSK types) ----
+// BE CreateHealthCheckupDto.PatientId is REQUIRED — the 'patientId' picker field is prepended
+// dynamically in crudFields (needs component state for the search options).
 const BASE_FIELDS: CrudFieldCfg[] = [
   { key: 'patientName', label: 'Họ tên đối tượng', required: true, placeholder: 'Nguyen Van A' },
-  { key: 'patientCode', label: 'Mã/CCCD', placeholder: 'tùy chọn' },
   { key: 'gender', label: 'Giới tính', type: 'select', required: true, options: [{ value: 1, label: 'Nam' }, { value: 2, label: 'Nữ' }] },
   { key: 'dateOfBirth', label: 'Ngày sinh', type: 'date' },
   { key: 'checkupDate', label: 'Ngày khám', type: 'date', required: true },
@@ -535,6 +540,14 @@ const HealthCheckupV2: React.FC = () => {
   const [selectedType, setSelectedType] = useState('');
   const printRef = useRef<HTMLDivElement | null>(null);
 
+  const [patientOpts, setPatientOpts] = useState<PatientOption[]>([]);
+  const searchPatients = useCallback((kw: string) => {
+    if (!kw || kw.trim().length < 2) return;
+    apiClient.post<unknown>('/patients/search', { keyword: kw.trim(), page: 1, pageSize: 20 })
+      .then((r) => setPatientOpts(normalizeArrayResponse<PatientOption>(r.data)))
+      .catch(() => { /* đang gõ dở — không toast */ });
+  }, []);
+
   const handlePrintKsk = () => {
     if (!printRef.current) return;
     const html = `<html><head><title>Giay KSK</title></head><body>${printRef.current.innerHTML}</body></html>`;
@@ -601,8 +614,13 @@ const HealthCheckupV2: React.FC = () => {
       options: checkupTypes.map((t) => ({ value: t.code, label: t.name })),
     };
     const extra = TYPE_EXTRA_FIELDS[selectedType] ?? [];
-    return [typeField, ...BASE_FIELDS, ...extra];
-  }, [selectedType, checkupTypes]);
+    const patientIdField: CrudFieldCfg = {
+      key: 'patientId', label: 'Bệnh nhân', type: 'autocomplete', required: true,
+      options: patientOpts.map((p) => ({ value: p.id, label: `${p.patientCode} — ${p.fullName}` })),
+      onSearch: searchPatients, debounce: 300, placeholder: 'Gõ mã BN hoặc họ tên (≥ 2 ký tự)…',
+    };
+    return [typeField, patientIdField, ...BASE_FIELDS, ...extra];
+  }, [selectedType, checkupTypes, patientOpts, searchPatients]);
 
   // Watch crudInit.checkupType to update extra fields when editing an existing record
   useEffect(() => {

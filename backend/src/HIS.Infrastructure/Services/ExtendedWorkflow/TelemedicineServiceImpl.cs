@@ -362,8 +362,8 @@ public class TelemedicineServiceImpl : ITelemedicineService
     public async Task<TelemedicineDashboardDto> GetDashboardAsync(DateTime? date = null)
     {
         var d = date ?? DateTime.Today;
-        // TeleSession.StartTime ghi bằng DateTime.Now — dùng DayRangeUtc để tránh lệch UTC 00h-07h VN.
-        var (sessFromUtc, sessToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(d);
+        // TeleSession.StartTime = VN local time (DateTime.Now on a VN-TZ host) → VN day range.
+        var (sessFromUtc, sessToUtc) = HIS.Core.Common.VnTime.DayRangeVn(d);
         try
         {
             return new TelemedicineDashboardDto

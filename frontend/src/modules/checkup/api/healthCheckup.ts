@@ -5,6 +5,9 @@ import { apiClient } from '../../../services/apiClient';
 export interface HealthCheckup {
   id: string;
   checkupCode: string;
+  // BE CreateHealthCheckupDto.PatientId is a REQUIRED Guid — previously never sent by this
+  // form, so every record was created with PatientId = Guid.Empty. Now filled via PatientSearchPicker.
+  patientId?: string;
   patientName: string;
   patientCode: string;
   gender: number;

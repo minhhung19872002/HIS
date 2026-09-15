@@ -22,6 +22,9 @@ import { patientApi, type Patient } from '../../patient/api/patient';
 import { getPrescriptionContext, type PrescriptionContextDto } from '../../patient/api/dataInheritance';
 import PatientFlagBanner from '../../patient/components/PatientFlagBanner';
 import BusinessAlertPanel from '../../patient/components/BusinessAlertPanel';
+import PracticeLicenseGateBanner from '../../administration/components/PracticeLicenseGateBanner';
+import DoseWarningList from '../../pharmacy/components/DoseWarningList';
+import { checkDoses, withDoseOverrideNote, SEVERE_DOSE, type DoseWarningDto } from '../../pharmacy/api/doseRange';
 import '../../../components/layout/terminal/ed-responsive.css';
 import { fmtDate } from '../../../utils/format';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS } from '../../../constants/hospital';
@@ -144,7 +147,10 @@ const PrescriptionEditorV2: React.FC = () => {
   // no UI path at all: the doctor only saw an error toast and could neither see the reason in context nor
   // enter the override reason the backend asks for.
   const [safetyBlock, setSafetyBlock] = useState<string | null>(null);
-  const needsOverride = !!safetyBlock || interactions.some((i) => i.severity >= 3);
+  // Dose-range check (QA-R3): run right before every save; severity 3 (quá liều nặng) needs an override reason.
+  const [doseWarnings, setDoseWarnings] = useState<DoseWarningDto[]>([]);
+  const severeDose = doseWarnings.some((w) => w.severity >= SEVERE_DOSE);
+  const needsOverride = !!safetyBlock || interactions.some((i) => i.severity >= 3) || severeDose;
   // interForm: chỉ hiện lỗi khi user bấm nút proceed mà chưa nhập lý do (không viền đỏ ngay khi mở drawer)
   const interForm = useModalForm(
     { overrideReason: { required: true, message: 'Cần nhập lý do bỏ qua' } },
@@ -382,8 +388,30 @@ const PrescriptionEditorV2: React.FC = () => {
       dosage: formatDosage(it), route: it.route, frequency: it.freq,
       usageInstructions: it.note, paymentType: it.bhyt ? 1 : 2,
     })),
-    overrideReason: overrideReason.trim() || undefined,
+    // Stored by the BE in the prescription notes; names the severe-dose drugs when that is what was overridden.
+    overrideReason: withDoseOverrideNote(overrideReason, doseWarnings) || undefined,
   });
+
+  /** Dose check before save. A failed check never blocks — it warns that doses were NOT checked. */
+  const runDoseCheck = async (): Promise<DoseWarningDto[]> => {
+    try {
+      const w = await checkDoses({
+        patientId: pt?.id,
+        items: items.map((it) => ({
+          medicineId: it.medicineId,
+          singleDose: Math.max(it.morning, it.noon, it.evening, it.night) || undefined,
+          morningDose: it.morning || undefined, noonDose: it.noon || undefined,
+          eveningDose: it.evening || undefined, nightDose: it.night || undefined,
+        })),
+      });
+      setDoseWarnings(w);
+      return w;
+    } catch (e) {
+      setDoseWarnings([]);
+      tw(friendlyErrorMessage(e, 'CHƯA kiểm tra được liều thuốc — hãy tự đối chiếu liều trước khi kê.'));
+      return [];
+    }
+  };
 
   /** Đơn chưa có thuốc → mọi thao tác lưu/in đều vô nghĩa. Dùng cho tooltip + thông báo. */
   const noItems = items.length === 0;
@@ -437,7 +465,8 @@ const PrescriptionEditorV2: React.FC = () => {
 
   const saveDraft = async () => {
     if (!guard()) return;
-    if (interactions.length > 0 || allergyWarnings.length > 0) { setPendingAction('draft'); setInterOpen(true); return; }
+    const dose = await runDoseCheck();
+    if (interactions.length > 0 || allergyWarnings.length > 0 || dose.length > 0) { setPendingAction('draft'); setInterOpen(true); return; }
     await doSaveDraft();
   };
 
@@ -459,18 +488,20 @@ const PrescriptionEditorV2: React.FC = () => {
     finally { setSaving(false); }
   };
 
-  const onClickIssue = () => {
+  const onClickIssue = async () => {
     if (!guard()) return;
-    if (interactions.length > 0 || allergyWarnings.length > 0) { setPendingAction('issue'); setInterOpen(true); return; }
+    const dose = await runDoseCheck();
+    if (interactions.length > 0 || allergyWarnings.length > 0 || dose.length > 0) { setPendingAction('issue'); setInterOpen(true); return; }
     cf('Sau khi phát hành, đơn sẽ chuyển sang quầy dược và KHÔNG sửa trực tiếp được nữa. '
       + 'Muốn đổi thuốc phải kê đơn mới thay thế.',
       () => { void doIssue(false); },
       { title: 'Phát hành đơn thuốc?', confirm: 'Phát hành' });
   };
 
-  const onClickSign = () => {
+  const onClickSign = async () => {
     if (!guard()) return;
-    if (interactions.length > 0 || allergyWarnings.length > 0) { setPendingAction('sign'); setInterOpen(true); return; }
+    const dose = await runDoseCheck();
+    if (interactions.length > 0 || allergyWarnings.length > 0 || dose.length > 0) { setPendingAction('sign'); setInterOpen(true); return; }
     setSignOpen(true);
   };
 
@@ -623,9 +654,10 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
   /* Nút này LƯU đơn vào DB nên phải qua đúng cổng chặn như "Lưu nháp" / "Sang ký số":
      trước đây nó gọi thẳng createPrescription, bỏ qua cả guard() lẫn drawer cảnh báo
      tương tác — bác sĩ in được toa mà không hề thấy cảnh báo nào. */
-  const printExternalRx = () => {
+  const printExternalRx = async () => {
     if (!guard()) return;
-    if (interactions.length > 0) { setPendingAction('printExt'); setInterOpen(true); return; }
+    const dose = await runDoseCheck();
+    if (interactions.length > 0 || dose.length > 0) { setPendingAction('printExt'); setInterOpen(true); return; }
     void doPrintExternalRx();
   };
 
@@ -780,6 +812,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
 
       {/* Main editor */}
       <main style={{ overflow: 'auto', padding: 'var(--space-14)', display: 'flex', flexDirection: 'column', gap: 'var(--space-14)' }}>
+        <PracticeLicenseGateBanner />
         {/* Toolbar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-10)', padding: '10px 14px', background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', flexWrap: 'wrap' }}>
           <div style={{ display: 'inline-flex', background: 'var(--d-1)', borderRadius: 4, padding: 'var(--space-2)' }}>
@@ -1072,7 +1105,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
       </DrawerShell>
 
       {/* Interactions drawer */}
-      <DrawerShell open={interOpen} onClose={() => { setInterOpen(false); setPendingAction(null); setOverrideReason(''); setSafetyBlock(null); }} title={safetyBlock || allergyWarnings.length > 0 ? 'Cảnh báo an toàn đơn thuốc' : 'Tương tác thuốc'} sub={`${intCount + allergyWarnings.length + (safetyBlock ? 1 : 0)} cảnh báo`} size="lg">
+      <DrawerShell open={interOpen} onClose={() => { setInterOpen(false); setPendingAction(null); setOverrideReason(''); setSafetyBlock(null); }} title={safetyBlock || allergyWarnings.length > 0 || doseWarnings.length > 0 ? 'Cảnh báo an toàn đơn thuốc' : 'Tương tác thuốc'} sub={`${intCount + allergyWarnings.length + doseWarnings.length + (safetyBlock ? 1 : 0)} cảnh báo`} size="lg">
         {safetyBlock && (
           <div style={{ margin: 'var(--space-14)', padding: 'var(--space-14)', background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)', borderRadius: 'var(--r-3)' }}>
             <div style={{ fontWeight: 700, fontSize: 'var(--fs-md)', marginBottom: 'var(--space-8)' }}>Hệ thống chặn đơn</div>
@@ -1099,6 +1132,23 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
                 style={{ width: '100%', minHeight: 60, padding: 'var(--space-8)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 11.5 }}
               />
             </DrField>
+          </div>
+        )}
+        {doseWarnings.length > 0 && (
+          <div style={{ margin: 'var(--space-14)' }}>
+            <DoseWarningList warnings={doseWarnings} />
+            {severeDose && !safetyBlock && !allergyWarnings.some((w) => w.severity >= 2) && !interactions.some((i) => i.severity >= 3) && (
+              <div style={{ marginTop: 'var(--space-10)' }}>
+                <DrField lbl="Lý do vẫn kê liều vượt ngưỡng nặng" required error={interForm.errors.overrideReason}>
+                  <textarea
+                    placeholder="Lý do y lệnh liều cao (bắt buộc, được lưu vào đơn để kiểm tra)…"
+                    value={overrideReason}
+                    onChange={(e) => { setOverrideReason(e.target.value); interForm.clear('overrideReason'); }}
+                    style={{ width: '100%', minHeight: 60, padding: 'var(--space-8)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 11.5 }}
+                  />
+                </DrField>
+              </div>
+            )}
           </div>
         )}
         {allergyWarnings.map((w, i) => (

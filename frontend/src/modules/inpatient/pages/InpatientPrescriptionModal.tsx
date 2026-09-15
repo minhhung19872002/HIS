@@ -33,6 +33,9 @@ import type { WarehouseDto } from '../../pharmacy/api/warehouse';
 import { ModalShell, Btn, DrSec, tk, tw, te } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import PracticeLicenseGateBanner from '../../administration/components/PracticeLicenseGateBanner';
+import DoseWarningList from '../../pharmacy/components/DoseWarningList';
+import { checkDoses, withDoseOverrideNote, SEVERE_DOSE, type DoseWarningDto } from '../../pharmacy/api/doseRange';
 import { Field } from '../../../components/form/Field';
 import { useModalForm } from '../../../hooks/useModalForm';
 
@@ -157,6 +160,10 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
   const [safetyBlock, setSafetyBlock] = useState<string | null>(null);
   const [overrideReason, setOverrideReason] = useState('');
   const [overrideError, setOverrideError] = useState<string | undefined>();
+  // Dose-range check (QA-R3): checked before save; warnings must be seen once, severe ones need a reason.
+  const [doseWarnings, setDoseWarnings] = useState<DoseWarningDto[]>([]);
+  const [doseCheckedSig, setDoseCheckedSig] = useState('');
+  const severeDose = doseWarnings.some((w) => w.severity >= SEVERE_DOSE);
 
   const loadInit = useCallback(async () => {
     // Kho thuốc (type 1) — đúng pattern InpatientDispensing
@@ -187,6 +194,7 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
     setLines([emptyLine()]); setLineLabels({});
     setTemplateId(undefined);
     setSafetyBlock(null); setOverrideReason(''); setOverrideError(undefined);
+    setDoseWarnings([]); setDoseCheckedSig('');
     void loadInit();
   }, [open, loadInit]);
 
@@ -236,6 +244,33 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
     const valid = lines.filter((l) => l.medicineId);
     if (!valid.length) { tw('Chưa chọn thuốc nào'); return; }
     if (safetyBlock && !overrideReason.trim()) { setOverrideError('Cần nhập lý do bỏ qua cảnh báo an toàn'); return; }
+    // Dose check: re-run whenever the medicines/doses changed since the doctor last saw the warnings.
+    const sig = JSON.stringify(valid.map((l) => [l.medicineId, l.qtyPerTime, l.timesPerDay]));
+    let dose = doseWarnings;
+    if (sig !== doseCheckedSig) {
+      try {
+        dose = await checkDoses({
+          admissionId,
+          items: valid.map((l) => ({
+            medicineId: l.medicineId,
+            singleDose: l.qtyPerTime || undefined,
+            dailyDose: (l.qtyPerTime || 0) * (l.timesPerDay || 0) || undefined,
+          })),
+        });
+      } catch (e) {
+        dose = [];
+        tw(friendlyErrorMessage(e, 'CHƯA kiểm tra được liều thuốc — hãy tự đối chiếu liều trước khi lưu.'));
+      }
+      setDoseWarnings(dose);
+      setDoseCheckedSig(sig);
+      if (dose.length > 0) {
+        tw('Có cảnh báo liều thuốc — xem lại phần "Cảnh báo liều" rồi bấm Lưu y lệnh lần nữa');
+        return;
+      }
+    }
+    if (dose.some((w) => w.severity >= SEVERE_DOSE) && !overrideReason.trim()) {
+      setOverrideError('Cần nhập lý do vẫn kê liều vượt ngưỡng nặng'); return;
+    }
     const dto: CreateInpatientPrescriptionDto = {
       admissionId,
       prescriptionDate: prescriptionDate.toISOString(),
@@ -251,7 +286,8 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
         paymentSource: l.paymentSource,
         note: `${l.qtyPerTime} x ${l.timesPerDay} lần/ngày x ${l.days} ngày`,
       })),
-      overrideReason: overrideReason.trim() || undefined,
+      // Stored by the BE in the prescription notes; names the severe-dose drugs when that is what was overridden.
+      overrideReason: withDoseOverrideNote(overrideReason, dose) || undefined,
     };
     setSaving(true);
     try {
@@ -302,6 +338,24 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
         </div>
       }
     >
+      <PracticeLicenseGateBanner />
+      {doseWarnings.length > 0 && (
+        <DrSec title="Cảnh báo liều">
+          <DoseWarningList warnings={doseWarnings} />
+          {severeDose && !safetyBlock && (
+            <div style={{ marginTop: 'var(--space-8)' }}>
+              <Field label="Lý do vẫn kê liều vượt ngưỡng nặng" required error={overrideError}>
+                <Input.TextArea
+                  rows={2}
+                  value={overrideReason}
+                  onChange={(e) => { setOverrideReason(e.target.value); setOverrideError(undefined); }}
+                  placeholder="VD: Đã hội chẩn, liều theo phác đồ, theo dõi sát…"
+                />
+              </Field>
+            </div>
+          )}
+        </DrSec>
+      )}
       {safetyBlock && (
         <DrSec title="Cảnh báo an toàn thuốc">
           <div style={{ color: 'var(--s-crit)', fontSize: 'var(--fs-sm)', whiteSpace: 'pre-wrap', marginBottom: 'var(--space-8)' }}>

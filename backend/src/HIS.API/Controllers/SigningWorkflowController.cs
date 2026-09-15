@@ -2,6 +2,7 @@ using System.Security.Claims;
 using HIS.Core.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
 
@@ -58,6 +59,12 @@ public class SigningWorkflowController : ControllerBase
     [HttpPost("submit")]
     public async Task<IActionResult> SubmitRequest([FromBody] SubmitSigningRequestDto dto)
     {
+        // Patient safety: submitting a prescription / service order for signature goes through the same CCHN gate.
+        if (HIS.API.Filters.RequirePracticeLicenseAttribute.IsClinicalOrderDocument(dto.DocumentType))
+        {
+            var blocked = await HIS.API.Filters.RequirePracticeLicenseAttribute.CheckAsync(HttpContext);
+            if (blocked != null) return blocked;
+        }
         var result = await _service.SubmitRequestAsync(dto, GetUserId(), GetUserName());
         return Ok(result);
     }
@@ -68,6 +75,15 @@ public class SigningWorkflowController : ControllerBase
     [HttpPost("{id}/approve")]
     public async Task<IActionResult> ApproveRequest(Guid id, [FromBody] ApproveSigningRequestDto? dto)
     {
+        // Patient safety (QA-R3): SIGNING a prescription / service order is the act the CCHN gate protects —
+        // the approver's licence is checked, not only the submitter's.
+        var documentType = await HttpContext.RequestServices.GetRequiredService<HIS.Infrastructure.Data.HISDbContext>()
+            .SigningRequests.AsNoTracking().Where(r => r.Id == id).Select(r => r.DocumentType).FirstOrDefaultAsync();
+        if (HIS.API.Filters.RequirePracticeLicenseAttribute.IsClinicalOrderDocument(documentType))
+        {
+            var blocked = await HIS.API.Filters.RequirePracticeLicenseAttribute.CheckAsync(HttpContext);
+            if (blocked != null) return blocked;
+        }
         try
         {
             var result = await _service.ApproveRequestAsync(id, GetUserId(), dto);
@@ -131,6 +147,11 @@ public class SigningWorkflowController : ControllerBase
     [HttpPost("submit-chain")]
     public async Task<IActionResult> SubmitChain([FromBody] SubmitSigningChainDto dto)
     {
+        if (HIS.API.Filters.RequirePracticeLicenseAttribute.IsClinicalOrderDocument(dto.DocumentType))
+        {
+            var blocked = await HIS.API.Filters.RequirePracticeLicenseAttribute.CheckAsync(HttpContext);
+            if (blocked != null) return blocked;
+        }
         try
         {
             var result = await _service.SubmitChainAsync(dto, GetUserId(), GetUserName());

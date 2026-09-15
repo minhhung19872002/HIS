@@ -109,7 +109,7 @@ public partial class ExaminationCompleteService
         foreach (var t in tickets)
         {
             t.Status = QueueTicketStatus.Completed;
-            t.CompletedTime ??= DateTime.UtcNow;
+            t.CompletedTime ??= HIS.Core.Common.VnTime.NowVn; // business timestamp = VN local
         }
     }
 

@@ -42,8 +42,7 @@ public class MedicineDoseRangeService : IMedicineDoseRangeService
     {
         var med = await _db.Medicines.FirstOrDefaultAsync(m => m.Id == dto.MedicineId)
             ?? throw new InvalidOperationException("Thuốc không tồn tại");
-        if (dto.MaxSingleDose == null && dto.MaxDailyDose == null)
-            throw new InvalidOperationException("Phải nhập ít nhất 1 ngưỡng (liều 1 lần hoặc liều/ngày)");
+        EnsureAnyThreshold(dto);
 
         var entity = new MedicineDoseRange
         {
@@ -54,6 +53,8 @@ public class MedicineDoseRangeService : IMedicineDoseRangeService
             IsRenalAdjusted = dto.IsRenalAdjusted,
             MaxSingleDose = dto.MaxSingleDose,
             MaxDailyDose = dto.MaxDailyDose,
+            MinDosePerKg = dto.MinDosePerKg,
+            MaxDosePerKg = dto.MaxDosePerKg,
             Unit = dto.Unit ?? med.Unit,
             SevereMultiplier = dto.SevereMultiplier <= 1 ? 1.5m : dto.SevereMultiplier,
             Note = dto.Note,
@@ -71,14 +72,15 @@ public class MedicineDoseRangeService : IMedicineDoseRangeService
     {
         var entity = await _db.MedicineDoseRanges.Include(r => r.Medicine).FirstOrDefaultAsync(r => r.Id == id)
             ?? throw new InvalidOperationException("Ngưỡng liều không tồn tại");
-        if (dto.MaxSingleDose == null && dto.MaxDailyDose == null)
-            throw new InvalidOperationException("Phải nhập ít nhất 1 ngưỡng (liều 1 lần hoặc liều/ngày)");
+        EnsureAnyThreshold(dto);
 
         entity.RouteCode = dto.RouteCode;
         entity.AgeGroup = dto.AgeGroup;
         entity.IsRenalAdjusted = dto.IsRenalAdjusted;
         entity.MaxSingleDose = dto.MaxSingleDose;
         entity.MaxDailyDose = dto.MaxDailyDose;
+        entity.MinDosePerKg = dto.MinDosePerKg;
+        entity.MaxDosePerKg = dto.MaxDosePerKg;
         entity.Unit = dto.Unit ?? entity.Unit;
         entity.SevereMultiplier = dto.SevereMultiplier <= 1 ? 1.5m : dto.SevereMultiplier;
         entity.Note = dto.Note;
@@ -102,8 +104,7 @@ public class MedicineDoseRangeService : IMedicineDoseRangeService
 
     public async Task<List<DoseWarningDto>> CheckAsync(DoseCheckRequestDto request)
     {
-        var warnings = new List<DoseWarningDto>();
-        if (request.Items.Count == 0) return warnings;
+        if (request.Items.Count == 0) return new List<DoseWarningDto>();
 
         var medIds = request.Items.Select(i => i.MedicineId).Distinct().ToList();
         // Chỉ load range ACTIVE cho các thuốc được kê → bảng rỗng = list rỗng = không cảnh báo
@@ -111,104 +112,80 @@ public class MedicineDoseRangeService : IMedicineDoseRangeService
             .Include(r => r.Medicine)
             .Where(r => r.IsActive && medIds.Contains(r.MedicineId))
             .ToListAsync();
-        if (ranges.Count == 0) return warnings;
+        if (ranges.Count == 0) return new List<DoseWarningDto>();
 
-        var ageGroup = ResolveAgeGroup(request.PatientAge);
-
-        foreach (var item in request.Items)
+        var age = request.PatientAge;
+        var weight = request.WeightKg is > 0 ? request.WeightKg : null;
+        var patientRef = request.PatientId;
+        if ((patientRef == null || patientRef == Guid.Empty) && request.AdmissionId is Guid admissionId && admissionId != Guid.Empty)
+            patientRef = await _db.Admissions.AsNoTracking().Where(a => a.Id == admissionId)
+                .Select(a => (Guid?)a.PatientId).FirstOrDefaultAsync();
+        if (patientRef is Guid patientId && patientId != Guid.Empty)
         {
-            var candidates = ranges.Where(r => r.MedicineId == item.MedicineId).ToList();
-            if (candidates.Count == 0) continue;
-
-            // Chọn range phù hợp nhất: khớp đường dùng > khớp nhóm tuổi > renal (khi BN suy thận) > mặc định
-            var range = PickBestRange(candidates, item.RouteCode, ageGroup, request.IsRenalImpaired);
-            if (range == null)
-            {
-                // Thresholds exist for this drug but none applies to this patient (e.g. only an adult row for a
-                // child, or age unknown). Silently returning "no warning" read as "dose checked and OK".
-                warnings.Add(new DoseWarningDto
-                {
-                    MedicineId = item.MedicineId,
-                    MedicineName = candidates[0].Medicine?.MedicineName ?? "",
-                    WarningType = "DoseRangeNotApplicable",
-                    Severity = 1,
-                    Message = ageGroup switch
-                    {
-                        0 => "Chưa có tuổi người bệnh — không chọn được ngưỡng liều theo nhóm tuổi, liều CHƯA được kiểm tra",
-                        1 => "Chưa cấu hình ngưỡng liều cho trẻ em — liều CHƯA được kiểm tra",
-                        _ => "Không có ngưỡng liều phù hợp (nhóm tuổi / đường dùng) — liều CHƯA được kiểm tra"
-                    },
-                    Recommendation = "Tự kiểm tra liều theo cân nặng/tuổi trước khi kê"
-                });
-                continue;
-            }
-
-            var dailyDose = item.DailyDose
-                ?? SumNullable(item.MorningDose, item.NoonDose, item.EveningDose, item.NightDose);
-            var medName = range.Medicine?.MedicineName ?? "";
-
-            AddIfExceeds(warnings, range, item.MedicineId, medName, "liều 1 lần", item.SingleDose, range.MaxSingleDose);
-            AddIfExceeds(warnings, range, item.MedicineId, medName, "liều/ngày", dailyDose, range.MaxDailyDose);
+            age ??= await ResolvePatientAgeAsync(_db, patientId);
+            if (weight == null && ranges.Any(r => r.MaxDosePerKg is > 0 || r.MinDosePerKg is > 0))
+                weight = await ResolveLatestWeightAsync(_db, patientId);
         }
-        return warnings;
-    }
 
-    private static void AddIfExceeds(List<DoseWarningDto> warnings, MedicineDoseRange range,
-        Guid medId, string medName, string label, decimal? actual, decimal? max)
-    {
-        if (actual == null || actual <= 0 || max == null || max <= 0) return;
-        if (actual.Value <= max.Value) return;
-
-        var severe = actual.Value >= max.Value * range.SevereMultiplier;
-        var unit = string.IsNullOrEmpty(range.Unit) ? "" : " " + range.Unit;
-        warnings.Add(new DoseWarningDto
-        {
-            MedicineId = medId,
-            MedicineName = medName,
-            WarningType = "DoseRange",
-            Severity = severe ? 3 : 2,
-            Message = $"{(severe ? "QUÁ LIỀU NẶNG" : "Vượt ngưỡng")} {label}: kê {actual.Value:0.##}{unit} > tối đa {max.Value:0.##}{unit}"
-                + (range.IsRenalAdjusted ? " (ngưỡng đã hiệu chỉnh suy thận)" : ""),
-            Recommendation = severe
-                ? "Rà soát lại liều — quá liều nặng, cân nhắc giảm liều hoặc ghi rõ lý do y lệnh"
-                : "Kiểm tra lại liều so với khuyến cáo"
-        });
-    }
-
-    private static MedicineDoseRange? PickBestRange(List<MedicineDoseRange> candidates,
-        string? route, int ageGroup, bool renal)
-    {
-        // Filter out ranges that do NOT apply to this patient before ranking. Ranking alone used to pick a
-        // non-matching row: an adult-only threshold was applied to a child (paediatric overdose passed silently)
-        // and a renal-adjusted threshold was applied to a patient without renal impairment (false "severe overdose").
-        var applicable = candidates
-            .Where(r => renal || !r.IsRenalAdjusted)
-            .Where(r => string.IsNullOrEmpty(r.RouteCode) || string.IsNullOrEmpty(route) || r.RouteCode == route)
-            .Where(r => r.AgeGroup == 0
-                || (ageGroup != 0 && r.AgeGroup == ageGroup)
-                || (ageGroup == 3 && r.AgeGroup == 2)) // elderly may fall back to the adult threshold; children may not
+        return HIS.Core.Common.DoseRangeChecker.Check(ranges,
+                request.Items.Select(i => new HIS.Core.Common.DoseRangeChecker.Item(i.MedicineId, i.SingleDose, i.DailyDose,
+                    i.MorningDose, i.NoonDose, i.EveningDose, i.NightDose, i.RouteCode)),
+                age, request.IsRenalImpaired, weight)
+            .Select(w => new DoseWarningDto
+            {
+                MedicineId = w.MedicineId,
+                MedicineName = w.MedicineName,
+                WarningType = w.WarningType,
+                Severity = w.Severity,
+                Message = w.Message,
+                Recommendation = w.Recommendation
+            })
             .ToList();
-
-        return applicable
-            .OrderByDescending(r => renal && r.IsRenalAdjusted)                              // ưu tiên renal khi BN suy thận
-            .ThenByDescending(r => !string.IsNullOrEmpty(route) && r.RouteCode == route)     // khớp đường dùng
-            .ThenByDescending(r => r.AgeGroup == ageGroup)                                   // khớp nhóm tuổi
-            .ThenByDescending(r => r.AgeGroup == 0)                                          // fallback mọi lứa tuổi
-            .FirstOrDefault();
     }
 
-    private static int ResolveAgeGroup(int? age)
+    private static void EnsureAnyThreshold(CreateMedicineDoseRangeDto dto)
     {
-        if (age == null) return 0;
-        if (age < 12) return 1;
-        if (age >= 65) return 3;
-        return 2;
+        if (dto.MaxSingleDose == null && dto.MaxDailyDose == null && dto.MaxDosePerKg == null && dto.MinDosePerKg == null)
+            throw new InvalidOperationException("Phải nhập ít nhất 1 ngưỡng (liều 1 lần, liều/ngày hoặc liều theo cân nặng)");
+        if (dto.MinDosePerKg is > 0 && dto.MaxDosePerKg is > 0 && dto.MinDosePerKg > dto.MaxDosePerKg)
+            throw new InvalidOperationException("Liều tối thiểu theo cân nặng phải nhỏ hơn liều tối đa theo cân nặng");
     }
 
-    private static decimal? SumNullable(params decimal?[] vals)
+    internal static async Task<int?> ResolvePatientAgeAsync(HISDbContext db, Guid patientId)
     {
-        var present = vals.Where(v => v.HasValue).Select(v => v!.Value).ToList();
-        return present.Count == 0 ? null : present.Sum();
+        var p = await db.Patients.AsNoTracking().Where(x => x.Id == patientId)
+            .Select(x => new { x.DateOfBirth, x.YearOfBirth }).FirstOrDefaultAsync();
+        if (p == null) return null;
+        var today = HIS.Core.Common.VnTime.TodayVn;
+        if (p.DateOfBirth is DateTime dob)
+        {
+            var years = today.Year - dob.Year;
+            if (dob.Date > today.AddYears(-years)) years--;
+            return years >= 0 ? years : null;
+        }
+        return p.YearOfBirth is int y && y > 1900 && y <= today.Year ? today.Year - y : null;
+    }
+
+    /// <summary>
+    /// Latest recorded weight (kg) of the patient: OPD vital signs on the medical record or inpatient vital signs,
+    /// whichever was recorded last. Null when none was ever recorded.
+    /// </summary>
+    internal static async Task<decimal?> ResolveLatestWeightAsync(HISDbContext db, Guid patientId)
+    {
+        var opd = await db.Examinations.AsNoTracking()
+            .Where(e => e.MedicalRecord.PatientId == patientId && e.Weight != null && e.Weight > 0)
+            .OrderByDescending(e => e.UpdatedAt ?? e.CreatedAt)
+            .Select(e => new { e.Weight, At = e.UpdatedAt ?? e.CreatedAt })
+            .FirstOrDefaultAsync();
+        var ipd = await db.InpatientVitalSigns.AsNoTracking()
+            .Where(v => v.Weight != null && v.Weight > 0
+                && db.Admissions.Any(a => a.Id == v.AdmissionId && a.PatientId == patientId))
+            .OrderByDescending(v => v.RecordTime)
+            .Select(v => new { v.Weight, At = v.RecordTime })
+            .FirstOrDefaultAsync();
+        if (opd == null) return ipd?.Weight;
+        if (ipd == null) return opd.Weight;
+        return ipd.At >= opd.At ? ipd.Weight : opd.Weight;
     }
 
     private static MedicineDoseRangeDto Map(MedicineDoseRange r) => new()
@@ -222,6 +199,8 @@ public class MedicineDoseRangeService : IMedicineDoseRangeService
         IsRenalAdjusted = r.IsRenalAdjusted,
         MaxSingleDose = r.MaxSingleDose,
         MaxDailyDose = r.MaxDailyDose,
+        MinDosePerKg = r.MinDosePerKg,
+        MaxDosePerKg = r.MaxDosePerKg,
         Unit = r.Unit,
         SevereMultiplier = r.SevereMultiplier,
         Note = r.Note,

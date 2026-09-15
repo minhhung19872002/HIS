@@ -9,4 +9,10 @@ namespace HIS.Application.Interfaces;
 public interface IDoctorLicenseService
 {
     Task<ServiceOutcome> GetMyLicenseStatusAsync(List<string> roles, Guid userId);
+
+    /// <summary>
+    /// Licence gate for creating/issuing prescriptions and service orders: blocks only when the user's licence
+    /// IS expired/suspended/revoked (HR profile or PracticeLicenses registry); missing data → Warning.
+    /// </summary>
+    Task<DTOs.DoctorLicense.PracticeLicenseGateDto> EvaluatePrescribingGateAsync(Guid userId);
 }

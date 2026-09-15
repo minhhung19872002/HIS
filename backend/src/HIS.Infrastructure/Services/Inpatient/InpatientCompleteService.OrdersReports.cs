@@ -385,7 +385,7 @@ public partial class InpatientCompleteService {
                 {
                     Id = Guid.NewGuid(),
                     RequestCode = requestCode,
-                    RequestDate = DateTime.UtcNow, // dot16: chuẩn UTC
+                    RequestDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
                     MedicalRecordId = admission.MedicalRecordId,
                     DoctorId = userId,
                     DepartmentId = admission.DepartmentId,
@@ -467,6 +467,13 @@ public partial class InpatientCompleteService {
             await _context.ServiceRequests.AddAsync(sr);
         }
         await _context.SaveChangesAsync();
+        // R3 BHYT: split at order time (no-op for fee patients).
+        decimal insuranceAmount = 0;
+        if (await new BhytVisitPricing(_context).RecalculateAsync(admission.MedicalRecordId) != null)
+        {
+            await _context.SaveChangesAsync();
+            insuranceAmount = requestsByType.Values.Sum(r => r.InsuranceAmount);
+        }
 
         var firstRequest = requestsByType.Values.First();
         return new InpatientServiceOrderDto
@@ -483,8 +490,8 @@ public partial class InpatientCompleteService {
             Services = serviceItems,
             Status = 0,
             TotalAmount = totalAmount,
-            InsuranceAmount = 0,
-            PatientPayAmount = totalAmount
+            InsuranceAmount = insuranceAmount,
+            PatientPayAmount = totalAmount - insuranceAmount
         };
     }
 
@@ -543,17 +550,17 @@ public partial class InpatientCompleteService {
             .Where(r => r.MedicalRecordId == admission.MedicalRecordId
                      && r.RequestCode.StartsWith("CDNT")
                      && r.Status != 4);
-        // RequestDate is written as UTC (dot16) and the FE sends date-only bounds (fromDate=toDate=today): the old
+        // RequestDate is VN local time and the FE sends date-only bounds (fromDate=toDate=today): the old
         // `<= toDate` (= 00:00) dropped every order of the requested day → the ward's "Y lệnh hôm nay" was always empty.
         // Use inclusive VN-day ranges.
         if (fromDate.HasValue)
         {
-            var fromUtc = HIS.Core.Common.VnTime.DayRangeUtc(fromDate.Value.Date).FromUtc;
+            var fromUtc = HIS.Core.Common.VnTime.DayRangeVn(fromDate.Value.Date).From;
             query = query.Where(r => r.RequestDate >= fromUtc);
         }
         if (toDate.HasValue)
         {
-            var toUtc = HIS.Core.Common.VnTime.DayRangeUtc(toDate.Value.Date).ToUtc;
+            var toUtc = HIS.Core.Common.VnTime.DayRangeVn(toDate.Value.Date).To;
             query = query.Where(r => r.RequestDate < toUtc);
         }
 
@@ -679,7 +686,7 @@ public partial class InpatientCompleteService {
             .Where(s => serviceIds.Contains(s.Id))
             .ToDictionaryAsync(s => s.Id);
 
-        var (dayFrom, dayTo) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.NowVn.Date);
+        var (dayFrom, dayTo) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.NowVn.Date); // RequestDate = VN local
         var orderedToday = await _context.ServiceRequestDetails.AsNoTracking()
             .Where(d => !d.IsDeleted && d.Status != 3
                         && serviceIds.Contains(d.ServiceId)

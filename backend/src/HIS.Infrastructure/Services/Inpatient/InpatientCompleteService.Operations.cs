@@ -102,7 +102,7 @@ public partial class InpatientCompleteService
         handover.HandoverToUserId = userId;
         handover.HandoverToName = user?.FullName;
         handover.IsAcknowledged = true;
-        handover.AcknowledgedAt = DateTime.UtcNow;
+        handover.AcknowledgedAt = HIS.Core.Common.VnTime.NowVn; // business timestamp = VN local
         handover.Status = 2; // Acknowledged
         handover.UpdatedAt = DateTime.UtcNow;
 

@@ -70,12 +70,13 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<bool>> CancelDietOrder(Guid id, [FromBody] CancelDietOrderRequest req)
             => Ok(await _service.DiscontinueDietOrderAsync(id, string.IsNullOrWhiteSpace(req?.Reason) ? "Ngưng theo chỉ định" : req!.Reason!.Trim()));
 
+        // QA-R3: returned the pending list (same as /screenings/pending) — completed screenings were never listed.
         [HttpGet("screenings")]
         public async Task<ActionResult<List<NutritionScreeningDto>>> GetScreenings(
             [FromQuery] Guid? departmentId,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 200)
-            => Ok(await _service.GetPendingScreeningsAsync(departmentId));
+            => Ok(await _service.GetCompletedScreeningsAsync(departmentId));
 
         [HttpGet("screenings/high-risk")]
         public async Task<ActionResult<List<NutritionScreeningDto>>> GetHighRiskPatientsAlias([FromQuery] Guid? departmentId)

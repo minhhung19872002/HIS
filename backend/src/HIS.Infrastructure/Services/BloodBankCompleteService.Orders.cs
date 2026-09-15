@@ -198,7 +198,7 @@ namespace HIS.Infrastructure.Services
                 dto.VisitId, Guid.Empty,
                 dto.Diagnosis ?? (object)DBNull.Value,
                 dto.ClinicalIndication ?? (object)DBNull.Value,
-                DateTime.Now);
+                DateTime.UtcNow); // CreatedAt = UTC audit column
 
             if (dto.Items != null)
             {

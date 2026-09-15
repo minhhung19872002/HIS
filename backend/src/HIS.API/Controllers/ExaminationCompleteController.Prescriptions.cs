@@ -55,6 +55,7 @@ public partial class ExaminationCompleteController : ControllerBase
     /// <summary>
     /// Tạo đơn thuốc
     /// </summary>
+    [HIS.API.Filters.RequirePracticeLicense]
     [HttpPost("prescriptions")]
     public async Task<ActionResult<PrescriptionFullDto>> CreatePrescription([FromBody] CreateExaminationPrescriptionDto dto)
     {
@@ -65,6 +66,7 @@ public partial class ExaminationCompleteController : ControllerBase
     /// <summary>
     /// Cập nhật đơn thuốc
     /// </summary>
+    [HIS.API.Filters.RequirePracticeLicense]
     [HttpPut("prescriptions/{id}")]
     public async Task<ActionResult<PrescriptionFullDto>> UpdatePrescription(Guid id, [FromBody] CreateExaminationPrescriptionDto dto)
     {
@@ -76,6 +78,7 @@ public partial class ExaminationCompleteController : ControllerBase
     /// PHÁT HÀNH đơn thuốc: Nháp → Chờ duyệt. Đây là mốc đơn có hiệu lực và sang quầy dược;
     /// sau bước này đơn KHÔNG sửa tại chỗ được nữa (TT 26/2025/TT-BYT Điều 6 khoản 9).
     /// </summary>
+    [HIS.API.Filters.RequirePracticeLicense]
     [HttpPost("prescriptions/{id}/issue")]
     public async Task<ActionResult<PrescriptionFullDto>> IssuePrescription(Guid id, [FromBody] IssuePrescriptionRequest? request = null)
     {
@@ -86,6 +89,7 @@ public partial class ExaminationCompleteController : ControllerBase
     /// <summary>
     /// Kê đơn NHÁP mới thay thế một đơn đã phát hành. Đơn cũ chỉ bị hủy khi đơn mới được phát hành.
     /// </summary>
+    [HIS.API.Filters.RequirePracticeLicense]
     [HttpPost("prescriptions/{id}/replace")]
     public async Task<ActionResult<PrescriptionFullDto>> ReplacePrescription(Guid id)
     {
@@ -232,6 +236,7 @@ public partial class ExaminationCompleteController : ControllerBase
     /// <summary>
     /// Áp dụng mẫu đơn thuốc
     /// </summary>
+    [HIS.API.Filters.RequirePracticeLicense]
     [HttpPost("{examinationId}/apply-prescription-template/{templateId}")]
     public async Task<ActionResult<PrescriptionFullDto>> ApplyPrescriptionTemplate(Guid examinationId, Guid templateId)
     {
@@ -313,6 +318,7 @@ public partial class ExaminationCompleteController : ControllerBase
     /// <summary>
     /// Sao chép đơn thuốc từ lịch sử
     /// </summary>
+    [HIS.API.Filters.RequirePracticeLicense]
     [HttpPost("{examinationId}/copy-prescription/{sourcePrescriptionId}")]
     public async Task<ActionResult<PrescriptionFullDto>> CopyPrescriptionFromHistory(Guid examinationId, Guid sourcePrescriptionId)
     {

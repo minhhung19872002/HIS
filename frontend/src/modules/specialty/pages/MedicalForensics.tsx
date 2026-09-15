@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import {
-  searchCases, getStats, getExaminations, createCase, updateCase, approveCase,
+  searchCases, getStats, getExaminations, createCase, updateCase, approveCase, getCaseById,
 } from '../api/forensic';
 import type { ForensicCase, ForensicExamination, ForensicStats } from '../api/forensic';
 import {
@@ -11,6 +11,8 @@ import {
   type ColumnDef, type StatusTab, type CrudFieldCfg, type KpiItem,
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { apiClient } from '../../../services/apiClient';
+import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 
 type SKey = 'pending' | 'examining' | 'completed' | 'approved';
 const STATUS_TABS: StatusTab<SKey>[] = [
@@ -30,9 +32,14 @@ const TYPE_LABEL: Record<string, string> = {
 };
 const TYPE_OPTIONS = Object.entries(TYPE_LABEL).map(([value, label]) => ({ value, label }));
 
-const FIELDS: CrudFieldCfg[] = [
+interface PatientOption { id: string; patientCode: string; fullName: string }
+
+// BE CreateForensicCaseDto.PatientId is optional (Guid?) — a case may be created with just
+// PatientName (legal subjects aren't always registered HIS patients), but when the subject IS
+// a known patient this links the real GUID instead of the old dead-weight 'patientCode' text
+// field (BE's CreateForensicCaseDto never had a PatientCode property at all).
+const FIELDS_REST: CrudFieldCfg[] = [
   { key: 'patientName',            label: 'Họ tên đối tượng', required: true },
-  { key: 'patientCode',            label: 'Mã đối tượng' },
   { key: 'caseType',               label: 'Loại giám định', type: 'select', required: true, options: TYPE_OPTIONS },
   { key: 'requestingOrganization', label: 'Tổ chức yêu cầu', required: true },
   { key: 'purpose',                label: 'Mục đích', type: 'textarea', required: true },
@@ -57,6 +64,25 @@ const MedicalForensicsV2: React.FC = () => {
   const [crudOpen, setCrudOpen] = useState(false);
   const [editId, setEditId]     = useState<string | null>(null);
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | undefined>();
+  const [patientOpts, setPatientOpts] = useState<PatientOption[]>([]);
+  const searchPatients = useCallback((kw: string) => {
+    if (!kw || kw.trim().length < 2) return;
+    apiClient.post<unknown>('/patients/search', { keyword: kw.trim(), page: 1, pageSize: 20 })
+      .then((r) => setPatientOpts(normalizeArrayResponse<PatientOption>(r.data)))
+      .catch(() => { /* đang gõ dở — không toast */ });
+  }, []);
+  const FIELDS = useMemo<CrudFieldCfg[]>(() => {
+    // Keep the edit-mode patient visible even before any new search has run.
+    const seed = editId && crudInit?.patientId && !patientOpts.some((p) => p.id === crudInit.patientId)
+      ? [{ value: crudInit.patientId, label: String(crudInit.patientName ?? '') }]
+      : [];
+    return [
+      { key: 'patientId', label: 'Bệnh nhân (nếu có trong hệ thống)', type: 'autocomplete',
+        options: [...seed, ...patientOpts.map((p) => ({ value: p.id, label: `${p.patientCode} — ${p.fullName}` }))],
+        onSearch: searchPatients, debounce: 300, placeholder: 'Gõ mã BN hoặc họ tên (≥ 2 ký tự)…' },
+      ...FIELDS_REST,
+    ];
+  }, [patientOpts, searchPatients, editId, crudInit]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,15 +103,21 @@ const MedicalForensicsV2: React.FC = () => {
   };
 
   const openCreate = () => { setEditId(null); setCrudInit(undefined); setCrudOpen(true); };
-  const openEdit = (r: ForensicCase) => {
+  const openEdit = async (r: ForensicCase) => {
     setEditId(r.id);
     setCrudInit({
-      patientName: r.patientName, patientCode: r.patientCode,
+      patientName: r.patientName,
       caseType: r.caseType, requestingOrganization: r.requestingOrganization,
       purpose: r.purpose, requestDate: r.requestDate?.slice(0, 10),
       disabilityPercent: r.disabilityPercent, conclusion: r.conclusion, notes: r.notes,
     });
     setCrudOpen(true);
+    // Detail endpoint carries PatientId (list rows don't) — fetch it in the background to
+    // seed the patient picker; harmless if it fails (BE accepts PatientName-only too).
+    try {
+      const detail = await getCaseById(r.id);
+      setCrudInit((cur) => (cur ? { ...cur, patientId: detail.patientId } : cur));
+    } catch { /* keep patientId unset — form still valid via patientName */ }
   };
   const handleApprove = (r: ForensicCase) =>
     cf('Duyệt hồ sơ giám định này?', async () => {

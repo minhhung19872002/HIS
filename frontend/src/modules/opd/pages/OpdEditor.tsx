@@ -31,6 +31,8 @@ import { QueuePanel } from './QueuePanel';
 import { HistoryExamSection } from './HistoryExamSection';
 import PatientFlagBanner from '../../patient/components/PatientFlagBanner';
 import BusinessAlertPanel from '../../patient/components/BusinessAlertPanel';
+import PracticeLicenseGateBanner from '../../administration/components/PracticeLicenseGateBanner';
+import { useAuth } from '../../../contexts/AuthContext';
 import { useOpdQueue } from '../hooks/useOpdQueue';
 import { useOpdPatientData } from '../hooks/useOpdPatientData';
 import { useOpdCompletion } from '../hooks/useOpdCompletion';
@@ -258,6 +260,26 @@ const OpdEditorV2: React.FC = () => {
     } catch { te('Hoàn tất khám thất bại'); } finally { setSaving(false); }
   };
 
+  /* Mở lại phiên khám đã hoàn tất (BE revert-completion: chỉ Admin/Manager, chặn khi hồ sơ đã khóa TT46).
+     Round-2 decision: ordering after completion is NOT blocked, so this only restores the editable state. */
+  const { hasRole } = useAuth();
+  const canReopen = hasRole('Admin') || hasRole('Manager');
+  const [reopening, setReopening] = useState(false);
+  const reopenExam = async () => {
+    if (!examId || reopening) return;
+    const reason = window.prompt('Lý do mở lại phiên khám đã hoàn tất:')?.trim();
+    if (!reason) { if (reason === '') tw('Cần nhập lý do mở lại'); return; }
+    setReopening(true);
+    try {
+      await examinationApi.revertCompletion(examId, reason);
+      setSelPt((current) => current?.examinationId === examId ? { ...current, status: 1, statusName: 'Đang khám' } : current);
+      tk('Đã mở lại phiên khám');
+      loadQueue(roomId);
+      void refreshCompletion(examId);
+    } catch (e) { te(friendlyErrorMessage(e, 'Không mở lại được phiên khám')); }
+    finally { setReopening(false); }
+  };
+
   const goPrescribe = () => {
     if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
     if (selPt?.status === 0) { tw('Bệnh nhân chưa bắt đầu khám — không thể kê đơn'); return; }
@@ -292,6 +314,23 @@ const OpdEditorV2: React.FC = () => {
       />
 
       <main style={{ overflow: 'auto', padding: 'var(--space-14)', display: 'flex', flexDirection: 'column', gap: 'var(--space-14)' }}>
+        <PracticeLicenseGateBanner />
+        {selPt?.status === 4 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 'var(--space-8)', flexWrap: 'wrap',
+            padding: '6px 10px', borderRadius: 'var(--r-2)', fontSize: 11.5,
+            border: '1px solid var(--line)', borderLeft: '3px solid var(--a-cy)', background: 'var(--d-0)',
+          }}>
+            <span style={{ flex: 1 }}><strong>Phiên khám đã hoàn tất.</strong>
+              <span style={{ color: 'var(--t-2)' }}>{canReopen ? ' Mở lại để sửa kết luận/chẩn đoán.' : ' Cần Quản trị/Trưởng khoa mở lại nếu phải sửa kết luận.'}</span>
+            </span>
+            {canReopen && (
+              <Btn variant="ghost" size="sm" disabled={reopening} onClick={() => { void reopenExam(); }}>
+                <TermIcon name="refresh" size={11} /> {reopening ? 'Đang mở lại…' : 'Mở lại phiên khám'}
+              </Btn>
+            )}
+          </div>
+        )}
         {!selPt ? (
           <div style={{ padding: '60px 12px', textAlign: 'center', color: 'var(--t-3)' }}>
             <TermIcon name="user" size={32} />

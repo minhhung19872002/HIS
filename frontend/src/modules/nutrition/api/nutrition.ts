@@ -60,6 +60,10 @@ export interface CreateNutritionScreeningDto {
   mustBMIScore?: number;
   mustWeightLossScore?: number;
   mustAcuteIllnessScore?: number;
+  /** NRS-2002 item scores (0-3). BE takes the WORST item as the nutrition score and adds the age point. */
+  nrsBmiScore?: number;
+  nrsWeightLossScore?: number;
+  nrsIntakeScore?: number;
   notes?: string;
 }
 
@@ -527,6 +531,7 @@ const mapScreening = (raw: unknown): NutritionScreeningDto => {
     screeningDate: realDate(r.screeningDate) || '',
     nrsNutritionalScore: num(r.nrsNutritionalScore) ?? num(r.nutritionScore),
     nrsSeverityScore: num(r.nrsSeverityScore) ?? num(r.diseaseScore),
+    nrsAgeAdjustment: num(r.nrsAgeAdjustment) ?? num(r.ageScore),
     nrsTotalScore: num(r.nrsTotalScore) ?? num(r.totalScore),
     riskLevel: pending ? '' : (str(r.riskLevel) || ''),
     requiresAssessment: Boolean(r.requiresAssessment ?? r.requiresIntervention),
@@ -549,6 +554,7 @@ const mapDietOrder = (raw: unknown): DietOrderDto => {
     proteinGrams: num(r.proteinGrams) ?? num(r.proteinLevel),
     fluidMl: num(r.fluidMl) ?? num(r.fluidRestriction),
     sodiumMg: num(r.sodiumMg) ?? num(r.sodiumRestriction),
+    snacksIncluded: typeof r.snacksIncluded === 'boolean' ? r.snacksIncluded : Boolean(r.includeSnacks),
     orderedByName: str(r.orderedByName) || str(r.orderedBy) || '',
     orderedDate: str(r.orderedDate) || str(r.orderedAt) || '',
     statusName: str(r.statusName) || (r.status === 'Active' ? 'Đang dùng' : r.status === 'Discontinued' ? 'Đã ngưng' : ''),
@@ -577,6 +583,9 @@ const toBackendDietOrder = async (dto: CreateDietOrderDto) => ({
   restrictions: dto.restrictions,
   specialInstructions: dto.specialInstructions || undefined,
   feedingRoute: dto.feedingRoute || undefined,
+  // QA-R3: meals/day + snacks were never sent (BE now stores them, migration 202)
+  mealFrequency: dto.mealFrequency || undefined,
+  includeSnacks: typeof dto.snacksIncluded === 'boolean' ? dto.snacksIncluded : undefined,
   startDate: dto.startDate,
   endDate: dto.endDate || undefined,
 });
@@ -604,6 +613,9 @@ export const createScreening = (dto: CreateNutritionScreeningDto) =>
     admissionId: dto.admissionId,
     nutritionScore: dto.nrsNutritionalScore ?? 0,
     diseaseScore: dto.nrsSeverityScore ?? 0,
+    bmiScore: dto.nrsBmiScore,
+    weightLossScore: dto.nrsWeightLossScore,
+    intakeScore: dto.nrsIntakeScore,
     notes: dto.notes || undefined,
   }).then((res) => ({ ...res, data: res.data ? mapScreening(res.data) : res.data }));
 

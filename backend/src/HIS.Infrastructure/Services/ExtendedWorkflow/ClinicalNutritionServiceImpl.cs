@@ -29,6 +29,25 @@ public partial class ClinicalNutritionServiceImpl : IClinicalNutritionService
         }).ToList();
     }
 
+    // QA-R3: GET /nutrition/screenings returned the pending list again, so the v2 "Đã sàng lọc" tab was always
+    // empty and a screened patient disappeared from the page. Latest screening per admission.
+    public async Task<List<NutritionScreeningDto>> GetCompletedScreeningsAsync(Guid? departmentId = null)
+    {
+        var query = _context.NutritionScreenings.AsNoTracking()
+            .Include(x => x.Admission).ThenInclude(x => x!.Patient)
+            .Include(x => x.Admission).ThenInclude(x => x!.Department)
+            .AsQueryable();
+        if (departmentId.HasValue) query = query.Where(x => x.Admission!.DepartmentId == departmentId.Value);
+        var rows = await query.OrderByDescending(x => x.ScreeningDate).Take(1000).ToListAsync();
+        return rows.GroupBy(x => x.AdmissionId).Select(g => g.First()).Take(200).Select(e =>
+        {
+            var dto = MapToNutritionScreeningDto(e);
+            dto.PatientCode = e.Admission?.Patient?.PatientCode ?? "";
+            dto.DepartmentName = e.Admission?.Department?.DepartmentName ?? "";
+            return dto;
+        }).ToList();
+    }
+
     public async Task<NutritionScreeningDto> GetScreeningByAdmissionAsync(Guid admissionId)
     {
         // QA-R2: latest screening first (re-screening used to return an arbitrary older row).
@@ -46,21 +65,38 @@ public partial class ClinicalNutritionServiceImpl : IClinicalNutritionService
             ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ nhập viện");
         if (dto.NutritionScore < 0 || dto.DiseaseScore < 0 || dto.Weight < 0 || dto.Height < 0)
             throw new ArgumentException("Điểm sàng lọc / cân nặng / chiều cao không được âm");
-        var total = dto.NutritionScore + dto.DiseaseScore;
+        var nrs = await CalculateNrs2002Async(dto, admission.PatientId);
         var entity = new NutritionScreening
         {
             Id = Guid.NewGuid(), AdmissionId = dto.AdmissionId, PatientId = admission.PatientId,
             ScreenedById = _currentUser?.UserGuid ?? Guid.Empty,
             Weight = dto.Weight, Height = dto.Height,
             BMI = dto.Height > 0 ? Math.Round(dto.Weight / (dto.Height * dto.Height / 10000), 2) : 0,
-            NutritionScore = dto.NutritionScore, DiseaseScore = dto.DiseaseScore,
-            TotalScore = total, RiskLevel = total >= 3 ? "High" : total == 2 ? "Medium" : "Low",
-            RequiresIntervention = total >= 3, SGACategory = dto.SGACategory, Notes = dto.Notes,
+            NutritionScore = nrs.NutritionScore, DiseaseScore = nrs.DiseaseScore, AgeScore = nrs.AgeScore,
+            TotalScore = nrs.TotalScore, RiskLevel = nrs.RiskLevel,
+            RequiresIntervention = nrs.RequiresIntervention, SGACategory = dto.SGACategory, Notes = dto.Notes,
             ScreeningDate = DateTime.Now, CreatedAt = DateTime.Now
         };
         _context.NutritionScreenings.Add(entity);
         await _context.SaveChangesAsync();
         return await GetScreeningByAdmissionAsync(dto.AdmissionId);
+    }
+
+    /// <summary>QA-R3: NRS-2002 = max(BMI, weight loss, intake) + disease severity + (age ≥ 70 ? 1 : 0).</summary>
+    private async Task<HIS.Core.Common.Nrs2002Calculator.Result> CalculateNrs2002Async(PerformNutritionScreeningDto dto, Guid patientId)
+    {
+        if (dto.BmiScore < 0 || dto.WeightLossScore < 0 || dto.IntakeScore < 0)
+            throw new ArgumentException("Điểm sàng lọc không được âm");
+        var p = await _context.Patients.AsNoTracking().Where(x => x.Id == patientId)
+            .Select(x => new { x.DateOfBirth, x.YearOfBirth }).FirstOrDefaultAsync();
+        var today = HIS.Core.Common.VnTime.TodayVn;
+        int? age = null;
+        if (p?.DateOfBirth is DateTime dob)
+            age = today.Year - dob.Year - (dob.Date > today.AddYears(-(today.Year - dob.Year)) ? 1 : 0);
+        else if (p?.YearOfBirth is int y && y > 1900)
+            age = today.Year - y;
+        return HIS.Core.Common.Nrs2002Calculator.Calculate(
+            new[] { dto.BmiScore, dto.WeightLossScore, dto.IntakeScore }, dto.NutritionScore, dto.DiseaseScore, age);
     }
 
     public async Task<List<NutritionScreeningDto>> GetHighRiskPatientsAsync(Guid? departmentId = null)
@@ -151,7 +187,10 @@ public partial class ClinicalNutritionServiceImpl : IClinicalNutritionService
         Dislikes = SplitCsv(e.FoodPreferences),
         Restrictions = SplitCsv(e.Restrictions),
         SpecialInstructions = e.SpecialInstructions ?? "",
-        FeedingRoute = "Oral",
+        // QA-R3: was hard-coded "Oral" (the form's route / meals per day / snacks were never stored).
+        FeedingRoute = string.IsNullOrWhiteSpace(e.FeedingRoute) ? "Oral" : e.FeedingRoute,
+        MealFrequency = e.MealFrequency,
+        IncludeSnacks = e.IncludeSnacks ?? false,
         Status = e.Status ?? "",
         StartDate = e.StartDate,
         EndDate = e.EndDate,
@@ -179,6 +218,10 @@ public partial class ClinicalNutritionServiceImpl : IClinicalNutritionService
             throw new ArgumentException("Ngày kết thúc không được trước ngày bắt đầu");
         if (dto.CalorieLevel < 0 || dto.ProteinLevel < 0 || dto.FluidRestriction < 0 || dto.SodiumRestriction < 0)
             throw new ArgumentException("Năng lượng / protein / dịch không được âm");
+        if (dto.MealFrequency is < 1 or > 12)
+            throw new ArgumentException("Số bữa / ngày phải từ 1 đến 12");
+        if (!string.IsNullOrWhiteSpace(dto.FeedingRoute) && dto.FeedingRoute.Trim().Length > 20)
+            throw new ArgumentException("Đường nuôi dưỡng không hợp lệ");
     }
 
     public async Task<DietOrderDto> CreateDietOrderAsync(CreateDietOrderDto dto)
@@ -200,7 +243,9 @@ public partial class ClinicalNutritionServiceImpl : IClinicalNutritionService
             DietTypeId = dto.DietTypeId, OrderedById = orderedById,
             TargetCalories = dto.CalorieLevel, TargetProtein = dto.ProteinLevel, Status = "Active", StartDate = dto.StartDate, EndDate = dto.EndDate,
             TextureModification = dto.Texture, Allergies = JoinCsv(dto.Allergies), FoodPreferences = JoinCsv(dto.Dislikes),
-            Restrictions = JoinCsv(dto.Restrictions), SpecialInstructions = dto.SpecialInstructions, CreatedAt = DateTime.Now
+            Restrictions = JoinCsv(dto.Restrictions), SpecialInstructions = dto.SpecialInstructions, CreatedAt = DateTime.Now,
+            FeedingRoute = string.IsNullOrWhiteSpace(dto.FeedingRoute) ? null : dto.FeedingRoute.Trim(),
+            MealFrequency = dto.MealFrequency, IncludeSnacks = dto.IncludeSnacks
         };
         _context.DietOrders.Add(entity);
         await _context.SaveChangesAsync();
@@ -218,6 +263,9 @@ public partial class ClinicalNutritionServiceImpl : IClinicalNutritionService
         e.StartDate = dto.StartDate; e.EndDate = dto.EndDate; e.TextureModification = dto.Texture;
         e.Allergies = JoinCsv(dto.Allergies); e.FoodPreferences = JoinCsv(dto.Dislikes); e.Restrictions = JoinCsv(dto.Restrictions);
         e.SpecialInstructions = dto.SpecialInstructions; e.UpdatedAt = DateTime.Now;
+        if (!string.IsNullOrWhiteSpace(dto.FeedingRoute)) e.FeedingRoute = dto.FeedingRoute.Trim();
+        if (dto.MealFrequency.HasValue) e.MealFrequency = dto.MealFrequency;
+        if (dto.IncludeSnacks.HasValue) e.IncludeSnacks = dto.IncludeSnacks;
         await _context.SaveChangesAsync();
         return await GetDietOrderAsync(id);
     }
@@ -390,7 +438,7 @@ public partial class ClinicalNutritionServiceImpl : IClinicalNutritionService
     {
         Id = e.Id, AdmissionId = e.AdmissionId, PatientId = e.Admission?.PatientId ?? Guid.Empty,
         PatientName = e.Admission?.Patient?.FullName ?? "", Weight = e.Weight, Height = e.Height, BMI = e.BMI,
-        NutritionScore = e.NutritionScore, DiseaseScore = e.DiseaseScore, TotalScore = e.TotalScore, RiskLevel = e.RiskLevel,
+        NutritionScore = e.NutritionScore, DiseaseScore = e.DiseaseScore, AgeScore = e.AgeScore, TotalScore = e.TotalScore, RiskLevel = e.RiskLevel,
         RequiresIntervention = e.RequiresIntervention, SGACategory = e.SGACategory ?? "", ScreeningDate = e.ScreeningDate
     };
 }

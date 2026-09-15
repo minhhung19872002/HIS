@@ -111,6 +111,13 @@ namespace HIS.Infrastructure.Services
             // It used to put an EXPIRED bag into 'Issued', and could revive Transfused/Destroyed bags.
             var bag = await GetBloodBagAsync(bloodBagId);
             if (bag == null) return false;
+            // QA round 3: "Issued" via this setter handed a bag out with no recipient and no ABO/Rh check at all.
+            // Issuing must go through an issue request (patient + ABO check in EnsureIssuableAsync).
+            if (string.Equals(status, "Issued", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(bag.Status, "Issued", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException(
+                    $"Không cấp phát túi máu {bag.BagCode} trực tiếp được: xuất máu phải qua phiếu yêu cầu xuất máu có bệnh nhân "
+                    + "(tab \"Yêu cầu\" → Duyệt → Xuất máu, hệ thống kiểm tra tương thích ABO/Rh).");
             var usableTargets = new[] { "Available", "Reserved", "Issued", "Transfusing" };
             if (usableTargets.Contains(status, StringComparer.OrdinalIgnoreCase))
             {

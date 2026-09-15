@@ -4,7 +4,8 @@ import dayjs from 'dayjs';
 import { App as AntdApp, Input, Select, InputNumber } from 'antd';
 import type { MessageInstance } from 'antd/es/message/interface';
 import { DatePicker } from 'antd';
-import { getBloodStock, getBloodStockDetail, getExpiringBloodBags, getExpiredBloodBags, getIssueRequests, getProductTypes, createIssueRequest, createImportReceipt, getSuppliers, updateBloodBagStatus, destroyExpiredBloodBags, approveIssueRequest, issueBlood } from '../api/bloodBank';
+import { getBloodStock, getBloodStockDetail, getExpiringBloodBags, getExpiredBloodBags, getIssueRequests, getProductTypes, createIssueRequest, createImportReceipt, getSuppliers, destroyExpiredBloodBags, approveIssueRequest, issueBlood } from '../api/bloodBank';
+import { PatientSearchPicker, type PatientSearchResult } from '../../patient/components/PatientSearchPicker';
 import type { BloodStockDto, BloodBagDto, BloodIssueRequestDto, BloodProductTypeDto, BloodStockDetailDto, BloodSupplierDto } from '../api/bloodBank';
 import { catalogApi } from '../../system/api/system';
 import type { DepartmentCatalogDto } from '../../system/api/system';
@@ -465,6 +466,7 @@ const BloodBankV2: React.FC = () => {
           <ExpiringTab
             rows={expiringFiltered} page={page} perPage={PAGE_SIZE} onSortChange={() => setPage(0)}
             loading={loading} message={message} onReload={reload}
+            onGoRequests={() => { setTab('requests'); setPage(0); }}
           />
         </>
       )}
@@ -573,6 +575,31 @@ const URGENCY_OPTS = [
   { value: 'Emergency', label: 'Cấp cứu' },
 ];
 
+/** Normalise a recorded ABO ("A+", " ab ") → "A" | "B" | "AB" | "O" | undefined (mirrors BE BloodCompatibility). */
+const normAbo = (raw?: string): string | undefined => {
+  const m = (raw || '').trim().toUpperCase().match(/^(AB|A|B|O)/);
+  return m ? m[1] : undefined;
+};
+/** Normalise a recorded Rh ("+", "Positive", "O-", "NEG") → "+" | "-" | undefined. */
+const recordedRh = (raw?: string): '+' | '-' | undefined => {
+  const v = (raw || '').trim().toUpperCase();
+  if (!v) return undefined;
+  if (v.endsWith('+') || v.startsWith('POS')) return '+';
+  if (v.endsWith('-') || v.startsWith('NEG')) return '-';
+  return undefined;
+};
+/** Red-cell compatibility of a requested group for the recipient (whole blood = identical). Unknown → undefined. */
+const redCellCompatible = (productCode: string | undefined, pAbo?: string, pRh?: string, rAbo?: string, rRh?: string): boolean | undefined => {
+  const code = (productCode || '').toUpperCase();
+  const isWhole = code === 'WB';
+  const isRed = isWhole || code === 'RBC'; // same red-cell codes as BE BloodCompatibility.RedCellProductCodes
+  if (!isRed || !pAbo || !rAbo) return undefined;
+  const aboOk = isWhole ? pAbo === rAbo
+    : rAbo === 'O' || pAbo === 'AB' || pAbo === rAbo;
+  const rhOk = !pRh || !rRh || (isWhole ? pRh === rRh : !(pRh === '-' && rRh === '+'));
+  return aboOk && rhOk;
+};
+
 const BloodIssueModal: React.FC<{
   open: boolean;
   onClose: () => void;
@@ -589,9 +616,14 @@ const BloodIssueModal: React.FC<{
   const [urgency, setUrgency] = useState('Routine');
   const [indication, setIndication] = useState('');
   const [busy, setBusy] = useState(false);
+  // QA-R3 patient safety: the request must name the recipient; ABO/Rh is prefilled from the recorded group
+  // and the server refuses an incompatible red-cell request.
+  const [patientId, setPatientId] = useState<string | undefined>(undefined);
+  const [patient, setPatient] = useState<PatientSearchResult | undefined>(undefined);
 
   useEffect(() => {
     if (open) {
+      setPatientId(undefined); setPatient(undefined);
       setDeptId(undefined); setBloodType('O'); setRh('+'); setProductTypeId(undefined);
       setQty(1); setUrgency('Routine'); setIndication('');
       Promise.allSettled([
@@ -604,13 +636,29 @@ const BloodIssueModal: React.FC<{
     }
   }, [open]);
 
+  const pAbo = normAbo(patient?.bloodType);
+  const pRh = recordedRh(patient?.rhFactor) ?? recordedRh(patient?.bloodType);
+  const productCode = products.find((p) => p.id === productTypeId)?.code;
+  const compatible = redCellCompatible(productCode, pAbo, pRh, bloodType, rh);
+
+  const pickPatient = (id: string | undefined, p?: PatientSearchResult) => {
+    setPatientId(id); setPatient(p);
+    const abo = normAbo(p?.bloodType);
+    const r = recordedRh(p?.rhFactor) ?? recordedRh(p?.bloodType);
+    if (abo) setBloodType(abo);
+    if (r) setRh(r);
+  };
+
   const submit = async () => {
+    if (!patientId) { message.warning('Chọn bệnh nhân nhận máu'); return; }
+    if (compatible === false) { message.error('Nhóm máu yêu cầu KHÔNG tương thích với nhóm máu đã ghi nhận của bệnh nhân'); return; }
     if (!deptId) { message.warning('Chọn khoa yêu cầu'); return; }
     if (!productTypeId) { message.warning('Chọn chế phẩm máu'); return; }
     if (!qty || qty <= 0) { message.warning('Nhập số lượng'); return; }
     setBusy(true);
     try {
       await createIssueRequest({
+        patientId,
         departmentId: deptId,
         bloodType,
         rhFactor: rh,
@@ -621,8 +669,8 @@ const BloodIssueModal: React.FC<{
       });
       message.success('Đã tạo phiếu yêu cầu xuất máu');
       onDone();
-    } catch {
-      message.error('Tạo phiếu xuất máu thất bại');
+    } catch (e) {
+      message.error(friendlyErrorMessage(e, 'Tạo phiếu xuất máu thất bại'));
     } finally {
       setBusy(false);
     }
@@ -644,6 +692,21 @@ const BloodIssueModal: React.FC<{
       )}
     >
       <div style={{ padding: 'var(--space-16)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
+        <BbFld label="Bệnh nhân nhận máu *" full>
+          <PatientSearchPicker value={patientId} onChange={pickPatient} style={{ width: '100%' }} />
+          {patient && (
+            <div style={{ marginTop: 'var(--space-4)', fontSize: 'var(--fs-xs)', color: pAbo ? 'var(--t-2)' : 'var(--s-warn)' }}>
+              {pAbo
+                ? `Nhóm máu đã ghi nhận: ${pAbo}${pRh ?? ''} — đã điền sẵn bên dưới`
+                : 'Bệnh nhân CHƯA có kết quả định nhóm máu — kiểm tra ABO/Rh tại giường trước khi truyền'}
+            </div>
+          )}
+        </BbFld>
+        {compatible === false && (
+          <div style={{ gridColumn: '1 / -1', padding: '8px 10px', borderRadius: 'var(--r-2)', background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)', color: 'var(--s-crit-tx)', fontSize: 'var(--fs-sm)' }}>
+            KHÔNG TƯƠNG THÍCH: bệnh nhân nhóm {pAbo}{pRh ?? ''} không nhận được {bloodType}{rh} ({productCode}). Hệ thống sẽ không tạo phiếu.
+          </div>
+        )}
         <BbFld label="Khoa yêu cầu *" full>
           <Select
             value={deptId} onChange={setDeptId} showSearch optionFilterProp="label"
@@ -697,7 +760,9 @@ const ExpiringTab: React.FC<{
   onReload: () => void;
   /** #352: 'expired' = túi ĐÃ quá hạn → CHỈ được tiêu huỷ, không cấp phát (patient-safety). */
   mode?: 'expiring' | 'expired';
-}> = ({ rows, page, perPage, onSortChange, loading, message, onReload, mode = 'expiring' }) => {
+  /** QA-R3: "Cấp phát" must go through an issue request (patient + ABO check) → jump to the requests tab. */
+  onGoRequests?: () => void;
+}> = ({ rows, page, perPage, onSortChange, loading, message, onReload, mode = 'expiring', onGoRequests }) => {
   const isExpired = mode === 'expired';
   const [sel, setSel] = useState<BloodStockDetailDto | null>(null);
   const [actionBag, setActionBag] = useState<{ bag: BloodStockDetailDto; type: 'dispense' | 'discard' } | null>(null);
@@ -810,9 +875,11 @@ const ExpiringTab: React.FC<{
             setActionLoading(true);
             try {
               if (actionBag.type === 'dispense') {
-                if (isExpired) { message.error('Không được cấp phát túi máu đã quá hạn'); setActionLoading(false); return; }
-                await updateBloodBagStatus(actionBag.bag.bloodBagId, 'Issued', 'Cấp phát từ kho sắp hết hạn');
-                message.success(`Đã cấp phát túi máu ${actionBag.bag.bagCode}`);
+                // QA-R3 patient safety: no direct status flip to "Issued" (no recipient, no ABO/Rh check).
+                // The bag is handed out from the requests tab, where the issue list offers the soonest-expiring bags first.
+                setActionBag(null);
+                onGoRequests?.();
+                return;
               } else {
                 await destroyExpiredBloodBags([actionBag.bag.bloodBagId], discardReason.trim());
                 message.success(`Đã tiêu huỷ túi máu ${actionBag.bag.bagCode}`);
@@ -826,7 +893,7 @@ const ExpiringTab: React.FC<{
             }
           }}
         >
-          {actionBag?.type === 'dispense' ? 'Xác nhận cấp phát' : 'Xác nhận tiêu huỷ'}
+          {actionBag?.type === 'dispense' ? 'Sang tab Yêu cầu' : 'Xác nhận tiêu huỷ'}
         </Btn>
       </>}
     >
@@ -843,7 +910,9 @@ const ExpiringTab: React.FC<{
       )}
       {actionBag?.type === 'dispense' && (
         <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>
-          Xác nhận cấp phát túi máu <b>{actionBag.bag.bagCode}</b> ({actionBag.bag.bloodType}{actionBag.bag.rhFactor}) ra khỏi kho?
+          Túi máu <b>{actionBag.bag.bagCode}</b> ({actionBag.bag.bloodType}{actionBag.bag.rhFactor}) chỉ được cấp phát qua
+          <b> phiếu yêu cầu xuất máu có bệnh nhân</b>: tạo/duyệt phiếu ở tab <b>Yêu cầu</b> rồi bấm <b>Xuất máu</b> —
+          hệ thống kiểm tra tương thích ABO/Rh với nhóm máu của người bệnh và ưu tiên túi gần hết hạn.
         </div>
       )}
     </ModalShell>
@@ -898,7 +967,9 @@ const RequestsTab: React.FC<{
       && !(u.daysUntilExpiry < 0) // BE refuses expired bags — don't offer them
       && u.bloodType === issueFor.bloodType
       && u.rhFactor === issueFor.rhFactor
-      && (!issueFor.productTypeName || u.productTypeName === issueFor.productTypeName));
+      && (!issueFor.productTypeName || u.productTypeName === issueFor.productTypeName))
+      // FEFO: soonest-expiring bags first, so near-expiry stock is used through a checked request.
+      .sort((a, b) => (a.daysUntilExpiry ?? 9999) - (b.daysUntilExpiry ?? 9999));
   }, [units, issueFor]);
 
   const remainingQty = issueFor

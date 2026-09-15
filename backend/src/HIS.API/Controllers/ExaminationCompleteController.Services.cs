@@ -27,6 +27,7 @@ public partial class ExaminationCompleteController : ControllerBase
     /// <summary>
     /// Tạo chỉ định dịch vụ
     /// </summary>
+    [HIS.API.Filters.RequirePracticeLicense]
     [HttpPost("service-orders")]
     public async Task<ActionResult<List<ServiceOrderFullDto>>> CreateServiceOrders([FromBody] CreateServiceOrderDto dto)
     {
@@ -42,6 +43,7 @@ public partial class ExaminationCompleteController : ControllerBase
     /// <summary>
     /// Cập nhật chỉ định dịch vụ
     /// </summary>
+    [HIS.API.Filters.RequirePracticeLicense]
     [HttpPut("service-orders/{orderId}")]
     public async Task<ActionResult<ServiceOrderFullDto>> UpdateServiceOrder(Guid orderId, [FromBody] ServiceOrderFullDto dto)
     {
@@ -135,6 +137,7 @@ public partial class ExaminationCompleteController : ControllerBase
     /// <summary>
     /// Áp dụng gói dịch vụ
     /// </summary>
+    [HIS.API.Filters.RequirePracticeLicense]
     [HttpPost("{examinationId}/apply-service-package/{packageId}")]
     public async Task<ActionResult<List<ServiceOrderFullDto>>> ApplyServicePackage(Guid examinationId, Guid packageId)
     {

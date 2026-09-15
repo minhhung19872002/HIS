@@ -30,9 +30,8 @@ public partial class ExaminationCompleteService
             .Include(r => r.Department)
             .FirstOrDefaultAsync(r => r.Id == roomId);
 
-        // AdmissionDate lưu DateTime.Now (local trên dev, UTC trên prod Cloud Run).
-        // Dùng DayRangeUtc để tránh lệch bucket UTC trong khung 00h–07h sáng VN.
-        var (admFromUtc, admToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
+        // AdmissionDate = VN local time (business timestamp convention) → VN day range.
+        var (admFromUtc, admToUtc) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.TodayVn);
         var examinations = await _context.Examinations
             .Include(e => e.MedicalRecord)
             .ThenInclude(m => m.Patient)
@@ -117,7 +116,7 @@ public partial class ExaminationCompleteService
 
     public async Task<CallingPatientDto?> CallNextPatientAsync(Guid roomId)
     {
-        var (admFromUtc, admToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
+        var (admFromUtc, admToUtc) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.TodayVn);
         var nextPatient = await _context.Examinations
             .Include(e => e.MedicalRecord)
             .ThenInclude(m => m.Patient)
@@ -164,7 +163,7 @@ public partial class ExaminationCompleteService
         if (examination == null) return false;
 
         // Move to end of queue
-        var (skipFromUtc, skipToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
+        var (skipFromUtc, skipToUtc) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.TodayVn);
         var maxQueue = await _context.Examinations
             .Where(e => e.RoomId == examination.RoomId && e.MedicalRecord.AdmissionDate >= skipFromUtc && e.MedicalRecord.AdmissionDate < skipToUtc)
             .MaxAsync(e => (int?)e.QueueNumber) ?? 0;
@@ -182,8 +181,8 @@ public partial class ExaminationCompleteService
 
     public async Task<List<RoomPatientListDto>> GetRoomPatientListAsync(Guid roomId, DateTime date, int? status = null)
     {
-        // AdmissionDate ghi bằng DateTime.Now — dùng DayRangeUtc để so sargable.
-        var (admFromUtc, admToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
+        // AdmissionDate = VN local time → VN day range (sargable).
+        var (admFromUtc, admToUtc) = HIS.Core.Common.VnTime.DayRangeVn(date);
         var query = _context.Examinations
             .Include(e => e.MedicalRecord)
             .ThenInclude(m => m.Patient)

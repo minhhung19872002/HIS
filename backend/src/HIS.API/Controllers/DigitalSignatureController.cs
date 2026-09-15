@@ -140,6 +140,10 @@ public partial class DigitalSignatureController : ControllerBase
     [HttpPost("sign")]
     public async Task<ActionResult<SignDocumentResponse>> SignDocument([FromBody] SignDocumentRequest request)
     {
+        // QA-R3 patient safety: signing a prescription / order = prescribing → CCHN gate (expired/suspended/revoked).
+        if (HIS.API.Filters.RequirePracticeLicenseAttribute.IsClinicalOrderDocument(request.DocumentType)
+            && await HIS.API.Filters.RequirePracticeLicenseAttribute.CheckAsync(HttpContext) is ObjectResult licenceBlocked)
+            return licenceBlocked;
         var userId = GetCurrentUserId();
         var userIdStr = userId.ToString();
 

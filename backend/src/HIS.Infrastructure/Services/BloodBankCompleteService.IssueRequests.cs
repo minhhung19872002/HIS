@@ -112,6 +112,7 @@ namespace HIS.Infrastructure.Services
 
         public async Task<BloodIssueRequestDto> CreateIssueRequestAsync(CreateBloodIssueRequestDto dto)
         {
+            await EnsureRequestRecipientAsync(dto);
             var id = Guid.NewGuid();
             var code = $"REQ{DateTime.Now:yyyyMMddHHmmss}";
 
@@ -135,9 +136,36 @@ namespace HIS.Infrastructure.Services
                 P("@p12", dto.Urgency ?? "Normal"),
                 P("@p13", dto.ClinicalIndication),
                 P("@p14", dto.Note),
-                P("@p15", DateTime.Now));
+                P("@p15", DateTime.UtcNow)); // CreatedAt = UTC audit column (serialized with "Z")
 
             return await GetIssueRequestAsync(id);
+        }
+
+        /// <summary>
+        /// Patient safety (QA round 3): an issue request must name the recipient, and the requested group must be
+        /// ABO/Rh-compatible with the patient's RECORDED group. Before, the v2 form had no patient field: the only
+        /// ABO check at issue time fell back to the group typed on the request, i.e. compared the bag with itself.
+        /// Unknown patient group or non-red-cell product → no verdict → allowed (never block on missing data).
+        /// </summary>
+        private async Task EnsureRequestRecipientAsync(CreateBloodIssueRequestDto dto)
+        {
+            if (dto.PatientId is not Guid patientId || patientId == Guid.Empty)
+                throw new ArgumentException("Chọn bệnh nhân nhận máu trước khi tạo phiếu yêu cầu xuất máu.");
+            var patient = await _context.Patients.AsNoTracking()
+                .Where(p => p.Id == patientId)
+                .Select(p => new { p.FullName, p.BloodType, p.RhFactor })
+                .FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException("Không tìm thấy bệnh nhân nhận máu.");
+
+            var productCode = await _context.Database
+                .SqlQueryRaw<string>("SELECT Code AS Value FROM BloodProductTypes WHERE Id = {0}", dto.ProductTypeId)
+                .FirstOrDefaultAsync();
+            if (BloodCompatibility.Check(productCode, patient.BloodType, patient.RhFactor, dto.BloodType, dto.RhFactor)
+                == BloodCompatibility.BloodMatch.Incompatible)
+                throw new InvalidOperationException(
+                    $"KHÔNG TƯƠNG THÍCH NHÓM MÁU với bệnh nhân {patient.FullName}. "
+                    + BloodCompatibility.Describe(patient.BloodType, patient.RhFactor, dto.BloodType, dto.RhFactor)
+                    + " Kiểm tra lại nhóm máu yêu cầu hoặc kết quả định nhóm của người bệnh.");
         }
 
         public async Task<bool> ApproveIssueRequestAsync(Guid requestId)
@@ -173,7 +201,7 @@ namespace HIS.Infrastructure.Services
                 @"INSERT INTO BloodIssueReceipts (Id, ReceiptCode, IssueDate, DepartmentId, RequestedBy, IssuedBy, Status, TotalBags, Note, CreatedAt)
                 VALUES (@p0, @p1, @p2, (SELECT DepartmentId FROM BloodIssueRequests WHERE Id=@p3), 'System', 'System', 'Issued', @p4, @p5, @p6)",
                 P("@p0", receiptId), P("@p1", receiptCode), P("@p2", DateTime.Now), P("@p3", dto.RequestId),
-                P("@p4", dto.BloodBagIds?.Count ?? 0), P("@p5", dto.Note), P("@p6", DateTime.Now));
+                P("@p4", dto.BloodBagIds?.Count ?? 0), P("@p5", dto.Note), P("@p6", DateTime.UtcNow)); // CreatedAt UTC
 
             if (dto.BloodBagIds != null)
             {

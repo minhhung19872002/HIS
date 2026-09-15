@@ -76,6 +76,11 @@ public partial class DigitalSignatureController
         try { signedBytes = Convert.FromBase64String(request.SignedBase64); }
         catch { return Ok(new SignDocumentResponse { Success = false, Message = "Dữ liệu đã ký không hợp lệ (base64)" }); }
 
+        // QA-R3 patient safety: USB-token signature of a prescription / order goes through the same CCHN gate.
+        if (HIS.API.Filters.RequirePracticeLicenseAttribute.IsClinicalOrderDocument(request.DocumentType)
+            && await HIS.API.Filters.RequirePracticeLicenseAttribute.CheckAsync(HttpContext) is ObjectResult licenceBlocked)
+            return licenceBlocked;
+
         // DocumentType becomes a directory name below — reject path separators / ".." (path traversal).
         if (!IsSafeDocumentTypeSegment(request.DocumentType))
             return Ok(new SignDocumentResponse { Success = false, Message = "Loại tài liệu không hợp lệ" });

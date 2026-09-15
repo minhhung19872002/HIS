@@ -118,6 +118,16 @@ public partial class InpatientCompleteService {
                 "Vui lòng yêu cầu bệnh nhân nộp thêm tạm ứng trước khi chỉ định.");
     }
 
+    /// <summary>
+    /// QA-R3: dose-range severity 3 (QUÁ LIỀU NẶNG) without OverrideReason → 400 (PrescriptionDoseGuard). Doses are read
+    /// from the line note "n x k lần/ngày" the v2 modal sends, or the Morning/Noon/Afternoon/Evening fields.
+    /// </summary>
+    private Task EnforceInpatientDoseRangeAsync(Guid patientId, CreateInpatientPrescriptionDto dto)
+        => PrescriptionDoseGuard.EnsureNoUnjustifiedSevereOverdoseAsync(_context, patientId,
+            dto.Items.Select(i => HIS.Core.Common.DoseRangeChecker.ParseLine(
+                i.MedicineId, i.Dosage, i.Note, null, i.Morning, i.Noon, i.Afternoon, i.Evening)).ToList(),
+            dto.OverrideReason);
+
     public async Task<InpatientPrescriptionDto> CreatePrescriptionAsync(CreateInpatientPrescriptionDto dto, Guid userId)
     {
         var admission = await _context.Set<Admission>().FindAsync(dto.AdmissionId);
@@ -210,6 +220,7 @@ public partial class InpatientCompleteService {
             _context, admission.PatientId,
             dto.Items.Select(i => i.MedicineId).ToList(),
             dto.OverrideReason);
+        await EnforceInpatientDoseRangeAsync(admission.PatientId, dto); // QA-R3: severe overdose needs a reason
         if (!string.IsNullOrWhiteSpace(dto.OverrideReason))
             prescription.Instructions = $"{prescription.Instructions} [BS bỏ qua cảnh báo an toàn: {dto.OverrideReason}]".Trim();
 
@@ -217,6 +228,9 @@ public partial class InpatientCompleteService {
         prescription.PatientAmount = totalAmount;
         _context.Prescriptions.Add(prescription);
         await _context.SaveChangesAsync();
+        // R3 BHYT: split at prescribing time (no-op for fee patients).
+        if (await new BhytVisitPricing(_context).RecalculateAsync(prescription.MedicalRecordId) != null)
+            await _context.SaveChangesAsync();
 
         return new InpatientPrescriptionDto
         {
@@ -233,8 +247,8 @@ public partial class InpatientCompleteService {
             Items = items,
             Status = 0,
             TotalAmount = totalAmount,
-            InsuranceAmount = 0,
-            PatientPayAmount = totalAmount
+            InsuranceAmount = prescription.InsuranceAmount,
+            PatientPayAmount = totalAmount - prescription.InsuranceAmount
         };
     }
 
@@ -315,12 +329,16 @@ public partial class InpatientCompleteService {
             _context, updPatientId,
             dto.Items.Select(i => i.MedicineId).ToList(),
             dto.OverrideReason);
+        await EnforceInpatientDoseRangeAsync(updPatientId, dto); // QA-R3: severe overdose needs a reason
         if (!string.IsNullOrWhiteSpace(dto.OverrideReason))
             prescription.Instructions = $"{prescription.Instructions} [BS bỏ qua cảnh báo an toàn: {dto.OverrideReason}]".Trim();
 
         prescription.TotalAmount = totalAmount;
         prescription.PatientAmount = totalAmount;
+        prescription.InsuranceAmount = 0;
         await _context.SaveChangesAsync();
+        if (await new BhytVisitPricing(_context).RecalculateAsync(prescription.MedicalRecordId) != null) // R3 BHYT
+            await _context.SaveChangesAsync();
 
         var doctor = await _context.Users.FindAsync(userId);
         var warehouse = await _context.Warehouses.FindAsync(dto.WarehouseId);
@@ -339,8 +357,8 @@ public partial class InpatientCompleteService {
             Items = items,
             Status = prescription.Status,
             TotalAmount = totalAmount,
-            InsuranceAmount = 0,
-            PatientPayAmount = totalAmount
+            InsuranceAmount = prescription.InsuranceAmount,
+            PatientPayAmount = totalAmount - prescription.InsuranceAmount
         };
     }
 
@@ -474,11 +492,12 @@ public partial class InpatientCompleteService {
 
     public async Task<List<object>> GetEmergencyCabinetsAsync(Guid departmentId)
     {
-        // Query warehouses that are emergency cabinets: either WarehouseType=4 or IsCabinet=true.
+        // Query warehouses that are emergency cabinets: HIS.Core WarehouseType 5 (ward cabinet) or IsCabinet=true.
+        // QA-R3: was WarehouseType=4, which is the hospital pharmacy.
         // Filter by DepartmentId when provided (only that department's cabinet).
         // Falls back to all active cabinets if no match for the department.
         var query = _context.Warehouses
-            .Where(w => w.IsActive && (w.WarehouseType == 4 || w.IsCabinet));
+            .Where(w => w.IsActive && (w.WarehouseType == HIS.Core.Constants.WarehouseType.WardCabinet || w.IsCabinet));
 
         if (departmentId != Guid.Empty)
             query = query.Where(w => w.DepartmentId == departmentId || w.DepartmentId == null);

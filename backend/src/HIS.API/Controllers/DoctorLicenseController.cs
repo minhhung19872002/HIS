@@ -36,4 +36,16 @@ public class DoctorLicenseController : ControllerBase
         var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
         return (await _svc.GetMyLicenseStatusAsync(roles, userId)).ToActionResult();
     }
+
+    /// <summary>
+    /// Cổng CCHN khi kê đơn/chỉ định (cùng logic server dùng để chặn): Blocked chỉ khi CCHN ĐÃ hết hạn/đình chỉ/thu hồi;
+    /// thiếu dữ liệu → Warning (vẫn cho kê). v2 OPD/nội trú hiển thị banner theo kết quả này.
+    /// </summary>
+    [HttpGet("me/gate")]
+    public async Task<IActionResult> GetMyPrescribingGate()
+    {
+        var userId = GetUserId();
+        if (userId == Guid.Empty) return Unauthorized();
+        return Ok(await _svc.EvaluatePrescribingGateAsync(userId));
+    }
 }

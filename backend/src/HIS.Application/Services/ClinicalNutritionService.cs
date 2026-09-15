@@ -38,6 +38,9 @@ namespace HIS.Application.Services
             return new List<NutritionScreeningDto>();
         }
 
+        public Task<List<NutritionScreeningDto>> GetCompletedScreeningsAsync(Guid? departmentId = null)
+            => Task.FromResult(new List<NutritionScreeningDto>());
+
         public async Task<NutritionScreeningDto> GetScreeningByAdmissionAsync(Guid admissionId)
         {
             _logger.LogInformation("Getting screening for admission {AdmissionId}", admissionId);

@@ -31,23 +31,28 @@ public partial class InpatientCompleteService {
         var pendingResults = await _context.ServiceRequests
             .CountAsync(sr => sr.MedicalRecordId == admission.MedicalRecordId && sr.Status < 2);
 
-        // Query billing for unpaid balance
-        var totalServiceAmount = await _context.ServiceRequests
-            .Where(sr => sr.MedicalRecordId == admission.MedicalRecordId && sr.Status != 4)
-            .SumAsync(sr => sr.PatientAmount);
+        // Query billing for unpaid balance.
+        // QA-R3: services only → medicines and bed days were never owed at discharge. Same ledger as the cashier.
+        var charges = await InvoiceLedger.LoadAsync(_context, admission.MedicalRecordId);
+        var totalServiceAmount = charges.PatientTotal;
         // QA0915 (M6): payments = receipts of this stay (see GetStayPaymentsAsync) + the deposit balance
         // still available. Filtering receipts strictly by MedicalRecordId dropped QR payments (MR null)
         // and blocked discharge of patients who had already paid.
-        var (receiptsPaid, depositBalance) = await GetStayPaymentsAsync(admission);
+        var (receiptsPaid, depositBalance) = await GetStayPaymentsAsync(admission, ledgerCharges: true);
         var totalPaid = receiptsPaid + depositBalance;
         var remainingAmount = totalServiceAmount - totalPaid;
-        var hasUnpaidBalance = remainingAmount > 0;
+        // QA-R3 review B4: for this release bed days only WARN (bed history has open/stale assignments) — the block
+        // stays on services + medicines debt, as before.
+        var nonBedRemaining = (totalServiceAmount - charges.BedPatientTotal) - totalPaid;
+        var hasUnpaidBalance = nonBedRemaining > 0;
 
         var warnings = new List<string>();
         if (unclaimedRx > 0)
             warnings.Add($"Còn {unclaimedRx} đơn thuốc chưa cấp phát");
         if (hasUnpaidBalance)
             warnings.Add($"Còn nợ viện phí {remainingAmount:N0}đ");
+        else if (remainingAmount > 0)
+            warnings.Add($"Còn nợ tiền giường {remainingAmount:N0}đ — không chặn ra viện; thu tại quầy thu ngân (kiểm tra ngày giường)");
         if (pendingResults > 0)
             warnings.Add($"Còn {pendingResults} chỉ định chưa có kết quả");
 
@@ -81,7 +86,7 @@ public partial class InpatientCompleteService {
     /// are not rejected/cancelled — same rule as BillingCompleteService.UseDepositForPaymentAsync.
     /// Used deposit money is already inside the receipts, so it is not counted twice.</para>
     /// </summary>
-    private async Task<(decimal ReceiptsPaid, decimal DepositBalance)> GetStayPaymentsAsync(Admission admission)
+    private async Task<(decimal ReceiptsPaid, decimal DepositBalance)> GetStayPaymentsAsync(Admission admission, bool ledgerCharges = false)
     {
         var mrId = admission.MedicalRecordId;
         var patientId = admission.PatientId;
@@ -93,12 +98,24 @@ public partial class InpatientCompleteService {
             .FirstOrDefaultAsync() ?? DateTime.Now;
         stayEnd = stayEnd.Date.AddDays(2);
 
+        // QA-R3 (ledgerCharges, pre-discharge): the charges come from InvoiceLedger, which leaves out items paid by
+        // per-order/kiosk/prescription QR — so their receipts, and deposit-QR receipts (the deposit is counted as
+        // balance / when spent), are not stay payments either; paid-out refunds of a payment give money back.
+        var outOfLedger = InvoiceLedger.OutOfLedgerReceiptIds(_context);
         var receiptsPaid = await _context.Receipts.AsNoTracking()
             .Where(r => !r.IsDeleted && r.ReceiptType == 2 && r.Status == 1
+                        && (!ledgerCharges || !outOfLedger.Contains(r.Id))
                         && (r.MedicalRecordId == mrId
                             || (r.MedicalRecordId == null && r.PatientId == patientId
                                 && r.ReceiptDate >= stayStart && r.ReceiptDate < stayEnd)))
             .SumAsync(r => (decimal?)r.FinalAmount) ?? 0m;
+        if (ledgerCharges)
+            receiptsPaid -= await _context.Receipts.AsNoTracking()
+                .Where(r => !r.IsDeleted && r.ReceiptType == 3 && r.Status == HIS.Core.Constants.RefundStatus.Paid
+                            && r.OriginalPaymentId != null && r.MedicalRecordId == mrId
+                            // review B7: refunds of out-of-ledger payments were never counted as paid
+                            && !outOfLedger.Contains(r.OriginalPaymentId.Value))
+                .SumAsync(r => (decimal?)r.FinalAmount) ?? 0m;
 
         var deposits = await _context.Deposits.AsNoTracking()
             .Where(d => !d.IsDeleted && d.Status != HIS.Core.Constants.DepositStatus.Cancelled
@@ -133,10 +150,12 @@ public partial class InpatientCompleteService {
             throw new InvalidOperationException("Bệnh nhân không trong trạng thái đang điều trị, không thể xuất viện");
 
         // QA0915: a discharge date before the admission date was accepted (negative length of stay on
-        // the 6556 statement). AdmissionDate is stored UTC while clients may send local time, so
-        // compare in UTC and allow the +7h offset as tolerance.
-        var dischargeUtc = dto.DischargeDate.Kind == DateTimeKind.Local ? dto.DischargeDate.ToUniversalTime() : dto.DischargeDate;
-        if (dischargeUtc < admission.AdmissionDate.AddHours(-7))
+        // the 6556 statement). Business timestamps are VN local: a client ISO value with "Z" (toISOString)
+        // binds as Kind=Utc → store it as VN local; compare calendar days (a date-only discharge on the
+        // admission day is valid).
+        if (dto.DischargeDate.Kind == DateTimeKind.Utc)
+            dto.DischargeDate = HIS.Core.Common.VnTime.UtcToVn(dto.DischargeDate);
+        if (dto.DischargeDate.Date < admission.AdmissionDate.Date)
             throw new InvalidOperationException(
                 $"Ngày ra viện ({dto.DischargeDate:dd/MM/yyyy}) không được trước ngày vào viện ({admission.AdmissionDate:dd/MM/yyyy}).");
 

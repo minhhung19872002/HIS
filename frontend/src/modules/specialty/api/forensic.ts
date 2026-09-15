@@ -5,6 +5,8 @@ import { apiClient } from '../../../services/apiClient';
 export interface ForensicCase {
   id: string;
   caseCode: string;
+  // Only present on the detail endpoint (getCaseById) — list rows don't carry it.
+  patientId?: string;
   patientName: string;
   patientCode: string;
   caseType: 'disability' | 'driver' | 'employment' | 'insurance' | 'court';

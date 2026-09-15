@@ -271,8 +271,8 @@ const LaboratoryV2: React.FC = () => {
       await labApi.completeProcessing(r.id);
       message.success(`Đã duyệt ${r.requestCode}`);
       reload();
-    } catch {
-      message.error('Duyệt thất bại');
+    } catch (e) {
+      message.error(friendlyErrorMessage(e, 'Duyệt kết quả thất bại'));
     } finally {
       setActing(null);
     }
@@ -292,8 +292,8 @@ const LaboratoryV2: React.FC = () => {
       });
       message.success(`Đã ghi nhận lấy mẫu · ${r.requestCode}`);
       reload();
-    } catch {
-      message.error('Ghi nhận thất bại');
+    } catch (e) {
+      message.error(friendlyErrorMessage(e, 'Ghi nhận lấy mẫu thất bại'));
     } finally {
       setActing(null);
     }
@@ -307,8 +307,8 @@ const LaboratoryV2: React.FC = () => {
       await labApi.preliminaryApprove(r.id);
       message.success(`Đã duyệt sơ bộ · ${r.requestCode}`);
       reload();
-    } catch {
-      message.error('Duyệt sơ bộ thất bại');
+    } catch (e) {
+      message.error(friendlyErrorMessage(e, 'Duyệt sơ bộ thất bại'));
     } finally {
       setActing(null);
     }
@@ -322,8 +322,8 @@ const LaboratoryV2: React.FC = () => {
       await labApi.finalApprove(r.id);
       message.success(`Đã duyệt chính thức · ${r.requestCode}`);
       reload();
-    } catch {
-      message.error('Duyệt chính thức thất bại');
+    } catch (e) {
+      message.error(friendlyErrorMessage(e, 'Duyệt chính thức thất bại'));
     } finally {
       setActing(null);
     }
@@ -340,8 +340,8 @@ const LaboratoryV2: React.FC = () => {
       await labApi.cancelApproval(r.id, reason.trim());
       message.success(`Đã hủy duyệt · ${r.requestCode}`);
       reload();
-    } catch {
-      message.error('Hủy duyệt thất bại');
+    } catch (e) {
+      message.error(friendlyErrorMessage(e, 'Hủy duyệt thất bại'));
     } finally {
       setActing(null);
     }

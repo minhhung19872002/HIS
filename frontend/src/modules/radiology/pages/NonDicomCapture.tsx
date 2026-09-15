@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import apiClient from '../../../services/apiClient';
 import { API_URL } from '../../../config/api.config';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { PatientSearchPicker } from '../../patient/components/PatientSearchPicker';
 import {
   KpiStrip, Filter, DataTable, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, Ico, tk, tw, cf,
@@ -48,7 +49,7 @@ const NonDicomCaptureV2: React.FC = () => {
   const [creating, setCreating] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
-  const [createForm] = Form.useForm<{ patientId: string; patientName: string; serviceRequestDetailId?: string; deviceType: string; deviceName?: string; description?: string }>();
+  const [createForm] = Form.useForm<{ patientId: string; serviceRequestDetailId?: string; deviceType: string; deviceName?: string; description?: string }>();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -260,10 +261,9 @@ const NonDicomCaptureV2: React.FC = () => {
           </Btn>
         </>}>
         <Form form={createForm} layout="vertical">
-          <Form.Item name="patientName" label="Tên BN" rules={[{ required: true }]}>
-            <Input placeholder="Họ tên bệnh nhân" />
+          <Form.Item name="patientId" label="Bệnh nhân" rules={[{ required: true, message: 'Chọn bệnh nhân' }]}>
+            <PatientSearchPicker placeholder="Gõ mã BN hoặc họ tên (≥ 2 ký tự)…" />
           </Form.Item>
-          <Form.Item name="patientId" label="Mã BN" rules={[{ required: true }]}><Input placeholder="Guid BN trong HIS" /></Form.Item>
           <Form.Item name="serviceRequestDetailId" label="Mã chỉ định" rules={[{ required: true }]}><Input placeholder="Guid ServiceRequestDetail" /></Form.Item>
           <Form.Item name="deviceType" label="Loại thiết bị" rules={[{ required: true }]}>
             <Select options={DEVICE_TYPES.map((t) => ({ value: t.v, label: t.l }))} />

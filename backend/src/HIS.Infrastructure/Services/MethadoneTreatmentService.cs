@@ -40,6 +40,23 @@ public class MethadoneTreatmentService : IMethadoneTreatmentService
         => ValidateDosingAsync(_context, mp, dosingDate, doseMg, missed);
 
     /// <summary>
+    /// QA-R3: two concurrent "cấp liều" requests both pass ValidateDosingAsync; the unique index UX_MethadoneDosing_Day
+    /// (migration 207) then rejects the second one. Translate that into a 400 with a readable reason instead of a 500.
+    /// </summary>
+    internal static async Task SaveDoseAsync(Func<Task> save, DateTime dosingDate)
+    {
+        try
+        {
+            await save();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("UX_MethadoneDosing_Day", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            throw new InvalidOperationException(
+                $"Bệnh nhân đã được cấp liều methadone ngày {dosingDate:dd/MM/yyyy} (có thể vừa được ghi ở máy khác) — không cấp liều thứ hai trong ngày.");
+        }
+    }
+
+    /// <summary>
     /// Shared dispensing guard (also used by PublicHealthService): only active patients, a real dose,
     /// no future/pre-enrollment date, and never a second dispensed dose on the same day (overdose risk).
     /// </summary>
@@ -224,7 +241,7 @@ public class MethadoneTreatmentService : IMethadoneTreatmentService
         }
         mp.UpdatedAt = DateTime.UtcNow;
 
-        await _unitOfWork.SaveChangesAsync();
+        await SaveDoseAsync(() => _unitOfWork.SaveChangesAsync(), dto.DoseDate);
 
         return new DoseRecordDto2
         {
@@ -345,7 +362,7 @@ public class MethadoneTreatmentService : IMethadoneTreatmentService
             mp.Notes = string.IsNullOrEmpty(mp.Notes) ? dto.Notes : $"{mp.Notes}\n{dto.Notes}";
 
         if (dto.Status == 2) // Completed
-            mp.DischargeDate = DateTime.UtcNow;
+            mp.DischargeDate = HIS.Core.Common.VnTime.NowVn; // business timestamp = VN local
 
         mp.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();

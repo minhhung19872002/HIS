@@ -38,6 +38,7 @@ public partial class DigitalSignatureController
                 Message = $"documentType '{request.DocumentType}' không thuộc nhóm y lệnh. Dùng: {string.Join(", ", allowedTypes)}"
             });
         }
+        // CCHN gate for Prescription/Order is applied inside SignDocument (QA-R3).
         // Delegate sang SignDocument — tái dùng hoàn toàn logic
         return await SignDocument(request);
     }

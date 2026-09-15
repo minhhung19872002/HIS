@@ -59,6 +59,7 @@ public partial class InpatientCompleteController
     /// <summary>
     /// Tạo chỉ định dịch vụ
     /// </summary>
+    [HIS.API.Filters.RequirePracticeLicense]
     [HttpPost("service-orders")]
     public async Task<ActionResult<InpatientServiceOrderDto>> CreateServiceOrder([FromBody] CreateInpatientServiceOrderDto dto)
     {
@@ -74,6 +75,7 @@ public partial class InpatientCompleteController
     /// <summary>
     /// Cập nhật chỉ định dịch vụ
     /// </summary>
+    [HIS.API.Filters.RequirePracticeLicense]
     [HttpPut("service-orders/{id}")]
     public async Task<ActionResult<InpatientServiceOrderDto>> UpdateServiceOrder(Guid id, [FromBody] CreateInpatientServiceOrderDto dto)
     {
@@ -134,6 +136,7 @@ public partial class InpatientCompleteController
     /// <summary>
     /// Chỉ định theo nhóm mẫu
     /// </summary>
+    [HIS.API.Filters.RequirePracticeLicense]
     [HttpPost("order-by-template")]
     public async Task<ActionResult<InpatientServiceOrderDto>> OrderByTemplate([FromBody] OrderByTemplateRequest request)
     {
@@ -144,6 +147,7 @@ public partial class InpatientCompleteController
     /// <summary>
     /// Chỉ định theo gói
     /// </summary>
+    [HIS.API.Filters.RequirePracticeLicense]
     [HttpPost("order-by-package")]
     public async Task<ActionResult<InpatientServiceOrderDto>> OrderByPackage([FromBody] OrderByPackageRequest request)
     {
@@ -244,6 +248,7 @@ public partial class InpatientCompleteController
     /// <summary>
     /// Tạo đơn thuốc
     /// </summary>
+    [HIS.API.Filters.RequirePracticeLicense]
     [HttpPost("prescriptions")]
     public async Task<ActionResult<InpatientPrescriptionDto>> CreatePrescription([FromBody] CreateInpatientPrescriptionDto dto)
     {
@@ -259,6 +264,7 @@ public partial class InpatientCompleteController
     /// <summary>
     /// Cập nhật đơn thuốc
     /// </summary>
+    [HIS.API.Filters.RequirePracticeLicense]
     [HttpPut("prescriptions/{id}")]
     public async Task<ActionResult<InpatientPrescriptionDto>> UpdatePrescription(Guid id, [FromBody] CreateInpatientPrescriptionDto dto)
     {
@@ -299,6 +305,7 @@ public partial class InpatientCompleteController
     /// <summary>
     /// Kê đơn từ tủ trực
     /// </summary>
+    [HIS.API.Filters.RequirePracticeLicense]
     [HttpPost("emergency-cabinet-prescription")]
     public async Task<ActionResult<EmergencyCabinetPrescriptionDto>> CreateEmergencyCabinetPrescription([FromBody] EmergencyCabinetPrescriptionRequest request)
     {
@@ -349,6 +356,7 @@ public partial class InpatientCompleteController
     /// <summary>
     /// Kê theo mẫu
     /// </summary>
+    [HIS.API.Filters.RequirePracticeLicense]
     [HttpPost("prescribe-by-template")]
     public async Task<ActionResult<InpatientPrescriptionDto>> PrescribeByTemplate([FromBody] PrescribeByTemplateRequest request)
     {

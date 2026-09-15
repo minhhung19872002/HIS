@@ -23,6 +23,8 @@ import TermIcon from '../../../components/layout/terminal/Icon';
 import { RowActions, RefreshButton } from '../../../components/actions';
 import { useModalForm } from '../../../hooks/useModalForm';
 import { Field } from '../../../components/form/Field';
+import { PatientSearchPicker } from '../../patient/components/PatientSearchPicker';
+import { getBookingDoctors, type BookingDoctorDto } from '../../reception/api/appointmentBooking';
 
 /* Khám từ xa v2 — port of design-system-v2/his/project/Telemedicine v2.html */
 
@@ -698,16 +700,29 @@ const TeleBookingModal: React.FC<{
   const { message } = AntdApp.useApp();
   const [draft, setDraft] = useState<BookingDraft>(emptyBooking());
   const [busy, setBusy] = useState(false);
+  const [doctorOpts, setDoctorOpts] = useState<BookingDoctorDto[]>([]);
+  const [doctorsLoading, setDoctorsLoading] = useState(false);
   const { errors: bkErrors, validate: bkValidate, clear: bkClear } = useModalForm(
     {
-      patientId: { required: true, label: 'mã bệnh nhân' },
-      doctorId: { required: true, label: 'mã bác sĩ' },
+      patientId: { required: true, label: 'bệnh nhân', message: 'Vui lòng chọn bệnh nhân' },
+      doctorId: { required: true, label: 'bác sĩ', message: 'Vui lòng chọn bác sĩ' },
       scheduledDate: { required: true, label: 'ngày khám' },
     },
     open,
   );
 
   useEffect(() => { if (!open) setDraft(emptyBooking()); }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    setDoctorsLoading(true);
+    // Full roster of active doctors (Users.UserType = Doctor) — GET /booking/doctors without a department.
+    // Tele appointments are booked ahead, so "doctors working today" (the old source) was the wrong list.
+    getBookingDoctors()
+      .then((list) => setDoctorOpts(Array.isArray(list) ? list : []))
+      .catch(() => setDoctorOpts([]))
+      .finally(() => setDoctorsLoading(false));
+  }, [open]);
 
   const set = (patch: Partial<BookingDraft>) => setDraft((d) => ({ ...d, ...patch }));
 
@@ -769,13 +784,29 @@ const TeleBookingModal: React.FC<{
     >
       <div style={{ display: 'flex', gap: 'var(--space-8)', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 200px' }}>
-          <Field label="Mã bệnh nhân" required error={bkErrors.patientId}>
-            <Input value={draft.patientId} onChange={(e) => { set({ patientId: e.target.value }); bkClear('patientId'); }} placeholder="VD: P001" />
+          <Field label="Bệnh nhân" required error={bkErrors.patientId}>
+            <PatientSearchPicker
+              value={draft.patientId || undefined}
+              onChange={(id) => { set({ patientId: id || '' }); bkClear('patientId'); }}
+            />
           </Field>
         </div>
         <div style={{ flex: '1 1 200px' }}>
-          <Field label="Mã bác sĩ" required error={bkErrors.doctorId}>
-            <Input value={draft.doctorId} onChange={(e) => { set({ doctorId: e.target.value }); bkClear('doctorId'); }} placeholder="VD: D001" />
+          <Field label="Bác sĩ" required error={bkErrors.doctorId}>
+            <Select
+              showSearch
+              allowClear
+              style={{ width: '100%' }}
+              value={draft.doctorId || undefined}
+              placeholder="Chọn bác sĩ"
+              loading={doctorsLoading}
+              filterOption={(input, opt) => (opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+              options={doctorOpts.map((d) => ({
+                value: d.id,
+                label: `${d.title ? d.title + ' ' : ''}${d.fullName}${d.specialty ? ' · ' + d.specialty : ''}${d.departmentName ? ' — ' + d.departmentName : ''}`,
+              }))}
+              onChange={(v) => { set({ doctorId: v || '' }); bkClear('doctorId'); }}
+            />
           </Field>
         </div>
         <div style={{ flex: '1 1 200px' }}>

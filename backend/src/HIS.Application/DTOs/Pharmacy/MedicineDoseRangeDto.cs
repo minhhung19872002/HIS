@@ -21,6 +21,9 @@ public class MedicineDoseRangeDto
     public bool IsRenalAdjusted { get; set; }
     public decimal? MaxSingleDose { get; set; }
     public decimal? MaxDailyDose { get; set; }
+    /// <summary>Liều tối thiểu/tối đa mỗi ngày theo cân nặng (Unit/kg/ngày).</summary>
+    public decimal? MinDosePerKg { get; set; }
+    public decimal? MaxDosePerKg { get; set; }
     public string? Unit { get; set; }
     public decimal SevereMultiplier { get; set; }
     public string? Note { get; set; }
@@ -39,6 +42,12 @@ public class CreateMedicineDoseRangeDto
     public decimal? MaxSingleDose { get; set; }
     [Range(0, double.MaxValue, ErrorMessage = "Liều tối đa không được âm")]
     public decimal? MaxDailyDose { get; set; }
+    /// <summary>Liều tối thiểu mỗi ngày theo cân nặng (Unit/kg/ngày).</summary>
+    [Range(0, double.MaxValue, ErrorMessage = "Liều theo cân nặng không được âm")]
+    public decimal? MinDosePerKg { get; set; }
+    /// <summary>Liều tối đa mỗi ngày theo cân nặng (Unit/kg/ngày).</summary>
+    [Range(0, double.MaxValue, ErrorMessage = "Liều theo cân nặng không được âm")]
+    public decimal? MaxDosePerKg { get; set; }
     public string? Unit { get; set; }
     [Range(1.0, 10.0, ErrorMessage = "Hệ số quá liều nặng phải ≥ 1")]
     public decimal SevereMultiplier { get; set; } = 1.5m;
@@ -69,6 +78,12 @@ public class DoseCheckRequestDto
     public int? PatientAge { get; set; }
     /// <summary>BN suy thận → ưu tiên range renal-adjusted nếu có</summary>
     public bool IsRenalImpaired { get; set; }
+    /// <summary>BN — để lấy cân nặng mới nhất (sinh hiệu ngoại trú/nội trú) và tuổi khi FE không gửi.</summary>
+    public Guid? PatientId { get; set; }
+    /// <summary>Nội trú chỉ biết lượt nhập viện → BE tự suy ra BN.</summary>
+    public Guid? AdmissionId { get; set; }
+    /// <summary>Cân nặng (kg) FE đang có; null → lấy cân nặng mới nhất đã ghi của BN.</summary>
+    public decimal? WeightKg { get; set; }
 }
 
 /// <summary>Cảnh báo liều — advisory (Severity: 1-nhắc, 2-vượt ngưỡng, 3-quá liều nặng).</summary>

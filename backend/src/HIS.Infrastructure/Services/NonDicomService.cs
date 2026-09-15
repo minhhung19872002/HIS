@@ -38,7 +38,7 @@ public class NonDicomService : INonDicomService
             DeviceName = dto.DeviceName,
             RoomId = dto.RoomId,
             PerformedByUserId = userId,
-            CapturedAt = DateTime.UtcNow,
+            CapturedAt = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
             Status = 0,
             Description = dto.Description,
             CreatedAt = DateTime.UtcNow,

@@ -158,11 +158,15 @@ public partial class ExaminationCompleteService
             examination.MedicalRecord.PatientId,
             prescription.Details.Select(d => d.MedicineId).ToList(),
             dto.OverrideReason);
+        await EnforceDoseRangeAsync(examination.MedicalRecord.PatientId, prescription.Details, dto.OverrideReason);
         if (!string.IsNullOrWhiteSpace(dto.OverrideReason))
             prescription.Instructions = $"{prescription.Instructions} [BS bỏ qua cảnh báo an toàn: {dto.OverrideReason}]".Trim();
 
         await _context.Prescriptions.AddAsync(prescription);
         await _unitOfWork.SaveChangesAsync();
+        // R3 BHYT: split at prescribing time (no-op for fee patients).
+        if (await new BhytVisitPricing(_context).RecalculateAsync(prescription.MedicalRecordId) != null)
+            await _unitOfWork.SaveChangesAsync();
 
         return MapToPrescriptionFullDto(prescription);
     }
@@ -247,10 +251,13 @@ public partial class ExaminationCompleteService
             updPatientId,
             prescription.Details.Select(d => d.MedicineId).ToList(),
             dto.OverrideReason);
+        await EnforceDoseRangeAsync(updPatientId, prescription.Details, dto.OverrideReason);
         if (!string.IsNullOrWhiteSpace(dto.OverrideReason))
             prescription.Instructions = $"{prescription.Instructions} [BS bỏ qua cảnh báo an toàn: {dto.OverrideReason}]".Trim();
 
         await _unitOfWork.SaveChangesAsync();
+        if (await new BhytVisitPricing(_context).RecalculateAsync(prescription.MedicalRecordId) != null) // R3 BHYT
+            await _unitOfWork.SaveChangesAsync();
 
         return MapToPrescriptionFullDto(prescription);
     }
@@ -299,6 +306,8 @@ public partial class ExaminationCompleteService
             prescription.MedicalRecord.PatientId,
             prescription.Details.Select(d => d.MedicineId).ToList(),
             overrideReason);
+        // Also covers a replacement draft (ReplacePrescriptionAsync clones lines; they take effect here).
+        await EnforceDoseRangeAsync(prescription.MedicalRecord.PatientId, prescription.Details, overrideReason);
         if (!string.IsNullOrWhiteSpace(overrideReason))
             prescription.Instructions =
                 $"{prescription.Instructions} [BS bỏ qua cảnh báo an toàn: {overrideReason}]".Trim();
@@ -325,6 +334,10 @@ public partial class ExaminationCompleteService
         }
 
         await _unitOfWork.SaveChangesAsync();
+        // R3 BHYT: drafts are not billable (ledger rule) — the split is applied when the prescription is issued, and the
+        // replaced prescription (now cancelled) leaves the visit total.
+        if (await new BhytVisitPricing(_context).RecalculateAsync(prescription.MedicalRecordId) != null)
+            await _unitOfWork.SaveChangesAsync();
         return MapToPrescriptionFullDto(prescription);
     }
 
@@ -390,6 +403,8 @@ public partial class ExaminationCompleteService
 
         await _context.Prescriptions.AddAsync(draft);
         await _unitOfWork.SaveChangesAsync();
+        if (await new BhytVisitPricing(_context).RecalculateAsync(draft.MedicalRecordId) != null) // R3 BHYT
+            await _unitOfWork.SaveChangesAsync();
 
         var saved = await _context.Prescriptions
             .Include(p => p.Details).ThenInclude(d => d.Medicine)
@@ -643,6 +658,12 @@ public partial class ExaminationCompleteService
     // #185/#186: delegate sang guard dùng chung (single-source outpatient + inpatient) — xem PrescriptionSafetyGuard.
     private Task EnforcePrescriptionSafetyAsync(Guid patientId, List<Guid> medicineIds, string? overrideReason)
         => PrescriptionSafetyGuard.EnsureSafeAsync(_context, patientId, medicineIds, overrideReason);
+
+    /// <summary>QA-R3: severe overdose (dose-range severity 3) needs an override reason — see PrescriptionDoseGuard.</summary>
+    private Task EnforceDoseRangeAsync(Guid patientId, IEnumerable<PrescriptionDetail> details, string? overrideReason)
+        => PrescriptionDoseGuard.EnsureNoUnjustifiedSevereOverdoseAsync(_context, patientId,
+            details.Select(d => HIS.Core.Common.DoseRangeChecker.ParseLine(d.MedicineId, d.Dosage, d.UsageInstructions, d.Route)).ToList(),
+            overrideReason);
 
     public async Task<List<PrescriptionWarningDto>> CheckContraindicationsAsync(Guid patientId, List<Guid> medicineIds)
     {

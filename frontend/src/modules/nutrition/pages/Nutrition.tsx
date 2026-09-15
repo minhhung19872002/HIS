@@ -140,8 +140,8 @@ const riskBadge = (risk?: string) => {
   return <StatusBadge tone={RISK_TONE[key] ?? 'info'} dot>{RISK_LABEL[key] ?? risk}</StatusBadge>;
 };
 
-// Thang điểm NRS-2002 (giữ nguyên công thức nghiệp vụ đã dùng ở v1: nrsNutritionalScore =
-// BMI + sụt cân + lượng ăn; nrsSeverityScore = mức độ bệnh; tổng 4 điểm >= 3 → nguy cơ CAO, >= 2 → VỪA).
+// Thang điểm NRS-2002 (Kondrup 2003): điểm dinh dưỡng = MAX(BMI, sụt cân, lượng ăn) — không cộng dồn;
+// + mức độ bệnh + 1 điểm nếu tuổi ≥ 70 (BE tính từ ngày sinh). Tổng ≥ 3 → nguy cơ CAO, = 2 → VỪA.
 const SCREEN_FIELDS: CrudFieldCfg[] = [
   { key: 'bmiScore', label: '1. BMI', type: 'radio', required: true, options: [
     { value: 0, label: 'BMI ≥ 20.5 (0 điểm)' },
@@ -763,19 +763,25 @@ const NutritionV2: React.FC = () => {
               const weightLossScore = Number(v.weightLossScore) || 0;
               const intakeScore = Number(v.intakeScore) || 0;
               const diseaseScore = Number(v.diseaseScore) || 0;
-              const totalScore = bmiScore + weightLossScore + intakeScore + diseaseScore;
-              await createScreening({
+              // NRS-2002: nutrition status = the WORST of the 3 items (not their sum); BE adds the age ≥ 70 point.
+              const nutritionScore = Math.max(bmiScore, weightLossScore, intakeScore);
+              const res = await createScreening({
                 admissionId,
                 screeningTool: 'NRS-2002',
-                nrsNutritionalScore: bmiScore + weightLossScore + intakeScore,
+                nrsNutritionalScore: nutritionScore,
                 nrsSeverityScore: diseaseScore,
+                nrsBmiScore: bmiScore,
+                nrsWeightLossScore: weightLossScore,
+                nrsIntakeScore: intakeScore,
                 mustBMIScore: bmiScore,
                 mustWeightLossScore: weightLossScore,
                 mustAcuteIllnessScore: diseaseScore,
                 notes: (v.notes as string) || undefined,
               });
+              const totalScore = res.data?.nrsTotalScore ?? nutritionScore + diseaseScore;
               const riskLabel = totalScore >= 3 ? 'CAO' : totalScore >= 2 ? 'VỪA' : 'THẤP';
-              tk(`Đã hoàn thành sàng lọc — Nguy cơ ${riskLabel}`);
+              const agePoint = res.data?.nrsAgeAdjustment ? ' (gồm +1 điểm tuổi ≥ 70)' : '';
+              tk(`Đã hoàn thành sàng lọc — ${totalScore} điểm${agePoint} · Nguy cơ ${riskLabel}`);
               loadScreening();
               loadDashboard();
               if (totalScore >= 2) openDietCreateFor(admissionId);
