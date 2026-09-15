@@ -545,24 +545,31 @@ public partial class ReceptionCompleteService {
 
     public async Task MergePatientsAsync(MergePatientDto dto, Guid userId)
     {
-        // Transfer all records from source to target
-        var sourceRecords = await _context.MedicalRecords
-            .Where(m => m.PatientId == dto.SourcePatientId)
-            .ToListAsync();
+        if (dto.SourcePatientId == dto.TargetPatientId)
+            throw new InvalidOperationException("Không thể ghép một bệnh nhân vào chính nó.");
 
-        foreach (var record in sourceRecords)
-        {
-            record.PatientId = dto.TargetPatientId;
-        }
+        // Kiểm cả hai TRƯỚC khi đụng dữ liệu: trước đây mã đích sai thì hồ sơ vẫn bị chuyển sang một
+        // id không tồn tại rồi hồ sơ nguồn bị xoá — dữ liệu mồ côi, không màn nào mở ra được.
+        var sourcePatient = await _context.Patients.FirstOrDefaultAsync(p => p.Id == dto.SourcePatientId)
+            ?? throw new InvalidOperationException("Không tìm thấy bệnh nhân cần ghép.");
+        _ = await _context.Patients.FirstOrDefaultAsync(p => p.Id == dto.TargetPatientId)
+            ?? throw new InvalidOperationException("Không tìm thấy bệnh nhân đích.");
 
-        // Delete source patient
-        var sourcePatient = await _patientRepo.GetByIdAsync(dto.SourcePatientId);
-        if (sourcePatient != null)
-        {
-            await _patientRepo.DeleteAsync(sourcePatient);
-        }
+        // Chuyển MỌI dữ liệu trỏ tới bệnh nhân nguồn — không chỉ MedicalRecords như trước (lịch hẹn, vé,
+        // nhập viện, CĐHA, dị ứng, thẻ BHYT… bị bỏ lại trên hồ sơ bị xoá). Xem PatientReferenceReassigner.
+        var moved = await PatientReferenceReassigner.ReassignAsync(_context, dto.SourcePatientId, dto.TargetPatientId);
 
+        sourcePatient.IsDeleted = true;
+        sourcePatient.UpdatedAt = DateTime.UtcNow;
+        sourcePatient.UpdatedBy = userId.ToString();
+
+        // Một SaveChanges duy nhất: hoặc ghép trọn, hoặc không đổi gì.
         await _unitOfWork.SaveChangesAsync();
+
+        _receptionLogger?.LogInformation(
+            "Ghép bệnh nhân {Source} → {Target} bởi {User}. Lý do: {Reason}. Đã chuyển: {Moved}",
+            dto.SourcePatientId, dto.TargetPatientId, userId, dto.Reason,
+            string.Join(", ", moved.Select(kv => $"{kv.Key}={kv.Value}")));
     }
 
     public async Task SplitPatientAsync(SplitPatientDto dto, Guid userId)
