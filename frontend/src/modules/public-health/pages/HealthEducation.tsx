@@ -93,7 +93,9 @@ const HealthEducationV2: React.FC = () => {
         }),
         searchMaterials({ keyword: search }),
       ]);
-      if (cs.status === 'fulfilled') setItems(normalizeArrayResponse<HealthCampaign>(cs.value));
+      // BE HealthCampaignDto uses `organizer` (FE column reads organizerName)
+      if (cs.status === 'fulfilled') setItems(normalizeArrayResponse<HealthCampaign & { organizer?: string }>(cs.value)
+        .map((x) => ({ ...x, organizerName: x.organizerName ?? x.organizer ?? '' })));
       if (ms.status === 'fulfilled') setMaterials(normalizeArrayResponse<HealthMaterial>(ms.value));
       if (cs.status === 'rejected') ti('Không tải được chiến dịch');
     } catch { ti('Không tải được dữ liệu GDSK'); }

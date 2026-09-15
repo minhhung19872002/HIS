@@ -116,7 +116,18 @@ const EnvironmentalHealthV2: React.FC = () => {
         getMonitoringStats(),
         getBiosafetyStatus(),
       ]);
-      if (results[0].status === 'fulfilled') setItems(normalizeArrayResponse<WasteRecord>(results[0].value));
+      if (results[0].status === 'fulfilled') {
+        // BE MedicalWasteDto: departmentName / collectorName|disposedBy, no unit / isCompliant → without this every
+        // record fell into the "Vi phạm" tab. BE has no compliance flag, so treat unknown as compliant.
+        type BeWaste = WasteRecord & { departmentName?: string; collectorName?: string; disposedBy?: string };
+        setItems(normalizeArrayResponse<BeWaste>(results[0].value).map((x) => ({
+          ...x,
+          unit: x.unit ?? 'kg',
+          source: x.source ?? x.departmentName ?? '',
+          handlerName: x.handlerName ?? x.collectorName ?? x.disposedBy ?? '',
+          isCompliant: x.isCompliant ?? true,
+        })));
+      }
       if (results[1].status === 'fulfilled') setWasteStats(results[1].value);
       if (results[2].status === 'fulfilled') setMonitoringStats(results[2].value);
       if (results[3].status === 'fulfilled') {
@@ -159,7 +170,7 @@ const EnvironmentalHealthV2: React.FC = () => {
     { key: 'type', label: 'Loại CT', render: (r) => (
       <StatusBadge tone={TYPE_TONE[r.wasteType] || 'info'}>{TYPE_LABEL[r.wasteType] || r.wasteType}</StatusBadge>
     ) },
-    { key: 'qty', label: 'Số lượng', mono: true, render: (r) => `${r.quantity} ${r.unit}` },
+    { key: 'qty', label: 'Số lượng', mono: true, render: (r) => `${r.quantity} ${r.unit ?? 'kg'}` },
     { key: 'src', label: 'Nguồn', render: (r) => r.source },
     { key: 'method', label: 'PP xử lý', render: (r) => r.disposalMethod },
     { key: 'handler', label: 'Người xử lý', render: (r) => r.handlerName },
@@ -204,6 +215,12 @@ const EnvironmentalHealthV2: React.FC = () => {
       .some((v) => (v || '').toLowerCase().includes(k)));
   }, [monitorings, search]);
 
+  // BE stats DTOs differ from FE WasteStats/MonitoringStats (totalQuantityKg + wasteTypeBreakdown /
+  // totalMeasurements) — fall back to the BE field names so KPIs never render "undefined".
+  const beWaste = wasteStats as WasteStats & { totalQuantityKg?: number; wasteTypeBreakdown?: { wasteType: string; totalKg: number }[] };
+  const beMonitoring = monitoringStats as MonitoringStats & { totalMeasurements?: number };
+  const wasteKgOf = (t: string) => beWaste.wasteTypeBreakdown?.find((b) => b.wasteType === t)?.totalKg ?? 0;
+
   const actions = (r: WasteRecord) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
@@ -214,9 +231,9 @@ const EnvironmentalHealthV2: React.FC = () => {
   return (
     <div className="ab">
       <KpiStrip items={[
-        { lbl: 'Thu gom tháng (kg)', val: wasteStats.totalCollectedThisMonth, sub: `lây nhiễm ${wasteStats.infectiousWasteKg} kg · thường ${wasteStats.generalWasteKg} kg`, tone: 'info' },
-        { lbl: 'Không tuân thủ', val: wasteStats.nonCompliantItems, sub: 'cần khắc phục', tone: 'crit' },
-        { lbl: 'Giám sát (lượt)', val: monitoringStats.totalMonitoringCount, sub: `${monitoringStats.nonCompliantCount} vi phạm`, tone: 'ok' },
+        { lbl: 'Thu gom tháng (kg)', val: wasteStats.totalCollectedThisMonth ?? beWaste.totalQuantityKg ?? '—', sub: `lây nhiễm ${wasteStats.infectiousWasteKg ?? wasteKgOf('infectious')} kg · thường ${wasteStats.generalWasteKg ?? wasteKgOf('general')} kg`, tone: 'info' },
+        { lbl: 'Không tuân thủ', val: wasteStats.nonCompliantItems ?? '—', sub: 'cần khắc phục', tone: 'crit' },
+        { lbl: 'Giám sát (lượt)', val: monitoringStats.totalMonitoringCount ?? beMonitoring.totalMeasurements ?? '—', sub: `${monitoringStats.nonCompliantCount ?? 0} vi phạm`, tone: 'ok' },
         { lbl: 'An toàn sinh học', val: biosafety.isCompliant ? 'Đạt' : 'Chưa đạt', sub: biosafety.level ? `cấp độ ${biosafety.level}` : undefined, tone: biosafety.isCompliant ? 'ok' : 'crit' },
         { lbl: 'Tổng phiếu', val: items.length, sub: `${counts.compliant} đạt · ${counts.noncompliant} vi phạm` },
       ]} />
@@ -317,7 +334,7 @@ const EnvironmentalHealthV2: React.FC = () => {
             <DrField lbl="Loại CT">
               <StatusBadge tone={TYPE_TONE[sel.wasteType] || 'info'}>{TYPE_LABEL[sel.wasteType] || sel.wasteType}</StatusBadge>
             </DrField>
-            <DrField lbl="Số lượng"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.quantity} {sel.unit}</span></DrField>
+            <DrField lbl="Số lượng"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.quantity} {sel.unit ?? 'kg'}</span></DrField>
             <DrField lbl="Nguồn">{sel.source}</DrField>
           </DrSec>
           <DrSec title="Xử lý">
@@ -371,7 +388,7 @@ const EnvironmentalHealthV2: React.FC = () => {
             <DrField lbl="Ngày">{dayjs(m.monitoringDate).format('DD/MM/YYYY')}</DrField>
             <DrField lbl="Thông số">{m.parameter}</DrField>
             <DrField lbl="Kết quả">
-              <span style={{ fontFamily: 'var(--font-mono)' }}>{m.value} {m.unit}</span>
+              <span style={{ fontFamily: 'var(--font-mono)' }}>{m.value ?? (m as MonitoringRecord & { measuredValue?: number }).measuredValue} {m.unit}</span>
               {' / '}
               <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>giới hạn {m.standardLimit} {m.unit}</span>
             </DrField>

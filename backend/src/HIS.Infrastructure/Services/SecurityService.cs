@@ -180,8 +180,9 @@ public class SecurityService : ISecurityService
     {
         try
         {
-            using var connection = _context.Database.GetDbConnection();
-            await connection.OpenAsync();
+            // Do NOT dispose: this connection is owned by the DbContext (disposing it breaks later queries in the same scope).
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
 
             using var command = connection.CreateCommand();
             command.CommandText = @"
@@ -205,8 +206,9 @@ public class SecurityService : ISecurityService
     {
         try
         {
-            using var connection = _context.Database.GetDbConnection();
-            await connection.OpenAsync();
+            // Do NOT dispose: this connection is owned by the DbContext (disposing it breaks later queries in the same scope).
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
 
             using var command = connection.CreateCommand();
             command.CommandText = @"

@@ -21,6 +21,8 @@ public partial class ClinicalNutritionServiceImpl
 
         if (plan.Status is "Prepared" or "Distributed")
             throw new InvalidOperationException($"Phiếu đã ở trạng thái \"{plan.Status}\", không duyệt lại được.");
+        if (plan.Status == "Approved")
+            throw new InvalidOperationException("Phiếu suất ăn đã được duyệt.");
 
         var now = DateTime.Now;
         plan.Status = "Approved";
@@ -47,11 +49,18 @@ public partial class ClinicalNutritionServiceImpl
         if (string.IsNullOrWhiteSpace(reason))
             throw new InvalidOperationException("Phải nhập lý do từ chối phiếu suất ăn.");
 
-        var plan = await _context.MealPlans.FirstOrDefaultAsync(p => p.Id == mealPlanId && !p.IsDeleted)
+        var plan = await _context.MealPlans.Include(p => p.Items!)
+            .FirstOrDefaultAsync(p => p.Id == mealPlanId && !p.IsDeleted)
             ?? throw new InvalidOperationException("Không tìm thấy phiếu suất ăn.");
 
         if (plan.Status is "Prepared" or "Distributed")
             throw new InvalidOperationException($"Phiếu đã ở trạng thái \"{plan.Status}\", không từ chối được.");
+        if (plan.Status == "Rejected")
+            throw new InvalidOperationException("Phiếu suất ăn đã bị từ chối.");
+        // Approving already created patient charges (ServiceRequests); rejecting afterwards left those charges
+        // active for meals that will never be served. Block until the charges are cancelled in billing.
+        if ((plan.Items ?? new List<MealPlanItem>()).Any(i => !i.IsDeleted && i.BilledAt != null))
+            throw new InvalidOperationException("Phiếu đã duyệt và đã sinh khoản thu suất ăn cho người bệnh — cần hủy các khoản thu trước khi từ chối.");
 
         plan.Status = "Rejected";
         plan.RejectReason = reason.Trim();

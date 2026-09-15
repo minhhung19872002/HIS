@@ -419,7 +419,7 @@ const EquipmentV2: React.FC = () => {
       key: 'risk', label: 'Risk', width: 80,
       render: (r) => (
         <span className={`chip ${r.riskClass === 'III' || r.riskClass === 'A' ? 'crit' : r.riskClass === 'II' || r.riskClass === 'B' ? 'warn' : 'info'}`}>
-          {r.riskClass}
+          {r.riskClass || '—'}
         </span>
       ),
     },
@@ -556,7 +556,7 @@ const EquipmentV2: React.FC = () => {
       key: 'risk', label: 'Nhóm', width: 90,
       render: (r) => (
         <span className={`chip ${r.riskClass === 'III' || r.riskClass === 'A' ? 'crit' : r.riskClass === 'II' || r.riskClass === 'B' ? 'warn' : 'info'}`}>
-          {r.riskClass}
+          {r.riskClass || '—'}
         </span>
       ),
     },

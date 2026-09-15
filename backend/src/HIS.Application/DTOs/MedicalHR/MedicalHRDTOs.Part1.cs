@@ -95,27 +95,31 @@ namespace HIS.Application.DTOs.MedicalHR
     /// </summary>
     public class SaveMedicalStaffDto
     {
+        // Optional fields are nullable: under <Nullable>enable</Nullable> a non-nullable string is an implicit
+        // [Required], so the v2 HR "add employee" form (no email/idNumber/address...) always got 400.
         public Guid? Id { get; set; }
-        public string EmployeeCode { get; set; }
-        public string FullName { get; set; }
-        public DateTime DateOfBirth { get; set; }
-        public string Gender { get; set; }
-        public string IdNumber { get; set; }
-        public string Phone { get; set; }
-        public string Email { get; set; }
-        public string Address { get; set; }
-        public string StaffType { get; set; }
-        public string Position { get; set; }
-        public string Title { get; set; }
+        public string? EmployeeCode { get; set; }
+        public string? StaffCode { get; set; } // alias sent by v2 HR.tsx
+        public string FullName { get; set; } = string.Empty;
+        public DateTime? DateOfBirth { get; set; }
+        public string? Gender { get; set; }
+        public string? IdNumber { get; set; }
+        public string? Phone { get; set; }
+        public string? Email { get; set; }
+        public string? Address { get; set; }
+        public string? StaffType { get; set; }
+        public string? Position { get; set; }
+        public string? Title { get; set; }
         public Guid DepartmentId { get; set; }
-        public string Specialty { get; set; }
-        public DateTime JoinDate { get; set; }
-        public string PracticeLicenseNumber { get; set; }
+        public string? Specialty { get; set; }
+        public DateTime? JoinDate { get; set; }
+        public DateTime? HireDate { get; set; } // alias sent by v2 HR.tsx
+        public string? PracticeLicenseNumber { get; set; }
         public DateTime? LicenseIssueDate { get; set; }
         public DateTime? LicenseExpiryDate { get; set; }
-        public string LicenseScope { get; set; }
-        public string IssuingAuthority { get; set; }
-        public string ContractType { get; set; }
+        public string? LicenseScope { get; set; }
+        public string? IssuingAuthority { get; set; }
+        public string? ContractType { get; set; }
         public DateTime? ContractStartDate { get; set; }
         public DateTime? ContractEndDate { get; set; }
     }
@@ -231,17 +235,21 @@ namespace HIS.Application.DTOs.MedicalHR
         public int Year { get; set; }
         public int Month { get; set; }
         public Guid DepartmentId { get; set; }
-        public List<CreateDutyShiftDto> Shifts { get; set; }
+        public List<CreateDutyShiftDto>? Shifts { get; set; }
+
+        /// <summary>Set by the controller from the JWT; never bound from the request body.</summary>
+        [global::System.Text.Json.Serialization.JsonIgnore]
+        public Guid CreatedById { get; set; }
     }
 
     public class CreateDutyShiftDto
     {
         public DateTime ShiftDate { get; set; }
-        public string ShiftType { get; set; }
+        public string ShiftType { get; set; } = string.Empty;
         public TimeSpan StartTime { get; set; }
         public TimeSpan EndTime { get; set; }
-        public List<Guid> AssignedStaffIds { get; set; }
-        public string Notes { get; set; }
+        public List<Guid>? AssignedStaffIds { get; set; }
+        public string? Notes { get; set; }
     }
 
     /// <summary>
@@ -383,6 +391,12 @@ namespace HIS.Application.DTOs.MedicalHR
         public int CurrentYearRequired { get; set; }
         public bool IsCompliant { get; set; }
         public int CreditsShortfall { get; set; }
+
+        // v2 FE contract (HR.tsx CME table): shortfall / category1Credits / category2Credits / activitiesCount
+        public int Shortfall { get; set; }
+        public int Category1Credits { get; set; }
+        public int Category2Credits { get; set; }
+        public int ActivitiesCount { get; set; }
 
         // By Category
         public Dictionary<string, int> CreditsByCategory { get; set; }

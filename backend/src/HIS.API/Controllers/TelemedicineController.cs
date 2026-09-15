@@ -48,8 +48,19 @@ namespace HIS.API.Controllers
             => Ok(await _service.CreateAppointmentAsync(dto));
 
         [HttpPost("appointments/{id}/cancel")]
-        public async Task<ActionResult<bool>> CancelAppointment(Guid id, [FromBody] string reason)
-            => Ok(await _service.CancelAppointmentAsync(id, reason));
+        public async Task<ActionResult<bool>> CancelAppointment(Guid id, [FromBody] System.Text.Json.JsonElement body)
+        {
+            // Accept both a raw JSON string and { "reason": "..." } — the v2 page sends the object form,
+            // which a [FromBody] string rejected with 400.
+            string? reason = body.ValueKind switch
+            {
+                System.Text.Json.JsonValueKind.String => body.GetString(),
+                System.Text.Json.JsonValueKind.Object when body.TryGetProperty("reason", out var r) && r.ValueKind == System.Text.Json.JsonValueKind.String => r.GetString(),
+                _ => null
+            };
+            var ok = await _service.CancelAppointmentAsync(id, reason ?? string.Empty);
+            return ok ? Ok(true) : NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy lịch hẹn" });
+        }
 
         [HttpGet("available-slots")]
         public async Task<ActionResult<List<DoctorAvailableSlotDto>>> GetAvailableSlots(
@@ -98,6 +109,9 @@ namespace HIS.API.Controllers
 
         [HttpPost("prescriptions/send-to-pharmacy")]
         public async Task<ActionResult<bool>> SendPrescriptionToPharmacy([FromBody] SendPrescriptionToPharmacyDto dto)
-            => Ok(await _service.SendPrescriptionToPharmacyAsync(dto));
+        {
+            var ok = await _service.SendPrescriptionToPharmacyAsync(dto);
+            return ok ? Ok(true) : NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy đơn thuốc" });
+        }
     }
 }

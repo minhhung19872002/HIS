@@ -32,11 +32,23 @@ public class TelemedicineServiceImpl : ITelemedicineService
 
     public async Task<TeleAppointmentDto> CreateAppointmentAsync(CreateTeleAppointmentDto dto)
     {
+        DateTime date = dto.AppointmentDate != default ? dto.AppointmentDate : dto.ScheduledDate.GetValueOrDefault();
+        if (date == default)
+            throw new ArgumentException("Ngày hẹn là bắt buộc", nameof(dto.AppointmentDate));
+        var start = dto.StartTime;
+        if (start == default && !string.IsNullOrWhiteSpace(dto.ScheduledTime) && TimeSpan.TryParse(dto.ScheduledTime, out var t))
+            start = t;
+        Guid? specialityId = dto.SpecialityId != Guid.Empty ? dto.SpecialityId : dto.DepartmentId;
+        if (specialityId == Guid.Empty) specialityId = null;
+        if (!await _context.Patients.AnyAsync(p => p.Id == dto.PatientId))
+            throw new KeyNotFoundException("Không tìm thấy người bệnh");
+        if (!await _context.Users.AnyAsync(u => u.Id == dto.DoctorId))
+            throw new KeyNotFoundException("Không tìm thấy bác sĩ");
         var entity = new TeleAppointment
         {
             Id = Guid.NewGuid(), AppointmentCode = CodeGenerator.Timestamp("TELE"),
-            PatientId = dto.PatientId, DoctorId = dto.DoctorId, SpecialityId = dto.SpecialityId,
-            AppointmentDate = dto.AppointmentDate, StartTime = dto.StartTime, ChiefComplaint = dto.ChiefComplaint,
+            PatientId = dto.PatientId, DoctorId = dto.DoctorId, SpecialityId = specialityId,
+            AppointmentDate = date.Date, StartTime = start, ChiefComplaint = dto.ChiefComplaint,
             Status = "Pending", CreatedAt = DateTime.Now
         };
         _context.TeleAppointments.Add(entity);
@@ -48,6 +60,8 @@ public class TelemedicineServiceImpl : ITelemedicineService
     {
         var e = await _context.TeleAppointments.FindAsync(id);
         if (e == null) return false;
+        if (e.Status is "InProgress" or "Completed" or "Cancelled")
+            throw new InvalidOperationException($"Lịch hẹn đang ở trạng thái \"{e.Status}\", không hủy được.");
         e.Status = "Cancelled"; e.CancellationReason = reason;
         await _context.SaveChangesAsync();
         return true;
@@ -76,6 +90,10 @@ public class TelemedicineServiceImpl : ITelemedicineService
 
     public async Task<TeleSessionDto> StartSessionAsync(StartVideoCallDto dto)
     {
+        var appointment = await _context.TeleAppointments.FindAsync(dto.AppointmentId)
+            ?? throw new KeyNotFoundException("Không tìm thấy lịch hẹn khám từ xa");
+        if (appointment.Status is "Cancelled" or "Completed")
+            throw new InvalidOperationException($"Lịch hẹn đang ở trạng thái \"{appointment.Status}\", không mở phiên khám được.");
         var entity = new TeleSession
         {
             Id = Guid.NewGuid(), AppointmentId = dto.AppointmentId, SessionCode = CodeGenerator.Timestamp("SES"),
@@ -105,6 +123,8 @@ public class TelemedicineServiceImpl : ITelemedicineService
     {
         var e = await _context.TeleSessions.FindAsync(sessionId);
         if (e == null) return false;
+        if (e.Status == "Completed")
+            throw new InvalidOperationException("Phiên khám đã kết thúc.");
         e.Status = "Completed"; e.EndTime = DateTime.Now;
         await _context.SaveChangesAsync();
         return true;
@@ -138,6 +158,12 @@ public class TelemedicineServiceImpl : ITelemedicineService
 
     public async Task<TelePrescriptionDto> CreatePrescriptionAsync(Guid sessionId, List<TelePrescriptionItemDto> items, string note)
     {
+        if (!await _context.TeleSessions.AnyAsync(s => s.Id == sessionId))
+            throw new KeyNotFoundException("Không tìm thấy phiên khám từ xa");
+        if (items == null || items.Count == 0)
+            throw new ArgumentException("Đơn thuốc phải có ít nhất 1 thuốc", nameof(items));
+        if (items.Any(i => i.Quantity <= 0))
+            throw new ArgumentException("Số lượng thuốc phải lớn hơn 0", nameof(items));
         var entity = new TelePrescription
         {
             Id = Guid.NewGuid(), SessionId = sessionId, PrescriptionCode = CodeGenerator.Timestamp("RX"),
@@ -163,8 +189,12 @@ public class TelemedicineServiceImpl : ITelemedicineService
 
     public async Task<TelePrescriptionDto> SignPrescriptionAsync(Guid prescriptionId)
     {
-        var e = await _context.TelePrescriptions.FindAsync(prescriptionId);
-        if (e == null) return null!;
+        var e = await _context.TelePrescriptions.FindAsync(prescriptionId)
+            ?? throw new KeyNotFoundException("Không tìm thấy đơn thuốc");
+        if (e.Status != "Draft")
+            throw new InvalidOperationException($"Đơn thuốc đang ở trạng thái \"{e.Status}\", không ký lại được.");
+        if (!await _context.Set<TelePrescriptionItem>().AnyAsync(i => i.PrescriptionId == e.Id))
+            throw new InvalidOperationException("Đơn thuốc chưa có thuốc, không ký được.");
         e.Status = "Signed"; e.SignedAt = DateTime.Now;
         await _context.SaveChangesAsync();
         return new TelePrescriptionDto { Id = e.Id, PrescriptionCode = e.PrescriptionCode, Status = e.Status };
@@ -183,26 +213,36 @@ public class TelemedicineServiceImpl : ITelemedicineService
         // Idempotent: chưa có đơn phát thật tương ứng → tạo.
         if (!await _context.Prescriptions.AnyAsync(p => p.PrescriptionCode == rxCode))
         {
+            // An unsigned (Draft) e-prescription must not reach the dispensing counter.
+            if (e.Status != "Signed")
+                throw new InvalidOperationException("Đơn thuốc chưa được bác sĩ ký, không chuyển sang quầy phát được.");
+            if (e.Items == null || e.Items.Count == 0)
+                throw new InvalidOperationException("Đơn thuốc chưa có thuốc.");
+
+            // Previously, when the patient had no medical record (or the appointment could not be resolved) no
+            // Prescription was created but the tele order was still marked "SentToPharmacy" and true returned —
+            // the order silently never reached the counter. Prescriber/department also fell back to "the first
+            // user / first department" (fabricated attribution). Each gap is now a real error.
             var session = await _context.TeleSessions.Include(s => s.Appointment)
                 .FirstOrDefaultAsync(s => s.Id == e.SessionId);
-            var appt = session?.Appointment;
-            if (appt != null)
+            var appt = session?.Appointment
+                ?? throw new InvalidOperationException("Đơn thuốc không gắn với lịch hẹn khám từ xa hợp lệ.");
             {
                 var mr = await _context.MedicalRecords
                     .Where(m => m.PatientId == appt.PatientId && !m.IsDeleted)
                     .OrderByDescending(m => m.AdmissionDate)
                     .Select(m => new { m.Id, m.DepartmentId })
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefaultAsync()
+                    ?? throw new InvalidOperationException("Người bệnh chưa có hồ sơ bệnh án — không thể chuyển đơn sang quầy phát.");
 
-                Guid? deptId = appt.SpecialityId ?? mr?.DepartmentId;
+                Guid? deptId = appt.SpecialityId ?? mr.DepartmentId;
                 if (deptId == null || deptId == Guid.Empty)
-                    deptId = (await _context.Departments.FirstOrDefaultAsync(d => !d.IsDeleted))?.Id;
+                    throw new InvalidOperationException("Không xác định được khoa chỉ định đơn thuốc.");
 
                 Guid doctorId = appt.DoctorId;
                 if (doctorId == Guid.Empty || !await _context.Users.AnyAsync(u => u.Id == doctorId))
-                    doctorId = await _context.Users.Where(u => !u.IsDeleted).Select(u => u.Id).FirstOrDefaultAsync();
+                    throw new InvalidOperationException("Không xác định được bác sĩ kê đơn.");
 
-                if (mr != null && mr.Id != Guid.Empty && deptId != null && deptId != Guid.Empty && doctorId != Guid.Empty)
                 {
                     var by = doctorId.ToString();
                     var rx = new Prescription

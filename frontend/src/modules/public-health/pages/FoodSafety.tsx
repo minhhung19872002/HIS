@@ -125,7 +125,17 @@ const FoodSafetyV2: React.FC = () => {
     setLoading(true);
     try {
       const [list, s] = await Promise.all([searchIncidents({ keyword: search }), getIncidentStats()]);
-      setItems(list);
+      // BE FoodSafetyIncidentDto: reportNumber / affectedCount / hospitalizedCount / deathCount / severityLevel / foodSource
+      type BeIncident = FoodSafetyIncident & { reportNumber?: string; affectedCount?: number; hospitalizedCount?: number; deathCount?: number; severityLevel?: number; foodSource?: string };
+      setItems((list as BeIncident[]).map((x) => ({
+        ...x,
+        incidentCode: x.incidentCode ?? x.reportNumber ?? '',
+        totalAffected: x.totalAffected ?? x.affectedCount ?? 0,
+        hospitalized: x.hospitalized ?? x.hospitalizedCount ?? 0,
+        deaths: x.deaths ?? x.deathCount ?? 0,
+        severity: x.severity ?? x.severityLevel ?? 0,
+        suspectedFood: x.suspectedFood ?? x.foodSource,
+      })));
       setStats(s);
     } catch { ti('Không tải được vụ ngộ độc thực phẩm'); }
     finally { setLoading(false); }
@@ -135,7 +145,16 @@ const FoodSafetyV2: React.FC = () => {
     setInspLoading(true);
     try {
       const [list, s] = await Promise.all([searchInspections(), getInspectionStats()]);
-      setInspItems(list);
+      // BE FoodInspectionDto: establishmentName / address / violationsFound (no inspection code)
+      type BeInsp = FoodInspection & { establishmentName?: string; address?: string; licenseNumber?: string; violationsFound?: string; followUpDate?: string };
+      setInspItems((list as BeInsp[]).map((x) => ({
+        ...x,
+        inspectionCode: x.inspectionCode ?? x.licenseNumber ?? `TK-${String(x.id).slice(0, 8).toUpperCase()}`,
+        facilityName: x.facilityName ?? x.establishmentName ?? '',
+        facilityAddress: x.facilityAddress ?? x.address ?? '',
+        violations: x.violations ?? (x.violationsFound ? x.violationsFound.split(/[;\n]/).map((v) => v.trim()).filter(Boolean) : []),
+        reinspectionDate: x.reinspectionDate ?? x.followUpDate,
+      })));
       setInspStats(s);
     } catch { ti('Không tải được danh sách thanh kiểm'); }
     finally { setInspLoading(false); }

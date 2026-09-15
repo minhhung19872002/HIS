@@ -560,7 +560,7 @@ const TerminalShell: React.FC = () => {
           okText="Xác nhận truy cập"
           cancelText="Hủy"
           okButtonProps={{ danger: true, loading: bgSubmitting }}
-          destroyOnClose
+          destroyOnHidden
         >
           <p style={{ marginBottom: 8, color: '#ef4444', fontWeight: 600 }}>
             Hành động này sẽ được ghi vào audit log và thông báo đến Quản trị viên.

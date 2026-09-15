@@ -318,6 +318,9 @@ public class CreateCampaignDto
     public string? Notes { get; set; }
     public string? PackageDescription { get; set; }
     public decimal? ContractAmount { get; set; }
+    // Aliases sent by the v2 HealthCheckup page (companyName/servicePackage); used when the canonical field is null.
+    public string? CompanyName { get; set; }
+    public string? ServicePackage { get; set; }
 }
 
 public class CheckupRecordDto

@@ -143,7 +143,9 @@ public class PracticeLicenseService : IPracticeLicenseService
     public async Task<PracticeLicenseDto> UpdateLicenseAsync(Guid id, CreatePracticeLicenseDto dto)
     {
         var entity = await _context.PracticeLicenses.FindAsync(id)
-            ?? throw new InvalidOperationException("Practice license not found");
+            ?? throw new KeyNotFoundException("Không tìm thấy chứng chỉ hành nghề");
+        if (DateTime.TryParse(dto.ExpiryDate, out var newExpiry) && entity.IssueDate.HasValue && newExpiry.Date < entity.IssueDate.Value.Date)
+            throw new ArgumentException("Ngày hết hạn CCHN phải sau ngày cấp", nameof(dto.ExpiryDate));
 
         if (dto.LicenseType != null) entity.LicenseType = dto.LicenseType;
         if (dto.HolderName != null) entity.HolderName = dto.HolderName;
@@ -211,12 +213,17 @@ public class PracticeLicenseService : IPracticeLicenseService
     public async Task<PracticeLicenseDto> RenewLicenseAsync(Guid id, string? newExpiryDate)
     {
         var entity = await _context.PracticeLicenses.FindAsync(id)
-            ?? throw new InvalidOperationException("Practice license not found");
+            ?? throw new KeyNotFoundException("Không tìm thấy chứng chỉ hành nghề");
 
-        if (DateTime.TryParse(newExpiryDate, out var exd))
-            entity.ExpiryDate = exd;
-        else
-            entity.ExpiryDate = DateTime.UtcNow.AddYears(5);
+        // A suspended/revoked licence cannot be reactivated through "renew" (it used to flip straight back to active).
+        if (entity.Status is 2 or 3)
+            throw new InvalidOperationException("CCHN đang bị đình chỉ/thu hồi — không thể gia hạn.");
+        // The expiry date is a legal value: never invent one (a missing/invalid date used to become now + 5 years).
+        if (!DateTime.TryParse(newExpiryDate, out var exd))
+            throw new ArgumentException("Ngày hết hạn mới không hợp lệ", nameof(newExpiryDate));
+        if (exd.Date <= DateTime.Today || (entity.ExpiryDate.HasValue && exd.Date <= entity.ExpiryDate.Value.Date))
+            throw new ArgumentException("Ngày hết hạn mới phải sau ngày hiện tại và sau ngày hết hạn cũ", nameof(newExpiryDate));
+        entity.ExpiryDate = exd;
 
         entity.Status = 0; // active
         entity.UpdatedAt = DateTime.UtcNow;

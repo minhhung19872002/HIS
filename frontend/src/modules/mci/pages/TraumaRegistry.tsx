@@ -66,7 +66,14 @@ const TraumaRegistryV2: React.FC = () => {
     setLoading(true);
     try {
       const r = await searchCases({ keyword: search });
-      setItems(normalizeArrayResponse<TraumaCase>(r));
+      // BE TraumaCaseDto: injurySeverityScore / revisedTraumaScore / glasgowComaScale
+      type BeCase = TraumaCase & { injurySeverityScore?: number; revisedTraumaScore?: number; glasgowComaScale?: number };
+      setItems(normalizeArrayResponse<BeCase>(r).map((x) => ({
+        ...x,
+        issScore: x.issScore ?? x.injurySeverityScore ?? 0,
+        rtsScore: x.rtsScore ?? x.revisedTraumaScore ?? 0,
+        gcsScore: x.gcsScore ?? x.glasgowComaScale ?? 0,
+      })));
     } catch { ti('Không tải được ca chấn thương'); }
     finally { setLoading(false); }
   };

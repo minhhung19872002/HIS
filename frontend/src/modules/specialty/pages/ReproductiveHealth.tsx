@@ -154,7 +154,16 @@ const ReproductiveHealthV2: React.FC = () => {
       getHighRiskPregnancies(), // parallel warm-up; count comes from stats
     ]);
     if (prenatalRes.status === 'fulfilled') setPrenatalRows(prenatalRes.value);
-    if (statsRes.status  === 'fulfilled') setServerStats(statsRes.value);
+    if (statsRes.status  === 'fulfilled') {
+      // BE ReproductiveHealthStatsDto: activePrenatal / highRiskPrenatal / activeFamilyPlanning (no deliveries count)
+      const sv = statsRes.value as typeof statsRes.value & { activePrenatal?: number; highRiskPrenatal?: number; activeFamilyPlanning?: number };
+      setServerStats({
+        activePregnancies: sv.activePregnancies ?? sv.activePrenatal ?? 0,
+        highRiskCount: sv.highRiskCount ?? sv.highRiskPrenatal ?? 0,
+        familyPlanningActive: sv.familyPlanningActive ?? sv.activeFamilyPlanning ?? 0,
+        deliveriesThisMonth: sv.deliveriesThisMonth ?? 0,
+      });
+    }
     setPrenatalLoading(false);
   }, [prenatalSearch, prenatalRisk, prenatalFromDate, prenatalToDate]);
 

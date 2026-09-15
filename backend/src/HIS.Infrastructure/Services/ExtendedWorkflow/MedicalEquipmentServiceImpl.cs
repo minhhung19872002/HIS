@@ -34,7 +34,15 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
 
     public async Task<MedicalEquipmentDto> RegisterEquipmentAsync(RegisterEquipmentDto dto)
     {
-        var entity = new MedicalEquipment { Id = Guid.NewGuid(), EquipmentCode = CodeGenerator.Timestamp("EQ"), EquipmentName = dto.Name, Category = dto.Category ?? "General", SerialNumber = dto.SerialNumber, Manufacturer = dto.Manufacturer, DepartmentId = dto.DepartmentId, Status = "Active", PurchaseDate = dto.PurchaseDate, CreatedAt = DateTime.Now };
+        var name = string.IsNullOrWhiteSpace(dto.Name) ? dto.EquipmentName : dto.Name;
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Tên thiết bị là bắt buộc", nameof(dto.Name));
+        if (dto.PurchasePrice is < 0m)
+            throw new ArgumentException("Giá mua không hợp lệ", nameof(dto.PurchasePrice));
+        var entity = new MedicalEquipment { Id = Guid.NewGuid(), EquipmentCode = CodeGenerator.Timestamp("EQ"), EquipmentName = name, Category = dto.Category ?? "General", SerialNumber = dto.SerialNumber, Manufacturer = dto.Manufacturer, DepartmentId = dto.DepartmentId, Status = "Active", PurchaseDate = dto.PurchaseDate, CreatedAt = DateTime.Now,
+            // Previously accepted but never persisted.
+            Model = dto.Model, RiskClass = dto.RiskClass, CountryOfOrigin = dto.CountryOfOrigin, PurchasePrice = dto.PurchasePrice,
+            PurchaseSource = dto.Supplier, WarrantyExpiry = dto.WarrantyEndDate ?? dto.WarrantyExpiry, ExpectedLifeYears = dto.ExpectedLifeYears, Location = dto.RoomNumber };
         _context.MedicalEquipments.Add(entity);
         await _context.SaveChangesAsync();
         return await GetEquipmentAsync(entity.Id);
@@ -99,10 +107,15 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
     {
         var e = await _context.MaintenanceRecords.Include(x => x.Equipment)
             .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted)
-            ?? throw new InvalidOperationException("Không tìm thấy kế hoạch bảo dưỡng.");
+            ?? throw new KeyNotFoundException("Không tìm thấy kế hoạch bảo dưỡng.");
 
         if (e.Status is "Completed")
             throw new InvalidOperationException("Kế hoạch đã hoàn tất, không duyệt/từ chối được nữa.");
+        // Only a pending plan (ApprovalStatus 0) can be decided — approve→reject→approve flips were accepted.
+        if (e.ApprovalStatus != 0)
+            throw new InvalidOperationException(e.ApprovalStatus == 1
+                ? "Kế hoạch bảo dưỡng đã được duyệt."
+                : "Kế hoạch bảo dưỡng đã bị từ chối.");
 
         e.ApprovalStatus = status;
         e.ApprovedBy = userId;
@@ -143,6 +156,8 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
     {
         // Kế hoạch mới luôn ở trạng thái CHỜ DUYỆT (ApprovalStatus mặc định 0) — lãnh đạo
         // duyệt xong mới đưa vào lịch thực hiện (XVII.7).
+        if (!await _context.MedicalEquipments.AnyAsync(x => x.Id == equipmentId))
+            throw new KeyNotFoundException("Không tìm thấy thiết bị");
         var entity = new MaintenanceRecord
         {
             Id = Guid.NewGuid(),
@@ -175,6 +190,8 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
 
     public async Task<MaintenanceRecordDto> RecordMaintenanceAsync(CreateMaintenanceRecordDto dto)
     {
+        if (!await _context.MedicalEquipments.AnyAsync(x => x.Id == dto.EquipmentId))
+            throw new KeyNotFoundException("Không tìm thấy thiết bị");
         var entity = new MaintenanceRecord { Id = Guid.NewGuid(), ScheduleCode = await NextMaintenanceCodeAsync(dto.MaintenanceDate), EquipmentId = dto.EquipmentId, MaintenanceType = dto.MaintenanceType ?? "Corrective", ScheduledDate = dto.MaintenanceDate, PerformedDate = DateTime.Now, Status = "Completed", WorkDescription = dto.Description, PartsReplaced = dto.PartsReplaced, PartsCost = dto.PartsCost, LaborCost = dto.LaborCost, TotalCost = (dto.PartsCost ?? 0) + (dto.LaborCost ?? 0), CreatedAt = DateTime.Now };
         _context.MaintenanceRecords.Add(entity);
         var eq = await _context.MedicalEquipments.FindAsync(dto.EquipmentId);
@@ -199,10 +216,23 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
 
     public async Task<CalibrationRecordDto> RecordCalibrationAsync(RecordCalibrationDto dto)
     {
+        if (dto.NextCalibrationDate.Date <= dto.CalibrationDate.Date)
+            throw new ArgumentException("Ngày hiệu chuẩn tiếp theo phải sau ngày hiệu chuẩn", nameof(dto.NextCalibrationDate));
+        if (!await _context.MedicalEquipments.AnyAsync(x => x.Id == dto.EquipmentId))
+            throw new KeyNotFoundException("Không tìm thấy thiết bị");
         var entity = new CalibrationRecord { Id = Guid.NewGuid(), EquipmentId = dto.EquipmentId, ScheduledDate = dto.CalibrationDate, PerformedDate = dto.CalibrationDate, PerformedBy = dto.CalibratedBy, Status = "Completed", CertificateNumber = dto.CertificateNumber, CalibrationStandard = dto.CalibrationStandard, PassedCalibration = dto.Result == "Pass", CalibrationCost = dto.CalibrationCost, ValidFrom = dto.CalibrationDate, ValidUntil = dto.NextCalibrationDate, NextCalibrationDate = dto.NextCalibrationDate, CreatedAt = DateTime.Now };
         _context.CalibrationRecords.Add(entity);
         var eq = await _context.MedicalEquipments.FindAsync(dto.EquipmentId);
-        if (eq != null) { eq.LastCalibrationDate = DateTime.Now; eq.NextCalibrationDate = entity.ValidUntil; }
+        if (eq != null)
+        {
+            eq.LastCalibrationDate = DateTime.Now; eq.NextCalibrationDate = entity.ValidUntil;
+            // A device that FAILED calibration must not stay "Active" (usable on patients).
+            if (!entity.PassedCalibration && eq.Status == "Active")
+            {
+                eq.Status = "OutOfService";
+                eq.StatusReason = $"Không đạt hiệu chuẩn ngày {dto.CalibrationDate:dd/MM/yyyy}";
+            }
+        }
         await _context.SaveChangesAsync();
         return await GetCalibrationRecordAsync(entity.Id);
     }
@@ -215,7 +245,9 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
 
     public async Task<List<RepairRequestDto>> GetRepairRequestsAsync(string? status = null, Guid? departmentId = null)
     {
-        var query = _context.RepairRequests.Include(x => x.Equipment).Include(x => x.RequestedBy).AsQueryable();
+        // No Include(RequestedBy): it is a required nav (INNER JOIN) and rows saved with RequestedById = Guid.Empty
+        // disappeared from the list; the requester is not part of the DTO anyway.
+        var query = _context.RepairRequests.Include(x => x.Equipment).AsQueryable();
         if (!string.IsNullOrEmpty(status)) query = query.Where(x => x.Status == status);
         if (departmentId.HasValue) query = query.Where(x => x.DepartmentId == departmentId);
         var list = await query.OrderByDescending(x => x.RequestDate).ToBoundedListAsync("MedicalEquipment.RepairRequests");
@@ -224,17 +256,21 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
 
     public async Task<RepairRequestDto> GetRepairRequestAsync(Guid id)
     {
-        var e = await _context.RepairRequests.Include(x => x.Equipment).Include(x => x.RequestedBy).FirstOrDefaultAsync(x => x.Id == id);
+        var e = await _context.RepairRequests.Include(x => x.Equipment).FirstOrDefaultAsync(x => x.Id == id);
         if (e == null) return null!;
         return new RepairRequestDto { Id = e.Id, RequestCode = e.RequestCode, EquipmentId = e.EquipmentId, EquipmentName = e.Equipment?.EquipmentName ?? "", ProblemDescription = e.ProblemDescription, Severity = e.Priority, Status = e.Status, ReportedDate = e.RequestDate, RequestedAt = e.RequestDate };
     }
 
     public async Task<RepairRequestDto> CreateRepairRequestAsync(CreateRepairRequestDto dto)
     {
-        var entity = new RepairRequest { Id = Guid.NewGuid(), RequestCode = CodeGenerator.Timestamp("REP"), EquipmentId = dto.EquipmentId, RequestDate = DateTime.Now, ProblemDescription = dto.ProblemDescription ?? "", Priority = dto.Severity ?? "Normal", Status = "Pending", CreatedAt = DateTime.Now };
+        if (string.IsNullOrWhiteSpace(dto.ProblemDescription))
+            throw new ArgumentException("Mô tả sự cố là bắt buộc", nameof(dto.ProblemDescription));
+        var eq = await _context.MedicalEquipments.FindAsync(dto.EquipmentId)
+            ?? throw new KeyNotFoundException("Không tìm thấy thiết bị");
+        var entity = new RepairRequest { Id = Guid.NewGuid(), RequestCode = CodeGenerator.Timestamp("REP"), EquipmentId = dto.EquipmentId, RequestDate = DateTime.Now, ProblemDescription = dto.ProblemDescription, Priority = dto.Severity ?? dto.Priority ?? "Normal", Status = "Pending", CreatedAt = DateTime.Now,
+            RequestedById = dto.RequestedById, DepartmentId = eq.DepartmentId };
         _context.RepairRequests.Add(entity);
-        var eq = await _context.MedicalEquipments.FindAsync(dto.EquipmentId);
-        if (eq != null) eq.Status = "InMaintenance";
+        eq.Status = "InMaintenance";
         await _context.SaveChangesAsync();
         return await GetRepairRequestAsync(entity.Id);
     }

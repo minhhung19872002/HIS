@@ -458,7 +458,10 @@ const HRV2: React.FC = () => {
 
       if (results[2].status === 'fulfilled') {
         const cmeData = results[2].value?.data;
-        setCmeNonCompliant(Array.isArray(cmeData) ? cmeData : []);
+        // BE /medicalhr/cme/non-compliant currently returns StaffProfile rows ({ id, fullName, ... }) instead
+        // of CMESummaryDto — map identity fields so the table is not blank / key-less.
+        const rows = (Array.isArray(cmeData) ? cmeData : []) as Array<CMESummaryDto & { id?: string; fullName?: string }>;
+        setCmeNonCompliant(rows.map((r) => ({ ...r, staffId: r.staffId ?? r.id ?? '', staffName: r.staffName ?? r.fullName ?? '' })));
       } else {
         message.warning('Không thể tải danh sách chưa đủ tín chỉ CME');
       }
@@ -1300,13 +1303,13 @@ const HRV2: React.FC = () => {
 
   const trainingColumns: ColumnDef<CMESummaryDto>[] = [
     { key: 'staffName', label: 'Nhân viên' },
-    { key: 'earnedCredits', label: 'Tổng số tiết', render: (r) => `${r.earnedCredits}/${r.requiredCredits}`, mono: true },
+    { key: 'earnedCredits', label: 'Tổng số tiết', render: (r) => (r.earnedCredits == null ? '—' : `${r.earnedCredits}/${r.requiredCredits ?? '—'}`), mono: true },
     { key: 'category1Credits', label: 'Loại 1', mono: true },
     { key: 'category2Credits', label: 'Loại 2', mono: true },
     { key: 'activitiesCount', label: 'Số hoạt động', mono: true },
     {
       key: 'status', label: 'Trạng thái',
-      render: (r) => r.isCompliant ? <Tag color="green">Đủ tiết</Tag> : <Tag color="red">Thiếu {r.shortfall} tiết</Tag>,
+      render: (r) => r.isCompliant ? <Tag color="green">Đủ tiết</Tag> : <Tag color="red">{r.shortfall == null ? 'Chưa đủ tiết' : `Thiếu ${r.shortfall} tiết`}</Tag>,
     },
   ];
 

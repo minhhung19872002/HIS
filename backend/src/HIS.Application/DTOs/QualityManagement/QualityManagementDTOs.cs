@@ -82,19 +82,31 @@ namespace HIS.Application.DTOs.QualityManagement
     /// </summary>
     public class CreateIncidentReportDto
     {
+        // Optional fields nullable: non-nullable strings are implicit [Required] → the v2 incident form
+        // (no location/involvedStaff/category/outcome) always got 400. IncidentTime is a string because the
+        // form sends "HH:mm", which System.Text.Json cannot bind to TimeSpan.
         public DateTime IncidentDate { get; set; }
-        public TimeSpan IncidentTime { get; set; }
-        public string DepartmentId { get; set; }
-        public string Location { get; set; }
+        public string? IncidentTime { get; set; }
+        public string? DepartmentId { get; set; }
+        public string? Location { get; set; }
+        public string? LocationDescription { get; set; } // alias sent by v2 Quality.tsx
         public Guid? PatientId { get; set; }
-        public List<string> InvolvedStaff { get; set; }
-        public string IncidentType { get; set; }
-        public string IncidentCategory { get; set; }
-        public string SeverityLevel { get; set; }
-        public string Description { get; set; }
-        public string ImmediateAction { get; set; }
-        public string PatientOutcome { get; set; }
+        public List<string>? InvolvedStaff { get; set; }
+        public string? IncidentType { get; set; }
+        public string? IncidentCategory { get; set; }
+        public string? SeverityLevel { get; set; }
+        public int? Severity { get; set; } // v2: 1-NearMiss, 2-NoHarm, 3-Minor, 4-Moderate, 5-Major, 6-Catastrophic
+        public string? Description { get; set; }
+        public string? ImmediateAction { get; set; }
+        public string? ImmediateActions { get; set; } // alias sent by v2 Quality.tsx
+        public string? PatientOutcome { get; set; }
         public bool IsAnonymous { get; set; }
+        public bool IsReportable { get; set; }
+        public string? Notes { get; set; }
+
+        /// <summary>Set by the controller from the JWT; never bound from the request body.</summary>
+        [global::System.Text.Json.Serialization.JsonIgnore]
+        public Guid ReportedById { get; set; }
     }
 
     #endregion

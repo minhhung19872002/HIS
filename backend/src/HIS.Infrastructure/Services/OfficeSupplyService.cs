@@ -78,12 +78,8 @@ public class OfficeSupplyService : IOfficeSupplyService
     {
         if (dto.Items.Count == 0)
             return ServiceOutcome.Bad("Chưa chọn vật tư");
-
-        var supplies = await _db.MedicalSupplies
-            .Where(s => dto.Items.Select(x => x.SupplyId).Contains(s.Id))
-            .ToListAsync();
-        if (supplies.Any(s => s.IsMedical))
-            return ServiceOutcome.Bad("Phiếu này chỉ chứa VPP/TTB văn phòng");
+        var invalid = await ValidateOfficeItemsAsync(dto.Items);
+        if (invalid != null) return ServiceOutcome.Bad(invalid);
 
         var now = DateTime.Now;
         var uid = userId;
@@ -142,10 +138,43 @@ public class OfficeSupplyService : IOfficeSupplyService
         return ServiceOutcome.Ok(new { approval.Id, approval.ApprovalCode });
     }
 
+    /// <summary>
+    /// Items must reference existing NON-medical supplies with a positive quantity. Previously unknown
+    /// SupplyIds / negative quantities were saved, and the return flow accepted medical supplies
+    /// (approving it would add medical stock through the office-supply channel).
+    /// </summary>
+    private async Task<string?> ValidateOfficeItemsAsync(List<OfficeRequestItemDto> items)
+    {
+        if (items.Any(i => i.RequestedQuantity <= 0))
+            return "Số lượng vật tư phải lớn hơn 0";
+        if (items.Any(i => i.UnitPrice < 0))
+            return "Đơn giá không hợp lệ";
+        var ids = items.Select(x => x.SupplyId).Distinct().ToList();
+        var supplies = await _db.MedicalSupplies.Where(s => ids.Contains(s.Id)).ToListAsync();
+        if (supplies.Count != ids.Count)
+            return "Có vật tư không tồn tại trong danh mục";
+        if (supplies.Any(s => s.IsMedical))
+            return "Phiếu này chỉ chứa VPP/TTB văn phòng";
+        return null;
+    }
+
+    /// <summary>Approved quantity may not exceed the requested quantity nor be negative.</summary>
+    private static string? ValidateApprovedQuantities(PharmacyApproval approval, Dictionary<Guid, decimal>? approved)
+    {
+        if (approved == null) return null;
+        foreach (var item in approval.Items)
+        {
+            if (approved.TryGetValue(item.Id, out var q) && (q < 0 || q > item.RequestedQuantity))
+                return $"Số lượng duyệt của vật tư {item.SupplyId} phải trong khoảng 0 – {item.RequestedQuantity}";
+        }
+        return null;
+    }
+
     /// <summary>Thu hồi phiếu yêu cầu VPP — đưa về trạng thái Nháp (1) để chỉnh sửa lại.</summary>
     public async Task<ServiceOutcome> RecallAsync(Guid id, string? note, Guid userId)
     {
-        var approval = await _db.Set<PharmacyApproval>().FirstOrDefaultAsync(a => a.Id == id);
+        // Scoped to office-supply requests (type 4): any PharmacyApproval could be recalled via this endpoint.
+        var approval = await _db.Set<PharmacyApproval>().FirstOrDefaultAsync(a => a.Id == id && a.ApprovalType == 4);
         if (approval == null) return ServiceOutcome.NotFound();
         if (approval.Status != 2)
             return ServiceOutcome.Bad("Chỉ thu hồi được phiếu đang ở trạng thái Chờ duyệt");
@@ -179,12 +208,16 @@ public class OfficeSupplyService : IOfficeSupplyService
     {
         var approval = await _db.Set<PharmacyApproval>()
             .Include(a => a.Items)
-            .FirstOrDefaultAsync(a => a.Id == dto.Id);
+            // Scoped to office-supply requests (type 4): a return/pharmacy approval used to be approvable here,
+            // deducting stock and creating an export receipt for it.
+            .FirstOrDefaultAsync(a => a.Id == dto.Id && a.ApprovalType == 4);
         if (approval == null) return ServiceOutcome.NotFound();
         if (approval.Status != 2)
             return ServiceOutcome.Bad("Phiếu không ở trạng thái chờ duyệt");
         if (!approval.ToWarehouseId.HasValue)
             return ServiceOutcome.Bad("Phiếu chưa gán kho xuất");
+        var qtyError = ValidateApprovedQuantities(approval, dto.ApprovedQuantities);
+        if (qtyError != null) return ServiceOutcome.Bad(qtyError);
 
         var warehouseId = approval.ToWarehouseId.Value;
         var now = DateTime.Now;
@@ -318,6 +351,8 @@ public class OfficeSupplyService : IOfficeSupplyService
     {
         if (dto.Items.Count == 0)
             return ServiceOutcome.Bad("Chưa chọn vật tư hoàn trả");
+        var invalid = await ValidateOfficeItemsAsync(dto.Items);
+        if (invalid != null) return ServiceOutcome.Bad(invalid);
 
         var now = DateTime.Now;
         var uid = userId;
@@ -388,6 +423,8 @@ public class OfficeSupplyService : IOfficeSupplyService
             return ServiceOutcome.Bad("Phiếu không ở trạng thái chờ duyệt");
         if (!approval.ToWarehouseId.HasValue)
             return ServiceOutcome.Bad("Phiếu chưa gán kho nhập");
+        var qtyError = ValidateApprovedQuantities(approval, dto.ApprovedQuantities);
+        if (qtyError != null) return ServiceOutcome.Bad(qtyError);
 
         var warehouseId = approval.ToWarehouseId.Value;
         var now = DateTime.Now;

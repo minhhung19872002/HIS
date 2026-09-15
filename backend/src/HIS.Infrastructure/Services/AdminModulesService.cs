@@ -61,16 +61,34 @@ public class AdminModulesService : IAdminModulesService
         return items.Select(MapItem).ToList();
     }
 
+    /// <summary>
+    /// An approved payroll period (Status = 1) is locked: items could previously still be edited, deleted or
+    /// wiped by "generate" while the period kept showing "Đã duyệt".
+    /// </summary>
+    private async Task EnsurePeriodEditableAsync(Guid periodId)
+    {
+        var status = await _db.PayrollPeriods.Where(p => p.Id == periodId).Select(p => (int?)p.Status).FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Không tìm thấy kỳ lương.");
+        if (status == 1)
+            throw new InvalidOperationException("Kỳ lương đã được duyệt — không thể thay đổi bảng lương.");
+    }
+
     public async Task<PayrollItemDto> SavePayrollItemAsync(SavePayrollItemDto dto)
     {
+        if (dto.BaseSalary < 0 || dto.Allowance < 0 || dto.OtherIncome < 0 || dto.OtherDeduction < 0)
+            throw new ArgumentException("Các khoản lương/phụ cấp/khấu trừ không được âm.");
+        if (dto.WorkDays < 0 || dto.WorkDays > 31)
+            throw new ArgumentException("Số ngày công phải trong khoảng 0 – 31.", nameof(dto.WorkDays));
         PayrollItem item;
         if (dto.Id.HasValue)
         {
             item = await _db.PayrollItems.FindAsync(dto.Id.Value)
                 ?? throw new KeyNotFoundException("Không tìm thấy dòng lương.");
+            await EnsurePeriodEditableAsync(item.PeriodId);
         }
         else
         {
+            await EnsurePeriodEditableAsync(dto.PeriodId);
             item = new PayrollItem { Id = Guid.NewGuid(), PeriodId = dto.PeriodId, CreatedAt = DateTime.UtcNow };
             _db.PayrollItems.Add(item);
         }
@@ -95,13 +113,21 @@ public class AdminModulesService : IAdminModulesService
     public async Task DeletePayrollItemAsync(Guid id)
     {
         var item = await _db.PayrollItems.FindAsync(id);
-        if (item != null) { _db.PayrollItems.Remove(item); await _db.SaveChangesAsync(); }
+        if (item != null)
+        {
+            await EnsurePeriodEditableAsync(item.PeriodId);
+            _db.PayrollItems.Remove(item); await _db.SaveChangesAsync();
+        }
     }
 
     public async Task<PayrollPeriodDto> ApprovePayrollPeriodAsync(Guid id, string approvedBy)
     {
         var period = await _db.PayrollPeriods.Include(p => p.Items).FirstOrDefaultAsync(p => p.Id == id)
             ?? throw new KeyNotFoundException("Không tìm thấy kỳ lương.");
+        if (period.Status == 1)
+            throw new InvalidOperationException("Kỳ lương đã được duyệt.");
+        if (period.Items.Count == 0)
+            throw new InvalidOperationException("Kỳ lương chưa có dòng lương nào, không thể duyệt.");
         period.Status = 1;
         period.ApprovedBy = approvedBy;
         period.ApprovedAt = DateTime.UtcNow;
@@ -118,6 +144,8 @@ public class AdminModulesService : IAdminModulesService
     {
         var period = await _db.PayrollPeriods.FindAsync(periodId)
             ?? throw new KeyNotFoundException("Không tìm thấy kỳ lương.");
+        if (period.Status == 1)
+            throw new InvalidOperationException("Kỳ lương đã được duyệt — không thể tạo lại bảng lương (sẽ xóa toàn bộ dòng lương đã duyệt).");
 
         // Lấy attendance summary tháng đó nếu bảng tồn tại (graceful — không crash nếu chưa có data)
         // SalaryHistory ở medicalhr backend (riêng service) → query qua context trực tiếp là
@@ -227,13 +255,33 @@ public class AdminModulesService : IAdminModulesService
         {
             dec = await _db.HrDecisions.FindAsync(dto.Id.Value)
                 ?? throw new KeyNotFoundException("Không tìm thấy quyết định.");
+            // A cancelled decision is final; an effective (signed) decision can only be cancelled — its content
+            // used to be freely rewritable (and a cancelled one revived) with no trace.
+            if (dec.Status == 2)
+                throw new InvalidOperationException("Quyết định đã hủy — không thể chỉnh sửa.");
+            if (dec.Status == 1)
+            {
+                if (dto.Status != 2)
+                    throw new InvalidOperationException("Quyết định đã có hiệu lực — chỉ có thể chuyển sang Hủy, không sửa nội dung.");
+                dec.Status = 2;
+                dec.Notes = dto.Notes ?? dec.Notes;
+                dec.UpdatedAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync();
+                return MapDecision(dec);
+            }
         }
         else
         {
             dec = new HrDecision { Id = Guid.NewGuid(), CreatedBy = userId, CreatedAt = DateTime.UtcNow };
             _db.HrDecisions.Add(dec);
         }
-        dec.DecisionNumber = dto.DecisionNumber;
+        if (string.IsNullOrWhiteSpace(dto.DecisionNumber))
+            throw new ArgumentException("Số quyết định là bắt buộc", nameof(dto.DecisionNumber));
+        var number = dto.DecisionNumber.Trim();
+        var decId = dec.Id;
+        if (await _db.HrDecisions.AnyAsync(d => d.Id != decId && d.DecisionNumber == number))
+            throw new InvalidOperationException($"Số quyết định {number} đã tồn tại.");
+        dec.DecisionNumber = number;
         dec.DecisionType = dto.DecisionType;
         dec.StaffId = dto.StaffId;
         dec.StaffCode = dto.StaffCode;
@@ -254,7 +302,11 @@ public class AdminModulesService : IAdminModulesService
     public async Task DeleteHrDecisionAsync(Guid id)
     {
         var d = await _db.HrDecisions.FindAsync(id);
-        if (d != null) { _db.HrDecisions.Remove(d); await _db.SaveChangesAsync(); }
+        if (d == null) return;
+        // Only drafts may be hard-deleted; an effective/cancelled decision is a legal record (cancel it instead).
+        if (d.Status != 0)
+            throw new InvalidOperationException("Chỉ xóa được quyết định ở trạng thái Dự thảo — quyết định đã hiệu lực phải chuyển sang Hủy.");
+        _db.HrDecisions.Remove(d); await _db.SaveChangesAsync();
     }
 
     private static HrDecisionDto MapDecision(HrDecision d) => new()

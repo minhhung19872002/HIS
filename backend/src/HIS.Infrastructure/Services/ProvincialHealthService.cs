@@ -80,7 +80,8 @@ public class ProvincialHealthService : IProvincialHealthService
 
             var report = new ProvincialReportDto
             {
-                Id = Guid.NewGuid(),
+                // Deterministic id per period so GET reports/{id} can find the row again (was a new Guid per call).
+                Id = MonthlyReportId(month.Year, month.Month),
                 ReportCode = $"BC-{month:yyyyMM}-{(i + 1):D3}",
                 ReportType = 3, // Monthly
                 ReportPeriod = $"{month:MM/yyyy}",
@@ -90,7 +91,9 @@ public class ProvincialHealthService : IProvincialHealthService
                 TotalInpatients = inpatients,
                 TotalLabTests = labTests,
                 TotalRadiologyExams = radiologyExams,
-                Status = i > 0 ? 2 : 0, // Current month = Draft, others = Acknowledged
+                // No provincial gateway is connected, so nothing has ever been submitted/acknowledged.
+                // (Past months used to be reported as "Acknowledged" — a fabricated submission status.)
+                Status = 0,
                 CreatedAt = startOfMonth.AddDays(25)
             };
             reports.Add(report);
@@ -122,9 +125,21 @@ public class ProvincialHealthService : IProvincialHealthService
         return result.Items.FirstOrDefault(r => r.Id == id);
     }
 
+    // Not a real provincial gateway integration yet — every "send/connect" path reports that honestly.
+    private const string NotConnectedMessage =
+        "Chưa kết nối cổng báo cáo Sở Y tế: báo cáo CHƯA được gửi. Vui lòng xuất báo cáo và nộp theo kênh thủ công.";
+
+    private static Guid MonthlyReportId(int year, int month) =>
+        Guid.Parse($"00000000-0000-0000-0000-000000{year:D4}{month:D2}");
+
     public async Task<ProvincialReportDto> GenerateReportAsync(int reportType, string period, string userId)
     {
         var now = DateTime.Now;
+        // Honour the requested period ("MM/yyyy"); it used to be ignored in favour of the current month.
+        if (!string.IsNullOrWhiteSpace(period) &&
+            DateTime.TryParseExact(period.Trim(), new[] { "MM/yyyy", "M/yyyy", "yyyy-MM" },
+                System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var p))
+            now = p;
         var startOfMonth = new DateTime(now.Year, now.Month, 1);
         var endOfMonth = startOfMonth.AddMonths(1);
 
@@ -133,10 +148,10 @@ public class ProvincialHealthService : IProvincialHealthService
 
         return new ProvincialReportDto
         {
-            Id = Guid.NewGuid(),
-            ReportCode = $"BC-{now:yyyyMMdd}-{Guid.NewGuid().ToString()[..4].ToUpper()}",
+            Id = MonthlyReportId(startOfMonth.Year, startOfMonth.Month),
+            ReportCode = $"BC-{startOfMonth:yyyyMM}-{Guid.NewGuid().ToString()[..4].ToUpper()}",
             ReportType = reportType,
-            ReportPeriod = period,
+            ReportPeriod = string.IsNullOrWhiteSpace(period) ? $"{startOfMonth:MM/yyyy}" : period,
             FacilityCode = "BV-LC",
             FacilityName = "Bệnh viện Đa khoa",
             TotalOutpatients = outpatients,
@@ -148,37 +163,51 @@ public class ProvincialHealthService : IProvincialHealthService
 
     public Task<object> SubmitReportAsync(Guid id, string userId)
     {
-        return Task.FromResult<object>(new
-        {
-            success = true,
-            message = "Đã gửi báo cáo lên Sở Y tế thành công"
-        });
+        // Was a hard-coded "sent successfully" with nothing transmitted or recorded (fake legal submission).
+        throw new InvalidOperationException(NotConnectedMessage);
     }
 
     public async Task<ProvincialStatsDto> GetStatsAsync()
     {
+        // Real figures only: no report has been transmitted (no gateway); alerts = notifiable cases this month
+        // that have not been recorded as reported. Previously hard-coded 5 submitted / 4 acknowledged / "Connected".
         var now = DateTime.Now;
         var startOfMonth = new DateTime(now.Year, now.Month, 1);
 
+        var alerts = 0;
+        try
+        {
+            var codes = await _db.IcdCodes.Where(i => i.IsNotifiable && i.IsActive).Select(i => i.Code).ToListAsync();
+            if (codes.Count > 0)
+            {
+                var reported = _db.Set<InfectiousReportSubmission>().Where(x => !x.IsDeleted).Select(x => x.ExaminationId);
+                alerts = await _db.Examinations.CountAsync(e => e.MainIcdCode != null && codes.Contains(e.MainIcdCode)
+                    && e.CreatedAt >= startOfMonth && !reported.Contains(e.Id));
+            }
+        }
+        catch (Microsoft.Data.SqlClient.SqlException) { alerts = 0; }
+
         return new ProvincialStatsDto
         {
-            TotalReportsThisMonth = 1,
-            TotalSubmitted = 5,
-            TotalAcknowledged = 4,
+            TotalReportsThisMonth = 1, // the auto-aggregated monthly report for the current period
+            TotalSubmitted = 0,
+            TotalAcknowledged = 0,
             TotalPending = 1,
-            LastReportDate = now.AddDays(-1),
-            ConnectionStatus = "Connected",
-            InfectiousDiseaseAlerts = 0
+            LastReportDate = null,
+            ConnectionStatus = "NotConfigured",
+            InfectiousDiseaseAlerts = alerts
         };
     }
 
     public Task<object> TestConnectionAsync()
     {
+        // No endpoint is configured, so there is nothing to ping (was connected=true with a random latency).
         return Task.FromResult<object>(new
         {
-            connected = true,
-            message = "Kết nối Sở Y tế thành công",
-            latencyMs = new Random().Next(30, 150)
+            connected = false,
+            status = "NotConfigured",
+            message = "Chưa cấu hình kết nối cổng báo cáo Sở Y tế",
+            latencyMs = 0
         });
     }
 
@@ -186,11 +215,11 @@ public class ProvincialHealthService : IProvincialHealthService
     {
         return Task.FromResult(new ProvincialConnectionDto
         {
-            Endpoint = "https://syt.laichau.gov.vn/api/v1",
-            Status = "Connected",
-            LastSync = DateTime.Now.AddMinutes(-5).ToString("o"),
+            Endpoint = string.Empty,
+            Status = "NotConfigured",
+            LastSync = string.Empty,
             Protocol = "HL7 FHIR R4",
-            CertificateExpiry = DateTime.Now.AddMonths(6).ToString("yyyy-MM-dd")
+            CertificateExpiry = null
         });
     }
 
@@ -262,7 +291,8 @@ public class ProvincialHealthService : IProvincialHealthService
             });
             await _db.SaveChangesAsync();
         }
-        return new { success = true, message = "Đã ghi nhận gửi báo cáo bệnh truyền nhiễm lên Sở Y tế" };
+        // Recorded locally only — there is no provincial gateway, so do not claim it reached Sở Y tế.
+        return new { success = true, transmitted = false, message = "Đã ghi nhận đã báo cáo ca bệnh truyền nhiễm (lưu nội bộ; chưa kết nối cổng Sở Y tế — cần nộp theo kênh thủ công)" };
     }
 
     // ─── Chỉ đạo tuyến (Provincial Directives) — persist thật ─────────────────

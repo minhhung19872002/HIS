@@ -284,6 +284,7 @@ public class HealthCheckupController : ControllerBase
     /// Tạo đợt khám sức khỏe mới
     /// </summary>
     [HttpPost("campaign")]
+    [HttpPost("campaigns")] // v2 FE healthCheckup.ts posts to the plural route (was 405)
     public async Task<ActionResult<CampaignListDto>> CreateCampaign([FromBody] CreateCampaignDto dto)
     {
         var result = await _service.CreateCampaignAsync(dto);

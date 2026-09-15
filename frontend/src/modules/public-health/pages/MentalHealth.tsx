@@ -113,7 +113,16 @@ const MentalHealthV2: React.FC = () => {
         }),
         getStats(),
       ]);
-      setRows(Array.isArray(data) ? data : []);
+      // BE MentalHealthCaseDto: diagnosisName+diagnosisCode / treatingDoctor / nextVisitDate / lastVisitDate / medicationRegimen
+      type BeCase = MentalHealthCase & { diagnosisName?: string; diagnosisCode?: string; treatingDoctor?: string; nextVisitDate?: string; lastVisitDate?: string; medicationRegimen?: string };
+      setRows((Array.isArray(data) ? data as BeCase[] : []).map((x) => ({
+        ...x,
+        diagnosis: x.diagnosis ?? ([x.diagnosisCode, x.diagnosisName].filter(Boolean).join(' - ') || ''),
+        psychiatristName: x.psychiatristName ?? x.treatingDoctor ?? '',
+        nextFollowUpDate: x.nextFollowUpDate ?? x.nextVisitDate,
+        lastAssessmentDate: x.lastAssessmentDate ?? x.lastVisitDate,
+        medications: x.medications ?? x.medicationRegimen,
+      })));
       setStatsData(s);
     } catch { ti('Không tải được danh sách ca tâm thần'); }
     finally { setLoading(false); }

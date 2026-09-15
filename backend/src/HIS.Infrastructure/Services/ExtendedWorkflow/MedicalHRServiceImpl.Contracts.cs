@@ -76,6 +76,10 @@ public partial class MedicalHRServiceImpl
 
     public async Task<StaffContractDto> SaveContractAsync(SaveStaffContractDto dto)
     {
+        if (dto.EndDate.HasValue && dto.EndDate.Value.Date < dto.StartDate.Date)
+            throw new ArgumentException("Ngày kết thúc hợp đồng phải sau ngày bắt đầu", nameof(dto.EndDate));
+        if (!await _context.MedicalStaffs.AnyAsync(s => s.Id == dto.StaffId))
+            throw new KeyNotFoundException("Không tìm thấy nhân viên");
         var entity = dto.Id.HasValue ? await _context.StaffContracts.FindAsync(dto.Id.Value) : null;
         if (entity == null)
         {
@@ -84,7 +88,9 @@ public partial class MedicalHRServiceImpl
         }
         entity.StaffId = dto.StaffId; entity.ContractType = dto.ContractType; entity.ContractNumber = dto.ContractNumber;
         entity.StartDate = dto.StartDate; entity.EndDate = dto.EndDate; entity.Terms = dto.Terms; entity.Notes = dto.Notes;
-        entity.Status = entity.EndDate.HasValue && entity.EndDate.Value < DateTime.Today ? 1 : 0;
+        // Only recompute Active/Expired; a Terminated(2)/Renewed(3) contract must not be revived by an edit.
+        if (entity.Status is 0 or 1)
+            entity.Status = entity.EndDate.HasValue && entity.EndDate.Value < DateTime.Today ? 1 : 0;
         entity.UpdatedAt = DateTime.Now;
         await _context.SaveChangesAsync();
         return (await GetStaffContractsAsync(entity.StaffId)).FirstOrDefault(x => x.Id == entity.Id)!;

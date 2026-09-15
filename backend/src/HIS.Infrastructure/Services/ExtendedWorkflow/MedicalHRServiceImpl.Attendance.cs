@@ -75,6 +75,17 @@ public partial class MedicalHRServiceImpl
 
     public async Task<LeaveRequestDto> CreateLeaveRequestAsync(CreateLeaveRequestDto dto)
     {
+        if (dto.EndDate.Date < dto.StartDate.Date)
+            throw new ArgumentException("Ngày kết thúc nghỉ phải sau hoặc bằng ngày bắt đầu", nameof(dto.EndDate));
+        if (dto.TotalDays <= 0 || dto.TotalDays > (decimal)(dto.EndDate.Date - dto.StartDate.Date).TotalDays + 1)
+            throw new ArgumentException("Số ngày nghỉ không hợp lệ so với khoảng ngày", nameof(dto.TotalDays));
+        if (!await _context.MedicalStaffs.AnyAsync(s => s.Id == dto.StaffId))
+            throw new KeyNotFoundException("Không tìm thấy nhân viên");
+        // Overlap with another pending/approved leave of the same staff.
+        var overlaps = await _context.LeaveRequests.AnyAsync(x => x.StaffId == dto.StaffId && (x.Status == 0 || x.Status == 1)
+            && x.StartDate <= dto.EndDate && x.EndDate >= dto.StartDate);
+        if (overlaps)
+            throw new InvalidOperationException("Nhân viên đã có đơn nghỉ trùng khoảng ngày này");
         var entity = new LeaveRequest
         {
             Id = Guid.NewGuid(), StaffId = dto.StaffId, LeaveType = dto.LeaveType,
@@ -88,9 +99,15 @@ public partial class MedicalHRServiceImpl
 
     public async Task<LeaveRequestDto> ApproveLeaveAsync(Guid id, LeaveApprovalDto dto)
     {
-        var entity = await _context.LeaveRequests.Include(x => x.Staff).ThenInclude(s => s!.PrimaryDepartment).FirstOrDefaultAsync(x => x.Id == id);
-        if (entity == null) return null!;
+        var entity = await _context.LeaveRequests.Include(x => x.Staff).ThenInclude(s => s!.PrimaryDepartment).FirstOrDefaultAsync(x => x.Id == id)
+            ?? throw new KeyNotFoundException("Không tìm thấy đơn nghỉ phép");
+        // Only a pending request can be decided (approved → rejected flips and re-approvals were accepted).
+        if (entity.Status != 0)
+            throw new InvalidOperationException("Đơn nghỉ phép đã được xử lý, không thể duyệt lại");
+        if (dto.ApproverUserId.HasValue && entity.Staff != null && entity.Staff.UserId == dto.ApproverUserId.Value)
+            throw new InvalidOperationException("Không được tự duyệt đơn nghỉ phép của chính mình");
         entity.Status = dto.Approved ? 1 : 2;
+        entity.ApprovedBy = dto.ApproverUserId;
         entity.ApproverNote = dto.Note;
         entity.ApprovedAt = DateTime.Now;
         await _context.SaveChangesAsync();
@@ -153,7 +170,19 @@ public partial class MedicalHRServiceImpl
 
     public async Task<AttendanceRecordDto> RecordAttendanceAsync(SaveAttendanceDto dto)
     {
+        if (dto.CheckInTime.HasValue && dto.CheckOutTime.HasValue && dto.CheckOutTime < dto.CheckInTime)
+            throw new ArgumentException("Giờ ra phải sau giờ vào", nameof(dto.CheckOutTime));
+        if (!await _context.MedicalStaffs.AnyAsync(s => s.Id == dto.StaffId))
+            throw new KeyNotFoundException("Không tìm thấy nhân viên");
         var entity = dto.Id.HasValue ? await _context.AttendanceRecords.FindAsync(dto.Id.Value) : null;
+        // A second "create" for the same staff/day/shift double-counted WorkDays in the monthly summary.
+        var shiftType = dto.ShiftType ?? "Morning";
+        var currentId = entity?.Id ?? Guid.Empty;
+        var workDate = dto.WorkDate.Date;
+        var duplicate = await _context.AttendanceRecords.AnyAsync(x => x.StaffId == dto.StaffId
+            && x.WorkDate.Date == workDate && x.ShiftType == shiftType && x.Id != currentId);
+        if (duplicate)
+            throw new InvalidOperationException("Nhân viên đã được chấm công ca này trong ngày");
         if (entity == null)
         {
             entity = new AttendanceRecord { Id = Guid.NewGuid(), CreatedAt = DateTime.Now };
@@ -226,6 +255,12 @@ public partial class MedicalHRServiceImpl
 
     public async Task<OvertimeRecordDto> CreateOvertimeAsync(CreateOvertimeDto dto)
     {
+        if (dto.EndTime <= dto.StartTime)
+            throw new ArgumentException("Giờ kết thúc làm thêm phải sau giờ bắt đầu", nameof(dto.EndTime));
+        if (dto.Hours <= 0 || dto.Hours > 24)
+            throw new ArgumentException("Số giờ làm thêm không hợp lệ", nameof(dto.Hours));
+        if (!await _context.MedicalStaffs.AnyAsync(s => s.Id == dto.StaffId))
+            throw new KeyNotFoundException("Không tìm thấy nhân viên");
         var entity = new OvertimeRecord
         {
             Id = Guid.NewGuid(), StaffId = dto.StaffId, OvertimeDate = dto.OvertimeDate,
@@ -239,9 +274,14 @@ public partial class MedicalHRServiceImpl
 
     public async Task<OvertimeRecordDto> ApproveOvertimeAsync(Guid id, OvertimeApprovalDto dto)
     {
-        var entity = await _context.OvertimeRecords.Include(x => x.Staff).ThenInclude(s => s!.PrimaryDepartment).FirstOrDefaultAsync(x => x.Id == id);
-        if (entity == null) return null!;
+        var entity = await _context.OvertimeRecords.Include(x => x.Staff).ThenInclude(s => s!.PrimaryDepartment).FirstOrDefaultAsync(x => x.Id == id)
+            ?? throw new KeyNotFoundException("Không tìm thấy yêu cầu làm thêm giờ");
+        if (entity.Status != 0)
+            throw new InvalidOperationException("Yêu cầu làm thêm giờ đã được xử lý, không thể duyệt lại");
+        if (dto.ApproverUserId.HasValue && entity.Staff != null && entity.Staff.UserId == dto.ApproverUserId.Value)
+            throw new InvalidOperationException("Không được tự duyệt yêu cầu làm thêm giờ của chính mình");
         entity.Status = dto.Approved ? 1 : 2;
+        entity.ApprovedBy = dto.ApproverUserId;
         entity.ApproverNote = dto.Note;
         entity.ApprovedAt = DateTime.Now;
         await _context.SaveChangesAsync();

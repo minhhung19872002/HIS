@@ -17,7 +17,9 @@ public class QualityManagementServiceImpl : IQualityManagementService
 
     public async Task<List<IncidentReportDto>> GetIncidentReportsAsync(DateTime? fromDate = null, DateTime? toDate = null, string? status = null, string? type = null)
     {
-        var query = _context.IncidentReports.Include(x => x.Department).Include(x => x.ReportedBy).AsQueryable();
+        // No Include(ReportedBy): required nav → INNER JOIN, so reports saved with ReportedById = Guid.Empty vanished
+        // from the list. The reporter is not part of the DTO.
+        var query = _context.IncidentReports.Include(x => x.Department).AsQueryable();
         if (fromDate.HasValue) query = query.Where(x => x.IncidentDate >= fromDate);
         if (toDate.HasValue) query = query.Where(x => x.IncidentDate <= toDate);
         if (!string.IsNullOrEmpty(status)) query = query.Where(x => x.Status == status);
@@ -28,13 +30,27 @@ public class QualityManagementServiceImpl : IQualityManagementService
 
     public async Task<IncidentReportDto> GetIncidentReportAsync(Guid id)
     {
-        var e = await _context.IncidentReports.Include(x => x.Department).Include(x => x.ReportedBy).FirstOrDefaultAsync(x => x.Id == id);
+        var e = await _context.IncidentReports.Include(x => x.Department).FirstOrDefaultAsync(x => x.Id == id);
         return e == null ? null! : MapToIncidentDto(e);
     }
 
     public async Task<IncidentReportDto> CreateIncidentReportAsync(CreateIncidentReportDto dto)
     {
-        var entity = new IncidentReport { Id = Guid.NewGuid(), ReportCode = CodeGenerator.Timestamp("INC"), IncidentDate = dto.IncidentDate, ReportDate = DateTime.Now, IncidentType = dto.IncidentType ?? "Other", Severity = dto.SeverityLevel ?? "Minor", Description = dto.Description ?? "", Status = "Reported", CreatedAt = DateTime.Now };
+        if (string.IsNullOrWhiteSpace(dto.Description))
+            throw new ArgumentException("Mô tả sự cố là bắt buộc", nameof(dto.Description));
+        if (dto.IncidentDate == default)
+            throw new ArgumentException("Ngày xảy ra sự cố là bắt buộc", nameof(dto.IncidentDate));
+        Guid? departmentId = Guid.TryParse(dto.DepartmentId, out var dep) && dep != Guid.Empty ? dep : null;
+        var incidentAt = dto.IncidentDate.Date;
+        if (!string.IsNullOrWhiteSpace(dto.IncidentTime) && TimeSpan.TryParse(dto.IncidentTime, out var tod)) incidentAt = incidentAt.Add(tod);
+        var severity = dto.SeverityLevel ?? dto.Severity switch
+        {
+            1 => "NearMiss", 2 => "NoHarm", 3 => "Minor", 4 => "Moderate", 5 => "Major", 6 => "Catastrophic", _ => "Minor"
+        };
+        // DepartmentId / PatientId / immediate actions / reporter were accepted but never persisted.
+        var entity = new IncidentReport { Id = Guid.NewGuid(), ReportCode = CodeGenerator.Timestamp("INC"), IncidentDate = incidentAt, ReportDate = DateTime.Now, IncidentType = dto.IncidentType ?? "Other", Severity = severity, Description = dto.Description, Status = "Reported", CreatedAt = DateTime.Now,
+            DepartmentId = departmentId, PatientId = dto.PatientId, ReportedById = dto.ReportedById, IsAnonymous = dto.IsAnonymous,
+            ImmediateActions = dto.ImmediateAction ?? dto.ImmediateActions, ContributingFactors = dto.Notes };
         _context.IncidentReports.Add(entity);
         await _context.SaveChangesAsync();
         return await GetIncidentReportAsync(entity.Id);

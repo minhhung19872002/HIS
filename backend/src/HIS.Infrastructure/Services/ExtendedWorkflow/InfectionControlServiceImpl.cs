@@ -48,11 +48,24 @@ public class InfectionControlServiceImpl : IInfectionControlService
 
     public async Task<HAIDto> ReportHAIAsync(ReportHAIDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.InfectionType))
+            throw new ArgumentException("Loại nhiễm khuẩn là bắt buộc", nameof(dto.InfectionType));
+        var admission = await _context.Admissions.AsNoTracking().Where(a => a.Id == dto.AdmissionId)
+            .Select(a => new { a.Id, a.PatientId, a.AdmissionDate }).FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Không tìm thấy lượt nhập viện");
+        if (dto.OnsetDate == default)
+            throw new ArgumentException("Ngày khởi phát là bắt buộc", nameof(dto.OnsetDate));
+        // PatientId / reporter / organism / MDRO flag / notes used to be dropped; a Guid.Empty reporter also made
+        // the case invisible (INNER JOIN on the required ReportedBy nav) and GET returned 204.
+        var notes = string.Join(" | ", new[] { dto.CriteriaUsed, dto.InitialNotes }.Where(x => !string.IsNullOrWhiteSpace(x)));
         var entity = new HAICase
         {
             Id = Guid.NewGuid(), CaseCode = CodeGenerator.Timestamp("HAI"),
             AdmissionId = dto.AdmissionId, InfectionType = dto.InfectionType, InfectionSite = dto.InfectionSite ?? "",
-            OnsetDate = dto.OnsetDate, Status = "Suspected", CreatedAt = DateTime.Now
+            OnsetDate = dto.OnsetDate, Status = "Suspected", CreatedAt = DateTime.Now,
+            PatientId = admission.PatientId, ReportedById = dto.ReportedById,
+            Organism = string.IsNullOrWhiteSpace(dto.Organism) ? null : dto.Organism.Trim(), IsMDRO = dto.IsMDRO,
+            Notes = string.IsNullOrEmpty(notes) ? null : notes
         };
         _context.HAICases.Add(entity);
         await _context.SaveChangesAsync();
@@ -101,11 +114,22 @@ public class InfectionControlServiceImpl : IInfectionControlService
 
     public async Task<IsolationOrderDto> CreateIsolationOrderAsync(CreateIsolationOrderDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.IsolationType))
+            throw new ArgumentException("Loại cách ly là bắt buộc", nameof(dto.IsolationType));
+        var admission = await _context.Admissions.AsNoTracking().Where(a => a.Id == dto.AdmissionId)
+            .Select(a => new { a.Id, a.PatientId }).FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Không tìm thấy lượt nhập viện");
+        // StartDate defaulted to 0001-01-01, PatientId/OrderedBy/precautions were never stored.
+        var precautions = (dto.Precautions ?? new List<string>()).Concat(dto.PpeRequirements ?? new List<string>())
+            .Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
         var entity = new IsolationOrder
         {
             Id = Guid.NewGuid(), OrderCode = CodeGenerator.Timestamp("ISO"),
             AdmissionId = dto.AdmissionId, IsolationType = dto.IsolationType, Reason = dto.Reason ?? "",
-            StartDate = dto.StartDate, Status = "Active", CreatedAt = DateTime.Now
+            StartDate = dto.StartDate == default ? DateTime.Now : dto.StartDate, Status = "Active", CreatedAt = DateTime.Now,
+            PatientId = admission.PatientId, OrderedById = dto.OrderedById, HAICaseId = dto.RelatedHAIId,
+            RequiresNegativePressure = dto.RequiresNegativePressure, SpecialInstructions = dto.SpecialInstructions,
+            Precautions = precautions.Count > 0 ? global::System.Text.Json.JsonSerializer.Serialize(precautions) : null
         };
         _context.IsolationOrders.Add(entity);
         await _context.SaveChangesAsync();
@@ -116,6 +140,10 @@ public class InfectionControlServiceImpl : IInfectionControlService
     {
         var e = await _context.IsolationOrders.FindAsync(id);
         if (e == null) return false;
+        if (e.Status != "Active")
+            throw new InvalidOperationException("Lệnh cách ly đã kết thúc.");
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new ArgumentException("Phải nhập lý do kết thúc cách ly", nameof(reason));
         e.Status = "Discontinued"; e.EndDate = DateTime.Now; e.DiscontinuationReason = reason;
         await _context.SaveChangesAsync();
         return true;
@@ -129,11 +157,22 @@ public class InfectionControlServiceImpl : IInfectionControlService
 
     public async Task<HandHygieneObservationDto> RecordHandHygieneObservationAsync(RecordHandHygieneDto dto)
     {
-        var total = dto.Events?.Count ?? 0;
-        var compliant = dto.Events?.Count(e => e.IsCompliant) ?? 0;
+        // DepartmentId / ObservedById were never set → FK violation, every save was a 500.
+        if (!Guid.TryParse(dto.DepartmentId, out var departmentId) || !await _context.Departments.AnyAsync(d => d.Id == departmentId))
+            throw new KeyNotFoundException("Không tìm thấy khoa/phòng");
+        var useEvents = dto.Events != null && dto.Events.Count > 0;
+        var total = useEvents ? dto.Events!.Count : dto.OpportunitiesTotal ?? 0;
+        var compliant = useEvents ? dto.Events!.Count(e => e.IsCompliant) : dto.CompliantCount ?? 0;
+        if (total <= 0)
+            throw new ArgumentException("Tổng số cơ hội vệ sinh tay phải lớn hơn 0");
+        if (compliant < 0 || compliant > total)
+            throw new ArgumentException("Số lần tuân thủ phải trong khoảng 0 – tổng số cơ hội");
+        var observedAt = dto.ObservationDate != default ? dto.ObservationDate : dto.AuditDate ?? DateTime.Today;
         var entity = new HandHygieneObservation
         {
-            Id = Guid.NewGuid(), ObservationDate = dto.ObservationDate, TotalOpportunities = total, ComplianceCount = compliant, ComplianceRate = total > 0 ? (decimal)compliant / total * 100 : 0, CreatedAt = DateTime.Now
+            Id = Guid.NewGuid(), ObservationDate = observedAt, TotalOpportunities = total, ComplianceCount = compliant, ComplianceRate = (decimal)compliant / total * 100, CreatedAt = DateTime.Now,
+            DepartmentId = departmentId, ObservedById = dto.ObservedById,
+            Notes = string.Join(" | ", new[] { dto.Shift, dto.Notes }.Where(x => !string.IsNullOrWhiteSpace(x)))
         };
         _context.HandHygieneObservations.Add(entity);
         await _context.SaveChangesAsync();

@@ -92,7 +92,20 @@ const InterHospitalSharingV2: React.FC = () => {
           return null;
         }),
       ]);
-      setItems(normalizeArrayResponse<InterHospitalRequest>(r));
+      // BE InterHospitalRequestDto: requestingFacility / receivingFacility / requestDate / responseDate /
+      // requestDetails / responseDetails (no direction/subject) — map onto the FE shape.
+      type BeReq = InterHospitalRequest & { requestingFacility?: string; receivingFacility?: string; requestDate?: string; responseDate?: string; requestDetails?: string; responseDetails?: string };
+      setItems(normalizeArrayResponse<BeReq>(r).map((x) => ({
+        ...x,
+        direction: x.direction ?? 'outgoing',
+        requestingHospital: x.requestingHospital ?? x.requestingFacility ?? '',
+        respondingHospital: x.respondingHospital ?? x.receivingFacility ?? '',
+        subject: x.subject ?? (x.requestDetails ? x.requestDetails.split('\n')[0].slice(0, 120) : x.requestCode),
+        details: x.details ?? x.requestDetails ?? '',
+        requestedAt: x.requestedAt ?? x.requestDate ?? '',
+        respondedAt: x.respondedAt ?? x.responseDate,
+        responseNotes: x.responseNotes ?? x.responseDetails,
+      })));
       if (s) setStats(s);
     } catch { ti('Không tải được yêu cầu liên viện'); }
     finally { setLoading(false); }

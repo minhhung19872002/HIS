@@ -57,7 +57,13 @@ namespace HIS.API.Controllers
         [HttpPost("hai")]
         [HttpPost("hai-reports")]
         public async Task<ActionResult<HAIDto>> ReportHAI([FromBody] ReportHAIDto dto)
-            => Ok(await _service.ReportHAIAsync(dto));
+        {
+            dto.ReportedById = CurrentUserId();
+            return Ok(await _service.ReportHAIAsync(dto));
+        }
+
+        private Guid CurrentUserId() =>
+            Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var id) ? id : Guid.Empty;
 
         [HttpGet("isolations")]
         public async Task<ActionResult<List<IsolationOrderDto>>> GetActiveIsolations([FromQuery] Guid? departmentId)
@@ -68,8 +74,20 @@ namespace HIS.API.Controllers
             => Ok(await _service.GetActiveIsolationsAsync(departmentId));
 
         [HttpPost("isolations")]
+        [HttpPost("isolation-orders")] // v2 page route (was 405)
         public async Task<ActionResult<IsolationOrderDto>> CreateIsolationOrder([FromBody] CreateIsolationOrderDto dto)
-            => Ok(await _service.CreateIsolationOrderAsync(dto));
+        {
+            dto.OrderedById = CurrentUserId();
+            return Ok(await _service.CreateIsolationOrderAsync(dto));
+        }
+
+        [HttpPost("isolation-orders/discontinue")] // v2 page "Kết thúc cách ly" (was 404)
+        public async Task<ActionResult<bool>> DiscontinueIsolation([FromBody] DiscontinueIsolationRequest req)
+        {
+            var reason = string.IsNullOrWhiteSpace(req.ClearanceCriteria) ? req.Reason : $"{req.Reason} | {req.ClearanceCriteria}";
+            var ok = await _service.DiscontinueIsolationAsync(req.IsolationOrderId, reason ?? string.Empty);
+            return ok ? Ok(true) : NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy lệnh cách ly" });
+        }
 
         [HttpGet("hand-hygiene")]
         public async Task<ActionResult<List<HandHygieneObservationDto>>> GetHandHygieneObservations(
@@ -92,8 +110,12 @@ namespace HIS.API.Controllers
                 departmentId));
 
         [HttpPost("hand-hygiene")]
+        [HttpPost("hand-hygiene/observations")] // v2 page route (was 405)
         public async Task<ActionResult<HandHygieneObservationDto>> RecordHandHygiene([FromBody] RecordHandHygieneDto dto)
-            => Ok(await _service.RecordHandHygieneObservationAsync(dto));
+        {
+            dto.ObservedById = CurrentUserId();
+            return Ok(await _service.RecordHandHygieneObservationAsync(dto));
+        }
 
         [HttpGet("outbreaks")]
         public async Task<ActionResult<List<OutbreakDto>>> GetActiveOutbreaks()

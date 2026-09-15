@@ -58,7 +58,10 @@ namespace HIS.API.Controllers
 
         [HttpPost("incidents")]
         public async Task<ActionResult<IncidentReportDto>> CreateIncident([FromBody] CreateIncidentReportDto dto)
-            => Ok(await _service.CreateIncidentReportAsync(dto));
+        {
+            dto.ReportedById = Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var uid) ? uid : Guid.Empty;
+            return Ok(await _service.CreateIncidentReportAsync(dto));
+        }
 
         [HttpGet("indicators")]
         public async Task<ActionResult<List<QualityIndicatorDto>>> GetIndicators(

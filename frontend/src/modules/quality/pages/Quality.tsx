@@ -139,7 +139,11 @@ const QualityV2: React.FC = () => {
       // Dashboard / CAPA / satisfaction là dữ liệu bổ trợ — lỗi thì im lặng (như v1)
       if (d.status === 'fulfilled') setDashboard(d.value.data ?? null);
       if (c.status === 'fulfilled') setCapas(c.value.data || []);
-      if (s.status === 'fulfilled') setSatisfactionStats(s.value.data ?? null);
+      if (s.status === 'fulfilled') {
+        // BE /quality/surveys/statistics returns totalResponses/netPromoterScore, not completedSurveys/npsScore
+        const sv = s.value.data as (SatisfactionStatisticsDto & { totalResponses?: number; netPromoterScore?: number }) | undefined;
+        setSatisfactionStats(sv ? { ...sv, completedSurveys: sv.completedSurveys ?? sv.totalResponses ?? 0, npsScore: sv.npsScore ?? sv.netPromoterScore ?? 0 } : null);
+      }
       setLoading(false);
     });
   };
@@ -324,12 +328,12 @@ const QualityV2: React.FC = () => {
         items={[
           { lbl: 'Sự cố chưa xử lý', val: openIncidents, sub: 'chưa đóng', tone: 'crit' },
           { lbl: 'KPI cảnh báo', val: criticalKPIs, sub: 'ngưỡng critical', tone: 'warn' },
-          { lbl: 'Audit sắp tới', val: upcomingAudits, sub: dashboard ? `${dashboard.auditsCompleted} hoàn thành` : 'đã lên lịch', tone: 'info' },
+          { lbl: 'Audit sắp tới', val: upcomingAudits, sub: dashboard?.auditsCompleted != null ? `${dashboard.auditsCompleted} hoàn thành` : 'đã lên lịch', tone: 'info' },
           { lbl: 'Sự cố tháng này', val: dashboard?.incidentsThisMonth ?? '—', sub: 'trong tháng' },
           {
             lbl: 'Hài lòng BN', val: dashboard?.overallSatisfaction ?? '—',
-            unit: dashboard ? '%' : undefined,
-            tone: dashboard ? (dashboard.overallSatisfaction >= 80 ? 'ok' : 'warn') : undefined,
+            unit: dashboard?.overallSatisfaction != null ? '%' : undefined,
+            tone: dashboard?.overallSatisfaction != null ? (dashboard.overallSatisfaction >= 80 ? 'ok' : 'warn') : undefined,
           },
           {
             lbl: 'CAPA quá hạn', val: dashboard?.overdueCAPAs ?? '—', sub: `${capas.length} CAPA`,
@@ -1014,7 +1018,7 @@ const SatisfactionTab: React.FC<{
 }> = ({ stats, dashboard }) => {
   const rateValue = stats
     ? Math.round(stats.averageSatisfaction / 20)
-    : (dashboard ? Math.round(dashboard.overallSatisfaction / 20) : 4);
+    : (dashboard?.overallSatisfaction != null ? Math.round(dashboard.overallSatisfaction / 20) : 4);
   const avg = stats?.averageSatisfaction ?? dashboard?.overallSatisfaction ?? 0;
 
   return (
@@ -1041,7 +1045,7 @@ const SatisfactionTab: React.FC<{
           <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)', marginTop: 'var(--space-8)' }}>
             {stats
               ? `${stats.completedSurveys}/${stats.totalSurveys} phiếu thu thập`
-              : dashboard
+              : dashboard?.surveysCompleted != null
               ? `${dashboard.surveysCompleted} phiếu hoàn thành`
               : 'Chưa có dữ liệu'}
           </div>

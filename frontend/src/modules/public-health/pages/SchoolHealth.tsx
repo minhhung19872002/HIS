@@ -179,14 +179,16 @@ const SchoolHealthV2: React.FC = () => {
 
   const flagged = rows.filter((r) => r.visionFlag || r.hearingFlag || r.dentalFlag || r.scoliosisFlag).length;
   const malnutrition = rows.filter((r) => r.nutritionStatus && r.nutritionStatus !== 'normal').length;
+  const beStats = stats as SchoolStats & { totalSchools?: number; totalStudents?: number; referralCount?: number };
 
   return (
     <div className="ab">
       <KpiStrip items={[
-        { lbl: 'Trường đã khám', val: stats.schoolsExamined },
-        { lbl: 'HS đã khám', val: stats.studentsExamined, tone: 'info' },
-        { lbl: 'Tỷ lệ hoàn thành', val: stats.completionRate, unit: '%', tone: 'ok' },
-        { lbl: 'Cần theo dõi', val: stats.needsFollowUp, tone: 'warn' },
+        // BE statistics returns totalSchools/totalStudents/referralCount — fall back so KPIs are not blank
+        { lbl: 'Trường đã khám', val: stats.schoolsExamined ?? beStats.totalSchools ?? 0 },
+        { lbl: 'HS đã khám', val: stats.studentsExamined ?? beStats.totalStudents ?? 0, tone: 'info' },
+        { lbl: 'Tỷ lệ hoàn thành', val: stats.completionRate ?? '—', unit: stats.completionRate != null ? '%' : undefined, tone: 'ok' },
+        { lbl: 'Cần theo dõi', val: stats.needsFollowUp ?? beStats.referralCount ?? 0, tone: 'warn' },
         { lbl: 'Có cờ cảnh báo', val: flagged, sub: 'mắt/tai/răng/CS', tone: 'warn' },
         { lbl: 'DD bất thường', val: malnutrition, sub: 'trong danh sách', tone: 'warn' },
       ]} />
@@ -199,7 +201,13 @@ const SchoolHealthV2: React.FC = () => {
         />
         <select style={SEL} value={schoolFilter} onChange={(e) => { setSchoolFilter(e.target.value); setPage(0); }}>
           <option value="">-- Trường --</option>
-          {schools.map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
+          {/* BE /school-health/schools returns { schoolName, schoolCode } (code often null), not { code, name } */}
+          {schools.map((s, i) => {
+            const be = s as School & { schoolName?: string; schoolCode?: string | null };
+            const name = s.name ?? be.schoolName ?? '';
+            const code = s.code ?? be.schoolCode ?? name;
+            return <option key={code || i} value={code}>{name}</option>;
+          })}
         </select>
         <select style={SEL} value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); setPage(0); }}>
           {YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y}</option>)}
@@ -241,7 +249,7 @@ const SchoolHealthV2: React.FC = () => {
         onClose={() => setSel(null)}
         size="lg"
         title={sel?.studentName || ''}
-        sub={sel ? `${sel.schoolName} · Lớp ${sel.grade}${sel.className} · ${sel.academicYear}` : ''}
+        sub={sel ? [sel.schoolName, (sel.grade || sel.className) ? `Lớp ${sel.grade ?? ''}${sel.className ?? ''}` : '', sel.academicYear].filter(Boolean).join(' · ') : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
           <Btn variant="primary" onClick={() => sel && openEdit(sel)}>

@@ -106,6 +106,10 @@ const hhFields: CrudFieldCfg[] = [
   { key: 'notes', label: 'Ghi chú', type: 'textarea' },
 ];
 
+// Extra field names the BE DTOs actually return (differ from the FE api types)
+type HhBe = HandHygieneObservationDto & { compliantActions?: number; observerName?: string };
+type ObBe = Omit<OutbreakDto, 'status'> & { status?: string | number; identifiedDate?: string };
+
 // Outbreak status → badge tone
 const obTone = (s: string): 'ok' | 'warn' | 'info' =>
   s === 'Active' ? 'warn' : s === 'Resolved' ? 'ok' : 'info';
@@ -358,22 +362,26 @@ const InfectionControlV2: React.FC = () => {
     { key: 'date',    label: 'Ngày quan sát',  render: (r) => dayjs(r.observationDate).format('DD/MM/YYYY') },
     { key: 'shift',   label: 'Ca',             render: (r) => r.observationShift },
     { key: 'opp',     label: 'Cơ hội',         mono: true, render: (r) => r.totalOpportunities },
-    { key: 'comp',    label: 'Tuân thủ',       mono: true, render: (r) => r.correctActions },
-    { key: 'rate',    label: 'Tỷ lệ (%)',      render: (r) => `${r.complianceRate.toFixed(1)}%` },
-    { key: 'auditor', label: 'Người quan sát', render: (r) => r.observedByName },
+    // BE HandHygieneObservationDto names: compliantActions / observerName
+    { key: 'comp',    label: 'Tuân thủ',       mono: true, render: (r) => r.correctActions ?? (r as HhBe).compliantActions },
+    { key: 'rate',    label: 'Tỷ lệ (%)',      render: (r) => `${Number(r.complianceRate ?? 0).toFixed(1)}%` },
+    { key: 'auditor', label: 'Người quan sát', render: (r) => r.observedByName ?? (r as HhBe).observerName },
   ];
 
   // ─── Outbreak table columns ─────────────────────────────────────────────
   const obCols: ColumnDef<OutbreakDto>[] = [
     { key: 'code',    label: 'Mã ổ dịch',   code: true, render: (r) => r.outbreakCode },
     { key: 'disease', label: 'Bệnh',                    render: (r) => r.organism },
-    { key: 'start',   label: 'Bắt đầu',                render: (r) => dayjs(r.startDate).format('DD/MM/YYYY') },
+    // BE OutbreakDto: identifiedDate, status as string, affectedDepartments nullable (no *Names) — guard to avoid
+    // the ErrorBoundary crash on the "Ổ dịch" tab and "today" dates from dayjs(undefined).
+    { key: 'start',   label: 'Bắt đầu',                render: (r) => { const d = r.startDate ?? (r as ObBe).identifiedDate; return d ? dayjs(d).format('DD/MM/YYYY') : '—'; } },
     { key: 'end',     label: 'Kết thúc',               render: (r) => r.endDate ? dayjs(r.endDate).format('DD/MM/YYYY') : '—' },
     { key: 'cases',   label: 'Số ca',        mono: true, render: (r) => r.totalCases },
-    { key: 'status',  label: 'Trạng thái',             render: (r) => (
-      <StatusBadge tone={obTone(r.statusName)} dot>{r.statusName}</StatusBadge>
-    )},
-    { key: 'dept',    label: 'Khoa',                    render: (r) => r.affectedDepartmentNames.join(', ') || '—' },
+    { key: 'status',  label: 'Trạng thái',             render: (r) => {
+      const s = r.statusName ?? String((r as ObBe).status ?? '');
+      return <StatusBadge tone={obTone(s)} dot>{s || '—'}</StatusBadge>;
+    }},
+    { key: 'dept',    label: 'Khoa',                    render: (r) => (r.affectedDepartmentNames ?? r.affectedDepartments ?? []).join(', ') || '—' },
   ];
 
   // ─── Render ─────────────────────────────────────────────────────────────

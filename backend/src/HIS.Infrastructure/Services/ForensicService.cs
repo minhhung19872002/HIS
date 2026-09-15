@@ -114,6 +114,11 @@ public class ForensicService : IForensicService
 
     public async Task<ForensicCaseDto> CreateCaseAsync(CreateForensicCaseDto dto, string? userId)
     {
+        // ForensicCases.PatientId is a NOT NULL FK to Patients: without a patient every create was a raw FK 500.
+        // (Supporting non-patient subjects needs PatientId nullable — see migration proposal.)
+        if (!dto.PatientId.HasValue || dto.PatientId == Guid.Empty || !await _context.Patients.AnyAsync(p => p.Id == dto.PatientId))
+            throw new ArgumentException("Phải chọn người bệnh (đối tượng giám định) đã có hồ sơ trong hệ thống", nameof(dto.PatientId));
+
         var year = DateTime.UtcNow.Year;
         var count = await _context.ForensicCases.CountAsync(c => c.CreatedAt.Year == year) + 1;
 
@@ -153,7 +158,9 @@ public class ForensicService : IForensicService
     public async Task<ForensicCaseDto> UpdateCaseAsync(Guid id, CreateForensicCaseDto dto)
     {
         var entity = await _context.ForensicCases.FindAsync(id)
-            ?? throw new InvalidOperationException("Forensic case not found");
+            ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ giám định");
+        if (entity.Status == 3)
+            throw new InvalidOperationException("Hồ sơ giám định đã được duyệt kết luận — không thể chỉnh sửa.");
 
         if (dto.CaseType != null) entity.CaseType = dto.CaseType;
         if (dto.PatientName != null) entity.PatientName = dto.PatientName;
@@ -203,6 +210,11 @@ public class ForensicService : IForensicService
 
     public async Task<ForensicExaminationDto> AddExaminationAsync(CreateForensicExaminationDto dto, string? userId)
     {
+        var targetCase = dto.ForensicCaseId.HasValue ? await _context.ForensicCases.FindAsync(dto.ForensicCaseId.Value) : null;
+        if (targetCase == null)
+            throw new KeyNotFoundException("Không tìm thấy hồ sơ giám định");
+        if (targetCase.Status == 3)
+            throw new InvalidOperationException("Hồ sơ giám định đã được duyệt kết luận — không thể thêm kết quả khám.");
         var entity = new ForensicExamination
         {
             Id = Guid.NewGuid(),
@@ -245,7 +257,18 @@ public class ForensicService : IForensicService
     public async Task<ForensicCaseDto> ApproveCaseAsync(Guid id, decimal? disabilityPercentage, string? conclusion)
     {
         var entity = await _context.ForensicCases.FindAsync(id)
-            ?? throw new InvalidOperationException("Forensic case not found");
+            ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ giám định");
+
+        // A forensic conclusion is a legal document: it could be approved with no examination at all (status 0)
+        // and re-approved afterwards with a different conclusion / disability percentage.
+        if (entity.Status == 3)
+            throw new InvalidOperationException("Hồ sơ giám định đã được duyệt kết luận.");
+        if (!await _context.ForensicExaminations.AnyAsync(x => x.ForensicCaseId == id && !x.IsDeleted))
+            throw new InvalidOperationException("Hồ sơ chưa có kết quả khám giám định — không thể duyệt kết luận.");
+        if (string.IsNullOrWhiteSpace(conclusion))
+            throw new ArgumentException("Phải nhập kết luận giám định", nameof(conclusion));
+        if (disabilityPercentage is < 0m or > 100m)
+            throw new ArgumentException("Tỷ lệ tổn thương phải trong khoảng 0 – 100%", nameof(disabilityPercentage));
 
         entity.Status = 3; // approved
         entity.DisabilityPercentage = disabilityPercentage;

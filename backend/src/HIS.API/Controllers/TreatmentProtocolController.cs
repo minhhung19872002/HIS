@@ -8,6 +8,7 @@ namespace HIS.API.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/treatment-protocols")]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // not-found/state guards → 404/400 instead of a bare 500
 public class TreatmentProtocolController : ControllerBase
 {
     private readonly ITreatmentProtocolService _service;

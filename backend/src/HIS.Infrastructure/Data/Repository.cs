@@ -60,15 +60,25 @@ public class Repository<T> : IRepository<T> where T : BaseEntity
 
     public virtual Task UpdateAsync(T entity, CancellationToken cancellationToken = default)
     {
-        _dbSet.Update(entity);
+        MarkForUpdate(entity);
         return Task.CompletedTask;
     }
 
     public virtual Task DeleteAsync(T entity, CancellationToken cancellationToken = default)
     {
         entity.IsDeleted = true;
-        _dbSet.Update(entity);
+        MarkForUpdate(entity);
         return Task.CompletedTask;
+    }
+
+    // DbSet.Update marks EVERY column modified. On an entity already tracked (loaded via GetByIdAsync in the
+    // same scope) that turns SaveChanges into a full-row overwrite, so two concurrent requests editing
+    // different fields of one row silently wiped each other (OPD save: vital signs PUT reset the diagnosis
+    // written by a parallel diagnosis PUT). Tracked entities already record exactly which properties changed.
+    private void MarkForUpdate(T entity)
+    {
+        if (_context.Entry(entity).State == EntityState.Detached)
+            _dbSet.Update(entity);
     }
 
     public virtual Task DeleteRangeAsync(IEnumerable<T> entities, CancellationToken cancellationToken = default)

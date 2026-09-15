@@ -518,7 +518,8 @@ const EpidemiologyV2: React.FC = () => {
 
           <DataTable<Outbreak>
             columns={obCols} data={obFiltered} page={obPage} perPage={PER}
-            onSortChange={() => setObPage(0)} rowKey={(r) => r.id}
+            // BE /epidemiology/outbreaks returns outbreakId (no id)
+            onSortChange={() => setObPage(0)} rowKey={(r) => r.id ?? (r as Outbreak & { outbreakId?: string }).outbreakId ?? ''}
             loading={outbreakLoading}
             onRowClick={setObSel} actions={obActions}
             empty="Chưa có ổ dịch"

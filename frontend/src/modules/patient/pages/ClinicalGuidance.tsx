@@ -75,8 +75,9 @@ const ClinicalGuidanceV2: React.FC = () => {
         }),
         getGuidanceStatistics(),
       ]);
-      const list = (r?.items || (Array.isArray(r) ? r : [])) as GuidanceBatchDto[];
-      setItems(list);
+      const list = (r?.items || (Array.isArray(r) ? r : [])) as Array<GuidanceBatchDto & { code?: string }>;
+      // BE GuidanceBatchListDto returns `code` (FE column reads batchCode)
+      setItems(list.map((x) => ({ ...x, batchCode: x.batchCode ?? x.code ?? '' })));
       setStats(s);
     } catch { ti('Không tải được danh sách chỉ đạo tuyến'); }
     finally { setLoading(false); }

@@ -123,6 +123,10 @@ namespace HIS.Application.DTOs.MedicalHR
     {
         public bool Approved { get; set; }
         public string? Note { get; set; }
+
+        /// <summary>Set by the controller from the JWT; never bound from the request body.</summary>
+        [global::System.Text.Json.Serialization.JsonIgnore]
+        public Guid? ApproverUserId { get; set; }
     }
 
     public class LeaveBalanceDto
@@ -224,6 +228,10 @@ namespace HIS.Application.DTOs.MedicalHR
     {
         public bool Approved { get; set; }
         public string? Note { get; set; }
+
+        /// <summary>Set by the controller from the JWT; never bound from the request body.</summary>
+        [global::System.Text.Json.Serialization.JsonIgnore]
+        public Guid? ApproverUserId { get; set; }
     }
 
 

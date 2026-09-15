@@ -103,6 +103,21 @@ const STATUS_TABS = [
 
 const statusKey = (n: number): StatusKey => n === 1 ? 'active' : n === 3 ? 'error' : 'inactive';
 
+// BE HIEConnectionDto returns isActive/connectionStatus/lastSuccessfulConnection/failedTransactionsToday,
+// not the FE status/lastSyncAt/errorCount/protocol fields — fill FE fields so status tabs, KPIs and the
+// activate/deactivate toggle reflect the real state (otherwise every connection reads "Tạm dừng").
+type BeHieConnection = HIEConnectionDto & {
+  isActive?: boolean; connectionStatus?: string; lastSuccessfulConnection?: string; failedTransactionsToday?: number;
+};
+const normalizeConnection = (c: BeHieConnection): HIEConnectionDto => ({
+  ...c,
+  status: c.status ?? (/error|fail/i.test(c.connectionStatus ?? '') ? 3 : c.isActive ? 1 : 2),
+  protocol: c.protocol ?? '—',
+  dataExchangeFormat: c.dataExchangeFormat ?? '—',
+  lastSyncAt: c.lastSyncAt ?? c.lastSuccessfulConnection,
+  errorCount: c.errorCount ?? c.failedTransactionsToday ?? 0,
+});
+
 // ─────────────────────── Status maps (VERBATIM từ v1 — chỉ đổi Tag-color → StatusTone) ───────────────────────
 
 // v1: 1 Nhập(default) 2 Đã xác minh(blue) 3 Đã gửi(processing) 4 Chấp nhận(success) 5 Từ chối 1 phần(warning) 6 Từ chối(error)
@@ -217,7 +232,7 @@ const HealthExchangeV2: React.FC = () => {
   const topTabs: TopTab<TabKey>[] = useMemo(() => [
     { v: 'connections',   l: dashboard ? `Kết nối (${dashboard.activeConnections}/${dashboard.totalConnections})` : 'Kết nối', ic: 'cloud' },
     { v: 'submissions',   l: dashboard ? `Gửi dữ liệu (${dashboard.pendingSubmissions} chờ)` : 'Gửi dữ liệu', ic: 'upload' },
-    { v: 'referrals',     l: dashboard ? `Chuyển viện (${dashboard.outboundReferralsPending})` : 'Chuyển viện', ic: 'send' },
+    { v: 'referrals',     l: dashboard?.outboundReferralsPending != null ? `Chuyển viện (${dashboard.outboundReferralsPending})` : 'Chuyển viện', ic: 'send' },
     { v: 'consultations', l: 'Hội chẩn từ xa', ic: 'users' },
     { v: 'fhir',          l: 'FHIR R4', ic: 'activity' },
     { v: 'national-rx',   l: 'Cổng đơn thuốc QG', ic: 'pill' },
@@ -252,7 +267,7 @@ const HealthExchangeV2: React.FC = () => {
 
 const ConnectionsPanel: React.FC = () => {
   const { rows: items, loading, reload } = useListData<HIEConnectionDto>(
-    useCallback(() => getConnections().then((r) => normalizeArrayResponse<HIEConnectionDto>(r.data)), []),
+    useCallback(() => getConnections().then((r) => normalizeArrayResponse<BeHieConnection>(r.data).map(normalizeConnection)), []),
     useCallback(() => ti('Không tải được kết nối HIE'), []),
   );
   const [search, setSearch] = useState('');
@@ -404,7 +419,7 @@ const ConnectionsPanel: React.FC = () => {
         onClose={() => setSel(null)}
         size="lg"
         title={sel?.connectionName ?? ''}
-        sub={sel ? `${sel.connectionCode} · ${sel.partnerName}` : ''}
+        sub={sel ? [sel.connectionCode, sel.partnerName].filter(Boolean).join(' · ') || sel.connectionType : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
           <Btn disabled={!!testingId} onClick={() => { if (sel) doTest(sel); }}>

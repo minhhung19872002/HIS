@@ -79,7 +79,13 @@ const PracticeLicenseV2: React.FC = () => {
         fromDate: fromDate || undefined,
         toDate: toDate || undefined,
       });
-      setItems(normalizeArrayResponse<PracticeLicense>(r));
+      // BE PracticeLicenseDto: licenseCode / holderName / cccd — FE columns read licenseNumber / staffName / staffCode
+      setItems(normalizeArrayResponse<PracticeLicense & { holderName?: string; cccd?: string }>(r).map((x) => ({
+        ...x,
+        licenseNumber: x.licenseNumber ?? x.licenseCode,
+        staffName: x.staffName ?? x.holderName ?? '',
+        staffCode: x.staffCode ?? x.cccd ?? '',
+      })));
     } catch { ti('Không tải được CCHN'); }
     finally { setLoading(false); }
   }, [search, fType, fromDate, toDate]);

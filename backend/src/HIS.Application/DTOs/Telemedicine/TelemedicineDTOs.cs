@@ -42,9 +42,16 @@ namespace HIS.Application.DTOs.Telemedicine
         public Guid SpecialityId { get; set; }
         public DateTime AppointmentDate { get; set; }
         public TimeSpan StartTime { get; set; }
-        public string AppointmentType { get; set; }
-        public string ChiefComplaint { get; set; }
-        public List<string> AttachedFiles { get; set; }
+        // Optional (implicit [Required] under <Nullable>enable</Nullable> made every v2 booking a 400).
+        public string? AppointmentType { get; set; }
+        public string? ChiefComplaint { get; set; }
+        public List<string>? AttachedFiles { get; set; }
+
+        // Aliases sent by the v2 Telemedicine page (scheduledDate/scheduledTime/departmentId).
+        public DateTime? ScheduledDate { get; set; }
+        public string? ScheduledTime { get; set; }
+        public Guid? DepartmentId { get; set; }
+        public string? Notes { get; set; }
     }
 
     /// <summary>
@@ -223,24 +230,25 @@ namespace HIS.Application.DTOs.Telemedicine
     /// </summary>
     public class SaveTeleConsultationDto
     {
+        // All text fields optional: the v2 end-session flow first creates the record with only sessionId.
         public Guid? Id { get; set; }
         public Guid SessionId { get; set; }
-        public string ChiefComplaint { get; set; }
-        public string HistoryOfPresentIllness { get; set; }
-        public string PastMedicalHistory { get; set; }
-        public string CurrentMedications { get; set; }
-        public string Allergies { get; set; }
-        public string VitalSigns { get; set; }
-        public string PhysicalExamNotes { get; set; }
-        public string Assessment { get; set; }
-        public string PrimaryDiagnosis { get; set; }
-        public string PrimaryDiagnosisICD { get; set; }
-        public List<string> SecondaryDiagnoses { get; set; }
-        public string Plan { get; set; }
+        public string? ChiefComplaint { get; set; }
+        public string? HistoryOfPresentIllness { get; set; }
+        public string? PastMedicalHistory { get; set; }
+        public string? CurrentMedications { get; set; }
+        public string? Allergies { get; set; }
+        public string? VitalSigns { get; set; }
+        public string? PhysicalExamNotes { get; set; }
+        public string? Assessment { get; set; }
+        public string? PrimaryDiagnosis { get; set; }
+        public string? PrimaryDiagnosisICD { get; set; }
+        public List<string>? SecondaryDiagnoses { get; set; }
+        public string? Plan { get; set; }
         public bool RequiresInPersonVisit { get; set; }
-        public string InPersonVisitReason { get; set; }
+        public string? InPersonVisitReason { get; set; }
         public DateTime? FollowUpDate { get; set; }
-        public string FollowUpInstructions { get; set; }
+        public string? FollowUpInstructions { get; set; }
     }
 
     #endregion

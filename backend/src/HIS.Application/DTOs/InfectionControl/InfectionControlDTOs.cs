@@ -66,14 +66,19 @@ namespace HIS.Application.DTOs.InfectionControl
     /// </summary>
     public class ReportHAIDto
     {
+        // Optional text fields nullable (implicit [Required] made the v2 HAI form 400 unless every box was filled).
         public Guid AdmissionId { get; set; }
-        public string InfectionType { get; set; }
-        public string InfectionSite { get; set; }
+        public string InfectionType { get; set; } = string.Empty;
+        public string? InfectionSite { get; set; }
         public DateTime OnsetDate { get; set; }
-        public string CriteriaUsed { get; set; }
-        public string Organism { get; set; }
+        public string? CriteriaUsed { get; set; }
+        public string? Organism { get; set; }
         public bool IsMDRO { get; set; }
-        public string InitialNotes { get; set; }
+        public string? InitialNotes { get; set; }
+
+        /// <summary>Set by the controller from the JWT; never bound from the request body.</summary>
+        [global::System.Text.Json.Serialization.JsonIgnore]
+        public Guid ReportedById { get; set; }
     }
 
     #endregion
@@ -123,12 +128,27 @@ namespace HIS.Application.DTOs.InfectionControl
     public class CreateIsolationOrderDto
     {
         public Guid AdmissionId { get; set; }
-        public string IsolationType { get; set; }
-        public List<string> Precautions { get; set; }
-        public string Reason { get; set; }
+        public string IsolationType { get; set; } = string.Empty;
+        public List<string>? Precautions { get; set; }
+        public string? Reason { get; set; }
         public Guid? RelatedHAIId { get; set; }
         public bool RequiresNegativePressure { get; set; }
         public DateTime StartDate { get; set; }
+        // Extra fields sent by the v2 page.
+        public string? SpecialInstructions { get; set; }
+        public List<string>? PpeRequirements { get; set; }
+
+        /// <summary>Set by the controller from the JWT; never bound from the request body.</summary>
+        [global::System.Text.Json.Serialization.JsonIgnore]
+        public Guid OrderedById { get; set; }
+    }
+
+    /// <summary>v2 page payload for ending an isolation order.</summary>
+    public class DiscontinueIsolationRequest
+    {
+        public Guid IsolationOrderId { get; set; }
+        public string? Reason { get; set; }
+        public string? ClearanceCriteria { get; set; }
     }
 
     #endregion
@@ -183,11 +203,21 @@ namespace HIS.Application.DTOs.InfectionControl
     /// </summary>
     public class RecordHandHygieneDto
     {
-        public string DepartmentId { get; set; }
-        public string UnitName { get; set; }
+        public string? DepartmentId { get; set; }
+        public string? UnitName { get; set; }
         public DateTime ObservationDate { get; set; }
         public TimeSpan ObservationTime { get; set; }
-        public List<HandHygieneEventDto> Events { get; set; }
+        public List<HandHygieneEventDto>? Events { get; set; }
+        // Aggregate form sent by the v2 page (auditDate/opportunitiesTotal/compliantCount).
+        public DateTime? AuditDate { get; set; }
+        public string? Shift { get; set; }
+        public int? OpportunitiesTotal { get; set; }
+        public int? CompliantCount { get; set; }
+        public string? Notes { get; set; }
+
+        /// <summary>Set by the controller from the JWT; never bound from the request body.</summary>
+        [global::System.Text.Json.Serialization.JsonIgnore]
+        public Guid ObservedById { get; set; }
     }
 
     public class HandHygieneEventDto

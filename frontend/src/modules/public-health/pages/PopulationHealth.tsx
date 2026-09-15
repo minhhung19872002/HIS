@@ -70,7 +70,15 @@ const PopulationHealthV2: React.FC = () => {
     setLoading(true);
     try {
       const r = await searchRecords({ keyword: search });
-      setItems(normalizeArrayResponse<PopulationRecord>(r));
+      // BE PopulationRecordDto: patientName / ward+district / facilityName / serviceDate
+      type BeRec = PopulationRecord & { patientName?: string; ward?: string; district?: string; facilityName?: string; serviceDate?: string };
+      setItems(normalizeArrayResponse<BeRec>(r).map((x) => ({
+        ...x,
+        fullName: x.fullName ?? x.patientName ?? '',
+        address: x.address ?? [x.ward, x.district].filter(Boolean).join(', '),
+        managingUnit: x.managingUnit ?? x.facilityName ?? '',
+        lastVisitDate: x.lastVisitDate ?? x.serviceDate,
+      })));
       const s = await getStats();
       setStats(s);
     } catch { ti('Không tải được dữ liệu dân số'); }

@@ -105,7 +105,10 @@ namespace HIS.API.Controllers
 
         [HttpPost("repairs")]
         public async Task<ActionResult<RepairRequestDto>> CreateRepairRequest([FromBody] CreateRepairRequestDto dto)
-            => Ok(await _service.CreateRepairRequestAsync(dto));
+        {
+            dto.RequestedById = CurrentUserId();
+            return Ok(await _service.CreateRepairRequestAsync(dto));
+        }
 
         [HttpGet("dashboard")]
         public async Task<ActionResult<EquipmentDashboardDto>> GetDashboard()

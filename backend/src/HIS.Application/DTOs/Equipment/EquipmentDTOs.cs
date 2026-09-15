@@ -73,27 +73,30 @@ namespace HIS.Application.DTOs.Equipment
     /// </summary>
     public class RegisterEquipmentDto
     {
-        public string EquipmentCode { get; set; }
-        public string SerialNumber { get; set; }
-        public string Name { get; set; }
-        public string EquipmentName { get; set; }
-        public string Model { get; set; }
-        public string Manufacturer { get; set; }
-        public string CountryOfOrigin { get; set; }
-        public string Category { get; set; }
-        public string RiskClass { get; set; }
-        public string EquipmentType { get; set; }
+        // Nullable: non-nullable strings are implicit [Required] under <Nullable>enable</Nullable>, so the v2
+        // Equipment "add" form (no supplier/roomNumber/countryOfOrigin...) always got 400.
+        public string? EquipmentCode { get; set; }
+        public string? SerialNumber { get; set; }
+        public string? Name { get; set; }
+        public string? EquipmentName { get; set; }
+        public string? Model { get; set; }
+        public string? Manufacturer { get; set; }
+        public string? CountryOfOrigin { get; set; }
+        public string? Category { get; set; }
+        public string? RiskClass { get; set; }
+        public string? EquipmentType { get; set; }
         public bool RequiresCalibration { get; set; }
         public int? CalibrationFrequencyMonths { get; set; }
         public Guid? DepartmentId { get; set; }
-        public string RoomNumber { get; set; }
-        public string PurchaseOrderNumber { get; set; }
+        public string? RoomNumber { get; set; }
+        public string? PurchaseOrderNumber { get; set; }
         public DateTime? PurchaseDate { get; set; }
         public decimal? PurchasePrice { get; set; }
-        public string Supplier { get; set; }
+        public string? Supplier { get; set; }
         public DateTime? WarrantyEndDate { get; set; }
+        public DateTime? WarrantyExpiry { get; set; } // alias sent by v2 Equipment.tsx
         public int? ExpectedLifeYears { get; set; }
-        public string Notes { get; set; }
+        public string? Notes { get; set; }
     }
 
     #endregion
@@ -369,11 +372,16 @@ namespace HIS.Application.DTOs.Equipment
     public class CreateRepairRequestDto
     {
         public Guid EquipmentId { get; set; }
-        public string ProblemDescription { get; set; }
-        public string ProblemCategory { get; set; }
-        public string Severity { get; set; }
-        public string ReporterContact { get; set; }
-        public List<string> AttachedPhotos { get; set; }
+        public string? ProblemDescription { get; set; }
+        public string? ProblemCategory { get; set; }
+        public string? Severity { get; set; }
+        public string? Priority { get; set; } // alias sent by v2 Equipment.tsx
+        public string? ReporterContact { get; set; }
+        public List<string>? AttachedPhotos { get; set; }
+
+        /// <summary>Set by the controller from the JWT; never bound from the request body.</summary>
+        [global::System.Text.Json.Serialization.JsonIgnore]
+        public Guid RequestedById { get; set; }
     }
 
     #endregion

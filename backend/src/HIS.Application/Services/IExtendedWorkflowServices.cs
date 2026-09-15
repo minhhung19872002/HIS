@@ -304,7 +304,7 @@ namespace HIS.Application.Services
         Task<List<CMECourseDto>> GetAvailableCoursesAsync(string category = null);
         Task<CMESummaryDto> GetStaffCMESummaryAsync(Guid staffId);
         Task<CMERecordDto> RecordCMECompletionAsync(Guid staffId, Guid courseId, int creditsEarned, string certificateNumber);
-        Task<List<MedicalStaffDto>> GetCMENonCompliantStaffAsync();
+        Task<List<CMESummaryDto>> GetCMENonCompliantStaffAsync();
 
         // Competency Assessment
         Task<CompetencyAssessmentDto> GetCompetencyAssessmentAsync(Guid id);

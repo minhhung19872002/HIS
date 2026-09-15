@@ -552,7 +552,16 @@ const HealthCheckupV2: React.FC = () => {
         getHealthCheckupStats(),
         getCheckupTypes(),
       ]);
-      setItems(list);
+      // BE HealthCheckupDto: certificateNumber / doctorName / examDate / classification|examResult —
+      // FE columns read checkupCode / examDoctor / checkupDate / conclusion.
+      setItems((list as Array<HealthCheckup & { certificateNumber?: string; doctorName?: string; examDate?: string; classification?: string; examResult?: string; organizationName?: string; batchCode?: string }>).map((x) => ({
+        ...x,
+        checkupCode: x.checkupCode ?? x.certificateNumber ?? x.batchCode ?? '',
+        examDoctor: x.examDoctor ?? x.doctorName ?? '',
+        checkupDate: x.checkupDate ?? x.examDate ?? '',
+        conclusion: x.conclusion ?? x.classification ?? x.examResult ?? '',
+        companyName: x.companyName ?? x.organizationName,
+      })));
       setStats(s);
       setCheckupTypes(types);
     } catch { ti('Khong tai duoc KSK'); }

@@ -7,6 +7,7 @@ namespace HIS.API.Controllers;
 
 [ApiController]
 [Route("api/practice-license")]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // not-found/state guards → 404/400 instead of a bare 500
 [Authorize]
 public class PracticeLicenseController : ControllerBase
 {

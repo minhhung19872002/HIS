@@ -12,6 +12,7 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/provincial-health")]
 [Authorize]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // "chưa kết nối" submit → 400 with the real reason
 public class ProvincialHealthController : ControllerBase
 {
     private readonly IProvincialHealthService _service;

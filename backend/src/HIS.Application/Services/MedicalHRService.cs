@@ -234,10 +234,10 @@ namespace HIS.Application.Services
             };
         }
 
-        public async Task<List<MedicalStaffDto>> GetCMENonCompliantStaffAsync()
+        public async Task<List<CMESummaryDto>> GetCMENonCompliantStaffAsync()
         {
             _logger.LogInformation("Getting CME non-compliant staff");
-            return new List<MedicalStaffDto>();
+            return new List<CMESummaryDto>();
         }
 
         // Competency Assessment

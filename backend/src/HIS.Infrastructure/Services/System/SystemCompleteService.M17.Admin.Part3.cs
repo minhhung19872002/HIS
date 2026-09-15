@@ -152,14 +152,15 @@ public partial class SystemCompleteService
             var results = new List<DatabaseStatisticsDto>();
 
             // Use raw SQL to query SQL Server system views for table statistics
-            using var connection = _context.Database.GetDbConnection();
-            await connection.OpenAsync();
+            // Do NOT dispose: this connection is owned by the DbContext (disposing it breaks later queries in the same scope).
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
 
             using var command = connection.CreateCommand();
             command.CommandText = @"
                 SELECT
                     t.NAME AS TableName,
-                    p.rows AS RowCount,
+                    p.rows AS [RowCount],
                     SUM(a.total_pages) * 8 AS TotalSpaceKB,
                     SUM(a.used_pages) * 8 AS UsedSpaceKB,
                     (SUM(a.total_pages) - SUM(a.used_pages)) * 8 AS UnusedSpaceKB

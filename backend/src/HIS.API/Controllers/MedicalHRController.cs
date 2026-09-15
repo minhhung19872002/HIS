@@ -23,6 +23,7 @@ namespace HIS.API.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
+    [TypeFilter(typeof(Filters.DomainExceptionFilter))] // validation/state guards → 400/404 instead of 500
     public class MedicalHRController : ControllerBase
     {
         private readonly IMedicalHRService _service;
@@ -31,6 +32,9 @@ namespace HIS.API.Controllers
         {
             _service = service;
         }
+
+        private Guid? CurrentUserId =>
+            Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var id) ? id : null;
 
         [HttpGet("staff")]
         public async Task<ActionResult<List<MedicalStaffDto>>> GetStaffList(
@@ -95,7 +99,11 @@ namespace HIS.API.Controllers
 
         [HttpPost("duty-roster")]
         public async Task<ActionResult<DutyRosterDto>> CreateDutyRoster([FromBody] CreateDutyRosterDto dto)
-            => Ok(await _service.CreateDutyRosterAsync(dto));
+        {
+            // DutyRosters.CreatedById has an FK to Users — leaving it Guid.Empty made every create a 500.
+            dto.CreatedById = CurrentUserId ?? Guid.Empty;
+            return Ok(await _service.CreateDutyRosterAsync(dto));
+        }
 
         [HttpPost("rosters/copy-week")]
         public async Task<ActionResult<CopyRosterResultDto>> CopyRosterWeek([FromBody] CopyRosterWeekDto dto)
@@ -116,7 +124,7 @@ namespace HIS.API.Controllers
             => Ok(await _service.GetStaffCMESummaryAsync(staffId));
 
         [HttpGet("cme/non-compliant")]
-        public async Task<ActionResult<List<MedicalStaffDto>>> GetCMENonCompliantStaff()
+        public async Task<ActionResult<List<CMESummaryDto>>> GetCMENonCompliantStaff()
             => Ok(await _service.GetCMENonCompliantStaffAsync());
 
         [HttpGet("dashboard")]
@@ -176,7 +184,10 @@ namespace HIS.API.Controllers
 
         [HttpPut("leave-requests/{id}/approve")]
         public async Task<ActionResult<LeaveRequestDto>> ApproveLeave(Guid id, [FromBody] LeaveApprovalDto dto)
-            => Ok(await _service.ApproveLeaveAsync(id, dto));
+        {
+            dto.ApproverUserId = CurrentUserId;
+            return Ok(await _service.ApproveLeaveAsync(id, dto));
+        }
 
         [HttpGet("leave-balance/{staffId}")]
         public async Task<ActionResult<LeaveBalanceDto>> GetLeaveBalance(Guid staffId, [FromQuery] int? year = null)
@@ -212,7 +223,10 @@ namespace HIS.API.Controllers
 
         [HttpPut("overtime/{id}/approve")]
         public async Task<ActionResult<OvertimeRecordDto>> ApproveOvertime(Guid id, [FromBody] OvertimeApprovalDto dto)
-            => Ok(await _service.ApproveOvertimeAsync(id, dto));
+        {
+            dto.ApproverUserId = CurrentUserId;
+            return Ok(await _service.ApproveOvertimeAsync(id, dto));
+        }
 
         // ========== Awards & Discipline ==========
 

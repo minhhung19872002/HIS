@@ -643,80 +643,69 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
         var depts = await deptQuery.ToListAsync();
         var deptIds = depts.Select(d => d.Id).ToList();
 
-        // Get staff in these departments
-        var staffQuery = _context.Users
-            .Where(u => u.IsActive && !u.IsDeleted && u.DepartmentId.HasValue && deptIds.Contains(u.DepartmentId.Value));
-
-        var staffList = await staffQuery
-            .Include(u => u.Department)
-            .Take(50)
+        // Real shifts from the HR duty rosters (DutyRosters/DutyShifts) of these departments.
+        // Previously the calendar was fabricated with new Random(42) for up to 50 users.
+        var monthStart = new DateTime(year, month, 1);
+        var monthEnd = monthStart.AddMonths(1);
+        var shiftRows = await _context.DutyShifts.AsNoTracking()
+            .Where(s => !s.IsDeleted && s.Status != "Cancelled"
+                && s.ShiftDate >= monthStart && s.ShiftDate < monthEnd
+                && s.DutyRoster != null && !s.DutyRoster.IsDeleted && deptIds.Contains(s.DutyRoster.DepartmentId))
+            .Select(s => new
+            {
+                s.StaffId,
+                StaffName = s.Staff != null ? s.Staff.FullName : "",
+                Title = s.Staff != null ? s.Staff.StaffType : null,
+                DepartmentId = s.DutyRoster!.DepartmentId,
+                DepartmentName = s.DutyRoster.Department != null ? s.DutyRoster.Department.DepartmentName : "",
+                s.ShiftDate,
+                s.ShiftType,
+            })
+            .OrderBy(s => s.ShiftDate)
             .ToListAsync();
 
-        var shifts = new List<DutyShiftItem>();
-        var staffSummary = new List<BranchStaffSummary>();
-
-        // Generate calendar for the month
-        var daysInMonth = DateTime.DaysInMonth(year, month);
-        var rand = new Random(42);
-
-        foreach (var staff in staffList)
+        static string MapShiftType(string shiftType) => shiftType switch
         {
-            var morning = 0;
-            var afternoon = 0;
-            var night = 0;
+            "Morning" or "Sang" => "Sang",
+            "Afternoon" or "Chieu" => "Chieu",
+            _ => "Dem" // Night / OnCall / 24h
+        };
 
-            for (var day = 1; day <= daysInMonth; day++)
+        var shifts = shiftRows.Select(r => new DutyShiftItem
+        {
+            StaffId = r.StaffId,
+            StaffName = r.StaffName,
+            Title = r.Title,
+            DepartmentId = r.DepartmentId,
+            DepartmentName = r.DepartmentName,
+            DayOfMonth = r.ShiftDate.Day,
+            ShiftType = MapShiftType(r.ShiftType)
+        }).ToList();
+
+        var staffSummary = shifts
+            .GroupBy(x => x.StaffId)
+            .Select(g =>
             {
-                var date = new DateTime(year, month, day);
-                if (date > DateTime.Today) continue;
-
-                var dow = (int)date.DayOfWeek;
-                // Skip Sundays
-                if (dow == 0) continue;
-
-                // Assign shifts randomly
-                var shiftType = dow == 6 ? "Sang" : (rand.Next(3) switch
+                var first = g.First();
+                var morning = g.Count(x => x.ShiftType == "Sang");
+                var afternoon = g.Count(x => x.ShiftType == "Chieu");
+                var night = g.Count(x => x.ShiftType == "Dem");
+                return new BranchStaffSummary
                 {
-                    0 => "Sang",
-                    1 => "Chieu",
-                    _ => "Dem"
-                });
-
-                shifts.Add(new DutyShiftItem
-                {
-                    StaffId = staff.Id,
-                    StaffName = staff.FullName,
-                    Title = staff.Title,
-                    DepartmentId = staff.DepartmentId ?? Guid.Empty,
-                    DepartmentName = staff.Department?.DepartmentName ?? "",
-                    DayOfMonth = day,
-                    ShiftType = shiftType
-                });
-
-                switch (shiftType)
-                {
-                    case "Sang": morning++; break;
-                    case "Chieu": afternoon++; break;
-                    case "Dem": night++; break;
-                }
-            }
-
-            if (morning + afternoon + night > 0)
-            {
-                staffSummary.Add(new BranchStaffSummary
-                {
-                    StaffId = staff.Id,
-                    StaffName = staff.FullName,
-                    Title = staff.Title,
-                    DepartmentId = staff.DepartmentId ?? Guid.Empty,
-                    DepartmentName = staff.Department?.DepartmentName ?? "",
+                    StaffId = g.Key,
+                    StaffName = first.StaffName,
+                    Title = first.Title,
+                    DepartmentId = first.DepartmentId,
+                    DepartmentName = first.DepartmentName,
                     MorningShifts = morning,
                     AfternoonShifts = afternoon,
                     NightShifts = night,
                     TotalShifts = morning + afternoon + night
-                });
-            }
-        }
+                };
+            })
+            .OrderBy(x => x.DepartmentName).ThenBy(x => x.StaffName)
+            .ToList();
+        var staffCount = staffSummary.Count;
 
         return new BranchDutyRosterDto
         {
@@ -727,7 +716,7 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
             Shifts = shifts,
             StaffSummary = staffSummary,
             TotalShifts = shifts.Count,
-            StaffCount = staffList.Count
+            StaffCount = staffCount
         };
     }
 

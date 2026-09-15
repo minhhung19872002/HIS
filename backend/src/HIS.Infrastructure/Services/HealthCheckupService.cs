@@ -88,6 +88,8 @@ public partial class HealthCheckupService : IHealthCheckupService
 
     public async Task<CampaignListDto> CreateCampaignAsync(CreateCampaignDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.CampaignName))
+            throw new ArgumentException("Tên đợt khám là bắt buộc", nameof(dto.CampaignName));
         var code = $"KSK{DateTime.Now:yyyyMMdd}{new Random().Next(100, 999)}";
 
         var entity = new HealthCheckupCampaign
@@ -95,14 +97,15 @@ public partial class HealthCheckupService : IHealthCheckupService
             Id = Guid.NewGuid(),
             CampaignCode = code,
             CampaignName = dto.CampaignName,
-            OrganizationName = dto.OrganizationName,
+            // FE v2 (HealthCheckup.tsx) sends companyName/servicePackage and may omit endDate.
+            OrganizationName = dto.OrganizationName ?? dto.CompanyName,
             ContactPerson = dto.ContactPerson,
             ContactPhone = dto.ContactPhone,
             StartDate = dto.StartDate,
-            EndDate = dto.EndDate,
+            EndDate = dto.EndDate == default ? dto.StartDate : dto.EndDate,
             Status = 0, // Planning
             Notes = dto.Notes,
-            PackageDescription = dto.PackageDescription,
+            PackageDescription = dto.PackageDescription ?? dto.ServicePackage,
             ContractAmount = dto.ContractAmount,
             CreatedAt = DateTime.UtcNow
         };
@@ -186,15 +189,16 @@ public partial class HealthCheckupService : IHealthCheckupService
             CreatedAt = DateTime.UtcNow
         };
 
+        // Validate campaign first: an unknown CampaignId used to hit the FK and surface as 500.
+        var campaign = await _context.HealthCheckupCampaigns
+            .FirstOrDefaultAsync(c => c.Id == dto.CampaignId && !c.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy đợt khám");
+
         await _context.HealthCheckupRecords.AddAsync(entity);
 
         // Update campaign TotalRegistered count
-        var campaign = await _context.HealthCheckupCampaigns.FindAsync(dto.CampaignId);
-        if (campaign != null)
-        {
-            campaign.TotalRegistered = await _context.HealthCheckupRecords
-                .CountAsync(r => r.CampaignId == dto.CampaignId && !r.IsDeleted) + 1;
-        }
+        campaign.TotalRegistered = await _context.HealthCheckupRecords
+            .CountAsync(r => r.CampaignId == dto.CampaignId && !r.IsDeleted) + 1;
 
         await _unitOfWork.SaveChangesAsync();
 
@@ -313,15 +317,20 @@ public partial class HealthCheckupService : IHealthCheckupService
 
     public async Task<CampaignListDto> UpdateCampaignAsync(Guid id, CreateCampaignDto dto)
     {
-        var campaign = await _context.HealthCheckupCampaigns.FindAsync(id)
-            ?? throw new InvalidOperationException("Không tìm thấy đợt khám");
+        var campaign = await _context.HealthCheckupCampaigns.FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy đợt khám");
+        if (string.IsNullOrWhiteSpace(dto.CampaignName))
+            throw new ArgumentException("Tên đợt khám là bắt buộc", nameof(dto.CampaignName));
         campaign.CampaignName = dto.CampaignName;
-        campaign.OrganizationName = dto.OrganizationName;
+        campaign.OrganizationName = dto.OrganizationName ?? dto.CompanyName;
         campaign.ContactPerson = dto.ContactPerson;
         campaign.ContactPhone = dto.ContactPhone;
         campaign.StartDate = dto.StartDate;
-        campaign.EndDate = dto.EndDate;
+        campaign.EndDate = dto.EndDate == default ? dto.StartDate : dto.EndDate;
         campaign.Notes = dto.Notes;
+        // Previously dropped on update (contract money + package silently reverted to create-time values).
+        campaign.PackageDescription = dto.PackageDescription ?? dto.ServicePackage;
+        campaign.ContractAmount = dto.ContractAmount;
         campaign.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         return new CampaignListDto
@@ -333,15 +342,18 @@ public partial class HealthCheckupService : IHealthCheckupService
             StartDate = campaign.StartDate,
             EndDate = campaign.EndDate,
             Status = campaign.Status,
+            StatusName = StatusNames.GetValueOrDefault(campaign.Status, "Không xác định"),
             TotalRegistered = campaign.TotalRegistered,
             TotalCompleted = campaign.TotalCompleted,
+            Notes = campaign.Notes,
+            CreatedAt = campaign.CreatedAt,
         };
     }
 
     public async Task DeleteCampaignAsync(Guid id)
     {
-        var campaign = await _context.HealthCheckupCampaigns.FindAsync(id)
-            ?? throw new InvalidOperationException("Không tìm thấy đợt khám");
+        var campaign = await _context.HealthCheckupCampaigns.FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy đợt khám");
         campaign.IsDeleted = true;
         campaign.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
@@ -392,34 +404,34 @@ public partial class HealthCheckupService : IHealthCheckupService
 
     public async Task<CampaignGroupDto> CreateCampaignGroupAsync(CreateCampaignGroupDto dto)
     {
-        try
+        if (string.IsNullOrWhiteSpace(dto.GroupName))
+            throw new ArgumentException("Tên nhóm là bắt buộc", nameof(dto.GroupName));
+        var campaignExists = await _context.HealthCheckupCampaigns
+            .AnyAsync(c => c.Id == dto.CampaignId && !c.IsDeleted);
+        if (!campaignExists)
+            throw new KeyNotFoundException("Không tìm thấy đợt khám");
+
+        var group = new HIS.Core.Entities.CheckupCampaignGroup
         {
-            var group = new HIS.Core.Entities.CheckupCampaignGroup
-            {
-                Id = Guid.NewGuid(),
-                CampaignId = dto.CampaignId,
-                GroupName = dto.GroupName,
-                RoomAssignment = dto.RoomAssignment,
-                TotalMembers = 0,
-                CompletedMembers = 0,
-                CreatedAt = DateTime.UtcNow,
-            };
-            _context.Set<HIS.Core.Entities.CheckupCampaignGroup>().Add(group);
-            await _context.SaveChangesAsync();
-            return new CampaignGroupDto
-            {
-                Id = group.Id,
-                CampaignId = group.CampaignId,
-                GroupName = group.GroupName,
-                RoomAssignment = group.RoomAssignment,
-                TotalMembers = 0,
-                CompletedMembers = 0,
-            };
-        }
-        catch
+            Id = Guid.NewGuid(),
+            CampaignId = dto.CampaignId,
+            GroupName = dto.GroupName,
+            RoomAssignment = dto.RoomAssignment,
+            TotalMembers = 0,
+            CompletedMembers = 0,
+            CreatedAt = DateTime.UtcNow,
+        };
+        _context.Set<HIS.Core.Entities.CheckupCampaignGroup>().Add(group);
+        await _context.SaveChangesAsync();
+        return new CampaignGroupDto
         {
-            return new CampaignGroupDto { Id = Guid.NewGuid(), GroupName = dto.GroupName };
-        }
+            Id = group.Id,
+            CampaignId = group.CampaignId,
+            GroupName = group.GroupName,
+            RoomAssignment = group.RoomAssignment,
+            TotalMembers = 0,
+            CompletedMembers = 0,
+        };
     }
 
     public async Task DeleteCampaignGroupAsync(Guid campaignId, Guid groupId)

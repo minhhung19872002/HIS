@@ -35,9 +35,25 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
 
     public async Task<MedicalStaffDto> SaveStaffAsync(SaveMedicalStaffDto dto)
     {
-        var entity = dto.Id.HasValue ? await _context.MedicalStaffs.FindAsync(dto.Id.Value) : null;
-        if (entity == null) { entity = new MedicalStaff { Id = Guid.NewGuid(), StaffCode = CodeGenerator.Timestamp("STF"), CreatedAt = DateTime.Now }; _context.MedicalStaffs.Add(entity); }
-        entity.FullName = dto.FullName; entity.StaffType = dto.StaffType ?? "Other"; entity.PrimaryDepartmentId = dto.DepartmentId; entity.LicenseNumber = dto.PracticeLicenseNumber; entity.Specialty = dto.Specialty; entity.Status = "Active";
+        if (string.IsNullOrWhiteSpace(dto.FullName))
+            throw new ArgumentException("Họ tên nhân viên là bắt buộc", nameof(dto.FullName));
+        if (dto.LicenseIssueDate.HasValue && dto.LicenseExpiryDate.HasValue && dto.LicenseExpiryDate < dto.LicenseIssueDate)
+            throw new ArgumentException("Ngày hết hạn CCHN phải sau ngày cấp", nameof(dto.LicenseExpiryDate));
+        MedicalStaff? entity = null;
+        if (dto.Id.HasValue)
+        {
+            // Unknown Id used to silently create a brand-new staff record.
+            entity = await _context.MedicalStaffs.FindAsync(dto.Id.Value)
+                ?? throw new KeyNotFoundException("Không tìm thấy nhân viên");
+        }
+        if (entity == null) { entity = new MedicalStaff { Id = Guid.NewGuid(), StaffCode = CodeGenerator.Timestamp("STF"), Status = "Active", CreatedAt = DateTime.Now }; _context.MedicalStaffs.Add(entity); }
+        entity.FullName = dto.FullName; entity.StaffType = dto.StaffType ?? "Other"; entity.PrimaryDepartmentId = dto.DepartmentId; entity.LicenseNumber = dto.PracticeLicenseNumber; entity.Specialty = dto.Specialty;
+        // Previously accepted but never persisted (license expiry drives the expiring-license alerts).
+        entity.LicenseIssueDate = dto.LicenseIssueDate; entity.LicenseExpiryDate = dto.LicenseExpiryDate;
+        entity.LicenseIssuedBy = dto.IssuingAuthority ?? entity.LicenseIssuedBy;
+        entity.JoinDate = dto.JoinDate ?? dto.HireDate ?? entity.JoinDate;
+        entity.PersonalPhone = dto.Phone ?? entity.PersonalPhone; entity.PersonalEmail = dto.Email ?? entity.PersonalEmail;
+        // Status is NOT reset on update (a resigned/suspended staff used to flip back to Active on every save).
         await _context.SaveChangesAsync();
         return await GetStaffAsync(entity.Id);
     }
@@ -162,8 +178,42 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
 
     public async Task<DutyRosterDto> CreateDutyRosterAsync(CreateDutyRosterDto dto)
     {
-        var entity = new DutyRoster { Id = Guid.NewGuid(), DepartmentId = dto.DepartmentId, Year = dto.Year, Month = dto.Month, Status = "Draft", CreatedAt = DateTime.Now };
+        if (dto.Year < 2000 || dto.Year > 2100 || dto.Month < 1 || dto.Month > 12)
+            throw new ArgumentException("Tháng/năm lịch trực không hợp lệ.");
+        if (dto.CreatedById == Guid.Empty)
+            throw new UnauthorizedAccessException("Không xác định được người lập lịch trực.");
+        if (!await _context.Departments.AnyAsync(d => d.Id == dto.DepartmentId))
+            throw new KeyNotFoundException("Không tìm thấy khoa/phòng");
+        if (await _context.DutyRosters.AnyAsync(r => r.DepartmentId == dto.DepartmentId && r.Year == dto.Year && r.Month == dto.Month && !r.IsDeleted))
+            throw new InvalidOperationException($"Khoa đã có lịch trực tháng {dto.Month}/{dto.Year}.");
+
+        var entity = new DutyRoster { Id = Guid.NewGuid(), DepartmentId = dto.DepartmentId, Year = dto.Year, Month = dto.Month, Status = "Draft", CreatedById = dto.CreatedById, CreatedAt = DateTime.Now };
         _context.DutyRosters.Add(entity);
+
+        // Shifts in the payload used to be dropped silently — persist one DutyShift per assigned staff.
+        var shifts = dto.Shifts ?? new List<CreateDutyShiftDto>();
+        var staffIds = shifts.SelectMany(s => s.AssignedStaffIds ?? new List<Guid>()).Distinct().ToList();
+        if (staffIds.Count > 0)
+        {
+            var known = await _context.MedicalStaffs.Where(s => staffIds.Contains(s.Id)).Select(s => s.Id).ToListAsync();
+            var unknown = staffIds.Except(known).ToList();
+            if (unknown.Count > 0)
+                throw new KeyNotFoundException($"Không tìm thấy nhân viên: {string.Join(", ", unknown)}");
+        }
+        foreach (var s in shifts)
+        {
+            if (s.ShiftDate.Year != dto.Year || s.ShiftDate.Month != dto.Month)
+                throw new ArgumentException($"Ca trực ngày {s.ShiftDate:dd/MM/yyyy} không thuộc tháng {dto.Month}/{dto.Year}.");
+            foreach (var staffId in (s.AssignedStaffIds ?? new List<Guid>()).Distinct())
+            {
+                _context.DutyShifts.Add(new DutyShift
+                {
+                    Id = Guid.NewGuid(), DutyRosterId = entity.Id, StaffId = staffId, ShiftDate = s.ShiftDate.Date,
+                    ShiftType = s.ShiftType, StartTime = s.StartTime, EndTime = s.EndTime, Status = "Scheduled",
+                    CreatedAt = DateTime.Now
+                });
+            }
+        }
         await _context.SaveChangesAsync();
         return new DutyRosterDto { Id = entity.Id, DepartmentId = entity.DepartmentId, Year = entity.Year, Month = entity.Month, Status = entity.Status };
     }
@@ -339,17 +389,57 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
         return new CMERecordDto { Id = entity.Id, StaffId = staffId, CreditsEarned = creditsEarned, CertificateNumber = certificateNumber };
     }
 
-    public async Task<List<MedicalStaffDto>> GetCMENonCompliantStaffAsync()
+    public async Task<List<CMESummaryDto>> GetCMENonCompliantStaffAsync()
     {
+        // Returns CMESummaryDto (the v2 HR page contract) instead of the staff profile.
+        // Active staff with < RequiredCredits total CME credits — INCLUDING staff with no CME record at all
+        // (previous query only looked at staff that already had records).
+        const int RequiredCredits = 24;
+        // Category 1 = formal training (conference/workshop/course); category 2 = online / self-study.
+        var category2Types = new[] { "Online", "Self-study", "SelfStudy" };
         try
         {
-            var staffIds = await _context.CMERecords.GroupBy(x => x.StaffId).Where(g => g.Sum(x => x.CreditHours) < 24).Select(g => g.Key).ToListAsync();
-            var list = await _context.MedicalStaffs.Where(x => staffIds.Contains(x.Id) && x.Status == "Active").ToBoundedListAsync("MedicalHR.CMENonCompliantStaff");
-            return list.Select(MapToStaffDto).ToList();
+            // Grouped in memory: CME records are a small table and this avoids EF GroupBy translation limits.
+            var rows = await _context.CMERecords.AsNoTracking()
+                .Select(x => new { x.StaffId, x.ActivityType, x.CreditHours })
+                .ToListAsync();
+            var credits = rows
+                .GroupBy(x => x.StaffId)
+                .Select(g => new
+                {
+                    StaffId = g.Key,
+                    Total = g.Sum(x => x.CreditHours),
+                    Cat2 = g.Where(x => category2Types.Contains(x.ActivityType)).Sum(x => x.CreditHours),
+                    Count = g.Count(),
+                })
+                .ToList();
+            var byStaff = credits.ToDictionary(c => c.StaffId);
+            var compliantIds = credits.Where(c => c.Total >= RequiredCredits).Select(c => c.StaffId).ToList();
+            var staff = await _context.MedicalStaffs
+                .Where(x => x.Status == "Active" && !compliantIds.Contains(x.Id))
+                .OrderBy(x => x.FullName)
+                .ToBoundedListAsync("MedicalHR.CMENonCompliantStaff");
+            return staff.Select(s =>
+            {
+                byStaff.TryGetValue(s.Id, out var c);
+                var earned = c?.Total ?? 0;
+                var cat2 = c?.Cat2 ?? 0;
+                var shortfall = Math.Max(0, RequiredCredits - earned);
+                return new CMESummaryDto
+                {
+                    StaffId = s.Id, StaffName = s.FullName, StaffType = s.StaffType,
+                    RequiredCredits = RequiredCredits, RequiredCreditsPerYear = RequiredCredits,
+                    EarnedCredits = earned,
+                    Category1Credits = earned - cat2, Category2Credits = cat2,
+                    ActivitiesCount = c?.Count ?? 0,
+                    IsCompliant = false,
+                    CreditsShortfall = shortfall, Shortfall = shortfall,
+                };
+            }).ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
-            return new List<MedicalStaffDto>();
+            return new List<CMESummaryDto>();
         }
     }
 
