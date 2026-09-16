@@ -178,6 +178,12 @@ public class PatientPhoto : BaseEntity
     public int PhotoType { get; set; } // 1-Chan dung, 2-CCCD, 3-The BHYT, 4-Khac
     public string FileName { get; set; } = string.Empty;
     public string FilePath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Noi dung anh. QA-R4: truoc day chi ghi ra thu muc trong container — khong duoc phuc vu tinh
+    /// va mat sau moi lan deploy. Anh tiep don (CCCD/chan dung) nho nen luu thang o day.
+    /// </summary>
+    public byte[]? Content { get; set; }
     public string? MimeType { get; set; }
     public long? FileSize { get; set; }
     public DateTime CapturedAt { get; set; }

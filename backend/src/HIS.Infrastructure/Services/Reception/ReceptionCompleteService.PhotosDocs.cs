@@ -55,10 +55,9 @@ public partial class ReceptionCompleteService {
         {
             throw new ArgumentException("Dữ liệu ảnh không phải base64 hợp lệ", nameof(dto.Base64Data));
         }
-        // The payload is decoded into memory and written to container disk, so it needs a ceiling: an ID-card
-        // photo is well under this, and without it one request can exhaust the disk. NOTE (known debt, not fixed
-        // here): the folder is container-local and is lost on the next deploy — the image is stored, not durable.
-        const int maxPhotoBytes = 8 * 1024 * 1024;
+        // The row carries the image, so it needs a ceiling: an ID-card photo or a portrait is well under
+        // this, and the cap also bounds the list response that returns them inline.
+        const int maxPhotoBytes = 2 * 1024 * 1024;
         if (bytes.LongLength > maxPhotoBytes)
             throw new ArgumentException($"Ảnh vượt quá {maxPhotoBytes / (1024 * 1024)} MB, vui lòng chụp lại ở kích thước nhỏ hơn.", nameof(dto.Base64Data));
 
@@ -66,12 +65,10 @@ public partial class ReceptionCompleteService {
         var extension = Path.GetExtension(fileName);
         if (string.IsNullOrEmpty(extension)) extension = ".jpg";
         var storedName = $"{Guid.NewGuid()}{extension}";
+        // Kept as a human-readable reference only; the bytes live in the row (see PatientPhoto.Content).
+        // Writing to wwwroot/photos was the old path: that folder is not in the image, is not served, and is
+        // wiped by every deploy, so the row pointed at a file nothing could ever read.
         var filePath = $"/photos/{dto.PatientId}/{storedName}";
-        // Same folder UpdatePatientPhotoAsync (ExaminationCompleteService.WaitingList) writes to, so both photo
-        // flows are served from one place.
-        var photoDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "photos", dto.PatientId.ToString());
-        Directory.CreateDirectory(photoDir);
-        await File.WriteAllBytesAsync(Path.Combine(photoDir, storedName), bytes);
 
         var photo = new PatientPhoto
         {
@@ -83,6 +80,7 @@ public partial class ReceptionCompleteService {
             FilePath = filePath,
             MimeType = extension.ToLowerInvariant() == ".png" ? "image/png" : "image/jpeg",
             FileSize = bytes.LongLength,
+            Content = bytes,
             Notes = dto.Notes,
             CapturedAt = DateTime.Now,
             CapturedByUserId = userId,
@@ -125,19 +123,30 @@ public partial class ReceptionCompleteService {
         if (medicalRecordId.HasValue)
             query = query.Where(p => p.MedicalRecordId == medicalRecordId.Value);
 
-        return await query
+        var rows = await query
             .OrderByDescending(p => p.CapturedAt)
-            .Select(p => new PatientPhotoDto
+            .Select(p => new
             {
-                Id = p.Id,
-                PatientId = p.PatientId,
-                MedicalRecordId = p.MedicalRecordId,
-                PhotoType = p.PhotoType,
-                FileName = p.FileName,
-                FilePath = p.FilePath,
-                CapturedAt = p.CapturedAt
+                p.Id, p.PatientId, p.MedicalRecordId, p.PhotoType, p.FileName, p.FilePath,
+                p.MimeType, p.Content, p.CapturedAt
             })
             .ToBoundedListAsync("ReceptionCompleteService.GetPatientPhotosAsync");
+
+        // The screen renders <img src={filePath}> directly. The stored path points at a folder nothing serves,
+        // so a row that carries its bytes is handed back as a data URL — the image shows with no frontend
+        // change and no extra request. Rows saved before the bytes were kept still return the old path.
+        return rows.Select(p => new PatientPhotoDto
+        {
+            Id = p.Id,
+            PatientId = p.PatientId,
+            MedicalRecordId = p.MedicalRecordId,
+            PhotoType = p.PhotoType,
+            FileName = p.FileName,
+            FilePath = p.Content is { Length: > 0 }
+                ? $"data:{p.MimeType ?? "image/jpeg"};base64,{Convert.ToBase64String(p.Content)}"
+                : p.FilePath,
+            CapturedAt = p.CapturedAt
+        }).ToList();
     }
 
     public async Task DeletePhotoAsync(Guid photoId, Guid userId)
