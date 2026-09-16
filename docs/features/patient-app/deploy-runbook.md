@@ -136,6 +136,52 @@ npm run build
 
 Nhân viên đăng nhập HIS như thường; các màn `/v2/patient-app/*` hiện với ai có vai trò tương ứng.
 
+### 3.1 Trạng thái trên prod AWS hiện nay (QA vòng 4, 2026-09-16)
+
+Trên `https://his.bluestar.com.vn` **chưa có BFF**, và Caddy chưa định tuyến `/patient-api`, nên
+`/patient-api/...` rơi vào SPA fallback và trả về `index.html`. Năm màn quản trị vì thế hiện thông
+báo *"Không gọi được máy chủ app người bệnh: địa chỉ /patient-api đang trả về trang web thay vì dữ
+liệu"* — đúng nguyên nhân, không phải màn hình trắng (chốt chặn ở
+`frontend/src/api/patientApp.ts`).
+
+Đây là **việc triển khai, không phải lỗi phần mềm**: theo thiết kế BFF chạy ở trung tâm dữ liệu
+bệnh viện (`deploy/patient-app/`), còn VPS công khai cố ý từ chối mọi đường ngoài `/push` và
+`/health` để dữ liệu y tế không đi qua đó. Prod hiện chỉ có một EC2 chạy HIS.
+
+Muốn bật 5 màn này trên prod AWS, chọn một trong hai:
+
+**a. Trỏ thẳng tới BFF của bệnh viện** (không đụng EC2) — build lại frontend với
+
+```bash
+VITE_PATIENT_APP_API_URL=https://<địa chỉ BFF của bệnh viện>
+```
+
+BFF phải bật CORS cho `https://his.bluestar.com.vn`.
+
+**b. Chạy BFF ngay trên EC2 và cho Caddy định tuyến** — dùng khi chưa có trung tâm dữ liệu riêng.
+Trên EC2 (`ec2-user@13.212.160.6`, hoặc qua SSM):
+
+```bash
+# 1. Dựng BFF + CSDL riêng của app trên cùng mạng với his-api
+cd /home/ec2-user/his/deploy/patient-app
+cp .env.example .env && vi .env          # điền bí mật thật
+docker compose up -d
+docker network connect his-net patientapp-api    # để Caddy gọi được
+
+# 2. Thêm route vào Caddyfile của EC2, ĐẶT TRƯỚC route SPA
+#    (Caddy khớp theo thứ tự; đặt sau thì vẫn rơi vào fallback như hiện nay)
+#    handle_path /patient-api/* {
+#        reverse_proxy patientapp-api:8080
+#    }
+docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+
+# 3. Kiểm: phải ra JSON, KHÔNG phải "<!doctype html>"
+curl -s -H "Authorization: Bearer $TOKEN"   https://his.bluestar.com.vn/patient-api/api/v1/admin/patient-app/dashboard?days=30 | head -c 120
+```
+
+`handle_path` (không phải `handle`) là quan trọng: nó cắt tiền tố `/patient-api` trước khi chuyển
+tiếp, khớp với cách dev server cấu hình `rewrite` trong `frontend/vite.config.ts`.
+
 ---
 
 ## 4. Nâng cấp
