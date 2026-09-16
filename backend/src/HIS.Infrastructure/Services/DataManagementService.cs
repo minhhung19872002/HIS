@@ -506,31 +506,102 @@ public class DataManagementService : IDataManagementService
         });
     }
 
-    public Task<List<DataHandoverDto>> GetHandoversAsync()
+    // QA round 4: the three methods below used to return fabricated DTOs without touching the database.
+    // The screen showed "đã tạo bàn giao", the row vanished on reload, and handing a hospital's patient
+    // data to an outside organisation left no record at all. They now read and write DataHandovers.
+
+    public async Task<List<DataHandoverDto>> GetHandoversAsync()
     {
-        return Task.FromResult(new List<DataHandoverDto>());
+        var rows = await _db.DataHandovers.AsNoTracking()
+            .Where(h => !h.IsDeleted)
+            .OrderByDescending(h => h.HandoverDate)
+            .Take(500)
+            .ToListAsync();
+        return rows.Select(ToDto).ToList();
     }
 
-    public Task<DataHandoverDto> CreateHandoverAsync(CreateHandoverRequest request, string userId)
+    public async Task<DataHandoverDto> CreateHandoverAsync(CreateHandoverRequest request, string userId)
     {
-        return Task.FromResult(new DataHandoverDto
+        var recipient = request.RecipientName?.Trim();
+        if (string.IsNullOrWhiteSpace(recipient))
+            throw new ArgumentException("Chưa nhập tên người/đơn vị tiếp nhận.", nameof(request.RecipientName));
+        var modules = request.Modules?.Where(m => !string.IsNullOrWhiteSpace(m)).Select(m => m.Trim()).ToList()
+                      ?? new List<string>();
+        if (modules.Count == 0)
+            throw new ArgumentException("Chưa chọn phân hệ dữ liệu cần bàn giao.", nameof(request.Modules));
+
+        var entity = new DataHandover
         {
             Id = Guid.NewGuid(),
-            HandoverCode = $"BG-{DateTime.Now:yyyyMMdd}-{Guid.NewGuid().ToString()[..4].ToUpper()}",
-            HandoverDate = DateTime.Now,
-            RecipientName = request.RecipientName ?? "",
-            RecipientOrganization = request.RecipientOrganization ?? "",
-            RecipientEmail = request.RecipientEmail ?? "",
-            Modules = request.Modules ?? new List<string>(),
+            HandoverCode = await NextHandoverCodeAsync(),
+            HandoverDate = HIS.Core.Common.VnTime.NowVn,
+            RecipientName = recipient,
+            RecipientOrganization = request.RecipientOrganization?.Trim(),
+            RecipientEmail = request.RecipientEmail?.Trim(),
+            ModulesJson = System.Text.Json.JsonSerializer.Serialize(modules),
             Status = 0,
-            Remarks = request.Remarks
-        });
+            Remarks = request.Remarks,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = userId,
+        };
+        _db.DataHandovers.Add(entity);
+        await _db.SaveChangesAsync();
+        _logger.LogInformation("DataHandover {Code} created for {Recipient} ({Modules})",
+            entity.HandoverCode, recipient, string.Join(",", modules));
+        return ToDto(entity);
     }
 
     public async Task<object> ConfirmHandoverAsync(Guid id, string userId)
     {
-        return new { success = true, message = "Đã xác nhận bàn giao dữ liệu" };
+        var entity = await _db.DataHandovers.FirstOrDefaultAsync(h => h.Id == id && !h.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy biên bản bàn giao.");
+        if (entity.Status == 3)
+            throw new InvalidOperationException($"Biên bản {entity.HandoverCode} đã được xác nhận trước đó.");
+
+        var now = HIS.Core.Common.VnTime.NowVn;
+        entity.DeliveredAt ??= now;
+        entity.ConfirmedAt = now;
+        entity.ConfirmedByUserId = Guid.TryParse(userId, out var uid) ? uid : null;
+        entity.Status = 3;
+        entity.UpdatedAt = DateTime.UtcNow;
+        entity.UpdatedBy = userId;
+        await _db.SaveChangesAsync();
+        return new { success = true, message = $"Đã xác nhận bàn giao {entity.HandoverCode}" };
     }
+
+    /// <summary>BG-yyyyMMdd-NNN, đánh số lại theo từng ngày; unique index chặn trùng nếu hai người bấm cùng lúc.</summary>
+    private async Task<string> NextHandoverCodeAsync()
+    {
+        var today = HIS.Core.Common.VnTime.TodayVn;
+        var prefix = $"BG-{today:yyyyMMdd}-";
+        var last = await _db.DataHandovers.AsNoTracking()
+            .Where(h => h.HandoverCode.StartsWith(prefix))
+            .OrderByDescending(h => h.HandoverCode)
+            .Select(h => h.HandoverCode)
+            .FirstOrDefaultAsync();
+        var next = 1;
+        if (last != null && int.TryParse(last[prefix.Length..], out var n)) next = n + 1;
+        return prefix + next.ToString("D3");
+    }
+
+    private static DataHandoverDto ToDto(DataHandover h) => new()
+    {
+        Id = h.Id,
+        HandoverCode = h.HandoverCode,
+        HandoverDate = h.HandoverDate,
+        RecipientName = h.RecipientName,
+        RecipientOrganization = h.RecipientOrganization ?? "",
+        RecipientEmail = h.RecipientEmail ?? "",
+        Modules = string.IsNullOrWhiteSpace(h.ModulesJson)
+            ? new List<string>()
+            : (System.Text.Json.JsonSerializer.Deserialize<List<string>>(h.ModulesJson) ?? new List<string>()),
+        TotalRecords = h.TotalRecords,
+        TotalFileSize = h.TotalFileSize,
+        Status = h.Status,
+        DeliveredAt = h.DeliveredAt,
+        ConfirmedAt = h.ConfirmedAt,
+        Remarks = h.Remarks,
+    };
 
     public Task<byte[]> DownloadExportAsync(Guid id)
     {
