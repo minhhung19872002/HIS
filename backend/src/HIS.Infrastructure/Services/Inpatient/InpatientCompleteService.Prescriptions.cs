@@ -366,8 +366,8 @@ public partial class InpatientCompleteService {
     {
         var prescription = await _context.Prescriptions
             .Include(p => p.Details)
-            .FirstOrDefaultAsync(p => p.Id == id);
-        if (prescription != null)
+            .FirstOrDefaultAsync(p => p.Id == id)
+            ?? throw new KeyNotFoundException("Không tìm thấy đơn thuốc."); // QA-R4: was a silent 200
         {
             await EmrLockGuard.EnsureEditableByRecordAsync(_context, prescription.MedicalRecordId); // TT46
             EnsureInpatientPrescriptionMutable(prescription, "xóa");

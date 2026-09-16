@@ -34,6 +34,12 @@ public partial class InpatientCompleteService {
             .FirstOrDefaultAsync(b => b.Id == dto.BedId);
         if (bed == null)
             throw new KeyNotFoundException("Bed not found");
+        EnsureBedUsable(bed, admission.DepartmentId, await DepartmentOwnsBedsAsync(admission.DepartmentId)); // QA-R4
+
+        // QA-R4: two parallel assign-bed calls for the same free bed both passed the occupancy query and the
+        // bed ended with two active assignments — serialize the check + insert per bed.
+        await using var tx = await _context.Database.BeginTransactionAsync();
+        await LockBedAsync(dto.BedId);
 
         // QA0915: assigning a second bed without releasing the first left one admission holding two
         // active beds. Changing bed must go through transfer-bed (which releases the old one).
@@ -57,6 +63,7 @@ public partial class InpatientCompleteService {
             admission.BedId = dto.BedId;
             admission.RoomId = bed.RoomId;
             await _context.SaveChangesAsync();
+            await tx.CommitAsync();
             return new BedAssignmentDto
             {
                 Id = existingActive.Id,
@@ -92,6 +99,7 @@ public partial class InpatientCompleteService {
         admission.RoomId = bed.RoomId;
 
         await _context.SaveChangesAsync();
+        await tx.CommitAsync();
 
         return new BedAssignmentDto
         {
@@ -120,6 +128,18 @@ public partial class InpatientCompleteService {
             throw new InvalidOperationException(
                 $"Lượt nội trú đã kết thúc ({AdmissionStatus.Label(admissionToMove.Status)}), không chuyển giường được.");
 
+        var newBed = await _context.Beds
+            .Include(b => b.Room)
+            .ThenInclude(r => r.Department)
+            .FirstOrDefaultAsync(b => b.Id == dto.NewBedId);
+        if (newBed == null)
+            throw new KeyNotFoundException("New bed not found");
+        EnsureBedUsable(newBed, admissionToMove.DepartmentId, await DepartmentOwnsBedsAsync(admissionToMove.DepartmentId)); // QA-R4
+
+        // QA-R4: same per-bed lock as AssignBedAsync (parallel transfers to one free bed).
+        await using var tx = await _context.Database.BeginTransactionAsync();
+        await LockBedAsync(dto.NewBedId);
+
         // Release current bed
         var currentAssignment = await _context.Set<BedAssignment>()
             .FirstOrDefaultAsync(ba => ba.AdmissionId == dto.AdmissionId && ba.Status == 0);
@@ -130,13 +150,6 @@ public partial class InpatientCompleteService {
             currentAssignment.Status = 2; // Chuyển giường
             currentAssignment.ReleasedAt = DateTime.Now;
         }
-
-        var newBed = await _context.Beds
-            .Include(b => b.Room)
-            .ThenInclude(r => r.Department)
-            .FirstOrDefaultAsync(b => b.Id == dto.NewBedId);
-        if (newBed == null)
-            throw new KeyNotFoundException("New bed not found");
 
         // Check destination bed availability
         var bedOccupied = await _context.Set<BedAssignment>()
@@ -167,6 +180,7 @@ public partial class InpatientCompleteService {
         }
 
         await _context.SaveChangesAsync();
+        await tx.CommitAsync();
 
         return new BedAssignmentDto
         {
@@ -188,15 +202,65 @@ public partial class InpatientCompleteService {
     /// <summary>
     /// QA0915: bed must exist and have no active assignment held by another admission.
     /// </summary>
-    private async Task EnsureBedAvailableAsync(Guid bedId, Guid? ownAdmissionId)
+    private async Task EnsureBedAvailableAsync(Guid bedId, Guid? ownAdmissionId, Guid? departmentId = null)
     {
-        var bed = await _context.Beds.AsNoTracking().FirstOrDefaultAsync(b => b.Id == bedId)
+        var bed = await _context.Beds.AsNoTracking().Include(b => b.Room).FirstOrDefaultAsync(b => b.Id == bedId)
             ?? throw new KeyNotFoundException("Không tìm thấy giường.");
+        var bedDept = departmentId ?? bed.Room?.DepartmentId ?? Guid.Empty;
+        EnsureBedUsable(bed, bedDept, await DepartmentOwnsBedsAsync(bedDept)); // QA-R4: out-of-service / other-department bed
         var occupied = await _context.Set<BedAssignment>()
             .AnyAsync(ba => ba.BedId == bedId && ba.Status == 0
                             && (!ownAdmissionId.HasValue || ba.AdmissionId != ownAdmissionId.Value));
         if (occupied)
             throw new InvalidOperationException($"Giường {bed.BedName} đã có bệnh nhân, vui lòng chọn giường khác");
+    }
+
+    /// <summary>
+    /// QA-R4: a bed taken out of service (IsActive=false / Status 2 "Bảo trì") or belonging to another
+    /// department was accepted by assign-bed / transfer-bed (the ward map then showed the patient in a
+    /// room of a department they were never transferred to).
+    /// </summary>
+    /// <summary>
+    /// A bed that is retired or under maintenance can never take a patient — that half is a hard rule.
+    /// The department match is NOT: pre-push review found every registered bed sits under a single department
+    /// while admissions are spread over five ("Khoa Ngoại" vs "Khoa Ngoại tổng hợp" and friends), so requiring
+    /// equality would leave those wards unable to assign any bed at all. Enforce it only once the admission's
+    /// own department actually owns beds; otherwise the room simply is not mapped yet.
+    /// </summary>
+    private static void EnsureBedUsable(Bed bed, Guid admissionDepartmentId, bool departmentOwnsBeds)
+    {
+        if (!bed.IsActive || bed.Status == 2)
+            throw new InvalidOperationException($"Giường {bed.BedName} đang ngừng sử dụng / bảo trì, không phân được.");
+        if (bed.Room?.DepartmentId == admissionDepartmentId) return;
+        if (departmentOwnsBeds)
+            throw new InvalidOperationException(
+                $"Giường {bed.BedName} thuộc khoa khác — dùng Chuyển khoa để chuyển bệnh nhân sang khoa đó.");
+    }
+
+    /// <summary>True when the department has at least one bed registered under its own rooms.</summary>
+    private Task<bool> DepartmentOwnsBedsAsync(Guid departmentId) =>
+        _context.Set<Bed>().AnyAsync(b => b.Room != null && b.Room.DepartmentId == departmentId);
+
+    /// <summary>
+    /// QA-R4: per-bed application lock (owner = current transaction) so the "bed is free" check and the
+    /// insert of the new assignment cannot interleave between two requests. Same pattern as the
+    /// registration-code lock in ReceptionCompleteService.
+    /// </summary>
+    private async Task LockBedAsync(Guid bedId)
+    {
+        try
+        {
+            await _context.Database.ExecuteSqlRawAsync(
+                "DECLARE @r int; " +
+                "EXEC @r = sp_getapplock @Resource = {0}, @LockMode = N'Exclusive', " +
+                "@LockOwner = N'Transaction', @LockTimeout = 5000; " +
+                "IF @r < 0 THROW 50002, N'bed lock timeout', 1;",
+                $"HIS.Inpatient.Bed.{bedId:N}");
+        }
+        catch (Microsoft.Data.SqlClient.SqlException ex) when (ex.Number == 50002)
+        {
+            throw new InvalidOperationException("Giường này đang được người khác thao tác, vui lòng thử lại.");
+        }
     }
 
     public Task<bool> RegisterSharedBedAsync(Guid admissionId, Guid bedId, Guid userId)
@@ -206,17 +270,17 @@ public partial class InpatientCompleteService {
 
     public async Task ReleaseBedAsync(Guid admissionId, Guid userId)
     {
+        // QA-R4: unknown admission / no bed held answered 200 (silent no-op) — the caller could not tell.
+        var admission = await _context.Set<Admission>().FindAsync(admissionId)
+            ?? throw new KeyNotFoundException("Không tìm thấy lượt nội trú.");
         var assignment = await _context.Set<BedAssignment>()
             .FirstOrDefaultAsync(ba => ba.AdmissionId == admissionId && ba.Status == 0);
         if (assignment == null)
-            return;
+            throw new InvalidOperationException("Bệnh nhân hiện không giữ giường nào để trả.");
 
         assignment.Status = 1; // Đã trả
         assignment.ReleasedAt = DateTime.Now;
-
-        var admission = await _context.Set<Admission>().FindAsync(admissionId);
-        if (admission != null)
-            admission.BedId = null;
+        admission.BedId = null;
 
         await _context.SaveChangesAsync();
     }

@@ -17,6 +17,15 @@ public partial class InpatientCompleteService {
     // #16: Hội chẩn nội trú — persist thật (trước đây stub in-memory, biên bản mất ngay sau khi tạo).
     public async Task<ConsultationDto> CreateConsultationAsync(CreateConsultationDto dto, Guid userId)
     {
+        // QA-R4: InpatientConsultations has no FK — a zero / unknown admission created an orphan row (200).
+        var admissionStatus = await _context.Admissions.AsNoTracking()
+            .Where(a => a.Id == dto.AdmissionId && !a.IsDeleted)
+            .Select(a => (int?)a.Status)
+            .FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Không tìm thấy lượt nội trú.");
+        await EnsureChartableAsync(dto.AdmissionId, admissionStatus, "mời hội chẩn");
+        if (dto.ConsultationDate == default)
+            throw new InvalidOperationException("Chưa nhập ngày hội chẩn.");
         await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, dto.AdmissionId); // TT46 — QA0915: was writable on a finalized EMR
         var now = DateTime.Now;
         var entity = new InpatientConsultation

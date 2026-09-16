@@ -18,7 +18,11 @@ public partial class InpatientCompleteService
         var user = await _context.Users.FindAsync(userId);
 
         // Get department info
-        var dept = await _context.Departments.FindAsync(request.DepartmentId);
+        // QA-R4: an empty body created a handover with DepartmentId = zero GUID and ShiftDate 0001-01-01.
+        var dept = (request.DepartmentId == Guid.Empty ? null : await _context.Departments.FindAsync(request.DepartmentId))
+            ?? throw new KeyNotFoundException("Không tìm thấy khoa bàn giao.");
+        if (request.ShiftDate == default)
+            throw new InvalidOperationException("Chưa nhập ngày ca trực.");
 
         // Count current patients in department
         var activeAdmissions = await _context.Admissions

@@ -76,9 +76,9 @@ public class ClinicalRecordService : IClinicalRecordService
         {
             // Update existing
             record = await _context.PartographRecords.FindAsync(dto.Id.Value)
-                ?? throw new InvalidOperationException("Partograph record not found");
+                ?? throw new KeyNotFoundException("Không tìm thấy biểu đồ chuyển dạ.");
             // TT46 (QA-R2): biểu đồ chuyển dạ là nội dung HSBA — trước đây ghi được vào hồ sơ đã khoá.
-            await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, record.AdmissionId);
+            await EnsurePartographParentEditableAsync(record.AdmissionId);
 
             record.RecordTime = dto.RecordTime;
             record.CervicalDilation = dto.CervicalDilation;
@@ -101,7 +101,9 @@ public class ClinicalRecordService : IClinicalRecordService
         else
         {
             // Create new
-            await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, dto.AdmissionId); // TT46
+            await EnsurePartographParentEditableAsync(dto.AdmissionId); // TT46 + QA-R4 parent must exist
+            if (dto.PatientId == Guid.Empty || !await _context.Patients.AnyAsync(p => p.Id == dto.PatientId))
+                throw new KeyNotFoundException("Không tìm thấy bệnh nhân của biểu đồ chuyển dạ.");
             record = new PartographRecord
             {
                 Id = Guid.NewGuid(),
@@ -162,7 +164,7 @@ public class ClinicalRecordService : IClinicalRecordService
     {
         var record = await _context.PartographRecords.FindAsync(id);
         if (record == null) return false;
-        await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, record.AdmissionId); // TT46
+        await EnsurePartographParentEditableAsync(record.AdmissionId); // TT46
 
         record.IsDeleted = true;
         record.UpdatedAt = DateTime.UtcNow;
@@ -284,6 +286,12 @@ public class ClinicalRecordService : IClinicalRecordService
         else
         {
             // Create new record
+            // QA-R4: a zero / unknown SurgeryId or PatientId created an orphan record (200) that no surgery
+            // or EMR screen could ever list.
+            if (dto.SurgeryId == Guid.Empty || !await AnesthesiaParentExistsAsync(dto.SurgeryId))
+                throw new KeyNotFoundException("Không tìm thấy ca mổ / hồ sơ bệnh án của phiếu gây mê.");
+            if (dto.PatientId == Guid.Empty || !await _context.Patients.AnyAsync(p => p.Id == dto.PatientId))
+                throw new KeyNotFoundException("Không tìm thấy bệnh nhân của phiếu gây mê.");
             await EnsureAnesthesiaEditableAsync(dto.SurgeryId); // TT46
             record = new AnesthesiaRecord
             {
@@ -352,6 +360,35 @@ public class ClinicalRecordService : IClinicalRecordService
     /// SurgeryRecord / SurgerySchedule / SurgeryRequest id — or, from EmrEditor, the MedicalRecordId
     /// itself. Resolve whichever it is to the owning medical record and apply the EMR lock.
     /// </summary>
+    /// <summary>
+    /// QA-R4: <c>PartographRecord.AdmissionId</c> holds an Admission id from the obstetric screens but the
+    /// MedicalRecordId from EmrEditor (see EmrEditor.savePartograph). Resolve either, apply the TT46 lock,
+    /// and refuse an id that is neither (previously an orphan row with a zero GUID was written).
+    /// </summary>
+    private async Task EnsurePartographParentEditableAsync(Guid admissionOrRecordId)
+    {
+        if (admissionOrRecordId == Guid.Empty)
+            throw new KeyNotFoundException("Không tìm thấy lượt nội trú / hồ sơ bệnh án của biểu đồ chuyển dạ.");
+        if (await _context.Admissions.AnyAsync(a => a.Id == admissionOrRecordId))
+        {
+            await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, admissionOrRecordId);
+            return;
+        }
+        if (await _context.MedicalRecords.AnyAsync(m => m.Id == admissionOrRecordId))
+        {
+            await EmrLockGuard.EnsureEditableByRecordAsync(_context, admissionOrRecordId);
+            return;
+        }
+        throw new KeyNotFoundException("Không tìm thấy lượt nội trú / hồ sơ bệnh án của biểu đồ chuyển dạ.");
+    }
+
+    /// <summary>QA-R4: SurgeryId must be a MedicalRecord, SurgeryRecord, SurgerySchedule or SurgeryRequest id.</summary>
+    private async Task<bool> AnesthesiaParentExistsAsync(Guid surgeryId)
+        => await _context.MedicalRecords.AnyAsync(m => m.Id == surgeryId)
+           || await _context.SurgeryRecords.AnyAsync(r => r.Id == surgeryId)
+           || await _context.SurgerySchedules.AnyAsync(s => s.Id == surgeryId)
+           || await _context.SurgeryRequests.AnyAsync(r => r.Id == surgeryId);
+
     private async Task EnsureAnesthesiaEditableAsync(Guid surgeryId)
     {
         if (surgeryId == Guid.Empty) return;

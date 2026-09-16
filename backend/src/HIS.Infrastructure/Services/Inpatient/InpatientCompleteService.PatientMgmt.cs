@@ -291,9 +291,32 @@ public partial class InpatientCompleteService {
         if (hasActiveAdmission)
             throw new InvalidOperationException("Hồ sơ này đã có lượt nội trú đang điều trị, không nhập viện lần nữa được.");
 
+        // QA-R4: the guard above is per medical record — the same PATIENT with an open stay on another
+        // record (R1 found 3-4 parallel admissions per patient) was still admitted again. One person
+        // cannot occupy two inpatient stays at once; the open one must be discharged / transferred first.
+        var otherOpenStay = await _context.Set<Admission>()
+            .Where(a => a.PatientId == medicalRecord.PatientId && a.MedicalRecordId != dto.MedicalRecordId && !a.IsDeleted
+                        && (a.Status == AdmissionStatus.InTreatment || a.Status == AdmissionStatus.PendingDischarge))
+            .Select(a => a.MedicalRecord.MedicalRecordCode)
+            .FirstOrDefaultAsync();
+        // Pre-push review: 4 patients in the existing data already hold two open stays, and v2 has no screen to
+        // close a stay you did not open — a hard block would strand them at reception. So only a stay opened in
+        // the last 24h blocks (that is the double-submit / duplicate-admission this guard is for); an older one
+        // is legacy housekeeping and is logged instead.
+        if (otherOpenStay != null)
+        {
+            var openedRecently = await _context.Set<Admission>()
+                .AnyAsync(a => a.PatientId == medicalRecord.PatientId && a.MedicalRecordId != dto.MedicalRecordId && !a.IsDeleted
+                               && (a.Status == AdmissionStatus.InTreatment || a.Status == AdmissionStatus.PendingDischarge)
+                               && a.AdmissionDate >= DateTime.Now.AddDays(-1));
+            if (openedRecently)
+                throw new InvalidOperationException(
+                    $"Bệnh nhân vừa được nhập viện ở hồ sơ {otherOpenStay} (trong 24 giờ qua) — phải ra viện/chuyển viện lượt đó trước.");
+        }
+
         // QA0915: target bed must exist and be free (same rule as TransferBedAsync).
         if (dto.BedId.HasValue)
-            await EnsureBedAvailableAsync(dto.BedId.Value, null);
+            await EnsureBedAvailableAsync(dto.BedId.Value, null, dto.DepartmentId);
 
         // Update medical record to IPD type
         medicalRecord.TreatmentType = 2; // Inpatient
@@ -390,7 +413,7 @@ public partial class InpatientCompleteService {
             throw new InvalidOperationException(
                 $"Lượt nội trú đã kết thúc ({AdmissionStatus.Label(sourceAdmission.Status)}), không tiếp nhận chuyển khoa được.");
         if (dto.TargetBedId.HasValue)
-            await EnsureBedAvailableAsync(dto.TargetBedId.Value, dto.SourceAdmissionId);
+            await EnsureBedAvailableAsync(dto.TargetBedId.Value, dto.SourceAdmissionId, dto.TargetDepartmentId);
 
         var medicalRecord = sourceAdmission.MedicalRecord;
         medicalRecord.DepartmentId = dto.TargetDepartmentId;
@@ -548,6 +571,8 @@ public partial class InpatientCompleteService {
                 throw new KeyNotFoundException("Không tìm thấy giường đích.");
             if (targetBed.RoomId != dto.TargetRoomId)
                 throw new InvalidOperationException("Giường đích không thuộc phòng đích.");
+            if (!targetBed.IsActive || targetBed.Status == 2) // QA-R4: out-of-service bed
+                throw new InvalidOperationException($"Giường {targetBed.BedName} đang ngừng sử dụng / bảo trì, không phân được.");
 
             var bedOccupied = await _context.Set<BedAssignment>()
                 .AnyAsync(ba => ba.BedId == dto.TargetBedId.Value

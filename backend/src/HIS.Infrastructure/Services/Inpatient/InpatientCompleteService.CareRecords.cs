@@ -18,6 +18,22 @@ public partial class InpatientCompleteService {
     // FE báo "Đã ghi nhận truyền dịch" nhưng KHÔNG lưu gì (patient-safety).
     public async Task<InfusionRecordDto> CreateInfusionRecordAsync(CreateInfusionRecordDto dto, Guid userId)
     {
+        // QA-R4: unknown admission died on the FK (500); finished stay, blank fluid, volume -500 ml and
+        // drop rate 0 were all written as a running infusion.
+        var admissionStatus = await _context.Admissions.AsNoTracking()
+            .Where(a => a.Id == dto.AdmissionId && !a.IsDeleted)
+            .Select(a => (int?)a.Status)
+            .FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Không tìm thấy lượt nội trú.");
+        await EnsureChartableAsync(dto.AdmissionId, admissionStatus, "ghi truyền dịch");
+        if (string.IsNullOrWhiteSpace(dto.FluidName))
+            throw new InvalidOperationException("Chưa nhập tên dịch truyền.");
+        if (dto.Volume <= 0)
+            throw new InvalidOperationException("Thể tích dịch truyền phải lớn hơn 0 ml.");
+        if (dto.DropRate <= 0)
+            throw new InvalidOperationException("Tốc độ truyền (giọt/phút) phải lớn hơn 0.");
+        if (dto.StartTime == default)
+            throw new InvalidOperationException("Chưa nhập giờ bắt đầu truyền.");
         await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, dto.AdmissionId); // TT46 — QA0915: was writable on a finalized EMR
         var entity = new InfusionRecord
         {

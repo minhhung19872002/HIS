@@ -523,8 +523,10 @@ public partial class InpatientCompleteService {
     {
         var request = await _context.ServiceRequests
             .Include(r => r.Details)
-            .FirstOrDefaultAsync(r => r.Id == id);
-        if (request == null || request.Status != 0) return; // chỉ huỷ phiếu chưa thực hiện
+            .FirstOrDefaultAsync(r => r.Id == id)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu chỉ định."); // QA-R4: was a silent 200
+        if (request.Status != 0) // chỉ huỷ phiếu chưa thực hiện
+            throw new InvalidOperationException("Phiếu chỉ định đã thực hiện hoặc đã hủy — không hủy được nữa.");
         request.Status = 4; // Đã hủy (ServiceRequest.Status: 4=hủy; SRD.Status: 3=hủy)
         foreach (var d in request.Details) d.Status = 3;
         await _context.SaveChangesAsync();

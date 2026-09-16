@@ -158,6 +158,11 @@ public partial class InpatientCompleteService {
         if (dto.DischargeDate.Date < admission.AdmissionDate.Date)
             throw new InvalidOperationException(
                 $"Ngày ra viện ({dto.DischargeDate:dd/MM/yyyy}) không được trước ngày vào viện ({admission.AdmissionDate:dd/MM/yyyy}).");
+        // QA-R4: a discharge dated 2030 was accepted — MedicalRecords.DischargeDate / 4210 export / bed-day
+        // end then carry a future date.
+        if (dto.DischargeDate.Date > HIS.Core.Common.VnTime.TodayVn)
+            throw new InvalidOperationException(
+                $"Ngày ra viện ({dto.DischargeDate:dd/MM/yyyy}) không được sau ngày hôm nay.");
 
         // Enforce pre-discharge checks
         var preCheck = await CheckPreDischargeAsync(dto.AdmissionId);
@@ -583,6 +588,23 @@ public partial class InpatientCompleteService {
                 InsuranceRatio = d.Amount > 0 ? Math.Round(d.InsuranceAmount * 100 / d.Amount, 0) : 0,
                 ItemType = "Thuốc",
             });
+        // QA-R4 (money): bed days were missing from the 6556 statement while the cashier ledger and the
+        // pre-discharge check charge them — same InvoiceLedger lines (nights × Beds.DailyPrice, BHYT split).
+        var bedLines = (await InvoiceLedger.LoadAsync(_context, medRecord.Id)).Beds;
+        foreach (var b in bedLines)
+            items.Add(new HIS.Application.DTOs.Inpatient.BillingItemDto
+            {
+                ItemCode = b.Code,
+                ItemName = b.Name,
+                Unit = b.Unit ?? "Ngày",
+                Quantity = b.Quantity,
+                UnitPrice = b.UnitPrice,
+                Amount = b.Amount,
+                InsuranceAmount = b.InsuranceAmount,
+                PatientAmount = b.PatientAmount,
+                InsuranceRatio = b.Amount > 0 ? Math.Round(b.InsuranceAmount * 100 / b.Amount, 0) : 0,
+                ItemType = "Giường",
+            });
         for (var i = 0; i < items.Count; i++) items[i].OrderNo = i + 1;
 
         // QA0915 (M7): deposit = balance still available (net of usage and refunds), and receipts already
@@ -593,7 +615,8 @@ public partial class InpatientCompleteService {
         var insurance = items.Sum(x => x.InsuranceAmount);
         var patientPay = items.Sum(x => x.PatientAmount);
         var coPay = serviceLines.Where(d => d.PatientType == 1).Sum(d => d.PatientAmount)
-                    + drugLines.Where(d => d.PatientType == 1).Sum(d => d.PatientAmount);
+                    + drugLines.Where(d => d.PatientType == 1).Sum(d => d.PatientAmount)
+                    + bedLines.Where(b => b.InsuranceAmount > 0).Sum(b => b.PatientAmount);
 
         return new BillingStatement6556Dto
         {

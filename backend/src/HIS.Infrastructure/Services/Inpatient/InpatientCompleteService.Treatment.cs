@@ -17,6 +17,15 @@ public partial class InpatientCompleteService {
 
     public async Task<TreatmentSheetDto> CreateTreatmentSheetAsync(CreateTreatmentSheetDto dto, Guid userId)
     {
+        // QA-R4: an unknown / zero admission reached SaveChanges and died on the FK (500); a finished stay
+        // accepted new daily orders; a sheet dated in the future or before admission was stored as-is.
+        var admission = await _context.Admissions.AsNoTracking()
+            .Where(a => a.Id == dto.AdmissionId && !a.IsDeleted)
+            .Select(a => new { a.Status, a.AdmissionDate })
+            .FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Không tìm thấy lượt nội trú.");
+        await EnsureChartableAsync(dto.AdmissionId, admission.Status, "ghi tờ điều trị");
+        EnsureStayDate(dto.TreatmentDate, admission.AdmissionDate, "Ngày điều trị");
         await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, dto.AdmissionId); // TT46
 
         var doctor = await _context.Users.FindAsync(userId);
@@ -55,10 +64,14 @@ public partial class InpatientCompleteService {
 
     public async Task<TreatmentSheetDto> UpdateTreatmentSheetAsync(Guid id, CreateTreatmentSheetDto dto, Guid userId)
     {
-        var dailyProgress = await _context.DailyProgresses.FindAsync(id);
-        if (dailyProgress != null)
+        // QA-R4: an unknown id echoed the payload back with 200 (nothing saved, CreatedAt 0001-01-01).
+        var dailyProgress = await _context.DailyProgresses.FindAsync(id)
+            ?? throw new KeyNotFoundException("Không tìm thấy tờ điều trị.");
         {
             await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, dailyProgress.AdmissionId); // TT46
+            var admissionDate = await _context.Admissions.AsNoTracking()
+                .Where(a => a.Id == dailyProgress.AdmissionId).Select(a => a.AdmissionDate).FirstOrDefaultAsync();
+            EnsureStayDate(dto.TreatmentDate, admissionDate, "Ngày điều trị");
             dailyProgress.SubjectiveFindings = dto.ProgressNotes;
             dailyProgress.Plan = dto.TreatmentOrders;
             dailyProgress.ActivityOrder = dto.NursingOrders;
@@ -83,6 +96,48 @@ public partial class InpatientCompleteService {
             DietOrders = dto.DietOrders,
             UpdatedAt = DateTime.Now
         };
+    }
+
+    /// <summary>
+    /// QA-R4: a clinical timestamp must fall inside the stay — not in the future and not before the
+    /// admission day. Client ISO values with "Z" bind as Kind=Utc; business timestamps are VN local.
+    /// </summary>
+    private static void EnsureStayDate(DateTime value, DateTime admissionDate, string label)
+    {
+        if (value == default)
+            throw new InvalidOperationException($"Chưa nhập {label.ToLowerInvariant()}.");
+        var vn = value.Kind == DateTimeKind.Utc ? HIS.Core.Common.VnTime.UtcToVn(value) : value;
+        var nowVn = HIS.Core.Common.VnTime.NowVn;
+        if (vn > nowVn.AddMinutes(10))
+            throw new InvalidOperationException($"{label} ({vn:HH:mm dd/MM/yyyy}) không được ở tương lai.");
+        if (admissionDate != default && vn.Date < admissionDate.Date)
+            throw new InvalidOperationException(
+                $"{label} ({vn:dd/MM/yyyy}) không được trước ngày vào viện ({admissionDate:dd/MM/yyyy}).");
+    }
+
+    /// <summary>
+    /// Charting on a stay that has ended: allowed for a short grace period, refused after it.
+    ///
+    /// Ward staff routinely finish the shift's entries (tờ điều trị, sinh hiệu, truyền dịch, biên bản hội chẩn)
+    /// after the patient has already walked out, and v2 has no "reopen stay" button — so a hard block on any
+    /// finished stay would simply lose that charting. The real abuse this guards against is writing to a stay
+    /// closed weeks ago, which the window still refuses. The TT46 EMR lock that follows every caller remains the
+    /// hard gate once the record is finalized.
+    /// </summary>
+    private const int PostDischargeChartingHours = 48;
+
+    private async Task EnsureChartableAsync(Guid admissionId, int status, string what)
+    {
+        if (HIS.Core.Constants.AdmissionStatus.IsActive(status)) return;
+        var endedAt = await _context.Set<Discharge>().AsNoTracking()
+            .Where(d => d.AdmissionId == admissionId)
+            .OrderByDescending(d => d.DischargeDate)
+            .Select(d => (DateTime?)d.DischargeDate)
+            .FirstOrDefaultAsync();
+        if (endedAt.HasValue && HIS.Core.Common.VnTime.NowVn <= endedAt.Value.AddHours(PostDischargeChartingHours))
+            return;
+        throw new InvalidOperationException(
+            $"Lượt nội trú đã kết thúc ({HIS.Core.Constants.AdmissionStatus.Label(status)}) quá {PostDischargeChartingHours} giờ, không {what} được.");
     }
 
     public async Task DeleteTreatmentSheetAsync(Guid id, Guid userId)
@@ -313,14 +368,20 @@ public partial class InpatientCompleteService {
     {
         // Sweep prod 2026-06-12: body rỗng từng tạo row rác (AdmissionId=Guid.Empty, mọi chỉ số null).
         // Validate: admission phải tồn tại + có ít nhất 1 chỉ số sinh hiệu.
-        if (dto.AdmissionId == Guid.Empty
-            || !await _context.Admissions.AnyAsync(a => a.Id == dto.AdmissionId && !a.IsDeleted))
-            throw new InvalidOperationException("AdmissionId khong hop le hoac khong ton tai");
+        var admission = await _context.Admissions.AsNoTracking()
+            .Where(a => a.Id == dto.AdmissionId && !a.IsDeleted)
+            .Select(a => new { a.Status, a.AdmissionDate })
+            .FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Không tìm thấy lượt nội trú.");
+        // QA-R4: vitals were accepted on a finished stay (now: only inside the post-discharge charting window).
+        await EnsureChartableAsync(dto.AdmissionId, admission.Status, "ghi sinh hiệu");
         await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, dto.AdmissionId); // TT46 — QA0915: was writable on a finalized EMR
         if (dto.Temperature == null && dto.Pulse == null && dto.RespiratoryRate == null
             && dto.SystolicBP == null && dto.DiastolicBP == null && dto.SpO2 == null
             && dto.Weight == null && dto.Height == null)
             throw new InvalidOperationException("Can nhap it nhat 1 chi so sinh hieu");
+        ValidateVitalSigns(dto);
+        EnsureStayDate(dto.RecordTime, admission.AdmissionDate, "Giờ đo sinh hiệu");
 
         var entity = new InpatientVitalSign
         {
@@ -347,6 +408,8 @@ public partial class InpatientCompleteService {
     {
         var entity = await _context.InpatientVitalSigns.FirstOrDefaultAsync(v => v.Id == id && !v.IsDeleted);
         if (entity == null) throw new KeyNotFoundException("Vital signs record not found");
+        ValidateVitalSigns(dto); // QA-R4
+        EnsureStayDate(dto.RecordTime, default, "Giờ đo sinh hiệu");
         entity.RecordTime = dto.RecordTime;
         entity.Temperature = dto.Temperature;
         entity.Pulse = dto.Pulse;
@@ -393,6 +456,30 @@ public partial class InpatientCompleteService {
             SpO2Data = list.Where(v => v.SpO2.HasValue)
                 .Select(v => new VitalSignsPointDto { Time = v.RecordTime, Value = v.SpO2 }).ToList(),
         };
+    }
+
+    /// <summary>
+    /// QA-R4 (patient safety): temperature -5 °C, pulse 999, SpO2 150 %, BP 50/200 were stored and fed the
+    /// NEWS2 / chart views. Physiological plausibility bounds only — abnormal values stay allowed.
+    /// </summary>
+    private static void ValidateVitalSigns(CreateVitalSignsDto dto)
+    {
+        static void Range(decimal? v, decimal min, decimal max, string name, string unit)
+        {
+            if (v.HasValue && (v.Value < min || v.Value > max))
+                throw new InvalidOperationException($"{name} {v.Value:0.##}{unit} ngoài khoảng hợp lệ ({min:0.##}–{max:0.##}{unit}).");
+        }
+        Range(dto.Temperature, 30m, 45m, "Nhiệt độ", "°C");
+        Range(dto.Pulse, 20, 300, "Mạch", " l/ph");
+        Range(dto.RespiratoryRate, 4, 80, "Nhịp thở", " l/ph");
+        Range(dto.SystolicBP, 40, 300, "Huyết áp tâm thu", " mmHg");
+        Range(dto.DiastolicBP, 20, 200, "Huyết áp tâm trương", " mmHg");
+        Range(dto.SpO2, 30m, 100m, "SpO2", "%");
+        Range(dto.Weight, 0.3m, 500m, "Cân nặng", " kg");
+        Range(dto.Height, 20m, 260m, "Chiều cao", " cm");
+        if (dto.SystolicBP.HasValue && dto.DiastolicBP.HasValue && dto.SystolicBP.Value <= dto.DiastolicBP.Value)
+            throw new InvalidOperationException(
+                $"Huyết áp tâm thu ({dto.SystolicBP}) phải lớn hơn tâm trương ({dto.DiastolicBP}).");
     }
 
     private static VitalSignsRecordDto MapVitalSign(InpatientVitalSign v) => new()
