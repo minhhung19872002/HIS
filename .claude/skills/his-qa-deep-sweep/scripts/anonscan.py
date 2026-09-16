@@ -15,6 +15,8 @@ from _common import load_swagger, login, req
 ap = argparse.ArgumentParser()
 ap.add_argument("--base", default="http://localhost:5107")
 ap.add_argument("--verbs", default="get")
+# Production keeps /swagger behind auth — point at a spec saved from the dev API to sweep prod.
+ap.add_argument("--swagger")
 ap.add_argument("--user")
 ap.add_argument("--password")
 args = ap.parse_args()
@@ -23,7 +25,7 @@ ZERO = "00000000-0000-0000-0000-000000000000"
 SKIP = ["download", "stream", "wado", "dicom", "export", "pdf", "sse", "hub", "swagger", "seed", "populate"]
 verbs = [v.strip().lower() for v in args.verbs.split(",")]
 token = login(args.base, args.user, args.password) if args.user else None
-spec = load_swagger(args.base)
+spec = load_swagger(args.base, args.swagger)
 
 targets = []
 for path, ops in spec["paths"].items():

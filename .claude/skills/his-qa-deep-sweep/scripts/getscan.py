@@ -15,12 +15,14 @@ from _common import load_swagger, login, req
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--base", default="http://localhost:5107")
+# Production keeps /swagger behind auth, so point at a spec saved from the dev API to sweep prod read-only.
+ap.add_argument("--swagger")
 ap.add_argument("--ids")
 ap.add_argument("--min-status", type=int, default=500)
 args = ap.parse_args()
 
 token = login(args.base)
-spec = load_swagger(args.base)
+spec = load_swagger(args.base, args.swagger)
 real = json.load(open(args.ids)) if args.ids else {}
 today = datetime.date.today()
 defaults = {"fromdate": str(today - datetime.timedelta(days=30)), "todate": str(today),
