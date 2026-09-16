@@ -110,12 +110,18 @@ const ClinicalGuidanceV2: React.FC = () => {
     { key: 'type', label: 'Loại', render: (r) => (
       <StatusBadge tone="info">{TYPE_LABEL[r.guidanceType] || '—'}</StatusBadge>
     ) },
-    { key: 'date', label: 'Thời gian', mono: true, render: (r) => (
-      <div>
-        <div>{dayjs(r.startDate).format('DD/MM')}–{dayjs(r.endDate).format('DD/MM/YY')}</div>
-        <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>{dayjs(r.endDate).diff(dayjs(r.startDate), 'day') + 1} ngày</div>
-      </div>
-    ) },
+    { key: 'date', label: 'Thời gian', mono: true, render: (r) => {
+      // A batch whose end date has not been set yet rendered "Invalid Date" and "NaN ngày" in the table.
+      const from = dayjs(r.startDate);
+      const to = dayjs(r.endDate);
+      const span = from.isValid() && to.isValid() ? to.diff(from, 'day') + 1 : null;
+      return (
+        <div>
+          <div>{from.isValid() ? from.format('DD/MM') : '—'}–{to.isValid() ? to.format('DD/MM/YY') : '—'}</div>
+          <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>{span === null ? 'chưa có thời hạn' : `${span} ngày`}</div>
+        </div>
+      );
+    } },
     { key: 'budget', label: 'Ngân sách', mono: true, render: (r) => r.budget ? `${fmt(r.budget)} đ` : '—' },
     { key: 'cnt', label: 'Hoạt động', mono: true, render: (r) => r.activityCount || 0 },
     { key: 'st', label: 'Trạng thái', render: (r) => {
@@ -231,9 +237,13 @@ const ClinicalGuidanceV2: React.FC = () => {
             </DrField>
           </DrSec>
           <DrSec title="Thời gian & nguồn lực">
-            <DrField lbl="Bắt đầu">{dayjs(sel.startDate).format('DD/MM/YYYY')}</DrField>
-            <DrField lbl="Kết thúc">{dayjs(sel.endDate).format('DD/MM/YYYY')}</DrField>
-            <DrField lbl="Số ngày"><span style={{ fontFamily: 'var(--font-mono)' }}>{dayjs(sel.endDate).diff(dayjs(sel.startDate), 'day') + 1}</span></DrField>
+            <DrField lbl="Bắt đầu">{dayjs(sel.startDate).isValid() ? dayjs(sel.startDate).format('DD/MM/YYYY') : '—'}</DrField>
+            <DrField lbl="Kết thúc">{dayjs(sel.endDate).isValid() ? dayjs(sel.endDate).format('DD/MM/YYYY') : '—'}</DrField>
+            <DrField lbl="Số ngày"><span style={{ fontFamily: 'var(--font-mono)' }}>
+              {dayjs(sel.startDate).isValid() && dayjs(sel.endDate).isValid()
+                ? dayjs(sel.endDate).diff(dayjs(sel.startDate), 'day') + 1
+                : '—'}
+            </span></DrField>
             {sel.teamMembers && <DrField lbl="Thành viên">{sel.teamMembers}</DrField>}
             {sel.budget !== undefined && <DrField lbl="Ngân sách"><span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(sel.budget)} đ</span></DrField>}
             <DrField lbl="Số hoạt động"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.activityCount || 0}</span></DrField>
