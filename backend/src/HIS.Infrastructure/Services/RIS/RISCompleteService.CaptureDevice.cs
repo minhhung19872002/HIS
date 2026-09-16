@@ -78,11 +78,13 @@ public partial class RISCompleteService
 
     public async Task<CaptureDeviceDto> SaveCaptureDeviceAsync(SaveCaptureDeviceDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.DeviceCode) || string.IsNullOrWhiteSpace(dto.DeviceName))
+            throw new ArgumentException("Mã và tên thiết bị capture là bắt buộc");
         RadiologyCaptureDevice device;
         if (dto.Id.HasValue)
         {
-            device = await _context.Set<RadiologyCaptureDevice>().FindAsync(dto.Id.Value);
-            if (device == null) return null;
+            device = await _context.Set<RadiologyCaptureDevice>().FindAsync(dto.Id.Value)
+                ?? throw new KeyNotFoundException("Không tìm thấy thiết bị capture cần sửa");
         }
         else
         {
@@ -238,11 +240,13 @@ public partial class RISCompleteService
 
     public async Task<WorkstationDto> SaveWorkstationAsync(SaveWorkstationDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.WorkstationCode) || string.IsNullOrWhiteSpace(dto.WorkstationName))
+            throw new ArgumentException("Mã và tên workstation là bắt buộc");
         RadiologyWorkstation workstation;
         if (dto.Id.HasValue)
         {
-            workstation = await _context.Set<RadiologyWorkstation>().FindAsync(dto.Id.Value);
-            if (workstation == null) return null;
+            workstation = await _context.Set<RadiologyWorkstation>().FindAsync(dto.Id.Value)
+                ?? throw new KeyNotFoundException("Không tìm thấy workstation cần sửa");
         }
         else
         {
@@ -272,6 +276,18 @@ public partial class RISCompleteService
 
     public async Task<CaptureSessionDto> CreateCaptureSessionAsync(CreateCaptureSessionDto dto)
     {
+        // QA R4: FK DeviceId / RadiologyRequestId từng nổ 500 (kể cả body {}).
+        if (!await _context.Set<RadiologyCaptureDevice>().AnyAsync(d => d.Id == dto.DeviceId && !d.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy thiết bị capture");
+        var requestStatus = await _context.RadiologyRequests
+            .Where(r => r.Id == dto.RadiologyRequestId).Select(r => (int?)r.Status).FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Không tìm thấy chỉ định CĐHA");
+        if (requestStatus == HIS.Core.Constants.RadiologyRequestStatus.Cancelled)
+            throw new InvalidOperationException("Chỉ định CĐHA đã hủy, không mở phiên capture được.");
+        if (dto.WorkstationId.HasValue &&
+            !await _context.Set<RadiologyWorkstation>().AnyAsync(w => w.Id == dto.WorkstationId.Value))
+            throw new KeyNotFoundException("Không tìm thấy workstation");
+
         var session = new RadiologyCaptureSession
         {
             Id = Guid.NewGuid(),
@@ -297,10 +313,12 @@ public partial class RISCompleteService
 
     public async Task<CaptureSessionDto> EndCaptureSessionAsync(Guid sessionId)
     {
-        var session = await _context.Set<RadiologyCaptureSession>().FindAsync(sessionId);
-        if (session == null) return null;
+        var session = await _context.Set<RadiologyCaptureSession>().FindAsync(sessionId)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiên capture");
+        if (session.Status >= 2)
+            throw new InvalidOperationException("Phiên capture đã kết thúc trước đó.");
 
-        session.EndTime = DateTime.Now;
+        session.EndTime = HIS.Core.Common.VnTime.NowVn; // same clock as StartTime (was DateTime.Now)
         session.Status = 2; // Completed
         await _unitOfWork.SaveChangesAsync();
 

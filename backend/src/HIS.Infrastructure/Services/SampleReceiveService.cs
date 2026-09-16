@@ -62,9 +62,13 @@ public class SampleReceiveService : ISampleReceiveService
         if (dto.DetailIds.Count == 0) return ServiceOutcome.Bad("Chưa chọn mẫu");
         var items = await _db.ServiceRequestDetails
             // Status != 3: accepting a cancelled order used to set Status=1 and revive it
-            .Where(d => dto.DetailIds.Contains(d.Id) && d.ReceiveStatus == 0 && d.Status != 3 && !d.IsDeleted
-                && d.ServiceRequest.Status != 4)
+            // QA-R4: IsSampleCollected — a tube that was never collected could be "received" by id (measured:
+            // IsSampleCollected 0 + ReceiveStatus 1), skipping collection entirely
+            .Where(d => dto.DetailIds.Contains(d.Id) && d.IsSampleCollected && d.ReceiveStatus == 0 && d.Status != 3
+                && !d.IsDeleted && d.ServiceRequest.Status != 4)
             .ToListAsync();
+        // Receiving the same tube twice (or an id that is not waiting) answered 200 {received:0} — say so
+        if (items.Count == 0) return ServiceOutcome.Bad("Không có mẫu nào đang chờ nhận (chưa lấy mẫu, đã nhận hoặc đã hủy)");
         var now = VnTime.NowVn; // business timestamp = VN local (AcceptedAsync queries VnTime.DayRangeVn)
         var uid = userId;
         foreach (var d in items)

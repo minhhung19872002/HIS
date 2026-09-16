@@ -11,6 +11,7 @@ using HIS.Application.Services;
 using HIS.Application.DTOs.Laboratory;
 using ApproveLabResultDto = HIS.Application.Services.ApproveLabResultDto;
 using HIS.API.Dtos.LISComplete;
+using HIS.API.Extensions;
 using HIS.API.Filters;
 using ApiResponse = HIS.Application.DTOs.Common.ApiResponse<object>;
 
@@ -102,7 +103,9 @@ namespace HIS.API.Controllers
         // Authorize removed for testing
         public async Task<ActionResult> DeleteAnalyzer(Guid id)
         {
-            await _lisService.DeleteAnalyzerAsync(id);
+            // QA-R4: unknown id answered 204 (silent no-op)
+            if (!await _lisService.DeleteAnalyzerAsync(id))
+                return NotFound(ApiResponse.Fail("Không tìm thấy máy xét nghiệm"));
             return NoContent();
         }
 
@@ -260,10 +263,13 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpPost("sample-collection/{sampleId}/cancel")]
         // Authorize removed for testing
-        public async Task<ActionResult> CancelSample(Guid sampleId, [FromBody] CancelSampleRequest request)
+        public async Task<IActionResult> CancelSample(Guid sampleId, [FromBody] CancelSampleRequest request)
         {
-            await _lisService.CancelSampleAsync(sampleId, request.Reason);
-            return Ok();
+            // QA-R4: CancelSampleAsync was an empty stub (200, nothing written). "Hủy mẫu đã lấy" is step 3 of the
+            // cancel chain (order id or detail id, reason mandatory, refuses once a result exists).
+            return (await _cancelChain.CancelCollectionAsync(
+                new HIS.Application.DTOs.LabCancelChain.CancelRequest(sampleId, request?.Reason ?? string.Empty),
+                GetUserId() ?? Guid.Empty)).ToActionResult();
         }
 
         /// <summary>
@@ -491,7 +497,9 @@ namespace HIS.API.Controllers
         // Authorize removed for testing
         public async Task<ActionResult> ProcessCriticalValue([FromBody] ProcessCriticalValueDto dto)
         {
-            await _lisService.ProcessCriticalValueAsync(dto);
+            // QA-R4: unknown alert id answered 200 — the caller believed the critical value was handled
+            if (!await _lisService.ProcessCriticalValueAsync(dto))
+                return NotFound(ApiResponse.Fail("Không tìm thấy cảnh báo giá trị nguy hiểm"));
             return Ok();
         }
 
@@ -518,7 +526,8 @@ namespace HIS.API.Controllers
             Guid alertId,
             [FromBody] AcknowledgeCriticalValueDto dto)
         {
-            await _lisService.AcknowledgeCriticalValueAsync(alertId, dto);
+            if (!await _lisService.AcknowledgeCriticalValueAsync(alertId, dto))
+                return NotFound(ApiResponse.Fail("Không tìm thấy cảnh báo giá trị nguy hiểm"));
             return Ok();
         }
 
@@ -568,7 +577,8 @@ namespace HIS.API.Controllers
         // Authorize removed for testing
         public async Task<ActionResult> RerunLabTest(Guid orderItemId, [FromBody] RerunRequest request)
         {
-            await _lisService.RerunLabTestAsync(orderItemId, request.Reason);
+            if (!await _lisService.RerunLabTestAsync(orderItemId, request?.Reason))
+                return NotFound(ApiResponse.Fail("Không tìm thấy chỉ định xét nghiệm"));
             return Ok();
         }
 

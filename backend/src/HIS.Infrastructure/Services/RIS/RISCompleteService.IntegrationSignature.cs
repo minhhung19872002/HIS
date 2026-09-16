@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs.Radiology;
 using HIS.Application.Services;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
@@ -188,11 +189,13 @@ public partial class RISCompleteService
 
     public async Task<DigitalSignatureConfigDto> SaveSignatureConfigAsync(SaveDigitalSignatureConfigDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.SignatureType))
+            throw new ArgumentException("Tên và loại cấu hình ký số là bắt buộc");
         RadiologyDigitalSignatureConfig config;
         if (dto.Id.HasValue)
         {
-            config = await _context.Set<RadiologyDigitalSignatureConfig>().FindAsync(dto.Id.Value);
-            if (config == null) return null;
+            config = await _context.Set<RadiologyDigitalSignatureConfig>().FindAsync(dto.Id.Value)
+                ?? throw new KeyNotFoundException("Không tìm thấy cấu hình ký số");
         }
         else
         {
@@ -283,6 +286,20 @@ public partial class RISCompleteService
             return new SignResultResponseDto { Success = false, Message = "Khong tim thay ket qua CDHA. Vui long kiem tra lai." };
         }
 
+        if (string.IsNullOrWhiteSpace(report.Findings) && string.IsNullOrWhiteSpace(report.Impression))
+            return new SignResultResponseDto { Success = false, Message = "Phiếu chưa có mô tả/kết luận, không thể ký số." };
+
+        // QA R4 (đo live): hai lệnh ký song song cùng qua được kiểm tra `alreadySigned` → phiếu mang
+        // 2 chữ ký Status=1. Khoá dòng phiếu (UPDLOCK) trong transaction để lệnh thứ hai phải chờ
+        // lệnh đầu commit rồi mới kiểm tra — cùng mẫu ReceiptBookService.NextNumberAsync.
+        await using var tx = await _context.Database.BeginTransactionAsync();
+        var reportId = report.Id;
+        report = await _context.RadiologyReports
+            .FromSqlRaw("SELECT * FROM RadiologyReports WITH (UPDLOCK, ROWLOCK) WHERE Id = {0}", reportId)
+            .FirstOrDefaultAsync();
+        if (report == null)
+            return new SignResultResponseDto { Success = false, Message = "Khong tim thay ket qua CDHA. Vui long kiem tra lai." };
+
         // #218/T3: chặn ký chồng. Trước đây mỗi lần gọi là thêm một chữ ký Status=1, nên phiếu
         // có thể mang nhiều chữ ký cùng còn hiệu lực — mà cửa hủy chỉ thu hồi cái mới nhất.
         var alreadySigned = await _context.Set<RadiologySignatureHistory>()
@@ -295,12 +312,19 @@ public partial class RISCompleteService
                         + "kết quả đã ký trước."
             };
 
+        var signedExam = await _context.RadiologyExams
+            .Include(e => e.RadiologyRequest)
+            .FirstOrDefaultAsync(e => e.Id == report.RadiologyExamId);
+        if (signedExam?.RadiologyRequest?.Status == RadiologyRequestStatus.Cancelled)
+            return new SignResultResponseDto { Success = false, Message = "Chỉ định CĐHA đã hủy, không thể ký số." };
+
         // Create signature history
+        var signerId = GetCurrentUserIdOrAdmin();
         var signatureHistory = new RadiologySignatureHistory
         {
             Id = Guid.NewGuid(),
             RadiologyReportId = report.Id,
-            SignedByUserId = GetCurrentUserIdOrAdmin(), // Current user
+            SignedByUserId = signerId, // Current user
             SignatureType = request.SignatureType ?? "DIGITAL",
             SignedAt = DateTime.Now,
             Status = 1, // Signed
@@ -311,14 +335,16 @@ public partial class RISCompleteService
         await _context.Set<RadiologySignatureHistory>().AddAsync(signatureHistory);
         report.Status = 2; // Approved
         report.ApprovedAt = DateTime.Now;
+        report.ApprovedBy ??= signerId; // ký số = duyệt; trước đây ApprovedBy để trống
 
-        var signedExam = await _context.RadiologyExams
-            .Include(e => e.RadiologyRequest)
-            .FirstOrDefaultAsync(e => e.Id == report.RadiologyExamId);
         if (signedExam?.RadiologyRequest != null)
+        {
+            signedExam.RadiologyRequest.Status = RadiologyRequestStatus.Approved;
             await SyncApprovedReportToSourceOrderAsync(signedExam.RadiologyRequest, report);
+        }
 
         await _unitOfWork.SaveChangesAsync();
+        await tx.CommitAsync();
 
         return new SignResultResponseDto
         {
@@ -331,8 +357,10 @@ public partial class RISCompleteService
 
     public async Task<bool> CancelSignedResultAsync(CancelSignedResultDto dto)
     {
-        var report = await _context.RadiologyReports.FindAsync(dto.ReportId);
-        if (report == null) return false;
+        var report = await _context.RadiologyReports.FindAsync(dto.ReportId)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu kết quả CĐHA");
+        if (report.Status == RadiologyReportStatus.Draft)
+            throw new InvalidOperationException("Phiếu đang ở trạng thái nháp, chưa ký/duyệt nên không có gì để hủy.");
 
         // #218/T3: thu hồi HẾT chữ ký còn hiệu lực, không chỉ cái mới nhất. Dữ liệu cũ có thể
         // đã có phiếu mang nhiều chữ ký sống (ký chồng nay đã chặn ở SignResultAsync); nếu chỉ
@@ -352,6 +380,13 @@ public partial class RISCompleteService
         report.Status = 0; // Back to draft
         report.ApprovedAt = null;
         report.ApprovedBy = null;
+
+        // Cùng luật với CancelApprovalAsync: phiếu về nháp thì chỉ định không được khai "đã duyệt".
+        var exam = await _context.RadiologyExams
+            .Include(e => e.RadiologyRequest)
+            .FirstOrDefaultAsync(e => e.Id == report.RadiologyExamId);
+        if (exam?.RadiologyRequest != null && exam.RadiologyRequest.Status == RadiologyRequestStatus.Approved)
+            exam.RadiologyRequest.Status = RadiologyRequestStatus.Reported;
 
         await _unitOfWork.SaveChangesAsync();
         return true;

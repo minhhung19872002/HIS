@@ -765,6 +765,7 @@ namespace HIS.Application.Services
         Task<bool> LeaveConsultationAsync(Guid sessionId, Guid userId);
         Task<ConsultationDiscussionDto> AddDiscussionAsync(AddConsultationDiscussionDto dto);
         Task<List<ConsultationDiscussionDto>> GetDiscussionsAsync(Guid caseId);
+        Task<List<ConsultationDiscussionDto>> GetSessionDiscussionsAsync(Guid sessionId);
         Task<ConsultationImageNoteDto> AddImageNoteAsync(AddConsultationImageNoteDto dto);
         Task<List<ConsultationImageNoteDto>> GetImageNotesAsync(Guid caseId);
         Task<ConsultationMinutesDto> SaveMinutesAsync(SaveConsultationMinutesDto dto);

@@ -343,9 +343,13 @@ public partial class RISCompleteService
             .Include(r => r.Patient)
             .Include(r => r.Service)
             .Include(r => r.Exams)
-            .FirstOrDefaultAsync(r => r.Id == dto.OrderItemId);
+            .FirstOrDefaultAsync(r => r.Id == dto.OrderItemId)
+            ?? throw new KeyNotFoundException("Không tìm thấy chỉ định CĐHA");
 
-        if (request == null) return null;
+        // QA R4 (đo live): nhập kết quả cho chỉ định ĐÃ HỦY vẫn tạo exam + phiếu và kéo chỉ định
+        // từ Cancelled(6) về Reported(4) — hồi sinh một chỉ định đã hủy.
+        if (request.Status == RadiologyRequestStatus.Cancelled)
+            throw new InvalidOperationException("Chỉ định CĐHA đã hủy, không thể nhập kết quả.");
 
         // Get or create exam
         var exam = request.Exams.FirstOrDefault();
@@ -462,9 +466,10 @@ public partial class RISCompleteService
             .Include(r => r.RadiologyExam)
                 .ThenInclude(e => e.RadiologyRequest)
                     .ThenInclude(req => req.Patient)
-            .FirstOrDefaultAsync(r => r.Id == resultId);
-
-        if (report == null) return null;
+            .FirstOrDefaultAsync(r => r.Id == resultId)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu kết quả CĐHA");
+        if (report.RadiologyExam?.RadiologyRequest?.Status == RadiologyRequestStatus.Cancelled)
+            throw new InvalidOperationException("Chỉ định CĐHA đã hủy, không thể sửa kết quả.");
 
         // #218/T3: cùng lớp gác với EnterRadiologyResultAsync (§5). Bộ dò
         // `t3_verified_edit_sweep.py` chỉ ra rằng lớp gác ấy mới chỉ đặt ở MỘT trong bốn cửa ghi

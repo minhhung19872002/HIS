@@ -1237,6 +1237,9 @@ public partial class RISCompleteService
 
     public async Task<FavoriteToggleResultDto> ToggleFavoriteAsync(Guid requestId, Guid userId)
     {
+        // QA R4: FK RadiologyStudyFavorites→RadiologyRequests từng nổ 500 (kể cả body {} → requestId zero).
+        if (!await _context.RadiologyRequests.AnyAsync(r => r.Id == requestId))
+            throw new KeyNotFoundException("Không tìm thấy ca chụp để ghim");
         var existing = await _context.RadiologyStudyFavorites
             .FirstOrDefaultAsync(f => f.RequestId == requestId && f.UserId == userId);
 

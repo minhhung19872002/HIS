@@ -238,7 +238,9 @@ public class NotificationService : INotificationService
             .Include(d => d.Service)
             .Where(d => d.ServiceRequestId == request.Id && d.Status != 3)
             .ToListAsync();
-        var approved = details.Where(d => d.Status == 2).ToList();
+        // QA-R4: Status 2 only means "has a result" (KTV entered / analyzer pushed). Released = doctor-reviewed
+        // (ReviewedAt) — the public page showed unapproved values to the patient the moment they were typed.
+        var approved = details.Where(d => d.Status == 2 && d.ReviewedAt != null).ToList();
         var approvedIds = approved.Select(d => d.Id).ToList();
         var parameters = await _context.ServiceRequestDetailParameters
             .Where(p => approvedIds.Contains(p.ServiceRequestDetailId))

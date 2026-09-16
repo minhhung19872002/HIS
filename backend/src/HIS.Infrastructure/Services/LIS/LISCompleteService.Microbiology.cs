@@ -126,7 +126,12 @@ public partial class LISCompleteService
     {
         var culture = await _context.MicrobiologyCultures.FindAsync(id);
         if (culture == null)
-            throw new InvalidOperationException($"MicrobiologyCulture {id} not found");
+            throw new KeyNotFoundException("Không tìm thấy phiếu nuôi cấy");
+        // QA-R4: any integer was accepted (status 9, or back to 0 after a completed report)
+        if (dto.Status < 0 || dto.Status > 5)
+            throw new ArgumentException("Trạng thái nuôi cấy không hợp lệ (0–5)", nameof(dto.Status));
+        if (culture.Status == 5 && dto.Status != 5)
+            throw new InvalidOperationException("Phiếu nuôi cấy đã hoàn thành — không đổi trạng thái được nữa");
 
         culture.Status = dto.Status;
         if (!string.IsNullOrWhiteSpace(dto.Notes))
@@ -194,7 +199,10 @@ public partial class LISCompleteService
             .FirstOrDefaultAsync(o => o.Id == organismFindingId);
 
         if (organism == null)
-            throw new InvalidOperationException($"MicrobiologyOrganismFinding {organismFindingId} not found");
+            throw new KeyNotFoundException("Không tìm thấy vi sinh vật của phiếu nuôi cấy");
+        // QA-R4: interpretation drives antibiotic choice — only S / I / R are meaningful (FE sends one of them)
+        if (results.Any(r => r.Interpretation?.Trim().ToUpperInvariant() is not ("S" or "I" or "R")))
+            throw new ArgumentException("Kết quả kháng sinh đồ phải là S / I / R", nameof(results));
 
         // Remove existing AST results (upsert strategy: clear + re-insert)
         _context.AntibioticSensitivityResults.RemoveRange(organism.Antibiogram);

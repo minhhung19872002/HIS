@@ -119,8 +119,8 @@ public partial class LISCompleteService {
 
         foreach (var d in items)
         {
-            if (!decimal.TryParse(d.Result, System.Globalization.NumberStyles.Any,
-                System.Globalization.CultureInfo.InvariantCulture, out var numericVal))
+            // QA-R4: NumberStyles.Any read the VN decimal comma "5,6" as 56 (same defect fixed in LabFlagEvaluator)
+            if (LabFlagEvaluator.TryParse(d.Result) is not decimal numericVal)
                 continue;
 
             paramsByDetail.TryGetValue(d.Id, out var dParams);
@@ -197,16 +197,15 @@ public partial class LISCompleteService {
         foreach (var d in currentDetails)
         {
             var code = d.Service?.ServiceCode ?? "";
-            if (!decimal.TryParse(d.Result, System.Globalization.NumberStyles.Any,
-                System.Globalization.CultureInfo.InvariantCulture, out var currentVal))
+            // QA-R4: NumberStyles.Any read "5,6" as 56 → a 10x false delta (and missed real ones)
+            if (LabFlagEvaluator.TryParse(d.Result) is not decimal currentVal)
                 continue;
 
             decimal? prevVal = null;
             DateTime? prevDate = null;
 
             if (prevByCode.TryGetValue(code, out var prev) &&
-                decimal.TryParse(prev.Result, System.Globalization.NumberStyles.Any,
-                    System.Globalization.CultureInfo.InvariantCulture, out var pv))
+                LabFlagEvaluator.TryParse(prev.Result) is decimal pv)
             {
                 prevVal = pv;
                 prevDate = prev.ServiceRequest.RequestDate;
@@ -248,6 +247,13 @@ public partial class LISCompleteService {
             .FindAsync(orderItemId);
 
         if (d == null) return false;
+
+        // QA-R4: "làm lại" wiped the value of a doctor-approved result while ReviewedAt/ReviewerUserId stayed set
+        // (an approved record with no value), and revived cancelled lines (Status 3 → 1). Same forward guard as
+        // EnterLabResult: un-approve first, never touch a cancelled line.
+        HIS.Core.Constants.LabDetailStatus.EnsureCanWriteResult(d.Status, d.ReviewedAt != null);
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new ArgumentException("Phải ghi lý do làm lại xét nghiệm", nameof(reason));
 
         // Clear result fields
         d.Result = null;

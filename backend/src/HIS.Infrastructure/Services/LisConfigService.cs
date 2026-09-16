@@ -95,6 +95,9 @@ public partial class LisConfigService : ILisConfigService
 
     public async Task<LisAnalyzerDto> CreateAnalyzerAsync(CreateLisAnalyzerDto dto)
     {
+        // QA-R4: a `{}` body created analyzers with an empty Name (blank rows in the LIS config screen)
+        if (string.IsNullOrWhiteSpace(dto.Name))
+            throw new ArgumentException("Chưa nhập tên máy phân tích", nameof(dto.Name));
         try
         {
             var entity = new LisAnalyzer

@@ -36,6 +36,10 @@ public partial class LISCompleteService {
         // chỉ định đã hủy, và đè được lên kết quả bác sĩ đã duyệt mà không để lại dấu vết.
         // Đường máy phân tích (Worklist.cs) vốn đã lọc Status != 3 — đây là vế còn thiếu.
         LabDetailStatus.EnsureCanWriteResult(d.Status, d.ReviewedAt != null);
+        // QA-R4: a tube rejected at reception (hemolysed, clotted, wrong tube…) is not a valid specimen — a result
+        // could still be typed on it and then approved (measured: ReceiveStatus 2 + Result + ReviewedAt).
+        if (d.ReceiveStatus == LisModel1Map.RejectedReceiveStatus)
+            throw new InvalidOperationException("Mẫu đã bị từ chối tại nhận mẫu — phải lấy lại mẫu trước khi ghi kết quả.");
         // OPD cancel marks only the header (ServiceRequests.Status=4), details keep Status 0 → guard the header too
         if (await _context.ServiceRequests.AnyAsync(r => r.Id == d.ServiceRequestId && (r.Status == 4 || r.IsDeleted)))
             throw new InvalidOperationException("Phiếu chỉ định đã hủy, không ghi được kết quả.");
@@ -137,6 +141,10 @@ public partial class LISCompleteService {
 
         var details = await detailQuery.ToListAsync();
 
+        // QA-R4: a result written on a rejected tube must never be released
+        if (details.Any(x => !string.IsNullOrEmpty(x.Result) && x.ReceiveStatus == LisModel1Map.RejectedReceiveStatus))
+            throw new InvalidOperationException("Có mẫu đã bị từ chối tại nhận mẫu — không duyệt được, phải lấy lại mẫu.");
+
         // QA-R2: same rule as final-approve — re-approving overwrote the approver/time and re-notified.
         var toApprove = details.Where(x => !string.IsNullOrEmpty(x.Result) && x.ReviewedAt == null).ToList();
         if (toApprove.Count == 0)
@@ -160,11 +168,24 @@ public partial class LISCompleteService {
     {
         // Model 1 không có "sơ duyệt" riêng — set TechnicianUserId + TechnicianRunAt cho details có Result,
         // append note vào SR.Notes. KHÔNG set ReviewedAt (đó là final approve).
+        // QA-R4: unknown/zero order id answered 200 and did nothing; an order with no result got a "[KTV]" note only
+        var sr = await _context.ServiceRequests
+            .FirstOrDefaultAsync(r => r.Id == orderId && r.RequestType == 1 && !r.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu xét nghiệm");
+
         var details = await _context.ServiceRequestDetails
             .Where(d => d.ServiceRequestId == orderId && !d.IsDeleted && d.Status != 3)
             .ToListAsync();
 
-        foreach (var d in details.Where(x => !string.IsNullOrEmpty(x.Result)))
+        // Only results not yet released: re-running "sơ duyệt" on a final-approved order used to re-stamp the
+        // technician of a doctor-reviewed result.
+        var toApprove = details.Where(x => !string.IsNullOrEmpty(x.Result) && x.ReviewedAt == null).ToList();
+        if (toApprove.Count == 0)
+            throw new InvalidOperationException(details.Any(x => !string.IsNullOrEmpty(x.Result))
+                ? "Phiếu đã được duyệt chính thức — không sơ duyệt lại"
+                : "Phiếu không có kết quả nào để duyệt sơ bộ");
+
+        foreach (var d in toApprove)
         {
             if (approvedByUserId.HasValue)
                 d.TechnicianUserId = approvedByUserId.Value;
@@ -172,8 +193,6 @@ public partial class LISCompleteService {
                 d.TechnicianRunAt = DateTime.Now;
         }
 
-        var sr = await _context.ServiceRequests.FindAsync(orderId);
-        if (sr != null)
         {
             var notePrefix = string.IsNullOrWhiteSpace(sr.Notes) ? "" : sr.Notes + "\n";
             sr.Notes = notePrefix + $"[KTV] {technicianNote ?? ""}";
@@ -191,6 +210,10 @@ public partial class LISCompleteService {
 
         // Nothing to approve (unknown order / no result yet) → report it instead of a silent "approved"
         if (!details.Any(x => !string.IsNullOrEmpty(x.Result))) return false;
+
+        // QA-R4: a result written on a rejected tube must never be released
+        if (details.Any(x => !string.IsNullOrEmpty(x.Result) && x.ReceiveStatus == LisModel1Map.RejectedReceiveStatus))
+            throw new InvalidOperationException("Có mẫu đã bị từ chối tại nhận mẫu — không duyệt được, phải lấy lại mẫu.");
 
         // Second final-approve used to return 200, overwrite approver/time of an already released result
         // and re-send the "BS duyệt" notification. Only unreviewed results are approved; none left → refuse.
@@ -219,12 +242,22 @@ public partial class LISCompleteService {
 
     public async Task<bool> CancelApprovalAsync(Guid orderId, string reason)
     {
+        // QA-R4: same rules as the cancel chain — a reason is mandatory (audit trail), an unknown order is 404 and
+        // an order with nothing approved is refused instead of a silent 200 that only appended a note.
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new ArgumentException("Phải ghi lý do hủy duyệt", nameof(reason));
+        var sr = await _context.ServiceRequests
+            .FirstOrDefaultAsync(r => r.Id == orderId && r.RequestType == 1 && !r.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu xét nghiệm");
+
         // Hủy duyệt revert cả 2 bước: final (ReviewedAt) lẫn sơ duyệt (TechnicianUserId) → order về 3 "Chờ duyệt"
         // (khớp FE: nút Hủy duyệt hiện khi status >= 4). Trade-off: mất dấu KTV sơ duyệt — chấp nhận như model 3 cũ.
         var details = await _context.ServiceRequestDetails
             .Where(d => d.ServiceRequestId == orderId && !d.IsDeleted && d.Status != 3
                 && (d.ReviewedAt != null || d.TechnicianUserId != null))
             .ToListAsync();
+        if (details.Count == 0)
+            throw new InvalidOperationException("Phiếu chưa được duyệt — không có gì để hủy duyệt");
 
         foreach (var d in details)
         {
@@ -233,11 +266,9 @@ public partial class LISCompleteService {
             d.TechnicianUserId = null;
         }
 
-        var sr = await _context.ServiceRequests.FindAsync(orderId);
-        if (sr != null)
         {
             var notePrefix = string.IsNullOrWhiteSpace(sr.Notes) ? "" : sr.Notes + "\n";
-            sr.Notes = notePrefix + $"[Hủy duyệt] {reason ?? ""}";
+            sr.Notes = notePrefix + $"[Hủy duyệt] {reason.Trim()}";
         }
 
         await _context.SaveChangesAsync();
@@ -338,10 +369,23 @@ public partial class LISCompleteService {
             var alert = await _context.Set<LabCriticalValueAlert>().FindAsync(dto.AlertId);
             if (alert == null) return false;
 
-            if (dto.Action == "Acknowledge")
+            // QA-R4: who was notified / how / note used to be dropped — the only audit trail of a critical call
+            if (!string.IsNullOrWhiteSpace(dto.NotifiedPerson)) alert.NotifiedPerson = dto.NotifiedPerson.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.NotificationMethod)) alert.NotificationMethod = dto.NotificationMethod.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.Note)) alert.Notes = dto.Note.Trim();
+            switch (dto.Action)
             {
-                alert.IsAcknowledged = true;
-                alert.AcknowledgedAt = DateTime.Now;
+                case "Acknowledge":
+                    alert.IsAcknowledged = true;
+                    alert.AcknowledgedAt = DateTime.Now;
+                    alert.Status = 1;
+                    break;
+                case "Notify":
+                    alert.NotificationTime ??= DateTime.Now;
+                    break;
+                case "Escalate":
+                    alert.Status = 2;
+                    break;
             }
 
             await _context.SaveChangesAsync();
@@ -400,6 +444,15 @@ public partial class LISCompleteService {
 
             alert.IsAcknowledged = true;
             alert.AcknowledgedAt = DateTime.Now;
+            alert.Status = 1;
+            // QA-R4: the acknowledgement body (who was told, how, when, note) was ignored entirely
+            if (dto != null)
+            {
+                if (!string.IsNullOrWhiteSpace(dto.NotifiedPerson)) alert.NotifiedPerson = dto.NotifiedPerson.Trim();
+                if (!string.IsNullOrWhiteSpace(dto.NotificationMethod)) alert.NotificationMethod = dto.NotificationMethod.Trim();
+                if (dto.NotificationTime != default) alert.NotificationTime = dto.NotificationTime;
+                if (!string.IsNullOrWhiteSpace(dto.Note)) alert.Notes = dto.Note.Trim();
+            }
             await _context.SaveChangesAsync();
             return true;
         }

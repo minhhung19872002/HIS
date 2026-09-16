@@ -230,11 +230,15 @@ public partial class RISCompleteService
 
     public async Task<RadiologyRoomDto> SaveRoomAsync(SaveRadiologyRoomDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.Code) || string.IsNullOrWhiteSpace(dto.Name))
+            throw new ArgumentException("Mã và tên phòng là bắt buộc");
+        if (!await _context.Set<Department>().AnyAsync(d => d.Id == dto.DepartmentId))
+            throw new KeyNotFoundException("Không tìm thấy khoa của phòng");
         Room room;
         if (dto.Id.HasValue)
         {
-            room = await _context.Rooms.FindAsync(dto.Id.Value);
-            if (room == null) return null;
+            room = await _context.Rooms.FindAsync(dto.Id.Value)
+                ?? throw new KeyNotFoundException("Không tìm thấy phòng cần sửa");
         }
         else
         {
@@ -375,11 +379,15 @@ public partial class RISCompleteService
 
     public async Task<RadiologyLabelConfigDto> SaveLabelConfigAsync(RadiologyLabelConfigDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.Name))
+            throw new ArgumentException("Tên cấu hình nhãn là bắt buộc");
+        if (dto.LabelWidth <= 0 || dto.LabelHeight <= 0)
+            throw new ArgumentException("Kích thước nhãn (mm) phải lớn hơn 0");
         RadiologyLabelConfig config;
         if (dto.Id != Guid.Empty)
         {
-            config = await _context.Set<RadiologyLabelConfig>().FindAsync(dto.Id);
-            if (config == null) return null;
+            config = await _context.Set<RadiologyLabelConfig>().FindAsync(dto.Id)
+                ?? throw new KeyNotFoundException("Không tìm thấy cấu hình nhãn cần sửa");
         }
         else
         {
@@ -475,11 +483,13 @@ public partial class RISCompleteService
 
     public async Task<DiagnosisTemplateDto> SaveDiagnosisTemplateAsync(SaveDiagnosisTemplateDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.Code) || string.IsNullOrWhiteSpace(dto.Name))
+            throw new ArgumentException("Mã và tên mẫu chẩn đoán là bắt buộc");
         RadiologyDiagnosisTemplate template;
         if (dto.Id.HasValue)
         {
-            template = await _context.Set<RadiologyDiagnosisTemplate>().FindAsync(dto.Id.Value);
-            if (template == null) return null;
+            template = await _context.Set<RadiologyDiagnosisTemplate>().FindAsync(dto.Id.Value)
+                ?? throw new KeyNotFoundException("Không tìm thấy mẫu chẩn đoán cần sửa");
         }
         else
         {
@@ -566,11 +576,13 @@ public partial class RISCompleteService
 
     public async Task<AbbreviationDto> SaveAbbreviationAsync(SaveAbbreviationDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.Abbreviation) || string.IsNullOrWhiteSpace(dto.FullText))
+            throw new ArgumentException("Từ viết tắt và nội dung đầy đủ là bắt buộc");
         RadiologyAbbreviation abbreviation;
         if (dto.Id.HasValue)
         {
-            abbreviation = await _context.Set<RadiologyAbbreviation>().FindAsync(dto.Id.Value);
-            if (abbreviation == null) return null;
+            abbreviation = await _context.Set<RadiologyAbbreviation>().FindAsync(dto.Id.Value)
+                ?? throw new KeyNotFoundException("Không tìm thấy từ viết tắt cần sửa");
         }
         else
         {

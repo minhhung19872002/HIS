@@ -113,11 +113,15 @@ public partial class RISCompleteService
 
     public async Task<ServiceDescriptionTemplateDto> SaveServiceDescriptionTemplateAsync(SaveServiceDescriptionTemplateDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.Name))
+            throw new ArgumentException("Tên mẫu mô tả là bắt buộc");
+        if (!await _context.Services.AnyAsync(s => s.Id == dto.ServiceId))
+            throw new KeyNotFoundException("Không tìm thấy dịch vụ của mẫu mô tả");
         RadiologyServiceDescriptionTemplate template;
         if (dto.Id.HasValue)
         {
-            template = await _context.Set<RadiologyServiceDescriptionTemplate>().FindAsync(dto.Id.Value);
-            if (template == null) return null;
+            template = await _context.Set<RadiologyServiceDescriptionTemplate>().FindAsync(dto.Id.Value)
+                ?? throw new KeyNotFoundException("Không tìm thấy mẫu mô tả cần sửa");
         }
         else
         {
@@ -258,8 +262,20 @@ public partial class RISCompleteService
         return new CaptureSessionDto { Id = session.Id, DeviceId = session.DeviceId, Status = session.Status };
     }
 
+    /// <summary>QA R4: mọi cửa ghi con của phiên hội chẩn từng 500 (FK) khi phiên không tồn tại.</summary>
+    private async Task<RadiologyConsultationSession> RequireConsultationSessionAsync(Guid sessionId)
+        => await _context.Set<RadiologyConsultationSession>().FindAsync(sessionId)
+           ?? throw new KeyNotFoundException("Không tìm thấy phiên hội chẩn");
+
     public async Task<CapturedMediaDto> UploadCapturedMediaAsync(SaveCapturedMediaDto dto)
     {
+        // QA R4: FK RadiologyCapturedMedia→CaptureSession từng nổ 500 khi phiên không tồn tại.
+        var session = await _context.Set<RadiologyCaptureSession>().FindAsync(dto.CaptureSessionId)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiên capture");
+        if (session.Status >= 2)
+            throw new InvalidOperationException("Phiên capture đã kết thúc, không nhận thêm ảnh/video.");
+        if (string.IsNullOrWhiteSpace(dto.FilePath))
+            throw new ArgumentException("Thiếu đường dẫn file ảnh/video");
         var media = new RadiologyCapturedMedia
         {
             Id = Guid.NewGuid(),
@@ -290,19 +306,26 @@ public partial class RISCompleteService
         return new { DeviceId = deviceId, Date = date, SessionCount = count };
     }
 
+    // Live status semantics (v2 Consultation.tsx + GetConsultationStatusName): 0=Scheduled, 1=InProgress,
+    // 2=Completed, 3=Cancelled. QA R4: start/end/cancel had no guard — a completed or cancelled session
+    // could be restarted, a not-yet-started one "ended" (ActualEndTime without ActualStartTime).
     public async Task<bool> CancelConsultationSessionAsync(Guid sessionId, string reason)
     {
-        var session = await _context.Set<RadiologyConsultationSession>().FindAsync(sessionId);
-        if (session == null) return false;
+        var session = await RequireConsultationSessionAsync(sessionId);
+        if (session.Status >= 2)
+            throw new InvalidOperationException("Phiên hội chẩn đã kết thúc/đã hủy, không hủy lại được.");
         session.Status = 3;
+        if (!string.IsNullOrWhiteSpace(reason)) session.Notes = reason; // reason was dropped before
+        session.UpdatedAt = DateTime.Now;
         await _unitOfWork.SaveChangesAsync();
         return true;
     }
 
     public async Task<ConsultationSessionDto> StartConsultationSessionAsync(Guid sessionId)
     {
-        var session = await _context.Set<RadiologyConsultationSession>().FindAsync(sessionId);
-        if (session == null) return null;
+        var session = await RequireConsultationSessionAsync(sessionId);
+        if (session.Status != 0)
+            throw new InvalidOperationException("Chỉ bắt đầu được phiên hội chẩn đang ở trạng thái đã lên lịch.");
         session.Status = 1;
         session.ActualStartTime = DateTime.Now;
         await _unitOfWork.SaveChangesAsync();
@@ -311,8 +334,9 @@ public partial class RISCompleteService
 
     public async Task<ConsultationSessionDto> EndConsultationSessionAsync(Guid sessionId)
     {
-        var session = await _context.Set<RadiologyConsultationSession>().FindAsync(sessionId);
-        if (session == null) return null;
+        var session = await RequireConsultationSessionAsync(sessionId);
+        if (session.Status != 1)
+            throw new InvalidOperationException("Chỉ kết thúc được phiên hội chẩn đang diễn ra.");
         session.Status = 2;
         session.ActualEndTime = DateTime.Now;
         await _unitOfWork.SaveChangesAsync();
@@ -340,30 +364,33 @@ public partial class RISCompleteService
         return true;
     }
 
+    // QA R4: "Vào phòng"/"Rời phòng" từng là no-op (không ghi người tham gia) — gọi bản đầy đủ ở Consultation.cs.
     public async Task<ConsultationSessionDto> JoinSessionAsync(Guid sessionId)
     {
-        var session = await _context.Set<RadiologyConsultationSession>().FindAsync(sessionId);
-        if (session == null) return null;
+        var session = await RequireConsultationSessionAsync(sessionId);
+        if (session.Status >= 2)
+            throw new InvalidOperationException("Phiên hội chẩn đã kết thúc/đã hủy.");
+        await JoinConsultationAsync(sessionId, GetCurrentUserIdOrAdmin());
         return new ConsultationSessionDto { Id = session.Id, Status = session.Status };
     }
 
     public async Task<bool> LeaveSessionAsync(Guid sessionId)
     {
-        return true;
+        await RequireConsultationSessionAsync(sessionId);
+        return await LeaveConsultationAsync(sessionId, GetCurrentUserIdOrAdmin());
     }
 
     public async Task<ConsultationAttachmentDto> UploadAttachmentAsync(AddConsultationAttachmentDto dto)
     {
-        var attachment = new RadiologyConsultationAttachment
-        {
-            Id = Guid.NewGuid(),
-            SessionId = dto.SessionId,
-            FileName = dto.FileName,
-            CreatedAt = DateTime.Now
-        };
-        await _context.Set<RadiologyConsultationAttachment>().AddAsync(attachment);
-        await _unitOfWork.SaveChangesAsync();
-        return new ConsultationAttachmentDto { Id = attachment.Id, FileName = attachment.FileName };
+        // QA R4: bản cũ chỉ gán SessionId + FileName → FK SessionId nổ 500, và kể cả phiên hợp lệ thì
+        // UploadedByUserId = Guid.Empty cũng nổ FK Users. Dùng bản đầy đủ AddAttachmentAsync.
+        await RequireConsultationSessionAsync(dto.SessionId);
+        if (string.IsNullOrWhiteSpace(dto.FileName))
+            throw new ArgumentException("Thiếu tên file đính kèm");
+        if (dto.CaseId.HasValue && !await _context.Set<RadiologyConsultationCase>()
+                .AnyAsync(c => c.Id == dto.CaseId.Value && c.SessionId == dto.SessionId))
+            throw new KeyNotFoundException("Ca hội chẩn không thuộc phiên này");
+        return await AddAttachmentAsync(dto);
     }
 
     public async Task<bool> DeleteAttachmentAsync(Guid attachmentId)
@@ -377,16 +404,20 @@ public partial class RISCompleteService
 
     public async Task<ConsultationDiscussionDto> PostDiscussionAsync(AddConsultationDiscussionDto dto)
     {
-        var discussion = new RadiologyConsultationDiscussion
+        // QA R4: bản cũ ghi CaseId = Guid.Empty (FK 500) và bỏ trống SessionId/ParticipantId — nút
+        // "Gửi bình luận" của v2 Consultation.tsx luôn lỗi. Chấp nhận sessionId HOẶC caseId (v1 chỉ gửi caseId).
+        if (string.IsNullOrWhiteSpace(dto.Content))
+            throw new ArgumentException("Nội dung thảo luận không được để trống");
+        if (dto.SessionId == Guid.Empty && dto.CaseId.HasValue)
         {
-            Id = Guid.NewGuid(),
-            CaseId = dto.CaseId ?? Guid.Empty,
-            Content = dto.Content,
-            CreatedAt = DateTime.Now
-        };
-        await _context.Set<RadiologyConsultationDiscussion>().AddAsync(discussion);
-        await _unitOfWork.SaveChangesAsync();
-        return new ConsultationDiscussionDto { Id = discussion.Id };
+            dto.SessionId = await _context.Set<RadiologyConsultationCase>()
+                .Where(c => c.Id == dto.CaseId.Value).Select(c => c.SessionId).FirstOrDefaultAsync();
+        }
+        await RequireConsultationSessionAsync(dto.SessionId);
+        if (dto.CaseId.HasValue && !await _context.Set<RadiologyConsultationCase>()
+                .AnyAsync(c => c.Id == dto.CaseId.Value && c.SessionId == dto.SessionId))
+            throw new KeyNotFoundException("Ca hội chẩn không thuộc phiên này");
+        return await AddDiscussionAsync(dto);
     }
 
     public async Task<bool> DeleteDiscussionAsync(Guid discussionId)
@@ -400,16 +431,11 @@ public partial class RISCompleteService
 
     public async Task<ConsultationImageNoteDto> SaveImageNoteAsync(AddConsultationImageNoteDto dto)
     {
-        var imageNote = new RadiologyConsultationImageNote
-        {
-            Id = Guid.NewGuid(),
-            SessionId = dto.SessionId,
-            AnnotationData = dto.AnnotationData,
-            CreatedAt = DateTime.Now
-        };
-        await _context.Set<RadiologyConsultationImageNote>().AddAsync(imageNote);
-        await _unitOfWork.SaveChangesAsync();
-        return new ConsultationImageNoteDto { Id = imageNote.Id, SessionId = imageNote.SessionId };
+        // QA R4: bản cũ bỏ StudyInstanceUID/AnnotationType/CreatedByUserId (FK Users nổ) → dùng bản đầy đủ.
+        await RequireConsultationSessionAsync(dto.SessionId);
+        if (string.IsNullOrWhiteSpace(dto.StudyInstanceUID))
+            throw new ArgumentException("Thiếu StudyInstanceUID của ảnh được ghi chú");
+        return await AddImageNoteAsync(dto);
     }
 
     public async Task<byte[]> GenerateInviteQRCodeAsync(Guid sessionId)

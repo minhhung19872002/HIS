@@ -305,11 +305,15 @@ public partial class RISCompleteService
 
     public async Task<DutyScheduleDto> SaveDutyScheduleAsync(SaveDutyScheduleDto dto)
     {
+        if (!await _context.Set<Department>().AnyAsync(d => d.Id == dto.DepartmentId))
+            throw new KeyNotFoundException("Không tìm thấy khoa của lịch trực");
+        if (dto.RoomId.HasValue && !await _context.Rooms.AnyAsync(r => r.Id == dto.RoomId.Value))
+            throw new KeyNotFoundException("Không tìm thấy phòng của lịch trực");
         RadiologyDutySchedule schedule;
         if (dto.Id.HasValue)
         {
-            schedule = await _context.Set<RadiologyDutySchedule>().FindAsync(dto.Id.Value);
-            if (schedule == null) return null;
+            schedule = await _context.Set<RadiologyDutySchedule>().FindAsync(dto.Id.Value)
+                ?? throw new KeyNotFoundException("Không tìm thấy lịch trực cần sửa");
         }
         else
         {
@@ -423,10 +427,36 @@ public partial class RISCompleteService
 
     #region Room Assignment - Phân phòng thực hiện
 
+    /// <summary>QA R4: FK Room/Modality từng nổ 500 khi phân phòng; dùng chung cho tạo + sửa.</summary>
+    private async Task EnsureRoomAndModalityExistAsync(Guid roomId, Guid? modalityId)
+    {
+        if (!await _context.Rooms.AnyAsync(r => r.Id == roomId && r.IsActive))
+            throw new KeyNotFoundException("Không tìm thấy phòng thực hiện");
+        if (modalityId.HasValue &&
+            !await _context.RadiologyModalities.AnyAsync(m => m.Id == modalityId.Value && !m.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy máy chụp (modality)");
+    }
+
     public async Task<RoomAssignmentDto> AssignRoomAsync(AssignRoomRequestDto request)
     {
+        var requestStatus = await _context.RadiologyRequests
+            .Where(r => r.Id == request.RadiologyRequestId).Select(r => (int?)r.Status).FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Không tìm thấy chỉ định CĐHA");
+        if (requestStatus == HIS.Core.Constants.RadiologyRequestStatus.Cancelled)
+            throw new InvalidOperationException("Chỉ định CĐHA đã hủy, không phân phòng được.");
+        await EnsureRoomAndModalityExistAsync(request.RoomId, request.ModalityId);
+
         // AssignedAt = VN local time (business timestamp convention) → VN day range.
         var (asgnFromUtc, asgnToUtc) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.TodayVn);
+
+        // QA R4 (đo live): cùng một chỉ định phân vào 2 phòng → 2 hàng đợi cùng STT 1. Một chỉ định
+        // chỉ được ở một hàng đợi đang mở (chờ/đã gọi/đang làm); đổi phòng thì dùng PUT.
+        var openAssignment = await _context.Set<RadiologyRoomAssignment>()
+            .Include(a => a.Room)
+            .FirstOrDefaultAsync(a => a.RadiologyRequestId == request.RadiologyRequestId && a.Status < 3);
+        if (openAssignment != null)
+            throw new InvalidOperationException(
+                $"Chỉ định này đang trong hàng đợi phòng {openAssignment.Room?.RoomName ?? openAssignment.RoomId.ToString()} (STT {openAssignment.QueueNumber}). Hãy cập nhật phân phòng thay vì phân mới.");
         var queueNumber = await _context.Set<RadiologyRoomAssignment>()
             .Where(a => a.RoomId == request.RoomId && a.AssignedAt >= asgnFromUtc && a.AssignedAt < asgnToUtc)
             .CountAsync() + 1;
@@ -461,8 +491,11 @@ public partial class RISCompleteService
 
     public async Task<RoomAssignmentDto> UpdateRoomAssignmentAsync(Guid assignmentId, AssignRoomRequestDto request)
     {
-        var assignment = await _context.Set<RadiologyRoomAssignment>().FindAsync(assignmentId);
-        if (assignment == null) return null;
+        var assignment = await _context.Set<RadiologyRoomAssignment>().FindAsync(assignmentId)
+            ?? throw new KeyNotFoundException("Không tìm thấy phân phòng");
+        if (assignment.Status >= 3)
+            throw new InvalidOperationException("Phân phòng đã hoàn thành/bỏ qua, không sửa được.");
+        await EnsureRoomAndModalityExistAsync(request.RoomId, request.ModalityId);
 
         assignment.RoomId = request.RoomId;
         assignment.ModalityId = request.ModalityId;
@@ -520,17 +553,20 @@ public partial class RISCompleteService
 
     public async Task<RoomAssignmentDto> CallNextPatientAsync(Guid roomId)
     {
+        // QA R4: không lọc ngày → hàng đợi bỏ dở của những ngày trước (Status=0, STT 1) được gọi
+        // trước bệnh nhân hôm nay. Gọi theo hàng đợi HÔM NAY (giờ VN) — cùng phạm vi GetRoomQueueAsync.
+        var (fromUtc, toUtc) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.TodayVn);
         var nextAssignment = await _context.Set<RadiologyRoomAssignment>()
             .Include(a => a.RadiologyRequest)
                 .ThenInclude(r => r.Patient)
-            .Where(a => a.RoomId == roomId && a.Status == 0)
+            .Where(a => a.RoomId == roomId && a.Status == 0 && a.AssignedAt >= fromUtc && a.AssignedAt < toUtc)
             .OrderBy(a => a.QueueNumber)
             .FirstOrDefaultAsync();
 
         if (nextAssignment == null) return null;
 
         nextAssignment.Status = 1; // Called
-        nextAssignment.CalledAt = DateTime.Now;
+        nextAssignment.CalledAt = HIS.Core.Common.VnTime.NowVn; // same clock as AssignedAt (was DateTime.Now)
         await _unitOfWork.SaveChangesAsync();
 
         return new RoomAssignmentDto
@@ -548,8 +584,10 @@ public partial class RISCompleteService
 
     public async Task<bool> SkipPatientAsync(Guid assignmentId, string reason)
     {
-        var assignment = await _context.Set<RadiologyRoomAssignment>().FindAsync(assignmentId);
-        if (assignment == null) return false;
+        var assignment = await _context.Set<RadiologyRoomAssignment>().FindAsync(assignmentId)
+            ?? throw new KeyNotFoundException("Không tìm thấy phân phòng");
+        if (assignment.Status >= 2)
+            throw new InvalidOperationException("Chỉ bỏ qua được bệnh nhân đang chờ hoặc đã gọi.");
 
         assignment.Status = 4; // Skipped
         assignment.Notes = reason;
@@ -642,11 +680,13 @@ public partial class RISCompleteService
 
     public async Task<RadiologyTagDto> SaveTagAsync(SaveRadiologyTagDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.Code) || string.IsNullOrWhiteSpace(dto.Name))
+            throw new ArgumentException("Mã và tên tag là bắt buộc");
         RadiologyTag tag;
         if (dto.Id.HasValue)
         {
-            tag = await _context.Set<RadiologyTag>().FindAsync(dto.Id.Value);
-            if (tag == null) return null;
+            tag = await _context.Set<RadiologyTag>().FindAsync(dto.Id.Value)
+                ?? throw new KeyNotFoundException("Không tìm thấy tag cần sửa");
         }
         else
         {
@@ -690,6 +730,16 @@ public partial class RISCompleteService
 
     public async Task<bool> AssignTagsToRequestAsync(AssignTagRequestDto request)
     {
+        if (!await _context.RadiologyRequests.AnyAsync(r => r.Id == request.RadiologyRequestId))
+            throw new KeyNotFoundException("Không tìm thấy ca chụp");
+        var tagIds = request.TagIds ?? new List<Guid>();
+        if (tagIds.Count > 0)
+        {
+            var known = await _context.Set<RadiologyTag>().Where(t => tagIds.Contains(t.Id)).CountAsync();
+            if (known != tagIds.Distinct().Count())
+                throw new KeyNotFoundException("Có tag không tồn tại");
+        }
+        request.TagIds = tagIds;
         // #195: nạp 1 lần các nhãn đã gắn thay vì 1 query/nhãn. Set này cũng chặn luôn
         // trường hợp TagIds gửi lên trùng nhau — trước đây mỗi vòng lặp query DB nên bản
         // ghi vừa Add (chưa SaveChanges) không thấy được ⇒ chèn trùng.

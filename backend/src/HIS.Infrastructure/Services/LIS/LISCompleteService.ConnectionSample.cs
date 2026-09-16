@@ -59,10 +59,14 @@ public partial class LISCompleteService {
 
     public async Task<LabAnalyzerDto> CreateAnalyzerAsync(CreateAnalyzerDto dto)
     {
+        // QA-R4: a `{}` body created analyzers with Code='' / Name='' (blank rows in every analyzer picker)
+        if (string.IsNullOrWhiteSpace(dto.Code)) throw new ArgumentException("Chưa nhập mã máy xét nghiệm", nameof(dto.Code));
+        if (string.IsNullOrWhiteSpace(dto.Name)) throw new ArgumentException("Chưa nhập tên máy xét nghiệm", nameof(dto.Name));
+
         var analyzer = new LabAnalyzer
         {
-            Code = dto.Code,
-            Name = dto.Name,
+            Code = dto.Code.Trim(),
+            Name = dto.Name.Trim(),
             Manufacturer = dto.Manufacturer,
             Model = dto.Model,
             Protocol = ParseProtocol(dto.Protocol),
@@ -140,6 +144,10 @@ public partial class LISCompleteService {
 
     public async Task<bool> UpdateAnalyzerTestMappingsAsync(Guid analyzerId, List<UpdateAnalyzerTestMappingDto> mappings)
     {
+        // QA-R4: a zero/unknown analyzer id wrote orphan mapping rows and answered 200
+        if (!await _context.LabAnalyzers.AnyAsync(a => a.Id == analyzerId))
+            throw new KeyNotFoundException("Không tìm thấy máy xét nghiệm");
+
         var existingMappings = await _context.LabAnalyzerTestMappings.Where(m => m.AnalyzerId == analyzerId).ToListAsync();
         _context.LabAnalyzerTestMappings.RemoveRange(existingMappings);
 
@@ -373,6 +381,16 @@ public partial class LISCompleteService {
                 return new CollectSampleResultDto { Success = false, Message = "Phiếu chỉ định đã hủy, không lấy mẫu" };
 
             var activeDetails = sr.Details.Where(d => !d.IsDeleted && d.Status != 3).ToList();
+            if (activeDetails.Count == 0)
+                return new CollectSampleResultDto { Success = false, Message = "Phiếu không còn chỉ định nào để lấy mẫu" };
+
+            // QA-R4: "lấy mẫu" twice (double click / second station) overwrote SampleCollectedAt + collector of a tube
+            // that was already collected — or even already received — so TAT and who-collected were silently rewritten.
+            // Only tubes not yet collected, or rejected at reception (re-collection), may be (re)collected.
+            var toCollect = activeDetails
+                .Where(d => !d.IsSampleCollected || d.ReceiveStatus == LisModel1Map.RejectedReceiveStatus).ToList();
+            if (toCollect.Count == 0)
+                return new CollectSampleResultDto { Success = false, Message = "Mẫu của phiếu này đã được lấy — không lấy mẫu lại" };
 
             // QA-R3: tubes rejected at reception go back into the reception queue with a NEW barcode. The base code
             // is per order+day, so a same-day recollection would re-print the rejected label → add a suffix until
@@ -389,7 +407,7 @@ public partial class LISCompleteService {
                     barcode = $"{baseCode}-{n}";
             }
 
-            foreach (var d in activeDetails)
+            foreach (var d in toCollect)
             {
                 d.IsSampleCollected = true;
                 d.SampleCollectedAt = collectionTime;

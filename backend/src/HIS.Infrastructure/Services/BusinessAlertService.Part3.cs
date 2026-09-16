@@ -549,6 +549,12 @@ public partial class BusinessAlertService
 
     public async Task<SpecialTestRuleDto> SaveSpecialTestRuleAsync(SpecialTestRuleSaveDto dto, string userId)
     {
+        // QA-R4: a zero/unknown TestId hit the FK (DbUpdateException → 500); TestId is the lab Service
+        if (dto.TestId == Guid.Empty || !await _context.Services.AnyAsync(s => s.Id == dto.TestId && !s.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy dịch vụ xét nghiệm");
+        if (dto.WindowType == 1 && (dto.WindowDays ?? 0) <= 0)
+            throw new ArgumentException("Số ngày cấm chỉ định lại phải lớn hơn 0", nameof(dto.WindowDays));
+
         HIS.Core.Entities.SpecialTestRule entity;
         if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
         {

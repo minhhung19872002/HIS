@@ -49,11 +49,13 @@ public partial class RISCompleteService
 
     public async Task<HelpCategoryDto> SaveHelpCategoryAsync(SaveHelpCategoryDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.Code) || string.IsNullOrWhiteSpace(dto.Name))
+            throw new ArgumentException("Mã và tên danh mục hướng dẫn là bắt buộc");
         RadiologyHelpCategory category;
         if (dto.Id.HasValue)
         {
-            category = await _context.Set<RadiologyHelpCategory>().FindAsync(dto.Id.Value);
-            if (category == null) return null;
+            category = await _context.Set<RadiologyHelpCategory>().FindAsync(dto.Id.Value)
+                ?? throw new KeyNotFoundException("Không tìm thấy danh mục hướng dẫn cần sửa");
         }
         else
         {
@@ -150,11 +152,15 @@ public partial class RISCompleteService
 
     public async Task<HelpArticleDto> SaveHelpArticleAsync(SaveHelpArticleDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.Title))
+            throw new ArgumentException("Tiêu đề bài viết là bắt buộc");
+        if (!await _context.Set<RadiologyHelpCategory>().AnyAsync(c => c.Id == dto.CategoryId))
+            throw new KeyNotFoundException("Không tìm thấy danh mục của bài viết");
         RadiologyHelpArticle article;
         if (dto.Id.HasValue)
         {
-            article = await _context.Set<RadiologyHelpArticle>().FindAsync(dto.Id.Value);
-            if (article == null) return null;
+            article = await _context.Set<RadiologyHelpArticle>().FindAsync(dto.Id.Value)
+                ?? throw new KeyNotFoundException("Không tìm thấy bài viết cần sửa");
         }
         else
         {
@@ -216,11 +222,13 @@ public partial class RISCompleteService
 
     public async Task<TroubleshootingDto> SaveTroubleshootingAsync(SaveTroubleshootingDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.ErrorTitle))
+            throw new ArgumentException("Tiêu đề lỗi (errorTitle) là bắt buộc");
         RadiologyTroubleshooting troubleshooting;
         if (dto.Id.HasValue)
         {
-            troubleshooting = await _context.Set<RadiologyTroubleshooting>().FindAsync(dto.Id.Value);
-            if (troubleshooting == null) return null;
+            troubleshooting = await _context.Set<RadiologyTroubleshooting>().FindAsync(dto.Id.Value)
+                ?? throw new KeyNotFoundException("Không tìm thấy mục troubleshooting cần sửa");
         }
         else
         {

@@ -596,8 +596,34 @@ public partial class RISCompleteService
         }).ToList();
     }
 
+    private static void ValidatePacsConnection(CreatePACSConnectionDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.AETitle) || string.IsNullOrWhiteSpace(dto.IpAddress))
+            throw new ArgumentException("Tên, AE Title và địa chỉ IP/host của PACS là bắt buộc");
+        if (dto.Port is < 1 or > 65535)
+            throw new ArgumentException("Port PACS phải trong khoảng 1-65535");
+    }
+
+    /// <summary>QA R4: AE Title là định danh DICOM trên mạng — hai máy cùng AET thì worklist/MPPS gửi nhầm máy.</summary>
+    private async Task ValidateModalityAsync(CreateModalityDto dto, Guid? excludeId)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Code) || string.IsNullOrWhiteSpace(dto.Name))
+            throw new ArgumentException("Mã và tên máy chụp (modality) là bắt buộc");
+        if (dto.Port is < 1 or > 65535)
+            throw new ArgumentException("Port DICOM phải trong khoảng 1-65535");
+        if (!string.IsNullOrWhiteSpace(dto.AETitle))
+        {
+            var aet = dto.AETitle.Trim();
+            var duplicate = await _context.RadiologyModalities.AnyAsync(m =>
+                !m.IsDeleted && m.AETitle == aet && (excludeId == null || m.Id != excludeId.Value));
+            if (duplicate)
+                throw new InvalidOperationException($"AE Title '{aet}' đã được dùng cho máy chụp khác.");
+        }
+    }
+
     public async Task<PACSConnectionDto> CreatePACSConnectionAsync(CreatePACSConnectionDto dto)
     {
+        ValidatePacsConnection(dto);
         var entity = new RemotePacsServer
         {
             Id = Guid.NewGuid(),
@@ -630,6 +656,7 @@ public partial class RISCompleteService
         var entity = await _context.RemotePacsServers
             .FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted)
             ?? throw new KeyNotFoundException("Không tìm thấy PACS connection");
+        ValidatePacsConnection(dto);
         entity.Name = dto.Name.Trim();
         entity.AeTitle = dto.AETitle.Trim();
         entity.Host = dto.IpAddress.Trim();
@@ -664,11 +691,12 @@ public partial class RISCompleteService
 
     public async Task<ModalityDto> CreateModalityAsync(CreateModalityDto dto)
     {
+        await ValidateModalityAsync(dto, null);
         var modality = new RadiologyModality
         {
             Id = Guid.NewGuid(),
-            ModalityCode = dto.Code,
-            ModalityName = dto.Name,
+            ModalityCode = dto.Code.Trim(),
+            ModalityName = dto.Name.Trim(),
             ModalityType = ParseModalityType(dto.ModalityType),
             Manufacturer = dto.Manufacturer,
             ModelName = dto.Model,
@@ -706,11 +734,12 @@ public partial class RISCompleteService
 
     public async Task<ModalityDto> UpdateModalityAsync(Guid id, UpdateModalityDto dto)
     {
-        var modality = await _context.RadiologyModalities.FindAsync(id);
-        if (modality == null) return null;
+        var modality = await _context.RadiologyModalities.FindAsync(id)
+            ?? throw new KeyNotFoundException("Không tìm thấy máy chụp (modality)");
+        await ValidateModalityAsync(dto, id);
 
-        modality.ModalityCode = dto.Code;
-        modality.ModalityName = dto.Name;
+        modality.ModalityCode = dto.Code.Trim();
+        modality.ModalityName = dto.Name.Trim();
         modality.ModalityType = ParseModalityType(dto.ModalityType);
         modality.Manufacturer = dto.Manufacturer;
         modality.ModelName = dto.Model;

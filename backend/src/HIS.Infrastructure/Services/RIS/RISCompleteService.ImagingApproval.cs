@@ -637,8 +637,17 @@ public partial class RISCompleteService
 
     public async Task<bool> PreliminaryApproveResultAsync(Guid resultId, string note)
     {
-        var report = await _context.RadiologyReports.FindAsync(resultId);
-        if (report == null) return false;
+        var report = await _context.RadiologyReports.FindAsync(resultId)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu kết quả CĐHA");
+
+        // QA R4: sơ duyệt một phiếu ĐÃ duyệt chính thức/đã ký hạ nó về Status=1 mà không thu hồi
+        // chữ ký hay ApprovedBy — đo được live (2 → 1). Hạ cấp phải đi qua hủy duyệt.
+        if (report.Status == RadiologyReportStatus.FinalApproved)
+            throw new InvalidOperationException("Phiếu đã duyệt chính thức. Muốn sửa trạng thái phải hủy duyệt trước.");
+        var hasActiveSignature = await _context.Set<RadiologySignatureHistory>()
+            .AnyAsync(s => s.RadiologyReportId == resultId && s.Status == 1);
+        if (hasActiveSignature)
+            throw new InvalidOperationException("Phiếu đã ký số. Phải thu hồi chữ ký trước.");
 
         report.Status = 1; // Preliminary approved
         report.UpdatedAt = DateTime.Now;
@@ -667,8 +676,22 @@ public partial class RISCompleteService
 
     public async Task<bool> FinalApproveResultAsync(ApproveRadiologyResultDto dto)
     {
-        var report = await _context.RadiologyReports.FindAsync(dto.ResultId);
-        if (report == null) return false;
+        var report = await _context.RadiologyReports.FindAsync(dto.ResultId)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu kết quả CĐHA");
+
+        // QA R4 (đo live): duyệt lần 2 trả 200 và ghi đè ApprovedBy/ApprovedAt của người duyệt đầu
+        // (mất dấu vết ai duyệt); phiếu trống (chưa có mô tả lẫn kết luận) và phiếu của chỉ định ĐÃ HỦY
+        // vẫn duyệt được, kéo chỉ định hủy về "Approved".
+        if (report.Status == RadiologyReportStatus.FinalApproved)
+            throw new InvalidOperationException("Phiếu đã được duyệt chính thức trước đó.");
+        if (string.IsNullOrWhiteSpace(report.Findings) && string.IsNullOrWhiteSpace(report.Impression))
+            throw new InvalidOperationException("Phiếu chưa có mô tả/kết luận, không thể duyệt.");
+        var requestStatus = await _context.RadiologyExams
+            .Where(e => e.Id == report.RadiologyExamId)
+            .Select(e => (int?)e.RadiologyRequest.Status)
+            .FirstOrDefaultAsync();
+        if (requestStatus == RadiologyRequestStatus.Cancelled)
+            throw new InvalidOperationException("Chỉ định CĐHA đã hủy, không thể duyệt kết quả.");
 
         // G-36: per-modality permission check.
         // Chá»‰ Ã¡p khi ApprovingUserId cÃ³ giÃ¡ trá»‹ (controller Ä'iá»n tá»« JWT).
@@ -733,8 +756,8 @@ public partial class RISCompleteService
     /// </summary>
     public async Task<bool> CancelApprovalAsync(Guid resultId, string reason)
     {
-        var report = await _context.RadiologyReports.FindAsync(resultId);
-        if (report == null) return false;
+        var report = await _context.RadiologyReports.FindAsync(resultId)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu kết quả CĐHA");
 
         // Không có gì để hủy thì đừng xoá dấu vết người duyệt của một phiếu khác trạng thái.
         if (report.Status == RadiologyReportStatus.Draft)

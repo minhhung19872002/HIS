@@ -1310,7 +1310,9 @@ const StatsTab: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params = range ? { fromDate: range[0].toISOString(), toDate: range[1].toISOString() } : {};
+      // Query-string dates are NOT run through the BE VN converter (body only): toISOString() sent 16/09 as
+      // "15T17:00Z" and the BE took .Date = 15/09 against VN-local RequestDate. Send the calendar day.
+      const params = range ? { fromDate: range[0].format('YYYY-MM-DD'), toDate: range[1].format('YYYY-MM-DD') } : {};
       const res = await apiClient.get<Stat[]>('/radiology-dispatch/stats', { params });
       setStats(res.data);
     } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được thống kê — các số bên dưới chưa phản ánh hoạt động thực tế.')); setStats([]); }

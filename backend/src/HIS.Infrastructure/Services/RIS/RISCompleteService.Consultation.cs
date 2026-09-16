@@ -118,11 +118,15 @@ public partial class RISCompleteService
 
     public async Task<ConsultationSessionDto> SaveConsultationSessionAsync(SaveConsultationSessionDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.Title))
+            throw new ArgumentException("Chủ đề phiên hội chẩn là bắt buộc");
+        if (dto.ScheduledEndTime < dto.ScheduledStartTime)
+            throw new ArgumentException("Giờ kết thúc phải sau giờ bắt đầu");
         RadiologyConsultationSession session;
         if (dto.Id.HasValue)
         {
-            session = await _context.Set<RadiologyConsultationSession>().FindAsync(dto.Id.Value);
-            if (session == null) return null;
+            session = await _context.Set<RadiologyConsultationSession>().FindAsync(dto.Id.Value)
+                ?? throw new KeyNotFoundException("Không tìm thấy phiên hội chẩn");
         }
         else
         {
@@ -204,6 +208,17 @@ public partial class RISCompleteService
 
     public async Task<ConsultationCaseDto> AddConsultationCaseAsync(AddConsultationCaseDto dto)
     {
+        // QA R4: FK session/request từng nổ 500; cùng một ca chụp thêm 2 lần vào một phiên.
+        var session = await _context.Set<RadiologyConsultationSession>().FindAsync(dto.SessionId)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiên hội chẩn");
+        if (session.Status >= 2)
+            throw new InvalidOperationException("Phiên hội chẩn đã kết thúc/đã hủy, không thêm ca được.");
+        if (!await _context.RadiologyRequests.AnyAsync(r => r.Id == dto.RadiologyRequestId))
+            throw new KeyNotFoundException("Không tìm thấy ca chụp (chỉ định CĐHA)");
+        if (await _context.Set<RadiologyConsultationCase>()
+                .AnyAsync(c => c.SessionId == dto.SessionId && c.RadiologyRequestId == dto.RadiologyRequestId))
+            throw new InvalidOperationException("Ca chụp này đã có trong phiên hội chẩn.");
+
         var consultationCase = new RadiologyConsultationCase
         {
             Id = Guid.NewGuid(),
@@ -237,6 +252,19 @@ public partial class RISCompleteService
 
     public async Task<ConsultationParticipantDto> InviteParticipantAsync(InviteParticipantDto dto)
     {
+        // QA R4: FK session/user từng nổ 500; mời trùng tạo 2 dòng participant cho cùng user.
+        if (!await _context.Set<RadiologyConsultationSession>().AnyAsync(s => s.Id == dto.SessionId))
+            throw new KeyNotFoundException("Không tìm thấy phiên hội chẩn");
+        if (!await _context.Users.AnyAsync(u => u.Id == dto.UserId && !u.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy người dùng được mời");
+        var existing = await _context.Set<RadiologyConsultationParticipant>()
+            .FirstOrDefaultAsync(p => p.SessionId == dto.SessionId && p.UserId == dto.UserId);
+        if (existing != null)
+            return new ConsultationParticipantDto
+            {
+                Id = existing.Id, UserId = existing.UserId, Role = existing.Role, InvitedAt = existing.InvitedAt
+            };
+
         var participant = new RadiologyConsultationParticipant
         {
             Id = Guid.NewGuid(),
@@ -317,6 +345,28 @@ public partial class RISCompleteService
         return true;
     }
 
+    /// <summary>Toàn bộ thảo luận của một phiên (mọi ca) — v2 Consultation.tsx render theo phiên.</summary>
+    public async Task<List<ConsultationDiscussionDto>> GetSessionDiscussionsAsync(Guid sessionId)
+    {
+        var discussions = await _context.Set<RadiologyConsultationDiscussion>()
+            .Include(d => d.Participant)
+            .Where(d => d.SessionId == sessionId && !d.IsDeleted)
+            .OrderBy(d => d.PostedAt)
+            .ToBoundedListAsync("RIS.GetSessionDiscussions");
+
+        return discussions.Select(d => new ConsultationDiscussionDto
+        {
+            Id = d.Id,
+            SessionId = d.SessionId,
+            CaseId = d.CaseId,
+            ParticipantId = d.ParticipantId,
+            ParticipantName = d.Participant?.FullName ?? "",
+            Content = d.Content,
+            MessageType = d.MessageType,
+            PostedAt = d.PostedAt
+        }).ToList();
+    }
+
     public async Task<ConsultationDiscussionDto> AddDiscussionAsync(AddConsultationDiscussionDto dto)
     {
         var discussion = new RadiologyConsultationDiscussion
@@ -337,6 +387,9 @@ public partial class RISCompleteService
         return new ConsultationDiscussionDto
         {
             Id = discussion.Id,
+            SessionId = discussion.SessionId,
+            CaseId = discussion.CaseId,
+            ParticipantId = discussion.ParticipantId,
             Content = discussion.Content,
             MessageType = discussion.MessageType,
             PostedAt = discussion.PostedAt
@@ -392,11 +445,13 @@ public partial class RISCompleteService
         };
     }
 
-    public async Task<List<ConsultationImageNoteDto>> GetImageNotesAsync(Guid caseId)
+    public async Task<List<ConsultationImageNoteDto>> GetImageNotesAsync(Guid sessionId)
     {
-        // Get notes by session since ImageNote doesn't have CaseId
+        // QA R4: bản cũ không lọc gì cả → trả 50 ghi chú ảnh đầu tiên của MỌI phiên (rò rỉ chéo phiên).
+        // Controller truyền sessionId (route consultations/{sessionId}/image-notes).
         var notes = await _context.Set<RadiologyConsultationImageNote>()
             .Include(n => n.CreatedByUser)
+            .Where(n => n.SessionId == sessionId)
             .OrderBy(n => n.CreatedAt)
             .Take(50)
             .ToListAsync();
@@ -418,8 +473,13 @@ public partial class RISCompleteService
 
     public async Task<ConsultationMinutesDto> SaveMinutesAsync(SaveConsultationMinutesDto dto)
     {
+        // QA R4: FK SessionId từng nổ 500; biên bản đã duyệt vẫn sửa được nội dung.
+        if (!await _context.Set<RadiologyConsultationSession>().AnyAsync(s => s.Id == dto.SessionId))
+            throw new KeyNotFoundException("Không tìm thấy phiên hội chẩn");
         var minutes = await _context.Set<RadiologyConsultationMinutes>()
             .FirstOrDefaultAsync(m => m.SessionId == dto.SessionId);
+        if (minutes != null && minutes.Status == 2)
+            throw new InvalidOperationException("Biên bản đã được duyệt, không sửa được nữa.");
 
         if (minutes == null)
         {
@@ -469,8 +529,10 @@ public partial class RISCompleteService
 
     public async Task<ConsultationMinutesDto> ApproveMinutesAsync(Guid minutesId)
     {
-        var minutes = await _context.Set<RadiologyConsultationMinutes>().FindAsync(minutesId);
-        if (minutes == null) return null;
+        var minutes = await _context.Set<RadiologyConsultationMinutes>().FindAsync(minutesId)
+            ?? throw new KeyNotFoundException("Không tìm thấy biên bản hội chẩn");
+        if (minutes.Status == 2)
+            throw new InvalidOperationException("Biên bản đã được duyệt trước đó.");
 
         minutes.Status = 2; // Approved
         minutes.ApprovedByUserId = GetCurrentUserIdOrAdmin();

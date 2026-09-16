@@ -11,6 +11,7 @@ using HIS.Application.Services;
 using HIS.Application.DTOs.Laboratory;
 using ApproveLabResultDto = HIS.Application.Services.ApproveLabResultDto;
 using HIS.API.Dtos.LISComplete;
+using ApiResponse = HIS.Application.DTOs.Common.ApiResponse<object>;
 
 namespace HIS.API.Controllers
 {
@@ -67,10 +68,11 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpPost("unmapped-results/map")]
         // Authorize removed for testing
-        public async Task<ActionResult> ManualMapResult([FromBody] ManualMapResultDto dto)
+        public ActionResult ManualMapResult([FromBody] ManualMapResultDto dto)
         {
-            await _lisService.ManualMapResultAsync(dto);
-            return Ok();
+            // QA-R4: ManualMapResultAsync is an empty stub (`return true`) — answering 200 told the user the raw
+            // result was mapped while the inbox row stayed "Chờ". No v2 page calls this; be honest until implemented.
+            return NotImplementedResult("Map thủ công kết quả máy chưa được hỗ trợ — dùng màn \"KQ máy\" (inbox) để chuyển/từ chối kết quả.");
         }
 
         /// <summary>
@@ -78,10 +80,10 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpPost("worklist/{worklistId}/retry")]
         // Authorize removed for testing
-        public async Task<ActionResult> RetryWorklist(Guid worklistId)
+        public ActionResult RetryWorklist(Guid worklistId)
         {
-            await _lisService.RetryWorklistAsync(worklistId);
-            return Ok();
+            // QA-R4: RetryWorklistAsync is an empty stub (`return true`) — see ManualMapResult
+            return NotImplementedResult("Gửi lại worklist chưa được hỗ trợ — dùng POST worklist/order/{orderId}/send để gửi lại phiếu.");
         }
 
         /// <summary>
@@ -159,10 +161,11 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpPost("poct/results")]
         // Authorize removed for testing
-        public async Task<ActionResult> EnterPOCTResult([FromBody] EnterPOCTResultDto dto)
+        public ActionResult EnterPOCTResult([FromBody] EnterPOCTResultDto dto)
         {
-            await _lisService.EnterPOCTResultAsync(dto);
-            return Ok();
+            // QA-R4: EnterPOCTResultAsync is an empty stub (`return true`, no POCT table) — a 200 here claimed a
+            // patient result was saved when nothing was written. Same treatment as reagents/screening (501).
+            return NotImplementedResult("Kết quả POCT chưa có bảng dữ liệu — chức năng ghi chưa được hỗ trợ.");
         }
 
         /// <summary>
@@ -197,7 +200,9 @@ namespace HIS.API.Controllers
         // Authorize removed for testing
         public async Task<ActionResult> EnterCultureResult([FromBody] EnterCultureResultDto dto)
         {
-            await _lisService.EnterCultureResultAsync(dto);
+            // QA-R4: unknown culture id answered 200 (service logs + returns false)
+            if (!await _lisService.EnterCultureResultAsync(dto))
+                return NotFound(ApiResponse.Fail("Không tìm thấy phiếu nuôi cấy"));
             return Ok();
         }
 
@@ -208,7 +213,8 @@ namespace HIS.API.Controllers
         // Authorize removed for testing
         public async Task<ActionResult> EnterAntibioticSensitivity([FromBody] EnterAntibioticSensitivityDto dto)
         {
-            await _lisService.EnterAntibioticSensitivityAsync(dto);
+            if (!await _lisService.EnterAntibioticSensitivityAsync(dto))
+                return NotFound(ApiResponse.Fail("Không tìm thấy vi sinh vật của phiếu nuôi cấy"));
             return Ok();
         }
 
