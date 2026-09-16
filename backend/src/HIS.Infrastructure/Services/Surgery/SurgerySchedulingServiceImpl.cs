@@ -60,6 +60,12 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
                     "Thieu medicalRecordId hoac examinationId — khong the tao yeu cau PTTT khong gan benh nhan");
             }
 
+            // QA-R4: a new surgery request is EMR content — a finalized (TT46) record accepted it before.
+            if (dto.MedicalRecordId != Guid.Empty)
+                await EmrLockGuard.EnsureEditableByRecordAsync(_context, dto.MedicalRecordId);
+            else
+                await EmrLockGuard.EnsureEditableByExaminationAsync(_context, dto.ExaminationId!.Value);
+
             // Tìm User để làm RequestingDoctor (dùng user đầu tiên nếu userId không tồn tại)
             var doctor = await _context.Set<User>().FindAsync(userId);
             if (doctor == null)
@@ -273,6 +279,32 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
                     throw new InvalidOperationException($"Ca mổ đang ở trạng thái \"{SurgeryStatus.RequestLabel(request.Status)}\", không lên lịch lại được.");
             }
 
+            // QA-R4 (2026-09-16): the scheduler accepted a date in the past, a zero/unknown operating room
+            // (FK failure swallowed → 200 with an empty DTO), a negative duration, a second surgery in the
+            // same room at the same time, and a surgery on a TT46-finalized record.
+            await EmrLockGuard.EnsureEditableBySurgeryRequestAsync(_context, dto.SurgeryId);
+            if (dto.EstimatedDurationMinutes <= 0)
+                throw new ArgumentException("Thời lượng dự kiến của ca mổ phải lớn hơn 0 phút.", nameof(dto.EstimatedDurationMinutes));
+            if (dto.ScheduledDate.Date < HIS.Core.Common.VnTime.TodayVn)
+                throw new InvalidOperationException($"Không lên lịch mổ vào ngày đã qua ({dto.ScheduledDate:dd/MM/yyyy}).");
+            if (dto.OperatingRoomId == Guid.Empty
+                || !await _context.Set<OperatingRoom>().AnyAsync(r => r.Id == dto.OperatingRoomId && !r.IsDeleted))
+                throw new KeyNotFoundException("Không tìm thấy phòng mổ (operatingRoomId không hợp lệ).");
+            var newStart = dto.ScheduledDate;
+            var newEnd = newStart.AddMinutes(dto.EstimatedDurationMinutes);
+            var sameDay = await _context.Set<SurgerySchedule>()
+                .Where(s => s.OperatingRoomId == dto.OperatingRoomId && s.SurgeryRequestId != dto.SurgeryId
+                    && s.ScheduledDate == dto.ScheduledDate.Date && !s.IsDeleted
+                    && s.Status != SurgeryStatus.ScheduleCompleted
+                    && s.SurgeryRequest.Status != SurgeryStatus.RequestCancelled)
+                .Select(s => new { s.ScheduledDateTime, s.EstimatedDuration, Code = s.SurgeryRequest.RequestCode })
+                .ToListAsync();
+            var clash = sameDay.FirstOrDefault(s =>
+                s.ScheduledDateTime < newEnd && s.ScheduledDateTime.AddMinutes(s.EstimatedDuration ?? 60) > newStart);
+            if (clash != null)
+                throw new InvalidOperationException(
+                    $"Phòng mổ đã có ca {clash.Code} lúc {clash.ScheduledDateTime:HH:mm dd/MM} ({clash.EstimatedDuration ?? 60} phút) trùng khung giờ này. Chọn giờ hoặc phòng khác.");
+
             // QA0915: scheduling twice created a second schedule row; start/complete then picked an
             // arbitrary row (FirstOrDefault without order). Re-scheduling now moves the existing row.
             var schedule = await _context.Set<SurgerySchedule>()
@@ -314,9 +346,9 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
             await _context.SaveChangesAsync();
             return await GetSurgeryByIdAsync(dto.SurgeryId) ?? new SurgeryDto();
         }
-        catch (InvalidOperationException)
+        catch (Exception ex) when (ex is InvalidOperationException or KeyNotFoundException or ArgumentException)
         {
-            throw; // sweep 2026-06-12: lỗi nghiệp vụ KHÔNG nuốt — filter trả 400 (trước trả DTO rỗng 200 = success giả)
+            throw; // sweep 2026-06-12: lỗi nghiệp vụ KHÔNG nuốt — filter trả 400/404 (trước trả DTO rỗng 200 = success giả)
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
@@ -571,7 +603,9 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
     public async Task<bool> CancelSurgeryAsync(Guid surgeryId, string reason, Guid userId)
     {
         var request = await _context.Set<SurgeryRequest>().FindAsync(surgeryId);
-        if (request == null) return false;
+        // QA-R4: unknown id answered 200 + false (silent no-op) → 404.
+        if (request == null) throw new KeyNotFoundException("Không tìm thấy yêu cầu phẫu thuật.");
+        await EmrLockGuard.EnsureEditableBySurgeryRequestAsync(_context, surgeryId); // TT46
 
         // #218/T3: hủy một ca ĐÃ MỔ XONG thì biên bản mổ vẫn nằm đó còn phiếu lại khai là đã hủy —
         // hai thứ nói ngược nhau về một việc đã thật sự xảy ra trên người bệnh.

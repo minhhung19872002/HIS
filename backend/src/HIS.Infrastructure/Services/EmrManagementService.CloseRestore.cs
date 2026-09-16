@@ -45,7 +45,7 @@ public partial class EmrManagementService
                 Id = Guid.NewGuid(),
                 ExaminationId = dto.ExaminationId,
                 ClosedByUserId = userId,
-                ClosedAt = DateTime.UtcNow,
+                ClosedAt = HIS.Core.Common.VnTime.NowVn, // QA-R4 time: business timestamp → VN wall clock
                 Status = 1, // Closed
                 ValidationErrors = checkResult.WarningCount > 0
                     ? System.Text.Json.JsonSerializer.Serialize(checkResult.Violations.Where(v => v.Severity == 1))
@@ -78,10 +78,10 @@ public partial class EmrManagementService
                 if (record != null && record.EmrFinalizedAt == null)
                 {
                     Guid.TryParse(userId, out var uid);
-                    var now = DateTime.UtcNow;
+                    var now = HIS.Core.Common.VnTime.NowVn; // same convention as EmrAdminService.FinalizeRecordAsync
                     record.EmrFinalizedAt = now;
                     record.EmrFinalizedBy = uid == Guid.Empty ? null : uid;
-                    record.UpdatedAt = now;
+                    record.UpdatedAt = DateTime.UtcNow;
                     record.UpdatedBy = userId;
 
                     // QA-R3: this door locked the record without the TT46 version row that
@@ -101,7 +101,7 @@ public partial class EmrManagementService
                         PerformedBy = uid,
                         PerformedByName = GetCurrentUserName(),
                         PerformedAt = now,
-                        CreatedAt = now,
+                        CreatedAt = DateTime.UtcNow,
                         CreatedBy = userId,
                     });
                 }
@@ -143,7 +143,7 @@ public partial class EmrManagementService
                 Id = Guid.NewGuid(),
                 ExaminationId = examinationId,
                 ClosedByUserId = userId,
-                ClosedAt = DateTime.UtcNow,
+                ClosedAt = HIS.Core.Common.VnTime.NowVn,
                 Status = 2, // Reopened
                 Note = note,
                 CreatedAt = DateTime.UtcNow,
@@ -185,7 +185,7 @@ public partial class EmrManagementService
                         Reason = note!.Trim(),
                         PerformedBy = performedBy,
                         PerformedByName = GetCurrentUserName(),
-                        PerformedAt = DateTime.UtcNow,
+                        PerformedAt = HIS.Core.Common.VnTime.NowVn,
                         CreatedAt = DateTime.UtcNow,
                         CreatedBy = userId,
                     });

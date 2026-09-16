@@ -79,12 +79,15 @@ namespace HIS.Infrastructure.Services
             if (record.EmrFinalizedAt != null)
                 return new FinalizeResultDto { Success = false, Message = "Ho so da duoc ket thuc truoc do" };
 
-            var now = DateTime.UtcNow;
+            // QA-R4 time: EmrFinalizedAt / EmrAmendments.PerformedAt are business timestamps (shown on the
+            // archive screen, compared with DischargeDate = VN local) → VN wall clock; audit columns stay UTC.
+            var now = HIS.Core.Common.VnTime.NowVn;
+            var nowUtc = DateTime.UtcNow;
             Guid.TryParse(GetCurrentUserId(), out var userId);
 
             record.EmrFinalizedAt = now;
             record.EmrFinalizedBy = userId == Guid.Empty ? null : userId;
-            record.UpdatedAt = now;
+            record.UpdatedAt = nowUtc;
             record.UpdatedBy = GetCurrentUserId();
 
             var versionNo = ((await _db.EmrAmendments
@@ -102,7 +105,7 @@ namespace HIS.Infrastructure.Services
                 PerformedBy = userId,
                 PerformedByName = GetCurrentUserName(),
                 PerformedAt = now,
-                CreatedAt = now,
+                CreatedAt = nowUtc,
                 CreatedBy = GetCurrentUserId(),
             });
             await _db.SaveChangesAsync();
@@ -134,7 +137,7 @@ namespace HIS.Infrastructure.Services
             if (already)
                 return new FinalizeResultDto { Success = false, Message = "Ho so da duoc duyet cap 1 truoc do" };
 
-            var now = DateTime.UtcNow;
+            var now = HIS.Core.Common.VnTime.NowVn;
             Guid.TryParse(GetCurrentUserId(), out var userId);
             _db.EmrAmendments.Add(new EmrAmendment
             {
@@ -146,7 +149,7 @@ namespace HIS.Infrastructure.Services
                 PerformedBy = userId,
                 PerformedByName = GetCurrentUserName(),
                 PerformedAt = now,
-                CreatedAt = now,
+                CreatedAt = DateTime.UtcNow,
                 CreatedBy = GetCurrentUserId(),
             });
             await _db.SaveChangesAsync();
@@ -214,12 +217,12 @@ namespace HIS.Infrastructure.Services
             if (record.EmrFinalizedAt == null)
                 return new FinalizeResultDto { Success = false, Message = "Ho so chua ket thuc — khong can mo lai" };
 
-            var now = DateTime.UtcNow;
+            var now = HIS.Core.Common.VnTime.NowVn;
             Guid.TryParse(GetCurrentUserId(), out var userId);
 
             record.EmrFinalizedAt = null;
             record.EmrFinalizedBy = null;
-            record.UpdatedAt = now;
+            record.UpdatedAt = DateTime.UtcNow;
             record.UpdatedBy = GetCurrentUserId();
 
             var currentVersion = (await _db.EmrAmendments
@@ -236,7 +239,7 @@ namespace HIS.Infrastructure.Services
                 PerformedBy = userId,
                 PerformedByName = GetCurrentUserName(),
                 PerformedAt = now,
-                CreatedAt = now,
+                CreatedAt = DateTime.UtcNow,
                 CreatedBy = GetCurrentUserId(),
             });
             await _db.SaveChangesAsync();

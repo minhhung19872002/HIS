@@ -431,45 +431,50 @@ public partial class SystemCompleteService
         {
             var todayStart = reportDate.Date;
             var todayEnd = todayStart.AddDays(1);
+            // QA-R4: CreatedAt is UTC — comparing it with the VN day bounds shifted every count/sum by 7 hours
+            // (16/09 showed 5 visits / 0đ while 31 visits / 565.000đ had been recorded). Business timestamps
+            // (ReceiptDate, AdmissionDate, RequestDate, IssueDate) are VN wall clock and compare directly.
+            var (todayStartUtc, todayEndUtc) = HIS.Core.Common.VnTime.DayRangeUtc(todayStart);
 
             var todayExams = await _context.Examinations
-                .CountAsync(e => e.CreatedAt >= todayStart && e.CreatedAt < todayEnd);
+                .CountAsync(e => e.CreatedAt >= todayStartUtc && e.CreatedAt < todayEndUtc && e.Status != 5 && !e.IsDeleted);
 
             var todayAdmissions = await _context.Admissions
-                .CountAsync(a => a.AdmissionDate >= todayStart && a.AdmissionDate < todayEnd);
+                .CountAsync(a => a.AdmissionDate >= todayStart && a.AdmissionDate < todayEnd && !a.IsDeleted);
 
             var currentInpatients = await _context.Admissions
-                .CountAsync(a => a.Status == 0); // 0 = Dang dieu tri
+                .CountAsync(a => a.Status == 0 && !a.IsDeleted); // 0 = Dang dieu tri
 
-            var totalBeds = await _context.Beds.CountAsync(b => b.IsActive);
+            var totalBeds = await _context.Beds.CountAsync(b => b.IsActive && !b.IsDeleted);
             // Occupied = beds holding an active assignment (same rule as the ward layout). Using the
             // inpatient count instead showed 0 free beds whenever patients outnumbered beds.
             var occupiedBeds = await _context.BedAssignments
-                .Where(ba => ba.Status == 0 && ba.Bed.IsActive)
+                .Where(ba => ba.Status == 0 && !ba.IsDeleted && ba.Bed.IsActive && !ba.Bed.IsDeleted)
                 .Select(ba => ba.BedId).Distinct().CountAsync();
 
             var todayDischarges = await _context.Discharges
-                .CountAsync(d => d.DischargeDate >= todayStart && d.DischargeDate < todayEnd);
+                .CountAsync(d => d.DischargeDate >= todayStart && d.DischargeDate < todayEnd && !d.IsDeleted);
 
-            var todaySurgeries = await _context.ServiceRequests
-                .CountAsync(sr => sr.RequestType == 3 && sr.CreatedAt >= todayStart && sr.CreatedAt < todayEnd); // 3 = Surgery
+            // Surgeries = SurgeryRequests on their business date (was ServiceRequests RequestType 3 = TDCN by UTC CreatedAt).
+            var todaySurgeries = await _context.SurgeryRequests
+                .CountAsync(s => s.RequestDate >= todayStart && s.RequestDate < todayEnd && s.Status != 4 && !s.IsDeleted);
 
-            // Emergency = QueueTickets with QueueType 3 (Emergency)
+            // Emergency = QueueTickets with QueueType 3 (Emergency); IssueDate is VN local.
             var todayEmergencies = await _context.QueueTickets
-                .CountAsync(q => q.QueueType == 3 && q.CreatedAt >= todayStart && q.CreatedAt < todayEnd);
+                .CountAsync(q => q.QueueType == 3 && q.IssueDate >= todayStart && q.IssueDate < todayEnd && !q.IsDeleted);
 
-            // Revenue = confirmed payments (type 2) minus approved/paid-out refunds (type 3), after discount.
-            // Previously every confirmed receipt's gross Amount was added, so refunds raised revenue.
+            // Revenue = net cash on the business date (shared rule: collected receipts minus approved/paid refunds,
+            // deposit refunds excluded — they pushed 15/09 to −2.334.800đ). Was UTC CreatedAt + deposit refunds.
             var todayRevenue = await _context.Receipts
-                .Where(r => r.CreatedAt >= todayStart && r.CreatedAt < todayEnd && (r.ReceiptType == 2 && r.Status == 1
-                        || r.ReceiptType == 3 && (r.Status == RefundStatus.Approved || r.Status == RefundStatus.Paid)))
+                .Where(r => r.ReceiptDate >= todayStart && r.ReceiptDate < todayEnd && !r.IsDeleted)
+                .Where(ReportPeriod.CashReceipt)
                 .SumAsync(r => (decimal?)(r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount)) ?? 0;
 
-            // Service status breakdown - OPD examinations
+            // Service status breakdown - OPD examinations (4 = completed; 5 cancelled is neither)
             var serviceOpdDone = await _context.Examinations
-                .CountAsync(e => e.CreatedAt >= todayStart && e.CreatedAt < todayEnd && e.Status >= 3);
+                .CountAsync(e => e.CreatedAt >= todayStartUtc && e.CreatedAt < todayEndUtc && e.Status == 4 && !e.IsDeleted);
             var serviceOpdPending = await _context.Examinations
-                .CountAsync(e => e.CreatedAt >= todayStart && e.CreatedAt < todayEnd && e.Status < 3);
+                .CountAsync(e => e.CreatedAt >= todayStartUtc && e.CreatedAt < todayEndUtc && e.Status < 4 && !e.IsDeleted);
 
             // Service status breakdown - Lab (RequestType=1)
             var serviceLabDone = await _context.ServiceRequestDetails
@@ -509,39 +514,41 @@ public partial class SystemCompleteService
 
             // Revenue breakdown by patient type (via MedicalRecord.PatientType)
             var revenueBHYT = await _context.Receipts
-                .Where(r => r.CreatedAt >= todayStart && r.CreatedAt < todayEnd && (r.ReceiptType == 2 && r.Status == 1
-                        || r.ReceiptType == 3 && (r.Status == RefundStatus.Approved || r.Status == RefundStatus.Paid))
+                .Where(r => r.ReceiptDate >= todayStart && r.ReceiptDate < todayEnd && !r.IsDeleted
                     && r.MedicalRecord != null && r.MedicalRecord.PatientType == 1)
+                .Where(ReportPeriod.CashReceipt)
                 .SumAsync(r => (decimal?)(r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount)) ?? 0;
             var revenueSelfPay = await _context.Receipts
-                .Where(r => r.CreatedAt >= todayStart && r.CreatedAt < todayEnd && (r.ReceiptType == 2 && r.Status == 1
-                        || r.ReceiptType == 3 && (r.Status == RefundStatus.Approved || r.Status == RefundStatus.Paid))
+                .Where(r => r.ReceiptDate >= todayStart && r.ReceiptDate < todayEnd && !r.IsDeleted
                     && (r.MedicalRecord == null || r.MedicalRecord.PatientType != 1))
+                .Where(ReportPeriod.CashReceipt)
                 .SumAsync(r => (decimal?)(r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount)) ?? 0;
 
             // 7-day trends
             var trendStart = todayStart.AddDays(-6);
+            var trendStartUtc = HIS.Core.Common.VnTime.DayRangeUtc(trendStart).FromUtc;
+            var offsetHours = (todayStart - todayStartUtc).TotalHours;
 
             // #195: 3 query gom theo ngày cho cả tuần, thay vì 21 query (7 ngày × 3 chỉ số).
-            // todayStart = reportDate.Date nên ngăn trùng khít ngày dương lịch ⇒ GroupBy(.Date) tương đương.
+            // Examinations: UTC window, bucketed by VN day (CreatedAt + offset).
             var outpatientsByDay = (await _context.Examinations
-                    .Where(e => e.CreatedAt >= trendStart && e.CreatedAt < todayEnd)
-                    .GroupBy(e => e.CreatedAt.Date)
+                    .Where(e => e.CreatedAt >= trendStartUtc && e.CreatedAt < todayEndUtc && e.Status != 5 && !e.IsDeleted)
+                    .GroupBy(e => e.CreatedAt.AddHours(offsetHours).Date)
                     .Select(g => new { Day = g.Key, Count = g.Count() })
                     .ToListAsync())
                 .ToDictionary(x => x.Day, x => x.Count);
 
             var admissionsByDay = (await _context.Admissions
-                    .Where(a => a.AdmissionDate >= trendStart && a.AdmissionDate < todayEnd)
+                    .Where(a => a.AdmissionDate >= trendStart && a.AdmissionDate < todayEnd && !a.IsDeleted)
                     .GroupBy(a => a.AdmissionDate.Date)
                     .Select(g => new { Day = g.Key, Count = g.Count() })
                     .ToListAsync())
                 .ToDictionary(x => x.Day, x => x.Count);
 
             var revenueByDay = (await _context.Receipts
-                    .Where(r => r.CreatedAt >= trendStart && r.CreatedAt < todayEnd && (r.ReceiptType == 2 && r.Status == 1
-                        || r.ReceiptType == 3 && (r.Status == RefundStatus.Approved || r.Status == RefundStatus.Paid)))
-                    .GroupBy(r => r.CreatedAt.Date)
+                    .Where(r => r.ReceiptDate >= trendStart && r.ReceiptDate < todayEnd && !r.IsDeleted)
+                    .Where(ReportPeriod.CashReceipt)
+                    .GroupBy(r => r.ReceiptDate.Date)
                     .Select(g => new { Day = g.Key, Total = g.Sum(r => (decimal?)(r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount)) })
                     .ToListAsync())
                 .ToDictionary(x => x.Day, x => x.Total ?? 0);
@@ -609,9 +616,12 @@ public partial class SystemCompleteService
         {
             var from = fromDate.Date;
             var to = toDate.Date.AddDays(1);
+            // QA-R4: Examinations.CreatedAt is UTC — VN day bounds via ReportPeriod.ToUtc (was a 7-hour shift).
+            var fromUtc = ReportPeriod.ToUtc(from);
+            var toUtc = ReportPeriod.ToUtc(to);
 
             var departments = await _context.Departments.AsNoTracking()
-                .Where(d => d.IsActive)
+                .Where(d => d.IsActive && !d.IsDeleted)
                 .OrderBy(d => d.DisplayOrder)
                 .ToListAsync();
 
@@ -619,42 +629,40 @@ public partial class SystemCompleteService
             var deptIds = departments.Select(d => d.Id).ToList();
 
             var outpatientByDept = (await _context.Examinations
-                    .Where(e => deptIds.Contains(e.DepartmentId) && e.CreatedAt >= from && e.CreatedAt < to)
+                    .Where(e => deptIds.Contains(e.DepartmentId) && e.CreatedAt >= fromUtc && e.CreatedAt < toUtc && e.Status != 5 && !e.IsDeleted)
                     .GroupBy(e => e.DepartmentId)
                     .Select(g => new { DeptId = g.Key, Count = g.Count() })
                     .ToListAsync())
                 .ToDictionary(x => x.DeptId, x => x.Count);
 
             var admissionsByDept = (await _context.Admissions
-                    .Where(a => deptIds.Contains(a.DepartmentId) && a.AdmissionDate >= from && a.AdmissionDate < to)
+                    .Where(a => deptIds.Contains(a.DepartmentId) && a.AdmissionDate >= from && a.AdmissionDate < to && !a.IsDeleted)
                     .GroupBy(a => a.DepartmentId)
                     .Select(g => new { DeptId = g.Key, Count = g.Count() })
                     .ToListAsync())
                 .ToDictionary(x => x.DeptId, x => x.Count);
 
             var inpatientByDept = (await _context.Admissions
-                    .Where(a => deptIds.Contains(a.DepartmentId) && a.Status == 0)
+                    .Where(a => deptIds.Contains(a.DepartmentId) && a.Status == 0 && !a.IsDeleted)
                     .GroupBy(a => a.DepartmentId)
                     .Select(g => new { DeptId = g.Key, Count = g.Count() })
                     .ToListAsync())
                 .ToDictionary(x => x.DeptId, x => x.Count);
 
             var dischargesByDept = (await _context.Discharges
-                    .Where(d => deptIds.Contains(d.Admission.DepartmentId) && d.DischargeDate >= from && d.DischargeDate < to)
+                    .Where(d => deptIds.Contains(d.Admission.DepartmentId) && d.DischargeDate >= from && d.DischargeDate < to && !d.IsDeleted)
                     .GroupBy(d => d.Admission.DepartmentId)
                     .Select(g => new { DeptId = g.Key, Count = g.Count() })
                     .ToListAsync())
                 .ToDictionary(x => x.DeptId, x => x.Count);
 
+            // QA-R4: net cash on the BUSINESS date with the shared rule (deposit refunds excluded — Khoa Ngoại
+            // showed −4.180.000đ for September). Was UTC CreatedAt and every refund slip subtracted.
             var revenueByDept = (await _context.Receipts
                     .Where(r => r.MedicalRecord != null && r.MedicalRecord.DepartmentId != null
                         && deptIds.Contains(r.MedicalRecord.DepartmentId.Value)
-                        && r.CreatedAt >= from && r.CreatedAt < to
-                        // QA-R2: same revenue rule as the dashboard total — confirmed payments minus approved/paid
-                        // refunds, after discount. Was Status==1 of ANY type at gross Amount, so deposits (type 1)
-                        // and approved refunds (type 3, Status 1) were added as revenue.
-                        && (r.ReceiptType == 2 && r.Status == 1
-                            || r.ReceiptType == 3 && (r.Status == RefundStatus.Approved || r.Status == RefundStatus.Paid)))
+                        && r.ReceiptDate >= from && r.ReceiptDate < to && !r.IsDeleted)
+                    .Where(ReportPeriod.CashReceipt)
                     .GroupBy(r => r.MedicalRecord!.DepartmentId!.Value)
                     .Select(g => new { DeptId = g.Key, Total = g.Sum(r => (decimal?)(r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount)) })
                     .ToListAsync())

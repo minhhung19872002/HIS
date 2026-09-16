@@ -37,6 +37,7 @@ public partial class SurgeryOperationServiceImpl
         // (trạng thái nhảy từ 4 về 2), và bắt đầu lần thứ hai thì **đẻ thêm một biên bản mổ nữa**
         // cho cùng một ca — hai tường trình cho một lần mổ.
         SurgeryStatus.EnsureCanStart(request?.Status ?? SurgeryStatus.RequestScheduled, schedule.Status);
+        await EmrLockGuard.EnsureEditableBySurgeryRequestAsync(_context, dto.SurgeryId); // QA-R4: TT46
 
         schedule.Status = SurgeryStatus.ScheduleInProgress;
         schedule.UpdatedAt = DateTime.Now;
@@ -76,12 +77,17 @@ public partial class SurgeryOperationServiceImpl
         // sau mổ, mô tả và tai biến rơi hết — API vẫn trả 200 và bác sĩ tin là đã lưu. Chặn ở đây
         // thay vì lặng lẽ tạo biên bản mới: một biên bản không có giờ bắt đầu là hồ sơ mổ sai.
         SurgeryStatus.EnsureCanComplete(schedule.Status, schedule.SurgeryRecord != null);
+        await EmrLockGuard.EnsureEditableBySurgeryRequestAsync(_context, dto.SurgeryId); // QA-R4: TT46
+
+        var rec = schedule.SurgeryRecord!;
+        // QA-R4: an end time before the recorded start was accepted → negative ActualDuration on the surgery record.
+        if (rec.ActualStartTime.HasValue && dto.EndTime < rec.ActualStartTime.Value)
+            throw new InvalidOperationException(
+                $"Giờ kết thúc ({dto.EndTime:HH:mm dd/MM}) không được trước giờ bắt đầu ca mổ ({rec.ActualStartTime:HH:mm dd/MM}).");
 
         schedule.Status = SurgeryStatus.ScheduleCompleted;
         schedule.UpdatedAt = DateTime.Now;
         schedule.UpdatedBy = userId.ToString();
-
-        var rec = schedule.SurgeryRecord!;
         rec.ActualEndTime = dto.EndTime;
         rec.PostOpDiagnosis = dto.PostOperativeDiagnosis;
         rec.PostOpIcdCode = dto.PostOperativeIcdCode;
@@ -117,6 +123,10 @@ public partial class SurgeryOperationServiceImpl
         if (rec == null)
             throw new InvalidOperationException(
                 "Ca mổ chưa được bắt đầu nên chưa có biên bản mổ để ghi. Bấm \"Bắt đầu ca mổ\" trước.");
+        // QA-R4: every narrative/team writer below funnels through here — a finalized record (TT46) and a
+        // signed surgery certificate both accepted edits before.
+        await EmrLockGuard.EnsureEditableBySurgeryRequestAsync(_context, surgeryId);
+        await EmrLockGuard.EnsureSurgeryCertificateUnsignedAsync(_context, surgeryId);
         return rec;
     }
 
@@ -161,7 +171,9 @@ public partial class SurgeryOperationServiceImpl
     public async Task<SurgeryDto> UpdatePreOperativeDiagnosisAsync(Guid surgeryId, string diagnosis, string icdCode, Guid userId)
     {
         var request = await _context.Set<SurgeryRequest>().FindAsync(surgeryId)
-            ?? throw new InvalidOperationException("Không tìm thấy yêu cầu phẫu thuật.");
+            ?? throw new KeyNotFoundException("Không tìm thấy yêu cầu phẫu thuật.");
+        await EmrLockGuard.EnsureEditableBySurgeryRequestAsync(_context, surgeryId); // QA-R4: TT46
+        await EmrLockGuard.EnsureSurgeryCertificateUnsignedAsync(_context, surgeryId);
         request.PreOpDiagnosis = diagnosis;
         request.PreOpIcdCode = icdCode;
         request.UpdatedAt = DateTime.Now;

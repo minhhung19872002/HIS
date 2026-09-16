@@ -6,6 +6,7 @@ using HIS.Application.Services;
 using HIS.Application.Services.Surgery;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using Microsoft.Extensions.Logging;
 using System.Text;
 using static HIS.Infrastructure.Services.PdfTemplateHelper;
 using IcdCodeDto = HIS.Application.Services.IcdCodeDto;
@@ -29,6 +30,7 @@ public class SurgeryCompleteService : ISurgeryCompleteService
     private readonly ISurgerySchedulingService _schedulingService;      // Step 2b: 6.1 + 6.1.1
     private readonly ISurgeryOperationService _operationService;        // Step 3: 6.3 + 6.3.1 + 6.4 + 6.4.1 + 6.4.2
     private readonly ISurgeryPrescriptionService _prescriptionService;  // Step 4: 6.5 + 6.5.1 + 6.6 Blood + 6.6 Consent
+    private readonly Microsoft.Extensions.Logging.ILogger<SurgeryCompleteService> _logger;
 
     public SurgeryCompleteService(
         HISDbContext context,
@@ -36,8 +38,10 @@ public class SurgeryCompleteService : ISurgeryCompleteService
         ISurgeryWaitingService waitingService,
         ISurgerySchedulingService schedulingService,
         ISurgeryOperationService operationService,
-        ISurgeryPrescriptionService prescriptionService)
+        ISurgeryPrescriptionService prescriptionService,
+        Microsoft.Extensions.Logging.ILogger<SurgeryCompleteService> logger)
     {
+        _logger = logger;
         _context = context;
         _specialService = specialService;
         _waitingService = waitingService;
@@ -116,7 +120,31 @@ public class SurgeryCompleteService : ISurgeryCompleteService
     // K12 Step 3 (2026-05-30, Plan B): logic tach sang Services/Surgery/SurgeryOperationServiceImpl.cs.
 
     // 6.3 Thực hiện PTTT
-    public Task<SurgeryDto> StartSurgeryAsync(StartSurgeryDto dto, Guid userId) => _operationService.StartSurgeryAsync(dto, userId);
+    public async Task<SurgeryDto> StartSurgeryAsync(StartSurgeryDto dto, Guid userId)
+    {
+        // QA-R4 (2026-09-16): GET {id}/consents/validate existed but nothing enforced it — a surgery started
+        // with no signed consent (patient safety / legal). Elective cases must have the required consents
+        // signed; emergency cases (Priority 3 = cấp cứu) are exempt because consent may be impossible.
+        var priority = await _context.SurgeryRequests.AsNoTracking()
+            .Where(r => r.Id == dto.SurgeryId).Select(r => (int?)r.Priority).FirstOrDefaultAsync();
+        if (priority == null)
+            throw new InvalidOperationException("Khong tim thay yeu cau PTTT (surgeryId khong hop le)");
+        if (priority != 3)
+        {
+            var consent = await _prescriptionService.ValidateConsentsBeforeSurgeryAsync(dto.SurgeryId);
+            // Pre-push review: blocking on a MISSING consent row would have refused 206 of 213 surgeries, because
+            // consents are recorded on paper in most departments and the module holds rows for 3 of them. So only
+            // an UNSIGNED consent blocks — that means this hospital does use the module here and someone skipped
+            // the signature. A missing row is left to the paper process (logged, not thrown).
+            if (consent.UnsignedConsents.Count > 0)
+                throw new InvalidOperationException(
+                    $"Cam kết trước mổ chưa được ký nên không bắt đầu được ca mổ: {string.Join(", ", consent.UnsignedConsents)}.");
+            if (consent.MissingConsents.Count > 0)
+                _logger.LogWarning("Surgery {SurgeryId} started without consent rows: {Missing}",
+                    dto.SurgeryId, string.Join(", ", consent.MissingConsents));
+        }
+        return await _operationService.StartSurgeryAsync(dto, userId);
+    }
     public Task<SurgeryDto> CompleteSurgeryAsync(CompleteSurgeryDto dto, Guid userId) => _operationService.CompleteSurgeryAsync(dto, userId);
     public Task<SurgeryDto> UpdateExecutionInfoAsync(SurgeryExecutionDto dto, Guid userId) => _operationService.UpdateExecutionInfoAsync(dto, userId);
     public Task<SurgeryDto> UpdatePreOperativeDiagnosisAsync(Guid surgeryId, string diagnosis, string icdCode, Guid userId) => _operationService.UpdatePreOperativeDiagnosisAsync(surgeryId, diagnosis, icdCode, userId);

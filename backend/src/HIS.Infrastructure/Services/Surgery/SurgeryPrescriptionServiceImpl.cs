@@ -94,8 +94,20 @@ public class SurgeryPrescriptionServiceImpl : ISurgeryPrescriptionService
         target.Quantity += qty;
     }
 
+    /// <summary>QA-R4: a medicine/supply line needs a real surgery (zero-GUID parent rows were accepted),
+    /// a positive quantity (negative Amount reached billing / stock) and an editable (TT46) record.</summary>
+    private async Task EnsureSurgeryLineWritableAsync(Guid surgeryId, decimal quantity)
+    {
+        if (quantity <= 0)
+            throw new ArgumentException("Số lượng thuốc/vật tư phải lớn hơn 0.", "quantity");
+        if (surgeryId == Guid.Empty || !await _context.SurgeryRequests.AnyAsync(r => r.Id == surgeryId && !r.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy ca phẫu thuật (surgeryId không hợp lệ).");
+        await EmrLockGuard.EnsureEditableBySurgeryRequestAsync(_context, surgeryId);
+    }
+
     public async Task<SurgeryMedicineDto> AddMedicineAsync(AddSurgeryMedicineDto dto, Guid userId)
     {
+        await EnsureSurgeryLineWritableAsync(dto.SurgeryId, dto.Quantity);
         var med = await _context.Medicines.FirstOrDefaultAsync(m => m.Id == dto.MedicineId)
             ?? throw new KeyNotFoundException("Không tìm thấy thuốc");
         var unitPrice = (dto.PaymentObject == 1 && med.InsurancePrice > 0) ? med.InsurancePrice : med.UnitPrice;
@@ -124,6 +136,7 @@ public class SurgeryPrescriptionServiceImpl : ISurgeryPrescriptionService
 
     public async Task<SurgerySupplyDto> AddSupplyAsync(AddSurgerySupplyDto dto, Guid userId)
     {
+        await EnsureSurgeryLineWritableAsync(dto.SurgeryId, dto.Quantity);
         var sup = await _context.MedicalSupplies.FirstOrDefaultAsync(s => s.Id == dto.SupplyId)
             ?? throw new KeyNotFoundException("Không tìm thấy vật tư");
         var unitPrice = (dto.PaymentObject == 1 && sup.InsurancePrice > 0) ? sup.InsurancePrice : sup.UnitPrice;
@@ -154,6 +167,7 @@ public class SurgeryPrescriptionServiceImpl : ISurgeryPrescriptionService
     {
         var entity = await _context.SurgeryMedicineItems.FirstOrDefaultAsync(m => m.Id == medicineItemId && !m.IsDeleted);
         if (entity == null) throw new KeyNotFoundException("Không tìm thấy dòng thuốc PTTT");
+        await EnsureSurgeryLineWritableAsync(entity.SurgeryId, dto.Quantity);
         entity.Quantity = dto.Quantity;
         entity.Amount = entity.UnitPrice * dto.Quantity;
         entity.PaymentObject = dto.PaymentObject == 0 ? entity.PaymentObject : dto.PaymentObject;
@@ -167,6 +181,7 @@ public class SurgeryPrescriptionServiceImpl : ISurgeryPrescriptionService
     {
         var entity = await _context.SurgerySupplyItems.FirstOrDefaultAsync(s => s.Id == supplyItemId && !s.IsDeleted);
         if (entity == null) throw new KeyNotFoundException("Không tìm thấy dòng vật tư PTTT");
+        await EnsureSurgeryLineWritableAsync(entity.SurgeryId, dto.Quantity);
         entity.Quantity = dto.Quantity;
         entity.Amount = entity.UnitPrice * dto.Quantity;
         entity.PaymentObject = dto.PaymentObject == 0 ? entity.PaymentObject : dto.PaymentObject;
@@ -179,7 +194,8 @@ public class SurgeryPrescriptionServiceImpl : ISurgeryPrescriptionService
     public async Task<bool> RemoveMedicineAsync(Guid medicineItemId, Guid userId)
     {
         var entity = await _context.SurgeryMedicineItems.FirstOrDefaultAsync(m => m.Id == medicineItemId && !m.IsDeleted);
-        if (entity == null) return false;
+        if (entity == null) throw new KeyNotFoundException("Không tìm thấy dòng thuốc PTTT"); // QA-R4: was 200 + false
+        await EmrLockGuard.EnsureEditableBySurgeryRequestAsync(_context, entity.SurgeryId);
         if (entity.IsStockDeducted)
         {
             await RestoreStockAsync(entity.WarehouseId, entity.MedicineId, null, entity.BatchNumber, entity.Quantity);
@@ -193,7 +209,8 @@ public class SurgeryPrescriptionServiceImpl : ISurgeryPrescriptionService
     public async Task<bool> RemoveSupplyAsync(Guid supplyItemId, Guid userId)
     {
         var entity = await _context.SurgerySupplyItems.FirstOrDefaultAsync(s => s.Id == supplyItemId && !s.IsDeleted);
-        if (entity == null) return false;
+        if (entity == null) throw new KeyNotFoundException("Không tìm thấy dòng vật tư PTTT"); // QA-R4: was 200 + false
+        await EmrLockGuard.EnsureEditableBySurgeryRequestAsync(_context, entity.SurgeryId);
         if (entity.IsStockDeducted)
         {
             await RestoreStockAsync(entity.WarehouseId, null, entity.SupplyId, entity.BatchNumber, entity.Quantity);
@@ -401,7 +418,8 @@ public class SurgeryPrescriptionServiceImpl : ISurgeryPrescriptionService
     public async Task<SurgeryConsentDto> SaveSurgeryConsentAsync(SaveSurgeryConsentDto dto, Guid userId)
     {
         var surgery = await _context.Set<SurgeryRequest>().FindAsync(dto.SurgeryId)
-            ?? throw new InvalidOperationException("Không tìm thấy ca phẫu thuật");
+            ?? throw new KeyNotFoundException("Không tìm thấy ca phẫu thuật");
+        await EmrLockGuard.EnsureEditableBySurgeryRequestAsync(_context, dto.SurgeryId); // QA-R4: TT46
 
         if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
         {
@@ -436,6 +454,9 @@ public class SurgeryPrescriptionServiceImpl : ISurgeryPrescriptionService
 
     public async Task<SurgeryConsentDto> SignConsentAsync(Guid consentId, string signerName, string relationship, Guid userId)
     {
+        // QA-R4: a consent was marked signed with an empty signer name — a "signature" by nobody.
+        if (string.IsNullOrWhiteSpace(signerName))
+            throw new ArgumentException("Phải ghi họ tên người ký cam kết.", nameof(signerName));
         // QA0915: unknown id returned 200 "IsSigned = true"; re-signing overwrote the original signer/time.
         var signed = await _context.Database.ExecuteSqlRawAsync(
             @"UPDATE SurgeryConsents SET SignerName = {0}, SignerRelationship = {1},

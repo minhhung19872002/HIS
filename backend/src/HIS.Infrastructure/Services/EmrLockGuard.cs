@@ -45,4 +45,46 @@ public static class EmrLockGuard
             .FirstOrDefaultAsync();
         if (finalizedAt != null) throw new InvalidOperationException(LockedMessage);
     }
+
+    /// <summary>
+    /// QA-R4 (2026-09-16): the whole surgery module (request → schedule → start → narrative → team →
+    /// medicines/supplies → consents) wrote into finalized records — none of the writers called this guard.
+    /// A surgery request links the record either by MedicalRecordId (IPD) or ExaminationId (OPD).
+    /// Unknown surgeryId → no-op: the caller reports not-found with its own message.
+    /// </summary>
+    public static async Task EnsureEditableBySurgeryRequestAsync(HISDbContext db, Guid surgeryRequestId)
+    {
+        if (surgeryRequestId == Guid.Empty) return;
+        var link = await db.SurgeryRequests.AsNoTracking()
+            .Where(r => r.Id == surgeryRequestId)
+            .Select(r => new { r.MedicalRecordId, r.ExaminationId })
+            .FirstOrDefaultAsync();
+        if (link == null) return;
+        if (link.MedicalRecordId.HasValue) await EnsureEditableByRecordAsync(db, link.MedicalRecordId.Value);
+        else if (link.ExaminationId.HasValue) await EnsureEditableByExaminationAsync(db, link.ExaminationId.Value);
+    }
+
+    public const string SurgeryCertificateDocumentType = "ls-surgery-cert"; // EmrSigningChainDrawer / mig 97 seed
+
+    /// <summary>
+    /// QA-R4: once the surgery certificate (MS.18, TT32) of the record has an approved signing step
+    /// (SigningRequests.Status = 1, DocumentId = MedicalRecordId as EmrSigningChainDrawer submits it),
+    /// the narrative / team / post-op diagnosis it certifies must not change underneath the signature.
+    /// </summary>
+    public static async Task EnsureSurgeryCertificateUnsignedAsync(HISDbContext db, Guid surgeryRequestId)
+    {
+        if (surgeryRequestId == Guid.Empty) return;
+        var medicalRecordId = await db.SurgeryRequests.AsNoTracking()
+            .Where(r => r.Id == surgeryRequestId)
+            .Select(r => r.MedicalRecordId)
+            .FirstOrDefaultAsync();
+        if (medicalRecordId == null || medicalRecordId == Guid.Empty) return;
+        var signed = await db.SigningRequests.AsNoTracking().AnyAsync(s =>
+            s.DocumentType == SurgeryCertificateDocumentType && s.DocumentId == medicalRecordId.Value
+            && s.Status == 1 && !s.IsDeleted);
+        if (signed)
+            throw new InvalidOperationException(
+                "Giấy chứng nhận phẫu thuật của hồ sơ này đã được ký số — không sửa được tường trình, chẩn đoán sau mổ hay ekip mổ. "
+                + "Cần huỷ chữ ký hoặc mở lại hồ sơ (có lưu vết) trước khi tu chỉnh.");
+    }
 }

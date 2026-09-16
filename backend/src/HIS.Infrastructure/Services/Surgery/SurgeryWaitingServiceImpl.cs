@@ -101,18 +101,20 @@ public class SurgeryWaitingServiceImpl : ISurgeryWaitingService
 
     public async Task<OperatingRoomDto> UpdateOperatingRoomStatusAsync(Guid roomId, int status, Guid userId)
     {
-        var room = await _context.Set<OperatingRoom>().FindAsync(roomId);
-        if (room != null)
-        {
-            room.Status = status;
-            room.UpdatedAt = DateTime.Now;
-            room.UpdatedBy = userId.ToString();
-            await _context.SaveChangesAsync();
-        }
+        var room = await _context.Set<OperatingRoom>().FindAsync(roomId)
+            ?? throw new KeyNotFoundException("Không tìm thấy phòng mổ."); // QA-R4: was 200 + fake DTO for an unknown id
+        if (status is < 1 or > 4)
+            throw new ArgumentException("Trạng thái phòng mổ không hợp lệ (1 Sẵn sàng · 2 Đang sử dụng · 3 Bảo trì · 4 Ngừng hoạt động).", nameof(status));
+        room.Status = status;
+        room.UpdatedAt = DateTime.Now;
+        room.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
 
         return new OperatingRoomDto
         {
             Id = roomId,
+            Code = room.RoomCode,
+            Name = room.RoomName,
             Status = status,
             StatusName = GetRoomStatusName(status)
         };

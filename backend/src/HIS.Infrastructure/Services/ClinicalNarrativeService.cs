@@ -65,8 +65,30 @@ public class ClinicalNarrativeService : IClinicalNarrativeService
         });
     }
 
+    /// <summary>QA-R4: `{}` created blank templates; a zero-GUID service/department FK reached SQL as a 500.
+    /// Zero GUID = "not chosen" (FE sends `undefined` → null, scan sent zero) → null; a real GUID must exist.</summary>
+    private async Task<ServiceOutcome?> ValidateTemplateAsync(string code, string name, Guid? departmentId, Guid? surgeryServiceId)
+    {
+        if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
+            return ServiceOutcome.Bad("Mã mẫu và tên mẫu là bắt buộc.");
+        if (departmentId.HasValue && departmentId != Guid.Empty
+            && !await _db.Departments.AnyAsync(d => d.Id == departmentId.Value && !d.IsDeleted))
+            return ServiceOutcome.NotFound("Không tìm thấy khoa (departmentId không hợp lệ).");
+        if (surgeryServiceId.HasValue && surgeryServiceId != Guid.Empty
+            && !await _db.Services.AnyAsync(s => s.Id == surgeryServiceId.Value && !s.IsDeleted))
+            return ServiceOutcome.NotFound("Không tìm thấy dịch vụ PTTT (surgeryServiceId không hợp lệ).");
+        return null;
+    }
+
+    private static Guid? NullIfEmpty(Guid? id) => id == Guid.Empty ? null : id;
+
     public async Task<ServiceOutcome> SaveSurgeryNarrativeAsync(SurgeryNarrativeTemplate dto, Guid userId)
     {
+        dto.DepartmentId = NullIfEmpty(dto.DepartmentId);
+        dto.SurgeryServiceId = NullIfEmpty(dto.SurgeryServiceId);
+        if (await ValidateTemplateAsync(dto.TemplateCode, dto.TemplateName, dto.DepartmentId, dto.SurgeryServiceId) is { } invalid)
+            return invalid;
+
         SurgeryNarrativeTemplate entity;
         if (dto.Id != Guid.Empty)
         {
@@ -179,6 +201,10 @@ public class ClinicalNarrativeService : IClinicalNarrativeService
 
     public async Task<ServiceOutcome> SaveOutpatientRecordAsync(OutpatientRecordTemplate dto, Guid userId)
     {
+        dto.DepartmentId = NullIfEmpty(dto.DepartmentId);
+        if (await ValidateTemplateAsync(dto.TemplateCode, dto.TemplateName, dto.DepartmentId, null) is { } invalid)
+            return invalid;
+
         OutpatientRecordTemplate entity;
         if (dto.Id != Guid.Empty)
         {
