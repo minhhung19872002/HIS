@@ -2,8 +2,12 @@
 import json
 import os
 import re
+import sys
 import urllib.error
 import urllib.request
+
+# Windows console defaults to cp1252 → Vietnamese error messages crash print()
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 FE = os.path.join(REPO, "frontend", "src")

@@ -29,6 +29,11 @@ Playbook distilled from QA round 1 (`qa-sweep-full-0915`, ~190 fixes) and round 
    - `fieldscan.py` — FE interface fields vs BE response schema (noisy: paged wrappers/optional fields).
    - `reqscan.py` — `[FromBody]` DTOs whose non-nullable uninitialised `string`/`List` props are implicitly
      `[Required]` (`<Nullable>enable`) → FE omitting the key gets 400. `""` passes, missing/null does not.
+   - `writescan.py` (round 4) — every POST/PUT/PATCH/DELETE with `{}` and a schema-minimal body + zero-GUID
+     path params → 5xx = unhandled (should be 400/404/409); a 2xx on placeholder-only input = candidate silent
+     accept / orphan row (blank catalog codes, zero-GUID parents) — triage per route, then delete the junk rows.
+   - `anonscan.py` (round 4) — every route without a token (or as a low-privilege user with `--user`) → anything
+     mutating or PHI that is not 401/403 is P0 (found `[AllowAnonymous]` dev endpoints rewriting dates).
    Then keep only hits whose function is actually called by a v2 page (`frontend/src/modules/*/pages/`).
 4. **Fan out** domain agents (general-purpose) with `references/agent-brief.md`; send each the scan hits for its
    domain. Wave 1 = domains/logic; wave 2 = FE↔BE contract per core module; plus one `flow` agent replaying OPD/IPD
