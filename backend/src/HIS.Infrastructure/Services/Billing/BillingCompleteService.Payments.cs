@@ -502,11 +502,15 @@ public partial class BillingCompleteService {
             // FE thu theo hóa đơn KHÔNG gửi patientId (CreatePaymentDto FE không có field này)
             // → trước đây Receipt.PatientId = Guid.Empty → FK_Receipts_Patients nổ 500 (bug thu tiền prod).
             // Resolve từ HSBA của hóa đơn.
-            if (patientId == Guid.Empty)
-                patientId = await _context.MedicalRecords
-                    .Where(m => m.Id == invoice.MedicalRecordId)
-                    .Select(m => m.PatientId)
-                    .FirstOrDefaultAsync();
+            // QA-R4: a patientId of ANOTHER patient was stored as sent — the receipt landed in that patient's
+            // history (refundable by them) while paying this record's invoice. The invoice's patient is the payer.
+            var invoicePatientId = await _context.MedicalRecords
+                .Where(m => m.Id == invoice.MedicalRecordId)
+                .Select(m => m.PatientId)
+                .FirstOrDefaultAsync();
+            if (patientId != Guid.Empty && patientId != invoicePatientId)
+                throw new InvalidOperationException("Hóa đơn không thuộc bệnh nhân này (patientId không khớp hồ sơ của hóa đơn)");
+            patientId = invoicePatientId;
         }
         else
         {

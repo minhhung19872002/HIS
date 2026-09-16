@@ -101,7 +101,7 @@ public partial class PaymentGatewayService
         if (responseCode == "00" && transactionStatus == "00")
         {
             txn.Status = 1;
-            txn.CompletedAt = DateTime.UtcNow;
+            txn.CompletedAt = HIS.Core.Common.VnTime.NowVn; // business timestamp → VN wall clock (QA-R4 time)
             txn.PayDate = ParseVnPayDate(payDateStr);
             await LinkReceiptAsync(txn);
         }

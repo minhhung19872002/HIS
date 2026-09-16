@@ -85,6 +85,15 @@ public partial class BillingCompleteService {
         if (invoice == null)
             throw new KeyNotFoundException("Không tìm thấy bảng kê viện phí");
 
+        // QA-R4: one e-invoice per bảng kê — a second "Phát hành" created another draft/issued invoice with the
+        // next number (measured: HDDT-0001 and HDDT-0002 both live for the same invoice). Cancel/replace first.
+        var live = await _context.ElectronicInvoices
+            .Where(e => e.InvoiceSummaryId == dto.InvoiceId && !e.IsDeleted && e.Status != 3 && e.Status != 4)
+            .Select(e => e.InvoiceNumber)
+            .FirstOrDefaultAsync();
+        if (live != null)
+            throw new InvalidOperationException($"Bảng kê này đã có hóa đơn điện tử {live} (chưa hủy/thay thế).");
+
         // Get patient info
         Patient? patient = null;
         if (invoice.MedicalRecord != null)

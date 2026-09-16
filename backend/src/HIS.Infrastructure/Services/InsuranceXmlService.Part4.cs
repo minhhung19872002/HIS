@@ -564,8 +564,8 @@ public partial class InsuranceXmlService
 
     public async Task<bool> ProcessRejectedClaimAsync(string maLk, RejectedClaimProcessDto dto)
     {
-        var claim = await _context.InsuranceClaims.FirstOrDefaultAsync(c => c.ClaimCode == maLk);
-        if (claim == null) return false;
+        var claim = await _context.InsuranceClaims.FirstOrDefaultAsync(c => c.ClaimCode == maLk && !c.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ BHYT."); // QA-R4: was 200 false
 
         // Only a claim BHXH rejected can be processed here. "Fix and resubmit" used to reset an
         // approved/paid claim to Pending, and "accept rejection" marked an approved claim rejected.

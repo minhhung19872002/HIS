@@ -42,6 +42,14 @@ public class BillingGuarantorService : IBillingGuarantorService
 
     public async Task<SponsorOrgDto> SaveSponsorOrgAsync(SponsorOrgDto dto, string? userId)
     {
+        // QA-R4: a blank code hit the unique index UX_SponsorOrgs_Code (500) and left a nameless row in the catalog.
+        dto.Code = dto.Code?.Trim() ?? string.Empty;
+        dto.Name = dto.Name?.Trim() ?? string.Empty;
+        if (dto.Code.Length == 0) throw new ArgumentException("Mã đơn vị bảo lãnh là bắt buộc.");
+        if (dto.Name.Length == 0) throw new ArgumentException("Tên đơn vị bảo lãnh là bắt buộc.");
+        if (await _db.SponsorOrgs.AnyAsync(o => o.Code == dto.Code && o.Id != dto.Id && !o.IsDeleted))
+            throw new InvalidOperationException($"Mã đơn vị bảo lãnh \"{dto.Code}\" đã tồn tại.");
+
         SponsorOrg entity;
         if (dto.Id == Guid.Empty)
         {
@@ -129,6 +137,20 @@ public class BillingGuarantorService : IBillingGuarantorService
             throw new ArgumentException("SponsorOrgId là bắt buộc.");
         if (dto.GuaranteeRate < 0 || dto.GuaranteeRate > 100)
             throw new ArgumentException("GuaranteeRate phải trong khoảng 0-100.");
+        // QA-R4: a guarantee was stored against a zero-GUID patient / unknown org / inverted period.
+        if (dto.PatientId == Guid.Empty)
+            throw new ArgumentException("PatientId là bắt buộc.");
+        if (!await _db.SponsorOrgs.AnyAsync(o => o.Id == dto.SponsorOrgId && !o.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy đơn vị bảo lãnh.");
+        if (!await _db.Patients.AnyAsync(p => p.Id == dto.PatientId && !p.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy bệnh nhân.");
+        if (dto.MedicalRecordId.HasValue && dto.MedicalRecordId.Value != Guid.Empty
+            && !await _db.MedicalRecords.AnyAsync(m => m.Id == dto.MedicalRecordId.Value && m.PatientId == dto.PatientId && !m.IsDeleted))
+            throw new KeyNotFoundException("Hồ sơ bệnh án không tồn tại hoặc không thuộc bệnh nhân này.");
+        if (dto.FromDate.HasValue && dto.ToDate.HasValue && dto.ToDate.Value < dto.FromDate.Value)
+            throw new ArgumentException("Ngày kết thúc bảo lãnh phải sau ngày bắt đầu.");
+        if (dto.GuaranteeAmount.HasValue && dto.GuaranteeAmount.Value < 0)
+            throw new ArgumentException("Số tiền bảo lãnh không được âm.");
 
         BillingGuarantor entity;
         if (dto.Id == Guid.Empty)

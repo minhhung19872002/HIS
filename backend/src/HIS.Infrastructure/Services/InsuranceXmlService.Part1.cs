@@ -366,8 +366,8 @@ public partial class InsuranceXmlService : IInsuranceXmlService
 
     public async Task<bool> DeleteInsuranceClaimAsync(string maLk)
     {
-        var claim = await _context.InsuranceClaims.FirstOrDefaultAsync(c => c.ClaimCode == maLk && !c.IsDeleted);
-        if (claim == null) return false;
+        var claim = await _context.InsuranceClaims.FirstOrDefaultAsync(c => c.ClaimCode == maLk && !c.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ BHYT."); // QA-R4: was 200 false
         // #218/T3: chỉ hồ sơ CHƯA đi đâu mới xoá được. Trước đây xoá được cả hồ sơ đã thanh toán.
         InsuranceClaimStatus.EnsureDeletable(claim.ClaimStatus);
         claim.IsDeleted = true;
@@ -377,8 +377,8 @@ public partial class InsuranceXmlService : IInsuranceXmlService
 
     public async Task<bool> LockInsuranceClaimAsync(string maLk)
     {
-        var claim = await _context.InsuranceClaims.FirstOrDefaultAsync(c => c.ClaimCode == maLk);
-        if (claim == null) return false;
+        var claim = await _context.InsuranceClaims.FirstOrDefaultAsync(c => c.ClaimCode == maLk && !c.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ BHYT."); // QA-R4: was 200 false
         // Only a claim whose content is still editable can be locked. Locking an approved/paid claim
         // used to overwrite its status with 1, and the unlock below then turned it into a deletable
         // Pending claim — a settled claim could be wiped in two clicks.
@@ -392,8 +392,8 @@ public partial class InsuranceXmlService : IInsuranceXmlService
 
     public async Task<bool> UnlockInsuranceClaimAsync(string maLk, string reason)
     {
-        var claim = await _context.InsuranceClaims.FirstOrDefaultAsync(c => c.ClaimCode == maLk);
-        if (claim == null) return false;
+        var claim = await _context.InsuranceClaims.FirstOrDefaultAsync(c => c.ClaimCode == maLk && !c.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ BHYT."); // QA-R4: was 200 false
         // Unlock is only the inverse of lock. It used to reset ANY status to Pending, including
         // approved, rejected and paid claims (losing the BHXH result and making them deletable).
         if (claim.ClaimStatus != InsuranceClaimStatus.Locked)

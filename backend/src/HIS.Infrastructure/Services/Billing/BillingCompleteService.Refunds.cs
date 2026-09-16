@@ -416,6 +416,10 @@ public partial class BillingCompleteService {
 
         // #218/T3: đây là lúc TIỀN RA KHỎI QUỸ. Trước đây không kiểm gì, nên chi được cho phiếu
         // chưa từng duyệt, phiếu đã từ chối và cả phiếu đã hủy.
+        // QA-R4: a second confirm of a paid refund re-ran the pay-out side effects and appended another
+        // "Xác nhận … Mã GD" to the note — the money left the till once, say so.
+        if (receipt.Status == RefundStatus.Paid)
+            throw new InvalidOperationException("Phiếu hoàn tiền này đã được chi trước đó.");
         RefundStatus.EnsureCanTransition(receipt.Status, RefundStatus.Paid);
         receipt.Status = RefundStatus.Paid;
         receipt.Note = $"{receipt.Note} | Xác nhận: {dto.Notes} | Mã GD: {dto.TransactionNumber}";

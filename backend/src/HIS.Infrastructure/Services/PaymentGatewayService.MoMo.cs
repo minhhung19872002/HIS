@@ -140,8 +140,8 @@ public partial class PaymentGatewayService
         if (resultCode == "0")
         {
             txn.Status = 1;
-            txn.CompletedAt = DateTime.UtcNow;
-            txn.PayDate = DateTime.UtcNow;
+            txn.CompletedAt = HIS.Core.Common.VnTime.NowVn; // business timestamp → VN wall clock (QA-R4 time)
+            txn.PayDate = HIS.Core.Common.VnTime.NowVn;
             await LinkReceiptAsync(txn);
         }
         else

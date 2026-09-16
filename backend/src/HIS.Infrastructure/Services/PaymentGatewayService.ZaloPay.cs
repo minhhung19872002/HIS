@@ -148,8 +148,8 @@ public partial class PaymentGatewayService
         txn.GatewayTxnRef = zpTransId;
         txn.IpnRaw = System.Text.Json.JsonSerializer.Serialize(body);
         txn.Status = 1;
-        txn.CompletedAt = DateTime.UtcNow;
-        txn.PayDate = DateTime.UtcNow;
+        txn.CompletedAt = HIS.Core.Common.VnTime.NowVn; // business timestamp → VN wall clock (QA-R4 time)
+        txn.PayDate = HIS.Core.Common.VnTime.NowVn;
         txn.UpdatedAt = DateTime.UtcNow;
 
         await LinkReceiptAsync(txn);

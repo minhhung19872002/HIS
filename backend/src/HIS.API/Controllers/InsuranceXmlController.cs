@@ -54,6 +54,9 @@ public partial class InsuranceXmlController : ControllerBase
     [HttpPost("verify-card")]
     public async Task<ActionResult<InsuranceCardVerificationDto>> VerifyInsuranceCard([FromBody] VerifyCardRequest request)
     {
+        // QA-R4: an empty card number reached the gateway (the mock answered with a made-up cardholder).
+        if (string.IsNullOrWhiteSpace(request.InsuranceNumber))
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu số thẻ BHYT." });
         var result = await _insuranceService.VerifyInsuranceCardAsync(
             request.InsuranceNumber,
             request.PatientName,

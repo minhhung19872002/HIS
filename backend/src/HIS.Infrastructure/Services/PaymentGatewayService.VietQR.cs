@@ -166,10 +166,16 @@ public partial class PaymentGatewayService
         if (!supportedBanks.Contains(txn.Provider))
             throw new InvalidOperationException("Chỉ có thể xác nhận thủ công cho giao dịch ngân hàng");
         if (txn.Status == 1) throw new InvalidOperationException("Giao dịch đã được xác nhận");
+        // QA-R4: the QR's source was collected at the cashier while the QR stayed pending; confirming it wrote a
+        // second payment receipt on an already-paid order (measured: 80.000đ order paid twice). A manual
+        // confirmation has a human in the loop, so refuse and point at the refund path instead.
+        await EnsureReferenceStillOwedAsync(txn);
 
         txn.Status = 1;
-        txn.CompletedAt = DateTime.UtcNow;
-        txn.PayDate = dto.PaidAt ?? DateTime.UtcNow;
+        // QA-R4 time: CompletedAt/PayDate are business timestamps (BankPayments "Hoàn tất"/"Ngày TT") → VN wall
+        // clock; dto.PaidAt already arrives as VN wall clock (VnLocalDateTimeJsonConverter). ExpiresAt stays UTC.
+        txn.CompletedAt = HIS.Core.Common.VnTime.NowVn;
+        txn.PayDate = dto.PaidAt ?? HIS.Core.Common.VnTime.NowVn;
         txn.GatewayTxnRef = dto.BankReference ?? $"MANUAL-{DateTime.UtcNow:yyyyMMddHHmmss}";
         txn.ResponseCode = 0;
         txn.ResponseMessage = "Đối soát thủ công (kế toán BV)";
@@ -188,6 +194,43 @@ public partial class PaymentGatewayService
         await _db.SaveChangesAsync();
 
         return MapToDto(txn);
+    }
+
+    /// <summary>QA-R4: refuse a manual bank confirmation when the money the QR was raised for was already collected.</summary>
+    private async Task EnsureReferenceStillOwedAsync(PaymentTransaction txn)
+    {
+        const string hint = " — không xác nhận QR này; nếu tiền đã vào tài khoản, lập phiếu hoàn/tạm ứng cho bệnh nhân.";
+        switch (txn.ReferenceType)
+        {
+            case "service-request":
+                if (await _db.ServiceRequests.AnyAsync(s => s.Id == txn.ReferenceId && s.IsPaid))
+                    throw new InvalidOperationException("Phiếu chỉ định của QR này đã được thu tại quầy" + hint);
+                break;
+            case "prescription":
+                if (await _db.Prescriptions.AnyAsync(p => p.Id == txn.ReferenceId && p.IsPaid))
+                    throw new InvalidOperationException("Đơn thuốc của QR này đã được thu tại quầy" + hint);
+                break;
+            case "discharge":
+                if (txn.MedicalRecordId.HasValue)
+                {
+                    var owed = (await InvoiceLedger.LoadAsync(_db, txn.MedicalRecordId.Value)).PatientTotal;
+                    var discount = await _db.InvoiceSummaries
+                        .Where(i => i.MedicalRecordId == txn.MedicalRecordId.Value && !i.IsDeleted)
+                        .SumAsync(i => (decimal?)i.DiscountAmount) ?? 0;
+                    var (collected, refunded) = await InvoiceLedger.PaidOnRecordAsync(_db, txn.MedicalRecordId.Value);
+                    if (owed - discount - (collected - refunded) < txn.Amount)
+                        throw new InvalidOperationException("Hồ sơ của QR này không còn nợ đủ số tiền QR (đã thu tại quầy)" + hint);
+                }
+                break;
+        }
+        if (txn.InvoiceSummaryId.HasValue)
+        {
+            var invoice = await _db.InvoiceSummaries.AsNoTracking()
+                .FirstOrDefaultAsync(i => i.Id == txn.InvoiceSummaryId.Value && !i.IsDeleted);
+            if (invoice != null && invoice.Status != 2 && invoice.RemainingAmount < txn.Amount)
+                throw new InvalidOperationException(
+                    $"Hóa đơn của QR này chỉ còn nợ {invoice.RemainingAmount:N0}đ, QR {txn.Amount:N0}đ" + hint);
+        }
     }
 
     private static string NormalizeAscii(string s)

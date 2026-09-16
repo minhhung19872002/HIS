@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using HIS.Core.Constants;
 using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Billing;
@@ -91,9 +92,13 @@ public partial class BillingCompleteService {
             var dayStart = date.Date;
             var dayEnd = dayStart.AddDays(1);
 
+            // QA-R4: refund slips were counted as if Status 1 meant "collected", so money actually refunded was
+            // never subtracted. Use the ONE shared rule (ReportPeriod.CashReceipt) so this report, the dashboard
+            // and the department report cannot disagree — an earlier draft of this fix left them 9.1M đ apart.
             var receipts = await _context.Receipts
                 .Include(r => r.MedicalRecord)
-                .Where(r => r.ReceiptDate >= dayStart && r.ReceiptDate < dayEnd && r.Status == 1)
+                .Where(r => r.ReceiptDate >= dayStart && r.ReceiptDate < dayEnd && !r.IsDeleted)
+                .Where(ReportPeriod.CashReceipt)
                 .ToListAsync();
 
             var deposits = await _context.Deposits
@@ -134,8 +139,9 @@ public partial class BillingCompleteService {
             var query = _context.Receipts
                 .Include(r => r.MedicalRecord).ThenInclude(mr => mr!.Department)
                 .Include(r => r.Details)
-                .Where(r => r.ReceiptDate >= dto.FromDate && r.ReceiptDate <= dto.ToDate
-                    && r.Status == 1 && r.MedicalRecord != null && r.MedicalRecord.DepartmentId != null);
+                .Where(r => r.ReceiptDate >= dto.FromDate && r.ReceiptDate <= dto.ToDate && !r.IsDeleted
+                    && r.MedicalRecord != null && r.MedicalRecord.DepartmentId != null)
+                .Where(ReportPeriod.CashReceipt); // QA-R4: the one shared revenue rule, same as the daily report
 
             if (dto.PatientType.HasValue)
                 query = query.Where(r => r.MedicalRecord!.PatientType == dto.PatientType.Value);
@@ -245,12 +251,13 @@ public partial class BillingCompleteService {
 
     public async Task<InsuranceClaimDto> GenerateInsuranceClaimAsync(Guid medicalRecordId)
     {
+        // QA-R4: an unknown record (zero id) came back as a 200 claim with a zero id and 0đ.
+        var record = await _context.MedicalRecords
+            .Include(r => r.Patient)
+            .FirstOrDefaultAsync(r => r.Id == medicalRecordId && !r.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ bệnh án");
         try
         {
-            var record = await _context.MedicalRecords
-                .Include(r => r.Patient)
-                .FirstOrDefaultAsync(r => r.Id == medicalRecordId);
-            if (record == null) return new InsuranceClaimDto();
 
             var serviceRequests = await _context.ServiceRequests
                 .Where(sr => sr.MedicalRecordId == medicalRecordId && sr.Status != 4)
@@ -284,6 +291,11 @@ public partial class BillingCompleteService {
 
     public async Task<Xml4210ResultDto> GenerateXml4210Async(GenerateXml4210RequestDto dto)
     {
+        // QA-R4: an empty body produced a valid-looking XML file for 0001-01-01.
+        if (dto.FromDate == default || dto.ToDate == default)
+            throw new ArgumentException("Thiếu kỳ xuất XML (FromDate/ToDate).");
+        if (dto.ToDate < dto.FromDate)
+            throw new ArgumentException("Ngày kết thúc phải sau ngày bắt đầu.");
         try
         {
             var query = _context.MedicalRecords

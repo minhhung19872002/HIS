@@ -124,11 +124,20 @@ public partial class BillingCompleteService {
     {
         var results = new List<AccountingApprovalDto>();
 
+        // QA-R4: an empty / unknown id list "approved" nothing and answered 200 [].
+        var ids = (dto.InvoiceIds ?? new List<Guid>()).Where(id => id != Guid.Empty).Distinct().ToList();
+        if (ids.Count == 0)
+            throw new ArgumentException("Chưa chọn hóa đơn nào để duyệt.");
+        if (!dto.IsApproved && string.IsNullOrWhiteSpace(dto.RejectReason))
+            throw new ArgumentException("Từ chối duyệt phải ghi lý do.");
+
         var invoices = await _context.InvoiceSummaries
             .Include(i => i.MedicalRecord)
                 .ThenInclude(m => m.Patient)
-            .Where(i => dto.InvoiceIds.Contains(i.Id))
+            .Where(i => ids.Contains(i.Id) && !i.IsDeleted)
             .ToListAsync();
+        if (invoices.Count != ids.Count)
+            throw new KeyNotFoundException($"Không tìm thấy {ids.Count - invoices.Count} hóa đơn trong danh sách duyệt.");
 
         // perf(#195): userId is the same approver for every invoice in this loop — look it up once
         // instead of re-awaiting FindAsync(userId) per invoice.

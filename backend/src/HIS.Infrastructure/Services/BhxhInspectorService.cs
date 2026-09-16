@@ -141,8 +141,8 @@ public class BhxhInspectorService : IBhxhInspectorService
 
     public async Task UpdateAccountActiveAsync(Guid id, bool isActive, Guid adminUserId)
     {
-        var account = await _db.BhxhInspectorAccounts.FirstOrDefaultAsync(a => a.Id == id);
-        if (account == null) return;
+        var account = await _db.BhxhInspectorAccounts.FirstOrDefaultAsync(a => a.Id == id)
+            ?? throw new KeyNotFoundException("Không tìm thấy tài khoản giám định viên."); // QA-R4: was a silent 204
         account.IsActive = isActive;
         account.UpdatedAt = DateTime.UtcNow;
         account.UpdatedBy = adminUserId.ToString();
@@ -151,8 +151,10 @@ public class BhxhInspectorService : IBhxhInspectorService
 
     public async Task ResetPasswordAsync(Guid id, string newPassword, Guid adminUserId)
     {
-        var account = await _db.BhxhInspectorAccounts.FirstOrDefaultAsync(a => a.Id == id);
-        if (account == null) return;
+        var account = await _db.BhxhInspectorAccounts.FirstOrDefaultAsync(a => a.Id == id)
+            ?? throw new KeyNotFoundException("Không tìm thấy tài khoản giám định viên."); // QA-R4: was a silent 204
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 8)
+            throw new ArgumentException("Mật khẩu mới phải có ít nhất 8 ký tự.");
         account.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
         account.UpdatedAt = DateTime.UtcNow;
         account.UpdatedBy = adminUserId.ToString();

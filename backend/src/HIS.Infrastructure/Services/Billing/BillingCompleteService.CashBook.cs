@@ -17,8 +17,20 @@ namespace HIS.Infrastructure.Services;
 public partial class BillingCompleteService {
     #region 10.1.1 Cash Book Management
 
+    /// <summary>QA-R4: a book needs a code and a name (blank books were created by placeholder input); code unique among live books.</summary>
+    private async Task EnsureCashBookInputAsync(CreateCashBookDto dto)
+    {
+        dto.Code = dto.Code?.Trim() ?? string.Empty;
+        dto.Name = dto.Name?.Trim() ?? string.Empty;
+        if (dto.Code.Length == 0) throw new ArgumentException("Mã sổ là bắt buộc.");
+        if (dto.Name.Length == 0) throw new ArgumentException("Tên sổ là bắt buộc.");
+        if (await _context.CashBooks.AnyAsync(b => b.BookCode == dto.Code && !b.IsDeleted))
+            throw new InvalidOperationException($"Mã sổ \"{dto.Code}\" đã tồn tại.");
+    }
+
     public async Task<CashBookDto> CreateCashBookAsync(CreateCashBookDto dto, Guid userId)
     {
+        await EnsureCashBookInputAsync(dto);
         var cashBook = new CashBook
         {
             Id = Guid.NewGuid(),
@@ -56,6 +68,7 @@ public partial class BillingCompleteService {
 
     public async Task<CashBookDto> CreateDepositBookAsync(CreateCashBookDto dto, Guid userId)
     {
+        await EnsureCashBookInputAsync(dto);
         var cashBook = new CashBook
         {
             Id = Guid.NewGuid(),
@@ -188,16 +201,25 @@ public partial class BillingCompleteService {
 
     public async Task<bool> AssignCashBookPermissionAsync(AssignCashBookPermissionDto dto, Guid userId)
     {
-        // No CashBookPermission table exists - stub implementation
-        await Task.CompletedTask;
+        // No CashBookPermission table exists - stub implementation.
+        // QA-R4: at least refuse unknown book/user instead of answering "true" for zero ids.
+        await EnsureCashBookAndUserAsync(dto.CashBookId, dto.UserId);
         return true;
     }
 
     public async Task<bool> RemoveCashBookPermissionAsync(Guid cashBookId, Guid targetUserId, Guid userId)
     {
-        // No CashBookPermission table exists - stub implementation
-        await Task.CompletedTask;
+        // No CashBookPermission table exists - stub implementation (see above).
+        await EnsureCashBookAndUserAsync(cashBookId, targetUserId);
         return true;
+    }
+
+    private async Task EnsureCashBookAndUserAsync(Guid cashBookId, Guid targetUserId)
+    {
+        if (!await _context.CashBooks.AnyAsync(b => b.Id == cashBookId && !b.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy sổ thu.");
+        if (!await _context.Users.AnyAsync(u => u.Id == targetUserId))
+            throw new KeyNotFoundException("Không tìm thấy người dùng.");
     }
 
     public async Task<List<CashBookUserDto>> GetCashBookUsersAsync(Guid cashBookId)
@@ -467,6 +489,12 @@ public partial class BillingCompleteService {
             // 1,2,5 → 100% · 3 → 95% · 4 → 80%. Route (đúng/trái tuyến) is NOT applied here.
             result.InsuranceRate  = (coveragePercent ?? CoverageFromCardLevel(dto.InsuranceCardNumber) ?? 80) / 100m;
             result.CoPaymentRate  = 1m - result.InsuranceRate;
+
+            // QA-R4: the caller's date of birth was accepted silently — a card presented with the wrong DOB
+            // (someone else's card) is flagged for the receptionist.
+            if (dto.DateOfBirth.HasValue && patient.DateOfBirth.HasValue
+                && dto.DateOfBirth.Value.Date != patient.DateOfBirth.Value.Date)
+                result.Warnings.Add("Ngay sinh khong khop voi the BHYT (" + patient.DateOfBirth.Value.ToString("dd/MM/yyyy") + ")");
 
             if (!result.IsValid)
                 result.Warnings.Add("The BHYT da het han su dung");
