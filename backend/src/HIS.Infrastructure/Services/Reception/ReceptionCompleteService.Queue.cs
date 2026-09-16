@@ -532,6 +532,15 @@ public partial class ReceptionCompleteService {
 
     public async Task<QueueTicketDto> IssueQueueTicketMobileAsync(MobileQueueTicketDto dto)
     {
+        // QA-R4: anonymous endpoint — an empty body reached the FK on QueueConfigurations.RoomId and
+        // surfaced as a 500. Validate the three things a mobile ticket cannot exist without.
+        if (dto.RoomId == Guid.Empty || !await _context.Rooms.AnyAsync(r => r.Id == dto.RoomId))
+            throw new ArgumentException("Phòng khám không hợp lệ hoặc không tồn tại.");
+        if (dto.QueueType is < 1 or > 5)
+            throw new ArgumentException("Loại hàng đợi không hợp lệ (1-Tiếp đón, 2-Khám bệnh, 3-CLS, 4-Thanh toán, 5-Lĩnh thuốc).");
+        if (!dto.PatientId.HasValue && string.IsNullOrWhiteSpace(dto.PatientPhone))
+            throw new ArgumentException("Thiếu số điện thoại người bệnh.");
+
         // Hồ sơ đã biết chắc (controller chỉ để lọt id từ người gọi đã xác thực) thì dùng thẳng;
         // không thì dò theo SĐT như cũ. Dò theo số là gắn nhầm người khi cả nhà dùng chung một số.
         var patient = dto.PatientId.HasValue

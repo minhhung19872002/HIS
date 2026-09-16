@@ -31,6 +31,12 @@ public partial class ExaminationCompleteService
             .FirstOrDefaultAsync(e => e.Id == examinationId && !e.IsDeleted);
         if (examination == null)
             return new HIS.Application.DTOs.NangCap18.TransferPatientRoomResultDto { Success = false, Message = "Không tìm thấy lượt khám" };
+        // QA-R4: a COMPLETED exam was moved to another room (reproduced live) — the closed visit then shows
+        // up on a room it was never examined in. Only an open visit can change rooms.
+        if (examination.Status == HIS.Core.Constants.ExaminationStatus.Completed)
+            return new HIS.Application.DTOs.NangCap18.TransferPatientRoomResultDto { Success = false, Message = "Lượt khám đã hoàn thành — mở lại kết luận trước khi chuyển phòng" };
+        if (examination.Status == HIS.Core.Constants.ExaminationStatus.Cancelled)
+            return new HIS.Application.DTOs.NangCap18.TransferPatientRoomResultDto { Success = false, Message = "Lượt khám đã hủy, không chuyển phòng được" };
 
         var newRoom = await _context.Rooms.FirstOrDefaultAsync(r => r.Id == newRoomId && r.IsActive && !r.IsDeleted);
         if (newRoom == null)

@@ -396,24 +396,48 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
 
     private async Task<DocumentHoldDto> MapToDocumentHoldDtoAsync(DocumentHold hold)
     {
-        var medicalRecord = await _context.MedicalRecords
-            .Include(m => m.Patient)
-            .FirstOrDefaultAsync(m => m.Id == hold.MedicalRecordId);
+        // QA-R4: mapped to the v2 screen's contract (int documentType/status + names + hold duration).
+        var patient = await _context.Patients.AsNoTracking()
+            .Where(p => p.Id == hold.PatientId)
+            .Select(p => new { p.PatientCode, p.FullName })
+            .FirstOrDefaultAsync();
+        var recordCode = hold.MedicalRecordId.HasValue
+            ? await _context.MedicalRecords.AsNoTracking()
+                .Where(m => m.Id == hold.MedicalRecordId.Value)
+                .Select(m => m.MedicalRecordCode)
+                .FirstOrDefaultAsync()
+            : null;
+        var endOfHold = hold.ReturnDate ?? HIS.Core.Common.VnTime.NowVn;
 
         return new DocumentHoldDto
         {
             Id = hold.Id,
+            PatientId = hold.PatientId,
             AdmissionId = hold.MedicalRecordId ?? Guid.Empty,
-            PatientCode = medicalRecord?.Patient?.PatientCode ?? "",
-            PatientName = medicalRecord?.Patient?.FullName ?? "",
-            MedicalRecordCode = medicalRecord?.MedicalRecordCode ?? "",
-            DocumentType = hold.DocumentType.ToString(),
+            MedicalRecordId = hold.MedicalRecordId,
+            PatientCode = patient?.PatientCode ?? "",
+            PatientName = patient?.FullName ?? "",
+            MedicalRecordCode = recordCode,
+            DocumentType = hold.DocumentType,
+            DocumentTypeName = GetDocumentTypeName(hold.DocumentType),
             DocumentNumber = hold.DocumentNumber ?? "",
-            Description = hold.Description ?? "",
+            DocumentDescription = hold.DocumentDescription ?? hold.Description,
+            Quantity = hold.Quantity > 0 ? hold.Quantity : 1,
+            Status = hold.Status,
+            // 1 = đang giữ, 2 = đã trả — the numbering the existing rows use (see ReceptionCompleteService.PhotosDocs).
+            StatusName = hold.Status switch { 1 => "Đang giữ", 2 => "Đã trả", 3 => "Thất lạc", _ => "Không xác định" },
             HoldDate = hold.HoldDate,
+            HoldBy = hold.HoldBy ?? "",
+            HoldNotes = hold.HoldNotes ?? hold.Notes,
             ReturnDate = hold.ReturnDate,
-            Status = hold.Status == 1 ? "Holding" : "Returned",
-            Note = hold.Notes ?? ""
+            ReturnBy = hold.ReturnBy,
+            ReturnNotes = hold.ReturnNotes,
+            ReturnToPersonName = hold.ReturnToPersonName,
+            ReturnToPersonPhone = hold.ReturnToPersonPhone,
+            ReturnToPersonRelation = hold.ReturnToPersonRelation,
+            HoldDurationDays = Math.Max(0, (int)(endOfHold.Date - hold.HoldDate.Date).TotalDays),
+            CreatedAt = hold.CreatedAt,
+            CreatedBy = hold.CreatedBy
         };
     }
 

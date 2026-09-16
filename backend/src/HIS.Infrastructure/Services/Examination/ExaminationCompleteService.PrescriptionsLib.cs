@@ -47,6 +47,9 @@ public partial class ExaminationCompleteService
 
     public async Task<InstructionLibraryDto> AddInstructionAsync(InstructionLibraryDto dto)
     {
+        // QA-R4: an empty instruction was saved as a blank library row.
+        if (string.IsNullOrWhiteSpace(dto.Instruction))
+            throw new ArgumentException("Chưa nhập nội dung lời dặn", nameof(dto.Instruction));
         var instruction = new InstructionLibrary
         {
             Id = Guid.NewGuid(),

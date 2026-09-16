@@ -825,6 +825,9 @@ public partial class ExaminationCompleteService
 
     public async Task<ExaminationPrescriptionTemplateDto> CreatePrescriptionTemplateAsync(ExaminationPrescriptionTemplateDto dto)
     {
+        // QA-R4: a nameless template was saved as a blank catalog row.
+        if (string.IsNullOrWhiteSpace(dto.TemplateName))
+            throw new ArgumentException("Chưa nhập tên mẫu đơn thuốc", nameof(dto.TemplateName));
         var template = new PrescriptionTemplate
         {
             Id = Guid.NewGuid(),
@@ -871,6 +874,8 @@ public partial class ExaminationCompleteService
             .FirstOrDefaultAsync(t => t.Id == id);
 
         if (template == null) throw new KeyNotFoundException("Template not found");
+        if (string.IsNullOrWhiteSpace(dto.TemplateName))
+            throw new ArgumentException("Chưa nhập tên mẫu đơn thuốc", nameof(dto.TemplateName));
 
         template.TemplateCode = dto.TemplateCode;
         template.TemplateName = dto.TemplateName;

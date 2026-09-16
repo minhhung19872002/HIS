@@ -402,6 +402,20 @@ public class AppointmentBookingService : IAppointmentBookingService
                 return new BookingResultDto { Success = false, Message = "Bạn đã có lịch hẹn trong ngày này" };
         }
 
+        // QA-R4: slot capacity was computed for the picker but never enforced at booking time — a slot
+        // showing 1/1 accepted a second booking, and 23:00 on a shift that ends at 11:00 was accepted too
+        // (both reproduced live). Reschedule already enforces this; booking must as well.
+        if (dto.AppointmentTime.HasValue)
+        {
+            var slots = await GetAvailableSlotsAsync(dto.AppointmentDate, dto.DepartmentId, dto.DoctorId);
+            var target = slots.MorningSlots.Concat(slots.AfternoonSlots)
+                .FirstOrDefault(s => s.StartTime == dto.AppointmentTime.Value);
+            if (target is null)
+                return new BookingResultDto { Success = false, Message = "Khung giờ này không nằm trong lịch làm việc của bác sĩ" };
+            if (!target.IsAvailable)
+                return new BookingResultDto { Success = false, Message = "Khung giờ này đã hết chỗ, vui lòng chọn giờ khác" };
+        }
+
         // === Anti-fraud: rule chỉ cho phép BN đã có hồ sơ (nếu bật) ===
         if (onlyExisting && existingPatient == null)
         {

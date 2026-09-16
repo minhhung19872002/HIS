@@ -355,15 +355,30 @@ public partial class ExaminationCompleteService
             .ToListAsync();
     }
 
+    /// <summary>
+    /// QA-R4: a blank template name was saved as an unnamed catalog row, and a zero-GUID department
+    /// surfaced as an FK violation (HTTP 500). Returns the department id to store (null when not set).
+    /// </summary>
+    private async Task<Guid?> ValidateExaminationTemplateAsync(ExaminationTemplateDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.TemplateName))
+            throw new ArgumentException("Chưa nhập tên mẫu thăm khám", nameof(dto.TemplateName));
+        if (!dto.DepartmentId.HasValue || dto.DepartmentId.Value == Guid.Empty) return null;
+        if (!await _context.Departments.AnyAsync(d => d.Id == dto.DepartmentId.Value && !d.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy khoa");
+        return dto.DepartmentId;
+    }
+
     public async Task<ExaminationTemplateDto> CreateExaminationTemplateAsync(ExaminationTemplateDto dto)
     {
+        var departmentId = await ValidateExaminationTemplateAsync(dto);
         var template = new ExaminationTemplate
         {
             Id = Guid.NewGuid(),
-            TemplateName = dto.TemplateName,
+            TemplateName = dto.TemplateName.Trim(),
             TemplateCode = dto.TemplateCode,
             TemplateType = dto.TemplateType,
-            DepartmentId = dto.DepartmentId,
+            DepartmentId = departmentId,
             ChiefComplaintTemplate = dto.Content?.ChiefComplaint,
             PhysicalExamTemplate = dto.Content?.GeneralAppearance,
             SystemsReviewTemplate = dto.Content?.OtherFindings,
@@ -383,11 +398,12 @@ public partial class ExaminationCompleteService
     {
         var template = await _context.ExaminationTemplates.FindAsync(id);
         if (template == null) throw new KeyNotFoundException("Template not found");
+        var departmentId = await ValidateExaminationTemplateAsync(dto);
 
-        template.TemplateName = dto.TemplateName;
+        template.TemplateName = dto.TemplateName.Trim();
         template.TemplateCode = dto.TemplateCode;
         template.TemplateType = dto.TemplateType;
-        template.DepartmentId = dto.DepartmentId;
+        template.DepartmentId = departmentId;
         template.ChiefComplaintTemplate = dto.Content?.ChiefComplaint;
         template.PhysicalExamTemplate = dto.Content?.GeneralAppearance;
         template.SystemsReviewTemplate = dto.Content?.OtherFindings;

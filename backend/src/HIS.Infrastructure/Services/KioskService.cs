@@ -92,9 +92,17 @@ public class KioskService : IKioskService
             throw new ArgumentException("Khoa không tồn tại.");
         if (dto.RoomId.HasValue && !await _context.Rooms.AnyAsync(r => r.Id == dto.RoomId.Value))
             throw new ArgumentException("Phòng không tồn tại.");
+        // QA-R4: public endpoint — bound free-text and restrict ServiceType to the known prefixes so a
+        // stray client cannot fill the queue table with arbitrary strings.
+        if (!string.IsNullOrWhiteSpace(dto.ServiceType)
+            && dto.ServiceType.ToUpperInvariant() is not ("OPD" or "LAB" or "IMAGING" or "PHARMACY"))
+            throw new ArgumentException("Loại dịch vụ không hợp lệ (OPD / LAB / IMAGING / PHARMACY).");
+        if (dto.PatientName?.Length > 100) throw new ArgumentException("Tên người bệnh quá dài (tối đa 100 ký tự).");
+        if (dto.Note?.Length > 500) throw new ArgumentException("Ghi chú quá dài (tối đa 500 ký tự).");
 
         var todayVn  = VnTime.TodayVn;
-        var nowUtc   = DateTime.UtcNow;
+        // QA-R4 time: IssuedAt/CalledAt are business timestamps (shown as "Phát lúc HH:mm") → VN wall clock.
+        var nowVn    = VnTime.NowVn;
         var prefix   = ServiceTypePrefix(dto.ServiceType);
         var seq      = await NextSequenceAsync(todayVn, dto.DepartmentId, prefix);
 
@@ -110,8 +118,8 @@ public class KioskService : IKioskService
             PatientName    = dto.PatientName?.Trim(),
             Note           = dto.Note,
             Status         = 0,
-            IssuedAt       = nowUtc,
-            CreatedAt      = nowUtc,
+            IssuedAt       = nowVn,
+            CreatedAt      = DateTime.UtcNow,
         };
 
         _context.Set<KioskTicket>().Add(ticket);
@@ -138,9 +146,9 @@ public class KioskService : IKioskService
         if (ticket.RoomId.HasValue)
             ticket.Room = await _context.Rooms.FindAsync(ticket.RoomId.Value);
 
-        var (fromUtc, toUtc) = VnTime.DayRangeUtc(todayVn);
+        var (fromVn, toVn) = VnTime.DayRangeVn(todayVn);
         int ahead = await _context.Set<KioskTicket>()
-            .CountAsync(t => t.IssuedAt >= fromUtc && t.IssuedAt < toUtc
+            .CountAsync(t => t.IssuedAt >= fromVn && t.IssuedAt < toVn
                           && t.DepartmentId == dto.DepartmentId
                           && t.TicketNumber.StartsWith(prefix) // sequences are per prefix (A/L/I/P)
                           && t.Status == 0
@@ -217,13 +225,13 @@ public class KioskService : IKioskService
 
     public async Task<QueueStatusDto> GetQueueStatusAsync(Guid? departmentId, Guid? roomId)
     {
-        var (fromUtc, toUtc) = VnTime.DayRangeUtc(VnTime.TodayVn);
+        var (fromVn, toVn) = VnTime.DayRangeVn(VnTime.TodayVn);
 
         var query = _context.Set<KioskTicket>()
             .Include(t => t.Department)
             .Include(t => t.Room)
             .Where(t => !t.IsDeleted
-                     && t.IssuedAt >= fromUtc && t.IssuedAt < toUtc
+                     && t.IssuedAt >= fromVn && t.IssuedAt < toVn
                      && t.Status != 3); // bỏ đã hủy
 
         if (departmentId.HasValue) query = query.Where(t => t.DepartmentId == departmentId);
@@ -251,7 +259,7 @@ public class KioskService : IKioskService
 
     public async Task<KioskTicketDto?> CallNextAsync(CallNextDto dto)
     {
-        var (fromUtc, toUtc) = VnTime.DayRangeUtc(VnTime.TodayVn);
+        var (fromVn, toVn) = VnTime.DayRangeVn(VnTime.TodayVn);
 
         // QA-R3: two counters pressing "gọi số" together both read the same waiting ticket and both called it.
         // Claim atomically (UPDATE … WHERE Status = 0); if another counter won, move on to the next ticket.
@@ -260,7 +268,7 @@ public class KioskService : IKioskService
         {
             var candidateId = await _context.Set<KioskTicket>()
                 .Where(t => !t.IsDeleted
-                         && t.IssuedAt >= fromUtc && t.IssuedAt < toUtc
+                         && t.IssuedAt >= fromVn && t.IssuedAt < toVn
                          && t.Status == 0)
                 .If(dto.DepartmentId.HasValue, q => q.Where(t => t.DepartmentId == dto.DepartmentId))
                 .If(dto.RoomId.HasValue,       q => q.Where(t => t.RoomId == dto.RoomId))
@@ -269,13 +277,14 @@ public class KioskService : IKioskService
                 .FirstOrDefaultAsync();
             if (candidateId == null) return null;
 
-            var now = DateTime.UtcNow;
+            var calledVn = VnTime.NowVn;
+            var nowUtc = DateTime.UtcNow;
             var claimed = await _context.Set<KioskTicket>()
                 .Where(t => t.Id == candidateId.Value && t.Status == 0)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(t => t.Status, 1)
-                    .SetProperty(t => t.CalledAt, now)
-                    .SetProperty(t => t.UpdatedAt, now));
+                    .SetProperty(t => t.CalledAt, calledVn)
+                    .SetProperty(t => t.UpdatedAt, nowUtc));
             if (claimed == 1)
                 next = await _context.Set<KioskTicket>().AsNoTracking()
                     .Include(t => t.Department).Include(t => t.Room)

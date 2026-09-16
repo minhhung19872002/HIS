@@ -38,6 +38,10 @@ public class ClinicalTemplateService : IClinicalTemplateService
 
     public async Task<ClinicalTemplateDto> SaveAsync(SaveClinicalTemplateDto dto, Guid userId)
     {
+        // QA-R4: an empty body created a nameless template (blank rows in the picker).
+        if (string.IsNullOrWhiteSpace(dto.TemplateName))
+            throw new ArgumentException("Chưa nhập tên mẫu", nameof(dto.TemplateName));
+
         ClinicalTemplate entity;
         if (dto.Id.HasValue)
         {

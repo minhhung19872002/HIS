@@ -42,21 +42,47 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
         // SQL returned rooms in arbitrary order, so a secondary room could become the primary.
         var rooms = roomIds.Select(id => roomsById[id]).ToList();
 
-        var record = new MedicalRecord
+        // QA-R4 (R1 item 4 "khám đa phòng tạo hồ sơ thứ 2"): the reception wizard registers the primary
+        // room first (RegisterFeePatient → one MedicalRecord) and then calls this for the extra rooms.
+        // Creating a second record here split ONE visit into two records (two admissions, two bills, and
+        // the duplicate-registration guard tripping on the wrong code — reproduced live). Attach the extra
+        // exams to today's open outpatient record when there is one.
+        var (todayFromUtc, todayToUtc) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.TodayVn);
+        var record = await _db.MedicalRecords.FirstOrDefaultAsync(m =>
+            m.PatientId == dto.PatientId && m.Status < 3 && m.TreatmentType == 1 && !m.IsDeleted
+            && m.AdmissionDate >= todayFromUtc && m.AdmissionDate < todayToUtc);
+        var reuseRecord = record != null;
+
+        if (record == null)
         {
-            Id = Guid.NewGuid(),
-            MedicalRecordCode = $"HS{DateTime.Now:yyyyMMddHHmmss}",
-            PatientId = dto.PatientId,
-            AdmissionDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
-            PatientType = dto.PatientType,
-            TreatmentType = 1,
-            InsuranceNumber = dto.InsuranceNumber,
-            InitialDiagnosis = dto.InitialDiagnosis,
-            Status = 0,
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = userId.ToString()
-        };
-        _db.MedicalRecords.Add(record);
+            record = new MedicalRecord
+            {
+                Id = Guid.NewGuid(),
+                MedicalRecordCode = $"HS{DateTime.Now:yyyyMMddHHmmss}",
+                PatientId = dto.PatientId,
+                AdmissionDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
+                PatientType = dto.PatientType,
+                TreatmentType = 1,
+                InsuranceNumber = dto.InsuranceNumber,
+                InitialDiagnosis = dto.InitialDiagnosis,
+                Status = 0,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = userId.ToString()
+            };
+            _db.MedicalRecords.Add(record);
+        }
+        else
+        {
+            // Rooms already on this visit are skipped, so a double-submit does not queue the patient twice.
+            var roomsOnVisit = await _db.Examinations
+                .Where(e => e.MedicalRecordId == record.Id && !e.IsDeleted && e.Status != 5)
+                .Select(e => e.RoomId)
+                .ToListAsync();
+            rooms = rooms.Where(r => !roomsOnVisit.Contains(r.Id)).ToList();
+            if (rooms.Count == 0)
+                throw new InvalidOperationException(
+                    $"Bệnh nhân đã được đăng ký vào (các) phòng này trong lượt khám hôm nay (Mã: {record.MedicalRecordCode})");
+        }
 
         var examinations = new List<Examination>();
         // CreatedAt lưu UTC → "hôm nay" tính theo ngày VN (fix lệch khung 00h–07h / 17h–24h tùy env).
@@ -72,7 +98,8 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
             {
                 Id = Guid.NewGuid(),
                 MedicalRecordId = record.Id,
-                ExaminationType = i == 0 ? 1 : 3,
+                // On an existing visit every room here is an additional exam; the primary already exists.
+                ExaminationType = !reuseRecord && i == 0 ? 1 : 3,
                 QueueNumber = queueBase + i + 1,
                 DepartmentId = room.DepartmentId,
                 RoomId = room.Id,

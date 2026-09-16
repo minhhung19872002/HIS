@@ -558,9 +558,11 @@ public class ClinicalDecisionSupportService : IClinicalDecisionSupportService
     {
         var result = new ClinicalDecisionSupportResultDto();
 
-        // Run in parallel
-        var alertsTask = GetClinicalAlertsAsync(patientId, examinationId);
-        var frequentTask = GetFrequentDiagnosesAsync(suggestionRequest?.DepartmentId, 10);
+        // QA round 4: these ran "in parallel" on the SHARED scoped DbContext while the calls below also queried it
+        // → "A second operation was started on this context instance" → 500 on the whole CDS panel of the exam
+        // screen (alerts + suggestions + NEWS2 all lost). EF Core contexts are not thread-safe: run sequentially.
+        result.Alerts = await GetClinicalAlertsAsync(patientId, examinationId);
+        result.FrequentDiagnoses = await GetFrequentDiagnosesAsync(suggestionRequest?.DepartmentId, 10);
 
         if (suggestionRequest != null && (suggestionRequest.Symptoms.Any() || suggestionRequest.Signs.Any()))
         {
@@ -579,9 +581,6 @@ public class ClinicalDecisionSupportService : IClinicalDecisionSupportService
                 SpO2 = suggestionRequest.SpO2,
             });
         }
-
-        result.Alerts = await alertsTask;
-        result.FrequentDiagnoses = await frequentTask;
 
         return result;
     }

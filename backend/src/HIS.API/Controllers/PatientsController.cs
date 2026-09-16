@@ -96,12 +96,14 @@ public class PatientsController : ControllerBase
         if (id != dto.Id)
             return BadRequest(ApiResponse<PatientDto>.Fail("Id mismatch"));
 
+        // QA-R4: `catch (Exception)` turned every validation/state error (and real 500s) into a 404 —
+        // DomainExceptionFilter already maps KeyNotFound → 404, Argument → 400, InvalidOperation → 400.
         try
         {
             var patient = await _patientService.UpdateAsync(dto);
             return Ok(ApiResponse<PatientDto>.Ok(patient, "Patient updated successfully"));
         }
-        catch (Exception ex)
+        catch (KeyNotFoundException ex)
         {
             return NotFound(ApiResponse<PatientDto>.Fail(ex.Message));
         }
@@ -115,7 +117,7 @@ public class PatientsController : ControllerBase
             await _patientService.DeleteAsync(id);
             return Ok(ApiResponse<bool>.Ok(true, "Patient deleted successfully"));
         }
-        catch (Exception ex)
+        catch (KeyNotFoundException ex)
         {
             return NotFound(ApiResponse<bool>.Fail(ex.Message));
         }

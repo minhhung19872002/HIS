@@ -262,6 +262,15 @@ public partial class ReceptionCompleteService {
 
     public async Task<BlockedInsuranceDto> BlockInsuranceAsync(string insuranceNumber, int reason, string? notes, Guid userId)
     {
+        // QA-R4: an empty card number was accepted (blocking "nothing"), and blocking the same card twice
+        // created two active rows. NOTE: the insert still fails on this DB until the drifted NOT NULL
+        // column BlockedInsurances.BlockedById (not mapped by EF) is made nullable — see the R4 report.
+        if (string.IsNullOrWhiteSpace(insuranceNumber))
+            throw new ArgumentException("Chưa nhập số thẻ BHYT cần chặn", nameof(insuranceNumber));
+        insuranceNumber = insuranceNumber.Trim();
+        if (await _context.BlockedInsurances.AnyAsync(b => b.InsuranceNumber == insuranceNumber && b.IsBlocked && !b.IsDeleted))
+            throw new InvalidOperationException($"Thẻ {insuranceNumber} đang bị chặn rồi.");
+
         var blockedInsurance = new BlockedInsurance
         {
             Id = Guid.NewGuid(),
@@ -556,6 +565,24 @@ public partial class ReceptionCompleteService {
         await EnsureRegistrationLockAsync();
         if (patient != null)
             await EnsureNoActiveOutpatientRecordTodayAsync(patient.Id);
+
+        // QA-R4: two counters submitting the same NEW patient at once both passed the lookup above before
+        // either had saved, so the same CCCD/card ended up as two patient records with two open visits.
+        // Repeat the lookup now that the registration lock is held (the first writer has committed).
+        if (patient == null && dto.NewPatient != null)
+        {
+            var cccd = (dto.NewPatient.IdentityNumber ?? dto.IdentityNumber)?.Trim();
+            if (!string.IsNullOrEmpty(cccd))
+                patient = await _context.Patients.Where(p => !p.IsDeleted).FindByIdentityNumberDecryptedAsync(cccd);
+            if (patient == null && !string.IsNullOrEmpty(dto.InsuranceNumber))
+                patient = await _context.Patients.Where(p => !p.IsDeleted).FindByInsuranceNumberDecryptedAsync(dto.InsuranceNumber);
+            if (patient != null)
+            {
+                EnsureSamePerson(patient, dto.NewPatient);
+                await EnsureNoActiveOutpatientRecordTodayAsync(patient.Id);
+                isNewPatient = false;
+            }
+        }
 
         // BN chưa có trong hệ thống (đăng ký BHYT lần đầu) → tạo mới từ NewPatient
         if (patient == null && dto.NewPatient != null)

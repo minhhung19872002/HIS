@@ -75,6 +75,20 @@ public partial class ReceptionCompleteService {
                 // A mistyped CCCD matching another person must not silently open the visit on that
                 // person's record (their allergies/history) — make reception confirm.
                 if (patient != null) EnsureSamePerson(patient, dto.NewPatient);
+
+                // QA-R4: two counters submitting the same new patient at once both saw "no such CCCD" and both
+                // created a patient + visit (two BN codes for one CCCD). Take the registration lock and look the
+                // CCCD up AGAIN — whoever got there first is now visible. The lock stays lazy on purpose: the
+                // lookup above decrypts the whole Patients table, and holding a single hospital-wide lock across
+                // it would serialise every counter on the slowest step of the flow.
+                if (patient == null)
+                {
+                    await EnsureRegistrationLockAsync();
+                    patient = await _context.Patients
+                        .Where(p => !p.IsDeleted)
+                        .FindByIdentityNumberDecryptedAsync(dto.NewPatient.IdentityNumber.Trim());
+                    if (patient != null) EnsureSamePerson(patient, dto.NewPatient);
+                }
             }
         }
 

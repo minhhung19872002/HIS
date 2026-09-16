@@ -66,6 +66,10 @@ public partial class ExaminationCompleteService
         if (examination == null) throw new KeyNotFoundException("Examination not found");
         if (examination.Status == HIS.Core.Constants.ExaminationStatus.Cancelled)
             throw new InvalidOperationException("Phiên khám đã hủy, không thể chỉ định dịch vụ.");
+        // QA-R4 (MONEY): orders were still accepted on a COMPLETED exam — a charge added after the doctor
+        // concluded and the visit was closed for billing. Re-open the conclusion first (revert-completion).
+        if (examination.Status == HIS.Core.Constants.ExaminationStatus.Completed)
+            throw new InvalidOperationException("Lượt khám đã hoàn thành — nhờ Quản trị/Trưởng khoa mở lại kết luận trước khi chỉ định thêm dịch vụ.");
         // MONEY: quantity was never validated — quantity -3 was stored as a -240,000 VND charge
         // (and 0 as a free line). Reject before anything is written.
         if (dto.Services == null || dto.Services.Count == 0)
@@ -302,6 +306,9 @@ public partial class ExaminationCompleteService
 
     public async Task<ServiceGroupTemplateDto> CreateServiceGroupTemplateAsync(ServiceGroupTemplateDto dto)
     {
+        // QA-R4: a nameless group was saved as a blank catalog row.
+        if (string.IsNullOrWhiteSpace(dto.TemplateName))
+            throw new ArgumentException("Chưa nhập tên nhóm dịch vụ", nameof(dto.TemplateName));
         var template = new ServiceGroupTemplate
         {
             Id = Guid.NewGuid(),
@@ -342,6 +349,8 @@ public partial class ExaminationCompleteService
             .FirstOrDefaultAsync(t => t.Id == id);
 
         if (template == null) throw new KeyNotFoundException("Template not found");
+        if (string.IsNullOrWhiteSpace(dto.TemplateName))
+            throw new ArgumentException("Chưa nhập tên nhóm dịch vụ", nameof(dto.TemplateName));
 
         template.TemplateCode = dto.TemplateCode;
         template.TemplateName = dto.TemplateName;

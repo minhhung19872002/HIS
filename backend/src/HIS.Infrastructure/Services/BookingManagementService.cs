@@ -108,6 +108,33 @@ public class BookingManagementService : IBookingManagementService
 
     public async Task<DoctorScheduleListDto> SaveDoctorScheduleAsync(SaveDoctorScheduleDto dto)
     {
+        // QA-R4: a zero-GUID doctor/department surfaced as an FK violation (HTTP 500); end < start,
+        // negative capacity and a duplicate shift were all accepted and then fed garbage into the public
+        // booking slot picker (the same 08:00 slot listed twice).
+        if (dto.EndTime <= dto.StartTime)
+            throw new ArgumentException("Giờ kết thúc phải sau giờ bắt đầu", nameof(dto.EndTime));
+        if (dto.MaxPatients <= 0)
+            throw new ArgumentException("Số bệnh nhân tối đa phải lớn hơn 0", nameof(dto.MaxPatients));
+        if (dto.SlotDurationMinutes <= 0)
+            throw new ArgumentException("Thời lượng mỗi khung giờ phải lớn hơn 0", nameof(dto.SlotDurationMinutes));
+        if (!await _context.Users.AnyAsync(u => u.Id == dto.DoctorId))
+            throw new KeyNotFoundException("Không tìm thấy bác sĩ");
+        if (!await _context.Departments.AnyAsync(d => d.Id == dto.DepartmentId && !d.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy khoa");
+        if (dto.RoomId == Guid.Empty) dto.RoomId = null;
+        if (dto.RoomId.HasValue && !await _context.Rooms.AnyAsync(r => r.Id == dto.RoomId.Value && !r.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy phòng khám");
+
+        var scheduleDay = dto.ScheduleDate.Date;
+        var overlaps = await _context.DoctorSchedules.AnyAsync(s =>
+            !s.IsDeleted && s.IsActive
+            && s.DoctorId == dto.DoctorId
+            && s.ScheduleDate == scheduleDay
+            && (!dto.Id.HasValue || s.Id != dto.Id.Value)
+            && s.StartTime < dto.EndTime && dto.StartTime < s.EndTime);
+        if (overlaps)
+            throw new InvalidOperationException("Bác sĩ đã có ca làm việc trùng giờ trong ngày này");
+
         DoctorSchedule schedule;
         if (dto.Id.HasValue)
         {

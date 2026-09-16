@@ -275,37 +275,68 @@ namespace HIS.Application.DTOs
         public Guid? AttendingDoctorId { get; set; }
     }
 
+    // QA-R4: shape follows the v2 reception modal (modules/reception/api/reception.ts DocumentHoldDto).
+    // The old DTO (AdmissionId / string DocumentType / string Status "Holding") matched nothing the screen
+    // read, so the "Đang giữ" list was always empty even when a row existed.
     public class DocumentHoldDto
     {
         public Guid Id { get; set; }
+        public Guid PatientId { get; set; }
+        /// <summary>Legacy alias of MedicalRecordId (Guid.Empty when the hold is not tied to a visit).</summary>
         public Guid AdmissionId { get; set; }
-        public string PatientCode { get; set; }
-        public string PatientName { get; set; }
-        public string MedicalRecordCode { get; set; }
-        public string DocumentType { get; set; }
-        public string DocumentNumber { get; set; }
-        public string Description { get; set; }
+        public Guid? MedicalRecordId { get; set; }
+        public string PatientCode { get; set; } = string.Empty;
+        public string PatientName { get; set; } = string.Empty;
+        public string? MedicalRecordCode { get; set; }
+        public int DocumentType { get; set; }
+        public string DocumentTypeName { get; set; } = string.Empty;
+        public string DocumentNumber { get; set; } = string.Empty;
+        public string? DocumentDescription { get; set; }
+        public int Quantity { get; set; } = 1;
+        /// <summary>1 = đang giữ, 2 = đã trả (same numbering the existing DocumentHold rows use).</summary>
+        public int Status { get; set; }
+        public string StatusName { get; set; } = string.Empty;
         public DateTime HoldDate { get; set; }
-        public string HeldBy { get; set; }
+        public string HoldBy { get; set; } = string.Empty;
+        public string? HoldNotes { get; set; }
         public DateTime? ReturnDate { get; set; }
-        public string ReturnedBy { get; set; }
-        public string Status { get; set; }
-        public string Note { get; set; }
+        public string? ReturnBy { get; set; }
+        public string? ReturnNotes { get; set; }
+        public string? ReturnToPersonName { get; set; }
+        public string? ReturnToPersonPhone { get; set; }
+        public string? ReturnToPersonRelation { get; set; }
+        public int HoldDurationDays { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public string? CreatedBy { get; set; }
     }
 
     public class CreateDocumentHoldDto
     {
-        public Guid AdmissionId { get; set; }
-        public string DocumentType { get; set; }
-        public string DocumentNumber { get; set; }
-        public string Description { get; set; }
-        public string Note { get; set; }
+        public Guid? PatientId { get; set; }
+        public Guid? MedicalRecordId { get; set; }
+        /// <summary>Legacy alias of MedicalRecordId.</summary>
+        public Guid? AdmissionId { get; set; }
+        /// <summary>1-CCCD/CMND, 2-Thẻ BHYT, 3-Giấy giới thiệu, 4-Giấy chuyển viện, khác.</summary>
+        public int DocumentType { get; set; }
+        public string DocumentNumber { get; set; } = string.Empty;
+        public string? DocumentDescription { get; set; }
+        /// <summary>Legacy alias of DocumentDescription.</summary>
+        public string? Description { get; set; }
+        public int Quantity { get; set; } = 1;
+        public string? HoldNotes { get; set; }
+        /// <summary>Legacy alias of HoldNotes.</summary>
+        public string? Note { get; set; }
     }
 
     public class ReturnDocumentDto
     {
         public Guid DocumentHoldId { get; set; }
-        public string Note { get; set; }
+        public string? ReturnNotes { get; set; }
+        /// <summary>Legacy alias of ReturnNotes.</summary>
+        public string? Note { get; set; }
+        public string? ReturnToPersonName { get; set; }
+        public string? ReturnToPersonPhone { get; set; }
+        public string? ReturnToPersonRelation { get; set; }
     }
 
     // ============================================================================

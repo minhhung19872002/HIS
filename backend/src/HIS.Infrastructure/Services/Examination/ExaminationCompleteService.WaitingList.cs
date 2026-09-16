@@ -89,6 +89,12 @@ public partial class ExaminationCompleteService
 
     public async Task<bool> UpdateWaitingRoomDisplayConfigAsync(Guid roomId, WaitingRoomDisplayConfigDto config)
     {
+        // QA-R4: an unknown room surfaced as an FK violation (HTTP 500).
+        if (!await _context.Rooms.AnyAsync(r => r.Id == roomId && !r.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy phòng khám");
+        if (config.DisplayRows < 0 || config.CallIntervalSeconds < 0)
+            throw new ArgumentException("Số dòng hiển thị và chu kỳ gọi không được âm", nameof(config));
+
         var existing = await _context.WaitingRoomDisplayConfigs
             .FirstOrDefaultAsync(c => c.RoomId == roomId);
 
@@ -103,11 +109,12 @@ public partial class ExaminationCompleteService
         }
 
         existing.DisplayTitle = config.DisplayTitle;
-        existing.DisplayRows = config.DisplayRows;
+        // 0 = "not set" → keep the entity defaults (10 rows / 30 s) instead of a board that shows nothing.
+        existing.DisplayRows = config.DisplayRows > 0 ? config.DisplayRows : 10;
         existing.ShowPatientName = config.ShowPatientName;
         existing.ShowPatientCode = config.ShowPatientCode;
         existing.EnableVoiceCall = config.EnableVoiceCall;
-        existing.CallIntervalSeconds = config.CallIntervalSeconds;
+        existing.CallIntervalSeconds = config.CallIntervalSeconds > 0 ? config.CallIntervalSeconds : 30;
         existing.IsActive = true;
 
         await _unitOfWork.SaveChangesAsync();

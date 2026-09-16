@@ -143,6 +143,7 @@ public class PatientService : IPatientService
 
     public async Task<PatientDto> CreateAsync(CreatePatientDto dto)
     {
+        await ValidatePatientAsync(dto, excludeId: null, existing: null);
         var patient = _mapper.Map<Patient>(dto);
         patient.PatientCode = await GeneratePatientCodeAsync();
 
@@ -156,11 +157,57 @@ public class PatientService : IPatientService
     {
         var patient = await _context.Patients.FindAsync(dto.Id)
             ?? throw new KeyNotFoundException("Patient not found");
+        await ValidatePatientAsync(dto, excludeId: dto.Id, existing: patient);
 
         _mapper.Map(dto, patient);
         await _context.SaveChangesAsync();
 
         return _mapper.Map<PatientDto>(patient);
+    }
+
+    /// <summary>
+    /// QA-R4: the patient-master API accepted an empty name, a date of birth in the future (2030 saved
+    /// live), a birth year of 1800, and a CCCD already belonging to another patient. Same rules as
+    /// reception's ValidateNewPatient plus the CCCD uniqueness check.
+    /// </summary>
+    /// <param name="existing">The stored row on an edit, null on create. A value the editor did not touch is
+    /// accepted even when it is invalid: the database already holds patients with a future date of birth, a
+    /// birth year of 1800 and a blank name, and rejecting those would make the very rows that need correcting
+    /// uneditable. Only a value the user actually changes has to be valid.</param>
+    private async Task ValidatePatientAsync(CreatePatientDto dto, Guid? excludeId, Patient? existing)
+    {
+        // Blank is refused on create, and on an edit that would erase a name the row already has. A row whose
+        // stored name is already blank stays editable so the rest of it can be corrected.
+        var erasesStoredName = existing == null || !string.IsNullOrWhiteSpace(existing.FullName);
+        if (string.IsNullOrWhiteSpace(dto.FullName) && erasesStoredName)
+            throw new ArgumentException("Chưa nhập họ tên bệnh nhân", nameof(dto.FullName));
+        var todayVn = HIS.Core.Common.VnTime.TodayVn;
+        if (dto.DateOfBirth.HasValue && dto.DateOfBirth.Value.Date > todayVn
+            && dto.DateOfBirth.Value.Date != existing?.DateOfBirth?.Date)
+            throw new ArgumentException("Ngày sinh không được ở tương lai", nameof(dto.DateOfBirth));
+        if (dto.YearOfBirth.HasValue && (dto.YearOfBirth.Value < 1900 || dto.YearOfBirth.Value > todayVn.Year)
+            && dto.YearOfBirth != existing?.YearOfBirth)
+            throw new ArgumentException($"Năm sinh không hợp lệ ({dto.YearOfBirth.Value})", nameof(dto.YearOfBirth));
+        if ((dto.Gender < 0 || dto.Gender > 3) && dto.Gender != existing?.Gender)
+            throw new ArgumentException($"Giới tính không hợp lệ ({dto.Gender})", nameof(dto.Gender));
+        if (!string.IsNullOrWhiteSpace(dto.PhoneNumber))
+        {
+            var digits = dto.PhoneNumber.Count(char.IsDigit);
+            if (digits < 9 || digits > 12)
+                throw new ArgumentException("Số điện thoại không hợp lệ", nameof(dto.PhoneNumber));
+        }
+        if (!string.IsNullOrWhiteSpace(dto.IdentityNumber))
+        {
+            var cccd = dto.IdentityNumber.Trim();
+            if (!cccd.All(char.IsDigit) || (cccd.Length != 9 && cccd.Length != 12))
+                throw new ArgumentException("CCCD/CMND phải gồm 9 hoặc 12 chữ số", nameof(dto.IdentityNumber));
+            var other = await _context.Patients.AsNoTracking()
+                .Where(p => !p.IsDeleted && (excludeId == null || p.Id != excludeId.Value))
+                .FindByIdentityNumberDecryptedAsync(cccd);
+            if (other != null)
+                throw new InvalidOperationException(
+                    $"Số CCCD/CMND đã thuộc bệnh nhân {other.PatientCode} - {other.FullName}. Tìm và chọn đúng bệnh nhân cũ.");
+        }
     }
 
     public async Task DeleteAsync(Guid id)

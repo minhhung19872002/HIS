@@ -361,13 +361,16 @@ public partial class ExaminationCompleteService
             .FirstOrDefaultAsync(e => e.Id == dto.ExaminationId);
 
         if (examination == null) throw new KeyNotFoundException("Examination not found");
+        // QA-R4: a finished/cancelled exam could still be moved, and an unknown room surfaced as an FK 500.
+        EnsureExaminationOpenForRoomChange(examination.Status);
 
         var newRoom = await _context.Rooms
             .Include(r => r.Department)
-            .FirstOrDefaultAsync(r => r.Id == dto.NewRoomId);
+            .FirstOrDefaultAsync(r => r.Id == dto.NewRoomId && !r.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy phòng khám đích");
 
         examination.RoomId = dto.NewRoomId;
-        examination.DepartmentId = newRoom?.DepartmentId ?? examination.DepartmentId;
+        examination.DepartmentId = newRoom.DepartmentId;
         if (dto.NewDoctorId.HasValue)
             examination.DoctorId = dto.NewDoctorId;
 
@@ -401,10 +404,30 @@ public partial class ExaminationCompleteService
         return additionalExams.Select(MapToExaminationDto).ToList();
     }
 
+    /// <summary>A room change only makes sense while the visit is still open.</summary>
+    private static void EnsureExaminationOpenForRoomChange(int status)
+    {
+        if (status == HIS.Core.Constants.ExaminationStatus.Completed)
+            throw new InvalidOperationException("Lượt khám đã hoàn thành — nhờ Quản trị/Trưởng khoa mở lại kết luận trước khi chuyển phòng.");
+        if (status == HIS.Core.Constants.ExaminationStatus.Cancelled)
+            throw new InvalidOperationException("Lượt khám đã hủy, không chuyển phòng được.");
+    }
+
     public async Task<bool> CancelAdditionalExaminationAsync(Guid examinationId, string reason)
     {
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
         if (examination == null) return false;
+
+        // QA-R4: this endpoint had no guard at all — it cancelled the PRIMARY exam, even a COMPLETED one,
+        // bypassing every rule in CancelExaminationAsync and the TT46 lock (reproduced live). Only an
+        // additional exam (khám thêm) that is still open may be cancelled here.
+        if (examination.ExaminationType == 1)
+            throw new InvalidOperationException("Đây là lượt khám chính — dùng chức năng hủy lượt khám.");
+        await EmrLockGuard.EnsureEditableByExaminationAsync(_context, examinationId);
+        if (examination.Status == HIS.Core.Constants.ExaminationStatus.Cancelled)
+            throw new InvalidOperationException("Lượt khám thêm đã hủy trước đó rồi.");
+        if (examination.Status == HIS.Core.Constants.ExaminationStatus.Completed)
+            throw new InvalidOperationException("Lượt khám thêm đã hoàn thành, không hủy thẳng được.");
 
         examination.Status = 5; // Cancelled
         // Same fix as CancelExaminationAsync (#218/T3): the reason goes to CancelReason, not over the
@@ -425,6 +448,15 @@ public partial class ExaminationCompleteService
             .FirstOrDefaultAsync(e => e.Id == examinationId);
 
         if (examination == null) throw new KeyNotFoundException("Examination not found");
+
+        // QA-R4: no guard here either — it "completed" a CANCELLED primary exam (Status 5 → 4, reproduced
+        // live), skipping the diagnosis/conclusion validation of CompleteExaminationAsync.
+        if (examination.ExaminationType == 1)
+            throw new InvalidOperationException("Đây là lượt khám chính — dùng chức năng hoàn thành khám (kết luận).");
+        if (examination.Status == HIS.Core.Constants.ExaminationStatus.Cancelled)
+            throw new InvalidOperationException("Lượt khám thêm đã hủy, không hoàn thành được.");
+        if (examination.Status == HIS.Core.Constants.ExaminationStatus.Completed)
+            return MapToExaminationDto(examination); // idempotent double-click
 
         examination.Status = 4; // Completed
         examination.EndTime = DateTime.Now;

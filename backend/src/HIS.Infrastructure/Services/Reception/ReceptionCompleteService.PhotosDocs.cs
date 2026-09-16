@@ -31,8 +31,47 @@ public partial class ReceptionCompleteService {
 
     public async Task<PatientPhotoDto> SavePhotoAsync(UploadPhotoDto dto, Guid userId)
     {
-        var fileName = dto.FileName ?? $"photo_{DateTime.Now:yyyyMMddHHmmss}.jpg";
-        var filePath = $"/photos/{dto.PatientId}/{Guid.NewGuid()}{Path.GetExtension(fileName)}";
+        // QA-R4: a zero-GUID patient/record surfaced as an FK violation (HTTP 500), and the image itself
+        // was never written anywhere — the row pointed at a file that did not exist, so every photo
+        // "uploaded" from the reception modal was silently lost.
+        if (string.IsNullOrWhiteSpace(dto.Base64Data))
+            throw new ArgumentException("Chưa có dữ liệu ảnh (base64Data)", nameof(dto.Base64Data));
+        if (!await _context.Patients.AnyAsync(p => p.Id == dto.PatientId && !p.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy bệnh nhân");
+        if (dto.MedicalRecordId.HasValue
+            && !await _context.MedicalRecords.AnyAsync(m => m.Id == dto.MedicalRecordId.Value && !m.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy hồ sơ khám");
+
+        byte[] bytes;
+        try
+        {
+            // Accept both raw base64 and a data URL ("data:image/png;base64,...").
+            var raw = dto.Base64Data.Trim();
+            var comma = raw.IndexOf(',');
+            if (raw.StartsWith("data:", StringComparison.OrdinalIgnoreCase) && comma > 0) raw = raw[(comma + 1)..];
+            bytes = Convert.FromBase64String(raw);
+        }
+        catch (FormatException)
+        {
+            throw new ArgumentException("Dữ liệu ảnh không phải base64 hợp lệ", nameof(dto.Base64Data));
+        }
+        // The payload is decoded into memory and written to container disk, so it needs a ceiling: an ID-card
+        // photo is well under this, and without it one request can exhaust the disk. NOTE (known debt, not fixed
+        // here): the folder is container-local and is lost on the next deploy — the image is stored, not durable.
+        const int maxPhotoBytes = 8 * 1024 * 1024;
+        if (bytes.LongLength > maxPhotoBytes)
+            throw new ArgumentException($"Ảnh vượt quá {maxPhotoBytes / (1024 * 1024)} MB, vui lòng chụp lại ở kích thước nhỏ hơn.", nameof(dto.Base64Data));
+
+        var fileName = string.IsNullOrWhiteSpace(dto.FileName) ? $"photo_{DateTime.Now:yyyyMMddHHmmss}.jpg" : dto.FileName.Trim();
+        var extension = Path.GetExtension(fileName);
+        if (string.IsNullOrEmpty(extension)) extension = ".jpg";
+        var storedName = $"{Guid.NewGuid()}{extension}";
+        var filePath = $"/photos/{dto.PatientId}/{storedName}";
+        // Same folder UpdatePatientPhotoAsync (ExaminationCompleteService.WaitingList) writes to, so both photo
+        // flows are served from one place.
+        var photoDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "photos", dto.PatientId.ToString());
+        Directory.CreateDirectory(photoDir);
+        await File.WriteAllBytesAsync(Path.Combine(photoDir, storedName), bytes);
 
         var photo = new PatientPhoto
         {
@@ -42,6 +81,9 @@ public partial class ReceptionCompleteService {
             PhotoType = dto.PhotoType,
             FileName = fileName,
             FilePath = filePath,
+            MimeType = extension.ToLowerInvariant() == ".png" ? "image/png" : "image/jpeg",
+            FileSize = bytes.LongLength,
+            Notes = dto.Notes,
             CapturedAt = DateTime.Now,
             CapturedByUserId = userId,
             IsActive = true
@@ -164,19 +206,65 @@ public partial class ReceptionCompleteService {
 
     #region 1.6 & 1.15 Document Hold
 
+    // DocumentHold.Status as the EXISTING rows use it: 1 = đang giữ, 2 = đã trả. QA round 4 briefly renumbered
+    // this to 0/1, which would have read every document already held on production as "đã trả" — the receipt
+    // desk would believe it had handed back ID and insurance cards it is still holding. Never renumber a status
+    // column that has live rows; name the values instead.
+    private const int HoldStatusHolding = 1;
+    private const int HoldStatusReturned = 2;
+
     public async Task<DocumentHoldDto> CreateDocumentHoldAsync(CreateDocumentHoldDto dto, Guid userId)
     {
+        // QA-R4: the v2 modal sends {patientId, medicalRecordId, documentType:int, documentNumber,
+        // documentDescription, holdNotes}. The old DTO only knew AdmissionId + string DocumentType, so every
+        // hold from the screen failed (400 on the body, or an FK 500 on the zero-GUID record, and
+        // PatientId — a NOT NULL FK — was never set at all). DocumentHolds was empty in every environment.
+        if (string.IsNullOrWhiteSpace(dto.DocumentNumber))
+            throw new ArgumentException("Chưa nhập số / mã giấy tờ", nameof(dto.DocumentNumber));
+
+        var medicalRecordId = dto.MedicalRecordId ?? dto.AdmissionId;
+        if (medicalRecordId == Guid.Empty) medicalRecordId = null;
+
+        Guid patientId;
+        if (medicalRecordId.HasValue)
+        {
+            var record = await _context.MedicalRecords.AsNoTracking()
+                .FirstOrDefaultAsync(m => m.Id == medicalRecordId.Value && !m.IsDeleted)
+                ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ khám");
+            if (dto.PatientId.HasValue && dto.PatientId.Value != Guid.Empty && dto.PatientId.Value != record.PatientId)
+                throw new ArgumentException("Hồ sơ khám không thuộc bệnh nhân này", nameof(dto.MedicalRecordId));
+            patientId = record.PatientId;
+        }
+        else
+        {
+            patientId = dto.PatientId ?? Guid.Empty;
+            if (patientId == Guid.Empty || !await _context.Patients.AnyAsync(p => p.Id == patientId && !p.IsDeleted))
+                throw new KeyNotFoundException("Không tìm thấy bệnh nhân");
+        }
+
+        var holderName = await _context.Users.AsNoTracking()
+            .Where(u => u.Id == userId).Select(u => u.FullName).FirstOrDefaultAsync();
+        var description = dto.DocumentDescription ?? dto.Description;
+        var holdNotes = dto.HoldNotes ?? dto.Note;
+
         var docHold = new DocumentHold
         {
             Id = Guid.NewGuid(),
-            MedicalRecordId = dto.AdmissionId,
-            DocumentType = int.TryParse(dto.DocumentType, out var dt) ? dt : 1,
-            DocumentNumber = dto.DocumentNumber,
-            Description = dto.Description,
-            HoldDate = DateTime.Now,
+            PatientId = patientId,
+            MedicalRecordId = medicalRecordId,
+            DocumentType = dto.DocumentType > 0 ? dto.DocumentType : 1,
+            DocumentNumber = dto.DocumentNumber.Trim(),
+            DocumentDescription = description,
+            Description = description,
+            Quantity = dto.Quantity > 0 ? dto.Quantity : 1,
+            HoldDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
+            HoldBy = holderName ?? userId.ToString(),
             HeldByUserId = userId,
-            Status = 1, // Holding
-            Notes = dto.Note
+            HoldNotes = holdNotes,
+            Notes = holdNotes,
+            Status = HoldStatusHolding, // keep the numbering the existing rows already use
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = userId.ToString()
         };
 
         await _context.DocumentHolds.AddAsync(docHold);
@@ -189,11 +277,22 @@ public partial class ReceptionCompleteService {
     {
         var docHold = await _context.DocumentHolds.FindAsync(dto.DocumentHoldId);
         if (docHold == null) throw new KeyNotFoundException("Document hold not found");
+        if (docHold.Status == HoldStatusReturned)
+            throw new InvalidOperationException("Giấy tờ này đã được trả trước đó rồi.");
 
-        docHold.ReturnDate = DateTime.Now;
+        var returnerName = await _context.Users.AsNoTracking()
+            .Where(u => u.Id == userId).Select(u => u.FullName).FirstOrDefaultAsync();
+
+        docHold.ReturnDate = HIS.Core.Common.VnTime.NowVn;
         docHold.ReturnedByUserId = userId;
-        docHold.Status = 2; // Returned
-        docHold.Notes = dto.Note;
+        docHold.ReturnBy = returnerName ?? userId.ToString();
+        docHold.Status = HoldStatusReturned;
+        docHold.ReturnNotes = dto.ReturnNotes ?? dto.Note;
+        docHold.ReturnToPersonName = dto.ReturnToPersonName;
+        docHold.ReturnToPersonPhone = dto.ReturnToPersonPhone;
+        docHold.ReturnToPersonRelation = dto.ReturnToPersonRelation;
+        docHold.UpdatedAt = DateTime.UtcNow;
+        docHold.UpdatedBy = userId.ToString();
 
         await _unitOfWork.SaveChangesAsync();
 
@@ -202,15 +301,12 @@ public partial class ReceptionCompleteService {
 
     public async Task<PagedResultDto<DocumentHoldDto>> SearchDocumentHoldsAsync(DocumentHoldSearchDto dto)
     {
-        var query = _context.DocumentHolds.AsQueryable();
+        var query = _context.DocumentHolds.Where(d => !d.IsDeleted);
 
         if (dto.PatientId.HasValue)
         {
-            var mrIds = await _context.MedicalRecords
-                .Where(m => m.PatientId == dto.PatientId.Value)
-                .Select(m => m.Id)
-                .ToListAsync();
-            query = query.Where(d => d.MedicalRecordId.HasValue && mrIds.Contains(d.MedicalRecordId.Value));
+            // PatientId is stored on the hold itself (a hold may exist without a visit).
+            query = query.Where(d => d.PatientId == dto.PatientId.Value);
         }
 
         if (dto.DocumentType.HasValue)
@@ -220,9 +316,12 @@ public partial class ReceptionCompleteService {
             query = query.Where(d => d.Status == dto.Status.Value);
 
         var total = await query.CountAsync();
+        var page = Math.Max(1, dto.Page);
+        var pageSize = Math.Clamp(dto.PageSize, 1, 200);
         var items = await query
-            .Skip((dto.Page - 1) * dto.PageSize)
-            .Take(dto.PageSize)
+            .OrderByDescending(d => d.HoldDate)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
         var dtos = new List<DocumentHoldDto>();
@@ -235,20 +334,15 @@ public partial class ReceptionCompleteService {
         {
             Items = dtos,
             TotalCount = total,
-            Page = dto.Page,
-            PageSize = dto.PageSize
+            Page = page,
+            PageSize = pageSize
         };
     }
 
     public async Task<List<DocumentHoldDto>> GetPatientDocumentHoldsAsync(Guid patientId)
     {
-        var mrIds = await _context.MedicalRecords
-            .Where(m => m.PatientId == patientId)
-            .Select(m => m.Id)
-            .ToListAsync();
-
         var holds = await _context.DocumentHolds
-            .Where(d => d.MedicalRecordId.HasValue && mrIds.Contains(d.MedicalRecordId.Value) && d.Status == 1)
+            .Where(d => d.PatientId == patientId && d.Status == HoldStatusHolding && !d.IsDeleted)
             .ToBoundedListAsync("ReceptionCompleteService.GetPatientDocumentHoldsAsync");
 
         var result = new List<DocumentHoldDto>();
@@ -262,30 +356,32 @@ public partial class ReceptionCompleteService {
     public async Task<DocumentHoldReceiptDto> GetDocumentHoldReceiptAsync(Guid documentHoldId)
     {
         var hold = await _context.DocumentHolds
+            .Include(d => d.Patient)
             .Include(d => d.MedicalRecord)
             .ThenInclude(m => m.Patient)
             .FirstOrDefaultAsync(d => d.Id == documentHoldId);
 
         if (hold == null) throw new KeyNotFoundException("Document hold not found");
 
+        var patient = hold.Patient ?? hold.MedicalRecord?.Patient;
         return new DocumentHoldReceiptDto
         {
             ReceiptNumber = $"GGT{hold.HoldDate:yyyyMMdd}{hold.Id.ToString().Substring(0, 4).ToUpper()}",
             ReceiptDate = hold.HoldDate,
-            PatientCode = hold.MedicalRecord?.Patient?.PatientCode ?? "",
-            PatientName = hold.MedicalRecord?.Patient?.FullName ?? "",
-            PatientPhone = hold.MedicalRecord?.Patient?.PhoneNumber,
+            PatientCode = patient?.PatientCode ?? "",
+            PatientName = patient?.FullName ?? "",
+            PatientPhone = patient?.PhoneNumber,
             Documents = new List<DocumentHoldItemDto>
             {
                 new DocumentHoldItemDto
                 {
                     DocumentTypeName = GetDocumentTypeName(hold.DocumentType),
                     DocumentNumber = hold.DocumentNumber ?? "",
-                    Quantity = 1,
-                    Description = hold.Description
+                    Quantity = hold.Quantity > 0 ? hold.Quantity : 1,
+                    Description = hold.DocumentDescription ?? hold.Description
                 }
             },
-            Notes = hold.Notes
+            Notes = hold.HoldNotes ?? hold.Notes
         };
     }
 

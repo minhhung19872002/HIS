@@ -150,6 +150,12 @@ public class TreatmentProtocolService : ITreatmentProtocolService
 
     public async Task<TreatmentProtocolDto> SaveProtocolAsync(SaveTreatmentProtocolDto dto)
     {
+        // QA-R4: an empty body created a protocol with Code = "" / Name = "" (12 blank rows found).
+        if (string.IsNullOrWhiteSpace(dto.Code))
+            throw new ArgumentException("Chưa nhập mã phác đồ", nameof(dto.Code));
+        if (string.IsNullOrWhiteSpace(dto.Name))
+            throw new ArgumentException("Chưa nhập tên phác đồ", nameof(dto.Name));
+
         TreatmentProtocol entity;
 
         if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
