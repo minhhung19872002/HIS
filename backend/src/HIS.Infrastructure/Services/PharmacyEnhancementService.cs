@@ -102,8 +102,27 @@ public class PharmacyEnhancementService : IPharmacyEnhancementService
         });
     }
 
-    public async Task<ServiceOutcome> CreateCompoundingOrderAsync(CompoundingOrder dto, Guid userId)
+    public async Task<ServiceOutcome> CreateCompoundingOrderAsync(CreateCompoundingOrderDto dto, Guid userId)
     {
+        // QA-R4: an empty body reached SaveChanges and died on FK_CompoundingOrders_Departments (500);
+        // negative ingredient quantities were accepted. Validate the parents and the lines first.
+        if (dto.Items == null || dto.Items.Count == 0)
+            return ServiceOutcome.Bad("Phiếu pha chế phải có ít nhất 1 thành phần.");
+        if (dto.Items.Any(i => i.Quantity <= 0))
+            return ServiceOutcome.Bad("Số lượng mỗi thành phần phải lớn hơn 0.");
+        if (dto.CompoundingType is < 1 or > 4)
+            return ServiceOutcome.Bad("Loại pha chế không hợp lệ (1 IV, 2 TPN, 3 độc tế bào, 4 khác).");
+        if (!await _db.Patients.AnyAsync(p => p.Id == dto.PatientId && !p.IsDeleted))
+            return ServiceOutcome.NotFound("Không tìm thấy bệnh nhân.");
+        if (!await _db.Departments.AnyAsync(d => d.Id == dto.DepartmentId && !d.IsDeleted))
+            return ServiceOutcome.NotFound("Không tìm thấy khoa.");
+        if (!await _db.Prescriptions.AnyAsync(p => p.Id == dto.PrescriptionId && !p.IsDeleted))
+            return ServiceOutcome.NotFound("Không tìm thấy đơn thuốc.");
+        var medicineIds = dto.Items.Select(i => i.MedicineId).Distinct().ToList();
+        var knownMedicines = await _db.Medicines.Where(m => medicineIds.Contains(m.Id) && !m.IsDeleted).CountAsync();
+        if (knownMedicines != medicineIds.Count)
+            return ServiceOutcome.NotFound("Có thành phần không tồn tại trong danh mục thuốc.");
+
         var entity = new CompoundingOrder
         {
             Id = Guid.NewGuid(),
@@ -149,6 +168,9 @@ public class PharmacyEnhancementService : IPharmacyEnhancementService
     {
         var c = await _db.CompoundingOrders.FindAsync(id);
         if (c == null) return ServiceOutcome.NotFound();
+        // QA-R4 state machine: 0 chờ → 1 đang pha → 2 hoàn thành; 3 hủy là trạng thái cuối.
+        if (c.Status != 0)
+            return ServiceOutcome.Bad("Chỉ bắt đầu pha chế được phiếu đang chờ.");
         c.Status = 1;
         c.PreparedById = userId;
         c.PreparedAt = DateTime.Now;
@@ -162,6 +184,8 @@ public class PharmacyEnhancementService : IPharmacyEnhancementService
     {
         var c = await _db.CompoundingOrders.FindAsync(id);
         if (c == null) return ServiceOutcome.NotFound();
+        if (c.Status != 1)
+            return ServiceOutcome.Bad("Chỉ hoàn thành được phiếu đang pha chế (bấm Bắt đầu trước).");
         c.Status = 2;
         c.CheckedById = userId;
         c.CheckedAt = DateTime.Now;
@@ -175,8 +199,12 @@ public class PharmacyEnhancementService : IPharmacyEnhancementService
     {
         var c = await _db.CompoundingOrders.FindAsync(id);
         if (c == null) return ServiceOutcome.NotFound();
+        if (c.Status == 2)
+            return ServiceOutcome.Bad("Phiếu pha chế đã hoàn thành, không hủy được.");
+        if (c.Status == 3)
+            return ServiceOutcome.Bad("Phiếu pha chế đã hủy trước đó.");
         c.Status = 3;
-        c.CancelReason = dto.Reason;
+        c.CancelReason = dto?.Reason;
         c.UpdatedAt = DateTime.Now;
         c.UpdatedBy = userId.ToString();
         await _db.SaveChangesAsync();

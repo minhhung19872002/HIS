@@ -42,7 +42,7 @@ public class PharmacyEnhancementController : ControllerBase
 
     [HttpPost("compounding")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Pharmacist + "," + RoleNames.PharmacyHead)]
-    public async Task<IActionResult> CreateCompoundingOrder([FromBody] CompoundingOrder dto)
+    public async Task<IActionResult> CreateCompoundingOrder([FromBody] CreateCompoundingOrderDto dto)
         => (await _svc.CreateCompoundingOrderAsync(dto, GetUserId())).ToActionResult();
 
     [HttpPut("compounding/{id:guid}/start")]

@@ -91,20 +91,32 @@ public partial class HospitalPharmacyService
 
     public async Task<PharmacyCustomerDetailDto> SaveCustomerAsync(SavePharmacyCustomerDto dto)
     {
+        // QA-R4: blank-name customers were created (write-scan left 4 nameless rows in the list).
+        if (string.IsNullOrWhiteSpace(dto.FullName))
+            throw new ArgumentException("Vui lòng nhập tên khách hàng.", nameof(dto.FullName));
+        dto.FullName = dto.FullName.Trim();
+
         PharmacyCustomer customer;
         if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
         {
             customer = await _context.PharmacyCustomers.FindAsync(dto.Id.Value)
-                ?? throw new InvalidOperationException("Customer not found");
+                ?? throw new KeyNotFoundException("Không tìm thấy khách hàng.");
             customer.UpdatedAt = DateTime.UtcNow;
         }
         else
         {
-            var count = await _context.PharmacyCustomers.CountAsync();
+            // QA-R4: COUNT(*)+1 handed two concurrent saves the same code (KH-0008 twice in the dev DB);
+            // continue from the highest existing number instead so the code is at least monotonic.
+            var lastCode = await _context.PharmacyCustomers
+                .Where(c => c.CustomerCode.StartsWith("KH-"))
+                .OrderByDescending(c => c.CustomerCode)
+                .Select(c => c.CustomerCode)
+                .FirstOrDefaultAsync();
+            var next = lastCode != null && int.TryParse(lastCode.AsSpan(3), out var n) ? n + 1 : await _context.PharmacyCustomers.CountAsync() + 1;
             customer = new PharmacyCustomer
             {
                 Id = Guid.NewGuid(),
-                CustomerCode = $"KH-{(count + 1):D4}",
+                CustomerCode = $"KH-{next:D4}",
                 CreatedAt = DateTime.UtcNow,
             };
             _context.PharmacyCustomers.Add(customer);

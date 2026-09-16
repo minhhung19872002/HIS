@@ -21,7 +21,7 @@ public interface IHospitalPharmacyService
 
     // Shifts
     Task<List<PharmacyShiftListDto>> GetShiftsAsync(PharmacyShiftSearchDto filter);
-    Task<PharmacyShiftListDto> OpenShiftAsync(OpenShiftDto dto);
+    Task<PharmacyShiftListDto> OpenShiftAsync(OpenShiftDto dto, Guid cashierId);
     Task<PharmacyShiftListDto> CloseShiftAsync(CloseShiftDto dto);
     Task<PharmacyShiftListDto?> GetCurrentShiftAsync();
 

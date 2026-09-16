@@ -694,30 +694,28 @@ public partial class WarehouseCompleteService {
             throw new InvalidOperationException(
                 "Phiếu kiểm kê đã hoàn thành, không ghi thêm kết quả được.");
 
-        // Ghi đè trọn bộ dòng kiểm kê của phiếu: đây là "lưu kết quả kiểm", không phải thêm dần.
-        var old = await _context.StockTakeItems.Where(i => i.StockTakeId == stockTakeId).ToListAsync();
-        _context.StockTakeItems.RemoveRange(old);
+        // QA-R4: the old version REPLACED every count row with whatever the client sent — BookQuantity,
+        // UnitPrice and even the lot (StockId) came from the request, and rows not sent vanished (measured:
+        // 1557 sheet rows → 1 row with BookQuantity 0 / UnitPrice 999999 on a 10-unit lot; the following
+        // "Điều chỉnh tồn" would then have booked +4 phantom units). The sheet (lots, book qty, price) was
+        // snapshotted at creation and is the server's; the client only reports the physical count + a note.
+        var sheet = await _context.StockTakeItems
+            .Where(i => i.StockTakeId == stockTakeId && !i.IsDeleted)
+            .ToListAsync();
+        var byLot = sheet.GroupBy(i => i.InventoryItemId).ToDictionary(g => g.Key, g => g.First());
+        var byId = sheet.ToDictionary(i => i.Id);
 
         var now = DateTime.UtcNow;
         foreach (var item in items ?? new List<StockTakeItemDto>())
         {
-            item.StockTakeId = stockTakeId;
-            await _context.StockTakeItems.AddAsync(new StockTakeItem
-            {
-                Id = Guid.NewGuid(),
-                StockTakeId = stockTakeId,
-                InventoryItemId = item.StockId,
-                ItemId = item.ItemId,
-                ItemCode = item.ItemCode,
-                ItemName = item.ItemName,
-                Unit = item.Unit,
-                BatchNumber = item.BatchNumber,
-                ExpiryDate = item.ExpiryDate,
-                BookQuantity = item.BookQuantity,
-                ActualQuantity = item.ActualQuantity,
-                UnitPrice = item.UnitPrice,
-                CreatedAt = now,
-            });
+            if (!byId.TryGetValue(item.Id, out var row) && !byLot.TryGetValue(item.StockId, out row))
+                throw new InvalidOperationException(
+                    $"Lô {item.BatchNumber ?? "(không số lô)"} của {item.ItemName} không thuộc phiếu kiểm kê này.");
+            if (item.ActualQuantity < 0)
+                throw new InvalidOperationException($"Số thực đếm của {row.ItemName} không được âm.");
+            row.ActualQuantity = item.ActualQuantity;
+            row.Notes = item.Notes;
+            row.UpdatedAt = now;
         }
 
         stockTake.Status = 1; // Đang kiểm
@@ -725,14 +723,42 @@ public partial class WarehouseCompleteService {
         stockTake.UpdatedBy = userId.ToString();
         await _context.SaveChangesAsync();
 
+        return await MapStockTakeAsync(stockTake, sheet, userId);
+    }
+
+    /// <summary>StockTake + sheet rows → DTO (the page re-seeds its state from this after every save).</summary>
+    private async Task<StockTakeDto> MapStockTakeAsync(StockTake stockTake, List<StockTakeItem> sheet, Guid userId)
+    {
+        var warehouseName = await _context.Warehouses.AsNoTracking()
+            .Where(w => w.Id == stockTake.WarehouseId).Select(w => w.WarehouseName).FirstOrDefaultAsync();
         var user = await _context.Users.FindAsync(userId);
         return new StockTakeDto
         {
             Id = stockTake.Id,
             StockTakeCode = stockTake.StockTakeCode,
             StockTakeDate = stockTake.StockTakeDate,
-            Items = items ?? new List<StockTakeItemDto>(),
+            WarehouseId = stockTake.WarehouseId,
+            WarehouseName = warehouseName ?? string.Empty,
+            PeriodFrom = stockTake.PeriodFrom,
+            PeriodTo = stockTake.PeriodTo,
+            Items = sheet.Select(i => new StockTakeItemDto
+            {
+                Id = i.Id,
+                StockTakeId = i.StockTakeId,
+                StockId = i.InventoryItemId,
+                ItemId = i.ItemId,
+                ItemCode = i.ItemCode,
+                ItemName = i.ItemName,
+                Unit = i.Unit ?? string.Empty,
+                BatchNumber = i.BatchNumber,
+                ExpiryDate = i.ExpiryDate,
+                BookQuantity = i.BookQuantity,
+                ActualQuantity = i.ActualQuantity,
+                UnitPrice = i.UnitPrice,
+                Notes = i.Notes,
+            }).ToList(),
             Status = stockTake.Status,
+            Notes = stockTake.Notes,
             CreatedBy = userId,
             CreatedByName = user?.FullName ?? string.Empty,
             CreatedAt = stockTake.CreatedAt
@@ -955,43 +981,38 @@ public partial class WarehouseCompleteService {
     {
         try
         {
-            var inventoryItems = await _context.InventoryItems
-                .Include(i => i.Medicine)
-                .Include(i => i.Supply)
-                .Include(i => i.Warehouse)
-                .Where(i => i.Warehouse != null && i.Warehouse.IsActive)
-                .OrderBy(i => i.Medicine != null ? i.Medicine.MedicineName : (i.Supply != null ? i.Supply.SupplyName : ""))
-                .Take(200)
-                .ToListAsync();
+            // QA-R4: ignored stockTakeId — printed the first 200 CURRENT inventory rows of whichever active
+            // warehouse sorted first, with actual = book (difference always 0). Print the sheet that was counted.
+            var stockTake = await _context.StockTakes.AsNoTracking()
+                .Include(s => s.Warehouse)
+                .Include(s => s.Items)
+                .FirstOrDefaultAsync(s => s.Id == stockTakeId && !s.IsDeleted);
+            if (stockTake == null) return Array.Empty<byte>();
 
-            var warehouseName = inventoryItems.FirstOrDefault()?.Warehouse?.WarehouseName ?? "";
+            var warehouseName = stockTake.Warehouse?.WarehouseName ?? "";
 
             var headers = new[] { "Ten hang", "DVT", "SL so sach", "SL thuc te", "Chenh lech", "Don gia", "Gia tri CL", "Ghi chu" };
-            var rows = inventoryItems.Select(i =>
+            var rows = stockTake.Items.Where(i => !i.IsDeleted)
+                .OrderBy(i => i.ItemName).ThenBy(i => i.BatchNumber)
+                .Select(i =>
             {
-                var name = i.Medicine?.MedicineName ?? i.Supply?.SupplyName ?? "";
-                var unit = i.Medicine?.Unit ?? i.Supply?.Unit ?? "";
-                var bookQty = i.Quantity;
-                // In a stock take report, actual quantity defaults to book quantity until counted
-                var actualQty = bookQty;
-                var diff = actualQty - bookQty;
-                var price = i.UnitPrice;
+                var diff = i.ActualQuantity - i.BookQuantity;
                 return new[]
                 {
-                    name, unit,
-                    bookQty.ToString("#,##0"),
-                    actualQty.ToString("#,##0"),
-                    diff.ToString("#,##0"),
-                    price.ToString("#,##0"),
-                    (diff * price).ToString("#,##0"),
-                    i.BatchNumber ?? ""
+                    i.ItemName, i.Unit ?? "",
+                    i.BookQuantity.ToString("#,##0.##"),
+                    i.ActualQuantity.ToString("#,##0.##"),
+                    diff.ToString("#,##0.##"),
+                    i.UnitPrice.ToString("#,##0"),
+                    (diff * i.UnitPrice).ToString("#,##0"),
+                    string.Join(" ", new[] { i.BatchNumber != null ? $"Lo: {i.BatchNumber}" : null, i.Notes }.Where(s => !string.IsNullOrEmpty(s)))
                 };
             }).ToList();
 
             var html = BuildTableReport(
                 "BIEN BAN KIEM KE",
-                $"Kho: {warehouseName}",
-                DateTime.Now,
+                $"Kho: {warehouseName} - Phieu {stockTake.StockTakeCode} - Ky {stockTake.PeriodFrom:dd/MM/yyyy} den {stockTake.PeriodTo:dd/MM/yyyy}",
+                stockTake.StockTakeDate,
                 headers, rows,
                 null, "Truong ban kiem ke");
 

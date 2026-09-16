@@ -52,9 +52,22 @@ public partial class HospitalPharmacyService
         }
     }
 
-    public async Task<PharmacyShiftListDto> OpenShiftAsync(OpenShiftDto dto)
+    public async Task<PharmacyShiftListDto> OpenShiftAsync(OpenShiftDto dto, Guid cashierId)
     {
-        var now = DateTime.UtcNow;
+        if (dto.OpeningCash < 0)
+            throw new InvalidOperationException("Tiền đầu ca không được âm.");
+        // QA-R4: one open shift per cashier — a second "Mở ca" while the first is still open would make
+        // CloseShift's sales window (StartTime → now) overlap and the cash reconcile meaningless.
+        var stillOpen = await _context.PharmacyShifts
+            .Where(s => !s.IsDeleted && s.CashierId == cashierId && s.Status == 1)
+            .Select(s => s.ShiftCode)
+            .FirstOrDefaultAsync();
+        if (stillOpen != null)
+            throw new InvalidOperationException($"Ca {stillOpen} của bạn đang mở — đóng ca trước khi mở ca mới.");
+
+        // QA-R4 time: StartTime/EndTime are business timestamps → VN wall clock (VnTime.NowVn); the v2
+        // page renders them as local, so the old UtcNow showed "Mở ca 02:05" for a shift opened 09:05.
+        var now = HIS.Core.Common.VnTime.NowVn;
         var dateStr = now.ToString("yyyyMMdd");
         var todayCount = await _context.PharmacyShifts
             .Where(s => s.ShiftCode.StartsWith($"CA-{dateStr}"))
@@ -64,12 +77,12 @@ public partial class HospitalPharmacyService
         {
             Id = Guid.NewGuid(),
             ShiftCode = $"CA-{dateStr}-{(todayCount + 1)}",
-            CashierId = Guid.Empty, // Set from auth context in controller
+            CashierId = cashierId, // the signed-in cashier (controller reads the token)
             StartTime = now,
             OpeningCash = dto.OpeningCash,
             Status = 1, // Open
             Notes = dto.Notes,
-            CreatedAt = now,
+            CreatedAt = DateTime.UtcNow,
         };
         _context.PharmacyShifts.Add(shift);
         await _context.SaveChangesAsync();
@@ -89,20 +102,32 @@ public partial class HospitalPharmacyService
     public async Task<PharmacyShiftListDto> CloseShiftAsync(CloseShiftDto dto)
     {
         var shift = await _context.PharmacyShifts.Include(s => s.Cashier).FirstOrDefaultAsync(s => s.Id == dto.ShiftId && !s.IsDeleted)
-            ?? throw new InvalidOperationException("Shift not found");
+            ?? throw new KeyNotFoundException("Không tìm thấy ca làm việc.");
 
         if (shift.Status == 2)
             throw new InvalidOperationException("Shift already closed");
+        if (dto.ClosingCash < 0)
+            throw new InvalidOperationException("Tiền cuối ca không được âm.");
 
-        // Calculate totals from sales during this shift
+        // Calculate totals from sales during this shift.
+        // QA-R4: was every cashier's sales (the reconcile of one till included the other counters) and
+        // TotalRefunds was hard-coded 0 — a sale cancelled during the shift still counted as revenue.
+        // QA-R4 time: RetailSales.CreatedAt/CancelledAt are UTC, shift.StartTime is VN local → UTC bounds.
+        var closeAt = DateTime.UtcNow;
+        var startUtc = ReportPeriod.ToUtc(shift.StartTime);
         var salesDuringShift = await _context.RetailSales
-            .Where(s => !s.IsDeleted && s.Status == "Completed" && s.CreatedAt >= shift.StartTime && s.CreatedAt <= DateTime.UtcNow)
+            .Where(s => !s.IsDeleted && s.CashierId == shift.CashierId
+                && s.CreatedAt >= startUtc && s.CreatedAt <= closeAt)
             .ToListAsync();
+        var refundsDuringShift = await _context.RetailSales
+            .Where(s => !s.IsDeleted && s.CashierId == shift.CashierId && s.Status == "Cancelled"
+                && s.CancelledAt != null && s.CancelledAt >= startUtc && s.CancelledAt <= closeAt)
+            .SumAsync(s => (decimal?)s.PaidAmount) ?? 0;
 
-        shift.EndTime = DateTime.UtcNow;
+        shift.EndTime = HIS.Core.Common.VnTime.NowVn;
         shift.ClosingCash = dto.ClosingCash;
-        shift.TotalSales = salesDuringShift.Sum(s => s.PaidAmount);
-        shift.TotalRefunds = 0;
+        shift.TotalSales = salesDuringShift.Where(s => s.Status == "Completed").Sum(s => s.PaidAmount);
+        shift.TotalRefunds = refundsDuringShift;
         shift.Status = 2; // Closed
         shift.Notes = dto.Notes ?? shift.Notes;
         shift.UpdatedAt = DateTime.UtcNow;

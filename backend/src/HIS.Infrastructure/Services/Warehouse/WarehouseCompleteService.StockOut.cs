@@ -124,7 +124,9 @@ public partial class WarehouseCompleteService {
         // `IsDispensed` có được đặt bên dưới nhưng không chỗ nào đọc nó làm điều kiện — nó chỉ dùng
         // để lọc danh sách chờ phát trên màn hình, tức giấu đơn khỏi worklist chứ không chặn một
         // lời gọi thẳng theo id.
-        if (!prescription.Details.Any(d => !d.IsDeleted && d.Status == 0))
+        // A line the pharmacist issued only partly (DispensedQuantity < Quantity) is still owed to the patient,
+        // so it keeps the prescription dispensable — otherwise the remainder was stranded forever.
+        if (!prescription.Details.Any(d => !d.IsDeleted && (d.Status == 0 || d.DispensedQuantity < d.Quantity)))
             throw new InvalidOperationException(
                 "Đơn thuốc này đã phát hết, không phát lại được.");
         await EnsureNotSoldAtPharmacyAsync(prescriptionId);
@@ -156,7 +158,7 @@ public partial class WarehouseCompleteService {
         // #218/T3: chỉ những dòng CHƯA phát, giống hệt hàm anh em bên nội trú. Thiếu mệnh đề này là
         // gọi lại sẽ phát lại cả những dòng đã phát rồi.
         // QA0915: bỏ dòng thuốc đã xoá mềm (bác sĩ gỡ khỏi đơn) — trước đây vẫn bị phát + trừ kho.
-        foreach (var detail in prescription.Details.Where(d => !d.IsDeleted && d.Status == 0))
+        foreach (var detail in prescription.Details.Where(d => !d.IsDeleted && (d.Status == 0 || d.DispensedQuantity < d.Quantity)))
         {
             // FEFO gộp NHIỀU lô (audit luồng nghiệp vụ 2026-06-06 #12): chọn các lô còn hạn theo
             // hạn dùng tăng dần đến khi đủ số lượng. Tổng tồn không đủ → THROW (transaction rollback),
@@ -171,13 +173,27 @@ public partial class WarehouseCompleteService {
                 .OrderBy(i => i.ExpiryDate)
                 .ToListAsync();
 
+            // QA-R4: the pharmacist can save a SMALLER "số lượng cấp phát" per line on the Pharmacy page
+            // (PUT /pharmacy/medications/{id}/dispense, clamped to [0, prescribed]) — this path then issued
+            // and billed the FULL prescribed quantity anyway (measured: saved 1 of 10 → 10 left the shelf,
+            // DispensedQuantity = 10). Honour the saved partial quantity; 0 / unset means "full".
+            // What previous rounds already handed over (a line only carries that once it is marked dispensed).
+            var issuedSoFar = detail.Status == 1 ? detail.DispensedQuantity : 0;
+            // A line not yet dispensed honours the quantity the pharmacist saved; 0 / unset means "full".
+            // A line already partly dispensed is being topped up, so the target is the full prescribed amount.
+            var target = detail.Status == 0 && detail.DispensedQuantity > 0 && detail.DispensedQuantity < detail.Quantity
+                ? detail.DispensedQuantity
+                : detail.Quantity;
+            var qtyToIssue = target - issuedSoFar;
+            if (qtyToIssue <= 0) continue;
+
             var totalAvailable = batches.Sum(b => b.Quantity - b.ReservedQuantity);
-            if (totalAvailable < detail.Quantity)
+            if (totalAvailable < qtyToIssue)
                 throw new InvalidOperationException(
                     $"Không đủ tồn kho để phát thuốc {detail.Medicine?.MedicineName ?? detail.MedicineId.ToString()} " +
-                    $"(cần {detail.Quantity}, còn {totalAvailable})");
+                    $"(cần {qtyToIssue}, còn {totalAvailable})");
 
-            var remaining = detail.Quantity;
+            var remaining = qtyToIssue;
             foreach (var stock in batches)
             {
                 if (remaining <= 0) break;
@@ -225,8 +241,8 @@ public partial class WarehouseCompleteService {
                 });
             }
 
-            detail.DispensedQuantity = detail.Quantity;
-            detail.Status = 1; // Đã cấp
+            detail.DispensedQuantity = issuedSoFar + qtyToIssue;
+            detail.Status = 1; // Đã cấp (đủ hoặc một phần — đơn mang trạng thái 6 khi còn thiếu)
         }
 
         exportReceipt.TotalAmount = totalAmount;

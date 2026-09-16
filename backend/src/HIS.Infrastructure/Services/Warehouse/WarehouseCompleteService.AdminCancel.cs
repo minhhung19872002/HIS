@@ -617,6 +617,19 @@ public partial class WarehouseCompleteService {
     public async Task<HIS.Application.DTOs.NangCap18.DrugEquivalenceDto> SaveDrugEquivalenceAsync(
         HIS.Application.DTOs.NangCap18.SaveDrugEquivalenceDto dto, Guid userId)
     {
+        // QA-R4: an empty / zero-GUID body hit FK_DrugEquivalences_Medicines → 500. Validate first.
+        if (dto.MedicineId == Guid.Empty || dto.EquivalentMedicineId == Guid.Empty)
+            throw new ArgumentException("Chọn đủ hai thuốc để khai báo tương đương.", nameof(dto.MedicineId));
+        if (dto.MedicineId == dto.EquivalentMedicineId)
+            throw new ArgumentException("Thuốc tương đương phải khác thuốc gốc.", nameof(dto.EquivalentMedicineId));
+        var pair = new[] { dto.MedicineId, dto.EquivalentMedicineId };
+        var found = await _context.Medicines.AsNoTracking()
+            .Where(m => pair.Contains(m.Id) && !m.IsDeleted)
+            .Select(m => m.Id)
+            .ToListAsync();
+        if (found.Count < 2)
+            throw new KeyNotFoundException("Thuốc không tồn tại trong danh mục.");
+
         // Check if equivalence already exists
         var existing = await _context.Set<DrugEquivalence>()
             .FirstOrDefaultAsync(e => !e.IsDeleted &&

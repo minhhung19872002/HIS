@@ -148,7 +148,11 @@ public class HospitalPharmacyController : ControllerBase
     [HttpPost("shifts/open")]
     public async Task<ActionResult<PharmacyShiftListDto>> OpenShift([FromBody] OpenShiftDto dto)
     {
-        return Ok(await _hospitalPharmacyService.OpenShiftAsync(dto));
+        // QA-R4: the service saved CashierId = Guid.Empty ("set from auth context in controller" — it never
+        // was) → FK_PharmacyShifts_Users failed → every "Mở ca" was a 500 and no shift ever existed.
+        if (!Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var cashierId))
+            return Unauthorized(new { error = "UNAUTHORIZED", message = "Không xác định được thu ngân đang đăng nhập." });
+        return Ok(await _hospitalPharmacyService.OpenShiftAsync(dto, cashierId));
     }
 
     [HttpPost("shifts/close")]

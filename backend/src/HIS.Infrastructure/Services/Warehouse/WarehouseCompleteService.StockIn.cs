@@ -40,6 +40,20 @@ public partial class WarehouseCompleteService {
                 throw new InvalidOperationException("VAT% và chiết khấu% mỗi dòng phải trong khoảng 0–100.");
     }
 
+    /// <summary>
+    /// QA-R4: goods coming IN from a supplier / other source with an expiry already in the past were accepted
+    /// (measured: 200, lot created) — the lot then sits in stock value / reports and can only leave by destruction.
+    /// Returns from departments / transfers keep their (possibly expired) lot as-is, so only intake types check.
+    /// </summary>
+    private static void EnsureNotExpiredOnIntake(IEnumerable<(string? BatchNumber, DateTime? ExpiryDate)> lines)
+    {
+        var today = DateTime.Today;
+        foreach (var (batch, expiry) in lines)
+            if (expiry.HasValue && expiry.Value.Date < today)
+                throw new InvalidOperationException(
+                    $"Lô {batch ?? "(không số lô)"} đã hết hạn ({expiry:dd/MM/yyyy}) — không nhập kho được.");
+    }
+
     public async Task<StockReceiptDto> CreateSupplierReceiptAsync(CreateStockReceiptDto dto, Guid userId)
     {
         var warehouse = await _context.Warehouses.FindAsync(dto.WarehouseId);
@@ -78,6 +92,7 @@ public partial class WarehouseCompleteService {
             .ToDictionaryAsync(m => m.Id);
         EnsureValidReceiptItems(dto, medicinesMap);
         EnsureValidReceiptRates(dto);
+        EnsureNotExpiredOnIntake(dto.Items.Select(i => (i.BatchNumber, i.ExpiryDate)));
 
         foreach (var item in dto.Items)
         {
@@ -208,7 +223,7 @@ public partial class WarehouseCompleteService {
         _context.ImportReceiptDetails.RemoveRange(receipt.Details);
 
         // Re-create details
-        decimal totalAmount = 0;
+        decimal totalAmount = 0, vatTotal = 0, discountTotal = 0;
         var items = new List<StockReceiptItemDto>();
 
         // perf(#195): batch-load medicines used in this receipt instead of FindAsync per item (N+1)
@@ -217,12 +232,21 @@ public partial class WarehouseCompleteService {
             .Where(m => medicineIds.Contains(m.Id))
             .ToDictionaryAsync(m => m.Id);
         EnsureValidReceiptItems(dto, medicinesMap);
+        EnsureValidReceiptRates(dto);
+        if (receipt.ImportType is 1 or 2)
+            EnsureNotExpiredOnIntake(dto.Items.Select(i => (i.BatchNumber, i.ExpiryDate)));
 
         foreach (var item in dto.Items)
         {
             medicinesMap.TryGetValue(item.ItemId, out var medicine);
             var amount = item.Quantity * item.UnitPrice;
             totalAmount += amount;
+            // QA-R4: editing a pending receipt re-saved the lines with Vat = 0 and FinalAmount = goods value
+            // while the header kept the OLD Vat/Discount (measured: Vat 1000 / Discount 500 / Final 10000 for a
+            // 10000 + 10% − 5% receipt) → supplier payable disagreed with the invoice after any edit. Same
+            // arithmetic as CreateSupplierReceiptAsync.
+            vatTotal += Math.Round(amount * item.VatRate / 100, 2);
+            discountTotal += Math.Round(amount * item.DiscountRate / 100, 2);
 
             var detail = new ImportReceiptDetail
             {
@@ -236,7 +260,7 @@ public partial class WarehouseCompleteService {
                 Unit = medicine?.Unit,
                 UnitPrice = item.UnitPrice,
                 Amount = amount,
-                Vat = 0,
+                Vat = item.VatRate,
                 CreatedAt = DateTime.Now,
                 CreatedBy = userId.ToString()
             };
@@ -257,12 +281,18 @@ public partial class WarehouseCompleteService {
                 ExpiryDate = item.ExpiryDate,
                 Quantity = item.Quantity,
                 UnitPrice = item.UnitPrice,
+                VatRate = item.VatRate,
+                DiscountRate = item.DiscountRate,
                 Amount = amount
             });
         }
 
         receipt.TotalAmount = totalAmount;
-        receipt.FinalAmount = totalAmount;
+        receipt.Vat = vatTotal;
+        receipt.Discount = discountTotal;
+        receipt.FinalAmount = totalAmount + vatTotal - discountTotal;
+        receipt.UpdatedAt = DateTime.Now;
+        receipt.UpdatedBy = userId.ToString();
 
         await _context.SaveChangesAsync();
 
@@ -281,7 +311,9 @@ public partial class WarehouseCompleteService {
             InvoiceDate = dto.InvoiceDate,
             Items = items,
             TotalAmount = totalAmount,
-            FinalAmount = totalAmount,
+            VatAmount = vatTotal,
+            DiscountAmount = discountTotal,
+            FinalAmount = receipt.FinalAmount,
             Status = 0,
             CreatedBy = userId,
             CreatedByName = user?.FullName ?? string.Empty,
@@ -328,6 +360,8 @@ public partial class WarehouseCompleteService {
             .Where(m => medicineIds.Contains(m.Id))
             .ToDictionaryAsync(m => m.Id);
         EnsureValidReceiptItems(dto, medicinesMap);
+        if (importType == 2) // nhập nguồn khác (viện trợ, mua lẻ...) is an intake like the supplier receipt
+            EnsureNotExpiredOnIntake(dto.Items.Select(i => (i.BatchNumber, i.ExpiryDate)));
 
         foreach (var item in dto.Items)
         {
@@ -413,6 +447,9 @@ public partial class WarehouseCompleteService {
             throw new KeyNotFoundException("Stock receipt not found");
         if (receipt.Status != 0)
             throw new InvalidOperationException("Receipt is not in pending status");
+        // QA-R4: a receipt can wait weeks for approval — re-check intake lots at approve time.
+        if (receipt.ImportType is 1 or 2)
+            EnsureNotExpiredOnIntake(receipt.Details.Select(d => (d.BatchNumber, d.ExpiryDate)));
 
         // QA0915: the Status check above is read-then-write — measured 4 concurrent approves of a
         // 10-unit receipt → 3 succeeded and created 3 lot rows (stock 30). Claim the receipt

@@ -15,8 +15,7 @@ public interface IPharmacyEnhancementService
     Task<ServiceOutcome> AcknowledgeExpiryAlertAsync(Guid id, Guid userId);
     Task<ServiceOutcome> GetCompoundingOrdersAsync(int? status, Guid? departmentId);
     Task<ServiceOutcome> GetCompoundingOrderAsync(Guid id);
-    /// <summary>CompoundingOrder là Core entity — Application có thể reference Core.</summary>
-    Task<ServiceOutcome> CreateCompoundingOrderAsync(CompoundingOrder dto, Guid userId);
+    Task<ServiceOutcome> CreateCompoundingOrderAsync(CreateCompoundingOrderDto dto, Guid userId);
     Task<ServiceOutcome> StartCompoundingAsync(Guid id, Guid userId);
     Task<ServiceOutcome> CompleteCompoundingAsync(Guid id, Guid userId);
     Task<ServiceOutcome> CancelCompoundingAsync(Guid id, CancelReasonDto dto, Guid userId);

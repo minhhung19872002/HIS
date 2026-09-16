@@ -58,11 +58,19 @@ public partial class HospitalPharmacyService
 
     public async Task<PharmacyGppRecordListDto> SaveGppRecordAsync(SavePharmacyGppRecordDto dto)
     {
+        // QA-R4: the write-scan stored RecordType 0 (no such type) with every field blank — blank rows in
+        // the GPP log. The form always sends a type (1..4) and at least a description or a medicine.
+        if (dto.RecordType is < 1 or > 4)
+            throw new ArgumentException("Loại ghi chép GPP không hợp lệ (1 ADR, 2 đình chỉ, 3 nhiệt độ, 4 độ ẩm).", nameof(dto.RecordType));
+        if (string.IsNullOrWhiteSpace(dto.Description) && string.IsNullOrWhiteSpace(dto.MedicineName)
+            && dto.Temperature == null && dto.Humidity == null)
+            throw new ArgumentException("Ghi chép GPP cần mô tả, tên thuốc hoặc số đo nhiệt độ / độ ẩm.", nameof(dto.Description));
+
         PharmacyGppRecord record;
         if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
         {
             record = await _context.PharmacyGppRecords.FindAsync(dto.Id.Value)
-                ?? throw new InvalidOperationException("GPP record not found");
+                ?? throw new KeyNotFoundException("Không tìm thấy ghi chép GPP.");
             record.UpdatedAt = DateTime.UtcNow;
         }
         else
@@ -149,11 +157,31 @@ public partial class HospitalPharmacyService
 
     public async Task<PharmacyCommissionListDto> SaveCommissionAsync(SavePharmacyCommissionDto dto)
     {
+        // QA-R4: the page validates these but the API accepted qty −5 / rate 150% / blank payee, and a
+        // zero-GUID DoctorId/SaleId hit the FK → 500. Same rules as the v2 form (HospitalPharmacy.tsx).
+        if (string.IsNullOrWhiteSpace(dto.DoctorName))
+            throw new ArgumentException("Nhập tên bác sĩ / người hưởng hoa hồng.", nameof(dto.DoctorName));
+        if (dto.Quantity <= 0)
+            throw new ArgumentException("Số lượng phải lớn hơn 0.", nameof(dto.Quantity));
+        if (dto.SaleAmount < 0)
+            throw new ArgumentException("Tiền bán không hợp lệ.", nameof(dto.SaleAmount));
+        if (dto.CommissionRate < 0 || dto.CommissionRate > 100)
+            throw new ArgumentException("Tỉ lệ hoa hồng phải trong khoảng 0–100%.", nameof(dto.CommissionRate));
+        if (dto.DoctorId == Guid.Empty) dto.DoctorId = null;
+        if (dto.SaleId == Guid.Empty) dto.SaleId = null;
+        if (dto.DoctorId.HasValue && !await _context.Users.AnyAsync(u => u.Id == dto.DoctorId.Value))
+            throw new KeyNotFoundException("Không tìm thấy bác sĩ hưởng hoa hồng.");
+        if (dto.SaleId.HasValue && !await _context.RetailSales.AnyAsync(s => s.Id == dto.SaleId.Value && !s.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy phiếu bán lẻ của hoa hồng.");
+
         PharmacyCommission commission;
         if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
         {
             commission = await _context.PharmacyCommissions.FindAsync(dto.Id.Value)
-                ?? throw new InvalidOperationException("Commission not found");
+                ?? throw new KeyNotFoundException("Không tìm thấy hoa hồng.");
+            // A paid commission is a settled amount — editing it would change money already handed out.
+            if (commission.Status == 2)
+                throw new InvalidOperationException("Hoa hồng đã thanh toán, không sửa được.");
             commission.UpdatedAt = DateTime.UtcNow;
         }
         else
