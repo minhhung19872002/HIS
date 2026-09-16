@@ -100,7 +100,7 @@ public partial class InpatientCompleteService {
 
         // Apply pagination
         var items = await query
-            .Skip((searchDto.Page - 1) * searchDto.PageSize)
+            .Skip(Math.Max(0, searchDto.Page - 1) * searchDto.PageSize)
             .Take(searchDto.PageSize)
             .Select(m => new InpatientListDto
             {

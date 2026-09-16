@@ -251,7 +251,7 @@ public partial class BillingCompleteService {
         var totalCount = await query.CountAsync();
         var rows = await query
             .OrderByDescending(i => i.InvoiceDate)
-            .Skip((page - 1) * pageSize)
+            .Skip(Math.Max(0, page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
 

@@ -494,7 +494,7 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
             var totalCount = await query.CountAsync();
             var items = await query
                 .OrderByDescending(r => r.CreatedAt)
-                .Skip((dto.Page - 1) * dto.PageSize)
+                .Skip(Math.Max(0, dto.Page - 1) * dto.PageSize)
                 .Take(dto.PageSize)
                 .ToListAsync();
 

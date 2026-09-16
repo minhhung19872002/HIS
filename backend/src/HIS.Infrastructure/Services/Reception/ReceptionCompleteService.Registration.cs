@@ -294,7 +294,7 @@ public partial class ReceptionCompleteService {
         var total = await query.CountAsync();
         var items = await query
             .OrderByDescending(c => c.CreatedAt)
-            .Skip((page - 1) * pageSize)
+            .Skip(Math.Max(0, page - 1) * pageSize)
             .Take(pageSize)
             .Select(c => new HealthCheckContractDto
             {

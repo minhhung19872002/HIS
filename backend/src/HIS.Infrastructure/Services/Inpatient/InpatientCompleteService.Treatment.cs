@@ -166,7 +166,7 @@ public partial class InpatientCompleteService {
 
         var results = await query
             .OrderByDescending(dp => dp.ProgressDate)
-            .Skip((searchDto.Page - 1) * searchDto.PageSize)
+            .Skip(Math.Max(0, searchDto.Page - 1) * searchDto.PageSize)
             .Take(searchDto.PageSize)
             .ToListAsync();
 

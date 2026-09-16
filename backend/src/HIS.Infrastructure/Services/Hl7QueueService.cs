@@ -60,7 +60,7 @@ public class Hl7QueueService : IHl7QueueService
         var total = await q.CountAsync();
         var items = await q
             .OrderByDescending(m => m.CreatedAt)
-            .Skip((dto.PageIndex - 1) * dto.PageSize).Take(dto.PageSize)
+            .Skip(Math.Max(0, dto.PageIndex - 1) * dto.PageSize).Take(dto.PageSize)
             .ToListAsync();
 
         var statusCounts = await _db.Hl7MessageQueues

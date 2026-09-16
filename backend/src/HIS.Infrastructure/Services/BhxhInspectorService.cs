@@ -199,7 +199,7 @@ public class BhxhInspectorService : IBhxhInspectorService
             .ToList();
         var total = filteredList.Count;
         var items = filteredList
-            .Skip((dto.PageIndex - 1) * dto.PageSize)
+            .Skip(Math.Max(0, dto.PageIndex - 1) * dto.PageSize)
             .Take(dto.PageSize)
             .Select(m => new InspectorRecordListItemDto
             {

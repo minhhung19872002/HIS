@@ -129,7 +129,7 @@ public partial class InpatientCompleteService
         var total = await q.CountAsync();
         var items = await q
             .OrderByDescending(a => a.CreatedAt)
-            .Skip((pageIndex - 1) * pageSize)
+            .Skip(Math.Max(0, pageIndex - 1) * pageSize)
             .Take(pageSize)
             .Select(a => new
             {

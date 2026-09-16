@@ -73,6 +73,9 @@ builder.Services.AddControllers(options =>
         // QA round 4: apply the per-user data scope (khoa/phòng/loại điều trị) to every route that names
         // a patient / medical record / admission. Fail-open: no group assigned → unchanged behaviour.
         options.Filters.Add<HIS.API.Filters.PatientDataScopeFilter>();
+        // QA round 5: clamp paging before it reaches SQL — a negative pageSize or a page number that
+        // overflows the offset answered 500 on 205 endpoints.
+        options.Filters.Add<HIS.API.Filters.PagingSanityFilter>();
     })
     .AddJsonOptions(options =>
     {

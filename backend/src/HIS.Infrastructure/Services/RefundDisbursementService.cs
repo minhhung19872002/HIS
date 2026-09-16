@@ -169,7 +169,7 @@ public class RefundDisbursementService : IRefundDisbursementService
 
         var entities = await q
             .OrderByDescending(d => d.CreatedAt)
-            .Skip((dto.PageIndex - 1) * dto.PageSize)
+            .Skip(Math.Max(0, dto.PageIndex - 1) * dto.PageSize)
             .Take(dto.PageSize)
             .ToListAsync();
 

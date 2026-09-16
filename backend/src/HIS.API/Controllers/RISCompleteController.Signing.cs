@@ -22,6 +22,10 @@ namespace HIS.API.Controllers
         /// <summary>
         /// Lấy danh sách cấu hình ký số
         /// </summary>
+        // QA round 5: readable by ANY signed-in account (a receptionist could list the signing
+        // configuration and the certificates on the token). Signing infrastructure belongs to the
+        // people who sign and to system administration.
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.QuanTriHeThong + "," + RoleNames.RadiologistManager + "," + RoleNames.Radiologist)]
         [HttpGet("signature-configs")]
         public async Task<ActionResult<List<DigitalSignatureConfigDto>>> GetSignatureConfigs()
         {
@@ -110,6 +114,10 @@ namespace HIS.API.Controllers
         /// Lấy danh sách chứng thư số từ USB Token/SmartCard
         /// Windows tự động detect các certificate khi USB Token được cắm vào
         /// </summary>
+        // QA round 5: readable by ANY signed-in account (a receptionist could list the signing
+        // configuration and the certificates on the token). Signing infrastructure belongs to the
+        // people who sign and to system administration.
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.QuanTriHeThong + "," + RoleNames.RadiologistManager + "," + RoleNames.Radiologist)]
         [HttpGet("usb-token/certificates")]
         public async Task<ActionResult<List<CertificateInfoDto>>> GetUSBTokenCertificates()
         {

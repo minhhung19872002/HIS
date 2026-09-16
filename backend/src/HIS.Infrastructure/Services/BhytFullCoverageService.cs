@@ -51,14 +51,14 @@ public class BhytFullCoverageService : IBhytFullCoverageService
                 .OrderByDescending(x => x.CreatedAt)
                 .ToList();
             total = matched.Count;
-            rows = matched.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            rows = matched.Skip(Math.Max(0, page - 1) * pageSize).Take(pageSize).ToList();
         }
         else
         {
             total = await q.CountAsync();
             rows = await q.AsNoTracking()
                 .OrderByDescending(x => x.CreatedAt)
-                .Skip((page - 1) * pageSize)
+                .Skip(Math.Max(0, page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
         }

@@ -516,7 +516,7 @@ public partial class RISCompleteService
         var totalCount = await query.CountAsync();
         var messages = await query
             .OrderByDescending(m => m.CreatedAt)
-            .Skip((searchDto.Page - 1) * searchDto.PageSize)
+            .Skip(Math.Max(0, searchDto.Page - 1) * searchDto.PageSize)
             .Take(searchDto.PageSize)
             .ToListAsync();
 

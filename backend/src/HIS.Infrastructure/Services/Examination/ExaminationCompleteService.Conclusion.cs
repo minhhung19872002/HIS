@@ -323,7 +323,7 @@ public partial class ExaminationCompleteService
 
             total = matched.Count;
             items = matched
-                .Skip((page - 1) * pageSize)
+                .Skip(Math.Max(0, page - 1) * pageSize)
                 .Take(pageSize)
                 .ToList();
         }
@@ -334,7 +334,7 @@ public partial class ExaminationCompleteService
                 .AsNoTracking()
                 .OrderByDescending(a => a.AppointmentDate)
                 .ThenBy(a => a.AppointmentTime)
-                .Skip((page - 1) * pageSize)
+                .Skip(Math.Max(0, page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
         }

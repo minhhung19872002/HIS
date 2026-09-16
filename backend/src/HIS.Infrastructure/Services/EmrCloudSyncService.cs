@@ -139,7 +139,7 @@ public class EmrCloudSyncService : IEmrCloudSyncService
         pageSize = pageSize > 0 ? Math.Min(pageSize, 500) : 30;
         var logs = await q
             .OrderByDescending(l => l.CreatedAt)
-            .Skip((pageIndex - 1) * pageSize)
+            .Skip(Math.Max(0, pageIndex - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
         return logs.Select(MapLogToDto).ToList();

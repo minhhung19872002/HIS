@@ -238,7 +238,7 @@ public partial class ReceptionCompleteService {
         var total = await query.CountAsync();
         var items = await query
             .OrderByDescending(b => b.BlockedAt)
-            .Skip((page - 1) * pageSize)
+            .Skip(Math.Max(0, page - 1) * pageSize)
             .Take(pageSize)
             .Select(b => new BlockedInsuranceDto
             {

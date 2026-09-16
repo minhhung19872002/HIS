@@ -325,7 +325,7 @@ public partial class InsuranceXmlService : IInsuranceXmlService
 
         var items = await query
             .OrderByDescending(c => c.CreatedAt)
-            .Skip((dto.PageNumber - 1) * dto.PageSize)
+            .Skip(Math.Max(0, dto.PageNumber - 1) * dto.PageSize)
             .Take(dto.PageSize)
             .ToListAsync();
 

@@ -65,7 +65,7 @@ public partial class ExaminationCompleteService
         var items = await query
             .OrderByDescending(e => e.MedicalRecord.AdmissionDate)
             .ThenByDescending(e => e.CreatedAt) // several exams per record (khám thêm) → newest first, deterministic
-            .Skip((page - 1) * pageSize)
+            .Skip(Math.Max(0, page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
 

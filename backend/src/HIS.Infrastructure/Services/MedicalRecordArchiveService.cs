@@ -55,7 +55,7 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
         var pageSize = search.PageSize > 0 ? Math.Min(search.PageSize, 200) : 20;
         var items = await query
             .OrderByDescending(a => a.ArchivedDate ?? a.CreatedAt)
-            .Skip((page - 1) * pageSize)
+            .Skip(Math.Max(0, page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
 

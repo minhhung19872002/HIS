@@ -56,7 +56,7 @@ public class DicomStudyActivityService : IDicomStudyActivityService
         var total = await q.CountAsync();
         var logs = await q
             .OrderByDescending(l => l.PerformedAt)
-            .Skip((dto.PageIndex - 1) * dto.PageSize).Take(dto.PageSize)
+            .Skip(Math.Max(0, dto.PageIndex - 1) * dto.PageSize).Take(dto.PageSize)
             .ToListAsync();
         return new DicomStudyActivityLogSearchResultDto
         {

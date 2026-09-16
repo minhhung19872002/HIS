@@ -121,14 +121,14 @@ public class PatientService : IPatientService
                 .OrderByDescending(p => p.CreatedAt)
                 .ToList();
             totalCount = matched.Count;
-            items = matched.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            items = matched.Skip(Math.Max(0, page - 1) * pageSize).Take(pageSize).ToList();
         }
         else
         {
             totalCount = await query.CountAsync();
             items = await query.AsNoTracking()
                 .OrderByDescending(p => p.CreatedAt)
-                .Skip((page - 1) * pageSize)
+                .Skip(Math.Max(0, page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
         }

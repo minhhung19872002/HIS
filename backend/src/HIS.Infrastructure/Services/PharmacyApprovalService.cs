@@ -360,7 +360,7 @@ public class PharmacyApprovalService : IPharmacyApprovalService
         var total = await q.CountAsync();
         var items = await q
             .OrderByDescending(a => a.CreatedAt)
-            .Skip((dto.PageIndex - 1) * dto.PageSize)
+            .Skip(Math.Max(0, dto.PageIndex - 1) * dto.PageSize)
             .Take(dto.PageSize)
             .ToListAsync();
 

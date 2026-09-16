@@ -78,6 +78,12 @@ public class MultiFacilityConsolidationController : ControllerBase
     {
         if (year == 0) year = DateTime.Today.Year;
         if (month == 0) month = DateTime.Today.Month;
+        // QA round 5: year=99999 / month=13 reached `new DateTime(year, month, 1)` and threw
+        // ArgumentOutOfRangeException → 500. A period outside the calendar is a client error.
+        if (year < 1900 || year > 2200)
+            throw new ArgumentException($"Năm không hợp lệ ({year}).", nameof(year));
+        if (month < 1 || month > 12)
+            throw new ArgumentException($"Tháng không hợp lệ ({month}).", nameof(month));
         var result = await _service.GetBranchDutyRosterAsync(branchId, year, month);
         return Ok(result);
     }

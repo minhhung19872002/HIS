@@ -174,7 +174,7 @@ public class DicomAutoSendService : IDicomAutoSendService
 
         var logs = await q
             .OrderByDescending(l => l.StartedAt)
-            .Skip((pageIndex - 1) * pageSize).Take(pageSize)
+            .Skip(Math.Max(0, pageIndex - 1) * pageSize).Take(pageSize)
             .ToListAsync();
 
         var userIds = logs.Where(l => l.TriggeredByUserId.HasValue).Select(l => l.TriggeredByUserId!.Value).Distinct().ToList();

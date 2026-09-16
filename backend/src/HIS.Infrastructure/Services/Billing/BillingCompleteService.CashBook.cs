@@ -291,7 +291,7 @@ public partial class BillingCompleteService {
             .ToList();
 
         var totalCount = latestIds.Count;
-        var pageIds = latestIds.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        var pageIds = latestIds.Skip(Math.Max(0, page - 1) * pageSize).Take(pageSize).ToList();
         var rows = await _context.MedicalRecords
             .Include(m => m.Patient)
             .Where(m => pageIds.Contains(m.Id))

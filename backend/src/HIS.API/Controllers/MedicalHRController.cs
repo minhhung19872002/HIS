@@ -299,26 +299,34 @@ namespace HIS.API.Controllers
             => Ok(await _service.SaveDisciplineAsync(dto));
 
         // ========== Reports ==========
+        // QA round 5: these were readable by ANY signed-in account — the role sweep found a receptionist
+        // could pull attendance, leave, overtime and staff-movement reports for the whole hospital. HR
+        // figures are not clinical data anyone on shift needs; gate them to the roles that own them.
 
         [HttpGet("reports/by-department")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.HRManager)]
         public async Task<ActionResult<List<StaffByDepartmentReportDto>>> GetStaffByDepartmentReport([FromQuery] Guid? departmentId = null)
             => Ok(await _service.GetStaffByDepartmentReportAsync(departmentId));
 
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.HRManager)]
         [HttpGet("reports/attendance")]
         public async Task<ActionResult<AttendanceReportDto>> GetAttendanceReport(
             [FromQuery] int year, [FromQuery] int month, [FromQuery] Guid? departmentId = null)
             => Ok(await _service.GetAttendanceReportAsync(year, month, departmentId));
 
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.HRManager)]
         [HttpGet("reports/leave")]
         public async Task<ActionResult<LeaveReportDto>> GetLeaveReport(
             [FromQuery] int year, [FromQuery] int month, [FromQuery] Guid? departmentId = null)
             => Ok(await _service.GetLeaveReportAsync(year, month, departmentId));
 
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.HRManager)]
         [HttpGet("reports/overtime")]
         public async Task<ActionResult<OvertimeReportDto>> GetOvertimeReport(
             [FromQuery] int year, [FromQuery] int month, [FromQuery] Guid? departmentId = null)
             => Ok(await _service.GetOvertimeReportAsync(year, month, departmentId));
 
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.HRManager)]
         [HttpGet("reports/movement")]
         public async Task<ActionResult<StaffMovementReportDto>> GetMovementReport(
             [FromQuery] DateTime fromDate, [FromQuery] DateTime toDate)

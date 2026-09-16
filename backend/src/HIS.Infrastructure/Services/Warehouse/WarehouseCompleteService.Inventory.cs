@@ -322,7 +322,7 @@ public partial class WarehouseCompleteService {
 
         var items = await query
             .OrderBy(i => i.ExpiryDate)
-            .Skip((searchDto.Page - 1) * searchDto.PageSize)
+            .Skip(Math.Max(0, searchDto.Page - 1) * searchDto.PageSize)
             .Take(searchDto.PageSize)
             .Select(i => new StockDto
             {

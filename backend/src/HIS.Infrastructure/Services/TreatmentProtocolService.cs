@@ -125,7 +125,7 @@ public class TreatmentProtocolService : ITreatmentProtocolService
 
         var items = await query
             .OrderByDescending(p => p.CreatedAt)
-            .Skip((pageIndex - 1) * pageSize)
+            .Skip(Math.Max(0, pageIndex - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
 

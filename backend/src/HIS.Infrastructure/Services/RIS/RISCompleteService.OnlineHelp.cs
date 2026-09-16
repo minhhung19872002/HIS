@@ -97,7 +97,7 @@ public partial class RISCompleteService
         var totalCount = await query.CountAsync();
         var articles = await query
             .OrderBy(a => a.SortOrder)
-            .Skip((searchDto.Page - 1) * searchDto.PageSize)
+            .Skip(Math.Max(0, searchDto.Page - 1) * searchDto.PageSize)
             .Take(searchDto.PageSize)
             .ToListAsync();
 

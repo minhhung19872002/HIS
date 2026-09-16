@@ -1158,7 +1158,7 @@ public partial class WarehouseCompleteService {
         var total = await query.CountAsync();
         var receipts = await query
             .OrderByDescending(e => e.ReceiptDate).ThenByDescending(e => e.CreatedAt)
-            .Skip((page - 1) * pageSize).Take(pageSize)
+            .Skip(Math.Max(0, page - 1) * pageSize).Take(pageSize)
             .ToListAsync();
 
         var items = new List<StockIssueDto>();

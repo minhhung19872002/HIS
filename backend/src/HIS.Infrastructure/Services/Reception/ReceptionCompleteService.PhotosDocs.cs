@@ -329,7 +329,7 @@ public partial class ReceptionCompleteService {
         var pageSize = Math.Clamp(dto.PageSize, 1, 200);
         var items = await query
             .OrderByDescending(d => d.HoldDate)
-            .Skip((page - 1) * pageSize)
+            .Skip(Math.Max(0, page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
 

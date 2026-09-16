@@ -42,7 +42,7 @@ namespace HIS.API.Controllers
             [FromQuery] int pageSize = 100)
         {
             var all = await _service.GetIncidentReportsAsync(fromDate, toDate, status, type);
-            var items = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            var items = all.Skip(Math.Max(0, page - 1) * pageSize).Take(pageSize).ToList();
             return Ok(new
             {
                 items,
