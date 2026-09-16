@@ -70,6 +70,9 @@ builder.Services.AddControllers(options =>
         // QA sweep 2026-09-15: business guards (not-found / invalid state / validation) from services
         // behind controllers without DomainExceptionFilter → 404/400 with the reason, not a bare 500.
         options.Filters.Add<HIS.API.Filters.DomainGuardExceptionFilter>();
+        // QA round 4: apply the per-user data scope (khoa/phòng/loại điều trị) to every route that names
+        // a patient / medical record / admission. Fail-open: no group assigned → unchanged behaviour.
+        options.Filters.Add<HIS.API.Filters.PatientDataScopeFilter>();
     })
     .AddJsonOptions(options =>
     {

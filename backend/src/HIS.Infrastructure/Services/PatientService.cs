@@ -12,11 +12,13 @@ public class PatientService : IPatientService
 {
     private readonly HISDbContext _context;
     private readonly IMapper _mapper;
+    private readonly IPatientDataScopeGuard _scope;
 
-    public PatientService(HISDbContext context, IMapper mapper)
+    public PatientService(HISDbContext context, IMapper mapper, IPatientDataScopeGuard scope)
     {
         _context = context;
         _mapper = mapper;
+        _scope = scope;
     }
 
     public async Task<List<PatientMergeSuccessorDto>> GetMergeSuccessorsAsync(IReadOnlyCollection<Guid> patientIds)
@@ -61,7 +63,10 @@ public class PatientService : IPatientService
     public async Task<PatientDto?> GetByIdAsync(Guid id)
     {
         var patient = await _context.Patients.FindAsync(id);
-        return patient == null ? null : _mapper.Map<PatientDto>(patient);
+        if (patient == null) return null;
+        // QA round 4: a doctor scoped to one department could read every department's patients.
+        await _scope.EnsurePatientInScopeAsync(id);
+        return _mapper.Map<PatientDto>(patient);
     }
 
     public async Task<PatientDto?> GetByCodeAsync(string patientCode)

@@ -108,7 +108,9 @@ public sealed class PatientMergeTests
         Assert.Equal(c.Id, all["BN-B"].MergedIntoPatientId);
         Assert.Null(all["BN-C"].MergedIntoPatientId);
 
-        var successors = await new PatientService(ctx, new Mock<AutoMapper.IMapper>().Object)
+        // GetMergeSuccessorsAsync does not consult the data scope; a stub keeps the constructor happy.
+        var successors = await new PatientService(ctx, new Mock<AutoMapper.IMapper>().Object,
+                new Mock<HIS.Application.Services.IPatientDataScopeGuard>().Object)
             .GetMergeSuccessorsAsync(new[] { a.Id, b.Id, c.Id });
         Assert.Equal(2, successors.Count);
         Assert.All(successors, s => Assert.Equal("BN-C", s.CurrentPatientCode));
