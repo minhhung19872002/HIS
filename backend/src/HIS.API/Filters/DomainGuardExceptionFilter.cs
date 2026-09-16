@@ -37,13 +37,18 @@ public sealed class DomainGuardExceptionFilter : IExceptionFilter
             ArgumentException ex when IsThrownByHisCode(ex) => (StatusCodes.Status400BadRequest, "VALIDATION_FAILED"),
             DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "CONCURRENCY_CONFLICT"),
             InvalidOperationException ex when IsThrownByHisCode(ex) => (StatusCodes.Status400BadRequest, "INVALID_STATE"),
+            // A constraint violation that escaped the service explains itself — see SqlConstraintError.
+            DbUpdateException ex => SqlConstraintError.Map(ex),
             _ => null,
         };
         if (mapped == null) return;
 
-        var message = context.Exception is DbUpdateConcurrencyException
-            ? "Dữ liệu vừa bị thay đổi bởi thao tác khác. Vui lòng tải lại và thử lại."
-            : context.Exception.Message;
+        var message = context.Exception switch
+        {
+            DbUpdateConcurrencyException => "Dữ liệu vừa bị thay đổi bởi thao tác khác. Vui lòng tải lại và thử lại.",
+            DbUpdateException dbEx => SqlConstraintError.Message(dbEx),
+            _ => context.Exception.Message,
+        };
 
         _logger.LogInformation("Domain guard on {Path}: {Type} {Msg}",
             context.HttpContext.Request.Path, context.Exception.GetType().Name, context.Exception.Message);
@@ -57,4 +62,5 @@ public sealed class DomainGuardExceptionFilter : IExceptionFilter
 
     private static bool IsThrownByHisCode(Exception ex) =>
         ex.Source != null && ex.Source.StartsWith("HIS.", StringComparison.Ordinal);
+
 }

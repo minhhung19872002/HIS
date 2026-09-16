@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace HIS.API.Filters;
@@ -16,7 +15,7 @@ namespace HIS.API.Filters;
 ///   JsonException                → 400 Bad Request   (malformed JSON từ DB hoặc payload)
 ///   DbUpdateConcurrencyException → 409 Conflict      (RowVersion chặn lost-update; đã có sẵn,
 ///                                                    chỉ thiếu ở controller tự bắt Exception)
-///   DbUpdateException + UNIQUE   → 409 Conflict      (race-condition duplicate)
+///   DbUpdateException + ràng buộc → 409 (trùng khoá) / 400 (FK, NULL, quá dài) — xem SqlConstraintError
 ///   DbUpdateException khác       → 500 (log + masked message)
 ///   OperationCanceledException   → 499 Client Closed (user huỷ giữa chừng)
 ///
@@ -106,14 +105,21 @@ public sealed class DomainExceptionFilter : IExceptionFilter
                 context.ExceptionHandled = true;
                 _logger.LogWarning("Concurrency conflict: {Msg}", context.Exception.Message);
                 break;
-            case DbUpdateException dbEx when IsUniqueViolation(dbEx):
-                context.Result = new ConflictObjectResult(new
+            // QA round 4: any constraint this filter can explain (duplicate key, unknown parent, NULL into a
+            // NOT NULL column, oversized text) answers with that reason instead of falling to the catch-all 500
+            // below — a zero-GUID parent on MedicalHR/specialty-emr/lis showed only "Hệ thống đang gặp sự cố".
+            case DbUpdateException dbEx when SqlConstraintError.Map(dbEx) is { } sqlMapped:
+                context.Result = new ObjectResult(new
                 {
-                    error = "DUPLICATE",
-                    message = "Bản ghi này đã tồn tại. Vui lòng refresh danh sách."
-                });
+                    error = sqlMapped.Code,
+                    message = SqlConstraintError.Message(dbEx)
+                })
+                {
+                    StatusCode = sqlMapped.Status
+                };
                 context.ExceptionHandled = true;
-                _logger.LogWarning("Domain unique violation: {Msg}", dbEx.InnerException?.Message);
+                _logger.LogWarning("Domain constraint violation on {Path}: {Msg}",
+                    context.HttpContext.Request.Path, dbEx.GetBaseException().Message);
                 break;
             case OperationCanceledException:
                 // 499 Client Closed Request (Nginx convention; ASP.NET không có sẵn enum)
@@ -143,7 +149,4 @@ public sealed class DomainExceptionFilter : IExceptionFilter
                 break;
         }
     }
-
-    private static bool IsUniqueViolation(DbUpdateException ex)
-        => ex.InnerException is SqlException sql && (sql.Number == 2601 || sql.Number == 2627);
 }

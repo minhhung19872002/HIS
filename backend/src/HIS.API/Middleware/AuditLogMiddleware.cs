@@ -45,8 +45,14 @@ public class AuditLogMiddleware
         "/api/liscomplete/",       // LISCompleteController — lab orders/results
         "/api/riscomplete/",       // RISCompleteController — radiology orders/reports
         "/api/billingcomplete/",   // BillingCompleteController — invoices/receipts
-        "/api/bloodbankcomplete/"  // BloodBankCompleteController — issue/transfusion records
+        "/api/bloodbankcomplete/", // BloodBankCompleteController — issue/transfusion records
+        "/api/emr-management/",    // EmrManagementController — EMR records/shares (QA-R4: was unaudited)
+        "/api/medical-record-planning/" // MedicalRecordPlanningController — record borrow/copy (QA-R4)
     };
+
+    // QA-R4: a GET that hands the caller a file (export/download/print) is a PHI disclosure wherever it lives
+    // (reports, statistics, catalog exports) — audit it even outside the sensitive prefixes above.
+    private static readonly string[] ExportLikeSegments = { "/export", "/download", "/print" };
 
     // Map API route prefixes to module names
     private static readonly Dictionary<string, string> RouteModuleMap = new(StringComparer.OrdinalIgnoreCase)
@@ -202,7 +208,13 @@ public class AuditLogMiddleware
         // GET requests: only audit sensitive paths that access specific records (with ID).
         // List endpoints (e.g., /api/patients) are NOT logged to avoid audit volume explosion.
         // Detail endpoints (e.g., /api/patients/123) ARE logged for Level 6 compliance.
-        return IsSensitiveGetRequest(path);
+        if (IsSensitiveGetRequest(path)) return true;
+        foreach (var seg in ExportLikeSegments)
+        {
+            if (path.Contains(seg, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
 
     /// <summary>
