@@ -102,27 +102,38 @@ namespace HIS.Infrastructure.Services
             return inv;
         }
 
+        /// <summary>
+        /// QA round 4: a counted quantity below zero was accepted, and the header's TotalBagsSystem was
+        /// hard-coded 0 so Variance on the sheet never matched the sum of its lines.
+        /// </summary>
+        private static void ValidateInventoryItems(IEnumerable<CreateBloodInventoryItemDto>? items)
+        {
+            if (items != null && items.Any(i => i.ActualQuantity < 0))
+                throw new ArgumentException("Số lượng kiểm đếm thực tế không được âm.", "Items");
+        }
+
         public async Task<BloodInventoryDto> CreateInventoryAsync(CreateBloodInventoryDto dto)
         {
+            ValidateInventoryItems(dto.Items);
             var id = Guid.NewGuid();
             var code = $"INV{DateTime.Now:yyyyMMddHHmmss}";
-            var totalSystem = 0;
             var totalActual = dto.Items?.Sum(i => i.ActualQuantity) ?? 0;
+            // perf(#195): batch-load product-type names + system quantities once instead of
+            // calling GetProductTypeNameAsync/GetSystemQuantityAsync per item (each opens its
+            // own DB connection). Read-only lookups against BloodProductTypes/BloodBags; not
+            // affected by the loop's own inserts into BloodInventoryItems.
+            var (ptNameMap, sysQtyMap) = await GetProductTypeNamesAndSystemQuantitiesAsync();
+            var totalSystem = dto.Items?.Sum(i =>
+                sysQtyMap.TryGetValue((i.BloodType, i.RhFactor, i.ProductTypeId), out var q) ? q : 0) ?? 0;
 
             await _context.Database.ExecuteSqlRawAsync(
                 @"INSERT INTO BloodInventories (Id, InventoryCode, InventoryDate, Status, ConductedBy, ApprovedBy, ApprovedDate, TotalBagsSystem, TotalBagsActual, Variance, Note)
-                VALUES (@p0, @p1, @p2, 'Draft', 'System', NULL, NULL, @p3, @p4, @p5, @p6)",
-                id, code, dto.InventoryDate, totalSystem, totalActual, totalActual - totalSystem,
-                dto.Note ?? (object)DBNull.Value);
+                VALUES (@p0, @p1, @p2, 'Draft', @p7, NULL, NULL, @p3, @p4, @p5, @p6)",
+                P("@p0", id), P("@p1", code), P("@p2", dto.InventoryDate), P("@p3", totalSystem), P("@p4", totalActual),
+                P("@p5", totalActual - totalSystem), P("@p6", dto.Note), P("@p7", CurrentUserName));
 
             if (dto.Items != null)
             {
-                // perf(#195): batch-load product-type names + system quantities once instead of
-                // calling GetProductTypeNameAsync/GetSystemQuantityAsync per item (each opens its
-                // own DB connection). Read-only lookups against BloodProductTypes/BloodBags; not
-                // affected by this loop's own inserts into BloodInventoryItems.
-                var (ptNameMap, sysQtyMap) = await GetProductTypeNamesAndSystemQuantitiesAsync();
-
                 foreach (var item in dto.Items)
                 {
                     var itemId = Guid.NewGuid();
@@ -140,26 +151,41 @@ namespace HIS.Infrastructure.Services
             return await GetInventoryAsync(id);
         }
 
+        /// <summary>Trạng thái phiếu kiểm kê; 404 khi không có.</summary>
+        private async Task<string> GetInventoryStatusAsync(Guid inventoryId)
+        {
+            return await _context.Database
+                .SqlQueryRaw<string>("SELECT ISNULL(Status, '') AS Value FROM BloodInventories WHERE Id = {0}", inventoryId)
+                .FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException("Không tìm thấy phiếu kiểm kê.");
+        }
+
         public async Task<BloodInventoryDto> UpdateInventoryAsync(Guid inventoryId, CreateBloodInventoryDto dto)
         {
+            // QA round 4: the header UPDATE was guarded by Status='Draft' but the DELETE of the lines was not —
+            // a PUT on an APPROVED sheet wiped its lines and left the approved header pointing at nothing.
+            var status = await GetInventoryStatusAsync(inventoryId);
+            if (!string.Equals(status, "Draft", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(status, "InProgress", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"Phiếu kiểm kê đang ở trạng thái \"{status}\", không sửa được.");
+            ValidateInventoryItems(dto.Items);
             var totalActual = dto.Items?.Sum(i => i.ActualQuantity) ?? 0;
+            // perf(#195): single batch lookup (see CreateInventoryAsync)
+            var (ptNameMap, sysQtyMap) = await GetProductTypeNamesAndSystemQuantitiesAsync();
+            var totalSystem = dto.Items?.Sum(i =>
+                sysQtyMap.TryGetValue((i.BloodType, i.RhFactor, i.ProductTypeId), out var q) ? q : 0) ?? 0;
 
             await _context.Database.ExecuteSqlRawAsync(
-                @"UPDATE BloodInventories SET InventoryDate=@p0, Note=@p1, TotalBagsActual=@p2
-                WHERE Id=@p3 AND Status='Draft'",
-                dto.InventoryDate, dto.Note ?? (object)DBNull.Value, totalActual, inventoryId);
+                @"UPDATE BloodInventories SET InventoryDate=@p0, Note=@p1, TotalBagsActual=@p2, TotalBagsSystem=@p4, Variance=@p5
+                WHERE Id=@p3 AND Status IN ('Draft','InProgress')",
+                P("@p0", dto.InventoryDate), P("@p1", dto.Note), P("@p2", totalActual), P("@p3", inventoryId),
+                P("@p4", totalSystem), P("@p5", totalActual - totalSystem));
 
             await _context.Database.ExecuteSqlRawAsync(
                 "DELETE FROM BloodInventoryItems WHERE InventoryId=@p0", inventoryId);
 
             if (dto.Items != null)
             {
-                // perf(#195): batch-load product-type names + system quantities once instead of
-                // calling GetProductTypeNameAsync/GetSystemQuantityAsync per item (each opens its
-                // own DB connection). Read-only lookups against BloodProductTypes/BloodBags; not
-                // affected by this loop's own inserts into BloodInventoryItems.
-                var (ptNameMap, sysQtyMap) = await GetProductTypeNamesAndSystemQuantitiesAsync();
-
                 foreach (var item in dto.Items)
                 {
                     var itemId = Guid.NewGuid();
@@ -179,6 +205,11 @@ namespace HIS.Infrastructure.Services
 
         public async Task<bool> CompleteInventoryAsync(Guid inventoryId)
         {
+            // QA round 4: unknown id / wrong state used to answer 200 with nothing written
+            var status = await GetInventoryStatusAsync(inventoryId);
+            if (!string.Equals(status, "Draft", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(status, "InProgress", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"Phiếu kiểm kê đang ở trạng thái \"{status}\", không hoàn thành được.");
             var rows = await _context.Database.ExecuteSqlRawAsync(
                 "UPDATE BloodInventories SET Status='Completed' WHERE Id=@p0 AND Status IN ('Draft','InProgress')",
                 inventoryId);
@@ -187,9 +218,12 @@ namespace HIS.Infrastructure.Services
 
         public async Task<bool> ApproveInventoryAsync(Guid inventoryId)
         {
+            var status = await GetInventoryStatusAsync(inventoryId);
+            if (!string.Equals(status, "Completed", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"Phiếu kiểm kê đang ở trạng thái \"{status}\", chỉ duyệt được phiếu đã hoàn thành.");
             var rows = await _context.Database.ExecuteSqlRawAsync(
-                "UPDATE BloodInventories SET Status='Approved', ApprovedBy='System', ApprovedDate=@p0 WHERE Id=@p1 AND Status='Completed'",
-                DateTime.Now, inventoryId);
+                "UPDATE BloodInventories SET Status='Approved', ApprovedBy=@p2, ApprovedDate=@p0 WHERE Id=@p1 AND Status='Completed'",
+                P("@p0", DateTime.Now), P("@p1", inventoryId), P("@p2", CurrentUserName));
             return rows > 0;
         }
 

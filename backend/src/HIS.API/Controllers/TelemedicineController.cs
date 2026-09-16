@@ -93,7 +93,9 @@ namespace HIS.API.Controllers
 
         [HttpPost("sessions/{id}/end")]
         public async Task<ActionResult<bool>> EndSession(Guid id)
-            => Ok(await _service.EndSessionAsync(id));
+            => await _service.EndSessionAsync(id)
+                ? Ok(true)
+                : NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy phiên khám từ xa" }); // QA-R4: was 200 {data:false}
 
         [HttpGet("consultations/{sessionId}")]
         public async Task<ActionResult<TeleConsultationRecordDto>> GetConsultationRecord(Guid sessionId)

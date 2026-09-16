@@ -155,11 +155,18 @@ public class TelemedicineServiceImpl : ITelemedicineService
         if (e == null) return false;
         if (e.Status == "Completed")
             throw new InvalidOperationException("Phiên khám đã kết thúc.");
-        e.Status = "Completed"; e.EndTime = DateTime.Now;
+        // QA-R4 (decision #352 lot 10): a tele visit must not close as COMPLETED without a primary diagnosis
+        // on record. The v2 page saves the consultation (primaryDiagnosis) before calling end; enforce it
+        // server-side too — but a call the patient dropped out of has no diagnosis and must still be closable,
+        // otherwise the session and its appointment hang "InProgress" forever. That case ends as Aborted.
+        var hasDiagnosis = await _context.TeleConsultations
+            .AnyAsync(c => c.SessionId == sessionId && c.Diagnosis != null && c.Diagnosis != "");
+        e.Status = hasDiagnosis ? "Completed" : "Aborted";
+        e.EndTime = DateTime.Now;
         if (e.StartTime.HasValue) e.DurationMinutes = (int)Math.Max(0, (e.EndTime.Value - e.StartTime.Value).TotalMinutes);
         // The appointment stayed "InProgress" forever after its session ended (could then be neither cancelled nor restarted).
         var appt = await _context.TeleAppointments.FindAsync(e.AppointmentId);
-        if (appt != null && appt.Status == "InProgress") appt.Status = "Completed";
+        if (appt != null && appt.Status == "InProgress") appt.Status = hasDiagnosis ? "Completed" : "Aborted";
         await _context.SaveChangesAsync();
         return true;
     }
@@ -180,8 +187,11 @@ public class TelemedicineServiceImpl : ITelemedicineService
     public async Task<TeleConsultationRecordDto> SaveConsultationRecordAsync(SaveTeleConsultationDto dto)
     {
         // Unknown session → FK violation surfaced as a 500.
-        if (!await _context.TeleSessions.AnyAsync(s => s.Id == dto.SessionId))
-            throw new KeyNotFoundException("Không tìm thấy phiên khám từ xa");
+        var sessionStatus = await _context.TeleSessions.Where(s => s.Id == dto.SessionId).Select(s => s.Status).FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Không tìm thấy phiên khám từ xa");
+        // QA-R4: the record is final once the session is closed (the page writes it BEFORE ending the session).
+        if (sessionStatus == "Completed")
+            throw new InvalidOperationException("Phiên khám đã kết thúc — hồ sơ tư vấn không sửa được nữa.");
         if (dto.FollowUpDate.HasValue && dto.FollowUpDate.Value.Date < HIS.Core.Common.VnTime.TodayVn)
             throw new ArgumentException("Ngày tái khám không được ở quá khứ", nameof(dto.FollowUpDate));
         var entity = await _context.TeleConsultations.FirstOrDefaultAsync(x => x.SessionId == dto.SessionId);
@@ -212,6 +222,13 @@ public class TelemedicineServiceImpl : ITelemedicineService
             throw new ArgumentException("Đơn thuốc phải có ít nhất 1 thuốc", nameof(items));
         if (items.Any(i => i.Quantity <= 0))
             throw new ArgumentException("Số lượng thuốc phải lớn hơn 0", nameof(items));
+        // QA-R4: an item without a valid DrugId hit FK TelePrescriptionItems→Medicines as a 500.
+        var drugIds = items.Select(i => i.DrugId).Distinct().ToList();
+        if (drugIds.Contains(Guid.Empty))
+            throw new ArgumentException("Mỗi dòng thuốc phải chọn thuốc trong danh mục (drugId).", nameof(items));
+        var known = await _context.Medicines.Where(m => drugIds.Contains(m.Id)).Select(m => m.Id).ToListAsync();
+        if (known.Count != drugIds.Count)
+            throw new KeyNotFoundException("Có thuốc không tồn tại trong danh mục.");
         var entity = new TelePrescription
         {
             Id = Guid.NewGuid(), SessionId = sessionId, PrescriptionCode = CodeGenerator.Timestamp("RX"),

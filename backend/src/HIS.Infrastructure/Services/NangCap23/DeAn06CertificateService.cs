@@ -64,13 +64,37 @@ public class DeAn06CertificateService : IDeAn06CertificateService
         return r == null ? null : MapBirthCert(r);
     }
 
+    // QA-R4: certificates are legal documents — the save endpoints accepted {} (zero-GUID patient, default dates)
+    // and edits after the record had been sent to / acknowledged by the Đề án 06 gateway.
+    private static void EnsureEditable(int da06Status, string entityLabel)
+    {
+        if (da06Status is 1 or 2)
+            throw new InvalidOperationException(
+                $"{entityLabel} đã gửi cổng Đề án 06 (trạng thái {Da06StatusName(da06Status)}) — không sửa được; tạo bản mới nếu cần điều chỉnh.");
+    }
+
     public async Task<BirthCertificateDto> SaveBirthCertificateAsync(SaveBirthCertificateDto dto, string? userId)
     {
+        if (dto.MotherPatientId == Guid.Empty)
+            throw new ArgumentException("Chưa chọn hồ sơ người mẹ (MotherPatientId).");
+        var mother = await _db.Patients.AsNoTracking()
+            .Where(p => p.Id == dto.MotherPatientId && !p.IsDeleted)
+            .Select(p => new { p.FullName })
+            .FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ người mẹ.");
+        if (dto.BirthDateTime == default)
+            throw new ArgumentException("Chưa nhập ngày giờ sinh.");
+        if (dto.BirthDateTime > HIS.Core.Common.VnTime.NowVn.AddMinutes(5))
+            throw new ArgumentException("Ngày giờ sinh không được ở tương lai.");
+        if (dto.BirthWeight <= 0)
+            throw new ArgumentException("Cân nặng lúc sinh phải lớn hơn 0 kg.");
+
         BirthCertificateRecord entity;
         if (dto.Id.HasValue)
         {
             entity = await _db.BirthCertificateRecords.FirstOrDefaultAsync(x => x.Id == dto.Id.Value)
                 ?? throw new KeyNotFoundException();
+            EnsureEditable(entity.Da06Status, "Giấy chứng sinh");
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }
@@ -88,7 +112,7 @@ public class DeAn06CertificateService : IDeAn06CertificateService
         }
 
         entity.MotherPatientId = dto.MotherPatientId;
-        entity.MotherFullName = dto.MotherFullName ?? "";
+        entity.MotherFullName = string.IsNullOrWhiteSpace(dto.MotherFullName) ? mother.FullName : dto.MotherFullName;
         entity.MotherIdNumber = dto.MotherIdNumber ?? "";
         entity.FatherFullName = dto.FatherFullName;
         entity.FatherIdNumber = dto.FatherIdNumber;
@@ -230,11 +254,35 @@ public class DeAn06CertificateService : IDeAn06CertificateService
 
     public async Task<DeathCertificateDto> SaveDeathCertificateAsync(SaveDeathCertificateDto dto, string? userId)
     {
+        if (dto.PatientId == Guid.Empty)
+            throw new ArgumentException("Chưa chọn bệnh nhân (PatientId).");
+        var patient = await _db.Patients.AsNoTracking()
+            .Where(p => p.Id == dto.PatientId && !p.IsDeleted)
+            .Select(p => new { p.DateOfBirth })
+            .FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Không tìm thấy bệnh nhân.");
+        if (dto.DeathDateTime == default)
+            throw new ArgumentException("Chưa nhập ngày giờ tử vong.");
+        if (dto.DeathDateTime > HIS.Core.Common.VnTime.NowVn.AddMinutes(5))
+            throw new ArgumentException("Ngày giờ tử vong không được ở tương lai.");
+        if (patient.DateOfBirth.HasValue && dto.DeathDateTime.Date < patient.DateOfBirth.Value.Date)
+            throw new ArgumentException("Ngày tử vong không được trước ngày sinh của bệnh nhân.");
+        // A living patient: an admission that started AFTER the declared time of death contradicts the certificate.
+        if (await _db.Admissions.AnyAsync(a => a.PatientId == dto.PatientId && !a.IsDeleted && a.AdmissionDate > dto.DeathDateTime))
+            throw new InvalidOperationException("Bệnh nhân có lượt nhập viện sau thời điểm tử vong khai báo — kiểm tra lại bệnh nhân / ngày giờ tử vong.");
+        var duplicate = await _db.DeathCertificateRecords.AsNoTracking()
+            .Where(x => x.PatientId == dto.PatientId && x.Da06Status != 4 && (!dto.Id.HasValue || x.Id != dto.Id.Value))
+            .Select(x => x.CertificateNumber)
+            .FirstOrDefaultAsync();
+        if (duplicate != null)
+            throw new InvalidOperationException($"Bệnh nhân đã có giấy báo tử số {duplicate} — không lập giấy báo tử thứ hai.");
+
         DeathCertificateRecord entity;
         if (dto.Id.HasValue)
         {
             entity = await _db.DeathCertificateRecords.FirstOrDefaultAsync(x => x.Id == dto.Id.Value)
                 ?? throw new KeyNotFoundException();
+            EnsureEditable(entity.Da06Status, "Giấy báo tử");
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }
@@ -404,11 +452,17 @@ public class DeAn06CertificateService : IDeAn06CertificateService
 
     public async Task<DrivingLicenseHealthCheckDto> SaveDrivingLicenseCheckAsync(SaveDrivingLicenseHealthCheckDto dto, string? userId)
     {
+        if (dto.PatientId == Guid.Empty || !await _db.Patients.AnyAsync(p => p.Id == dto.PatientId && !p.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy bệnh nhân (PatientId).");
+        if (dto.ExamDate == default)
+            throw new ArgumentException("Chưa nhập ngày khám.");
+
         DrivingLicenseHealthCheck entity;
         if (dto.Id.HasValue)
         {
             entity = await _db.DrivingLicenseHealthChecks.FirstOrDefaultAsync(x => x.Id == dto.Id.Value)
                 ?? throw new KeyNotFoundException();
+            EnsureEditable(entity.Da06Status, "Giấy KSK lái xe");
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }

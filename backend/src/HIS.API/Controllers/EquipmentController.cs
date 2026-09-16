@@ -69,7 +69,8 @@ namespace HIS.API.Controllers
                 dto.EquipmentId,
                 string.IsNullOrWhiteSpace(dto.MaintenanceType) ? "Preventive" : dto.MaintenanceType,
                 dto.Frequency ?? string.Empty,
-                dto.NextDueDate));
+                dto.NextDueDate,
+                dto.Notes));
 
         [HttpPost("maintenance")]
         public async Task<ActionResult<MaintenanceRecordDto>> RecordMaintenance([FromBody] CreateMaintenanceRecordDto dto)

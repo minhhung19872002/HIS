@@ -56,6 +56,20 @@ public partial class SystemCompleteService
 
     public async Task<HospitalBranchDto> SaveBranchAsync(HospitalBranchDto dto)
     {
+        // QA-R4: `{}` created a branch with empty code/name; a zero-GUID parent hit the FK (500).
+        var (code, name) = CatalogGuard.RequireCodeName(dto.BranchCode, dto.BranchName, "chi nhánh");
+        dto.BranchCode = code; dto.BranchName = name;
+        if (dto.ParentBranchId is Guid parentId)
+        {
+            if (parentId == Guid.Empty) dto.ParentBranchId = null;
+            else if (dto.Id.HasValue && parentId == dto.Id.Value)
+                throw new ArgumentException("Chi nhánh không thể là cha của chính nó.");
+            else if (!await _context.HospitalBranches.AnyAsync(b => b.Id == parentId && !b.IsDeleted))
+                throw CatalogGuard.NotFound("chi nhánh cha");
+        }
+        var currentId = dto.Id ?? Guid.Empty;
+        if (await _context.HospitalBranches.AnyAsync(b => !b.IsDeleted && b.Id != currentId && b.BranchCode == code))
+            throw CatalogGuard.Duplicate(code, "danh mục chi nhánh");
         HospitalBranch entity;
         if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
         {

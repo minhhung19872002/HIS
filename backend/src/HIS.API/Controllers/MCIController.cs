@@ -123,8 +123,13 @@ namespace HIS.API.Controllers
             => Ok(await _service.RegisterVictimAsync(dto));
 
         [HttpPost("victims/{id}/retriage")]
-        public async Task<ActionResult<MCIVictimDto>> ReTriageVictim([FromBody] ReTriageDto dto)
-            => Ok(await _service.ReTriageVictimAsync(dto));
+        public async Task<ActionResult<MCIVictimDto>> ReTriageVictim(Guid id, [FromBody] ReTriageDto dto)
+        {
+            // QA-R4: the route id was ignored and an unknown victim came back as 204 (Ok(null)).
+            if (dto.VictimId == Guid.Empty) dto.VictimId = id;
+            var result = await _service.ReTriageVictimAsync(dto);
+            return result == null ? NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy nạn nhân" }) : Ok(result);
+        }
 
         [HttpGet("events/{eventId}/resources")]
         public async Task<ActionResult<MCIResourceStatusDto>> GetResourceStatus(Guid eventId)

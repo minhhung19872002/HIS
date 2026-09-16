@@ -82,23 +82,24 @@ const CERT_FIELDS: CrudFieldCfg[] = [
 
 // ─── Labels / status maps ────────────────────────────────────────────────────
 
+// BE TrainingClass.Status: 1=Kế hoạch, 2=Đang diễn ra, 3=Hoàn thành, 4=Huỷ (same values as CLASS_FIELDS).
+// QA-R4: the tab mapping was 0-based (1→"Đang mở", 2→"Hoàn thành", 3→"Tạm dừng"), so every class sat in the wrong tab.
 const CLASS_STATUS_LABEL: Record<number, string> = {
-  0: 'Lên kế hoạch', 1: 'Đang mở', 2: 'Hoàn thành', 3: 'Tạm dừng', 4: 'Hủy',
+  1: 'Kế hoạch', 2: 'Đang diễn ra', 3: 'Hoàn thành', 4: 'Hủy',
 };
 
 const RESEARCH_LEVEL_LABEL: Record<number, string> = { 1: 'Quốc gia', 2: 'Cấp Bộ', 3: 'Cơ sở' };
 
-type SKey = 'planning' | 'active' | 'completed' | 'paused' | 'cancelled';
+type SKey = 'planning' | 'active' | 'completed' | 'cancelled';
 const STATUS_TABS = [
-  { v: 'planning' as SKey,  l: 'Lên KH',     tone: 'warn' as const },
-  { v: 'active' as SKey,    l: 'Đang mở',    tone: 'info' as const },
-  { v: 'completed' as SKey, l: 'Hoàn thành', tone: 'ok' as const },
-  { v: 'paused' as SKey,    l: 'Tạm dừng',   tone: 'warn' as const },
-  { v: 'cancelled' as SKey, l: 'Hủy',        tone: 'crit' as const },
+  { v: 'planning' as SKey,  l: 'Kế hoạch',       tone: 'warn' as const },
+  { v: 'active' as SKey,    l: 'Đang diễn ra',   tone: 'info' as const },
+  { v: 'completed' as SKey, l: 'Hoàn thành',     tone: 'ok' as const },
+  { v: 'cancelled' as SKey, l: 'Hủy',            tone: 'crit' as const },
 ];
 
 const sKey = (n: number): SKey =>
-  n === 0 ? 'planning' : n === 1 ? 'active' : n === 2 ? 'completed' : n === 3 ? 'paused' : 'cancelled';
+  n === 1 ? 'planning' : n === 2 ? 'active' : n === 3 ? 'completed' : 'cancelled';
 
 type MainTab = 'classes' | 'directions' | 'research' | 'certificates';
 const MAIN_TABS: { v: MainTab; l: string }[] = [
@@ -615,7 +616,8 @@ const TrainingResearchV2: React.FC = () => {
                   <td>{s.studentTypeName || `#${s.studentType}`}</td>
                   <td className="mono">{s.score != null ? s.score : '—'}</td>
                   <td>
-                    <StatusBadge tone={s.attendanceStatus === 2 ? 'ok' : s.attendanceStatus === 3 ? 'crit' : 'info'} dot>
+                    {/* 1=Đã đăng ký, 2=Đang học, 3=Hoàn thành, 4=Bỏ học */}
+                    <StatusBadge tone={s.attendanceStatus === 3 ? 'ok' : s.attendanceStatus === 4 ? 'crit' : 'info'} dot>
                       {s.attendanceStatusName || `#${s.attendanceStatus}`}
                     </StatusBadge>
                   </td>

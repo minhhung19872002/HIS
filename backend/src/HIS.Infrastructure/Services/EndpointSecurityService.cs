@@ -47,6 +47,10 @@ public class EndpointSecurityService : IEndpointSecurityService
 
     public async Task<EndpointDeviceDto> RegisterDeviceAsync(RegisterDeviceDto dto)
     {
+        // QA-R4: a device with no hostname cannot be identified in the inventory (blank rows were created).
+        if (string.IsNullOrWhiteSpace(dto.Hostname))
+            throw new ArgumentException("Tên máy (hostname) là bắt buộc.");
+
         var device = new EndpointDevice
         {
             Id = Guid.NewGuid(), Hostname = dto.Hostname, IpAddress = dto.IpAddress, MacAddress = dto.MacAddress,
@@ -119,6 +123,14 @@ public class EndpointSecurityService : IEndpointSecurityService
 
     public async Task<SecurityIncidentDto> CreateIncidentAsync(CreateIncidentDto dto)
     {
+        // QA-R4: untitled incidents were created; an unknown DeviceId was silently ignored.
+        if (string.IsNullOrWhiteSpace(dto.Title))
+            throw new ArgumentException("Tiêu đề sự cố là bắt buộc.");
+        if (dto.Severity is < 1 or > 4)
+            throw new ArgumentException("Mức độ nghiêm trọng phải từ 1 đến 4.");
+        if (dto.DeviceId.HasValue && !await _context.EndpointDevices.AnyAsync(d => d.Id == dto.DeviceId.Value))
+            throw new KeyNotFoundException("Thiết bị không tồn tại.");
+
         var incident = new SecurityIncident
         {
             Id = Guid.NewGuid(), IncidentCode = $"INC-{DateTime.Now:yyyyMMdd}-{Guid.NewGuid().ToString()[..4].ToUpper()}",

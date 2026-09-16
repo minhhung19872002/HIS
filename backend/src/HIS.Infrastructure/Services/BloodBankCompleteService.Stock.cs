@@ -124,7 +124,8 @@ namespace HIS.Infrastructure.Services
                 if (bag.ExpiryDate != default && bag.ExpiryDate.Date < DateTime.Now.Date)
                     throw new InvalidOperationException(
                         $"Túi máu {bag.BagCode} đã hết hạn ngày {bag.ExpiryDate:dd/MM/yyyy}, không chuyển sang \"{status}\" được.");
-                if (new[] { "Transfused", "Destroyed" }.Contains(bag.Status, StringComparer.OrdinalIgnoreCase))
+                // 'Quarantine' = bag pulled during a transfusion reaction (QA round 4) — never back to stock
+                if (new[] { "Transfused", "Destroyed", "Quarantine" }.Contains(bag.Status, StringComparer.OrdinalIgnoreCase))
                     throw new InvalidOperationException(
                         $"Túi máu {bag.BagCode} đã \"{bag.Status}\", không chuyển trạng thái được.");
             }
@@ -148,20 +149,48 @@ namespace HIS.Infrastructure.Services
 
         public async Task<bool> DestroyExpiredBloodBagsAsync(List<Guid> bloodBagIds, string reason)
         {
-            if (bloodBagIds == null || !bloodBagIds.Any()) return false;
+            if (bloodBagIds == null || !bloodBagIds.Any())
+                throw new ArgumentException("Chọn ít nhất một túi máu để tiêu hủy.", nameof(bloodBagIds));
+            // QA round 4: reason is the audit trail of a destroyed unit — the v2 modal already requires it
+            if (string.IsNullOrWhiteSpace(reason))
+                throw new ArgumentException("Nhập lý do tiêu hủy túi máu.", nameof(reason));
 
             // #195: 1 UPDATE cho cả danh sách thay vì 1 UPDATE/túi. Tham số vẫn truyền riêng
             // từng id (không nội suy vào chuỗi SQL); huỷ cả lô giờ là một thao tác nguyên khối
             // chứ không còn nửa chừng khi lỗi giữa vòng lặp.
-            var ids = bloodBagIds.ToList();
+            var ids = bloodBagIds.Distinct().ToList();
             var idParams = string.Join(",", ids.Select((_, i) => $"@p{i + 1}"));
             var args = new object[ids.Count + 1];
-            args[0] = reason ?? "Het han";
+            args[0] = reason;
             for (int i = 0; i < ids.Count; i++) args[i + 1] = ids[i];
+
+            // QA round 4: any id was destroyable — a bag mid-transfusion, an already transfused one, a reserved
+            // one (its assignment kept pointing at a destroyed unit), and unknown ids answered 200. Check the
+            // whole batch first so a bad id destroys nothing.
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
+            var found = new Dictionary<Guid, (string Code, string Status)>();
+            using (var cmd = connection.CreateCommand())
+            {
+                cmd.CommandText = "SELECT Id, BagCode, Status FROM BloodBags WHERE Id IN (" + idParams + ")";
+                for (int i = 0; i < ids.Count; i++) cmd.Parameters.Add(new SqlParameter($"@p{i + 1}", ids[i]));
+                using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync())
+                    found[r.GetGuid(0)] = (r.IsDBNull(1) ? "" : r.GetString(1), r.IsDBNull(2) ? "" : r.GetString(2));
+            }
+            var missing = ids.FirstOrDefault(id => !found.ContainsKey(id));
+            if (missing != Guid.Empty || found.Count != ids.Count)
+                throw new KeyNotFoundException($"Không tìm thấy túi máu {missing}.");
+            var blocked = new[] { "Reserved", "Transfusing", "Transfused", "Destroyed" };
+            foreach (var (code, status) in found.Values)
+                if (blocked.Contains(status, StringComparer.OrdinalIgnoreCase))
+                    throw new InvalidOperationException(
+                        $"Túi máu {code} đang ở trạng thái \"{status}\", không tiêu hủy được (hủy gán/kết thúc truyền trước).");
 
             // Nối chuỗi thay vì nội suy: chỉ có tên tham số được ghép vào câu lệnh, và tránh
             // luôn cảnh báo EF1002 (nội suy vào SQL thô) vốn không nên xuất hiện ở module này.
-            var sql = "UPDATE BloodBags SET Status='Destroyed', Note=@p0 WHERE Id IN (" + idParams + ")";
+            var sql = "UPDATE BloodBags SET Status='Destroyed', Note=@p0 WHERE Id IN (" + idParams + ")"
+                    + " AND Status NOT IN ('Reserved','Transfusing','Transfused','Destroyed')";
             await _context.Database.ExecuteSqlRawAsync(sql, args);
             return true;
         }

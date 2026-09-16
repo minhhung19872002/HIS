@@ -33,6 +33,10 @@ public class AdministrativeUnitService : IAdministrativeUnitService
 
     public async Task<ProvinceDto> SaveProvinceAsync(ProvinceDto dto, string? userId)
     {
+        // QA-R4: `{}` used to create a blank province; an unknown Id threw (500) instead of 404.
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "tỉnh/thành phố");
+        if (await _db.Provinces.AnyAsync(p => !p.IsDeleted && p.Id != dto.Id && p.Code == code))
+            throw CatalogGuard.Duplicate(code, "danh mục tỉnh/thành phố");
         Province entity;
         if (dto.Id == Guid.Empty)
         {
@@ -41,12 +45,13 @@ public class AdministrativeUnitService : IAdministrativeUnitService
         }
         else
         {
-            entity = await _db.Provinces.FirstAsync(p => p.Id == dto.Id);
+            entity = await _db.Provinces.FirstOrDefaultAsync(p => p.Id == dto.Id && !p.IsDeleted)
+                ?? throw CatalogGuard.NotFound("tỉnh/thành phố");
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }
-        entity.Code = dto.Code;
-        entity.Name = dto.Name;
+        entity.Code = code;
+        entity.Name = name;
         entity.IsActive = dto.IsActive;
         await _db.SaveChangesAsync();
         dto.Id = entity.Id;
@@ -57,6 +62,9 @@ public class AdministrativeUnitService : IAdministrativeUnitService
     {
         var e = await _db.Provinces.FirstOrDefaultAsync(p => p.Id == id);
         if (e == null) return false;
+        // Deleting a province silently orphaned its districts/wards (still listed under a deleted parent).
+        if (await _db.Districts.AnyAsync(d => d.ProvinceId == id && !d.IsDeleted))
+            throw new InvalidOperationException("Tỉnh/thành phố còn quận/huyện trực thuộc — xóa quận/huyện trước.");
         e.IsDeleted = true;
         e.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
@@ -83,6 +91,12 @@ public class AdministrativeUnitService : IAdministrativeUnitService
 
     public async Task<DistrictDto> SaveDistrictAsync(DistrictDto dto, string? userId)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "quận/huyện");
+        // A zero/unknown ProvinceId hit the FK and surfaced as a 500.
+        if (!await _db.Provinces.AnyAsync(p => p.Id == dto.ProvinceId && !p.IsDeleted))
+            throw CatalogGuard.NotFound("tỉnh/thành phố của quận/huyện");
+        if (await _db.Districts.AnyAsync(d => !d.IsDeleted && d.Id != dto.Id && d.Code == code))
+            throw CatalogGuard.Duplicate(code, "danh mục quận/huyện");
         District entity;
         if (dto.Id == Guid.Empty)
         {
@@ -91,12 +105,13 @@ public class AdministrativeUnitService : IAdministrativeUnitService
         }
         else
         {
-            entity = await _db.Districts.FirstAsync(d => d.Id == dto.Id);
+            entity = await _db.Districts.FirstOrDefaultAsync(d => d.Id == dto.Id && !d.IsDeleted)
+                ?? throw CatalogGuard.NotFound("quận/huyện");
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }
-        entity.Code = dto.Code;
-        entity.Name = dto.Name;
+        entity.Code = code;
+        entity.Name = name;
         entity.ProvinceId = dto.ProvinceId;
         entity.IsActive = dto.IsActive;
         await _db.SaveChangesAsync();
@@ -108,6 +123,8 @@ public class AdministrativeUnitService : IAdministrativeUnitService
     {
         var e = await _db.Districts.FirstOrDefaultAsync(d => d.Id == id);
         if (e == null) return false;
+        if (await _db.Wards.AnyAsync(w => w.DistrictId == id && !w.IsDeleted))
+            throw new InvalidOperationException("Quận/huyện còn phường/xã trực thuộc — xóa phường/xã trước.");
         e.IsDeleted = true;
         e.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
@@ -134,6 +151,11 @@ public class AdministrativeUnitService : IAdministrativeUnitService
 
     public async Task<WardDto> SaveWardAsync(WardDto dto, string? userId)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "phường/xã");
+        if (!await _db.Districts.AnyAsync(d => d.Id == dto.DistrictId && !d.IsDeleted))
+            throw CatalogGuard.NotFound("quận/huyện của phường/xã");
+        if (await _db.Wards.AnyAsync(w => !w.IsDeleted && w.Id != dto.Id && w.Code == code))
+            throw CatalogGuard.Duplicate(code, "danh mục phường/xã");
         Ward entity;
         if (dto.Id == Guid.Empty)
         {
@@ -142,12 +164,13 @@ public class AdministrativeUnitService : IAdministrativeUnitService
         }
         else
         {
-            entity = await _db.Wards.FirstAsync(w => w.Id == dto.Id);
+            entity = await _db.Wards.FirstOrDefaultAsync(w => w.Id == dto.Id && !w.IsDeleted)
+                ?? throw CatalogGuard.NotFound("phường/xã");
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }
-        entity.Code = dto.Code;
-        entity.Name = dto.Name;
+        entity.Code = code;
+        entity.Name = name;
         entity.DistrictId = dto.DistrictId;
         entity.IsActive = dto.IsActive;
         await _db.SaveChangesAsync();

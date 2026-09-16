@@ -51,6 +51,10 @@ public class TokenRegistryService : ITokenRegistryService
 
     public async Task<TokenUserMapping> RegisterTokenAsync(Guid userId, string tokenSerial, string tokenLabel, string caProvider)
     {
+        // QA-R4: POST register-token {} mapped an empty serial to the caller — a blank row that shadows real tokens.
+        if (string.IsNullOrWhiteSpace(tokenSerial))
+            throw new ArgumentException("Số serial USB token là bắt buộc.");
+
         var existing = await _db.TokenUserMappings
             .FirstOrDefaultAsync(t => t.TokenSerial == tokenSerial);
 

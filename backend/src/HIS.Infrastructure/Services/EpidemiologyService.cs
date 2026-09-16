@@ -117,11 +117,36 @@ public class EpidemiologyService : IEpidemiologyService
 
     public async Task<DiseaseCaseListDto> CreateCaseAsync(CreateDiseaseCaseDto dto)
     {
+        // QA-R4: zero-GUID PatientId/InvestigatorId hit the FK constraints (500); a case with no disease name
+        // and no patient identity is unusable in the surveillance list.
+        var patientId = dto.PatientId is null || dto.PatientId == Guid.Empty ? null : dto.PatientId;
+        var investigatorId = dto.InvestigatorId is null || dto.InvestigatorId == Guid.Empty ? null : dto.InvestigatorId;
+        if (string.IsNullOrWhiteSpace(dto.DiseaseName))
+            throw new ArgumentException("Chưa nhập tên bệnh.");
+        if (dto.ReportDate == default)
+            throw new ArgumentException("Chưa nhập ngày báo cáo.");
+        if (dto.OnsetDate.HasValue && dto.OnsetDate.Value.Date > dto.ReportDate.Date)
+            throw new ArgumentException("Ngày khởi phát không được sau ngày báo cáo.");
+        var patientName = dto.PatientName?.Trim() ?? string.Empty;
+        if (patientId.HasValue)
+        {
+            var p = await _context.Patients.AsNoTracking()
+                .Where(x => x.Id == patientId.Value && !x.IsDeleted)
+                .Select(x => new { x.FullName })
+                .FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException("Không tìm thấy bệnh nhân.");
+            if (patientName.Length == 0) patientName = p.FullName;
+        }
+        if (patientName.Length == 0)
+            throw new ArgumentException("Chưa nhập tên bệnh nhân (hoặc chọn bệnh nhân).");
+        if (investigatorId.HasValue && !await _context.Users.AnyAsync(u => u.Id == investigatorId.Value))
+            throw new KeyNotFoundException("Không tìm thấy cán bộ điều tra.");
+
         var entity = new DiseaseCase
         {
             Id = Guid.NewGuid(),
-            PatientId = dto.PatientId,
-            PatientName = dto.PatientName,
+            PatientId = patientId,
+            PatientName = patientName,
             PatientAge = dto.PatientAge,
             PatientGender = dto.PatientGender,
             DiseaseName = dto.DiseaseName,
@@ -130,7 +155,7 @@ public class EpidemiologyService : IEpidemiologyService
             ReportDate = dto.ReportDate,
             Classification = dto.Classification,
             Outcome = dto.Outcome,
-            InvestigatorId = dto.InvestigatorId,
+            InvestigatorId = investigatorId,
             Location = dto.Location,
             Address = dto.Address,
             Notes = dto.Notes,

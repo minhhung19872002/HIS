@@ -89,7 +89,7 @@ namespace HIS.Application.Services
         public Task<MaintenanceScheduleDto> RejectMaintenanceScheduleAsync(Guid id, string reason, Guid userId)
             => throw new NotSupportedException("Từ chối kế hoạch bảo dưỡng chỉ khả dụng ở MedicalEquipmentServiceImpl.");
 
-        public async Task<MaintenanceScheduleDto> CreateMaintenanceScheduleAsync(Guid equipmentId, string maintenanceType, string frequency, DateTime nextDueDate)
+        public async Task<MaintenanceScheduleDto> CreateMaintenanceScheduleAsync(Guid equipmentId, string maintenanceType, string frequency, DateTime nextDueDate, string? notes = null)
         {
             _logger.LogInformation("Creating maintenance schedule for equipment {EquipmentId}", equipmentId);
             return new MaintenanceScheduleDto

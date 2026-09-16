@@ -55,6 +55,15 @@ public class SigningWorkflowService : ISigningWorkflowService
 
     public async Task<SigningRequestDto> SubmitRequestAsync(SubmitSigningRequestDto dto, Guid submittedById, string submittedByName)
     {
+        // QA-R4: an empty body created a signing request with no document and no assignee — it can never be signed.
+        if (string.IsNullOrWhiteSpace(dto.DocumentType))
+            throw new ArgumentException("Thiếu loại tài liệu trình ký.");
+        if (dto.DocumentId == Guid.Empty)
+            throw new ArgumentException("Thiếu tài liệu trình ký (DocumentId).");
+        if (dto.AssignedToId == Guid.Empty
+            || !await _context.Users.AnyAsync(u => u.Id == dto.AssignedToId && u.IsActive && !u.IsDeleted))
+            throw new KeyNotFoundException("Người ký được chỉ định không tồn tại hoặc đã bị khóa.");
+
         var entity = new SigningRequest
         {
             DocumentType = dto.DocumentType,

@@ -542,11 +542,26 @@ const BASE_URL = '/equipment';
 
 // #region Equipment Inventory
 
+// BE MedicalEquipmentDto exposes the room/position as `location` (and `roomNumber`); the v2 page reads
+// `locationName` / `roomName`, so "Vị trí" was always "—" even when the device had one.
+const normalizeEquipment = (e: EquipmentDto): EquipmentDto => {
+  const raw = e as unknown as Record<string, unknown>;
+  const location = (raw.location as string | undefined) || (raw.roomNumber as string | undefined);
+  return location && !e.locationName ? { ...e, locationName: location } : e;
+};
+
 export const getEquipment = (params: EquipmentSearchDto) =>
-  apiClient.get<PagedResultDto<EquipmentDto>>(`${BASE_URL}`, { params });
+  apiClient.get<PagedResultDto<EquipmentDto>>(`${BASE_URL}`, { params })
+    .then((res) => {
+      const raw = res.data as unknown;
+      if (Array.isArray(raw)) return { ...res, data: raw.map(normalizeEquipment) as unknown as PagedResultDto<EquipmentDto> };
+      const paged = raw as PagedResultDto<EquipmentDto> | undefined;
+      return paged?.items ? { ...res, data: { ...paged, items: paged.items.map(normalizeEquipment) } } : res;
+    });
 
 export const getEquipmentById = (id: string) =>
-  apiClient.get<EquipmentDto>(`${BASE_URL}/${id}`);
+  apiClient.get<EquipmentDto>(`${BASE_URL}/${id}`)
+    .then((res) => (res.data ? { ...res, data: normalizeEquipment(res.data) } : res));
 
 export const getEquipmentByCode = (code: string) =>
   apiClient.get<EquipmentDto>(`${BASE_URL}/code/${code}`);

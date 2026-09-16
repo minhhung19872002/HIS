@@ -85,19 +85,23 @@ public partial class SystemCompleteService
 
     public async Task<OccupationCatalogDto> SaveOccupationAsync(OccupationCatalogDto dto)
     {
+        // QA-R4: `{}` created blank rows (Code='' / Name='') that showed as empty lines in the admin screens.
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "nghề nghiệp");
+        if (await _context.Occupations.AnyAsync(o => !o.IsDeleted && o.Id != dto.Id && o.Code == code))
+            throw CatalogGuard.Duplicate(code, "danh mục nghề nghiệp");
         Occupation entity;
         if (dto.Id != Guid.Empty)
         {
             entity = await _context.Occupations.FindAsync(dto.Id);
-            if (entity == null) throw new KeyNotFoundException($"Occupation {dto.Id} not found");
+            if (entity == null) throw CatalogGuard.NotFound("nghề nghiệp");
         }
         else
         {
             entity = new Occupation { Id = Guid.NewGuid() };
             _context.Occupations.Add(entity);
         }
-        entity.Code = dto.Code;
-        entity.Name = dto.Name;
+        entity.Code = code;
+        entity.Name = name;
         entity.SortOrder = dto.SortOrder;
         entity.IsActive = dto.IsActive;
         await _context.SaveChangesAsync();
@@ -136,19 +140,22 @@ public partial class SystemCompleteService
 
     public async Task<GenderCatalogDto> SaveGenderAsync(GenderCatalogDto dto)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "giới tính");
+        if (await _context.Genders.AnyAsync(g => !g.IsDeleted && g.Id != dto.Id && g.Code == code))
+            throw CatalogGuard.Duplicate(code, "danh mục giới tính");
         Gender entity;
         if (dto.Id != Guid.Empty)
         {
             entity = await _context.Genders.FindAsync(dto.Id);
-            if (entity == null) throw new KeyNotFoundException($"Gender {dto.Id} not found");
+            if (entity == null) throw CatalogGuard.NotFound("giới tính");
         }
         else
         {
             entity = new Gender { Id = Guid.NewGuid() };
             _context.Genders.Add(entity);
         }
-        entity.Code = dto.Code;
-        entity.Name = dto.Name;
+        entity.Code = code;
+        entity.Name = name;
         entity.SortOrder = dto.SortOrder;
         entity.IsActive = dto.IsActive;
         await _context.SaveChangesAsync();
@@ -201,19 +208,30 @@ public partial class SystemCompleteService
 
     public async Task<AdministrativeDivisionCatalogDto> SaveAdministrativeDivisionAsync(AdministrativeDivisionCatalogDto dto)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "đơn vị hành chính");
+        if (dto.Level < 1 || dto.Level > 3)
+            throw new ArgumentException("Cấp đơn vị hành chính phải là 1 (tỉnh), 2 (huyện) hoặc 3 (xã).");
+        var parentCode = string.IsNullOrWhiteSpace(dto.ParentCode) ? null : dto.ParentCode.Trim();
+        if (dto.Level > 1 && parentCode == null)
+            throw new ArgumentException("Đơn vị cấp huyện/xã phải có mã đơn vị cha.");
+        if (parentCode != null && !await _context.AdministrativeDivisions.AnyAsync(d => !d.IsDeleted && d.Code == parentCode && d.Level == dto.Level - 1))
+            throw CatalogGuard.NotFound("đơn vị hành chính cha (đúng cấp trên)");
+        if (await _context.AdministrativeDivisions.AnyAsync(d => !d.IsDeleted && d.Id != dto.Id && d.Code == code))
+            throw CatalogGuard.Duplicate(code, "danh mục đơn vị hành chính");
+        dto.ParentCode = parentCode;
         AdministrativeDivision entity;
         if (dto.Id != Guid.Empty)
         {
             entity = await _context.AdministrativeDivisions.FindAsync(dto.Id);
-            if (entity == null) throw new KeyNotFoundException($"AdministrativeDivision {dto.Id} not found");
+            if (entity == null) throw CatalogGuard.NotFound("đơn vị hành chính");
         }
         else
         {
             entity = new AdministrativeDivision { Id = Guid.NewGuid() };
             _context.AdministrativeDivisions.Add(entity);
         }
-        entity.Code = dto.Code;
-        entity.Name = dto.Name;
+        entity.Code = code;
+        entity.Name = name;
         entity.Level = dto.Level;
         entity.ParentCode = dto.ParentCode;
         entity.SortOrder = dto.SortOrder;
@@ -255,19 +273,22 @@ public partial class SystemCompleteService
 
     public async Task<CountryCatalogDto> SaveCountryAsync(CountryCatalogDto dto)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "quốc gia");
+        if (await _context.Countries.AnyAsync(c => !c.IsDeleted && c.Id != dto.Id && c.Code == code))
+            throw CatalogGuard.Duplicate(code, "danh mục quốc gia");
         Country entity;
         if (dto.Id != Guid.Empty)
         {
             entity = await _context.Countries.FindAsync(dto.Id);
-            if (entity == null) throw new KeyNotFoundException($"Country {dto.Id} not found");
+            if (entity == null) throw CatalogGuard.NotFound("quốc gia");
         }
         else
         {
             entity = new Country { Id = Guid.NewGuid() };
             _context.Countries.Add(entity);
         }
-        entity.Code = dto.Code;
-        entity.Name = dto.Name;
+        entity.Code = code;
+        entity.Name = name;
         entity.NationalityName = dto.NationalityName;
         entity.SortOrder = dto.SortOrder;
         entity.IsActive = dto.IsActive;
@@ -314,19 +335,22 @@ public partial class SystemCompleteService
 
     public async Task<HealthcareFacilityCatalogDto> SaveHealthcareFacilityAsync(HealthcareFacilityCatalogDto dto)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "cơ sở KCB");
+        if (await _context.HealthcareFacilities.AnyAsync(f => !f.IsDeleted && f.Id != dto.Id && f.Code == code))
+            throw CatalogGuard.Duplicate(code, "danh mục cơ sở KCB");
         HealthcareFacility entity;
         if (dto.Id != Guid.Empty)
         {
             entity = await _context.HealthcareFacilities.FindAsync(dto.Id);
-            if (entity == null) throw new KeyNotFoundException($"HealthcareFacility {dto.Id} not found");
+            if (entity == null) throw CatalogGuard.NotFound("cơ sở KCB");
         }
         else
         {
             entity = new HealthcareFacility { Id = Guid.NewGuid() };
             _context.HealthcareFacilities.Add(entity);
         }
-        entity.Code = dto.Code;
-        entity.Name = dto.Name;
+        entity.Code = code;
+        entity.Name = name;
         entity.Address = dto.Address;
         entity.Level = dto.Level;
         entity.ProvinceCode = dto.ProvinceCode;

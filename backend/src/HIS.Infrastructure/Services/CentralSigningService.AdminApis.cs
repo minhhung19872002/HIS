@@ -42,10 +42,20 @@ public partial class CentralSigningService
 
     public async Task<ManagedCertificateDto?> SaveManagedCertificateAsync(SaveManagedCertificateRequest request)
     {
+        // QA-R4: empty serial/subject rows were being created, and an unknown Id produced an untracked entity that
+        // was never saved yet echoed back with Id = 00000000 (silent no-op).
+        if (string.IsNullOrWhiteSpace(request.SerialNumber))
+            throw new ArgumentException("Số serial chứng thư là bắt buộc.");
+        if (string.IsNullOrWhiteSpace(request.SubjectName))
+            throw new ArgumentException("Tên chủ thể (Subject) chứng thư là bắt buộc.");
+        if (request.ValidTo != default && request.ValidFrom != default && request.ValidTo <= request.ValidFrom)
+            throw new ArgumentException("Ngày hết hạn phải sau ngày hiệu lực.");
+
         ManagedCertificate entity;
         if (request.Id.HasValue)
         {
-            entity = await _db.Set<ManagedCertificate>().FindAsync(request.Id.Value) ?? new ManagedCertificate();
+            entity = await _db.Set<ManagedCertificate>().FindAsync(request.Id.Value)
+                ?? throw new KeyNotFoundException("Chứng thư số không tồn tại.");
         }
         else
         {

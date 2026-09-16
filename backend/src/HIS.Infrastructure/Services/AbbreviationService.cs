@@ -13,6 +13,14 @@ public class AbbreviationService : IAbbreviationService
 
     public async Task<AbbreviationDto> SaveAsync(SaveAbbreviationDto dto, Guid userId)
     {
+        // QA-R4: an empty code/expansion saved fine and then matched nothing in the expander (blank catalog rows).
+        if (string.IsNullOrWhiteSpace(dto.Code))
+            throw new ArgumentException("Mã viết tắt là bắt buộc.");
+        if (string.IsNullOrWhiteSpace(dto.Expansion))
+            throw new ArgumentException("Nội dung mở rộng là bắt buộc.");
+        if (dto.Code.Contains(' '))
+            throw new ArgumentException("Mã viết tắt không được chứa khoảng trắng.");
+
         Abbreviation entity;
         if (dto.Id.HasValue)
         {

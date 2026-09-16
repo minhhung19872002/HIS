@@ -263,21 +263,26 @@ public partial class SystemCompleteService
 
             var departments = await deptQuery.Select(d => new { d.Id, d.DepartmentName }).ToListAsync();
 
+            // QA-R4: CreatedAt columns are UTC — compare with the UTC bounds of the VN days (was a 7-hour shift:
+            // a report for 16/09 counted 5 visits instead of 31).
+            var fromUtc = ReportPeriod.ToUtc(fromDate);
+            var toUtc = ReportPeriod.ToUtc(toEnd);
+
             var examCounts = await _context.Examinations.AsNoTracking()
-                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt < toEnd)
+                .Where(e => e.CreatedAt >= fromUtc && e.CreatedAt < toUtc && e.Status != 5 && !e.IsDeleted)
                 .GroupBy(e => e.DepartmentId)
                 .Select(g => new { DeptId = g.Key, Count = g.Count() })
                 .ToListAsync();
 
             var admissionCounts = await _context.Admissions.AsNoTracking()
-                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate < toEnd)
+                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate < toEnd && !a.IsDeleted)
                 .GroupBy(a => a.DepartmentId)
                 .Select(g => new { DeptId = g.Key, Count = g.Count() })
                 .ToListAsync();
 
             var surgeryCounts = await _context.SurgeryRequests.AsNoTracking()
                 .Include(s => s.MedicalRecord)
-                .Where(s => s.CreatedAt >= fromDate && s.CreatedAt < toEnd)
+                .Where(s => s.RequestDate >= fromDate && s.RequestDate < toEnd && !s.IsDeleted)
                 .Where(s => s.Status == 3)
                 .Where(s => s.MedicalRecord != null && s.MedicalRecord.DepartmentId != null)
                 .GroupBy(s => s.MedicalRecord.DepartmentId)
@@ -286,7 +291,7 @@ public partial class SystemCompleteService
 
             // #14b: model 1 ServiceRequests (RequestType=1 XN, loại hủy) thay LabRequests (model 2 chết)
             var labCounts = await _context.ServiceRequests.AsNoTracking()
-                .Where(l => l.CreatedAt >= fromDate && l.CreatedAt < toEnd && l.RequestType == 1 && l.Status != 4)
+                .Where(l => l.CreatedAt >= fromUtc && l.CreatedAt < toUtc && l.RequestType == 1 && l.Status != 4 && !l.IsDeleted)
                 .GroupBy(l => (Guid?)l.DepartmentId)
                 .Select(g => new { DeptId = g.Key, Count = g.Count() })
                 .ToListAsync();
@@ -333,13 +338,13 @@ public partial class SystemCompleteService
         {
             var bedQuery = _context.Beds.AsNoTracking()
                 .Include(b => b.Room).ThenInclude(r => r.Department)
-                .Where(b => b.IsActive);
+                .Where(b => b.IsActive && !b.IsDeleted);
             if (departmentId.HasValue)
                 bedQuery = bedQuery.Where(b => b.Room.Department.Id == departmentId.Value);
 
             var beds = await bedQuery.ToListAsync();
             var occupiedBedIds = await _context.Set<BedAssignment>().AsNoTracking()
-                .Where(ba => ba.Status == 0)
+                .Where(ba => ba.Status == 0 && !ba.IsDeleted)
                 .Select(ba => ba.BedId)
                 .Distinct()
                 .ToListAsync();
@@ -426,28 +431,30 @@ public partial class SystemCompleteService
         var toEnd = StatisticsEndExclusive(toDate);
         try
         {
+            // QA-R4: Examinations.CreatedAt is UTC (VN-day bounds via ReportPeriod.ToUtc).
+            var fromUtc = ReportPeriod.ToUtc(fromDate);
+            var toUtc = ReportPeriod.ToUtc(toEnd);
             var totalExams = await _context.Examinations.AsNoTracking()
-                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt < toEnd).CountAsync();
+                .Where(e => e.CreatedAt >= fromUtc && e.CreatedAt < toUtc && e.Status != 5 && !e.IsDeleted).CountAsync();
             var completedExams = await _context.Examinations.AsNoTracking()
-                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt < toEnd && e.Status == 4).CountAsync();
+                .Where(e => e.CreatedAt >= fromUtc && e.CreatedAt < toUtc && e.Status == 4 && !e.IsDeleted).CountAsync();
 
             var totalAdmissions = await _context.Admissions.AsNoTracking()
-                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate < toEnd).CountAsync();
+                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate < toEnd && !a.IsDeleted).CountAsync();
             var discharges = await _context.Discharges.AsNoTracking()
-                .Where(d => d.DischargeDate >= fromDate && d.DischargeDate < toEnd).ToListAsync();
+                .Where(d => d.DischargeDate >= fromDate && d.DischargeDate < toEnd && !d.IsDeleted).ToListAsync();
             var deaths = discharges.Count(d => d.DischargeType == 4 || d.DischargeCondition == 5);
 
-            var totalBeds = await _context.Beds.AsNoTracking().Where(b => b.IsActive).CountAsync();
+            var totalBeds = await _context.Beds.AsNoTracking().Where(b => b.IsActive && !b.IsDeleted).CountAsync();
             var occupiedBeds = await _context.Set<BedAssignment>().AsNoTracking()
-                .Where(ba => ba.Status == 0).Select(ba => ba.BedId).Distinct().CountAsync();
+                .Where(ba => ba.Status == 0 && !ba.IsDeleted).Select(ba => ba.BedId).Distinct().CountAsync();
 
-            var avgLos = totalAdmissions > 0
-                ? await _context.Discharges.AsNoTracking()
-                    .Where(d => d.DischargeDate >= fromDate && d.DischargeDate < toEnd)
-                    .Select(d => EF.Functions.DateDiffDay(d.Admission.AdmissionDate, d.DischargeDate))
-                    .DefaultIfEmpty(0)
-                    .AverageAsync()
-                : 0;
+            // QA-R4: `.DefaultIfEmpty(0).AverageAsync()` over DateDiffDay is not translatable — the whole KPI list
+            // came back EMPTY for any period that had an admission (the catch below swallowed it).
+            var losQuery = _context.Discharges.AsNoTracking()
+                .Where(d => d.DischargeDate >= fromDate && d.DischargeDate < toEnd && !d.IsDeleted)
+                .Select(d => (double)EF.Functions.DateDiffDay(d.Admission.AdmissionDate, d.DischargeDate));
+            var avgLos = discharges.Count > 0 ? await losQuery.AverageAsync() : 0;
 
             var kpis = new List<HospitalKPIDto>
             {

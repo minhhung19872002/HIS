@@ -75,6 +75,12 @@ public partial class SystemCompleteService
 
     public async Task<ExaminationServiceCatalogDto> SaveExaminationServiceAsync(ExaminationServiceCatalogDto dto)
     {
+        // QA-R4: guards sit BEFORE the try — the catch below swallows everything and returns null (→ 204 "saved").
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "dịch vụ khám");
+        if (dto.Price < 0) throw new ArgumentException("Đơn giá dịch vụ không được âm.");
+        if (await _context.Services.AnyAsync(s => !s.IsDeleted && s.Id != dto.Id && s.ServiceCode == code))
+            throw CatalogGuard.Duplicate(code, "danh mục dịch vụ");
+        dto.Code = code; dto.Name = name;
         try
         {
             Service entity;
@@ -191,6 +197,11 @@ public partial class SystemCompleteService
 
     public async Task<ParaclinicalServiceCatalogDto> SaveParaclinicalServiceAsync(ParaclinicalServiceCatalogDto dto)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "dịch vụ cận lâm sàng");
+        if (dto.UnitPrice < 0) throw new ArgumentException("Đơn giá dịch vụ không được âm.");
+        if (await _context.Services.AnyAsync(s => !s.IsDeleted && s.Id != dto.Id && s.ServiceCode == code))
+            throw CatalogGuard.Duplicate(code, "danh mục dịch vụ");
+        dto.Code = code; dto.Name = name;
         try
         {
             Service entity;
@@ -297,6 +308,10 @@ public partial class SystemCompleteService
 
     public async Task<MedicineCatalogDto> SaveMedicineAsync(MedicineCatalogDto dto)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "thuốc");
+        if (await _context.Medicines.AnyAsync(m => !m.IsDeleted && m.Id != dto.Id && m.MedicineCode == code))
+            throw CatalogGuard.Duplicate(code, "danh mục thuốc");
+        dto.Code = code; dto.Name = name;
         try
         {
             Medicine entity;
@@ -534,6 +549,10 @@ public partial class SystemCompleteService
 
     public async Task<MedicalSupplyCatalogDto> SaveMedicalSupplyAsync(MedicalSupplyCatalogDto dto)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "vật tư");
+        if (await _context.MedicalSupplies.AnyAsync(m => !m.IsDeleted && m.Id != dto.Id && m.SupplyCode == code))
+            throw CatalogGuard.Duplicate(code, "danh mục vật tư");
+        dto.Code = code; dto.Name = name;
         try
         {
             MedicalSupply entity;

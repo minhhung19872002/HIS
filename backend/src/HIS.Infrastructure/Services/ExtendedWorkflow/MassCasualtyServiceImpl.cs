@@ -42,8 +42,40 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
         return MapToEventDto(e);
     }
 
+    // QA-R4: the board (v2 EmergencyDisaster) can only show ONE active event; a second activation used to
+    // create a parallel Active event that hid the first one and could never be closed from the UI.
+    private static readonly string[] TriageCategories = { "Red", "Yellow", "Green", "Black" };
+    private static readonly string[] VictimStatuses = { "Active", "Admitted", "Discharged", "Transferred", "Deceased" };
+
+    /// <summary>
+    /// Refuses a second MCI activation only while another event started TODAY is still running — that is the real
+    /// double-activation the guard is for. Events left "Active" from previous days are stale housekeeping (the dev
+    /// database alone carries 11) and must not block a new incident; the caller surfaces them as a warning instead.
+    /// </summary>
+    private async Task<string?> EnsureNoActiveEventAsync()
+    {
+        var today = DateTime.Now.Date;
+        var active = await _context.MCIEvents.Where(x => x.Status == "Active")
+            .OrderByDescending(x => x.ActivatedAt)
+            .Select(x => new { x.EventCode, x.ActivatedAt })
+            .FirstOrDefaultAsync();
+        if (active == null) return null;
+        if (active.ActivatedAt >= today)
+            throw new InvalidOperationException($"Đang có sự kiện {active.EventCode} kích hoạt hôm nay chưa kết thúc — kết thúc sự kiện đó trước khi kích hoạt sự kiện mới.");
+        return active.EventCode;
+    }
+
+    private async Task EnsureVictimEventActiveAsync(Guid eventId)
+    {
+        if (!await _context.MCIEvents.AnyAsync(x => x.Id == eventId && x.Status == "Active"))
+            throw new InvalidOperationException("Sự kiện MCI đã kết thúc — không thay đổi phân loại/trạng thái nạn nhân được nữa.");
+    }
+
     public async Task<MCIEventDto> ActivateEventAsync(ActivateMCIEventDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.EventName))
+            throw new ArgumentException("Chưa nhập tên sự kiện.");
+        await EnsureNoActiveEventAsync();
         var entity = new MCIEvent
         {
             Id = Guid.NewGuid(),
@@ -66,6 +98,9 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
 
     public async Task<MCIEventDto> ActivateCodeBlueAsync(string location, Guid activatedByUserId)
     {
+        // Code Blue (báo động đỏ) must NEVER be refusable: it is pressed during a cardiac arrest and a stale
+        // un-closed MCI event is a housekeeping problem, not a reason to block the alarm. Pre-push review of QA
+        // round 4 measured 11 events still "Active" — the guard would have made the button 100% dead.
         var now = DateTime.Now;
         var entity = new MCIEvent
         {
@@ -187,10 +222,16 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
     {
         var e = await _context.MCIVictims.FindAsync(id);
         if (e == null) return null!;
+        // QA-R4: status is a fixed set (the board maps it to disposition); no status/location change on a closed event.
+        // Treatment notes stay editable for after-action documentation.
+        if (dto.Status != null && !VictimStatuses.Contains(dto.Status, StringComparer.OrdinalIgnoreCase))
+            throw new ArgumentException($"Trạng thái nạn nhân không hợp lệ: '{dto.Status}' (Active/Admitted/Discharged/Transferred/Deceased).");
+        if (dto.Status != null || dto.CurrentLocation != null || dto.Name != null)
+            await EnsureVictimEventActiveAsync(e.MCIEventId);
         // QA-R2: partial update — a notes-only PUT used to null out Name/CurrentLocation/Status.
         if (dto.Name != null) e.Name = dto.Name;
         if (dto.CurrentLocation != null) e.CurrentLocation = dto.CurrentLocation;
-        if (dto.Status != null) e.Status = dto.Status;
+        if (dto.Status != null) e.Status = VictimStatuses.First(s => s.Equals(dto.Status, StringComparison.OrdinalIgnoreCase));
         if (dto.TreatmentNotes != null) e.InitialTreatment = dto.TreatmentNotes;
         await _context.SaveChangesAsync();
         return MapToVictimDto(e);
@@ -200,7 +241,11 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
     {
         var e = await _context.MCIVictims.FindAsync(dto.VictimId);
         if (e == null) return null!;
-        e.TriageCategory = dto.NewCategory;
+        // QA-R4: any string ("Purple") was stored as the triage colour; re-triage on a closed event was accepted.
+        var category = TriageCategories.FirstOrDefault(c => c.Equals(dto.NewCategory?.Trim(), StringComparison.OrdinalIgnoreCase))
+            ?? throw new ArgumentException($"Phân loại triage không hợp lệ: '{dto.NewCategory}' (Red/Yellow/Green/Black).");
+        await EnsureVictimEventActiveAsync(e.MCIEventId);
+        e.TriageCategory = category;
         e.TriageTime = DateTime.Now;
         e.TriageNotes = dto.Reason;
         await _context.SaveChangesAsync();

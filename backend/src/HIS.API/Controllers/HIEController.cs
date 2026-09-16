@@ -38,7 +38,11 @@ namespace HIS.API.Controllers
 
         [HttpPost("connections/{id}/test")]
         public async Task<ActionResult<HIEConnectionDto>> TestConnection(Guid id)
-            => Ok(await _service.TestConnectionAsync(id));
+        {
+            // QA-R4: unknown connection came back as 204 (Ok(null)).
+            var r = await _service.TestConnectionAsync(id);
+            return r == null ? NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy kết nối" }) : Ok(r);
+        }
 
         // Connection CRUD for the v2 page (POST/PUT/activate/deactivate were 405/404). Backed by the existing
         // SaveConnectionConfigAsync (HIEConnections table).
@@ -95,7 +99,10 @@ namespace HIS.API.Controllers
         [TypeFilter(typeof(HIS.API.Filters.DomainExceptionFilter))] // R3: portal refusal → 400
         [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)]
         public async Task<ActionResult<InsuranceXMLSubmissionDto>> SubmitXML(Guid id)
-            => Ok(await _service.SubmitXMLAsync(id));
+        {
+            var r = await _service.SubmitXMLAsync(id);
+            return r == null ? NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy lượt gửi XML" }) : Ok(r);
+        }
 
         [HttpGet("insurance/submissions")]
         public async Task<ActionResult<List<InsuranceXMLSubmissionDto>>> GetSubmissions(

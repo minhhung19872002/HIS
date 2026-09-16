@@ -37,6 +37,9 @@ public class MasterCatalogService : IMasterCatalogService
 
     public async Task<ManufacturerDto> SaveManufacturerAsync(ManufacturerDto dto, string? userId)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "nhà sản xuất");
+        if (await _db.Manufacturers.AnyAsync(m => !m.IsDeleted && m.Id != dto.Id && m.Code == code))
+            throw CatalogGuard.Duplicate(code);
         Manufacturer entity;
         if (dto.Id == Guid.Empty)
         {
@@ -45,10 +48,11 @@ public class MasterCatalogService : IMasterCatalogService
         }
         else
         {
-            entity = await _db.Manufacturers.FirstAsync(m => m.Id == dto.Id);
+            entity = await _db.Manufacturers.FirstOrDefaultAsync(m => m.Id == dto.Id && !m.IsDeleted)
+                ?? throw CatalogGuard.NotFound("nhà sản xuất");
             entity.UpdatedBy = Normalize(userId);
         }
-        entity.Code = dto.Code; entity.Name = dto.Name; entity.Country = dto.Country;
+        entity.Code = code; entity.Name = name; entity.Country = dto.Country;
         entity.Address = dto.Address; entity.Note = dto.Note; entity.SortOrder = dto.SortOrder;
         entity.IsActive = dto.IsActive;
         await _db.SaveChangesAsync();
@@ -81,10 +85,13 @@ public class MasterCatalogService : IMasterCatalogService
 
     public async Task<MedicationRouteDto> SaveMedicationRouteAsync(MedicationRouteDto dto, string? userId)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "đường dùng");
+        if (await _db.MedicationRoutes.AnyAsync(m => !m.IsDeleted && m.Id != dto.Id && m.Code == code))
+            throw CatalogGuard.Duplicate(code);
         MedicationRoute e;
         if (dto.Id == Guid.Empty) { e = new(); _db.MedicationRoutes.Add(e); e.CreatedBy = Normalize(userId); }
-        else { e = await _db.MedicationRoutes.FirstAsync(m => m.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
-        e.Code = dto.Code; e.Name = dto.Name; e.BhxhCode = dto.BhxhCode; e.Note = dto.Note;
+        else { e = await _db.MedicationRoutes.FirstOrDefaultAsync(m => m.Id == dto.Id && !m.IsDeleted) ?? throw CatalogGuard.NotFound("đường dùng"); e.UpdatedBy = Normalize(userId); }
+        e.Code = code; e.Name = name; e.BhxhCode = dto.BhxhCode; e.Note = dto.Note;
         e.SortOrder = dto.SortOrder; e.IsActive = dto.IsActive;
         await _db.SaveChangesAsync(); dto.Id = e.Id; return dto;
     }
@@ -113,10 +120,16 @@ public class MasterCatalogService : IMasterCatalogService
 
     public async Task<AdditionalChargeDto> SaveAdditionalChargeAsync(AdditionalChargeDto dto, string? userId)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "phụ thu");
+        if (dto.Price < 0) throw new ArgumentException("Đơn giá phụ thu không được âm.");
+        if (dto.EffectiveTo.HasValue && dto.EffectiveFrom.HasValue && dto.EffectiveTo.Value.Date < dto.EffectiveFrom.Value.Date)
+            throw new ArgumentException("Ngày hết hiệu lực phải sau ngày bắt đầu hiệu lực.");
+        if (await _db.AdditionalCharges.AnyAsync(a => !a.IsDeleted && a.Id != dto.Id && a.Code == code))
+            throw CatalogGuard.Duplicate(code);
         AdditionalCharge e;
         if (dto.Id == Guid.Empty) { e = new(); _db.AdditionalCharges.Add(e); e.CreatedBy = Normalize(userId); }
-        else { e = await _db.AdditionalCharges.FirstAsync(a => a.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
-        e.Code = dto.Code; e.Name = dto.Name; e.Price = dto.Price;
+        else { e = await _db.AdditionalCharges.FirstOrDefaultAsync(a => a.Id == dto.Id && !a.IsDeleted) ?? throw CatalogGuard.NotFound("phụ thu"); e.UpdatedBy = Normalize(userId); }
+        e.Code = code; e.Name = name; e.Price = dto.Price;
         e.EffectiveFrom = dto.EffectiveFrom; e.EffectiveTo = dto.EffectiveTo;
         e.Unit = dto.Unit; e.Note = dto.Note; e.SortOrder = dto.SortOrder; e.IsActive = dto.IsActive;
         await _db.SaveChangesAsync(); dto.Id = e.Id; return dto;
@@ -146,10 +159,16 @@ public class MasterCatalogService : IMasterCatalogService
 
     public async Task<OtherIncomeDto> SaveOtherIncomeAsync(OtherIncomeDto dto, string? userId)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "khoản thu khác");
+        if (dto.Price < 0) throw new ArgumentException("Đơn giá khoản thu không được âm.");
+        if (dto.EffectiveTo.HasValue && dto.EffectiveFrom.HasValue && dto.EffectiveTo.Value.Date < dto.EffectiveFrom.Value.Date)
+            throw new ArgumentException("Ngày hết hiệu lực phải sau ngày bắt đầu hiệu lực.");
+        if (await _db.OtherIncomes.AnyAsync(o => !o.IsDeleted && o.Id != dto.Id && o.Code == code))
+            throw CatalogGuard.Duplicate(code);
         OtherIncome e;
         if (dto.Id == Guid.Empty) { e = new(); _db.OtherIncomes.Add(e); e.CreatedBy = Normalize(userId); }
-        else { e = await _db.OtherIncomes.FirstAsync(o => o.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
-        e.Code = dto.Code; e.Name = dto.Name; e.Price = dto.Price;
+        else { e = await _db.OtherIncomes.FirstOrDefaultAsync(o => o.Id == dto.Id && !o.IsDeleted) ?? throw CatalogGuard.NotFound("khoản thu khác"); e.UpdatedBy = Normalize(userId); }
+        e.Code = code; e.Name = name; e.Price = dto.Price;
         e.EffectiveFrom = dto.EffectiveFrom; e.EffectiveTo = dto.EffectiveTo;
         e.Unit = dto.Unit; e.Note = dto.Note; e.SortOrder = dto.SortOrder; e.IsActive = dto.IsActive;
         await _db.SaveChangesAsync(); dto.Id = e.Id; return dto;
@@ -179,10 +198,14 @@ public class MasterCatalogService : IMasterCatalogService
 
     public async Task<TransportServiceDto> SaveTransportServiceAsync(TransportServiceDto dto, string? userId)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "dịch vụ vận chuyển");
+        if (dto.UnitPrice < 0) throw new ArgumentException("Đơn giá vận chuyển không được âm.");
+        if (await _db.TransportServices.AnyAsync(t => !t.IsDeleted && t.Id != dto.Id && t.Code == code))
+            throw CatalogGuard.Duplicate(code);
         TransportService e;
         if (dto.Id == Guid.Empty) { e = new(); _db.TransportServices.Add(e); e.CreatedBy = Normalize(userId); }
-        else { e = await _db.TransportServices.FirstAsync(t => t.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
-        e.Code = dto.Code; e.Name = dto.Name; e.CalculationType = dto.CalculationType;
+        else { e = await _db.TransportServices.FirstOrDefaultAsync(t => t.Id == dto.Id && !t.IsDeleted) ?? throw CatalogGuard.NotFound("dịch vụ vận chuyển"); e.UpdatedBy = Normalize(userId); }
+        e.Code = code; e.Name = name; e.CalculationType = dto.CalculationType;
         e.UnitPrice = dto.UnitPrice; e.GasolineFactor = dto.GasolineFactor;
         e.Note = dto.Note; e.SortOrder = dto.SortOrder; e.IsActive = dto.IsActive;
         await _db.SaveChangesAsync(); dto.Id = e.Id; return dto;
@@ -211,10 +234,13 @@ public class MasterCatalogService : IMasterCatalogService
 
     public async Task<GasolinePriceDto> SaveGasolinePriceAsync(GasolinePriceDto dto, string? userId)
     {
+        var fuelType = CatalogGuard.RequireText(dto.FuelType, "Loại nhiên liệu");
+        if (dto.PricePerLitre <= 0) throw new ArgumentException("Giá xăng dầu phải lớn hơn 0.");
+        if (dto.EffectiveFrom == default) throw new ArgumentException("Ngày áp dụng giá là bắt buộc.");
         GasolinePrice e;
         if (dto.Id == Guid.Empty) { e = new(); _db.GasolinePrices.Add(e); e.CreatedBy = Normalize(userId); }
-        else { e = await _db.GasolinePrices.FirstAsync(g => g.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
-        e.FuelType = dto.FuelType; e.PricePerLitre = dto.PricePerLitre;
+        else { e = await _db.GasolinePrices.FirstOrDefaultAsync(g => g.Id == dto.Id && !g.IsDeleted) ?? throw CatalogGuard.NotFound("giá xăng dầu"); e.UpdatedBy = Normalize(userId); }
+        e.FuelType = fuelType; e.PricePerLitre = dto.PricePerLitre;
         e.EffectiveFrom = dto.EffectiveFrom; e.IssuedBy = dto.IssuedBy; e.Note = dto.Note;
         await _db.SaveChangesAsync(); dto.Id = e.Id; return dto;
     }
@@ -246,10 +272,13 @@ public class MasterCatalogService : IMasterCatalogService
 
     public async Task<MachineCodeDto> SaveMachineCodeAsync(MachineCodeDto dto, string? userId)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "máy");
+        if (await _db.MachineCodes.AnyAsync(m => !m.IsDeleted && m.Id != dto.Id && m.Code == code))
+            throw CatalogGuard.Duplicate(code);
         MachineCode e;
         if (dto.Id == Guid.Empty) { e = new(); _db.MachineCodes.Add(e); e.CreatedBy = Normalize(userId); }
-        else { e = await _db.MachineCodes.FirstAsync(m => m.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
-        e.Code = dto.Code; e.Name = dto.Name; e.Manufacturer = dto.Manufacturer;
+        else { e = await _db.MachineCodes.FirstOrDefaultAsync(m => m.Id == dto.Id && !m.IsDeleted) ?? throw CatalogGuard.NotFound("mã máy"); e.UpdatedBy = Normalize(userId); }
+        e.Code = code; e.Name = name; e.Manufacturer = dto.Manufacturer;
         e.Model = dto.Model; e.SerialNumber = dto.SerialNumber;
         e.DepartmentId = dto.DepartmentId; e.RoomId = dto.RoomId;
         e.BhxhCode = dto.BhxhCode; e.Note = dto.Note;
@@ -289,9 +318,15 @@ public class MasterCatalogService : IMasterCatalogService
 
     public async Task<MachineServiceDto> SaveMachineServiceAsync(MachineServiceDto dto, string? userId)
     {
+        if (!await _db.MachineCodes.AnyAsync(m => m.Id == dto.MachineCodeId && !m.IsDeleted))
+            throw CatalogGuard.NotFound("mã máy");
+        if (!await _db.Set<Service>().AnyAsync(s => s.Id == dto.ServiceId))
+            throw CatalogGuard.NotFound("dịch vụ");
+        if (await _db.MachineServices.AnyAsync(m => !m.IsDeleted && m.Id != dto.Id && m.MachineCodeId == dto.MachineCodeId && m.ServiceId == dto.ServiceId))
+            throw new InvalidOperationException("Dịch vụ này đã được gán cho máy.");
         MachineService e;
         if (dto.Id == Guid.Empty) { e = new(); _db.MachineServices.Add(e); e.CreatedBy = Normalize(userId); }
-        else { e = await _db.MachineServices.FirstAsync(m => m.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
+        else { e = await _db.MachineServices.FirstOrDefaultAsync(m => m.Id == dto.Id && !m.IsDeleted) ?? throw CatalogGuard.NotFound("dịch vụ theo máy"); e.UpdatedBy = Normalize(userId); }
         e.MachineCodeId = dto.MachineCodeId; e.ServiceId = dto.ServiceId;
         e.IsDefault = dto.IsDefault; e.Note = dto.Note;
         await _db.SaveChangesAsync(); dto.Id = e.Id; return dto;
@@ -331,10 +366,15 @@ public class MasterCatalogService : IMasterCatalogService
 
     public async Task<InspectionCommitteeDto> SaveInspectionCommitteeAsync(InspectionCommitteeDto dto, string? userId)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "hội đồng kiểm nhập");
+        if (dto.EffectiveTo.HasValue && dto.EffectiveFrom.HasValue && dto.EffectiveTo.Value.Date < dto.EffectiveFrom.Value.Date)
+            throw new ArgumentException("Ngày hết hiệu lực phải sau ngày bắt đầu hiệu lực.");
+        if (await _db.InspectionCommittees.AnyAsync(c => !c.IsDeleted && c.Id != dto.Id && c.Code == code))
+            throw CatalogGuard.Duplicate(code);
         InspectionCommittee e;
         if (dto.Id == Guid.Empty) { e = new(); _db.InspectionCommittees.Add(e); e.CreatedBy = Normalize(userId); }
-        else { e = await _db.InspectionCommittees.FirstAsync(c => c.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
-        e.Code = dto.Code; e.Name = dto.Name; e.Description = dto.Description;
+        else { e = await _db.InspectionCommittees.FirstOrDefaultAsync(c => c.Id == dto.Id && !c.IsDeleted) ?? throw CatalogGuard.NotFound("hội đồng kiểm nhập"); e.UpdatedBy = Normalize(userId); }
+        e.Code = code; e.Name = name; e.Description = dto.Description;
         e.EffectiveFrom = dto.EffectiveFrom; e.EffectiveTo = dto.EffectiveTo; e.IsActive = dto.IsActive;
         await _db.SaveChangesAsync();
         dto.Id = e.Id;
@@ -381,10 +421,13 @@ public class MasterCatalogService : IMasterCatalogService
 
     public async Task<NursingCareLevelDto> SaveNursingCareLevelAsync(NursingCareLevelDto dto, string? userId)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "cấp độ chăm sóc");
+        if (await _db.NursingCareLevels.AnyAsync(n => !n.IsDeleted && n.Id != dto.Id && n.Code == code))
+            throw CatalogGuard.Duplicate(code);
         NursingCareLevel e;
         if (dto.Id == Guid.Empty) { e = new(); _db.NursingCareLevels.Add(e); e.CreatedBy = Normalize(userId); }
-        else { e = await _db.NursingCareLevels.FirstAsync(n => n.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
-        e.Code = dto.Code; e.Name = dto.Name; e.Level = dto.Level;
+        else { e = await _db.NursingCareLevels.FirstOrDefaultAsync(n => n.Id == dto.Id && !n.IsDeleted) ?? throw CatalogGuard.NotFound("cấp độ chăm sóc"); e.UpdatedBy = Normalize(userId); }
+        e.Code = code; e.Name = name; e.Level = dto.Level;
         e.Description = dto.Description; e.Note = dto.Note;
         e.SortOrder = dto.SortOrder; e.IsActive = dto.IsActive;
         await _db.SaveChangesAsync(); dto.Id = e.Id; return dto;
@@ -412,10 +455,13 @@ public class MasterCatalogService : IMasterCatalogService
 
     public async Task<MedicalRecordTypeDto> SaveMedicalRecordTypeAsync(MedicalRecordTypeDto dto, string? userId)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "loại bệnh án");
+        if (await _db.MedicalRecordTypes.AnyAsync(m => !m.IsDeleted && m.Id != dto.Id && m.Code == code))
+            throw CatalogGuard.Duplicate(code);
         MedicalRecordType e;
         if (dto.Id == Guid.Empty) { e = new(); _db.MedicalRecordTypes.Add(e); e.CreatedBy = Normalize(userId); }
-        else { e = await _db.MedicalRecordTypes.FirstAsync(m => m.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
-        e.Code = dto.Code; e.Name = dto.Name; e.Category = dto.Category;
+        else { e = await _db.MedicalRecordTypes.FirstOrDefaultAsync(m => m.Id == dto.Id && !m.IsDeleted) ?? throw CatalogGuard.NotFound("loại bệnh án"); e.UpdatedBy = Normalize(userId); }
+        e.Code = code; e.Name = name; e.Category = dto.Category;
         e.Note = dto.Note; e.SortOrder = dto.SortOrder;
         e.IsActive = dto.IsActive; e.IsLocked = dto.IsLocked;
         await _db.SaveChangesAsync(); dto.Id = e.Id; return dto;
@@ -459,9 +505,17 @@ public class MasterCatalogService : IMasterCatalogService
 
     public async Task<ParaclinicalRoomPriorityDto> SaveParaclinicalRoomPriorityAsync(ParaclinicalRoomPriorityDto dto, string? userId)
     {
+        if (!await _db.Set<Service>().AnyAsync(s => s.Id == dto.ServiceId))
+            throw CatalogGuard.NotFound("dịch vụ cận lâm sàng");
+        if (dto.RoomId is null && dto.DepartmentId is null)
+            throw new ArgumentException("Phải chọn phòng hoặc khoa thực hiện.");
+        if (dto.RoomId is Guid roomId && !await _db.Set<Room>().AnyAsync(r => r.Id == roomId))
+            throw CatalogGuard.NotFound("phòng thực hiện");
+        if (dto.DepartmentId is Guid deptId && !await _db.Departments.AnyAsync(d => d.Id == deptId))
+            throw CatalogGuard.NotFound("khoa thực hiện");
         ParaclinicalRoomPriority e;
         if (dto.Id == Guid.Empty) { e = new(); _db.ParaclinicalRoomPriorities.Add(e); e.CreatedBy = Normalize(userId); }
-        else { e = await _db.ParaclinicalRoomPriorities.FirstAsync(p => p.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
+        else { e = await _db.ParaclinicalRoomPriorities.FirstOrDefaultAsync(p => p.Id == dto.Id && !p.IsDeleted) ?? throw CatalogGuard.NotFound("ưu tiên phòng CLS"); e.UpdatedBy = Normalize(userId); }
         e.ServiceId = dto.ServiceId; e.RoomId = dto.RoomId; e.DepartmentId = dto.DepartmentId;
         e.PriorityLevel = dto.PriorityLevel; e.Sequence = dto.Sequence; e.Note = dto.Note;
         await _db.SaveChangesAsync(); dto.Id = e.Id; return dto;
@@ -488,10 +542,13 @@ public class MasterCatalogService : IMasterCatalogService
 
     public async Task<ReportServiceGroupTypeDto> SaveReportServiceGroupTypeAsync(ReportServiceGroupTypeDto dto, string? userId)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "loại nhóm báo cáo");
+        if (await _db.ReportServiceGroupTypes.AnyAsync(r => !r.IsDeleted && r.Id != dto.Id && r.Code == code))
+            throw CatalogGuard.Duplicate(code);
         ReportServiceGroupType e;
         if (dto.Id == Guid.Empty) { e = new(); _db.ReportServiceGroupTypes.Add(e); e.CreatedBy = Normalize(userId); }
-        else { e = await _db.ReportServiceGroupTypes.FirstAsync(r => r.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
-        e.Code = dto.Code; e.Name = dto.Name; e.ReportLabel = dto.ReportLabel;
+        else { e = await _db.ReportServiceGroupTypes.FirstOrDefaultAsync(r => r.Id == dto.Id && !r.IsDeleted) ?? throw CatalogGuard.NotFound("loại nhóm báo cáo"); e.UpdatedBy = Normalize(userId); }
+        e.Code = code; e.Name = name; e.ReportLabel = dto.ReportLabel;
         e.Note = dto.Note; e.SortOrder = dto.SortOrder; e.IsActive = dto.IsActive;
         await _db.SaveChangesAsync(); dto.Id = e.Id; return dto;
     }
@@ -523,10 +580,15 @@ public class MasterCatalogService : IMasterCatalogService
 
     public async Task<ReportServiceGroupDto> SaveReportServiceGroupAsync(ReportServiceGroupDto dto, string? userId)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "nhóm báo cáo");
+        if (!await _db.ReportServiceGroupTypes.AnyAsync(t => t.Id == dto.GroupTypeId && !t.IsDeleted))
+            throw CatalogGuard.NotFound("loại nhóm báo cáo");
+        if (await _db.ReportServiceGroups.AnyAsync(r => !r.IsDeleted && r.Id != dto.Id && r.GroupTypeId == dto.GroupTypeId && r.Code == code))
+            throw CatalogGuard.Duplicate(code, "loại nhóm này");
         ReportServiceGroup e;
         if (dto.Id == Guid.Empty) { e = new(); _db.ReportServiceGroups.Add(e); e.CreatedBy = Normalize(userId); }
-        else { e = await _db.ReportServiceGroups.FirstAsync(r => r.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
-        e.GroupTypeId = dto.GroupTypeId; e.Code = dto.Code; e.Name = dto.Name;
+        else { e = await _db.ReportServiceGroups.FirstOrDefaultAsync(r => r.Id == dto.Id && !r.IsDeleted) ?? throw CatalogGuard.NotFound("nhóm báo cáo"); e.UpdatedBy = Normalize(userId); }
+        e.GroupTypeId = dto.GroupTypeId; e.Code = code; e.Name = name;
         e.Note = dto.Note; e.SortOrder = dto.SortOrder; e.IsActive = dto.IsActive;
         await _db.SaveChangesAsync(); dto.Id = e.Id; return dto;
     }
@@ -556,10 +618,13 @@ public class MasterCatalogService : IMasterCatalogService
 
     public async Task<OccupationDto> SaveOccupationAsync(OccupationDto dto, string? userId)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "nghề nghiệp");
+        if (await _db.Set<Occupation>().AnyAsync(o => !o.IsDeleted && o.Id != dto.Id && o.Code == code))
+            throw CatalogGuard.Duplicate(code);
         Occupation e;
         if (dto.Id == Guid.Empty) { e = new(); _db.Set<Occupation>().Add(e); e.CreatedBy = Normalize(userId); }
-        else { e = await _db.Set<Occupation>().FirstAsync(o => o.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
-        e.Code = dto.Code; e.Name = dto.Name; e.Note = dto.Note;
+        else { e = await _db.Set<Occupation>().FirstOrDefaultAsync(o => o.Id == dto.Id && !o.IsDeleted) ?? throw CatalogGuard.NotFound("nghề nghiệp"); e.UpdatedBy = Normalize(userId); }
+        e.Code = code; e.Name = name; e.Note = dto.Note;
         e.SortOrder = dto.SortOrder; e.IsActive = dto.IsActive;
         await _db.SaveChangesAsync(); dto.Id = e.Id; return dto;
     }
@@ -587,10 +652,13 @@ public class MasterCatalogService : IMasterCatalogService
 
     public async Task<GenderDto> SaveGenderAsync(GenderDto dto, string? userId)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "giới tính");
+        if (await _db.Set<Gender>().AnyAsync(g => !g.IsDeleted && g.Id != dto.Id && g.Code == code))
+            throw CatalogGuard.Duplicate(code);
         Gender e;
         if (dto.Id == Guid.Empty) { e = new(); _db.Set<Gender>().Add(e); e.CreatedBy = Normalize(userId); }
-        else { e = await _db.Set<Gender>().FirstAsync(g => g.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
-        e.Code = dto.Code; e.Name = dto.Name; e.Note = dto.Note;
+        else { e = await _db.Set<Gender>().FirstOrDefaultAsync(g => g.Id == dto.Id && !g.IsDeleted) ?? throw CatalogGuard.NotFound("giới tính"); e.UpdatedBy = Normalize(userId); }
+        e.Code = code; e.Name = name; e.Note = dto.Note;
         e.SortOrder = dto.SortOrder; e.IsActive = dto.IsActive;
         await _db.SaveChangesAsync(); dto.Id = e.Id; return dto;
     }
@@ -618,10 +686,13 @@ public class MasterCatalogService : IMasterCatalogService
 
     public async Task<EthnicDto> SaveEthnicAsync(EthnicDto dto, string? userId)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "dân tộc");
+        if (await _db.Set<Ethnic>().AnyAsync(x => !x.IsDeleted && x.Id != dto.Id && x.Code == code))
+            throw CatalogGuard.Duplicate(code);
         Ethnic e;
         if (dto.Id == Guid.Empty) { e = new(); _db.Set<Ethnic>().Add(e); e.CreatedBy = Normalize(userId); }
-        else { e = await _db.Set<Ethnic>().FirstAsync(x => x.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
-        e.Code = dto.Code; e.Name = dto.Name; e.Note = dto.Note;
+        else { e = await _db.Set<Ethnic>().FirstOrDefaultAsync(x => x.Id == dto.Id && !x.IsDeleted) ?? throw CatalogGuard.NotFound("dân tộc"); e.UpdatedBy = Normalize(userId); }
+        e.Code = code; e.Name = name; e.Note = dto.Note;
         e.SortOrder = dto.SortOrder; e.IsActive = dto.IsActive;
         await _db.SaveChangesAsync(); dto.Id = e.Id; return dto;
     }
@@ -649,10 +720,13 @@ public class MasterCatalogService : IMasterCatalogService
 
     public async Task<NationDto> SaveNationAsync(NationDto dto, string? userId)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "quốc gia");
+        if (await _db.Set<Nation>().AnyAsync(n => !n.IsDeleted && n.Id != dto.Id && n.Code == code))
+            throw CatalogGuard.Duplicate(code);
         Nation e;
         if (dto.Id == Guid.Empty) { e = new(); _db.Set<Nation>().Add(e); e.CreatedBy = Normalize(userId); }
-        else { e = await _db.Set<Nation>().FirstAsync(n => n.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
-        e.Code = dto.Code; e.Name = dto.Name; e.Note = dto.Note;
+        else { e = await _db.Set<Nation>().FirstOrDefaultAsync(n => n.Id == dto.Id && !n.IsDeleted) ?? throw CatalogGuard.NotFound("quốc gia"); e.UpdatedBy = Normalize(userId); }
+        e.Code = code; e.Name = name; e.Note = dto.Note;
         e.SortOrder = dto.SortOrder; e.IsActive = dto.IsActive;
         await _db.SaveChangesAsync(); dto.Id = e.Id; return dto;
     }
@@ -682,10 +756,13 @@ public class MasterCatalogService : IMasterCatalogService
 
     public async Task<InitialFacilityDto> SaveInitialFacilityAsync(InitialFacilityDto dto, string? userId)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "nơi đăng ký KCB ban đầu");
+        if (await _db.Set<InitialFacility>().AnyAsync(f => !f.IsDeleted && f.Id != dto.Id && f.Code == code))
+            throw CatalogGuard.Duplicate(code);
         InitialFacility e;
         if (dto.Id == Guid.Empty) { e = new(); _db.Set<InitialFacility>().Add(e); e.CreatedBy = Normalize(userId); }
-        else { e = await _db.Set<InitialFacility>().FirstAsync(f => f.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
-        e.Code = dto.Code; e.Name = dto.Name; e.Province = dto.Province;
+        else { e = await _db.Set<InitialFacility>().FirstOrDefaultAsync(f => f.Id == dto.Id && !f.IsDeleted) ?? throw CatalogGuard.NotFound("nơi đăng ký KCB ban đầu"); e.UpdatedBy = Normalize(userId); }
+        e.Code = code; e.Name = name; e.Province = dto.Province;
         e.Level = dto.Level; e.BhxhCode = dto.BhxhCode;
         e.Note = dto.Note; e.SortOrder = dto.SortOrder; e.IsActive = dto.IsActive;
         await _db.SaveChangesAsync(); dto.Id = e.Id; return dto;

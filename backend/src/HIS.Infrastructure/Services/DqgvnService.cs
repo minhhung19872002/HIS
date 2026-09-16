@@ -392,7 +392,8 @@ public partial class DqgvnService : IDqgvnService
         foreach (var secretKey in new[] { "DQGVN:ApiKey", "DQGVN:SecretKey" })
             if (string.IsNullOrEmpty(configEntries[secretKey]) || configEntries[secretKey] == SecretMask)
                 configEntries.Remove(secretKey);
-        foreach (var nullKey in configEntries.Where(e => e.Value == null).Select(e => e.Key).ToList())
+        // QA-R4: a PUT with {} (every string "") wiped ApiBaseUrl/FacilityCode/... — blank = "keep the stored one" too.
+        foreach (var nullKey in configEntries.Where(e => string.IsNullOrWhiteSpace(e.Value)).Select(e => e.Key).ToList())
             configEntries.Remove(nullKey);
 
         // #195: nạp 1 lần các khoá cấu hình thay vì 1 query/khoá.

@@ -136,16 +136,22 @@ public class ClinicalGuidanceService : IClinicalGuidanceService
 
     public async Task<ClinicalGuidanceBatchDetailDto> CreateBatchAsync(CreateClinicalGuidanceBatchDto dto)
     {
-        // Auto-generate code: CDT-YYYYMM-NNNN
-        var now = DateTime.UtcNow;
-        var monthStr = now.ToString("yyyyMM");
-        var monthCount = await _context.ClinicalGuidanceBatches
-            .Where(b => b.Code.StartsWith($"CDT-{monthStr}"))
-            .CountAsync();
-        var code = $"CDT-{monthStr}-{(monthCount + 1):D4}";
+        // QA-R4: {} created a batch with blank title/facility (the v2 form marks both required).
+        if (string.IsNullOrWhiteSpace(dto.Title))
+            throw new ArgumentException("Chưa nhập nội dung đợt chỉ đạo tuyến.");
+        if (string.IsNullOrWhiteSpace(dto.TargetFacility))
+            throw new ArgumentException("Chưa nhập cơ sở nhận chỉ đạo.");
+        if (dto.Budget < 0)
+            throw new ArgumentException("Ngân sách không được âm.");
         if (DateTime.TryParse(dto.StartDate, out var startCheck) && DateTime.TryParse(dto.EndDate, out var endCheck)
             && endCheck.Date < startCheck.Date)
             throw new InvalidOperationException("Ngày kết thúc đợt chỉ đạo không được trước ngày bắt đầu.");
+
+        // Auto-generate code: CDT-YYYYMM-NNNN. QA-R4: was COUNT+1 — two parallel creates (or a deleted batch)
+        // produced the same code and the unique index IX_ClinicalGuidanceBatches_Code surfaced as a 500.
+        var now = DateTime.UtcNow;
+        var prefix = $"CDT-{now:yyyyMM}-";
+        var code = await NextBatchCodeAsync(prefix);
 
         var batch = new ClinicalGuidanceBatch
         {
@@ -165,9 +171,31 @@ public class ClinicalGuidanceService : IClinicalGuidanceService
         };
 
         _context.ClinicalGuidanceBatches.Add(batch);
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 2601 or 2627 })
+        {
+            // Lost the race on the code: take the next free number once more.
+            batch.Code = await NextBatchCodeAsync(prefix);
+            await _context.SaveChangesAsync();
+        }
 
         return (await GetBatchByIdAsync(batch.Id))!;
+    }
+
+    private async Task<string> NextBatchCodeAsync(string prefix)
+    {
+        var codes = await _context.ClinicalGuidanceBatches
+            .Where(b => b.Code.StartsWith(prefix))
+            .Select(b => b.Code)
+            .ToListAsync();
+        var max = codes
+            .Select(c => int.TryParse(c.Substring(prefix.Length), out var n) ? n : 0)
+            .DefaultIfEmpty(0)
+            .Max();
+        return $"{prefix}{(max + 1):D4}";
     }
 
     public async Task<ClinicalGuidanceBatchDetailDto> UpdateBatchAsync(Guid id, UpdateClinicalGuidanceBatchDto dto)

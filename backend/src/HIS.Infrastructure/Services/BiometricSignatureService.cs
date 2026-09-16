@@ -101,7 +101,8 @@ public class BiometricSignatureService : IBiometricSignatureService
     public async Task RevokeCredentialAsync(Guid credentialId, Guid userId)
     {
         var cred = await _db.BiometricCredentials.FirstOrDefaultAsync(c => c.Id == credentialId);
-        if (cred == null) return;
+        // QA-R4: DELETE of an unknown id returned 204 (silent no-op) — DomainExceptionFilter turns this into 404.
+        if (cred == null) throw new KeyNotFoundException("Không tìm thấy khoá sinh trắc.");
         cred.Status = "revoked";
         cred.UpdatedAt = DateTime.UtcNow;
         cred.UpdatedBy = userId.ToString();

@@ -39,6 +39,11 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
             throw new ArgumentException("Tên thiết bị là bắt buộc", nameof(dto.Name));
         if (dto.PurchasePrice is < 0m)
             throw new ArgumentException("Giá mua không hợp lệ", nameof(dto.PurchasePrice));
+        // No FK on MedicalEquipments.DepartmentId: a zero-GUID / unknown department was accepted and the
+        // device showed a blank "Khoa · Phòng" on the v2 list.
+        if (dto.DepartmentId.HasValue
+            && !await _context.Departments.AnyAsync(d => d.Id == dto.DepartmentId.Value && !d.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy khoa/phòng sử dụng thiết bị");
         // The code typed on the form was discarded (always a generated EQ-timestamp).
         var code = dto.EquipmentCode?.Trim();
         if (!string.IsNullOrEmpty(code) && await _context.MedicalEquipments.AnyAsync(x => x.EquipmentCode == code))
@@ -70,6 +75,21 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
         return true;
     }
 
+    private static readonly string[] RetiredStatuses = { "Decommissioned", "PendingDisposal", "ApprovedForDisposal" };
+
+    /// <summary>
+    /// Loads the device for a maintenance / calibration / repair write. A device that is (being) disposed
+    /// silently accepted new plans, calibrations and repair tickets.
+    /// </summary>
+    private async Task<MedicalEquipment> GetUsableEquipmentAsync(Guid equipmentId)
+    {
+        var eq = await _context.MedicalEquipments.Include(x => x.Department).FirstOrDefaultAsync(x => x.Id == equipmentId)
+            ?? throw new KeyNotFoundException("Không tìm thấy thiết bị");
+        if (RetiredStatuses.Contains(eq.Status))
+            throw new InvalidOperationException($"Thiết bị {eq.EquipmentCode} đã/đang thanh lý, không thể thao tác.");
+        return eq;
+    }
+
     public async Task<bool> UpdateEquipmentStatusAsync(Guid id, string status, string reason)
     {
         var e = await _context.MedicalEquipments.FindAsync(id);
@@ -83,11 +103,11 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
     {
         try
         {
-            var query = _context.MaintenanceRecords.Include(x => x.Equipment).Where(x => x.Status == "Scheduled");
+            var query = _context.MaintenanceRecords.Include(x => x.Equipment).ThenInclude(x => x!.Department).Where(x => x.Status == "Scheduled");
             if (dueDate.HasValue) query = query.Where(x => x.ScheduledDate <= dueDate);
             if (overdue == true) query = query.Where(x => x.ScheduledDate < DateTime.Today);
             var list = await query.ToBoundedListAsync("MedicalEquipment.GetMaintenanceSchedules");
-            return list.Select(e => new MaintenanceScheduleDto { Id = e.Id, ScheduleCode = e.ScheduleCode ?? "", EquipmentId = e.EquipmentId, EquipmentCode = e.Equipment?.EquipmentCode ?? "", EquipmentName = e.Equipment?.EquipmentName ?? "", MaintenanceType = e.MaintenanceType, Frequency = e.Frequency ?? "", NextDueDate = e.ScheduledDate, Status = e.Status, ApprovalStatus = e.ApprovalStatus, ApprovedBy = e.ApprovedBy, ApprovedAt = e.ApprovedAt, ApprovalNote = e.ApprovalNote }).ToList();
+            return list.Select(e => new MaintenanceScheduleDto { Id = e.Id, ScheduleCode = e.ScheduleCode ?? "", EquipmentId = e.EquipmentId, EquipmentCode = e.Equipment?.EquipmentCode ?? "", EquipmentName = e.Equipment?.EquipmentName ?? "", DepartmentName = e.Equipment?.Department?.DepartmentName ?? "", MaintenanceType = e.MaintenanceType, Frequency = e.Frequency ?? "", NextDueDate = e.ScheduledDate, Status = e.Status, ApprovalStatus = e.ApprovalStatus, ApprovedBy = e.ApprovedBy, ApprovedAt = e.ApprovedAt, ApprovalNote = e.ApprovalNote }).ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
@@ -156,12 +176,18 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
         return $"{prefix}{next:D4}";
     }
 
-    public async Task<MaintenanceScheduleDto> CreateMaintenanceScheduleAsync(Guid equipmentId, string maintenanceType, string frequency, DateTime nextDueDate)
+    public async Task<MaintenanceScheduleDto> CreateMaintenanceScheduleAsync(Guid equipmentId, string maintenanceType, string frequency, DateTime nextDueDate, string? notes = null)
     {
         // Kế hoạch mới luôn ở trạng thái CHỜ DUYỆT (ApprovalStatus mặc định 0) — lãnh đạo
         // duyệt xong mới đưa vào lịch thực hiện (XVII.7).
-        if (!await _context.MedicalEquipments.AnyAsync(x => x.Id == equipmentId))
-            throw new KeyNotFoundException("Không tìm thấy thiết bị");
+        // A missing date produced plan "BD00010101-0001" due on 0001-01-01; a past date was accepted too.
+        if (nextDueDate == default)
+            throw new ArgumentException("Ngày bảo dưỡng dự kiến là bắt buộc", nameof(nextDueDate));
+        // A plan imported from the existing paper schedule legitimately carries an older due date, so only an
+        // absurd date is refused; a merely overdue plan is what the "quá hạn" list is for.
+        if (nextDueDate.Date < DateTime.Today.AddYears(-5))
+            throw new ArgumentException("Ngày bảo dưỡng dự kiến quá xa trong quá khứ", nameof(nextDueDate));
+        var eq = await GetUsableEquipmentAsync(equipmentId);
         var entity = new MaintenanceRecord
         {
             Id = Guid.NewGuid(),
@@ -170,17 +196,18 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
             MaintenanceType = maintenanceType,
             Frequency = string.IsNullOrWhiteSpace(frequency) ? null : frequency,
             ScheduledDate = nextDueDate,
+            // The v2 form's "Mô tả công việc / Đơn vị thực hiện / Ghi chú" were sent as notes and dropped.
+            WorkDescription = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(),
             Status = "Scheduled",
             CreatedAt = DateTime.Now,
         };
         _context.MaintenanceRecords.Add(entity);
         await _context.SaveChangesAsync();
-        var eqName = await _context.MedicalEquipments.AsNoTracking()
-            .Where(x => x.Id == equipmentId).Select(x => x.EquipmentName).FirstOrDefaultAsync();
         return new MaintenanceScheduleDto
         {
             Id = entity.Id, ScheduleCode = entity.ScheduleCode ?? "",
-            EquipmentId = equipmentId, EquipmentName = eqName ?? "",
+            EquipmentId = equipmentId, EquipmentCode = eq.EquipmentCode, EquipmentName = eq.EquipmentName,
+            DepartmentName = eq.Department?.DepartmentName ?? "",
             MaintenanceType = maintenanceType, Frequency = frequency,
             NextDueDate = nextDueDate, Status = "Scheduled", ApprovalStatus = 0,
         };
@@ -196,12 +223,16 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
     {
         if (dto.PartsCost is < 0m || dto.LaborCost is < 0m)
             throw new ArgumentException("Chi phí bảo trì không được âm");
-        if (!await _context.MedicalEquipments.AnyAsync(x => x.Id == dto.EquipmentId))
-            throw new KeyNotFoundException("Không tìm thấy thiết bị");
+        // Missing date → record "BD00010101-…" dated 0001-01-01; a completed job cannot be in the future.
+        if (dto.MaintenanceDate == default)
+            throw new ArgumentException("Ngày bảo trì là bắt buộc", nameof(dto.MaintenanceDate));
+        if (dto.MaintenanceDate.Date > DateTime.Today)
+            throw new ArgumentException("Ngày bảo trì không được ở tương lai", nameof(dto.MaintenanceDate));
+        var eq = await GetUsableEquipmentAsync(dto.EquipmentId);
         var entity = new MaintenanceRecord { Id = Guid.NewGuid(), ScheduleCode = await NextMaintenanceCodeAsync(dto.MaintenanceDate), EquipmentId = dto.EquipmentId, MaintenanceType = dto.MaintenanceType ?? "Corrective", ScheduledDate = dto.MaintenanceDate, PerformedDate = DateTime.Now, Status = "Completed", WorkDescription = dto.Description, PartsReplaced = dto.PartsReplaced, PartsCost = dto.PartsCost, LaborCost = dto.LaborCost, TotalCost = (dto.PartsCost ?? 0) + (dto.LaborCost ?? 0), CreatedAt = DateTime.Now };
         _context.MaintenanceRecords.Add(entity);
-        var eq = await _context.MedicalEquipments.FindAsync(dto.EquipmentId);
-        if (eq != null) eq.LastMaintenanceDate = DateTime.Now;
+        // "BT lần cuối" on the device showed the submit time, not the maintenance date.
+        eq.LastMaintenanceDate = dto.MaintenanceDate;
         await _context.SaveChangesAsync();
         return new MaintenanceRecordDto { Id = entity.Id, EquipmentId = entity.EquipmentId, MaintenanceType = entity.MaintenanceType, PerformedAt = entity.PerformedDate, Result = entity.Status };
     }
@@ -222,6 +253,13 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
 
     public async Task<CalibrationRecordDto> RecordCalibrationAsync(RecordCalibrationDto dto)
     {
+        // Date 0001-01-01 (key omitted), a future calibration and a negative cost were all recorded.
+        if (dto.CalibrationDate == default)
+            throw new ArgumentException("Ngày hiệu chuẩn là bắt buộc", nameof(dto.CalibrationDate));
+        if (dto.CalibrationDate.Date > DateTime.Today)
+            throw new ArgumentException("Ngày hiệu chuẩn không được ở tương lai", nameof(dto.CalibrationDate));
+        if (dto.CalibrationCost is < 0m)
+            throw new ArgumentException("Chi phí hiệu chuẩn không được âm", nameof(dto.CalibrationCost));
         if (dto.NextCalibrationDate.Date <= dto.CalibrationDate.Date)
             throw new ArgumentException("Ngày hiệu chuẩn tiếp theo phải sau ngày hiệu chuẩn", nameof(dto.NextCalibrationDate));
         // Any value other than the exact "Pass" (e.g. "pass", "Đạt") silently recorded a FAIL.
@@ -230,29 +268,25 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
             && !string.Equals(result, "Fail", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(result, "Conditional", StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException("Kết quả hiệu chuẩn phải là Pass, Fail hoặc Conditional", nameof(dto.Result));
-        if (!await _context.MedicalEquipments.AnyAsync(x => x.Id == dto.EquipmentId))
-            throw new KeyNotFoundException("Không tìm thấy thiết bị");
+        var eq = await GetUsableEquipmentAsync(dto.EquipmentId);
         var entity = new CalibrationRecord { Id = Guid.NewGuid(), EquipmentId = dto.EquipmentId, ScheduledDate = dto.CalibrationDate, PerformedDate = dto.CalibrationDate, PerformedBy = dto.CalibratedBy, Status = "Completed", CertificateNumber = dto.CertificateNumber, CalibrationStandard = dto.CalibrationStandard, PassedCalibration = string.Equals(result, "Pass", StringComparison.OrdinalIgnoreCase), CalibrationCost = dto.CalibrationCost, ValidFrom = dto.CalibrationDate, ValidUntil = dto.NextCalibrationDate, NextCalibrationDate = dto.NextCalibrationDate, CreatedAt = DateTime.Now };
         _context.CalibrationRecords.Add(entity);
-        var eq = await _context.MedicalEquipments.FindAsync(dto.EquipmentId);
-        if (eq != null)
+        // "KĐ lần cuối" showed the submit time instead of the certificate's calibration date.
+        eq.LastCalibrationDate = dto.CalibrationDate; eq.NextCalibrationDate = entity.ValidUntil;
+        // A device that FAILED calibration must not stay usable on patients. Previously only "Active" was
+        // blocked, so a device "InMaintenance" at that moment went back to Active when its repair completed.
+        if (!entity.PassedCalibration)
         {
-            eq.LastCalibrationDate = DateTime.Now; eq.NextCalibrationDate = entity.ValidUntil;
-            // A device that FAILED calibration must not stay usable on patients. Previously only "Active" was
-            // blocked, so a device "InMaintenance" at that moment went back to Active when its repair completed.
-            if (!entity.PassedCalibration && eq.Status != "Decommissioned")
-            {
-                eq.Status = "OutOfService";
-                eq.StatusReason = $"Không đạt hiệu chuẩn ngày {dto.CalibrationDate:dd/MM/yyyy}";
-            }
-            // ...and a later PASS must release that calibration lock (no status endpoint exists, so the device
-            // stayed OutOfService forever). Other OutOfService reasons are left untouched.
-            else if (entity.PassedCalibration && eq.Status == "OutOfService"
-                     && eq.StatusReason != null && eq.StatusReason.StartsWith("Không đạt hiệu chuẩn"))
-            {
-                eq.Status = "Active";
-                eq.StatusReason = null;
-            }
+            eq.Status = "OutOfService";
+            eq.StatusReason = $"Không đạt hiệu chuẩn ngày {dto.CalibrationDate:dd/MM/yyyy}";
+        }
+        // ...and a later PASS must release that calibration lock (no status endpoint exists, so the device
+        // stayed OutOfService forever). Other OutOfService reasons are left untouched.
+        else if (entity.PassedCalibration && eq.Status == "OutOfService"
+                 && eq.StatusReason != null && eq.StatusReason.StartsWith("Không đạt hiệu chuẩn"))
+        {
+            eq.Status = "Active";
+            eq.StatusReason = null;
         }
         await _context.SaveChangesAsync();
         return await GetCalibrationRecordAsync(entity.Id);
@@ -268,26 +302,47 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
     {
         // No Include(RequestedBy): it is a required nav (INNER JOIN) and rows saved with RequestedById = Guid.Empty
         // disappeared from the list; the requester is not part of the DTO anyway.
-        var query = _context.RepairRequests.Include(x => x.Equipment).AsQueryable();
+        var query = _context.RepairRequests.Include(x => x.Equipment).Include(x => x.Department).AsQueryable();
         if (!string.IsNullOrEmpty(status)) query = query.Where(x => x.Status == status);
         if (departmentId.HasValue) query = query.Where(x => x.DepartmentId == departmentId);
         var list = await query.OrderByDescending(x => x.RequestDate).ToBoundedListAsync("MedicalEquipment.RepairRequests");
-        return list.Select(e => new RepairRequestDto { Id = e.Id, RequestCode = e.RequestCode, EquipmentId = e.EquipmentId, EquipmentName = e.Equipment?.EquipmentName ?? "", ProblemDescription = e.ProblemDescription, Severity = e.Priority, Status = e.Status, ReportedDate = e.RequestDate, RequestedAt = e.RequestDate }).ToList();
+        return list.Select(MapToRepairDto).ToList();
     }
 
     public async Task<RepairRequestDto> GetRepairRequestAsync(Guid id)
     {
-        var e = await _context.RepairRequests.Include(x => x.Equipment).FirstOrDefaultAsync(x => x.Id == id);
+        var e = await _context.RepairRequests.Include(x => x.Equipment).Include(x => x.Department).FirstOrDefaultAsync(x => x.Id == id);
         if (e == null) return null!;
-        return new RepairRequestDto { Id = e.Id, RequestCode = e.RequestCode, EquipmentId = e.EquipmentId, EquipmentName = e.Equipment?.EquipmentName ?? "", ProblemDescription = e.ProblemDescription, Severity = e.Priority, Status = e.Status, ReportedDate = e.RequestDate, RequestedAt = e.RequestDate };
+        return MapToRepairDto(e);
     }
+
+    // DepartmentName was never filled — the v2 "Yêu cầu sửa chữa" tab showed a blank department line.
+    private static RepairRequestDto MapToRepairDto(RepairRequest e) => new()
+    {
+        Id = e.Id, RequestCode = e.RequestCode, EquipmentId = e.EquipmentId,
+        EquipmentCode = e.Equipment?.EquipmentCode ?? "", EquipmentName = e.Equipment?.EquipmentName ?? "",
+        DepartmentName = e.Department?.DepartmentName ?? "",
+        ProblemDescription = e.ProblemDescription, Severity = e.Priority, Status = e.Status,
+        ReportedDate = e.RequestDate, RequestedAt = e.RequestDate,
+        ActionTaken = e.RepairActions, PartsUsed = e.PartsUsed, RepairCost = e.TotalCost, ActualCompletionDate = e.CompletedDate,
+    };
 
     public async Task<RepairRequestDto> CreateRepairRequestAsync(CreateRepairRequestDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.ProblemDescription))
             throw new ArgumentException("Mô tả sự cố là bắt buộc", nameof(dto.ProblemDescription));
-        var eq = await _context.MedicalEquipments.FindAsync(dto.EquipmentId)
-            ?? throw new KeyNotFoundException("Không tìm thấy thiết bị");
+        var eq = await GetUsableEquipmentAsync(dto.EquipmentId);
+        // Double-submit / repeated "Báo hỏng" opened a second ticket on a device already under repair.
+        var openCode = await _context.RepairRequests.AsNoTracking()
+            .Where(r => r.EquipmentId == dto.EquipmentId && (r.Status == "Pending" || r.Status == "Assigned" || r.Status == "InProgress"))
+            .Select(r => r.RequestCode).FirstOrDefaultAsync();
+        // Only a repeat within a few minutes is the double-submit this guards against. A genuine second fault
+        // reported while the first repair is still running must be recordable.
+        if (openCode != null && await _context.RepairRequests.AsNoTracking().AnyAsync(r =>
+                r.EquipmentId == dto.EquipmentId
+                && (r.Status == "Pending" || r.Status == "Assigned" || r.Status == "InProgress")
+                && r.RequestDate >= DateTime.Now.AddMinutes(-5)))
+            throw new InvalidOperationException($"Thiết bị vừa được báo hỏng ({openCode}) — không tạo thêm yêu cầu trùng.");
         var entity = new RepairRequest { Id = Guid.NewGuid(), RequestCode = CodeGenerator.Timestamp("REP"), EquipmentId = dto.EquipmentId, RequestDate = DateTime.Now, ProblemDescription = dto.ProblemDescription, Priority = dto.Severity ?? dto.Priority ?? "Normal", Status = "Pending", CreatedAt = DateTime.Now,
             RequestedById = dto.RequestedById, DepartmentId = eq.DepartmentId };
         _context.RepairRequests.Add(entity);

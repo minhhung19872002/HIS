@@ -285,24 +285,43 @@ public partial class ReportingCompleteService
                 query = query.Where(r => r.CreatedAt < toUtc);
             }
 
-            var results = await query
+            var rows = await query
                 .OrderByDescending(r => r.CreatedAt)
                 .Take(top ?? 50)
-                .Select(r => new ReportHistoryDto
+                .Select(r => new
                 {
-                    Id = r.Id,
-                    // QA-R3: history rows showed only id/date — code, name, format and size were never returned.
-                    ReportCode = r.ReportCode,
-                    ReportName = r.ReportName,
-                    Format = r.FileFormat ?? "",
-                    FilePath = r.FileName ?? "",
-                    FileSize = r.FileSize,
-                    CreatedAt = r.CreatedAt,
-                    CreatedBy = r.CreatedBy ?? ""
+                    Dto = new ReportHistoryDto
+                    {
+                        Id = r.Id,
+                        // QA-R3: history rows showed only id/date — code, name, format and size were never returned.
+                        ReportCode = r.ReportCode,
+                        ReportName = r.ReportName,
+                        Format = r.FileFormat ?? "",
+                        FilePath = r.FileName ?? "",
+                        FileSize = r.FileSize,
+                        CreatedAt = r.CreatedAt,
+                        CreatedBy = r.CreatedBy ?? ""
+                    },
+                    r.Parameters
                 })
                 .ToListAsync();
 
-            return results;
+            // QA-R4: FromDate/ToDate were never filled (0001-01-01) — the period lives in Parameters JSON.
+            foreach (var row in rows)
+            {
+                if (string.IsNullOrEmpty(row.Parameters)) continue;
+                try
+                {
+                    using var doc = JsonDocument.Parse(row.Parameters);
+                    if (doc.RootElement.TryGetProperty("fromDate", out var f) && DateTime.TryParse(f.GetString(), out var fd))
+                        row.Dto.FromDate = fd;
+                    if (doc.RootElement.TryGetProperty("toDate", out var t) && DateTime.TryParse(t.GetString(), out var td))
+                        row.Dto.ToDate = td;
+                }
+                catch (JsonException) { /* legacy free-text parameters */ }
+            }
+
+            return rows.Select(r => r.Dto).ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
@@ -394,25 +413,56 @@ h1 {{ text-align: center; font-size: 16px; }}
         }
     }
 
+    private static readonly string[] AllowedSchedules = { "Daily", "Weekly", "Monthly", "Quarterly", "Yearly" };
+
     public async Task<ScheduledReportConfigDto> SaveScheduledReportAsync(SaveScheduledReportDto dto)
     {
+        // QA-R4: nothing was validated — a blank code / unknown code / "Fortnightly" / "not-an-email" were all
+        // saved, and a Guid.Empty id was treated as an update (never found → inserted under the same ConfigKey
+        // "ScheduledReport__000…"; the second save hit UX_SystemConfigs_ConfigKey_Active → 500).
+        var reportCode = (dto.ReportCode ?? "").Trim();
+        if (reportCode.Length == 0)
+            throw new ArgumentException("Thiếu mã báo cáo.");
+        if (!ReportCodeMap.ContainsKey(reportCode) && !HospitalReportService.IsKnownReport(reportCode))
+            throw new ArgumentException($"Báo cáo '{reportCode}' chưa có nguồn dữ liệu để xuất.");
+        var schedule = string.IsNullOrWhiteSpace(dto.Schedule) ? "Daily"
+            : AllowedSchedules.FirstOrDefault(s => s.Equals(dto.Schedule.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (schedule == null)
+            throw new ArgumentException("Chu kỳ không hợp lệ (Daily / Weekly / Monthly / Quarterly / Yearly).");
+        var format = string.IsNullOrWhiteSpace(dto.Format) ? "Excel"
+            : dto.Format.Trim().Equals("pdf", StringComparison.OrdinalIgnoreCase) ? "PDF"
+            : dto.Format.Trim().Equals("excel", StringComparison.OrdinalIgnoreCase) ? "Excel" : null;
+        if (format == null)
+            throw new ArgumentException("Định dạng không hợp lệ (Excel / PDF).");
+        var cron = (dto.CronExpression ?? "").Trim();
+        if (cron.Length > 0 && cron.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length is < 5 or > 6)
+            throw new ArgumentException("Biểu thức cron không hợp lệ (5–6 trường).");
+        var badEmail = (dto.Recipients ?? "")
+            .Split(new[] { ',', ';', ' ', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .FirstOrDefault(e => !System.Net.Mail.MailAddress.TryCreate(e, out _));
+        if (badEmail != null)
+            throw new ArgumentException($"Email người nhận không hợp lệ: {badEmail}");
+        if (dto.Id == Guid.Empty) dto.Id = null;
+
         try
         {
-            var configKey = $"ScheduledReport_{dto.ReportCode}_{(dto.Id ?? Guid.NewGuid()):N}";
+            var configKey = $"ScheduledReport_{reportCode}_{(dto.Id ?? Guid.NewGuid()):N}";
             var now = DateTime.Now;
 
             var config = dto.Id.HasValue
                 ? await _context.SystemConfigs.FindAsync(dto.Id.Value)
                 : null;
+            if (dto.Id.HasValue && (config == null || config.IsDeleted))
+                throw new KeyNotFoundException("Không tìm thấy cấu hình báo cáo");
 
             var resultDto = new ScheduledReportConfigDto
             {
                 Id = dto.Id ?? Guid.NewGuid(),
-                ReportCode = dto.ReportCode ?? "",
-                ReportName = dto.ReportCode ?? "",
-                Schedule = dto.Schedule ?? "Daily",
-                CronExpression = dto.CronExpression ?? "",
-                Format = dto.Format ?? "Excel",
+                ReportCode = reportCode,
+                ReportName = reportCode,
+                Schedule = schedule,
+                CronExpression = cron,
+                Format = format,
                 Recipients = dto.Recipients ?? "",
                 IsActive = dto.IsActive,
                 Parameters = dto.Parameters

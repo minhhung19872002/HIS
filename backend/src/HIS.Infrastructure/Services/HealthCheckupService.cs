@@ -92,6 +92,8 @@ public partial class HealthCheckupService : IHealthCheckupService
             throw new ArgumentException("Tên đợt khám là bắt buộc", nameof(dto.CampaignName));
         if (dto.EndDate != default && dto.EndDate.Date < dto.StartDate.Date)
             throw new ArgumentException("Ngày kết thúc đợt khám không được trước ngày bắt đầu", nameof(dto.EndDate));
+        if (dto.ContractAmount < 0)
+            throw new ArgumentException("Giá trị hợp đồng không được âm", nameof(dto.ContractAmount)); // QA-R4: cost report went negative
         var code =$"KSK{DateTime.Now:yyyyMMdd}{new Random().Next(100, 999)}";
 
         var entity = new HealthCheckupCampaign
@@ -163,6 +165,11 @@ public partial class HealthCheckupService : IHealthCheckupService
 
     public async Task<CheckupRecordDto> CreateRecordAsync(CreateCheckupRecordDto dto)
     {
+        // QA-R4: negative/zero height or weight produced a negative BMI on the checkup record.
+        if (dto.Height.HasValue && dto.Height.Value <= 0)
+            throw new ArgumentException("Chiều cao phải lớn hơn 0", nameof(dto.Height));
+        if (dto.Weight.HasValue && dto.Weight.Value <= 0)
+            throw new ArgumentException("Cân nặng phải lớn hơn 0", nameof(dto.Weight));
         // Calculate BMI if height and weight provided
         float? bmi = null;
         if (dto.Height.HasValue && dto.Weight.HasValue && dto.Height.Value > 0)
@@ -328,6 +335,8 @@ public partial class HealthCheckupService : IHealthCheckupService
             throw new ArgumentException("Tên đợt khám là bắt buộc", nameof(dto.CampaignName));
         if (dto.EndDate != default && dto.EndDate.Date < dto.StartDate.Date)
             throw new ArgumentException("Ngày kết thúc đợt khám không được trước ngày bắt đầu", nameof(dto.EndDate));
+        if (dto.ContractAmount < 0)
+            throw new ArgumentException("Giá trị hợp đồng không được âm", nameof(dto.ContractAmount));
         campaign.CampaignName = dto.CampaignName;
         campaign.OrganizationName = dto.OrganizationName ?? dto.CompanyName;
         campaign.ContactPerson = dto.ContactPerson;

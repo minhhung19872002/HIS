@@ -17,6 +17,24 @@ namespace HIS.Infrastructure.Services;
 // Ctor + DI fields o file goc SystemCompleteService.cs.
 public partial class SystemCompleteService
 {
+    // QA-R4: admin self-lockout guards. RoleCode ADMIN / RoleName "Admin" | "Quản trị hệ thống" = the admin role.
+    private static readonly string[] AdminRoleNames = { RoleNames.Admin, RoleNames.QuanTriHeThong };
+
+    private Guid? CurrentUserId =>
+        Guid.TryParse(_httpCtx.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id) ? id : null;
+
+    /// <summary>Throws when <paramref name="userId"/> is the only active admin left (delete/lock/deactivate/de-role).</summary>
+    private async Task EnsureNotLastActiveAdminAsync(Guid userId, string action)
+    {
+        var isAdmin = await _context.UserRoles.AnyAsync(ur => ur.UserId == userId && !ur.IsDeleted
+            && (ur.Role.RoleCode == "ADMIN" || AdminRoleNames.Contains(ur.Role.RoleName)));
+        if (!isAdmin) return;
+        var otherAdmins = await _context.UserRoles.CountAsync(ur => ur.UserId != userId && !ur.IsDeleted
+            && ur.User.IsActive && !ur.User.IsDeleted
+            && (ur.Role.RoleCode == "ADMIN" || AdminRoleNames.Contains(ur.Role.RoleName)));
+        if (otherAdmins == 0)
+            throw new InvalidOperationException($"Không thể {action} tài khoản quản trị cuối cùng của hệ thống");
+    }
 
     // 17.1 Quan ly nguoi dung
     public async Task<List<SystemUserDto>> GetUsersAsync(
@@ -232,8 +250,16 @@ public partial class SystemCompleteService
         {
             var user = await _context.Users
                 .Include(u => u.UserRoles)
-                .FirstOrDefaultAsync(u => u.Id == userId);
-            if (user == null) return null;
+                .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted)
+                ?? throw new KeyNotFoundException("Không tìm thấy người dùng");
+
+            // QA-R4: an admin could deactivate their own account / the last admin from the user form.
+            if (!dto.IsActive && user.IsActive)
+            {
+                if (userId == CurrentUserId)
+                    throw new InvalidOperationException("Không thể vô hiệu hoá tài khoản đang đăng nhập");
+                await EnsureNotLastActiveAdminAsync(userId, "vô hiệu hoá");
+            }
 
             user.FullName = dto.FullName ?? user.FullName;
             user.Email = dto.Email;
@@ -256,6 +282,21 @@ public partial class SystemCompleteService
                 var existingRoles = await _context.UserRoles.Where(ur => ur.UserId == userId).ToListAsync();
                 var oldRoleIds = existingRoles.Select(r => r.RoleId).ToHashSet();
                 var newRoleIds = incomingRoleIds.ToHashSet();
+
+                // QA-R4: unknown role ids were a swallowed FK error → 200 {data:null}; removing the admin role from
+                // yourself / the last admin locked the whole system out of administration.
+                var adminRoleIds = await _context.Roles
+                    .Where(r => r.RoleCode == "ADMIN" || AdminRoleNames.Contains(r.RoleName))
+                    .Select(r => r.Id).ToListAsync();
+                var knownRoleIds = await _context.Roles.Where(r => newRoleIds.Contains(r.Id) && !r.IsDeleted).Select(r => r.Id).ToListAsync();
+                if (knownRoleIds.Count != newRoleIds.Count)
+                    throw new ArgumentException("Có vai trò không tồn tại trong danh sách gán", nameof(dto.RoleIds));
+                if (oldRoleIds.Overlaps(adminRoleIds) && !newRoleIds.Overlaps(adminRoleIds))
+                {
+                    if (userId == CurrentUserId)
+                        throw new InvalidOperationException("Không thể tự gỡ vai trò quản trị của chính mình");
+                    await EnsureNotLastActiveAdminAsync(userId, "gỡ vai trò quản trị của");
+                }
                 _context.UserRoles.RemoveRange(existingRoles);
 
                 // Add new role assignments with scope
@@ -293,6 +334,9 @@ public partial class SystemCompleteService
             await _context.SaveChangesAsync();
             return await GetUserAsync(userId);
         }
+        catch (KeyNotFoundException) { throw; }
+        catch (ArgumentException) { throw; }
+        catch (InvalidOperationException) { throw; }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error in UpdateUserAsync");
@@ -302,15 +346,34 @@ public partial class SystemCompleteService
 
     public async Task<bool> DeleteUserAsync(Guid userId)
     {
-        return await SoftDeleteEntityAsync<User>(userId);
+        // QA-R4: plain soft-delete — no not-found (200 {data:false}), the admin could delete their own / the
+        // last admin account, and the deleted user's tokens kept working until they expired.
+        if (userId == CurrentUserId)
+            throw new InvalidOperationException("Không thể xoá tài khoản đang đăng nhập");
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy người dùng");
+        await EnsureNotLastActiveAdminAsync(userId, "xoá");
+        try
+        {
+            user.IsDeleted = true;
+            user.IsActive = false;
+            await RevokeAllUserSessionsTrackedAsync(user, "admin_delete");
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in DeleteUserAsync");
+            return false;
+        }
     }
 
     public async Task<bool> ResetPasswordAsync(Guid userId)
     {
         try
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
-            if (user == null) return false;
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted)
+                ?? throw new KeyNotFoundException("Không tìm thấy người dùng");
             user.PasswordHash = HashPassword("123456"); // Default reset password
             // #216 TC-PERM-015: mật khẩu mặc định ai cũng đoán được → buộc đổi ngay lần đăng nhập tới.
             user.MustChangePassword = true;
@@ -322,6 +385,7 @@ public partial class SystemCompleteService
             await _context.SaveChangesAsync();
             return true;
         }
+        catch (KeyNotFoundException) { throw; }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error in ResetPasswordAsync");
@@ -374,11 +438,17 @@ public partial class SystemCompleteService
 
     public async Task<bool> LockUserAsync(Guid userId, string reason)
     {
+        // QA-R4: self-lock / last-admin lock were accepted, unknown user was 200 {data:false}, and the locked
+        // user's live tokens kept working until expiry (lock is an incident-response action → kick sessions).
+        if (userId == CurrentUserId)
+            throw new InvalidOperationException("Không thể khoá tài khoản đang đăng nhập");
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy người dùng");
+        await EnsureNotLastActiveAdminAsync(userId, "khoá");
         try
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
-            if (user == null) return false;
             user.IsActive = false;
+            await RevokeAllUserSessionsTrackedAsync(user, "admin_lock");
             await _context.SaveChangesAsync();
             return true;
         }
@@ -391,10 +461,10 @@ public partial class SystemCompleteService
 
     public async Task<bool> UnlockUserAsync(Guid userId)
     {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy người dùng");
         try
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
-            if (user == null) return false;
             user.IsActive = true;
             // QA0915: "Mở khóa" must also clear the brute-force lockout, otherwise a user locked by
             // failed logins stays locked (login keeps returning 401) after the admin unlocks them.
@@ -470,31 +540,47 @@ public partial class SystemCompleteService
 
     public async Task<RoleDto> SaveRoleAsync(RoleDto dto)
     {
+        // QA-R4: blank code/name were stored as a "" role, and a duplicate RoleCode hit the unique index →
+        // swallowed → 204, so the v2 role editor showed "Đã lưu vai trò" for a role that was never saved.
+        var code = dto.Code?.Trim();
+        var name = dto.Name?.Trim();
+        if (string.IsNullOrWhiteSpace(code))
+            throw new ArgumentException("Mã vai trò là bắt buộc", nameof(dto.Code));
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Tên vai trò là bắt buộc", nameof(dto.Name));
         try
         {
+            if (await _context.Roles.AnyAsync(r => r.RoleCode == code && r.Id != dto.Id))
+                throw new InvalidOperationException($"Mã vai trò '{code}' đã tồn tại");
+
             Role entity;
             if (dto.Id == Guid.Empty)
             {
                 entity = new Role
                 {
-                    RoleCode = dto.Code ?? string.Empty,
-                    RoleName = dto.Name ?? string.Empty,
+                    RoleCode = code,
+                    RoleName = name,
                     Description = dto.Description
                 };
                 _context.Roles.Add(entity);
             }
             else
             {
-                entity = await _context.Roles.FirstOrDefaultAsync(r => r.Id == dto.Id);
-                if (entity == null) return null;
-                entity.RoleCode = dto.Code ?? entity.RoleCode;
-                entity.RoleName = dto.Name ?? entity.RoleName;
+                entity = await _context.Roles.FirstOrDefaultAsync(r => r.Id == dto.Id && !r.IsDeleted)
+                    ?? throw new KeyNotFoundException("Không tìm thấy vai trò");
+                entity.RoleCode = code;
+                entity.RoleName = name;
                 entity.Description = dto.Description;
             }
             await _context.SaveChangesAsync();
             dto.Id = entity.Id;
+            dto.Code = code;
+            dto.Name = name;
             return dto;
         }
+        catch (KeyNotFoundException) { throw; }
+        catch (InvalidOperationException) { throw; }
+        catch (DbUpdateException) { throw; } // unique index → 409 DUPLICATE via the global filter
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error in SaveRoleAsync");
@@ -504,6 +590,15 @@ public partial class SystemCompleteService
 
     public async Task<bool> DeleteRoleAsync(Guid roleId)
     {
+        // QA-R4: a role still assigned to users (ADMIN included) or backing an active delegation could be
+        // soft-deleted; unknown id was 200 {data:false}.
+        var role = await _context.Roles.FirstOrDefaultAsync(r => r.Id == roleId && !r.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy vai trò");
+        var assigned = await _context.UserRoles.CountAsync(ur => ur.RoleId == roleId && !ur.IsDeleted && !ur.User.IsDeleted);
+        if (assigned > 0)
+            throw new InvalidOperationException($"Vai trò '{role.RoleName}' đang được gán cho {assigned} người dùng — gỡ khỏi người dùng trước khi xoá");
+        if (await _context.DelegationGrants.AnyAsync(d => d.RoleId == roleId && d.Status == 0))
+            throw new InvalidOperationException($"Vai trò '{role.RoleName}' đang có ủy quyền hiệu lực — thu hồi ủy quyền trước khi xoá");
         return await SoftDeleteEntityAsync<Role>(roleId);
     }
 
@@ -560,6 +655,14 @@ public partial class SystemCompleteService
 
     public async Task<bool> UpdateRolePermissionsAsync(Guid roleId, List<Guid> permissionIds)
     {
+        // QA-R4: unknown role → orphan RolePermissions rows; unknown permission id → FK error swallowed as
+        // 200 {data:false} after the role's existing permissions had already been dropped in the same unit of work.
+        if (!await _context.Roles.AnyAsync(r => r.Id == roleId && !r.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy vai trò");
+        permissionIds = (permissionIds ?? new List<Guid>()).Distinct().ToList();
+        var known = await _context.Permissions.Where(p => permissionIds.Contains(p.Id)).Select(p => p.Id).ToListAsync();
+        if (known.Count != permissionIds.Count)
+            throw new ArgumentException("Có quyền không tồn tại trong danh sách", nameof(permissionIds));
         try
         {
             var existing = await _context.RolePermissions.Where(rp => rp.RoleId == roleId).ToListAsync();
@@ -617,11 +720,11 @@ public partial class SystemCompleteService
         }
     }
 
-    public async Task<bool> UpdateUserPermissionsAsync(Guid userId, List<Guid> permissionIds)
+    public Task<bool> UpdateUserPermissionsAsync(Guid userId, List<Guid> permissionIds)
     {
-        // User permissions are managed through roles in this system
-        _logger.LogWarning("UpdateUserPermissionsAsync: Permissions are managed through roles");
-        return false;
+        // User permissions are managed through roles in this system.
+        // QA-R4: was a silent 200 {data:false}; say so (400 INVALID_STATE) instead of pretending to save.
+        throw new InvalidOperationException("Quyền được quản lý qua vai trò — hãy gán vai trò cho người dùng");
     }
 
     /// <summary>

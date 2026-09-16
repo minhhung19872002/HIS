@@ -186,6 +186,21 @@ namespace HIS.Infrastructure.Services
 
         public async Task<BloodOrderDto> CreateBloodOrderAsync(CreateBloodOrderDto dto)
         {
+            // QA round 4: a zero/unknown PatientId produced an order with blank patient + blank group (the
+            // LEFT JOIN below just yields ''), so every downstream ABO guard saw "unknown → allow".
+            if (dto.PatientId == Guid.Empty)
+                throw new ArgumentException("Chọn bệnh nhân trước khi tạo chỉ định máu.", nameof(dto.PatientId));
+            if (!await _context.Patients.AsNoTracking().AnyAsync(p => p.Id == dto.PatientId))
+                throw new KeyNotFoundException("Không tìm thấy bệnh nhân của chỉ định máu.");
+            if (dto.Items == null || dto.Items.Count == 0)
+                throw new ArgumentException("Chỉ định máu phải có ít nhất một dòng chế phẩm.", nameof(dto.Items));
+            if (dto.Items.Any(i => i.Quantity <= 0))
+                throw new ArgumentException("Số lượng chế phẩm máu phải lớn hơn 0.", nameof(dto.Items));
+            var ptNameMap = await GetProductTypeNamesAsync(dto.Items.Select(i => i.ProductTypeId));
+            var unknownProduct = dto.Items.FirstOrDefault(i => !ptNameMap.ContainsKey(i.ProductTypeId));
+            if (unknownProduct != null)
+                throw new KeyNotFoundException($"Không tìm thấy loại chế phẩm máu {unknownProduct.ProductTypeId}.");
+
             var orderId = Guid.NewGuid();
             var orderCode = $"ORD{DateTime.Now:yyyyMMddHHmmss}";
 
@@ -202,11 +217,8 @@ namespace HIS.Infrastructure.Services
 
             if (dto.Items != null)
             {
-                // perf(#195): batch-load product-type names instead of GetProductTypeNameAsync per
-                // item (each opens its own DB connection). Read-only lookup, unaffected by this
-                // loop's own inserts into BloodOrderItems.
-                var ptNameMap = await GetProductTypeNamesAsync(dto.Items.Select(i => i.ProductTypeId));
-
+                // perf(#195): product-type names batch-loaded once above (validation) instead of
+                // GetProductTypeNameAsync per item (each opens its own DB connection).
                 foreach (var item in dto.Items)
                 {
                     var itemId = Guid.NewGuid();
@@ -224,15 +236,41 @@ namespace HIS.Infrastructure.Services
 
         public async Task<bool> CancelBloodOrderAsync(Guid orderId, string reason)
         {
-            var rows = await _context.Database.ExecuteSqlRawAsync(
-                "UPDATE BloodOrders SET Status='Cancelled' WHERE Id=@p0 AND Status='Pending'",
-                orderId);
+            // QA round 4: the order status never leaves 'Pending' (assign/transfuse do not move it), so this
+            // cancelled orders whose bags were already transfusing/transfused, and left Reserved bags stuck
+            // in 'Reserved' forever (the assignments stayed behind). A zero id silently returned 200.
+            var status = await _context.Database
+                .SqlQueryRaw<string>("SELECT Status AS Value FROM BloodOrders WHERE Id = {0}", orderId)
+                .FirstOrDefaultAsync();
+            if (status == null)
+                throw new KeyNotFoundException("Không tìm thấy chỉ định máu.");
+            if (!string.Equals(status, "Pending", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"Chỉ định máu đang ở trạng thái \"{status}\", không hủy được.");
+            var active = await _context.Database
+                .SqlQueryRaw<int>(@"SELECT COUNT(*) AS Value FROM BloodBagAssignments a
+                    JOIN BloodOrderItems oi ON oi.Id = a.OrderItemId
+                    WHERE oi.OrderId = {0} AND a.TransfusionStatus IN ('Transfusing','Completed')", orderId)
+                .FirstAsync();
+            if (active > 0)
+                throw new InvalidOperationException("Chỉ định máu đã có túi đang truyền/đã truyền, không hủy được.");
 
-            if (rows > 0)
-            {
-                await _context.Database.ExecuteSqlRawAsync(
-                    "UPDATE BloodOrderItems SET Status='Cancelled' WHERE OrderId=@p0", orderId);
-            }
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            // Release bags still only reserved for this order back to stock
+            await _context.Database.ExecuteSqlRawAsync(
+                @"UPDATE BloodBags SET Status='Available', Note=@p1
+                WHERE Status='Reserved' AND Id IN (
+                    SELECT a.BloodBagId FROM BloodBagAssignments a
+                    JOIN BloodOrderItems oi ON oi.Id = a.OrderItemId
+                    WHERE oi.OrderId=@p0 AND a.TransfusionStatus='Reserved')",
+                P("@p0", orderId), P("@p1", reason));
+            await _context.Database.ExecuteSqlRawAsync(
+                @"DELETE FROM BloodBagAssignments WHERE TransfusionStatus='Reserved'
+                AND OrderItemId IN (SELECT Id FROM BloodOrderItems WHERE OrderId=@p0)", orderId);
+            await _context.Database.ExecuteSqlRawAsync(
+                "UPDATE BloodOrderItems SET Status='Cancelled', IssuedQuantity=0 WHERE OrderId=@p0", orderId);
+            var rows = await _context.Database.ExecuteSqlRawAsync(
+                "UPDATE BloodOrders SET Status='Cancelled' WHERE Id=@p0 AND Status='Pending'", orderId);
+            await tx.CommitAsync();
             return rows > 0;
         }
 
@@ -240,7 +278,8 @@ namespace HIS.Infrastructure.Services
         /// Tình trạng túi máu + nhóm máu người bệnh của một dòng chỉ định, đọc một lượt để gác.
         /// </summary>
         private async Task<(string BagStatus, DateTime? Expiry, string? BagAbo, string? BagRh,
-                            string? ProductCode, string? PatientAbo, string? PatientRh, bool OrderItemExists)>
+                            string? ProductCode, string? PatientAbo, string? PatientRh, bool OrderItemExists,
+                            string? ItemStatus, int Ordered, int Issued, string? OrderStatus)>
             LoadTransfusionContextAsync(Guid orderItemId, Guid bloodBagId)
         {
             var connection = _context.Database.GetDbConnection();
@@ -250,7 +289,8 @@ namespace HIS.Infrastructure.Services
                 SELECT b.Status, b.ExpiryDate, b.BloodType, b.RhFactor, pt.Code,
                        COALESCE(NULLIF(o.PatientBloodType, ''), p.BloodType),
                        COALESCE(NULLIF(o.PatientRhFactor, ''), p.RhFactor),
-                       CASE WHEN oi.Id IS NULL THEN 0 ELSE 1 END AS ItemExists
+                       CASE WHEN oi.Id IS NULL THEN 0 ELSE 1 END AS ItemExists,
+                       oi.Status, ISNULL(oi.OrderedQuantity, 0), ISNULL(oi.IssuedQuantity, 0), o.Status
                 FROM BloodBags b
                 LEFT JOIN BloodProductTypes pt ON pt.Id = b.ProductTypeId
                 LEFT JOIN BloodOrderItems oi ON oi.Id = @itemId
@@ -266,7 +306,21 @@ namespace HIS.Infrastructure.Services
                 throw new KeyNotFoundException("Không tìm thấy túi máu.");
             string? S(int i) => r.IsDBNull(i) ? null : r.GetString(i);
             return (S(0) ?? "", r.IsDBNull(1) ? null : r.GetDateTime(1), S(2), S(3), S(4), S(5), S(6),
-                    !r.IsDBNull(7) && r.GetInt32(7) == 1);
+                    !r.IsDBNull(7) && r.GetInt32(7) == 1,
+                    S(8), r.IsDBNull(9) ? 0 : r.GetInt32(9), r.IsDBNull(10) ? 0 : r.GetInt32(10), S(11));
+        }
+
+        /// <summary>
+        /// QA round 4: a cancelled order (or cancelled line) still accepted assign / start-transfusion —
+        /// a bag went 'Transfusing' under an order the doctor had withdrawn.
+        /// </summary>
+        private static void EnsureOrderItemOpen(bool exists, string? itemStatus, string? orderStatus)
+        {
+            if (!exists)
+                throw new KeyNotFoundException("Không tìm thấy dòng chỉ định máu.");
+            if (string.Equals(itemStatus, "Cancelled", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(orderStatus, "Cancelled", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Chỉ định máu đã bị hủy, không thao tác túi máu trên chỉ định này được.");
         }
 
         /// <summary>
@@ -298,8 +352,11 @@ namespace HIS.Infrastructure.Services
         public async Task<bool> AssignBloodBagToPatientAsync(Guid orderItemId, Guid bloodBagId)
         {
             var ctx = await LoadTransfusionContextAsync(orderItemId, bloodBagId);
-            if (!ctx.OrderItemExists)
-                throw new KeyNotFoundException("Không tìm thấy dòng chỉ định máu.");
+            EnsureOrderItemOpen(ctx.OrderItemExists, ctx.ItemStatus, ctx.OrderStatus);
+            // QA round 4: IssuedQuantity grew without bound — 2 bags reserved on a 1-unit line.
+            if (ctx.Issued >= ctx.Ordered)
+                throw new InvalidOperationException(
+                    $"Dòng chỉ định đã được gán đủ {ctx.Ordered} túi, không gán thêm được (hủy gán túi cũ trước).");
             // Túi được phép gán khi còn trong kho, hoặc đã xuất cho khoa nhưng chưa dùng.
             EnsureBagUsable(ctx.BagStatus, ctx.Expiry, ctx.BagAbo, ctx.BagRh, ctx.ProductCode,
                             ctx.PatientAbo, ctx.PatientRh, new[] { "Available", "Issued" });
@@ -348,12 +405,16 @@ namespace HIS.Infrastructure.Services
                 @"UPDATE BloodBagAssignments SET CrossMatchResult=@p0, CrossMatchDate=@p1, TransfusionNote=@p2
                 WHERE OrderItemId=@p3 AND BloodBagId=@p4",
                 P("@p0", result), P("@p1", DateTime.Now), P("@p2", note), P("@p3", orderItemId), P("@p4", bloodBagId));
-            return rows > 0;
+            // QA round 4: no matching assignment used to answer 200 with nothing written
+            if (rows == 0)
+                throw new InvalidOperationException("Túi máu chưa được gán cho dòng chỉ định này, không ghi kết quả phản ứng chéo được.");
+            return true;
         }
 
         public async Task<bool> StartTransfusionAsync(Guid orderItemId, Guid bloodBagId)
         {
             var ctx = await LoadTransfusionContextAsync(orderItemId, bloodBagId);
+            EnsureOrderItemOpen(ctx.OrderItemExists, ctx.ItemStatus, ctx.OrderStatus);
             // Chỉ truyền được túi đang được giữ cho chính người bệnh này.
             EnsureBagUsable(ctx.BagStatus, ctx.Expiry, ctx.BagAbo, ctx.BagRh, ctx.ProductCode,
                             ctx.PatientAbo, ctx.PatientRh, new[] { "Reserved", "Issued" });
@@ -433,16 +494,28 @@ namespace HIS.Infrastructure.Services
         public async Task<bool> RecordTransfusionReactionAsync(Guid orderItemId, Guid bloodBagId, string reaction, string action)
         {
             var note = $"Phan ung: {reaction}. Xu tri: {action}";
+            // QA round 4: the bag update below ran even when no assignment matched, so a reaction posted
+            // against ANY bag id (Available, Issued, even Destroyed) flipped it to 'Returned' — from where the
+            // status setter could put it back to 'Available'. A reaction after a COMPLETED transfusion also
+            // un-did the transfusion (bag Transfused → Returned). Now: only a transfusing/completed assignment
+            // takes a reaction; a bag still transfusing is quarantined (never back to stock), a transfused
+            // bag stays transfused and only the note is recorded.
             var rows = await _context.Database.ExecuteSqlRawAsync(
-                @"UPDATE BloodBagAssignments SET TransfusionStatus='Returned', TransfusionEndTime=@p0, TransfusionNote=@p1
-                WHERE OrderItemId=@p2 AND BloodBagId=@p3",
-                DateTime.Now, note, orderItemId, bloodBagId);
+                @"UPDATE BloodBagAssignments SET
+                    TransfusionStatus = CASE WHEN TransfusionStatus='Transfusing' THEN 'Returned' ELSE TransfusionStatus END,
+                    TransfusionEndTime = COALESCE(TransfusionEndTime, @p0), TransfusionNote=@p1
+                WHERE OrderItemId=@p2 AND BloodBagId=@p3 AND TransfusionStatus IN ('Transfusing','Completed')",
+                P("@p0", DateTime.Now), P("@p1", note), P("@p2", orderItemId), P("@p3", bloodBagId));
+            if (rows == 0)
+                throw new InvalidOperationException(
+                    "Túi máu này không đang truyền/đã truyền cho dòng chỉ định, không ghi nhận phản ứng được.");
 
             await _context.Database.ExecuteSqlRawAsync(
-                "UPDATE BloodBags SET Status='Returned', Note=@p0 WHERE Id=@p1",
-                note, bloodBagId);
+                @"UPDATE BloodBags SET Status = CASE WHEN Status='Transfusing' THEN 'Quarantine' ELSE Status END, Note=@p0
+                WHERE Id=@p1",
+                P("@p0", note), P("@p1", bloodBagId));
 
-            return rows > 0;
+            return true;
         }
 
         #endregion

@@ -59,8 +59,35 @@ namespace HIS.Infrastructure.Services
             return results;
         }
 
+        /// <summary>
+        /// QA round 4: catalogs accepted Code='' / Name='' (blank rows in every product/supplier dropdown) and a
+        /// second row with an existing code; an update of an unknown id answered 200 having written nothing.
+        /// </summary>
+        private async Task EnsureCatalogRowAsync(string table, Guid id, string? code, string? name, string label)
+        {
+            if (string.IsNullOrWhiteSpace(code))
+                throw new ArgumentException($"Nhập mã {label}.", "Code");
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ArgumentException($"Nhập tên {label}.", "Name");
+            // table name comes from the two call sites below only (never from input)
+            var dup = await _context.Database
+                .SqlQueryRaw<int>($"SELECT COUNT(*) AS Value FROM {table} WHERE Code = {{0}} AND Id <> {{1}}", code.Trim(), id)
+                .FirstAsync();
+            if (dup > 0)
+                throw new InvalidOperationException($"Mã {label} \"{code.Trim()}\" đã tồn tại.");
+            if (id != Guid.Empty)
+            {
+                var exists = await _context.Database
+                    .SqlQueryRaw<int>($"SELECT COUNT(*) AS Value FROM {table} WHERE Id = {{0}}", id)
+                    .FirstAsync();
+                if (exists == 0)
+                    throw new KeyNotFoundException($"Không tìm thấy {label} cần cập nhật.");
+            }
+        }
+
         public async Task<BloodProductTypeDto> SaveProductTypeAsync(BloodProductTypeDto dto)
         {
+            await EnsureCatalogRowAsync("BloodProductTypes", dto.Id, dto.Code, dto.Name, "loại chế phẩm máu");
             if (dto.Id == Guid.Empty)
             {
                 dto.Id = Guid.NewGuid();
@@ -130,6 +157,7 @@ namespace HIS.Infrastructure.Services
 
         public async Task<BloodSupplierDto> SaveSupplierAsync(BloodSupplierDto dto)
         {
+            await EnsureCatalogRowAsync("BloodSuppliers", dto.Id, dto.Code, dto.Name, "nhà cung cấp máu");
             if (dto.Id == Guid.Empty)
             {
                 dto.Id = Guid.NewGuid();

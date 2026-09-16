@@ -112,6 +112,9 @@ namespace HIS.Infrastructure.Services
 
         public async Task<BloodIssueRequestDto> CreateIssueRequestAsync(CreateBloodIssueRequestDto dto)
         {
+            // QA round 4: a request for -1 / 0 units was accepted (the v2 form already blocks qty <= 0)
+            if (dto.RequestedQuantity <= 0)
+                throw new ArgumentException("Số lượng túi máu yêu cầu phải lớn hơn 0.", nameof(dto.RequestedQuantity));
             await EnsureRequestRecipientAsync(dto);
             var id = Guid.NewGuid();
             var code = $"REQ{DateTime.Now:yyyyMMddHHmmss}";
@@ -158,8 +161,10 @@ namespace HIS.Infrastructure.Services
                 ?? throw new KeyNotFoundException("Không tìm thấy bệnh nhân nhận máu.");
 
             var productCode = await _context.Database
-                .SqlQueryRaw<string>("SELECT Code AS Value FROM BloodProductTypes WHERE Id = {0}", dto.ProductTypeId)
+                .SqlQueryRaw<string>("SELECT ISNULL(Code, '') AS Value FROM BloodProductTypes WHERE Id = {0}", dto.ProductTypeId)
                 .FirstOrDefaultAsync();
+            if (productCode == null)
+                throw new KeyNotFoundException("Không tìm thấy loại chế phẩm máu của phiếu yêu cầu.");
             if (BloodCompatibility.Check(productCode, patient.BloodType, patient.RhFactor, dto.BloodType, dto.RhFactor)
                 == BloodCompatibility.BloodMatch.Incompatible)
                 throw new InvalidOperationException(
@@ -168,8 +173,24 @@ namespace HIS.Infrastructure.Services
                     + " Kiểm tra lại nhóm máu yêu cầu hoặc kết quả định nhóm của người bệnh.");
         }
 
+        /// <summary>
+        /// QA round 4: approve/reject on an unknown id or a request no longer 'Pending' answered 200 while
+        /// writing nothing (reject after FullyIssued looked like it worked). 404 / 400 with the real state.
+        /// </summary>
+        private async Task EnsureRequestPendingAsync(Guid requestId, string verb)
+        {
+            var status = await _context.Database
+                .SqlQueryRaw<string>("SELECT ISNULL(Status, '') AS Value FROM BloodIssueRequests WHERE Id = {0}", requestId)
+                .FirstOrDefaultAsync();
+            if (status == null)
+                throw new KeyNotFoundException("Không tìm thấy phiếu lĩnh máu.");
+            if (!string.Equals(status, "Pending", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"Phiếu lĩnh máu đang ở trạng thái \"{status}\", không {verb} được.");
+        }
+
         public async Task<bool> ApproveIssueRequestAsync(Guid requestId)
         {
+            await EnsureRequestPendingAsync(requestId, "duyệt");
             var rows = await _context.Database.ExecuteSqlRawAsync(
                 "UPDATE BloodIssueRequests SET Status='Approved' WHERE Id=@p0 AND Status='Pending'",
                 requestId);
@@ -178,6 +199,7 @@ namespace HIS.Infrastructure.Services
 
         public async Task<bool> RejectIssueRequestAsync(Guid requestId, string reason)
         {
+            await EnsureRequestPendingAsync(requestId, "từ chối");
             var rows = await _context.Database.ExecuteSqlRawAsync(
                 "UPDATE BloodIssueRequests SET Status='Cancelled', Note=@p0 WHERE Id=@p1 AND Status='Pending'",
                 reason ?? "", requestId);
@@ -199,9 +221,10 @@ namespace HIS.Infrastructure.Services
             {
             await _context.Database.ExecuteSqlRawAsync(
                 @"INSERT INTO BloodIssueReceipts (Id, ReceiptCode, IssueDate, DepartmentId, RequestedBy, IssuedBy, Status, TotalBags, Note, CreatedAt)
-                VALUES (@p0, @p1, @p2, (SELECT DepartmentId FROM BloodIssueRequests WHERE Id=@p3), 'System', 'System', 'Issued', @p4, @p5, @p6)",
+                VALUES (@p0, @p1, @p2, (SELECT DepartmentId FROM BloodIssueRequests WHERE Id=@p3), 'System', @p7, 'Issued', @p4, @p5, @p6)",
                 P("@p0", receiptId), P("@p1", receiptCode), P("@p2", DateTime.Now), P("@p3", dto.RequestId),
-                P("@p4", dto.BloodBagIds?.Count ?? 0), P("@p5", dto.Note), P("@p6", DateTime.UtcNow)); // CreatedAt UTC
+                P("@p4", dto.BloodBagIds?.Count ?? 0), P("@p5", dto.Note), P("@p6", DateTime.UtcNow), // CreatedAt UTC
+                P("@p7", CurrentUserName)); // QA round 4: IssuedBy was the literal 'System' — no audit of who handed the bag out
 
             if (dto.BloodBagIds != null)
             {
@@ -212,11 +235,15 @@ namespace HIS.Infrastructure.Services
                         @"INSERT INTO BloodIssueItems (Id, ReceiptId, BloodBagId, BagCode, BloodType, RhFactor, ProductTypeName, Volume, ExpiryDate, PatientId, PatientCode, PatientName)
                         SELECT @p0, @p1, b.Id, b.BagCode, b.BloodType, b.RhFactor,
                             pt.Name, b.Volume, b.ExpiryDate,
-                            (SELECT PatientId FROM BloodIssueRequests WHERE Id=@p3),
-                            (SELECT PatientCode FROM BloodIssueRequests WHERE Id=@p3),
-                            (SELECT PatientName FROM BloodIssueRequests WHERE Id=@p3)
+                            r.PatientId,
+                            -- QA round 4: the request stores PatientCode/PatientName as NULL, so every issue line
+                            -- (and the printed issue slip) showed no recipient. Same fallback as the request list.
+                            COALESCE(NULLIF(r.PatientCode, ''), p.PatientCode COLLATE DATABASE_DEFAULT),
+                            COALESCE(NULLIF(r.PatientName, ''), p.FullName COLLATE DATABASE_DEFAULT)
                         FROM BloodBags b
                         LEFT JOIN BloodProductTypes pt ON b.ProductTypeId = pt.Id
+                        LEFT JOIN BloodIssueRequests r ON r.Id = @p3
+                        LEFT JOIN Patients p ON p.Id = r.PatientId
                         WHERE b.Id = @p2",
                         itemId, receiptId, bagId, dto.RequestId);
 

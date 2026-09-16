@@ -234,7 +234,7 @@ namespace HIS.Application.Services
         // NangCap26 XVII.7 — lãnh đạo duyệt / từ chối kế hoạch bảo dưỡng đã lập
         Task<MaintenanceScheduleDto> ApproveMaintenanceScheduleAsync(Guid id, string? note, Guid userId);
         Task<MaintenanceScheduleDto> RejectMaintenanceScheduleAsync(Guid id, string reason, Guid userId);
-        Task<MaintenanceScheduleDto> CreateMaintenanceScheduleAsync(Guid equipmentId, string maintenanceType, string frequency, DateTime nextDueDate);
+        Task<MaintenanceScheduleDto> CreateMaintenanceScheduleAsync(Guid equipmentId, string maintenanceType, string frequency, DateTime nextDueDate, string? notes = null);
         Task<List<MaintenanceRecordDto>> GetMaintenanceHistoryAsync(Guid equipmentId);
         Task<MaintenanceRecordDto> RecordMaintenanceAsync(CreateMaintenanceRecordDto dto);
 

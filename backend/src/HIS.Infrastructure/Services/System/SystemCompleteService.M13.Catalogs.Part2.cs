@@ -76,6 +76,11 @@ public partial class SystemCompleteService
 
     public async Task<ICD10CatalogDto> SaveICD10CodeAsync(ICD10CatalogDto dto)
     {
+        // QA-R4: guards sit BEFORE the try — the catch swallows everything and returns null (→ 204 "saved").
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "ICD-10");
+        if (await _context.IcdCodes.AnyAsync(i => !i.IsDeleted && i.Id != dto.Id && i.Code == code))
+            throw CatalogGuard.Duplicate(code, "danh mục ICD-10");
+        dto.Code = code; dto.Name = name;
         try
         {
             IcdCode entity;
@@ -288,6 +293,17 @@ public partial class SystemCompleteService
 
     public async Task<DepartmentCatalogDto> SaveDepartmentAsync(DepartmentCatalogDto dto)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "khoa/phòng");
+        // DepartmentCode has a UNIQUE constraint: a duplicate used to be swallowed → 204 with nothing saved.
+        if (await _context.Departments.AnyAsync(d => d.Id != dto.Id && d.DepartmentCode == code))
+            throw CatalogGuard.Duplicate(code, "danh mục khoa/phòng");
+        if (dto.ParentId is Guid parentId && parentId != Guid.Empty)
+        {
+            if (parentId == dto.Id) throw new ArgumentException("Khoa/phòng không thể là cha của chính nó.");
+            if (!await _context.Departments.AnyAsync(d => d.Id == parentId && !d.IsDeleted))
+                throw CatalogGuard.NotFound("khoa/phòng cha");
+        }
+        dto.Code = code; dto.Name = name;
         try
         {
             Department entity;
@@ -332,6 +348,13 @@ public partial class SystemCompleteService
 
     public async Task<bool> DeleteDepartmentAsync(Guid departmentId)
     {
+        // QA-R4: a department with staff or rooms could be deleted, leaving users/rooms pointing at a deleted parent.
+        if (await _context.Users.AnyAsync(u => u.DepartmentId == departmentId && u.IsActive && !u.IsDeleted))
+            throw new InvalidOperationException("Khoa/phòng còn nhân viên đang hoạt động — chuyển nhân viên sang khoa khác trước khi xóa.");
+        if (await _context.Rooms.AnyAsync(r => r.DepartmentId == departmentId && !r.IsDeleted))
+            throw new InvalidOperationException("Khoa/phòng còn phòng/buồng trực thuộc — xóa phòng trước khi xóa khoa.");
+        if (await _context.Departments.AnyAsync(d => d.ParentId == departmentId && !d.IsDeleted))
+            throw new InvalidOperationException("Khoa/phòng còn đơn vị con trực thuộc.");
         return await SoftDeleteEntityAsync<Department>(departmentId);
     }
 
@@ -402,6 +425,12 @@ public partial class SystemCompleteService
 
     public async Task<RoomCatalogDto> SaveRoomAsync(RoomCatalogDto dto)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "phòng");
+        if (!await _context.Departments.AnyAsync(d => d.Id == dto.DepartmentId && !d.IsDeleted))
+            throw CatalogGuard.NotFound("khoa/phòng của phòng");
+        if (await _context.Rooms.AnyAsync(r => !r.IsDeleted && r.Id != dto.Id && r.RoomCode == code))
+            throw CatalogGuard.Duplicate(code, "danh mục phòng");
+        dto.Code = code; dto.Name = name;
         try
         {
             Room entity;
@@ -505,6 +534,13 @@ public partial class SystemCompleteService
 
     public async Task<BedCatalogDto> SaveBedAsync(BedCatalogDto dto)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "giường");
+        if (!await _context.Rooms.AnyAsync(r => r.Id == dto.RoomId && !r.IsDeleted))
+            throw CatalogGuard.NotFound("phòng của giường");
+        if (dto.DailyRate < 0) throw new ArgumentException("Giá giường/ngày không được âm.");
+        if (await _context.Beds.AnyAsync(b => !b.IsDeleted && b.Id != dto.Id && b.RoomId == dto.RoomId && b.BedCode == code))
+            throw CatalogGuard.Duplicate(code, "phòng này");
+        dto.Code = code; dto.Name = name;
         try
         {
             Bed entity;
@@ -620,6 +656,13 @@ public partial class SystemCompleteService
 
     public async Task<EmployeeCatalogDto> SaveEmployeeAsync(EmployeeCatalogDto dto)
     {
+        // QA-R4: a zero/unknown Id returned null → 204 "saved" with nothing written.
+        if (dto.Id == Guid.Empty)
+            throw new ArgumentException("Danh mục nhân viên chỉ cập nhật tài khoản đã có — tạo nhân viên mới ở màn Quản trị người dùng.");
+        if (!await _context.Users.AnyAsync(u => u.Id == dto.Id))
+            throw CatalogGuard.NotFound("nhân viên");
+        if (dto.DepartmentId is Guid deptId && deptId != Guid.Empty && !await _context.Departments.AnyAsync(d => d.Id == deptId && !d.IsDeleted))
+            throw CatalogGuard.NotFound("khoa/phòng");
         try
         {
             var entity = await _context.Users.FirstOrDefaultAsync(u => u.Id == dto.Id);
@@ -707,6 +750,10 @@ public partial class SystemCompleteService
 
     public async Task<SupplierCatalogDto> SaveSupplierAsync(SupplierCatalogDto dto)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "nhà cung cấp");
+        if (await _context.Suppliers.AnyAsync(s => !s.IsDeleted && s.Id != dto.Id && s.SupplierCode == code))
+            throw CatalogGuard.Duplicate(code, "danh mục nhà cung cấp");
+        dto.Code = code; dto.Name = name;
         try
         {
             Supplier entity;

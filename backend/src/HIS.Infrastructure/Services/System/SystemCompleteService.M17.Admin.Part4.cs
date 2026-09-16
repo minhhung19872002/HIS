@@ -67,6 +67,9 @@ public partial class SystemCompleteService
 
     public async Task<ItTicketDto> CreateItTicketAsync(CreateItTicketDto dto, string userId, string userName, string departmentName)
     {
+        // QA-R4: untitled tickets were created from an empty body.
+        if (string.IsNullOrWhiteSpace(dto.Title))
+            throw new ArgumentException("Tiêu đề sự cố IT là bắt buộc.");
         try
         {
             var id = Guid.NewGuid();
@@ -112,6 +115,9 @@ public partial class SystemCompleteService
 
     public async Task<ItTicketDto> RespondToItTicketAsync(Guid ticketId, RespondItTicketDto dto, string respondedByName)
     {
+        // QA-R4: an empty response on an unknown ticket returned 200 with a zero-GUID DTO (silent no-op).
+        if (string.IsNullOrWhiteSpace(dto.Response))
+            throw new ArgumentException("Nội dung phản hồi là bắt buộc.");
         try
         {
             var connection = _context.Database.GetDbConnection();
@@ -126,7 +132,8 @@ public partial class SystemCompleteService
             var p3 = command.CreateParameter(); p3.ParameterName = "@AssignedToName"; p3.Value = respondedByName; command.Parameters.Add(p3);
             var p4 = command.CreateParameter(); p4.ParameterName = "@ResolvedAt"; p4.Value = DateTime.UtcNow; command.Parameters.Add(p4);
 
-            await command.ExecuteNonQueryAsync();
+            var affected = await command.ExecuteNonQueryAsync();
+            if (affected == 0) throw new KeyNotFoundException("Phiếu sự cố IT không tồn tại.");
 
             return new ItTicketDto
             {
@@ -158,8 +165,14 @@ public partial class SystemCompleteService
             var p1 = command.CreateParameter(); p1.ParameterName = "@Id"; p1.Value = ticketId; command.Parameters.Add(p1);
             var p2 = command.CreateParameter(); p2.ParameterName = "@ResolvedAt"; p2.Value = DateTime.UtcNow; command.Parameters.Add(p2);
 
-            await command.ExecuteNonQueryAsync();
+            var affected = await command.ExecuteNonQueryAsync();
+            // QA-R4: closing an unknown ticket answered 200/true — 404 instead of a silent no-op.
+            if (affected == 0) throw new KeyNotFoundException("Phiếu sự cố IT không tồn tại.");
             return true;
+        }
+        catch (KeyNotFoundException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

@@ -55,6 +55,9 @@ public class VideoConsultationService : IVideoConsultationService
 
     public async Task<ServiceOutcome> CreateAsync(CreateRoomDto dto, Guid userId)
     {
+        // QA-R4: {} created a room with an empty title (the v2 form marks it required).
+        if (string.IsNullOrWhiteSpace(dto.Title))
+            return ServiceOutcome.Bad("Chưa nhập tên phòng / chủ đề hội chẩn.");
         var room = new ConsultationRoom
         {
             Id = Guid.NewGuid(),

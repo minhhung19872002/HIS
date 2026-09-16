@@ -196,6 +196,8 @@ public class ImmunizationService : IImmunizationService
             .Include(v => v.Patient)
             .FirstOrDefaultAsync(v => v.Id == id && !v.IsDeleted)
             ?? throw new KeyNotFoundException("Không tìm thấy bản ghi tiêm chủng");
+        if (dto.AefiSeverity is < 0 or > 3)
+            throw new ArgumentException("Mức độ phản ứng sau tiêm không hợp lệ (0=Không, 1=Nhẹ, 2=Vừa, 3=Nặng)."); // QA-R4
 
         entity.AefiReport = dto.AefiReport;
         entity.AefiSeverity = dto.AefiSeverity;

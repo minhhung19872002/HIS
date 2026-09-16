@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using HIS.Application.Common;
 using HIS.Application.DTOs.BloodBank;
 using HIS.Application.Services;
 using HIS.Infrastructure.Data;
@@ -17,12 +18,23 @@ namespace HIS.Infrastructure.Services
     {
         private readonly HISDbContext _context;
         private readonly IConfiguration _configuration;
+        private readonly ICurrentUserAccessor? _currentUser;
 
-        public BloodBankCompleteService(HISDbContext context, IConfiguration configuration)
+        public BloodBankCompleteService(HISDbContext context, IConfiguration configuration,
+            ICurrentUserAccessor? currentUser = null)
         {
             _context = context;
             _configuration = configuration;
+            _currentUser = currentUser;
         }
+
+        /// <summary>
+        /// QA round 4: IssuedBy / ConductedBy / ApprovedBy were the literal 'System' on every receipt and
+        /// inventory — no record of who handed a bag out or who approved a count. Falls back to "System"
+        /// outside an HTTP request (background jobs, tests).
+        /// </summary>
+        private string CurrentUserName =>
+            string.IsNullOrWhiteSpace(_currentUser?.UserName) ? "System" : _currentUser!.UserName!;
 
 
 

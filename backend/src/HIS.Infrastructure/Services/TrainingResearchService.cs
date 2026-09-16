@@ -62,10 +62,13 @@ public class TrainingResearchService : ITrainingResearchService
     {
         try
         {
+            // QA-R4: TrainingClass.Students / TrainingStudent.TrainingClass are bound by EF convention to a
+            // shadow FK column `TrainingClassId` (always NULL) — the real FK is `ClassId`. Every navigation
+            // through them returned nothing (enrolledCount 0/N, empty student list, empty CME summary), so the
+            // student side is queried explicitly on ClassId here and below.
             var query = _context.TrainingClasses
                 .Include(c => c.Instructor)
                 .Include(c => c.Department)
-                .Include(c => c.Students)
                 .Where(c => !c.IsDeleted)
                 .AsQueryable();
 
@@ -96,6 +99,13 @@ public class TrainingResearchService : ITrainingResearchService
                 .Take(filter.PageSize)
                 .ToListAsync();
 
+            var classIds = classes.Select(c => c.Id).ToList();
+            var enrolled = await _context.TrainingStudents
+                .Where(s => classIds.Contains(s.ClassId) && !s.IsDeleted)
+                .GroupBy(s => s.ClassId)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Key, x => x.Count);
+
             return classes.Select(c => new TrainingClassListDto
                 {
                     Id = c.Id,
@@ -106,7 +116,7 @@ public class TrainingResearchService : ITrainingResearchService
                     StartDate = c.StartDate.ToString("yyyy-MM-dd"),
                     EndDate = c.EndDate.HasValue ? c.EndDate.Value.ToString("yyyy-MM-dd") : null,
                     MaxStudents = c.MaxStudents,
-                    EnrolledCount = c.Students.Count(s => !s.IsDeleted),
+                    EnrolledCount = enrolled.GetValueOrDefault(c.Id),
                     Location = c.Location,
                     InstructorName = c.Instructor != null ? c.Instructor.FullName : null,
                     DepartmentName = c.Department != null ? c.Department.DepartmentName : null,
@@ -130,12 +140,17 @@ public class TrainingResearchService : ITrainingResearchService
             var c = await _context.TrainingClasses
                 .Include(x => x.Instructor)
                 .Include(x => x.Department)
-                .Include(x => x.Students.Where(s => !s.IsDeleted))
-                    .ThenInclude(s => s.Staff)
                 .Where(x => x.Id == id && !x.IsDeleted)
                 .FirstOrDefaultAsync();
 
             if (c == null) return null;
+
+            // Explicit ClassId query (see GetClassesAsync — the Students navigation is bound to a NULL shadow FK).
+            var students = await _context.TrainingStudents
+                .Include(s => s.Staff)
+                .Where(s => s.ClassId == id && !s.IsDeleted)
+                .OrderBy(s => s.CreatedAt)
+                .ToListAsync();
 
             return new TrainingClassDetailDto
             {
@@ -147,7 +162,7 @@ public class TrainingResearchService : ITrainingResearchService
                 StartDate = c.StartDate.ToString("yyyy-MM-dd"),
                 EndDate = c.EndDate?.ToString("yyyy-MM-dd"),
                 MaxStudents = c.MaxStudents,
-                EnrolledCount = c.Students.Count,
+                EnrolledCount = students.Count,
                 Location = c.Location,
                 InstructorId = c.InstructorId,
                 InstructorName = c.Instructor?.FullName,
@@ -159,7 +174,7 @@ public class TrainingResearchService : ITrainingResearchService
                 StatusName = ClassStatusNames.GetValueOrDefault(c.Status, ""),
                 Fee = c.Fee,
                 CreatedAt = c.CreatedAt.ToString("yyyy-MM-dd HH:mm"),
-                Students = c.Students.Select(s => MapStudentDto(s)).ToList(),
+                Students = students.Select(s => MapStudentDto(s)).ToList(),
             };
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
@@ -170,7 +185,9 @@ public class TrainingResearchService : ITrainingResearchService
 
     public async Task<TrainingClassDetailDto> SaveClassAsync(Guid? id, SaveTrainingClassDto dto)
     {
-        // Validation: blank name, negative capacity/credits and end-before-start used to be saved as-is.
+        // Validation: blank code/name, negative capacity/credits and end-before-start used to be saved as-is.
+        if (string.IsNullOrWhiteSpace(dto.ClassCode))
+            throw new ArgumentException("Mã lớp đào tạo là bắt buộc", nameof(dto.ClassCode));
         if (string.IsNullOrWhiteSpace(dto.ClassName))
             throw new ArgumentException("Tên lớp đào tạo là bắt buộc", nameof(dto.ClassName));
         if (dto.MaxStudents <= 0)
@@ -198,8 +215,8 @@ public class TrainingResearchService : ITrainingResearchService
             _context.TrainingClasses.Add(entity);
         }
 
-        entity.ClassCode = dto.ClassCode;
-        entity.ClassName = dto.ClassName;
+        entity.ClassCode = dto.ClassCode.Trim();
+        entity.ClassName = dto.ClassName.Trim();
         entity.TrainingType = dto.TrainingType;
         if (DateTime.TryParse(dto.StartDate, out var sd)) entity.StartDate = sd;
         entity.EndDate = DateTime.TryParse(dto.EndDate, out var ed) ? ed : null;
@@ -250,6 +267,11 @@ public class TrainingResearchService : ITrainingResearchService
         var activeStudents = _context.TrainingStudents.Where(s => s.ClassId == dto.ClassId && !s.IsDeleted && s.AttendanceStatus != 4);
         if (dto.StaffId.HasValue && await activeStudents.AnyAsync(s => s.StaffId == dto.StaffId))
             throw new InvalidOperationException("Nhân viên đã được ghi danh vào lớp này");
+        // QA-R4: the same external student could be enrolled any number of times (eats the class capacity).
+        var externalName = dto.ExternalName?.Trim();
+        if (!dto.StaffId.HasValue && await activeStudents.AnyAsync(s => s.StaffId == null && s.ExternalName != null
+                && s.ExternalName.ToLower() == externalName!.ToLower()))
+            throw new InvalidOperationException("Học viên ngoài này đã được ghi danh vào lớp");
         if (await activeStudents.CountAsync() >= cls.MaxStudents)
             throw new InvalidOperationException($"Lớp đã đủ sĩ số tối đa ({cls.MaxStudents})");
 
@@ -258,7 +280,7 @@ public class TrainingResearchService : ITrainingResearchService
             Id = Guid.NewGuid(),
             ClassId = dto.ClassId,
             StaffId = dto.StaffId,
-            ExternalName = dto.ExternalName,
+            ExternalName = externalName,
             StudentType = dto.StudentType,
             AttendanceStatus = 1, // Registered
             Notes = dto.Notes,
@@ -275,6 +297,8 @@ public class TrainingResearchService : ITrainingResearchService
     {
         if (dto.AttendanceStatus is < 1 or > 4)
             throw new ArgumentException("Trạng thái học viên không hợp lệ", nameof(dto.AttendanceStatus));
+        if (dto.Score is < 0 or > 100)
+            throw new ArgumentException("Điểm phải trong khoảng 0–100", nameof(dto.Score));
         var entity = await _context.TrainingStudents.Include(s => s.Staff).FirstOrDefaultAsync(s => s.Id == studentId && !s.IsDeleted)
             ?? throw new KeyNotFoundException("Không tìm thấy học viên");
         // A certified student cannot be moved back / marked dropped while the certificate stays on record.
@@ -297,11 +321,14 @@ public class TrainingResearchService : ITrainingResearchService
         // Dropped students were certified (and flipped to Completed); re-issuing silently overwrote the number.
         if (entity.AttendanceStatus == 4)
             throw new InvalidOperationException("Học viên đã bỏ học — không thể cấp chứng chỉ");
+        // QA-R4: a certificate for a student still "Đã đăng ký"/"Đang học" silently marked them Completed and
+        // counted toward CME credits. The v2 page only offers the button once the student is Completed (3).
+        if (entity.AttendanceStatus != 3)
+            throw new InvalidOperationException("Học viên chưa hoàn thành khoá học — không thể cấp chứng chỉ");
         if (!string.IsNullOrEmpty(entity.CertificateNumber))
             throw new InvalidOperationException("Học viên đã được cấp chứng chỉ");
         entity.CertificateNumber = dto.CertificateNumber.Trim();
         entity.CertificateDate = DateTime.TryParse(dto.CertificateDate, out var cd) ? cd : DateTime.UtcNow;
-        entity.AttendanceStatus = 3; // Completed
         entity.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         return MapStudentDto(entity);
@@ -563,11 +590,9 @@ public class TrainingResearchService : ITrainingResearchService
             var directions = await _context.ClinicalDirections.Where(d => !d.IsDeleted).CountAsync();
 
             var totalStaff = await _context.Users.CountAsync(u => !u.IsDeleted);
-            var staffWithCme = students
-                .Where(s => s.AttendanceStatus == 3 && s.CertificateNumber != null)
-                .Select(s => s.StaffId)
-                .Distinct()
-                .Count();
+            // QA-R4: "CME tuân thủ" counted anyone holding a certificate (external students with StaffId NULL
+            // included) regardless of hours/year; use the same 24 tiết/năm rule as the credit-summary tab.
+            var staffWithCme = (await GetCreditSummaryAsync()).Count(x => x.IsCompliant);
 
             return new TrainingDashboardDto
             {
@@ -614,25 +639,27 @@ public class TrainingResearchService : ITrainingResearchService
             // QA-R3: the requirement is per year (24 tiết/năm, NĐ 96/2023 — same value as MedicalHR), so only this
             // year's completed classes count; all-time credits against a 48-credit default contradicted the HR tab.
             var yearStart = new DateTime(DateTime.Now.Year, 1, 1);
-            var completedStudents = await _context.TrainingStudents
-                .Include(s => s.Staff)
-                .Include(s => s.TrainingClass)
-                .Where(s => !s.IsDeleted && s.AttendanceStatus == 3 && s.StaffId.HasValue && s.TrainingClass != null
-                    && (s.TrainingClass.EndDate ?? s.TrainingClass.StartDate) >= yearStart
-                    && (s.TrainingClass.EndDate ?? s.TrainingClass.StartDate) < yearStart.AddYears(1))
+            var yearEnd = yearStart.AddYears(1);
+            // Explicit join on ClassId — the TrainingClass navigation is bound to a NULL shadow FK (see GetClassesAsync).
+            var completedStudents = await (
+                from s in _context.TrainingStudents
+                join c in _context.TrainingClasses on s.ClassId equals c.Id
+                where !s.IsDeleted && s.AttendanceStatus == 3 && s.StaffId.HasValue && !c.IsDeleted
+                    && (c.EndDate ?? c.StartDate) >= yearStart && (c.EndDate ?? c.StartDate) < yearEnd
+                select new { StaffId = s.StaffId!.Value, StaffName = s.Staff != null ? s.Staff.FullName : "", c.CreditHours })
                 .ToListAsync();
 
             var staffCredits = completedStudents
-                .GroupBy(s => s.StaffId!.Value)
+                .GroupBy(s => s.StaffId)
                 .Select(g =>
                 {
                     var first = g.First();
                     return new CreditSummaryDto
                     {
                         StaffId = g.Key,
-                        StaffName = first.Staff?.FullName ?? "",
+                        StaffName = first.StaffName ?? "",
                         DepartmentName = null, // simplified
-                        TotalCredits = g.Sum(s => s.TrainingClass?.CreditHours ?? 0),
+                        TotalCredits = g.Sum(s => s.CreditHours),
                     };
                 })
                 .OrderBy(x => x.IsCompliant)

@@ -605,6 +605,15 @@ namespace HIS.API.Controllers
                 var result = await _reportingService.SaveScheduledReportAsync(dto);
                 return Ok(ApiResponse<ScheduledReportConfigDto>.SuccessResponse(result, "Lưu cấu hình thành công"));
             }
+            catch (ArgumentException ex)
+            {
+                // QA-R4: invalid code / schedule / format / recipients → 400 (was saved as-is or 500 on duplicate key).
+                return BadRequest(ApiResponse<ScheduledReportConfigDto>.ErrorResponse(ex.Message));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<ScheduledReportConfigDto>.ErrorResponse(ex.Message));
+            }
             catch (Exception ex)
             {
                 return StatusCode(500, ApiResponse<ScheduledReportConfigDto>.ErrorResponse($"Lỗi: {ex.Message}"));

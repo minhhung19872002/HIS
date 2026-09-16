@@ -81,6 +81,13 @@ public partial class SystemCompleteService
 
     public async Task<ServicePriceCatalogDto> SaveServicePriceAsync(ServicePriceCatalogDto dto)
     {
+        // QA-R4: guards sit BEFORE the try — the catch swallows everything and returns null (→ 204 "saved").
+        if (!await _context.Services.AnyAsync(s => s.Id == dto.ServiceId && !s.IsDeleted))
+            throw CatalogGuard.NotFound("dịch vụ của bảng giá");
+        if (dto.UnitPrice < 0 || (dto.InsurancePrice ?? 0) < 0)
+            throw new ArgumentException("Đơn giá không được âm.");
+        if (dto.ExpiryDate.HasValue && dto.ExpiryDate.Value.Date < dto.EffectiveDate.Date)
+            throw new ArgumentException("Ngày hết hiệu lực giá phải sau ngày áp dụng.");
         try
         {
             ServicePrice entity;
@@ -460,6 +467,7 @@ public partial class SystemCompleteService
 
     public async Task<MedicalRecordTemplateCatalogDto> SaveMedicalRecordTemplateAsync(MedicalRecordTemplateCatalogDto dto)
     {
+        dto.Name = CatalogGuard.RequireText(dto.Name, "Tên mẫu bệnh án");
         try
         {
             ExaminationTemplate entity;
@@ -563,6 +571,10 @@ public partial class SystemCompleteService
 
     public async Task<ServiceGroupCatalogDto> SaveServiceGroupAsync(ServiceGroupCatalogDto dto)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "nhóm dịch vụ");
+        if (await _context.ServiceGroups.AnyAsync(g => !g.IsDeleted && g.Id != dto.Id && g.GroupCode == code))
+            throw CatalogGuard.Duplicate(code, "danh mục nhóm dịch vụ");
+        dto.Code = code; dto.Name = name;
         try
         {
             ServiceGroup entity;
@@ -672,11 +684,15 @@ public partial class SystemCompleteService
 
     public async Task<ClinicalTermCatalogDto> SaveClinicalTermAsync(ClinicalTermCatalogDto dto)
     {
+        var (code, name) = CatalogGuard.RequireCodeName(dto.Code, dto.Name, "thuật ngữ lâm sàng");
+        if (await _context.ClinicalTerms.AnyAsync(t => !t.IsDeleted && t.Id != dto.Id && t.Code == code))
+            throw CatalogGuard.Duplicate(code, "danh mục thuật ngữ lâm sàng");
+        dto.Code = code; dto.Name = name;
         ClinicalTerm entity;
         if (dto.Id != Guid.Empty)
         {
             entity = await _context.ClinicalTerms.FindAsync(dto.Id);
-            if (entity == null) throw new KeyNotFoundException($"ClinicalTerm {dto.Id} not found");
+            if (entity == null) throw CatalogGuard.NotFound("thuật ngữ lâm sàng");
         }
         else
         {
@@ -723,10 +739,17 @@ public partial class SystemCompleteService
 
     public async Task<SnomedIcdMappingDto> SaveSnomedMappingAsync(SnomedIcdMappingDto dto)
     {
+        // QA-R4: `{}` created a mapping with empty ICD/SNOMED codes; an unknown Id built a detached entity
+        // that was never added to the context → 200 with nothing saved.
+        var icdCode = CatalogGuard.RequireText(dto.IcdCode, "Mã ICD");
+        var snomedCode = CatalogGuard.RequireText(dto.SnomedCtCode, "Mã SNOMED CT");
+        if (await _context.SnomedIcdMappings.AnyAsync(m => !m.IsDeleted && m.Id != dto.Id && m.IcdCode == icdCode && m.SnomedCtCode == snomedCode))
+            throw new InvalidOperationException($"Ánh xạ {icdCode} ↔ {snomedCode} đã tồn tại.");
+        dto.IcdCode = icdCode; dto.SnomedCtCode = snomedCode;
         SnomedIcdMapping entity;
         if (dto.Id != Guid.Empty)
         {
-            entity = await _context.SnomedIcdMappings.FindAsync(dto.Id) ?? new SnomedIcdMapping();
+            entity = await _context.SnomedIcdMappings.FindAsync(dto.Id) ?? throw CatalogGuard.NotFound("ánh xạ SNOMED-ICD");
         }
         else
         {

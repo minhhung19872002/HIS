@@ -47,12 +47,12 @@ namespace HIS.Application.DTOs.BloodBank
         public Guid Id { get; set; }
         public string Code { get; set; }
         public string Name { get; set; }
-        public string Description { get; set; }
+        public string? Description { get; set; } // optional on save (implicit [Required] under nullable)
         public int ShelfLifeDays { get; set; }
         public decimal? MinTemperature { get; set; }
         public decimal? MaxTemperature { get; set; }
         public decimal? StandardVolume { get; set; }
-        public string Unit { get; set; }
+        public string? Unit { get; set; } // service defaults to "mL"
         public decimal Price { get; set; }
         public decimal InsurancePrice { get; set; }
         public bool IsActive { get; set; }
@@ -313,7 +313,7 @@ namespace HIS.Application.DTOs.BloodBank
     public class CreateBloodInventoryDto
     {
         public DateTime InventoryDate { get; set; }
-        public string Note { get; set; }
+        public string? Note { get; set; } // optional (implicit [Required] under nullable → 400 when omitted)
         public List<CreateBloodInventoryItemDto> Items { get; set; }
     }
 
@@ -326,7 +326,7 @@ namespace HIS.Application.DTOs.BloodBank
         public string RhFactor { get; set; }
         public Guid ProductTypeId { get; set; }
         public int ActualQuantity { get; set; }
-        public string Note { get; set; }
+        public string? Note { get; set; }
     }
 
     #endregion
@@ -401,8 +401,8 @@ namespace HIS.Application.DTOs.BloodBank
     {
         public Guid PatientId { get; set; }
         public Guid VisitId { get; set; }
-        public string Diagnosis { get; set; }
-        public string ClinicalIndication { get; set; }
+        public string? Diagnosis { get; set; } // optional (implicit [Required] under nullable → 400 when omitted)
+        public string? ClinicalIndication { get; set; }
         public List<CreateBloodOrderItemDto> Items { get; set; }
     }
 
@@ -413,7 +413,7 @@ namespace HIS.Application.DTOs.BloodBank
     {
         public Guid ProductTypeId { get; set; }
         public int Quantity { get; set; }
-        public string Note { get; set; }
+        public string? Note { get; set; }
     }
 
     #endregion
@@ -616,11 +616,11 @@ namespace HIS.Application.DTOs.BloodBank
         public Guid Id { get; set; }
         public string Code { get; set; }
         public string Name { get; set; }
-        public string Address { get; set; }
-        public string Phone { get; set; }
-        public string Email { get; set; }
-        public string ContactPerson { get; set; }
-        public string License { get; set; }
+        public string? Address { get; set; } // optional on save (implicit [Required] under nullable)
+        public string? Phone { get; set; }
+        public string? Email { get; set; }
+        public string? ContactPerson { get; set; }
+        public string? License { get; set; }
         public DateTime? LicenseExpiryDate { get; set; }
         public bool IsActive { get; set; }
     }

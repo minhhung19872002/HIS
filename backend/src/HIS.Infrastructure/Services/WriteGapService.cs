@@ -139,6 +139,14 @@ public class WriteGapService : IWriteGapService
         }
         else
         {
+            // QA-R4: a zero-GUID / unknown record hit the FK and came back as a 500 — answer 404 with the reason.
+            if (dto.MedicalRecordId == Guid.Empty || !await _db.MedicalRecords.AnyAsync(m => m.Id == dto.MedicalRecordId && !m.IsDeleted))
+                return ServiceOutcome.Status(404, ApiResponse.Fail("Hồ sơ bệnh án không tồn tại."));
+            if (dto.PatientId == Guid.Empty || !await _db.Patients.AnyAsync(p => p.Id == dto.PatientId && !p.IsDeleted))
+                return ServiceOutcome.Status(404, ApiResponse.Fail("Bệnh nhân không tồn tại."));
+            if (await _db.MedicalRecordArchives.AnyAsync(a => a.MedicalRecordId == dto.MedicalRecordId && !a.IsDeleted))
+                return ServiceOutcome.Bad("Hồ sơ bệnh án này đã được lưu trữ.");
+
             var archive = new MedicalRecordArchive
             {
                 Id = Guid.NewGuid(),
@@ -174,6 +182,12 @@ public class WriteGapService : IWriteGapService
 
     public async Task<ServiceOutcome> CreateInterHospitalRequestAsync(CreateInterHospitalDto dto, Guid userId)
     {
+        // QA-R4: a request with no destination and no content is unusable by the receiving side.
+        if (string.IsNullOrWhiteSpace(dto.ReceivingFacility))
+            return ServiceOutcome.Bad("Thiếu cơ sở tiếp nhận yêu cầu liên viện.");
+        if (string.IsNullOrWhiteSpace(dto.RequestDetails))
+            return ServiceOutcome.Bad("Thiếu nội dung yêu cầu liên viện.");
+
         var entity = new InterHospitalRequest
         {
             Id = Guid.NewGuid(),
@@ -251,6 +265,16 @@ public class WriteGapService : IWriteGapService
 
     public async Task<ServiceOutcome> SaveDoctorScheduleAsync(DoctorScheduleDto dto, Guid userId)
     {
+        // QA-R4: zero-GUID doctor / unknown department hit the FK and came back as a 500.
+        if (dto.DoctorId == Guid.Empty || !await _db.Users.AnyAsync(u => u.Id == dto.DoctorId && !u.IsDeleted))
+            return ServiceOutcome.Status(404, ApiResponse.Fail("Bác sĩ không tồn tại."));
+        if (dto.DepartmentId.HasValue && !await _db.Departments.AnyAsync(d => d.Id == dto.DepartmentId.Value && !d.IsDeleted))
+            return ServiceOutcome.Status(404, ApiResponse.Fail("Khoa không tồn tại."));
+        if (dto.RoomId.HasValue && !await _db.Rooms.AnyAsync(r => r.Id == dto.RoomId.Value && !r.IsDeleted))
+            return ServiceOutcome.Status(404, ApiResponse.Fail("Phòng không tồn tại."));
+        if (dto.Date == default)
+            return ServiceOutcome.Bad("Thiếu ngày trực.");
+
         var existing = await _db.DutySchedules
             .FirstOrDefaultAsync(d => d.DoctorId == dto.DoctorId && d.Date.Date == dto.Date.Date);
         if (existing != null)
@@ -297,6 +321,12 @@ public class WriteGapService : IWriteGapService
 
     public async Task<ServiceOutcome> CreateAuditSessionAsync(CreateBhxhAuditDto dto, Guid userId)
     {
+        // QA-R4: month 0 / year 0 was accepted (empty body) and the same-second SessionCode then collided → 500.
+        if (dto.PeriodMonth is < 1 or > 12)
+            return ServiceOutcome.Bad("Tháng giám định phải từ 1 đến 12.");
+        if (dto.PeriodYear < 2000 || dto.PeriodYear > DateTime.Now.Year + 1)
+            return ServiceOutcome.Bad("Năm giám định không hợp lệ.");
+
         var session = new BhxhAuditSession
         {
             Id = Guid.NewGuid(),
