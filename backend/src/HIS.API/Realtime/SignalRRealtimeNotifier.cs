@@ -8,8 +8,8 @@ namespace HIS.API.Realtime;
 /// Adapter thực thi <see cref="IRealtimeNotifier"/> (định nghĩa ở HIS.Application)
 /// bằng SignalR <see cref="IHubContext{NotificationHub}"/>. Đặt ở HIS.API vì
 /// NotificationHub sống ở đây và HIS.Infrastructure không reference được API.
-/// Broadcast tới mọi client đang đăng nhập (badge AI hiển thị cho mọi staff,
-/// payload không chứa dữ liệu bệnh nhân).
+/// AI queue: broadcast tới mọi client (chỉ là số lượng, không có dữ liệu bệnh nhân).
+/// Break-glass: CHỈ nhóm <see cref="NotificationHub.SecurityAlertsGroup"/> (payload có userId/patientId).
 /// </summary>
 public class SignalRRealtimeNotifier : IRealtimeNotifier
 {
@@ -21,5 +21,6 @@ public class SignalRRealtimeNotifier : IRealtimeNotifier
         => _hub.Clients.All.SendAsync("ReceiveAiQueueUpdate", new { addedCount, at = DateTime.UtcNow }, ct);
 
     public Task NotifyBreakGlassActivatedAsync(Guid userId, string username, Guid patientId, DateTime expireAt, CancellationToken ct = default)
-        => _hub.Clients.All.SendAsync("ReceiveBreakGlassAlert", new { userId, username, patientId, expireAt }, ct);
+        => _hub.Clients.Group(NotificationHub.SecurityAlertsGroup)
+            .SendAsync("ReceiveBreakGlassAlert", new { userId, username, patientId, expireAt }, ct);
 }

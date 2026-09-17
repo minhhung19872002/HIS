@@ -1,6 +1,5 @@
 import { HubConnection, HubConnectionState } from '@microsoft/signalr';
 import { createHubConnection } from '../../../services/signalr.service';
-import { storage, STORAGE_KEYS } from '../../../services/storage.service';
 
 export interface RisChatMessage {
   senderId: string;
@@ -16,13 +15,19 @@ let connection: HubConnection | null = null;
 let messageHandlers: MessageHandler[] = [];
 let userJoinedHandlers: UserEventHandler[] = [];
 let userLeftHandlers: UserEventHandler[] = [];
+const joinedStudies = new Set<string>();
 
 function getConnection(): HubConnection {
   if (connection) return connection;
 
-  const token = storage.getRaw(STORAGE_KEYS.token) || '';
+  // QA-R10: default factory reads the latest (refreshed) token on every (re)connect — a token captured
+  // here expired after 30 min and every reconnect failed with 401.
+  connection = createHubConnection('/hubs/ris-chat');
 
-  connection = createHubConnection('/hubs/ris-chat', { accessTokenFactory: () => token });
+  // Server-side groups are per connection id: after an automatic reconnect the rooms are gone → rejoin.
+  connection.onreconnected(() => {
+    joinedStudies.forEach(id => { connection?.invoke('JoinStudyRoom', id).catch(() => {}); });
+  });
 
   connection.on('ReceiveMessage', (senderId: string, senderName: string, message: string, timestamp: string) => {
     const msg: RisChatMessage = { senderId, senderName, message, timestamp };
@@ -57,10 +62,12 @@ async function ensureConnected(): Promise<HubConnection> {
 export async function connectToStudy(studyId: string): Promise<void> {
   const conn = await ensureConnected();
   await conn.invoke('JoinStudyRoom', studyId);
+  joinedStudies.add(studyId);
 }
 
 /** Leave a study chat room. */
 export async function disconnectFromStudy(studyId: string): Promise<void> {
+  joinedStudies.delete(studyId);
   if (!connection || connection.state !== HubConnectionState.Connected) return;
   await connection.invoke('LeaveStudyRoom', studyId);
 }
@@ -107,6 +114,7 @@ export async function disconnect(): Promise<void> {
     }
     connection = null;
   }
+  joinedStudies.clear();
   messageHandlers = [];
   userJoinedHandlers = [];
   userLeftHandlers = [];

@@ -1,11 +1,20 @@
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
 namespace HIS.API.Hubs;
 
-[Authorize]
+/// <summary>
+/// QA-R10: same role set as the RIS viewer endpoints (RISCompleteController.Viewer) — the hub used to accept
+/// any signed-in account, so a receptionist could join any study room and read/post into it.
+/// </summary>
+[Authorize(Roles = RoleNames.Admin + "," + RoleNames.QuanTriHeThong + "," + RoleNames.RadiologistManager + "," + RoleNames.Radiologist + "," + RoleNames.Technician + "," + RoleNames.Doctor)]
 public class RisChatHub : Hub
 {
+    // QA-R10: bound the broadcast payload (default hub limit is 32KB per frame, every member receives it).
+    private const int MaxMessageLength = 4000;
+    private const string JoinedRoomsKey = "ris_chat_rooms";
+
     /// <summary>
     /// When a client connects, we don't auto-join any study room.
     /// The client must explicitly call JoinStudyRoom(studyId).
@@ -25,10 +34,12 @@ public class RisChatHub : Hub
     /// </summary>
     public async Task JoinStudyRoom(string studyId)
     {
-        if (string.IsNullOrWhiteSpace(studyId)) return;
+        // QA-R10: room ids are study GUIDs — reject free-form group names from the client.
+        if (!Guid.TryParse(studyId, out var id)) return;
 
-        var groupName = $"study_{studyId}";
+        var groupName = $"study_{id:D}";
         await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+        JoinedRooms().Add(groupName);
 
         var (userId, username) = GetCallerIdentity();
         await Clients.Group(groupName).SendAsync("UserJoined", userId, username);
@@ -39,9 +50,10 @@ public class RisChatHub : Hub
     /// </summary>
     public async Task LeaveStudyRoom(string studyId)
     {
-        if (string.IsNullOrWhiteSpace(studyId)) return;
+        if (!Guid.TryParse(studyId, out var id)) return;
 
-        var groupName = $"study_{studyId}";
+        var groupName = $"study_{id:D}";
+        if (!JoinedRooms().Remove(groupName)) return;
 
         var (userId, username) = GetCallerIdentity();
         await Clients.Group(groupName).SendAsync("UserLeft", userId, username);
@@ -54,9 +66,15 @@ public class RisChatHub : Hub
     /// </summary>
     public async Task SendMessage(string studyId, string messageText)
     {
-        if (string.IsNullOrWhiteSpace(studyId) || string.IsNullOrWhiteSpace(messageText)) return;
+        if (string.IsNullOrWhiteSpace(messageText) || !Guid.TryParse(studyId, out var id)) return;
+        if (messageText.Length > MaxMessageLength)
+            throw new HubException($"Tin nhắn vượt quá {MaxMessageLength} ký tự.");
 
-        var groupName = $"study_{studyId}";
+        var groupName = $"study_{id:D}";
+        // QA-R10: only members of the room may post (used to accept posts from any connection).
+        if (!JoinedRooms().Contains(groupName))
+            throw new HubException("Chưa tham gia phòng trao đổi của ca chụp này.");
+
         var (senderId, senderName) = GetCallerIdentity();
         var timestamp = DateTimeOffset.UtcNow.ToString("o");
 
@@ -67,6 +85,14 @@ public class RisChatHub : Hub
             messageText,
             timestamp
         );
+    }
+
+    private HashSet<string> JoinedRooms()
+    {
+        if (Context.Items.TryGetValue(JoinedRoomsKey, out var v) && v is HashSet<string> set) return set;
+        set = new HashSet<string>(StringComparer.Ordinal);
+        Context.Items[JoinedRoomsKey] = set;
+        return set;
     }
 
     /// <summary>

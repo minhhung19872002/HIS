@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { message } from 'antd';
 import { storage, STORAGE_KEYS } from '../services/storage.service';
+import { useAuth } from './AuthContext';
 import type {
   OpenSessionResponse,
   SessionStatusResponse,
@@ -59,17 +60,21 @@ export function SigningProvider({ children }: { children: React.ReactNode }) {
   const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
   const [isSigningBatch, setIsSigningBatch] = useState(false);
   const connectionRef = useRef<signalR.HubConnection | null>(null);
+  const { isAuthenticated } = useAuth();
 
-  // Setup SignalR connection for batch signing progress
+  // Setup SignalR connection for batch signing progress.
+  // QA-R10: keyed on isAuthenticated — the provider mounts at app root BEFORE login, so with `[]` deps it
+  // never connected after a fresh login (no batch progress until a full page reload), and after logout it
+  // kept the previous user's connection. Default token factory reads the latest (refreshed) token.
   useEffect(() => {
     let cancelled = false;
+    if (!isAuthenticated) return;
     const token = storage.getRaw(STORAGE_KEYS.token);
     if (!token) return;
 
-    // Shared factory — reconnect delays kept as this context's own [0,2000,5000,10000]
-    // (byte-equivalent); LogLevel.None via factory default.
+    // Shared factory — reconnect delays kept as this context's own [0,2000,5000,10000];
+    // LogLevel.None via factory default.
     const connection = createHubConnection('/hubs/notifications', {
-      accessTokenFactory: () => token,
       reconnectDelays: [0, 2000, 5000, 10000],
     });
 
@@ -101,8 +106,9 @@ export function SigningProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
       connection.stop();
+      if (connectionRef.current === connection) connectionRef.current = null;
     };
-  }, []);
+  }, [isAuthenticated]);
 
   const updateSessionState = useCallback((status: SessionStatusResponse) => {
     setSessionActive(status.active);
@@ -183,6 +189,11 @@ export function SigningProvider({ children }: { children: React.ReactNode }) {
   ): Promise<BatchSignResponse> => {
     setIsSigningBatch(true);
     setBatchProgress(null);
+    // QA-R10: the server closes the hub when the access token expires; make sure progress events arrive.
+    const conn = connectionRef.current;
+    if (conn && conn.state === signalR.HubConnectionState.Disconnected) {
+      await conn.start().catch(() => {});
+    }
     try {
       const res = await apiBatchSign({
         documentIds,

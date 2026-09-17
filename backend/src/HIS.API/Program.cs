@@ -498,8 +498,10 @@ _ = app.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSou
 app.Services.GetRequiredService<ILoggerFactory>()
     .CreateLogger("WritePermissionConvention")
     .LogInformation("{Audit}", HIS.API.Authorization.WritePermissionConvention.Audit());
-app.MapHub<NotificationHub>("/hubs/notifications");
-app.MapHub<RisChatHub>("/hubs/ris-chat");
+// QA-R10: a WebSocket authenticates once at connect — without this an expired (or revoked) access token kept
+// its connection and could keep invoking hub methods indefinitely. The FE reconnects with a refreshed token.
+app.MapHub<NotificationHub>("/hubs/notifications", o => o.CloseOnAuthenticationExpiration = true);
+app.MapHub<RisChatHub>("/hubs/ris-chat", o => o.CloseOnAuthenticationExpiration = true);
 
 if (serveClientApp)
 {

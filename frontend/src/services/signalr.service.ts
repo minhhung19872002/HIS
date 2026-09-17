@@ -13,10 +13,11 @@
 import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 import type { HubConnection } from '@microsoft/signalr';
 import { REALTIME_ORIGIN } from '../config/api.config';
+import { refreshAccessToken } from './apiClient';
 
 export interface CreateHubConnectionOptions {
-  /** Token provider passed to withUrl. Mặc định đọc 'token' từ localStorage mỗi lần gọi. */
-  accessTokenFactory?: () => string;
+  /** Token provider passed to withUrl. Mặc định: {@link getFreshAccessToken}. */
+  accessTokenFactory?: () => string | Promise<string>;
   /** Mảng delay (ms) cho withAutomaticReconnect. Mặc định [0,2000,5000,10000,30000]. */
   reconnectDelays?: number[];
   /** Mức log. Mặc định LogLevel.None. */
@@ -24,6 +25,29 @@ export interface CreateHubConnectionOptions {
 }
 
 const DEFAULT_RECONNECT_DELAYS = [0, 2000, 5000, 10000, 30000];
+
+function tokenExpiresSoon(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return typeof payload.exp === 'number' && payload.exp * 1000 < Date.now() + 30_000;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * QA-R10: đọc token MỚI NHẤT mỗi lần (re)connect — access token chỉ sống 30 phút và được
+ * apiClient xoay vào localStorage; trước đây call-site chụp token lúc mount nên reconnect sau
+ * 30 phút luôn 401 (realtime chết tới khi đăng nhập lại). Token sắp/đã hết hạn → refresh trước
+ * (server đóng kết nối khi token hết hạn: CloseOnAuthenticationExpiration).
+ */
+export async function getFreshAccessToken(): Promise<string> {
+  const token = localStorage.getItem('token') || '';
+  if (token && tokenExpiresSoon(token)) {
+    return (await refreshAccessToken()) || token;
+  }
+  return token;
+}
 
 /**
  * Dựng một HubConnection tới `${REALTIME_ORIGIN}${relativeUrl}` với cấu hình chung.
@@ -34,7 +58,7 @@ export function createHubConnection(
   opts: CreateHubConnectionOptions = {},
 ): HubConnection {
   const {
-    accessTokenFactory = () => localStorage.getItem('token') || '',
+    accessTokenFactory = getFreshAccessToken,
     reconnectDelays = DEFAULT_RECONNECT_DELAYS,
     logLevel = LogLevel.None,
   } = opts;

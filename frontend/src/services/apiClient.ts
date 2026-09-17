@@ -16,7 +16,7 @@ import { API_URL, REFRESH_COOKIE_MODE } from '../config/api.config';
 // promise rồi replay. Server đã tolerate benign-race 60s nhưng single-flight đỡ 429 + gọn UX.
 let refreshInFlight: Promise<string | null> | null = null;
 
-function refreshAccessToken(): Promise<string | null> {
+export function refreshAccessToken(): Promise<string | null> {
   if (!refreshInFlight) {
     refreshInFlight = (async (): Promise<string | null> => {
       // #422 cookie-mode: refresh token nằm trong httpOnly cookie (JS không đọc được) → gửi body rỗng

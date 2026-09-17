@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { HubConnection } from '@microsoft/signalr';
+import { HubConnection, HubConnectionState } from '@microsoft/signalr';
 import { message } from 'antd';
 import { useAuth } from './AuthContext';
 import * as notificationApi from '../modules/system/api/notification';
@@ -100,9 +100,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     fetchNotifications();
 
     // Build SignalR connection (shared factory — reconnect/log config byte-equivalent)
-    const connection = createHubConnection('/hubs/notifications', {
-      accessTokenFactory: () => token,
-    });
+    // QA-R10: default token factory reads the latest (refreshed) token on every (re)connect.
+    const connection = createHubConnection('/hubs/notifications');
 
     connection.on('ReceiveNotification', (notification: NotificationDto) => {
       setNotifications(prev => [notification, ...prev].slice(0, 50));
@@ -156,6 +155,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       notificationApi.getUnreadCount()
         .then(res => { if (res.data) setUnreadCount(res.data.count); })
         .catch(() => {});
+      // QA-R10: automatic reconnect gives up after its last delay (e.g. long sleep/offline) → retry here.
+      if (!cancelled && connection.state === HubConnectionState.Disconnected) {
+        connection.start().then(() => { if (!cancelled) setConnected(true); }).catch(() => {});
+      }
     }, 60000);
 
     return () => {
