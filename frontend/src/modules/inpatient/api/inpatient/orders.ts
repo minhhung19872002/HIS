@@ -239,8 +239,12 @@ export const createServiceGroupTemplate = (dto: ServiceGroupTemplateDto) =>
 export const getServiceGroupTemplates = (departmentId?: string) =>
   apiClient.get<ServiceGroupTemplateDto[]>(`${BASE_URL}/service-group-templates`, { params: { departmentId } });
 
-export const orderByTemplate = (admissionId: string, templateId: string) =>
-  apiClient.post<InpatientServiceOrderDto>(`${BASE_URL}/order-by-template`, { admissionId, templateId });
+export const orderByTemplate = (
+  admissionId: string,
+  templateId: string,
+  options?: { mainDiagnosisCode?: string; mainDiagnosis?: string; confirmDuplicates?: boolean },
+) =>
+  apiClient.post<InpatientServiceOrderDto>(`${BASE_URL}/order-by-template`, { admissionId, templateId, ...options });
 
 export const orderByPackage = (admissionId: string, packageId: string) =>
   apiClient.post<InpatientServiceOrderDto>(`${BASE_URL}/order-by-package`, { admissionId, packageId });

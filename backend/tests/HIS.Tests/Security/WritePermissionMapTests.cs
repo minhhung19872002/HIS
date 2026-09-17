@@ -50,6 +50,8 @@ public sealed class WritePermissionMapTests
     [Theory]
     [InlineData("LISComplete", "FinalApproveLabResult", PermissionCatalog.LabResult.Validate)]
     [InlineData("ExaminationComplete", "CreatePrescription", PermissionCatalog.Prescription.Create)]
+    [InlineData("InpatientComplete", "PrescribeByTemplate", PermissionCatalog.Prescription.Create)]
+    [InlineData("InpatientComplete", "CreateEmergencyCabinetPrescription", PermissionCatalog.Inpatient.Update)]
     [InlineData("BusinessAlert", "SaveSpecialTestRule", PermissionCatalog.System.Configure)]
     [InlineData("InfectionControl", "ConfirmHAICase", PermissionCatalog.System.Configure)]
     [InlineData("InfectionControl", "ReportHAI", PermissionCatalog.Quality.Update)]

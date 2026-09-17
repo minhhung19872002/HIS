@@ -140,7 +140,15 @@ public partial class InpatientCompleteController
     [HttpPost("order-by-template")]
     public async Task<ActionResult<InpatientServiceOrderDto>> OrderByTemplate([FromBody] OrderByTemplateRequest request)
     {
-        var result = await _inpatientService.OrderByTemplateAsync(request.AdmissionId, request.TemplateId, GetCurrentUserId());
+        if (request == null)
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu admissionId / templateId" });
+        var header = new CreateInpatientServiceOrderDto
+        {
+            MainDiagnosisCode = request.MainDiagnosisCode,
+            MainDiagnosis = request.MainDiagnosis,
+        };
+        var result = await _inpatientService.OrderByTemplateAsync(request.AdmissionId, request.TemplateId, GetCurrentUserId(),
+            header, request.ConfirmDuplicates);
         return Ok(result);
     }
 
@@ -360,7 +368,18 @@ public partial class InpatientCompleteController
     [HttpPost("prescribe-by-template")]
     public async Task<ActionResult<InpatientPrescriptionDto>> PrescribeByTemplate([FromBody] PrescribeByTemplateRequest request)
     {
-        var result = await _inpatientService.PrescribeByTemplateAsync(request.AdmissionId, request.TemplateId, GetCurrentUserId());
+        if (request == null)
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu admissionId / templateId" });
+        var header = new CreateInpatientPrescriptionDto
+        {
+            WarehouseId = request.WarehouseId ?? Guid.Empty,
+            PrescriptionDate = request.PrescriptionDate ?? default,
+            MainDiagnosisCode = request.MainDiagnosisCode,
+            MainDiagnosis = request.MainDiagnosis,
+            DrugOrderType = request.DrugOrderType ?? 1,
+            OverrideReason = request.OverrideReason,
+        };
+        var result = await _inpatientService.PrescribeByTemplateAsync(request.AdmissionId, request.TemplateId, GetCurrentUserId(), header);
         return Ok(result);
     }
 

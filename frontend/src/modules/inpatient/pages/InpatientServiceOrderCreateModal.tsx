@@ -17,11 +17,11 @@ import { AutoComplete, Checkbox, Input, InputNumber, Select, Tree } from 'antd';
 import type { DataNode } from 'antd/es/tree';
 import {
   searchServices, getServiceTree, createServiceOrder, getDiagnosisFromRecord,
-  checkServiceOrderWarnings,
+  checkServiceOrderWarnings, getServiceGroupTemplates,
 } from '../api/inpatient';
 import type {
   ServiceSearchResultDto, ServiceTreeNodeDto, CreateInpatientServiceOrderDto,
-  ServiceOrderWarningDto,
+  ServiceOrderWarningDto, ServiceGroupTemplateDto,
 } from '../api/inpatient';
 import { ModalShell, Btn, DrSec, DrField, fmtVNDg, tk, tw, te } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
@@ -120,6 +120,9 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
   const [warnings, setWarnings] = useState<ServiceOrderWarningDto | null>(null);
   const [checking, setChecking] = useState(false);
   const [ack, setAck] = useState(false); // BS đã đọc cảnh báo → cho phép tạo
+  // Nhóm dịch vụ mẫu — nạp vào danh sách rồi lưu qua đường chỉ định thường (giữ bước cảnh báo)
+  const [templates, setTemplates] = useState<ServiceGroupTemplateDto[]>([]);
+  const [tplId, setTplId] = useState<string | undefined>();
 
   // Tree state
   const [treeData, setTreeData] = useState<DataNode[]>([]);
@@ -150,6 +153,10 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
     setMainDiagnosisCode(''); setMainDiagnosis('');
     setWarnings(null); setAck(false); setChecking(false);
     nodeMap.current.clear();
+    setTplId(undefined);
+    void getServiceGroupTemplates()
+      .then((r) => setTemplates(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setTemplates([]));
     void getDiagnosisFromRecord(admissionId)
       .then((r) => { setMainDiagnosisCode(r.data?.mainDiagnosisCode ?? ''); setMainDiagnosis(r.data?.mainDiagnosis ?? ''); })
       .catch(() => { /* optional */ });
@@ -189,6 +196,22 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
     if (added === 0) { tw('Chưa tick dịch vụ nào'); return; }
     tk(`Đã thêm ${added} dịch vụ từ cây danh mục`);
     setTreeChecked([]);
+  };
+
+  const loadTemplate = () => {
+    const tpl = templates.find((t) => t.id === tplId);
+    if (!tpl) { tw('Chọn nhóm mẫu trước'); return; }
+    if (!tpl.items?.length) { tw('Nhóm mẫu không có dịch vụ'); return; }
+    invalidateWarnings();
+    setLines((prev) => {
+      const next = [...prev];
+      tpl.items.forEach((it) => {
+        if (!next.some((l) => l.serviceId === it.serviceId))
+          next.push({ ...makeLine(it.serviceId, it.serviceName, it.serviceCode), quantity: it.defaultQuantity || 1 });
+      });
+      return next;
+    });
+    tk(`Đã nạp ${tpl.items.length} dịch vụ từ mẫu "${tpl.groupName}"`);
   };
 
   const buildDto = (): CreateInpatientServiceOrderDto => ({
@@ -323,6 +346,23 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
           </Btn>
         </div>
       }>
+        {templates.length > 0 && (
+          <div style={{ display: 'flex', gap: 'var(--space-8)', alignItems: 'center', marginBottom: 'var(--space-8)' }}>
+            <Select
+              value={tplId}
+              onChange={setTplId}
+              placeholder="Nhóm dịch vụ mẫu…"
+              style={{ flex: 1, minWidth: 220 }}
+              options={templates.map((t) => ({ value: t.id, label: `${t.groupName} (${t.items?.length ?? 0} DV)` }))}
+              showSearch
+              filterOption={(q, opt) => (opt?.label as string ?? '').toLowerCase().includes(q.toLowerCase())}
+              allowClear
+            />
+            <Btn variant="ghost" size="sm" disabled={!tplId} onClick={loadTemplate}>
+              <TermIcon name="download" size={11} /> Nạp mẫu
+            </Btn>
+          </div>
+        )}
         {mode === 'search' && <ServicePicker onPick={(s) => addService(s.id, s.name, s.code ?? '', s.unitPrice ?? 0)} />}
         {mode === 'tree' && (
           <div>

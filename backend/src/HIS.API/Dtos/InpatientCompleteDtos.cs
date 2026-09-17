@@ -26,6 +26,10 @@ public class OrderByTemplateRequest
 {
     public Guid AdmissionId { get; set; }
     public Guid TemplateId { get; set; }
+    public string? MainDiagnosisCode { get; set; }
+    public string? MainDiagnosis { get; set; }
+    /// <summary>true = order even when a template service was already ordered today.</summary>
+    public bool ConfirmDuplicates { get; set; }
 }
 
 public class OrderByPackageRequest
@@ -57,6 +61,12 @@ public class PrescribeByTemplateRequest
 {
     public Guid AdmissionId { get; set; }
     public Guid TemplateId { get; set; }
+    public Guid? WarehouseId { get; set; }
+    public DateTime? PrescriptionDate { get; set; }
+    public string? MainDiagnosisCode { get; set; }
+    public string? MainDiagnosis { get; set; }
+    public int? DrugOrderType { get; set; }
+    public string? OverrideReason { get; set; }
 }
 
 public class CreateMedicineOrderSummaryRequest

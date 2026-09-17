@@ -286,8 +286,18 @@ export const getPrescriptionTemplates = (departmentId?: string) =>
 export const createPrescriptionTemplate = (dto: PrescriptionTemplateDto) =>
   apiClient.post<PrescriptionTemplateDto>(`${BASE_URL}/prescription-templates`, dto);
 
-export const prescribeByTemplate = (admissionId: string, templateId: string) =>
-  apiClient.post<InpatientPrescriptionDto>(`${BASE_URL}/prescribe-by-template`, { admissionId, templateId });
+/** Header of a one-click template prescription — the BE requires a warehouse; lines come from the template. */
+export interface PrescribeByTemplateOptions {
+  warehouseId: string;
+  prescriptionDate?: string;
+  mainDiagnosisCode?: string;
+  mainDiagnosis?: string;
+  drugOrderType?: number;
+  overrideReason?: string;
+}
+
+export const prescribeByTemplate = (admissionId: string, templateId: string, options: PrescribeByTemplateOptions) =>
+  apiClient.post<InpatientPrescriptionDto>(`${BASE_URL}/prescribe-by-template`, { admissionId, templateId, ...options });
 
 export const createMedicineOrderSummary = (departmentId: string, date: string, warehouseId: string, roomId?: string) =>
   apiClient.post<MedicineOrderSummaryDto>(`${BASE_URL}/medicine-order-summary`, { departmentId, date, roomId, warehouseId });

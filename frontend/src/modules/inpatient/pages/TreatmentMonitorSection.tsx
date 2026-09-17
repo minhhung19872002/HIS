@@ -63,6 +63,7 @@ import { useModalForm } from '../../../hooks/useModalForm';
 import BedLabResultSection from './BedLabResultSection';
 import { CabinetIssueModal, ItemPicker } from '../../pharmacy/pages/CabinetIssueModal';
 import { InpatientPrescriptionModal } from './InpatientPrescriptionModal';
+import { can } from '../../../services/permission.service';
 import { InpatientServiceOrderCreateModal } from './InpatientServiceOrderCreateModal';
 import DischargeModal from './DischargeModal';
 import { SortTh, useSortableRows } from '../../../components/table';
@@ -2130,15 +2131,19 @@ type ActiveModal = 'vitals' | 'transfer' | 'nutrition' | 'infusion' | 'transfusi
 const TreatmentMonitorSection: React.FC<TreatmentMonitorSectionProps> = ({ patient, onRefresh }) => {
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const close = () => setActiveModal(null);
+  const canPrescribe = can('Prescription.Create');
   const done = () => { close(); onRefresh(); };
 
   return (
     <div className="rec-section">
       <h5><TermIcon name="activity" size={11} /> THEO DOI DIEU TRI</h5>
       <div style={{ display: 'flex', gap: 'var(--space-8)', flexWrap: 'wrap' }}>
-        <Btn variant="primary" onClick={() => setActiveModal('prescription')}>
-          <TermIcon name="pill" size={12} /> Ke y lenh thuoc
-        </Btn>
+        {/* QA-R8: ward prescribing requires Prescription.Create on the API (nurses do not hold it). */}
+        {canPrescribe && (
+          <Btn variant="primary" onClick={() => setActiveModal('prescription')}>
+            <TermIcon name="pill" size={12} /> Ke y lenh thuoc
+          </Btn>
+        )}
         <Btn variant="ghost" onClick={() => setActiveModal('vitals')}>
           <TermIcon name="activity" size={12} /> Sinh hieu
         </Btn>
@@ -2169,9 +2174,11 @@ const TreatmentMonitorSection: React.FC<TreatmentMonitorSectionProps> = ({ patie
         <Btn variant="ghost" onClick={() => setActiveModal('diagnosis')}>
           <TermIcon name="clipboard" size={12} /> Chan doan
         </Btn>
-        <Btn variant="ghost" onClick={() => setActiveModal('dischargePrescription')}>
-          <TermIcon name="home" size={12} /> Don xuat vien
-        </Btn>
+        {canPrescribe && (
+          <Btn variant="ghost" onClick={() => setActiveModal('dischargePrescription')}>
+            <TermIcon name="home" size={12} /> Don xuat vien
+          </Btn>
+        )}
         <Btn variant="ghost" onClick={() => setActiveModal('treatmentSheets')}>
           <TermIcon name="printer" size={12} /> To dieu tri
         </Btn>

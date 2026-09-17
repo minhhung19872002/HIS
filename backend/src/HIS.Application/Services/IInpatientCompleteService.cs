@@ -300,7 +300,10 @@ public interface IInpatientCompleteService
     /// <summary>
     /// Chỉ định theo nhóm mẫu
     /// </summary>
-    Task<InpatientServiceOrderDto> OrderByTemplateAsync(Guid admissionId, Guid templateId, Guid userId);
+    /// <param name="header">Optional diagnosis to stamp on the order (Services are ignored — they come from the template).</param>
+    /// <param name="confirmDuplicates">false → refuse when a template service was already ordered today.</param>
+    Task<InpatientServiceOrderDto> OrderByTemplateAsync(Guid admissionId, Guid templateId, Guid userId,
+        CreateInpatientServiceOrderDto? header = null, bool confirmDuplicates = false);
 
     /// <summary>
     /// Sao chép y lệnh CLS cũ
@@ -439,7 +442,10 @@ public interface IInpatientCompleteService
     /// <summary>
     /// Kê theo mẫu
     /// </summary>
-    Task<InpatientPrescriptionDto> PrescribeByTemplateAsync(Guid admissionId, Guid templateId, Guid userId);
+    /// <param name="header">Warehouse (required), date, diagnosis, drug-order type and override reason
+    /// (Items are ignored — they come from the template).</param>
+    Task<InpatientPrescriptionDto> PrescribeByTemplateAsync(Guid admissionId, Guid templateId, Guid userId,
+        CreateInpatientPrescriptionDto? header = null);
 
     /// <summary>
     /// Sao chép đơn thuốc cũ

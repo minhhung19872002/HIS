@@ -560,27 +560,165 @@ public partial class InpatientCompleteService {
         });
     }
 
-    public Task<InpatientPrescriptionTemplateDto> CreatePrescriptionTemplateAsync(InpatientPrescriptionTemplateDto dto, Guid userId)
+    // QA-R8: the inpatient template endpoints were stubs (create echoed a random id, list was always empty).
+    // They now read/write the same PrescriptionTemplates table as the OPD templates.
+    public async Task<InpatientPrescriptionTemplateDto> CreatePrescriptionTemplateAsync(InpatientPrescriptionTemplateDto dto, Guid userId)
     {
-        dto.Id = Guid.NewGuid();
-        dto.CreatedBy = userId;
-        return Task.FromResult(dto);
+        if (dto == null || string.IsNullOrWhiteSpace(dto.TemplateName))
+            throw new ArgumentException("Chưa nhập tên đơn thuốc mẫu", nameof(dto.TemplateName));
+        var lines = (dto.Items ?? new()).Where(i => i.MedicineId != Guid.Empty).ToList();
+        if (lines.Count == 0)
+            throw new ArgumentException("Đơn thuốc mẫu chưa có thuốc", nameof(dto.Items));
+        if (lines.Any(i => i.DefaultQuantity <= 0))
+            throw new ArgumentException("Số lượng thuốc trong đơn mẫu phải lớn hơn 0", nameof(dto.Items));
+        var medicineIds = lines.Select(i => i.MedicineId).Distinct().ToList();
+        var activeCount = await _context.Medicines.CountAsync(m => medicineIds.Contains(m.Id) && m.IsActive);
+        if (activeCount != medicineIds.Count)
+            throw new ArgumentException("Đơn mẫu có thuốc không tồn tại hoặc đã ngừng sử dụng", nameof(dto.Items));
+
+        var now = DateTime.Now;
+        var template = new PrescriptionTemplate
+        {
+            Id = Guid.NewGuid(),
+            TemplateCode = string.IsNullOrWhiteSpace(dto.TemplateCode)
+                ? $"DTNT{HIS.Core.Common.VnTime.NowVn:yyyyMMddHHmmssfff}" : dto.TemplateCode.Trim(),
+            TemplateName = dto.TemplateName.Trim(),
+            PrescriptionType = 2, // Nội trú
+            DepartmentId = dto.DepartmentId,
+            Description = dto.Description,
+            IsPublic = dto.IsShared,
+            CreatedByUserId = userId == Guid.Empty ? null : userId,
+            IsActive = true,
+            CreatedAt = now,
+            CreatedBy = userId.ToString(),
+        };
+        var order = 0;
+        foreach (var line in lines)
+        {
+            template.Items.Add(new PrescriptionTemplateItem
+            {
+                Id = Guid.NewGuid(),
+                PrescriptionTemplateId = template.Id,
+                MedicineId = line.MedicineId,
+                Quantity = line.DefaultQuantity,
+                Days = 1,
+                Dosage = line.DefaultDosage,
+                UsageInstructions = line.DefaultUsage,
+                SortOrder = order++,
+                CreatedAt = now,
+                CreatedBy = userId.ToString(),
+            });
+        }
+        _context.PrescriptionTemplates.Add(template);
+        await _context.SaveChangesAsync();
+
+        return (await GetPrescriptionTemplatesCoreAsync(q => q.Where(t => t.Id == template.Id))).First();
     }
 
     public Task<List<InpatientPrescriptionTemplateDto>> GetPrescriptionTemplatesAsync(Guid? departmentId, Guid? userId)
     {
-        return Task.FromResult(new List<InpatientPrescriptionTemplateDto>());
+        // Same scope as OPD: no department → every active template; a department → its own + shared ones
+        // (+ the caller's own templates).
+        return GetPrescriptionTemplatesCoreAsync(q => departmentId.HasValue
+            ? q.Where(t => t.DepartmentId == departmentId || t.IsPublic || (userId != null && t.CreatedByUserId == userId))
+            : q);
     }
 
-    public async Task<InpatientPrescriptionDto> PrescribeByTemplateAsync(Guid admissionId, Guid templateId, Guid userId)
+    private async Task<List<InpatientPrescriptionTemplateDto>> GetPrescriptionTemplatesCoreAsync(
+        Func<IQueryable<PrescriptionTemplate>, IQueryable<PrescriptionTemplate>> scope)
     {
-        // QA-R7: was a stub answering 200 with a fake prescription for any (even zero) admission/template,
-        // so the doctor saw "Đã kê đơn theo mẫu" while no prescription existed (patient-safety).
+        // Nameless rows (legacy OPD saves before the QA-R4 name check) are unusable in a picker.
+        return await scope(_context.PrescriptionTemplates.AsNoTracking().Where(t => t.IsActive && t.TemplateName != ""))
+            .OrderBy(t => t.SortOrder).ThenBy(t => t.TemplateName)
+            .Select(t => new InpatientPrescriptionTemplateDto
+            {
+                Id = t.Id,
+                TemplateCode = t.TemplateCode,
+                TemplateName = t.TemplateName,
+                Description = t.Description,
+                DepartmentId = t.DepartmentId,
+                CreatedBy = t.CreatedByUserId,
+                CreatedByName = t.CreatedByUser != null ? t.CreatedByUser.FullName : null,
+                IsShared = t.IsPublic,
+                Items = t.Items.OrderBy(i => i.SortOrder).Select(i => new InpatientPrescriptionTemplateItemDto
+                {
+                    MedicineId = i.MedicineId,
+                    MedicineCode = i.Medicine.MedicineCode,
+                    MedicineName = i.Medicine.MedicineName,
+                    DefaultQuantity = i.Quantity,
+                    DefaultDosage = i.Dosage,
+                    DefaultUsage = i.UsageInstructions,
+                }).ToList(),
+            })
+            .Take(500)
+            .ToListAsync();
+    }
+
+    public async Task<InpatientPrescriptionDto> PrescribeByTemplateAsync(Guid admissionId, Guid templateId, Guid userId,
+        CreateInpatientPrescriptionDto? header = null)
+    {
+        // QA-R8: expands the template into lines and goes through CreatePrescriptionAsync — the same method the
+        // manual ward prescription uses — so the stay-status/TT46 lock, deposit block, allergy/interaction guard,
+        // dose guard, price and BHYT split all apply. The CCHN gate is on the controller action.
         if (admissionId == Guid.Empty || !await _context.Set<Admission>().AnyAsync(a => a.Id == admissionId && !a.IsDeleted))
             throw new KeyNotFoundException("Không tìm thấy lượt nhập viện");
-        if (templateId == Guid.Empty || !await _context.PrescriptionTemplates.AnyAsync(t => t.Id == templateId && !t.IsDeleted))
+        var template = templateId == Guid.Empty ? null : await _context.PrescriptionTemplates.AsNoTracking()
+            .Include(t => t.Items).ThenInclude(i => i.Medicine)
+            .FirstOrDefaultAsync(t => t.Id == templateId && t.IsActive);
+        if (template == null)
             throw new KeyNotFoundException("Không tìm thấy đơn thuốc mẫu");
-        throw new InvalidOperationException("Chưa hỗ trợ kê ngay theo mẫu — vui lòng dùng \"Nạp đơn mẫu\", chọn kho rồi Lưu đơn.");
+        // Pre-push review: OPD templates share this table and store the quantity for the WHOLE course (Days),
+        // so a one-click ward order from one would dispense and bill several days at once. Only ward templates
+        // are prescribed directly; an OPD template is loaded into the form ("Nạp đơn mẫu") and edited there.
+        if (template.PrescriptionType != 2)
+            throw new InvalidOperationException(
+                "Đơn mẫu này là mẫu ngoại trú (số lượng tính cho cả đợt) — dùng \"Nạp đơn mẫu\" để chỉnh số lượng rồi lưu.");
+        var lines = template.Items.Where(i => !i.IsDeleted).OrderBy(i => i.SortOrder).ToList();
+        if (lines.Count == 0)
+            throw new InvalidOperationException("Đơn thuốc mẫu không có thuốc nào.");
+        var inactive = lines.Where(i => i.Medicine == null || i.Medicine.IsDeleted || !i.Medicine.IsActive)
+            .Select(i => i.Medicine?.MedicineName ?? i.MedicineId.ToString()).ToList();
+        if (inactive.Count > 0)
+            throw new InvalidOperationException($"Đơn mẫu có thuốc đã ngừng sử dụng: {string.Join(", ", inactive)} — sửa đơn mẫu trước khi kê.");
+        if (lines.Any(i => i.Quantity <= 0))
+            throw new InvalidOperationException("Đơn mẫu có dòng thuốc số lượng không hợp lệ (≤ 0).");
+
+        header ??= new CreateInpatientPrescriptionDto();
+        if (header.WarehouseId == Guid.Empty)
+            throw new ArgumentException("Chọn kho thuốc trước khi kê theo mẫu", nameof(header.WarehouseId));
+        if (!await _context.Warehouses.AnyAsync(w => w.Id == header.WarehouseId && w.IsActive))
+            throw new ArgumentException("Kho thuốc không tồn tại hoặc đã ngừng hoạt động", nameof(header.WarehouseId));
+
+        string? diagCode = header.MainDiagnosisCode, diagName = header.MainDiagnosis;
+        if (string.IsNullOrWhiteSpace(diagCode))
+        {
+            var record = await GetInpatientDiagnosisAsync(admissionId);
+            diagCode = !string.IsNullOrWhiteSpace(record.MainDiagnosisCode) ? record.MainDiagnosisCode : template.DiagnosisCode;
+            diagName = !string.IsNullOrWhiteSpace(record.MainDiagnosisCode) ? record.MainDiagnosis : template.DiagnosisName;
+        }
+
+        var dto = new CreateInpatientPrescriptionDto
+        {
+            AdmissionId = admissionId,
+            PrescriptionDate = header.PrescriptionDate == default ? HIS.Core.Common.VnTime.NowVn : header.PrescriptionDate,
+            MainDiagnosisCode = diagCode,
+            MainDiagnosis = diagName,
+            WarehouseId = header.WarehouseId,
+            DrugOrderType = header.DrugOrderType > 0 ? header.DrugOrderType : 1,
+            OverrideReason = header.OverrideReason,
+            Items = lines.Select(i => new CreateInpatientMedicineItemDto
+            {
+                MedicineId = i.MedicineId,
+                Quantity = i.Quantity,
+                Dosage = i.Dosage,
+                UsageInstructions = string.Join(" · ", new[] { i.Route, i.Frequency, i.UsageInstructions }
+                    .Where(s => !string.IsNullOrWhiteSpace(s))) is { Length: > 0 } usage ? usage : null,
+                // The dose guard parses "n x k lần/ngày" from the note; the template frequency is the closest source.
+                Note = i.Frequency,
+                PaymentSource = 1,
+            }).ToList(),
+        };
+        return await CreatePrescriptionAsync(dto, userId);
     }
 
     public Task<InpatientPrescriptionDto> CopyPreviousPrescriptionAsync(Guid admissionId, Guid sourcePrescriptionId, Guid userId)

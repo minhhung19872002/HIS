@@ -225,16 +225,32 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
     tk(`Đã nạp ${newLines.length} thuốc từ đơn mẫu — điều chỉnh rồi Lưu`);
   };
 
-  // Kê ngay theo đơn mẫu (tạo luôn, không qua bảng)
+  // Kê ngay theo đơn mẫu (tạo luôn, không qua bảng) — BE runs the same safety/dose guards as a manual save.
   const quickPrescribeTemplate = async () => {
     if (!templateId) { tw('Chọn đơn mẫu trước'); return; }
+    if (!form.validate({ warehouseId })) return;
+    if (safetyBlock && !overrideReason.trim()) { setOverrideError('Cần nhập lý do bỏ qua cảnh báo an toàn'); return; }
     setTplBusy(true);
     try {
-      await prescribeByTemplate(admissionId, templateId);
-      tk('Đã kê đơn theo mẫu');
+      await prescribeByTemplate(admissionId, templateId, {
+        warehouseId,
+        prescriptionDate: prescriptionDate.toISOString(),
+        mainDiagnosisCode: mainDiagnosisCode.trim() || undefined,
+        mainDiagnosis: mainDiagnosis.trim() || undefined,
+        drugOrderType,
+        overrideReason: overrideReason.trim() || undefined,
+      });
+      tk(isDischargeRx ? 'Đã kê đơn xuất viện theo mẫu' : 'Đã kê đơn theo mẫu');
       onDone();
-    } catch {
-      te('Kê đơn theo mẫu thất bại');
+    } catch (e) {
+      const raw = (e as { response?: { data?: { message?: unknown } } })?.response?.data?.message;
+      const msg = typeof raw === 'string' ? raw : '';
+      if (msg.includes(SAFETY_BLOCK_MARKER) && !overrideReason.trim()) {
+        setSafetyBlock(msg);
+        tw('Đơn mẫu bị chặn vì lý do an toàn — xem chi tiết, nhập lý do bỏ qua rồi bấm lại "Kê ngay theo mẫu"');
+      } else {
+        te(friendlyErrorMessage(e, 'Kê đơn theo mẫu thất bại'));
+      }
     } finally {
       setTplBusy(false);
     }

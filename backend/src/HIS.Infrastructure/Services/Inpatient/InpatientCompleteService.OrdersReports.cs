@@ -621,27 +621,148 @@ public partial class InpatientCompleteService {
         };
     }
 
-    public Task<ServiceGroupTemplateDto> CreateServiceGroupTemplateAsync(ServiceGroupTemplateDto dto, Guid userId)
+    // QA-R8: the inpatient service-group template endpoints were stubs (create echoed a random id, list was
+    // always empty). They now read/write the same ServiceGroupTemplates table as the OPD templates.
+    public async Task<ServiceGroupTemplateDto> CreateServiceGroupTemplateAsync(ServiceGroupTemplateDto dto, Guid userId)
     {
-        dto.Id = Guid.NewGuid();
-        dto.CreatedBy = userId;
-        return Task.FromResult(dto);
+        if (dto == null || string.IsNullOrWhiteSpace(dto.GroupName))
+            throw new ArgumentException("Chưa nhập tên nhóm dịch vụ mẫu", nameof(dto.GroupName));
+        var lines = (dto.Items ?? new()).Where(i => i.ServiceId != Guid.Empty).ToList();
+        if (lines.Count == 0)
+            throw new ArgumentException("Nhóm dịch vụ mẫu chưa có dịch vụ", nameof(dto.Items));
+        if (lines.Any(i => i.DefaultQuantity <= 0))
+            throw new ArgumentException("Số lượng dịch vụ trong mẫu phải lớn hơn 0", nameof(dto.Items));
+        var serviceIds = lines.Select(i => i.ServiceId).Distinct().ToList();
+        var activeCount = await _context.Services.CountAsync(s => serviceIds.Contains(s.Id) && s.IsActive);
+        if (activeCount != serviceIds.Count)
+            throw new ArgumentException("Mẫu có dịch vụ không tồn tại hoặc đã ngừng sử dụng", nameof(dto.Items));
+
+        var now = DateTime.Now;
+        var template = new ServiceGroupTemplate
+        {
+            Id = Guid.NewGuid(),
+            TemplateCode = string.IsNullOrWhiteSpace(dto.GroupCode)
+                ? $"DVNT{HIS.Core.Common.VnTime.NowVn:yyyyMMddHHmmssfff}" : dto.GroupCode.Trim(),
+            TemplateName = dto.GroupName.Trim(),
+            DepartmentId = dto.DepartmentId,
+            Description = dto.Description,
+            IsPublic = dto.IsShared,
+            CreatedByUserId = userId == Guid.Empty ? null : userId,
+            IsActive = true,
+            CreatedAt = now,
+            CreatedBy = userId.ToString(),
+        };
+        var order = 0;
+        foreach (var line in lines)
+        {
+            template.Items.Add(new ServiceGroupTemplateItem
+            {
+                Id = Guid.NewGuid(),
+                ServiceGroupTemplateId = template.Id,
+                ServiceId = line.ServiceId,
+                Quantity = line.DefaultQuantity,
+                SortOrder = order++,
+                CreatedAt = now,
+                CreatedBy = userId.ToString(),
+            });
+        }
+        _context.ServiceGroupTemplates.Add(template);
+        await _context.SaveChangesAsync();
+
+        return (await GetServiceGroupTemplatesCoreAsync(q => q.Where(t => t.Id == template.Id))).First();
     }
 
     public Task<List<ServiceGroupTemplateDto>> GetServiceGroupTemplatesAsync(Guid? departmentId, Guid? userId)
     {
-        return Task.FromResult(new List<ServiceGroupTemplateDto>());
+        // Same scope as OPD: no department → every active template; a department → its own + shared ones
+        // (+ the caller's own templates).
+        return GetServiceGroupTemplatesCoreAsync(q => departmentId.HasValue
+            ? q.Where(t => t.DepartmentId == departmentId || t.IsPublic || (userId != null && t.CreatedByUserId == userId))
+            : q);
     }
 
-    public async Task<InpatientServiceOrderDto> OrderByTemplateAsync(Guid admissionId, Guid templateId, Guid userId)
+    private async Task<List<ServiceGroupTemplateDto>> GetServiceGroupTemplatesCoreAsync(
+        Func<IQueryable<ServiceGroupTemplate>, IQueryable<ServiceGroupTemplate>> scope)
     {
-        // QA-R7: was a stub answering 200 with a fake order for any (even zero) admission/template,
-        // so the user was told the services were ordered while nothing was written.
+        return await scope(_context.ServiceGroupTemplates.AsNoTracking().Where(t => t.IsActive && t.TemplateName != ""))
+            .OrderBy(t => t.SortOrder).ThenBy(t => t.TemplateName)
+            .Select(t => new ServiceGroupTemplateDto
+            {
+                Id = t.Id,
+                GroupCode = t.TemplateCode,
+                GroupName = t.TemplateName,
+                Description = t.Description,
+                DepartmentId = t.DepartmentId,
+                CreatedBy = t.CreatedByUserId,
+                IsShared = t.IsPublic,
+                Items = t.Items.OrderBy(i => i.SortOrder).Select(i => new ServiceTemplateItemDto
+                {
+                    ServiceId = i.ServiceId,
+                    ServiceCode = i.Service.ServiceCode,
+                    ServiceName = i.Service.ServiceName,
+                    DefaultQuantity = i.Quantity,
+                }).ToList(),
+            })
+            .Take(500)
+            .ToListAsync();
+    }
+
+    public async Task<InpatientServiceOrderDto> OrderByTemplateAsync(Guid admissionId, Guid templateId, Guid userId,
+        CreateInpatientServiceOrderDto? header = null, bool confirmDuplicates = false)
+    {
+        // QA-R8: expands the template and goes through CreateServiceOrderAsync — the same method the manual ward
+        // order uses — so the stay-status/TT46 lock, deposit block, price, request-type split and BHYT split all
+        // apply. The CCHN gate is on the controller action.
         if (admissionId == Guid.Empty || !await _context.Set<Admission>().AnyAsync(a => a.Id == admissionId && !a.IsDeleted))
             throw new KeyNotFoundException("Không tìm thấy lượt nhập viện");
-        if (templateId == Guid.Empty || !await _context.ServiceGroupTemplates.AnyAsync(t => t.Id == templateId && !t.IsDeleted))
+        var template = templateId == Guid.Empty ? null : await _context.ServiceGroupTemplates.AsNoTracking()
+            .Include(t => t.Items).ThenInclude(i => i.Service)
+            .FirstOrDefaultAsync(t => t.Id == templateId && t.IsActive);
+        if (template == null)
             throw new KeyNotFoundException("Không tìm thấy mẫu chỉ định");
-        throw new InvalidOperationException("Chưa hỗ trợ chỉ định ngay theo mẫu — vui lòng chọn dịch vụ và lưu phiếu chỉ định.");
+        var lines = template.Items.Where(i => !i.IsDeleted).OrderBy(i => i.SortOrder).ToList();
+        if (lines.Count == 0)
+            throw new InvalidOperationException("Mẫu chỉ định không có dịch vụ nào.");
+        var inactive = lines.Where(i => i.Service == null || i.Service.IsDeleted || !i.Service.IsActive)
+            .Select(i => i.Service?.ServiceName ?? i.ServiceId.ToString()).ToList();
+        if (inactive.Count > 0)
+            throw new InvalidOperationException($"Mẫu có dịch vụ đã ngừng sử dụng: {string.Join(", ", inactive)} — sửa mẫu trước khi chỉ định.");
+
+        string? diagCode = header?.MainDiagnosisCode, diagName = header?.MainDiagnosis;
+        if (string.IsNullOrWhiteSpace(diagCode))
+        {
+            var record = await GetInpatientDiagnosisAsync(admissionId);
+            diagCode = record.MainDiagnosisCode;
+            diagName = record.MainDiagnosis;
+        }
+
+        var dto = new CreateInpatientServiceOrderDto
+        {
+            AdmissionId = admissionId,
+            MainDiagnosisCode = diagCode,
+            MainDiagnosis = diagName,
+            SecondaryDiagnosisCodes = header?.SecondaryDiagnosisCodes,
+            SecondaryDiagnoses = header?.SecondaryDiagnoses,
+            Services = lines.Select(i => new CreateInpatientServiceItemDto
+            {
+                ServiceId = i.ServiceId,
+                Quantity = i.Quantity,
+                PaymentSource = 1,
+                ExecutingRoomId = i.DefaultRoomId,
+                Note = i.Notes,
+            }).ToList(),
+        };
+
+        // One-click ordering never shows the manual modal's warning panel, so the duplicate check (same service
+        // already ordered today) is enforced here until the caller confirms.
+        if (!confirmDuplicates)
+        {
+            var warnings = await CheckServiceOrderWarningsAsync(admissionId, dto.Services);
+            if (warnings.HasDuplicateToday)
+                throw new InvalidOperationException(
+                    $"Trùng chỉ định trong ngày: {string.Join(", ", warnings.DuplicateServices)} — xác nhận để vẫn chỉ định theo mẫu.");
+        }
+        return await CreateServiceOrderAsync(dto, userId);
     }
 
     public Task<InpatientServiceOrderDto> CopyPreviousServiceOrderAsync(Guid admissionId, Guid sourceOrderId, Guid userId)

@@ -101,6 +101,13 @@ public static class WritePermissionMap
             ["AdmitFromOpd"] = PermissionCatalog.Inpatient.Admit,
             ["AdmitFromDepartment"] = PermissionCatalog.Inpatient.Admit,
             ["ApproveConsultation"] = PermissionCatalog.Inpatient.Approve,
+            // QA-R8: ward prescribing fell back to Inpatient.Update, which nurses hold (measured: a nurse created
+            // inpatient prescriptions by hand and by template). Same rule as OPD; the emergency-cabinet issue
+            // stays a nursing action.
+            ["CreatePrescription"] = PermissionCatalog.Prescription.Create,
+            ["PrescribeByTemplate"] = PermissionCatalog.Prescription.Create,
+            ["UpdatePrescription"] = PermissionCatalog.Prescription.Update,
+            ["DeletePrescription"] = PermissionCatalog.Prescription.Cancel,
         }),
         ["ObservationStay"] = new(PermissionCatalog.Inpatient.Update, PermissionCatalog.Inpatient.Read),
 
