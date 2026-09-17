@@ -458,7 +458,7 @@ public partial class SystemCompleteService
             else
             {
                 entity = await _context.Notifications.FirstOrDefaultAsync(n => n.Id == dto.Id);
-                if (entity == null) return null;
+                if (entity == null) throw CatalogGuard.NotFound("thông báo hệ thống"); // QA-R7: unknown Id was a 204 "saved"
                 entity.Title = dto.Title ?? entity.Title;
                 entity.Content = dto.Message ?? entity.Content;
                 entity.NotificationType = dto.NotificationType ?? entity.NotificationType;
@@ -467,7 +467,7 @@ public partial class SystemCompleteService
             dto.Id = entity.Id;
             return dto;
         }
-        catch (Exception ex) when (ex is not DbUpdateException) // QA-R6: constraint errors (too long/duplicate) reach the API filter instead of a fake 204
+        catch (Exception ex) when (ex is not DbUpdateException and not KeyNotFoundException) // QA-R6: constraint errors (too long/duplicate) reach the API filter instead of a fake 204
         {
             _logger.LogError(ex, "Error in SaveSystemNotificationAsync");
             return null;

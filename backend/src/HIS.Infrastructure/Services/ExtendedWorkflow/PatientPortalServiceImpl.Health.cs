@@ -34,8 +34,22 @@ public partial class PatientPortalServiceImpl
 
     public async Task<MedicineReminderDto> SaveMedicineReminderAsync(SaveMedicineReminderDto dto)
     {
+        // QA-R7: required fields + the owning portal account must exist (was stored with AccountId = Guid.Empty).
+        if (string.IsNullOrWhiteSpace(dto.MedicineName))
+            throw new ArgumentException("Tên thuốc là bắt buộc", nameof(dto.MedicineName));
+        if (string.IsNullOrWhiteSpace(dto.Dosage))
+            throw new ArgumentException("Liều dùng là bắt buộc", nameof(dto.Dosage));
+        if (string.IsNullOrWhiteSpace(dto.Frequency))
+            throw new ArgumentException("Tần suất là bắt buộc", nameof(dto.Frequency));
+        if (dto.StartDate == default)
+            throw new ArgumentException("Ngày bắt đầu là bắt buộc", nameof(dto.StartDate));
+        if (dto.EndDate.HasValue && dto.EndDate.Value.Date < dto.StartDate.Date)
+            throw new ArgumentException("Ngày kết thúc không được trước ngày bắt đầu", nameof(dto.EndDate));
+        await EnsurePortalAccountExistsAsync(dto.AccountId);
         var entity = dto.Id.HasValue && dto.Id != Guid.Empty
             ? await _context.MedicineReminders.FindAsync(dto.Id.Value) : null;
+        if (dto.Id.HasValue && dto.Id != Guid.Empty && (entity == null || entity.AccountId != dto.AccountId))
+            throw new KeyNotFoundException("Không tìm thấy lịch nhắc thuốc");
         if (entity == null)
         {
             entity = new MedicineReminder { Id = Guid.NewGuid(), CreatedAt = DateTime.Now };
@@ -274,6 +288,12 @@ public partial class PatientPortalServiceImpl
 
     public async Task<PatientQuestionDto> CreatePatientQuestionAsync(CreatePatientQuestionDto dto)
     {
+        // QA-R7: a question must belong to an existing portal account (was stored with AccountId = Guid.Empty).
+        if (string.IsNullOrWhiteSpace(dto.Subject))
+            throw new ArgumentException("Chủ đề là bắt buộc", nameof(dto.Subject));
+        if (string.IsNullOrWhiteSpace(dto.Content))
+            throw new ArgumentException("Nội dung câu hỏi là bắt buộc", nameof(dto.Content));
+        await EnsurePortalAccountExistsAsync(dto.AccountId);
         var entity = new PatientQuestion
         {
             Id = Guid.NewGuid(),

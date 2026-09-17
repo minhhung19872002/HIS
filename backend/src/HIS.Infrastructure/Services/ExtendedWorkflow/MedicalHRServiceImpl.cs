@@ -26,13 +26,63 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
         if (!string.IsNullOrEmpty(staffType)) query = query.Where(x => x.StaffType == staffType);
         if (!string.IsNullOrEmpty(status)) query = query.Where(x => x.Status == status);
         var list = await query.ToBoundedListAsync("MedicalHR.GetStaffList");
-        return list.Select(MapToStaffDto).ToList();
+        var dtos = list.Select(MapToStaffDto).ToList();
+        await FillStaffDemographicsAsync(dtos);
+        return dtos;
     }
 
     public async Task<MedicalStaffDto> GetStaffAsync(Guid id)
     {
         var e = await _context.MedicalStaffs.Include(x => x.PrimaryDepartment).FirstOrDefaultAsync(x => x.Id == id);
-        return e == null ? null! : MapToStaffDto(e);
+        if (e == null) return null!;
+        var dto = MapToStaffDto(e);
+        await FillStaffDemographicsAsync(new List<MedicalStaffDto> { dto });
+        return dto;
+    }
+
+    // QA-R7: the HR form sends DateOfBirth/Gender but MedicalStaffs has no such columns yet (PROPOSED migration:
+    // ALTER TABLE MedicalStaffs ADD DateOfBirth date NULL, Gender nvarchar(20) NULL). They are deliberately NOT
+    // mapped on the entity — every MedicalStaffs query (incl. the CCHN prescribing gate) would fail until the
+    // columns exist. Raw SQL guarded by ExtendedWorkflowSqlGuard: a no-op before the migration, persisted after.
+    private sealed class StaffDemographicsRow
+    {
+        public Guid Id { get; set; }
+        public DateTime? DateOfBirth { get; set; }
+        public string? Gender { get; set; }
+    }
+
+    private async Task SaveStaffDemographicsAsync(Guid staffId, DateTime? dateOfBirth, string? gender)
+    {
+        if (!dateOfBirth.HasValue && string.IsNullOrWhiteSpace(gender)) return;
+        if (!_context.Database.IsRelational()) return;
+        var dob = dateOfBirth?.Date;
+        var g = string.IsNullOrWhiteSpace(gender) ? null : gender.Trim();
+        try
+        {
+            await _context.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE MedicalStaffs SET DateOfBirth = COALESCE({dob}, DateOfBirth), Gender = COALESCE({g}, Gender) WHERE Id = {staffId}");
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex)) { /* columns not migrated yet */ }
+    }
+
+    private async Task FillStaffDemographicsAsync(List<MedicalStaffDto> dtos)
+    {
+        if (dtos.Count == 0 || !_context.Database.IsRelational()) return;
+        var ids = dtos.Select(d => d.Id).ToList();
+        try
+        {
+            var rows = await _context.Database
+                .SqlQuery<StaffDemographicsRow>($"SELECT Id, DateOfBirth, Gender FROM MedicalStaffs")
+                .Where(r => ids.Contains(r.Id))
+                .ToDictionaryAsync(r => r.Id);
+            foreach (var d in dtos)
+            {
+                if (!rows.TryGetValue(d.Id, out var r)) continue;
+                if (r.DateOfBirth.HasValue) d.DateOfBirth = r.DateOfBirth.Value;
+                if (r.Gender != null) d.Gender = r.Gender;
+            }
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex)) { /* columns not migrated yet */ }
     }
 
     public async Task<MedicalStaffDto> SaveStaffAsync(SaveMedicalStaffDto dto)
@@ -68,6 +118,7 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
         // Status is NOT reset on update (a resigned/suspended staff used to flip back to Active on every save).
         await LinkStaffUserAsync(entity, dto.UserId, requestedCode);
         await _context.SaveChangesAsync();
+        await SaveStaffDemographicsAsync(entity.Id, dto.DateOfBirth, dto.Gender);
         return await GetStaffAsync(entity.Id);
     }
 

@@ -260,9 +260,26 @@ public static class WritePermissionMap
         ["TrainingResearch"] = new(PermissionCatalog.Hr.Manage, PermissionCatalog.Hr.Read),
 
         // ── Chất lượng · an toàn người bệnh ──
-        ["Quality"] = new(PermissionCatalog.Quality.Update, PermissionCatalog.Quality.Read),
+        // QA-R7: Quality.Update is seeded to EVERY role so anyone can report an incident / HAI case. The management
+        // steps behind those reports (investigate, close, confirm/exclude a case, declare an outbreak, audit plans,
+        // corrective actions, antibiotic review) are done on the admin-only v2 pages → same permission as the page.
+        ["Quality"] = new(PermissionCatalog.Quality.Update, PermissionCatalog.Quality.Read, new Dictionary<string, string>
+        {
+            ["InvestigateIncident"] = PermissionCatalog.System.Configure,
+            ["CloseIncident"] = PermissionCatalog.System.Configure,
+            ["CreateAuditPlan"] = PermissionCatalog.System.Configure,
+            ["AddCorrectiveAction"] = PermissionCatalog.System.Configure,
+            ["UpdateCorrectiveActionStatus"] = PermissionCatalog.System.Configure,
+        }),
         ["SatisfactionSurvey"] = new(PermissionCatalog.Quality.Update, PermissionCatalog.Quality.Read),
-        ["InfectionControl"] = new(PermissionCatalog.Quality.Update, PermissionCatalog.Quality.Read),
+        ["InfectionControl"] = new(PermissionCatalog.Quality.Update, PermissionCatalog.Quality.Read, new Dictionary<string, string>
+        {
+            ["ConfirmHAICase"] = PermissionCatalog.System.Configure,
+            ["ResolveHAICase"] = PermissionCatalog.System.Configure,
+            ["ExcludeHAICase"] = PermissionCatalog.System.Configure,
+            ["DeclareOutbreak"] = PermissionCatalog.System.Configure,
+            ["ReviewAntibiotic"] = PermissionCatalog.System.Configure,
+        }),
         ["BusinessAlert"] = new(PermissionCatalog.Quality.Update, PermissionCatalog.Quality.Read, new Dictionary<string, string>
         {
             // QA-R6: rule config, not incident work — Quality.Update is seeded to every role.
@@ -323,8 +340,8 @@ public static class WritePermissionMap
         // WriteGap gom nhiều nghiệp vụ rời — gán từng action, không có mặc định an toàn nào cho cả nhóm.
         ["WriteGap"] = new(PermissionCatalog.MedicalRecord.Update, PermissionCatalog.MedicalRecord.Read, new Dictionary<string, string>
         {
-            ["CloseHAI"] = PermissionCatalog.Quality.Update,
-            ["InvestigateHAI"] = PermissionCatalog.Quality.Update,
+            ["CloseHAI"] = PermissionCatalog.System.Configure,        // QA-R7: same as InfectionControl management
+            ["InvestigateHAI"] = PermissionCatalog.System.Configure,
             ["CreateAuditSession"] = PermissionCatalog.Insurance.Submit,
             ["CreateDiseaseReport"] = PermissionCatalog.PublicHealth.Update,
             ["CreateInterHospitalRequest"] = PermissionCatalog.Telehealth.Update,

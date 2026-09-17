@@ -326,12 +326,12 @@ public class NationalPrescriptionService : INationalPrescriptionService
 
     public async Task<object> RetrySubmissionAsync(Guid id, string userId)
     {
-        var prescription = await LoadForSendAsync(id);
-        if (prescription == null)
-            return new { success = false, message = "Không tìm thấy đơn thuốc" };
+        // QA-R7: unknown id / already-accepted answered 200 {success:false} and the screen toasted "Đã gửi lại".
+        var prescription = await LoadForSendAsync(id)
+            ?? throw new KeyNotFoundException("Không tìm thấy đơn thuốc");
         // Retry is for a failed or cancelled send only — an accepted one would be sent twice.
         if (prescription.NationalPortalStatus == PortalSent)
-            return new { success = false, message = "Đơn thuốc đã được Cổng ĐTQG ghi nhận — không gửi lại." };
+            throw new InvalidOperationException("Đơn thuốc đã được Cổng ĐTQG ghi nhận — không gửi lại.");
 
         // #218/T3: cũng ghi vào ô riêng của cổng (không đụng Status). R3: gọi cổng thật qua gateway client.
         var (ok, transactionId, message) = await SendToGatewayAsync(prescription);
@@ -343,9 +343,10 @@ public class NationalPrescriptionService : INationalPrescriptionService
 
     public async Task<object> CancelSubmissionAsync(Guid id, string userId)
     {
-        var prescription = await _db.Prescriptions.FindAsync(id);
-        if (prescription == null)
-            return new { success = false, message = "Không tìm thấy đơn thuốc" };
+        // QA-R7: unknown id answered 200 {success:false} → 404. The gateway client has no cancel call,
+        // so this only withdraws the local send state.
+        var prescription = await _db.Prescriptions.FindAsync(id)
+            ?? throw new KeyNotFoundException("Không tìm thấy đơn thuốc");
 
         // #218/T3: hủy GỬI chỉ hủy lượt gửi lên cổng. Trước đây `Status = 4` — mà 4 là "Hủy" của
         // chính đơn thuốc — nên bấm "hủy gửi lên cổng" là voiding đơn thuốc của bệnh nhân.

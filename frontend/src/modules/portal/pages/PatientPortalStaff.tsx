@@ -244,8 +244,9 @@ const PatientPortalStaffV2: React.FC = () => {
         const res = await getPatientQuestions();
         setQuestions(res.data ?? []);
       } catch { /* ignore refresh error */ }
-    } catch {
-      te('Không thể gửi câu hỏi.');
+    } catch (err) {
+      // QA-R7: the API now refuses a question without an existing portal account — show its reason.
+      te(friendlyErrorMessage(err, 'Không thể gửi câu hỏi.'));
     } finally {
       setAsking(false);
     }
@@ -309,7 +310,10 @@ const PatientPortalStaffV2: React.FC = () => {
         <>
           <div className="ab-tools">
             <span className="spacer" />
-            <Btn variant="primary" icon="plus" onClick={openAsk}>Đặt câu hỏi</Btn>
+            {/* QA-R7: a question must belong to a patient portal account; staff have none and there is no
+                account picker yet, so the API rejects it — disabled instead of failing on every click. */}
+            <Btn variant="primary" icon="plus" onClick={openAsk} disabled
+              title="Câu hỏi phải gắn với tài khoản app người bệnh — người bệnh đặt câu hỏi trên app">Đặt câu hỏi</Btn>
           </div>
           <DataTable<PatientQuestionDto>
             columns={qColumns}

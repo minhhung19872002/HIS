@@ -694,7 +694,11 @@ namespace HIS.API.Controllers
         [Authorize]
         public async Task<ActionResult<PatientQuestionDto>> AnswerPatientQuestion(
             Guid id, [FromBody] AnswerPatientQuestionDto dto)
-            => Ok(await _service.AnswerPatientQuestionAsync(id, dto));
+        {
+            // QA-R7: unknown id answered 204 (null body) instead of 404.
+            var result = await _service.AnswerPatientQuestionAsync(id, dto);
+            return result == null ? NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy câu hỏi" }) : Ok(result);
+        }
 
         // F9: cấp lại đơn + phản hồi dịch vụ (persist thật).
         [HttpPost("prescriptions/refill")]

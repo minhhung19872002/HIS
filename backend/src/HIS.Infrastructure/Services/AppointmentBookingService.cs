@@ -490,8 +490,19 @@ public class AppointmentBookingService : IAppointmentBookingService
                 .FirstOrDefaultAsync();
         }
 
-        // Tạo mã lịch hẹn
-        var code = $"DK{DateTime.Now:yyyyMMdd}{new Random().Next(1000, 9999)}";
+        // Tạo mã lịch hẹn. QA-R7: DK{date}{random 4 digits} had no uniqueness check (and no unique index), so
+        // two bookings could share a code — the code is what the patient uses to look the booking up.
+        // Serialize code allocation per day (lock taken after phone/slot, always in this order) and retry.
+        await SqlAppLock.AcquireAsync(_context, $"HIS.Booking.Code.{DateTime.Now:yyyyMMdd}",
+            "Hệ thống đang cấp mã lịch hẹn, vui lòng thử lại.");
+        string code;
+        var attempts = 0;
+        do
+        {
+            code = $"DK{DateTime.Now:yyyyMMdd}{Random.Shared.Next(1000, 10000)}";
+            if (++attempts > 20) code = $"DK{DateTime.Now:yyyyMMddHHmmssfff}";
+        }
+        while (await _context.Appointments.IgnoreQueryFilters().AnyAsync(a => a.AppointmentCode == code) && attempts <= 20);
 
         var appointment = new Appointment
         {

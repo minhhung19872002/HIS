@@ -22,7 +22,7 @@ public interface IRisCatalogService
 
     // 3. Protocol
     Task<ServiceOutcome> GetProtocolsAsync(string? keyword, Guid? modalityId, Guid? bodyPartId);
-    Task<ServiceOutcome> SaveProtocolAsync(RadiologyProtocol dto, Guid userId);
+    Task<ServiceOutcome> SaveProtocolAsync(SaveRadiologyProtocolDto dto, Guid userId);
     Task<ServiceOutcome> DeleteProtocolAsync(Guid id);
 
     // 4. ReportTemplate
@@ -41,4 +41,29 @@ public interface IRisCatalogService
     Task<ServiceOutcome> GetPtttServiceMappingsAsync(string? keyword, bool? isActive);
     Task<ServiceOutcome> SavePtttServiceMappingAsync(RisSurgeryServiceMapping dto, Guid userId);
     Task<ServiceOutcome> DeletePtttServiceMappingAsync(Guid id);
+}
+
+/// <summary>
+/// QA-R7: body of POST /api/ris-catalog/protocols. The endpoint used to bind the EF entity, so a payload
+/// carrying navigation objects (e.g. "modality": {}) inserted blank Modality rows and odd values reached EF.
+/// Same fields the v2 RisCatalogAdmin form sends.
+/// </summary>
+public class SaveRadiologyProtocolDto
+{
+    public Guid Id { get; set; }
+    public string? ProtocolCode { get; set; }
+    public string? ProtocolName { get; set; }
+    public Guid? ModalityId { get; set; }
+    public Guid? BodyPartId { get; set; }
+    public bool UseContrast { get; set; }
+    public string? ContrastAgent { get; set; }
+    public string? ContrastDose { get; set; }
+    public decimal? Kvp { get; set; }
+    public decimal? Mas { get; set; }
+    public decimal? SliceThickness { get; set; }
+    public string? Position { get; set; }
+    public string? Instructions { get; set; }
+    public string? Notes { get; set; }
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
 }

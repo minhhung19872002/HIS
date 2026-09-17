@@ -572,16 +572,15 @@ public partial class InpatientCompleteService {
         return Task.FromResult(new List<InpatientPrescriptionTemplateDto>());
     }
 
-    public Task<InpatientPrescriptionDto> PrescribeByTemplateAsync(Guid admissionId, Guid templateId, Guid userId)
+    public async Task<InpatientPrescriptionDto> PrescribeByTemplateAsync(Guid admissionId, Guid templateId, Guid userId)
     {
-        return Task.FromResult(new InpatientPrescriptionDto
-        {
-            Id = Guid.NewGuid(),
-            AdmissionId = admissionId,
-            PrescriptionDate = DateTime.Now,
-            PrescribingDoctorId = userId,
-            Status = 0
-        });
+        // QA-R7: was a stub answering 200 with a fake prescription for any (even zero) admission/template,
+        // so the doctor saw "Đã kê đơn theo mẫu" while no prescription existed (patient-safety).
+        if (admissionId == Guid.Empty || !await _context.Set<Admission>().AnyAsync(a => a.Id == admissionId && !a.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy lượt nhập viện");
+        if (templateId == Guid.Empty || !await _context.PrescriptionTemplates.AnyAsync(t => t.Id == templateId && !t.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy đơn thuốc mẫu");
+        throw new InvalidOperationException("Chưa hỗ trợ kê ngay theo mẫu — vui lòng dùng \"Nạp đơn mẫu\", chọn kho rồi Lưu đơn.");
     }
 
     public Task<InpatientPrescriptionDto> CopyPreviousPrescriptionAsync(Guid admissionId, Guid sourcePrescriptionId, Guid userId)

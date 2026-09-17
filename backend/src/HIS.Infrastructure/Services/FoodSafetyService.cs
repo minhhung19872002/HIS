@@ -268,6 +268,13 @@ public class FoodSafetyService : IFoodSafetyService
 
     public async Task<FoodSampleListDto> AddSampleAsync(FoodSampleCreateDto dto)
     {
+        // QA-R7: a sample must belong to an existing incident (was stored with IncidentId = Guid.Empty).
+        if (string.IsNullOrWhiteSpace(dto.SampleType))
+            throw new ArgumentException("Loại mẫu là bắt buộc", nameof(dto.SampleType));
+        if (dto.IncidentId == Guid.Empty
+            || !await _context.FoodPoisoningIncidents.AnyAsync(i => i.Id == dto.IncidentId && !i.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy sự cố ngộ độc thực phẩm");
+
         var sampleCode = dto.SampleCode;
         if (string.IsNullOrEmpty(sampleCode))
         {
@@ -294,7 +301,7 @@ public class FoodSafetyService : IFoodSafetyService
     public async Task<FoodSampleListDto> UpdateSampleAsync(Guid id, FoodSampleUpdateDto dto)
     {
         var entity = await _context.FoodSafetySamples.FindAsync(id)
-            ?? throw new InvalidOperationException("Sample not found");
+            ?? throw new KeyNotFoundException("Sample not found");
 
         if (dto.LabResult != null) entity.LabResult = dto.LabResult;
         if (!string.IsNullOrEmpty(dto.LabResultDate) && DateTime.TryParse(dto.LabResultDate, out var lrd))

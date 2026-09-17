@@ -182,37 +182,41 @@ public class RisCatalogService : IRisCatalogService
         }));
     }
 
-    public async Task<ServiceOutcome> SaveProtocolAsync(RadiologyProtocol dto, Guid userId)
+    public async Task<ServiceOutcome> SaveProtocolAsync(SaveRadiologyProtocolDto dto, Guid userId)
     {
         if (string.IsNullOrWhiteSpace(dto.ProtocolCode) || string.IsNullOrWhiteSpace(dto.ProtocolName))
             return ServiceOutcome.Bad("Mã và tên giao thức là bắt buộc");
+        // QA-R7: DTO body (no navigation graph); referenced catalog rows and a non-empty Id must exist.
+        if (dto.ModalityId == Guid.Empty) dto.ModalityId = null;
+        if (dto.BodyPartId == Guid.Empty) dto.BodyPartId = null;
+        if (dto.ModalityId is Guid mid && !await _db.Set<RadiologyModality>().AnyAsync(m => m.Id == mid && !m.IsDeleted))
+            return ServiceOutcome.NotFound("Không tìm thấy thiết bị (modality)");
+        if (dto.BodyPartId is Guid bid && !await _db.Set<RadiologyBodyPart>().AnyAsync(b => b.Id == bid && !b.IsDeleted))
+            return ServiceOutcome.NotFound("Không tìm thấy vị trí chụp");
         var existing = dto.Id != Guid.Empty ? await _db.RadiologyProtocols.FindAsync(dto.Id) : null;
-        if (existing == null)
-        {
-            Stamp(dto, true, userId);
-            _db.RadiologyProtocols.Add(dto);
-        }
-        else
-        {
-            existing.ProtocolCode = dto.ProtocolCode;
-            existing.ProtocolName = dto.ProtocolName;
-            existing.ModalityId = dto.ModalityId;
-            existing.BodyPartId = dto.BodyPartId;
-            existing.UseContrast = dto.UseContrast;
-            existing.ContrastAgent = dto.ContrastAgent;
-            existing.ContrastDose = dto.ContrastDose;
-            existing.Kvp = dto.Kvp;
-            existing.Mas = dto.Mas;
-            existing.SliceThickness = dto.SliceThickness;
-            existing.Position = dto.Position;
-            existing.Instructions = dto.Instructions;
-            existing.Notes = dto.Notes;
-            existing.SortOrder = dto.SortOrder;
-            existing.IsActive = dto.IsActive;
-            Stamp(existing, false, userId);
-        }
+        if (dto.Id != Guid.Empty && (existing == null || existing.IsDeleted))
+            return ServiceOutcome.NotFound("Không tìm thấy giao thức");
+        var isNew = existing == null;
+        existing ??= new RadiologyProtocol();
+        existing.ProtocolCode = dto.ProtocolCode.Trim();
+        existing.ProtocolName = dto.ProtocolName.Trim();
+        existing.ModalityId = dto.ModalityId;
+        existing.BodyPartId = dto.BodyPartId;
+        existing.UseContrast = dto.UseContrast;
+        existing.ContrastAgent = dto.ContrastAgent;
+        existing.ContrastDose = dto.ContrastDose;
+        existing.Kvp = dto.Kvp;
+        existing.Mas = dto.Mas;
+        existing.SliceThickness = dto.SliceThickness;
+        existing.Position = dto.Position;
+        existing.Instructions = dto.Instructions;
+        existing.Notes = dto.Notes;
+        existing.SortOrder = dto.SortOrder;
+        existing.IsActive = dto.IsActive;
+        Stamp(existing, isNew, userId);
+        if (isNew) _db.RadiologyProtocols.Add(existing);
         await _db.SaveChangesAsync();
-        return ServiceOutcome.Ok(new { id = existing?.Id ?? dto.Id });
+        return ServiceOutcome.Ok(new { id = existing.Id });
     }
 
     public async Task<ServiceOutcome> DeleteProtocolAsync(Guid id)

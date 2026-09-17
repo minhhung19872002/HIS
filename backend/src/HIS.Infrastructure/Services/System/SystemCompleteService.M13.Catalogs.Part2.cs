@@ -102,7 +102,7 @@ public partial class SystemCompleteService
             else
             {
                 entity = await _context.IcdCodes.FirstOrDefaultAsync(x => x.Id == dto.Id);
-                if (entity == null) return null;
+                if (entity == null) throw CatalogGuard.NotFound("mã ICD-10"); // QA-R7: unknown Id was a 204 "saved"
                 entity.Code = dto.Code ?? entity.Code;
                 entity.Name = dto.Name ?? entity.Name;
                 entity.NameEnglish = dto.EnglishName;
@@ -116,7 +116,7 @@ public partial class SystemCompleteService
             dto.Id = entity.Id;
             return dto;
         }
-        catch (Exception ex) when (ex is not DbUpdateException) // QA-R6: constraint errors (too long/duplicate) reach the API filter instead of a fake 204
+        catch (Exception ex) when (ex is not DbUpdateException and not KeyNotFoundException) // QA-R6: constraint errors (too long/duplicate) reach the API filter instead of a fake 204
         {
             _logger.LogError(ex, "Error in SaveICD10CodeAsync");
             return null;
@@ -325,7 +325,7 @@ public partial class SystemCompleteService
             else
             {
                 entity = await _context.Departments.FirstOrDefaultAsync(d => d.Id == dto.Id);
-                if (entity == null) return null;
+                if (entity == null) throw CatalogGuard.NotFound("khoa/phòng"); // QA-R7: unknown Id was a 204 "saved"
                 entity.DepartmentCode = dto.Code ?? entity.DepartmentCode;
                 entity.DepartmentName = dto.Name ?? entity.DepartmentName;
                 entity.DepartmentCodeBYT = dto.BYTDeptCode;
@@ -339,7 +339,7 @@ public partial class SystemCompleteService
             dto.Id = entity.Id;
             return dto;
         }
-        catch (Exception ex) when (ex is not DbUpdateException) // QA-R6: constraint errors (too long/duplicate) reach the API filter instead of a fake 204
+        catch (Exception ex) when (ex is not DbUpdateException and not KeyNotFoundException) // QA-R6: constraint errors (too long/duplicate) reach the API filter instead of a fake 204
         {
             _logger.LogError(ex, "Error in SaveDepartmentAsync");
             return null;
@@ -449,7 +449,7 @@ public partial class SystemCompleteService
             else
             {
                 entity = await _context.Rooms.FirstOrDefaultAsync(r => r.Id == dto.Id);
-                if (entity == null) return null;
+                if (entity == null) throw CatalogGuard.NotFound("phòng"); // QA-R7: unknown Id was a 204 "saved"
                 entity.RoomCode = dto.Code ?? entity.RoomCode;
                 entity.RoomName = dto.Name ?? entity.RoomName;
                 entity.DepartmentId = dto.DepartmentId;
@@ -460,7 +460,7 @@ public partial class SystemCompleteService
             dto.Id = entity.Id;
             return dto;
         }
-        catch (Exception ex) when (ex is not DbUpdateException) // QA-R6: constraint errors (too long/duplicate) reach the API filter instead of a fake 204
+        catch (Exception ex) when (ex is not DbUpdateException and not KeyNotFoundException) // QA-R6: constraint errors (too long/duplicate) reach the API filter instead of a fake 204
         {
             _logger.LogError(ex, "Error in SaveRoomAsync");
             return null;
@@ -560,7 +560,7 @@ public partial class SystemCompleteService
             else
             {
                 entity = await _context.Beds.FirstOrDefaultAsync(b => b.Id == dto.Id);
-                if (entity == null) return null;
+                if (entity == null) throw CatalogGuard.NotFound("giường"); // QA-R7: unknown Id was a 204 "saved"
                 entity.BedCode = dto.Code ?? entity.BedCode;
                 entity.BedName = dto.Name ?? entity.BedName;
                 entity.RoomId = dto.RoomId;
@@ -572,7 +572,7 @@ public partial class SystemCompleteService
             dto.Id = entity.Id;
             return dto;
         }
-        catch (Exception ex) when (ex is not DbUpdateException) // QA-R6: constraint errors (too long/duplicate) reach the API filter instead of a fake 204
+        catch (Exception ex) when (ex is not DbUpdateException and not KeyNotFoundException) // QA-R6: constraint errors (too long/duplicate) reach the API filter instead of a fake 204
         {
             _logger.LogError(ex, "Error in SaveBedAsync");
             return null;
@@ -774,7 +774,7 @@ public partial class SystemCompleteService
             else
             {
                 entity = await _context.Suppliers.FirstOrDefaultAsync(s => s.Id == dto.Id);
-                if (entity == null) return null;
+                if (entity == null) throw CatalogGuard.NotFound("nhà cung cấp"); // QA-R7: unknown Id was a 204 "saved"
                 entity.SupplierCode = dto.Code ?? entity.SupplierCode;
                 entity.SupplierName = dto.Name ?? entity.SupplierName;
                 entity.SupplierType = int.TryParse(dto.SupplierType, out var st2) ? st2 : entity.SupplierType;
@@ -787,7 +787,7 @@ public partial class SystemCompleteService
             dto.Id = entity.Id;
             return dto;
         }
-        catch (Exception ex) when (ex is not DbUpdateException) // QA-R6: constraint errors (too long/duplicate) reach the API filter instead of a fake 204
+        catch (Exception ex) when (ex is not DbUpdateException and not KeyNotFoundException) // QA-R6: constraint errors (too long/duplicate) reach the API filter instead of a fake 204
         {
             _logger.LogError(ex, "Error in SaveSupplierAsync");
             return null;

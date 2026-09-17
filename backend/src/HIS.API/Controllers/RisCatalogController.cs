@@ -70,7 +70,7 @@ public class RisCatalogController : ControllerBase
 
     [HttpPost("protocols")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologistManager)]
-    public async Task<IActionResult> SaveProtocol([FromBody] RadiologyProtocol dto)
+    public async Task<IActionResult> SaveProtocol([FromBody] SaveRadiologyProtocolDto dto)
         => (await _svc.SaveProtocolAsync(dto, GetUserId())).ToActionResult();
 
     [HttpDelete("protocols/{id:guid}")]

@@ -1,4 +1,6 @@
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using AutoMapper;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
@@ -13,12 +15,37 @@ public class PatientService : IPatientService
     private readonly HISDbContext _context;
     private readonly IMapper _mapper;
     private readonly IPatientDataScopeGuard _scope;
+    private readonly ILogger<PatientService>? _logger;
 
-    public PatientService(HISDbContext context, IMapper mapper, IPatientDataScopeGuard scope)
+    public PatientService(HISDbContext context, IMapper mapper, IPatientDataScopeGuard scope,
+        ILogger<PatientService>? logger = null)
     {
         _context = context;
         _mapper = mapper;
         _scope = scope;
+        _logger = logger;
+    }
+
+    // QA-R7: BHYT card = 2 letters + 13 digits; the 10-digit BHXH code is also accepted as an identifier.
+    private static readonly Regex BhytCardPattern = new(@"^[A-Z]{2}\d{13}$", RegexOptions.CultureInvariant);
+    private static readonly Regex BhxhCodePattern = new(@"^\d{10}$", RegexOptions.CultureInvariant);
+    private static readonly Regex EmailPattern = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// QA-R7: NON-blocking format check — PatientDto has no warnings array, so a suspicious BHYT number or
+    /// e-mail is only logged (field name + patient code, never the value). Unchanged values on an edit are skipped.
+    /// </summary>
+    private void WarnOnSuspiciousFormats(CreatePatientDto dto, Patient? existing, string? patientCode)
+    {
+        if (_logger == null) return;
+        var bhyt = dto.InsuranceNumber?.Trim().ToUpperInvariant();
+        if (!string.IsNullOrEmpty(bhyt) && !string.Equals(bhyt, existing?.InsuranceNumber?.Trim(), StringComparison.OrdinalIgnoreCase)
+            && !BhytCardPattern.IsMatch(bhyt) && !BhxhCodePattern.IsMatch(bhyt))
+            _logger.LogWarning("Patient {PatientCode}: InsuranceNumber does not look like a BHYT card (2 letters + 13 digits) or a 10-digit BHXH code", patientCode);
+        var email = dto.Email?.Trim();
+        if (!string.IsNullOrEmpty(email) && !string.Equals(email, existing?.Email?.Trim(), StringComparison.OrdinalIgnoreCase)
+            && !EmailPattern.IsMatch(email))
+            _logger.LogWarning("Patient {PatientCode}: Email is malformed", patientCode);
     }
 
     public async Task<List<PatientMergeSuccessorDto>> GetMergeSuccessorsAsync(IReadOnlyCollection<Guid> patientIds)
@@ -153,6 +180,7 @@ public class PatientService : IPatientService
         await ValidatePatientAsync(dto, excludeId: null, existing: null);
         var patient = _mapper.Map<Patient>(dto);
         patient.PatientCode = await GeneratePatientCodeAsync();
+        WarnOnSuspiciousFormats(dto, null, patient.PatientCode);
 
         _context.Patients.Add(patient);
         await _context.SaveChangesAsync();
@@ -165,6 +193,7 @@ public class PatientService : IPatientService
         var patient = await _context.Patients.FindAsync(dto.Id)
             ?? throw new KeyNotFoundException("Patient not found");
         await ValidatePatientAsync(dto, excludeId: dto.Id, existing: patient);
+        WarnOnSuspiciousFormats(dto, patient, patient.PatientCode);
 
         _mapper.Map(dto, patient);
         await _context.SaveChangesAsync();

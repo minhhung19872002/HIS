@@ -141,6 +141,19 @@ public partial class PatientPortalServiceImpl
     // F9: phản hồi/đánh giá dịch vụ persist THẬT (trước chỉ trả DTO rỗng).
     public async Task<ServiceFeedbackDto> SubmitFeedbackAsync(Guid patientId, SubmitFeedbackDto dto)
     {
+        // QA-R7: was stored with PatientId/VisitId = Guid.Empty and rating 0 (orphan rows).
+        if (dto.OverallRating is < 1 or > 5)
+            throw new ArgumentException("Đánh giá chung phải từ 1 đến 5 sao", nameof(dto.OverallRating));
+        foreach (var (value, name) in new[] { (dto.DoctorRating, nameof(dto.DoctorRating)), (dto.StaffRating, nameof(dto.StaffRating)),
+                     (dto.FacilityRating, nameof(dto.FacilityRating)), (dto.WaitTimeRating, nameof(dto.WaitTimeRating)) })
+            if (value is < 0 or > 5) throw new ArgumentException("Điểm đánh giá phải từ 0 đến 5", name);
+        if (patientId == Guid.Empty || !await _context.Patients.AnyAsync(p => p.Id == patientId && !p.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy bệnh nhân");
+        // VisitId = Examination.Id (same id the portal visit history returns) and must be this patient's visit.
+        if (dto.VisitId == Guid.Empty || !await _context.Examinations.AnyAsync(e =>
+                e.Id == dto.VisitId && !e.IsDeleted && e.MedicalRecord!.PatientId == patientId))
+            throw new KeyNotFoundException("Không tìm thấy lượt khám của bệnh nhân");
+
         var entity = new ServiceFeedback
         {
             Id = Guid.NewGuid(), PatientId = patientId, VisitId = dto.VisitId,
@@ -253,8 +266,17 @@ public partial class PatientPortalServiceImpl
 
     public async Task<FamilyMemberDto> SaveFamilyMemberAsync(SaveFamilyMemberDto dto)
     {
+        // QA-R7: required fields + the owning portal account must exist (was stored with AccountId = Guid.Empty).
+        if (string.IsNullOrWhiteSpace(dto.FullName))
+            throw new ArgumentException("Họ tên người thân là bắt buộc", nameof(dto.FullName));
+        if (string.IsNullOrWhiteSpace(dto.Relationship))
+            throw new ArgumentException("Quan hệ là bắt buộc", nameof(dto.Relationship));
+        await EnsurePortalAccountExistsAsync(dto.AccountId);
         var entity = dto.Id.HasValue && dto.Id != Guid.Empty
             ? await _context.FamilyMembers.FindAsync(dto.Id.Value) : null;
+        // A non-empty Id must be an existing row of the same account (no silent create, no moving rows across accounts).
+        if (dto.Id.HasValue && dto.Id != Guid.Empty && (entity == null || entity.AccountId != dto.AccountId))
+            throw new KeyNotFoundException("Không tìm thấy người thân");
         if (entity == null)
         {
             entity = new FamilyMember { Id = Guid.NewGuid(), CreatedAt = DateTime.Now };
@@ -280,6 +302,12 @@ public partial class PatientPortalServiceImpl
             Phone = entity.Phone ?? "", InsuranceNumber = entity.InsuranceNumber ?? "",
             LinkedPatientId = entity.LinkedPatientId, IsActive = entity.IsActive, CreatedAt = entity.CreatedAt
         };
+    }
+
+    private async Task EnsurePortalAccountExistsAsync(Guid accountId)
+    {
+        if (accountId == Guid.Empty || !await _context.PortalAccounts.AnyAsync(a => a.Id == accountId && !a.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy tài khoản cổng bệnh nhân");
     }
 
     public async Task<bool> DeleteFamilyMemberAsync(Guid id)

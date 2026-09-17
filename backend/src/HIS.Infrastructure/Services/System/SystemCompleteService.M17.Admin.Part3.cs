@@ -267,7 +267,7 @@ public partial class SystemCompleteService
             else
             {
                 entity = await _context.HIEConnections.FirstOrDefaultAsync(c => c.Id == dto.Id);
-                if (entity == null) return null;
+                if (entity == null) throw CatalogGuard.NotFound("cấu hình tích hợp"); // QA-R7: unknown Id was a 204 "saved"
                 entity.ConnectionName = dto.IntegrationName ?? entity.ConnectionName;
                 entity.ConnectionType = dto.IntegrationType ?? entity.ConnectionType;
                 entity.EndpointUrl = dto.Endpoint ?? entity.EndpointUrl;
@@ -278,7 +278,7 @@ public partial class SystemCompleteService
             dto.Id = entity.Id;
             return dto;
         }
-        catch (Exception ex) when (ex is not DbUpdateException) // QA-R6: constraint errors (too long/duplicate) reach the API filter instead of a fake 204
+        catch (Exception ex) when (ex is not DbUpdateException and not KeyNotFoundException) // QA-R6: constraint errors (too long/duplicate) reach the API filter instead of a fake 204
         {
             _logger.LogError(ex, "Error in SaveIntegrationConfigAsync");
             return null;

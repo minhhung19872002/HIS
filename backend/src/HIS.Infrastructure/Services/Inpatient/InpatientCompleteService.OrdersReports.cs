@@ -633,16 +633,15 @@ public partial class InpatientCompleteService {
         return Task.FromResult(new List<ServiceGroupTemplateDto>());
     }
 
-    public Task<InpatientServiceOrderDto> OrderByTemplateAsync(Guid admissionId, Guid templateId, Guid userId)
+    public async Task<InpatientServiceOrderDto> OrderByTemplateAsync(Guid admissionId, Guid templateId, Guid userId)
     {
-        return Task.FromResult(new InpatientServiceOrderDto
-        {
-            Id = Guid.NewGuid(),
-            AdmissionId = admissionId,
-            OrderDate = DateTime.Now,
-            OrderingDoctorId = userId,
-            Status = 0
-        });
+        // QA-R7: was a stub answering 200 with a fake order for any (even zero) admission/template,
+        // so the user was told the services were ordered while nothing was written.
+        if (admissionId == Guid.Empty || !await _context.Set<Admission>().AnyAsync(a => a.Id == admissionId && !a.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy lượt nhập viện");
+        if (templateId == Guid.Empty || !await _context.ServiceGroupTemplates.AnyAsync(t => t.Id == templateId && !t.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy mẫu chỉ định");
+        throw new InvalidOperationException("Chưa hỗ trợ chỉ định ngay theo mẫu — vui lòng chọn dịch vụ và lưu phiếu chỉ định.");
     }
 
     public Task<InpatientServiceOrderDto> CopyPreviousServiceOrderAsync(Guid admissionId, Guid sourceOrderId, Guid userId)

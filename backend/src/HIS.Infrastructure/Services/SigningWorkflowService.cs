@@ -69,7 +69,7 @@ public class SigningWorkflowService : ISigningWorkflowService
             DocumentType = dto.DocumentType,
             DocumentId = dto.DocumentId,
             DocumentTitle = dto.DocumentTitle,
-            DocumentContent = dto.DocumentContent ?? string.Empty,
+            DocumentContent = HtmlContentSanitizer.Sanitize(dto.DocumentContent), // QA-R7: client HTML, strip script/on*/javascript:
             SubmittedById = submittedById,
             SubmittedByName = submittedByName,
             AssignedToId = dto.AssignedToId,
@@ -202,6 +202,8 @@ public class SigningWorkflowService : ISigningWorkflowService
 
         var chainId = Guid.NewGuid();
         var total = dto.Steps.Count;
+        // QA-R7: DocumentContent is client HTML stored verbatim and shown to every signer — scrub it once.
+        var safeContent = HtmlContentSanitizer.Sanitize(dto.DocumentContent);
         for (var i = 0; i < total; i++)
         {
             var s = dto.Steps[i];
@@ -210,7 +212,7 @@ public class SigningWorkflowService : ISigningWorkflowService
                 DocumentType = dto.DocumentType,
                 DocumentId = dto.DocumentId,
                 DocumentTitle = dto.DocumentTitle,
-                DocumentContent = dto.DocumentContent ?? string.Empty,
+                DocumentContent = safeContent,
                 SubmittedById = submittedById,
                 SubmittedByName = submittedByName,
                 AssignedToId = s.AssignedToId,
