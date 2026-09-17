@@ -198,6 +198,18 @@ public partial class ReceptionCompleteController
     public async Task<ActionResult<AdmissionDto>> RegisterEmergencyPatient([FromBody] EmergencyRegistrationDto dto)
     {
         var userId = GetCurrentUserId();
+        // QA-R7: a deposit taken during registration is money — same permission as POST emergency/{id}/deposit
+        // (WritePermissionMap: CreateEmergencyDeposit → Billing.Collect), checked before anything is written.
+        if (dto.DepositAmount is > 0)
+        {
+            var permissions = HttpContext.RequestServices.GetRequiredService<IPermissionService>();
+            if (!await permissions.HasPermissionAsync(userId, HIS.Core.Constants.PermissionCatalog.Billing.Collect))
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    error = "FORBIDDEN",
+                    message = "Bạn không có quyền thu tạm ứng — để trống số tiền tạm ứng rồi đăng ký lại, thu ngân sẽ thu sau."
+                });
+        }
         var result = await _receptionService.RegisterEmergencyPatientAsync(dto, userId);
         return Ok(result);
     }

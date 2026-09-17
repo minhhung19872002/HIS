@@ -54,9 +54,8 @@ export default function ApplyDiscountModal({ open, onClose, onSuccess, invoiceId
   const loadApprovers = async () => {
     if (approvers.length > 0) return;
     try {
-      const { data } = await apiClient.get<{ items?: ApproverUser[] } | ApproverUser[]>('/admin/users', {
-        params: { role: 'DepartmentHead,Director,Accountant', pageSize: 100 },
-      });
+      // /admin/users is Admin-only (empty for cashiers) — list users holding Billing.Approve instead.
+      const { data } = await apiClient.get<{ items?: ApproverUser[] } | ApproverUser[]>('/billingcomplete/discounts/approvers');
       const list = Array.isArray(data) ? data : (data?.items ?? []);
       setApprovers(list);
     } catch { /* ignore */ }

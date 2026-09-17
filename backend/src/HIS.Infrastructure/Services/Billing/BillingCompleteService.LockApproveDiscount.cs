@@ -332,6 +332,34 @@ public partial class BillingCompleteService {
                 "Giảm giá từ 5,000,000đ trở lên phải chọn lý do 'Giám đốc duyệt miễn'");
     }
 
+    /// <summary>
+    /// QA-R7: active users whose CURRENT role assignments grant <paramref name="permissionCode"/> — same
+    /// resolution as PermissionService (UserRoles → Role → RolePermissions, validity window, active user).
+    /// </summary>
+    private IQueryable<User> UsersHoldingPermission(string permissionCode)
+    {
+        var now = DateTime.UtcNow;
+        var userIds = _context.UserRoles
+            .Where(ur => !ur.IsDeleted
+                && (ur.ValidFrom == null || ur.ValidFrom <= now)
+                && (ur.ValidTo == null || ur.ValidTo >= now)
+                && ur.Role.RolePermissions.Any(rp => !rp.IsDeleted && !rp.Permission.IsDeleted
+                    && rp.Permission.PermissionCode == permissionCode))
+            .Select(ur => ur.UserId);
+        return _context.Users.Where(u => u.IsActive && !u.IsDeleted && userIds.Contains(u.Id));
+    }
+
+    public async Task<List<BillingApproverDto>> GetDiscountApproversAsync(Guid excludeUserId)
+    {
+        // QA-R7: ApplyDiscountModal read the approver list from the Admin-only /api/admin/users → empty for cashiers.
+        return await UsersHoldingPermission(HIS.Core.Constants.PermissionCatalog.Billing.Approve)
+            .Where(u => u.Id != excludeUserId)
+            .OrderBy(u => u.FullName)
+            .Select(u => new BillingApproverDto { Id = u.Id, FullName = u.FullName, Username = u.Username })
+            .Take(500)
+            .ToListAsync();
+    }
+
     /// <summary>QA0915: a discount may only cover what is still unpaid (was unbounded — 9.000đ accepted on a paid 7.200đ invoice).</summary>
     private static void EnsureDiscountFits(InvoiceSummary invoice, decimal discountAmount)
     {

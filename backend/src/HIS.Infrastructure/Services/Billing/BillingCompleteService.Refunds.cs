@@ -385,20 +385,51 @@ public partial class BillingCompleteService {
         // #218/T3: trước đây gán thẳng, nên phiếu đã TỪ CHỐI / đã CHI / đã HỦY vẫn duyệt lại được.
         var target = dto.IsApproved ? RefundStatus.Approved : RefundStatus.Rejected;
         RefundStatus.EnsureCanTransition(receipt.Status, target);
+
+        // QA-R7: the cashier who created the refund could approve it too (no second pair of eyes on money out).
+        // Block self-approval only when someone else can approve — a one-cashier site must keep working.
+        if (dto.IsApproved && receipt.CashierId == userId)
+        {
+            // Pre-push review: the ADMIN role is seeded with every permission, so it always counted as "someone
+            // else" and a one-cashier site (prod: 1 cashier + the system admin) could never approve its own
+            // refunds. Only a second FINANCE approver (non-admin role) triggers the separation of duties.
+            var otherApproverExists = await UsersHoldingPermission(PermissionCatalog.Billing.Approve)
+                .Where(u => u.Id != userId)
+                .AnyAsync(u => !u.UserRoles.Any(ur => !ur.IsDeleted && ur.Role.RoleCode == "ADMIN"));
+            if (otherApproverExists)
+                throw new InvalidOperationException(
+                    "Người lập phiếu hoàn không được tự duyệt phiếu của mình — cần người khác có quyền duyệt.");
+            _logger.LogWarning(
+                "Refund {RefundCode} self-approved by its creator {UserId}: no other active user holds {Permission}",
+                receipt.ReceiptCode, userId, PermissionCatalog.Billing.Approve);
+        }
+
+        var approverName = await _context.Users.Where(u => u.Id == userId)
+            .Select(u => u.FullName).FirstOrDefaultAsync();
+        var decidedAt = DateTime.Now;
+
         // QA-R6: two approvers clicking together both passed the check above (both 200; an approve and a
         // reject could both "win"). Claim the transition atomically.
         await using var tx = await SqlAppLock.BeginAsync(_context);
         await ClaimRefundStatusAsync(receipt, target);
 
+        // QA-R7: the approver was not stored anywhere. Now kept in RefundApprovedBy/At (migration 212) and, for
+        // people reading the slip, in the note.
+        var decidedBy = $"{approverName ?? userId.ToString()} lúc {decidedAt:dd/MM/yyyy HH:mm}";
         if (dto.IsApproved)
         {
             receipt.Status = RefundStatus.Approved;
+            receipt.Note = $"{receipt.Note} | Duyệt: {decidedBy}";
         }
         else
         {
             receipt.Status = RefundStatus.Rejected;
-            receipt.Note = $"{receipt.Note} | Từ chối: {dto.RejectReason}";
+            receipt.Note = $"{receipt.Note} | Từ chối: {dto.RejectReason} ({decidedBy})";
         }
+        receipt.RefundApprovedBy = userId;
+        receipt.RefundApprovedAt = decidedAt;
+        receipt.UpdatedAt = decidedAt;
+        receipt.UpdatedBy = userId.ToString();
 
         await _context.SaveChangesAsync();
         if (tx != null) await tx.CommitAsync();
@@ -414,8 +445,10 @@ public partial class BillingCompleteService {
             Reason = receipt.Note ?? string.Empty,
             Status = receipt.Status, // QA0915: was 3 on reject, but the stored value is RefundStatus.Rejected (2)
             StatusName = RefundStatus.GetName(receipt.Status),
+            CashierId = receipt.CashierId,
             ApprovedBy = userId,
-            ApprovedAt = DateTime.Now,
+            ApprovedByName = approverName ?? string.Empty,
+            ApprovedAt = decidedAt,
             CreatedAt = receipt.CreatedAt
         };
     }
@@ -559,6 +592,12 @@ public partial class BillingCompleteService {
             .Take(pageSize)
             .ToListAsync();
 
+        var approverIds = rows.Where(r => r.RefundApprovedBy.HasValue).Select(r => r.RefundApprovedBy!.Value).Distinct().ToList();
+        var approverNames = approverIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : await _context.Users.AsNoTracking().Where(u => approverIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, u => u.FullName);
+
         var items = rows.Select(r =>
         {
             var refundType = r.OriginalDepositId.HasValue ? 1 : r.OriginalPaymentId.HasValue ? 2 : 0;
@@ -581,6 +620,8 @@ public partial class BillingCompleteService {
                 CashierName = r.Cashier?.FullName ?? string.Empty,
                 Status = r.Status,
                 StatusName = RefundStatus.GetName(r.Status),
+                ApprovedBy = r.RefundApprovedBy,
+                ApprovedByName = r.RefundApprovedBy.HasValue ? approverNames.GetValueOrDefault(r.RefundApprovedBy.Value) : null,
                 CreatedAt = r.CreatedAt
             };
         }).ToList();

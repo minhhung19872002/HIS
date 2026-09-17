@@ -496,6 +496,14 @@ public class ApplyDiscountDto
     public Guid? ApproverId { get; set; }
 }
 
+/// <summary>QA-R7: người có quyền duyệt miễn giảm (Billing.Approve) — chỉ id + tên cho dropdown.</summary>
+public class BillingApproverDto
+{
+    public Guid Id { get; set; }
+    public string FullName { get; set; } = string.Empty;
+    public string? Username { get; set; }
+}
+
 /// <summary>
 /// DTO cho miễn giảm từng dịch vụ
 /// </summary>

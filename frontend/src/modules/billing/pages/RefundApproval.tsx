@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import dayjs from 'dayjs';
 import { Input } from 'antd';
 import { fmtVND } from '../../../utils/format';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { searchRefunds, approveRefund, confirmRefund, cancelRefund } from '../api/billing';
 import type { RefundDto } from '../api/billing';
 import {
@@ -56,7 +57,7 @@ const RefundApprovalV2: React.FC = () => {
         await approveRefund({ refundId: r.id, isApproved: true });
         tk('Đã duyệt phiếu hoàn tiền');
         reload();
-      } catch { te('Lỗi duyệt hoàn tiền'); }
+      } catch (e) { te(friendlyErrorMessage(e, 'Lỗi duyệt hoàn tiền')); } // BE blocks self-approval with a message
     }, { tone: 'warn', confirm: 'Duyệt' });
 
   const doReject = async () => {

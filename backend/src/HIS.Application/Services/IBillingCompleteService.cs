@@ -235,6 +235,11 @@ public interface IBillingCompleteService
     Task<List<DiscountHistoryDto>> GetDiscountHistoryAsync(Guid invoiceId);
 
     /// <summary>
+    /// QA-R7: người dùng đang hoạt động có quyền duyệt miễn giảm (Billing.Approve), trừ người gọi.
+    /// </summary>
+    Task<List<BillingApproverDto>> GetDiscountApproversAsync(Guid excludeUserId);
+
+    /// <summary>
     /// Hủy miễn giảm
     /// </summary>
     Task<bool> CancelDiscountAsync(Guid discountId, string reason, Guid userId);

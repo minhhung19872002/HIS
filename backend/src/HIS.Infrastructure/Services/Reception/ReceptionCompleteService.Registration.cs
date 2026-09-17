@@ -453,14 +453,31 @@ public partial class ReceptionCompleteService {
 
     private async Task<AdmissionDto> RegisterEmergencyPatientCoreAsync(EmergencyRegistrationDto dto, Guid userId)
     {
-        Patient patient;
+        Patient? patient = null;
 
         if (dto.PatientId.HasValue)
         {
             patient = await _patientRepo.GetByIdAsync(dto.PatientId.Value)
                 ?? throw new KeyNotFoundException("Patient not found");
         }
-        else
+        else if (!string.IsNullOrWhiteSpace(dto.IdentityNumber))
+        {
+            // QA-R7 (pre-push review): the v2 wizard now sends "Cấp cứu" here, and this path always created a new
+            // patient — a returning patient got a second patient code. Reuse by CCCD like the fee/BHYT paths;
+            // only the name is compared (the age of an emergency patient is an estimate). Re-checked under the
+            // registration lock so two counters cannot both miss it.
+            var cccd = dto.IdentityNumber.Trim();
+            patient = await _context.Patients.Where(p => !p.IsDeleted).FindByIdentityNumberDecryptedAsync(cccd);
+            if (patient == null)
+            {
+                await EnsureRegistrationLockAsync();
+                patient = await _context.Patients.Where(p => !p.IsDeleted).FindByIdentityNumberDecryptedAsync(cccd);
+            }
+            if (patient != null)
+                EnsureSamePerson(patient, new CreatePatientDto { FullName = dto.PatientName ?? string.Empty });
+        }
+
+        if (patient == null)
         {
             // Create temporary patient for emergency
             patient = new Patient
@@ -530,6 +547,9 @@ public partial class ReceptionCompleteService {
             DepartmentId = emergencyRoom?.DepartmentId ?? Guid.Empty,
             RoomId = emergencyRoom?.Id ?? Guid.Empty,
             ChiefComplaint = dto.ChiefComplaint,
+            // QA-R7: severity / onset time / transport / "cho nợ" were silently dropped. No dedicated column
+            // exists, so they go into the history of present illness where the ER doctor reads them.
+            PresentIllness = BuildEmergencyIntakeNote(dto),
             Status = 0,
             CreatedAt = DateTime.UtcNow, // dot16: chuẩn UTC — màn tiếp đón "hôm nay" query CreatedAt qua DayRangeUtc
             CreatedBy = userId.ToString(),
@@ -555,7 +575,29 @@ public partial class ReceptionCompleteService {
         examination.QueueNumber = queueTicket.QueueNumber;
         await _unitOfWork.SaveChangesAsync();
 
+        // QA-R7: DepositAmount was silently dropped. Take it through the emergency-deposit path (same rules as
+        // POST emergency/{id}/deposit). It runs inside the registration transaction, so an invalid amount
+        // rolls the whole registration back with the deposit error instead of half-saving.
+        if (dto.DepositAmount is > 0)
+            await CreateEmergencyDepositAsync(medicalRecord.Id, dto.DepositAmount.Value, userId);
+
         return MapToAdmissionDto(medicalRecord, patient, emergencyRoom, queueTicket);
+    }
+
+    private static string? BuildEmergencyIntakeNote(EmergencyRegistrationDto dto)
+    {
+        var parts = new List<string>();
+        var severity = dto.Severity switch { 1 => "Nguy kịch", 2 => "Nặng", 3 => "Trung bình", 4 => "Nhẹ", _ => null };
+        if (severity != null) parts.Add($"Mức độ: {severity}");
+        if (dto.PainStartTime.HasValue)
+        {
+            var onset = dto.PainStartTime.Value.Kind == DateTimeKind.Utc
+                ? HIS.Core.Common.VnTime.UtcToVn(dto.PainStartTime.Value) : dto.PainStartTime.Value;
+            parts.Add($"Khởi phát triệu chứng: {onset:dd/MM/yyyy HH:mm}");
+        }
+        if (!string.IsNullOrWhiteSpace(dto.TransportMethod)) parts.Add($"Phương tiện đến: {dto.TransportMethod.Trim()}");
+        if (dto.AllowDebt) parts.Add("Cho phép nợ viện phí");
+        return parts.Count == 0 ? null : "[Tiếp nhận cấp cứu] " + string.Join("; ", parts);
     }
 
     public async Task<AdmissionDto> UpdateEmergencyPatientInfoAsync(UpdateEmergencyPatientDto dto, Guid userId)

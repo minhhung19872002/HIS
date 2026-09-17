@@ -58,7 +58,9 @@ public class BillingGuarantorService : IBillingGuarantorService
         }
         else
         {
-            entity = await _db.SponsorOrgs.FirstAsync(o => o.Id == dto.Id);
+            // QA-R7: an unknown / deleted id threw "Sequence contains no elements" (500) — now 404.
+            entity = await _db.SponsorOrgs.FirstOrDefaultAsync(o => o.Id == dto.Id && !o.IsDeleted)
+                ?? throw new KeyNotFoundException("Không tìm thấy đơn vị bảo lãnh cần sửa.");
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }
@@ -160,7 +162,9 @@ public class BillingGuarantorService : IBillingGuarantorService
         }
         else
         {
-            entity = await _db.BillingGuarantors.FirstAsync(g => g.Id == dto.Id);
+            // QA-R7: an unknown / deleted id threw "Sequence contains no elements" (500) — now 404.
+            entity = await _db.BillingGuarantors.FirstOrDefaultAsync(g => g.Id == dto.Id && !g.IsDeleted)
+                ?? throw new KeyNotFoundException("Không tìm thấy bảo lãnh cần sửa.");
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }

@@ -39,6 +39,10 @@ public class Receipt : BaseEntity
     public virtual User? DiscountApprovedByUser { get; set; }
     public DateTime? DiscountApprovedAt { get; set; }
 
+    /// <summary>QA-R7 (migration 212): người/giờ duyệt hoặc từ chối phiếu hoàn (ReceiptType 3).</summary>
+    public Guid? RefundApprovedBy { get; set; }
+    public DateTime? RefundApprovedAt { get; set; }
+
     public string? Note { get; set; }
     public int Status { get; set; } // 1-Đã thu, 2-Đã hủy
 

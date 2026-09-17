@@ -116,6 +116,17 @@ public partial class BillingCompleteController
     }
 
     /// <summary>
+    /// QA-R7: danh sách người có quyền duyệt miễn giảm (id + tên) cho dropdown "Người duyệt".
+    /// Trước đây FE gọi /api/admin/users (chỉ Admin) → thu ngân thấy danh sách rỗng.
+    /// </summary>
+    [HttpGet("discounts/approvers")]
+    [RequirePermission(PermissionCatalog.Billing.Read)]
+    public async Task<ActionResult<List<BillingApproverDto>>> GetDiscountApprovers()
+    {
+        return Ok(await _billingService.GetDiscountApproversAsync(GetUserId()));
+    }
+
+    /// <summary>
     /// Hủy miễn giảm
     /// </summary>
     [HttpPost("discounts/{id}/cancel")]
