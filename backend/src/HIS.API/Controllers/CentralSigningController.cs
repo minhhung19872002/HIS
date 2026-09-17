@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using HIS.Core.Constants;
 using HIS.Application.DTOs;
+using HIS.API.Authorization;
 using HIS.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -142,6 +143,9 @@ public class CentralSigningController : ControllerBase
     // ============ Admin Management APIs ============
 
     /// <summary>Get managed certificates list</summary>
+    // QA-R6: certificate/appearance/HSM administration is the admin-only "Ký số tập trung" page;
+    // the class-level role list is for signing with one's OWN certificate.
+    [RequirePermission(PermissionCatalog.System.Configure)]
     [HttpGet("admin/certificates")]
     public async Task<ActionResult<List<ManagedCertificateDto>>> GetCertificates(
         [FromQuery] string? keyword, [FromQuery] bool? isActive)
@@ -151,6 +155,7 @@ public class CentralSigningController : ControllerBase
     }
 
     /// <summary>Create/update managed certificate</summary>
+    [RequirePermission(PermissionCatalog.System.Configure)]
     [HttpPost("admin/certificates")]
     public async Task<ActionResult<ManagedCertificateDto>> SaveCertificate([FromBody] SaveManagedCertificateRequest request)
     {
@@ -159,6 +164,7 @@ public class CentralSigningController : ControllerBase
     }
 
     /// <summary>Delete managed certificate</summary>
+    [RequirePermission(PermissionCatalog.System.Configure)]
     [HttpDelete("admin/certificates/{id}")]
     public async Task<ActionResult> DeleteCertificate(Guid id)
     {
@@ -167,6 +173,7 @@ public class CentralSigningController : ControllerBase
     }
 
     /// <summary>Get signing transactions</summary>
+    [RequirePermission(PermissionCatalog.System.Configure)]
     [HttpGet("admin/transactions")]
     public async Task<ActionResult> GetTransactions([FromQuery] SigningTransactionSearchDto search)
     {
@@ -176,6 +183,7 @@ public class CentralSigningController : ControllerBase
     }
 
     /// <summary>Get signing statistics</summary>
+    [RequirePermission(PermissionCatalog.System.Configure)]
     [HttpGet("admin/statistics")]
     public async Task<ActionResult<SigningStatisticsDto>> GetStatistics()
     {
@@ -192,6 +200,7 @@ public class CentralSigningController : ControllerBase
     }
 
     /// <summary>Save signature appearance configuration</summary>
+    [RequirePermission(PermissionCatalog.System.Configure)]
     [HttpPost("admin/appearance")]
     public async Task<ActionResult> SaveAppearance([FromBody] SignatureAppearanceDto config)
     {
@@ -210,6 +219,7 @@ public class CentralSigningController : ControllerBase
     }
 
     /// <summary>Create CSR for HSM</summary>
+    [RequirePermission(PermissionCatalog.System.Configure)]
     [HttpPost("hsm/create-csr")]
     public async Task<ActionResult<CsrResult>> CreateCsr([FromBody] CreateCsrRequest request)
     {
@@ -218,6 +228,7 @@ public class CentralSigningController : ControllerBase
     }
 
     /// <summary>Upload signature image by CCCD</summary>
+    [RequirePermission(PermissionCatalog.System.Configure)]
     [HttpPost("admin/signature-image")]
     public async Task<ActionResult> UploadSignatureImage([FromBody] UploadSignatureImageRequest request)
     {
@@ -227,6 +238,7 @@ public class CentralSigningController : ControllerBase
     }
 
     /// <summary>Export serial number list</summary>
+    [RequirePermission(PermissionCatalog.System.Configure)]
     [HttpGet("admin/export-serials")]
     public async Task<ActionResult<List<string>>> ExportSerials()
     {

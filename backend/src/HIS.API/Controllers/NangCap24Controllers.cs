@@ -206,18 +206,19 @@ public class DicomAutoSendController : ControllerBase
     public async Task<ActionResult<List<DicomAutoSendRuleDto>>> ListRules()
         => Ok(await _service.ListRulesAsync());
 
+    // QA-R6: doctors now carry the Radiologist alias — where images leave the hospital stays admin/manager.
     [HttpPost("rules")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Radiologist + "," + RoleNames.RadiologistManager)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologistManager)]
     public async Task<ActionResult<DicomAutoSendRuleDto>> CreateRule([FromBody] DicomAutoSendRuleCreateDto dto)
         => Ok(await _service.CreateRuleAsync(dto, GetUserId()));
 
     [HttpPut("rules/{id:guid}")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Radiologist + "," + RoleNames.RadiologistManager)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologistManager)]
     public async Task<ActionResult<DicomAutoSendRuleDto>> UpdateRule(Guid id, [FromBody] DicomAutoSendRuleCreateDto dto)
         => Ok(await _service.UpdateRuleAsync(id, dto, GetUserId()));
 
     [HttpDelete("rules/{id:guid}")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Radiologist + "," + RoleNames.RadiologistManager)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologistManager)]
     public async Task<IActionResult> DeleteRule(Guid id)
     {
         await _service.DeleteRuleAsync(id, GetUserId());
@@ -275,12 +276,12 @@ public class Hl7QueueController : ControllerBase
     }
 
     [HttpPost("{id:guid}/retry")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Radiologist + "," + RoleNames.LabManager)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<ActionResult<Hl7MessageQueueDto>> Retry(Guid id)
         => Ok(await _service.RetryAsync(id, GetUserId()));
 
     [HttpPost("retry-all-failed")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Radiologist + "," + RoleNames.LabManager)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<ActionResult<Hl7RetryResultDto>> RetryAllFailed()
         => Ok(await _service.RetryAllFailedAsync(GetUserId()));
 

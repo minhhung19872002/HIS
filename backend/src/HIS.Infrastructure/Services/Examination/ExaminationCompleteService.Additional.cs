@@ -122,7 +122,10 @@ public partial class ExaminationCompleteService
 
     public async Task<bool> SignExaminationAsync(Guid examinationId, string signature)
     {
-        return true;
+        // QA-R6: this stub answered "signed" without signing anything. Clinical signing lives in the
+        // digital-signature module; say so instead of faking success.
+        await Task.CompletedTask;
+        throw new NotSupportedException("Ký số lượt khám thực hiện tại phân hệ Ký số (digital-signature), không qua API này");
     }
 
     public async Task<SignatureVerificationResult> VerifyExaminationSignatureAsync(Guid examinationId)

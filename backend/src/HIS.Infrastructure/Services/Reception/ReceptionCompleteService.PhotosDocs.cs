@@ -152,7 +152,9 @@ public partial class ReceptionCompleteService {
     public async Task DeletePhotoAsync(Guid photoId, Guid userId)
     {
         var photo = await _context.PatientPhotos.FindAsync(photoId);
-        if (photo != null)
+        // QA-R6: an unknown id used to answer "Deleted successfully".
+        if (photo == null)
+            throw new KeyNotFoundException("Không tìm thấy ảnh bệnh nhân");
         {
             photo.IsActive = false;
             await _unitOfWork.SaveChangesAsync();

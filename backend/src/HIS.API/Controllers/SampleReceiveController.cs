@@ -32,21 +32,21 @@ public class SampleReceiveController : ControllerBase
 
     /// <summary>Nhận mẫu — đánh dấu ReceiveStatus=1.</summary>
     [HttpPost("accept")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabReceptionist + "," + RoleNames.LabManager + "," + RoleNames.Technician)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabReceptionist + "," + RoleNames.LabManager + "," + RoleNames.LabTech)]
     public async Task<IActionResult> Accept([FromBody] ReceiveDto dto)
         => (await _svc.AcceptAsync(dto, GetUserId())).ToActionResult();
 
 
     /// <summary>Từ chối mẫu (mẫu không đạt).</summary>
     [HttpPost("reject")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabReceptionist + "," + RoleNames.LabManager + "," + RoleNames.Technician)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabReceptionist + "," + RoleNames.LabManager + "," + RoleNames.LabTech)]
     public async Task<IActionResult> Reject([FromBody] RejectDto dto)
         => (await _svc.RejectAsync(dto, GetUserId())).ToActionResult();
 
 
     /// <summary>KTV nhập kết quả (chưa duyệt).</summary>
     [HttpPost("technician-run")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Technician + "," + RoleNames.LabManager)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabTech + "," + RoleNames.LabManager)]
     public async Task<IActionResult> TechnicianRun([FromBody] RunDto dto)
         => (await _svc.TechnicianRunAsync(dto, GetUserId())).ToActionResult();
 

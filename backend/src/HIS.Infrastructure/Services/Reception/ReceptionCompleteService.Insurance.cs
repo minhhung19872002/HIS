@@ -302,7 +302,9 @@ public partial class ReceptionCompleteService {
     public async Task UnblockInsuranceAsync(Guid id, Guid userId)
     {
         var blockedInsurance = await _context.BlockedInsurances.FindAsync(id);
-        if (blockedInsurance != null)
+        // QA-R6: an unknown id used to answer "Unblocked successfully".
+        if (blockedInsurance == null)
+            throw new KeyNotFoundException("Không tìm thấy thẻ BHYT đang bị khóa");
         {
             blockedInsurance.IsBlocked = false;
             blockedInsurance.UnblockedAt = DateTime.Now;

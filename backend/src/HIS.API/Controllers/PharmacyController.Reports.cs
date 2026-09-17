@@ -32,6 +32,11 @@ public partial class PharmacyController
     [HttpPost("adr-reports")]
     public async Task<IActionResult> CreateAdrReport([FromBody] CreateAdrReportRequest request)
     {
+        // QA-R6: an empty body used to store a blank ADR record (no drug, no reaction).
+        if (string.IsNullOrWhiteSpace(request.MedicationName))
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Vui lòng nhập tên thuốc nghi ngờ gây phản ứng" });
+        if (string.IsNullOrWhiteSpace(request.ReactionType) && string.IsNullOrWhiteSpace(request.Description))
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Vui lòng mô tả phản ứng có hại" });
         try
         {
             var userIdValue = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -59,7 +64,7 @@ public partial class PharmacyController
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating ADR report");
-            return StatusCode(500, new { message = "Lá»—i khi táº¡o bÃ¡o cÃ¡o ADR" });
+            return StatusCode(500, new { message = "Lỗi khi tạo báo cáo ADR" });
         }
     }
 

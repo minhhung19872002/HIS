@@ -27,6 +27,8 @@ public static class RoleNames
     public const string PharmacyManager = "PharmacyManager"; // PHARMACIST
     public const string Cashier = "Cashier";             // CASHIER
     public const string Accountant = "Accountant";       // CASHIER
+    public const string LabTech = "LabTech";             // LAB_TECH (QA-R6: lab-side gates; "Technician" is the RIS one)
+    public const string ImagingTech = "ImagingTech";     // IMAGING_TECH
 
     // ── LIVE: RoleName tiếng Việt — VERIFIED vs prod /api/admin/roles 2026-07-03 (#183 Phase-2):
     // ADMIN="Quản trị hệ thống" · DOCTOR="Bác sĩ" · NURSE="Điều dưỡng" · CASHIER="Thu ngân"

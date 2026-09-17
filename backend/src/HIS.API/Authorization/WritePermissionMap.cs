@@ -61,6 +61,14 @@ public static class WritePermissionMap
         ["ExaminationComplete"] = new(PermissionCatalog.MedicalRecord.Update, PermissionCatalog.MedicalRecord.Read, new Dictionary<string, string>
         {
             ["ApplyPrescriptionTemplate"] = PermissionCatalog.Prescription.Create,
+            // QA-R6: prescribing/signing fell back to MedicalRecord.Update, which nurses hold.
+            ["CreatePrescription"] = PermissionCatalog.Prescription.Create,
+            ["IssuePrescription"] = PermissionCatalog.Prescription.Create,
+            ["ReplacePrescription"] = PermissionCatalog.Prescription.Create,
+            ["CopyPrescriptionFromHistory"] = PermissionCatalog.Prescription.Create,
+            ["UpdatePrescription"] = PermissionCatalog.Prescription.Update,
+            ["DeletePrescription"] = PermissionCatalog.Prescription.Cancel,
+            ["SignExamination"] = PermissionCatalog.MedicalRecord.Create,
         }),
         ["ClinicalRecord"] = new(PermissionCatalog.MedicalRecord.Update, PermissionCatalog.MedicalRecord.Read),
         ["ClinicalDecisionSupport"] = new(PermissionCatalog.MedicalRecord.Update, PermissionCatalog.MedicalRecord.Read),
@@ -140,6 +148,12 @@ public static class WritePermissionMap
             ["RejectSample"] = PermissionCatalog.LabResult.Validate,
             ["RetrieveSample"] = PermissionCatalog.LabResult.Validate,
             ["RejectInboxResult"] = PermissionCatalog.LabResult.Validate,
+            // QA-R6: approving a result is validation, not entry — nurses hold LabResult.Create (sample
+            // collection) and could approve results through the default.
+            ["ApproveLabResult"] = PermissionCatalog.LabResult.Validate,
+            ["PreliminaryApproveLabResult"] = PermissionCatalog.LabResult.Validate,
+            ["FinalApproveLabResult"] = PermissionCatalog.LabResult.Validate,
+            ["CancelApproval"] = PermissionCatalog.LabResult.Validate,
         }),
         ["LisConfig"] = new(PermissionCatalog.Laboratory.Configure, PermissionCatalog.LabResult.Read),
         ["SampleCollection"] = new(PermissionCatalog.LabResult.Create, PermissionCatalog.LabResult.Read),
@@ -198,6 +212,8 @@ public static class WritePermissionMap
         ["Epidemiology"] = new(PermissionCatalog.PublicHealth.Update, PermissionCatalog.PublicHealth.Read),
         ["Immunization"] = new(PermissionCatalog.PublicHealth.Update, PermissionCatalog.PublicHealth.Read),
         ["SchoolHealth"] = new(PermissionCatalog.PublicHealth.Update, PermissionCatalog.PublicHealth.Read),
+        // QA-R6: its only ungated writes are the school-health exam aliases (SHCreateExam/SHUpdateExam).
+        ["FrontendCompat"] = new(PermissionCatalog.PublicHealth.Update, PermissionCatalog.PublicHealth.Read),
         ["OccupationalHealth"] = new(PermissionCatalog.PublicHealth.Update, PermissionCatalog.PublicHealth.Read),
         ["EnvironmentalHealth"] = new(PermissionCatalog.PublicHealth.Update, PermissionCatalog.PublicHealth.Read),
         ["FoodSafety"] = new(PermissionCatalog.PublicHealth.Update, PermissionCatalog.PublicHealth.Read),
@@ -247,7 +263,13 @@ public static class WritePermissionMap
         ["Quality"] = new(PermissionCatalog.Quality.Update, PermissionCatalog.Quality.Read),
         ["SatisfactionSurvey"] = new(PermissionCatalog.Quality.Update, PermissionCatalog.Quality.Read),
         ["InfectionControl"] = new(PermissionCatalog.Quality.Update, PermissionCatalog.Quality.Read),
-        ["BusinessAlert"] = new(PermissionCatalog.Quality.Update, PermissionCatalog.Quality.Read),
+        ["BusinessAlert"] = new(PermissionCatalog.Quality.Update, PermissionCatalog.Quality.Read, new Dictionary<string, string>
+        {
+            // QA-R6: rule config, not incident work — Quality.Update is seeded to every role.
+            // Matches the FE route permission of /v2/cdss/special-test-rules.
+            ["SaveSpecialTestRule"] = PermissionCatalog.System.Configure,
+            ["DeleteSpecialTestRule"] = PermissionCatalog.System.Configure,
+        }),
 
         // ── Dinh dưỡng · phục hồi chức năng · khám sức khỏe ──
         ["Nutrition"] = new(PermissionCatalog.Nutrition.Update, PermissionCatalog.Nutrition.Read, new Dictionary<string, string>

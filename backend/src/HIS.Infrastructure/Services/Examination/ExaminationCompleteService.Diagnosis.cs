@@ -106,7 +106,10 @@ public partial class ExaminationCompleteService
 
     public async Task<bool> DeleteDiagnosisAsync(Guid diagnosisId)
     {
-        return true;
+        // QA-R6: this stub answered "deleted" without deleting. Diagnoses are stored on the examination
+        // (MainIcdCode/SubIcdCodes) and are replaced as a list via PUT {examinationId}/diagnoses/batch.
+        await Task.CompletedTask;
+        throw new NotSupportedException("Xóa chẩn đoán: cập nhật lại danh sách chẩn đoán của lượt khám (diagnoses/batch)");
     }
 
     public async Task<List<DiagnosisFullDto>> UpdateDiagnosisListAsync(Guid examinationId, UpdateDiagnosisDto dto)

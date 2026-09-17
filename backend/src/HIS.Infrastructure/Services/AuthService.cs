@@ -353,13 +353,18 @@ public class AuthService : IAuthService
     private static readonly Dictionary<string, string[]> RoleCodeToEnglishRoles = new(StringComparer.OrdinalIgnoreCase)
     {
         { "ADMIN", new[] { "Admin", "Manager", "Director" } },
-        { "DOCTOR", new[] { "Doctor" } },
+        // QA-R6: the RIS / sample-receive / blood-bank gates only list the specialist aliases below, which no
+        // role emitted — the v2 pages these roles are allowed to open (Radiology.Read, LabResult.Create/Read)
+        // answered 403 on every call. Aliases follow PermissionCatalogSeeder.RoleMatrix: doctors hold
+        // Radiology.Report/Approve (per-modality RadiologyPermissions still apply); manager aliases stay admin-only.
+        // "Technician" is the RIS technician gate only — sample-receive gates use LabTech (pre-push review B1).
+        { "DOCTOR", new[] { "Doctor", "Radiologist" } },
         { "NURSE", new[] { "Nurse" } },
         { "RECEPTIONIST", new[] { "Receptionist" } },
         { "PHARMACIST", new[] { "Pharmacist", "PharmacyManager" } },
-        { "LAB_TECH", new[] { "LabTech" } },
+        { "LAB_TECH", new[] { "LabTech", "LabReceptionist", "BloodBankStaff" } },
         { "CASHIER", new[] { "Cashier", "Accountant" } },
-        { "IMAGING_TECH", new[] { "ImagingTech" } },
+        { "IMAGING_TECH", new[] { "ImagingTech", "Technician" } },
         { RoleNames.PatientAppServiceCode, new[] { RoleNames.PatientAppService } },
     };
 
