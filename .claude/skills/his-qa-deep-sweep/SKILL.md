@@ -34,7 +34,14 @@ Playbook distilled from QA round 1 (`qa-sweep-full-0915`, ~190 fixes) and round 
      accept / orphan row (blank catalog codes, zero-GUID parents) — triage per route, then delete the junk rows.
    - `anonscan.py` (round 4) — every route without a token (or as a low-privilege user with `--user`) → anything
      mutating or PHI that is not 401/403 is P0 (found `[AllowAnonymous]` dev endpoints rewriting dates).
+   - `writeauthz.py` + `permgap.py` (round 6) — every write as several low-privilege accounts (400/404 = past the
+     gate), then diff against the v2 page `permission` each call sits behind → GAP = backend wider than the UI.
+     `[Authorize(Roles=…)]` actions bypass `WritePermissionMap`; before widening a role alias in `AuthService`,
+     grep every `RoleNames.<alias>` gate.
+   - `latscan.py` (round 6) — sequential GET timings + response sizes (unbounded lists, N+1).
    Then keep only hits whose function is actually called by a v2 page (`frontend/src/modules/*/pages/`).
+   ⚠️ Write scans EXECUTE whatever accepts `{}` — keep the shared `writescan_risky.py` list, never a shorter copy,
+   and clean rows created in the scan window afterwards (round 6 fired "activate code blue" locally).
 4. **Fan out** domain agents (general-purpose) with `references/agent-brief.md`; send each the scan hits for its
    domain. Wave 1 = domains/logic; wave 2 = FE↔BE contract per core module; plus one `flow` agent replaying OPD/IPD
    exactly as v2 pages call the API, checking SQL at every hop. Forward cross-domain findings by `SendMessage`.

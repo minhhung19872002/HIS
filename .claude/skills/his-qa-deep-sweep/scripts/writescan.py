@@ -15,6 +15,7 @@ import json
 import re
 
 from _common import load_swagger, login, req
+from writescan_risky import RISKY
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--base", default="http://localhost:5107")
@@ -25,11 +26,6 @@ args = ap.parse_args()
 
 ZERO = "00000000-0000-0000-0000-000000000000"
 SKIP = ["download", "stream", "wado", "dicom", "export", "pdf", "sse", "hub", "swagger"]
-RISKY = ["seed", "populate", "dev", "reset", "purge", "wipe", "truncate", "clear", "migrat", "restart", "shutdown",
-         "backup", "restore", "rotate", "revoke", "password", "logout", "login", "2fa", "totp", "otp", "webauthn",
-         "sign", "pkcs", "send", "email", "sms", "notify", "zalo", "webhook", "ipn", "sync", "push", "hl7", "mpps",
-         "import", "upload", "print", "batch", "bulk", "delete-all", "all", "repair", "recalc", "rebuild", "reindex",
-         "cache", "merge", "split", "anonymize", "erase", "gdpr", "health", "tts", "ai", "queue", "worker", "job"]
 
 token = login(args.base)
 spec = load_swagger(args.base)
