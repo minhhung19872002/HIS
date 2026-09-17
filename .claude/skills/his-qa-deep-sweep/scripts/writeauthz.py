@@ -22,9 +22,8 @@ args = ap.parse_args()
 
 ZERO = "00000000-0000-0000-0000-000000000000"
 SKIP = ["download", "stream", "wado", "dicom", "export", "pdf", "sse", "hub", "swagger", "dev/"]
-# Same list as writescan.py — these may act even with an empty body (activate code blue, auto-archive, close EMR…).
-RISKY = BASE_RISKY + ["activate", "code-blue", "archive", "close", "acquire", "generate",
-                                              "submit", "expire", "retry", "call-next", "issue", "register", "collect", "unlock"]
+# Same list as writescan.py (shared) — these may act even with an empty body.
+RISKY = BASE_RISKY
 
 users = [u.split(":", 1) for u in args.users.split(",")]
 tokens = {u: login(args.base, u, p) for u, p in users}
