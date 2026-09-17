@@ -178,6 +178,15 @@ public partial class HospitalPharmacyService
             // cho CÙNG một đơn — phát tại quầy rồi "bán theo đơn" ở POS là trừ kho hai lần. Chặn chéo:
             // đơn đã phát / còn phiếu xuất chưa hủy thì không bán theo đơn nữa.
             var rxId = dto.PrescriptionId.Value;
+            // QA-R6: the sale's patient came from the body — a prescription sale could be booked to another patient.
+            var rxPatientId = await _context.Prescriptions
+                .Where(p => p.Id == rxId && !p.IsDeleted)
+                .Select(p => (Guid?)p.MedicalRecord.PatientId)
+                .FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException("Không tìm thấy đơn thuốc");
+            if (dto.PatientId.HasValue && dto.PatientId.Value != Guid.Empty && dto.PatientId.Value != rxPatientId)
+                throw new InvalidOperationException("Đơn thuốc không thuộc bệnh nhân này");
+            dto.PatientId = rxPatientId;
             var daPhat = await _context.Prescriptions.AnyAsync(p => p.Id == rxId && p.IsDispensed)
                 || await _context.ExportReceipts.AnyAsync(e => e.PrescriptionId == rxId && e.Status != 2 && !e.IsDeleted);
             if (daPhat)
@@ -231,6 +240,20 @@ public partial class HospitalPharmacyService
         // QA0915: dòng không có kho thì trước đây KHÔNG trừ tồn (bán xong tồn nguyên) — mà màn POS v2 và
         // bán theo đơn (dòng đơn chưa gán kho) đều không gửi kho. Rơi về nhà thuốc bệnh viện đang hoạt động,
         // rồi tới kho thuốc; không có kho nào thì từ chối bán thay vì bán "chui" ngoài sổ kho.
+        // QA-R6: a client-chosen warehouse was used as sent — a counter sale deducted a ward's emergency cabinet
+        // (Tủ trực khoa) or the supply store. Only an active medicine store / hospital pharmacy may be sold from.
+        var requestedWarehouseIds = dto.Items
+            .Where(i => i.WarehouseId.HasValue && i.WarehouseId.Value != Guid.Empty)
+            .Select(i => i.WarehouseId!.Value).Distinct().ToList();
+        if (requestedWarehouseIds.Count > 0)
+        {
+            var sellableCount = await _context.Warehouses.CountAsync(w => requestedWarehouseIds.Contains(w.Id)
+                && w.IsActive && !w.IsDeleted
+                && HIS.Core.Constants.WarehouseType.Dispensing.Contains(w.WarehouseType));
+            if (sellableCount != requestedWarehouseIds.Count)
+                throw new InvalidOperationException("Kho bán không hợp lệ — chỉ bán từ kho thuốc / nhà thuốc đang hoạt động.");
+        }
+
         Guid? defaultWarehouseId = null;
         if (dto.Items.Any(i => !i.WarehouseId.HasValue || i.WarehouseId.Value == Guid.Empty))
         {

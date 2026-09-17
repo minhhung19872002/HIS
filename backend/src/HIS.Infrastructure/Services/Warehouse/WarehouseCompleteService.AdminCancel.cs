@@ -412,6 +412,16 @@ public partial class WarehouseCompleteService {
             // đơn (về Đã duyệt) để phát lại đúng luồng; kho không cộng vì chưa từng bị trừ.
             var legacyRx = await _context.Prescriptions
                 .FirstOrDefaultAsync(p => p.Id == prescriptionId && !p.IsDeleted);
+            // QA-R6: a prescription dispensed through the ward batch ("phiếu lĩnh tổng hợp khoa") before its
+            // export receipt carried PrescriptionId also lands here — its stock WAS deducted. Resetting it
+            // reported "kho chưa bị trừ" and left the medicine gone while the order looked undispensed.
+            if (legacyRx != null && legacyRx.IsDispensed && legacyRx.DispensedAt.HasValue
+                && await _context.ExportReceipts.AnyAsync(e => !e.IsDeleted && e.Status == 1
+                    && e.ExportType == 2 && e.PrescriptionId == null
+                    && e.ToDepartmentId == legacyRx.DepartmentId && e.ReceiptDate == legacyRx.DispensedAt.Value))
+                throw new InvalidOperationException(
+                    "Đơn này được phát qua phiếu lĩnh tổng hợp của khoa (kho ĐÃ trừ) — không hủy phát tự động được. "
+                    + "Lập phiếu nhập hoàn trả khoa cho số thuốc trả lại.");
             if (legacyRx != null && legacyRx.IsDispensed)
             {
                 legacyRx.IsDispensed = false;

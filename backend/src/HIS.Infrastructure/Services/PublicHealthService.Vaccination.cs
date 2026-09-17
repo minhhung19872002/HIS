@@ -67,6 +67,7 @@ public partial class PublicHealthService
     {
         var vaccinationDate = !string.IsNullOrEmpty(dto.VaccinationDate) && DateTime.TryParse(dto.VaccinationDate, out var vd) ? vd : HIS.Core.Common.VnTime.NowVn;
         DateTime? nextDoseDate = !string.IsNullOrEmpty(dto.NextDoseDate) && DateTime.TryParse(dto.NextDoseDate, out var ndParsed) ? ndParsed : null;
+        await using var tx = await SqlAppLock.BeginAsync(_context); // QA-R6: dose check + insert under a per-patient lock
         await ImmunizationService.ValidateAdministeredDoseAsync(_context, dto.PatientId, dto.VaccineName, dto.DoseNumber, vaccinationDate, nextDoseDate);
 
         var entity = new VaccinationRecord
@@ -107,6 +108,7 @@ public partial class PublicHealthService
         }
 
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
         return MapVaccinationDto(entity);
     }
 

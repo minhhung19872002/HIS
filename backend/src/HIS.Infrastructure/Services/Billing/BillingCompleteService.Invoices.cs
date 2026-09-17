@@ -120,6 +120,7 @@ public partial class BillingCompleteService {
             .FirstOrDefaultAsync(m => m.Id == dto.MedicalRecordId && !m.IsDeleted)
             ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ bệnh án");
 
+        await using var tx = await SqlAppLock.BeginAsync(_context); // QA-R6: see InvoiceLedger.EnsureAsync
         var (invoice, set) = await InvoiceLedger.EnsureAsync(_context, dto.MedicalRecordId, userId.ToString());
 
         // Money already on the record covers the whole debt (e.g. collected at reception, legacy invoice payments)
@@ -136,6 +137,7 @@ public partial class BillingCompleteService {
                 await InvoiceLedger.MarkCoveredAsync(_context, invoice, set, lastReceipt, null, null, true, userId.ToString());
         }
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         return BuildInvoiceDto(medicalRecord, invoice, set, invoice.PaidAmount, invoice.DiscountAmount);
     }

@@ -41,7 +41,8 @@ public partial class PharmacyService : IPharmacyService
             // nên đơn cũ hơn 100 đơn gần nhất RƠI KHỎI hàng đợi vĩnh viễn — đo được: đơn cũ nhất
             // còn thấy là 29/08 trong khi có 485+ đơn chờ duyệt, tức BN chờ lâu nhất thì dược sĩ
             // không bao giờ với tới.
-            .Where(p => !p.IsDeleted && (p.Status == 0 || p.Status == 1))
+            // QA-R6: partly dispensed (6) stays in the queue until the remainder is issued — it used to vanish.
+            .Where(p => !p.IsDeleted && (p.Status == 0 || p.Status == 1 || p.Status == PrescriptionStatus.PartialDispensed))
             .OrderBy(p => p.CreatedAt)
             .Take(500)
             .Select(p => new
@@ -58,6 +59,7 @@ public partial class PharmacyService : IPharmacyService
                 status = p.Status == 0 ? "pending"
                        : p.Status == 1 ? "accepted"
                        : p.Status == 2 ? "completed"
+                       : p.Status == PrescriptionStatus.PartialDispensed ? "dispensing"
                        : "rejected",
                 priority = "normal",
                 createdDate = p.CreatedAt,
@@ -161,7 +163,10 @@ public partial class PharmacyService : IPharmacyService
             return new PharmacyDispenseResultDto { NotFound = true };
 
         // Idempotent: đã phát rồi thì KHÔNG trừ kho lần nữa.
-        if (prescription.IsDispensed)
+        // QA-R6: a partly dispensed prescription (6) also carries IsDispensed = true, so "Cấp phát" on the
+        // remainder returned 200 and moved nothing. It still owes medicine → let it through; the warehouse
+        // path issues only the missing quantity.
+        if (prescription.IsDispensed && prescription.Status != PrescriptionStatus.PartialDispensed)
             return new PharmacyDispenseResultDto();
 
         // #218/T3: chỉ đơn ĐÃ DUYỆT (hoặc đang cấp dở) mới được phát. Trước đây đơn chờ duyệt,

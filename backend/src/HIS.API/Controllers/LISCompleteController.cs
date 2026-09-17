@@ -414,7 +414,9 @@ namespace HIS.API.Controllers
         // Authorize removed for testing
         public async Task<ActionResult> ApproveLabResult([FromBody] ApproveLabResultDto dto)
         {
-            dto.ApprovedByUserId ??= GetUserId();
+            // QA-R6: `??=` let the body name the approver — a result was recorded as reviewed by another doctor.
+            // The reviewer is always the signed-in user.
+            dto.ApprovedByUserId = GetUserId();
             try
             {
                 await _lisService.ApproveLabResultAsync(dto);

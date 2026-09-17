@@ -392,6 +392,10 @@ public static class InvoiceLedger
     /// </summary>
     public static async Task<(InvoiceSummary Invoice, ChargeSet Charges)> EnsureAsync(HISDbContext db, Guid medicalRecordId, string? userId)
     {
+        // QA-R6: two parallel "lập hóa đơn" on one record both found no invoice and inserted two (same code).
+        // When the caller runs in a transaction, find-or-create is serialized per record.
+        await SqlAppLock.AcquireAsync(db, $"HIS.Billing.Invoice.{medicalRecordId:N}",
+            "Hóa đơn của hồ sơ này đang được lập ở quầy khác, vui lòng thử lại.");
         var invoice = await db.InvoiceSummaries
             .Where(i => i.MedicalRecordId == medicalRecordId && !i.IsDeleted)
             .OrderByDescending(i => i.InvoiceDate)

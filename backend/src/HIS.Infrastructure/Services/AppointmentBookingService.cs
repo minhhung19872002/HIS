@@ -373,6 +373,17 @@ public class AppointmentBookingService : IAppointmentBookingService
             }
         }
 
+        // QA-R6: the patient lookup, the "already booked today" check and the slot capacity check below were
+        // read-then-write — three parallel submits from one new phone created three Patients and three
+        // appointments in the same slot. Serialize per phone, then per doctor/department day (fixed order,
+        // so no deadlock), until the appointment is committed.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.Booking.Phone.{phone}",
+            "Số điện thoại này đang có một yêu cầu đặt lịch khác, vui lòng thử lại.");
+        await SqlAppLock.AcquireAsync(_context,
+            $"HIS.Booking.Slot.{(dto.DoctorId ?? dto.DepartmentId ?? Guid.Empty):N}.{dto.AppointmentDate:yyyyMMdd}",
+            "Khung giờ này đang được người khác đặt, vui lòng thử lại.");
+
         // Kiểm tra trùng lịch hẹn (cùng SĐT, cùng ngày).
         // Người gọi đã biết chắc hồ sơ (app hỗ trợ người bệnh, controller chỉ để lọt id khi đã xác
         // thực) thì gắn thẳng vào hồ sơ đó — dò theo SĐT sẽ gắn nhầm khi cả nhà dùng chung một số.
@@ -420,6 +431,7 @@ public class AppointmentBookingService : IAppointmentBookingService
         if (onlyExisting && existingPatient == null)
         {
             await LogAttemptAsync(phone, ip, false, null, "OnlyExistingPatient: new patient blocked");
+            if (tx != null) await tx.CommitAsync(); // keep the attempt log (only the log was written)
             return new BookingResultDto { Success = false, Message = "Hệ thống chỉ nhận đặt lịch online cho bệnh nhân đã có hồ sơ. Vui lòng đến trực tiếp bệnh viện để đăng ký lần đầu." };
         }
 
@@ -535,6 +547,7 @@ public class AppointmentBookingService : IAppointmentBookingService
         });
 
         await SaveWithQueueNumberRetryAsync(appointment);
+        if (tx != null) await tx.CommitAsync();
 
         // Lấy tên khoa/bác sĩ
         string? deptName = null, docName = null;

@@ -31,6 +31,10 @@ public partial class BillingCompleteController
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Cashier)]
     public async Task<ActionResult<CashierReportDto>> CloseCashBook([FromBody] CloseCashBookDto dto)
     {
+        // QA-R6: the till to close came from the body — any cashier could close (and freeze the totals of)
+        // a colleague's open cash book. A cashier closes their own till; only Admin may close someone else's.
+        if (!User.IsInRole(RoleNames.Admin) || dto.CashierId == Guid.Empty)
+            dto.CashierId = GetUserId();
         var result = await _billingService.CloseCashBookAsync(dto, GetUserId());
         return Ok(result);
     }

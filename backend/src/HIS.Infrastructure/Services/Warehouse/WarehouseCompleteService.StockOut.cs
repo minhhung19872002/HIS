@@ -449,6 +449,7 @@ public partial class WarehouseCompleteService {
 
     public async Task<StockIssueDto> IssueToDepartmentAsync(CreateStockIssueDto dto, Guid userId)
     {
+        NormalizeIssueDate(dto);
         var warehouse = await _context.Warehouses.FindAsync(dto.WarehouseId);
         if (warehouse == null)
             throw new KeyNotFoundException("Warehouse not found");
@@ -957,10 +958,24 @@ public partial class WarehouseCompleteService {
     }
 
     /// <summary>
+    /// QA-R6: the slip date was stored as sent while the stock left NOW — an omitted issueDate was saved as
+    /// 01/01/0001 (the slip vanished from every dated report) and a future date hid today's issue. The document
+    /// date may be earlier (entering yesterday's slip) but not missing and not in the future.
+    /// </summary>
+    private static void NormalizeIssueDate(CreateStockIssueDto dto)
+    {
+        if (dto.IssueDate == default)
+            dto.IssueDate = DateTime.Now;
+        else if (dto.IssueDate.Date > DateTime.Today)
+            throw new InvalidOperationException("Ngày xuất không được ở tương lai.");
+    }
+
+    /// <summary>
     /// Helper: tạo phiếu xuất kho theo loại (ExportType)
     /// </summary>
     private async Task<StockIssueDto> CreateStockIssueByTypeAsync(CreateStockIssueDto dto, Guid userId, int exportType, string codePrefix)
     {
+        NormalizeIssueDate(dto);
         var warehouse = await _context.Warehouses.FindAsync(dto.WarehouseId);
         if (warehouse == null)
             throw new KeyNotFoundException("Warehouse not found");

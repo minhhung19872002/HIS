@@ -141,6 +141,10 @@ public class ImmunizationService : IImmunizationService
             throw new ArgumentException("Ngày hẹn mũi tiếp không được trước ngày tiêm.");
 
         var name = vaccineName.Trim();
+        // QA-R6: three parallel saves of "mũi 1" all passed the duplicate check below (three dose-1 records).
+        // Callers open a transaction first; the lock then holds until their insert is committed.
+        await SqlAppLock.AcquireAsync(context, $"HIS.Immunization.Patient.{patientId:N}",
+            "Hồ sơ tiêm của bệnh nhân này đang được ghi ở máy khác, vui lòng thử lại.");
         var sameVaccine = await context.VaccinationRecords
             .Where(v => v.PatientId == patientId && !v.IsDeleted && v.Status == 1 && v.VaccineName == name)
             .Select(v => new { v.DoseNumber, v.VaccinationDate })
@@ -157,6 +161,7 @@ public class ImmunizationService : IImmunizationService
 
     public async Task<ImmunizationListDto> AdministerAsync(CreateImmunizationDto dto)
     {
+        await using var tx = await SqlAppLock.BeginAsync(_context); // QA-R6: see ValidateAdministeredDoseAsync
         await ValidateAdministeredDoseAsync(_context, dto.PatientId, dto.VaccineName, dto.DoseNumber, dto.VaccinationDate, dto.NextDoseDate);
         if (dto.DoseMl.HasValue && dto.DoseMl.Value <= 0)
             throw new ArgumentException("Liều (ml) phải lớn hơn 0.");
@@ -182,6 +187,7 @@ public class ImmunizationService : IImmunizationService
 
         await _context.VaccinationRecords.AddAsync(entity);
         await _unitOfWork.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         var result = await _context.VaccinationRecords
             .Include(v => v.Patient)

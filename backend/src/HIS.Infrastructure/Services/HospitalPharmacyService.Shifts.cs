@@ -56,6 +56,11 @@ public partial class HospitalPharmacyService
     {
         if (dto.OpeningCash < 0)
             throw new InvalidOperationException("Tiền đầu ca không được âm.");
+        // QA-R6: the open-shift check and the daily count were read-then-write — three parallel "Mở ca" clicks
+        // opened three shifts for one cashier, all numbered CA-yyyyMMdd-1. Serialize shift opening.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, "HIS.Pharmacy.ShiftOpen",
+            "Đang có thao tác mở ca khác, vui lòng thử lại.");
         // QA-R4: one open shift per cashier — a second "Mở ca" while the first is still open would make
         // CloseShift's sales window (StartTime → now) overlap and the cash reconcile meaningless.
         var stillOpen = await _context.PharmacyShifts
@@ -86,6 +91,7 @@ public partial class HospitalPharmacyService
         };
         _context.PharmacyShifts.Add(shift);
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         return new PharmacyShiftListDto
         {
@@ -108,6 +114,14 @@ public partial class HospitalPharmacyService
             throw new InvalidOperationException("Shift already closed");
         if (dto.ClosingCash < 0)
             throw new InvalidOperationException("Tiền cuối ca không được âm.");
+
+        // QA-R6: a double "Đóng ca" passed the check above twice; claim the close atomically.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        var claimed = await _context.PharmacyShifts
+            .Where(s => s.Id == shift.Id && s.Status != 2)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, 2));
+        if (claimed == 0)
+            throw new InvalidOperationException("Shift already closed");
 
         // Calculate totals from sales during this shift.
         // QA-R4: was every cashier's sales (the reconcile of one till included the other counters) and
@@ -133,6 +147,7 @@ public partial class HospitalPharmacyService
         shift.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         return new PharmacyShiftListDto
         {

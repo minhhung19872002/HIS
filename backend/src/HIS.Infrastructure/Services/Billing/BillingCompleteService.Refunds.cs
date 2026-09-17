@@ -116,6 +116,14 @@ public partial class BillingCompleteService {
         // refund receipt had MedicalRecordId = null and per-visit paid totals never saw the money going out.
         Guid? sourceMedicalRecordId = null;
 
+        // QA-R6: the "already refunded" sums below were read-then-write — three parallel full refunds of one
+        // 100.000đ deposit were all created (300.000đ pending payout). Serialize per refund source.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        var refundSourceId = dto.RefundType == 1 ? dto.OriginalDepositId : dto.OriginalPaymentId;
+        if (refundSourceId.HasValue)
+            await SqlAppLock.AcquireAsync(_context, $"HIS.Billing.RefundSource.{refundSourceId.Value:N}",
+                "Phiếu gốc này đang được lập phiếu hoàn ở quầy khác, vui lòng thử lại.");
+
         // Verify original payment/deposit exists and has sufficient amount
         if (dto.RefundType == 1 && dto.OriginalDepositId.HasValue)
         {
@@ -284,7 +292,7 @@ public partial class BillingCompleteService {
         var receipt = new Receipt
         {
             Id = Guid.NewGuid(),
-            ReceiptCode = $"HT{DateTime.Now:yyyyMMddHHmmssfff}",
+            ReceiptCode = await NextStampCodeAsync("HT", c => _context.Receipts.AnyAsync(r => r.ReceiptCode == c)),
             ReceiptDate = DateTime.Now,
             PatientId = dto.PatientId,
             MedicalRecordId = sourceMedicalRecordId,
@@ -340,6 +348,7 @@ public partial class BillingCompleteService {
             }
         }
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         return new RefundDto
         {
@@ -376,6 +385,10 @@ public partial class BillingCompleteService {
         // #218/T3: trước đây gán thẳng, nên phiếu đã TỪ CHỐI / đã CHI / đã HỦY vẫn duyệt lại được.
         var target = dto.IsApproved ? RefundStatus.Approved : RefundStatus.Rejected;
         RefundStatus.EnsureCanTransition(receipt.Status, target);
+        // QA-R6: two approvers clicking together both passed the check above (both 200; an approve and a
+        // reject could both "win"). Claim the transition atomically.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await ClaimRefundStatusAsync(receipt, target);
 
         if (dto.IsApproved)
         {
@@ -388,6 +401,7 @@ public partial class BillingCompleteService {
         }
 
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         return new RefundDto
         {
@@ -406,6 +420,21 @@ public partial class BillingCompleteService {
         };
     }
 
+    /// <summary>
+    /// QA-R6: move a refund receipt from the status it was READ with to <paramref name="target"/> in one
+    /// conditional UPDATE — the loser of a double-submit gets 400 instead of repeating the transition.
+    /// The tracked entity keeps the new status so the caller's SaveChanges writes the same value.
+    /// </summary>
+    private async Task ClaimRefundStatusAsync(Receipt receipt, int target)
+    {
+        var from = receipt.Status;
+        var claimed = await _context.Receipts
+            .Where(r => r.Id == receipt.Id && r.ReceiptType == 3 && r.Status == from)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.Status, target));
+        if (claimed == 0)
+            throw new InvalidOperationException("Phiếu hoàn tiền vừa được người khác xử lý — tải lại để xem trạng thái mới.");
+    }
+
     public async Task<RefundDto> ConfirmRefundAsync(ConfirmRefundDto dto, Guid userId)
     {
         var receipt = await _context.Receipts
@@ -421,6 +450,9 @@ public partial class BillingCompleteService {
         if (receipt.Status == RefundStatus.Paid)
             throw new InvalidOperationException("Phiếu hoàn tiền này đã được chi trước đó.");
         RefundStatus.EnsureCanTransition(receipt.Status, RefundStatus.Paid);
+        // QA-R6: a double "Xác nhận chi" passed the Paid check twice and ran the pay-out side effects twice.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await ClaimRefundStatusAsync(receipt, RefundStatus.Paid);
         receipt.Status = RefundStatus.Paid;
         receipt.Note = $"{receipt.Note} | Xác nhận: {dto.Notes} | Mã GD: {dto.TransactionNumber}";
         receipt.UpdatedAt = DateTime.Now;
@@ -469,6 +501,7 @@ public partial class BillingCompleteService {
                 await _context.SaveChangesAsync();
             }
         }
+        if (tx != null) await tx.CommitAsync();
 
         return new RefundDto
         {

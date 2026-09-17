@@ -21,9 +21,13 @@ public partial class BillingCompleteService {
     {
         try
         {
+            // QA-R6: `<= ToDate` against a date-only ToDate dropped the last day, and `Status == 1` counted
+            // pending refund slips as collected. Same period + cash rule as the daily/department reports.
+            var toExclusive = ReportPeriod.EndExclusive(dto.ToDate);
             var receiptsQuery = _context.Receipts
                 .Include(r => r.MedicalRecord)
-                .Where(r => r.ReceiptDate >= dto.FromDate && r.ReceiptDate <= dto.ToDate && r.Status == 1);
+                .Where(r => r.ReceiptDate >= dto.FromDate && r.ReceiptDate < toExclusive && !r.IsDeleted)
+                .Where(ReportPeriod.CashReceipt);
 
             if (dto.DepartmentId.HasValue)
                 receiptsQuery = receiptsQuery.Where(r => r.MedicalRecord != null && r.MedicalRecord.DepartmentId == dto.DepartmentId);
@@ -31,11 +35,11 @@ public partial class BillingCompleteService {
             var receipts = await receiptsQuery.ToListAsync();
 
             var serviceRequests = await _context.ServiceRequests
-                .Where(sr => sr.RequestDate >= dto.FromDate && sr.RequestDate <= dto.ToDate && sr.Status != 4)
+                .Where(sr => sr.RequestDate >= dto.FromDate && sr.RequestDate < toExclusive && sr.Status != 4)
                 .ToListAsync();
 
             var deposits = await _context.Deposits
-                .Where(d => d.ReceiptDate >= dto.FromDate && d.ReceiptDate <= dto.ToDate)
+                .Where(d => d.ReceiptDate >= dto.FromDate && d.ReceiptDate < toExclusive)
                 .ToListAsync();
 
             var outpatientReceipts = receipts.Where(r => r.MedicalRecord?.TreatmentType == 1).ToList();
@@ -136,10 +140,11 @@ public partial class BillingCompleteService {
     {
         try
         {
+            var toExclusive = ReportPeriod.EndExclusive(dto.ToDate); // QA-R6: last day was dropped
             var query = _context.Receipts
                 .Include(r => r.MedicalRecord).ThenInclude(mr => mr!.Department)
                 .Include(r => r.Details)
-                .Where(r => r.ReceiptDate >= dto.FromDate && r.ReceiptDate <= dto.ToDate && !r.IsDeleted
+                .Where(r => r.ReceiptDate >= dto.FromDate && r.ReceiptDate < toExclusive && !r.IsDeleted
                     && r.MedicalRecord != null && r.MedicalRecord.DepartmentId != null)
                 .Where(ReportPeriod.CashReceipt); // QA-R4: the one shared revenue rule, same as the daily report
 
@@ -441,6 +446,12 @@ public partial class BillingCompleteService {
             throw new InvalidOperationException(
                 "Chỉ định này đã được đảo bút toán (hoặc đã hủy) trước đó — không đảo lại lần nữa. "
                 + "Xem lịch sử đảo bút toán của hồ sơ để đối chiếu.");
+
+        // QA-R6: the audit row used the client's medicalRecordId — a reversal of record A's service could be
+        // filed under record B's reversal history. The service request's own record is the truth.
+        if (dto.MedicalRecordId != Guid.Empty && dto.MedicalRecordId != serviceRequest.MedicalRecordId)
+            throw new InvalidOperationException("Chỉ định dịch vụ không thuộc hồ sơ bệnh án này");
+        dto.MedicalRecordId = serviceRequest.MedicalRecordId;
 
         var serviceName = await _context.Services
             .Where(s => s.Id == serviceRequest.ServiceId)

@@ -483,10 +483,40 @@ public partial class WarehouseCompleteService {
         foreach (var detail in receipt.Details)
         {
             stockByKey.TryGetValue((detail.MedicineId, detail.BatchNumber), out var existingStock);
+            // Pre-push review: deliveries without a batch number all share the key (medicine, ""); a different
+            // expiry there is a new lot, not a data-entry error — give it its own stock row.
+            if (existingStock != null && string.IsNullOrWhiteSpace(detail.BatchNumber) && existingStock.Quantity > 0
+                && detail.ExpiryDate.HasValue && existingStock.ExpiryDate.HasValue
+                && detail.ExpiryDate.Value.Date != existingStock.ExpiryDate.Value.Date)
+                existingStock = null;
 
             if (existingStock != null)
             {
-                existingStock.Quantity += detail.Quantity;
+                // QA-R6: the lot key is (medicine, batch) — a line with the same batch but another expiry was
+                // folded into the old lot and its real expiry was lost (measured: HSD 2028 → shown 2026).
+                // An empty lot row is just re-used for the new delivery.
+                if (existingStock.Quantity <= 0 && detail.ExpiryDate.HasValue)
+                {
+                    existingStock.ExpiryDate = detail.ExpiryDate;
+                    existingStock.ManufactureDate = detail.ManufactureDate ?? existingStock.ManufactureDate;
+                }
+                else if (detail.ExpiryDate.HasValue && existingStock.ExpiryDate.HasValue
+                    && detail.ExpiryDate.Value.Date != existingStock.ExpiryDate.Value.Date)
+                    throw new InvalidOperationException(
+                        $"Lô {detail.BatchNumber ?? "(không số lô)"} đã có trong kho với hạn dùng {existingStock.ExpiryDate:dd/MM/yyyy}, "
+                        + $"khác hạn dùng trên phiếu ({detail.ExpiryDate:dd/MM/yyyy}) — kiểm tra lại số lô / hạn dùng.");
+                existingStock.ExpiryDate ??= detail.ExpiryDate;
+                // ... and at another price it kept the old price, so stock value drifted from what was paid
+                // (10 × 900 booked at 1000). Carry the lot at the weighted average cost.
+                var newQty = existingStock.Quantity + detail.Quantity;
+                if (newQty > 0 && detail.UnitPrice != existingStock.ImportPrice)
+                {
+                    var avg = Math.Round((existingStock.Quantity * existingStock.ImportPrice + detail.Quantity * detail.UnitPrice) / newQty, 4);
+                    if (existingStock.UnitPrice == existingStock.ImportPrice)
+                        existingStock.UnitPrice = avg;
+                    existingStock.ImportPrice = avg;
+                }
+                existingStock.Quantity = newQty;
             }
             else
             {
@@ -543,10 +573,18 @@ public partial class WarehouseCompleteService {
             throw new KeyNotFoundException("Stock receipt not found");
         if (receipt.Status == 2)
             throw new InvalidOperationException("Phiếu nhập đã bị hủy trước đó.");
+        // QA-R6: the auto receipt of a warehouse transfer could be cancelled on its own — the target lot went
+        // down while the source issue stayed "Đã xuất" (measured: 20 units vanished). It follows its issue.
+        if (receipt.ImportType == 3 && receipt.Note != null && receipt.Note.StartsWith("[CK:"))
+            throw new InvalidOperationException(
+                "Đây là phiếu nhận tự động của một phiếu chuyển kho — không hủy riêng được (phiếu xuất chuyển kho gốc vẫn đang hiệu lực).");
 
         // If already approved, reverse inventory
         if (receipt.Status == 1)
         {
+            // QA-R6: taking an approved receipt back takes stock OUT — it went through on a locked warehouse
+            // (measured: TT_NOI locked for stock-take, lot 4 → 0).
+            await EnsureWarehouseNotLockedAsync(receipt.WarehouseId);
             // #195: nạp 1 lần các dòng tồn cần trừ lại thay vì 1 query/dòng phiếu.
             var reverseMedicineIds = receipt.Details.Select(d => d.MedicineId).Distinct().ToList();
             var reverseBatches = receipt.Details.Select(d => d.BatchNumber).Distinct().ToList();
@@ -758,20 +796,33 @@ public partial class WarehouseCompleteService {
                 .Select(s => new { s.Id, s.SupplierCode, s.SupplierName })
                 .ToListAsync();
 
+            // QA-R6: goods sent back to the supplier ("Xuất trả NCC", ExportType 5) never reduced the payable —
+            // measured: returned 10 × 1,000 and the debt stayed 173,000.
+            var returnsBySupplier = await _context.ExportReceipts
+                .Where(e => !e.IsDeleted && e.ExportType == 5 && e.Status == 1 && e.SupplierId != null
+                    && (!supplierId.HasValue || e.SupplierId == supplierId.Value))
+                .GroupBy(e => e.SupplierId!.Value)
+                .Select(g => new { SupplierId = g.Key, Amount = g.Sum(e => e.TotalAmount) })
+                .ToDictionaryAsync(x => x.SupplierId, x => x.Amount);
+            var returnsApplied = new HashSet<Guid>();
+
             return receipts
                 .GroupBy(r => r.SupplierCode!)
                 .Select(g =>
                 {
                     var sup = supplierMap.FirstOrDefault(s => s.SupplierCode == g.Key || s.Id.ToString() == g.Key);
                     var total = g.Sum(x => x.FinalAmount);
+                    // A supplier can own two groups (GUID text + catalog code) — subtract its returns once.
+                    var returned = sup != null && returnsApplied.Add(sup.Id)
+                        && returnsBySupplier.TryGetValue(sup.Id, out var ret) ? ret : 0m;
                     return new SupplierPayableDto
                     {
                         SupplierId = sup?.Id ?? Guid.Empty,
                         SupplierCode = g.Key,
                         SupplierName = sup?.SupplierName ?? g.First().SupplierName ?? "",
-                        TotalReceiptAmount = total,
+                        TotalReceiptAmount = total - returned,
                         PaidAmount = 0,
-                        RemainingAmount = total,
+                        RemainingAmount = total - returned,
                         Invoices = new List<PayableInvoiceDto>(),
                     };
                 })

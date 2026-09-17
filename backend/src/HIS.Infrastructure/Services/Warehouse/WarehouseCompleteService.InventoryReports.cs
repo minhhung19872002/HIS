@@ -59,7 +59,10 @@ public partial class WarehouseCompleteService {
                 && d.ExportReceipt.WarehouseId == warehouseId && d.ExportReceipt.Status == 1
                 && d.ExportReceipt.ReceiptDate >= from
                 && (itemId == null || d.MedicineId == itemId || d.SupplyId == itemId))
-            .Select(d => new { d.ExportReceipt.ReceiptDate, d.ExportReceipt.ReceiptCode, d.ExportReceipt.ExportType, d.MedicineId, d.SupplyId, d.Quantity, d.UnitPrice, d.ExportReceipt.Note })
+            // QA-R6: value an issue at the COST of the lot it left (patient dispensing stores the selling price on the
+            // line — measured: NXT closing value 12,500 for 25 units that cost 1,000 each).
+            .Select(d => new { d.ExportReceipt.ReceiptDate, d.ExportReceipt.ReceiptCode, d.ExportReceipt.ExportType, d.MedicineId, d.SupplyId, d.Quantity,
+                UnitPrice = d.InventoryItem != null ? d.InventoryItem.ImportPrice : d.UnitPrice, d.ExportReceipt.Note })
             .ToListAsync();
 
         // RetailSale.CreatedAt is UTC while receipt dates are local (UTC+7).
@@ -69,8 +72,18 @@ public partial class WarehouseCompleteService {
                 && i.RetailSale != null && !i.RetailSale.IsDeleted && i.RetailSale.Status == "Completed"
                 && i.RetailSale.CreatedAt >= fromUtc
                 && (itemId == null || i.MedicineId == itemId))
-            .Select(i => new { i.RetailSale!.CreatedAt, i.RetailSale.SaleCode, i.MedicineId, i.Quantity, i.UnitPrice })
+            .Select(i => new { i.RetailSale!.CreatedAt, i.RetailSale.SaleCode, i.MedicineId, i.Quantity, i.UnitPrice, i.BatchNumber })
             .ToListAsync();
+        // Retail lines carry the selling price; value them at the lot cost (same warehouse + medicine + batch).
+        var saleMedicineIds = sales.Select(s => s.MedicineId).Distinct().ToList();
+        var lotCost = saleMedicineIds.Count == 0
+            ? new Dictionary<(Guid, string?), decimal>()
+            : (await _context.InventoryItems.AsNoTracking()
+                    .Where(i => i.WarehouseId == warehouseId && i.MedicineId != null && saleMedicineIds.Contains(i.MedicineId.Value))
+                    .Select(i => new { MedicineId = i.MedicineId!.Value, i.BatchNumber, i.ImportPrice })
+                    .ToListAsync())
+                .GroupBy(i => (i.MedicineId, i.BatchNumber))
+                .ToDictionary(g => g.Key, g => g.Max(x => x.ImportPrice));
 
         var lines = new List<StockDocLine>(imports.Count + exports.Count + sales.Count);
         lines.AddRange(imports.Where(x => x.MedicineId.HasValue || x.SupplyId.HasValue).Select(x => new StockDocLine(
@@ -80,7 +93,8 @@ public partial class WarehouseCompleteService {
             x.ReceiptDate, x.ReceiptCode, (x.MedicineId ?? x.SupplyId)!.Value, !x.MedicineId.HasValue,
             ExportTypeLabel(x.ExportType), 0, x.Quantity, x.UnitPrice, x.Note)));
         lines.AddRange(sales.Select(x => new StockDocLine(
-            x.CreatedAt.AddHours(7), x.SaleCode, x.MedicineId, false, "Ban le", 0, x.Quantity, x.UnitPrice, null)));
+            x.CreatedAt.AddHours(7), x.SaleCode, x.MedicineId, false, "Ban le", 0, x.Quantity,
+            lotCost.TryGetValue((x.MedicineId, x.BatchNumber), out var cost) ? cost : x.UnitPrice, null)));
         return lines.OrderBy(l => l.Date).ThenBy(l => l.DocumentCode).ToList();
     }
 
@@ -198,7 +212,8 @@ public partial class WarehouseCompleteService {
         var stockByItem = lots.GroupBy(l => l.ItemId).ToDictionary(g => g.Key, g => new
         {
             Quantity = g.Sum(x => x.Quantity),
-            Price = g.Where(x => x.Quantity > 0).Select(x => x.ImportPrice).DefaultIfEmpty(g.Average(x => x.ImportPrice)).Average()
+            Price = g.Where(x => x.Quantity > 0).Select(x => x.ImportPrice).DefaultIfEmpty(g.Average(x => x.ImportPrice)).Average(),
+            Value = g.Sum(x => x.Quantity * x.ImportPrice)
         });
 
         var lines = (await LoadStockDocLinesAsync(warehouseId, null, from))
@@ -228,9 +243,14 @@ public partial class WarehouseCompleteService {
             var issued = period.Sum(l => l.Issued);
             if (opening == 0 && received == 0 && issued == 0) continue;
 
-            var price = stock?.Price ?? period.Select(l => l.UnitPrice).DefaultIfEmpty(0).Average();
             var receivedValue = period.Sum(l => l.Received * l.UnitPrice);
             var issuedValue = period.Sum(l => l.Issued * l.UnitPrice);
+            // QA-R6: values are anchored to the real stock value exactly like quantities are anchored to the real
+            // stock: closing = Σ lot qty × cost now − net movement after the period; opening = closing − in + out.
+            // (Was opening × average price + in − out, which never matched qty × cost of the lots on hand.)
+            var closingValue = (stock?.Value ?? 0)
+                - itemLines.Where(l => l.Date >= toExclusive).Sum(l => (l.Received - l.Issued) * l.UnitPrice);
+            var openingValue = closingValue - receivedValue + issuedValue;
             medicines.TryGetValue(id, out var med);
             supplies.TryGetValue(id, out var sup);
 
@@ -241,13 +261,13 @@ public partial class WarehouseCompleteService {
                 ItemName = med?.MedicineName ?? sup?.SupplyName ?? string.Empty,
                 Unit = med?.Unit ?? sup?.Unit ?? string.Empty,
                 OpeningQuantity = opening,
-                OpeningValue = opening * price,
+                OpeningValue = openingValue,
                 TotalReceived = received,
                 TotalReceivedValue = receivedValue,
                 TotalIssued = issued,
                 TotalIssuedValue = issuedValue,
                 ClosingQuantity = opening + received - issued,
-                ClosingValue = opening * price + receivedValue - issuedValue,
+                ClosingValue = closingValue,
             });
         }
 

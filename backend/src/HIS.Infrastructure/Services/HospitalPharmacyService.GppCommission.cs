@@ -171,8 +171,20 @@ public partial class HospitalPharmacyService
         if (dto.SaleId == Guid.Empty) dto.SaleId = null;
         if (dto.DoctorId.HasValue && !await _context.Users.AnyAsync(u => u.Id == dto.DoctorId.Value))
             throw new KeyNotFoundException("Không tìm thấy bác sĩ hưởng hoa hồng.");
-        if (dto.SaleId.HasValue && !await _context.RetailSales.AnyAsync(s => s.Id == dto.SaleId.Value && !s.IsDeleted))
-            throw new KeyNotFoundException("Không tìm thấy phiếu bán lẻ của hoa hồng.");
+        if (dto.SaleId.HasValue)
+        {
+            var linkedSale = await _context.RetailSales
+                .Where(s => s.Id == dto.SaleId.Value && !s.IsDeleted)
+                .Select(s => new { s.Status, s.PaidAmount })
+                .FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException("Không tìm thấy phiếu bán lẻ của hoa hồng.");
+            // QA-R6 (MONEY): the commission base was whatever the client typed — 1 box sold for 50.000đ earned
+            // commission on any amount, and a cancelled sale still paid commission.
+            if (linkedSale.Status != "Completed")
+                throw new InvalidOperationException("Phiếu bán đã hủy — không tính hoa hồng.");
+            if (dto.SaleAmount > linkedSale.PaidAmount)
+                throw new ArgumentException($"Tiền bán ({dto.SaleAmount:N0}đ) vượt quá số thực thu của phiếu bán ({linkedSale.PaidAmount:N0}đ).", nameof(dto.SaleAmount));
+        }
 
         PharmacyCommission commission;
         if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)

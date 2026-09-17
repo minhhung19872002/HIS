@@ -319,7 +319,8 @@ public partial class ReceptionCompleteService {
             .Where(m =>
                 m.MedicalRecordCode.Contains(kw, StringComparison.OrdinalIgnoreCase)
                 || (m.Patient?.PatientCode?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
-                || (m.Patient?.FullName?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
+                // QA-R6: accent-insensitive (#403) — "duc" finds "Đức" now that the match runs in memory.
+                || HIS.Core.Common.VnSearchText.Contains(m.Patient?.FullName, kw)
                 || (m.Patient?.IdentityNumber?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
                 || (m.Patient?.InsuranceNumber?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
                 || (m.Patient?.PhoneNumber?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false))
@@ -346,7 +347,12 @@ public partial class ReceptionCompleteService {
 
     #region 1.2 Queue System
 
-    public async Task<QueueTicketDto> IssueQueueTicketAsync(IssueQueueTicketDto dto)
+    // QA-R6: a standalone ticket issue ran outside WithRegistrationLockAsync, so the lock below was a no-op
+    // and 10 parallel issues for one room all got A001. Inside a registration the wrapper just runs the body.
+    public Task<QueueTicketDto> IssueQueueTicketAsync(IssueQueueTicketDto dto)
+        => WithRegistrationLockAsync(() => IssueQueueTicketCoreAsync(dto));
+
+    private async Task<QueueTicketDto> IssueQueueTicketCoreAsync(IssueQueueTicketDto dto)
     {
         var today = HIS.Core.Common.VnTime.TodayVn; // Local VN date — dùng cho reset daily
         var (iqFromUtc, iqToUtc) = HIS.Core.Common.VnTime.DayRangeVn(today); // IssueDate = VN local
@@ -626,7 +632,16 @@ public partial class ReceptionCompleteService {
         return age < 0 ? null : age;
     }
 
-    public async Task<QueueTicketDto?> CallNextAsync(Guid roomId, int queueType, Guid userId)
+    // QA-R6: two counters pressing "gọi số tiếp" together both read the same waiting ticket and called it.
+    // Serialize the read-then-claim (and the appointment record it may create) under the registration lock.
+    public Task<QueueTicketDto?> CallNextAsync(Guid roomId, int queueType, Guid userId)
+        => WithRegistrationLockAsync(async () =>
+        {
+            await EnsureRegistrationLockAsync();
+            return await CallNextCoreAsync(roomId, queueType, userId);
+        });
+
+    private async Task<QueueTicketDto?> CallNextCoreAsync(Guid roomId, int queueType, Guid userId)
     {
         var (cnFromUtc, cnToUtc) = HIS.Core.Common.VnTime.DayRangeVn(HIS.Core.Common.VnTime.TodayVn);
 
@@ -653,7 +668,14 @@ public partial class ReceptionCompleteService {
         return await GetQueueTicketByIdAsync(nextTicket.Id);
     }
 
-    public async Task<QueueTicketDto> CallSpecificAsync(Guid ticketId, Guid userId)
+    public Task<QueueTicketDto> CallSpecificAsync(Guid ticketId, Guid userId)
+        => WithRegistrationLockAsync(async () =>
+        {
+            await EnsureRegistrationLockAsync();
+            return await CallSpecificCoreAsync(ticketId, userId);
+        });
+
+    private async Task<QueueTicketDto> CallSpecificCoreAsync(Guid ticketId, Guid userId)
     {
         var ticket = await _context.QueueTickets.FindAsync(ticketId);
         if (ticket == null) throw new KeyNotFoundException("Ticket not found");

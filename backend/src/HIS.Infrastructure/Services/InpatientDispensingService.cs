@@ -80,6 +80,7 @@ public class InpatientDispensingService : IInpatientDispensingService
 
         var prescriptions = await _db.Prescriptions
             .Include(p => p.Details).ThenInclude(d => d.Medicine)
+            .Include(p => p.MedicalRecord)
             .Where(p => dto.PrescriptionIds.Contains(p.Id)
                 && p.PrescriptionType == 2
                 && !p.IsDispensed
@@ -95,91 +96,103 @@ public class InpatientDispensingService : IInpatientDispensingService
             return ServiceOutcome.Bad("Không có đơn thuốc hợp lệ");
 
         var now = DateTime.Now;
+        var receiptCode = $"XKN{now:yyyyMMddHHmmss}";
+        var batchNote = $"Lĩnh tổng hợp {prescriptions.Count} đơn nội trú khoa {department.DepartmentName}. {dto.Note ?? string.Empty}";
 
-        var export = new ExportReceipt
-        {
-            Id = Guid.NewGuid(),
-            ReceiptCode = $"XKN{now:yyyyMMddHHmmss}",
-            ReceiptDate = now,
-            WarehouseId = dto.WarehouseId,
-            ExportType = 2,
-            ToDepartmentId = dto.DepartmentId,
-            PrescriptionId = null,
-            TotalAmount = 0,
-            Status = 1,
-            Note = $"Lĩnh tổng hợp {prescriptions.Count} đơn nội trú khoa {department.DepartmentName}. {dto.Note ?? string.Empty}",
-            CreatedAt = now,
-            CreatedBy = userId.ToString(),
-        };
-
-        decimal total = 0;
-        var byMedicine = prescriptions
-            .SelectMany(p => p.Details.Where(d => !d.IsDeleted && d.Status == 0).Select(d => new { Prescription = p, Detail = d }))
-            .GroupBy(x => x.Detail.MedicineId);
-
-        foreach (var grp in byMedicine)
-        {
-            var medicineId = grp.Key;
-            var totalQty = grp.Sum(x => x.Detail.Quantity);
-            var unit = grp.First().Detail.Unit;
-            var unitPrice = grp.First().Detail.UnitPrice;
-            var medicine = grp.First().Detail.Medicine;
-
-            var remainingQty = totalQty;
-            // QA0915: trước đây không lọc hạn dùng / lô khóa / lô xóa → phiếu lĩnh nội trú lấy cả lô HẾT HẠN
-            // và lô đang thu hồi (nhánh phát ngoại trú đã lọc từ lâu).
-            var stocks = await _db.InventoryItems
-                .Where(i => i.WarehouseId == dto.WarehouseId && i.MedicineId == medicineId
+        // QA-R6: the batch used to write ONE export receipt with PrescriptionId/MedicalRecordId = null, so
+        // "hủy phát" of any of its prescriptions found no receipt (reset the order, stock never returned) and the
+        // inpatient reconciliation saw nothing dispensed. One receipt per prescription (same code, same time)
+        // keeps each order traceable; ReceiptAsync prints them together as the ward's summary slip.
+        var medicineIds = prescriptions.SelectMany(p => p.Details).Select(d => d.MedicineId).Distinct().ToList();
+        // QA0915: trước đây không lọc hạn dùng / lô khóa / lô xóa → phiếu lĩnh nội trú lấy cả lô HẾT HẠN
+        // và lô đang thu hồi (nhánh phát ngoại trú đã lọc từ lâu).
+        var lotsByMedicine = (await _db.InventoryItems
+                .Where(i => i.WarehouseId == dto.WarehouseId && i.MedicineId != null && medicineIds.Contains(i.MedicineId.Value)
                     && (i.Quantity - i.ReservedQuantity) > 0
                     && i.ExpiryDate >= DateTime.Today
                     && !i.IsLocked && !i.IsDeleted)
-                .OrderBy(i => i.ExpiryDate)
-                .ToListAsync();
+                .ToListAsync())
+            .OrderBy(i => i.ExpiryDate).ThenBy(i => i.Id)
+            .GroupBy(i => i.MedicineId!.Value)
+            .ToDictionary(g => g.Key, g => g.ToList());
 
-            foreach (var stock in stocks)
+        // Stock check per medicine over the whole batch before touching anything.
+        foreach (var grp in prescriptions
+            .SelectMany(p => p.Details.Where(d => !d.IsDeleted && d.Status == 0))
+            .GroupBy(d => d.MedicineId))
+        {
+            var needed = grp.Sum(d => d.Quantity);
+            var available = lotsByMedicine.TryGetValue(grp.Key, out var lots) ? lots.Sum(l => l.Quantity - l.ReservedQuantity) : 0;
+            if (available < needed)
             {
-                if (remainingQty <= 0) break;
-                var available = stock.Quantity - stock.ReservedQuantity;
-                var take = Math.Min(remainingQty, available);
-                if (take <= 0) continue;
-
-                stock.Quantity -= take;
-                remainingQty -= take;
-
-                var amount = take * unitPrice;
-                total += amount;
-
-                _db.ExportReceiptDetails.Add(new ExportReceiptDetail
-                {
-                    Id = Guid.NewGuid(),
-                    ExportReceiptId = export.Id,
-                    MedicineId = medicineId,
-                    InventoryItemId = stock.Id,
-                    BatchNumber = stock.BatchNumber,
-                    ExpiryDate = stock.ExpiryDate,
-                    Quantity = take,
-                    Unit = unit,
-                    UnitPrice = unitPrice,
-                    Amount = amount,
-                    CreatedAt = now,
-                    CreatedBy = userId.ToString(),
-                });
-            }
-
-            if (remainingQty > 0)
-            {
-                return ServiceOutcome.Bad($"Không đủ tồn cho {medicine?.MedicineName ?? medicineId.ToString()}. Thiếu {remainingQty} {unit}.");
-            }
-
-            foreach (var x in grp)
-            {
-                x.Detail.DispensedQuantity = x.Detail.Quantity;
-                x.Detail.Status = 1;
+                var first = grp.First();
+                return ServiceOutcome.Bad($"Không đủ tồn cho {first.Medicine?.MedicineName ?? grp.Key.ToString()}. Thiếu {needed - available} {first.Unit}.");
             }
         }
 
-        export.TotalAmount = total;
-        _db.ExportReceipts.Add(export);
+        decimal total = 0;
+        ExportReceipt? firstExport = null;
+        foreach (var p in prescriptions)
+        {
+            var export = new ExportReceipt
+            {
+                Id = Guid.NewGuid(),
+                ReceiptCode = receiptCode,
+                ReceiptDate = now,
+                WarehouseId = dto.WarehouseId,
+                ExportType = 2,
+                ToDepartmentId = dto.DepartmentId,
+                PrescriptionId = p.Id,
+                MedicalRecordId = p.MedicalRecordId,
+                PatientId = p.MedicalRecord?.PatientId,
+                TotalAmount = 0,
+                Status = 1,
+                Note = batchNote,
+                CreatedAt = now,
+                CreatedBy = userId.ToString(),
+            };
+            firstExport ??= export;
+
+            foreach (var detail in p.Details.Where(d => !d.IsDeleted && d.Status == 0))
+            {
+                var remainingQty = detail.Quantity;
+                foreach (var stock in lotsByMedicine[detail.MedicineId])
+                {
+                    if (remainingQty <= 0) break;
+                    var take = Math.Min(remainingQty, stock.Quantity - stock.ReservedQuantity);
+                    if (take <= 0) continue;
+
+                    stock.Quantity -= take;
+                    remainingQty -= take;
+
+                    var amount = take * detail.UnitPrice;
+                    export.TotalAmount += amount;
+
+                    _db.ExportReceiptDetails.Add(new ExportReceiptDetail
+                    {
+                        Id = Guid.NewGuid(),
+                        ExportReceiptId = export.Id,
+                        MedicineId = detail.MedicineId,
+                        InventoryItemId = stock.Id,
+                        BatchNumber = stock.BatchNumber,
+                        ExpiryDate = stock.ExpiryDate,
+                        Quantity = take,
+                        Unit = detail.Unit,
+                        UnitPrice = detail.UnitPrice,
+                        Amount = amount,
+                        CreatedAt = now,
+                        CreatedBy = userId.ToString(),
+                    });
+                }
+
+                detail.DispensedQuantity = detail.Quantity;
+                detail.Status = 1;
+            }
+
+            total += export.TotalAmount;
+            _db.ExportReceipts.Add(export);
+        }
+        var exportId = firstExport!.Id;
 
         foreach (var p in prescriptions)
         {
@@ -207,9 +220,9 @@ public class InpatientDispensingService : IInpatientDispensingService
 
         return ServiceOutcome.Ok(new
         {
-            exportReceiptId = export.Id,
-            receiptCode = export.ReceiptCode,
-            totalAmount = export.TotalAmount,
+            exportReceiptId = exportId,
+            receiptCode,
+            totalAmount = total,
             prescriptionCount = prescriptions.Count,
         });
     }
@@ -227,6 +240,17 @@ public class InpatientDispensingService : IInpatientDispensingService
             ? await _db.Departments.FindAsync(r.ToDepartmentId.Value)
             : null;
 
+        // QA-R6: a ward batch is one receipt per prescription sharing code + time — print them as one slip.
+        var slip = r.ExportType == 2 && r.ToDepartmentId.HasValue
+            ? await _db.ExportReceipts
+                .Include(x => x.Details).ThenInclude(d => d.Medicine)
+                .Where(x => !x.IsDeleted && x.ExportType == 2 && x.ReceiptCode == r.ReceiptCode
+                    && x.ReceiptDate == r.ReceiptDate && x.WarehouseId == r.WarehouseId
+                    && x.ToDepartmentId == r.ToDepartmentId)
+                .ToListAsync()
+            : new List<ExportReceipt> { r };
+        if (slip.Count == 0) slip.Add(r);
+
         return ServiceOutcome.Ok(new
         {
             r.Id,
@@ -234,9 +258,9 @@ public class InpatientDispensingService : IInpatientDispensingService
             r.ReceiptDate,
             WarehouseName = r.Warehouse?.WarehouseName,
             DepartmentName = dept?.DepartmentName,
-            r.TotalAmount,
+            TotalAmount = slip.Sum(x => x.TotalAmount),
             r.Note,
-            items = r.Details.Select(d => new
+            items = slip.SelectMany(x => x.Details).Select(d => new
             {
                 d.Id,
                 MedicineName = d.Medicine != null ? d.Medicine.MedicineName : string.Empty,

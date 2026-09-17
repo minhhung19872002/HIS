@@ -51,10 +51,34 @@ public partial class BillingCompleteService {
             dto.MedicalRecordId = null; // Guid.Empty would violate the FK
         }
 
+        // QA-R6: a double-click on "Thu tạm ứng" booked the cash twice (two deposits, same receipt number,
+        // both refundable). Same 30s idempotency rule as CreatePaymentAsync, made race-safe by a per-patient
+        // lock held until the deposit is committed.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.Billing.Collect.{dto.PatientId:N}",
+            "Bệnh nhân này đang được thu tiền ở quầy khác, vui lòng thử lại.");
+        var dupWindow = HIS.Core.Common.VnTime.NowVn.AddSeconds(-30);
+        var duplicate = await _context.Deposits
+            .Where(d => d.PatientId == dto.PatientId && d.MedicalRecordId == dto.MedicalRecordId
+                && d.ReceivedByUserId == userId && d.Amount == dto.Amount && d.PaymentMethod == dto.PaymentMethod
+                && d.Status != DepositStatus.Cancelled && !d.IsDeleted && d.ReceiptDate >= dupWindow)
+            .OrderByDescending(d => d.ReceiptDate)
+            .FirstOrDefaultAsync();
+        if (duplicate != null)
+            return new DepositDto
+            {
+                Id = duplicate.Id, ReceiptCode = duplicate.ReceiptNumber, PatientId = dto.PatientId,
+                PatientCode = patient.PatientCode, PatientName = patient.FullName, Amount = duplicate.Amount,
+                UsedAmount = duplicate.UsedAmount, RemainingAmount = duplicate.RemainingAmount,
+                PaymentMethod = duplicate.PaymentMethod, PaymentMethodName = GetPaymentMethodName(duplicate.PaymentMethod),
+                Status = duplicate.Status, StatusName = DepositStatus.Label(duplicate.Status), Notes = duplicate.Notes,
+                CreatedAt = duplicate.CreatedAt, ConfirmedAt = duplicate.CreatedAt
+            };
+
         var deposit = new Deposit
         {
             Id = Guid.NewGuid(),
-            ReceiptNumber = $"TU{DateTime.Now:yyyyMMddHHmmssfff}",
+            ReceiptNumber = await NextStampCodeAsync("TU", c => _context.Deposits.AnyAsync(d => d.ReceiptNumber == c)),
             ReceiptDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local (query via VnTime.DayRangeVn)
             PatientId = dto.PatientId,
             MedicalRecordId = dto.MedicalRecordId,
@@ -71,6 +95,7 @@ public partial class BillingCompleteService {
 
         _context.Deposits.Add(deposit);
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         return new DepositDto
         {
@@ -221,11 +246,22 @@ public partial class BillingCompleteService {
                 $"Đợt nộp {batch.ReceiptCode} đã được tiếp nhận lúc {batch.ReceivedAt:dd/MM/yyyy HH:mm}.");
 
         var now = DateTime.Now;
+        // QA-R6: two cashiers pressing "Tiếp nhận" together both passed the check above and both answered
+        // 200 (the later one silently became the receiver). Claim the batch atomically.
+        var claimed = await _context.DepartmentDepositBatches
+            .Where(b => b.Id == batch.Id && b.ReceivedAt == null)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(b => b.ReceivedById, userId)
+                .SetProperty(b => b.ReceivedAt, now)
+                .SetProperty(b => b.UpdatedAt, now)
+                .SetProperty(b => b.UpdatedBy, userId.ToString()));
+        if (claimed == 0)
+            throw new InvalidOperationException($"Đợt nộp {batch.ReceiptCode} vừa được tiếp nhận bởi người khác.");
         batch.ReceivedById = userId;
         batch.ReceivedAt = now;
         batch.UpdatedAt = now;
         batch.UpdatedBy = userId.ToString();
-        await _context.SaveChangesAsync();
+        _context.Entry(batch).State = EntityState.Unchanged; // already written by the claim above
 
         var department = await _context.Departments.FindAsync(batch.DepartmentId);
         var submitter = batch.SubmittedById.HasValue
@@ -351,10 +387,11 @@ public partial class BillingCompleteService {
             deposit.Status = 3; // Đã sử dụng hết
 
         // Create payment receipt
+        await using var codeTx = await SqlAppLock.BeginAsync(_context);
         var receipt = new Receipt
         {
             Id = Guid.NewGuid(),
-            ReceiptCode = $"PT{DateTime.Now:yyyyMMddHHmmssfff}",
+            ReceiptCode = await NextStampCodeAsync("PT", c => _context.Receipts.AnyAsync(r => r.ReceiptCode == c)),
             ReceiptDate = DateTime.Now,
             PatientId = deposit.PatientId ?? Guid.Empty,
             // QA0915: link to the medical record (per-record paid totals ignored this receipt) and to the
@@ -378,6 +415,7 @@ public partial class BillingCompleteService {
             await InvoiceLedger.MarkCoveredAsync(_context, invoice, charges, receipt,
                 dto.ServiceItemIds, dto.MedicineItemIds, dto.IncludeBedCharges, userId.ToString());
         await _context.SaveChangesAsync();
+        if (codeTx != null) await codeTx.CommitAsync();
 
         var patient = await _context.Patients.FindAsync(deposit.PatientId);
 
@@ -484,6 +522,15 @@ public partial class BillingCompleteService {
         var patientId = dto.PatientId;
         InvoiceSummary? invoice = null;
         InvoiceLedger.ChargeSet? charges = null;
+
+        // QA-R6: the idempotency window and the "owed" check below were read-then-write — three parallel
+        // clicks on the no-invoice path all saw nothing collected yet and wrote three 35.000đ receipts for a
+        // 35.000đ debt (same receipt number). Serialize collections per payer until the receipt is committed.
+        // (The invoice path is additionally guarded by InvoiceSummary.RowVersion.)
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context,
+            $"HIS.Billing.Collect.{(dto.InvoiceId is Guid lockInvoiceId && lockInvoiceId != Guid.Empty ? lockInvoiceId : dto.PatientId):N}",
+            "Bệnh nhân này đang được thu tiền ở quầy khác, vui lòng thử lại.");
 
         if (dto.InvoiceId.HasValue && dto.InvoiceId.Value != Guid.Empty)
         {
@@ -598,7 +645,7 @@ public partial class BillingCompleteService {
         var receipt = new Receipt
         {
             Id = Guid.NewGuid(),
-            ReceiptCode = $"PT{DateTime.Now:yyyyMMddHHmmssfff}",
+            ReceiptCode = await NextStampCodeAsync("PT", c => _context.Receipts.AnyAsync(r => r.ReceiptCode == c)),
             ReceiptDate = DateTime.Now,
             PatientId = patientId,
             MedicalRecordId = medicalRecordId,
@@ -632,6 +679,7 @@ public partial class BillingCompleteService {
         }
 
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         return await BuildPaymentDtoAsync(receipt, dto.InvoiceId, patientId);
     }
@@ -655,6 +703,25 @@ public partial class BillingCompleteService {
             Note = receipt.Note ?? string.Empty,
             CreatedDate = receipt.CreatedAt
         };
+    }
+
+    /// <summary>
+    /// QA-R6: receipt numbers are wall-clock stamps (prefix + yyyyMMddHHmmssfff) — parallel requests in the
+    /// same millisecond printed the same number on different receipts/deposits. Issue them one at a time
+    /// across the billing counters (lock held until the caller's transaction commits) and skip a used stamp.
+    /// Call inside a transaction (see <see cref="SqlAppLock.BeginAsync"/>).
+    /// </summary>
+    private async Task<string> NextStampCodeAsync(string prefix, Func<string, Task<bool>> isTaken)
+    {
+        await SqlAppLock.AcquireAsync(_context, "HIS.Billing.ReceiptCodes",
+            "Quầy thu khác đang cấp số phiếu, vui lòng thử lại.");
+        var code = $"{prefix}{DateTime.Now:yyyyMMddHHmmssfff}";
+        for (var i = 0; i < 50 && await isTaken(code); i++)
+        {
+            await Task.Delay(2);
+            code = $"{prefix}{DateTime.Now:yyyyMMddHHmmssfff}";
+        }
+        return code;
     }
 
     private string GetPaymentMethodName(int method)

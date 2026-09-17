@@ -328,7 +328,7 @@ public class BookingManagementService : IBookingManagementService
             var matched = candidates
                 .Where(a =>
                     a.AppointmentCode.Contains(kw, StringComparison.OrdinalIgnoreCase)
-                    || (a.Patient?.FullName?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || HIS.Core.Common.VnSearchText.Contains(a.Patient?.FullName, kw) /* QA-R6: accent-insensitive */
                     || (a.Patient?.PhoneNumber?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
                     || (kwPhone.Length >= 6
                         && NormalizePhone(a.Patient?.PhoneNumber).Contains(kwPhone, StringComparison.Ordinal)))
@@ -704,8 +704,21 @@ public class BookingManagementService : IBookingManagementService
         };
     }
 
+    // QA-R6: three parallel check-ins of one booking created three records with the same code. Take the
+    // same applock as the reception counters (they allocate from the same code sequences) before reading.
     public async Task<BookingCheckinResultDto> CheckinFromBookingAsync(
         string appointmentCode, bool auto = false)
+    {
+        await using var tx = await HIS.Infrastructure.Data.SqlAppLock.BeginAsync(_context);
+        await HIS.Infrastructure.Data.SqlAppLock.AcquireAsync(_context, "HIS.Reception.RegistrationCodes",
+            "Các quầy tiếp đón khác đang cấp mã cùng lúc, vui lòng bấm lại.");
+        var result = await CheckinFromBookingCoreAsync(appointmentCode, auto);
+        if (tx != null) await tx.CommitAsync();
+        return result;
+    }
+
+    private async Task<BookingCheckinResultDto> CheckinFromBookingCoreAsync(
+        string appointmentCode, bool auto)
     {
         var appointment = await _context.Appointments
             .Include(a => a.Patient)

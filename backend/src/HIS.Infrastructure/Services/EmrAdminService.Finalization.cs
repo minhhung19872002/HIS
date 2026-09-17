@@ -85,6 +85,17 @@ namespace HIS.Infrastructure.Services
             var nowUtc = DateTime.UtcNow;
             Guid.TryParse(GetCurrentUserId(), out var userId);
 
+            // QA-R6: three parallel "Kết thúc hồ sơ" all passed the check above and wrote three "v1" snapshots.
+            // Claim the finalization atomically; the loser reports the record as already finalized.
+            await using var tx = await SqlAppLock.BeginAsync(_db);
+            var claimed = await _db.MedicalRecords
+                .Where(m => m.Id == record.Id && m.EmrFinalizedAt == null)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(m => m.EmrFinalizedAt, now)
+                    .SetProperty(m => m.EmrFinalizedBy, userId == Guid.Empty ? (Guid?)null : userId));
+            if (claimed == 0)
+                return new FinalizeResultDto { Success = false, Message = "Ho so da duoc ket thuc truoc do" };
+
             record.EmrFinalizedAt = now;
             record.EmrFinalizedBy = userId == Guid.Empty ? null : userId;
             record.UpdatedAt = nowUtc;
@@ -109,6 +120,7 @@ namespace HIS.Infrastructure.Services
                 CreatedBy = GetCurrentUserId(),
             });
             await _db.SaveChangesAsync();
+            if (tx != null) await tx.CommitAsync();
 
             return new FinalizeResultDto
             {

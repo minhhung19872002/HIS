@@ -217,20 +217,7 @@ public partial class BillingCompleteService {
             discountAmount = dto.DiscountAmount.Value;
         }
 
-        // Sprint 3 Item 2.4: validate lý do chuẩn hóa + ngưỡng duyệt
-        if (discountAmount > 0)
-        {
-            if (!dto.DiscountReasonCode.HasValue || dto.DiscountReasonCode == 0)
-                throw new InvalidOperationException("Bắt buộc chọn lý do giảm giá");
-            if (dto.DiscountReasonCode == 6 && string.IsNullOrWhiteSpace(dto.DiscountNote))
-                throw new InvalidOperationException("Chọn 'Khác' phải ghi rõ lý do trong ghi chú");
-            if (discountAmount >= 500_000m && !dto.ApproverId.HasValue)
-                throw new InvalidOperationException(
-                    "Giảm giá từ 500,000đ trở lên phải có người duyệt (trưởng phòng TCKT hoặc GĐ)");
-            if (discountAmount >= 5_000_000m && dto.DiscountReasonCode != 4)
-                throw new InvalidOperationException(
-                    "Giảm giá từ 5,000,000đ trở lên phải chọn lý do 'Giám đốc duyệt miễn'");
-        }
+        await EnsureDiscountApprovalAsync(dto, discountAmount, userId);
 
         EnsureDiscountFits(invoice, discountAmount);
         invoice.DiscountAmount = discountAmount;
@@ -260,24 +247,44 @@ public partial class BillingCompleteService {
         if (invoice == null)
             throw new KeyNotFoundException("Invoice not found");
 
-        // Calculate total discount from individual service discounts
+        // Calculate total discount from individual service discounts.
+        // QA-R6: each line must be a service/medicine line of THIS invoice's record (a made-up ItemId was
+        // accepted), a percentage is taken of that line's patient share (it used to be added as đồng — 10% = 10đ),
+        // and a line discount cannot exceed the line.
         decimal totalDiscount = 0;
-        if (dto.ServiceDiscounts != null)
+        if (dto.ServiceDiscounts is { Count: > 0 })
         {
+            var itemIds = dto.ServiceDiscounts.Select(s => s.ItemId).Distinct().ToList();
+            if (itemIds.Count != dto.ServiceDiscounts.Count)
+                throw new InvalidOperationException("Một dòng dịch vụ/thuốc chỉ được miễn giảm một lần");
+            var recordId = invoice.MedicalRecordId;
+            var lineShares = (await _context.ServiceRequestDetails
+                    .Where(d => itemIds.Contains(d.Id) && !d.IsDeleted && d.ServiceRequest.MedicalRecordId == recordId)
+                    .Select(d => new { d.Id, d.Amount, d.InsuranceAmount, d.PatientAmount })
+                    .ToListAsync())
+                .Concat(await _context.PrescriptionDetails
+                    .Where(d => itemIds.Contains(d.Id) && !d.IsDeleted && d.Prescription.MedicalRecordId == recordId)
+                    .Select(d => new { d.Id, d.Amount, d.InsuranceAmount, d.PatientAmount })
+                    .ToListAsync())
+                .GroupBy(d => d.Id)
+                .ToDictionary(g => g.Key, g => InvoiceLedger.PatientShare(g.First().Amount, g.First().InsuranceAmount, g.First().PatientAmount));
             foreach (var sd in dto.ServiceDiscounts)
             {
-                if (sd.DiscountType == 1 && sd.DiscountPercent.HasValue)
-                {
-                    // Percentage-based: estimate from invoice total divided by service count
-                    totalDiscount += sd.DiscountPercent.Value;
-                }
-                else if (sd.DiscountAmount.HasValue)
-                {
-                    totalDiscount += sd.DiscountAmount.Value;
-                }
+                if (!lineShares.TryGetValue(sd.ItemId, out var lineShare))
+                    throw new InvalidOperationException("Dòng miễn giảm không thuộc hóa đơn này");
+                var lineDiscount = sd.DiscountType == 1 && sd.DiscountPercent.HasValue
+                    ? Math.Round(lineShare * sd.DiscountPercent.Value / 100, 0)
+                    : sd.DiscountAmount ?? 0;
+                if (lineDiscount > lineShare)
+                    throw new InvalidOperationException(
+                        $"Miễn giảm dòng ({lineDiscount:N0}đ) vượt quá phần bệnh nhân trả của dòng ({lineShare:N0}đ)");
+                totalDiscount += lineDiscount;
             }
         }
 
+        // QA-R6: same reason/approval thresholds as the invoice-level discount — this endpoint skipped them all
+        // (900.000đ applied with no reason and no approver).
+        await EnsureDiscountApprovalAsync(dto, totalDiscount, userId);
         EnsureDiscountFits(invoice, totalDiscount);
         invoice.DiscountAmount = totalDiscount;
         invoice.DiscountReason = dto.DiscountReason;
@@ -295,6 +302,34 @@ public partial class BillingCompleteService {
         // QA-R3: CalculateInvoiceAsync already nets the saved discount out of RemainingAmount.
 
         return invoiceDto;
+    }
+
+    /// <summary>
+    /// Sprint 3 Item 2.4: standard reason + approval thresholds. QA-R6: the approver used to be any Guid the
+    /// client sent (a made-up id passed the 500.000đ gate) — it must be a real, active user other than the
+    /// cashier applying the discount.
+    /// </summary>
+    private async Task EnsureDiscountApprovalAsync(ApplyDiscountDto dto, decimal discountAmount, Guid userId)
+    {
+        if (discountAmount <= 0) return;
+        if (!dto.DiscountReasonCode.HasValue || dto.DiscountReasonCode == 0)
+            throw new InvalidOperationException("Bắt buộc chọn lý do giảm giá");
+        if (dto.DiscountReasonCode == 6 && string.IsNullOrWhiteSpace(dto.DiscountNote))
+            throw new InvalidOperationException("Chọn 'Khác' phải ghi rõ lý do trong ghi chú");
+        if (discountAmount >= 500_000m)
+        {
+            if (!dto.ApproverId.HasValue || dto.ApproverId.Value == Guid.Empty)
+                throw new InvalidOperationException(
+                    "Giảm giá từ 500,000đ trở lên phải có người duyệt (trưởng phòng TCKT hoặc GĐ)");
+            if (dto.ApproverId.Value == userId)
+                throw new InvalidOperationException("Người duyệt miễn giảm phải khác người lập miễn giảm");
+            var approverId = dto.ApproverId.Value;
+            if (!await _context.Users.AnyAsync(u => u.Id == approverId && u.IsActive && !u.IsDeleted))
+                throw new InvalidOperationException("Người duyệt miễn giảm không tồn tại hoặc đã ngừng hoạt động");
+        }
+        if (discountAmount >= 5_000_000m && dto.DiscountReasonCode != 4)
+            throw new InvalidOperationException(
+                "Giảm giá từ 5,000,000đ trở lên phải chọn lý do 'Giám đốc duyệt miễn'");
     }
 
     /// <summary>QA0915: a discount may only cover what is still unpaid (was unbounded — 9.000đ accepted on a paid 7.200đ invoice).</summary>

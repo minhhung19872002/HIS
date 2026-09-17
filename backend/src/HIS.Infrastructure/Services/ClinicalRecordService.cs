@@ -102,6 +102,14 @@ public class ClinicalRecordService : IClinicalRecordService
         {
             // Create new
             await EnsurePartographParentEditableAsync(dto.AdmissionId); // TT46 + QA-R4 parent must exist
+            // QA-R6 (patient safety): the patient comes from the admission / record, not from the body.
+            var parentPatientId = await ResolvePartographPatientAsync(dto.AdmissionId);
+            if (parentPatientId.HasValue)
+            {
+                if (dto.PatientId != Guid.Empty && dto.PatientId != parentPatientId.Value)
+                    throw new InvalidOperationException("Bệnh nhân không khớp với lượt nội trú / hồ sơ của biểu đồ chuyển dạ.");
+                dto.PatientId = parentPatientId.Value;
+            }
             if (dto.PatientId == Guid.Empty || !await _context.Patients.AnyAsync(p => p.Id == dto.PatientId))
                 throw new KeyNotFoundException("Không tìm thấy bệnh nhân của biểu đồ chuyển dạ.");
             record = new PartographRecord
@@ -277,6 +285,7 @@ public class ClinicalRecordService : IClinicalRecordService
             record.PreOpAssessment = dto.PreOpAssessment;
             record.PsychologicalAssessment = dto.PsychologicalAssessment;
             record.RecoveryNotes = dto.RecoveryNotes;
+            record.PostSurgeryPlan = dto.PostSurgeryPlan;
             record.Status = dto.Status;
             record.UpdatedAt = DateTime.UtcNow;
 
@@ -290,6 +299,15 @@ public class ClinicalRecordService : IClinicalRecordService
             // or EMR screen could ever list.
             if (dto.SurgeryId == Guid.Empty || !await AnesthesiaParentExistsAsync(dto.SurgeryId))
                 throw new KeyNotFoundException("Không tìm thấy ca mổ / hồ sơ bệnh án của phiếu gây mê.");
+            // QA-R6 (patient safety): the patient was taken from the body — a record for surgery A was filed under
+            // any other patient's EMR. The parent (record / surgery request / schedule / surgery) decides the patient.
+            var parentPatientId = await ResolveAnesthesiaPatientAsync(dto.SurgeryId);
+            if (parentPatientId.HasValue)
+            {
+                if (dto.PatientId != Guid.Empty && dto.PatientId != parentPatientId.Value)
+                    throw new InvalidOperationException("Bệnh nhân không khớp với ca mổ / hồ sơ của phiếu gây mê.");
+                dto.PatientId = parentPatientId.Value;
+            }
             if (dto.PatientId == Guid.Empty || !await _context.Patients.AnyAsync(p => p.Id == dto.PatientId))
                 throw new KeyNotFoundException("Không tìm thấy bệnh nhân của phiếu gây mê.");
             await EnsureAnesthesiaEditableAsync(dto.SurgeryId); // TT46
@@ -308,6 +326,7 @@ public class ClinicalRecordService : IClinicalRecordService
                 PreOpAssessment = dto.PreOpAssessment,
                 PsychologicalAssessment = dto.PsychologicalAssessment,
                 RecoveryNotes = dto.RecoveryNotes,
+                PostSurgeryPlan = dto.PostSurgeryPlan,
                 Status = dto.Status,
                 CreatedAt = DateTime.UtcNow,
             };
@@ -381,6 +400,18 @@ public class ClinicalRecordService : IClinicalRecordService
         }
         throw new KeyNotFoundException("Không tìm thấy lượt nội trú / hồ sơ bệnh án của biểu đồ chuyển dạ.");
     }
+
+    /// <summary>QA-R6: patient of the partograph parent (admission or medical record).</summary>
+    private async Task<Guid?> ResolvePartographPatientAsync(Guid admissionOrRecordId)
+        => await _context.Admissions.Where(a => a.Id == admissionOrRecordId).Select(a => (Guid?)a.PatientId).FirstOrDefaultAsync()
+           ?? await _context.MedicalRecords.Where(m => m.Id == admissionOrRecordId).Select(m => (Guid?)m.PatientId).FirstOrDefaultAsync();
+
+    /// <summary>Patient of the anesthesia parent (same four parent kinds as AnesthesiaParentExistsAsync).</summary>
+    private async Task<Guid?> ResolveAnesthesiaPatientAsync(Guid surgeryId)
+        => await _context.MedicalRecords.Where(m => m.Id == surgeryId).Select(m => (Guid?)m.PatientId).FirstOrDefaultAsync()
+           ?? await _context.SurgeryRequests.Where(r => r.Id == surgeryId).Select(r => (Guid?)r.PatientId).FirstOrDefaultAsync()
+           ?? await _context.SurgerySchedules.Where(s => s.Id == surgeryId).Select(s => (Guid?)s.SurgeryRequest.PatientId).FirstOrDefaultAsync()
+           ?? await _context.SurgeryRecords.Where(r => r.Id == surgeryId).Select(r => (Guid?)r.SurgerySchedule.SurgeryRequest.PatientId).FirstOrDefaultAsync();
 
     /// <summary>QA-R4: SurgeryId must be a MedicalRecord, SurgeryRecord, SurgerySchedule or SurgeryRequest id.</summary>
     private async Task<bool> AnesthesiaParentExistsAsync(Guid surgeryId)
@@ -527,6 +558,7 @@ public class ClinicalRecordService : IClinicalRecordService
             PreOpAssessment = r.PreOpAssessment,
             PsychologicalAssessment = r.PsychologicalAssessment,
             RecoveryNotes = r.RecoveryNotes,
+            PostSurgeryPlan = r.PostSurgeryPlan,
             Status = r.Status,
             CreatedBy = r.CreatedBy,
             CreatedAt = r.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss"),

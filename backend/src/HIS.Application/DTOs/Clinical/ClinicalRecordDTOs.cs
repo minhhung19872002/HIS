@@ -98,6 +98,7 @@ public class AnesthesiaRecordDto
     public string? PreOpAssessment { get; set; }
     public string? PsychologicalAssessment { get; set; } // F1.9: khám tâm lý trước mổ
     public string? RecoveryNotes { get; set; }
+    public string? PostSurgeryPlan { get; set; } // QA-R6: the post-anesthesia modal's plan was dropped (column existed)
     public int Status { get; set; }
     public string? CreatedBy { get; set; }
     public string? CreatedAt { get; set; }
@@ -134,6 +135,7 @@ public class AnesthesiaSaveDto
     public string? PreOpAssessment { get; set; }
     public string? PsychologicalAssessment { get; set; } // F1.9: khám tâm lý trước mổ
     public string? RecoveryNotes { get; set; }
+    public string? PostSurgeryPlan { get; set; } // QA-R6: the post-anesthesia modal's plan was dropped (column existed)
     public int Status { get; set; }
 
     // Child collections for batch save
