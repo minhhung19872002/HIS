@@ -35,6 +35,14 @@ public partial class ReceptionCompleteService {
     {
         var room = await _roomRepo.GetByIdAsync(roomId);
         var stats = await GetRoomStatsAsync(roomId, date);
+        // QA-R6: AverageWaitMinutes was a constant 15 and skipped tickets a constant 0.
+        var (dayFrom, dayTo) = HIS.Core.Common.VnTime.DayRangeVn(date);
+        var roomTickets = await _context.QueueTickets.AsNoTracking()
+            .Where(t => t.RoomId == roomId && t.IssueDate >= dayFrom && t.IssueDate < dayTo)
+            .Select(t => new { t.Status, t.IssueDate, t.CalledTime })
+            .ToListAsync();
+        var roomWaits = roomTickets.Where(t => t.CalledTime.HasValue && t.CalledTime.Value >= t.IssueDate)
+            .Select(t => (t.CalledTime!.Value - t.IssueDate).TotalMinutes).ToList();
 
         return new QueueRoomStatisticsDto
         {
@@ -43,8 +51,8 @@ public partial class ReceptionCompleteService {
             TotalWaiting = stats.Waiting,
             TotalServing = stats.InProgress,
             TotalCompleted = stats.Completed,
-            TotalSkipped = 0,
-            AverageWaitMinutes = 15
+            TotalSkipped = roomTickets.Count(t => t.Status == 4),
+            AverageWaitMinutes = roomWaits.Count > 0 ? Math.Round(roomWaits.Average(), 1) : 0
         };
     }
 
@@ -102,14 +110,24 @@ public partial class ReceptionCompleteService {
 
         var tickets = await query.ToListAsync();
 
+        // QA-R6: waiting/service time were constants (15 / 10 min) and the peak hour always 0.
+        // Measured from the ticket's own VN-local timestamps; tickets without the timestamps are not guessed.
+        var waits = tickets.Where(t => t.CalledTime.HasValue && t.CalledTime.Value >= t.IssueDate)
+            .Select(t => (t.CalledTime!.Value - t.IssueDate).TotalMinutes).ToList();
+        var services = tickets.Where(t => t.CalledTime.HasValue && t.CompletedTime.HasValue && t.CompletedTime.Value >= t.CalledTime.Value)
+            .Select(t => (t.CompletedTime!.Value - t.CalledTime!.Value).TotalMinutes).ToList();
+        var peak = tickets.GroupBy(t => t.IssueDate.Hour).OrderByDescending(g => g.Count()).FirstOrDefault();
+
         return new QueueDailyStatisticsDto
         {
             Date = date,
             TotalTickets = tickets.Count,
             ServedTickets = tickets.Count(t => t.Status == 3),
             SkippedTickets = tickets.Count(t => t.Status == 4),
-            AverageWaitingTime = 15,
-            AverageServiceTime = 10
+            AverageWaitingTime = waits.Count > 0 ? Math.Round(waits.Average(), 1) : 0,
+            AverageServiceTime = services.Count > 0 ? Math.Round(services.Average(), 1) : 0,
+            PeakHour = peak?.Key ?? 0,
+            PeakHourCount = peak?.Count() ?? 0
         };
     }
 

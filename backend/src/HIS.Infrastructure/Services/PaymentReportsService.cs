@@ -129,6 +129,7 @@ public class PaymentReportsService : IPaymentReportsService
         var list = await _db.ElectronicInvoices
             .Include(e => e.InvoiceSummary)
             .Where(e => e.InvoiceDate >= from && e.InvoiceDate < to
+                && (e.Status == 1 || e.Status == 2) // QA-R6: issued/sent only — drafts (0), cancelled (3), replaced (4) were summed
                 && e.InvoiceSummary != null
                 && e.InvoiceSummary.InsuranceAmount > 0)
             .OrderBy(e => e.InvoiceDate)
@@ -160,6 +161,7 @@ public class PaymentReportsService : IPaymentReportsService
         var list = await _db.ElectronicInvoices
             .Include(e => e.InvoiceSummary)
             .Where(e => e.InvoiceDate >= from && e.InvoiceDate < to
+                && (e.Status == 1 || e.Status == 2) // QA-R6: 01-16/09 listed 69 invoices / 23.447.200đ incl. a draft and a cancelled one (67 / 23.080.000đ issued)
                 && (e.InvoiceSummary == null || e.InvoiceSummary.InsuranceAmount == 0))
             .OrderBy(e => e.InvoiceDate)
             .ToListAsync();

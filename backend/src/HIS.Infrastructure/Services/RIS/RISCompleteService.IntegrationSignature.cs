@@ -458,9 +458,11 @@ public partial class RISCompleteService
 
     public async Task<ExamStatisticsByServiceTypeDto> GetExamStatisticsByServiceTypeAsync(DateTime fromDate, DateTime toDate)
     {
+        // QA-R6: date-only toDate (midnight) dropped every order of the last day timed after 00:00.
+        var toEnd = ReportPeriod.EndExclusive(toDate);
         var requests = await _context.RadiologyRequests
             .Include(r => r.Service)
-            .Where(r => r.RequestDate >= fromDate && r.RequestDate <= toDate)
+            .Where(r => r.RequestDate >= fromDate && r.RequestDate < toEnd)
             .ToListAsync();
 
         var byServiceType = requests
@@ -470,7 +472,8 @@ public partial class RISCompleteService
                 ServiceTypeCode = g.Key.ToString(),
                 ServiceTypeName = GetServiceTypeName(g.Key),
                 TotalExams = g.Count(),
-                CompletedExams = g.Count(r => r.Status >= 3),
+                // QA-R6: 3..5 as in /reports/statistics — `>= 3` also counted cancelled (6) orders as completed.
+                CompletedExams = g.Count(r => r.Status >= 3 && r.Status <= 5),
                 PendingExams = g.Count(r => r.Status < 3),
                 CancelledExams = g.Count(r => r.Status == 6),
                 TotalRevenue = g.Sum(r => r.TotalAmount),

@@ -22,8 +22,10 @@ public partial class SystemCompleteService
         try
         {
             // Query ServiceRequests grouped by ordering department (DepartmentId)
+            // QA-R6: `<= toDate` (midnight) dropped the whole last day (01-16/09: 82.43M vs 90.7M).
+            var toEnd = ReportPeriod.EndExclusive(toDate);
             var query = _context.ServiceRequests.AsNoTracking()
-                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate <= toDate && sr.Status != 4);
+                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate < toEnd && sr.Status != 4);
 
             if (departmentId.HasValue)
                 query = query.Where(sr => sr.DepartmentId == departmentId.Value);
@@ -96,8 +98,9 @@ public partial class SystemCompleteService
         try
         {
             // Query ServiceRequests grouped by executing department (ExecuteDepartmentId)
+            var toEnd = ReportPeriod.EndExclusive(toDate); // QA-R6: last day was dropped
             var query = _context.ServiceRequests.AsNoTracking()
-                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate <= toDate && sr.Status != 4);
+                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate < toEnd && sr.Status != 4);
 
             if (departmentId.HasValue)
                 query = query.Where(sr => sr.ExecuteDepartmentId == departmentId.Value);
@@ -170,12 +173,13 @@ public partial class SystemCompleteService
         try
         {
             // Query ServiceRequestDetails joined with ServiceRequest for date range
+            var toEnd = ReportPeriod.EndExclusive(toDate); // QA-R6: last day was dropped
             var query = _context.ServiceRequestDetails.AsNoTracking()
                 .Include(d => d.ServiceRequest)
                 .Include(d => d.Service)
                     .ThenInclude(s => s.ServiceGroup)
                 .Where(d => d.ServiceRequest.RequestDate >= fromDate
-                         && d.ServiceRequest.RequestDate <= toDate
+                         && d.ServiceRequest.RequestDate < toEnd
                          && d.ServiceRequest.Status != 4
                          && d.Status != 3); // exclude cancelled details
 
@@ -226,9 +230,10 @@ public partial class SystemCompleteService
         try
         {
             // Query ServiceRequests with RequestType == 4 (PTTT) for revenue
+            var toEnd = ReportPeriod.EndExclusive(toDate); // QA-R6: last day was dropped
             var revenueQuery = _context.ServiceRequests.AsNoTracking()
                 .Where(sr => sr.RequestType == 4
-                          && sr.RequestDate >= fromDate && sr.RequestDate <= toDate
+                          && sr.RequestDate >= fromDate && sr.RequestDate < toEnd
                           && sr.Status != 4);
 
             if (departmentId.HasValue)
@@ -259,7 +264,7 @@ public partial class SystemCompleteService
             var medicineCostByDept = await _context.PrescriptionDetails.AsNoTracking()
                 .Include(pd => pd.Prescription)
                 .Where(pd => pd.Prescription.PrescriptionDate >= fromDate
-                          && pd.Prescription.PrescriptionDate <= toDate
+                          && pd.Prescription.PrescriptionDate < toEnd
                           && pd.Prescription.Status != 4)
                 .GroupBy(pd => pd.Prescription.DepartmentId)
                 .Select(g => new { DeptId = g.Key, Cost = g.Sum(pd => pd.Amount) })
@@ -339,7 +344,7 @@ public partial class SystemCompleteService
 
             // Revenue by department
             var revenueByDeptData = await _context.ServiceRequests.AsNoTracking()
-                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate <= toDate && sr.Status != 4)
+                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate < toEnd && sr.Status != 4) // QA-R6: same period as totalRevenue
                 .GroupBy(sr => sr.DepartmentId)
                 .Select(g => new
                 {
@@ -511,7 +516,10 @@ public partial class SystemCompleteService
             if (fromDate.HasValue)
                 query = query.Where(inv => inv.InvoiceDate >= fromDate.Value);
             if (toDate.HasValue)
-                query = query.Where(inv => inv.InvoiceDate <= toDate.Value);
+            {
+                var toEnd = ReportPeriod.EndExclusive(toDate.Value); // QA-R6: last day was dropped
+                query = query.Where(inv => inv.InvoiceDate < toEnd);
+            }
 
             var invoices = await query.ToListAsync();
 
@@ -561,8 +569,9 @@ public partial class SystemCompleteService
     {
         try
         {
+            var toEnd = ReportPeriod.EndExclusive(toDate); // QA-R6: last day was dropped
             var query = _context.InsuranceClaims.AsNoTracking()
-                .Where(c => c.ServiceDate >= fromDate && c.ServiceDate <= toDate);
+                .Where(c => c.ServiceDate >= fromDate && c.ServiceDate < toEnd);
 
             if (!string.IsNullOrWhiteSpace(insuranceCode))
                 query = query.Where(c => c.InsuranceNumber != null && c.InsuranceNumber.Contains(insuranceCode));
@@ -608,9 +617,10 @@ public partial class SystemCompleteService
     {
         try
         {
+            var toEnd = ReportPeriod.EndExclusive(toDate); // QA-R6: last day was dropped
             var claimQuery = _context.InsuranceClaims.AsNoTracking()
                 .Include(c => c.Patient)
-                .Where(c => c.ServiceDate >= fromDate && c.ServiceDate <= toDate);
+                .Where(c => c.ServiceDate >= fromDate && c.ServiceDate < toEnd);
 
             if (!string.IsNullOrWhiteSpace(insuranceCode))
                 claimQuery = claimQuery.Where(c => c.InsuranceNumber != null && c.InsuranceNumber.Contains(insuranceCode));

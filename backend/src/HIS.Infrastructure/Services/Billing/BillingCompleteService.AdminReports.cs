@@ -181,7 +181,7 @@ public partial class BillingCompleteService {
                 {
                     Date = g.Key,
                     PatientCount = g.Select(r => r.PatientId).Distinct().Count(),
-                    InvoiceCount = g.Count(),
+                    InvoiceCount = g.Count(r => r.ReceiptType != 3), // QA-R6: same basis as TotalInvoices (days summed to 119 vs 82)
                     TotalAmount = g.Where(r => r.ReceiptType != 3).Sum(r => r.FinalAmount) - g.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount),
                     PatientAmount = g.Where(r => r.ReceiptType != 3).Sum(r => r.FinalAmount) - g.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount)
                 })

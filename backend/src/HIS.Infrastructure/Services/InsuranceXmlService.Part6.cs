@@ -125,7 +125,7 @@ public partial class InsuranceXmlService
                 TreatmentTypeCode = g.Key.ToString(),
                 TreatmentTypeName = g.Key switch { 1 => "Ngoại trú", 2 => "Nội trú", 3 => "Cấp cứu", _ => "Khác" },
                 VisitCount = g.Count(),
-                TotalCost = g.Sum(x => x.TotalAmount),
+                TotalCost = g.Sum(x => x.TotalAmount + x.InsuranceAmount), // QA-R6: TotalAmount is the PATIENT payable (InvoiceLedger) — gross = + BHYT part
                 InsurancePaid = g.Sum(x => x.InsuranceAmount),
                 PatientPaid = g.Sum(x => x.PatientCoPayment),
             })
@@ -148,6 +148,7 @@ public partial class InsuranceXmlService
                 i.MedicalRecord!.MainIcdCode,
                 i.MedicalRecord.MainDiagnosis,
                 i.TotalAmount,
+                i.InsuranceAmount,
             })
             .ToListAsync();
 
@@ -157,7 +158,7 @@ public partial class InsuranceXmlService
                 IcdCode = g.Key,
                 DiseaseName = g.First().MainDiagnosis ?? "",
                 Count = g.Count(),
-                TotalCost = g.Sum(x => x.TotalAmount),
+                TotalCost = g.Sum(x => x.TotalAmount + x.InsuranceAmount), // QA-R6: TotalAmount is the PATIENT payable (InvoiceLedger) — gross = + BHYT part
             })
             .OrderByDescending(d => d.Count)
             .Take(top)
@@ -221,7 +222,7 @@ public partial class InsuranceXmlService
                 DepartmentCode = g.First().DepartmentCode,
                 DepartmentName = g.First().DepartmentName,
                 VisitCount = g.Count(),
-                TotalCost = g.Sum(x => x.TotalAmount),
+                TotalCost = g.Sum(x => x.TotalAmount + x.InsuranceAmount), // QA-R6: TotalAmount is the PATIENT payable (InvoiceLedger) — gross = + BHYT part
                 InsurancePaid = g.Sum(x => x.InsuranceAmount),
                 MedicineCost = g.Sum(x => x.TotalMedicineAmount),
                 ServiceCost = g.Sum(x => x.TotalServiceAmount),

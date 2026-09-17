@@ -363,7 +363,11 @@ public class MultiFacilityConsolidationService : IMultiFacilityConsolidationServ
             .CountAsync();
 
         // Available beds
-        var occupiedBeds = currentIpd;
+        // QA-R6: occupied = beds holding an active assignment (bed board / statistics dashboard rule). Using the
+        // inpatient count (55 patients, 15 beds) always showed 0 free beds while 3-4 were free.
+        var occupiedBeds = await _context.BedAssignments
+            .Where(ba => ba.Status == 0 && !ba.IsDeleted && ba.Bed.IsActive && !ba.Bed.IsDeleted)
+            .Select(ba => ba.BedId).Distinct().CountAsync();
         var totalBeds = await _context.Beds.Where(b => b.IsActive && !b.IsDeleted).CountAsync();
 
         // Today's revenue

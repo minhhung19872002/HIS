@@ -623,6 +623,10 @@ h1 {{ text-align: center; font-size: 16px; }}
         if (departmentId.HasValue)
             receiptQuery = receiptQuery.Where(r => r.MedicalRecord != null && r.MedicalRecord.DepartmentId == departmentId.Value);
         var totalRevenue = await receiptQuery.SumAsync(r => (decimal?)(r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount)) ?? 0;
+        // QA-R6: InsuranceRevenue was a hard-coded 0 (September: 484.200đ from BHYT records per /financial/revenue
+        // and the statistics dashboard). Same split as those: record PatientType 1 = BHYT.
+        var insuranceRevenue = await receiptQuery.Where(r => r.MedicalRecord != null && r.MedicalRecord.PatientType == 1)
+            .SumAsync(r => (decimal?)(r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount)) ?? 0;
 
         // #14b: model 1 (SRD RequestType=1, loại hủy) thay LabRequestItems (model 2 chết)
         // Department dashboard: labs/surgeries/beds were hospital-wide even when departmentId was given.
@@ -642,8 +646,11 @@ h1 {{ text-align: center; font-size: 16px; }}
         if (departmentId.HasValue)
             bedQuery = bedQuery.Where(b => b.Room.DepartmentId == departmentId.Value);
         var totalBeds = await bedQuery.CountAsync();
-        var availableBeds = await bedQuery.CountAsync(b => b.Status == 0);
-        var occupancyRate = totalBeds > 0 ? Math.Round((totalBeds - availableBeds) * 100m / totalBeds, 1) : 0;
+        // QA-R6: occupancy from active assignments (bed board rule) — Bed.Status is not maintained on assign/release.
+        var occupiedBeds = await bedQuery.CountAsync(b => _context.BedAssignments.Any(ba => ba.BedId == b.Id && ba.Status == 0 && !ba.IsDeleted));
+        var availableBeds = await bedQuery.CountAsync(b => b.Status != 2
+            && !_context.BedAssignments.Any(ba => ba.BedId == b.Id && ba.Status == 0 && !ba.IsDeleted));
+        var occupancyRate = totalBeds > 0 ? Math.Round(occupiedBeds * 100m / totalBeds, 1) : 0;
 
         return new DashboardSummaryDto
         {
@@ -652,8 +659,8 @@ h1 {{ text-align: center; font-size: 16px; }}
             InpatientCount = inpatient,
             EmergencyCount = emergency,
             TotalRevenue = totalRevenue,
-            InsuranceRevenue = 0,
-            PatientRevenue = totalRevenue,
+            InsuranceRevenue = insuranceRevenue,
+            PatientRevenue = totalRevenue - insuranceRevenue,
             TotalExaminations = totalExams,
             TotalLabTests = labTests,
             TotalRadiologyExams = 0,

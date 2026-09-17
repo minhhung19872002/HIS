@@ -131,8 +131,11 @@ public partial class HospitalReportService
     private async Task FillHospitalFeeSummary(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
         // Business date + collected receipts only (cancelled Status 2 was summed as revenue).
+        // QA-R6: approved/paid refunds are subtracted (shared rule) — this report said 29.42M "netRevenue" for
+        // 01-16/09 while CashierSummary / dashboard / department statistics said 26.83M for the same money.
         var query = _context.Receipts.AsNoTracking()
-            .Where(r => r.ReceiptDate >= from && r.ReceiptDate < to && !r.IsDeleted && r.ReceiptType != 3 && r.Status == 1);
+            .Where(r => r.ReceiptDate >= from && r.ReceiptDate < to && !r.IsDeleted)
+            .Where(ReportPeriod.CashReceipt);
         if (deptId.HasValue)
             query = query.Where(r => r.MedicalRecord != null && r.MedicalRecord.DepartmentId == deptId);
 
@@ -142,8 +145,10 @@ public partial class HospitalReportService
             .Select(g => new
             {
                 g.Key.DeptName,
-                TotalAmount = g.Sum(r => r.FinalAmount),
-                DiscountAmount = g.Sum(r => r.Discount),
+                // FinalAmount is already after discount (Amount - Discount): gross = FinalAmount + Discount, so
+                // netAmount (gross - discount) no longer subtracts the discount twice.
+                TotalAmount = g.Sum(r => r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount + r.Discount),
+                DiscountAmount = g.Sum(r => r.ReceiptType == 3 ? 0 : r.Discount),
                 PatientCount = g.Select(r => r.MedicalRecord.PatientId).Distinct().Count()
             })
             .OrderByDescending(x => x.TotalAmount)
@@ -598,10 +603,13 @@ public partial class HospitalReportService
     private async Task FillImagingRevenue(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
         // Collected payment receipts on their business date (was Receipt.CreatedAt UTC, cancelled included).
+        // QA-R6: ItemType 1 is EVERY service (exam, lab, ...) — 01-16/09 showed 1.865.000đ "CĐHA" of which only
+        // 980.000đ was imaging. Imaging = lines of an imaging order (RequestType 2), as in the imaging register.
         var query = _context.ReceiptDetails.AsNoTracking()
             .Where(rd => rd.Receipt.ReceiptDate >= from && rd.Receipt.ReceiptDate < to && !rd.IsDeleted
                 && rd.Receipt.Status == 1 && rd.Receipt.ReceiptType != 3)
-            .Where(rd => rd.ItemType == 1); // Services related to imaging
+            .Where(rd => rd.ItemType == 1 && rd.ServiceRequestDetail != null
+                && rd.ServiceRequestDetail.ServiceRequest.RequestType == 2);
 
         var total = await query.SumAsync(rd => rd.FinalAmount); // after discount, like every other revenue report
         var count = await query.CountAsync();

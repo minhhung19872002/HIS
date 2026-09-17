@@ -1028,11 +1028,6 @@ public partial class RISCompleteService
             .Select(e => (decimal)(e.EndTime!.Value - e.RequestDate).TotalMinutes)
             .ToList();
 
-        var completedByDay = exams
-            .Where(e => e.Status == 2)
-            .GroupBy(e => e.ExamDate.Date)
-            .ToDictionary(g => g.Key, g => g.Count());
-
         var totalOrders = orders.Count;
 
         return new RadiologyStatisticsDto
@@ -1062,7 +1057,9 @@ public partial class RISCompleteService
                 {
                     Date = g.Key,
                     ExamCount = g.Count(),
-                    CompletedCount = completedByDay.GetValueOrDefault(g.Key)
+                    // QA-R6: same definition as the CompletedExams total (completed ORDERS of that request day) —
+                    // exam Status 2 bucketed by ExamDate summed to 1 while the header said 8 for 01-16/09.
+                    CompletedCount = g.Count(o => o.Status >= 3 && o.Status <= 5)
                 })
                 .OrderBy(x => x.Date)
                 .ToList(),

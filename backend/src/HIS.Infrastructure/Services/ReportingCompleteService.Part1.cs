@@ -243,7 +243,9 @@ public partial class ReportingCompleteService : IReportingCompleteService
 
             var totalAdmissions = await _context.Admissions.CountAsync(a => a.AdmissionDate >= fromDate && a.AdmissionDate < toEnd && !a.IsDeleted);
             var totalBeds = await _context.Beds.CountAsync(b => b.IsActive && !b.IsDeleted);
-            var occupiedBeds = await _context.Beds.CountAsync(b => b.Status == 1 && b.IsActive && !b.IsDeleted);
+            // QA-R6: occupancy from active assignments (bed board rule) — Bed.Status is not maintained on assign/release.
+            var occupiedBeds = await _context.Beds.CountAsync(b => b.IsActive && !b.IsDeleted
+                && _context.BedAssignments.Any(ba => ba.BedId == b.Id && ba.Status == 0 && !ba.IsDeleted));
             var occupancyRate = totalBeds > 0 ? Math.Round(occupiedBeds * 100m / totalBeds, 1) : 0;
 
             var clinicalKPIs = new List<KPIItemDto>
@@ -383,7 +385,9 @@ public partial class ReportingCompleteService : IReportingCompleteService
                 .Where(b => b.IsActive && !b.IsDeleted)
                 .Include(b => b.Room)
                 .GroupBy(b => b.Room.DepartmentId)
-                .Select(g => new { DeptId = g.Key, Total = g.Count(), Available = g.Count(b => b.Status == 0) })
+                // QA-R6: Bed.Status is not maintained on assign/release — free = no active assignment, not in maintenance.
+                .Select(g => new { DeptId = g.Key, Total = g.Count(), Available = g.Count(b => b.Status != 2
+                    && !_context.BedAssignments.Any(ba => ba.BedId == b.Id && ba.Status == 0 && !ba.IsDeleted)) })
                 .ToListAsync();
 
             var depts = await _context.Departments

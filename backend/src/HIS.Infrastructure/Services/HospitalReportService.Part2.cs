@@ -21,8 +21,11 @@ public partial class HospitalReportService
         // Collected payment receipts on their business date. Was: CreatedAt (UTC), cancelled and
         // refund slips summed as revenue, and OPD/IPD split on PatientType (1 BHYT/2 viện phí/3 dịch
         // vụ) — so inpatient revenue was always 0 and all of it landed in "ngoại trú".
+        // QA-R6: approved/paid refunds are subtracted (shared net-cash rule) — 01-16/09 showed 29.42M while the
+        // cashier summary / dashboard showed 26.83M for the same receipts.
         var query = _context.Receipts.AsNoTracking()
-            .Where(r => r.ReceiptDate >= from && r.ReceiptDate < to && !r.IsDeleted && r.ReceiptType != 3 && r.Status == 1);
+            .Where(r => r.ReceiptDate >= from && r.ReceiptDate < to && !r.IsDeleted)
+            .Where(ReportPeriod.CashReceipt);
         if (deptId.HasValue)
             query = query.Where(r => r.MedicalRecord != null && r.MedicalRecord.DepartmentId == deptId);
 
@@ -33,9 +36,9 @@ public partial class HospitalReportService
             .Select(g => new
             {
                 g.Key.DeptName,
-                OutpatientRevenue = g.Where(r => r.MedicalRecord.TreatmentType != 2).Sum(r => r.FinalAmount),
-                InpatientRevenue = g.Where(r => r.MedicalRecord.TreatmentType == 2).Sum(r => r.FinalAmount),
-                TransactionCount = g.Count()
+                OutpatientRevenue = g.Where(r => r.MedicalRecord.TreatmentType != 2).Sum(r => r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount),
+                InpatientRevenue = g.Where(r => r.MedicalRecord.TreatmentType == 2).Sum(r => r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount),
+                TransactionCount = g.Count(r => r.ReceiptType != 3)
             }).ToListAsync();
 
         decimal totalOp = 0, totalIp = 0;
@@ -343,11 +346,19 @@ public partial class HospitalReportService
         var beds = await query.ToListAsync();
         var grouped = beds.GroupBy(b => new { b.Room?.DepartmentId, DeptName = b.Room?.Department?.DepartmentName });
 
+        // QA-R6: Bed.Status is never updated by assign/transfer/release (only 2 = maintenance is set), so it said
+        // 12 occupied / 3 free while the bed board (active BedAssignments) said 11 / 4. Same rule as the bed board.
+        var occupiedIds = (await _context.BedAssignments.AsNoTracking()
+            .Where(ba => ba.Status == 0 && !ba.IsDeleted)
+            .Select(ba => ba.BedId).Distinct().ToListAsync()).ToHashSet();
+        bool IsOccupied(Bed b) => occupiedIds.Contains(b.Id);
+        bool IsAvailable(Bed b) => !occupiedIds.Contains(b.Id) && b.Status != 2; // 2 = maintenance
+
         foreach (var g in grouped)
         {
             var total = g.Count();
-            var occupied = g.Count(b => b.Status == 1); // 1 = Occupied
-            var available = g.Count(b => b.Status == 0); // 2 = maintenance is neither occupied nor available
+            var occupied = g.Count(IsOccupied);
+            var available = g.Count(IsAvailable);
 
             result.Data.Add(new Dictionary<string, object>
             {
@@ -359,8 +370,8 @@ public partial class HospitalReportService
             });
         }
         result.Summary["totalBeds"] = beds.Count;
-        result.Summary["totalOccupied"] = beds.Count(b => b.Status == 1);
-        result.Summary["totalAvailable"] = beds.Count(b => b.Status == 0);
+        result.Summary["totalOccupied"] = beds.Count(IsOccupied);
+        result.Summary["totalAvailable"] = beds.Count(IsAvailable);
     }
 
     private async Task FillCareLevelClassification(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)

@@ -67,13 +67,16 @@ public class MetricsService
         var requestsPerMinute = CalculateRequestsPerMinute();
 
         // Get top 20 endpoints
-        var topEndpoints = _endpointCounts
+        // QA-R6: LINQ over a live ConcurrentDictionary sizes the buffer from Count and then copies — a request
+        // arriving in between threw "index is equal to or greater than the length" (GET /api/Metrics → 500).
+        // ConcurrentDictionary.ToArray() takes an atomic snapshot.
+        var topEndpoints = _endpointCounts.ToArray()
             .OrderByDescending(kvp => kvp.Value)
             .Take(20)
             .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
         // Status code distribution
-        var statusCodes = _statusCodeCounts
+        var statusCodes = _statusCodeCounts.ToArray()
             .OrderBy(kvp => kvp.Key)
             .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 

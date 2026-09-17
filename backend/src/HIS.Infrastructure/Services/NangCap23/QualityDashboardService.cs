@@ -46,15 +46,18 @@ public class QualityDashboardService : IQualityDashboardService
 
         try
         {
+            // QA-R6: CreatedAt is UTC — the VN-day window caught 10 of 37 tickets on 16/09. IssueDate is VN local.
             var queueRows = await _db.QueueTickets.AsNoTracking()
-                .Where(q => q.CreatedAt >= date && q.CreatedAt < nextDay)
+                .Where(q => q.IssueDate >= date && q.IssueDate < nextDay)
                 .GroupBy(q => new { q.RoomId })
                 .Select(g => new
                 {
                     g.Key.RoomId,
-                    Waiting = g.Count(x => x.Status == 0),    // not yet called
-                    InProgress = g.Count(x => x.Status == 1), // called / serving
-                    Completed = g.Count(x => x.Status == 2)   // completed
+                    // QA-R6: QueueTicket.Status is 0 waiting · 1 calling · 2 serving · 3 completed · 4 skipped —
+                    // "completed" counted the tickets being SERVED and serving ones were dropped.
+                    Waiting = g.Count(x => x.Status == 0),
+                    InProgress = g.Count(x => x.Status == 1 || x.Status == 2),
+                    Completed = g.Count(x => x.Status == 3)
                 })
                 .ToListAsync();
 
@@ -116,6 +119,7 @@ public class QualityDashboardService : IQualityDashboardService
     {
         var date = (asOfDate ?? DateTime.Today).Date;
         var nextDay = date.AddDays(1);
+        var (dateUtc, nextDayUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date); // QA-R6: CreatedAt is UTC
 
         var view = new ParaclinicalStatusViewDto();
 
@@ -123,7 +127,7 @@ public class QualityDashboardService : IQualityDashboardService
         {
             // Radiology
             var radiology = await _db.RadiologyRequests.AsNoTracking()
-                .Where(r => r.CreatedAt >= date && r.CreatedAt < nextDay)
+                .Where(r => r.CreatedAt >= dateUtc && r.CreatedAt < nextDayUtc)
                 .GroupBy(r => 1)
                 .Select(g => new { Pending = g.Count(x => x.Status < 2), Completed = g.Count(x => x.Status >= 2) })
                 .FirstOrDefaultAsync();
@@ -139,7 +143,7 @@ public class QualityDashboardService : IQualityDashboardService
         {
             // Endoscopy / functional diag
             var fdt = await _db.FunctionalDiagnosticTests.AsNoTracking()
-                .Where(r => r.CreatedAt >= date && r.CreatedAt < nextDay)
+                .Where(r => r.CreatedAt >= dateUtc && r.CreatedAt < nextDayUtc)
                 .GroupBy(r => 1)
                 .Select(g => new { Pending = g.Count(x => x.Status < 2), Completed = g.Count(x => x.Status >= 2) })
                 .FirstOrDefaultAsync();
@@ -176,6 +180,7 @@ public class QualityDashboardService : IQualityDashboardService
         var nextDay = date.AddDays(1);
 
         var view = new LabStatusViewDto();
+        var (dateUtc, nextDayUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date); // QA-R6: CreatedAt is UTC (3 vs 23 tests on 16/09)
 
         // #14e: model 1 SRD (RequestType=1) — aggregate theo Service.ServiceGroup (model 2 đã gỡ)
         try
@@ -184,7 +189,7 @@ public class QualityDashboardService : IQualityDashboardService
                 .Include(x => x.Service).ThenInclude(s => s.ServiceGroup)
                 .Where(x => !x.IsDeleted && x.Status != 3
                     && x.ServiceRequest.RequestType == 1
-                    && x.CreatedAt >= date && x.CreatedAt < nextDay)
+                    && x.CreatedAt >= dateUtc && x.CreatedAt < nextDayUtc)
                 .ToListAsync();
 
             var grouped = labItems
@@ -227,8 +232,11 @@ public class QualityDashboardService : IQualityDashboardService
 
         try
         {
+            // QA-R6: shared net-cash rule — `Status == 1` missed paid-out refunds (Status 4) and kept deposit refunds,
+            // so 16/09 showed 1.560.000đ while every other revenue screen showed 730.000đ.
             var receipts = await _db.Receipts.AsNoTracking()
-                .Where(r => r.ReceiptDate >= date && r.ReceiptDate < nextDay && r.Status == 1)
+                .Where(r => r.ReceiptDate >= date && r.ReceiptDate < nextDay && !r.IsDeleted)
+                .Where(ReportPeriod.CashReceipt)
                 .ToListAsync();
 
             // Outpatient vs Inpatient detection by MedicalRecord type
@@ -300,8 +308,9 @@ public class QualityDashboardService : IQualityDashboardService
 
         try
         {
+            // QA-R6: IssueDate/CalledTime are VN local; CreatedAt is UTC (wrong day window, and a 7h-off wait).
             var tickets = await _db.QueueTickets.AsNoTracking()
-                .Where(q => q.CreatedAt >= date && q.CreatedAt < nextDay && q.Status >= 2)
+                .Where(q => q.IssueDate >= date && q.IssueDate < nextDay && (q.Status == 2 || q.Status == 3)) // serving/completed; 4 = skipped
                 .ToListAsync();
 
             var mrIds = tickets.Where(t => t.MedicalRecordId.HasValue).Select(t => t.MedicalRecordId!.Value).Distinct().ToList();
@@ -321,21 +330,22 @@ public class QualityDashboardService : IQualityDashboardService
                 {
                     var cls = t.MedicalRecordId.HasValue && mrHasCls.TryGetValue(t.MedicalRecordId.Value, out var c) ? c : (false, false);
                     var type = cls switch { (true, true) => "KHÁM+XN+CĐHA", (true, false) => "KHÁM+XN", (false, true) => "KHÁM+CĐHA", _ => "KHÁM" };
-                    var waitMin = t.CalledTime.HasValue ? (int)(t.CalledTime.Value - t.CreatedAt).TotalMinutes : 0;
-                    return new { Type = type, WaitMin = Math.Max(0, waitMin) };
+                    // A ticket never called (no CalledTime) has no measured wait — it was averaged in as 0 minutes.
+                    int? waitMin = t.CalledTime.HasValue ? Math.Max(0, (int)(t.CalledTime.Value - t.IssueDate).TotalMinutes) : null;
+                    return new { Type = type, WaitMin = waitMin };
                 })
                 .GroupBy(x => x.Type);
 
             foreach (var g in groups)
             {
-                var waits = g.Select(x => x.WaitMin).ToList();
+                var waits = g.Where(x => x.WaitMin.HasValue).Select(x => x.WaitMin!.Value).ToList();
                 results.Add(new WaitTimeByVisitTypeDto
                 {
                     VisitType = g.Key,
-                    TotalVisits = waits.Count,
-                    MinMinutes = waits.Min(),
-                    MaxMinutes = waits.Max(),
-                    AvgMinutes = (int)waits.Average(),
+                    TotalVisits = g.Count(),
+                    MinMinutes = waits.Count > 0 ? waits.Min() : 0,
+                    MaxMinutes = waits.Count > 0 ? waits.Max() : 0,
+                    AvgMinutes = waits.Count > 0 ? (int)waits.Average() : 0,
                 });
             }
         }
@@ -349,6 +359,7 @@ public class QualityDashboardService : IQualityDashboardService
         var date = (asOfDate ?? DateTime.Today).Date;
         var nextDay = date.AddDays(1);
         var results = new List<ClsCostByPaymentTypeDto>();
+        var (dateUtc, nextDayUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date); // QA-R6: CreatedAt is UTC
 
         try
         {
@@ -356,7 +367,7 @@ public class QualityDashboardService : IQualityDashboardService
                 .Include(d => d.ServiceRequest).ThenInclude(sr => sr!.MedicalRecord)
                 .Include(d => d.Service).ThenInclude(s => s!.ServiceGroup)
                 // d.Status 3 = cancelled detail line: must not count as CLS cost (lab tile already excludes it)
-                .Where(d => d.CreatedAt >= date && d.CreatedAt < nextDay && d.Status != 3 && d.ServiceRequest != null && d.ServiceRequest.Status != 4)
+                .Where(d => d.CreatedAt >= dateUtc && d.CreatedAt < nextDayUtc && d.Status != 3 && d.ServiceRequest != null && d.ServiceRequest.Status != 4)
                 .Select(d => new
                 {
                     GroupName = d.Service != null && d.Service.ServiceGroup != null ? d.Service.ServiceGroup.GroupName : "Khác",

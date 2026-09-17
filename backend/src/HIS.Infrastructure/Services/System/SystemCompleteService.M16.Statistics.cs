@@ -31,16 +31,21 @@ public partial class SystemCompleteService
         var toEnd = StatisticsEndExclusive(toDate);
         try
         {
+            // QA-R6: CreatedAt is UTC and cancelled visits (5) are not visits — 133 here vs 130 on the department
+            // statistics / KPI / dashboard for 01-16/09. VN-day bounds + VN-day bucket, same as those screens.
+            var fromUtc = ReportPeriod.ToUtc(fromDate);
+            var toUtc = ReportPeriod.ToUtc(toEnd);
+            var offsetHours = (fromDate - fromUtc).TotalHours;
             var query = _context.Examinations.AsNoTracking()
                 .Include(e => e.Department)
-                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt < toEnd);
+                .Where(e => e.CreatedAt >= fromUtc && e.CreatedAt < toUtc && e.Status != 5);
             if (departmentId.HasValue)
                 query = query.Where(e => e.DepartmentId == departmentId.Value);
             if (doctorId.HasValue)
                 query = query.Where(e => e.DoctorId == doctorId.Value);
 
             var result = await query
-                .GroupBy(e => new { e.DepartmentId, e.Department.DepartmentName, Date = e.CreatedAt.Date })
+                .GroupBy(e => new { e.DepartmentId, e.Department.DepartmentName, Date = e.CreatedAt.AddHours(offsetHours).Date })
                 .Select(g => new ExaminationStatisticsDto
                 {
                     Date = g.Key.Date,
@@ -192,17 +197,22 @@ public partial class SystemCompleteService
         var toEnd = StatisticsEndExclusive(toDate);
         try
         {
+            // QA-R6: CreatedAt is UTC; cancelled visits (5) excluded.
+            var fromUtc = ReportPeriod.ToUtc(fromDate);
+            var toUtc = ReportPeriod.ToUtc(toEnd);
             var examQuery = _context.Examinations.AsNoTracking()
-                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt < toEnd)
+                .Where(e => e.CreatedAt >= fromUtc && e.CreatedAt < toUtc && e.Status != 5)
                 .Where(e => e.MainIcdCode != null && e.MainIcdCode != "");
             if (departmentId.HasValue)
                 examQuery = examQuery.Where(e => e.DepartmentId == departmentId.Value);
             if (!string.IsNullOrWhiteSpace(icdChapter))
                 examQuery = examQuery.Where(e => e.MainIcdCode.StartsWith(icdChapter));
 
+            // QA-R6: grouped by (code, free-text diagnosis) and then read with FirstOrDefault(code) — every other
+            // spelling of the same code was dropped (01-16/09: 27 of 59 cases). One row per ICD code.
             var examStats = await examQuery
-                .GroupBy(e => new { e.MainIcdCode, e.MainDiagnosis })
-                .Select(g => new { g.Key.MainIcdCode, g.Key.MainDiagnosis, Count = g.Count() })
+                .GroupBy(e => e.MainIcdCode)
+                .Select(g => new { MainIcdCode = g.Key, MainDiagnosis = g.Max(e => e.MainDiagnosis), Count = g.Count() })
                 .ToListAsync();
 
             var admissionQuery = _context.Admissions.AsNoTracking()
@@ -215,8 +225,8 @@ public partial class SystemCompleteService
                 admissionQuery = admissionQuery.Where(a => a.MedicalRecord.MainIcdCode.StartsWith(icdChapter));
 
             var admissionStats = await admissionQuery
-                .GroupBy(a => new { a.MedicalRecord.MainIcdCode, a.MedicalRecord.MainDiagnosis })
-                .Select(g => new { g.Key.MainIcdCode, g.Key.MainDiagnosis, Count = g.Count() })
+                .GroupBy(a => a.MedicalRecord.MainIcdCode)
+                .Select(g => new { MainIcdCode = g.Key, MainDiagnosis = g.Max(a => a.MedicalRecord.MainDiagnosis), Count = g.Count() })
                 .ToListAsync();
 
             var allIcds = examStats.Select(x => x.MainIcdCode)
@@ -386,8 +396,11 @@ public partial class SystemCompleteService
                 .Where(c => c.ConfigKey == "HospitalName" || c.ConfigKey == "HospitalCode")
                 .ToListAsync();
 
+            // QA-R6: CreatedAt is UTC; cancelled visits (5) are not visits (was 133 vs 130 elsewhere).
+            var fromUtc = ReportPeriod.ToUtc(fromDate);
+            var toUtc = ReportPeriod.ToUtc(toEnd);
             var totalOutpatients = await _context.Examinations.AsNoTracking()
-                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt < toEnd)
+                .Where(e => e.CreatedAt >= fromUtc && e.CreatedAt < toUtc && e.Status != 5)
                 .CountAsync();
 
             var totalInpatients = await _context.Admissions.AsNoTracking()

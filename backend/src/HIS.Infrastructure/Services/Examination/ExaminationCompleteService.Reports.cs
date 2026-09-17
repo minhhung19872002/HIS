@@ -82,7 +82,10 @@ public partial class ExaminationCompleteService
     {
         var query = _context.Examinations.AsNoTracking()
             .Include(e => e.MedicalRecord)
-            .Where(e => e.MedicalRecord.AdmissionDate >= fromDate && e.MedicalRecord.AdmissionDate <= toDate);
+            // QA-R6: `<= toDate` (midnight) dropped the last day (01-16/09: 95 vs 130) and cancelled visits (5)
+            // were in the total but in no status bucket.
+            .Where(e => e.MedicalRecord.AdmissionDate >= fromDate && e.MedicalRecord.AdmissionDate < ReportPeriod.EndExclusive(toDate)
+                && e.Status != 5);
 
         if (departmentId.HasValue)
             query = query.Where(e => e.DepartmentId == departmentId.Value);
@@ -112,7 +115,7 @@ public partial class ExaminationCompleteService
             .Include(e => e.MedicalRecord)
             .ThenInclude(m => m.Patient)
             .Include(e => e.Doctor)
-            .Where(e => e.MedicalRecord.AdmissionDate >= fromDate && e.MedicalRecord.AdmissionDate <= toDate);
+            .Where(e => e.MedicalRecord.AdmissionDate >= fromDate && e.MedicalRecord.AdmissionDate < ReportPeriod.EndExclusive(toDate));
 
         if (roomId.HasValue)
             query = query.Where(e => e.RoomId == roomId.Value);
@@ -219,7 +222,8 @@ public partial class ExaminationCompleteService
         var query = _context.Examinations.AsNoTracking()
             .Include(e => e.MedicalRecord)
             .Include(e => e.Doctor)
-            .Where(e => e.MedicalRecord.AdmissionDate >= fromDate && e.MedicalRecord.AdmissionDate <= toDate && e.DoctorId.HasValue);
+            .Where(e => e.MedicalRecord.AdmissionDate >= fromDate && e.MedicalRecord.AdmissionDate < ReportPeriod.EndExclusive(toDate) && e.DoctorId.HasValue
+                && e.Status != 5); // QA-R6: cancelled visits counted as pending
 
         if (departmentId.HasValue)
             query = query.Where(e => e.DepartmentId == departmentId.Value);
@@ -249,7 +253,7 @@ public partial class ExaminationCompleteService
         var examinations = await _context.Examinations.AsNoTracking()
             .Include(e => e.MedicalRecord)
             .Where(e => e.MedicalRecord.AdmissionDate >= fromDate &&
-                       e.MedicalRecord.AdmissionDate <= toDate &&
+                       e.MedicalRecord.AdmissionDate < ReportPeriod.EndExclusive(toDate) &&
                        !string.IsNullOrEmpty(e.MainIcdCode))
             .ToListAsync();
 
@@ -267,7 +271,7 @@ public partial class ExaminationCompleteService
             .Include(e => e.MedicalRecord)
             .ThenInclude(m => m.Patient)
             .Where(e => e.MedicalRecord.AdmissionDate >= fromDate &&
-                       e.MedicalRecord.AdmissionDate <= toDate &&
+                       e.MedicalRecord.AdmissionDate < ReportPeriod.EndExclusive(toDate) &&
                        !string.IsNullOrEmpty(e.MainIcdCode) &&
                        (e.MainIcdCode.StartsWith("A") || e.MainIcdCode.StartsWith("B")))
             .ToBoundedListAsync("ExaminationCompleteService.GetCommunicableDiseaseReportAsync");
