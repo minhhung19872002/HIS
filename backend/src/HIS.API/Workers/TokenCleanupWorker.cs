@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using HIS.Core.Common;
 using HIS.Infrastructure.Data;
 
 namespace HIS.API.Workers;
@@ -7,7 +8,8 @@ namespace HIS.API.Workers;
 /// #422 (follow-up #368): dọn định kỳ RefreshTokens + UserSessions đã hết vòng đời để
 /// bảng không phình vô hạn (14 ngày TTL nhưng AUTHZ-2 không xóa row).
 ///
-/// Mỗi chu kỳ (mặc định 24h, lần đầu ~60s sau khởi động):
+/// Mỗi chu kỳ (mặc định 24h, neo lúc TokenCleanup:RunAtVnTime = 03:00 giờ VN; chạy ngay sau
+/// khởi động chỉ khi TokenCleanup:RunOnStartup=true):
 ///   1. HARD-DELETE RefreshTokens đã hết hạn HOẶC bị thu hồi quá `RetentionDays` (mặc định 30) —
 ///      quá hạn/đã revoke lâu = không còn giá trị bảo mật/audit (reuse-detection chỉ cần
 ///      token còn trong TTL). Giữ lại token gần đây để điều tra sự cố.
@@ -41,7 +43,13 @@ public sealed class TokenCleanupWorker : BackgroundService
         _sessionRetentionDays = config.GetValue<int>("TokenCleanup:SessionRetentionDays", 90);
         _refreshTokenDays = config.GetValue<int>("Auth:RefreshTokenDays", 14);
         _interval = TimeSpan.FromHours(config.GetValue<int>("TokenCleanup:IntervalHours", 24));
+        // QA-R10: anchored to VN wall-clock instead of "60 s after boot, then every interval".
+        _runAtVn = VnSchedule.ParseTimeOfDay(config.GetValue<string>("TokenCleanup:RunAtVnTime"), TimeSpan.FromHours(3));
+        _runOnStartup = config.GetValue<bool>("TokenCleanup:RunOnStartup", false);
     }
+
+    private readonly TimeSpan _runAtVn;
+    private readonly bool _runOnStartup;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -52,23 +60,35 @@ public sealed class TokenCleanupWorker : BackgroundService
         }
 
         _logger.LogInformation(
-            "TokenCleanupWorker started — interval={Hours}h, retentionDays={Retention}",
-            (int)_interval.TotalHours, _retentionDays);
+            "TokenCleanupWorker started — interval={Hours}h, retentionDays={Retention}, runAtVn={RunAt}, runOnStartup={OnStartup}",
+            (int)_interval.TotalHours, _retentionDays, _runAtVn, _runOnStartup);
 
-        try { await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken); }
-        catch (OperationCanceledException) { return; }
+        if (_runOnStartup)
+        {
+            try { await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken); }
+            catch (OperationCanceledException) { return; }
+            await RunIterationAsync(stoppingToken);
+        }
 
+        DateTime? slot = null;
         while (!stoppingToken.IsCancellationRequested)
         {
-            try { await CleanupOnceAsync(stoppingToken); }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "TokenCleanupWorker iteration failed — will retry next cycle");
-            }
-
-            try { await Task.Delay(_interval, stoppingToken); }
+            var delay = VnSchedule.DelayUntilNextRun(_runAtVn, _interval, slot, out var nextVn);
+            _logger.LogInformation("TokenCleanupWorker: lần chạy kế tiếp {NextVn:yyyy-MM-dd HH:mm} giờ VN (sau {Delay})", nextVn, delay);
+            try { await Task.Delay(delay, stoppingToken); }
             catch (OperationCanceledException) { break; }
+            slot = nextVn;
+            await RunIterationAsync(stoppingToken);
+        }
+    }
+
+    private async Task RunIterationAsync(CancellationToken stoppingToken)
+    {
+        try { await CleanupOnceAsync(stoppingToken); }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "TokenCleanupWorker iteration failed — will retry next cycle");
         }
     }
 

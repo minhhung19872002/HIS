@@ -1,4 +1,5 @@
-﻿using HIS.Infrastructure.Data;
+﻿using HIS.Core.Common;
+using HIS.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace HIS.API.Workers;
@@ -52,7 +53,13 @@ public sealed class AuditRetentionWorker : BackgroundService
         _authRetentionDays = config.GetValue<int>("AuditRetention:AuthRetentionDays", 730);
         _accessRetentionDays = config.GetValue<int>("AuditRetention:AccessRetentionDays", 548);
         _interval = TimeSpan.FromHours(config.GetValue<int>("AuditRetention:IntervalHours", 24));
+        // QA-R10: anchored to VN wall-clock (was "10 min after boot, then every interval" → every deploy re-ran it at a random hour).
+        _runAtVn = VnSchedule.ParseTimeOfDay(config.GetValue<string>("AuditRetention:RunAtVnTime"), TimeSpan.FromHours(2));
+        _runOnStartup = config.GetValue<bool>("AuditRetention:RunOnStartup", false);
     }
+
+    private readonly TimeSpan _runAtVn;
+    private readonly bool _runOnStartup;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -63,24 +70,36 @@ public sealed class AuditRetentionWorker : BackgroundService
         }
 
         _logger.LogInformation(
-            "AuditRetentionWorker started — authRetention={Auth}d, accessRetention={Access}d, interval={Hours}h",
-            _authRetentionDays, _accessRetentionDays, (int)_interval.TotalHours);
+            "AuditRetentionWorker started — authRetention={Auth}d, accessRetention={Access}d, interval={Hours}h, runAtVn={RunAt}, runOnStartup={OnStartup}",
+            _authRetentionDays, _accessRetentionDays, (int)_interval.TotalHours, _runAtVn, _runOnStartup);
 
-        // Delay lần đầu 10 phút sau startup để tránh contention với ProductionSchemaRepairRunner.
-        try { await Task.Delay(TimeSpan.FromMinutes(10), stoppingToken); }
-        catch (OperationCanceledException) { return; }
+        if (_runOnStartup)
+        {
+            // Delay lần đầu 10 phút sau startup để tránh contention với ProductionSchemaRepairRunner.
+            try { await Task.Delay(TimeSpan.FromMinutes(10), stoppingToken); }
+            catch (OperationCanceledException) { return; }
+            await RunIterationAsync(stoppingToken);
+        }
 
+        DateTime? slot = null;
         while (!stoppingToken.IsCancellationRequested)
         {
-            try { await RunRetentionAsync(stoppingToken); }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "AuditRetentionWorker iteration failed — will retry next cycle");
-            }
-
-            try { await Task.Delay(_interval, stoppingToken); }
+            var delay = VnSchedule.DelayUntilNextRun(_runAtVn, _interval, slot, out var nextVn);
+            _logger.LogInformation("AuditRetentionWorker: lần chạy kế tiếp {NextVn:yyyy-MM-dd HH:mm} giờ VN (sau {Delay})", nextVn, delay);
+            try { await Task.Delay(delay, stoppingToken); }
             catch (OperationCanceledException) { break; }
+            slot = nextVn;
+            await RunIterationAsync(stoppingToken);
+        }
+    }
+
+    private async Task RunIterationAsync(CancellationToken stoppingToken)
+    {
+        try { await RunRetentionAsync(stoppingToken); }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "AuditRetentionWorker iteration failed — will retry next cycle");
         }
     }
 

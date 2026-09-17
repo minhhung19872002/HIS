@@ -149,6 +149,42 @@ public partial class SystemCompleteService
     }
 
     // 17.5 Cau hinh he thong
+
+    // QA-R10: the generic config screen returned gateway credentials (DQGVN:SecretKey, BHXH.Password
+    // ciphertext, NangCap23.*.AccessToken ...) in clear. Secrets are masked on read; posting the mask
+    // back (or an empty value) keeps the stored value.
+    internal const string ConfigSecretMask = "••••••";
+    private static readonly string[] SecretKeySuffixes =
+    {
+        "Secret", "SecretKey", "ApiKey", "Password", "Token", "PrivateKey", "ClientSecret", "ConnectionString"
+    };
+
+    /// <summary>True when the key's last segment names a credential (BHXH.TokenUrl is NOT a secret).</summary>
+    internal static bool IsSecretConfigKey(string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return false;
+        var trimmed = key.Trim();
+        return SecretKeySuffixes.Any(s => trimmed.EndsWith(s, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsSecretConfig(SystemConfig c) =>
+        IsSecretConfigKey(c.ConfigKey) || HIS.Infrastructure.Security.SystemConfigSecret.IsProtected(c.ConfigValue);
+
+    private static SystemConfigDto ToConfigDto(SystemConfig c)
+    {
+        var secret = IsSecretConfig(c);
+        return new SystemConfigDto
+        {
+            Key = c.ConfigKey,
+            Value = secret ? (string.IsNullOrEmpty(c.ConfigValue) ? string.Empty : ConfigSecretMask) : c.ConfigValue,
+            DataType = c.ConfigType,
+            Description = c.Description,
+            Category = c.ConfigKey.Contains('.') ? c.ConfigKey.Substring(0, c.ConfigKey.IndexOf('.')) : "General",
+            IsEditable = true,
+            IsEncrypted = secret
+        };
+    }
+
     public async Task<List<SystemConfigDto>> GetSystemConfigsAsync(string category = null)
     {
         try
@@ -162,15 +198,7 @@ public partial class SystemCompleteService
                 query = query.Where(c => c.ConfigKey.StartsWith(category + ".") || c.ConfigType == category);
 
             var items = await query.OrderBy(c => c.ConfigKey).ToListAsync();
-            return items.Select(c => new SystemConfigDto
-            {
-                Key = c.ConfigKey,
-                Value = c.ConfigValue,
-                DataType = c.ConfigType,
-                Description = c.Description,
-                Category = c.ConfigKey.Contains('.') ? c.ConfigKey.Substring(0, c.ConfigKey.IndexOf('.')) : "General",
-                IsEditable = true
-            }).ToList();
+            return items.Select(ToConfigDto).ToList();
         }
         catch (Exception ex)
         {
@@ -186,15 +214,7 @@ public partial class SystemCompleteService
             var c = await _context.SystemConfigs.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.ConfigKey == configKey);
             if (c == null) return null;
-            return new SystemConfigDto
-            {
-                Key = c.ConfigKey,
-                Value = c.ConfigValue,
-                DataType = c.ConfigType,
-                Description = c.Description,
-                Category = c.ConfigKey.Contains('.') ? c.ConfigKey.Substring(0, c.ConfigKey.IndexOf('.')) : "General",
-                IsEditable = true
-            };
+            return ToConfigDto(c);
         }
         catch (Exception ex)
         {
@@ -210,12 +230,35 @@ public partial class SystemCompleteService
             var entity = await _context.SystemConfigs
                 .FirstOrDefaultAsync(c => c.ConfigKey == dto.Key);
 
+            // QA-R10: secret keys — the mask (or blank) means "keep the stored value"; a new value is
+            // stored the way its owning reader expects (encrypted when it was encrypted before).
+            var isSecret = IsSecretConfigKey(dto.Key) || (entity != null && IsSecretConfig(entity));
+            var incoming = dto.Value;
+            if (isSecret)
+            {
+                var keepStored = string.IsNullOrEmpty(incoming) || incoming.All(ch => ch == '•' || ch == '*');
+                if (keepStored)
+                    incoming = null;
+                else if (dto.Key!.StartsWith("NangCap23.", StringComparison.OrdinalIgnoreCase)
+                         && _nangCap23Config.IsSensitiveKey(dto.Key))
+                {
+                    // The NangCap23 store encrypts with its own protector and upserts the row itself.
+                    await _nangCap23Config.SaveAsync(new Dictionary<string, string?> { [dto.Key] = incoming },
+                        CurrentUserId?.ToString());
+                    entity = await _context.SystemConfigs.FirstOrDefaultAsync(c => c.ConfigKey == dto.Key);
+                    incoming = null;
+                }
+                else if ((entity != null && HIS.Infrastructure.Security.SystemConfigSecret.IsProtected(entity.ConfigValue))
+                         || dto.Key!.StartsWith("BHXH.", StringComparison.OrdinalIgnoreCase))
+                    incoming = _configSecret.Protect(incoming); // BhxhGatewaySettingsProvider/BhxhConfigService Reveal() it
+            }
+
             if (entity == null)
             {
                 entity = new SystemConfig
                 {
                     ConfigKey = dto.Key ?? string.Empty,
-                    ConfigValue = dto.Value ?? string.Empty,
+                    ConfigValue = incoming ?? string.Empty,
                     ConfigType = dto.DataType ?? "String",
                     Description = dto.Description,
                     IsActive = true
@@ -224,12 +267,12 @@ public partial class SystemCompleteService
             }
             else
             {
-                entity.ConfigValue = dto.Value ?? entity.ConfigValue;
+                entity.ConfigValue = incoming ?? entity.ConfigValue;
                 entity.ConfigType = dto.DataType ?? entity.ConfigType;
                 entity.Description = dto.Description ?? entity.Description; // QA-R9: nullable now — omitted ≠ cleared
             }
             await _context.SaveChangesAsync();
-            return dto;
+            return isSecret ? ToConfigDto(entity) : dto;
         }
         catch (Exception ex) when (ex is not DbUpdateException) // QA-R6: constraint errors (too long/duplicate) reach the API filter instead of a fake 204
         {

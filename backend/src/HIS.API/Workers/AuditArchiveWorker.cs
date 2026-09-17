@@ -1,6 +1,7 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using HIS.Core.Common;
 using HIS.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -68,7 +69,13 @@ public sealed class AuditArchiveWorker : BackgroundService
         _r2SecretAccessKey = config.GetValue<string>("AuditArchive:R2SecretAccessKey") ?? string.Empty;
         _r2BucketName = config.GetValue<string>("AuditArchive:R2BucketName") ?? string.Empty;
         _r2Region = config.GetValue<string>("AuditArchive:R2Region") ?? "auto";
+        // QA-R10: anchored to VN wall-clock instead of "15 min after boot, then every interval".
+        _runAtVn = VnSchedule.ParseTimeOfDay(config.GetValue<string>("AuditArchive:RunAtVnTime"), new TimeSpan(2, 30, 0));
+        _runOnStartup = config.GetValue<bool>("AuditArchive:RunOnStartup", false);
     }
+
+    private readonly TimeSpan _runAtVn;
+    private readonly bool _runOnStartup;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -88,24 +95,36 @@ public sealed class AuditArchiveWorker : BackgroundService
         }
 
         _logger.LogInformation(
-            "AuditArchiveWorker started — archiveAfter={Days}d, batch={Batch}, interval={Hours}h, bucket={Bucket}",
-            _archiveAfterDays, _batchSize, (int)_interval.TotalHours, _r2BucketName);
+            "AuditArchiveWorker started — archiveAfter={Days}d, batch={Batch}, interval={Hours}h, bucket={Bucket}, runAtVn={RunAt}, runOnStartup={OnStartup}",
+            _archiveAfterDays, _batchSize, (int)_interval.TotalHours, _r2BucketName, _runAtVn, _runOnStartup);
 
-        // Delay 15 phút sau startup để tránh contention với các worker khác.
-        try { await Task.Delay(TimeSpan.FromMinutes(15), stoppingToken); }
-        catch (OperationCanceledException) { return; }
+        if (_runOnStartup)
+        {
+            // Delay 15 phút sau startup để tránh contention với các worker khác.
+            try { await Task.Delay(TimeSpan.FromMinutes(15), stoppingToken); }
+            catch (OperationCanceledException) { return; }
+            await RunIterationAsync(stoppingToken);
+        }
 
+        DateTime? slot = null;
         while (!stoppingToken.IsCancellationRequested)
         {
-            try { await RunArchiveAsync(stoppingToken); }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "AuditArchiveWorker iteration failed — will retry next cycle");
-            }
-
-            try { await Task.Delay(_interval, stoppingToken); }
+            var delay = VnSchedule.DelayUntilNextRun(_runAtVn, _interval, slot, out var nextVn);
+            _logger.LogInformation("AuditArchiveWorker: lần chạy kế tiếp {NextVn:yyyy-MM-dd HH:mm} giờ VN (sau {Delay})", nextVn, delay);
+            try { await Task.Delay(delay, stoppingToken); }
             catch (OperationCanceledException) { break; }
+            slot = nextVn;
+            await RunIterationAsync(stoppingToken);
+        }
+    }
+
+    private async Task RunIterationAsync(CancellationToken stoppingToken)
+    {
+        try { await RunArchiveAsync(stoppingToken); }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "AuditArchiveWorker iteration failed — will retry next cycle");
         }
     }
 

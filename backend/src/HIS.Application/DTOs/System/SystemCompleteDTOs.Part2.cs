@@ -322,6 +322,8 @@ namespace HIS.Application.DTOs.System
         public string? Description { get; set; }
         public string? Category { get; set; }
         public bool IsEditable { get; set; }
+        // QA-R10: secret key — Value is masked; posting the mask back keeps the stored value.
+        public bool IsEncrypted { get; set; }
     }
 
     /// <summary>

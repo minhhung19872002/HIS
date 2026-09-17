@@ -338,14 +338,16 @@ const SystemAdminV2: React.FC = () => {
   };
 
   // ─── Config update ───
-  const openCfg = (c: SystemConfigDto) => { setCfgModal(c); cfgF.setFieldsValue({ configValue: c.configValue || '' }); };
+  // Secret keys come back masked: start blank — blank (or the mask) keeps the stored value on the server.
+  const openCfg = (c: SystemConfigDto) => { setCfgModal(c); cfgF.setFieldsValue({ configValue: c.isEncrypted ? '' : (c.configValue || '') }); };
   const submitCfg = async () => {
     if (!cfgModal) return;
     let v: Record<string, unknown>;
     try { v = await cfgF.validateFields(); } catch { return; }
     setSaving(true);
     // POST /admin/configs binds BE SystemConfigDto { key, value } — send both spellings
-    try { await adminApi.saveSystemConfig({ ...cfgModal, configValue: v.configValue as string, key: cfgModal.configKey, value: v.configValue as string } as SystemConfigDto); tk('Đã lưu cấu hình'); setCfgModal(null); load(); }
+    const value = (v.configValue as string | undefined) ?? '';
+    try { await adminApi.saveSystemConfig({ ...cfgModal, configValue: value, key: cfgModal.configKey, value } as SystemConfigDto); tk('Đã lưu cấu hình'); setCfgModal(null); load(); }
     catch (e: unknown) {
       if (!applyServerErrors(cfgF, e)) te(friendlyErrorMessage(e, 'Lưu thất bại'));
     }
@@ -865,7 +867,11 @@ const SystemAdminV2: React.FC = () => {
         footer={<><Btn onClick={() => setCfgModal(null)}>Huỷ</Btn><Btn variant="primary" disabled={saving} onClick={submitCfg}>{saving ? 'Đang lưu…' : 'Lưu'}</Btn></>}>
         <Form form={cfgF} layout="vertical" scrollToFirstError>
           <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)', marginBottom: 'var(--space-8)' }}>{cfgModal?.description || cfgModal?.category}</div>
-          <Form.Item name="configValue" label="Giá trị" rules={[{ required: true, message: 'Nhập giá trị' }]}><Input.TextArea rows={3} /></Form.Item>
+          {cfgModal?.isEncrypted ? (
+            <Form.Item name="configValue" label="Giá trị bí mật mới" extra="Để trống để giữ nguyên giá trị đang lưu."><Input.Password autoComplete="new-password" /></Form.Item>
+          ) : (
+            <Form.Item name="configValue" label="Giá trị" rules={[{ required: true, message: 'Nhập giá trị' }]}><Input.TextArea rows={3} /></Form.Item>
+          )}
         </Form>
       </ModalShell>
 

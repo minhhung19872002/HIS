@@ -187,11 +187,15 @@ public class DataManagementService : IDataManagementService
         // BackupType: 0=Manual, 1=Scheduled (khi được gọi bởi worker)
         var isScheduled = userId.StartsWith("system:", StringComparison.OrdinalIgnoreCase);
 
+        // QA-R10: AWS RDS cannot BACKUP ... TO DISK — native backup goes to S3 via msdb.dbo.rds_backup_database.
+        var useRds = await IsRdsBackupProviderAsync();
+        var rdsTarget = useRds ? BuildRdsS3Target(fileName) : null;
+
         var history = new BackupHistory
         {
             Id = Guid.NewGuid(),
             FileName = fileName,
-            FilePath = destination == "Local" ? filePath : null,
+            FilePath = useRds ? rdsTarget : destination == "Local" ? filePath : null,
             SizeBytes = 0,
             BackupType = isScheduled ? 1 : 0,
             Destination = destination,
@@ -213,9 +217,144 @@ public class DataManagementService : IDataManagementService
         }
 
         // Thực thi backup SQL Server (chỉ local/NAS, không tự động đẩy Cloud)
-        _ = Task.Run(async () => await ExecuteBackupAsync(history.Id, filePath, destination));
+        if (useRds)
+            _ = Task.Run(async () => await ExecuteRdsBackupAsync(history.Id, rdsTarget));
+        else
+            _ = Task.Run(async () => await ExecuteBackupAsync(history.Id, filePath, destination));
 
         return MapToDto(history);
+    }
+
+    private string GetDatabaseName() =>
+        _config.GetConnectionString("DefaultConnection")
+            ?.Split(';')
+            .FirstOrDefault(p => p.TrimStart().StartsWith("Database=", StringComparison.OrdinalIgnoreCase)
+                              || p.TrimStart().StartsWith("Initial Catalog=", StringComparison.OrdinalIgnoreCase))
+            ?.Split('=').LastOrDefault()?.Trim()
+        ?? "HIS";
+
+    /// <summary>
+    /// Backup:Provider = Disk | Rds | Auto (default Auto). Auto = Rds when the server has the RDS
+    /// native-backup procedure msdb.dbo.rds_backup_database (only present on AWS RDS), else Disk.
+    /// </summary>
+    private async Task<bool> IsRdsBackupProviderAsync()
+    {
+        var provider = (_config["Backup:Provider"] ?? "Auto").Trim();
+        if (provider.Equals("Rds", StringComparison.OrdinalIgnoreCase)) return true;
+        if (provider.Equals("Disk", StringComparison.OrdinalIgnoreCase)) return false;
+        try
+        {
+            var found = await _db.Database
+                .SqlQueryRaw<int>("SELECT CASE WHEN OBJECT_ID(N'msdb.dbo.rds_backup_database') IS NULL THEN 0 ELSE 1 END AS [Value]")
+                .SingleAsync();
+            return found == 1;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Backup: không xác định được RDS — dùng BACKUP TO DISK");
+            return false;
+        }
+    }
+
+    /// <summary>S3 object ARN for this backup: Backup:RdsS3Arn (bucket or bucket/prefix ARN) + file name; null if not configured.</summary>
+    private string? BuildRdsS3Target(string fileName)
+    {
+        var arn = _config["Backup:RdsS3Arn"]?.Trim();
+        if (string.IsNullOrEmpty(arn)) return null;
+        return arn.EndsWith(".bak", StringComparison.OrdinalIgnoreCase) ? arn : $"{arn.TrimEnd('/')}/{fileName}";
+    }
+
+    /// <summary>
+    /// AWS RDS native backup: msdb.dbo.rds_backup_database → poll msdb.dbo.rds_task_status until the task ends.
+    /// Needs the SQLSERVER_BACKUP_RESTORE option (IAM role with write access to the bucket) on the instance.
+    /// </summary>
+    private async Task ExecuteRdsBackupAsync(Guid historyId, string? s3Target)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HISDbContext>();
+        if (string.IsNullOrEmpty(s3Target))
+        {
+            const string msg = "Chưa cấu hình S3 cho sao lưu RDS (Backup:RdsS3Arn). AWS RDS không hỗ trợ BACKUP TO DISK — "
+                             + "cần option group SQLSERVER_BACKUP_RESTORE và ARN bucket S3.";
+            _logger.LogWarning("Backup RDS bỏ qua cho history {Id}: {Msg}", historyId, msg);
+            await UpdateBackupHistoryAsync(db, historyId, 2, 0, null, msg);
+            return;
+        }
+
+        var dbName = GetDatabaseName();
+        var pollInterval = TimeSpan.FromSeconds(Math.Max(5, _config.GetValue<int>("Backup:RdsPollSeconds", 30)));
+        var timeout = TimeSpan.FromMinutes(Math.Max(1, _config.GetValue<int>("Backup:RdsTimeoutMinutes", 180)));
+        var conn = db.Database.GetDbConnection();
+        try
+        {
+            await db.Database.OpenConnectionAsync();
+            int taskId;
+            await using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "EXEC msdb.dbo.rds_backup_database @source_db_name = @db, @s3_arn_to_backup_to = @arn, @type = 'FULL'";
+                AddParam(cmd, "@db", dbName);
+                AddParam(cmd, "@arn", s3Target);
+                cmd.CommandTimeout = 120;
+                await using var reader = await cmd.ExecuteReaderAsync();
+                if (!await reader.ReadAsync())
+                    throw new InvalidOperationException("rds_backup_database không trả task_id");
+                taskId = Convert.ToInt32(reader[ColumnOrdinal(reader, "task_id")]);
+            }
+            _logger.LogInformation("Backup RDS: task {TaskId} → {Target}", taskId, s3Target);
+
+            var deadline = DateTime.UtcNow + timeout;
+            while (true)
+            {
+                await Task.Delay(pollInterval);
+                string lifecycle, info;
+                await using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "EXEC msdb.dbo.rds_task_status @db_name = @db, @task_id = @task";
+                    AddParam(cmd, "@db", dbName);
+                    AddParam(cmd, "@task", taskId);
+                    await using var reader = await cmd.ExecuteReaderAsync();
+                    if (!await reader.ReadAsync())
+                        throw new InvalidOperationException($"rds_task_status không thấy task {taskId}");
+                    lifecycle = Convert.ToString(reader[ColumnOrdinal(reader, "lifecycle")]) ?? string.Empty;
+                    info = Convert.ToString(reader[ColumnOrdinal(reader, "task_info")]) ?? string.Empty;
+                }
+
+                if (lifecycle.Equals("SUCCESS", StringComparison.OrdinalIgnoreCase))
+                {
+                    await UpdateBackupHistoryAsync(db, historyId, 1, 0, s3Target, null);
+                    _logger.LogInformation("Backup RDS thành công: task {TaskId} → {Target}", taskId, s3Target);
+                    return;
+                }
+                if (lifecycle is "ERROR" or "CANCELLED" or "CANCEL_REQUESTED")
+                    throw new InvalidOperationException($"RDS task {taskId} {lifecycle}: {info}");
+                if (DateTime.UtcNow > deadline)
+                    throw new TimeoutException($"RDS task {taskId} chưa xong sau {timeout.TotalMinutes:0} phút (trạng thái {lifecycle}) — kiểm tra rds_task_status");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Backup RDS thất bại cho history {Id}", historyId);
+            await UpdateBackupHistoryAsync(db, historyId, 2, 0, null, ex.Message);
+        }
+        finally
+        {
+            try { await db.Database.CloseConnectionAsync(); } catch { /* best-effort */ }
+        }
+
+        static void AddParam(System.Data.Common.DbCommand cmd, string name, object value)
+        {
+            var p = cmd.CreateParameter();
+            p.ParameterName = name;
+            p.Value = value;
+            cmd.Parameters.Add(p);
+        }
+
+        static int ColumnOrdinal(System.Data.Common.DbDataReader reader, string name)
+        {
+            for (var i = 0; i < reader.FieldCount; i++)
+                if (string.Equals(reader.GetName(i), name, StringComparison.OrdinalIgnoreCase)) return i;
+            throw new InvalidOperationException($"Kết quả thủ tục RDS thiếu cột '{name}'");
+        }
     }
 
     /// <summary>
@@ -344,7 +483,15 @@ public class DataManagementService : IDataManagementService
             ?? "HIS";
 
         var filePath = backup.FilePath ?? backup.FileName;
-        var restoreScript =
+        var restoreScript = filePath.StartsWith("arn:aws:s3:", StringComparison.OrdinalIgnoreCase)
+            // QA-R10: RDS backups live in S3 — restore with the RDS procedure (into a NEW db name, RDS cannot overwrite).
+            ? $"-- Bản sao lưu AWS RDS trên S3. RDS không cho RESTORE đè DB đang tồn tại: khôi phục sang DB mới rồi đổi tên/điều hướng.\n" +
+              $"-- Lý do yêu cầu: {request.Reason.Replace('\r', ' ').Replace('\n', ' ')}\n" +
+              $"-- Người yêu cầu: {userId} lúc {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC\n\n" +
+              $"EXEC msdb.dbo.rds_restore_database @restore_db_name = N'{dbName.Replace("'", "''")}_restore', " +
+              $"@s3_arn_to_restore_from = N'{filePath.Replace("'", "''")}';\n" +
+              $"-- Theo dõi: EXEC msdb.dbo.rds_task_status @db_name = N'{dbName.Replace("'", "''")}_restore';"
+            :
             $"-- CẢNH BÁO: Lệnh dưới đây SẼ GHI ĐÈ toàn bộ dữ liệu DB [{dbName}]!\n" +
             $"-- Chỉ chạy khi đã ngắt toàn bộ kết nối và có sự đồng ý của quản trị viên.\n" +
             // Strip CR/LF: a newline in Reason would escape the "--" comment and inject T-SQL into the script.

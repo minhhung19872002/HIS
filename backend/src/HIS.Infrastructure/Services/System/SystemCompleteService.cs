@@ -34,19 +34,25 @@ public partial class SystemCompleteService : ISystemCompleteService
     private readonly HIS.Application.Services.ISoDService _sodService; // AUTHZ-4 #370 (grant-time SoD, OFF)
     private readonly IHttpContextAccessor _httpCtx;
     private readonly IHospitalReportService _hospitalReports; // QA-R3: real data for pharmacy/statistics print & export
+    private readonly HIS.Infrastructure.Security.SystemConfigSecret _configSecret; // QA-R10: re-protect encrypted BHXH.* secrets saved from the generic config screen
+    private readonly INangCap23ConfigStore _nangCap23Config; // QA-R10: NangCap23.* secrets use their own protector
 
     public SystemCompleteService(
         HISDbContext context,
         ILogger<SystemCompleteService> logger,
         HIS.Application.Services.ISoDService sodService,
         IHttpContextAccessor httpContextAccessor,
-        IHospitalReportService hospitalReports)
+        IHospitalReportService hospitalReports,
+        HIS.Infrastructure.Security.SystemConfigSecret configSecret,
+        INangCap23ConfigStore nangCap23Config)
     {
         _context = context;
         _logger = logger;
         _sodService = sodService;
         _httpCtx = httpContextAccessor;
         _hospitalReports = hospitalReports;
+        _configSecret = configSecret;
+        _nangCap23Config = nangCap23Config;
     }
 
 

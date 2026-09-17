@@ -1,5 +1,6 @@
 using HIS.Application.DTOs.DataManagement;
 using HIS.Application.Services;
+using HIS.Core.Common;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -13,11 +14,14 @@ namespace HIS.Infrastructure.Services.Workers;
 /// Cấu hình đọc từ hai nguồn (ưu tiên SystemConfig > appsettings):
 ///   - Bật/tắt: SystemConfig "Backup.ScheduleEnabled" | appsettings BackupScheduler:Enabled (default false)
 ///   - Khoảng cách: SystemConfig "Backup.ScheduleIntervalHours" | appsettings BackupScheduler:IntervalHours (default 24)
+///   - Mốc giờ VN: appsettings BackupScheduler:RunAtVnTime (default "01:30"); các lần chạy nằm trên lưới
+///     RunAtVnTime + k·interval (interval &lt; 24h) hoặc mỗi interval kể từ mốc đầu tiên (interval ≥ 24h)
+///   - Chạy ngay khi khởi động: appsettings BackupScheduler:RunOnStartup (default false)
 ///   - Khởi động delay: appsettings BackupScheduler:StartupDelaySeconds (default 60)
 ///
-/// Worker đọc lại cấu hình từ SystemConfig mỗi chu kỳ (hot-reload config mà không cần restart).
-/// Idempotent: mỗi chu kỳ kiểm tra lần backup cuối cùng thành công;
-/// bỏ qua nếu khoảng cách chưa đủ (tránh backup trùng khi restart pod).
+/// Worker đọc lại cấu hình từ SystemConfig mỗi 15 phút (hot-reload config mà không cần restart).
+/// Idempotent: trước khi chạy kiểm tra lần backup tự động thành công gần nhất; bỏ qua nếu quá gần.
+/// Nhà cung cấp backup (TO DISK / AWS RDS→S3): xem DataManagementService (Backup:Provider).
 ///
 /// Đăng ký DI (thêm vào DependencyInjection.cs):
 ///   services.AddHostedService&lt;BackupSchedulerWorker&gt;();
@@ -44,7 +48,17 @@ public sealed class BackupSchedulerWorker : BackgroundService
             config.GetValue<double>("BackupScheduler:IntervalHours", 24));
         _startupDelay = TimeSpan.FromSeconds(
             config.GetValue<int>("BackupScheduler:StartupDelaySeconds", 60));
+        // QA-R10: anchored to VN wall-clock — "first cycle at boot + 60 s, then every interval" made every deploy
+        // start a full backup at whatever hour the container came up.
+        _runAtVn = VnSchedule.ParseTimeOfDay(config.GetValue<string>("BackupScheduler:RunAtVnTime"), new TimeSpan(1, 30, 0));
+        _runOnStartup = config.GetValue<bool>("BackupScheduler:RunOnStartup", false);
     }
+
+    private readonly TimeSpan _runAtVn;
+    private readonly bool _runOnStartup;
+
+    /// <summary>How often the worker wakes to re-read SystemConfig (enable/interval hot-reload).</summary>
+    private static readonly TimeSpan ConfigPoll = TimeSpan.FromMinutes(15);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -60,53 +74,110 @@ public sealed class BackupSchedulerWorker : BackgroundService
         try { await Task.Delay(_startupDelay, stoppingToken); }
         catch (OperationCanceledException) { return; }
 
-        _logger.LogInformation("BackupSchedulerWorker: started, polling SystemConfig mỗi chu kỳ");
+        _logger.LogInformation(
+            "BackupSchedulerWorker: started — runAtVn={RunAt}, runOnStartup={OnStartup}, polling SystemConfig mỗi {Poll}",
+            _runAtVn, _runOnStartup, ConfigPoll);
 
+        if (_runOnStartup)
+            await SafeRunCycleAsync(slotRun: false, stoppingToken);
+
+        DateTime? slot = null;
+        TimeSpan? slotInterval = null;
+        DateTime? loggedNext = null;
         while (!stoppingToken.IsCancellationRequested)
         {
-            TimeSpan interval;
+            TimeSpan wait;
+            var runNow = false;
+            DateTime nextVn = default;
             try
             {
-                interval = await RunCycleAsync(stoppingToken);
+                var (enabled, interval) = await ReadScheduleAsync();
+                if (!enabled)
+                {
+                    slot = null;
+                    loggedNext = null;
+                    wait = ConfigPoll; // Polling nhẹ để phát hiện khi được bật lại
+                }
+                else
+                {
+                    if (slotInterval != interval) { slot = null; slotInterval = interval; }
+                    var delay = VnSchedule.DelayUntilNextRun(_runAtVn, interval, slot, out nextVn);
+                    if (loggedNext != nextVn)
+                    {
+                        _logger.LogInformation(
+                            "BackupSchedulerWorker: lần backup tự động kế tiếp {NextVn:yyyy-MM-dd HH:mm} giờ VN (sau {Delay}, interval={Hours}h)",
+                            nextVn, delay, interval.TotalHours);
+                        loggedNext = nextVn;
+                    }
+                    runNow = delay <= ConfigPoll;
+                    wait = runNow ? delay : ConfigPoll;
+                }
             }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "BackupSchedulerWorker: lỗi không mong đợi trong chu kỳ — thử lại sau 30 phút");
-                interval = TimeSpan.FromMinutes(30);
+                _logger.LogError(ex, "BackupSchedulerWorker: lỗi đọc lịch — thử lại sau 30 phút");
+                wait = TimeSpan.FromMinutes(30);
             }
 
-            try { await Task.Delay(interval, stoppingToken); }
+            try { await Task.Delay(wait, stoppingToken); }
             catch (OperationCanceledException) { break; }
+
+            if (runNow)
+            {
+                slot = nextVn;
+                await SafeRunCycleAsync(slotRun: true, stoppingToken);
+            }
         }
     }
 
-    /// <summary>
-    /// Thực hiện 1 chu kỳ: đọc config → kiểm tra có cần backup không → chạy backup.
-    /// Trả về khoảng delay đến chu kỳ tiếp theo.
-    /// </summary>
-    private async Task<TimeSpan> RunCycleAsync(CancellationToken ct)
+    private async Task<(bool Enabled, TimeSpan Interval)> ReadScheduleAsync()
     {
         using var scope = _scopeFactory.CreateScope();
-        var service = scope.ServiceProvider.GetRequiredService<IDataManagementService>();
+        var cfg = await ReadConfigAsync(scope.ServiceProvider.GetRequiredService<IDataManagementService>());
+        var intervalHours = cfg.ScheduleIntervalHours ?? (int)_intervalByConfig.TotalHours;
+        return (cfg.ScheduleEnabled, TimeSpan.FromHours(Math.Max(1, intervalHours)));
+    }
 
+    private async Task<BackupConfigDto> ReadConfigAsync(IDataManagementService service)
+    {
         // Đọc config từ SystemConfig (hot-reload)
-        BackupConfigDto cfg;
-        try { cfg = await service.GetBackupConfigAsync(); }
+        try { return await service.GetBackupConfigAsync(); }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "BackupSchedulerWorker: không đọc được BackupConfig từ DB — dùng appsettings");
-            cfg = new BackupConfigDto
+            return new BackupConfigDto
             {
                 ScheduleEnabled = _enabledByConfig,
                 ScheduleIntervalHours = (int)_intervalByConfig.TotalHours,
             };
         }
+    }
 
+    private async Task SafeRunCycleAsync(bool slotRun, CancellationToken ct)
+    {
+        try { await RunCycleAsync(slotRun, ct); }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "BackupSchedulerWorker: lỗi không mong đợi trong chu kỳ");
+        }
+    }
+
+    /// <summary>
+    /// Thực hiện 1 chu kỳ: đọc config → kiểm tra có cần backup không → chạy backup.
+    /// <paramref name="slotRun"/>: chạy đúng mốc lịch — chỉ bỏ qua nếu vừa có backup thành công gần đây
+    /// (mốc trước chạy sớm vài giây không được làm lỡ mốc này).
+    /// </summary>
+    private async Task RunCycleAsync(bool slotRun, CancellationToken ct)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<IDataManagementService>();
+
+        var cfg = await ReadConfigAsync(service);
         if (!cfg.ScheduleEnabled)
         {
             _logger.LogDebug("BackupSchedulerWorker: ScheduleEnabled=false — bỏ qua chu kỳ này");
-            return TimeSpan.FromMinutes(15); // Polling nhẹ để phát hiện khi được bật lại
+            return;
         }
 
         var intervalHours = cfg.ScheduleIntervalHours ?? (int)_intervalByConfig.TotalHours;
@@ -115,21 +186,23 @@ public sealed class BackupSchedulerWorker : BackgroundService
         // Kiểm tra lần backup tự động cuối — idempotent guard
         var histories = await service.GetBackupHistoryAsync();
         var lastScheduled = histories
-            .Where(h => h.BackupType == 1 /* Scheduled */ && h.Status == 1 /* Success */)
+            // Running (0) counts too: the backup runs asynchronously, a just-started one is not Success yet.
+            .Where(h => h.BackupType == 1 /* Scheduled */ && (h.Status == 1 /* Success */ || h.Status == 0 /* Running */))
             .OrderByDescending(h => h.StartedAt)
             .FirstOrDefault();
 
         if (lastScheduled != null)
         {
             var elapsed = DateTime.UtcNow - lastScheduled.StartedAt;
-            if (elapsed < interval)
+            var minGap = slotRun
+                ? interval - TimeSpan.FromTicks(Math.Min(TimeSpan.FromHours(1).Ticks, interval.Ticks / 2))
+                : interval;
+            if (elapsed < minGap)
             {
-                var remaining = interval - elapsed;
-                _logger.LogDebug(
-                    "BackupSchedulerWorker: backup tự động gần nhất cách {Elapsed:hh\\:mm} trước. " +
-                    "Chờ thêm {Remaining:hh\\:mm}",
-                    elapsed, remaining);
-                return remaining < TimeSpan.FromMinutes(5) ? TimeSpan.FromMinutes(5) : remaining;
+                _logger.LogInformation(
+                    "BackupSchedulerWorker: backup tự động gần nhất cách {Elapsed:hh\\:mm} trước (< {Gap:hh\\:mm}) — bỏ qua lần này",
+                    elapsed, minGap);
+                return;
             }
         }
 
@@ -152,7 +225,5 @@ public sealed class BackupSchedulerWorker : BackgroundService
         {
             _logger.LogError(ex, "BackupSchedulerWorker: khởi động backup thất bại");
         }
-
-        return interval;
     }
 }
