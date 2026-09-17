@@ -239,6 +239,13 @@ export const createServiceGroupTemplate = (dto: ServiceGroupTemplateDto) =>
 export const getServiceGroupTemplates = (departmentId?: string) =>
   apiClient.get<ServiceGroupTemplateDto[]>(`${BASE_URL}/service-group-templates`, { params: { departmentId } });
 
+/** Creator or admin only (shared templates: admin only). Empty `items` keeps the services (rename). */
+export const updateServiceGroupTemplate = (id: string, dto: ServiceGroupTemplateDto) =>
+  apiClient.put<ServiceGroupTemplateDto>(`${BASE_URL}/service-group-templates/${id}`, dto);
+
+export const deleteServiceGroupTemplate = (id: string) =>
+  apiClient.delete(`${BASE_URL}/service-group-templates/${id}`);
+
 export const orderByTemplate = (
   admissionId: string,
   templateId: string,

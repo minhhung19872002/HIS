@@ -423,6 +423,7 @@ public partial class InpatientCompleteService {
         // (đúng hồ sơ của lượt nằm viện, chưa hủy) nên phiếu nào rơi vào FailedIds vẫn thế.
         var cancelIds = dto.ServiceRequestIds.ToList();
         var cancellableById = await _context.ServiceRequests
+            .Include(r => r.Details)
             .Where(r => cancelIds.Contains(r.Id)
                 && r.MedicalRecordId == admission.MedicalRecordId
                 && r.Status != 4)
@@ -437,12 +438,16 @@ public partial class InpatientCompleteService {
                 continue;
             }
             // Only cancel if not yet having results (status 0 or 2)
-            if (sr.Status == 3)
+            // QA-R9 (MONEY): a paid request must go through the cashier refund, like the OPD / single cancel.
+            if (sr.Status == 3 || sr.IsPaid
+                || await HasPaidServiceLinesAsync(sr.Details.Where(d => d.Status != 3).Select(d => d.Id)))
             {
                 result.FailedIds.Add(requestId);
                 continue;
             }
             sr.Status = 4; // Cancelled
+            // QA-R9: cancel the lines too (SRD.Status 3) — LIS/RIS worklists and BHYT pricing read the lines.
+            foreach (var d in sr.Details.Where(d => d.Status != 3)) d.Status = 3;
             sr.Notes = string.IsNullOrEmpty(dto.Reason) ? sr.Notes : $"Hủy: {dto.Reason}";
             sr.UpdatedAt = now;
             sr.UpdatedBy = userStr;
@@ -450,7 +455,12 @@ public partial class InpatientCompleteService {
         }
 
         if (result.CancelledCount > 0)
+        {
             await _context.SaveChangesAsync();
+            // QA-R9 (MONEY): same recompute as the order path — the remaining lines may flip under the 15% / cap rules.
+            if (await new BhytVisitPricing(_context).RecalculateAsync(admission.MedicalRecordId) != null)
+                await _context.SaveChangesAsync();
+        }
 
         return result;
     }
@@ -463,6 +473,8 @@ public partial class InpatientCompleteService {
             .FirstOrDefaultAsync(r => r.Id == serviceRequestId);
         if (sr == null) throw new KeyNotFoundException("ServiceRequest not found");
         if (sr.Status == 4) throw new InvalidOperationException("Cannot update cancelled ServiceRequest");
+        // QA-R9 (MONEY): a paid request keeps the split it was billed with.
+        if (sr.IsPaid) throw new InvalidOperationException("Chỉ định đã thu tiền — không đổi đối tượng thanh toán được.");
 
         var now = DateTime.Now;
         var userStr = userId.ToString();
@@ -477,6 +489,9 @@ public partial class InpatientCompleteService {
         sr.UpdatedBy = userStr;
 
         await _context.SaveChangesAsync();
+        // QA-R9 (MONEY): BHYT <-> viện phí changes the split — recompute it like the order path does.
+        if (await new BhytVisitPricing(_context).RecalculateAsync(sr.MedicalRecordId) != null)
+            await _context.SaveChangesAsync();
 
         return new InpatientServiceRequestItemDto
         {

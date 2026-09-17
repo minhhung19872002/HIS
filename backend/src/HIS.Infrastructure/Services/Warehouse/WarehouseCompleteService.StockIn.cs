@@ -843,6 +843,7 @@ public partial class WarehouseCompleteService {
                         SupplierCode = sup?.SupplierCode ?? g.Key,
                         SupplierName = sup?.SupplierName ?? g.First().r.SupplierName ?? "",
                         TotalReceiptAmount = total - returned,
+                        ReturnedAmount = returned,
                         PaidAmount = paid,
                         RemainingAmount = total - returned - paid,
                         Invoices = new List<PayableInvoiceDto>(),

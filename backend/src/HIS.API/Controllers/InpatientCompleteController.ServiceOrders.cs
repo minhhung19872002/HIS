@@ -134,6 +134,26 @@ public partial class InpatientCompleteController
     }
 
     /// <summary>
+    /// Sửa nhóm dịch vụ mẫu (người tạo hoặc admin; mẫu dùng chung chỉ admin)
+    /// </summary>
+    [HttpPut("service-group-templates/{id:guid}")]
+    public async Task<ActionResult<ServiceGroupTemplateDto>> UpdateServiceGroupTemplate(Guid id, [FromBody] ServiceGroupTemplateDto dto)
+    {
+        var result = await _inpatientService.UpdateServiceGroupTemplateAsync(id, dto, GetCurrentUserId(), User.IsInRole(RoleNames.Admin));
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Xóa (mềm) nhóm dịch vụ mẫu
+    /// </summary>
+    [HttpDelete("service-group-templates/{id:guid}")]
+    public async Task<ActionResult> DeleteServiceGroupTemplate(Guid id)
+    {
+        await _inpatientService.DeleteServiceGroupTemplateAsync(id, GetCurrentUserId(), User.IsInRole(RoleNames.Admin));
+        return Ok();
+    }
+
+    /// <summary>
     /// Chỉ định theo nhóm mẫu
     /// </summary>
     [HIS.API.Filters.RequirePracticeLicense]
@@ -359,6 +379,26 @@ public partial class InpatientCompleteController
     {
         var result = await _inpatientService.CreatePrescriptionTemplateAsync(dto, GetCurrentUserId());
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Sửa đơn thuốc mẫu (người tạo hoặc admin; mẫu dùng chung chỉ admin)
+    /// </summary>
+    [HttpPut("prescription-templates/{id:guid}")]
+    public async Task<ActionResult<InpatientPrescriptionTemplateDto>> UpdatePrescriptionTemplate(Guid id, [FromBody] InpatientPrescriptionTemplateDto dto)
+    {
+        var result = await _inpatientService.UpdatePrescriptionTemplateAsync(id, dto, GetCurrentUserId(), User.IsInRole(RoleNames.Admin));
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Xóa (mềm) đơn thuốc mẫu
+    /// </summary>
+    [HttpDelete("prescription-templates/{id:guid}")]
+    public async Task<ActionResult> DeletePrescriptionTemplate(Guid id)
+    {
+        await _inpatientService.DeletePrescriptionTemplateAsync(id, GetCurrentUserId(), User.IsInRole(RoleNames.Admin));
+        return Ok();
     }
 
     /// <summary>

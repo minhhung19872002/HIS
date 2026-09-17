@@ -376,10 +376,12 @@ public partial class InpatientCompleteService {
         // ordered at the bedside never reached the lab. Split into one request per request type,
         // same vocabulary mapping as the OPD path (#217/T2).
         var requestCode = $"CDNT{DateTime.Now:yyyyMMddHHmmss}";
-        var requestsByType = new Dictionary<int, ServiceRequest>();
-        ServiceRequest RequestFor(int requestType)
+        // QA-R9: the emergency / priority flags live on the ServiceRequest header (as in the OPD path) — group by
+        // them too so an emergency line is not merged into (or hidden inside) a routine request of the same type.
+        var requestsByType = new Dictionary<(int Type, bool Emergency, bool Priority), ServiceRequest>();
+        ServiceRequest RequestFor(int requestType, bool isEmergency, bool isPriority)
         {
-            if (!requestsByType.TryGetValue(requestType, out var r))
+            if (!requestsByType.TryGetValue((requestType, isEmergency, isPriority), out var r))
             {
                 r = new ServiceRequest
                 {
@@ -390,13 +392,15 @@ public partial class InpatientCompleteService {
                     DoctorId = userId,
                     DepartmentId = admission.DepartmentId,
                     RequestType = requestType,
+                    IsEmergency = isEmergency,
+                    IsPriority = isPriority,
                     Diagnosis = dto.MainDiagnosis,
                     IcdCode = dto.MainDiagnosisCode,
                     RequestedByUserId = userId,
                     RequestedDate = DateTime.Now,
                     Status = 0,
                 };
-                requestsByType[requestType] = r;
+                requestsByType[(requestType, isEmergency, isPriority)] = r;
             }
             return r;
         }
@@ -417,7 +421,8 @@ public partial class InpatientCompleteService {
             var amount = service.UnitPrice * item.Quantity;
             totalAmount += amount;
 
-            var request = RequestFor(HIS.Core.Constants.ServiceRequestType.FromServiceType(service.ServiceType));
+            var request = RequestFor(HIS.Core.Constants.ServiceRequestType.FromServiceType(service.ServiceType),
+                item.IsEmergency, item.IsUrgent || item.IsEmergency);
             var detailId = Guid.NewGuid();
             request.Details.Add(new ServiceRequestDetail
             {
@@ -446,6 +451,8 @@ public partial class InpatientCompleteService {
                 PaymentSource = item.PaymentSource,
                 ExecutingRoomId = item.ExecutingRoomId,
                 ScheduledDate = item.ScheduledDate,
+                IsUrgent = item.IsUrgent || item.IsEmergency,
+                IsEmergency = item.IsEmergency,
                 Status = 0
             });
         }
@@ -537,14 +544,37 @@ public partial class InpatientCompleteService {
         request.Status = 4; // Đã hủy (ServiceRequest.Status: 4=hủy; SRD.Status: 3=hủy)
         foreach (var d in request.Details) d.Status = 3;
         await _context.SaveChangesAsync();
+        // QA-R9 (MONEY): same as the OPD cancel — the visit total dropped, the 15% / cap rules may re-split the rest.
+        if (await new BhytVisitPricing(_context).RecalculateAsync(request.MedicalRecordId) != null)
+            await _context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// A line counts as paid when an active collected receipt (ReceiptType 2, Status 1) allocates it — the same rule
+    /// InvoiceLedger uses. ServiceRequest.IsPaid is only set once EVERY line is paid, so it misses partial payments.
+    /// </summary>
+    private Task<bool> HasPaidServiceLinesAsync(IEnumerable<Guid> serviceRequestDetailIds)
+    {
+        var ids = serviceRequestDetailIds.ToList();
+        return _context.ReceiptDetails.AnyAsync(rd => !rd.IsDeleted && rd.ServiceRequestDetailId != null
+            && ids.Contains(rd.ServiceRequestDetailId.Value)
+            && rd.Receipt.Status == 1 && !rd.Receipt.IsDeleted && rd.Receipt.ReceiptType == 2);
     }
 
     public async Task DeleteServiceItemAsync(Guid itemId, Guid userId)
     {
-        var detail = await _context.ServiceRequestDetails.FirstOrDefaultAsync(d => d.Id == itemId);
+        var detail = await _context.ServiceRequestDetails
+            .Include(d => d.ServiceRequest)
+            .FirstOrDefaultAsync(d => d.Id == itemId);
         if (detail == null || detail.Status != 0) return;
+        // Pre-push review (MONEY): a paid line goes through the cashier refund, like the whole-order cancel.
+        if (detail.ServiceRequest.IsPaid || await HasPaidServiceLinesAsync(new[] { detail.Id }))
+            throw new InvalidOperationException("Dịch vụ đã thu tiền — không hủy trực tiếp, hãy làm phiếu hoàn tiền tại quầy thu ngân.");
         detail.Status = 3; // Huỷ dòng dịch vụ
         await _context.SaveChangesAsync();
+        // QA-R9 (MONEY): re-split the visit (and the request header totals) after dropping a line.
+        if (await new BhytVisitPricing(_context).RecalculateAsync(detail.ServiceRequest.MedicalRecordId) != null)
+            await _context.SaveChangesAsync();
     }
 
     public async Task<List<InpatientServiceOrderDto>> GetServiceOrdersAsync(Guid admissionId, DateTime? fromDate, DateTime? toDate)
@@ -612,6 +642,8 @@ public partial class InpatientCompleteService {
                     UnitPrice = d.UnitPrice,
                     Amount = d.Amount,
                     PaymentSource = d.PatientType,
+                    IsUrgent = r.IsPriority,
+                    IsEmergency = r.IsEmergency,
                     Status = d.Status
                 }).ToList(),
             Status = r.Status,
@@ -679,6 +711,81 @@ public partial class InpatientCompleteService {
         return GetServiceGroupTemplatesCoreAsync(q => departmentId.HasValue
             ? q.Where(t => t.DepartmentId == departmentId || t.IsPublic || (userId != null && t.CreatedByUserId == userId))
             : q);
+    }
+
+    /// <summary>
+    /// QA-R9: who may edit/delete a template row (OPD + ward share the tables): its creator or an admin;
+    /// a shared (public) template - or a legacy row with no creator - only an admin.
+    /// </summary>
+    private static void EnsureCanManageTemplate(Guid? createdByUserId, bool isPublic, Guid userId, bool isAdmin)
+    {
+        if (isAdmin) return;
+        if (isPublic)
+            throw new UnauthorizedAccessException("Mẫu dùng chung chỉ quản trị viên được sửa/xóa.");
+        if (createdByUserId == null || createdByUserId != userId)
+            throw new UnauthorizedAccessException("Chỉ người tạo mẫu hoặc quản trị viên được sửa/xóa mẫu này.");
+    }
+
+    public async Task<ServiceGroupTemplateDto> UpdateServiceGroupTemplateAsync(Guid id, ServiceGroupTemplateDto dto, Guid userId, bool isAdmin)
+    {
+        if (dto == null || string.IsNullOrWhiteSpace(dto.GroupName))
+            throw new ArgumentException("Chưa nhập tên nhóm dịch vụ mẫu", nameof(dto.GroupName));
+        var template = await _context.ServiceGroupTemplates
+            .Include(t => t.Items)
+            .FirstOrDefaultAsync(t => t.Id == id && t.IsActive)
+            ?? throw new KeyNotFoundException("Không tìm thấy nhóm dịch vụ mẫu");
+        EnsureCanManageTemplate(template.CreatedByUserId, template.IsPublic, userId, isAdmin);
+
+        // Empty item list = rename / re-describe only (keeps the services).
+        var lines = (dto.Items ?? new()).Where(i => i.ServiceId != Guid.Empty).ToList();
+        if (lines.Count > 0)
+        {
+            if (lines.Any(i => i.DefaultQuantity <= 0))
+                throw new ArgumentException("Số lượng dịch vụ trong mẫu phải lớn hơn 0", nameof(dto.Items));
+            var serviceIds = lines.Select(i => i.ServiceId).Distinct().ToList();
+            var activeCount = await _context.Services.CountAsync(s => serviceIds.Contains(s.Id) && s.IsActive);
+            if (activeCount != serviceIds.Count)
+                throw new ArgumentException("Mẫu có dịch vụ không tồn tại hoặc đã ngừng sử dụng", nameof(dto.Items));
+        }
+
+        var now = DateTime.Now;
+        template.TemplateName = dto.GroupName.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.GroupCode)) template.TemplateCode = dto.GroupCode.Trim();
+        template.Description = dto.Description;
+        if (isAdmin) template.IsPublic = dto.IsShared; // sharing is an admin decision
+        template.UpdatedAt = now;
+        template.UpdatedBy = userId.ToString();
+        if (lines.Count > 0)
+        {
+            _context.ServiceGroupTemplateItems.RemoveRange(template.Items);
+            var order = 0;
+            foreach (var line in lines)
+            {
+                _context.ServiceGroupTemplateItems.Add(new ServiceGroupTemplateItem
+                {
+                    Id = Guid.NewGuid(),
+                    ServiceGroupTemplateId = template.Id,
+                    ServiceId = line.ServiceId,
+                    Quantity = line.DefaultQuantity,
+                    SortOrder = order++,
+                    CreatedAt = now,
+                    CreatedBy = userId.ToString(),
+                });
+            }
+        }
+        await _context.SaveChangesAsync();
+        return (await GetServiceGroupTemplatesCoreAsync(q => q.Where(t => t.Id == template.Id))).First();
+    }
+
+    public async Task DeleteServiceGroupTemplateAsync(Guid id, Guid userId, bool isAdmin)
+    {
+        var template = await _context.ServiceGroupTemplates.FirstOrDefaultAsync(t => t.Id == id && t.IsActive)
+            ?? throw new KeyNotFoundException("Không tìm thấy nhóm dịch vụ mẫu");
+        EnsureCanManageTemplate(template.CreatedByUserId, template.IsPublic, userId, isAdmin);
+        template.IsActive = false; // soft delete, same as the OPD template delete
+        template.UpdatedAt = DateTime.Now;
+        template.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
     }
 
     private async Task<List<ServiceGroupTemplateDto>> GetServiceGroupTemplatesCoreAsync(

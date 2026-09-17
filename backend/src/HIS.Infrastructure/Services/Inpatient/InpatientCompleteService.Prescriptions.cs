@@ -208,9 +208,13 @@ public partial class InpatientCompleteService {
                 MedicineId = item.MedicineId,
                 MedicineCode = medicine.MedicineCode,
                 MedicineName = medicine.MedicineName,
+                Unit = medicine.Unit ?? string.Empty, // QA-R9: response returned "" / 0 although the line was stored right
                 Quantity = item.Quantity,
                 UnitPrice = medicine.UnitPrice,
                 Amount = amount,
+                Dosage = item.Dosage,
+                UsageInstructions = item.UsageInstructions,
+                PaymentSource = item.PaymentSource,
                 Status = 0
             });
         }
@@ -314,9 +318,13 @@ public partial class InpatientCompleteService {
                 MedicineId = item.MedicineId,
                 MedicineCode = medicine.MedicineCode,
                 MedicineName = medicine.MedicineName,
+                Unit = medicine.Unit ?? string.Empty, // QA-R9: response returned "" / 0 although the line was stored right
                 Quantity = item.Quantity,
                 UnitPrice = medicine.UnitPrice,
                 Amount = amount,
+                Dosage = item.Dosage,
+                UsageInstructions = item.UsageInstructions,
+                PaymentSource = item.PaymentSource,
                 Status = 0
             });
         }
@@ -430,9 +438,13 @@ public partial class InpatientCompleteService {
                 MedicineId = d.MedicineId,
                 MedicineCode = d.Medicine?.MedicineCode ?? string.Empty,
                 MedicineName = d.Medicine?.MedicineName ?? string.Empty,
+                Unit = d.Unit ?? d.Medicine?.Unit ?? string.Empty,
                 Quantity = d.Quantity,
                 UnitPrice = d.UnitPrice,
                 Amount = d.Amount,
+                Dosage = d.Dosage,
+                UsageInstructions = d.UsageInstructions,
+                PaymentSource = d.PatientType,
                 Status = d.Status
             }).ToList(),
             Status = p.Status,
@@ -466,9 +478,13 @@ public partial class InpatientCompleteService {
                 MedicineId = d.MedicineId,
                 MedicineCode = d.Medicine?.MedicineCode ?? string.Empty,
                 MedicineName = d.Medicine?.MedicineName ?? string.Empty,
+                Unit = d.Unit ?? d.Medicine?.Unit ?? string.Empty,
                 Quantity = d.Quantity,
                 UnitPrice = d.UnitPrice,
                 Amount = d.Amount,
+                Dosage = d.Dosage,
+                UsageInstructions = d.UsageInstructions,
+                PaymentSource = d.PatientType,
                 Status = d.Status
             }).ToList(),
             Status = p.Status,
@@ -622,6 +638,76 @@ public partial class InpatientCompleteService {
         return GetPrescriptionTemplatesCoreAsync(q => departmentId.HasValue
             ? q.Where(t => t.DepartmentId == departmentId || t.IsPublic || (userId != null && t.CreatedByUserId == userId))
             : q);
+    }
+
+    // QA-R9: update / soft delete with the template scope rule (EnsureCanManageTemplate).
+    public async Task<InpatientPrescriptionTemplateDto> UpdatePrescriptionTemplateAsync(Guid id, InpatientPrescriptionTemplateDto dto, Guid userId, bool isAdmin)
+    {
+        if (dto == null || string.IsNullOrWhiteSpace(dto.TemplateName))
+            throw new ArgumentException("Chưa nhập tên đơn thuốc mẫu", nameof(dto.TemplateName));
+        var template = await _context.PrescriptionTemplates
+            .Include(t => t.Items)
+            .FirstOrDefaultAsync(t => t.Id == id && t.IsActive)
+            ?? throw new KeyNotFoundException("Không tìm thấy đơn thuốc mẫu");
+        EnsureCanManageTemplate(template.CreatedByUserId, template.IsPublic, userId, isAdmin);
+
+        // Empty item list = rename / re-describe only (keeps the medicines).
+        var lines = (dto.Items ?? new()).Where(i => i.MedicineId != Guid.Empty).ToList();
+        if (lines.Count > 0)
+        {
+            // OPD templates share the table and hold whole-course quantities (with Days) - the ward form cannot
+            // rewrite those lines without corrupting them.
+            if (template.PrescriptionType != 2)
+                throw new InvalidOperationException("Đơn mẫu ngoại trú chỉ sửa thuốc ở màn khám bệnh (ở đây chỉ đổi tên / xóa).");
+            if (lines.Any(i => i.DefaultQuantity <= 0))
+                throw new ArgumentException("Số lượng thuốc trong đơn mẫu phải lớn hơn 0", nameof(dto.Items));
+            var medicineIds = lines.Select(i => i.MedicineId).Distinct().ToList();
+            var activeCount = await _context.Medicines.CountAsync(m => medicineIds.Contains(m.Id) && m.IsActive);
+            if (activeCount != medicineIds.Count)
+                throw new ArgumentException("Đơn mẫu có thuốc không tồn tại hoặc đã ngừng sử dụng", nameof(dto.Items));
+        }
+
+        var now = DateTime.Now;
+        template.TemplateName = dto.TemplateName.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.TemplateCode)) template.TemplateCode = dto.TemplateCode.Trim();
+        template.Description = dto.Description;
+        if (isAdmin) template.IsPublic = dto.IsShared; // sharing is an admin decision
+        template.UpdatedAt = now;
+        template.UpdatedBy = userId.ToString();
+        if (lines.Count > 0)
+        {
+            _context.PrescriptionTemplateItems.RemoveRange(template.Items);
+            var order = 0;
+            foreach (var line in lines)
+            {
+                _context.PrescriptionTemplateItems.Add(new PrescriptionTemplateItem
+                {
+                    Id = Guid.NewGuid(),
+                    PrescriptionTemplateId = template.Id,
+                    MedicineId = line.MedicineId,
+                    Quantity = line.DefaultQuantity,
+                    Days = 1,
+                    Dosage = line.DefaultDosage,
+                    UsageInstructions = line.DefaultUsage,
+                    SortOrder = order++,
+                    CreatedAt = now,
+                    CreatedBy = userId.ToString(),
+                });
+            }
+        }
+        await _context.SaveChangesAsync();
+        return (await GetPrescriptionTemplatesCoreAsync(q => q.Where(t => t.Id == template.Id))).First();
+    }
+
+    public async Task DeletePrescriptionTemplateAsync(Guid id, Guid userId, bool isAdmin)
+    {
+        var template = await _context.PrescriptionTemplates.FirstOrDefaultAsync(t => t.Id == id && t.IsActive)
+            ?? throw new KeyNotFoundException("Không tìm thấy đơn thuốc mẫu");
+        EnsureCanManageTemplate(template.CreatedByUserId, template.IsPublic, userId, isAdmin);
+        template.IsActive = false; // soft delete, same as the OPD template delete
+        template.UpdatedAt = DateTime.Now;
+        template.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
     }
 
     private async Task<List<InpatientPrescriptionTemplateDto>> GetPrescriptionTemplatesCoreAsync(

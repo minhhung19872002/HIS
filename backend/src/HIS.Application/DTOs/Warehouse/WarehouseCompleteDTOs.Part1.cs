@@ -151,7 +151,10 @@ public class SupplierPayableDto
     public string SupplierCode { get; set; } = string.Empty;
     public string SupplierName { get; set; } = string.Empty;
 
+    /// <summary>Tổng nhập đã trừ hàng trả NCC.</summary>
     public decimal TotalReceiptAmount { get; set; }
+    /// <summary>Giá trị hàng đã xuất trả NCC (đã trừ trong TotalReceiptAmount).</summary>
+    public decimal ReturnedAmount { get; set; }
     public decimal PaidAmount { get; set; }
     public decimal RemainingAmount { get; set; }
 

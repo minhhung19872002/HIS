@@ -23,6 +23,7 @@ import dayjs from 'dayjs';
 import {
   searchMedicines, createPrescription, getPrescriptionTemplates,
   prescribeByTemplate, getDiagnosisFromRecord,
+  updatePrescriptionTemplate, deletePrescriptionTemplate,
 } from '../api/inpatient';
 import type {
   MedicineSearchItemDto, CreateInpatientPrescriptionDto,
@@ -38,6 +39,7 @@ import DoseWarningList from '../../pharmacy/components/DoseWarningList';
 import { checkDoses, withDoseOverrideNote, SEVERE_DOSE, type DoseWarningDto } from '../../pharmacy/api/doseRange';
 import { Field } from '../../../components/form/Field';
 import { useModalForm } from '../../../hooks/useModalForm';
+import { TemplateManageActions } from '../components/TemplateManageActions';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -165,6 +167,13 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
   const [doseCheckedSig, setDoseCheckedSig] = useState('');
   const severeDose = doseWarnings.some((w) => w.severity >= SEVERE_DOSE);
 
+  const reloadTemplates = useCallback(async () => {
+    try {
+      const t = await getPrescriptionTemplates();
+      setTemplates(Array.isArray(t.data) ? t.data : []);
+    } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh sách đơn thuốc mẫu.')); setTemplates([]); }
+  }, []);
+
   const loadInit = useCallback(async () => {
     // Kho thuốc (type 1) — đúng pattern InpatientDispensing
     try {
@@ -173,18 +182,14 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
       setWarehouses(list);
       if (list.length === 1) setWarehouseId(list[0].id);
     } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh sách kho thuốc.')); setWarehouses([]); }
-    // Đơn mẫu
-    try {
-      const t = await getPrescriptionTemplates();
-      setTemplates(Array.isArray(t.data) ? t.data : []);
-    } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh sách đơn thuốc mẫu.')); setTemplates([]); }
+    await reloadTemplates();
     // Chẩn đoán từ HSBA
     try {
       const r = await getDiagnosisFromRecord(admissionId);
       setMainDiagnosisCode(r.data?.mainDiagnosisCode ?? '');
       setMainDiagnosis(r.data?.mainDiagnosis ?? '');
     } catch { /* không bắt buộc */ }
-  }, [admissionId]);
+  }, [admissionId, reloadTemplates]);
 
   useEffect(() => {
     if (!open) return;
@@ -439,6 +444,17 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
           <Btn variant="ghost" size="sm" loading={tplBusy} disabled={!templateId} onClick={() => { void quickPrescribeTemplate(); }}>
             <TermIcon name="zap" size={11} /> Kê ngay theo mẫu
           </Btn>
+          <TemplateManageActions
+            noun="đơn mẫu"
+            template={(() => { const t = templates.find((x) => x.id === templateId); return t ? { id: t.id, name: t.templateName } : undefined; })()}
+            onRename={(id, templateName) => {
+              const t = templates.find((x) => x.id === id);
+              // Empty items = keep the medicines (BE rename semantics).
+              return updatePrescriptionTemplate(id, { ...(t as PrescriptionTemplateDto), templateName, items: [] });
+            }}
+            onDelete={(id) => deletePrescriptionTemplate(id)}
+            onChanged={(deletedId) => { if (deletedId) setTemplateId(undefined); void reloadTemplates(); }}
+          />
         </div>
       </DrSec>
 

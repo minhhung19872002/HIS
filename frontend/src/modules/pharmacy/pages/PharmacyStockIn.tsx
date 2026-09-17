@@ -38,6 +38,7 @@ import type { SupplierCatalogDto } from '../../system/api/system';
 import {
   KpiStrip,
   StatusTabs,
+  TopTabs,
   SearchBox,
   Filter,
   DataTable,
@@ -54,10 +55,13 @@ import {
   tw,
   type ColumnDef,
   type StatusTab,
+  type TopTab,
 } from '@/_v2kit';
 import { RowActions, RefreshButton } from '../../../components/actions';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { useTabState } from '../../../hooks/useTabState';
+import { SupplierPayablesPanel } from '../components/SupplierPayablesPanel';
+import { canReadSupplierPayables } from '../components/supplierPayablesAccess';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -74,6 +78,13 @@ const STATUS_TABS: StatusTab<StatusKey>[] = [
   { v: 'draft',     l: 'Chờ duyệt', tone: 'warn' },
   { v: 'approved',  l: 'Đã duyệt',  tone: 'ok' },
   { v: 'cancelled', l: 'Đã hủy',    tone: 'crit' },
+];
+
+type TopKey = 'receipts' | 'payables';
+
+const TOP_TABS: TopTab<TopKey>[] = [
+  { v: 'receipts', l: 'Phiếu nhập NCC', ic: 'receipt' },
+  { v: 'payables', l: 'Công nợ & thanh toán NCC', ic: 'cash' },
 ];
 
 const fmtVND = (n: number | null | undefined) =>
@@ -319,6 +330,9 @@ const PharmacyStockIn: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [stab, setStab] = useTabState<StatusKey | 'all'>('all');
+  const [topTab, setTopTab] = useTabState<TopKey>('receipts', 'top');
+  // Supplier payables are readable only by the roles the API allows (Admin / WarehouseManager / Accountant).
+  const showPayables = canReadSupplierPayables();
   const [keyword, setKeyword] = useState('');
   const [filterWarehouseId, setFilterWarehouseId] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -571,8 +585,21 @@ const PharmacyStockIn: React.FC = () => {
     cancelled: rows.filter((r) => r.status === STATUS_CANCELLED).length,
   };
 
+  const topTabs = showPayables ? <TopTabs<TopKey> tab={topTab} setTab={setTopTab} tabs={TOP_TABS} /> : null;
+
+  if (showPayables && topTab === 'payables') {
+    return (
+      <div className="ab">
+        {topTabs}
+        <SupplierPayablesPanel suppliers={suppliers} />
+      </div>
+    );
+  }
+
   return (
     <div className="ab">
+      {topTabs}
+
       {/* KPI strip */}
       <KpiStrip items={[
         { lbl: 'Tổng phiếu (trang)', val: rows.length },

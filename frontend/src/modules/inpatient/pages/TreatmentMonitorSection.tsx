@@ -61,6 +61,7 @@ import TermIcon from '../../../components/layout/terminal/Icon';
 import { Field } from '../../../components/form/Field';
 import { useModalForm } from '../../../hooks/useModalForm';
 import BedLabResultSection from './BedLabResultSection';
+import CombinedTreatmentSection from './CombinedTreatmentSection';
 import { CabinetIssueModal, ItemPicker } from '../../pharmacy/pages/CabinetIssueModal';
 import { InpatientPrescriptionModal } from './InpatientPrescriptionModal';
 import { can } from '../../../services/permission.service';
@@ -1334,7 +1335,12 @@ const ClsOrdersModal: React.FC<{
         try {
           const r = await cancelServiceRequests(admissionId, { serviceRequestIds: selectedIds, reason: cancelReasonRef.current });
           const result = r.data as typeof r.data;
-          message.success(`Đã hủy ${result.cancelledCount} chỉ định${result.failedIds.length ? `, ${result.failedIds.length} không thể hủy (đã có KQ)` : ''}`);
+          // QA-R9: paid orders are refused too (refund at the cashier), and 0 cancelled is not a success.
+          const failedNote = result.failedIds.length
+            ? `${result.failedIds.length} không thể hủy (đã có kết quả hoặc đã thu tiền — hoàn tiền tại quầy thu ngân)`
+            : '';
+          if (result.cancelledCount > 0) message.success(`Đã hủy ${result.cancelledCount} chỉ định${failedNote ? `, ${failedNote}` : ''}`);
+          else message.warning(`Không hủy được chỉ định nào${failedNote ? `: ${failedNote}` : ''}`);
           setSelectedIds([]);
           reload();
           onDone();
@@ -1355,8 +1361,8 @@ const ClsOrdersModal: React.FC<{
       message.success('Đã đổi đối tượng thanh toán');
       setPaymentChangeId(null);
       reload();
-    } catch {
-      message.error('Đổi đối tượng thanh toán thất bại');
+    } catch (e) {
+      message.error(friendlyErrorMessage(e, 'Đổi đối tượng thanh toán thất bại'));
     } finally {
       setPaymentBusy(false);
     }
@@ -2283,6 +2289,9 @@ const TreatmentMonitorSection: React.FC<TreatmentMonitorSectionProps> = ({ patie
         onClose={close}
         onDone={done}
       />
+
+      {/* QA-R9: Điều trị kết hợp — yêu cầu khoa khác phối hợp + ghi kết quả */}
+      <CombinedTreatmentSection patient={patient} />
 
       {/* G-01: Trả KQ XN tại giường — section riêng, không dùng modal trigger */}
       <BedLabResultSection admissionId={patient.admissionId} />

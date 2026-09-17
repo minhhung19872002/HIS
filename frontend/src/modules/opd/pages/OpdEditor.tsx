@@ -4,6 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { hasAnyRoleCode } from '../../../services/permission.service';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { KpiStrip, Btn, fmtVNDg, tk, tw, te, ti } from '@/_v2kit';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
@@ -263,7 +264,9 @@ const OpdEditorV2: React.FC = () => {
   /* Mở lại phiên khám đã hoàn tất (BE revert-completion: chỉ Admin/Manager, chặn khi hồ sơ đã khóa TT46).
      Round-2 decision: ordering after completion is NOT blocked, so this only restores the editable state. */
   const { hasRole } = useAuth();
-  const canReopen = hasRole('Admin') || hasRole('Manager');
+  // QA-R9: user.roles holds the Vietnamese role NAME ("Quản trị hệ thống"), so hasRole('Admin') was always false
+  // and the reopen button was hidden even for admins. The API gate (Admin/Manager) maps from role code ADMIN.
+  const canReopen = hasAnyRoleCode(['ADMIN']) || hasRole('Admin') || hasRole('Manager');
   const [reopening, setReopening] = useState(false);
   const reopenExam = async () => {
     if (!examId || reopening) return;

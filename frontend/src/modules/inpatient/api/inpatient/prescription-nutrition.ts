@@ -286,6 +286,13 @@ export const getPrescriptionTemplates = (departmentId?: string) =>
 export const createPrescriptionTemplate = (dto: PrescriptionTemplateDto) =>
   apiClient.post<PrescriptionTemplateDto>(`${BASE_URL}/prescription-templates`, dto);
 
+/** Creator or admin only (shared templates: admin only). Empty `items` keeps the medicines (rename). */
+export const updatePrescriptionTemplate = (id: string, dto: PrescriptionTemplateDto) =>
+  apiClient.put<PrescriptionTemplateDto>(`${BASE_URL}/prescription-templates/${id}`, dto);
+
+export const deletePrescriptionTemplate = (id: string) =>
+  apiClient.delete(`${BASE_URL}/prescription-templates/${id}`);
+
 /** Header of a one-click template prescription — the BE requires a warehouse; lines come from the template. */
 export interface PrescribeByTemplateOptions {
   warehouseId: string;

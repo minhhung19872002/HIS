@@ -298,6 +298,16 @@ public interface IInpatientCompleteService
     Task<List<ServiceGroupTemplateDto>> GetServiceGroupTemplatesAsync(Guid? departmentId, Guid? userId);
 
     /// <summary>
+    /// Sửa nhóm dịch vụ mẫu (người tạo hoặc admin; mẫu dùng chung chỉ admin). Items rỗng = giữ nguyên dịch vụ.
+    /// </summary>
+    Task<ServiceGroupTemplateDto> UpdateServiceGroupTemplateAsync(Guid id, ServiceGroupTemplateDto dto, Guid userId, bool isAdmin);
+
+    /// <summary>
+    /// Xóa mềm nhóm dịch vụ mẫu (cùng quy tắc quyền như sửa)
+    /// </summary>
+    Task DeleteServiceGroupTemplateAsync(Guid id, Guid userId, bool isAdmin);
+
+    /// <summary>
     /// Chỉ định theo nhóm mẫu
     /// </summary>
     /// <param name="header">Optional diagnosis to stamp on the order (Services are ignored — they come from the template).</param>
@@ -438,6 +448,16 @@ public interface IInpatientCompleteService
     /// Lấy danh sách đơn thuốc mẫu
     /// </summary>
     Task<List<InpatientPrescriptionTemplateDto>> GetPrescriptionTemplatesAsync(Guid? departmentId, Guid? userId);
+
+    /// <summary>
+    /// Sửa đơn thuốc mẫu (người tạo hoặc admin; mẫu dùng chung chỉ admin). Items rỗng = giữ nguyên thuốc.
+    /// </summary>
+    Task<InpatientPrescriptionTemplateDto> UpdatePrescriptionTemplateAsync(Guid id, InpatientPrescriptionTemplateDto dto, Guid userId, bool isAdmin);
+
+    /// <summary>
+    /// Xóa mềm đơn thuốc mẫu (cùng quy tắc quyền như sửa)
+    /// </summary>
+    Task DeletePrescriptionTemplateAsync(Guid id, Guid userId, bool isAdmin);
 
     /// <summary>
     /// Kê theo mẫu

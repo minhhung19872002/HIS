@@ -34,6 +34,16 @@ export function hasAnyRole(roles: string[]): boolean {
   return roles.some((r) => mine.includes(r));
 }
 
+/**
+ * User có ÍT NHẤT một trong các mã role (RoleCode: ADMIN, CASHIER…) không.
+ * `roles` là tên role tiếng Việt, còn BE gác `[Authorize(Roles = "Admin")]` theo tên tiếng Anh sinh từ RoleCode
+ * (AuthService.RoleCodeToEnglishRoles) — so theo mã để khớp đúng cổng BE.
+ */
+export function hasAnyRoleCode(codes: string[]): boolean {
+  const mine = (getUser()?.roleCodes ?? []).map((c) => c.toUpperCase());
+  return codes.some((c) => mine.includes(c.toUpperCase()));
+}
+
 // #378: permission set của user hiện tại. null = CHƯA nạp (fail-open).
 let permissionSet: Set<string> | null = null;
 

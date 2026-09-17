@@ -25,7 +25,7 @@ import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import * as wh from '../api/warehouse';
 import type { StockTakeDto, StockTakeItemDto, WarehouseDto } from '../api/warehouse';
-import { getStockTakes, getStockTakeById, cancelStockTake, STOCK_TAKE_STATUS } from '../api/warehouseVouchers';
+import { getStockTakes, getStockTakeById, cancelStockTake, STOCK_TAKE_STATUS } from '../api/warehouse';
 import {
   KpiStrip,
   DataTable,

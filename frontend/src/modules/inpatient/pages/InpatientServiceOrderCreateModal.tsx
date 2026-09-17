@@ -18,6 +18,7 @@ import type { DataNode } from 'antd/es/tree';
 import {
   searchServices, getServiceTree, createServiceOrder, getDiagnosisFromRecord,
   checkServiceOrderWarnings, getServiceGroupTemplates,
+  updateServiceGroupTemplate, deleteServiceGroupTemplate,
 } from '../api/inpatient';
 import type {
   ServiceSearchResultDto, ServiceTreeNodeDto, CreateInpatientServiceOrderDto,
@@ -26,6 +27,7 @@ import type {
 import { ModalShell, Btn, DrSec, DrField, fmtVNDg, tk, tw, te } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { TemplateManageActions } from '../components/TemplateManageActions';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -148,20 +150,24 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
     } catch { return []; }
   }, []);
 
+  const reloadTemplates = useCallback(() => {
+    void getServiceGroupTemplates()
+      .then((r) => setTemplates(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setTemplates([]));
+  }, []);
+
   const reset = useCallback(() => {
     setMode('search'); setLines([]); setTreeChecked([]);
     setMainDiagnosisCode(''); setMainDiagnosis('');
     setWarnings(null); setAck(false); setChecking(false);
     nodeMap.current.clear();
     setTplId(undefined);
-    void getServiceGroupTemplates()
-      .then((r) => setTemplates(Array.isArray(r.data) ? r.data : []))
-      .catch(() => setTemplates([]));
+    reloadTemplates();
     void getDiagnosisFromRecord(admissionId)
       .then((r) => { setMainDiagnosisCode(r.data?.mainDiagnosisCode ?? ''); setMainDiagnosis(r.data?.mainDiagnosis ?? ''); })
       .catch(() => { /* optional */ });
     void loadTreeLevel(undefined).then(setTreeData);
-  }, [admissionId, loadTreeLevel]);
+  }, [admissionId, loadTreeLevel, reloadTemplates]);
 
   useEffect(() => { if (open) reset(); }, [open, reset]);
 
@@ -361,6 +367,17 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
             <Btn variant="ghost" size="sm" disabled={!tplId} onClick={loadTemplate}>
               <TermIcon name="download" size={11} /> Nạp mẫu
             </Btn>
+            <TemplateManageActions
+              noun="nhóm mẫu"
+              template={(() => { const t = templates.find((x) => x.id === tplId); return t ? { id: t.id, name: t.groupName } : undefined; })()}
+              onRename={(id, groupName) => {
+                const t = templates.find((x) => x.id === id);
+                // Empty items = keep the services (BE rename semantics).
+                return updateServiceGroupTemplate(id, { ...(t as ServiceGroupTemplateDto), groupName, items: [] });
+              }}
+              onDelete={(id) => deleteServiceGroupTemplate(id)}
+              onChanged={(deletedId) => { if (deletedId) setTplId(undefined); reloadTemplates(); }}
+            />
           </div>
         )}
         {mode === 'search' && <ServicePicker onPick={(s) => addService(s.id, s.name, s.code ?? '', s.unitPrice ?? 0)} />}

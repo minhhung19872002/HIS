@@ -64,7 +64,7 @@ import {
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { RefreshButton } from '../../../components/actions';
 import { can } from '../../../services/permission.service';
-import { cancelStockIssue, STOCK_ISSUE_STATUS } from '../api/warehouseVouchers';
+import { cancelStockIssue, STOCK_ISSUE_STATUS } from '../api/warehouse';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 

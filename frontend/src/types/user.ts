@@ -11,6 +11,8 @@ export interface User {
   title?: string;
   departmentName?: string;
   roles: string[];
+  /** Mã role hệ thống (ADMIN, CASHIER, PHARMACIST…) — `roles` chỉ chứa tên role tiếng Việt. */
+  roleCodes?: string[];
   permissions: string[];
   isTwoFactorEnabled?: boolean;
   /** #216 TC-PERM-015: đang bị buộc đổi mật khẩu → RouteGuard đưa tới /change-password; server chặn độc lập. */
