@@ -35,7 +35,7 @@ public sealed class DomainExceptionFilter : IExceptionFilter
                 context.Result = new BadRequestObjectResult(new
                 {
                     error = "VALIDATION_FAILED",
-                    message = argEx.Message,
+                    message = SqlConstraintError.UserMessage(argEx),
                     field = argEx.ParamName
                 });
                 context.ExceptionHandled = true;
@@ -112,7 +112,8 @@ public sealed class DomainExceptionFilter : IExceptionFilter
                 context.Result = new ObjectResult(new
                 {
                     error = sqlMapped.Code,
-                    message = SqlConstraintError.Message(dbEx)
+                    message = SqlConstraintError.Message(dbEx),
+                    field = SqlConstraintError.Field(dbEx)
                 })
                 {
                     StatusCode = sqlMapped.Status
@@ -120,6 +121,16 @@ public sealed class DomainExceptionFilter : IExceptionFilter
                 context.ExceptionHandled = true;
                 _logger.LogWarning("Domain constraint violation on {Path}: {Msg}",
                     context.HttpContext.Request.Path, dbEx.GetBaseException().Message);
+                break;
+            case OverflowException:
+                // QA round 6: decimal arithmetic on an absurd quantity/price (1e15) → 400, not the 500 below.
+                context.Result = new BadRequestObjectResult(new
+                {
+                    error = SqlConstraintError.NumberOutOfRangeCode,
+                    message = SqlConstraintError.NumberOutOfRangeMessage
+                });
+                context.ExceptionHandled = true;
+                _logger.LogWarning(context.Exception, "Numeric overflow on {Path}", context.HttpContext.Request.Path);
                 break;
             case OperationCanceledException:
                 // 499 Client Closed Request (Nginx convention; ASP.NET không có sẵn enum)

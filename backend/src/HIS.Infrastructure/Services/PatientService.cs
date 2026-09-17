@@ -142,9 +142,11 @@ public class PatientService : IPatientService
         };
     }
 
+    // QA-R6: accent-insensitive like the Latin1_General_CI_AI collation this search had before it moved in
+    // memory (#403) — "duc" must find "Đức".
     private static bool ContainsIgnoreCase(string? value, string? term)
         => string.IsNullOrWhiteSpace(term)
-            || (value?.Contains(term.Trim(), StringComparison.OrdinalIgnoreCase) ?? false);
+            || HIS.Core.Common.VnSearchText.Contains(value, term);
 
     public async Task<PatientDto> CreateAsync(CreatePatientDto dto)
     {
@@ -190,6 +192,11 @@ public class PatientService : IPatientService
         if (dto.DateOfBirth.HasValue && dto.DateOfBirth.Value.Date > todayVn
             && dto.DateOfBirth.Value.Date != existing?.DateOfBirth?.Date)
             throw new ArgumentException("Ngày sinh không được ở tương lai", nameof(dto.DateOfBirth));
+        // QA-R6: the year bound below only covered YearOfBirth — a date of birth of 1800-01-01 or 0001-01-01
+        // (age 226 / 2025) was saved.
+        if (dto.DateOfBirth.HasValue && dto.DateOfBirth.Value.Year < 1900
+            && dto.DateOfBirth.Value.Date != existing?.DateOfBirth?.Date)
+            throw new ArgumentException($"Ngày sinh không hợp lệ ({dto.DateOfBirth.Value:dd/MM/yyyy})", nameof(dto.DateOfBirth));
         if (dto.YearOfBirth.HasValue && (dto.YearOfBirth.Value < 1900 || dto.YearOfBirth.Value > todayVn.Year)
             && dto.YearOfBirth != existing?.YearOfBirth)
             throw new ArgumentException($"Năm sinh không hợp lệ ({dto.YearOfBirth.Value})", nameof(dto.YearOfBirth));

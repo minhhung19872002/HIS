@@ -446,7 +446,7 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
     /// Without them the API accepted an empty name, a date of birth in the future and a birth year
     /// of 1800 — records that cannot be matched to a real person later.
     /// </summary>
-    private static void ValidateNewPatient(CreatePatientDto p)
+    private static void ValidateNewPatient(CreatePatientDto p, bool checkFormats = true)
     {
         if (string.IsNullOrWhiteSpace(p.FullName))
             throw new ArgumentException("Chưa nhập họ tên bệnh nhân", nameof(p.FullName));
@@ -454,10 +454,35 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
         var todayVn = HIS.Core.Common.VnTime.TodayVn;
         if (p.DateOfBirth.HasValue && p.DateOfBirth.Value.Date > todayVn)
             throw new ArgumentException("Ngày sinh không được ở tương lai", nameof(p.DateOfBirth));
+        // QA-R6: 1800-01-01 / 0001-01-01 dates of birth were accepted (only YearOfBirth had a lower bound).
+        if (p.DateOfBirth.HasValue && p.DateOfBirth.Value.Year < 1900)
+            throw new ArgumentException($"Ngày sinh không hợp lệ ({p.DateOfBirth.Value:dd/MM/yyyy})", nameof(p.DateOfBirth));
         if (p.YearOfBirth.HasValue && (p.YearOfBirth.Value < 1900 || p.YearOfBirth.Value > todayVn.Year))
             throw new ArgumentException($"Năm sinh không hợp lệ ({p.YearOfBirth.Value})", nameof(p.YearOfBirth));
         if (p.Gender < 0 || p.Gender > 3)
             throw new ArgumentException($"Giới tính không hợp lệ ({p.Gender})", nameof(p.Gender));
+        if (checkFormats) ValidatePatientFormats(p);
+    }
+
+    /// <summary>
+    /// QA-R6: same format rules as the patient-master API (PatientService.ValidatePatientAsync) — reception
+    /// created patients with CCCD "12345abc9012" and phone "12", which no later lookup can match. Only for a
+    /// patient actually being CREATED: an existing patient re-registered with legacy values must not be blocked.
+    /// </summary>
+    private static void ValidatePatientFormats(CreatePatientDto p)
+    {
+        if (!string.IsNullOrWhiteSpace(p.PhoneNumber))
+        {
+            var digits = p.PhoneNumber.Count(char.IsDigit);
+            if (digits < 9 || digits > 12)
+                throw new ArgumentException("Số điện thoại không hợp lệ", nameof(p.PhoneNumber));
+        }
+        if (!string.IsNullOrWhiteSpace(p.IdentityNumber))
+        {
+            var cccd = p.IdentityNumber.Trim();
+            if (!cccd.All(char.IsDigit) || (cccd.Length != 9 && cccd.Length != 12))
+                throw new ArgumentException("CCCD/CMND phải gồm 9 hoặc 12 chữ số", nameof(p.IdentityNumber));
+        }
     }
 
     private AdmissionDto MapToAdmissionDto(MedicalRecord record, Patient patient, Room? room, QueueTicketDto? ticket)

@@ -34,6 +34,11 @@ public class AdminModulesService : IAdminModulesService
 
     public async Task<PayrollPeriodDto> CreatePayrollPeriodAsync(CreatePayrollPeriodDto dto, Guid createdBy)
     {
+        // An empty body created a "0000-00" period (same bounds as the v2 form).
+        if (dto.Month < 1 || dto.Month > 12)
+            throw new ArgumentException("Tháng phải từ 1 đến 12", nameof(dto.Month));
+        if (dto.Year < 2020 || dto.Year > 2100)
+            throw new ArgumentException("Năm không hợp lệ", nameof(dto.Year));
         var exists = await _db.PayrollPeriods.AnyAsync(p => p.Year == dto.Year && p.Month == dto.Month);
         if (exists) throw new InvalidOperationException($"Kỳ lương {dto.Month}/{dto.Year} đã tồn tại.");
 

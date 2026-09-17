@@ -114,7 +114,7 @@ public partial class SystemCompleteService
             dto.Id = entity.Id;
             return dto;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not DbUpdateException) // QA-R6: constraint errors (too long/duplicate) reach the API filter instead of a fake 204
         {
             _logger.LogError(ex, "Error in SaveExaminationServiceAsync");
             return null;
@@ -236,7 +236,7 @@ public partial class SystemCompleteService
             dto.Id = entity.Id;
             return dto;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not DbUpdateException) // QA-R6: constraint errors (too long/duplicate) reach the API filter instead of a fake 204
         {
             _logger.LogError(ex, "Error in SaveParaclinicalServiceAsync");
             return null;
@@ -366,7 +366,7 @@ public partial class SystemCompleteService
             dto.Id = entity.Id;
             return dto;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not DbUpdateException) // QA-R6: constraint errors (too long/duplicate) reach the API filter instead of a fake 204
         {
             _logger.LogError(ex, "Error in SaveMedicineAsync");
             return null;
@@ -594,7 +594,7 @@ public partial class SystemCompleteService
             dto.Id = entity.Id;
             return dto;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not DbUpdateException) // QA-R6: constraint errors (too long/duplicate) reach the API filter instead of a fake 204
         {
             _logger.LogError(ex, "Error in SaveMedicalSupplyAsync");
             return null;

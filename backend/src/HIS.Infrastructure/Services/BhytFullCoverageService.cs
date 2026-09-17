@@ -45,7 +45,7 @@ public class BhytFullCoverageService : IBhytFullCoverageService
             var candidates = await q.AsNoTracking().ToListAsync();
             var matched = candidates
                 .Where(x =>
-                    x.Patient.FullName.Contains(kw, StringComparison.OrdinalIgnoreCase)
+                    HIS.Core.Common.VnSearchText.Contains(x.Patient.FullName, kw) /* QA-R6: accent-insensitive */
                     || x.Patient.PatientCode.Contains(kw, StringComparison.OrdinalIgnoreCase)
                     || (x.Patient.InsuranceNumber?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false))
                 .OrderByDescending(x => x.CreatedAt)

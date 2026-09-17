@@ -183,7 +183,7 @@ public class BhxhInspectorService : IBhxhInspectorService
             var kw = dto.Keyword.Trim();
             filtered = filtered.Where(m =>
                 m.MedicalRecordCode.Contains(kw, StringComparison.OrdinalIgnoreCase)
-                || (m.Patient?.FullName?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
+                || HIS.Core.Common.VnSearchText.Contains(m.Patient?.FullName, kw) /* QA-R6: accent-insensitive */
                 || (m.Patient?.InsuranceNumber?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false));
         }
         if (!string.IsNullOrWhiteSpace(dto.InsuranceNumber))

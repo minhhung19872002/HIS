@@ -39,21 +39,32 @@ public sealed class DomainGuardExceptionFilter : IExceptionFilter
             InvalidOperationException ex when IsThrownByHisCode(ex) => (StatusCodes.Status400BadRequest, "INVALID_STATE"),
             // A constraint violation that escaped the service explains itself — see SqlConstraintError.
             DbUpdateException ex => SqlConstraintError.Map(ex),
+            // A money/quantity total computed from an absurd input (1e15 × 1e15) overflows decimal.
+            OverflowException => (StatusCodes.Status400BadRequest, SqlConstraintError.NumberOutOfRangeCode),
             _ => null,
         };
         if (mapped == null) return;
 
         var message = context.Exception switch
         {
+            OverflowException => SqlConstraintError.NumberOutOfRangeMessage,
             DbUpdateConcurrencyException => "Dữ liệu vừa bị thay đổi bởi thao tác khác. Vui lòng tải lại và thử lại.",
             DbUpdateException dbEx => SqlConstraintError.Message(dbEx),
+            ArgumentException argEx => SqlConstraintError.UserMessage(argEx),
             _ => context.Exception.Message,
         };
 
         _logger.LogInformation("Domain guard on {Path}: {Type} {Msg}",
             context.HttpContext.Request.Path, context.Exception.GetType().Name, context.Exception.Message);
 
-        context.Result = new ObjectResult(new { error = mapped.Value.code, message })
+        // Which input to fix, same as DomainExceptionFilter: the guard's ParamName, or the column SQL named.
+        var field = context.Exception switch
+        {
+            ArgumentException argEx => argEx.ParamName,
+            DbUpdateException dbEx => SqlConstraintError.Field(dbEx),
+            _ => null,
+        };
+        context.Result = new ObjectResult(new { error = mapped.Value.code, message, field })
         {
             StatusCode = mapped.Value.status,
         };
