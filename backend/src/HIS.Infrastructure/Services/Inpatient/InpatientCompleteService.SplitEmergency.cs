@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs.Inpatient;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 
 namespace HIS.Infrastructure.Services;
@@ -33,6 +34,18 @@ public partial class InpatientCompleteService
             .AnyAsync(c => c.MedicalRecordId == source.Id && !c.IsDeleted && c.ClaimStatus >= 1);
         if (claimApproved)
             throw new InvalidOperationException("Hồ sơ đã duyệt/gửi BHYT — số liệu đã khóa, không tách được.");
+
+        // QA-R6: a second split of the same (already closed) emergency record created a second active
+        // admission for the patient; likewise a patient already in an open inpatient stay.
+        if (source.TreatmentType == 2)
+            throw new InvalidOperationException("Hồ sơ nguồn đã là hồ sơ nội trú — không tách được.");
+        if (await _context.Set<Admission>().AnyAsync(a => a.PatientId == source.PatientId && !a.IsDeleted
+                && (a.Status == AdmissionStatus.InTreatment || a.Status == AdmissionStatus.PendingDischarge)))
+            throw new InvalidOperationException("Bệnh nhân đang có lượt nội trú chưa kết thúc — không tách thêm được.");
+        // QA-R6: the bed was taken without any check (another patient's bed accepted) and no BedAssignment
+        // was written, so the ward map never showed the patient on it.
+        if (dto.BedId.HasValue)
+            await EnsureBedAvailableAsync(dto.BedId.Value, null, dto.DepartmentId);
 
         var splitAt = dto.SplitAt ?? DateTime.Now;
         if (splitAt < source.AdmissionDate)
@@ -105,6 +118,19 @@ public partial class InpatientCompleteService
                 CreatedBy = userId.ToString(),
             };
             _context.Admissions.Add(admission);
+            if (dto.BedId.HasValue)
+            {
+                _context.Set<BedAssignment>().Add(new BedAssignment
+                {
+                    Id = Guid.NewGuid(),
+                    AdmissionId = admission.Id,
+                    BedId = dto.BedId.Value,
+                    AssignedAt = splitAt,
+                    Status = 0,
+                    CreatedAt = now,
+                    CreatedBy = userId.ToString(),
+                });
+            }
 
             // 4) Chốt đợt cấp cứu tại mốc tách + để lại vết 2 chiều.
             source.DischargeDate = splitAt;

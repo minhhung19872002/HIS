@@ -43,12 +43,31 @@ public partial class LISCompleteService {
         // OPD cancel marks only the header (ServiceRequests.Status=4), details keep Status 0 → guard the header too
         if (await _context.ServiceRequests.AnyAsync(r => r.Id == d.ServiceRequestId && (r.Status == 4 || r.IsDeleted)))
             throw new InvalidOperationException("Phiếu chỉ định đã hủy, không ghi được kết quả.");
+        // QA-R6: a result was accepted on a line whose specimen was never collected (no tube, no barcode).
+        // Pre-push review: the sample-receive flow sets ReceiveStatus = 1 without IsSampleCollected, and lines that
+        // already carry a result (Status 2) must stay editable — only a line with no specimen trace is refused.
+        if (!d.IsSampleCollected && d.ReceiveStatus != 1 && d.Status != 2)
+            throw new InvalidOperationException("Chưa lấy mẫu cho chỉ định này — lấy mẫu trước khi ghi kết quả.");
 
         // Write result directly onto SRD (model 1 is the source of truth now)
         d.Result = dto.Result;
         d.ResultDate = DateTime.Now;
         d.TechnicianRunAt = DateTime.Now;
         d.Status = 2; // Có KQ
+
+        // QA-R6: the v2 manual entry sends only `Result`. For a one-parameter test that stored no unit, range or
+        // flag, so the doctor's view, the printed slip and the critical-value alert list never saw an abnormal
+        // value. Treat it as that single catalog parameter (panels stay ambiguous → unchanged).
+        if ((dto.Parameters == null || dto.Parameters.Count == 0) && !string.IsNullOrWhiteSpace(dto.Result))
+        {
+            var only = await _context.LisTestParameters
+                .Where(p => p.ServiceId == d.ServiceId && p.IsActive && !p.IsDeleted).Take(2).ToListAsync();
+            if (only.Count == 1)
+                dto.Parameters = new List<HIS.Application.DTOs.Examination.LabResultParameterInputDto>
+                {
+                    new() { ParameterCode = only[0].Code, ParameterName = only[0].Name, Value = dto.Result.Trim() },
+                };
+        }
 
         // R1-2b: per-parameter block — catalog ranges, EvaluateFlag, fallback range from input
         if (dto.Parameters is { Count: > 0 })
@@ -66,8 +85,14 @@ public partial class LISCompleteService {
             decimal? singleCatCritLow = single ? catalog.FirstOrDefault()?.CriticalLow : null;
             decimal? singleCatCritHigh = single ? catalog.FirstOrDefault()?.CriticalHigh : null;
             // Gender-specific reference ranges (catalog NormalMin/MaxFemale were never applied before)
-            var gender = await _context.ServiceRequests.Where(r => r.Id == d.ServiceRequestId)
-                .Select(r => (int?)r.MedicalRecord.Patient.Gender).FirstOrDefaultAsync();
+            var patientInfo = await _context.ServiceRequests.Where(r => r.Id == d.ServiceRequestId)
+                .Select(r => new { r.MedicalRecord.PatientId, Gender = (int?)r.MedicalRecord.Patient.Gender }).FirstOrDefaultAsync();
+            var gender = patientInfo?.Gender;
+            // QA-R6: LabCriticalValueAlerts was never written anywhere, so the critical-value list was always empty.
+            // Re-entry replaces the still-open alerts of this line instead of stacking duplicates.
+            var openAlerts = await _context.LabCriticalValueAlerts
+                .Where(a => a.LabResultId == d.Id && !a.IsAcknowledged && !a.IsDeleted).ToListAsync();
+            if (openAlerts.Count > 0) _context.LabCriticalValueAlerts.RemoveRange(openAlerts);
 
             int seq = 0;
             foreach (var p in dto.Parameters)
@@ -96,6 +121,24 @@ public partial class LISCompleteService {
                     SequenceNumber = seq++,
                     CreatedAt = DateTime.Now,
                 });
+                if ((flag == "LL" || flag == "HH") && patientInfo != null)
+                    _context.LabCriticalValueAlerts.Add(new LabCriticalValueAlert
+                    {
+                        Id = Guid.NewGuid(),
+                        LabResultId = d.Id,
+                        PatientId = patientInfo.PatientId,
+                        TestCode = p.ParameterCode,
+                        TestName = string.IsNullOrEmpty(p.ParameterName) ? (d.Service?.ServiceName ?? p.ParameterCode) : p.ParameterName,
+                        Result = p.Value,
+                        NumericResult = num,
+                        Unit = string.IsNullOrEmpty(p.Unit) ? cat?.Unit : p.Unit,
+                        CriticalLow = cat?.CriticalLow ?? singleCatCritLow,
+                        CriticalHigh = cat?.CriticalHigh ?? singleCatCritHigh,
+                        AlertType = flag == "LL" ? 1 : 2, // 1=Critical Low, 2=Critical High
+                        AlertTime = DateTime.Now,
+                        Status = 0,
+                        CreatedAt = DateTime.Now,
+                    });
             }
             if (string.IsNullOrWhiteSpace(d.Result))
                 d.Result = string.Join("; ", dto.Parameters.Select(p => $"{p.ParameterName} {p.Value}"));
@@ -403,7 +446,10 @@ public partial class LISCompleteService {
     {
         try
         {
+            // No lazy loading: without Include, PatientName/PatientCode/AcknowledgedBy were always empty.
             var query = _context.Set<LabCriticalValueAlert>()
+                .Include(a => a.Patient)
+                .Include(a => a.AcknowledgedByUser)
                 .Where(a => !a.IsDeleted && a.AlertTime >= fromDate && a.AlertTime <= toDate);
 
             if (acknowledged.HasValue)

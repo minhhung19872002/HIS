@@ -398,8 +398,10 @@ public partial class LISCompleteService {
             var rejectedCodes = activeDetails
                 .Where(d => d.ReceiveStatus == LisModel1Map.RejectedReceiveStatus && !string.IsNullOrEmpty(d.SampleBarcode))
                 .Select(d => d.SampleBarcode!).ToHashSet();
-            var recollected = activeDetails.Count(d => LisModel1Map.ResetRejectedTubeForRecollection(d, HIS.Core.Common.VnTime.NowVn));
-            if (recollected > 0)
+            _ = activeDetails.Count(d => LisModel1Map.ResetRejectedTubeForRecollection(d, HIS.Core.Common.VnTime.NowVn));
+            // QA-R6: the base code only carries 16 bits of the order id (4 hex chars) per day, so two orders of the
+            // same day could share a label — reception and analyzer results are matched by barcode alone (wrong
+            // patient). The uniqueness check used to run only for recollections; it now runs for every collection.
             {
                 var baseCode = barcode;
                 for (var n = 2; rejectedCodes.Contains(barcode) || await _context.ServiceRequestDetails

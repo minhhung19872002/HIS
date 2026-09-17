@@ -852,15 +852,13 @@ export const registerEmergencyPatient = (dto: EmergencyRegistrationDto) =>
 
 /** Cập nhật thông tin BN cấp cứu (sau khi xác minh nhân thân). Field optional, BE chỉ ghi đè giá trị có gửi lên. */
 export interface UpdateEmergencyPatientInfoDto {
-  patientName?: string;
+  fullName?: string; // BE field is FullName (patientName was silently ignored)
   gender?: number;
   dateOfBirth?: string;
-  yearOfBirth?: number;
   identityNumber?: string;
   phoneNumber?: string;
   address?: string;
   insuranceNumber?: string;
-  notes?: string;
 }
 
 export const updateEmergencyPatientInfo = (medicalRecordId: string, dto: UpdateEmergencyPatientInfoDto) =>

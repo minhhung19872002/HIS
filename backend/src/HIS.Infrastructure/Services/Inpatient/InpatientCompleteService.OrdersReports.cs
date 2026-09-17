@@ -507,15 +507,19 @@ public partial class InpatientCompleteService {
             throw new InvalidOperationException(
                 $"Lượt nội trú đã kết thúc ({HIS.Core.Constants.AdmissionStatus.Label(targetAdmission.Status)}), không sửa chỉ định được.");
 
+        // QA-R6 (MONEY): an order that was missing, already performed, cancelled or paid was NOT cancelled but a new
+        // one was still created — "editing" a done test billed it twice; an order of another stay could be edited.
         var existing = await _context.ServiceRequests
             .Include(r => r.Details)
-            .FirstOrDefaultAsync(r => r.Id == id);
-        if (existing != null && existing.Status == 0)
-        {
-            existing.Status = 4; // Đã hủy (ServiceRequest.Status: 4=hủy; SRD.Status: 3=hủy)
-            foreach (var d in existing.Details) d.Status = 3;
-            await _context.SaveChangesAsync();
-        }
+            .FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu chỉ định.");
+        if (existing.MedicalRecordId != targetAdmission.MedicalRecordId)
+            throw new InvalidOperationException("Phiếu chỉ định không thuộc lượt nội trú này.");
+        if (existing.Status != 0 || existing.IsPaid)
+            throw new InvalidOperationException("Phiếu chỉ định đã thực hiện, đã hủy hoặc đã thu tiền — không sửa được.");
+        existing.Status = 4; // Đã hủy (ServiceRequest.Status: 4=hủy; SRD.Status: 3=hủy)
+        foreach (var d in existing.Details) d.Status = 3;
+        // Saved together with the replacement order (CreateServiceOrderAsync saves) — if it is refused, the old order stays.
         return await CreateServiceOrderAsync(dto, userId);
     }
 
@@ -527,6 +531,9 @@ public partial class InpatientCompleteService {
             ?? throw new KeyNotFoundException("Không tìm thấy phiếu chỉ định."); // QA-R4: was a silent 200
         if (request.Status != 0) // chỉ huỷ phiếu chưa thực hiện
             throw new InvalidOperationException("Phiếu chỉ định đã thực hiện hoặc đã hủy — không hủy được nữa.");
+        // QA-R6 (MONEY): same rule as the OPD cancel — a paid order cancelled here dropped out of the bill with no refund.
+        if (request.IsPaid)
+            throw new InvalidOperationException("Dịch vụ đã thu tiền — không hủy chỉ định trực tiếp, hãy làm phiếu hoàn tiền tại quầy thu ngân.");
         request.Status = 4; // Đã hủy (ServiceRequest.Status: 4=hủy; SRD.Status: 3=hủy)
         foreach (var d in request.Details) d.Status = 3;
         await _context.SaveChangesAsync();

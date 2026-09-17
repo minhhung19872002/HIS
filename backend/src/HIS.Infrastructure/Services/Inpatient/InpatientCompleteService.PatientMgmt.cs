@@ -281,6 +281,17 @@ public partial class InpatientCompleteService {
 
         if (medicalRecord == null)
             throw new KeyNotFoundException("Medical record not found");
+        // QA-R6: a cancelled / deleted outpatient record was admitted (200) and the stay hung off a dead visit.
+        if (medicalRecord.IsDeleted || medicalRecord.Status == MedicalRecordStatus.Cancelled)
+            throw new InvalidOperationException("Hồ sơ khám này đã hủy, không nhập viện từ hồ sơ này được.");
+
+        // QA-R6: the two guards below were read-then-write — three parallel "Nhập viện" clicks all passed and
+        // the patient ended with three open stays on one record. Serialize admissions per patient (and per
+        // target bed) until the new stay is committed.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.Inpatient.Patient.{medicalRecord.PatientId:N}",
+            "Bệnh nhân này đang được nhập viện ở máy khác, vui lòng thử lại.");
+        if (dto.BedId.HasValue && _context.Database.CurrentTransaction != null) await LockBedAsync(dto.BedId.Value);
 
         // QA0915: one active inpatient stay per medical record. Without this guard a double-click /
         // retry created 2-3 concurrent Admissions on the same record, each holding its own bed
@@ -365,6 +376,7 @@ public partial class InpatientCompleteService {
         }
 
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         // Get department and room names for response
         var department = await _context.Departments.FindAsync(dto.DepartmentId);
@@ -400,6 +412,14 @@ public partial class InpatientCompleteService {
 
     public async Task<AdmissionDto> AdmitFromDepartmentAsync(AdmitFromDepartmentDto dto, Guid userId)
     {
+        // QA-R6: a double "Tiếp nhận chuyển khoa" read the source stay as active twice and opened two new
+        // stays. Serialize on the source stay (lock taken BEFORE reading it) and on the target bed.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.Inpatient.Admission.{dto.SourceAdmissionId:N}",
+            "Lượt nội trú này đang được chuyển khoa ở máy khác, vui lòng thử lại.");
+        if (dto.TargetBedId.HasValue && _context.Database.CurrentTransaction != null)
+            await LockBedAsync(dto.TargetBedId.Value);
+
         var sourceAdmission = await _context.Set<Admission>()
             .Include(a => a.Patient)
             .Include(a => a.MedicalRecord)
@@ -473,6 +493,7 @@ public partial class InpatientCompleteService {
         }
 
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         var department = await _context.Departments.FindAsync(dto.TargetDepartmentId);
         var room = await _context.Rooms.FindAsync(dto.TargetRoomId);

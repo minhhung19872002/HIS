@@ -62,7 +62,7 @@ public partial class ReceptionCompleteService {
         else if (dto.NewPatient != null)
         {
             useNewPatient = true;
-            ValidateNewPatient(dto.NewPatient);
+            ValidateNewPatient(dto.NewPatient, checkFormats: false);
 
             // The v2 reception wizard always sends CCCD inside NewPatient (never top-level), so the
             // lookup above never ran and every re-registration created a second patient record with
@@ -94,6 +94,7 @@ public partial class ReceptionCompleteService {
 
         if (patient == null && useNewPatient && dto.NewPatient != null)
         {
+            ValidatePatientFormats(dto.NewPatient);
             patient = new Patient
             {
                 Id = Guid.NewGuid(),
@@ -565,14 +566,25 @@ public partial class ReceptionCompleteService {
 
         if (medicalRecord == null) throw new KeyNotFoundException("Medical record not found");
 
+        // QA-R6: identifying an unknown patient is a partial update — omitted fields used to wipe what the
+        // record already had (name → "", gender → 0, phone/ID → null) and a future DOB was accepted.
+        if (dto.DateOfBirth.HasValue && dto.DateOfBirth.Value.Date > HIS.Core.Common.VnTime.TodayVn)
+            throw new InvalidOperationException("Ngày sinh không được ở tương lai.");
+        if (dto.Gender.HasValue && (dto.Gender < 1 || dto.Gender > 3))
+            throw new InvalidOperationException("Giới tính không hợp lệ.");
+
         var patient = medicalRecord.Patient;
-        patient.FullName = dto.FullName;
-        patient.DateOfBirth = dto.DateOfBirth;
-        patient.Gender = dto.Gender;
-        patient.IdentityNumber = dto.IdentityNumber;
-        patient.PhoneNumber = dto.PhoneNumber;
-        patient.Address = dto.Address;
-        patient.InsuranceNumber = dto.InsuranceNumber;
+        if (!string.IsNullOrWhiteSpace(dto.FullName)) patient.FullName = dto.FullName.Trim();
+        if (dto.DateOfBirth.HasValue)
+        {
+            patient.DateOfBirth = dto.DateOfBirth;
+            patient.YearOfBirth = dto.DateOfBirth.Value.Year; // was left at the estimated-age year
+        }
+        if (dto.Gender.HasValue) patient.Gender = dto.Gender.Value;
+        patient.IdentityNumber = dto.IdentityNumber ?? patient.IdentityNumber;
+        patient.PhoneNumber = dto.PhoneNumber ?? patient.PhoneNumber;
+        patient.Address = dto.Address ?? patient.Address;
+        patient.InsuranceNumber = dto.InsuranceNumber ?? patient.InsuranceNumber;
 
         if (dto.Guardian != null)
         {
@@ -727,20 +739,49 @@ public partial class ReceptionCompleteService {
 
         if (medicalRecord == null) throw new KeyNotFoundException("Medical record not found");
 
+        // QA-R6: a finished / paid / cancelled visit could still be "moved", and the exam picked was an
+        // arbitrary non-finished one — with a multi-room chain that could be any room, and an exam already
+        // in progress (doctor + orders) was moved as well. Only a waiting exam changes room here (same rule
+        // as MultiSpecialtyExamService.ChangeRoomBeforeExamAsync); the primary exam first.
+        if (medicalRecord.Status is HIS.Core.Constants.MedicalRecordStatus.Completed or HIS.Core.Constants.MedicalRecordStatus.Paid or HIS.Core.Constants.MedicalRecordStatus.Cancelled)
+            throw new InvalidOperationException("Lượt khám đã kết thúc / đã hủy — không đổi phòng được.");
+        if (!await _context.Rooms.AnyAsync(r => r.Id == dto.NewRoomId && r.IsActive))
+            throw new KeyNotFoundException("Không tìm thấy phòng khám mới.");
+        var examination = await _context.Examinations
+            .Where(e => e.MedicalRecordId == dto.MedicalRecordId && !e.IsDeleted && e.Status < 4)
+            .OrderBy(e => e.Status).ThenBy(e => e.ExaminationType).ThenBy(e => e.CreatedAt)
+            .FirstOrDefaultAsync();
+        // Pre-push review: v2 has no page calling transfer-room, and a doctor pressing "Bắt đầu khám" (Status 1)
+        // would strand the patient. A started exam with nothing recorded yet (no ICD, no order) may still move.
+        var startedButEmpty = examination != null && examination.Status == 1
+            && string.IsNullOrEmpty(examination.MainIcdCode)
+            && !await _context.ServiceRequests.AnyAsync(sr => sr.ExaminationId == examination.Id && !sr.IsDeleted && sr.Status != 4);
+        if (examination != null && examination.Status != 0 && !startedButEmpty)
+            throw new InvalidOperationException(
+                "Bệnh nhân đã vào khám — không đổi phòng ở tiếp đón được. Bác sĩ dùng chức năng chuyển phòng khám.");
+
         medicalRecord.RoomId = dto.NewRoomId;
         if (dto.NewDoctorId.HasValue)
             medicalRecord.DoctorId = dto.NewDoctorId;
 
-        // Update examination
-        var examination = await _context.Examinations
-            .Where(e => e.MedicalRecordId == dto.MedicalRecordId && e.Status < 4)
-            .FirstOrDefaultAsync();
-
         if (examination != null)
         {
+            var oldRoomId = examination.RoomId;
             examination.RoomId = dto.NewRoomId;
             if (dto.NewDoctorId.HasValue)
                 examination.DoctorId = dto.NewDoctorId;
+
+            // QA-R6: the queue ticket stayed in the old room's call list, so the patient was called in a room
+            // they no longer belong to and never appeared on the new room's board.
+            var tickets = await _context.QueueTickets
+                .Where(t => t.MedicalRecordId == dto.MedicalRecordId && t.RoomId == oldRoomId
+                            && (t.Status == HIS.Core.Constants.QueueTicketStatus.Waiting || t.Status == HIS.Core.Constants.QueueTicketStatus.Calling))
+                .ToListAsync();
+            foreach (var t in tickets)
+            {
+                t.RoomId = dto.NewRoomId;
+                t.Status = HIS.Core.Constants.QueueTicketStatus.Waiting;
+            }
         }
 
         await _unitOfWork.SaveChangesAsync();

@@ -8,7 +8,7 @@ import { Input, Select, Spin } from 'antd';
 import { ModalShell, Btn, AbSelect, tk, tw, te } from '@/_v2kit';
 import TermIcon from '../../../../components/layout/terminal/Icon';
 import { friendlyErrorMessage } from '../../../../utils/friendlyError';
-import { anesthesiaApi } from '../../../patient/api/clinicalRecords';
+import { anesthesiaApi, anesthesiaBasePayload } from '../../../patient/api/clinicalRecords';
 import { printAnesthesiaForm } from '../../api/surgery';
 import { Section, Row2, ASA_OPTIONS, MALLAMPATI_OPTIONS, ANESTHESIA_TYPE_OPTIONS } from './_shared';
 
@@ -60,6 +60,7 @@ export const PreAnesthesiaModal: React.FC<PreAnesthesiaModalProps> = ({
 }) => {
   const [form, setForm] = useState<PreAnesthForm>(EMPTY_PREANEST);
   const [existingId, setExistingId] = useState<string | null>(null);
+  const [existingRec, setExistingRec] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [printing, setPrinting] = useState(false);
@@ -73,6 +74,7 @@ export const PreAnesthesiaModal: React.FC<PreAnesthesiaModalProps> = ({
     try {
       const records = await anesthesiaApi.getRecords({ surgeryId });
       const existing = Array.isArray(records) ? records[0] : null;
+      setExistingRec(existing ?? null);
       if (existing) {
         setExistingId(existing.id);
         setForm({
@@ -94,6 +96,7 @@ export const PreAnesthesiaModal: React.FC<PreAnesthesiaModalProps> = ({
     } catch (e) {
       tw(friendlyErrorMessage(e, 'Không tải được phiếu khám tiền mê'));
       setExistingId(null);
+      setExistingRec(null);
       setForm(EMPTY_PREANEST);
     } finally {
       setLoading(false);
@@ -107,6 +110,7 @@ export const PreAnesthesiaModal: React.FC<PreAnesthesiaModalProps> = ({
     setSaving(true);
     try {
       await anesthesiaApi.save({
+        ...anesthesiaBasePayload(existingRec), // keep intra-op monitors/drugs/fluids
         id: existingId ?? undefined,
         surgeryId,
         patientId,

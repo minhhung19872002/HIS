@@ -74,41 +74,25 @@ public partial class SurgeryOperationServiceImpl
             .ToListAsync();
     }
 
+    /// <summary>
+    /// QA-R6: the surgery service-order / cost endpoints below were stubs that answered 200 with a
+    /// made-up order id (nothing saved, so nothing was ever billed) or with invented money figures
+    /// (8.500.000đ cost, 5.000.000đ deposit on a surgery with no orders). Same policy as TT50 in
+    /// Execution.cs: refuse clearly instead of pretending. Charges for a surgery go through the
+    /// inpatient / OPD service-order screens until this module is implemented.
+    /// </summary>
+    private static InvalidOperationException NotImplementedYet(string feature) =>
+        new($"{feature} trong module Phẫu thuật chưa được cài đặt trên máy chủ nên chưa lưu/tính được. "
+            + "Vui lòng chỉ định qua màn nội trú / khám bệnh và báo quản trị.");
+
     public Task<SurgeryServiceOrderDto> OrderServiceAsync(CreateSurgeryServiceOrderDto dto, Guid userId)
-    {
-        return Task.FromResult(new SurgeryServiceOrderDto
-        {
-            Id = Guid.NewGuid(),
-            SurgeryId = dto.SurgeryId,
-            ServiceId = dto.ServiceId,
-            Quantity = dto.Quantity,
-            Status = 0,
-            OrderedAt = DateTime.Now
-        });
-    }
+        => throw NotImplementedYet("Chỉ định dịch vụ trong ca mổ");
 
     public Task<List<SurgeryServiceOrderDto>> OrderServicesAsync(Guid surgeryId, List<CreateSurgeryServiceOrderDto> dtos, Guid userId)
-    {
-        return Task.FromResult(dtos.Select(dto => new SurgeryServiceOrderDto
-        {
-            Id = Guid.NewGuid(),
-            SurgeryId = surgeryId,
-            ServiceId = dto.ServiceId,
-            Quantity = dto.Quantity,
-            Status = 0,
-            OrderedAt = DateTime.Now
-        }).ToList());
-    }
+        => throw NotImplementedYet("Chỉ định dịch vụ trong ca mổ");
 
     public Task<SurgeryPackageOrderDto> OrderPackageAsync(Guid surgeryId, Guid packageId, Guid userId)
-    {
-        return Task.FromResult(new SurgeryPackageOrderDto
-        {
-            SurgeryId = surgeryId,
-            PackageId = packageId,
-            PackageName = "Gói phẫu thuật"
-        });
-    }
+        => throw NotImplementedYet("Chỉ định gói PTTT");
 
     public Task<List<SurgeryServiceOrderDto>> CopyPreviousOrdersAsync(Guid surgeryId, Guid sourceSurgeryId, Guid userId)
     {
@@ -116,14 +100,10 @@ public partial class SurgeryOperationServiceImpl
     }
 
     public Task<SurgeryServiceOrderDto> UpdateServiceOrderAsync(Guid orderId, CreateSurgeryServiceOrderDto dto, Guid userId)
-    {
-        return Task.FromResult(new SurgeryServiceOrderDto { Id = orderId });
-    }
+        => throw NotImplementedYet("Sửa chỉ định dịch vụ ca mổ");
 
     public Task<bool> DeleteServiceOrderAsync(Guid orderId, Guid userId)
-    {
-        return Task.FromResult(true);
-    }
+        => throw NotImplementedYet("Xóa chỉ định dịch vụ ca mổ");
 
     public Task<List<SurgeryServiceOrderDto>> GetServiceOrdersAsync(Guid surgeryId)
     {
@@ -131,27 +111,13 @@ public partial class SurgeryOperationServiceImpl
     }
 
     public Task<SurgeryServiceOrderDto> ChangeOrderDoctorAsync(Guid orderId, Guid newDoctorId, Guid userId)
-    {
-        return Task.FromResult(new SurgeryServiceOrderDto { Id = orderId });
-    }
+        => throw NotImplementedYet("Đổi bác sĩ chỉ định");
 
     public Task<SurgeryServiceOrderDto> ChangePaymentObjectAsync(Guid orderId, int paymentObject, Guid userId)
-    {
-        return Task.FromResult(new SurgeryServiceOrderDto { Id = orderId });
-    }
+        => throw NotImplementedYet("Đổi đối tượng thanh toán");
 
     public Task<ServiceCostInfoDto> GetServiceCostInfoAsync(Guid surgeryId)
-    {
-        return Task.FromResult(new ServiceCostInfoDto
-        {
-            TotalServiceCost = 8500000,
-            InsuranceCoverage = 6800000,
-            PatientPayment = 1700000,
-            DepositBalance = 5000000,
-            RemainingDeposit = 3300000,
-            HasSufficientDeposit = true
-        });
-    }
+        => throw NotImplementedYet("Chi phí dịch vụ ca mổ");
 
     public Task<List<ServiceOrderWarningDto>> CheckOrderWarningsAsync(Guid surgeryId, Guid serviceId)
     {
@@ -168,21 +134,13 @@ public partial class SurgeryOperationServiceImpl
     }
 
     public Task<SurgeryServiceGroupDto> CreateServiceGroupAsync(SurgeryServiceGroupDto dto, Guid userId)
-    {
-        dto.Id = Guid.NewGuid();
-        dto.CreatedBy = userId;
-        return Task.FromResult(dto);
-    }
+        => throw NotImplementedYet("Tạo nhóm dịch vụ");
 
     public Task<SurgeryServiceGroupDto> UpdateServiceGroupAsync(Guid groupId, SurgeryServiceGroupDto dto, Guid userId)
-    {
-        return Task.FromResult(dto);
-    }
+        => throw NotImplementedYet("Sửa nhóm dịch vụ");
 
     public Task<bool> DeleteServiceGroupAsync(Guid groupId, Guid userId)
-    {
-        return Task.FromResult(true);
-    }
+        => throw NotImplementedYet("Xóa nhóm dịch vụ");
 
     public Task<List<SurgeryServiceOrderDto>> OrderByGroupAsync(Guid surgeryId, Guid groupId, Guid userId)
     {

@@ -37,7 +37,9 @@ public partial class LISCompleteService {
 
         var query = _context.ServiceRequests
             .Where(r => r.RequestType == 1 && !r.IsDeleted
-                     && r.RequestDate >= dateFrom && r.RequestDate < dateTo)
+                     && r.RequestDate >= dateFrom && r.RequestDate < dateTo
+                     // QA-R6: an order cancelled from OPD stayed in the worklist as an empty "chờ lấy mẫu" row
+                     && r.Status != 4 && r.Details.Any(d => !d.IsDeleted && d.Status != 3))
             .Include(r => r.MedicalRecord).ThenInclude(mr => mr.Patient)
             .Include(r => r.Doctor)
             .Include(r => r.Department)

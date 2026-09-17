@@ -38,11 +38,12 @@ public class EmergencyRegistrationDto
 /// </summary>
 public class UpdateEmergencyPatientDto
 {
-    [NotEmptyGuid]
+    // Filled from the route by the controller AFTER model validation — a [NotEmptyGuid] here rejected
+    // every call whose body did not repeat the id (QA-R6).
     public Guid MedicalRecordId { get; set; }
     public string FullName { get; set; } = string.Empty;
     public DateTime? DateOfBirth { get; set; }
-    public int Gender { get; set; }
+    public int? Gender { get; set; }
     public string? IdentityNumber { get; set; }
     public string? PhoneNumber { get; set; }
     public string? Address { get; set; }

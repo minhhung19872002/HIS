@@ -13,7 +13,7 @@ import { Input, Spin } from 'antd';
 import { ModalShell, Btn, AbSelect, tk, tw, te } from '@/_v2kit';
 import TermIcon from '../../../../components/layout/terminal/Icon';
 import { friendlyErrorMessage } from '../../../../utils/friendlyError';
-import { anesthesiaApi } from '../../../patient/api/clinicalRecords';
+import { anesthesiaApi, anesthesiaBasePayload } from '../../../patient/api/clinicalRecords';
 import { printAnesthesiaRecovery } from '../../../patient/components/AnesthesiaPrintTemplates';
 import { Section, Row2 } from './_shared';
 
@@ -51,6 +51,7 @@ export const PostAnesthesiaPlanModal: React.FC<PostAnesthesiaPlanModalProps> = (
 }) => {
   const [form, setForm] = useState<PostAnesthForm>(EMPTY_POST);
   const [existingId, setExistingId] = useState<string | null>(null);
+  const [existingRec, setExistingRec] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -63,6 +64,7 @@ export const PostAnesthesiaPlanModal: React.FC<PostAnesthesiaPlanModalProps> = (
     try {
       const records = await anesthesiaApi.getRecords({ surgeryId });
       const existing = Array.isArray(records) ? records[0] : null;
+      setExistingRec(existing ?? null);
       if (existing) {
         setExistingId(existing.id);
         setForm({
@@ -77,6 +79,7 @@ export const PostAnesthesiaPlanModal: React.FC<PostAnesthesiaPlanModalProps> = (
     } catch (e) {
       tw(friendlyErrorMessage(e, 'Không tải được kế hoạch sau gây mê'));
       setExistingId(null);
+      setExistingRec(null);
       setForm(EMPTY_POST);
     } finally {
       setLoading(false);
@@ -114,10 +117,12 @@ export const PostAnesthesiaPlanModal: React.FC<PostAnesthesiaPlanModalProps> = (
         surgeryId,
         patientId,
         patientName: patientName ?? '',
-        // Preserve required fields (use defaults if record is new)
+        // Required fields: defaults only for a new record, otherwise the loaded values (QA-R6 — the
+        // hard-coded values used to overwrite the pre-anesthesia assessment and wipe the monitors).
         asaClass: 1,
         mallampatiScore: 1,
         anesthesiaType: 'Gây mê toàn thân',
+        ...anesthesiaBasePayload(existingRec),
         recoveryNotes: form.recoveryNotes || undefined,
         postSurgeryPlan: form.postSurgeryPlan || undefined,
         status: form.status,

@@ -73,6 +73,11 @@ public class ObservationStayService : IObservationStayService
         // QA0915: a patient could be opened into two concurrent observation stays.
         if (await _db.ObservationStays.AnyAsync(s => s.PatientId == dto.PatientId && s.Status == 1))
             return ServiceOutcome.Bad("Bệnh nhân đang có phiên lưu theo dõi chưa kết thúc");
+        // The linked medical record must exist and belong to this patient — otherwise a stay was opened
+        // on patient B but attached to patient A's emergency record (cross-patient link).
+        if (dto.MedicalRecordId.HasValue
+            && !await _db.MedicalRecords.AnyAsync(m => m.Id == dto.MedicalRecordId && m.PatientId == dto.PatientId))
+            return ServiceOutcome.Bad("Hồ sơ bệnh án không tồn tại hoặc không thuộc bệnh nhân này");
         if (dto.TriageLevel.HasValue && (dto.TriageLevel < 1 || dto.TriageLevel > 5))
             return ServiceOutcome.Bad("Mức triage phải từ 1 đến 5");
         // Two patients could be placed on the same observation bed.

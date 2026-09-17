@@ -531,7 +531,9 @@ const LaboratoryV2: React.FC = () => {
                 { key: 'final', icon: 'check', label: 'Duyệt chính thức (BS)', primary: true,
                   hidden: r.status !== 4, disabled: !!acting, onClick: () => onFinal(r) },
                 { key: 'entry', icon: 'edit', label: 'Nhập kết quả thủ công', primary: true,
-                  hidden: !(r.status === 2 || r.status === 3), onClick: () => setEntryTarget(r) },
+                  // QA-R6: status 1 (sample collected, no result yet) is where the FIRST manual result is typed —
+                  // hiding the button there left the manual flow with no way forward (only an analyzer could).
+                  hidden: !(r.status >= 1 && r.status <= 3), onClick: () => setEntryTarget(r) },
                 { key: 'view', icon: 'eye', label: 'Xem chi tiết', onClick: () => setDetail(r) },
                 { key: 'barcode', icon: 'qr', label: 'In nhãn barcode mẫu',
                   hidden: r.status !== 1, onClick: () => onPrintBarcode(r) },
@@ -600,7 +602,7 @@ const LaboratoryV2: React.FC = () => {
                 <TermIcon name="qr" size={12} /> In nhãn
               </Btn>
             )}
-            {(detail.status === 2 || detail.status === 3) && (
+            {detail.status >= 1 && detail.status <= 3 && (
               <Btn onClick={() => setEntryTarget(detail)}>
                 <TermIcon name="edit" size={12} /> Nhập KQ
               </Btn>

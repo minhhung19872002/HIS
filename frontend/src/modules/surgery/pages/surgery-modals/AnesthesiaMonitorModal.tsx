@@ -9,7 +9,7 @@ import { ModalShell, Btn, tk, tw, te } from '@/_v2kit';
 import TermIcon from '../../../../components/layout/terminal/Icon';
 import { RowActions } from '../../../../components/actions';
 import { friendlyErrorMessage } from '../../../../utils/friendlyError';
-import { anesthesiaApi } from '../../../patient/api/clinicalRecords';
+import { anesthesiaApi, anesthesiaBasePayload } from '../../../patient/api/clinicalRecords';
 import {
   printAnesthesiaMonitor,
   printAnesthesiaRecord,
@@ -57,6 +57,7 @@ export const AnesthesiaMonitorModal: React.FC<AnesthesiaMonitorModalProps> = ({
   open, onClose, surgeryId, patientId, patientName, surgeryCode,
 }) => {
   const [existingId, setExistingId] = useState<string | null>(null);
+  const [existingRec, setExistingRec] = useState<Record<string, unknown> | null>(null);
   const [monitors, setMonitors]     = useState<MonitorEntry[]>([{ ...EMPTY_MONITOR }]);
   const [drugs, setDrugs]           = useState<DrugEntry[]>([]);
   const [loading, setLoading]       = useState(false);
@@ -69,6 +70,7 @@ export const AnesthesiaMonitorModal: React.FC<AnesthesiaMonitorModalProps> = ({
     try {
       const records = await anesthesiaApi.getRecords({ surgeryId });
       const existing = Array.isArray(records) ? records[0] : null;
+      setExistingRec(existing ?? null);
       if (existing) {
         setExistingId(existing.id);
         const mons: MonitorEntry[] = (existing.monitors ?? []).map((m: {
@@ -103,6 +105,7 @@ export const AnesthesiaMonitorModal: React.FC<AnesthesiaMonitorModalProps> = ({
     } catch (e) {
       tw(friendlyErrorMessage(e, 'Không tải được phiếu theo dõi gây mê'));
       setExistingId(null);
+      setExistingRec(null);
       setMonitors([{ ...EMPTY_MONITOR }]);
       setDrugs([]);
     } finally {
@@ -131,13 +134,15 @@ export const AnesthesiaMonitorModal: React.FC<AnesthesiaMonitorModalProps> = ({
         surgeryId,
         patientId,
         patientName: patientName ?? '',
+        // Defaults only for a new record; an existing one keeps its pre-anesthesia assessment and fluids (QA-R6).
         asaClass: 1,
         mallampatiScore: 1,
         anesthesiaType: 'Gây mê toàn thân',
-        status: 1,
+        fluids: [],
+        ...anesthesiaBasePayload(existingRec),
+        status: Math.max(Number(existingRec?.status ?? 0), 1), // intra-op; never moves a finished record back
         monitors: validMonitors,
         drugs: drugs.filter((d) => d.drugName),
-        fluids: [],
       });
       tk('Đã lưu phiếu theo dõi gây mê');
       await load();

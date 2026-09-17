@@ -24,6 +24,11 @@ public class RadiologyDispatchService : IRadiologyDispatchService
             .Include(d => d.ServiceRequest).ThenInclude(r => r.MedicalRecord)
             .FirstOrDefaultAsync(d => d.Id == dto.ServiceRequestDetailId)
             ?? throw new KeyNotFoundException("Dịch vụ không tồn tại");
+        // QA-R6: a cancelled line, or one already performed, could be dispatched again (a second queue ticket)
+        if (detail.Status == 3 || detail.ServiceRequest?.Status == 4)
+            throw new InvalidOperationException("Chỉ định đã hủy, không điều phối được.");
+        if (await _db.RadiologyDispatches.AnyAsync(d => d.ServiceRequestDetailId == dto.ServiceRequestDetailId && d.IsPerformed))
+            throw new InvalidOperationException("Dịch vụ này đã thực hiện xong, không điều phối lại.");
 
         var room = await _db.Rooms.FindAsync(dto.RoomId)
             ?? throw new KeyNotFoundException("Phòng không tồn tại");
@@ -177,7 +182,9 @@ public class RadiologyDispatchService : IRadiologyDispatchService
             .Where(d => d.Service.ServiceType == 3
                 && d.Status < 2
                 && !d.IsDeleted && d.ServiceRequest.Status != 4 // header 4 = order cancelled from OPD
-                && !_db.RadiologyDispatches.Any(x => x.ServiceRequestDetailId == d.Id && !x.IsPerformed))
+                // QA-R6: `&& !x.IsPerformed` put an already-performed exam back into this queue (SRD stays
+                // Status 1 until reported). Cancelled dispatches are soft-deleted → hidden by the query filter.
+                && !_db.RadiologyDispatches.Any(x => x.ServiceRequestDetailId == d.Id))
             .OrderBy(d => d.CreatedAt)
             .Take(200)
             .Select(d => new

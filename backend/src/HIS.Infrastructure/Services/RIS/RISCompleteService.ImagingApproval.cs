@@ -717,7 +717,7 @@ public partial class RISCompleteService
                 if (modalityPerms.Count > 0 && !modalityPerms.Any(p => (p.Permissions & DuyetKQFlag) != 0))
                 {
                     throw new UnauthorizedAccessException(
-                        "Báº¡n khÃ´ng cÃ³ quyá»n duyá»‡t káº¿t quáº£ cho loáº¡i mÃ¡y chá»¥p nÃ y.");
+                        "Bạn không có quyền duyệt kết quả cho loại máy chụp này.");
                 }
             }
         }
@@ -741,7 +741,7 @@ public partial class RISCompleteService
         await _unitOfWork.SaveChangesAsync();
 
         // Fire-and-forget email notification
-        _ = _notificationService.NotifyRadiologyResultAsync(report.Id, "BÃ¡c sÄ© duyá»‡t");
+        _ = _notificationService.NotifyRadiologyResultAsync(report.Id, "Bác sĩ duyệt");
 
         return true;
     }

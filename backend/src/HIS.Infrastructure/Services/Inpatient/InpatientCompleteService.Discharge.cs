@@ -277,6 +277,24 @@ public partial class InpatientCompleteService {
                 "Lượt nội trú đã ghi nhận tử vong — không hủy xuất viện được. "
                 + "Nếu ghi nhầm loại ra viện thì phải sửa qua đường tu chỉnh hồ sơ, có lưu vết.");
 
+        // QA-R6: re-opening was allowed on a record whose bill was already locked / settled / sent to BHYT
+        // (new charges then landed on a closed invoice), and while the patient already had another open stay.
+        if (admission != null)
+        {
+            var record = await _context.MedicalRecords.AsNoTracking()
+                .Where(m => m.Id == admission.MedicalRecordId)
+                .Select(m => new { m.IsClosed, m.Status })
+                .FirstOrDefaultAsync();
+            if (record != null && (record.IsClosed || record.Status == MedicalRecordStatus.Cancelled || record.Status == MedicalRecordStatus.Paid))
+                throw new InvalidOperationException(
+                    "Hồ sơ đã khóa viện phí / đã thanh toán / đã hủy — mở khóa hồ sơ trước khi hủy ra viện.");
+            if (await _context.InsuranceClaims.AnyAsync(c => c.MedicalRecordId == admission.MedicalRecordId && !c.IsDeleted && c.ClaimStatus >= 1))
+                throw new InvalidOperationException("Hồ sơ đã duyệt/gửi BHYT — không hủy ra viện được.");
+            if (await _context.Set<Admission>().AnyAsync(a => a.PatientId == admission.PatientId && a.Id != admissionId && !a.IsDeleted
+                    && (a.Status == AdmissionStatus.InTreatment || a.Status == AdmissionStatus.PendingDischarge)))
+                throw new InvalidOperationException("Bệnh nhân đang có lượt nội trú khác chưa kết thúc — không mở lại lượt này được.");
+        }
+
         // #218/T3: XOÁ MỀM, không xoá cứng. `Discharge` giữ chẩn đoán ra viện, tóm tắt điều trị,
         // hướng dẫn sau xuất viện, ngày hẹn tái khám và người cho ra viện — tức một phần hồ sơ bệnh
         // án. `Remove()` trước đây xoá hẳn khỏi bảng, bấm một nút là mất sạch không còn gì đối chiếu.

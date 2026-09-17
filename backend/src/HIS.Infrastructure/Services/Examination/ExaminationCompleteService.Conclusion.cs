@@ -313,7 +313,7 @@ public partial class ExaminationCompleteService
             var candidates = await query.AsNoTracking().ToListAsync();
             var matched = candidates
                 .Where(a =>
-                    (a.Patient?.FullName?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
+                    HIS.Core.Common.VnSearchText.Contains(a.Patient?.FullName, kw) /* QA-R6: accent-insensitive */
                     || (a.Patient?.PatientCode?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
                     || a.AppointmentCode.Contains(kw, StringComparison.OrdinalIgnoreCase)
                     || (a.Patient?.PhoneNumber?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false))
@@ -355,6 +355,14 @@ public partial class ExaminationCompleteService
             .FirstOrDefaultAsync(a => a.Id == appointmentId);
 
         if (appointment == null) throw new KeyNotFoundException("Appointment not found");
+
+        // QA-R6: any integer was stored, and attended/cancelled appointments could be reopened.
+        if (status < AppointmentStatus.Pending || status > AppointmentStatus.Cancelled)
+            throw new ArgumentException("Trạng thái lịch hẹn không hợp lệ.", nameof(status));
+        if (appointment.Status != status
+            && (appointment.Status == AppointmentStatus.Attended || appointment.Status == AppointmentStatus.Cancelled))
+            throw new InvalidOperationException(
+                $"Lịch hẹn đang ở trạng thái \"{AppointmentStatus.Label(appointment.Status)}\", không đổi trạng thái được nữa.");
 
         appointment.Status = status;
         appointment.UpdatedAt = DateTime.UtcNow;
@@ -766,6 +774,27 @@ public partial class ExaminationCompleteService
                 "Lượt khám đã hoàn thành, không hủy thẳng được. "
                 + "Nếu cần hủy thì mở lại kết luận (bỏ hoàn thành) trước, rồi mới hủy.");
 
+        // QA-R6: orders placed during the visit stayed pending (billed, still in the lab worklist) after the
+        // visit was cancelled. Cancel the untouched ones; money already taken or work already done must be
+        // undone explicitly (refund / cancel the order) before the visit can go.
+        var visitOrders = await _context.ServiceRequests
+            .Where(sr => sr.ExaminationId == examinationId && !sr.IsDeleted && sr.Status != 4)
+            .ToListAsync();
+        if (visitOrders.Any(sr => sr.IsPaid || sr.Status >= 2))
+            throw new InvalidOperationException(
+                "Lượt khám có chỉ định đã thu tiền hoặc đang/đã thực hiện. Hủy/hoàn các chỉ định đó trước khi hủy lượt khám.");
+        foreach (var sr in visitOrders)
+            sr.Status = 4;
+
+        // Its waiting/called ticket at this room would otherwise still be called.
+        var openTickets = await _context.QueueTickets
+            .Where(t => t.MedicalRecordId == examination.MedicalRecordId && t.RoomId == examination.RoomId
+                        && !t.IsDeleted
+                        && (t.Status == QueueTicketStatus.Waiting || t.Status == QueueTicketStatus.Calling))
+            .ToListAsync();
+        foreach (var t in openTickets)
+            t.Status = QueueTicketStatus.Skipped;
+
         examination.Status = ExaminationStatus.Cancelled;
         // #218/T3: lý do hủy đi vào ô riêng `CancelReason` (migration 174), KHÔNG ghi đè
         // `ConclusionNote` — đó là kết luận khám của bác sĩ, và CdaDocumentService lấy đúng ô ấy
@@ -792,6 +821,17 @@ public partial class ExaminationCompleteService
 
         // Entity is already tracked: no repo.UpdateAsync (it marks ALL columns modified, so parallel OPD saves overwrote each other).
         await _unitOfWork.SaveChangesAsync();
+
+        if (visitOrders.Count > 0)
+        {
+            var invoice = await _context.Set<InvoiceSummary>()
+                .FirstOrDefaultAsync(i => i.MedicalRecordId == examination.MedicalRecordId && !i.IsDeleted);
+            if (invoice != null)
+            {
+                await HIS.Infrastructure.Services.InvoiceLedger.RefreshAsync(_context, invoice);
+                await _unitOfWork.SaveChangesAsync();
+            }
+        }
 
         return true;
     }

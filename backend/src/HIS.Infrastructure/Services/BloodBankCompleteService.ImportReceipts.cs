@@ -162,6 +162,7 @@ namespace HIS.Infrastructure.Services
         public async Task<BloodImportReceiptDto> CreateImportReceiptAsync(CreateBloodImportDto dto)
         {
             ValidateImportItems(dto.ReceiptDate, dto.Items); // before any insert → no half-written receipt
+            await EnsureImportCodesAndProductsAsync(dto.Items, null);
             var receiptId = Guid.NewGuid();
             var receiptCode = $"IMP{DateTime.Now:yyyyMMddHHmmss}";
             var totalBags = dto.Items?.Count ?? 0;
@@ -196,9 +197,54 @@ namespace HIS.Infrastructure.Services
         private static void ValidateImportItems(DateTime receiptDate, IEnumerable<CreateBloodImportItemDto>? items)
         {
             foreach (var item in items ?? Enumerable.Empty<CreateBloodImportItemDto>())
+            {
                 if (item.ExpiryDate.Date < receiptDate.Date || item.ExpiryDate < item.CollectionDate)
                     throw new InvalidOperationException(
                         $"Túi máu {item.BagCode} có hạn dùng {item.ExpiryDate:dd/MM/yyyy} không hợp lệ (hết hạn trước ngày nhập hoặc trước ngày thu), không nhập kho được.");
+                // QA-R6 (patient safety): a bag typed "Z"/"?" entered stock as Available, and BloodCompatibility treats
+                // an unreadable group as "unknown → allow" — it was issued to an A− patient. Also -5 mL / negative price.
+                if (string.IsNullOrWhiteSpace(item.BagCode))
+                    throw new ArgumentException("Túi máu thiếu mã túi.");
+                if (HIS.Core.Constants.BloodCompatibility.NormalizeAbo(item.BloodType) == null || HIS.Core.Constants.BloodCompatibility.NormalizeRh(item.RhFactor) == null)
+                    throw new ArgumentException($"Túi máu {item.BagCode}: nhóm máu \"{item.BloodType}{item.RhFactor}\" không hợp lệ (ABO: O/A/B/AB, Rh: +/−).");
+                if (item.Volume <= 0 || item.Price < 0)
+                    throw new ArgumentException($"Túi máu {item.BagCode}: thể tích phải > 0 và đơn giá không âm.");
+            }
+            var dupCode = (items ?? Enumerable.Empty<CreateBloodImportItemDto>())
+                .SelectMany(i => new[] { i.BagCode?.Trim(), (i.Barcode ?? i.BagCode)?.Trim() }.Distinct())
+                .Where(c => !string.IsNullOrEmpty(c))
+                .GroupBy(c => c!, StringComparer.OrdinalIgnoreCase).FirstOrDefault(g => g.Count() > 1);
+            if (dupCode != null)
+                throw new ArgumentException($"Mã túi máu {dupCode.Key} bị trùng trong phiếu nhập.");
+        }
+
+        /// <summary>
+        /// QA-R6 (patient safety): the same bag code/barcode could be imported twice (once O+, once B−); a barcode scan
+        /// then returned either bag. Codes of bags still in circulation (not Cancelled) must be unique, and the product
+        /// type must exist (no FK on the raw insert). <paramref name="ignoreReceiptId"/>: the receipt being edited,
+        /// whose own bags are cancelled and re-created by the update.
+        /// </summary>
+        private async Task EnsureImportCodesAndProductsAsync(IEnumerable<CreateBloodImportItemDto>? items, Guid? ignoreReceiptId)
+        {
+            foreach (var item in items ?? Enumerable.Empty<CreateBloodImportItemDto>())
+            {
+                var productExists = await _context.Database
+                    .SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM BloodProductTypes WHERE Id = {0}", item.ProductTypeId)
+                    .FirstOrDefaultAsync();
+                if (productExists == 0)
+                    throw new KeyNotFoundException($"Túi máu {item.BagCode}: không tìm thấy loại chế phẩm máu.");
+
+                var code = item.BagCode.Trim();
+                var barcode = (item.Barcode ?? item.BagCode).Trim();
+                var taken = await _context.Database.SqlQueryRaw<int>(
+                        @"SELECT COUNT(*) AS Value FROM BloodBags b
+                          WHERE b.Status <> 'Cancelled' AND (b.BagCode IN ({0}, {1}) OR b.Barcode IN ({0}, {1}))
+                            AND NOT EXISTS (SELECT 1 FROM BloodImportItems i WHERE i.BloodBagId = b.Id AND i.ReceiptId = {2})",
+                        code, barcode, ignoreReceiptId ?? Guid.Empty)
+                    .FirstOrDefaultAsync();
+                if (taken > 0)
+                    throw new InvalidOperationException($"Mã túi máu {code} đã tồn tại trong kho — không nhập trùng.");
+            }
         }
 
         private async Task InsertImportItemWithBagAsync(Guid receiptId, Guid supplierId, CreateBloodImportItemDto item)
@@ -253,6 +299,7 @@ namespace HIS.Infrastructure.Services
             var totalAmount = dto.Items?.Sum(i => i.Price * i.Volume) ?? 0;
 
             ValidateImportItems(dto.ReceiptDate, dto.Items);
+            await EnsureImportCodesAndProductsAsync(dto.Items, receiptId);
             await EnsureReceiptBagsUntouchedAsync(receiptId);
 
             await using var tx = await _context.Database.BeginTransactionAsync();

@@ -249,7 +249,11 @@ public partial class ExaminationCompleteService
             .Where(d => d.ServiceRequest.MedicalRecordId == examination.MedicalRecordId
                      && d.ServiceRequest.RequestType == 1
                      && d.Status != 3
-                     && (d.Status == 2 || d.Result != null || d.ResultDate != null))
+                     && (d.Status == 2 || d.Result != null || d.ResultDate != null)
+                     // QA-R6: a value the technician had just typed (not yet approved) reached the doctor's screen —
+                     // same release rule as the printed slip, the public link and the RIS block below.
+                     && d.ReviewedAt != null
+                     && !d.IsDeleted && !d.ServiceRequest.IsDeleted && d.ServiceRequest.Status != 4)
             .OrderByDescending(d => d.ResultDate)
             .Select(d => new LabResultSummaryDto
             {
@@ -292,6 +296,13 @@ public partial class ExaminationCompleteService
                     AbnormalType = LabFlagEvaluator.FlagToAbnormalType(p.Flag),
                     Flag = p.Flag,
                 }).ToList();
+                // QA-R6: the summary row was hard-coded IsAbnormal=false / no unit / no range (a critical WBC showed as normal)
+                r.IsAbnormal = r.Items.Any(i => i.IsAbnormal);
+                if (r.Items.Count == 1)
+                {
+                    r.Unit = r.Items[0].Unit;
+                    r.ReferenceRange = r.Items[0].ReferenceRange;
+                }
             }
         }
 

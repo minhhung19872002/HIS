@@ -214,19 +214,21 @@ public partial class ExaminationCompleteService
 
     public Task<string> ClassifyBloodPressureAsync(int systolic, int diastolic)
     {
+        // Highest category wins (either value qualifies). The old `||` chain classified 200/85 or 135/100 as
+        // "độ 1", 250/100 as "độ 2", and any low diastolic (e.g. 200/55) as hypotension.
         string classification;
-        if (systolic < 90 || diastolic < 60)
-            classification = "Ha huyet ap";
-        else if (systolic < 120 && diastolic < 80)
-            classification = "Binh thuong";
-        else if (systolic < 130 && diastolic < 80)
-            classification = "Tang nhe";
-        else if (systolic < 140 || diastolic < 90)
-            classification = "Tang huyet ap do 1";
-        else if (systolic < 180 || diastolic < 120)
-            classification = "Tang huyet ap do 2";
-        else
+        if (systolic >= 180 || diastolic >= 120)
             classification = "Tang huyet ap khung hoang";
+        else if (systolic >= 140 || diastolic >= 90)
+            classification = "Tang huyet ap do 2";
+        else if (systolic >= 130 || diastolic >= 80)
+            classification = "Tang huyet ap do 1";
+        else if (systolic < 90 || diastolic < 60)
+            classification = "Ha huyet ap";
+        else if (systolic >= 120)
+            classification = "Tang nhe";
+        else
+            classification = "Binh thuong";
 
         return Task.FromResult(classification);
     }

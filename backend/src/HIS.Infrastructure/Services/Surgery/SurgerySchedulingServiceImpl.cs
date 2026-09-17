@@ -36,6 +36,7 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
             // (FirstOrDefault / tự tạo "Bệnh nhân Test") khi thiếu context → body rỗng vẫn tạo
             // ca mổ gắn NHẦM bệnh nhân. Resolve BẮT BUỘC từ HSBA/lần khám; thiếu → 400.
             Patient? patient = null;
+            Guid? resolvedMedicalRecordId = dto.MedicalRecordId != Guid.Empty ? dto.MedicalRecordId : null;
             if (dto.MedicalRecordId != Guid.Empty)
             {
                 patient = await _context.Set<MedicalRecord>()
@@ -53,6 +54,12 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
                     .FirstOrDefaultAsync();
                 if (patient == null)
                     throw new InvalidOperationException("Khong tim thay lan kham (examinationId khong ton tai)");
+                // QA-R6: the v2 request modal only sends examinationId — the request was saved with a NULL
+                // MedicalRecordId, so record-scoped reads (treatment summary, per-record lookups) never saw it.
+                resolvedMedicalRecordId = await _context.Set<Examination>()
+                    .Where(e => e.Id == dto.ExaminationId.Value)
+                    .Select(e => (Guid?)e.MedicalRecordId)
+                    .FirstOrDefaultAsync();
             }
             else
             {
@@ -75,14 +82,16 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
             var doctorId = doctor?.Id ?? userId;
 
             var requestId = Guid.NewGuid();
-            var requestCode = $"PT{DateTime.Now:yyyyMMddHHmmss}";
+            // QA-R6: second precision gave two requests created in the same second the same code
+            // (59 duplicated codes in dev data); add milliseconds + 2 random digits (21 chars, column is 50).
+            var requestCode = $"PT{DateTime.Now:yyyyMMddHHmmssfff}{Random.Shared.Next(100):D2}";
 
             var request = new SurgeryRequest
             {
                 Id = requestId,
                 RequestCode = requestCode,
                 PatientId = patient.Id,
-                MedicalRecordId = dto.MedicalRecordId != Guid.Empty ? dto.MedicalRecordId : null,
+                MedicalRecordId = resolvedMedicalRecordId,
                 // Link examination (OPD/CĐHA workflow) when provided
                 ExaminationId = dto.ExaminationId != Guid.Empty ? dto.ExaminationId : null,
                 RequestDate = DateTime.Now,
@@ -126,7 +135,7 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
                 SurgeryClass = dto.SurgeryClass,
                 SurgeryClassName = GetSurgeryClassName(dto.SurgeryClass),
                 SurgeryNature = dto.SurgeryNature,
-                SurgeryNatureName = dto.SurgeryNature == 1 ? "Cấp cứu" : "Chương trình",
+                SurgeryNatureName = dto.SurgeryNature == 3 ? "Cấp cứu" : "Chương trình", // same scale as the list (3 = emergency)
                 PreOperativeDiagnosis = dto.PreOperativeDiagnosis,
                 PreOperativeIcdCode = dto.PreOperativeIcdCode,
                 SurgeryServiceId = dto.SurgeryServiceId,
@@ -290,20 +299,37 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
             if (dto.OperatingRoomId == Guid.Empty
                 || !await _context.Set<OperatingRoom>().AnyAsync(r => r.Id == dto.OperatingRoomId && !r.IsDeleted))
                 throw new KeyNotFoundException("Không tìm thấy phòng mổ (operatingRoomId không hợp lệ).");
+            // QA-R6 (double-submit): the clash checks below read then write — two schedulers booking the same
+            // room/patient at the same time both passed. One lock for all scheduling (low volume, no lock ordering).
+            await using var scheduleTx = await HIS.Infrastructure.Data.SqlAppLock.BeginAsync(_context);
+            await HIS.Infrastructure.Data.SqlAppLock.AcquireAsync(_context, "HIS.Surgery.Schedule",
+                "Đang có người khác xếp lịch mổ, vui lòng thử lại.");
             var newStart = dto.ScheduledDate;
             var newEnd = newStart.AddMinutes(dto.EstimatedDurationMinutes);
-            var sameDay = await _context.Set<SurgerySchedule>()
-                .Where(s => s.OperatingRoomId == dto.OperatingRoomId && s.SurgeryRequestId != dto.SurgeryId
-                    && s.ScheduledDate == dto.ScheduledDate.Date && !s.IsDeleted
+            // QA-R6: the window was the same calendar day only, so a 23:30 case running past midnight never
+            // clashed with a 00:30 case the next day. Also check the PATIENT: one person was booked into two
+            // operating rooms at overlapping times (different requests).
+            var patientId = request?.PatientId;
+            var windowFrom = dto.ScheduledDate.Date.AddDays(-1);
+            var windowTo = newEnd.Date.AddDays(1);
+            var nearby = await _context.Set<SurgerySchedule>()
+                .Where(s => (s.OperatingRoomId == dto.OperatingRoomId || s.SurgeryRequest.PatientId == patientId)
+                    && s.SurgeryRequestId != dto.SurgeryId
+                    && s.ScheduledDate >= windowFrom && s.ScheduledDate <= windowTo && !s.IsDeleted
                     && s.Status != SurgeryStatus.ScheduleCompleted
                     && s.SurgeryRequest.Status != SurgeryStatus.RequestCancelled)
-                .Select(s => new { s.ScheduledDateTime, s.EstimatedDuration, Code = s.SurgeryRequest.RequestCode })
+                .Select(s => new { s.OperatingRoomId, s.ScheduledDateTime, s.EstimatedDuration, Code = s.SurgeryRequest.RequestCode, s.SurgeryRequest.PatientId })
                 .ToListAsync();
-            var clash = sameDay.FirstOrDefault(s =>
-                s.ScheduledDateTime < newEnd && s.ScheduledDateTime.AddMinutes(s.EstimatedDuration ?? 60) > newStart);
+            var overlapping = nearby.Where(s =>
+                s.ScheduledDateTime < newEnd && s.ScheduledDateTime.AddMinutes(s.EstimatedDuration ?? 60) > newStart).ToList();
+            var clash = overlapping.FirstOrDefault(s => s.OperatingRoomId == dto.OperatingRoomId);
             if (clash != null)
                 throw new InvalidOperationException(
                     $"Phòng mổ đã có ca {clash.Code} lúc {clash.ScheduledDateTime:HH:mm dd/MM} ({clash.EstimatedDuration ?? 60} phút) trùng khung giờ này. Chọn giờ hoặc phòng khác.");
+            var patientClash = overlapping.FirstOrDefault(s => patientId.HasValue && s.PatientId == patientId);
+            if (patientClash != null)
+                throw new InvalidOperationException(
+                    $"Người bệnh đã có ca {patientClash.Code} lúc {patientClash.ScheduledDateTime:HH:mm dd/MM} ({patientClash.EstimatedDuration ?? 60} phút) trùng khung giờ này ở phòng mổ khác.");
 
             // QA0915: scheduling twice created a second schedule row; start/complete then picked an
             // arbitrary row (FirstOrDefault without order). Re-scheduling now moves the existing row.
@@ -344,6 +370,7 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
             }
 
             await _context.SaveChangesAsync();
+            if (scheduleTx != null) await scheduleTx.CommitAsync();
             return await GetSurgeryByIdAsync(dto.SurgeryId) ?? new SurgeryDto();
         }
         catch (Exception ex) when (ex is InvalidOperationException or KeyNotFoundException or ArgumentException)
@@ -620,136 +647,49 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
     }
 
     public Task<SurgeryDto> SetTeamFeesAsync(Guid surgeryId, List<SurgeryTeamMemberRequestDto> teamMembers, Guid userId)
-    {
-        return GetSurgeryByIdAsync(surgeryId).ContinueWith(t => t.Result ?? new SurgeryDto());
-    }
+        => throw NotImplementedYet("Chia tiền công ekip mổ");
 
     public Task<SurgeryFeeCalculationDto> CalculateTeamFeesAsync(Guid surgeryId)
-    {
-        return Task.FromResult(new SurgeryFeeCalculationDto
-        {
-            SurgeryId = surgeryId,
-            ServicePrice = 5000000,
-            TotalFeePool = 1500000,
-            TeamFees = new List<TeamMemberFeeDto>
-            {
-                new() { StaffName = "BS. Nguyễn Văn A", Role = 1, RoleName = "PT viên chính", FeePercent = 40, FeeAmount = 600000 },
-                new() { StaffName = "BS. Trần Văn B", Role = 2, RoleName = "PT viên phụ", FeePercent = 20, FeeAmount = 300000 },
-                new() { StaffName = "BS. Lê Thị C", Role = 3, RoleName = "BS gây mê", FeePercent = 25, FeeAmount = 375000 },
-                new() { StaffName = "ĐD. Phạm Thị D", Role = 4, RoleName = "Điều dưỡng", FeePercent = 15, FeeAmount = 225000 }
-            },
-            TotalDistributed = 1500000
-        });
-    }
+        => throw NotImplementedYet("Tính tiền công ekip mổ");
 
     public Task<SurgeryProfitDto> CalculateProfitAsync(Guid surgeryId)
-    {
-        return Task.FromResult(new SurgeryProfitDto
-        {
-            SurgeryId = surgeryId,
-            ServiceRevenue = 5000000,
-            MedicineRevenue = 2000000,
-            SupplyRevenue = 1500000,
-            TotalRevenue = 8500000,
-            MedicineCost = 1200000,
-            SupplyCost = 800000,
-            TeamFee = 1500000,
-            OperatingCost = 500000,
-            TotalExpense = 4000000,
-            Profit = 4500000,
-            ProfitMargin = 52.94
-        });
-    }
+        => throw NotImplementedYet("Tính lãi/lỗ ca mổ");
 
     public Task<SurgeryCostCalculationDto> CalculateCostTT37Async(Guid surgeryId, bool hasTeamChange)
-    {
-        return Task.FromResult(new SurgeryCostCalculationDto
-        {
-            SurgeryId = surgeryId,
-            ServiceCost = 5000000,
-            HasTeamChange = hasTeamChange,
-            AdditionalServiceCost = hasTeamChange ? 500000 : null,
-            MedicineCost = 2000000,
-            SupplyCost = 1500000,
-            TotalCost = hasTeamChange ? 9000000 : 8500000,
-            InsuranceCoverage = 6800000,
-            PatientPayment = hasTeamChange ? 2200000 : 1700000
-        });
-    }
+        => throw NotImplementedYet("Tính chi phí ca mổ theo TT37");
 
     public Task<SurgeryStatisticsDto> GetStatisticsAsync(DateTime fromDate, DateTime toDate, Guid? departmentId)
-    {
-        return Task.FromResult(new SurgeryStatisticsDto
-        {
-            FromDate = fromDate,
-            ToDate = toDate,
-            TotalSurgeries = 150,
-            EmergencySurgeries = 25,
-            ScheduledSurgeries = 125,
-            CompletedCount = 145,
-            CancelledCount = 5,
-            TotalRevenue = 1250000000,
-            TotalExpense = 625000000,
-            TotalProfit = 625000000
-        });
-    }
+        => throw NotImplementedYet("Thống kê phẫu thuật");
 
     #endregion
+
+    /// <summary>
+    /// QA-R6: team-fee / profit / TT37 cost / statistics / package endpoints were stubs answering 200 with
+    /// invented staff names and money figures ("BS. Nguyễn Văn A", 150 surgeries, 8.500.000đ) or pretending
+    /// to save. Refuse clearly instead (same policy as TT50 in SurgeryOperationServiceImpl.Execution).
+    /// </summary>
+    private static InvalidOperationException NotImplementedYet(string feature) =>
+        new($"{feature} chưa được cài đặt trên máy chủ nên chưa có số liệu thật. Vui lòng báo quản trị.");
 
     #region 6.1.1 Gói PTTT & Định mức
 
     public Task<List<SurgeryPackageDto>> GetSurgeryPackagesAsync(Guid? surgeryServiceId)
-    {
-        return Task.FromResult(new List<SurgeryPackageDto>
-        {
-            new() { Id = Guid.NewGuid(), Code = "GOI001", Name = "Gói cắt ruột thừa", PackagePrice = 8000000, IsActive = true },
-            new() { Id = Guid.NewGuid(), Code = "GOI002", Name = "Gói mổ sỏi thận", PackagePrice = 15000000, IsActive = true },
-            new() { Id = Guid.NewGuid(), Code = "GOI003", Name = "Gói đặt stent tim", PackagePrice = 50000000, IsActive = true }
-        });
-    }
+        => Task.FromResult(new List<SurgeryPackageDto>()); // QA-R6: was 3 invented packages with random ids
 
     public Task<SurgeryPackageDto?> GetSurgeryPackageByIdAsync(Guid id)
-    {
-        return Task.FromResult<SurgeryPackageDto?>(new SurgeryPackageDto
-        {
-            Id = id,
-            Code = "GOI001",
-            Name = "Gói cắt ruột thừa",
-            PackagePrice = 8000000,
-            MedicineLimit = 3000000,
-            SupplyLimit = 2000000,
-            IsActive = true
-        });
-    }
+        => Task.FromResult<SurgeryPackageDto?>(null); // QA-R6: echoed any id as "Gói cắt ruột thừa"
 
     public Task<SurgeryPackageDto> SaveSurgeryPackageAsync(SurgeryPackageDto dto, Guid userId)
-    {
-        dto.Id = dto.Id == Guid.Empty ? Guid.NewGuid() : dto.Id;
-        return Task.FromResult(dto);
-    }
+        => throw NotImplementedYet("Lưu gói PTTT");
 
     public Task<bool> DeleteSurgeryPackageAsync(Guid id, Guid userId)
-    {
-        return Task.FromResult(true);
-    }
+        => throw NotImplementedYet("Xóa gói PTTT");
 
     public Task<List<PackageMedicineNormDto>> GetPackageMedicineNormsAsync(Guid packageId)
-    {
-        return Task.FromResult(new List<PackageMedicineNormDto>
-        {
-            new() { MedicineCode = "TH001", MedicineName = "Paracetamol 500mg", Unit = "Viên", StandardQuantity = 20 },
-            new() { MedicineCode = "TH002", MedicineName = "Cefazolin 1g", Unit = "Lọ", StandardQuantity = 3 }
-        });
-    }
+        => Task.FromResult(new List<PackageMedicineNormDto>());
 
     public Task<List<PackageSupplyNormDto>> GetPackageSupplyNormsAsync(Guid packageId)
-    {
-        return Task.FromResult(new List<PackageSupplyNormDto>
-        {
-            new() { SupplyCode = "VT001", SupplyName = "Bông gạc", Unit = "Cuộn", StandardQuantity = 5 },
-            new() { SupplyCode = "VT002", SupplyName = "Chỉ khâu Vicryl", Unit = "Sợi", StandardQuantity = 3 }
-        });
-    }
+        => Task.FromResult(new List<PackageSupplyNormDto>());
 
     #endregion
 

@@ -197,15 +197,43 @@ public partial class ExaminationCompleteService
     public async Task<ServiceOrderFullDto> UpdateServiceOrderAsync(Guid orderId, ServiceOrderFullDto dto)
     {
         var request = await _context.ServiceRequests.FindAsync(orderId);
-        if (request == null) throw new KeyNotFoundException("Service order not found");
+        if (request == null || request.IsDeleted) throw new KeyNotFoundException("Service order not found");
+        // QA-R6 (MONEY): the total was client UnitPrice × quantity (unitPrice 1 → a 35.000đ test billed as 5đ) and a
+        // PAID, COMPLETED order could still be re-quantified (paid for 1, quantity 5). Only a pending unpaid order
+        // is editable; the price stays the one fixed at order time; the billed line follows the new quantity.
+        if (request.Status != 0 || request.IsPaid)
+            throw new InvalidOperationException("Chỉ định đã thực hiện, đã hủy hoặc đã thu tiền — không sửa được.");
+        if (dto.Quantity <= 0)
+            throw new ArgumentException("Số lượng dịch vụ phải lớn hơn 0", nameof(dto.Quantity));
 
         request.Quantity = dto.Quantity;
-        request.TotalPrice = dto.UnitPrice * dto.Quantity;
+        request.TotalPrice = request.UnitPrice * dto.Quantity;
+        request.TotalAmount = request.TotalPrice;
+        request.PatientAmount = request.TotalPrice - request.InsuranceAmount;
         request.RoomId = dto.RoomId;
+        var details = await _context.ServiceRequestDetails
+            .Where(d => d.ServiceRequestId == orderId && !d.IsDeleted && d.Status != 3)
+            .ToListAsync();
+        if (details.Count == 1)
+        {
+            var line = details[0];
+            line.Quantity = dto.Quantity;
+            line.Amount = line.UnitPrice * dto.Quantity;
+            line.InsuranceAmount = 0;
+            line.PatientAmount = line.Amount;
+            request.InsuranceAmount = 0;
+            request.PatientAmount = request.TotalPrice;
+        }
 
         await _unitOfWork.SaveChangesAsync();
+        // R3 BHYT: re-split the visit after the quantity change (same as CreateServiceOrdersAsync).
+        if (await new BhytVisitPricing(_context).RecalculateAsync(request.MedicalRecordId) != null)
+            await _unitOfWork.SaveChangesAsync();
 
         dto.Id = orderId;
+        dto.Quantity = request.Quantity;
+        dto.UnitPrice = request.UnitPrice;
+        dto.TotalPrice = request.TotalPrice;
         return dto;
     }
 

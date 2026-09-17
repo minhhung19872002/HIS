@@ -59,13 +59,16 @@ public class ServiceOrderFullDto
     public bool IsEmergency { get; set; }
 
     // Trạng thái
-    public int Status { get; set; } // 0-Chờ, 1-Đang thực hiện, 2-Có kết quả, 3-Hủy
+    // QA-R6: carries ServiceRequests.Status (0 chờ · 1/2 đang thực hiện · 3 có kết quả · 4 hủy — see
+    // CancelServiceOrderAsync). The old 3 → "Đã hủy" label showed every resulted lab order as cancelled.
+    public int Status { get; set; }
     public string StatusName => Status switch
     {
         0 => "Chờ thực hiện",
         1 => "Đang thực hiện",
-        2 => "Có kết quả",
-        3 => "Đã hủy",
+        2 => "Đang thực hiện",
+        3 => "Có kết quả",
+        4 => "Đã hủy",
         _ => ""
     };
 
