@@ -2,3 +2,4 @@
 export * from './DrawerShell';
 export * from './ModalShell';
 export * from './CrudModal';
+export * from './ReasonModal';

@@ -64,6 +64,7 @@ export * from './components/overlay/DrawerShell';         // DrSec, DrField, Dra
 export * from './components/overlay/ModalShell';          // ModalShellProps, ModalShell
 export * from './components/form/applyServerErrors';      // applyServerErrors
 export * from './components/overlay/CrudModal';           // CrudFieldCfg, CrudModal
+export * from './components/overlay/ReasonModal';         // ReasonModalProps, ReasonModal
 
 // ─────────────────────────── Helpers ───────────────────────────
 

@@ -1,7 +1,9 @@
 /**
  * PharmacyStockTake — Kiểm kê kho Dược (v2 native ab-* design).
  *
- * Single-session flow (no list endpoint exists):
+ * Flow (QA-R8: a warehouse may have only ONE open count, so open counts must be reachable again):
+ *   0. No active sheet → list of stock-takes (GET /warehouse/stock-takes) → "Mở phiếu" reloads a sheet
+ *      (GET /warehouse/stock-takes/{id}); an open one (status 0/1) can be cancelled with a reason.
  *   1. User picks warehouse + period → "Tạo phiếu kiểm kê" → createStockTake()
  *      → server returns StockTakeDto with items pre-populated from current stock
  *   2. User edits actualQuantity per row (differenceQuantity auto-computed)
@@ -14,6 +16,7 @@
  *   0 = Mới tạo (after create)
  *   1 = Đã lưu kết quả (after updateStockTakeResults)
  *   2 = Hoàn tất (after completeStockTake)
+ *   3 = Đã điều chỉnh (after adjustStockAfterTake) · 4 = Đã hủy
  *   Adjust only enabled at status === 2.
  */
 import React, { useState, useCallback } from 'react';
@@ -22,30 +25,50 @@ import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import * as wh from '../api/warehouse';
 import type { StockTakeDto, StockTakeItemDto, WarehouseDto } from '../api/warehouse';
+import { getStockTakes, getStockTakeById, cancelStockTake, STOCK_TAKE_STATUS } from '../api/warehouseVouchers';
 import {
   KpiStrip,
   DataTable,
+  Pager,
+  Filter,
   Btn,
   ActBtn,
   AbSelect,
   StatusBadge,
+  ReasonModal,
   cf,
   tw,
   type ColumnDef,
   type StatusTone,
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
+import { can } from '../../../services/permission.service';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const STATUS_SAVED = 1;     // after updateStockTakeResults
-const STATUS_COMPLETED = 2; // after completeStockTake
+const STATUS_SAVED = STOCK_TAKE_STATUS.COUNTING;     // after updateStockTakeResults
+const STATUS_COMPLETED = STOCK_TAKE_STATUS.COMPLETED; // after completeStockTake
+const LIST_PAGE_SIZE = 15;
+/** UX gate only — the API allows cancelling to Admin / WarehouseManager. */
+// Pre-push review: the cancel endpoint (like stock-take creation) is admin-only on the backend.
+const CANCEL_PERMISSION = 'System.Configure';
+
+const STATUS_FILTER_OPTS = [
+  { v: String(STOCK_TAKE_STATUS.NEW), l: 'Mới tạo' },
+  { v: String(STOCK_TAKE_STATUS.COUNTING), l: 'Đang kiểm' },
+  { v: String(STOCK_TAKE_STATUS.COMPLETED), l: 'Đã hoàn thành' },
+  { v: String(STOCK_TAKE_STATUS.ADJUSTED), l: 'Đã điều chỉnh' },
+  { v: String(STOCK_TAKE_STATUS.CANCELLED), l: 'Đã hủy' },
+];
 
 function statusTone(s: number): StatusTone {
-  if (s === STATUS_COMPLETED) return 'ok';
+  if (s === STATUS_COMPLETED || s === STOCK_TAKE_STATUS.ADJUSTED) return 'ok';
   if (s === STATUS_SAVED) return 'info';
+  if (s === STOCK_TAKE_STATUS.CANCELLED) return 'crit';
   return 'warn';
 }
+
+const isOpenStockTake = (s: number) => s === STOCK_TAKE_STATUS.NEW || s === STOCK_TAKE_STATUS.COUNTING;
 
 const fmtDate = (iso?: string | null) =>
   iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
@@ -115,6 +138,102 @@ const NumCell: React.FC<NumCellProps> = ({ value, readOnly, onChange }) => {
   );
 };
 
+// ─── Stock-take list (shown while no sheet is open) ─────────────────────────
+
+interface StockTakeListPanelProps {
+  warehouseId: string;
+  warehouseOpts: { value: string; label: string }[];
+  /** Bumped by the parent to force a reload (after cancel / closing a sheet). */
+  reloadKey: number;
+  onOpen: (row: StockTakeDto) => void;
+  onCancel: (row: StockTakeDto) => void;
+}
+
+const StockTakeListPanel: React.FC<StockTakeListPanelProps> = ({ warehouseId, warehouseOpts, reloadKey, onOpen, onCancel }) => {
+  const [rows, setRows] = useState<StockTakeDto[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const [status, setStatus] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  React.useEffect(() => { setPage(0); }, [warehouseId, status]);
+
+  React.useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    getStockTakes({
+      warehouseId: warehouseId || undefined,
+      status: status === '' ? undefined : Number(status),
+      page: page + 1,
+      pageSize: LIST_PAGE_SIZE,
+    })
+      .then((res) => {
+        if (!alive) return;
+        setRows(res.data?.items ?? []);
+        setTotal(res.data?.totalCount ?? 0);
+        setLoadFailed(false);
+      })
+      .catch((e) => {
+        if (!alive) return;
+        setRows([]); setTotal(0); setLoadFailed(true);
+        tw(friendlyErrorMessage(e, 'Không tải được danh sách phiếu kiểm kê'));
+      })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [warehouseId, status, page, reloadKey]);
+
+  const warehouseName = (id: string, fallback: string) =>
+    fallback || warehouseOpts.find((w) => w.value === id)?.label || '—';
+
+  const columns: ColumnDef<StockTakeDto>[] = [
+    { key: 'code', label: 'Mã phiếu', mono: true, code: true, width: 170, render: (r) => r.stockTakeCode },
+    { key: 'warehouse', label: 'Kho', render: (r) => warehouseName(r.warehouseId, r.warehouseName) },
+    { key: 'date', label: 'Ngày tạo', mono: true, width: 100, render: (r) => fmtDate(r.stockTakeDate) },
+    { key: 'period', label: 'Kỳ kiểm kê', mono: true, width: 180, render: (r) => `${fmtDate(r.periodFrom)} → ${fmtDate(r.periodTo)}` },
+    { key: 'creator', label: 'Người tạo', render: (r) => r.createdByName || '—' },
+    {
+      key: 'status', label: 'Trạng thái', width: 130,
+      render: (r) => <StatusBadge tone={statusTone(r.status)} dot>{r.statusName || '—'}</StatusBadge>,
+    },
+    { key: 'notes', label: 'Ghi chú', render: (r) => r.notes || '—' },
+  ];
+
+  return (
+    <>
+      <div className="ab-toolbar">
+        <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
+          Phiếu kiểm kê {warehouseId ? 'của kho đã chọn' : 'tất cả kho'}
+        </span>
+        <span className="spacer" />
+        <Filter value={status} onChange={setStatus} options={STATUS_FILTER_OPTS} placeholder="▾ Mọi trạng thái" />
+      </div>
+      <DataTable<StockTakeDto>
+        columns={columns}
+        data={rows}
+        rowKey={(r) => r.id}
+        onRowClick={onOpen}
+        empty={loading ? 'Đang tải…' : loadFailed ? 'Không tải được danh sách phiếu kiểm kê' : 'Chưa có phiếu kiểm kê nào'}
+        actions={(r) => (
+          <div className="ab-actions" style={{ display: 'flex', gap: 'var(--space-6)' }}>
+            <ActBtn ic="eye" title={isOpenStockTake(r.status) ? 'Mở phiếu để đếm tiếp' : 'Xem phiếu'} onClick={() => onOpen(r)} />
+            {isOpenStockTake(r.status) && can(CANCEL_PERMISSION) && (
+              <ActBtn ic="x" tone="crit" title="Hủy phiếu kiểm kê" onClick={() => onCancel(r)} />
+            )}
+          </div>
+        )}
+      />
+      <Pager
+        page={page}
+        totalPages={Math.max(1, Math.ceil(total / LIST_PAGE_SIZE))}
+        setPage={setPage}
+        total={total}
+        perPage={LIST_PAGE_SIZE}
+      />
+    </>
+  );
+};
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 const PharmacyStockTake: React.FC = () => {
@@ -143,6 +262,9 @@ const PharmacyStockTake: React.FC = () => {
   const [completing, setCompleting] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [opening, setOpening] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<StockTakeDto | null>(null);
+  const [listReloadKey, setListReloadKey] = useState(0);
 
   // ── Derived display items (merge DTO + edits) ─────────────────────────────
   const displayItems = React.useMemo(
@@ -172,8 +294,9 @@ const PharmacyStockTake: React.FC = () => {
       setStockTake(dto);
       setEdits({});
       message.success(`Đã tạo phiếu kiểm kê ${dto.stockTakeCode} — ${dto.items?.length ?? 0} mặt hàng`);
-    } catch {
-      message.error('Tạo phiếu kiểm kê thất bại');
+    } catch (e) {
+      // e.g. "Kho đang có phiếu kiểm kê … chưa hoàn thành" — the open sheet is in the list below.
+      message.error(friendlyErrorMessage(e, 'Tạo phiếu kiểm kê thất bại'));
     } finally {
       setCreating(false);
     }
@@ -201,8 +324,8 @@ const PharmacyStockTake: React.FC = () => {
       setStockTake(updated);
       setEdits({});
       message.success('Đã lưu kết quả đếm');
-    } catch {
-      message.error('Lưu kết quả thất bại');
+    } catch (e) {
+      message.error(friendlyErrorMessage(e, 'Lưu kết quả thất bại'));
     } finally {
       setSaving(false);
     }
@@ -215,17 +338,21 @@ const PharmacyStockTake: React.FC = () => {
 
     setCompleting(true);
     try {
+      // Counts typed but not saved yet would be lost once the sheet is locked — save them first.
+      if (Object.keys(edits).length > 0) {
+        await wh.updateStockTakeResults(stockTake.id, displayItems);
+      }
       const res = await wh.completeStockTake(stockTake.id);
       const updated = res.data as StockTakeDto;
       setStockTake(updated);
       setEdits({});
       message.success('Hoàn tất kiểm kê');
-    } catch {
-      message.error('Hoàn tất kiểm kê thất bại');
+    } catch (e) {
+      message.error(friendlyErrorMessage(e, 'Hoàn tất kiểm kê thất bại'));
     } finally {
       setCompleting(false);
     }
-  }, [stockTake, message]);
+  }, [stockTake, edits, displayItems, message]);
 
   // ── Adjust stock (DESTRUCTIVE — requires confirm + status === 2) ──────────
   const handleAdjust = useCallback(() => {
@@ -237,9 +364,11 @@ const PharmacyStockTake: React.FC = () => {
         setAdjusting(true);
         try {
           await wh.adjustStockAfterTake(stockTake.id);
+          // Adjusted sheets are history: drop the adjust button (a second click was refused by the API).
+          setStockTake((prev) => (prev ? { ...prev, status: STOCK_TAKE_STATUS.ADJUSTED, statusName: 'Đã điều chỉnh' } : prev));
           message.success('Đã điều chỉnh tồn kho theo kết quả kiểm kê');
-        } catch {
-          message.error('Điều chỉnh tồn kho thất bại');
+        } catch (e) {
+          message.error(friendlyErrorMessage(e, 'Điều chỉnh tồn kho thất bại'));
         } finally {
           setAdjusting(false);
         }
@@ -268,9 +397,37 @@ const PharmacyStockTake: React.FC = () => {
   const handleReset = useCallback(() => {
     setStockTake(null);
     setEdits({});
-    setSelectedWarehouseId('');
     setPeriod([null, null]);
+    setListReloadKey((k) => k + 1);
   }, []);
+
+  // ── Reopen a sheet from the list ─────────────────────────────────────────
+  const handleOpen = useCallback(async (row: StockTakeDto) => {
+    if (opening) return;
+    setOpening(true);
+    try {
+      const res = await getStockTakeById(row.id);
+      setStockTake(res.data as StockTakeDto);
+      setEdits({});
+      setSelectedWarehouseId(row.warehouseId);
+    } catch (e) {
+      message.error(friendlyErrorMessage(e, 'Không mở được phiếu kiểm kê'));
+    } finally {
+      setOpening(false);
+    }
+  }, [opening, message]);
+
+  // ── Cancel an open sheet (reason required) ───────────────────────────────
+  const handleCancel = useCallback(async (reason: string) => {
+    if (!cancelTarget) return;
+    await cancelStockTake(cancelTarget.id, reason);
+    message.success(`Đã hủy phiếu kiểm kê ${cancelTarget.stockTakeCode}`);
+    if (stockTake?.id === cancelTarget.id) {
+      setStockTake(null);
+      setEdits({});
+    }
+    setListReloadKey((k) => k + 1);
+  }, [cancelTarget, stockTake, message]);
 
   // ── Column defs for the items table ──────────────────────────────────────
   const isReadOnly = stockTake ? stockTake.status >= STATUS_COMPLETED : true;
@@ -451,6 +608,13 @@ const PharmacyStockTake: React.FC = () => {
               In biên bản
             </Btn>
 
+            {/* Cancel — only an open sheet (never touched stock) */}
+            {isOpenStockTake(stockTake.status) && can(CANCEL_PERMISSION) && (
+              <Btn variant="crit" icon="x" disabled={saving || completing} onClick={() => setCancelTarget(stockTake)}>
+                Hủy phiếu
+              </Btn>
+            )}
+
             {/* New stock-take */}
             <Btn variant="ghost" icon="x" onClick={handleReset} title="Kết thúc phiên / Tạo phiếu mới">
               Kết thúc phiên
@@ -476,24 +640,35 @@ const PharmacyStockTake: React.FC = () => {
         </div>
       )}
 
-      {/* ── Empty state — before stock-take created ── */}
+      {/* ── No active sheet — hint + list of existing stock-takes (reopen / cancel) ── */}
       {!stockTake && (
-        <div style={{
-          flex: 1, display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          color: 'var(--t-2)', padding: 48, gap: 'var(--space-12)',
-        }}>
-          <div style={{ fontSize: 40 }}>🗂️</div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-1)' }}>
-            Chưa có phiếu kiểm kê
+        <>
+          <div style={{ padding: '8px 14px', fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
+            Chọn kho và kỳ kiểm kê rồi bấm <strong>"Tạo phiếu kiểm kê"</strong> — hệ thống nạp tồn kho theo sổ sách.
+            Mỗi kho chỉ mở được một phiếu: phiếu đang kiểm dở ở danh sách dưới, bấm để đếm tiếp hoặc hủy.
+            {opening && ' Đang mở phiếu…'}
           </div>
-          <div style={{ fontSize: 'var(--fs-sm)', textAlign: 'center', maxWidth: 360 }}>
-            Chọn kho và kỳ kiểm kê, sau đó bấm{' '}
-            <strong>"Tạo phiếu kiểm kê"</strong> để bắt đầu.
-            Hệ thống sẽ tự động nạp danh sách tồn kho theo sổ sách.
-          </div>
-        </div>
+          <StockTakeListPanel
+            warehouseId={selectedWarehouseId}
+            warehouseOpts={warehouseOpts}
+            reloadKey={listReloadKey}
+            onOpen={(r) => void handleOpen(r)}
+            onCancel={setCancelTarget}
+          />
+        </>
       )}
+
+      <ReasonModal
+        open={!!cancelTarget}
+        title={cancelTarget ? `Hủy phiếu kiểm kê ${cancelTarget.stockTakeCode}` : ''}
+        sub="Phiếu chưa hoàn thành chưa làm thay đổi tồn kho; sau khi hủy có thể mở phiếu mới cho kho này."
+        label="Lý do hủy"
+        placeholder="Nhập lý do hủy phiếu kiểm kê…"
+        confirmText="Hủy phiếu"
+        errorFallback="Hủy phiếu kiểm kê thất bại"
+        onClose={() => setCancelTarget(null)}
+        onSubmit={handleCancel}
+      />
 
       {/* ── Items table — editable when status < COMPLETED ── */}
       {stockTake && (

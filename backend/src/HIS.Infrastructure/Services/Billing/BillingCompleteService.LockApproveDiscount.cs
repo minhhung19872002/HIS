@@ -326,6 +326,11 @@ public partial class BillingCompleteService {
             var approverId = dto.ApproverId.Value;
             if (!await _context.Users.AnyAsync(u => u.Id == approverId && u.IsActive && !u.IsDeleted))
                 throw new InvalidOperationException("Người duyệt miễn giảm không tồn tại hoặc đã ngừng hoạt động");
+            // QA-R8: any active user (a nurse, a receptionist) was accepted as approver — must hold Billing.Approve,
+            // the same set GetDiscountApproversAsync offers in the picker.
+            if (!await UsersHoldingPermission(HIS.Core.Constants.PermissionCatalog.Billing.Approve)
+                    .AnyAsync(u => u.Id == approverId))
+                throw new InvalidOperationException("Người duyệt miễn giảm không có quyền duyệt viện phí (Billing.Approve)");
         }
         if (discountAmount >= 5_000_000m && dto.DiscountReasonCode != 4)
             throw new InvalidOperationException(

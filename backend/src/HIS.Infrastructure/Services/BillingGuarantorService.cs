@@ -80,7 +80,7 @@ public class BillingGuarantorService : IBillingGuarantorService
 
     public async Task<bool> DeleteSponsorOrgAsync(Guid id)
     {
-        var entity = await _db.SponsorOrgs.FirstOrDefaultAsync(o => o.Id == id);
+        var entity = await _db.SponsorOrgs.FirstOrDefaultAsync(o => o.Id == id && !o.IsDeleted); // QA-R8: 2nd delete → 404
         if (entity == null) return false;
         entity.IsDeleted  = true;
         entity.UpdatedAt  = DateTime.UtcNow;
@@ -187,7 +187,7 @@ public class BillingGuarantorService : IBillingGuarantorService
 
     public async Task<bool> DeleteGuarantorAsync(Guid id)
     {
-        var entity = await _db.BillingGuarantors.FirstOrDefaultAsync(g => g.Id == id);
+        var entity = await _db.BillingGuarantors.FirstOrDefaultAsync(g => g.Id == id && !g.IsDeleted); // QA-R8: 2nd delete → 404
         if (entity == null) return false;
         entity.IsDeleted = true;
         entity.UpdatedAt = DateTime.UtcNow;

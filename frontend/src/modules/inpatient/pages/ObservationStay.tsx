@@ -27,7 +27,8 @@ interface Vital {
   bloodPressure?: string; spO2?: number; consciousness?: number;
   nurseNote?: string; doctorNote?: string;
 }
-interface Department { id: string; departmentName: string; departmentCode?: string }
+// /catalog/departments returns DepartmentCatalogDto { id, code, name } — `departmentName` was always undefined (blank options).
+interface Department { id: string; name: string; code?: string }
 interface Room { id: string; roomCode: string; roomName: string; departmentId?: string }
 interface PatientSearchResult { id: string; patientId?: string; patientCode: string; patientName?: string; fullName?: string }
 interface PatientOption { label: string; value: string }
@@ -75,7 +76,7 @@ const ObservationStayV2: React.FC = () => {
   useEffect(() => {
     (async () => {
       try {
-        const d = await systemApi.catalog.getDepartments();
+        const d = await systemApi.catalog.getDepartments(undefined, undefined, true);
         setDepartments(unwrapList<Department>((d as { data?: MaybePaged<Department> }).data));
         const r = await apiClient.get('/catalog/rooms');
         setRooms(unwrapList<Room>((r as { data?: MaybePaged<Room> }).data));
@@ -140,11 +141,15 @@ const ObservationStayV2: React.FC = () => {
       await apiClient.put(`/observation/${detail.id}/${dischargeOpen}`, v);
       tk(dischargeOpen === 'discharge' ? 'Đã cho về' : 'Đã chuyển nhập viện');
       setDischargeOpen(null); setDetail(null); dischargeForm.resetFields(); load();
-    } catch { tw('Xử lý thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Xử lý thất bại')); }
     finally { setSubmitting(false); }
   };
 
   const counts = useMemo(() => ({ all: stays.length }) as Record<string, number>, [stays]);
+  const departmentOptions = useMemo(
+    () => departments.map((d) => ({ label: d.code ? `${d.code} — ${d.name}` : d.name, value: d.id })),
+    [departments],
+  );
 
   const cols: ColumnDef<Stay>[] = [
     { key: 'code', label: 'Mã phiên', code: true, render: (r) => r.stayCode },
@@ -282,7 +287,7 @@ const ObservationStayV2: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
             <Form.Item label="Khoa" name="departmentId">
               <Select allowClear showSearch optionFilterProp="label"
-                options={departments.map((d) => ({ label: d.departmentName, value: d.id }))} />
+                options={departmentOptions} />
             </Form.Item>
             <Form.Item label="Phòng" name="roomId">
               <Select allowClear showSearch optionFilterProp="label"
@@ -339,6 +344,14 @@ const ObservationStayV2: React.FC = () => {
           <Form.Item label="Chẩn đoán kết thúc" name="finalDiagnosis" rules={[{ required: true }]}>
             <Input.TextArea rows={2} />
           </Form.Item>
+          {dischargeOpen === 'escalate' && (
+            // QA-R8: PUT /observation/{id}/escalate accepts admissionDepartmentId (optional — the inpatient
+            // "chờ nhập viện" screen can still pick the ward); it is written as the exam's hospitalization department.
+            <Form.Item label="Khoa đề nghị nhập viện" name="admissionDepartmentId">
+              <Select allowClear showSearch optionFilterProp="label" placeholder="— Chọn khoa nội trú —"
+                options={departmentOptions} />
+            </Form.Item>
+          )}
           <Form.Item label="Lý do" name="dischargeReason"><Input.TextArea rows={2} /></Form.Item>
           <Form.Item label="Ghi chú" name="notes"><Input.TextArea rows={2} /></Form.Item>
         </Form>

@@ -775,10 +775,22 @@ export interface PatientQuestionDto {
 }
 
 export interface CreateQuestionDto {
+  /** Portal account the question belongs to (required by the API; a staff token must pass it). */
+  accountId?: string;
   subject: string;
   content: string;
   category?: string;
   imageUrls?: string;
+}
+
+/** Staff-side picker row: GET /portal/staff/accounts (phone masked except the last 3 digits). */
+export interface PortalAccountLookupDto {
+  id: string;
+  patientId?: string | null;
+  patientCode?: string | null;
+  patientName?: string | null;
+  maskedPhone: string;
+  status: string;
 }
 
 // Staff-side: trả lời câu hỏi của BN — backend PUT /portal/questions/{id}/answer
@@ -1076,8 +1088,18 @@ export const getHealthMetricTrends = (days?: number) =>
 export const getPatientQuestions = () =>
   apiClient.get<PatientQuestionDto[]>(`${BASE_URL}/questions`);
 
+// The API DTO declares Category / ImageUrls as non-nullable strings → implicitly [Required]: omitting them
+// (TS `undefined` drops the key) was a 400 "The Category field is required." — send '' instead.
 export const createPatientQuestion = (data: CreateQuestionDto) =>
-  apiClient.post<PatientQuestionDto>(`${BASE_URL}/questions`, data);
+  apiClient.post<PatientQuestionDto>(`${BASE_URL}/questions`, {
+    ...data,
+    category: data.category ?? '',
+    imageUrls: data.imageUrls ?? '',
+  });
+
+/** Staff only — search portal accounts (patient code / name, or the last ≤3 phone digits). */
+export const searchStaffPortalAccounts = (keyword?: string, take = 20) =>
+  apiClient.get<PortalAccountLookupDto[]>(`${BASE_URL}/staff/accounts`, { params: { keyword: keyword || undefined, take } });
 
 export const answerPatientQuestion = (id: string, data: AnswerPatientQuestionDto) =>
   apiClient.put<PatientQuestionDto>(`${BASE_URL}/questions/${id}/answer`, data);

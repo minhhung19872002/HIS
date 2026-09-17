@@ -163,6 +163,18 @@ public class WarehouseCompleteController : ControllerBase
     }
 
     /// <summary>
+    /// Danh sách thanh toán NCC
+    /// </summary>
+    [HttpGet("supplier-payments")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.Accountant)]
+    public async Task<ActionResult<List<SupplierPaymentDto>>> GetSupplierPayments(
+        [FromQuery] Guid? supplierId, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
+    {
+        var result = await _warehouseService.GetSupplierPaymentsAsync(supplierId, fromDate, toDate);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// In phiếu nhập
     /// </summary>
     [HttpGet("receipts/{id}/print")]
@@ -301,10 +313,13 @@ public class WarehouseCompleteController : ControllerBase
     /// QA-R7: CancelStockIssueAsync existed but had no route, so issue/transfer vouchers could not be cancelled.
     /// </summary>
     [HttpPost("issues/{id}/cancel")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager)]
+    // Pre-push review: WarehouseManager is never issued on prod — pharmacists (PharmacyManager alias) run the stock.
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.PharmacyManager)]
     public async Task<ActionResult<bool>> CancelStockIssue(Guid id, [FromBody] string reason)
     {
-        var result = await _warehouseService.CancelStockIssueAsync(id, reason, GetCurrentUserId());
+        if (string.IsNullOrWhiteSpace(reason))
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Vui lòng nhập lý do hủy phiếu xuất" });
+        var result = await _warehouseService.CancelStockIssueAsync(id, reason.Trim(), GetCurrentUserId());
         return Ok(result);
     }
 
@@ -526,8 +541,30 @@ public class WarehouseCompleteController : ControllerBase
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager)]
     public async Task<ActionResult<bool>> CancelStockTake(Guid id, [FromBody] string reason)
     {
-        var result = await _warehouseService.CancelStockTakeAsync(id, reason, GetCurrentUserId());
+        if (string.IsNullOrWhiteSpace(reason))
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Vui lòng nhập lý do hủy phiếu kiểm kê" });
+        var result = await _warehouseService.CancelStockTakeAsync(id, reason.Trim(), GetCurrentUserId());
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Danh sách phiếu kiểm kê (QA-R8: trang kiểm kê v2 không mở lại / hủy được phiếu đang kiểm dở).
+    /// </summary>
+    [HttpGet("stock-takes")]
+    public async Task<ActionResult<PagedResultDto<StockTakeDto>>> GetStockTakes(
+        [FromQuery] Guid? warehouseId, [FromQuery] int? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    {
+        return Ok(await _warehouseService.GetStockTakesAsync(warehouseId, status, page, pageSize));
+    }
+
+    /// <summary>
+    /// Chi tiết phiếu kiểm kê kèm dòng (mở lại phiếu để đếm tiếp).
+    /// </summary>
+    [HttpGet("stock-takes/{id:guid}")]
+    public async Task<ActionResult<StockTakeDto>> GetStockTakeById(Guid id)
+    {
+        var result = await _warehouseService.GetStockTakeByIdAsync(id);
+        return result != null ? Ok(result) : NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy phiếu kiểm kê" });
     }
 
     /// <summary>

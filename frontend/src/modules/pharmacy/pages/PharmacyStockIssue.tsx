@@ -12,7 +12,8 @@
  *   5 → createSupplierReturn— requires supplierId
  *   7 → createDestructionIssue — only notes (lý do hủy required)
  *
- * No approve/cancel endpoints exist for issues — created directly.
+ * No approve endpoint — created directly. "Hủy phiếu" (QA-R8) → POST /warehouse/issues/{id}/cancel with a
+ * required reason; the BE returns the stock and refuses vouchers owned by another document (its message is shown).
  *
  * Departments: catalogApi.getDepartments(undefined, undefined, true) → DepartmentCatalogDto[] {id, name}
  * Item search:  searchMedicines(keyword, warehouseId?, limit) → MedicineDto[]
@@ -53,13 +54,17 @@ import {
   DrSec,
   DrField,
   AbSelect,
+  ReasonModal,
   applyServerErrors,
+  tk,
   tw,
   type ColumnDef,
   type StatusTab,
 } from '@/_v2kit';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { RefreshButton } from '../../../components/actions';
+import { can } from '../../../services/permission.service';
+import { cancelStockIssue, STOCK_ISSUE_STATUS } from '../api/warehouseVouchers';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -94,6 +99,10 @@ function issueTypeKey(issueType: number): IssueTypeKey | null {
   if (issueType === ISSUE_TYPE_DESTRUCTION) return 'destruction';
   return null;
 }
+
+/** Vouchers this page creates can be cancelled here; dispensing / stock-take adjustment vouchers belong to other screens. */
+const canCancelIssue = (r: StockIssueDto) =>
+  r.status !== STOCK_ISSUE_STATUS.CANCELLED && issueTypeKey(r.issueType) !== null && can('Pharmacy.StockOut');
 
 function issueTypeNumeric(key: IssueTypeKey): number {
   if (key === 'dept') return ISSUE_TYPE_DEPARTMENT;
@@ -320,6 +329,7 @@ const PharmacyStockIssue: React.FC = () => {
   // ── Detail drawer ────────────────────────────────────────────────────────
   const [detail, setDetail] = useState<StockIssueDto | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<StockIssueDto | null>(null);
 
   // NangCap26 phiếu in #98 — phiếu đang dựng để in (render ẩn rồi bơm HTML sang popup)
   const [chemSlip, setChemSlip] = useState<StockIssueDto | null>(null);
@@ -393,6 +403,15 @@ const PharmacyStockIssue: React.FC = () => {
     } finally {
       setDetailLoading(false);
     }
+  };
+
+  // ── Cancel voucher (reason required; BE message shown on refusal) ─────────
+  const onCancelIssue = async (reason: string) => {
+    if (!cancelTarget) return;
+    await cancelStockIssue(cancelTarget.id, reason);
+    tk(`Đã hủy phiếu xuất ${cancelTarget.issueCode}`);
+    if (detail?.id === cancelTarget.id) void openDetail(cancelTarget);
+    void load();
   };
 
   // ── Print (blob → new tab) ────────────────────────────────────────────────
@@ -623,6 +642,9 @@ const PharmacyStockIssue: React.FC = () => {
             <ActBtn ic="printer" title="In phiếu" onClick={() => void onPrint(r)} />
             {/* NangCap26 phiếu in #98 — biểu mẫu lĩnh hóa chất (khác phiếu xuất kho chung) */}
             <ActBtn ic="flask" title="In phiếu lĩnh hóa chất" onClick={() => void onPrintChemicalSlip(r)} />
+            {canCancelIssue(r) && (
+              <ActBtn ic="x" tone="crit" title="Hủy phiếu" onClick={() => setCancelTarget(r)} />
+            )}
           </div>
         )}
       />
@@ -641,6 +663,9 @@ const PharmacyStockIssue: React.FC = () => {
           <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
             <Btn variant="ghost" icon="printer" onClick={() => void onPrint(detail)}>In phiếu</Btn>
             <Btn variant="ghost" icon="flask" onClick={() => void onPrintChemicalSlip(detail)}>In phiếu lĩnh hóa chất</Btn>
+            {!detailLoading && canCancelIssue(detail) && (
+              <Btn variant="crit" icon="x" onClick={() => setCancelTarget(detail)}>Hủy phiếu</Btn>
+            )}
           </div>
         )}
       >
@@ -727,6 +752,18 @@ const PharmacyStockIssue: React.FC = () => {
           </>
         )}
       </DrawerShell>
+
+      <ReasonModal
+        open={!!cancelTarget}
+        title={cancelTarget ? `Hủy phiếu xuất ${cancelTarget.issueCode}` : ''}
+        sub="Hàng đã xuất sẽ được hoàn lại kho xuất (phiếu chuyển kho: trừ lại ở kho nhận)."
+        label="Lý do hủy"
+        placeholder="Nhập lý do hủy phiếu…"
+        confirmText="Hủy phiếu"
+        errorFallback="Hủy phiếu xuất thất bại"
+        onClose={() => setCancelTarget(null)}
+        onSubmit={onCancelIssue}
+      />
 
       {/* ── Create modal ── */}
       <ModalShell

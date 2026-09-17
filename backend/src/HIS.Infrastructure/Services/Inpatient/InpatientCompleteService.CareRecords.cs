@@ -402,8 +402,9 @@ public partial class InpatientCompleteService {
     }
 
     // QA-R7: drug reactions were echoed back (200, nothing saved) and the list was always empty. They are stored in
-    // the hospital ADR register (AdrReports, TT 51/2017) — the same record pharmacovigilance reviews. The table has
-    // no AdmissionId column, so the admission is tagged at the start of Notes.
+    // the hospital ADR register (AdrReports, TT 51/2017) — the same record pharmacovigilance reviews.
+    // QA-R8: AdmissionId/MedicineId are real columns now (mig 213); rows written by round 7 carry the
+    // "[ADMISSION:id]"/"[MEDICINE:id]" note tags instead, which are still read when the column is NULL.
     private static string DrugReactionAdmissionTag(Guid admissionId) => $"[ADMISSION:{admissionId}]";
 
     public async Task<DrugReactionRecordDto> CreateDrugReactionRecordAsync(Guid admissionId, Guid? medicineId, string medicineName, int severity, string symptoms, string? treatment, Guid userId)
@@ -446,9 +447,8 @@ public partial class InpatientCompleteService {
             ManagementTaken = treatment,
             ReporterName = reporter,
             ReportDate = now,
-            Notes = medicineId.HasValue
-                ? $"{DrugReactionAdmissionTag(admissionId)} [MEDICINE:{medicineId}]"
-                : DrugReactionAdmissionTag(admissionId),
+            AdmissionId = admissionId,
+            MedicineId = medicineId,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = userId.ToString(),
         };
@@ -461,7 +461,8 @@ public partial class InpatientCompleteService {
     {
         var tag = DrugReactionAdmissionTag(admissionId);
         var rows = await _context.AdrReports.AsNoTracking()
-            .Where(r => r.Notes != null && r.Notes.StartsWith(tag))
+            .Where(r => r.AdmissionId == admissionId
+                || (r.AdmissionId == null && r.Notes != null && r.Notes.StartsWith(tag)))
             .OrderByDescending(r => r.ReactionStartDate)
             .Take(200)
             .ToListAsync();
@@ -471,8 +472,8 @@ public partial class InpatientCompleteService {
 
     private static DrugReactionRecordDto ToDrugReactionDto(AdrReport r, Guid admissionId, Guid reportedBy)
     {
-        Guid? medicineId = null;
-        var i = r.Notes?.IndexOf("[MEDICINE:", StringComparison.Ordinal) ?? -1;
+        var medicineId = r.MedicineId;
+        var i = medicineId.HasValue ? -1 : r.Notes?.IndexOf("[MEDICINE:", StringComparison.Ordinal) ?? -1;
         if (i >= 0 && r.Notes!.Length >= i + 46 && Guid.TryParse(r.Notes!.Substring(i + 10, 36), out var mid)) medicineId = mid;
         return new DrugReactionRecordDto
         {

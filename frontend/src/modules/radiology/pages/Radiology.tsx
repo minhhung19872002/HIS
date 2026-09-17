@@ -348,11 +348,12 @@ const RadiologyV2: React.FC = () => {
     setBulkPrinting(true);
     try {
       const resp = await risApi.printRadiologyResultsBatch(resultIds);
-      const blob = new Blob([resp.data as BlobPart], { type: 'application/pdf' });
+      // BE returns printable HTML (text/html) — keep the server content type so the tab renders it.
+      const blob = resp.data instanceof Blob ? resp.data : new Blob([resp.data as BlobPart], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      message.success(`Đã mở PDF gộp ${resultIds.length} kết quả`);
+      message.success(`Đã mở phiếu in gộp ${resultIds.length} kết quả`);
     } catch { message.error('In hàng loạt thất bại'); }
     finally { setBulkPrinting(false); }
   };

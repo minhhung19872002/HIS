@@ -60,6 +60,8 @@ export interface ObservationDischargeDto {
   finalDiagnosis?: string;
   dischargeReason?: string;
   notes?: string;
+  /** Escalate only: khoa đề nghị nhập viện (optional). */
+  admissionDepartmentId?: string;
 }
 
 /** Danh sách phiên lưu (lọc theo trạng thái / từ khoá). */

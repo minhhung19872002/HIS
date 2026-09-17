@@ -21,11 +21,38 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
 {
     private readonly HISDbContext _context;
     private readonly IExaminationCompleteService _examinationService;
+    private readonly IInpatientCompleteService _inpatientService;
 
-    public SurgerySchedulingServiceImpl(HISDbContext context, IExaminationCompleteService examinationService)
+    public SurgerySchedulingServiceImpl(HISDbContext context, IExaminationCompleteService examinationService,
+        IInpatientCompleteService inpatientService)
     {
         _context = context;
         _examinationService = examinationService;
+        _inpatientService = inpatientService;
+    }
+
+    /// <summary>Line note that ties a billed order line to its surgery request (used to find it again on cancel).</summary>
+    private static string SurgeryChargeNote(string requestCode) => $"Phieu PTTT {requestCode}";
+
+    /// <summary>
+    /// QA-R8: the active inpatient stay the surgery is billed on. A given admission id must belong to the record;
+    /// otherwise the latest active stay of the record (admission from OPD reuses the visit's record).
+    /// </summary>
+    private async Task<Guid?> FindActiveAdmissionIdAsync(Guid? medicalRecordId, Guid? admissionId)
+    {
+        if (medicalRecordId is not Guid recordId) return null;
+        var stays = await _context.Set<Admission>()
+            .Where(a => a.MedicalRecordId == recordId && !a.IsDeleted)
+            .OrderByDescending(a => a.AdmissionDate)
+            .Select(a => new { a.Id, a.Status })
+            .ToListAsync();
+        if (admissionId is Guid wanted && wanted != Guid.Empty)
+        {
+            var stay = stays.FirstOrDefault(s => s.Id == wanted)
+                ?? throw new InvalidOperationException("Lượt nội trú không thuộc hồ sơ bệnh án của yêu cầu PTTT.");
+            return AdmissionStatus.IsActive(stay.Status) ? stay.Id : null;
+        }
+        return stays.FirstOrDefault(s => AdmissionStatus.IsActive(s.Status))?.Id;
     }
 
     #region 6.1 Quản lý PTTT
@@ -63,6 +90,17 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
                     .Select(e => (Guid?)e.MedicalRecordId)
                     .FirstOrDefaultAsync();
             }
+            else if (dto.InpatientId is Guid inpatientId && inpatientId != Guid.Empty)
+            {
+                // QA-R8: an inpatient request may carry only the admission id.
+                var adm = await _context.Set<Admission>()
+                    .Where(a => a.Id == inpatientId && !a.IsDeleted)
+                    .Select(a => new { a.MedicalRecordId, a.Patient })
+                    .FirstOrDefaultAsync()
+                    ?? throw new InvalidOperationException("Khong tim thay luot noi tru (inpatientId khong ton tai)");
+                patient = adm.Patient;
+                resolvedMedicalRecordId = adm.MedicalRecordId;
+            }
             else
             {
                 throw new InvalidOperationException(
@@ -72,8 +110,10 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
             // QA-R4: a new surgery request is EMR content — a finalized (TT46) record accepted it before.
             if (dto.MedicalRecordId != Guid.Empty)
                 await EmrLockGuard.EnsureEditableByRecordAsync(_context, dto.MedicalRecordId);
+            else if (dto.ExaminationId is Guid lockExamId && lockExamId != Guid.Empty)
+                await EmrLockGuard.EnsureEditableByExaminationAsync(_context, lockExamId);
             else
-                await EmrLockGuard.EnsureEditableByExaminationAsync(_context, dto.ExaminationId!.Value);
+                await EmrLockGuard.EnsureEditableByRecordAsync(_context, resolvedMedicalRecordId!.Value);
 
             // Tìm User để làm RequestingDoctor (dùng user đầu tiên nếu userId không tồn tại)
             var doctor = await _context.Set<User>().FindAsync(userId);
@@ -133,12 +173,16 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
 
             // Charge the surgery service through the SAME path as every other OPD procedure order
             // (ExaminationCompleteService.CreateServiceOrdersAsync: price, BHYT split, duplicate guard).
-            // That path only accepts an open visit; a request on a completed/cancelled visit or an
-            // inpatient-only request keeps the service but is not billed here (reported, not invented).
+            // That path only accepts an open visit. QA-R8: otherwise, when the record has an active inpatient
+            // stay, bill through the ward order path (InpatientCompleteService.CreateServiceOrderAsync).
+            // A completed/cancelled OPD visit without a stay has no order path (the OPD path requires the
+            // conclusion to be re-opened) → saved unbilled with a warning for the user.
             var billed = false;
+            var warnings = new List<string>();
+            int? examStatus = null;
             if (surgeryService != null && request.ExaminationId is Guid examId)
             {
-                var examStatus = await _context.Set<Examination>()
+                examStatus = await _context.Set<Examination>()
                     .Where(e => e.Id == examId)
                     .Select(e => (int?)e.Status)
                     .FirstOrDefaultAsync();
@@ -147,7 +191,7 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
                     && examStatus != ExaminationStatus.Cancelled)
                 {
                     // Saves the pending request together with the order (same scoped DbContext).
-                    await _examinationService.CreateServiceOrdersAsync(new HIS.Application.DTOs.Examination.CreateServiceOrderDto
+                    var created = await _examinationService.CreateServiceOrdersAsync(new HIS.Application.DTOs.Examination.CreateServiceOrderDto
                     {
                         ExaminationId = examId,
                         DiagnosisCode = dto.PreOperativeIcdCode,
@@ -160,11 +204,54 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
                                 Quantity = 1,
                                 PaymentType = 1,
                                 IsEmergency = dto.SurgeryNature == 3,
-                                Notes = $"Phieu PTTT {requestCode}",
+                                Notes = SurgeryChargeNote(requestCode),
                             }
                         },
                     });
+                    billed = created.Count > 0;
+                    if (!billed) // duplicate guard: the service is already ordered on this visit
+                        warnings.Add($"Dịch vụ {surgeryService.ServiceName} đã được chỉ định trong lượt khám này — không tính phí lần nữa.");
+                }
+            }
+            if (surgeryService != null && !billed && warnings.Count == 0)
+            {
+                var admissionId = await FindActiveAdmissionIdAsync(resolvedMedicalRecordId, dto.InpatientId);
+                // Pre-push review: the ward order path has no duplicate guard (the OPD path does) — a surgery service
+                // the ward already ordered on this record would be charged twice.
+                var alreadyOrdered = admissionId.HasValue && await _context.ServiceRequests.AnyAsync(sr =>
+                    sr.MedicalRecordId == resolvedMedicalRecordId && sr.Status != 4 && !sr.IsDeleted
+                    && sr.Details.Any(d => d.ServiceId == surgeryService.Id && d.Status != 3));
+                if (alreadyOrdered)
+                {
+                    warnings.Add($"Dịch vụ {surgeryService.ServiceName} đã được chỉ định trong đợt điều trị này — không tính phí lần nữa.");
+                }
+                else if (admissionId.HasValue)
+                {
+                    // Same scoped DbContext: the ward order save also persists the pending request.
+                    await _inpatientService.CreateServiceOrderAsync(new HIS.Application.DTOs.Inpatient.CreateInpatientServiceOrderDto
+                    {
+                        AdmissionId = admissionId.Value,
+                        MainDiagnosisCode = dto.PreOperativeIcdCode,
+                        MainDiagnosis = dto.PreOperativeDiagnosis,
+                        Services = new List<HIS.Application.DTOs.Inpatient.CreateInpatientServiceItemDto>
+                        {
+                            new()
+                            {
+                                ServiceId = surgeryService.Id,
+                                Quantity = 1,
+                                PaymentSource = 1,
+                                IsEmergency = dto.SurgeryNature == 3,
+                                Note = SurgeryChargeNote(requestCode),
+                            }
+                        },
+                    }, userId);
                     billed = true;
+                }
+                else
+                {
+                    warnings.Add(examStatus == ExaminationStatus.Completed
+                        ? $"Lượt khám đã hoàn thành nên chưa tính phí {surgeryService.ServiceName}. Nhờ mở lại kết luận khám rồi chỉ định dịch vụ, hoặc thu tại quầy."
+                        : $"Không có lượt khám đang mở hay lượt nội trú đang điều trị nên chưa tính phí {surgeryService.ServiceName}. Vui lòng chỉ định dịch vụ để thu phí.");
                 }
             }
             if (!billed)
@@ -196,7 +283,8 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
                 AnesthesiaTypeName = GetAnesthesiaTypeName(dto.AnesthesiaType),
                 Status = 0,
                 StatusName = "Chờ lên lịch",
-                CreatedAt = DateTime.Now
+                CreatedAt = DateTime.Now,
+                Warnings = warnings.Count > 0 ? warnings : null,
             };
         }
         catch (InvalidOperationException)
@@ -276,7 +364,7 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
             else
             {
                 SurgeryStatus.EnsureCanCancelRequest(request.Status, "từ chối duyệt");
-                await CancelSurgeryChargeAsync(request, dto.Notes ?? "Từ chối duyệt");
+                await CancelSurgeryChargeAsync(request, dto.Notes ?? "Từ chối duyệt", userId);
             }
 
             request.Status = dto.IsApproved ? 1 : 4;
@@ -309,7 +397,7 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
 
         // #218/T3: không từ chối duyệt một ca đã mổ hoặc đang mổ — việc đã xảy ra trên người bệnh.
         SurgeryStatus.EnsureCanCancelRequest(request.Status, "từ chối duyệt");
-        await CancelSurgeryChargeAsync(request, reason);
+        await CancelSurgeryChargeAsync(request, reason, userId);
 
         request.Status = SurgeryStatus.RequestCancelled;
         // Lý do vào ô riêng (migration 176), KHÔNG ghi đè `Notes` — đó là ghi chú lâm sàng của phiếu.
@@ -698,7 +786,7 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
         // #218/T3: hủy một ca ĐÃ MỔ XONG thì biên bản mổ vẫn nằm đó còn phiếu lại khai là đã hủy —
         // hai thứ nói ngược nhau về một việc đã thật sự xảy ra trên người bệnh.
         SurgeryStatus.EnsureCanCancelRequest(request.Status, "hủy");
-        await CancelSurgeryChargeAsync(request, reason);
+        await CancelSurgeryChargeAsync(request, reason, userId);
 
         request.Status = SurgeryStatus.RequestCancelled;
         request.CancelReason = reason;
@@ -713,20 +801,34 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
     /// cancelling the request left that order pending on the invoice. The duplicate guard in
     /// CreateServiceOrdersAsync allows one live order per (visit, service), so that pair identifies it.
     /// Unpaid + not started → cancelled through the normal order-cancel path; paid or performed → refund first.
+    /// QA-R8: the order is found by the line note written at request time (OPD visit order or inpatient ward order;
+    /// R7 OPD orders carry the same note). An order of the same service placed separately — e.g. the one the OPD
+    /// duplicate guard kept — is not the surgery request's charge and is not touched.
     /// </summary>
-    private async Task CancelSurgeryChargeAsync(SurgeryRequest request, string reason)
+    private async Task CancelSurgeryChargeAsync(SurgeryRequest request, string reason, Guid userId)
     {
-        if (request.SurgeryServiceId is not Guid serviceId || request.ExaminationId is not Guid examId) return;
+        if (request.SurgeryServiceId is not Guid serviceId) return;
+        if (request.ExaminationId is null && request.MedicalRecordId is null) return;
+        var note = SurgeryChargeNote(request.RequestCode);
+        var examId = request.ExaminationId;
+        var recordId = request.MedicalRecordId;
         var orders = await _context.ServiceRequests
-            .Where(sr => sr.ExaminationId == examId && sr.Status != 4 && !sr.IsDeleted
-                         && sr.Details.Any(d => d.ServiceId == serviceId))
-            .Select(sr => new { sr.Id, sr.Status, sr.IsPaid })
+            .Where(sr => sr.Status != 4 && !sr.IsDeleted
+                         && sr.Details.Any(d => d.ServiceId == serviceId && d.Note == note)
+                         && ((examId != null && sr.ExaminationId == examId)
+                             || (recordId != null && sr.ExaminationId == null && sr.MedicalRecordId == recordId)))
+            .Select(sr => new { sr.Id, sr.Status, sr.IsPaid, sr.ExaminationId })
             .ToListAsync();
         if (orders.Any(o => o.IsPaid || o.Status != 0))
             throw new InvalidOperationException(
                 "Phí phẫu thuật của ca này đã thu tiền hoặc đã thực hiện — lập phiếu hoàn tiền / hủy chỉ định trước khi hủy ca mổ.");
         foreach (var o in orders)
-            await _examinationService.CancelServiceOrderAsync(o.Id, $"Hủy theo phiếu PTTT {request.RequestCode}: {reason}");
+        {
+            if (o.ExaminationId != null)
+                await _examinationService.CancelServiceOrderAsync(o.Id, $"Hủy theo phiếu PTTT {request.RequestCode}: {reason}");
+            else
+                await _inpatientService.DeleteServiceOrderAsync(o.Id, userId);
+        }
     }
 
     public Task<SurgeryDto> SetTeamFeesAsync(Guid surgeryId, List<SurgeryTeamMemberRequestDto> teamMembers, Guid userId)

@@ -29,6 +29,12 @@ public class AdrReport : BaseEntity
     /// <summary>Id đơn thuốc liên quan (tuỳ chọn, không FK cứng).</summary>
     public Guid? PrescriptionId { get; set; }
 
+    /// <summary>Luot noi tru (mig 213, tuy chon, khong FK cung).</summary>
+    public Guid? AdmissionId { get; set; }
+
+    /// <summary>Thuoc trong danh muc (mig 213, tuy chon, khong FK cung).</summary>
+    public Guid? MedicineId { get; set; }
+
     // ─── Thông tin thuốc nghi ngờ ───────────────────────────────────────────
 
     /// <summary>Tên thuốc nghi ngờ gây phản ứng (bắt buộc).</summary>

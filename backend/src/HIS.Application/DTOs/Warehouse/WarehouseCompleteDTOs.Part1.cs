@@ -188,6 +188,8 @@ public class SupplierPaymentDto
     public string? ReferenceNumber { get; set; }
 
     public List<Guid> ReceiptIds { get; set; } = new();
+    /// <summary>Phiếu nhập được thanh toán (tùy chọn; ReceiptIds một phần tử cũng được nhận).</summary>
+    public Guid? ImportReceiptId { get; set; }
 
     public Guid CreatedBy { get; set; }
     public string CreatedByName { get; set; } = string.Empty;

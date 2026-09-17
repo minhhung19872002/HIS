@@ -76,6 +76,11 @@ public interface IWarehouseCompleteService
     Task<SupplierPaymentDto> CreateSupplierPaymentAsync(SupplierPaymentDto dto, Guid userId);
 
     /// <summary>
+    /// Danh sách thanh toán NCC (lọc theo NCC / khoảng ngày, mới nhất trước)
+    /// </summary>
+    Task<List<SupplierPaymentDto>> GetSupplierPaymentsAsync(Guid? supplierId, DateTime? fromDate, DateTime? toDate);
+
+    /// <summary>
     /// In phiếu nhập NCC
     /// </summary>
     Task<byte[]> PrintStockReceiptAsync(Guid id);
@@ -330,6 +335,16 @@ public interface IWarehouseCompleteService
     /// Hủy kỳ kiểm kê
     /// </summary>
     Task<bool> CancelStockTakeAsync(Guid stockTakeId, string reason, Guid userId);
+
+    /// <summary>
+    /// Danh sách phiếu kiểm kê (không kèm dòng) — lọc theo kho / trạng thái, mới nhất trước.
+    /// </summary>
+    Task<PagedResultDto<StockTakeDto>> GetStockTakesAsync(Guid? warehouseId, int? status, int page, int pageSize);
+
+    /// <summary>
+    /// Chi tiết một phiếu kiểm kê kèm các dòng (mở lại phiếu đang kiểm để đếm tiếp).
+    /// </summary>
+    Task<StockTakeDto?> GetStockTakeByIdAsync(Guid stockTakeId);
 
     /// <summary>
     /// In phiếu dự trù

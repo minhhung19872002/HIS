@@ -800,8 +800,9 @@ public partial class WarehouseCompleteService {
                 .Select(r => new { r.SupplierCode, r.SupplierName, r.FinalAmount })
                 .ToListAsync();
 
+            // Pre-push review: an inactive supplier can still be owed money — keep it in the map so its receipts,
+            // returns and payments are matched (the over-payment check reads this payable).
             var supplierMap = await _context.Suppliers
-                .Where(s => s.IsActive)
                 .Select(s => new { s.Id, s.SupplierCode, s.SupplierName })
                 .ToListAsync();
 
@@ -813,25 +814,37 @@ public partial class WarehouseCompleteService {
                 .GroupBy(e => e.SupplierId!.Value)
                 .Select(g => new { SupplierId = g.Key, Amount = g.Sum(e => e.TotalAmount) })
                 .ToDictionaryAsync(x => x.SupplierId, x => x.Amount);
-            var returnsApplied = new HashSet<Guid>();
 
+            // QA-R8: recorded supplier payments (mig 213) reduce the payable.
+            var paymentsBySupplier = await _context.SupplierPayments
+                .Where(p => !p.IsDeleted && (!supplierId.HasValue || p.SupplierId == supplierId.Value))
+                .GroupBy(p => p.SupplierId)
+                .Select(g => new { SupplierId = g.Key, Amount = g.Sum(p => p.Amount) })
+                .ToDictionaryAsync(x => x.SupplierId, x => x.Amount);
+
+            // A supplier's receipts can carry its GUID text or its catalog code — merge both into one row
+            // so returns and payments are subtracted once from the supplier's whole debt.
             return receipts
-                .GroupBy(r => r.SupplierCode!)
+                .Select(r => new
+                {
+                    r,
+                    sup = supplierMap.FirstOrDefault(s => s.SupplierCode == r.SupplierCode || s.Id.ToString() == r.SupplierCode),
+                })
+                .GroupBy(x => x.sup != null ? x.sup.Id.ToString() : x.r.SupplierCode!)
                 .Select(g =>
                 {
-                    var sup = supplierMap.FirstOrDefault(s => s.SupplierCode == g.Key || s.Id.ToString() == g.Key);
-                    var total = g.Sum(x => x.FinalAmount);
-                    // A supplier can own two groups (GUID text + catalog code) — subtract its returns once.
-                    var returned = sup != null && returnsApplied.Add(sup.Id)
-                        && returnsBySupplier.TryGetValue(sup.Id, out var ret) ? ret : 0m;
+                    var sup = g.First().sup;
+                    var total = g.Sum(x => x.r.FinalAmount);
+                    var returned = sup != null && returnsBySupplier.TryGetValue(sup.Id, out var ret) ? ret : 0m;
+                    var paid = sup != null && paymentsBySupplier.TryGetValue(sup.Id, out var pay) ? pay : 0m;
                     return new SupplierPayableDto
                     {
                         SupplierId = sup?.Id ?? Guid.Empty,
-                        SupplierCode = g.Key,
-                        SupplierName = sup?.SupplierName ?? g.First().SupplierName ?? "",
+                        SupplierCode = sup?.SupplierCode ?? g.Key,
+                        SupplierName = sup?.SupplierName ?? g.First().r.SupplierName ?? "",
                         TotalReceiptAmount = total - returned,
-                        PaidAmount = 0,
-                        RemainingAmount = total - returned,
+                        PaidAmount = paid,
+                        RemainingAmount = total - returned - paid,
                         Invoices = new List<PayableInvoiceDto>(),
                     };
                 })
@@ -844,13 +857,125 @@ public partial class WarehouseCompleteService {
         }
     }
 
-    public Task<SupplierPaymentDto> CreateSupplierPaymentAsync(SupplierPaymentDto dto, Guid userId)
+    public async Task<SupplierPaymentDto> CreateSupplierPaymentAsync(SupplierPaymentDto dto, Guid userId)
     {
-        // QA-R7: this returned success with a fresh Id but wrote nothing (there is no supplier-payment table), so a
-        // payment "recorded" here never reduced the payable. Refuse honestly until the ledger exists.
-        throw new NotSupportedException(
-            "Chưa hỗ trợ ghi nhận thanh toán nhà cung cấp trên hệ thống (chưa có sổ thanh toán NCC).");
+        // QA-R8: real supplier-payment ledger (mig 213). Over-payment beyond the current payable is rejected.
+        if (dto == null || dto.SupplierId == Guid.Empty)
+            throw new ArgumentException("Thiếu nhà cung cấp.");
+        if (dto.Amount <= 0)
+            throw new ArgumentException("Số tiền thanh toán phải lớn hơn 0.");
+        if (decimal.Round(dto.Amount, 2) != dto.Amount)
+            throw new ArgumentException("Số tiền thanh toán tối đa 2 chữ số thập phân.");
+        var nowVn = HIS.Core.Common.VnTime.NowVn;
+        var paymentDate = dto.PaymentDate == default ? nowVn : dto.PaymentDate;
+        if (paymentDate.Date > nowVn.Date)
+            throw new ArgumentException("Ngày thanh toán không được ở tương lai.");
+        if (dto.ReceiptIds != null && dto.ReceiptIds.Count > 1)
+            throw new ArgumentException("Mỗi lần thanh toán chỉ gắn tối đa một phiếu nhập.");
+        var receiptId = dto.ImportReceiptId ?? (dto.ReceiptIds is { Count: 1 } ? dto.ReceiptIds[0] : (Guid?)null);
+        if (receiptId == Guid.Empty) receiptId = null;
+        if ((dto.PaymentMethod?.Length ?? 0) > 50 || (dto.ReferenceNumber?.Length ?? 0) > 100 || (dto.Notes?.Length ?? 0) > 1000)
+            throw new ArgumentException("Hình thức (≤50), số chứng từ (≤100) hoặc ghi chú (≤1000 ký tự) quá dài.");
+
+        var supplier = await _context.Suppliers.AsNoTracking()
+            .Where(s => s.Id == dto.SupplierId)
+            .Select(s => new { s.Id, s.SupplierCode, s.SupplierName })
+            .FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Không tìm thấy nhà cung cấp.");
+
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.SupplierPayment.{supplier.Id}",
+            "Đang có giao dịch thanh toán khác cho nhà cung cấp này, vui lòng thử lại.");
+
+        if (receiptId.HasValue)
+        {
+            var idText = supplier.Id.ToString();
+            var receipt = await _context.ImportReceipts.AsNoTracking()
+                .Where(r => r.Id == receiptId.Value)
+                .Select(r => new { r.ImportType, r.Status, r.SupplierCode, r.FinalAmount, r.ReceiptCode })
+                .FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException("Không tìm thấy phiếu nhập.");
+            if (receipt.ImportType != 1 || receipt.Status != 1)
+                throw new InvalidOperationException("Chỉ thanh toán cho phiếu nhập NCC đã duyệt.");
+            if (receipt.SupplierCode != idText && receipt.SupplierCode != supplier.SupplierCode)
+                throw new InvalidOperationException("Phiếu nhập không thuộc nhà cung cấp này.");
+            var paidOnReceipt = await _context.SupplierPayments
+                .Where(p => p.ImportReceiptId == receiptId.Value)
+                .SumAsync(p => (decimal?)p.Amount) ?? 0m;
+            if (dto.Amount > receipt.FinalAmount - paidOnReceipt)
+                throw new InvalidOperationException(
+                    $"Số tiền vượt số còn phải trả của phiếu {receipt.ReceiptCode} ({receipt.FinalAmount - paidOnReceipt:N0}).");
+        }
+
+        var payable = (await GetSupplierPayablesAsync(supplier.Id)).Sum(p => p.RemainingAmount);
+        if (dto.Amount > payable)
+            throw new InvalidOperationException(
+                $"Số tiền thanh toán vượt công nợ hiện tại của nhà cung cấp ({Math.Max(payable, 0):N0}).");
+
+        var entity = new SupplierPayment
+        {
+            Id = Guid.NewGuid(),
+            SupplierId = supplier.Id,
+            PaymentDate = paymentDate,
+            Amount = dto.Amount,
+            PaymentMethod = string.IsNullOrWhiteSpace(dto.PaymentMethod) ? null : dto.PaymentMethod.Trim(),
+            ReferenceNumber = string.IsNullOrWhiteSpace(dto.ReferenceNumber) ? null : dto.ReferenceNumber.Trim(),
+            ImportReceiptId = receiptId,
+            Note = string.IsNullOrWhiteSpace(dto.Notes) ? null : dto.Notes.Trim(),
+            CreatedAt = DateTime.Now,
+            CreatedBy = userId.ToString(),
+        };
+        _context.SupplierPayments.Add(entity);
+        await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
+
+        var creatorName = await _context.Users.AsNoTracking()
+            .Where(u => u.Id == userId).Select(u => u.FullName).FirstOrDefaultAsync();
+        return ToSupplierPaymentDto(entity, supplier.SupplierName, creatorName);
     }
+
+    public async Task<List<SupplierPaymentDto>> GetSupplierPaymentsAsync(Guid? supplierId, DateTime? fromDate, DateTime? toDate)
+    {
+        var query = _context.SupplierPayments.AsNoTracking().AsQueryable();
+        if (supplierId.HasValue) query = query.Where(p => p.SupplierId == supplierId.Value);
+        if (fromDate.HasValue) query = query.Where(p => p.PaymentDate >= fromDate.Value.Date);
+        if (toDate.HasValue)
+        {
+            var toExclusive = toDate.Value.Date.AddDays(1); // inclusive end day
+            query = query.Where(p => p.PaymentDate < toExclusive);
+        }
+        var rows = await query.OrderByDescending(p => p.PaymentDate).ThenByDescending(p => p.CreatedAt)
+            .Take(500).ToListAsync();
+        if (rows.Count == 0) return new List<SupplierPaymentDto>();
+
+        var supplierIds = rows.Select(r => r.SupplierId).Distinct().ToList();
+        var supplierNames = await _context.Suppliers.AsNoTracking()
+            .Where(s => supplierIds.Contains(s.Id)).ToDictionaryAsync(s => s.Id, s => s.SupplierName);
+        var userIds = rows.Select(r => Guid.TryParse(r.CreatedBy, out var g) ? g : Guid.Empty)
+            .Where(g => g != Guid.Empty).Distinct().ToList();
+        var userNames = await _context.Users.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.FullName);
+
+        return rows.Select(r => ToSupplierPaymentDto(r,
+            supplierNames.TryGetValue(r.SupplierId, out var sn) ? sn : null,
+            Guid.TryParse(r.CreatedBy, out var by) && userNames.TryGetValue(by, out var un) ? un : null)).ToList();
+    }
+
+    private static SupplierPaymentDto ToSupplierPaymentDto(SupplierPayment p, string? supplierName, string? createdByName) => new()
+    {
+        Id = p.Id,
+        SupplierId = p.SupplierId,
+        SupplierName = supplierName ?? string.Empty,
+        PaymentDate = p.PaymentDate,
+        Amount = p.Amount,
+        PaymentMethod = p.PaymentMethod,
+        ReferenceNumber = p.ReferenceNumber,
+        ImportReceiptId = p.ImportReceiptId,
+        ReceiptIds = p.ImportReceiptId.HasValue ? new List<Guid> { p.ImportReceiptId.Value } : new List<Guid>(),
+        CreatedBy = Guid.TryParse(p.CreatedBy, out var by) ? by : Guid.Empty,
+        CreatedByName = createdByName ?? string.Empty,
+        Notes = p.Note,
+    };
 
     public async Task<byte[]> PrintStockReceiptAsync(Guid id)
     {

@@ -4,7 +4,8 @@ import * as risApi from '../api/ris';
 import type { RadiologyOrderDto, RadiologyResultTemplateDto } from '../api/ris';
 import { useAbbrExpansion } from '../../../utils/abbrExpand';
 import { ABBREVIATION_SCOPES } from '../../../api/abbreviation';
-import { ModalShell, Btn, AbSelect } from '@/_v2kit';
+import { ModalShell, Btn, AbSelect, ReasonModal, StatusBadge } from '@/_v2kit';
+import { can } from '../../../services/permission.service';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { SurgeryReportModal } from '../../surgery/pages/SurgeryReportModal';
 import { FormRow, printResultBlob, type ApiErr } from './_shared';
@@ -13,6 +14,10 @@ import { BiopsyModal } from './BiopsyModal';
 
 /** Scope viết tắt CĐHA — khai báo ngoài component để tránh refetch mỗi render. */
 const RIS_ABBR_SCOPES = [ABBREVIATION_SCOPES.RADIOLOGY] as const;
+
+/** RadiologyResultDto.approvalStatus of a report nobody has approved yet. */
+const APPROVAL_DRAFT = 'Draft';
+const APPROVAL_FINAL = 'FinalApproved';
 
 export const ResultEntryModal: React.FC<{
   open: boolean;
@@ -36,6 +41,9 @@ export const ResultEntryModal: React.FC<{
   const [ptttOpen, setPtttOpen] = useState(false);
   // Sinh thiết / GPB (Prompt 8 Đợt 2)
   const [biopsyOpen, setBiopsyOpen] = useState(false);
+  // QA-R8: an approved report is locked for editing — "Hủy duyệt" (reason required) brings it back to draft.
+  const [approvalStatus, setApprovalStatus] = useState<string>(APPROVAL_DRAFT);
+  const [cancelApprovalOpen, setCancelApprovalOpen] = useState(false);
 
   // Bung viết tắt inline (MQSoft F2 style) — không cần API call riêng.
   // Hook nạp từ điển một lần và trả hàm expand() chạy local.
@@ -46,6 +54,7 @@ export const ResultEntryModal: React.FC<{
     const it = order?.items?.[0];
     if (!open || !it) return;
     setTplId(''); setDescription(''); setConclusion(''); setNote(''); setResultId(null);
+    setApprovalStatus(APPROVAL_DRAFT);
     if (it.serviceId) {
       risApi.getResultTemplatesByService(it.serviceId)
         .then((r) => setTemplates(Array.isArray(r.data) ? r.data : []))
@@ -62,6 +71,7 @@ export const ResultEntryModal: React.FC<{
           setDescription(d.description || '');
           setConclusion(d.conclusion || '');
           setNote(d.note || '');
+          setApprovalStatus(d.approvalStatus || APPROVAL_DRAFT);
         })
         .catch(() => { /* chưa có KQ — bỏ qua */ });
     }
@@ -126,8 +136,19 @@ export const ResultEntryModal: React.FC<{
     finally { setPrinting(false); }
   };
 
+  const handleCancelApproval = async (reason: string) => {
+    if (!resultId) return;
+    await risApi.cancelApproval(resultId, reason);
+    setApprovalStatus(APPROVAL_DRAFT);
+    message.success('Đã hủy duyệt — kết quả về trạng thái nháp');
+    onSaved();
+  };
+
   if (!order || !item) return null;
   const busy = saving || approving;
+  const isApproved = !!resultId && approvalStatus !== APPROVAL_DRAFT;
+  // Only a final approval locks the content (a preliminary one stays editable — RadiologyReportStatus.CanEditContent).
+  const isLocked = isApproved && approvalStatus === APPROVAL_FINAL;
 
   return (
     <>
@@ -165,11 +186,24 @@ export const ResultEntryModal: React.FC<{
         {resultId && (
           <Btn onClick={handlePrint} loading={printing} icon="print">In phiếu</Btn>
         )}
-        <Btn onClick={handleSaveDraft} loading={saving} disabled={approving}>Lưu nháp</Btn>
-        <Btn variant="primary" onClick={handleSaveApprove} loading={approving} disabled={saving} icon="check">Lưu &amp; Duyệt</Btn>
+        {isApproved && can('Radiology.Approve') && (
+          <Btn variant="crit" icon="x" disabled={busy} onClick={() => setCancelApprovalOpen(true)}>Hủy duyệt</Btn>
+        )}
+        {!isLocked && (
+          <>
+            <Btn onClick={handleSaveDraft} loading={saving} disabled={approving}>Lưu nháp</Btn>
+            <Btn variant="primary" onClick={handleSaveApprove} loading={approving} disabled={saving} icon="check">Lưu &amp; Duyệt</Btn>
+          </>
+        )}
       </>}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
+        {isApproved && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
+            <StatusBadge tone={isLocked ? 'ok' : 'info'} dot>{isLocked ? 'Đã duyệt' : 'Sơ duyệt'}</StatusBadge>
+            {isLocked && <span>Kết quả đã duyệt nên không sửa được — hủy duyệt trước nếu cần chỉnh.</span>}
+          </div>
+        )}
         <FormRow label="Mẫu kết quả">
           <AbSelect
             options={templates}
@@ -192,7 +226,7 @@ export const ResultEntryModal: React.FC<{
             value={description}
             onChange={(e) => setDescription(expand(e.target.value))}
             placeholder="Nhập mô tả chi tiết hình ảnh…"
-            disabled={busy}
+            disabled={busy || isLocked}
           />
         </FormRow>
         <FormRow
@@ -208,15 +242,26 @@ export const ResultEntryModal: React.FC<{
             value={conclusion}
             onChange={(e) => setConclusion(expand(e.target.value))}
             placeholder="Nhập kết luận…"
-            disabled={busy}
+            disabled={busy || isLocked}
           />
         </FormRow>
         <FormRow label="Đề nghị / Ghi chú">
           <Input.TextArea rows={3} value={note} onChange={(e) => setNote(e.target.value)}
-            placeholder="Nhập đề nghị (nếu có)…" disabled={busy} />
+            placeholder="Nhập đề nghị (nếu có)…" disabled={busy || isLocked} />
         </FormRow>
       </div>
     </ModalShell>
+    <ReasonModal
+      open={cancelApprovalOpen}
+      title="Hủy duyệt kết quả CĐHA"
+      sub={`${order.patientName} · ${item.serviceName} — chữ ký số (nếu có) sẽ bị thu hồi.`}
+      label="Lý do hủy duyệt"
+      placeholder="Nhập lý do hủy duyệt…"
+      confirmText="Hủy duyệt"
+      errorFallback="Không hủy duyệt được kết quả"
+      onClose={() => setCancelApprovalOpen(false)}
+      onSubmit={handleCancelApproval}
+    />
     <SignResultModal
       open={signOpen}
       reportId={resultId}

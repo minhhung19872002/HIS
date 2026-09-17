@@ -13,9 +13,10 @@ import {
 } from '../api/massCasualty';
 import { registerEmergencyPatient, type EmergencyRegistrationDto } from '../../reception/api/reception';
 import {
-  listObservationStays, createObservationStay, dischargeObservationStay, escalateObservationStay,
+  listObservationStays, createObservationStay, dischargeObservationStay,
   type ObservationStayDto,
 } from '../../inpatient/api/observation';
+import { EscalateObservationModal } from '../../inpatient/components/EscalateObservationModal';
 import '../../../styles/EmergencyDisaster.css';
 import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
@@ -257,6 +258,8 @@ const EmergencyDisasterV2: React.FC = () => {
   const [notesVictim, setNotesVictim] = useState<EmergencyCase | null>(null);
   const [notesDraft, setNotesDraft] = useState('');
   const [notesBusy, setNotesBusy] = useState(false);
+  // QA-R8: phiên phòng lưu đang chờ chọn khoa để chuyển nội trú
+  const [admitTarget, setAdmitTarget] = useState<EmergencyCase | null>(null);
 
   // Tải lại danh sách nạn nhân thật của sự kiện MCI đang hoạt động.
   const reloadVictims = useCallback(async (eventId: string) => {
@@ -390,16 +393,10 @@ const EmergencyDisasterV2: React.FC = () => {
     setSelectedCase(row);
   };
 
-  // Chuyển nội trú: phiên phòng lưu thật → escalate (status=3) + reload; nguồn khác (MCI) → đổi local.
+  // Chuyển nội trú: phiên phòng lưu thật → modal chọn khoa → escalate (status=3) + reload; nguồn khác (MCI) → đổi local.
   const handleAdmit = async (row: EmergencyCase): Promise<void> => {
     if (row.stayId) {
-      try {
-        await escalateObservationStay(row.stayId, { dischargeReason: 'Chuyển nhập viện từ phòng lưu cấp cứu' });
-        await reload();
-        message.success(`Đã chuyển ${row.patientName} sang nội trú`);
-      } catch {
-        message.error('Chuyển nội trú thất bại. Vui lòng thử lại.');
-      }
+      setAdmitTarget(row);
       return;
     }
     mutateRow(row.code, { status: 'admitted' });
@@ -949,6 +946,14 @@ const EmergencyDisasterV2: React.FC = () => {
         {panel === 'start' && <StartGuidePanel />}
         {panel === 'history' && <MciHistoryPanel dashboard={dashboard} events={eventHistory} />}
       </Drawer>
+
+      <EscalateObservationModal
+        open={!!admitTarget}
+        stayId={admitTarget?.stayId ?? null}
+        patientName={admitTarget?.patientName}
+        onClose={() => setAdmitTarget(null)}
+        onDone={reload}
+      />
 
       {/* #352: modal cập nhật ghi chú điều trị nạn nhân MCI */}
       <Modal

@@ -38,6 +38,9 @@ namespace HIS.Application.Services
             return null;
         }
 
+        public Task<List<PortalAccountLookupDto>> SearchPortalAccountsAsync(string? keyword, int take)
+            => Task.FromResult(new List<PortalAccountLookupDto>());
+
         public async Task<PortalAccountDto> RegisterAccountAsync(RegisterPortalAccountDto dto)
         {
             _logger.LogInformation("Registering portal account for {Phone}", dto.Phone);

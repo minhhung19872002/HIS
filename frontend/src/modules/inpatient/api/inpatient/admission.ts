@@ -394,8 +394,13 @@ export const createCombinedTreatment = (dto: CreateCombinedTreatmentDto) =>
 export const getCombinedTreatments = (admissionId: string) =>
   apiClient.get<CombinedTreatmentDto[]>(`${BASE_URL}/combined-treatments/${admissionId}`);
 
+// BE binds `[FromBody] string` — send a JSON string literal (a bare string body is not valid JSON → 400).
 export const completeCombinedTreatment = (id: string, treatmentResult: string) =>
-  apiClient.post<CombinedTreatmentDto>(`${BASE_URL}/combined-treatment/${id}/complete`, treatmentResult);
+  apiClient.post<CombinedTreatmentDto>(
+    `${BASE_URL}/combined-treatment/${id}/complete`,
+    JSON.stringify(treatmentResult),
+    { headers: { 'Content-Type': 'application/json' } },
+  );
 
 export const transferDepartment = (dto: DepartmentTransferDto) =>
   apiClient.post<AdmissionDto>(`${BASE_URL}/transfer-department`, dto);

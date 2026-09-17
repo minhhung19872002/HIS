@@ -803,15 +803,102 @@ public partial class RISCompleteService
         return true;
     }
 
+    // QA-R8: both print endpoints returned an empty byte array labelled PDF. They now render a printable HTML
+    // result slip (browser print → PDF), served as text/html like the other HTML print endpoints.
     public async Task<byte[]> PrintRadiologyResultAsync(Guid resultId, string format = "A4", bool includeImages = true)
     {
-        // Generate PDF report
-        return await Task.FromResult(new byte[0]);
+        var slip = await BuildRadiologyResultSlipAsync(resultId)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu kết quả CĐHA");
+        return Encoding.UTF8.GetBytes(PdfTemplateHelper.WrapHtmlPage("Phiếu kết quả chẩn đoán hình ảnh", slip));
     }
 
     public async Task<byte[]> PrintRadiologyResultsBatchAsync(List<Guid> resultIds, string format = "A4")
     {
-        return await Task.FromResult(new byte[0]);
+        var ids = (resultIds ?? new List<Guid>()).Where(id => id != Guid.Empty).Distinct().ToList();
+        if (ids.Count == 0) throw new ArgumentException("Chưa chọn kết quả CĐHA để in.");
+        if (ids.Count > 100) throw new ArgumentException("In tối đa 100 kết quả mỗi lần.");
+
+        var slips = new List<string>();
+        foreach (var id in ids)
+        {
+            var slip = await BuildRadiologyResultSlipAsync(id);
+            if (slip != null) slips.Add(slip);
+        }
+        if (slips.Count == 0) throw new KeyNotFoundException("Không tìm thấy phiếu kết quả CĐHA nào");
+        var body = string.Join(@"<div class=""page-break""></div>", slips);
+        return Encoding.UTF8.GetBytes(PdfTemplateHelper.WrapHtmlPage("Phiếu kết quả chẩn đoán hình ảnh", body));
+    }
+
+    private async Task<string?> BuildRadiologyResultSlipAsync(Guid resultId)
+    {
+        // Only optional navigations are Included: required ones (Modality, Radiologist, Patient...) become INNER
+        // JOINs and seeded exams carry ModalityId = Guid.Empty, which silently dropped the whole report (404).
+        var report = await _context.RadiologyReports.AsNoTracking()
+            .Include(r => r.ApprovedByUser)
+            .Include(r => r.RadiologyExam).ThenInclude(e => e.Technician)
+            .Include(r => r.RadiologyExam).ThenInclude(e => e.RadiologyRequest).ThenInclude(q => q.MedicalRecord!).ThenInclude(m => m.Department)
+            .FirstOrDefaultAsync(r => r.Id == resultId);
+        var exam = report?.RadiologyExam;
+        var request = exam?.RadiologyRequest;
+        if (report == null || exam == null || request == null) return null;
+
+        var patient = await _context.Patients.AsNoTracking().FirstOrDefaultAsync(p => p.Id == request.PatientId);
+        var serviceName = await _context.Services.AsNoTracking()
+            .Where(s => s.Id == request.ServiceId).Select(s => s.ServiceName).FirstOrDefaultAsync();
+        var modalityName = await _context.RadiologyModalities.AsNoTracking()
+            .Where(m => m.Id == exam.ModalityId).Select(m => m.ModalityName).FirstOrDefaultAsync();
+        var userIds = new[] { report.RadiologistId, request.RequestingDoctorId };
+        var userNames = await _context.Users.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.FullName);
+        string? UserName(Guid id) => userNames.TryGetValue(id, out var n) ? n : null;
+
+        static string E(string? s) => PdfTemplateHelper.Esc(s);
+        static string Multiline(string? s) => string.IsNullOrWhiteSpace(s) ? "" : E(s).Replace("\n", "<br/>");
+        var approved = report.Status == RadiologyReportStatus.FinalApproved;
+
+        var sb = new StringBuilder();
+        sb.AppendLine(PdfTemplateHelper.GetHospitalHeader());
+        sb.AppendLine(@"<div class=""form-title"">PHIẾU KẾT QUẢ CHẨN ĐOÁN HÌNH ẢNH</div>");
+        if (!approved)
+            sb.AppendLine($@"<div class=""text-center text-bold"" style=""color:#c00;margin-bottom:8px"">KẾT QUẢ CHƯA DUYỆT CHÍNH THỨC ({E(RadiologyReportStatus.Label(report.Status))})</div>");
+        if (patient != null)
+            sb.AppendLine(PdfTemplateHelper.GetPatientInfoBlock(
+                patient.PatientCode, patient.FullName, patient.Gender, patient.DateOfBirth,
+                patient.Address, patient.PhoneNumber, request.InsuranceNumber ?? patient.InsuranceNumber,
+                request.MedicalRecord?.MedicalRecordCode, request.MedicalRecord?.Department?.DepartmentName,
+                patient.YearOfBirth));
+
+        void Field(string label, string? value) =>
+            sb.AppendLine($@"<div class=""field""><span class=""field-label"">{E(label)}:</span><span class=""field-value"">{E(value)}</span></div>");
+        sb.AppendLine(@"<div class=""section-title"">THÔNG TIN CHỈ ĐỊNH</div>");
+        Field("Mã phiếu", request.RequestCode);
+        Field("Dịch vụ", serviceName ?? exam.ExamName);
+        Field("Vùng chụp", request.BodyPart);
+        Field("Máy / Modality", modalityName);
+        Field("Mã lượt chụp (Accession)", string.IsNullOrEmpty(exam.AccessionNumber) ? exam.ExamCode : exam.AccessionNumber);
+        Field("Bác sĩ chỉ định", UserName(request.RequestingDoctorId));
+        Field("Ngày chỉ định", request.RequestDate.ToString("dd/MM/yyyy HH:mm"));
+        Field("Ngày thực hiện", exam.ExamDate.ToString("dd/MM/yyyy HH:mm"));
+        Field("Thông tin lâm sàng", request.ClinicalInfo);
+
+        sb.AppendLine(@"<div class=""section-title"">MÔ TẢ HÌNH ẢNH</div>");
+        sb.AppendLine($@"<div class=""no-break"" style=""min-height:80px"">{Multiline(report.Findings)}</div>");
+        sb.AppendLine(@"<div class=""section-title"">KẾT LUẬN</div>");
+        sb.AppendLine($@"<div class=""no-break text-bold"">{Multiline(report.Impression)}</div>");
+        if (!string.IsNullOrWhiteSpace(report.Recommendations))
+        {
+            sb.AppendLine(@"<div class=""section-title"">ĐỀ NGHỊ</div>");
+            sb.AppendLine($@"<div class=""no-break"">{Multiline(report.Recommendations)}</div>");
+        }
+
+        var signTime = report.ApprovedAt ?? report.ReportDate ?? report.UpdatedAt ?? report.CreatedAt;
+        sb.AppendLine($@"<div class=""text-right text-italic"" style=""margin-top:20px"">{signTime:'Ngày' dd 'tháng' MM 'năm' yyyy, HH:mm}</div>");
+        sb.AppendLine(@"<div class=""signature-block no-break"">");
+        sb.AppendLine($@"<div class=""signature-item""><div class=""signature-title"">Kỹ thuật viên</div><div class=""signature-date"">(Ký, ghi rõ họ tên)</div><div class=""signature-name"">{E(exam.Technician?.FullName)}</div></div>");
+        sb.AppendLine($@"<div class=""signature-item""><div class=""signature-title"">Bác sĩ đọc kết quả</div><div class=""signature-date"">(Ký, ghi rõ họ tên)</div><div class=""signature-name"">{E(UserName(report.RadiologistId))}</div></div>");
+        sb.AppendLine($@"<div class=""signature-item""><div class=""signature-title"">Bác sĩ duyệt</div><div class=""signature-date"">{(!approved ? "(Chưa duyệt)" : report.ApprovedAt.HasValue ? $"Duyệt lúc {report.ApprovedAt:dd/MM/yyyy HH:mm}" : "Đã duyệt")}</div><div class=""signature-name"">{E(approved ? report.ApprovedByUser?.FullName : null)}</div></div>");
+        sb.AppendLine("</div>");
+        return sb.ToString();
     }
 
     public async Task<SendResultResponseDto> SendResultToDepartmentAsync(SendResultDto dto)

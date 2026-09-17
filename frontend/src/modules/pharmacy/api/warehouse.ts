@@ -125,6 +125,7 @@ export interface SupplierPaymentDto {
   paymentMethod?: string;
   referenceNumber?: string;
   receiptIds: string[];
+  importReceiptId?: string;
   createdBy: string;
   createdByName: string;
   notes?: string;
@@ -691,8 +692,12 @@ export const getStockReceiptById = (id: string) =>
 export const getSupplierPayables = (supplierId?: string) =>
   apiClient.get<SupplierPayableDto[]>(`${BASE_URL}/supplier-payables`, { params: { supplierId } });
 
-export const createSupplierPayment = (dto: SupplierPaymentDto) =>
-  apiClient.post<SupplierPaymentDto>(`${BASE_URL}/supplier-payments`, dto);
+export const createSupplierPayment = (
+  dto: Pick<SupplierPaymentDto, 'supplierId' | 'amount'> & Partial<SupplierPaymentDto>,
+) => apiClient.post<SupplierPaymentDto>(`${BASE_URL}/supplier-payments`, dto);
+
+export const getSupplierPayments = (params?: { supplierId?: string; fromDate?: string; toDate?: string }) =>
+  apiClient.get<SupplierPaymentDto[]>(`${BASE_URL}/supplier-payments`, { params });
 
 export const printStockReceipt = (id: string) =>
   apiClient.get(`${BASE_URL}/receipts/${id}/print`, { responseType: 'blob' });
@@ -939,6 +944,7 @@ export default {
   getStockReceiptById,
   getSupplierPayables,
   createSupplierPayment,
+  getSupplierPayments,
   printStockReceipt,
   printInspectionReport,
 

@@ -523,21 +523,127 @@ public partial class InpatientCompleteService {
         };
     }
 
-    // QA-R7: create/complete returned 200 with a fresh Id but saved nothing (no combined-treatment table), so a
-    // request "sent" to another department never reached it. Refuse honestly until the table exists.
-    private const string CombinedTreatmentNotSupported =
-        "Chưa hỗ trợ lưu điều trị kết hợp (chưa có bảng dữ liệu) — dùng hội chẩn / chuyển khoa.";
-
-    public Task<CombinedTreatmentDto> CreateCombinedTreatmentAsync(CreateCombinedTreatmentDto dto, Guid userId)
-        => throw new NotSupportedException(CombinedTreatmentNotSupported);
-
-    public Task<List<CombinedTreatmentDto>> GetCombinedTreatmentsAsync(Guid admissionId)
+    // QA-R8: combined treatment is persisted in CombinedTreatments (mig 213); round 7 refused it for lack of a table.
+    public async Task<CombinedTreatmentDto> CreateCombinedTreatmentAsync(CreateCombinedTreatmentDto dto, Guid userId)
     {
-        return Task.FromResult(new List<CombinedTreatmentDto>());
+        if (dto == null || dto.AdmissionId == Guid.Empty || dto.ConsultingDepartmentId == Guid.Empty)
+            throw new ArgumentException("Thiếu lượt nội trú hoặc khoa điều trị kết hợp.");
+
+        var admission = await _context.Admissions.AsNoTracking()
+            .Where(a => a.Id == dto.AdmissionId)
+            .Select(a => new { a.Id, a.Status, a.DepartmentId })
+            .FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Không tìm thấy lượt nội trú.");
+        if (!AdmissionStatus.IsActive(admission.Status))
+            throw new InvalidOperationException(
+                $"Lượt nội trú không còn đang điều trị ({AdmissionStatus.Label(admission.Status)}), không gửi điều trị kết hợp được.");
+
+        var department = await _context.Departments.AsNoTracking()
+            .Where(d => d.Id == dto.ConsultingDepartmentId)
+            .Select(d => new { d.Id, d.DepartmentName })
+            .FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Không tìm thấy khoa điều trị kết hợp.");
+        if (department.Id == admission.DepartmentId)
+            throw new InvalidOperationException("Khoa điều trị kết hợp phải khác khoa đang điều trị của bệnh nhân.");
+
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.CombinedTreatment.{admission.Id}",
+            "Đang có yêu cầu điều trị kết hợp khác cho lượt nội trú này, vui lòng thử lại.");
+
+        var duplicate = await _context.CombinedTreatments.AnyAsync(c =>
+            c.AdmissionId == admission.Id && c.ConsultingDepartmentId == department.Id && (c.Status == 0 || c.Status == 1));
+        if (duplicate)
+            throw new InvalidOperationException("Đã có yêu cầu điều trị kết hợp đang mở với khoa này.");
+
+        var entity = new CombinedTreatment
+        {
+            Id = Guid.NewGuid(),
+            AdmissionId = admission.Id,
+            ConsultingDepartmentId = department.Id,
+            RequestDate = HIS.Core.Common.VnTime.NowVn,
+            RequestReason = string.IsNullOrWhiteSpace(dto.RequestReason) ? null : dto.RequestReason.Trim(),
+            ConsultingDiagnosis = string.IsNullOrWhiteSpace(dto.ConsultingDiagnosis) ? null : dto.ConsultingDiagnosis.Trim(),
+            Status = 0,
+            CreatedAt = DateTime.Now,
+            CreatedBy = userId.ToString(),
+        };
+        _context.CombinedTreatments.Add(entity);
+        await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
+
+        return ToCombinedTreatmentDto(entity, department.DepartmentName, null);
     }
 
-    public Task<CombinedTreatmentDto> CompleteCombinedTreatmentAsync(Guid id, string treatmentResult, Guid userId)
-        => throw new NotSupportedException(CombinedTreatmentNotSupported);
+    public async Task<List<CombinedTreatmentDto>> GetCombinedTreatmentsAsync(Guid admissionId)
+    {
+        var rows = await _context.CombinedTreatments.AsNoTracking()
+            .Where(c => c.AdmissionId == admissionId)
+            .OrderByDescending(c => c.RequestDate)
+            .ToListAsync();
+        if (rows.Count == 0) return new List<CombinedTreatmentDto>();
+
+        var deptIds = rows.Select(r => r.ConsultingDepartmentId).Distinct().ToList();
+        var deptNames = await _context.Departments.AsNoTracking()
+            .Where(d => deptIds.Contains(d.Id)).ToDictionaryAsync(d => d.Id, d => d.DepartmentName);
+        var docIds = rows.Where(r => r.ConsultingDoctorId.HasValue).Select(r => r.ConsultingDoctorId!.Value).Distinct().ToList();
+        var docNames = docIds.Count == 0 ? new Dictionary<Guid, string>()
+            : await _context.Users.AsNoTracking().Where(u => docIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.FullName);
+
+        return rows.Select(r => ToCombinedTreatmentDto(r,
+            deptNames.TryGetValue(r.ConsultingDepartmentId, out var dn) ? dn : "",
+            r.ConsultingDoctorId.HasValue && docNames.TryGetValue(r.ConsultingDoctorId.Value, out var doc) ? doc : null)).ToList();
+    }
+
+    public async Task<CombinedTreatmentDto> CompleteCombinedTreatmentAsync(Guid id, string treatmentResult, Guid userId)
+    {
+        if (string.IsNullOrWhiteSpace(treatmentResult))
+            throw new ArgumentException("Phải nhập kết quả điều trị kết hợp.");
+        var result = treatmentResult.Trim();
+        var now = HIS.Core.Common.VnTime.NowVn;
+        Guid? doctorId = userId == Guid.Empty ? null : userId;
+
+        // Atomic 0/1 → 2 transition: a second (or concurrent) completion updates nothing.
+        var updated = await _context.CombinedTreatments
+            .Where(c => c.Id == id && (c.Status == 0 || c.Status == 1))
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(c => c.Status, 2)
+                .SetProperty(c => c.TreatmentResult, result)
+                .SetProperty(c => c.CompletedDate, now)
+                .SetProperty(c => c.ConsultingDoctorId, c => c.ConsultingDoctorId ?? doctorId)
+                .SetProperty(c => c.UpdatedAt, DateTime.Now)
+                .SetProperty(c => c.UpdatedBy, userId.ToString()));
+
+        var entity = await _context.CombinedTreatments.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id)
+            ?? throw new KeyNotFoundException("Không tìm thấy yêu cầu điều trị kết hợp.");
+        if (updated == 0)
+            throw new InvalidOperationException(entity.Status == 2
+                ? "Điều trị kết hợp đã hoàn thành trước đó."
+                : "Yêu cầu điều trị kết hợp đã hủy, không hoàn thành được.");
+
+        var deptName = await _context.Departments.AsNoTracking()
+            .Where(d => d.Id == entity.ConsultingDepartmentId).Select(d => d.DepartmentName).FirstOrDefaultAsync();
+        var doctorName = entity.ConsultingDoctorId.HasValue
+            ? await _context.Users.AsNoTracking().Where(u => u.Id == entity.ConsultingDoctorId.Value)
+                .Select(u => u.FullName).FirstOrDefaultAsync()
+            : null;
+        return ToCombinedTreatmentDto(entity, deptName ?? "", doctorName);
+    }
+
+    private static CombinedTreatmentDto ToCombinedTreatmentDto(CombinedTreatment c, string departmentName, string? doctorName) => new()
+    {
+        Id = c.Id,
+        AdmissionId = c.AdmissionId,
+        ConsultingDepartmentId = c.ConsultingDepartmentId,
+        ConsultingDepartmentName = departmentName,
+        RequestDate = c.RequestDate,
+        RequestReason = c.RequestReason,
+        ConsultingDiagnosis = c.ConsultingDiagnosis,
+        ConsultingDoctorId = c.ConsultingDoctorId ?? Guid.Empty,
+        ConsultingDoctorName = doctorName,
+        Status = c.Status,
+        CompletedDate = c.CompletedDate,
+        TreatmentResult = c.TreatmentResult,
+    };
 
     public async Task<AdmissionDto> TransferDepartmentAsync(DepartmentTransferDto dto, Guid userId)
     {

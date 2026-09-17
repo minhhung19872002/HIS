@@ -18,7 +18,7 @@
 //   sửa/khoá tài khoản — quản trị account thật (suspend/activate hàng loạt)
 //   cần endpoint admin-list riêng, backend hiện chưa có → KHÔNG dựng giả.
 // =====================================================================
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
 import { Avatar, DatePicker, Input, Select } from 'antd';
@@ -33,8 +33,10 @@ import {
   getPatientQuestions,
   createPatientQuestion,
   answerPatientQuestion,
+  searchStaffPortalAccounts,
 } from '../api/patientPortal';
 import type {
+  PortalAccountLookupDto,
   PatientAccountDto,
   OnlineAppointmentDto,
   DepartmentInfoDto,
@@ -100,8 +102,11 @@ const QUESTION_CATEGORIES = ['Khám bệnh', 'Xét nghiệm', 'Thuốc', 'Bảo 
 type BookForm = { departmentId?: string; doctorId?: string; date?: string; time?: string; type?: string; notes: string };
 const EMPTY_BOOK: BookForm = { notes: '' };
 
-type QuestionForm = { subject: string; category?: string; content: string };
+type QuestionForm = { accountId?: string; subject: string; category?: string; content: string };
 const EMPTY_QUESTION: QuestionForm = { subject: '', content: '' };
+
+const accountLabel = (a: PortalAccountLookupDto) =>
+  `${a.patientCode ? `${a.patientCode} — ` : ''}${a.patientName || 'Chưa liên kết hồ sơ'} · ${a.maskedPhone || '—'}`;
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
@@ -125,6 +130,9 @@ const PatientPortalStaffV2: React.FC = () => {
   const [askOpen, setAskOpen] = useState(false);
   const [askForm, setAskForm] = useState<QuestionForm>(EMPTY_QUESTION);
   const [asking, setAsking] = useState(false);
+  const [portalAccounts, setPortalAccounts] = useState<PortalAccountLookupDto[]>([]);
+  const [accountsLoading, setAccountsLoading] = useState(false);
+  const accountSearchSeq = useRef(0);
   const [qDetail, setQDetail] = useState<PatientQuestionDto | null>(null);
   const [answerTarget, setAnswerTarget] = useState<PatientQuestionDto | null>(null);
   const [answerText, setAnswerText] = useState('');
@@ -229,15 +237,38 @@ const PatientPortalStaffV2: React.FC = () => {
     { key: 'answeredByName', label: 'Người trả lời', width: 150, render: (r) => r.answeredByName || '—' },
   ];
 
-  const openAsk = () => { setAskForm({ ...EMPTY_QUESTION }); setAskOpen(true); };
+  // QA-R8: a question belongs to a portal account — staff pick it (GET /portal/staff/accounts, phone masked).
+  const loadPortalAccounts = useCallback(async (keyword?: string) => {
+    const seq = ++accountSearchSeq.current;
+    setAccountsLoading(true);
+    try {
+      const res = await searchStaffPortalAccounts(keyword?.trim());
+      if (seq === accountSearchSeq.current) setPortalAccounts(res.data ?? []);
+    } catch (e) {
+      if (seq === accountSearchSeq.current) {
+        setPortalAccounts([]);
+        tw(friendlyErrorMessage(e, 'Không tải được danh sách tài khoản cổng bệnh nhân'));
+      }
+    } finally {
+      if (seq === accountSearchSeq.current) setAccountsLoading(false);
+    }
+  }, []);
+
+  const openAsk = () => { setAskForm({ ...EMPTY_QUESTION }); setAskOpen(true); void loadPortalAccounts(); };
 
   // handleCreateQuestion — verbatim mapping từ v1
   const onAsk = async () => {
+    if (!askForm.accountId) { te('Vui lòng chọn tài khoản người bệnh'); return; }
     if (!askForm.subject.trim()) { te('Vui lòng nhập chủ đề'); return; }
     if (!askForm.content.trim()) { te('Vui lòng nhập nội dung'); return; }
     setAsking(true);
     try {
-      await createPatientQuestion({ subject: askForm.subject, content: askForm.content, category: askForm.category });
+      await createPatientQuestion({
+        accountId: askForm.accountId,
+        subject: askForm.subject.trim(),
+        content: askForm.content.trim(),
+        category: askForm.category,
+      });
       tk('Đã gửi câu hỏi');
       setAskOpen(false);
       try {
@@ -310,10 +341,9 @@ const PatientPortalStaffV2: React.FC = () => {
         <>
           <div className="ab-tools">
             <span className="spacer" />
-            {/* QA-R7: a question must belong to a patient portal account; staff have none and there is no
-                account picker yet, so the API rejects it — disabled instead of failing on every click. */}
-            <Btn variant="primary" icon="plus" onClick={openAsk} disabled
-              title="Câu hỏi phải gắn với tài khoản app người bệnh — người bệnh đặt câu hỏi trên app">Đặt câu hỏi</Btn>
+            {/* QA-R8: a question must belong to a patient portal account — the ask modal now has an account picker. */}
+            <Btn variant="primary" icon="plus" onClick={openAsk}
+              title="Đặt câu hỏi hộ người bệnh (chọn tài khoản app của người bệnh)">Đặt câu hỏi</Btn>
           </div>
           <DataTable<PatientQuestionDto>
             columns={qColumns}
@@ -468,6 +498,21 @@ const PatientPortalStaffV2: React.FC = () => {
           </>
         )}
       >
+        <DrField lbl="Tài khoản người bệnh" required>
+          <Select
+            style={{ width: '100%' }}
+            showSearch
+            allowClear
+            filterOption={false}
+            loading={accountsLoading}
+            placeholder="Tìm theo mã BN / họ tên / 3 số cuối SĐT"
+            value={askForm.accountId}
+            onSearch={(kw) => void loadPortalAccounts(kw)}
+            onChange={(v) => setAskForm({ ...askForm, accountId: v })}
+            notFoundContent={accountsLoading ? 'Đang tìm…' : 'Không có tài khoản phù hợp'}
+            options={portalAccounts.map((a) => ({ value: a.id, label: accountLabel(a) }))}
+          />
+        </DrField>
         <DrField lbl="Chủ đề" required>
           <Input
             placeholder="Nhập chủ đề câu hỏi"

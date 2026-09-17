@@ -662,6 +662,20 @@ namespace HIS.API.Controllers
             return Ok(await _service.GetHealthMetricTrendsAsync(aid, days));
         }
 
+        /// <summary>
+        /// QA-R8: staff-only picker of portal accounts for "đặt câu hỏi hộ" (a question must belong to an account).
+        /// Same staff roles as the controller gate, minus the patient token and the patient-app service account;
+        /// the phone is masked except its last 3 digits.
+        /// </summary>
+        [HttpGet("staff/accounts")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Director + "," + RoleNames.Manager + "," + RoleNames.Receptionist + "," + RoleNames.Doctor + "," + RoleNames.Nurse + "," + RoleNames.Midwife + "," + RoleNames.DepartmentHead + "," + RoleNames.MedicalRecordManager + "," + RoleNames.Accountant + "," + RoleNames.Cashier + "," + RoleNames.InsuranceOfficer)]
+        public async Task<ActionResult<List<PortalAccountLookupDto>>> SearchPortalAccounts(
+            [FromQuery] string? keyword, [FromQuery] int take = 20)
+        {
+            if (IsPortalPatient || User.IsInRole(RoleNames.PatientAppService)) return Forbid();
+            return Ok(await _service.SearchPortalAccountsAsync(keyword, take));
+        }
+
         // NangCap19: Patient Q&A
         [HttpGet("questions")]
         [Authorize]

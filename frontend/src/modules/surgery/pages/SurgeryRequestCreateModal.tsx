@@ -184,8 +184,10 @@ export const SurgeryRequestCreateModal: React.FC<SurgeryRequestCreateModalProps>
         notes: `Bệnh nhân: ${form.patientCode} - ${form.patientName}`,
       };
 
-      await createSurgeryRequest(dto);
+      const res = await createSurgeryRequest(dto);
       tk('Tạo yêu cầu phẫu thuật thành công');
+      // BE reports when the surgery service could not be billed (closed visit, no active stay…).
+      (res.data?.warnings ?? []).forEach((w) => tw(w));
       reset();
       onCreated();
       onClose();

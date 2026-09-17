@@ -433,6 +433,8 @@ namespace HIS.Application.Services
     {
         // Account Management
         Task<PortalAccountDto> GetAccountAsync(Guid accountId);
+        /// <summary>QA-R8: staff-only lookup of portal accounts (masked phone) for the "ask on behalf" picker.</summary>
+        Task<List<PortalAccountLookupDto>> SearchPortalAccountsAsync(string? keyword, int take);
         Task<PortalAccountDto> RegisterAccountAsync(RegisterPortalAccountDto dto);
         Task<bool> VerifyEmailAsync(Guid accountId, string code);
         Task<bool> VerifyPhoneAsync(Guid accountId, string otp);

@@ -234,6 +234,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<SpecimenImage> SpecimenImages => Set<SpecimenImage>(); // #134 #133: ảnh bệnh phẩm gắn KQ XN/GPB
     public DbSet<EInvoice> EInvoices => Set<EInvoice>(); // #24: hóa đơn điện tử HĐĐT đa NCC
     public DbSet<Supplier> Suppliers => Set<Supplier>();
+    public DbSet<SupplierPayment> SupplierPayments => Set<SupplierPayment>(); // mig 213: sổ thanh toán NCC
 
     // Warehouse extensions (consignment, IU mapping, splitable, profit margin)
     public DbSet<ConsignmentStock> ConsignmentStocks => Set<ConsignmentStock>();
@@ -391,6 +392,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<HemodialysisSession> HemodialysisSessions => Set<HemodialysisSession>(); // #148: phiếu theo dõi chạy thận
     public DbSet<InfusionRecord> InfusionRecords => Set<InfusionRecord>(); // #16: truyền dịch persist thật
     public DbSet<DepartmentTransfer> DepartmentTransfers => Set<DepartmentTransfer>(); // #218: bàn giao chuyển khoa trước đây bị bỏ rơi
+    public DbSet<CombinedTreatment> CombinedTreatments => Set<CombinedTreatment>(); // mig 213: điều trị kết hợp
     public DbSet<InpatientConsultation> InpatientConsultations => Set<InpatientConsultation>(); // #16: hội chẩn nội trú persist thật
     public DbSet<InpatientConsultationMember> InpatientConsultationMembers => Set<InpatientConsultationMember>();
 

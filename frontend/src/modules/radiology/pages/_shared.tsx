@@ -10,7 +10,7 @@ export type { StatusKey } from './radiologyMappers';
 
 export type ApiErr = { response?: { data?: { message?: string } } };
 
-/** Mở phiếu kết quả CĐHA (PDF blob) ở tab mới. Throw nếu lỗi để caller xử lý. */
+/** Mở phiếu kết quả CĐHA (HTML blob, text/html) ở tab mới. Throw nếu lỗi để caller xử lý. */
 export const printResultBlob = async (resultId: string): Promise<void> => {
   const res = await risApi.printRadiologyResult(resultId);
   const url = URL.createObjectURL(res.data as Blob);

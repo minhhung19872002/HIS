@@ -387,7 +387,9 @@ namespace HIS.API.Controllers
         /// Hủy duyệt kết quả
         /// </summary>
         [HttpPost("results/{resultId}/cancel-approval")]
-        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.QuanTriHeThong + "," + RoleNames.RadiologistManager)]
+        // Pre-push review: RadiologistManager is never issued on prod; the doctors who approve (Radiologist alias)
+        // must be able to undo their own approval (reason required, audited in the request notes).
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.QuanTriHeThong + "," + RoleNames.RadiologistManager + "," + RoleNames.Radiologist)]
         public async Task<ActionResult> CancelApproval(Guid resultId, [FromBody] RISCancelApprovalRequest request)
         {
             await _risService.CancelApprovalAsync(resultId, request.Reason);
@@ -405,7 +407,7 @@ namespace HIS.API.Controllers
             [FromQuery] bool includeImages = true)
         {
             var result = await _risService.PrintRadiologyResultAsync(resultId, format, includeImages);
-            return File(result, "application/pdf", $"radiology_result_{resultId}.pdf");
+            return File(result, "text/html; charset=utf-8"); // QA-R8: the body is an HTML result slip, not a PDF
         }
 
         /// <summary>
@@ -418,7 +420,7 @@ namespace HIS.API.Controllers
             [FromQuery] string format = "A4")
         {
             var result = await _risService.PrintRadiologyResultsBatchAsync(resultIds, format);
-            return File(result, "application/pdf", "radiology_results_batch.pdf");
+            return File(result, "text/html; charset=utf-8"); // QA-R8: HTML slips separated by page breaks
         }
 
         /// <summary>

@@ -748,7 +748,9 @@ public partial class WarehouseCompleteService {
     {
         var warehouseName = await _context.Warehouses.AsNoTracking()
             .Where(w => w.Id == stockTake.WarehouseId).Select(w => w.WarehouseName).FirstOrDefaultAsync();
-        var user = await _context.Users.FindAsync(userId);
+        // QA-R8: the sheet's creator, not whoever happens to save/reopen it.
+        var creatorId = Guid.TryParse(stockTake.CreatedBy, out var createdBy) ? createdBy : userId;
+        var user = await _context.Users.FindAsync(creatorId);
         return new StockTakeDto
         {
             Id = stockTake.Id,
@@ -776,7 +778,7 @@ public partial class WarehouseCompleteService {
             }).ToList(),
             Status = stockTake.Status,
             Notes = stockTake.Notes,
-            CreatedBy = userId,
+            CreatedBy = creatorId,
             CreatedByName = user?.FullName ?? string.Empty,
             CreatedAt = stockTake.CreatedAt
         };
@@ -803,17 +805,80 @@ public partial class WarehouseCompleteService {
         stockTake.UpdatedBy = userId.ToString();
         await _context.SaveChangesAsync();
 
-        var user = await _context.Users.FindAsync(userId);
-        return new StockTakeDto
+        // QA-R8: returned a header-only DTO (no items / warehouse / period) — the v2 page re-seeds from it,
+        // so the counted sheet vanished from screen right after "Hoàn tất" and the adjust step showed nothing.
+        var sheet = await _context.StockTakeItems.AsNoTracking()
+            .Where(i => i.StockTakeId == stockTakeId && !i.IsDeleted)
+            .ToListAsync();
+        return await MapStockTakeAsync(stockTake, sheet, userId);
+    }
+
+    public async Task<PagedResultDto<StockTakeDto>> GetStockTakesAsync(Guid? warehouseId, int? status, int page, int pageSize)
+    {
+        page = page <= 0 ? 1 : page;
+        pageSize = pageSize <= 0 ? 20 : Math.Min(pageSize, 100);
+
+        var query = _context.StockTakes.AsNoTracking().Where(s => !s.IsDeleted);
+        if (warehouseId.HasValue)
+            query = query.Where(s => s.WarehouseId == warehouseId.Value);
+        if (status.HasValue)
+            query = query.Where(s => s.Status == status.Value);
+
+        var total = await query.CountAsync();
+        var rows = await query
+            .OrderByDescending(s => s.CreatedAt)
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(s => new
+            {
+                s.Id, s.StockTakeCode, s.StockTakeDate, s.WarehouseId, WarehouseName = s.Warehouse!.WarehouseName,
+                s.PeriodFrom, s.PeriodTo, s.Status, s.Notes, s.CancelReason, s.CreatedBy, s.CreatedAt,
+            })
+            .ToListAsync();
+
+        // Creator names in one round-trip (CreatedBy is a string column holding the user Guid).
+        var creatorIds = rows.Select(r => Guid.TryParse(r.CreatedBy, out var g) ? g : Guid.Empty)
+            .Where(g => g != Guid.Empty).Distinct().ToList();
+        var creators = await _context.Users.AsNoTracking()
+            .Where(u => creatorIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.FullName);
+
+        return new PagedResultDto<StockTakeDto>
         {
-            Id = stockTake.Id,
-            StockTakeCode = stockTake.StockTakeCode,
-            StockTakeDate = stockTake.StockTakeDate,
-            Status = stockTake.Status,
-            CreatedBy = userId,
-            CreatedByName = user?.FullName ?? string.Empty,
-            CreatedAt = stockTake.CreatedAt
+            Items = rows.Select(r =>
+            {
+                var creatorId = Guid.TryParse(r.CreatedBy, out var g) ? g : Guid.Empty;
+                return new StockTakeDto
+                {
+                    Id = r.Id,
+                    StockTakeCode = r.StockTakeCode,
+                    StockTakeDate = r.StockTakeDate,
+                    WarehouseId = r.WarehouseId,
+                    WarehouseName = r.WarehouseName ?? string.Empty,
+                    PeriodFrom = r.PeriodFrom,
+                    PeriodTo = r.PeriodTo,
+                    Status = r.Status,
+                    Notes = r.Status == 4 && !string.IsNullOrWhiteSpace(r.CancelReason) ? $"Hủy: {r.CancelReason}" : r.Notes,
+                    CreatedBy = creatorId,
+                    CreatedByName = creators.TryGetValue(creatorId, out var name) ? name ?? string.Empty : string.Empty,
+                    CreatedAt = r.CreatedAt,
+                };
+            }).ToList(),
+            TotalCount = total,
+            Page = page,
+            PageSize = pageSize,
         };
+    }
+
+    public async Task<StockTakeDto?> GetStockTakeByIdAsync(Guid stockTakeId)
+    {
+        var stockTake = await _context.StockTakes.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == stockTakeId && !s.IsDeleted);
+        if (stockTake == null) return null;
+        var sheet = await _context.StockTakeItems.AsNoTracking()
+            .Where(i => i.StockTakeId == stockTakeId && !i.IsDeleted)
+            .OrderBy(i => i.ItemName).ThenBy(i => i.BatchNumber)
+            .ToListAsync();
+        return await MapStockTakeAsync(stockTake, sheet, Guid.Empty);
     }
 
     /// <summary>

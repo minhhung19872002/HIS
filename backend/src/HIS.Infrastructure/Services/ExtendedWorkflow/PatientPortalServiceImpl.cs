@@ -31,6 +31,45 @@ public partial class PatientPortalServiceImpl : IPatientPortalService
         return e == null ? null! : new PortalAccountDto { Id = e.Id, Email = e.Email, Phone = e.Phone, PatientId = e.PatientId, PatientName = e.Patient?.FullName ?? "", Status = e.Status, IsEmailVerified = e.IsEmailVerified, IsPhoneVerified = e.IsPhoneVerified };
     }
 
+    public async Task<List<PortalAccountLookupDto>> SearchPortalAccountsAsync(string? keyword, int take)
+    {
+        take = take <= 0 ? 20 : Math.Min(take, 50);
+        var query = _context.PortalAccounts.AsNoTracking().Where(a => !a.IsDeleted);
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var kw = keyword.Trim();
+            // Phone matches only on the digits a staff member already sees (suffix), never a full-number probe.
+            query = query.Where(a => (a.Patient != null && (a.Patient.PatientCode.Contains(kw) || a.Patient.FullName.Contains(kw)))
+                                     || (kw.Length <= 3 && a.Phone.EndsWith(kw)));
+        }
+        var rows = await query
+            .OrderBy(a => a.Patient == null).ThenByDescending(a => a.LastLoginAt).ThenByDescending(a => a.CreatedAt)
+            .Take(take)
+            .Select(a => new
+            {
+                a.Id, a.PatientId, a.Phone, a.Status,
+                PatientCode = a.Patient != null ? a.Patient.PatientCode : null,
+                PatientName = a.Patient != null ? a.Patient.FullName : null,
+            })
+            .ToListAsync();
+        return rows.Select(r => new PortalAccountLookupDto
+        {
+            Id = r.Id,
+            PatientId = r.PatientId,
+            PatientCode = r.PatientCode,
+            PatientName = r.PatientName,
+            MaskedPhone = MaskPhone(r.Phone),
+            Status = r.Status ?? string.Empty,
+        }).ToList();
+    }
+
+    private static string MaskPhone(string? phone)
+    {
+        var p = (phone ?? string.Empty).Trim();
+        if (p.Length == 0) return string.Empty;
+        return p.Length <= 3 ? new string('*', p.Length) : new string('*', p.Length - 3) + p[^3..];
+    }
+
     public async Task<PortalAccountDto> RegisterAccountAsync(RegisterPortalAccountDto dto)
     {
         // R2: hash BCrypt (trước đây lưu plaintext — bảng 0 rows nên không cần backfill).

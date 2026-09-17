@@ -5,6 +5,19 @@ namespace HIS.Application.DTOs.PatientPortal
 {
 
     /// <summary>
+    /// QA-R8: dòng chọn tài khoản cổng BN cho nhân viên (đặt câu hỏi hộ) — SĐT đã che, chỉ lộ 3 số cuối.
+    /// </summary>
+    public class PortalAccountLookupDto
+    {
+        public Guid Id { get; set; }
+        public Guid? PatientId { get; set; }
+        public string? PatientCode { get; set; }
+        public string? PatientName { get; set; }
+        public string MaskedPhone { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+    }
+
+    /// <summary>
     /// Tài khoản Patient Portal
     /// </summary>
     public class PortalAccountDto

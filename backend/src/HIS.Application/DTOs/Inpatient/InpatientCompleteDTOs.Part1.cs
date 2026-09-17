@@ -360,6 +360,7 @@ public class CombinedTreatmentDto
         0 => "Chờ tiếp nhận",
         1 => "Đang điều trị",
         2 => "Hoàn thành",
+        3 => "Đã hủy",
         _ => ""
     };
 
