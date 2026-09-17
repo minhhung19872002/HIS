@@ -41,7 +41,17 @@ public sealed class RequirePracticeLicenseAttribute : Attribute, IAsyncActionFil
 
         var svc = http.RequestServices.GetRequiredService<IDoctorLicenseService>();
         var gate = await svc.EvaluatePrescribingGateAsync(userId);
-        if (!gate.Blocked) return null;
+        if (!gate.Blocked)
+        {
+            // QA-R9: a non-blocking finding (missing data, expiring, or any finding in Warn mode) travels with the
+            // response so the save itself carries it, not only the page-load banner. URL-encoded: headers are ASCII.
+            if (gate.Level == HIS.Core.Common.PracticeLicenseGate.LevelWarning && !http.Response.HasStarted)
+            {
+                http.Response.Headers["X-Practice-License-Warning"] = Uri.EscapeDataString(gate.Message);
+                http.Response.Headers["X-Practice-License-Status"] = gate.Status;
+            }
+            return null;
+        }
 
         http.RequestServices.GetRequiredService<ILogger<RequirePracticeLicenseAttribute>>()
             .LogWarning("Practice licence gate blocked user {UserId} on {Path}: {Status}", userId, http.Request.Path, gate.Status);

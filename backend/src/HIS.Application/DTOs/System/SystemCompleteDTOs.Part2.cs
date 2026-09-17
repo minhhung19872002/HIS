@@ -317,9 +317,10 @@ namespace HIS.Application.DTOs.System
     {
         public string Key { get; set; }
         public string Value { get; set; }
-        public string DataType { get; set; }
-        public string Description { get; set; }
-        public string Category { get; set; }
+        // QA-R9: optional on save — rows with a NULL description (BHXH.Timeout) were echoed back as null → 400.
+        public string? DataType { get; set; }
+        public string? Description { get; set; }
+        public string? Category { get; set; }
         public bool IsEditable { get; set; }
     }
 

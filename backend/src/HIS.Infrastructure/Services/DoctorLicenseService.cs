@@ -153,6 +153,24 @@ public class DoctorLicenseService : IDoctorLicenseService
                 .ToListAsync();
 
         var r = HIS.Core.Common.PracticeLicenseGate.Evaluate(staffEvidence, registry, HIS.Core.Common.VnTime.TodayVn);
+
+        // QA-R9: admin switch SystemConfigs "Clinical.PracticeLicenseGateMode" (seeded by migration 215).
+        // Block (default, also when the row is missing) = refuse on positive evidence; Warn = never refuse, show the finding.
+        if (r.Blocked && await IsPracticeLicenseWarnModeAsync())
+            return new PracticeLicenseGateDto(HIS.Core.Common.PracticeLicenseGate.LevelWarning, false, r.Status,
+                "[Chế độ chỉ cảnh báo — hệ thống KHÔNG chặn kê đơn/chỉ định] "
+                + r.Message.Replace(" — không được kê đơn/chỉ định", ""), r.LicenseNumber, r.ExpiryDate);
         return new PracticeLicenseGateDto(r.Level, r.Blocked, r.Status, r.Message, r.LicenseNumber, r.ExpiryDate);
+    }
+
+    public const string PracticeLicenseGateModeKey = "Clinical.PracticeLicenseGateMode";
+
+    private async Task<bool> IsPracticeLicenseWarnModeAsync()
+    {
+        var mode = await _db.SystemConfigs.AsNoTracking()
+            .Where(c => c.ConfigKey == PracticeLicenseGateModeKey && c.IsActive && !c.IsDeleted)
+            .Select(c => c.ConfigValue)
+            .FirstOrDefaultAsync();
+        return string.Equals(mode?.Trim(), "Warn", StringComparison.OrdinalIgnoreCase);
     }
 }

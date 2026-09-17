@@ -19,6 +19,8 @@ export interface MCIEventDto {
   alertLevelName: string;
   location: string;
   locationCoordinates?: string;
+  /** Code Blue pressed again within the dedup window: the returned event is the one already running. */
+  alreadyActive?: boolean;
   estimatedCasualties: number;
   confirmedCasualties: number;
   activatedAt: string;

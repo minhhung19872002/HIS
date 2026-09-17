@@ -605,7 +605,11 @@ const EmergencyDisasterV2: React.FC = () => {
                 onOk: async () => {
                   try {
                     const evt = await activateCodeBlue();
-                    message.success(`Code Blue đã kích hoạt — Mã: ${evt.data?.eventCode ?? ''}`);
+                    if (evt.data?.alreadyActive) {
+                      message.warning(`Code Blue đang được kích hoạt (vừa bấm) — Mã: ${evt.data.eventCode}`);
+                    } else {
+                      message.success(`Code Blue đã kích hoạt — Mã: ${evt.data?.eventCode ?? ''}`);
+                    }
                   } catch {
                     message.error('Kích hoạt Code Blue thất bại. Vui lòng thử lại.');
                   }

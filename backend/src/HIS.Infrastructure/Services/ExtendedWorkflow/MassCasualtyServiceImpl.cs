@@ -96,19 +96,69 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
         return new MCIEventDto { Id = entity.Id, EventCode = entity.EventCode, EventName = entity.EventName, EventType = entity.EventType, Location = entity.EventLocation, AlertLevel = entity.AlertLevel, Status = "Active", ActivatedAt = entity.ActivatedAt };
     }
 
+    // Pre-push review: only the SAME user's double-press within a short window is merged — the v2 button always
+    // sends the hospital-wide location, so matching on location alone swallowed a second nurse's real alarm.
+    private static readonly TimeSpan CodeBlueDedupWindow = TimeSpan.FromSeconds(20);
+
     public async Task<MCIEventDto> ActivateCodeBlueAsync(string location, Guid activatedByUserId)
     {
         // Code Blue (báo động đỏ) must NEVER be refusable: it is pressed during a cardiac arrest and a stale
         // un-closed MCI event is a housekeeping problem, not a reason to block the alarm. Pre-push review of QA
         // round 4 measured 11 events still "Active" — the guard would have made the button 100% dead.
+        // QA-R9 (double-submit): two presses in the same second created two events with the SAME code. A repeat
+        // press for the same location within CodeBlueDedupWindow now returns the running event (AlreadyActive),
+        // serialized by an app lock. The lock never refuses the alarm: on timeout we still create the event.
+        var eventLocation = string.IsNullOrWhiteSpace(location) ? "Toàn bệnh viện" : location.Trim();
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        try
+        {
+            await SqlAppLock.AcquireAsync(_context, "HIS.MCI.CodeBlue", "busy", 3000);
+        }
+        catch (InvalidOperationException)
+        {
+            // Lock busy — fall through and create the event anyway (the alarm must never be blocked).
+        }
+
+        var windowStart = DateTime.Now - CodeBlueDedupWindow;
+        var existing = await _context.MCIEvents
+            .Where(x => x.Status == "Active" && x.EventCode.StartsWith("CODEBLUE")
+                        && x.EventLocation == eventLocation && x.ActivatedAt >= windowStart
+                        && activatedByUserId != Guid.Empty && x.IncidentCommanderId == activatedByUserId)
+            .OrderByDescending(x => x.ActivatedAt)
+            .FirstOrDefaultAsync();
+        if (existing != null)
+        {
+            if (tx != null) await tx.CommitAsync();
+            return new MCIEventDto
+            {
+                Id = existing.Id,
+                EventCode = existing.EventCode,
+                EventName = existing.EventName,
+                EventType = existing.EventType,
+                Location = existing.EventLocation,
+                AlertLevel = existing.AlertLevel,
+                Status = existing.Status,
+                ActivatedAt = existing.ActivatedAt,
+                AlreadyActive = true
+            };
+        }
+
+        // Unique code: millisecond stamp + skip a taken one (same scheme as BillingCompleteService.NextStampCodeAsync).
         var now = DateTime.Now;
+        var code = $"CODEBLUE{now:yyyyMMddHHmmssfff}";
+        for (var i = 0; i < 50 && await _context.MCIEvents.AnyAsync(x => x.EventCode == code); i++)
+        {
+            await Task.Delay(2);
+            now = DateTime.Now;
+            code = $"CODEBLUE{now:yyyyMMddHHmmssfff}";
+        }
         var entity = new MCIEvent
         {
             Id = Guid.NewGuid(),
-            EventCode = $"CODEBLUE{now:yyyyMMddHHmmss}",
+            EventCode = code,
             EventName = "Code Blue — Báo động đỏ cấp cứu",
             EventType = "Violence",
-            EventLocation = string.IsNullOrWhiteSpace(location) ? "Toàn bệnh viện" : location,
+            EventLocation = eventLocation,
             AlertReceivedAt = now,
             ActivatedAt = now,
             AlertLevel = "Red",
@@ -122,6 +172,7 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
         };
         _context.MCIEvents.Add(entity);
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
         return new MCIEventDto
         {
             Id = entity.Id,

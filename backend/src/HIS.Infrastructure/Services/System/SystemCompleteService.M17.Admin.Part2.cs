@@ -226,7 +226,7 @@ public partial class SystemCompleteService
             {
                 entity.ConfigValue = dto.Value ?? entity.ConfigValue;
                 entity.ConfigType = dto.DataType ?? entity.ConfigType;
-                entity.Description = dto.Description;
+                entity.Description = dto.Description ?? entity.Description; // QA-R9: nullable now — omitted ≠ cleared
             }
             await _context.SaveChangesAsync();
             return dto;

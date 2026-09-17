@@ -62,6 +62,9 @@ namespace HIS.Application.DTOs.MassCasualty
         public string CreatedBy { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? LastUpdatedAt { get; set; }
+
+        /// <summary>QA-R9: Code Blue pressed again within the dedup window — this is the already-running event.</summary>
+        public bool AlreadyActive { get; set; }
     }
 
     /// <summary>
