@@ -144,7 +144,8 @@ public class WarehouseCompleteController : ControllerBase
     /// Lấy công nợ NCC
     /// </summary>
     [HttpGet("supplier-payables")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.Accountant)]
+    // QA-R10: pharmacists (role code PHARMACIST) may read payables/payments; recording a payment stays Admin/Accountant.
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.Accountant + "," + RoleNames.Pharmacist + "," + RoleNames.PharmacyManager)]
     public async Task<ActionResult<List<SupplierPayableDto>>> GetSupplierPayables([FromQuery] Guid? supplierId)
     {
         var result = await _warehouseService.GetSupplierPayablesAsync(supplierId);
@@ -166,7 +167,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Danh sách thanh toán NCC
     /// </summary>
     [HttpGet("supplier-payments")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.Accountant)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.Accountant + "," + RoleNames.Pharmacist + "," + RoleNames.PharmacyManager)]
     public async Task<ActionResult<List<SupplierPaymentDto>>> GetSupplierPayments(
         [FromQuery] Guid? supplierId, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
     {

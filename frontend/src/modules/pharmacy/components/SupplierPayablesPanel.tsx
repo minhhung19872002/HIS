@@ -5,7 +5,7 @@
  * - Ghi nhận:  POST /warehouse/supplier-payments  (BE chặn trả vượt công nợ / vượt số còn lại của phiếu → hiện đúng thông điệp BE)
  * - Lịch sử:   GET  /warehouse/supplier-payments?supplierId=&fromDate=&toDate=
  *
- * Quyền (UX — BE vẫn là chốt chặn): đọc = role Admin/WarehouseManager/Accountant (WarehouseCompleteController);
+ * Quyền (UX — BE vẫn là chốt chặn): đọc = role Admin/WarehouseManager/Accountant/Pharmacist/PharmacyManager (WarehouseCompleteController);
  * ghi = role Admin/Accountant + permission Pharmacy.StockIn (WritePermissionMap["WarehouseComplete"]).
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';

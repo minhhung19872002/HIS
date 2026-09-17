@@ -24,6 +24,8 @@ const HL7Q_STATUS = [
   { v: 'sent'     as const, l: 'Đã gửi',     tone: 'info' as const },
   { v: 'acked'    as const, l: 'Đã ACK',     tone: 'ok'   as const },
   { v: 'failed'   as const, l: 'Lỗi',        tone: 'crit' as const },
+  // Inbound analyzer ORU that matched no analyzer (HL7ReceiverService) — needs manual mapping.
+  { v: 'unrouted' as const, l: 'Chưa gán máy XN', tone: 'crit' as const },
 ];
 type Hl7StatusKey = (typeof HL7Q_STATUS)[number]['v'];
 

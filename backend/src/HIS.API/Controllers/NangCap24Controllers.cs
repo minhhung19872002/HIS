@@ -269,6 +269,9 @@ public class Hl7QueueController : ControllerBase
         => Ok(await _service.SearchAsync(dto));
 
     [HttpGet("{id:guid}")]
+    // QA-R10: the detail carries the full HL7 payload (patient name/results; inbound unrouted ORU land here) —
+    // same permission as the page (route meta System.Configure), not any logged-in user.
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.System.Configure)]
     public async Task<ActionResult<Hl7MessageQueueDto>> GetById(Guid id)
     {
         var msg = await _service.GetByIdAsync(id);

@@ -92,6 +92,8 @@ public class Hl7QueueService : IHl7QueueService
         var msg = await _db.Hl7MessageQueues.FirstOrDefaultAsync(m => m.Id == id);
         if (msg == null) throw new KeyNotFoundException("Message không tồn tại");
         if (msg.Status == "acked") throw new InvalidOperationException("Message đã ACK, không cần retry");
+        // QA-R10: inbound messages (e.g. unrouted analyzer ORU) are not ours to (re)send.
+        if (msg.Direction == "inbound") throw new InvalidOperationException("Bản tin nhận vào không gửi lại được — cần gán máy xét nghiệm và xử lý thủ công");
 
         msg.Status = "retrying";
         msg.RetryCount++;
