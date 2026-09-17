@@ -129,9 +129,20 @@ public class SurgeryCompleteService : ISurgeryCompleteService
             .Where(r => r.Id == dto.SurgeryId).Select(r => (int?)r.Priority).FirstOrDefaultAsync();
         if (priority == null)
             throw new InvalidOperationException("Khong tim thay yeu cau PTTT (surgeryId khong hop le)");
+        var warnings = new List<string>();
+        ConsentValidationResult consent;
+        try
+        {
+            consent = await _prescriptionService.ValidateConsentsBeforeSurgeryAsync(dto.SurgeryId);
+        }
+        catch (Exception ex) when (priority == 3)
+        {
+            // An emergency start must never fail because the consent check itself failed.
+            _logger.LogWarning(ex, "Consent check failed for emergency surgery {SurgeryId}", dto.SurgeryId);
+            consent = new ConsentValidationResult { IsValid = true };
+        }
         if (priority != 3)
         {
-            var consent = await _prescriptionService.ValidateConsentsBeforeSurgeryAsync(dto.SurgeryId);
             // Pre-push review: blocking on a MISSING consent row would have refused 206 of 213 surgeries, because
             // consents are recorded on paper in most departments and the module holds rows for 3 of them. So only
             // an UNSIGNED consent blocks — that means this hospital does use the module here and someone skipped
@@ -139,11 +150,21 @@ public class SurgeryCompleteService : ISurgeryCompleteService
             if (consent.UnsignedConsents.Count > 0)
                 throw new InvalidOperationException(
                     $"Cam kết trước mổ chưa được ký nên không bắt đầu được ca mổ: {string.Join(", ", consent.UnsignedConsents)}.");
-            if (consent.MissingConsents.Count > 0)
-                _logger.LogWarning("Surgery {SurgeryId} started without consent rows: {Missing}",
-                    dto.SurgeryId, string.Join(", ", consent.MissingConsents));
         }
-        return await _operationService.StartSurgeryAsync(dto, userId);
+        // QA-R7: the start used to succeed silently when consents were not valid — surface a NON-blocking
+        // warning. Emergency surgeries (priority 3) are never blocked, only warned.
+        if (consent.MissingConsents.Count > 0)
+        {
+            _logger.LogWarning("Surgery {SurgeryId} started without consent rows: {Missing}",
+                dto.SurgeryId, string.Join(", ", consent.MissingConsents));
+            warnings.Add($"Chưa có cam kết trước mổ trên hệ thống: {string.Join(", ", consent.MissingConsents)} — kiểm tra bản giấy.");
+        }
+        if (priority == 3 && consent.UnsignedConsents.Count > 0)
+            warnings.Add($"Ca cấp cứu: cam kết chưa ký ({string.Join(", ", consent.UnsignedConsents)}) — bổ sung chữ ký sau mổ.");
+
+        var result = await _operationService.StartSurgeryAsync(dto, userId);
+        if (warnings.Count > 0) result.Warnings = warnings;
+        return result;
     }
     public Task<SurgeryDto> CompleteSurgeryAsync(CompleteSurgeryDto dto, Guid userId) => _operationService.CompleteSurgeryAsync(dto, userId);
     public Task<SurgeryDto> UpdateExecutionInfoAsync(SurgeryExecutionDto dto, Guid userId) => _operationService.UpdateExecutionInfoAsync(dto, userId);

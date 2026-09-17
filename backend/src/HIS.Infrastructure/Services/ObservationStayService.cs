@@ -1,6 +1,7 @@
 using HIS.Application.Common;
 using HIS.Application.DTOs.ObservationStay;
 using HIS.Application.Interfaces;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -230,6 +231,56 @@ public class ObservationStayService : IObservationStayService
         var stay = await _db.ObservationStays.FindAsync(id);
         if (stay == null) return ServiceOutcome.NotFound();
         if (stay.Status != 1) return ServiceOutcome.Bad("Phiên đã kết thúc");
+        if (dto.AdmissionDepartmentId.HasValue
+            && !await _db.Departments.AnyAsync(d => d.Id == dto.AdmissionDepartmentId.Value))
+            return ServiceOutcome.Bad("Khoa đề nghị nhập viện không tồn tại");
+
+        // QA-R7: escalation only flipped the stay status — the patient never reached the inpatient
+        // "chờ nhập viện" worklist (GetPendingAdmissionsAsync), which reads examinations concluded as
+        // hospitalization. Write the same admission request as ExaminationCompleteService.RequestHospitalizationAsync
+        // on the visit's examination (that method refuses a not-yet-started exam, the usual case in the ER).
+        var pendingAdmission = false;
+        if (stay.MedicalRecordId.HasValue)
+        {
+            var mr = await _db.MedicalRecords.FirstOrDefaultAsync(m => m.Id == stay.MedicalRecordId.Value);
+            if (mr?.EmrFinalizedAt != null)
+                return ServiceOutcome.Bad(EmrLockGuard.LockedMessage); // TT46
+            var exam = await _db.Examinations
+                .Where(e => e.MedicalRecordId == stay.MedicalRecordId.Value && !e.IsDeleted
+                            && e.Status != ExaminationStatus.Cancelled)
+                .OrderByDescending(e => e.CreatedAt)
+                .FirstOrDefaultAsync();
+            var alreadyAdmitted = await _db.Admissions.AnyAsync(a => a.MedicalRecordId == stay.MedicalRecordId.Value);
+            if (exam != null && !alreadyAdmitted)
+            {
+                var now = DateTime.Now;
+                exam.ConclusionType = 3; // Hospitalization
+                exam.ConclusionNote = dto.DischargeReason ?? "Chuyển nhập viện từ phòng lưu";
+                exam.HospitalizationDepartmentId = dto.AdmissionDepartmentId;
+                exam.HospitalizationIsEmergency = true;
+                exam.HospitalizationDiagnosisName = dto.FinalDiagnosis ?? stay.FinalDiagnosis ?? stay.InitialDiagnosis;
+                if (exam.Status != ExaminationStatus.Completed)
+                {
+                    exam.Status = ExaminationStatus.Completed;
+                    exam.EndTime = now;
+                    var tickets = await _db.QueueTickets
+                        .Where(t => t.MedicalRecordId == exam.MedicalRecordId && t.RoomId == exam.RoomId
+                                    && t.Status < QueueTicketStatus.Completed && !t.IsDeleted)
+                        .ToListAsync();
+                    foreach (var t in tickets)
+                    {
+                        t.Status = QueueTicketStatus.Completed;
+                        t.CompletedTime ??= HIS.Core.Common.VnTime.NowVn;
+                    }
+                }
+                else
+                {
+                    exam.EndTime ??= now;
+                }
+                pendingAdmission = true;
+            }
+        }
+
         stay.Status = 3;
         stay.DischargedAt = DateTime.Now;
         stay.FinalDiagnosis = dto.FinalDiagnosis ?? stay.FinalDiagnosis;
@@ -238,7 +289,7 @@ public class ObservationStayService : IObservationStayService
         stay.UpdatedAt = DateTime.Now;
         stay.UpdatedBy = userId.ToString();
         await _db.SaveChangesAsync();
-        return ServiceOutcome.Ok(new { stay.Id, stay.Status });
+        return ServiceOutcome.Ok(new { stay.Id, stay.Status, pendingAdmission });
     }
 
     /// <summary>Cập nhật mức triage (nâng/hạ mức ưu tiên) cho phiên lưu — #61.</summary>

@@ -12,6 +12,7 @@ import { ModalShell, Btn, tk, tw } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { Section, Row2 } from './surgery-modals/_shared';
 import { startSurgery, type StartSurgeryDto, type SurgeryDto } from '../api/surgery';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 export interface SurgeryStartModalProps {
   open: boolean;
@@ -42,13 +43,15 @@ export const SurgeryStartModal: React.FC<SurgeryStartModalProps> = ({ open, onCl
         startTime: dayjs(actualStartTime).format('YYYY-MM-DDTHH:mm:ss'),
       };
 
-      await startSurgery(startDto);
+      const res = await startSurgery(startDto);
       tk('Bắt đầu phẫu thuật thành công');
+      // Non-blocking consent warnings (missing consent rows / emergency case) — BE never blocks on these.
+      (res.data?.warnings ?? []).forEach((w) => tw(w));
       onStarted();
       onClose();
     } catch (error) {
       console.warn('Error starting surgery:', error);
-      tw('Có lỗi xảy ra khi bắt đầu phẫu thuật');
+      tw(friendlyErrorMessage(error, 'Có lỗi xảy ra khi bắt đầu phẫu thuật'));
     } finally {
       setSaving(false);
     }

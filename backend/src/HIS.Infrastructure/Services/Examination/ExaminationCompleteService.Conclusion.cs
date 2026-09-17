@@ -51,6 +51,16 @@ public partial class ExaminationCompleteService
         if (examination.Status == 4) throw new InvalidOperationException("Đã hoàn thành, cần mở khóa trước");
         EnsureCanConclude(examination);
 
+        // QA-R7: 1-Cho về vs 2-Kê đơn (cấp đơn cho về) must reflect reality — the v2 OPD screen always sends 1,
+        // so derive it from whether the visit actually has a (non-cancelled) prescription.
+        if (dto.ConclusionType is 1 or 2)
+        {
+            var hasPrescription = await _context.Prescriptions
+                .AnyAsync(p => p.ExaminationId == examinationId && !p.IsDeleted
+                    && p.Status != PrescriptionStatus.Cancelled && p.Status != PrescriptionStatus.Draft); // a draft is not an issued prescription
+            dto.ConclusionType = hasPrescription ? 2 : 1;
+        }
+
         examination.ConclusionType = dto.ConclusionType;
         examination.ConclusionNote = dto.ConclusionNotes;
         examination.FollowUpDate = dto.NextAppointmentDate;

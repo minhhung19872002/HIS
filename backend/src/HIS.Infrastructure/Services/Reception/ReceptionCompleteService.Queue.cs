@@ -231,12 +231,15 @@ public partial class ReceptionCompleteService {
         var hasValidInsurance = !string.IsNullOrWhiteSpace(m.Patient?.InsuranceNumber);
         var statusLabel = m.Status switch { 0 => "Waiting", 1 => "InProgress", 2 => "WaitingResult", _ => "Completed" };
         var statusVi    = m.Status switch { 0 => "Chờ tiếp đón", 1 => "Đang khám", 2 => "Chờ kết quả", _ => "Hoàn thành" };
-        var treatmentVi = m.TreatmentType switch
+        // QA-R7: TreatmentType is 1 ngoại trú · 2 nội trú · 3 cấp cứu — it was mapped as if it were the payer
+        // (every outpatient read "Khám BHYT"). The visit label comes from emergency + PatientType (payer),
+        // the same rule as visitTypeKey()/VISIT_TYPE_OPTS in frontend/src/modules/reception/pages/shared.tsx.
+        var treatmentVi = m.TreatmentType == 3 ? "Cấp cứu" : m.PatientType switch
         {
             1 => "Khám BHYT",
-            2 => "Khám dịch vụ",
-            3 => "Cấp cứu",
-            4 => "Khám theo yêu cầu",
+            2 => "Khám viện phí",
+            3 => "Khám dịch vụ",
+            4 => "Khám sức khỏe",
             _ => "Khám thường",
         };
         var patientTypeVi = m.PatientType switch
@@ -244,6 +247,7 @@ public partial class ReceptionCompleteService {
             1 => "BHYT",
             2 => "Viện phí",
             3 => "Dịch vụ",
+            4 => "Khám sức khỏe",
             _ => "Khác",
         };
         var priority = m.TreatmentType == 3 ? 1 : (ticket?.Priority ?? 0);

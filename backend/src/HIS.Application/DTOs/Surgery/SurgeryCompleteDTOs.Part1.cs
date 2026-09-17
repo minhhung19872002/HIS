@@ -102,6 +102,9 @@ public class SurgeryDto
     public string? CreatedBy { get; set; }
     public DateTime? ApprovedAt { get; set; }
     public string? ApprovedBy { get; set; }
+
+    /// <summary>Non-blocking warnings (e.g. consent check on start surgery).</summary>
+    public List<string>? Warnings { get; set; }
 }
 
 /// <summary>

@@ -756,6 +756,11 @@ public partial class RISCompleteService
     /// </summary>
     public async Task<bool> CancelApprovalAsync(Guid resultId, string reason)
     {
+        // QA-R7: an empty reason was accepted and the reason was only kept on an active signature (usually none).
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new InvalidOperationException("Vui lòng nhập lý do hủy duyệt.");
+        reason = reason.Trim();
+
         var report = await _context.RadiologyReports.FindAsync(resultId)
             ?? throw new KeyNotFoundException("Không tìm thấy phiếu kết quả CĐHA");
 
@@ -787,6 +792,12 @@ public partial class RISCompleteService
             .FirstOrDefaultAsync(e => e.Id == report.RadiologyExamId);
         if (exam?.RadiologyRequest != null && exam.RadiologyRequest.Status == 5)
             exam.RadiologyRequest.Status = 4; // Reported
+        // Audit trail of the un-approval on the request (same "[Hủy duyệt] <lý do>" note as the LIS cancel-approval).
+        if (exam?.RadiologyRequest != null)
+        {
+            var notePrefix = string.IsNullOrWhiteSpace(exam.RadiologyRequest.Notes) ? "" : exam.RadiologyRequest.Notes + "\n";
+            exam.RadiologyRequest.Notes = notePrefix + $"[Hủy duyệt] {reason}";
+        }
 
         await _unitOfWork.SaveChangesAsync();
         return true;

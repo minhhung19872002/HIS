@@ -195,9 +195,9 @@ public partial class LISCompleteService
                         .OrderBy(p => p.SortOrder)
                         .FirstOrDefaultAsync();
 
-                    var gender = await _context.MedicalRecords.Where(m => m.Id == srd.ServiceRequest.MedicalRecordId)
-                        .Select(m => (int?)m.Patient.Gender).FirstOrDefaultAsync();
-                    var (normalMin, normalMax) = LabFlagEvaluator.ResolveRange(cat, gender);
+                    var mrInfo = await _context.MedicalRecords.Where(m => m.Id == srd.ServiceRequest.MedicalRecordId)
+                        .Select(m => new { m.PatientId, Gender = (int?)m.Patient.Gender }).FirstOrDefaultAsync();
+                    var (normalMin, normalMax) = LabFlagEvaluator.ResolveRange(cat, mrInfo?.Gender);
                     decimal? criticalLow = cat?.CriticalLow;
                     decimal? criticalHigh = cat?.CriticalHigh;
 
@@ -218,6 +218,13 @@ public partial class LISCompleteService
                     var oldParams = await _context.ServiceRequestDetailParameters
                         .Where(p => p.ServiceRequestDetailId == srd.Id && !p.IsDeleted).ToListAsync();
                     if (oldParams.Count > 0) _context.ServiceRequestDetailParameters.RemoveRange(oldParams);
+
+                    // QA-R7: the analyzer path never raised critical-value alerts (manual entry did since R6).
+                    await RemoveOpenCriticalAlertsAsync(_context, srd.Id);
+                    if (!string.IsNullOrEmpty(result.Value) && mrInfo != null)
+                        AddCriticalAlertIfNeeded(_context, srd.Id, mrInfo.PatientId, resolvedFlag, result.TestCode ?? "",
+                            srd.Service?.ServiceName ?? result.TestCode ?? "", result.Value, num,
+                            !string.IsNullOrEmpty(result.Units) ? result.Units : cat?.Unit, criticalLow, criticalHigh);
 
                     if (!string.IsNullOrEmpty(result.Value))
                     {

@@ -230,9 +230,11 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
       }
 
       await createSurgeryRequest({
-        medicalRecordId: '',          // empty for OPD-only; BE accepts empty/null
+        // "" is not a Guid: the BE rejected the whole body (400 "The dto field is required") so the
+        // OPD-inline report never saved. Empty Guid = resolve patient/record from examinationId.
+        medicalRecordId: '00000000-0000-0000-0000-000000000000',
         examinationId,
-        surgeryServiceId: '',         // free-text entry via surgeryMethod for OPD inline
+        // surgeryServiceId omitted: free-text entry via surgeryMethod for OPD inline
         surgeryType: form.surgeryType,
         surgeryClass: form.surgeryClass,
         surgeryNature: 2,             // Chương trình (default for OPD PTTT)

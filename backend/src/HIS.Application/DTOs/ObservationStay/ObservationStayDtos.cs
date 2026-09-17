@@ -31,6 +31,8 @@ namespace HIS.Application.DTOs.ObservationStay;
         public string? FinalDiagnosis { get; set; }
         public string? DischargeReason { get; set; }
         public string? Notes { get; set; }
+        /// <summary>Escalate only: khoa đề nghị nhập viện (optional — the inpatient screen picks it otherwise).</summary>
+        public Guid? AdmissionDepartmentId { get; set; }
     }
 
     public class UpdateTriageDto { public int TriageLevel { get; set; } }

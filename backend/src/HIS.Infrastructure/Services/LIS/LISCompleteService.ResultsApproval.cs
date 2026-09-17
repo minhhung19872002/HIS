@@ -90,9 +90,7 @@ public partial class LISCompleteService {
             var gender = patientInfo?.Gender;
             // QA-R6: LabCriticalValueAlerts was never written anywhere, so the critical-value list was always empty.
             // Re-entry replaces the still-open alerts of this line instead of stacking duplicates.
-            var openAlerts = await _context.LabCriticalValueAlerts
-                .Where(a => a.LabResultId == d.Id && !a.IsAcknowledged && !a.IsDeleted).ToListAsync();
-            if (openAlerts.Count > 0) _context.LabCriticalValueAlerts.RemoveRange(openAlerts);
+            await RemoveOpenCriticalAlertsAsync(_context, d.Id);
 
             int seq = 0;
             foreach (var p in dto.Parameters)
@@ -121,24 +119,11 @@ public partial class LISCompleteService {
                     SequenceNumber = seq++,
                     CreatedAt = DateTime.Now,
                 });
-                if ((flag == "LL" || flag == "HH") && patientInfo != null)
-                    _context.LabCriticalValueAlerts.Add(new LabCriticalValueAlert
-                    {
-                        Id = Guid.NewGuid(),
-                        LabResultId = d.Id,
-                        PatientId = patientInfo.PatientId,
-                        TestCode = p.ParameterCode,
-                        TestName = string.IsNullOrEmpty(p.ParameterName) ? (d.Service?.ServiceName ?? p.ParameterCode) : p.ParameterName,
-                        Result = p.Value,
-                        NumericResult = num,
-                        Unit = string.IsNullOrEmpty(p.Unit) ? cat?.Unit : p.Unit,
-                        CriticalLow = cat?.CriticalLow ?? singleCatCritLow,
-                        CriticalHigh = cat?.CriticalHigh ?? singleCatCritHigh,
-                        AlertType = flag == "LL" ? 1 : 2, // 1=Critical Low, 2=Critical High
-                        AlertTime = DateTime.Now,
-                        Status = 0,
-                        CreatedAt = DateTime.Now,
-                    });
+                if (patientInfo != null)
+                    AddCriticalAlertIfNeeded(_context, d.Id, patientInfo.PatientId, flag, p.ParameterCode,
+                        string.IsNullOrEmpty(p.ParameterName) ? (d.Service?.ServiceName ?? p.ParameterCode) : p.ParameterName,
+                        p.Value, num, string.IsNullOrEmpty(p.Unit) ? cat?.Unit : p.Unit,
+                        cat?.CriticalLow ?? singleCatCritLow, cat?.CriticalHigh ?? singleCatCritHigh);
             }
             if (string.IsNullOrWhiteSpace(d.Result))
                 d.Result = string.Join("; ", dto.Parameters.Select(p => $"{p.ParameterName} {p.Value}"));
@@ -164,6 +149,44 @@ public partial class LISCompleteService {
 
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    /// <summary>
+    /// QA-R6/R7: re-entry (manual or analyzer) replaces the still-open critical alerts of a lab line
+    /// instead of stacking duplicates. Shared by EnterLabResultAsync and the analyzer worklist path.
+    /// </summary>
+    /// <param name="testCode">Only this parameter's alerts (per-OBX analyzer upsert of a panel); null = the whole line.</param>
+    private static async Task RemoveOpenCriticalAlertsAsync(HISDbContext db, Guid detailId, string? testCode = null)
+    {
+        var openAlerts = await db.LabCriticalValueAlerts
+            .Where(a => a.LabResultId == detailId && !a.IsAcknowledged && !a.IsDeleted
+                        && (testCode == null || a.TestCode == testCode))
+            .ToListAsync();
+        if (openAlerts.Count > 0) db.LabCriticalValueAlerts.RemoveRange(openAlerts);
+    }
+
+    /// <summary>Queues a critical-value alert when the evaluated flag is LL/HH (no-op otherwise).</summary>
+    private static void AddCriticalAlertIfNeeded(HISDbContext db, Guid detailId, Guid patientId, string? flag, string testCode, string testName,
+        string? value, decimal? numericValue, string? unit, decimal? criticalLow, decimal? criticalHigh)
+    {
+        if (flag != "LL" && flag != "HH") return;
+        db.LabCriticalValueAlerts.Add(new LabCriticalValueAlert
+        {
+            Id = Guid.NewGuid(),
+            LabResultId = detailId,
+            PatientId = patientId,
+            TestCode = testCode,
+            TestName = testName,
+            Result = value,
+            NumericResult = numericValue,
+            Unit = unit,
+            CriticalLow = criticalLow,
+            CriticalHigh = criticalHigh,
+            AlertType = flag == "LL" ? 1 : 2, // 1=Critical Low, 2=Critical High
+            AlertTime = DateTime.Now,
+            Status = 0,
+            CreatedAt = DateTime.Now,
+        });
     }
 
     public async Task<bool> ApproveLabResultAsync(ApproveLabResultDtoService dto)
@@ -329,8 +352,9 @@ public partial class LISCompleteService {
             .Include(r => r.Details).ThenInclude(d => d.Service)
             .FirstOrDefaultAsync();
 
+        // QA-R7: returned the text "Order not found" served as a 200 PDF.
         if (sr == null)
-            return System.Text.Encoding.UTF8.GetBytes("Order not found");
+            throw new KeyNotFoundException("Không tìm thấy phiếu xét nghiệm.");
 
         var activeDetails = sr.Details.Where(d => !d.IsDeleted && d.Status != 3).ToList();
 

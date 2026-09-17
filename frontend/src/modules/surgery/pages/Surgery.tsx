@@ -376,7 +376,7 @@ const SurgeryDrawerBody: React.FC<{ r: SurgeryDto }> = ({ r }) => {
         surgeryId={r.id}
         patientName={r.patientName}
         surgeryCode={r.surgeryCode}
-        plannedProcedure={r.surgeryServiceName}
+        plannedProcedure={r.surgeryMethod || r.surgeryServiceName}
         diagnosis={r.preOperativeDiagnosis}
       />
       {/* Kế hoạch sau gây mê – phẫu thuật (Prompt 8 Đợt 2) */}

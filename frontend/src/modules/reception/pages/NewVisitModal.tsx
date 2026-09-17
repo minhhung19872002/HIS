@@ -163,7 +163,8 @@ export const NewVisitModal: React.FC<{
   };
   const validate3 = (): Record<string, string> => {
     const e: Record<string, string> = {};
-    if (!data.dept) e.dept = 'Chọn khoa / phòng';
+    // Emergency visits are routed to the emergency room by the backend — no room pick needed.
+    if (!data.dept && !visitType?.emergency) e.dept = 'Chọn khoa / phòng';
     if (!data.reason.trim()) e.reason = 'Nhập lý do khám';
     setErrs(e); return e;
   };
@@ -206,14 +207,28 @@ export const NewVisitModal: React.FC<{
   const prev = () => setStep((s) => Math.max(1, s - 1));
 
   const submit = async () => {
-    if (!data.dept) { message.warning('Chọn khoa / phòng'); return; }
+    if (!data.dept && !visitType?.emergency) { message.warning('Chọn khoa / phòng'); return; }
     setSubmitting(true);
     try {
       // data.age can be 0 (infant) — a truthiness check dropped the birth year for every newborn.
       const yearOfBirth = data.age != null ? new Date().getFullYear() - data.age : undefined;
       const chiefComplaint = data.reason.trim() || undefined;
       const isPriority = data.priority !== 'norm';
-      if (visitType?.bhyt && data.bhytNo.trim()) {
+      if (visitType?.emergency) {
+        // "Cấp cứu" must go through the emergency endpoint (TreatmentType=3, emergency room, priority-2 ticket);
+        // the fee path registered it as a normal outpatient visit.
+        await receptionApi.registerEmergencyPatient({
+          patientName: data.patientName.trim(),
+          gender: data.gender === 'F' ? 2 : 1,
+          estimatedAge: data.age ?? undefined,
+          identityNumber: data.cccd.trim() || undefined,
+          phoneNumber: data.phone.trim() || undefined,
+          patientType: visitType.serviceType,
+          chiefComplaint,
+          // Severity: 1-Nguy kịch, 2-Nặng, 3-Trung bình
+          severity: data.priority === 'crit' ? 1 : data.priority === 'high' ? 2 : 3,
+        });
+      } else if (visitType?.bhyt && data.bhytNo.trim()) {
         await receptionApi.registerInsurancePatient({
           sourceQueueTicketId: sourceTicket?.ticketId,
           insuranceNumber: data.bhytNo.trim(), roomId: data.dept, chiefComplaint,
@@ -253,7 +268,8 @@ export const NewVisitModal: React.FC<{
           });
         }
       }
-      const extraMsg = (!visitType?.bhyt && data.extraRooms.length > 0) ? ` · +${data.extraRooms.length} phòng thêm` : '';
+      const extraMsg = visitType?.emergency ? ' · chuyển phòng cấp cứu'
+        : (!visitType?.bhyt && data.extraRooms.length > 0) ? ` · +${data.extraRooms.length} phòng thêm` : '';
       message.success(`Đã đăng ký · ${data.patientName.trim()}${extraMsg}`);
       onDone();
     } catch (err) {
@@ -416,6 +432,12 @@ export const NewVisitModal: React.FC<{
         {/* Step 3 — Khoa & lý do */}
         {step === 3 && (
           <div>
+            {visitType?.emergency ? (
+              <div style={{ padding: '12px 14px', background: 'var(--d-1)', border: '1px solid var(--s-crit)', borderRadius: 'var(--r-3)', fontSize: 'var(--fs-sm)', color: 'var(--s-crit)', display: 'flex', gap: 'var(--space-8)', alignItems: 'center' }}>
+                <TermIcon name="alert" size={14} />
+                <span>BN cấp cứu được chuyển thẳng vào <b>phòng cấp cứu</b> với mức ưu tiên cấp cứu.</span>
+              </div>
+            ) : (<>
             <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 'var(--space-8)' }}>CHỌN KHOA · PHÒNG KHÁM</div>
             <div className="rec-deptgrid">
               {rooms.map((r) => (
@@ -469,6 +491,7 @@ export const NewVisitModal: React.FC<{
                 </div>
               </div>
             )}
+            </>)}
 
             <div style={{ marginTop: 'var(--space-14)' }}>
               <Lbl label="Lý do khám" required error={errs.reason}>
@@ -500,8 +523,10 @@ export const NewVisitModal: React.FC<{
                 {data.address && <><span style={{ color: 'var(--t-2)' }}>Địa chỉ</span><span>{data.address}</span></>}
                 <span style={{ color: 'var(--t-2)' }}>Hình thức</span><span>{visitType?.l}</span>
                 {data.bhytNo && <><span style={{ color: 'var(--t-2)' }}>Thẻ BHYT</span><span className="mono">{data.bhytNo} {bhytValid && <span className="chip ok" style={{ marginLeft: 'var(--space-6)' }}>Hợp lệ</span>}</span></>}
-                <span style={{ color: 'var(--t-2)' }}>Khoa khám</span><b>{selRoom?.departmentName} · <span className="mono">{selRoom?.roomName}</span></b>
-                {!visitType?.bhyt && data.extraRooms.length > 0 && (
+                <span style={{ color: 'var(--t-2)' }}>Khoa khám</span>{visitType?.emergency
+                  ? <b>Phòng cấp cứu</b>
+                  : <b>{selRoom?.departmentName} · <span className="mono">{selRoom?.roomName}</span></b>}
+                {!visitType?.bhyt && !visitType?.emergency && data.extraRooms.length > 0 && (
                   <>
                     <span style={{ color: 'var(--t-2)' }}>Phòng thêm</span>
                     <span>

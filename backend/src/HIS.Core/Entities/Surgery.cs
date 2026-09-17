@@ -38,6 +38,10 @@ public class SurgeryRequest : BaseEntity
     public string? PlannedProcedure { get; set; } // Phương pháp PT dự kiến
     public int? EstimatedDuration { get; set; } // Thời gian dự kiến (phút)
 
+    // Dịch vụ PTTT (danh mục Services) chọn lúc tạo phiếu — QA-R7, cần migration thêm cột SurgeryServiceId
+    public Guid? SurgeryServiceId { get; set; }
+    public virtual Service? SurgeryService { get; set; }
+
     // Gây mê: 1-Gây mê toàn thân, 2-Gây tê tủy sống, 3-Gây têموضعی, 4-Khác
     public int? AnesthesiaType { get; set; }
 

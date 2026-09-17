@@ -342,8 +342,10 @@ public partial class InpatientCompleteService {
         // khoa nội trú không thấy BN này, phải gõ tay Mã HSBA.
         var query = _context.Examinations
             .Include(e => e.MedicalRecord).ThenInclude(m => m.Patient)
+            // QA-R7: an ER/observation escalation may not name a department yet (IsEmergency) —
+            // it still has to reach this worklist; the inpatient screen picks the department.
             .Where(e => e.ConclusionType == 3
-                     && e.HospitalizationDepartmentId != null
+                     && (e.HospitalizationDepartmentId != null || e.HospitalizationIsEmergency)
                      && !_context.Admissions.Any(a => a.MedicalRecordId == e.MedicalRecordId));
         if (departmentId.HasValue && departmentId.Value != Guid.Empty)
             query = query.Where(e => e.HospitalizationDepartmentId == departmentId.Value);

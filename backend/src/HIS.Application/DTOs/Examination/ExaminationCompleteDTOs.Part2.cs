@@ -460,18 +460,16 @@ public class ExaminationConclusionDto
     public Guid ExaminationId { get; set; }
 
     public int ConclusionType { get; set; }
-    // 1-Cấp đơn cho về, 2-Cho về, 3-Nhập viện, 4-Chuyển viện, 5-Tử vong
-    // 6-Hẹn khám mới, 7-Hẹn khám tiếp, 8-Khác
+    // Same enum as Examination/MedicalRecord.ConclusionType, exam history and the printed forms:
+    // 1-Cho về, 2-Kê đơn (cấp đơn cho về), 3-Nhập viện, 4-Chuyển viện, 5-Hẹn khám lại, 6-Tử vong
     public string ConclusionTypeName => ConclusionType switch
     {
-        1 => "Cấp đơn cho về",
-        2 => "Cho về",
+        1 => "Cho về",
+        2 => "Cấp đơn cho về",
         3 => "Nhập viện",
         4 => "Chuyển viện",
-        5 => "Tử vong",
-        6 => "Hẹn khám mới",
-        7 => "Hẹn khám tiếp",
-        8 => "Khác",
+        5 => "Hẹn khám lại",
+        6 => "Tử vong",
         _ => ""
     };
 

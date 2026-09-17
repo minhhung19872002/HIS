@@ -70,7 +70,7 @@ const PatientTimeline: React.FC<PatientTimelineProps> = ({ patientId, onExaminat
             type: 'examination',
             title: `${(h.historyType as string) === 'Noi tru' ? 'Nội trú' : 'Khám'} - ${(h.roomName as string) ?? 'N/A'}`,
             description: (h.diagnosisName as string) ?? (h.description as string) ?? '',
-            status: (h.conclusionType as number) === 2 ? 'Nhập viện' : 'Hoàn thành',
+            status: (h.conclusionType as number) === 3 ? 'Nhập viện' : 'Hoàn thành', // 1 Cho về · 2 Kê đơn · 3 Nhập viện
             extra: h,
           });
         });

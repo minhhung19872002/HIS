@@ -30,6 +30,8 @@ public partial class ExaminationCompleteService
         if (examination == null) return new List<DiagnosisFullDto>();
 
         var diagnoses = new List<DiagnosisFullDto>();
+        // QA-R7: DiagnosedAt was never set (0001-01-01). Diagnoses live on the exam row → use the exam's time.
+        var diagnosedAt = examination.StartTime ?? examination.CreatedAt;
 
         if (!string.IsNullOrEmpty(examination.MainIcdCode))
         {
@@ -40,7 +42,8 @@ public partial class ExaminationCompleteService
                 IcdCode = examination.MainIcdCode,
                 IcdName = examination.MainDiagnosis ?? "",
                 IsPrimary = true,
-                DiagnosisType = 2
+                DiagnosisType = 2,
+                DiagnosedAt = diagnosedAt
             });
         }
 
@@ -61,7 +64,8 @@ public partial class ExaminationCompleteService
                     IcdName = i < names.Length ? names[i] : "",
                     IsPrimary = false,
                     DiagnosisType = 2,
-                    Order = i + 1
+                    Order = i + 1,
+                    DiagnosedAt = diagnosedAt
                 });
             }
         }

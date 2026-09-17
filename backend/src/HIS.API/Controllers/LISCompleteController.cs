@@ -485,6 +485,10 @@ namespace HIS.API.Controllers
                 var result = await _lisService.PrintLabResultAsync(orderId, format);
                 return File(result, "application/pdf", $"lab_result_{orderId}.pdf");
             }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse.Fail(ex.Message));
+            }
             catch (InvalidOperationException ex)
             {
                 // Chưa duyệt KQ → "Không có số liệu" (rule tài liệu) — 400 message rõ, không in.

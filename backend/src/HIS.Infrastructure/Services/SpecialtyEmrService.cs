@@ -131,6 +131,19 @@ public class SpecialtyEmrService : ISpecialtyEmrService
     {
         SpecialtyEmr entity;
 
+        // QA-R7: patient name/code were taken from the client, so a record could carry another patient's
+        // name. Derive them from the Patient row and reject an unknown patient / a foreign medical record.
+        var patient = await _context.Patients.AsNoTracking()
+            .Where(p => p.Id == dto.PatientId && !p.IsDeleted)
+            .Select(p => new { p.PatientCode, p.FullName })
+            .FirstOrDefaultAsync()
+            ?? throw new InvalidOperationException("Bệnh nhân không tồn tại.");
+        if (dto.MedicalRecordId.HasValue && !await _context.MedicalRecords
+                .AnyAsync(m => m.Id == dto.MedicalRecordId.Value && m.PatientId == dto.PatientId && !m.IsDeleted))
+            throw new InvalidOperationException("Hồ sơ bệnh án không thuộc bệnh nhân này.");
+        dto.PatientCode = patient.PatientCode ?? string.Empty;
+        dto.PatientName = patient.FullName ?? string.Empty;
+
         if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
         {
             // Update existing

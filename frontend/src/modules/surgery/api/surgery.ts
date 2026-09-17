@@ -70,6 +70,8 @@ export interface SurgeryDto {
   createdBy?: string;
   approvedAt?: string;
   approvedBy?: string;
+  /** Non-blocking warnings (e.g. consent check on start). */
+  warnings?: string[];
 }
 
 export interface SurgeryTeamMemberDto {
@@ -135,7 +137,8 @@ export interface CreateSurgeryRequestDto {
   inpatientId?: string;
   /** Link to OPD/CĐHA examination — used for workflow integration (G-09, G-33) */
   examinationId?: string;
-  surgeryServiceId: string;
+  /** Dịch vụ PTTT (Services) — BE lưu và tạo chỉ định tính tiền. Bỏ trống = nhập tự do qua surgeryMethod. */
+  surgeryServiceId?: string;
   surgeryType: number;
   surgeryClass: number;
   surgeryNature: number;

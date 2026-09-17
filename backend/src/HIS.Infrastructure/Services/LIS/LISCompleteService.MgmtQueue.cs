@@ -619,9 +619,9 @@ public partial class LISCompleteService {
                 // R1 (2a): upsert chỉ số con per-OBX (idempotent theo ParameterCode khi analyzer gửi lại).
                 // Cờ: ưu tiên cờ HL7 OBX-8 (N/H/L/HH/LL), thiếu/khác chuẩn → tính từ catalog.
                 var num = LabFlagEvaluator.TryParse(result.Value);
-                var gender = await db.ServiceRequests.Where(r => r.Id == detail.ServiceRequestId)
-                    .Select(r => (int?)r.MedicalRecord.Patient.Gender).FirstOrDefaultAsync();
-                var (min, max) = LabFlagEvaluator.ResolveRange(cat, gender);
+                var mrInfo = await db.ServiceRequests.Where(r => r.Id == detail.ServiceRequestId)
+                    .Select(r => new { r.MedicalRecord.PatientId, Gender = (int?)r.MedicalRecord.Patient.Gender }).FirstOrDefaultAsync();
+                var (min, max) = LabFlagEvaluator.ResolveRange(cat, mrInfo?.Gender);
                 var flag = LabFlagEvaluator.NormalizeHl7Flag(result.AbnormalFlag)
                            ?? LabFlagEvaluator.EvaluateFlag(num, min, max, cat?.CriticalLow, cat?.CriticalHigh);
                 var row = await db.ServiceRequestDetailParameters
@@ -651,6 +651,13 @@ public partial class LISCompleteService {
                     ? result.ReferenceRange : LabFlagEvaluator.BuildReferenceRange(min, max);
                 row.Flag = flag;
                 row.UpdatedAt = DateTime.Now;
+
+                // QA-R7: the live analyzer path never raised critical-value alerts (manual entry did since R6).
+                // Per-OBX upsert → only this parameter's open alert is replaced.
+                await RemoveOpenCriticalAlertsAsync(db, detail.Id, result.TestCode ?? "");
+                if (!string.IsNullOrEmpty(result.Value) && mrInfo != null)
+                    AddCriticalAlertIfNeeded(db, detail.Id, mrInfo.PatientId, flag, result.TestCode ?? "",
+                        row.ParameterName, result.Value, num, row.Unit, cat?.CriticalLow, cat?.CriticalHigh);
 
                 if (directMatch)
                     detail.Result = result.Value ?? ""; // dịch vụ 1 chỉ số: giữ hành vi cũ (giá trị trần)

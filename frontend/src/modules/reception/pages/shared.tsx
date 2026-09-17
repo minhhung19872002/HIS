@@ -118,8 +118,8 @@ export const ageOf = (row: RawRow): number | string => {
   return '—';
 };
 
-// Do NOT use the BE treatmentTypeName: it maps TreatmentType (1 = ngoại trú) as if it were the payer,
-// so every outpatient visit read "Khám BHYT".
+// Visit label = emergency + payer (PatientType). The BE treatmentTypeName (ReceptionCompleteService.Queue.cs
+// BuildAdmissionDto) follows the same rule — keep both in sync.
 export const visitTypeKey = (row: RawRow): string | undefined => {
   if (row.isEmergency || row.treatmentType === 3) return 'emergency';
   switch (row.patientType) {
