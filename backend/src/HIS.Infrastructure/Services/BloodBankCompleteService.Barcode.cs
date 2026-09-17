@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using HIS.Application.DTOs.BloodBank;
 using HIS.Application.Services;
 using HIS.Infrastructure.Data;
+using static HIS.Infrastructure.Services.PdfTemplateHelper;
 
 namespace HIS.Infrastructure.Services
 {
@@ -73,9 +74,9 @@ namespace HIS.Infrastructure.Services
                     if (bag != null)
                     {
                         sb.AppendLine("<div class='label'>");
-                        sb.AppendLine($"<p class='barcode'>*{bag.Barcode}*</p>");
-                        sb.AppendLine($"<p><strong>{bag.BagCode}</strong></p>");
-                        sb.AppendLine($"<p>{bag.BloodType} {bag.RhFactor} | {bag.ProductTypeName}</p>");
+                        sb.AppendLine($"<p class='barcode'>*{Esc(bag.Barcode)}*</p>");
+                        sb.AppendLine($"<p><strong>{Esc(bag.BagCode)}</strong></p>");
+                        sb.AppendLine($"<p>{Esc(bag.BloodType)} {Esc(bag.RhFactor)} | {Esc(bag.ProductTypeName)}</p>");
                         sb.AppendLine($"<p>Vol: {bag.Volume} mL | Exp: {bag.ExpiryDate:dd/MM/yyyy}</p>");
                         sb.AppendLine("</div>");
                     }

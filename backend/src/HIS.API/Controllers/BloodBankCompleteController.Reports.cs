@@ -70,7 +70,7 @@ namespace HIS.API.Controllers
         {
             (fromDate, toDate) = NormalizeReportRange(fromDate, toDate);
             var result = await _bloodBankService.PrintImportReportAsync(fromDate, toDate, supplierId);
-            return File(result, "application/pdf", "blood_import_report.pdf");
+            return File(result, "text/html; charset=utf-8"); // QA-R7: the body is HTML, not a PDF
         }
 
         /// <summary>
@@ -85,7 +85,7 @@ namespace HIS.API.Controllers
         {
             (fromDate, toDate) = NormalizeReportRange(fromDate, toDate);
             var result = await _bloodBankService.PrintExportReportAsync(fromDate, toDate, departmentId);
-            return File(result, "application/pdf", "blood_export_report.pdf");
+            return File(result, "text/html; charset=utf-8"); // QA-R7: the body is HTML, not a PDF
         }
 
         /// <summary>
@@ -96,7 +96,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> PrintInventoryReport(Guid inventoryId)
         {
             var result = await _bloodBankService.PrintInventoryReportAsync(inventoryId);
-            return File(result, "application/pdf", $"blood_inventory_{inventoryId}.pdf");
+            return File(result, "text/html; charset=utf-8"); // QA-R7: the body is HTML, not a PDF
         }
 
         /// <summary>
@@ -110,7 +110,7 @@ namespace HIS.API.Controllers
         {
             (fromDate, toDate) = NormalizeReportRange(fromDate, toDate);
             var result = await _bloodBankService.PrintStockReportAsync(fromDate, toDate);
-            return File(result, "application/pdf", "blood_stock_report.pdf");
+            return File(result, "text/html; charset=utf-8"); // QA-R7: the body is HTML, not a PDF
         }
 
         /// <summary>
@@ -125,7 +125,7 @@ namespace HIS.API.Controllers
         {
             (fromDate, toDate) = NormalizeReportRange(fromDate, toDate);
             var result = await _bloodBankService.PrintBloodIssueSummaryAsync(fromDate, toDate, departmentId);
-            return File(result, "application/pdf", "blood_issue_summary.pdf");
+            return File(result, "text/html; charset=utf-8"); // QA-R7: the body is HTML, not a PDF
         }
 
         /// <summary>
@@ -155,7 +155,7 @@ namespace HIS.API.Controllers
         {
             (fromDate, toDate) = NormalizeReportRange(fromDate, toDate);
             var result = await _bloodBankService.PrintBloodIssueByPatientAsync(patientId, fromDate, toDate);
-            return File(result, "application/pdf", $"blood_issue_patient_{patientId}.pdf");
+            return File(result, "text/html; charset=utf-8"); // QA-R7: the body is HTML, not a PDF
         }
 
         /// <summary>

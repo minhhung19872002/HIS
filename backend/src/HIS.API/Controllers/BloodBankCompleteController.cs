@@ -117,7 +117,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> PrintImportReceipt(Guid receiptId)
         {
             var result = await _bloodBankService.PrintImportReceiptAsync(receiptId);
-            return File(result, "application/pdf", $"blood_import_{receiptId}.pdf");
+            return File(result, "text/html; charset=utf-8"); // QA-R7: the body is HTML, not a PDF
         }
 
         #endregion
@@ -220,7 +220,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> PrintIssueReceipt(Guid receiptId)
         {
             var result = await _bloodBankService.PrintIssueReceiptAsync(receiptId);
-            return File(result, "application/pdf", $"blood_issue_{receiptId}.pdf");
+            return File(result, "text/html; charset=utf-8"); // QA-R7: the body is HTML, not a PDF
         }
 
         #endregion

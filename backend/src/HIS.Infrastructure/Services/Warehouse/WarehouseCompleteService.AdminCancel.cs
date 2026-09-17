@@ -401,12 +401,20 @@ public partial class WarehouseCompleteService {
         // trong khi đơn vẫn bị đặt "Hủy". Nay đảo toàn bộ.
         var exportReceipts = await _context.ExportReceipts
             .Include(e => e.Details)
-            .Where(e => e.PrescriptionId == prescriptionId && e.Status != 2)
+            .Where(e => e.PrescriptionId == prescriptionId && e.Status != 2 && !e.IsDeleted)
             .OrderBy(e => e.CreatedAt)
             .ToListAsync();
 
         if (exportReceipts.Count == 0)
         {
+            // QA-R7: a voucher folded into a multi-prescription merged voucher is soft-deleted and the merged one has no
+            // PrescriptionId — the legacy branch below then reset the order as "kho chưa bị trừ" although it was deducted.
+            if (await _context.ExportReceipts.IgnoreQueryFilters().AnyAsync(e =>
+                    e.PrescriptionId == prescriptionId && e.IsDeleted && e.Status == 1))
+                throw new InvalidOperationException(
+                    "Phiếu xuất của đơn này đã được gộp vào phiếu gộp nhiều đơn — không hủy phát tự động được. "
+                    + "Lập phiếu nhập hoàn trả cho số thuốc trả lại.");
+
             // Legacy (trước fix 2026-06-13): fallback CompleteDispensing cũ flip status "đã phát"
             // mà KHÔNG tạo phiếu xuất/không trừ kho → không có gì để hoàn kho. Cho hoàn TRẠNG THÁI
             // đơn (về Đã duyệt) để phát lại đúng luồng; kho không cộng vì chưa từng bị trừ.
@@ -444,11 +452,23 @@ public partial class WarehouseCompleteService {
             throw new InvalidOperationException("Không tìm thấy phiếu xuất cho đơn thuốc này");
         }
 
+        // QA-R7: two concurrent cancels both read the vouchers as live and returned the stock twice — claim them first.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        if (tx != null)
+        {
+            var ids = exportReceipts.Select(e => e.Id).ToList();
+            var claimed = await _context.ExportReceipts
+                .Where(e => ids.Contains(e.Id) && e.Status != 2 && !e.IsDeleted)
+                .ExecuteUpdateAsync(u => u.SetProperty(e => e.Status, 2));
+            if (claimed != ids.Count)
+                throw new InvalidOperationException("Đơn thuốc này vừa được hủy phát bởi thao tác khác.");
+        }
+
         // Tạo phiếu nhập hoàn trả
         var importReceipt = new ImportReceipt
         {
             Id = Guid.NewGuid(),
-            ReceiptCode = CodeGenerator.Timestamp("HT"),
+            ReceiptCode = await NextImportCodeAsync("HT"),
             // QA0915 review: was 3, which StockReceiptDto / CreateTransferReceiptAsync define as "Nhập chuyển kho"
             // (and the auto transfer counter-receipt uses). 4 = "Nhập hoàn trả khoa", same as CreateDepartmentReturnReceiptAsync.
             ImportType = 4, // Hoàn trả khoa
@@ -516,6 +536,7 @@ public partial class WarehouseCompleteService {
         }
 
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         // QA-R3: invoice total = ledger (a paid invoice becomes over-paid → refund flow, never silently edited).
         var cancelledRecordId = prescription?.MedicalRecordId ?? exportReceipts[0].MedicalRecordId;
@@ -712,18 +733,45 @@ public partial class WarehouseCompleteService {
                 Success = false,
                 Message = "Chỉ có thể gộp phiếu xuất cùng bệnh nhân"
             };
+        // QA-R7: the merged voucher took the first voucher's warehouse/type — lines issued from another warehouse
+        // then looked like they left this one (and a later cancel returned them to the wrong store).
+        if (vouchers.Select(v => v.WarehouseId).Distinct().Count() > 1
+            || vouchers.Select(v => v.ExportType).Distinct().Count() > 1)
+            return new HIS.Application.DTOs.NangCap18.MergeVouchersResultDto
+            {
+                Success = false,
+                Message = "Chỉ gộp được phiếu xuất cùng kho và cùng loại phiếu"
+            };
+        var prescriptionIds = vouchers.Select(v => v.PrescriptionId).Distinct().ToList();
+        var recordIds = vouchers.Select(v => v.MedicalRecordId).Distinct().ToList();
+
+        // QA-R7: two concurrent merges of the same vouchers both succeeded (duplicated lines). Claim the sources first.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        if (tx != null)
+        {
+            var ids = vouchers.Select(v => v.Id).ToList();
+            var claimed = await _context.ExportReceipts
+                .Where(r => ids.Contains(r.Id) && !r.IsDeleted && r.Status == 1)
+                .ExecuteUpdateAsync(u => u.SetProperty(r => r.IsDeleted, true));
+            if (claimed != ids.Count)
+                throw new InvalidOperationException("Một số phiếu xuất vừa được gộp/hủy bởi thao tác khác — tải lại danh sách.");
+        }
 
         // Create merged voucher
         var firstVoucher = vouchers.First();
         var mergedReceipt = new ExportReceipt
         {
             Id = Guid.NewGuid(),
-            ReceiptCode = CodeGenerator.Timestamp("MRG"),
+            ReceiptCode = await NextExportCodeAsync("MRG"),
             ReceiptDate = DateTime.Now,
             WarehouseId = firstVoucher.WarehouseId,
             ExportType = firstVoucher.ExportType,
             PatientId = firstVoucher.PatientId,
-            MedicalRecordId = firstVoucher.MedicalRecordId,
+            // Keep the links only when every source shares them (CancelDispensedPrescription finds vouchers by PrescriptionId).
+            MedicalRecordId = recordIds.Count == 1 ? recordIds[0] : null,
+            PrescriptionId = prescriptionIds.Count == 1 ? prescriptionIds[0] : null,
+            ToDepartmentId = vouchers.Select(v => v.ToDepartmentId).Distinct().Count() == 1 ? firstVoucher.ToDepartmentId : null,
+            IsBilled = vouchers.All(v => v.IsBilled),
             Note = $"Gộp từ {vouchers.Count} phiếu: {string.Join(", ", vouchers.Select(v => v.ReceiptCode))}",
             Status = 1,
             CreatedAt = DateTime.Now,
@@ -777,6 +825,7 @@ public partial class WarehouseCompleteService {
         mergedReceipt.TotalAmount = totalAmount;
         _context.ExportReceipts.Add(mergedReceipt);
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         return new HIS.Application.DTOs.NangCap18.MergeVouchersResultDto
         {

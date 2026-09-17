@@ -401,25 +401,93 @@ public partial class InpatientCompleteService {
         return await Task.FromResult(Encoding.UTF8.GetBytes(html));
     }
 
-    public Task<DrugReactionRecordDto> CreateDrugReactionRecordAsync(Guid admissionId, Guid? medicineId, string medicineName, int severity, string symptoms, string? treatment, Guid userId)
+    // QA-R7: drug reactions were echoed back (200, nothing saved) and the list was always empty. They are stored in
+    // the hospital ADR register (AdrReports, TT 51/2017) — the same record pharmacovigilance reviews. The table has
+    // no AdmissionId column, so the admission is tagged at the start of Notes.
+    private static string DrugReactionAdmissionTag(Guid admissionId) => $"[ADMISSION:{admissionId}]";
+
+    public async Task<DrugReactionRecordDto> CreateDrugReactionRecordAsync(Guid admissionId, Guid? medicineId, string medicineName, int severity, string symptoms, string? treatment, Guid userId)
     {
-        return Task.FromResult(new DrugReactionRecordDto
+        if (severity < 1 || severity > 3)
+            throw new InvalidOperationException("Mức độ phản ứng phải từ 1 (nhẹ) đến 3 (nặng).");
+        if (string.IsNullOrWhiteSpace(symptoms))
+            throw new InvalidOperationException("Phải mô tả triệu chứng phản ứng.");
+
+        var admission = await _context.Admissions.AsNoTracking()
+            .Where(a => a.Id == admissionId)
+            .Select(a => new { a.Patient.PatientCode, a.Patient.FullName, a.Patient.DateOfBirth, a.Patient.Gender })
+            .FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Không tìm thấy lượt nhập viện");
+
+        if (medicineId.HasValue)
+        {
+            var name = await _context.Medicines.AsNoTracking()
+                .Where(m => m.Id == medicineId.Value).Select(m => m.MedicineName).FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException("Không tìm thấy thuốc");
+            medicineName = name;
+        }
+        if (string.IsNullOrWhiteSpace(medicineName))
+            throw new InvalidOperationException("Phải chọn hoặc nhập tên thuốc nghi ngờ.");
+
+        var now = DateTime.Now;
+        var reporter = await _context.Users.AsNoTracking()
+            .Where(u => u.Id == userId).Select(u => u.FullName).FirstOrDefaultAsync();
+        var report = new AdrReport
         {
             Id = Guid.NewGuid(),
-            AdmissionId = admissionId,
-            MedicineId = medicineId,
-            MedicineName = medicineName,
-            ReactionTime = DateTime.Now,
+            PatientName = admission.FullName,
+            PatientCode = admission.PatientCode,
+            PatientAge = admission.DateOfBirth.HasValue ? $"{now.Year - admission.DateOfBirth.Value.Year}" : string.Empty,
+            Gender = admission.Gender is 1 or 2 ? admission.Gender : 0,
+            DrugName = medicineName.Trim(),
+            ReactionDescription = symptoms.Trim(),
+            ReactionStartDate = now,
             Severity = severity,
-            Symptoms = symptoms,
-            Treatment = treatment,
-            ReportedBy = userId
-        });
+            ManagementTaken = treatment,
+            ReporterName = reporter,
+            ReportDate = now,
+            Notes = medicineId.HasValue
+                ? $"{DrugReactionAdmissionTag(admissionId)} [MEDICINE:{medicineId}]"
+                : DrugReactionAdmissionTag(admissionId),
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = userId.ToString(),
+        };
+        _context.AdrReports.Add(report);
+        await _context.SaveChangesAsync();
+        return ToDrugReactionDto(report, admissionId, userId);
     }
 
-    public Task<List<DrugReactionRecordDto>> GetDrugReactionRecordsAsync(Guid admissionId)
+    public async Task<List<DrugReactionRecordDto>> GetDrugReactionRecordsAsync(Guid admissionId)
     {
-        return Task.FromResult(new List<DrugReactionRecordDto>());
+        var tag = DrugReactionAdmissionTag(admissionId);
+        var rows = await _context.AdrReports.AsNoTracking()
+            .Where(r => r.Notes != null && r.Notes.StartsWith(tag))
+            .OrderByDescending(r => r.ReactionStartDate)
+            .Take(200)
+            .ToListAsync();
+        return rows.Select(r => ToDrugReactionDto(r, admissionId,
+            Guid.TryParse(r.CreatedBy, out var by) ? by : Guid.Empty)).ToList();
+    }
+
+    private static DrugReactionRecordDto ToDrugReactionDto(AdrReport r, Guid admissionId, Guid reportedBy)
+    {
+        Guid? medicineId = null;
+        var i = r.Notes?.IndexOf("[MEDICINE:", StringComparison.Ordinal) ?? -1;
+        if (i >= 0 && r.Notes!.Length >= i + 46 && Guid.TryParse(r.Notes!.Substring(i + 10, 36), out var mid)) medicineId = mid;
+        return new DrugReactionRecordDto
+        {
+            Id = r.Id,
+            AdmissionId = admissionId,
+            MedicineId = medicineId,
+            MedicineName = r.DrugName,
+            ReactionTime = r.ReactionStartDate,
+            Severity = r.Severity,
+            Symptoms = r.ReactionDescription,
+            Treatment = r.ManagementTaken,
+            Outcome = r.Outcome,
+            ReportedBy = reportedBy,
+            ReportedByName = r.ReporterName ?? string.Empty,
+        };
     }
 
     public async Task<byte[]> PrintDrugReactionRecordAsync(Guid id)

@@ -475,7 +475,8 @@ public partial class PharmacyService
         var transfer = new WarehouseTransfer
         {
             Id = Guid.NewGuid(),
-            TransferCode = $"DC-{DateTime.Now:yyyyMMdd}-{DateTime.Now:HHmmss}",
+            // QA-R7: a second-resolution stamp collided for two transfers in the same second.
+            TransferCode = $"DC-{DateTime.Now:yyyyMMdd}-{DateTime.Now:HHmmssfff}",
             FromWarehouseId = fromWarehouseId,
             ToWarehouseId = toWarehouseId,
             TransferDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
@@ -514,11 +515,15 @@ public partial class PharmacyService
 
             var medicineIds = resolved.Select(r => r.MedicineId).Distinct().ToList();
 
+            // QA-R7: "available" summed Quantity over every lot — reserved units, expired and locked lots included — so a
+            // transfer that receiving could never fulfil (the issue picks usable lots only) was accepted.
+            var today = DateTime.Today;
             var stockByMedicine = await _context.InventoryItems.AsNoTracking()
                 .Where(i => !i.IsDeleted && i.WarehouseId == fromWarehouseId
-                    && i.MedicineId != null && medicineIds.Contains(i.MedicineId.Value))
+                    && i.MedicineId != null && medicineIds.Contains(i.MedicineId.Value)
+                    && !i.IsLocked && (i.ExpiryDate == null || i.ExpiryDate >= today))
                 .GroupBy(i => i.MedicineId!.Value)
-                .Select(g => new { MedicineId = g.Key, Available = g.Sum(x => x.Quantity), AvgPrice = g.Average(x => x.UnitPrice) })
+                .Select(g => new { MedicineId = g.Key, Available = g.Sum(x => x.Quantity - x.ReservedQuantity), AvgPrice = g.Average(x => x.UnitPrice) })
                 .ToDictionaryAsync(x => x.MedicineId);
 
             var nameById = await _context.Medicines.AsNoTracking()

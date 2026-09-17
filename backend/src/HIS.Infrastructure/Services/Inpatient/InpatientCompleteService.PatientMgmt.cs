@@ -523,20 +523,13 @@ public partial class InpatientCompleteService {
         };
     }
 
+    // QA-R7: create/complete returned 200 with a fresh Id but saved nothing (no combined-treatment table), so a
+    // request "sent" to another department never reached it. Refuse honestly until the table exists.
+    private const string CombinedTreatmentNotSupported =
+        "Chưa hỗ trợ lưu điều trị kết hợp (chưa có bảng dữ liệu) — dùng hội chẩn / chuyển khoa.";
+
     public Task<CombinedTreatmentDto> CreateCombinedTreatmentAsync(CreateCombinedTreatmentDto dto, Guid userId)
-    {
-        return Task.FromResult(new CombinedTreatmentDto
-        {
-            Id = Guid.NewGuid(),
-            AdmissionId = dto.AdmissionId,
-            ConsultingDepartmentId = dto.ConsultingDepartmentId,
-            RequestDate = DateTime.Now,
-            RequestReason = dto.RequestReason,
-            ConsultingDiagnosis = dto.ConsultingDiagnosis,
-            ConsultingDoctorId = userId,
-            Status = 0
-        });
-    }
+        => throw new NotSupportedException(CombinedTreatmentNotSupported);
 
     public Task<List<CombinedTreatmentDto>> GetCombinedTreatmentsAsync(Guid admissionId)
     {
@@ -544,15 +537,7 @@ public partial class InpatientCompleteService {
     }
 
     public Task<CombinedTreatmentDto> CompleteCombinedTreatmentAsync(Guid id, string treatmentResult, Guid userId)
-    {
-        return Task.FromResult(new CombinedTreatmentDto
-        {
-            Id = id,
-            Status = 2,
-            TreatmentResult = treatmentResult,
-            CompletedDate = DateTime.Now
-        });
-    }
+        => throw new NotSupportedException(CombinedTreatmentNotSupported);
 
     public async Task<AdmissionDto> TransferDepartmentAsync(DepartmentTransferDto dto, Guid userId)
     {

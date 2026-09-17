@@ -590,6 +590,22 @@ public partial class WarehouseCompleteService {
         if (warehouse == null)
             throw new KeyNotFoundException("Warehouse not found");
 
+        // QA-R7: a warehouse could have several open stock-takes at once (each snapshotting the same book
+        // quantities) — adjusting both applied the same difference twice. One open count per warehouse.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.Warehouse.StockTake.{warehouseId:N}",
+            "Đang có người mở phiếu kiểm kê cho kho này, vui lòng thử lại.");
+        var openCode = await _context.StockTakes.AsNoTracking()
+            // Pre-push review: v2 has no cancel button for stock-takes yet, so a forgotten legacy count must not
+            // lock the warehouse forever — only a count opened in the last 30 days blocks a new one.
+            .Where(s => s.WarehouseId == warehouseId && (s.Status == 0 || s.Status == 1)
+                        && s.CreatedAt >= DateTime.UtcNow.AddDays(-30))
+            .Select(s => s.StockTakeCode)
+            .FirstOrDefaultAsync();
+        if (openCode != null)
+            throw new InvalidOperationException(
+                $"Kho đang có phiếu kiểm kê {openCode} chưa hoàn thành — hoàn thành hoặc hủy phiếu đó trước khi mở phiếu mới.");
+
         // Get current stock for the warehouse
         var stocks = await _context.InventoryItems
             .Where(i => i.WarehouseId == warehouseId && i.Quantity > 0)
@@ -630,7 +646,7 @@ public partial class WarehouseCompleteService {
         var stockTake = new StockTake
         {
             Id = Guid.NewGuid(),
-            StockTakeCode = $"KK{DateTime.Now:yyyyMMddHHmmss}",
+            StockTakeCode = await NextVoucherCodeAsync("KK", c => _context.StockTakes.IgnoreQueryFilters().AnyAsync(s => s.StockTakeCode == c)),
             StockTakeDate = DateTime.Now,
             WarehouseId = warehouseId,
             PeriodFrom = periodFrom,
@@ -661,6 +677,7 @@ public partial class WarehouseCompleteService {
             });
         }
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         var user = await _context.Users.FindAsync(userId);
 
@@ -805,6 +822,15 @@ public partial class WarehouseCompleteService {
     /// hiện tại của đúng lô, không ghi đè bằng số thực đếm (hàng có thể đã nhập/xuất sau lúc đếm).
     /// Mỗi phía chênh lệch sinh một phiếu đã duyệt (nhập kiểm kê KT / xuất kiểm kê KG) để sổ kho khớp.
     /// </summary>
+    // QA-R7: the adjustment vouchers are recognised by these note prefixes (no FK column to the stock-take).
+    private const string StockTakeIncreaseNote = "Điều chỉnh tăng theo phiếu kiểm kê";
+    private const string StockTakeDecreaseNote = "Điều chỉnh giảm theo phiếu kiểm kê";
+
+    /// <summary>True for the receipt (ImportType 6) / issue (ExportType 9) that AdjustStockAfterTakeAsync booked.</summary>
+    private static bool IsStockTakeAdjustment(int voucherType, int adjustmentType, string? note)
+        => voucherType == adjustmentType && note != null
+           && note.StartsWith(adjustmentType == 6 ? StockTakeIncreaseNote : StockTakeDecreaseNote);
+
     public async Task<bool> AdjustStockAfterTakeAsync(Guid stockTakeId, Guid userId)
     {
         var stockTake = await _context.StockTakes
@@ -817,6 +843,18 @@ public partial class WarehouseCompleteService {
             throw new InvalidOperationException("Phải hoàn thành phiếu kiểm kê trước khi điều chỉnh tồn.");
 
         await EnsureWarehouseNotLockedAsync(stockTake.WarehouseId);
+
+        // QA-R7: the status check above is read-then-write — claim the stock-take (2 → 3) atomically so a
+        // double click cannot apply the differences twice.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        if (tx != null)
+        {
+            var claimed = await _context.StockTakes
+                .Where(s => s.Id == stockTakeId && s.Status == 2)
+                .ExecuteUpdateAsync(u => u.SetProperty(s => s.Status, 3));
+            if (claimed == 0)
+                throw new InvalidOperationException("Phiếu kiểm kê đã được điều chỉnh tồn trước đó.");
+        }
 
         var lines = stockTake.Items.Where(i => !i.IsDeleted && i.ActualQuantity != i.BookQuantity).ToList();
         var lotIds = lines.Select(i => i.InventoryItemId).Distinct().ToList();
@@ -847,14 +885,14 @@ public partial class WarehouseCompleteService {
                 increase ??= new ImportReceipt
                 {
                     Id = Guid.NewGuid(),
-                    ReceiptCode = $"KT{now:yyyyMMddHHmmss}",
+                    ReceiptCode = await NextImportCodeAsync("KT"),
                     ReceiptDate = now,
                     WarehouseId = stockTake.WarehouseId,
                     ImportType = 6, // Nhập kiểm kê
                     Status = 1,
                     ApprovedBy = userId,
                     ApprovedAt = now,
-                    Note = $"Điều chỉnh tăng theo phiếu kiểm kê {stockTake.StockTakeCode}",
+                    Note = $"{StockTakeIncreaseNote} {stockTake.StockTakeCode}",
                     CreatedAt = now,
                     CreatedBy = userId.ToString()
                 };
@@ -882,12 +920,12 @@ public partial class WarehouseCompleteService {
                 decrease ??= new ExportReceipt
                 {
                     Id = Guid.NewGuid(),
-                    ReceiptCode = $"KG{now:yyyyMMddHHmmss}",
+                    ReceiptCode = await NextExportCodeAsync("KG"),
                     ReceiptDate = now,
                     WarehouseId = stockTake.WarehouseId,
                     ExportType = 9, // Xuất kiểm kê
                     Status = 1,
-                    Note = $"Điều chỉnh giảm theo phiếu kiểm kê {stockTake.StockTakeCode}",
+                    Note = $"{StockTakeDecreaseNote} {stockTake.StockTakeCode}",
                     CreatedAt = now,
                     CreatedBy = userId.ToString()
                 };
@@ -918,13 +956,28 @@ public partial class WarehouseCompleteService {
         stockTake.UpdatedAt = DateTime.UtcNow;
         stockTake.UpdatedBy = userId.ToString();
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
         return true;
     }
 
     public async Task<bool> CancelStockTakeAsync(Guid stockTakeId, string reason, Guid userId)
     {
-        // Stock take cancellation is handled in-memory (no StockTake table yet)
-        await Task.CompletedTask;
+        // QA-R7: was a stub returning true (the StockTakes table exists). Only an open count can be cancelled —
+        // it never touched stock; a completed/adjusted one is history. Needed now that a warehouse may have
+        // only one open stock-take (an abandoned one must be closable).
+        var cancelled = await _context.StockTakes
+            .Where(s => s.Id == stockTakeId && (s.Status == 0 || s.Status == 1))
+            .ExecuteUpdateAsync(u => u
+                .SetProperty(s => s.Status, 4)
+                .SetProperty(s => s.CancelReason, reason)
+                .SetProperty(s => s.UpdatedAt, DateTime.UtcNow)
+                .SetProperty(s => s.UpdatedBy, userId.ToString()));
+        if (cancelled == 0)
+        {
+            if (!await _context.StockTakes.AnyAsync(s => s.Id == stockTakeId))
+                throw new KeyNotFoundException("Không tìm thấy phiếu kiểm kê");
+            throw new InvalidOperationException("Chỉ hủy được phiếu kiểm kê chưa hoàn thành.");
+        }
         return true;
     }
 

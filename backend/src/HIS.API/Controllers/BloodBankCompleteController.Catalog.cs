@@ -32,7 +32,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> PrintBloodBagBarcodes([FromBody] PrintBloodBagBarcodeDto dto)
         {
             var result = await _bloodBankService.PrintBloodBagBarcodesAsync(dto);
-            return File(result, "application/pdf", "blood_bag_barcodes.pdf");
+            return File(result, "text/html; charset=utf-8"); // QA-R7: the body is HTML, not a PDF
         }
 
         /// <summary>

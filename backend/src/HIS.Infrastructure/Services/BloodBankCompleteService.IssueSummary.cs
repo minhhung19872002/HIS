@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using HIS.Application.DTOs.BloodBank;
 using HIS.Application.Services;
 using HIS.Infrastructure.Data;
+using static HIS.Infrastructure.Services.PdfTemplateHelper;
 
 namespace HIS.Infrastructure.Services
 {
@@ -30,13 +31,13 @@ namespace HIS.Infrastructure.Services
             if (summary.ByProductType != null)
             {
                 foreach (var item in summary.ByProductType)
-                    sb.AppendLine($"<tr><td>{item.ProductTypeName}</td><td>{item.Quantity}</td><td>{item.Volume}</td></tr>");
+                    sb.AppendLine($"<tr><td>{Esc(item.ProductTypeName)}</td><td>{item.Quantity}</td><td>{item.Volume}</td></tr>");
             }
             sb.AppendLine("</table><h3>Theo khoa</h3><table><tr><th>Khoa</th><th>So luong</th><th>The tich (mL)</th></tr>");
             if (summary.ByDepartment != null)
             {
                 foreach (var item in summary.ByDepartment)
-                    sb.AppendLine($"<tr><td>{item.DepartmentName}</td><td>{item.Quantity}</td><td>{item.Volume}</td></tr>");
+                    sb.AppendLine($"<tr><td>{Esc(item.DepartmentName)}</td><td>{item.Quantity}</td><td>{item.Volume}</td></tr>");
             }
             sb.AppendLine("</table></body></html>");
             return Encoding.UTF8.GetBytes(sb.ToString());
@@ -135,15 +136,15 @@ namespace HIS.Infrastructure.Services
             sb.AppendLine("<!DOCTYPE html><html><head><meta charset='utf-8'/><title>Phieu linh mau benh nhan</title>");
             sb.AppendLine("<style>body{font-family:Arial;margin:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #333;padding:6px;text-align:left}th{background:#f0f0f0}</style></head><body>");
             sb.AppendLine("<h2 style='text-align:center'>PHIEU LINH MAU THEO BENH NHAN</h2>");
-            sb.AppendLine($"<p><strong>Ho ten:</strong> {data.PatientName} | <strong>Ma BN:</strong> {data.PatientCode}</p>");
-            sb.AppendLine($"<p><strong>Tuoi:</strong> {data.Age} | <strong>Gioi tinh:</strong> {data.Gender} | <strong>Nhom mau:</strong> {data.BloodType} {data.RhFactor}</p>");
-            sb.AppendLine($"<p><strong>Chan doan:</strong> {data.Diagnosis} | <strong>Khoa:</strong> {data.DepartmentName}</p>");
+            sb.AppendLine($"<p><strong>Ho ten:</strong> {Esc(data.PatientName)} | <strong>Ma BN:</strong> {Esc(data.PatientCode)}</p>");
+            sb.AppendLine($"<p><strong>Tuoi:</strong> {data.Age} | <strong>Gioi tinh:</strong> {Esc(data.Gender)} | <strong>Nhom mau:</strong> {Esc(data.BloodType)} {Esc(data.RhFactor)}</p>");
+            sb.AppendLine($"<p><strong>Chan doan:</strong> {Esc(data.Diagnosis)} | <strong>Khoa:</strong> {Esc(data.DepartmentName)}</p>");
             sb.AppendLine("<table><tr><th>STT</th><th>Ngay cap</th><th>Ma tui</th><th>Loai CP</th><th>The tich</th><th>Trang thai</th></tr>");
             int stt = 1;
             if (data.Items != null)
             {
                 foreach (var item in data.Items)
-                    sb.AppendLine($"<tr><td>{stt++}</td><td>{item.IssueDate:dd/MM/yyyy}</td><td>{item.BagCode}</td><td>{item.ProductTypeName}</td><td>{item.Volume}</td><td>{item.TransfusionStatus}</td></tr>");
+                    sb.AppendLine($"<tr><td>{stt++}</td><td>{item.IssueDate:dd/MM/yyyy}</td><td>{Esc(item.BagCode)}</td><td>{Esc(item.ProductTypeName)}</td><td>{item.Volume}</td><td>{Esc(item.TransfusionStatus)}</td></tr>");
             }
             sb.AppendLine("</table></body></html>");
             return Encoding.UTF8.GetBytes(sb.ToString());

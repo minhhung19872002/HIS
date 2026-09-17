@@ -62,10 +62,11 @@ public partial class WarehouseCompleteService {
         if (dto.Items == null || dto.Items.Count == 0)
             throw new InvalidOperationException("Phiếu nhập phải có ít nhất 1 dòng thuốc.");
 
+        await using var codeTx = await SqlAppLock.BeginAsync(_context); // QA-R7: voucher-number lock scope
         var importReceipt = new ImportReceipt
         {
             Id = Guid.NewGuid(),
-            ReceiptCode = $"NK{DateTime.Now:yyyyMMddHHmmss}",
+            ReceiptCode = await NextImportCodeAsync("NK"),
             ReceiptDate = dto.ReceiptDate,
             WarehouseId = dto.WarehouseId,
             ImportType = 1, // NCC
@@ -149,6 +150,7 @@ public partial class WarehouseCompleteService {
         importReceipt.FinalAmount = totalAmount + vatTotal - discountTotal;
         _context.ImportReceipts.Add(importReceipt);
         await _context.SaveChangesAsync();
+        if (codeTx != null) await codeTx.CommitAsync();
 
         var user = await _context.Users.FindAsync(userId);
 
@@ -331,10 +333,11 @@ public partial class WarehouseCompleteService {
         if (warehouse == null)
             throw new KeyNotFoundException("Warehouse not found");
 
+        await using var codeTx = await SqlAppLock.BeginAsync(_context); // QA-R7: voucher-number lock scope
         var importReceipt = new ImportReceipt
         {
             Id = Guid.NewGuid(),
-            ReceiptCode = $"{codePrefix}{DateTime.Now:yyyyMMddHHmmss}",
+            ReceiptCode = await NextImportCodeAsync(codePrefix),
             ReceiptDate = dto.ReceiptDate,
             WarehouseId = dto.WarehouseId,
             ImportType = importType,
@@ -410,6 +413,7 @@ public partial class WarehouseCompleteService {
         importReceipt.FinalAmount = totalAmount;
         _context.ImportReceipts.Add(importReceipt);
         await _context.SaveChangesAsync();
+        if (codeTx != null) await codeTx.CommitAsync();
 
         var user = await _context.Users.FindAsync(userId);
 
@@ -578,6 +582,11 @@ public partial class WarehouseCompleteService {
         if (receipt.ImportType == 3 && receipt.Note != null && receipt.Note.StartsWith("[CK:"))
             throw new InvalidOperationException(
                 "Đây là phiếu nhận tự động của một phiếu chuyển kho — không hủy riêng được (phiếu xuất chuyển kho gốc vẫn đang hiệu lực).");
+        // QA-R7: same for the increase receipt that "Điều chỉnh tồn" books — cancelling it alone took the counted
+        // surplus back out while the stock-take stayed "Đã điều chỉnh".
+        if (IsStockTakeAdjustment(receipt.ImportType, 6, receipt.Note))
+            throw new InvalidOperationException(
+                "Đây là phiếu nhập tự động theo điều chỉnh kiểm kê — không hủy riêng được (phiếu kiểm kê vẫn ở trạng thái đã điều chỉnh).");
 
         // If already approved, reverse inventory
         if (receipt.Status == 1)
@@ -835,13 +844,12 @@ public partial class WarehouseCompleteService {
         }
     }
 
-    public async Task<SupplierPaymentDto> CreateSupplierPaymentAsync(SupplierPaymentDto dto, Guid userId)
+    public Task<SupplierPaymentDto> CreateSupplierPaymentAsync(SupplierPaymentDto dto, Guid userId)
     {
-        var user = await _context.Users.FindAsync(userId);
-        dto.Id = Guid.NewGuid();
-        dto.CreatedBy = userId;
-        dto.CreatedByName = user?.FullName ?? string.Empty;
-        return dto;
+        // QA-R7: this returned success with a fresh Id but wrote nothing (there is no supplier-payment table), so a
+        // payment "recorded" here never reduced the payable. Refuse honestly until the ledger exists.
+        throw new NotSupportedException(
+            "Chưa hỗ trợ ghi nhận thanh toán nhà cung cấp trên hệ thống (chưa có sổ thanh toán NCC).");
     }
 
     public async Task<byte[]> PrintStockReceiptAsync(Guid id)

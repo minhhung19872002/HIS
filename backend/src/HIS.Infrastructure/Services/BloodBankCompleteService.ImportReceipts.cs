@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using HIS.Application.DTOs.BloodBank;
 using HIS.Application.Services;
 using HIS.Infrastructure.Data;
+using static HIS.Infrastructure.Services.PdfTemplateHelper;
 
 namespace HIS.Infrastructure.Services
 {
@@ -361,19 +362,19 @@ namespace HIS.Infrastructure.Services
             sb.AppendLine("<!DOCTYPE html><html><head><meta charset='utf-8'/><title>Phieu nhap mau</title>");
             sb.AppendLine("<style>body{font-family:Arial;margin:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #333;padding:6px;text-align:left}th{background:#f0f0f0}</style></head><body>");
             sb.AppendLine("<h2 style='text-align:center'>PHIEU NHAP MAU TU NHA CUNG CAP</h2>");
-            sb.AppendLine($"<p><strong>Ma phieu:</strong> {receipt.ReceiptCode}</p>");
+            sb.AppendLine($"<p><strong>Ma phieu:</strong> {Esc(receipt.ReceiptCode)}</p>");
             sb.AppendLine($"<p><strong>Ngay nhap:</strong> {receipt.ReceiptDate:dd/MM/yyyy}</p>");
-            sb.AppendLine($"<p><strong>Nha cung cap:</strong> {receipt.SupplierName}</p>");
-            sb.AppendLine($"<p><strong>Nguoi giao:</strong> {receipt.DeliveryPerson}</p>");
-            sb.AppendLine($"<p><strong>Nguoi nhan:</strong> {receipt.ReceiverName}</p>");
+            sb.AppendLine($"<p><strong>Nha cung cap:</strong> {Esc(receipt.SupplierName)}</p>");
+            sb.AppendLine($"<p><strong>Nguoi giao:</strong> {Esc(receipt.DeliveryPerson)}</p>");
+            sb.AppendLine($"<p><strong>Nguoi nhan:</strong> {Esc(receipt.ReceiverName)}</p>");
             sb.AppendLine("<table><tr><th>STT</th><th>Ma tui</th><th>Nhom mau</th><th>Rh</th><th>Loai CP</th><th>The tich (mL)</th><th>Ngay thu</th><th>Han dung</th><th>Don gia</th><th>Thanh tien</th></tr>");
             int stt = 1;
             foreach (var item in receipt.Items)
             {
-                sb.AppendLine($"<tr><td>{stt++}</td><td>{item.BagCode}</td><td>{item.BloodType}</td><td>{item.RhFactor}</td><td>{item.ProductTypeName}</td><td>{item.Volume}</td><td>{item.CollectionDate:dd/MM/yyyy}</td><td>{item.ExpiryDate:dd/MM/yyyy}</td><td>{item.Price:N0}</td><td>{item.Amount:N0}</td></tr>");
+                sb.AppendLine($"<tr><td>{stt++}</td><td>{Esc(item.BagCode)}</td><td>{Esc(item.BloodType)}</td><td>{Esc(item.RhFactor)}</td><td>{Esc(item.ProductTypeName)}</td><td>{item.Volume}</td><td>{item.CollectionDate:dd/MM/yyyy}</td><td>{item.ExpiryDate:dd/MM/yyyy}</td><td>{item.Price:N0}</td><td>{item.Amount:N0}</td></tr>");
             }
             sb.AppendLine($"</table><p><strong>Tong so tui:</strong> {receipt.TotalBags} | <strong>Tong tien:</strong> {receipt.TotalAmount:N0}</p>");
-            sb.AppendLine($"<p><strong>Ghi chu:</strong> {receipt.Note}</p>");
+            sb.AppendLine($"<p><strong>Ghi chu:</strong> {Esc(receipt.Note)}</p>");
             sb.AppendLine("<div style='margin-top:40px;display:flex;justify-content:space-around'><div style='text-align:center'><p><strong>Nguoi giao</strong></p><br/><br/></div><div style='text-align:center'><p><strong>Nguoi nhan</strong></p><br/><br/></div><div style='text-align:center'><p><strong>Thu kho</strong></p><br/><br/></div></div>");
             sb.AppendLine("</body></html>");
             return Encoding.UTF8.GetBytes(sb.ToString());

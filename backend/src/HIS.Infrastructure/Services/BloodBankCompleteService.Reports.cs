@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using HIS.Application.DTOs.BloodBank;
 using HIS.Application.Services;
 using HIS.Infrastructure.Data;
+using static HIS.Infrastructure.Services.PdfTemplateHelper;
 
 namespace HIS.Infrastructure.Services
 {
@@ -179,7 +180,7 @@ namespace HIS.Infrastructure.Services
             int stt = 1;
             foreach (var r in receipts)
             {
-                sb.AppendLine($"<tr><td>{stt++}</td><td>{r.ReceiptCode}</td><td>{r.ReceiptDate:dd/MM/yyyy}</td><td>{r.SupplierName}</td><td>{r.TotalBags}</td><td>{r.TotalAmount:N0}</td><td>{r.Status}</td></tr>");
+                sb.AppendLine($"<tr><td>{stt++}</td><td>{Esc(r.ReceiptCode)}</td><td>{r.ReceiptDate:dd/MM/yyyy}</td><td>{Esc(r.SupplierName)}</td><td>{r.TotalBags}</td><td>{r.TotalAmount:N0}</td><td>{Esc(r.Status)}</td></tr>");
             }
             sb.AppendLine("</table></body></html>");
             return Encoding.UTF8.GetBytes(sb.ToString());
@@ -197,7 +198,7 @@ namespace HIS.Infrastructure.Services
             int stt = 1;
             foreach (var r in receipts)
             {
-                sb.AppendLine($"<tr><td>{stt++}</td><td>{r.ReceiptCode}</td><td>{r.IssueDate:dd/MM/yyyy}</td><td>{r.TotalBags}</td><td>{r.Status}</td></tr>");
+                sb.AppendLine($"<tr><td>{stt++}</td><td>{Esc(r.ReceiptCode)}</td><td>{r.IssueDate:dd/MM/yyyy}</td><td>{r.TotalBags}</td><td>{Esc(r.Status)}</td></tr>");
             }
             sb.AppendLine("</table></body></html>");
             return Encoding.UTF8.GetBytes(sb.ToString());
@@ -212,16 +213,16 @@ namespace HIS.Infrastructure.Services
             sb.AppendLine("<!DOCTYPE html><html><head><meta charset='utf-8'/><title>Bien ban kiem ke</title>");
             sb.AppendLine("<style>body{font-family:Arial;margin:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #333;padding:6px;text-align:left}th{background:#f0f0f0}</style></head><body>");
             sb.AppendLine("<h2 style='text-align:center'>BIEN BAN KIEM KE KHO MAU</h2>");
-            sb.AppendLine($"<p><strong>Ma phieu:</strong> {inv.InventoryCode}</p>");
+            sb.AppendLine($"<p><strong>Ma phieu:</strong> {Esc(inv.InventoryCode)}</p>");
             sb.AppendLine($"<p><strong>Ngay kiem ke:</strong> {inv.InventoryDate:dd/MM/yyyy}</p>");
-            sb.AppendLine($"<p><strong>Nguoi thuc hien:</strong> {inv.ConductedBy}</p>");
+            sb.AppendLine($"<p><strong>Nguoi thuc hien:</strong> {Esc(inv.ConductedBy)}</p>");
             sb.AppendLine("<table><tr><th>STT</th><th>Nhom mau</th><th>Rh</th><th>Loai CP</th><th>Ton he thong</th><th>Ton thuc te</th><th>Chenh lech</th><th>Ghi chu</th></tr>");
             int stt = 1;
             if (inv.Items != null)
             {
                 foreach (var item in inv.Items)
                 {
-                    sb.AppendLine($"<tr><td>{stt++}</td><td>{item.BloodType}</td><td>{item.RhFactor}</td><td>{item.ProductTypeName}</td><td>{item.SystemQuantity}</td><td>{item.ActualQuantity}</td><td>{item.Variance}</td><td>{item.Note}</td></tr>");
+                    sb.AppendLine($"<tr><td>{stt++}</td><td>{Esc(item.BloodType)}</td><td>{Esc(item.RhFactor)}</td><td>{Esc(item.ProductTypeName)}</td><td>{item.SystemQuantity}</td><td>{item.ActualQuantity}</td><td>{item.Variance}</td><td>{Esc(item.Note)}</td></tr>");
                 }
             }
             sb.AppendLine($"</table><p><strong>Tong he thong:</strong> {inv.TotalBagsSystem} | <strong>Tong thuc te:</strong> {inv.TotalBagsActual} | <strong>Chenh lech:</strong> {inv.Variance}</p>");
@@ -241,7 +242,7 @@ namespace HIS.Infrastructure.Services
             sb.AppendLine("<table><tr><th>Nhom mau</th><th>Rh</th><th>Loai CP</th><th>Ton dau</th><th>Nhap</th><th>Xuat</th><th>Het han</th><th>Huy</th><th>Ton cuoi</th></tr>");
             foreach (var item in report.Items)
             {
-                sb.AppendLine($"<tr><td>{item.BloodType}</td><td>{item.RhFactor}</td><td>{item.ProductTypeName}</td><td>{item.OpeningStock}</td><td>{item.ImportQuantity}</td><td>{item.ExportQuantity}</td><td>{item.ExpiredQuantity}</td><td>{item.DestroyedQuantity}</td><td>{item.ClosingStock}</td></tr>");
+                sb.AppendLine($"<tr><td>{Esc(item.BloodType)}</td><td>{Esc(item.RhFactor)}</td><td>{Esc(item.ProductTypeName)}</td><td>{item.OpeningStock}</td><td>{item.ImportQuantity}</td><td>{item.ExportQuantity}</td><td>{item.ExpiredQuantity}</td><td>{item.DestroyedQuantity}</td><td>{item.ClosingStock}</td></tr>");
             }
             sb.AppendLine("</table></body></html>");
             return Encoding.UTF8.GetBytes(sb.ToString());

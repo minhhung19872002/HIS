@@ -297,6 +297,18 @@ public class WarehouseCompleteController : ControllerBase
     }
 
     /// <summary>
+    /// Hủy phiếu xuất (xuất khoa, chuyển kho, trả NCC, hủy, tủ trực...) — hoàn tồn đúng một lần.
+    /// QA-R7: CancelStockIssueAsync existed but had no route, so issue/transfer vouchers could not be cancelled.
+    /// </summary>
+    [HttpPost("issues/{id}/cancel")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager)]
+    public async Task<ActionResult<bool>> CancelStockIssue(Guid id, [FromBody] string reason)
+    {
+        var result = await _warehouseService.CancelStockIssueAsync(id, reason, GetCurrentUserId());
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Lấy danh sách phiếu xuất
     /// </summary>
     [HttpGet("issues")]
@@ -504,6 +516,17 @@ public class WarehouseCompleteController : ControllerBase
     public async Task<ActionResult<bool>> AdjustStockAfterTake(Guid id)
     {
         var result = await _warehouseService.AdjustStockAfterTakeAsync(id, GetCurrentUserId());
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Hủy phiếu kiểm kê chưa hoàn thành (QA-R7: một kho chỉ được mở một phiếu kiểm kê tại một thời điểm).
+    /// </summary>
+    [HttpPost("stock-takes/{id}/cancel")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager)]
+    public async Task<ActionResult<bool>> CancelStockTake(Guid id, [FromBody] string reason)
+    {
+        var result = await _warehouseService.CancelStockTakeAsync(id, reason, GetCurrentUserId());
         return Ok(result);
     }
 

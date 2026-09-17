@@ -139,7 +139,7 @@ public partial class WarehouseCompleteService {
         var exportReceipt = new ExportReceipt
         {
             Id = Guid.NewGuid(),
-            ReceiptCode = $"XK{DateTime.Now:yyyyMMddHHmmss}",
+            ReceiptCode = await NextExportCodeAsync("XK"),
             ReceiptDate = DateTime.Now,
             WarehouseId = warehouseId,
             ExportType = 1, // BN ngoại trú
@@ -322,10 +322,11 @@ public partial class WarehouseCompleteService {
         // NangCap26 V.33: kho đang khóa → không phát thuốc nội trú.
         await EnsureWarehouseNotLockedAsync(warehouseId);
 
+        await using var codeTx = await SqlAppLock.BeginAsync(_context); // QA-R7: voucher-number lock scope
         var exportReceipt = new ExportReceipt
         {
             Id = Guid.NewGuid(),
-            ReceiptCode = $"XN{DateTime.Now:yyyyMMddHHmmss}",
+            ReceiptCode = await NextExportCodeAsync("XN"),
             ReceiptDate = DateTime.Now,
             WarehouseId = warehouseId,
             ExportType = 2, // BN nội trú
@@ -427,6 +428,7 @@ public partial class WarehouseCompleteService {
         prescription.Status = allFull2 ? 2 : 6; // 2=Đã cấp phát đủ, 6=Cấp một phần
 
         await _context.SaveChangesAsync();
+        if (codeTx != null) await codeTx.CommitAsync();
 
         return new StockIssueDto
         {
@@ -461,10 +463,11 @@ public partial class WarehouseCompleteService {
             ? await _context.Departments.FindAsync(dto.DepartmentId.Value)
             : null;
 
+        await using var codeTx = await SqlAppLock.BeginAsync(_context); // QA-R7: voucher-number lock scope
         var exportReceipt = new ExportReceipt
         {
             Id = Guid.NewGuid(),
-            ReceiptCode = $"XK{DateTime.Now:yyyyMMddHHmmss}",
+            ReceiptCode = await NextExportCodeAsync("XK"),
             ReceiptDate = dto.IssueDate,
             WarehouseId = dto.WarehouseId,
             ExportType = 3, // Chuyển kho / xuất khoa
@@ -539,6 +542,7 @@ public partial class WarehouseCompleteService {
         exportReceipt.TotalAmount = totalAmount;
         _context.ExportReceipts.Add(exportReceipt);
         await _context.SaveChangesAsync();
+        if (codeTx != null) await codeTx.CommitAsync();
 
         return new StockIssueDto
         {
@@ -626,6 +630,41 @@ public partial class WarehouseCompleteService {
         if (!string.IsNullOrEmpty(contextTag))
             dto.Notes = string.IsNullOrEmpty(dto.Notes) ? contextTag : $"{contextTag} {dto.Notes}";
 
+        // QA-R7: the patient/record were never written (PatientId/MedicalRecordId stayed null) and an unknown
+        // context id was accepted and only copied into Note. Resolve both from the context; the client value is not trusted.
+        Guid? medicalRecordId = null;
+        dto.PatientId = null;
+        if (dto.AdmissionId.HasValue)
+        {
+            var adm = await _context.Admissions.AsNoTracking()
+                .Where(a => a.Id == dto.AdmissionId.Value)
+                .Select(a => new { a.PatientId, a.MedicalRecordId })
+                .FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException("Không tìm thấy lượt nhập viện");
+            dto.PatientId = adm.PatientId;
+            medicalRecordId = adm.MedicalRecordId;
+        }
+        else if (dto.SurgeryId.HasValue)
+        {
+            var req = await _context.SurgeryRequests.AsNoTracking()
+                .Where(s => s.Id == dto.SurgeryId.Value)
+                .Select(s => new { s.PatientId, s.MedicalRecordId })
+                .FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException("Không tìm thấy ca phẫu thuật");
+            dto.PatientId = req.PatientId;
+            medicalRecordId = req.MedicalRecordId;
+        }
+        else if (dto.ExaminationId.HasValue)
+        {
+            var exam = await _context.Examinations.AsNoTracking()
+                .Where(e => e.Id == dto.ExaminationId.Value)
+                .Select(e => new { e.MedicalRecordId, e.MedicalRecord.PatientId })
+                .FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException("Không tìm thấy lượt khám");
+            dto.PatientId = exam.PatientId;
+            medicalRecordId = exam.MedicalRecordId;
+        }
+
         // Validate cabinet warehouse (HIS.Core WarehouseType 5 = ward cabinet, or IsCabinet=true).
         // QA-R3: was "type 4" = the hospital pharmacy, so a cabinet issue could deduct pharmacy stock.
         var warehouse = await _context.Warehouses.FindAsync(dto.WarehouseId);
@@ -634,7 +673,7 @@ public partial class WarehouseCompleteService {
         if (warehouse.WarehouseType != HIS.Core.Constants.WarehouseType.WardCabinet && !warehouse.IsCabinet)
             throw new InvalidOperationException("Kho đã chọn không phải tủ trực (loại kho 5 hoặc đánh dấu tủ trực).");
 
-        return await CreateStockIssueByTypeAsync(dto, userId, 12, "TT");
+        return await CreateStockIssueByTypeAsync(dto, userId, 12, "TT", medicalRecordId);
     }
 
     /// <summary>
@@ -762,9 +801,38 @@ public partial class WarehouseCompleteService {
         if (receipt.Status == 2)
             throw new InvalidOperationException("Phiếu xuất đã bị hủy trước đó");
 
+        // QA-R7: this had no route; now that it is exposed, refuse the vouchers another document owns — reversing
+        // only the stock would leave that document claiming the goods left (prescription "đã phát", ward batch,
+        // stock-take "đã điều chỉnh", warehouse transfer "đã nhận").
+        if (receipt.ExportType is 1 or 2)
+            throw new InvalidOperationException(
+                "Phiếu xuất cấp phát thuốc cho bệnh nhân không hủy ở đây — dùng chức năng hủy phát đơn / hoàn trả khoa.");
+        if (IsStockTakeAdjustment(receipt.ExportType, 9, receipt.Note))
+            throw new InvalidOperationException(
+                "Đây là phiếu xuất tự động theo điều chỉnh kiểm kê — không hủy riêng được (phiếu kiểm kê vẫn ở trạng thái đã điều chỉnh).");
+        if (receipt.ExportType == 4 && receipt.Note != null && receipt.Note.StartsWith("[DIEU_CHUYEN:"))
+            throw new InvalidOperationException(
+                "Phiếu xuất này thuộc một phiếu điều chuyển kho đã được kho nhận xác nhận — không hủy riêng được.");
+
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        if (tx != null)
+        {
+            // Claim the voucher once: a double click / two users used to both see "Đã xuất" and return the stock twice.
+            var claimed = await _context.ExportReceipts
+                .Where(r => r.Id == id && r.Status == receipt.Status)
+                .ExecuteUpdateAsync(u => u.SetProperty(r => r.Status, 2));
+            if (claimed == 0)
+                throw new InvalidOperationException("Phiếu xuất đã bị hủy trước đó");
+        }
+
         // If already issued, reverse inventory
         if (receipt.Status == 1)
         {
+            // Returning goods to the source (and, for a transfer, taking them out of the target) is a stock move.
+            await EnsureWarehouseNotLockedAsync(receipt.WarehouseId);
+            if (receipt.ExportType == 4 && receipt.ToWarehouseId.HasValue)
+                await EnsureWarehouseNotLockedAsync(receipt.ToWarehouseId.Value);
+
             // QA0915: phiếu chuyển kho nay có phiếu nhập đối ứng ở kho nhận → đảo cả hai. Kho nhận đã
             // dùng mất hàng thì chặn hủy (không để lô kho nhận âm).
             if (receipt.ExportType == 4)
@@ -791,20 +859,25 @@ public partial class WarehouseCompleteService {
                 }
             }
 
-            foreach (var detail in receipt.Details)
+            foreach (var detail in receipt.Details.Where(d => !d.IsDeleted))
             {
-                var stock = await _context.InventoryItems
-                    .FirstOrDefaultAsync(i => i.Id == detail.InventoryItemId);
-                if (stock != null)
-                {
-                    stock.Quantity += detail.Quantity;
-                }
+                var stock = detail.InventoryItemId.HasValue
+                    ? await _context.InventoryItems.FirstOrDefaultAsync(i => i.Id == detail.InventoryItemId && !i.IsDeleted)
+                    : null;
+                // QA-R7: a vanished lot used to be skipped silently (the quantity was lost); fall back to medicine + batch.
+                stock ??= await FindLotAsync(receipt.WarehouseId, detail.MedicineId, detail.BatchNumber)
+                    ?? throw new InvalidOperationException(
+                        $"Không tìm thấy lô {detail.BatchNumber ?? "(không số lô)"} ở kho xuất để hoàn lại — không hủy được phiếu.");
+                stock.Quantity += detail.Quantity;
             }
         }
 
         receipt.Status = 2; // Đã hủy
         receipt.Note = $"{receipt.Note} | Hủy: {reason}";
+        receipt.UpdatedAt = DateTime.Now;
+        receipt.UpdatedBy = userId.ToString();
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
         return true;
     }
 
@@ -973,7 +1046,8 @@ public partial class WarehouseCompleteService {
     /// <summary>
     /// Helper: tạo phiếu xuất kho theo loại (ExportType)
     /// </summary>
-    private async Task<StockIssueDto> CreateStockIssueByTypeAsync(CreateStockIssueDto dto, Guid userId, int exportType, string codePrefix)
+    private async Task<StockIssueDto> CreateStockIssueByTypeAsync(CreateStockIssueDto dto, Guid userId, int exportType, string codePrefix,
+        Guid? medicalRecordId = null)
     {
         NormalizeIssueDate(dto);
         var warehouse = await _context.Warehouses.FindAsync(dto.WarehouseId);
@@ -1006,13 +1080,16 @@ public partial class WarehouseCompleteService {
                 throw new KeyNotFoundException("Kho nhận không tồn tại");
         }
 
+        await using var codeTx = await SqlAppLock.BeginAsync(_context); // QA-R7: voucher-number lock scope
         var exportReceipt = new ExportReceipt
         {
             Id = Guid.NewGuid(),
-            ReceiptCode = $"{codePrefix}{DateTime.Now:yyyyMMddHHmmss}",
+            ReceiptCode = await NextExportCodeAsync(codePrefix),
             ReceiptDate = dto.IssueDate,
             WarehouseId = dto.WarehouseId,
             ExportType = exportType,
+            PatientId = exportType == 12 ? dto.PatientId : null, // cabinet issue: resolved from its context
+            MedicalRecordId = exportType == 12 ? medicalRecordId : null,
             ToDepartmentId = dto.DepartmentId,
             ToWarehouseId = dto.TargetWarehouseId,
             SupplierId = exportType == 5 ? dto.SupplierId : null, // xuất trả NCC
@@ -1043,7 +1120,7 @@ public partial class WarehouseCompleteService {
             transferIn = new ImportReceipt
             {
                 Id = Guid.NewGuid(),
-                ReceiptCode = $"NC{DateTime.Now:yyyyMMddHHmmss}",
+                ReceiptCode = await NextImportCodeAsync("NC"),
                 ReceiptDate = dto.IssueDate,
                 WarehouseId = dto.TargetWarehouseId!.Value,
                 ImportType = 3, // Nhập chuyển kho
@@ -1113,6 +1190,7 @@ public partial class WarehouseCompleteService {
             _context.ImportReceipts.Add(transferIn);
         }
         await _context.SaveChangesAsync();
+        if (codeTx != null) await codeTx.CommitAsync();
 
         return new StockIssueDto
         {
@@ -1122,6 +1200,7 @@ public partial class WarehouseCompleteService {
             WarehouseId = dto.WarehouseId,
             WarehouseName = warehouse.WarehouseName,
             IssueType = exportType,
+            PatientId = exportReceipt.PatientId,
             DepartmentId = dto.DepartmentId,
             DepartmentName = department?.DepartmentName ?? string.Empty,
             TargetWarehouseId = dto.TargetWarehouseId,
