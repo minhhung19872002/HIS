@@ -19,5 +19,10 @@ Facts verified 2026-09-17 (QA round 6 pre-push review):
   every INSERT/UPDATE with error 1934). Flag any new filtered/unique-filtered index on Receipts/Deposits.
 - `ProductionSchemaRepairRunner` runs each GO batch in its own try/catch (a failing batch logs and continues).
 
+- (QA-R8, 2026-09-17) `RoleNames.WarehouseManager` and `RadiologistManager` are ORPHAN (no prod RoleCode emits them). So
+  `warehouse/issues|stock-takes/{id}/cancel` and `RISComplete/results/{id}/cancel-approval` are Admin-only on prod.
+  FE `can('Pharmacy.Approve'|'Pharmacy.StockOut'|'Radiology.Approve')` shows those buttons to pharmacists/doctors → 403.
+  Prod FE gating is ON (GitHub repo var `VITE_ACCESS_GATING=true`), so `can()` really filters there.
+
 **Why:** these are the non-obvious blast-radius paths that a diff-only review misses.
 **How to apply:** on any change to AuthService aliases, RoleNames gates, or Data/Scripts indexes, grep usages first.
