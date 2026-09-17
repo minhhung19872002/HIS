@@ -163,9 +163,20 @@ public class LisConfigController : ControllerBase
         if (file == null || file.Length == 0)
             return BadRequest(ApiResponse.Fail("Vui lòng chọn file CSV"));
 
+        if (!file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)
+            && !file.FileName.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(ApiResponse.Fail("Chỉ hỗ trợ tệp CSV (UTF-8)"));
+
         using var stream = file.OpenReadStream();
-        var count = await _service.ImportTestParametersCsvAsync(stream);
-        return Ok(new { importedCount = count, message = $"Đã import {count} thông số" });
+        var r = await _service.ImportTestParametersCsvAsync(stream);
+        return Ok(new
+        {
+            importedCount = r.SuccessRows,
+            totalRows = r.TotalRows,
+            failedRows = r.FailedRows,
+            errors = r.Errors,
+            message = $"Đã import {r.SuccessRows}/{r.TotalRows} thông số" + (r.FailedRows > 0 ? $", {r.FailedRows} dòng lỗi" : "")
+        });
     }
 
     #endregion

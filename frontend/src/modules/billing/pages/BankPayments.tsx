@@ -7,6 +7,7 @@
 import React, { useEffect, useState } from 'react';
 import { Form, Input, DatePicker, Button } from 'antd';
 import dayjs from 'dayjs';
+import { escapeCsvCell } from '../../../utils/csvExport';
 import {
   KpiStrip, DataTable, StatusTabs, SearchBox, DrawerShell, ModalShell,
   Filter, Pager, StatusBadge, DrSec, DrField,
@@ -214,7 +215,7 @@ const BankPayments: React.FC = () => {
 
   const exportCsv = () => {
     if (filtered.length === 0) { te('Không có giao dịch để xuất'); return; }
-    const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const esc = escapeCsvCell; // QA-R10: shared escaping (patient names starting with '=' ran as formulas)
     const header = ['Mã GD', 'Ngân hàng', 'BIN', 'Bệnh nhân', 'Mã BN', 'Số tiền', 'Mã ref NH', 'Trạng thái', 'Tạo'];
     const lines = filtered.map((r) => {
       const b = bankOf(r);

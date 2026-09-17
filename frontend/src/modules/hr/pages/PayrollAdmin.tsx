@@ -157,12 +157,12 @@ const PayrollAdminV2: React.FC = () => {
 
   const exportCsv = () => {
     if (!items.length) { tw('Không có dữ liệu'); return; }
-    const header = 'Mã NV,Họ tên,Khoa,Ngày công,Lương CB,Phụ cấp,Thu nhập khác,KT BHXH,KT khác,Thực lãnh';
-    const rows = items.map((i) =>
+    // QA-R10: cells were joined unquoted (a comma in a name shifted every column) — shared escaping
+    const header = ['Mã NV', 'Họ tên', 'Khoa', 'Ngày công', 'Lương CB', 'Phụ cấp', 'Thu nhập khác', 'KT BHXH', 'KT khác', 'Thực lãnh'];
+    const rows = items.map((i) => file.csvLine(
       [i.staffCode, i.staffName, i.departmentName, i.workDays,
-        i.baseSalary, i.allowance, i.otherIncome, i.bhxhDeduction, i.otherDeduction, i.netSalary].join(','));
-    const csv = [header, ...rows].join('\n');
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+        i.baseSalary, i.allowance, i.otherIncome, i.bhxhDeduction, i.otherDeduction, i.netSalary]));
+    const blob = file.csvBlob([file.csvLine(header), ...rows]);
     file.downloadBlob(blob, `luong_${selectedPeriod?.periodCode || 'export'}.csv`);
   };
 

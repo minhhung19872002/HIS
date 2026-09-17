@@ -111,12 +111,8 @@ const StockReportV2: React.FC = () => {
       : (lowStock.items || []) as unknown as CsvRow[];
     if (rows.length === 0) { tw('Không có dữ liệu'); return; }
     const keys = Object.keys(rows[0]).filter((k) => typeof rows[0][k] !== 'object' || rows[0][k] instanceof Date);
-    const csv = [keys.join(',')].concat(rows.map((r) => keys.map((k) => {
-      const v = r[k]; if (v == null) return '';
-      if (typeof v === 'string' && (v.includes(',') || v.includes('"'))) return `"${v.replace(/"/g, '""')}"`;
-      return v;
-    }).join(','))).join('\n');
-    const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' });
+    // QA-R10: shared escaping (quotes, line breaks, formula injection) + BOM
+    const blob = file.csvBlob([file.csvLine(keys), ...rows.map((r) => file.csvLine(keys.map((k) => r[k])))]);
     file.downloadBlob(blob, `stock-${tab}-${dayjs().format('YYYYMMDD-HHmm')}.csv`);
     tk('Đã xuất CSV');
   };

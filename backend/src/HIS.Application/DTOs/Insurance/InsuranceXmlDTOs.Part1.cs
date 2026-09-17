@@ -473,6 +473,9 @@ public class InsuranceReconciliationDto
     // Chi tiết từ chối
     public List<RejectedClaimDto> RejectedClaims { get; set; } = new();
 
+    /// <summary>QA-R10: file rows that were NOT applied (unknown MA_LK, unreadable amount) — used to be dropped silently.</summary>
+    public List<string> ImportWarnings { get; set; } = new();
+
     public int Status { get; set; }
     public DateTime ReconciliationDate { get; set; }
 }

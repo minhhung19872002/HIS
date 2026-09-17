@@ -331,6 +331,11 @@ public partial class ReceptionCompleteService {
         var errors = new List<string>();
 
         if (dto.Patients == null) return (success, failed, errors);
+        // QA-R10: any GUID was accepted as the contract (rows "imported" into nothing).
+        if (!await _context.HealthCheckContracts.AnyAsync(c => c.Id == dto.ContractId))
+            throw new KeyNotFoundException("Không tìm thấy hợp đồng khám sức khỏe.");
+        if (dto.Patients.Count > HIS.Infrastructure.Services.Export.CsvUtil.MaxImportRows)
+            throw new InvalidOperationException($"Tối đa {HIS.Infrastructure.Services.Export.CsvUtil.MaxImportRows:N0} dòng mỗi lần nhập.");
 
         var importBranchId = await GetUserBranchIdAsync(userId); // R3 đa cơ sở — tính 1 lần cho cả batch
 
@@ -346,6 +351,14 @@ public partial class ReceptionCompleteService {
         {
             try
             {
+                // QA-R10: blank names / future birth dates / unknown gender were created as real patients.
+                if (string.IsNullOrWhiteSpace(patientData.FullName))
+                    throw new InvalidOperationException("thiếu họ tên");
+                if (patientData.DateOfBirth.HasValue && patientData.DateOfBirth.Value.Date > DateTime.Today)
+                    throw new InvalidOperationException("ngày sinh ở tương lai");
+                if (patientData.Gender is < 0 or > 3)
+                    throw new InvalidOperationException("giới tính không hợp lệ");
+
                 // Check if patient exists by ID number
                 var identityNumber = patientData.IdentityNumber?.Trim();
                 var existingPatient = string.IsNullOrWhiteSpace(identityNumber)

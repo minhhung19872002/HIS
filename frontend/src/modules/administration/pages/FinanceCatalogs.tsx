@@ -300,15 +300,11 @@ const FinanceCatalogsV2: React.FC = () => {
 
   // ----- CSV export -----
   const exportCsv = () => {
-    const header = cols.map((c) => c.label).join(',');
-    const body = filtered.map((r) => cols.map((c) => {
-      const v = (r as unknown as Record<string, unknown>)[c.key];
-      if (v == null) return '';
-      const s = String(v).replace(/"/g, '""');
-      return /[,"\n]/.test(s) ? `"${s}"` : s;
-    }).join(',')).join('\n');
-    const csv = `${header}\n${body}`;
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    // QA-R10: shared escaping (formula injection) + UTF-8 BOM (Excel showed Vietnamese as mojibake)
+    const blob = file.csvBlob([
+      file.csvLine(cols.map((c) => c.label)),
+      ...filtered.map((r) => file.csvLine(cols.map((c) => (r as unknown as Record<string, unknown>)[c.key]))),
+    ]);
     file.downloadBlob(blob, `finance-catalog-${tab}-${dayjs().format('YYYYMMDD')}.csv`);
     tk('Đã xuất CSV');
   };

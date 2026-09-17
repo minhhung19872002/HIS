@@ -21,20 +21,22 @@ public partial class BhxhAuditService
         var sb = new StringBuilder();
         sb.AppendLine("STT,Họ tên BN,Số thẻ BHYT,Loại lỗi,Mô tả,Số tiền gốc,Số tiền điều chỉnh,Đã sửa");
 
+        // QA-R10: cells were wrapped in quotes without escaping — a '"' in a name/description broke the
+        // row, and a leading '=' ran as a formula in Excel. CsvUtil escapes and neutralises both.
         var i = 1;
         foreach (var error in session.Errors.Where(e => !e.IsDeleted).OrderBy(e => e.ErrorType))
         {
-            sb.AppendLine($"{i++}," +
-                $"\"{error.PatientName}\"," +
-                $"\"{error.InsuranceNumber}\"," +
-                $"\"{ErrorTypeNames.GetValueOrDefault(error.ErrorType, error.ErrorType)}\"," +
-                $"\"{error.ErrorDescription}\"," +
-                $"{error.OriginalAmount}," +
-                $"{error.AdjustedAmount}," +
-                $"{(error.IsFixed ? "Có" : "Không")}");
+            sb.AppendLine(Export.CsvUtil.Line(i++,
+                error.PatientName,
+                error.InsuranceNumber,
+                ErrorTypeNames.GetValueOrDefault(error.ErrorType, error.ErrorType),
+                error.ErrorDescription,
+                error.OriginalAmount,
+                error.AdjustedAmount,
+                error.IsFixed ? "Có" : "Không"));
         }
 
-        return Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
+        return Export.CsvUtil.ToBytes(sb.ToString());
     }
 
     public async Task<byte[]> ExportXmlAsync(Guid sessionId)
@@ -165,17 +167,25 @@ public partial class BhxhAuditService
     /// </summary>
     public async Task<BhxhAuditImportResultDto> ImportAuditListAsync(byte[] csvContent, string? fileName, Guid importedByUserId)
     {
-        var batchCode = $"IMPORT-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
+        // Suffix: two uploads in the same second shared one batch code (the batch filter mixed both files).
+        var batchCode = $"IMPORT-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[..4].ToUpperInvariant()}";
         var result = new BhxhAuditImportResultDto
         {
             ImportBatchCode = batchCode,
             FileName = fileName
         };
 
-        var lines = Encoding.UTF8.GetString(csvContent)
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        // QA-R10: shared CsvUtil — the BOM of an Excel "CSV UTF-8" file used to hide the MaHoSo header
+        // (every such file was rejected), and Split(',') shifted every column after a quoted "Ho, Ten".
+        List<(int LineNumber, List<string> Cells)> records;
+        try { records = Export.CsvUtil.ReadRecords(Export.CsvUtil.DecodeText(csvContent)); }
+        catch (InvalidOperationException ex)
+        {
+            result.Errors.Add(new BhxhAuditImportRowErrorDto { RowNumber = 0, MaHoSo = "", ErrorMessage = ex.Message });
+            return result;
+        }
 
-        if (lines.Length < 2)
+        if (records.Count < 2)
         {
             result.Errors.Add(new BhxhAuditImportRowErrorDto
             {
@@ -185,15 +195,12 @@ public partial class BhxhAuditService
             return result;
         }
 
-        // Header index mapping (case-insensitive)
-        var headerCols = lines[0].Trim().Split(',');
-        var hdr = headerCols.Select(h => h.Trim().ToLowerInvariant()).ToArray();
+        var hdr = records[0].Cells;
+        int col(string name) => Export.CsvUtil.IndexOf(hdr, name);
+        string val(List<string> cols, int idx) => Export.CsvUtil.Get(cols, idx);
 
-        int col(string name) => Array.IndexOf(hdr, name);
-        string val(string[] cols, int idx) => idx >= 0 && idx < cols.Length ? cols[idx].Trim() : "";
-
-        int iMaHoSo   = col("mahoSo");   if (iMaHoSo < 0)   iMaHoSo   = col("mahoso");
-        int iMaBN      = col("mabenhNhan"); if (iMaBN < 0)    iMaBN     = col("mabenhnhan");
+        int iMaHoSo   = col("mahoso");
+        int iMaBN      = col("mabenhnhan");
         int iHoTen     = col("hoten");
         int iSoThe     = col("sothebhyt");
         int iNgayVao   = col("ngayvao");
@@ -201,9 +208,9 @@ public partial class BhxhAuditService
         int iMaKhoa    = col("makhoa");
         int iTenKhoa   = col("tenkhoa");
         int iMaCD      = col("machandoan");
-        int iTienVP    = col("tienvienPhi");    if (iTienVP < 0) iTienVP = col("tienvienphi");
+        int iTienVP    = col("tienvienphi");
         int iTienBHYT  = col("tienbhyt");
-        int iTienBN    = col("tienbenhNhan");   if (iTienBN < 0) iTienBN = col("tienbenhnhan");
+        int iTienBN    = col("tienbenhnhan");
         int iTrangThai = col("trangthaigiamdinhh"); if (iTrangThai < 0) iTrangThai = col("trangthaigiamdinh");
         int iGhiChu    = col("ghichu");
 
@@ -212,102 +219,104 @@ public partial class BhxhAuditService
             result.Errors.Add(new BhxhAuditImportRowErrorDto
             {
                 RowNumber = 1, MaHoSo = "",
-                ErrorMessage = $"Thieu cot 'MaHoSo'. Header hien tai: {lines[0].Trim()}"
+                ErrorMessage = $"Thieu cot 'MaHoSo'. Header hien tai: {string.Join(",", hdr)}"
             });
             return result;
         }
 
-        result.TotalRows = lines.Length - 1;
+        result.TotalRows = records.Count - 1;
         var rows = new List<BhxhAuditImport>();
 
-        for (int i = 1; i < lines.Length; i++)
-        {
-            var line = lines[i].Trim();
-            if (string.IsNullOrWhiteSpace(line)) { result.TotalRows--; continue; }
+        // Re-importing used to add every MaHoSo again (dashboard counts doubled). An already imported
+        // MaHoSo is now UPDATED in place (a later list moves "Chua duyet" -> "Da duyet").
+        var codesInFile = records.Skip(1).Select(r => val(r.Cells, iMaHoSo)).Where(c => c.Length > 0).Distinct().ToList();
+        var alreadyImported = (await _context.BhxhAuditImports
+                .Where(x => !x.IsDeleted && codesInFile.Contains(x.MaHoSo))
+                .OrderByDescending(x => x.ImportedAt)
+                .ToListAsync())
+            .GroupBy(x => x.MaHoSo, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        var seenInFile = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            var cols = line.Split(',');
-            int rowNum = i + 1;
+        foreach (var (lineNumber, cols) in records.Skip(1))
+        {
+            int rowNum = lineNumber;
             var maHoSo = val(cols, iMaHoSo);
 
-            if (string.IsNullOrWhiteSpace(maHoSo))
+            void Reject(string message)
             {
                 result.SkippedRows++;
-                result.Errors.Add(new BhxhAuditImportRowErrorDto
-                {
-                    RowNumber = rowNum, MaHoSo = maHoSo,
-                    ErrorMessage = "MaHoSo trong"
-                });
-                continue;
+                result.Errors.Add(new BhxhAuditImportRowErrorDto { RowNumber = rowNum, MaHoSo = maHoSo, ErrorMessage = message });
             }
 
-            // Parse so tien. Was "strip every '.' and ','": "1500000.00" became 150,000,000 (x100).
-            // A separator followed by exactly 1-2 trailing digits is the decimal mark (thousand groups
-            // always have 3 digits); every other '.'/',' is a thousand separator.
-            decimal ParseMoney(string s)
-            {
-                s = (s ?? "").Trim().Trim('"');
-                if (s.Length == 0) return 0;
-                var lastSep = s.LastIndexOfAny(new[] { '.', ',' });
-                string intPart = s, fracPart = "";
-                if (lastSep >= 0 && s.Length - lastSep - 1 is 1 or 2)
-                {
-                    intPart = s[..lastSep];
-                    fracPart = s[(lastSep + 1)..];
-                }
-                var normalized = intPart.Replace(".", "").Replace(",", "") + (fracPart.Length > 0 ? "." + fracPart : "");
-                return decimal.TryParse(normalized, System.Globalization.NumberStyles.Number,
-                    System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : 0;
-            }
+            if (string.IsNullOrWhiteSpace(maHoSo)) { Reject("MaHoSo trong"); continue; }
+            if (!seenInFile.Add(maHoSo)) { Reject("MaHoSo trung voi dong truoc trong file"); continue; }
 
+            // Money: VN "1.500.000" / EN "1,500,000.00" (CsvUtil.ParseMoney). A non-numeric amount is a row
+            // error — it used to be imported silently as 0.
+            decimal? tienVP = Export.CsvUtil.ParseMoney(val(cols, iTienVP));
+            decimal? tienBHYT = Export.CsvUtil.ParseMoney(val(cols, iTienBHYT));
+            decimal? tienBN = Export.CsvUtil.ParseMoney(val(cols, iTienBN));
+            if ((val(cols, iTienVP).Length > 0 && tienVP == null) || (val(cols, iTienBHYT).Length > 0 && tienBHYT == null)
+                || (val(cols, iTienBN).Length > 0 && tienBN == null))
+            { Reject("So tien khong hop le"); continue; }
+            if (tienVP < 0 || tienBHYT < 0 || tienBN < 0) { Reject("So tien am"); continue; }
             // Parse trang thai: 0/1/2 hoac text. "Chua duyet" contains "duyet" and was read as
             // 1 (Da duyet) — the very label this module prints for status 0.
             int trangThai = 0;
             var ttStr = val(cols, iTrangThai);
-            if (!int.TryParse(ttStr, out trangThai))
+            if (int.TryParse(ttStr, out var ttNum))
+            {
+                if (ttNum is < 0 or > 2) { Reject($"TrangThaiGiamDinh khong hop le: '{ttStr}' (0/1/2)"); continue; }
+                trangThai = ttNum;
+            }
+            else if (ttStr.Length > 0)
+            {
                 trangThai = ttStr.Contains("chua", StringComparison.OrdinalIgnoreCase) || ttStr.Contains("chưa", StringComparison.OrdinalIgnoreCase) ? 0 :
                             ttStr.Contains("choi", StringComparison.OrdinalIgnoreCase) || ttStr.Contains("chối", StringComparison.OrdinalIgnoreCase) ? 2 :
-                            ttStr.Contains("duyet", StringComparison.OrdinalIgnoreCase) || ttStr.Contains("duyệt", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
-
-            // Parse ngay: Vietnamese files use dd/MM/yyyy. Culture-dependent TryParse read 05/03/2026
-            // as 3 May on an invariant/en-US server.
-            DateTime? ParseDate(string s)
-            {
-                s = (s ?? "").Trim().Trim('"');
-                if (s.Length == 0) return null;
-                var formats = new[] { "dd/MM/yyyy", "d/M/yyyy", "dd/MM/yyyy HH:mm", "dd/MM/yyyy HH:mm:ss", "d/M/yyyy H:mm",
-                                      "yyyy-MM-dd", "yyyy-MM-dd HH:mm", "yyyy-MM-ddTHH:mm:ss", "yyyyMMdd", "yyyyMMddHHmm" };
-                return DateTime.TryParseExact(s, formats, System.Globalization.CultureInfo.InvariantCulture,
-                    System.Globalization.DateTimeStyles.None, out var d) ? d : null;
+                            ttStr.Contains("duyet", StringComparison.OrdinalIgnoreCase) || ttStr.Contains("duyệt", StringComparison.OrdinalIgnoreCase) ? 1 : -1;
+                if (trangThai < 0) { Reject($"TrangThaiGiamDinh khong hop le: '{ttStr}'"); continue; }
             }
 
-            rows.Add(new BhxhAuditImport
+            // Dates: dd/MM/yyyy (CsvUtil.ParseDate). An unreadable date was silently stored as NULL.
+            var ngayVao = Export.CsvUtil.ParseDate(val(cols, iNgayVao));
+            var ngayRa = Export.CsvUtil.ParseDate(val(cols, iNgayRa));
+            if ((val(cols, iNgayVao).Length > 0 && ngayVao == null) || (val(cols, iNgayRa).Length > 0 && ngayRa == null))
+            { Reject("Ngay khong hop le (dd/MM/yyyy)"); continue; }
+            if (ngayVao.HasValue && ngayRa.HasValue && ngayRa < ngayVao) { Reject("NgayRa truoc NgayVao"); continue; }
+
+            if (!alreadyImported.TryGetValue(maHoSo, out var row))
             {
-                ImportBatchCode    = batchCode,
-                ImportedAt         = DateTime.UtcNow,
-                ImportedByUserId   = importedByUserId == Guid.Empty ? null : importedByUserId,
-                FileName           = fileName,
-                RowNumber          = rowNum,
-                MaHoSo             = maHoSo,
-                MaBenhNhan         = val(cols, iMaBN),
-                HoTen              = val(cols, iHoTen),
-                SoTheBHYT         = val(cols, iSoThe),
-                NgayVao            = ParseDate(val(cols, iNgayVao)),
-                NgayRa             = ParseDate(val(cols, iNgayRa)),
-                MaKhoa             = val(cols, iMaKhoa),
-                TenKhoa            = val(cols, iTenKhoa),
-                MaChanDoan         = val(cols, iMaCD),
-                TienVienPhi        = ParseMoney(val(cols, iTienVP)),
-                TienBHYT           = ParseMoney(val(cols, iTienBHYT)),
-                TienBenhNhan       = ParseMoney(val(cols, iTienBN)),
-                TrangThaiGiamDinh  = trangThai,
-                GhiChu             = val(cols, iGhiChu),
-                IsValid            = true,
-            });
+                row = new BhxhAuditImport();
+                rows.Add(row);
+            }
+            row.ImportBatchCode    = batchCode;
+            row.ImportedAt         = DateTime.UtcNow;
+            row.ImportedByUserId   = importedByUserId == Guid.Empty ? null : importedByUserId;
+            row.FileName           = fileName;
+            row.RowNumber          = rowNum;
+            row.MaHoSo             = maHoSo;
+            row.MaBenhNhan         = val(cols, iMaBN);
+            row.HoTen              = val(cols, iHoTen);
+            row.SoTheBHYT         = val(cols, iSoThe);
+            row.NgayVao            = ngayVao;
+            row.NgayRa             = ngayRa;
+            row.MaKhoa             = val(cols, iMaKhoa);
+            row.TenKhoa            = val(cols, iTenKhoa);
+            row.MaChanDoan         = val(cols, iMaCD);
+            row.TienVienPhi        = tienVP ?? 0;
+            row.TienBHYT           = tienBHYT ?? 0;
+            row.TienBenhNhan       = tienBN ?? 0;
+            row.TrangThaiGiamDinh  = trangThai;
+            row.GhiChu             = val(cols, iGhiChu);
+            row.IsValid            = true;
+            // BhxhAuditImports.UpdatedAt is NOT NULL (script 129) — EF sent NULL and every import failed.
+            row.UpdatedAt          = DateTime.UtcNow;
 
             result.ImportedRows++;
         }
 
-        if (rows.Any())
+        if (result.ImportedRows > 0)
         {
             _context.BhxhAuditImports.AddRange(rows);
             await _context.SaveChangesAsync();

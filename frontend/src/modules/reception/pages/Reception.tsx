@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useTabState } from '../../../hooks/useTabState';
 import { useRegisterCommands } from '@/contexts/CommandContext';
 import dayjs from 'dayjs';
+import { escapeCsvCell } from '../../../utils/csvExport';
 import { App as AntdApp } from 'antd';
 import * as receptionApi from '../api/reception';
 import type { RoomOverviewDto } from '../api/reception';
@@ -334,7 +335,7 @@ const ReceptionV2: React.FC = () => {
 
   const onExport = () => {
     if (filtered.length === 0) { message.warning('Không có dữ liệu để xuất'); return; }
-    const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const esc = escapeCsvCell; // QA-R10: shared escaping (patient names starting with '=' ran as formulas)
     const header = ['STT', 'Bệnh nhân', 'Giới', 'Tuổi', 'SĐT', 'CCCD', 'Khoa', 'Phòng', 'Hình thức', 'Số BHYT', 'Ưu tiên', 'Trạng thái', 'Đến lúc'];
     const lines = filtered.map((r) => [
       r.queueCode || `#${r.queueNumber}`, r.patientName, genderLabel(r), ageOf(r),

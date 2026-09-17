@@ -439,9 +439,11 @@ public partial class InsuranceXmlService
         var startDate = new DateTime(year, month, 1);
         var endDate = startDate.AddMonths(1); // EXCLUSIVE: `<= last day 00:00` dropped last-day claims
 
-        var rows = ParseReconciliationFile(fileContent);
+        var rows = ParseReconciliationFile(fileContent, dto.ImportWarnings);
+        // QA-R10: an empty / unreadable file used to answer 200 "đối soát xong" with every count 0.
         if (rows.Count == 0)
-            _logger.LogWarning("ImportReconciliationResult: file rỗng/không đọc được cho kỳ {Month}/{Year}", month, year);
+            throw new InvalidOperationException("Không đọc được dòng kết quả đối soát nào từ tệp (XML 4210 có MA_LK, hoặc CSV: MaLk,RejectedAmount,RejectCode,RejectReason)."
+                + (dto.ImportWarnings.Count > 0 ? " " + string.Join("; ", dto.ImportWarnings.Take(5)) : ""));
 
         var claims = await _context.InsuranceClaims
             .Include(c => c.Patient)
@@ -469,7 +471,17 @@ public partial class InsuranceXmlService
 
         foreach (var row in rows)
         {
-            if (!byCode.TryGetValue(row.MaLk, out var claim) || processed.Contains(claim.Id)) continue;
+            if (!byCode.TryGetValue(row.MaLk, out var claim))
+            {
+                dto.ImportWarnings.Add($"MA_LK {row.MaLk}: không có hồ sơ trong kỳ {month:D2}/{year}");
+                continue;
+            }
+            if (processed.Contains(claim.Id)) continue;
+            if (row.RejectedAmount > claim.InsuranceAmount)
+            {
+                dto.ImportWarnings.Add($"MA_LK {row.MaLk}: tiền xuất toán {row.RejectedAmount:N0} lớn hơn tiền BHYT đề nghị {claim.InsuranceAmount:N0} — không áp dụng");
+                continue;
+            }
             processed.Add(claim.Id);
 
             // Xoá KQ giám định cũ của hồ sơ → re-import idempotent.
@@ -678,11 +690,10 @@ public partial class InsuranceXmlService
     ///  - XML (4210): mỗi node có con MA_LK + tiền xuất toán (T_XUATTOAN/T_TUCHOI/TIEN_TUCHOI) + lý do (MA_TUCHOI/LYDO_TUCHOI).
     ///  - CSV: cột MaLk,RejectedAmount,RejectCode,RejectReason (có/không header; phân tách , ; hoặc tab).
     /// Gom theo MaLk (SUM tiền xuất toán) để tránh đếm trùng dòng header/chi tiết.</summary>
-    private static List<ReconRow> ParseReconciliationFile(byte[] content)
+    private static List<ReconRow> ParseReconciliationFile(byte[] content, List<string> warnings)
     {
         var rows = new List<ReconRow>();
-        if (content == null || content.Length == 0) return rows;
-        var text = Encoding.UTF8.GetString(content).TrimStart('﻿');
+        var text = Export.CsvUtil.DecodeText(content);
         if (string.IsNullOrWhiteSpace(text)) return rows;
 
         var map = new Dictionary<string, ReconRow>(StringComparer.OrdinalIgnoreCase);
@@ -697,39 +708,65 @@ public partial class InsuranceXmlService
             if (string.IsNullOrEmpty(r.ProcessorName) && !string.IsNullOrWhiteSpace(processor)) r.ProcessorName = processor.Trim();
         }
 
+        var bad = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (text.TrimStart().StartsWith("<"))
         {
+            XDocument doc;
             try
             {
-                var doc = XDocument.Parse(text);
-                foreach (var el in doc.Descendants())
-                {
-                    var maLk = ChildVal(el, "MA_LK");
-                    if (string.IsNullOrWhiteSpace(maLk)) continue;
-                    var rejected = ParseMoney(ChildVal(el, "T_XUATTOAN", "T_TUCHOI", "TIEN_TUCHOI", "SOTIEN_TUCHOI", "T_CHENHLECH"));
-                    var code = ChildVal(el, "MA_TUCHOI", "MA_LYDO", "MA_LOI");
-                    var reason = ChildVal(el, "LYDO_TUCHOI", "LY_DO_TUCHOI", "LY_DO", "GHI_CHU", "MOTA_LOI");
-                    var processor = ChildVal(el, "NGUOI_GD", "MA_GIAMDINHVIEN", "NGUOIGD");
-                    Upsert(maLk, rejected, code, reason, processor);
-                }
+                // XDocument.Parse: DTDs are not resolved against external URIs on .NET (XmlResolver null).
+                doc = XDocument.Parse(text);
             }
-            catch { /* XML hỏng → trả những gì gom được */ }
+            catch (System.Xml.XmlException ex)
+            {
+                // Was swallowed → 200 "đối soát xong" with nothing applied.
+                throw new InvalidOperationException($"Tệp XML kết quả giám định không hợp lệ: {ex.Message}");
+            }
+            foreach (var el in doc.Descendants())
+            {
+                var maLk = ChildVal(el, "MA_LK");
+                if (string.IsNullOrWhiteSpace(maLk)) continue;
+                var rawAmount = ChildVal(el, "T_XUATTOAN", "T_TUCHOI", "TIEN_TUCHOI", "SOTIEN_TUCHOI", "T_CHENHLECH");
+                // XML 4210 is machine-formatted ("1500000.500" = invariant decimal): parse that first, and only
+                // fall back to the human VN/EN notation for hand-edited files.
+                decimal? rejected = decimal.TryParse(rawAmount?.Trim(), System.Globalization.NumberStyles.AllowLeadingSign | System.Globalization.NumberStyles.AllowDecimalPoint,
+                        System.Globalization.CultureInfo.InvariantCulture, out var xmlAmount)
+                    ? xmlAmount
+                    : Export.CsvUtil.ParseMoney(rawAmount);
+                if ((!string.IsNullOrWhiteSpace(rawAmount) && rejected == null) || rejected < 0)
+                {
+                    warnings.Add($"MA_LK {maLk.Trim()}: tiền xuất toán '{rawAmount}' không đọc được — bỏ qua");
+                    bad.Add(maLk.Trim());
+                    continue;
+                }
+                var code = ChildVal(el, "MA_TUCHOI", "MA_LYDO", "MA_LOI");
+                var reason = ChildVal(el, "LYDO_TUCHOI", "LY_DO_TUCHOI", "LY_DO", "GHI_CHU", "MOTA_LOI");
+                var processor = ChildVal(el, "NGUOI_GD", "MA_GIAMDINHVIEN", "NGUOIGD");
+                Upsert(maLk, rejected ?? 0, code, reason, processor);
+            }
         }
         else
         {
-            var lines = text.Replace("\r", "").Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            foreach (var raw in lines)
+            // QA-R10: Split(',') cut a quoted "1,500,000" into "1" / "500" / "000" and the invariant parser
+            // read the VN amount "1.500.000" as 0 → a rejected claim was marked APPROVED. CsvUtil handles
+            // quotes + delimiter detection; ParseMoney handles both notations; bad amounts are reported.
+            foreach (var (lineNumber, cols) in Export.CsvUtil.ReadRecords(text))
             {
-                var cols = raw.Split(new[] { ',', ';', '\t' });
-                if (cols.Length < 2) continue;
-                var maLk = cols[0].Trim().Trim('"');
-                if (string.IsNullOrWhiteSpace(maLk) || maLk.Equals("MaLk", StringComparison.OrdinalIgnoreCase)) continue; // bỏ header
-                var rejected = ParseMoney(cols[1]);
-                var code = cols.Length > 2 ? cols[2].Trim().Trim('"') : null;
-                var reason = cols.Length > 3 ? cols[3].Trim().Trim('"') : null;
-                Upsert(maLk, rejected, code, reason, null);
+                var maLk = Export.CsvUtil.Get(cols, 0);
+                if (maLk.Length == 0 || maLk.Equals("MaLk", StringComparison.OrdinalIgnoreCase) || maLk.Equals("MA_LK", StringComparison.OrdinalIgnoreCase)) continue; // header
+                if (cols.Count < 2) { warnings.Add($"Dòng {lineNumber}: thiếu cột tiền xuất toán — bỏ qua"); bad.Add(maLk); continue; }
+                var rejected = Export.CsvUtil.ParseMoney(cols[1]);
+                if (rejected == null || rejected < 0)
+                {
+                    warnings.Add($"Dòng {lineNumber} (MA_LK {maLk}): tiền xuất toán '{cols[1]}' không hợp lệ — bỏ qua");
+                    bad.Add(maLk);
+                    continue;
+                }
+                Upsert(maLk, rejected.Value, Export.CsvUtil.Get(cols, 2), Export.CsvUtil.Get(cols, 3), null);
             }
         }
+        // A claim with any unreadable line must not be settled on the remaining lines only.
+        foreach (var badCode in bad) map.Remove(badCode);
         rows.AddRange(map.Values);
         return rows;
     }
@@ -744,12 +781,6 @@ public partial class InsuranceXmlService
         return null;
     }
 
-    private static decimal ParseMoney(string? s)
-    {
-        if (string.IsNullOrWhiteSpace(s)) return 0;
-        s = s.Trim().Replace(",", "").Replace("\"", "");
-        return decimal.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : 0;
-    }
 
 
 }

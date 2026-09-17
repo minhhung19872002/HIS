@@ -48,16 +48,8 @@ import { HOSPITAL_NAME } from '../../../constants/hospital';
 
 /* BHYT v2 — claims management */
 
-/** Tải CSV với BOM UTF-8 để Excel mở đúng tiếng Việt */
-function downloadCsv(filename: string, lines: string[]): void {
-  const blob = new Blob([`﻿${lines.join('\n')}`], { type: 'text/csv;charset=utf-8;' });
-  file.downloadBlob(blob, filename);
-}
-
-function escapeCsvCell(v: unknown): string {
-  const s = String(v ?? '');
-  return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
-}
+// QA-R10: shared CSV helpers (BOM + quoting + formula-injection guard) instead of a local copy
+const { downloadCsv, escapeCsvCell } = file;
 
 type PageTab = 'claims' | 'card' | 'reports' | 'xml' | 'batch';
 type StatusKey = 'pending' | 'locked' | 'approved' | 'partial' | 'rejected' | 'paid';

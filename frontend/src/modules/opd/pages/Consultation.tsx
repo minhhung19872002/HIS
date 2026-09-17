@@ -17,16 +17,8 @@ import { RowActions, RefreshButton } from '../../../components/actions';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { Field } from '../../../components/form/Field';
 
-/** Tải CSV với BOM UTF-8 để Excel mở đúng tiếng Việt */
-function downloadCsv(filename: string, lines: string[]): void {
-  const blob = new Blob([`﻿${lines.join('\n')}`], { type: 'text/csv;charset=utf-8;' });
-  file.downloadBlob(blob, filename);
-}
-
-function escapeCsvCell(v: unknown): string {
-  const s = String(v ?? '');
-  return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
-}
+// QA-R10: shared CSV helpers (BOM + quoting + formula-injection guard) instead of a local copy
+const { downloadCsv, escapeCsvCell } = file;
 
 /* ────────────────────────────────────────────────────────────
    Hội chẩn v2 — port of design-system-v2/his/project/Consultation v2.html

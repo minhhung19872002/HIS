@@ -283,10 +283,8 @@ public partial class InsuranceXmlService
                 r.MainIcdCode ?? "", r.MainDiagnosis ?? ""
             }).ToList();
 
-            var html = BuildTableReport($"DU LIEU BHYT THANG {config.Month}/{config.Year}",
-                $"Tong: {claims.Count} ho so", DateTime.Now,
-                new[] { "Ma HSBA", "Ho ten", "So the", "Ngay vao", "Ngay ra", "Ma ICD", "Chan doan" }, rows);
-            return Encoding.UTF8.GetBytes(html);
+            // QA-R10: real .xlsx (was printable HTML served as .xlsx - Excel refused to open it).
+            return Export.ReportFileRenderer.TableToXlsx($"DU LIEU BHYT THANG {config.Month}/{config.Year}", new[] { "Ma HSBA", "Ho ten", "So the", "Ngay vao", "Ngay ra", "Ma ICD", "Chan doan" }, rows);
         }
         catch (Exception ex)
         {

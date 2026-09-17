@@ -334,11 +334,8 @@ function buildRotaFromAssignments(
   return out;
 }
 
-/** CSV helper — inline (same pattern as Reports.tsx downloadCsv) */
-function downloadCsv(filename: string, lines: string[]): void {
-  const blob = new Blob([`﻿${lines.join('\n')}`], { type: 'text/csv;charset=utf-8;' });
-  file.downloadBlob(blob, filename);
-}
+// QA-R10: shared CSV helper (BOM + quoting + formula-injection guard)
+const { downloadCsv, csvLine } = file;
 
 const EMP_PER_PAGE = 10;
 
@@ -1526,10 +1523,10 @@ const HRV2: React.FC = () => {
                   type="button"
                   className="hr-v2-btn"
                   onClick={() => {
-                    const header = 'Nhân sự,Mã NS,Vai trò,Khoa,' + DAYS.join(',');
+                    const header = csvLine(['Nhân sự', 'Mã NS', 'Vai trò', 'Khoa', ...DAYS]);
                     const dataRows = visibleStaff.map((member) => {
                       const shifts = (rota[member.id] ?? []).map((s) => SHIFT_TYPES.find((t) => t.value === s)?.label || s);
-                      return [member.name, member.id, member.role, member.department, ...shifts].join(',');
+                      return csvLine([member.name, member.id, member.role, member.department, ...shifts]);
                     });
                     downloadCsv(
                       `lich-truc-tuan-${week}-${dayjs().format('YYYYMMDD')}.csv`,

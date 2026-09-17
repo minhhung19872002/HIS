@@ -31,7 +31,7 @@ export function downloadUrl(url: string, filename: string): void {
 }
 
 // Re-export các util export đã có để services/ là điểm vào thống nhất.
-export { downloadCsv, escapeCsvCell } from '../utils/csvExport';
+export { downloadCsv, escapeCsvCell, csvLine, csvBlob, objectsToCsvLines } from '../utils/csvExport';
 export {
   exportToExcel,
   exportMultiSheetExcel,

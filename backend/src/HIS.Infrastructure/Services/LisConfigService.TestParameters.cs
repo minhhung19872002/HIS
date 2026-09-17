@@ -219,61 +219,91 @@ public partial class LisConfigService
         }
     }
 
-    public async Task<int> ImportTestParametersCsvAsync(Stream csvStream)
+    /// <summary>
+    /// CSV columns (by position, header row skipped): Code, Name, Unit, ReferenceLow, ReferenceHigh,
+    /// CriticalLow, CriticalHigh, DataType.
+    /// QA-R10: used to (a) insert the same code twice when it appeared twice in one file, (b) accept an
+    /// inverted reference / critical range (patient safety — critical flags never fire), (c) drop bad rows
+    /// silently and swallow every exception as "Đã import 0". Now every rejected row is reported.
+    /// </summary>
+    public async Task<ImportResultDto> ImportTestParametersCsvAsync(Stream csvStream)
     {
-        try
+        var result = new ImportResultDto();
+        var records = Export.CsvUtil.ReadRecords(await Export.CsvUtil.ReadTextAsync(csvStream));
+        if (records.Count < 2)
+            throw new InvalidOperationException("Tệp CSV rỗng hoặc chỉ có dòng tiêu đề (Code,Name,Unit,ReferenceLow,ReferenceHigh,CriticalLow,CriticalHigh,DataType).");
+
+        var existingCodes = (await _context.LisTestParameters.Select(t => t.Code).ToListAsync())
+            .Select(c => c.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var sortBase = await _context.LisTestParameters.Select(t => (int?)t.SortOrder).MaxAsync() ?? 0;
+        var allowedTypes = new[] { "Number", "Text", "Enum" };
+
+        foreach (var (lineNumber, parts) in records.Skip(1))
         {
-            using var reader = new StreamReader(csvStream);
-            var headerLine = await reader.ReadLineAsync();
-            if (headerLine == null) return 0;
-
-            int imported = 0;
-            while (await reader.ReadLineAsync() is { } line)
+            result.TotalRows++;
+            void Fail(string column, string message)
             {
-                var parts = line.Split(',');
-                if (parts.Length < 3) continue;
-
-                var code = parts[0].Trim().Trim('"');
-                var name = parts[1].Trim().Trim('"');
-                var unit = parts[2].Trim().Trim('"');
-
-                // Skip if already exists
-                if (await _context.LisTestParameters.AnyAsync(t => t.Code == code))
-                    continue;
-
-                var entity = new LisTestParameter
-                {
-                    Id = Guid.NewGuid(),
-                    Code = code,
-                    Name = name,
-                    Unit = unit,
-                    DataType = "Number",
-                    IsActive = true,
-                    SortOrder = imported + 1,
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                // Optional columns: ReferenceLow, ReferenceHigh, CriticalLow, CriticalHigh, DataType
-                if (parts.Length > 3 && decimal.TryParse(parts[3].Trim(), out var refLow)) entity.ReferenceLow = refLow;
-                if (parts.Length > 4 && decimal.TryParse(parts[4].Trim(), out var refHigh)) entity.ReferenceHigh = refHigh;
-                if (parts.Length > 5 && decimal.TryParse(parts[5].Trim(), out var critLow)) entity.CriticalLow = critLow;
-                if (parts.Length > 6 && decimal.TryParse(parts[6].Trim(), out var critHigh)) entity.CriticalHigh = critHigh;
-                if (parts.Length > 7) entity.DataType = parts[7].Trim().Trim('"');
-
-                _context.LisTestParameters.Add(entity);
-                imported++;
+                result.FailedRows++;
+                result.Errors.Add(new ImportError { RowNumber = lineNumber, ColumnName = column, ErrorMessage = message });
             }
 
-            if (imported > 0)
-                await _context.SaveChangesAsync();
+            var code = Export.CsvUtil.Get(parts, 0);
+            var name = Export.CsvUtil.Get(parts, 1);
+            var unit = Export.CsvUtil.Get(parts, 2);
+            if (code.Length == 0) { Fail("Code", "Thiếu mã thông số."); continue; }
+            if (name.Length == 0) { Fail("Name", "Thiếu tên thông số."); continue; }
+            if (!existingCodes.Add(code)) { Fail("Code", $"Mã '{code}' đã tồn tại (trong hệ thống hoặc trùng dòng trước)."); continue; }
 
-            return imported;
+            decimal? Num(int index, string column, out bool bad)
+            {
+                var raw = Export.CsvUtil.Get(parts, index);
+                bad = false;
+                if (raw.Length == 0) return null;
+                if (decimal.TryParse(raw.Replace(',', '.'), System.Globalization.NumberStyles.Number & ~System.Globalization.NumberStyles.AllowThousands,
+                        System.Globalization.CultureInfo.InvariantCulture, out var v)) return v;
+                bad = true;
+                return null;
+            }
+            var refLow = Num(3, "ReferenceLow", out var b1);
+            var refHigh = Num(4, "ReferenceHigh", out var b2);
+            var critLow = Num(5, "CriticalLow", out var b3);
+            var critHigh = Num(6, "CriticalHigh", out var b4);
+            if (b1 || b2 || b3 || b4) { existingCodes.Remove(code); Fail("Reference", "Giá trị tham chiếu/ngưỡng không phải số."); continue; }
+            if (refLow > refHigh || critLow > critHigh)
+            { existingCodes.Remove(code); Fail("Reference", "Ngưỡng thấp lớn hơn ngưỡng cao."); continue; }
+            if ((critLow.HasValue && refLow.HasValue && critLow > refLow) || (critHigh.HasValue && refHigh.HasValue && critHigh < refHigh))
+            { existingCodes.Remove(code); Fail("Critical", "Ngưỡng nguy hiểm phải nằm ngoài khoảng tham chiếu."); continue; }
+
+            var dataType = "Number";
+            var rawType = Export.CsvUtil.Get(parts, 7);
+            if (rawType.Length > 0)
+            {
+                var match = allowedTypes.FirstOrDefault(t => string.Equals(t, rawType, StringComparison.OrdinalIgnoreCase));
+                if (match == null) { existingCodes.Remove(code); Fail("DataType", "DataType phải là Number, Text hoặc Enum."); continue; }
+                dataType = match;
+            }
+
+            _context.LisTestParameters.Add(new LisTestParameter
+            {
+                Id = Guid.NewGuid(),
+                Code = code,
+                Name = name,
+                Unit = unit,
+                ReferenceLow = refLow,
+                ReferenceHigh = refHigh,
+                CriticalLow = critLow,
+                CriticalHigh = critHigh,
+                DataType = dataType,
+                IsActive = true,
+                SortOrder = sortBase + result.SuccessRows + 1,
+                CreatedAt = DateTime.UtcNow
+            });
+            result.SuccessRows++;
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error in ImportTestParametersCsvAsync");
-            return 0;
-        }
+
+        if (result.SuccessRows > 0)
+            await _context.SaveChangesAsync();
+        return result;
     }
 
     #endregion

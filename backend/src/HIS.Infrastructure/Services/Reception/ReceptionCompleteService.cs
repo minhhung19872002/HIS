@@ -309,6 +309,12 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
             .Select(p => p.PatientCode)
             .ToListAsync();
 
+        // QA-R10: include patients Added but not yet saved in this unit of work — a batch import creating
+        // two new patients got the same code twice and the whole import failed with DUPLICATE.
+        todayCodes.AddRange(_context.ChangeTracker.Entries<Patient>()
+            .Where(e => e.State == EntityState.Added && e.Entity.PatientCode != null && e.Entity.PatientCode.StartsWith(prefix))
+            .Select(e => e.Entity.PatientCode));
+
         var maxNumber = todayCodes
             .Select(c => int.TryParse(c.Substring(prefix.Length), out var n) ? n : 0)
             .DefaultIfEmpty(0)

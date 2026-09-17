@@ -160,11 +160,8 @@ public partial class ExaminationCompleteService
                 d.DoctorName ?? ""
             }).ToList();
 
-            var html = BuildTableReport(
-                "SO KHAM BENH",
-                $"Tu {fromDate:dd/MM/yyyy} den {toDate:dd/MM/yyyy}",
-                DateTime.Now, headers, rows);
-            return Encoding.UTF8.GetBytes(html);
+            // QA-R10: real .xlsx (was printable HTML served as .xlsx - Excel refused to open it).
+            return Export.ReportFileRenderer.TableToXlsx("SO KHAM BENH", headers, rows);
         }
         catch { return Array.Empty<byte>(); }
     }

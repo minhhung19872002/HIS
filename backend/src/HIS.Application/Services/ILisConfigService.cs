@@ -21,7 +21,7 @@ public interface ILisConfigService
     Task<LisTestParameterDto> CreateTestParameterAsync(CreateLisTestParameterDto dto);
     Task<LisTestParameterDto> UpdateTestParameterAsync(Guid id, CreateLisTestParameterDto dto);
     Task<bool> DeleteTestParameterAsync(Guid id);
-    Task<int> ImportTestParametersCsvAsync(Stream csvStream);
+    Task<ImportResultDto> ImportTestParametersCsvAsync(Stream csvStream);
 
     // Reference Ranges
     Task<List<LisReferenceRangeDto>> GetReferenceRangesAsync(Guid? testParameterId = null);

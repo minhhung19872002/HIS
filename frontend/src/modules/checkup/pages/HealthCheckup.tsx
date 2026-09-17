@@ -283,8 +283,8 @@ const CampaignTab: React.FC = () => {
       setImportResult(result);
       if (result.errorCount === 0) tk(`Nhập thành công ${result.successCount} bản ghi`);
       else ti(`Nhập xong: ${result.successCount} thành công, ${result.errorCount} lỗi`);
-    } catch {
-      te('Nhập Excel thất bại');
+    } catch (err) {
+      te((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Nhập danh sách thất bại');
     } finally {
       setImporting(false);
       e.target.value = '';
@@ -455,21 +455,22 @@ const CampaignTab: React.FC = () => {
           </DrSec>
 
           {/* Excel import section */}
-          <DrSec title="Nhập danh sách (Excel)">
+          {/* QA-R10: the API reads CSV only (an .xlsx was parsed as text into junk rows) */}
+          <DrSec title="Nhập danh sách (CSV)">
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <label style={{ cursor: 'pointer', fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>
                 <input
                   type="file"
-                  accept=".xlsx,.xls"
+                  accept=".csv,.txt"
                   style={{ display: 'none' }}
                   onChange={handleImport}
                   disabled={importing}
                 />
                 <span className="ab-btn" style={{ pointerEvents: importing ? 'none' : 'auto', opacity: importing ? 0.6 : 1 }}>
-                  {importing ? 'Đang nhập...' : 'Chọn file Excel'}
+                  {importing ? 'Đang nhập...' : 'Chọn file CSV'}
                 </span>
               </label>
-              <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>.xlsx / .xls</span>
+              <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>Excel → Lưu thành "CSV UTF-8" · cột: Họ tên, Mã NV, Phòng ban</span>
             </div>
 
             {importResult && (

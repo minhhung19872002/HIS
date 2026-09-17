@@ -315,8 +315,15 @@ const TestParamsSection: React.FC = () => {
   }, { tone: 'crit', confirm: 'Xoá' });
 
   const handleCsvImport = async (file: File) => {
-    try { await importTestParametersCsv(file); tk('Import CSV thành công'); load(); }
-    catch { tw('Lỗi khi import CSV'); }
+    try {
+      // QA-R10: was "thành công" even when every row was rejected — show the real counts + first errors.
+      const r = (await importTestParametersCsv(file)).data;
+      const firstErrors = (r?.errors ?? []).slice(0, 3).map((e) => `dòng ${e.rowNumber}: ${e.errorMessage}`).join('; ');
+      if (r && r.failedRows > 0) tw(`${r.message}${firstErrors ? ` — ${firstErrors}` : ''}`);
+      else tk(r?.message || 'Import CSV thành công');
+      load();
+    }
+    catch (e) { tw(friendlyErrorMessage(e, 'Lỗi khi import CSV')); }
   };
 
   const filtered = useMemo(() => {

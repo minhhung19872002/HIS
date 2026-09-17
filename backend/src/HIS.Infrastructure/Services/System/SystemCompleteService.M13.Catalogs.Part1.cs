@@ -474,9 +474,8 @@ public partial class SystemCompleteService
                 m.Concentration ?? "", m.Manufacturer ?? "", m.IsActive ? "Co" : "Khong"
             }).ToList();
 
-            var html = BuildTableReport("DANH MUC THUOC", $"Tong: {medicines.Count} thuoc", DateTime.Now,
-                new[] { "Ma thuoc", "Ten thuoc", "Hoat chat", "DVT", "Ham luong", "Hang SX", "Hoat dong" }, rows);
-            return Encoding.UTF8.GetBytes(html);
+            // QA-R10: real .xlsx (was printable HTML served as .xlsx - Excel refused to open it).
+            return Export.ReportFileRenderer.TableToXlsx("DANH MUC THUOC", new[] { "Ma thuoc", "Ten thuoc", "Hoat chat", "DVT", "Ham luong", "Hang SX", "Hoat dong" }, rows);
         }
         catch { return Array.Empty<byte>(); }
     }

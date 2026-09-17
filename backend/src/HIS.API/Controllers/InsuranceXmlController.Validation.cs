@@ -155,6 +155,9 @@ public partial class InsuranceXmlController
     /// Import kết quả đối soát từ BHXH
     /// </summary>
     [HttpPost("reconciliation/import/{batchId}")]
+    // QA-R10: the class-level role list includes Receptionist (BHYT card checks) and the write-permission
+    // convention skips role-gated controllers — a receptionist could rewrite claim statuses / rejections.
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Approve)]
     public async Task<ActionResult<InsuranceReconciliationDto>> ImportReconciliationResult(Guid batchId, IFormFile file)
     {
         if (file == null || file.Length == 0)

@@ -245,10 +245,17 @@ public partial class ExaminationCompleteService
     public async Task<DrugInteractionImportResultDto> ImportDrugInteractionsAsync(byte[] csvContent)
     {
         var result = new DrugInteractionImportResultDto();
-        var lines = Encoding.UTF8.GetString(csvContent)
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        // QA-R10: shared CsvUtil — a BOM hid the first header ("Thieu cot activeingredient1" for every Excel
+        // "CSV UTF-8" file) and Split(',') cut a quoted description at its first comma.
+        List<(int LineNumber, List<string> Cells)> records;
+        try { records = HIS.Infrastructure.Services.Export.CsvUtil.ReadRecords(HIS.Infrastructure.Services.Export.CsvUtil.DecodeText(csvContent)); }
+        catch (InvalidOperationException ex)
+        {
+            result.Errors.Add(new DrugInteractionImportErrorDto { RowNumber = 0, ErrorMessage = ex.Message });
+            return result;
+        }
 
-        if (lines.Length < 2)
+        if (records.Count < 2)
         {
             result.Errors.Add(new DrugInteractionImportErrorDto
             {
@@ -259,7 +266,7 @@ public partial class ExaminationCompleteService
         }
 
         // Validate header (case-insensitive)
-        var headerCols = lines[0].Trim().Split(',');
+        var headerCols = records[0].Cells;
         string[] requiredHeaders = { "activeingredient1", "activeingredient2", "severity" };
         var headerLower = headerCols.Select(h => h.Trim().ToLowerInvariant()).ToArray();
         foreach (var req in requiredHeaders)
@@ -269,7 +276,7 @@ public partial class ExaminationCompleteService
                 result.Errors.Add(new DrugInteractionImportErrorDto
                 {
                     RowNumber = 1,
-                    ErrorMessage = $"Thieu cot bat buoc: {req}. Header hien tai: {lines[0].Trim()}"
+                    ErrorMessage = $"Thieu cot bat buoc: {req}. Header hien tai: {string.Join(",", headerCols)}"
                 });
                 return result;
             }
@@ -298,15 +305,12 @@ public partial class ExaminationCompleteService
             .Where(d => !d.IsDeleted)
             .ToListAsync();
 
-        result.TotalRows = lines.Length - 1;
+        result.TotalRows = records.Count - 1;
 
-        for (int i = 1; i < lines.Length; i++)
+        foreach (var (lineNumber, colList) in records.Skip(1))
         {
-            var line = lines[i].Trim();
-            if (string.IsNullOrWhiteSpace(line)) { result.TotalRows--; continue; }
-
-            var cols = line.Split(',');
-            int rowNum = i + 1; // 1-based, row 1 = header
+            var cols = colList.ToArray();
+            int rowNum = lineNumber; // 1-based line in the file, line 1 = header
 
             try
             {

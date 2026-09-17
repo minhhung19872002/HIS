@@ -16,5 +16,9 @@ Found in the QA round-9 pre-push review (2026-09-17):
 - HL7 port 2576 and the MPPS port are not published on EC2 (Caddy exposes only 80/443). HL7/MPPS changes have almost no effect on prod.
 - CI deploy gate = `dotnet test` only. ESLint and `npm run build` are NOT gates; the FE is built inside the Dockerfile.
 
+- (QA-R10, 2026-09-17) Maintenance workers (TokenCleanup/AuditRetention/AuditArchive/BackupScheduler) now run at a VN wall-clock time (VnSchedule), not at boot. BackupScheduler keeps polling SystemConfig `Backup.ScheduleEnabled` even when appsettings Enabled=false. The backup provider is Auto, so it picks RDS when `msdb.dbo.rds_backup_database` exists. With no `Backup:RdsS3Arn` set, each run writes a Failed row with an actionable message.
+- (QA-R10) Before R10, BhxhAuditImports inserts always failed (UpdatedAt is NOT NULL). So prod has no rows there, and R10's "reject a MaHoSo that was already imported" blocks re-importing updated statuses.
+- (QA-R10) `risChat.ts` / RisChatHub is used only by v1 `pages/Radiology.tsx`. The `/admin/configs*` endpoints are Admin-only, and secret keys now come back masked.
+
 **Why:** diff-only review misses these because the deciding fact lives in the middleware, the FE caller, or the prod infra.
 **How to apply:** for audit-retention changes, map Action names to the middleware first. For dedup/idempotency, check what the real caller sends. For worker "catch-up" fixes, check for a lookback bound. Related: [[migration-runner-pitfalls]], [[money-path-review-traps]]

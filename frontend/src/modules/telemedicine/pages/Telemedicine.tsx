@@ -324,8 +324,8 @@ const TelemedicineV2: React.FC = () => {
                 r.chiefComplaint || '',
                 r.statusName || '',
                 r.videoRoomUrl || '',
-              ].map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','));
-              const blob = new Blob(['﻿' + [header, ...csvRows].join('\n')], { type: 'text/csv;charset=utf-8;' });
+              ].map(file.escapeCsvCell).join(','));
+              const blob = file.csvBlob([header, ...csvRows]); // QA-R10: shared escaping (formula injection)
               file.downloadBlob(blob, `telemedicine_${dayjs().format('YYYYMMDD-HHmm')}.csv`);
               message.success(`Đã xuất ${filtered.length} dòng`);
             }}>

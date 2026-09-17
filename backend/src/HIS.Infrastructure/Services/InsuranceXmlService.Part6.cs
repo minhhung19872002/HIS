@@ -89,10 +89,8 @@ public partial class InsuranceXmlService
                 d.SoBenhNhan.ToString("N0"), d.SoNgayDieuTri.ToString("N0"),
                 d.TienDeNghi.ToString("N0"), d.TienQuyetToan.ToString("N0"),
             }).ToList();
-            var html = BuildTableReport($"BAO CAO C80B-HD THANG {month}/{year}",
-                $"Tong {report.TotalPatients} BN noi tru, BHYT: {report.TotalInsuranceAmount:N0}", DateTime.Now,
-                new[] { "STT", "Nhom doi tuong", "So BN", "So ngay DT", "Tien de nghi", "Tien quyet toan" }, rows);
-            return Encoding.UTF8.GetBytes(html);
+            // QA-R10: real .xlsx (was printable HTML served as .xlsx - Excel refused to open it).
+            return Export.ReportFileRenderer.TableToXlsx($"BAO CAO C80B-HD THANG {month}/{year}", new[] { "STT", "Nhom doi tuong", "So BN", "So ngay DT", "Tien de nghi", "Tien quyet toan" }, rows);
         }
         catch (Exception ex)
         {
@@ -339,32 +337,6 @@ public partial class InsuranceXmlService
         { "ItemCode", "ItemName", "Unit", "InsurancePrice", "PaymentRate", "EffectiveFrom", "DecisionNumber" };
 
     /// <summary>
-    /// Tách file CSV thành các dòng ô. Dự án không có thư viện đọc Excel/CSV nào nên tự tách; đủ dùng
-    /// cho tệp danh mục BHYT xuất ra CSV (có hỗ trợ ô bọc trong dấu nháy kép).
-    /// </summary>
-    private static List<string> SplitCsvLine(string line)
-    {
-        var cells = new List<string>();
-        var sb = new StringBuilder();
-        bool inQuote = false;
-        for (int i = 0; i < line.Length; i++)
-        {
-            var c = line[i];
-            if (inQuote)
-            {
-                if (c == '"' && i + 1 < line.Length && line[i + 1] == '"') { sb.Append('"'); i++; }
-                else if (c == '"') inQuote = false;
-                else sb.Append(c);
-            }
-            else if (c == '"') inQuote = true;
-            else if (c == ',') { cells.Add(sb.ToString().Trim()); sb.Clear(); }
-            else sb.Append(c);
-        }
-        cells.Add(sb.ToString().Trim());
-        return cells;
-    }
-
-    /// <summary>
     /// Nhập một tệp danh mục giá BHYT. <paramref name="isMedicine"/> quyết định đối chiếu mã sang
     /// `Medicines` hay `Services`.
     /// </summary>
@@ -375,26 +347,13 @@ public partial class InsuranceXmlService
         if (fileContent == null || fileContent.Length == 0)
             throw new InvalidOperationException("Chưa chọn tệp danh mục để nhập.");
 
-        string text;
-        try
-        {
-            text = new UTF8Encoding(false, throwOnInvalidBytes: true)
-                .GetString(fileContent).TrimStart('﻿');
-        }
-        catch (Exception)
-        {
-            // Trước đây chỗ này trả "0 dòng" và người dùng đi kiểm tra lại file của mình.
-            throw new InvalidOperationException(
-                "Không đọc được nội dung tệp. Danh mục phải là tệp CSV mã hoá UTF-8, "
-                + "cột: " + string.Join(", ", CatalogColumns) + ".");
-        }
-
-        var lines = text.Replace("\r\n", "\n").Split('\n')
-            .Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
-        if (lines.Count == 0)
+        // QA-R10: shared CsvUtil — UTF-8 (BOM optional) only, with a clear message for ANSI/.xlsx files
+        // (previously "0 dòng"), quoted line breaks, row cap.
+        var records = Export.CsvUtil.ReadRecords(Export.CsvUtil.DecodeText(fileContent));
+        if (records.Count == 0)
             throw new InvalidOperationException("Tệp danh mục rỗng.");
 
-        var header = SplitCsvLine(lines[0]);
+        var header = records[0].Cells;
         var thieuCot = CatalogColumns
             .Where(c => !header.Any(h => string.Equals(h, c, StringComparison.OrdinalIgnoreCase)))
             .ToList();
@@ -409,11 +368,12 @@ public partial class InsuranceXmlService
             iFrom = Idx("EffectiveFrom"), iQd = Idx("DecisionNumber");
 
         var now = DateTime.Now;
-        for (int r = 1; r < lines.Count; r++)
+        // A code listed twice: the per-row "close the active version" query cannot see the unsaved first
+        // row, so the code ended up with TWO active prices.
+        var codesInFile = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (soDong, cells) in records.Skip(1)) // soDong: dòng trong tệp (tính cả tiêu đề) để người dùng mở ra sửa
         {
             result.TotalRows++;
-            var soDong = r + 1; // số dòng trong tệp, tính cả dòng tiêu đề — để người dùng mở ra sửa
-            var cells = SplitCsvLine(lines[r]);
 
             string Cell(int i) => i >= 0 && i < cells.Count ? cells[i] : string.Empty;
 
@@ -432,19 +392,19 @@ public partial class InsuranceXmlService
             if (string.IsNullOrWhiteSpace(code)) { Loi("ItemCode", "Thiếu mã danh mục."); continue; }
             if (string.IsNullOrWhiteSpace(Cell(iName))) { Loi("ItemName", "Thiếu tên danh mục."); continue; }
 
-            if (!decimal.TryParse(Cell(iPrice), System.Globalization.NumberStyles.Any,
-                                  System.Globalization.CultureInfo.InvariantCulture, out var gia)
-                || gia < 0)
+            // Invariant parsing read the VN price "150.000" as 150 (1000x too cheap); ParseMoney reads
+            // both 150.000 and 150,000.00.
+            if (Export.CsvUtil.ParseMoney(Cell(iPrice)) is not { } gia || gia < 0)
             { Loi("InsurancePrice", "Giá BHYT không hợp lệ hoặc bỏ trống."); continue; }
 
-            if (!decimal.TryParse(Cell(iRate), System.Globalization.NumberStyles.Any,
-                                  System.Globalization.CultureInfo.InvariantCulture, out var tyLe)
-                || tyLe < 0 || tyLe > 100)
+            if (Export.CsvUtil.ParseMoney(Cell(iRate)) is not { } tyLe || tyLe < 0 || tyLe > 100)
             { Loi("PaymentRate", "Tỷ lệ thanh toán phải trong khoảng 0-100."); continue; }
 
-            if (!DateTime.TryParse(Cell(iFrom), System.Globalization.CultureInfo.InvariantCulture,
-                                   System.Globalization.DateTimeStyles.None, out var hieuLucTu))
-            { Loi("EffectiveFrom", "Ngày hiệu lực không hợp lệ (định dạng yyyy-MM-dd)."); continue; }
+            // Invariant DateTime.TryParse read 05/03/2026 as 3 May.
+            if (Export.CsvUtil.ParseDate(Cell(iFrom)) is not { } hieuLucTu)
+            { Loi("EffectiveFrom", "Ngày hiệu lực không hợp lệ (dd/MM/yyyy hoặc yyyy-MM-dd)."); continue; }
+
+            if (!codesInFile.Add(code)) { Loi("ItemCode", "Mã danh mục trùng với dòng trước trong tệp."); continue; }
 
             var qd = Cell(iQd);
 
@@ -452,6 +412,13 @@ public partial class InsuranceXmlService
             var dangHieuLuc = await _context.InsurancePriceConfigs
                 .Where(c => !c.IsDeleted && c.IsActive && c.ItemCode == code)
                 .ToListAsync();
+            // Re-importing the same file closed the active version with EffectiveTo = EffectiveFrom - 1
+            // (inverted interval) and added a copy: a new version must start AFTER the active one.
+            if (dangHieuLuc.Any(cu => cu.EffectiveFrom >= hieuLucTu))
+            {
+                Loi("EffectiveFrom", $"Mã đã có giá hiệu lực từ {dangHieuLuc.Max(cu => cu.EffectiveFrom):dd/MM/yyyy}; ngày hiệu lực mới phải sau ngày đó.");
+                continue;
+            }
             foreach (var cu in dangHieuLuc)
             {
                 cu.IsActive = false;

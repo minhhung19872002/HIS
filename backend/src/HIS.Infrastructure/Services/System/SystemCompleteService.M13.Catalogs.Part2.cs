@@ -219,9 +219,8 @@ public partial class SystemCompleteService
                 i.Code, i.Name ?? "", i.NameEnglish ?? "", i.ChapterCode ?? "", i.ChapterName ?? ""
             }).ToList();
 
-            var html = BuildTableReport("DANH MUC MA ICD-10", $"Tong: {codes.Count} ma", DateTime.Now,
-                new[] { "Ma ICD", "Ten benh", "Ten tieng Anh", "Ma chuong", "Ten chuong" }, rows);
-            return Encoding.UTF8.GetBytes(html);
+            // QA-R10: real .xlsx (was printable HTML served as .xlsx - Excel refused to open it).
+            return Export.ReportFileRenderer.TableToXlsx("DANH MUC MA ICD-10", new[] { "Ma ICD", "Ten benh", "Ten tieng Anh", "Ma chuong", "Ten chuong" }, rows);
         }
         catch { return Array.Empty<byte>(); }
     }

@@ -362,8 +362,8 @@ const FollowUpV2: React.FC = () => {
             r.daysOverdue > 0 ? String(r.daysOverdue) : '',
             r.isReminderSent ? 'Đã nhắc' : '',
             r.statusName || '',
-          ].map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','));
-          const blob = new Blob(['﻿' + [header, ...csvRows].join('\n')], { type: 'text/csv;charset=utf-8;' });
+          ].map(file.escapeCsvCell).join(','));
+          const blob = file.csvBlob([header, ...csvRows]); // QA-R10: shared escaping (formula injection)
           file.downloadBlob(blob, `followup_${dayjs().format('YYYYMMDD-HHmm')}.csv`);
           message.success(`Đã xuất ${filtered.length} dòng`);
         }}>

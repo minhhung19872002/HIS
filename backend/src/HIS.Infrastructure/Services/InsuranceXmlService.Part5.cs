@@ -179,10 +179,8 @@ public partial class InsuranceXmlService
                 d.TienTamUng.ToString("N0"), d.TienDeNghi.ToString("N0"), d.TienQuyetToan.ToString("N0")
             }).ToList() ?? new List<string[]>();
 
-            var html = BuildTableReport($"BAO CAO C79-HD THANG {month}/{year}",
-                $"Tong BHYT: {report.TotalInsuranceAmount:N0}", DateTime.Now,
-                new[] { "STT", "Ten chi tieu", "So luot", "Tien tam ung", "Tien de nghi", "Tien quyet toan" }, rows);
-            return Encoding.UTF8.GetBytes(html);
+            // QA-R10: real .xlsx (was printable HTML served as .xlsx - Excel refused to open it).
+            return Export.ReportFileRenderer.TableToXlsx($"BAO CAO C79-HD THANG {month}/{year}", new[] { "STT", "Ten chi tieu", "So luot", "Tien tam ung", "Tien de nghi", "Tien quyet toan" }, rows);
         }
         catch (Exception ex)
         {
@@ -201,10 +199,8 @@ public partial class InsuranceXmlService
                 d.SoNguoi.ToString(), d.TienDeNghi.ToString("N0"), d.TienQuyetToan.ToString("N0")
             }).ToList() ?? new List<string[]>();
 
-            var html = BuildTableReport($"BAO CAO 80a-HD THANG {month}/{year}",
-                $"Tong: {report.TotalPatients} benh nhan, BHYT: {report.TotalInsuranceAmount:N0}", DateTime.Now,
-                new[] { "STT", "Loai the", "So luot KCB", "So nguoi", "Tien de nghi", "Tien quyet toan" }, rows);
-            return Encoding.UTF8.GetBytes(html);
+            // QA-R10: real .xlsx (was printable HTML served as .xlsx - Excel refused to open it).
+            return Export.ReportFileRenderer.TableToXlsx($"BAO CAO 80a-HD THANG {month}/{year}", new[] { "STT", "Loai the", "So luot KCB", "So nguoi", "Tien de nghi", "Tien quyet toan" }, rows);
         }
         catch (Exception ex)
         {
@@ -287,11 +283,9 @@ public partial class InsuranceXmlService
                 d.SoLuong.ToString("N0"), d.DonGia.ToString("N0"),
                 d.ThanhTien.ToString("N0"), d.TienBhyt.ToString("N0"),
             }).ToList();
-            var html = BuildTableReport($"MAU 16/BHYT - CHE PHAM YHCT THANG {month}/{year}",
-                $"Tong: {report.TotalItems} loai thuoc YHCT, Tong tien: {report.TotalAmount:N0}", DateTime.Now,
-                new[] { "STT", "Ma thuoc", "Ten che pham", "Hoat chat", "DVT",
+            // QA-R10: real .xlsx (was printable HTML served as .xlsx - Excel refused to open it).
+            return Export.ReportFileRenderer.TableToXlsx($"MAU 16/BHYT - CHE PHAM YHCT THANG {month}/{year}", new[] { "STT", "Ma thuoc", "Ten che pham", "Hoat chat", "DVT",
                          "So luong", "Don gia", "Thanh tien", "Tien BHYT" }, rows);
-            return Encoding.UTF8.GetBytes(html);
         }
         catch (Exception ex)
         {
@@ -372,11 +366,9 @@ public partial class InsuranceXmlService
                 d.SoLuong.ToString("N0"), d.DonGia.ToString("N0"),
                 d.ThanhTien.ToString("N0"), d.TienBhyt.ToString("N0"),
             }).ToList();
-            var html = BuildTableReport($"MAU 17/BHYT - VI THUOC YHCT THANG {month}/{year}",
-                $"Tong: {report.TotalItems} vi thuoc YHCT, Tong tien: {report.TotalAmount:N0}", DateTime.Now,
-                new[] { "STT", "Ma thuoc", "Ten vi thuoc", "DVT",
+            // QA-R10: real .xlsx (was printable HTML served as .xlsx - Excel refused to open it).
+            return Export.ReportFileRenderer.TableToXlsx($"MAU 17/BHYT - VI THUOC YHCT THANG {month}/{year}", new[] { "STT", "Ma thuoc", "Ten vi thuoc", "DVT",
                          "So luong", "Don gia", "Thanh tien", "Tien BHYT" }, rows);
-            return Encoding.UTF8.GetBytes(html);
         }
         catch (Exception ex)
         {
@@ -448,11 +440,9 @@ public partial class InsuranceXmlService
                 d.SoLuong.ToString("N0"), d.DonGia.ToString("N0"),
                 d.ThanhTien.ToString("N0"), d.TienBhyt.ToString("N0"), d.TienBenhNhan.ToString("N0"),
             }).ToList();
-            var html = BuildTableReport($"MAU 19/BHYT - VAT TU Y TE THANG {month}/{year}",
-                $"Tong: {report.TotalItems} loai VTYT, BHYT: {report.TotalInsuranceAmount:N0}", DateTime.Now,
-                new[] { "STT", "Ma VTYT", "Ten vat tu", "DVT",
+            // QA-R10: real .xlsx (was printable HTML served as .xlsx - Excel refused to open it).
+            return Export.ReportFileRenderer.TableToXlsx($"MAU 19/BHYT - VAT TU Y TE THANG {month}/{year}", new[] { "STT", "Ma VTYT", "Ten vat tu", "DVT",
                          "So luong", "Don gia", "Thanh tien", "Tien BHYT", "BN tra" }, rows);
-            return Encoding.UTF8.GetBytes(html);
         }
         catch (Exception ex)
         {
@@ -529,11 +519,9 @@ public partial class InsuranceXmlService
                 d.SoLuong.ToString("N0"), d.DonGia.ToString("N0"),
                 d.ThanhTien.ToString("N0"), d.TienBhyt.ToString("N0"), d.TienBenhNhan.ToString("N0"),
             }).ToList();
-            var html = BuildTableReport($"MAU 20/BHYT - THUOC BN BHYT THANG {month}/{year}",
-                $"Tong: {report.TotalItems} loai thuoc, BHYT: {report.TotalInsuranceAmount:N0}", DateTime.Now,
-                new[] { "STT", "Ma thuoc", "Ten thuoc", "Hoat chat", "DVT",
+            // QA-R10: real .xlsx (was printable HTML served as .xlsx - Excel refused to open it).
+            return Export.ReportFileRenderer.TableToXlsx($"MAU 20/BHYT - THUOC BN BHYT THANG {month}/{year}", new[] { "STT", "Ma thuoc", "Ten thuoc", "Hoat chat", "DVT",
                          "So luong", "Don gia", "Thanh tien", "Tien BHYT", "BN tra" }, rows);
-            return Encoding.UTF8.GetBytes(html);
         }
         catch (Exception ex)
         {
@@ -606,11 +594,9 @@ public partial class InsuranceXmlService
                 d.SoLuong.ToString("N0"), d.DonGia.ToString("N0"),
                 d.ThanhTien.ToString("N0"), d.TienBhyt.ToString("N0"), d.TienBenhNhan.ToString("N0"),
             }).ToList();
-            var html = BuildTableReport($"MAU 21/BHYT - DVKT BN BHYT THANG {month}/{year}",
-                $"Tong: {report.TotalItems} loai DVKT, BHYT: {report.TotalInsuranceAmount:N0}", DateTime.Now,
-                new[] { "STT", "Ma DVKT", "Ten dich vu", "DVT",
+            // QA-R10: real .xlsx (was printable HTML served as .xlsx - Excel refused to open it).
+            return Export.ReportFileRenderer.TableToXlsx($"MAU 21/BHYT - DVKT BN BHYT THANG {month}/{year}", new[] { "STT", "Ma DVKT", "Ten dich vu", "DVT",
                          "So luong", "Don gia", "Thanh tien", "Tien BHYT", "BN tra" }, rows);
-            return Encoding.UTF8.GetBytes(html);
         }
         catch (Exception ex)
         {
@@ -689,11 +675,9 @@ public partial class InsuranceXmlService
                 d.SoLuong.ToString("N0"), d.DonGia.ToString("N0"),
                 d.ThanhTien.ToString("N0"), d.TienBhyt.ToString("N0"), d.TienBenhNhan.ToString("N0"),
             }).ToList();
-            var html = BuildTableReport($"MAU 21/BHYT THEO CV 285/BHXH-CSYT THANG {month}/{year}",
-                $"Tong: {report.TotalItems} DVKT, BHYT: {report.TotalInsuranceAmount:N0}", DateTime.Now,
-                new[] { "STT", "Nhom DVKT", "Ma DVKT", "Ten dich vu", "DVT",
+            // QA-R10: real .xlsx (was printable HTML served as .xlsx - Excel refused to open it).
+            return Export.ReportFileRenderer.TableToXlsx($"MAU 21/BHYT THEO CV 285/BHXH-CSYT THANG {month}/{year}", new[] { "STT", "Nhom DVKT", "Ma DVKT", "Ten dich vu", "DVT",
                          "So luong", "Don gia", "Thanh tien", "Tien BHYT", "BN tra" }, rows);
-            return Encoding.UTF8.GetBytes(html);
         }
         catch (Exception ex)
         {
@@ -770,10 +754,8 @@ public partial class InsuranceXmlService
                 d.Stt.ToString(), d.NhomDvkt, d.SoLuot.ToString("N0"),
                 d.TienDeNghi.ToString("N0"), d.TienQuyetToan.ToString("N0"), d.GhiChu,
             }).ToList();
-            var html = BuildTableReport($"BAO CAO C79B-HD THANG {month}/{year}",
-                $"Tong {report.TotalVisits} luot ngoai tru, BHYT: {report.TotalInsuranceAmount:N0}", DateTime.Now,
-                new[] { "STT", "Nhom DVKT", "So luot", "Tien de nghi", "Tien quyet toan", "Ghi chu" }, rows);
-            return Encoding.UTF8.GetBytes(html);
+            // QA-R10: real .xlsx (was printable HTML served as .xlsx - Excel refused to open it).
+            return Export.ReportFileRenderer.TableToXlsx($"BAO CAO C79B-HD THANG {month}/{year}", new[] { "STT", "Nhom DVKT", "So luot", "Tien de nghi", "Tien quyet toan", "Ghi chu" }, rows);
         }
         catch (Exception ex)
         {

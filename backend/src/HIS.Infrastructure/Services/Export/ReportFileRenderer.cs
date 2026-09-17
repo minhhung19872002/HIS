@@ -54,6 +54,21 @@ public static class ReportFileRenderer
         });
     }
 
+    /// <summary>
+    /// QA-R10: list exports that still built the printable HTML and served it as ".xlsx" (Excel refuses to
+    /// open an .xlsx that is not a ZIP). Same headers/rows, real workbook. A leading "STT" header means the
+    /// rows already carry their own row number.
+    /// </summary>
+    public static byte[] TableToXlsx(string title, IReadOnlyList<string> headers, IEnumerable<string[]> rows)
+    {
+        var hasStt = headers.Count > 0 && string.Equals(headers[0], "STT", StringComparison.OrdinalIgnoreCase);
+        var list = rows.Select((r, i) => (IReadOnlyList<object?>)(hasStt
+            ? r.Cast<object?>().ToArray()
+            : new object?[] { i + 1 }.Concat(r).ToArray())).ToList();
+        var cols = hasStt ? headers : new[] { "STT" }.Concat(headers).ToArray();
+        return SimpleXlsxWriter.Build(new[] { new XlsxSheet(title, cols, list) });
+    }
+
     /// <summary>Render report HTML to a real PDF with Vietnamese-capable fonts (Windows + Linux container).</summary>
     public static byte[] HtmlToPdf(string html)
     {

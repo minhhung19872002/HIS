@@ -468,85 +468,76 @@ public partial class HealthCheckupService : IHealthCheckupService
     public async Task<BatchImportResultDto> ImportBatchExcelAsync(Guid campaignId, Stream fileStream, string fileName)
     {
         var result = new BatchImportResultDto();
-        var campaign = await _context.HealthCheckupCampaigns.FindAsync(campaignId)
-            ?? throw new InvalidOperationException("Không tìm thấy đợt khám");
+        var campaign = await _context.HealthCheckupCampaigns.FirstOrDefaultAsync(c => c.Id == campaignId && !c.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy đợt khám");
 
-        try
+        // QA-R10: a real .xlsx (ZIP bytes) used to be read line-by-line as text and created one junk
+        // "employee" per binary line; a quoted "Nguyễn, Văn A" split into two columns; re-importing the
+        // same list doubled the campaign. CsvUtil rejects binaries/non-UTF-8 and parses quotes properly.
+        var records = Export.CsvUtil.ReadRecords(await Export.CsvUtil.ReadTextAsync(fileStream));
+        if (records.Count < 2)
+            throw new InvalidOperationException("Tệp rỗng hoặc chỉ có dòng tiêu đề (cột: Họ tên, Mã NV, Phòng ban/Nhóm).");
+
+        static string Fold(string s)
         {
-            using var reader = new StreamReader(fileStream);
-            var lineNumber = 0;
-            var headerProcessed = false;
-            var nameIndex = 0;
-            var genderIndex = 1;
-            var dobIndex = 2;
-            var idCardIndex = 3;
-            var groupIndex = 4;
+            var d = s.Trim().ToLowerInvariant().Replace('đ', 'd').Normalize(System.Text.NormalizationForm.FormD);
+            return new string(d.Where(ch => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(ch)
+                != System.Globalization.UnicodeCategory.NonSpacingMark).ToArray());
+        }
 
-            while (!reader.EndOfStream)
+        int nameIndex = -1, codeIndex = -1, groupIndex = -1;
+        var header = records[0].Cells;
+        for (int i = 0; i < header.Count; i++)
+        {
+            var h = Fold(header[i]);
+            if (codeIndex < 0 && (h.Contains("ma nv") || h.Contains("manv") || h.Contains("ma nhan vien") || h.Contains("employee code") || h == "code")) codeIndex = i;
+            else if (groupIndex < 0 && (h.Contains("phong") || h.Contains("ban") || h.Contains("nhom") || h.Contains("group") || h.Contains("department"))) groupIndex = i;
+            else if (nameIndex < 0 && (h.Contains("ten") || h.Contains("name"))) nameIndex = i;
+        }
+        if (nameIndex < 0)
+            throw new InvalidOperationException("Không tìm thấy cột Họ tên trong dòng tiêu đề.");
+
+        var existingCodes = (await _context.HealthCheckupRecords
+                .Where(r => r.CampaignId == campaignId && !r.IsDeleted && r.EmployeeCode != null)
+                .Select(r => r.EmployeeCode!)
+                .ToListAsync())
+            .Select(c => c.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (lineNumber, fields) in records.Skip(1))
+        {
+            result.TotalRows++;
+            var employeeName = Export.CsvUtil.Get(fields, nameIndex);
+            var employeeCode = Export.CsvUtil.Get(fields, codeIndex);
+            if (string.IsNullOrWhiteSpace(employeeName))
             {
-                var line = await reader.ReadLineAsync();
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                lineNumber++;
-
-                // Simple CSV/TSV parsing (Excel exported as CSV)
-                var fields = line.Contains('\t') ? line.Split('\t') : line.Split(',');
-
-                if (!headerProcessed)
-                {
-                    headerProcessed = true;
-                    // Try to detect column positions from header
-                    for (int i = 0; i < fields.Length; i++)
-                    {
-                        var h = fields[i].Trim().ToLowerInvariant();
-                        if (h.Contains("ten") || h.Contains("name")) nameIndex = i;
-                        else if (h.Contains("gioi") || h.Contains("gender")) genderIndex = i;
-                        else if (h.Contains("sinh") || h.Contains("dob") || h.Contains("birth")) dobIndex = i;
-                        else if (h.Contains("cccd") || h.Contains("cmnd") || h.Contains("card")) idCardIndex = i;
-                        else if (h.Contains("nhom") || h.Contains("group")) groupIndex = i;
-                    }
-                    continue;
-                }
-
-                result.TotalRows++;
-
-                try
-                {
-                    var patientName = nameIndex < fields.Length ? fields[nameIndex].Trim().Trim('"') : "";
-                    if (string.IsNullOrWhiteSpace(patientName))
-                    {
-                        result.ErrorCount++;
-                        result.Errors.Add($"Dòng {lineNumber}: Thiếu họ tên");
-                        continue;
-                    }
-
-                    var groupName = groupIndex < fields.Length ? fields[groupIndex].Trim().Trim('"') : "";
-
-                    var record = new HIS.Core.Entities.HealthCheckupRecord
-                    {
-                        Id = Guid.NewGuid(),
-                        CampaignId = campaignId,
-                        EmployeeName = patientName,
-                        Department = groupName,
-                        CheckupDate = DateTime.Today,
-                        CreatedAt = DateTime.UtcNow,
-                    };
-
-                    _context.HealthCheckupRecords.Add(record);
-                    result.SuccessCount++;
-                }
-                catch (Exception ex)
-                {
-                    result.ErrorCount++;
-                    result.Errors.Add($"Dòng {lineNumber}: {ex.Message}");
-                }
+                result.ErrorCount++;
+                result.Errors.Add($"Dòng {lineNumber}: Thiếu họ tên");
+                continue;
+            }
+            if (employeeCode.Length > 0 && !existingCodes.Add(employeeCode))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Dòng {lineNumber}: Mã NV '{employeeCode}' đã có trong đợt khám (hoặc trùng dòng trước)");
+                continue;
             }
 
+            _context.HealthCheckupRecords.Add(new HIS.Core.Entities.HealthCheckupRecord
+            {
+                Id = Guid.NewGuid(),
+                CampaignId = campaignId,
+                EmployeeName = employeeName,
+                EmployeeCode = employeeCode.Length > 0 ? employeeCode : null,
+                Department = Export.CsvUtil.Get(fields, groupIndex),
+                CheckupDate = DateTime.Today,
+                CreatedAt = DateTime.UtcNow,
+            });
+            result.SuccessCount++;
+        }
+
+        if (result.SuccessCount > 0)
+        {
             campaign.TotalRegistered += result.SuccessCount;
             await _context.SaveChangesAsync();
-        }
-        catch (Exception ex)
-        {
-            result.Errors.Add($"Lỗi đọc file: {ex.Message}");
         }
 
         return result;

@@ -493,17 +493,17 @@ public class SatisfactionSurveyService : ISatisfactionSurveyService
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
 
+        // QA-R10: shared CsvUtil — neutralises "=..." comments (formula injection) and writes a UTF-8 BOM
+        // (without it Excel showed the Vietnamese names as mojibake).
         var csv = new System.Text.StringBuilder();
         csv.AppendLine("STT,MaBenhNhan,TenBenhNhan,Khoa,DiemTongQuat,BinhLuan,NgayKhaoSat");
         int i = 1;
         foreach (var r in results)
         {
-            csv.AppendLine($"{i++},{Escape(r.PatientCode)},{Escape(r.PatientName)},{Escape(r.DepartmentName)},{r.OverallScore:F1},{Escape(r.Comment)},{r.CreatedAt:yyyy-MM-dd}");
+            csv.AppendLine(Export.CsvUtil.Line(i++, r.PatientCode, r.PatientName, r.DepartmentName,
+                Math.Round((decimal)r.OverallScore, 1), r.Comment, r.CreatedAt.ToString("yyyy-MM-dd")));
         }
 
-        var bytes = System.Text.Encoding.UTF8.GetBytes(csv.ToString());
-        return bytes;
-
-        static string Escape(string? s) => s == null ? "" : $"\"{s.Replace("\"", "\"\"")}\"";
+        return Export.CsvUtil.ToBytes(csv.ToString());
     }
 }

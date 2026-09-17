@@ -169,7 +169,8 @@ public static class SimpleXlsxWriter
     private static string SafeSheetName(string name, int index)
     {
         if (string.IsNullOrWhiteSpace(name)) return $"Sheet{index + 1}";
-        var cleaned = new string(name.Where(ch => !":\\/?*[]".Contains(ch)).ToArray()).Trim();
+        // Replace (not drop) forbidden chars: "THANG 2/2026" used to become "THANG 22026".
+        var cleaned = new string(name.Select(ch => ":\\/?*[]".Contains(ch) ? '-' : ch).ToArray()).Trim();
         if (cleaned.Length == 0) return $"Sheet{index + 1}";
         return cleaned.Length <= 31 ? cleaned : cleaned[..31];
     }

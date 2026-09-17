@@ -238,15 +238,8 @@ function formatPeriodLabel(period: ReportPeriodId): string {
   }
 }
 
-function escapeCsvCell(value: string): string {
-  const escaped = value.replace(/"/g, '""');
-  return `"${escaped}"`;
-}
-
-function downloadCsv(filename: string, lines: string[]): void {
-  const blob = new Blob([`\ufeff${lines.join('\n')}`], { type: 'text/csv;charset=utf-8;' });
-  file.downloadBlob(blob, filename);
-}
+// QA-R10: shared CSV helpers (BOM + quoting + formula-injection guard) instead of a local copy
+const { downloadCsv, escapeCsvCell } = file;
 
 /** Reads the error message out of a blob (responseType 'blob') error body; falls back to `fallback`. */
 async function blobErrorMessage(error: unknown, fallback: string): Promise<string> {

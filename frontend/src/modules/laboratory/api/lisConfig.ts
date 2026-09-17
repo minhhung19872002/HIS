@@ -161,10 +161,18 @@ export const updateTestParameter = (id: string, data: CreateTestParameterDto) =>
 export const deleteTestParameter = (id: string) =>
   apiClient.delete(`/lis/test-parameters/${id}`);
 
+export interface TestParameterImportResult {
+  importedCount: number;
+  totalRows: number;
+  failedRows: number;
+  errors: { rowNumber: number; columnName: string; errorMessage: string }[];
+  message: string;
+}
+
 export const importTestParametersCsv = (file: File) => {
   const formData = new FormData();
   formData.append('file', file);
-  return apiClient.post('/lis/test-parameters/import-csv', formData, {
+  return apiClient.post<TestParameterImportResult>('/lis/test-parameters/import-csv', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 };

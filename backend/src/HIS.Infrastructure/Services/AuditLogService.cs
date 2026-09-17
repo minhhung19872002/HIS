@@ -432,12 +432,10 @@ public class AuditLogService : IAuditLogService
                 l.Details ?? ""
             }).ToList();
 
-            var fromStr = dto.FromDate.HasValue ? dto.FromDate.Value.ToString("dd/MM/yyyy") : "";
-            var toStr = dto.ToDate.HasValue ? dto.ToDate.Value.ToString("dd/MM/yyyy") : "";
-            var subtitle = fromStr != "" ? $"Từ {fromStr} đến {toStr} — {result.TotalCount} bản ghi" : $"{result.TotalCount} bản ghi";
-
-            var html = PdfTemplateHelper.BuildTableReport("NHẬT KÝ KIỂM TOÁN HỆ THỐNG", subtitle, DateTime.Now, headers, rows, "Quản trị hệ thống");
-            return Encoding.UTF8.GetBytes(html);
+            // QA-R10: was printable HTML served as NhatKyKiemToan_*.xlsx (Excel refuses to open it). Real xlsx
+            // with inline-string cells: attacker-controlled text in the log (e.g. a login username "=cmd|...")
+            // stays text and is never evaluated as a formula.
+            return Export.ReportFileRenderer.TableToXlsx("NHẬT KÝ KIỂM TOÁN", headers, rows);
         }
         catch (Exception ex)
         {
