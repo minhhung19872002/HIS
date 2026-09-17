@@ -32,6 +32,15 @@ public sealed class AuditRetentionWorker : BackgroundService
     private const string CtxInfoSet = "SET CONTEXT_INFO 0x52455445";
     private const string CtxInfoReset = "SET CONTEXT_INFO 0x0";
 
+    // AuditLogMiddleware never writes 'Login': a sign-in is Action='Auth' (path .../login), so sign-in rows grew
+    // forever. (Record access is Action='Read' — deliberately NOT purged, see the ACCESS step.)
+    // NOT all Action='Auth' rows: '/verify' paths (pathology result verify, signature verify) are workflow evidence.
+    // Keep the exclusion filter in AuditArchiveWorker.ArchiveBatchAsync in sync.
+    internal const string AuthEventSql =
+        "[Action] IN (N'Login', N'Logout', N'RefreshToken', N'PasswordChange', N'FailedLogin', N'Lockout') "
+        + "OR ([Action] = N'Auth' AND [RequestPath] LIKE N'%/login') "
+        + "OR ([Module] = N'Auth' AND ([RequestPath] LIKE N'%/refresh' OR [RequestPath] LIKE N'%/logout%'))";
+
     public AuditRetentionWorker(
         IServiceScopeFactory scopeFactory,
         IConfiguration config,
@@ -92,7 +101,7 @@ public sealed class AuditRetentionWorker : BackgroundService
                 deleted = await DeleteBatchAsync(db,
                     $"DELETE TOP({BatchSize}) FROM dbo.AuditLogs "
                     + "WHERE [Timestamp] < {0} "
-                    + "AND [Action] IN (N'Login', N'Logout', N'RefreshToken', N'PasswordChange', N'FailedLogin', N'Lockout')",
+                    + "AND (" + AuthEventSql + ")",
                     authCutoff, ct);
                 totalDeleted += deleted;
             }
@@ -111,6 +120,8 @@ public sealed class AuditRetentionWorker : BackgroundService
                 deleted = await DeleteBatchAsync(db,
                     $"DELETE TOP({BatchSize}) FROM dbo.AuditLogs "
                     + "WHERE [Timestamp] < {0} "
+                    // Pre-push review: Action='Read' is the EMR/patient record ACCESS trail (GET on sensitive record
+                    // paths) that medical-record audits ask for over the record's lifetime — never purged here.
                     + "AND [Action] IN (N'View', N'Export', N'Print', N'Search')",
                     accessCutoff, ct);
                 totalDeleted += deleted;

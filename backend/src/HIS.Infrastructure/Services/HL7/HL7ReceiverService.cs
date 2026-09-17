@@ -165,12 +165,16 @@ namespace HIS.Infrastructure.Services.HL7
                     var analyzers = await lisService.GetAnalyzersAsync(isActive: true);
                     var analyzerId = analyzers.Count > 0 ? analyzers[0].Id : Guid.Empty;
 
-                    if (analyzerId != Guid.Empty)
+                    if (analyzerId == Guid.Empty)
                     {
-                        var result = await lisService.ProcessAnalyzerResultAsync(analyzerId, rawMessage);
-                        _logger.LogInformation("Processed {Count} results, matched: {Matched}",
-                            result.ProcessedCount, result.MatchedCount);
+                        // Nothing stored the results: an AA here told the analyzer to drop them for good.
+                        _logger.LogWarning("HL7 ORU from {Source} rejected — no active analyzer configured", source);
+                        return GenerateACK(parsed, "AE", "No active analyzer configured");
                     }
+
+                    var result = await lisService.ProcessAnalyzerResultAsync(analyzerId, rawMessage);
+                    _logger.LogInformation("Processed {Count} results, matched: {Matched}",
+                        result.ProcessedCount, result.MatchedCount);
                 }
 
                 // Generate ACK

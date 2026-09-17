@@ -108,6 +108,9 @@ public sealed class Nangcap23RetryWorker : BackgroundService
             if (ct.IsCancellationRequested) break;
             try
             {
+                // Re-attach after a previous row's ChangeTracker.Clear(), else RetryCount/Status are never saved
+                // and the row is resubmitted to the national gateway forever.
+                if (db.Entry(row).State == EntityState.Detached) db.Attach(row);
                 row.RetryCount++;
                 row.UpdatedAt = DateTime.UtcNow;
                 row.UpdatedBy = "system:retry-worker";
@@ -169,6 +172,7 @@ public sealed class Nangcap23RetryWorker : BackgroundService
             if (ct.IsCancellationRequested) break;
             try
             {
+                if (db.Entry(row).State == EntityState.Detached) db.Attach(row); // see prescriptions loop
                 row.RetryCount++;
                 row.UpdatedAt = DateTime.UtcNow;
                 row.UpdatedBy = "system:retry-worker";

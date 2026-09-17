@@ -34,7 +34,16 @@ public sealed class MppsDicomServerHostedService : IHostedService, IDisposable
         }
 
         var port = _configuration.GetValue<int>("PACS:MPPS:Port", 11114);
-        _server = _serverFactory.Create<MppsDicomService>(port);
+        try
+        {
+            _server = _serverFactory.Create<MppsDicomService>(port);
+        }
+        catch (Exception ex)
+        {
+            // An optional DICOM listener must not take the whole API down (a busy port used to crash startup).
+            _logger.LogError(ex, "DICOM MPPS SCP could not start on port {Port} — MPPS disabled for this process", port);
+            return Task.CompletedTask;
+        }
         _logger.LogInformation("DICOM MPPS SCP listening on port {Port} as AE {AeTitle}",
             port, _configuration["PACS:MPPS:AETitle"] ?? "HIS_MPPS");
         return Task.CompletedTask;

@@ -28,7 +28,7 @@ public sealed class AuditArchiveWorker : BackgroundService
     private static readonly string[] RetentionManagedActions =
     [
         "Login", "Logout", "RefreshToken", "PasswordChange", "FailedLogin", "Lockout", // AUTH
-        "View", "Export", "Print", "Search"                                              // ACCESS
+        "View", "Export", "Print", "Search"                                              // ACCESS ('Read' is kept and archived)
     ];
 
     private readonly IServiceScopeFactory _scopeFactory;
@@ -137,6 +137,10 @@ public sealed class AuditArchiveWorker : BackgroundService
         // 1. Lấy batch từ hot DB — archive DATA/WORKFLOW/ADMIN/SECURITY.
         var rows = await db.AuditLogs
             .Where(a => a.Timestamp < cutoff && !RetentionManagedActions.Contains(a.Action))
+            // Same AUTH rows as AuditRetentionWorker.AuthEventSql (sign-in / refresh / logout).
+            .Where(a => !(a.Action == "Auth" && a.RequestPath != null && a.RequestPath.EndsWith("/login"))
+                     && !(a.Module == "Auth" && a.RequestPath != null
+                          && (a.RequestPath.EndsWith("/refresh") || a.RequestPath.Contains("/logout"))))
             .OrderBy(a => a.Timestamp)
             .Take(_batchSize)
             .AsNoTracking()

@@ -293,12 +293,29 @@ public class DicomAutoSendService : IDicomAutoSendService
                 q = q.Where(s => s.SourceAeTitle == rule.SourceAeTitle);
             if (!string.IsNullOrWhiteSpace(rule.DepartmentCode))
                 q = q.Where(s => s.DepartmentCode == rule.DepartmentCode);
-            // Limit batch 10 cho test
+            // Only studies still needing this rule: before, the 10 newest were taken regardless, so once they
+            // were sent (or gave up) any older study from a burst of >10 arrivals was never delivered.
+            var maxRetries = Math.Clamp(_config.GetValue<int>("PACS:AutoSend:MaxRetries", 5), 1, 20);
+            var ruleId = rule.Id;
+            var nowUtc = DateTime.UtcNow;
+            // Pre-push review: without a lookback the first cycle after deploy would push every historical study
+            // matching a rule (before, only the 10 newest were ever considered). Bounded, configurable.
+            var lookbackDays = Math.Clamp(_config.GetValue<int>("PACS:AutoSend:LookbackDays", 3), 1, 365);
+            var since = nowUtc.AddDays(-lookbackDays);
+            q = q.Where(s => s.CreatedAt >= since);
+            q = q.Where(s => !_db.DicomTransmissionLogs.Any(t =>
+                    t.StudyInstanceUid == s.StudyInstanceUID && t.AutoSendRuleId == ruleId &&
+                    (t.Status == "sending" || t.Status == "done"))
+                && _db.DicomTransmissionLogs.Count(t =>
+                    t.StudyInstanceUid == s.StudyInstanceUID && t.AutoSendRuleId == ruleId &&
+                    t.Status == "failed") < maxRetries
+                && !_db.DicomTransmissionLogs.Any(t =>
+                    t.StudyInstanceUid == s.StudyInstanceUID && t.AutoSendRuleId == ruleId &&
+                    t.Status == "failed" && t.NextRetryAt > nowUtc));
             var studies = await q.OrderByDescending(s => s.CreatedAt).Take(10).ToListAsync();
 
             foreach (var s in studies)
             {
-                var maxRetries = Math.Clamp(_config.GetValue<int>("PACS:AutoSend:MaxRetries", 5), 1, 20);
                 var previousFailures = await _db.DicomTransmissionLogs
                     .Where(t => t.StudyInstanceUid == s.StudyInstanceUID &&
                                 t.AutoSendRuleId == rule.Id && t.Status == "failed")

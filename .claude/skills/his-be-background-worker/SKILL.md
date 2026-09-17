@@ -51,7 +51,7 @@ public sealed class XxxWorker : BackgroundService
         using var scope = _scopeFactory.CreateScope();          // a scope PER iteration
         var db = scope.ServiceProvider.GetRequiredService<HISDbContext>();
         // ... claim a row idempotently via Where(...) + a status marker; SaveChangesAsync(ct)
-        // catch per-row: db.ChangeTracker.Clear() then continue
+        // catch per-row: discard ONLY that row's pending changes, keep the rest tracked (see rule 6)
     }
 }
 ```
@@ -63,14 +63,17 @@ public sealed class XxxWorker : BackgroundService
 4. **Idempotent + multi-instance safe**: claim a row with an atomic `Where(Status==..., RetryCount<max, time<threshold)`;
    Cloud Run runs multiple instances → avoid double-processing (status marker / idempotency key).
 5. **`OperationCanceledException`** on shutdown → exit cleanly, don't log it as an error.
-6. **`db.ChangeTracker.Clear()`** on a row error so the whole batch isn't stuck.
+6. **Row error isolation** — never `db.ChangeTracker.Clear()` mid-batch: it detaches every row still to be
+   processed, so their inserts save but their "done" markers (`QueueTicketId`, `ReminderSentAt`, `RetryCount`)
+   do not → the same rows are processed again every cycle (QA-R9: duplicate queue tickets every 5 min).
+   Either detach only the failed row's new entities, or re-`Attach` a detached row before touching it.
 7. **Register**: `services.AddHostedService<XxxWorker>()` in `DependencyInjection.cs` (forget → the worker doesn't run).
 
 ## Checklist
 - [ ] `sealed class : BackgroundService`, inject `IServiceScopeFactory` (not scoped)
 - [ ] `_enabled` default false; enable on prod via env
 - [ ] try/catch each loop; handle `OperationCanceledException`
-- [ ] scope-per-iteration; `ChangeTracker.Clear()` on a row error
+- [ ] scope-per-iteration; a row error does not detach the remaining rows (no batch-wide `ChangeTracker.Clear()`)
 - [ ] `AddHostedService<>` registered
 - [ ] `dotnet build` 0 errors
 

@@ -112,6 +112,9 @@ public sealed class AppointmentQueueMaterializerWorker : BackgroundService
             if (ct.IsCancellationRequested) break;
             try
             {
+                // A failed row runs ChangeTracker.Clear(), which detaches the rest of the batch: re-attach,
+                // otherwise the ticket is inserted but QueueTicketId is never saved → a new duplicate ticket every cycle.
+                if (db.Entry(appointment).State == EntityState.Detached) db.Attach(appointment);
                 var nowUtc = DateTime.UtcNow;
 
                 var ticket = new QueueTicket

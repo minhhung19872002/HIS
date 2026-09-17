@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs.DataManagement;
 using HIS.Application.Services;
@@ -14,9 +15,11 @@ public class DataManagementService : IDataManagementService
     private readonly IConfiguration _config;
     private readonly ILogger<DataManagementService> _logger;
     private readonly IAuditLogService _auditLog;
+    private readonly IServiceScopeFactory _scopeFactory;
 
-    public DataManagementService(HISDbContext db, IConfiguration config, ILogger<DataManagementService> logger, IAuditLogService auditLog)
+    public DataManagementService(HISDbContext db, IConfiguration config, ILogger<DataManagementService> logger, IAuditLogService auditLog, IServiceScopeFactory scopeFactory)
     {
+        _scopeFactory = scopeFactory;
         _db = db;
         _config = config;
         _logger = logger;
@@ -221,6 +224,11 @@ public class DataManagementService : IDataManagementService
     /// </summary>
     private async Task ExecuteBackupAsync(Guid historyId, string filePath, string destination)
     {
+        // Runs after the caller (HTTP request / BackupSchedulerWorker iteration) has returned and disposed its
+        // scope, so it must own a DbContext: using _db here threw ObjectDisposedException and left the history
+        // row at Status=0 (Running) forever.
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HISDbContext>();
         var now = DateTime.UtcNow;
         try
         {
@@ -236,26 +244,27 @@ public class DataManagementService : IDataManagementService
             var sql = $"BACKUP DATABASE [{dbName}] TO DISK = N'{filePath.Replace("'", "''")}' " +
                       $"WITH FORMAT, INIT, NAME = N'HIS-Full-Backup', COMPRESSION, STATS = 10";
 
-            await _db.Database.ExecuteSqlRawAsync(sql);
+            db.Database.SetCommandTimeout(TimeSpan.FromHours(2)); // a full backup outlives the 30s default
+            await db.Database.ExecuteSqlRawAsync(sql);
 
             var fileInfo = new FileInfo(filePath);
             var sizeBytes = fileInfo.Exists ? fileInfo.Length : 0L;
 
-            await UpdateBackupHistoryAsync(historyId, 1, sizeBytes, filePath, null); // Status=Success
+            await UpdateBackupHistoryAsync(db, historyId, 1, sizeBytes, filePath, null); // Status=Success
             _logger.LogInformation("Backup thành công: {FileName} ({Size} bytes)", Path.GetFileName(filePath), sizeBytes);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Backup thất bại cho history {Id}", historyId);
-            await UpdateBackupHistoryAsync(historyId, 2, 0, null, ex.Message); // Status=Failed
+            await UpdateBackupHistoryAsync(db, historyId, 2, 0, null, ex.Message); // Status=Failed
         }
     }
 
-    private async Task UpdateBackupHistoryAsync(Guid id, int status, long sizeBytes, string? filePath, string? errorMessage)
+    private async Task UpdateBackupHistoryAsync(HISDbContext db, Guid id, int status, long sizeBytes, string? filePath, string? errorMessage)
     {
         try
         {
-            var row = await _db.Set<BackupHistory>().FindAsync(id);
+            var row = await db.Set<BackupHistory>().FindAsync(id);
             if (row == null) return;
             row.Status = status;
             row.SizeBytes = sizeBytes;
@@ -264,7 +273,7 @@ public class DataManagementService : IDataManagementService
             row.CompletedAt = DateTime.UtcNow;
             row.UpdatedAt = DateTime.UtcNow;
             row.UpdatedBy = "system:backup";
-            await _db.SaveChangesAsync();
+            await db.SaveChangesAsync();
         }
         catch (Exception ex)
         {

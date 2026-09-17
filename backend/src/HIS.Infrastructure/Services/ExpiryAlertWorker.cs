@@ -26,11 +26,13 @@ public class ExpiryAlertWorker : BackgroundService
             {
                 await ScanExpiringItems(stoppingToken);
             }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "ExpiryAlertWorker: scan error");
             }
-            await Task.Delay(TimeSpan.FromHours(6), stoppingToken);
+            try { await Task.Delay(TimeSpan.FromHours(6), stoppingToken); }
+            catch (OperationCanceledException) { break; }
         }
     }
 
@@ -45,6 +47,10 @@ public class ExpiryAlertWorker : BackgroundService
 
         var expiringItems = await db.InventoryItems
             .Where(i => !i.IsDeleted && i.Quantity > 0 && i.ExpiryDate != null && i.ExpiryDate <= cutoff6m)
+            // Skip batches that already have an open alert and take the soonest-expiring first: before, the
+            // unordered Take(500) kept returning already-alerted batches, so batch #501+ was never alerted.
+            .Where(i => i.MedicineId != null && !db.ExpiryAlerts.Any(a => a.InventoryItemId == i.Id && a.Status < 2))
+            .OrderBy(i => i.ExpiryDate)
             .Select(i => new { i.Id, i.MedicineId, i.WarehouseId, i.BatchNumber, i.ExpiryDate, i.Quantity })
             .Take(500)
             .ToListAsync(ct);

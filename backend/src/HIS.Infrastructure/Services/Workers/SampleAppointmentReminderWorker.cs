@@ -116,6 +116,9 @@ public sealed class SampleAppointmentReminderWorker : BackgroundService
             if (ct.IsCancellationRequested) break;
             try
             {
+                // Re-attach after a previous row's ChangeTracker.Clear(), else ReminderSentAt is never saved
+                // and the same reminder is re-created every cycle.
+                if (db.Entry(appt).State == EntityState.Detached) db.Attach(appt);
                 var patientName = appt.Patient?.FullName ?? "Bệnh nhân";
                 var serviceName = string.IsNullOrWhiteSpace(appt.ServiceName)
                     ? "lấy mẫu xét nghiệm"

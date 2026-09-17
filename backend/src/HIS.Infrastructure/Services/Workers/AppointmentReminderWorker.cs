@@ -131,6 +131,9 @@ public sealed class AppointmentReminderWorker : BackgroundService
             if (ct.IsCancellationRequested) break;
             try
             {
+                // Re-attach after a previous row's ChangeTracker.Clear(), else ReminderSentAt is never saved
+                // and the patient gets the same SMS every cycle.
+                if (db.Entry(appt).State == EntityState.Detached) db.Attach(appt);
                 await ProcessOneAsync(appt, sms, db, nowUtc, ct);
                 sent++;
             }
