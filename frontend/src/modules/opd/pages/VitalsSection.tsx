@@ -8,7 +8,9 @@ interface VitalsSectionProps {
 }
 
 export const VitalsSection: React.FC<VitalsSectionProps> = ({ vitals, setVitals }) => {
-  const bmi = vitals.weight && vitals.height ? (vitals.weight / ((vitals.height / 100) ** 2)) : null;
+  // Only for positive inputs — a negative weight showed "BMI = -0.2 (Gầy)".
+  const bmi = vitals.weight && vitals.height && vitals.weight > 0 && vitals.height > 0
+    ? (vitals.weight / ((vitals.height / 100) ** 2)) : null;
   const bmiStr = bmi ? bmi.toFixed(1) : '—';
 
   const news2 = useMemo(() => {

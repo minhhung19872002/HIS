@@ -20,7 +20,7 @@ import { RowActions, RefreshButton } from '../../../components/actions';
    ──────────────────────────────────────────────────────────── */
 
 import type { RawRow, TopKey, StatusKey } from './shared';
-import { TOP_TABS, STATUS_TABS, PRIORITY_OPTS, VISIT_TYPE_OPTS, fmtHM, statusKey, statusTone, priorityKey, priorityLabel, genderLabel, ageOf, treatmentLabel, hasValidInsurance } from './shared';
+import { TOP_TABS, STATUS_TABS, PRIORITY_OPTS, VISIT_TYPE_OPTS, fmtHM, statusKey, statusTone, priorityKey, priorityLabel, genderLabel, ageOf, treatmentLabel, visitTypeKey, hasValidInsurance } from './shared';
 import { NewVisitModal } from './NewVisitModal';
 import { PendingTicketsTab } from './PendingTicketsTab';
 import { NowServingTab } from './NowServingTab';
@@ -125,7 +125,7 @@ const ReceptionV2: React.FC = () => {
       if (fPriority && priorityKey(r) !== fPriority) return false;
       if (fInsurance === 'y' && !hasValidInsurance(r)) return false;
       if (fInsurance === 'n' && hasValidInsurance(r)) return false;
-      if (fVisitType && String(r.treatmentType ?? '') !== fVisitType) return false;
+      if (fVisitType && visitTypeKey(r) !== fVisitType) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
         const hay = [r.patientName, r.patientCode, r.phoneNumber, r.identityNumber, r.insuranceNumber, r.queueCode]

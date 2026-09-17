@@ -661,6 +661,8 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
         Id = e.Id, UserId = e.UserId == Guid.Empty ? null : e.UserId, StaffCode = e.StaffCode, FullName = e.FullName, StaffType = e.StaffType, Specialty = e.Specialty,
         DepartmentName = e.PrimaryDepartment?.DepartmentName ?? "", DepartmentId = e.PrimaryDepartmentId ?? Guid.Empty,
         PracticeLicenseNumber = e.LicenseNumber, LicenseExpiryDate = e.LicenseExpiryDate, Status = e.Status,
+        // Saved by SaveStaffAsync but never read back (the API always returned phone/email = null).
+        Phone = e.PersonalPhone ?? e.WorkPhone, Email = e.PersonalEmail,
         JoinDate = e.JoinDate ?? DateTime.MinValue
     };
 

@@ -267,7 +267,7 @@ const DicomAutoSend: React.FC = () => {
                   <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-4)' }} title={`${fmtDMYg(d.date)}: ${d.count} ca`}>
                     <div style={{
                       width: '100%', height: Math.max(4, h),
-                      background: 'linear-gradient(180deg, var(--a-cy), var(--c-pri-dim))',
+                      background: 'linear-gradient(180deg, var(--a-cy), var(--a-cy-dim))',
                       borderRadius: '2px 2px 0 0',
                     }} />
                     <div style={{ fontSize: 9, color: 'var(--t-3)', fontFamily: 'var(--font-mono)' }}>

@@ -190,7 +190,7 @@ const PathologyV2: React.FC = () => {
           <span style={{ fontSize: 14 }}>{r.patientName}</span>
         </span>
       )}
-      drawerSub={(r) => `${SPECIMEN_LABEL[r.specimenType]} · ${r.specimenSite}`}
+      drawerSub={(r) => [SPECIMEN_LABEL[r.specimenType] || r.specimenType, r.specimenSite].filter(Boolean).join(' · ')}
     />
 
     <ResultModal

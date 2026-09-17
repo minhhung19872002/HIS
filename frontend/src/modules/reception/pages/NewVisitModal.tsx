@@ -8,14 +8,15 @@ import { ModalShell } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { BookingPickerModal } from './BookingPickerModal';
 import { validateCccd } from '../types/cccd';
+// serviceType → MedicalRecord.PatientType on the BE: 2 = Viện phí, 3 = Dịch vụ (same as v1 Reception).
 const VISIT_TYPES: { v: string; l: string; ic: string; fee: number; serviceType: number; bhyt?: boolean; emergency?: boolean }[] = [
-  { v: 'kham-thuong', l: 'Khám thường',     ic: 'stethoscope', fee: 38000,  serviceType: 3 },
+  { v: 'kham-thuong', l: 'Khám thường',     ic: 'stethoscope', fee: 38000,  serviceType: 2 },
   { v: 'kham-bhyt',   l: 'Khám BHYT',        ic: 'shield',      fee: 0,      serviceType: 3, bhyt: true },
-  { v: 'kham-vip',    l: 'Khám dịch vụ',     ic: 'heart',       fee: 250000, serviceType: 2 },
-  { v: 'kham-yc',     l: 'Khám theo yêu cầu', ic: 'user',       fee: 350000, serviceType: 2 },
+  { v: 'kham-vip',    l: 'Khám dịch vụ',     ic: 'heart',       fee: 250000, serviceType: 3 },
+  { v: 'kham-yc',     l: 'Khám theo yêu cầu', ic: 'user',       fee: 350000, serviceType: 3 },
   { v: 'tai-kham',    l: 'Tái khám',         ic: 'refresh',     fee: 25000,  serviceType: 3 },
   { v: 'cap-cuu',     l: 'Cấp cứu',          ic: 'alert',       fee: 0,      serviceType: 3, emergency: true },
-  { v: 'tu-van',      l: 'Tư vấn',           ic: 'info',        fee: 80000,  serviceType: 2 },
+  { v: 'tu-van',      l: 'Tư vấn',           ic: 'info',        fee: 80000,  serviceType: 3 },
   { v: 'tiem-chung',  l: 'Tiêm chủng',       ic: 'plus',        fee: 50000,  serviceType: 3 },
 ];
 

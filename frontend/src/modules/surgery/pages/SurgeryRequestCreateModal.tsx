@@ -56,13 +56,14 @@ const EMPTY_FORM: RequestForm = {
 };
 
 interface SelectOpt { value: string; label: string }
+interface RecordOpt extends SelectOpt { patientCode: string; patientName: string }
 
 export const SurgeryRequestCreateModal: React.FC<SurgeryRequestCreateModalProps> = ({ open, onClose, onCreated }) => {
   const [form, setForm] = useState<RequestForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
 
   // Async-search option states (verbatim v1)
-  const [medicalRecordOptions, setMedicalRecordOptions] = useState<SelectOpt[]>([]);
+  const [medicalRecordOptions, setMedicalRecordOptions] = useState<RecordOpt[]>([]);
   const [surgeryServiceOptions, setSurgeryServiceOptions] = useState<SelectOpt[]>([]);
   const [icdCodeOptions, setIcdCodeOptions] = useState<SelectOpt[]>([]);
   const [searchingMedicalRecords, setSearchingMedicalRecords] = useState(false);
@@ -92,6 +93,8 @@ export const SurgeryRequestCreateModal: React.FC<SurgeryRequestCreateModalProps>
         setMedicalRecordOptions(response.data.items.map((item: ExaminationDto) => ({
           value: item.id,
           label: `${item.patientCode} - ${item.patientName} (${item.id.substring(0, 8)})`,
+          patientCode: item.patientCode,
+          patientName: item.patientName,
         })));
       }
     } catch (error) {
@@ -245,7 +248,16 @@ export const SurgeryRequestCreateModal: React.FC<SurgeryRequestCreateModalProps>
             size="small"
             style={{ width: '100%' }}
             value={form.medicalRecordId}
-            onChange={(v) => set('medicalRecordId', v)}
+            onChange={(v) => {
+              // Fill the patient from the chosen record — the code/name were typed by hand (and required), so the
+              // request note could name a different patient than the record the BE actually uses.
+              const rec = medicalRecordOptions.find((o) => o.value === v);
+              setForm((f) => ({
+                ...f,
+                medicalRecordId: v,
+                ...(rec ? { patientCode: rec.patientCode ?? '', patientName: rec.patientName ?? '' } : {}),
+              }));
+            }}
           />
         </Row2>
       </Section>

@@ -19,6 +19,7 @@ import { bankPaymentApi } from '../../../api/nangcap24';
 import type { SupportedBankDto } from '../../../api/nangcap24';
 import apiClient from '../../../services/apiClient';
 import { useTabState } from '../../../hooks/useTabState';
+import { printPaymentReceipt } from '../api/billing';
 
 interface PaymentTxn {
   id: string;
@@ -34,6 +35,7 @@ interface PaymentTxn {
   createdAt: string;
   completedAt?: string;
   payDate?: string;
+  receiptId?: string | null; // Receipt linked when the transfer was confirmed
 }
 
 // Map provider code → bank meta (giữ visual giống mock)
@@ -74,6 +76,17 @@ const BankPayments: React.FC = () => {
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [expiring, setExpiring] = useState(false);
   const [form] = Form.useForm();
+
+  // "In biên lai" had no handler at all — print the receipt linked to the confirmed transfer.
+  const printReceipt = async (r: PaymentTxn) => {
+    if (!r.receiptId) { te('Giao dịch chưa có biên lai (chưa xác nhận thu tiền)'); return; }
+    try {
+      const res = await printPaymentReceipt(r.receiptId);
+      const url = URL.createObjectURL(res.data as Blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    } catch { te('Không thể in biên lai'); }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -301,7 +314,7 @@ const BankPayments: React.FC = () => {
         footer={detail && (
           <>
             <Button onClick={() => setDetail(null)}>Đóng</Button>
-            <Button><TermIcon name="printer" size={12} /> In biên lai</Button>
+            <Button disabled={!detail.receiptId} onClick={() => { void printReceipt(detail); }}><TermIcon name="printer" size={12} /> In biên lai</Button>
             {detail.status === 0 && (
               <Button type="primary" onClick={() => { setConfirming(detail); setDetail(null); form.resetFields(); }}>
                 <TermIcon name="check" size={12} /> Xác nhận đã nhận

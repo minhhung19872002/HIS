@@ -115,7 +115,7 @@ const EmrHl7Export: React.FC = () => {
                       key={o.k}
                       style={{
                         display: 'grid', gridTemplateColumns: '20px 1fr', gap: 'var(--space-8)', padding: 'var(--space-8)',
-                        background: on ? 'var(--c-pri-bg)' : 'var(--d-1)',
+                        background: on ? 'var(--a-cy-bg)' : 'var(--d-1)',
                         borderRadius: 'var(--r-2)', cursor: 'pointer',
                         border: on ? '1px solid var(--a-cy)' : '1px solid transparent',
                       }}

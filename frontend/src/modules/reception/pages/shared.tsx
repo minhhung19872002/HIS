@@ -30,12 +30,14 @@ export const PRIORITY_OPTS = [
   { v: 'high', l: 'Ưu tiên' },
   { v: 'norm', l: 'Thường' },
 ];
-// Hình thức khám — map theo treatmentType backend (1 BHYT · 2 dịch vụ · 3 cấp cứu · 4 yêu cầu)
+// Hình thức khám — derived by visitTypeKey(): MedicalRecord.TreatmentType is 1 ngoại trú · 2 nội trú ·
+// 3 cấp cứu (not a visit type); the payer is PatientType (1 BHYT · 2 viện phí · 3 dịch vụ · 4 KSK).
 export const VISIT_TYPE_OPTS = [
-  { v: '1', l: 'Khám BHYT' },
-  { v: '2', l: 'Khám dịch vụ' },
-  { v: '3', l: 'Cấp cứu' },
-  { v: '4', l: 'Khám theo yêu cầu' },
+  { v: 'bhyt', l: 'Khám BHYT' },
+  { v: 'fee', l: 'Khám viện phí' },
+  { v: 'service', l: 'Khám dịch vụ' },
+  { v: 'emergency', l: 'Cấp cứu' },
+  { v: 'checkup', l: 'Khám sức khỏe' },
 ];
 
 // admissionDate is a business timestamp stored in VN local time and serialized without an offset —
@@ -58,6 +60,7 @@ export type RawRow = AdmissionDto & {
   priorityName?: string;
   dateOfBirth?: string;
   yearOfBirth?: number;
+  patientType?: number;
   patientTypeName?: string;
   ticketId?: string;
   ticketStatus?: number;   // QueueTicket.Status: 0 Waiting · 1 Calling · 2 Serving · 3 Completed · 4 Skipped
@@ -115,11 +118,25 @@ export const ageOf = (row: RawRow): number | string => {
   return '—';
 };
 
+// Do NOT use the BE treatmentTypeName: it maps TreatmentType (1 = ngoại trú) as if it were the payer,
+// so every outpatient visit read "Khám BHYT".
+export const visitTypeKey = (row: RawRow): string | undefined => {
+  if (row.isEmergency || row.treatmentType === 3) return 'emergency';
+  switch (row.patientType) {
+    case 1: return 'bhyt';
+    case 2: return 'fee';
+    case 3: return 'service';
+    case 4: return 'checkup';
+    default: return undefined;
+  }
+};
+
 export const treatmentLabel = (row: RawRow): string => {
-  if (row.treatmentTypeName) return row.treatmentTypeName;
-  if (row.patientTypeName) return row.patientTypeName;
+  const k = visitTypeKey(row);
+  const opt = k ? VISIT_TYPE_OPTS.find((o) => o.v === k) : undefined;
+  if (opt) return opt.l;
   if (row.admissionType) return row.admissionType;
-  return row.isEmergency ? 'Cấp cứu' : 'Khám thường';
+  return 'Khám thường';
 };
 
 export const hasValidInsurance = (row: RawRow): boolean => {

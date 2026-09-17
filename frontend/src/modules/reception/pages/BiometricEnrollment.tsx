@@ -265,7 +265,7 @@ const BiometricEnrollment: React.FC = () => {
                   data-testid={`bio-patient-${p.id}`}
                   style={{
                     padding: '10px 14px', borderBottom: '1px solid var(--line-soft)',
-                    background: isSel ? 'var(--c-pri-bg)' : 'transparent',
+                    background: isSel ? 'var(--a-cy-bg)' : 'transparent',
                     borderLeft: isSel ? '3px solid var(--a-cy)' : '3px solid transparent',
                     cursor: 'pointer', display: 'grid', gridTemplateColumns: '1fr auto', gap: 'var(--space-6)',
                   }}
@@ -387,7 +387,7 @@ const BiometricEnrollment: React.FC = () => {
             {scanning && (
               <div style={{
                 padding: 'var(--space-24)', textAlign: 'center', border: '2px dashed var(--a-cy)',
-                borderRadius: 'var(--r-3)', marginTop: 'var(--space-14)', background: 'var(--c-pri-bg)',
+                borderRadius: 'var(--r-3)', marginTop: 'var(--space-14)', background: 'var(--a-cy-bg)',
               }}>
                 <div style={{ fontSize: 32 }}>👆</div>
                 <div style={{ marginTop: 'var(--space-8)', fontWeight: 600, color: 'var(--a-cy)' }}>Đặt ngón tay lên cảm biến…</div>

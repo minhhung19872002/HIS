@@ -23,6 +23,8 @@ public class PharmacyEnhancementService : IPharmacyEnhancementService
 
     public async Task<ServiceOutcome> GetExpiryAlertsOnLoginAsync()
     {
+        // AlertLevel is frozen when the alert is generated, so a lot that has since expired still read "Sắp hết hạn".
+        var today = HIS.Core.Common.VnTime.NowVn.Date;
         var alerts = await _db.ExpiryAlerts
             .Where(a => a.Status == 0 && a.AlertLevel <= 2)
             .OrderBy(a => a.AlertLevel).ThenBy(a => a.ExpiryDate)
@@ -31,7 +33,8 @@ public class PharmacyEnhancementService : IPharmacyEnhancementService
             {
                 a.Id, a.MedicineId, a.WarehouseId, a.BatchNumber, a.ExpiryDate,
                 a.Quantity, a.AlertLevel,
-                AlertLevelName = a.AlertLevel == 1 ? "Sắp hết hạn (<1 tháng)" : "Cảnh báo (1-3 tháng)",
+                AlertLevelName = a.ExpiryDate < today ? "Đã hết hạn"
+                    : a.AlertLevel == 1 ? "Sắp hết hạn (<1 tháng)" : "Cảnh báo (1-3 tháng)",
                 MedicineName = _db.Medicines.Where(m => m.Id == a.MedicineId).Select(m => m.MedicineName).FirstOrDefault() ?? "",
                 WarehouseName = _db.Warehouses.Where(w => w.Id == a.WarehouseId).Select(w => w.WarehouseName).FirstOrDefault() ?? "",
             })

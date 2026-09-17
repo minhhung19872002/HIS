@@ -8,7 +8,7 @@ import {
 import type { DiseaseReport, EpiStats, Outbreak, NotifiableDisease } from '../api/epidemiology';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, Ico,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, Ico, fmtDMYg,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
 import { RowActions, RefreshButton } from '../../../components/actions';
@@ -440,8 +440,9 @@ const EpidemiologyV2: React.FC = () => {
                 <DrField lbl="Nhóm">
                   <StatusBadge tone={GROUP_TONE[sel.diseaseGroup] || 'info'} dot>Nhóm {sel.diseaseGroup}</StatusBadge>
                 </DrField>
-                <DrField lbl="Khởi phát">{dayjs(sel.onsetDate).format('DD/MM/YYYY')}</DrField>
-                <DrField lbl="Chẩn đoán">{dayjs(sel.diagnosisDate).format('DD/MM/YYYY')}</DrField>
+                {/* optional dates — dayjs(null) rendered "Invalid Date" */}
+                <DrField lbl="Khởi phát">{fmtDMYg(sel.onsetDate)}</DrField>
+                <DrField lbl="Chẩn đoán">{fmtDMYg(sel.diagnosisDate)}</DrField>
                 <DrField lbl="XN khẳng định">
                   {sel.labConfirmed ? <StatusBadge tone="ok" dot>Có</StatusBadge> : <StatusBadge tone="warn" dot>Chưa</StatusBadge>}
                 </DrField>

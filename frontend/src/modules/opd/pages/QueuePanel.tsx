@@ -30,7 +30,7 @@ export const QueuePanel: React.FC<Props> = ({
     </div>
     <div style={{ display: 'inline-flex', background: 'var(--d-0)', borderRadius: 4, padding: 'var(--space-2)', marginBottom: 'var(--space-10)', width: '100%' }}>
       {([{ v: 'general', l: 'Ngoại trú' }, { v: 'yhct', l: 'YHCT' }] as const).map((t) => (
-        <button key={t.v} onClick={() => setType(t.v)} style={{ flex: 1, background: type === t.v ? 'var(--c-pri)' : 'transparent', color: type === t.v ? '#fff' : 'var(--t-1)', border: 0, padding: '4px 8px', borderRadius: 'var(--r-1)', cursor: 'pointer', fontSize: 'var(--fs-xs)', fontWeight: type === t.v ? 700 : 400 }}>{t.l}</button>
+        <button key={t.v} onClick={() => setType(t.v)} style={{ flex: 1, background: type === t.v ? 'var(--a-cy)' : 'transparent', color: type === t.v ? '#fff' : 'var(--t-1)', border: 0, padding: '4px 8px', borderRadius: 'var(--r-1)', cursor: 'pointer', fontSize: 'var(--fs-xs)', fontWeight: type === t.v ? 700 : 400 }}>{t.l}</button>
       ))}
     </div>
     <div style={{ fontSize: 10.5, color: 'var(--t-2)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600, marginBottom: 'var(--space-6)' }}>Hàng đợi ({queue.length})</div>
@@ -39,7 +39,7 @@ export const QueuePanel: React.FC<Props> = ({
       const sel = q.examinationId === selPt?.examinationId;
       const tone = q.status === 2 ? 'info' : q.status === 1 ? 'warn' : 'info';
       return (
-        <div key={q.examinationId} onClick={() => selectPatient(q)} style={{ padding: 'var(--space-10)', marginBottom: 5, background: sel ? 'var(--c-pri-bg, rgba(37,99,235,.12))' : 'var(--d-0)', border: sel ? '1px solid var(--c-pri)' : '1px solid var(--line)', borderRadius: 'var(--r-2)', cursor: 'pointer' }}>
+        <div key={q.examinationId} onClick={() => selectPatient(q)} style={{ padding: 'var(--space-10)', marginBottom: 5, background: sel ? 'var(--c-pri-bg, rgba(37,99,235,.12))' : 'var(--d-0)', border: sel ? '1px solid var(--a-cy)' : '1px solid var(--line)', borderRadius: 'var(--r-2)', cursor: 'pointer' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span className="mono" style={{ fontWeight: 700, fontSize: 14, color: 'var(--a-cy)' }}>{q.queueNumber}</span>
             {(q.isEmergency || q.isPriority) && <StatusBadge tone="crit">{q.isEmergency ? 'Cấp cứu' : 'Ưu tiên'}</StatusBadge>}

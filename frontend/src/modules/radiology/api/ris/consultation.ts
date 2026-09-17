@@ -2,6 +2,7 @@
  * RIS API — Consultation sessions/cases/participants/discussion/image-notes/minutes/attachments.
  */
 
+import dayjs from 'dayjs';
 import apiClient from '../../../../services/apiClient';
 
 // #region Interfaces
@@ -180,8 +181,10 @@ export const getConsultationSession = (sessionId: string) =>
 // BE SaveConsultationSessionDto takes scheduledStartTime/scheduledEndTime — `scheduledTime` alone bound to
 // 0001-01-01. Default the end to start + 1h (the form has a single time field).
 export const saveConsultationSession = (data: SaveConsultationSessionDto) => {
-  const startMs = new Date(data.scheduledTime).getTime();
-  const scheduledEndTime = Number.isNaN(startMs) ? data.scheduledTime : new Date(startMs + 3_600_000).toISOString();
+  // Keep the end in the same offset-less local form as the start: toISOString() sent UTC ("…Z"), which the BE
+  // stored as local +7h → a 00:00 session ended at 08:00.
+  const start = dayjs(data.scheduledTime);
+  const scheduledEndTime = start.isValid() ? start.add(1, 'hour').format('YYYY-MM-DDTHH:mm:ss') : data.scheduledTime;
   return apiClient.post<ConsultationSessionDto>('/RISComplete/consultations', {
     ...data, scheduledStartTime: data.scheduledTime, scheduledEndTime,
   });
