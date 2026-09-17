@@ -7,7 +7,7 @@ import { fmtDate } from '../../../utils/format';
 import type { RangePickerProps } from 'antd/es/date-picker';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../../../services/apiClient';
-import { openPrintWindow } from '../../../utils/printWindow';
+import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn,
   tk, ti, tw, cf, useTabCounts, type ColumnDef, type StatusTab,
@@ -57,14 +57,14 @@ const STATUS_TONE: Record<number, 'ok' | 'warn' | 'crit'> = { 0: 'warn', 1: 'ok'
 // ── Print ─────────────────────────────────────────────────────────────────
 
 function printDecision(d: HrDecision) {
-  const html = `<html><head><title>QĐ ${d.decisionNumber}</title>
+  const html = `<html><head><title>QĐ ${esc(d.decisionNumber)}</title>
     <style>body{font-family:serif;padding:'var(--space-40)'px}h2,h3{text-align:center}.meta{margin:'var(--space-12)'px 0}
     .content{margin-top:24px;white-space:pre-wrap}@media print{button{display:none}}</style></head>
-    <body><h2>QUYẾT ĐỊNH NHÂN SỰ</h2><h3>Số: ${d.decisionNumber}</h3>
-    <div class="meta"><b>Loại:</b> ${d.decisionTypeName} &nbsp;|&nbsp; <b>Ngày hiệu lực:</b> ${fmtDate(d.effectiveDate)}</div>
-    <div class="meta"><b>Nhân viên:</b> ${d.staffName || ''} (${d.staffCode || ''})</div>
-    <div class="meta"><b>Trích yếu:</b> ${d.summary}</div>
-    <div class="content">${d.content || ''}</div>
+    <body><h2>QUYẾT ĐỊNH NHÂN SỰ</h2><h3>Số: ${esc(d.decisionNumber)}</h3>
+    <div class="meta"><b>Loại:</b> ${esc(d.decisionTypeName)} &nbsp;|&nbsp; <b>Ngày hiệu lực:</b> ${fmtDate(d.effectiveDate)}</div>
+    <div class="meta"><b>Nhân viên:</b> ${esc(d.staffName)} (${esc(d.staffCode)})</div>
+    <div class="meta"><b>Trích yếu:</b> ${esc(d.summary)}</div>
+    <div class="content">${esc(d.content)}</div>
     <div style="margin-top:60px;text-align:right"><p>............, ngày ${new Date().toLocaleDateString('vi-VN')}</p><p><b>GIÁM ĐỐC</b></p></div>
     <button onclick="window.print()" style="margin-top:20px;padding:'var(--space-8)'px 20px">In</button>
     </body></html>`;

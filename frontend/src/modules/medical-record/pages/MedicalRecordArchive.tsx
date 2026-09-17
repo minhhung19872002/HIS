@@ -5,6 +5,7 @@ import { Form, Input, Tree } from 'antd';
 import type { DataNode } from 'antd/es/tree';
 import { getArchiveList, createArchive } from '../api/medicalRecordArchive';
 import * as pdfApi from '../../../api/pdf';
+import { escapeHtml } from '../../../utils/printWindow';
 import { deptApproveRecord, getArchiveApproval, finalizeRecord, type ArchiveApprovalStatusDto } from '../../emr/api/emrAdmin';
 import { searchExaminations, getMedicalRecordFull } from '../../opd/api/examination';
 import {
@@ -684,7 +685,7 @@ const MedicalRecordArchiveV2: React.FC = () => {
 
       printWindow.document.write(`<!DOCTYPE html><html><head>
         <meta charset="utf-8"/>
-        <title>Hồ sơ bệnh án - ${patientInfo.fullName || ''}</title>
+        <title>Hồ sơ bệnh án - ${escapeHtml(patientInfo.fullName)}</title>
         <style>
           body { font-family: 'Times New Roman', serif; font-size: 13px; margin: 20px; }
           h1 { text-align: center; font-size: 16px; }
@@ -701,32 +702,32 @@ const MedicalRecordArchiveV2: React.FC = () => {
         <h1>HỒ SƠ BỆNH ÁN</h1>
         <h2>Thông tin bệnh nhân</h2>
         <div class="section">
-          <div class="field"><span class="label">Họ tên:</span> ${patientInfo.fullName || ''}</div>
-          <div class="field"><span class="label">Mã bệnh nhân:</span> ${patientInfo.patientCode || ''}</div>
+          <div class="field"><span class="label">Họ tên:</span> ${escapeHtml(patientInfo.fullName)}</div>
+          <div class="field"><span class="label">Mã bệnh nhân:</span> ${escapeHtml(patientInfo.patientCode)}</div>
           <div class="field"><span class="label">Giới tính:</span> ${GENDER_MAP[patientInfo.gender as number] || ''}</div>
           <div class="field"><span class="label">Ngày sinh:</span> ${patientInfo.dateOfBirth ? dayjs(patientInfo.dateOfBirth).format('DD/MM/YYYY') : ''}</div>
-          <div class="field"><span class="label">Địa chỉ:</span> ${patientInfo.address || ''}</div>
-          <div class="field"><span class="label">SĐT:</span> ${patientInfo.phoneNumber || ''}</div>
+          <div class="field"><span class="label">Địa chỉ:</span> ${escapeHtml(patientInfo.address)}</div>
+          <div class="field"><span class="label">SĐT:</span> ${escapeHtml(patientInfo.phoneNumber)}</div>
         </div>
         <h2>Chẩn đoán</h2>
         <div class="section">
-          ${diagnoses.map((d) => `<div class="field">${d.icdCode || ''} - ${d.icdName || d.diagnosisName || ''}</div>`).join('')}
+          ${diagnoses.map((d) => `<div class="field">${escapeHtml(d.icdCode)} - ${escapeHtml(d.icdName || d.diagnosisName)}</div>`).join('')}
         </div>
         <h2>Sinh hiệu</h2>
         <div class="section">
-          <div class="field"><span class="label">Huyết áp:</span> ${vitalSigns.systolicBP || '-'}/${vitalSigns.diastolicBP || '-'} mmHg</div>
-          <div class="field"><span class="label">Mạch:</span> ${vitalSigns.pulse || '-'} l/p</div>
-          <div class="field"><span class="label">Nhiệt độ:</span> ${vitalSigns.temperature || '-'} C</div>
-          <div class="field"><span class="label">Cân nặng:</span> ${vitalSigns.weight || '-'} kg</div>
-          <div class="field"><span class="label">Chiều cao:</span> ${vitalSigns.height || '-'} cm</div>
-          <div class="field"><span class="label">SpO2:</span> ${vitalSigns.spO2 || '-'} %</div>
+          <div class="field"><span class="label">Huyết áp:</span> ${escapeHtml(vitalSigns.systolicBP || '-')}/${escapeHtml(vitalSigns.diastolicBP || '-')} mmHg</div>
+          <div class="field"><span class="label">Mạch:</span> ${escapeHtml(vitalSigns.pulse || '-')} l/p</div>
+          <div class="field"><span class="label">Nhiệt độ:</span> ${escapeHtml(vitalSigns.temperature || '-')} C</div>
+          <div class="field"><span class="label">Cân nặng:</span> ${escapeHtml(vitalSigns.weight || '-')} kg</div>
+          <div class="field"><span class="label">Chiều cao:</span> ${escapeHtml(vitalSigns.height || '-')} cm</div>
+          <div class="field"><span class="label">SpO2:</span> ${escapeHtml(vitalSigns.spO2 || '-')} %</div>
         </div>
         <h2>Bệnh sử</h2>
         <div class="section">
-          <div class="field"><span class="label">Lý do khám:</span> ${interview.chiefComplaint || ''}</div>
-          <div class="field"><span class="label">Bệnh sử:</span> ${interview.historyOfPresentIllness || ''}</div>
-          <div class="field"><span class="label">Tiền sử bản thân:</span> ${interview.pastMedicalHistory || ''}</div>
-          <div class="field"><span class="label">Tiền sử gia đình:</span> ${interview.familyHistory || ''}</div>
+          <div class="field"><span class="label">Lý do khám:</span> ${escapeHtml(interview.chiefComplaint)}</div>
+          <div class="field"><span class="label">Bệnh sử:</span> ${escapeHtml(interview.historyOfPresentIllness)}</div>
+          <div class="field"><span class="label">Tiền sử bản thân:</span> ${escapeHtml(interview.pastMedicalHistory)}</div>
+          <div class="field"><span class="label">Tiền sử gia đình:</span> ${escapeHtml(interview.familyHistory)}</div>
         </div>
         <script>window.print();</script>
       </body></html>`);

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
-import { openPrintWindow } from '../../../utils/printWindow';
+import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import { DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../../../services/apiClient';
@@ -64,25 +64,25 @@ const ConsultationRegisterV2: React.FC = () => {
   };
 
   const printMinutes = (d: Detail) => {
-    const list = Array.isArray(d.participants) ? d.participants.map((p) => `<li>${p}</li>`).join('') : '';
+    const list = Array.isArray(d.participants) ? d.participants.map((p) => `<li>${esc(p)}</li>`).join('') : '';
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>BBHC</title>
 <style>body{font-family:"Times New Roman",serif;padding:'var(--space-32)'px;font-size:13.5pt}h1{text-align:center;font-size:18pt;margin:'var(--space-20)'px 0 6px}.subtitle{text-align:center;font-style:italic;margin-bottom:24px}.row{margin:'var(--space-4)'px 0}.section{margin:'var(--space-16)'px 0}.section-title{font-weight:bold;margin-top:12px}.sig{display:flex;justify-content:space-around;margin-top:40px}.sig>div{text-align:center;width:30%}ul{margin:'var(--space-4)'px 0 4px 16px;padding:0}</style></head>
 <body><div style="text-align:center"><div>BỘ Y TẾ</div><div style="font-weight:bold">${HOSPITAL_NAME}</div><div style="margin-top:6px">Mẫu số: MS. 03/BV</div></div>
 <h1>BIÊN BẢN HỘI CHẨN</h1>
-<div class="subtitle">(${d.consultationTypeName})</div>
+<div class="subtitle">(${esc(d.consultationTypeName)})</div>
 <div class="row"><b>Thời gian:</b> ${dayjs(d.consultationDate).format('HH:mm DD/MM/YYYY')}</div>
-<div class="row"><b>Địa điểm:</b> ${d.examination.departmentName ?? '-'}</div>
-<div class="row"><b>Họ tên BN:</b> ${d.patient.name} — <b>Mã BN:</b> ${d.patient.code}</div>
+<div class="row"><b>Địa điểm:</b> ${esc(d.examination.departmentName ?? '-')}</div>
+<div class="row"><b>Họ tên BN:</b> ${esc(d.patient.name)} — <b>Mã BN:</b> ${esc(d.patient.code)}</div>
 <div class="row"><b>Giới tính:</b> ${d.patient.gender === 1 ? 'Nam' : d.patient.gender === 2 ? 'Nữ' : '-'} — <b>Ngày sinh:</b> ${d.patient.dateOfBirth ? dayjs(d.patient.dateOfBirth).format('DD/MM/YYYY') : '-'}</div>
-<div class="row"><b>Địa chỉ:</b> ${d.patient.address ?? ''}</div>
-<div class="row"><b>BHYT:</b> ${d.patient.insuranceNumber ?? ''}</div>
-<div class="row"><b>HSBA:</b> ${d.examination.medicalRecordCode ?? ''} — <b>CĐ:</b> ${d.examination.mainDiagnosis ?? ''} ${d.examination.mainIcdCode ? `(${d.examination.mainIcdCode})` : ''}</div>
-<div class="section"><div class="section-title">Thành phần tham dự:</div><div>Chủ trì: ${d.presidedBy ?? '________'}</div><div>Thư ký: ${d.secretary ?? '________'}</div>${list ? `<div>Thành viên:</div><ul>${list}</ul>` : ''}</div>
-<div class="section"><div class="section-title">I. LÝ DO HỘI CHẨN</div><div>${(d.reason ?? '').replace(/\n/g, '<br/>') || '...'}</div></div>
-<div class="section"><div class="section-title">II. TÓM TẮT BỆNH ÁN</div><div>${(d.summary ?? '').replace(/\n/g, '<br/>') || '...'}</div></div>
-<div class="section"><div class="section-title">III. KẾT LUẬN</div><div>${(d.conclusion ?? '').replace(/\n/g, '<br/>') || '...'}</div></div>
-<div class="section"><div class="section-title">IV. HƯỚNG ĐIỀU TRỊ</div><div>${(d.treatmentPlan ?? '').replace(/\n/g, '<br/>') || '...'}</div></div>
-<div class="sig"><div><b>THƯ KÝ</b><br/><br/><br/>${d.secretary ?? ''}</div><div><b>CHỦ TRÌ</b><br/><br/><br/>${d.presidedBy ?? ''}</div></div>
+<div class="row"><b>Địa chỉ:</b> ${esc(d.patient.address)}</div>
+<div class="row"><b>BHYT:</b> ${esc(d.patient.insuranceNumber)}</div>
+<div class="row"><b>HSBA:</b> ${esc(d.examination.medicalRecordCode)} — <b>CĐ:</b> ${esc(d.examination.mainDiagnosis)} ${d.examination.mainIcdCode ? `(${esc(d.examination.mainIcdCode)})` : ''}</div>
+<div class="section"><div class="section-title">Thành phần tham dự:</div><div>Chủ trì: ${esc(d.presidedBy ?? '________')}</div><div>Thư ký: ${esc(d.secretary ?? '________')}</div>${list ? `<div>Thành viên:</div><ul>${list}</ul>` : ''}</div>
+<div class="section"><div class="section-title">I. LÝ DO HỘI CHẨN</div><div>${esc(d.reason).replace(/\n/g, '<br/>') || '...'}</div></div>
+<div class="section"><div class="section-title">II. TÓM TẮT BỆNH ÁN</div><div>${esc(d.summary).replace(/\n/g, '<br/>') || '...'}</div></div>
+<div class="section"><div class="section-title">III. KẾT LUẬN</div><div>${esc(d.conclusion).replace(/\n/g, '<br/>') || '...'}</div></div>
+<div class="section"><div class="section-title">IV. HƯỚNG ĐIỀU TRỊ</div><div>${esc(d.treatmentPlan).replace(/\n/g, '<br/>') || '...'}</div></div>
+<div class="sig"><div><b>THƯ KÝ</b><br/><br/><br/>${esc(d.secretary)}</div><div><b>CHỦ TRÌ</b><br/><br/><br/>${esc(d.presidedBy)}</div></div>
 </body></html>`;
     openPrintWindow(html, { focus: true, print: 'immediate' });
   };

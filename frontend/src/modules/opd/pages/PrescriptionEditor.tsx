@@ -28,6 +28,7 @@ import { checkDoses, withDoseOverrideNote, SEVERE_DOSE, type DoseWarningDto } fr
 import '../../../components/layout/terminal/ed-responsive.css';
 import { fmtDate } from '../../../utils/format';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS } from '../../../constants/hospital';
+import { escapeHtml as esc } from '../../../utils/printWindow';
 
 const RX_ROUTE = ['Uống', 'Tiêm bắp', 'Tiêm tĩnh mạch', 'Bôi ngoài da', 'Khí dung', 'Ngậm dưới lưỡi'];
 
@@ -539,14 +540,14 @@ table{width:100%;border-collapse:collapse;margin:15px 0}th,td{border:1px solid #
 @media print{body{padding:10px}}</style></head><body>
 <div style="text-align:center"><strong>${HOSPITAL_NAME}</strong></div>
 <div class="title">ĐƠN THUỐC</div>
-${pt ? `<div class="info">Họ tên: <strong>${pt.fullName}</strong> — Mã BN: ${pt.patientCode}</div>
-<div class="info">Giới: ${pt.gender === 1 ? 'Nam' : 'Nữ'} · BHYT: ${pt.insuranceNumber || 'Không'}</div>` : ''}
-<div class="info">Chẩn đoán: <strong>${ctx?.mainDiagnosis || ''}</strong></div>
+${pt ? `<div class="info">Họ tên: <strong>${esc(pt.fullName)}</strong> — Mã BN: ${esc(pt.patientCode)}</div>
+<div class="info">Giới: ${pt.gender === 1 ? 'Nam' : 'Nữ'} · BHYT: ${esc(pt.insuranceNumber || 'Không')}</div>` : ''}
+<div class="info">Chẩn đoán: <strong>${esc(ctx?.mainDiagnosis)}</strong></div>
 <table><thead><tr><th>STT</th><th>Tên thuốc</th><th>Liều dùng</th><th>Số ngày</th><th>SL</th><th>Đường dùng</th><th>Ghi chú</th></tr></thead>
 <tbody>${items.map((it, i) => `<tr><td>${i + 1}</td>
-<td><strong>${it.name}</strong>${it.strength ? `<br/><small>${it.strength}</small>` : ''}</td>
-<td>${formatDosage(it)}</td><td>${it.days} ngày</td>
-<td>${it.qty} ${it.dosageForm || 'viên'}</td><td>${it.route}</td><td>${it.note || ''}</td></tr>`).join('')}</tbody></table>
+<td><strong>${esc(it.name)}</strong>${it.strength ? `<br/><small>${esc(it.strength)}</small>` : ''}</td>
+<td>${esc(formatDosage(it))}</td><td>${esc(it.days)} ngày</td>
+<td>${esc(it.qty)} ${esc(it.dosageForm || 'viên')}</td><td>${esc(it.route)}</td><td>${esc(it.note)}</td></tr>`).join('')}</tbody></table>
 <div class="info"><strong>Tổng tiền:</strong> ${total.toLocaleString('vi-VN')} đ</div>
 <div class="sig"><div style="width:45%"><div>Ngày ${dd} tháng ${mm} năm ${yyyy}</div><strong>Bác sĩ kê đơn</strong><div style="margin-top:50px"></div></div></div>
 </body></html>`);
@@ -576,21 +577,21 @@ th,td{border:1px solid #000;padding:4px 6px}th{background:#f0f0f0;text-align:cen
 <div style="text-align:center;margin-bottom:10px"><div style="font-weight:bold;font-size:14px">${HOSPITAL_NAME}</div>
 <div style="font-size:12px">${HOSPITAL_ADDRESS}</div></div>
 <div class="ft">PHIẾU CÔNG KHAI THUỐC</div>
-${pt ? `<div class="info">Họ tên: <strong>${pt.fullName}</strong> &nbsp; Mã BN: <strong>${pt.patientCode}</strong></div>
+${pt ? `<div class="info">Họ tên: <strong>${esc(pt.fullName)}</strong> &nbsp; Mã BN: <strong>${esc(pt.patientCode)}</strong></div>
 <div class="info">Giới tính: ${pt.gender === 1 ? 'Nam' : 'Nữ'}</div>
-${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranceNumber}</strong></div>` : ''}` : ''}
-<div class="info">Chẩn đoán: <strong>${ctx?.mainDiagnosis || ''}</strong></div>
+${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${esc(pt.insuranceNumber)}</strong></div>` : ''}` : ''}
+<div class="info">Chẩn đoán: <strong>${esc(ctx?.mainDiagnosis)}</strong></div>
 <table><thead><tr><th style="width:35px">STT</th><th>Tên thuốc</th><th>Hàm lượng</th><th>ĐVT</th>
 <th>SL</th><th>Đơn giá</th><th>Thành tiền</th><th>BHYT chi trả</th><th>BN chi trả</th><th>Ghi chú</th></tr></thead>
 <tbody>${items.map((it, i) => {
   const itTot = it.price * it.qty;
   const bhytPay = bhytPayOf(it);
-  return `<tr><td class="tc">${i + 1}</td><td><strong>${it.name}</strong></td>
-<td class="tc">${it.strength || ''}</td><td class="tc">${it.dosageForm || 'Viên'}</td>
-<td class="tc">${it.qty}</td><td class="tr">${it.price.toLocaleString('vi-VN')}</td>
+  return `<tr><td class="tc">${i + 1}</td><td><strong>${esc(it.name)}</strong></td>
+<td class="tc">${esc(it.strength)}</td><td class="tc">${esc(it.dosageForm || 'Viên')}</td>
+<td class="tc">${esc(it.qty)}</td><td class="tr">${it.price.toLocaleString('vi-VN')}</td>
 <td class="tr">${itTot.toLocaleString('vi-VN')}</td>
 <td class="tr">${bhytPay > 0 ? bhytPay.toLocaleString('vi-VN') : '-'}</td>
-<td class="tr">${(itTot - bhytPay).toLocaleString('vi-VN')}</td><td>${it.note || ''}</td></tr>`;
+<td class="tr">${(itTot - bhytPay).toLocaleString('vi-VN')}</td><td>${esc(it.note)}</td></tr>`;
 }).join('')}
 <tr class="tot"><td colspan="6" class="tc"><strong>Tổng cộng</strong></td>
 <td class="tr"><strong>${total.toLocaleString('vi-VN')}</strong></td>
@@ -817,7 +818,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-10)', padding: '10px 14px', background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', flexWrap: 'wrap' }}>
           <div style={{ display: 'inline-flex', background: 'var(--d-1)', borderRadius: 4, padding: 'var(--space-2)' }}>
             {([{ v: 1, l: 'Ngoại trú' }, { v: 2, l: 'YHCT' }] as const).map((t) => (
-              <button key={t.v} onClick={() => setType(t.v)} style={{ background: type === t.v ? 'var(--c-pri)' : 'transparent', color: type === t.v ? '#fff' : 'var(--t-1)', border: 0, padding: '5px 12px', borderRadius: 'var(--r-1)', cursor: 'pointer', fontSize: 11.5, fontWeight: type === t.v ? 700 : 400 }}>{t.l}</button>
+              <button key={t.v} onClick={() => setType(t.v)} style={{ background: type === t.v ? 'var(--a-cy)' : 'transparent', color: type === t.v ? '#fff' : 'var(--t-1)', border: 0, padding: '5px 12px', borderRadius: 'var(--r-1)', cursor: 'pointer', fontSize: 11.5, fontWeight: type === t.v ? 700 : 400 }}>{t.l}</button>
             ))}
           </div>
           <select className="hui-inp hui-sel" value={warehouse} onChange={(e) => setWh(e.target.value)} style={{ width: 200, height: 32 }} disabled={rxMode === 2} title={rxMode === 2 ? 'Toa ngoài không cấp theo kho nội viện' : undefined}>
@@ -827,7 +828,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
           {/* F3/F5 explicit rx-type radio — bác sĩ override BHYT ↔ tự trả */}
           <div style={{ display: 'inline-flex', background: 'var(--d-1)', borderRadius: 4, padding: 'var(--space-2)' }}>
             {([{ v: 1 as const, l: 'BHYT/Thu phí (F3)' }, { v: 2 as const, l: 'Toa ngoài (F5)' }]).map((m) => (
-              <button key={m.v} onClick={() => setRxMode(m.v)} style={{ background: rxMode === m.v ? (m.v === 2 ? 'var(--s-warn)' : 'var(--c-pri)') : 'transparent', color: rxMode === m.v ? '#fff' : 'var(--t-1)', border: 0, padding: '5px 12px', borderRadius: 'var(--r-1)', cursor: 'pointer', fontSize: 11.5, fontWeight: rxMode === m.v ? 700 : 400, whiteSpace: 'nowrap' }}>{m.l}</button>
+              <button key={m.v} onClick={() => setRxMode(m.v)} style={{ background: rxMode === m.v ? (m.v === 2 ? 'var(--s-warn)' : 'var(--a-cy)') : 'transparent', color: rxMode === m.v ? '#fff' : 'var(--t-1)', border: 0, padding: '5px 12px', borderRadius: 'var(--r-1)', cursor: 'pointer', fontSize: 11.5, fontWeight: rxMode === m.v ? 700 : 400, whiteSpace: 'nowrap' }}>{m.l}</button>
             ))}
           </div>
           <span className="spacer ab-u-flex1" />

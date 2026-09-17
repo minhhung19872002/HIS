@@ -6,7 +6,7 @@ import {
   getCabinetWarehouses, getStock, getStockWarnings, createCabinetIssue, getStockIssues,
 } from '../api/warehouse';
 import type { WarehouseDto, StockDto, StockIssueDto, CreateCabinetIssueDto } from '../api/warehouse';
-import { openPrintWindow } from '../../../utils/printWindow';
+import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import {
   KpiStrip, TopTabs, StatusBadge, Btn, Ico, tk, tw,
 } from '@/_v2kit';
@@ -189,14 +189,14 @@ const EmergencyCabinetV2: React.FC = () => {
 
   const printIssue = (issue: StockIssueDto) => {
     const rows = (issue.items || []).map((it, i) =>
-      `<tr><td>${i + 1}</td><td>${it.itemName}</td><td style="text-align:right">${it.quantity}</td><td>${it.unit || ''}</td><td style="text-align:right">${fmt(it.unitPrice || 0)}</td><td style="text-align:right">${fmt((it.unitPrice || 0) * it.quantity)}</td></tr>`
+      `<tr><td>${i + 1}</td><td>${esc(it.itemName)}</td><td style="text-align:right">${esc(it.quantity)}</td><td>${esc(it.unit)}</td><td style="text-align:right">${fmt(it.unitPrice || 0)}</td><td style="text-align:right">${fmt((it.unitPrice || 0) * it.quantity)}</td></tr>`
     ).join('');
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${issue.issueCode}</title>
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(issue.issueCode)}</title>
 <style>body{font-family:"Times New Roman",serif;padding:24px}h2{text-align:center}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #333;padding:4px 8px;font-size:13px}th{background:#eee}.sign{display:flex;justify-content:space-around;margin-top:60px}</style></head><body>
 <h2>PHIẾU XUẤT TỦ TRỰC</h2>
-<p>Số: <b>${issue.issueCode}</b> &nbsp; Ngày: ${dayjs(issue.issueDate).format('DD/MM/YYYY HH:mm')}</p>
-<p>Kho: <b>${issue.warehouseName || ''}</b></p>
-<p>Ghi chú: ${issue.notes || ''}</p>
+<p>Số: <b>${esc(issue.issueCode)}</b> &nbsp; Ngày: ${dayjs(issue.issueDate).format('DD/MM/YYYY HH:mm')}</p>
+<p>Kho: <b>${esc(issue.warehouseName)}</b></p>
+<p>Ghi chú: ${esc(issue.notes)}</p>
 <table><thead><tr><th>STT</th><th>Tên hàng</th><th>SL</th><th>ĐV</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead><tbody>${rows}</tbody></table>
 <p style="text-align:right;margin-top:12px"><b>Tổng cộng: ${fmt(issue.totalAmount || 0)} đ</b></p>
 <div class="sign"><div>Người lập</div><div>Trưởng khoa</div><div>Thủ kho</div><div>Người nhận</div></div>

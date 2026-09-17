@@ -372,10 +372,12 @@ const SigningWorkflowV2: React.FC = () => {
             </DrSec>
             {detail.documentContent && (
               <DrSec title="Nội dung tài liệu (snapshot lúc trình)">
-                <div
-                  style={{ maxHeight: 420, overflow: 'auto', background: 'var(--d-2)', color: '#111', borderRadius: 'var(--r-2)', padding: 'var(--space-10)', fontSize: 'var(--fs-sm)' }}
-                  // Snapshot HTML do chính PrintTemplateRenderer nội bộ sinh ra (không phải input người dùng tự do)
-                  dangerouslySetInnerHTML={{ __html: detail.documentContent }}
+                <iframe
+                  title="Nội dung tài liệu"
+                  style={{ width: '100%', height: 420, border: 'none', background: 'var(--d-2)', borderRadius: 'var(--r-2)' }}
+                  // documentContent is client-supplied on submit (POST body) → render in a script-less sandbox, never raw in the app DOM
+                  sandbox=""
+                  srcDoc={detail.documentContent}
                 />
               </DrSec>
             )}

@@ -1074,6 +1074,8 @@ const ReportsHospitalTab: React.FC = () => {
       >
         <iframe
           id="report-preview-iframe"
+          // Server-built report HTML: no scripts (allow-same-origin kept only so the Print button can call contentWindow.print())
+          sandbox="allow-same-origin allow-modals"
           srcDoc={previewContent}
           style={{ width: '100%', height: 600, border: 'none', background: '#fff' }}
           title={previewTitle}

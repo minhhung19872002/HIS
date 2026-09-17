@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { RefreshButton } from '../../../components/actions/RefreshButton';
 import { searchProtocols, saveProtocol, deleteProtocol, approveProtocol, newVersion as createNewVersion } from '../api/treatmentProtocol';
 import type { TreatmentProtocolDto, TreatmentProtocolStepDto, SaveTreatmentProtocolDto } from '../api/treatmentProtocol';
-import { openPrintWindow } from '../../../utils/printWindow';
+import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, DrSec, DrField, CrudModal, tk, ti, te, cf, Ico,
@@ -245,9 +245,9 @@ const TreatmentProtocolV2: React.FC = () => {
           <Btn icon="print" onClick={() => {
             if (!sel) return;
             const rows = sel.steps?.length
-              ? sel.steps.map((s, i) => `<tr><td>${i + 1}</td><td>${s.name}</td><td>${s.activityType || ''}</td><td>${s.durationDays ? s.durationDays + 'd' : ''}</td><td>${s.notes || ''}</td></tr>`).join('')
+              ? sel.steps.map((s, i) => `<tr><td>${i + 1}</td><td>${esc(s.name)}</td><td>${esc(s.activityType)}</td><td>${esc(s.durationDays ? s.durationDays + 'd' : '')}</td><td>${esc(s.notes)}</td></tr>`).join('')
               : '<tr><td colspan="5" style="text-align:center;color:#666">Chưa có bước</td></tr>';
-            openPrintWindow(`<h2 style="margin:0 0 8px">Phác đồ: ${sel.name}</h2><p style="margin:0 0 4px;color:#555">${sel.code} · v${sel.version} · ${STATUS_LABEL[sel.status]}</p>${sel.department ? `<p style="margin:0 0 12px;color:#555">Khoa: ${sel.department}</p>` : ''}<table border="1" cellpadding="6" cellspacing="0" width="100%" style="border-collapse:collapse;font-size:13px"><thead><tr><th>STT</th><th>Tên bước</th><th>Loại</th><th>Thời gian</th><th>Ghi chú</th></tr></thead><tbody>${rows}</tbody></table>`, { print: { delayMs: 300 } });
+            openPrintWindow(`<h2 style="margin:0 0 8px">Phác đồ: ${esc(sel.name)}</h2><p style="margin:0 0 4px;color:#555">${esc(sel.code)} · v${esc(sel.version)} · ${esc(STATUS_LABEL[sel.status])}</p>${sel.department ? `<p style="margin:0 0 12px;color:#555">Khoa: ${esc(sel.department)}</p>` : ''}<table border="1" cellpadding="6" cellspacing="0" width="100%" style="border-collapse:collapse;font-size:13px"><thead><tr><th>STT</th><th>Tên bước</th><th>Loại</th><th>Thời gian</th><th>Ghi chú</th></tr></thead><tbody>${rows}</tbody></table>`, { print: { delayMs: 300 } });
           }}>In phác đồ</Btn>
           {sel?.status === 0 && <>
             <Btn icon="list" onClick={() => { if (sel) { openStepEditor(sel); setSel(null); } }}>Chỉnh sửa bước</Btn>

@@ -10,6 +10,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { App as AntdApp, DatePicker, Input, Select } from 'antd';
 import dayjs from 'dayjs';
+import { escapeHtml as esc } from '../../../utils/printWindow';
 import * as receptionApi from '../api/reception';
 import type { DocumentHoldDto, PatientPhotoDto, CostEstimationResultDto } from '../api/reception';
 import { estimateCostDirect } from '../api/reception';
@@ -706,10 +707,10 @@ export const ServiceOrderModal: React.FC<ServiceOrderModalProps> = ({
     const win = window.open('', '_blank');
     if (!win) return;
     const rows = estResult.items.map((it, i) =>
-      `<tr><td>${i + 1}</td><td>${it.serviceName}</td><td>${it.serviceGroupName}</td><td>${it.unitPrice.toLocaleString('vi-VN')}</td><td>${it.insurancePrice.toLocaleString('vi-VN')}</td><td style="font-weight:600">${it.patientPrice.toLocaleString('vi-VN')}</td></tr>`
+      `<tr><td>${i + 1}</td><td>${esc(it.serviceName)}</td><td>${esc(it.serviceGroupName)}</td><td>${it.unitPrice.toLocaleString('vi-VN')}</td><td>${it.insurancePrice.toLocaleString('vi-VN')}</td><td style="font-weight:600">${it.patientPrice.toLocaleString('vi-VN')}</td></tr>`
     ).join('');
     win.document.write(`<html><head><title>Dự toán viện phí</title><style>body{font-family:Arial;font-size:12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:4px 6px}th{background:#f0f0f0}h3{text-align:center}</style></head><body>
-      <h3>DỰ TOÁN VIỆN PHÍ</h3><p>Đối tượng: <b>${estResult.patientTypeName}</b>${estResult.patientType === 1 ? ` — BHYT ${estResult.insuranceCoverageRate}%` : ''}</p>
+      <h3>DỰ TOÁN VIỆN PHÍ</h3><p>Đối tượng: <b>${esc(estResult.patientTypeName)}</b>${estResult.patientType === 1 ? ` — BHYT ${estResult.insuranceCoverageRate}%` : ''}</p>
       <table><thead><tr><th>STT</th><th>Tên dịch vụ</th><th>Nhóm</th><th>Đơn giá</th><th>BHYT trả</th><th>BN trả</th></tr></thead><tbody>${rows}</tbody>
       <tfoot><tr><td colspan="3"><b>TỔNG CỘNG</b></td><td><b>${estResult.totalAmount.toLocaleString('vi-VN')}</b></td><td><b>${estResult.insuranceAmount.toLocaleString('vi-VN')}</b></td><td><b>${estResult.patientAmount.toLocaleString('vi-VN')}</b></td></tr></tfoot></table>
       <p style="margin-top:16px;font-style:italic;font-size:11px">* Đây là ước tính sơ bộ, chi phí thực tế có thể thay đổi tùy theo chỉ định của bác sĩ.</p>

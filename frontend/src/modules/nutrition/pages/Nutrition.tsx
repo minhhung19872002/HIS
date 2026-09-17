@@ -13,7 +13,7 @@ import type {
 } from '../api/nutrition';
 import { getInpatientList } from '../../inpatient/api/inpatient';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
-import { openPrintWindow } from '../../../utils/printWindow';
+import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { RowActions, RefreshButton } from '../../../components/actions';
 import {
@@ -60,18 +60,18 @@ const printDietOrderHtml = (order: PrintableDietOrder): void => {
       <div class="title">PHIẾU KẾ HOẠCH DINH DƯỠNG</div>
       <table class="info-table">
         <tr>
-          <td><strong>Họ tên:</strong> ${order.patientName || '—'}</td>
-          <td><strong>Giường:</strong> ${order.bedNumber || '—'}</td>
+          <td><strong>Họ tên:</strong> ${esc(order.patientName || '—')}</td>
+          <td><strong>Giường:</strong> ${esc(order.bedNumber || '—')}</td>
         </tr>
         <tr>
-          <td><strong>Khoa:</strong> ${order.departmentName || '—'}</td>
-          <td><strong>Chế độ:</strong> ${order.dietTypeName || order.dietType || '—'}</td>
+          <td><strong>Khoa:</strong> ${esc(order.departmentName || '—')}</td>
+          <td><strong>Chế độ:</strong> ${esc(order.dietTypeName || order.dietType || '—')}</td>
         </tr>
         <tr>
-          <td><strong>Năng lượng:</strong> ${order.energyKcal ?? '—'} kcal/ngày</td>
-          <td><strong>Protein:</strong> ${order.proteinGrams ?? '—'} g/ngày</td>
+          <td><strong>Năng lượng:</strong> ${esc(order.energyKcal ?? '—')} kcal/ngày</td>
+          <td><strong>Protein:</strong> ${esc(order.proteinGrams ?? '—')} g/ngày</td>
         </tr>
-        <tr><td colspan="2"><strong>Đường cấp DD:</strong> ${order.feedingRoute || '—'}</td></tr>
+        <tr><td colspan="2"><strong>Đường cấp DD:</strong> ${esc(order.feedingRoute || '—')}</td></tr>
       </table>
       <table class="meal-table">
         <thead>

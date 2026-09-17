@@ -429,10 +429,10 @@ public partial class RISCompleteService
     {
         return $@"
         <div style='width:70mm;height:40mm;padding:2mm;font-family:Arial;font-size:10px;'>
-            <div style='font-weight:bold;font-size:12px;'>{data.PatientName}</div>
-            <div>Ma BN: {data.PatientCode} | {data.Age} tuoi | {data.Gender}</div>
-            <div>Ma phieu: {data.OrderCode}</div>
-            <div>DV: {data.ServiceName}</div>
+            <div style='font-weight:bold;font-size:12px;'>{System.Net.WebUtility.HtmlEncode(data.PatientName)}</div>
+            <div>Ma BN: {System.Net.WebUtility.HtmlEncode(data.PatientCode)} | {data.Age} tuoi | {System.Net.WebUtility.HtmlEncode(data.Gender)}</div>
+            <div>Ma phieu: {System.Net.WebUtility.HtmlEncode(data.OrderCode)}</div>
+            <div>DV: {System.Net.WebUtility.HtmlEncode(data.ServiceName)}</div>
             <div>STT: {data.QueueNumber} | Ngay: {data.OrderDate:dd/MM/yyyy HH:mm}</div>
         </div>";
     }

@@ -5,6 +5,7 @@ using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using HIS.Infrastructure.Extensions;
+using static HIS.Infrastructure.Services.PdfTemplateHelper;
 
 namespace HIS.Infrastructure.Services;
 
@@ -55,7 +56,7 @@ public partial class AssetManagementService
             deptName = await _context.Departments.Where(d => d.Id == asset.DepartmentId.Value).Select(d => d.DepartmentName).FirstOrDefaultAsync();
         }
 
-        var qrContent = $"ASSET:{asset.AssetCode}|{asset.AssetName}|{deptName ?? ""}|{asset.OriginalValue:N0}|SN:{asset.SerialNumber ?? ""}";
+        var qrContent = $"ASSET:{Esc(asset.AssetCode)}|{Esc(asset.AssetName)}|{deptName ?? ""}|{asset.OriginalValue:N0}|SN:{asset.SerialNumber ?? ""}";
 
         return new AssetQrCodeDto
         {
@@ -118,8 +119,8 @@ td.center {{ text-align: center; }}
   <div class='header-left'><strong>DON VI: BENH VIEN</strong></div>
   <div class='header-right'>Ngay in: {DateTime.Now:dd/MM/yyyy HH:mm}</div>
 </div>
-<h2>{title}</h2>
-{(string.IsNullOrEmpty(subtitle) ? "" : $"<h3>{subtitle}</h3>")}";
+<h2>{Esc(title)}</h2>
+{(string.IsNullOrEmpty(subtitle) ? "" : $"<h3>{Esc(subtitle)}</h3>")}";
     }
 
     private static string SignatureBlock()
@@ -156,7 +157,7 @@ td.center {{ text-align: center; }}
             totalAccum += a.AccumulatedDepreciation;
             totalCurrent += a.CurrentValue;
             var dept = a.DepartmentId.HasValue && depts.TryGetValue(a.DepartmentId.Value, out var dn) ? dn : "";
-            sb.Append($"<tr><td class='center'>{stt}</td><td>{a.AssetCode}</td><td>{a.AssetName}</td><td>{a.SerialNumber}</td><td>{dept}</td><td class='center'>{a.PurchaseDate:dd/MM/yyyy}</td><td class='num'>{a.OriginalValue:N0}</td><td class='num'>{a.AccumulatedDepreciation:N0}</td><td class='num'>{a.CurrentValue:N0}</td><td class='center'>{statusNames.GetValueOrDefault(a.Status, "")}</td></tr>");
+            sb.Append($"<tr><td class='center'>{stt}</td><td>{Esc(a.AssetCode)}</td><td>{Esc(a.AssetName)}</td><td>{Esc(a.SerialNumber)}</td><td>{Esc(dept)}</td><td class='center'>{a.PurchaseDate:dd/MM/yyyy}</td><td class='num'>{a.OriginalValue:N0}</td><td class='num'>{a.AccumulatedDepreciation:N0}</td><td class='num'>{a.CurrentValue:N0}</td><td class='center'>{statusNames.GetValueOrDefault(a.Status, "")}</td></tr>");
         }
         sb.Append($"<tr style='font-weight:bold'><td colspan='6' class='center'>TONG CONG</td><td class='num'>{totalOriginal:N0}</td><td class='num'>{totalAccum:N0}</td><td class='num'>{totalCurrent:N0}</td><td></td></tr>");
         sb.Append("</table>");
@@ -180,9 +181,9 @@ td.center {{ text-align: center; }}
 
         var sb = new StringBuilder(ReportHeader("THE TAI SAN CO DINH"));
         sb.Append($"<table class='no-border' style='margin-bottom:12px'>");
-        sb.Append($"<tr><td class='no-border' style='width:30%'><strong>Ma tai san:</strong> {asset.AssetCode}</td><td class='no-border'><strong>Ten tai san:</strong> {asset.AssetName}</td></tr>");
-        sb.Append($"<tr><td class='no-border'><strong>So serial:</strong> {asset.SerialNumber}</td><td class='no-border'><strong>Nhom TS:</strong> {asset.AssetGroupId}</td></tr>");
-        sb.Append($"<tr><td class='no-border'><strong>Khoa/Phong:</strong> {deptName}</td><td class='no-border'><strong>Vi tri:</strong> {asset.LocationDescription}</td></tr>");
+        sb.Append($"<tr><td class='no-border' style='width:30%'><strong>Ma tai san:</strong> {Esc(asset.AssetCode)}</td><td class='no-border'><strong>Ten tai san:</strong> {Esc(asset.AssetName)}</td></tr>");
+        sb.Append($"<tr><td class='no-border'><strong>So serial:</strong> {Esc(asset.SerialNumber)}</td><td class='no-border'><strong>Nhom TS:</strong> {Esc(asset.AssetGroupId)}</td></tr>");
+        sb.Append($"<tr><td class='no-border'><strong>Khoa/Phong:</strong> {Esc(deptName)}</td><td class='no-border'><strong>Vi tri:</strong> {Esc(asset.LocationDescription)}</td></tr>");
         sb.Append($"<tr><td class='no-border'><strong>Ngay mua:</strong> {asset.PurchaseDate:dd/MM/yyyy}</td><td class='no-border'><strong>PP khau hao:</strong> {(asset.DepreciationMethod == 1 ? "Duong thang" : "Giam dan")}</td></tr>");
         sb.Append($"<tr><td class='no-border'><strong>Nguyen gia:</strong> {asset.OriginalValue:N0} VND</td><td class='no-border'><strong>Thoi gian SD:</strong> {asset.UsefulLifeMonths} thang</td></tr>");
         sb.Append($"<tr><td class='no-border'><strong>KH luy ke:</strong> {asset.AccumulatedDepreciation:N0} VND</td><td class='no-border'><strong>Gia tri con lai:</strong> {asset.CurrentValue:N0} VND</td></tr>");
@@ -218,7 +219,7 @@ td.center {{ text-align: center; }}
         foreach (var group in grouped)
         {
             var deptName = depts.TryGetValue(group.Key, out var dn) ? dn : group.Key.ToString();
-            sb.Append($"<h3 style='text-align:left;font-style:normal;font-weight:bold;margin-top:16px'>Khoa/Phong: {deptName}</h3>");
+            sb.Append($"<h3 style='text-align:left;font-style:normal;font-weight:bold;margin-top:16px'>Khoa/Phong: {Esc(deptName)}</h3>");
             sb.Append("<table><tr><th>STT</th><th>Ma TS</th><th>Ten tai san</th><th>So serial</th><th>Nguyen gia</th><th>Gia tri con lai</th><th>Trang thai</th></tr>");
             int stt = 0;
             decimal subtotalOrig = 0, subtotalCur = 0;
@@ -228,7 +229,7 @@ td.center {{ text-align: center; }}
                 subtotalOrig += a.OriginalValue;
                 subtotalCur += a.CurrentValue;
                 var statusNames = new Dictionary<int, string> { {1,"Dang dung"},{2,"Hong"},{3,"Dang sua"},{4,"Cho TL"},{5,"Da TL"},{6,"Da chuyen"} };
-                sb.Append($"<tr><td class='center'>{stt}</td><td>{a.AssetCode}</td><td>{a.AssetName}</td><td>{a.SerialNumber}</td><td class='num'>{a.OriginalValue:N0}</td><td class='num'>{a.CurrentValue:N0}</td><td class='center'>{statusNames.GetValueOrDefault(a.Status, "")}</td></tr>");
+                sb.Append($"<tr><td class='center'>{stt}</td><td>{Esc(a.AssetCode)}</td><td>{Esc(a.AssetName)}</td><td>{Esc(a.SerialNumber)}</td><td class='num'>{a.OriginalValue:N0}</td><td class='num'>{a.CurrentValue:N0}</td><td class='center'>{statusNames.GetValueOrDefault(a.Status, "")}</td></tr>");
             }
             sb.Append($"<tr style='font-weight:bold'><td colspan='4' class='center'>Cong</td><td class='num'>{subtotalOrig:N0}</td><td class='num'>{subtotalCur:N0}</td><td></td></tr>");
             sb.Append("</table>");
@@ -256,7 +257,7 @@ td.center {{ text-align: center; }}
             stt++;
             var fromDept = h.FromDepartmentId.HasValue && depts.TryGetValue(h.FromDepartmentId.Value, out var fn) ? fn : "";
             var toDept = h.ToDepartmentId.HasValue && depts.TryGetValue(h.ToDepartmentId.Value, out var tn) ? tn : "";
-            sb.Append($"<tr><td class='center'>{stt}</td><td>{h.FixedAsset?.AssetCode}</td><td>{h.FixedAsset?.AssetName}</td><td class='num'>{h.FixedAsset?.OriginalValue:N0}</td><td>{fromDept}</td><td>{toDept}</td><td class='center'>{h.HandoverDate:dd/MM/yyyy}</td><td class='center'>{handoverTypes.GetValueOrDefault(h.HandoverType, "")}</td><td class='center'>{(h.Status == 2 ? "Xac nhan" : "Cho")}</td></tr>");
+            sb.Append($"<tr><td class='center'>{stt}</td><td>{Esc(h.FixedAsset?.AssetCode)}</td><td>{Esc(h.FixedAsset?.AssetName)}</td><td class='num'>{h.FixedAsset?.OriginalValue:N0}</td><td>{Esc(fromDept)}</td><td>{Esc(toDept)}</td><td class='center'>{h.HandoverDate:dd/MM/yyyy}</td><td class='center'>{handoverTypes.GetValueOrDefault(h.HandoverType, "")}</td><td class='center'>{(h.Status == 2 ? "Xac nhan" : "Cho")}</td></tr>");
         }
         sb.Append("</table>");
         sb.Append(@"<div class='sign-block'>
@@ -287,7 +288,7 @@ td.center {{ text-align: center; }}
             totalOrig += d.FixedAsset?.OriginalValue ?? 0;
             totalDisp += d.DisposalValue;
             totalResid += d.ResidualValue;
-            sb.Append($"<tr><td class='center'>{stt}</td><td>{d.FixedAsset?.AssetCode}</td><td>{d.FixedAsset?.AssetName}</td><td class='num'>{d.FixedAsset?.OriginalValue:N0}</td><td class='num'>{d.ResidualValue:N0}</td><td class='num'>{d.DisposalValue:N0}</td><td class='center'>{disposalTypes.GetValueOrDefault(d.DisposalType, "")}</td><td class='center'>{d.ProposalDate:dd/MM/yyyy}</td><td class='center'>{disposalStatus.GetValueOrDefault(d.Status, "")}</td><td>{d.Reason}</td></tr>");
+            sb.Append($"<tr><td class='center'>{stt}</td><td>{Esc(d.FixedAsset?.AssetCode)}</td><td>{Esc(d.FixedAsset?.AssetName)}</td><td class='num'>{d.FixedAsset?.OriginalValue:N0}</td><td class='num'>{d.ResidualValue:N0}</td><td class='num'>{d.DisposalValue:N0}</td><td class='center'>{disposalTypes.GetValueOrDefault(d.DisposalType, "")}</td><td class='center'>{d.ProposalDate:dd/MM/yyyy}</td><td class='center'>{disposalStatus.GetValueOrDefault(d.Status, "")}</td><td>{Esc(d.Reason)}</td></tr>");
         }
         sb.Append($"<tr style='font-weight:bold'><td colspan='3' class='center'>TONG CONG</td><td class='num'>{totalOrig:N0}</td><td class='num'>{totalResid:N0}</td><td class='num'>{totalDisp:N0}</td><td colspan='4'></td></tr>");
         sb.Append("</table>");
@@ -309,7 +310,7 @@ td.center {{ text-align: center; }}
         foreach (var a in assets)
         {
             stt++;
-            sb.Append($"<tr><td class='center'>{stt}</td><td>{a.AssetCode}</td><td>{a.AssetName}</td><td class='num'>{a.OriginalValue:N0}</td><td class='num'>{a.AccumulatedDepreciation:N0}</td><td class='num'>{a.CurrentValue:N0}</td><td class='num'></td><td class='num'></td><td class='num'></td></tr>");
+            sb.Append($"<tr><td class='center'>{stt}</td><td>{Esc(a.AssetCode)}</td><td>{Esc(a.AssetName)}</td><td class='num'>{a.OriginalValue:N0}</td><td class='num'>{a.AccumulatedDepreciation:N0}</td><td class='num'>{a.CurrentValue:N0}</td><td class='num'></td><td class='num'></td><td class='num'></td></tr>");
         }
         sb.Append("</table>");
         sb.Append(SignatureBlock());
@@ -334,7 +335,7 @@ td.center {{ text-align: center; }}
         {
             stt++;
             var dept = a.DepartmentId.HasValue && depts.TryGetValue(a.DepartmentId.Value, out var dn) ? dn : "";
-            sb.Append($"<tr><td class='center'>{stt}</td><td>{a.AssetCode}</td><td>{a.AssetName}</td><td>{dept}</td><td>{a.SerialNumber}</td><td class='num'>{a.OriginalValue:N0}</td><td class='center'>1</td><td class='center'></td><td class='center'></td><td>{statusNames.GetValueOrDefault(a.Status, "")}</td></tr>");
+            sb.Append($"<tr><td class='center'>{stt}</td><td>{Esc(a.AssetCode)}</td><td>{Esc(a.AssetName)}</td><td>{Esc(dept)}</td><td>{Esc(a.SerialNumber)}</td><td class='num'>{a.OriginalValue:N0}</td><td class='center'>1</td><td class='center'></td><td class='center'></td><td>{statusNames.GetValueOrDefault(a.Status, "")}</td></tr>");
         }
         sb.Append("</table>");
         sb.Append(@"<div class='sign-block'>
@@ -359,7 +360,7 @@ td.center {{ text-align: center; }}
         foreach (var h in handovers)
         {
             stt++;
-            sb.Append($"<tr><td class='center'>{stt}</td><td>{h.FixedAsset?.AssetCode}</td><td>{h.FixedAsset?.AssetName}</td><td class='num'>{h.FixedAsset?.OriginalValue:N0}</td><td class='num'></td><td class='num'></td><td class='center'>{h.HandoverDate:dd/MM/yyyy}</td><td>{h.Notes}</td></tr>");
+            sb.Append($"<tr><td class='center'>{stt}</td><td>{Esc(h.FixedAsset?.AssetCode)}</td><td>{Esc(h.FixedAsset?.AssetName)}</td><td class='num'>{h.FixedAsset?.OriginalValue:N0}</td><td class='num'></td><td class='num'></td><td class='center'>{h.HandoverDate:dd/MM/yyyy}</td><td>{Esc(h.Notes)}</td></tr>");
         }
         if (!handovers.Any())
             sb.Append("<tr><td colspan='8' class='center'><em>Khong co du lieu</em></td></tr>");
@@ -388,7 +389,7 @@ td.center {{ text-align: center; }}
             stt++;
             totalDep += x.d.DepreciationAmount;
             var rate = x.a.UsefulLifeMonths > 0 ? (100m / x.a.UsefulLifeMonths) : 0;
-            sb.Append($"<tr><td class='center'>{stt}</td><td>{x.a.AssetCode}</td><td>{x.a.AssetName}</td><td class='num'>{x.a.OriginalValue:N0}</td><td class='center'>{rate:N2}</td><td class='num'>{x.d.DepreciationAmount:N0}</td><td class='num'>{x.a.AccumulatedDepreciation:N0}</td><td class='num'>{x.d.ClosingValue:N0}</td></tr>");
+            sb.Append($"<tr><td class='center'>{stt}</td><td>{Esc(x.a.AssetCode)}</td><td>{Esc(x.a.AssetName)}</td><td class='num'>{x.a.OriginalValue:N0}</td><td class='center'>{rate:N2}</td><td class='num'>{x.d.DepreciationAmount:N0}</td><td class='num'>{x.a.AccumulatedDepreciation:N0}</td><td class='num'>{x.d.ClosingValue:N0}</td></tr>");
         }
         sb.Append($"<tr style='font-weight:bold'><td colspan='5' class='center'>TONG CONG</td><td class='num'>{totalDep:N0}</td><td colspan='2'></td></tr>");
         sb.Append("</table>");
@@ -422,7 +423,7 @@ td.center {{ text-align: center; }}
             var deptDep = g.Sum(x => x.d.DepreciationAmount);
             var deptOrig = g.Sum(x => x.a.OriginalValue);
             var pct = grandTotal > 0 ? (deptDep / grandTotal * 100) : 0;
-            sb.Append($"<tr><td class='center'>{stt}</td><td>{deptName}</td><td class='center'>{g.Count()}</td><td class='num'>{deptOrig:N0}</td><td class='num'>{deptDep:N0}</td><td class='center'>{pct:N1}%</td></tr>");
+            sb.Append($"<tr><td class='center'>{stt}</td><td>{Esc(deptName)}</td><td class='center'>{g.Count()}</td><td class='num'>{deptOrig:N0}</td><td class='num'>{deptDep:N0}</td><td class='center'>{pct:N1}%</td></tr>");
         }
         sb.Append($"<tr style='font-weight:bold'><td colspan='2' class='center'>TONG CONG</td><td class='center'>{depreciations.Count}</td><td class='num'>{depreciations.Sum(x => x.a.OriginalValue):N0}</td><td class='num'>{grandTotal:N0}</td><td class='center'>100%</td></tr>");
         sb.Append("</table>");

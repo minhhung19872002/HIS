@@ -451,7 +451,11 @@ public partial class BillingCompleteService {
 
         var all = await query.Select(e => new { e.Status, e.SubTotal, e.VatAmount, e.TotalAmount, e.InvoiceDate }).ToListAsync();
 
+        // QA-R6: money totals counted drafts (never issued) and the daily chart also counted cancelled ones, so
+        // the two disagreed. Only issued/sent invoices carry revenue; a replaced invoice lives on in its replacement.
+        static bool Counts(int status) => status == 1 || status == 2;
         var dailyStats = all
+            .Where(e => Counts(e.Status))
             .GroupBy(e => e.InvoiceDate.Date)
             .Select(g => new ElectronicInvoiceDailyStatDto
             {
@@ -470,9 +474,9 @@ public partial class BillingCompleteService {
             SentCount = all.Count(e => e.Status == 2),
             CancelledCount = all.Count(e => e.Status == 3),
             ReplacedCount = all.Count(e => e.Status == 4),
-            TotalAmount = all.Where(e => e.Status != 3).Sum(e => e.SubTotal),
-            TotalVatAmount = all.Where(e => e.Status != 3).Sum(e => e.VatAmount),
-            TotalWithVat = all.Where(e => e.Status != 3).Sum(e => e.TotalAmount),
+            TotalAmount = all.Where(e => Counts(e.Status)).Sum(e => e.SubTotal),
+            TotalVatAmount = all.Where(e => Counts(e.Status)).Sum(e => e.VatAmount),
+            TotalWithVat = all.Where(e => Counts(e.Status)).Sum(e => e.TotalAmount),
             FromDate = from,
             ToDate = to.AddDays(-1),
             DailyStats = dailyStats
@@ -506,7 +510,7 @@ public partial class BillingCompleteService {
                         var qty = item.ContainsKey("qty") ? item["qty"].GetDecimal() : 1;
                         var price = item.ContainsKey("price") ? item["price"].GetDecimal() : 0;
                         var amount = item.ContainsKey("amount") ? item["amount"].GetDecimal() : 0;
-                        itemRows += $"<tr><td class='text-center'>{idx}</td><td>{name}</td><td class='text-center'>{unit}</td><td class='text-right'>{qty:N0}</td><td class='text-right'>{price:N0}</td><td class='text-right'>{amount:N0}</td></tr>";
+                        itemRows += $"<tr><td class='text-center'>{idx}</td><td>{Esc(name)}</td><td class='text-center'>{Esc(unit)}</td><td class='text-right'>{qty:N0}</td><td class='text-right'>{price:N0}</td><td class='text-right'>{amount:N0}</td></tr>";
                     }
                 }
             }
@@ -563,7 +567,7 @@ public partial class BillingCompleteService {
     </div>
 
     <div class='invoice-title'>
-        <div>Ky hieu: <strong>{eInvoice.InvoiceSeries}</strong> &nbsp;&nbsp; So: <strong>{eInvoice.InvoiceNumber}</strong></div>
+        <div>Ky hieu: <strong>{Esc(eInvoice.InvoiceSeries)}</strong> &nbsp;&nbsp; So: <strong>{Esc(eInvoice.InvoiceNumber)}</strong></div>
     </div>
 
     <div class='info-section'>
@@ -574,11 +578,11 @@ public partial class BillingCompleteService {
     </div>
 
     <div class='info-section'>
-        <div class='info-row'><span class='info-label'>Ho ten nguoi mua:</span><span class='info-value'>{eInvoice.BuyerName ?? eInvoice.PatientName}</span></div>
-        <div class='info-row'><span class='info-label'>Ten don vi:</span><span class='info-value'>{eInvoice.BuyerName ?? "-"}</span></div>
-        <div class='info-row'><span class='info-label'>Ma so thue:</span><span class='info-value'>{eInvoice.TaxCode ?? "-"}</span></div>
-        <div class='info-row'><span class='info-label'>Dia chi:</span><span class='info-value'>{eInvoice.PatientAddress ?? "-"}</span></div>
-        <div class='info-row'><span class='info-label'>Hinh thuc thanh toan:</span><span class='info-value'>{eInvoice.PaymentMethod ?? "TM"}</span></div>
+        <div class='info-row'><span class='info-label'>Ho ten nguoi mua:</span><span class='info-value'>{Esc(eInvoice.BuyerName ?? eInvoice.PatientName)}</span></div>
+        <div class='info-row'><span class='info-label'>Ten don vi:</span><span class='info-value'>{Esc(eInvoice.BuyerName ?? "-")}</span></div>
+        <div class='info-row'><span class='info-label'>Ma so thue:</span><span class='info-value'>{Esc(eInvoice.TaxCode ?? "-")}</span></div>
+        <div class='info-row'><span class='info-label'>Dia chi:</span><span class='info-value'>{Esc(eInvoice.PatientAddress ?? "-")}</span></div>
+        <div class='info-row'><span class='info-label'>Hinh thuc thanh toan:</span><span class='info-value'>{Esc(eInvoice.PaymentMethod ?? "TM")}</span></div>
     </div>
 
     <table>
@@ -606,14 +610,14 @@ public partial class BillingCompleteService {
     </div>
 
     <div class='lookup'>
-        <strong>Tra cuu hoa don dien tu tai:</strong> {eInvoice.LookupUrl}<br/>
-        <strong>Ma tra cuu:</strong> {eInvoice.LookupCode}
+        <strong>Tra cuu hoa don dien tu tai:</strong> {Esc(eInvoice.LookupUrl)}<br/>
+        <strong>Ma tra cuu:</strong> {Esc(eInvoice.LookupCode)}
     </div>
 
     <div class='footer'>
         <div class='footer-col'>
             <div>Nguoi mua hang</div>
-            <div class='name'>{eInvoice.BuyerName ?? eInvoice.PatientName}</div>
+            <div class='name'>{Esc(eInvoice.BuyerName ?? eInvoice.PatientName)}</div>
         </div>
         <div class='footer-col'>
             <div>Nguoi ban hang</div>

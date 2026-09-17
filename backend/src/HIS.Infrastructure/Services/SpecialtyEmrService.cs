@@ -260,18 +260,18 @@ public class SpecialtyEmrService : ISpecialtyEmrService
 </div>
 
 <table>
-  <tr><td class=""label"">Mã bệnh nhân:</td><td>{entity.PatientCode}</td></tr>
-  <tr><td class=""label"">Họ và tên:</td><td>{entity.PatientName}</td></tr>
+  <tr><td class=""label"">Mã bệnh nhân:</td><td>{System.Net.WebUtility.HtmlEncode(entity.PatientCode)}</td></tr>
+  <tr><td class=""label"">Họ và tên:</td><td>{System.Net.WebUtility.HtmlEncode(entity.PatientName)}</td></tr>
   <tr><td class=""label"">Chuyên khoa:</td><td>{specialtyTypeName}</td></tr>
   <tr><td class=""label"">Ngày ghi nhận:</td><td>{entity.RecordDate:dd/MM/yyyy}</td></tr>
-  <tr><td class=""label"">Bác sĩ:</td><td>{entity.DoctorName ?? ""}</td></tr>
-  <tr><td class=""label"">Khoa:</td><td>{entity.DepartmentName ?? ""}</td></tr>
-  <tr><td class=""label"">Mã ICD:</td><td>{entity.IcdCode ?? ""} - {entity.IcdName ?? ""}</td></tr>
+  <tr><td class=""label"">Bác sĩ:</td><td>{System.Net.WebUtility.HtmlEncode(entity.DoctorName ?? "")}</td></tr>
+  <tr><td class=""label"">Khoa:</td><td>{System.Net.WebUtility.HtmlEncode(entity.DepartmentName ?? "")}</td></tr>
+  <tr><td class=""label"">Mã ICD:</td><td>{System.Net.WebUtility.HtmlEncode(entity.IcdCode ?? "")} - {System.Net.WebUtility.HtmlEncode(entity.IcdName ?? "")}</td></tr>
   <tr><td class=""label"">Trạng thái:</td><td>{statusName}</td></tr>
 </table>
 
 <h2>Dữ liệu chuyên khoa</h2>
-<pre style=""white-space: pre-wrap; background: #f5f5f5; padding: 10px; border: 1px solid #ddd;"">{entity.FieldData}</pre>
+<pre style=""white-space: pre-wrap; background: #f5f5f5; padding: 10px; border: 1px solid #ddd;"">{System.Net.WebUtility.HtmlEncode(entity.FieldData)}</pre>
 
 <div class=""footer"">
   <p>Ngày in: {DateTime.Now:dd/MM/yyyy HH:mm}</p>

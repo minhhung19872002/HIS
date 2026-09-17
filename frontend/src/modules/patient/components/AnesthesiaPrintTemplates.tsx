@@ -12,7 +12,7 @@
 
 import React from 'react';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../../../constants/hospital';
-import { openPrintWindow } from '../../../utils/printWindow';
+import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 
 // ---------------------------------------------------------------------------
 // Local shared helpers (không re-export để tránh circular dep với ClinicalFormPrintTemplates)
@@ -422,14 +422,14 @@ function monitorTableRows(monitors: MonitorRow[]): string {
     return [1, 2, 3, 4, 5].map(() => '<tr>' + Array(8).fill('<td>&nbsp;</td>').join('') + '</tr>').join('');
   }
   return monitors.map((m) => `<tr>
-    <td style="text-align:center">${m.monitorTime ?? ''}</td>
-    <td style="text-align:center">${m.systolicBP ?? ''}</td>
-    <td style="text-align:center">${m.diastolicBP ?? ''}</td>
-    <td style="text-align:center">${m.heartRate ?? ''}</td>
-    <td style="text-align:center">${m.spO2 ?? ''}</td>
-    <td style="text-align:center">${m.etCO2 ?? ''}</td>
-    <td style="text-align:center">${m.temperature ?? ''}</td>
-    <td>${m.notes ?? ''}</td>
+    <td style="text-align:center">${esc(m.monitorTime)}</td>
+    <td style="text-align:center">${esc(m.systolicBP)}</td>
+    <td style="text-align:center">${esc(m.diastolicBP)}</td>
+    <td style="text-align:center">${esc(m.heartRate)}</td>
+    <td style="text-align:center">${esc(m.spO2)}</td>
+    <td style="text-align:center">${esc(m.etCO2)}</td>
+    <td style="text-align:center">${esc(m.temperature)}</td>
+    <td>${esc(m.notes)}</td>
   </tr>`).join('');
 }
 
@@ -439,10 +439,10 @@ function drugTableRows(drugs: DrugRow[]): string {
   }
   return drugs.map((d, i) => `<tr>
     <td style="text-align:center">${i + 1}</td>
-    <td style="text-align:center">${d.givenTime ?? ''}</td>
-    <td>${d.drugName ?? ''}</td>
-    <td style="text-align:center">${d.dose ?? ''}</td>
-    <td style="text-align:center">${d.route ?? ''}</td>
+    <td style="text-align:center">${esc(d.givenTime)}</td>
+    <td>${esc(d.drugName)}</td>
+    <td style="text-align:center">${esc(d.dose)}</td>
+    <td style="text-align:center">${esc(d.route)}</td>
   </tr>`).join('');
 }
 
@@ -452,10 +452,10 @@ function fluidTableRows(fluids: FluidRow[]): string {
   }
   return fluids.map((f, i) => `<tr>
     <td style="text-align:center">${i + 1}</td>
-    <td>${f.fluidType ?? ''}</td>
-    <td style="text-align:center">${f.volume ?? ''}</td>
-    <td style="text-align:center">${f.startTime ?? ''}</td>
-    <td style="text-align:center">${f.endTime ?? ''}</td>
+    <td>${esc(f.fluidType)}</td>
+    <td style="text-align:center">${esc(f.volume)}</td>
+    <td style="text-align:center">${esc(f.startTime)}</td>
+    <td style="text-align:center">${esc(f.endTime)}</td>
   </tr>`).join('');
 }
 
@@ -482,11 +482,11 @@ export function printAnesthesiaMonitor(record: AnesDto): void {
   const drugs = asDrugs(record.drugs);
   const body = `
     ${headerHtml('GM-01', 'PHIẾU THEO DÕI GÂY MÊ')}
-    <p><span class="label">Họ và tên:</span> ${record.patientName ?? ''} &nbsp;
-       <span class="label">Phương pháp vô cảm:</span> ${record.anesthesiaType ?? ''}</p>
-    <p><span class="label">Phân loại ASA:</span> ASA ${record.asaClass ?? ''} &nbsp;
-       <span class="label">Mallampati:</span> Mallampati ${record.mallampatiScore ?? ''} &nbsp;
-       <span class="label">Kế hoạch đường thở:</span> ${record.airwayPlan ?? ''}</p>
+    <p><span class="label">Họ và tên:</span> ${esc(record.patientName)} &nbsp;
+       <span class="label">Phương pháp vô cảm:</span> ${esc(record.anesthesiaType)}</p>
+    <p><span class="label">Phân loại ASA:</span> ASA ${esc(record.asaClass)} &nbsp;
+       <span class="label">Mallampati:</span> Mallampati ${esc(record.mallampatiScore)} &nbsp;
+       <span class="label">Kế hoạch đường thở:</span> ${esc(record.airwayPlan)}</p>
     <div class="section-title">I. THEO DÕI SINH TỒN TRONG MỔ</div>
     <table>
       <thead><tr>
@@ -510,9 +510,9 @@ export function printAnesthesiaRecovery(record: AnesDto): void {
   const monitors = asMonitors(record.monitors);
   const body = `
     ${headerHtml('GM-02', 'PHIẾU THEO DÕI HỒI TỈNH SAU MỔ')}
-    <p><span class="label">Họ và tên:</span> ${record.patientName ?? ''} &nbsp;
-       <span class="label">Phương pháp vô cảm:</span> ${record.anesthesiaType ?? ''} &nbsp;
-       <span class="label">Phân loại ASA:</span> ASA ${record.asaClass ?? ''}</p>
+    <p><span class="label">Họ và tên:</span> ${esc(record.patientName)} &nbsp;
+       <span class="label">Phương pháp vô cảm:</span> ${esc(record.anesthesiaType)} &nbsp;
+       <span class="label">Phân loại ASA:</span> ASA ${esc(record.asaClass)}</p>
     <div class="section-title">I. THEO DÕI TẠI PHÒNG HỒI TỈNH</div>
     <table>
       <thead><tr>
@@ -521,20 +521,20 @@ export function printAnesthesiaRecovery(record: AnesDto): void {
       </tr></thead>
       <tbody>${monitors.length > 0
         ? monitors.map((m) => `<tr>
-          <td style="text-align:center">${m.monitorTime ?? ''}</td>
-          <td style="text-align:center">${m.systolicBP && m.diastolicBP ? `${m.systolicBP}/${m.diastolicBP}` : (m.systolicBP ?? '')}</td>
-          <td style="text-align:center">${m.heartRate ?? ''}</td>
-          <td style="text-align:center">${m.spO2 ?? ''}</td>
-          <td style="text-align:center">${m.temperature ?? ''}</td>
-          <td>${m.notes ?? ''}</td>
+          <td style="text-align:center">${esc(m.monitorTime)}</td>
+          <td style="text-align:center">${esc(m.systolicBP && m.diastolicBP ? `${m.systolicBP}/${m.diastolicBP}` : m.systolicBP)}</td>
+          <td style="text-align:center">${esc(m.heartRate)}</td>
+          <td style="text-align:center">${esc(m.spO2)}</td>
+          <td style="text-align:center">${esc(m.temperature)}</td>
+          <td>${esc(m.notes)}</td>
         </tr>`).join('')
         : [1, 2, 3, 4].map(() => '<tr>' + Array(6).fill('<td>&nbsp;</td>').join('') + '</tr>').join('')
       }</tbody>
     </table>
     <div class="section-title">II. ĐIỂM ALDRETE VÀ DIỄN BIẾN HỒI TỈNH</div>
-    <div class="notes-box">${record.recoveryNotes ?? ''}</div>
+    <div class="notes-box">${esc(record.recoveryNotes)}</div>
     <div class="section-title">III. KẾ HOẠCH CHUYỂN PHÒNG / CHẾ ĐỘ CHĂM SÓC SAU MỔ</div>
-    <div class="notes-box">${record.postSurgeryPlan ?? ''}</div>
+    <div class="notes-box">${esc(record.postSurgeryPlan)}</div>
     ${sigBlock(['Điều dưỡng hồi tỉnh', 'Bác sĩ gây mê'])}
   `;
   openHtmlPrint('Phiếu hồi tỉnh sau mổ', body);
@@ -546,21 +546,21 @@ export function printAnesthesiaRecord(record: AnesDto): void {
   const body = `
     ${headerHtml('GM-03', 'BIÊN BẢN GÂY MÊ – HỒI SỨC')}
     <p>
-      <span class="label">Họ và tên:</span> ${record.patientName ?? ''} &nbsp;
+      <span class="label">Họ và tên:</span> ${esc(record.patientName)} &nbsp;
       <span class="label">Ngày:</span> ${record.createdAt ? String(record.createdAt).slice(0, 10) : ''}
     </p>
     <p>
-      <span class="label">Phương pháp vô cảm:</span> ${record.anesthesiaType ?? ''} &nbsp;
-      <span class="label">Phân loại ASA:</span> ASA ${record.asaClass ?? ''} &nbsp;
-      <span class="label">Mallampati:</span> Mallampati ${record.mallampatiScore ?? ''}
+      <span class="label">Phương pháp vô cảm:</span> ${esc(record.anesthesiaType)} &nbsp;
+      <span class="label">Phân loại ASA:</span> ASA ${esc(record.asaClass)} &nbsp;
+      <span class="label">Mallampati:</span> Mallampati ${esc(record.mallampatiScore)}
     </p>
     <p>
-      <span class="label">Dị ứng:</span> ${record.allergies || 'Không'} &nbsp;
-      <span class="label">Nhịn ăn (NPO):</span> ${record.npoStatus ?? ''}
+      <span class="label">Dị ứng:</span> ${esc(record.allergies || 'Không')} &nbsp;
+      <span class="label">Nhịn ăn (NPO):</span> ${esc(record.npoStatus)}
     </p>
-    <p><span class="label">Kế hoạch đường thở:</span> ${record.airwayPlan ?? ''}</p>
-    <p><span class="label">Đánh giá tiền mê:</span> ${record.preOpAssessment ?? ''}</p>
-    <p><span class="label">Khám tâm lý trước mổ:</span> ${record.psychologicalAssessment ?? ''}</p>
+    <p><span class="label">Kế hoạch đường thở:</span> ${esc(record.airwayPlan)}</p>
+    <p><span class="label">Đánh giá tiền mê:</span> ${esc(record.preOpAssessment)}</p>
+    <p><span class="label">Khám tâm lý trước mổ:</span> ${esc(record.psychologicalAssessment)}</p>
     <div class="section-title">I. DANH SÁCH THUỐC GÂY MÊ</div>
     <table>
       <thead><tr><th>STT</th><th>Giờ dùng</th><th>Tên thuốc</th><th>Liều dùng</th><th>Đường dùng</th></tr></thead>
@@ -572,7 +572,7 @@ export function printAnesthesiaRecord(record: AnesDto): void {
       <tbody>${fluidTableRows(fluids)}</tbody>
     </table>
     <div class="section-title">III. TÓM TẮT DIỄN BIẾN GÂY MÊ</div>
-    <div class="notes-box">${record.recoveryNotes ?? ''}</div>
+    <div class="notes-box">${esc(record.recoveryNotes)}</div>
     ${sigBlock(['Bác sĩ gây mê', 'Bác sĩ phẫu thuật', 'Trưởng khoa gây mê'])}
   `;
   openHtmlPrint('Biên bản gây mê – hồi sức', body);

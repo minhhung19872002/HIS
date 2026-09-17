@@ -21,6 +21,7 @@ import { useModalForm } from '../../../hooks/useModalForm';
 import { useTabState } from '../../../hooks/useTabState';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
+import { escapeHtml as esc } from '../../../utils/printWindow';
 
 /* ── Trang thiết bị y tế — v2 ────────────────────────────────────────────── */
 
@@ -386,18 +387,18 @@ const EquipmentV2: React.FC = () => {
   <div class="header"><strong>PHÒNG VẬT TƯ - THIẾT BỊ Y TẾ</strong></div>
   <div class="title">PHIẾU LÝ LỊCH THIẾT BỊ Y TẾ</div>
   <table>
-    <tr><th>Mã thiết bị</th><td>${eq.equipmentCode}</td></tr>
-    <tr><th>Tên thiết bị</th><td>${eq.name}</td></tr>
-    <tr><th>Hãng sản xuất</th><td>${eq.manufacturer}</td></tr>
-    <tr><th>Model</th><td>${eq.model}</td></tr>
-    <tr><th>Số seri</th><td>${eq.serialNumber}</td></tr>
-    <tr><th>Khoa/Phòng</th><td>${eq.departmentName}</td></tr>
-    <tr><th>Vị trí</th><td>${eq.locationName || eq.roomName || '-'}</td></tr>
-    <tr><th>Ngày mua</th><td>${eq.purchaseDate || '-'}</td></tr>
-    <tr><th>Hạn bảo hành</th><td>${eq.warrantyExpiry || 'Hết bảo hành'}</td></tr>
-    <tr><th>Nhóm nguy cơ</th><td>${eq.riskClass}</td></tr>
+    <tr><th>Mã thiết bị</th><td>${esc(eq.equipmentCode)}</td></tr>
+    <tr><th>Tên thiết bị</th><td>${esc(eq.name)}</td></tr>
+    <tr><th>Hãng sản xuất</th><td>${esc(eq.manufacturer)}</td></tr>
+    <tr><th>Model</th><td>${esc(eq.model)}</td></tr>
+    <tr><th>Số seri</th><td>${esc(eq.serialNumber)}</td></tr>
+    <tr><th>Khoa/Phòng</th><td>${esc(eq.departmentName)}</td></tr>
+    <tr><th>Vị trí</th><td>${esc(eq.locationName || eq.roomName || '-')}</td></tr>
+    <tr><th>Ngày mua</th><td>${esc(eq.purchaseDate || '-')}</td></tr>
+    <tr><th>Hạn bảo hành</th><td>${esc(eq.warrantyExpiry || 'Hết bảo hành')}</td></tr>
+    <tr><th>Nhóm nguy cơ</th><td>${esc(eq.riskClass)}</td></tr>
     <tr><th>Nguyên giá</th><td>${(eq.purchasePrice || 0).toLocaleString('vi-VN')} VND</td></tr>
-    <tr><th>Trạng thái</th><td>${eq.operationalStatusName}</td></tr>
+    <tr><th>Trạng thái</th><td>${esc(eq.operationalStatusName)}</td></tr>
   </table>
   <div style="margin-top: 50px; text-align: right;">
     <p>Ngày ${dayjs().format('DD/MM/YYYY')}</p>

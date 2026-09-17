@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../../../constants/hospital';
-import { openPrintWindow } from '../../../utils/printWindow';
+import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 
 export interface BirthCertificateData {
   // Certificate info
@@ -233,13 +233,13 @@ export const printBirthCertificate = (data: BirthCertificateData) => {
 
       <div class="title">Giấy Chứng Sinh</div>
       <div class="subtitle">(Ban hành kèm theo Thông tư số 17/2012/TT-BYT ngày 24/10/2012 của Bộ trưởng Bộ Y tế)</div>
-      <div class="cert-number">Số: <span class="field" style="min-width: 150px;">${data.certificateNumber || ''}</span>/GCS</div>
+      <div class="cert-number">Số: <span class="field" style="min-width: 150px;">${esc(data.certificateNumber || '')}</span>/GCS</div>
 
       <!-- SECTION 1: BABY INFO -->
       <div class="section">
         <div class="section-title">I. Thông tin trẻ sơ sinh</div>
         <div class="row">
-          Họ và tên: <span class="field" style="min-width: 300px;">${data.babyFullName || ''}</span>
+          Họ và tên: <span class="field" style="min-width: 300px;">${esc(data.babyFullName || '')}</span>
         </div>
         <div class="flex-row">
           <div class="col">
@@ -248,10 +248,10 @@ export const printBirthCertificate = (data: BirthCertificateData) => {
             <span class="checkbox ${data.babyGender === 'Nu' ? 'checked' : ''}"></span>Nữ
           </div>
           <div class="col">
-            Con thứ: <span class="field">${data.birthOrder ?? ''}</span>
+            Con thứ: <span class="field">${esc(data.birthOrder ?? '')}</span>
           </div>
           <div class="col">
-            Số con sinh: <span class="field">${data.numberOfBabies ?? ''}</span>
+            Số con sinh: <span class="field">${esc(data.numberOfBabies ?? '')}</span>
           </div>
         </div>
         <div class="row">
@@ -282,7 +282,7 @@ export const printBirthCertificate = (data: BirthCertificateData) => {
           </div>
         </div>
         <div class="row">
-          Điểm Apgar: <span class="field" style="min-width: 250px;">${apgarDisplay}</span>
+          Điểm Apgar: <span class="field" style="min-width: 250px;">${esc(apgarDisplay)}</span>
         </div>
         <div class="row">
           Tình trạng sức khỏe sơ sinh: <span class="field-long">${data.birthWeight && data.birthWeight >= 2500 ? 'Bình thường' : ''}</span>
@@ -293,27 +293,27 @@ export const printBirthCertificate = (data: BirthCertificateData) => {
       <div class="section">
         <div class="section-title">II. Thông tin người mẹ</div>
         <div class="row">
-          Họ và tên: <span class="field" style="min-width: 300px;">${data.motherFullName || ''}</span>
+          Họ và tên: <span class="field" style="min-width: 300px;">${esc(data.motherFullName || '')}</span>
         </div>
         <div class="flex-row">
           <div class="col">
             Ngày sinh: <span class="field">${motherDob ? motherDob.format('DD/MM/YYYY') : ''}</span>
           </div>
           <div class="col">
-            Dân tộc: <span class="field">${data.motherEthnicity || ''}</span>
+            Dân tộc: <span class="field">${esc(data.motherEthnicity || '')}</span>
           </div>
           <div class="col">
-            Quốc tịch: <span class="field">${data.motherNationality || 'Việt Nam'}</span>
+            Quốc tịch: <span class="field">${esc(data.motherNationality || 'Việt Nam')}</span>
           </div>
         </div>
         <div class="row">
-          Số CMND/CCCD/Hộ chiếu: <span class="field" style="min-width: 200px;">${data.motherIdNumber || ''}</span>
+          Số CMND/CCCD/Hộ chiếu: <span class="field" style="min-width: 200px;">${esc(data.motherIdNumber || '')}</span>
         </div>
         <div class="row">
-          Nghề nghiệp: <span class="field" style="min-width: 200px;">${data.motherOccupation || ''}</span>
+          Nghề nghiệp: <span class="field" style="min-width: 200px;">${esc(data.motherOccupation || '')}</span>
         </div>
         <div class="row">
-          Nơi cư trú: <span class="field-long">${data.motherAddress || ''}</span>
+          Nơi cư trú: <span class="field-long">${esc(data.motherAddress || '')}</span>
         </div>
       </div>
 
@@ -321,27 +321,27 @@ export const printBirthCertificate = (data: BirthCertificateData) => {
       <div class="section">
         <div class="section-title">III. Thông tin người cha</div>
         <div class="row">
-          Họ và tên: <span class="field" style="min-width: 300px;">${data.fatherFullName || ''}</span>
+          Họ và tên: <span class="field" style="min-width: 300px;">${esc(data.fatherFullName || '')}</span>
         </div>
         <div class="flex-row">
           <div class="col">
             Ngày sinh: <span class="field">${fatherDob ? fatherDob.format('DD/MM/YYYY') : ''}</span>
           </div>
           <div class="col">
-            Dân tộc: <span class="field">${data.fatherEthnicity || ''}</span>
+            Dân tộc: <span class="field">${esc(data.fatherEthnicity || '')}</span>
           </div>
           <div class="col">
-            Quốc tịch: <span class="field">${data.fatherNationality || 'Việt Nam'}</span>
+            Quốc tịch: <span class="field">${esc(data.fatherNationality || 'Việt Nam')}</span>
           </div>
         </div>
         <div class="row">
-          Số CMND/CCCD/Hộ chiếu: <span class="field" style="min-width: 200px;">${data.fatherIdNumber || ''}</span>
+          Số CMND/CCCD/Hộ chiếu: <span class="field" style="min-width: 200px;">${esc(data.fatherIdNumber || '')}</span>
         </div>
         <div class="row">
-          Nghề nghiệp: <span class="field" style="min-width: 200px;">${data.fatherOccupation || ''}</span>
+          Nghề nghiệp: <span class="field" style="min-width: 200px;">${esc(data.fatherOccupation || '')}</span>
         </div>
         <div class="row">
-          Nơi cư trú: <span class="field-long">${data.fatherAddress || ''}</span>
+          Nơi cư trú: <span class="field-long">${esc(data.fatherAddress || '')}</span>
         </div>
       </div>
 
@@ -349,13 +349,13 @@ export const printBirthCertificate = (data: BirthCertificateData) => {
       <div class="section">
         <div class="section-title">IV. Người đỡ đẻ / Người chứng kiến</div>
         <div class="row">
-          Bác sĩ / Nữ hộ sinh: <span class="field" style="min-width: 200px;">${data.doctorName || ''}</span>
+          Bác sĩ / Nữ hộ sinh: <span class="field" style="min-width: 200px;">${esc(data.doctorName || '')}</span>
         </div>
         <div class="row">
-          Hộ sinh (nữ hộ sinh): <span class="field" style="min-width: 200px;">${data.midwifeName || ''}</span>
+          Hộ sinh (nữ hộ sinh): <span class="field" style="min-width: 200px;">${esc(data.midwifeName || '')}</span>
         </div>
         <div class="row">
-          Khoa: <span class="field" style="min-width: 200px;">${data.departmentName || ''}</span>
+          Khoa: <span class="field" style="min-width: 200px;">${esc(data.departmentName || '')}</span>
         </div>
       </div>
 

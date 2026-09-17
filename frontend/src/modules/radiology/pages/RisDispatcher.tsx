@@ -3,7 +3,7 @@ import { useTabState } from '../../../hooks/useTabState';
 import { Form, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../../../services/apiClient';
-import { openPrintWindow } from '../../../utils/printWindow';
+import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import {
   KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn, Btn, ModalShell,
   DrawerShell, DrSec, DrField,
@@ -92,10 +92,10 @@ const RisDispatcherV2: React.FC = () => {
 <style>body{font-family:Arial;padding:'var(--space-20)'px}h2{text-align:center}.info{margin:'var(--space-8)'px 0}.info strong{display:inline-block;width:140px}.room{border:2px solid #000;padding:'var(--space-20)'px;text-align:center;margin:'var(--space-20)'px 0;font-size:32px;font-weight:bold}@media print{button{display:none}}</style></head>
 <body><button onclick="window.print()">In</button>
 <h2>PHIẾU ĐIỀU PHỐI CHẨN ĐOÁN HÌNH ẢNH</h2>
-<div class="info"><strong>Bệnh nhân:</strong> ${s.patientName} (${s.patientCode})</div>
-<div class="info"><strong>Dịch vụ:</strong> ${s.serviceName}</div>
+<div class="info"><strong>Bệnh nhân:</strong> ${esc(s.patientName)} (${esc(s.patientCode)})</div>
+<div class="info"><strong>Dịch vụ:</strong> ${esc(s.serviceName)}</div>
 <div class="info"><strong>Thời gian:</strong> ${dayjs().format('HH:mm DD/MM/YYYY')}</div>
-<div class="room">Phòng: ${room.roomName}${room.departmentName ? `<br/><small>${room.departmentName}</small>` : ''}</div>
+<div class="room">Phòng: ${esc(room.roomName)}${room.departmentName ? `<br/><small>${esc(room.departmentName)}</small>` : ''}</div>
 <div style="text-align:center;margin-top:20px"><em>Vui lòng đến đúng phòng theo hướng dẫn</em></div>
 </body></html>`;
     openPrintWindow(html, { features: 'width=600,height=700' });

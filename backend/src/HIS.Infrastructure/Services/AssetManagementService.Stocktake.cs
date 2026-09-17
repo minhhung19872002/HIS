@@ -5,6 +5,7 @@ using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using HIS.Infrastructure.Extensions;
+using static HIS.Infrastructure.Services.PdfTemplateHelper;
 
 namespace HIS.Infrastructure.Services;
 
@@ -188,11 +189,11 @@ public partial class AssetManagementService
             "BIÊN BẢN KIỂM KÊ TÀI SẢN CỐ ĐỊNH",
             $"Phiếu: {stocktake.StocktakeCode} · Ngày: {stocktake.StocktakeDate:dd/MM/yyyy}"));
 
-        sb.Append($"<p><strong>Tên phiếu:</strong> {stocktake.Title}</p>");
+        sb.Append($"<p><strong>Tên phiếu:</strong> {Esc(stocktake.Title)}</p>");
         if (!string.IsNullOrEmpty(stocktake.DepartmentName))
-            sb.Append($"<p><strong>Khoa/Phòng:</strong> {stocktake.DepartmentName}</p>");
+            sb.Append($"<p><strong>Khoa/Phòng:</strong> {Esc(stocktake.DepartmentName)}</p>");
         if (!string.IsNullOrEmpty(stocktake.Notes))
-            sb.Append($"<p><strong>Ghi chú:</strong> {stocktake.Notes}</p>");
+            sb.Append($"<p><strong>Ghi chú:</strong> {Esc(stocktake.Notes)}</p>");
 
         sb.Append("<p>Hội đồng kiểm kê gồm có:</p><ul><li>Trưởng ban: .................................</li><li>Uỷ viên: .................................</li></ul>");
         sb.Append("<table><tr><th>STT</th><th>Mã TS</th><th>Tên tài sản</th><th>Số serial</th><th>Vị trí</th><th>Có mặt</th><th>Tình trạng</th><th>Ghi chú</th></tr>");
@@ -204,7 +205,7 @@ public partial class AssetManagementService
             var found = it.IsFound ? "Có" : "Thiếu";
             var foundStyle = it.IsFound ? "" : "color:red;font-weight:bold;";
             var cond = conditionLabel.GetValueOrDefault(it.ConditionStatus, "");
-            sb.Append($"<tr><td class='center'>{stt}</td><td>{it.AssetCode}</td><td>{it.AssetName}</td><td>{it.SerialNumber ?? ""}</td><td>{it.LocationDescription ?? ""}</td><td class='center' style='{foundStyle}'>{found}</td><td class='center'>{cond}</td><td>{it.Remark ?? ""}</td></tr>");
+            sb.Append($"<tr><td class='center'>{stt}</td><td>{Esc(it.AssetCode)}</td><td>{Esc(it.AssetName)}</td><td>{Esc(it.SerialNumber)}</td><td>{Esc(it.LocationDescription)}</td><td class='center' style='{foundStyle}'>{found}</td><td class='center'>{cond}</td><td>{Esc(it.Remark)}</td></tr>");
         }
 
         var foundCount = stocktake.Items.Count(i => i.IsFound);

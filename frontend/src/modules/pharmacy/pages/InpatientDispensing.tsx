@@ -3,7 +3,7 @@ import { fmtNum as fmt } from '../../../utils/format';
 import { Input, Modal } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../../../services/apiClient';
-import { openPrintWindow } from '../../../utils/printWindow';
+import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import systemApi from '../../system/api/system';
 import { getWarehouses } from '../api/warehouse';
 import { PharmacyExpiryBanner } from '../components/PharmacyExpiryBanner';
@@ -186,14 +186,14 @@ const InpatientDispensingV2: React.FC = () => {
 
   const handlePrint = () => {
     if (!printData) return;
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${printData.receiptCode}</title>
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(printData.receiptCode)}</title>
 <style>body{font-family:"Times New Roman",serif;padding:'var(--space-24)'px}h2{text-align:center}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #333;padding:'var(--space-4)'px 8px;font-size:13px}th{background:#eee}</style></head><body>
 <h2>PHIẾU LĨNH THUỐC NỘI TRÚ</h2>
-<p>Số: <b>${printData.receiptCode}</b> &nbsp; Ngày: ${dayjs(printData.receiptDate).format('DD/MM/YYYY HH:mm')}</p>
-<p>Kho xuất: <b>${printData.warehouseName || ''}</b> &nbsp; Khoa nhận: <b>${printData.departmentName || ''}</b></p>
-<p>${printData.note || ''}</p>
+<p>Số: <b>${esc(printData.receiptCode)}</b> &nbsp; Ngày: ${dayjs(printData.receiptDate).format('DD/MM/YYYY HH:mm')}</p>
+<p>Kho xuất: <b>${esc(printData.warehouseName)}</b> &nbsp; Khoa nhận: <b>${esc(printData.departmentName)}</b></p>
+<p>${esc(printData.note)}</p>
 <table><thead><tr><th>STT</th><th>Tên thuốc</th><th>Mã</th><th>Lô</th><th>HSD</th><th>SL</th><th>ĐV</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead><tbody>
-${(printData.items || []).map((it, i) => `<tr><td>${i + 1}</td><td>${it.medicineName}</td><td>${it.medicineCode}</td><td>${it.batchNumber || ''}</td><td>${it.expiryDate ? dayjs(it.expiryDate).format('DD/MM/YYYY') : ''}</td><td style="text-align:right">${it.quantity}</td><td>${it.unit || ''}</td><td style="text-align:right">${fmt(it.unitPrice || 0)}</td><td style="text-align:right">${fmt(it.amount || 0)}</td></tr>`).join('')}
+${(printData.items || []).map((it, i) => `<tr><td>${i + 1}</td><td>${esc(it.medicineName)}</td><td>${esc(it.medicineCode)}</td><td>${esc(it.batchNumber)}</td><td>${it.expiryDate ? dayjs(it.expiryDate).format('DD/MM/YYYY') : ''}</td><td style="text-align:right">${esc(it.quantity)}</td><td>${esc(it.unit)}</td><td style="text-align:right">${fmt(it.unitPrice || 0)}</td><td style="text-align:right">${fmt(it.amount || 0)}</td></tr>`).join('')}
 </tbody></table>
 <p style="text-align:right;margin-top:12px"><b>Tổng cộng: ${fmt(printData.totalAmount || 0)}đ</b></p>
 <div style="display:flex;justify-content:space-around;margin-top:60px"><div>Người lập</div><div>Trưởng khoa</div><div>Thủ kho</div><div>Người nhận</div></div>

@@ -3,7 +3,7 @@ import { fmtNum as fmt } from '../../../utils/format';
 import { DatePicker, Input, Modal, type InputRef } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../../../services/apiClient';
-import { openPrintWindow } from '../../../utils/printWindow';
+import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import { searchPrescriptionByCode, type DispensePrescriptionLookupDto } from '../api/examination';
 import { PharmacyExpiryBanner } from '../../pharmacy/components/PharmacyExpiryBanner';
 import {
@@ -220,13 +220,13 @@ const DispensingCounterV2: React.FC = () => {
     const targets = Array.isArray(rowOrRows) ? rowOrRows : [rowOrRows];
     if (targets.length === 0) return;
     const title = targets.length === 1 ? `Tem thuốc ${targets[0].patientCode}` : `Tem thuốc (${targets.length} đơn)`;
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${title}</title>
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${esc(title)}</title>
 <!-- #352: sửa CSS hỏng do sweep design-token — 'var(--space-10)'px không phải giá trị CSS hợp lệ
      nên trình duyệt bỏ qua, tem in ra mất padding/margin. Cửa sổ in là document RIÊNG,
      không có biến CSS của app → phải dùng px tuyệt đối như v1. -->
 <style>body{font-family:Arial;margin:0;padding:10px}.label{border:1px solid #000;padding:8px 12px;margin-bottom:8px;width:260px}.label h3{margin:0 0 4px;font-size:13px}.label p{margin:2px 0;font-size:11px}.barcode{font-family:'Libre Barcode 128',monospace;font-size:32px;text-align:center}@media print{.no-print{display:none}}</style></head>
 <body><div class="no-print" style="margin-bottom:12px"><button onclick="window.print()">In</button> <button onclick="window.close()">Đóng</button></div>
-${targets.map((row) => row.items.map((it) => `<div class="label"><h3>${it.medicineName}</h3><p><strong>BN:</strong> ${row.patientName} (${row.patientCode})</p><p><strong>SL:</strong> ${it.quantity} ${it.unit || ''} × ${it.days || 1} ngày</p><p><strong>Cách dùng:</strong> ${it.dosage || '-'}</p><p class="barcode">*${row.prescriptionCode}*</p></div>`).join('')).join('')}
+${targets.map((row) => row.items.map((it) => `<div class="label"><h3>${esc(it.medicineName)}</h3><p><strong>BN:</strong> ${esc(row.patientName)} (${esc(row.patientCode)})</p><p><strong>SL:</strong> ${esc(it.quantity)} ${esc(it.unit)} × ${esc(it.days || 1)} ngày</p><p><strong>Cách dùng:</strong> ${esc(it.dosage || '-')}</p><p class="barcode">*${esc(row.prescriptionCode)}*</p></div>`).join('')).join('')}
 </body></html>`;
     openPrintWindow(html, { features: 'width=400,height=600' });
   };

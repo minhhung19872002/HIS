@@ -181,18 +181,18 @@ public partial class InpatientCompleteService {
         {
             var starter = await _context.Users.AsNoTracking()
                 .Where(u => u.Id == e.StartedBy).Select(u => u.FullName).FirstOrDefaultAsync();
-            bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Bệnh nhân:</span><span class=""field-value"">{e.Admission?.Patient?.FullName} ({e.Admission?.Patient?.PatientCode})</span></div>");
-            bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Dịch truyền:</span><span class=""field-value"">{e.FluidName}</span></div>");
+            bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Bệnh nhân:</span><span class=""field-value"">{Esc(e.Admission?.Patient?.FullName)} ({Esc(e.Admission?.Patient?.PatientCode)})</span></div>");
+            bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Dịch truyền:</span><span class=""field-value"">{Esc(e.FluidName)}</span></div>");
             bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Thể tích / tốc độ:</span><span class=""field-value"">{e.Volume} ml — {e.DropRate} giọt/phút</span></div>");
-            bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Đường truyền:</span><span class=""field-value"">{e.Route ?? "—"}</span></div>");
-            bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Thuốc pha thêm:</span><span class=""field-value"">{e.AdditionalMedication ?? "—"}</span></div>");
+            bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Đường truyền:</span><span class=""field-value"">{Esc(e.Route ?? "—")}</span></div>");
+            bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Thuốc pha thêm:</span><span class=""field-value"">{Esc(e.AdditionalMedication ?? "—")}</span></div>");
             bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Bắt đầu:</span><span class=""field-value"">{e.StartTime:dd/MM/yyyy HH:mm}</span></div>");
             bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Kết thúc:</span><span class=""field-value"">{(e.EndTime.HasValue ? e.EndTime.Value.ToString("dd/MM/yyyy HH:mm") : "Đang truyền")}</span></div>");
-            bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Người thực hiện:</span><span class=""field-value"">{starter ?? "—"}</span></div>");
+            bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Người thực hiện:</span><span class=""field-value"">{Esc(starter ?? "—")}</span></div>");
             if (!string.IsNullOrEmpty(e.Observations))
-                bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Theo dõi:</span><span class=""field-value"">{e.Observations}</span></div>");
+                bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Theo dõi:</span><span class=""field-value"">{Esc(e.Observations)}</span></div>");
             if (!string.IsNullOrEmpty(e.Complications))
-                bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Biến chứng:</span><span class=""field-value"">{e.Complications}</span></div>");
+                bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Biến chứng:</span><span class=""field-value"">{Esc(e.Complications)}</span></div>");
         }
         bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Ngày in:</span><span class=""field-value"">{DateTime.Now:dd/MM/yyyy HH:mm}</span></div>");
 
@@ -464,6 +464,11 @@ public partial class InpatientCompleteService {
             throw new InvalidOperationException("Diem APGAR 10 phut phai tu 0 den 10.");
         if (dto.BirthWeight <= 0)
             throw new InvalidOperationException("Can nang phai lon hon 0.");
+        // QA-R6: a 2027 birth date and an unknown mother stay were accepted.
+        if (dto.BirthDate.Date > HIS.Core.Common.VnTime.TodayVn)
+            throw new InvalidOperationException("Ngày sinh của trẻ không được ở tương lai.");
+        if (!await _context.Set<Admission>().AnyAsync(a => a.Id == motherAdmissionId && !a.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy lượt nội trú của mẹ.");
 
         var entity = new NewbornRecord
         {
@@ -520,6 +525,8 @@ public partial class InpatientCompleteService {
             throw new InvalidOperationException("Diem APGAR 10 phut phai tu 0 den 10.");
         if (dto.BirthWeight <= 0)
             throw new InvalidOperationException("Can nang phai lon hon 0.");
+        if (dto.BirthDate.Date > HIS.Core.Common.VnTime.TodayVn)
+            throw new InvalidOperationException("Ngày sinh của trẻ không được ở tương lai.");
 
         entity.BirthDate           = dto.BirthDate;
         entity.BirthTime           = dto.BirthTime;
@@ -546,6 +553,11 @@ public partial class InpatientCompleteService {
     {
         var entity = await _context.NewbornRecords.FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted)
             ?? throw new InvalidOperationException("Khong tim thay ho so tre so sinh.");
+        // QA-R6: discharging twice and a discharge date before birth were both accepted.
+        if (entity.Status == 2)
+            throw new InvalidOperationException("Trẻ đã được ra viện trước đó.");
+        if (dischargeDate.Date < entity.BirthDate.Date)
+            throw new InvalidOperationException("Ngày ra viện không được trước ngày sinh.");
 
         entity.Status        = 2; // Da xuat
         entity.DischargeDate = dischargeDate;

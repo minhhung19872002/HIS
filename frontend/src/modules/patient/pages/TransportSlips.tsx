@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../../../services/apiClient';
+import { escapeHtml as esc } from '../../../utils/printWindow';
 import {
   transportSlipApi,
   type PatientTransportSlipDto,
@@ -227,24 +228,24 @@ const TransportSlipsV2: React.FC = () => {
     const w = window.open('', '_blank');
     if (!w) { tw('Trình duyệt chặn cửa sổ in'); return; }
     const money = (n: number) => fmtVNDg(n);
-    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${s.slipCode}</title>
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(s.slipCode)}</title>
 <style>body{font-family:"Times New Roman",serif;padding:32px;font-size:13.5pt}
 h1{text-align:center;font-size:17pt;margin:16px 0}.row{margin:5px 0}
 table{width:100%;border-collapse:collapse;margin-top:12px}td,th{border:1px solid #000;padding:6px}
 .sig{display:flex;justify-content:space-around;margin-top:48px;text-align:center}</style></head><body>
 <h1>PHIẾU VẬN CHUYỂN NGƯỜI BỆNH</h1>
-<div class="row"><b>Số phiếu:</b> ${s.slipCode} — <b>Ngày:</b> ${dayjs(s.transportDate).format('DD/MM/YYYY HH:mm')}</div>
-<div class="row"><b>Người bệnh:</b> ${s.patientName ?? ''} (${s.patientCode ?? ''})</div>
-<div class="row"><b>Khoa:</b> ${s.departmentName ?? ''}</div>
-<div class="row"><b>Nơi đi:</b> ${s.fromPlace} &nbsp;&nbsp; <b>Nơi đến:</b> ${s.toPlace}</div>
-<div class="row"><b>Lý do:</b> ${s.reason ?? ''}</div>
-<div class="row"><b>Biển số xe:</b> ${s.vehiclePlate ?? ''} — <b>Lái xe:</b> ${s.driverName ?? ''}</div>
-<div class="row"><b>NV y tế đi kèm:</b> ${s.escortStaff ?? ''}</div>
+<div class="row"><b>Số phiếu:</b> ${esc(s.slipCode)} — <b>Ngày:</b> ${dayjs(s.transportDate).format('DD/MM/YYYY HH:mm')}</div>
+<div class="row"><b>Người bệnh:</b> ${esc(s.patientName)} (${esc(s.patientCode)})</div>
+<div class="row"><b>Khoa:</b> ${esc(s.departmentName)}</div>
+<div class="row"><b>Nơi đi:</b> ${esc(s.fromPlace)} &nbsp;&nbsp; <b>Nơi đến:</b> ${esc(s.toPlace)}</div>
+<div class="row"><b>Lý do:</b> ${esc(s.reason)}</div>
+<div class="row"><b>Biển số xe:</b> ${esc(s.vehiclePlate)} — <b>Lái xe:</b> ${esc(s.driverName)}</div>
+<div class="row"><b>NV y tế đi kèm:</b> ${esc(s.escortStaff)}</div>
 <table><tr><th>Dịch vụ</th><th>Cách tính</th><th>Số km</th><th>Đơn giá</th><th>Tiền DV</th><th>Tiền xăng</th><th>Tổng</th></tr>
-<tr><td>${s.transportServiceName ?? ''}</td><td>${s.calculationType === 1 ? 'Theo km' : 'Theo lượt'}</td>
-<td style="text-align:center">${s.calculationType === 1 ? s.distanceKm : '-'}</td>
+<tr><td>${esc(s.transportServiceName)}</td><td>${s.calculationType === 1 ? 'Theo km' : 'Theo lượt'}</td>
+<td style="text-align:center">${esc(s.calculationType === 1 ? s.distanceKm : '-')}</td>
 <td style="text-align:right">${money(s.unitPrice)}</td><td style="text-align:right">${money(s.serviceAmount)}</td>
-<td style="text-align:right">${money(s.fuelAmount)}${s.fuelType ? `<br/><small>${s.fuelType}</small>` : ''}</td>
+<td style="text-align:right">${money(s.fuelAmount)}${s.fuelType ? `<br/><small>${esc(s.fuelType)}</small>` : ''}</td>
 <td style="text-align:right"><b>${money(s.totalAmount)}</b></td></tr></table>
 <div class="sig"><div><b>Người lập phiếu</b><br/><i>(Ký, ghi rõ họ tên)</i></div>
 <div><b>Lãnh đạo duyệt</b><br/><i>(Ký, ghi rõ họ tên)</i></div></div>
