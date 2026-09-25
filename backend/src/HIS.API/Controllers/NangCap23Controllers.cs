@@ -25,6 +25,7 @@ public class NationalPrescriptionGatewayController : ControllerBase
 
     private string? UserId() => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.System.Configure)] // QA-R11: PHI read was open to every role
     [HttpGet]
     public async Task<ActionResult<List<NationalPrescriptionSubmissionDto>>> Search(
         [FromQuery] string? keyword, [FromQuery] int? status,
@@ -32,6 +33,7 @@ public class NationalPrescriptionGatewayController : ControllerBase
         [FromQuery] int pageIndex = 0, [FromQuery] int pageSize = 50)
         => Ok(await _svc.SearchAsync(keyword, status, from, to, pageIndex, pageSize));
 
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.System.Configure)] // QA-R11: PHI read was open to every role
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<NationalPrescriptionSubmissionDetailDto>> Get(Guid id)
     {
@@ -91,6 +93,7 @@ public class NationalPharmacyController : ControllerBase
 
     private string? UserId() => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.System.Configure)] // QA-R11: PHI read was open to every role
     [HttpGet]
     public async Task<ActionResult<List<NationalPharmacyOutboundReportDto>>> Search(
         [FromQuery] string? reportType, [FromQuery] int? status,
@@ -98,6 +101,7 @@ public class NationalPharmacyController : ControllerBase
         [FromQuery] int pageIndex = 0, [FromQuery] int pageSize = 50)
         => Ok(await _svc.SearchAsync(reportType, status, from, to, pageIndex, pageSize));
 
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.System.Configure)] // QA-R11: PHI read was open to every role
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<NationalPharmacyOutboundReportDetailDto>> Get(Guid id)
     {
@@ -140,6 +144,7 @@ public class DeAn06Controller : ControllerBase
 
     // ---- Birth Certificates ----
 
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.System.Configure)] // QA-R11: PHI read was open to every role
     [HttpGet("birth-certificates")]
     public async Task<ActionResult<List<BirthCertificateDto>>> SearchBirths(
         [FromQuery] string? keyword, [FromQuery] int? da06Status,
@@ -147,6 +152,7 @@ public class DeAn06Controller : ControllerBase
         [FromQuery] int pageIndex = 0, [FromQuery] int pageSize = 50)
         => Ok(await _svc.SearchBirthCertificatesAsync(keyword, da06Status, from, to, pageIndex, pageSize));
 
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.System.Configure)] // QA-R11: PHI read was open to every role
     [HttpGet("birth-certificates/{id:guid}")]
     public async Task<ActionResult<BirthCertificateDto>> GetBirth(Guid id)
     {
@@ -168,6 +174,7 @@ public class DeAn06Controller : ControllerBase
 
     // ---- Death Certificates ----
 
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.System.Configure)] // QA-R11: PHI read was open to every role
     [HttpGet("death-certificates")]
     public async Task<ActionResult<List<DeathCertificateDto>>> SearchDeaths(
         [FromQuery] string? keyword, [FromQuery] int? da06Status,
@@ -175,6 +182,7 @@ public class DeAn06Controller : ControllerBase
         [FromQuery] int pageIndex = 0, [FromQuery] int pageSize = 50)
         => Ok(await _svc.SearchDeathCertificatesAsync(keyword, da06Status, from, to, pageIndex, pageSize));
 
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.System.Configure)] // QA-R11: PHI read was open to every role
     [HttpGet("death-certificates/{id:guid}")]
     public async Task<ActionResult<DeathCertificateDto>> GetDeath(Guid id)
     {
@@ -196,6 +204,7 @@ public class DeAn06Controller : ControllerBase
 
     // ---- Driving License Health Checks ----
 
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.System.Configure)] // QA-R11: PHI read was open to every role
     [HttpGet("driving-license-checks")]
     public async Task<ActionResult<List<DrivingLicenseHealthCheckDto>>> SearchDlhc(
         [FromQuery] string? keyword, [FromQuery] int? da06Status,
@@ -203,6 +212,7 @@ public class DeAn06Controller : ControllerBase
         [FromQuery] int pageIndex = 0, [FromQuery] int pageSize = 50)
         => Ok(await _svc.SearchDrivingLicenseChecksAsync(keyword, da06Status, from, to, pageIndex, pageSize));
 
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.System.Configure)] // QA-R11: PHI read was open to every role
     [HttpGet("driving-license-checks/{id:guid}")]
     public async Task<ActionResult<DrivingLicenseHealthCheckDto>> GetDlhc(Guid id)
     {

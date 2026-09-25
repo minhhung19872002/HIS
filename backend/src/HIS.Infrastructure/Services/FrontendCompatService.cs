@@ -245,13 +245,15 @@ public class FrontendCompatService : IFrontendCompatService
         if (dto.YearsOfExposure < 0) return ServiceOutcome.Bad("Thâm niên phơi nhiễm không được âm");
         if (dto.BloodLeadLevel < 0) return ServiceOutcome.Bad("Chì máu không được âm");
         if (dto.Status is < 0 or > 3) return ServiceOutcome.Bad("Trạng thái phiếu khám không hợp lệ");
-        var now = DateTime.Now;
+        var now = HIS.Core.Common.VnTime.NowVn; // QA-R11: business-date checks in VN time (prod container runs UTC)
         if (dto.ExamDate?.Date > now.Date) return ServiceOutcome.Bad("Ngày khám không được ở tương lai");
         HIS.Core.Entities.OccupationalHealthExam? e;
         if (id.HasValue)
         {
             e = await _db.OccupationalHealthExams.FirstOrDefaultAsync(x => x.Id == id.Value);
             if (e == null) return ServiceOutcome.NotFound("Không tìm thấy phiếu khám");
+            // QA-R11: a certified exam (3 = Đã cấp GCN) stayed editable through the API (the page hides "Sửa").
+            if (e.Status == 3) return ServiceOutcome.Bad("Phiếu khám đã cấp giấy chứng nhận — không sửa được");
             e.UpdatedAt = now; e.UpdatedBy = userId;
         }
         else
@@ -435,7 +437,7 @@ public class FrontendCompatService : IFrontendCompatService
             return ServiceOutcome.Bad("Họ tên bệnh nhân và tên bệnh là bắt buộc");
         if (dto.Age is < 0 or > 150) return ServiceOutcome.Bad("Tuổi không hợp lệ");
         if (dto.Status is < 0 or > 3) return ServiceOutcome.Bad("Trạng thái báo cáo không hợp lệ");
-        var now = DateTime.Now;
+        var now = HIS.Core.Common.VnTime.NowVn; // QA-R11: business-date checks in VN time (prod container runs UTC)
         if (dto.OnsetDate?.Date > now.Date || dto.DiagnosisDate?.Date > now.Date)
             return ServiceOutcome.Bad("Ngày khởi phát / chẩn đoán không được ở tương lai");
         if (dto.OnsetDate.HasValue && dto.DiagnosisDate.HasValue && dto.DiagnosisDate.Value.Date < dto.OnsetDate.Value.Date)
@@ -514,7 +516,7 @@ public class FrontendCompatService : IFrontendCompatService
         if (dto.CaseCount < 0 || dto.DeathCount < 0) return ServiceOutcome.Bad("Số ca / tử vong không được âm");
         if (dto.RiskLevel is < 1 or > 4) return ServiceOutcome.Bad("Mức nguy cơ không hợp lệ");
         if (dto.Status is < 0 or > 3) return ServiceOutcome.Bad("Trạng thái ổ dịch không hợp lệ");
-        var now = DateTime.Now;
+        var now = HIS.Core.Common.VnTime.NowVn; // QA-R11: business-date checks in VN time (prod container runs UTC)
         if (dto.StartDate?.Date > now.Date) return ServiceOutcome.Bad("Ngày phát hiện không được ở tương lai");
         HIS.Core.Entities.OutbreakEvent? o;
         if (id.HasValue)
@@ -801,7 +803,12 @@ public class FrontendCompatService : IFrontendCompatService
     {
         if (string.IsNullOrWhiteSpace(dto.StudentName) || string.IsNullOrWhiteSpace(dto.SchoolName))
             return ServiceOutcome.Bad("Họ tên học sinh và tên trường là bắt buộc");
-        var now = DateTime.Now;
+        var now = HIS.Core.Common.VnTime.NowVn; // QA-R11: business-date checks in VN time (prod container runs UTC)
+        // QA-R11: implausible measurements / future dates were stored and skewed the BMI + nutrition stats.
+        if (dto.Height is <= 0 or > 250 || dto.Weight is <= 0 or > 300)
+            return ServiceOutcome.Bad("Chiều cao (0-250 cm) / cân nặng (0-300 kg) không hợp lệ");
+        if (dto.ExamDate?.Date > now.Date || dto.DateOfBirth?.Date > now.Date)
+            return ServiceOutcome.Bad("Ngày khám / ngày sinh không được ở tương lai");
         HIS.Core.Entities.SchoolHealthExam? e;
         if (id.HasValue)
         {

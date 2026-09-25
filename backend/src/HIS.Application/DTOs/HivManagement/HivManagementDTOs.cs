@@ -81,6 +81,7 @@ public class HivPatientStatsDto
     public int LostToFollowUpCount { get; set; }
     public int DeceasedCount { get; set; }
     public double SuppressedRate { get; set; } // percentage
+    public int NewThisMonthCount { get; set; } // QA-R11: enrolments this VN calendar month (KPI "ĐK mới (tháng)")
     public List<HivPatientByStatusDto> ByStatus { get; set; } = new();
     public List<HivPatientByStageDto> ByStage { get; set; } = new();
 }

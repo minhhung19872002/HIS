@@ -86,7 +86,7 @@ public class NationalPrescriptionGatewayService : INationalPrescriptionGatewaySe
                 PatientIdNumber = r.PatientIdNumber,
                 PrescriptionType = r.PrescriptionType,
                 Status = r.Status,
-                StatusName = StatusName(r.Status),
+                StatusName = NangCap23ServiceHelpers.WithMockLabel(StatusName(r.Status), r.GatewayTransactionId),
                 GatewayTransactionId = r.GatewayTransactionId,
                 ErrorCode = r.ErrorCode,
                 ErrorMessage = r.ErrorMessage,
@@ -119,7 +119,7 @@ public class NationalPrescriptionGatewayService : INationalPrescriptionGatewaySe
             PatientIdNumber = r.PatientIdNumber,
             PrescriptionType = r.PrescriptionType,
             Status = r.Status,
-            StatusName = StatusName(r.Status),
+            StatusName = NangCap23ServiceHelpers.WithMockLabel(StatusName(r.Status), r.GatewayTransactionId),
             GatewayTransactionId = r.GatewayTransactionId,
             ErrorCode = r.ErrorCode,
             ErrorMessage = r.ErrorMessage,
@@ -172,7 +172,9 @@ public class NationalPrescriptionGatewayService : INationalPrescriptionGatewaySe
             throw new InvalidOperationException("Đơn thuốc trống — không thể gửi cổng QG.");
         var patient = rx.MedicalRecord?.Patient;
 
-        var facilityCode = _config["NationalGateway:FacilityCode"] ?? "BV-DEMO-01";
+        // QA-R11: "Mã CSKB" saved on the config tab was never used — the payload always took appsettings / BV-DEMO-01.
+        var facilityCode = await _configStore.GetOrFallbackAsync("NangCap23.NationalGateway.FacilityCode",
+            _config["NationalGateway:FacilityCode"] ?? "BV-DEMO-01") ?? "BV-DEMO-01";
         var code = $"DTQG-{DateTime.Now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper()}";
 
         var payload = new
@@ -295,7 +297,7 @@ public class NationalPrescriptionGatewayService : INationalPrescriptionGatewaySe
             PatientIdNumber = entity.PatientIdNumber,
             PrescriptionType = entity.PrescriptionType,
             Status = entity.Status,
-            StatusName = StatusName(entity.Status),
+            StatusName = NangCap23ServiceHelpers.WithMockLabel(StatusName(entity.Status), entity.GatewayTransactionId),
             GatewayTransactionId = entity.GatewayTransactionId,
             SubmittedAt = entity.SubmittedAt,
             AcknowledgedAt = entity.AcknowledgedAt,
@@ -310,7 +312,9 @@ public class NationalPrescriptionGatewayService : INationalPrescriptionGatewaySe
     {
         var entity = await _db.NationalPrescriptionSubmissions.FirstOrDefaultAsync(x => x.Id == id);
         if (entity == null) return null;
-        var maxRetries = _config.GetValue<int>("NationalGateway:RetryCount", 3);
+        // QA-R11: "Số lần thử lại" saved on the config tab was ignored (appsettings value only).
+        var maxRetries = await _configStore.GetIntAsync("NangCap23.NationalGateway.RetryCount",
+            _config.GetValue<int>("NationalGateway:RetryCount", 3));
         Nangcap23StateMachine.EnsureCanRetry(entity.Status, entity.RetryCount, maxRetries, EntityLabel);
 
         entity.RetryCount++;
@@ -358,7 +362,10 @@ public class NationalPrescriptionGatewayService : INationalPrescriptionGatewaySe
             NationalPharmacyBaseUrl = await _configStore.GetOrFallbackAsync("NangCap23.NationalGateway.Pharmacy.BaseUrl", "https://duocquocgia.com.vn") ?? "https://duocquocgia.com.vn",
             FacilityCode = await _configStore.GetOrFallbackAsync("NangCap23.NationalGateway.FacilityCode", "BV-DEMO-01") ?? "BV-DEMO-01",
             FacilityName = await _configStore.GetOrFallbackAsync("NangCap23.NationalGateway.FacilityName", "Bệnh viện Demo") ?? "Bệnh viện Demo",
-            MockMode = await _configStore.GetBoolAsync("NangCap23.NationalGateway.MockMode", _config.GetValue<bool>("NationalGateway:MockMode", false)),
+            // QA-R11: the fake-vs-real gateway client is bound in DI from appsettings NationalGateway:MockMode at start-up;
+            // the stored flag never switched it, so the checkbox could read "mock off" while every ack was "MOCK-…".
+            // Report what is actually bound.
+            MockMode = _client is HIS.Infrastructure.Services.External.InMemoryNationalPrescriptionGatewayClient,
             AutoSubmit = await _configStore.GetBoolAsync("NangCap23.NationalGateway.AutoSubmit", false),
             RetryCount = await _configStore.GetIntAsync("NangCap23.NationalGateway.RetryCount", 3),
             TimeoutSeconds = await _configStore.GetIntAsync("NangCap23.NationalGateway.TimeoutSeconds", 30)

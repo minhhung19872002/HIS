@@ -277,6 +277,7 @@ public class EmrCloudSyncLogDto
     public string? RemotePath { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? ErrorMessage { get; set; }
+    public DateTime? StartedAt { get; set; } // QA-R11: the "Bắt đầu" column had no source field
     public DateTime? CompletedAt { get; set; }
     public int RetryCount { get; set; }
 }

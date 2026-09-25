@@ -76,6 +76,8 @@ public interface IHl7QueueService
     Task<Hl7MessageQueueDto> RetryAsync(Guid id, Guid userId);
     Task<Hl7RetryResultDto> RetryAllFailedAsync(Guid userId);
     Task<int> ProcessPendingAsync();   // Background worker dùng
+    /// <summary>QA-R11: gán tay bản tin ORU "Chưa gán máy XN" (unrouted) cho một máy XN rồi xử lý kết quả.</summary>
+    Task<Hl7MessageQueueDto> AssignAnalyzerAsync(Guid id, Guid analyzerId, Guid userId);
 }
 
 // ============================================================

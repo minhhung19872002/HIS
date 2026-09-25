@@ -288,9 +288,23 @@ public class Hl7QueueController : ControllerBase
     public async Task<ActionResult<Hl7RetryResultDto>> RetryAllFailed()
         => Ok(await _service.RetryAllFailedAsync(GetUserId()));
 
-    // Demo enqueue endpoint cho test
+    /// <summary>QA-R11: gán bản tin ORU "Chưa gán máy XN" cho một máy XN rồi đưa kết quả vào LIS.</summary>
+    [HttpPost("{id:guid}/assign-analyzer")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
+    public async Task<ActionResult<Hl7MessageQueueDto>> AssignAnalyzer(Guid id, [FromBody] Hl7AssignAnalyzerRequest dto)
+    {
+        if (dto == null || dto.AnalyzerId == Guid.Empty)
+            return BadRequest(new { message = "Chưa chọn máy xét nghiệm" });
+        return Ok(await _service.AssignAnalyzerAsync(id, dto.AnalyzerId, GetUserId()));
+    }
+
+    public class Hl7AssignAnalyzerRequest { public Guid AnalyzerId { get; set; } }
+
+    // Demo enqueue endpoint cho test — QA-R11: Development only (the prod page showed "Thêm demo" and prod ended up
+    // with DEMO-* messages stuck in the outbound queue).
     [HttpPost("demo-enqueue")]
     [Authorize(Roles = RoleNames.Admin)]
+    [DevelopmentOnly]
     public async Task<ActionResult<Hl7MessageQueueDto>> DemoEnqueue([FromBody] DemoEnqueueDto dto)
     {
         var msg = await _service.EnqueueAsync(

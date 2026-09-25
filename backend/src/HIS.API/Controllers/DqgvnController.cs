@@ -28,6 +28,7 @@ namespace HIS.API.Controllers
         /// <summary>
         /// Dashboard thong ke DQGVN (tong quan gui du lieu)
         /// </summary>
+        [HIS.API.Authorization.RequirePermission(HIS.Core.Constants.PermissionCatalog.System.Configure)] // QA-R11: submissions carry patient payloads — were readable by every role
         [HttpGet("dashboard")]
         public async Task<ActionResult<DqgvnDashboardDto>> GetDashboard()
             => Ok(await _service.GetDashboardAsync());
@@ -35,6 +36,7 @@ namespace HIS.API.Controllers
         /// <summary>
         /// Tim kiem danh sach ban ghi gui DQGVN
         /// </summary>
+        [HIS.API.Authorization.RequirePermission(HIS.Core.Constants.PermissionCatalog.System.Configure)] // QA-R11: submissions carry patient payloads — were readable by every role
         [HttpGet("submissions")]
         public async Task<ActionResult<DqgvnSubmissionPagedResult>> SearchSubmissions(
             [FromQuery] DqgvnSubmissionSearchDto search)
@@ -43,6 +45,7 @@ namespace HIS.API.Controllers
         /// <summary>
         /// Chi tiet 1 ban ghi gui DQGVN
         /// </summary>
+        [HIS.API.Authorization.RequirePermission(HIS.Core.Constants.PermissionCatalog.System.Configure)] // QA-R11: submissions carry patient payloads — were readable by every role
         [HttpGet("submissions/{id}")]
         public async Task<ActionResult<DqgvnSubmissionDto>> GetSubmission(Guid id)
         {

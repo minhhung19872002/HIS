@@ -67,6 +67,7 @@ public class CreatePrenatalRecordDto
     public string? RiskFactors { get; set; }
     public string? NextAppointment { get; set; }
     public string? Notes { get; set; }
+    public int? Status { get; set; } // QA-R11: 0=Đang theo dõi 1=Đã sinh 2=Hoàn tất 3=Hủy — tabs had no way in
 }
 
 public class FamilyPlanningSearchDto
@@ -108,6 +109,8 @@ public class CreateFamilyPlanningRecordDto
     public string? Provider { get; set; }
     public string? FacilityName { get; set; }
     public string? Notes { get; set; }
+    public string? SideEffects { get; set; } // QA-R11: form field, was dropped
+    public int? Status { get; set; } // QA-R11: 0=Đang sử dụng 1=Ngừng 2=Đổi biện pháp
 }
 
 public class ReproductiveHealthStatsDto
@@ -115,6 +118,7 @@ public class ReproductiveHealthStatsDto
     public int TotalPrenatal { get; set; }
     public int ActivePrenatal { get; set; }
     public int HighRiskPrenatal { get; set; }
+    public int DeliveredThisMonth { get; set; } // QA-R11: KPI "Sinh trong tháng" had no source
     public int TotalFamilyPlanning { get; set; }
     public int ActiveFamilyPlanning { get; set; }
     public List<MethodBreakdownDto> MethodBreakdown { get; set; } = new();

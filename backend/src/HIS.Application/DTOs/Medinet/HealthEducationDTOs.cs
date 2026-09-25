@@ -48,6 +48,8 @@ public class CreateHealthCampaignDto
     public int? ParticipantCount { get; set; }
     public decimal? Budget { get; set; }
     public string? Notes { get; set; }
+    // QA-R11: 0=Kế hoạch 1=Đang diễn ra 2=Hoàn thành 3=Đã huỷ — the edit form sent it but it was never bound/saved.
+    public int? Status { get; set; }
 }
 
 public class HealthEducationMaterialSearchDto
@@ -69,6 +71,7 @@ public class HealthEducationMaterialDto
     public long? FileSize { get; set; }
     public int Downloads { get; set; }
     public bool IsActive { get; set; }
+    public string? CreatedAt { get; set; } // QA-R11: "Ngày tạo" column had no source
 }
 
 public class CreateHealthEducationMaterialDto

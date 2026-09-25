@@ -36,13 +36,18 @@ public class HealthEducationService : IHealthEducationService
                 if (filter.Status.HasValue)
                     query = query.Where(c => c.Status == filter.Status.Value);
                 if (!string.IsNullOrEmpty(filter.FromDate) && DateTime.TryParse(filter.FromDate, out var from))
-                    query = query.Where(c => c.StartDate >= from);
+                    query = query.Where(c => c.StartDate >= from.Date);
+                // QA-R11: inclusive end day without leaking campaigns that start at 00:00 of the next day
                 if (!string.IsNullOrEmpty(filter.ToDate) && DateTime.TryParse(filter.ToDate, out var to))
-                    query = query.Where(c => c.StartDate <= to.AddDays(1));
+                {
+                    var toExclusive = to.Date.AddDays(1);
+                    query = query.Where(c => c.StartDate < toExclusive);
+                }
             }
 
             return await query
                 .OrderByDescending(c => c.CreatedAt)
+                .ThenBy(c => c.Id)
                 .Take(200)
                 .Select(c => new HealthCampaignDto
                 {
@@ -67,8 +72,20 @@ public class HealthEducationService : IHealthEducationService
         catch { return new List<HealthCampaignDto>(); }
     }
 
+    // QA-R11: status + date sanity shared by create/update.
+    private static void ValidateCampaign(CreateHealthCampaignDto dto, DateTime? start, DateTime? end)
+    {
+        if (dto.Status is < 0 or > 3)
+            throw new ArgumentException("Trạng thái chiến dịch không hợp lệ.", nameof(dto.Status));
+        if (start.HasValue && end.HasValue && end.Value.Date < start.Value.Date)
+            throw new ArgumentException("Ngày kết thúc trước ngày bắt đầu.", nameof(dto.EndDate));
+        if (dto.ParticipantCount < 0 || dto.Budget < 0)
+            throw new ArgumentException("Số người tham gia / kinh phí không được âm.");
+    }
+
     public async Task<HealthCampaignDto> CreateCampaignAsync(CreateHealthCampaignDto dto)
     {
+        ValidateCampaign(dto, DateTime.TryParse(dto.StartDate, out var vs) ? vs : null, DateTime.TryParse(dto.EndDate, out var ve) ? ve : null);
         var year = DateTime.UtcNow.Year;
         var count = await _context.HealthCampaigns.CountAsync(c => c.CreatedAt.Year == year) + 1;
 
@@ -86,7 +103,7 @@ public class HealthEducationService : IHealthEducationService
             Organizer = dto.Organizer,
             ParticipantCount = dto.ParticipantCount,
             Budget = dto.Budget,
-            Status = 0,
+            Status = dto.Status ?? 0,
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
         };
@@ -99,8 +116,12 @@ public class HealthEducationService : IHealthEducationService
 
     public async Task<HealthCampaignDto> UpdateCampaignAsync(Guid id, CreateHealthCampaignDto dto)
     {
-        var entity = await _context.HealthCampaigns.FindAsync(id)
-            ?? throw new InvalidOperationException("Campaign not found");
+        var entity = await _context.HealthCampaigns.FindAsync(id);
+        if (entity == null || entity.IsDeleted) throw new KeyNotFoundException("Không tìm thấy chiến dịch.");
+        ValidateCampaign(dto,
+            DateTime.TryParse(dto.StartDate, out var vs) ? vs : entity.StartDate,
+            DateTime.TryParse(dto.EndDate, out var ve) ? ve : entity.EndDate);
+        if (dto.Status.HasValue) entity.Status = dto.Status.Value;
 
         if (dto.Title != null) entity.Title = dto.Title;
         if (dto.Description != null) entity.Description = dto.Description;
@@ -143,6 +164,7 @@ public class HealthEducationService : IHealthEducationService
 
             return await query
                 .OrderByDescending(m => m.CreatedAt)
+                .ThenBy(m => m.Id)
                 .Take(200)
                 .Select(m => new HealthEducationMaterialDto
                 {
@@ -156,6 +178,7 @@ public class HealthEducationService : IHealthEducationService
                     FileSize = m.FileSize,
                     Downloads = m.Downloads,
                     IsActive = m.IsActive,
+                    CreatedAt = m.CreatedAt.ToString("yyyy-MM-dd"),
                 })
                 .ToListAsync();
         }

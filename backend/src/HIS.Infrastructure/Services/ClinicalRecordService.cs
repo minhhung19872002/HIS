@@ -268,6 +268,9 @@ public class ClinicalRecordService : IClinicalRecordService
     public async Task<AnesthesiaRecordDto> SaveAnesthesiaRecordAsync(AnesthesiaSaveDto dto)
     {
         AnesthesiaRecord record;
+        // QA-R11 (partial write): a new record was saved before its monitors/drugs/fluids — a failing child insert left
+        // a header with no intra-op data (and a retry created a second header). One transaction for both saves.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
 
         if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
         {
@@ -338,6 +341,7 @@ public class ClinicalRecordService : IClinicalRecordService
         }
 
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         // Reload and return
         return (await GetAnesthesiaByIdAsync(record.Id))!;

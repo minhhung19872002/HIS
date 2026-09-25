@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import {
   getHAICases, createHAICase, createIsolationOrder,
   getHandHygieneObservations, createHandHygieneObservation,
-  getOutbreaks, investigateHAICase,
+  getOutbreaks, investigateHAICase, declareOutbreak,
   getIsolationOrders, discontinueIsolation,
   confirmHAICase, closeHAICase, excludeHAICase,
 } from '../api/infectionControl';
@@ -213,12 +213,25 @@ const InfectionControlV2: React.FC = () => {
   const [hhCrudInit, setHhCrudInit] = useState<Record<string, unknown> | null>(null);
   const [deptOpts, setDeptOpts] = useState<{ value: string; label: string }[]>([]);
   const hhFields = useMemo(() => buildHhFields(deptOpts), [deptOpts]);
+  // ─── Khai báo ổ dịch (QA-R11: tab "Ổ dịch" was read-only — BE POST /outbreaks had no UI) ───
+  const [obCrudOpen, setObCrudOpen] = useState(false);
+  const obFields = useMemo<CrudFieldCfg[]>(() => [
+    { key: 'name', label: 'Tên ổ dịch', required: true, placeholder: 'VD: Cụm tiêu chảy khoa Nhi' },
+    { key: 'organism', label: 'Tác nhân (vi sinh vật)', required: true, placeholder: 'VD: Norovirus, MRSA…' },
+    { key: 'infectionType', label: 'Loại nhiễm khuẩn', type: 'select', required: true, options: [
+      { value: 'Respiratory', label: 'Hô hấp' }, { value: 'GI', label: 'Tiêu hoá' }, { value: 'Bloodstream', label: 'Huyết' },
+      { value: 'SSI', label: 'Vết mổ' }, { value: 'UTI', label: 'Tiết niệu' }, { value: 'Other', label: 'Khác' }] },
+    { key: 'identifiedDate', label: 'Ngày phát hiện', type: 'date', required: true },
+    { key: 'affectedDepartments', label: 'Khoa bị ảnh hưởng', type: 'multiselect', required: true, options: deptOpts.map((d) => ({ value: d.label, label: d.label })) },
+    { key: 'initialFindings', label: 'Nhận định ban đầu', type: 'textarea' },
+  ], [deptOpts]);
+  const OB_INIT = useMemo(() => ({ identifiedDate: dayjs().format('YYYY-MM-DD'), infectionType: 'GI' }), []);
   useEffect(() => {
-    if (!hhCrudOpen || deptOpts.length) return;
+    if (!(hhCrudOpen || obCrudOpen) || deptOpts.length) return;
     catalogApi.getDepartments(undefined, undefined, true)
       .then((r) => setDeptOpts((r.data || []).filter((d) => d.id).map((d) => ({ value: d.id!, label: d.name }))))
       .catch((e) => tw(friendlyErrorMessage(e, 'Không tải được danh sách khoa/phòng.')));
-  }, [hhCrudOpen, deptOpts.length]);
+  }, [hhCrudOpen, obCrudOpen, deptOpts.length]);
 
   const loadHh = async () => {
     setHhLoading(true);
@@ -480,6 +493,32 @@ const InfectionControlV2: React.FC = () => {
 
       {/* ── Tab: Ổ dịch ──────────────────────────────────────────────── */}
       {tab === 'outbreak' && <>
+        <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
+          <span className="spacer" />
+          <RefreshButton onRefresh={async () => { setOutbreakLoaded(false); }} />
+          <Btn variant="primary" icon="plus" onClick={() => setObCrudOpen(true)}>Khai báo ổ dịch</Btn>
+        </div>
+        <CrudModal
+          open={obCrudOpen}
+          onClose={() => setObCrudOpen(false)}
+          title="Khai báo ổ dịch"
+          fields={obFields}
+          initial={OB_INIT}
+          size="lg"
+          onSubmit={async (v) => {
+            if (v.identifiedDate && dayjs(String(v.identifiedDate)).isAfter(dayjs(), 'day')) {
+              tw('Ngày phát hiện không được ở tương lai'); throw new Error('future date');
+            }
+            await declareOutbreak({
+              name: String(v.name ?? '').trim(), organism: String(v.organism ?? '').trim(),
+              infectionType: String(v.infectionType ?? 'Other'), identifiedDate: String(v.identifiedDate ?? ''),
+              affectedDepartments: (v.affectedDepartments as string[] | undefined) ?? [],
+              initialFindings: String(v.initialFindings ?? '').trim() || undefined,
+            });
+            tk('Đã khai báo ổ dịch');
+            setOutbreakLoaded(false);
+          }}
+        />
         <DataTable<OutbreakDto>
           columns={obCols} data={outbreakItems} rowKey={(r) => r.id}
           loading={outbreakLoading}

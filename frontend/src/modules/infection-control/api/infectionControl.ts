@@ -675,6 +675,18 @@ export const getHandHygieneStatistics = (fromDate: string, toDate: string, depar
 export const getOutbreaks = (status?: number) =>
   apiClient.get<OutbreakDto[]>(`${BASE_URL}/outbreaks`, { params: { status } });
 
+/**
+ * QA-R11: BE POST /infectioncontrol/outbreaks binds DeclareOutbreakDto { name, organism, infectionType, identifiedDate,
+ * affectedDepartments[], initialCases[], initialFindings } (every string required at bind time) — createOutbreak's
+ * CreateOutbreakDto shape did not match and nothing on the v2 page could declare an outbreak.
+ */
+export const declareOutbreak = (dto: {
+  name: string; organism: string; infectionType: string; identifiedDate: string;
+  affectedDepartments: string[]; initialFindings?: string;
+}) => apiClient.post<OutbreakDto>(`${BASE_URL}/outbreaks`, {
+  ...dto, initialCases: [], initialFindings: dto.initialFindings ?? '',
+});
+
 export const getOutbreakById = (id: string) =>
   apiClient.get<OutbreakDto>(`${BASE_URL}/outbreaks/${id}`);
 

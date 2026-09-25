@@ -291,6 +291,8 @@ namespace HIS.Application.Services
         Task<DutyRosterDto> CreateDutyRosterAsync(CreateDutyRosterDto dto);
         Task<DutyRosterDto> PublishDutyRosterAsync(Guid rosterId);
         Task<DutyShiftDto> AddShiftAssignmentAsync(Guid shiftId, Guid staffId, string role);
+        /// <summary>QA-R11: add one shift for one staff to their department's roster of that month (created as Draft if missing).</summary>
+        Task<DutyShiftDto> AddDutyShiftAsync(AddDutyShiftDto dto, Guid userId);
         Task<bool> RemoveShiftAssignmentAsync(Guid assignmentId);
         /// <summary>Sao chép lịch trực từ tuần nguồn sang tuần đích (clone ca trực, không trùng)</summary>
         Task<CopyRosterResultDto> CopyRosterWeekAsync(CopyRosterWeekDto dto, Guid userId);
@@ -509,6 +511,7 @@ namespace HIS.Application.Services
 
         // Feedback & Notifications
         Task<ServiceFeedbackDto> SubmitFeedbackAsync(Guid patientId, SubmitFeedbackDto dto);
+        Task<List<ServiceFeedbackDto>> GetFeedbacksAsync(Guid patientId); // QA-R11: was a controller stub (always [])
         Task<List<PortalNotificationDto>> GetNotificationsAsync(Guid accountId, bool unreadOnly = false);
         Task<bool> MarkNotificationReadAsync(Guid id);
         Task<int> GetUnreadNotificationCountAsync(Guid accountId);

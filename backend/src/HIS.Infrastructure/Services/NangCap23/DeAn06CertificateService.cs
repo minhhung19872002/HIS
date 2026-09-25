@@ -37,6 +37,22 @@ public class DeAn06CertificateService : IDeAn06CertificateService
         _ => "Khác"
     };
 
+    // QA-R11: (a) a transport failure (NETWORK_ERROR/TIMEOUT/CIRCUIT_OPEN) left the record in 1 "Đã gửi cổng" — Đề án 06
+    // has no retry endpoint and no background worker, so it could never be sent again (the page kept offering "Gửi",
+    // the API answered 400). Status 1 with a transient error, or with no answer 10 minutes after sending (process
+    // died mid-flight), may be re-sent. (b) Two concurrent "Gửi" both passed the status check and both POSTed to the
+    // gateway — the status is now claimed atomically (ExecuteUpdate on the status read) before the gateway call.
+    private static void EnsureCanSubmitDa06(int status, string? responseCode, DateTime? submittedAt, string label)
+    {
+        if (status == 1 && (NangCap23ServiceHelpers.IsTransientError(responseCode)
+            || (string.IsNullOrEmpty(responseCode) && submittedAt.HasValue && submittedAt.Value < DateTime.UtcNow.AddMinutes(-10))))
+            return;
+        Nangcap23StateMachine.EnsureCanSubmit(status, label);
+    }
+
+    private static string ConcurrentSubmitMessage(string label)
+        => $"{label} vừa được gửi bởi một thao tác khác — tải lại danh sách để xem kết quả.";
+
     // ----- Birth Certificate -----
 
     public async Task<List<BirthCertificateDto>> SearchBirthCertificatesAsync(string? keyword, int? da06Status, DateTime? from, DateTime? to, int pageIndex = 0, int pageSize = 50)
@@ -137,9 +153,16 @@ public class DeAn06CertificateService : IDeAn06CertificateService
     {
         var entity = await _db.BirthCertificateRecords.FirstOrDefaultAsync(x => x.Id == id);
         if (entity == null) return null;
-        Nangcap23StateMachine.EnsureCanSubmit(entity.Da06Status, "Giấy chứng sinh");
+        EnsureCanSubmitDa06(entity.Da06Status, entity.Da06ResponseCode, entity.Da06SubmittedAt, "Giấy chứng sinh");
 
-        entity.Da06SubmittedAt = DateTime.UtcNow;
+        var now = DateTime.UtcNow;
+        if (await _db.BirthCertificateRecords
+                .Where(x => x.Id == id && x.Da06Status == entity.Da06Status && x.Da06SubmittedAt == entity.Da06SubmittedAt)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.Da06Status, 1).SetProperty(x => x.Da06SubmittedAt, now)
+                    .SetProperty(x => x.Da06ResponseCode, (string?)null)) == 0)
+            throw new InvalidOperationException(ConcurrentSubmitMessage("Giấy chứng sinh"));
+        entity.Da06ResponseCode = null;
+        entity.Da06SubmittedAt = now;
         entity.Da06Status = 1;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = userId;
@@ -205,7 +228,7 @@ public class DeAn06CertificateService : IDeAn06CertificateService
         SingletonOrMultiple = r.SingletonOrMultiple,
         Notes = r.Notes,
         Da06Status = r.Da06Status,
-        Da06StatusName = Da06StatusName(r.Da06Status),
+        Da06StatusName = NangCap23ServiceHelpers.WithMockLabel(Da06StatusName(r.Da06Status), r.Da06SubmissionId),
         Da06SubmissionId = r.Da06SubmissionId,
         Da06ErrorMessage = r.Da06ErrorMessage,
         Da06SubmittedAt = r.Da06SubmittedAt,
@@ -325,9 +348,16 @@ public class DeAn06CertificateService : IDeAn06CertificateService
     {
         var entity = await _db.DeathCertificateRecords.FirstOrDefaultAsync(x => x.Id == id);
         if (entity == null) return null;
-        Nangcap23StateMachine.EnsureCanSubmit(entity.Da06Status, "Giấy báo tử");
+        EnsureCanSubmitDa06(entity.Da06Status, entity.Da06ResponseCode, entity.Da06SubmittedAt, "Giấy báo tử");
 
-        entity.Da06SubmittedAt = DateTime.UtcNow;
+        var now = DateTime.UtcNow;
+        if (await _db.DeathCertificateRecords
+                .Where(x => x.Id == id && x.Da06Status == entity.Da06Status && x.Da06SubmittedAt == entity.Da06SubmittedAt)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.Da06Status, 1).SetProperty(x => x.Da06SubmittedAt, now)
+                    .SetProperty(x => x.Da06ResponseCode, (string?)null)) == 0)
+            throw new InvalidOperationException(ConcurrentSubmitMessage("Giấy báo tử"));
+        entity.Da06ResponseCode = null;
+        entity.Da06SubmittedAt = now;
         entity.Da06Status = 1;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = userId;
@@ -403,7 +433,7 @@ public class DeAn06CertificateService : IDeAn06CertificateService
         InformantRelationship = r.InformantRelationship,
         Notes = r.Notes,
         Da06Status = r.Da06Status,
-        Da06StatusName = Da06StatusName(r.Da06Status),
+        Da06StatusName = NangCap23ServiceHelpers.WithMockLabel(Da06StatusName(r.Da06Status), r.Da06SubmissionId),
         Da06SubmissionId = r.Da06SubmissionId,
         Da06ErrorMessage = r.Da06ErrorMessage,
         Da06SubmittedAt = r.Da06SubmittedAt,
@@ -535,7 +565,7 @@ public class DeAn06CertificateService : IDeAn06CertificateService
     {
         var entity = await _db.DrivingLicenseHealthChecks.FirstOrDefaultAsync(x => x.Id == id);
         if (entity == null) return null;
-        Nangcap23StateMachine.EnsureCanSubmit(entity.Da06Status, "Giấy KSK lái xe");
+        EnsureCanSubmitDa06(entity.Da06Status, entity.Da06ResponseCode, entity.Da06SubmittedAt, "Giấy KSK lái xe");
 
         // LUÔN re-compute trước Submit — defense-in-depth (đã Recompute tại Save nhưng có thể
         // DB record được Service khác update). Helper duy nhất ở Application layer.
@@ -547,7 +577,14 @@ public class DeAn06CertificateService : IDeAn06CertificateService
                 entity.CertificateNumber, entity.LicenseClass, origEligibility, entity.EligibleToDrive);
         }
 
-        entity.Da06SubmittedAt = DateTime.UtcNow;
+        var now = DateTime.UtcNow;
+        if (await _db.DrivingLicenseHealthChecks
+                .Where(x => x.Id == id && x.Da06Status == entity.Da06Status && x.Da06SubmittedAt == entity.Da06SubmittedAt)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.Da06Status, 1).SetProperty(x => x.Da06SubmittedAt, now)
+                    .SetProperty(x => x.Da06ResponseCode, (string?)null)) == 0)
+            throw new InvalidOperationException(ConcurrentSubmitMessage("Giấy KSK lái xe"));
+        entity.Da06ResponseCode = null;
+        entity.Da06SubmittedAt = now;
         entity.Da06Status = 1;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = userId;
@@ -640,7 +677,7 @@ public class DeAn06CertificateService : IDeAn06CertificateService
         IssuedAt = r.IssuedAt,
         ExpiresAt = r.ExpiresAt,
         Da06Status = r.Da06Status,
-        Da06StatusName = Da06StatusName(r.Da06Status),
+        Da06StatusName = NangCap23ServiceHelpers.WithMockLabel(Da06StatusName(r.Da06Status), r.Da06SubmissionId),
         Da06SubmissionId = r.Da06SubmissionId,
         Da06ErrorMessage = r.Da06ErrorMessage,
         Da06SubmittedAt = r.Da06SubmittedAt,

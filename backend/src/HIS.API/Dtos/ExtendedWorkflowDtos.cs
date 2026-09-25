@@ -46,6 +46,20 @@ namespace HIS.API.Dtos.ExtendedWorkflow;
     public class ResolveHaiRequest { public string? Outcome { get; set; } }
     public class CloseIncidentRequest { public string? Notes { get; set; } }
 
+    // QA-R11: audit result entry (POST /api/quality/audits/{id}/result).
+    public class SubmitAuditResultRequest
+    {
+        public DateTime? AuditDate { get; set; }
+        public int MajorNonConformities { get; set; }
+        public int MinorNonConformities { get; set; }
+        public int Observations { get; set; }
+        public int Opportunities { get; set; }
+        public string? ExecutiveSummary { get; set; }
+        public string? Strengths { get; set; }
+        public string? AreasForImprovement { get; set; }
+        public string? OverallRating { get; set; }
+    }
+
         public class LinkPatientRecordRequestDto
         {
             public Guid AccountId { get; set; }

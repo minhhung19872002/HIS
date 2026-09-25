@@ -439,6 +439,9 @@ export const hl7QueueApi = {
     apiClient.post<Hl7RetryResultDto>('/hl7-queue/retry-all-failed').then(r => r.data),
   demoEnqueue: (data: { direction?: string; source?: string; target?: string; messageType?: string; payload?: string; endpoint?: string }) =>
     apiClient.post<Hl7MessageQueueDto>('/hl7-queue/demo-enqueue', data).then(r => r.data),
+  /** QA-R11: gán bản tin ORU "Chưa gán máy XN" cho một máy XN và xử lý kết quả. */
+  assignAnalyzer: (id: string, analyzerId: string) =>
+    apiClient.post<Hl7MessageQueueDto>(`/hl7-queue/${id}/assign-analyzer`, { analyzerId }).then(r => r.data),
 };
 
 // ============================================================================

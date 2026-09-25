@@ -50,6 +50,7 @@ public class HivManagementService : IHivManagementService
 
         return await query
             .OrderByDescending(h => h.DiagnosisDate)
+            .ThenBy(h => h.Id) // QA-R11: deterministic order for the 200-row cap
             .Take(200)
             .Select(h => new HivPatientListDto
             {
@@ -170,7 +171,12 @@ public class HivManagementService : IHivManagementService
         var entity = await _context.HivPatients
             .Include(h => h.Patient)
             .FirstOrDefaultAsync(h => h.Id == id && !h.IsDeleted)
-            ?? throw new InvalidOperationException("HIV patient not found");
+            ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ HIV.");
+        // QA-R11: out-of-range codes were stored and then dropped out of every ART tab / stage chip.
+        if (dto.ARTStatus is < 0 or > 5)
+            throw new ArgumentException("Trạng thái ART không hợp lệ.", nameof(dto.ARTStatus));
+        if (dto.WHOStage is < 1 or > 4)
+            throw new ArgumentException("Giai đoạn WHO phải từ 1 đến 4.", nameof(dto.WHOStage));
 
         if (dto.CurrentARTRegimen != null) entity.CurrentARTRegimen = dto.CurrentARTRegimen;
         if (!string.IsNullOrEmpty(dto.ARTStartDate) && DateTime.TryParse(dto.ARTStartDate, out var asd))
@@ -225,6 +231,10 @@ public class HivManagementService : IHivManagementService
 
         var onArt = patients.Count(p => p.ARTStatus == 1);
         var virallySuppressed = patients.Count(p => p.IsVirallySuppressed == true);
+        // QA-R11: the rate divided ALL suppressed patients (incl. interrupted/transferred) by on-ART only (could exceed 100%).
+        var suppressedOnArt = patients.Count(p => p.ARTStatus == 1 && p.IsVirallySuppressed == true);
+        var todayVn = HIS.Core.Common.VnTime.TodayVn;
+        var monthStartUtc = new DateTime(todayVn.Year, todayVn.Month, 1).AddHours(-7); // CreatedAt is UTC
 
         return new HivPatientStatsDto
         {
@@ -234,7 +244,8 @@ public class HivManagementService : IHivManagementService
             VirallySuppressedCount = virallySuppressed,
             LostToFollowUpCount = patients.Count(p => p.ARTStatus == 5),
             DeceasedCount = patients.Count(p => p.ARTStatus == 4),
-            SuppressedRate = onArt > 0 ? Math.Round((double)virallySuppressed / onArt * 100, 1) : 0,
+            SuppressedRate = onArt > 0 ? Math.Round((double)suppressedOnArt / onArt * 100, 1) : 0,
+            NewThisMonthCount = patients.Count(p => p.CreatedAt >= monthStartUtc),
             ByStatus = patients
                 .GroupBy(p => p.ARTStatus)
                 .Select(g => new HivPatientByStatusDto { ARTStatus = g.Key, Count = g.Count() })
@@ -311,15 +322,20 @@ public class HivManagementService : IHivManagementService
         _context.HivLabResults.Add(entity);
 
         // Update the HIV patient's last lab values if CD4 or ViralLoad
+        // QA-R11: only when this test is not older than the stored one — back-entering an old result used to
+        // overwrite the latest CD4/VL (and flip the suppression flag) with stale values.
         var hivPatient = await _context.HivPatients.FindAsync(dto.HivPatientId);
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
         if (hivPatient != null)
         {
-            if (dto.TestType == "CD4" && int.TryParse(dto.Result, out var cd4))
+            if (dto.TestType == "CD4" && int.TryParse(dto.Result, System.Globalization.NumberStyles.Integer, inv, out var cd4)
+                && (!hivPatient.LastCD4Date.HasValue || entity.TestDate >= hivPatient.LastCD4Date.Value))
             {
                 hivPatient.LastCD4Count = cd4;
                 hivPatient.LastCD4Date = entity.TestDate;
             }
-            else if (dto.TestType == "ViralLoad" && decimal.TryParse(dto.Result, out var vl))
+            else if (dto.TestType == "ViralLoad" && decimal.TryParse(dto.Result, System.Globalization.NumberStyles.Number, inv, out var vl)
+                && (!hivPatient.LastViralLoadDate.HasValue || entity.TestDate >= hivPatient.LastViralLoadDate.Value))
             {
                 hivPatient.LastViralLoad = vl;
                 hivPatient.LastViralLoadDate = entity.TestDate;
@@ -377,6 +393,9 @@ public class HivManagementService : IHivManagementService
             throw new KeyNotFoundException("Không tìm thấy hồ sơ HIV.");
         if (dto.GestationalAgeAtDiagnosis is < 0 or > 45)
             throw new ArgumentException("Tuổi thai không hợp lệ (0-45 tuần).");
+        // QA-R11: a PMTCT (mother-to-child) record could be opened for a male patient.
+        if (await _context.HivPatients.AnyAsync(h => h.Id == dto.HivPatientId && h.Patient != null && h.Patient.Gender == 1))
+            throw new InvalidOperationException("Hồ sơ PMTCT chỉ áp dụng cho bệnh nhân nữ.");
         var entity = new PmtctRecord
         {
             Id = Guid.NewGuid(),
@@ -422,7 +441,7 @@ public class HivManagementService : IHivManagementService
             .Include(p => p.HivPatient)
                 .ThenInclude(h => h!.Patient)
             .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted)
-            ?? throw new InvalidOperationException("PMTCT record not found");
+            ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ PMTCT.");
 
         if (dto.ARTDuringPregnancy.HasValue) entity.ARTDuringPregnancy = dto.ARTDuringPregnancy.Value;
         if (!string.IsNullOrEmpty(dto.DeliveryDate) && DateTime.TryParse(dto.DeliveryDate, out var dd))

@@ -117,6 +117,9 @@ public class FoodSafetyService : IFoodSafetyService
 
     public async Task<FoodIncidentListDto> CreateIncidentAsync(FoodIncidentCreateDto dto)
     {
+        // QA-R11: an empty body created a location-less incident (FS-2026-0009..16 on the list).
+        if (string.IsNullOrWhiteSpace(dto.Location))
+            throw new ArgumentException("Chưa nhập địa điểm xảy ra vụ ngộ độc.", nameof(dto.Location));
         ValidateIncidentCounts(dto.EstimatedExposed, dto.AffectedCount, dto.HospitalizedCount, dto.DeathCount, dto.SeverityLevel);
         var reportNumber = dto.ReportNumber;
         if (string.IsNullOrEmpty(reportNumber))

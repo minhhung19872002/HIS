@@ -481,6 +481,7 @@ public static class DependencyInjection
         services.AddScoped<IDicomAutoSendService, DicomAutoSendService>();
         services.AddHostedService<HIS.Infrastructure.Services.Workers.DicomAutoSendWorker>();
         services.AddScoped<IHl7QueueService, Hl7QueueService>();
+        services.AddHostedService<HIS.Infrastructure.Services.Workers.Hl7OutboundQueueWorker>(); // QA-R11: drains outbound HL7 queue (real MLLP send)
         services.AddScoped<IDicomStudyActivityService, DicomStudyActivityService>();
         services.AddScoped<IEInvoiceService, EInvoiceService>(); // #24: HĐĐT đa NCC (MockMode mặc định)
 

@@ -123,11 +123,15 @@ public class ReproductiveHealthService : IReproductiveHealthService
             throw new ArgumentException("Số lần sinh (P) không thể lớn hơn số lần mang thai (G).");
         if (dto.FetalHeartRate is < 0 or > 250)
             throw new ArgumentException("Nhịp tim thai không hợp lệ.");
+        if (dto.Status is < 0 or > 3)
+            throw new ArgumentException("Trạng thái hồ sơ thai không hợp lệ.");
     }
 
     public async Task<PrenatalRecordDto> CreatePrenatalAsync(CreatePrenatalRecordDto dto)
     {
         ValidatePrenatal(dto);
+        if (string.IsNullOrWhiteSpace(dto.PatientName))
+            throw new ArgumentException("Chưa nhập họ tên sản phụ.", nameof(dto.PatientName));
         var year = DateTime.UtcNow.Year;
         var count = await _context.PrenatalRecords.CountAsync(r => r.CreatedAt.Year == year) + 1;
 
@@ -154,7 +158,7 @@ public class ReproductiveHealthService : IReproductiveHealthService
             RiskLevel = dto.RiskLevel ?? "low",
             RiskFactors = dto.RiskFactors,
             NextAppointment = DateTime.TryParse(dto.NextAppointment, out var na) ? na : null,
-            Status = 0,
+            Status = dto.Status ?? 0,
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
         };
@@ -167,9 +171,12 @@ public class ReproductiveHealthService : IReproductiveHealthService
 
     public async Task<PrenatalRecordDto> UpdatePrenatalAsync(Guid id, CreatePrenatalRecordDto dto)
     {
-        var entity = await _context.PrenatalRecords.FindAsync(id)
-            ?? throw new InvalidOperationException("Prenatal record not found");
+        var entity = await _context.PrenatalRecords.FindAsync(id);
+        if (entity == null || entity.IsDeleted) throw new KeyNotFoundException("Không tìm thấy hồ sơ thai.");
         ValidatePrenatal(dto);
+        // QA-R11: status (Đã sinh / Hoàn tất / Hủy) and name edits were silently dropped.
+        if (dto.Status.HasValue) entity.Status = dto.Status.Value;
+        if (!string.IsNullOrWhiteSpace(dto.PatientName)) entity.PatientName = dto.PatientName;
 
         if (dto.GestationalAge.HasValue) entity.GestationalAge = dto.GestationalAge.Value;
         if (DateTime.TryParse(dto.ExpectedDeliveryDate, out var eddUpd)) entity.ExpectedDeliveryDate = eddUpd;
@@ -213,6 +220,7 @@ public class ReproductiveHealthService : IReproductiveHealthService
 
             return await query
                 .OrderByDescending(r => r.CreatedAt)
+                .ThenBy(r => r.Id)
                 .Take(200)
                 .Select(r => new FamilyPlanningRecordDto
                 {
@@ -239,6 +247,10 @@ public class ReproductiveHealthService : IReproductiveHealthService
 
     public async Task<FamilyPlanningRecordDto> CreateFamilyPlanningAsync(CreateFamilyPlanningRecordDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.PatientName))
+            throw new ArgumentException("Chưa nhập họ tên.", nameof(dto.PatientName));
+        if (dto.Status is < 0 or > 2)
+            throw new ArgumentException("Trạng thái KHHGĐ không hợp lệ.", nameof(dto.Status));
         var year = DateTime.UtcNow.Year;
         var count = await _context.FamilyPlanningRecords.CountAsync(r => r.CreatedAt.Year == year) + 1;
 
@@ -256,7 +268,8 @@ public class ReproductiveHealthService : IReproductiveHealthService
             FollowUpDate = DateTime.TryParse(dto.FollowUpDate, out var fd) ? fd : null,
             Provider = dto.Provider,
             FacilityName = dto.FacilityName,
-            Status = 0,
+            SideEffects = dto.SideEffects,
+            Status = dto.Status ?? 0,
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
         };
@@ -269,9 +282,17 @@ public class ReproductiveHealthService : IReproductiveHealthService
 
     public async Task<FamilyPlanningRecordDto> UpdateFamilyPlanningAsync(Guid id, CreateFamilyPlanningRecordDto dto)
     {
-        var entity = await _context.FamilyPlanningRecords.FindAsync(id)
-            ?? throw new InvalidOperationException("Family planning record not found");
+        var entity = await _context.FamilyPlanningRecords.FindAsync(id);
+        if (entity == null || entity.IsDeleted) throw new KeyNotFoundException("Không tìm thấy hồ sơ KHHGĐ.");
+        if (dto.Status is < 0 or > 2)
+            throw new ArgumentException("Trạng thái KHHGĐ không hợp lệ.", nameof(dto.Status));
 
+        // QA-R11: status / side effects / start date / facility were silently dropped on edit.
+        if (dto.Status.HasValue) entity.Status = dto.Status.Value;
+        if (dto.SideEffects != null) entity.SideEffects = dto.SideEffects;
+        if (DateTime.TryParse(dto.StartDate, out var sd)) entity.StartDate = sd;
+        if (dto.FacilityName != null) entity.FacilityName = dto.FacilityName;
+        if (!string.IsNullOrWhiteSpace(dto.PatientName)) entity.PatientName = dto.PatientName;
         if (dto.Method != null) entity.Method = dto.Method;
         if (DateTime.TryParse(dto.ExpiryDate, out var ed)) entity.ExpiryDate = ed;
         if (DateTime.TryParse(dto.FollowUpDate, out var fd)) entity.FollowUpDate = fd;
@@ -290,12 +311,15 @@ public class ReproductiveHealthService : IReproductiveHealthService
         {
             var prenatal = await _context.PrenatalRecords.Where(r => !r.IsDeleted).ToListAsync();
             var fp = await _context.FamilyPlanningRecords.Where(r => !r.IsDeleted).ToListAsync();
+            var monthStartUtc = new DateTime(HIS.Core.Common.VnTime.TodayVn.Year, HIS.Core.Common.VnTime.TodayVn.Month, 1).AddHours(-7);
 
             return new ReproductiveHealthStatsDto
             {
                 TotalPrenatal = prenatal.Count,
                 ActivePrenatal = prenatal.Count(r => r.Status == 0),
                 HighRiskPrenatal = prenatal.Count(r => r.Status == 0 && (r.RiskLevel == "high" || r.RiskLevel == "very_high")),
+                // no delivery-date column: "đã sinh" (status 1) set this month (UpdatedAt is UTC)
+                DeliveredThisMonth = prenatal.Count(r => r.Status == 1 && (r.UpdatedAt ?? r.CreatedAt) >= monthStartUtc),
                 TotalFamilyPlanning = fp.Count,
                 ActiveFamilyPlanning = fp.Count(r => r.Status == 0),
                 MethodBreakdown = fp.GroupBy(r => r.Method)

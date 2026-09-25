@@ -1127,8 +1127,10 @@ namespace HIS.Application.Services
     {
         public string Description { get; set; }
         public string Conclusion { get; set; }
-        public string Note { get; set; }
-        public string TechnicianNote { get; set; }
+        // QA-R11: optional — the implicit [Required] of non-nullable strings 400'd every PUT results/{id}
+        // that did not send a technician note.
+        public string? Note { get; set; }
+        public string? TechnicianNote { get; set; }
     }
 
     public class AttachImageDto

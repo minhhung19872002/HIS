@@ -51,6 +51,7 @@ public class CreatePopulationRecordDto
     public string? FacilityName { get; set; }
     public string? FollowUpDate { get; set; }
     public string? Notes { get; set; }
+    public int? Status { get; set; } // QA-R11: 0=Đang QL, 1=Đã đóng, 2=Đã chuyển — sent by the v2 form, never bound
 }
 
 public class PopulationHealthStatsDto
@@ -60,6 +61,9 @@ public class PopulationHealthStatsDto
     public int ElderlyCareCount { get; set; }
     public int BirthReportCount { get; set; }
     public int SurveyCount { get; set; }
+    // QA-R11: KPI keys of the v2 page ("KHHGĐ đang QL", "Khai sinh tháng" was a literal 0)
+    public int FamilyPlanningActive { get; set; }
+    public int BirthReportsThisMonth { get; set; }
     public List<PopulationRecordTypeBreakdownDto> RecordTypeBreakdown { get; set; } = new();
 }
 
