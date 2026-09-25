@@ -93,6 +93,7 @@ public partial class BillingCompleteService {
             MedicineTotal = set.MedicineGross,
             BedTotal = set.BedGross,
             UnpaidBedAmount = set.UnpaidBedAmount,
+            Warnings = set.Warnings.ToList(), // QA-R12
             SubTotal = set.ServiceGross + set.MedicineGross + set.BedGross,
             InsuranceAmount = set.InsuranceTotal,
             DiscountAmount = discount,

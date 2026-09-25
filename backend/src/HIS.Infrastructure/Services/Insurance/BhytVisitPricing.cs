@@ -24,6 +24,9 @@ public sealed class BhytPricedLine
     public DateTime ServiceDate { get; init; }
     /// <summary>Bed lines (ItemType 4): the BedAssignments row priced — same id as InvoiceLedger's bed ChargeLine.</summary>
     public Guid? BedAssignmentId { get; init; }
+    /// <summary>QA-R12: ward-cabinet issue lines (ItemType 2, Billing.BillCabinetIssues = On) — the ExportReceiptDetail
+    /// priced, same id as InvoiceLedger's cabinet ChargeLine.</summary>
+    public Guid? CabinetDetailId { get; init; }
     public BhytLineResult Result { get; set; } = null!;
 
     internal ServiceRequestDetail? Srd { get; init; }
@@ -178,9 +181,23 @@ public sealed class BhytVisitPricing
             .Where(a => a.ItemType == InvoiceLedger.ItemService && a.ServiceRequestDetailId == null && Guid.TryParse(a.ItemCode, out _))
             .Select(a => Guid.Parse(a.ItemCode!)).ToHashSet();
 
+        // QA-R12: ward-cabinet issues are charges of the visit when Billing.BillCabinetIssues = On (InvoiceLedger bills
+        // them) — price them here too so the fund's share and the claim include them. No entity to write back: frozen.
+        var switches = await InvoiceLedger.SwitchesAsync(_db);
+        var cabinet = !switches.BillCabinetIssues
+            ? new List<ExportReceiptDetail>()
+            : await _db.ExportReceiptDetails.AsNoTracking()
+                .Include(d => d.ExportReceipt)
+                .Include(d => d.Medicine)
+                .Where(d => !d.IsDeleted && d.MedicineId != null && d.Quantity > 0
+                            && d.ExportReceipt.ExportType == 12 && d.ExportReceipt.Status == 1 && !d.ExportReceipt.IsDeleted
+                            && d.ExportReceipt.MedicalRecordId == medicalRecordId)
+                .ToListAsync(ct);
+
         var serviceIds = requests.SelectMany(r => r.Details.Select(d => d.ServiceId))
             .Concat(requests.Where(r => r.ServiceId.HasValue).Select(r => r.ServiceId!.Value)).Distinct().ToList();
-        var medicineIds = prescriptions.SelectMany(p => p.Details.Select(d => d.MedicineId)).Distinct().ToList();
+        var medicineIds = prescriptions.SelectMany(p => p.Details.Select(d => d.MedicineId))
+            .Concat(cabinet.Select(d => d.MedicineId!.Value)).Distinct().ToList();
         var priceConfigs = (serviceIds.Count + medicineIds.Count) == 0
             ? new List<InsurancePriceConfig>()
             : await _db.InsurancePriceConfigs.AsNoTracking()
@@ -247,8 +264,32 @@ public sealed class BhytVisitPricing
             }
         }
 
+        foreach (var d in cabinet)
+        {
+            if (d.Medicine == null) continue;
+            var date = d.ExportReceipt.ReceiptDate == default ? mr.AdmissionDate : d.ExportReceipt.ReceiptDate;
+            var cfg = ConfigFor(null, d.MedicineId, date);
+            lines.Add(new BhytPricedLine
+            {
+                ItemType = 2,
+                MedicineId = d.MedicineId,
+                CabinetDetailId = d.Id,
+                ItemCode = cfg?.ItemCode is { Length: > 0 } c ? c : (d.Medicine.MedicineCodeBYT ?? d.Medicine.MedicineCode),
+                ItemName = d.Medicine.MedicineName,
+                Unit = d.Unit ?? d.Medicine.Unit,
+                Quantity = d.Quantity,
+                UnitPrice = d.Medicine.UnitPrice > 0 ? d.Medicine.UnitPrice : d.UnitPrice, // same price as InvoiceLedger
+                ItemPaymentRate = cfg?.PaymentRate ?? d.Medicine.InsurancePaymentRate,
+                IsInsuranceCovered = CardCovers(date) && (cfg != null || d.Medicine.IsInsuranceCovered),
+                ServiceDate = date,
+                Frozen = true,
+                Result = null!,
+                InsurancePrice = cfg?.InsurancePrice ?? d.Medicine.InsurancePrice,
+            });
+        }
+
         if (includeBeds && mr.TreatmentType == 2)
-            lines.AddRange(await BedLinesAsync(mr, CardCovers, ct));
+            lines.AddRange(await BedLinesAsync(mr, CardCovers, switches.SplitBedDaysAtCardExpiry && cardValid ? expiry : null, ct));
 
         var ctx = await BuildContextAsync(mr, ct, cardNumber);
         var result = BhytCoverageCalculator.Calculate(ctx, lines.Select(l => new BhytLineInput
@@ -302,7 +343,11 @@ public sealed class BhytVisitPricing
     /// cashier see the same days. Public contract for billing: call <see cref="PriceAsync"/> with includeBeds = true and
     /// read the ItemType 4 lines (<see cref="BhytPricedLine.BedAssignmentId"/> = the ledger's bed ChargeLine id).
     /// </summary>
-    private async Task<List<BhytPricedLine>> BedLinesAsync(MedicalRecord mr, Func<DateTime, bool> cardCovers, CancellationToken ct)
+    /// <param name="splitAtExpiry">QA-R12 (Billing.SplitBedDaysAtCardExpiry = On): the card expiry date — an assignment
+    /// that runs past it is priced as two lines, the nights up to the expiry day covered, the nights after it not.
+    /// Null = old behaviour (the whole assignment follows the card on its start date).</param>
+    private async Task<List<BhytPricedLine>> BedLinesAsync(MedicalRecord mr, Func<DateTime, bool> cardCovers, DateTime? splitAtExpiry,
+        CancellationToken ct)
     {
         var assignments = await _db.BedAssignments.AsNoTracking()
             .Include(b => b.Bed)
@@ -345,22 +390,32 @@ public sealed class BhytVisitPricing
             {
                 var a = list[i];
                 if (a.Bed == null || a.Bed.DailyPrice <= 0 || days[i] <= 0) continue;
-                lines.Add(new BhytPricedLine
-                {
-                    ItemType = 4,
-                    BedAssignmentId = a.Id,
-                    ItemCode = a.Bed.BedCode,
-                    ItemName = $"Ngày giường {a.Bed.BedName}",
-                    Unit = "Ngày",
-                    Quantity = days[i],
-                    UnitPrice = a.Bed.DailyPrice,
-                    ItemPaymentRate = 100,
-                    // BedType 2 = giường dịch vụ theo yêu cầu — not paid by the fund.
-                    IsInsuranceCovered = a.Bed.BedType != 2 && cardCovers(a.AssignedAt),
-                    ServiceDate = a.AssignedAt,
-                    Frozen = true,
-                    Result = null!,
-                });
+                var startCovered = a.Bed.BedType != 2 && cardCovers(a.AssignedAt);
+                // QA-R12: nights after the card expiry are not the fund's (split only when switched on).
+                var coveredNights = splitAtExpiry != null && startCovered
+                    ? InvoiceLedger.CoveredBedNights(a.AssignedAt, days[i], splitAtExpiry)
+                    : days[i];
+                var segments = coveredNights > 0 && coveredNights < days[i]
+                    ? new[] { (Days: coveredNights, Covered: true, From: a.AssignedAt),
+                              (Days: days[i] - coveredNights, Covered: false, From: a.AssignedAt.Date.AddDays(coveredNights)) }
+                    : new[] { (Days: days[i], Covered: startCovered && coveredNights > 0, From: a.AssignedAt) };
+                foreach (var seg in segments)
+                    lines.Add(new BhytPricedLine
+                    {
+                        ItemType = 4,
+                        BedAssignmentId = a.Id,
+                        ItemCode = a.Bed.BedCode,
+                        ItemName = $"Ngày giường {a.Bed.BedName}",
+                        Unit = "Ngày",
+                        Quantity = seg.Days,
+                        UnitPrice = a.Bed.DailyPrice,
+                        ItemPaymentRate = 100,
+                        // BedType 2 = giường dịch vụ theo yêu cầu — not paid by the fund.
+                        IsInsuranceCovered = seg.Covered,
+                        ServiceDate = seg.From,
+                        Frozen = true,
+                        Result = null!,
+                    });
             }
         }
         return lines;

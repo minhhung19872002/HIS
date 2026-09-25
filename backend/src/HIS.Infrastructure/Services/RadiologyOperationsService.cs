@@ -40,7 +40,7 @@ public class RadiologyOperationsService : IRadiologyOperationsService
             var req = new RadiologyRequest
             {
                 Id = Guid.NewGuid(),
-                RequestCode = $"CDHA{now:yyyyMMddHHmmss}{created.Count:00}",
+                RequestCode = $"CDHA{HIS.Core.Common.CodeGenerator.NextUniqueNow():yyyyMMddHHmmssfff}", // QA-R12: per-second code collided across calls
                 PatientId = parent.PatientId,
                 ExaminationId = parent.ExaminationId,
                 MedicalRecordId = parent.MedicalRecordId,

@@ -128,4 +128,70 @@ public class InvoiceLedgerTests
     [InlineData(100_000, 0, 100_000, 100_000)]
     public void Patient_share_of_a_line(decimal amount, decimal insurance, decimal patient, decimal expected)
         => Assert.Equal(expected, InvoiceLedger.PatientShare(amount, insurance, patient));
+
+    // ── QA-R12: bed days after the BHYT card expiry ─────────────────────────────────────────────
+
+    [Fact]
+    public void Card_expiring_mid_stay_covers_the_nights_up_to_its_expiry_day()
+        // nights 10,11,12 (covered: card valid through the 12th) · 13,14 not
+        => Assert.Equal(3, InvoiceLedger.CoveredBedNights(new DateTime(2026, 9, 10, 22, 0, 0), 5, new DateTime(2026, 9, 12)));
+
+    [Fact]
+    public void Card_expiring_on_the_admission_day_covers_only_that_night()
+        => Assert.Equal(1, InvoiceLedger.CoveredBedNights(new DateTime(2026, 9, 10, 8, 0, 0), 4, new DateTime(2026, 9, 10, 23, 59, 0)));
+
+    [Fact]
+    public void Card_expired_before_the_bed_started_covers_nothing()
+        => Assert.Equal(0, InvoiceLedger.CoveredBedNights(new DateTime(2026, 9, 10, 8, 0, 0), 4, new DateTime(2026, 9, 9)));
+
+    [Theory]
+    [InlineData(null)]          // no expiry on the card
+    [InlineData("2026-12-31")]  // expires after the stay
+    public void Card_valid_for_the_whole_stay_covers_every_night(string? expiry)
+        => Assert.Equal(4, InvoiceLedger.CoveredBedNights(new DateTime(2026, 9, 10, 8, 0, 0), 4,
+            expiry == null ? null : DateTime.Parse(expiry, System.Globalization.CultureInfo.InvariantCulture)));
+
+    [Fact]
+    public void No_bed_days_means_no_covered_nights()
+        => Assert.Equal(0, InvoiceLedger.CoveredBedNights(new DateTime(2026, 9, 10), 0, new DateTime(2026, 9, 12)));
+
+    // ── QA-R12: billable medicine quantity (partial dispense / patient return) ──────────────────
+
+    [Fact]
+    public void Line_not_yet_issued_is_billed_as_prescribed() // OPD collects before dispensing
+        => Assert.Equal(520m, InvoiceLedger.BillableQuantity(520, 0, issued: false, returned: 0));
+
+    [Fact]
+    public void Partially_dispensed_line_is_billed_for_what_was_handed_over()
+        => Assert.Equal(500m, InvoiceLedger.BillableQuantity(520, 500, issued: true, returned: 0));
+
+    [Fact]
+    public void Dispensed_quantity_above_the_prescription_never_bills_more_than_prescribed()
+        => Assert.Equal(10m, InvoiceLedger.BillableQuantity(10, 12, issued: true, returned: 0));
+
+    [Fact]
+    public void Approved_patient_return_is_taken_off_the_billed_quantity()
+        => Assert.Equal(7m, InvoiceLedger.BillableQuantity(10, 10, issued: true, returned: 3));
+
+    [Fact]
+    public void Return_larger_than_what_was_kept_never_gives_a_negative_quantity()
+        => Assert.Equal(0m, InvoiceLedger.BillableQuantity(10, 4, issued: true, returned: 6));
+
+    [Fact]
+    public void Returns_are_spread_over_the_latest_issues_first()
+        => Assert.Equal(new[] { 5m, 2m, 0m }, InvoiceLedger.AllocateLatestFirst(new[] { 5m, 4m, 10m }, 7));
+
+    [Fact]
+    public void Return_above_everything_issued_takes_only_what_exists()
+        => Assert.Equal(new[] { 2m, 3m }, InvoiceLedger.AllocateLatestFirst(new[] { 2m, 3m }, 9));
+
+    [Theory]
+    [InlineData("On", false, true)]
+    [InlineData(" off ", true, false)]
+    [InlineData("true", false, true)]
+    [InlineData("0", true, false)]
+    [InlineData(null, true, true)]    // row missing → the documented default
+    [InlineData("maybe", false, false)]
+    public void Billing_switch_values(string? value, bool whenMissing, bool expected)
+        => Assert.Equal(expected, InvoiceLedger.ParseSwitch(value, whenMissing));
 }

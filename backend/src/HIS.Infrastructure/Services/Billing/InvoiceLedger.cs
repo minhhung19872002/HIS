@@ -48,6 +48,8 @@ public static class InvoiceLedger
         /// <summary>ServiceRequest id / Prescription id / Admission id.</summary>
         public Guid ParentId { get; init; }
         public bool IsHeaderOnly { get; init; }
+        /// <summary>QA-R12: ward-cabinet issue line (Id = ExportReceiptDetail id, ParentId = ExportReceipt id).</summary>
+        public bool IsCabinet { get; init; }
         public Guid ItemRefId { get; init; } // ServiceId / MedicineId / BedId
         public string Code { get; init; } = string.Empty;
         public string Name { get; init; } = string.Empty;
@@ -82,6 +84,8 @@ public static class InvoiceLedger
         public List<ChargeLine> Beds { get; } = new();
         /// <summary>Bed money already allocated by ReceiptDetails (ItemType 4) on this record.</summary>
         public decimal BedPaidAmount { get; set; }
+        /// <summary>QA-R12: things the cashier must know that the ledger cannot settle by itself (with the amounts).</summary>
+        public List<string> Warnings { get; } = new();
 
         public IEnumerable<ChargeLine> All => Services.Concat(Medicines).Concat(Beds);
         public decimal ServiceGross => Services.Sum(l => l.Amount);
@@ -96,6 +100,104 @@ public static class InvoiceLedger
     /// <summary>Patient share of a priced line: rows that never had the insurance split (both 0) are fully patient-paid.</summary>
     public static decimal PatientShare(decimal amount, decimal insuranceAmount, decimal patientAmount)
         => patientAmount == 0 && insuranceAmount == 0 ? amount : patientAmount;
+
+    // ── QA-R12 billing switches (SystemConfigs, seeded by the r12-money migration) ──────────────────────
+    /// <summary>Off by default (also when the row is missing) = bill as prescribed + cashier warning. On: an UNPAID medicine line is billed for what the patient
+    /// actually kept — min(prescribed, dispensed) once the line was issued, minus approved patient returns. Paid lines
+    /// are never re-priced; the difference is shown to the cashier as a refund suggestion.</summary>
+    public const string BillDispensedQuantityKey = "Billing.BillDispensedQuantity";
+    /// <summary>Off (default): ward-cabinet issues (ExportType 12) are NOT charged, the cashier sees the unbilled amount.
+    /// On: they become medicine charge lines (catalog price, BHYT split from BhytVisitPricing).</summary>
+    public const string BillCabinetIssuesKey = "Billing.BillCabinetIssues";
+    /// <summary>Off (default): bed nights after the BHYT card expired stay BHYT-covered, the cashier sees the amount.
+    /// On: BhytVisitPricing splits the bed line at the card expiry date.</summary>
+    public const string SplitBedDaysAtCardExpiryKey = "Billing.SplitBedDaysAtCardExpiry";
+
+    public sealed record BillingSwitches(bool BillDispensedQuantity, bool BillCabinetIssues, bool SplitBedDaysAtCardExpiry);
+
+    /// <summary>Reads the QA-R12 switches in one query. On = "On"/"true"/"1", Off = "Off"/"false"/"0", else the default.</summary>
+    public static async Task<BillingSwitches> SwitchesAsync(HISDbContext db)
+    {
+        var rows = await db.SystemConfigs.AsNoTracking()
+            .Where(c => (c.ConfigKey == BillDispensedQuantityKey || c.ConfigKey == BillCabinetIssuesKey
+                         || c.ConfigKey == SplitBedDaysAtCardExpiryKey) && c.IsActive && !c.IsDeleted)
+            .Select(c => new { c.ConfigKey, c.ConfigValue })
+            .ToListAsync();
+        bool Read(string key, bool whenMissing) => ParseSwitch(rows.FirstOrDefault(r => r.ConfigKey == key)?.ConfigValue, whenMissing);
+        return new BillingSwitches(Read(BillDispensedQuantityKey, false), Read(BillCabinetIssuesKey, false),
+            Read(SplitBedDaysAtCardExpiryKey, false));
+    }
+
+    /// <summary>"On"/"true"/"1"/"yes" → true, "Off"/"false"/"0"/"no" → false, anything else → <paramref name="whenMissing"/>.</summary>
+    public static bool ParseSwitch(string? value, bool whenMissing) => value?.Trim().ToLowerInvariant() switch
+    {
+        "on" or "true" or "1" or "yes" => true,
+        "off" or "false" or "0" or "no" => false,
+        _ => whenMissing,
+    };
+
+    /// <summary>
+    /// QA-R12: quantity of a medicine line the patient is billed for. Before the line is issued from stock the
+    /// prescription is the charge (OPD collects before dispensing). Once issued: what was handed over (never more than
+    /// prescribed) minus what the patient returned (approved return), never below 0.
+    /// </summary>
+    public static decimal BillableQuantity(decimal prescribed, decimal dispensed, bool issued, decimal returned)
+    {
+        if (!issued) return prescribed;
+        var kept = Math.Min(prescribed, Math.Max(0, dispensed)) - Math.Max(0, returned);
+        return Math.Max(0, kept);
+    }
+
+    /// <summary>
+    /// QA-R12: of <paramref name="days"/> bed nights starting on <paramref name="start"/> (night k = start.Date + k), how many
+    /// fall on or before the card expiry date (a card is valid through its expiry day). No expiry = all covered.
+    /// </summary>
+    public static int CoveredBedNights(DateTime start, int days, DateTime? cardExpiry)
+    {
+        if (days <= 0) return 0;
+        if (cardExpiry == null) return days;
+        var covered = (cardExpiry.Value.Date - start.Date).Days + 1;
+        return Math.Clamp(covered, 0, days);
+    }
+
+    /// <summary>
+    /// QA-R12: spread a returned quantity over issued rows ordered latest first (same order the stock return uses),
+    /// each row taking at most its remaining capacity. Returns the quantity taken per row (aligned with the input).
+    /// </summary>
+    public static decimal[] AllocateLatestFirst(IReadOnlyList<decimal> capacityLatestFirst, decimal quantity)
+    {
+        var taken = new decimal[capacityLatestFirst.Count];
+        var left = Math.Max(0, quantity);
+        for (var i = 0; i < taken.Length && left > 0; i++)
+        {
+            var t = Math.Min(Math.Max(0, capacityLatestFirst[i]), left);
+            taken[i] = t;
+            left -= t;
+        }
+        return taken;
+    }
+
+    /// <summary>A copy of a priced line billed for <paramref name="quantity"/> instead of its own quantity (amounts pro rata).</summary>
+    internal static ChargeLine Rescaled(ChargeLine l, decimal quantity)
+    {
+        var f = l.Quantity > 0 ? quantity / l.Quantity : 0m;
+        return new ChargeLine
+        {
+            ItemType = l.ItemType, Id = l.Id, ParentId = l.ParentId, IsHeaderOnly = l.IsHeaderOnly, IsCabinet = l.IsCabinet,
+            ItemRefId = l.ItemRefId, Code = l.Code, Name = l.Name, Unit = l.Unit,
+            Quantity = quantity, UnitPrice = l.UnitPrice,
+            Amount = Math.Round(l.Amount * f, 2), InsuranceAmount = Math.Round(l.InsuranceAmount * f, 2),
+            PatientAmount = Math.Round(l.PatientAmount * f, 2),
+            InsuranceRate = l.InsuranceRate, PaymentObject = l.PaymentObject, IsPaid = l.IsPaid,
+            OrderDepartmentId = l.OrderDepartmentId, OrderDepartmentName = l.OrderDepartmentName,
+            ExecuteDepartmentId = l.ExecuteDepartmentId, ExecuteDepartmentName = l.ExecuteDepartmentName,
+            ActiveIngredient = l.ActiveIngredient, OrderedAt = l.OrderedAt, ExecutedAt = l.ExecutedAt,
+            FromDate = l.FromDate, ToDate = l.ToDate, Days = l.Days, RoomName = l.RoomName,
+        };
+    }
+
+    private static string Money(decimal v) => v.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("vi-VN")) + " đ";
+    private static string Qty(decimal v) => v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>
     /// Bed days per assignment of ONE admission = nights on that bed (calendar days between assignment and its
@@ -129,14 +231,25 @@ public static class InvoiceLedger
     public static async Task<ChargeSet> LoadAsync(HISDbContext db, Guid medicalRecordId)
     {
         var set = new ChargeSet { MedicalRecordId = medicalRecordId };
+        var sw = await SwitchesAsync(db); // QA-R12
+        var record = await db.MedicalRecords.AsNoTracking()
+            .Where(m => m.Id == medicalRecordId)
+            .Select(m => new { m.PatientId, m.PatientType, m.TreatmentType })
+            .FirstOrDefaultAsync();
 
         var allocated = await db.ReceiptDetails.AsNoTracking()
             .Where(rd => !rd.IsDeleted && rd.Receipt.Status == 1 && !rd.Receipt.IsDeleted
                          && rd.Receipt.ReceiptType == 2 && rd.Receipt.MedicalRecordId == medicalRecordId)
-            .Select(rd => new { rd.ServiceRequestDetailId, rd.PrescriptionDetailId, rd.ItemType, rd.ItemCode, rd.FinalAmount })
+            .Select(rd => new { rd.ServiceRequestDetailId, rd.PrescriptionDetailId, rd.ItemType, rd.ItemCode, rd.FinalAmount, rd.Quantity })
             .ToListAsync();
         var paidSrd = allocated.Where(a => a.ServiceRequestDetailId != null).Select(a => a.ServiceRequestDetailId!.Value).ToHashSet();
         var paidPd = allocated.Where(a => a.PrescriptionDetailId != null).Select(a => a.PrescriptionDetailId!.Value).ToHashSet();
+        // QA-R12: quantity each medicine line was collected for (a line paid after a partial dispense was collected for less).
+        var paidQtyPd = allocated.Where(a => a.PrescriptionDetailId != null)
+            .GroupBy(a => a.PrescriptionDetailId!.Value).ToDictionary(g => g.Key, g => g.Max(x => x.Quantity));
+        // QA-R12: a ward-cabinet line has no PrescriptionDetail — its ReceiptDetail carries the ExportReceiptDetail id in ItemCode.
+        var paidCabinet = allocated.Where(a => a.ItemType == ItemMedicine && a.PrescriptionDetailId == null && Guid.TryParse(a.ItemCode, out _))
+            .GroupBy(a => Guid.Parse(a.ItemCode!)).ToDictionary(g => g.Key, g => g.Max(x => x.Quantity));
         // Header-only service requests have no detail id: their ReceiptDetail carries the request id in ItemCode.
         var paidHeader = allocated.Where(a => a.ItemType == ItemService && a.ServiceRequestDetailId == null && Guid.TryParse(a.ItemCode, out _))
             .Select(a => Guid.Parse(a.ItemCode!)).ToHashSet();
@@ -205,6 +318,18 @@ public static class InvoiceLedger
                         && !db.RetailSales.Any(s => s.PrescriptionId == p.Id && s.Status != "Cancelled" && !s.IsDeleted))
             .OrderBy(p => p.PrescriptionDate)
             .ToListAsync();
+
+        // QA-R12: approved patient returns (PharmacyApproval type 5) per line of this record.
+        var returned = sw.BillDispensedQuantity && record != null
+            ? await ReturnedByLineAsync(db, medicalRecordId, record.PatientId, prescriptions)
+            : new Dictionary<Guid, decimal>();
+        // Unpaid lines to bill for less (index into set.Medicines, billable quantity) — applied at the end, capped by
+        // the money still owed so a record already collected in full is never turned into an overpayment.
+        var pendingCuts = new List<(int Index, decimal Quantity)>();
+        var refundHints = new List<(string Text, decimal Amount)>();
+        var topUpHints = new List<(string Text, decimal Amount)>();
+        var underDispensed = new List<(string Text, decimal Amount)>();
+
         foreach (var p in prescriptions)
         {
             foreach (var d in p.Details.Where(d => !d.IsDeleted && d.Status != 2))
@@ -212,7 +337,7 @@ public static class InvoiceLedger
                 var paidHere = paidPd.Contains(d.Id);
                 if (p.IsPaid && !paidHere) continue; // paid outside the ledger (prescription QR)
                 var amount = d.Amount != 0 ? d.Amount : d.Quantity * d.UnitPrice;
-                set.Medicines.Add(new ChargeLine
+                var line = new ChargeLine
                 {
                     ItemType = ItemMedicine, Id = d.Id, ParentId = p.Id, ItemRefId = d.MedicineId,
                     Code = d.Medicine?.MedicineCode ?? string.Empty, Name = d.Medicine?.MedicineName ?? string.Empty,
@@ -224,7 +349,103 @@ public static class InvoiceLedger
                     IsPaid = paidHere,
                     OrderDepartmentId = p.DepartmentId,
                     OrderedAt = p.PrescriptionDate, ExecutedAt = p.DispensedAt,
-                });
+                };
+
+                // QA-R12 (partial dispense / patient return): bill what the patient kept, never re-price a paid line.
+                if (sw.BillDispensedQuantity && d.Quantity > 0)
+                {
+                    var issued = d.Status == 1 && p.Status is PrescriptionStatus.Dispensed or PrescriptionStatus.PartialDispensed;
+                    var billable = BillableQuantity(d.Quantity, d.DispensedQuantity, issued, returned.GetValueOrDefault(d.Id));
+                    var unitShare = line.PatientAmount / d.Quantity;
+                    if (paidHere)
+                    {
+                        // Collected for less than prescribed (paid after a partial dispense): the line stays at what was collected.
+                        var paidQty = paidQtyPd.GetValueOrDefault(d.Id);
+                        var chargedQty = paidQty > 0 && paidQty < d.Quantity ? paidQty : d.Quantity;
+                        if (chargedQty < d.Quantity) line = Rescaled(line, chargedQty);
+                        if (billable < chargedQty)
+                            refundHints.Add(($"{line.Name}: đã thu {Qty(chargedQty)}, thực nhận {Qty(billable)}", Math.Round(unitShare * (chargedQty - billable), 0)));
+                        else if (billable > chargedQty)
+                            topUpHints.Add(($"{line.Name}: đã thu {Qty(chargedQty)}, nay đã cấp {Qty(billable)}", Math.Round(unitShare * (billable - chargedQty), 0)));
+                    }
+                    else if (billable < d.Quantity)
+                        pendingCuts.Add((set.Medicines.Count, billable));
+                }
+                else if (!sw.BillDispensedQuantity && !paidHere && d.Quantity > 0 && d.Status == 1
+                         && p.Status is PrescriptionStatus.Dispensed or PrescriptionStatus.PartialDispensed
+                         && d.DispensedQuantity < d.Quantity)
+                {
+                    // Switch Off (default): bill as prescribed like before, but tell the cashier what was not handed out.
+                    underDispensed.Add(($"{line.Name}: kê {Qty(d.Quantity)}, thực cấp {Qty(d.DispensedQuantity)}",
+                        Math.Round(line.PatientAmount / d.Quantity * (d.Quantity - d.DispensedQuantity), 0)));
+                }
+                set.Medicines.Add(line);
+            }
+        }
+
+        // ── Ward-cabinet issues (ExportType 12) — QA-R12 ────────────────────────────
+        var cabinet = await db.ExportReceiptDetails.AsNoTracking()
+            .Where(d => !d.IsDeleted && d.MedicineId != null && d.Quantity > 0
+                        && d.ExportReceipt.ExportType == 12 && d.ExportReceipt.Status == 1 && !d.ExportReceipt.IsDeleted
+                        && d.ExportReceipt.MedicalRecordId == medicalRecordId)
+            .OrderBy(d => d.ExportReceipt.ReceiptDate)
+            .Select(d => new
+            {
+                d.Id, d.ExportReceiptId, d.ExportReceipt.ReceiptCode, d.ExportReceipt.ReceiptDate, d.ExportReceipt.ToDepartmentId,
+                MedicineId = d.MedicineId!.Value, d.Quantity, d.Unit, LotPrice = d.UnitPrice,
+                d.Medicine!.MedicineCode, d.Medicine.MedicineName, d.Medicine.ActiveIngredient, CatalogPrice = d.Medicine.UnitPrice,
+                MedicineUnit = d.Medicine.Unit,
+            })
+            .ToListAsync();
+        var cabinetUnbilled = 0m;
+        foreach (var c in cabinet)
+        {
+            var price = c.CatalogPrice > 0 ? c.CatalogPrice : c.LotPrice; // same catalog price as prescription lines
+            var paidHere = paidCabinet.TryGetValue(c.Id, out var paidQty);
+            var kept = Math.Max(0, c.Quantity - returned.GetValueOrDefault(c.Id));
+            var qty = paidHere ? paidQty : kept; // a paid line stays at what was collected
+            if (paidHere && kept < paidQty)
+                refundHints.Add(($"{c.MedicineName} (tủ trực {c.ReceiptCode}): đã thu {Qty(paidQty)}, thực nhận {Qty(kept)}", Math.Round(price * (paidQty - kept), 0)));
+            if (!sw.BillCabinetIssues)
+            {
+                cabinetUnbilled += qty * price;
+                continue;
+            }
+            if (qty <= 0) continue;
+            var amount = qty * price;
+            set.Medicines.Add(new ChargeLine
+            {
+                ItemType = ItemMedicine, Id = c.Id, ParentId = c.ExportReceiptId, IsCabinet = true, ItemRefId = c.MedicineId,
+                Code = c.MedicineCode, Name = $"{c.MedicineName} (tủ trực {c.ReceiptCode})",
+                ActiveIngredient = c.ActiveIngredient, Unit = c.Unit ?? c.MedicineUnit,
+                Quantity = qty, UnitPrice = price, Amount = amount, PatientAmount = amount, // BHYT split below
+                PaymentObject = record?.PatientType ?? 0, IsPaid = paidHere,
+                OrderDepartmentId = c.ToDepartmentId, OrderedAt = c.ReceiptDate, ExecutedAt = c.ReceiptDate,
+            });
+        }
+        if (cabinetUnbilled > 0)
+            set.Warnings.Add($"Có {cabinet.Count} dòng thuốc xuất tủ trực cho hồ sơ này ({Money(cabinetUnbilled)} theo giá danh mục) "
+                             + "CHƯA tính vào viện phí — kê bổ sung hoặc bật cấu hình Billing.BillCabinetIssues.");
+        if (sw.BillCabinetIssues && record?.PatientType == 1 && set.Medicines.Any(l => l.IsCabinet && !l.IsPaid))
+        {
+            // Insured record: take the fund's share of each cabinet line from the visit pricing (like bed days).
+            var visit = await new BhytVisitPricing(db).PriceAsync(medicalRecordId, includeBeds: false);
+            for (var i = 0; i < set.Medicines.Count; i++)
+            {
+                var l = set.Medicines[i];
+                if (!l.IsCabinet || l.IsPaid) continue;
+                var match = visit?.Lines.FirstOrDefault(x => x.CabinetDetailId == l.Id && x.Result != null);
+                if (match == null || match.Result.Amount <= 0 || match.Result.InsuranceAmount <= 0) continue;
+                var insurance = Math.Min(l.Amount, Math.Round(l.Amount * match.Result.InsuranceAmount / match.Result.Amount, 0));
+                set.Medicines[i] = new ChargeLine
+                {
+                    ItemType = l.ItemType, Id = l.Id, ParentId = l.ParentId, IsCabinet = true, ItemRefId = l.ItemRefId,
+                    Code = l.Code, Name = l.Name, ActiveIngredient = l.ActiveIngredient, Unit = l.Unit,
+                    Quantity = l.Quantity, UnitPrice = l.UnitPrice, Amount = l.Amount,
+                    InsuranceAmount = insurance, PatientAmount = l.Amount - insurance,
+                    InsuranceRate = l.Amount > 0 ? Math.Round(insurance * 100 / l.Amount, 0) : 0, PaymentObject = 1,
+                    IsPaid = l.IsPaid, OrderDepartmentId = l.OrderDepartmentId, OrderedAt = l.OrderedAt, ExecutedAt = l.ExecutedAt,
+                };
             }
         }
 
@@ -290,13 +511,29 @@ public static class InvoiceLedger
             {
                 var visit = await new BhytVisitPricing(db).PriceAsync(medicalRecordId, includeBeds: true);
                 var bhytBeds = visit?.Lines.Where(l => l.ItemType == ItemBed && l.Result != null).ToList() ?? new();
+                var expiry = visit?.CardExpireDate?.Date;
+                decimal lateInsurance = 0; var lateNights = 0;
                 for (var i = 0; i < set.Beds.Count; i++)
                 {
                     var b = set.Beds[i];
-                    var match = bhytBeds.FirstOrDefault(l => l.ItemCode == b.Code && l.ServiceDate == b.FromDate)
-                                ?? bhytBeds.FirstOrDefault(l => l.ItemCode == b.Code);
-                    if (match == null || match.Result.Amount <= 0 || match.Result.InsuranceAmount <= 0) continue;
-                    var insurance = Math.Min(b.Amount, Math.Round(b.Amount * match.Result.InsuranceAmount / match.Result.Amount, 0));
+                    // QA-R12: one assignment may be priced as two lines (split at the card expiry) — sum its lines.
+                    var parts = bhytBeds.Where(l => l.BedAssignmentId == b.Id).ToList();
+                    if (parts.Count == 0)
+                    {
+                        var single = bhytBeds.FirstOrDefault(l => l.ItemCode == b.Code && l.ServiceDate == b.FromDate)
+                                     ?? bhytBeds.FirstOrDefault(l => l.ItemCode == b.Code);
+                        if (single != null) parts.Add(single);
+                    }
+                    var partAmount = parts.Sum(l => l.Result.Amount);
+                    var partInsurance = parts.Sum(l => l.Result.InsuranceAmount);
+                    if (parts.Count == 0 || partAmount <= 0 || partInsurance <= 0) continue;
+                    var insurance = Math.Min(b.Amount, Math.Round(b.Amount * partInsurance / partAmount, 0));
+                    // QA-R12 (switch Off): nights after the card expired that the fund is still shown paying for.
+                    if (!sw.SplitBedDaysAtCardExpiry && expiry != null && b.FromDate != null && b.Days > 0)
+                    {
+                        var after = b.Days - CoveredBedNights(b.FromDate.Value, b.Days, expiry);
+                        if (after > 0) { lateNights += after; lateInsurance += Math.Round(insurance * after / b.Days, 0); }
+                    }
                     set.Beds[i] = new ChargeLine
                     {
                         ItemType = b.ItemType, Id = b.Id, ParentId = b.ParentId, ItemRefId = b.ItemRefId, Code = b.Code, Name = b.Name,
@@ -306,6 +543,9 @@ public static class InvoiceLedger
                         FromDate = b.FromDate, ToDate = b.ToDate, OrderedAt = b.OrderedAt,
                     };
                 }
+                if (lateNights > 0)
+                    set.Warnings.Add($"Thẻ BHYT hết hạn {expiry:dd/MM/yyyy} trong đợt nằm viện: {lateNights} ngày giường sau ngày hết hạn "
+                                     + $"vẫn đang tính BHYT chi trả ({Money(lateInsurance)}) — kiểm tra thẻ mới hoặc bật cấu hình Billing.SplitBedDaysAtCardExpiry.");
             }
 
             // Bed money is allocated as a running amount (a stay grows every day), oldest first.
@@ -317,7 +557,154 @@ public static class InvoiceLedger
             }
         }
 
+        await ApplyQuantityCutsAsync(db, set, pendingCuts, refundHints, topUpHints);
+        if (underDispensed.Count > 0)
+            set.Warnings.Add($"Thuốc cấp thiếu so với đơn nhưng vẫn tính theo SL kê (Billing.BillDispensedQuantity = Off): "
+                             + $"{Money(underDispensed.Sum(u => u.Amount))} — "
+                             + $"{string.Join("; ", underDispensed.Take(5).Select(u => u.Text))}{(underDispensed.Count > 5 ? "; …" : "")}.");
+        if (record is { TreatmentType: 1 })
+            await AddExamFeeWarningAsync(db, set, medicalRecordId);
         return set;
+    }
+
+    /// <summary>
+    /// QA-R12: quantity returned by the patient per charge line of this record (PrescriptionDetail id, or ExportReceiptDetail
+    /// id for a ward-cabinet issue). Approved patient returns (PharmacyApproval type 5, Status 3) carry medicine + quantity,
+    /// not the line — they are spread over the issued rows latest first, exactly like PharmacyApprovalService puts the stock
+    /// back (record-scoped returns over this record's rows, patient-scoped returns over all the patient's rows).
+    /// </summary>
+    private static async Task<Dictionary<Guid, decimal>> ReturnedByLineAsync(HISDbContext db, Guid medicalRecordId, Guid patientId,
+        List<Prescription> prescriptions)
+    {
+        var result = new Dictionary<Guid, decimal>();
+        var returns = await db.PharmacyApprovalItems.AsNoTracking()
+            .Where(i => !i.IsDeleted && !i.IsExcluded && i.MedicineId != null && i.ApprovedQuantity > 0
+                        && i.PharmacyApproval.ApprovalType == 5 && i.PharmacyApproval.Status == 3 && !i.PharmacyApproval.IsDeleted
+                        && (i.PharmacyApproval.MedicalRecordId == medicalRecordId
+                            || (i.PharmacyApproval.MedicalRecordId == null && i.PharmacyApproval.PatientId == patientId)))
+            .Select(i => new { MedicineId = i.MedicineId!.Value, i.ApprovedQuantity, RecordScoped = i.PharmacyApproval.MedicalRecordId != null })
+            .ToListAsync();
+        if (returns.Count == 0) return result;
+
+        var medIds = returns.Select(r => r.MedicineId).Distinct().ToList();
+        var rows = await db.ExportReceiptDetails.AsNoTracking()
+            .Where(d => !d.IsDeleted && d.MedicineId != null && medIds.Contains(d.MedicineId.Value) && d.InventoryItemId != null
+                        && !d.ExportReceipt.IsDeleted && d.ExportReceipt.Status == 1
+                        && (d.ExportReceipt.ExportType == 1 || d.ExportReceipt.ExportType == 2 || d.ExportReceipt.ExportType == 12)
+                        && (d.ExportReceipt.MedicalRecordId == medicalRecordId || d.ExportReceipt.PatientId == patientId))
+            .OrderByDescending(d => d.ExportReceipt.ReceiptDate).ThenByDescending(d => d.CreatedAt)
+            .Select(d => new
+            {
+                d.Id, MedicineId = d.MedicineId!.Value, d.Quantity, d.ExportReceipt.ExportType, d.ExportReceipt.PrescriptionId,
+                d.ExportReceipt.MedicalRecordId, d.ExportReceipt.PatientId,
+            })
+            .ToListAsync();
+        var rxIds = prescriptions.Select(p => p.Id).ToHashSet();
+
+        foreach (var med in medIds)
+        {
+            var medRows = rows.Where(r => r.MedicineId == med).ToList();
+            var capacity = medRows.Select(r => r.Quantity).ToArray();
+            var taken = new decimal[medRows.Count];
+            void Spread(Func<int, bool> inScope, decimal qty)
+            {
+                var idx = Enumerable.Range(0, medRows.Count).Where(inScope).ToList();
+                var got = AllocateLatestFirst(idx.Select(i => capacity[i] - taken[i]).ToList(), qty);
+                for (var k = 0; k < idx.Count; k++) taken[idx[k]] += got[k];
+            }
+            Spread(i => medRows[i].MedicalRecordId == medicalRecordId,
+                returns.Where(r => r.MedicineId == med && r.RecordScoped).Sum(r => r.ApprovedQuantity));
+            Spread(i => medRows[i].PatientId == patientId,
+                returns.Where(r => r.MedicineId == med && !r.RecordScoped).Sum(r => r.ApprovedQuantity));
+
+            for (var i = 0; i < medRows.Count; i++)
+            {
+                if (taken[i] <= 0) continue;
+                var r = medRows[i];
+                if (r.ExportType == 12)
+                {
+                    if (r.MedicalRecordId == medicalRecordId) result[r.Id] = result.GetValueOrDefault(r.Id) + taken[i];
+                    continue;
+                }
+                // A dispensing row → the line(s) of that medicine on its prescription (on this record), capped by what each got.
+                if (r.PrescriptionId == null || !rxIds.Contains(r.PrescriptionId.Value)) continue;
+                var left = taken[i];
+                foreach (var d in prescriptions.First(p => p.Id == r.PrescriptionId.Value).Details
+                             .Where(d => !d.IsDeleted && d.MedicineId == med).OrderBy(d => d.CreatedAt))
+                {
+                    if (left <= 0) break;
+                    var room = Math.Max(0, d.DispensedQuantity - result.GetValueOrDefault(d.Id));
+                    var t = Math.Min(room, left);
+                    if (t <= 0) continue;
+                    result[d.Id] = result.GetValueOrDefault(d.Id) + t;
+                    left -= t;
+                }
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// QA-R12: bill unpaid medicine lines for what the patient kept, but only while money is still owed on the record —
+    /// a cut is never allowed to push the charges below what was already collected (that part becomes a refund hint).
+    /// </summary>
+    private static async Task ApplyQuantityCutsAsync(HISDbContext db, ChargeSet set, List<(int Index, decimal Quantity)> cuts,
+        List<(string Text, decimal Amount)> refundHints, List<(string Text, decimal Amount)> topUpHints)
+    {
+        if (cuts.Count > 0)
+        {
+            var (paid, refunded) = await PaidOnRecordAsync(db, set.MedicalRecordId);
+            var discount = await db.InvoiceSummaries.AsNoTracking()
+                .Where(i => i.MedicalRecordId == set.MedicalRecordId && !i.IsDeleted)
+                .OrderByDescending(i => i.InvoiceDate).Select(i => (decimal?)i.DiscountAmount).FirstOrDefaultAsync() ?? 0m;
+            var headroom = set.PatientTotal - discount - Math.Max(0, paid - refunded);
+            var applied = new List<string>();
+            decimal appliedAmount = 0;
+            var drop = new HashSet<int>();
+            foreach (var (index, quantity) in cuts)
+            {
+                var line = set.Medicines[index];
+                var cut = Rescaled(line, quantity);
+                var delta = line.PatientAmount - cut.PatientAmount;
+                if (delta > headroom)
+                {
+                    refundHints.Add(($"{line.Name}: kê {Qty(line.Quantity)}, thực nhận {Qty(quantity)} (tiền đã thu trên hồ sơ)", Math.Round(delta, 0)));
+                    continue;
+                }
+                headroom -= delta;
+                appliedAmount += delta;
+                applied.Add($"{line.Name} {Qty(line.Quantity)}→{Qty(quantity)}");
+                if (quantity <= 0) drop.Add(index); else set.Medicines[index] = cut;
+            }
+            foreach (var i in drop.OrderByDescending(i => i)) set.Medicines.RemoveAt(i);
+            if (applied.Count > 0)
+                set.Warnings.Add($"Tiền thuốc tính theo số lượng thực cấp / đã trừ hoàn trả: {applied.Count} dòng, giảm {Money(appliedAmount)} "
+                                 + $"({string.Join("; ", applied.Take(5))}{(applied.Count > 5 ? "; …" : "")}).");
+        }
+        if (refundHints.Count > 0)
+            set.Warnings.Add($"Gợi ý hoàn tiền {Money(refundHints.Sum(h => h.Amount))}: thuốc đã thu nhưng người bệnh không nhận đủ / đã hoàn trả — "
+                             + $"{string.Join("; ", refundHints.Take(5).Select(h => $"{h.Text} ({Money(h.Amount)})"))}{(refundHints.Count > 5 ? "; …" : "")}.");
+        if (topUpHints.Count > 0)
+            set.Warnings.Add($"Thuốc cấp bổ sung sau khi đã thu tiền, chưa thu thêm {Money(topUpHints.Sum(h => h.Amount))}: "
+                             + $"{string.Join("; ", topUpHints.Take(5).Select(h => h.Text))}.");
+    }
+
+    /// <summary>
+    /// QA-R12: an outpatient visit whose exam fee (dịch vụ khám, Services.ServiceType 1) was never charged — registration
+    /// does not create it unless Reception.AutoExamFee = On. Tell the cashier instead of silently collecting less.
+    /// </summary>
+    private static async Task AddExamFeeWarningAsync(HISDbContext db, ChargeSet set, Guid medicalRecordId)
+    {
+        var hasExam = await db.Examinations.AsNoTracking()
+            .AnyAsync(e => e.MedicalRecordId == medicalRecordId && !e.IsDeleted && e.Status != ExaminationStatus.Cancelled);
+        if (!hasExam) return;
+        var hasFee = await db.ServiceRequests.AsNoTracking()
+            .AnyAsync(r => r.MedicalRecordId == medicalRecordId && !r.IsDeleted && r.Status != 4
+                           && ((!r.Details.Any() && r.Service != null && r.Service.ServiceType == 1)
+                               || r.Details.Any(d => !d.IsDeleted && d.Status != 3 && d.Service.ServiceType == 1)));
+        if (!hasFee)
+            set.Warnings.Add("Lượt khám chưa có công khám (tiền khám) — thêm dịch vụ khám cho lượt này trước khi thu, "
+                             + "hoặc bật cấu hình Reception.AutoExamFee để tiếp đón tự tạo.");
     }
 
     /// <summary>Receipts of gateway channels whose money is not invoice money (see class remarks).</summary>
@@ -477,8 +864,9 @@ public static class InvoiceLedger
             {
                 Id = Guid.NewGuid(), ReceiptId = receipt.Id, ItemType = l.ItemType,
                 ServiceRequestDetailId = l.ItemType == ItemService && !l.IsHeaderOnly ? l.Id : null,
-                PrescriptionDetailId = l.ItemType == ItemMedicine ? l.Id : null,
-                ItemCode = l.IsHeaderOnly ? l.Id.ToString() : (l.Code.Length > 50 ? l.Code[..50] : l.Code),
+                PrescriptionDetailId = l.ItemType == ItemMedicine && !l.IsCabinet ? l.Id : null,
+                // Header-only request / ward-cabinet line (QA-R12): no detail FK — the line id travels in ItemCode.
+                ItemCode = l.IsHeaderOnly || l.IsCabinet ? l.Id.ToString() : (l.Code.Length > 50 ? l.Code[..50] : l.Code),
                 ItemName = l.Name.Length > 200 ? l.Name[..200] : l.Name,
                 Quantity = l.Quantity, UnitPrice = l.UnitPrice, Amount = l.Amount, Discount = 0,
                 FinalAmount = l.PatientAmount, CreatedAt = now, CreatedBy = userId,

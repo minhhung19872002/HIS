@@ -270,6 +270,8 @@ public class InvoiceDto
     public decimal BedTotal { get; set; }
     /// <summary>QA-R3: bed-day money (patient share) not yet collected — the cashier's "Tiền giường" row.</summary>
     public decimal UnpaidBedAmount { get; set; }
+    /// <summary>QA-R12: cashier warnings from the ledger (exam fee missing, unbilled cabinet issues, refund suggestions…).</summary>
+    public List<string> Warnings { get; set; } = new();
     public decimal SubTotal { get; set; }
 
     // BHYT chi trả

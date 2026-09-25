@@ -230,13 +230,15 @@ public partial class ReceptionCompleteService {
         var request = new ServiceRequest
         {
             Id = Guid.NewGuid(),
-            RequestCode = $"CDTD{DateTime.Now:yyyyMMddHHmmssfff}",
+            RequestCode = $"CDTD{HIS.Core.Common.CodeGenerator.NextUniqueNow():yyyyMMddHHmmssfff}", // QA-R12: loop in one ms collided
             RequestDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
             MedicalRecordId = ctx.MedicalRecordId,
             ExaminationId = ctx.ExaminationId,
             DoctorId = ctx.DoctorId,
             DepartmentId = ctx.DepartmentId,
-            RequestType = service.ServiceType,
+            // QA-R12: was service.ServiceType copied as-is — the two tables use different codes (#217/T2), so a lab test
+            // ordered at reception (ServiceType 2) was stored as RequestType 2 = CĐHA and went to the imaging worklist.
+            RequestType = HIS.Core.Constants.ServiceRequestType.FromServiceType(service.ServiceType),
             ServiceId = service.Id,
             Quantity = qty,
             UnitPrice = service.UnitPrice,

@@ -107,6 +107,8 @@ const BillingEditorV2: React.FC = () => {
   // #467: tab Tạm ứng KHÔNG do ensureTab nạp mà do selectPatient nạp → cần cờ loading riêng,
   // nếu không bảng hiện "Chưa có tạm ứng" (empty giả) trong lúc còn đang tải — sai trên màn tiền.
   const [depositsLoading, setDepositsLoading] = useState(false);
+  // QA-R12: what the ledger cannot settle by itself (exam fee missing, unbilled cabinet issues, refund suggestions…).
+  const [ledgerWarnings, setLedgerWarnings] = useState<string[]>([]);
 
   // ── Select patient → load unpaid items + balance ─────────────────
   // Guard chống race khi đổi BN nhanh: DS chưa thanh toán + số dư của BN cũ không được hiện dưới tên BN mới (#416, cùng pattern #374 — tiền)
@@ -115,7 +117,7 @@ const BillingEditorV2: React.FC = () => {
     const reqId = ++selectReqRef.current;
     setPt(p);
     setSearchOpen(false);
-    setItems([]); setSel(new Set()); setBalance(null);
+    setItems([]); setSel(new Set()); setBalance(null); setLedgerWarnings([]);
     setDeposits([]); setRefunds([]); setEinvoices([]);
     setDepositsLoading(true);
     setLastPaymentId(null);
@@ -145,6 +147,7 @@ const BillingEditorV2: React.FC = () => {
     }
     if (calc.status === 'fulfilled' && calc.value.data) {
       const inv = calc.value.data;
+      setLedgerWarnings(Array.isArray(inv.warnings) ? inv.warnings : []);
       const bedDue = inv.unpaidBedAmount ?? 0;
       if (bedDue > 0) {
         const days = (inv.bedItems ?? []).reduce((s, b) => s + (b.days || 0), 0);
@@ -475,6 +478,15 @@ const BillingEditorV2: React.FC = () => {
         <TopTabs tab={tab} setTab={(t) => ensureTab(t)} tabs={TABS} />
         <div style={{ overflow: 'auto', flex: 1, padding: 'var(--space-14)' }}>
           {!pt && tab === 'pay' && <div style={{ color: 'var(--t-3)', textAlign: 'center', padding: 'var(--space-40)' }}>Chọn bệnh nhân để xem các mục chờ thu</div>}
+
+          {pt && ledgerWarnings.length > 0 && (tab === 'pay' || tab === 'refund') && (
+            <div role="alert" style={{ marginBottom: 'var(--space-12)', padding: 'var(--space-10) var(--space-12)', background: 'var(--s-warn-bg)', color: 'var(--s-warn-tx)', border: '1px solid var(--s-warn)', borderRadius: 'var(--r-3)', fontSize: 'var(--fs-sm)' }}>
+              <div style={{ fontWeight: 700, marginBottom: 'var(--space-4)' }}>Cảnh báo viện phí</div>
+              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                {ledgerWarnings.map((w, i) => <li key={i}>{w}</li>)}
+              </ul>
+            </div>
+          )}
 
           {tab === 'pay' && pt && (
             <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', overflow: 'hidden' }}>

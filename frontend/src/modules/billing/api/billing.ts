@@ -172,6 +172,8 @@ export interface InvoiceDto {
   bedTotal: number;
   /** Bed-day money (patient share) not yet collected — the cashier's "Tiền giường" row. */
   unpaidBedAmount?: number;
+  /** QA-R12: cashier warnings from the ledger (exam fee missing, unbilled cabinet issues, refund suggestions…). */
+  warnings?: string[];
   subTotal: number;
   insuranceAmount: number;
   discountAmount: number;

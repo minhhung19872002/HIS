@@ -439,7 +439,8 @@ public partial class InpatientCompleteService {
         // inpatient lab-result tab and every lab report filter on RequestType == 1/2 — a lab test
         // ordered at the bedside never reached the lab. Split into one request per request type,
         // same vocabulary mapping as the OPD path (#217/T2).
-        var requestCode = $"CDNT{DateTime.Now:yyyyMMddHHmmss}";
+        // QA-R12: was CDNT{yyyyMMddHHmmss} shared by every header of the call and by any other order placed in the
+        // same second (49 duplicate RequestCodes locally). Each header now gets its own ms-precision, strictly increasing code.
         // QA-R9: the emergency / priority flags live on the ServiceRequest header (as in the OPD path) — group by
         // them too so an emergency line is not merged into (or hidden inside) a routine request of the same type.
         var requestsByType = new Dictionary<(int Type, bool Emergency, bool Priority), ServiceRequest>();
@@ -450,7 +451,7 @@ public partial class InpatientCompleteService {
                 r = new ServiceRequest
                 {
                     Id = Guid.NewGuid(),
-                    RequestCode = requestCode,
+                    RequestCode = $"CDNT{HIS.Core.Common.CodeGenerator.NextUniqueNow():yyyyMMddHHmmssfff}",
                     RequestDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
                     MedicalRecordId = admission.MedicalRecordId,
                     DoctorId = userId,

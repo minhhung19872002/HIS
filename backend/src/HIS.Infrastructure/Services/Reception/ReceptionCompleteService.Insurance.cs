@@ -695,7 +695,10 @@ public partial class ReceptionCompleteService {
 
         examination.QueueNumber = queueTicket.QueueNumber;
         await _examinationRepo.UpdateAsync(examination);
+        // QA-R12: exam fee (công khám) when Reception.AutoExamFee = On — default Off keeps the old behaviour.
+        var examFeeAdded = await ExamFeeAutoOrder.StageAsync(_context, medicalRecord, examination, userId);
         await _unitOfWork.SaveChangesAsync();
+        if (examFeeAdded) await ExamFeeAutoOrder.SplitAsync(_context, medicalRecord.Id);
 
         return MapToAdmissionDto(medicalRecord, patient, room, queueTicket);
     }

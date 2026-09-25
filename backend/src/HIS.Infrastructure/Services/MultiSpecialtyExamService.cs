@@ -144,7 +144,12 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
             _db.Examinations.Add(exam);
         }
 
+        // QA-R12: exam fee per room when Reception.AutoExamFee = On (default Off = old behaviour).
+        var examFeeAdded = false;
+        foreach (var exam in examinations)
+            examFeeAdded |= await ExamFeeAutoOrder.StageAsync(_db, record, exam, userId);
         await _db.SaveChangesAsync();
+        if (examFeeAdded) await ExamFeeAutoOrder.SplitAsync(_db, record.Id);
         if (tx != null) await tx.CommitAsync();
 
         return new MultiRoomRegistrationResultDto

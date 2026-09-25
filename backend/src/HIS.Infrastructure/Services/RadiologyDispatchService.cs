@@ -112,7 +112,7 @@ public class RadiologyDispatchService : IRadiologyDispatchService
                 _db.RadiologyRequests.Add(new RadiologyRequest
                 {
                     Id = Guid.NewGuid(),
-                    RequestCode = $"CDHA{DateTime.Now:yyyyMMddHHmmss}",
+                    RequestCode = $"CDHA{HIS.Core.Common.CodeGenerator.NextUniqueNow():yyyyMMddHHmmssfff}", // QA-R12: was per-second → duplicates
                     PatientId = d.PatientId,
                     ExaminationId = sr?.ExaminationId,
                     MedicalRecordId = sr?.MedicalRecordId,
