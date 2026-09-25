@@ -36,6 +36,31 @@ public class AppointmentBookingService : IAppointmentBookingService
         _smsService = smsService;
     }
 
+    /// <summary>
+    /// QA-R11: new patients created by online booking got <c>BN{yyyyMMddHHmmss}{random 3}</c> — no uniqueness check
+    /// (a collision is a unique-index 500), and because reception allocates <c>BN{yyyyMMdd}</c> + max numeric
+    /// suffix + 1, one booking poisoned the counter for the rest of the day (seen in data: BN20260917103213755…762).
+    /// Use the reception scheme under the same SQL app lock (resource shared with ReceptionCompleteService).
+    /// </summary>
+    private async Task<string> NextPatientCodeAsync()
+    {
+        await SqlAppLock.AcquireAsync(_context, "HIS.Reception.RegistrationCodes",
+            "Hệ thống đang cấp mã bệnh nhân, vui lòng thử lại.");
+        var prefix = $"BN{DateTime.Today:yyyyMMdd}";
+        var todayCodes = await _context.Patients
+            .IgnoreQueryFilters()
+            .Where(p => p.PatientCode.StartsWith(prefix))
+            .Select(p => p.PatientCode)
+            .ToListAsync();
+        var maxNumber = todayCodes
+            .Select(c => c.Substring(prefix.Length))
+            .Where(s => s.Length <= 6) // legacy BN{date}{HHmmss}{rnd} codes are not part of the sequence
+            .Select(s => int.TryParse(s, out var n) ? n : 0)
+            .DefaultIfEmpty(0)
+            .Max();
+        return $"{prefix}{(maxNumber + 1):D4}";
+    }
+
     public async Task<List<BookingDepartmentDto>> GetBookingDepartmentsAsync(DateTime? date = null)
     {
         var departments = await _context.Departments
@@ -439,7 +464,7 @@ public class AppointmentBookingService : IAppointmentBookingService
         var patient = existingPatient ?? new Patient
         {
             Id = Guid.NewGuid(),
-            PatientCode = $"BN{DateTime.Now:yyyyMMddHHmmss}{new Random().Next(100, 999)}",
+            PatientCode = await NextPatientCodeAsync(),
             FullName = dto.PatientName.Trim(),
             PhoneNumber = dto.PhoneNumber.Trim(),
             Email = dto.Email?.Trim(),

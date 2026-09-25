@@ -785,6 +785,11 @@ const BookingModal: React.FC<{
 
   const submit = async () => {
     if (!vf.validate({ patientName: form.patientName, phoneNumber: form.phoneNumber, appointmentDate: form.appointmentDate })) return;
+    // QA-R11: giờ hẹn là ô nhập tự do — "9h30" thành "9h30:00", BE không parse được TimeSpan → cả dto null
+    // → 400 "The dto field is required". Chặn ngay ở client với thông báo rõ ràng.
+    if (form.appointmentTime && !/^([01]?\d|2[0-3]):[0-5]\d$/.test(form.appointmentTime.trim())) {
+      tw('Giờ hẹn phải theo dạng HH:mm (vd 09:30)'); return;
+    }
     setSaving(true);
     try {
       if (isEdit && initial) {

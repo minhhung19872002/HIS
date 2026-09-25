@@ -13,8 +13,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { unwrapList, type MaybePaged } from '../../../utils/apiNormalize';
 import {
   KpiStrip, StatusBadge, Btn, ActBtn, DataTable, TopTabs, DrawerShell, ModalShell,
-  fmtDMYg, fmtDTg, tk, ti, te, tw, type ColumnDef, type TopTab,
+  fmtDMYg, fmtDTg, tk, ti, te, tw, cf, type ColumnDef, type TopTab,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { useModalForm } from '../../../hooks/useModalForm';
 import { useTabState } from '../../../hooks/useTabState';
@@ -439,21 +440,26 @@ const EmrEditorV2: React.FC = () => {
   };
 
   const today = () => new Date().toISOString().slice(0, 10);
+  // QA-R11: the three create calls sent `id: ''` and `doctorId/nurseId: ''` — the BE binds these as Guid,
+  // so model binding failed and EVERY "Tạo phiếu điều trị / Đề xuất hội chẩn / Phiếu chăm sóc" answered
+  // 400 "The dto field is required." Omit them (undefined is dropped from the JSON). NOTE: the BE does not
+  // yet fill nurseId from the signed-in user (saved NULL) — reported, not changed here.
+  const NO_GUID = undefined as unknown as string;
   const saveSheet = async () => {
     if (!examId) return;
     setSavingForm(true);
     try {
       if (modal === 'treatment') {
         await createTreatmentSheet({
-          id: '', examinationId: examId, treatmentDate: form.date || today(),
+          id: NO_GUID, examinationId: examId, treatmentDate: form.date || today(),
           dayNumber: Number(form.dayNumber) || 1, dailyProgress: form.dailyProgress,
           treatmentOrders: form.treatmentOrders, doctorNotes: form.doctorNotes,
-          medications: [], doctorId: '',
+          medications: [], doctorId: NO_GUID,
         });
         const r = await getTreatmentSheets(examId); setTreatments(Array.isArray(r.data) ? r.data : []);
       } else if (modal === 'consult') {
         await createConsultationRecord({
-          id: '', examinationId: examId, consultationDate: form.date || today(),
+          id: NO_GUID, examinationId: examId, consultationDate: form.date || today(),
           reason: form.reason || '', summary: form.summary || '', conclusion: form.conclusion || '',
           recommendations: form.recommendations || '', consultants: [],
           chairman: form.chairman, secretary: form.secretary,
@@ -461,16 +467,16 @@ const EmrEditorV2: React.FC = () => {
         const r = await getConsultationRecords(examId); setConsults(Array.isArray(r.data) ? r.data : []);
       } else if (modal === 'nursing') {
         await createNursingCareSheet({
-          id: '', examinationId: examId, careDate: form.date || today(),
+          id: NO_GUID, examinationId: examId, careDate: form.date || today(),
           shift: Number(form.shift) || 1, patientCondition: form.patientCondition,
           nursingAssessment: form.nursingAssessment, nursingInterventions: form.nursingInterventions,
-          patientResponse: form.patientResponse, nurseId: '',
+          patientResponse: form.patientResponse, nurseId: NO_GUID,
           careLevel: form.careLevel ? Number(form.careLevel) : undefined,
         });
         const r = await getNursingCareSheets(examId); setNursing(Array.isArray(r.data) ? r.data : []);
       }
       tk('Đã tạo phiếu'); setModal(null);
-    } catch { te('Tạo phiếu thất bại'); }
+    } catch (err) { te(friendlyErrorMessage(err, 'Tạo phiếu thất bại')); } // QA-R11: show BE reason (vd HSBA đã khóa TT46)
     finally { setSavingForm(false); }
   };
 
@@ -501,7 +507,7 @@ const EmrEditorV2: React.FC = () => {
       tk('Đã lưu điểm biểu đồ chuyển dạ');
       setPtgOpen(false); setPtgForm({});
       const r = await getPartographRecords(admId); setPartographs(Array.isArray(r.data) ? r.data : []);
-    } catch { te('Lưu thất bại'); }
+    } catch (err) { te(friendlyErrorMessage(err, 'Lưu thất bại')); }
     finally { setPtgSaving(false); }
   };
 
@@ -513,7 +519,7 @@ const EmrEditorV2: React.FC = () => {
       tk('Đã lưu phiếu gây mê');
       setAnesOpen(false); setAnesForm({});
       const r = await getAnesthesiaRecords(sel.patientId); setAnesRecords(Array.isArray(r.data) ? r.data : []);
-    } catch { te('Lưu thất bại'); }
+    } catch (err) { te(friendlyErrorMessage(err, 'Lưu thất bại')); }
     finally { setAnesSaving(false); }
   };
 
@@ -538,7 +544,7 @@ const EmrEditorV2: React.FC = () => {
       reactionDescription: drugTestForm.reactionDescription || '',
       tester: drugTestForm.tester || '', notes: drugTestForm.notes || '',
     }]);
-    tk('Đã thêm phiếu thử phản ứng thuốc');
+    ti('Đã thêm vào danh sách tạm (chưa lưu máy chủ)'); // QA-R11: was tk('Đã thêm…') — looked persisted
     setDrugTestOpen(false);
   };
 
@@ -813,8 +819,9 @@ const EmrEditorV2: React.FC = () => {
                     <div style={{ fontSize: 12.5, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                       {full?.interview?.historyOfPresentIllness && <p><b>Bệnh sử:</b> {full.interview.historyOfPresentIllness}</p>}
                       {full?.physicalExam?.generalAppearance && <p><b>Khám:</b> {full.physicalExam.generalAppearance}</p>}
-                      {(full?.diagnoses?.length ?? 0) > 0 && <p><b>Chẩn đoán:</b> {full!.diagnoses.map((d) => `${d.icdCode} · ${d.icdName}${d.isPrimary ? ' (chính)' : ''}`).join('; ')}</p>}
-                      {!full?.interview?.historyOfPresentIllness && !full?.physicalExam?.generalAppearance && (full?.diagnoses?.length ?? 0) === 0 && <span className="ab-u-faint">Chưa có nội dung bệnh án</span>}
+                      {/* QA-R11: empty diagnosis rows rendered as "Chẩn đoán: · (chính)" */}
+                      {(full?.diagnoses?.filter((d) => d.icdCode || d.icdName).length ?? 0) > 0 && <p><b>Chẩn đoán:</b> {full!.diagnoses.filter((d) => d.icdCode || d.icdName).map((d) => `${d.icdCode} · ${d.icdName}${d.isPrimary ? ' (chính)' : ''}`).join('; ')}</p>}
+                      {!full?.interview?.historyOfPresentIllness && !full?.physicalExam?.generalAppearance && (full?.diagnoses?.filter((d) => d.icdCode || d.icdName).length ?? 0) === 0 && <span className="ab-u-faint">Chưa có nội dung bệnh án</span>}
                     </div>
                   </section>
 
@@ -852,7 +859,7 @@ const EmrEditorV2: React.FC = () => {
                     <div key={i} style={{ position: 'relative', paddingBottom: 'var(--space-18)' }}>
                       <div style={{ position: 'absolute', left: -25, top: 6, width: 12, height: 12, borderRadius: 'var(--r-2)', background: 'var(--s-info)', border: '2px solid var(--d-0)', boxShadow: '0 0 0 3px #0284c733' }} />
                       <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 'var(--space-12)', borderLeft: '3px solid var(--s-info)', cursor: 'pointer' }}
-                        onClick={() => navigate(`/v2/opd/edit`)}>
+                        onClick={() => navigate(e.examinationId ? `/v2/opd/edit?examId=${e.examinationId}` : '/v2/opd/edit')}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
                           <span style={{ fontWeight: 700, fontSize: 12.5 }}>{e.diagnosisName || e.conclusionTypeName || 'Lần khám'}</span>
                           <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{fmtDTg(e.examinationDate)}</span>
@@ -959,7 +966,13 @@ const EmrEditorV2: React.FC = () => {
                   {/* #352: parity v1 — phiếu thử phản ứng thuốc, lưu local, chưa có backend endpoint */}
                   <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-14)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', marginBottom: 'var(--space-10)' }}>
-                      <h4 style={{ margin: 0, fontSize: 'var(--fs-sm)', flex: 1 }}>Phiếu thử phản ứng thuốc</h4>
+                      <h4 style={{ margin: 0, fontSize: 'var(--fs-sm)', flex: 1 }}>
+                        Phiếu thử phản ứng thuốc
+                        {/* QA-R11: no backend table — rows live only in this tab; say so instead of looking saved */}
+                        <span style={{ marginLeft: 'var(--space-8)', fontWeight: 400, fontSize: 'var(--fs-xs)', color: 'var(--s-warn-text, #92400e)' }}>
+                          (chưa lưu máy chủ — mất khi tải lại trang; ghi dị ứng thật ở mục Dị ứng của BN)
+                        </span>
+                      </h4>
                       <Btn variant="primary" onClick={() => { setDrugTestForm({ date: today(), result: 'Negative' }); setDrugTestOpen(true); }}>
                         <TermIcon name="plus" size={12} /> Thêm phiếu thử
                       </Btn>
@@ -1004,11 +1017,15 @@ const EmrEditorV2: React.FC = () => {
                     empty="Chưa có dữ liệu biểu đồ chuyển dạ"
                     actions={(r) => (
                       <div className="ab-actions">
-                        <ActBtn ic="trash" title="Xóa" tone="crit" onClick={async () => {
-                          await deletePartographRecord(r.id);
-                          setPartographs((p) => p.filter((x) => x.id !== r.id));
-                          tk('Đã xóa');
-                        }} />
+                        {/* QA-R11: deleted a clinical record with no confirmation, and a failed delete
+                            (e.g. HSBA đã khóa TT46) was an unhandled rejection with no message */}
+                        <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => cf('Xóa điểm biểu đồ chuyển dạ này?', async () => {
+                          try {
+                            await deletePartographRecord(r.id);
+                            setPartographs((p) => p.filter((x) => x.id !== r.id));
+                            tk('Đã xóa');
+                          } catch (err) { te(friendlyErrorMessage(err, 'Xóa thất bại')); }
+                        }, { tone: 'crit', confirm: 'Xóa' })} />
                       </div>
                     )}
                   />
@@ -1037,11 +1054,13 @@ const EmrEditorV2: React.FC = () => {
                     empty="Chưa có phiếu gây mê"
                     actions={(r) => (
                       <div className="ab-actions">
-                        <ActBtn ic="trash" title="Xóa" tone="crit" onClick={async () => {
-                          await deleteAnesthesiaRecord(r.id);
-                          setAnesRecords((p) => p.filter((x) => x.id !== r.id));
-                          tk('Đã xóa phiếu gây mê');
-                        }} />
+                        <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => cf('Xóa phiếu gây mê này?', async () => {
+                          try {
+                            await deleteAnesthesiaRecord(r.id);
+                            setAnesRecords((p) => p.filter((x) => x.id !== r.id));
+                            tk('Đã xóa phiếu gây mê');
+                          } catch (err) { te(friendlyErrorMessage(err, 'Xóa phiếu gây mê thất bại')); }
+                        }, { tone: 'crit', confirm: 'Xóa' })} />
                       </div>
                     )}
                   />

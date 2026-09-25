@@ -47,17 +47,25 @@ public partial class BusinessAlertService
 
         try
         {
+            // QA-R11: GET /business-alerts/check/* for an unknown patient (zero GUID, deleted, typo) inserted
+            // BusinessAlerts rows (hospital-wide alerts attached to a check that has no real subject). A check
+            // for a patient that does not exist returns its result but writes nothing.
+            if (patientId.HasValue && !await _context.Patients.AnyAsync(p => p.Id == patientId.Value))
+                return;
+
             // Avoid duplicate alerts: check if same alert code + patient already exists today.
             // Dedup on each alert's OWN PatientId: hospital-wide alerts (OPD-07 expired stock, IPD-23 beds,
             // PHAR-32) carry PatientId = null, so filtering on the caller's patientId never matched them and
             // every patient check re-inserted them (BusinessAlerts flooded with identical rows).
-            var today = DateTime.UtcNow.Date;
+            // QA-R11: dedup against every still-open alert, not only today's — a check is a GET the panel repeats
+            // on every open, so a day-scoped key re-inserted the same unresolved alert each day (28 identical
+            // OPD-07 "expired lot" rows). A resolved alert (Status >= 2) can still be raised again.
             // QA-R3: the key also carries the alert's subject entity (department / stock lot / doctor / room).
             // Hospital-wide rules raise one alert per entity with the same title, so a key of code+title kept only
             // the first department's "Giường sắp đầy" / the first expired lot and silently dropped the rest.
             var existingCodes = (await _context.BusinessAlerts
                 .Where(a => (a.PatientId == patientId || a.PatientId == null)
-                    && a.CreatedAt >= today
+                    && !a.IsDeleted
                     && a.Status < 2) // Not resolved
                 .Select(a => new { a.PatientId, a.AlertCode, a.Title, a.EntityType, a.EntityId })
                 .ToListAsync())

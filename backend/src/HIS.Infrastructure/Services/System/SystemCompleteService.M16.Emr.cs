@@ -281,6 +281,25 @@ public partial class SystemCompleteService
 
     public async Task<MedicalRecordBorrowRequestDto> CreateBorrowRequestAsync(CreateBorrowRequestDto dto)
     {
+        // QA-R11: RequestedById was Guid.Empty → FK_…_RequestedBy failed, the catch below returned
+        // HTTP 200 with a random Id and Status "Error", nothing was saved. The code was
+        // `MT-{server date}-{Random(1000,9999)}` (collisions, UTC date on prod). Now: the caller is the
+        // requester, the code is the next number of the VN day, and failures surface as 4xx.
+        var userIdStr = _httpCtx.HttpContext?.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(userIdStr, out var requesterId) || requesterId == Guid.Empty)
+            throw new UnauthorizedAccessException("Không xác định được người yêu cầu mượn.");
+        var archiveRow = await _context.MedicalRecordArchives
+            .FirstOrDefaultAsync(a => a.Id == dto.MedicalRecordArchiveId && !a.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ lưu trữ.");
+        if (archiveRow.Status == 3)
+            throw new InvalidOperationException("Hồ sơ lưu trữ đã hủy, không cho mượn được.");
+        if (await _context.MedicalRecordBorrowRequests.AnyAsync(b =>
+                b.MedicalRecordArchiveId == archiveRow.Id && !b.IsDeleted && (b.Status == 0 || b.Status == 1 || b.Status == 3)))
+            throw new InvalidOperationException("Hồ sơ đang có phiếu mượn chưa trả, không tạo thêm phiếu được.");
+        var codePrefix = $"MT-{HIS.Core.Common.VnTime.NowVn:yyyyMMdd}-";
+        var sameDay = await _context.MedicalRecordBorrowRequests.IgnoreQueryFilters()
+            .Where(b => b.RequestCode.StartsWith(codePrefix)).Select(b => b.RequestCode).ToListAsync();
+        var requestCode = $"{codePrefix}{RecordCodeGenerator.NextNumber(sameDay, codePrefix):D4}";
         try
         {
             var archive = await _context.MedicalRecordArchives
@@ -292,9 +311,9 @@ public partial class SystemCompleteService
             var entity = new MedicalRecordBorrowRequest
             {
                 Id = Guid.NewGuid(),
-                RequestCode = $"MT-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}",
+                RequestCode = requestCode,
                 MedicalRecordArchiveId = dto.MedicalRecordArchiveId,
-                RequestedById = Guid.Empty,
+                RequestedById = requesterId,
                 RequestDate = HIS.Core.Common.VnTime.NowVn,
                 Purpose = dto.Purpose,
                 ExpectedReturnDate = dto.ExpectedReturnDate,
@@ -322,9 +341,17 @@ public partial class SystemCompleteService
         }
         catch (Exception ex)
         {
+            // QA-R11: was `return new … { Id = Guid.NewGuid(), Status = "Error" }` → HTTP 200 for a loan
+            // that was never written. Let it fail visibly.
             _logger.LogError(ex, "Error in CreateBorrowRequestAsync");
-            return new MedicalRecordBorrowRequestDto { Id = Guid.NewGuid(), Status = "Error" };
+            throw;
         }
+    }
+
+    private Guid? CurrentUserGuidM16()
+    {
+        var v = _httpCtx.HttpContext?.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(v, out var g) && g != Guid.Empty ? g : null;
     }
 
     public async Task<bool> ApproveBorrowRequestAsync(Guid requestId)
@@ -335,7 +362,7 @@ public partial class SystemCompleteService
             if (request == null || request.Status != 0) return false;
             request.Status = 1;
             request.ApprovedDate = HIS.Core.Common.VnTime.NowVn;
-            request.ApprovedById = (Guid?)null;
+            request.ApprovedById = CurrentUserGuidM16(); // QA-R11: approver was never recorded (always NULL)
             request.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return true;
@@ -356,7 +383,7 @@ public partial class SystemCompleteService
             request.Status = 2;
             request.RejectReason = reason;
             request.ApprovedDate = HIS.Core.Common.VnTime.NowVn;
-            request.ApprovedById = (Guid?)null;
+            request.ApprovedById = CurrentUserGuidM16(); // QA-R11: approver was never recorded (always NULL)
             request.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return true;

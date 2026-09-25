@@ -30,7 +30,8 @@ const ServiceRequeueV2: React.FC = () => {
   const [form] = Form.useForm();
 
   const search = useCallback(async () => {
-    if (!keyword) return;
+    // QA-R11: an empty keyword used to return silently — the button looked dead.
+    if (!keyword.trim()) { tw('Nhập mã HSBA / mã BN / tên / SĐT để tìm'); return; }
     setLoading(true);
     try {
       // QA-R2: '/examination/medical-records/search' does not exist (every lookup 404'd). Reception search

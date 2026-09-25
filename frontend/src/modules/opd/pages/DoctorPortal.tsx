@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import * as examApi from '../api/examination';
 import type { ExaminationDto } from '../api/examination';
@@ -11,12 +12,13 @@ import { apiClient } from '../../../services/apiClient';
 import { storage, STORAGE_KEYS } from '../../../services/storage.service';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, Btn, ActBtn,
-  DrawerShell, DrField, ModalShell, tk, ti, tw, cf, fmtDTg, Ico,
+  DrawerShell, DrField, ModalShell, tk, tw, cf, fmtDTg, Ico,
   useListData, useTabCounts, makeStatus,
   type ColumnDef, type TopTab, type StatusTone,
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
 import { useTabState } from '../../../hooks/useTabState';
+import { opdLinks } from '../../reception/pages/opdFlow';
 
 // ============================================================================
 // Local types (ported 1:1 from v1 pages/DoctorPortal.tsx)
@@ -111,9 +113,7 @@ function shiftTone(name?: string): StatusTone {
   return 'info';
 }
 
-const handleUnavailableAction = (actionName: string): void => {
-  ti(`${actionName} chưa được triển khai trong cổng bác sĩ. Vui lòng thực hiện tại phân hệ chuyên biệt.`);
-};
+const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
 
 // ============================================================================
 // Component
@@ -121,6 +121,22 @@ const handleUnavailableAction = (actionName: string): void => {
 
 const DoctorPortalV2: React.FC = () => {
   const [block, setBlock] = useTabState<BlockKey>('outpatient', 'tab');
+  const navigate = useNavigate();
+
+  // QA-R11: the drawer buttons used to only toast "chưa được triển khai". They now open the real screens:
+  // the OPD exam editor (vitals / diagnosis / CLS orders live there), the prescription editor, and the IPD
+  // record drawer (treatment sheets + discharge) / inpatient orders.
+  const openOpd = (r: ExaminationDto, target: 'examination' | 'prescription') => {
+    const link = opdLinks({ patientId: r.patientId, roomId: r.roomId, examinationId: r.id })[target];
+    if (!link) { tw('Lượt khám không hợp lệ'); return; }
+    setOpdDetail(null);
+    navigate(link);
+  };
+  const openIpdRecord = (r: InpatientListDto) => {
+    if (!r.admissionId || r.admissionId === EMPTY_GUID) { tw('Bệnh nhân chưa có đợt nhập viện — mở từ màn Nội trú'); return; }
+    setIpdDetail(null);
+    navigate(`/v2/ipd?admissionId=${encodeURIComponent(r.admissionId)}`);
+  };
 
   // ── Outpatient ──────────────────────────────────────────────────────────
   const [opdSearch, setOpdSearch] = useState('');
@@ -465,9 +481,13 @@ const DoctorPortalV2: React.FC = () => {
             sub={opdDetail ? `${opdDetail.roomName || '—'} · STT ${opdDetail.queueNumber}` : ''}
             footer={<>
               <Btn variant="ghost" onClick={() => setOpdDetail(null)}>Đóng</Btn>
-              <Btn onClick={() => handleUnavailableAction('Lưu')}><Ico name="check" size={12} /> Lưu</Btn>
-              <Btn onClick={() => handleUnavailableAction('Chỉ định CLS')}><Ico name="flask" size={12} /> Chỉ định CLS</Btn>
-              <Btn variant="primary" onClick={() => handleUnavailableAction('Kê đơn')}><Ico name="edit" size={12} /> Kê đơn</Btn>
+              {opdDetail && opdDetail.status < 4 && <>
+                <Btn onClick={() => openOpd(opdDetail, 'examination')}><Ico name="stethoscope" size={12} /> Mở phiếu khám</Btn>
+                <Btn onClick={() => openOpd(opdDetail, 'examination')}><Ico name="flask" size={12} /> Chỉ định CLS</Btn>
+              </>}
+              {opdDetail && opdDetail.status !== 5 && (
+                <Btn variant="primary" onClick={() => openOpd(opdDetail, 'prescription')}><Ico name="edit" size={12} /> Kê đơn</Btn>
+              )}
             </>}
           >
             {opdDetail && <>
@@ -514,9 +534,11 @@ const DoctorPortalV2: React.FC = () => {
             sub={ipdDetail ? `${ipdDetail.departmentName} · ${ipdDetail.roomName}${ipdDetail.bedName ? ' · ' + ipdDetail.bedName : ''}` : ''}
             footer={<>
               <Btn variant="ghost" onClick={() => setIpdDetail(null)}>Đóng</Btn>
-              <Btn variant="crit" onClick={() => handleUnavailableAction('Xuất viện')}><Ico name="logout" size={12} /> Xuất viện</Btn>
-              <Btn onClick={() => handleUnavailableAction('Phiếu điều trị')}><Ico name="file-text" size={12} /> Phiếu điều trị</Btn>
-              <Btn variant="primary" onClick={() => handleUnavailableAction('Y lệnh')}><Ico name="edit" size={12} /> Y lệnh</Btn>
+              {ipdDetail && <>
+                <Btn variant="crit" onClick={() => openIpdRecord(ipdDetail)}><Ico name="logout" size={12} /> Xuất viện</Btn>
+                <Btn onClick={() => openIpdRecord(ipdDetail)}><Ico name="file-text" size={12} /> Phiếu điều trị</Btn>
+              </>}
+              <Btn variant="primary" onClick={() => { setIpdDetail(null); navigate('/v2/inpatient-dispensing'); }}><Ico name="edit" size={12} /> Y lệnh</Btn>
             </>}
           >
             {ipdDetail && <>

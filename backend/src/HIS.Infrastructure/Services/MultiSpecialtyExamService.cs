@@ -18,6 +18,36 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
         _logger = logger;
     }
 
+    /// <summary>
+    /// QA-R11: exams added here (reception "phòng khám thêm", OPD "khám CK khác") got NO queue ticket and a
+    /// QueueNumber = max over ALL rooms today + 1. The patient never appeared on the room's call board / call-next,
+    /// and the printed STT collided with the room's own sequence (two people holding "5" in one room). Issue a
+    /// real ticket from the room's shared sequence (same allocator as reception and online booking).
+    /// Caller holds the registration app lock.
+    /// </summary>
+    private async Task<int> IssueExamTicketAsync(Guid patientId, Guid medicalRecordId, Room room)
+    {
+        const int examQueue = AppointmentQueueAllocator.ExamQueueType;
+        var number = await AppointmentQueueAllocator.NextNumberAsync(_db, room.Id, HIS.Core.Common.VnTime.TodayVn, examQueue);
+        var prefix = await AppointmentQueueAllocator.GetPrefixAsync(_db, room.Id, examQueue);
+        _db.QueueTickets.Add(new QueueTicket
+        {
+            Id = Guid.NewGuid(),
+            TicketNumber = AppointmentQueueAllocator.FormatCode(prefix, number),
+            QueueNumber = number,
+            IssueDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
+            QueueType = examQueue,
+            Status = HIS.Core.Constants.QueueTicketStatus.Waiting,
+            PatientId = patientId,
+            MedicalRecordId = medicalRecordId,
+            RoomId = room.Id,
+            BranchId = room.BranchId,
+            Notes = "MultiSpecialty",
+            CreatedAt = DateTime.UtcNow,
+        });
+        return number;
+    }
+
     public async Task<MultiRoomRegistrationResultDto> RegisterMultipleRoomsAsync(
         MultiRoomRegistrationDto dto, Guid userId)
     {
@@ -42,6 +72,11 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
         // SQL returned rooms in arbitrary order, so a secondary room could become the primary.
         var rooms = roomIds.Select(id => roomsById[id]).ToList();
 
+        // Serialize with reception/booking number allocation (same resource) until the tickets are committed.
+        await using var tx = await SqlAppLock.BeginAsync(_db);
+        await SqlAppLock.AcquireAsync(_db, "HIS.Reception.RegistrationCodes",
+            "Các quầy khác đang cấp số, vui lòng thử lại.");
+
         // QA-R4 (R1 item 4 "khám đa phòng tạo hồ sơ thứ 2"): the reception wizard registers the primary
         // room first (RegisterFeePatient → one MedicalRecord) and then calls this for the extra rooms.
         // Creating a second record here split ONE visit into two records (two admissions, two bills, and
@@ -58,7 +93,8 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
             record = new MedicalRecord
             {
                 Id = Guid.NewGuid(),
-                MedicalRecordCode = $"HS{DateTime.Now:yyyyMMddHHmmss}",
+                MedicalRecordCode = $"HS{DateTime.Now:yyyyMMddHHmmssff}", // QA-R11: 2 submits in one second collided
+                RoomId = rooms[0].Id, // QA-R11: was null — today's-admissions / change-room read the record's room
                 PatientId = dto.PatientId,
                 AdmissionDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local
                 PatientType = dto.PatientType,
@@ -85,11 +121,6 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
         }
 
         var examinations = new List<Examination>();
-        // CreatedAt lưu UTC → "hôm nay" tính theo ngày VN (fix lệch khung 00h–07h / 17h–24h tùy env).
-        var (qFromUtc, qToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
-        var queueBase = await _db.Examinations
-            .Where(e => e.CreatedAt >= qFromUtc && e.CreatedAt < qToUtc)
-            .MaxAsync(e => (int?)e.QueueNumber) ?? 0;
 
         for (int i = 0; i < rooms.Count; i++)
         {
@@ -100,7 +131,7 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
                 MedicalRecordId = record.Id,
                 // On an existing visit every room here is an additional exam; the primary already exists.
                 ExaminationType = !reuseRecord && i == 0 ? 1 : 3,
-                QueueNumber = queueBase + i + 1,
+                QueueNumber = await IssueExamTicketAsync(dto.PatientId, record.Id, room),
                 DepartmentId = room.DepartmentId,
                 RoomId = room.Id,
                 Status = 0,
@@ -114,6 +145,7 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
         }
 
         await _db.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         return new MultiRoomRegistrationResultDto
         {
@@ -149,11 +181,10 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
         var room = await _db.Rooms.FindAsync(dto.RoomId)
             ?? throw new KeyNotFoundException("Phòng khám không tồn tại");
 
-        // CreatedAt lưu UTC → "hôm nay" tính theo ngày VN (đồng bộ với CreateMultiSpecialtyExam).
-        var (qFromUtc, qToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
-        var queueBase = await _db.Examinations
-            .Where(e => e.CreatedAt >= qFromUtc && e.CreatedAt < qToUtc)
-            .MaxAsync(e => (int?)e.QueueNumber) ?? 0;
+        await using var tx = await SqlAppLock.BeginAsync(_db);
+        await SqlAppLock.AcquireAsync(_db, "HIS.Reception.RegistrationCodes",
+            "Các quầy khác đang cấp số, vui lòng thử lại.");
+        var queueNumber = await IssueExamTicketAsync(parent.MedicalRecord.PatientId, parent.MedicalRecordId, room);
 
         var child = new Examination
         {
@@ -161,7 +192,7 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
             MedicalRecordId = parent.MedicalRecordId,
             ParentExaminationId = parent.Id,
             ExaminationType = 2,
-            QueueNumber = queueBase + 1,
+            QueueNumber = queueNumber,
             DepartmentId = room.DepartmentId,
             RoomId = room.Id,
             Status = 0,
@@ -171,6 +202,7 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
         };
         _db.Examinations.Add(child);
         await _db.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         return new RegisteredExamDto
         {
@@ -195,6 +227,23 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
 
         var room = await _db.Rooms.FindAsync(dto.NewRoomId)
             ?? throw new KeyNotFoundException("Phòng mới không tồn tại");
+
+        // QA-R11: only the exam moved — the patient's queue ticket stayed on the OLD room's call list (called in a
+        // room they no longer belong to, invisible on the new room's board) and, once the visit was cancelled, that
+        // orphan ticket blocked re-registering the patient in the old room for the rest of the day. Move the open
+        // ticket(s) and, for the primary exam, the record's room with it (same as reception change-room).
+        var oldRoomId = exam.RoomId;
+        var openTickets = await _db.QueueTickets
+            .Where(t => t.MedicalRecordId == exam.MedicalRecordId && t.RoomId == oldRoomId && !t.IsDeleted
+                        && t.Status < HIS.Core.Constants.QueueTicketStatus.Completed)
+            .ToListAsync();
+        foreach (var t in openTickets)
+        {
+            t.RoomId = room.Id;
+            t.Status = HIS.Core.Constants.QueueTicketStatus.Waiting;
+        }
+        var record = await _db.MedicalRecords.FirstOrDefaultAsync(m => m.Id == exam.MedicalRecordId);
+        if (record != null && record.RoomId == oldRoomId) record.RoomId = room.Id;
 
         exam.RoomId = room.Id;
         exam.DepartmentId = room.DepartmentId;
@@ -324,6 +373,14 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
         exam.IsDeleted = true;
         exam.UpdatedAt = DateTime.UtcNow;
         exam.UpdatedBy = userId.ToString();
+
+        // QA-R11: the room's waiting ticket survived the deletion — the patient was still called there, and the
+        // live ticket blocked registering them in that room again today ("đã có số thứ tự … tại phòng này").
+        var openTickets = await _db.QueueTickets
+            .Where(t => t.MedicalRecordId == exam.MedicalRecordId && t.RoomId == exam.RoomId && !t.IsDeleted
+                        && t.Status < HIS.Core.Constants.QueueTicketStatus.Completed)
+            .ToListAsync();
+        foreach (var t in openTickets) t.Status = HIS.Core.Constants.QueueTicketStatus.Skipped;
 
         // Nếu đây là phiên khám chính duy nhất → soft-delete cả MedicalRecord
         var siblingCount = await _db.Examinations

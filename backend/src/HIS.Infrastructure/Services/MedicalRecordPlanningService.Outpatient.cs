@@ -52,6 +52,7 @@ public partial class MedicalRecordPlanningService
             var total = await query.CountAsync();
             var records = await query
                 .OrderByDescending(e => e.StartTime ?? e.CreatedAt)
+                .ThenBy(e => e.Id) // QA-R11: deterministic paging
                 .Skip(search.PageIndex * search.PageSize)
                 .Take(search.PageSize)
                 .Select(e => new

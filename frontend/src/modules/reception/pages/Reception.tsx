@@ -31,7 +31,7 @@ import { BhytVerifyModal } from './BhytVerifyModal';
 import { PatientLookupModal } from './PatientLookupModal';
 import { MoveRoomModal } from './MoveRoomModal';
 import { ReceptionPayModal } from './ReceptionPayModal';
-import { PrintRequestFormModal, printBarcodeLabel } from './ReceptionPrintModals';
+import { PrintRequestFormModal } from './ReceptionPrintModals';
 import { Checkbox } from '@/components/common/Checkbox';
 import { FileUpload } from '@/components/common/FileUpload/FileUpload';
 import { useWorkingDepartment } from '../../../hooks/useWorkingDepartment';
@@ -620,7 +620,9 @@ const ReceptionV2: React.FC = () => {
                   },
                   {
                     key: 'barcode', icon: 'scan', label: 'In mã vạch BN',
-                    onClick: () => printBarcodeLabel(r),
+                    // QA-R11: was an HTML label with '||||| code |||||' text (not scannable) — use the
+                    // backend Code128 PDF label, same as the drawer's "In nhãn mã vạch".
+                    onClick: () => { void onPrintMrBarcode(r); },
                   },
                   {
                     key: 'skip', icon: 'alert', label: 'Vắng mặt', tone: 'danger',

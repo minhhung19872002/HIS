@@ -116,8 +116,15 @@ public partial class ExaminationCompleteService
 
     public async Task<RoomExaminationConfigDto> UpdateRoomExaminationConfigAsync(Guid roomId, RoomExaminationConfigDto config)
     {
-        config.RoomId = roomId;
-        return config;
+        // QA-R11: echoed the body back with 200 and saved nothing. The only stored setting is the room's daily
+        // capacity (Rooms.MaxPatients); the other flags are fixed, and the response now says what is really in force.
+        var room = await _context.Rooms.FirstOrDefaultAsync(r => r.Id == roomId && !r.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy phòng khám");
+        if (config.MaxPatientsPerDay <= 0)
+            throw new ArgumentException("Số bệnh nhân tối đa/ngày phải lớn hơn 0", nameof(config.MaxPatientsPerDay));
+        room.MaxPatients = config.MaxPatientsPerDay;
+        await _unitOfWork.SaveChangesAsync();
+        return await GetRoomExaminationConfigAsync(roomId);
     }
 
     public async Task<bool> SignExaminationAsync(Guid examinationId, string signature)
@@ -135,7 +142,9 @@ public partial class ExaminationCompleteService
 
     public async Task<bool> SendResultNotificationAsync(Guid examinationId, string channel)
     {
-        return true;
+        // QA-R11: answered "sent" without sending anything. No channel is wired for examination results yet.
+        await Task.CompletedTask;
+        throw new NotSupportedException("Gửi kết quả khám qua SMS/email chưa được kết nối — in phiếu hoặc dùng Cổng bệnh nhân");
     }
 
     public async Task<List<ExaminationActivityLogDto>> GetExaminationLogsAsync(Guid examinationId)

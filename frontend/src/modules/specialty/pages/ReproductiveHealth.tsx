@@ -58,7 +58,11 @@ const PRENATAL_CRUD_FIELDS: CrudFieldCfg[] = [
   { key: 'bloodType', label: 'Nhóm máu' },
   { key: 'gravida',   label: 'Số lần mang thai (G)', type: 'number' },
   { key: 'para',      label: 'Số lần sinh (P)',       type: 'number' },
-  { key: 'doctorName',label: 'Bác sĩ phụ trách' },
+  // "Bác sĩ phụ trách" bỏ: PrenatalRecord không có cột BS → trước đây nhập rồi mất khi lưu
+  { key: 'status', label: 'Trạng thái', type: 'select', options: [
+    { value: 0, label: 'Đang theo dõi' }, { value: 1, label: 'Đã sinh' },
+    { value: 2, label: 'Hoàn tất' }, { value: 3, label: 'Hủy' },
+  ] },
   { key: 'notes',     label: 'Ghi chú',               type: 'textarea' },
 ];
 
@@ -107,6 +111,9 @@ const FP_CRUD_FIELDS: CrudFieldCfg[] = [
   { key: 'nextVisitDate', label: 'Ngày tái khám', type: 'date' },
   { key: 'sideEffects',   label: 'Tác dụng phụ' },
   { key: 'doctorName',    label: 'Bác sĩ phụ trách' },
+  { key: 'status', label: 'Trạng thái', type: 'select', options: [
+    { value: 0, label: 'Đang sử dụng' }, { value: 1, label: 'Ngừng sử dụng' }, { value: 2, label: 'Đổi biện pháp' },
+  ] },
   { key: 'notes',         label: 'Ghi chú', type: 'textarea' },
 ];
 

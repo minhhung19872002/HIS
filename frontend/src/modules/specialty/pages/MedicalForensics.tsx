@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   searchCases, getStats, getExaminations, createCase, updateCase, approveCase, getCaseById,
+  addExamination, printCertificate,
 } from '../api/forensic';
+import { openPrintWindow } from '../../../utils/printWindow';
 import type { ForensicCase, ForensicExamination, ForensicStats } from '../api/forensic';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
@@ -38,15 +40,32 @@ interface PatientOption { id: string; patientCode: string; fullName: string }
 // PatientName (legal subjects aren't always registered HIS patients), but when the subject IS
 // a known patient this links the real GUID instead of the old dead-weight 'patientCode' text
 // field (BE's CreateForensicCaseDto never had a PatientCode property at all).
+// BE CreateForensicCaseDto không có Mục đích / Kết luận / Tỉ lệ → trước đây nhập rồi mất khi lưu.
+// Kết luận + tỉ lệ tổn thương nay nhập ở bước "Duyệt kết luận"; mục đích ghi vào Ghi chú.
 const FIELDS_REST: CrudFieldCfg[] = [
   { key: 'patientName',            label: 'Họ tên đối tượng', required: true },
   { key: 'caseType',               label: 'Loại giám định', type: 'select', required: true, options: TYPE_OPTIONS },
   { key: 'requestingOrganization', label: 'Tổ chức yêu cầu', required: true },
-  { key: 'purpose',                label: 'Mục đích', type: 'textarea', required: true },
   { key: 'requestDate',            label: 'Ngày yêu cầu', type: 'date', required: true },
-  { key: 'disabilityPercent',      label: 'Tỉ lệ tổn thương (%)', type: 'number' },
-  { key: 'conclusion',             label: 'Kết luận', type: 'textarea' },
-  { key: 'notes',                  label: 'Ghi chú', type: 'textarea' },
+  { key: 'councilMembers',         label: 'Thành phần hội đồng', type: 'textarea' },
+  { key: 'notes',                  label: 'Mục đích / ghi chú', type: 'textarea' },
+];
+const EXAM_FIELDS: CrudFieldCfg[] = [
+  { key: 'examCategory', label: 'Chuyên khoa khám', type: 'select', required: true, options: [
+    { value: 'general', label: 'Tổng quát' }, { value: 'musculoskeletal', label: 'Cơ xương khớp' },
+    { value: 'neuro', label: 'Thần kinh' }, { value: 'eye', label: 'Mắt' }, { value: 'ent', label: 'Tai mũi họng' },
+    { value: 'mental', label: 'Tâm thần' }, { value: 'cardio', label: 'Tim mạch' }, { value: 'respiratory', label: 'Hô hấp' },
+  ] },
+  { key: 'findings', label: 'Kết quả khám', type: 'textarea', required: true },
+  { key: 'functionScore', label: 'Điểm chức năng (0-100)', type: 'number' },
+  { key: 'disabilityScore', label: 'Tổn thương (%)', type: 'number' },
+  { key: 'examinerName', label: 'Bác sĩ khám', required: true },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
+const APPROVE_FIELDS: CrudFieldCfg[] = [
+  { key: 'conclusion', label: 'Kết luận giám định', type: 'textarea', required: true },
+  { key: 'disabilityPercent', label: 'Tỉ lệ tổn thương cơ thể (%)', type: 'number',
+    rules: [{ type: 'number', min: 0, max: 100, message: 'Tỉ lệ 0 – 100%' }] },
 ];
 
 const PER = 20;
@@ -65,6 +84,8 @@ const MedicalForensicsV2: React.FC = () => {
   const [editId, setEditId]     = useState<string | null>(null);
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | undefined>();
   const [patientOpts, setPatientOpts] = useState<PatientOption[]>([]);
+  const [examOpen, setExamOpen] = useState(false);
+  const [approveFor, setApproveFor] = useState<ForensicCase | null>(null);
   const searchPatients = useCallback((kw: string) => {
     if (!kw || kw.trim().length < 2) return;
     apiClient.post<unknown>('/patients/search', { keyword: kw.trim(), page: 1, pageSize: 20 })
@@ -77,9 +98,15 @@ const MedicalForensicsV2: React.FC = () => {
       ? [{ value: crudInit.patientId, label: String(crudInit.patientName ?? '') }]
       : [];
     return [
-      { key: 'patientId', label: 'Bệnh nhân (nếu có trong hệ thống)', type: 'autocomplete',
+      // BE bắt buộc PatientId (FK NOT NULL) — trước đây ô này "nếu có" nên tạo không chọn BN luôn lỗi 400
+      { key: 'patientId', label: 'Bệnh nhân (đối tượng giám định)', type: 'autocomplete', required: true,
         options: [...seed, ...patientOpts.map((p) => ({ value: p.id, label: `${p.patientCode} — ${p.fullName}` }))],
-        onSearch: searchPatients, debounce: 300, placeholder: 'Gõ mã BN hoặc họ tên (≥ 2 ký tự)…' },
+        onSearch: searchPatients, debounce: 300, placeholder: 'Gõ mã BN hoặc họ tên (≥ 2 ký tự)…',
+        // QA-R11: the autocomplete also accepts free text → BE 400 INVALID_REFERENCE. Only a picked patient id passes.
+        rules: [{ required: true, message: 'Chọn bệnh nhân từ danh sách' }, {
+          validator: (_: unknown, v: unknown) => (!v || v === crudInit?.patientId || patientOpts.some((p) => p.id === v)
+            ? Promise.resolve() : Promise.reject(new Error('Chọn bệnh nhân từ danh sách'))),
+        }], },
       ...FIELDS_REST,
     ];
   }, [patientOpts, searchPatients, editId, crudInit]);
@@ -106,24 +133,27 @@ const MedicalForensicsV2: React.FC = () => {
   const openEdit = async (r: ForensicCase) => {
     setEditId(r.id);
     setCrudInit({
-      patientName: r.patientName,
+      id: r.id, patientName: r.patientName,
       caseType: r.caseType, requestingOrganization: r.requestingOrganization,
-      purpose: r.purpose, requestDate: r.requestDate?.slice(0, 10),
-      disabilityPercent: r.disabilityPercent, conclusion: r.conclusion, notes: r.notes,
+      requestDate: r.requestDate?.slice(0, 10), notes: r.notes,
     });
     setCrudOpen(true);
     // Detail endpoint carries PatientId (list rows don't) — fetch it in the background to
     // seed the patient picker; harmless if it fails (BE accepts PatientName-only too).
     try {
-      const detail = await getCaseById(r.id);
-      setCrudInit((cur) => (cur ? { ...cur, patientId: detail.patientId } : cur));
+      const detail = await getCaseById(r.id) as ForensicCase & { councilMembers?: string };
+      setCrudInit((cur) => (cur ? { ...cur, patientId: detail.patientId, notes: detail.notes, councilMembers: detail.councilMembers } : cur));
     } catch { /* keep patientId unset — form still valid via patientName */ }
   };
-  const handleApprove = (r: ForensicCase) =>
-    cf('Duyệt hồ sơ giám định này?', async () => {
-      try { await approveCase(r.id); tk('Đã duyệt'); load(); }
-      catch { te('Duyệt thất bại'); }
-    }, { tone: 'warn' });
+  const handleApprove = (r: ForensicCase) => setApproveFor(r);
+  const handlePrint = async (r: ForensicCase) => {
+    try {
+      const blob = await printCertificate(r.id) as Blob;
+      const html = typeof blob === 'string' ? blob : await blob.text();
+      if (!html) { te('Chưa có dữ liệu để in'); return; }
+      openPrintWindow(html, { focus: true, print: 'immediate', onBlocked: () => te('Popup bị chặn — hãy cho phép popup để in') });
+    } catch (e) { te(friendlyErrorMessage(e, 'Không in được giấy chứng nhận.')); }
+  };
 
   const handleSubmit = async (v: Record<string, unknown>) => {
     if (editId) {
@@ -175,8 +205,8 @@ const MedicalForensicsV2: React.FC = () => {
     }},
     { key: 'act', label: '', width: 72, render: (r) => (
       <div style={{ display: 'flex', gap: 4 }} onClick={(e) => e.stopPropagation()}>
-        <ActBtn ic="edit" onClick={() => openEdit(r)} title="Sửa" />
-        {r.status === 2 && <ActBtn ic="check" onClick={() => handleApprove(r)} title="Duyệt" />}
+        {r.status !== 3 && <ActBtn ic="edit" onClick={() => openEdit(r)} title="Sửa" />}
+        {(r.status === 1 || r.status === 2) && <ActBtn ic="check" onClick={() => handleApprove(r)} title="Duyệt kết luận" />}
       </div>
     )},
   ];
@@ -217,12 +247,20 @@ const MedicalForensicsV2: React.FC = () => {
         open={!!sel}
         onClose={() => setSel(null)}
         title={sel?.caseCode ?? ''}
-        sub={sel ? `${TYPE_LABEL[sel.caseType] ?? sel.caseType} · ${sel.requestingOrganization}` : ''}
+        sub={sel ? [TYPE_LABEL[sel.caseType] ?? sel.caseType, sel.requestingOrganization].filter(Boolean).join(' · ') : ''}
         footer={
           <>
-            <Btn variant="ghost" onClick={() => { openEdit(sel!); setSel(null); }}>Sửa</Btn>
-            {sel?.status === 2 && (
-              <Btn variant="primary" onClick={() => { handleApprove(sel!); setSel(null); }}>Duyệt</Btn>
+            {sel && sel.status !== 3 && (
+              <Btn variant="ghost" onClick={() => { openEdit(sel); setSel(null); }}>Sửa</Btn>
+            )}
+            {sel && sel.status !== 3 && (
+              <Btn variant="ghost" onClick={() => setExamOpen(true)}>Thêm kết quả khám</Btn>
+            )}
+            {sel?.status === 3 && (
+              <Btn variant="ghost" onClick={() => handlePrint(sel)}>In giấy chứng nhận</Btn>
+            )}
+            {(sel?.status === 1 || sel?.status === 2) && (
+              <Btn variant="primary" onClick={() => handleApprove(sel!)}>Duyệt kết luận</Btn>
             )}
           </>
         }
@@ -272,7 +310,7 @@ const MedicalForensicsV2: React.FC = () => {
                       <div style={{ fontSize: 12, color: 'var(--t-1)', marginTop: 4 }}>{e.conclusion}</div>
                     )}
                     <div style={{ fontSize: 11, color: 'var(--t-3)', marginTop: 6 }}>
-                      {e.examinerName} · {dayjs(e.examDate).format('DD/MM/YYYY')}
+                      {[e.examinerName, e.examDate ? dayjs(e.examDate).format('DD/MM/YYYY') : ''].filter(Boolean).join(' · ')}
                     </div>
                   </div>
                 ))}
@@ -291,6 +329,49 @@ const MedicalForensicsV2: React.FC = () => {
         initial={crudInit}
         size="lg"
         onSubmit={handleSubmit}
+      />
+
+      {/* Thêm kết quả khám giám định — chuyển hồ sơ Chờ GĐ → Đang GĐ (trước đây không có đường nào) */}
+      <CrudModal
+        open={examOpen}
+        onClose={() => setExamOpen(false)}
+        title="Thêm kết quả khám giám định"
+        sub={sel ? `${sel.caseCode} · ${sel.patientName}` : undefined}
+        fields={EXAM_FIELDS}
+        initial={{ examCategory: 'general' }}
+        size="lg"
+        onSubmit={async (v) => {
+          if (!sel) return;
+          await addExamination(sel.id, {
+            examCategory: v.examCategory, findings: v.findings,
+            functionScore: v.functionScore != null ? Number(v.functionScore) : undefined,
+            disabilityScore: v.disabilityScore != null ? Number(v.disabilityScore) : undefined,
+            examinerName: v.examinerName, notes: v.notes,
+          });
+          tk('Đã thêm kết quả khám');
+          setExams(await getExaminations(sel.id));
+          if (sel.status === 0) setSel({ ...sel, status: 1 });
+          load();
+        }}
+      />
+
+      {/* Duyệt kết luận — BE bắt buộc kết luận (+ tỉ lệ tổn thương) */}
+      <CrudModal
+        open={!!approveFor}
+        onClose={() => setApproveFor(null)}
+        title="Duyệt kết luận giám định"
+        sub={approveFor ? `${approveFor.caseCode} · ${approveFor.patientName} — sau khi duyệt không sửa được` : undefined}
+        fields={APPROVE_FIELDS}
+        initial={approveFor ? { conclusion: approveFor.conclusion, disabilityPercent: approveFor.disabilityPercent } : null}
+        onSubmit={async (v) => {
+          if (!approveFor) return;
+          await approveCase(approveFor.id, String(v.conclusion || ''),
+            v.disabilityPercent != null && v.disabilityPercent !== '' ? Number(v.disabilityPercent) : undefined);
+          tk('Đã duyệt kết luận');
+          setApproveFor(null);
+          setSel(null);
+          load();
+        }}
       />
     </div>
   );

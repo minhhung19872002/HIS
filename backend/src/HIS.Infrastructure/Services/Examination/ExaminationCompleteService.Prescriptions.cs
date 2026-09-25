@@ -162,11 +162,15 @@ public partial class ExaminationCompleteService
         if (!string.IsNullOrWhiteSpace(dto.OverrideReason))
             prescription.Instructions = $"{prescription.Instructions} [BS bỏ qua cảnh báo an toàn: {dto.OverrideReason}]".Trim();
 
+        // QA-R11 (partial write): the BHYT re-split is a second save — a failure there left the prescription
+        // committed with InsuranceAmount 0 (patient billed 100%). One transaction around both saves.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
         await _context.Prescriptions.AddAsync(prescription);
         await _unitOfWork.SaveChangesAsync();
         // R3 BHYT: split at prescribing time (no-op for fee patients).
         if (await new BhytVisitPricing(_context).RecalculateAsync(prescription.MedicalRecordId) != null)
             await _unitOfWork.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         return MapToPrescriptionFullDto(prescription);
     }
@@ -255,9 +259,11 @@ public partial class ExaminationCompleteService
         if (!string.IsNullOrWhiteSpace(dto.OverrideReason))
             prescription.Instructions = $"{prescription.Instructions} [BS bỏ qua cảnh báo an toàn: {dto.OverrideReason}]".Trim();
 
+        await using var tx = await SqlAppLock.BeginAsync(_context); // QA-R11: lines + BHYT split in one transaction
         await _unitOfWork.SaveChangesAsync();
         if (await new BhytVisitPricing(_context).RecalculateAsync(prescription.MedicalRecordId) != null) // R3 BHYT
             await _unitOfWork.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         return MapToPrescriptionFullDto(prescription);
     }
@@ -333,11 +339,13 @@ public partial class ExaminationCompleteService
             }
         }
 
+        await using var tx = await SqlAppLock.BeginAsync(_context); // QA-R11: issue + old-cancel + BHYT split atomically
         await _unitOfWork.SaveChangesAsync();
         // R3 BHYT: drafts are not billable (ledger rule) — the split is applied when the prescription is issued, and the
         // replaced prescription (now cancelled) leaves the visit total.
         if (await new BhytVisitPricing(_context).RecalculateAsync(prescription.MedicalRecordId) != null)
             await _unitOfWork.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
         return MapToPrescriptionFullDto(prescription);
     }
 
@@ -401,10 +409,12 @@ public partial class ExaminationCompleteService
         };
         draft.TotalAmount = draft.Details.Sum(d => d.TotalPrice);
 
+        await using var tx = await SqlAppLock.BeginAsync(_context); // QA-R11: draft + BHYT split in one transaction
         await _context.Prescriptions.AddAsync(draft);
         await _unitOfWork.SaveChangesAsync();
         if (await new BhytVisitPricing(_context).RecalculateAsync(draft.MedicalRecordId) != null) // R3 BHYT
             await _unitOfWork.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         var saved = await _context.Prescriptions
             .Include(p => p.Details).ThenInclude(d => d.Medicine)

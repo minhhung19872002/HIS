@@ -79,28 +79,48 @@ public partial class MedicalRecordPlanningService
     {
         try
         {
-            var date = search.Date ?? DateTime.Today;
-            var departments = await _context.Set<Department>()
-                .Where(d => !d.IsDeleted && d.IsActive)
-                .OrderBy(d => d.DepartmentName)
+            // QA-R11: every department used to come back "Chưa chấm" with 0/0/0 records (hard-coded),
+            // whatever had been checked in. Now read the check-in rows and the department's records of
+            // that VN day (admitted that day; "hoàn thành" = HSBA đã kết thúc/khóa TT46).
+            var date = (search.Date ?? HIS.Core.Common.VnTime.NowVn).Date;
+            var next = date.AddDays(1);
+            var deptQuery = _context.Set<Department>().Where(d => !d.IsDeleted && d.IsActive);
+            if (search.DepartmentId.HasValue) deptQuery = deptQuery.Where(d => d.Id == search.DepartmentId.Value);
+            var departments = await deptQuery.OrderBy(d => d.DepartmentName).ToListAsync();
+
+            var checkIns = await _context.MedicalRecordDeptCheckIns
+                .Where(c => !c.IsDeleted && c.CheckInDate == date)
+                .ToListAsync();
+            var recordCounts = await _context.MedicalRecords
+                .Where(r => !r.IsDeleted && r.DepartmentId != null && r.AdmissionDate >= date && r.AdmissionDate < next)
+                .GroupBy(r => r.DepartmentId!.Value)
+                .Select(g => new { DeptId = g.Key, Total = g.Count(), Done = g.Count(r => r.EmrFinalizedAt != null) })
                 .ToListAsync();
 
-            var deptList = departments.Select(d => new DepartmentAttendanceDto
+            var deptList = departments.Select(d =>
             {
-                DepartmentId = d.Id,
-                DepartmentName = d.DepartmentName,
-                IsCheckedIn = false,
-                TotalRecords = 0,
-                CompletedRecords = 0,
-                PendingRecords = 0,
+                var ci = checkIns.FirstOrDefault(c => c.DepartmentId == d.Id);
+                var rc = recordCounts.FirstOrDefault(x => x.DeptId == d.Id);
+                return new DepartmentAttendanceDto
+                {
+                    DepartmentId = d.Id,
+                    DepartmentName = d.DepartmentName,
+                    IsCheckedIn = ci != null,
+                    CheckInTime = ci?.CheckInTime,
+                    CheckInByName = ci?.CheckInByName,
+                    TotalRecords = rc?.Total ?? 0,
+                    CompletedRecords = rc?.Done ?? 0,
+                    PendingRecords = (rc?.Total ?? 0) - (rc?.Done ?? 0),
+                };
             }).ToList();
 
+            var checkedIn = deptList.Count(x => x.IsCheckedIn);
             return new AttendanceSummaryDto
             {
                 Date = date,
                 TotalDepartments = deptList.Count,
-                CheckedInCount = 0,
-                PendingCount = deptList.Count,
+                CheckedInCount = checkedIn,
+                PendingCount = deptList.Count - checkedIn,
                 Departments = deptList,
             };
         }
@@ -113,30 +133,48 @@ public partial class MedicalRecordPlanningService
 
     public async Task<AttendanceCheckInDto> CheckInAsync(CheckInDto dto, Guid userId)
     {
+        // QA-R11: this used to write nothing and answered Success=true — even for a department that does
+        // not exist, and even when the lookup threw (the catch also returned Success=true).
+        var dept = await _context.Set<Department>()
+            .FirstOrDefaultAsync(d => d.Id == dto.DepartmentId && !d.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy khoa/phòng");
+
+        var nowVn = HIS.Core.Common.VnTime.NowVn;
+        var today = nowVn.Date;
+        if (await _context.MedicalRecordDeptCheckIns.AnyAsync(c => !c.IsDeleted && c.DepartmentId == dept.Id && c.CheckInDate == today))
+            throw new InvalidOperationException($"Khoa {dept.DepartmentName} đã được điểm danh hôm nay.");
+
+        var user = userId == Guid.Empty ? null : await _context.Users.FindAsync(userId);
+        var row = new MedicalRecordDeptCheckIn
+        {
+            Id = Guid.NewGuid(),
+            DepartmentId = dept.Id,
+            CheckInDate = today,
+            CheckInTime = nowVn,
+            CheckInById = userId == Guid.Empty ? null : userId,
+            CheckInByName = user?.FullName,
+            Note = dto.Note,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = userId.ToString(),
+        };
+        _context.MedicalRecordDeptCheckIns.Add(row);
         try
         {
-            var dept = await _context.Set<Department>()
-                .FirstOrDefaultAsync(d => d.Id == dto.DepartmentId && !d.IsDeleted);
-
-            return new AttendanceCheckInDto
-            {
-                DepartmentId = dto.DepartmentId,
-                DepartmentName = dept?.DepartmentName ?? "Khoa",
-                CheckInTime = DateTime.UtcNow,
-                Success = true,
-            };
+            await _context.SaveChangesAsync();
         }
-        catch (Exception ex)
+        catch (DbUpdateException ex) when (NangCap23ServiceHelpers.IsUniqueViolation(ex))
         {
-            _logger.LogWarning(ex, "Error checking in");
-            return new AttendanceCheckInDto
-            {
-                DepartmentId = dto.DepartmentId,
-                DepartmentName = "Khoa",
-                CheckInTime = DateTime.UtcNow,
-                Success = true,
-            };
+            throw new InvalidOperationException($"Khoa {dept.DepartmentName} đã được điểm danh hôm nay.");
         }
+
+        return new AttendanceCheckInDto
+        {
+            DepartmentId = dept.Id,
+            DepartmentName = dept.DepartmentName,
+            CheckInTime = nowVn,
+            CheckInByName = row.CheckInByName,
+            Success = true,
+        };
     }
 
     // ========================================================================
@@ -159,11 +197,12 @@ public partial class MedicalRecordPlanningService
             var pendingTransfers = await _context.Set<Discharge>()
                 .CountAsync(d => !d.IsDeleted && d.DischargeType == 2 && (d.TransferStatus ?? 0) == 0);
 
+            var nowVn = HIS.Core.Common.VnTime.NowVn; // QA-R11: ExpectedReturnDate is VN wall clock
             var activeBorrows = await _context.Set<MedicalRecordBorrowRequest>()
                 .CountAsync(b => !b.IsDeleted && b.Status == 3);
             var overdueBorrows = await _context.Set<MedicalRecordBorrowRequest>()
                 .CountAsync(b => !b.IsDeleted && b.Status == 3 &&
-                    b.ExpectedReturnDate.HasValue && b.ExpectedReturnDate.Value < DateTime.UtcNow);
+                    b.ExpectedReturnDate.HasValue && b.ExpectedReturnDate.Value < nowVn);
 
             // Đếm theo trạng thái BÀN GIAO. Trước đây đếm cột `Status` của kho lưu trữ, mà ở đó
             // giá trị 2 nghĩa là "đang mượn" ⇒ hồ sơ đang cho người khác mượn bị đếm vào
@@ -320,7 +359,8 @@ public partial class MedicalRecordPlanningService
             // Không tạo MedicalRecord stub vì entity yêu cầu PatientId.
             // AllocatedCodes là danh sách mã đã kiểm tra hợp lệ, sẵn sàng để AssignRecordCodeAsync
             // gán cho bệnh nhân khi họ đến khám. Coordinator lưu danh sách này ở FE (hoặc in ra).
-            result.Message = $"Cấp thành công {result.Allocated} mã khả dụng" +
+            // QA-R11: honest wording — the codes are checked, not reserved (no row is written).
+            result.Message = $"Có {result.Allocated} mã khả dụng (chưa giữ chỗ)" +
                              (result.Skipped > 0 ? $", bỏ qua {result.Skipped} mã đã tồn tại" : "") +
                              (result.Failed > 0 ? $", lỗi {result.Failed} mã" : "") + ".";
 

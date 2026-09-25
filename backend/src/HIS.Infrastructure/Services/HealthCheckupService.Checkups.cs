@@ -51,6 +51,7 @@ public partial class HealthCheckupService
             .Include(h => h.Patient)
             .OrderByDescending(h => h.ExamDate)
             .ThenByDescending(h => h.CreatedAt)
+            .ThenBy(h => h.Id) // QA-R11: deterministic paging
             .Skip(filter.PageIndex * filter.PageSize)
             .Take(filter.PageSize)
             .Select(h => new HealthCheckupDto

@@ -14,6 +14,8 @@ import {
   type ColumnDef, type StatusTone,
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
+import MedicalRecordPicker from '../components/MedicalRecordPicker';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { SortTh, useSortableRows } from '../../../components/table';
 
 /* =====================================================================
@@ -540,7 +542,7 @@ const MedicalRecordArchiveV2: React.FC = () => {
     try {
       const vals = await archiveForm.validateFields();
       await createArchive({
-        medicalRecordId: vals.medicalRecordId.trim(),
+        medicalRecordId: vals.medicalRecordId,
         storageLocation: vals.storageLocation?.trim() || undefined,
       });
       tk('Đã lưu trữ hồ sơ thành công');
@@ -550,7 +552,7 @@ const MedicalRecordArchiveV2: React.FC = () => {
     } catch (e: unknown) {
       const err = e as { errorFields?: unknown };
       if (err?.errorFields) return; // form validation error — không toast
-      tw('Lưu trữ thất bại — kiểm tra MedicalRecordId và quyền truy cập');
+      tw(friendlyErrorMessage(e, 'Lưu trữ thất bại — kiểm tra hồ sơ và quyền truy cập'));
     } finally {
       setArchiving(false);
     }
@@ -1028,10 +1030,11 @@ const MedicalRecordArchiveV2: React.FC = () => {
           <Form form={archiveForm} layout="vertical">
             <Form.Item
               name="medicalRecordId"
-              label="ID hồ sơ bệnh án (MedicalRecordId)"
-              rules={[{ required: true, message: 'Nhập ID hồ sơ cần lưu trữ' }]}
+              label="Hồ sơ bệnh án"
+              rules={[{ required: true, message: 'Chọn hồ sơ cần lưu trữ' }]}
             >
-              <Input placeholder="VD: 3fa85f64-5717-4562-b3fc-2c963f66afa6" style={{ fontFamily: 'var(--font-mono)' }} />
+              {/* QA-R11: was a raw UUID input — nobody knows a MedicalRecordId, so the button was unusable */}
+              <MedicalRecordPicker />
             </Form.Item>
             <Form.Item name="storageLocation" label="Vị trí lưu trữ (tuỳ chọn)">
               <Input placeholder="VD: Kho A / Tầng 2" />

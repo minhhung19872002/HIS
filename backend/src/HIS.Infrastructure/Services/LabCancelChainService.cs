@@ -155,6 +155,19 @@ public class LabCancelChainService : ILabCancelChainService
             d.UpdatedAt = DateTime.UtcNow;
         }
 
+        // QA-R11: rolling the last line back to "chờ lấy mẫu" left the header at 2 (Đang XN), and the OPD
+        // cancel (ServiceRequest.Status must be 0) then answered `false` forever — a collected-then-rolled-back
+        // test could never be withdrawn. Header back to 0 once none of its lines carries any work.
+        var rolledBackIds = collected.Select(d => d.Id).ToList();
+        var parentIds = collected.Select(d => d.ServiceRequestId).Distinct().ToList();
+        var parentRows = await _db.ServiceRequests.Where(r => parentIds.Contains(r.Id) && r.Status != 4).ToListAsync();
+        foreach (var sr in parentRows)
+        {
+            var otherActive = await _db.ServiceRequestDetails.AnyAsync(x => x.ServiceRequestId == sr.Id && !x.IsDeleted
+                && x.Status != 3 && !rolledBackIds.Contains(x.Id) && (x.Status != 0 || x.IsSampleCollected));
+            if (!otherActive) sr.Status = 0;
+        }
+
         await _db.SaveChangesAsync();
         return ServiceOutcome.Ok(new CancelResponse(true, 0, StatusLabel(0), $"Đã hủy lấy mẫu {collected.Count} dòng"));
     }

@@ -209,7 +209,22 @@ public partial class ExaminationCompleteService
             body.AppendLine(GetSignatureBlock());
 
             var html = WrapHtmlPage("Thong ke kham benh", body.ToString());
-            return Encoding.UTF8.GetBytes(html);
+            // QA-R11: this printable HTML was served as application/pdf or .xlsx (neither opened). The controller
+            // labels format=="pdf" as PDF and everything else as xlsx — produce exactly that.
+            if (format == "pdf") return Export.ReportFileRenderer.HtmlToPdf(html);
+            var doctorRows = doctorStats.Select((d, i) => (IReadOnlyList<object?>)new object?[]
+            {
+                i + 1, d.DoctorCode ?? "", d.DoctorName ?? "", d.TotalExaminations, d.InsuranceExaminations,
+                d.FeeExaminations, d.ServiceExaminations, d.CompletedCount, d.PendingCount,
+            }).ToList();
+            doctorRows.Add(new object?[] { "", "", "Tổng cộng", totalExams, totalBhyt, totalFee, totalSvc, totalDone, totalPending });
+            var diagnosisRows = diagnosisStats.Select((kvp, i) => (IReadOnlyList<object?>)new object?[] { i + 1, kvp.Key, kvp.Value }).ToList();
+            return Export.SimpleXlsxWriter.Build(new[]
+            {
+                new Export.XlsxSheet("Theo bac si",
+                    new[] { "STT", "Mã BS", "Họ tên BS", "Tổng khám", "BHYT", "Viện phí", "Dịch vụ", "Hoàn thành", "Chờ xử lý" }, doctorRows),
+                new Export.XlsxSheet("Theo ICD-10", new[] { "STT", "Mã ICD - Chẩn đoán", "Số lượng" }, diagnosisRows),
+            });
         }
         catch { return Array.Empty<byte>(); }
     }

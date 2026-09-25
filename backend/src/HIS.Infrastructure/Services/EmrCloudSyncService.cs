@@ -35,7 +35,7 @@ public class EmrCloudSyncService : IEmrCloudSyncService
 
     public async Task<EmrCloudSyncResponseDto> SyncRecordAsync(EmrCloudSyncRequestDto request, Guid userId)
     {
-        var record = await _db.MedicalRecords.FirstOrDefaultAsync(m => m.Id == request.MedicalRecordId);
+        var record = await _db.MedicalRecords.FirstOrDefaultAsync(m => m.Id == request.MedicalRecordId && !m.IsDeleted);
         if (record == null) throw new KeyNotFoundException("Hồ sơ không tồn tại");
 
         var response = new EmrCloudSyncResponseDto { MedicalRecordId = record.Id };
@@ -157,7 +157,9 @@ public class EmrCloudSyncService : IEmrCloudSyncService
             })
             .ToListAsync();
 
-        var lastSync = await _db.EmrCloudSyncLogs.MaxAsync(l => (DateTime?)l.CompletedAt);
+        // QA-R11: this took the latest CompletedAt of ANY row — failed attempts included — so the screen
+        // reported a "last sync" time although nothing had ever been uploaded. Only real uploads count.
+        var lastSync = await _db.EmrCloudSyncLogs.Where(l => l.Status == "done").MaxAsync(l => (DateTime?)l.CompletedAt);
 
         return new EmrCloudSyncStatusDto
         {
@@ -211,6 +213,7 @@ public class EmrCloudSyncService : IEmrCloudSyncService
         RemotePath = l.RemotePath,
         Status = l.Status,
         ErrorMessage = l.ErrorMessage,
+        StartedAt = l.StartedAt,
         CompletedAt = l.CompletedAt,
         RetryCount = l.RetryCount
     };

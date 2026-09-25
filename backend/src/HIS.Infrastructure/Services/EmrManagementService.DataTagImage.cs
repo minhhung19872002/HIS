@@ -60,6 +60,21 @@ public partial class EmrManagementService
         var userId = GetCurrentUserId();
         EmrDataTag entity;
 
+        // QA-R11: duplicate Codes were accepted (the tag code is the merge-field key in EMR forms, so two tags
+        // with one code made the substituted value ambiguous). Unique among non-deleted tags, case-insensitive.
+        var code = dto.Code?.Trim();
+        if (string.IsNullOrEmpty(code))
+            throw new InvalidOperationException("Mã thẻ dữ liệu là bắt buộc");
+        var codeUpper = code.ToUpper();
+        var selfId = dto.Id ?? Guid.Empty;
+        // Only when the code is new or changed: legacy duplicates must stay editable (pre-push review).
+        var currentCode = selfId == Guid.Empty ? null
+            : await _context.Set<EmrDataTag>().Where(t => t.Id == selfId).Select(t => t.Code).FirstOrDefaultAsync();
+        if (!string.Equals(currentCode?.Trim(), code, StringComparison.OrdinalIgnoreCase)
+            && await _context.Set<EmrDataTag>().AnyAsync(t => !t.IsDeleted && t.Id != selfId && t.Code.ToUpper() == codeUpper))
+            throw new InvalidOperationException($"Mã thẻ dữ liệu '{code}' đã tồn tại");
+        dto.Code = code;
+
         if (dto.Id.HasValue && dto.Id != Guid.Empty)
         {
             entity = await _context.Set<EmrDataTag>()

@@ -292,13 +292,15 @@ public partial class ExaminationCompleteService
             PatientResponse = dto.PatientResponse,
             Notes = dto.Notes,
             CareLevel = dto.CareLevel,
-            NurseId = dto.NurseId
+            // QA-R11: the EMR editor sends an empty NurseId → the sheet was stored without a nurse (no signer on the form).
+            NurseId = dto.NurseId is Guid nurse && nurse != Guid.Empty ? nurse : GetCurrentUserId()
         };
 
         await _context.NursingCareSheets.AddAsync(sheet);
         await _unitOfWork.SaveChangesAsync();
 
         dto.Id = sheet.Id;
+        dto.NurseId = sheet.NurseId;
         return dto;
     }
 
@@ -322,7 +324,7 @@ public partial class ExaminationCompleteService
         sheet.PatientResponse = dto.PatientResponse;
         sheet.Notes = dto.Notes;
         sheet.CareLevel = dto.CareLevel;
-        sheet.NurseId = dto.NurseId;
+        if (dto.NurseId is Guid nurse && nurse != Guid.Empty) sheet.NurseId = nurse; // QA-R11: don't wipe the nurse
 
         await _unitOfWork.SaveChangesAsync();
 

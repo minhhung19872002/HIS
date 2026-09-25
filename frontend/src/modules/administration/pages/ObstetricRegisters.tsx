@@ -19,6 +19,7 @@ import {
 } from '@/_v2kit';
 import { useModalForm } from '../../../hooks/useModalForm';
 import { useTabState } from '../../../hooks/useTabState';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 const { RangePicker } = DatePicker;
 
@@ -128,8 +129,8 @@ const ObstetricRegistersV2: React.FC = () => {
     }, { tone: 'crit' });
   };
 
-  const openNewBirth = () => setEdit({ _isNew: true, registerNo: births.length + 1, deliveryDate: dayjs().toISOString(), babyCount: 1, babyGender: 1 });
-  const openNewAbortion = () => setEdit({ _isNew: true, registerNo: abortions.length + 1, procedureDate: dayjs().toISOString() });
+  const openNewBirth = () => setEdit({ _isNew: true, registerNo: 0, /* QA-R11: BE cấp STT theo năm */ deliveryDate: dayjs().toISOString(), babyCount: 1, babyGender: 1 });
+  const openNewAbortion = () => setEdit({ _isNew: true, registerNo: 0, /* QA-R11: BE cấp STT theo năm */ procedureDate: dayjs().toISOString() });
 
   // ── Save ───────────────────────────────────────────────────────────────────
   const onSave = async () => {
@@ -145,7 +146,7 @@ const ObstetricRegistersV2: React.FC = () => {
       }
       tk(edit.id ? 'Đã cập nhật' : 'Đã thêm mới');
       setEdit(null); void reload();
-    } catch { te('Lưu thất bại'); }
+    } catch (e) { te(friendlyErrorMessage(e, 'Lưu thất bại')); }
     finally { setSaving(false); }
   };
 
@@ -243,7 +244,7 @@ const ObstetricRegistersV2: React.FC = () => {
       >
         {edit && tab === 'birth' && (
           <DrSec title="Thông tin ca sinh">
-            <DrField lbl="STT sổ"><InputNumber style={{ width: '100%' }} min={0} value={edit.registerNo} onChange={v => patch('registerNo', v ?? 0)} /></DrField>
+            <DrField lbl="STT sổ (0 = tự cấp theo năm)"><InputNumber style={{ width: '100%' }} min={0} value={edit.registerNo} onChange={v => patch('registerNo', v ?? 0)} /></DrField>
             <DrField lbl="Ngày giờ sinh" required>
               <DatePicker style={{ width: '100%' }} showTime format="DD/MM/YYYY HH:mm"
                 value={edit.deliveryDate ? dayjs(edit.deliveryDate) : null}
@@ -266,7 +267,7 @@ const ObstetricRegistersV2: React.FC = () => {
         )}
         {edit && tab === 'abortion' && (
           <DrSec title="Thông tin ca nạo/phá thai">
-            <DrField lbl="STT sổ"><InputNumber style={{ width: '100%' }} min={0} value={edit.registerNo} onChange={v => patch('registerNo', v ?? 0)} /></DrField>
+            <DrField lbl="STT sổ (0 = tự cấp theo năm)"><InputNumber style={{ width: '100%' }} min={0} value={edit.registerNo} onChange={v => patch('registerNo', v ?? 0)} /></DrField>
             <DrField lbl="Ngày thực hiện" required>
               <DatePicker style={{ width: '100%' }} showTime format="DD/MM/YYYY HH:mm"
                 value={edit.procedureDate ? dayjs(edit.procedureDate) : null}

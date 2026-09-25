@@ -6,7 +6,8 @@ import {
   type ServiceOrderFullDto, type DiagnosisFullDto, type AllergyDto, type InjuryInfoDto,
 } from '../api/examination';
 import { useAbbrExpansion } from '../../../utils/abbrExpand';
-import { tw } from '@/_v2kit';
+import { tw, te, tk } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { type Vitals, type DxRow, type OrderRow, OPD_ABBR_SCOPES } from '../pages/_shared';
 
 interface Params {
@@ -40,6 +41,7 @@ export function useOpdPatientData({ setLeftOpen, setSelPt, setAutoSavedTs }: Par
 
   // Guard chống race khi đổi BN nhanh (#374 patient-safety)
   const selectReqRef = useRef(0);
+  const examIdRef = useRef<string | null>(null);
   const selectPatient = useCallback(async (q: RoomPatientListDto) => {
     const reqId = ++selectReqRef.current;
     setSelPt(q);
@@ -51,6 +53,7 @@ export function useOpdPatientData({ setLeftOpen, setSelPt, setAutoSavedTs }: Par
     setAutoSavedTs(null);
     setLoadFailed([]);
     const id = q.examinationId;
+    examIdRef.current = id;
     const [v, mi, pe, dx, so, al, inj] = await Promise.allSettled([
       examinationApi.getVitalSigns(id),
       examinationApi.getMedicalInterview(id),
@@ -132,7 +135,30 @@ export function useOpdPatientData({ setLeftOpen, setSelPt, setAutoSavedTs }: Par
     setSvcQ(''); setSvcResults([]);
   };
   const updateQty = (i: number, q: number) => setOrd((p) => p.map((x, j) => (j === i ? { ...x, qty: q } : x)));
-  const removeSvc = (i: number) => setOrd((p) => p.filter((_, j) => j !== i));
+  // QA-R11: rows loaded from / already sent to the server used to be dropped only from the form — the order
+  // stayed live (worked + billed) while the doctor believed it was removed. Cancel the server order first.
+  const removeSvc = async (i: number) => {
+    const row = orders[i];
+    if (!row) return;
+    const examId = examIdRef.current;
+    let serverOrder: ServiceOrderFullDto | undefined;
+    if (examId) {
+      try {
+        const r = await examinationApi.getServiceOrders(examId);
+        serverOrder = (Array.isArray(r.data) ? r.data : []).find((o) => o.serviceId === row.serviceId && o.status !== 4);
+      } catch (e) { te(friendlyErrorMessage(e, 'Không kiểm tra được chỉ định đã gửi — chưa xoá.')); return; }
+    }
+    if (serverOrder) {
+      const reason = window.prompt(`Chỉ định "${row.name}" đã gửi sang phòng thực hiện. Lý do huỷ:`)?.trim();
+      if (!reason) { if (reason === '') tw('Cần nhập lý do huỷ chỉ định'); return; }
+      try {
+        const r = await examinationApi.cancelServiceOrder(serverOrder.id, reason);
+        if (r.data === false) { tw('Chỉ định đã được thực hiện — không huỷ được. Nhờ phòng thực hiện huỷ kết quả/lấy mẫu trước.'); return; }
+      } catch (e) { te(friendlyErrorMessage(e, 'Huỷ chỉ định thất bại')); return; }
+      tk(`Đã huỷ chỉ định ${row.name}`);
+    }
+    setOrd((p) => p.filter((x) => x.serviceId !== row.serviceId));
+  };
 
   return {
     vitals, setVitals, history, setHistory, pastHist, setPastHist,

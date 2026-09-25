@@ -23,11 +23,15 @@ import {
 } from '@/_v2kit';
 import { RowActions, RefreshButton } from '../../../components/actions';
 import { useTabState } from '../../../hooks/useTabState';
+import { searchPatient, type PatientSearchResultDto } from '../../reception/api/reception';
+import { getRecordCodes } from '../../medical-record/api/medicalRecordPlanning';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // Backend SpecialtyEmrDto (api/specialty-emr) — fieldData is a JSON string.
 interface SpecialtyRecord {
   id: string;
   patientId: string;
+  medicalRecordId?: string | null;
   patientCode: string;
   patientName: string;
   specialtyType: string;
@@ -46,6 +50,7 @@ interface SpecialtyRecord {
 interface FormState {
   id?: string;
   patientId?: string;
+  medicalRecordId?: string;
   patientCode: string;
   patientName: string;
   specialtyType: string;
@@ -57,8 +62,6 @@ interface FormState {
   status: number;
   fieldData: Record<string, unknown>;
 }
-
-const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
 
 // Backend Status: 0=Nháp, 1=Hoàn thành, 2=Đã ký
 type StatusKey = 'draft' | 'done' | 'signed';
@@ -194,6 +197,7 @@ const SpecialtyEMRV2: React.FC = () => {
 
   // ── create / edit ───────────────────────────────────────────────
   const openCreate = () => {
+    setPtOpts([]); setMrOpts([]);
     setForm({
       patientCode: '', patientName: '', specialtyType: 'surgical',
       recordDate: dayjs(), doctorName: '', departmentName: '',
@@ -212,6 +216,7 @@ const SpecialtyEMRV2: React.FC = () => {
     setForm({
       id: r.id,
       patientId: detail.patientId || r.patientId,
+      medicalRecordId: detail.medicalRecordId || undefined,
       patientCode: detail.patientCode || r.patientCode,
       patientName: detail.patientName || r.patientName,
       specialtyType: detail.specialtyType || r.specialtyType || 'surgical',
@@ -225,19 +230,61 @@ const SpecialtyEMRV2: React.FC = () => {
     });
     setIsNew(false);
     setSel(null);
+    if (detail.patientCode || r.patientCode) void loadPatientRecords(detail.patientCode || r.patientCode);
+  };
+
+  // ── QA-R11: chọn bệnh nhân + HSBA thật ──────────────────────────
+  // Trước đây form bắt gõ tay mã/họ tên BN và gửi patientId = 00000000-…; từ QA-R7 BE tra Patient
+  // theo patientId ⇒ nút "HSBA mới" luôn lỗi "Bệnh nhân không tồn tại". Không gửi medicalRecordId
+  // nên khóa TT46 (EmrLockGuard) cũng không bao giờ áp cho bản ghi tạo từ màn này.
+  const [ptOpts, setPtOpts] = useState<PatientSearchResultDto[]>([]);
+  const [ptLoading, setPtLoading] = useState(false);
+  const [mrOpts, setMrOpts] = useState<{ id: string; recordCode: string; departmentName?: string; createdAt?: string }[]>([]);
+  const ptTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onPatientSearch = (kw: string) => {
+    if (ptTimer.current) clearTimeout(ptTimer.current);
+    if (kw.trim().length < 2) { setPtOpts([]); return; }
+    ptTimer.current = setTimeout(async () => {
+      setPtLoading(true);
+      try {
+        const r = await searchPatient(kw.trim());
+        const list = Array.isArray(r.data) ? r.data : [];
+        // search returns one row per visit — keep one per patient
+        const seen = new Set<string>();
+        setPtOpts(list.filter((p) => { const id = String(p.patientId || p.id || ''); if (!id || seen.has(id)) return false; seen.add(id); return true; }));
+      } catch { setPtOpts([]); }
+      finally { setPtLoading(false); }
+    }, 300);
+  };
+  async function loadPatientRecords(patientCode: string) {
+    try {
+      const r = await getRecordCodes({ keyword: patientCode, pageIndex: 0, pageSize: 50 });
+      const items = ((r.data as { items?: { id: string; recordCode: string; patientCode?: string; departmentName?: string; createdAt?: string }[] })?.items || [])
+        .filter((x) => x.patientCode === patientCode && !!x.recordCode);
+      setMrOpts(items);
+    } catch { setMrOpts([]); }
+  }
+  const pickPatient = (pid: string | undefined) => {
+    if (!form) return;
+    const p = ptOpts.find((x) => String(x.patientId || x.id) === pid);
+    if (!p) { setForm({ ...form, patientId: undefined, patientCode: '', patientName: '', medicalRecordId: undefined }); setMrOpts([]); return; }
+    const code = String(p.patientCode || '');
+    setForm({ ...form, patientId: pid, patientCode: code, patientName: String(p.fullName || p.patientName || ''), medicalRecordId: undefined });
+    if (code) void loadPatientRecords(code);
   };
 
   const handleSave = async () => {
     if (!form) return;
-    if (!form.patientCode.trim() || !form.patientName.trim()) {
-      te('Nhập mã và họ tên bệnh nhân');
+    if (!form.patientId) {
+      te('Chọn bệnh nhân');
       return;
     }
     setSaving(true);
     try {
       const payload = {
         id: form.id || undefined,
-        patientId: form.patientId && form.patientId !== '' ? form.patientId : EMPTY_GUID,
+        patientId: form.patientId,
+        medicalRecordId: form.medicalRecordId || undefined,
         patientCode: form.patientCode.trim(),
         patientName: form.patientName.trim(),
         specialtyType: form.specialtyType,
@@ -253,7 +300,7 @@ const SpecialtyEMRV2: React.FC = () => {
       tk(isNew ? 'Đã tạo HSBA chuyên khoa' : 'Đã cập nhật HSBA');
       setForm(null);
       load();
-    } catch { te('Lưu HSBA thất bại'); }
+    } catch (e) { te(friendlyErrorMessage(e, 'Lưu HSBA thất bại')); } // QA-R11: show BE reason (BN không tồn tại / HSBA đã khóa TT46)
     finally { setSaving(false); }
   };
 
@@ -264,7 +311,7 @@ const SpecialtyEMRV2: React.FC = () => {
       tk('Đã xoá HSBA');
       setSel(null);
       load();
-    } catch { te('Xoá thất bại'); }
+    } catch (e) { te(friendlyErrorMessage(e, 'Xoá thất bại')); }
   };
 
   const openReport = async (r: SpecialtyRecord) => {
@@ -468,11 +515,37 @@ const SpecialtyEMRV2: React.FC = () => {
       >
         {form && <>
           <DrSec title="Thông tin chung">
-            <DrField lbl="Mã BN *">
-              <Input value={form.patientCode} onChange={(e) => setForm({ ...form, patientCode: e.target.value })} placeholder="Mã bệnh nhân" />
+            <DrField lbl="Bệnh nhân *">
+              {isNew ? (
+                <Select
+                  showSearch allowClear filterOption={false} loading={ptLoading}
+                  style={{ width: '100%' }}
+                  placeholder="Tìm mã BN / họ tên / SĐT (≥ 2 ký tự)…"
+                  value={form.patientId || undefined}
+                  onSearch={onPatientSearch}
+                  onChange={(v: string | undefined) => pickPatient(v)}
+                  notFoundContent={ptLoading ? 'Đang tìm…' : 'Không có bệnh nhân'}
+                  options={ptOpts.map((p) => ({
+                    value: String(p.patientId || p.id),
+                    label: `${p.patientCode || ''} · ${p.fullName || p.patientName || ''}${p.yearOfBirth ? ` (${p.yearOfBirth})` : ''}`,
+                  }))}
+                />
+              ) : (
+                <span>{form.patientName} <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--t-2)' }}>({form.patientCode})</span></span>
+              )}
             </DrField>
-            <DrField lbl="Họ tên *">
-              <Input value={form.patientName} onChange={(e) => setForm({ ...form, patientName: e.target.value })} placeholder="Họ tên bệnh nhân" />
+            <DrField lbl="Gắn HSBA">
+              <Select
+                allowClear style={{ width: '100%' }}
+                placeholder={form.patientId ? 'Chọn hồ sơ bệnh án của BN (để khóa theo TT46)' : 'Chọn bệnh nhân trước'}
+                disabled={!form.patientId}
+                value={form.medicalRecordId || undefined}
+                onChange={(v: string | undefined) => setForm({ ...form, medicalRecordId: v })}
+                options={[
+                  ...mrOpts.map((m) => ({ value: m.id, label: `${m.recordCode}${m.departmentName ? ` · ${m.departmentName}` : ''}${m.createdAt ? ` · ${dayjs(m.createdAt).format('DD/MM/YYYY')}` : ''}` })),
+                  ...(form.medicalRecordId && !mrOpts.some((m) => m.id === form.medicalRecordId) ? [{ value: form.medicalRecordId, label: 'HSBA đang gắn' }] : []),
+                ]}
+              />
             </DrField>
             <DrField lbl="Chuyên khoa *">
               <Select

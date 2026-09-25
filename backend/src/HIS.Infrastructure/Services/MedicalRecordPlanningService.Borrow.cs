@@ -49,6 +49,9 @@ public partial class MedicalRecordPlanningService
                     b.Id,
                     b.RequestCode,
                     ArchiveCode = b.MedicalRecordArchive.ArchiveCode,
+                    // QA-R11: the "Mã BA" column showed the archive code; CreateBorrowAsync returns the
+                    // medical-record code for the same field — the row changed meaning after a reload.
+                    MedicalRecordCode = b.MedicalRecordArchive.MedicalRecord.MedicalRecordCode,
                     PatientCode = b.MedicalRecordArchive.Patient.PatientCode,
                     PatientName = b.MedicalRecordArchive.Patient.FullName,
                     BorrowerName = b.RequestedBy.FullName,
@@ -64,7 +67,7 @@ public partial class MedicalRecordPlanningService
             {
                 Id = b.Id,
                 BorrowCode = b.RequestCode,
-                RecordCode = b.ArchiveCode,
+                RecordCode = string.IsNullOrEmpty(b.MedicalRecordCode) ? b.ArchiveCode : b.MedicalRecordCode,
                 PatientCode = b.PatientCode,
                 PatientName = b.PatientName,
                 BorrowerName = b.BorrowerName,
@@ -74,7 +77,7 @@ public partial class MedicalRecordPlanningService
                 ActualReturnDate = b.ReturnedDate,
                 Status = b.Status,
                 StatusName = GetBorrowStatusName(b.Status),
-                IsOverdue = b.Status == 3 && b.ExpectedReturnDate.HasValue && b.ExpectedReturnDate.Value < DateTime.UtcNow,
+                IsOverdue = b.Status == 3 && b.ExpectedReturnDate.HasValue && b.ExpectedReturnDate.Value < HIS.Core.Common.VnTime.NowVn,
             }).ToList();
 
             return new PagedBorrowResult { TotalCount = total, Items = items };
@@ -122,14 +125,23 @@ public partial class MedicalRecordPlanningService
             throw new InvalidOperationException("Hồ sơ đang có phiếu mượn chưa trả, không tạo thêm phiếu được.");
 
         var borrowDays = dto.BorrowDays > 0 ? dto.BorrowDays : 7;
-        var now = DateTime.UtcNow;
+        // QA-R11: RequestDate/ExpectedReturnDate are business timestamps → VN wall clock, the same
+        // convention the other borrow door (SystemCompleteService 16.2) writes into this table. They were
+        // UtcNow here, so a loan created on this screen showed 7h early and turned "quá hạn" 7h late.
+        var now = HIS.Core.Common.VnTime.NowVn;
+        // QA-R11: code was `PM{yyyyMMddHHmmss}` — two loans in the same second got the same code.
+        var codePrefix = $"PM{now:yyyyMMdd}";
+        var sameDayCodes = await _context.MedicalRecordBorrowRequests.IgnoreQueryFilters()
+            .Where(b => b.RequestCode.StartsWith(codePrefix))
+            .Select(b => b.RequestCode)
+            .ToListAsync();
         // Phòng KHTH lập phiếu tại quầy = giao hồ sơ luôn (màn này không có bước duyệt riêng),
         // nên ghi thẳng trạng thái 3 "Đang mượn" theo bộ mã dùng chung với MedicalRecordArchiveService
         // (0 chờ duyệt · 1 đã duyệt · 2 từ chối · 3 đang mượn · 4 đã trả) và khoá hồ sơ trong kho.
         var request = new MedicalRecordBorrowRequest
         {
             Id = Guid.NewGuid(),
-            RequestCode = $"PM{now:yyyyMMddHHmmss}",
+            RequestCode = $"{codePrefix}{RecordCodeGenerator.NextNumber(sameDayCodes, codePrefix):D4}",
             MedicalRecordArchiveId = archive.Id,
             RequestedById = userId,
             RequestDate = now,
@@ -139,11 +151,11 @@ public partial class MedicalRecordPlanningService
             ApprovedById = userId,
             ApprovedDate = now,
             BorrowedDate = now,
-            CreatedAt = now,
+            CreatedAt = DateTime.UtcNow,
             CreatedBy = userId.ToString(),
         };
         archive.Status = 2; // Đang mượn
-        archive.UpdatedAt = now;
+        archive.UpdatedAt = DateTime.UtcNow;
         await _context.MedicalRecordBorrowRequests.AddAsync(request);
         await _context.SaveChangesAsync();
 
@@ -181,7 +193,7 @@ public partial class MedicalRecordPlanningService
             throw new InvalidOperationException("Phiếu mượn chưa giao hồ sơ, không có gì để trả.");
 
         var now = DateTime.UtcNow;
-        borrow.ReturnedDate = now;
+        borrow.ReturnedDate = HIS.Core.Common.VnTime.NowVn; // QA-R11: business timestamp → VN wall clock
         borrow.Status = 4; // Đã trả
         if (!string.IsNullOrWhiteSpace(dto.Note))
             borrow.Note = string.IsNullOrWhiteSpace(borrow.Note) ? dto.Note : $"{borrow.Note}\n{dto.Note}";
@@ -201,7 +213,7 @@ public partial class MedicalRecordPlanningService
             Purpose = borrow.Purpose,
             BorrowDate = borrow.RequestDate,
             ExpectedReturnDate = borrow.ExpectedReturnDate,
-            ActualReturnDate = now,
+            ActualReturnDate = borrow.ReturnedDate,
             Status = borrow.Status,
             StatusName = GetBorrowStatusName(borrow.Status),
         };
@@ -222,11 +234,11 @@ public partial class MedicalRecordPlanningService
         if (borrow.Status != 3)
             throw new InvalidOperationException("Chỉ gia hạn được phiếu đang mượn.");
 
-        var now = DateTime.UtcNow;
+        var now = HIS.Core.Common.VnTime.NowVn; // QA-R11: ExpectedReturnDate is VN wall clock
         borrow.ExpectedReturnDate = (borrow.ExpectedReturnDate ?? now).AddDays(dto.ExtendDays);
         var extendNote = $"Gia han {dto.ExtendDays} ngay. Ly do: {dto.Reason}";
         borrow.Note = string.IsNullOrWhiteSpace(borrow.Note) ? extendNote : $"{borrow.Note}\n{extendNote}";
-        borrow.UpdatedAt = now;
+        borrow.UpdatedAt = DateTime.UtcNow;
         borrow.UpdatedBy = userId.ToString();
         await _context.SaveChangesAsync();
 

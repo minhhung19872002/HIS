@@ -323,11 +323,14 @@ public partial class ReceptionCompleteService {
     {
         try
         {
-            var tickets = await _context.QueueTickets.AsNoTracking()
+            var ticketQuery = _context.QueueTickets.AsNoTracking()
                 .Include(q => q.Room)
-                .Where(q => q.CreatedAt.Date >= dto.FromDate.Date && q.CreatedAt.Date <= dto.ToDate.Date)
-                .OrderBy(q => q.CreatedAt)
-                .ToListAsync();
+                .Where(q => q.CreatedAt.Date >= dto.FromDate.Date && q.CreatedAt.Date <= dto.ToDate.Date);
+            // QA-R11: room/queue-type/department filters were accepted and ignored.
+            if (dto.RoomId.HasValue) ticketQuery = ticketQuery.Where(q => q.RoomId == dto.RoomId);
+            if (dto.QueueType.HasValue) ticketQuery = ticketQuery.Where(q => q.QueueType == dto.QueueType);
+            if (dto.DepartmentId.HasValue) ticketQuery = ticketQuery.Where(q => q.Room != null && q.Room.DepartmentId == dto.DepartmentId);
+            var tickets = await ticketQuery.OrderBy(q => q.CreatedAt).ToListAsync();
 
             var html = $@"<html><head><meta charset='utf-8'/>
 <style>body{{font-family:'Times New Roman';}} table{{border-collapse:collapse;width:100%;}} th,td{{border:1px solid #000;padding:4px;text-align:center;}} th{{background:#f0f0f0;}}</style></head>
@@ -342,7 +345,19 @@ public partial class ReceptionCompleteService {
                 html += "<tr><td>" + i++ + "</td><td>" + t.QueueNumber + "</td><td>" + (t.Room?.RoomName ?? "") + "</td><td>" + qType + "</td><td>" + status + "</td><td>" + t.CreatedAt.ToString("HH:mm") + "</td><td>" + (t.CalledTime?.ToString("HH:mm") ?? "") + "</td></tr>";
             }
             html += $"</table><p>Tổng: {tickets.Count} lượt</p></body></html>";
-            return System.Text.Encoding.UTF8.GetBytes(html);
+            // QA-R11: this HTML was served as .xlsx / application/pdf (neither opened). Same format rule as the
+            // controller: "PDF" → real PDF, anything else → real xlsx.
+            if (dto.ExportFormat == "PDF") return Export.ReportFileRenderer.HtmlToPdf(html);
+            var n = 1;
+            var rows = tickets.Select(t => new[]
+            {
+                (n++).ToString(), t.QueueNumber.ToString(), t.Room?.RoomName ?? "",
+                t.QueueType switch { 1 => "Thường", 2 => "Ưu tiên", 3 => "Cấp cứu", _ => "Khác" },
+                t.Status switch { 0 => "Chờ", 1 => "Đang gọi", 2 => "Đã khám", 3 => "Bỏ qua", _ => "Khác" },
+                t.CreatedAt.ToString("dd/MM/yyyy HH:mm"), t.CalledTime?.ToString("HH:mm") ?? "",
+            }).ToList();
+            return Export.ReportFileRenderer.TableToXlsx("BAO CAO HANG DOI",
+                new[] { "STT", "Số", "Phòng", "Loại", "Trạng thái", "Thời gian tạo", "Thời gian gọi" }, rows);
         }
         catch (Exception ex)
         {

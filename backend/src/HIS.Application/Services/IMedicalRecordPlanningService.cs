@@ -221,6 +221,7 @@ public class PagedHandoverResult
 public class HandoverRecordDto
 {
     public Guid Id { get; set; }
+    public Guid? MedicalRecordId { get; set; } // QA-R11: needed by the "Gửi bàn giao" row action (submit takes record ids)
     public string HandoverCode { get; set; } = string.Empty;
     public string? RecordCode { get; set; }
     public string? PatientCode { get; set; }

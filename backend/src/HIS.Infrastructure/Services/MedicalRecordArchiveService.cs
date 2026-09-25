@@ -388,6 +388,7 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
         pageSize = pageSize > 0 ? Math.Min(pageSize, 200) : 20;
         var items = await query
             .OrderByDescending(a => a.ArchivedDate ?? a.CreatedAt)
+            .ThenBy(a => a.Id) // QA-R11: deterministic paging
             .Skip(pageIndex * pageSize)
             .Take(pageSize)
             .ToListAsync();

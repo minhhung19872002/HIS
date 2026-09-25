@@ -5,7 +5,9 @@
  * KPI + StatusTabs + DataTable + Drawer chi tiết + Modal đồng bộ mới.
  */
 import React, { useEffect, useState } from 'react';
-import { Form, Input, Checkbox, Button } from 'antd';
+import { Form, Checkbox, Button } from 'antd';
+import MedicalRecordPicker from '../../medical-record/components/MedicalRecordPicker';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import {
   KpiStrip, DataTable, StatusTabs, SearchBox, DrawerShell, ModalShell,
   Filter, Pager, ActBtn, StatusBadge, DrSec, DrField,
@@ -92,8 +94,9 @@ const EmrCloudSync: React.FC = () => {
     if (retryBusy) return;
     setRetryBusy(true);
     try {
-      await emrCloudSyncApi.retryFailed();
-      tk(`Đang retry · ${r.fileName}`);
+      // QA-R11: the API retries ALL failed files (no per-file endpoint) — say so instead of naming one file.
+      const res = await emrCloudSyncApi.retryFailed();
+      tk(`Đã thử lại ${res.retried} file lỗi (gồm ${r.fileName}) — xem trạng thái trong bảng`);
       load();
     } catch { te('Retry thất bại'); }
     finally { setRetryBusy(false); }
@@ -103,7 +106,7 @@ const EmrCloudSync: React.FC = () => {
     setRetryBusy(true);
     try {
       const r = await emrCloudSyncApi.retryFailed();
-      tk(`Đã retry ${r.retried} file lỗi`);
+      tk(`Đã thử lại ${r.retried} file lỗi — xem trạng thái trong bảng`);
       load();
     } catch { te('Retry thất bại'); }
     finally { setRetryBusy(false); }
@@ -114,17 +117,21 @@ const EmrCloudSync: React.FC = () => {
     setSyncBusy(true);
     try {
       const v = await form.validateFields();
-      await emrCloudSyncApi.sync({
+      const res = await emrCloudSyncApi.sync({
         medicalRecordId: v.medicalRecordId,
         fileTypes: v.fileTypes,
         syncToDr: v.syncToDr,
-      });
-      tk('Đã trigger đồng bộ');
+      }) as unknown as { successCount?: number; failedCount?: number } | undefined;
+      // QA-R11: "Đã trigger đồng bộ" was shown even when every file failed (no cloud client wired) —
+      // report the real outcome from the response.
+      if (res && (res.failedCount ?? 0) > 0 && (res.successCount ?? 0) === 0) te(`Đồng bộ chưa thực hiện được (${res.failedCount} file lỗi) — xem cột Lỗi`);
+      else if (res && (res.failedCount ?? 0) > 0) te(`Đồng bộ ${res.successCount} file, lỗi ${res.failedCount} file`);
+      else tk('Đã đồng bộ');
       setSyncModal(false); form.resetFields();
       load();
     } catch (e: unknown) {
       const err = e as { errorFields?: unknown };
-      if (!err?.errorFields) te('Đồng bộ thất bại');
+      if (!err?.errorFields) te(friendlyErrorMessage(e, 'Đồng bộ thất bại'));
     } finally {
       setSyncBusy(false);
     }
@@ -167,7 +174,8 @@ const EmrCloudSync: React.FC = () => {
     },
     {
       key: 'startedAt', label: 'Bắt đầu', mono: true, width: 110,
-      render: r => fmtHMg(r.completedAt ?? r.errorMessage)
+      // QA-R11: rendered `completedAt ?? errorMessage` (an error text fed to a time formatter); BE now sends startedAt
+      render: r => { const s = (r as EmrCloudSyncLogDto & { startedAt?: string }).startedAt; return s ? fmtHMg(s) : <span style={{ color: 'var(--t-3)' }}>—</span>; }
     },
     {
       key: 'completedAt', label: 'Hoàn tất', mono: true, width: 110,
@@ -282,8 +290,9 @@ const EmrCloudSync: React.FC = () => {
             layout="vertical"
             initialValues={{ fileTypes: ['signed_xml', 'hl7', 'pdf'], syncToDr: true }}
           >
-            <Form.Item name="medicalRecordId" label="HSBA ID hoặc Mã" rules={[{ required: true, message: 'Cần nhập HSBA ID' }]}>
-              <Input placeholder="HSBA-1018-20100 hoặc UUID" />
+            {/* QA-R11: label promised "ID hoặc Mã" but the API only accepts the UUID (a code → 400) */}
+            <Form.Item name="medicalRecordId" label="Hồ sơ bệnh án" rules={[{ required: true, message: 'Chọn hồ sơ bệnh án' }]}>
+              <MedicalRecordPicker />
             </Form.Item>
             <Form.Item name="fileTypes" label="Loại file đồng bộ">
               <Checkbox.Group options={[

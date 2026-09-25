@@ -63,6 +63,7 @@ public class SpecialtyEmrService : ISpecialtyEmrService
         var items = await query
             .OrderByDescending(e => e.RecordDate)
             .ThenByDescending(e => e.CreatedAt)
+            .ThenBy(e => e.Id) // QA-R11: deterministic paging
             .Skip(pageIndex * pageSize)
             .Take(pageSize)
             .Select(e => new SpecialtyEmrDto

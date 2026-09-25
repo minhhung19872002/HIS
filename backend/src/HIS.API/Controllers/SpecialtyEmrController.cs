@@ -52,6 +52,10 @@ public class SpecialtyEmrController : ControllerBase
     [HttpGet("{id}/pdf")]
     public async Task<ActionResult> ExportPdf(Guid id)
     {
+        // QA-R11: a deleted/unknown id answered 200 with a "Không tìm thấy" page, and the export skipped
+        // the treatment-relationship check that GET {id} applies. GetByIdAsync does both.
+        if (await _service.GetByIdAsync(id) == null)
+            return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         var bytes = await _service.ExportPdfAsync(id);
         return File(bytes, "text/html", $"specialty-emr-{id}.html");
     }
@@ -59,6 +63,9 @@ public class SpecialtyEmrController : ControllerBase
     [HttpGet("{id}/xml")]
     public async Task<ActionResult> ExportXml(Guid id)
     {
+        // QA-R11: same as ExportPdf — deleted id gave 200 <Error/>, and no treatment-relationship check.
+        if (await _service.GetByIdAsync(id) == null)
+            return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
         var bytes = await _service.ExportXmlAsync(id);
         return File(bytes, "application/xml", $"specialty-emr-{id}.xml");
     }

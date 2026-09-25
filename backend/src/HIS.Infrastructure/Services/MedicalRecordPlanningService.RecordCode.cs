@@ -38,10 +38,23 @@ public partial class MedicalRecordPlanningService
                 query = query.Where(r => r.AdmissionDate <= search.ToDate.Value.AddDays(1));
             if (search.DepartmentId.HasValue)
                 query = query.Where(r => r.DepartmentId == search.DepartmentId.Value);
+            // QA-R11: Status was declared but never applied. Mirrors the derived Status below:
+            // 0 = no code yet, 1 = issued (open), 2 = issued and closed (completed).
+            if (search.Status.HasValue)
+            {
+                query = search.Status.Value switch
+                {
+                    0 => query.Where(r => r.MedicalRecordCode == null || r.MedicalRecordCode == ""),
+                    1 => query.Where(r => r.MedicalRecordCode != null && r.MedicalRecordCode != "" && !r.IsClosed),
+                    2 => query.Where(r => r.MedicalRecordCode != null && r.MedicalRecordCode != "" && r.IsClosed),
+                    _ => query.Where(r => false),
+                };
+            }
 
             var total = await query.CountAsync();
             var records = await query
                 .OrderByDescending(r => r.CreatedAt)
+                .ThenBy(r => r.Id) // QA-R11: CreatedAt is not unique (bulk seeds) → pages overlapped
                 .Skip(search.PageIndex * search.PageSize)
                 .Take(search.PageSize)
                 .Select(r => new
@@ -67,7 +80,9 @@ public partial class MedicalRecordPlanningService
                 DoctorName = r.DoctorName,
                 AssignedDate = r.CreatedAt,
                 Status = string.IsNullOrEmpty(r.MedicalRecordCode) ? 0 : (r.IsClosed ? 2 : 1),
-                StatusName = string.IsNullOrEmpty(r.MedicalRecordCode) ? "Chua cap" : (r.IsClosed ? "Da huy" : "Da cap"),
+                // QA-R11: IsClosed = hồ sơ đã đóng (khoá viện phí/ra viện) — the v2 page files status 2 under "Hoàn tất"
+                // with a green badge, so the old "Da huy" label contradicted it.
+                StatusName = string.IsNullOrEmpty(r.MedicalRecordCode) ? "Chua cap" : (r.IsClosed ? "Hoan tat" : "Da cap"),
                 CreatedAt = r.CreatedAt,
             }).ToList();
 

@@ -133,8 +133,18 @@ export const updateFamilyPlanning = async (id: string, data: Partial<FamilyPlann
 
 export const getStats = async (): Promise<ReproductiveHealthStats> => {
   try {
-    const response = await apiClient.get<ReproductiveHealthStats>('/reproductive-health/stats');
-    return response.data;
+    // BE ReproductiveHealthStatsDto: activePrenatal / highRiskPrenatal / activeFamilyPlanning / deliveredThisMonth
+    // (the page read activePregnancies… → every KPI was blank)
+    const response = await apiClient.get<Partial<ReproductiveHealthStats> & {
+      activePrenatal?: number; highRiskPrenatal?: number; activeFamilyPlanning?: number; deliveredThisMonth?: number;
+    }>('/reproductive-health/stats');
+    const s = response.data || {};
+    return {
+      activePregnancies: s.activePregnancies ?? s.activePrenatal ?? 0,
+      highRiskCount: s.highRiskCount ?? s.highRiskPrenatal ?? 0,
+      familyPlanningActive: s.familyPlanningActive ?? s.activeFamilyPlanning ?? 0,
+      deliveriesThisMonth: s.deliveriesThisMonth ?? s.deliveredThisMonth ?? 0,
+    };
   } catch {
     console.warn('Failed to fetch reproductive health statistics');
     return { activePregnancies: 0, highRiskCount: 0, familyPlanningActive: 0, deliveriesThisMonth: 0 };

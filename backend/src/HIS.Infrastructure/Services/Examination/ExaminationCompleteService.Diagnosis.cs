@@ -104,8 +104,10 @@ public partial class ExaminationCompleteService
 
     public async Task<DiagnosisFullDto> UpdateDiagnosisAsync(Guid diagnosisId, DiagnosisFullDto dto)
     {
-        dto.Id = diagnosisId;
-        return dto;
+        // QA-R11: this answered 200 echoing the body without writing anything (silent no-op). Diagnoses have no row
+        // of their own (the id returned by AddDiagnosis is synthetic) — same reason as DeleteDiagnosisAsync below.
+        await Task.CompletedTask;
+        throw new NotSupportedException("Sửa chẩn đoán: cập nhật lại danh sách chẩn đoán của lượt khám (diagnoses/batch)");
     }
 
     public async Task<bool> DeleteDiagnosisAsync(Guid diagnosisId)
@@ -375,6 +377,22 @@ public partial class ExaminationCompleteService
             .Include(r => r.Department)
             .FirstOrDefaultAsync(r => r.Id == dto.NewRoomId && !r.IsDeleted)
             ?? throw new KeyNotFoundException("Không tìm thấy phòng khám đích");
+
+        // QA-R11 (reproduced): the exam moved but its queue ticket and the record's room did not — the patient kept
+        // being called in the old room, never appeared on the new room's board, and after the visit was cancelled
+        // the orphan "waiting" ticket blocked re-registering them in the old room that day. Move them together.
+        var oldRoomId = examination.RoomId;
+        var openTickets = await _context.QueueTickets
+            .Where(t => t.MedicalRecordId == examination.MedicalRecordId && t.RoomId == oldRoomId && !t.IsDeleted
+                        && t.Status < HIS.Core.Constants.QueueTicketStatus.Completed)
+            .ToListAsync();
+        foreach (var t in openTickets)
+        {
+            t.RoomId = dto.NewRoomId;
+            t.Status = HIS.Core.Constants.QueueTicketStatus.Waiting;
+        }
+        if (examination.MedicalRecord != null && examination.MedicalRecord.RoomId == oldRoomId)
+            examination.MedicalRecord.RoomId = dto.NewRoomId;
 
         examination.RoomId = dto.NewRoomId;
         examination.DepartmentId = newRoom.DepartmentId;

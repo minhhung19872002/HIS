@@ -111,7 +111,8 @@ public partial class ExaminationCompleteService
             var request = new ServiceRequest
             {
                 Id = Guid.NewGuid(),
-                RequestCode = $"CD{DateTime.Now:yyyyMMddHHmmss}",
+                // QA-R11: second-resolution codes collided when several services were ordered in one save.
+                RequestCode = $"CD{HIS.Core.Common.CodeGenerator.NextUniqueNow():yyyyMMddHHmmssfff}",
                 RequestDate = HIS.Core.Common.VnTime.NowVn, // business timestamp = VN local (copied to RadiologyRequest.RequestDate)
                 MedicalRecordId = examination.MedicalRecordId,
                 ExaminationId = examination.Id,
@@ -187,10 +188,13 @@ public partial class ExaminationCompleteService
                 examEntity.Status = HIS.Core.Constants.ExaminationStatus.PendingCLS;
         }
 
+        // QA-R11 (partial write): orders + exam status + BHYT split commit together or not at all.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
         await _unitOfWork.SaveChangesAsync();
         // R3 BHYT: split InsuranceAmount/PatientAmount at order time (whole visit — the 15% rule depends on the total).
         if (results.Count > 0 && await new BhytVisitPricing(_context).RecalculateAsync(examination.MedicalRecordId) != null)
             await _unitOfWork.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
         return results;
     }
 
@@ -225,10 +229,12 @@ public partial class ExaminationCompleteService
             request.PatientAmount = request.TotalPrice;
         }
 
+        await using var tx = await SqlAppLock.BeginAsync(_context); // QA-R11: quantity + BHYT split atomically
         await _unitOfWork.SaveChangesAsync();
         // R3 BHYT: re-split the visit after the quantity change (same as CreateServiceOrdersAsync).
         if (await new BhytVisitPricing(_context).RecalculateAsync(request.MedicalRecordId) != null)
             await _unitOfWork.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         dto.Id = orderId;
         dto.Quantity = request.Quantity;
@@ -240,7 +246,14 @@ public partial class ExaminationCompleteService
     public async Task<bool> CancelServiceOrderAsync(Guid orderId, string reason)
     {
         var request = await _context.ServiceRequests.FindAsync(orderId);
-        if (request == null || request.Status != 0) return false;
+        // QA-R11: refusals returned 200 {data:false} (the UI could not tell why) — say why, like the paid case below.
+        if (request == null || request.IsDeleted)
+            throw new KeyNotFoundException("Không tìm thấy chỉ định dịch vụ.");
+        if (request.Status == 4)
+            throw new InvalidOperationException("Chỉ định này đã được hủy trước đó.");
+        if (request.Status != 0)
+            throw new InvalidOperationException(
+                "Chỉ định đã được thực hiện / có kết quả — không hủy được. Nhờ phòng thực hiện hủy kết quả/lấy mẫu trước.");
         // MONEY: cancelling (Status 4) drops the line from every statement/invoice (they filter Status != 4) and from
         // GetRefundableItemsAsync — a paid order cancelled here vanished with no refund voucher. Paid → cashier refund.
         if (request.IsPaid)
@@ -265,10 +278,33 @@ public partial class ExaminationCompleteService
             .ToListAsync();
         foreach (var d in details) d.Status = 3;
 
+        // QA-R11: an imaging line already bridged to RIS (RadiologyRequest.SourceServiceRequestDetailId) stayed on the
+        // RIS worklist and could still be performed/reported after the OPD cancel. Cancel it too — unless it already
+        // has a report, then the order cannot be withdrawn from here.
+        var lineIds = await _context.ServiceRequestDetails
+            .Where(d => d.ServiceRequestId == orderId)
+            .Select(d => d.Id)
+            .ToListAsync();
+        var risRequests = await _context.RadiologyRequests
+            .Where(r => r.SourceServiceRequestDetailId != null && lineIds.Contains(r.SourceServiceRequestDetailId.Value)
+                        && r.Status != RadiologyRequestStatus.Cancelled)
+            .ToListAsync();
+        if (risRequests.Any(r => r.Status >= RadiologyRequestStatus.Reported))
+            throw new InvalidOperationException(
+                "Chỉ định CĐHA đã có kết quả tường trình — không hủy được. Nhờ khoa CĐHA hủy kết quả trước.");
+        foreach (var r in risRequests)
+        {
+            r.Status = RadiologyRequestStatus.Cancelled;
+            r.Notes = (string.IsNullOrWhiteSpace(r.Notes) ? "" : r.Notes + "\n") + $"[Hủy chỉ định] {reason}";
+            r.UpdatedAt = DateTime.Now;
+        }
+
+        await using var tx = await SqlAppLock.BeginAsync(_context); // QA-R11: cancel + BHYT re-split atomically
         await _unitOfWork.SaveChangesAsync();
         // R3 BHYT: the visit total dropped — the 15% threshold may flip the remaining lines.
         if (await new BhytVisitPricing(_context).RecalculateAsync(request.MedicalRecordId) != null)
             await _unitOfWork.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
         return true;
     }
 

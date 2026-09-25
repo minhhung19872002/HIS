@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTabState } from '../../../hooks/useTabState';
 import dayjs from 'dayjs';
-import { DatePicker, Form, Input, InputNumber, Divider } from 'antd';
+import { DatePicker, Form, Input, InputNumber, Divider, Select } from 'antd';
 import {
   getRecordCodes, assignRecordCode, bulkAllocate,
   getTransfers, approveTransfer,
   getBorrowing, createBorrow, returnRecord, extendBorrow,
-  getHandover, approveHandover,
+  getHandover, approveHandover, submitHandover, assignTransferNumber,
   getOutpatientRecords,
   getAttendance, checkIn,
   getPlanningStats,
@@ -19,6 +19,9 @@ import {
   useTabCounts, cf, tk, ti, tw, Ico, type ColumnDef,
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
+import MedicalRecordPicker from '../components/MedicalRecordPicker';
+import systemApi from '../../system/api/system';
+import { unwrapList, type MaybePaged } from '../../../utils/apiNormalize';
 
 // ─────────────────────────── Interfaces ───────────────────────────────────────
 
@@ -68,6 +71,7 @@ interface BorrowRecord {
 
 interface HandoverRecord {
   id: string;
+  medicalRecordId?: string;
   handoverCode: string;
   recordCode?: string;
   patientCode?: string;
@@ -196,6 +200,8 @@ const MedicalRecordPlanningV2: React.FC = () => {
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkResult, setBulkResult] = useState<BulkAllocateResult | null>(null);
   const [bulkForm] = Form.useForm();
+  // QA-R11: "Cấp dải mã" asked for a raw department UUID in a text box — pick the department from the catalog.
+  const [bulkDepts, setBulkDepts] = useState<Array<{ id: string; departmentName: string }>>([]);
 
   // ── Tab 1: Chuyển viện ────────────────────────────────────────────────────
   const [transfers, setTransfers] = useState<TransferRecord[]>([]);
@@ -332,8 +338,10 @@ const MedicalRecordPlanningV2: React.FC = () => {
     setAttLoading(true);
     try {
       const r = await getAttendance({ date: (date ?? attDate).format('YYYY-MM-DD') });
-      const d = r.data as DepartmentAttendance[] | { items?: DepartmentAttendance[] };
-      setAttendance(Array.isArray(d) ? d : (d.items || []));
+      // QA-R11: BE returns AttendanceSummaryDto { departments: [...] } — reading `items` left the tab
+      // permanently "Không có dữ liệu điểm danh" (so the Chấm công button never appeared).
+      const d = r.data as DepartmentAttendance[] | { items?: DepartmentAttendance[]; departments?: DepartmentAttendance[] };
+      setAttendance(Array.isArray(d) ? d : (d.departments || d.items || []));
     } catch { ti('Không tải được điểm danh'); }
     finally { setAttLoading(false); }
   };
@@ -390,6 +398,11 @@ const MedicalRecordPlanningV2: React.FC = () => {
     setBulkResult(null);
     bulkForm.resetFields();
     setBulkOpen(true);
+    if (bulkDepts.length === 0) {
+      systemApi.catalog.getDepartments()
+        .then((d) => setBulkDepts(unwrapList<{ id: string; departmentName: string }>((d as { data?: MaybePaged<{ id: string; departmentName: string }> }).data)))
+        .catch((e) => tw(friendlyErrorMessage(e, 'Không tải được danh mục khoa')));
+    }
   };
 
   const handleBulkAllocate = async () => {
@@ -407,8 +420,9 @@ const MedicalRecordPlanningV2: React.FC = () => {
       const r = await bulkAllocate(dto);
       const result = r.data as BulkAllocateResult;
       setBulkResult(result);
-      tk(`Đã cấp ${result.allocated} mã BA`);
-      load();
+      // QA-R11: nothing is reserved server-side (no reservation table) — the old toast "Đã cấp N mã BA"
+      // made users believe the codes were taken, while the list below never changed after reload.
+      tk(`${result.allocated} mã khả dụng (chưa giữ chỗ — gán khi mở HSBA)`);
     } catch (e: unknown) {
       const err = e as { errorFields?: unknown };
       if (err?.errorFields) return;
@@ -450,7 +464,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
     try {
       const v = await borrowForm.validateFields();
       await createBorrow({
-        medicalRecordId: v.medicalRecordId.trim(),
+        medicalRecordId: v.medicalRecordId,
         purpose: v.purpose?.trim() || undefined,
         borrowDays: v.borrowDays,
       });
@@ -458,10 +472,12 @@ const MedicalRecordPlanningV2: React.FC = () => {
       setBorrowModal(false);
       borrowForm.resetFields();
       loadBorrowing(brPage);
+      loadStats();
     } catch (e: unknown) {
       const err = e as { errorFields?: unknown };
       if (err?.errorFields) return;
-      tw('Tạo phiếu mượn thất bại');
+      // QA-R11: BE explains why (chưa nhập kho / đang có người mượn…) — show it instead of a generic text
+      tw(friendlyErrorMessage(e, 'Tạo phiếu mượn thất bại'));
     } finally { setBorrowSaving(false); }
   };
 
@@ -478,7 +494,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
     } catch (e: unknown) {
       const err = e as { errorFields?: unknown };
       if (err?.errorFields) return;
-      tw('Trả hồ sơ thất bại');
+      tw(friendlyErrorMessage(e, 'Trả hồ sơ thất bại'));
     } finally { setBorrowSaving(false); }
   };
 
@@ -495,11 +511,38 @@ const MedicalRecordPlanningV2: React.FC = () => {
     } catch (e: unknown) {
       const err = e as { errorFields?: unknown };
       if (err?.errorFields) return;
-      tw('Gia hạn thất bại');
+      tw(friendlyErrorMessage(e, 'Gia hạn thất bại'));
     } finally { setBorrowSaving(false); }
   };
 
   // ─────────────────────────── Handover tab handlers ───────────────────────
+
+  // QA-R11: the BE has POST handover/submit but the screen had no button for it, so a record could
+  // never reach "Chờ duyệt" (status 1) — the only state where Duyệt/Từ chối appear. Row action below.
+  const handleSubmitHandover = async (r: HandoverRecord) => {
+    if (!r.medicalRecordId) { tw('Không xác định được hồ sơ bệnh án của dòng này'); return; }
+    try {
+      await submitHandover({ medicalRecordIds: [r.medicalRecordId] });
+      tk(`Đã gửi bàn giao ${r.handoverCode}`);
+      loadHandover(hoPage);
+      loadStats();
+    } catch (e) { tw(friendlyErrorMessage(e, 'Gửi bàn giao thất bại')); }
+  };
+
+  // QA-R11: POST transfers/assign-number existed with no UI — a transfer could never get its số công văn.
+  const [numTarget, setNumTarget] = useState<TransferRecord | null>(null);
+  const [numValue, setNumValue] = useState('');
+  const submitTransferNumber = async () => {
+    if (!numTarget) return;
+    const so = numValue.trim();
+    if (!so) { tw('Nhập số chuyển tuyến'); return; }
+    try {
+      await assignTransferNumber({ transferId: numTarget.id, transferNumber: so });
+      tk(`Đã cấp số ${so}`);
+      setNumTarget(null); setNumValue('');
+      loadTransfers(trPage);
+    } catch (e) { tw(friendlyErrorMessage(e, 'Cấp số thất bại')); }
+  };
 
   const handleApproveHandover = async (r: HandoverRecord, approve: boolean, rejectReasonText?: string) => {
     try {
@@ -518,7 +561,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
       await checkIn({ departmentId: r.departmentId });
       tk(`Đã chấm công khoa ${r.departmentName}`);
       loadAttendance(attDate);
-    } catch { tw('Chấm công thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Chấm công thất bại')); }
     finally { setCheckingIn(null); }
   };
 
@@ -585,12 +628,13 @@ const MedicalRecordPlanningV2: React.FC = () => {
     ) },
   ];
 
-  const trActions = (r: TransferRecord) => r.status === 0 ? (
+  const trActions = (r: TransferRecord) => (
     <div className="ab-actions">
-      <ActBtn ic="check" title="Duyệt" onClick={() => cf('Duyệt chuyển viện?', () => handleApproveTransfer(r, true))} />
-      <ActBtn ic="x" title="Từ chối" onClick={() => { setRejectReason(''); setRejectTarget({ kind: 'transfer', rec: r }); }} />
+      {r.status === 0 && <ActBtn ic="check" title="Duyệt" onClick={() => cf('Duyệt chuyển viện?', () => handleApproveTransfer(r, true))} />}
+      {r.status === 0 && <ActBtn ic="x" title="Từ chối" onClick={() => { setRejectReason(''); setRejectTarget({ kind: 'transfer', rec: r }); }} />}
+      {!r.transferNumber && <ActBtn ic="file-text" title="Cấp số chuyển tuyến" onClick={() => { setNumValue(''); setNumTarget(r); }} />}
     </div>
-  ) : null;
+  );
 
   const brCols: ColumnDef<BorrowRecord>[] = [
     { key: 'code', label: 'Mã phiếu', code: true, render: (r) => r.borrowCode },
@@ -646,6 +690,10 @@ const MedicalRecordPlanningV2: React.FC = () => {
     <div className="ab-actions">
       <ActBtn ic="check" title="Duyệt" onClick={() => cf('Duyệt bàn giao?', () => handleApproveHandover(r, true))} />
       <ActBtn ic="x" title="Từ chối" onClick={() => { setRejectReason(''); setRejectTarget({ kind: 'handover', rec: r }); }} />
+    </div>
+  ) : (r.status === 0 || r.status === 3) ? (
+    <div className="ab-actions">
+      <ActBtn ic="send" title={r.status === 3 ? 'Gửi lại bàn giao' : 'Gửi bàn giao'} onClick={() => cf(`Gửi hồ sơ ${r.handoverCode} về KHTH để duyệt bàn giao?`, () => handleSubmitHandover(r))} />
     </div>
   ) : null;
 
@@ -1002,8 +1050,9 @@ const MedicalRecordPlanningV2: React.FC = () => {
           </div>
         ) : (
           <Form form={bulkForm} layout="vertical" style={{ padding: '8px 0' }}>
-            <Form.Item name="departmentId" label="Department ID">
-              <Input placeholder="UUID khoa (để trống nếu không cần)" style={{ fontFamily: 'var(--font-mono)' }} />
+            <Form.Item name="departmentId" label="Khoa">
+              <Select allowClear showSearch optionFilterProp="label" placeholder="Chọn khoa (để trống nếu không cần)"
+                options={bulkDepts.map((d) => ({ value: d.id, label: d.departmentName }))} />
             </Form.Item>
             <Divider style={{ margin: '8px 0', borderColor: 'var(--line)' }}>
               <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Chọn 1 trong 2 cách cấp mã</span>
@@ -1046,10 +1095,10 @@ const MedicalRecordPlanningV2: React.FC = () => {
         <Form form={borrowForm} layout="vertical" style={{ padding: '8px 0' }}>
           <Form.Item
             name="medicalRecordId"
-            label="ID hồ sơ bệnh án"
-            rules={[{ required: true, message: 'Nhập ID hồ sơ' }]}
+            label="Hồ sơ bệnh án (đã nhập kho lưu trữ)"
+            rules={[{ required: true, message: 'Chọn hồ sơ' }]}
           >
-            <Input placeholder="UUID hồ sơ" style={{ fontFamily: 'var(--font-mono)' }} />
+            <MedicalRecordPicker />
           </Form.Item>
           <Form.Item name="purpose" label="Mục đích mượn">
             <Input.TextArea rows={2} placeholder="Nhập mục đích (không bắt buộc)" />
@@ -1115,6 +1164,27 @@ const MedicalRecordPlanningV2: React.FC = () => {
                 <Input.TextArea rows={3} placeholder="Lý do gia hạn" />
               </Form.Item>
             </Form>
+          </div>
+        )}
+      </ModalShell>
+
+      {/* Modal Cấp số chuyển tuyến (QA-R11) */}
+      <ModalShell
+        open={!!numTarget}
+        onClose={() => { setNumTarget(null); setNumValue(''); }}
+        title="Cấp số chuyển tuyến"
+        size="md"
+        footer={<>
+          <Btn variant="ghost" onClick={() => { setNumTarget(null); setNumValue(''); }}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitTransferNumber}><Ico name="check" size={12} /> Cấp số</Btn>
+        </>}
+      >
+        {numTarget && (
+          <div style={{ padding: '8px 0' }}>
+            <div style={{ marginBottom: 'var(--space-10)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
+              Bệnh nhân: <b style={{ color: 'var(--t-0)' }}>{numTarget.patientName || '—'}</b>
+            </div>
+            <Input value={numValue} onChange={(e) => setNumValue(e.target.value)} placeholder="Số công văn chuyển tuyến" />
           </div>
         )}
       </ModalShell>

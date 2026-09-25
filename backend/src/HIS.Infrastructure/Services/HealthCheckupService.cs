@@ -232,6 +232,12 @@ public partial class HealthCheckupService : IHealthCheckupService
 
     public async Task<CheckupRecordDto> IssueCertificateAsync(Guid recordId)
     {
+        // QA-R11: the number was GCN{date}{random 1000-9999} with no uniqueness check — a group campaign issuing a
+        // few hundred certificates a day is certain to print duplicate numbers on a legal document, and a double
+        // click could issue twice. Serialize issuing, re-read under the lock, number sequentially per day.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, "HIS.HealthCheckup.Certificate",
+            "Hệ thống đang cấp số giấy chứng nhận, vui lòng thử lại.");
         var entity = await _context.HealthCheckupRecords
             .Include(r => r.Campaign)
             .Include(r => r.Doctor)
@@ -245,7 +251,16 @@ public partial class HealthCheckupService : IHealthCheckupService
             throw new InvalidOperationException("Phiếu khám chưa có kết quả / phân loại sức khỏe — không cấp giấy chứng nhận được");
 
         entity.CertificateIssued = true;
-        entity.CertificateNumber = $"GCN{DateTime.Now:yyyyMMdd}{new Random().Next(1000, 9999)}";
+        var certPrefix = $"GCN{DateTime.Now:yyyyMMdd}";
+        var certCodes = await _context.HealthCheckupRecords.IgnoreQueryFilters()
+            .Where(r => r.CertificateNumber != null && r.CertificateNumber.StartsWith(certPrefix))
+            .Select(r => r.CertificateNumber!)
+            .ToListAsync();
+        var certMax = certCodes
+            .Select(c => int.TryParse(c.Substring(certPrefix.Length), out var n) ? n : 0)
+            .DefaultIfEmpty(0)
+            .Max();
+        entity.CertificateNumber = $"{certPrefix}{(certMax + 1):D4}";
         entity.UpdatedAt = DateTime.UtcNow;
 
         // Update campaign TotalCompleted
@@ -257,6 +272,7 @@ public partial class HealthCheckupService : IHealthCheckupService
         }
 
         await _unitOfWork.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         return new CheckupRecordDto
         {

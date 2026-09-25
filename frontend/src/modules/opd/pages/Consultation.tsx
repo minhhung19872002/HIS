@@ -4,7 +4,17 @@ import * as file from '../../../services/file.service';
 import dayjs from 'dayjs';
 import { App as AntdApp, Input } from 'antd';
 import risApi from '../../radiology/api/ris';
-import type { ConsultationSessionDto, ConsultationDiscussionDto, ConsultationMinutesDto } from '../../radiology/api/ris';
+import type { ConsultationSessionDto, ConsultationMinutesDto } from '../../radiology/api/ris';
+import { apiClient } from '../../../services/apiClient';
+
+// QA-R11: the drawer's discussion is per SESSION. The ris/consultation.ts helpers target a per-case route that
+// does not exist (GET …/cases/{id}/discussions → 404) and post {consultationCaseId}, which the BE rejects — so the
+// "Gửi" button always failed and the list was always empty. These two calls use the real BE contract.
+interface SessionDiscussion { id: string; participantName?: string; content: string; postedAt: string }
+const getSessionDiscussions = (sessionId: string) =>
+  apiClient.get<SessionDiscussion[]>(`/RISComplete/consultations/${sessionId}/discussions`);
+const postSessionDiscussion = (sessionId: string, content: string) =>
+  apiClient.post('/RISComplete/consultations/discussions', { sessionId, content, messageType: 'Text' });
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
   StatusBadge, Btn, DrawerShell, DrSec, ModalShell, CrudModal,
@@ -287,7 +297,7 @@ const ConsultationDrawerBody: React.FC<{ r: ConsultationSessionDto }> = ({ r }) 
   const sk = statusKey(r.status);
   const tone = statusTone(sk);
   const lbl = r.statusName || STATUS_TABS.find((t) => t.v === sk)?.l || '';
-  const [disc, setDisc] = useState<ConsultationDiscussionDto[]>([]);
+  const [disc, setDisc] = useState<SessionDiscussion[]>([]);
   const [mins, setMins] = useState<ConsultationMinutesDto | null>(null);
   const [dtext, setDtext] = useState('');
   const [minsOpen, setMinsOpen] = useState(false);
@@ -298,15 +308,8 @@ const ConsultationDrawerBody: React.FC<{ r: ConsultationSessionDto }> = ({ r }) 
   const [savingMins, setSavingMins] = useState(false);
 
   useEffect(() => {
-    // Backend CHƯA expose route GET /RISComplete/consultations/cases/{id}/discussions
-    // (RISCompleteController.Capture.cs chỉ có POST + DELETE discussions) → request này LUÔN 404.
-    // 404 ở đây nghĩa là "chưa hỗ trợ", không phải sự cố của người dùng: nếu bắn toast thì mỗi
-    // lần mở drawer hội chẩn đều hiện cảnh báo giả. Lỗi thật (5xx / mất mạng) vẫn báo bình thường.
-    risApi.getConsultationDiscussions?.(r.id).then((res) => setDisc(res.data || []))
-      .catch((e) => {
-        if ((e as { response?: { status?: number } })?.response?.status === 404) return;
-        tw(friendlyErrorMessage(e, 'Không tải được nội dung thảo luận của phiên hội chẩn.'));
-      });
+    getSessionDiscussions(r.id).then((res) => setDisc(Array.isArray(res.data) ? res.data : []))
+      .catch((e) => tw(friendlyErrorMessage(e, 'Không tải được nội dung thảo luận của phiên hội chẩn.')));
     risApi.getConsultationMinutes?.(r.id).then((res) => setMins(res.data || null))
       .catch((e) => tw(friendlyErrorMessage(e, 'Không tải được biên bản của phiên hội chẩn.')));
   }, [r.id]);
@@ -351,7 +354,7 @@ const ConsultationDrawerBody: React.FC<{ r: ConsultationSessionDto }> = ({ r }) 
           {disc.map((d) => (
             <div key={d.id} style={{ padding: '6px 8px', background: 'var(--bg-2)', borderRadius: 4 }}>
               <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 2 }}>
-                <b>{d.userName}</b> · {fmtDT(d.createdAt)}
+                <b>{d.participantName || '—'}</b> · {fmtDT(d.postedAt)}
               </div>
               <div style={{ fontSize: 12.5 }}>{d.content}</div>
             </div>
@@ -367,10 +370,11 @@ const ConsultationDrawerBody: React.FC<{ r: ConsultationSessionDto }> = ({ r }) 
             <Btn disabled={sending} onClick={() => {
               if (!dtext.trim() || sending) return;
               setSending(true);
-              risApi.addConsultationDiscussion({ consultationCaseId: r.id, content: dtext })
+              postSessionDiscussion(r.id, dtext.trim())
                 .then(() => {
                   setDtext('');
-                  risApi.getConsultationDiscussions?.(r.id).then((res) => setDisc(res.data || [])).catch(() => {});
+                  getSessionDiscussions(r.id).then((res) => setDisc(Array.isArray(res.data) ? res.data : []))
+                    .catch((e) => tw(friendlyErrorMessage(e, 'Đã gửi nhưng không tải lại được thảo luận.')));
                 })
                 .catch((e) => te(friendlyErrorMessage(e, 'Gửi bình luận thất bại. Vui lòng thử lại.')))
                 .finally(() => setSending(false));

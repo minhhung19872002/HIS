@@ -74,33 +74,59 @@ export const updateCase = async (id: string, data: Partial<ForensicCase>) => {
   return response.data;
 };
 
+// BE ForensicExaminationDto: examCategory / functionScore / disabilityScore / examDate (the drawer read examType →
+// every exam card had an empty title).
+type ExamWire = ForensicExamination & {
+  forensicCaseId?: string; examCategory?: string; functionScore?: number | null; disabilityScore?: number | null; notes?: string;
+};
 export const getExaminations = async (caseId: string) => {
   try {
-    const response = await apiClient.get<ForensicExamination[]>(`/forensic/cases/${caseId}/examinations`);
-    return response.data || [];
+    const response = await apiClient.get<ExamWire[]>(`/forensic/cases/${caseId}/examinations`);
+    return (response.data || []).map((e) => ({
+      ...e,
+      caseId: e.caseId ?? e.forensicCaseId ?? caseId,
+      examType: e.examType ?? e.examCategory ?? '',
+      conclusion: e.conclusion ?? [
+        e.functionScore != null ? `Điểm chức năng: ${e.functionScore}` : '',
+        e.disabilityScore != null ? `Tổn thương: ${e.disabilityScore}%` : '',
+        e.notes ?? '',
+      ].filter(Boolean).join(' · '),
+    }));
   } catch {
     console.warn('Failed to fetch forensic examinations');
     return [];
   }
 };
 
-export const addExamination = async (caseId: string, data: Partial<ForensicExamination>) => {
-  const response = await apiClient.post<ForensicExamination>('/forensic/examinations', {
-    caseId,
-    ...data,
-  });
+// CreateForensicExaminationDto: forensicCaseId + examCategory (the old body sent caseId → 404 "không tìm thấy hồ sơ").
+export const addExamination = async (caseId: string, data: {
+  examCategory?: string; findings?: string; functionScore?: number; disabilityScore?: number;
+  examinerName?: string; notes?: string;
+}) => {
+  const response = await apiClient.post<ForensicExamination>('/forensic/examinations', { forensicCaseId: caseId, ...data });
   return response.data;
 };
 
-export const approveCase = async (id: string) => {
-  const response = await apiClient.put(`/forensic/cases/${id}/approve`);
+// BE reads conclusion + disabilityPercentage from the query string and REQUIRES a conclusion —
+// the old call sent neither, so "Duyệt" always failed.
+export const approveCase = async (id: string, conclusion?: string, disabilityPercentage?: number) => {
+  const response = await apiClient.put(`/forensic/cases/${id}/approve`, null, {
+    params: { conclusion, disabilityPercentage },
+  });
   return response.data;
 };
 
 export const getStats = async (): Promise<ForensicStats> => {
   try {
-    const response = await apiClient.get<ForensicStats>('/forensic/stats');
-    return response.data;
+    // BE ForensicStatsDto: pendingCount / approvedThisMonth / avgDisabilityPercent (page read pendingCases → always 0)
+    const response = await apiClient.get<ForensicStats & { pendingCount?: number; approvedThisMonth?: number }>('/forensic/stats');
+    const s = response.data;
+    return {
+      totalCases: s?.totalCases ?? 0,
+      pendingCases: s?.pendingCases ?? s?.pendingCount ?? 0,
+      completedThisMonth: s?.completedThisMonth ?? s?.approvedThisMonth ?? 0,
+      avgDisabilityPercent: s?.avgDisabilityPercent ?? 0,
+    };
   } catch {
     console.warn('Failed to fetch forensic statistics');
     return { totalCases: 0, pendingCases: 0, completedThisMonth: 0, avgDisabilityPercent: 0 };

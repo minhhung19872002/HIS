@@ -316,6 +316,10 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
             .Select(e => e.Entity.PatientCode));
 
         var maxNumber = todayCodes
+            // QA-R11: online booking used to create BN{date}{HHmmss}{rnd} codes; parsing that 9-digit tail as the
+            // "max" made every later reception code BN{date}103213755… for the rest of the day. Only the
+            // D4..D6 sequence counts.
+            .Where(c => c.Length - prefix.Length <= 6)
             .Select(c => int.TryParse(c.Substring(prefix.Length), out var n) ? n : 0)
             .DefaultIfEmpty(0)
             .Max();

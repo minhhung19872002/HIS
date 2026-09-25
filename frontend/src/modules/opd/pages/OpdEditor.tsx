@@ -146,6 +146,9 @@ const OpdEditorV2: React.FC = () => {
   });
 
   const totalSvc = orders.reduce((s, o) => s + o.unitPrice * o.qty, 0);
+  // QA-R11: every line was stamped 1 (BHYT) — a fee-paying visit's orders were labelled BHYT lines, which the
+  // co-pay / out-of-pocket split (6556 statement, refunds) reads. Follow the visit's own patient type.
+  const orderPaymentType = selPt?.patientType === 1 || selPt?.patientType === 3 ? selPt.patientType : 2;
 
   // ── Patient-safety handlers (Rule 6: stay in main) ──────────────────
   const persist = async (): Promise<boolean> => {
@@ -177,7 +180,7 @@ const OpdEditorV2: React.FC = () => {
     if (orders.length > 0) {
       await examinationApi.createServiceOrders({
         examinationId: examId, diagnosisCode: primary?.icdCode, diagnosisName: primary?.icdName,
-        services: orders.map((o) => ({ serviceId: o.serviceId, quantity: o.qty, paymentType: 1, isPriority: false, isEmergency: false })),
+        services: orders.map((o) => ({ serviceId: o.serviceId, quantity: o.qty, paymentType: orderPaymentType, isPriority: false, isEmergency: false })),
         autoSelectRoom: true, calculateOptimalPath: true,
       }).catch((e) => { tw(friendlyErrorMessage(e, 'Chỉ định CLS có thể chưa được lưu — vui lòng kiểm tra lại.')); /* hoặc đã tồn tại từ trước */ });
     }
@@ -222,7 +225,7 @@ const OpdEditorV2: React.FC = () => {
         diagnosisCode: diagnoses.find((d) => d.isPrimary)?.icdCode,
         diagnosisName: diagnoses.find((d) => d.isPrimary)?.icdName,
         services: orders.map((o) => ({
-          serviceId: o.serviceId, quantity: o.qty, paymentType: 1,
+          serviceId: o.serviceId, quantity: o.qty, paymentType: orderPaymentType,
           isPriority: false, isEmergency: false,
         })),
         autoSelectRoom: true, calculateOptimalPath: true,

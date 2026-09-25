@@ -64,6 +64,17 @@ public class ObstetricRegisterService : IObstetricRegisterService
             entity.UpdatedBy = userId;
         }
 
+        // QA-R11: the screen proposed "number of rows currently on screen + 1" (only the filtered month),
+        // so every month restarted at 1 and the legal register had duplicate STT inside the year.
+        // STT is now per calendar year: 0/blank = next free number; a taken number is refused.
+        var year = dto.DeliveryDate.Year;
+        var yFrom = new DateTime(year, 1, 1); var yTo = yFrom.AddYears(1);
+        var sameYear = _db.BirthRegisters.Where(b => !b.IsDeleted && b.Id != entity.Id && b.DeliveryDate >= yFrom && b.DeliveryDate < yTo);
+        if (dto.RegisterNo <= 0)
+            dto.RegisterNo = (await sameYear.MaxAsync(b => (int?)b.RegisterNo) ?? 0) + 1;
+        else if (dto.RegisterNo != entity.RegisterNo && await sameYear.AnyAsync(b => b.RegisterNo == dto.RegisterNo))
+            throw new InvalidOperationException($"So thu tu {dto.RegisterNo} da dung trong so sinh nam {year}.");
+
         entity.RegisterNo       = dto.RegisterNo;
         entity.DeliveryDate     = dto.DeliveryDate;
         entity.MotherName       = dto.MotherName;
@@ -135,6 +146,15 @@ public class ObstetricRegisterService : IObstetricRegisterService
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }
+
+        // QA-R11: same per-year STT rule as the birth register (see SaveBirthRegisterAsync).
+        var year = dto.ProcedureDate.Year;
+        var yFrom = new DateTime(year, 1, 1); var yTo = yFrom.AddYears(1);
+        var sameYear = _db.AbortionRegisters.Where(a => !a.IsDeleted && a.Id != entity.Id && a.ProcedureDate >= yFrom && a.ProcedureDate < yTo);
+        if (dto.RegisterNo <= 0)
+            dto.RegisterNo = (await sameYear.MaxAsync(a => (int?)a.RegisterNo) ?? 0) + 1;
+        else if (dto.RegisterNo != entity.RegisterNo && await sameYear.AnyAsync(a => a.RegisterNo == dto.RegisterNo))
+            throw new InvalidOperationException($"So thu tu {dto.RegisterNo} da dung trong so nao pha thai nam {year}.");
 
         entity.RegisterNo       = dto.RegisterNo;
         entity.ProcedureDate    = dto.ProcedureDate;

@@ -43,17 +43,23 @@ public partial class MedicalRecordPlanningService
             var total = await query.CountAsync();
             var records = await query
                 .OrderByDescending(a => a.ArchivedDate ?? a.CreatedAt)
+                .ThenBy(a => a.Id) // QA-R11: deterministic paging
                 .Skip(search.PageIndex * search.PageSize)
                 .Take(search.PageSize)
                 .Select(a => new
                 {
                     a.Id,
+                    a.MedicalRecordId,
                     a.ArchiveCode,
                     RecordCode = a.MedicalRecord.MedicalRecordCode,
                     PatientCode = a.Patient.PatientCode,
                     PatientName = a.Patient.FullName,
                     DepartmentName = a.Department != null ? a.Department.DepartmentName : "",
                     ArchivedByName = a.ArchivedBy != null ? a.ArchivedBy.FullName : "",
+                    // QA-R11: "Người gửi" showed the archive stock-in person; the submitter is HandoverSubmittedById.
+                    SubmittedByName = a.HandoverSubmittedById != null
+                        ? _context.Users.Where(u => u.Id == a.HandoverSubmittedById).Select(u => u.FullName).FirstOrDefault()
+                        : null,
                     a.ArchivedDate,
                     a.HandoverStatus,
                     a.HandoverSubmittedAt,
@@ -65,12 +71,13 @@ public partial class MedicalRecordPlanningService
             var items = records.Select(a => new HandoverRecordDto
             {
                 Id = a.Id,
+                MedicalRecordId = a.MedicalRecordId,
                 HandoverCode = a.ArchiveCode,
                 RecordCode = a.RecordCode,
                 PatientCode = a.PatientCode,
                 PatientName = a.PatientName,
                 DepartmentName = a.DepartmentName,
-                SubmittedByName = a.ArchivedByName,
+                SubmittedByName = a.SubmittedByName ?? a.ArchivedByName,
                 // Hồ sơ chưa vào luồng bàn giao thì HandoverStatus là NULL ⇒ coi như 0 (nháp).
                 SubmittedDate = a.HandoverSubmittedAt ?? a.ArchivedDate,
                 ApprovedDate = a.HandoverApprovedAt,

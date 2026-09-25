@@ -266,6 +266,7 @@ public partial class BusinessAlertService : IBusinessAlertService
             var items = await query
                 .OrderByDescending(a => a.Severity)
                 .ThenByDescending(a => a.CreatedAt)
+                .ThenBy(a => a.Id) // QA-R11: deterministic paging
                 .Skip(search.PageIndex * search.PageSize)
                 .Take(search.PageSize)
                 .Select(a => MapToDto(a))

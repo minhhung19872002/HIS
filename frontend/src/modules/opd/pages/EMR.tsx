@@ -259,7 +259,7 @@ const EMRV2: React.FC = () => {
       }}
       rowActions={(r) => (
         <div className="ab-actions">
-          <ActBtn ic="eye" title="Mở hồ sơ" onClick={() => navigate('/v2/emr/edit')} />
+          <ActBtn ic="eye" title="Mở hồ sơ" onClick={() => navigate(`/v2/emr/edit?patientId=${r.patientId}`)} />
           <ActBtn ic="print" title="In hồ sơ" onClick={() => {
             if (r.medicalRecordId) {
               pdf.printMedicalRecord(r.medicalRecordId);
@@ -311,7 +311,7 @@ const EMRV2: React.FC = () => {
           <div className="rec-section">
             <h5><TermIcon name="info" size={11} /> THAO TÁC</h5>
             <div style={{ display: 'flex', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
-              <Btn variant="primary" onClick={() => navigate('/v2/emr/edit')}>
+              <Btn variant="primary" onClick={() => navigate(`/v2/emr/edit?patientId=${r.patientId}`)}>
                 <TermIcon name="eye" size={12} /> Mở HS chi tiết
               </Btn>
               <Btn onClick={() => {

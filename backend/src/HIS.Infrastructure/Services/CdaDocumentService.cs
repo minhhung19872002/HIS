@@ -232,7 +232,9 @@ public partial class CdaDocumentService : ICdaDocumentService
     {
         return new XElement(Hl7 + "author",
             new XElement(Hl7 + "time",
-                new XAttribute("value", now.ToString("yyyyMMddHHmmss"))),
+                // QA-R11: `now` is UTC; without the zone suffix a CDA reader takes it as local (VN) time,
+                // i.e. the author signed 7h before the document's own effectiveTime (which does carry +0000).
+                new XAttribute("value", now.ToString("yyyyMMddHHmmss") + "+0000")),
             new XElement(Hl7 + "assignedAuthor",
                 new XElement(Hl7 + "id",
                     new XAttribute("root", OidRoot),

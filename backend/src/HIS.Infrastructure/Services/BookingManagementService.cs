@@ -334,6 +334,7 @@ public class BookingManagementService : IBookingManagementService
                         && NormalizePhone(a.Patient?.PhoneNumber).Contains(kwPhone, StringComparison.Ordinal)))
                 .OrderByDescending(a => a.CreatedAt)
                 .ThenByDescending(a => a.AppointmentDate)
+                .ThenBy(a => a.Id)
                 .ToList();
 
             total = matched.Count;
@@ -355,6 +356,7 @@ public class BookingManagementService : IBookingManagementService
                 // mọi cột đều sắp xếp được.
                 .OrderByDescending(a => a.CreatedAt)
                 .ThenByDescending(a => a.AppointmentDate)
+                .ThenBy(a => a.Id) // QA-R11: deterministic paging (seeded rows share CreatedAt)
                 .Skip(search.PageIndex * search.PageSize)
                 .Take(search.PageSize)
                 .ToListAsync();
@@ -466,10 +468,14 @@ public class BookingManagementService : IBookingManagementService
 
         // Đổi ngày hoặc đổi phòng là sang một dãy số khác → cấp lại số đã giữ (migration 187).
         // Giữ nguyên số khi chỉ đổi giờ/bác sĩ trong cùng phòng, cùng ngày.
+        // QA-R11: re-reserving reads MAX+1 — take the reception lock so it cannot hand out a number in use.
+        await using var tx = await HIS.Infrastructure.Data.SqlAppLock.BeginAsync(_context);
         if (appointment.QueueNumber is null
             || appointment.AppointmentDate != oldDate.Date
             || appointment.RoomId != oldRoomId)
         {
+            await HIS.Infrastructure.Data.SqlAppLock.AcquireAsync(_context, "HIS.Reception.RegistrationCodes",
+                "Các quầy tiếp đón khác đang cấp số cùng lúc, vui lòng thử lại.");
             var reserved = await AppointmentQueueAllocator.ReserveAsync(
                 _context, appointment.RoomId, appointment.AppointmentDate);
             appointment.QueueNumber = reserved?.Number;
@@ -477,6 +483,7 @@ public class BookingManagementService : IBookingManagementService
         }
 
         await _unitOfWork.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         // Nạp lại navigation (khoa/phòng/bác sĩ có thể đã đổi)
         appointment = await _context.Appointments
@@ -592,6 +599,11 @@ public class BookingManagementService : IBookingManagementService
 
     public async Task<BookingStatusDto> AssignQueueNumberAsync(string appointmentCode)
     {
+        // QA-R11: MAX(number)+1 was read and written with no lock — two concurrent "cấp số" (or one here + a counter
+        // ticket) got the same number. Serialize with the reception counters' lock (same number sequence).
+        await using var tx = await HIS.Infrastructure.Data.SqlAppLock.BeginAsync(_context);
+        await HIS.Infrastructure.Data.SqlAppLock.AcquireAsync(_context, "HIS.Reception.RegistrationCodes",
+            "Các quầy tiếp đón khác đang cấp số cùng lúc, vui lòng bấm lại.");
         var appointment = await _context.Appointments
             .Include(a => a.Patient)
             .Include(a => a.Department)
@@ -659,6 +671,7 @@ public class BookingManagementService : IBookingManagementService
             if (appointment.Status == 0) appointment.Status = 1; // Đã xác nhận
             await _unitOfWork.SaveChangesAsync();
         }
+        if (tx != null) await tx.CommitAsync();
 
         // Nạp lại phòng để phản hồi trả đúng tên phòng vừa gán.
         await _context.Entry(appointment).Reference(a => a.Room).LoadAsync();

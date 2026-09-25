@@ -47,17 +47,24 @@ public partial class ExaminationCompleteService
 
         // Update examination room
         examination.RoomId = newRoomId;
+        // QA-R11: the department stayed the old room's — orders/reports by department then credited the wrong khoa
+        // (the POST transfer-room path already updates it).
+        examination.DepartmentId = newRoom.DepartmentId;
         examination.UpdatedAt = DateTime.Now;
         examination.UpdatedBy = userId.ToString();
+        if (examination.MedicalRecord != null && examination.MedicalRecord.RoomId == oldRoomId)
+            examination.MedicalRecord.RoomId = newRoomId;
 
-        // Update QueueTicket room
+        // Update QueueTicket room — only a still-open ticket (a completed/skipped one must stay where it was served).
         var ticket = await _context.QueueTickets
-            .Where(t => t.MedicalRecordId == examination.MedicalRecordId && t.RoomId == oldRoomId && !t.IsDeleted)
+            .Where(t => t.MedicalRecordId == examination.MedicalRecordId && t.RoomId == oldRoomId && !t.IsDeleted
+                        && t.Status < HIS.Core.Constants.QueueTicketStatus.Completed)
             .OrderByDescending(t => t.CreatedAt)
             .FirstOrDefaultAsync();
         if (ticket != null)
         {
             ticket.RoomId = newRoomId;
+            ticket.Status = HIS.Core.Constants.QueueTicketStatus.Waiting;
             ticket.UpdatedAt = DateTime.Now;
             ticket.UpdatedBy = userId.ToString();
         }

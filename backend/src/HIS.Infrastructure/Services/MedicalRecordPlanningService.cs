@@ -21,9 +21,18 @@ public partial class MedicalRecordPlanningService : IMedicalRecordPlanningServic
     // Helpers
     // ========================================================================
 
-    private static string GenerateRecordCode()
+    // QA-R11: was `BA-{UTC date}-{Random(10000,99999)}` — two assigns the same day could draw the same
+    // number (and the date was the UTC day, not the VN day). Next number in the VN-day sequence instead,
+    // same approach as RecordCodeGenerator; deleted rows are counted so a code is never reused.
+    // Sync on purpose: the caller (RecordCode.cs) invokes it as a plain expression.
+    private string GenerateRecordCode()
     {
-        return $"BA-{DateTime.UtcNow:yyyyMMdd}-{new Random().Next(10000, 99999)}";
+        var prefix = $"BA-{HIS.Core.Common.VnTime.NowVn:yyyyMMdd}-";
+        var codes = _context.MedicalRecords.IgnoreQueryFilters()
+            .Where(r => r.MedicalRecordCode.StartsWith(prefix))
+            .Select(r => r.MedicalRecordCode)
+            .ToList();
+        return $"{prefix}{RecordCodeGenerator.NextNumber(codes, prefix):D5}";
     }
 
     private static string GetTransferStatusName(int condition)

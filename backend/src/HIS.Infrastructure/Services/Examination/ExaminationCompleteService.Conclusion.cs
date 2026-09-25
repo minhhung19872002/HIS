@@ -250,10 +250,19 @@ public partial class ExaminationCompleteService
         var departmentId = await _context.Rooms.Where(r => r.Id == roomId)
             .Select(r => (Guid?)r.DepartmentId).FirstOrDefaultAsync();
 
+        // QA-R11: HK{yyyyMMddHHmmss} collided within a second (DB had HK20260925141825 ×2) and BookingManagement uses
+        // the code as the key for confirm/check-in/cancel. Allocate under an app lock with an existence check.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, "HIS.Appointment.HKCode", "Hệ thống đang cấp mã lịch hẹn, vui lòng thử lại.");
+        string code;
+        var attempts = 0;
+        do code = $"HK{HIS.Core.Common.CodeGenerator.NextUniqueNow():yyyyMMddHHmmssfff}";
+        while (await _context.Appointments.IgnoreQueryFilters().AnyAsync(a => a.AppointmentCode == code) && ++attempts < 20);
+
         var appointment = new Appointment
         {
             Id = Guid.NewGuid(),
-            AppointmentCode = $"HK{DateTime.Now:yyyyMMddHHmmss}",
+            AppointmentCode = code,
             PatientId = examination.MedicalRecord.PatientId,
             AppointmentDate = dto.AppointmentDate,
             RoomId = roomId,
@@ -273,6 +282,7 @@ public partial class ExaminationCompleteService
         examination.FollowUpDate = dto.AppointmentDate;
 
         await _unitOfWork.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         return new AppointmentDto
         {
@@ -829,6 +839,9 @@ public partial class ExaminationCompleteService
             }
         }
 
+        // QA-R11 (partial write): the invoice refresh below is a second save — if it failed, the visit was already
+        // cancelled while the invoice still billed the cancelled orders. Commit both or neither.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
         // Entity is already tracked: no repo.UpdateAsync (it marks ALL columns modified, so parallel OPD saves overwrote each other).
         await _unitOfWork.SaveChangesAsync();
 
@@ -842,6 +855,7 @@ public partial class ExaminationCompleteService
                 await _unitOfWork.SaveChangesAsync();
             }
         }
+        if (tx != null) await tx.CommitAsync();
 
         return true;
     }
