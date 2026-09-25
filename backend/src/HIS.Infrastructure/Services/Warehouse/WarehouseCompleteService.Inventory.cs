@@ -54,7 +54,8 @@ public partial class WarehouseCompleteService {
         var entity = new ProcurementRequest
         {
             Id = Guid.NewGuid(),
-            RequestCode = $"DT{now:yyyyMMddHHmmss}",
+            // QA-R11: second stamp against UNIQUE IX_ProcurementRequests_RequestCode — two requests in one second → 500.
+            RequestCode = await NextProcurementCodeAsync(),
             RequestDate = now,
             DepartmentId = warehouse.DepartmentId,
             RequestedById = userId == Guid.Empty ? null : userId,
@@ -304,6 +305,12 @@ public partial class WarehouseCompleteService {
         if (searchDto.WarehouseType.HasValue)
             query = query.Where(i => i.Warehouse.WarehouseType == searchDto.WarehouseType.Value);
 
+        // QA-R11: ItemType was ignored — the medical-supply stock tab (itemType=2) listed 199/200 medicine lots.
+        if (searchDto.ItemType.HasValue)
+            query = searchDto.ItemType.Value == 1
+                ? query.Where(i => i.MedicineId != null)
+                : query.Where(i => i.SupplyId != null);
+
         if (!string.IsNullOrWhiteSpace(searchDto.Keyword))
         {
             var kw = searchDto.Keyword.ToLower();
@@ -348,6 +355,85 @@ public partial class WarehouseCompleteService {
             Page = searchDto.Page,
             PageSize = searchDto.PageSize
         };
+    }
+
+    public async Task<List<StockThresholdDto>> GetStockThresholdsAsync(Guid? warehouseId, Guid? medicineId)
+    {
+        var query = _context.StockThresholds.AsNoTracking().Where(t => !t.IsDeleted);
+        if (warehouseId.HasValue && warehouseId.Value != Guid.Empty)
+            query = query.Where(t => t.WarehouseId == warehouseId.Value || t.WarehouseId == null);
+        if (medicineId.HasValue && medicineId.Value != Guid.Empty)
+            query = query.Where(t => t.MedicineId == medicineId.Value);
+        return await query
+            .OrderBy(t => t.Medicine!.MedicineName)
+            .Take(2000)
+            .Select(t => new StockThresholdDto
+            {
+                Id = t.Id,
+                MedicineId = t.MedicineId,
+                MedicineCode = t.Medicine != null ? t.Medicine.MedicineCode : null,
+                MedicineName = t.Medicine != null ? t.Medicine.MedicineName : null,
+                Unit = t.Medicine != null ? t.Medicine.Unit : null,
+                WarehouseId = t.WarehouseId,
+                WarehouseName = t.Warehouse != null ? t.Warehouse.WarehouseName : null,
+                MinimumQuantity = t.MinimumQuantity,
+                MaximumQuantity = t.MaximumQuantity,
+                ReorderPoint = t.ReorderPoint,
+                ReorderQuantity = t.ReorderQuantity,
+                IsActive = t.IsActive,
+            })
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// QA-R11: upsert one threshold per (medicine, warehouse). StockThresholds existed and fed the "Tối thiểu" column,
+    /// the stock warnings and the auto-procurement suggestions, but nothing could write it — all three were always empty.
+    /// </summary>
+    public async Task<StockThresholdDto> SaveStockThresholdAsync(StockThresholdDto dto, Guid userId)
+    {
+        if (dto.MedicineId == Guid.Empty)
+            throw new InvalidOperationException("Chọn thuốc để đặt ngưỡng tồn.");
+        if (dto.MinimumQuantity < 0 || dto.MaximumQuantity < 0 || dto.ReorderPoint < 0 || dto.ReorderQuantity < 0)
+            throw new InvalidOperationException("Ngưỡng tồn không được âm.");
+        if (dto.MaximumQuantity > 0 && dto.MaximumQuantity < dto.MinimumQuantity)
+            throw new InvalidOperationException("Tồn tối đa phải lớn hơn hoặc bằng tồn tối thiểu.");
+        if (!await _context.Medicines.AnyAsync(m => m.Id == dto.MedicineId && !m.IsDeleted))
+            throw new KeyNotFoundException("Thuốc không tồn tại trong danh mục.");
+        var warehouseId = dto.WarehouseId == Guid.Empty ? null : dto.WarehouseId;
+        if (warehouseId.HasValue && !await _context.Warehouses.AnyAsync(w => w.Id == warehouseId.Value && !w.IsDeleted))
+            throw new KeyNotFoundException("Kho không tồn tại.");
+
+        var entity = await _context.StockThresholds
+            .FirstOrDefaultAsync(t => !t.IsDeleted && t.MedicineId == dto.MedicineId && t.WarehouseId == warehouseId);
+        if (entity == null)
+        {
+            entity = new StockThreshold
+            {
+                Id = Guid.NewGuid(),
+                MedicineId = dto.MedicineId,
+                WarehouseId = warehouseId,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = userId.ToString(),
+            };
+            _context.StockThresholds.Add(entity);
+        }
+        else
+        {
+            entity.UpdatedAt = DateTime.UtcNow;
+            entity.UpdatedBy = userId.ToString();
+        }
+        entity.MinimumQuantity = dto.MinimumQuantity;
+        entity.MaximumQuantity = dto.MaximumQuantity;
+        // Reorder point defaults to the minimum — that is when the suggestion list should pick the item up.
+        entity.ReorderPoint = dto.ReorderPoint > 0 ? dto.ReorderPoint : dto.MinimumQuantity;
+        entity.ReorderQuantity = dto.ReorderQuantity;
+        entity.IsActive = dto.IsActive;
+        await _context.SaveChangesAsync();
+
+        dto.Id = entity.Id;
+        dto.WarehouseId = warehouseId;
+        dto.ReorderPoint = entity.ReorderPoint;
+        return dto;
     }
 
     public async Task<List<StockDto>> GetStockWarningsAsync(Guid warehouseId)

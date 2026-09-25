@@ -30,6 +30,8 @@ interface DispenseRow {
   totalAmount: number;
   insuranceType: string;
   isDispensed: boolean;
+  /** Cấp một phần (status 6): đã xuất một phần, còn nợ bệnh nhân — vẫn phát tiếp / hủy phát được. */
+  isPartial?: boolean;
   items: { id: string; medicineName: string; quantity: number; unit?: string; dosage?: string; days?: number }[];
 }
 
@@ -85,7 +87,8 @@ const DispensingCounterV2: React.FC = () => {
       });
       // Đơn NHÁP (status 5) chưa phát hành → quầy dược KHÔNG được thấy. Endpoint /recent trả
       // mọi trạng thái vì màn danh sách của bác sĩ cần xem nháp của chính mình.
-      const mapped: DispenseRow[] = (data || []).filter((p) => Number(p.status) !== 5).map((p) => ({
+      // QA-R11: đơn Hủy (4) / Hoàn trả (3) cũng nằm ở tab "Chưa phát" (đo: 16/100 đơn) — bấm "Phát" chỉ nhận 400.
+      const mapped: DispenseRow[] = (data || []).filter((p) => ![3, 4, 5].includes(Number(p.status))).map((p) => ({
         prescriptionId: (p.id || p.prescriptionId) as string,
         prescriptionCode: (p.prescriptionCode || p.code || '') as string,
         patientCode: (p.patientCode || '') as string,
@@ -96,7 +99,10 @@ const DispensingCounterV2: React.FC = () => {
         totalItems: ((p.items as unknown[]) || []).length,
         totalAmount: (p.totalAmount || 0) as number,
         insuranceType: (p.insuranceType || p.diagnosis || 'Thu phí') as string,
-        isDispensed: Boolean(p.isDispensed),
+        // QA-R11: đơn cấp một phần (6) có IsDispensed = true nên rơi sang tab "Đã phát" — không còn nút phát
+        // tiếp, phần thuốc còn nợ bệnh nhân kẹt lại (BE đã hỗ trợ phát nốt). Giữ nó ở tab chờ phát.
+        isDispensed: Boolean(p.isDispensed) && Number(p.status) !== 6,
+        isPartial: Number(p.status) === 6,
         // Endpoint /prescriptions/recent trả tên thuốc ở `drugName`, KHÔNG phải `medicineName`
         // (ExaminationCompleteService.PrescriptionsLib.cs — `drugName = i.Medicine.MedicineName`).
         // Đổ thẳng vào state thì `it.medicineName` luôn undefined → cột THUỐC trong ô chi tiết
@@ -177,7 +183,7 @@ const DispensingCounterV2: React.FC = () => {
     // #13: route cũ /warehousecomplete/issues/{id}/cancel KHÔNG tồn tại → dùng nhánh chuẩn
     // /pharmacy/cancel-dispensed/{prescriptionId} (hoàn tồn kho + reset trạng thái đơn).
     try { await apiClient.post(`/pharmacy/cancel-dispensed/${id}`, { reason: 'Hủy phát tại quầy' }); tk('Đã hủy phát'); load(); }
-    catch { tw('Hủy thất bại'); }
+    catch (e) { tw(friendlyErrorMessage(e, 'Hủy thất bại')); }
     finally { setBusy(id, false); }
   };
 
@@ -308,7 +314,7 @@ ${targets.map((row) => row.items.map((it) => `<div class="label"><h3>${esc(it.me
             },
             { key: 'print', icon: 'print', label: 'In tem', onClick: () => printLabels(r) },
             {
-              key: 'cancel', icon: 'refresh', label: 'Hủy phát', tone: 'danger', hidden: !r.isDispensed,
+              key: 'cancel', icon: 'refresh', label: 'Hủy phát', tone: 'danger', hidden: !r.isDispensed && !r.isPartial,
               disabled: isBusy(r.prescriptionId),
               confirm: `Hủy phát đơn ${r.prescriptionCode}? Thao tác sẽ hoàn tồn kho và đưa đơn về trạng thái chưa phát.`,
               onClick: () => { void handleCancel(r.prescriptionId); },
@@ -385,6 +391,8 @@ ${targets.map((row) => row.items.map((it) => `<div class="label"><h3>${esc(it.me
             <DrField lbl="Trạng thái">
               {detail.isDispensed
                 ? <StatusBadge tone="ok" dot>Đã phát</StatusBadge>
+                : detail.isPartial
+                ? <StatusBadge tone="warn" dot>Cấp một phần</StatusBadge>
                 : <StatusBadge tone="warn" dot>Chưa phát</StatusBadge>}
             </DrField>
           </DrSec>

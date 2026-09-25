@@ -67,6 +67,9 @@ public partial class WarehouseCompleteService : IWarehouseCompleteService
     private Task<string> NextImportCodeAsync(string prefix)
         => NextVoucherCodeAsync(prefix, c => _context.ImportReceipts.IgnoreQueryFilters().AnyAsync(r => r.ReceiptCode == c));
 
+    private Task<string> NextProcurementCodeAsync()
+        => NextVoucherCodeAsync("DT", c => _context.ProcurementRequests.IgnoreQueryFilters().AnyAsync(r => r.RequestCode == c));
+
 
 
 

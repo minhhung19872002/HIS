@@ -58,6 +58,7 @@ public class CultureStockService : ICultureStockService
 
         return await query
             .OrderByDescending(s => s.PreservationDate)
+            .ThenBy(s => s.Id) // QA-R11: deterministic paging
             .Skip(skip)
             .Take(pageSize)
             .Select(s => MapToDto(s))

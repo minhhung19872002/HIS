@@ -105,10 +105,14 @@ public partial class HospitalPharmacyService
         };
     }
 
-    public async Task<PharmacyShiftListDto> CloseShiftAsync(CloseShiftDto dto)
+    public async Task<PharmacyShiftListDto> CloseShiftAsync(CloseShiftDto dto, Guid? callerId = null, bool callerIsAdmin = true)
     {
         var shift = await _context.PharmacyShifts.Include(s => s.Cashier).FirstOrDefaultAsync(s => s.Id == dto.ShiftId && !s.IsDeleted)
             ?? throw new KeyNotFoundException("Không tìm thấy ca làm việc.");
+        // QA-R11: any signed-in user could close another cashier's shift (and "current shift" showed it to them) —
+        // the till reconcile of cashier A then carried cashier B's counted cash.
+        if (!callerIsAdmin && callerId.HasValue && shift.CashierId != callerId.Value)
+            throw new UnauthorizedAccessException("Chỉ thu ngân của ca (hoặc quản trị) được đóng ca này.");
 
         if (shift.Status == 2)
             throw new InvalidOperationException("Shift already closed");
@@ -166,13 +170,15 @@ public partial class HospitalPharmacyService
         };
     }
 
-    public async Task<PharmacyShiftListDto?> GetCurrentShiftAsync()
+    public async Task<PharmacyShiftListDto?> GetCurrentShiftAsync(Guid? cashierId = null)
     {
         try
         {
+            // QA-R11: returned the newest open shift of ANY cashier — the POS showed a colleague's shift as "Ca hiện tại"
+            // and its "Đóng ca" closed that colleague's till. Scope to the signed-in cashier (one open shift per cashier).
             var shift = await _context.PharmacyShifts
                 .Include(s => s.Cashier)
-                .Where(s => !s.IsDeleted && s.Status == 1)
+                .Where(s => !s.IsDeleted && s.Status == 1 && (cashierId == null || s.CashierId == cashierId.Value))
                 .OrderByDescending(s => s.StartTime)
                 .FirstOrDefaultAsync();
 

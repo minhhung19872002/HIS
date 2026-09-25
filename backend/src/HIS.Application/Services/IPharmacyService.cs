@@ -34,7 +34,7 @@ namespace HIS.Application.Services
 
         // Alerts
         Task<object> GetAlertsAsync(bool? acknowledged);
-        Task<bool> AcknowledgeAlertAsync(Guid alertId);
+        Task<bool> AcknowledgeAlertAsync(Guid alertId, Guid? userId = null);
         Task<bool> ResolveAlertAsync(Guid alertId);
 
         // Inventory

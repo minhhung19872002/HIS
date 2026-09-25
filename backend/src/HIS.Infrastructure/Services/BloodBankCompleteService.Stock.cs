@@ -118,23 +118,61 @@ namespace HIS.Infrastructure.Services
                 throw new InvalidOperationException(
                     $"Không cấp phát túi máu {bag.BagCode} trực tiếp được: xuất máu phải qua phiếu yêu cầu xuất máu có bệnh nhân "
                     + "(tab \"Yêu cầu\" → Duyệt → Xuất máu, hệ thống kiểm tra tương thích ABO/Rh).");
-            var usableTargets = new[] { "Available", "Reserved", "Issued", "Transfusing" };
-            if (usableTargets.Contains(status, StringComparer.OrdinalIgnoreCase))
-            {
-                if (bag.ExpiryDate != default && bag.ExpiryDate.Date < DateTime.Now.Date)
-                    throw new InvalidOperationException(
-                        $"Túi máu {bag.BagCode} đã hết hạn ngày {bag.ExpiryDate:dd/MM/yyyy}, không chuyển sang \"{status}\" được.");
-                // 'Quarantine' = bag pulled during a transfusion reaction (QA round 4) — never back to stock
-                if (new[] { "Transfused", "Destroyed", "Quarantine" }.Contains(bag.Status, StringComparer.OrdinalIgnoreCase))
-                    throw new InvalidOperationException(
-                        $"Túi máu {bag.BagCode} đã \"{bag.Status}\", không chuyển trạng thái được.");
-            }
+            // QA-R11 (P0): the old guard only ran for "usable" targets, so Transfused → Returned → Available (or
+            // Transfused → Expired → Available, or any free text like "FOO") put an already-transfused bag back in
+            // stock. Explicit from → to whitelist; Transfusing/Transfused are set only by the transfusion endpoints.
+            var target = BagManualTransitions.Keys.Concat(BagManualTransitions.Values.SelectMany(v => v))
+                .FirstOrDefault(s => string.Equals(s, status?.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (target == null)
+                throw new ArgumentException($"Trạng thái túi máu \"{status}\" không hợp lệ.", nameof(status));
+            var from = BagManualTransitions.Keys.FirstOrDefault(s => string.Equals(s, bag.Status, StringComparison.OrdinalIgnoreCase));
+            if (from == null || !BagManualTransitions[from].Contains(target))
+                throw new InvalidOperationException(
+                    $"Túi máu {bag.BagCode} đang \"{bag.Status}\", không chuyển sang \"{target}\" được.");
+            if ((target == "Available" || target == "Reserved")
+                && bag.ExpiryDate != default && bag.ExpiryDate.Date < DateTime.Now.Date)
+                throw new InvalidOperationException(
+                    $"Túi máu {bag.BagCode} đã hết hạn ngày {bag.ExpiryDate:dd/MM/yyyy}, không chuyển sang \"{target}\" được.");
 
+            // Optimistic check on the status read above (a concurrent transfusion start must not be overwritten).
             var rows = await _context.Database.ExecuteSqlRawAsync(
-                "UPDATE BloodBags SET Status=@p0, Note=@p1 WHERE Id=@p2",
-                P("@p0", status), P("@p1", reason), P("@p2", bloodBagId));
-            return rows > 0;
+                "UPDATE BloodBags SET Status=@p0, Note=@p1 WHERE Id=@p2 AND Status=@p3",
+                P("@p0", target), P("@p1", reason), P("@p2", bloodBagId), P("@p3", bag.Status));
+            if (rows == 0)
+                throw new InvalidOperationException($"Túi máu {bag.BagCode} vừa được người khác đổi trạng thái — tải lại rồi thử lại.");
+            return true;
         }
+
+        /// <summary>
+        /// QA-R11: date-only upper bound (FE/controller default "today 00:00") = whole day inclusive — same rule as
+        /// GetIssueRequestsAsync. `&lt;= 00:00` hid every receipt/issue/inventory/order made today.
+        /// </summary>
+        private static DateTime InclusiveEndOfDay(DateTime toDate)
+        {
+            var sqlMax = (DateTime)System.Data.SqlTypes.SqlDateTime.MaxValue;
+            return toDate.TimeOfDay == TimeSpan.Zero && toDate < sqlMax.AddDays(-1)
+                ? toDate.AddDays(1).AddMilliseconds(-3) // datetime precision: 23:59:59.997
+                : toDate;
+        }
+
+        /// <summary>
+        /// Manual status changes allowed by <see cref="UpdateBloodBagStatusAsync"/>. Terminal: Transfused, Destroyed,
+        /// Cancelled (no entry = nothing allowed). 'Quarantine' = pulled during a reaction (QA round 4), never back
+        /// to stock. Issued/Transfusing/Transfused are reached only through the issue / transfusion workflow.
+        /// </summary>
+        private static readonly Dictionary<string, string[]> BagManualTransitions = new()
+        {
+            ["Available"]   = new[] { "Reserved", "Quarantine", "Expired", "Destroyed" },
+            ["Reserved"]    = new[] { "Available", "Quarantine", "Expired", "Destroyed" },
+            ["Issued"]      = new[] { "Returned", "Quarantine" },
+            ["Returned"]    = new[] { "Available", "Quarantine", "Destroyed" },
+            ["Expired"]     = new[] { "Destroyed" },
+            ["Quarantine"]  = new[] { "Destroyed" },
+            ["Transfusing"] = Array.Empty<string>(),
+            ["Transfused"]  = Array.Empty<string>(),
+            ["Destroyed"]   = Array.Empty<string>(),
+            ["Cancelled"]   = Array.Empty<string>(),
+        };
 
         public async Task<List<BloodStockDetailDto>> GetExpiringBloodBagsAsync(int daysUntilExpiry = 7)
         {

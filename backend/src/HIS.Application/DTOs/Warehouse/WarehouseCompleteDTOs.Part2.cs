@@ -583,3 +583,23 @@ public class StockIssueSearchDto
     public int PageSize { get; set; } = 50;
 }
 
+
+/// <summary>
+/// QA-R11: ngưỡng tồn tối thiểu / tối đa / điểm đặt hàng của một thuốc (theo kho, hoặc toàn viện khi WarehouseId null).
+/// Bảng StockThresholds có từ trước nhưng không có đường ghi nào — cảnh báo tồn tối thiểu và gợi ý dự trù luôn rỗng.
+/// </summary>
+public class StockThresholdDto
+{
+    public Guid Id { get; set; }
+    public Guid MedicineId { get; set; }
+    public string? MedicineCode { get; set; }
+    public string? MedicineName { get; set; }
+    public string? Unit { get; set; }
+    public Guid? WarehouseId { get; set; }
+    public string? WarehouseName { get; set; }
+    public decimal MinimumQuantity { get; set; }
+    public decimal MaximumQuantity { get; set; }
+    public decimal ReorderPoint { get; set; }
+    public decimal ReorderQuantity { get; set; }
+    public bool IsActive { get; set; } = true;
+}

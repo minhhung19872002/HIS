@@ -49,7 +49,8 @@ const STATUS_TABS = [
   { v: 'revoked' as SKey,  l: 'Đã thu hồi (cũ)', tone: 'crit' as const },
 ];
 
-const tabToStatus = (s: SKey | 'all') => s === 'draft' ? 1 : s === 'pending' ? 2 : s === 'approved' ? 3 : s === 'revoked' ? 4 : 0;
+// QA-R11: 'all' used to send status=0 (no such status) → "Tất cả" was always empty. undefined = no filter.
+const tabToStatus = (s: SKey | 'all') => s === 'draft' ? 1 : s === 'pending' ? 2 : s === 'approved' ? 3 : s === 'revoked' ? 4 : undefined;
 
 
 const OfficeSupplyApprovalV2: React.FC = () => {
@@ -75,6 +76,7 @@ const OfficeSupplyApprovalV2: React.FC = () => {
   const [approving, setApproving] = useState(false);
   const [approvingReturn, setApprovingReturn] = useState(false);
   const [recalling, setRecalling] = useState(false);
+  const [resubmitting, setResubmitting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -103,7 +105,9 @@ const OfficeSupplyApprovalV2: React.FC = () => {
         setDepartments(unwrapList<Department>(dBody));
       } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh mục khoa')); }
       try {
-        const w = await getWarehouses(1);
+        // QA-R11: was getWarehouses(1) = medicine stores only, while VPP/TTB stock sits in the supply store
+        // (type 2) — every approval then failed "Không đủ tồn". Offer every warehouse.
+        const w = await getWarehouses();
         const wBody = (w as { data?: MaybePaged<Warehouse> }).data;
         setWarehouses(unwrapList<Warehouse>(wBody));
       } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh mục kho')); }
@@ -128,7 +132,7 @@ const OfficeSupplyApprovalV2: React.FC = () => {
       });
       tk(`Đã tạo phiếu ${data.approvalCode}`);
       setCreateOpen(false); form.resetFields(); load();
-    } catch { tw('Tạo phiếu thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Tạo phiếu thất bại')); }
     finally { setCreating(false); }
   };
 
@@ -139,9 +143,9 @@ const OfficeSupplyApprovalV2: React.FC = () => {
       const { data }: { data: ApproveResponse } = await apiClient.post('/office-supply/requests/approve', {
         id: approveReq.id, approvedQuantities: approveQty,
       });
-      tk(`Đã duyệt — phiếu xuất ${data.exportReceiptId}`);
+      tk(data.exportReceiptId ? 'Đã duyệt — đã lập phiếu xuất kho' : 'Đã duyệt');
       setApproveReq(null); setApproveQty({}); load();
-    } catch { tw('Duyệt thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Duyệt thất bại')); }
     finally { setApproving(false); }
   };
 
@@ -152,8 +156,21 @@ const OfficeSupplyApprovalV2: React.FC = () => {
       await apiClient.post(`/office-supply/requests/${req.id}/recall`);
       tk(`Đã thu hồi phiếu ${req.approvalCode} — phiếu về Nháp để chỉnh sửa lại`);
       load();
-    } catch { tw('Thu hồi thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Thu hồi thất bại')); }
     finally { setRecalling(false); }
+  };
+
+  // QA-R11: a recalled request (status 1) had no way back — "Thu hồi" promised it could be sent again, but the page
+  // offered no action for Nháp. The generic approval submit (status 0/1 → 2) is the same transition CreateRequest logs.
+  const submitResend = async (req: ApprovalRequest) => {
+    if (resubmitting) return;
+    setResubmitting(true);
+    try {
+      await apiClient.post('/pharmacy-approval/submit', { approvalId: req.id });
+      tk(`Đã gửi lại phiếu ${req.approvalCode} — chờ duyệt`);
+      load();
+    } catch (e) { tw(friendlyErrorMessage(e, 'Gửi lại thất bại')); }
+    finally { setResubmitting(false); }
   };
 
   const submitCreateReturn = async () => {
@@ -174,7 +191,7 @@ const OfficeSupplyApprovalV2: React.FC = () => {
       });
       tk(`Đã tạo phiếu hoàn trả ${data.approvalCode}`);
       setReturnOpen(false); returnForm.resetFields(); load();
-    } catch { tw('Tạo phiếu hoàn trả thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Tạo phiếu hoàn trả thất bại')); }
     finally { setCreatingReturn(false); }
   };
 
@@ -187,7 +204,7 @@ const OfficeSupplyApprovalV2: React.FC = () => {
       });
       tk('Đã duyệt hoàn trả — tồn kho đã được cộng lại');
       setApproveReturn(null); setApproveReturnQty({}); load();
-    } catch { tw('Duyệt hoàn trả thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Duyệt hoàn trả thất bại')); }
     finally { setApprovingReturn(false); }
   };
 
@@ -212,7 +229,7 @@ const OfficeSupplyApprovalV2: React.FC = () => {
   return (
     <div className="ab">
       <KpiStrip items={[
-        { lbl: 'Tổng phiếu', val: activeList.length, sub: STATUS_LABEL[tabToStatus(stab)] },
+        { lbl: 'Tổng phiếu', val: activeList.length, sub: STATUS_LABEL[tabToStatus(stab) ?? 0] ?? 'Tất cả' },
         { lbl: 'Tổng vật tư', val: activeList.reduce((s, r) => s + r.totalItems, 0), sub: 'mặt hàng', tone: 'info' },
         { lbl: 'Tổng tiền', val: Math.round(totalAmt / 1_000_000), unit: 'tr', sub: 'VND', tone: 'ok' },
         { lbl: 'Cần duyệt', val: activeList.filter((r) => r.status === 2).length, sub: 'cần xử lý', tone: 'warn' },
@@ -261,6 +278,12 @@ const OfficeSupplyApprovalV2: React.FC = () => {
               confirm: `Thu hồi phiếu ${r.approvalCode}? Phiếu sẽ về trạng thái Nháp để chỉnh sửa lại.`,
               disabled: recalling,
               onClick: () => submitRecall(r),
+            },
+            {
+              key: 'resend', icon: 'send', label: 'Gửi duyệt lại',
+              hidden: !(r.status === 1 && moduleTab === 'requests'),
+              disabled: resubmitting,
+              onClick: () => submitResend(r),
             },
             {
               key: 'approveReturn', icon: 'check', label: 'Duyệt hoàn trả',

@@ -102,8 +102,11 @@ public partial class WarehouseCompleteService {
             totalAmount += amount;
             // QA-R2: VAT% / CK% typed on the v2 "Nhập từ NCC" form were silently dropped (Vat = 0,
             // FinalAmount = qty × price) → supplier payable and "Thực trả" disagreed with the invoice.
-            vatTotal += Math.Round(amount * item.VatRate / 100, 2);
-            discountTotal += Math.Round(amount * item.DiscountRate / 100, 2);
+            // QA-R11: VAT was charged on the gross amount — the VAT base is the price AFTER the trade discount shown on
+            // the invoice (TT 219/2013 Đ.7): 1 000 000, CK 10%, VAT 5% is 945 000 payable, not 950 000.
+            var lineDiscount = Math.Round(amount * item.DiscountRate / 100, 2);
+            discountTotal += lineDiscount;
+            vatTotal += Math.Round((amount - lineDiscount) * item.VatRate / 100, 2);
 
             var detail = new ImportReceiptDetail
             {
@@ -247,8 +250,11 @@ public partial class WarehouseCompleteService {
             // while the header kept the OLD Vat/Discount (measured: Vat 1000 / Discount 500 / Final 10000 for a
             // 10000 + 10% − 5% receipt) → supplier payable disagreed with the invoice after any edit. Same
             // arithmetic as CreateSupplierReceiptAsync.
-            vatTotal += Math.Round(amount * item.VatRate / 100, 2);
-            discountTotal += Math.Round(amount * item.DiscountRate / 100, 2);
+            // QA-R11: VAT was charged on the gross amount — the VAT base is the price AFTER the trade discount shown on
+            // the invoice (TT 219/2013 Đ.7): 1 000 000, CK 10%, VAT 5% is 945 000 payable, not 950 000.
+            var lineDiscount = Math.Round(amount * item.DiscountRate / 100, 2);
+            discountTotal += lineDiscount;
+            vatTotal += Math.Round((amount - lineDiscount) * item.VatRate / 100, 2);
 
             var detail = new ImportReceiptDetail
             {

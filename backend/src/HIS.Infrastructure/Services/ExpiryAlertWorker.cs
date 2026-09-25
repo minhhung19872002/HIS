@@ -31,6 +31,15 @@ public class ExpiryAlertWorker : BackgroundService
             {
                 _logger.LogWarning(ex, "ExpiryAlertWorker: scan error");
             }
+            try
+            {
+                await ScanLowStock(stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "ExpiryAlertWorker: low-stock scan error");
+            }
             try { await Task.Delay(TimeSpan.FromHours(6), stoppingToken); }
             catch (OperationCanceledException) { break; }
         }
@@ -122,6 +131,105 @@ public class ExpiryAlertWorker : BackgroundService
         {
             await db.SaveChangesAsync(ct);
             _logger.LogInformation("ExpiryAlertWorker: created {Count} new expiry alerts, updated {Updated}", newAlerts, updatedAlerts);
+        }
+    }
+
+    /// <summary>
+    /// QA-R11: LowStockAlerts was read by the pharmacy alert list but nothing ever wrote it — "Cảnh báo tồn thấp" was
+    /// permanently empty. Compare usable stock (not expired, not locked, minus reserved) with the active minimum per
+    /// medicine × warehouse. A threshold without a warehouse is the default for every medicine store / pharmacy; a
+    /// warehouse-specific one overrides it. Open alerts are refreshed, and resolved once stock is back above minimum.
+    /// </summary>
+    private async Task ScanLowStock(CancellationToken ct)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HISDbContext>();
+
+        var thresholds = await db.StockThresholds
+            .Where(t => t.IsActive && !t.IsDeleted && t.MinimumQuantity > 0)
+            .ToListAsync(ct);
+        var openAlerts = await db.LowStockAlerts
+            .Where(a => !a.IsDeleted && a.Status < 3)
+            .ToListAsync(ct);
+        if (thresholds.Count == 0 && openAlerts.Count == 0) return;
+
+        var defaultWarehouses = await db.Warehouses
+            .Where(w => w.IsActive && !w.IsDeleted && HIS.Core.Constants.WarehouseType.Dispensing.Contains(w.WarehouseType))
+            .Select(w => w.Id)
+            .ToListAsync(ct);
+
+        // (medicine, warehouse) → effective threshold
+        var effective = new Dictionary<(Guid, Guid), StockThreshold>();
+        foreach (var t in thresholds.Where(t => t.WarehouseId == null))
+            foreach (var w in defaultWarehouses)
+                effective[(t.MedicineId, w)] = t;
+        foreach (var t in thresholds.Where(t => t.WarehouseId != null))
+            effective[(t.MedicineId, t.WarehouseId!.Value)] = t;
+
+        var medIds = effective.Keys.Select(k => k.Item1).Distinct().ToList();
+        var today = DateTime.Today;
+        var stock = medIds.Count == 0
+            ? new Dictionary<(Guid, Guid), decimal>()
+            : (await db.InventoryItems
+                .Where(i => !i.IsDeleted && !i.IsLocked && i.MedicineId != null && medIds.Contains(i.MedicineId.Value)
+                    && (i.ExpiryDate == null || i.ExpiryDate >= today))
+                .GroupBy(i => new { MedicineId = i.MedicineId!.Value, i.WarehouseId })
+                .Select(g => new { g.Key.MedicineId, g.Key.WarehouseId, Qty = g.Sum(x => x.Quantity - x.ReservedQuantity) })
+                .ToListAsync(ct))
+                .ToDictionary(x => (x.MedicineId, x.WarehouseId), x => x.Qty);
+
+        var changed = 0;
+        var openByKey = openAlerts.GroupBy(a => (a.MedicineId, a.WarehouseId)).ToDictionary(g => g.Key, g => g.First());
+        foreach (var ((medicineId, warehouseId), t) in effective)
+        {
+            var qty = stock.GetValueOrDefault((medicineId, warehouseId));
+            openByKey.TryGetValue((medicineId, warehouseId), out var alert);
+            if (qty > t.MinimumQuantity) continue; // resolved below
+            var level = qty <= 0 ? 1 : qty <= t.MinimumQuantity / 2 ? 2 : 3;
+            var suggested = Math.Max(t.ReorderQuantity, t.MaximumQuantity > 0 ? t.MaximumQuantity - qty : t.MinimumQuantity * 2 - qty);
+            if (alert == null)
+            {
+                db.LowStockAlerts.Add(new LowStockAlert
+                {
+                    Id = Guid.NewGuid(),
+                    MedicineId = medicineId,
+                    WarehouseId = warehouseId,
+                    CurrentQuantity = qty,
+                    MinimumQuantity = t.MinimumQuantity,
+                    ReorderPoint = t.ReorderPoint,
+                    SuggestedOrderQuantity = Math.Max(0, suggested),
+                    AlertLevel = level,
+                    Status = 0,
+                    CreatedAt = DateTime.UtcNow,
+                });
+                changed++;
+            }
+            else if (alert.CurrentQuantity != qty || alert.MinimumQuantity != t.MinimumQuantity)
+            {
+                if (level < alert.AlertLevel && alert.Status == 1) alert.Status = 0; // got worse → notify again
+                alert.CurrentQuantity = qty;
+                alert.MinimumQuantity = t.MinimumQuantity;
+                alert.AlertLevel = level;
+                alert.SuggestedOrderQuantity = Math.Max(0, suggested);
+                alert.UpdatedAt = DateTime.UtcNow;
+                changed++;
+            }
+        }
+        // Stock back above the minimum (or threshold removed) → close the alert.
+        foreach (var alert in openAlerts)
+        {
+            var key = (alert.MedicineId, alert.WarehouseId);
+            if (effective.TryGetValue(key, out var t) && stock.GetValueOrDefault(key) <= t.MinimumQuantity) continue;
+            alert.Status = 3;
+            alert.Notes = string.IsNullOrWhiteSpace(alert.Notes) ? "Tự đóng: tồn đã trên mức tối thiểu" : alert.Notes;
+            alert.UpdatedAt = DateTime.UtcNow;
+            changed++;
+        }
+
+        if (changed > 0)
+        {
+            await db.SaveChangesAsync(ct);
+            _logger.LogInformation("ExpiryAlertWorker: low-stock alerts changed {Count}", changed);
         }
     }
 

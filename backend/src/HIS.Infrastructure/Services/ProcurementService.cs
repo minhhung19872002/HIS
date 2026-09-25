@@ -149,7 +149,14 @@ public class ProcurementService : IProcurementService
         if (dto.Items.Any(i => string.IsNullOrWhiteSpace(i.ItemName)))
             throw new ArgumentException("Tên mặt hàng là bắt buộc.");
 
-        var code = $"DT{DateTime.Now:yyyyMMdd}{new Random().Next(1000, 9999)}";
+        // QA-R11: was DT{date}{Random 1000-9999} against a UNIQUE index — two requests a day could draw the same
+        // number (birthday odds ~50% at ~110/day) and the second save failed with a 500. Millisecond stamp + skip taken.
+        var code = $"DT{DateTime.Now:yyyyMMddHHmmssfff}";
+        for (var i = 0; i < 50 && await _context.ProcurementRequests.IgnoreQueryFilters().AnyAsync(p => p.RequestCode == code); i++)
+        {
+            await Task.Delay(2);
+            code = $"DT{DateTime.Now:yyyyMMddHHmmssfff}";
+        }
         var validUser = userId.HasValue && userId.Value != Guid.Empty ? userId : null;
 
         var entity = new ProcurementRequest

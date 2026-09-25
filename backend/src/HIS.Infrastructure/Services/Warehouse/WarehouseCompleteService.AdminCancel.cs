@@ -306,7 +306,14 @@ public partial class WarehouseCompleteService {
 
     public async Task<decimal> ConvertIUToBaseUnitAsync(Guid itemId, decimal iuQuantity)
     {
-        return iuQuantity;
+        // QA-R11: returned the IU number unchanged — 40 000 IU of heparin "converted" to 40 000 vials.
+        var iuPerUnit = await _context.IUMedicineConfigs
+            .Where(c => c.MedicineId == itemId && c.IsActive && !c.IsDeleted)
+            .Select(c => (decimal?)c.IUPerBaseUnit)
+            .FirstOrDefaultAsync();
+        if (iuPerUnit is not > 0)
+            throw new InvalidOperationException("Thuốc chưa khai báo quy đổi IU / đơn vị cơ bản.");
+        return Math.Round(iuQuantity / iuPerUnit.Value, 4);
     }
 
     public async Task<List<SplitIssueDto>> GetSplitableItemsAsync(Guid warehouseId)
@@ -353,8 +360,11 @@ public partial class WarehouseCompleteService {
 
     public async Task<bool> SplitPackageAsync(Guid warehouseId, Guid itemId, decimal packageQuantity, Guid userId)
     {
+        // QA-R11: answered `true` without touching stock. A lot row has no unit of its own (stock is always kept in
+        // Medicine.Unit), so "tách hộp → viên" has nothing to write to until lots carry a unit — refuse honestly.
         await Task.CompletedTask;
-        return true;
+        throw new InvalidOperationException(
+            "Tách lẻ bao gói chưa được hỗ trợ: tồn kho lưu theo đơn vị tính của danh mục thuốc — khai báo đơn vị lẻ trong danh mục.");
     }
 
     public async Task<List<ProfitMarginConfigDto>> GetProfitMarginConfigsAsync(Guid warehouseId)
@@ -379,15 +389,64 @@ public partial class WarehouseCompleteService {
 
     public async Task<ProfitMarginConfigDto> UpdateProfitMarginConfigAsync(ProfitMarginConfigDto dto, Guid userId)
     {
-        await Task.CompletedTask;
-        if (dto.Id == Guid.Empty)
-            dto.Id = Guid.NewGuid();
+        // QA-R11: echoed the DTO back (with a fresh Id) without writing — "Lưu" reported success, nothing was saved.
+        if (dto.ProfitMarginPercent < 0 || dto.ProfitMarginPercent > 1000)
+            throw new InvalidOperationException("Tỷ lệ lợi nhuận phải trong khoảng 0–1000%.");
+        if (dto.MinPrice < 0 || dto.MaxPrice < 0 || (dto.MinPrice.HasValue && dto.MaxPrice.HasValue && dto.MaxPrice < dto.MinPrice))
+            throw new InvalidOperationException("Khoảng giá không hợp lệ.");
+
+        ProfitMarginConfig? entity = null;
+        if (dto.Id != Guid.Empty)
+            entity = await _context.ProfitMarginConfigs.FirstOrDefaultAsync(c => c.Id == dto.Id && !c.IsDeleted)
+                ?? throw new KeyNotFoundException("Không tìm thấy cấu hình lợi nhuận");
+        if (entity == null)
+        {
+            entity = new ProfitMarginConfig
+            {
+                Id = Guid.NewGuid(),
+                EffectiveFrom = DateTime.Today,
+                CreatedAt = DateTime.Now,
+                CreatedBy = userId.ToString(),
+            };
+            _context.ProfitMarginConfigs.Add(entity);
+        }
+        else
+        {
+            entity.UpdatedAt = DateTime.Now;
+            entity.UpdatedBy = userId.ToString();
+        }
+        entity.WarehouseId = dto.WarehouseId == Guid.Empty ? null : dto.WarehouseId;
+        entity.MedicineGroupCode = string.IsNullOrWhiteSpace(dto.ItemGroupName) ? null : dto.ItemGroupName.Trim();
+        entity.MarginPercent = dto.ProfitMarginPercent;
+        entity.MinPriceFrom = dto.MinPrice ?? 0;
+        entity.MinPriceTo = dto.MaxPrice ?? 0;
+        entity.IsActive = dto.IsActive;
+        await _context.SaveChangesAsync();
+
+        dto.Id = entity.Id;
         return dto;
     }
 
     public async Task<decimal> CalculateSellingPriceAsync(Guid warehouseId, Guid itemId, decimal costPrice)
     {
-        return costPrice;
+        // QA-R11: returned the cost price unchanged although ProfitMarginConfigs is read by the page above.
+        if (costPrice < 0)
+            throw new InvalidOperationException("Giá vốn không được âm.");
+        var groupCode = await _context.Medicines.Where(m => m.Id == itemId)
+            .Select(m => m.MedicineGroupCode).FirstOrDefaultAsync();
+        var configs = await _context.ProfitMarginConfigs
+            .Where(c => !c.IsDeleted && c.IsActive
+                && (c.WarehouseId == null || c.WarehouseId == warehouseId)
+                && (c.MedicineGroupCode == null || c.MedicineGroupCode == groupCode)
+                && c.MinPriceFrom <= costPrice && (c.MinPriceTo == 0 || costPrice <= c.MinPriceTo))
+            .ToListAsync();
+        // Most specific rule wins: warehouse-specific before hospital-wide, group-specific before any group.
+        var rule = configs
+            .OrderByDescending(c => c.WarehouseId != null)
+            .ThenByDescending(c => c.MedicineGroupCode != null)
+            .ThenByDescending(c => c.MinPriceFrom)
+            .FirstOrDefault();
+        return rule == null ? costPrice : Math.Round(costPrice * (1 + rule.MarginPercent / 100m), 0);
     }
 
     #endregion
@@ -438,6 +497,10 @@ public partial class WarehouseCompleteService {
                 legacyRx.Status = 1; // Đã duyệt — phát lại được
                 legacyRx.UpdatedAt = DateTime.UtcNow;
                 legacyRx.UpdatedBy = userId.ToString();
+                // QA-R11: nothing was deducted, so no line may stay "đã cấp".
+                await _context.PrescriptionDetails
+                    .Where(d => d.PrescriptionId == prescriptionId && d.DispensedQuantity != 0)
+                    .ForEachAsync(d => d.DispensedQuantity = 0);
                 await _context.SaveChangesAsync();
                 return new StockReceiptDto
                 {
@@ -534,6 +597,11 @@ public partial class WarehouseCompleteService {
             prescription.IsDispensed = false;
             prescription.Status = 4; // Cancelled
         }
+        // QA-R11: the lines kept DispensedQuantity after the stock came back — dispensed qty must equal the
+        // (now cancelled) stock movements, otherwise reconciliation/"còn phải cấp" read the order as still issued.
+        await _context.PrescriptionDetails
+            .Where(d => d.PrescriptionId == prescriptionId && d.DispensedQuantity != 0)
+            .ForEachAsync(d => d.DispensedQuantity = 0);
 
         await _context.SaveChangesAsync();
         if (tx != null) await tx.CommitAsync();

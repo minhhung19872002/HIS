@@ -776,6 +776,10 @@ export const approveProcurementRequest = (id: string) =>
 export const getProcurementRequests = (warehouseId?: string, status?: number, fromDate?: string, toDate?: string) =>
   apiClient.get<ProcurementRequestDto[]>(`${BASE_URL}/procurement-requests`, { params: { warehouseId, status, fromDate, toDate } });
 
+/** QA-R11: từ chối đề nghị mua sắm đang chờ duyệt — PUT /api/procurement/reject/{id} (same ProcurementRequests table). */
+export const rejectProcurementRequest = (id: string, reason: string) =>
+  apiClient.put(`/procurement/reject/${id}`, { reason });
+
 export const getStock = (search: StockSearchDto) =>
   apiClient.get<PagedResult<StockDto>>(`${BASE_URL}/stock`, { params: search });
 
@@ -808,6 +812,34 @@ export const adjustStockAfterTake = (id: string) =>
 
 export const printStockTakeReport = (id: string) =>
   apiClient.get(`${BASE_URL}/stock-takes/${id}/print`, { responseType: 'blob' });
+
+/**
+ * QA-R11: the warehouse print endpoints render HTML (PdfTemplateHelper) but label it `application/pdf` —
+ * a blob URL of that type opens Chrome's PDF viewer, which shows "Failed to load PDF document" instead of
+ * the slip. Keep a real PDF as-is, re-type anything else as HTML.
+ */
+/** Ngưỡng tồn (tối thiểu / tối đa / điểm đặt hàng) theo thuốc; warehouseId null = mặc định cho mọi kho thuốc. */
+export interface StockThresholdDto {
+  id?: string;
+  medicineId: string;
+  warehouseId?: string | null;
+  minimumQuantity: number;
+  maximumQuantity: number;
+  reorderPoint: number;
+  reorderQuantity: number;
+  isActive: boolean;
+}
+
+export const getStockThresholds = (params: { warehouseId?: string; medicineId?: string }) =>
+  apiClient.get<StockThresholdDto[]>(`${BASE_URL}/stock-thresholds`, { params });
+
+export const saveStockThreshold = (dto: StockThresholdDto) =>
+  apiClient.put<StockThresholdDto>(`${BASE_URL}/stock-thresholds`, dto);
+
+export const printableBlobUrl = async (data: Blob): Promise<string> => {
+  const isPdf = (await data.slice(0, 5).text()) === '%PDF-';
+  return URL.createObjectURL(isPdf ? data : new Blob([data], { type: 'text/html;charset=utf-8' }));
+};
 
 // Thao tác trên phiếu đã lập (QA-R8): danh sách / mở lại / hủy phiếu kiểm kê, hủy phiếu xuất.
 // BE nhận `[FromBody] string` → body phải là chuỗi JSON có nháy. Axios chỉ tự bọc nháy khi chuỗi KHÔNG phải

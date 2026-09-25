@@ -30,20 +30,23 @@ const STOCK_TABS: StatusTab<SKey>[] = [
 ];
 
 // ── Receipt tab ──
-type RKey = 'draft' | 'pending' | 'approved' | 'cancelled';
+// QA-R11: ImportReceipt.Status is 0 Chờ duyệt · 1 Đã duyệt · 2 Đã hủy (same as PharmacyStockIn). The old
+// 0 Nháp / 1 Chờ duyệt / 2 Đã duyệt mapping offered "Duyệt" on already-approved receipts (400), hid it on the
+// pending ones, and showed cancelled receipts as approved.
+type RKey = 'pending' | 'approved' | 'cancelled';
 const RECEIPT_TABS: StatusTab<RKey>[] = [
-  { v: 'draft',     l: 'Nháp',        tone: 'info' },
   { v: 'pending',   l: 'Chờ duyệt',   tone: 'warn' },
   { v: 'approved',  l: 'Đã duyệt',    tone: 'ok' },
   { v: 'cancelled', l: 'Đã hủy',      tone: 'crit' },
 ];
 const rKey = (status: number): RKey =>
-  status === 0 ? 'draft' : status === 1 ? 'pending' : status === 2 ? 'approved' : 'cancelled';
+  status === 0 ? 'pending' : status === 1 ? 'approved' : 'cancelled';
 const RTONE: Record<RKey, 'ok' | 'warn' | 'info' | 'crit'> = {
-  draft: 'info', pending: 'warn', approved: 'ok', cancelled: 'crit',
+  pending: 'warn', approved: 'ok', cancelled: 'crit',
 };
+// ImportReceipt.ImportType: 1 NCC · 2 nguồn khác · 3 chuyển kho · 4 hoàn trả khoa (others fall back to receiptTypeName).
 const RECEIPT_TYPE: Record<number, string> = {
-  0: 'Nhập NCC', 1: 'Nguồn khác', 2: 'Chuyển kho', 3: 'Trả khoa',
+  1: 'Nhập NCC', 2: 'Nguồn khác', 3: 'Chuyển kho', 4: 'Trả khoa',
 };
 
 const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
@@ -83,13 +86,13 @@ const MedicalSupplyV2: React.FC = () => {
   const handleApprove = (r: StockReceiptDto) =>
     cf(`Duyệt phiếu nhập ${r.receiptCode}?`, async () => {
       try { await approveStockReceipt(r.id); tk('Đã duyệt phiếu nhập'); loadReceipts(rPage); }
-      catch { te('Duyệt thất bại'); }
+      catch (e) { te(friendlyErrorMessage(e, 'Duyệt thất bại')); }
     }, { tone: 'warn' });
 
   const handleCancel = (r: StockReceiptDto) =>
     cf(`Hủy phiếu nhập ${r.receiptCode}?`, async () => {
       try { await cancelStockReceipt(r.id, 'Hủy theo yêu cầu'); tk('Đã hủy phiếu nhập'); loadReceipts(rPage); }
-      catch { te('Hủy thất bại'); }
+      catch (e) { te(friendlyErrorMessage(e, 'Hủy thất bại')); }
     }, { tone: 'crit', confirm: 'Xác nhận hủy' });
 
   // ── Receipts counts by local status ──
@@ -100,7 +103,9 @@ const MedicalSupplyV2: React.FC = () => {
   // ── Stock (SimpleV2Page) ──
   const stockLoad = useCallback(async () => {
     const r = await getStock({ itemType: 2, page: 1, pageSize: 200 });
-    return ((r.data?.items as StockDto[]) || (Array.isArray(r.data) ? (r.data as StockDto[]) : [])) as StockDto[];
+    const rows = ((r.data?.items as StockDto[]) || (Array.isArray(r.data) ? (r.data as StockDto[]) : [])) as StockDto[];
+    // QA-R11: GET /warehouse/stock ignores itemType, so this "Vật tư y tế" tab listed medicines — keep supply lots only.
+    return rows.filter((s) => s.itemType === 2);
   }, []);
 
   const stockStatus = (s: StockDto): SKey => {
@@ -159,7 +164,7 @@ const MedicalSupplyV2: React.FC = () => {
     }},
     { key: 'act', label: '', width: 80, render: (r) => (
       <div style={{ display: 'flex', gap: 4 }} onClick={(e) => e.stopPropagation()}>
-        {r.status === 1 && <ActBtn ic="check" onClick={() => handleApprove(r)} title="Duyệt" />}
+        {r.status === 0 && <ActBtn ic="check" onClick={() => handleApprove(r)} title="Duyệt" />}
         {(r.status === 0 || r.status === 1) && <ActBtn ic="alert" onClick={() => handleCancel(r)} title="Hủy" />}
       </div>
     )},
@@ -233,10 +238,10 @@ const MedicalSupplyV2: React.FC = () => {
           <div>
             <KpiStrip items={[
               { lbl: 'Tổng phiếu', val: rTotal },
-              { lbl: 'Chờ duyệt', val: receipts.filter((r) => r.status === 1).length, tone: 'warn' },
-              { lbl: 'Đã duyệt',  val: receipts.filter((r) => r.status === 2).length, tone: 'ok' },
+              { lbl: 'Chờ duyệt', val: receipts.filter((r) => r.status === 0).length, tone: 'warn' },
+              { lbl: 'Đã duyệt',  val: receipts.filter((r) => r.status === 1).length, tone: 'ok' },
               { lbl: 'Tổng giá trị', val: Math.round(
-                receipts.filter((r) => r.status === 2).reduce((s, r) => s + (r.finalAmount || 0), 0) / 1_000_000,
+                receipts.filter((r) => r.status === 1).reduce((s, r) => s + (r.finalAmount || 0), 0) / 1_000_000,
               ), unit: 'M₫', tone: 'info' },
             ]} />
             <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
@@ -279,7 +284,7 @@ const MedicalSupplyV2: React.FC = () => {
               sub={rSel ? `${RECEIPT_TYPE[rSel.receiptType] ?? rSel.receiptTypeName} · ${fmtDMY(rSel.receiptDate)}` : ''}
               footer={
                 <>
-                  {rSel?.status === 1 && (
+                  {rSel?.status === 0 && (
                     <Btn variant="primary" onClick={() => { handleApprove(rSel!); setRSel(null); }}>Duyệt</Btn>
                   )}
                   {(rSel?.status === 0 || rSel?.status === 1) && (

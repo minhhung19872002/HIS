@@ -30,7 +30,8 @@ public partial class PharmacyService : IPharmacyService
 
     public async Task<object> GetPendingPrescriptionsAsync()
     {
-        return await _context.Prescriptions
+        var recentFrom = DateTime.Today.AddDays(-1);
+        var queue = await RxListAsync(_context.Prescriptions
             .AsNoTracking()
             .Include(p => p.MedicalRecord).ThenInclude(m => m.Patient)
             .Include(p => p.Doctor)
@@ -44,8 +45,23 @@ public partial class PharmacyService : IPharmacyService
             // QA-R6: partly dispensed (6) stays in the queue until the remainder is issued — it used to vanish.
             .Where(p => !p.IsDeleted && (p.Status == 0 || p.Status == 1 || p.Status == PrescriptionStatus.PartialDispensed))
             .OrderBy(p => p.CreatedAt)
-            .Take(500)
-            .Select(p => new
+            .Take(500));
+        // QA-R11: the page's "Đã cấp" / "Hoàn" tabs filter this list, which never contained finished orders → both
+        // tabs were permanently 0. Append orders dispensed / returned / cancelled since yesterday (own cap, so a long
+        // queue cannot push them out).
+        var finished = await RxListAsync(_context.Prescriptions
+            .AsNoTracking()
+            .Where(p => !p.IsDeleted
+                && (p.Status == PrescriptionStatus.Dispensed || p.Status == PrescriptionStatus.Returned || p.Status == PrescriptionStatus.Cancelled)
+                && (p.DispensedAt ?? p.UpdatedAt ?? p.CreatedAt) >= recentFrom)
+            .OrderByDescending(p => p.DispensedAt ?? p.UpdatedAt ?? p.CreatedAt)
+            .Take(200));
+        return queue.Concat(finished).ToList();
+    }
+
+    private static Task<List<object>> RxListAsync(IQueryable<Prescription> query)
+        => query
+            .Select(p => (object)new
             {
                 id = p.Id.ToString(),
                 prescriptionCode = p.PrescriptionCode,
@@ -66,7 +82,6 @@ public partial class PharmacyService : IPharmacyService
                 department = p.Department != null ? p.Department.DepartmentName : "",
             })
             .ToListAsync();
-    }
 
     // ==================== 5. Additional endpoints for full CRUD ====================
 

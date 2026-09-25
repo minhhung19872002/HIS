@@ -61,6 +61,7 @@ const EmergencyCabinetV2: React.FC = () => {
   const [issueLines, setIssueLines] = useState<IssueLine[]>([emptyLine()]);
   const [whStock, setWhStock] = useState<StockDto[]>([]);
   const [issueSubmitting, setIssueSubmitting] = useState(false);
+  const [stockTick, setStockTick] = useState(0); // QA-R11: re-read the cabinet's lots after an issue ("còn N" went stale)
 
   // History
   const [history, setHistory] = useState<StockIssueDto[]>([]);
@@ -136,7 +137,7 @@ const EmergencyCabinetV2: React.FC = () => {
         tw(friendlyErrorMessage(e, 'Không tải được tồn kho tủ trực'));
         setWhStock([]);
       });
-  }, [issueWh]);
+  }, [issueWh, stockTick]);
 
   const expandCabinet = async (id: string) => {
     if (expanded === id) { setExpanded(null); setExpandedStock([]); return; }
@@ -168,13 +169,18 @@ const EmergencyCabinetV2: React.FC = () => {
     if (!issueWh) { tw('Chọn tủ trực'); return; }
     const validLines = issueLines.filter((l) => l.itemId && l.quantity > 0);
     if (validLines.length === 0) { tw('Thêm ít nhất một mặt hàng'); return; }
+    const over = validLines.find((l) => l.quantity > l.available);
+    if (over) { tw(`${over.itemName}: số xuất ${over.quantity} vượt tồn lô ${over.available}`); return; }
     setIssueSubmitting(true);
     try {
       const dto: CreateCabinetIssueDto = {
         warehouseId: issueWh,
-        issueDate: new Date().toISOString(),
+        // QA-R11: local wall clock (as CabinetIssueModal) — toISOString() stored the slip 7h early (UTC).
+        issueDate: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
         notes: issueNote || 'Xuất khẩn tủ trực',
-        items: validLines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, paymentSource: 1 })),
+        // QA-R11: the line is picked by LOT ("còn N" is that lot's stock) — send it, otherwise the server
+        // FEFO-picked another lot and the printed slip / cabinet card showed a lot nobody chose.
+        items: validLines.map((l) => ({ itemId: l.itemId, stockId: l.stockId || undefined, quantity: l.quantity, paymentSource: 1 })),
       };
       const r = await createCabinetIssue(dto);
       const issue = r.data as StockIssueDto;
@@ -182,8 +188,9 @@ const EmergencyCabinetV2: React.FC = () => {
       printIssue(issue);
       setIssueLines([emptyLine()]);
       setIssueNote('');
+      setStockTick((t) => t + 1);
       loadCabinets();
-    } catch { tw('Xuất thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Xuất thất bại')); }
     finally { setIssueSubmitting(false); }
   };
 

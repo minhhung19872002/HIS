@@ -22,8 +22,8 @@ public interface IHospitalPharmacyService
     // Shifts
     Task<List<PharmacyShiftListDto>> GetShiftsAsync(PharmacyShiftSearchDto filter);
     Task<PharmacyShiftListDto> OpenShiftAsync(OpenShiftDto dto, Guid cashierId);
-    Task<PharmacyShiftListDto> CloseShiftAsync(CloseShiftDto dto);
-    Task<PharmacyShiftListDto?> GetCurrentShiftAsync();
+    Task<PharmacyShiftListDto> CloseShiftAsync(CloseShiftDto dto, Guid? callerId = null, bool callerIsAdmin = true);
+    Task<PharmacyShiftListDto?> GetCurrentShiftAsync(Guid? cashierId = null);
 
     // GPP Records
     Task<List<PharmacyGppRecordListDto>> GetGppRecordsAsync(PharmacyGppRecordSearchDto filter);

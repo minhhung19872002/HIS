@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { App as AntdApp, InputNumber, Select, Input } from 'antd';
 import * as pharmacyApi from '../api/pharmacy';
-import { getWarehouses } from '../api/warehouse';
+import { getWarehouses, getStockThresholds, saveStockThreshold } from '../api/warehouse';
 import type { WarehouseDto } from '../api/warehouse';
 import { openPrintWindow } from '../../../utils/printWindow';
 import type { PendingPrescription, InventoryItem, TransferRequest, AlertItem, MedicationItem } from '../api/pharmacy';
@@ -129,6 +129,55 @@ const PharmacyV2: React.FC = () => {
     catch { ti('Không tải được kho thuốc'); } finally { setInvLoading(false); }
   }, []);
   useEffect(() => { if (tab === 'inventory') loadInv(); }, [tab, loadInv]);
+
+  // QA-R11: nothing could write StockThresholds, so "Tối thiểu", stock warnings and low-stock alerts stayed 0/empty.
+  const [thTarget, setThTarget] = useState<InventoryItem | null>(null);
+  const [thId,     setThId]     = useState<string | undefined>();
+  const [thMin,    setThMin]    = useState<number | null>(null);
+  const [thMax,    setThMax]    = useState<number | null>(null);
+  const [thSaving, setThSaving] = useState(false);
+  const thForm = useModalForm({
+    min: { required: true, message: 'Nhập tồn tối thiểu' },
+    max: {
+      validate: (v) => (typeof v === 'number' && v > 0 && thMin != null && v < thMin) ? 'Tồn tối đa phải ≥ tồn tối thiểu' : undefined,
+    },
+  }, !!thTarget);
+
+  const openThreshold = (r: InventoryItem) => {
+    setThTarget(r); setThId(undefined);
+    setThMin(r.minStock || null); setThMax(r.maxStock || null);
+    if (!r.medicineId) return;
+    getStockThresholds({ medicineId: r.medicineId, warehouseId: r.warehouseId })
+      .then((res) => {
+        const list = Array.isArray(res.data) ? res.data : [];
+        const cur = list.find((t) => t.warehouseId === r.warehouseId) ?? list.find((t) => !t.warehouseId);
+        if (cur) { setThId(cur.warehouseId === r.warehouseId ? cur.id : undefined); setThMin(cur.minimumQuantity); setThMax(cur.maximumQuantity || null); }
+      })
+      .catch(() => { /* prefilled from the row — the save still works */ });
+  };
+
+  const onSaveThreshold = async () => {
+    if (!thTarget?.medicineId || thSaving) return;
+    if (!thForm.validate({ min: thMin, max: thMax })) return;
+    setThSaving(true);
+    try {
+      await saveStockThreshold({
+        id: thId,
+        medicineId: thTarget.medicineId,
+        warehouseId: thTarget.warehouseId || null,
+        minimumQuantity: thMin ?? 0,
+        maximumQuantity: thMax ?? 0,
+        reorderPoint: thMin ?? 0,
+        reorderQuantity: Math.max((thMax ?? 0) - (thMin ?? 0), 0),
+        isActive: true,
+      });
+      tk(`Đã đặt ngưỡng tồn · ${thTarget.medicationName}`);
+      setThTarget(null);
+      loadInv();
+    } catch (e) {
+      te(friendlyErrorMessage(e, 'Lưu ngưỡng tồn thất bại'));
+    } finally { setThSaving(false); }
+  };
 
   /* ── Transfers state ── */
   const [trRows,     setTrRows]     = useState<TransferRequest[]>([]);
@@ -574,7 +623,8 @@ const PharmacyV2: React.FC = () => {
                 <TermIcon name="refresh" size={12} /> Bỏ lọc
               </button>
               <span className="spacer" />
-              <Btn variant="ghost" onClick={() => navigate('/v2/pharmacy-approval')}>
+              {/* QA-R11: "Nhập kho" opened Dự trù & Duyệt cấp phát — the stock-in screen is pharmacy-stock-in. */}
+              <Btn variant="ghost" onClick={() => navigate('/v2/pharmacy-stock-in')}>
                 <TermIcon name="download" size={12} /> Nhập kho
               </Btn>
               <Btn variant="primary" onClick={() => navigate('/v2/dispensing-counter')}>
@@ -651,8 +701,31 @@ const PharmacyV2: React.FC = () => {
               columns={invCols} data={invFiltered} page={invPage} perPage={PER}
               onSortChange={() => setInvPage(0)} rowKey={(r) => r.id}
               empty={invLoading ? 'Đang tải…' : 'Kho thuốc trống'}
+              actions={(r) => (
+                <div className="ab-actions">
+                  {r.medicineId && <ActBtn ic="edit" title="Đặt ngưỡng tồn" onClick={() => openThreshold(r)} />}
+                </div>
+              )}
             />
             <Pager page={invPage} setPage={setInvPage} totalPages={invTotalPages} total={invFiltered.length} perPage={PER} />
+            <ModalShell open={!!thTarget} onClose={() => { if (!thSaving) setThTarget(null); }} size="sm"
+              title="Đặt ngưỡng tồn" sub={thTarget ? `${thTarget.medicationName} · ${thTarget.warehouse}` : undefined}
+              footer={<>
+                <Btn variant="ghost" disabled={thSaving} onClick={() => setThTarget(null)}>Hủy</Btn>
+                <Btn variant="primary" loading={thSaving} onClick={onSaveThreshold}>Lưu</Btn>
+              </>}
+            >
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <Field label={`Tồn tối thiểu (${thTarget?.unit ?? ''})`} required error={thForm.errors.min}>
+                  <InputNumber value={thMin} min={0} style={{ width: '100%' }}
+                    onChange={(v) => { setThMin(typeof v === 'number' ? v : null); thForm.clear('min'); }} />
+                </Field>
+                <Field label={`Tồn tối đa (${thTarget?.unit ?? ''})`} error={thForm.errors.max}>
+                  <InputNumber value={thMax} min={0} style={{ width: '100%' }}
+                    onChange={(v) => { setThMax(typeof v === 'number' ? v : null); thForm.clear('max'); }} />
+                </Field>
+              </div>
+            </ModalShell>
             <BarcodeScanner
               open={invScanOpen}
               onClose={() => setInvScanOpen(false)}

@@ -127,9 +127,10 @@ function emptyLine(): LineItem {
 
 function lineAmount(row: LineItem): number {
   const base = row.quantity * row.unitPrice;
-  const vat = base * (row.vatRate / 100);
   const disc = base * (row.discountRate / 100);
-  return base + vat - disc;
+  // QA-R11: VAT base = amount after trade discount (matches BE).
+  const vat = (base - disc) * (row.vatRate / 100);
+  return base - disc + vat;
 }
 
 // ─── Item picker (AutoComplete with debounced search) ────────────────────────
@@ -470,7 +471,7 @@ const PharmacyStockIn: React.FC = () => {
     markBusy(r.id);
     try {
       const res = await wh.printStockReceipt(r.id);
-      const url = URL.createObjectURL(res.data as Blob);
+      const url = await wh.printableBlobUrl(res.data as Blob);
       window.open(url, '_blank');
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (e) {

@@ -3,9 +3,9 @@ import dayjs from 'dayjs';
 import { DatePicker, Form, Input, InputNumber, Select } from 'antd';
 import { fmtNum as fmt } from '../../../utils/format';
 import {
-  getRetailSales, cancelRetailSale, createRetailSale, searchMedicines,
+  getRetailSales, getRetailSaleById, cancelRetailSale, createRetailSale, searchMedicines,
   getPharmacyStock, getPharmacyRevenue,
-  getCustomers, saveCustomer, addPoints, redeemPoints,
+  getCustomers, getCustomerById, saveCustomer, addPoints, redeemPoints,
   getShifts, openShift, closeShift, getCurrentShift,
   getGppRecords, saveGppRecord,
   getCommissions, saveCommission, payCommissions, getEnhancedDashboard,
@@ -144,6 +144,14 @@ const HospitalPharmacyV2: React.FC = () => {
       await loadHistory();
     } catch (e) { te(friendlyErrorMessage(e, 'Hủy hóa đơn thất bại. Vui lòng thử lại.')); }
     finally { setCancelBusy(null); }
+  };
+
+  // QA-R11: the list row has no lines / seller — the drawer showed "Số mặt hàng 0" for every sale.
+  const openSaleDetail = (r: RetailSaleDto) => {
+    setHDetail(r);
+    getRetailSaleById(r.id)
+      .then((d) => setHDetail((cur) => (cur && cur.id === r.id ? d : cur)))
+      .catch((e) => tw(friendlyErrorMessage(e, 'Không tải được chi tiết hóa đơn.')));
   };
 
   // keyword đã lọc server-side trong loadHistory; chỉ còn tab trạng thái client-side
@@ -435,7 +443,9 @@ const HospitalPharmacyV2: React.FC = () => {
   // Danh sách khách hàng phân trang ở MÁY CHỦ (`loadCustomers` truyền `pageIndex`), nên `customers`
   // vốn đã chỉ là trang đang tải. Cắt thêm lần nữa ở client sẽ làm trang 2 trở đi trống trơn; bảng
   // nhận nguyên mảng và tự nói rõ là chỉ sắp trong phạm vi trang (`sortScope="page"`).
-  const custTotalPages = Math.max(1, Math.ceil(customers.length / PS));
+  // QA-R11: the BE returns no total, so ceil(page length / PS) was always 1 and "next" never enabled — a full
+  // page means there may be another one.
+  const custTotalPages = custPage + (customers.length >= PS ? 2 : 1);
   const custKpis: KpiItem[] = useMemo(() => [
     { lbl: 'Khách hàng', val: customers.length },
     { lbl: 'VIP',        val: customers.filter((c) => c.customerType === 2).length, tone: 'ok'   as const }, // 2=VIP
@@ -469,6 +479,34 @@ const HospitalPharmacyV2: React.FC = () => {
       void loadCustomers();
     } catch { te('Lỗi lưu khách hàng'); }
     finally { setSaving(false); }
+  };
+
+  // QA-R11: the list DTO carries no address / DOB / gender / notes — editing from the row opened the form with
+  // those blank and "Cập nhật" saved them as null (a customer's allergy note was wiped). Load the full record.
+  const loadCustFull = async (r: PharmacyCustomerDto): Promise<PharmacyCustomerDto> => {
+    try { return await getCustomerById(r.id); }
+    catch (e) { tw(friendlyErrorMessage(e, 'Không tải được chi tiết khách hàng.')); return r; }
+  };
+  const openCustDetail = (r: PharmacyCustomerDto) => {
+    setCustDetail(r);
+    void loadCustFull(r).then((d) => setCustDetail((cur) => (cur && cur.id === r.id ? d : cur)));
+  };
+  const openCustEdit = async (r: PharmacyCustomerDto) => {
+    const d = await loadCustFull(r);
+    if (d === r) return; // full record not loaded — do not open a form that would blank the missing fields
+    setCustForm({
+      id:           d.id,
+      fullName:     d.fullName,
+      phone:        d.phone,
+      email:        d.email,
+      address:      d.address,
+      dateOfBirth:  d.dateOfBirth,
+      gender:       d.gender,
+      customerType: d.customerType,
+      cardNumber:   d.cardNumber,
+      notes:        d.notes,
+    });
+    setCustModalOpen(true);
   };
 
   // ── Loyalty points (add / redeem) ─────────────────────────────────────────
@@ -765,13 +803,15 @@ const HospitalPharmacyV2: React.FC = () => {
               perPage={PS}
               onSortChange={() => setHPage(0)}
               rowKey={(r) => r.id}
-              onRowClick={setHDetail}
+              onRowClick={openSaleDetail}
               actions={(r) => (
                 <div className="ab-actions">
                   {r.status === 0 && (r.finalAmount ?? 0) > 0 && (
                     <ActBtn ic="qr" title="QR thanh toán" onClick={() => setQrSale(r)} />
                   )}
-                  {r.status === 0 && (
+                  {/* QA-R11: BE creates every sale as "Completed" (1) — the old `status === 0` guard hid
+                      "Hủy đơn" on every real sale although CancelSaleAsync returns the stock to its lots. */}
+                  {r.status !== 2 && (
                     <ActBtn ic="x" title="Hủy đơn" tone="crit" loading={cancelBusy === r.id}
                       onClick={() => cf(`Hủy hóa đơn ${r.saleCode}?`,
                         () => { void handleCancelSale(r); },
@@ -806,6 +846,11 @@ const HospitalPharmacyV2: React.FC = () => {
                   </DrSec>
                   <DrSec title="Chi tiết">
                     <DrField lbl="Số mặt hàng">{(hDetail.items || []).length}</DrField>
+                    {(hDetail.items || []).map((it) => (
+                      <DrField key={it.id} lbl={`${it.medicineName}${it.batchNumber ? ` · lô ${it.batchNumber}` : ''}`}>
+                        {fmt(it.quantity)} {it.unit} × {fmt(it.unitPrice)}đ = {fmt(it.amount)}đ
+                      </DrField>
+                    ))}
                     <DrField lbl="Người bán">{hDetail.createdByName || '—'}</DrField>
                     <DrField lbl="Ngày">{dayjs(hDetail.saleDate).format('DD/MM/YYYY HH:mm')}</DrField>
                   </DrSec>
@@ -1032,30 +1077,16 @@ const HospitalPharmacyV2: React.FC = () => {
               data={customers}
               sortScope="page"
               rowKey={(r) => r.id}
-              onRowClick={setCustDetail}
+              onRowClick={openCustDetail}
               actions={(r) => (
                 <div className="ab-actions">
                   <ActBtn ic="star" title="Quản lý điểm tích lũy" onClick={() => openPointsModal(r)} />
-                  <ActBtn ic="edit" title="Sửa khách hàng" onClick={() => {
-                    setCustForm({
-                      id:           r.id,
-                      fullName:     r.fullName,
-                      phone:        r.phone,
-                      email:        r.email,
-                      address:      r.address,
-                      dateOfBirth:  r.dateOfBirth,
-                      gender:       r.gender,
-                      customerType: r.customerType,
-                      cardNumber:   r.cardNumber,
-                      notes:        r.notes,
-                    });
-                    setCustModalOpen(true);
-                  }} />
+                  <ActBtn ic="edit" title="Sửa khách hàng" onClick={() => { void openCustEdit(r); }} />
                 </div>
               )}
               empty={custLoading ? 'Đang tải…' : 'Không có khách hàng'}
             />
-            <Pager page={custPage} setPage={setCustPage} totalPages={custTotalPages} total={customers.length} perPage={PS} />
+            <Pager page={custPage} setPage={setCustPage} totalPages={custTotalPages} total={custPage * PS + customers.length} perPage={PS} />
             <DrawerShell
               open={!!custDetail} onClose={() => setCustDetail(null)}
               title={custDetail?.fullName ?? ''}

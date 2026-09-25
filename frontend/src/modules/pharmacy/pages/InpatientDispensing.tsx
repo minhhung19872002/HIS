@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { fmtNum as fmt } from '../../../utils/format';
 import { Input, Modal } from 'antd';
 import dayjs from 'dayjs';
+import { useSearchParams } from 'react-router-dom';
 import apiClient from '../../../services/apiClient';
 import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import systemApi from '../../system/api/system';
@@ -119,6 +120,10 @@ const InpatientDispensingV2: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [printData, setPrintData] = useState<PrintData | null>(null);
   const [expandedDepts, setExpandedDepts] = useState<Set<string>>(new Set());
+  // QA-R11: opened from Nội trú "Y lệnh" (?admissionId=&patientCode=) → show only that patient's pending orders.
+  const [sp, setSp] = useSearchParams();
+  const patientFilter = sp.get('patientCode') || '';
+  const clearPatientFilter = () => { const n = new URLSearchParams(sp); n.delete('patientCode'); n.delete('admissionId'); setSp(n, { replace: true }); };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -127,10 +132,25 @@ const InpatientDispensingV2: React.FC = () => {
       if (filterDept) params.departmentId = filterDept;
       if (warehouseId) params.warehouseId = warehouseId;
       const { data } = await apiClient.get<PendingGroup[]>('/inpatient-dispensing/pending', { params });
-      setGroups(data || []);
+      let list = data || [];
+      if (patientFilter) {
+        list = list
+          .map((g) => {
+            const prescriptions = g.prescriptions.filter((p) => p.patientCode === patientFilter);
+            return {
+              ...g, prescriptions,
+              totalPrescriptions: prescriptions.length,
+              totalItems: prescriptions.reduce((s, p) => s + p.items.length, 0),
+              totalAmount: prescriptions.reduce((s, p) => s + p.items.reduce((a, it) => a + it.quantity * it.unitPrice, 0), 0),
+            };
+          })
+          .filter((g) => g.prescriptions.length > 0);
+        setExpandedDepts(new Set(list.map((g) => g.departmentId)));
+      }
+      setGroups(list);
     } catch { ti('Tải danh sách thất bại'); }
     finally { setLoading(false); }
-  }, [filterDept, warehouseId]);
+  }, [filterDept, warehouseId, patientFilter]);
 
   useEffect(() => {
     (async () => {
@@ -219,7 +239,13 @@ ${(printData.items || []).map((it, i) => `<tr><td>${i + 1}</td><td>${esc(it.medi
         <Filter value={warehouseId} onChange={setWarehouseId} options={whOpts} placeholder="▾ Kho xuất" />
         <Filter value={filterDept} onChange={setFilterDept} options={deptOpts} placeholder="▾ Lọc khoa" />
         <Input placeholder="Ghi chú phiếu" value={note} onChange={(e) => setNote(e.target.value)} style={{ width: 240 }} />
-        <Btn variant="ghost" icon="x" onClick={() => { setFilterDept(''); setWarehouseId(''); setNote(''); }}>Bỏ lọc</Btn>
+        {patientFilter && (
+          <span className="chip info" title="Mở từ Nội trú — chỉ hiện đơn chờ phát của bệnh nhân này">
+            BN {patientFilter}
+            <button type="button" className="ab-iconbtn" aria-label="Bỏ lọc bệnh nhân" onClick={clearPatientFilter} style={{ marginLeft: 4 }}>×</button>
+          </span>
+        )}
+        <Btn variant="ghost" icon="x" onClick={() => { setFilterDept(''); setWarehouseId(''); setNote(''); if (patientFilter) clearPatientFilter(); }}>Bỏ lọc</Btn>
         <span className="spacer" />
         <RefreshButton onRefresh={load} loading={loading} />
       </div>
@@ -230,7 +256,7 @@ ${(printData.items || []).map((it, i) => `<tr><td>${i + 1}</td><td>${esc(it.medi
 
       {groups.length === 0 && !loading && (
         <div style={{ padding: 80, textAlign: 'center', color: 'var(--t-2)' }}>
-          <div style={{ fontSize: 14 }}>Không có đơn thuốc nội trú chờ phát</div>
+          <div style={{ fontSize: 14 }}>{patientFilter ? `Bệnh nhân ${patientFilter} không có đơn thuốc nội trú chờ phát` : 'Không có đơn thuốc nội trú chờ phát'}</div>
         </div>
       )}
 

@@ -87,6 +87,11 @@ public class LinenManagementService : ILinenManagementService
 
     public async Task<LinenItemDto> SaveLinenItemAsync(LinenItemDto dto, string? userId)
     {
+        // QA-R11: accepted an empty code/name and negative stock counts (measured: currentStock -5 → 200).
+        if (string.IsNullOrWhiteSpace(dto.ItemCode) || string.IsNullOrWhiteSpace(dto.ItemName))
+            throw new InvalidOperationException("Mã và tên đồ vải là bắt buộc.");
+        if (dto.CurrentStock < 0 || dto.InCleaning < 0 || dto.InRepair < 0 || dto.Damaged < 0 || dto.MinStockAlert < 0 || dto.MaxReuseCount < 0 || dto.StandardWeightKg < 0)
+            throw new InvalidOperationException("Số lượng / trọng lượng không được âm.");
         LinenItem entity;
         if (dto.Id != Guid.Empty)
         {
@@ -202,6 +207,9 @@ public class LinenManagementService : ILinenManagementService
         if (dto.Id.HasValue)
         {
             entity = await _db.LinenTransactions.FirstOrDefaultAsync(x => x.Id == dto.Id.Value) ?? throw new KeyNotFoundException();
+            // QA-R11: a reconciled / completed transaction could be rewritten (status 3, TotalItems → 999 was accepted).
+            if (entity.Status != 0)
+                throw new InvalidOperationException("Giao dịch đã chuyển trạng thái — không sửa được.");
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
         }

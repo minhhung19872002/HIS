@@ -418,7 +418,7 @@ const PharmacyStockIssue: React.FC = () => {
   const onPrint = async (r: StockIssueDto) => {
     try {
       const res = await wh.printStockIssue(r.id);
-      const url = URL.createObjectURL(res.data as Blob);
+      const url = await wh.printableBlobUrl(res.data as Blob);
       window.open(url, '_blank');
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch {

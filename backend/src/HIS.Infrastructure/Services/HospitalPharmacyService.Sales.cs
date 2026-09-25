@@ -56,6 +56,7 @@ public partial class HospitalPharmacyService
             // independently, then apply the fallback after materialization.
             var rows = await query
                 .OrderByDescending(s => s.CreatedAt)
+                .ThenBy(s => s.Id) // QA-R11: deterministic paging
                 .Skip(skip)
                 .Take(filter.PageSize)
                 .Select(s => new
@@ -205,10 +206,22 @@ public partial class HospitalPharmacyService
         // medicine was a valid sale). Selling a prescription: the prescribed line price; otherwise the catalog
         // retail price (Medicine.UnitPrice, the price the POS search shows). The client value is ignored.
         var saleMedicineIds = dto.Items.Select(i => i.MedicineId).Distinct().ToList();
-        var catalogPrices = await _context.Medicines
-            .Where(m => saleMedicineIds.Contains(m.Id))
-            .Select(m => new { m.Id, m.UnitPrice })
-            .ToDictionaryAsync(m => m.Id, m => m.UnitPrice);
+        // QA-R11: a medicine withdrawn from the catalog (IsActive = 0) was still searchable and sold; the sale line also
+        // stored whatever name/unit the client sent. Only active catalog medicines are sold, under their catalog name/unit.
+        var catalog = await _context.Medicines
+            .Where(m => saleMedicineIds.Contains(m.Id) && !m.IsDeleted)
+            .Select(m => new { m.Id, m.UnitPrice, m.IsActive, m.MedicineName, m.Unit })
+            .ToDictionaryAsync(m => m.Id);
+        var inactive = catalog.Values.FirstOrDefault(m => !m.IsActive);
+        if (inactive != null)
+            throw new InvalidOperationException($"Thuốc {inactive.MedicineName} đã ngừng sử dụng trong danh mục — không bán được.");
+        foreach (var item in dto.Items)
+            if (catalog.TryGetValue(item.MedicineId, out var med))
+            {
+                item.MedicineName = med.MedicineName;
+                item.Unit = med.Unit ?? item.Unit;
+            }
+        var catalogPrices = catalog.ToDictionary(m => m.Key, m => m.Value.UnitPrice);
         var prescribedPrices = new Dictionary<Guid, decimal>();
         if (dto.PrescriptionId.HasValue && dto.PrescriptionId.Value != Guid.Empty)
         {
@@ -394,6 +407,16 @@ public partial class HospitalPharmacyService
         var sale = await _context.RetailSales.FindAsync(id);
         if (sale == null || sale.IsDeleted || sale.Status == "Cancelled") return false;
 
+        // QA-R11: the check above is read-then-write — a double "Hủy phiếu" put the sold units back twice.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        if (tx != null)
+        {
+            var claimed = await _context.RetailSales
+                .Where(s => s.Id == id && s.Status != "Cancelled" && !s.IsDeleted)
+                .ExecuteUpdateAsync(u => u.SetProperty(s => s.Status, "Cancelled"));
+            if (claimed == 0) return false;
+        }
+
         // QA0915: hủy phiếu bán trước đây chỉ đổi trạng thái — thuốc đã trừ kho KHÔNG được hoàn (đo được
         // bán 10 → hủy → tồn vẫn 90). Hoàn về đúng lô (kho + thuốc + số lô) đã ghi trên từng dòng bán.
         var saleItems = await _context.RetailSaleItems
@@ -423,6 +446,7 @@ public partial class HospitalPharmacyService
         sale.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
         return true;
     }
 
@@ -472,7 +496,7 @@ public partial class HospitalPharmacyService
         try
         {
             var query = _context.Medicines
-                .Where(m => !m.IsDeleted)
+                .Where(m => !m.IsDeleted && m.IsActive) // QA-R11: withdrawn medicines are not offered for sale
                 .AsQueryable();
 
             if (!string.IsNullOrEmpty(keyword))

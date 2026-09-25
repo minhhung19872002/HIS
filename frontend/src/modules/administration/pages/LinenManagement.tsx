@@ -1,15 +1,18 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTabState } from '../../../hooks/useTabState';
 import {
-  KpiStrip, TopTabs, DataTable, StatusBadge, ActBtn,
+  KpiStrip, TopTabs, DataTable, StatusBadge, ActBtn, Btn, Ico, CrudModal,
   DrawerShell, DrSec, DrField, useListData,
-  type ColumnDef, type TopTab, type KpiItem, type StatusTone,
+  type ColumnDef, type TopTab, type KpiItem, type StatusTone, type CrudFieldCfg,
   tk, te, cf, fmtDTg
 } from '@/_v2kit';
 import {
   linen,
   type LinenItemDto, type LinenTransactionDto, type SterilizationScheduleDto
 } from '../../../api/nangcap23';
+import systemApi from '../../system/api/system';
+import { unwrapList, type MaybePaged } from '../../../utils/apiNormalize';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 type TabKey = 'items' | 'tx' | 'ster';
 const TOP_TABS: TopTab<TabKey>[] = [
@@ -35,6 +38,26 @@ const LINEN_TX_TYPES: Record<string, string> = {
 const TX_STATUS_LABEL = ['Nháp', 'Đã gửi', 'Đã nhận về', 'Đã đối chiếu', 'Đã hủy'];
 const STER_STATUS_LABEL = ['Đã lên lịch', 'Đang xử lý', 'Hoàn thành', 'Thất bại'];
 
+// QA-R11: the page was read-only — linen.saveItem / saveTransaction / saveSchedule existed (and the BE routes)
+// but no button reached them, so nothing could ever be registered, sent to the laundry or scheduled.
+const toOpts = (m: Record<string, string>) => Object.entries(m).map(([value, label]) => ({ value, label }));
+const AREA_TYPES: Record<string, string> = { OR: 'Phòng mổ', ICU: 'Hồi sức', Ward: 'Buồng bệnh', Equipment: 'Dụng cụ', Other: 'Khác' };
+const STER_METHODS: Record<string, string> = { UV: 'Đèn UV', Chemical: 'Hoá chất', Autoclave: 'Hấp ướt', Plasma: 'Plasma', Formaldehyde: 'Xông Formaldehyde' };
+const todayIso = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+
+interface DeptOpt { value: string; label: string }
+type DeptRow = { id: string; departmentName: string };
+const useDeptOptions = (): DeptOpt[] => {
+  const [opts, setOpts] = useState<DeptOpt[]>([]);
+  useEffect(() => {
+    systemApi.catalog.getDepartments()
+      .then((d) => setOpts(unwrapList<DeptRow>((d as { data?: MaybePaged<DeptRow> }).data)
+        .map((x) => ({ value: x.id, label: x.departmentName }))))
+      .catch(() => setOpts([]));
+  }, []);
+  return opts;
+};
+
 const txTone = (s: number): StatusTone =>
   s === 3 ? 'ok' : s === 2 ? 'info' : s === 4 ? 'crit' : 'warn';
 const sterTone = (s: number): StatusTone =>
@@ -55,11 +78,31 @@ const LinenManagementV2: React.FC = () => {
 // ────────────────────────── Items ──────────────────────────
 
 const LinenItemsPanel: React.FC = () => {
-  const { rows: items, loading } = useListData<LinenItemDto>(
+  const { rows: items, loading, reload } = useListData<LinenItemDto>(
     useCallback(() => linen.listItems({}), []),
     useCallback(() => te('Không tải được'), []),
   );
   const [sel, setSel] = useState<LinenItemDto | null>(null);
+  const [edit, setEdit] = useState<Partial<LinenItemDto> | null>(null);
+  const nonNeg = [{ type: 'number', min: 0, message: 'Không được âm' }];
+  const itemFields: CrudFieldCfg[] = [
+    { key: 'itemCode', label: 'Mã', required: true, disabledOnEdit: true },
+    { key: 'itemName', label: 'Tên đồ vải', required: true },
+    { key: 'category', label: 'Loại', type: 'select', required: true, options: toOpts(LINEN_CATEGORIES) },
+    { key: 'unit', label: 'Đơn vị' },
+    { key: 'currentStock', label: 'Tồn sạch', type: 'number', rules: [{ required: true, message: 'Nhập tồn sạch' }, ...nonNeg] },
+    { key: 'inCleaning', label: 'Đang giặt', type: 'number', rules: nonNeg },
+    { key: 'inRepair', label: 'Đang sửa', type: 'number', rules: nonNeg },
+    { key: 'damaged', label: 'Hư hỏng', type: 'number', rules: nonNeg },
+    { key: 'minStockAlert', label: 'Mức cảnh báo tồn', type: 'number', rules: nonNeg },
+    { key: 'maxReuseCount', label: 'Số lần giặt tối đa', type: 'number', rules: nonNeg },
+    { key: 'isActive', label: 'Đang sử dụng', type: 'switch' },
+    { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+  ];
+  const delItem = (r: LinenItemDto) => cf(`Xoá đồ vải ${r.itemName}?`, async () => {
+    try { await linen.deleteItem(r.id); tk('Đã xoá'); setSel(null); reload(); }
+    catch (e) { te(friendlyErrorMessage(e, 'Xoá thất bại')); }
+  }, { tone: 'crit', confirm: 'Xoá' });
 
   const kpis: KpiItem[] = [
     { lbl: 'Tổng danh mục', val: items.length },
@@ -92,7 +135,33 @@ const LinenItemsPanel: React.FC = () => {
   return (
     <>
       <KpiStrip items={kpis} />
-      <DataTable<LinenItemDto> rowKey={(r) => r.id} data={items} columns={columns} onRowClick={setSel} loading={loading} />
+      <div className="ab-toolbar">
+        <span className="spacer" />
+        <Btn variant="primary" onClick={() => setEdit({ isActive: true, currentStock: 0, inCleaning: 0, inRepair: 0, damaged: 0, minStockAlert: 0 })}>
+          <Ico name="plus" size={12} /> Thêm đồ vải
+        </Btn>
+      </div>
+      <DataTable<LinenItemDto> rowKey={(r) => r.id} data={items} columns={columns} onRowClick={setSel} loading={loading}
+        actions={(r) => (
+          <>
+            <ActBtn ic="edit" title="Sửa" onClick={() => setEdit(r)} />
+            <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => delItem(r)} />
+          </>
+        )} />
+      <CrudModal
+        open={!!edit}
+        onClose={() => setEdit(null)}
+        title={edit?.id ? 'Sửa đồ vải' : 'Thêm đồ vải'}
+        fields={itemFields}
+        initial={edit}
+        size="lg"
+        onSubmit={async (v) => {
+          await linen.saveItem({ ...(edit ?? {}), ...v } as LinenItemDto);
+          tk(edit?.id ? 'Đã cập nhật đồ vải' : 'Đã thêm đồ vải');
+          setSel(null);
+          reload();
+        }}
+      />
 
       <DrawerShell
         open={!!sel}
@@ -136,6 +205,27 @@ const LinenTxPanel: React.FC = () => {
     useCallback(() => te('Không tải được'), []),
   );
   const [sel, setSel] = useState<LinenTransactionDto | null>(null);
+  const [txOpen, setTxOpen] = useState(false);
+  const depts = useDeptOptions();
+  const { rows: linenItems } = useListData<LinenItemDto>(
+    useCallback(() => linen.listItems({ isActive: true }), []),
+    useCallback(() => te('Không tải được danh mục đồ vải'), []),
+  );
+  const txFields: CrudFieldCfg[] = [
+    { key: 'transactionType', label: 'Loại giao dịch', type: 'select', required: true, options: toOpts(LINEN_TX_TYPES) },
+    { key: 'transactionDate', label: 'Ngày', type: 'date', required: true },
+    { key: 'fromDepartmentId', label: 'Từ khoa', type: 'select', options: depts },
+    { key: 'toDepartmentId', label: 'Đến khoa', type: 'select', options: depts },
+    { key: 'vendorName', label: 'Nhà giặt (đơn vị ngoài)' },
+    { key: 'itemId', label: 'Đồ vải', type: 'select', required: true,
+      options: linenItems.map((i) => ({ value: i.id, label: `${i.itemCode} · ${i.itemName}` })) },
+    { key: 'quantity', label: 'Số lượng', type: 'number',
+      rules: [{ required: true, message: 'Nhập số lượng' }, { type: 'number', min: 1, message: 'Số lượng phải > 0' }] },
+    { key: 'weight', label: 'Trọng lượng (kg)', type: 'number', rules: [{ type: 'number', min: 0, message: 'Không được âm' }] },
+    { key: 'dispatcherName', label: 'Người giao' },
+    { key: 'receiverName', label: 'Người nhận' },
+    { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+  ];
   // #467: guard double-submit THEO TỪNG DÒNG — khoá toàn panel sẽ nuốt im lặng cú click
   // ở dòng khác (nút dòng đó vẫn sáng nhưng bấm không có gì xảy ra).
   const [busy, setBusy] = useState<Set<string>>(new Set());
@@ -144,7 +234,7 @@ const LinenTxPanel: React.FC = () => {
     if (busy.has(r.id)) return;
     setBusy((prev) => new Set(prev).add(r.id));
     try { await linen.updateTransactionStatus(r.id, ns); tk('Đã cập nhật trạng thái giao dịch'); reload(); }
-    catch { te('Cập nhật thất bại'); }
+    catch (e) { te(friendlyErrorMessage(e, 'Cập nhật thất bại')); }
     finally { setBusy((prev) => { const n = new Set(prev); n.delete(r.id); return n; }); }
   };
 
@@ -173,6 +263,35 @@ const LinenTxPanel: React.FC = () => {
   return (
     <>
       <KpiStrip items={kpis} />
+      <div className="ab-toolbar">
+        <span className="spacer" />
+        <Btn variant="primary" onClick={() => setTxOpen(true)}><Ico name="plus" size={12} /> Tạo giao dịch</Btn>
+      </div>
+      <CrudModal
+        open={txOpen}
+        onClose={() => setTxOpen(false)}
+        title="Tạo giao dịch giao nhận giặt"
+        fields={txFields}
+        initial={{ transactionType: 'Dispatch', transactionDate: todayIso() }}
+        size="lg"
+        onSubmit={async (v) => {
+          const it = linenItems.find((i) => i.id === v.itemId);
+          await linen.saveTransaction({
+            transactionType: v.transactionType,
+            transactionDate: v.transactionDate,
+            fromDepartmentId: v.fromDepartmentId || undefined,
+            toDepartmentId: v.toDepartmentId || undefined,
+            vendorName: v.vendorName || undefined,
+            dispatcherName: v.dispatcherName || undefined,
+            receiverName: v.receiverName || undefined,
+            notes: v.notes || undefined,
+            // BE sums "quantity" / "weight" of DetailsJson into TotalItems / TotalWeightKg.
+            detailsJson: JSON.stringify([{ itemId: v.itemId, itemName: it?.itemName, quantity: Number(v.quantity), weight: Number(v.weight || 0) }]),
+          });
+          tk('Đã tạo giao dịch');
+          reload();
+        }}
+      />
       <DataTable<LinenTransactionDto>
         rowKey={(r) => r.id} data={rows} columns={columns} onRowClick={setSel} loading={loading}
         actions={(r) => (
@@ -225,6 +344,22 @@ const LinenSterPanel: React.FC = () => {
     useCallback(() => te('Không tải được'), []),
   );
   const [sel, setSel] = useState<SterilizationScheduleDto | null>(null);
+  const [sOpen, setSOpen] = useState(false);
+  const depts = useDeptOptions();
+  const sFields: CrudFieldCfg[] = [
+    { key: 'date', label: 'Ngày', type: 'date', required: true },
+    { key: 'time', label: 'Giờ', type: 'time', required: true },
+    { key: 'areaType', label: 'Khu vực', type: 'select', required: true, options: toOpts(AREA_TYPES) },
+    { key: 'departmentId', label: 'Khoa', type: 'select', options: depts },
+    { key: 'areaCode', label: 'Mã khu vực / phòng' },
+    { key: 'sterilizationMethod', label: 'Phương pháp', type: 'select', required: true, options: toOpts(STER_METHODS) },
+    { key: 'agent', label: 'Tác nhân / hoá chất' },
+    { key: 'durationMinutes', label: 'Thời lượng (phút)', type: 'number',
+      rules: [{ required: true, message: 'Nhập thời lượng' }, { type: 'number', min: 1, message: 'Phải > 0' }] },
+    { key: 'assignedStaff', label: 'Nhân viên thực hiện' },
+    { key: 'cultureSampleCode', label: 'Mã mẫu cấy' },
+    { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+  ];
   // #467: guard double-submit theo từng dòng (xem ghi chú ở LinenTxPanel).
   const [busy, setBusy] = useState<Set<string>>(new Set());
 
@@ -232,7 +367,7 @@ const LinenSterPanel: React.FC = () => {
     if (busy.has(r.id)) return;
     setBusy((prev) => new Set(prev).add(r.id));
     try { await linen.updateScheduleStatus(r.id, ns, cult); tk('Đã cập nhật'); reload(); }
-    catch { te('Cập nhật thất bại'); }
+    catch (e) { te(friendlyErrorMessage(e, 'Cập nhật thất bại')); }
     finally { setBusy((prev) => { const n = new Set(prev); n.delete(r.id); return n; }); }
   };
 
@@ -264,6 +399,34 @@ const LinenSterPanel: React.FC = () => {
   return (
     <>
       <KpiStrip items={kpis} />
+      <div className="ab-toolbar">
+        <span className="spacer" />
+        <Btn variant="primary" onClick={() => setSOpen(true)}><Ico name="plus" size={12} /> Lên lịch tiệt trùng</Btn>
+      </div>
+      <CrudModal
+        open={sOpen}
+        onClose={() => setSOpen(false)}
+        title="Lên lịch tiệt trùng"
+        fields={sFields}
+        initial={{ date: todayIso(), durationMinutes: 30 }}
+        size="lg"
+        onSubmit={async (v) => {
+          await linen.saveSchedule({
+            scheduledAt: `${v.date}T${v.time}:00`,
+            areaType: v.areaType,
+            departmentId: v.departmentId || undefined,
+            areaCode: v.areaCode || undefined,
+            sterilizationMethod: v.sterilizationMethod,
+            agent: v.agent || undefined,
+            durationMinutes: Number(v.durationMinutes),
+            assignedStaff: v.assignedStaff || undefined,
+            cultureSampleCode: v.cultureSampleCode || undefined,
+            notes: v.notes || undefined,
+          });
+          tk('Đã lên lịch tiệt trùng');
+          reload();
+        }}
+      />
       <DataTable<SterilizationScheduleDto>
         rowKey={(r) => r.id} data={rows} columns={columns} onRowClick={setSel} loading={loading}
         actions={(r) => (

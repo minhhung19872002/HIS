@@ -58,7 +58,7 @@ public class NationalPharmacyGatewayService : INationalPharmacyGatewayService
                 PeriodTo = r.PeriodTo,
                 ItemCount = r.ItemCount,
                 Status = r.Status,
-                StatusName = StatusName(r.Status),
+                StatusName = NangCap23ServiceHelpers.WithMockLabel(StatusName(r.Status), r.GatewayTicketNumber),
                 GatewayTicketNumber = r.GatewayTicketNumber,
                 ErrorCode = r.ErrorCode,
                 ErrorMessage = r.ErrorMessage,
@@ -84,7 +84,7 @@ public class NationalPharmacyGatewayService : INationalPharmacyGatewayService
             PeriodTo = r.PeriodTo,
             ItemCount = r.ItemCount,
             Status = r.Status,
-            StatusName = StatusName(r.Status),
+            StatusName = NangCap23ServiceHelpers.WithMockLabel(StatusName(r.Status), r.GatewayTicketNumber),
             GatewayTicketNumber = r.GatewayTicketNumber,
             ErrorCode = r.ErrorCode,
             ErrorMessage = r.ErrorMessage,
@@ -138,8 +138,12 @@ public class NationalPharmacyGatewayService : INationalPharmacyGatewayService
         if (dto.ReportType == "DailySale" || dto.ReportType == "MonthlyInventory")
         {
             // Gather pharmacy sales for period (use CreatedAt as transaction time)
+            // QA-R11: CreatedAt is UTC but was compared with the VN-local period (the report ran 07:00→07:00), and
+            // cancelled sales were reported to the national gateway as sold. VN calendar days, end day inclusive.
+            var fromUtc = ReportPeriod.ToUtc(dto.PeriodFrom.Date);
+            var toUtc = ReportPeriod.ToUtc(dto.PeriodTo.Date.AddDays(1));
             var sales = await _db.RetailSales.AsNoTracking()
-                .Where(s => s.CreatedAt >= dto.PeriodFrom && s.CreatedAt <= dto.PeriodTo)
+                .Where(s => s.CreatedAt >= fromUtc && s.CreatedAt < toUtc && s.Status == "Completed")
                 .Include(s => s.Items)
                 .ToListAsync();
             foreach (var s in sales)
@@ -156,6 +160,13 @@ public class NationalPharmacyGatewayService : INationalPharmacyGatewayService
                     });
                 }
             }
+        }
+
+        else
+        {
+            // QA-R11: only DailySale/MonthlyInventory gather data — NarcoticReport/Recall were sent to the national
+            // gateway as EMPTY reports (0 items) and came back "Cổng QG xác nhận". Refuse instead of filing nothing.
+            throw new ArgumentException($"Loại báo cáo '{dto.ReportType}' chưa có nguồn dữ liệu — không gửi báo cáo rỗng lên cổng Dược QG.", nameof(dto));
         }
 
         sb.AppendLine($"  <ItemCount>{items.Count}</ItemCount>");
@@ -239,7 +250,7 @@ public class NationalPharmacyGatewayService : INationalPharmacyGatewayService
             PeriodTo = entity.PeriodTo,
             ItemCount = entity.ItemCount,
             Status = entity.Status,
-            StatusName = StatusName(entity.Status),
+            StatusName = NangCap23ServiceHelpers.WithMockLabel(StatusName(entity.Status), entity.GatewayTicketNumber),
             GatewayTicketNumber = entity.GatewayTicketNumber,
             SubmittedAt = entity.SubmittedAt,
             AcknowledgedAt = entity.AcknowledgedAt,

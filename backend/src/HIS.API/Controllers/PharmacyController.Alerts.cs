@@ -27,7 +27,7 @@ public partial class PharmacyController
     {
         try
         {
-            if (!await _pharmacyService.AcknowledgeAlertAsync(alertId))
+            if (!await _pharmacyService.AcknowledgeAlertAsync(alertId, CurrentUserId()))
                 return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy cảnh báo" });
             return Ok(true);
         }

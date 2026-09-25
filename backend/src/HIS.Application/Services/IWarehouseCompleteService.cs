@@ -281,6 +281,10 @@ public interface IWarehouseCompleteService
     /// </summary>
     Task<List<StockDto>> GetStockWarningsAsync(Guid warehouseId);
 
+    /// <summary>QA-R11: đọc / đặt ngưỡng tồn tối thiểu-tối đa (StockThresholds) — trước đây không có đường ghi.</summary>
+    Task<List<StockThresholdDto>> GetStockThresholdsAsync(Guid? warehouseId, Guid? medicineId);
+    Task<StockThresholdDto> SaveStockThresholdAsync(StockThresholdDto dto, Guid userId);
+
     /// <summary>
     /// Lấy thuốc sắp hết hạn
     /// </summary>

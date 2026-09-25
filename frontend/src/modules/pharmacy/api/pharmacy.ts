@@ -53,6 +53,7 @@ export interface InventoryItem {
   totalStock: number;
   minStock: number;
   maxStock: number;
+  warehouseId?: string;
   warehouse: string;
   nearestExpiry: string;
   averagePrice: number;

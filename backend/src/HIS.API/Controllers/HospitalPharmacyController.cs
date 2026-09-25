@@ -158,13 +158,15 @@ public class HospitalPharmacyController : ControllerBase
     [HttpPost("shifts/close")]
     public async Task<ActionResult<PharmacyShiftListDto>> CloseShift([FromBody] CloseShiftDto dto)
     {
-        return Ok(await _hospitalPharmacyService.CloseShiftAsync(dto));
+        Guid? callerId = Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var uid) ? uid : null;
+        return Ok(await _hospitalPharmacyService.CloseShiftAsync(dto, callerId, User.IsInRole(HIS.Core.Constants.RoleNames.Admin)));
     }
 
     [HttpGet("shifts/current")]
     public async Task<ActionResult> GetCurrentShift()
     {
-        var result = await _hospitalPharmacyService.GetCurrentShiftAsync();
+        Guid? callerId = Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var uid) ? uid : null;
+        var result = await _hospitalPharmacyService.GetCurrentShiftAsync(callerId);
         if (result == null) return Ok(new { message = "No open shift" });
         return Ok(result);
     }

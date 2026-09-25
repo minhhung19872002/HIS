@@ -74,6 +74,7 @@ const normalizeSale = (raw: Record<string, unknown>): RetailSaleDto => {
     status: SALE_STATUS[String(raw.status)] ?? 0,
     saleDate: String(raw.saleDate ?? raw.createdAt ?? ''),
     items: (raw.items as RetailSaleItemDto[] | undefined) ?? [],
+    createdByName: (raw.createdByName ?? raw.cashierName) as string | undefined,
   };
 };
 
@@ -127,6 +128,12 @@ export const createRetailSale = async (data: RetailSaleCreateDto) => {
       unitPrice: i.unitPrice,
     })),
   });
+  return normalizeSale(response.data as unknown as Record<string, unknown>);
+};
+
+// QA-R11: sale detail (lines + cashier) for the history drawer — GET /hospital-pharmacy/sales/{id}.
+export const getRetailSaleById = async (id: string) => {
+  const response = await apiClient.get<RetailSaleDto>(`/hospital-pharmacy/sales/${id}`);
   return normalizeSale(response.data as unknown as Record<string, unknown>);
 };
 

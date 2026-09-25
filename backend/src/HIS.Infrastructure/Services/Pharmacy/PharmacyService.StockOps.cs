@@ -84,7 +84,7 @@ public partial class PharmacyService
         return alerts.OrderByDescending(a => ((dynamic)a).createdDate).ToList();
     }
 
-    public async Task<bool> AcknowledgeAlertAsync(Guid alertId)
+    public async Task<bool> AcknowledgeAlertAsync(Guid alertId, Guid? userId = null)
     {
         // Try expiry alert first
         var expiryAlert = await _context.ExpiryAlerts
@@ -92,8 +92,12 @@ public partial class PharmacyService
 
         if (expiryAlert != null)
         {
+            // QA-R11: acknowledging a resolved/ignored alert pushed it back to "Đã xác nhận" (reopened it) and
+            // overwrote the first acknowledgement. Only a new (0) alert moves; others are left as they are.
+            if (expiryAlert.Status != 0) return true;
             expiryAlert.Status = 1;
             expiryAlert.AcknowledgedAt = DateTime.UtcNow;
+            if (userId is Guid ackBy && ackBy != Guid.Empty) expiryAlert.AcknowledgedBy = ackBy;
             expiryAlert.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return true;
@@ -105,8 +109,10 @@ public partial class PharmacyService
 
         if (lowStockAlert != null)
         {
+            if (lowStockAlert.Status != 0) return true; // QA-R11: never reopen an ordered/resolved alert
             lowStockAlert.Status = 1;
             lowStockAlert.AcknowledgedAt = DateTime.UtcNow;
+            if (userId is Guid ackBy && ackBy != Guid.Empty) lowStockAlert.AcknowledgedBy = ackBy;
             lowStockAlert.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return true;
@@ -152,8 +158,16 @@ public partial class PharmacyService
             .Include(i => i.Warehouse)
             .Where(i => !i.IsDeleted && i.Quantity > 0 && i.MedicineId != null);
 
-        if (!string.IsNullOrEmpty(warehouseId) && Guid.TryParse(warehouseId, out var wId))
-            query = query.Where(i => i.WarehouseId == wId);
+        if (!string.IsNullOrEmpty(warehouseId))
+        {
+            // QA-R11: a non-GUID value (warehouse code/name) used to be silently ignored → every
+            // warehouse's rows came back as if they belonged to the requested one.
+            if (Guid.TryParse(warehouseId, out var wId))
+                query = query.Where(i => i.WarehouseId == wId);
+            else
+                query = query.Where(i => i.Warehouse != null
+                    && (i.Warehouse.WarehouseCode == warehouseId || i.Warehouse.WarehouseName == warehouseId));
+        }
 
         // QA-R2: was `.Take(500)` on LOT rows with no ordering, before grouping — with 1567 lots the tab
         // showed ~500 of 1550 medicine×warehouse rows (a searched medicine looked "not in stock", the
@@ -210,6 +224,7 @@ public partial class PharmacyService
                 totalStock = (int)totalStock,
                 minStock = (int)minStock,
                 maxStock = (int)(threshold?.MaximumQuantity ?? 0),
+                warehouseId = first.WarehouseId.ToString(),
                 warehouse = first.Warehouse?.WarehouseName ?? "",
                 nearestExpiry = nearestExpiry?.ToString("o") ?? "",
                 averagePrice = Math.Round(avgPrice, 0),

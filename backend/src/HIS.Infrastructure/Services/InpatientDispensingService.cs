@@ -202,6 +202,9 @@ public class InpatientDispensingService : IInpatientDispensingService
             p.Status = 2;
         }
 
+        // QA-R11 (partial write): stock deduction + export receipts + dispensed flags + invoice refresh are two saves —
+        // a failed refresh left stock moved and the orders marked dispensed while the invoice stayed stale.
+        await using var tx = await SqlAppLock.BeginAsync(_db);
         await _db.SaveChangesAsync();
 
         // QA-R3: inpatient medicines are charges of the record from the moment they are ordered (InvoiceLedger) —
@@ -217,6 +220,7 @@ public class InpatientDispensingService : IInpatientDispensingService
                 await InvoiceLedger.RefreshAsync(_db, invoice);
             await _db.SaveChangesAsync();
         }
+        if (tx != null) await tx.CommitAsync();
 
         return ServiceOutcome.Ok(new
         {

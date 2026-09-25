@@ -247,7 +247,9 @@ public class OfficeSupplyService : IOfficeSupplyService
 
             var stocks = await _db.InventoryItems
                 .Where(i => i.WarehouseId == warehouseId && i.SupplyId == item.SupplyId
-                    && (i.Quantity - i.ReservedQuantity) > 0)
+                    && (i.Quantity - i.ReservedQuantity) > 0
+                    // QA-R11: locked / expired lots were issued like any other
+                    && !i.IsDeleted && !i.IsLocked && (i.ExpiryDate == null || i.ExpiryDate >= DateTime.Today))
                 .OrderBy(i => i.ExpiryDate)
                 .ToListAsync();
             var remaining = qty;

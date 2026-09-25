@@ -2,8 +2,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   getProcurementRequests, createProcurementRequest, approveProcurementRequest,
-  getWarehouses, getAutoProcurementSuggestions,
+  getWarehouses, getAutoProcurementSuggestions, rejectProcurementRequest,
 } from '../api/warehouse';
+import { ItemPicker } from './CabinetIssueModal';
+import type { MedicineDto } from '../../opd/api/examination';
 import type {
   ProcurementRequestDto, WarehouseDto, AutoProcurementSuggestionDto,
 } from '../api/warehouse';
@@ -80,6 +82,10 @@ const ProcurementV2: React.FC = () => {
   const [createRows, setCreateRows] = useState<CreateRow[]>([]);
   const [sugLoading, setSugLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [pickText, setPickText] = useState('');
+  const [rejectFor, setRejectFor] = useState<{ r: ProcurementRequestDto; reload: () => void } | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejecting, setRejecting] = useState(false);
   const form = useModalForm({ whId: { required: true, message: 'Chọn kho trước' } }, createOpen);
 
   const openCreate = async () => {
@@ -120,6 +126,18 @@ const ProcurementV2: React.FC = () => {
   const setQty = (idx: number, v: number) =>
     setCreateRows((p) => p.map((r, i) => i === idx ? { ...r, requestQty: v } : r));
 
+  // QA-R11: the list below only ever held auto-suggestions, which need StockThresholds (none are configured and
+  // no screen creates them) → "Kho đủ hàng" and no way to raise any request. Let the user add items by hand.
+  const addManual = (m: MedicineDto) => {
+    setPickText('');
+    setCreateRows((p) => p.some((r) => r.itemId === m.id) ? p : [...p, {
+      itemId: m.id, itemCode: m.code, itemName: m.name, unit: m.unit ?? '',
+      currentStock: m.availableQuantity ?? 0, minimumStock: 0, maximumStock: 0,
+      averageMonthlyUsage: 0, sameMonthLastYearUsage: 0, suggestedQuantity: 1,
+      suggestionReason: 'Thêm thủ công', checked: true, requestQty: 1,
+    } as CreateRow]);
+  };
+
   const submitCreate = async () => {
     if (!form.validate({ whId })) return;
     const items = createRows.filter((r) => r.checked && r.requestQty > 0);
@@ -134,7 +152,7 @@ const ProcurementV2: React.FC = () => {
       tk('Đã tạo phiếu dự trù');
       setCreateOpen(false);
       reloadRef.current();
-    } catch { te('Tạo dự trù thất bại'); }
+    } catch (e) { te(friendlyErrorMessage(e, 'Tạo dự trù thất bại')); }
     finally { setSubmitting(false); }
   };
 
@@ -144,8 +162,22 @@ const ProcurementV2: React.FC = () => {
         await approveProcurementRequest(r.id);
         tk('Đã duyệt phiếu dự trù');
         reload();
-      } catch { te('Duyệt thất bại'); }
+      } catch (e) { te(friendlyErrorMessage(e, 'Duyệt thất bại')); }
     }, { tone: 'warn', confirm: 'Duyệt' });
+  };
+
+  // QA-R11: the "Hủy" tab existed but nothing could reach it from this page — reject a pending request.
+  const submitReject = async () => {
+    if (!rejectFor || rejecting) return;
+    if (!rejectReason.trim()) { te('Nhập lý do từ chối'); return; }
+    setRejecting(true);
+    try {
+      await rejectProcurementRequest(rejectFor.r.id, rejectReason.trim());
+      tk('Đã từ chối phiếu dự trù');
+      rejectFor.reload();
+      setRejectFor(null);
+    } catch (e) { te(friendlyErrorMessage(e, 'Từ chối thất bại')); }
+    finally { setRejecting(false); }
   };
 
   const SEL: React.CSSProperties = {
@@ -175,7 +207,10 @@ const ProcurementV2: React.FC = () => {
           );
         }}
         rowActions={(r, reload) => r.status === 0 ? (
-          <ActBtn ic="check" title="Duyệt" onClick={() => handleApprove(r, reload)} />
+          <>
+            <ActBtn ic="check" title="Duyệt" onClick={() => handleApprove(r, reload)} />
+            <ActBtn ic="x" title="Từ chối" onClick={() => { setRejectReason(''); setRejectFor({ r, reload }); }} />
+          </>
         ) : null}
         drawerTitle={(r) => r.requestCode}
         drawerSub={(r) => `${r.warehouseName} · ${dayjs(r.requestDate).format('DD/MM/YYYY')}`}
@@ -243,7 +278,10 @@ const ProcurementV2: React.FC = () => {
               Danh sách mặt hàng đề nghị
               {sugLoading && <span style={{ fontWeight: 400, color: 'var(--t-3)', marginLeft: 8 }}>Đang tải gợi ý…</span>}
               {!sugLoading && !whId && <span style={{ fontWeight: 400, color: 'var(--t-3)', marginLeft: 8 }}>Chọn kho để xem gợi ý</span>}
-              {!sugLoading && whId && createRows.length === 0 && <span style={{ fontWeight: 400, color: 'var(--s-ok)', marginLeft: 8 }}>Kho đủ hàng</span>}
+              {!sugLoading && whId && createRows.length === 0 && <span style={{ fontWeight: 400, color: 'var(--s-ok)', marginLeft: 8 }}>Không có gợi ý tự động — thêm mặt hàng bên dưới</span>}
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <ItemPicker warehouseId={whId} value={pickText} onChange={setPickText} onSelect={addManual} />
             </div>
             {createRows.length > 0 && (
               <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid var(--line)', borderRadius: 4 }}>
@@ -293,6 +331,21 @@ const ProcurementV2: React.FC = () => {
             </div>
           </div>
         </div>
+      </ModalShell>
+
+      <ModalShell
+        open={!!rejectFor}
+        onClose={() => setRejectFor(null)}
+        title={`Từ chối phiếu dự trù ${rejectFor?.r.requestCode ?? ''}`}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setRejectFor(null)}>Huỷ</Btn>
+          <Btn variant="primary" onClick={submitReject} loading={rejecting}>Từ chối</Btn>
+        </>}
+      >
+        <Field label="Lý do từ chối" required>
+          <textarea style={{ ...CELL, minHeight: 64 }} value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)} placeholder="Lý do (bắt buộc)" />
+        </Field>
       </ModalShell>
     </>
   );
