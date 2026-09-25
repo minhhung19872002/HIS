@@ -15,6 +15,7 @@ import { SurgeryRequestCreateModal } from './SurgeryRequestCreateModal';
 import { SurgeryScheduleModal } from './SurgeryScheduleModal';
 import { SurgeryStartModal } from './SurgeryStartModal';
 import { SurgeryPrintFormModal } from './SurgeryPrintFormModal';
+import { SurgeryOrdersSection } from './SurgeryOrdersSection';
 
 /* Phẫu thuật v2 — port of OR v2.html */
 
@@ -218,8 +219,9 @@ const SurgeryV2: React.FC = () => {
         // 0 Chờ duyệt · 1 Đã duyệt/lên lịch · 2 Đang thực hiện · 3 Hoàn thành · 4 Hủy · 5 Hoãn.
         // getSurgeries KHÔNG map operatingRoomName → không gate theo phòng được; ở trạng thái
         // "Đã duyệt" (1) cho phép cả Lên lịch (tạo SurgerySchedule) lẫn Bắt đầu (start ca).
+        // QA-R11: the "Hồ sơ ca mổ" action was a no-op — RowActions stops propagation, so the row click that opens
+        // the drawer never fired and the button did nothing. Removed; clicking the row opens the record as before.
         <RowActions actions={[
-          { key: 'view', icon: 'eye', label: 'Hồ sơ ca mổ', primary: true, onClick: () => { /* drawer auto-opens via row click */ } },
           { key: 'approve', icon: 'check', label: 'Duyệt mổ', hidden: r.status !== 0,
             confirm: `Duyệt ca mổ ${r.surgeryCode}?`,
             onClick: () => { void onApprove(r, reload); setReloadVer((v) => v + 1); } },
@@ -455,13 +457,9 @@ const SurgeryDrawerBody: React.FC<{ r: SurgeryDto }> = ({ r }) => {
         <div style={{ fontSize: 12.5, color: 'var(--s-crit)', whiteSpace: 'pre-wrap' }}>{r.complications}</div>
       </div>
     )}
-    <div className="rec-section">
-      <h5><TermIcon name="dollar" size={11} /> CHI PHÍ</h5>
-      <div className="rec-kv">
-        <span>Phí dịch vụ</span><b className="mono">{(r.serviceCost || 0).toLocaleString('vi-VN')} ₫</b>
-        <span>Tiền thuốc</span><b className="mono">{(r.medicineCost || 0).toLocaleString('vi-VN')} ₫</b>
-      </div>
-    </div>
+    {/* QA-R11: was "CHI PHÍ" from r.serviceCost / r.medicineCost, which the list never fills (always 0 ₫).
+        Real orders / blood request / cost now come from the surgery's own endpoints. */}
+    <SurgeryOrdersSection surgeryId={r.id} status={r.status} />
   </>
   );
 };

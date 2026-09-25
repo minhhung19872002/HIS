@@ -263,10 +263,12 @@ public partial class InpatientCompleteService {
         }
     }
 
+    // QA-R11: answered true without writing anything (the second patient never appeared on the bed). The bed model
+    // allows one active assignment per bed (assign/transfer, ward map, bed-day billing all rely on it), so "nằm ghép"
+    // needs a design decision (billing share per patient) before it can be stored — refuse clearly meanwhile.
     public Task<bool> RegisterSharedBedAsync(Guid admissionId, Guid bedId, Guid userId)
-    {
-        return Task.FromResult(true);
-    }
+        => throw new InvalidOperationException(
+            "Đăng ký nằm ghép chưa được hỗ trợ trên máy chủ (mỗi giường chỉ ghi nhận một bệnh nhân). Vui lòng phân giường riêng.");
 
     public async Task ReleaseBedAsync(Guid admissionId, Guid userId)
     {

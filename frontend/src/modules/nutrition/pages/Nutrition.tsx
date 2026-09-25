@@ -6,6 +6,7 @@ import {
   getDietOrders, getDietOrderById, createDietOrder, updateDietOrder, cancelDietOrder, getDietTypes,
   getPendingScreenings, getScreenings, createScreening, getActiveDietOrder, getDashboard, getMealPlan,
   getCanteenQueue, approveMealPlan, rejectMealPlan, markCanteenPrepared, markCanteenDistributed,
+  generateMealPlanFor, markMealDelivered,
 } from '../api/nutrition';
 import type {
   CreateDietOrderDto, NutritionScreeningDto, NutritionDashboardDto, MealPlanDto, PlannedMealDto,
@@ -367,6 +368,31 @@ const NutritionV2: React.FC = () => {
     try { setMealPlan((await getMealPlan(mealDate)).data || null); }
     catch { setMealPlan(null); ti('Không tải được kế hoạch bữa ăn'); }
     finally { setMealLoading(false); }
+  };
+
+  // QA-R11: sinh suất ăn từ y lệnh ăn đang hiệu lực (BE idempotent theo ngày × bữa) + đánh dấu đã giao.
+  const [mealGenBusy, setMealGenBusy] = useState(false);
+  const generateMeals = async () => {
+    const types = mealTypeFilter ? [mealTypeFilter] : ['Breakfast', 'Lunch', 'Dinner'];
+    setMealGenBusy(true);
+    try {
+      for (const mt of types) await generateMealPlanFor(mealDate, mt);
+      tk(`Đã sinh suất ăn ${types.map((t) => MEAL_TYPE_LABEL[t] || t).join(', ')} ngày ${dayjs(mealDate).format('DD/MM/YYYY')}`);
+      await loadMeals();
+    } catch (e) { te(friendlyErrorMessage(e, 'Sinh suất ăn thất bại. Vui lòng thử lại.')); }
+    finally { setMealGenBusy(false); }
+  };
+  const [deliverBusy, setDeliverBusy] = useState<string | null>(null);
+  const markDelivered = async (m: PlannedMealDto) => {
+    setDeliverBusy(m.id);
+    try {
+      const ok = (await markMealDelivered(m.dietOrderId, mealDate, m.mealType)).data;
+      if (ok === false) { tw('Không tìm thấy suất ăn để đánh dấu'); return; }
+      tk(`Đã giao suất ăn · ${m.patientName || ''}`.trim());
+      setMealSel(null);
+      await loadMeals();
+    } catch (e) { te(friendlyErrorMessage(e, 'Đánh dấu đã giao thất bại')); }
+    finally { setDeliverBusy(null); }
   };
 
   // ── NangCap26 XII.5/XII.6 ──
@@ -928,12 +954,22 @@ const NutritionV2: React.FC = () => {
             <Btn variant="ghost" icon="x" onClick={() => { setMealSearch(''); setMealTypeFilter(''); setMealDate(dayjs().format('YYYY-MM-DD')); }}>Bỏ lọc</Btn>
             <span className="spacer" />
             <RefreshButton onRefresh={async () => { await loadMeals() }} />
+            <Btn variant="primary" icon="plus" onClick={generateMeals} disabled={mealGenBusy}>
+              {mealGenBusy ? 'Đang sinh…' : `Sinh suất ăn${mealTypeFilter ? ` (${MEAL_TYPE_LABEL[mealTypeFilter] || mealTypeFilter})` : ''}`}
+            </Btn>
           </div>
 
           <DataTable<PlannedMealDto>
             columns={mealCols} data={mealFiltered} page={mealPage} perPage={PER}
             onSortChange={() => setMealPage(0)} rowKey={(m) => m.id}
             onRowClick={setMealSel}
+            actions={(m) => (
+              <div className="ab-actions">
+                {m.deliveryStatus < 2 && (
+                  <ActBtn ic="check" title="Đánh dấu đã giao" loading={deliverBusy === m.id} onClick={() => markDelivered(m)} />
+                )}
+              </div>
+            )}
             empty={mealLoading ? 'Đang tải…' : 'Chưa có kế hoạch bữa ăn cho ngày này'}
           />
           <Pager page={mealPage} setPage={setMealPage} totalPages={mealTotalPages} total={mealFiltered.length} perPage={PER} />
@@ -944,7 +980,12 @@ const NutritionV2: React.FC = () => {
             size="md"
             title={mealSel ? `Bữa ${MEAL_TYPE_LABEL[mealSel.mealType] || mealSel.mealType} — ${mealSel.patientName || '—'}` : ''}
             sub={mealSel ? `${mealSel.mealTime || ''} · ${dayjs(mealDate).format('DD/MM/YYYY')}` : ''}
-            footer={<Btn variant="ghost" onClick={() => setMealSel(null)}>Đóng</Btn>}
+            footer={<>
+              <Btn variant="ghost" onClick={() => setMealSel(null)}>Đóng</Btn>
+              {mealSel && mealSel.deliveryStatus < 2 && (
+                <Btn variant="primary" disabled={deliverBusy === mealSel.id} onClick={() => markDelivered(mealSel)}>Đánh dấu đã giao</Btn>
+              )}
+            </>}
           >
             {mealSel && <>
               <DrSec title="Bệnh nhân">

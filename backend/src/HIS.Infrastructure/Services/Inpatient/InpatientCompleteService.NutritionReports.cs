@@ -445,6 +445,24 @@ public partial class InpatientCompleteService {
                 result.FailedIds.Add(requestId);
                 continue;
             }
+            // QA-R11: an imaging line already bridged to RIS stayed on the RIS worklist after the cancel. Cancel the
+            // RIS request too; a request that already has a report cannot be withdrawn from here.
+            var lineIds = sr.Details.Select(d => d.Id).ToList();
+            var risRequests = await _context.RadiologyRequests
+                .Where(r => r.SourceServiceRequestDetailId != null && lineIds.Contains(r.SourceServiceRequestDetailId.Value)
+                            && r.Status != HIS.Core.Constants.RadiologyRequestStatus.Cancelled)
+                .ToListAsync();
+            if (risRequests.Any(r => r.Status >= HIS.Core.Constants.RadiologyRequestStatus.Reported))
+            {
+                result.FailedIds.Add(requestId);
+                continue;
+            }
+            foreach (var r in risRequests)
+            {
+                r.Status = HIS.Core.Constants.RadiologyRequestStatus.Cancelled;
+                r.Notes = (string.IsNullOrWhiteSpace(r.Notes) ? "" : r.Notes + "\n") + $"[Hủy chỉ định] {dto.Reason}";
+                r.UpdatedAt = now;
+            }
             sr.Status = 4; // Cancelled
             // QA-R9: cancel the lines too (SRD.Status 3) — LIS/RIS worklists and BHYT pricing read the lines.
             foreach (var d in sr.Details.Where(d => d.Status != 3)) d.Status = 3;
@@ -456,10 +474,12 @@ public partial class InpatientCompleteService {
 
         if (result.CancelledCount > 0)
         {
+            await using var tx = await SqlAppLock.BeginAsync(_context); // QA-R11: cancel + BHYT re-split atomically
             await _context.SaveChangesAsync();
             // QA-R9 (MONEY): same recompute as the order path — the remaining lines may flip under the 15% / cap rules.
             if (await new BhytVisitPricing(_context).RecalculateAsync(admission.MedicalRecordId) != null)
                 await _context.SaveChangesAsync();
+            if (tx != null) await tx.CommitAsync();
         }
 
         return result;
@@ -488,10 +508,12 @@ public partial class InpatientCompleteService {
         sr.UpdatedAt = now;
         sr.UpdatedBy = userStr;
 
+        await using var tx = await SqlAppLock.BeginAsync(_context); // QA-R11: payment type + BHYT split atomically
         await _context.SaveChangesAsync();
         // QA-R9 (MONEY): BHYT <-> viện phí changes the split — recompute it like the order path does.
         if (await new BhytVisitPricing(_context).RecalculateAsync(sr.MedicalRecordId) != null)
             await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         return new InpatientServiceRequestItemDto
         {

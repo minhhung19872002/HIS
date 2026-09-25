@@ -1001,6 +1001,10 @@ export const createBloodOrder = (surgeryId: string, dto: CreateBloodOrderDto) =>
 export const updateBloodOrder = (orderId: string, dto: CreateBloodOrderDto) =>
   apiClient.put<SurgeryBloodOrderDto>(`${BASE_URL}/blood-orders/${orderId}`, dto);
 
+// QA-R11: BE had DeleteBloodOrderAsync but no route — added DELETE blood-orders/{orderId} (hủy yêu cầu chưa duyệt).
+export const deleteBloodOrder = (orderId: string) =>
+  apiClient.delete<boolean>(`${BASE_URL}/blood-orders/${orderId}`);
+
 export const getBloodBanks = () =>
   apiClient.get<BloodBankDto[]>(`${BASE_URL}/blood-banks`);
 

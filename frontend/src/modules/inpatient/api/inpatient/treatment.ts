@@ -293,6 +293,10 @@ export const updateTreatmentSheet = (id: string, dto: CreateTreatmentSheetDto) =
 export const getTreatmentSheets = (search: TreatmentSheetSearchDto) =>
   apiClient.get<TreatmentSheetDto[]>(`${BASE_URL}/treatment-sheets`, { params: search });
 
+// QA-R11: route added on the BE (the copy service existed with no route and saved nothing).
+export const copyTreatmentSheet = (id: string, newDate: string) =>
+  apiClient.post<TreatmentSheetDto>(`${BASE_URL}/treatment-sheets/${id}/copy`, null, { params: { newDate } });
+
 export const printTreatmentSheet = (id: string) =>
   apiClient.get(`${BASE_URL}/print-treatment-sheet/${id}`, { responseType: 'blob' });
 

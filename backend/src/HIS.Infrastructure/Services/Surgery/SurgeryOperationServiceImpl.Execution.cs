@@ -104,6 +104,35 @@ public partial class SurgeryOperationServiceImpl
         var request = await _context.Set<SurgeryRequest>().FindAsync(dto.SurgeryId);
         if (request != null) request.Status = SurgeryStatus.RequestCompleted;
 
+        // QA-R11: the PTTT charge line created with the request stayed "chờ thực hiện" (ServiceRequest.Status 0)
+        // after the operation was done — the ward / OPD lists showed the surgery as not performed and the
+        // pre-discharge check counted it as a pending result, so a patient could not be discharged after surgery.
+        // The charge is found exactly like SurgerySchedulingServiceImpl.CancelSurgeryChargeAsync (line note "Phieu PTTT {code}").
+        if (request?.SurgeryServiceId is Guid chargeServiceId && (request.ExaminationId != null || request.MedicalRecordId != null))
+        {
+            var chargeNote = $"Phieu PTTT {request.RequestCode}";
+            var examId = request.ExaminationId;
+            var recordId = request.MedicalRecordId;
+            var charges = await _context.ServiceRequests
+                .Include(sr => sr.Details)
+                .Where(sr => sr.Status != 4 && !sr.IsDeleted
+                             && sr.Details.Any(d => d.ServiceId == chargeServiceId && d.Note == chargeNote)
+                             && ((examId != null && sr.ExaminationId == examId)
+                                 || (recordId != null && sr.MedicalRecordId == recordId)))
+                .ToListAsync();
+            foreach (var sr in charges)
+            {
+                if (sr.Status < 3) sr.Status = 3; // Có KQ / đã thực hiện
+                foreach (var d in sr.Details.Where(d => !d.IsDeleted && d.ServiceId == chargeServiceId && d.Status != 3))
+                {
+                    if (d.Status < 2) d.Status = 2;
+                    d.Result ??= dto.Conclusion ?? dto.PostOperativeDiagnosis ?? "Đã phẫu thuật";
+                    d.ResultDate ??= dto.EndTime;
+                    d.ResultUserId ??= userId;
+                }
+            }
+        }
+
         await _context.SaveChangesAsync();
 
         return await _scheduling.GetSurgeryByIdAsync(dto.SurgeryId) ?? new SurgeryDto();

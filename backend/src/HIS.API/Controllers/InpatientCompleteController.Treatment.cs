@@ -109,6 +109,36 @@ public partial class InpatientCompleteController
     }
 
     /// <summary>
+    /// Sao chép tờ điều trị sang ngày khác (QA-R11: service method existed, no route)
+    /// </summary>
+    [HttpPost("treatment-sheets/{id}/copy")]
+    public async Task<ActionResult<TreatmentSheetDto>> CopyTreatmentSheet(Guid id, [FromQuery] DateTime newDate)
+    {
+        var result = await _inpatientService.CopyTreatmentSheetAsync(id, newDate, GetCurrentUserId());
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Danh sách mẫu tờ điều trị (QA-R11)
+    /// </summary>
+    [HttpGet("treatment-sheet-templates")]
+    public async Task<ActionResult<List<TreatmentSheetTemplateDto>>> GetTreatmentSheetTemplates([FromQuery] Guid? departmentId)
+    {
+        var result = await _inpatientService.GetTreatmentSheetTemplatesAsync(departmentId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Tạo mẫu tờ điều trị (QA-R11)
+    /// </summary>
+    [HttpPost("treatment-sheet-templates")]
+    public async Task<ActionResult<TreatmentSheetTemplateDto>> CreateTreatmentSheetTemplate([FromBody] TreatmentSheetTemplateDto dto)
+    {
+        var result = await _inpatientService.CreateTreatmentSheetTemplateAsync(dto, GetCurrentUserId());
+        return Ok(result);
+    }
+
+    /// <summary>
     /// In tờ điều trị
     /// </summary>
     [HttpGet("print-treatment-sheet/{id}")]

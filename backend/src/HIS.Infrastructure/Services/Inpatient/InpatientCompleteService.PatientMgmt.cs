@@ -676,8 +676,12 @@ public partial class InpatientCompleteService {
         // T3/#218: giường đích phải còn trống. Đây là cùng một luật mà `TransferBedAsync` đã thi
         // hành (và câu báo lỗi lấy nguyên của nó cho nhất quán) — chỉ riêng đường chuyển khoa là bỏ
         // trống, nên hai bệnh nhân nằm chung một giường.
+        // QA-R11: the check below ran without the per-bed lock that AssignBed/TransferBed take, so a transfer-department
+        // racing an assign-bed to the same free bed could both pass and double-book it. Same lock + transaction.
+        await using var bedTx = dto.TargetBedId.HasValue ? await _context.Database.BeginTransactionAsync() : null;
         if (dto.TargetBedId.HasValue)
         {
+            await LockBedAsync(dto.TargetBedId.Value);
             var targetBed = await _context.Beds.FirstOrDefaultAsync(b => b.Id == dto.TargetBedId.Value);
             if (targetBed == null)
                 throw new KeyNotFoundException("Không tìm thấy giường đích.");
@@ -756,6 +760,7 @@ public partial class InpatientCompleteService {
         }
 
         await _context.SaveChangesAsync();
+        if (bedTx != null) await bedTx.CommitAsync();
 
         var dept = await _context.Departments.FindAsync(dto.TargetDepartmentId);
         var room = await _context.Rooms.FindAsync(dto.TargetRoomId);
@@ -842,47 +847,165 @@ public partial class InpatientCompleteService {
         });
     }
 
-    public Task<SpecialtyConsultRequestDto> RequestSpecialtyConsultAsync(CreateSpecialtyConsultDto dto, Guid userId)
+    // QA-R11: the specialty-consult endpoints were stubs (request echoed a random id, list always empty,
+    // complete wrote nothing). They now persist in InpatientConsultations with ConsultationType = 5 and the
+    // invited department in SpecialtyDepartmentId (Chairman = requesting doctor, Secretary = consulting doctor
+    // once answered). Status: 0 chờ khám · 1 đã khám · 2 hủy (SpecialtyConsultRequestDto vocabulary).
+    private const int SpecialtyConsultType = 5;
+
+    public async Task<SpecialtyConsultRequestDto> RequestSpecialtyConsultAsync(CreateSpecialtyConsultDto dto, Guid userId)
     {
-        return Task.FromResult(new SpecialtyConsultRequestDto
+        var admission = await _context.Admissions.AsNoTracking()
+            .Where(a => a.Id == dto.AdmissionId && !a.IsDeleted)
+            .Select(a => new { a.Id, a.Status, a.DepartmentId })
+            .FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Không tìm thấy lượt nội trú.");
+        if (!AdmissionStatus.IsActive(admission.Status))
+            throw new InvalidOperationException(
+                $"Lượt nội trú đã kết thúc ({AdmissionStatus.Label(admission.Status)}), không gửi khám chuyên khoa được.");
+        if (dto.SpecialtyDepartmentId == Guid.Empty
+            || !await _context.Departments.AnyAsync(d => d.Id == dto.SpecialtyDepartmentId && !d.IsDeleted))
+            throw new ArgumentException("Chưa chọn khoa chuyên khoa hợp lệ.", nameof(dto.SpecialtyDepartmentId));
+        if (dto.SpecialtyDepartmentId == admission.DepartmentId)
+            throw new InvalidOperationException("Khoa chuyên khoa trùng khoa đang điều trị — dùng Hội chẩn khoa.");
+        await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, dto.AdmissionId); // TT46
+        var now = DateTime.Now;
+        var entity = new InpatientConsultation
         {
             Id = Guid.NewGuid(),
             AdmissionId = dto.AdmissionId,
+            ConsultationType = SpecialtyConsultType,
             SpecialtyDepartmentId = dto.SpecialtyDepartmentId,
-            RequestingDoctorId = userId,
-            RequestDate = DateTime.Now,
-            RequestReason = dto.RequestReason,
-            ClinicalInfo = dto.ClinicalInfo,
-            Status = 0
-        });
+            ConsultationDate = now,
+            ConsultationTime = now.TimeOfDay,
+            ChairmanId = userId,
+            SecretaryId = Guid.Empty,
+            Reason = dto.RequestReason,
+            ClinicalFindings = dto.ClinicalInfo,
+            Status = 0,
+            CreatedAt = now,
+            CreatedBy = userId.ToString(),
+        };
+        _context.InpatientConsultations.Add(entity);
+        await _context.SaveChangesAsync();
+        return (await LoadSpecialtyConsultsAsync(q => q.Where(c => c.Id == entity.Id))).First();
     }
 
     public Task<List<SpecialtyConsultRequestDto>> GetSpecialtyConsultRequestsAsync(Guid admissionId)
+        => LoadSpecialtyConsultsAsync(q => q.Where(c => c.AdmissionId == admissionId));
+
+    public async Task<SpecialtyConsultRequestDto> CompleteSpecialtyConsultAsync(Guid id, string result, string recommendations, Guid doctorId)
     {
-        return Task.FromResult(new List<SpecialtyConsultRequestDto>());
+        var entity = await _context.InpatientConsultations
+            .FirstOrDefaultAsync(c => c.Id == id && c.ConsultationType == SpecialtyConsultType && !c.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy yêu cầu khám chuyên khoa.");
+        if (entity.Status != 0)
+            throw new InvalidOperationException("Yêu cầu khám chuyên khoa đã được trả kết quả hoặc đã hủy.");
+        if (string.IsNullOrWhiteSpace(result))
+            throw new ArgumentException("Chưa nhập kết quả khám chuyên khoa.", nameof(result));
+        await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, entity.AdmissionId); // TT46
+        entity.Status = 1;
+        entity.SecretaryId = doctorId;
+        entity.Conclusion = result.Trim();
+        entity.Treatment = recommendations;
+        entity.UpdatedAt = DateTime.Now;
+        entity.UpdatedBy = doctorId.ToString();
+        await _context.SaveChangesAsync();
+        return (await LoadSpecialtyConsultsAsync(q => q.Where(c => c.Id == id))).First();
     }
 
-    public Task<SpecialtyConsultRequestDto> CompleteSpecialtyConsultAsync(Guid id, string result, string recommendations, Guid doctorId)
+    private async Task<List<SpecialtyConsultRequestDto>> LoadSpecialtyConsultsAsync(
+        Func<IQueryable<InpatientConsultation>, IQueryable<InpatientConsultation>> filter)
     {
-        return Task.FromResult(new SpecialtyConsultRequestDto
+        var rows = await filter(_context.InpatientConsultations.AsNoTracking()
+                .Where(c => c.ConsultationType == SpecialtyConsultType && !c.IsDeleted))
+            .OrderByDescending(c => c.ConsultationDate)
+            .Take(200)
+            .ToListAsync();
+        if (rows.Count == 0) return new List<SpecialtyConsultRequestDto>();
+
+        var admissionIds = rows.Select(r => r.AdmissionId).Distinct().ToList();
+        var patientNames = await _context.Admissions.AsNoTracking()
+            .Where(a => admissionIds.Contains(a.Id))
+            .Select(a => new { a.Id, a.Patient.FullName })
+            .ToDictionaryAsync(a => a.Id, a => a.FullName);
+        var deptIds = rows.Where(r => r.SpecialtyDepartmentId.HasValue).Select(r => r.SpecialtyDepartmentId!.Value).Distinct().ToList();
+        var deptNames = await _context.Departments.AsNoTracking()
+            .Where(d => deptIds.Contains(d.Id)).ToDictionaryAsync(d => d.Id, d => d.DepartmentName);
+        var userIds = rows.Select(r => r.ChairmanId).Concat(rows.Select(r => r.SecretaryId))
+            .Where(u => u != Guid.Empty).Distinct().ToList();
+        var userNames = await _context.Users.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.FullName);
+
+        return rows.Select(c => new SpecialtyConsultRequestDto
         {
-            Id = id,
-            ConsultingDoctorId = doctorId,
-            ConsultDate = DateTime.Now,
-            ConsultResult = result,
-            Recommendations = recommendations,
-            Status = 2
-        });
+            Id = c.Id,
+            AdmissionId = c.AdmissionId,
+            PatientName = patientNames.GetValueOrDefault(c.AdmissionId) ?? string.Empty,
+            SpecialtyDepartmentId = c.SpecialtyDepartmentId ?? Guid.Empty,
+            SpecialtyDepartmentName = c.SpecialtyDepartmentId.HasValue ? deptNames.GetValueOrDefault(c.SpecialtyDepartmentId.Value) ?? string.Empty : string.Empty,
+            RequestingDoctorId = c.ChairmanId,
+            RequestingDoctorName = userNames.GetValueOrDefault(c.ChairmanId) ?? string.Empty,
+            RequestDate = c.ConsultationDate,
+            RequestReason = c.Reason,
+            ClinicalInfo = c.ClinicalFindings,
+            Status = c.Status,
+            ConsultingDoctorId = c.SecretaryId == Guid.Empty ? null : c.SecretaryId,
+            ConsultingDoctorName = c.SecretaryId == Guid.Empty ? null : userNames.GetValueOrDefault(c.SecretaryId),
+            ConsultDate = c.Status == 1 ? c.UpdatedAt : null,
+            ConsultResult = c.Conclusion,
+            Recommendations = c.Treatment,
+        }).ToList();
     }
 
+    // QA-R11: both "chuyển mổ" endpoints answered true without writing anything (the patient never reached the
+    // surgery list). They now create a real SurgeryRequest on the stay's medical record — status 0 "Chờ duyệt",
+    // priority 1 mổ phiên / 3 cấp cứu — which the surgery screen then approves and schedules as usual.
     public Task<bool> TransferToScheduledSurgeryAsync(SurgeryTransferDto dto, Guid userId)
-    {
-        return Task.FromResult(true);
-    }
+        => CreateSurgeryRequestFromWardAsync(dto, userId, emergency: false);
 
     public Task<bool> TransferToEmergencySurgeryAsync(SurgeryTransferDto dto, Guid userId)
+        => CreateSurgeryRequestFromWardAsync(dto, userId, emergency: true);
+
+    private async Task<bool> CreateSurgeryRequestFromWardAsync(SurgeryTransferDto dto, Guid userId, bool emergency)
     {
-        return Task.FromResult(true);
+        var admission = await _context.Admissions
+            .Include(a => a.MedicalRecord)
+            .FirstOrDefaultAsync(a => a.Id == dto.AdmissionId && !a.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy lượt nội trú.");
+        if (!AdmissionStatus.IsActive(admission.Status))
+            throw new InvalidOperationException(
+                $"Lượt nội trú đã kết thúc ({AdmissionStatus.Label(admission.Status)}), không chuyển mổ được.");
+        if (!emergency && dto.ScheduledDate != default && dto.ScheduledDate.Date < HIS.Core.Common.VnTime.NowVn.Date)
+            throw new InvalidOperationException("Ngày mổ phiên dự kiến đã qua.");
+        await EmrLockGuard.EnsureEditableByRecordAsync(_context, admission.MedicalRecordId); // TT46
+
+        var now = DateTime.Now;
+        var notes = new List<string>();
+        if (dto.ScheduledDate != default)
+            notes.Add($"Ngày mổ dự kiến: {dto.ScheduledDate:dd/MM/yyyy}{(dto.ScheduledTime.HasValue ? " " + dto.ScheduledTime.Value.ToString(@"hh\:mm") : "")}");
+        if (!string.IsNullOrWhiteSpace(dto.SpecialNotes)) notes.Add(dto.SpecialNotes.Trim());
+        _context.SurgeryRequests.Add(new SurgeryRequest
+        {
+            Id = Guid.NewGuid(),
+            RequestCode = $"PT{now:yyyyMMddHHmmssfff}{Random.Shared.Next(100):D2}",
+            PatientId = admission.PatientId,
+            MedicalRecordId = admission.MedicalRecordId,
+            RequestDate = now,
+            SurgeryType = "Phẫu thuật",
+            RequestingDoctorId = userId,
+            Priority = emergency ? 3 : 1,
+            Status = 0,
+            PreOpDiagnosis = dto.PreopDiagnosis ?? admission.MedicalRecord?.MainDiagnosis ?? admission.DiagnosisOnAdmission,
+            PreOpIcdCode = admission.MedicalRecord?.MainIcdCode,
+            PlannedProcedure = dto.PlannedProcedure,
+            EstimatedDuration = 60,
+            Notes = notes.Count > 0 ? string.Join("\n", notes) : null,
+            CreatedAt = now,
+            CreatedBy = userId.ToString(),
+        });
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     public async Task<AdmissionDto> UpdateInsuranceAsync(UpdateInsuranceDto dto, Guid userId)
@@ -934,9 +1057,83 @@ public partial class InpatientCompleteService {
         });
     }
 
-    public Task<bool> ConvertToFeePayingAsync(Guid admissionId, Guid userId)
+    /// <summary>
+    /// QA-R11: answered true without writing — the record stayed BHYT and every line kept its fund share.
+    /// Now: record → viện phí (PatientType 2) and every UNPAID, non-cancelled service / medicine line of the record is
+    /// re-priced at the hospital price with no fund share. Paid lines are left alone (refund/adjust goes through the
+    /// cashier, same rule as order cancel).
+    /// </summary>
+    public async Task<bool> ConvertToFeePayingAsync(Guid admissionId, Guid userId)
     {
-        return Task.FromResult(true);
+        var admission = await _context.Admissions.FirstOrDefaultAsync(a => a.Id == admissionId && !a.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy lượt nội trú.");
+        if (!AdmissionStatus.IsActive(admission.Status))
+            throw new InvalidOperationException(
+                $"Lượt nội trú đã kết thúc ({AdmissionStatus.Label(admission.Status)}), không đổi đối tượng được.");
+        var record = await _context.MedicalRecords.FirstOrDefaultAsync(m => m.Id == admission.MedicalRecordId)
+            ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ bệnh án.");
+        if (record.PatientType == PatientType.Fee)
+            throw new InvalidOperationException("Hồ sơ đã là đối tượng viện phí.");
+        await EmrLockGuard.EnsureEditableByRecordAsync(_context, record.Id); // TT46
+
+        var requests = await _context.ServiceRequests.Include(r => r.Details)
+            .Where(r => r.MedicalRecordId == record.Id && !r.IsDeleted && r.Status != 4 && !r.IsPaid)
+            .ToListAsync();
+        // Paid = allocated by an active payment receipt (same rule as BhytVisitPricing / InvoiceLedger).
+        var allocated = await _context.ReceiptDetails.AsNoTracking()
+            .Where(rd => !rd.IsDeleted && rd.Receipt.Status == 1 && !rd.Receipt.IsDeleted
+                         && rd.Receipt.ReceiptType == 2 && rd.Receipt.MedicalRecordId == record.Id)
+            .Select(rd => new { rd.ServiceRequestDetailId, rd.PrescriptionDetailId })
+            .ToListAsync();
+        var paidSrd = allocated.Where(a => a.ServiceRequestDetailId != null).Select(a => a.ServiceRequestDetailId!.Value).ToHashSet();
+        var paidPd = allocated.Where(a => a.PrescriptionDetailId != null).Select(a => a.PrescriptionDetailId!.Value).ToHashSet();
+        foreach (var sr in requests)
+        {
+            foreach (var d in sr.Details.Where(d => !d.IsDeleted && d.Status != 3 && !paidSrd.Contains(d.Id)))
+            {
+                d.PatientType = PatientType.Fee;
+                d.Amount = d.UnitPrice * d.Quantity;
+                d.InsuranceAmount = 0;
+                d.PatientAmount = d.Amount;
+                d.InsurancePaymentRate = 0;
+            }
+            var live = sr.Details.Where(d => !d.IsDeleted && d.Status != 3).ToList();
+            if (live.Count > 0)
+            {
+                sr.InsuranceAmount = live.Sum(d => d.InsuranceAmount);
+                sr.PatientAmount = live.Sum(d => d.PatientAmount);
+            }
+            else
+            {
+                sr.InsuranceAmount = 0;
+                sr.PatientAmount = sr.TotalAmount;
+            }
+        }
+
+        var prescriptions = await _context.Prescriptions.Include(p => p.Details)
+            .Where(p => p.MedicalRecordId == record.Id && !p.IsDeleted && !p.IsPaid
+                        && InvoiceLedger.BillableRxStatuses.Contains(p.Status))
+            .ToListAsync();
+        foreach (var rx in prescriptions)
+        {
+            foreach (var d in rx.Details.Where(d => !d.IsDeleted && !paidPd.Contains(d.Id)))
+            {
+                d.PatientType = PatientType.Fee;
+                d.Amount = d.UnitPrice * d.Quantity;
+                d.InsuranceAmount = 0;
+                d.PatientAmount = d.Amount;
+                d.InsurancePaymentRate = 0;
+            }
+            var live = rx.Details.Where(d => !d.IsDeleted).ToList();
+            rx.InsuranceAmount = live.Sum(d => d.InsuranceAmount);
+            rx.PatientAmount = live.Sum(d => d.PatientAmount);
+        }
+
+        record.PatientType = PatientType.Fee;
+        record.UpdatedAt = DateTime.Now;
+        record.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync(); // one SaveChanges = one transaction
+        return true;
     }
 
     #endregion

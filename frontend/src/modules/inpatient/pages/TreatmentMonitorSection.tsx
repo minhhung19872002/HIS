@@ -32,6 +32,7 @@ import {
   createTreatmentSheet,
   updateTreatmentSheet,
   printTreatmentSheet,
+  copyTreatmentSheet,
   getTreatmentStatAggregate,
   type TreatmentSheetDto,
   type CreateTreatmentSheetDto,
@@ -1835,6 +1836,7 @@ const TreatmentSheetsModal: React.FC<{
   const [printing, setPrinting] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<TreatmentSheetDto | null>(null);
+  const [copyingId, setCopyingId] = useState<string | null>(null);
 
   const reload = () => {
     setLoading(true);
@@ -1963,6 +1965,17 @@ const TreatmentSheetsModal: React.FC<{
                     </div>
                     <div style={{ display: 'flex', gap: 'var(--space-4)', flexShrink: 0 }}>
                       <Btn variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(s); }} style={{ padding: '2px 7px', fontSize: 11 }}>Sửa</Btn>
+                      {/* QA-R11: chép diễn biến / y lệnh của phiếu này sang tờ điều trị hôm nay (lưu thật) */}
+                      <Btn variant="ghost" disabled={copyingId === s.id} onClick={async (e) => {
+                        e.stopPropagation();
+                        setCopyingId(s.id);
+                        try {
+                          await copyTreatmentSheet(s.id, dayjs().format('YYYY-MM-DDTHH:mm:ss'));
+                          message.success('Đã sao chép sang tờ điều trị hôm nay');
+                          reload();
+                        } catch (err) { message.error(friendlyErrorMessage(err, 'Không sao chép được tờ điều trị')); }
+                        finally { setCopyingId(null); }
+                      }} style={{ padding: '2px 7px', fontSize: 11 }}>Chép sang hôm nay</Btn>
                       <Btn variant="ghost" onClick={async (e) => {
                         e.stopPropagation();
                         try {

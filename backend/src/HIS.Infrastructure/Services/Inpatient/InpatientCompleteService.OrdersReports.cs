@@ -173,27 +173,91 @@ public partial class InpatientCompleteService {
         }).ToList();
     }
 
-    public Task<List<SharedBedPatientDto>> GetSharedBedPatientsAsync(Guid bedId)
+    public async Task<List<SharedBedPatientDto>> GetSharedBedPatientsAsync(Guid bedId)
     {
-        return Task.FromResult(new List<SharedBedPatientDto>());
-    }
-
-    public Task<WardColorConfigDto> GetWardColorConfigAsync(Guid? departmentId)
-    {
-        return Task.FromResult(new WardColorConfigDto
+        // QA-R11: was always empty. "Nằm ghép" = more than one ACTIVE assignment on the same bed; a single
+        // occupant is not a shared bed, so the list stays empty in that case (honest, not a stub).
+        var occupants = await _context.Set<BedAssignment>().AsNoTracking()
+            .Where(ba => ba.BedId == bedId && ba.Status == 0 && ba.ReleasedAt == null && !ba.IsDeleted)
+            .Select(ba => new { ba.AdmissionId, ba.Admission.Patient, PatientType = ba.Admission.MedicalRecord.PatientType })
+            .ToListAsync();
+        if (occupants.Count < 2) return new List<SharedBedPatientDto>();
+        return occupants.Select(o => new SharedBedPatientDto
         {
-            InsurancePatientColor = "#2196F3",
-            FeePatientColor = "#FF9800",
-            ChronicPatientColor = "#9C27B0",
-            EmergencyPatientColor = "#F44336",
-            VIPPatientColor = "#FFD700",
-            PediatricPatientColor = "#E91E63"
-        });
+            AdmissionId = o.AdmissionId,
+            PatientName = o.Patient?.FullName ?? string.Empty,
+            PatientCode = o.Patient?.PatientCode ?? string.Empty,
+            Age = BedPatientAge(o.Patient),
+            IsInsurance = o.PatientType == 1,
+        }).ToList();
     }
 
-    public Task UpdateWardColorConfigAsync(Guid? departmentId, WardColorConfigDto config)
+    // QA-R11: the colour config was hard-coded on read and the PUT was a no-op. Stored as JSON in SystemConfigs
+    // (per department when departmentId is given, else the hospital default); read falls back dept -> default -> built-in.
+    private const string WardColorConfigKey = "IPD.WardColors";
+    private static string WardColorKeyFor(Guid? departmentId) =>
+        departmentId.HasValue ? $"{WardColorConfigKey}.{departmentId.Value:D}" : WardColorConfigKey;
+
+    public async Task<WardColorConfigDto> GetWardColorConfigAsync(Guid? departmentId)
     {
-        return Task.CompletedTask;
+        var keys = departmentId.HasValue
+            ? new[] { WardColorKeyFor(departmentId), WardColorConfigKey }
+            : new[] { WardColorConfigKey };
+        var rows = await _context.SystemConfigs.AsNoTracking()
+            .Where(c => keys.Contains(c.ConfigKey) && c.IsActive && !c.IsDeleted)
+            .Select(c => new { c.ConfigKey, c.ConfigValue })
+            .ToListAsync();
+        foreach (var key in keys)
+        {
+            var json = rows.FirstOrDefault(r => r.ConfigKey == key)?.ConfigValue;
+            if (string.IsNullOrWhiteSpace(json)) continue;
+            try
+            {
+                var parsed = System.Text.Json.JsonSerializer.Deserialize<WardColorConfigDto>(json,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (parsed != null) return parsed;
+            }
+            catch (System.Text.Json.JsonException) { /* corrupt row -> next fallback */ }
+        }
+        return new WardColorConfigDto(); // built-in defaults (DTO initialisers)
+    }
+
+    public async Task UpdateWardColorConfigAsync(Guid? departmentId, WardColorConfigDto config)
+    {
+        if (config == null) throw new ArgumentException("Thiếu cấu hình màu", nameof(config));
+        var colors = new[] { config.InsurancePatientColor, config.FeePatientColor, config.ChronicPatientColor,
+            config.EmergencyPatientColor, config.VIPPatientColor, config.PediatricPatientColor };
+        if (colors.Any(c => string.IsNullOrWhiteSpace(c)
+                || !System.Text.RegularExpressions.Regex.IsMatch(c, "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")))
+            throw new ArgumentException("Mã màu không hợp lệ (dạng #RRGGBB)", nameof(config));
+        if (departmentId.HasValue && !await _context.Departments.AnyAsync(d => d.Id == departmentId.Value && !d.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy khoa");
+
+        var key = WardColorKeyFor(departmentId);
+        var json = System.Text.Json.JsonSerializer.Serialize(config);
+        var row = await _context.SystemConfigs.FirstOrDefaultAsync(c => c.ConfigKey == key);
+        if (row == null)
+        {
+            _context.SystemConfigs.Add(new SystemConfig
+            {
+                Id = Guid.NewGuid(),
+                ConfigKey = key,
+                ConfigValue = json,
+                ConfigType = "JSON",
+                Description = "Màu hiển thị sơ đồ giường nội trú",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+            });
+        }
+        else
+        {
+            row.ConfigValue = json;
+            row.ConfigType = "JSON";
+            row.IsActive = true;
+            row.IsDeleted = false;
+            row.UpdatedAt = DateTime.UtcNow;
+        }
+        await _context.SaveChangesAsync();
     }
 
     #endregion
@@ -473,6 +537,9 @@ public partial class InpatientCompleteService {
             sr.PatientAmount = groupTotal;
             await _context.ServiceRequests.AddAsync(sr);
         }
+        // QA-R11 (partial write): orders (+ the old order cancelled by UpdateServiceOrderAsync) and the BHYT split
+        // commit together or not at all.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
         await _context.SaveChangesAsync();
         // R3 BHYT: split at order time (no-op for fee patients).
         decimal insuranceAmount = 0;
@@ -481,6 +548,7 @@ public partial class InpatientCompleteService {
             await _context.SaveChangesAsync();
             insuranceAmount = requestsByType.Values.Sum(r => r.InsuranceAmount);
         }
+        if (tx != null) await tx.CommitAsync();
 
         var firstRequest = requestsByType.Values.First();
         return new InpatientServiceOrderDto
@@ -524,6 +592,7 @@ public partial class InpatientCompleteService {
             throw new InvalidOperationException("Phiếu chỉ định không thuộc lượt nội trú này.");
         if (existing.Status != 0 || existing.IsPaid)
             throw new InvalidOperationException("Phiếu chỉ định đã thực hiện, đã hủy hoặc đã thu tiền — không sửa được.");
+        await CancelLinkedRisRequestsAsync(existing.Details.Select(d => d.Id), "[Sửa chỉ định nội trú] Phiếu cũ bị thay thế");
         existing.Status = 4; // Đã hủy (ServiceRequest.Status: 4=hủy; SRD.Status: 3=hủy)
         foreach (var d in existing.Details) d.Status = 3;
         // Saved together with the replacement order (CreateServiceOrderAsync saves) — if it is refused, the old order stays.
@@ -541,12 +610,40 @@ public partial class InpatientCompleteService {
         // QA-R6 (MONEY): same rule as the OPD cancel — a paid order cancelled here dropped out of the bill with no refund.
         if (request.IsPaid)
             throw new InvalidOperationException("Dịch vụ đã thu tiền — không hủy chỉ định trực tiếp, hãy làm phiếu hoàn tiền tại quầy thu ngân.");
+        await CancelLinkedRisRequestsAsync(request.Details.Select(d => d.Id), "[Hủy chỉ định nội trú]");
         request.Status = 4; // Đã hủy (ServiceRequest.Status: 4=hủy; SRD.Status: 3=hủy)
         foreach (var d in request.Details) d.Status = 3;
+        await using var tx = await SqlAppLock.BeginAsync(_context); // QA-R11: cancel + BHYT re-split atomically
         await _context.SaveChangesAsync();
         // QA-R9 (MONEY): same as the OPD cancel — the visit total dropped, the 15% / cap rules may re-split the rest.
         if (await new BhytVisitPricing(_context).RecalculateAsync(request.MedicalRecordId) != null)
             await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
+    }
+
+    /// <summary>
+    /// QA-R11 (same rule as the OPD / NutritionReports cancel): an imaging line already bridged to RIS
+    /// (RadiologyRequests.SourceServiceRequestDetailId) stayed on the RIS worklist after the order was cancelled.
+    /// Cancel those RIS requests too (tracked — saved with the caller's SaveChanges/txn); a request that already has
+    /// a report cannot be withdrawn from the ward.
+    /// </summary>
+    private async Task CancelLinkedRisRequestsAsync(IEnumerable<Guid> lineIds, string note)
+    {
+        var ids = lineIds.ToList();
+        if (ids.Count == 0) return;
+        var risRequests = await _context.RadiologyRequests
+            .Where(r => r.SourceServiceRequestDetailId != null && ids.Contains(r.SourceServiceRequestDetailId.Value)
+                        && r.Status != HIS.Core.Constants.RadiologyRequestStatus.Cancelled)
+            .ToListAsync();
+        if (risRequests.Any(r => r.Status >= HIS.Core.Constants.RadiologyRequestStatus.Reported))
+            throw new InvalidOperationException("Chỉ định CĐHA đã có kết quả — không hủy/sửa được từ khoa, liên hệ khoa CĐHA.");
+        var now = DateTime.Now;
+        foreach (var r in risRequests)
+        {
+            r.Status = HIS.Core.Constants.RadiologyRequestStatus.Cancelled;
+            r.Notes = (string.IsNullOrWhiteSpace(r.Notes) ? "" : r.Notes + "\n") + note;
+            r.UpdatedAt = now;
+        }
     }
 
     /// <summary>
@@ -570,11 +667,14 @@ public partial class InpatientCompleteService {
         // Pre-push review (MONEY): a paid line goes through the cashier refund, like the whole-order cancel.
         if (detail.ServiceRequest.IsPaid || await HasPaidServiceLinesAsync(new[] { detail.Id }))
             throw new InvalidOperationException("Dịch vụ đã thu tiền — không hủy trực tiếp, hãy làm phiếu hoàn tiền tại quầy thu ngân.");
+        await CancelLinkedRisRequestsAsync(new[] { detail.Id }, "[Hủy dịch vụ nội trú]");
         detail.Status = 3; // Huỷ dòng dịch vụ
+        await using var tx = await SqlAppLock.BeginAsync(_context); // QA-R11: line cancel + BHYT re-split atomically
         await _context.SaveChangesAsync();
         // QA-R9 (MONEY): re-split the visit (and the request header totals) after dropping a line.
         if (await new BhytVisitPricing(_context).RecalculateAsync(detail.ServiceRequest.MedicalRecordId) != null)
             await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
     }
 
     public async Task<List<InpatientServiceOrderDto>> GetServiceOrdersAsync(Guid admissionId, DateTime? fromDate, DateTime? toDate)
@@ -872,38 +972,76 @@ public partial class InpatientCompleteService {
         return await CreateServiceOrderAsync(dto, userId);
     }
 
-    public Task<InpatientServiceOrderDto> CopyPreviousServiceOrderAsync(Guid admissionId, Guid sourceOrderId, Guid userId)
+    public async Task<InpatientServiceOrderDto> CopyPreviousServiceOrderAsync(Guid admissionId, Guid sourceOrderId, Guid userId)
     {
-        return Task.FromResult(new InpatientServiceOrderDto
+        // QA-R11: returned a fake order with a random id (nothing saved). Re-order the source order's live lines
+        // through the normal create path (all its guards: stay active, EMR lock, deposit, BHYT split).
+        var admission = await _context.Set<Admission>().AsNoTracking().FirstOrDefaultAsync(a => a.Id == admissionId)
+            ?? throw new KeyNotFoundException("Admission not found");
+        var source = await _context.ServiceRequests.AsNoTracking()
+            .Include(r => r.Details)
+            .FirstOrDefaultAsync(r => r.Id == sourceOrderId && !r.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiếu chỉ định nguồn.");
+        if (source.MedicalRecordId != admission.MedicalRecordId)
+            throw new InvalidOperationException("Phiếu chỉ định nguồn không thuộc lượt nội trú này.");
+        var lines = source.Details.Where(d => !d.IsDeleted && d.Status != 3).ToList();
+        if (lines.Count == 0) throw new InvalidOperationException("Phiếu chỉ định nguồn không còn dịch vụ nào.");
+        return await CreateServiceOrderAsync(new CreateInpatientServiceOrderDto
         {
-            Id = Guid.NewGuid(),
             AdmissionId = admissionId,
-            OrderDate = DateTime.Now,
-            OrderingDoctorId = userId,
-            Status = 0
-        });
+            MainDiagnosisCode = source.IcdCode,
+            MainDiagnosis = source.Diagnosis,
+            Services = lines.Select(d => new CreateInpatientServiceItemDto
+            {
+                ServiceId = d.ServiceId,
+                Quantity = d.Quantity,
+                PaymentSource = d.PatientType,
+                IsUrgent = source.IsPriority,
+                IsEmergency = source.IsEmergency,
+                Note = d.Note,
+            }).ToList(),
+        }, userId);
     }
 
     public Task<InpatientServiceOrderDto> OrderByPackageAsync(Guid admissionId, Guid packageId, Guid userId)
     {
-        return Task.FromResult(new InpatientServiceOrderDto
-        {
-            Id = Guid.NewGuid(),
-            AdmissionId = admissionId,
-            OrderDate = DateTime.Now,
-            OrderingDoctorId = userId,
-            Status = 0
-        });
+        // QA-R11: returned a fake order with a random id (nothing saved, nothing billed). ServicePackages are
+        // health-check packages with their own discounted price; ordering one per-service at list price would bill
+        // the wrong amount, so refuse honestly until package pricing for inpatient is designed (Gap).
+        throw new InvalidOperationException("Chỉ định theo gói dịch vụ chưa hỗ trợ cho nội trú — hãy chỉ định từng dịch vụ hoặc dùng nhóm dịch vụ mẫu.");
     }
 
     public Task MarkServiceAsUrgentAsync(Guid itemId, bool isUrgent, Guid userId)
-    {
-        return Task.CompletedTask;
-    }
+        => SetServiceItemFlagAsync(itemId, isUrgent, emergency: false);
 
     public Task MarkServiceAsEmergencyAsync(Guid itemId, bool isEmergency, Guid userId)
+        => SetServiceItemFlagAsync(itemId, isEmergency, emergency: true);
+
+    /// <summary>
+    /// QA-R11: both were no-ops (200, nothing saved). The priority/emergency flags live on the ServiceRequest
+    /// header (ServiceRequestDetail has no such column; the item DTO reads them from the header), so the flag is
+    /// set on the line's request — only while the line is still waiting (0) and the request is not cancelled.
+    /// </summary>
+    private async Task SetServiceItemFlagAsync(Guid itemId, bool value, bool emergency)
     {
-        return Task.CompletedTask;
+        var detail = await _context.ServiceRequestDetails
+            .Include(d => d.ServiceRequest)
+            .FirstOrDefaultAsync(d => d.Id == itemId && !d.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy dịch vụ chỉ định.");
+        if (detail.Status != 0 || detail.ServiceRequest.Status == 4)
+            throw new InvalidOperationException("Dịch vụ đã thực hiện hoặc đã hủy — không đổi mức ưu tiên được.");
+        var request = detail.ServiceRequest;
+        if (emergency)
+        {
+            request.IsEmergency = value;
+            if (value) request.IsPriority = true; // emergency implies priority (same as CreateServiceOrderAsync)
+        }
+        else
+        {
+            request.IsPriority = value || request.IsEmergency;
+        }
+        request.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
     }
 
     public async Task<ServiceOrderWarningDto> CheckServiceOrderWarningsAsync(Guid admissionId, List<CreateInpatientServiceItemDto> items)

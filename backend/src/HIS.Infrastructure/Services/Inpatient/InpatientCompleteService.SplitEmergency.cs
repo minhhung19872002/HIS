@@ -54,6 +54,12 @@ public partial class InpatientCompleteService
         await using var tx = await _context.Database.BeginTransactionAsync();
         try
         {
+            // QA-R11: same per-bed lock as AssignBed — the availability check above could race another assignment.
+            if (dto.BedId.HasValue)
+            {
+                await LockBedAsync(dto.BedId.Value);
+                await EnsureBedAvailableAsync(dto.BedId.Value, null, dto.DepartmentId);
+            }
             var now = DateTime.Now;
 
             // 1) Hồ sơ nội trú MỚI, kế thừa thông tin hành chính + BHYT của đợt cấp cứu.
@@ -75,6 +81,16 @@ public partial class InpatientCompleteService
                 InsuranceNumber = source.InsuranceNumber,
                 InsuranceExpireDate = source.InsuranceExpireDate,
                 InsuranceFacilityCode = source.InsuranceFacilityCode,
+                // QA-R11 (MONEY): PatientType was not copied → the new inpatient record was PatientType 0, which
+                // BhytVisitPricing treats as non-BHYT: every order of the inpatient stay was billed 100% to the patient.
+                PatientType = source.PatientType,
+                InsuranceRightRoute = source.InsuranceRightRoute,
+                InsuranceCoverageRate = source.InsuranceCoverageRate,
+                InsuranceFiveYearContinuous = source.InsuranceFiveYearContinuous,
+                ReferralFromFacilityCode = source.ReferralFromFacilityCode,
+                ReferralFromFacilityName = source.ReferralFromFacilityName,
+                ReferralIcdCode = source.ReferralIcdCode,
+                ReferralDate = source.ReferralDate,
                 CreatedAt = now,
                 CreatedBy = userId.ToString(),
             };

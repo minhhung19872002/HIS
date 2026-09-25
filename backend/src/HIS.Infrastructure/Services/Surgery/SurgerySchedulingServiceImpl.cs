@@ -661,12 +661,26 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
             if (dto.MedicalRecordId.HasValue)
                 query = query.Where(r => r.MedicalRecordId == dto.MedicalRecordId.Value);
 
+            // QA-R11: SurgeryNature/SurgeryType were declared on the search DTO but never applied
+            // (the page received every row). SurgeryNature is mapped from Priority below.
+            if (dto.SurgeryNature.HasValue)
+                query = query.Where(r => r.Priority == dto.SurgeryNature.Value);
+            if (dto.SurgeryType.HasValue)
+            {
+                // Rows store the display name (GetSurgeryTypeName); legacy rows may hold the number.
+                var surgeryTypeCode = dto.SurgeryType.Value.ToString();
+                var surgeryTypeName = GetSurgeryTypeName(dto.SurgeryType.Value);
+                query = query.Where(r => r.SurgeryType == surgeryTypeName || r.SurgeryType == surgeryTypeCode);
+            }
+
             var totalCount = await query.CountAsync();
             var items = await query
                 .OrderByDescending(r => r.CreatedAt)
                 .Skip(Math.Max(0, dto.Page - 1) * dto.PageSize)
                 .Take(dto.PageSize)
                 .ToListAsync();
+            // QA-R11: ServiceCost/MedicineCost were never filled (always 0). Priced for the whole page in one batch.
+            var costs = await SurgeryCostQuery.GetAsync(_context, items.Select(r => r.Id).ToList());
 
             return new PagedResultDto<SurgeryDto>
             {
@@ -694,6 +708,8 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
                     AnesthesiaType = r.AnesthesiaType ?? 1,
                     Status = r.Status,
                     StatusName = GetStatusName(r.Status),
+                    ServiceCost = costs.TryGetValue(r.Id, out var c) ? c.ServiceAmount : 0,
+                    MedicineCost = costs.TryGetValue(r.Id, out var cm) ? cm.MedicineAmount : 0,
                     CreatedAt = r.CreatedAt
                 }).ToList(),
                 TotalCount = totalCount,
@@ -723,6 +739,7 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
                 .FirstOrDefaultAsync(r => r.Id == id);
 
             if (request == null) return null;
+            var cost = (await SurgeryCostQuery.GetAsync(_context, new[] { request.Id })).GetValueOrDefault(request.Id);
 
             return new SurgeryDto
             {
@@ -748,6 +765,8 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
                 Status = request.Status,
                 StatusName = GetStatusName(request.Status),
                 Description = request.Notes,
+                ServiceCost = cost?.ServiceAmount ?? 0,
+                MedicineCost = cost?.MedicineAmount ?? 0,
                 CreatedAt = request.CreatedAt
             };
         }

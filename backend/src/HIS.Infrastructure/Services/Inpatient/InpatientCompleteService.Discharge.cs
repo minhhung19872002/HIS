@@ -31,6 +31,19 @@ public partial class InpatientCompleteService {
         var pendingResults = await _context.ServiceRequests
             .CountAsync(sr => sr.MedicalRecordId == admission.MedicalRecordId && sr.Status < 2);
 
+        // QA-R11: an open surgery (chờ duyệt / đã lên lịch / đang mổ) did not stop the discharge — dev data holds a
+        // discharged stay whose surgery is still "Đang mổ". It must be completed or cancelled first.
+        // Pre-push review: only a surgery that is really running blocks (status "Đang mổ" touched in the last 24h);
+        // pending / scheduled requests and stale legacy "Đang mổ" rows only warn so a stuck row never traps a patient.
+        var openSurgeryRows = await _context.SurgeryRequests.AsNoTracking()
+            .Where(r => r.MedicalRecordId == admission.MedicalRecordId && !r.IsDeleted
+                        && (r.Status == 0 || r.Status == SurgeryStatus.RequestScheduled || r.Status == SurgeryStatus.RequestInProgress))
+            .Select(r => new { r.RequestCode, r.Status, Touched = r.UpdatedAt ?? r.CreatedAt })
+            .ToListAsync();
+        var openSurgeries = openSurgeryRows.Select(r => r.RequestCode).ToList();
+        var runningSince = DateTime.UtcNow.AddHours(-24);
+        var surgeryRunning = openSurgeryRows.Any(r => r.Status == SurgeryStatus.RequestInProgress && r.Touched >= runningSince);
+
         // Query billing for unpaid balance.
         // QA-R3: services only → medicines and bed days were never owed at discharge. Same ledger as the cashier.
         var charges = await InvoiceLedger.LoadAsync(_context, admission.MedicalRecordId);
@@ -55,6 +68,10 @@ public partial class InpatientCompleteService {
             warnings.Add($"Còn nợ tiền giường {remainingAmount:N0}đ — không chặn ra viện; thu tại quầy thu ngân (kiểm tra ngày giường)");
         if (pendingResults > 0)
             warnings.Add($"Còn {pendingResults} chỉ định chưa có kết quả");
+        if (openSurgeries.Count > 0)
+            warnings.Add(surgeryRunning
+                ? $"Bệnh nhân đang mổ ({string.Join(", ", openSurgeries)}) — hoàn thành hoặc hủy ca mổ trước khi ra viện"
+                : $"Còn yêu cầu phẫu thuật chưa kết thúc ({string.Join(", ", openSurgeries)}) — không chặn ra viện; hủy/hoàn thành tại khoa PTTT");
 
         return new PreDischargeCheckDto
         {
@@ -71,7 +88,7 @@ public partial class InpatientCompleteService {
             PendingResultCount = pendingResults,
             IsMedicalRecordComplete = true,
             MissingDocuments = new List<string>(),
-            CanDischarge = !hasUnpaidBalance && unclaimedRx == 0 && pendingResults == 0,
+            CanDischarge = !hasUnpaidBalance && unclaimedRx == 0 && pendingResults == 0 && !surgeryRunning,
             Warnings = warnings
         };
     }

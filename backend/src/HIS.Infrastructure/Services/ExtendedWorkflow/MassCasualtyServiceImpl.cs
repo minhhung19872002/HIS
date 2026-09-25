@@ -347,14 +347,19 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
 
     public async Task<MCIResourceStatusDto> GetResourceStatusAsync(Guid eventId)
     {
-        var beds = await _context.Beds.ToListAsync();
+        // QA-R11: Beds.Status is not maintained by assign/transfer/release (dev data: 3 "Trống" beds occupied, 2 "Đang
+        // sử dụng" beds free), so the MCI board showed the wrong free-bed count. Free = usable bed with no active
+        // assignment — the same rule as the ward map / assign-bed.
+        var totalBeds = await _context.Beds.CountAsync(b => b.IsActive);
+        var availableBeds = await _context.Beds.CountAsync(b => b.IsActive && b.Status != 2
+            && !_context.BedAssignments.Any(ba => ba.BedId == b.Id && ba.Status == 0));
         var staff = await _context.MedicalStaffs.Where(s => s.Status == "Active").ToListAsync();
         return new MCIResourceStatusDto
         {
             EventId = eventId,
             UpdatedAt = DateTime.Now,
-            TotalBeds = beds.Count,
-            AvailableBeds = beds.Count(b => b.Status == 0),
+            TotalBeds = totalBeds,
+            AvailableBeds = availableBeds,
             DoctorsOnDuty = staff.Count(s => s.StaffType == "Doctor"),
             NursesOnDuty = staff.Count(s => s.StaffType == "Nurse")
         };
@@ -372,7 +377,10 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
         return Task.FromResult(new StaffCalloutDto { Id = Guid.NewGuid(), EventId = eventId, InitiatedAt = DateTime.Now, CalloutType = "SMS" });
     }
 
-    public Task<bool> RecordStaffResponseAsync(Guid calloutId, Guid staffId, string response, int? etaMinutes) => Task.FromResult(true);
+    // QA-R11: answered true without writing anything. Staff call-outs have no table (InitiateStaffCallout only echoes
+    // an id), so a response cannot be recorded — refuse clearly instead of pretending.
+    public Task<bool> RecordStaffResponseAsync(Guid calloutId, Guid staffId, string response, int? etaMinutes)
+        => throw new InvalidOperationException("Ghi nhận phản hồi huy động nhân sự chưa có nơi lưu trên máy chủ — vui lòng liên hệ trực tiếp và ghi vào báo cáo tình hình.");
 
     public async Task<MCICommandCenterDto> GetCommandCenterDataAsync(Guid eventId)
     {
@@ -478,8 +486,12 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
     }
 
     public Task<List<HotlineCallDto>> GetHotlineCallsAsync(Guid eventId) => Task.FromResult(new List<HotlineCallDto>());
-    public Task<HotlineCallDto> RecordHotlineCallAsync(Guid eventId, HotlineCallDto dto) { dto.Id = Guid.NewGuid(); dto.ReceivedAt = DateTime.Now; return Task.FromResult(dto); }
-    public Task<bool> MatchVictimToInquiryAsync(Guid callId, Guid victimId) => Task.FromResult(true);
+    // QA-R11: record echoed the call back with a random id (nothing saved — the list above stays empty) and match
+    // answered true. Hotline calls have no table: refuse clearly until one exists.
+    public Task<HotlineCallDto> RecordHotlineCallAsync(Guid eventId, HotlineCallDto dto)
+        => throw new InvalidOperationException("Sổ cuộc gọi đường dây nóng chưa có nơi lưu trên máy chủ nên chưa ghi được.");
+    public Task<bool> MatchVictimToInquiryAsync(Guid callId, Guid victimId)
+        => throw new InvalidOperationException("Sổ cuộc gọi đường dây nóng chưa có nơi lưu trên máy chủ nên chưa đối chiếu nạn nhân được.");
 
     public async Task<MCIEventReportDto> GenerateEventReportAsync(Guid eventId)
     {

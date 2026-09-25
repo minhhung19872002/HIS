@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRegisterCommands } from '@/contexts/CommandContext';
 import dayjs, { type Dayjs } from 'dayjs';
 import { App as AntdApp, Input, InputNumber, Select, DatePicker } from 'antd';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getInpatientList, getWardLayout, admitFromOpd, getPendingAdmissions, transferBed, assignBed, getDepositRequests, createDepositRequest, splitEmergencyToInpatient, type PendingAdmissionDto, type TransferBedDto, type CreateBedAssignmentDto, type DepositRequestDto, type CreateDepositRequestDto } from '../api/inpatient';
 import type { InpatientListDto, WardLayoutDto, BedLayoutDto } from '../api/inpatient';
 import { getServiceOrders, type InpatientServiceOrderDto } from '../api/inpatient';
@@ -128,6 +128,11 @@ const InpatientV2: React.FC = () => {
   const [page, setPage] = useState(0);
   const [bed, setBed] = useState<(BedLayoutDto & { wardName?: string ; wardId?: string; roomId?: string; roomName?: string }) | null>(null);
   const [detail, setDetail] = useState<InpatientListDto | null>(null);
+  // QA-R11: deep link /v2/ipd?admissionId=… (Cổng bác sĩ → "Phiếu điều trị"/"Xuất viện") opens that patient's
+  // record drawer, where treatment sheets and discharge live. Handled once per link.
+  const [sp] = useSearchParams();
+  const deepAdmissionId = sp.get('admissionId');
+  const deepLinkDone = useRef<string | null>(null);
   const [admitOpen, setAdmitOpen] = useState(false);
   const [admitPrefill, setAdmitPrefill] = useState<AdmitPrefill | null>(null);
   // NangCap26 XIX.2 #20 — tách điều trị nội trú tại khoa cấp cứu
@@ -169,6 +174,10 @@ const InpatientV2: React.FC = () => {
         loadErrs.push(friendlyErrorMessage(e, 'Không tải được danh sách bệnh nhân nội trú.'));
       }
       setInpatients(ip);
+      if (deepAdmissionId && deepLinkDone.current !== deepAdmissionId) {
+        const hit = ip.find((x) => x.admissionId === deepAdmissionId);
+        if (hit) { deepLinkDone.current = deepAdmissionId; setDetail(hit); }
+      }
 
       // 2) ward layouts for clinical departments with beds
       try {
@@ -193,7 +202,7 @@ const InpatientV2: React.FC = () => {
       }
       setLoading(false);
     })();
-  }, [search]);
+  }, [search, deepAdmissionId]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -211,9 +220,18 @@ const InpatientV2: React.FC = () => {
     finally { setSupplyLoading(false); }
   }, []);
 
+  // QA-R11: "Y lệnh" used to open the dispensing screen with no patient (the nurse had to find them again).
+  // Carry the admission + patient code; InpatientDispensing filters its pending list to that patient.
+  const goOrders = (p?: { admissionId?: string; patientCode?: string } | null) => {
+    const q = new URLSearchParams();
+    if (p?.admissionId && p.admissionId !== EMPTY_GUID) q.set('admissionId', p.admissionId);
+    if (p?.patientCode) q.set('patientCode', p.patientCode);
+    navigate(q.toString() ? `/v2/inpatient-dispensing?${q.toString()}` : '/v2/inpatient-dispensing');
+  };
+
   // F2=Y lệnh mới · F4=Bàn giao ca · F5=Làm mới (khớp kbd hint trên nút)
   useRegisterCommands({
-    save: () => navigate('/v2/inpatient-dispensing'),
+    save: () => goOrders(detail),
     search: () => navigate('/v2/hr'),
     refresh: loadData,
   });
@@ -328,7 +346,7 @@ const InpatientV2: React.FC = () => {
             <Btn variant="ghost" onClick={() => setSplitOpen(true)}>
               <TermIcon name="layers" size={12} /> Tách ĐT nội trú (CC)
             </Btn>
-            <Btn variant="primary" onClick={() => navigate('/v2/inpatient-dispensing')}>
+            <Btn variant="primary" onClick={() => goOrders(detail)}>
               <TermIcon name="clipboard" size={12} /> Y lệnh mới <kbd>F2</kbd>
             </Btn>
           </>
@@ -413,7 +431,7 @@ const InpatientV2: React.FC = () => {
             actions={(r) => (
               <div className="ab-actions">
                 <ActBtn ic="eye" title="Hồ sơ" onClick={() => setDetail(r)} />
-                <ActBtn ic="clipboard" title="Y lệnh" onClick={() => navigate('/v2/inpatient-dispensing')} />
+                <ActBtn ic="clipboard" title="Y lệnh" onClick={() => goOrders(r)} />
               </div>
             )}
             loading={loading}
@@ -614,7 +632,7 @@ const InpatientV2: React.FC = () => {
               <Btn variant="ghost" onClick={() => setTransferBedOpen(true)}>
                 <TermIcon name="arrow-right" size={12} /> Chuyển giường
               </Btn>
-              <Btn variant="primary" onClick={() => { setBed(null); navigate('/v2/inpatient-dispensing'); }}>
+              <Btn variant="primary" onClick={() => { const b = bed; setBed(null); goOrders({ admissionId: b?.currentAdmissionId, patientCode: b?.patientCode }); }}>
                 <TermIcon name="clipboard" size={12} /> Y lệnh
               </Btn>
             </>
@@ -713,7 +731,7 @@ const InpatientV2: React.FC = () => {
             <Btn variant="ghost" onClick={() => setBirthCertOpen(true)}>
               <TermIcon name="printer" size={12} /> Giấy chứng sinh
             </Btn>
-            <Btn variant="primary" onClick={() => { setDetail(null); navigate('/v2/inpatient-dispensing'); }}>
+            <Btn variant="primary" onClick={() => { const d = detail; setDetail(null); goOrders(d); }}>
               <TermIcon name="clipboard" size={12} /> Y lệnh
             </Btn>
           </>

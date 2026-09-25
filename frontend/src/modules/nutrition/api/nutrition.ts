@@ -724,6 +724,18 @@ export const getMealPlan = (date: string, departmentId?: string) =>
 export const generateMealPlan = (dto: GenerateMealPlanDto) =>
   apiClient.post<MealPlanDto>(`${BASE_URL}/meal-plans/generate`, dto);
 
+/**
+ * QA-R11: BE GenerateMealPlanRequest is { date, mealType, departmentId } (one plan per day × meal × khoa, idempotent);
+ * the DTO above ({ planDate, mealTypes }) bound to date = 0001-01-01. Nothing in the v2 page generated plans, so the
+ * "Quản lý bữa ăn" and "Duyệt suất ăn · Nhà ăn" tabs were always empty.
+ */
+export const generateMealPlanFor = (date: string, mealType: string, departmentId?: string) =>
+  apiClient.post<unknown>(`${BASE_URL}/meal-plans/generate`, { date, mealType, departmentId });
+
+/** QA-R11: BE POST /meal-plans/mark-delivered { dietOrderId, date, mealType } — had no FE caller. */
+export const markMealDelivered = (dietOrderId: string, date: string, mealType: string) =>
+  apiClient.post<boolean>(`${BASE_URL}/meal-plans/mark-delivered`, { dietOrderId, date, mealType });
+
 export const getPatientMeals = (admissionId: string, date: string) =>
   apiClient.get<PlannedMealDto[]>(`${BASE_URL}/admissions/${admissionId}/meals`, { params: { date } });
 

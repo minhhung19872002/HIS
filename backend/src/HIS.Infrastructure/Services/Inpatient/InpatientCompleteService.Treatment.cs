@@ -205,35 +205,108 @@ public partial class InpatientCompleteService {
         };
     }
 
-    public Task<TreatmentSheetTemplateDto> CreateTreatmentSheetTemplateAsync(TreatmentSheetTemplateDto dto, Guid userId)
+    // QA-R11: treatment-sheet templates were stubs (create echoed a random id, list always empty). They now live in
+    // ClinicalTemplates with TemplateType 4 ("Diễn biến bệnh mẫu — tờ điều trị nội trú", see the entity comment).
+    private const int TreatmentSheetTemplateType = 4;
+
+    public async Task<TreatmentSheetTemplateDto> CreateTreatmentSheetTemplateAsync(TreatmentSheetTemplateDto dto, Guid userId)
     {
-        dto.Id = Guid.NewGuid();
-        dto.CreatedBy = userId;
-        return Task.FromResult(dto);
+        if (dto == null || string.IsNullOrWhiteSpace(dto.TemplateName))
+            throw new ArgumentException("Chưa nhập tên mẫu tờ điều trị.", nameof(dto.TemplateName));
+        if (string.IsNullOrWhiteSpace(dto.TemplateContent))
+            throw new ArgumentException("Mẫu tờ điều trị chưa có nội dung.", nameof(dto.TemplateContent));
+        var code = string.IsNullOrWhiteSpace(dto.TemplateCode)
+            ? $"MTDT{HIS.Core.Common.VnTime.NowVn:yyyyMMddHHmmssfff}" : dto.TemplateCode.Trim();
+        if (await _context.ClinicalTemplates.AnyAsync(t => t.TemplateCode == code && !t.IsDeleted))
+            throw new InvalidOperationException($"Mã mẫu {code} đã tồn tại.");
+        var entity = new ClinicalTemplate
+        {
+            Id = Guid.NewGuid(),
+            TemplateCode = code,
+            TemplateName = dto.TemplateName.Trim(),
+            TemplateType = TreatmentSheetTemplateType,
+            DepartmentId = dto.DepartmentId,
+            Content = dto.TemplateContent,
+            IsPublic = dto.IsShared,
+            OwnerUserId = userId == Guid.Empty ? null : userId,
+            IsActive = true,
+            CreatedAt = DateTime.Now,
+            CreatedBy = userId.ToString(),
+        };
+        _context.ClinicalTemplates.Add(entity);
+        await _context.SaveChangesAsync();
+        return ToTreatmentSheetTemplateDto(entity);
     }
 
-    public Task<List<TreatmentSheetTemplateDto>> GetTreatmentSheetTemplatesAsync(Guid? departmentId)
+    public async Task<List<TreatmentSheetTemplateDto>> GetTreatmentSheetTemplatesAsync(Guid? departmentId)
     {
-        return Task.FromResult(new List<TreatmentSheetTemplateDto>());
+        var q = _context.ClinicalTemplates.AsNoTracking()
+            .Where(t => t.TemplateType == TreatmentSheetTemplateType && t.IsActive && !t.IsDeleted);
+        // A department sees its own templates + the shared ones / those not tied to a department.
+        if (departmentId.HasValue && departmentId.Value != Guid.Empty)
+            q = q.Where(t => t.DepartmentId == null || t.DepartmentId == departmentId.Value || t.IsPublic);
+        var rows = await q.OrderBy(t => t.SortOrder).ThenBy(t => t.TemplateName).Take(200).ToListAsync();
+        return rows.Select(ToTreatmentSheetTemplateDto).ToList();
     }
+
+    private static TreatmentSheetTemplateDto ToTreatmentSheetTemplateDto(ClinicalTemplate t) => new()
+    {
+        Id = t.Id,
+        TemplateCode = t.TemplateCode,
+        TemplateName = t.TemplateName,
+        TemplateContent = t.Content,
+        DepartmentId = t.DepartmentId,
+        CreatedBy = t.OwnerUserId,
+        IsShared = t.IsPublic,
+    };
 
     public async Task<TreatmentSheetDto> CopyTreatmentSheetAsync(Guid sourceId, DateTime newDate, Guid userId)
     {
-        var source = await _context.DailyProgresses.FindAsync(sourceId);
+        // QA-R11: returned a random id without saving — the "copied" sheet vanished on reload. Now persists a new
+        // DailyProgress (same admission, new date) with the same guards as creating a sheet.
+        var source = await _context.DailyProgresses.AsNoTracking().FirstOrDefaultAsync(d => d.Id == sourceId && !d.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy tờ điều trị nguồn.");
+        var admission = await _context.Admissions.AsNoTracking()
+            .Where(a => a.Id == source.AdmissionId && !a.IsDeleted)
+            .Select(a => new { a.Status, a.AdmissionDate })
+            .FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Không tìm thấy lượt nội trú.");
+        await EnsureChartableAsync(source.AdmissionId, admission.Status, "sao chép tờ điều trị");
+        EnsureStayDate(newDate, admission.AdmissionDate, "Ngày điều trị");
+        await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, source.AdmissionId); // TT46
+
+        var now = DateTime.Now;
+        var copy = new DailyProgress
+        {
+            Id = Guid.NewGuid(),
+            AdmissionId = source.AdmissionId,
+            ProgressDate = newDate,
+            DoctorId = userId,
+            SubjectiveFindings = source.SubjectiveFindings,
+            ObjectiveFindings = source.ObjectiveFindings,
+            Assessment = source.Assessment,
+            Plan = source.Plan,
+            DietOrder = source.DietOrder,
+            ActivityOrder = source.ActivityOrder,
+            CreatedAt = now,
+            CreatedBy = userId.ToString(),
+        };
+        _context.DailyProgresses.Add(copy);
+        await _context.SaveChangesAsync();
         var doctor = await _context.Users.FindAsync(userId);
 
         return new TreatmentSheetDto
         {
-            Id = Guid.NewGuid(),
-            AdmissionId = source?.AdmissionId ?? Guid.Empty,
-            TreatmentDate = newDate,
+            Id = copy.Id,
+            AdmissionId = copy.AdmissionId,
+            TreatmentDate = copy.ProgressDate,
             DoctorId = userId,
             DoctorName = doctor?.FullName ?? string.Empty,
-            ProgressNotes = source?.SubjectiveFindings,
-            TreatmentOrders = source?.Plan,
-            NursingOrders = source?.ActivityOrder,
-            DietOrders = source?.DietOrder,
-            CreatedAt = DateTime.Now
+            ProgressNotes = copy.SubjectiveFindings,
+            TreatmentOrders = copy.Plan,
+            NursingOrders = copy.ActivityOrder,
+            DietOrders = copy.DietOrder,
+            CreatedAt = now
         };
     }
 

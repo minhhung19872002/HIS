@@ -231,10 +231,13 @@ public partial class InpatientCompleteService {
         prescription.TotalAmount = totalAmount;
         prescription.PatientAmount = totalAmount;
         _context.Prescriptions.Add(prescription);
+        // QA-R11 (partial write): the BHYT re-split is a second save — commit it with the order or not at all.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
         await _context.SaveChangesAsync();
         // R3 BHYT: split at prescribing time (no-op for fee patients).
         if (await new BhytVisitPricing(_context).RecalculateAsync(prescription.MedicalRecordId) != null)
             await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         return new InpatientPrescriptionDto
         {
@@ -344,9 +347,11 @@ public partial class InpatientCompleteService {
         prescription.TotalAmount = totalAmount;
         prescription.PatientAmount = totalAmount;
         prescription.InsuranceAmount = 0;
+        await using var tx = await SqlAppLock.BeginAsync(_context); // QA-R11: lines + BHYT split in one transaction
         await _context.SaveChangesAsync();
         if (await new BhytVisitPricing(_context).RecalculateAsync(prescription.MedicalRecordId) != null) // R3 BHYT
             await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         var doctor = await _context.Users.FindAsync(userId);
         var warehouse = await _context.Warehouses.FindAsync(dto.WarehouseId);
@@ -496,14 +501,9 @@ public partial class InpatientCompleteService {
 
     public Task<EmergencyCabinetPrescriptionDto> CreateEmergencyCabinetPrescriptionAsync(Guid admissionId, Guid cabinetId, List<CreateInpatientMedicineItemDto> items, Guid userId)
     {
-        return Task.FromResult(new EmergencyCabinetPrescriptionDto
-        {
-            Id = Guid.NewGuid(),
-            AdmissionId = admissionId,
-            CabinetId = cabinetId,
-            PrescriptionDate = DateTime.Now,
-            Status = 0
-        });
+        // QA-R11: returned a fake prescription with a random id (nothing saved, cabinet stock untouched) — refuse
+        // honestly. The normal prescription path with the cabinet as warehouse is the real way (Gap: cabinet refill).
+        throw new InvalidOperationException("Kê đơn từ tủ trực chưa hỗ trợ riêng — hãy kê đơn nội trú và chọn kho là tủ trực của khoa.");
     }
 
     public async Task<List<object>> GetEmergencyCabinetsAsync(Guid departmentId)
@@ -558,9 +558,17 @@ public partial class InpatientCompleteService {
         return Task.FromResult(instruction);
     }
 
-    public Task SaveUsageTemplateAsync(Guid medicineId, string usage, Guid userId)
+    public async Task SaveUsageTemplateAsync(Guid medicineId, string usage, Guid userId)
     {
-        return Task.CompletedTask;
+        // QA-R11: was a no-op. The catalog already has Medicine.DefaultUsage (the usage text pre-filled when the
+        // medicine is prescribed) — the "usage template" of a medicine is stored there.
+        if (string.IsNullOrWhiteSpace(usage)) throw new ArgumentException("Chưa nhập cách dùng", nameof(usage));
+        var medicine = await _context.Medicines.FirstOrDefaultAsync(m => m.Id == medicineId && !m.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy thuốc");
+        medicine.DefaultUsage = usage.Trim();
+        medicine.UpdatedAt = DateTime.UtcNow;
+        medicine.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
     }
 
     public Task<PrescriptionWarningDto> CheckPrescriptionWarningsAsync(Guid admissionId, List<CreateInpatientMedicineItemDto> items)
@@ -821,20 +829,83 @@ public partial class InpatientCompleteService {
 
     public Task<MedicineOrderSummaryDto> CreateMedicineOrderSummaryAsync(Guid departmentId, DateTime date, Guid? roomId, Guid warehouseId, Guid userId)
     {
-        return Task.FromResult(new MedicineOrderSummaryDto
-        {
-            Id = Guid.NewGuid(),
-            SummaryDate = date,
-            DepartmentId = departmentId,
-            RoomId = roomId,
-            WarehouseId = warehouseId,
-            Status = 0
-        });
+        // QA-R11: returned a random id with nothing saved. The ward's consolidated requisition ("phiếu lĩnh tổng hợp")
+        // is created by the pharmacy screen /v2/inpatient-dispensing (InpatientDispensingService.BatchAsync: stock
+        // deduction + one ExportReceipt per prescription under one XKN code). A second writer here would dispense twice.
+        throw new InvalidOperationException("Lập phiếu lĩnh thuốc tổng hợp tại màn hình Phát thuốc nội trú (khoa dược).");
     }
 
-    public Task<List<MedicineOrderSummaryDto>> GetMedicineOrderSummariesAsync(Guid departmentId, DateTime fromDate, DateTime toDate)
+    public async Task<List<MedicineOrderSummaryDto>> GetMedicineOrderSummariesAsync(Guid departmentId, DateTime fromDate, DateTime toDate)
     {
-        return Task.FromResult(new List<MedicineOrderSummaryDto>());
+        // QA-R11: was always empty. Reads the real requisitions written by the inpatient-dispensing batch:
+        // ExportType 2 receipts to this department, grouped by their shared XKN code.
+        var from = HIS.Core.Common.VnTime.DayRangeVn(fromDate).From;
+        var to = HIS.Core.Common.VnTime.DayRangeVn(toDate).To;
+        var receipts = await _context.ExportReceipts.AsNoTracking()
+            .Include(r => r.Warehouse)
+            .Include(r => r.Details).ThenInclude(d => d.Medicine)
+            .Where(r => !r.IsDeleted && r.ExportType == 2 && r.ToDepartmentId == departmentId && r.Status != 2
+                && r.ReceiptCode.StartsWith("XKN") && r.ReceiptDate >= from && r.ReceiptDate < to)
+            .OrderByDescending(r => r.ReceiptDate)
+            .Take(2000)
+            .ToListAsync();
+        if (receipts.Count == 0) return new List<MedicineOrderSummaryDto>();
+
+        var deptName = await _context.Departments.Where(d => d.Id == departmentId)
+            .Select(d => d.DepartmentName).FirstOrDefaultAsync() ?? string.Empty;
+        var recordIds = receipts.Where(r => r.MedicalRecordId != null).Select(r => r.MedicalRecordId!.Value).Distinct().ToList();
+        var admissions = await _context.Admissions.AsNoTracking()
+            .Where(a => recordIds.Contains(a.MedicalRecordId))
+            .Select(a => new { a.Id, a.MedicalRecordId, a.Patient.PatientCode, a.Patient.FullName, a.AdmissionDate })
+            .ToListAsync();
+        var admissionByRecord = admissions.GroupBy(a => a.MedicalRecordId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(a => a.AdmissionDate).First());
+
+        return receipts.GroupBy(r => r.ReceiptCode).Select(g =>
+        {
+            var first = g.OrderBy(r => r.CreatedAt).First();
+            var lines = g.SelectMany(r => r.Details.Where(d => !d.IsDeleted && d.MedicineId != null)
+                .Select(d => new { Receipt = r, Detail = d })).ToList();
+            return new MedicineOrderSummaryDto
+            {
+                Id = first.Id, // the id /inpatient-dispensing/receipt/{id} prints
+                SummaryDate = first.ReceiptDate,
+                DepartmentId = departmentId,
+                DepartmentName = deptName,
+                WarehouseId = first.WarehouseId,
+                WarehouseName = first.Warehouse?.WarehouseName ?? string.Empty,
+                Status = 1, // the batch dispenses immediately
+                Items = lines.GroupBy(x => x.Detail.MedicineId!.Value).Select(mg =>
+                {
+                    var med = mg.First().Detail.Medicine;
+                    var perPatient = mg.Where(x => x.Receipt.MedicalRecordId != null)
+                        .GroupBy(x => x.Receipt.MedicalRecordId!.Value)
+                        .Select(pg =>
+                        {
+                            admissionByRecord.TryGetValue(pg.Key, out var adm);
+                            return new MedicinePatientDetailDto
+                            {
+                                AdmissionId = adm?.Id ?? Guid.Empty,
+                                PatientCode = adm?.PatientCode ?? string.Empty,
+                                PatientName = adm?.FullName ?? string.Empty,
+                                Quantity = pg.Sum(x => x.Detail.Quantity),
+                            };
+                        }).ToList();
+                    var qty = mg.Sum(x => x.Detail.Quantity);
+                    return new MedicineOrderSummaryItemDto
+                    {
+                        MedicineId = mg.Key,
+                        MedicineCode = med?.MedicineCode ?? string.Empty,
+                        MedicineName = med?.MedicineName ?? string.Empty,
+                        Unit = mg.First().Detail.Unit ?? med?.Unit ?? string.Empty,
+                        TotalQuantity = qty,
+                        IssuedQuantity = qty,
+                        PatientCount = perPatient.Count,
+                        PatientDetails = perPatient,
+                    };
+                }).ToList(),
+            };
+        }).ToList();
     }
 
     public Task<SupplyOrderSummaryDto> CreateSupplyOrderSummaryAsync(Guid departmentId, DateTime date, Guid warehouseId, Guid userId)

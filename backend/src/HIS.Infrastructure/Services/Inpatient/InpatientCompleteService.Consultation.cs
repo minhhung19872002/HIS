@@ -102,7 +102,9 @@ public partial class InpatientCompleteService {
 
     public async Task<List<ConsultationDto>> GetConsultationsAsync(Guid? admissionId, Guid? departmentId, DateTime? fromDate, DateTime? toDate)
     {
-        var query = _context.InpatientConsultations.Include(c => c.Members).AsQueryable();
+        // QA-R11: type 5 = "gửi khám chuyên khoa" rows (specialty-consult endpoints) — not a hội chẩn biên bản.
+        var query = _context.InpatientConsultations.Include(c => c.Members)
+            .Where(c => c.ConsultationType != SpecialtyConsultType).AsQueryable();
         if (admissionId.HasValue && admissionId.Value != Guid.Empty)
             query = query.Where(c => c.AdmissionId == admissionId.Value);
         if (departmentId.HasValue && departmentId.Value != Guid.Empty)
