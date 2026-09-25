@@ -118,6 +118,15 @@ public class PatientAuthService
             return "Số điện thoại chưa khớp với hồ sơ này. Vui lòng liên hệ quầy tiếp đón để cập nhật.";
         }
 
+        // QA-R12: one app account per record — staff tools (StaffLookup summary / reset password) resolve the
+        // account by HisPatientId with FirstOrDefault, so a second account on the same record would be invisible
+        // to the counter. A second link has to go through the counter.
+        if (await _db.Accounts.AnyAsync(a => a.HisPatientId == patient.Id && a.Status == AppAccountStatus.Active, ct))
+        {
+            _logger.LogWarning("Từ chối liên kết hồ sơ {Code}: hồ sơ đã liên kết với tài khoản khác.", patientCode);
+            return "Hồ sơ này đã liên kết với tài khoản khác — vui lòng liên hệ quầy tiếp đón để được hỗ trợ.";
+        }
+
         account.HisPatientId = patient.Id;
         account.HisPatientCode = patient.PatientCode;
         if (string.IsNullOrWhiteSpace(account.FullName)) account.FullName = patient.FullName;

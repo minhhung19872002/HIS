@@ -290,9 +290,34 @@ public partial class SurgeryOperationServiceImpl
 
     public async Task<List<SurgeryServiceOrderDto>> OrderServicesAsync(Guid surgeryId, List<CreateSurgeryServiceOrderDto> dtos, Guid userId)
     {
+        // QA-R12 racescan: a double-click fired two creates — one deadlocked in the BHYT re-split (500), otherwise both
+        // committed. Serialize per surgery, and treat the SAME services from the same user within a few seconds as the
+        // double-submit it is: answer with the rows just created instead of ordering them again.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.Surgery.Orders.{surgeryId:N}",
+            "Ca mổ đang có một chỉ định khác đang được lưu, vui lòng thử lại.");
         var ctx = await LoadSurgeryOrderContextAsync(surgeryId);
-        var ids = await CreateSurgeryOrdersAsync(ctx, dtos, userId);
+        var ids = await FindJustCreatedSurgeryOrdersAsync(surgeryId, dtos, userId)
+                  ?? await CreateSurgeryOrdersAsync(ctx, dtos, userId);
+        if (tx != null) await tx.CommitAsync();
         return await LoadSurgeryOrdersAsync(surgeryId, ids);
+    }
+
+    private async Task<List<Guid>?> FindJustCreatedSurgeryOrdersAsync(Guid surgeryId, List<CreateSurgeryServiceOrderDto> dtos, Guid userId)
+    {
+        if (dtos == null || dtos.Count == 0) return null;
+        var since = HIS.Core.Common.VnTime.NowVn.AddSeconds(-10);
+        var by = userId.ToString();
+        var recent = await _context.ServiceRequestDetails.AsNoTracking()
+            .Where(d => !d.IsDeleted && d.Status != 3 && d.CreatedBy == by
+                        && d.ServiceRequest.SurgeryRequestId == surgeryId && !d.ServiceRequest.IsDeleted
+                        && d.ServiceRequest.RequestDate >= since)
+            .Select(d => new { d.Id, d.ServiceId, d.Quantity })
+            .ToListAsync();
+        if (recent.Count != dtos.Count) return null;
+        var want = dtos.Select(d => (d.ServiceId, (decimal)d.Quantity)).OrderBy(x => x.ServiceId).ThenBy(x => x.Item2).ToList();
+        var have = recent.Select(d => (d.ServiceId, (decimal)d.Quantity)).OrderBy(x => x.ServiceId).ThenBy(x => x.Item2).ToList();
+        return want.SequenceEqual(have) ? recent.Select(d => d.Id).ToList() : null;
     }
 
     public Task<SurgeryPackageOrderDto> OrderPackageAsync(Guid surgeryId, Guid packageId, Guid userId)

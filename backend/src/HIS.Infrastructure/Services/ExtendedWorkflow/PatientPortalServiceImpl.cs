@@ -126,40 +126,89 @@ public partial class PatientPortalServiceImpl : IPatientPortalService
     }
 
     public async Task<bool> LinkPatientRecordAsync(Guid accountId, string patientCode, string verificationData)
+        => (await LinkPatientRecordGuardedAsync(accountId, patientCode, verificationData, null, false)).Success;
+
+    // QA-R12: the only proof of ownership is patient code + phone/CCCD/DOB (a DOB is ~36k values) on an anonymous
+    // endpoint, and register is anonymous too — a per-account lock alone is bypassed by registering more accounts.
+    // Failed attempts are written to AuditLogs (append-only, IX_AuditLogs_Timestamp) and capped per account AND
+    // per client IP over a rolling 24h. The IP cap is higher because a hospital kiosk / Wi-Fi shares one address.
+    public const int MaxFailedLinkPerAccount24h = 5;
+    public const int MaxFailedLinkPerIp24h = 20; // counted over the last hour only (shared hospital Wi-Fi / carrier NAT)
+    private const string LinkFailedAction = "PortalLinkFailed";
+    private const string LinkModule = "PatientPortal";
+
+    public async Task<PortalLinkResultDto> LinkPatientRecordGuardedAsync(
+        Guid accountId, string patientCode, string verificationData, string? ipAddress, bool staffApproved)
     {
-        var account = await _context.PortalAccounts.FindAsync(accountId);
-        if (account == null) return false;
-        // Anonymous endpoint + guessable verification (a birth date is ~36k values): cap attempts per
-        // account and never re-point an account that is already linked to someone else.
-        if (account.LockedUntil.HasValue && account.LockedUntil.Value > DateTime.UtcNow) return false;
+        const string mismatch = "Thông tin xác minh không khớp";
+        var ip = string.IsNullOrWhiteSpace(ipAddress) ? null : ipAddress.Trim();
+
+        if (!staffApproved)
+        {
+            var since = DateTime.UtcNow.AddHours(-24);
+            var fails = _context.AuditLogs.AsNoTracking()
+                .Where(a => a.Timestamp >= since && a.Module == LinkModule && a.Action == LinkFailedAction);
+            var accountKey = accountId.ToString();
+            var ipSince = DateTime.UtcNow.AddHours(-1);
+            if (await fails.CountAsync(a => a.EntityId == accountKey) >= MaxFailedLinkPerAccount24h
+                || (ip != null && await fails.CountAsync(a => a.IpAddress == ip && a.Timestamp >= ipSince) >= MaxFailedLinkPerIp24h))
+                return new PortalLinkResultDto
+                {
+                    Code = "TOO_MANY_ATTEMPTS",
+                    Message = "Đã nhập sai thông tin xác minh quá nhiều lần trong 24 giờ. Vui lòng thử lại sau hoặc liên hệ quầy tiếp đón để được liên kết hồ sơ.",
+                };
+        }
+
+        var account = await _context.PortalAccounts.FirstOrDefaultAsync(a => a.Id == accountId && !a.IsDeleted);
+        if (account == null) { await RecordLinkAuditAsync(LinkFailedAction, accountId, ip, "account_not_found", staffApproved); return new PortalLinkResultDto { Message = mismatch }; }
         var patient = await _context.Patients.FirstOrDefaultAsync(x => x.PatientCode == patientCode);
-        if (patient == null) { await RegisterFailedLinkAttemptAsync(account); return false; }
-        if (account.PatientId.HasValue && account.PatientId.Value != patient.Id) return false;
+        if (patient == null) { await RecordLinkAuditAsync(LinkFailedAction, accountId, ip, "patient_not_found", staffApproved); return new PortalLinkResultDto { Message = mismatch }; }
+        if (account.PatientId.HasValue && account.PatientId.Value != patient.Id)
+            return new PortalLinkResultDto { Message = "Tài khoản này đã liên kết với một hồ sơ khác" };
 
         // R2: BẮT BUỘC verify — verificationData phải khớp SĐT / CCCD / ngày sinh (yyyy-MM-dd) của BN.
         // Trước đây không kiểm tra gì → ai có account đều link được bất kỳ patientCode (IDOR).
         var v = (verificationData ?? "").Trim();
-        if (v.Length == 0) return false;
-        var matches =
+        var matches = v.Length > 0 && (
             (!string.IsNullOrWhiteSpace(patient.PhoneNumber) && string.Equals(patient.PhoneNumber.Trim(), v, StringComparison.Ordinal)) ||
             (!string.IsNullOrWhiteSpace(patient.IdentityNumber) && string.Equals(patient.IdentityNumber.Trim(), v, StringComparison.Ordinal)) ||
-            (patient.DateOfBirth.HasValue && patient.DateOfBirth.Value.ToString("yyyy-MM-dd") == v);
-        if (!matches) { await RegisterFailedLinkAttemptAsync(account); return false; }
+            (patient.DateOfBirth.HasValue && (patient.DateOfBirth.Value.ToString("yyyy-MM-dd") == v
+                                               || patient.DateOfBirth.Value.ToString("dd/MM/yyyy") == v)));
+        if (!matches) { await RecordLinkAuditAsync(LinkFailedAction, accountId, ip, "verification_mismatch", staffApproved); return new PortalLinkResultDto { Message = mismatch }; }
+
+        // Checked only AFTER verification passed, so the answer does not tell a guesser which records have an account.
+        // A record already owned by another active account needs a staff member (counter) to approve the second link.
+        if (!staffApproved && await _context.PortalAccounts.AnyAsync(a => a.Id != account.Id && !a.IsDeleted
+                && a.PatientId == patient.Id && a.Status == "Active"))
+            return new PortalLinkResultDto
+            {
+                Code = "ALREADY_LINKED",
+                Message = "Hồ sơ này đã liên kết với tài khoản khác — vui lòng liên hệ quầy tiếp đón để được hỗ trợ.",
+            };
 
         account.PatientId = patient.Id; account.Status = "Active";
         account.FailedLoginAttempts = 0; account.LockedUntil = null;
         await _context.SaveChangesAsync();
-        return true;
+        await RecordLinkAuditAsync("PortalLinkSuccess", accountId, ip, patient.PatientCode, staffApproved);
+        return new PortalLinkResultDto { Success = true, Code = "OK", Message = "Liên kết thành công" };
     }
 
-    private async Task RegisterFailedLinkAttemptAsync(PortalAccount account)
+    private async Task RecordLinkAuditAsync(string action, Guid accountId, string? ip, string detail, bool staffApproved)
     {
-        account.FailedLoginAttempts++;
-        if (account.FailedLoginAttempts >= 5)
+        _context.AuditLogs.Add(new AuditLog
         {
-            account.LockedUntil = DateTime.UtcNow.AddMinutes(30);
-            account.FailedLoginAttempts = 0;
-        }
+            Id = Guid.NewGuid(),
+            TableName = "PortalAccounts",
+            RecordId = accountId,
+            EntityType = "PortalAccount",
+            EntityId = accountId.ToString(),
+            Action = action,
+            Module = LinkModule,
+            IpAddress = ip,
+            Timestamp = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            Details = System.Text.Json.JsonSerializer.Serialize(new { detail, staffApproved }),
+        });
         await _context.SaveChangesAsync();
     }
 

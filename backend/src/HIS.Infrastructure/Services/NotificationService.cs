@@ -209,7 +209,10 @@ public class NotificationService : INotificationService
         return ServiceOutcome.Ok(new HIS.Application.DTOs.NangCap18.LabResultLinkResultDto
         {
             Success = true,
-            Message = smsSent ? "Đã gửi SMS thành công" : "Đã tạo link nhưng gửi SMS thất bại (link vẫn hoạt động)",
+            // QA-R12: dev mode returns true without sending — say so instead of "đã gửi".
+            Message = !smsSent ? "Đã tạo link nhưng gửi SMS thất bại (link vẫn hoạt động)"
+                : _smsService.IsLiveSending ? "Đã gửi SMS thành công"
+                : "Đã tạo link — SMS đang ở chế độ thử (dev mode), tin nhắn KHÔNG được gửi thật. Hãy đưa link cho người bệnh.",
             AccessUrl = accessUrl,
             ExpiresAt = link.ExpiresAt
         });

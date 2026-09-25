@@ -87,6 +87,28 @@ public class PatientDataScopeGuard : IPatientDataScopeGuard
             "(khoa/phòng/loại điều trị). Liên hệ quản trị nếu cần mở rộng phạm vi.");
     }
 
+    public async Task<PatientListScope?> GetListScopeAsync(CancellationToken ct = default)
+    {
+        // Same fail-open gates as EnsureAsync: anything that returns early there returns null here.
+        var userId = _currentUser.UserGuid;
+        if (userId is null) return null;
+        if (_currentUser.Roles.Any(r => ExemptRoles.Contains(r))) return null;
+
+        var scope = _cachedScope ??= await _dataPermission.GetEffectiveScopeAsync(userId.Value);
+        if (scope.Unrestricted) return null;
+        if (scope.DepartmentIds.Count == 0 && scope.RoomIds.Count == 0
+            && scope.TreatmentTypes.Count == 0 && scope.PatientObjects.Count == 0)
+            return null;
+
+        return new PatientListScope
+        {
+            DepartmentIds = scope.DepartmentIds.ToList(),
+            RoomIds = scope.RoomIds.ToList(),
+            TreatmentTypes = ParseInts(scope.TreatmentTypes),
+            PatientObjects = ParseInts(scope.PatientObjects),
+        };
+    }
+
     private async Task<bool> IsInScopeAsync(Guid patientId, Application.DTOs.System.EffectiveDataScopeDto scope, CancellationToken ct)
     {
         var treatmentTypes = ParseInts(scope.TreatmentTypes);

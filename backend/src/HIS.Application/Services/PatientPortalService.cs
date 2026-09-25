@@ -70,6 +70,9 @@ namespace HIS.Application.Services
             return true;
         }
 
+        public async Task<PortalLinkResultDto> LinkPatientRecordGuardedAsync(Guid accountId, string patientCode, string verificationData, string? ipAddress, bool staffApproved)
+            => new PortalLinkResultDto { Success = await LinkPatientRecordAsync(accountId, patientCode, verificationData), Code = "OK" };
+
         public async Task<eKYCVerificationDto> SubmitEKYCAsync(Guid accountId, eKYCVerificationDto dto)
         {
             _logger.LogInformation("Submitting eKYC for account {AccountId}", accountId);

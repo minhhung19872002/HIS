@@ -130,8 +130,17 @@ namespace HIS.API.Controllers
         [EnableRateLimiting("public-lookup")]
         public async Task<ActionResult> LinkRecord([FromBody] LinkPatientRecordRequestDto dto)
         {
-            var ok = await _service.LinkPatientRecordAsync(dto.AccountId, dto.PatientCode, dto.VerificationData);
-            return Ok(new { success = ok, message = ok ? "Liên kết thành công" : "Thông tin xác minh không khớp" });
+            // QA-R12: a signed-in STAFF token (counter linking on the patient's behalf) is the "staff approval":
+            // no attempt cap and a record already linked to another account may still be linked.
+            var staffApproved = User.Identity?.IsAuthenticated == true && !IsPortalPatient
+                && !User.IsInRole(RoleNames.PatientAppService)
+                && (User.IsInRole(RoleNames.Admin) || User.IsInRole(RoleNames.Receptionist) || User.IsInRole(RoleNames.Manager)
+                    || User.IsInRole(RoleNames.Director) || User.IsInRole(RoleNames.MedicalRecordManager));
+            var r = await _service.LinkPatientRecordGuardedAsync(dto.AccountId, dto.PatientCode, dto.VerificationData,
+                HttpContext.Connection.RemoteIpAddress?.ToString(), staffApproved);
+            if (r.Code == "TOO_MANY_ATTEMPTS")
+                return StatusCode(StatusCodes.Status429TooManyRequests, new { success = false, error = r.Code, message = r.Message });
+            return Ok(new { success = r.Success, code = r.Code, message = r.Message });
         }
 
 

@@ -441,6 +441,11 @@ namespace HIS.Application.Services
         Task<bool> VerifyEmailAsync(Guid accountId, string code);
         Task<bool> VerifyPhoneAsync(Guid accountId, string otp);
         Task<bool> LinkPatientRecordAsync(Guid accountId, string patientCode, string verificationData);
+        /// <summary>
+        /// QA-R12: link with a 24h failed-attempt cap per account and per IP, and a refusal when the record is
+        /// already linked to another active account — both skipped when <paramref name="staffApproved"/>.
+        /// </summary>
+        Task<PortalLinkResultDto> LinkPatientRecordGuardedAsync(Guid accountId, string patientCode, string verificationData, string? ipAddress, bool staffApproved);
         Task<eKYCVerificationDto> SubmitEKYCAsync(Guid accountId, eKYCVerificationDto dto);
         Task<bool> UpdatePreferencesAsync(Guid accountId, PortalAccountDto preferences);
 

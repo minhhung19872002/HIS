@@ -23,4 +23,22 @@ public interface IPatientDataScopeGuard
 
     /// <summary>Same check anchored on one inpatient stay.</summary>
     Task EnsureAdmissionInScopeAsync(Guid admissionId, CancellationToken ct = default);
+
+    /// <summary>
+    /// QA-R12: the scope to apply to LIST queries (the per-record checks above never ran on lists, so a user
+    /// scoped to one department still saw every department in /inpatient/patients and the OPD room list).
+    /// Returns <c>null</c> — "do not filter" — for anonymous / exempt roles / Unrestricted / a group that
+    /// constrains nothing, i.e. every user without a configured scope keeps exactly the same lists.
+    /// </summary>
+    Task<PatientListScope?> GetListScopeAsync(CancellationToken ct = default);
+}
+
+/// <summary>QA-R12: a resolved list scope. A row is visible when it matches ANY non-empty dimension (same
+/// "any" semantics as the per-record guard).</summary>
+public sealed class PatientListScope
+{
+    public List<Guid> DepartmentIds { get; init; } = new();
+    public List<Guid> RoomIds { get; init; } = new();
+    public List<int> TreatmentTypes { get; init; } = new();
+    public List<int> PatientObjects { get; init; } = new();
 }

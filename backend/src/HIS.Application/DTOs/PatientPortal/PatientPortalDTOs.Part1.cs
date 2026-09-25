@@ -18,6 +18,16 @@ namespace HIS.Application.DTOs.PatientPortal
     }
 
     /// <summary>
+    /// QA-R12: kết quả liên kết tài khoản cổng BN ↔ hồ sơ. Code: OK · MISMATCH · TOO_MANY_ATTEMPTS · ALREADY_LINKED.
+    /// </summary>
+    public class PortalLinkResultDto
+    {
+        public bool Success { get; set; }
+        public string Code { get; set; } = "MISMATCH";
+        public string Message { get; set; } = string.Empty;
+    }
+
+    /// <summary>
     /// Tài khoản Patient Portal
     /// </summary>
     public class PortalAccountDto

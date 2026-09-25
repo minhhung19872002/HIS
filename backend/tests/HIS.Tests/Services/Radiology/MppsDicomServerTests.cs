@@ -25,6 +25,7 @@ public sealed class MppsDicomServerTests
         {
             ["PACS:MPPS:Enabled"] = "true",
             ["PACS:MPPS:Port"] = port.ToString(),
+            ["PACS:MPPS:BindAddress"] = "127.0.0.1", // loopback only: no Windows Firewall prompt for testhost
             ["PACS:MPPS:AETitle"] = calledAet,
         };
         var services = new ServiceCollection();

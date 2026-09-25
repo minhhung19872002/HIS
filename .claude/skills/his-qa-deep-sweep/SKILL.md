@@ -76,6 +76,9 @@ Playbook distilled from QA round 1 (`qa-sweep-full-0915`, ~190 fixes) and round 
   `<scratch>/migrations/`, numbered by the coordinator). A prod read-only crawl (block non-GET at `page.route`) shows
   what users actually see. Low-privilege local accounts: copy admin's `PasswordHash` onto them in the local DB.
 - Forbidden zones must be stated in every brief (e.g. digital signature — user order 2026-09-25, see memory).
+- **No popups**: agents' Playwright must be headless; tests that open sockets bind 127.0.0.1 (a 0.0.0.0 listener in
+  `dotnet test` pops a Windows Firewall "allow testhost" dialog for every new `--artifacts-path`); avoid PowerShell for
+  process control. Scanners take `HIS_USER`/`HIS_PASSWORD` (never scan prod as `admin`: single-session kicks real admins).
 - Bash env vars with dots need `env "Logging__LogLevel__Microsoft.X=Information" dotnet …`.
 - v2 pages live in `frontend/src/modules/<m>/pages/`, NOT `pages-v2/`; `src/pages/` is v1 (retiring, must still compile).
 - Git Bash: prefix `docker exec` with `MSYS_NO_PATHCONV=1`; Python on Windows writes CRLF — strip before `comm`.

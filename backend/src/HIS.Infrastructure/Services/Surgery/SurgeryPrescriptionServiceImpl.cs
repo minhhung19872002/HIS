@@ -600,6 +600,24 @@ public class SurgeryPrescriptionServiceImpl : ISurgeryPrescriptionService
             throw new InvalidOperationException("Ca phẫu thuật đã hoàn thành hoặc đã hủy — không kê máu được.");
         await EmrLockGuard.EnsureEditableBySurgeryRequestAsync(_context, surgery.Id); // TT46
         ValidateBloodLines(dto);
+        // QA-R12 racescan: two concurrent submits both inserted a full set of BloodRequests. Serialize per surgery and
+        // answer a same-lines resubmit from the same doctor within a few seconds with the order just created.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.Surgery.Blood.{surgery.Id:N}",
+            "Ca mổ đang có một yêu cầu máu khác đang được lưu, vui lòng thử lại.");
+        var justNow = DateTime.Now.AddSeconds(-10);
+        var recent = await _context.BloodRequests.AsNoTracking()
+            .Where(r => r.SurgeryRequestId == surgery.Id && !r.IsDeleted && r.Status == 0
+                        && r.RequestingDoctorId == userId && r.RequestDate >= justNow)
+            .Select(r => new { r.BloodType, r.RhFactor, r.Quantity })
+            .ToListAsync();
+        if (recent.Count > 0 && recent.Count == dto.BloodProducts.Count
+            && recent.Select(r => $"{r.BloodType}|{r.RhFactor}|{r.Quantity}").OrderBy(x => x)
+                .SequenceEqual(dto.BloodProducts.Select(p => $"{p.BloodType.Trim().ToUpperInvariant()}|{p.RhFactor.Trim()}|{p.Quantity}").OrderBy(x => x)))
+        {
+            if (tx != null) await tx.CommitAsync();
+            return (await GetBloodOrderAsync(surgery.Id))!;
+        }
         Guid? deptId = null;
         if (surgery.MedicalRecordId is Guid recordId)
             deptId = await _context.Admissions.AsNoTracking()
@@ -634,6 +652,7 @@ public class SurgeryPrescriptionServiceImpl : ISurgeryPrescriptionService
             });
         }
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
         return (await GetBloodOrderAsync(surgery.Id))!;
     }
 

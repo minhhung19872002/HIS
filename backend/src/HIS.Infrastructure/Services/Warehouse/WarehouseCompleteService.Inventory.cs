@@ -403,6 +403,11 @@ public partial class WarehouseCompleteService {
         if (warehouseId.HasValue && !await _context.Warehouses.AnyAsync(w => w.Id == warehouseId.Value && !w.IsDeleted))
             throw new KeyNotFoundException("Kho không tồn tại.");
 
+        // QA-R12 racescan: two concurrent saves of a NEW (medicine, warehouse) pair both inserted (no unique index) —
+        // afterwards the warning/suggestion lists read whichever row came first. Serialize the upsert per pair.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.StockThreshold.{dto.MedicineId:N}.{warehouseId ?? Guid.Empty:N}",
+            "Ngưỡng tồn của thuốc này đang được lưu bởi thao tác khác, vui lòng thử lại.");
         var entity = await _context.StockThresholds
             .FirstOrDefaultAsync(t => !t.IsDeleted && t.MedicineId == dto.MedicineId && t.WarehouseId == warehouseId);
         if (entity == null)
@@ -429,6 +434,7 @@ public partial class WarehouseCompleteService {
         entity.ReorderQuantity = dto.ReorderQuantity;
         entity.IsActive = dto.IsActive;
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         dto.Id = entity.Id;
         dto.WarehouseId = warehouseId;

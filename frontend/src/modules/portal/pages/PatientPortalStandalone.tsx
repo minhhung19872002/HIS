@@ -139,8 +139,9 @@ const PortalAuth: React.FC<{ onLogin: (token: string, info: PortalAccountInfo) =
       if (!r.success) { setErr(r.message ?? 'Thông tin xác minh không khớp'); return; }
       setOk('Liên kết thành công — đăng nhập để xem hồ sơ.');
       setMode('login');
-    } catch {
-      setErr('Liên kết thất bại — kiểm tra lại thông tin');
+    } catch (e) {
+      // QA-R12: 429 "nhập sai quá nhiều lần" carries its own message — show it instead of a generic one.
+      setErr(friendlyErrorMessage(e, 'Liên kết thất bại — kiểm tra lại thông tin'));
     } finally { setL(false); }
   };
 

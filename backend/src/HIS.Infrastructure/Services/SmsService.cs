@@ -22,6 +22,13 @@ public interface ISmsService
     Task<bool> TestConnectionAsync();
     Task<SmsLogPagedResult> GetSmsLogsAsync(SmsLogSearchDto search);
     Task<SmsStatsDto> GetSmsStatsAsync(DateTime? fromDate, DateTime? toDate);
+
+    /// <summary>
+    /// QA-R12: true only when a real gateway is configured (Sms:Enabled + ApiKey). In dev mode SendSmsAsync still
+    /// returns true (callers such as OTP must not break), so any caller that TELLS a user "đã gửi SMS" must word
+    /// its message on this flag instead of on the return value.
+    /// </summary>
+    bool IsLiveSending { get; }
 }
 
 public class SmsBalanceDto
@@ -112,6 +119,7 @@ public class SmsService : ISmsService
     private string ApiSecret => _configuration["Sms:ApiSecret"] ?? "";
     private string BrandName => _configuration["Sms:BrandName"] ?? "HIS";
     private bool IsEnabled => bool.Parse(_configuration["Sms:Enabled"] ?? "false");
+    public bool IsLiveSending => IsEnabled && !string.IsNullOrEmpty(ApiKey);
 
     public async Task<bool> SendSmsAsync(string phoneNumber, string message, string messageType = "General", string? patientName = null, string? relatedEntityType = null, Guid? relatedEntityId = null)
     {
@@ -130,7 +138,8 @@ public class SmsService : ISmsService
         if (!IsEnabled || string.IsNullOrEmpty(ApiKey))
         {
             _logger.LogWarning("[SMS-DEV] To: {Phone} | Type: {Type} | Message: {Message}", normalizedPhone, messageType, message);
-            await LogSmsAsync(normalizedPhone, message, messageType, "dev", 2, null, null, patientName, relatedEntityType, relatedEntityId);
+            // QA-R12: status 2 + an explicit note, so the log never reads like a delivered message.
+            await LogSmsAsync(normalizedPhone, message, messageType, "dev", 2, "DevMode — không gửi thật (chưa cấu hình SMS gateway)", null, patientName, relatedEntityType, relatedEntityId);
             return true;
         }
 

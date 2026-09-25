@@ -18,10 +18,12 @@ namespace HIS.API.Controllers;
 public class FollowUpController : ControllerBase
 {
     private readonly IFollowUpService _service;
+    private readonly HIS.Infrastructure.Services.ISmsService _sms;
 
-    public FollowUpController(IFollowUpService service)
+    public FollowUpController(IFollowUpService service, HIS.Infrastructure.Services.ISmsService sms)
     {
         _service = service;
+        _sms = sms;
     }
 
     /// <summary>
@@ -81,7 +83,14 @@ public class FollowUpController : ControllerBase
     public async Task<ActionResult> SendReminder(Guid id)
     {
         await _service.SendReminderAsync(id);
-        return Ok(new { message = "Đã gửi nhắc nhở thành công" });
+        // QA-R12: in SMS dev mode nothing leaves the building — do not tell staff the patient was reminded.
+        return Ok(new
+        {
+            message = _sms.IsLiveSending
+                ? "Đã gửi nhắc nhở thành công"
+                : "SMS đang ở chế độ thử (dev mode): tin nhắc KHÔNG được gửi thật — vui lòng gọi điện nhắc người bệnh.",
+            smsLive = _sms.IsLiveSending,
+        });
     }
 }
 

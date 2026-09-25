@@ -394,6 +394,11 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
         if (staff.PrimaryDepartmentId is not Guid deptId || deptId == Guid.Empty)
             throw new InvalidOperationException($"Nhân viên {staff.FullName} chưa có khoa/phòng — cập nhật hồ sơ trước khi phân ca.");
 
+        // QA-R12 racescan: the overlap check and the roster lookup were read-then-write — a double-click created two
+        // identical shifts (and two rosters for the same department-month). Serialize per department-month.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.HR.Roster.{deptId:N}.{date:yyyyMM}",
+            "Lịch trực của khoa đang được cập nhật bởi thao tác khác, vui lòng thử lại.");
         var start = ShiftStart(date, def.Start);
         var end = ShiftEnd(date, def.Start, def.End);
         var nearby = await _context.DutyShifts.AsNoTracking()
@@ -424,6 +429,7 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
         };
         _context.DutyShifts.Add(shift);
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
         return new DutyShiftDto
         {
             Id = shift.Id, ShiftId = shift.Id, RosterId = roster.Id, ShiftDate = shift.ShiftDate, ShiftType = shift.ShiftType,

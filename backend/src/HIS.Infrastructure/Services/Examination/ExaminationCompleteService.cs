@@ -37,6 +37,8 @@ public partial class ExaminationCompleteService : IExaminationCompleteService
     private readonly ICurrentUserAccessor _currentUser;
     private readonly IPaymentGatewayService _paymentGateway;
     private readonly ITreatmentRelationshipService _treatRel;
+    // QA-R12: department data scope for LIST queries (null = unrestricted → lists unchanged).
+    private readonly IPatientDataScopeGuard _scopeGuard;
 
     public ExaminationCompleteService(
         HISDbContext context,
@@ -48,7 +50,8 @@ public partial class ExaminationCompleteService : IExaminationCompleteService
         IUnitOfWork unitOfWork,
         ICurrentUserAccessor currentUser,
         IPaymentGatewayService paymentGateway,
-        ITreatmentRelationshipService treatRel)
+        ITreatmentRelationshipService treatRel,
+        IPatientDataScopeGuard scopeGuard)
     {
         _context = context;
         _patientRepo = patientRepo;
@@ -60,6 +63,7 @@ public partial class ExaminationCompleteService : IExaminationCompleteService
         _currentUser = currentUser;
         _paymentGateway = paymentGateway;
         _treatRel = treatRel;
+        _scopeGuard = scopeGuard;
     }
 
     // Đọc người dùng hiện tại qua ICurrentUserAccessor (canonical claim) — #200 REFAC-1.

@@ -36,7 +36,12 @@ public sealed class MppsDicomServerHostedService : IHostedService, IDisposable
         var port = _configuration.GetValue<int>("PACS:MPPS:Port", 11114);
         try
         {
-            _server = _serverFactory.Create<MppsDicomService>(port);
+            // PACS:MPPS:BindAddress (default: all interfaces, as before). Tests bind 127.0.0.1 so Windows Firewall
+            // never prompts for testhost.exe.
+            var bindAddress = _configuration["PACS:MPPS:BindAddress"];
+            _server = string.IsNullOrWhiteSpace(bindAddress)
+                ? _serverFactory.Create<MppsDicomService>(port)
+                : _serverFactory.Create<MppsDicomService>(bindAddress, port);
         }
         catch (Exception ex)
         {

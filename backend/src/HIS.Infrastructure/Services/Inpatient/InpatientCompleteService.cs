@@ -32,6 +32,8 @@ public partial class InpatientCompleteService : IInpatientCompleteService
     private readonly IPaymentGatewayService _paymentGateway;
     private readonly ICurrentUserAccessor _currentUser;
     private readonly ITreatmentRelationshipService _treatRel;
+    // QA-R12: department data scope for LIST queries (null = unrestricted → lists unchanged).
+    private readonly IPatientDataScopeGuard _scopeGuard;
 
     public InpatientCompleteService(
         HISDbContext context,
@@ -46,7 +48,8 @@ public partial class InpatientCompleteService : IInpatientCompleteService
         IUnitOfWork unitOfWork,
         IPaymentGatewayService paymentGateway,
         ICurrentUserAccessor currentUser,
-        ITreatmentRelationshipService treatRel)
+        ITreatmentRelationshipService treatRel,
+        IPatientDataScopeGuard scopeGuard)
     {
         _context = context;
         _patientRepo = patientRepo;
@@ -61,6 +64,7 @@ public partial class InpatientCompleteService : IInpatientCompleteService
         _paymentGateway = paymentGateway;
         _currentUser = currentUser;
         _treatRel = treatRel;
+        _scopeGuard = scopeGuard;
     }
 
 

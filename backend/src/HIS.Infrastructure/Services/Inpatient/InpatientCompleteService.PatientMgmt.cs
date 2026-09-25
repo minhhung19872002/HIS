@@ -33,6 +33,21 @@ public partial class InpatientCompleteService {
             // endpoint is keyed by admissionId, so only list records that actually have a stay.
             .Where(m => _context.Set<Admission>().Any(a => a.MedicalRecordId == m.Id && !a.IsDeleted));
 
+        // QA-R12: department data scope on the LIST (was only checked per record). null = no scope → unchanged.
+        var listScope = await _scopeGuard.GetListScopeAsync();
+        if (listScope != null)
+        {
+            var sDepts = listScope.DepartmentIds; var sRooms = listScope.RoomIds;
+            var sTypes = listScope.TreatmentTypes; var sObjs = listScope.PatientObjects;
+            bool hasDepts = sDepts.Count > 0, hasRooms = sRooms.Count > 0, hasTypes = sTypes.Count > 0, hasObjs = sObjs.Count > 0;
+            query = query.Where(m =>
+                (hasDepts && ((m.DepartmentId != null && sDepts.Contains(m.DepartmentId.Value))
+                    || _context.Set<Admission>().Any(a => a.MedicalRecordId == m.Id && !a.IsDeleted && sDepts.Contains(a.DepartmentId))))
+                || (hasRooms && m.RoomId != null && sRooms.Contains(m.RoomId.Value))
+                || (hasTypes && sTypes.Contains(m.TreatmentType))
+                || (hasObjs && sObjs.Contains(m.PatientType)));
+        }
+
         // Apply filters
         if (searchDto.FromDate.HasValue)
             query = query.Where(m => m.AdmissionDate >= searchDto.FromDate.Value);
@@ -869,6 +884,20 @@ public partial class InpatientCompleteService {
         if (dto.SpecialtyDepartmentId == admission.DepartmentId)
             throw new InvalidOperationException("Khoa chuyên khoa trùng khoa đang điều trị — dùng Hội chẩn khoa.");
         await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, dto.AdmissionId); // TT46
+        // QA-R12 racescan: a double-submit created two pending requests. Serialize per stay; a request to the same
+        // specialty that is still pending IS the request — answer with it instead of creating a second one.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.Inpatient.SpecialtyConsult.{dto.AdmissionId:N}",
+            "Lượt nội trú đang có một yêu cầu khám chuyên khoa khác đang được lưu, vui lòng thử lại.");
+        var pendingId = await _context.InpatientConsultations.AsNoTracking()
+            .Where(c => c.AdmissionId == dto.AdmissionId && c.ConsultationType == SpecialtyConsultType && !c.IsDeleted
+                        && c.Status == 0 && c.SpecialtyDepartmentId == dto.SpecialtyDepartmentId)
+            .Select(c => (Guid?)c.Id).FirstOrDefaultAsync();
+        if (pendingId is Guid existing)
+        {
+            if (tx != null) await tx.CommitAsync();
+            return (await LoadSpecialtyConsultsAsync(q => q.Where(c => c.Id == existing))).First();
+        }
         var now = DateTime.Now;
         var entity = new InpatientConsultation
         {
@@ -888,6 +917,7 @@ public partial class InpatientCompleteService {
         };
         _context.InpatientConsultations.Add(entity);
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
         return (await LoadSpecialtyConsultsAsync(q => q.Where(c => c.Id == entity.Id))).First();
     }
 
@@ -980,6 +1010,20 @@ public partial class InpatientCompleteService {
             throw new InvalidOperationException("Ngày mổ phiên dự kiến đã qua.");
         await EmrLockGuard.EnsureEditableByRecordAsync(_context, admission.MedicalRecordId); // TT46
 
+        // QA-R12: no guard at all — a double-click put the patient on the surgery list twice. Serialize per record and
+        // treat an identical pending ward request from the same doctor within a few seconds as that double-submit.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, $"HIS.Inpatient.SurgeryTransfer.{admission.MedicalRecordId:N}",
+            "Hồ sơ đang có một yêu cầu chuyển mổ khác đang được lưu, vui lòng thử lại.");
+        var justNow = DateTime.Now.AddSeconds(-10);
+        var priority = emergency ? 3 : 1;
+        if (await _context.SurgeryRequests.AnyAsync(r => r.MedicalRecordId == admission.MedicalRecordId && !r.IsDeleted
+                && r.Status == 0 && r.RequestingDoctorId == userId && r.Priority == priority && r.RequestDate >= justNow))
+        {
+            if (tx != null) await tx.CommitAsync();
+            return true;
+        }
+
         var now = DateTime.Now;
         var notes = new List<string>();
         if (dto.ScheduledDate != default)
@@ -1005,6 +1049,7 @@ public partial class InpatientCompleteService {
             CreatedBy = userId.ToString(),
         });
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
         return true;
     }
 

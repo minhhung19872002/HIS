@@ -29,7 +29,11 @@ def req(method, url, body=None, token=None, timeout=90):
         return -1, str(e).encode()
 
 
-def login(base, user="admin", password="Admin@123"):
+def login(base, user=None, password=None):
+    # HIS_USER / HIS_PASSWORD override the default admin — on prod use a dedicated qa account: admin is
+    # single-session, so a scan logging in as admin kicks the real administrators out.
+    user = user or os.environ.get("HIS_USER", "admin")
+    password = password or os.environ.get("HIS_PASSWORD", "Admin@123")
     _, b = req("POST", base + "/api/auth/login", {"username": user, "password": password})
     j = json.loads(b)
     return (j.get("data") or {}).get("token") or j.get("token")
