@@ -31,6 +31,7 @@ public class NotificationHub : Hub
             await Groups.AddToGroupAsync(Context.ConnectionId, SecurityAlertsGroup);
         }
 
+        UserConnectionRegistry.Add(Context); // QA-R11: revoked sessions lose their socket
         await base.OnConnectedAsync();
     }
 
@@ -44,6 +45,7 @@ public class NotificationHub : Hub
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"user_{userId}");
         }
 
+        UserConnectionRegistry.Remove(Context);
         await base.OnDisconnectedAsync(exception);
     }
 

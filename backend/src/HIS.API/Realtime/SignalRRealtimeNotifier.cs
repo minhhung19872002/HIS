@@ -14,8 +14,21 @@ namespace HIS.API.Realtime;
 public class SignalRRealtimeNotifier : IRealtimeNotifier
 {
     private readonly IHubContext<NotificationHub> _hub;
+    private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache? _cache;
 
-    public SignalRRealtimeNotifier(IHubContext<NotificationHub> hub) => _hub = hub;
+    public SignalRRealtimeNotifier(IHubContext<NotificationHub> hub, IServiceProvider services)
+    {
+        _hub = hub;
+        _cache = services.GetService(typeof(Microsoft.Extensions.Caching.Memory.IMemoryCache)) as Microsoft.Extensions.Caching.Memory.IMemoryCache;
+    }
+
+    public Task DisconnectUserAsync(Guid userId, CancellationToken ct = default)
+    {
+        // Same key as the OnTokenValidated stamp cache in Program.cs.
+        _cache?.Remove($"secstamp:{userId}");
+        UserConnectionRegistry.AbortUser(userId);
+        return Task.CompletedTask;
+    }
 
     public Task NotifyAiQueueUpdatedAsync(int addedCount, CancellationToken ct = default)
         => _hub.Clients.All.SendAsync("ReceiveAiQueueUpdate", new { addedCount, at = DateTime.UtcNow }, ct);

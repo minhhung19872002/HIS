@@ -103,9 +103,8 @@ builder.Services.AddControllers(options =>
                 .Select(kv => new
                 {
                     Field = kv.Key,
-                    Message = kv.Value!.Errors[0].ErrorMessage
-                              ?? kv.Value.Errors[0].Exception?.Message
-                              ?? "Giá trị không hợp lệ."
+                    Message = SanitizeModelError(kv.Value!.Errors[0].ErrorMessage
+                              ?? kv.Value.Errors[0].Exception?.Message)
                 })
                 .FirstOrDefault();
 
@@ -536,6 +535,22 @@ if (serveClientApp)
 }
 
 app.Run();
+
+// QA-R11: model-binding messages from System.Text.Json ("The JSON value could not be converted to
+// HIS.Application.DTOs.X. Path: $ | LineNumber...") leaked internal type names and parser positions to any
+// client. Keep DataAnnotations messages (written for users), replace parser/converter text with a plain one.
+static string SanitizeModelError(string? message)
+{
+    if (string.IsNullOrWhiteSpace(message)) return "Giá trị không hợp lệ.";
+    if (message.Contains("HIS.", StringComparison.Ordinal)
+        || message.Contains("System.", StringComparison.Ordinal)
+        || message.Contains("LineNumber", StringComparison.Ordinal)
+        || message.Contains("BytePosition", StringComparison.Ordinal)
+        || message.Contains("JSON", StringComparison.OrdinalIgnoreCase)
+        || message.Contains("Path: $", StringComparison.Ordinal))
+        return "Giá trị không hợp lệ hoặc sai định dạng dữ liệu.";
+    return message;
+}
 
 static string[] GetCorsOrigins(IConfiguration configuration)
 {

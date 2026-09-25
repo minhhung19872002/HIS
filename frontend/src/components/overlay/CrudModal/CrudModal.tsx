@@ -51,9 +51,15 @@ export const CrudModal: React.FC<{
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const editing = !!(initial && initial.id);
-  const dateKeys = useMemo(() => fields.filter((f) => f.type === 'date').map((f) => f.key), [fields]);
+  // QA-R11: keyed by CONTENT, not identity. A page whose field list is rebuilt on every keystroke (autocomplete with
+  // async options — Immunization "Bệnh nhân") or that passes `initial={{…}}` inline re-ran the reset below on each
+  // parent render: the typed search text was wiped as soon as the options arrived, so no patient could be picked.
+  const dateSig = fields.filter((f) => f.type === 'date').map((f) => f.key).join('|');
+  const dateKeys = useMemo(() => (dateSig ? dateSig.split('|') : []), [dateSig]);
   // Field giờ nhận/trả CHUỖI 'HH:mm' (khớp DTO backend), chỉ dayjs hoá ở trong form.
-  const timeKeys = useMemo(() => fields.filter((f) => f.type === 'time').map((f) => f.key), [fields]);
+  const timeSig = fields.filter((f) => f.type === 'time').map((f) => f.key).join('|');
+  const timeKeys = useMemo(() => (timeSig ? timeSig.split('|') : []), [timeSig]);
+  const initialSig = useMemo(() => { try { return JSON.stringify(initial ?? null); } catch { return ''; } }, [initial]);
   useEffect(() => {
     if (!open) return;
     form.resetFields();
@@ -63,7 +69,8 @@ export const CrudModal: React.FC<{
       timeKeys.forEach((k) => { if (v[k] && !dayjs.isDayjs(v[k])) v[k] = dayjs(String(v[k]).slice(0, 5), TIME_FMT); });
       form.setFieldsValue(v);
     }
-  }, [open, initial, form, dateKeys, timeKeys]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `initial` is tracked through initialSig (content)
+  }, [open, initialSig, form, dateKeys, timeKeys]);
   const submit = async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let v: Record<string, any>;

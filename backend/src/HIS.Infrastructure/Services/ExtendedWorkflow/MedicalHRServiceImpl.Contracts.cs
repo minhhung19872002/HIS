@@ -34,7 +34,18 @@ public partial class MedicalHRServiceImpl
 
     public async Task<HRCatalogDto> SaveCatalogAsync(SaveHRCatalogDto dto)
     {
+        // QA-R11: no code/type/name check — blank rows and duplicate codes inside one catalog type were saved.
+        if (string.IsNullOrWhiteSpace(dto.CatalogType)) throw new ArgumentException("Loại danh mục là bắt buộc", nameof(dto.CatalogType));
+        if (string.IsNullOrWhiteSpace(dto.Code)) throw new ArgumentException("Mã danh mục là bắt buộc", nameof(dto.Code));
+        if (string.IsNullOrWhiteSpace(dto.Name)) throw new ArgumentException("Tên danh mục là bắt buộc", nameof(dto.Name));
+        dto.Code = dto.Code.Trim(); dto.Name = dto.Name.Trim();
+        var selfId = dto.Id ?? Guid.Empty;
         var entity = dto.Id.HasValue ? await _context.HRCatalogs.FindAsync(dto.Id.Value) : null;
+        // Only when the code/type is new or changed: legacy duplicates must stay editable (pre-push review).
+        var codeChanged = entity == null || entity.Code != dto.Code || entity.CatalogType != dto.CatalogType;
+        if (codeChanged && await _context.HRCatalogs.AnyAsync(x => x.CatalogType == dto.CatalogType && x.Code == dto.Code && x.Id != selfId && !x.IsDeleted))
+            throw new InvalidOperationException($"Mã {dto.Code} đã tồn tại trong danh mục {dto.CatalogType}");
+        if (dto.Id.HasValue && entity == null) throw new KeyNotFoundException("Không tìm thấy mục danh mục");
         if (entity == null)
         {
             entity = new HRCatalog { Id = Guid.NewGuid(), CreatedAt = DateTime.Now };

@@ -15,6 +15,9 @@ public interface IEmailService
     Task<bool> SendBookingReminderAsync(string toEmail, string patientName, string appointmentCode, DateTime appointmentDate, TimeSpan? appointmentTime, string? departmentName);
     /// <summary>Gửi báo cáo đính kèm qua email. MockMode: log + return true khi chưa cấu hình SMTP.</summary>
     Task<bool> SendReportAsync(string toEmail, string reportName, byte[] attachment, string attachmentName);
+    /// <summary>QA-R11: false = SMTP not configured, the Send* methods only log and return true (nothing is sent).
+    /// Callers that tell the user "đã gửi" must check it.</summary>
+    bool IsSmtpConfigured => true;
 }
 
 public class EmailService : IEmailService
@@ -27,6 +30,9 @@ public class EmailService : IEmailService
         _configuration = configuration;
         _logger = logger;
     }
+
+    public bool IsSmtpConfigured =>
+        !string.IsNullOrEmpty(_configuration["Email:Username"]) && !string.IsNullOrEmpty(_configuration["Email:Password"]);
 
     public async Task<bool> SendOtpAsync(string toEmail, string otpCode, int validityMinutes)
     {

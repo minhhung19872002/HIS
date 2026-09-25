@@ -354,6 +354,10 @@ public partial class SystemCompleteService
             throw new InvalidOperationException("Khoa/phòng còn phòng/buồng trực thuộc — xóa phòng trước khi xóa khoa.");
         if (await _context.Departments.AnyAsync(d => d.ParentId == departmentId && !d.IsDeleted))
             throw new InvalidOperationException("Khoa/phòng còn đơn vị con trực thuộc.");
+        // QA-R11: patients still being treated in the department.
+        if (await _context.Admissions.AnyAsync(a => a.DepartmentId == departmentId && !a.IsDeleted
+                && (a.Status == HIS.Core.Constants.AdmissionStatus.InTreatment || a.Status == HIS.Core.Constants.AdmissionStatus.PendingDischarge)))
+            throw new InvalidOperationException("Khoa/phòng còn bệnh nhân đang điều trị nội trú — không thể xóa.");
         return await SoftDeleteEntityAsync<Department>(departmentId);
     }
 
@@ -468,6 +472,17 @@ public partial class SystemCompleteService
 
     public async Task<bool> DeleteRoomAsync(Guid roomId)
     {
+        // QA-R11: a room with beds / patients queued today was soft-deleted silently.
+        if (await _context.Beds.AnyAsync(b => b.RoomId == roomId && !b.IsDeleted))
+            throw new InvalidOperationException("Phòng còn giường trực thuộc — xóa giường trước khi xóa phòng.");
+        var todayVn = HIS.Core.Common.VnTime.NowVn.Date;
+        if (await _context.QueueTickets.AnyAsync(q => q.RoomId == roomId && !q.IsDeleted
+                && q.IssueDate >= todayVn && q.IssueDate < todayVn.AddDays(1)
+                && (q.Status == 0 || q.Status == 1 || q.Status == 2)))
+            throw new InvalidOperationException("Phòng đang có bệnh nhân chờ/đang phục vụ trong ngày — không thể xóa.");
+        if (await _context.Admissions.AnyAsync(a => a.RoomId == roomId && !a.IsDeleted
+                && (a.Status == HIS.Core.Constants.AdmissionStatus.InTreatment || a.Status == HIS.Core.Constants.AdmissionStatus.PendingDischarge)))
+            throw new InvalidOperationException("Phòng còn bệnh nhân đang điều trị nội trú — không thể xóa.");
         return await SoftDeleteEntityAsync<Room>(roomId);
     }
 
@@ -580,6 +595,9 @@ public partial class SystemCompleteService
 
     public async Task<bool> DeleteBedAsync(Guid bedId)
     {
+        // QA-R11: an occupied bed (active assignment) was soft-deleted silently.
+        if (await _context.BedAssignments.AnyAsync(b => b.BedId == bedId && !b.IsDeleted && b.Status == 0 && b.ReleasedAt == null))
+            throw new InvalidOperationException("Giường đang có bệnh nhân nằm — trả/chuyển giường trước khi xóa.");
         return await SoftDeleteEntityAsync<Bed>(bedId);
     }
 
@@ -599,6 +617,9 @@ public partial class SystemCompleteService
                 query = query.Where(u => u.DepartmentId == departmentId.Value);
             if (isActive.HasValue)
                 query = query.Where(u => u.IsActive == isActive.Value);
+            // QA-R11: position was accepted but never applied (Position on the DTO is User.Title).
+            if (!string.IsNullOrWhiteSpace(position))
+                query = query.Where(u => u.Title == position);
 
             var items = await query.OrderBy(u => u.FullName).Take(500).ToListAsync();
             return items.Select(u => new EmployeeCatalogDto
@@ -684,7 +705,9 @@ public partial class SystemCompleteService
 
     public async Task<bool> DeleteEmployeeAsync(Guid employeeId)
     {
-        return await SoftDeleteEntityAsync<User>(employeeId);
+        // QA-R11: this path soft-deleted the User directly, bypassing DeleteUserAsync's guards (self-delete,
+        // last admin) and session/token revocation. Same record → same rules.
+        return await DeleteUserAsync(employeeId);
     }
 
     // 13.9 Danh muc nha cung cap

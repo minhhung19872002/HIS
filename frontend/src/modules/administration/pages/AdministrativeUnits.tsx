@@ -18,6 +18,7 @@ import {
 } from '@/_v2kit';
 import { useModalForm } from '../../../hooks/useModalForm';
 import { useTabState } from '../../../hooks/useTabState';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 type TabKey = 'province' | 'district' | 'ward';
 
@@ -158,7 +159,7 @@ const AdministrativeUnitsV2: React.FC = () => {
       tk(edit.id ? 'Đã cập nhật' : 'Đã thêm mới');
       setEdit(null);
       void reload();
-    } catch { te('Lưu thất bại'); }
+    } catch (e) { te(friendlyErrorMessage(e, 'Lưu thất bại')); }
     finally { setSaving(false); }
   };
 

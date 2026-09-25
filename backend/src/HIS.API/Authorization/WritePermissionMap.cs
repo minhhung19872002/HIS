@@ -108,6 +108,9 @@ public static class WritePermissionMap
             ["PrescribeByTemplate"] = PermissionCatalog.Prescription.Create,
             ["UpdatePrescription"] = PermissionCatalog.Prescription.Update,
             ["DeletePrescription"] = PermissionCatalog.Prescription.Cancel,
+            // QA-R11: "chuyển mổ" now creates a real surgery request — same permission as creating one on the surgery screen.
+            ["TransferToScheduledSurgery"] = PermissionCatalog.Surgery.Create,
+            ["TransferToEmergencySurgery"] = PermissionCatalog.Surgery.Create,
         }),
         ["ObservationStay"] = new(PermissionCatalog.Inpatient.Update, PermissionCatalog.Inpatient.Read),
 
@@ -275,6 +278,8 @@ public static class WritePermissionMap
             ["InvestigateIncident"] = PermissionCatalog.System.Configure,
             ["CloseIncident"] = PermissionCatalog.System.Configure,
             ["CreateAuditPlan"] = PermissionCatalog.System.Configure,
+            ["ApproveAuditPlan"] = PermissionCatalog.System.Configure,
+            ["SubmitAuditResult"] = PermissionCatalog.System.Configure,
             ["AddCorrectiveAction"] = PermissionCatalog.System.Configure,
             ["UpdateCorrectiveActionStatus"] = PermissionCatalog.System.Configure,
         }),

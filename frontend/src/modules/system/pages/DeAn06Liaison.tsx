@@ -30,6 +30,30 @@ const DA06_STATUS: { v: number; l: string; tone: StatusTone }[] = [
 ];
 const da06Tone = (s: number): StatusTone => DA06_STATUS.find((x) => x.v === s)?.tone || 'info';
 const da06Label = (s: number): string => DA06_STATUS.find((x) => x.v === s)?.l || '—';
+// QA-R11: acks of the InMemory Đề án 06 fake (server NationalGateway:MockMode=true) carry a "MOCK-" id — not a receipt
+// from gdbhyt.baohiemxahoi.gov.vn, but they were shown and counted as "Cổng xác nhận".
+const isMockAck = (id?: string | null) => !!id && id.startsWith('MOCK-');
+type Da06Row = { da06Status: number; da06StatusName?: string; da06SubmissionId?: string; da06ErrorMessage?: string };
+const Da06Badge: React.FC<{ r: Da06Row }> = ({ r }) => {
+  const name = r.da06StatusName || da06Label(r.da06Status);
+  return isMockAck(r.da06SubmissionId)
+    ? <StatusBadge tone="info" dot>{name.includes('MOCK') ? name : `${name} (MOCK — chưa gửi cổng thật)`}</StatusBadge>
+    : <StatusBadge tone={da06Tone(r.da06Status)} dot>{name}</StatusBadge>;
+};
+const Da06Fields: React.FC<{ r: Da06Row }> = ({ r }) => (
+  <>
+    <DrField lbl="Trạng thái"><Da06Badge r={r} /></DrField>
+    <DrField lbl="Mã tiếp nhận"><span className="mono">{r.da06SubmissionId || '—'}</span></DrField>
+    {r.da06ErrorMessage && <DrField lbl="Lỗi"><span style={{ color: 'var(--s-crit)' }}>{r.da06ErrorMessage}</span></DrField>}
+  </>
+);
+const da06Kpis = (rows: Da06Row[], total: string): KpiItem[] => [
+  { lbl: total,           val: rows.length },
+  { lbl: 'Cổng xác nhận', val: rows.filter((r) => r.da06Status === 2 && !isMockAck(r.da06SubmissionId)).length, tone: 'ok' },
+  { lbl: 'Chưa gửi',      val: rows.filter((r) => r.da06Status === 0).length, tone: 'warn' },
+  { lbl: 'Lỗi',           val: rows.filter((r) => r.da06Status === 3).length, tone: 'crit' },
+  { lbl: 'Mock (chưa gửi thật)', val: rows.filter((r) => isMockAck(r.da06SubmissionId)).length, tone: 'info' },
+];
 
 const DeAn06LiaisonV2: React.FC = () => {
   const [tab, setTab] = useState<TabKey>('birth');
@@ -65,12 +89,7 @@ const BirthTab: React.FC = () => {
     finally { setBusy(false); }
   };
 
-  const kpis: KpiItem[] = [
-    { lbl: 'Tổng GCS',      val: rows.length },
-    { lbl: 'Cổng xác nhận', val: rows.filter((r) => r.da06Status === 2).length, tone: 'ok' },
-    { lbl: 'Chưa gửi',      val: rows.filter((r) => r.da06Status === 0).length, tone: 'warn' },
-    { lbl: 'Lỗi',           val: rows.filter((r) => r.da06Status === 3).length, tone: 'crit' },
-  ];
+  const kpis = da06Kpis(rows, 'Tổng GCS');
 
   const columns: ColumnDef<BirthCertificateDto>[] = [
     { key: 'certificateNumber', label: 'Số GCS', mono: true, code: true, width: 200 },
@@ -90,7 +109,7 @@ const BirthTab: React.FC = () => {
     { key: 'isLiveBirth', label: 'Sống/Chết', width: 110,
       render: (r) => r.isLiveBirth ? 'Sống' : <span style={{ color: 'var(--s-crit)' }}>Chết lưu</span> },
     { key: 'da06Status', label: 'Đề án 06', width: 160,
-      render: (r) => <StatusBadge tone={da06Tone(r.da06Status)} dot>{r.da06StatusName || da06Label(r.da06Status)}</StatusBadge> },
+      render: (r) => <Da06Badge r={r} /> },
   ];
 
   return (
@@ -137,9 +156,7 @@ const BirthTab: React.FC = () => {
               <DrField lbl="Nơi sinh">{detail.birthLocation}</DrField>
             </DrSec>
             <DrSec title="ĐỀ ÁN 06">
-              <DrField lbl="Trạng thái">
-                <StatusBadge tone={da06Tone(detail.da06Status)} dot>{detail.da06StatusName}</StatusBadge>
-              </DrField>
+              <Da06Fields r={detail} />
             </DrSec>
           </>
         )}
@@ -166,12 +183,7 @@ const DeathTab: React.FC = () => {
     finally { setBusy(false); }
   };
 
-  const kpis: KpiItem[] = [
-    { lbl: 'Tổng GBT',      val: rows.length },
-    { lbl: 'Cổng xác nhận', val: rows.filter((r) => r.da06Status === 2).length, tone: 'ok' },
-    { lbl: 'Chưa gửi',      val: rows.filter((r) => r.da06Status === 0).length, tone: 'warn' },
-    { lbl: 'Lỗi',           val: rows.filter((r) => r.da06Status === 3).length, tone: 'crit' },
-  ];
+  const kpis = da06Kpis(rows, 'Tổng GBT');
 
   const columns: ColumnDef<DeathCertificateDto>[] = [
     { key: 'certificateNumber', label: 'Số GBT', mono: true, code: true, width: 200 },
@@ -193,7 +205,7 @@ const DeathTab: React.FC = () => {
       ) },
     { key: 'mannerOfDeath', label: 'Kiểu', width: 110 },
     { key: 'da06Status', label: 'Đề án 06', width: 160,
-      render: (r) => <StatusBadge tone={da06Tone(r.da06Status)} dot>{r.da06StatusName || da06Label(r.da06Status)}</StatusBadge> },
+      render: (r) => <Da06Badge r={r} /> },
   ];
 
   return (
@@ -245,9 +257,7 @@ const DeathTab: React.FC = () => {
               <DrField lbl="Quan hệ">{detail.informantRelationship || '—'}</DrField>
             </DrSec>
             <DrSec title="ĐỀ ÁN 06">
-              <DrField lbl="Trạng thái">
-                <StatusBadge tone={da06Tone(detail.da06Status)} dot>{detail.da06StatusName}</StatusBadge>
-              </DrField>
+              <Da06Fields r={detail} />
             </DrSec>
           </>
         )}
@@ -274,12 +284,7 @@ const DlhcTab: React.FC = () => {
     finally { setBusy(false); }
   };
 
-  const kpis: KpiItem[] = [
-    { lbl: 'Tổng GCN',      val: rows.length },
-    { lbl: 'Cổng xác nhận', val: rows.filter((r) => r.da06Status === 2).length, tone: 'ok' },
-    { lbl: 'Chưa gửi',      val: rows.filter((r) => r.da06Status === 0).length, tone: 'warn' },
-    { lbl: 'Lỗi',           val: rows.filter((r) => r.da06Status === 3).length, tone: 'crit' },
-  ];
+  const kpis = da06Kpis(rows, 'Tổng GCN');
 
   const columns: ColumnDef<DrivingLicenseHealthCheckDto>[] = [
     { key: 'certificateNumber', label: 'Số GCN', mono: true, code: true, width: 220 },
@@ -299,7 +304,7 @@ const DlhcTab: React.FC = () => {
         ? <StatusBadge tone="ok" dot>Đủ</StatusBadge>
         : <StatusBadge tone="crit" dot>Không</StatusBadge> },
     { key: 'da06Status', label: 'Đề án 06', width: 160,
-      render: (r) => <StatusBadge tone={da06Tone(r.da06Status)} dot>{r.da06StatusName || da06Label(r.da06Status)}</StatusBadge> },
+      render: (r) => <Da06Badge r={r} /> },
   ];
 
   return (
@@ -376,9 +381,7 @@ const DlhcTab: React.FC = () => {
               <DrField lbl="BS chứng nhận">{detail.certifyingDoctorName || '—'}</DrField>
             </DrSec>
             <DrSec title="ĐỀ ÁN 06">
-              <DrField lbl="Trạng thái">
-                <StatusBadge tone={da06Tone(detail.da06Status)} dot>{detail.da06StatusName}</StatusBadge>
-              </DrField>
+              <Da06Fields r={detail} />
             </DrSec>
           </>
         )}

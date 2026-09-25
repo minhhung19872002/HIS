@@ -77,6 +77,7 @@ public class AuditLogMiddleware
         { "/api/prescription", "Prescription" },
         { "/api/patients", "Patient" },
         { "/api/admin", "SystemAdmin" },
+        { "/api/data-permission", "SystemAdmin" }, // QA-R11: data-scope grants were logged as module "Unknown"
         { "/api/catalog", "MasterData" },
         { "/api/reports", "Reports" },
         { "/api/data-inheritance", "DataInheritance" },

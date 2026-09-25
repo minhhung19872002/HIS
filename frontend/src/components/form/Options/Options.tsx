@@ -92,6 +92,19 @@ export const AutoCompleteField: React.FC<{
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => onSearch(kw), debounce);
   };
+  if (onSearch) {
+    // Remote search = an id picker (every current use binds patientId). AutoComplete would show the raw id
+    // after picking and let free text through as the "id" (BE 400); a searchable Select shows the label and
+    // only accepts a picked option.
+    return (
+      <Select
+        showSearch value={value || undefined} onChange={(v) => onChange?.(v ?? '')} onSearch={handleSearch}
+        allowClear={allowClear} disabled={disabled} placeholder={placeholder}
+        style={{ width: '100%', ...style }} filterOption={false}
+        options={opts.map((o) => ({ value: String(o.value), label: o.label }))}
+      />
+    );
+  }
   return (
     <AutoComplete
       value={value} onChange={onChange} onSearch={onSearch ? handleSearch : undefined}

@@ -593,6 +593,10 @@ export const getRosterById = (id: string) =>
 export const generateRoster = (dto: GenerateRosterDto) =>
   apiClient.post<DutyRosterDto>(`${BASE_URL}/rosters/generate`, dto);
 
+/** QA-R11: one shift for one staff — the "Phân ca trực" modal used generateRoster (route does not exist). */
+export const addDutyShift = (dto: { staffId: string; shiftDate: string; shiftType: string }) =>
+  apiClient.post(`${BASE_URL}/rosters/shifts`, dto);
+
 export const updateRosterAssignment = (dto: UpdateRosterAssignmentDto) =>
   apiClient.put<RosterAssignmentDto>(`${BASE_URL}/rosters/assignments`, dto);
 

@@ -254,12 +254,17 @@ public partial class SystemCompleteService
                 ?? throw new KeyNotFoundException("Không tìm thấy người dùng");
 
             // QA-R4: an admin could deactivate their own account / the last admin from the user form.
-            if (!dto.IsActive && user.IsActive)
+            var deactivating = !dto.IsActive && user.IsActive;
+            if (deactivating)
             {
                 if (userId == CurrentUserId)
                     throw new InvalidOperationException("Không thể vô hiệu hoá tài khoản đang đăng nhập");
                 await EnsureNotLastActiveAdminAsync(userId, "vô hiệu hoá");
+                // QA-R11: deactivating from the edit form is the same incident action as "Khoá" — revoke the
+                // refresh tokens + rotate the stamp (it used to rely on the 30s stamp cache and kept sockets up).
+                await RevokeAllUserSessionsTrackedAsync(user, "admin_deactivate");
             }
+            var stampBefore = user.SecurityStamp;
 
             user.FullName = dto.FullName ?? user.FullName;
             user.Email = dto.Email;
@@ -332,6 +337,8 @@ public partial class SystemCompleteService
             }
 
             await _context.SaveChangesAsync();
+            if (deactivating || !string.Equals(stampBefore, user.SecurityStamp, StringComparison.Ordinal))
+                await DisconnectRealtimeAsync(userId);
             return await GetUserAsync(userId);
         }
         catch (KeyNotFoundException) { throw; }
@@ -359,6 +366,7 @@ public partial class SystemCompleteService
             user.IsActive = false;
             await RevokeAllUserSessionsTrackedAsync(user, "admin_delete");
             await _context.SaveChangesAsync();
+            await DisconnectRealtimeAsync(user.Id);
             return true;
         }
         catch (Exception ex)
@@ -383,6 +391,7 @@ public partial class SystemCompleteService
             // attacker's access token + refresh token kept working (refresh even rotated forever).
             await RevokeAllUserSessionsTrackedAsync(user, "admin_reset_password");
             await _context.SaveChangesAsync();
+            await DisconnectRealtimeAsync(user.Id);
             return true;
         }
         catch (KeyNotFoundException) { throw; }
@@ -450,6 +459,7 @@ public partial class SystemCompleteService
             user.IsActive = false;
             await RevokeAllUserSessionsTrackedAsync(user, "admin_lock");
             await _context.SaveChangesAsync();
+            await DisconnectRealtimeAsync(user.Id);
             return true;
         }
         catch (Exception ex)
@@ -741,6 +751,17 @@ public partial class SystemCompleteService
         foreach (var t in tokens) { t.RevokedAt = now; t.ReasonRevoked = reason; t.UpdatedAt = now; }
         user.SecurityStamp = Guid.NewGuid().ToString("N");
         user.UpdatedAt = now;
+    }
+
+    /// <summary>
+    /// QA-R11: after a revocation is SAVED, close the user's live SignalR sockets and evict the cached stamp
+    /// (a locked/deleted user kept receiving realtime pushes until the socket's token expired). Best effort.
+    /// </summary>
+    private async Task DisconnectRealtimeAsync(Guid userId)
+    {
+        if (_realtime == null) return;
+        try { await _realtime.DisconnectUserAsync(userId); }
+        catch (Exception ex) { _logger.LogWarning(ex, "Realtime disconnect failed user={UserId}", userId); }
     }
 
 }

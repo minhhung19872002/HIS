@@ -20,4 +20,11 @@ public interface IRealtimeNotifier
     /// #385 Break-glass: alert realtime đến Admin/DirectorDoctor khi bác sĩ kích hoạt break-glass.
     /// </summary>
     Task NotifyBreakGlassActivatedAsync(Guid userId, string username, Guid patientId, DateTime expireAt, CancellationToken ct = default);
+
+    /// <summary>
+    /// QA-R11: the user's session was revoked (lock/delete/reset/terminate/password change/refresh reuse) —
+    /// close their live realtime connections and drop the cached security stamp so the reconnect (and every
+    /// API call) is refused immediately instead of after the stamp-cache TTL. Call AFTER the change is saved.
+    /// </summary>
+    Task DisconnectUserAsync(Guid userId, CancellationToken ct = default);
 }

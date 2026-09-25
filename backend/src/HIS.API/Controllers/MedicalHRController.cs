@@ -43,7 +43,14 @@ namespace HIS.API.Controllers
             [FromQuery] string status = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 200)
-            => Ok(await _service.GetStaffListAsync(departmentId, staffType, status));
+        {
+            // QA-R11: page/pageSize were declared but ignored — every page returned the same rows.
+            // Response stays a plain list (HR page reads list or {items}).
+            var list = await _service.GetStaffListAsync(departmentId, staffType, status);
+            page = Math.Max(1, page);
+            pageSize = pageSize > 0 ? Math.Min(pageSize, 1000) : 200;
+            return Ok(list.Skip((page - 1) * pageSize).Take(pageSize).ToList());
+        }
 
         [HttpGet("staff/{id}")]
         public async Task<ActionResult<MedicalStaffDto>> GetStaff(Guid id)
@@ -61,9 +68,24 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<List<MedicalStaffDto>>> GetExpiringCertifications([FromQuery] int daysWithin = 90)
             => Ok(await _service.GetStaffWithExpiringLicensesAsync(daysWithin));
 
+        // QA-R11: returned an empty list, so the "Phân ca trực" modal fell back to hard-coded options.
         [HttpGet("shifts")]
         public ActionResult<List<object>> GetShiftDefinitions()
-            => Ok(new List<object>());
+            => Ok(StandardShifts.All.Select(d =>
+            {
+                var hours = (d.End > d.Start ? d.End - d.Start : TimeSpan.FromDays(1) - d.Start + d.End).TotalHours;
+                return (object)new
+                {
+                    id = d.Code, code = d.Code, name = d.Name,
+                    startTime = d.Start.ToString(@"hh\:mm"), endTime = d.End.ToString(@"hh\:mm"),
+                    durationHours = hours, isNightShift = d.End <= d.Start, isActive = true,
+                };
+            }).ToList());
+
+        /// <summary>QA-R11: v2 HR "Phân ca trực" — one shift for one staff (the page posted to a route that did not exist).</summary>
+        [HttpPost("rosters/shifts")]
+        public async Task<ActionResult<DutyShiftDto>> AddDutyShift([FromBody] AddDutyShiftDto dto)
+            => Ok(await _service.AddDutyShiftAsync(dto, CurrentUserId ?? Guid.Empty));
 
         [HttpGet("rosters")]
         public async Task<ActionResult<DutyRosterDto>> GetRosters(

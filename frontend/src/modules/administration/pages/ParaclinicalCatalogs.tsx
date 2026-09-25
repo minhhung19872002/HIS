@@ -10,6 +10,7 @@ import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { Input, InputNumber, Select, Switch } from 'antd';
 import dayjs from 'dayjs';
 import * as api from '../api/masterCatalog';
+import systemApi from '../../system/api/system';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, te, cf, Ico,
@@ -53,6 +54,24 @@ const ParaclinicalCatalogsV2: React.FC = () => {
     finally { setLoading(false); }
   };
   useEffect(() => { reload(); }, []);
+
+  // QA-R11: Dịch vụ / Phòng / Khoa used to be free-text "ID …" inputs — nobody can type a GUID, and a
+  // wrong one saved 00000000-… rows or failed with 404/400. Pick from the real catalogs instead.
+  type Opt = { value: string; label: string };
+  const [svcOpts, setSvcOpts] = useState<Opt[]>([]);
+  const [roomOpts, setRoomOpts] = useState<(Opt & { departmentId?: string })[]>([]);
+  const [deptOpts, setDeptOpts] = useState<Opt[]>([]);
+  useEffect(() => {
+    systemApi.catalog.getParaclinicalServices(undefined, undefined, true)
+      .then((r) => setSvcOpts((Array.isArray(r.data) ? r.data : []).flatMap((s) => (s.id ? [{ value: s.id, label: `${s.code} · ${s.name}` }] : []))))
+      .catch(() => setSvcOpts([]));
+    systemApi.catalog.getRooms(undefined, undefined, true)
+      .then((r) => setRoomOpts((Array.isArray(r.data) ? r.data : []).flatMap((x) => (x.id ? [{ value: x.id, label: `${x.code} · ${x.name}`, departmentId: x.departmentId }] : []))))
+      .catch(() => setRoomOpts([]));
+    systemApi.catalog.getDepartments(undefined, undefined, true)
+      .then((r) => setDeptOpts((Array.isArray(r.data) ? r.data : []).flatMap((d) => (d.id ? [{ value: d.id, label: `${d.code} · ${d.name}` }] : []))))
+      .catch(() => setDeptOpts([]));
+  }, []);
 
   const manufacturerOptions = useMemo(() => {
     const set = new Set(machines.map((m) => m.manufacturer || '').filter(Boolean));
@@ -210,6 +229,8 @@ const ParaclinicalCatalogsV2: React.FC = () => {
     } else if (tab === 'rooms') {
       if (!(edit as any).serviceId) { te('Vui lòng chọn dịch vụ'); return; }
       if (!(edit as any).roomId) { te('Vui lòng chọn phòng'); return; }
+      // Guid? on the BE: an empty string fails model binding ("The dto field is required") — send null.
+      payload = { ...edit, departmentId: edit.departmentId || null };
     }
     setSaving(true);
     try {
@@ -360,10 +381,14 @@ const ParaclinicalCatalogsV2: React.FC = () => {
                   />
                 </DrField>
                 <DrField lbl="Dịch vụ" required>
-                  <Input
-                    value={edit.serviceId as string || ''}
-                    onChange={(e) => setEdit({ ...edit, serviceId: e.target.value })}
-                    placeholder="ID dịch vụ"
+                  <Select
+                    value={(edit.serviceId as string) || undefined}
+                    options={svcOpts}
+                    style={{ width: '100%' }}
+                    onChange={(v) => setEdit({ ...edit, serviceId: v })}
+                    showSearch
+                    optionFilterProp="label"
+                    placeholder="Chọn dịch vụ CLS"
                   />
                 </DrField>
                 <DrField lbl="Là dịch vụ mặc định">
@@ -377,13 +402,20 @@ const ParaclinicalCatalogsV2: React.FC = () => {
             {tab === 'rooms' && (
               <>
                 <DrField lbl="Dịch vụ" required>
-                  <Input value={edit.serviceId as string || ''} onChange={(e) => setEdit({ ...edit, serviceId: e.target.value })} placeholder="ID dịch vụ" />
+                  <Select value={(edit.serviceId as string) || undefined} options={svcOpts} style={{ width: '100%' }}
+                    onChange={(v) => setEdit({ ...edit, serviceId: v })} showSearch optionFilterProp="label" placeholder="Chọn dịch vụ CLS" />
                 </DrField>
-                <DrField lbl="Phòng">
-                  <Input value={edit.roomId as string || ''} onChange={(e) => setEdit({ ...edit, roomId: e.target.value })} placeholder="ID phòng" />
+                <DrField lbl="Phòng" required>
+                  <Select value={(edit.roomId as string) || undefined} options={roomOpts} style={{ width: '100%' }}
+                    onChange={(v) => setEdit({
+                      ...edit, roomId: v,
+                      departmentId: roomOpts.find((o) => o.value === v)?.departmentId || edit.departmentId,
+                    })}
+                    showSearch optionFilterProp="label" placeholder="Chọn phòng" />
                 </DrField>
                 <DrField lbl="Khoa">
-                  <Input value={edit.departmentId as string || ''} onChange={(e) => setEdit({ ...edit, departmentId: e.target.value })} placeholder="ID khoa" />
+                  <Select value={(edit.departmentId as string) || undefined} options={deptOpts} style={{ width: '100%' }}
+                    onChange={(v) => setEdit({ ...edit, departmentId: v })} allowClear showSearch optionFilterProp="label" placeholder="Chọn khoa" />
                 </DrField>
                 <DrField lbl="Mức ưu tiên" required>
                   <InputNumber

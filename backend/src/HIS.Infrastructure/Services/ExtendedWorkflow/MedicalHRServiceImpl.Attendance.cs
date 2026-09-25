@@ -34,6 +34,12 @@ public partial class MedicalHRServiceImpl
 
     public async Task<SalaryRecordDto> SaveSalaryRecordAsync(SaveSalaryRecordDto dto)
     {
+        // QA-R11: negative amounts / unknown staff were saved (unknown staff surfaced as an FK error); payroll
+        // generation now reads these records, so they must be sane.
+        if (dto.BaseSalary < 0 || dto.Allowance < 0)
+            throw new ArgumentException("Lương cơ bản / phụ cấp không được âm", nameof(dto.BaseSalary));
+        if (!await _context.MedicalStaffs.AnyAsync(s => s.Id == dto.StaffId))
+            throw new KeyNotFoundException("Không tìm thấy nhân viên");
         var entity = dto.Id.HasValue ? await _context.SalaryRecords.FindAsync(dto.Id.Value) : null;
         if (entity == null)
         {

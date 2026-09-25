@@ -25,6 +25,8 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
         if (departmentId.HasValue) query = query.Where(x => x.PrimaryDepartmentId == departmentId);
         if (!string.IsNullOrEmpty(staffType)) query = query.Where(x => x.StaffType == staffType);
         if (!string.IsNullOrEmpty(status)) query = query.Where(x => x.Status == status);
+        // QA-R11: deterministic order so the controller's page/pageSize slices are stable.
+        query = query.OrderBy(x => x.FullName).ThenBy(x => x.Id);
         var list = await query.ToBoundedListAsync("MedicalHR.GetStaffList");
         var dtos = list.Select(MapToStaffDto).ToList();
         await FillStaffDemographicsAsync(dtos);
@@ -372,6 +374,62 @@ public partial class MedicalHRServiceImpl : IMedicalHRService
         shift.StaffId = staffId;
         await _context.SaveChangesAsync();
         return new DutyShiftDto { Id = shift.Id, ShiftDate = shift.ShiftDate, ShiftType = shift.ShiftType };
+    }
+
+    public async Task<DutyShiftDto> AddDutyShiftAsync(AddDutyShiftDto dto, Guid userId)
+    {
+        // QA-R11: the v2 HR "Phân ca trực" modal posted to /medicalhr/rosters/generate, which does not exist
+        // (404 on every save). One shift for one staff, in the staff's department roster of that month.
+        if (userId == Guid.Empty)
+            throw new UnauthorizedAccessException("Không xác định được người lập lịch trực.");
+        var def = StandardShifts.Find(dto.ShiftType)
+            ?? throw new ArgumentException("Loại ca trực không hợp lệ.", nameof(dto.ShiftType));
+        var date = dto.ShiftDate.Date;
+        if (date.Year < 2000 || date.Year > 2100)
+            throw new ArgumentException("Ngày trực không hợp lệ.", nameof(dto.ShiftDate));
+        var staff = await _context.MedicalStaffs.AsNoTracking().FirstOrDefaultAsync(s => s.Id == dto.StaffId)
+            ?? throw new KeyNotFoundException("Không tìm thấy nhân viên");
+        if (!string.Equals(staff.Status, "Active", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"Nhân viên {staff.FullName} không còn hoạt động — không thể phân ca.");
+        if (staff.PrimaryDepartmentId is not Guid deptId || deptId == Guid.Empty)
+            throw new InvalidOperationException($"Nhân viên {staff.FullName} chưa có khoa/phòng — cập nhật hồ sơ trước khi phân ca.");
+
+        var start = ShiftStart(date, def.Start);
+        var end = ShiftEnd(date, def.Start, def.End);
+        var nearby = await _context.DutyShifts.AsNoTracking()
+            .Where(x => x.StaffId == staff.Id && x.Status != "Cancelled"
+                && x.ShiftDate >= date.AddDays(-1) && x.ShiftDate <= date.AddDays(1))
+            .Select(x => new { x.ShiftDate, x.StartTime, x.EndTime })
+            .ToListAsync();
+        if (nearby.Any(x => ShiftStart(x.ShiftDate, x.StartTime) < end && start < ShiftEnd(x.ShiftDate, x.StartTime, x.EndTime)))
+            throw new InvalidOperationException($"Nhân viên {staff.FullName} đã có ca trực trùng giờ ngày {date:dd/MM/yyyy}.");
+        // Approved leave covering the day → cannot be rostered.
+        if (await _context.LeaveRequests.AnyAsync(l => l.StaffId == staff.Id && l.Status == 1 && l.StartDate.Date <= date && l.EndDate.Date >= date))
+            throw new InvalidOperationException($"Nhân viên {staff.FullName} đang nghỉ phép (đã duyệt) ngày {date:dd/MM/yyyy}.");
+
+        var roster = await _context.DutyRosters
+            .FirstOrDefaultAsync(r => r.DepartmentId == deptId && r.Year == date.Year && r.Month == date.Month && !r.IsDeleted);
+        if (roster == null)
+        {
+            roster = new DutyRoster { Id = Guid.NewGuid(), DepartmentId = deptId, Year = date.Year, Month = date.Month, Status = "Draft", CreatedById = userId, CreatedAt = DateTime.Now };
+            _context.DutyRosters.Add(roster);
+        }
+        else if (string.Equals(roster.Status, "Locked", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"Lịch trực tháng {date.Month}/{date.Year} của khoa đã khoá.");
+
+        var shift = new DutyShift
+        {
+            Id = Guid.NewGuid(), DutyRosterId = roster.Id, StaffId = staff.Id, ShiftDate = date,
+            ShiftType = def.Code, StartTime = def.Start, EndTime = def.End, Status = "Scheduled", CreatedAt = DateTime.Now
+        };
+        _context.DutyShifts.Add(shift);
+        await _context.SaveChangesAsync();
+        return new DutyShiftDto
+        {
+            Id = shift.Id, ShiftId = shift.Id, RosterId = roster.Id, ShiftDate = shift.ShiftDate, ShiftType = shift.ShiftType,
+            StartTime = shift.StartTime, EndTime = shift.EndTime,
+            DurationHours = (int)(end - start).TotalHours,
+        };
     }
 
     public async Task<CopyRosterResultDto> CopyRosterWeekAsync(CopyRosterWeekDto dto, Guid userId)

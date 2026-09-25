@@ -123,6 +123,7 @@ public partial class SystemCompleteService
 
     public async Task<bool> DeleteExaminationServiceAsync(Guid serviceId)
     {
+        await EnsureServiceNotInOpenOrdersAsync(serviceId);
         try
         {
             var entity = await _context.Services.FirstOrDefaultAsync(s => s.Id == serviceId);
@@ -151,6 +152,9 @@ public partial class SystemCompleteService
                 query = query.Where(s => s.ServiceName.Contains(keyword) || s.ServiceCode.Contains(keyword));
             if (isActive.HasValue)
                 query = query.Where(s => s.IsActive == isActive.Value);
+            // QA-R11: serviceType ("2".."5", as this list returns it) was accepted but never applied.
+            if (!string.IsNullOrWhiteSpace(serviceType) && int.TryParse(serviceType, out var serviceTypeCode))
+                query = query.Where(s => s.ServiceType == serviceTypeCode);
 
             var items = await query.OrderBy(s => s.DisplayOrder).ThenBy(s => s.ServiceCode).ToBoundedListAsync("SystemCompleteService.GetParaclinicalServicesAsync");
             return items.Select(s => new ParaclinicalServiceCatalogDto
@@ -245,7 +249,19 @@ public partial class SystemCompleteService
 
     public async Task<bool> DeleteParaclinicalServiceAsync(Guid serviceId)
     {
+        await EnsureServiceNotInOpenOrdersAsync(serviceId);
         return await SoftDeleteEntityAsync<Service>(serviceId);
+    }
+
+    /// <summary>
+    /// QA-R11: deleting a service that still has open order lines (0-Chờ / 1-Đang TH) silently soft-deleted it,
+    /// leaving pending orders pointing at a vanished catalog row (worklists/billing lost the name/price).
+    /// </summary>
+    private async Task EnsureServiceNotInOpenOrdersAsync(Guid serviceId)
+    {
+        if (await _context.ServiceRequestDetails.AnyAsync(d => d.ServiceId == serviceId && !d.IsDeleted
+                && (d.Status == 0 || d.Status == 1)))
+            throw new InvalidOperationException("Dịch vụ đang có chỉ định chưa hoàn thành — hoàn thành hoặc hủy các chỉ định trước khi xóa.");
     }
 
     // 13.3 Danh muc thuoc
@@ -271,7 +287,7 @@ public partial class SystemCompleteService
                 query = query.Where(m => m.MedicineGroupId == search.MedicineGroupId.Value);
 
             // Paging — order first: Skip/Take on an unordered query returned an arbitrary page/500-row subset.
-            query = query.OrderBy(m => m.MedicineCode);
+            query = query.OrderBy(m => m.MedicineCode).ThenBy(m => m.Id); // QA-R11: codes repeat → tiebreak
             if (search?.PageIndex.HasValue == true && search?.PageSize.HasValue == true)
             {
                 var skip = (search.PageIndex.Value) * search.PageSize.Value;
@@ -375,6 +391,10 @@ public partial class SystemCompleteService
 
     public async Task<bool> DeleteMedicineAsync(Guid medicineId)
     {
+        // QA-R11: a medicine still in stock was soft-deleted silently (stock rows orphaned from the catalog).
+        if (await _context.InventoryItems.AnyAsync(i => !i.IsDeleted && i.Quantity > 0
+                && (i.MedicineId == medicineId || (i.ItemId == medicineId && i.ItemType == "Medicine"))))
+            throw new InvalidOperationException("Thuốc còn tồn kho — xuất/điều chỉnh hết tồn kho trước khi xóa khỏi danh mục.");
         return await SoftDeleteEntityAsync<Medicine>(medicineId);
     }
 

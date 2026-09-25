@@ -282,6 +282,7 @@ public class AuthService : IAuthService
         user.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         await _refreshTokens.RevokeAllForUserAsync(userId, "password_changed");
+        await DisconnectRealtimeAsync(userId); // QA-R11: other devices' sockets outlived the revocation
 
         _logger.LogInformation("Password changed + sessions revoked for user {UserId}", userId);
         return true;
@@ -294,7 +295,10 @@ public class AuthService : IAuthService
         {
             // Reuse-detection: service đã revoke family — bump stamp để đá luôn access token đang sống.
             if (result.ReuseDetected && result.UserId != Guid.Empty)
+            {
                 await BumpSecurityStampAsync(result.UserId, "reuse_detected");
+                await DisconnectRealtimeAsync(result.UserId);
+            }
             return null;
         }
 
@@ -722,6 +726,13 @@ public class AuthService : IAuthService
             await _context.SaveChangesAsync();
         }
         return user.SecurityStamp;
+    }
+
+    /// <summary>QA-R11: best effort — a realtime failure must not fail the password change / refresh response.</summary>
+    private async Task DisconnectRealtimeAsync(Guid userId)
+    {
+        try { await _realtime.DisconnectUserAsync(userId); }
+        catch (Exception ex) { _logger.LogWarning(ex, "Realtime disconnect failed user={UserId}", userId); }
     }
 
     /// <summary>Xoay SecurityStamp của user → thu hồi TỨC THỜI mọi access token đang sống (OnTokenValidated sẽ fail).</summary>

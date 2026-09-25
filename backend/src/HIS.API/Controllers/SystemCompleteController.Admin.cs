@@ -38,6 +38,14 @@ namespace HIS.API.Controllers
         {
             // [ApiController] tự validate DataAnnotations (Required/Email/MinLength) -> 400 field-level.
             // Quy tắc nghiệp vụ (trùng username) -> 400 rõ field để client focus.
+            // QA-R11: an admin-typed initial password skipped the password policy ("1" was accepted, even for a
+            // new admin account) — the forced change at first login does not protect it until then.
+            if (!string.IsNullOrEmpty(dto.InitialPassword))
+            {
+                var pwdError = HIS.Core.Common.PasswordPolicy.Validate(dto.InitialPassword, null, dto.Username);
+                if (pwdError != null)
+                    return BadRequest(new { error = "VALIDATION_FAILED", field = "initialPassword", message = pwdError });
+            }
             var result = await _service.CreateUserAsync(dto);
             if (result == null)
                 return BadRequest(new { error = "VALIDATION_FAILED", field = "username", message = "Tài khoản đã tồn tại" });

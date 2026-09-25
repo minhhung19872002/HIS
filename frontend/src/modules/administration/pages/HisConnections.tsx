@@ -29,6 +29,7 @@ import {
   type StatusTab,
   type KpiItem,
 } from '@/_v2kit';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ─── Status tabs ─────────────────────────────────────────────────────────────
 
@@ -79,7 +80,7 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({ open, initial, onClose,
       onClose();
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'errorFields' in err) return; // validation only
-      te('Lưu thất bại — kiểm tra console');
+      te(friendlyErrorMessage(err, 'Lưu thất bại'));
     } finally {
       setSaving(false);
     }

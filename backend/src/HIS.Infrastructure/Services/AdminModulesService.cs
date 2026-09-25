@@ -155,34 +155,72 @@ public class AdminModulesService : IAdminModulesService
         // Lấy attendance summary tháng đó nếu bảng tồn tại (graceful — không crash nếu chưa có data)
         // SalaryHistory ở medicalhr backend (riêng service) → query qua context trực tiếp là
         // out-of-scope cho MVP; chỉ generate dòng trống per staff để nhập tay.
-        // Xóa dòng cũ (regenerate)
-        var existing = _db.PayrollItems.Where(i => i.PeriodId == periodId);
+        // QA-R11: the old version (1) deleted the period's lines and SAVED before building the new ones — a
+        // failure in between left the period empty — and (2) produced 0-đ lines with a fixed 22 days, ignoring
+        // the HR salary history (SalaryRecords) and attendance (AttendanceRecords) that the HR module keeps.
+        // Now: one SaveChanges; each line prefilled from the staff's latest salary record effective in the
+        // period and the attendance days recorded in that month (22 only when no attendance was recorded).
+        var existing = await _db.PayrollItems.Where(i => i.PeriodId == periodId).ToListAsync();
         _db.PayrollItems.RemoveRange(existing);
-        await _db.SaveChangesAsync();
 
-        // Lấy danh sách nhân viên active từ Users/Staff (dùng User table làm proxy nếu HR staff chưa có)
+        // Lấy danh sách nhân viên active từ Users (proxy) — hồ sơ HR (MedicalStaffs) nối qua UserId.
         var users = await _db.Users
             .AsNoTracking()
-            .Where(u => u.IsActive)
+            .Where(u => u.IsActive && !u.IsDeleted)
             .OrderBy(u => u.Username)
             .Take(200)
+            .Select(u => new { u.Id, u.Username, u.FullName, DepartmentName = u.Department != null ? u.Department.DepartmentName : null })
             .ToListAsync();
+        var userIds = users.Select(u => u.Id).ToList();
+        var staffByUser = (await _db.MedicalStaffs.AsNoTracking()
+                .Where(s => userIds.Contains(s.UserId))
+                .Select(s => new { s.Id, s.UserId })
+                .ToListAsync())
+            .GroupBy(s => s.UserId).ToDictionary(g => g.Key, g => g.First().Id);
+        var staffIds = staffByUser.Values.ToList();
 
-        var items = users.Select(u => new PayrollItem
+        var periodStart = new DateTime(period.Year, period.Month, 1);
+        var periodEnd = periodStart.AddMonths(1);
+        var salaries = (await _db.SalaryRecords.AsNoTracking()
+                .Where(r => staffIds.Contains(r.StaffId) && r.EffectiveDate < periodEnd && !r.IsDeleted)
+                .Select(r => new { r.StaffId, r.EffectiveDate, r.BaseSalary, r.Allowance })
+                .ToListAsync())
+            .GroupBy(r => r.StaffId).ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.EffectiveDate).First());
+        var attendance = (await _db.AttendanceRecords.AsNoTracking()
+                .Where(a => staffIds.Contains(a.StaffId) && a.WorkDate >= periodStart && a.WorkDate < periodEnd && !a.IsDeleted)
+                .Select(a => new { a.StaffId, a.WorkDate, a.Status })
+                .ToListAsync())
+            .GroupBy(a => a.StaffId)
+            .ToDictionary(g => g.Key, g => g.Where(a => a.Status == "Present" || a.Status == "HalfDay")
+                .GroupBy(a => a.WorkDate.Date)
+                .Sum(d => d.All(a => a.Status == "HalfDay") ? 0.5m : 1m));
+
+        var items = users.Select(u =>
         {
-            Id = Guid.NewGuid(),
-            PeriodId = periodId,
-            StaffId = u.Id.ToString(),
-            StaffCode = u.Username,
-            StaffName = u.FullName,
-            WorkDays = 22, // mặc định 22 ngày
-            BaseSalary = 0,
-            Allowance = 0,
-            OtherIncome = 0,
-            BhxhDeduction = 0,
-            OtherDeduction = 0,
-            NetSalary = 0,
-            CreatedAt = DateTime.UtcNow,
+            Guid? staffId = staffByUser.TryGetValue(u.Id, out var sid) ? sid : null;
+            var salary = staffId.HasValue && salaries.TryGetValue(staffId.Value, out var s) ? s : null;
+            var days = staffId.HasValue && attendance.TryGetValue(staffId.Value, out var d) ? d : 22m; // 22 = mặc định khi chưa chấm công
+            var baseSalary = salary?.BaseSalary ?? 0;
+            var allowance = salary?.Allowance ?? 0;
+            var bhxh = Math.Round(baseSalary * 0.105m, 0); // same rule as SavePayrollItemAsync
+            return new PayrollItem
+            {
+                Id = Guid.NewGuid(),
+                PeriodId = periodId,
+                StaffId = u.Id.ToString(),
+                StaffCode = u.Username,
+                StaffName = u.FullName,
+                DepartmentName = u.DepartmentName,
+                WorkDays = Math.Min(days, 31),
+                BaseSalary = baseSalary,
+                Allowance = allowance,
+                OtherIncome = 0,
+                BhxhDeduction = bhxh,
+                OtherDeduction = 0,
+                NetSalary = baseSalary + allowance - bhxh,
+                Notes = salary == null ? "Chưa có hồ sơ lương — nhập tay" : null,
+                CreatedAt = DateTime.UtcNow,
+            };
         }).ToList();
 
         _db.PayrollItems.AddRange(items);

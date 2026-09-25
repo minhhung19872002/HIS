@@ -424,6 +424,13 @@ public partial class SystemCompleteService
         {
             var query = _context.ExaminationTemplates.AsNoTracking().AsQueryable();
 
+            // QA-R11: both filters were declared but never applied. TemplateType is an int column;
+            // the DTO exposes it as a string, so accept the numeric string the page sends back.
+            if (!string.IsNullOrWhiteSpace(templateType) && int.TryParse(templateType, out var templateTypeCode))
+                query = query.Where(t => t.TemplateType == templateTypeCode);
+            if (isActive.HasValue)
+                query = query.Where(t => t.IsActive == isActive.Value);
+
             var items = await query.ToBoundedListAsync("SystemCompleteService.GetMedicalRecordTemplatesAsync");
             return items.Select(t => new MedicalRecordTemplateCatalogDto
             {

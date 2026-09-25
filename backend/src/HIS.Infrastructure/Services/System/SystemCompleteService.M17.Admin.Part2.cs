@@ -50,7 +50,7 @@ public partial class SystemCompleteService
                 );
             }
 
-            query = query.OrderByDescending(l => l.CreatedAt);
+            query = query.OrderByDescending(l => l.CreatedAt).ThenByDescending(l => l.Id);
 
             if (search?.PageIndex.HasValue == true && search?.PageSize.HasValue == true)
             {
@@ -141,9 +141,9 @@ public partial class SystemCompleteService
                 a.Action ?? "", a.EntityType ?? "", a.Details ?? "", a.IpAddress ?? ""
             }).ToList();
 
-            var html = BuildTableReport("NHAT KY HE THONG", $"Tong: {logs.Count} ban ghi", DateTime.Now,
+            // QA-R11: was HTML bytes served as AuditLogs.xlsx (Excel refused to open it) — render a real workbook.
+            return Export.ReportFileRenderer.TableToXlsx("NHAT KY HE THONG",
                 new[] { "Thoi gian", "Nguoi dung", "Hanh dong", "Doi tuong", "Mo ta", "IP" }, rows);
-            return Encoding.UTF8.GetBytes(html);
         }
         catch { return Array.Empty<byte>(); }
     }
@@ -194,8 +194,15 @@ public partial class SystemCompleteService
                 .AsQueryable();
 
             // Filter by category (convention: ConfigKey prefix before '.' is the category)
+            // QA-R11: ToConfigDto reports a key without '.' as "General", but filtering by that category
+            // matched nothing (no key starts with "General.") — the General tab was always empty.
             if (!string.IsNullOrWhiteSpace(category))
-                query = query.Where(c => c.ConfigKey.StartsWith(category + ".") || c.ConfigType == category);
+            {
+                if (string.Equals(category, "General", StringComparison.OrdinalIgnoreCase))
+                    query = query.Where(c => !c.ConfigKey.Contains('.') || c.ConfigKey.StartsWith("General.") || c.ConfigType == category);
+                else
+                    query = query.Where(c => c.ConfigKey.StartsWith(category + ".") || c.ConfigType == category);
+            }
 
             var items = await query.OrderBy(c => c.ConfigKey).ToListAsync();
             return items.Select(ToConfigDto).ToList();
@@ -356,6 +363,8 @@ public partial class SystemCompleteService
             if (user != null) { user.SecurityStamp = Guid.NewGuid().ToString("N"); user.UpdatedAt = now; }
 
             await _context.SaveChangesAsync();
+            // QA-R11: also close the user's live SignalR sockets (same as lock/delete/terminate-all).
+            await DisconnectRealtimeAsync(session.UserId);
             return true;
         }
         catch (Exception ex)

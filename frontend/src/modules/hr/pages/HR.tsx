@@ -27,7 +27,7 @@ import {
   getShiftDefinitions,
   getDashboard,
   createStaff,
-  generateRoster,
+  addDutyShift,
   createCMERecord,
   getNonCompliantStaff,
   getExpiringCertifications,
@@ -856,22 +856,14 @@ const HRV2: React.FC = () => {
     setSubmitting(true);
     try {
       const date = values.date ? dayjs(values.date as string).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
-      const month = dayjs(date).month() + 1;
-      const year = dayjs(date).year();
-      const emp = employees.find((e) => e.id === values.employeeId);
-      await generateRoster({
-        departmentId: emp?.departmentId || '',
-        year,
-        month,
-        respectLeaveRequests: true,
-        availableStaffIds: [values.employeeId as string],
-      });
+      // QA-R11: was generateRoster() → POST /rosters/generate, a route that does not exist (always failed).
+      await addDutyShift({ staffId: values.employeeId as string, shiftDate: date, shiftType: values.shiftType as string });
       message.success('Đã thêm lịch trực');
       setIsShiftModalOpen(false);
       shiftForm.resetFields();
       fetchData();
-    } catch {
-      message.warning('Không thể thêm lịch trực');
+    } catch (e) {
+      message.warning(friendlyErrorMessage(e, 'Không thể thêm lịch trực'));
     } finally {
       setSubmitting(false);
     }
@@ -2321,12 +2313,12 @@ const HRV2: React.FC = () => {
           <Form.Item name="date" label="Ngày" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item>
           <Form.Item name="shiftType" label="Ca" rules={[{ required: true }]}>
             <Select options={shiftDefs.length > 0
-              ? shiftDefs.map((sd) => ({ value: sd.id, label: `${sd.name} (${sd.startTime} - ${sd.endTime})` }))
+              ? shiftDefs.map((sd) => ({ value: sd.code || sd.id, label: `${sd.name} (${sd.startTime} - ${sd.endTime})` }))
               : [
-                { value: 'morning', label: 'Ca sáng (07:00 - 14:00)' },
-                { value: 'afternoon', label: 'Ca chiều (14:00 - 21:00)' },
-                { value: 'night', label: 'Ca đêm (21:00 - 07:00)' },
-                { value: 'on_call', label: 'Trực' },
+                { value: 'Morning', label: 'Ca sáng (07:00 - 14:00)' },
+                { value: 'Afternoon', label: 'Ca chiều (14:00 - 21:00)' },
+                { value: 'Night', label: 'Ca đêm (21:00 - 07:00)' },
+                { value: 'OnCall', label: 'Trực (17:00 - 07:00)' },
               ]} />
           </Form.Item>
         </Form>

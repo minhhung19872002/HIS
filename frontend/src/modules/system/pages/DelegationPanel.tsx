@@ -48,9 +48,11 @@ export default function DelegationPanel() {
         adminApi.getUsers(undefined, undefined, true),
         adminApi.getRoles(true),
       ]);
-      setGrants(g as unknown as DelegationGrantDto[]);
-      setUsers(u as unknown as SystemUserDto[]);
-      setRoles(r as unknown as RoleDto[]);
+      // QA-R11: these are AxiosResponses (the interceptor unwraps the envelope into .data) — storing the
+      // response object itself crashed the tab with "grants.filter is not a function".
+      setGrants(Array.isArray(g.data) ? g.data : []);
+      setUsers(Array.isArray(u.data) ? u.data : []);
+      setRoles(Array.isArray(r.data) ? r.data : []);
     } catch (e) { te(friendlyErrorMessage(e)); }
     finally { setLoading(false); }
   }, []);

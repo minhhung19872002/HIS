@@ -145,7 +145,9 @@ export default function PatientFlagBanner({ patientId, patientName, compact, onC
       okText="Lưu"
       cancelText="Huỷ"
       width={560}
-      destroyOnHidden
+      // QA-R11: keep the Form mounted — openNew/openEdit call form.resetFields/setFieldsValue BEFORE the modal
+      // opens; with destroyOnHidden the Form was not mounted yet ("useForm not connected to any Form element").
+      forceRender
     >
       <Form form={form} layout="vertical">
         <Form.Item name="flagType" label="Loại cảnh báo" rules={[{ required: true }]}>

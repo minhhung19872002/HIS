@@ -36,6 +36,7 @@ public partial class SystemCompleteService : ISystemCompleteService
     private readonly IHospitalReportService _hospitalReports; // QA-R3: real data for pharmacy/statistics print & export
     private readonly HIS.Infrastructure.Security.SystemConfigSecret _configSecret; // QA-R10: re-protect encrypted BHXH.* secrets saved from the generic config screen
     private readonly INangCap23ConfigStore _nangCap23Config; // QA-R10: NangCap23.* secrets use their own protector
+    private readonly IRealtimeNotifier? _realtime; // QA-R11: revoked users lose their SignalR sockets
 
     public SystemCompleteService(
         HISDbContext context,
@@ -44,8 +45,10 @@ public partial class SystemCompleteService : ISystemCompleteService
         IHttpContextAccessor httpContextAccessor,
         IHospitalReportService hospitalReports,
         HIS.Infrastructure.Security.SystemConfigSecret configSecret,
-        INangCap23ConfigStore nangCap23Config)
+        INangCap23ConfigStore nangCap23Config,
+        IRealtimeNotifier? realtime = null)
     {
+        _realtime = realtime;
         _context = context;
         _logger = logger;
         _sodService = sodService;

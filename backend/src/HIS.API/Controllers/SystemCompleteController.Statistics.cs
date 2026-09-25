@@ -71,6 +71,7 @@ namespace HIS.API.Controllers
 
         [HttpPost("api/medical-records/borrow-requests")]
         [Authorize(Roles = RoleNames.Admin + "," + RoleNames.MedicalRecordManager + "," + RoleNames.Doctor)]
+        [TypeFilter(typeof(Filters.DomainExceptionFilter))] // QA-R11: service now throws on bad archive/duplicate loan instead of a fake 200
         public async Task<ActionResult<MedicalRecordBorrowRequestDto>> CreateBorrowRequest([FromBody] CreateBorrowRequestDto dto)
         {
             var result = await _service.CreateBorrowRequestAsync(dto);

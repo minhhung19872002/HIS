@@ -33,6 +33,14 @@ const NPG_STATUS: { v: number; l: string; tone: StatusTone }[] = [
 ];
 const toneOfStatus = (s: number): StatusTone =>
   NPG_STATUS.find((x) => x.v === s)?.tone || 'info';
+// QA-R11: acks of the InMemory gateway fakes (server NationalGateway:MockMode=true) carry a "MOCK-" id — they are not
+// receipts from the national gateway and were shown/counted as "Cổng xác nhận".
+const isMockAck = (id?: string | null) => !!id && id.startsWith('MOCK-');
+const StatusCell: React.FC<{ status: number; name: string; ackId?: string | null }> = ({ status, name, ackId }) => (
+  isMockAck(ackId)
+    ? <StatusBadge tone="info" dot>{name.includes('MOCK') ? name : `${name} (MOCK — chưa gửi cổng thật)`}</StatusBadge>
+    : <StatusBadge tone={toneOfStatus(status)} dot>{name}</StatusBadge>
+);
 
 const NationalGatewaysV2: React.FC = () => {
   const [tab, setTab] = useState<TabKey>('rx');
@@ -86,9 +94,10 @@ const NgRxPanel: React.FC = () => {
 
   const kpis: KpiItem[] = [
     { lbl: 'Tổng',            val: rows.length },
-    { lbl: 'Cổng xác nhận',   val: rows.filter((r) => r.status === 2).length, tone: 'ok' },
+    { lbl: 'Cổng xác nhận',   val: rows.filter((r) => r.status === 2 && !isMockAck(r.gatewayTransactionId)).length, tone: 'ok' },
     { lbl: 'Đang chờ',        val: rows.filter((r) => r.status === 1).length, tone: 'warn' },
     { lbl: 'Lỗi / Từ chối',   val: rows.filter((r) => r.status === 3).length, tone: 'crit' },
+    { lbl: 'Mock (chưa gửi thật)', val: rows.filter((r) => isMockAck(r.gatewayTransactionId)).length, tone: 'info' },
   ];
 
   const columns: ColumnDef<NationalPrescriptionSubmissionDto>[] = [
@@ -111,7 +120,7 @@ const NgRxPanel: React.FC = () => {
     { key: 'submittedAt',      label: 'Gửi lúc', mono: true, width: 140,
       render: (r) => fmtDTg(r.submittedAt) },
     { key: 'status', label: 'Trạng thái', width: 160,
-      render: (r) => <StatusBadge tone={toneOfStatus(r.status)} dot>{r.statusName}</StatusBadge> },
+      render: (r) => <StatusCell status={r.status} name={r.statusName} ackId={r.gatewayTransactionId} /> },
   ];
 
   const openDetail = async (r: NationalPrescriptionSubmissionDto) => {
@@ -150,7 +159,7 @@ const NgRxPanel: React.FC = () => {
             <DrSec title="THÔNG TIN GIAO DỊCH">
               <DrField lbl="Mã giao dịch"><span className="mono">{detail.submissionCode}</span></DrField>
               <DrField lbl="Mã CSKB"><span className="mono">{detail.facilityCode}</span></DrField>
-              <DrField lbl="Trạng thái"><StatusBadge tone={toneOfStatus(detail.status)} dot>{detail.statusName}</StatusBadge></DrField>
+              <DrField lbl="Trạng thái"><StatusCell status={detail.status} name={detail.statusName} ackId={detail.gatewayTransactionId} /></DrField>
               <DrField lbl="Cổng ack"><span className="mono">{detail.gatewayTransactionId || '—'}</span></DrField>
               <DrField lbl="Gửi lúc">{fmtDTg(detail.submittedAt)}</DrField>
               <DrField lbl="Ack lúc">{fmtDTg(detail.acknowledgedAt)}</DrField>
@@ -185,11 +194,10 @@ const NgRxPanel: React.FC = () => {
 
 // ────────────────────────── Dược QG ──────────────────────────
 
+// QA-R11: 'AntibioticReport' / 'InPatientUsage' are not accepted by the API (always 400) and 'NarcoticReport' has no
+// data source (it was filed to the gateway EMPTY). Only the type that gathers data (retail sales) is offered.
 const NPH_REPORT_TYPES = [
-  { value: 'DailySale',       label: 'Xuất bán hàng ngày' },
-  { value: 'NarcoticReport',  label: 'Thuốc gây nghiện / hướng thần' },
-  { value: 'AntibioticReport',label: 'Kháng sinh' },
-  { value: 'InPatientUsage',  label: 'Sử dụng nội trú' },
+  { value: 'DailySale',       label: 'Xuất bán lẻ (nhà thuốc BV)' },
 ];
 
 const NgPharmPanel: React.FC = () => {
@@ -217,11 +225,9 @@ const NgPharmPanel: React.FC = () => {
     if (genLoading) return;
     setGenLoading(true);
     try {
-      await nphGateway.generate({
-        reportType,
-        periodFrom: new Date(periodFrom).toISOString(),
-        periodTo:   new Date(periodTo + 'T23:59:59').toISOString(),
-      });
+      // QA-R11: send the VN calendar days as-is — new Date('YYYY-MM-DD') is UTC midnight (07:00 VN), so the period
+      // started at 07:00 on the first day. The API reads whole days (end day inclusive).
+      await nphGateway.generate({ reportType, periodFrom, periodTo });
       tk(`Đã tạo & gửi báo cáo ${NPH_REPORT_TYPES.find(t => t.value === reportType)?.label}`);
       setGenOpen(false);
       reload();
@@ -236,9 +242,10 @@ const NgPharmPanel: React.FC = () => {
 
   const kpis: KpiItem[] = [
     { lbl: 'Tổng báo cáo',  val: rows.length },
-    { lbl: 'Cổng xác nhận', val: rows.filter((r) => r.status === 2).length, tone: 'ok' },
+    { lbl: 'Cổng xác nhận', val: rows.filter((r) => r.status === 2 && !isMockAck(r.gatewayTicketNumber)).length, tone: 'ok' },
     { lbl: 'Đang chờ',      val: rows.filter((r) => r.status === 1).length, tone: 'warn' },
     { lbl: 'Bị từ chối',    val: rows.filter((r) => r.status === 3).length, tone: 'crit' },
+    { lbl: 'Mock (chưa gửi thật)', val: rows.filter((r) => isMockAck(r.gatewayTicketNumber)).length, tone: 'info' },
   ];
 
   const columns: ColumnDef<NationalPharmacyOutboundReportDto>[] = [
@@ -250,7 +257,7 @@ const NgPharmPanel: React.FC = () => {
     { key: 'submittedAt', label: 'Gửi lúc', mono: true,
       render: (r) => fmtDTg(r.submittedAt) },
     { key: 'status', label: 'Trạng thái', width: 160,
-      render: (r) => <StatusBadge tone={toneOfStatus(r.status)} dot>{r.statusName}</StatusBadge> },
+      render: (r) => <StatusCell status={r.status} name={r.statusName} ackId={r.gatewayTicketNumber} /> },
   ];
 
   return (
@@ -335,7 +342,9 @@ const NgConfigPanel: React.FC = () => {
     try {
       const r = await npGateway.testConnection();
       setTested(r.connected);
-      if (r.connected) tk('Kết nối OK'); else te('Mất kết nối');
+      // QA-R11: the mock client answers every ping with true — that is not a connection to the national gateway.
+      if (r.connected && cfg?.mockMode) tw('Đang chạy MOCK — không có kết nối tới cổng quốc gia thật');
+      else if (r.connected) tk('Kết nối OK'); else te('Mất kết nối');
     }
     catch (e) { setTested(false); te(friendlyErrorMessage(e, 'Mất kết nối')); }
     finally { setTesting(false); }
@@ -356,34 +365,41 @@ const NgConfigPanel: React.FC = () => {
     <div style={{ padding: 'var(--space-20)', maxWidth: 760 }} data-testid="gateway-config-panel">
       <div className="hui-section-t" style={{ marginBottom: 'var(--space-14)' }}>CỔNG QUỐC GIA — CẤU HÌNH</div>
       <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 'var(--space-10)', fontSize: 'var(--fs-md)' }}>
+        {/* QA-R11: the gateway HttpClients take their base URL / timeout from appsettings at start-up — the values saved
+            here were never used. Read-only so the page does not pretend. */}
         <span>URL Đơn thuốc QG</span>
-        <input className="ab-sel" value={cfg.nationalPrescriptionBaseUrl}
-          onChange={(e) => set('nationalPrescriptionBaseUrl', e.target.value)} />
+        <input className="ab-sel" value={cfg.nationalPrescriptionBaseUrl} disabled
+          title="Máy chủ dùng appsettings NationalGateway:Prescription:BaseUrl" />
         <span>URL Dược QG</span>
-        <input className="ab-sel" value={cfg.nationalPharmacyBaseUrl}
-          onChange={(e) => set('nationalPharmacyBaseUrl', e.target.value)} />
+        <input className="ab-sel" value={cfg.nationalPharmacyBaseUrl} disabled
+          title="Máy chủ dùng appsettings NationalGateway:Pharmacy:BaseUrl" />
         <span>Mã CSKB</span>
         <input className="ab-sel" value={cfg.facilityCode}
           onChange={(e) => set('facilityCode', e.target.value)} />
         <span>Tên CSKB</span>
         <input className="ab-sel" value={cfg.facilityName}
           onChange={(e) => set('facilityName', e.target.value)} />
+        {/* QA-R11: the fake/real gateway client is chosen by the server at start-up (appsettings NationalGateway:MockMode);
+            this checkbox saved a flag nothing read, and auto-submit has no implementation. Shown read-only / as such. */}
         <span>Chế độ Mock</span>
-        <label style={{ fontSize: 'var(--fs-md)' }}>
-          <input type="checkbox" checked={cfg.mockMode}
-            onChange={(e) => set('mockMode', e.target.checked)} /> Bật mock (đề xuất khi demo)
-        </label>
+        <span style={{ fontSize: 'var(--fs-md)' }}>
+          <StatusBadge tone={cfg.mockMode ? 'warn' : 'ok'} dot>
+            {cfg.mockMode ? 'MOCK — không gửi cổng thật' : 'Gửi cổng thật'}
+          </StatusBadge>
+          <span style={{ marginLeft: 8, color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>
+            do máy chủ quyết định (NationalGateway:MockMode), không đổi tại đây
+          </span>
+        </span>
         <span>Tự động gửi</span>
-        <label style={{ fontSize: 'var(--fs-md)' }}>
-          <input type="checkbox" checked={cfg.autoSubmit}
-            onChange={(e) => set('autoSubmit', e.target.checked)} /> Tự động gửi mỗi đơn thuốc
+        <label style={{ fontSize: 'var(--fs-md)', color: 'var(--t-2)' }}>
+          <input type="checkbox" checked={false} disabled /> Tự động gửi mỗi đơn thuốc — chưa hỗ trợ
         </label>
         <span>Số lần thử lại</span>
         <input className="ab-sel" type="number" value={cfg.retryCount}
           onChange={(e) => set('retryCount', Number(e.target.value))} />
         <span>Timeout (giây)</span>
-        <input className="ab-sel" type="number" value={cfg.timeoutSeconds}
-          onChange={(e) => set('timeoutSeconds', Number(e.target.value))} />
+        <input className="ab-sel" type="number" value={cfg.timeoutSeconds} disabled
+          title="Máy chủ dùng appsettings NationalGateway:TimeoutSeconds" />
       </div>
       <div style={{ display: 'flex', gap: 'var(--space-8)', marginTop: 'var(--space-16)' }}>
         <Btn variant="primary" onClick={save} disabled={saving}>
@@ -393,8 +409,8 @@ const NgConfigPanel: React.FC = () => {
           <TermIcon name="activity" size={12} /> {testing ? 'Đang kiểm tra…' : 'Kiểm tra kết nối'}
         </Btn>
         {tested !== null && (
-          <StatusBadge tone={tested ? 'ok' : 'crit'} dot>
-            {tested ? 'Kết nối OK' : 'Mất kết nối'}
+          <StatusBadge tone={tested ? (cfg.mockMode ? 'warn' : 'ok') : 'crit'} dot>
+            {tested ? (cfg.mockMode ? 'MOCK — không kiểm tra cổng thật' : 'Kết nối OK') : 'Mất kết nối'}
           </StatusBadge>
         )}
       </div>

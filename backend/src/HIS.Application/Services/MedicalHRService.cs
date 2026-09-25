@@ -178,6 +178,9 @@ namespace HIS.Application.Services
         public Task<List<StaffRosterAssignmentDto>> GetRosterAssignmentsAsync(Guid? departmentId, DateTime fromDate, DateTime toDate)
             => throw new NotSupportedException("Use MedicalHRServiceImpl");
 
+        public Task<DutyShiftDto> AddDutyShiftAsync(AddDutyShiftDto dto, Guid userId)
+            => throw new NotSupportedException("Use MedicalHRServiceImpl");
+
         public async Task<bool> ApproveSwapAsTargetAsync(Guid requestId, bool approve)
         {
             _logger.LogInformation("Target {Approval} swap request {RequestId}", approve ? "approving" : "rejecting", requestId);

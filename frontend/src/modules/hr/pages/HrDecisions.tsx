@@ -14,6 +14,7 @@ import {
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
 import { useTabState } from '../../../hooks/useTabState';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -141,14 +142,14 @@ const HrDecisionsV2: React.FC = () => {
         effectiveDate: v.effectiveDate?.toISOString?.() ?? v.effectiveDate,
       });
       tk(editing ? 'Đã cập nhật' : 'Đã thêm'); setModalOpen(false); load();
-    } catch { tw('Lưu thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Lưu thất bại')); }
     finally { setSaving(false); }
   };
 
   const del = (r: HrDecision) =>
     cf(`Xóa QĐ ${r.decisionNumber}?`, async () => {
       try { await apiClient.delete(`/admin-modules/hr-decisions/${r.id}`); tk('Đã xóa'); load(); }
-      catch { tw('Xóa thất bại'); }
+      catch (e) { tw(friendlyErrorMessage(e, 'Xóa thất bại')); }
     }, { tone: 'crit', confirm: 'Xóa' });
 
   // ── Derived ──────────────────────────────────────────────────────────────

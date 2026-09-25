@@ -23,6 +23,7 @@ import {
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
 import { useTabState } from '../../../hooks/useTabState';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 type Tab = 'abbr' | 'templates' | 'occupation' | 'gender' | 'ethnic' | 'nation' | 'facility';
 const TABS = [
@@ -185,7 +186,7 @@ const CatalogsAdminV2: React.FC = () => {
       const v = await abbrForm.validateFields();
       await saveAbbreviation({ id: abbrEditing?.id, ...v });
       tk('Đã lưu'); setAbbrModal(false); invalidateAbbreviationCache(); loadAbbrs();
-    } catch { tw('Lưu thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Lưu thất bại')); }
     finally { setSaving(false); }
   };
   const deleteAbbr = (r: AbbreviationDto) => cf(`Xóa viết tắt "${r.code}"?`, async () => {
@@ -217,7 +218,7 @@ const CatalogsAdminV2: React.FC = () => {
       const v = await tplForm.validateFields();
       await saveTemplate({ id: tplEditing?.id, ...v });
       tk('Đã lưu template'); setTplDrawer(false); loadTpls();
-    } catch { tw('Lưu thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Lưu thất bại')); }
     finally { setSaving(false); }
   };
   const deleteTpl = (r: ClinicalTemplateDto) => cf(`Xóa template "${r.templateName}"?`, async () => {
@@ -274,7 +275,7 @@ const CatalogsAdminV2: React.FC = () => {
         const v = await form.validateFields();
         await saveFn({ id: editing?.id, ...v });
         tk('Đã lưu'); setModal(false); reload();
-      } catch { tw('Lưu thất bại'); }
+      } catch (e) { tw(friendlyErrorMessage(e, 'Lưu thất bại')); }
       finally { setSaving(false); }
     };
 

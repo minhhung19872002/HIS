@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace HIS.Application.DTOs.MedicalHR
 {
@@ -277,6 +278,38 @@ namespace HIS.Application.DTOs.MedicalHR
         public TimeSpan EndTime { get; set; }
         public List<Guid>? AssignedStaffIds { get; set; }
         public string? Notes { get; set; }
+    }
+
+    /// <summary>
+    /// QA-R11: one shift for one staff (v2 HR "Phân ca trực" modal). ShiftType = a code from GET /medicalhr/shifts
+    /// (Morning/Afternoon/Night/OnCall); the shift goes into the staff's department roster of that month.
+    /// </summary>
+    public class AddDutyShiftDto
+    {
+        public Guid StaffId { get; set; }
+        public DateTime ShiftDate { get; set; }
+        public string ShiftType { get; set; } = string.Empty;
+    }
+
+    /// <summary>QA-R11: standard shift types (GET /medicalhr/shifts returned an empty list, so the page used literals).</summary>
+    public static class StandardShifts
+    {
+        public sealed record Def(string Code, string Name, TimeSpan Start, TimeSpan End);
+
+        public static readonly IReadOnlyList<Def> All = new[]
+        {
+            new Def("Morning", "Ca sáng", new TimeSpan(7, 0, 0), new TimeSpan(14, 0, 0)),
+            new Def("Afternoon", "Ca chiều", new TimeSpan(14, 0, 0), new TimeSpan(21, 0, 0)),
+            new Def("Night", "Ca đêm", new TimeSpan(21, 0, 0), new TimeSpan(7, 0, 0)),
+            new Def("OnCall", "Trực", new TimeSpan(17, 0, 0), new TimeSpan(7, 0, 0)),
+        };
+
+        /// <summary>Accepts the code, any case, and the legacy page values ("morning", "on_call").</summary>
+        public static Def? Find(string? code)
+        {
+            var key = (code ?? string.Empty).Replace("_", string.Empty).Trim();
+            return All.FirstOrDefault(d => string.Equals(d.Code, key, StringComparison.OrdinalIgnoreCase));
+        }
     }
 
     /// <summary>

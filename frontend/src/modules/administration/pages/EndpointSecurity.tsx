@@ -401,7 +401,8 @@ const EndpointSecurityV2: React.FC = () => {
         sub={sel ? `${sel.ipAddress || '—'} · ${sel.operatingSystem || '—'}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn icon="activity" onClick={() => { if (sel) tk(`Yêu cầu quét bảo mật: ${sel.hostname}`); }}>Quét bảo mật</Btn>
+          {/* QA-R11: this only toasted "requested" — no scan backend/EDR agent exists. Honest disabled state. */}
+          <Btn icon="activity" disabled title="Chưa kết nối agent EDR — chưa thể quét từ xa">Quét bảo mật</Btn>
           <Btn variant="primary" icon="edit" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>Cập nhật</Btn>
         </>}
       >
