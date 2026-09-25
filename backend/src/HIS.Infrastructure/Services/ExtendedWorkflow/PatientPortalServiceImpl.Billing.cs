@@ -66,6 +66,12 @@ public partial class PatientPortalServiceImpl
     // F9: yêu cầu cấp lại đơn persist THẬT (trước chỉ trả DTO, không lưu).
     public async Task<RefillRequestDto> RequestRefillAsync(RefillRequestDto dto)
     {
+        // QA-R11: unknown prescription ids were stored (orphan refill), and the same prescription could be
+        // queued again and again while a request was still pending.
+        if (!await _context.Prescriptions.AnyAsync(p => p.Id == dto.PrescriptionId && !p.IsDeleted))
+            throw new KeyNotFoundException("Không tìm thấy đơn thuốc");
+        if (await _context.RefillRequests.AnyAsync(r => !r.IsDeleted && r.PrescriptionId == dto.PrescriptionId && r.Status == "Pending"))
+            throw new InvalidOperationException("Đơn thuốc này đã có yêu cầu cấp lại đang chờ xử lý");
         var entity = new RefillRequest
         {
             Id = Guid.NewGuid(),
@@ -116,7 +122,13 @@ public partial class PatientPortalServiceImpl
     {
         var invoiceId = dto.InvoiceIds?.FirstOrDefault() ?? Guid.Empty;
         var invoice = await _context.Receipts.FindAsync(invoiceId);
-        var amount = invoice?.FinalAmount ?? 0;
+        // QA-R11: any receipt id was accepted (another patient's, or a paid one) and an unknown id became a
+        // 0-VND payment that failed on the FK. The receipt must exist, belong to this patient and be unpaid.
+        if (invoice == null || invoice.IsDeleted || (patientId != Guid.Empty && invoice.PatientId != patientId))
+            throw new KeyNotFoundException("Không tìm thấy hóa đơn");
+        if (invoice.Status == 1)
+            throw new InvalidOperationException("Hóa đơn đã được thanh toán");
+        var amount = invoice.FinalAmount;
         var entity = new OnlinePayment { Id = Guid.NewGuid(), PatientId = patientId, ReferenceId = invoiceId, PaymentType = "Invoice", Amount = amount, PaymentMethod = dto.PaymentMethod ?? "VNPay", Status = "Pending", TransactionCode = CodeGenerator.Timestamp("PAY"), CreatedAt = DateTime.Now };
         _context.OnlinePayments.Add(entity);
         await _context.SaveChangesAsync();
@@ -173,23 +185,42 @@ public partial class PatientPortalServiceImpl
         };
     }
 
+    // QA-R11: GET /portal/feedbacks was a controller stub returning [] although SubmitFeedbackAsync stores rows in
+    // ServiceFeedbacks — the patient never saw his own reviews. Only the given patient's rows (no patient → none).
+    public async Task<List<ServiceFeedbackDto>> GetFeedbacksAsync(Guid patientId)
+    {
+        if (patientId == Guid.Empty) return new List<ServiceFeedbackDto>();
+        return await (
+            from f in _context.ServiceFeedbacks.AsNoTracking()
+            where f.PatientId == patientId && !f.IsDeleted
+            join e in _context.Examinations.AsNoTracking() on f.VisitId equals e.Id into ej
+            from e in ej.DefaultIfEmpty()
+            orderby f.SubmittedAt descending, f.Id
+            select new ServiceFeedbackDto
+            {
+                Id = f.Id, VisitId = f.VisitId,
+                VisitDate = e != null ? (e.StartTime ?? e.CreatedAt) : f.SubmittedAt,
+                DepartmentName = e != null && e.Department != null ? e.Department.DepartmentName : "",
+                DoctorName = e != null && e.Doctor != null ? e.Doctor.FullName : "",
+                OverallRating = f.OverallRating, DoctorRating = f.DoctorRating, StaffRating = f.StaffRating,
+                FacilityRating = f.FacilityRating, WaitTimeRating = f.WaitTimeRating,
+                Comments = f.Comments ?? "", WouldRecommend = f.WouldRecommend, SubmittedAt = f.SubmittedAt,
+            })
+            .Take(200)
+            .ToListAsync();
+    }
+
     public async Task<List<PortalNotificationDto>> GetNotificationsAsync(Guid accountId, bool unreadOnly = false)
     {
-        // Demo fallback: if accountId is empty or has no portal account, return latest 50 notifications.
-        IQueryable<Notification> query;
-        if (accountId == Guid.Empty)
-        {
-            query = _context.Notifications;
-        }
-        else
-        {
-            var account = await _context.PortalAccounts.FindAsync(accountId);
-            query = account?.PatientId != null
-                ? _context.Notifications.Where(x => x.TargetUserId == account.PatientId)
-                : _context.Notifications;
-        }
+        // QA-R11 (P1 PHI leak): an empty accountId (staff token) or an unknown / unlinked account fell back to
+        // the 50 newest rows of the WHOLE Notifications table — other people's notifications. Only the linked
+        // patient's own notifications now; nothing to show otherwise.
+        if (accountId == Guid.Empty) return new List<PortalNotificationDto>();
+        var account = await _context.PortalAccounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == accountId && !a.IsDeleted);
+        if (account?.PatientId == null) return new List<PortalNotificationDto>();
+        IQueryable<Notification> query = _context.Notifications.Where(x => x.TargetUserId == account.PatientId);
         if (unreadOnly) query = query.Where(x => !x.IsRead);
-        var list = await query.OrderByDescending(x => x.CreatedAt).Take(50).ToListAsync();
+        var list = await query.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id).Take(50).ToListAsync();
         return list.Select(e => new PortalNotificationDto { Id = e.Id, Title = e.Title, Message = e.Content, IsRead = e.IsRead, CreatedAt = e.CreatedAt }).ToList();
     }
 

@@ -103,6 +103,12 @@ public class BillingGuarantorService : IBillingGuarantorService
             .Where(o => orgIds.Contains(o.Id))
             .ToListAsync();
         var orgMap = orgs.ToDictionary(o => o.Id, o => o.Name);
+        var patientIds = list.Where(g => g.PatientId.HasValue).Select(g => g.PatientId!.Value).Distinct().ToList();
+        var patientMap = patientIds.Count == 0
+            ? new Dictionary<Guid, (string Code, string Name)>()
+            : (await _db.Patients.AsNoTracking().Where(p => patientIds.Contains(p.Id))
+                    .Select(p => new { p.Id, p.PatientCode, p.FullName }).ToListAsync())
+                .ToDictionary(p => p.Id, p => (Code: p.PatientCode, Name: p.FullName));
 
         var result = list.Select(g => new BillingGuarantorDto
         {
@@ -110,6 +116,8 @@ public class BillingGuarantorService : IBillingGuarantorService
             SponsorOrgId    = g.SponsorOrgId,
             SponsorOrgName  = orgMap.TryGetValue(g.SponsorOrgId, out var n) ? n : null,
             PatientId       = g.PatientId,
+            PatientCode     = g.PatientId.HasValue && patientMap.TryGetValue(g.PatientId.Value, out var pc) ? pc.Code : null,
+            PatientName     = g.PatientId.HasValue && patientMap.TryGetValue(g.PatientId.Value, out var pn) ? pn.Name : null,
             MedicalRecordId = g.MedicalRecordId,
             GuaranteeNo     = g.GuaranteeNo,
             GuaranteeRate   = g.GuaranteeRate,
@@ -126,7 +134,9 @@ public class BillingGuarantorService : IBillingGuarantorService
             var kw = keyword.ToLower();
             result = result.Where(g =>
                 (g.GuaranteeNo   != null && g.GuaranteeNo.ToLower().Contains(kw))   ||
-                (g.SponsorOrgName != null && g.SponsorOrgName.ToLower().Contains(kw))
+                (g.SponsorOrgName != null && g.SponsorOrgName.ToLower().Contains(kw)) ||
+                (g.PatientName   != null && g.PatientName.ToLower().Contains(kw))   ||
+                (g.PatientCode   != null && g.PatientCode.ToLower().Contains(kw))
             ).ToList();
         }
 

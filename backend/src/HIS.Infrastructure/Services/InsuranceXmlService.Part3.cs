@@ -421,6 +421,21 @@ public partial class InsuranceXmlService
                     Message = $"Ngày khám {claim.ServiceDate:dd/MM/yyyy} ngoài hạn thẻ {claim.InsuranceStartDate:dd/MM/yyyy} - {claim.InsuranceEndDate:dd/MM/yyyy}"
                 });
 
+            // QA-R11: XML1 T_TONGCHI must equal the sum of the detail tables (XML2 thuốc + XML3 DVKT/VTYT/giường).
+            // A claim header of 5.000.000đ with no detail line at all was exported (XML2/XML3 empty) without a word.
+            var lineTotal = await _context.InsuranceClaimDetails.AsNoTracking()
+                .Where(d => d.ClaimId == claim.Id && !d.IsDeleted)
+                .SumAsync(d => (decimal?)d.Amount) ?? 0m;
+            if (Math.Round(lineTotal, 0) != Math.Round(claim.TotalAmount, 0))
+                warnings.Add(new InsuranceValidationWarning
+                {
+                    WarningCode = "TOTAL_MISMATCH",
+                    Field = "TotalAmount",
+                    Message = lineTotal == 0
+                        ? $"Hồ sơ có tổng chi {claim.TotalAmount:N0}đ nhưng không có dòng chi tiết thuốc/DVKT (XML2/XML3 rỗng)"
+                        : $"Tổng chi hồ sơ {claim.TotalAmount:N0}đ khác tổng các dòng chi tiết {lineTotal:N0}đ"
+                });
+
             if (claim.DischargeDate.HasValue && claim.DischargeDate.Value < claim.ServiceDate)
                 warnings.Add(new InsuranceValidationWarning { WarningCode = "DISCHARGE_BEFORE_ADMISSION", Field = "DischargeDate", Message = "Ngày ra trước ngày vào" });
 

@@ -19,6 +19,8 @@ import {
   type ColumnDef,
 } from '@/_v2kit';
 import { useTabState } from '../../../hooks/useTabState';
+import PatientSearchPicker from '../../patient/components/PatientSearchPicker';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -42,7 +44,7 @@ const PER = 20;
 // ─── Edit state types ─────────────────────────────────────────────────────────
 
 type OrgEdit = Omit<SponsorOrgDto, 'id'> & { id?: string };
-type GuarantorEdit = Omit<BillingGuarantorDto, 'id' | 'sponsorOrgName'> & { id?: string };
+type GuarantorEdit = Omit<BillingGuarantorDto, 'id' | 'sponsorOrgName' | 'patientCode' | 'patientName'> & { id?: string; patientLabel?: string };
 
 const EMPTY_ORG: OrgEdit = {
   code: '', name: '', taxCode: '', address: '', contactPerson: '', phone: '', isActive: true,
@@ -128,7 +130,8 @@ const BillingGuarantorsV2: React.FC = () => {
     return !kw ? guarantors
       : guarantors.filter(g =>
           (g.guaranteeNo ?? '').toLowerCase().includes(kw) ||
-          (g.sponsorOrgName ?? '').toLowerCase().includes(kw)
+          (g.sponsorOrgName ?? '').toLowerCase().includes(kw) ||
+          `${g.patientCode ?? ''} ${g.patientName ?? ''}`.toLowerCase().includes(kw)
         );
   }, [guarantors, search]);
 
@@ -152,6 +155,8 @@ const BillingGuarantorsV2: React.FC = () => {
 
   const colsGuarantor: ColumnDef<BillingGuarantorDto>[] = [
     { key: 'sponsorOrgName', label: 'Đơn vị bảo lãnh'                       },
+    { key: 'patient',        label: 'Bệnh nhân',
+      render: g => g.patientName ? `${g.patientCode ?? ''} · ${g.patientName}` : '—' },
     { key: 'guaranteeNo',    label: 'Số công văn',      width: 140, mono: true },
     { key: 'guaranteeRate',  label: '% BL',             width: 70,
       render: g => `${g.guaranteeRate}%` },
@@ -180,7 +185,7 @@ const BillingGuarantorsV2: React.FC = () => {
   const onOrgDelete = (id: string) => {
     cf('Xóa đơn vị bảo lãnh này?', async () => {
       try { await deleteSponsorOrg(id); tk('Đã xóa'); void reloadOrgs(); }
-      catch { te('Xóa thất bại'); }
+      catch (e) { te(friendlyErrorMessage(e, 'Xóa thất bại')); }
     }, { tone: 'crit' });
   };
 
@@ -189,6 +194,7 @@ const BillingGuarantorsV2: React.FC = () => {
       id: g.id,
       sponsorOrgId:    g.sponsorOrgId,
       patientId:       g.patientId,
+      patientLabel:    g.patientName ? `${g.patientCode ?? ''} — ${g.patientName}` : undefined,
       medicalRecordId: g.medicalRecordId,
       guaranteeNo:     g.guaranteeNo,
       guaranteeRate:   g.guaranteeRate,
@@ -203,7 +209,7 @@ const BillingGuarantorsV2: React.FC = () => {
   const onGuarantorDelete = (id: string) => {
     cf('Hủy bảo lãnh này?', async () => {
       try { await deleteGuarantor(id); tk('Đã hủy'); void reloadGuarantors(); }
-      catch { te('Hủy thất bại'); }
+      catch (e) { te(friendlyErrorMessage(e, 'Hủy thất bại')); }
     }, { tone: 'crit' });
   };
 
@@ -217,7 +223,7 @@ const BillingGuarantorsV2: React.FC = () => {
       tk(orgEdit.id ? 'Đã cập nhật' : 'Đã thêm mới');
       setOrgEdit(null);
       void reloadOrgs();
-    } catch { te('Lưu thất bại'); }
+    } catch (e) { te(friendlyErrorMessage(e, 'Lưu thất bại')); }
     finally { setSaving(false); }
   };
 
@@ -225,16 +231,19 @@ const BillingGuarantorsV2: React.FC = () => {
   const onSaveGuarantor = async () => {
     if (!guarantorEdit) return;
     if (!guarantorEdit.sponsorOrgId) { te('Vui lòng chọn đơn vị bảo lãnh'); return; }
+    // QA-R11: the form had no patient field — every save hit the BE "Không tìm thấy bệnh nhân" (404).
+    if (!guarantorEdit.patientId) { te('Vui lòng chọn bệnh nhân được bảo lãnh'); return; }
     if (guarantorEdit.guaranteeRate < 0 || guarantorEdit.guaranteeRate > 100) {
       te('Tỷ lệ bảo lãnh phải từ 0-100%'); return;
     }
     setSaving(true);
     try {
-      await saveGuarantor({ id: guarantorEdit.id ?? EMPTY_GUID, ...guarantorEdit });
+      const { patientLabel: _label, ...payload } = guarantorEdit;
+      await saveGuarantor({ ...payload, id: guarantorEdit.id ?? EMPTY_GUID });
       tk(guarantorEdit.id ? 'Đã cập nhật' : 'Đã thêm mới');
       setGuarantorEdit(null);
       void reloadGuarantors();
-    } catch { te('Lưu thất bại'); }
+    } catch (e) { te(friendlyErrorMessage(e, 'Lưu thất bại')); }
     finally { setSaving(false); }
   };
 
@@ -437,6 +446,14 @@ const BillingGuarantorsV2: React.FC = () => {
                 onChange={v => setGuarantorEdit({ ...guarantorEdit, sponsorOrgId: v })}
                 options={orgs.filter(o => o.isActive).map(o => ({ value: o.id, label: `[${o.code}] ${o.name}` }))}
                 optionFilterProp="label"
+              />
+            </DrField>
+            <DrField lbl="Bệnh nhân *">
+              <PatientSearchPicker
+                style={{ width: '100%' }}
+                value={guarantorEdit.patientId}
+                seedLabel={guarantorEdit.patientLabel}
+                onChange={id => setGuarantorEdit({ ...guarantorEdit, patientId: id, medicalRecordId: undefined })}
               />
             </DrField>
             <DrField lbl="Số công văn BL">

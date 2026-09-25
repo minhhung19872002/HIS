@@ -46,7 +46,7 @@ namespace HIS.Infrastructure.Services
 
             command.CommandText = sql;
             command.Parameters.Add(new SqlParameter("@fromDate", fromDate));
-            command.Parameters.Add(new SqlParameter("@toDate", toDate));
+            command.Parameters.Add(new SqlParameter("@toDate", InclusiveEndOfDay(toDate))); // QA-R11: whole day
             if (supplierId.HasValue)
                 command.Parameters.Add(new SqlParameter("@supplierId", supplierId.Value));
             if (!string.IsNullOrEmpty(status))
@@ -356,7 +356,7 @@ namespace HIS.Infrastructure.Services
         public async Task<byte[]> PrintImportReceiptAsync(Guid receiptId)
         {
             var receipt = await GetImportReceiptAsync(receiptId);
-            if (receipt == null) return Encoding.UTF8.GetBytes("<html><body>Not found</body></html>");
+            if (receipt == null) throw new KeyNotFoundException("Không tìm thấy phiếu nhập máu."); // QA-R11: was 200 "Not found" page
 
             var sb = new StringBuilder();
             sb.AppendLine("<!DOCTYPE html><html><head><meta charset='utf-8'/><title>Phieu nhap mau</title>");

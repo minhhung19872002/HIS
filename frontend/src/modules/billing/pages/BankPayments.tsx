@@ -4,7 +4,9 @@
  * 5 ngân hàng VN qua VietQR · BIDV / VCB / Agribank / Vietinbank / MSB
  * Theo dõi GD chuyển khoản + xác nhận thủ công khi kế toán đối soát sao kê NH.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { QRCodeCanvas } from 'qrcode.react';
+import { openPrintWindow, escapeHtml } from '../../../utils/printWindow';
 import { Form, Input, DatePicker, Button } from 'antd';
 import dayjs from 'dayjs';
 import { escapeCsvCell } from '../../../utils/csvExport';
@@ -37,6 +39,7 @@ interface PaymentTxn {
   completedAt?: string;
   payDate?: string;
   receiptId?: string | null; // Receipt linked when the transfer was confirmed
+  qrCodeContent?: string;    // EMVCo VietQR payload stored when the QR was generated
 }
 
 // Map provider code → bank meta (giữ visual giống mock)
@@ -77,6 +80,29 @@ const BankPayments: React.FC = () => {
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [expiring, setExpiring] = useState(false);
   const [form] = Form.useForm();
+  const qrWrapRef = useRef<HTMLDivElement>(null);
+
+  // QA-R11: the QR modal drew a decorative checkerboard (not scannable) and "In QR" / "Gửi BN" had no handler.
+  // Now it renders the transaction's real VietQR payload; "In QR" prints it. There is no SMS/Zalo channel to
+  // "send to patient", so that button is replaced by copying the payload.
+  const printQr = (r: PaymentTxn) => {
+    const canvas = qrWrapRef.current?.querySelector('canvas');
+    if (!canvas || !r.qrCodeContent) { te('Giao dịch không có mã QR để in'); return; }
+    const b = bankOf(r);
+    openPrintWindow(`<!DOCTYPE html><html><head><title>QR ${escapeHtml(r.txnRef)}</title></head>
+      <body style="font-family:Arial,sans-serif;text-align:center;padding:24px">
+        <h3>Quét mã VietQR để thanh toán · ${escapeHtml(b.short)}</h3>
+        <img src="${canvas.toDataURL('image/png')}" style="width:280px;height:280px" />
+        <div style="font-size:20px;font-weight:700;margin-top:12px">${escapeHtml(fmtVNDg(r.amount))}</div>
+        <div style="margin-top:6px">Nội dung: ${escapeHtml(r.txnRef)}</div>
+        <div style="margin-top:4px">${escapeHtml(r.patientName ?? '')}</div>
+      </body></html>`, { print: { delayMs: 300 } });
+  };
+  const copyQr = async (r: PaymentTxn) => {
+    if (!r.qrCodeContent) { te('Giao dịch không có mã QR'); return; }
+    try { await navigator.clipboard.writeText(r.qrCodeContent); tk('Đã sao chép nội dung mã QR'); }
+    catch { te('Trình duyệt không cho phép sao chép'); }
+  };
 
   // "In biên lai" had no handler at all — print the receipt linked to the confirmed transfer.
   const printReceipt = async (r: PaymentTxn) => {
@@ -368,8 +394,8 @@ const BankPayments: React.FC = () => {
         footer={(
           <>
             <Button onClick={() => setQrFor(null)}>Đóng</Button>
-            <Button><TermIcon name="printer" size={12} /> In QR</Button>
-            <Button type="primary"><TermIcon name="send" size={12} /> Gửi BN</Button>
+            <Button disabled={!qrFor?.qrCodeContent} onClick={() => qrFor && printQr(qrFor)}><TermIcon name="printer" size={12} /> In QR</Button>
+            <Button disabled={!qrFor?.qrCodeContent} onClick={() => { if (qrFor) void copyQr(qrFor); }}><TermIcon name="copy" size={12} /> Sao chép mã</Button>
           </>
         )}
       >
@@ -377,10 +403,11 @@ const BankPayments: React.FC = () => {
           const b = bankOf(qrFor);
           return (
             <div style={{ padding: 'var(--space-20)', textAlign: 'center' }}>
-              <div style={{
-                width: 220, height: 220, margin: '0 auto', border: '1px solid var(--line)', borderRadius: 'var(--r-3)',
-                background: 'repeating-conic-gradient(#000 0% 25%, var(--d-2) 0% 50%) 50%/12px 12px',
-              }} />
+              <div ref={qrWrapRef} style={{ display: 'inline-block', padding: 8, background: '#fff', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
+                {qrFor.qrCodeContent
+                  ? <QRCodeCanvas value={qrFor.qrCodeContent} size={220} level="M" />
+                  : <div style={{ width: 220, height: 220, display: 'grid', placeItems: 'center', color: 'var(--t-3)', fontSize: 12 }}>Giao dịch không lưu mã QR</div>}
+              </div>
               <div style={{ marginTop: 'var(--space-14)', fontSize: 12.5, color: 'var(--t-1)' }}>
                 Quét mã VietQR · <b>{b.short}</b> · BIN {b.bin}
               </div>

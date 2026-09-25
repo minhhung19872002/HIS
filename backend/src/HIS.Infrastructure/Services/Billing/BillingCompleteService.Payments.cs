@@ -757,6 +757,24 @@ public partial class BillingCompleteService {
             && r.Status != RefundStatus.Cancelled);
         if (hasActiveRefund)
             throw new InvalidOperationException("Phiếu thu đã có phiếu hoàn tiền — hủy/từ chối phiếu hoàn trước");
+        // QA-R11: the record's issued e-invoice (Status 1 Issued / 2 Sent) stayed valid after one of the receipts it
+        // covers was voided — a tax invoice for money the hospital no longer holds. Cancel/replace the e-invoice first.
+        if (receipt.ReceiptType == 2 && receipt.MedicalRecordId.HasValue)
+        {
+            var recordId = receipt.MedicalRecordId.Value;
+            // Only an e-invoice issued after this receipt can cover it (an earlier stay/bảng kê must not block
+            // voiding a later mistaken receipt — pre-push review).
+            var receiptDay = receipt.ReceiptDate.Date;
+            var liveEInvoice = await _context.ElectronicInvoices
+                .Where(e => !e.IsDeleted && (e.Status == 1 || e.Status == 2) && e.InvoiceDate >= receiptDay
+                            && e.InvoiceSummaryId != null && _context.InvoiceSummaries
+                                .Any(i => i.Id == e.InvoiceSummaryId && i.MedicalRecordId == recordId))
+                .Select(e => e.InvoiceSeries + "-" + e.InvoiceNumber)
+                .FirstOrDefaultAsync();
+            if (liveEInvoice != null)
+                throw new InvalidOperationException(
+                    $"Hồ sơ đã phát hành hóa đơn điện tử {liveEInvoice} — hủy hoặc thay thế hóa đơn điện tử trước khi hủy phiếu thu.");
+        }
 
         receipt.Status = 2; // Đã hủy
 

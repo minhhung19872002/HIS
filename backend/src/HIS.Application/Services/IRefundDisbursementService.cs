@@ -11,8 +11,11 @@ public interface IRefundDisbursementService
 {
     Task<RefundDisbursementDto> CreateAsync(CreateRefundDisbursementDto dto, Guid userId);
 
-    /// <summary>Duyệt + thực hiện chi (MockMode: đánh dấu hoàn tất với mã lệnh mock).</summary>
-    Task<RefundDisbursementDto> ExecuteAsync(Guid id, Guid userId);
+    /// <summary>
+    /// Duyệt + ghi nhận đã chi. QA-R11: chưa có API giải ngân VCB → kế toán chuyển khoản thủ công qua ngân hàng rồi
+    /// nhập mã giao dịch (<paramref name="transferRef"/>). MockMode chỉ bật khi cấu hình tường minh "true".
+    /// </summary>
+    Task<RefundDisbursementDto> ExecuteAsync(Guid id, Guid userId, string? transferRef = null);
 
     Task<RefundDisbursementDto> CancelAsync(Guid id, string? reason, Guid userId);
 

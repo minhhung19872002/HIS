@@ -16,6 +16,7 @@ import {
   type BhytFullCoveragePatientDto,
   type CreateBhytFullCoverageDto,
 } from '../api/bhytFullCoverage';
+import PatientSearchPicker from '../../patient/components/PatientSearchPicker';
 
 // ── helpers ──
 
@@ -99,14 +100,19 @@ const FormModal: React.FC<FormModalProps> = ({ open, initial, onClose, onSaved }
       <Form form={form} layout="vertical" style={{ marginTop: 'var(--space-8)' }}>
         <Form.Item
           name="patientId"
-          label="ID ệnh nhân (GUID)"
-          rules={[{ required: true, message: 'Bắt buộc nhập PatientId' }]}
+          label="Bệnh nhân"
+          rules={[{ required: true, message: 'Chọn bệnh nhân' }]}
         >
-          <Input placeholder="00000000-0000-0000-0000-000000000000" disabled={!!initial} />
+          {/* QA-R11: was a raw GUID text box — nobody at the counter knows a patient's GUID */}
+          <PatientSearchPicker
+            disabled={!!initial}
+            seedLabel={initial ? `${initial.patientCode} — ${initial.patientName}` : undefined}
+            style={{ width: '100%' }}
+          />
         </Form.Item>
         <Form.Item
           name="effectiveFrom"
-          label="Hieu luc tu ngay"
+          label="Hiệu lực từ ngày"
           rules={[{ required: true, message: 'Bắt buộc chọn ngày' }]}
         >
           <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
@@ -120,12 +126,12 @@ const FormModal: React.FC<FormModalProps> = ({ open, initial, onClose, onSaved }
         </Form.Item>
         <Form.Item
           name="medicineScopeJson"
-          label='Pham vi thuoc (JSON array MedicineCode — de trong = tat ca thuoc dac tri)'
-          extra='Vi du: ["ABC001","DEF002"]. De trong de ap dung cho tat ca.'
+          label='Phạm vi thuốc (mảng JSON mã thuốc — để trống = tất cả thuốc đặc trị)'
+          extra='Ví dụ: ["ABC001","DEF002"]. Để trống để áp dụng cho tất cả.'
         >
           <Input.TextArea rows={2} placeholder='["ABC001","DEF002"]' />
         </Form.Item>
-        <Form.Item name="note" label="Ghi chu">
+        <Form.Item name="note" label="Ghi chú">
           <Input.TextArea rows={2} />
         </Form.Item>
       </Form>
@@ -154,14 +160,14 @@ const COLUMNS: ColumnDef<BhytFullCoveragePatientDto>[] = [
     label: 'Trạng thái',
     render: (r) => {
       const expired = dayjs(r.effectiveTo).isBefore(today, 'day');
-      if (!r.isActive || expired) return <StatusBadge tone="crit">Khong hieu luc</StatusBadge>;
-      return <StatusBadge tone="ok">Dang hieu luc</StatusBadge>;
+      if (!r.isActive || expired) return <StatusBadge tone="crit">Không hiệu lực</StatusBadge>;
+      return <StatusBadge tone="ok">Đang hiệu lực</StatusBadge>;
     },
   },
   {
     key: 'medicineScopeJson',
     label: 'Phạm vi thuốc',
-    render: (r) => r.medicineScopeJson ? r.medicineScopeJson : <span style={{ color: '#aaa' }}>ất cả</span>,
+    render: (r) => r.medicineScopeJson ? r.medicineScopeJson : <span style={{ color: 'var(--t-3)' }}>Tất cả</span>,
   },
   { key: 'note', label: 'Ghi chú', render: (r) => r.note || '—' },
 ];
@@ -204,10 +210,10 @@ const BhytFullCoveragePage: React.FC = () => {
       onOk: async () => {
         try {
           await deleteBhytFullCoverage(row.id);
-          message.success('Da xoa');
+          message.success('Đã xóa');
           reload();
-        } catch {
-          message.warning('Xoa that bai');
+        } catch (err) {
+          message.warning(friendlyErrorMessage(err, 'Xóa thất bại'));
         }
       },
     });
@@ -221,14 +227,14 @@ const BhytFullCoveragePage: React.FC = () => {
           onClick={(e) => { e.stopPropagation(); setEditing(row); setFormOpen(true); }}
           type="button"
         >
-          Sua
+          Sửa
         </button>
         <button
           className="ab-btn ab-btn--ghost ab-btn--sm ab-btn--danger"
           onClick={(e) => { e.stopPropagation(); handleDelete(row); }}
           type="button"
         >
-          Xoa
+          Xóa
         </button>
       </>
     ),
@@ -238,11 +244,11 @@ const BhytFullCoveragePage: React.FC = () => {
   return (
     <>
       <SimpleV2Page<BhytFullCoveragePatientDto>
-        title="BN BHYT 100% thuoc dac tri"
+        title="BN BHYT 100% thuốc đặc trị"
         load={load}
         rowKey={(r) => r.id}
         columns={COLUMNS}
-        searchPlaceholder="Tim theo tên, mã BN, số thẻ BHYT..."
+        searchPlaceholder="Tìm theo tên, mã BN, số thẻ BHYT..."
         searchOf={(r) => `${r.patientCode} ${r.patientName} ${r.insuranceNumber}`}
         kpis={kpis}
         pageSize={16}
@@ -253,7 +259,7 @@ const BhytFullCoveragePage: React.FC = () => {
             onClick={() => { setEditing(null); setFormOpen(true); }}
             type="button"
           >
-            + Them BN
+            + Thêm BN
           </button>
         )}
         emptyMessage="Chưa có khai báo nào"

@@ -50,6 +50,8 @@ export interface RevenueByServiceDto {
   cost: number;
   profit: number;
   profitMargin: number;
+  /** QA-R11: false when the BE sent no cost for the row — cost/profit are then unknown, not 0 / 100 % of revenue. */
+  costKnown?: boolean;
 }
 
 export interface SurgeryProfitReportDto {
@@ -209,6 +211,7 @@ const toRevenueByService = (r: Raw): RevenueByServiceDto => ({
   cost: num(r.cost),
   profit: r.profit != null ? num(r.profit) : num(r.totalRevenue) - num(r.cost),
   profitMargin: num(r.profitMargin),
+  costKnown: r.cost != null,
 });
 
 const toSurgeryProfit = (r: Raw): SurgeryProfitReportDto => {

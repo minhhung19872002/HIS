@@ -25,6 +25,11 @@ public class BillingGuarantorDto
     public string? SponsorOrgName { get; set; }
 
     public Guid? PatientId { get; set; }
+
+    /// <summary>QA-R11: mã/tên BN — join từ Patients, chỉ đọc (list trước đây không cho biết bảo lãnh cho ai).</summary>
+    public string? PatientCode { get; set; }
+    public string? PatientName { get; set; }
+
     public Guid? MedicalRecordId { get; set; }
     public string? GuaranteeNo { get; set; }
     public decimal GuaranteeRate { get; set; }

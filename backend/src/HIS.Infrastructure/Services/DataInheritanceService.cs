@@ -305,9 +305,16 @@ public class DataInheritanceService : IDataInheritanceService
             var totalPaid = existingPayments
                 .Where(p => p.ReceiptType == 2 && p.Status == 1) // Payments that are confirmed
                 .Sum(p => p.Amount);
-            var totalDeposit = existingPayments
-                .Where(p => p.ReceiptType == 1 && p.Status == 1) // Deposits that are confirmed
-                .Sum(p => p.Amount);
+            // QA-R11: deposits were read as Receipts type 1, which nothing writes (always 0) — they live in the Deposits
+            // table (same source as PaymentReportsService). Money spent from a deposit is already a payment receipt
+            // (counted in totalPaid), so only the unused balance reduces what is still owed.
+            var deposits = await _context.Deposits.AsNoTracking()
+                .Where(d => d.MedicalRecordId == medicalRecordId && !d.IsDeleted
+                            && d.Status != HIS.Core.Constants.DepositStatus.Cancelled)
+                .Select(d => new { d.Amount, d.RemainingAmount })
+                .ToListAsync();
+            var totalDeposit = deposits.Sum(d => d.Amount);
+            var depositBalance = deposits.Sum(d => d.RemainingAmount);
             var totalRefund = existingPayments
                 .Where(p => p.ReceiptType == 3 && p.Status == 1) // Refunds
                 .Sum(p => p.Amount);
@@ -356,7 +363,7 @@ public class DataInheritanceService : IDataInheritanceService
                 ExistingPayments = existingPayments,
                 TotalPaid = totalPaid,
                 TotalDeposit = totalDeposit,
-                RemainingAmount = totalPatient - totalPaid - totalDeposit + totalRefund,
+                RemainingAmount = totalPatient - totalPaid - depositBalance + totalRefund,
             };
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))

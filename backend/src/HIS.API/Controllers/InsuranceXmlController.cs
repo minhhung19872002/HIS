@@ -37,6 +37,7 @@ public partial class InsuranceXmlController : ControllerBase
     /// Đồng bộ dữ liệu BHYT
     /// </summary>
     [HttpPost("sync")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)] // QA-R11: receptionist reached every XML/settlement write
     public ActionResult SyncInsurance()
     {
         return Ok(new { message = "Đồng bộ BHYT thành công", syncedAt = DateTime.Now });
@@ -198,6 +199,7 @@ public partial class InsuranceXmlController : ControllerBase
     /// Tạo dữ liệu XML1 - Thông tin chung hồ sơ KCB
     /// </summary>
     [HttpPost("xml/generate/xml1")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)] // QA-R11: XML data export = insurance back-office (was reachable by Tiếp đón)
     public async Task<ActionResult<List<Xml1MedicalRecordDto>>> GenerateXml1Data([FromBody] XmlExportConfigDto config)
     {
         // Sweep 2026-06-12: body rỗng từng 500 — phải có kỳ quyết toán hoặc danh sách mã liên thông
@@ -212,6 +214,7 @@ public partial class InsuranceXmlController : ControllerBase
     /// Tạo dữ liệu XML2 - Thuốc điều trị
     /// </summary>
     [HttpPost("xml/generate/xml2")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)] // QA-R11: XML data export = insurance back-office (was reachable by Tiếp đón)
     public async Task<ActionResult<List<Xml2MedicineDto>>> GenerateXml2Data([FromBody] XmlExportConfigDto config)
     {
         var result = await _insuranceService.GenerateXml2DataAsync(config);
@@ -222,6 +225,7 @@ public partial class InsuranceXmlController : ControllerBase
     /// Tạo dữ liệu XML3 - Dịch vụ kỹ thuật
     /// </summary>
     [HttpPost("xml/generate/xml3")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)] // QA-R11: XML data export = insurance back-office (was reachable by Tiếp đón)
     public async Task<ActionResult<List<Xml3ServiceDto>>> GenerateXml3Data([FromBody] XmlExportConfigDto config)
     {
         var result = await _insuranceService.GenerateXml3DataAsync(config);
@@ -232,6 +236,7 @@ public partial class InsuranceXmlController : ControllerBase
     /// Tạo dữ liệu XML4 - Chi phí ngoài danh mục
     /// </summary>
     [HttpPost("xml/generate/xml4")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)] // QA-R11: XML data export = insurance back-office (was reachable by Tiếp đón)
     public async Task<ActionResult<List<Xml4OtherMedicineDto>>> GenerateXml4Data([FromBody] XmlExportConfigDto config)
     {
         var result = await _insuranceService.GenerateXml4DataAsync(config);
@@ -242,6 +247,7 @@ public partial class InsuranceXmlController : ControllerBase
     /// Tạo dữ liệu XML5 - Chỉ định thuốc
     /// </summary>
     [HttpPost("xml/generate/xml5")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)] // QA-R11: XML data export = insurance back-office (was reachable by Tiếp đón)
     public async Task<ActionResult<List<Xml5PrescriptionDto>>> GenerateXml5Data([FromBody] XmlExportConfigDto config)
     {
         var result = await _insuranceService.GenerateXml5DataAsync(config);
@@ -252,6 +258,7 @@ public partial class InsuranceXmlController : ControllerBase
     /// Tạo dữ liệu XML7 - Giấy chuyển tuyến
     /// </summary>
     [HttpPost("xml/generate/xml7")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)] // QA-R11: XML data export = insurance back-office (was reachable by Tiếp đón)
     public async Task<ActionResult<List<Xml7ReferralDto>>> GenerateXml7Data([FromBody] XmlExportConfigDto config)
     {
         var result = await _insuranceService.GenerateXml7DataAsync(config);
@@ -262,6 +269,7 @@ public partial class InsuranceXmlController : ControllerBase
     /// Tạo dữ liệu XML6 - Máu và chế phẩm máu
     /// </summary>
     [HttpPost("xml/generate/xml6")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)] // QA-R11: XML data export = insurance back-office (was reachable by Tiếp đón)
     public async Task<ActionResult<List<Xml6BloodDto>>> GenerateXml6Data([FromBody] XmlExportConfigDto config)
     {
         var result = await _insuranceService.GenerateXml6DataAsync(config);
@@ -272,6 +280,7 @@ public partial class InsuranceXmlController : ControllerBase
     /// Tạo dữ liệu XML8 - Vận chuyển người bệnh
     /// </summary>
     [HttpPost("xml/generate/xml8")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)] // QA-R11: XML data export = insurance back-office (was reachable by Tiếp đón)
     public async Task<ActionResult<List<Xml8TransportDto>>> GenerateXml8Data([FromBody] XmlExportConfigDto config)
     {
         var result = await _insuranceService.GenerateXml8DataAsync(config);
@@ -282,6 +291,7 @@ public partial class InsuranceXmlController : ControllerBase
     /// Tạo dữ liệu XML9 - Giấy nghỉ việc hưởng BHXH
     /// </summary>
     [HttpPost("xml/generate/xml9")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)] // QA-R11: XML data export = insurance back-office (was reachable by Tiếp đón)
     public async Task<ActionResult<List<Xml9SickLeaveDto>>> GenerateXml9Data([FromBody] XmlExportConfigDto config)
     {
         var result = await _insuranceService.GenerateXml9DataAsync(config);
@@ -292,6 +302,7 @@ public partial class InsuranceXmlController : ControllerBase
     /// Tạo dữ liệu XML10 - Kết quả giám định
     /// </summary>
     [HttpPost("xml/generate/xml10")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)] // QA-R11: XML data export = insurance back-office (was reachable by Tiếp đón)
     public async Task<ActionResult<List<Xml10AssessmentDto>>> GenerateXml10Data([FromBody] XmlExportConfigDto config)
     {
         var result = await _insuranceService.GenerateXml10DataAsync(config);
@@ -302,6 +313,7 @@ public partial class InsuranceXmlController : ControllerBase
     /// Tạo dữ liệu XML11 - Sổ BHXH
     /// </summary>
     [HttpPost("xml/generate/xml11")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)] // QA-R11: XML data export = insurance back-office (was reachable by Tiếp đón)
     public async Task<ActionResult<List<Xml11SocialInsuranceDto>>> GenerateXml11Data([FromBody] XmlExportConfigDto config)
     {
         var result = await _insuranceService.GenerateXml11DataAsync(config);
@@ -312,6 +324,7 @@ public partial class InsuranceXmlController : ControllerBase
     /// Tạo dữ liệu XML13 - Giấy hẹn tái khám
     /// </summary>
     [HttpPost("xml/generate/xml13")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)] // QA-R11: XML data export = insurance back-office (was reachable by Tiếp đón)
     public async Task<ActionResult<List<Xml13ReExamDto>>> GenerateXml13Data([FromBody] XmlExportConfigDto config)
     {
         var result = await _insuranceService.GenerateXml13DataAsync(config);
@@ -322,6 +335,7 @@ public partial class InsuranceXmlController : ControllerBase
     /// Tạo dữ liệu XML14 - Phiếu chuyển tuyến (QĐ 3176)
     /// </summary>
     [HttpPost("xml/generate/xml14")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)] // QA-R11: XML data export = insurance back-office (was reachable by Tiếp đón)
     public async Task<ActionResult<List<Xml14ReferralCertDto>>> GenerateXml14Data([FromBody] XmlExportConfigDto config)
     {
         var result = await _insuranceService.GenerateXml14DataAsync(config);
@@ -332,6 +346,7 @@ public partial class InsuranceXmlController : ControllerBase
     /// Tạo dữ liệu XML15 - Điều trị lao
     /// </summary>
     [HttpPost("xml/generate/xml15")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)] // QA-R11: XML data export = insurance back-office (was reachable by Tiếp đón)
     public async Task<ActionResult<List<Xml15TbTreatmentDto>>> GenerateXml15Data([FromBody] XmlExportConfigDto config)
     {
         var result = await _insuranceService.GenerateXml15DataAsync(config);
@@ -363,6 +378,7 @@ public partial class InsuranceXmlController : ControllerBase
     /// Xuất file Excel dữ liệu BHYT
     /// </summary>
     [HttpPost("xml/export-excel")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)] // QA-R11: XML data export = insurance back-office (was reachable by Tiếp đón)
     public async Task<ActionResult> ExportExcel([FromBody] XmlExportConfigDto config)
     {
         var result = await _insuranceService.ExportExcelAsync(config);
@@ -374,9 +390,14 @@ public partial class InsuranceXmlController : ControllerBase
     /// Tải file XML đã xuất
     /// </summary>
     [HttpGet("xml/download/{batchId}")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)] // QA-R11: XML data export = insurance back-office (was reachable by Tiếp đón)
     public async Task<ActionResult> DownloadXmlFile(Guid batchId)
     {
         var result = await _insuranceService.DownloadXmlFileAsync(batchId);
+        // QA-R11: an unknown batch (e.g. a settlement-period id) or a batch whose folder is gone came back as a
+        // 0-byte "zip" with 200 and the page said "Đã tải file XML".
+        if (result.Length == 0)
+            return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy file XML của đợt này — đợt chưa xuất XML hoặc file đã bị xóa." });
         return File(result, "application/zip", $"XML_BHYT_{batchId}.zip");
     }
 

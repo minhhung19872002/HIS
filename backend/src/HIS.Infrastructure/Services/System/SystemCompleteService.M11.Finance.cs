@@ -24,22 +24,24 @@ public partial class SystemCompleteService
             // Query ServiceRequests grouped by ordering department (DepartmentId)
             // QA-R6: `<= toDate` (midnight) dropped the whole last day (01-16/09: 82.43M vs 90.7M).
             var toEnd = ReportPeriod.EndExclusive(toDate);
-            var query = _context.ServiceRequests.AsNoTracking()
-                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate < toEnd && sr.Status != 4);
+            // QA-R11: live detail lines, not the header total (cancelled lines stayed in it) — see 11.2 below.
+            var query = _context.ServiceRequestDetails.AsNoTracking()
+                .Where(d => d.ServiceRequest.RequestDate >= fromDate && d.ServiceRequest.RequestDate < toEnd
+                         && d.ServiceRequest.Status != 4 && d.Status != 3);
 
             if (departmentId.HasValue)
-                query = query.Where(sr => sr.DepartmentId == departmentId.Value);
+                query = query.Where(d => d.ServiceRequest.DepartmentId == departmentId.Value);
 
             var deptGroups = await query
-                .GroupBy(sr => sr.DepartmentId)
+                .GroupBy(d => d.ServiceRequest.DepartmentId)
                 .Select(g => new
                 {
                     DepartmentId = g.Key,
-                    TotalRevenue = g.Sum(sr => sr.TotalAmount),
-                    InsuranceRevenue = g.Sum(sr => sr.InsuranceAmount),
-                    PatientRevenue = g.Sum(sr => sr.PatientAmount),
-                    PatientCount = g.Select(sr => sr.MedicalRecordId).Distinct().Count(),
-                    ServiceCount = g.Count()
+                    TotalRevenue = g.Sum(d => d.Amount),
+                    InsuranceRevenue = g.Sum(d => d.InsuranceAmount),
+                    PatientRevenue = g.Sum(d => d.PatientAmount),
+                    PatientCount = g.Select(d => d.ServiceRequest.MedicalRecordId).Distinct().Count(),
+                    ServiceCount = g.Select(d => d.ServiceRequestId).Distinct().Count()
                 })
                 .ToListAsync();
 
@@ -99,23 +101,27 @@ public partial class SystemCompleteService
         {
             // Query ServiceRequests grouped by executing department (ExecuteDepartmentId)
             var toEnd = ReportPeriod.EndExclusive(toDate); // QA-R6: last day was dropped
-            var query = _context.ServiceRequests.AsNoTracking()
-                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate < toEnd && sr.Status != 4);
+            // QA-R11: summed the order header (ServiceRequest.TotalAmount), which keeps the price of lines cancelled
+            // later (detail Status 3) and of headers without any line — 09/2026: 95.985.000đ here vs 93.885.000đ in
+            // "Doanh thu theo dịch vụ" for the same period. Sum the live detail lines, grouped by the header's dept.
+            var query = _context.ServiceRequestDetails.AsNoTracking()
+                .Where(d => d.ServiceRequest.RequestDate >= fromDate && d.ServiceRequest.RequestDate < toEnd
+                         && d.ServiceRequest.Status != 4 && d.Status != 3);
 
             if (departmentId.HasValue)
-                query = query.Where(sr => sr.ExecuteDepartmentId == departmentId.Value);
+                query = query.Where(d => d.ServiceRequest.ExecuteDepartmentId == departmentId.Value);
 
             // Group by ExecuteDepartmentId; fallback to DepartmentId when null
             var deptGroups = await query
-                .GroupBy(sr => sr.ExecuteDepartmentId ?? sr.DepartmentId)
+                .GroupBy(d => d.ServiceRequest.ExecuteDepartmentId ?? d.ServiceRequest.DepartmentId)
                 .Select(g => new
                 {
                     DepartmentId = g.Key,
-                    TotalRevenue = g.Sum(sr => sr.TotalAmount),
-                    InsuranceRevenue = g.Sum(sr => sr.InsuranceAmount),
-                    PatientRevenue = g.Sum(sr => sr.PatientAmount),
-                    PatientCount = g.Select(sr => sr.MedicalRecordId).Distinct().Count(),
-                    ServiceCount = g.Count()
+                    TotalRevenue = g.Sum(d => d.Amount),
+                    InsuranceRevenue = g.Sum(d => d.InsuranceAmount),
+                    PatientRevenue = g.Sum(d => d.PatientAmount),
+                    PatientCount = g.Select(d => d.ServiceRequest.MedicalRecordId).Distinct().Count(),
+                    ServiceCount = g.Select(d => d.ServiceRequestId).Distinct().Count()
                 })
                 .ToListAsync();
 

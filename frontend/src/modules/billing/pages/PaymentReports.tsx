@@ -94,7 +94,8 @@ const PaymentReportsV2: React.FC = () => {
         setBc5(data as typeof bc5);
       } else if (tab === 'bc6') {
         const { data } = await apiClient.get<BillingDetailRow[]>('/payment-reports/billing-detail', { params });
-        setBc6(data || []);
+        // QA-R11: lines have no id — key = receipt + position (was Math.random() → every row remounted each render)
+        setBc6((data || []).map((r, i) => ({ ...r, _k: `${r.receiptCode ?? ''}#${i}` })));
       } else if (tab === 'bc7') {
         const { data } = await apiClient.get('/payment-reports/refund-gateway', { params });
         setBc7(data as typeof bc7);
@@ -120,7 +121,7 @@ const PaymentReportsV2: React.FC = () => {
       : tab === 'bc7' ? (bc7?.items || []) as unknown as CsvRow[]
       : (bc8?.items || []) as unknown as CsvRow[];
     if (!rows || rows.length === 0) { tw('Không có dữ liệu'); return; }
-    const keys = Object.keys(rows[0]).filter((k) => typeof rows[0][k] !== 'object' || rows[0][k] instanceof Date);
+    const keys = Object.keys(rows[0]).filter((k) => !k.startsWith('_') && (typeof rows[0][k] !== 'object' || rows[0][k] instanceof Date));
     // QA-R10: shared escaping (quotes, line breaks, formula injection) + BOM
     const blob = file.csvBlob([file.csvLine(keys), ...rows.map((r) => file.csvLine(keys.map((k) => r[k])))]);
     file.downloadBlob(blob, `${tab}-${range[0].format('YYYYMMDD')}-${range[1].format('YYYYMMDD')}.csv`);
@@ -282,7 +283,7 @@ const PaymentReportsV2: React.FC = () => {
     if (tab === 'bc3') return <DataTable<DailyDetailRow> columns={bc3Cols} data={bc3} rowKey={(r) => r.receiptCode} loading={loading} empty="Không có dữ liệu" />;
     if (tab === 'bc4') return <DataTable<EInvoiceRow> columns={eInvoiceCols} data={bc4?.items || []} rowKey={(r) => `${r.invoiceSeries}-${r.invoiceNumber}`} loading={loading} empty="Không có dữ liệu" />;
     if (tab === 'bc5') return <DataTable<EInvoiceRow> columns={eInvoiceCols} data={bc5?.items || []} rowKey={(r) => `${r.invoiceSeries}-${r.invoiceNumber}`} loading={loading} empty="Không có dữ liệu" />;
-    if (tab === 'bc6') return <DataTable<BillingDetailRow> columns={bc6Cols} data={bc6} rowKey={(_r) => Math.random().toString()} loading={loading} empty="Không có dữ liệu" />;
+    if (tab === 'bc6') return <DataTable<BillingDetailRow> columns={bc6Cols} data={bc6} rowKey={(r) => String(r._k)} loading={loading} empty="Không có dữ liệu" />;
     if (tab === 'bc7') return <DataTable<RefundRow> columns={bc7Cols} data={bc7?.items || []} rowKey={(r) => String(r.txnRef)} loading={loading} empty="Không có dữ liệu" />;
     return <DataTable<PharmacyRetailRow> columns={bc8Cols} data={bc8?.items || []} rowKey={(r) => r.saleCode} loading={loading} empty="Không có dữ liệu" />;
   };

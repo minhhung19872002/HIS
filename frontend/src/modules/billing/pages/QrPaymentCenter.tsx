@@ -1,7 +1,7 @@
 // =====================================================================
 // HIS Terminal · [25] QR ĐỘNG & ĐỐI SOÁT VCB — NangCap25 (Issue #358)
 // 3 tab: Đối soát ngân hàng (VI.2) · Báo cáo người tạo QR (VI.1) ·
-// Chi hộ hoàn tiền thừa (IV — MockMode đến khi có API giải ngân VCB).
+// Chi hộ hoàn tiền thừa (IV — chưa có API giải ngân VCB: chuyển khoản thủ công + nhập mã GD, QA-R11).
 // =====================================================================
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTabState } from '../../../hooks/useTabState';
@@ -19,6 +19,7 @@ import {
   type BankReconciliationReport, type QrFinanceReport, type QrFinanceItem,
   type RefundDisbursementDto, type QrCreatorStat,
 } from '../api/nangcap25';
+import PatientSearchPicker from '../../patient/components/PatientSearchPicker';
 
 type TabKey = 'recon' | 'creators' | 'disburse';
 const TABS: TopTab<TabKey>[] = [
@@ -54,6 +55,10 @@ const QrPaymentCenter: React.FC = () => {
   const [disbTotals, setDisbTotals] = useState<{ total: number; transferred: number }>({ total: 0, transferred: 0 });
   // Chống double-click trên lệnh chi hộ (chi tiền thật qua NH — không hoàn tác được)
   const [rowBusy, setRowBusy] = useState<string | null>(null);
+  // QA-R11: "Duyệt + chi" marked the order paid with a fake MOCK-… reference (no money moved). Now the accountant
+  // transfers in the bank channel and records that transfer's reference here.
+  const [execFor, setExecFor] = useState<RefundDisbursementDto | null>(null);
+  const [execRef, setExecRef] = useState('');
 
   const [createOpen, setCreateOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -62,7 +67,7 @@ const QrPaymentCenter: React.FC = () => {
     accountNumber: '', accountHolder: '', reason: '',
   });
   const cformRules = {
-    patientId: { required: true as const, message: 'Nhập ID bệnh nhân (lấy từ giao dịch gốc hoặc hồ sơ)' },
+    patientId: { required: true as const, message: 'Chọn bệnh nhân nhận tiền hoàn' },
     amount: { validate: (v: unknown) => (!Number(v) || Number(v) <= 0) ? 'Nhập số tiền hợp lệ' : undefined },
     accountNumber: { required: true as const, message: 'Nhập số tài khoản nhận' },
     accountHolder: { required: true as const, message: 'Nhập tên chủ tài khoản nhận' },
@@ -137,10 +142,13 @@ const QrPaymentCenter: React.FC = () => {
 
   const doExecute = async (r: RefundDisbursementDto) => {
     if (rowBusy) return;
+    const ref = execRef.trim();
+    if (!ref) { te('Nhập mã giao dịch chuyển khoản của ngân hàng'); return; }
     setRowBusy(r.id);
     try {
-      await executeDisbursement(r.id);
-      tk(`Đã chi ${fmtVNDg(r.amount)} → ${r.accountNumber}`);
+      await executeDisbursement(r.id, ref);
+      tk(`Đã ghi nhận chi ${fmtVNDg(r.amount)} → ${r.accountNumber} (mã GD ${ref})`);
+      setExecFor(null);
       void load('disburse');
     } catch (err) {
       te(friendlyErrorMessage(err, 'Thực hiện chi thất bại. Vui lòng kiểm tra lại lệnh chi trước khi thử lại.'));
@@ -231,13 +239,9 @@ const QrPaymentCenter: React.FC = () => {
               <>
                 <ActBtn
                   ic="check"
-                  title="Duyệt + chi"
+                  title="Ghi nhận đã chuyển khoản"
                   loading={rowBusy === r.id}
-                  onClick={() => cf(
-                    `Duyệt và CHI ${fmtVNDg(r.amount)} tới ${r.accountHolder} · ${r.bankName} ${r.accountNumber} (lệnh ${r.disbursementCode})? Tiền được chuyển qua ngân hàng và KHÔNG thể hoàn tác.`,
-                    () => { void doExecute(r); },
-                    { tone: 'crit', confirm: 'Duyệt + chi' },
-                  )}
+                  onClick={() => { setExecRef(''); setExecFor(r); }}
                 />
                 <ActBtn
                   ic="x"
@@ -255,6 +259,29 @@ const QrPaymentCenter: React.FC = () => {
         </div>
       )}
 
+      {/* QA-R11: ghi nhận lệnh chi đã chuyển khoản thủ công */}
+      <ModalShell open={!!execFor} onClose={() => setExecFor(null)} size="sm" tone="danger"
+        title={`Ghi nhận đã chi · ${execFor?.disbursementCode ?? ''}`}
+        sub={execFor ? `${fmtVNDg(execFor.amount)} → ${execFor.accountHolder} · ${execFor.bankName} ${execFor.accountNumber}` : ''}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setExecFor(null)}>Hủy</Btn>
+          <Btn variant="primary" loading={!!execFor && rowBusy === execFor.id}
+            onClick={() => { if (execFor) void doExecute(execFor); }}>
+            <TermIcon name="check" size={12} /> Ghi nhận đã chi
+          </Btn>
+        </>}>
+        <div style={{ padding: 'var(--space-18)', display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
+          <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
+            Hệ thống chưa kết nối API chi hộ Vietcombank. Chuyển khoản cho bệnh nhân qua kênh ngân hàng của bệnh viện,
+            rồi nhập mã giao dịch trên sao kê để ghi nhận lệnh đã chi. Thao tác không hoàn tác được.
+          </div>
+          <Field label="Mã giao dịch ngân hàng" required>
+            <input className="ed-fld mono" value={execRef} onChange={(e) => setExecRef(e.target.value)}
+              placeholder="VD: FT26010123456789" autoFocus style={{ width: '100%' }} />
+          </Field>
+        </div>
+      </ModalShell>
+
       {/* Modal tạo lệnh chi hộ */}
       <ModalShell open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo lệnh chi hộ hoàn tiền" sub="Chi tiền thừa qua TK Vietcombank BV → TK bệnh nhân" size="sm"
         footer={<>
@@ -262,10 +289,10 @@ const QrPaymentCenter: React.FC = () => {
           <Btn variant="primary" loading={saving} onClick={doCreate}><TermIcon name="check" size={12} /> Tạo lệnh</Btn>
         </>}>
         <div style={{ padding: 'var(--space-18)', display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
-          <Field label="ID bệnh nhân (patientId)" required error={cformForm.errors.patientId}>
-            <input className="ed-fld mono" value={cform.patientId}
-              onChange={(e) => { setCform((p) => ({ ...p, patientId: e.target.value })); cformForm.clear('patientId'); }}
-              placeholder="GUID bệnh nhân" autoFocus style={{ width: '100%' }} />
+          <Field label="Bệnh nhân" required error={cformForm.errors.patientId}>
+            {/* QA-R11: was a raw "GUID bệnh nhân" text box */}
+            <PatientSearchPicker value={cform.patientId || undefined} style={{ width: '100%' }}
+              onChange={(id) => { setCform((p) => ({ ...p, patientId: id ?? '' })); cformForm.clear('patientId'); }} />
           </Field>
           <Field label="Số tiền chi hộ" required error={cformForm.errors.amount}>
             <input type="number" className="ed-fld mono" style={{ textAlign: 'right', width: '100%' }} value={cform.amount}

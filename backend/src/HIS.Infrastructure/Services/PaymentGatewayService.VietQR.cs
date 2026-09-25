@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using HIS.Application.DTOs.Payment;
 using HIS.Core.Entities;
+using HIS.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace HIS.Infrastructure.Services;
@@ -157,6 +158,11 @@ public partial class PaymentGatewayService
 
     public async Task<PaymentTransactionDto> ConfirmBankTransferAsync(BankConfirmDto dto, Guid userId)
     {
+        // QA-R11: two confirmations of the same QR (double click, two cashiers) both read Status 0 and each wrote a
+        // payment receipt. Serialize per transaction and read the status only after holding the lock.
+        await using var tx = await SqlAppLock.BeginAsync(_db);
+        await SqlAppLock.AcquireAsync(_db, $"HIS.Payment.Confirm.{dto.TransactionId:N}",
+            "Giao dịch này đang được xác nhận ở quầy khác, vui lòng tải lại.");
         var txn = await _db.PaymentTransactions
             .Include(t => t.Patient)
             .FirstOrDefaultAsync(t => t.Id == dto.TransactionId);
@@ -166,6 +172,8 @@ public partial class PaymentGatewayService
         if (!supportedBanks.Contains(txn.Provider))
             throw new InvalidOperationException("Chỉ có thể xác nhận thủ công cho giao dịch ngân hàng");
         if (txn.Status == 1) throw new InvalidOperationException("Giao dịch đã được xác nhận");
+        // QA-R11: a refunded transaction (3) could be "confirmed" again — money collected a second time.
+        if (txn.Status == 3) throw new InvalidOperationException("Giao dịch đã hoàn tiền — không xác nhận lại được");
         // QA-R4: the QR's source was collected at the cashier while the QR stayed pending; confirming it wrote a
         // second payment receipt on an already-paid order (measured: 80.000đ order paid twice). A manual
         // confirmation has a human in the loop, so refuse and point at the refund path instead.
@@ -192,6 +200,7 @@ public partial class PaymentGatewayService
 
         await LinkReceiptAsync(txn, userId);
         await _db.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         return MapToDto(txn);
     }

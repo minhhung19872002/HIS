@@ -170,8 +170,9 @@ export async function createDisbursement(req: CreateRefundDisbursementRequest): 
   return data;
 }
 
-export async function executeDisbursement(id: string): Promise<RefundDisbursementDto> {
-  const { data } = await apiClient.post<RefundDisbursementDto>(`/payment/disbursement/${id}/execute`, {});
+/** QA-R11: no VCB disbursement API yet — the accountant transfers in the bank channel and records its reference. */
+export async function executeDisbursement(id: string, transferRef?: string): Promise<RefundDisbursementDto> {
+  const { data } = await apiClient.post<RefundDisbursementDto>(`/payment/disbursement/${id}/execute`, { transferRef });
   return data;
 }
 

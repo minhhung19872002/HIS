@@ -8,6 +8,7 @@ import {
   KpiStrip, TopTabs, StatusBadge, Btn, tk, ti, tw, LoadingState,
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 interface ConfigData {
   gatewayUrl?: string; tokenUrl?: string; username?: string; passwordMasked?: string;
@@ -58,7 +59,7 @@ const BhxhConfigV2: React.FC = () => {
     const v = await form.validateFields();
     setSaving(true);
     try { await apiClient.post('/bhxh-config', v); tk('Đã lưu cấu hình'); load(); }
-    catch { tw('Lưu thất bại'); }
+    catch (e) { tw(friendlyErrorMessage(e, 'Lưu thất bại')); }
     finally { setSaving(false); }
   };
 

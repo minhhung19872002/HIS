@@ -83,8 +83,15 @@ const FinanceV2: React.FC = () => {
     margin: (r) => r.profitMargin,
   });
   const [rpLoading, setRpLoading] = useState<string | null>(null);
+  // QA-R11: a loaded report card kept showing the OLD period after the range changed — drop them on change.
+  useEffect(() => { setRpSurgery(null); setRpCost(null); setRpSummary(null); setRpInsurance(null); }, [reportFrom, reportTo]);
+  const periodLabel = reportFrom && reportTo
+    ? `${dayjs(reportFrom).format('DD/MM/YYYY')} – ${dayjs(reportTo).format('DD/MM/YYYY')}` : '';
+  const periodFile = reportFrom && reportTo ? `${reportFrom}_${reportTo}` : dayjs().format('YYYYMM');
 
   const load = useCallback(async () => {
+    // QA-R11: xoá RangePicker → from/to rỗng → BE 400 + toast lỗi. Chưa đủ kỳ báo cáo thì chưa tải.
+    if (!reportFrom || !reportTo) { setItems([]); setDeptItems([]); return; }
     setLoading(true);
     try {
       const [svcRes, deptRes] = await Promise.all([
@@ -120,7 +127,9 @@ const FinanceV2: React.FC = () => {
     const insur = items.reduce((s, r) => s + (r.insuranceRevenue || 0), 0);
     const profit = items.reduce((s, r) => s + (r.profit || 0), 0);
     const totalQty = items.reduce((s, r) => s + (r.quantity || 0), 0);
-    return { totalRev, insur, patient: totalRev - insur, profit, qty: totalQty, count: items.length };
+    // QA-R11: the BE sends no per-service cost → "profit" was revenue − 0, i.e. 100 % margin. Unknown ≠ 0.
+    const costKnown = items.some((r) => r.costKnown);
+    return { totalRev, insur, patient: totalRev - insur, profit, qty: totalQty, count: items.length, costKnown };
   }, [items]);
 
   // Cơ cấu doanh thu theo đối tượng (BHYT / Viện phí / Dịch vụ) — verbatim v1 Tổng quan tab
@@ -165,27 +174,28 @@ const FinanceV2: React.FC = () => {
     },
     {
       key: 'profit', label: 'LN', mono: true, render: (r) => {
+        if (!r.costKnown) return <span style={{ color: 'var(--t-3)' }}>{NO_DATA}</span>;
         const ok = (r.profit || 0) >= 0;
         return <span style={{ color: ok ? 'var(--a-em-text)' : 'var(--a-rd-text)' }}>{fmtVNDg(r.profit)}</span>;
       }
     },
-    { key: 'margin', label: 'Biên LN', mono: true, render: (r) => fmtPct(r.profitMargin) },
+    { key: 'margin', label: 'Biên LN', mono: true, render: (r) => (r.costKnown ? fmtPct(r.profitMargin) : '—') },
   ];
 
   const handleExportCsv = async () => {
     setCsvLoading(true);
     try {
-      const fromDate = dayjs().startOf('month').format('DD/MM/YYYY');
-      const toDate = dayjs().endOf('month').format('DD/MM/YYYY');
       const header = ['Mã DV', 'Tên dịch vụ', 'Nhóm', 'Số lượng', 'Doanh thu', 'BHYT', 'Bệnh nhân', 'Chi phí', 'Lợi nhuận', 'Biên LN (%)']
         .map(escapeCsvCell).join(',');
       const rows = items.map((r) =>
         [r.serviceCode, r.serviceName, r.serviceGroupName, r.quantity, r.totalRevenue,
-        r.insuranceRevenue, r.patientRevenue, r.cost, r.profit, fmtPct(r.profitMargin)]
+        r.insuranceRevenue, r.patientRevenue, r.costKnown ? r.cost : '', r.costKnown ? r.profit : '',
+        r.costKnown ? fmtPct(r.profitMargin) : '']
           .map(escapeCsvCell).join(','),
       );
-      downloadCsv(`doanh-thu-dich-vu-${dayjs().format('YYYYMM')}.csv`, [header, ...rows]);
-      tk(`Đã xuất CSV doanh thu ${fromDate} – ${toDate} (${items.length} dịch vụ)`);
+      // QA-R11: file name / toast said "this month" whatever period was selected.
+      downloadCsv(`doanh-thu-dich-vu-${periodFile}.csv`, [header, ...rows]);
+      tk(`Đã xuất CSV doanh thu ${periodLabel} (${items.length} dịch vụ)`);
     } catch {
       te('Xuất CSV thất bại');
     } finally {
@@ -206,7 +216,7 @@ const FinanceV2: React.FC = () => {
         { header: 'Bệnh nhân (đ)', key: 'patientRevenue', format: formatVnd, width: 18 },
         { header: 'Chi phí (đ)', key: 'cost', format: formatVnd, width: 18 },
         { header: 'Lợi nhuận (đ)', key: 'profit', format: formatVnd, width: 18 },
-        { header: 'Biên LN (%)', key: 'profitMargin', format: (v) => Number(v).toFixed(1), width: 12 },
+        { header: 'Biên LN (%)', key: 'profitMargin', format: (v) => (v === '' ? '' : Number(v).toFixed(1)), width: 12 },
       ];
       const deptCols: ExcelColumn<Record<string, unknown>>[] = [
         { header: 'Mã khoa', key: 'departmentCode', width: 14 },
@@ -219,12 +229,16 @@ const FinanceV2: React.FC = () => {
       ];
       exportMultiSheetExcel(
         [
-          { sheetName: 'Doanh thu dịch vụ', data: items as unknown as Record<string, unknown>[], columns: serviceCols },
+          {
+            sheetName: 'Doanh thu dịch vụ',
+            data: items.map((r) => (r.costKnown ? r : { ...r, cost: '', profit: '', profitMargin: '' })) as unknown as Record<string, unknown>[],
+            columns: serviceCols,
+          },
           { sheetName: 'Doanh thu khoa', data: deptItems as unknown as Record<string, unknown>[], columns: deptCols },
         ],
-        `bao-cao-tai-chinh-${dayjs().format('YYYYMM')}.xlsx`,
+        `bao-cao-tai-chinh-${periodFile}.xlsx`,
       );
-      tk(`Đã xuất Excel báo cáo tài chính tháng ${dayjs().format('MM/YYYY')}`);
+      tk(`Đã xuất Excel báo cáo tài chính ${periodLabel}`);
     } catch {
       te('Xuất Excel thất bại');
     } finally {
@@ -239,7 +253,8 @@ const FinanceV2: React.FC = () => {
         const header = ['Mã DV', 'Tên dịch vụ', 'Nhóm', 'Số lượng', 'Doanh thu', 'BHYT', 'Bệnh nhân', 'Chi phí', 'Lợi nhuận', 'Biên LN (%)']
           .map(escapeCsvCell).join(',');
         const line = [r.serviceCode, r.serviceName, r.serviceGroupName, r.quantity, r.totalRevenue,
-        r.insuranceRevenue, r.patientRevenue, r.cost, r.profit, fmtPct(r.profitMargin)]
+        r.insuranceRevenue, r.patientRevenue, r.costKnown ? r.cost : '', r.costKnown ? r.profit : '',
+        r.costKnown ? fmtPct(r.profitMargin) : '']
           .map(escapeCsvCell).join(',');
         downloadCsv(`dv-${r.serviceCode || 'export'}.csv`, [header, line]);
         tk(`Đã xuất CSV: ${r.serviceName}`);
@@ -251,11 +266,13 @@ const FinanceV2: React.FC = () => {
     <div className="ab">
       <KpiStrip items={[
         { lbl: 'Số dịch vụ', val: kpis.count, sub: `${groups.length} nhóm` },
-        { lbl: 'Số lượt', val: kpis.qty.toLocaleString('vi-VN'), sub: 'tháng này', tone: 'info' },
+        { lbl: 'Số lượt', val: kpis.qty.toLocaleString('vi-VN'), sub: 'trong kỳ', tone: 'info' },
         { lbl: 'Tổng doanh thu', val: Math.round(kpis.totalRev / 1_000_000), unit: 'tr', sub: 'VND' },
         { lbl: 'BHYT', val: Math.round(kpis.insur / 1_000_000), unit: 'tr', sub: 'VND', tone: 'info' },
         { lbl: 'Người bệnh', val: Math.round(kpis.patient / 1_000_000), unit: 'tr', sub: 'VND', tone: 'warn' },
-        { lbl: 'Lợi nhuận', val: Math.round(kpis.profit / 1_000_000), unit: 'tr', sub: 'VND', tone: kpis.profit >= 0 ? 'ok' : 'crit' },
+        kpis.costKnown
+          ? { lbl: 'Lợi nhuận', val: Math.round(kpis.profit / 1_000_000), unit: 'tr', sub: 'VND', tone: kpis.profit >= 0 ? 'ok' : 'crit' }
+          : { lbl: 'Lợi nhuận', val: '—', sub: 'chưa có dữ liệu chi phí' },
       ]} />
 
       <div className="ab-toolbar">
@@ -346,7 +363,7 @@ const FinanceV2: React.FC = () => {
         <div style={{ padding: 'var(--space-14)', display: 'grid', gap: 'var(--space-12)', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
           <RptCard title="Chi phí theo khoa" desc="Giá vốn thuốc · vật tư (theo giá nhập lô) · Doanh thu DV" loading={rpLoading === 'cost'}
             onLoad={async () => { setRpLoading('cost'); try { const r = await financeApi.getCostByDepartment(reportFrom, reportTo); setRpCost((r.data || []) as CostByDepartmentDto[]); } catch (e) { te(friendlyErrorMessage(e, 'Không tải được báo cáo chi phí theo khoa')); } finally { setRpLoading(null); } }}
-            hasData={!!rpCost}
+            hasData={!!rpCost} noRange={!periodLabel}
             content={rpCost ? (
               <>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -381,7 +398,7 @@ const FinanceV2: React.FC = () => {
           />
           <RptCard title="Đối soát BHYT" desc="QĐ 6556/BYT · Chênh lệch quyết toán" loading={rpLoading === 'ins'}
             onLoad={async () => { setRpLoading('ins'); try { const r = await financeApi.getInsuranceReconciliation(reportFrom, reportTo); setRpInsurance(r.data as InsuranceReconciliationDto); } catch (e) { te(friendlyErrorMessage(e, 'Không tải được báo cáo đối soát BHYT')); } finally { setRpLoading(null); } }}
-            hasData={!!rpInsurance}
+            hasData={!!rpInsurance} noRange={!periodLabel}
             content={rpInsurance ? (
               <div style={{ fontSize: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--line)' }}>
@@ -407,7 +424,7 @@ const FinanceV2: React.FC = () => {
           />
           <RptCard title="Lợi nhuận phẫu thuật" desc="Doanh thu · Chi phí · Biên LN từng loại mổ" loading={rpLoading === 'surg'}
             onLoad={async () => { setRpLoading('surg'); try { const r = await financeApi.getSurgeryProfitReport(reportFrom, reportTo); setRpSurgery((r.data || []) as SurgeryProfitReportDto[]); } catch (e) { te(friendlyErrorMessage(e, 'Không tải được báo cáo lợi nhuận phẫu thuật')); } finally { setRpLoading(null); } }}
-            hasData={!!rpSurgery}
+            hasData={!!rpSurgery} noRange={!periodLabel}
             content={rpSurgery ? (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead><tr style={{ borderBottom: '1px solid var(--line)' }}>
@@ -431,7 +448,7 @@ const FinanceV2: React.FC = () => {
           />
           <RptCard title="Tổng hợp thu chi" desc="Doanh thu · Chi phí · Lợi nhuận ròng" loading={rpLoading === 'sum'}
             onLoad={async () => { setRpLoading('sum'); try { const r = await financeApi.getFinancialSummary(reportFrom, reportTo); setRpSummary(r.data as FinancialSummaryReportDto); } catch (e) { te(friendlyErrorMessage(e, 'Không tải được báo cáo tổng hợp thu chi')); } finally { setRpLoading(null); } }}
-            hasData={!!rpSummary}
+            hasData={!!rpSummary} noRange={!periodLabel}
             content={rpSummary ? (
               <div style={{ fontSize: 12 }}>
                 {[
@@ -517,19 +534,20 @@ const FinanceV2: React.FC = () => {
               <Row label="BHYT chi trả" value={`−${fmtVNDg(sel.insuranceRevenue)}`} tone="info" />
               <Row label="Người bệnh chi trả" value={fmtVNDg(sel.patientRevenue)} />
               <hr style={{ border: 0, borderTop: '1px solid var(--line)', margin: '8px 0' }} />
-              <Row label="Chi phí" value={fmtVNDg(sel.cost)} />
-              <Row label="Lợi nhuận" value={`${fmtVNDg(sel.profit)} (${fmtPct(sel.profitMargin)})`} tone={sel.profit >= 0 ? 'ok' : 'crit'} bold />
+              <Row label="Chi phí" value={sel.costKnown ? fmtVNDg(sel.cost) : NO_DATA} />
+              <Row label="Lợi nhuận" value={sel.costKnown ? `${fmtVNDg(sel.profit)} (${fmtPct(sel.profitMargin)})` : NO_DATA}
+                tone={!sel.costKnown ? undefined : sel.profit >= 0 ? 'ok' : 'crit'} bold />
             </div>
           </DrSec>
           <DrSec title="Phân tích">
-            <DrField lbl="LN/lượt">{fmtVNDg(Math.round((sel.profit || 0) / Math.max(1, sel.quantity || 1)))}</DrField>
+            <DrField lbl="LN/lượt">{sel.costKnown ? fmtVNDg(Math.round((sel.profit || 0) / Math.max(1, sel.quantity || 1))) : NO_DATA}</DrField>
             <DrField lbl="Tỷ lệ BHYT">{fmtPct((sel.insuranceRevenue / Math.max(1, sel.totalRevenue)) * 100)}</DrField>
             <DrField lbl="Đánh giá">
-              <StatusBadge tone={sel.profitMargin >= 30 ? 'ok' : sel.profitMargin >= 15 ? 'info' : sel.profitMargin >= 0 ? 'warn' : 'crit'}>
+              {!sel.costKnown ? NO_DATA : <StatusBadge tone={sel.profitMargin >= 30 ? 'ok' : sel.profitMargin >= 15 ? 'info' : sel.profitMargin >= 0 ? 'warn' : 'crit'}>
                 {sel.profitMargin >= 30 ? 'Hiệu quả cao'
                   : sel.profitMargin >= 15 ? 'Khá'
                     : sel.profitMargin >= 0 ? 'Trung bình' : 'Lỗ'}
-              </StatusBadge>
+              </StatusBadge>}
             </DrField>
           </DrSec>
         </>}
@@ -553,15 +571,15 @@ const Row: React.FC<{ label: string; value: React.ReactNode; tone?: 'ok' | 'crit
 
 const RptCard: React.FC<{
   title: string; desc: string; loading: boolean;
-  onLoad: () => void; hasData: boolean;
+  onLoad: () => void; hasData: boolean; noRange?: boolean;
   content: React.ReactNode;
-}> = ({ title, desc, loading, onLoad, hasData, content }) => (
+}> = ({ title, desc, loading, onLoad, hasData, noRange, content }) => (
   <div style={{ background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 'var(--space-14)' }}>
     <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)', color: 'var(--t-0)', marginBottom: 4 }}>{title}</div>
     <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-10)' }}>{desc}</div>
     {!hasData ? (
-      <Btn variant="ghost" onClick={onLoad} disabled={loading}>
-        <Ico name="download" size={12} /> {loading ? 'Đang tải…' : 'Tải báo cáo'}
+      <Btn variant="ghost" onClick={onLoad} disabled={loading || noRange}>
+        <Ico name="download" size={12} /> {loading ? 'Đang tải…' : noRange ? 'Chọn kỳ báo cáo' : 'Tải báo cáo'}
       </Btn>
     ) : (
       <div style={{ maxHeight: 220, overflowY: 'auto' }}>{content}</div>

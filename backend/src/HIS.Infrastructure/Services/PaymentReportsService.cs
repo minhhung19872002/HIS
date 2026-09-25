@@ -66,21 +66,32 @@ public class PaymentReportsService : IPaymentReportsService
             .Where(ReportPeriod.CashReceipt)
             .ToListAsync();
         static decimal Signed(HIS.Core.Entities.Receipt r) => r.ReceiptType == 3 ? -r.FinalAmount : r.FinalAmount;
-        var grouped = receipts
-            .GroupBy(r => r.ReceiptDate.Date)
-            .OrderBy(g => g.Key)
-            .Select(g => new
+        // QA-R11: "Tạm ứng" read Receipts.ReceiptType == 1, which nothing writes — deposits live in the Deposits table
+        // (ReceiptDate = VN local), so the column was always 0 (15/09: 4.282.000đ collected, report 0đ). Cancelled
+        // deposits (DepositStatus.Cancelled) never moved money. Revenue (net / per-method) is unchanged.
+        var depositByDay = (await _db.Deposits.AsNoTracking()
+                .Where(d => !d.IsDeleted && d.Status != HIS.Core.Constants.DepositStatus.Cancelled
+                            && d.ReceiptDate >= from && d.ReceiptDate < to)
+                .Select(d => new { d.ReceiptDate, d.Amount })
+                .ToListAsync())
+            .GroupBy(d => d.ReceiptDate.Date)
+            .ToDictionary(g => g.Key, g => g.Sum(d => d.Amount));
+        var byDate = receipts.ToLookup(r => r.ReceiptDate.Date);
+        var grouped = byDate.Select(g => g.Key).Concat(depositByDay.Keys).Distinct()
+            .OrderBy(day => day)
+            .Select(day => (Key: day, g: byDate[day].ToList()))
+            .Select(t => new
             {
-                date = g.Key,
-                receipts = g.Count(),
-                deposit = g.Where(r => r.ReceiptType == 1).Sum(r => r.FinalAmount),
-                payment = g.Where(r => r.ReceiptType == 2).Sum(r => r.FinalAmount),
-                refund = g.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount),
-                net = g.Sum(Signed),
-                cash = g.Where(r => r.PaymentMethod == 1).Sum(Signed),
-                transfer = g.Where(r => r.PaymentMethod == 2).Sum(Signed),
-                card = g.Where(r => r.PaymentMethod == 3).Sum(Signed),
-                eWallet = g.Where(r => r.PaymentMethod == 4).Sum(Signed),
+                date = t.Key,
+                receipts = t.g.Count,
+                deposit = depositByDay.GetValueOrDefault(t.Key),
+                payment = t.g.Where(r => r.ReceiptType == 2).Sum(r => r.FinalAmount),
+                refund = t.g.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount),
+                net = t.g.Sum(Signed),
+                cash = t.g.Where(r => r.PaymentMethod == 1).Sum(Signed),
+                transfer = t.g.Where(r => r.PaymentMethod == 2).Sum(Signed),
+                card = t.g.Where(r => r.PaymentMethod == 3).Sum(Signed),
+                eWallet = t.g.Where(r => r.PaymentMethod == 4).Sum(Signed),
             })
             .ToList();
         return ServiceOutcome.Ok(new

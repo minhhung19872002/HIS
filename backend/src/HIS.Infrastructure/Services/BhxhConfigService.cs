@@ -56,7 +56,8 @@ public class BhxhConfigService : IBhxhConfigService
             gatewayUrl = dict.GetValueOrDefault("BHXH.GatewayUrl"),
             tokenUrl = dict.GetValueOrDefault("BHXH.TokenUrl"),
             username = dict.GetValueOrDefault("BHXH.Username"),
-            passwordMasked = string.IsNullOrEmpty(pwd) ? null : "***" + (pwd.Length > 3 ? pwd[^3..] : ""),
+            // QA-R11: the last 3 characters of the gateway password were shown on screen — mask fully (blank on save = keep).
+            passwordMasked = string.IsNullOrEmpty(pwd) ? null : "••••••",
             hasPassword = !string.IsNullOrEmpty(pwd),
             maCSKCB = dict.GetValueOrDefault("BHXH.MaCSKCB"),
             maDVI = dict.GetValueOrDefault("BHXH.MaDVI"),

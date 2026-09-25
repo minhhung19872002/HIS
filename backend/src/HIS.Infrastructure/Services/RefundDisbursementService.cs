@@ -10,8 +10,8 @@ namespace HIS.Infrastructure.Services;
 
 /// <summary>
 /// NangCap25 IV — Chi hộ hoàn tiền thừa qua tài khoản Vietcombank của BV.
-/// MockMode (mặc định true) mô phỏng lệnh chi thành công; API giải ngân thật của VCB
-/// yêu cầu merchant contract — wire tại ExecuteAsync khi có (config PaymentGateway:Disbursement).
+/// Chưa có API giải ngân VCB (cần merchant contract): kế toán chuyển khoản thủ công rồi nhập mã giao dịch ở ExecuteAsync.
+/// MockMode chỉ bật khi cấu hình PaymentGateway:Disbursement:MockMode = "true" (QA-R11: trước đây mặc định bật).
 /// </summary>
 public class RefundDisbursementService : IRefundDisbursementService
 {
@@ -77,19 +77,31 @@ public class RefundDisbursementService : IRefundDisbursementService
         return await MapAsync(entity);
     }
 
-    public async Task<RefundDisbursementDto> ExecuteAsync(Guid id, Guid userId)
+    public async Task<RefundDisbursementDto> ExecuteAsync(Guid id, Guid userId, string? transferRef = null)
     {
         var entity = await _db.RefundDisbursements.FirstOrDefaultAsync(d => d.Id == id)
             ?? throw new InvalidOperationException("Lệnh chi hộ không tồn tại");
         if (entity.Status is 2 or 4)
             throw new InvalidOperationException("Lệnh chi hộ đã hoàn tất hoặc đã hủy");
 
-        var mockMode = !string.Equals(
-            _config["PaymentGateway:Disbursement:MockMode"], "false", StringComparison.OrdinalIgnoreCase);
+        // QA-R11: MockMode used to be ON unless configured "false" — with no config (prod) "Duyệt + chi" marked the
+        // order "Đã chi" with a made-up MOCK-… reference while no money left the bank. Simulation is now opt-in only.
+        var mockMode = string.Equals(
+            _config["PaymentGateway:Disbursement:MockMode"], "true", StringComparison.OrdinalIgnoreCase);
+        var manualRef = transferRef?.Trim();
 
-        if (mockMode)
+        if (!string.IsNullOrEmpty(manualRef))
         {
-            entity.Status = 2; // Đã chi
+            // No VCB disbursement API yet: the accountant makes the transfer in the bank's own channel and records
+            // its reference here (same pattern as the manual bank-transfer confirmation).
+            if (manualRef.Length > 100)
+                throw new InvalidOperationException("Mã giao dịch ngân hàng quá dài (tối đa 100 ký tự)");
+            entity.TransferRef = manualRef;
+            entity.TransferredAt = HIS.Core.Common.VnTime.NowVn;
+            entity.ResponseRaw = "{\"manual\":true}";
+        }
+        else if (mockMode)
+        {
             entity.TransferRef = $"MOCK-{DateTime.UtcNow:yyyyMMddHHmmss}";
             entity.TransferredAt = HIS.Core.Common.VnTime.NowVn; // business timestamp = VN local
             entity.ResponseRaw = "{\"mock\":true,\"result\":\"success\"}";
@@ -97,13 +109,18 @@ public class RefundDisbursementService : IRefundDisbursementService
         else
         {
             // API giải ngân VCB thật cần merchant contract + đặc tả thông điệp từ ngân hàng.
-            var endpoint = _config["PaymentGateway:Disbursement:Endpoint"];
-            if (string.IsNullOrWhiteSpace(endpoint))
-                throw new InvalidOperationException(
-                    "Chưa cấu hình API chi hộ Vietcombank (PaymentGateway:Disbursement:Endpoint) — bật MockMode hoặc bổ sung cấu hình");
             throw new InvalidOperationException(
-                "Kết nối API giải ngân VCB chưa được kích hoạt — liên hệ quản trị hệ thống");
+                "Chưa kết nối API chi hộ Vietcombank — hãy chuyển khoản thủ công qua ngân hàng rồi nhập mã giao dịch để ghi nhận đã chi.");
         }
+
+        // QA-R11: two "Duyệt + chi" clicks both passed the status check above — claim the transition atomically.
+        var fromStatus = entity.Status;
+        var claimed = await _db.RefundDisbursements
+            .Where(d => d.Id == id && d.Status == fromStatus)
+            .ExecuteUpdateAsync(s => s.SetProperty(d => d.Status, 2));
+        if (claimed == 0)
+            throw new InvalidOperationException("Lệnh chi hộ vừa được người khác xử lý — tải lại để xem trạng thái mới.");
+        entity.Status = 2; // Đã chi
 
         entity.ApprovedBy = userId;
         entity.UpdatedAt = DateTime.UtcNow;
@@ -165,7 +182,8 @@ public class RefundDisbursementService : IRefundDisbursementService
 
         var total = await q.CountAsync();
         var totalAmount = await q.SumAsync(d => (decimal?)d.Amount) ?? 0;
-        var transferredAmount = await q.Where(d => d.Status == 2).SumAsync(d => (decimal?)d.Amount) ?? 0;
+        var transferredAmount = await q.Where(d => d.Status == 2 && (d.TransferRef == null || !d.TransferRef.StartsWith("MOCK-")))
+            .SumAsync(d => (decimal?)d.Amount) ?? 0; // QA-R11: simulated orders are not money paid out
 
         var entities = await q
             .OrderByDescending(d => d.CreatedAt)
@@ -226,7 +244,8 @@ public class RefundDisbursementService : IRefundDisbursementService
         {
             0 => "Chờ duyệt",
             1 => "Đã duyệt",
-            2 => "Đã chi",
+            // QA-R11: orders "paid" by the old default MockMode never moved money — do not show them as paid.
+            2 => d.TransferRef != null && d.TransferRef.StartsWith("MOCK-") ? "Mô phỏng — chưa chi thật" : "Đã chi",
             3 => "Thất bại",
             4 => "Đã hủy",
             _ => "Không xác định"

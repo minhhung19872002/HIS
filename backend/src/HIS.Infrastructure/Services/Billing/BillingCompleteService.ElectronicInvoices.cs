@@ -102,10 +102,12 @@ public partial class BillingCompleteService {
         }
 
         var subTotal = invoice.TotalAmount;
-        var vatRate = 8m; // 8% VAT for medical services in Vietnam
-        var vatAmount = Math.Round(subTotal * vatRate / 100, 0);
+        // QA-R11: medical examination/treatment services are VAT-exempt (Luật thuế GTGT) — the old fixed 8% was added
+        // ON TOP of what the patient paid (paid 266.475đ → e-invoice 287.793đ). Bill exactly the bảng kê amount.
+        var vatRate = 0m;
+        var vatAmount = 0m;
         var discountAmount = invoice.DiscountAmount;
-        var totalAmount = subTotal + vatAmount - discountAmount;
+        var totalAmount = subTotal - discountAmount;
 
         // Build line items JSON from receipt details
         var itemsJson = "[]";
@@ -124,13 +126,20 @@ public partial class BillingCompleteService {
                     name = r.ItemName ?? "Dịch vụ y tế",
                     unit = r.Unit,
                     qty = r.Qty,
-                    price = r.Price,
+                    // QA-R11: unit price derived from the billed amount so qty × price == amount on the invoice line.
+                    price = r.Qty > 0 ? Math.Round(r.Amount / r.Qty, 2) : r.Amount,
                     amount = r.Amount
                 }));
             }
         }
         catch { /* ignore - items are optional */ }
 
+        // QA-R11: the number is count+1 of today's invoices — serialize generate + insert so two concurrent issues
+        // cannot both take the same number (and re-check the one-live-invoice rule under the lock).
+        await using var tx = await SqlAppLock.BeginAsync(_context);
+        await SqlAppLock.AcquireAsync(_context, "einvoice-number", "Đang phát hành hóa đơn khác, vui lòng thử lại.");
+        if (await _context.ElectronicInvoices.AnyAsync(e => e.InvoiceSummaryId == dto.InvoiceId && !e.IsDeleted && e.Status != 3 && e.Status != 4))
+            throw new InvalidOperationException("Bảng kê này đã có hóa đơn điện tử (chưa hủy/thay thế).");
         var invoiceNumber = await GenerateEInvoiceNumberAsync();
         var series = $"1C{DateTime.Now:yy}TAA";
 
@@ -165,6 +174,7 @@ public partial class BillingCompleteService {
 
         _context.ElectronicInvoices.Add(eInvoice);
         await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
 
         // Reload with navigation
         var saved = await _context.ElectronicInvoices
@@ -226,6 +236,7 @@ public partial class BillingCompleteService {
 
         var items = await query
             .OrderByDescending(e => e.InvoiceDate)
+            .ThenBy(e => e.Id) // QA-R11: InvoiceDate not unique → pages overlapped/skipped rows
             .Skip(dto.PageIndex * dto.PageSize)
             .Take(dto.PageSize)
             .ToListAsync();

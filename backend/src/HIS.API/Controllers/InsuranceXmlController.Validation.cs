@@ -125,6 +125,7 @@ public partial class InsuranceXmlController
     /// Tạo đợt quyết toán
     /// </summary>
     [HttpPost("settlement/create")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Submit)] // QA-R11: was reachable by Tiếp đón
     public async Task<ActionResult<InsuranceSettlementBatchDto>> CreateSettlementBatch([FromBody] CreateSettlementBatchRequest request)
     {
         var result = await _insuranceService.CreateSettlementBatchAsync(request.Month, request.Year);
@@ -182,6 +183,8 @@ public partial class InsuranceXmlController
     /// Xử lý hồ sơ bị từ chối
     /// </summary>
     [HttpPost("rejected-claims/{maLk}/process")]
+    // QA-R11: changes the claim status (accept rejection / reset to pending) — a receptionist could do it.
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.Insurance.Approve)]
     public async Task<ActionResult<bool>> ProcessRejectedClaim(string maLk, [FromBody] RejectedClaimProcessDto dto)
     {
         var result = await _insuranceService.ProcessRejectedClaimAsync(maLk, dto);

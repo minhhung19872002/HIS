@@ -244,6 +244,12 @@ public class CancelDisbursementDto
     public string? Reason { get; set; }
 }
 
+/// <summary>QA-R11: mã giao dịch ngân hàng của lệnh chuyển khoản thủ công (chưa có API chi hộ VCB).</summary>
+public class ExecuteDisbursementDto
+{
+    public string? TransferRef { get; set; }
+}
+
 public class RefundDisbursementSearchResultDto
 {
     public List<RefundDisbursementDto> Items { get; set; } = new();

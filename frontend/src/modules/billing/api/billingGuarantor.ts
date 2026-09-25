@@ -21,6 +21,9 @@ export interface BillingGuarantorDto {
   /** join từ SponsorOrg — chỉ đọc */
   sponsorOrgName?: string;
   patientId?: string;
+  /** join từ Patients — chỉ đọc */
+  patientCode?: string;
+  patientName?: string;
   medicalRecordId?: string;
   guaranteeNo?: string;
   /** Tỷ lệ bảo lãnh 0-100 (%) */

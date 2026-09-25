@@ -480,6 +480,10 @@ public partial class BillingCompleteService {
             // Table may not exist - return stub
         }
 
+        // QA-R11 (partial write): the cancel and the invoice refresh were two saves — a failed refresh left the request
+        // at Status 4 (so the guard above refuses a retry) while the invoice still billed it. One transaction; the
+        // best-effort audit insert above stays outside it on purpose (its failure must not doom the reversal).
+        await using var tx = await SqlAppLock.BeginAsync(_context);
         // Hủy ServiceRequest
         serviceRequest.Status = 4; // Cancelled
         serviceRequest.UpdatedAt = DateTime.Now;
@@ -497,6 +501,7 @@ public partial class BillingCompleteService {
             await InvoiceLedger.RefreshAsync(_context, invoice);
             await _context.SaveChangesAsync();
         }
+        if (tx != null) await tx.CommitAsync();
 
         var user = await _context.Users.FindAsync(userId);
 

@@ -820,6 +820,16 @@ export const exportReportC79aToExcel = (month: number, year: number) =>
 export const exportReport80aToExcel = (month: number, year: number) =>
   request.get('/insurance/reports/80a/export', { params: { month, year }, responseType: 'blob' });
 
+// QA-R11: mẫu 19/20/21 BHYT — BE có sẵn file Excel, trang trước đây chỉ gọi JSON rồi báo "Đã tải".
+export const exportReport19BhytToExcel = (month: number, year: number) =>
+  request.get('/insurance/reports/bhyt-19/export', { params: { month, year }, responseType: 'blob' });
+
+export const exportReport20BhytToExcel = (month: number, year: number) =>
+  request.get('/insurance/reports/bhyt-20/export', { params: { month, year }, responseType: 'blob' });
+
+export const exportReport21BhytToExcel = (month: number, year: number) =>
+  request.get('/insurance/reports/bhyt-21/export', { params: { month, year }, responseType: 'blob' });
+
 export const getTreatmentTypeReport = (month: number, year: number) =>
   request.get<{ treatmentTypeCode: string; treatmentTypeName: string; visitCount: number; totalCost: number; insurancePaid: number; patientPaid: number }[]>('/insurance/reports/by-treatment-type', { params: { month, year } });
 

@@ -9,13 +9,12 @@ import {
   testPortalConnection,
   validateClaimsBatch,
   lockInsuranceClaim,
-  getMonthlyInsuranceReport,
   getDepartmentReport,
-  getTreatmentTypeReport,
-  getReportC79a,
-  getReport80a,
   exportReportC79aToExcel,
   exportReport80aToExcel,
+  exportReport19BhytToExcel,
+  exportReport20BhytToExcel,
+  exportReport21BhytToExcel,
   exportXml,
   previewExport,
   downloadXmlFile,
@@ -85,13 +84,14 @@ const statusKey = (s: number): StatusKey => {
 const statusTone = (s: StatusKey) => STATUS_TABS.find((t) => t.v === s)?.tone || 'info';
 const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 
+// QA-R11: each card now downloads the real Excel of its template (mẫu 19/20/21 fetched JSON, threw it away and
+// said "Đã tải"). "TT 102/2018" had no report behind it (it re-fetched the monthly summary) — removed.
 const REPORTS: { id: string; label: string; sub: string }[] = [
-  { id: 'mau19', label: 'Báo cáo mẫu 19',      sub: 'Tổng hợp KCB BHYT' },
-  { id: 'mau20', label: 'Báo cáo mẫu 20',      sub: 'Chi tiết chi phí KCB BHYT' },
-  { id: 'mau21', label: 'Báo cáo mẫu 21',      sub: 'Chi tiết theo đối tượng KCB' },
+  { id: 'mau19', label: 'Báo cáo mẫu 19/BHYT', sub: 'Vật tư y tế BHYT · Xuất Excel' },
+  { id: 'mau20', label: 'Báo cáo mẫu 20/BHYT', sub: 'Thuốc sử dụng cho BN BHYT · Xuất Excel' },
+  { id: 'mau21', label: 'Báo cáo mẫu 21/BHYT', sub: 'DVKT sử dụng cho BN BHYT · Xuất Excel' },
   { id: 'mau79', label: 'Báo cáo mẫu 79',      sub: 'Chi tiết PTTT · Xuất Excel' },
   { id: 'mau80', label: 'Báo cáo mẫu 80',      sub: 'Tổng hợp thuốc BHYT · Xuất Excel' },
-  { id: 'tt102', label: 'Báo cáo TT 102/2018', sub: 'Theo Thông tư 102/2018/TT-BTC' },
 ];
 
 // ── XML export constants ───────────────────────────────────────────────────────
@@ -317,7 +317,7 @@ const InsuranceV2: React.FC = () => {
 
   useEffect(() => {
     if (topTab === 'batch' || topTab === 'xml') loadBatches(batchYear);
-    if (topTab === 'xml') void loadXmlHistory();
+    if (topTab === 'xml' || topTab === 'batch') void loadXmlHistory(); // batch rows resolve their period's XML batch
   }, [topTab, batchYear, loadBatches, loadXmlHistory]);
 
   /* ── Handlers ── */
@@ -332,14 +332,15 @@ const InsuranceV2: React.FC = () => {
       // `request` wraps the payload as { success, data } — the result is in .data (was read from
       // the wrapper itself, so isConnected was always undefined → "Không kết nối được").
       const data = (res.data ?? res) as unknown as PortalConnectionTestResult;
+      // QA-R11: this only pings the gateway — it synchronises nothing, so it must not say "Đồng bộ thành công".
       if (data?.isConnected) {
-        message.success(`Đồng bộ thành công (${data.responseTimeMs ?? 0}ms)`);
+        message.success(`Cổng BHXH kết nối được (${data.responseTimeMs ?? 0}ms)`);
         reload();
       } else {
         message.warning(`Không kết nối được cổng BHXH: ${data?.errorMessage || 'Không xác định'}`);
       }
     } catch {
-      message.warning('Lỗi khi đồng bộ với cổng BHXH');
+      message.warning('Lỗi khi kiểm tra kết nối cổng BHXH');
     } finally {
       setSyncLoading(false);
     }
@@ -382,25 +383,39 @@ const InsuranceV2: React.FC = () => {
     }
   };
 
-  const handleApproveClaims = () => {
-    if (selectedIds.size === 0) { message.warning('Vui lòng chọn hồ sơ cần duyệt'); return; }
-    modal.confirm({
-      title: 'Xác nhận duyệt giám định',
-      content: `Duyệt ${selectedIds.size} hồ sơ đã chọn?`,
-      okText: 'Duyệt',
-      cancelText: 'Hủy',
-      onOk: async () => {
-        const maLkList = rows.filter((r) => selectedIds.has(r.id)).map((r) => r.maLk);
-        try {
-          await validateClaimsBatch(maLkList);
-          message.success(`Đã duyệt ${selectedIds.size} hồ sơ`);
-          setSelectedIds(new Set());
-          reload();
-        } catch {
-          message.error('Duyệt hồ sơ thất bại — vui lòng thử lại');
-        }
-      },
-    });
+  // QA-R11: this button said "Duyệt" and toasted "Đã duyệt N hồ sơ", but the API only VALIDATES the claims
+  // (QĐ 4210 rules) and changes nothing — approval comes from the BHXH assessment result (import đối soát).
+  // It is now what it does: a rule check whose result is shown per claim.
+  const handleCheckClaims = async () => {
+    if (selectedIds.size === 0) { message.warning('Vui lòng chọn hồ sơ cần kiểm tra'); return; }
+    const maLkList = rows.filter((r) => selectedIds.has(r.id)).map((r) => r.maLk);
+    try {
+      const r = await validateClaimsBatch(maLkList);
+      const results = Array.isArray(r.data) ? r.data : [];
+      const flagged = results.filter((x) => !x.isValid || (x.warnings || []).length > 0);
+      if (flagged.length === 0) {
+        message.success(`${results.length} hồ sơ hợp lệ theo QĐ 4210`);
+        return;
+      }
+      const invalidCount = results.filter((x) => !x.isValid).length;
+      modal.warning({
+        title: `${invalidCount} hồ sơ lỗi · ${flagged.length - invalidCount} hồ sơ có cảnh báo / ${results.length}`,
+        width: 640,
+        content: (
+          <div style={{ maxHeight: 320, overflow: 'auto', fontSize: 12.5 }}>
+            {flagged.map((x) => (
+              <div key={x.maLk} style={{ marginBottom: 6 }}>
+                <b className="mono">{x.maLk}</b>:{' '}
+                {(x.errors || []).map((e) => <span key={e.errorCode + e.message} style={{ color: 'var(--s-crit)' }}>{e.message}; </span>)}
+                {(x.warnings || []).map((w) => <span key={w.warningCode + w.message} style={{ color: 'var(--s-warn)' }}>{w.message}; </span>)}
+              </div>
+            ))}
+          </div>
+        ),
+      });
+    } catch (err) {
+      message.error(friendlyErrorMessage(err, 'Kiểm tra hồ sơ thất bại — vui lòng thử lại'));
+    }
   };
 
   const handleLockClaims = () => {
@@ -431,28 +446,17 @@ const InsuranceV2: React.FC = () => {
       const now = dayjs();
       const month = now.month() + 1;
       const year = now.year();
-      switch (reportId) {
-        case 'mau19': await getMonthlyInsuranceReport(month, year); break;
-        case 'mau20': await getDepartmentReport(month, year); break;
-        case 'mau21': await getTreatmentTypeReport(month, year); break;
-        case 'mau79': await getReportC79a(month, year); break;
-        case 'mau80': await getReport80a(month, year); break;
-        case 'tt102': await getMonthlyInsuranceReport(month, year); break;
-      }
-      try {
-        let blob: Blob | null = null;
-        if (reportId === 'mau79') {
-          const res = await exportReportC79aToExcel(month, year);
-          blob = (res instanceof Blob ? res : (res as unknown as { data: Blob }).data) as Blob;
-        } else if (reportId === 'mau80') {
-          const res = await exportReport80aToExcel(month, year);
-          blob = (res instanceof Blob ? res : (res as unknown as { data: Blob }).data) as Blob;
-        }
-        if (blob) file.downloadBlob(blob, `${reportId}-${month}-${year}.xlsx`);
-      } catch { /* export not available for all types */ }
-      message.success(`Đã tải ${reportName}`);
-    } catch {
-      message.warning(`Lỗi khi tải ${reportName}`);
+      const exporters: Record<string, (m: number, y: number) => Promise<unknown>> = {
+        mau19: exportReport19BhytToExcel, mau20: exportReport20BhytToExcel, mau21: exportReport21BhytToExcel,
+        mau79: exportReportC79aToExcel, mau80: exportReport80aToExcel,
+      };
+      const res = await exporters[reportId](month, year);
+      const blob = (res instanceof Blob ? res : (res as { data?: unknown }).data) as Blob;
+      if (!(blob instanceof Blob) || blob.size === 0) { message.warning(`Không có dữ liệu ${reportName} tháng ${month}/${year}`); return; }
+      file.downloadBlob(blob, `${reportId}-${month}-${year}.xlsx`);
+      message.success(`Đã tải ${reportName} tháng ${month}/${year}`);
+    } catch (err) {
+      message.warning(friendlyErrorMessage(err, `Lỗi khi tải ${reportName}`));
     } finally {
       setReportLoading(null);
     }
@@ -583,17 +587,36 @@ const InsuranceV2: React.FC = () => {
     });
   };
 
-  const handleDownloadXml = async (batchId: string) => {
+  const handleDownloadXml = async (batchId: string, fileTag?: string) => {
     try {
       const r = await downloadXmlFile(batchId);
       const blob = r.data instanceof Blob
         ? r.data
         : new Blob([r.data as unknown as BlobPart], { type: 'application/zip' });
-      file.downloadBlob(blob, `xml-4210-${xmlYear}${String(xmlMonth).padStart(2, '0')}.zip`);
+      // QA-R11: an unknown batch came back as a 0-byte zip and the page still said "Đã tải file XML".
+      if (blob.size === 0) { message.warning('Đợt này không có file XML (chưa xuất hoặc file đã bị xóa)'); return; }
+      file.downloadBlob(blob, `xml-4210-${fileTag || `${xmlYear}${String(xmlMonth).padStart(2, '0')}`}.zip`);
       message.success('Đã tải file XML');
-    } catch {
-      message.warning('Lỗi khi tải file XML');
+    } catch (err) {
+      message.warning(friendlyErrorMessage(err, 'Lỗi khi tải file XML'));
     }
+  };
+
+  /** QA-R11: settlement periods (QT-yyyyMM) are NOT XML batches — their id is a period key, so "Tải về" / "Nộp BHXH"
+   *  on them downloaded an empty zip / sent nothing. Use the latest exported XML batch of that period instead. */
+  const xmlBatchOfPeriod = (month: number, year: number) =>
+    xmlHistory.find((h) => h.periodMonth === month && h.periodYear === year);
+  const periodHasNoXml = (b: InsuranceSettlementBatchDto) =>
+    message.warning(`Kỳ ${String(b.month).padStart(2, '0')}/${b.year} chưa xuất XML — vào tab "Xuất XML QĐ4210" để xuất`);
+  const downloadPeriodXml = (b: InsuranceSettlementBatchDto) => {
+    const h = xmlBatchOfPeriod(b.month, b.year);
+    if (!h) { periodHasNoXml(b); return; }
+    void handleDownloadXml(h.batchId, h.batchCode);
+  };
+  const submitPeriodXml = (b: InsuranceSettlementBatchDto) => {
+    const h = xmlBatchOfPeriod(b.month, b.year);
+    if (!h) { periodHasNoXml(b); return; }
+    handleSubmitToBhxh(h.batchId, h.batchCode);
   };
 
   const handleCreateBatch = async () => {
@@ -712,8 +735,8 @@ const InsuranceV2: React.FC = () => {
             <span className="spacer" />
             {selectedIds.size > 0 && (
               <>
-                <Btn variant="ghost" onClick={handleApproveClaims}>
-                  <TermIcon name="check" size={12} /> Duyệt ({selectedIds.size})
+                <Btn variant="ghost" onClick={() => { void handleCheckClaims(); }}>
+                  <TermIcon name="check" size={12} /> Kiểm tra ({selectedIds.size})
                 </Btn>
                 <Btn variant="ghost" onClick={handleLockClaims}>
                   <TermIcon name="lock" size={12} /> Khóa ({selectedIds.size})
@@ -721,7 +744,7 @@ const InsuranceV2: React.FC = () => {
               </>
             )}
             <Btn variant="ghost" onClick={handleSync} disabled={syncLoading}>
-              <TermIcon name="refresh" size={12} /> {syncLoading ? 'Đang đồng bộ…' : 'Đồng bộ BHXH'}
+              <TermIcon name="refresh" size={12} /> {syncLoading ? 'Đang kiểm tra…' : 'Kiểm tra kết nối BHXH'}
             </Btn>
             <RefreshButton onRefresh={async () => { await reload(); }} />
             <Btn variant="ghost" onClick={() => navigate('/v2/bhxh-audit')}>
@@ -1030,9 +1053,9 @@ const InsuranceV2: React.FC = () => {
                       {BATCH_STATUS_MAP[b.status]?.l ?? '—'}
                     </StatusBadge>
                     <Btn variant="ghost" icon="check" loading={xmlSigning} onClick={() => handleSignXml(b.id)}>Ký XML</Btn>
-                    <Btn variant="ghost" icon="download" onClick={() => handleDownloadXml(b.id)}>Tải về</Btn>
+                    <Btn variant="ghost" icon="download" onClick={() => downloadPeriodXml(b)}>Tải về</Btn>
                     <Btn variant="ghost" icon="upload" loading={xmlSubmitting}
-                      onClick={() => handleSubmitToBhxh(b.id, b.batchCode)}>Nộp BHXH</Btn>
+                      onClick={() => submitPeriodXml(b)}>Nộp BHXH</Btn>
                   </div>
                 ))}
               </div>
@@ -1102,7 +1125,7 @@ const InsuranceV2: React.FC = () => {
               data={xmlHistory} rowKey={(r) => r.batchId}
               actions={(r) => (
                 <div className="ab-actions">
-                  <ActBtn ic="download" title="Tải xuống" onClick={() => { void handleDownloadXml(r.batchId); }} />
+                  <ActBtn ic="download" title="Tải xuống" onClick={() => { void handleDownloadXml(r.batchId, r.batchCode); }} />
                   {r.status < 2 && (
                     <ActBtn ic="upload" title="Gửi cổng BHXH" onClick={() => handleSubmitToBhxh(r.batchId, r.batchCode)} />
                   )}
@@ -1140,8 +1163,8 @@ const InsuranceV2: React.FC = () => {
             actions={(r) => (
               <div className="ab-actions">
                 <ActBtn ic="check" title="Ký XML" loading={xmlSigning} onClick={() => handleSignXml(r.id)} />
-                <ActBtn ic="download" title="Tải về XML" onClick={() => handleDownloadXml(r.id)} />
-                <ActBtn ic="upload" title="Nộp cổng BHXH" onClick={() => handleSubmitToBhxh(r.id, r.batchCode)} />
+                <ActBtn ic="download" title="Tải về XML" onClick={() => downloadPeriodXml(r)} />
+                <ActBtn ic="upload" title="Nộp cổng BHXH" onClick={() => submitPeriodXml(r)} />
               </div>
             )}
           />

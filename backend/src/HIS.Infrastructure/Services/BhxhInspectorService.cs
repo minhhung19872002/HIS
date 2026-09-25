@@ -29,8 +29,14 @@ public class BhxhInspectorService : IBhxhInspectorService
 
     public async Task<InspectorLoginResponseDto> LoginAsync(InspectorLoginDto dto, string ipAddress)
     {
+        // QA-R11 P0: a body of {} logged in — an account created with a blank username/password (the create
+        // endpoint accepted it) matched Username == "" and BCrypt verified "" against its hash.
+        if (string.IsNullOrWhiteSpace(dto.Username) || string.IsNullOrEmpty(dto.Password))
+            return new InspectorLoginResponseDto { Success = false, Message = "Vui lòng nhập tên đăng nhập và mật khẩu" };
+
+        var username = dto.Username.Trim().ToLowerInvariant();
         var account = await _db.BhxhInspectorAccounts
-            .FirstOrDefaultAsync(a => a.Username == dto.Username && !a.IsDeleted);
+            .FirstOrDefaultAsync(a => a.Username == username && a.Username != "" && !a.IsDeleted);
 
         if (account == null)
             return new InspectorLoginResponseDto { Success = false, Message = "Tài khoản không tồn tại" };
@@ -117,13 +123,19 @@ public class BhxhInspectorService : IBhxhInspectorService
 
     public async Task<InspectorAccountDto> CreateAccountAsync(InspectorCreateDto dto, Guid adminUserId)
     {
-        if (await _db.BhxhInspectorAccounts.AnyAsync(a => a.Username == dto.Username && !a.IsDeleted))
+        var username = (dto.Username ?? string.Empty).Trim().ToLowerInvariant();
+        if (username.Length == 0)
+            throw new ArgumentException("Tên đăng nhập không được để trống.");
+        var weak = HIS.Core.Common.PasswordPolicy.Validate(dto.Password, null, username);
+        if (weak != null)
+            throw new ArgumentException(weak);
+        if (await _db.BhxhInspectorAccounts.AnyAsync(a => a.Username == username && !a.IsDeleted))
             throw new InvalidOperationException("Tên đăng nhập đã tồn tại");
 
         var account = new BhxhInspectorAccount
         {
             Id = Guid.NewGuid(),
-            Username = dto.Username.Trim().ToLowerInvariant(),
+            Username = username,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
             FullName = dto.FullName,
             Email = dto.Email,

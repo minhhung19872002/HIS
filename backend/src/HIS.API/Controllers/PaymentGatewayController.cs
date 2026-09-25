@@ -223,9 +223,9 @@ public class PaymentGatewayController : ControllerBase
 
     [HttpPost("disbursement/{id:guid}/execute")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
-    public async Task<ActionResult<RefundDisbursementDto>> ExecuteDisbursement(Guid id)
+    public async Task<ActionResult<RefundDisbursementDto>> ExecuteDisbursement(Guid id, [FromBody] ExecuteDisbursementDto? body)
     {
-        var r = await _disbursementService.ExecuteAsync(id, GetUserId());
+        var r = await _disbursementService.ExecuteAsync(id, GetUserId(), body?.TransferRef);
         return Ok(r);
     }
 
