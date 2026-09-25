@@ -229,6 +229,22 @@ public class MedicalRecordArchive : BaseEntity
 }
 
 /// <summary>
+/// Điểm danh khoa nộp hồ sơ bệnh án về phòng KHTH (tab "Điểm danh" — Kế hoạch tổng hợp).
+/// QA-R11: `CheckInAsync` trước đây không ghi gì (trả Success=true, kể cả khoa không tồn tại) và
+/// danh sách luôn báo mọi khoa "Chưa chấm" — không có bảng nào để lưu. Một dòng / khoa / ngày (VN).
+/// </summary>
+public class MedicalRecordDeptCheckIn : BaseEntity
+{
+    public Guid DepartmentId { get; set; }
+    public virtual Department Department { get; set; } = null!;
+    public DateTime CheckInDate { get; set; }   // ngày VN (date only)
+    public DateTime CheckInTime { get; set; }   // giờ VN
+    public Guid? CheckInById { get; set; }
+    public string? CheckInByName { get; set; }
+    public string? Note { get; set; }
+}
+
+/// <summary>
 /// Yêu cầu SAO CHỤP hồ sơ bệnh án — người bệnh/thân nhân/cơ quan xin bản sao.
 ///
 /// <para>#218/T3: `CreateRecordCopyAsync` trước đây là hàm rỗng (sinh mã bằng `new Random()`,

@@ -63,6 +63,13 @@ public class ServiceRequest : BaseEntity
     // LIS Worklist tracking: thời điểm gửi HL7 ORM^O01 tới máy xét nghiệm (NULL = chưa gửi)
     public DateTime? WorklistSentAt { get; set; }
 
+    /// <summary>
+    /// QA-R11: ca phẫu thuật (SurgeryRequests.Id) đã sinh phiếu chỉ định này — để màn PTTT đọc lại
+    /// dịch vụ/chi phí của chính ca mổ (trước đây các endpoint service-orders của PTTT là stub, không lưu gì).
+    /// NULL = phiếu chỉ định ngoại trú / nội trú thông thường.
+    /// </summary>
+    public Guid? SurgeryRequestId { get; set; }
+
     // Navigation
     public virtual ICollection<ServiceRequestDetail> Details { get; set; } = new List<ServiceRequestDetail>();
 }

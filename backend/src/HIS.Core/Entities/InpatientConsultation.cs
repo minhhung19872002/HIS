@@ -9,7 +9,10 @@ public class InpatientConsultation : BaseEntity
 {
     public Guid AdmissionId { get; set; }
 
-    public int ConsultationType { get; set; } // 1-Hoi chan khoa, 2-Hoi chan BV, 3-Hoi chan thuoc dau *, 4-Hoi chan PTTT
+    public int ConsultationType { get; set; } // 1-Hoi chan khoa, 2-Hoi chan BV, 3-Hoi chan thuoc dau *, 4-Hoi chan PTTT, 5-Kham chuyen khoa (QA-R11)
+
+    /// <summary>QA-R11: khoa chuyên khoa được mời khám (ConsultationType = 5). NULL với hội chẩn thường.</summary>
+    public Guid? SpecialtyDepartmentId { get; set; }
     public DateTime ConsultationDate { get; set; }
     public TimeSpan? ConsultationTime { get; set; }
     public string? Location { get; set; }

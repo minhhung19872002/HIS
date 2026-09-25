@@ -88,6 +88,9 @@ public class BloodRequest : BaseEntity
     public string? RejectionReason { get; set; }
     public string? Note { get; set; }
 
+    /// <summary>QA-R11: ca phẫu thuật đã kê yêu cầu máu này (màn PTTT "Kê đơn máu"); NULL = yêu cầu từ khoa lâm sàng.</summary>
+    public Guid? SurgeryRequestId { get; set; }
+
     // Navigation
     public virtual ICollection<BloodTransfusion> Transfusions { get; set; } = new List<BloodTransfusion>();
 }

@@ -49,6 +49,8 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     // #218/T3 (migration 178): yêu cầu sao chụp hồ sơ — trước đây `CreateRecordCopyAsync` sinh mã
     // rồi trả DTO như thể đã lưu, mà không có bảng nào để lưu.
     public DbSet<RecordCopyRequest> RecordCopyRequests => Set<RecordCopyRequest>();
+    // QA-R11 (emr-records): điểm danh khoa nộp HSBA — trước đây CheckInAsync không ghi gì.
+    public DbSet<MedicalRecordDeptCheckIn> MedicalRecordDeptCheckIns => Set<MedicalRecordDeptCheckIn>();
     // #218/T3 (migration 180): link chia sẻ kết quả CĐHA — trước đây mã chia sẻ + mã truy cập không
     // được lưu, và cửa đọc `[AllowAnonymous]` bỏ qua cả hai tham số.
     public DbSet<RadiologyResultShare> RadiologyResultShares => Set<RadiologyResultShare>();
@@ -1122,6 +1124,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.Entity<MedicalRecordArchive>().HasOne(m => m.ArchivedBy).WithMany().HasForeignKey(m => m.ArchivedById).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<MedicalRecordBorrowRequest>().HasOne(m => m.ApprovedBy).WithMany().HasForeignKey(m => m.ApprovedById).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<MedicalRecordBorrowRequest>().HasOne(m => m.RequestedBy).WithMany().HasForeignKey(m => m.RequestedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<MedicalRecordDeptCheckIn>().HasOne(m => m.Department).WithMany().HasForeignKey(m => m.DepartmentId).OnDelete(DeleteBehavior.NoAction); // QA-R11
         modelBuilder.Entity<MedicalStaff>().HasOne(m => m.User).WithMany().HasForeignKey(m => m.UserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<NonDicomStudy>().HasOne(n => n.PerformedByUser).WithMany().HasForeignKey(n => n.PerformedByUserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<Notification>().HasOne(n => n.TargetUser).WithMany().HasForeignKey(n => n.TargetUserId).OnDelete(DeleteBehavior.NoAction);

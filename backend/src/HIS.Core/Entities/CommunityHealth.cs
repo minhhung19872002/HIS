@@ -20,6 +20,12 @@ public class HouseholdHealthRecord : BaseEntity
     public DateTime? LastVisitDate { get; set; }
     public DateTime? NextVisitDate { get; set; }
     public string? Notes { get; set; }
+    // QA-R11: "đối tượng đặc biệt" flags + management status (0=Đang quản lý, 1=Tạm ngưng, 2=Đã chuyển đi)
+    public bool HasElderlyMember { get; set; }
+    public bool HasChildUnder5 { get; set; }
+    public bool HasPregnant { get; set; }
+    public bool HasChronicDisease { get; set; }
+    public int Status { get; set; }
 
     // Navigation
     public virtual CommunityHealthTeam? AssignedTeam { get; set; }
