@@ -148,6 +148,14 @@ const PrescriptionEditorV2: React.FC = () => {
   // no UI path at all: the doctor only saw an error toast and could neither see the reason in context nor
   // enter the override reason the backend asks for.
   const [safetyBlock, setSafetyBlock] = useState<string | null>(null);
+  // QA-R12: non-blocking findings returned by the save (thuốc gây nghiện/hướng thần kê chung đơn thường,
+  // vượt số ngày TT 52/2017). Config Clinical.ControlledDrugSeparateRxMode / ...DaysLimitMode = Warn.
+  const [rxRuleWarnings, setRxRuleWarnings] = useState<string[]>([]);
+  const showRxRuleWarnings = (w?: string[]) => {
+    const list = Array.isArray(w) ? w : [];
+    setRxRuleWarnings(list);
+    list.forEach((m) => tw(m));
+  };
   // Dose-range check (QA-R3): run right before every save; severity 3 (quá liều nặng) needs an override reason.
   const [doseWarnings, setDoseWarnings] = useState<DoseWarningDto[]>([]);
   const severeDose = doseWarnings.some((w) => w.severity >= SEVERE_DOSE);
@@ -197,6 +205,7 @@ const PrescriptionEditorV2: React.FC = () => {
     setExamId(null);
     setItems([]); // xóa giỏ thuốc BN cũ ngay lập tức — tránh toa BN-A gắn vào phiếu BN-B (#416 patient-safety)
     setInteractions([]);
+    setRxRuleWarnings([]);
     try {
       const res = await examinationApi.searchExaminations({ patientCode: p.patientCode, pageIndex: 0, pageSize: 1 });
       if (selectReqRef.current !== reqId) return; // BN khác đã được chọn trong lúc chờ — bỏ response cũ
@@ -453,6 +462,7 @@ const PrescriptionEditorV2: React.FC = () => {
     if (response.data) {
       setEditingPrescriptionId(response.data.id);
       setEditingPrescriptionStatus(response.data.status);
+      showRxRuleWarnings(response.data.warnings);
     }
     return response;
   };
@@ -477,7 +487,8 @@ const PrescriptionEditorV2: React.FC = () => {
     try {
       const saved = await persistPrescription();
       const issued = await examinationApi.issuePrescription(saved.data.id, overrideReason.trim() || undefined);
-      if (issued.data) setEditingPrescriptionStatus(issued.data.status);
+      // The draft save just above already toasted the same findings — only refresh the panel here.
+      if (issued.data) { setEditingPrescriptionStatus(issued.data.status); setRxRuleWarnings(issued.data.warnings ?? []); }
       setSignOpen(false);
       if (andSign) {
         tk('Đã phát hành đơn — tiếp tục ký số ở luồng trình ký');
@@ -963,6 +974,16 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${esc(pt.insu
             <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--s-warn-tx)', marginTop: 'var(--space-6)' }}>
               Hệ thống không gọi được dịch vụ kiểm tra tương tác thuốc. Danh sách trống ở đây <b>không</b> có nghĩa là đơn an toàn — hãy tự đối chiếu trước khi ký.
             </div>
+          </div>
+        )}
+        {rxRuleWarnings.length > 0 && (
+          <div style={{ padding: 'var(--space-12)', background: 'var(--s-warn-bg)', border: '1px solid var(--s-warn-bd)', borderRadius: 'var(--r-3)' }}>
+            <div style={{ color: 'var(--s-warn-tx)', fontWeight: 700, fontSize: 'var(--fs-sm)', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+              <TermIcon name="alert" size={12} /> Thuốc kiểm soát đặc biệt
+            </div>
+            {rxRuleWarnings.map((w) => (
+              <div key={w} style={{ fontSize: 'var(--fs-xs)', color: 'var(--s-warn-tx)', marginTop: 'var(--space-6)' }}>{w}</div>
+            ))}
           </div>
         )}
         {intCount > 0 && (

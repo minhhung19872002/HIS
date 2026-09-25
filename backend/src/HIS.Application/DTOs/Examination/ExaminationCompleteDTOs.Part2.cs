@@ -246,6 +246,10 @@ public class PrescriptionFullDto
     // Người kê
     public Guid PrescribedById { get; set; }
     public string? PrescribedByName { get; set; }
+
+    /// <summary>QA-R12: non-blocking findings of the save (controlled drugs on a normal prescription, course over the
+    /// TT 52/2017 limit) — shown by the v2 prescription editor. Empty on reads.</summary>
+    public List<string> Warnings { get; set; } = new();
 }
 
 /// <summary>

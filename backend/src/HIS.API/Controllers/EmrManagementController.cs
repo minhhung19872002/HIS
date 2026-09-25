@@ -206,12 +206,17 @@ public class EmrManagementController : ControllerBase
         => Ok(await _service.GetCloseLogsAsync(examinationId));
 
     // ============ Data Recovery (B.2.4) ============
+    // QA-R12: listing/restoring deleted records is hospital-wide (no department scope) — any doctor/nurse could
+    // restore a deleted prescription of another ward. Admin-only (System.Configure). The class-level Roles
+    // attribute makes WritePermissionConvention skip this controller, so the permission is set here explicitly.
 
     [HttpGet("recovery/deleted")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.System.Configure)]
     public async Task<IActionResult> GetDeletedRecords([FromQuery] string entityType)
         => Ok(await _service.GetDeletedRecordsAsync(entityType));
 
     [HttpPost("recovery/restore")]
+    [HIS.API.Authorization.RequirePermission(PermissionCatalog.System.Configure)]
     public async Task<IActionResult> RestoreRecord([FromBody] RestoreRecordDto dto)
         => await _service.RestoreRecordAsync(dto) ? Ok() : NotFound();
 }

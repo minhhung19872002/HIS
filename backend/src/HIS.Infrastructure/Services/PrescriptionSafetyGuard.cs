@@ -23,6 +23,23 @@ public static class PrescriptionSafetyGuard
         if (medicineIds == null || medicineIds.Count == 0) return;
         if (!string.IsNullOrWhiteSpace(overrideReason)) return; // BS cố tình bỏ qua → cho qua (audit ở caller)
 
+        var blocks = await FindBlockingIssuesAsync(db, patientId, medicineIds);
+        if (blocks.Count == 0) return;
+
+        var sb = new StringBuilder("Đơn thuốc bị chặn vì lý do an toàn:");
+        foreach (var b in blocks) sb.Append(' ').Append(b).Append(';');
+        sb.Append(" Cần nhập lý do bỏ qua (OverrideReason) nếu bác sĩ vẫn quyết định kê.");
+        throw new InvalidOperationException(sb.ToString());
+    }
+
+    /// <summary>
+    /// The findings <see cref="EnsureSafeAsync"/> blocks on ("[Dị ứng] …" / "[Tương tác] …"), without throwing —
+    /// QA-R12: also used by the advisory check endpoints so a pre-save check and the save agree.
+    /// </summary>
+    public static async Task<List<string>> FindBlockingIssuesAsync(HISDbContext db, Guid patientId, List<Guid> medicineIds)
+    {
+        if (medicineIds == null || medicineIds.Count == 0) return new List<string>();
+
         var medicines = await db.Medicines
             .Where(m => medicineIds.Contains(m.Id))
             .Select(m => new { m.Id, m.MedicineCode, m.MedicineName, m.ActiveIngredient })
@@ -77,12 +94,7 @@ public static class PrescriptionSafetyGuard
             }
         }
 
-        if (blocks.Count == 0) return;
-
-        var sb = new StringBuilder("Đơn thuốc bị chặn vì lý do an toàn:");
-        foreach (var b in blocks) sb.Append(' ').Append(b).Append(';');
-        sb.Append(" Cần nhập lý do bỏ qua (OverrideReason) nếu bác sĩ vẫn quyết định kê.");
-        throw new InvalidOperationException(sb.ToString());
+        return blocks;
     }
 
     /// <summary>Allergen name matches the drug's trade name or any of its active ingredients (normalized).</summary>

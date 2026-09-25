@@ -209,7 +209,13 @@ namespace HIS.Application.Services
         /// <summary>
         /// 7.3.5 Nhập kết quả thủ công
         /// </summary>
-        Task<bool> EnterLabResultAsync(EnterLabResultDto dto);
+        Task<bool> EnterLabResultAsync(EnterLabResultDto dto, Guid? enteredByUserId = null);
+
+        /// <summary>
+        /// QA-R12: 4-eyes check before releasing a lab result (SystemConfigs "Lab.SeparateApproverMode" Off/Warn/Block).
+        /// Returns the warning to show (Warn), null when nothing to report; throws InvalidOperationException in Block mode.
+        /// </summary>
+        Task<string?> CheckSeparateApproverAsync(Guid orderId, List<Guid>? itemIds, Guid? approverUserId);
 
         /// <summary>
         /// 7.3.6 Duyệt kết quả xét nghiệm (1 bước)

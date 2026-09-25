@@ -234,11 +234,9 @@ public partial class LISCompleteService
                             .OrderBy(p => p.SortOrder)
                             .FirstOrDefaultAsync();
 
-                    var mrInfo = await _context.MedicalRecords.Where(m => m.Id == srd.ServiceRequest.MedicalRecordId)
-                        .Select(m => new { m.PatientId, Gender = (int?)m.Patient.Gender }).FirstOrDefaultAsync();
-                    var (normalMin, normalMax) = LabFlagEvaluator.ResolveRange(cat, mrInfo?.Gender);
-                    decimal? criticalLow = cat?.CriticalLow;
-                    decimal? criticalHigh = cat?.CriticalHigh;
+                    // QA-R12: age/sex reference rows + configured critical thresholds (LabRangeContext), same as manual entry.
+                    var ranges = await LabRangeContext.LoadAsync(_context, srd);
+                    var mrInfo = ranges.PatientId is Guid mrPatientId ? new { PatientId = mrPatientId } : null;
 
                     // QA-R11: analyzer → HIS unit conversion from the mapping (factor ≠ 1), mapped unit wins.
                     var value = result.Value;
@@ -250,6 +248,10 @@ public partial class LISCompleteService
                             value = (rawNum * factor).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
                         if (!string.IsNullOrWhiteSpace(map.Unit)) units = map.Unit;
                     }
+                    // Range rows are matched on the unit AFTER conversion (a row in another unit is skipped).
+                    var rangeCode = directMatch ? result.TestCode : paramCode;
+                    var (normalMin, normalMax) = ranges.Range(cat, rangeCode, !string.IsNullOrEmpty(units) ? units : cat?.Unit);
+                    var (criticalLow, criticalHigh) = ranges.Critical(cat, rangeCode, cat?.CriticalLow, cat?.CriticalHigh);
 
                     // Ghi KQ vào SRD (giống EnterLabResult model 1)
                     if (directMatch) srd.Result = value ?? "";

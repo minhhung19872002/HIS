@@ -25,6 +25,8 @@ export interface InpatientPrescriptionDto {
   totalAmount: number;
   insuranceAmount: number;
   patientPayAmount: number;
+  /** QA-R12: non-blocking findings of the save (toa về mixing controlled + ordinary drugs, TT 52/2017). */
+  warnings?: string[];
 }
 
 export interface InpatientMedicineItemDto {

@@ -185,6 +185,10 @@ public class InpatientPrescriptionDto
     public decimal TotalAmount { get; set; }
     public decimal InsuranceAmount { get; set; }
     public decimal PatientPayAmount { get; set; }
+
+    /// <summary>QA-R12: non-blocking findings of the save (take-home prescription mixing controlled and ordinary
+    /// drugs, TT 52/2017). Empty on reads.</summary>
+    public List<string> Warnings { get; set; } = new();
 }
 
 /// <summary>

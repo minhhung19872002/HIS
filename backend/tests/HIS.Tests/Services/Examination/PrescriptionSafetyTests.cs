@@ -30,7 +30,8 @@ public class PrescriptionSafetyTests
             new UnitOfWork(ctx),
             new Mock<ICurrentUserAccessor>().Object,
             new Mock<HIS.Application.Services.IPaymentGatewayService>().Object,
-            new Mock<HIS.Application.Services.ITreatmentRelationshipService>().Object);
+            new Mock<HIS.Application.Services.ITreatmentRelationshipService>().Object,
+            new Mock<HIS.Application.Services.IPatientDataScopeGuard>().Object);
 
     private static (Guid examId, Guid medId) SeedScenario(HISDbContext ctx, bool withSevereAllergy)
     {

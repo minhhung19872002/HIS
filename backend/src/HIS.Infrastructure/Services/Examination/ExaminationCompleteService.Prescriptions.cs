@@ -159,6 +159,7 @@ public partial class ExaminationCompleteService
             prescription.Details.Select(d => d.MedicineId).ToList(),
             dto.OverrideReason);
         await EnforceDoseRangeAsync(examination.MedicalRecord.PatientId, prescription.Details, dto.OverrideReason);
+        var controlledWarnings = await CheckControlledDrugsAsync(prescription.Details, dto.OverrideReason); // QA-R12
         if (!string.IsNullOrWhiteSpace(dto.OverrideReason))
             prescription.Instructions = $"{prescription.Instructions} [BS bỏ qua cảnh báo an toàn: {dto.OverrideReason}]".Trim();
 
@@ -172,7 +173,9 @@ public partial class ExaminationCompleteService
             await _unitOfWork.SaveChangesAsync();
         if (tx != null) await tx.CommitAsync();
 
-        return MapToPrescriptionFullDto(prescription);
+        var created = MapToPrescriptionFullDto(prescription);
+        created.Warnings = controlledWarnings;
+        return created;
     }
 
     public async Task<PrescriptionFullDto> UpdatePrescriptionAsync(Guid id, Application.DTOs.Examination.CreateExaminationPrescriptionDto dto)
@@ -256,6 +259,7 @@ public partial class ExaminationCompleteService
             prescription.Details.Select(d => d.MedicineId).ToList(),
             dto.OverrideReason);
         await EnforceDoseRangeAsync(updPatientId, prescription.Details, dto.OverrideReason);
+        var controlledWarnings = await CheckControlledDrugsAsync(prescription.Details, dto.OverrideReason); // QA-R12
         if (!string.IsNullOrWhiteSpace(dto.OverrideReason))
             prescription.Instructions = $"{prescription.Instructions} [BS bỏ qua cảnh báo an toàn: {dto.OverrideReason}]".Trim();
 
@@ -265,7 +269,9 @@ public partial class ExaminationCompleteService
             await _unitOfWork.SaveChangesAsync();
         if (tx != null) await tx.CommitAsync();
 
-        return MapToPrescriptionFullDto(prescription);
+        var updated = MapToPrescriptionFullDto(prescription);
+        updated.Warnings = controlledWarnings;
+        return updated;
     }
 
     private async Task<Dictionary<Guid, Medicine>> LoadPrescriptionMedicinesAsync(
@@ -314,6 +320,8 @@ public partial class ExaminationCompleteService
             overrideReason);
         // Also covers a replacement draft (ReplacePrescriptionAsync clones lines; they take effect here).
         await EnforceDoseRangeAsync(prescription.MedicalRecord.PatientId, prescription.Details, overrideReason);
+        // QA-R12: a draft saved under Warn is re-checked here — Block mode refuses to issue it.
+        var controlledWarnings = await CheckControlledDrugsAsync(prescription.Details, overrideReason);
         if (!string.IsNullOrWhiteSpace(overrideReason))
             prescription.Instructions =
                 $"{prescription.Instructions} [BS bỏ qua cảnh báo an toàn: {overrideReason}]".Trim();
@@ -346,7 +354,9 @@ public partial class ExaminationCompleteService
         if (await new BhytVisitPricing(_context).RecalculateAsync(prescription.MedicalRecordId) != null)
             await _unitOfWork.SaveChangesAsync();
         if (tx != null) await tx.CommitAsync();
-        return MapToPrescriptionFullDto(prescription);
+        var issued = MapToPrescriptionFullDto(prescription);
+        issued.Warnings = controlledWarnings;
+        return issued;
     }
 
     /// <summary>
@@ -674,6 +684,15 @@ public partial class ExaminationCompleteService
         => PrescriptionDoseGuard.EnsureNoUnjustifiedSevereOverdoseAsync(_context, patientId,
             details.Select(d => HIS.Core.Common.DoseRangeChecker.ParseLine(d.MedicineId, d.Dosage, d.UsageInstructions, d.Route)).ToList(),
             overrideReason);
+
+    /// <summary>QA-R12: controlled drugs (TT 52/2017) — separate N/H prescription + course limit, Warn/Block by
+    /// SystemConfigs (see ControlledDrugRxGuard). Details must carry their Medicine.</summary>
+    private Task<List<string>> CheckControlledDrugsAsync(IEnumerable<PrescriptionDetail> details, string? overrideReason)
+        => ControlledDrugRxGuard.CheckAsync(_context,
+            details.Select(d => new HIS.Core.Common.ControlledDrugRxRule.Line(
+                d.Medicine?.MedicineName ?? string.Empty, d.Medicine?.IsNarcotic == true,
+                d.Medicine?.IsPsychotropic == true, d.Medicine?.IsPrecursor == true, d.Days)).ToList(),
+            checkDays: true, overrideReason);
 
     public async Task<List<PrescriptionWarningDto>> CheckContraindicationsAsync(Guid patientId, List<Guid> medicineIds)
     {

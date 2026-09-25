@@ -1149,7 +1149,7 @@ const DischargePrescriptionModal: React.FC<{
     if (valid.length === 0) { message.warning('Chọn ít nhất 1 thuốc'); return; }
     setBusy(true);
     try {
-      await createPrescription({
+      const saved = await createPrescription({
         admissionId,
         prescriptionDate: dayjs().toISOString(),
         warehouseId,
@@ -1163,6 +1163,8 @@ const DischargePrescriptionModal: React.FC<{
         })),
       });
       message.success('Đã lưu đơn thuốc xuất viện (toa về)');
+      // QA-R12: Clinical.ControlledDrugSeparateRxMode = Warn → saved, TT 52/2017 finding shown.
+      (saved.data?.warnings ?? []).forEach((w) => message.warning(w, 10));
       onDone();
     } catch (e) {
       message.error(friendlyErrorMessage(e, 'Lưu đơn thuốc xuất viện thất bại. Vui lòng thử lại.'));

@@ -622,11 +622,14 @@ public partial class LISCompleteService {
                 // R1 (2a): upsert chỉ số con per-OBX (idempotent theo ParameterCode khi analyzer gửi lại).
                 // Cờ: ưu tiên cờ HL7 OBX-8 (N/H/L/HH/LL), thiếu/khác chuẩn → tính từ catalog.
                 var num = LabFlagEvaluator.TryParse(result.Value);
-                var mrInfo = await db.ServiceRequests.Where(r => r.Id == detail.ServiceRequestId)
-                    .Select(r => new { r.MedicalRecord.PatientId, Gender = (int?)r.MedicalRecord.Patient.Gender }).FirstOrDefaultAsync();
-                var (min, max) = LabFlagEvaluator.ResolveRange(cat, mrInfo?.Gender);
+                // QA-R12: age/sex reference rows + configured critical thresholds (LabRangeContext), same as manual entry.
+                var ranges = await LabRangeContext.LoadAsync(db, detail);
+                var mrInfo = ranges.PatientId is Guid mrPatientId ? new { PatientId = mrPatientId } : null;
+                var (min, max) = ranges.Range(cat, result.TestCode,
+                    string.IsNullOrWhiteSpace(result.Units) ? cat?.Unit : result.Units);
+                var (critLow, critHigh) = ranges.Critical(cat, result.TestCode, cat?.CriticalLow, cat?.CriticalHigh);
                 var flag = LabFlagEvaluator.NormalizeHl7Flag(result.AbnormalFlag)
-                           ?? LabFlagEvaluator.EvaluateFlag(num, min, max, cat?.CriticalLow, cat?.CriticalHigh);
+                           ?? LabFlagEvaluator.EvaluateFlag(num, min, max, critLow, critHigh);
                 var row = await db.ServiceRequestDetailParameters
                     .FirstOrDefaultAsync(x => x.ServiceRequestDetailId == detail.Id
                                            && x.ParameterCode == result.TestCode && !x.IsDeleted);
@@ -660,7 +663,7 @@ public partial class LISCompleteService {
                 await RemoveOpenCriticalAlertsAsync(db, detail.Id, result.TestCode ?? "");
                 if (!string.IsNullOrEmpty(result.Value) && mrInfo != null)
                     AddCriticalAlertIfNeeded(db, detail.Id, mrInfo.PatientId, flag, result.TestCode ?? "",
-                        row.ParameterName, result.Value, num, row.Unit, cat?.CriticalLow, cat?.CriticalHigh);
+                        row.ParameterName, result.Value, num, row.Unit, critLow, critHigh);
 
                 if (directMatch)
                     detail.Result = result.Value ?? ""; // dịch vụ 1 chỉ số: giữ hành vi cũ (giá trị trần)

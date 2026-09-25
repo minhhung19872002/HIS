@@ -69,6 +69,7 @@ public class SampleCollectionService : ISampleCollectionService
         detail.SampleBarcode = barcode;
         detail.SampleCollectedAt = VnTime.NowVn; // business timestamp = VN local (same as LIS CollectSample)
         detail.IsSampleCollected = true;
+        if (userId != Guid.Empty) detail.CollectedByUserId = userId; // QA-R12: collector was never recorded (NULL)
         detail.UpdatedAt = DateTime.UtcNow;
         detail.UpdatedBy = userId.ToString();
 

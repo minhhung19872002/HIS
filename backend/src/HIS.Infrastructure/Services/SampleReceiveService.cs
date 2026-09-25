@@ -142,17 +142,18 @@ public class SampleReceiveService : ISampleReceiveService
 
             var catalog = await _db.LisTestParameters
                 .Where(p => p.ServiceId == d.ServiceId && p.IsActive && !p.IsDeleted).ToListAsync();
-            var gender = await _db.ServiceRequests.Where(r => r.Id == d.ServiceRequestId)
-                .Select(r => (int?)r.MedicalRecord.Patient.Gender).FirstOrDefaultAsync();
+            // QA-R12: age/sex reference rows + configured critical thresholds, same as the LIS entry/analyzer paths.
+            var ranges = await LabRangeContext.LoadAsync(_db, d);
             int seq = 0;
             foreach (var p in dto.Parameters)
             {
                 var cat = catalog.FirstOrDefault(c => c.Code == p.ParameterCode || c.Hl7Code == p.ParameterCode);
-                var range = LabFlagEvaluator.ResolveRange(cat, gender);
+                var range = ranges.Range(cat, p.ParameterCode, string.IsNullOrEmpty(p.Unit) ? cat?.Unit : p.Unit);
                 var min = p.ReferenceMin ?? range.Min;
                 var max = p.ReferenceMax ?? range.Max;
                 var num = LabFlagEvaluator.TryParse(p.Value);
-                var flag = LabFlagEvaluator.EvaluateFlag(num, min, max, cat?.CriticalLow, cat?.CriticalHigh);
+                var crit = ranges.Critical(cat, p.ParameterCode, cat?.CriticalLow, cat?.CriticalHigh);
+                var flag = LabFlagEvaluator.EvaluateFlag(num, min, max, crit.Low, crit.High);
                 _db.ServiceRequestDetailParameters.Add(new ServiceRequestDetailParameter
                 {
                     Id = Guid.NewGuid(),

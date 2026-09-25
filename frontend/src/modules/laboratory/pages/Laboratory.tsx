@@ -319,8 +319,10 @@ const LaboratoryV2: React.FC = () => {
     if (acting) return;
     setActing(r.id);
     try {
-      await labApi.finalApprove(r.id);
+      const res = (await labApi.finalApprove(r.id)) as { warning?: string } | undefined;
       message.success(`Đã duyệt chính thức · ${r.requestCode}`);
+      // QA-R12: Lab.SeparateApproverMode = Warn → the release went through but the 4-eyes finding is shown.
+      if (res?.warning) message.warning(res.warning, 8);
       reload();
     } catch (e) {
       message.error(friendlyErrorMessage(e, 'Duyệt chính thức thất bại'));

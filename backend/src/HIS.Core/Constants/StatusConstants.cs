@@ -745,12 +745,15 @@ public static class DrugOrderType
     public const int Regular = 1;
     public const int EmergencyCabinet = 2;
     public const int Return = 3;
+    /// <summary>Take-home prescription written at discharge ("toa về", G-07) — dispensed at/after discharge.</summary>
+    public const int Discharge = 4;
 
     public static string GetName(int type) => type switch
     {
         Regular => "Thường qui (Phiếu lĩnh)",
         EmergencyCabinet => "Xuất tủ trực",
         Return => "Hoàn trả",
+        Discharge => "Toa về (xuất viện)",
         _ => "Khác",
     };
 }

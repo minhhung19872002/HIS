@@ -225,6 +225,15 @@ public partial class InpatientCompleteService {
             dto.Items.Select(i => i.MedicineId).ToList(),
             dto.OverrideReason);
         await EnforceInpatientDoseRangeAsync(admission.PatientId, dto); // QA-R3: severe overdose needs a reason
+        // QA-R12: the take-home prescription is an outpatient prescription → separate N/H prescription rule
+        // (ward orders are not). Lines carry no course length here, so only the mixing rule applies.
+        var controlledWarnings = prescription.DrugOrderType == HIS.Core.Constants.DrugOrderType.Discharge
+            ? await ControlledDrugRxGuard.CheckAsync(_context,
+                dto.Items.Where(i => createMedicinesMap.ContainsKey(i.MedicineId)).Select(i => createMedicinesMap[i.MedicineId])
+                    .Select(m => new HIS.Core.Common.ControlledDrugRxRule.Line(m.MedicineName, m.IsNarcotic, m.IsPsychotropic, m.IsPrecursor, null))
+                    .ToList(),
+                checkDays: false, dto.OverrideReason)
+            : new List<string>();
         if (!string.IsNullOrWhiteSpace(dto.OverrideReason))
             prescription.Instructions = $"{prescription.Instructions} [BS bỏ qua cảnh báo an toàn: {dto.OverrideReason}]".Trim();
 
@@ -255,7 +264,8 @@ public partial class InpatientCompleteService {
             Status = 0,
             TotalAmount = totalAmount,
             InsuranceAmount = prescription.InsuranceAmount,
-            PatientPayAmount = totalAmount - prescription.InsuranceAmount
+            PatientPayAmount = totalAmount - prescription.InsuranceAmount,
+            Warnings = controlledWarnings,
         };
     }
 
@@ -341,6 +351,13 @@ public partial class InpatientCompleteService {
             dto.Items.Select(i => i.MedicineId).ToList(),
             dto.OverrideReason);
         await EnforceInpatientDoseRangeAsync(updPatientId, dto); // QA-R3: severe overdose needs a reason
+        var controlledWarnings = prescription.DrugOrderType == HIS.Core.Constants.DrugOrderType.Discharge // QA-R12
+            ? await ControlledDrugRxGuard.CheckAsync(_context,
+                dto.Items.Where(i => updateMedicinesMap.ContainsKey(i.MedicineId)).Select(i => updateMedicinesMap[i.MedicineId])
+                    .Select(m => new HIS.Core.Common.ControlledDrugRxRule.Line(m.MedicineName, m.IsNarcotic, m.IsPsychotropic, m.IsPrecursor, null))
+                    .ToList(),
+                checkDays: false, dto.OverrideReason)
+            : new List<string>();
         if (!string.IsNullOrWhiteSpace(dto.OverrideReason))
             prescription.Instructions = $"{prescription.Instructions} [BS bỏ qua cảnh báo an toàn: {dto.OverrideReason}]".Trim();
 
@@ -371,7 +388,8 @@ public partial class InpatientCompleteService {
             Status = prescription.Status,
             TotalAmount = totalAmount,
             InsuranceAmount = prescription.InsuranceAmount,
-            PatientPayAmount = totalAmount - prescription.InsuranceAmount
+            PatientPayAmount = totalAmount - prescription.InsuranceAmount,
+            Warnings = controlledWarnings,
         };
     }
 
@@ -571,17 +589,39 @@ public partial class InpatientCompleteService {
         await _context.SaveChangesAsync();
     }
 
-    public Task<PrescriptionWarningDto> CheckPrescriptionWarningsAsync(Guid admissionId, List<CreateInpatientMedicineItemDto> items)
+    public async Task<PrescriptionWarningDto> CheckPrescriptionWarningsAsync(Guid admissionId, List<CreateInpatientMedicineItemDto> items)
     {
-        return Task.FromResult(new PrescriptionWarningDto
-        {
-            HasDuplicateToday = false,
-            HasDrugInteraction = false,
-            HasAntibioticDuplicate = false,
-            ExceedsInsuranceCeiling = false,
-            IsInsuranceExpiring = false,
-            IsOutsideProtocol = false
-        });
+        // QA-R12: always answered "no warnings" — a patient-safety trap for any page that trusted it. It now runs the
+        // same allergy / severe-interaction check the save enforces (PrescriptionSafetyGuard) plus "already ordered
+        // today on this stay". Checks this endpoint does not perform keep their flags false.
+        var result = new PrescriptionWarningDto();
+        var medicineIds = (items ?? new()).Select(i => i.MedicineId).Where(id => id != Guid.Empty).Distinct().ToList();
+        if (medicineIds.Count == 0) return result;
+        var admission = await _context.Set<Admission>().AsNoTracking()
+            .Where(a => a.Id == admissionId)
+            .Select(a => new { a.PatientId, a.MedicalRecordId })
+            .FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Admission not found");
+
+        var issues = await PrescriptionSafetyGuard.FindBlockingIssuesAsync(_context, admission.PatientId, medicineIds);
+        result.GeneralWarnings.AddRange(issues);
+        result.HasDrugInteraction = issues.Any(i => i.StartsWith("[Tương tác]", StringComparison.Ordinal));
+
+        // Ward orders carry VN-local PrescriptionDate (same as the create path).
+        var today = HIS.Core.Common.VnTime.TodayVn;
+        var tomorrow = today.AddDays(1);
+        var duplicates = await _context.PrescriptionDetails.AsNoTracking()
+            .Where(d => medicineIds.Contains(d.MedicineId)
+                        && d.Prescription.MedicalRecordId == admission.MedicalRecordId
+                        && d.Prescription.PrescriptionDate >= today && d.Prescription.PrescriptionDate < tomorrow
+                        && d.Prescription.Status != HIS.Core.Constants.PrescriptionStatus.Cancelled
+                        && d.Prescription.DrugOrderType != HIS.Core.Constants.DrugOrderType.Return)
+            .Select(d => d.Medicine.MedicineName)
+            .Distinct()
+            .ToListAsync();
+        result.HasDuplicateToday = duplicates.Count > 0;
+        result.DuplicateMedicines = duplicates;
+        return result;
     }
 
     // QA-R8: the inpatient template endpoints were stubs (create echoed a random id, list was always empty).

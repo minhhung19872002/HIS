@@ -561,7 +561,7 @@ public partial class LISCompleteService {
             Notes         = $"[Auto-transferred from analyzer inbox {inboxId}]",
         };
 
-        var success = await EnterLabResultAsync(enterDto);
+        var success = await EnterLabResultAsync(enterDto, userId);
         if (!success) return false;
 
         // Mark as Transferred

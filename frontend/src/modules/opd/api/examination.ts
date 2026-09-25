@@ -509,6 +509,8 @@ export interface PrescriptionFullDto {
   statusName: string;
   prescribedById: string;
   prescribedByName?: string;
+  /** QA-R12: non-blocking findings of a save/issue (controlled drugs, TT 52/2017). Empty on reads. */
+  warnings?: string[];
 }
 
 export interface PrescriptionItemFullDto {

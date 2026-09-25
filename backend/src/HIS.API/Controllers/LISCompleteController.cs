@@ -232,6 +232,9 @@ namespace HIS.API.Controllers
         // Authorize removed for testing
         public async Task<ActionResult<CollectSampleResultDto>> CollectSample([FromBody] CollectSampleDto dto)
         {
+            // QA-R12: record who collected — the page may name a technician, otherwise the signed-in user.
+            if (dto != null && (dto.CollectorUserId is null || dto.CollectorUserId == Guid.Empty))
+                dto.CollectorUserId = GetUserId();
             var result = await _lisService.CollectSampleAsync(dto);
             return Ok(result);
         }
@@ -401,7 +404,7 @@ namespace HIS.API.Controllers
             if (string.IsNullOrWhiteSpace(dto.Result) && (dto.Parameters == null || dto.Parameters.Count == 0))
                 return BadRequest(ApiResponse.Fail("Cần nhập kết quả (Result hoặc Parameters)"));
             // false = detail not found — used to return 200 so the UI reported "saved" for nothing
-            if (!await _lisService.EnterLabResultAsync(dto))
+            if (!await _lisService.EnterLabResultAsync(dto, GetUserId())) // QA-R12: record who entered it
                 return NotFound(ApiResponse.Fail("Không tìm thấy chỉ định xét nghiệm"));
             return Ok();
         }
@@ -417,15 +420,18 @@ namespace HIS.API.Controllers
             // QA-R6: `??=` let the body name the approver — a result was recorded as reviewed by another doctor.
             // The reviewer is always the signed-in user.
             dto.ApprovedByUserId = GetUserId();
+            string? warning;
             try
             {
+                // QA-R12: 4-eyes check (Lab.SeparateApproverMode) — read before the release, Block → 400 here.
+                warning = await _lisService.CheckSeparateApproverAsync(dto.OrderId, dto.ItemIds, dto.ApprovedByUserId);
                 await _lisService.ApproveLabResultAsync(dto);
             }
             catch (InvalidOperationException ex)
             {
                 return BadRequest(ApiResponse.Fail(ex.Message));
             }
-            return Ok();
+            return warning == null ? Ok() : Ok(new { warning });
         }
 
         /// <summary>
@@ -450,8 +456,11 @@ namespace HIS.API.Controllers
             Guid orderId,
             [FromBody] FinalApproveRequest request)
         {
+            string? warning;
             try
             {
+                // QA-R12: 4-eyes check (Lab.SeparateApproverMode) — read before the release, Block → 400 here.
+                warning = await _lisService.CheckSeparateApproverAsync(orderId, null, GetUserId());
                 if (!await _lisService.FinalApproveLabResultAsync(orderId, request.DoctorNote, GetUserId()))
                     return BadRequest(ApiResponse.Fail("Phiếu không có kết quả nào để duyệt"));
             }
@@ -459,7 +468,7 @@ namespace HIS.API.Controllers
             {
                 return BadRequest(ApiResponse.Fail(ex.Message)); // already final-approved
             }
-            return Ok();
+            return warning == null ? Ok() : Ok(new { warning });
         }
 
         /// <summary>

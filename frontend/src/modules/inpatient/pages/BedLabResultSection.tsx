@@ -22,6 +22,7 @@ import { ModalShell, Btn } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { Field } from '../../../components/form/Field';
 import { useModalForm } from '../../../hooks/useModalForm';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -289,12 +290,15 @@ const ApproveModal: React.FC<{
         await preliminaryApprove(order.id, note);
         message.success('Duyệt sơ bộ thành công');
       } else {
-        await finalApprove(order.id, note);
+        const res = (await finalApprove(order.id, note)) as { warning?: string } | undefined;
         message.success('Duyệt chính thức thành công');
+        // QA-R12: Lab.SeparateApproverMode = Warn → released, 4-eyes finding shown.
+        if (res?.warning) message.warning(res.warning, 8);
       }
       onDone();
-    } catch {
-      message.error('Duyệt thất bại');
+    } catch (e) {
+      // Show the server reason (4-eyes Block, already approved, rejected tube…) instead of a bare "failed".
+      message.error(friendlyErrorMessage(e, 'Duyệt thất bại'));
     } finally {
       setBusy(false);
     }

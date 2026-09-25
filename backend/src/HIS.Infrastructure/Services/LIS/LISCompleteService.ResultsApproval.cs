@@ -22,7 +22,7 @@ namespace HIS.Infrastructure.Services;
 // #364 wave-8b (2026-07-17): tach nhap/duyet ket qua + canh bao gia tri nguy hiem khoi LISCompleteService.Execute.cs
 public partial class LISCompleteService {
 
-    public async Task<bool> EnterLabResultAsync(EnterLabResultDto dto)
+    public async Task<bool> EnterLabResultAsync(EnterLabResultDto dto, Guid? enteredByUserId = null)
     {
         // dto.LabTestItemId = ServiceRequestDetail.Id
         var d = await _context.ServiceRequestDetails
@@ -54,6 +54,9 @@ public partial class LISCompleteService {
         d.ResultDate = DateTime.Now;
         d.TechnicianRunAt = DateTime.Now;
         d.Status = 2; // Có KQ
+        // QA-R12: who entered the result was never recorded (ResultUserId NULL) — needed for the 4-eyes check.
+        if (enteredByUserId is Guid enteredBy && enteredBy != Guid.Empty)
+            d.ResultUserId = enteredBy;
 
         // QA-R6: the v2 manual entry sends only `Result`. For a one-parameter test that stored no unit, range or
         // flag, so the doctor's view, the printed slip and the critical-value alert list never saw an abnormal
@@ -84,10 +87,11 @@ public partial class LISCompleteService {
             // For single-param fallback: load first catalog entry ranges
             decimal? singleCatCritLow = single ? catalog.FirstOrDefault()?.CriticalLow : null;
             decimal? singleCatCritHigh = single ? catalog.FirstOrDefault()?.CriticalHigh : null;
-            // Gender-specific reference ranges (catalog NormalMin/MaxFemale were never applied before)
-            var patientInfo = await _context.ServiceRequests.Where(r => r.Id == d.ServiceRequestId)
-                .Select(r => new { r.MedicalRecord.PatientId, Gender = (int?)r.MedicalRecord.Patient.Gender }).FirstOrDefaultAsync();
-            var gender = patientInfo?.Gender;
+            // Gender-specific reference ranges (catalog NormalMin/MaxFemale were never applied before).
+            // QA-R12: plus the configured age/sex rows (LabReferenceRanges) and critical thresholds
+            // (LabCriticalValueConfigs) — both had data and were never read.
+            var ranges = await LabRangeContext.LoadAsync(_context, d);
+            var patientInfo = ranges.PatientId is Guid pid ? new { PatientId = pid } : null;
             // QA-R6: LabCriticalValueAlerts was never written anywhere, so the critical-value list was always empty.
             // Re-entry replaces the still-open alerts of this line instead of stacking duplicates.
             await RemoveOpenCriticalAlertsAsync(_context, d.Id);
@@ -96,13 +100,13 @@ public partial class LISCompleteService {
             foreach (var p in dto.Parameters)
             {
                 var cat = catalog.FirstOrDefault(c => c.Code == p.ParameterCode || c.Hl7Code == p.ParameterCode);
-                var range = LabFlagEvaluator.ResolveRange(cat, gender);
+                var range = ranges.Range(cat, p.ParameterCode, string.IsNullOrEmpty(p.Unit) ? cat?.Unit : p.Unit);
                 var min = p.ReferenceMin ?? range.Min;
                 var max = p.ReferenceMax ?? range.Max;
                 var num = LabFlagEvaluator.TryParse(p.Value);
-                var flag = LabFlagEvaluator.EvaluateFlag(num, min, max,
-                    cat?.CriticalLow ?? singleCatCritLow,
-                    cat?.CriticalHigh ?? singleCatCritHigh);
+                var crit = ranges.Critical(cat, p.ParameterCode,
+                    cat?.CriticalLow ?? singleCatCritLow, cat?.CriticalHigh ?? singleCatCritHigh);
+                var flag = LabFlagEvaluator.EvaluateFlag(num, min, max, crit.Low, crit.High);
                 _context.ServiceRequestDetailParameters.Add(new ServiceRequestDetailParameter
                 {
                     Id = Guid.NewGuid(),
@@ -123,7 +127,7 @@ public partial class LISCompleteService {
                     AddCriticalAlertIfNeeded(_context, d.Id, patientInfo.PatientId, flag, p.ParameterCode,
                         string.IsNullOrEmpty(p.ParameterName) ? (d.Service?.ServiceName ?? p.ParameterCode) : p.ParameterName,
                         p.Value, num, string.IsNullOrEmpty(p.Unit) ? cat?.Unit : p.Unit,
-                        cat?.CriticalLow ?? singleCatCritLow, cat?.CriticalHigh ?? singleCatCritHigh);
+                        crit.Low, crit.High);
             }
             if (string.IsNullOrWhiteSpace(d.Result))
                 d.Result = string.Join("; ", dto.Parameters.Select(p => $"{p.ParameterName} {p.Value}"));
@@ -189,8 +193,34 @@ public partial class LISCompleteService {
         });
     }
 
+    /// <summary>
+    /// QA-R12: 4-eyes rule on the final release (HIS.Core.Common.LabSeparateApproverRule). Looks at the lines that
+    /// the release would approve (result present, not yet reviewed). Off (row missing) → null; Warn → the warning;
+    /// Block → InvalidOperationException (400).
+    /// </summary>
+    public async Task<string?> CheckSeparateApproverAsync(Guid orderId, List<Guid>? itemIds, Guid? approverUserId)
+    {
+        var modeValue = await _context.SystemConfigs.AsNoTracking()
+            .Where(c => c.ConfigKey == HIS.Core.Common.LabSeparateApproverRule.ConfigKey && c.IsActive && !c.IsDeleted)
+            .Select(c => c.ConfigValue).FirstOrDefaultAsync();
+        var mode = HIS.Core.Common.LabSeparateApproverRule.ParseMode(modeValue);
+        if (mode == HIS.Core.Common.LabSeparateApproverRule.Mode.Off || approverUserId is null) return null;
+
+        var query = itemIds is { Count: > 0 }
+            ? _context.ServiceRequestDetails.Where(d => itemIds.Contains(d.Id))
+            : _context.ServiceRequestDetails.Where(d => d.ServiceRequestId == orderId);
+        var lines = await query.AsNoTracking()
+            .Where(d => !d.IsDeleted && d.Status != 3 && d.Result != null && d.Result != "" && d.ReviewedAt == null)
+            .Select(d => new HIS.Core.Common.LabSeparateApproverRule.Line(d.ResultUserId, d.TechnicianUserId))
+            .ToListAsync();
+        var (blocked, message) = HIS.Core.Common.LabSeparateApproverRule.Evaluate(mode, approverUserId, lines);
+        if (blocked) throw new InvalidOperationException(message);
+        return message;
+    }
+
     public async Task<bool> ApproveLabResultAsync(ApproveLabResultDtoService dto)
     {
+        var selfApproval = await CheckSeparateApproverAsync(dto.OrderId, dto.ItemIds, dto.ApprovedByUserId); // QA-R12
         IQueryable<ServiceRequestDetail> detailQuery;
 
         if (dto.ItemIds != null && dto.ItemIds.Any())
@@ -223,6 +253,7 @@ public partial class LISCompleteService {
             d.ReviewedAt = DateTime.Now;
             d.ReviewerUserId = dto.ApprovedByUserId;
         }
+        await AppendSelfApprovalNoteAsync(toApprove[0].ServiceRequestId, selfApproval);
 
         await _context.SaveChangesAsync();
 
@@ -268,8 +299,19 @@ public partial class LISCompleteService {
         return true;
     }
 
+    /// <summary>QA-R12 (Warn mode): the self-approval is recorded on the order notes so it stays auditable.</summary>
+    private async Task AppendSelfApprovalNoteAsync(Guid orderId, string? warning)
+    {
+        if (string.IsNullOrEmpty(warning)) return;
+        var sr = await _context.ServiceRequests.FindAsync(orderId);
+        if (sr == null) return;
+        var notePrefix = string.IsNullOrWhiteSpace(sr.Notes) ? "" : sr.Notes + "\n";
+        sr.Notes = notePrefix + warning;
+    }
+
     public async Task<bool> FinalApproveLabResultAsync(Guid orderId, string doctorNote, Guid? approvedByUserId = null)
     {
+        var selfApproval = await CheckSeparateApproverAsync(orderId, null, approvedByUserId); // QA-R12
         var details = await _context.ServiceRequestDetails
             .Where(d => d.ServiceRequestId == orderId && !d.IsDeleted && d.Status != 3)
             .ToListAsync();
@@ -299,6 +341,7 @@ public partial class LISCompleteService {
             var notePrefix = string.IsNullOrWhiteSpace(sr.Notes) ? "" : sr.Notes + "\n";
             sr.Notes = notePrefix + $"[BS duyệt] {doctorNote ?? ""}";
         }
+        await AppendSelfApprovalNoteAsync(orderId, selfApproval);
 
         await _context.SaveChangesAsync();
 

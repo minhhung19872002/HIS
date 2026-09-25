@@ -434,7 +434,9 @@ public partial class LISCompleteService {
                 // Chỉ set barcode nếu chưa có — không đè barcode đã tồn tại
                 if (string.IsNullOrEmpty(d.SampleBarcode))
                     d.SampleBarcode = barcode;
-                if (dto.CollectorUserId.HasValue)
+                // QA-R12: the controller fills CollectorUserId with the signed-in user when the page names nobody
+                // (CollectedByUserId stayed NULL on every tube before).
+                if (dto.CollectorUserId.HasValue && dto.CollectorUserId.Value != Guid.Empty)
                     d.CollectedByUserId = dto.CollectorUserId.Value;
             }
 

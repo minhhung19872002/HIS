@@ -24,8 +24,14 @@ public partial class InpatientCompleteService {
             throw new KeyNotFoundException("Admission not found");
 
         // Check unpaid prescriptions
+        // QA-R12: the take-home prescription ("toa về", DrugOrderType 4) is written for dispensing AT/AFTER discharge —
+        // counting it here made every patient with a toa về undischargeable. It only warns now.
         var unclaimedRx = await _context.Prescriptions
-            .CountAsync(p => p.MedicalRecordId == admission.MedicalRecordId && p.Status < 2);
+            .CountAsync(p => p.MedicalRecordId == admission.MedicalRecordId && p.Status < 2
+                             && p.DrugOrderType != DrugOrderType.Discharge);
+        var pendingTakeHomeRx = await _context.Prescriptions
+            .CountAsync(p => p.MedicalRecordId == admission.MedicalRecordId && p.Status < 2
+                             && p.DrugOrderType == DrugOrderType.Discharge);
 
         // Check pending results
         var pendingResults = await _context.ServiceRequests
@@ -62,6 +68,8 @@ public partial class InpatientCompleteService {
         var warnings = new List<string>();
         if (unclaimedRx > 0)
             warnings.Add($"Còn {unclaimedRx} đơn thuốc chưa cấp phát");
+        if (pendingTakeHomeRx > 0)
+            warnings.Add($"Toa về chưa phát: {pendingTakeHomeRx} — không chặn ra viện; phát thuốc cho người bệnh tại quầy dược khi ra viện");
         if (hasUnpaidBalance)
             warnings.Add($"Còn nợ viện phí {remainingAmount:N0}đ");
         else if (remainingAmount > 0)

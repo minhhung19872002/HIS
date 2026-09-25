@@ -198,6 +198,21 @@ public partial class ExaminationCompleteService
         if (status.HasValue)
             query = query.Where(e => e.Status == status.Value);
 
+        // QA-R12: department data scope on the LIST (was only checked per record). null = no scope → unchanged.
+        var listScope = await _scopeGuard.GetListScopeAsync();
+        if (listScope != null)
+        {
+            var sDepts = listScope.DepartmentIds; var sRooms = listScope.RoomIds;
+            var sTypes = listScope.TreatmentTypes; var sObjs = listScope.PatientObjects;
+            bool hasDepts = sDepts.Count > 0, hasRooms = sRooms.Count > 0, hasTypes = sTypes.Count > 0, hasObjs = sObjs.Count > 0;
+            query = query.Where(e =>
+                (hasDepts && (sDepts.Contains(e.DepartmentId)
+                    || (e.MedicalRecord.DepartmentId != null && sDepts.Contains(e.MedicalRecord.DepartmentId.Value))))
+                || (hasRooms && sRooms.Contains(e.RoomId))
+                || (hasTypes && sTypes.Contains(e.MedicalRecord.TreatmentType))
+                || (hasObjs && sObjs.Contains(e.MedicalRecord.PatientType)));
+        }
+
         var examinations = await query.OrderBy(e => e.QueueNumber).ToBoundedListAsync("Examination.GetRoomPatientList");
 
         return examinations.Select(e => MapToRoomPatientListDto(e)).ToList();
