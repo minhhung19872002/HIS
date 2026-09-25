@@ -113,7 +113,7 @@ const PermissionsTab: React.FC = () => {
           apiClient.get<Array<{ id: string; roomName: string }>>('/RISComplete/rooms', { params: { roomType: 'radiology' } }).catch((e) => { errs.push(e); return { data: [] }; }),
         ]);
         setUsers(normalizeArrayResponse<User>(u.data));
-        setRooms(r.data);
+        setRooms(toRooms(r.data));
       } catch (e) { errs.push(e); }
       if (errs.length > 0) tw(friendlyErrorMessage(errs[0], 'Không tải được danh sách người dùng / máy chụp. Hãy tải lại trang.'));
     })();
@@ -450,7 +450,25 @@ const FoldersTab: React.FC = () => {
   );
 };
 
-const IcdMapTab: React.FC = () => (
+interface IcdTemplateRow { id: string; icdCode: string; icdName?: string; templateName?: string; modalityName?: string; isActive: boolean }
+
+// QA-R11: the "Mapping mẫu" table used to be three hard-coded demo rows (J18.9/I10/E11). It now reads the real
+// ICD → template mappings (RisIcdTemplateMappings, edited in "DM RIS (admin)" → tab "ICD → Mẫu KQ").
+const IcdMapTab: React.FC = () => {
+  const [rows, setRows] = useState<IcdTemplateRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    apiClient.get('/ris-catalog/icd-templates')
+      .then((r) => setRows(normalizeArrayResponse<IcdTemplateRow>(r.data)))
+      .catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh sách gán mẫu theo ICD.')); setRows([]); })
+      .finally(() => setLoading(false));
+  }, []);
+  const groups = Object.values(rows.filter(r => r.isActive).reduce<Record<string, { icdCode: string; icdName?: string; templates: string[] }>>((acc, r) => {
+    const g = acc[r.icdCode] ??= { icdCode: r.icdCode, icdName: r.icdName, templates: [] };
+    if (r.templateName) g.templates.push(r.modalityName ? `${r.templateName} (${r.modalityName})` : r.templateName);
+    return acc;
+  }, {})).sort((a, b) => a.icdCode.localeCompare(b.icdCode));
+  return (
   <div style={{ padding: 'var(--space-24)' }}>
     <div className="panel" style={{ padding: 0 }}>
       <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
@@ -470,26 +488,56 @@ const IcdMapTab: React.FC = () => (
     </div>
     <div className="panel" style={{ padding: 0, marginTop: 'var(--space-16)' }}>
       <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
-        <span>Mapping mẫu (demo)</span>
+        <span>Mẫu kết quả đã gán theo ICD</span>
+        <span style={{ flex: 1 }} />
+        <Btn variant="ghost" onClick={() => window.open('/v2/ris-catalog-admin', '_blank')}>
+          <Ico name="edit" size={12} /> Sửa gán ICD → mẫu
+        </Btn>
       </div>
       <table className="ab-tbl">
-        <thead><tr><th>ICD</th><th>Tên bệnh</th><th>Số mẫu</th></tr></thead>
+        <thead><tr><th>ICD</th><th>Tên bệnh</th><th>Số mẫu</th><th>Mẫu kết quả</th></tr></thead>
         <tbody>
-          <tr><td className="mono">J18.9</td><td>Viêm phổi</td><td className="mono">2</td></tr>
-          <tr><td className="mono">I10</td><td>THA vô căn</td><td className="mono">1</td></tr>
-          <tr><td className="mono">E11</td><td>ĐTĐ type 2</td><td className="mono">3</td></tr>
+          {loading && <tr><td colSpan={4} style={{ color: 'var(--t-2)' }}>Đang tải…</td></tr>}
+          {!loading && groups.length === 0 && (
+            <tr><td colSpan={4} style={{ color: 'var(--t-2)' }}>
+              Chưa gán mẫu kết quả nào theo ICD — vào “DM RIS (admin)” → tab “ICD → Mẫu KQ” để gán.
+            </td></tr>
+          )}
+          {groups.map(g => (
+            <tr key={g.icdCode}>
+              <td className="mono">{g.icdCode}</td>
+              <td>{g.icdName || '—'}</td>
+              <td className="mono">{g.templates.length}</td>
+              <td>{g.templates.join(', ') || '—'}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>
   </div>
-);
+  );
+};
+
+// QA-R11: /RISComplete/rooms returns RadiologyRoomDto { name, roomType }, not { roomName, modalityType } — the
+// "Máy chụp" tab showed blank names/types and the drawer title "Máy chụp · undefined" (same fix as RisDispatcher).
+type RawRoom = Room & { name?: string; roomType?: string };
+const toRooms = (data: unknown): Room[] => (Array.isArray(data) ? (data as RawRoom[]) : []).map((rm) => ({
+  ...rm, roomName: rm.roomName ?? rm.name ?? '', modalityType: rm.modalityType ?? rm.roomType,
+}));
+
+// QA-R11: "Cấu hình mẫu" opened /v2/radiology?config=<roomId>, a param Radiology never reads. Result templates
+// live in DM RIS (admin) → tab "Mẫu báo cáo"; pre-select that tab (useTabState key) and open it.
+const openReportTemplates = () => {
+  try { sessionStorage.setItem('v2:/v2/ris-catalog-admin:tab', JSON.stringify('report-templates')); } catch { /* private mode */ }
+  window.open('/v2/ris-catalog-admin', '_blank');
+};
 
 const MachinesTab: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [sel, setSel] = useState<Room | null>(null);
   useEffect(() => {
     apiClient.get<Room[]>('/RISComplete/rooms', { params: { roomType: 'radiology' } })
-      .then((r) => setRooms(r.data))
+      .then((r) => setRooms(toRooms(r.data)))
       .catch((e) => { tw(friendlyErrorMessage(e, 'Không tải được danh sách máy chụp.')); setRooms([]); });
   }, []);
 
@@ -502,13 +550,13 @@ const MachinesTab: React.FC = () => {
   return (
     <>
       <div style={{ padding: 'var(--space-12)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, margin: 'var(--space-12)', fontSize: 'var(--fs-sm)' }}>
-        <Ico name="info" size={12} /> <b>Cấu hình máy chụp + gán mẫu kết quả</b> — Mỗi máy chụp có thể gán với 1 hoặc nhiều mẫu kết quả đặc trưng.
+        <Ico name="info" size={12} /> <b>Danh sách máy chụp</b> — Mẫu kết quả được quản lý theo modality / dịch vụ tại <b>DM RIS → Mẫu báo cáo</b>.
       </div>
       <DataTable<Room> columns={cols} data={rooms} rowKey={(r) => r.id}
         onRowClick={setSel}
-        actions={(r) => (
+        actions={() => (
           <div className="ab-actions">
-            <ActBtn ic="edit" title="Cấu hình mẫu" onClick={() => window.open(`/v2/radiology?config=${r.id}`, '_blank')} />
+            <ActBtn ic="edit" title="Cấu hình mẫu" onClick={openReportTemplates} />
           </div>
         )}
         empty="Chưa có máy chụp" />
@@ -527,7 +575,7 @@ const MachinesTab: React.FC = () => {
             <DrField lbl="Khoa">{sel.departmentName || '—'}</DrField>
           </DrSec>
           <DrSec title="Thao tác">
-            <Btn variant="primary" onClick={() => window.open(`/v2/radiology?config=${sel.id}`, '_blank')}>
+            <Btn variant="primary" onClick={openReportTemplates}>
               <Ico name="edit" size={12} /> Cấu hình mẫu kết quả
             </Btn>
           </DrSec>
@@ -752,7 +800,7 @@ const Hl7CdaTab: React.FC = () => {
   };
   const openEdit = (c: HL7CDAConfigDto) => {
     setEditing(c);
-    form.setFieldsValue({ ...c, connectionType: c.connectionType || 'MLLP' });
+    form.setFieldsValue({ ...c, connectionType: c.connectionType || 'MLLP', cdaVersion: c.cdaVersion || 'R2' });
     setModal(true);
   };
 
@@ -764,7 +812,7 @@ const Hl7CdaTab: React.FC = () => {
       await saveHL7CDAConfig({ ...v, id: editing?.id, isActive: v.isActive !== false });
       tk(editing ? 'Đã cập nhật kênh HL7' : 'Đã thêm kênh HL7');
       setModal(false); loadConfigs();
-    } catch (e) { if ((e as { errorFields?: unknown }).errorFields) return; tw('Lưu kênh HL7 thất bại'); }
+    } catch (e) { if ((e as { errorFields?: unknown }).errorFields) return; tw(friendlyErrorMessage(e, 'Lưu kênh HL7 thất bại')); }
     finally { setSaving(false); }
   };
 
@@ -950,6 +998,11 @@ const Hl7CdaTab: React.FC = () => {
           )}
           <Form.Item name="hL7Version" label="Phiên bản HL7" rules={[{ required: true }]}>
             <Select options={['2.3', '2.3.1', '2.5', '2.5.1'].map((v) => ({ value: v, label: v }))} />
+          </Form.Item>
+          {/* QA-R11: CDAVersion is required by the BE but had no field — validateFields() dropped it and every
+              "Sửa kênh" save failed 400 MISSING_REQUIRED. */}
+          <Form.Item name="cdaVersion" label="Phiên bản CDA" rules={[{ required: true }]}>
+            <Select options={['R2', 'R3'].map((v) => ({ value: v, label: `CDA ${v}` }))} />
           </Form.Item>
           <Form.Item name="sendingApplication" label="Sending Application"><Input placeholder="HIS_RIS" /></Form.Item>
           <Form.Item name="sendingFacility" label="Sending Facility"><Input placeholder="Mã cơ sở gửi" /></Form.Item>

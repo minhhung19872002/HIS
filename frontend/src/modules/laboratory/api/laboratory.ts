@@ -73,7 +73,29 @@ export interface TestParameter {
   status: 'normal' | 'high' | 'low' | 'critical' | null;
   previousValue?: string | number;
   inputType: 'number' | 'text';
+  /** QA-R11: panel parameter rows (CBC…) — the lab line they belong to + the catalog parameter code. */
+  testItemId?: string;
+  parameterCode?: string;
 }
+
+/** QA-R11: LIS parameter catalog row (GET /lis/test-parameters) — used to expand panel tests into parameters. */
+export interface LisCatalogParameter {
+  code: string;
+  name: string;
+  unit?: string | null;
+  referenceLow?: number | null;
+  referenceHigh?: number | null;
+  criticalLow?: number | null;
+  criticalHigh?: number | null;
+  serviceName?: string | null;
+  sortOrder?: number | null;
+  isActive: boolean;
+}
+
+export const getLisCatalogParameters = async (): Promise<LisCatalogParameter[]> => {
+  const response = await apiClient.get<LisCatalogParameter[]>('/lis/test-parameters');
+  return Array.isArray(response.data) ? response.data : [];
+};
 
 export interface TestResult {
   id: string;
@@ -290,11 +312,30 @@ export const saveTestResults = async (_requestId: string, data: SaveResultReques
   const params = (data.parameters ?? []).filter(
     (p) => p.value !== null && p.value !== undefined && String(p.value).trim() !== '',
   );
+  // QA-R11: a panel (CBC…) typed as ONE free-text value left no per-parameter rows, no H/L flag and no
+  // critical-value alert (BE can only map a single-parameter test). Panel rows go as `parameters` of their line.
+  const panels = new Map<string, TestParameter[]>();
   for (const p of params) {
+    if (p.testItemId && p.parameterCode) {
+      panels.set(p.testItemId, [...(panels.get(p.testItemId) ?? []), p]);
+      continue;
+    }
     await apiClient.post('/LISComplete/orders/enter-result', {
       labTestItemId: p.id,
       result: String(p.value),
       notes: data.notes || undefined,
+    });
+  }
+  for (const [testItemId, rows] of panels) {
+    await apiClient.post('/LISComplete/orders/enter-result', {
+      labTestItemId: testItemId,
+      notes: data.notes || undefined,
+      parameters: rows.map((r) => ({
+        parameterCode: r.parameterCode,
+        parameterName: r.name,
+        value: String(r.value),
+        unit: r.unit || undefined,
+      })),
     });
   }
 };

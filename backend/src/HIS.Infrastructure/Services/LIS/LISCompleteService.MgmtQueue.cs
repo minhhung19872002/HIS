@@ -35,6 +35,9 @@ public partial class LISCompleteService {
 
             if (isActive.HasValue)
                 query = query.Where(s => s.IsActive == isActive.Value);
+            // QA-R11: groupId was accepted but never applied (group filter showed every lab test).
+            if (groupId.HasValue)
+                query = query.Where(s => s.ServiceGroupId == groupId.Value);
 
             var services = await query
                 .Include(s => s.ServiceGroup)
@@ -664,6 +667,9 @@ public partial class LISCompleteService {
                 detail.ResultDate = result.DateTimeOfObservation ?? DateTime.Now;
                 detail.TechnicianRunAt = DateTime.Now;
                 detail.Status = 2; // Có KQ
+                // QA-R11: parameter row + alerts + line status and the rebuilt summary below are two saves — commit
+                // them together so a failure between them cannot leave a result without its summary.
+                await using var tx = await SqlAppLock.BeginAsync(db);
                 await db.SaveChangesAsync();
 
                 // Dịch vụ nhiều chỉ số: srd.Result = tóm tắt từ các chỉ số con (rebuild → idempotent khi re-run).
@@ -675,6 +681,7 @@ public partial class LISCompleteService {
                     detail.Result = string.Join("; ", rows.Select(r => $"{r.ParameterName} {r.Value}"));
                     await db.SaveChangesAsync();
                 }
+                if (tx != null) await tx.CommitAsync();
 
                 _logger.LogInformation("Analyzer result -> ServiceRequestDetail {Id}: {Code}={Value} [{Flag}]",
                     detail.Id, result.TestCode, result.Value, flag);

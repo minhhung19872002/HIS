@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Form, Input, Select, Modal, Upload } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../../../services/apiClient';
-import { API_URL } from '../../../config/api.config';
 import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import { PatientSearchPicker } from '../../patient/components/PatientSearchPicker';
 import {
@@ -32,6 +31,33 @@ interface ImageItem {
   id: string; mediaType: string; fileName: string; filePath: string;
   mimeType?: string; sortOrder: number; annotation?: string; includeInReport: boolean;
 }
+
+/**
+ * QA-R11: the capture files are patient images (PHI). `<img src>` cannot send the bearer token, so the
+ * endpoint used to be [AllowAnonymous] (anyone with the URL could read it). Fetch through apiClient
+ * (token + refresh) and render an in-memory blob URL instead.
+ */
+const AuthMedia: React.FC<{ path: string; kind: 'image' | 'video'; alt?: string; style?: React.CSSProperties }> = ({ path, kind, alt, style }) => {
+  const [url, setUrl] = useState('');
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let objectUrl = '';
+    let cancelled = false;
+    apiClient.get<Blob>(path.replace(/^\/api/, ''), { responseType: 'blob' })
+      .then(res => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(res.data);
+        setUrl(objectUrl);
+      })
+      .catch(() => { if (!cancelled) setFailed(true); });
+    return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [path]);
+  if (failed) return <div style={{ padding: 'var(--space-12)', color: 'var(--t-3)', fontSize: 'var(--fs-xs)' }}>Không tải được file</div>;
+  if (!url) return <div style={{ padding: 'var(--space-12)', color: 'var(--t-3)', fontSize: 'var(--fs-xs)' }}>Đang tải…</div>;
+  return kind === 'image'
+    ? <img src={url} alt={alt} style={style} />
+    : <video src={url} controls style={style} />;
+};
 
 const NonDicomCaptureV2: React.FC = () => {
   const [studies, setStudies] = useState<StudyListItem[]>([]);
@@ -376,18 +402,13 @@ const NonDicomCaptureV2: React.FC = () => {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-8)' }}>
               {detailImages.map((img) => (
                 <div key={img.id} style={{ border: '1px solid var(--line)', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
-                  {img.mediaType === 'image' ? (
-                    <img
-                      src={`${API_URL}${img.filePath.replace('/api', '')}`}
-                      alt={img.fileName}
-                      style={{ width: '100%', display: 'block', cursor: 'zoom-in' }}
-                    />
-                  ) : (
-                    <video
-                      src={`${API_URL}${img.filePath.replace('/api', '')}`}
-                      controls style={{ width: '100%', display: 'block' }}
-                    />
-                  )}
+                  <AuthMedia
+                    key={img.filePath}
+                    path={img.filePath}
+                    kind={img.mediaType === 'image' ? 'image' : 'video'}
+                    alt={img.fileName}
+                    style={{ width: '100%', display: 'block', cursor: img.mediaType === 'image' ? 'zoom-in' : undefined }}
+                  />
                   <button type="button" className="ab-iconbtn"
                     style={{ position: 'absolute', top: 4, right: 4, color: 'var(--a-rd-text)' }}
                     disabled={deletingImageId === img.id}

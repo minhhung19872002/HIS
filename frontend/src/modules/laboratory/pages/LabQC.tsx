@@ -893,7 +893,10 @@ const EqaPanel: React.FC = () => {
     if (busy) return;
     setBusy('test');
     try {
-      await saveEqaTest(testEdit);
+      // QA-R11: form "Thêm chỉ tiêu" khởi tạo id '' → BE không parse được Guid → dto null → 400
+      // "The dto field is required" (không tạo mới được). Tạo mới thì bỏ id để BE tự sinh.
+      const { id, ...rest } = testEdit;
+      await saveEqaTest(id ? testEdit : rest);
       tk('Đã lưu xét nghiệm ngoại kiểm');
       setTestOpen(false); setTestEdit(null); await loadEqa();
     } catch (e) { ti(friendlyErrorMessage(e, 'Lưu chỉ tiêu ngoại kiểm thất bại')); }

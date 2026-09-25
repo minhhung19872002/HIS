@@ -52,8 +52,45 @@ const STATUS_LABEL: Record<string, { text: string; tone: 'ok' | 'warn' | 'info' 
 };
 
 // v1 verbatim (handleEnterResults): build parameters từ tests của phiếu
-const buildParameters = (record: LabRequest): TestParameter[] =>
-  (record.tests || []).map((test) => {
+// QA-R11: a panel test (CBC = WBC, HGB, PLT…) was ONE input row carrying the first parameter's ranges, so the
+// value typed was stored as free text for the whole panel — no per-parameter flag and no critical-value alert
+// reached the doctor. Expand panels into their parameters (saved rows first, else the LIS catalog).
+const panelRows = (
+  test: NonNullable<LabRequest['tests']>[number],
+  catalog: labApi.LisCatalogParameter[],
+): TestParameter[] | null => {
+  const cat = catalog
+    .filter((c) => c.isActive && c.code && c.serviceName === test.testName)
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  const saved = test.parameters ?? [];
+  if (saved.length === 0 && cat.length < 2) return null;
+  const source = saved.length > 0
+    ? saved.map((s) => ({ code: s.parameterCode, name: s.parameterName, value: s.value ?? null, unit: s.unit ?? '',
+      min: s.refMin ?? undefined, max: s.refMax ?? undefined, c: cat.find((x) => x.code === s.parameterCode) }))
+    : cat.map((c) => ({ code: c.code, name: c.name, value: null, unit: c.unit ?? '',
+      min: c.referenceLow ?? undefined, max: c.referenceHigh ?? undefined, c }));
+  return source.map((s) => {
+    const row: TestParameter = {
+      id: `${test.id}:${s.code}`,
+      testItemId: test.id,
+      parameterCode: s.code,
+      name: s.name,
+      value: s.value,
+      unit: s.unit,
+      referenceRange: s.min != null || s.max != null ? `${s.min ?? ''}–${s.max ?? ''}` : '',
+      normalMin: s.min,
+      normalMax: s.max,
+      criticalLow: s.c?.criticalLow ?? undefined,
+      criticalHigh: s.c?.criticalHigh ?? undefined,
+      status: null,
+      inputType: 'number' as const,
+    };
+    return { ...row, status: getParameterStatus(row) };
+  });
+};
+
+const buildParameters = (record: LabRequest, catalog: labApi.LisCatalogParameter[] = []): TestParameter[] =>
+  (record.tests || []).flatMap((test) => panelRows(test, catalog) ?? [(() => {
     let status: 'normal' | 'high' | 'low' | 'critical' | null = null;
     const numValue = test.result ? parseFloat(test.result) : null;
 
@@ -84,7 +121,7 @@ const buildParameters = (record: LabRequest): TestParameter[] =>
       status,
       inputType: 'number' as const,
     };
-  });
+  })()]);
 
 const GRID_COLS = 'minmax(140px, 1.3fr) 130px 60px minmax(90px, 1fr) 96px 52px';
 
@@ -101,10 +138,15 @@ export const LabResultEntryModal: React.FC<{
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (open && request) {
-      setParameters(buildParameters(request));
-      setNotes('');
-    }
+    if (!open || !request) return;
+    let alive = true;
+    setParameters(buildParameters(request));
+    setNotes('');
+    // Panel expansion needs the parameter catalog; without it the modal keeps the old one-row-per-test form.
+    labApi.getLisCatalogParameters()
+      .then((catalog) => { if (alive) setParameters(buildParameters(request, catalog)); })
+      .catch(() => { /* catalog unavailable → one row per test (previous behaviour) */ });
+    return () => { alive = false; };
   }, [open, request]);
 
   // v1 verbatim: nhập giá trị → tính lại status theo ngưỡng

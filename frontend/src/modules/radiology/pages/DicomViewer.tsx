@@ -365,6 +365,9 @@ const DicomViewer: React.FC = () => {
 
 
   const loadStudyData = useCallback(async () => {
+    // QA-R11: "Làm mới" without ?study= called GET /pacs/studies//series → 404 and replaced the
+    // "chưa chọn ca chụp" hint with a misleading PACS error. Nothing to load without a study UID.
+    if (!studyInstanceUID) return;
     setLoading(true);
     setError(null);
     setPacsState('loading');

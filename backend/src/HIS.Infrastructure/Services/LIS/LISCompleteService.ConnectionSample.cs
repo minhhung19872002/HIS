@@ -62,6 +62,7 @@ public partial class LISCompleteService {
         // QA-R4: a `{}` body created analyzers with Code='' / Name='' (blank rows in every analyzer picker)
         if (string.IsNullOrWhiteSpace(dto.Code)) throw new ArgumentException("Chưa nhập mã máy xét nghiệm", nameof(dto.Code));
         if (string.IsNullOrWhiteSpace(dto.Name)) throw new ArgumentException("Chưa nhập tên máy xét nghiệm", nameof(dto.Name));
+        await EnsureAnalyzerCodeUniqueAsync(dto.Code, null);
 
         var analyzer = new LabAnalyzer
         {
@@ -94,9 +95,13 @@ public partial class LISCompleteService {
         var analyzer = await _context.LabAnalyzers.FindAsync(id);
         if (analyzer == null)
             throw new InvalidOperationException($"Analyzer {id} not found");
+        if (string.IsNullOrWhiteSpace(dto.Code)) throw new ArgumentException("Chưa nhập mã máy xét nghiệm", nameof(dto.Code));
+        if (string.IsNullOrWhiteSpace(dto.Name)) throw new ArgumentException("Chưa nhập tên máy xét nghiệm", nameof(dto.Name));
+        if (!string.Equals(analyzer.Code?.Trim(), dto.Code.Trim(), StringComparison.Ordinal))
+            await EnsureAnalyzerCodeUniqueAsync(dto.Code, id); // unchanged code: legacy duplicates stay editable
 
-        analyzer.Code = dto.Code;
-        analyzer.Name = dto.Name;
+        analyzer.Code = dto.Code.Trim();
+        analyzer.Name = dto.Name.Trim();
         analyzer.Manufacturer = dto.Manufacturer;
         analyzer.Model = dto.Model;
         analyzer.Protocol = ParseProtocol(dto.Protocol);
@@ -110,6 +115,19 @@ public partial class LISCompleteService {
 
         await _context.SaveChangesAsync();
         return (await GetAnalyzersAsync()).FirstOrDefault(a => a.Id == id);
+    }
+
+    /// <summary>
+    /// QA-R11: analyzer Code is the HL7 routing key (MSH-3/MSH-4 → analyzer). Duplicates (e.g. 98 copies of
+    /// HL7SPY-001) made every ORU from that sender ambiguous → "unrouted". Unique among non-deleted rows
+    /// (filtered unique index proposed in migration lis-ris-labanalyzer-code-unique.sql).
+    /// </summary>
+    private async Task EnsureAnalyzerCodeUniqueAsync(string code, Guid? exceptId)
+    {
+        var trimmed = code.Trim();
+        var exists = await _context.LabAnalyzers.AnyAsync(a =>
+            !a.IsDeleted && a.Code == trimmed && (exceptId == null || a.Id != exceptId.Value));
+        if (exists) throw new InvalidOperationException($"Mã máy xét nghiệm {trimmed} đã được dùng cho máy khác");
     }
 
     public async Task<bool> DeleteAnalyzerAsync(Guid id)

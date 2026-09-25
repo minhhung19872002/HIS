@@ -274,6 +274,7 @@ public partial class RISCompleteService
 
         // Xoá mềm cả dòng con, nếu không sẽ để lại dòng mồ côi không truy cập được
         // nhưng vẫn lọt vào báo cáo tiêu hao.
+        await using var tx = await SqlAppLock.BeginAsync(_context); // QA-R11: ExecuteUpdate + header save atomically
         await _context.RadiologyPrescriptionItems
             .Where(i => i.RadiologyPrescriptionId == prescription.Id && !i.IsDeleted)
             .ExecuteUpdateAsync(s => s
@@ -283,6 +284,7 @@ public partial class RISCompleteService
         prescription.IsDeleted = true;
         prescription.UpdatedAt = DateTime.Now;
         await _unitOfWork.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
         return true;
     }
 
@@ -368,6 +370,9 @@ public partial class RISCompleteService
 
         var norm = await _context.RadiologyServiceNorms
             .FirstOrDefaultAsync(n => n.ServiceId == serviceId);
+        // QA-R11 (partial write): the set-based delete of the old lines and the insert of the new ones were separate
+        // statements — a failed insert wiped the norm. One transaction around delete/create + insert.
+        await using var tx = await SqlAppLock.BeginAsync(_context);
         if (norm == null)
         {
             norm = new RadiologyServiceNorm
@@ -408,6 +413,7 @@ public partial class RISCompleteService
         if (normItems.Count > 0) await _context.RadiologyServiceNormItems.AddRangeAsync(normItems);
 
         await _unitOfWork.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
         return true;
     }
 
@@ -1235,8 +1241,23 @@ public partial class RISCompleteService
     public async Task<FavoriteToggleResultDto> ToggleFavoriteAsync(Guid requestId, Guid userId)
     {
         // QA R4: FK RadiologyStudyFavorites→RadiologyRequests từng nổ 500 (kể cả body {} → requestId zero).
+        // QA-R11: the dispatcher sends the ServiceRequestDetail id (its rows are order lines), so every pin was 404.
+        // Resolve it to the RIS request bridged from that line (RadiologyRequests.SourceServiceRequestDetailId).
         if (!await _context.RadiologyRequests.AnyAsync(r => r.Id == requestId))
-            throw new KeyNotFoundException("Không tìm thấy ca chụp để ghim");
+        {
+            var bridgedId = await _context.RadiologyRequests
+                .Where(r => r.SourceServiceRequestDetailId == requestId && !r.IsDeleted)
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => (Guid?)r.Id)
+                .FirstOrDefaultAsync();
+            if (bridgedId == null)
+            {
+                if (await _context.ServiceRequestDetails.AnyAsync(d => d.Id == requestId))
+                    throw new InvalidOperationException("Chỉ định chưa được thực hiện nên chưa có phiếu CĐHA để ghim — ghim sau khi bắt đầu chụp.");
+                throw new KeyNotFoundException("Không tìm thấy ca chụp để ghim");
+            }
+            requestId = bridgedId.Value;
+        }
         var existing = await _context.RadiologyStudyFavorites
             .FirstOrDefaultAsync(f => f.RequestId == requestId && f.UserId == userId);
 
@@ -1279,6 +1300,7 @@ public partial class RISCompleteService
                     Id = x.f.Id,
                     UserId = x.f.UserId,
                     RequestId = x.f.RequestId,
+                    ServiceRequestDetailId = x.r.SourceServiceRequestDetailId,
                     RequestCode = x.r.RequestCode,
                     PatientName = x.p.FullName,
                     PatientCode = x.p.PatientCode,

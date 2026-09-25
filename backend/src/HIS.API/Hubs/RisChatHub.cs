@@ -1,6 +1,8 @@
 using HIS.Core.Constants;
+using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace HIS.API.Hubs;
 
@@ -14,6 +16,31 @@ public class RisChatHub : Hub
     // QA-R10: bound the broadcast payload (default hub limit is 32KB per frame, every member receives it).
     private const int MaxMessageLength = 4000;
     private const string JoinedRoomsKey = "ris_chat_rooms";
+    private readonly HISDbContext _db;
+
+    public RisChatHub(HISDbContext db) { _db = db; }
+
+    /// <summary>
+    /// QA-R11: the role gate alone let any doctor join ANY study room by guessing its id. Radiology staff
+    /// (admin/manager/radiologist/technician) may join every study; a doctor only the studies of requests
+    /// they ordered. The room id is a RadiologyRequest id or a DicomStudy id; an unknown id is refused.
+    /// </summary>
+    private async Task<bool> CanAccessStudyAsync(Guid id)
+    {
+        var user = Context.User;
+        if (user == null) return false;
+        if (user.IsInRole(RoleNames.Admin) || user.IsInRole(RoleNames.QuanTriHeThong) ||
+            user.IsInRole(RoleNames.RadiologistManager) || user.IsInRole(RoleNames.Radiologist) ||
+            user.IsInRole(RoleNames.Technician))
+            return await _db.RadiologyRequests.AnyAsync(r => r.Id == id && !r.IsDeleted)
+                || await _db.DicomStudies.AnyAsync(s => s.Id == id && !s.IsDeleted);
+
+        var claim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? user.FindFirst("sub")?.Value;
+        if (!Guid.TryParse(claim, out var userId)) return false;
+        return await _db.RadiologyRequests.AnyAsync(r => r.Id == id && !r.IsDeleted && r.RequestingDoctorId == userId)
+            || await _db.DicomStudies.AnyAsync(s => s.Id == id && !s.IsDeleted
+                && s.RadiologyExam.RadiologyRequest.RequestingDoctorId == userId);
+    }
 
     /// <summary>
     /// When a client connects, we don't auto-join any study room.
@@ -21,11 +48,13 @@ public class RisChatHub : Hub
     /// </summary>
     public override async Task OnConnectedAsync()
     {
+        UserConnectionRegistry.Add(Context); // QA-R11: revoked sessions lose their socket
         await base.OnConnectedAsync();
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
+        UserConnectionRegistry.Remove(Context);
         await base.OnDisconnectedAsync(exception);
     }
 
@@ -36,6 +65,8 @@ public class RisChatHub : Hub
     {
         // QA-R10: room ids are study GUIDs — reject free-form group names from the client.
         if (!Guid.TryParse(studyId, out var id)) return;
+        if (!await CanAccessStudyAsync(id))
+            throw new HubException("Bạn không có quyền tham gia trao đổi của ca chụp này.");
 
         var groupName = $"study_{id:D}";
         await Groups.AddToGroupAsync(Context.ConnectionId, groupName);

@@ -335,7 +335,7 @@ const CyclesTab: React.FC = () => {
       setModalOpen(false);
       form.resetFields();
       getCycles(selectedCouple).then(setCycles);
-    } catch { tw('Lưu thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Lưu thất bại')); }
     finally { setSaving(false); }
   };
 
@@ -439,7 +439,7 @@ const EmbryosTab: React.FC = () => {
       setModalOpen(false);
       form.resetFields();
       fetchEmbryos();
-    } catch { tw('Lưu thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Lưu thất bại')); }
     finally { setBusy(null); }
   };
 
@@ -454,7 +454,7 @@ const EmbryosTab: React.FC = () => {
       setFreezeModal(null);
       freezeForm.resetFields();
       fetchEmbryos();
-    } catch { tw('Đông lạnh thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Đông lạnh thất bại')); }
     finally { setBusy(null); }
   };
 
@@ -465,7 +465,7 @@ const EmbryosTab: React.FC = () => {
       await thawEmbryo(id, { thawDate: dayjs().format('YYYY-MM-DD') });
       tk('Rã đông thành công');
       fetchEmbryos();
-    } catch { tw('Rã đông thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Rã đông thất bại')); }
     finally { setBusy(null); }
   };
 
@@ -674,7 +674,7 @@ const SpermBankTab: React.FC = () => {
       setModalOpen(false);
       form.resetFields();
       fetchData();
-    } catch { tw('Lưu thất bại'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Lưu thất bại')); }
     finally { setSaving(false); }
   };
 

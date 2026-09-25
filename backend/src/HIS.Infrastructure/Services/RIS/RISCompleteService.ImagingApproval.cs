@@ -674,6 +674,26 @@ public partial class RISCompleteService
         srd.ReviewedAt = report.ApprovedAt ?? DateTime.Now;
     }
 
+    /// <summary>
+    /// QA-R11: the parent order (ServiceRequests header) stayed "Đang thực hiện" after the imaging result was
+    /// approved. Same rule as the LIS result entry: raise the header to 3 (Có kết quả) once every active line
+    /// has a result; never lower it, never touch a cancelled (4) header.
+    /// </summary>
+    private async Task AdvanceSourceOrderHeaderAsync(RadiologyRequest request)
+    {
+        if (!request.SourceServiceRequestDetailId.HasValue) return;
+        var srd = await _context.ServiceRequestDetails.FindAsync(request.SourceServiceRequestDetailId.Value);
+        if (srd == null) return;
+        var sr = await _context.ServiceRequests.FindAsync(srd.ServiceRequestId);
+        if (sr == null || sr.Status == 4 || sr.Status >= 3) return;
+        // The line just synced is not saved yet — check it in memory, the others from the DB.
+        var othersPending = await _context.ServiceRequestDetails
+            .AnyAsync(x => x.ServiceRequestId == sr.Id && x.Id != srd.Id && !x.IsDeleted && x.Status != 3
+                           && (x.Result == null || x.Result == ""));
+        if (!othersPending && !string.IsNullOrEmpty(srd.Result))
+            sr.Status = 3; // Có kết quả
+    }
+
     public async Task<bool> FinalApproveResultAsync(ApproveRadiologyResultDto dto)
     {
         var report = await _context.RadiologyReports.FindAsync(dto.ResultId)
@@ -736,6 +756,7 @@ public partial class RISCompleteService
         {
             exam.RadiologyRequest.Status = 5; // Approved
             await SyncApprovedReportToSourceOrderAsync(exam.RadiologyRequest, report);
+            await AdvanceSourceOrderHeaderAsync(exam.RadiologyRequest);
         }
 
         await _unitOfWork.SaveChangesAsync();
@@ -797,6 +818,21 @@ public partial class RISCompleteService
         {
             var notePrefix = string.IsNullOrWhiteSpace(exam.RadiologyRequest.Notes) ? "" : exam.RadiologyRequest.Notes + "\n";
             exam.RadiologyRequest.Notes = notePrefix + $"[Hủy duyệt] {reason}";
+        }
+        // QA-R11: undo what SyncApprovedReportToSourceOrderAsync mirrored onto the clinical order line — otherwise
+        // EMR/CDA/dashboard (which read the SRD) keep showing the withdrawn result as "done / reviewed".
+        if (exam?.RadiologyRequest?.SourceServiceRequestDetailId is Guid srdId)
+        {
+            var srd = await _context.ServiceRequestDetails.FindAsync(srdId);
+            if (srd != null && srd.Status == 2 && srd.ReviewedAt != null)
+            {
+                srd.Status = 1;
+                srd.Result = null;
+                srd.ResultDescription = null;
+                srd.Conclusion = null;
+                srd.ResultDate = null;
+                srd.ReviewedAt = null;
+            }
         }
 
         await _unitOfWork.SaveChangesAsync();
@@ -861,6 +897,10 @@ public partial class RISCompleteService
         sb.AppendLine(@"<div class=""form-title"">PHIẾU KẾT QUẢ CHẨN ĐOÁN HÌNH ẢNH</div>");
         if (!approved)
             sb.AppendLine($@"<div class=""text-center text-bold"" style=""color:#c00;margin-bottom:8px"">KẾT QUẢ CHƯA DUYỆT CHÍNH THỨC ({E(RadiologyReportStatus.Label(report.Status))})</div>");
+        // QA-R11: a result re-approved after a cancel-approval printed exactly like the first version — the reader
+        // could not tell it had been amended. CancelApprovalAsync leaves "[Hủy duyệt] <lý do>" on the request.
+        else if (request.Notes != null && request.Notes.Contains("[Hủy duyệt]", StringComparison.Ordinal))
+            sb.AppendLine(@"<div class=""text-center text-bold"" style=""margin-bottom:8px"">KẾT QUẢ ĐÃ ĐIỀU CHỈNH (đã hủy duyệt và duyệt lại)</div>");
         if (patient != null)
             sb.AppendLine(PdfTemplateHelper.GetPatientInfoBlock(
                 patient.PatientCode, patient.FullName, patient.Gender, patient.DateOfBirth,

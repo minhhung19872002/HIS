@@ -6,7 +6,8 @@
  */
 import React, { useState } from 'react';
 import * as file from '../../../services/file.service';
-import { Form, Input, Checkbox, Button } from 'antd';
+import { Form, Checkbox, Button } from 'antd';
+import MedicalRecordPicker from '../../medical-record/components/MedicalRecordPicker';
 import {
   KpiStrip, DrawerShell, StatusBadge,
   tk, te, fmtDTg, fmtDMYg, fmtHMg,
@@ -31,7 +32,7 @@ const EmrHl7Export: React.FC = () => {
   const [result, setResult] = useState<Hl7ExportResponseDto | null>(null);
   const [running, setRunning] = useState(false);
   const [preview, setPreview] = useState(false);
-  const { errors, validate, clear } = useModalForm({ recordId: { required: true, label: 'HSBA ID hoặc Mã' } });
+  const { errors, validate, clear } = useModalForm({ recordId: { required: true, label: 'Hồ sơ bệnh án' } });
 
   const doExport = async () => {
     if (running) return;
@@ -96,12 +97,13 @@ const EmrHl7Export: React.FC = () => {
           }}>Tham số xuất HL7</h3>
 
           <Form layout="vertical">
-            <Field label="HSBA ID hoặc Mã" required error={errors.recordId} hint="UUID 36-ký tự hoặc mã HSBA dạng HSBA-xxxx-xxxxx">
-              <Input
+            {/* QA-R11: the hint promised "UUID hoặc mã HSBA" but the API binds a Guid — a code gave 400.
+                Pick the record by code / patient instead. */}
+            <Field label="Hồ sơ bệnh án" required error={errors.recordId} hint="Tìm theo mã HSBA, mã BN hoặc họ tên">
+              <MedicalRecordPicker
                 data-testid="hl7-export-record-id"
                 value={recordId}
-                onChange={e => { setRecordId(e.target.value); clear('recordId'); }}
-                placeholder="12345678-1234-… hoặc HSBA-1018-20100"
+                onChange={v => { setRecordId(v || ''); clear('recordId'); }}
               />
             </Field>
 

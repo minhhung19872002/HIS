@@ -83,7 +83,7 @@ export const LabDrawerBody: React.FC<{ r: LabRequest }> = ({ r }) => {
                     {!hasParams && t.unit && <small style={{ marginLeft: 'var(--space-3)', color: 'var(--t-2)', fontWeight: 400 }}>{t.unit}</small>}
                   </span>
                   <span className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
-                    {!hasParams && (t.referenceRange || (t.normalMin !== undefined && t.normalMax !== undefined ? `${t.normalMin}–${t.normalMax}` : '—'))}
+                    {!hasParams && (t.referenceRange || (t.normalMin != null && t.normalMax != null ? `${t.normalMin}–${t.normalMax}` : '—'))}
                   </span>
                   <span style={{ textAlign: 'center' }}>
                     {!hasParams && flag && (

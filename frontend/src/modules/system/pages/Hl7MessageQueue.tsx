@@ -16,6 +16,7 @@ import { friendlyErrorMessage } from '../../../utils/friendlyError';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { hl7QueueApi } from '../../../api/nangcap24';
 import type { Hl7MessageQueueDto } from '../../../api/nangcap24';
+import { getAnalyzers } from '../../laboratory/api/lis';
 
 const HL7Q_STATUS = [
   { v: 'pending'  as const, l: 'Chờ gửi',    tone: 'warn' as const },
@@ -26,6 +27,7 @@ const HL7Q_STATUS = [
   { v: 'failed'   as const, l: 'Lỗi',        tone: 'crit' as const },
   // Inbound analyzer ORU that matched no analyzer (HL7ReceiverService) — needs manual mapping.
   { v: 'unrouted' as const, l: 'Chưa gán máy XN', tone: 'crit' as const },
+  { v: 'processed' as const, l: 'Đã gán máy XN', tone: 'ok' as const },
 ];
 type Hl7StatusKey = (typeof HL7Q_STATUS)[number]['v'];
 
@@ -51,7 +53,34 @@ const Hl7MessageQueue: React.FC = () => {
   const [enqueueModal, setEnqueueModal] = useState(false);
   const [retryBusy, setRetryBusy] = useState(false);
   const [enqueueBusy, setEnqueueBusy] = useState(false);
+  const [assignFor, setAssignFor] = useState<Hl7MessageQueueDto | null>(null);
+  const [assignAnalyzerId, setAssignAnalyzerId] = useState<string>();
+  const [assignBusy, setAssignBusy] = useState(false);
+  const [analyzers, setAnalyzers] = useState<{ id: string; code: string; name: string }[]>([]);
   const [form] = Form.useForm();
+
+  const openAssign = async (r: Hl7MessageQueueDto) => {
+    setAssignFor(r);
+    setAssignAnalyzerId(undefined);
+    if (analyzers.length === 0) {
+      try {
+        const res = await getAnalyzers(undefined, true);
+        setAnalyzers((res.data ?? []).map(a => ({ id: a.id, code: a.code, name: a.name })));
+      } catch (e) { tw(friendlyErrorMessage(e, 'Không tải được danh sách máy xét nghiệm')); }
+    }
+  };
+  const assign = async () => {
+    if (!assignFor || !assignAnalyzerId || assignBusy) return;
+    setAssignBusy(true);
+    try {
+      const r = await hl7QueueApi.assignAnalyzer(assignFor.id, assignAnalyzerId);
+      tk(`Đã gán máy XN · ${r.messageControlId}`);
+      setAssignFor(null);
+      setDetail(null);
+      load();
+    } catch (e) { te(friendlyErrorMessage(e, 'Gán máy XN thất bại')); }
+    finally { setAssignBusy(false); }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -183,6 +212,9 @@ const Hl7MessageQueue: React.FC = () => {
       {(r.status === 'failed' || r.status === 'pending') && (
         <ActBtn ic="refresh" title="Retry" loading={retryBusy} onClick={() => retry(r)} />
       )}
+      {r.status === 'unrouted' && (
+        <ActBtn ic="flask" title="Gán máy XN" onClick={() => openAssign(r)} />
+      )}
     </div>
   );
 
@@ -211,9 +243,12 @@ const Hl7MessageQueue: React.FC = () => {
         >
           <TermIcon name="alert" size={12} /> Retry tất cả lỗi
         </Button>
-        <Button type="primary" size="small" onClick={() => setEnqueueModal(true)} data-testid="enqueue-demo-btn">
-          <TermIcon name="plus" size={12} /> Thêm demo
-        </Button>
+        {/* QA-R11: dev-only test helper (BE endpoint is [DevelopmentOnly]) — was visible on prod. */}
+        {import.meta.env.DEV && (
+          <Button type="primary" size="small" onClick={() => setEnqueueModal(true)} data-testid="enqueue-demo-btn">
+            <TermIcon name="plus" size={12} /> Thêm demo
+          </Button>
+        )}
       </div>
 
       <StatusTabs
@@ -239,6 +274,9 @@ const Hl7MessageQueue: React.FC = () => {
               <Button type="primary" disabled={retryBusy} onClick={() => { retry(detail); setDetail(null); }}>
                 <TermIcon name="refresh" size={12} /> Gửi lại ngay
               </Button>
+            )}
+            {detail.status === 'unrouted' && (
+              <Button type="primary" onClick={() => openAssign(detail)}>Gán máy XN</Button>
             )}
           </>
         )}
@@ -284,6 +322,44 @@ const Hl7MessageQueue: React.FC = () => {
         })()}
       </DrawerShell>
 
+      {/* Assign an unrouted inbound ORU to an analyzer */}
+      <ModalShell
+        open={!!assignFor}
+        onClose={() => setAssignFor(null)}
+        title={`Gán máy XN · ${assignFor?.messageControlId ?? ''}`}
+        size="md"
+        footer={(
+          <>
+            <Button onClick={() => setAssignFor(null)} disabled={assignBusy}>Hủy</Button>
+            <Button type="primary" disabled={!assignAnalyzerId || assignBusy} loading={assignBusy} onClick={assign}
+              data-testid="hl7-assign-ok">
+              Gán và xử lý kết quả
+            </Button>
+          </>
+        )}
+      >
+        <div style={{ padding: 'var(--space-18)' }}>
+          {assignFor?.errorMessage && (
+            <div style={{ marginBottom: 'var(--space-12)', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>
+              Lý do chưa gán: {assignFor.errorMessage}
+            </div>
+          )}
+          <Select
+            style={{ width: '100%' }}
+            placeholder="Chọn máy xét nghiệm đã gửi bản tin"
+            value={assignAnalyzerId}
+            onChange={setAssignAnalyzerId}
+            showSearch
+            optionFilterProp="label"
+            options={analyzers.map(a => ({ value: a.id, label: `${a.code} · ${a.name}` }))}
+            data-testid="hl7-assign-analyzer"
+          />
+          <div style={{ marginTop: 'var(--space-8)', color: 'var(--t-3)', fontSize: 'var(--fs-xs)' }}>
+            Kết quả sẽ được ghép với mẫu theo barcode + mã xét nghiệm như khi máy gửi trực tiếp; kết quả đã duyệt không bị ghi đè.
+          </div>
+        </div>
+      </ModalShell>
+
       {/* Enqueue modal */}
       <ModalShell
         open={enqueueModal}
@@ -301,7 +377,7 @@ const Hl7MessageQueue: React.FC = () => {
           <Form
             form={form}
             layout="vertical"
-            initialValues={{ direction: 'outbound', source: 'HIS', target: 'RIS', messageType: 'ORM^O01', payload: DEMO_PAYLOAD, endpoint: 'tcp://ris.bvhungyen:2575' }}
+            initialValues={{ direction: 'outbound', source: 'HIS', target: 'RIS', messageType: 'ORM^O01', payload: DEMO_PAYLOAD, endpoint: '' }}
           >
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
               <Form.Item name="direction" label="Hướng">

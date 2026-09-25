@@ -49,7 +49,8 @@ const RisDispatcherV2: React.FC = () => {
   const loadFavorites = useCallback(async () => {
     try {
       const res = await getFavorites();
-      setFavSet(new Set(res.data.map((f) => f.requestId)));
+      // QA-R11: rows are keyed by serviceRequestDetailId — include it so pins survive a reload.
+      setFavSet(new Set(res.data.flatMap((f) => (f.serviceRequestDetailId ? [f.requestId, f.serviceRequestDetailId] : [f.requestId]))));
     } catch (e) {
       // Đánh dấu yêu thích là tính năng phụ — không chặn nghiệp vụ, nhưng vẫn phải báo
       tw(friendlyErrorMessage(e, 'Không tải được danh sách chỉ định yêu thích'));
@@ -128,7 +129,7 @@ const RisDispatcherV2: React.FC = () => {
         return next;
       });
       if (toggled.isFavorited) { tk('Da ghim ca chup'); } else { ti('Da bo ghim'); }
-    } catch { tw('Loi ghim ca chup'); }
+    } catch (e) { tw(friendlyErrorMessage(e, 'Lỗi ghim ca chụp')); }
   };
 
   const markArrived = async (id: string) => {

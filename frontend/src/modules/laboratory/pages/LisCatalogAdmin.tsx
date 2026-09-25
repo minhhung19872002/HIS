@@ -10,6 +10,7 @@ import {
   tk, ti, tw, cf, type ColumnDef,
 } from '@/_v2kit';
 import { RefreshButton } from '../../../components/actions/RefreshButton/RefreshButton';
+import { friendlyErrorMessage } from '../../../utils/friendlyError';
 
 type TabKey = 'books' | 'groups' | 'units' | 'organisms' | 'antibiotics' | 'chemicals' | 'abbr' | 'tests' | 'sendingunits';
 const TABS = [
@@ -107,7 +108,7 @@ const LisCatalogAdminV2: React.FC = () => {
       }
       tk(editing ? 'Đã cập nhật' : 'Đã thêm'); setModalOpen(false); load();
     }
-    catch { tw('Lưu thất bại'); }
+    catch (e) { tw(friendlyErrorMessage(e, 'Lưu thất bại')); }
     finally { setSaving(false); }
   };
 
@@ -118,7 +119,7 @@ const LisCatalogAdminV2: React.FC = () => {
       else await apiClient.delete(`/lis-catalog/${tab}/${row.id}`);
       tk('Đã xóa'); load();
     }
-    catch { tw('Xóa thất bại'); }
+    catch (e) { tw(friendlyErrorMessage(e, 'Xóa thất bại')); }
   }, { tone: 'crit', confirm: 'Xóa' });
 
   const openAdd = () => { setEditing(null); form.resetFields(); setModalOpen(true); };

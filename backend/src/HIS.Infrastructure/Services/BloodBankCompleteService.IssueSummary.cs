@@ -129,8 +129,7 @@ namespace HIS.Infrastructure.Services
 
         public async Task<byte[]> PrintBloodIssueByPatientAsync(Guid patientId, DateTime fromDate, DateTime toDate)
         {
-            var data = await GetBloodIssueByPatientAsync(patientId, fromDate, toDate);
-            if (data == null) return Encoding.UTF8.GetBytes("<html><body>Not found</body></html>");
+            var data = await GetBloodIssueByPatientAsync(patientId, fromDate, toDate); // throws for unknown/deleted patient
 
             var sb = new StringBuilder();
             sb.AppendLine("<!DOCTYPE html><html><head><meta charset='utf-8'/><title>Phieu linh mau benh nhan</title>");
@@ -152,9 +151,24 @@ namespace HIS.Infrastructure.Services
 
         public async Task<BloodIssueByPatientDto> GetBloodIssueByPatientAsync(Guid patientId, DateTime fromDate, DateTime toDate)
         {
+            // QA-R11: an unknown/deleted patient answered 200 with an empty sheet, and the demographics (group, age,
+            // gender) were never filled; bags transfused through a blood ORDER (not an issue receipt) were missing and
+            // every row said "Issued" whatever happened to the bag afterwards.
+            var patient = await _context.Patients.AsNoTracking()
+                .Where(p => p.Id == patientId && !p.IsDeleted)
+                .Select(p => new { p.PatientCode, p.FullName, p.DateOfBirth, p.Gender, p.BloodType, p.RhFactor })
+                .FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException("Không tìm thấy bệnh nhân.");
+            toDate = InclusiveEndOfDay(toDate);
             var result = new BloodIssueByPatientDto
             {
                 PatientId = patientId,
+                PatientCode = patient.PatientCode,
+                PatientName = patient.FullName,
+                Age = patient.DateOfBirth.HasValue ? Math.Max(0, (int)((DateTime.Today - patient.DateOfBirth.Value.Date).TotalDays / 365.25)) : 0,
+                Gender = patient.Gender == 1 ? "Nam" : patient.Gender == 2 ? "Nữ" : "",
+                BloodType = patient.BloodType,
+                RhFactor = patient.RhFactor,
                 Items = new List<BloodIssueByPatientItemDto>()
             };
 
@@ -168,11 +182,21 @@ namespace HIS.Infrastructure.Services
             using (var cmd = connection.CreateCommand())
             {
                 cmd.CommandText = @"SELECT i.BagCode, i.ProductTypeName, i.Volume, r.IssueDate,
-                    i.PatientCode, i.PatientName
+                    i.PatientCode, i.PatientName, b.Status AS BagStatus, CAST(NULL AS datetime2) AS TransfusionDate
                     FROM BloodIssueItems i
                     INNER JOIN BloodIssueReceipts r ON i.ReceiptId = r.Id
+                    LEFT JOIN BloodBags b ON b.BagCode = i.BagCode
                     WHERE i.PatientId = @patientId AND r.IssueDate >= @from AND r.IssueDate <= @to
-                    ORDER BY r.IssueDate DESC";
+                    UNION ALL
+                    SELECT a.BagCode, oi.ProductTypeName, a.Volume, o.OrderDate,
+                    o.PatientCode, o.PatientName, a.TransfusionStatus, a.TransfusionStartTime
+                    FROM BloodBagAssignments a
+                    INNER JOIN BloodOrderItems oi ON oi.Id = a.OrderItemId
+                    INNER JOIN BloodOrders o ON o.Id = oi.OrderId
+                    WHERE o.PatientId = @patientId AND a.TransfusionStatus IN ('Transfusing','Completed','Returned')
+                      AND COALESCE(a.TransfusionStartTime, o.OrderDate) >= @from
+                      AND COALESCE(a.TransfusionStartTime, o.OrderDate) <= @to
+                    ORDER BY IssueDate DESC";
                 cmd.Parameters.Add(new SqlParameter("@patientId", patientId));
                 cmd.Parameters.Add(new SqlParameter("@from", fromDate));
                 cmd.Parameters.Add(new SqlParameter("@to", toDate));
@@ -180,19 +204,15 @@ namespace HIS.Infrastructure.Services
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
-                    if (string.IsNullOrEmpty(result.PatientCode))
-                    {
-                        result.PatientCode = reader["PatientCode"]?.ToString();
-                        result.PatientName = reader["PatientName"]?.ToString();
-                    }
+                    var tdOrd = reader.GetOrdinal("TransfusionDate");
                     result.Items.Add(new BloodIssueByPatientItemDto
                     {
                         IssueDate = reader.GetDateTime(reader.GetOrdinal("IssueDate")),
                         BagCode = reader["BagCode"]?.ToString(),
                         ProductTypeName = reader["ProductTypeName"]?.ToString(),
                         Volume = reader.IsDBNull(reader.GetOrdinal("Volume")) ? 0 : reader.GetDecimal(reader.GetOrdinal("Volume")),
-                        TransfusionStatus = "Issued",
-                        TransfusionDate = null
+                        TransfusionStatus = reader.IsDBNull(reader.GetOrdinal("BagStatus")) ? "Issued" : reader["BagStatus"].ToString(),
+                        TransfusionDate = reader.IsDBNull(tdOrd) ? null : reader.GetDateTime(tdOrd)
                     });
                 }
             }

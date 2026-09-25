@@ -85,7 +85,9 @@ public sealed class MppsProcessor : IMppsProcessor
                     dataset.GetSingleValueOrDefault(DicomTag.PerformedProcedureStepStartDate, string.Empty),
                     dataset.GetSingleValueOrDefault(DicomTag.PerformedProcedureStepStartTime, string.Empty))
                     ?? exam.StartTime ?? DateTime.UtcNow;
-                exam.RadiologyRequest.Status = 2;
+                // QA-R11: forward only — a re-sent N-CREATE/N-SET (modality reopens the step) dragged a
+                // Reported(4)/Approved(5) request back to InProgress while its report stayed approved.
+                exam.RadiologyRequest.Status = Math.Max(exam.RadiologyRequest.Status, 2);
                 break;
             case "COMPLETED":
                 exam.Status = 2;

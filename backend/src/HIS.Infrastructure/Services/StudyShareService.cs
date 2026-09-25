@@ -74,13 +74,28 @@ public class StudyShareService : IStudyShareService
                 "Tính năng 'Ẩn thông tin bệnh nhân' ở mức DICOM tag chưa được hỗ trợ. " +
                 "Nếu cần ẩn thông tin BN mức ảnh, liên hệ quản trị hệ thống.");
 
+        // QA-R11: PatientId came from the client unchecked — a link could put any patient's NAME on the public page
+        // (AccessAsync returns Patient.FullName) next to someone else's images. The owner of the study is taken
+        // from the RIS record; a study unknown to the RIS gets no patient attached at all.
+        var uid = dto.StudyInstanceUID.Trim();
+        var studyPatientIds = await _db.DicomStudies.AsNoTracking()
+            .Where(s => s.StudyInstanceUID == uid && !s.IsDeleted)
+            .Select(s => (Guid?)s.RadiologyExam.RadiologyRequest.PatientId)
+            .Distinct()
+            .ToListAsync();
+        if (studyPatientIds.Count > 1)
+            return ServiceOutcome.Bad("Ca chụp này gắn với nhiều bệnh nhân khác nhau trong RIS — kiểm tra lại trước khi chia sẻ.");
+        var ownerId = studyPatientIds.FirstOrDefault();
+        if (dto.PatientId.HasValue && ownerId.HasValue && dto.PatientId.Value != ownerId.Value)
+            return ServiceOutcome.Bad("Bệnh nhân không khớp với ca chụp cần chia sẻ.");
+
         var link = new StudyShareLink
         {
             Id = Guid.NewGuid(),
             Token = GenerateToken(),
-            StudyInstanceUID = dto.StudyInstanceUID,
+            StudyInstanceUID = uid,
             OrthancStudyId = dto.OrthancStudyId,
-            PatientId = dto.PatientId,
+            PatientId = ownerId,
             PasswordHash = !string.IsNullOrWhiteSpace(dto.Password) ? BCrypt.Net.BCrypt.HashPassword(dto.Password) : null,
             HideDemographics = false, // luôn false cho đến khi implement Orthanc anonymize at share-time
             ExpiresAt = dto.ExpiresInMinutes.HasValue

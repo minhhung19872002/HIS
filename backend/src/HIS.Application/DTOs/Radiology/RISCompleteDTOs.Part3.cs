@@ -624,9 +624,11 @@ public class SkipPatientRequest
     {
         public Guid SessionId { get; set; }
         public Guid? CaseId { get; set; }
-        public string MessageType { get; set; }
+        // QA-R11: non-nullable → implicitly [Required] → every text comment was rejected with 400
+        // ("MessageType/AttachmentBase64 field is required"). The service already defaults MessageType to "Text".
+        public string? MessageType { get; set; }
         public string Content { get; set; }
-        public string AttachmentBase64 { get; set; }
+        public string? AttachmentBase64 { get; set; }
     }
 
     /// <summary>

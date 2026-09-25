@@ -178,8 +178,9 @@ public class SpecimenImageController : ControllerBase
 
     // ─── Serve file ───────────────────────────────────────────────────
 
+    // QA-R11: was [AllowAnonymous] — microscope/specimen photos of a patient readable by anyone with the URL.
+    // No page renders these with a bare <img src>; clients must fetch with the bearer token (blob URL).
     [HttpGet("file/{fileName}")]
-    [AllowAnonymous]
     public IActionResult GetFile(string fileName)
     {
         // Chống path traversal

@@ -330,6 +330,8 @@ export interface RadiologyFavoriteDto {
   id: string;
   userId: string;
   requestId: string;
+  /** Order line the RIS request was bridged from (RisDispatcher rows are keyed by it). */
+  serviceRequestDetailId?: string | null;
   requestCode: string;
   patientName: string;
   patientCode: string;

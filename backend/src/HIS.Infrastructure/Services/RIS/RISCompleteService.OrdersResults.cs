@@ -62,12 +62,17 @@ public partial class RISCompleteService
             int statusInt;
             if (!int.TryParse(status, out statusInt))
             {
+                // QA-R11: names were off by one vs RadiologyRequest.Status (0 Pending, 1 Scheduled, 2 InProgress,
+                // 3 Completed, 4 Reported, 5 Approved, 6 Cancelled) — "completed" returned in-progress rows.
                 statusInt = status.ToLower() switch
                 {
                     "pending" => 0,
-                    "inprogress" => 1,
-                    "completed" => 2,
-                    "cancelled" => 3,
+                    "scheduled" => 1,
+                    "inprogress" => 2,
+                    "completed" => 3,
+                    "reported" => 4,
+                    "approved" => 5,
+                    "cancelled" => 6,
                     _ => -1
                 };
             }
@@ -326,14 +331,35 @@ public partial class RISCompleteService
 
     public async Task<RadiologyResultDto> ChangeResultTemplateAsync(ChangeResultTemplateDto dto)
     {
-        var template = GetDefaultTemplates().FirstOrDefault(t => t.Id == dto.NewTemplateId);
+        // QA-R11: looked only at the built-in sample list, so every template the hospital saved (the
+        // RadiologyReportTemplates table, #218/T3) came back empty; "keep existing content" returned "".
+        var saved = await TemplateQuery().FirstOrDefaultAsync(t => t.Id == dto.NewTemplateId);
+        var template = saved != null ? ToTemplateDto(saved)
+            : GetDefaultTemplates().FirstOrDefault(t => t.Id == dto.NewTemplateId)
+              ?? throw new KeyNotFoundException("Không tìm thấy mẫu kết quả");
+
+        if (dto.KeepExistingContent)
+        {
+            var current = await _context.RadiologyReports.AsNoTracking()
+                .Where(r => r.RadiologyExam.RadiologyRequestId == dto.OrderItemId && !r.IsDeleted)
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new { r.Findings, r.Impression, r.Recommendations })
+                .FirstOrDefaultAsync();
+            return new RadiologyResultDto
+            {
+                OrderItemId = dto.OrderItemId,
+                Description = current?.Findings ?? template.DescriptionTemplate,
+                Conclusion = current?.Impression ?? template.ConclusionTemplate,
+                Note = current?.Recommendations ?? template.NoteTemplate
+            };
+        }
 
         return new RadiologyResultDto
         {
             OrderItemId = dto.OrderItemId,
-            Description = dto.KeepExistingContent ? "" : template?.DescriptionTemplate,
-            Conclusion = dto.KeepExistingContent ? "" : template?.ConclusionTemplate,
-            Note = dto.KeepExistingContent ? "" : template?.NoteTemplate
+            Description = template.DescriptionTemplate,
+            Conclusion = template.ConclusionTemplate,
+            Note = template.NoteTemplate
         };
     }
 
@@ -501,24 +527,16 @@ public partial class RISCompleteService
         };
     }
 
-    public async Task<AttachedImageDto> AttachImageAsync(AttachImageDto dto)
-    {
-        return new AttachedImageDto
-        {
-            Id = Guid.NewGuid(),
-            FileName = dto.FileName,
-            FileType = dto.FileType,
-            Description = dto.Description,
-            SortOrder = dto.SortOrder,
-            DicomStudyUID = dto.DicomStudyUID,
-            DicomSeriesUID = dto.DicomSeriesUID,
-            DicomInstanceUID = dto.DicomInstanceUID
-        };
-    }
+    // QA-R11: both used to answer success without storing/removing anything (no table for attached report
+    // images). Say so instead of pretending; key images (RISCompleteController.Viewer key-images) and non-DICOM
+    // capture (/api/non-dicom) are the working ways to attach pictures to a study.
+    private const string AttachImageNotSupported =
+        "Đính kèm ảnh vào phiếu kết quả CĐHA chưa được hỗ trợ (chưa có bảng lưu) — dùng \"Ảnh key\" trong DICOM viewer hoặc chụp ảnh non-DICOM.";
 
-    public async Task<bool> RemoveAttachedImageAsync(Guid imageId)
-    {
-        return await Task.FromResult(true);
-    }
+    public Task<AttachedImageDto> AttachImageAsync(AttachImageDto dto)
+        => throw new InvalidOperationException(AttachImageNotSupported);
+
+    public Task<bool> RemoveAttachedImageAsync(Guid imageId)
+        => throw new InvalidOperationException(AttachImageNotSupported);
     #endregion
 }

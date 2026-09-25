@@ -9,12 +9,13 @@ import dayjs from 'dayjs';
 import { Button } from 'antd';
 import {
   KpiStrip, DataTable, SearchBox, DrawerShell, Filter, Pager, StatusBadge,
-  te, fmtDTg,
+  te, tw, fmtDTg,
 } from '@/_v2kit';
 import type { ColumnDef } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { dicomStudyLogApi } from '../../../api/nangcap24';
 import type { DicomStudyActivityLogDto } from '../../../api/nangcap24';
+import { downloadCsv, csvLine } from '../../../utils/csvExport';
 
 type Tone = 'ok' | 'info' | 'warn' | 'crit';
 
@@ -74,6 +75,18 @@ const DicomStudyAuditLog: React.FC = () => {
   };
 
   const totalPages = Math.max(1, Math.ceil(rows.length / PER));
+
+  // QA-R11: nút "Xuất CSV" trước đây không có handler — xuất đúng các dòng log đang lọc.
+  const exportCsv = () => {
+    if (!rows.length) { tw('Không có dữ liệu để xuất'); return; }
+    downloadCsv(`dicom-study-audit_${fromDate}_${toDate}.csv`, [
+      csvLine(['Study UID', 'Hành động', 'Người thực hiện', 'Máy', 'IP', 'Chi tiết', 'Thời gian']),
+      ...rows.map((r) => csvLine([
+        r.studyInstanceUid, DSL_ACTIONS[r.action]?.label ?? r.actionLabel ?? r.action,
+        r.performedByName ?? '(System)', r.machineName ?? '', r.ipAddress ?? '', r.actionDetails ?? '', fmtDTg(r.performedAt),
+      ])),
+    ]);
+  };
 
   const uniqueStudies = new Set(rows.map(r => r.studyInstanceUid)).size;
   const uniqueUsers = new Set(rows.filter(r => r.performedByName && !r.performedByName.includes('auto') && !r.performedByName.includes('System')).map(r => r.performedByName)).size;
@@ -142,7 +155,7 @@ const DicomStudyAuditLog: React.FC = () => {
           <TermIcon name="search" size={12} /> Lọc
         </Button>
         <span className="spacer" style={{ flex: 1 }} />
-        <Button size="small"><TermIcon name="download" size={12} /> Xuất CSV</Button>
+        <Button size="small" onClick={exportCsv}><TermIcon name="download" size={12} /> Xuất CSV</Button>
       </div>
 
       <DataTable

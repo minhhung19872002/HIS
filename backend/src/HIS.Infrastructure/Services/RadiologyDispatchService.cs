@@ -126,7 +126,7 @@ public class RadiologyDispatchService : IRadiologyDispatchService
                     TotalAmount = srd.Amount,
                     InsuranceAmount = srd.InsuranceAmount,
                     PatientAmount = srd.PatientAmount,
-                    IsPaid = false,
+                    IsPaid = sr?.IsPaid ?? false, // QA-R11: was hard-coded false — a paid X-ray showed as unpaid in RIS
                     ScheduledDate = DateTime.Now,
                     SourceServiceRequestDetailId = srd.Id,
                     Notes = "Tạo tự động từ điều phối CĐHA (model 1)",

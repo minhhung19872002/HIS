@@ -30,7 +30,7 @@ public class EmrHl7ArchiveService : IEmrHl7ArchiveService
         var record = await _db.MedicalRecords
             .Include(m => m.Patient)
             .Include(m => m.Department)
-            .FirstOrDefaultAsync(m => m.Id == request.MedicalRecordId);
+            .FirstOrDefaultAsync(m => m.Id == request.MedicalRecordId && !m.IsDeleted); // QA-R11: deleted HSBA was exportable
         if (record == null) throw new KeyNotFoundException("Hồ sơ không tồn tại");
 
         var msgCount = 0;
@@ -167,7 +167,7 @@ public class EmrHl7ArchiveService : IEmrHl7ArchiveService
             MedicalRecordId = record.Id,
             MedicalRecordCode = record.MedicalRecordCode,
             Hl7Content = content,
-            FileName = $"HSBA_{record.MedicalRecordCode}_{DateTime.Now:yyyyMMdd}.hl7",
+            FileName = $"HSBA_{record.MedicalRecordCode}_{HIS.Core.Common.VnTime.NowVn:yyyyMMdd}.hl7", // QA-R11: server clock is UTC on prod
             MessageCount = msgCount,
             ContentSizeBytes = bytes,
             GeneratedAt = DateTime.UtcNow
@@ -176,7 +176,10 @@ public class EmrHl7ArchiveService : IEmrHl7ArchiveService
 
     private static string BuildMsh(string sendingApp, string sendingFac, string msgType, string ctrlId)
     {
-        var ts = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+        // QA-R11: MSH-7 was the UTC clock with no offset, while PV1-44 (admit time) and the other
+        // segments carry VN wall-clock business times — a receiver read the message as sent 7h earlier.
+        // VN time with an explicit +0700 offset (HL7 v2.5 TS allows the zone suffix).
+        var ts = HIS.Core.Common.VnTime.NowVn.ToString("yyyyMMddHHmmss") + "+0700";
         return $"MSH|^~\\&|{sendingApp}|{sendingFac}|EMR-ARCHIVE|HOSPITAL|{ts}||{msgType}|{ctrlId}|P|2.5";
     }
 
@@ -192,7 +195,10 @@ public class EmrHl7ArchiveService : IEmrHl7ArchiveService
     private static string BuildPv1(MedicalRecord rec)
     {
         // PatientType: 1-BHYT, 2-Viện phí, 3-Dịch vụ, 4-Khám SK
-        var patientClass = rec.DischargeDate.HasValue ? "I" : "O";
+        // QA-R11: PV1-2 was "I" whenever a discharge date existed — an outpatient visit closed with a
+        // discharge date became an inpatient stay, and an admitted patient still on the ward was "O".
+        // Use the record's treatment type (1 ngoại trú · 2 nội trú · 3 cấp cứu).
+        var patientClass = rec.TreatmentType == 2 ? "I" : rec.TreatmentType == 3 ? "E" : "O";
         var deptCode = rec.Department?.DepartmentCode ?? "";
         return $"PV1|1|{patientClass}|{deptCode}^^^^^^^^|||||||||||||||||{rec.MedicalRecordCode}||||||||||||||||||||||||||{rec.AdmissionDate:yyyyMMddHHmmss}|{rec.DischargeDate?.ToString("yyyyMMddHHmmss") ?? ""}";
     }

@@ -331,6 +331,17 @@ namespace HIS.API.Controllers
         }
 
         /// <summary>
+        /// Toàn bộ thảo luận của một phiên hội chẩn (QA-R11: service đã có nhưng chưa có route —
+        /// ngăn "Thảo luận" ở v2 Consultation luôn trống).
+        /// </summary>
+        [HttpGet("consultations/{sessionId}/discussions")]
+        public async Task<ActionResult<List<ConsultationDiscussionDto>>> GetSessionDiscussions(Guid sessionId)
+        {
+            var result = await _risService.GetSessionDiscussionsAsync(sessionId);
+            return Ok(result);
+        }
+
+        /// <summary>
         /// Xóa tin nhắn thảo luận
         /// </summary>
         [HttpDelete("consultations/discussions/{discussionId}")]

@@ -61,7 +61,8 @@ public partial class RISCompleteService
 
         config.ConfigName = dto.ConfigName;
         config.HL7Version = dto.HL7Version;
-        config.CDAVersion = dto.CDAVersion;
+        // QA-R11: the column is NOT NULL but the DTO field is optional — an edit without it failed 400 MISSING_REQUIRED.
+        config.CDAVersion = string.IsNullOrWhiteSpace(dto.CDAVersion) ? (string.IsNullOrWhiteSpace(config.CDAVersion) ? "R2" : config.CDAVersion) : dto.CDAVersion;
         config.ReceivingApplication = dto.ReceivingApplication;
         config.ReceivingFacility = dto.ReceivingFacility;
         config.SendingApplication = dto.SendingApplication;

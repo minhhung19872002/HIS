@@ -417,6 +417,8 @@ namespace HIS.Application.DTOs.Radiology
         public Guid Id { get; set; }
         public Guid UserId { get; set; }
         public Guid RequestId { get; set; }
+        /// <summary>QA-R11: order line the RIS request was bridged from (the dispatcher keys its rows by it).</summary>
+        public Guid? ServiceRequestDetailId { get; set; }
         public string RequestCode { get; set; }
         public string PatientName { get; set; }
         public string PatientCode { get; set; }

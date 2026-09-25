@@ -42,7 +42,7 @@ namespace HIS.Infrastructure.Services
 
             command.CommandText = sql;
             command.Parameters.Add(new SqlParameter("@fromDate", fromDate));
-            command.Parameters.Add(new SqlParameter("@toDate", toDate));
+            command.Parameters.Add(new SqlParameter("@toDate", InclusiveEndOfDay(toDate))); // QA-R11: whole day
             if (departmentId.HasValue)
                 command.Parameters.Add(new SqlParameter("@departmentId", departmentId.Value));
             if (patientId.HasValue)
@@ -204,16 +204,20 @@ namespace HIS.Infrastructure.Services
             var orderId = Guid.NewGuid();
             var orderCode = $"ORD{DateTime.Now:yyyyMMddHHmmss}";
 
+            // QA-R11: `x ?? (object)DBNull.Value` passed as a raw positional arg throws "no store type mapping for
+            // DBNull" whenever Diagnosis/ClinicalIndication/Note is empty — and the header was already written, leaving
+            // an order with no lines. Typed parameters + one transaction for header and lines.
+            await using var tx = await _context.Database.BeginTransactionAsync();
             await _context.Database.ExecuteSqlRawAsync(
                 @"INSERT INTO BloodOrders (Id, OrderCode, OrderDate, PatientId, PatientCode, PatientName, PatientBloodType, PatientRhFactor, VisitId, DepartmentId, DepartmentName, OrderDoctorName, Diagnosis, ClinicalIndication, Status, CreatedAt)
                 SELECT @p0, @p1, @p2, @p3, ISNULL(p.PatientCode, ''), ISNULL(p.FullName, ''),
                        ISNULL(p.BloodType, ''), ISNULL(p.RhFactor, ''), @p4, @p5, '', '', @p6, @p7, 'Pending', @p8
                 FROM (SELECT 1 AS x) one LEFT JOIN Patients p ON p.Id = @p3",
-                orderId, orderCode, DateTime.Now, dto.PatientId,
-                dto.VisitId, Guid.Empty,
-                dto.Diagnosis ?? (object)DBNull.Value,
-                dto.ClinicalIndication ?? (object)DBNull.Value,
-                DateTime.UtcNow); // CreatedAt = UTC audit column
+                P("@p0", orderId), P("@p1", orderCode), P("@p2", DateTime.Now), P("@p3", dto.PatientId),
+                P("@p4", dto.VisitId), P("@p5", Guid.Empty),
+                P("@p6", dto.Diagnosis),
+                P("@p7", dto.ClinicalIndication),
+                P("@p8", DateTime.UtcNow)); // CreatedAt = UTC audit column
 
             if (dto.Items != null)
             {
@@ -227,10 +231,11 @@ namespace HIS.Infrastructure.Services
                     await _context.Database.ExecuteSqlRawAsync(
                         @"INSERT INTO BloodOrderItems (Id, OrderId, ProductTypeId, ProductTypeName, BloodType, RhFactor, OrderedQuantity, IssuedQuantity, TransfusedQuantity, Status, Note)
                         VALUES (@p0, @p1, @p2, @p3, '', '', @p4, 0, 0, 'Pending', @p5)",
-                        itemId, orderId, item.ProductTypeId, ptName,
-                        item.Quantity, item.Note ?? (object)DBNull.Value);
+                        P("@p0", itemId), P("@p1", orderId), P("@p2", item.ProductTypeId), P("@p3", ptName),
+                        P("@p4", item.Quantity), P("@p5", item.Note));
                 }
             }
+            await tx.CommitAsync();
             return await GetBloodOrderAsync(orderId);
         }
 
@@ -401,13 +406,24 @@ namespace HIS.Infrastructure.Services
 
         public async Task<bool> RecordCrossMatchResultAsync(Guid orderItemId, Guid bloodBagId, string result, string note)
         {
+            // QA-R11: only before the transfusion starts. After start/complete this overwrote TransfusionNote (the
+            // recorded transfusion reaction) and back-filled a "Compatible" crossmatch dated after the transfusion.
             var rows = await _context.Database.ExecuteSqlRawAsync(
                 @"UPDATE BloodBagAssignments SET CrossMatchResult=@p0, CrossMatchDate=@p1, TransfusionNote=@p2
-                WHERE OrderItemId=@p3 AND BloodBagId=@p4",
+                WHERE OrderItemId=@p3 AND BloodBagId=@p4 AND TransfusionStatus='Reserved'",
                 P("@p0", result), P("@p1", DateTime.Now), P("@p2", note), P("@p3", orderItemId), P("@p4", bloodBagId));
-            // QA round 4: no matching assignment used to answer 200 with nothing written
             if (rows == 0)
-                throw new InvalidOperationException("Túi máu chưa được gán cho dòng chỉ định này, không ghi kết quả phản ứng chéo được.");
+            {
+                var status = await _context.Database
+                    .SqlQueryRaw<string>("SELECT TransfusionStatus AS Value FROM BloodBagAssignments WHERE OrderItemId={0} AND BloodBagId={1}",
+                        orderItemId, bloodBagId)
+                    .FirstOrDefaultAsync();
+                // QA round 4: no matching assignment used to answer 200 with nothing written
+                if (status == null)
+                    throw new InvalidOperationException("Túi máu chưa được gán cho dòng chỉ định này, không ghi kết quả phản ứng chéo được.");
+                throw new InvalidOperationException(
+                    $"Túi máu đã ở trạng thái truyền \"{status}\" — kết quả phản ứng chéo chỉ ghi được trước khi bắt đầu truyền.");
+            }
             return true;
         }
 

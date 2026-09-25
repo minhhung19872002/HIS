@@ -63,7 +63,8 @@ const RadiologyOpsV2: React.FC = () => {
   const [dispenseBusy, setDispenseBusy] = useState(false);
 
   const search = useCallback(async () => {
-    if (!keyword) return;
+    // QA-R11: an empty keyword used to return silently — the button looked dead.
+    if (!keyword.trim()) { tw('Nhập mã phiếu CĐHA / mã BN / tên BN để tìm'); return; }
     setLoading(true);
     try {
       // QA-R2: '/radiology/requests/search' and '/radiology/orders' do not exist (search always failed).

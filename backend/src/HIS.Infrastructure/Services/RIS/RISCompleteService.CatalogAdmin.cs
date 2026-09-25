@@ -212,6 +212,16 @@ public partial class RISCompleteService
             query = query.Where(r => r.RoomName.Contains(keyword) || r.RoomCode.Contains(keyword));
         }
 
+        // QA-R11: roomType (XRay/CT/MRI/Ultrasound/Endoscopy/ECG — the names this list returns) was
+        // accepted but never applied. Unknown names match nothing instead of silently returning all rooms.
+        if (!string.IsNullOrEmpty(roomType))
+        {
+            var roomTypeCode = ParseRoomType(roomType);
+            if (!string.Equals(GetRoomTypeName(roomTypeCode), roomType, StringComparison.OrdinalIgnoreCase))
+                return new List<RadiologyRoomDto>();
+            query = query.Where(r => r.RoomType == roomTypeCode);
+        }
+
         var rooms = await query.ToBoundedListAsync("RISCompleteService.GetRooms");
 
         return rooms.Select(r => new RadiologyRoomDto

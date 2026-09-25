@@ -20,7 +20,8 @@ public partial class SurgeryCompleteController
     public async Task<ActionResult<SurgeryBloodOrderDto>> GetBloodOrder(Guid surgeryId)
     {
         var result = await _surgeryService.GetBloodOrderAsync(surgeryId);
-        if (result == null) return NotFound(new { error = "NOT_FOUND", message = "Không tìm thấy dữ liệu." });
+        // QA-R11: "no blood ordered yet" is the normal state of most cases, not an error — was 404 on every row click.
+        if (result == null) return NoContent();
         return Ok(result);
     }
 
@@ -44,6 +45,17 @@ public partial class SurgeryCompleteController
     public async Task<ActionResult<SurgeryBloodOrderDto>> UpdateBloodOrder(Guid orderId, [FromBody] CreateBloodOrderDto dto)
     {
         var result = await _surgeryService.UpdateBloodOrderAsync(orderId, dto, GetUserId());
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Hủy yêu cầu máu của ca mổ (chỉ khi kho máu chưa duyệt) — QA-R11: service existed, no route
+    /// </summary>
+    [HttpDelete("blood-orders/{orderId}")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
+    public async Task<ActionResult<bool>> DeleteBloodOrder(Guid orderId)
+    {
+        var result = await _surgeryService.DeleteBloodOrderAsync(orderId, GetUserId());
         return Ok(result);
     }
 

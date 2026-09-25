@@ -166,9 +166,35 @@ public partial class RISCompleteService
         };
     }
 
+    private static string DisplayConfigKey(Guid roomId) => $"RIS.WaitingDisplay.{roomId:N}";
+
     public async Task<WaitingDisplayConfigDto> GetDisplayConfigAsync(Guid roomId)
     {
         var room = await _context.Rooms.FindAsync(roomId);
+
+        // QA-R11: return what was saved for this room (UpdateDisplayConfigAsync used to store nothing).
+        var key = DisplayConfigKey(roomId);
+        var stored = await _context.SystemConfigs.AsNoTracking()
+            .Where(c => c.ConfigKey == key && !c.IsDeleted)
+            .Select(c => c.ConfigValue)
+            .FirstOrDefaultAsync();
+        if (!string.IsNullOrWhiteSpace(stored))
+        {
+            try
+            {
+                var saved = JsonSerializer.Deserialize<WaitingDisplayConfigDto>(stored);
+                if (saved != null)
+                {
+                    saved.RoomId = roomId;
+                    saved.RoomName = room?.RoomName ?? "";
+                    return saved;
+                }
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogWarning(ex, "Invalid RIS waiting-display config for room {RoomId}", roomId);
+            }
+        }
 
         return new WaitingDisplayConfigDto
         {
@@ -187,10 +213,41 @@ public partial class RISCompleteService
         };
     }
 
+    /// <summary>QA-R11: persisted per room in SystemConfigs (was a no-op that answered success).</summary>
     public async Task<bool> UpdateDisplayConfigAsync(WaitingDisplayConfigDto config)
     {
-        // Store in database or configuration
-        return await Task.FromResult(true);
+        if (config == null || config.RoomId == Guid.Empty)
+            throw new ArgumentException("Thiếu phòng cần cấu hình màn hình chờ", nameof(config));
+        if (!await _context.Rooms.AnyAsync(r => r.Id == config.RoomId))
+            throw new KeyNotFoundException("Không tìm thấy phòng");
+        if (config.RefreshIntervalSeconds < 5 || config.RefreshIntervalSeconds > 3600)
+            throw new ArgumentException("Chu kỳ làm mới phải từ 5 đến 3600 giây", nameof(config.RefreshIntervalSeconds));
+
+        var key = DisplayConfigKey(config.RoomId);
+        var json = JsonSerializer.Serialize(config);
+        var entity = await _context.SystemConfigs.FirstOrDefaultAsync(c => c.ConfigKey == key);
+        if (entity == null)
+        {
+            _context.SystemConfigs.Add(new SystemConfig
+            {
+                Id = Guid.NewGuid(),
+                ConfigKey = key,
+                ConfigValue = json,
+                ConfigType = "JSON",
+                Description = "Cấu hình màn hình chờ phòng CĐHA",
+                IsActive = true,
+                CreatedAt = DateTime.Now,
+            });
+        }
+        else
+        {
+            entity.ConfigValue = json;
+            entity.IsDeleted = false;
+            entity.IsActive = true;
+            entity.UpdatedAt = DateTime.Now;
+        }
+        await _unitOfWork.SaveChangesAsync();
+        return true;
     }
 
     public async Task<bool> StartExamAsync(Guid orderId)

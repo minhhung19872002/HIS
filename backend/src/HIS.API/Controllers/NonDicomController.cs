@@ -96,8 +96,9 @@ public class NonDicomController : ControllerBase
         return Ok(new { uploaded = saved.Count, images = saved });
     }
 
+    // QA-R11: was [AllowAnonymous] (patient images readable by anyone holding the URL). The v2 page now
+    // fetches the file through apiClient with the bearer token and renders a blob URL.
     [HttpGet("image/{studyId:guid}/{fileName}")]
-    [AllowAnonymous]
     public IActionResult GetImage(Guid studyId, string fileName)
     {
         // #181: chống path-traversal — fileName phải là tên file thuần (không chứa thư mục / "..").

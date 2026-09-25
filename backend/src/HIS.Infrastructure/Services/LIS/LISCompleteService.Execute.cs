@@ -511,6 +511,7 @@ public partial class LISCompleteService {
 
         var items = await q
             .OrderByDescending(r => r.CreatedAt)
+            .ThenBy(r => r.Id) // QA-R11: deterministic paging
             .Skip(query.Page * query.PageSize)
             .Take(query.PageSize)
             .ToListAsync();

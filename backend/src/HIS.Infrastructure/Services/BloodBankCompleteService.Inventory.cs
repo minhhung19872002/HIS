@@ -39,7 +39,7 @@ namespace HIS.Infrastructure.Services
 
             command.CommandText = sql;
             command.Parameters.Add(new SqlParameter("@fromDate", fromDate));
-            command.Parameters.Add(new SqlParameter("@toDate", toDate));
+            command.Parameters.Add(new SqlParameter("@toDate", InclusiveEndOfDay(toDate))); // QA-R11: whole day
             if (!string.IsNullOrEmpty(status))
                 command.Parameters.Add(new SqlParameter("@status", status));
 
